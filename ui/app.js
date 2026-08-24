@@ -14,7 +14,6 @@ const DATA = {
     file: "cadera-gameplay-mlbb.mp4",
     duration: "2:22:46",
     layout: "double",
-    caption: ['nol retreat ', 'SAVAGE'],
     candidates: [],
     marks: [],
     cut: { title: "Savage Menit 41, Nol Retreat", in: "41:15.4", out: "41:29.6", dur: "14.3s" },
@@ -36,7 +35,6 @@ const DATA = {
     file: "radityadika-podcast.mp4",
     duration: "42:03",
     layout: "single",
-    caption: ['bukan investasi, ', 'INI JUDI'],
     candidates: [],
     marks: [],
     cut: { title: "Rugi 300 Juta karena Timing", in: "00:12.4", out: "01:07.1", dur: "54.7s" },
@@ -86,19 +84,74 @@ function buildQueue(daftar) {
 }
 
 /* id dipakai kode, label dibaca manusia. Dulu keduanya satu dan sama, jadi
-   mengganti tulisan "Ukuran" ikut mematikan captionValue("ukuran"). */
+   mengganti tulisan "Ukuran" ikut mematikan captionValue("ukuran").
+
+   Tiap pilihan punya tiga sisi:
+     t    tulisan di tombol
+     out  nilai yang DIKIRIM KE RENDER  (ukuran ASS, persen, warna ASS)
+     px   nilai untuk preview di layar, yang kotaknya jauh lebih kecil
+
+   Dulu yang ada cuma angka piksel preview, dan angka itu tidak pernah sampai
+   ke berkas hasil -- jadi mengubahnya tidak mengubah apa pun.
+
+   Warna ASS berformat &HAABBGGRR& (biru-hijau-merah, kebalikan hex web). */
 const CAPTION_OPTIONS = [
-  { id: "template", label: "Template", choices: ["Tebal tengah", "Bawah tipis", "Karaoke"], active: 0, value: "Tebal tengah" },
-  { id: "font", label: "Font", choices: ["Archivo", "Plex Mono"], active: 0, value: "Archivo" },
-  { id: "size", label: "Ukuran", choices: ["15", "17", "21"], active: 1, value: "17 px" },
-  { id: "highlight", label: "Highlight", choices: ["highlight", "putih"], active: 0, value: "highlight" },
-  { id: "position", label: "Posisi", choices: ["16", "24", "34"], active: 1, value: "24 % dari bawah" },
-  { id: "per-line", label: "Kata/baris", choices: ["2", "3", "4"], active: 1, value: "3" },
-  { id: "outline", label: "Outline", choices: ["0", "2", "4"], active: 1, value: "2 px" },
+  { id: "font", label: "Font", active: 0, choices: [
+      { t: "Arial", out: "Arial" },
+      { t: "Impact", out: "Impact" },
+      { t: "Verdana", out: "Verdana" }] },
+  { id: "size", label: "Ukuran", active: 1, choices: [
+      { t: "Kecil", out: 64, px: 14 },
+      { t: "Sedang", out: 84, px: 17 },
+      { t: "Besar", out: 108, px: 22 }] },
+  { id: "highlight", label: "Warna sorot", active: 0, choices: [
+      { t: "Emas", out: "&H0000D6FF&", css: "#FFD600" },
+      { t: "Putih", out: "&H00FFFFFF&", css: "#FFFFFF" },
+      { t: "Hijau", out: "&H0076E600&", css: "#00E676" },
+      { t: "Merah", out: "&H004040FF&", css: "#FF4040" }] },
+  { id: "position", label: "Posisi", active: 1, choices: [
+      { t: "Bawah", out: 16, px: 16 },
+      { t: "Tengah", out: 24, px: 24 },
+      { t: "Atas", out: 34, px: 34 }] },
+  { id: "per-line", label: "Kata/baris", active: 1, choices: [
+      { t: "2", out: 2 }, { t: "3", out: 3 }, { t: "4", out: 4 }] },
+  { id: "outline", label: "Outline", active: 1, choices: [
+      { t: "Tanpa", out: 0, px: 0 },
+      { t: "Sedang", out: 4, px: 2 },
+      { t: "Tebal", out: 8, px: 4 }] },
 ];
+
+/* Gaya caption yang dikirim ke server. Inilah yang membuat pengaturan di
+   layar Caption benar-benar mengubah berkas hasil. */
+function captionStyle() {
+  const nilai = (id) => {
+    const o = CAPTION_OPTIONS.find((x) => x.id === id);
+    return o ? o.choices[o.active] : null;
+  };
+  return {
+    font: nilai("font").out,
+    size: nilai("size").out,
+    highlight: nilai("highlight").out,
+    position: nilai("position").out,
+    per_line: nilai("per-line").out,
+    outline: nilai("outline").out,
+  };
+}
 
 let mode = "dialog";
 const $ = (s) => document.querySelector(s);
+
+/* mm:ss (atau j:mm:ss) dari detik. Dipakai framing, timeline, result, dan
+   riwayat -- jadi tempatnya di sini, di berkas yang dimuat paling awal.
+   Sebelumnya tinggal di result.js dan framing.js memakainya sebelum sempat
+   dideklarasikan, jadi layar Framing melempar galat saat halaman dimuat. */
+const jamRange = (d) => {
+  const t = Math.max(0, Math.round(d));
+  const j = Math.floor(t / 3600);
+  const m = String(Math.floor((t % 3600) / 60)).padStart(2, "0");
+  const s = String(t % 60).padStart(2, "0");
+  return j ? `${j}:${m}:${s}` : `${m}:${s}`;
+};
 
 
 /* ═════════════════════════ mode & navigasi tahap ═════════════════════════
@@ -125,12 +178,16 @@ const MODES = [
     badge: "Menyusul" },
 ];
 
+/* Hanya opsi yang BENAR-BENAR mengubah berkas hasil.
+   Dulu ada tiga lagi -- Jumlah klip, Durasi, Bahasa subtitle -- yang tidak
+   pernah dibaca kode mana pun. Kontrol yang berbohong lebih buruk daripada
+   kontrol yang tidak ada.
+
+   Jumlah dan panjang klip sekarang kamu tentukan sendiri di layar Edit:
+   sebanyak yang kamu masukkan ke result, sepanjang range yang kamu pilih. */
 const OPTIONS = [
-  { id: "count",   label: "Jumlah klip",      choices: ["5", "10", "15", "20"], active: 1, unit: "klip" },
-  { id: "duration",   label: "Durasi",           choices: ["15s", "30s", "60s", "Auto"], active: 3 },
-  { id: "format",   label: "Format",           choices: ["Wajah 9:16", "Blur 9:16", "Split 9:16", "Kotak 1:1"], active: 0 },
-  { id: "resolution", label: "Resolusi",         choices: ["720p", "1080p"], active: 1 },
-  { id: "subtitle", label: "Bahasa subtitle",  choices: ["Indonesia", "Inggris"], active: 0 },
+  { id: "format", label: "Format", choices: ["Wajah 9:16", "Blur 9:16"], active: 0 },
+  { id: "resolution", label: "Resolusi", choices: ["720p", "1080p"], active: 1 },
 ];
 
 const PROJECT = [
@@ -198,159 +255,15 @@ function pickMode(id) {
 }
 
 /* ───────────────────────── ribbon sumber ───────────────────────── */
-/* Lebar sapuan mengikuti skor: 2px di bawah 6.0, sampai 10px di 9.0+ */
-function markWidth(scores) {
-  if (scores >= 9) return 10;
-  if (scores >= 8) return 8;
-  if (scores >= 7) return 6;
-  if (scores >= 6) return 4;
-  return 2;
-}
 
-function renderRibbon() {
-  const d = DATA[mode];
-  $("#ribbonStrip").innerHTML = d.marks.map((m, i) => `
-    <button class="mark" style="left:${m.pos}%; --w:${markWidth(m.scores)}px; --d:${i * 45}ms"
-          data-label="${escapeHTML(m.label || "")}"
-          ${m.pos < 8 ? 'data-edge="left"' : m.pos > 92 ? 'data-edge="right"' : ""}
-          aria-label="Temuan di ${m.pos.toFixed(0)}% durasi, skor ${m.scores}"></button>`).join("");
-  $("#ribbonNote").textContent = `${d.marks.length} temuan`;
 
-  // Durasi ribbon harus dari file yang sedang dibuka, bukan angka contoh.
-  // Sumber kebenarannya, berurutan: transkrip nyata -> metadata file -> data contoh.
-  const totalSec =
-    (typeof realTranscript !== "undefined" && realTranscript && realTranscript.duration) ||
-    (typeof chosenSource !== "undefined" && chosenSource && chosenSource.duration) ||
-    null;
-  // Kalau durasinya belum diketahui, tampilkan strip. Menampilkan durasi
-  // video contoh di sini pernah membuat header dan ribbon bertabrakan.
-  $("#ribbonEnd").textContent =
-    Number.isFinite(totalSec) && totalSec > 0
-      ? (typeof fmtDuration === "function" ? fmtDuration(totalSec) : String(totalSec))
-      : "—";
-}
-
-/* ───────────────────────── kandidat ───────────────────── */
-function renderBoard() {
-  const d = DATA[mode];
-  const approved = d.candidates.filter((k) => k.status === "approved").length;
-  $("#boardNote").textContent = `${d.candidates.length} kandidat · ${approved} disetujui`;
-
-  if (!d.candidates.length) {
-    $("#board").innerHTML = `
-      <div class="empty">
-        <h2>Belum ada kandidat</h2>
-        <p>Ekspor berkas di layar Analisis, kerjakan di Claude, lalu impor
-           balasannya. Atau tekan <b>Buat klip manual</b> untuk menentukan
-           rentangnya sendiri.</p>
-      </div>`;
-    return;
-  }
-
-  $("#board").innerHTML = d.candidates.map((k, i) => {
-    // Number() lagi di sini sebagai jaring pengaman: kandidat juga bisa datang
-    // dari candidates.json lama yang tidak lewat importJSON.
-    const bar = (name, raw) => {
-      const value = Number.isFinite(Number(raw)) ? Number(raw) : 0;
-      return `
-      <div class="score-row">
-        <span>${name}</span>
-        <span class="score-bar"><i style="width:${value * 10}%"></i></span>
-        <span class="figure">${value.toFixed(1)}</span>
-      </div>`;
-    };
-
-    // Tiga status, tiga tampilan. Pil "siap render" dan tombol "Setujui"
-    // tidak pernah muncul bersamaan -- itu memberi tahu dua hal yang
-    // bertentangan tentang keadaan yang sama.
-    // data-action, bukan teks tombol: label boleh diganti kapan saja tanpa
-    // diam-diam mematikan persetujuan klip.
-    const action = k.status === "approved"
-      ? `<span class="pill-ready">Siap render</span><button class="btn quiet" data-action="reset">Batalkan</button>`
-      : k.status === "rejected"
-      ? `<button class="btn" data-action="reset">Kembalikan</button>`
-      : `<button class="btn main" data-action="approve">Setujui</button><button class="btn" data-action="reject">Tolak</button>`;
-
-    // Thumbnail diambil dari DETIK KLIPNYA, bukan frame generik: kartu harus
-    // menunjukkan wajah orang saat momen itu terjadi supaya bisa dipilih
-    // dengan sekali lihat.
-    const image = (k.startSec !== undefined && typeof chosenSource !== "undefined"
-                    && chosenSource)
-      ? `/api/thumb?video=${encodeURIComponent(chosenSource.name)}` +
-        `&t=${(k.startSec + 2).toFixed(1)}` +
-        (() => {
-          const c = typeof currentCrop === "function" ? currentCrop(k) : null;
-          return c ? `&left=${c.left.toFixed(1)}&top=${c.top.toFixed(1)}` +
-                     `&width=${c.width.toFixed(1)}&height=${c.height.toFixed(1)}` : "";
-        })()
-      : "";   // tanpa sumber, thumbnail dikosongkan -- lebih jujur daripada
-              // menampilkan frame dari video lain
-
-    return `
-      <article class="card ${k.status === "approved" ? "picked" : k.status === "rejected" ? "rejected" : ""}">
-        <div class="card-media">
-          <div class="thumb" style="background-image:url('${image}')"></div>
-          <span class="badge">${k.total.toFixed(1)}</span>
-        </div>
-        <div class="card-body">
-          <h2>${escapeHTML(k.title)}</h2>
-          <p class="quote"><span class="highlight">${escapeHTML(k.hook)}</span></p>
-          <div class="score">
-            ${bar("hook", k.scores.hook)}${bar("utuh", k.scores.complete)}${bar("payoff", k.scores.payoff)}
-          </div>
-        </div>
-        <div class="card-foot">
-          <span class="time">${escapeHTML(k.in)} · ${k.dur}s</span>
-          <span class="actions">${action}</span>
-        </div>
-      </article>`;
-  }).join("");
-}
-
-/* ───────────────────────── potong ────────────────────────────── */
-function renderCut() {
-  const d = DATA[mode];
-  if (!d.words || !d.words.length) {
-    $("#transcript").innerHTML =
-      `<p style="color:var(--teks-samar)">Belum ada klip yang dibuka.
-        Pilih kandidat, atau buat klip manual.</p>`;
-    $("#wave").innerHTML = "";
-    return;
-  }
-  $("#cutTitle").textContent = d.cut.title;
-  $("#cutDur").textContent = d.cut.dur;
-
-  // waveform: tinggi deterministik supaya tampilannya stabil antar-render
-  const n = 150;
-  let bar = "";
-  for (let i = 0; i < n; i++) {
-    const inside = i > n * 0.18 && i < n * 0.82;
-    const h = 12 + Math.abs(Math.sin(i * 0.7) * 26 + Math.sin(i * 0.19) * 16);
-    bar += `<i class="${inside ? "inside" : ""}" style="height:${inside ? h : h * 0.55}%"></i>`;
-  }
-  $("#wave").innerHTML = bar
-    + `<span class="edge-choice" style="left:18%"></span>`
-    + `<span class="edge-choice" style="left:82%"></span>`;
-
-  const wordsHTML = d.words.map(([t, inside]) => {
-    if (t === "|") return `<button class="gap" aria-label="Buang jeda 0.9 detik">⌫ 0.9s</button>`;
-    const suspect = d.suspect.includes(t) ? " suspect" : "";
-    // Roving tabindex: hanya satu kata yang masuk urutan Tab; sisanya dijangkau
-    // dengan panah kiri/kanan. Membuat 50 kata semuanya tabbable justru
-    // menjebak pengguna keyboard.
-    return `<span class="word${inside ? " inside" : " outside"}${suspect}" role="button" tabindex="-1">${escapeHTML(t)}</span> `;
-  }).join("");
-  $("#transcript").innerHTML = wordsHTML;
-  const first = $("#transcript .word");
-  if (first) first.tabIndex = 0;
-}
 
 /* ───────────────────────── daftar ────────────────────────────── */
 /* Antrian dipisah jadi dua: susunAntrian() menurunkan isinya dari klip yang
    disetujui, gambarAntrian() menggambar keadaan saat ini. Kalau digabung,
    menekan "Batalkan" akan langsung tertimpa oleh penurunan ulang. */
 function drawQueue() {
-  const head = document.querySelector('[data-screen="queue"] .note');
+  const head = document.querySelector('[data-screen="history"] .note');
   if (head) {
     const running = QUEUE.filter((r) => r.pct > 0 && r.pct < 100).length;
     const end = QUEUE.filter((r) => r.pct === 100).length;
@@ -391,9 +304,11 @@ function renderList() {
       <span class="eyebrow">${o.label}</span>
       <span style="display:flex;gap:var(--s2)">
         ${o.choices.map((p, i) => `
-          <button class="chip"${i === o.active ? ' aria-pressed="true"' : ""}>${p}</button>`).join("")}
+          <button class="chip"${i === o.active ? ' aria-pressed="true"' : ""}
+                  ${p.css ? `style="--titik:${p.css}"` : ""}
+                  data-pilih="${i}">${p.css ? '<i class="titik"></i>' : ""}${p.t}</button>`).join("")}
       </span>
-      <span class="meta">${o.value}</span>
+      <span class="meta">${o.choices[o.active].t}</span>
     </div>`).join("");
 }
 
@@ -412,7 +327,10 @@ function renderPreview() {
   const top = f.querySelector(".field.top");
   const main = f.querySelector(".field.main");
   f.dataset.layout = d.layout;
-  f.querySelector(".cap916").innerHTML = `${escapeHTML(d.caption[0])}<mark>${escapeHTML(d.caption[1])}</mark>`;
+  // Isi caption TIDAK ditulis di sini lagi. Dulu diisi teks peraga dari
+  // DATA[mode].caption, yang tidak ada hubungannya dengan klip yang sedang
+  // dilihat. Sekarang drawCaption() mengisinya dari transkrip asli.
+  if (typeof drawCaption === "function") drawCaption();
 
   top.dataset.tag = mode === "gameplay" ? "FACECAM ← CROP 2" : "";
   main.dataset.tag = mode === "gameplay" ? "GAMEPLAY ← CROP 1" : "VIDEO ← CROP";
@@ -423,14 +341,16 @@ function renderPreview() {
   // Isi bidang preview ditentukan oleh kotak crop, bukan gambar tetap.
   if (typeof refreshPreviewFromCrop === "function") refreshPreviewFromCrop();
 
-  const clip = d.candidates.find((k) => k.status === "approved") || d.candidates[0];
+  // Yang ditinjau di preview adalah RESULT, bukan kandidat. Papan kandidat
+  // dengan status setuju/tolak sudah tidak ada.
+  const clip = (typeof activeClip !== "undefined" && activeClip) ? activeClip : null;
 
   // Belum ada kandidat itu keadaan yang wajar, bukan kesalahan. Tanpa penjaga
   // ini seluruh rantai render berhenti diam-diam dan kartu mode jadi mati.
   if (!clip) {
     $("#clipInfo").innerHTML =
-      `<div><div class="eyebrow">Klip terpilih</div>
-        <div class="clip-title" style="color:var(--teks-samar)">belum ada</div></div>`;
+      `<div><div class="eyebrow">Result</div>
+        <div class="clip-title" style="color:var(--teks-samar)">masih kosong</div></div>`;
     return;
   }
 
@@ -441,7 +361,8 @@ function renderPreview() {
 
   $("#clipInfo").innerHTML = `
     <div>
-      <div class="eyebrow">Klip terpilih</div>
+      <div class="eyebrow">Result${clip.spans && clip.spans.length > 1
+        ? ` &middot; ${clip.spans.length} potongan` : ""}</div>
       <div class="clip-title">${escapeHTML(clip.title)}</div>
     </div>
     <div class="meter">
@@ -458,7 +379,7 @@ function renderPreview() {
 }
 
 /* ───────────────────────── navigasi ──────────────────────────── */
-const NO_PREVIEW = ["video", "analysis", "queue"];
+const NO_PREVIEW = ["video", "analysis", "history"];
 
 function toScreen(name) {
   document.querySelectorAll(".screen").forEach((s) =>
@@ -468,6 +389,16 @@ function toScreen(name) {
     t.setAttribute("aria-selected", String(active));
     t.tabIndex = active ? 0 : -1;   // roving tabindex sesuai pola ARIA tabs
   });
+
+  if (name === "history" && typeof muatRiwayat === "function") muatRiwayat();
+
+  if (name === "edit") {
+    if (typeof renderFraming === "function") setTimeout(renderFraming, 0);
+    if (typeof renderRecommendations === "function") renderRecommendations();
+    if (typeof renderResult === "function") renderResult();
+    if (typeof renderTeks === "function") renderTeks();
+    if (typeof drawTotalTimeline === "function") drawTotalTimeline();
+  }
 
   const hasPreview = !NO_PREVIEW.includes(name);
   $("#stage").classList.toggle("has-preview", hasPreview);
@@ -492,9 +423,7 @@ function renderAnalysis() {
 }
 
 function drawAll() {
-  renderRibbon(); renderBoard(); renderCut();
   renderList(); renderAnalysis(); renderPreview();
-  if (typeof renderReframe === "function") renderReframe();
 }
 
 /* ───────────────────────── pasang ────────────────────────────── */

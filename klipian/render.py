@@ -29,8 +29,12 @@ from .models import Transcript, Word
 
 @dataclass
 class Span:
+    """Satu potongan. `crop` opsional: kalau diisi, potongan ini dibingkai
+    sendiri -- itulah yang membuat framing bisa berpindah di tengah klip.
+    Kalau None, dipakai crop milik RenderJob."""
     start: float
     end: float
+    crop: "CropBox | None" = None
 
     @property
     def length(self) -> float:
@@ -102,11 +106,18 @@ def to_output_time(spans: list[Span], seconds: float) -> float | None:
 def build_ass(job: RenderJob, words: list[Word], style: dict | None = None) -> str:
     """Caption karaoke: satu peristiwa per kata, menampilkan barisnya utuh
     dengan kata yang sedang diucapkan disorot."""
+    # Warna ditulis dalam format ASS &HAABBGGRR& -- urutannya BIRU-HIJAU-MERAH,
+    # kebalikan dari hex web. Emas #FFD600 jadi &H0000D6FF&.
     g = {"font": "Arial", "size": 84, "per_line": 3,
-         "outline": 4, "position": 24, **(style or {})}
+         "outline": 4, "position": 24,
+         "color": "&H00FFFFFF&",          # warna dasar teks
+         "highlight": "&H0000D6FF&",      # warna kata yang sedang diucapkan
+         **(style or {})}
 
     W, H = job.out_width, job.out_height
     margin_bottom = int(H * g["position"] / 100)
+    # Baris Style memakai bentuk tanpa "&" penutup, tag \c memakai yang dengan.
+    warna_style = g["color"].rstrip("&")
 
     header = f"""[Script Info]
 ScriptType: v4.00+
@@ -117,7 +128,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, OutlineColour, BackColour, Bold, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Utama,{g['font']},{g['size']},&H00FFFFFF,&H00000000,&H80000000,1,1,{g['outline']},0,2,60,60,{margin_bottom},1
+Style: Utama,{g['font']},{g['size']},{warna_style},&H00000000,&H80000000,1,1,{g['outline']},0,2,60,60,{margin_bottom},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -142,7 +153,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
         for j, (a, b, _) in enumerate(group):
             text = " ".join(
-                (r"{\c&H00D6FF&}" + t + r"{\c&H00FFFFFF&}") if k == j else t
+                (r"{\c" + g["highlight"] + "}" + t + r"{\c" + g["color"] + "}") if k == j else t
                 for k, (_, _, t) in enumerate(group)
             )
             if j < len(group) - 1:
@@ -161,13 +172,31 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 # ffmpeg
 # --------------------------------------------------------------------------
 
-def _concat_filter(n: int) -> str:
+def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
+                   crop_dulu: bool) -> str:
     """Potong tiap bagian lalu sambung. setpts/asetpts wajib -- tanpa itu
-    potongan kedua mewarisi timestamp aslinya dan hasilnya melompat."""
+    potongan kedua mewarisi timestamp aslinya dan hasilnya melompat.
+
+    crop_dulu=True membingkai TIAP potongan sebelum disambung, bukan sesudah.
+    Itulah yang memungkinkan framing berpindah di tengah klip: potongan 1
+    menyorot orang kiri, potongan 2 menyorot orang kanan.
+    """
+    even = lambda v: max(2, int(v) // 2 * 2)
+    W, H = job.out_width, job.out_height
     parts = []
-    for i in range(n):
-        parts.append(f"[0:v]trim=start={{a{i}}}:end={{b{i}}},setpts=PTS-STARTPTS[v{i}]")
-        parts.append(f"[0:a]atrim=start={{a{i}}}:end={{b{i}}},asetpts=PTS-STARTPTS[a{i}]")
+    for i, span in enumerate(job.spans):
+        v = f"[0:v]trim=start={span.start:.3f}:end={span.end:.3f},setpts=PTS-STARTPTS"
+        if crop_dulu:
+            c = span.crop or job.crop
+            cw = even(src_width * c.width / 100)
+            ch = even(src_height * c.height / 100)
+            cx = even(src_width * c.left / 100)
+            cy = even(src_height * c.top / 100)
+            v += f",crop={cw}:{ch}:{cx}:{cy},scale={W}:{H},setsar=1"
+        parts.append(f"{v}[v{i}]")
+        parts.append(f"[0:a]atrim=start={span.start:.3f}:end={span.end:.3f},"
+                     f"asetpts=PTS-STARTPTS[a{i}]")
+    n = len(job.spans)
     inputs = "".join(f"[v{i}][a{i}]" for i in range(n))
     parts.append(f"{inputs}concat=n={n}:v=1:a=1[vc][ac]")
     return ";".join(parts)
@@ -175,20 +204,13 @@ def _concat_filter(n: int) -> str:
 
 def build_filter(job: RenderJob, src_width: int, src_height: int,
                  ass_path: Path | None) -> str:
-    n = len(job.spans)
-    trim_chain = _concat_filter(n)
-    values = {}
-    for i, p in enumerate(job.spans):
-        values[f"a{i}"] = f"{p.start:.3f}"
-        values[f"b{i}"] = f"{p.end:.3f}"
-    trim_chain = trim_chain.format(**values)
+    # Layout blur memakai seluruh frame, jadi crop-nya tidak berarti apa-apa;
+    # potongannya disambung dulu baru dikaburkan. Layout wajah sebaliknya:
+    # tiap potongan dibingkai sendiri supaya framing bisa berpindah.
+    crop_dulu = job.layout != "blur"
+    trim_chain = _concat_filter(job, src_width, src_height, crop_dulu)
 
-    # crop dihitung di piksel sumber, dibulatkan genap (syarat yuv420p)
     even = lambda v: max(2, int(v) // 2 * 2)
-    cw = even(src_width * job.crop.width / 100)
-    ch = even(src_height * job.crop.height / 100)
-    cx = even(src_width * job.crop.left / 100)
-    cy = even(src_height * job.crop.top / 100)
     W, H = job.out_width, job.out_height
 
     if job.layout == "blur":
@@ -201,7 +223,8 @@ def build_filter(job: RenderJob, src_width: int, src_height: int,
             f"[bgb][fgs]overlay=(W-w)/2:(H-h)/2[vv]"
         )
     else:
-        video_chain = f"[vc]crop={cw}:{ch}:{cx}:{cy},scale={W}:{H}[vv]"
+        # sudah di-crop dan di-skala per potongan di atas
+        video_chain = "[vc]null[vv]"
 
     if ass_path:
         # Karakter yang punya makna syntaktis di FFmpeg filter graph harus

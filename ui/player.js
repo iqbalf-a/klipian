@@ -67,7 +67,6 @@ function setClip(k) {
   }
   if (video.src) video.currentTime = k.spans[0].start;
   drawTime(0);            // durasi total tetap tampil walau video belum dimuat
-  renderClipTabs();
   drawTimeline();
   if (typeof renderPreview === "function") renderPreview();
 }
@@ -109,36 +108,6 @@ function drawTime(passed) {
   w.textContent = `${jamPendek(passed)} / ${jamPendek(clipOutDur(activeClip))}`;
 }
 
-/* ---------- tab klip: preview mengikuti klip yang dipilih ---------- */
-
-function renderClipTabs() {
-  const bar = $("#clipTabs");
-  if (!bar) return;
-  const daftar = DATA[mode].candidates || [];
-  if (!daftar.length) {
-    bar.innerHTML = `<span class="kosong-tab">belum ada klip</span>`;
-    return;
-  }
-  bar.innerHTML = daftar.map((k, i) => `
-    <button class="chip klip-tab" role="tab" data-klip="${i}"
-            aria-selected="${activeClip === k}"
-            ${k.status === "approved" ? 'data-approved="true"' : ""}>
-      <span class="nomor-klip">${i + 1}</span>${escapeHTML(k.title)}
-      <span class="dur-klip">${Math.round(clipOutDur(k))}s</span>
-    </button>`).join("");
-}
-
-$("#clipTabs")?.addEventListener("click", (e) => {
-  const t = e.target.closest(".klip-tab");
-  if (!t) return;
-  const k = DATA[mode].candidates[Number(t.dataset.klip)];
-  if (!k) return;
-  if (typeof applyRealWords === "function" && k.startSec !== undefined && realTranscript) {
-    applyRealWords(k);
-  }
-  setClip(k);
-  if (typeof drawSpans === "function") drawSpans();
-});
 
 /* ---------- timeline: potongan yang dibuang tampak sebagai celah ---------- */
 
@@ -173,6 +142,8 @@ $("#timeline")?.addEventListener("click", (e) => {
   const frac = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
   video.currentTime = outToSource(activeClip, frac * clipOutDur(activeClip));
   drawHead();
+  drawCaption();
+  if (typeof syncCanvasVideo === "function") syncCanvasVideo();
 });
 
 $("#timeline")?.addEventListener("keydown", (e) => {
@@ -193,6 +164,7 @@ function prepareVideo() {
   }
   video.src = chosenSource.url;
   frame.dataset.video = "true";
+  muatFps(chosenSource.name);          // fps untuk melangkah per frame
   video.addEventListener("loadedmetadata", () => {
     attachVideoGeometry();
     if (activeClip) video.currentTime = Math.min(activeClip.spans[0].start, video.duration - 0.1);
@@ -214,6 +186,8 @@ video.addEventListener("timeupdate", () => {
     playBtn.textContent = "▶";
     drawTime(clipOutDur(activeClip));
     drawHead();
+    drawCaption();
+    if (typeof syncCanvasVideo === "function") syncCanvasVideo();
     return;
   }
   const p = activeClip.spans[i];
@@ -221,10 +195,138 @@ video.addEventListener("timeupdate", () => {
 
   drawTime(sourceToOut(activeClip, t) ?? 0);
   drawHead();
+  drawCaption();
+
+  // Kanvas framing menampilkan frame yang SAMA, tanpa dipotong. Disamakan
+  // tiap tick supaya ia berjalan bersama preview, bukan membeku.
+  if (typeof syncCanvasVideo === "function") syncCanvasVideo();
+
+  // Framing ikut berpindah saat pemutaran melewati titik berikutnya --
+  // supaya preview benar-benar memperlihatkan apa yang akan dirender.
+  if (typeof framingPada === "function") {
+    const f = framingPada(t);
+    if (f && f !== framingTerakhir) {
+      framingTerakhir = f;
+      if (typeof renderFraming === "function") renderFraming();
+    }
+  }
 });
+
+/* ---------- caption hidup di preview ----------
+   Dulu kotak caption berisi teks peraga yang dipaku di HTML ("bukan
+   investasi, INI JUDI") -- tidak pernah berubah, dan menyesatkan karena
+   bukan itu yang akan terbakar di berkas hasil.
+
+   Sekarang isinya kata asli dari transkrip pada posisi pemutaran, dikelompok
+   per baris dengan aturan yang SAMA dengan build_ass di sisi Python, dan kata
+   yang sedang diucapkan disorot memakai warna dari layar Subtitle. */
+function drawCaption() {
+  const cap = $("#cap916");
+  if (!cap) return;
+  // Sumber teksnya kata yang SUDAH dibetulkan, supaya preview memperlihatkan
+  // caption yang benar-benar akan terbakar di berkas hasil.
+  const kata = (typeof kataResult === "function" && kataResult().length)
+    ? kataResult() : realTranscript?.words;
+  if (!activeClip || !kata?.length || !video.src) { cap.innerHTML = ""; return; }
+
+  const t = video.currentTime;
+  const perBaris = (typeof captionValue === "function"
+    ? captionValue("per-line")?.out : 3) || 3;
+
+  // kata yang benar-benar masuk keluaran, seperti di build_ass
+  const dipakai = [];
+  for (const w of kata) {
+    const a = sourceToOut(activeClip, w.start);
+    const b = sourceToOut(activeClip, w.end);
+    if (a !== null && b !== null && b > a) dipakai.push({ a, b, teks: w.text.trim() });
+  }
+  if (!dipakai.length) { cap.innerHTML = ""; return; }
+
+  const out = sourceToOut(activeClip, t);
+  if (out === null) { cap.innerHTML = ""; return; }
+
+  let i = dipakai.findIndex((w) => out < w.b);
+  if (i === -1) i = dipakai.length - 1;
+  const awalBaris = Math.floor(i / perBaris) * perBaris;
+  const baris = dipakai.slice(awalBaris, awalBaris + perBaris);
+  const sorot = i - awalBaris;
+
+  cap.innerHTML = baris
+    .map((w, j) => (j === sorot ? `<mark>${escapeHTML(w.teks)}</mark>` : escapeHTML(w.teks)))
+    .join(" ");
+}
+
+/* ---------- melangkah per frame ----------
+   Langkahnya dihitung di waktu KELUARAN, bukan waktu sumber. Bedanya terasa
+   di sambungan antar potongan: maju satu frame di ujung potongan pertama
+   mendarat di frame pertama potongan berikutnya, bukan di detik yang sudah
+   kamu buang.
+
+   fps datang dari ffprobe lewat /api/probe -- elemen <video> tidak pernah
+   membocorkan angka itu. Kalau server tidak menjawab, dipakai 30 sebagai
+   perkiraan yang aman untuk kebanyakan rekaman. */
+let sourceFps = 30;
+
+async function muatFps(nama) {
+  if (!nama) return;
+  try {
+    const d = await (await fetch(`/api/probe?video=${encodeURIComponent(nama)}`)).json();
+    if (d.fps && d.fps > 1 && d.fps < 200) {
+      sourceFps = d.fps;
+      const el = $("#fpsNote");
+      if (el) el.textContent = `${Math.round(sourceFps)} fps`;
+    }
+  } catch { /* biarkan 30 */ }
+}
+
+function stepFrame(arah) {
+  if (!video.src || !activeClip) return;
+  if (isPlaying) {                    // melangkah sambil berjalan itu aneh
+    video.pause();
+    isPlaying = false;
+    playBtn.textContent = "▶";
+  }
+  const total = clipOutDur(activeClip);
+  const kini = sourceToOut(activeClip, video.currentTime);
+  const dari = kini === null ? 0 : kini;
+  const langkah = arah / sourceFps;          // arah = jumlah frame, boleh minus
+  const tujuan = Math.max(0, Math.min(total - 1 / sourceFps / 2, dari + langkah));
+  video.currentTime = outToSource(activeClip, tujuan);
+  drawTime(tujuan);
+  drawHead();
+  drawCaption();
+  if (typeof syncCanvasVideo === "function") syncCanvasVideo();
+}
+
+/* Kanvas framing disamakan pada peristiwa seek dan putar/jeda -- bukan hanya
+   pada timeupdate. Menggeser posisi saat video dijeda tidak selalu memicu
+   timeupdate, dan dulu kanvas tertinggal di posisi lamanya. */
+["seeked", "play", "pause", "loadeddata"].forEach((ev) =>
+  video.addEventListener(ev, () => {
+    if (typeof syncCanvasVideo === "function") syncCanvasVideo();
+  }));
 
 const rewindBtn = $("#rewindBtn");
 const playBtn = $("#playBtn");
+const muteBtn = $("#muteBtn");
+
+[["#prevFrame5", -5], ["#prevFrame2", -2], ["#prevFrameBtn", -1],
+ ["#nextFrameBtn", 1], ["#nextFrame2", 2], ["#nextFrame5", 5]]
+  .forEach(([sel, n]) => $(sel)?.addEventListener("click", () => stepFrame(n)));
+
+/* Pintasan papan tik: , dan . seperti kebiasaan editor video; spasi untuk
+   putar. Diabaikan saat kamu sedang mengetik di kolom isian. */
+document.addEventListener("keydown", (e) => {
+  const t = e.target;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  // , dan . = 1 frame; Shift menahannya jadi 5 frame (< dan > di papan tik)
+  if (e.key === ",") { e.preventDefault(); stepFrame(-1); }
+  else if (e.key === ".") { e.preventDefault(); stepFrame(1); }
+  else if (e.key === "<") { e.preventDefault(); stepFrame(-5); }
+  else if (e.key === ">") { e.preventDefault(); stepFrame(5); }
+  else if (e.key === " " && video.src && activeClip) { e.preventDefault(); playBtn.click(); }
+});
 
 playBtn?.addEventListener("click", () => {
   if (!video.src || !activeClip) return;
@@ -233,52 +335,59 @@ playBtn?.addEventListener("click", () => {
     if (sourceToOut(activeClip, video.currentTime) === null) {
       video.currentTime = activeClip.spans[0].start;
     }
-    video.play(); playBtn.textContent = "❚❚";
+    // play() menolak kalau segera disusul pause() (mis. klip habis di
+    // detik yang sama). Ditelan supaya tidak jadi galat tak tertangkap.
+    video.play().catch(() => {});
+    playBtn.textContent = "❚❚";
   }
   isPlaying = !isPlaying;
+  drawCaption();
+  if (typeof syncCanvasVideo === "function") syncCanvasVideo();
+});
+
+/* Suara: video sengaja TIDAK muted lagi. Dulu atribut muted membuat result
+   diputar tanpa audio sama sekali, padahal berkas hasilnya berbunyi. */
+muteBtn?.addEventListener("click", () => {
+  video.muted = !video.muted;
+  muteBtn.textContent = video.muted ? "🔇" : "🔊";
+  muteBtn.setAttribute("aria-pressed", String(video.muted));
+  muteBtn.title = video.muted ? "Bunyikan" : "Bisukan";
 });
 
 rewindBtn?.addEventListener("click", () => {
   if (video.src && activeClip) {
     video.currentTime = activeClip.spans[0].start;
-    drawTime(0); drawHead();
+    drawTime(0); drawHead(); drawCaption();
+    if (typeof syncCanvasVideo === "function") syncCanvasVideo();
   }
 });
 
-/* Tombol render ada di preview: yang dirender adalah klip yang sedang dilihat. */
-$("#renderClipBtn")?.addEventListener("click", () => {
-  if (!activeClip) return;
-  kirimRender([activeClip]);
-});
+/* Preview memutar RESULT. Inilah maksud "preview adalah hasilnya": yang kamu
+   lihat di frame 9:16 adalah berkas yang nanti keluar, lengkap dengan
+   lompatan di tiap sambungan antar potongan. */
+function setResultAsPreview() {
+  if (typeof RESULT === "undefined" || !RESULT.length) {
+    activeClip = null;
+    drawTimeline();
+    return;
+  }
+  const klip = resultAsClip();
+  klip.spans = RESULT.map((r) => ({ start: r.start, end: r.end }));
+  setClip(klip);
+}
+
 
 /* ───────────────── alur render ───────────────── */
 
 let renderTimer = null;
+let framingTerakhir = null;   // titik framing yang sedang tampil di preview
 
-function summarizeRender() {
-  const n = DATA[mode].candidates.filter((k) => k.status === "approved").length;
-  const el = $("#renderSummary");
-  const btn = $("#renderBtn");
-  if (!el || !btn) return;
-  el.textContent = n
-    ? `${n} klip disetujui · format ${optionValue("format")} · ${optionValue("resolution")}`
-    : "Setujui dulu klip yang mau dirender";
-  btn.textContent = n ? `Render ${n} klip` : "Render klip";
-  btn.disabled = n === 0;
-}
 
 function optionValue(id) {
   const o = OPTIONS.find((x) => x.id === id);
   return o ? o.choices[o.active] : "";
 }
 
-$("#renderBtn").addEventListener("click", () => {
-  buildQueue();
-  QUEUE.forEach((r) => { r.pct = 0; r.note = "antre"; r.action = "Batalkan"; });
-  drawQueue();
-  toScreen("queue");
-  startRender();
-});
 
 /* Render SUNGGUHAN lewat backend.
    Sebelumnya bagian ini cuma menganimasikan progress bar -- tidak ada berkas
@@ -286,13 +395,6 @@ $("#renderBtn").addEventListener("click", () => {
    "Buka folder". Label yang berbohong lebih buruk daripada fitur yang belum
    ada. Sekarang benar-benar memanggil ffmpeg lewat klipian serve. */
 
-/* Crop yang dipakai render. Diambil dari MODEL objek, bukan dari geometri
-   DOM: kanvas yang belum pernah tampil melaporkan ukuran nol, dan dulu itu
-   membuat UI menampilkan satu framing sementara server merender framing lain. */
-function currentCrop(clip) {
-  if (typeof cropForClip === "function") return cropForClip(clip || null);
-  return null;
-}
 
 /* Render klip yang disetujui di layar Kandidat. */
 async function startRender() {
@@ -314,10 +416,10 @@ async function kirimRender(approved) {
     (k.spans || []).every((p) => Number.isFinite(p.start) && Number.isFinite(p.end))
     && (k.spans || []).length);
   if (!valid.length) {
-    const head = document.querySelector('[data-screen="queue"] .note');
+    const head = document.querySelector('[data-screen="history"] .note');
     if (head) head.textContent =
       "Klip ini tidak punya titik waktu. Impor ulang dari Claude, atau buat klip manual.";
-    toScreen("queue");
+    toScreen("history");
     return;
   }
 
@@ -325,9 +427,16 @@ async function kirimRender(approved) {
     video: chosenSource?.name || DATA[mode].file,
     clips: valid.map((k) => ({
       title: k.title,
-      spans: (k.spans || [{ start: k.startSec, end: k.endSec }])
-                  .map((p) => ({ start: p.start, end: p.end })),
-      crop: currentCrop(k),          // tiap klip memakai objeknya sendiri
+      // Potongan dipecah lagi di tiap titik framing, dan masing-masing
+      // membawa crop-nya sendiri. Itulah yang membuat framing bisa berpindah
+      // di tengah klip.
+      spans: (typeof spansWithFraming === "function")
+        ? spansWithFraming(k.spans || [{ start: k.startSec, end: k.endSec }])
+        : (k.spans || []).map((p) => ({ start: p.start, end: p.end })),
+      style: captionStyle(),         // pengaturan layar Caption ikut terkirim
+      // Teks yang sudah dibetulkan di layar Edit. Kalau tidak ada koreksi,
+      // isinya sama dengan transkrip -- server tetap menerimanya apa adanya.
+      words: (typeof kataUntukRender === "function") ? kataUntukRender() : undefined,
       layout: optionValue("format").startsWith("Blur") ? "blur" : "face",
       width: optionValue("resolution") === "720p" ? 720 : 1080,
     })),
@@ -338,7 +447,7 @@ async function kirimRender(approved) {
   buildQueue(valid);
   QUEUE.forEach((r) => { r.pct = 0; r.note = "antre"; r.action = "Batalkan"; });
   drawQueue();
-  toScreen("queue");
+  toScreen("history");
 
   let id;
   try {
@@ -353,7 +462,7 @@ async function kirimRender(approved) {
     // Tanpa backend, katakan apa adanya -- jangan pura-pura merender.
     QUEUE.forEach((r) => { r.pct = 0; r.note = "butuh klipian serve"; r.action = "Batalkan"; });
     drawQueue();
-    const head = document.querySelector('[data-screen="queue"] .note');
+    const head = document.querySelector('[data-screen="history"] .note');
     if (head) head.textContent =
       "Render butuh backend. Jalankan: python -m klipian serve";
     return;
@@ -378,7 +487,8 @@ async function kirimRender(approved) {
 
     if (t.state !== "running") {
       clearInterval(renderTimer);
-      const head = document.querySelector('[data-screen="queue"] .note');
+      if (typeof muatRiwayat === "function") muatRiwayat();   // berkas baru masuk riwayat
+      const head = document.querySelector('[data-screen="history"] .note');
       if (head) head.textContent = t.state === "failed"
         ? `Gagal: ${t.error}`
         : `${t.done} klip selesai · ${(t.result || []).reduce((a, h) => a + h.mb, 0).toFixed(1)} MB`;

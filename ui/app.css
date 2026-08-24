@@ -36,8 +36,12 @@ body::before {
   transition: background var(--sedang);
 }
 
+/* Dua baris saja: topbar lalu panggung. Baris ketiga dulu untuk pita
+   "Sumber" yang menandai kandidat di sepanjang video -- pita itu digantikan
+   timeline di layar Edit, dan barisnya ikut dibuang. Kalau ditinggal, panggung
+   jatuh ke baris berukuran tetap dan seluruh panel kolaps. */
 .app { position: relative; z-index: 1; height: 100vh;
-       display: grid; grid-template-rows: var(--h-topbar) var(--h-ribbon) 1fr; }
+       display: grid; grid-template-rows: var(--h-topbar) 1fr; }
 
 /* Hierarki dibangun dari LEBAR huruf, bukan hanya ukuran.
    Judul dilebarkan supaya punya kehadiran; label disempitkan supaya padat.
@@ -197,6 +201,17 @@ h1, h2, h3 {
 
 .screen { display: none; flex: 1; min-height: 0; flex-direction: column; gap: var(--s4); }
 .screen.active { display: flex; }
+
+/* Layar Edit lebih tinggi dari jendela: Timeline, Rekomendasi, Result,
+   Framing, dan Subtitle bertumpuk. Tanpa ini panel di bawah tidak terjangkau
+   sama sekali. */
+.screen[data-screen="edit"].active,
+.screen[data-screen="history"].active {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;                 /* ruang untuk scrollbar */
+}
+.screen[data-screen="edit"] > .panel { flex: none; }
 
 .work-head { display: flex; align-items: center; gap: var(--s4); flex: none; }
 .work-head h1 {
@@ -457,10 +472,13 @@ h1, h2, h3 {
   color: #fff;
   text-shadow: 0 1px 3px rgba(0,0,0,.9), 0 3px 14px rgba(0,0,0,.75);
 }
+/* Sorotan di preview harus SAMA BENTUKNYA dengan yang terbakar di berkas:
+   kata berwarna, bukan kotak berlatar. Kalau berbeda, preview berbohong soal
+   hasil akhirnya. Warnanya disetel applyCaption() dari pilihan Warna sorot. */
 .cap916 mark {
-  background: var(--aksen); color: #0A0B0E;
-  padding: 1px 6px; border-radius: 5px;
-  box-shadow: 0 0 18px -4px var(--aksen-glow);
+  background: none;
+  color: var(--sorot, #FFD600);
+  padding: 0;
 }
 
 /* info klip + ukuran durasi terhadap pita ideal */
@@ -487,12 +505,104 @@ h1, h2, h3 {
 }
 .meter-value { color: var(--teks); }
 
+/* ── kontrol pemutar preview ──────────────────────────────────────────────
+   Dulu semuanya dijejalkan ke satu baris: jam sampai terpotong jadi tiga
+   baris, dan saklar "safe area" jadi pil lonjong besar yang menarik perhatian
+   lebih dari tombol putar. Sekarang dua baris dengan tugas yang jelas:
+
+     baris 1  transport -- mundur banyak | putar | maju banyak
+     baris 2  jam, lalu saklar-saklar kecil
+
+   Tombol langkah dibuat persegi membulat dengan lebar tetap, bukan pil yang
+   melar mengikuti isinya -- itu yang membuat deretannya terlihat lonjong dan
+   tidak sejajar. */
 .preview-foot {
   margin-top: auto;
-  display: flex; align-items: center; gap: var(--s2);
+  display: flex; flex-direction: column; gap: var(--s3);
   font-family: var(--font-data); font-size: 11px; color: var(--teks-samar);
 }
-.preview-foot .time { margin-left: auto; }
+
+.transport {
+  display: flex; align-items: center; justify-content: center;
+  gap: 4px;
+}
+
+/* Tombol langkah: lebar TETAP, isinya panah + angka. */
+.langkah {
+  display: inline-flex; align-items: center; justify-content: center; gap: 2px;
+  /* flex: none WAJIB. Tanpa itu flexbox memampatkan tombol di panel sempit,
+     dan deretan yang seharusnya seragam jadi lebar-lebar berbeda -- itu yang
+     membuatnya terlihat lonjong dan tidak sejajar. */
+  flex: none;
+  box-sizing: border-box;
+  width: 30px; height: 28px;
+  padding: 0;
+  border: 1px solid var(--garis-kaca);
+  border-radius: var(--r-s);
+  background: var(--kaca);
+  color: var(--teks-lemah);
+  cursor: pointer;
+  font-family: var(--font-data);
+  transition: background var(--cepat), color var(--cepat), border-color var(--cepat);
+}
+.langkah i { font-style: normal; font-size: 9px; line-height: 1; }
+.langkah b { font-size: 11px; font-weight: 700; line-height: 1; }
+.langkah:hover {
+  color: var(--teks); border-color: var(--aksen);
+  background: var(--kaca-kuat);
+}
+.langkah:active { transform: translateY(1px); }
+
+/* Tombol putar: bulat penuh dan satu-satunya yang berwarna aksen, supaya
+   jelas mana aksi utamanya. */
+.putar {
+  flex: none;
+  box-sizing: border-box;
+  width: 38px; height: 38px;               /* sama persis -> lingkaran, bukan bulat telur */
+  margin: 0 5px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  border: 0;
+  background: var(--aksen); color: #0A0B0E;
+  font-size: 14px; line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 0 22px -8px var(--aksen-glow);
+  transition: filter var(--cepat);
+}
+.putar:hover { filter: brightness(1.08); }
+.putar:active { transform: translateY(1px); }
+
+.transport-bawah {
+  display: flex; align-items: center; gap: 5px;
+}
+.transport-bawah .time {
+  margin-right: auto;
+  white-space: nowrap;                     /* jam tidak lagi patah tiga baris */
+  font-variant-numeric: tabular-nums;
+  color: var(--teks-lemah);
+}
+
+/* Saklar kecil: bentuknya sama semua, tidak ada yang lonjong. */
+.saklar {
+  flex: none;
+  box-sizing: border-box;
+  min-width: 28px; height: 26px;
+  padding: 0 8px;
+  display: inline-grid; place-items: center;
+  border: 1px solid var(--garis-kaca);
+  border-radius: var(--r-s);
+  background: var(--kaca);
+  color: var(--teks-samar);
+  font-family: var(--font-data); font-size: 10px;
+  cursor: pointer;
+  transition: background var(--cepat), color var(--cepat), border-color var(--cepat);
+}
+.saklar:hover { color: var(--teks); border-color: var(--garis-terang); }
+.saklar[aria-pressed="true"] {
+  color: var(--aksen);
+  border-color: color-mix(in srgb, var(--aksen) 45%, transparent);
+  background: var(--aksen-lembut);
+}
 .icon {
   width: 32px; height: 30px; display: grid; place-items: center;
   border: 1px solid var(--garis-kaca); border-radius: var(--r-s);
@@ -687,8 +797,6 @@ h1, h2, h3 {
 [data-stage="prepare"] .stage { display: none; }
 
 /* topbar tetap ada di semua tahap, tapi hanya berisi brand saat di beranda */
-.app[data-stage="home"],
-.app[data-stage="prepare"] { grid-template-rows: var(--h-topbar) 1fr; }
 
 /* Reset tombol yang aman: JANGAN pakai `font: inherit` atau `background: none`
    di sini -- keduanya menimpa gradien background-clip:text dan ukuran huruf
@@ -1084,4 +1192,281 @@ body[data-drag="true"] .curtain-drop { display: grid; }
   border-radius: 2px;
   pointer-events: none;
   transition: left 90ms linear;
+}
+
+/* ══════════════════════════ layar Edit ══════════════════════════
+   Dua panel bertumpuk: rekomendasi AI di atas (cukup menit + judul),
+   wadah Result di bawah. Yang di bawah itu yang jadi video. */
+
+.rekom-head, .hasil-head {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s4) var(--s5) var(--s3);
+}
+.rekom-head .data, .hasil-head .data { margin-right: auto; color: var(--teks-samar); }
+
+.rekom-list, .hasil-list { padding: 0 var(--s5) var(--s4); }
+
+.kosong-hasil {
+  margin: 0; padding: var(--s4) 0;
+  color: var(--teks-samar); font-size: 13px; line-height: 1.5;
+}
+
+/* ---- baris rekomendasi: pilih dengan centang ---- */
+.rekom-row {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto auto;
+  align-items: center; gap: var(--s3);
+  padding: 9px var(--s3);
+  border-radius: var(--r-s);
+  cursor: pointer;
+}
+.rekom-row:hover { background: var(--kaca); }
+.rekom-row input { accent-color: var(--aksen); width: 15px; height: 15px; cursor: pointer; }
+.rekom-row .num, .hasil-row .num {
+  font-family: var(--font-data); font-size: 10px;
+  min-width: 17px; height: 17px;
+  display: grid; place-items: center;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--teks) 12%, transparent);
+  color: var(--teks-lemah);
+}
+.rekom-judul, .hasil-judul {
+  font-weight: 600; font-size: 14px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rekom-waktu, .hasil-waktu { color: var(--teks-samar); }
+.rekom-dur, .hasil-dur { color: var(--teks-lemah); min-width: 34px; text-align: right; }
+.rekom-row:has(input:checked) {
+  background: var(--aksen-lembut);
+  box-shadow: inset 2px 0 0 var(--aksen);
+}
+
+/* ---- baris result ---- */
+.hasil-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto auto auto;
+  align-items: center; gap: var(--s3);
+  padding: 9px var(--s3);
+  border-radius: var(--r-s);
+}
+.hasil-row + .hasil-row { border-top: 1px solid var(--garis-kaca); }
+.hasil-row:hover { background: var(--kaca); }
+.lencana-asal {
+  font-family: var(--font-data); font-size: 9px;
+  letter-spacing: .04em; text-transform: uppercase;
+  padding: 2px 6px; border-radius: var(--r-pill);
+  border: 1px solid var(--garis-kaca);
+  color: var(--teks-samar);
+}
+.lencana-asal[data-asal="ai"] {
+  color: var(--aksen);
+  border-color: color-mix(in srgb, var(--aksen) 40%, transparent);
+  background: var(--aksen-lembut);
+}
+.buang-hasil {
+  width: 24px; height: 24px;          /* target sentuh WCAG 2.2 */
+  opacity: .5;
+}
+.buang-hasil:hover { opacity: 1; color: var(--bahaya); }
+
+/* ══════════════════════ timeline video utuh ══════════════════════
+   Satu batang untuk seluruh video. Penanda tipis = rekomendasi AI,
+   blok padat = yang sudah masuk result. */
+
+.pilih-head, .pilih-foot { display: flex; align-items: center; gap: var(--s3); }
+.pilih-head { padding: var(--s4) var(--s5) var(--s3); }
+.pilih-head .data { color: var(--teks-samar); }
+.pilih-head #pilihNote { margin-right: auto; }
+
+.tl-total {
+  position: relative;
+  height: 46px;
+  margin: 0 var(--s5);
+  border-radius: var(--r-s);
+  background: var(--kaca);
+  border: 1px solid var(--garis-kaca);
+  cursor: crosshair;
+  overflow: hidden;
+  touch-action: none;              /* pointer event tidak direbut scroll */
+}
+.tl-marks { position: absolute; inset: 0; }
+.tl-mark {
+  position: absolute; top: 0; bottom: 0;
+  border-radius: 2px;
+}
+.tl-mark.rekom {
+  background: color-mix(in srgb, var(--teks) 16%, transparent);
+  top: 34%;
+}
+.tl-mark.hasil {
+  background: color-mix(in srgb, var(--aksen) 30%, transparent);
+  border-left: 1px solid var(--aksen);
+  border-right: 1px solid var(--aksen);
+}
+
+.tl-sel {
+  position: absolute; top: 0; bottom: 0;
+  background: color-mix(in srgb, var(--aksen) 22%, transparent);
+  border: 1px solid var(--aksen);
+  border-radius: 2px;
+  box-shadow: 0 0 18px -6px var(--aksen-glow);
+}
+.tl-grip {
+  position: absolute; top: 0; bottom: 0;
+  width: 10px;                     /* cukup lebar untuk ditangkap mouse */
+  cursor: ew-resize;
+  background: var(--aksen);
+  opacity: .85;
+}
+.tl-grip.kiri { left: -5px; border-radius: 3px 0 0 3px; }
+.tl-grip.kanan { right: -5px; border-radius: 0 3px 3px 0; }
+.tl-grip:hover { opacity: 1; }
+
+.tl-skala {
+  display: flex; justify-content: space-between;
+  margin: 6px var(--s5) 0;
+  font-family: var(--font-data); font-size: 10px;
+  color: var(--teks-samar);
+}
+
+.pilih-foot { padding: var(--s4) var(--s5) 0; }
+.waktu-input {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: var(--t-12); color: var(--teks-samar);
+}
+.waktu-input input {
+  font-family: var(--font-data); font-size: 13px;
+  padding: 6px 9px;
+  border-radius: var(--r-s);
+  border: 1px solid var(--garis-kaca);
+  background: var(--kaca);
+  color: var(--teks);
+  width: 74px;
+}
+.waktu-input input:focus-visible { outline: 2px solid var(--aksen); outline-offset: 1px; }
+.sel-dur { margin-right: auto; color: var(--teks-lemah); }
+
+.sel-teks {
+  margin: var(--s3) var(--s5) var(--s4);
+  padding: var(--s3);
+  border-radius: var(--r-s);
+  background: var(--kaca);
+  color: var(--teks-lemah);
+  font-size: 13px; line-height: 1.55;
+  max-height: 68px; overflow: hidden;
+}
+.sel-teks:empty { display: none; }
+
+/* kaki panel Result: judul berkas + tombol render */
+.hasil-foot {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s4) var(--s5);
+  border-top: 1px solid var(--garis-kaca);
+}
+.judul-input {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: var(--t-12); color: var(--teks-samar);
+  flex: 1;
+}
+.judul-input input {
+  font: inherit; font-size: 14px; font-weight: 600;
+  padding: 7px 10px;
+  border-radius: var(--r-s);
+  border: 1px solid var(--garis-kaca);
+  background: var(--kaca);
+  color: var(--teks);
+  flex: 1; min-width: 0;
+}
+.judul-input input:focus-visible { outline: 2px solid var(--aksen); outline-offset: 1px; }
+
+/* titik warna di chip pilihan warna sorot */
+.chip .titik {
+  display: inline-block;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--titik, currentColor);
+  margin-right: 6px;
+  vertical-align: -1px;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.35);
+}
+
+/* ══════════════════════════ riwayat render ══════════════════════════ */
+.riwayat-list { padding: var(--s3) var(--s5) var(--s4); }
+.riwayat-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto auto auto;
+  align-items: center; gap: var(--s3);
+  padding: 10px var(--s3);
+  border-radius: var(--r-s);
+}
+.riwayat-row + .riwayat-row { border-top: 1px solid var(--garis-kaca); }
+.riwayat-row:hover { background: var(--kaca); }
+.riwayat-nama {
+  font-weight: 600; font-size: 14px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.riwayat-video { color: var(--teks-samar); }
+.riwayat-mb, .riwayat-kapan { color: var(--teks-lemah); }
+.work-head .btn.right { margin-left: auto; }
+
+
+/* Tombol .btn polos tidak punya latar maupun border, jadi di dalam kepala
+   panel ia terbaca sebagai teks biasa -- bukan sesuatu yang bisa diklik.
+   Tombol aksi utama di kepala panel diberi bingkai supaya terlihat. */
+.rekom-head .btn:not(.main),
+.hasil-head .btn:not(.main),
+.pilih-head .btn:not(.main),
+.work-head .btn:not(.main) {
+  border-color: var(--garis-kaca);
+  background: var(--kaca);
+  color: var(--teks-lemah);
+}
+
+/* Kanvas framing menampilkan frame video ASLI pada posisi pemutaran.
+   Sebelumnya isinya gambar contoh statis, jadi kamu membingkai momen yang
+   tidak sedang kamu lihat. */
+.canvas-video {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  pointer-events: none;          /* klik tetap sampai ke kotak crop */
+}
+.canvas { position: relative; }
+
+/* chip titik framing: waktu + tombol hapus */
+#framingList .chip { font-family: var(--font-data); }
+
+
+/* dua label di kepala preview (fps dan resolusi) */
+.preview-head .res + .res { margin-left: var(--s2); }
+
+/* ══════════════════ teks caption yang bisa dibetulkan ══════════════════
+   Kata-kata yang akan terbakar di berkas hasil, satu tombol per kata.
+   Klik untuk membetulkan; yang sudah diubah ditandai. */
+.teks-list {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  padding: var(--s3) var(--s5) var(--s4);
+  max-height: 210px; overflow-y: auto;
+}
+.kata-teks {
+  font: inherit; font-size: 13px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--r-s);
+  background: var(--kaca);
+  color: var(--teks-lemah);
+  cursor: text;
+  transition: background var(--cepat), color var(--cepat), border-color var(--cepat);
+}
+.kata-teks:hover { color: var(--teks); border-color: var(--garis-kaca); }
+.kata-teks.diubah {
+  color: var(--aksen);
+  border-color: color-mix(in srgb, var(--aksen) 45%, transparent);
+  background: var(--aksen-lembut);
+}
+.kata-input {
+  font: inherit; font-size: 13px;
+  border: 0; outline: none; padding: 0;
+  background: none; color: var(--teks);
+  min-width: 3ch;
 }

@@ -124,8 +124,19 @@ def _run_render(job_id: str, req: dict) -> None:
                 t["current"] = k["title"]
                 t["index"] = i
 
+            def _crop(d):
+                """Crop per potongan. Kalau tidak ada, dipakai crop klipnya."""
+                if not isinstance(d, dict):
+                    return None
+                return engine.CropBox(
+                    left=float(d.get("left", 37)), top=float(d.get("top", 4)),
+                    width=float(d.get("width", 26)), height=float(d.get("height", 92)))
+
             try:
-                spans = [engine.Span(float(p["start"]), float(p["end"]))
+                # p["crop"] inilah yang membuat framing berpindah di tengah
+                # klip: tiap potongan dibingkai sendiri sebelum disambung.
+                spans = [engine.Span(float(p["start"]), float(p["end"]),
+                                     _crop(p.get("crop")))
                             for p in k.get("spans", [])]
             except (KeyError, TypeError, ValueError):
                 raise ValueError(
@@ -146,7 +157,25 @@ def _run_render(job_id: str, req: dict) -> None:
             name = engine.safe_filename(k["title"], f"klip-{i+1}")
             dest = out_dir / name
 
-            engine.render(video, job, dest, words=words,
+            # Gaya caption datang dari layar Caption di UI. Kalau tidak
+            # dikirim, build_ass memakai bawaannya.
+            gaya = k.get("style") if isinstance(k.get("style"), dict) else None
+
+            # Teks caption boleh dikirim UI. Itu dipakai kalau kamu membetulkan
+            # kata yang salah dengar di layar Edit -- koreksinya milik result
+            # ini saja dan TIDAK ditulis balik ke transkrip, karena transkrip
+            # punya alurnya sendiri.
+            kata_klip = words
+            if isinstance(k.get("words"), list) and k["words"]:
+                try:
+                    from .models import Word
+                    kata_klip = [Word(text=str(w["text"]),
+                                      start=float(w["start"]), end=float(w["end"]))
+                                 for w in k["words"]]
+                except (KeyError, TypeError, ValueError):
+                    kata_klip = words          # bentuknya aneh: pakai transkrip
+
+            engine.render(video, job, dest, words=kata_klip, style=gaya,
                          src_width=info.width, src_height=info.height,
                          has_audio=info.has_audio, verbose=False)
 
@@ -364,6 +393,45 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(data)
             return
+
+        if path == "/api/probe":
+            # UI perlu fps untuk melangkah per frame. Elemen <video> tidak
+            # pernah membocorkan angka itu, jadi ffprobe yang menjawab.
+            from urllib.parse import parse_qs
+            q = parse_qs(urlparse(self.path).query)
+            video = _find_video(q.get("video", [""])[0])
+            if not video:
+                return self._send_json({"error": "video tidak ada"}, 404)
+            try:
+                from .ffmpeg_tools import probe
+                i = probe(video)
+            except Exception as exc:               # noqa: BLE001
+                return self._send_json({"error": str(exc)}, 500)
+            return self._send_json({
+                "duration": i.duration, "width": i.width, "height": i.height,
+                "fps": round(i.fps, 3), "has_audio": i.has_audio,
+            })
+
+        if path == "/api/history":
+            # Riwayat dibaca dari isi folder out/, bukan dari ingatan sesi:
+            # berkas yang benar-benar ada di disk itulah riwayat yang jujur,
+            # dan tetap utuh setelah halaman dimuat ulang atau server mati.
+            item = []
+            for mp4 in (ROOT / "out").glob("*/*.mp4"):
+                try:
+                    st = mp4.stat()
+                except OSError:
+                    continue
+                item.append({
+                    "file": mp4.name,
+                    "video": mp4.parent.name,
+                    "folder": str(mp4.parent),
+                    "url": f"/out/{mp4.parent.name}/{mp4.name}",
+                    "mb": round(st.st_size / 1048576, 1),
+                    "at": int(st.st_mtime),
+                })
+            item.sort(key=lambda x: x["at"], reverse=True)   # terbaru dulu
+            return self._send_json({"render": item})
 
         if path == "/api/cache":
             # UI perlu tahu transkrip apa saja yang tersedia. Server ini tidak

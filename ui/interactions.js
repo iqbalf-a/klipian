@@ -62,7 +62,9 @@ async function acceptFile(file) {
 
   // Video baru = orang di frame juga lain, jadi daftar objek dikosongkan dan
   // dimulai lagi dari "Orang 1".
-  if (changed && typeof resetObjects === "function") resetObjects();
+  if (changed && typeof resetFraming === "function") resetFraming();
+  if (changed && typeof resetResult === "function") resetResult();
+  if (changed && typeof resetTeks === "function") resetTeks();
 
   // Video baru = sesi baru. Tanpa ini, kandidat dan ribbon dari file
   // sebelumnya ikut terbawa dan angkanya bertabrakan di layar.
@@ -71,10 +73,9 @@ async function acceptFile(file) {
     DATA[mode].marks = [];
     DATA[mode].words = [];
     if (typeof realTranscript !== "undefined") realTranscript = null;
-    renderBoard(); renderList();
-    if (typeof summarizeRender === "function") summarizeRender();
+    renderList();
+    if (typeof renderRecommendations === "function") renderRecommendations();
   }
-  renderRibbon();   // ribbon ikut durasi file yang baru dijatuhkan
   if (typeof prepareVideo === "function") {
     prepareVideo();
     setClip(DATA[mode].candidates[0]);
@@ -169,46 +170,15 @@ window.addEventListener("drop", (e) => {
 
 /* ───────────────── kandidat: setujui, tolak, batalkan ────────────────── */
 
-$("#board").addEventListener("click", (e) => {
-  const b = e.target.closest(".btn");
-  if (!b) return;
-  const i = [...$("#board").children].indexOf(b.closest(".card"));
-  const k = DATA[mode].candidates[i];
-  if (!k) return;
-  // data-action, bukan teks tombol: mengganti label "Setujui" jadi apa pun
-  // tidak boleh diam-diam mematikan persetujuan klip.
-  const action = b.dataset.action;
-  k.status = action === "approve" ? "approved"
-           : action === "reject" ? "rejected"
-           : undefined;      // reset: Batalkan dan Kembalikan sama-sama ke awal
-  renderBoard();
-  renderRibbon();
-  renderList();            // antrian ikut berubah: isinya klip yang disetujui
-  renderPreview();
-  if (typeof summarizeRender === "function") summarizeRender();
-});
 
 /* ───────────────── ribbon: klik sapuan membuka klipnya ───────────────── */
 
-$("#ribbonStrip").addEventListener("click", (e) => {
-  const m = e.target.closest(".mark");
-  if (!m) return;
-  const k = DATA[mode].candidates[[...$("#ribbonStrip").children].indexOf(m)];
-  if (!k) return;
-  if (typeof applyRealWords === "function" && k.startSec !== undefined) {
-    applyRealWords(k);                     // transkrip ikut pindah ke klip itu
-  } else {
-    $("#cutTitle").textContent = k.title;
-    $("#cutDur").textContent = `${k.dur}s`;
-  }
-  if (typeof setClip === "function") setClip(k);
-  toScreen("cut");
-});
 
 /* ───────────────── caption: opsi mengubah preview seketika ───────────── */
 
+/* Mengembalikan OBJEK pilihan yang sedang aktif: { t, out, px?, css? }.
+   Preview memakai .px (kotaknya kecil), render memakai .out. */
 function captionValue(id) {
-  // dicari lewat id, bukan awalan label -- label boleh diganti kapan saja
   const o = CAPTION_OPTIONS.find((x) => x.id === id);
   return o ? o.choices[o.active] : null;
 }
@@ -216,12 +186,14 @@ function captionValue(id) {
 function applyCaption() {
   const cap = document.querySelector(".cap916");
   if (!cap) return;
-  cap.style.fontSize = `${captionValue("size")}px`;
-  cap.style.bottom = `${captionValue("position")}%`;
-  const thickness = Number(captionValue("outline"));
+  cap.style.fontSize = `${captionValue("size").px}px`;
+  cap.style.bottom = `${captionValue("position").px}%`;
+  cap.style.fontFamily = captionValue("font").out;
+  const thickness = captionValue("outline").px;
   cap.style.webkitTextStroke = thickness ? `${thickness * 0.5}px rgba(0,0,0,.85)` : "";
-  const mark = cap.querySelector("mark");
-  if (mark) mark.style.background = captionValue("highlight") === "putih" ? "#fff" : "var(--aksen)";
+  // warna dipasang sebagai variabel di wadahnya supaya kata yang disorot
+  // ikut berubah walau isinya digambar ulang tiap timeupdate
+  cap.style.setProperty("--sorot", captionValue("highlight").css);
 }
 
 $("#captionList").addEventListener("click", (e) => {
@@ -231,19 +203,14 @@ $("#captionList").addEventListener("click", (e) => {
   const o = CAPTION_OPTIONS.find((x) => x.id === row.dataset.caption);
   if (!o) return;
   const all = [...row.querySelectorAll(".chip")];
-  o.active = all.indexOf(c);
-  o.value = o.choices[o.active];
+  o.active = Number(c.dataset.pilih ?? all.indexOf(c));
   all.forEach((b, i) => b.setAttribute("aria-pressed", String(i === o.active)));
-  row.querySelector(".meta").textContent = o.value;
+  row.querySelector(".meta").textContent = o.choices[o.active].t;
   applyCaption();
 });
 
 /* ───────────────── potong: klik jeda membuang celahnya ──────────────── */
 
-$("#transcript").addEventListener("click", (e) => {
-  const j = e.target.closest(".gap");
-  if (j) j.replaceWith(document.createTextNode(" "));
-});
 
 /* ───────────────── antrian: batalkan / ulangi / buka folder ──────────── */
 

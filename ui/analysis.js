@@ -28,18 +28,6 @@ const fmtClock = (seconds) => {
 
 /* Ribbon selama analisis: belum ada temuan, jadi tidak boleh ada sapuan.
    Yang ditampilkan garis pemindaian yang merambat. */
-function ribbonScan(frac) {
-  const ribbon = $("#ribbonStrip");
-  let bar = ribbon.querySelector(".ribbon-progress");
-  if (!bar) {
-    ribbon.innerHTML = "";
-    bar = document.createElement("span");
-    bar.className = "ribbon-progress";
-    ribbon.appendChild(bar);
-  }
-  bar.style.width = `${frac * 100}%`;
-  $("#ribbonNote").textContent = `memindai · ${Math.round(frac * 100)}%`;
-}
 
 async function startAnalysis() {
   clearInterval(analysisTimer);

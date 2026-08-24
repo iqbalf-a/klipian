@@ -204,7 +204,10 @@ function importJSON(text) {
       reason: (k.reason || k.alasan || "").trim(),
       spans: [{ start: m, end: s }],   // satu potongan utuh sampai dibelah
     };
-  }).filter((k) => k && k.dur > 0).sort((a, b) => b.total - a.total);
+  // Urutan AI dipertahankan, TIDAK diurut ulang berdasarkan skor. Skornya
+  // tidak ditampilkan di layar Edit, jadi mengurut ulang cuma membuat
+  // "rekomendasi nomor 1" di layar berbeda dengan nomor 1 di JSON.
+  }).filter((k) => k && k.dur > 0);
 
   if (!result.length) throw new Error("Semua klip punya durasi nol atau negatif.");
   return result;
@@ -214,12 +217,6 @@ function importJSON(text) {
 
 function applyCandidates(candidates) {
   const d = DATA[mode];
-  // Tiap klip diberi objek sejak awal. Kalau dibiarkan kosong, klip itu ikut
-  // objek yang KEBETULAN sedang aktif, jadi framingnya berubah diam-diam
-  // setiap kali kamu memilih orang lain di layar Reframe.
-  if (typeof activeObjectId !== "undefined" && activeObjectId) {
-    candidates.forEach((k) => { if (!k.objectId) k.objectId = activeObjectId; });
-  }
   d.candidates = candidates;
   d.marks = candidates.map((k) => ({
     pos: (k.startSec / realTranscript.duration) * 100,
@@ -228,39 +225,13 @@ function applyCandidates(candidates) {
   }));
 
   // transkrip layar Potong memakai kata sungguhan di sekitar klip teratas
-  applyRealWords(candidates[0]);
 
-  renderRibbon(); renderBoard(); renderList(); renderPreview();
-  if (typeof summarizeRender === "function") summarizeRender();
+
+  renderList(); renderPreview();
   if (typeof setClip === "function") setClip(candidates[0]);
-  if (typeof drawSpans === "function") drawSpans();
+
 }
 
-/* Chip kata di layar Potong diisi kata asli dari transkrip, bukan contoh. */
-function applyRealWords(clip) {
-  if (!clip || !realTranscript) return;
-  const pad = 12;
-  const w = realTranscript.words.filter(
-    (x) => x.end > clip.startSec - pad && x.start < clip.endSec + pad);
-
-  const words = [];
-  let before = null;
-  for (const x of w) {
-    if (before && x.start - before > 0.6) words.push(["|", 0]);
-    const inside = x.start >= clip.startSec && x.end <= clip.endSec;
-    words.push([x.text.trim(), inside ? 1 : 0]);
-    before = x.end;
-  }
-  DATA[mode].words = words;
-  DATA[mode].suspect = w.filter((x) => x.prob < 0.5 && x.text.trim().length >= 5)
-                     .map((x) => x.text.trim());
-  DATA[mode].cut = { title: clip.title, in: clip.in, out: clip.out, dur: `${clip.dur}s` };
-  renderCut();
-  $("#cutTitle").textContent = clip.title;
-  $("#cutDur").textContent = `${clip.dur}s`;
-  $("#cutRange").textContent = `in ${clip.in} · out ${clip.out}`;
-  $("#waveRange").textContent = `in ${clip.in} — out ${clip.out}`;
-}
 
 /* ---------- pemasangan kontrol ---------- */
 
@@ -277,7 +248,6 @@ async function prepareExport(videoName) {
   }
   panel.dataset.ready = "true";
   button.disabled = false;
-  renderRibbon();   // durasi ribbon baru benar setelah transkrip termuat
   note.textContent =
     `${realTranscript.words.length.toLocaleString("id")} kata · ${fmtStamp(realTranscript.duration)} · siap dijatuhkan ke Claude`;
   $("#importPanel").dataset.ready = "true";
@@ -307,8 +277,9 @@ $("#importBtn").addEventListener("click", () => {
     const candidates = importJSON($("#pasteJSON").value);
     applyCandidates(candidates);
     note.dataset.error = "false";
-    note.textContent = `${candidates.length} klip dipotong`;
-    toScreen("candidates");
+    note.textContent = `${candidates.length} rekomendasi masuk`;
+    if (typeof renderRecommendations === "function") renderRecommendations();
+    toScreen("edit");          // rekomendasi bukan tujuan akhir, result yang tujuan
   } catch (err) {
     note.dataset.error = "true";
     note.textContent = err.message;
