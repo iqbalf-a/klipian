@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+
+# hasil kerja, bukan kode
+cache/
+out/
+samples/
+
+# rahasia
+.env

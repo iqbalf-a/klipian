@@ -1,0 +1,33 @@
+# Glosarium klipian
+# --------------------------------------------------------------------
+# Nama orang, brand, dan istilah teknis yang sering muncul di podcastmu.
+# Whisper "dikenalkan" dengan daftar ini sebelum mulai, dan istilahnya
+# disisipkan ulang di tiap jendela 30 detik -- jadi tetap dikenali sampai
+# akhir episode, bukan cuma menit-menit awal.
+#
+# Dua bentuk baris:
+#   Istilah              -> cukup didaftarkan
+#   salah => benar       -> koreksi otomatis setelah transkripsi
+#
+# Cara mengisinya: jalankan `klipian transcribe`, lalu lihat daftar
+# "kata mungkin salah dengar" yang dicetak di akhir. Itu calon isinya.
+
+# --- nama & brand ---
+Raditya Dika
+Biokul
+Mobile Legends
+
+# --- announcer MLBB (mode gameplay) ---
+Savage
+Maniac
+Legendary
+Triple Kill
+Double Kill
+First Blood
+
+# --- koreksi yang terbukti terjadi di sampel ---
+biukan => bukan
+biokul => Biokul
+radhi => Radit
+salvage => Savage
+manic => Maniac

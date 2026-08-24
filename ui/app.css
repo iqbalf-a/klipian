@@ -1,0 +1,1087 @@
+/* klipian — komponen */
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg-0);
+  color: var(--teks);
+  font-family: var(--font-ui);
+  font-size: var(--t-14);
+  font-weight: 450;
+  font-stretch: calc(var(--w-baca) * 1%);
+  line-height: 1.5;
+  letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+
+  /* Angka tidak boleh bergeser saat berubah. Di aplikasi yang penuh timecode
+     dan skor berjalan, proportional figures membuat baris terlihat gemetar. */
+  font-variant-numeric: tabular-nums;
+}
+
+/* Cahaya ambien: dua noda besar yang sangat kabur, satu mengikuti warna mode.
+   Ini yang membuat latar gelap terasa punya ruang, bukan bidang mati. */
+body::before {
+  content: "";
+  position: fixed; inset: -20% -10% auto -10%;
+  height: 70vh;
+  background:
+    radial-gradient(46% 60% at 22% 0%, color-mix(in srgb, var(--aksen) 13%, transparent), transparent 70%),
+    radial-gradient(50% 62% at 82% 6%, rgba(91,140,255,.10), transparent 72%);
+  filter: blur(48px);
+  pointer-events: none;
+  z-index: 0;
+  transition: background var(--sedang);
+}
+
+.app { position: relative; z-index: 1; height: 100vh;
+       display: grid; grid-template-rows: var(--h-topbar) var(--h-ribbon) 1fr; }
+
+/* Hierarki dibangun dari LEBAR huruf, bukan hanya ukuran.
+   Judul dilebarkan supaya punya kehadiran; label disempitkan supaya padat.
+   text-wrap: balance mencegah kata tunggal menggantung di baris terakhir. */
+h1, h2, h3 {
+  margin: 0;
+  font-weight: 750;
+  font-stretch: calc(var(--w-judul) * 1%);
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.data {
+  font-family: var(--font-data);
+  font-size: var(--t-11);
+  font-stretch: calc(var(--w-data) * 1%);
+  font-weight: 400;
+  letter-spacing: -0.03em;
+}
+
+.eyebrow {
+  font-size: var(--t-10); font-weight: 700;
+  font-stretch: calc(var(--w-padat) * 1%);
+  letter-spacing: .13em; text-transform: uppercase;
+  color: var(--teks-samar);
+}
+
+/* ═══════════════════════════════════════════════ topbar */
+
+.topbar {
+  display: flex; align-items: center; gap: var(--s5);
+  padding: 0 var(--s5);
+  background: color-mix(in srgb, var(--bg-1) 72%, transparent);
+  backdrop-filter: blur(20px) saturate(150%);
+  border-bottom: 1px solid var(--garis-kaca);
+}
+
+.brand {
+  font-size: var(--t-20); font-weight: 800;
+  font-stretch: calc(var(--w-lebar) * 1%);
+  letter-spacing: -.045em;
+  background: linear-gradient(96deg, var(--teks) 20%, var(--aksen) 130%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+
+.file { display: flex; align-items: center; gap: var(--s3); color: var(--teks-lemah); }
+.file .name { font-family: var(--font-data); font-size: 12px; color: var(--teks); }
+.file .data { color: var(--teks-samar); }
+
+.topbar .rest { margin-left: auto; display: flex; align-items: center; gap: var(--s3); }
+
+.mode-pick {
+  font-family: var(--font-ui); font-size: 12px; font-weight: 600;
+  color: var(--aksen);
+  background: var(--aksen-lembut);
+  border: 1px solid color-mix(in srgb, var(--aksen) 32%, transparent);
+  border-radius: var(--r-pill);
+  padding: 6px 13px;
+  cursor: pointer;
+  transition: box-shadow var(--cepat), background var(--cepat);
+}
+.mode-pick:hover { box-shadow: 0 0 0 4px color-mix(in srgb, var(--aksen) 12%, transparent); }
+
+/* rel tab berbentuk pill, penanda aktif berupa kaca terang */
+.tabs {
+  display: flex; gap: 2px; padding: 3px;
+  background: var(--kaca);
+  border: 1px solid var(--garis-kaca);
+  border-radius: var(--r-pill);
+}
+.tab {
+  font: inherit; font-size: var(--t-12); font-weight: 650;
+  font-stretch: calc(var(--w-baca) * 1%);
+  letter-spacing: -.005em;
+  color: var(--teks-lemah);
+  background: none; border: 0;
+  border-radius: var(--r-pill);
+  padding: 6px 13px;
+  cursor: pointer;
+  transition: color var(--cepat), background var(--cepat);
+}
+.tab:hover { color: var(--teks); }
+.tab[aria-selected="true"] {
+  color: var(--bg-0);
+  background: var(--teks);
+}
+
+/* ═══════════════════════════════════════════════ ribbon */
+
+.ribbon {
+  padding: var(--s3) var(--s5) var(--s2);
+  border-bottom: 1px solid var(--garis-kaca);
+  display: grid; grid-template-rows: auto 1fr auto; gap: var(--s2);
+  background: color-mix(in srgb, var(--bg-1) 45%, transparent);
+}
+.ribbon-head { display: flex; align-items: center; gap: var(--s3); }
+.ribbon-head strong { font-size: 12px; font-weight: 700; color: var(--teks); }
+
+.ribbon-strip {
+  position: relative; height: 24px;
+  border-radius: var(--r-s);
+  background: linear-gradient(180deg, rgba(0,0,0,.4), rgba(255,255,255,.03));
+  box-shadow: inset 0 0 0 1px var(--garis-kaca);
+}
+
+/* Sapuan: lebar mengikuti skor, dengan cahaya di sekelilingnya.
+   Lebarnya sengaja bisa setipis 4px karena ketipisan itu membawa informasi --
+   jadi area kliknya diperbesar lewat ::before yang tak terlihat, memenuhi
+   WCAG 2.2 target size 24x24 tanpa mengubah tampilannya. */
+.mark {
+  position: absolute; top: 4px; height: 16px;
+  width: var(--w, 6px);
+  padding: 0; border: 0;
+  border-radius: 3px;
+  background: var(--aksen);
+  box-shadow:
+    0 0 10px -1px var(--aksen-glow),
+    0 0 22px -4px var(--aksen-glow);
+  transform-origin: left center;
+  animation: sapu 220ms cubic-bezier(.2,.8,.3,1) both;
+  animation-delay: var(--d, 0ms);
+  cursor: pointer;
+  transition: filter var(--cepat), transform var(--cepat);
+}
+.mark::before {
+  content: ""; position: absolute;
+  left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: max(24px, 100%); height: 26px;
+}
+.mark:hover { filter: brightness(1.2); transform: scaleY(1.18); }
+.mark:focus-visible { outline-offset: 4px; }
+/* Label dijepit di tepi: sapuan di posisi 0% atau 100% membuat label yang
+   ditengahkan terpotong keluar dari ribbon. */
+.mark::after {
+  content: attr(data-label);
+  position: absolute; top: 22px; left: 50%; transform: translateX(-50%);
+  font-family: var(--font-data); font-size: 10px;
+  color: var(--teks-samar); white-space: nowrap;
+}
+.mark[data-edge="left"]::after  { left: 0; transform: none; }
+.mark[data-edge="right"]::after { left: auto; right: 0; transform: none; }
+
+@keyframes sapu { from { transform: scaleX(0); opacity: 0 } to { transform: scaleX(1); opacity: 1 } }
+
+.ribbon-foot {
+  display: flex; justify-content: space-between;
+  font-family: var(--font-data); font-size: 10px; color: var(--teks-samar);
+}
+
+/* ═══════════════════════════════════════════════ panggung */
+
+.stage { display: grid; grid-template-columns: 1fr; min-height: 0; }
+.stage.has-preview { grid-template-columns: 1fr var(--w-preview); }
+
+.work { min-height: 0; display: flex; flex-direction: column;
+         padding: var(--s5); gap: var(--s4); overflow: hidden; }
+
+.screen { display: none; flex: 1; min-height: 0; flex-direction: column; gap: var(--s4); }
+.screen.active { display: flex; }
+
+.work-head { display: flex; align-items: center; gap: var(--s4); flex: none; }
+.work-head h1 {
+  font-size: clamp(var(--t-24), 2.1vw, var(--t-29));
+  font-stretch: calc(var(--w-lebar) * 1%);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -.038em;
+}
+.work-head .note { color: var(--teks-samar); font-size: var(--t-13); }
+.work-head .right { margin-left: auto; }
+
+/* ═══════════════════════════════════════════════ panel kaca */
+
+.panel {
+  position: relative;
+  background: var(--kaca);
+  backdrop-filter: blur(18px);
+  border: 1px solid var(--garis-kaca);
+  border-radius: var(--r-l);
+  box-shadow: var(--bayang-panel);
+  overflow: hidden;
+}
+.panel.fit { flex: none; }
+.panel.body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+/* ═══════════════════════════════════════════════ kartu kandidat */
+
+.board {
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: var(--s4); align-content: start; padding: 2px var(--s1) var(--s5) 2px;
+}
+
+.card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: var(--s4);
+  padding: var(--s4);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-2));
+  border: 1px solid var(--garis-kaca);
+  border-radius: var(--r-l);
+  box-shadow: var(--bayang-kartu);
+  transition: transform var(--cepat), box-shadow var(--cepat), border-color var(--cepat);
+}
+.card:hover {
+  transform: translateY(-3px);
+  border-color: var(--garis-terang);
+  box-shadow: var(--bayang-angkat);
+}
+.card.picked {
+  border-color: color-mix(in srgb, var(--aksen) 48%, transparent);
+  box-shadow: var(--bayang-kartu), 0 0 26px -14px var(--aksen-glow);
+}
+.card.rejected { opacity: .38; }
+
+/* Thumbnail memakai frame asli dari video sumber. */
+.card-media { position: relative; }
+.thumb {
+  aspect-ratio: 9/16;
+  background: #000 center/cover no-repeat;
+  border-radius: var(--r-m);
+  box-shadow: inset 0 0 0 1px var(--garis-kaca);
+}
+.badge {
+  position: absolute; left: 50%; bottom: 7px; transform: translateX(-50%);
+  font-family: var(--font-data); font-size: 12px; font-weight: 500;
+  color: #fff;
+  background: rgba(8,9,12,.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--garis-terang);
+  border-radius: var(--r-pill);
+  padding: 3px 9px;
+}
+
+.card-body { display: grid; gap: var(--s3); align-content: start; min-width: 0; }
+.card h2 { font-size: var(--t-17); line-height: 1.2; letter-spacing: -.028em; }
+
+/* Kutipan yang ditandai AI. Bukan blok warna penuh: pita cahaya di belakang
+   teks, sehingga tulisannya tetap terbaca dan tidak seperti teks ter-block. */
+.quote {
+  margin: 0;
+  hanging-punctuation: first;
+  font-size: var(--t-13); line-height: 1.6;
+  color: var(--teks-lemah);
+  padding-left: var(--s3);
+  border-left: 2px solid color-mix(in srgb, var(--aksen) 60%, transparent);
+}
+.quote .highlight {
+  color: var(--teks);
+  background: linear-gradient(180deg, transparent 42%, var(--aksen-lembut) 42%);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  padding: 0 1px;
+}
+
+.score { display: grid; gap: 6px; }
+.score-row {
+  display: grid; grid-template-columns: 46px 1fr 28px;
+  align-items: center; gap: var(--s2);
+  font-size: var(--t-11); font-weight: 650;
+  font-stretch: calc(var(--w-padat) * 1%);
+  color: var(--teks-samar);
+}
+.score-bar { height: 4px; border-radius: var(--r-pill); background: rgba(255,255,255,.07); }
+.score-bar > i {
+  display: block; height: 100%; border-radius: var(--r-pill);
+  background: linear-gradient(90deg, rgba(255,255,255,.26), rgba(255,255,255,.66));
+}
+.score-row .figure { font-family: var(--font-data); text-align: right; color: var(--teks-lemah); }
+
+.card-foot {
+  grid-column: 1 / -1;
+  display: flex; align-items: center; gap: var(--s3);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--garis-kaca);
+  font-family: var(--font-data); font-size: 10.5px; color: var(--teks-samar);
+}
+.card-foot .time {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
+.card-foot .actions { margin-left: auto; display: flex; gap: var(--s1); align-items: center; flex: none; }
+
+/* Status, bukan aksi. Tenang, satu baris, dan tidak memakai warna aksen --
+   penanda "sudah disetujui" pada tingkat pandang sekilas sudah dikerjakan
+   oleh cincin di tepi kartu. */
+.pill-ready {
+  display: inline-flex; align-items: center; gap: 5px;
+  white-space: nowrap;
+  font-size: 11px; font-weight: 600;
+  color: var(--teks);
+  background: var(--kaca-kuat);
+  border: 1px solid var(--garis-terang);
+  border-radius: var(--r-pill);
+  padding: 5px 11px;
+}
+.pill-ready::before { content: "¹3"; font-size: 10px; opacity: .75; }
+
+/* ═══════════════════════════════════════════════ tombol */
+
+/* Aturan warna:
+   AKSEN  = apa yang ditemukan dan dipilih AI  (sapuan ribbon, kutipan,
+            seleksi transkrip, caption)
+   PUTIH  = aksi dan keadaan milik pengguna    (tombol, progress, status)
+   Sebelumnya aksen dipakai untuk dua-duanya, dan tombol Setujui jadi elemen
+   paling berisik di kartu -- mengalahkan judul dan kutipan yang justru harus
+   dibaca lebih dulu. */
+.btn {
+  font: inherit; font-size: var(--t-12); font-weight: 650;
+  font-stretch: calc(var(--w-baca) * 1%);
+  white-space: nowrap;
+  padding: 6px 13px;
+  border-radius: var(--r-pill);
+  border: 1px solid transparent;
+  background: none;
+  color: var(--teks-lemah);
+  cursor: pointer;
+  transition: background var(--cepat), border-color var(--cepat), color var(--cepat);
+}
+.btn:hover { color: var(--teks); background: var(--kaca); border-color: var(--garis-kaca); }
+
+.btn.main {
+  border-color: transparent;
+  color: var(--bg-0);
+  background: var(--teks);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 4px 14px -8px rgba(0,0,0,.9);
+}
+.btn.main:hover { background: #fff; }
+
+.btn.quiet { background: none; border-color: transparent; color: var(--teks-samar); }
+.btn.quiet:hover { color: var(--teks); background: var(--kaca); }
+
+.chip {
+  font: inherit; font-size: var(--t-12); font-weight: 650;
+  padding: 7px 13px;
+  border: 1px solid var(--garis-kaca);
+  border-radius: var(--r-pill);
+  background: var(--kaca);
+  color: var(--teks-lemah);
+  cursor: pointer;
+  transition: all var(--cepat);
+}
+.chip:hover { color: var(--teks); }
+.chip[aria-pressed="true"] {
+  color: var(--aksen);
+  border-color: color-mix(in srgb, var(--aksen) 45%, transparent);
+  background: var(--aksen-lembut);
+}
+
+.link {
+  font: inherit; font-size: var(--t-12); font-weight: 650;
+  color: var(--teks-lemah);
+  background: none; border: 0; padding: 4px 2px;
+  cursor: pointer; transition: color var(--cepat);
+  text-decoration: underline; text-underline-offset: 3px;
+  text-decoration-color: var(--garis-terang);
+}
+.link:hover { color: var(--aksen); }
+
+/* ═══════════════════════════════════════════════ preview 9:16 */
+
+.preview {
+  border-left: 1px solid var(--garis-kaca);
+  background: color-mix(in srgb, var(--bg-1) 55%, transparent);
+  backdrop-filter: blur(18px);
+  padding: var(--s5) var(--s4);
+  display: flex; flex-direction: column; gap: var(--s3);
+  min-height: 0;
+}
+.preview-head {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--teks-samar);
+}
+.preview-head .res { font-family: var(--font-data); letter-spacing: 0; text-transform: none; }
+
+/* SATU frame. Caption adalah overlay di dalamnya. */
+.frame916 {
+  position: relative; width: 100%;
+  aspect-ratio: 9 / 16;
+  background: #000;
+  border-radius: var(--r-m);
+  overflow: hidden;
+  flex: none;
+  box-shadow: inset 0 0 0 1px var(--garis-kaca), 0 20px 50px -20px rgba(0,0,0,.95);
+}
+.field { position: absolute; left: 0; right: 0; background: #0B0D11 center/cover no-repeat; }
+.field::after {
+  content: attr(data-tag);
+  position: absolute; top: 7px; left: 7px;
+  font-family: var(--font-data); font-size: 9px;
+  color: #fff; background: rgba(0,0,0,.6); backdrop-filter: blur(8px);
+  padding: 3px 7px; border-radius: var(--r-pill);
+  opacity: 0; transition: opacity var(--cepat);
+}
+.frame916:hover .field::after { opacity: 1; }
+
+.frame916[data-layout="single"] .field.main { top: 0; bottom: 0; }
+.frame916[data-layout="single"] .field.top  { display: none; }
+.frame916[data-layout="double"] .field.top  { top: 0; height: 30%; }
+.frame916[data-layout="double"] .field.main { top: 30%; bottom: 0; }
+
+.safe {
+  position: absolute; top: 16%; bottom: 20%; left: 6%; right: 6%;
+  border: 1px dashed rgba(255,255,255,.34);
+  border-radius: var(--r-s);
+  pointer-events: none;
+}
+.frame916[data-safe="off"] .safe { display: none; }
+
+.cap916 {
+  position: absolute; left: 7%; right: 7%; bottom: 23%;
+  text-align: center; text-wrap: balance;
+  font-size: var(--t-20); font-weight: 800;
+  font-stretch: calc(var(--w-lebar) * 1%);
+  line-height: 1.18; letter-spacing: -.035em;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,.9), 0 3px 14px rgba(0,0,0,.75);
+}
+.cap916 mark {
+  background: var(--aksen); color: #0A0B0E;
+  padding: 1px 6px; border-radius: 5px;
+  box-shadow: 0 0 18px -4px var(--aksen-glow);
+}
+
+/* info klip + ukuran durasi terhadap pita ideal */
+.clip-info { flex: none; display: grid; gap: var(--s3); padding-top: var(--s1); }
+.clip-title { font-size: 15px; font-weight: 700; letter-spacing: -.025em; }
+
+.meter { display: grid; gap: 6px; }
+.meter-head, .meter-foot {
+  display: flex; justify-content: space-between;
+  font-family: var(--font-data); font-size: 10px; color: var(--teks-samar);
+}
+.meter-bar {
+  position: relative; height: 8px; border-radius: var(--r-pill);
+  background: rgba(255,255,255,.06);
+  box-shadow: inset 0 0 0 1px var(--garis-kaca);
+}
+.meter-ideal {
+  position: absolute; top: 0; bottom: 0; border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--aksen) 26%, transparent);
+}
+.meter-tick {
+  position: absolute; top: -3px; bottom: -3px; width: 3px; border-radius: 2px;
+  background: #fff; box-shadow: 0 0 10px -1px rgba(255,255,255,.7);
+}
+.meter-value { color: var(--teks); }
+
+.preview-foot {
+  margin-top: auto;
+  display: flex; align-items: center; gap: var(--s2);
+  font-family: var(--font-data); font-size: 11px; color: var(--teks-samar);
+}
+.preview-foot .time { margin-left: auto; }
+.icon {
+  width: 32px; height: 30px; display: grid; place-items: center;
+  border: 1px solid var(--garis-kaca); border-radius: var(--r-s);
+  background: var(--kaca); color: var(--teks); cursor: pointer;
+  transition: background var(--cepat);
+}
+.icon:hover { background: var(--kaca-kuat); }
+
+/* ═══════════════════════════════════════════════ potong */
+
+.tools { flex: none; padding: var(--s4) var(--s4) 0; }
+
+/* Waveform menempel langsung ke chip kata — satu alat, tanpa jarak. */
+.wave {
+  position: relative; height: 66px;
+  display: flex; align-items: center; gap: 2px;
+  padding: 0 2px;
+  border-radius: var(--r-s) var(--r-s) 0 0;
+  background: rgba(0,0,0,.32);
+  box-shadow: inset 0 0 0 1px var(--garis-kaca);
+  overflow: hidden;
+}
+.wave i { flex: 1; min-width: 2px; border-radius: 1px; background: rgba(255,255,255,.13); }
+.wave i.inside {
+  background: linear-gradient(180deg, var(--aksen), color-mix(in srgb, var(--aksen) 62%, transparent));
+  box-shadow: 0 0 10px -3px var(--aksen-glow);
+}
+.edge-choice { position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; opacity: .55; }
+
+.tools-foot {
+  display: flex; justify-content: space-between;
+  font-family: var(--font-data); font-size: 10px; color: var(--teks-samar);
+  padding: 6px 2px;
+  border-bottom: 1px solid var(--garis-kaca);
+}
+
+.transcript {
+  flex: 1; min-height: 0; overflow-y: auto;
+  padding: var(--s4) var(--s4) var(--s5);
+  font-size: 16px; line-height: 2.1; color: var(--teks-lemah);
+}
+.word {
+  cursor: pointer; padding: 3px 4px; border-radius: 5px;
+  transition: background var(--cepat), color var(--cepat);
+}
+.word:hover { background: var(--kaca-kuat); color: var(--teks); }
+.word:focus-visible { outline: 2px solid var(--aksen); outline-offset: 1px; }
+.word.inside {
+  color: #0A0B0E;
+  background: var(--aksen);
+  box-shadow: 0 0 14px -5px var(--aksen-glow);
+}
+.word.suspect { border-bottom: 2px dotted var(--bahaya); }
+
+.gap {
+  font-family: var(--font-data); font-size: var(--t-10);
+  color: var(--teks-lemah);
+  background: var(--kaca); border: 1px solid var(--garis-kaca);
+  padding: 5px 9px; margin: 0 4px; border-radius: var(--r-pill);
+  cursor: pointer; min-height: 24px;
+}
+.gap:hover { color: var(--bahaya); border-color: color-mix(in srgb, var(--bahaya) 45%, transparent); }
+
+.legend {
+  flex: none; display: flex; gap: var(--s5);
+  padding: var(--s3) var(--s4);
+  border-top: 1px solid var(--garis-kaca);
+  font-size: 11px; color: var(--teks-samar);
+}
+.legend u { text-decoration: none; border-bottom: 2px dotted var(--bahaya); }
+
+/* ═══════════════════════════════════════════════ reframe */
+
+.canvas {
+  flex: 1; min-height: 0; position: relative;
+  background: #000 center/contain no-repeat;
+  border-radius: var(--r-l);
+  border: 1px solid var(--garis-kaca);
+  overflow: hidden;
+}
+.canvas::after {
+  content: ""; position: absolute; inset: 0;
+  background: rgba(6,7,10,.62); pointer-events: none;
+}
+
+.crop { position: absolute; z-index: 1; cursor: move; border-radius: var(--r-s);
+        box-shadow: 0 0 0 2px var(--aksen), 0 0 30px -6px var(--aksen-glow); }
+.crop.second { box-shadow: 0 0 0 2px rgba(255,255,255,.75), 0 0 26px -8px rgba(255,255,255,.35); }
+.crop .tag {
+  position: absolute; top: -26px; left: -1px;
+  font-family: var(--font-data); font-size: 10px;
+  background: var(--aksen); color: #0A0B0E;
+  padding: 3px 9px; border-radius: var(--r-pill);
+  white-space: nowrap;
+}
+.crop.second .tag { background: #fff; color: #0A0B0E; }
+.crop b {
+  position: absolute; width: 9px; height: 9px; border-radius: 2px;
+  background: var(--aksen); box-shadow: 0 0 10px -2px var(--aksen-glow);
+}
+.crop.second b { background: #fff; }
+.crop b:nth-child(2) { left: -5px; top: -5px; }
+.crop b:nth-child(3) { right: -5px; top: -5px; }
+.crop b:nth-child(4) { left: -5px; bottom: -5px; }
+.crop b:nth-child(5) { right: -5px; bottom: -5px; }
+
+.preset-bar { flex: none; display: flex; align-items: center; gap: var(--s2); }
+.preset-bar .eyebrow { margin-right: var(--s2); }
+.preset-bar .btn { margin-left: auto; }
+
+/* ═══════════════════════════════════════════════ daftar */
+
+.list { display: grid; }
+.row {
+  display: grid; grid-template-columns: 1fr auto auto auto;
+  align-items: center; gap: var(--s5);
+  padding: var(--s4) var(--s5);
+  border-bottom: 1px solid var(--garis-kaca);
+  transition: background var(--cepat);
+}
+.row:last-child { border-bottom: 0; }
+.row:hover { background: var(--kaca); }
+.row .title { font-family: var(--font-data); font-size: 13px; color: var(--teks); }
+.row .sub { font-size: 12px; color: var(--teks-samar); margin-top: 3px; }
+.row .meta { font-family: var(--font-data); font-size: 11px; color: var(--teks-samar); }
+
+.progress { width: 190px; height: 5px; border-radius: var(--r-pill); background: rgba(255,255,255,.07); }
+.progress > i {
+  display: block; height: 100%; border-radius: var(--r-pill);
+  background: linear-gradient(90deg, rgba(255,255,255,.3), rgba(255,255,255,.7));
+}
+.progress.done > i { background: rgba(255,255,255,.9); }
+
+/* ═══════════════════════════════════════════════ jatuhkan file */
+
+.drop {
+  flex: 1; min-height: 0;
+  border: 1px dashed var(--garis-kaca);
+  border-radius: var(--r-l);
+  display: grid; align-content: center; justify-items: center; gap: var(--s3);
+  text-align: center;
+  background: var(--kaca);
+  transition: border-color var(--cepat), background var(--cepat);
+}
+.drop:hover { border-color: color-mix(in srgb, var(--aksen) 42%, transparent); }
+.drop h2 { font-size: 20px; }
+.drop p { margin: 0; color: var(--teks-samar); font-size: 13px; }
+
+/* ═══════════════════════════════════════════════ galat */
+
+.error {
+  flex: none; display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s4);
+  border-radius: var(--r-m);
+  background: color-mix(in srgb, var(--bahaya) 11%, transparent);
+  border: 1px solid color-mix(in srgb, var(--bahaya) 26%, transparent);
+}
+.error strong { color: var(--bahaya); }
+.error p { margin: 0; color: var(--teks-lemah); font-size: 13px; }
+.error .link { margin-left: auto; }
+
+/* ═══════════════════════════════════════════════ akses */
+
+:focus-visible { outline: 2px solid var(--aksen); outline-offset: 2px; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,.09); border-radius: var(--r-pill);
+                            border: 3px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.16); background-clip: content-box; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }
+}
+@media (max-width: 1180px) { :root { --w-preview: 292px; } }
+
+/* ═══════════════════════════════════════════════ tahap navigasi
+   Tiga tingkat, bukan satu tumpukan tab:
+     beranda  -> pilih mode
+     siapkan  -> sumber + opsi
+     kerja    -> tab editor
+   Sebelumnya aplikasi membuka langsung di layar Kandidat dari proyek yang
+   seolah sudah terbuka -- tidak ada pintu masuk, dan pengguna kehilangan
+   orientasi. */
+
+.home, .prepare { display: none; overflow-y: auto; }
+[data-stage="home"] .home { display: block; }
+[data-stage="prepare"] .prepare { display: block; }
+[data-stage="home"] .work-only,
+[data-stage="prepare"] .work-only,
+[data-stage="home"] .stage,
+[data-stage="prepare"] .stage { display: none; }
+
+/* topbar tetap ada di semua tahap, tapi hanya berisi brand saat di beranda */
+.app[data-stage="home"],
+.app[data-stage="prepare"] { grid-template-rows: var(--h-topbar) 1fr; }
+
+/* Reset tombol yang aman: JANGAN pakai `font: inherit` atau `background: none`
+   di sini -- keduanya menimpa gradien background-clip:text dan ukuran huruf
+   yang sudah diatur di aturan .brand sebelumnya, membuat wordmark hilang. */
+.brand { font-family: inherit; border: 0; padding: 0; cursor: pointer; }
+[data-stage="home"] .brand { cursor: default; }
+
+.home-body, .prepare-body {
+  max-width: 940px; margin: 0 auto;
+  padding: var(--s8) var(--s5) var(--s7);
+  display: grid; gap: var(--s4); align-content: start;
+}
+.home-title {
+  font-size: clamp(30px, 3.4vw, 44px);
+  font-stretch: calc(var(--w-lebar) * 1%);
+  font-weight: 800; line-height: 1.02; letter-spacing: -.042em;
+}
+.home-sub { margin: 0; max-width: 58ch; color: var(--teks-lemah); font-size: var(--t-14); }
+
+/* ---- kartu mode ---- */
+.mode-grid {
+  margin-top: var(--s4);
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(216px, 1fr));
+  gap: var(--s3);
+}
+.mode-card {
+  position: relative; text-align: left;
+  display: grid; gap: var(--s2); align-content: start;
+  padding: var(--s5) var(--s4) var(--s4);
+  min-height: 168px;
+  font: inherit; color: var(--teks);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-2));
+  border: 1px solid var(--garis-kaca);
+  border-radius: var(--r-l);
+  box-shadow: var(--bayang-kartu);
+  cursor: pointer;
+  transition: transform var(--cepat), border-color var(--cepat), box-shadow var(--cepat);
+}
+.mode-card:hover { transform: translateY(-3px); border-color: var(--garis-terang);
+                    box-shadow: var(--bayang-angkat); }
+/* setiap mode membawa warna aksennya sendiri, jadi pilihan mode sekaligus
+   memperkenalkan warna yang akan dipakai di seluruh sesi */
+.mode-card[data-color="gameplay"] { --aksen: var(--aksen-gameplay); }
+.mode-card[data-color="dialog"]   { --aksen: var(--aksen-dialog); }
+.mode-card::before {
+  content: ""; position: absolute; inset: -1px -1px auto -1px; height: 3px;
+  border-radius: var(--r-l) var(--r-l) 0 0;
+  background: var(--aksen);
+  box-shadow: 0 0 18px -2px var(--aksen);
+}
+.mode-card h2 { font-size: var(--t-20); letter-spacing: -.032em; }
+.mode-card .sub { color: var(--teks-samar); font-size: var(--t-12); }
+.mode-card .search {
+  margin-top: auto; padding-top: var(--s3);
+  border-top: 1px solid var(--garis-kaca);
+  color: var(--teks-lemah); font-size: var(--t-12); line-height: 1.45;
+}
+.mode-card .badge-mode {
+  position: absolute; top: var(--s4); right: var(--s4);
+  font-size: var(--t-10); font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: 3px 8px; border-radius: var(--r-pill);
+  color: var(--aksen); background: var(--aksen-lembut);
+  border: 1px solid color-mix(in srgb, var(--aksen) 34%, transparent);
+}
+.mode-card[data-ready="false"] { opacity: .58; }
+.mode-card[data-ready="false"] .badge-mode {
+  color: var(--teks-samar); background: var(--kaca);
+  border-color: var(--garis-kaca);
+}
+
+/* ---- lanjutkan yang sedang jalan ---- */
+.resume { margin-top: var(--s6); display: grid; gap: var(--s2); }
+.resume .eyebrow { margin-bottom: var(--s1); }
+.resume-row {
+  display: flex; align-items: center; gap: var(--s4);
+  width: 100%; text-align: left; font: inherit; color: var(--teks);
+  padding: var(--s3) var(--s4);
+  background: var(--kaca); border: 1px solid var(--garis-kaca);
+  border-radius: var(--r-m); cursor: pointer;
+  transition: background var(--cepat), border-color var(--cepat);
+}
+.resume-row:hover { background: var(--kaca-kuat); border-color: var(--garis-terang); }
+.resume-row .name { font-family: var(--font-data); font-size: var(--t-12); }
+.resume-row .right { margin-left: auto; color: var(--teks-samar); font-size: var(--t-12); }
+
+/* ═══════════════════════════════════════════════ siapkan */
+
+.back { justify-self: start; padding-left: 0; }
+.prepare-body h1 {
+  font-size: clamp(26px, 2.6vw, 34px);
+  font-stretch: calc(var(--w-lebar) * 1%);
+  font-weight: 800; letter-spacing: -.04em;
+}
+
+.source { padding: var(--s6); }
+.source-drop {
+  border: 1px dashed var(--garis-terang); border-radius: var(--r-m);
+  padding: var(--s6) var(--s5);
+  display: grid; justify-items: center; gap: var(--s3); text-align: center;
+}
+.source-drop h2 { font-size: var(--t-20); }
+.source-drop p { margin: 0; color: var(--teks-samar); font-size: var(--t-13); }
+.source-actions { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap;
+               justify-content: center; }
+.split { color: var(--teks-samar); font-size: var(--t-12); }
+.input {
+  font: inherit; font-size: var(--t-13);
+  min-width: 260px; padding: 8px 13px;
+  color: var(--teks);
+  background: var(--bg-1);
+  border: 1px solid var(--garis-kaca); border-radius: var(--r-pill);
+}
+.input::placeholder { color: var(--teks-samar); }
+.input:focus-visible { border-color: var(--aksen); }
+
+.option { padding: var(--s2) var(--s5); }
+.option-row {
+  display: grid; grid-template-columns: 150px 1fr;
+  align-items: center; gap: var(--s4);
+  padding: var(--s3) 0;
+  border-bottom: 1px solid var(--garis-kaca);
+}
+.option-row:last-child { border-bottom: 0; }
+.option-row .choices { display: flex; gap: var(--s2); flex-wrap: wrap; }
+
+.prepare-foot { display: flex; align-items: center; gap: var(--s4); margin-top: var(--s2); }
+.prepare-foot .data { color: var(--teks-samar); }
+.btn.large { margin-left: auto; font-size: var(--t-13); padding: 11px 26px; }
+
+/* keadaan kotak sumber: kosong, sedang diseret, siap, atau galat */
+.source-drop[data-drag="true"] {
+  border-color: var(--aksen);
+  background: var(--aksen-lembut);
+}
+.source-drop[data-state="ready"] {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--aksen) 50%, transparent);
+}
+.source-drop[data-state="ready"] h2 {
+  font-family: var(--font-data); font-size: var(--t-14);
+  font-stretch: calc(var(--w-data) * 1%);
+}
+.source-drop[data-state="error"] { border-color: var(--bahaya); }
+.source-drop[data-state="error"] h2 { color: var(--bahaya); }
+
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn.main:disabled:hover { background: var(--teks); }
+
+/* Tirai tarik-lepas: menutupi seluruh jendela supaya tidak ada tempat meleset */
+.curtain-drop {
+  position: fixed; inset: 0; z-index: 50;
+  display: none; place-items: center;
+  background: color-mix(in srgb, var(--bg-0) 82%, transparent);
+  backdrop-filter: blur(10px);
+}
+body[data-drag="true"] .curtain-drop { display: grid; }
+.curtain-body {
+  padding: var(--s8) var(--s7);
+  border: 2px dashed var(--aksen);
+  border-radius: var(--r-l);
+  background: var(--aksen-lembut);
+  text-align: center;
+  animation: tirai-masuk 180ms cubic-bezier(.32,.72,0,1);
+}
+.curtain-body h2 { font-size: 26px; font-stretch: calc(var(--w-lebar) * 1%); }
+.curtain-body p { margin: var(--s2) 0 0; color: var(--teks-lemah); font-size: var(--t-13); }
+@keyframes tirai-masuk { from { opacity: 0; transform: scale(.97) } }
+
+/* Kanvas reframe dipaksa 16:9 supaya persentase crop memetakan tepat ke
+   piksel gambar sumber. Dengan background-size:contain di kotak berbeda
+   rasio, ada bilah kosong -- dan crop 30% tidak lagi berarti 30% gambar. */
+.canvas { aspect-ratio: 16 / 9; width: 100%; height: auto; max-height: 100%;
+          margin: auto; flex: 0 1 auto; background-size: cover; }
+.preset-list { display: flex; gap: var(--s2); flex-wrap: wrap; }
+
+/* Penanda mode: keterangan, bukan kontrol. Mode dipilih di menu utama, jadi
+   membuatnya bisa diklik di sini memberi dua jalan untuk hal yang sama. */
+.mode-mark {
+  font-size: var(--t-12); font-weight: 650;
+  color: var(--aksen);
+  background: var(--aksen-lembut);
+  border: 1px solid color-mix(in srgb, var(--aksen) 30%, transparent);
+  border-radius: var(--r-pill);
+  padding: 5px 12px;
+}
+.back-menu { padding: 6px 12px; }
+
+/* Kaki aksi: tempat keputusan "sudah cukup, render sekarang" diambil.
+   Sebelumnya tidak ada satu pun tombol yang memulai render -- antrian
+   menampilkan progress dari pekerjaan yang tidak pernah dimulai. */
+.foot-actions {
+  flex: none; display: flex; align-items: center; gap: var(--s4);
+  padding-top: var(--s3); border-top: 1px solid var(--garis-kaca);
+}
+.foot-actions .data { color: var(--teks-samar); }
+.foot-actions .btn { margin-left: auto; }
+
+/* Video asli di dalam frame 9:16. Ukurannya dihitung dari kotak crop supaya
+   yang terlihat persis bagian yang dipotong -- bukan seluruh frame diperkecil. */
+.video916 {
+  position: absolute; top: 0; left: 0;
+  transform-origin: 0 0;
+  display: none;
+  pointer-events: none;
+}
+.frame916[data-video="true"] .video916 { display: block; }
+.frame916[data-video="true"] .field { opacity: 0; }
+
+/* ── langkah bernomor di layar Analisis ──
+   Alurnya memang berurutan dan melibatkan aplikasi lain di tengah, jadi
+   penomoran di sini membawa informasi -- bukan hiasan. */
+.step { padding: var(--s5); display: grid; gap: var(--s4); }
+.step[data-ready="false"] { opacity: .45; }
+.step-head { display: flex; align-items: center; gap: var(--s4); }
+.step-head h2 { font-size: var(--t-17); }
+.step-head .btn { margin-left: auto; }
+.step-note { margin: 3px 0 0; color: var(--teks-samar); font-size: var(--t-12); }
+
+.num {
+  flex: none; width: 30px; height: 30px; border-radius: var(--r-pill);
+  display: grid; place-items: center;
+  font-family: var(--font-data); font-size: var(--t-12);
+  color: var(--teks-samar);
+  background: var(--kaca); border: 1px solid var(--garis-kaca);
+}
+.step[data-ready="true"] .num {
+  color: var(--bg-0); background: var(--aksen); border-color: transparent;
+}
+
+.paste {
+  font-family: var(--font-data); font-size: var(--t-11);
+  width: 100%; min-height: 110px; resize: vertical;
+  padding: var(--s3);
+  color: var(--teks);
+  background: rgba(0,0,0,.32);
+  border: 1px solid var(--garis-kaca);
+  border-radius: var(--r-m);
+}
+.paste::placeholder { color: var(--teks-samar); }
+.paste:focus-visible { border-color: var(--aksen); outline: none; }
+
+.step-foot { display: flex; align-items: center; gap: var(--s3); }
+.step-foot .data { color: var(--teks-samar); }
+.step-foot .btn { margin-left: auto; }
+.step-foot .data[data-error="true"] { color: var(--bahaya); }
+
+.manual-path { padding: var(--s5); border-style: dashed; }
+.manual-path .num { font-size: var(--t-14); }
+
+/* Kontrol potongan dalam: membuang bagian di tengah klip. Mekanisme yang
+   sama dipakai untuk membuang jeda -- satu model, dua kegunaan. */
+.tools-cut {
+  flex: none; display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  border-top: 1px solid var(--garis-kaca);
+}
+.tools-cut .data { color: var(--teks-samar); }
+.tools-cut .right { margin-left: auto; color: var(--teks); }
+.word.dropped { opacity: .3; text-decoration: line-through; background: none; }
+
+/* Chip di luar rentang klip: terlihat, tapi jelas bukan bagian klipnya.
+   Tanpa pembeda ini, pengguna mengira semua kata di layar itu isi klip. */
+.word.outside { opacity: .42; }
+
+/* Keadaan kosong: menjelaskan langkah berikutnya, bukan sekadar bidang kosong */
+.empty {
+  grid-column: 1 / -1;
+  padding: var(--s7) var(--s5);
+  border: 1px dashed var(--garis-kaca);
+  border-radius: var(--r-l);
+  text-align: center;
+}
+.empty h2 { font-size: var(--t-20); margin-bottom: var(--s2); }
+.empty p { margin: 0 auto; max-width: 46ch; color: var(--teks-samar); font-size: var(--t-13); }
+
+/* ══════════════════════════════════════ sidebar kerja
+   Menu pindah dari topbar ke sisi kiri begitu masuk mode edit. Enam layar
+   dengan label penuh terlalu sesak di topbar bersama nama berkas dan mode;
+   di kolom vertikal semuanya terbaca dan urutannya jadi jelas. */
+
+.side {
+  border-right: 1px solid var(--garis-kaca);
+  background: color-mix(in srgb, var(--bg-1) 55%, transparent);
+  backdrop-filter: blur(18px);
+  padding: var(--s4) var(--s3);
+  overflow-y: auto;
+}
+
+.rel-side { display: grid; gap: 2px; align-content: start; }
+
+.rel-side .tab {
+  width: 100%;
+  text-align: left;
+  padding: 9px 13px;
+  border-radius: var(--r-m);
+  font-size: var(--t-13);
+  letter-spacing: -.012em;
+  position: relative;
+}
+.rel-side .tab:hover { background: var(--kaca); }
+.rel-side .tab[aria-selected="true"] {
+  color: var(--teks);
+  background: var(--kaca-kuat);
+}
+/* penanda aktif: garis aksen di tepi kiri, bukan pil terang penuh --
+   di kolom vertikal, pil penuh terbaca seperti tombol yang ditekan */
+.rel-side .tab[aria-selected="true"]::before {
+  content: ""; position: absolute;
+  left: 0; top: 20%; bottom: 20%; width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--aksen);
+  box-shadow: 0 0 12px -1px var(--aksen-glow);
+}
+
+.stage.has-preview { grid-template-columns: var(--w-sisi) 1fr var(--w-preview); }
+.stage { grid-template-columns: var(--w-sisi) 1fr; }
+
+/* ══════════════════ objek reframe, tab klip, timeline ══════════════════
+   Tiga kontrol yang lahir dari satu ide: preview adalah HASILNYA, jadi kamu
+   harus bisa memilih klip mana yang dilihat, melihat di mana potongannya
+   dibuang, dan menekan render dari tempat yang sama. */
+
+/* ---- chip objek: nama orang, bisa diganti, bisa dihapus ---- */
+.chip .nama-objek { outline: none; }
+.chip .nama-objek[contenteditable="true"] {
+  border-bottom: 1px dashed var(--aksen);
+  min-width: 3ch;
+}
+.chip .buang {
+  font-style: normal;
+  margin-left: 7px;
+  opacity: .45;
+  padding: 0 2px;
+}
+.chip .buang:hover { opacity: 1; color: var(--bahaya); }
+
+/* ---- tab klip di atas frame preview ---- */
+.clip-tabs {
+  display: flex; gap: var(--s2);
+  overflow-x: auto; scrollbar-width: thin;
+  padding: 0 0 var(--s2);
+  margin-bottom: var(--s2);
+}
+.clip-tabs .kosong-tab {
+  font-size: var(--t-12); color: var(--teks-samar);
+}
+.klip-tab {
+  display: inline-flex; align-items: center; gap: 7px;
+  white-space: nowrap; flex: 0 0 auto;
+  max-width: 210px;
+}
+.klip-tab .nomor-klip {
+  font-family: var(--font-data);
+  font-size: 10px;
+  min-width: 15px; height: 15px;
+  display: grid; place-items: center;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--teks) 12%, transparent);
+}
+.klip-tab[data-approved="true"] .nomor-klip {
+  background: var(--aksen); color: #0A0B0E;
+}
+.klip-tab .dur-klip {
+  font-family: var(--font-data);
+  font-size: 10px; color: var(--teks-samar);
+}
+.klip-tab[aria-selected="true"] .dur-klip { color: inherit; }
+
+/* ---- timeline: tiap potongan satu batang, celah = yang dibuang ---- */
+.timeline {
+  position: relative;
+  display: flex; align-items: center;
+  height: 22px; margin: var(--s3) 0 var(--s2);
+  cursor: pointer;
+}
+.timeline:focus-visible { outline: 2px solid var(--aksen); outline-offset: 3px; border-radius: var(--r-s); }
+.tl-track {
+  display: flex; gap: 3px;
+  width: 100%; height: 6px;
+  border-radius: var(--r-pill);
+  overflow: hidden;
+}
+.tl-span {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--aksen) 38%, transparent);
+}
+.tl-head {
+  position: absolute; top: 2px; left: 0;
+  width: 2px; height: 18px;
+  background: var(--teks);
+  border-radius: 2px;
+  pointer-events: none;
+  transition: left 90ms linear;
+}

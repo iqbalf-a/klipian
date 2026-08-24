@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>klipian</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wdth,wght@0,75..125,200..900;1,75..125,200..900&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tokens.css?v=1787533817">
+<link rel="stylesheet" href="app.css?v=1787533817">
+</head>
+<body>
+
+<div class="app" id="app" data-mode="dialog" data-stage="home">
+
+  <header class="topbar">
+    <button class="brand" id="toHome" title="Kembali ke menu utama">klipian</button>
+    <button class="btn back-menu work-only" id="toMenuBtn">← Menu</button>
+    <span class="file work-only">
+      <span class="name" id="fileName">cadera-gameplay-mlbb.mp4</span>
+      <span class="data" id="fileDuration">2:22:46</span>
+    </span>
+    <div class="rest work-only">
+      <span class="mode-mark" id="modeMark"></span>
+
+    </div>
+  </header>
+
+  <div class="ribbon work-only">
+    <div class="ribbon-head">
+      <span class="eyebrow">Sumber</span>
+      <strong id="ribbonNote">6 temuan</strong>
+    </div>
+    <div class="ribbon-strip" id="ribbonStrip"></div>
+    <div class="ribbon-foot">
+      <span>00:00</span>
+      <span id="ribbonEnd">2:22:46</span>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════ TAHAP 1 — BERANDA ══════════════════════ -->
+  <section class="home" id="home">
+    <div class="home-body">
+      <p class="eyebrow">Beranda</p>
+      <h1 class="home-title">Mau bikin klip dari apa?</h1>
+      <p class="home-sub">Modenya menentukan bagaimana momen dicari — bukan
+        sekadar tampilan. Podcast dicari dari gagasan, MLBB dari kejadian.</p>
+
+      <div class="mode-grid" id="modeGrid"></div>
+
+      <div class="resume" id="resume"></div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════ TAHAP 2 — SIAPKAN ══════════════════════ -->
+  <section class="prepare" id="prepare">
+    <div class="prepare-body">
+      <button class="btn back" id="backHome">← Ganti mode</button>
+      <h1 id="prepareTitle">Podcast</h1>
+      <p class="home-sub" id="prepareSub"></p>
+
+      <div class="panel source">
+        <div class="source-drop">
+          <h2>Tarik file ke sini</h2>
+          <p>mp4, mkv, mov — atau</p>
+          <div class="source-actions">
+            <button class="btn">Pilih dari folder</button>
+            <span class="split">atau</span>
+            <input class="input" id="urlInput" type="url"
+                   placeholder="tempel link YouTube" aria-label="Link YouTube">
+          </div>
+        </div>
+      </div>
+
+      <div class="panel option" id="options"></div>
+
+      <div class="prepare-foot">
+        <span class="data" id="optionsSummary"></span>
+        <button class="btn main large" id="run">Cari klip</button>
+      </div>
+    </div>
+  </section>
+
+  <main class="stage has-preview" id="stage">
+    <aside class="side work-only">
+      <nav class="rel-side" id="tabs" role="tablist">
+        <button class="tab" role="tab" id="tab-analysis" data-to="analysis" aria-controls="panel-analysis" aria-selected="false" tabindex="-1">Analisis</button>
+        <button class="tab" role="tab" id="tab-candidates" data-to="candidates" aria-controls="panel-candidates" aria-selected="true" tabindex="0">Kandidat</button>
+        <button class="tab" role="tab" id="tab-cut" data-to="cut" aria-controls="panel-cut" aria-selected="false" tabindex="-1">Potong</button>
+        <button class="tab" role="tab" id="tab-reframe" data-to="reframe" aria-controls="panel-reframe" aria-selected="false" tabindex="-1">Reframe</button>
+        <button class="tab" role="tab" id="tab-caption" data-to="caption" aria-controls="panel-caption" aria-selected="false" tabindex="-1">Caption</button>
+        <button class="tab" role="tab" id="tab-queue" data-to="queue" aria-controls="panel-queue" aria-selected="false" tabindex="-1">Antrian</button>
+      </nav>
+    </aside>
+
+    <div class="work">
+
+      <!-- ══════════════════════════ ANALISIS ══════════════════════ -->
+      <section class="screen" data-screen="analysis" role="tabpanel" id="panel-analysis" aria-labelledby="tab-analisis" tabindex="0">
+        <div class="work-head">
+          <h1>Analisis</h1>
+          <span class="note" id="analysisNote"></span>
+        </div>
+
+        <div class="panel fit" style="padding:var(--s5)">
+          <div style="display:flex;align-items:center;gap:var(--s3);margin-bottom:var(--s4)">
+            <h2 style="font-size:18px">Transkripsi berjalan</h2>
+            <span class="data" style="color:var(--teks-samar)">large-v3-turbo · CPU 22 thread</span>
+          </div>
+          <div class="progress" style="width:100%;height:6px"><i id="transcribeBar" style="width:0%"></i></div>
+          <div class="data" id="transcribeStats"
+               style="display:flex;gap:var(--s5);margin-top:var(--s3);color:var(--teks-samar)"></div>
+          <p style="margin:var(--s4) 0 0;color:var(--teks-lemah);font-size:13px">
+            Bisa ditinggal. Hasilnya disimpan otomatis.
+          </p>
+        </div>
+
+        <div class="panel fit manual-path">
+          <div class="step-head">
+            <span class="num">→</span>
+            <div>
+              <h2>Atau potong sendiri</h2>
+              <p class="step-note">Lewati langkah 2 dan 3. Kamu yang menentukan
+                rentangnya, tanpa Claude sama sekali.</p>
+            </div>
+            <button class="btn" id="manualClip">Buat klip manual</button>
+          </div>
+        </div>
+
+        <!-- Langkah 2: ekspor berkas untuk dijatuhkan ke Claude web -->
+        <div class="panel fit step" id="exportPanel" data-ready="false">
+          <div class="step-head">
+            <span class="num">2</span>
+            <div>
+              <h2>Ekspor untuk Claude</h2>
+              <p class="step-note" id="exportNote">menunggu transkripsi</p>
+            </div>
+            <button class="btn main" id="downloadBrief" disabled>Unduh berkas</button>
+          </div>
+        </div>
+
+        <!-- Langkah 3: impor balasan Claude -->
+        <div class="panel fit step" id="importPanel" data-ready="false">
+          <div class="step-head">
+            <span class="num">3</span>
+            <div>
+              <h2>Impor hasil dari Claude</h2>
+              <p class="step-note">tempel JSON balasannya, atau tarik berkas .json ke sini</p>
+            </div>
+          </div>
+          <textarea class="paste" id="pasteJSON" spellcheck="false"
+            placeholder='{ "klip": [ ... ] }  — pagar kode ```json dan kalimat pengantar boleh ikut'></textarea>
+          <div class="step-foot">
+            <span class="data" id="importNote"></span>
+            <button class="btn main" id="importBtn" disabled>Potong jadi klip</button>
+          </div>
+        </div>
+
+        <div class="error" id="error" hidden></div>
+      </section>
+
+      <!-- ══════════════════════════ KANDIDAT ══════════════════════ -->
+      <section class="screen" data-screen="candidates" role="tabpanel" id="panel-candidates" aria-labelledby="tab-kandidat" tabindex="0">
+        <div class="work-head">
+          <h1>Kandidat</h1>
+          <span class="note" id="boardNote">6 kandidat · 1 disetujui</span>
+        </div>
+        <div class="board" id="board"></div>
+        <div class="foot-actions">
+          <span class="data" id="renderSummary"></span>
+          <button class="btn main large" id="renderBtn">Render klip</button>
+        </div>
+      </section>
+
+      <!-- ══════════════════════════ POTONG ════════════════════════ -->
+      <section class="screen" data-screen="cut" role="tabpanel" id="panel-cut" aria-labelledby="tab-potong" tabindex="0">
+        <div class="work-head">
+          <h1 id="cutTitle">Savage Menit 41, Nol Retreat</h1>
+          <span class="note"><span id="cutRange">in — · out —</span> · <b id="cutDur">—</b></span>
+          <span class="note right">klik kata → in · klik lagi → out</span>
+        </div>
+
+        <div class="panel body">
+          <!-- waveform menempel langsung ke chip kata di bawahnya -->
+          <div class="tools">
+            <div class="wave" id="wave"></div>
+            <div class="tools-foot">
+              <span>Waveform</span>
+              <span id="waveRange">—</span>
+            </div>
+          </div>
+          <div class="transcript" id="transcript"></div>
+          <div class="tools-cut">
+            <button class="btn" id="dropSection">Buang bagian terpilih</button>
+            <span class="data" id="spansNote">1 potongan</span>
+            <span class="data right" id="outDur"></span>
+          </div>
+          <div class="legend">
+            <span><u>garis merah</u> mungkin salah dengar</span>
+            <span>⌫ celah bisa dibuang</span>
+            <span>klik ganda untuk koreksi teks</span>
+            <span style="margin-left:auto">space putar · i in · o out · enter setujui</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════════════════════ REFRAME ═══════════════════════ -->
+      <section class="screen" data-screen="reframe" role="tabpanel" id="panel-reframe" aria-labelledby="tab-reframe" tabindex="0">
+        <div class="work-head">
+          <h1>Reframe</h1>
+          <span class="note" id="reframeNote"></span>
+          <span class="note right">rasio 9:16 terkunci · tahan Alt untuk lepas</span>
+        </div>
+
+        <div class="canvas">
+          <div class="crop" tabindex="0" role="group" aria-label="Crop 1 gameplay" style="left:31%;top:9%;width:24%;height:82%">
+            <span class="tag" id="tagCrop1"></span>
+            <b></b><b></b><b></b><b></b>
+          </div>
+          <div class="crop second" tabindex="0" role="group" aria-label="Crop 2 facecam" style="left:4%;top:56%;width:13%;height:36%">
+            <span class="tag" id="tagCrop2"></span>
+            <b></b><b></b><b></b><b></b>
+          </div>
+        </div>
+
+        <div class="preset-bar">
+          <span class="eyebrow">Objek</span>
+          <span class="preset-list" id="objectList"></span>
+          <button class="btn" id="addObject">+ Tambah orang</button>
+        </div>
+      </section>
+
+      <!-- ══════════════════════════ CAPTION ═══════════════════════ -->
+      <section class="screen" data-screen="caption" role="tabpanel" id="panel-caption" aria-labelledby="tab-caption" tabindex="0">
+        <div class="work-head">
+          <h1>Caption</h1>
+          <span class="note">preview langsung di panel 9:16</span>
+        </div>
+        <div class="panel body" style="overflow-y:auto">
+          <div class="list" id="captionList"></div>
+        </div>
+      </section>
+
+      <!-- ══════════════════════════ ANTRIAN ═══════════════════════ -->
+      <section class="screen" data-screen="queue" role="tabpanel" id="panel-queue" aria-labelledby="tab-antrian" tabindex="0">
+        <div class="work-head">
+          <h1>Antrian</h1>
+          <span class="note">2 berjalan · 1 antre · 1 selesai</span>
+        </div>
+        <div class="panel fit"><div class="list" id="queueList"></div></div>
+      </section>
+
+    </div>
+
+    <!-- ══════════════════════ panel keluaran 9:16 ══════════════════ -->
+    <aside class="preview" id="preview">
+      <div class="preview-head">
+        <span>Preview 9:16</span><span class="res">1080×1920</span>
+      </div>
+
+      <!-- klip mana yang sedang dilihat: isi preview mengikuti pilihan ini -->
+      <div class="clip-tabs" id="clipTabs" role="tablist" aria-label="Pilih klip"></div>
+
+      <div class="frame916" id="frame" data-layout="double" data-safe="on">
+        <div class="field top"></div>
+        <div class="field main"></div>
+        <video class="video916" id="videoPreview" muted playsinline></video>
+        <div class="safe"></div>
+        <div class="cap916">nol retreat <mark>SAVAGE</mark></div>
+      </div>
+
+      <!-- timeline klip: hanya bagian yang ikut terender, potongan yang
+           dibuang tampak sebagai celah -->
+      <div class="timeline" id="timeline" role="slider" tabindex="0"
+           aria-label="Posisi pemutaran klip" aria-valuemin="0" aria-valuemax="100">
+        <div class="tl-track" id="tlTrack"></div>
+        <div class="tl-head" id="tlHead"></div>
+      </div>
+
+      <div class="clip-info" id="clipInfo"></div>
+
+      <div class="preview-foot">
+        <button class="icon" id="rewindBtn" aria-label="ulang dari awal">◀</button>
+        <button class="icon" id="playBtn" aria-label="putar">▶</button>
+        <button class="chip" id="safeBtn" aria-pressed="true">safe area</button>
+        <span class="time" id="clipTime">00:00 / 00:00</span>
+        <button class="btn main" id="renderClipBtn">Render klip ini</button>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<script src="app.js?v=1787533817"></script>
+<script src="interactions.js?v=1787533817"></script>
+<script src="reframe.js?v=1787533817"></script>
+<script src="analysis.js?v=1787533817"></script>
+<script src="player.js?v=1787533817"></script>
+<script src="roundtrip.js?v=1787533817"></script>
+<script src="manual.js?v=1787533817"></script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+# klipian -- dependensi
+#
+# Sengaja dijaga ringan: TIDAK memakai PyTorch. faster-whisper berjalan di
+# atas CTranslate2, jadi seluruh instalasi hanya ratusan MB, bukan giga.
+
+faster-whisper>=1.1.0      # transkripsi word-level (CPU, CTranslate2)
+anthropic>=0.40.0          # pemilihan klip (fase 2)

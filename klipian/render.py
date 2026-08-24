@@ -1,0 +1,297 @@
+"""Render klip vertikal 9:16 — inilah yang benar-benar menghasilkan MP4.
+
+Tiga hal yang dikerjakan di sini, dan urutannya penting:
+
+1. POTONGAN DISAMBUNG.
+   Klip bisa terdiri dari beberapa potongan (bagian di tengah dibuang).
+   ffmpeg memotong tiap bagian lalu menyambungnya jadi satu.
+
+2. CAPTION DIPETAKAN KE TIMELINE KELUARAN.
+   Setelah satu bagian dibuang, semua kata sesudahnya bergeser maju. Kata di
+   detik ke-650 sumber mungkin jatuh di detik ke-11 keluaran. Kalau dipakai
+   waktu sumbernya, subtitle muncul di tempat yang salah -- dan itu baru
+   ketahuan setelah render selesai.
+
+3. CROP LALU SKALA, bukan sebaliknya.
+   Crop di resolusi sumber mempertahankan detail; memperbesar dulu lalu
+   memotong membuang ketajaman.
+"""
+
+from __future__ import annotations
+
+import subprocess
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from .ffmpeg_tools import _require, has_encoder
+from .models import Transcript, Word
+
+
+@dataclass
+class Span:
+    start: float
+    end: float
+
+    @property
+    def length(self) -> float:
+        return self.end - self.start
+
+
+@dataclass
+class CropBox:
+    """Rentang crop dalam PERSEN frame sumber, bukan piksel -- supaya tidak
+    bergantung pada resolusi sumbernya."""
+    left: float = 37.0
+    top: float = 4.0
+    width: float = 26.0
+    height: float = 92.0
+
+
+@dataclass
+class RenderJob:
+    title: str
+    spans: list[Span]
+    crop: CropBox = field(default_factory=CropBox)
+    layout: str = "face"          # face | blur
+    out_width: int = 1080
+
+    def __post_init__(self):
+        # Validasi potongan: harus sorted & non-overlapping
+        for i, p in enumerate(self.spans):
+            if p.end <= p.start:
+                raise ValueError(
+                    f"Potongan #{i+1} tidak sah: selesai ({p.end}) "
+                    f"harus lebih besar dari mulai ({p.start})")
+            if i > 0 and p.start < self.spans[i-1].end:
+                raise ValueError(
+                    f"Potongan #{i+1} tumpang tindih dengan potongan #{i}")
+
+    @property
+    def out_height(self) -> int:
+        return self.out_width * 16 // 9
+
+    @property
+    def duration(self) -> float:
+        return sum(p.length for p in self.spans)
+
+
+# --------------------------------------------------------------------------
+# caption
+# --------------------------------------------------------------------------
+
+def _ass_time(d: float) -> str:
+    d = max(0.0, d)
+    j = int(d // 3600)
+    m = int((d % 3600) // 60)
+    dt = d % 60
+    return f"{j}:{m:02d}:{dt:05.2f}"
+
+
+def to_output_time(spans: list[Span], seconds: float) -> float | None:
+    """Peta waktu sumber -> waktu keluaran. None kalau jatuh di bagian dibuang."""
+    elapsed = 0.0
+    for p in spans:
+        if seconds < p.start:
+            return None
+        if seconds <= p.end:
+            return elapsed + (seconds - p.start)
+        elapsed += p.length
+    return None
+
+
+def build_ass(job: RenderJob, words: list[Word], style: dict | None = None) -> str:
+    """Caption karaoke: satu peristiwa per kata, menampilkan barisnya utuh
+    dengan kata yang sedang diucapkan disorot."""
+    g = {"font": "Arial", "size": 84, "per_line": 3,
+         "outline": 4, "position": 24, **(style or {})}
+
+    W, H = job.out_width, job.out_height
+    margin_bottom = int(H * g["position"] / 100)
+
+    header = f"""[Script Info]
+ScriptType: v4.00+
+PlayResX: {W}
+PlayResY: {H}
+WrapStyle: 2
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, OutlineColour, BackColour, Bold, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Utama,{g['font']},{g['size']},&H00FFFFFF,&H00000000,&H80000000,1,1,{g['outline']},0,2,60,60,{margin_bottom},1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+"""
+
+    # hanya kata yang benar-benar masuk keluaran
+    used = []
+    for w in words:
+        a = to_output_time(job.spans, w.start)
+        b = to_output_time(job.spans, w.end)
+        if a is not None and b is not None and b > a:
+            used.append((a, b, w.text.strip()))
+
+    events = []
+    per_line = g["per_line"]
+    for i in range(0, len(used), per_line):
+        group = used[i:i + per_line]
+        # Kapan kelompok berikutnya mulai. Kata terakhir tiap kelompok harus
+        # bertahan sampai titik itu -- kalau hanya sampai akhir katanya sendiri,
+        # caption berkedip di setiap pergantian baris.
+        next_start = used[i + per_line][0] if i + per_line < len(used) else None
+
+        for j, (a, b, _) in enumerate(group):
+            text = " ".join(
+                (r"{\c&H00D6FF&}" + t + r"{\c&H00FFFFFF&}") if k == j else t
+                for k, (_, _, t) in enumerate(group)
+            )
+            if j < len(group) - 1:
+                end = group[j + 1][0]          # sampai kata berikutnya
+            elif next_start is not None:
+                end = next_start               # sampai baris berikutnya
+            else:
+                end = b + 0.4                     # baris terakhir, beri sisa napas
+            events.append(
+                f"Dialogue: 0,{_ass_time(a)},{_ass_time(end)},Utama,,0,0,0,,{text}")
+
+    return header + "\n".join(events) + "\n"
+
+
+# --------------------------------------------------------------------------
+# ffmpeg
+# --------------------------------------------------------------------------
+
+def _concat_filter(n: int) -> str:
+    """Potong tiap bagian lalu sambung. setpts/asetpts wajib -- tanpa itu
+    potongan kedua mewarisi timestamp aslinya dan hasilnya melompat."""
+    parts = []
+    for i in range(n):
+        parts.append(f"[0:v]trim=start={{a{i}}}:end={{b{i}}},setpts=PTS-STARTPTS[v{i}]")
+        parts.append(f"[0:a]atrim=start={{a{i}}}:end={{b{i}}},asetpts=PTS-STARTPTS[a{i}]")
+    inputs = "".join(f"[v{i}][a{i}]" for i in range(n))
+    parts.append(f"{inputs}concat=n={n}:v=1:a=1[vc][ac]")
+    return ";".join(parts)
+
+
+def build_filter(job: RenderJob, src_width: int, src_height: int,
+                 ass_path: Path | None) -> str:
+    n = len(job.spans)
+    trim_chain = _concat_filter(n)
+    values = {}
+    for i, p in enumerate(job.spans):
+        values[f"a{i}"] = f"{p.start:.3f}"
+        values[f"b{i}"] = f"{p.end:.3f}"
+    trim_chain = trim_chain.format(**values)
+
+    # crop dihitung di piksel sumber, dibulatkan genap (syarat yuv420p)
+    even = lambda v: max(2, int(v) // 2 * 2)
+    cw = even(src_width * job.crop.width / 100)
+    ch = even(src_height * job.crop.height / 100)
+    cx = even(src_width * job.crop.left / 100)
+    cy = even(src_height * job.crop.top / 100)
+    W, H = job.out_width, job.out_height
+
+    if job.layout == "blur":
+        # latar: seluruh frame diperbesar dan dikaburkan; depan: frame utuh
+        video_chain = (
+            f"[vc]split=2[bg][fg];"
+            f"[bg]crop={even(src_height*9/16)}:{src_height}:{even((src_width-src_height*9/16)/2)}:0,"
+            f"scale={W}:{H},gblur=sigma=28[bgb];"
+            f"[fg]scale={W}:-2[fgs];"
+            f"[bgb][fgs]overlay=(W-w)/2:(H-h)/2[vv]"
+        )
+    else:
+        video_chain = f"[vc]crop={cw}:{ch}:{cx}:{cy},scale={W}:{H}[vv]"
+
+    if ass_path:
+        # Karakter yang punya makna syntaktis di FFmpeg filter graph harus
+        # di-escape: backslash, colon (Windows drive), single quote (string
+        # delimiter), brackets (label), semicolons (separator), equals (option).
+        path = str(ass_path).replace("\\", "/").replace(":", r"\:")
+        path = path.replace("'", r"\'").replace("[", r"\[").replace("]", r"\]")
+        path = path.replace(";", r"\;").replace("=", r"\=")
+        video_chain += f";[vv]ass='{path}'[vout]"
+    else:
+        video_chain += ";[vv]null[vout]"
+
+    return trim_chain + ";" + video_chain
+
+
+def safe_filename(title: str, fallback: str) -> str:
+    """Judul klip -> nama berkas. Satu aturan, dipakai server dan CLI.
+
+    Sebelumnya aturan ini ditulis ulang di tiga tempat dengan dua perilaku
+    berbeda, jadi nama yang ditampilkan UI tidak selalu sama dengan nama yang
+    benar-benar ditulis ke disk.
+    """
+    kept = "".join(c if c.isalnum() or c in "- " else " " for c in title)
+    name = "-".join(kept.lower().split())
+    return (name or fallback) + ".mp4"
+
+
+def render(source: Path, job: RenderJob, dest: Path,
+           words: list[Word] | None = None, style: dict | None = None,
+           src_width: int = 1920, src_height: int = 1080,
+           has_audio: bool = True, verbose: bool = True) -> Path:
+    if not job.spans:
+        raise RuntimeError("Tidak ada potongan untuk dirender.")
+    if not has_audio:
+        # Filter graph di bawah selalu memakai [0:a]. Tanpa penjaga ini ffmpeg
+        # gagal dengan "Stream specifier ':a' in filtergraph description" --
+        # pesan yang tidak berarti apa-apa bagi pengguna.
+        raise RuntimeError(
+            f"{source.name} tidak punya trek audio, jadi tidak bisa dijadikan "
+            f"klip. Pakai berkas sumber yang ada suaranya.")
+
+    ffmpeg = _require("ffmpeg")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+
+    ass_path = None
+    if words:
+        ass_path = dest.with_suffix(".ass")
+        ass_path.write_text(build_ass(job, words, style), encoding="utf-8")
+
+    try:
+        filt = build_filter(job, src_width, src_height, ass_path)
+
+        def susun(encoder: str) -> list[str]:
+            return [
+                ffmpeg, "-y", "-hide_banner", "-loglevel", "error", "-stats",
+                "-i", str(source),
+                "-filter_complex", filt,
+                "-map", "[vout]", "-map", "[ac]",
+                "-c:v", encoder,
+                *(["-global_quality", "24", "-preset", "medium"] if encoder == "h264_qsv"
+                  else ["-crf", "21", "-preset", "medium"]),
+                "-pix_fmt", "yuv420p",
+                "-c:a", "aac", "-b:a", "128k",
+                "-movflags", "+faststart",
+                str(dest),
+            ]
+
+        # has_encoder hanya membuktikan encodernya ada di build ffmpeg, bukan
+        # bahwa driver di mesin ini bisa memakainya. Kalau QSV gagal, ulangi
+        # sekali dengan libx264 -- lebih lambat, tapi jadi, dan itu yang
+        # dibutuhkan pengguna.
+        urutan = ["h264_qsv", "libx264"] if has_encoder("h264_qsv") else ["libx264"]
+        result = None
+        for i, encoder in enumerate(urutan):
+            if verbose:
+                print(f"  encoder  : {encoder}")
+                if i == 0:
+                    print(f"  potongan : {len(job.spans)}  ·  durasi {job.duration:.1f}s")
+
+            result = subprocess.run(susun(encoder), capture_output=True, text=True,
+                                    encoding="utf-8", errors="replace", timeout=3600)
+            if result.returncode == 0:
+                return dest
+            if i < len(urutan) - 1 and verbose:
+                print(f"  {encoder} gagal, mengulang dengan {urutan[i+1]}")
+
+        tail = (result.stderr or "").strip().splitlines()[-14:]
+        raise RuntimeError("ffmpeg gagal:\n" + "\n".join(tail))
+
+    finally:
+        # Bersihkan ASS file yang tertinggal kalau render gagal
+        if ass_path and ass_path.exists():
+            ass_path.unlink(missing_ok=True)
