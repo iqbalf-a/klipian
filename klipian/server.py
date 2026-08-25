@@ -132,11 +132,21 @@ def _run_render(job_id: str, req: dict) -> None:
                     left=float(d.get("left", 37)), top=float(d.get("top", 4)),
                     width=float(d.get("width", 26)), height=float(d.get("height", 92)))
 
+            def _crops(d):
+                """Dua kotak untuk bingkai split. Kurang dari dua = bukan
+                split, jadi diabaikan dan potongan itu memakai satu kotak."""
+                if not isinstance(d, list) or len(d) < 2:
+                    return None
+                kotak = [_crop(x) for x in d[:2]]
+                return kotak if all(kotak) else None
+
             try:
                 # p["crop"] inilah yang membuat framing berpindah di tengah
                 # klip: tiap potongan dibingkai sendiri sebelum disambung.
+                # p["crops"] berisi dua kotak dan bikin potongan itu jadi
+                # bingkai split atas-bawah.
                 spans = [engine.Span(float(p["start"]), float(p["end"]),
-                                     _crop(p.get("crop")))
+                                     _crop(p.get("crop")), _crops(p.get("crops")))
                             for p in k.get("spans", [])]
             except (KeyError, TypeError, ValueError):
                 raise ValueError(

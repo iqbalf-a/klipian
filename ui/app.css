@@ -690,7 +690,7 @@ h1, h2, h3 {
 
 .crop { position: absolute; z-index: 1; cursor: move; border-radius: var(--r-s);
         box-shadow: 0 0 0 2px var(--aksen), 0 0 30px -6px var(--aksen-glow); }
-.crop.second { box-shadow: 0 0 0 2px rgba(255,255,255,.75), 0 0 26px -8px rgba(255,255,255,.35); }
+.crop.kedua { box-shadow: 0 0 0 2px rgba(255,255,255,.75), 0 0 26px -8px rgba(255,255,255,.35); }
 .crop .tag {
   position: absolute; top: -26px; left: -1px;
   font-family: var(--font-data); font-size: 10px;
@@ -698,16 +698,61 @@ h1, h2, h3 {
   padding: 3px 9px; border-radius: var(--r-pill);
   white-space: nowrap;
 }
-.crop.second .tag { background: #fff; color: #0A0B0E; }
+.crop.kedua .tag { background: #fff; color: #0A0B0E; }
 .crop b {
   position: absolute; width: 9px; height: 9px; border-radius: 2px;
   background: var(--aksen); box-shadow: 0 0 10px -2px var(--aksen-glow);
 }
-.crop.second b { background: #fff; }
+.crop.kedua b { background: #fff; }
 .crop b:nth-child(2) { left: -5px; top: -5px; }
 .crop b:nth-child(3) { right: -5px; top: -5px; }
 .crop b:nth-child(4) { left: -5px; bottom: -5px; }
 .crop b:nth-child(5) { right: -5px; bottom: -5px; }
+
+/* Kotak kedua cuma berarti saat split; di format single ia disembunyikan
+   supaya tidak ada kotak yang bisa digeser tapi tidak ikut dirender. */
+.canvas[data-format="single"] .crop.kedua { display: none; }
+
+/* ── pilihan format bingkai ──
+   Ikonnya menggambarkan hasilnya: satu petak penuh, atau dua petak
+   bertumpuk. Lebih cepat dibaca daripada kata-kata. */
+.format-bar { flex: none; display: flex; gap: var(--s2); margin-bottom: var(--s3); }
+.fmt-pilih {
+  font: inherit; font-size: var(--t-12); font-weight: 650;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 7px 13px;
+  border: 1px solid var(--garis-kaca);
+  border-radius: var(--r-pill);
+  background: var(--kaca);
+  color: var(--teks-lemah);
+  cursor: pointer;
+  transition: all var(--cepat);
+}
+.fmt-pilih:hover { color: var(--teks); }
+.fmt-pilih[aria-pressed="true"] {
+  color: var(--aksen);
+  border-color: color-mix(in srgb, var(--aksen) 45%, transparent);
+  background: var(--aksen-lembut);
+}
+.fmt-ikon {
+  width: 11px; height: 18px; flex: none;
+  border: 1.5px solid currentColor; border-radius: 2px;
+}
+.fmt-ikon.dua {
+  display: grid; grid-template-rows: 1fr 1fr;
+  border: 0; gap: 2px;
+}
+.fmt-ikon.dua::before, .fmt-ikon.dua::after {
+  content: ""; border: 1.5px solid currentColor; border-radius: 2px;
+}
+
+/* Angka format di tiap titik framing: 1 atau 2. */
+.chip .fmt {
+  font-family: var(--font-data); font-style: normal;
+  font-size: 9px; margin-left: 6px;
+  padding: 1px 5px; border-radius: var(--r-pill);
+  background: color-mix(in srgb, currentColor 18%, transparent);
+}
 
 .preset-bar { flex: none; display: flex; align-items: center; gap: var(--s2); }
 .preset-bar .eyebrow { margin-right: var(--s2); }
@@ -997,6 +1042,20 @@ body[data-drag="true"] .curtain-drop { display: grid; }
 
 /* Video asli di dalam frame 9:16. Ukurannya dihitung dari kotak crop supaya
    yang terlihat persis bagian yang dipotong -- bukan seluruh frame diperkecil. */
+/* Petak preview. Format single memakai satu petak setinggi penuh; format
+   split membaginya dua sama tinggi, masing-masing 9:8 -- rasio yang sama
+   dengan kotak framingnya, jadi gambarnya tidak gepeng. */
+.belah { position: absolute; left: 0; right: 0; overflow: hidden; }
+.frame916[data-format="single"] .belah.atas  { top: 0; bottom: 0; }
+.frame916[data-format="single"] .belah.bawah { display: none; }
+.frame916[data-format="split"]  .belah.atas  { top: 0;   height: 50%; }
+.frame916[data-format="split"]  .belah.bawah { top: 50%; height: 50%; }
+/* Garis sambungnya ditegaskan supaya terbaca sebagai pilihan, bukan cacat. */
+.frame916[data-format="split"] .belah.bawah::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: rgba(255,255,255,.22); z-index: 2;
+}
+
 .video916 {
   position: absolute; top: 0; left: 0;
   transform-origin: 0 0;

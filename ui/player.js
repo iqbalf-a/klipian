@@ -28,31 +28,45 @@ const secondsFromClock = (t) =>
    Untuk menampilkan potongan selebar W% dari frame sumber di dalam kotak
    selebar F, videonya harus dilebarkan jadi F * 100/W, lalu digeser
    sejauh L% dari lebar itu. */
+/* Preview memotong dengan cara memperbesar <video> lalu menggesernya di dalam
+   petak yang ber-overflow hidden -- persis seperti crop di ffmpeg, tapi pakai
+   CSS. Rasio kotak framing sudah dikunci sama dengan rasio petaknya, jadi
+   melebarkan menurut lebar saja sudah pas: tingginya ikut sendiri.
+
+   Saat split ada DUA pasang petak+video, masing-masing dengan kotaknya. */
+function pasangPetak(v, petak, kotak, k) {
+  if (!v || !petak || !kotak) return;
+  const r = kotak.getBoundingClientRect();
+  const f = petak.getBoundingClientRect();
+  // Layar Edit bisa sedang tersembunyi; rect-nya nol dan pembagian
+  // menghasilkan NaN. Dihitung ulang nanti saat layarnya terlihat.
+  if (!r.width || !f.width) return;
+
+  const kiri = ((r.left - k.left) / k.width) * 100;
+  const atas = ((r.top - k.top) / k.height) * 100;
+  const lebarPersen = (r.width / k.width) * 100;
+
+  const width = f.width * (100 / lebarPersen);
+  const height = width * 9 / 16;                    // sumber 16:9
+  v.style.width = `${width}px`;
+  v.style.height = `${height}px`;
+  v.style.transform =
+    `translate(${-(kiri / 100) * width}px, ${-(atas / 100) * height}px)`;
+}
+
 function attachVideoGeometry() {
   if (!video.src) return;
   const canvas = document.querySelector(".canvas");
-  const c1 = document.querySelector(".canvas .crop");
-  if (!canvas || !c1) return;
-
+  if (!canvas) return;
   const k = canvas.getBoundingClientRect();
-  const r = c1.getBoundingClientRect();
-  // Layar Reframe bisa sedang tersembunyi; rect-nya nol dan pembagian
-  // menghasilkan NaN. Dihitung ulang nanti saat layarnya terlihat.
-  if (!k.width || !k.height || !r.width) return;
-  const p = {
-    left: ((r.left - k.left) / k.width) * 100,
-    top: ((r.top - k.top) / k.height) * 100,
-    w: (r.width / k.width) * 100,
-  };
+  if (!k.width || !k.height) return;
 
-  const f = frame.getBoundingClientRect();
-  if (!f.width) return;
-  const width = f.width * (100 / p.w);
-  const height = width * 9 / 16;                    // sumber 16:9
-  video.style.width = `${width}px`;
-  video.style.height = `${height}px`;
-  video.style.transform =
-    `translate(${-(p.left / 100) * width}px, ${-(p.top / 100) * height}px)`;
+  const kotak = [...document.querySelectorAll(".canvas .crop")];
+  pasangPetak(video, document.querySelector(".belah.atas"), kotak[0], k);
+  if (frame.dataset.format === "split") {
+    pasangPetak($("#videoPreview2"), document.querySelector(".belah.bawah"),
+                kotak[1], k);
+  }
 }
 
 /* Klip mana yang sedang ditinjau. Preview adalah HASILNYA: kalau ada bagian

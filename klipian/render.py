@@ -31,10 +31,16 @@ from .models import Transcript, Word
 class Span:
     """Satu potongan. `crop` opsional: kalau diisi, potongan ini dibingkai
     sendiri -- itulah yang membuat framing bisa berpindah di tengah klip.
-    Kalau None, dipakai crop milik RenderJob."""
+    Kalau None, dipakai crop milik RenderJob.
+
+    `crops` berisi DUA kotak untuk bingkai split: kotak pertama jadi bagian
+    atas, kotak kedua bagian bawah, ditumpuk jadi satu frame 9:16. Dipakai
+    saat dua orang di podcast duduk berjauhan dan dua-duanya mau kelihatan.
+    Kalau `crops` terisi, `crop` diabaikan."""
     start: float
     end: float
     crop: "CropBox | None" = None
+    crops: "list[CropBox] | None" = None
 
     @property
     def length(self) -> float:
@@ -180,19 +186,40 @@ def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
     crop_dulu=True membingkai TIAP potongan sebelum disambung, bukan sesudah.
     Itulah yang memungkinkan framing berpindah di tengah klip: potongan 1
     menyorot orang kiri, potongan 2 menyorot orang kanan.
+
+    Potongan yang punya `crops` dibingkai split: dipotong dua kali dari frame
+    yang sama lalu ditumpuk atas-bawah. Jadi satu klip bisa berganti-ganti
+    antara satu bingkai dan dua bingkai di titik mana pun.
     """
     even = lambda v: max(2, int(v) // 2 * 2)
     W, H = job.out_width, job.out_height
+
+    def kotak(c: "CropBox") -> str:
+        return (f"crop={even(src_width * c.width / 100)}:"
+                f"{even(src_height * c.height / 100)}:"
+                f"{even(src_width * c.left / 100)}:"
+                f"{even(src_height * c.top / 100)}")
+
     parts = []
     for i, span in enumerate(job.spans):
         v = f"[0:v]trim=start={span.start:.3f}:end={span.end:.3f},setpts=PTS-STARTPTS"
+        if crop_dulu and span.crops and len(span.crops) >= 2:
+            # Bingkai split: SATU potongan yang sama dipotong dua kali lalu
+            # ditumpuk. split=2 wajib -- satu keluaran filter tidak boleh
+            # dipakai dua kali sebagai masukan.
+            atas, bawah = span.crops[0], span.crops[1]
+            h2 = even(H / 2)
+            parts.append(f"{v},split=2[s{i}a][s{i}b]")
+            parts.append(f"[s{i}a]{kotak(atas)},scale={W}:{h2},setsar=1[c{i}a]")
+            parts.append(f"[s{i}b]{kotak(bawah)},scale={W}:{h2},setsar=1[c{i}b]")
+            # scale penutup menjaga tinggi tetap H kalau H/2 dibulatkan.
+            parts.append(f"[c{i}a][c{i}b]vstack=inputs=2,scale={W}:{H},setsar=1[v{i}]")
+            parts.append(f"[0:a]atrim=start={span.start:.3f}:end={span.end:.3f},"
+                         f"asetpts=PTS-STARTPTS[a{i}]")
+            continue
         if crop_dulu:
             c = span.crop or job.crop
-            cw = even(src_width * c.width / 100)
-            ch = even(src_height * c.height / 100)
-            cx = even(src_width * c.left / 100)
-            cy = even(src_height * c.top / 100)
-            v += f",crop={cw}:{ch}:{cx}:{cy},scale={W}:{H},setsar=1"
+            v += f",{kotak(c)},scale={W}:{H},setsar=1"
         parts.append(f"{v}[v{i}]")
         parts.append(f"[0:a]atrim=start={span.start:.3f}:end={span.end:.3f},"
                      f"asetpts=PTS-STARTPTS[a{i}]")

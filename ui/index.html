@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wdth,wght@0,75..125,200..900;1,75..125,200..900&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="tokens.css?v=1787593761">
-<link rel="stylesheet" href="app.css?v=1787593761">
+<link rel="stylesheet" href="tokens.css?v=1787621049">
+<link rel="stylesheet" href="app.css?v=1787621049">
 </head>
 <body>
 
@@ -233,11 +233,30 @@
           <!-- Kanvas menampilkan FRAME ASLI pada posisi pemutaran preview,
                bukan gambar contoh. Framing hanya masuk akal kalau kamu melihat
                momen yang sedang dibingkai. -->
-          <div class="canvas">
+          <!-- Format bingkai berlaku untuk TITIK yang sedang aktif, bukan
+               seluruh klip: angle podcast berganti, jadi satu klip boleh
+               berpindah antara satu bingkai dan dua bingkai. -->
+          <div class="format-bar" id="framingFormat" role="group"
+               aria-label="Format bingkai">
+            <button class="fmt-pilih" data-format-pilih="single" aria-pressed="true">
+              <span class="fmt-ikon satu"></span>1 bingkai
+            </button>
+            <button class="fmt-pilih" data-format-pilih="split" aria-pressed="false">
+              <span class="fmt-ikon dua"></span>2 split
+            </button>
+          </div>
+
+          <div class="canvas" data-format="single">
             <video class="canvas-video" id="canvasVideo" muted playsinline></video>
-            <div class="crop" tabindex="0" role="group" aria-label="Kotak framing"
+            <div class="crop" tabindex="0" role="group" aria-label="Kotak framing atas"
                  style="left:37%;top:8%;width:26%;height:84%">
               <span class="tag" id="tagCrop1"></span>
+              <b></b><b></b><b></b><b></b>
+            </div>
+            <div class="crop kedua" tabindex="0" role="group"
+                 aria-label="Kotak framing bawah"
+                 style="left:54%;top:17%;width:42%;height:66%">
+              <span class="tag">bawah</span>
               <b></b><b></b><b></b><b></b>
             </div>
           </div>
@@ -289,10 +308,20 @@
         <span>Preview 9:16</span><span class="res" id="fpsNote">30 fps</span><span class="res">1080×1920</span>
       </div>
 
-      <div class="frame916" id="frame" data-layout="double" data-safe="on">
+      <!-- Dua petak: saat format single hanya petak atas yang dipakai dan ia
+           mengisi penuh; saat split tiap petak separuh tinggi dengan videonya
+           sendiri. Video kedua dibisukan -- suaranya dari video pertama, dua
+           trek audio yang sama cuma jadi gema. -->
+      <div class="frame916" id="frame" data-layout="double" data-safe="on"
+           data-format="single">
         <div class="field top"></div>
         <div class="field main"></div>
-        <video class="video916" id="videoPreview" playsinline></video>
+        <div class="belah atas">
+          <video class="video916" id="videoPreview" playsinline></video>
+        </div>
+        <div class="belah bawah">
+          <video class="video916" id="videoPreview2" muted playsinline></video>
+        </div>
         <div class="safe"></div>
         <div class="cap916" id="cap916"></div>
       </div>
@@ -344,15 +373,15 @@
   </main>
 </div>
 
-<script src="app.js?v=1787593761"></script>
-<script src="interactions.js?v=1787593761"></script>
-<script src="framing.js?v=1787593761"></script>
-<script src="analysis.js?v=1787593761"></script>
-<script src="player.js?v=1787593761"></script>
-<script src="roundtrip.js?v=1787593761"></script>
-<script src="history.js?v=1787593761"></script>
-<script src="timeline.js?v=1787593761"></script>
-<script src="teks.js?v=1787593761"></script>
-<script src="result.js?v=1787593761"></script>
+<script src="app.js?v=1787621049"></script>
+<script src="interactions.js?v=1787621049"></script>
+<script src="framing.js?v=1787621049"></script>
+<script src="analysis.js?v=1787621049"></script>
+<script src="player.js?v=1787621049"></script>
+<script src="roundtrip.js?v=1787621049"></script>
+<script src="history.js?v=1787621049"></script>
+<script src="timeline.js?v=1787621049"></script>
+<script src="teks.js?v=1787621049"></script>
+<script src="result.js?v=1787621049"></script>
 </body>
 </html>
