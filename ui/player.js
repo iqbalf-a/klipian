@@ -33,39 +33,33 @@ const secondsFromClock = (t) =>
    CSS. Rasio kotak framing sudah dikunci sama dengan rasio petaknya, jadi
    melebarkan menurut lebar saja sudah pas: tingginya ikut sendiri.
 
-   Saat split ada DUA pasang petak+video, masing-masing dengan kotaknya. */
-function pasangPetak(v, petak, kotak, k) {
-  if (!v || !petak || !kotak) return;
-  const r = kotak.getBoundingClientRect();
+   Ukurannya diambil dari ANGKA di FRAMING, bukan dari mengukur kotak di
+   kanvas. Sejak Framing punya layarnya sendiri, kanvas itu display:none
+   setiap kali kamu berada di layar Klip atau Teks -- rect-nya nol, dan
+   preview tidak pernah dapat ukuran sama sekali. */
+function pasangPetak(v, petak, crop) {
+  if (!v || !petak || !crop) return;
   const f = petak.getBoundingClientRect();
-  // Layar Edit bisa sedang tersembunyi; rect-nya nol dan pembagian
-  // menghasilkan NaN. Dihitung ulang nanti saat layarnya terlihat.
-  if (!r.width || !f.width) return;
+  // Layarnya bisa sedang tersembunyi; rect-nya nol dan pembagian menghasilkan
+  // NaN. Dihitung ulang nanti saat layarnya terlihat.
+  if (!f.width || !crop.width) return;
 
-  const kiri = ((r.left - k.left) / k.width) * 100;
-  const atas = ((r.top - k.top) / k.height) * 100;
-  const lebarPersen = (r.width / k.width) * 100;
-
-  const width = f.width * (100 / lebarPersen);
-  const height = width * 9 / 16;                    // sumber 16:9
+  const rasio = (typeof rasioSumber === "function") ? rasioSumber() : 16 / 9;
+  const width = f.width * (100 / crop.width);
+  const height = width / rasio;
   v.style.width = `${width}px`;
   v.style.height = `${height}px`;
   v.style.transform =
-    `translate(${-(kiri / 100) * width}px, ${-(atas / 100) * height}px)`;
+    `translate(${-(crop.left / 100) * width}px, ${-(crop.top / 100) * height}px)`;
 }
 
 function attachVideoGeometry() {
-  if (!video.src) return;
-  const canvas = document.querySelector(".canvas");
-  if (!canvas) return;
-  const k = canvas.getBoundingClientRect();
-  if (!k.width || !k.height) return;
-
-  const kotak = [...document.querySelectorAll(".canvas .crop")];
-  pasangPetak(video, document.querySelector(".belah.atas"), kotak[0], k);
-  if (frame.dataset.format === "split") {
+  if (!video.src || typeof bingkaiPada !== "function") return;
+  const b = bingkaiPada(typeof waktuTinjau === "function" ? waktuTinjau() : 0);
+  pasangPetak(video, document.querySelector(".belah.atas"), b.crops[0]);
+  if (b.format === "split") {
     pasangPetak($("#videoPreview2"), document.querySelector(".belah.bawah"),
-                kotak[1], k);
+                b.crops[1]);
   }
 }
 
@@ -397,22 +391,30 @@ let renderTimer = null;
 let framingTerakhir = null;   // titik framing yang sedang tampil di preview
 
 
+/* Yang dibaca ORANG. Untuk label di layar dan baris riwayat. */
 function optionValue(id) {
   const o = OPTIONS.find((x) => x.id === id);
   return o ? o.choices[o.active] : "";
+}
+
+/* Yang dibaca MESIN. Dipakai saat menyusun permintaan render, supaya tulisan
+   di tombol boleh diganti tanpa mengubah apa pun di berkas hasil. */
+function optionOut(id) {
+  const o = OPTIONS.find((x) => x.id === id);
+  return o && o.out ? o.out[o.active] : undefined;
 }
 
 
 /* Render SUNGGUHAN lewat backend.
    Sebelumnya bagian ini cuma menganimasikan progress bar -- tidak ada berkas
    yang pernah dibuat, tapi antrian tetap menulis "selesai" dan menawarkan
-   "Buka folder". Label yang berbohong lebih buruk daripada fitur yang belum
+   "Open folder". Label yang berbohong lebih buruk daripada fitur yang belum
    ada. Sekarang benar-benar memanggil ffmpeg lewat klipian serve. */
 
 
 /* Render klip yang disetujui di layar Kandidat. */
 async function startRender() {
-  const approved = DATA[mode].candidates.filter((k) => k.status === "approved");
+  const approved = DATA.candidates.filter((k) => k.status === "approved");
   if (!approved.length) return;
   return kirimRender(approved);
 }
@@ -438,7 +440,7 @@ async function kirimRender(approved) {
   }
 
   const request = {
-    video: chosenSource?.name || DATA[mode].file,
+    video: chosenSource?.name || DATA.file,
     clips: valid.map((k) => ({
       title: k.title,
       // Potongan dipecah lagi di tiap titik framing, dan masing-masing
@@ -448,18 +450,18 @@ async function kirimRender(approved) {
         ? spansWithFraming(k.spans || [{ start: k.startSec, end: k.endSec }])
         : (k.spans || []).map((p) => ({ start: p.start, end: p.end })),
       style: captionStyle(),         // pengaturan layar Caption ikut terkirim
-      // Teks yang sudah dibetulkan di layar Edit. Kalau tidak ada koreksi,
+      // Teks yang sudah dibetulkan di layar Teks. Kalau tidak ada koreksi,
       // isinya sama dengan transkrip -- server tetap menerimanya apa adanya.
       words: (typeof kataUntukRender === "function") ? kataUntukRender() : undefined,
-      layout: optionValue("format").startsWith("Blur") ? "blur" : "face",
-      width: optionValue("resolution") === "720p" ? 720 : 1080,
+      layout: optionOut("format"),
+      width: optionOut("resolution"),
     })),
   };
 
   // Antrian harus sejajar dengan apa yang benar-benar dikirim: server
   // melaporkan hasil per indeks, dan kalau isinya beda barisnya salah tunjuk.
   buildQueue(valid);
-  QUEUE.forEach((r) => { r.pct = 0; r.note = "antre"; r.action = "Batalkan"; });
+  QUEUE.forEach((r) => { r.pct = 0; r.note = "queued"; r.action = "Cancel"; r.act = "cancel"; });
   drawQueue();
   toScreen("history");
 
@@ -474,11 +476,11 @@ async function kirimRender(approved) {
     id = reply.id;
   } catch (err) {
     // Tanpa backend, katakan apa adanya -- jangan pura-pura merender.
-    QUEUE.forEach((r) => { r.pct = 0; r.note = "butuh klipian serve"; r.action = "Batalkan"; });
+    QUEUE.forEach((r) => { r.pct = 0; r.note = "needs klipian serve"; r.action = "Retry"; r.act = "retry"; });
     drawQueue();
     const head = document.querySelector('[data-screen="history"] .note');
     if (head) head.textContent =
-      "Render butuh backend. Jalankan: python -m klipian serve";
+      "Rendering needs the backend. Run: python -m klipian serve";
     return;
   }
 
@@ -489,9 +491,9 @@ async function kirimRender(approved) {
     catch { return; }
 
     QUEUE.forEach((r, i) => {
-      if (i < t.done) { r.pct = 100; r.note = "selesai"; r.action = "Buka folder"; }
-      else if (i === t.index && t.state === "running") { r.pct = 55; r.note = "merender"; r.action = "Batalkan"; }
-      else { r.pct = 0; r.note = "antre"; r.action = "Batalkan"; }
+      if (i < t.done) { r.pct = 100; r.note = "done"; r.action = "Open folder"; r.act = "open"; }
+      else if (i === t.index && t.state === "running") { r.pct = 55; r.note = "rendering"; r.action = "Cancel"; r.act = "cancel"; }
+      else { r.pct = 0; r.note = "queued"; r.action = "Cancel"; r.act = "cancel"; }
     });
     (t.result || []).forEach((h, i) => {
       if (QUEUE[i]) { QUEUE[i].name = h.file; QUEUE[i].url = h.url;
@@ -504,9 +506,56 @@ async function kirimRender(approved) {
       if (typeof muatRiwayat === "function") muatRiwayat();   // berkas baru masuk riwayat
       const head = document.querySelector('[data-screen="history"] .note');
       if (head) head.textContent = t.state === "failed"
-        ? `Gagal: ${t.error}`
+        ? `Failed: ${t.error}`
         : `${t.done} klip selesai · ${(t.result || []).reduce((a, h) => a + h.mb, 0).toFixed(1)} MB`;
     }
   }, 700);
 }
 
+/* ══════════════════ GLOBAL TRANSPORT BAR (topbar) ══════════════════ */
+(function() {
+  const gPlay = $("#gPlayPause");
+  const gPrev = $("#gPrevFrame");
+  const gNext = $("#gNextFrame");
+  const gTime = $("#gTime");
+  const gMute = $("#gMute");
+  if (!gPlay) return;
+
+  function fmtSec(d) {
+    const t = Math.max(0, Math.round(d));
+    const m = String(Math.floor(t / 60)).padStart(2, "0");
+    const s = String(t % 60).padStart(2, "0");
+    return m + ":" + s;
+  }
+
+  /* Sync time display on seek / timeupdate */
+  function syncGTime() {
+    if (!video.src || !activeClip) { gTime.textContent = "0:00"; return; }
+    const out = sourceToOut(activeClip, video.currentTime);
+    gTime.textContent = fmtSec(out ?? 0);
+  }
+  video.addEventListener("timeupdate", syncGTime);
+  video.addEventListener("seeked", syncGTime);
+
+  /* Play / Pause */
+  gPlay.addEventListener("click", () => { playBtn.click(); });
+  /* Mirror playBtn label changes */
+  const origPlayClick = playBtn?.onclick;
+  const gObserver = new MutationObserver(() => {
+    gPlay.textContent = isPlaying ? "❚❚" : "▶";
+    gPlay.title = isPlaying ? "Pause" : "Play";
+  });
+  if (playBtn) gObserver.observe(playBtn, { childList: true });
+
+  /* Frame step */
+  gPrev.addEventListener("click", () => stepFrame(-1));
+  gNext.addEventListener("click", () => stepFrame(1));
+
+  /* Mute */
+  gMute.addEventListener("click", () => { muteBtn?.click(); });
+  const gMuteObs = new MutationObserver(() => {
+    gMute.textContent = video.muted ? "🔇" : "🔊";
+  });
+  if (muteBtn) gMuteObs.observe(muteBtn, { childList: true });
+  gMute.textContent = video.muted ? "🔇" : "🔊";
+})();

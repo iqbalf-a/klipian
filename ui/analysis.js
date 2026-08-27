@@ -10,9 +10,6 @@
    tetap realistis.
    ========================================================================== */
 
-const TURBO_SPEED = 2.3;   // x realtime, terukur di Core Ultra 9 185H
-const DEMO_DURATION = 9000;    // ms: berapa lama simulasi berjalan di layar
-
 let analysisTimer = null;
 
 const fmtClock = (seconds) => {
@@ -31,7 +28,7 @@ const fmtClock = (seconds) => {
 
 async function startAnalysis() {
   clearInterval(analysisTimer);
-  const d = DATA[mode];
+  const d = DATA;
   const name = chosenSource ? chosenSource.name : d.file;
 
   $("#analysisNote").textContent = name;
@@ -50,7 +47,7 @@ async function startAnalysis() {
   } catch (err) {
     // Tanpa backend, jangan berpura-pura mentranskripsi.
     $("#transcribeStats").innerHTML =
-      "<span>Butuh backend. Jalankan: python -m klipian serve</span>";
+      "<span>Needs the backend. Run: python -m klipian serve</span>";
     return;
   }
 
@@ -67,7 +64,7 @@ async function startAnalysis() {
     $("#fileDuration").textContent = fmtClock(t.duration || 0);
     $("#analysisNote").textContent = `${name} · ${fmtClock(t.duration || 0)}`;
     $("#transcribeStats").innerHTML = (t.cached
-      ? ["dari cache", "transkrip sudah ada, tidak diulang"]
+      ? ["from cache", "transkrip sudah ada, tidak diulang"]
       : [`${t.percent || 0}%`,
          `${fmtClock(t.position || 0)} dari ${fmtClock(t.duration || 0)}`,
          `berjalan ${fmtClock(elapsed)}`,
@@ -89,7 +86,7 @@ async function startAnalysis() {
     if (t.state !== "running") {
       clearInterval(analysisTimer);
       if (t.state === "failed") {
-        $("#transcribeStats").innerHTML = `<span>Gagal: ${escapeHTML(t.error)}</span>`;
+        $("#transcribeStats").innerHTML = `<span>Failed: ${escapeHTML(t.error)}</span>`;
         return;
       }
       $("#transcribeStats").innerHTML = t.cached

@@ -5,7 +5,13 @@ __pycache__/
 # hasil kerja, bukan kode
 cache/
 out/
+projects/
 samples/
 
 # rahasia
 .env
+
+# hermes tmp
+.hermes-tmp*
+# source video files
+sources/

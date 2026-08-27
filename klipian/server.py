@@ -23,10 +23,11 @@ import os
 import subprocess
 import sys
 import threading
+import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 from .cache import Cache
 from .models import Transcript
@@ -34,6 +35,10 @@ from . import render as engine
 
 ROOT = Path(__file__).resolve().parent.parent
 SERVED_DIRS = ("ui", "cache", "out", "prompts", "samples")   # folder yang dilayani
+
+# Project TIDAK ikut dilayani sebagai berkas statis. Isinya hanya boleh lewat
+# /api/project supaya nama berkas tidak jadi permukaan serang tersendiri.
+PROJECTS = ROOT / "projects"
 
 # pekerjaan render yang sedang / sudah berjalan
 JOBS: dict[str, dict] = {}
@@ -150,10 +155,10 @@ def _run_render(job_id: str, req: dict) -> None:
                             for p in k.get("spans", [])]
             except (KeyError, TypeError, ValueError):
                 raise ValueError(
-                    f"Klip \"{k.get('title', '?')}\" tidak punya titik waktu yang sah. "
-                    f"Impor ulang hasil Claude, atau buat klip manual.") from None
+                    f"Clip \"{k.get('title', '?')}\" has no valid timestamps. "
+                    f"Re-import Claude's reply, or cut the clip manually.") from None
             if not spans:
-                raise ValueError(f"Klip \"{k.get('title', '?')}\" tidak punya potongan.")
+                raise ValueError(f"Clip \"{k.get('title', '?')}\" has no spans.")
             crop = k.get("crop") or {}
             job = engine.RenderJob(
                 title=k["title"],
@@ -225,7 +230,7 @@ def _run_transcribe(job_id: str, req: dict) -> None:
         video = _find_video(req["video"])
         if not video:
             raise FileNotFoundError(
-                f"{req['video']} tidak ada di samples/.")
+                f"{req['video']} is not in samples/.")
 
         cache = Cache(ROOT / "cache")
         model = req.get("model", "large-v3-turbo")
@@ -309,6 +314,46 @@ def _run_transcribe(job_id: str, req: dict) -> None:
             pass
 
 
+# ══════════════════════════════ project ══════════════════════════════
+# Sebelum ini klipian tidak menyimpan apa pun: muat ulang halaman dan seluruh
+# Result, titik framing, serta koreksi teks lenyap. Project menyimpannya jadi
+# satu JSON per video, di samping cache/ dan out/ -- bukan di localStorage,
+# supaya bertahan walau browser dibersihkan dan bisa dilihat serta di-backup
+# sebagai berkas biasa.
+
+def _project_path(video: str) -> Path:
+    """Satu berkas per video. Kuncinya fingerprint yang sama dengan cache
+    transkrip, jadi video yang berubah isinya otomatis jadi project lain."""
+    from .cache import fingerprint
+    src = ROOT / "samples" / Path(video).name
+    fp = fingerprint(src) if src.exists() else "unknown"
+    return PROJECTS / f"{Path(video).stem}.{fp}.json"
+
+
+def _project_ringkas(file: Path) -> dict | None:
+    """Bentuk ringkas untuk daftar di beranda -- tidak memuat seluruh isi."""
+    try:
+        data = json.loads(file.read_text(encoding="utf-8"))
+        st = file.stat()
+    except (OSError, ValueError):
+        return None
+    spans = data.get("result") or []
+    total = sum(max(0.0, float(r.get("end", 0)) - float(r.get("start", 0)))
+                for r in spans)
+    return {
+        "video": data.get("video", ""),
+        "title": data.get("title", ""),
+        "spans": len(spans),
+        "seconds": round(total, 1),
+        "at": int(st.st_mtime),
+        "thumbAt": float(spans[0]["start"]) if spans else 0.0,
+        # Sampul memakai kotak framing project itu sendiri. Kalau memakai
+        # kotak bawaan, dua project dari video yang sama terlihat identik
+        # walau bingkainya berbeda jauh.
+        "crop": ((data.get("framing") or [{}])[0].get("crops") or [None])[0],
+    }
+
+
 def _thumbnail(video: Path, seconds: float, crop: dict, width: int) -> Path:
     """Satu frame dari detik klipnya, sudah dipotong 9:16.
 
@@ -383,18 +428,17 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json(salinan or {"state": "missing"}, 200 if salinan else 404)
 
         if path == "/api/thumb":
-            from urllib.parse import parse_qs
             q = parse_qs(urlparse(self.path).query)
             num = lambda k, d: float(q.get(k, [d])[0])
             video = _find_video(q.get("video", [""])[0])
             if not video:
-                return self._send_json({"error": "video tidak ada"}, 404)
+                return self._send_json({"error": "video not found"}, 404)
             file = _thumbnail(video, num("t", 0),
                                 {"left": num("left", 37), "top": num("top", 4),
                                  "width": num("width", 26), "height": num("height", 92)},
                                 int(num("w", 132)))
             if not file.is_file():
-                return self._send_json({"error": "gagal membuat thumbnail"}, 500)
+                return self._send_json({"error": "could not build thumbnail"}, 500)
             data = file.read_bytes()
             self.send_response(200)
             self.send_header("Content-Type", "image/jpeg")
@@ -407,11 +451,10 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/probe":
             # UI perlu fps untuk melangkah per frame. Elemen <video> tidak
             # pernah membocorkan angka itu, jadi ffprobe yang menjawab.
-            from urllib.parse import parse_qs
             q = parse_qs(urlparse(self.path).query)
             video = _find_video(q.get("video", [""])[0])
             if not video:
-                return self._send_json({"error": "video tidak ada"}, 404)
+                return self._send_json({"error": "video not found"}, 404)
             try:
                 from .ffmpeg_tools import probe
                 i = probe(video)
@@ -443,6 +486,29 @@ class Handler(BaseHTTPRequestHandler):
             item.sort(key=lambda x: x["at"], reverse=True)   # terbaru dulu
             return self._send_json({"render": item})
 
+        if path == "/api/projects":
+            # Daftar untuk beranda. Yang rusak dilewati diam-diam: satu berkas
+            # cacat tidak boleh membuat seluruh daftar gagal tampil.
+            item = []
+            for f in PROJECTS.glob("*.json"):
+                r = _project_ringkas(f)
+                if r and r.get("video"):
+                    item.append(r)
+            item.sort(key=lambda x: x["at"], reverse=True)
+            return self._send_json({"project": item})
+
+        if path == "/api/project":
+            name = (parse_qs(urlparse(self.path).query).get("video") or [""])[0]
+            if not name:
+                return self._send_json({"error": "video required"}, 400)
+            f = _project_path(name)
+            if not f.exists():
+                return self._send_json({"error": "not found"}, 404)
+            try:
+                return self._send_json(json.loads(f.read_text(encoding="utf-8")))
+            except ValueError:
+                return self._send_json({"error": "project file is corrupt"}, 500)
+
         if path == "/api/cache":
             # UI perlu tahu transkrip apa saja yang tersedia. Server ini tidak
             # membuat daftar direktori HTML seperti http.server, jadi
@@ -473,19 +539,19 @@ class Handler(BaseHTTPRequestHandler):
         # tetap diperiksa harus berada di dalam ROOT.
         parts = [b for b in path.strip("/").split("/") if b not in ("", ".", "..")]
         if not parts or parts[0] not in SERVED_DIRS:
-            return self._send_json({"error": "tidak dilayani"}, 404)
+            return self._send_json({"error": "not served"}, 404)
         if any("\\" in b or "/" in b or b == ".." for b in parts):
-            return self._send_json({"error": "jalur tidak sah"}, 400)
+            return self._send_json({"error": "invalid path"}, 400)
 
         file = ROOT.joinpath(*parts)
         try:
             file = file.resolve(strict=True)
         except OSError:
-            return self._send_json({"error": f"tidak ada: {path}"}, 404)
+            return self._send_json({"error": f"not found: {path}"}, 404)
         if not file.is_relative_to(ROOT.resolve()):
-            return self._send_json({"error": "jalur tidak sah"}, 400)
+            return self._send_json({"error": "invalid path"}, 400)
         if not file.is_file():
-            return self._send_json({"error": f"tidak ada: {path}"}, 404)
+            return self._send_json({"error": f"not found: {path}"}, 404)
 
         mime = mimetypes.guess_type(str(file))[0] or "application/octet-stream"
         return self._send_file(file, mime)
@@ -550,11 +616,35 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):                             # noqa: N802
         path = urlparse(self.path).path
 
+        if path == "/api/project":
+            try:
+                req = self._read_json()
+            except Exception as exc:               # noqa: BLE001
+                return self._send_json({"error": str(exc)}, 400)
+            name = str(req.get("video") or "").strip()
+            if not name:
+                return self._send_json({"error": "video required"}, 400)
+            # Nama berkas saja, tanpa komponen path -- nama dari klien tidak
+            # boleh menentukan DI MANA berkasnya ditulis.
+            req["video"] = Path(name).name
+            PROJECTS.mkdir(parents=True, exist_ok=True)
+            f = _project_path(req["video"])
+            if req.get("delete"):
+                f.unlink(missing_ok=True)
+                return self._send_json({"ok": True, "deleted": True})
+            req["at"] = int(time.time())
+            # Tulis ke berkas sementara lalu ganti nama: kalau proses mati di
+            # tengah penulisan, project lama tetap utuh, bukan separuh tertulis.
+            tmp = f.with_suffix(".tmp")
+            tmp.write_text(json.dumps(req, ensure_ascii=False), encoding="utf-8")
+            tmp.replace(f)
+            return self._send_json({"ok": True})
+
         if path == "/api/render":
             try:
                 req = self._read_json()
                 if not req.get("clips"):
-                    return self._send_json({"error": "tidak ada klip"}, 400)
+                    return self._send_json({"error": "no clips"}, 400)
             except Exception as exc:               # noqa: BLE001
                 return self._send_json({"error": str(exc)}, 400)
 
@@ -594,13 +684,13 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 folder = Path(self._read_json().get("folder", "")).resolve()
                 if not folder.is_dir():
-                    return self._send_json({"error": "folder tidak ada"}, 404)
+                    return self._send_json({"error": "folder not found"}, 404)
                 # Cegah path traversal: hanya buka folder di dalam project.
                 # Pakai is_relative_to, bukan startswith -- "klipian-lain"
                 # berawalan sama dengan "klipian" tapi folder yang berbeda.
                 if not folder.is_relative_to(ROOT.resolve()):
                     return self._send_json(
-                        {"error": "hanya folder dalam project yang boleh dibuka"}, 403)
+                        {"error": "only folders inside the project can be opened"}, 403)
                 if sys.platform == "win32":
                     os.startfile(folder)           # noqa: S606
                 elif sys.platform == "darwin":
@@ -611,7 +701,7 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as exc:               # noqa: BLE001
                 return self._send_json({"error": str(exc)}, 500)
 
-        self._send_json({"error": "tidak dikenal"}, 404)
+        self._send_json({"error": "unknown endpoint"}, 404)
 
 
 def _sweep_temp() -> int:
@@ -634,8 +724,8 @@ def serve(port: int = 5177) -> int:
     print(f"  klipian  ->  http://127.0.0.1:{port}")
     print(f"  melayani {ROOT}")
     if leftover:
-        print(f"  {leftover} berkas audio sementara dibersihkan")
-    print("  Ctrl+C untuk berhenti")
+        print(f"  cleaned up {leftover} leftover temp audio file(s)")
+    print("  Ctrl+C to stop")
     print("")
     try:
         srv.serve_forever()

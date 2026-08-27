@@ -55,21 +55,21 @@ function renderTeks() {
   if (reset) reset.disabled = diubah === 0;
 
   if (!kata.length) {
-    list.innerHTML = `<p class="kosong-hasil">Belum ada teks. Susun result dulu di
-      atas, teks captionnya muncul di sini.</p>`;
-    if (note) note.textContent = "belum ada";
+    list.innerHTML = `<p class="kosong-hasil">No words yet. Build a Result first and the
+      caption text will show up here.</p>`;
+    if (note) note.textContent = "none yet";
     return;
   }
 
   if (note) {
     note.textContent = diubah
-      ? `${kata.length} kata · ${diubah} dibetulkan`
-      : `${kata.length} kata · klik kata untuk membetulkan`;
+      ? `${kata.length} words · ${diubah} corrected`
+      : `${kata.length} words · click a word to correct it`;
   }
 
   list.innerHTML = kata.map((w) => `
     <button class="kata-teks${w.diubah ? " diubah" : ""}" data-mulai="${kunciKata(w)}"
-            title="${jamRange(w.start)}${w.diubah ? ` · asalnya &quot;${escapeHTML(w.asli)}&quot;` : ""}"
+            title="${jamRange(w.start)}${w.diubah ? ` · was &quot;${escapeHTML(w.asli)}&quot;` : ""}"
     >${escapeHTML(w.text)}</button>`).join("");
 }
 
@@ -104,6 +104,7 @@ function selesaiEdit(batal) {
 
   renderTeks();                            // tombol kosong mustahil bertahan
   if (typeof drawCaption === "function") drawCaption();
+  if (typeof simpanProject === "function") simpanProject();
 }
 
 function mulaiEdit(b) {

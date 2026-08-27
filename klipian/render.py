@@ -284,14 +284,14 @@ def render(source: Path, job: RenderJob, dest: Path,
            src_width: int = 1920, src_height: int = 1080,
            has_audio: bool = True, verbose: bool = True) -> Path:
     if not job.spans:
-        raise RuntimeError("Tidak ada potongan untuk dirender.")
+        raise RuntimeError("No spans to render.")
     if not has_audio:
         # Filter graph di bawah selalu memakai [0:a]. Tanpa penjaga ini ffmpeg
         # gagal dengan "Stream specifier ':a' in filtergraph description" --
         # pesan yang tidak berarti apa-apa bagi pengguna.
         raise RuntimeError(
-            f"{source.name} tidak punya trek audio, jadi tidak bisa dijadikan "
-            f"klip. Pakai berkas sumber yang ada suaranya.")
+            f"{source.name} has no audio track, so it cannot be turned into "
+            f"a clip. Use a source file that has sound.")
 
     ffmpeg = _require("ffmpeg")
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -329,14 +329,14 @@ def render(source: Path, job: RenderJob, dest: Path,
             if verbose:
                 print(f"  encoder  : {encoder}")
                 if i == 0:
-                    print(f"  potongan : {len(job.spans)}  ·  durasi {job.duration:.1f}s")
+                    print(f"  spans    : {len(job.spans)}  ·  duration {job.duration:.1f}s")
 
             result = subprocess.run(susun(encoder), capture_output=True, text=True,
                                     encoding="utf-8", errors="replace", timeout=3600)
             if result.returncode == 0:
                 return dest
             if i < len(urutan) - 1 and verbose:
-                print(f"  {encoder} gagal, mengulang dengan {urutan[i+1]}")
+                print(f"  {encoder} failed, retrying with {urutan[i+1]}")
 
         tail = (result.stderr or "").strip().splitlines()[-14:]
         raise RuntimeError("ffmpeg gagal:\n" + "\n".join(tail))

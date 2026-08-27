@@ -7,9 +7,9 @@
 
    Sekarang framing adalah DAFTAR TITIK di sepanjang video:
 
-       00:00  1 bingkai, kotak di tengah
-       05:12  2 split, kiri di atas kanan di bawah
-       07:40  1 bingkai, kotak ke kanan
+       00:00  Single, kotak di tengah
+       05:12  Split, kiri di atas kanan di bawah
+       07:40  Single, kotak ke kanan
 
    Aturannya satu kalimat: satu titik berlaku sampai titik berikutnya, dan
    perpindahannya potong keras -- tidak merayap.
@@ -255,9 +255,9 @@ function renderFraming() {
   // "kunci", dan menulisinya akan langsung menghapus konfirmasi yang baru saja
   // muncul. Pemanggil yang menentukan pesannya.
   const jam = $("#framingWaktu");
-  if (jam) jam.textContent = `posisi ${jamRange(t)}`;
+  if (jam) jam.textContent = `at ${jamRange(t)}`;
   const tag = $("#tagCrop1");
-  if (tag) tag.textContent = aktif ? `berlaku dari ${jamRange(aktif.at)}` : "";
+  if (tag) tag.textContent = aktif ? `from ${jamRange(aktif.at)}` : "";
 
   const bar = $("#framingList");
   if (bar) {
@@ -265,7 +265,7 @@ function renderFraming() {
       <button class="chip" data-framing="${f.id}"${f === aktif ? ' aria-pressed="true"' : ""}>
         ${jamRange(f.at)}<em class="fmt">${f.format === "split" ? "2" : "1"}</em>${i > 0
           ? `<i class="buang" data-buang-framing="${f.id}" role="button"
-                aria-label="Hapus titik ${jamRange(f.at)}">×</i>` : ""}
+                aria-label="Delete point ${jamRange(f.at)}">×</i>` : ""}
       </button>`).join("");
   }
 
@@ -294,6 +294,19 @@ function gambarKotak(format, crops) {
     b.setAttribute("aria-pressed", String(b.dataset.formatPilih === formatKanvas)));
 }
 
+/* Menyalin kotak dari kanvas ke titik yang sedang berlaku. Dipanggil terus
+   selama menggeser, bukan cuma saat dilepas: preview menghitung bingkainya
+   dari ANGKA di FRAMING, jadi kalau angkanya baru ditulis saat pointer
+   dilepas, preview diam saja sepanjang geseran. */
+function simpanKotak() {
+  const f = framingPada(waktuTinjau());
+  const crops = kotakDiKanvas();
+  if (!f || !crops) return null;
+  f.format = formatKanvas;
+  f.crops = crops;
+  return f;
+}
+
 /* Kotak yang sedang tergambar di kanvas, dibaca balik jadi angka. */
 function kotakDiKanvas() {
   const canvas = document.querySelector(".canvas");
@@ -317,7 +330,7 @@ function kotakDiKanvas() {
 
    Versi pertama menyunting titik yang berlaku, dan itu menghancurkan
    pekerjaan: kamu menyusun split di 00:00, maju ke 20:55, memilih
-   "1 bingkai" -- dan split di 00:00 ikut berubah jadi single tanpa pesan
+   "Single" -- dan Split di 00:00 ikut berubah jadi Single tanpa pesan
    apa pun. Padahal seluruh gunanya titik framing justru supaya format bisa
    BERBEDA di detik yang berbeda.
 
@@ -342,16 +355,16 @@ $("#framingFormat")?.addEventListener("click", (e) => {
   if (sama) {
     sama.format = format;
     sama.crops = crops;
-    pesan = `titik ${jamRange(sama.at)} jadi`;
+    pesan = `point ${jamRange(sama.at)} is now`;
   } else {
     FRAMING.push({ id: `f${++framingSeq}`, at: t, format, crops });
     FRAMING.sort((a, b2) => a.at - b2.at);
-    pesan = `titik baru di ${jamRange(t)},`;
+    pesan = `new point at ${jamRange(t)},`;
   }
   renderFraming();
   $("#reframeNote").textContent = format === "split"
-    ? `${pesan} 2 split · geser kotak atas dan bawah ke masing-masing orang`
-    : `${pesan} 1 bingkai · geser kotak ke orang yang bicara`;
+    ? `${pesan} Split · drag the top and bottom boxes onto each person`
+    : `${pesan} Single · drag the box onto whoever is talking`;
 });
 
 /* ---------- kunci, pilih, hapus ---------- */
@@ -366,15 +379,16 @@ $("#kunciFraming")?.addEventListener("click", () => {
   if (sama) {
     sama.format = formatKanvas;
     sama.crops = crops;
-    pesan = `titik ${jamRange(sama.at)} diperbarui`;
+    pesan = `point ${jamRange(sama.at)} updated`;
   } else {
     FRAMING.push({ id: `f${++framingSeq}`, at: t, format: formatKanvas, crops });
     FRAMING.sort((a, b) => a.at - b.at);
-    pesan = `titik baru dikunci di ${jamRange(t)}`;
+    pesan = `new point locked at ${jamRange(t)}`;
   }
   renderFraming();
+  if (typeof simpanProject === "function") simpanProject();
   $("#reframeNote").textContent =
-    `${pesan} · ${formatKanvas === "split" ? "2 split" : "1 bingkai"}`;
+    `${pesan} · ${formatKanvas === "split" ? "Split" : "Single"}`;
 });
 
 $("#framingList")?.addEventListener("click", (e) => {
@@ -389,7 +403,7 @@ $("#framingList")?.addEventListener("click", (e) => {
   }
   const chip = e.target.closest("[data-framing]");
   if (!chip) return;
-  $("#reframeNote").textContent = "geser kotak ke orang yang bicara, lalu kunci";
+  $("#reframeNote").textContent = "drag the box onto whoever is talking, then lock it";
   // Klik titik = lompat ke detiknya, supaya kelihatan sedang membingkai apa.
   const f = FRAMING.find((x) => x.id === chip.dataset.framing);
   if (!f) return;
@@ -443,6 +457,7 @@ $("#framingList")?.addEventListener("click", (e) => {
       crop.style.left = `${(x / k.width) * 100}%`;
       crop.style.top = `${(y / k.height) * 100}%`;
     }
+    simpanKotak();
     if (typeof attachVideoGeometry === "function") attachVideoGeometry();
   });
 
@@ -452,12 +467,10 @@ $("#framingList")?.addEventListener("click", (e) => {
       active = null;
       // Geseran langsung menempel ke titik yang sedang berlaku. Kalau kamu
       // mau posisi ini mulai di detik lain, tekan "Kunci framing di sini".
-      const f = framingPada(waktuTinjau());
-      const crops = kotakDiKanvas();
-      if (f && crops) { f.format = formatKanvas; f.crops = crops; }
+      const f = simpanKotak() || framingPada(waktuTinjau());
       $("#reframeNote").textContent = f
-        ? `titik ${jamRange(f.at)} digeser · tekan Kunci untuk membuat titik baru`
-        : "geser kotak ke orang yang bicara, lalu kunci";
+        ? `point ${jamRange(f.at)} moved · press Lock to create a new point`
+        : "drag the box onto whoever is talking, then lock it";
       if (typeof attachVideoGeometry === "function") attachVideoGeometry();
     }));
 })();

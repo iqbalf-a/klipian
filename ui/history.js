@@ -11,14 +11,14 @@
 
 let RIWAYAT = [];
 
-/* "baru saja", "12 menit lalu", "3 jam lalu", "kemarin", lalu tanggal. */
+/* "just now", "12 min ago", "3 hr ago", "yesterday", lalu tanggal. */
 function kapan(detikEpoch) {
   const lalu = Date.now() / 1000 - detikEpoch;
-  if (lalu < 90) return "baru saja";
-  if (lalu < 3600) return `${Math.round(lalu / 60)} menit lalu`;
-  if (lalu < 86400) return `${Math.round(lalu / 3600)} jam lalu`;
-  if (lalu < 172800) return "kemarin";
-  return new Date(detikEpoch * 1000).toLocaleDateString("id-ID",
+  if (lalu < 90) return "just now";
+  if (lalu < 3600) return `${Math.round(lalu / 60)} min ago`;
+  if (lalu < 86400) return `${Math.round(lalu / 3600)} hr ago`;
+  if (lalu < 172800) return "yesterday";
+  return new Date(detikEpoch * 1000).toLocaleDateString("en-GB",
     { day: "numeric", month: "short" });
 }
 
@@ -29,15 +29,15 @@ async function muatRiwayat() {
     RIWAYAT = d.render || [];
   } catch {
     RIWAYAT = [];
-    if (note) note.textContent = "butuh klipian serve";
+    if (note) note.textContent = "needs klipian serve";
     gambarRiwayat();
     return;
   }
   if (note) {
     const mb = RIWAYAT.reduce((t, r) => t + r.mb, 0);
     note.textContent = RIWAYAT.length
-      ? `${RIWAYAT.length} berkas · ${mb.toFixed(1)} MB`
-      : "belum ada yang dirender";
+      ? `${RIWAYAT.length} file${RIWAYAT.length > 1 ? "s" : ""} · ${mb.toFixed(1)} MB`
+      : "nothing rendered yet";
   }
   gambarRiwayat();
 }
@@ -47,8 +47,8 @@ function gambarRiwayat() {
   if (!list) return;
 
   if (!RIWAYAT.length) {
-    list.innerHTML = `<p class="kosong-hasil">Belum ada berkas di folder out/.
-      Susun result di layar Edit, lalu tekan Render.</p>`;
+    list.innerHTML = `<p class="kosong-hasil">Nothing in the out/ folder yet.
+      Build a Result on the Clips screen, then press Render.</p>`;
     return;
   }
 
@@ -58,8 +58,8 @@ function gambarRiwayat() {
       <span class="data riwayat-video">${escapeHTML(r.video)}</span>
       <span class="data riwayat-mb">${r.mb} MB</span>
       <span class="data riwayat-kapan">${kapan(r.at)}</span>
-      <button class="btn quiet" data-aksi="putar">Putar</button>
-      <button class="btn" data-aksi="buka">Buka folder</button>
+      <button class="btn quiet" data-aksi="putar">Play</button>
+      <button class="btn" data-aksi="buka">Open folder</button>
     </div>`).join("");
 }
 
@@ -89,9 +89,9 @@ $("#riwayatList")?.addEventListener("click", async (e) => {
       body: JSON.stringify({ folder: r.folder }),
     })).json();
     if (j.error) throw new Error(j.error);
-    b.textContent = "dibuka";
+    b.textContent = "opened";
   } catch (err) {
-    b.textContent = String(err.message || "gagal").slice(0, 22);
+    b.textContent = String(err.message || "failed").slice(0, 22);
   }
   setTimeout(() => { b.textContent = semula; }, 2200);
 });

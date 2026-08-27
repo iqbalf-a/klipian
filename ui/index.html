@@ -7,75 +7,82 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wdth,wght@0,75..125,200..900;1,75..125,200..900&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="tokens.css?v=1787621049">
-<link rel="stylesheet" href="app.css?v=1787621049">
+<link rel="stylesheet" href="tokens.css?v=1787762582">
+<link rel="stylesheet" href="app.css?v=1787762582">
 </head>
 <body>
 
-<div class="app" id="app" data-mode="dialog" data-stage="home">
+<div class="app" id="app" data-stage="home">
 
   <header class="topbar">
-    <button class="brand" id="toHome" title="Kembali ke menu utama">klipian</button>
+    <button class="brand" id="toHome" title="Back to home">klipian</button>
     <button class="btn back-menu work-only" id="toMenuBtn">← Menu</button>
     <span class="file work-only">
-      <span class="name" id="fileName">cadera-gameplay-mlbb.mp4</span>
-      <span class="data" id="fileDuration">2:22:46</span>
+      <span class="name" id="fileName"></span>
+      <span class="data" id="fileDuration"></span>
     </span>
-    <div class="rest work-only">
-      <span class="mode-mark" id="modeMark"></span>
-
+    <div class="global-transport work-only" id="globalTransport">
+      <button class="langkah" id="gPrevFrame" title="Frame sebelumnya">◀</button>
+      <button class="putar" id="gPlayPause" title="Play / Pause">▶</button>
+      <button class="langkah" id="gNextFrame" title="Frame berikutnya">▶1</button>
+      <span class="gt-time" id="gTime">0:00</span>
+      <button class="saklar" id="gMute" title="Mute">🔊</button>
     </div>
   </header>
 
-  <!-- ══════════════════════ TAHAP 1 — BERANDA ══════════════════════ -->
+  <!-- ══════════════════ TAHAP 1 — JATUHKAN BERKAS ══════════════════
+       Dulu ada dua tahap: Beranda memilih mode (Podcast, Live MLBB, Restream
+       MPL, Tayangan TV), baru Siapkan memuat berkasnya. Mode dibuang karena
+       apa pun sumbernya yang dikerjakan sama saja, jadi dua tahap itu runtuh
+       jadi satu: jatuhkan berkas, lalu cari klip. -->
   <section class="home" id="home">
-    <div class="home-body">
-      <p class="eyebrow">Beranda</p>
-      <h1 class="home-title">Mau bikin klip dari apa?</h1>
-      <p class="home-sub">Modenya menentukan bagaimana momen dicari — bukan
-        sekadar tampilan. Podcast dicari dari gagasan, MLBB dari kejadian.</p>
-
-      <div class="mode-grid" id="modeGrid"></div>
-
-      <div class="resume" id="resume"></div>
-    </div>
-  </section>
-
-  <!-- ══════════════════════ TAHAP 2 — SIAPKAN ══════════════════════ -->
-  <section class="prepare" id="prepare">
     <div class="prepare-body">
-      <button class="btn back" id="backHome">← Ganti mode</button>
-      <h1 id="prepareTitle">Podcast</h1>
-      <p class="home-sub" id="prepareSub"></p>
+      <p class="eyebrow">Home</p>
+      <h1 class="home-title">Start a new clip</h1>
+      <p class="home-sub">Clips are built from the transcript: pick a range on the timeline,
+        set the framing, fix the captions, then render.</p>
 
       <div class="panel source">
         <div class="source-drop">
-          <h2>Tarik file ke sini</h2>
-          <p>mp4, mkv, mov — atau</p>
+          <h2>Drag a video here</h2>
+          <p>mp4, mkv, mov — or</p>
           <div class="source-actions">
-            <button class="btn">Pilih dari folder</button>
-            <span class="split">atau</span>
+            <button class="btn">Browse files</button>
+            <span class="split">or</span>
             <input class="input" id="urlInput" type="url"
-                   placeholder="tempel link YouTube" aria-label="Link YouTube">
+                   placeholder="paste a YouTube link" aria-label="YouTube link">
           </div>
         </div>
       </div>
 
-      <div class="panel option" id="options"></div>
+      <!-- Opsi dan tombol disembunyikan sampai ada videonya: sebelum itu
+           keduanya tidak berarti apa-apa, dan sebagai panel penuh ia mendorong
+           daftar project keluar layar di jendela pendek -- persis saat daftar
+           itu paling dibutuhkan. -->
+      <div class="panel option" id="options" hidden></div>
 
-      <div class="prepare-foot">
+      <div class="prepare-foot" id="prepareFoot" hidden>
         <span class="data" id="optionsSummary"></span>
-        <button class="btn main large" id="run">Cari klip</button>
+        <button class="btn main large" id="run">Find clips</button>
       </div>
+
+      <!-- Pekerjaan yang belum selesai. Urutannya di bawah panel drop -- mulai
+           baru dulu, seperti CapCut. Disembunyikan sampai benar-benar ada. -->
+      <section class="recent" hidden>
+        <p class="eyebrow">Continue working</p>
+        <div class="project-grid" id="projectList"></div>
+      </section>
     </div>
   </section>
 
   <main class="stage has-preview" id="stage">
     <aside class="side work-only">
       <nav class="rel-side" id="tabs" role="tablist">
-        <button class="tab" role="tab" id="tab-analysis" data-to="analysis" aria-controls="panel-analysis" aria-selected="false" tabindex="-1">Analisis</button>
-        <button class="tab" role="tab" id="tab-edit" data-to="edit" aria-controls="panel-edit" aria-selected="true" tabindex="0">Edit</button>
-        <button class="tab" role="tab" id="tab-history" data-to="history" aria-controls="panel-history" aria-selected="false" tabindex="-1">Riwayat</button>
+        <button class="tab" role="tab" id="tab-analysis" data-to="analysis" aria-controls="panel-analysis" aria-selected="false" tabindex="-1">Analyze</button>
+        <button class="tab" role="tab" id="tab-klip" data-to="klip" aria-controls="panel-klip" aria-selected="true" tabindex="0">Clips</button>
+        <button class="tab" role="tab" id="tab-framing" data-to="framing" aria-controls="panel-framing" aria-selected="false" tabindex="-1">Framing</button>
+        <button class="tab" role="tab" id="tab-teks" data-to="teks" aria-controls="panel-teks" aria-selected="false" tabindex="-1">Captions</button>
+        <button class="tab" role="tab" id="tab-history" data-to="history" aria-controls="panel-history" aria-selected="false" tabindex="-1">History</button>
       </nav>
     </aside>
 
@@ -84,20 +91,20 @@
       <!-- ══════════════════════════ ANALISIS ══════════════════════ -->
       <section class="screen" data-screen="analysis" role="tabpanel" id="panel-analysis" aria-labelledby="tab-analisis" tabindex="0">
         <div class="work-head">
-          <h1>Analisis</h1>
+          <h1>Analyze</h1>
           <span class="note" id="analysisNote"></span>
         </div>
 
         <div class="panel fit" style="padding:var(--s5)">
           <div style="display:flex;align-items:center;gap:var(--s3);margin-bottom:var(--s4)">
-            <h2 style="font-size:18px">Transkripsi berjalan</h2>
-            <span class="data" style="color:var(--teks-samar)">large-v3-turbo · CPU 22 thread</span>
+            <h2 style="font-size:18px">Transcribing</h2>
+            <span class="data" style="color:var(--teks-samar)">large-v3-turbo · CPU 22 threads</span>
           </div>
           <div class="progress" style="width:100%;height:6px"><i id="transcribeBar" style="width:0%"></i></div>
           <div class="data" id="transcribeStats"
                style="display:flex;gap:var(--s5);margin-top:var(--s3);color:var(--teks-samar)"></div>
           <p style="margin:var(--s4) 0 0;color:var(--teks-lemah);font-size:13px">
-            Bisa ditinggal. Hasilnya disimpan otomatis.
+            You can leave this running. The result is saved automatically.
           </p>
         </div>
 
@@ -105,11 +112,11 @@
           <div class="step-head">
             <span class="num">&rarr;</span>
             <div>
-              <h2>Atau potong sendiri</h2>
-              <p class="step-note">Lewati langkah 2 dan 3. Buka layar Edit, seleksi
-                rentangnya di timeline, lalu masukkan ke result.</p>
+              <h2>Or cut it yourself</h2>
+              <p class="step-note">Skip steps 2 and 3. Open the Clips screen, select a
+              range on the timeline, then add it to Result.</p>
             </div>
-            <button class="btn" id="manualClip">Buka layar Edit</button>
+            <button class="btn" id="manualClip">Open Clips</button>
           </div>
         </div>
 
@@ -118,10 +125,10 @@
           <div class="step-head">
             <span class="num">2</span>
             <div>
-              <h2>Ekspor untuk Claude</h2>
-              <p class="step-note" id="exportNote">menunggu transkripsi</p>
+              <h2>Export for Claude</h2>
+              <p class="step-note" id="exportNote">waiting for the transcript</p>
             </div>
-            <button class="btn main" id="downloadBrief" disabled>Unduh berkas</button>
+            <button class="btn main" id="downloadBrief" disabled>Download file</button>
           </div>
         </div>
 
@@ -130,57 +137,59 @@
           <div class="step-head">
             <span class="num">3</span>
             <div>
-              <h2>Impor hasil dari Claude</h2>
-              <p class="step-note">tempel JSON balasannya, atau tarik berkas .json ke sini</p>
+              <h2>Import Claude's reply</h2>
+              <p class="step-note">paste the JSON reply, or drag a .json file here</p>
             </div>
           </div>
           <textarea class="paste" id="pasteJSON" spellcheck="false"
             placeholder='{ "klip": [ ... ] }  — pagar kode ```json dan kalimat pengantar boleh ikut'></textarea>
           <div class="step-foot">
             <span class="data" id="importNote"></span>
-            <button class="btn main" id="importBtn" disabled>Potong jadi klip</button>
+            <button class="btn main" id="importBtn" disabled>Cut into clips</button>
           </div>
         </div>
 
         <div class="error" id="error" hidden></div>
       </section>
 
-      <!-- ══════════════════════════ EDIT ══════════════════════════
-           Satu layar tempat result disusun. Dua keran mengisi wadah yang
-           sama: seleksi manual di timeline, dan rekomendasi dari AI. -->
-      <section class="screen" data-screen="edit" role="tabpanel" id="panel-edit" aria-labelledby="tab-edit" tabindex="0">
+      <!-- ══════════════════════════ KLIP ═════════════════════════
+           Menyusun ISI result. Dua keran mengisi wadah yang sama: seleksi
+           manual di timeline, dan rekomendasi dari AI. Framing dan teks punya
+           layarnya sendiri -- di sini urusannya cuma potongan mana yang
+           masuk. -->
+      <section class="screen" data-screen="klip" role="tabpanel" id="panel-klip" aria-labelledby="tab-klip" tabindex="0">
         <div class="work-head">
-          <h1>Edit</h1>
-          <span class="note" id="editNote">susun result dari rekomendasi AI atau seleksi sendiri</span>
+          <h1>Clips</h1>
+          <span class="note" id="editNote">build a Result from AI suggestions or your own selection</span>
         </div>
 
         <!-- timeline video utuh: seleksi rentang sendiri -->
         <div class="panel fit pilih">
           <div class="pilih-head">
             <span class="eyebrow">Timeline</span>
-            <span class="data" id="pilihNote">geser di timeline untuk memilih rentang</span>
+            <span class="data" id="pilihNote">drag on the timeline to select a range</span>
             <span class="data" id="pilihDurasi"></span>
           </div>
 
           <div class="tl-total" id="tlTotal" role="application"
-               aria-label="Timeline video, geser untuk memilih rentang">
+               aria-label="Video timeline, drag to select a range">
             <div class="tl-marks" id="tlMarks"></div>
             <div class="tl-sel" id="tlSel" hidden>
-              <b class="tl-grip kiri" data-grip="start" aria-label="Geser awal"></b>
-              <b class="tl-grip kanan" data-grip="end" aria-label="Geser akhir"></b>
+              <b class="tl-grip kiri" data-grip="start" aria-label="Drag range start"></b>
+              <b class="tl-grip kanan" data-grip="end" aria-label="Drag range end"></b>
             </div>
           </div>
           <div class="tl-skala" id="tlSkala"></div>
 
           <div class="pilih-foot">
-            <label class="waktu-input">mulai
+            <label class="waktu-input">from
               <input id="selStart" value="00:00" size="7" spellcheck="false"
-                     aria-label="Waktu mulai, format menit titik dua detik"></label>
-            <label class="waktu-input">selesai
+                     aria-label="Start time, minutes colon seconds"></label>
+            <label class="waktu-input">to
               <input id="selEnd" value="00:00" size="7" spellcheck="false"
-                     aria-label="Waktu selesai, format menit titik dua detik"></label>
+                     aria-label="End time, minutes colon seconds"></label>
             <span class="data sel-dur" id="selDur">0s</span>
-            <button class="btn main" id="selAddBtn" disabled>Masukkan ke result</button>
+            <button class="btn main" id="selAddBtn" disabled>Add to Result</button>
           </div>
           <p class="sel-teks" id="selTeks"></p>
         </div>
@@ -188,9 +197,9 @@
         <!-- rekomendasi AI: menit dan judul saja -->
         <div class="panel fit rekom">
           <div class="rekom-head">
-            <span class="eyebrow">Rekomendasi AI</span>
-            <span class="data" id="rekomNote">belum ada</span>
-            <button class="btn main" id="rekomAddBtn" disabled>Masukkan ke result</button>
+            <span class="eyebrow">AI suggestions</span>
+            <span class="data" id="rekomNote">none yet</span>
+            <button class="btn main" id="rekomAddBtn" disabled>Add to Result</button>
           </div>
           <div class="rekom-list" id="rekomList"></div>
         </div>
@@ -199,34 +208,27 @@
         <div class="panel fit hasil">
           <div class="hasil-head">
             <span class="eyebrow">Result</span>
-            <span class="data" id="hasilTotal">kosong</span>
-            <button class="btn quiet" id="hasilClearBtn" disabled>Kosongkan</button>
+            <span class="data" id="hasilTotal">empty</span>
+            <button class="btn quiet" id="hasilClearBtn" disabled>Clear</button>
           </div>
           <div class="hasil-list" id="hasilList"></div>
-          <div class="hasil-foot">
-            <label class="judul-input">judul
-              <input id="hasilJudul" value="" spellcheck="false" placeholder="nama berkas hasil"
-                     aria-label="Judul result, dipakai jadi nama berkas"></label>
-            <span class="data" id="hasilRingkas"></span>
-            <button class="btn main large" id="hasilRenderBtn" disabled>Render result</button>
-          </div>
         </div>
-      
-        <!-- Teks caption: milik result ini saja, transkrip tidak disentuh -->
-        <div class="panel fit">
-          <div class="rekom-head">
-            <span class="eyebrow">Teks</span>
-            <span class="data" id="teksNote">klik kata untuk membetulkan</span>
-            <button class="btn" id="teksResetBtn" disabled>Kembalikan semua</button>
-          </div>
-          <div class="teks-list" id="teksList"></div>
+
+      </section>
+
+      <!-- ══════════════════════════ FRAMING ══════════════════════
+           Mengubah posisi bingkai di sepanjang result. -->
+      <section class="screen" data-screen="framing" role="tabpanel" id="panel-framing" aria-labelledby="tab-framing" tabindex="0">
+        <div class="work-head">
+          <h1>Framing</h1>
+          <span class="note">lock the frame position per time point, one panel or two</span>
         </div>
 
         <!-- Framing: objek orang, berlaku untuk seluruh result -->
         <div class="panel fit">
           <div class="rekom-head">
             <span class="eyebrow">Framing</span>
-            <span class="data" id="reframeNote">geser kotak ke orang yang bicara, lalu kunci</span>
+            <span class="data" id="reframeNote">drag the box onto whoever is talking, then lock it</span>
             <span class="data" id="framingWaktu"></span>
           </div>
 
@@ -237,42 +239,62 @@
                seluruh klip: angle podcast berganti, jadi satu klip boleh
                berpindah antara satu bingkai dan dua bingkai. -->
           <div class="format-bar" id="framingFormat" role="group"
-               aria-label="Format bingkai">
+               aria-label="Frame layout">
             <button class="fmt-pilih" data-format-pilih="single" aria-pressed="true">
-              <span class="fmt-ikon satu"></span>1 bingkai
+              <span class="fmt-ikon satu"></span>Single
             </button>
             <button class="fmt-pilih" data-format-pilih="split" aria-pressed="false">
-              <span class="fmt-ikon dua"></span>2 split
+              <span class="fmt-ikon dua"></span>Split
             </button>
           </div>
 
           <div class="canvas" data-format="single">
             <video class="canvas-video" id="canvasVideo" muted playsinline></video>
-            <div class="crop" tabindex="0" role="group" aria-label="Kotak framing atas"
+            <div class="crop" tabindex="0" role="group" aria-label="Top framing box"
                  style="left:37%;top:8%;width:26%;height:84%">
               <span class="tag" id="tagCrop1"></span>
               <b></b><b></b><b></b><b></b>
             </div>
             <div class="crop kedua" tabindex="0" role="group"
-                 aria-label="Kotak framing bawah"
+                 aria-label="Bottom framing box"
                  style="left:54%;top:17%;width:42%;height:66%">
-              <span class="tag">bawah</span>
+              <span class="tag">bottom</span>
               <b></b><b></b><b></b><b></b>
             </div>
           </div>
 
           <div class="preset-bar">
-            <span class="eyebrow">Titik framing</span>
+            <span class="eyebrow">Framing points</span>
             <span class="preset-list" id="framingList"></span>
-            <button class="btn main" id="kunciFraming">Kunci framing di sini</button>
+            <button class="btn main" id="kunciFraming">Lock framing here</button>
           </div>
+        </div>
+
+      </section>
+
+      <!-- ══════════════════════════ TEKS ═════════════════════════
+           Isi teksnya dan tampilannya, dua-duanya milik result ini saja. -->
+      <section class="screen" data-screen="teks" role="tabpanel" id="panel-teks" aria-labelledby="tab-teks" tabindex="0">
+        <div class="work-head">
+          <h1>Captions</h1>
+          <span class="note">fix misheard words, then style them</span>
+        </div>
+
+        <!-- Teks caption: milik result ini saja, transkrip tidak disentuh -->
+        <div class="panel fit">
+          <div class="rekom-head">
+            <span class="eyebrow">Words</span>
+            <span class="data" id="teksNote">click a word to correct it</span>
+            <button class="btn" id="teksResetBtn" disabled>Reset all</button>
+          </div>
+          <div class="teks-list" id="teksList"></div>
         </div>
 
         <!-- Subtitle: pengaturan ini benar-benar sampai ke berkas hasil -->
         <div class="panel fit">
           <div class="rekom-head">
             <span class="eyebrow">Subtitle</span>
-            <span class="data">preview langsung di panel 9:16</span>
+            <span class="data">live preview in the 9:16 panel</span>
           </div>
         <div class="panel body" style="overflow-y:auto">
           <div class="list" id="captionList"></div>
@@ -287,9 +309,9 @@
            Dibaca dari isi folder out/, jadi bertahan setelah reload. -->
       <section class="screen" data-screen="history" role="tabpanel" id="panel-history" aria-labelledby="tab-history" tabindex="0">
         <div class="work-head">
-          <h1>Riwayat render</h1>
-          <span class="note" id="riwayatNote">memuat …</span>
-          <button class="btn right" id="riwayatMuatBtn">Muat ulang</button>
+          <h1>Render history</h1>
+          <span class="note" id="riwayatNote">loading …</span>
+          <button class="btn right" id="riwayatMuatBtn">Reload</button>
         </div>
         <!-- yang sedang dirender, di atas berkas yang sudah jadi -->
         <div class="panel fit"><div class="list" id="queueList"></div></div>
@@ -329,7 +351,7 @@
       <!-- timeline klip: hanya bagian yang ikut terender, potongan yang
            dibuang tampak sebagai celah -->
       <div class="timeline" id="timeline" role="slider" tabindex="0"
-           aria-label="Posisi pemutaran klip" aria-valuemin="0" aria-valuemax="100">
+           aria-label="Clip playback position" aria-valuemin="0" aria-valuemax="100">
         <div class="tl-track" id="tlTrack"></div>
         <div class="tl-head" id="tlHead"></div>
       </div>
@@ -340,48 +362,62 @@
         <!-- Baris transport: mundur banyak di kiri, maju banyak di kanan,
              putar di tengah. Urutannya mengikuti arah waktu. -->
         <div class="transport">
-          <button class="langkah" id="prevFrame5" title="Mundur 5 frame"
-                  aria-label="Mundur lima frame"><i>◀</i><b>5</b></button>
-          <button class="langkah" id="prevFrame2" title="Mundur 2 frame"
-                  aria-label="Mundur dua frame"><i>◀</i><b>2</b></button>
-          <button class="langkah" id="prevFrameBtn" title="Mundur 1 frame (tombol , )"
-                  aria-label="Mundur satu frame"><i>◀</i><b>1</b></button>
+          <button class="langkah" id="prevFrame5" title="Back 5 frames"
+                  aria-label="Back five frames"><i>◀</i><b>5</b></button>
+          <button class="langkah" id="prevFrame2" title="Back 2 frames"
+                  aria-label="Back two frames"><i>◀</i><b>2</b></button>
+          <button class="langkah" id="prevFrameBtn" title="Back 1 frame (, key)"
+                  aria-label="Back one frame"><i>◀</i><b>1</b></button>
 
-          <button class="putar" id="playBtn" title="Putar result (spasi)"
-                  aria-label="Putar result">▶</button>
+          <button class="putar" id="playBtn" title="Play Result (space)"
+                  aria-label="Play Result">▶</button>
 
-          <button class="langkah" id="nextFrameBtn" title="Maju 1 frame (tombol . )"
-                  aria-label="Maju satu frame"><b>1</b><i>▶</i></button>
-          <button class="langkah" id="nextFrame2" title="Maju 2 frame"
-                  aria-label="Maju dua frame"><b>2</b><i>▶</i></button>
-          <button class="langkah" id="nextFrame5" title="Maju 5 frame"
-                  aria-label="Maju lima frame"><b>5</b><i>▶</i></button>
+          <button class="langkah" id="nextFrameBtn" title="Forward 1 frame (. key)"
+                  aria-label="Forward one frame"><b>1</b><i>▶</i></button>
+          <button class="langkah" id="nextFrame2" title="Forward 2 frames"
+                  aria-label="Forward two frames"><b>2</b><i>▶</i></button>
+          <button class="langkah" id="nextFrame5" title="Forward 5 frames"
+                  aria-label="Forward five frames"><b>5</b><i>▶</i></button>
         </div>
 
         <!-- Baris kedua: waktu di kiri, saklar di kanan -->
         <div class="transport-bawah">
           <span class="time" id="clipTime">00:00 / 00:00</span>
-          <button class="saklar" id="rewindBtn" title="Ulang dari awal"
-                  aria-label="Ulang dari awal">⏮</button>
-          <button class="saklar" id="muteBtn" title="Bisukan"
-                  aria-label="Bisukan" aria-pressed="false">🔊</button>
-          <button class="saklar" id="safeBtn" title="Tampilkan safe area"
+          <button class="saklar" id="rewindBtn" title="Back to start"
+                  aria-label="Back to start">⏮</button>
+          <button class="saklar" id="muteBtn" title="Mute"
+                  aria-label="Mute" aria-pressed="false">🔊</button>
+          <button class="saklar" id="safeBtn" title="Show safe area"
                   aria-label="Safe area" aria-pressed="true">safe</button>
+        </div>
+      </div>
+
+      <!-- Render duduk di sini, bukan di panel Result, supaya terjangkau dari
+           layar Klip, Framing, maupun Teks tanpa pindah-pindah. Preview ini
+           memang hasilnya -- tombolnya wajar ada di bawahnya. -->
+      <div class="render-bar">
+        <label class="judul-input">title
+          <input id="hasilJudul" value="" spellcheck="false" placeholder="output file name"
+                 aria-label="Result title, used as the file name"></label>
+        <div class="baris">
+          <span class="data" id="hasilRingkas"></span>
+          <button class="btn main large" id="hasilRenderBtn" disabled>Render Result</button>
         </div>
       </div>
     </aside>
   </main>
 </div>
 
-<script src="app.js?v=1787621049"></script>
-<script src="interactions.js?v=1787621049"></script>
-<script src="framing.js?v=1787621049"></script>
-<script src="analysis.js?v=1787621049"></script>
-<script src="player.js?v=1787621049"></script>
-<script src="roundtrip.js?v=1787621049"></script>
-<script src="history.js?v=1787621049"></script>
-<script src="timeline.js?v=1787621049"></script>
-<script src="teks.js?v=1787621049"></script>
-<script src="result.js?v=1787621049"></script>
+<script src="app.js?v=1787762582"></script>
+<script src="interactions.js?v=1787762582"></script>
+<script src="framing.js?v=1787762582"></script>
+<script src="analysis.js?v=1787762582"></script>
+<script src="player.js?v=1787762582"></script>
+<script src="roundtrip.js?v=1787762582"></script>
+<script src="history.js?v=1787762582"></script>
+<script src="timeline.js?v=1787762582"></script>
+<script src="teks.js?v=1787762582"></script>
+<script src="result.js?v=1787762582"></script>
+<script src="projects.js?v=1787762582"></script>
 </body>
 </html>

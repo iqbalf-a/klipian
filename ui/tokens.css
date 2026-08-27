@@ -23,10 +23,10 @@
 
 :root {
   /* ---- permukaan: satu hue, tangga L yang rata secara perseptual ---- */
-  --bg-0: oklch(0.145 0.010 258);   /* kanvas terdalam */
-  --bg-1: oklch(0.183 0.012 258);   /* bar dan rel */
-  --bg-2: oklch(0.221 0.013 258);   /* panel */
-  --bg-3: oklch(0.259 0.014 258);   /* kartu di atas panel */
+  --bg-0: oklch(0.118 0.003 258);   /* kanvas terdalam */
+  --bg-1: oklch(0.157 0.004 258);   /* bar dan rel */
+  --bg-2: oklch(0.193 0.005 258);   /* panel */
+  --bg-3: oklch(0.238 0.006 258);   /* kartu di atas panel */
 
   /* ---- kaca ---- */
   --kaca:         oklch(1 0 0 / .045);
@@ -42,13 +42,13 @@
   --teks-samar: oklch(0.650 0.020 258);
 
   /* ---- aksen ----
-     Dipilih supaya bobot visualnya setara meski hue-nya berjauhan.
-     Kuning butuh L jauh lebih tinggi dari pink untuk terasa sama kuat. */
-  --aksen-dialog:   oklch(0.865 0.170 96);    /* kuning */
-  --aksen-gameplay: oklch(0.682 0.235 356);   /* pink   */
-  --aksen: var(--aksen-dialog);
+     Satu warna saja. Dulu ada dua yang bertukar menurut mode -- kuning untuk
+     podcast, pink untuk gameplay -- dan itu ikut hilang bersama modenya. */
+  --aksen:        oklch(0.865 0.170 96);
   --aksen-lembut: oklch(0.865 0.170 96 / .16);
   --aksen-glow:   oklch(0.865 0.170 96 / .45);
+  /* teks di ATAS bidang aksen -- ikut berubah kalau aksennya diganti */
+  --aksen-teks:   oklch(0.145 0.010 258);
 
   --bahaya: oklch(0.660 0.190 25);
 
@@ -67,7 +67,8 @@
   --t-14: 14px;  --t-17: 17px;  --t-20: 20px;  --t-24: 24px;  --t-29: 29px;
 
   /* ---- lebar huruf sebagai alat hierarki ---- */
-  --w-lebar:  112;   /* judul layar */
+  --w-tampil: 118;   /* angka besar dan judul layar */
+  --w-lebar:  112;   /* judul kartu besar */
   --w-judul:  105;   /* judul kartu */
   --w-baca:   100;   /* teks biasa */
   --w-padat:   92;   /* label, eyebrow */
@@ -78,7 +79,7 @@
   --s5: 24px; --s6: 32px; --s7: 48px; --s8: 64px;
 
   /* ---- sudut ---- */
-  --r-s: 8px;  --r-m: 12px;  --r-l: 18px;  --r-pill: 999px;
+  --r-s: 10px; --r-m: 14px;  --r-l: 20px;  --r-pill: 999px;
 
   /* ---- bayangan: gelap butuh garis cahaya di tepi atas, bukan blur saja ---- */
   --bayang-kartu:
@@ -103,20 +104,4 @@
   --h-ribbon: 96px;
   --w-preview: 356px;
   --w-sisi:    168px;
-}
-
-/* Mode menukar aksen beserta turunannya.
-   CATATAN: --aksen-lembut dan --aksen-glow WAJIB ditulis ulang di sini dengan
-   nilai konkret. Custom property yang mengandung var() dihitung di tempat ia
-   dideklarasikan; kalau hanya ada di :root, nilainya membeku pada mode default
-   dan tidak ikut berubah. */
-[data-mode="dialog"] {
-  --aksen:        var(--aksen-dialog);
-  --aksen-lembut: oklch(0.865 0.170 96 / .16);
-  --aksen-glow:   oklch(0.865 0.170 96 / .45);
-}
-[data-mode="gameplay"] {
-  --aksen:        var(--aksen-gameplay);
-  --aksen-lembut: oklch(0.682 0.235 356 / .18);
-  --aksen-glow:   oklch(0.682 0.235 356 / .50);
 }

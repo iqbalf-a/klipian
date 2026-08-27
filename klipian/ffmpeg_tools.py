@@ -57,7 +57,7 @@ def probe(path: Path) -> MediaInfo:
     ffprobe = _require("ffprobe")
     path = Path(path)
     if not path.exists():
-        raise FileNotFoundError(f"File tidak ada: {path}")
+        raise FileNotFoundError(f"File not found: {path}")
 
     proc = run(
         [

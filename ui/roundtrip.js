@@ -58,7 +58,9 @@ const fmtStamp = (d) => {
 };
 
 async function buildBrief(name) {
-  const rubricFile = mode === "gameplay" ? "gameplay-mlbb.md" : "dialog-podcast.md";
+  // Satu rubrik saja sejak kategori dibuang. Yang ini bekerja dari transkrip,
+  // jadi berlaku untuk sumber apa pun yang ada suaranya.
+  const rubricFile = "dialog-podcast.md";
   let rubric = "";
   try { rubric = await (await fetch(ROOT + "prompts/rubrik/" + rubricFile)).text(); } catch {}
   rubric = rubric.replace(/^# .*\n+/, "").replace(/^Ini yang dibaca Claude[\s\S]*?---\s*\n+/, "");
@@ -135,7 +137,7 @@ function extractJSON(text) {
   const fence = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
   if (fence) return parse(fence[1]);
   const a = text.indexOf("{"), b = text.lastIndexOf("}");
-  if (a === -1 || b <= a) throw new Error("Tidak ada blok JSON di teks itu.");
+  if (a === -1 || b <= a) throw new Error("No JSON block found in that text.");
   return parse(text.slice(a, b + 1));
 }
 
@@ -205,7 +207,7 @@ function importJSON(text) {
       spans: [{ start: m, end: s }],   // satu potongan utuh sampai dibelah
     };
   // Urutan AI dipertahankan, TIDAK diurut ulang berdasarkan skor. Skornya
-  // tidak ditampilkan di layar Edit, jadi mengurut ulang cuma membuat
+  // tidak ditampilkan di layar Klip, jadi mengurut ulang cuma membuat
   // "rekomendasi nomor 1" di layar berbeda dengan nomor 1 di JSON.
   }).filter((k) => k && k.dur > 0);
 
@@ -216,7 +218,7 @@ function importJSON(text) {
 /* ---------- memasang hasil ke seluruh aplikasi ---------- */
 
 function applyCandidates(candidates) {
-  const d = DATA[mode];
+  const d = DATA;
   d.candidates = candidates;
   d.marks = candidates.map((k) => ({
     pos: (k.startSec / realTranscript.duration) * 100,
@@ -243,7 +245,7 @@ async function prepareExport(videoName) {
   if (!realTranscript) {
     panel.dataset.ready = "false";
     button.disabled = true;
-    note.textContent = `Belum ada transkrip. Jalankan dulu: klipian transcribe ${videoName}`;
+    note.textContent = `No transcript yet. Run this first: klipian transcribe ${videoName}`;
     return;
   }
   panel.dataset.ready = "true";
@@ -262,7 +264,7 @@ $("#downloadBrief").addEventListener("click", async () => {
   a.click();
   URL.revokeObjectURL(a.href);
   $("#exportNote").textContent =
-    `Berkas diunduh · ${(text.length / 1024).toFixed(0)} KB · ~${Math.round(text.length / 3.5).toLocaleString("id")} token`;
+    `File downloaded · ${(text.length / 1024).toFixed(0)} KB · ~${Math.round(text.length / 3.5).toLocaleString("en")} tokens`;
 });
 
 $("#pasteJSON").addEventListener("input", (e) => {
@@ -277,9 +279,9 @@ $("#importBtn").addEventListener("click", () => {
     const candidates = importJSON($("#pasteJSON").value);
     applyCandidates(candidates);
     note.dataset.error = "false";
-    note.textContent = `${candidates.length} rekomendasi masuk`;
+    note.textContent = `${candidates.length} suggestions imported`;
     if (typeof renderRecommendations === "function") renderRecommendations();
-    toScreen("edit");          // rekomendasi bukan tujuan akhir, result yang tujuan
+    toScreen("klip");          // rekomendasi bukan tujuan akhir, result yang tujuan
   } catch (err) {
     note.dataset.error = "true";
     note.textContent = err.message;

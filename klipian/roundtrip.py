@@ -158,7 +158,7 @@ def extract_json(text: str) -> dict:
     # Fallback: cari { ... } terbesar (greedy rfind)
     first, end = text.find("{"), text.rfind("}")
     if first == -1 or end <= first:
-        raise ValueError("Tidak ada blok JSON di berkas itu.")
+        raise ValueError("No JSON block found in that file.")
     return json.loads(text[first:end + 1])
 
 
@@ -194,7 +194,7 @@ def parse_reply(transcript: Transcript, text: str) -> list[Candidate]:
     data = extract_json(text)
     raw = data.get("clips") or data.get("klip") or []
     if not raw:
-        raise ValueError('JSON-nya tidak punya daftar "clips".')
+        raise ValueError('The JSON has no "clips" list.')
 
     words = transcript.words
     result: list[Candidate] = []

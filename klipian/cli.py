@@ -38,14 +38,14 @@ def cmd_info(args: argparse.Namespace) -> int:
 
     warnings = []
     if not info.has_audio:
-        warnings.append("Tidak ada trek audio -- tidak bisa ditranskripsi.")
+        warnings.append("No audio track -- cannot be transcribed.")
     if not info.is_landscape:
         warnings.append(
-            "Sumber bukan landscape. klipian dirancang mengubah 16:9 jadi 9:16; "
-            "sumber portrait mungkin tidak butuh reframing."
+            "Source is not landscape. klipian turns 16:9 into 9:16; a portrait "
+            "source probably does not need reframing."
         )
     if info.duration and info.duration < 30:
-        warnings.append("Durasi di bawah 30 detik -- terlalu pendek untuk dicari klip.")
+        warnings.append("Under 30 seconds -- too short to look for clips in.")
 
     if warnings:
         print("Catatan:")
@@ -54,7 +54,7 @@ def cmd_info(args: argparse.Namespace) -> int:
         print()
 
     qsv = has_encoder("h264_qsv")
-    print(f"Encoder  : {'h264_qsv (akselerasi Intel Arc)' if qsv else 'libx264 (CPU)'}")
+    print(f"Encoder  : {'h264_qsv (Intel Arc acceleration)' if qsv else 'libx264 (CPU)'}")
     print()
     return 0
 
@@ -70,15 +70,15 @@ def cmd_transcribe(args: argparse.Namespace) -> int:
 
     info = probe(video)
     if not info.has_audio:
-        print("Video ini tidak punya trek audio.", file=sys.stderr)
+        print("This video has no audio track.", file=sys.stderr)
         return 1
 
     tpath = cache.transcript_path(video, args.model, args.lang)
 
     if tpath.exists() and not args.force:
         transcript = Transcript.load(tpath)
-        print(f"\nTranskrip diambil dari cache: {tpath.name}")
-        print("Pakai --force untuk transkripsi ulang.\n")
+        print(f"\nTranscript taken from cache: {tpath.name}")
+        print("Use --force to transcribe again.\n")
     else:
         print(f"\n{video.name}  ({fmt_duration(info.duration)})")
         print("\n[1/2] Mengekstrak audio ...")
@@ -107,12 +107,12 @@ def cmd_transcribe(args: argparse.Namespace) -> int:
 
     words = transcript.words
     print()
-    print(f"Bahasa   : {transcript.language}")
-    print(f"Segmen   : {len(transcript.segments)}")
-    print(f"Kata     : {len(words)}")
+    print(f"Language : {transcript.language}")
+    print(f"Segments : {len(transcript.segments)}")
+    print(f"Words    : {len(words)}")
     if words:
         suspects = transcript.suspect_words
-        print(f"Dicek    : {len(suspects)} kata mungkin salah dengar "
+        print(f"Flagged  : {len(suspects)} words possibly misheard "
               f"({len(suspects) / len(words) * 100:.1f}%)")
         if suspects:
             from collections import Counter
@@ -148,8 +148,8 @@ def _load_transcript(args):
     tpath = cache.transcript_path(video, args.model, args.lang)
     if not tpath.exists():
         print("", file=sys.stderr)
-        print(f"Belum ada transkrip untuk {video.name}.", file=sys.stderr)
-        print(f"Jalankan dulu:  klipian transcribe {args.video}", file=sys.stderr)
+        print(f"No transcript for {video.name} yet.", file=sys.stderr)
+        print(f"Run this first:  klipian transcribe {args.video}", file=sys.stderr)
         print("", file=sys.stderr)
         return video, None
     return video, Transcript.load(tpath)
@@ -169,14 +169,14 @@ def cmd_brief(args: argparse.Namespace) -> int:
 
     print("")
     print(str(dest))
-    print(f"  {len(text):,} karakter  ~{len(text.split()):,} kata"
+    print(f"  {len(text):,} characters  ~{len(text.split()):,} words"
           f"  (~{int(len(text) / 3.5):,} token)")
-    print(f"  mode {args.mode}  ·  rubrik {rubric.name}")
+    print(f"  mode {args.mode}  ·  rubric {rubric.name}")
     print("")
-    print("Langkah berikutnya:")
-    print("  1. Jatuhkan berkas itu ke Claude, minta dikerjakan")
-    print("  2. Simpan balasan JSON-nya, misalnya jadi hasil.json")
-    print(f"  3. klipian import {args.video} hasil.json")
+    print("Next steps:")
+    print("  1. Drop that file into Claude and ask it to do the work")
+    print("  2. Save the JSON reply, for example as clips.json")
+    print(f"  3. klipian import {args.video} clips.json")
     print("")
     return 0
 
@@ -193,7 +193,7 @@ def cmd_import(args: argparse.Namespace) -> int:
     file = Path(args.reply)
     if not file.exists():
         print("", file=sys.stderr)
-        print(f"Berkas tidak ada: {file}", file=sys.stderr)
+        print(f"File not found: {file}", file=sys.stderr)
         print("", file=sys.stderr)
         return 1
 
@@ -207,7 +207,7 @@ def cmd_import(args: argparse.Namespace) -> int:
 
     if not candidates:
         print("", file=sys.stderr)
-        print("Tidak ada kandidat yang terbaca dari berkas itu.", file=sys.stderr)
+        print("No candidates could be read from that file.", file=sys.stderr)
         print("", file=sys.stderr)
         return 1
 
@@ -217,11 +217,11 @@ def cmd_import(args: argparse.Namespace) -> int:
     print("")
     print(f"{len(candidates)} kandidat diimpor  ->  {dest}")
     print("")
-    print("  skor    mulai  durasi  judul")
+    print("  score   start   length  title")
     for k in candidates:
         print(f"  {k.total:>4}  {roundtrip.fmt_time(k.start):>7}  {round(k.duration):>5}s  {k.title}")
     print("")
-    print("Titik potong sudah digeser ke batas kata terdekat.")
+    print("Cut points were snapped to the nearest word boundary.")
     print("")
     return 0
 
@@ -240,8 +240,8 @@ def cmd_render(args: argparse.Namespace) -> int:
     file = Path(args.candidates)
     if not file.exists():
         print("", file=sys.stderr)
-        print(f"Berkas kandidat tidak ada: {file}", file=sys.stderr)
-        print(f"Buat dulu:  klipian import {args.video} balasan.json", file=sys.stderr)
+        print(f"Candidates file not found: {file}", file=sys.stderr)
+        print(f"Create it first:  klipian import {args.video} reply.json", file=sys.stderr)
         print("", file=sys.stderr)
         return 1
 
@@ -256,7 +256,7 @@ def cmd_render(args: argparse.Namespace) -> int:
                   f"(1-{len(items)}), diabaikan.", file=sys.stderr)
         items = valid
     if not items:
-        print("Tidak ada kandidat yang dipilih.", file=sys.stderr)
+        print("No candidates selected.", file=sys.stderr)
         return 1
 
     info = probe(video)
@@ -284,7 +284,7 @@ def cmd_render(args: argparse.Namespace) -> int:
                     raise KeyError("start_sec/end_sec")
                 spans = [engine.Span(float(a), float(b))]
         except (KeyError, TypeError, ValueError) as exc:
-            print(f"  SKIP klip #{i} ({k.get('title', '?')}): data potongan tidak sah — {exc}",
+            print(f"  SKIP clip #{i} ({k.get('title', '?')}): invalid span data — {exc}",
                   file=sys.stderr)
             continue
 
@@ -310,7 +310,7 @@ def cmd_render(args: argparse.Namespace) -> int:
         print("")
         succeeded += 1
 
-    print(f"{succeeded} dari {len(items)} klip selesai dirender.")
+    print(f"{succeeded} of {len(items)} clips rendered.")
     print("")
     return 0 if succeeded else 1
 
@@ -349,7 +349,7 @@ def cmd_run(args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="klipian",
-        description="Memotong podcast panjang jadi klip vertikal 9:16 siap posting.",
+        description="Cut long podcasts into vertical 9:16 clips ready to post.",
     )
     p.add_argument("--version", action="version", version=f"klipian {__version__}")
     sub = p.add_subparsers(dest="command", required=True)
@@ -357,50 +357,50 @@ def build_parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("video", help="file video/audio sumber")
     common.add_argument("--cache-dir", default=str(DEFAULT_CACHE),
-                        help="lokasi cache transkrip")
-    common.add_argument("--out-dir", default=str(DEFAULT_OUT), help="lokasi hasil")
+                        help="transcript cache folder")
+    common.add_argument("--out-dir", default=str(DEFAULT_OUT), help="output folder")
 
-    s_info = sub.add_parser("info", parents=[common], help="tampilkan metadata media")
+    s_info = sub.add_parser("info", parents=[common], help="show media metadata")
     s_info.set_defaults(func=cmd_info)
 
     s_tr = sub.add_parser("transcribe", parents=[common],
-                          help="transkripsi word-level (hasilnya di-cache)")
+                          help="word-level transcription (result is cached)")
     s_tr.add_argument("--model", default=DEFAULT_MODEL, choices=MODELS,
                       help=f"model Whisper (default: {DEFAULT_MODEL})")
-    s_tr.add_argument("--lang", default="id", help="kode bahasa (default: id)")
+    s_tr.add_argument("--lang", default="id", help="language code (default: id)")
     s_tr.add_argument("--threads", type=int, default=DEFAULT_THREADS,
                       help=f"jumlah thread CPU (default {DEFAULT_THREADS}; 0 = bawaan CTranslate2)")
     s_tr.add_argument("--glossary", default=str(DEFAULT_GLOSSARY),
                       help="file glosarium istilah")
     s_tr.add_argument("--force", action="store_true",
-                      help="abaikan cache, transkripsi ulang")
+                      help="ignore the cache, transcribe again")
     s_tr.add_argument("--srt", action="store_true", help="ekspor juga sebagai .srt")
     s_tr.add_argument("--keep-audio", action="store_true",
                       help="jangan hapus wav sementara")
     s_tr.add_argument("--preview", type=int, default=5, metavar="N",
-                      help="tampilkan N segmen pertama (0 = jangan)")
+                      help="show the first N segments (0 = none)")
     s_tr.set_defaults(func=cmd_transcribe)
 
     s_brief = sub.add_parser("brief", parents=[common],
-                             help="buat berkas untuk dijatuhkan ke Claude")
+                             help="build a file to drop into Claude")
     s_brief.add_argument("--mode", default="dialog", choices=sorted(RUBRICS),
-                         help="rubrik yang dipakai (default: dialog)")
+                         help="rubric to use (default: dialog)")
     s_brief.add_argument("--model", default=DEFAULT_MODEL, choices=MODELS)
     s_brief.add_argument("--lang", default="id")
     s_brief.set_defaults(func=cmd_brief)
 
     s_import = sub.add_parser("import", parents=[common],
-                             help="baca balasan JSON dari Claude")
-    s_import.add_argument("reply", help="berkas JSON balasan Claude")
+                             help="read Claude's JSON reply")
+    s_import.add_argument("reply", help="Claude's JSON reply file")
     s_import.add_argument("--model", default=DEFAULT_MODEL, choices=MODELS)
     s_import.add_argument("--lang", default="id")
     s_import.set_defaults(func=cmd_import)
 
     s_render = sub.add_parser("render", parents=[common],
-                              help="render klip jadi MP4 vertikal 9:16")
-    s_render.add_argument("candidates", help="berkas candidates.json hasil impor")
+                              help="render clips into vertical 9:16 MP4")
+    s_render.add_argument("candidates", help="the candidates.json produced by import")
     s_render.add_argument("--only", type=int, nargs="+", metavar="N",
-                          help="hanya render klip nomor ini (1 = teratas)")
+                          help="render only this clip number (1 = top)")
     s_render.add_argument("--layout", default="face", choices=["face", "blur"])
     s_render.add_argument("--width", type=int, default=1080, choices=[720, 1080])
     s_render.add_argument("--crop", type=float, nargs=4,
@@ -410,12 +410,12 @@ def build_parser() -> argparse.ArgumentParser:
     s_render.add_argument("--lang", default="id")
     s_render.set_defaults(func=cmd_render)
 
-    s_serve = sub.add_parser("serve", help="jalankan UI dengan render sungguhan")
+    s_serve = sub.add_parser("serve", help="run the UI with real rendering")
     s_serve.add_argument("--port", type=int, default=5177)
     s_serve.set_defaults(func=cmd_serve)
 
     s_run = sub.add_parser("run", parents=[common],
-                           help="pipeline lengkap (belum tersedia)")
+                           help="full pipeline (not available yet)")
     s_run.set_defaults(func=cmd_run)
 
     return p

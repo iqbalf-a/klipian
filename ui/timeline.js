@@ -45,12 +45,12 @@ function drawTotalTimeline() {
   const d = durasiVideo();
 
   const info = $("#pilihDurasi");
-  if (info) info.textContent = d ? `total ${jamRange(d)}` : "belum ada video";
+  if (info) info.textContent = d ? `total ${jamRange(d)}` : "no video loaded";
 
   // penanda: rekomendasi AI tipis, potongan result padat
   const marks = $("#tlMarks");
   if (marks) {
-    const rekom = (DATA[mode]?.candidates || []).map((k) => `
+    const rekom = (DATA?.candidates || []).map((k) => `
       <span class="tl-mark rekom" style="left:${keFrac(k.startSec) * 100}%;
             width:${Math.max(0.4, (keFrac(k.endSec) - keFrac(k.startSec)) * 100)}%"
             title="${escapeHTML(k.title)}"></span>`).join("");
@@ -107,7 +107,7 @@ function drawSelection() {
       ? (kata.length > 60
           ? kata.slice(0, 30).join(" ") + "  …  " + kata.slice(-20).join(" ")
           : kata.join(" "))
-      : "tidak ada kata di rentang ini";
+      : "no words in this range";
   }
 }
 
@@ -144,7 +144,7 @@ function fracDariEvent(e, bar) {
 $("#tlTotal")?.addEventListener("pointerdown", (e) => {
   const bar = e.currentTarget;
   if (!durasiVideo()) {
-    $("#pilihNote").textContent = "belum ada video atau transkrip";
+    $("#pilihNote").textContent = "no video or transcript yet";
     return;
   }
   const frac = fracDariEvent(e, bar);
@@ -192,11 +192,11 @@ function bacaKolomWaktu() {
   const a = bacaWaktu($("#selStart").value);
   const b = bacaWaktu($("#selEnd").value);
   if (a === null || b === null) {
-    $("#pilihNote").textContent = "format waktunya menit:detik, misal 16:56";
+    $("#pilihNote").textContent = "time format is mm:ss, e.g. 16:56";
     return;
   }
   if (b <= a) {
-    $("#pilihNote").textContent = "waktu selesai harus lebih besar dari mulai";
+    $("#pilihNote").textContent = "end time must be later than start";
     return;
   }
   // Angka di luar durasi video dulu dipangkas diam-diam jadi rentang nol, dan
@@ -211,7 +211,7 @@ function bacaKolomWaktu() {
     $("#pilihNote").textContent =
       `dipendekkan ke akhir video (${jamRange(d)})`;
   } else {
-    $("#pilihNote").textContent = "rentang disetel dari angka";
+    $("#pilihNote").textContent = "range set from the numbers";
   }
   setSelection(a, b, false);       // angka yang diketik dihormati apa adanya
 }
@@ -227,12 +227,12 @@ function bacaKolomWaktu() {
 
 $("#selAddBtn")?.addEventListener("click", () => {
   if (!SEL) return;
-  const judul = `Potongan ${jamRange(SEL.start)}`;
+  const judul = `Clip ${jamRange(SEL.start)}`;
   const tolak = addToResult(SEL.start, SEL.end, judul, "manual");
   if (tolak) {
     $("#pilihNote").textContent = tolak;
     return;
   }
-  $("#pilihNote").textContent = "masuk ke result";
+  $("#pilihNote").textContent = "added to Result";
   clearSelection();               // kotak seleksi dilepas, bukan ditinggal
 });

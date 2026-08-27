@@ -25,8 +25,8 @@ const resultTotal = () => RESULT.reduce((t, r) => t + (r.end - r.start), 0);
 /* Masukkan satu range. Mengembalikan alasan penolakan, atau null kalau masuk. */
 function addToResult(start, end, title, source) {
   start = Number(start); end = Number(end);
-  if (!Number.isFinite(start) || !Number.isFinite(end)) return "waktunya tidak terbaca";
-  if (end - start < 0.5) return "rentangnya terlalu pendek";
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return "could not read that time";
+  if (end - start < 0.5) return "range is too short";
 
   // Gabung dengan yang bersinggungan supaya tidak ada detik yang dobel.
   const bersinggungan = RESULT.filter((r) => start < r.end && end > r.start);
@@ -40,7 +40,7 @@ function addToResult(start, end, title, source) {
   RESULT.push({
     id: `r${++resultSeq}`,
     start, end,
-    title: title || `Potongan ${RESULT.length + 1}`,
+    title: title || `Clip ${RESULT.length + 1}`,
     source: source || "manual",
   });
   RESULT.sort((a, b) => a.start - b.start);
@@ -80,15 +80,21 @@ function resultAsClip() {
 
 /* ---------- menggambar ---------- */
 
+/* Setiap perubahan Result lewat sini -- tambah, buang, kosongkan. Pemicu
+   simpan dipasang di sini, bukan di tiap pemanggil: satu pemanggil yang
+   terlewat berarti pekerjaan hilang diam-diam, dan itu jenis kegagalan yang
+   paling menyebalkan. Penyimpanannya ditunda, jadi panggilan berlebih dari
+   pergantian layar tidak jadi beban. */
 function renderResult() {
+  if (typeof simpanProject === "function") simpanProject();
   const list = $("#hasilList");
   const total = $("#hasilTotal");
   if (!list) return;
 
   if (!RESULT.length) {
-    list.innerHTML = `<p class="kosong-hasil">Result masih kosong. Pilih rekomendasi di
-      atas, atau seleksi rentang sendiri di timeline.</p>`;
-    if (total) total.textContent = "kosong";
+    list.innerHTML = `<p class="kosong-hasil">Result is empty. Pick a suggestion above, or
+      select a range yourself on the timeline.</p>`;
+    if (total) total.textContent = "empty";
     const clr = $("#hasilClearBtn"); if (clr) clr.disabled = true;
     const btn = $("#hasilRenderBtn"); if (btn) btn.disabled = true;
     const ringkas = $("#hasilRingkas"); if (ringkas) ringkas.textContent = "";
@@ -106,11 +112,11 @@ function renderResult() {
       <span class="data hasil-dur">${Math.round(r.end - r.start)}s</span>
       <span class="lencana-asal" data-asal="${r.source}">${r.source === "ai" ? "AI" : "manual"}</span>
       <button class="icon buang-hasil" data-buang-hasil="${r.id}"
-              aria-label="Buang ${escapeHTML(r.title)} dari result">×</button>
+              aria-label="Remove ${escapeHTML(r.title)} from Result">×</button>
     </div>`).join("");
 
   if (total) {
-    total.textContent = `${RESULT.length} potongan · ${Math.round(resultTotal())} detik`;
+    total.textContent = `${RESULT.length} span${RESULT.length > 1 ? "s" : ""} · ${Math.round(resultTotal())}s`;
   }
   const clr = $("#hasilClearBtn"); if (clr) clr.disabled = false;
 
@@ -120,8 +126,8 @@ function renderResult() {
   const ringkas = $("#hasilRingkas");
   if (ringkas) {
     ringkas.textContent = RESULT.length === 1
-      ? "jadi 1 berkas MP4"
-      : `${RESULT.length} potongan disambung jadi 1 berkas MP4`;
+      ? "one MP4 file"
+      : `${RESULT.length} spans joined into one MP4`;
   }
 
   // Preview memutar result, jadi ikut diperbarui.
@@ -138,12 +144,12 @@ function renderRecommendations() {
   const list = $("#rekomList");
   const note = $("#rekomNote");
   if (!list) return;
-  const daftar = (DATA[mode]?.candidates) || [];
+  const daftar = (DATA?.candidates) || [];
 
   if (!daftar.length) {
-    list.innerHTML = `<p class="kosong-hasil">Belum ada rekomendasi. Impor JSON dari
-      Claude di layar Analisis, atau langsung seleksi sendiri di timeline.</p>`;
-    if (note) note.textContent = "belum ada";
+    list.innerHTML = `<p class="kosong-hasil">No suggestions yet. Import Claude's JSON on the
+      Analyze screen, or just select a range on the timeline.</p>`;
+    if (note) note.textContent = "none yet";
     const b = $("#rekomAddBtn"); if (b) b.disabled = true;
     return;
   }
@@ -155,10 +161,10 @@ function renderRecommendations() {
       <input type="checkbox" data-rekom="${i}">
       <span class="num">${i + 1}</span>
       <span class="rekom-judul">${escapeHTML(k.title)}</span>
-      <span class="data rekom-waktu">${jamRange(k.startSec)} – ${jamRange(k.endSec)}</span>
+      <span class="data rekom-waktu"><input type="text" class="rekom-sec" value="${k.startSec.toFixed(1)}" data-field="startSec" data-idx="${i}" title="Start (detik)"> – <input type="text" class="rekom-sec" value="${k.endSec.toFixed(1)}" data-field="endSec" data-idx="${i}" title="End (detik)"></span>
       <span class="data rekom-dur">${k.dur}s</span>
     </label>`).join("");
-  if (note) note.textContent = `${daftar.length} rekomendasi`;
+  if (note) note.textContent = `${daftar.length} suggestion${daftar.length > 1 ? "s" : ""}`;
   perbaruiTombolRekom();
 }
 
@@ -174,9 +180,31 @@ function perbaruiTombolRekom() {
 
 $("#rekomList")?.addEventListener("change", perbaruiTombolRekom);
 
+/* --- Editable time in AI suggestion panel --- */
+$("#rekomList")?.addEventListener("change", (e) => {
+  const inp = e.target.closest(".rekom-sec");
+  if (!inp) return;
+  const idx = Number(inp.dataset.idx);
+  const field = inp.dataset.field;
+  const daftar = DATA?.candidates;
+  if (!daftar || !daftar[idx]) return;
+  const val = parseFloat(inp.value);
+  if (isNaN(val) || val < 0) { inp.value = daftar[idx][field].toFixed(1); return; }
+  daftar[idx][field] = val;
+  /* recalc dur and refresh sibling fields */
+  const k = daftar[idx];
+  k.dur = Math.round((k.endSec - k.startSec) * 10) / 10;
+  /* re-render just the dur display */
+  const row = inp.closest(".rekom-row");
+  if (row) {
+    const durEl = row.querySelector(".rekom-dur");
+    if (durEl) durEl.textContent = k.dur + "s";
+  }
+});
+
 $("#rekomAddBtn")?.addEventListener("click", () => {
   const dipilih = [...document.querySelectorAll("#rekomList input:checked")];
-  const daftar = DATA[mode].candidates || [];
+  const daftar = DATA.candidates || [];
   let ditolak = 0;
   for (const c of dipilih) {
     const k = daftar[Number(c.dataset.rekom)];
@@ -186,7 +214,7 @@ $("#rekomAddBtn")?.addEventListener("click", () => {
   }
   perbaruiTombolRekom();
   if (ditolak) {
-    $("#editNote").textContent = `${ditolak} rekomendasi dilewati karena waktunya tidak sah`;
+    $("#editNote").textContent = `${ditolak} suggestion${ditolak > 1 ? "s" : ""} skipped — invalid timing`;
   }
 });
 
@@ -212,5 +240,5 @@ $("#hasilRenderBtn")?.addEventListener("click", () => {
   if (typeof kirimRender === "function") kirimRender([klip]);
 });
 
-/* Jalur manual dimulai di layar Edit: timeline ada di sana. */
-$("#manualClip")?.addEventListener("click", () => toScreen("edit"));
+/* Jalur manual dimulai di layar Klip: timeline ada di sana. */
+$("#manualClip")?.addEventListener("click", () => toScreen("klip"));

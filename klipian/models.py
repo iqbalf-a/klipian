@@ -100,13 +100,13 @@ class MediaInfo:
         mins, secs = divmod(int(self.duration), 60)
         hrs, mins = divmod(mins, 60)
         dur = f"{hrs}:{mins:02d}:{secs:02d}" if hrs else f"{mins}:{secs:02d}"
-        audio = self.acodec if self.has_audio else "TIDAK ADA AUDIO"
+        audio = self.acodec if self.has_audio else "NO AUDIO"
         return (
             f"{Path(self.path).name}\n"
-            f"  durasi : {dur} ({self.duration:.1f}s)\n"
+            f"  length : {dur} ({self.duration:.1f}s)\n"
             f"  video  : {self.width}x{self.height} @ {self.fps:.2f}fps ({self.vcodec})\n"
             f"  audio  : {audio}\n"
-            f"  rasio  : {self.aspect:.3f} ({'landscape' if self.is_landscape else 'portrait/square'})"
+            f"  aspect : {self.aspect:.3f} ({'landscape' if self.is_landscape else 'portrait/square'})"
         )
 
 

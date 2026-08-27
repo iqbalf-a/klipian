@@ -3,6 +3,13 @@
 *, *::before, *::after { box-sizing: border-box; }
 html, body { height: 100%; }
 
+/* [hidden] bawaan browser cuma `display: none` dengan spesifisitas paling
+   rendah, jadi kelas apa pun yang menyetel display akan mengalahkannya.
+   Itu yang membuat kotak galat kosong tetap terpampang di layar Analisis:
+   analysis.js sudah menyetel hidden = true, tapi `.error { display: flex }`
+   menang. Aturan ini menutup jebakan itu untuk semua komponen sekaligus. */
+[hidden] { display: none !important; }
+
 body {
   margin: 0;
   background: var(--bg-0);
@@ -29,7 +36,7 @@ body::before {
   height: 70vh;
   background:
     radial-gradient(46% 60% at 22% 0%, color-mix(in srgb, var(--aksen) 13%, transparent), transparent 70%),
-    radial-gradient(50% 62% at 82% 6%, rgba(91,140,255,.10), transparent 72%);
+    radial-gradient(50% 62% at 82% 6%, oklch(1 0 0 / .045), transparent 72%);
   filter: blur(48px);
   pointer-events: none;
   z-index: 0;
@@ -38,7 +45,7 @@ body::before {
 
 /* Dua baris saja: topbar lalu panggung. Baris ketiga dulu untuk pita
    "Sumber" yang menandai kandidat di sepanjang video -- pita itu digantikan
-   timeline di layar Edit, dan barisnya ikut dibuang. Kalau ditinggal, panggung
+   timeline di layar Klip, dan barisnya ikut dibuang. Kalau ditinggal, panggung
    jatuh ke baris berukuran tetap dan seluruh panel kolaps. */
 .app { position: relative; z-index: 1; height: 100vh;
        display: grid; grid-template-rows: var(--h-topbar) 1fr; }
@@ -52,6 +59,16 @@ h1, h2, h3 {
   font-stretch: calc(var(--w-judul) * 1%);
   letter-spacing: -0.03em;
   text-wrap: balance;
+}
+
+/* Judul layar dibuat display: kapital, berat, lebar. Di antarmuka yang
+   isinya panel abu-abu semua, judul yang cuma sedikit lebih besar dari teks
+   biasa tidak menahan apa pun. */
+.work-head h1 {
+  font-weight: 800;
+  font-stretch: calc(var(--w-tampil) * 1%);
+  text-transform: uppercase;
+  letter-spacing: 0;
 }
 
 .data {
@@ -92,18 +109,6 @@ h1, h2, h3 {
 .file .data { color: var(--teks-samar); }
 
 .topbar .rest { margin-left: auto; display: flex; align-items: center; gap: var(--s3); }
-
-.mode-pick {
-  font-family: var(--font-ui); font-size: 12px; font-weight: 600;
-  color: var(--aksen);
-  background: var(--aksen-lembut);
-  border: 1px solid color-mix(in srgb, var(--aksen) 32%, transparent);
-  border-radius: var(--r-pill);
-  padding: 6px 13px;
-  cursor: pointer;
-  transition: box-shadow var(--cepat), background var(--cepat);
-}
-.mode-pick:hover { box-shadow: 0 0 0 4px color-mix(in srgb, var(--aksen) 12%, transparent); }
 
 /* rel tab berbentuk pill, penanda aktif berupa kaca terang */
 .tabs {
@@ -202,16 +207,22 @@ h1, h2, h3 {
 .screen { display: none; flex: 1; min-height: 0; flex-direction: column; gap: var(--s4); }
 .screen.active { display: flex; }
 
-/* Layar Edit lebih tinggi dari jendela: Timeline, Rekomendasi, Result,
-   Framing, dan Subtitle bertumpuk. Tanpa ini panel di bawah tidak terjangkau
-   sama sekali. */
-.screen[data-screen="edit"].active,
+/* Klip dan Teks bisa lebih tinggi dari jendela: beberapa panel bertumpuk.
+   Tanpa ini panel di bawah tidak terjangkau sama sekali. */
+.screen[data-screen="klip"].active,
+.screen[data-screen="teks"].active,
+.screen[data-screen="framing"].active,
 .screen[data-screen="history"].active {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-right: 4px;                 /* ruang untuk scrollbar */
 }
-.screen[data-screen="edit"] > .panel { flex: none; }
+/* Framing ikut di sini walau panelnya cuma satu: kanvasnya terkunci ke rasio
+   sumber dan lebar kolomnya yang membatasi, jadi memberi panel itu flex:1
+   hanya menyisakan ruang kosong di bawah kanvas -- bukan kanvas yang membesar. */
+.screen[data-screen="klip"] > .panel,
+.screen[data-screen="teks"] > .panel,
+.screen[data-screen="framing"] > .panel { flex: none; }
 
 .work-head { display: flex; align-items: center; gap: var(--s4); flex: none; }
 .work-head h1 {
@@ -228,7 +239,7 @@ h1, h2, h3 {
 
 .panel {
   position: relative;
-  background: var(--kaca);
+  background: color-mix(in srgb, var(--bg-2) 82%, transparent);
   backdrop-filter: blur(18px);
   border: 1px solid var(--garis-kaca);
   border-radius: var(--r-l);
@@ -374,13 +385,25 @@ h1, h2, h3 {
 }
 .btn:hover { color: var(--teks); background: var(--kaca); border-color: var(--garis-kaca); }
 
+/* Satu aksi utama per wilayah, dan warnanya aksen. Sisanya pil gelap.
+   Aturan itu yang membuat mata tahu ke mana harus pergi tanpa membaca. */
 .btn.main {
   border-color: transparent;
-  color: var(--bg-0);
-  background: var(--teks);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 4px 14px -8px rgba(0,0,0,.9);
+  /* Warna teksnya ikut aksen, bukan dipaku. Aksen terang butuh teks gelap,
+     aksen redup butuh teks terang -- memakukan salah satunya membuat tombol
+     tidak terbaca begitu aksennya diganti. */
+  color: var(--aksen-teks);
+  background: var(--aksen);
+  font-weight: 700;
+  box-shadow: 0 4px 18px -8px var(--aksen-glow);
 }
-.btn.main:hover { background: #fff; }
+.btn.main:hover {
+  background: color-mix(in srgb, var(--aksen) 88%, #fff);
+  box-shadow: 0 6px 22px -8px var(--aksen-glow);
+}
+.btn.main:disabled { background: var(--kaca-kuat); color: var(--teks-samar);
+                     box-shadow: none; cursor: not-allowed; }
+.btn.main.large { padding: 10px 20px; font-size: var(--t-13); }
 
 .btn.quiet { background: none; border-color: transparent; color: var(--teks-samar); }
 .btn.quiet:hover { color: var(--teks); background: var(--kaca); }
@@ -421,6 +444,13 @@ h1, h2, h3 {
   padding: var(--s5) var(--s4);
   display: flex; flex-direction: column; gap: var(--s3);
   min-height: 0;
+  /* Frame 9:16 tingginya diturunkan dari lebar kolom dan tidak boleh menyusut
+     -- rasionya harus persis, kalau tidak preview berbohong soal bentuk
+     keluaran. Di jendela pendek kolom ini jadi lebih tinggi dari layar, dan
+     tanpa gulir kontrol transport serta tombol render tidak terjangkau sama
+     sekali. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .preview-head {
   display: flex; justify-content: space-between; align-items: center;
@@ -676,9 +706,26 @@ h1, h2, h3 {
 
 /* ═══════════════════════════════════════════════ reframe */
 
+/* SATU blok, sengaja. Sebelumnya aturan .canvas terpecah di tiga tempat
+   berjauhan di berkas ini, semuanya di tingkat atas, dan yang belakangan
+   diam-diam menimpa yang duluan -- `margin: auto` di salah satunya membatalkan
+   sisipan tepi yang ditulis di sini, jadi kanvasnya menempel tepi panel.
+
+   background pakai `cover`, bukan `contain`: dengan contain di kotak yang
+   rasionya beda muncul bilah kosong, dan crop 30% tidak lagi berarti 30%
+   gambar sumber.
+
+   width `auto` (bukan 100%) supaya margin kiri-kanan benar-benar menyisipkan;
+   di kolom flex, anak dengan width auto meregang mengisi sisa lebar setelah
+   marginnya. aspect-ratio di sini cuma cadangan -- framing.js menguncinya ke
+   rasio video sumber begitu metadatanya terbaca. */
 .canvas {
-  flex: 1; min-height: 0; position: relative;
-  background: #000 center/contain no-repeat;
+  position: relative;
+  flex: 0 1 auto; min-height: 0;
+  width: auto; height: auto; max-height: 100%;
+  aspect-ratio: 16 / 9;
+  margin: 0 var(--s5);
+  background: #000 center/cover no-repeat;
   border-radius: var(--r-l);
   border: 1px solid var(--garis-kaca);
   overflow: hidden;
@@ -716,7 +763,10 @@ h1, h2, h3 {
 /* ── pilihan format bingkai ──
    Ikonnya menggambarkan hasilnya: satu petak penuh, atau dua petak
    bertumpuk. Lebih cepat dibaca daripada kata-kata. */
-.format-bar { flex: none; display: flex; gap: var(--s2); margin-bottom: var(--s3); }
+.format-bar {
+  flex: none; display: flex; gap: var(--s2);
+  padding: 0 var(--s5); margin-bottom: var(--s3);
+}
 .fmt-pilih {
   font: inherit; font-size: var(--t-12); font-weight: 650;
   display: inline-flex; align-items: center; gap: 8px;
@@ -754,7 +804,10 @@ h1, h2, h3 {
   background: color-mix(in srgb, currentColor 18%, transparent);
 }
 
-.preset-bar { flex: none; display: flex; align-items: center; gap: var(--s2); }
+.preset-bar {
+  flex: none; display: flex; align-items: center; gap: var(--s2);
+  padding: var(--s3) var(--s5) var(--s4);
+}
 .preset-bar .eyebrow { margin-right: var(--s2); }
 .preset-bar .btn { margin-left: auto; }
 
@@ -833,13 +886,11 @@ h1, h2, h3 {
    seolah sudah terbuka -- tidak ada pintu masuk, dan pengguna kehilangan
    orientasi. */
 
-.home, .prepare { display: none; overflow-y: auto; }
+/* Dua tahap saja sejak pemilihan mode dibuang: beranda dan kerja. */
+.home { display: none; overflow-y: auto; }
 [data-stage="home"] .home { display: block; }
-[data-stage="prepare"] .prepare { display: block; }
 [data-stage="home"] .work-only,
-[data-stage="prepare"] .work-only,
-[data-stage="home"] .stage,
-[data-stage="prepare"] .stage { display: none; }
+[data-stage="home"] .stage { display: none; }
 
 /* topbar tetap ada di semua tahap, tapi hanya berisi brand saat di beranda */
 
@@ -849,7 +900,7 @@ h1, h2, h3 {
 .brand { font-family: inherit; border: 0; padding: 0; cursor: pointer; }
 [data-stage="home"] .brand { cursor: default; }
 
-.home-body, .prepare-body {
+.prepare-body {
   max-width: 940px; margin: 0 auto;
   padding: var(--s8) var(--s5) var(--s7);
   display: grid; gap: var(--s4); align-content: start;
@@ -861,76 +912,110 @@ h1, h2, h3 {
 }
 .home-sub { margin: 0; max-width: 58ch; color: var(--teks-lemah); font-size: var(--t-14); }
 
-/* ---- kartu mode ---- */
-.mode-grid {
-  margin-top: var(--s4);
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(216px, 1fr));
-  gap: var(--s3);
+/* ── project yang belum selesai ──
+   Kartu, bukan baris: sampulnya yang membuat orang mengenali pekerjaannya
+   sendiri lebih cepat daripada membaca nama berkas. */
+.recent { margin-top: var(--s6); display: grid; gap: var(--s3); }
+.project-grid {
+  display: grid; gap: var(--s3);
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
 }
-.mode-card {
-  position: relative; text-align: left;
-  display: grid; gap: var(--s2); align-content: start;
-  padding: var(--s5) var(--s4) var(--s4);
-  min-height: 168px;
-  font: inherit; color: var(--teks);
-  background: linear-gradient(180deg, var(--bg-3), var(--bg-2));
-  border: 1px solid var(--garis-kaca);
+.project-card {
+  position: relative; display: grid; gap: 2px;
+  padding: var(--s3); text-align: left;
+  font: inherit; color: var(--teks); cursor: pointer;
+  background: var(--kaca);
+  border: 1px solid var(--garis-kaca); border-radius: var(--r-l);
+  transition: border-color var(--cepat), background var(--cepat), transform var(--cepat);
+}
+.project-card:hover {
+  background: var(--kaca-kuat); border-color: var(--garis-terang);
+  transform: translateY(-2px);
+}
+.project-thumb {
+  width: 100%; aspect-ratio: 9 / 16; max-height: 150px;
+  object-fit: cover; object-position: center;
+  border-radius: var(--r-m); background: #000;
+  margin-bottom: var(--s2);
+}
+.project-nama {
+  font-size: var(--t-13); font-weight: 650;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.project-meta { color: var(--teks-samar); }
+.project-card .buang {
+  position: absolute; top: 6px; right: 6px;
+  width: 22px; height: 22px; display: grid; place-items: center;
+  font-style: normal; font-size: 13px; line-height: 1;
+  color: var(--teks); background: rgba(0,0,0,.62);
+  border-radius: var(--r-pill);
+  opacity: 0; transition: opacity var(--cepat);
+}
+.project-card:hover .buang { opacity: 1; }
+
+/* Project terakhir yang dibuka. Penanda kecil, bukan kartu yang dibesarkan:
+   yang dibutuhkan cuma "yang ini tadi", bukan penekanan. */
+.tanda-terakhir {
+  position: absolute; top: 6px; left: 6px;
+  font-family: var(--font-data); font-size: 9px;
+  padding: 3px 7px; border-radius: var(--r-pill);
+  background: var(--aksen); color: oklch(0.145 0.010 258);
+}
+
+/* Videonya tidak terjangkau server, jadi project ini tidak bisa dilanjutkan
+   sungguhan. Diredupkan dan sampulnya dimatikan warnanya -- kartunya tetap
+   ada supaya bisa dihapus. */
+.project-card.hilang { opacity: .5; cursor: not-allowed; }
+.project-card.hilang .project-thumb { filter: grayscale(1); }
+/* Sampul untuk video yang tidak ada. Bidang kosong, bukan <img> yang pasti
+   404 -- permintaan yang sudah dipastikan gagal tidak perlu dikirim. */
+/* ── konfirmasi hapus ──
+   Menutupi kartunya sendiri, bukan dialog di tengah layar: yang ditanyakan
+   adalah kartu ITU, jadi pertanyaannya duduk di tempat yang ditunjuk. */
+.konfirmasi {
+  position: absolute; inset: 0;
+  display: none;
+  padding: var(--s4);
   border-radius: var(--r-l);
-  box-shadow: var(--bayang-kartu);
-  cursor: pointer;
-  transition: transform var(--cepat), border-color var(--cepat), box-shadow var(--cepat);
+  background: color-mix(in srgb, var(--bg-0) 93%, transparent);
+  backdrop-filter: blur(6px);
+  text-align: center;
+  align-content: center; gap: var(--s2);
 }
-.mode-card:hover { transform: translateY(-3px); border-color: var(--garis-terang);
-                    box-shadow: var(--bayang-angkat); }
-/* setiap mode membawa warna aksennya sendiri, jadi pilihan mode sekaligus
-   memperkenalkan warna yang akan dipakai di seluruh sesi */
-.mode-card[data-color="gameplay"] { --aksen: var(--aksen-gameplay); }
-.mode-card[data-color="dialog"]   { --aksen: var(--aksen-dialog); }
-.mode-card::before {
-  content: ""; position: absolute; inset: -1px -1px auto -1px; height: 3px;
-  border-radius: var(--r-l) var(--r-l) 0 0;
-  background: var(--aksen);
-  box-shadow: 0 0 18px -2px var(--aksen);
+.project-card.tanya .konfirmasi { display: grid; }
+.project-card.tanya .buang { display: none; }
+.tanya-teks { font-size: var(--t-13); font-weight: 700; }
+.tanya-sub { font-size: var(--t-11); color: var(--teks-samar); line-height: 1.35; }
+.tanya-aksi { display: flex; gap: var(--s2); justify-content: center; margin-top: var(--s1); }
+.tanya-aksi .btn { border-color: var(--garis-terang); }
+.btn.bahaya {
+  background: var(--bahaya); border-color: transparent;
+  color: oklch(0.98 0 0); font-weight: 700;
 }
-.mode-card h2 { font-size: var(--t-20); letter-spacing: -.032em; }
-.mode-card .sub { color: var(--teks-samar); font-size: var(--t-12); }
-.mode-card .search {
-  margin-top: auto; padding-top: var(--s3);
-  border-top: 1px solid var(--garis-kaca);
-  color: var(--teks-lemah); font-size: var(--t-12); line-height: 1.45;
-}
-.mode-card .badge-mode {
-  position: absolute; top: var(--s4); right: var(--s4);
-  font-size: var(--t-10); font-weight: 700; letter-spacing: .08em;
-  text-transform: uppercase;
-  padding: 3px 8px; border-radius: var(--r-pill);
-  color: var(--aksen); background: var(--aksen-lembut);
-  border: 1px solid color-mix(in srgb, var(--aksen) 34%, transparent);
-}
-.mode-card[data-ready="false"] { opacity: .58; }
-.mode-card[data-ready="false"] .badge-mode {
-  color: var(--teks-samar); background: var(--kaca);
-  border-color: var(--garis-kaca);
-}
+.btn.bahaya:hover { background: color-mix(in srgb, var(--bahaya) 84%, #fff); }
 
-/* ---- lanjutkan yang sedang jalan ---- */
-.resume { margin-top: var(--s6); display: grid; gap: var(--s2); }
-.resume .eyebrow { margin-bottom: var(--s1); }
-.resume-row {
-  display: flex; align-items: center; gap: var(--s4);
-  width: 100%; text-align: left; font: inherit; color: var(--teks);
-  padding: var(--s3) var(--s4);
-  background: var(--kaca); border: 1px solid var(--garis-kaca);
-  border-radius: var(--r-m); cursor: pointer;
-  transition: background var(--cepat), border-color var(--cepat);
+/* Kartu sudah bukan <button>, jadi fokusnya perlu ditandai sendiri. */
+.project-card:focus-visible { outline: 2px solid var(--aksen); outline-offset: 2px; }
+
+.project-thumb.kosong {
+  display: block;
+  background: repeating-linear-gradient(45deg,
+    var(--bg-2) 0 8px, var(--bg-1) 8px 16px);
 }
-.resume-row:hover { background: var(--kaca-kuat); border-color: var(--garis-terang); }
-.resume-row .name { font-family: var(--font-data); font-size: var(--t-12); }
-.resume-row .right { margin-left: auto; color: var(--teks-samar); font-size: var(--t-12); }
+.project-card.hilang:hover { transform: none; background: var(--kaca); }
+.project-card.hilang .project-meta { color: var(--bahaya); }
 
-/* ═══════════════════════════════════════════════ siapkan */
+/* Berkas dijatuhkan tapi ada di luar samples/: bukan galat, tapi bukan siap
+   juga -- perlu nada tersendiri. */
+.source-drop[data-state="warn"] {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--bahaya) 55%, transparent);
+}
+.source-drop[data-state="warn"] p { color: var(--bahaya); }
+.project-card .buang:hover { background: var(--bahaya); }
 
-.back { justify-self: start; padding-left: 0; }
+/* ═══════════════════════════════════════════════ beranda */
+
 .prepare-body h1 {
   font-size: clamp(26px, 2.6vw, 34px);
   font-stretch: calc(var(--w-lebar) * 1%);
@@ -959,23 +1044,46 @@ h1, h2, h3 {
 .input:focus-visible { border-color: var(--aksen); }
 
 .option { padding: var(--s2) var(--s5); }
+/* Dua baris: label + pilihan di atas, keterangan di bawah -- sejajar dengan
+   pilihannya, bukan dengan labelnya, supaya terbaca sebagai penjelasan
+   pilihan yang sedang aktif. */
 .option-row {
-  display: grid; grid-template-columns: 150px 1fr;
-  align-items: center; gap: var(--s4);
-  padding: var(--s3) 0;
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  grid-template-areas: "label pilihan" ".     terang";
+  align-items: center; column-gap: var(--s4); row-gap: 6px;
+  padding: var(--s4) 0;
   border-bottom: 1px solid var(--garis-kaca);
 }
 .option-row:last-child { border-bottom: 0; }
-.option-row .choices { display: flex; gap: var(--s2); flex-wrap: wrap; }
+.option-row .eyebrow { grid-area: label; }
+.option-row .choices { grid-area: pilihan; display: flex; gap: var(--s2); flex-wrap: wrap; }
+.option-row .hint {
+  grid-area: terang;
+  font-size: var(--t-12); color: var(--teks-samar); max-width: 62ch;
+}
+.option-row .hint:empty { display: none; }
 
 .prepare-foot { display: flex; align-items: center; gap: var(--s4); margin-top: var(--s2); }
 .prepare-foot .data { color: var(--teks-samar); }
 .btn.large { margin-left: auto; font-size: var(--t-13); padding: 11px 26px; }
 
 /* keadaan kotak sumber: kosong, sedang diseret, siap, atau galat */
+/* Satu-satunya penanda "lepaskan di sini" sekarang, jadi ia harus benar-benar
+   terbaca. Sebelumnya selalu tertutup tirai layar-penuh, sehingga samarnya
+   tidak pernah ketahuan. */
 .source-drop[data-drag="true"] {
   border-color: var(--aksen);
+  border-style: solid;
   background: var(--aksen-lembut);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--aksen) 18%, transparent),
+              0 0 30px -10px var(--aksen-glow);
+  transform: scale(1.008);
+}
+.source-drop[data-drag="true"] h2 { color: var(--aksen); }
+.source-drop {
+  transition: border-color var(--cepat), background var(--cepat),
+              box-shadow var(--cepat), transform var(--cepat);
 }
 .source-drop[data-state="ready"] {
   border-style: solid;
@@ -991,31 +1099,10 @@ h1, h2, h3 {
 .btn:disabled { opacity: .4; cursor: not-allowed; }
 .btn.main:disabled:hover { background: var(--teks); }
 
-/* Tirai tarik-lepas: menutupi seluruh jendela supaya tidak ada tempat meleset */
-.curtain-drop {
-  position: fixed; inset: 0; z-index: 50;
-  display: none; place-items: center;
-  background: color-mix(in srgb, var(--bg-0) 82%, transparent);
-  backdrop-filter: blur(10px);
-}
-body[data-drag="true"] .curtain-drop { display: grid; }
-.curtain-body {
-  padding: var(--s8) var(--s7);
-  border: 2px dashed var(--aksen);
-  border-radius: var(--r-l);
-  background: var(--aksen-lembut);
-  text-align: center;
-  animation: tirai-masuk 180ms cubic-bezier(.32,.72,0,1);
-}
-.curtain-body h2 { font-size: 26px; font-stretch: calc(var(--w-lebar) * 1%); }
-.curtain-body p { margin: var(--s2) 0 0; color: var(--teks-lemah); font-size: var(--t-13); }
-@keyframes tirai-masuk { from { opacity: 0; transform: scale(.97) } }
 
 /* Kanvas reframe dipaksa 16:9 supaya persentase crop memetakan tepat ke
    piksel gambar sumber. Dengan background-size:contain di kotak berbeda
    rasio, ada bilah kosong -- dan crop 30% tidak lagi berarti 30% gambar. */
-.canvas { aspect-ratio: 16 / 9; width: 100%; height: auto; max-height: 100%;
-          margin: auto; flex: 0 1 auto; background-size: cover; }
 .preset-list { display: flex; gap: var(--s2); flex-wrap: wrap; }
 
 /* Penanda mode: keterangan, bukan kontrol. Mode dipilih di menu utama, jadi
@@ -1159,7 +1246,9 @@ body[data-drag="true"] .curtain-drop { display: grid; }
 .rel-side .tab:hover { background: var(--kaca); }
 .rel-side .tab[aria-selected="true"] {
   color: var(--teks);
-  background: var(--kaca-kuat);
+  background: var(--aksen-lembut);
+  border: 1px solid color-mix(in srgb, var(--aksen) 34%, transparent);
+  padding: 8px 12px;                  /* ganti rugi tebal garis tepi */
 }
 /* penanda aktif: garis aksen di tepi kiri, bukan pil terang penuh --
    di kolom vertikal, pil penuh terbaca seperti tombol yang ditekan */
@@ -1253,7 +1342,7 @@ body[data-drag="true"] .curtain-drop { display: grid; }
   transition: left 90ms linear;
 }
 
-/* ══════════════════════════ layar Edit ══════════════════════════
+/* ═════════════════════ layar Klip / Framing / Teks ═════════════════
    Dua panel bertumpuk: rekomendasi AI di atas (cukup menit + judul),
    wadah Result di bawah. Yang di bawah itu yang jadi video. */
 
@@ -1388,7 +1477,9 @@ body[data-drag="true"] .curtain-drop { display: grid; }
   color: var(--teks-samar);
 }
 
-.pilih-foot { padding: var(--s4) var(--s5) 0; }
+/* Padding bawahnya 0 sejak dulu, jadi tombol "Masukkan ke result" duduk
+   1px dari tepi panel. */
+.pilih-foot { padding: var(--s4) var(--s5); }
 .waktu-input {
   display: inline-flex; align-items: center; gap: 7px;
   font-size: var(--t-12); color: var(--teks-samar);
@@ -1417,6 +1508,29 @@ body[data-drag="true"] .curtain-drop { display: grid; }
 .sel-teks:empty { display: none; }
 
 /* kaki panel Result: judul berkas + tombol render */
+/* ── batang render di bawah preview ──
+   Ditaruh menempel pada preview, bukan pada panel Result, supaya terjangkau
+   dari layar Klip, Framing, maupun Teks. Preview memang hasilnya; tombol
+   yang membuat hasil itu wajar duduk di bawahnya. */
+/* Dua baris, bukan satu. Kolom preview cuma ~260px; dijejalkan sebaris,
+   label "judul" tergencet jadi nol lebar, kotak isiannya tinggal 21px, dan
+   tombolnya meleset keluar tepi. */
+.render-bar {
+  flex: none;
+  display: grid; gap: var(--s2);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--garis-kaca);
+}
+.render-bar .judul-input { width: 100%; min-width: 0; }
+.render-bar .judul-input input { width: 100%; min-width: 0; }
+.render-bar .baris {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s2);
+}
+.render-bar .data { min-width: 0; overflow: hidden; text-overflow: ellipsis;
+                    white-space: nowrap; }
+.render-bar .btn { flex: none; }
+
 .hasil-foot {
   display: flex; align-items: center; gap: var(--s3);
   padding: var(--s4) var(--s5);
@@ -1490,7 +1604,6 @@ body[data-drag="true"] .curtain-drop { display: grid; }
   object-fit: cover;
   pointer-events: none;          /* klik tetap sampai ke kotak crop */
 }
-.canvas { position: relative; }
 
 /* chip titik framing: waktu + tombol hapus */
 #framingList .chip { font-family: var(--font-data); }
@@ -1505,7 +1618,12 @@ body[data-drag="true"] .curtain-drop { display: grid; }
 .teks-list {
   display: flex; flex-wrap: wrap; gap: 4px;
   padding: var(--s3) var(--s5) var(--s4);
-  max-height: 210px; overflow-y: auto;
+  /* 210px itu warisan waktu Teks masih berbagi satu layar dengan Timeline,
+     Result, dan Framing. Sekarang Teks punya layarnya sendiri, jadi daftarnya
+     boleh memakai ruang yang ada -- makin sedikit menggulir, makin gampang
+     menemukan kata yang salah dengar. */
+  max-height: clamp(140px, 30vh, 380px);
+  overflow-y: auto;
 }
 .kata-teks {
   font: inherit; font-size: 13px;
@@ -1529,3 +1647,20 @@ body[data-drag="true"] .curtain-drop { display: grid; }
   background: none; color: var(--teks);
   min-width: 3ch;
 }
+
+/* ── Global transport bar in topbar ── */
+.global-transport{display:flex;align-items:center;gap:6px;margin-left:12px}
+.global-transport .putar{font-size:18px;padding:2px 8px;border-radius:6px;cursor:pointer}
+.global-transport .langkah{font-size:14px;padding:2px 6px;border-radius:4px;cursor:pointer;opacity:.8}
+.global-transport .langkah:hover{opacity:1}
+.global-transport .gt-time{font-family:monospace;font-size:13px;color:var(--ink,#1a1a2e);white-space:nowrap}
+.global-transport .saklar{font-size:14px;padding:2px 6px;border-radius:4px;cursor:pointer;background:none;border:none}
+
+/* ── Editable rekom-waktu inputs ── */
+.rekom-sec{
+  width:72px;padding:2px 4px;border:1px solid var(--border,#ddd);border-radius:4px;
+  font-family:monospace;font-size:12px;text-align:center;
+  background:var(--bg,#fff);color:var(--ink,#1a1a2e);
+}
+.rekom-sec:focus{outline:2px solid var(--brand,#6366f1);outline-offset:1px}
+

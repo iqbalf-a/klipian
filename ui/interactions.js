@@ -47,7 +47,7 @@ function readMeta(file) {
 async function acceptFile(file) {
   if (!file) return;
   if (!/^video\//.test(file.type) && !/\.(mkv|mov|mp4|webm)$/i.test(file.name)) {
-    drawSource("File itu bukan video. Pakai mp4, mkv, mov, atau webm.");
+    drawSource("That file is not a video. Use mp4, mkv, mov, or webm.");
     return;
   }
   // Revoc blob URL sebelumnya supaya tidak memory leak
@@ -68,17 +68,43 @@ async function acceptFile(file) {
 
   // Video baru = sesi baru. Tanpa ini, kandidat dan ribbon dari file
   // sebelumnya ikut terbawa dan angkanya bertabrakan di layar.
-  if (changed || DATA[mode].candidates.length) {
-    DATA[mode].candidates = [];
-    DATA[mode].marks = [];
-    DATA[mode].words = [];
+  if (changed || DATA.candidates.length) {
+    DATA.candidates = [];
+    DATA.marks = [];
+    DATA.words = [];
     if (typeof realTranscript !== "undefined") realTranscript = null;
     renderList();
     if (typeof renderRecommendations === "function") renderRecommendations();
   }
   if (typeof prepareVideo === "function") {
     prepareVideo();
-    setClip(DATA[mode].candidates[0]);
+    setClip(DATA.candidates[0]);
+  }
+
+  // Berkas dari luar samples/ hanya dapat URL blob: preview jalan, tapi
+  // transkripsi, thumbnail, dan render semuanya lewat _find_video() di server
+  // dan akan menjawab "video not found". Diberitahukan SEKARANG, bukan setelah
+  // menunggu transkripsi yang memang tidak akan pernah berhasil.
+  try {
+    const daftar = (await (await fetch("/api/video")).json()).video || [];
+    if (!daftar.includes(file.name)) {
+      drawSource(null, "not in samples/ — move it there to transcribe and render");
+      document.querySelector(".source-drop")?.setAttribute("data-state", "warn");
+    }
+  } catch { /* tanpa backend, tidak ada yang bisa diperiksa */ }
+
+  // Video yang sama = project yang sama. Kalau pernah dikerjakan, Result,
+  // titik framing, dan koreksi teksnya kembali; kalau belum, ini jadi
+  // project barunya.
+  if (typeof bukaProject === "function") {
+    const lanjut = await bukaProject(file.name);
+    if (lanjut) {
+      if (typeof renderResult === "function") renderResult();
+      if (typeof renderFraming === "function") renderFraming();
+      if (typeof renderTeks === "function") renderTeks();
+      if (typeof drawTotalTimeline === "function") drawTotalTimeline();
+      drawSource(null, "picked up where you left off");
+    }
   }
 }
 
@@ -89,34 +115,44 @@ function acceptURL(text) {
     drawSource();
   } else {
     chosenSource = null;
-    drawSource(text.trim() ? "Link itu bukan alamat YouTube yang dikenali." : null);
+    drawSource(text.trim() ? "That link is not a YouTube address we recognise." : null);
   }
 }
 
-function drawSource(error) {
+function drawSource(error, catatan) {
   const box = document.querySelector(".source-drop");
   const button = $("#run");
   if (!box || !button) return;
+
+  // Format dan Resolusi tidak berarti apa-apa sebelum ada videonya, dan
+  // sebagai panel penuh ia mendorong daftar project keluar layar di jendela
+  // pendek -- persis saat daftar itu paling dibutuhkan.
+  const ada = !!chosenSource && !error;
+  $("#options")?.toggleAttribute("hidden", !ada);
+  $("#prepareFoot")?.toggleAttribute("hidden", !ada);
   const title = box.querySelector("h2");
   const note = box.querySelector("p");
 
   if (error) {
     box.dataset.state = "error";
-    title.textContent = "Belum bisa dipakai";
+    title.textContent = "Can't use this";
     note.textContent = error;
     button.disabled = true;
   } else if (!chosenSource) {
     box.dataset.state = "";
-    title.textContent = "Tarik file ke sini";
-    note.textContent = "mp4, mkv, mov — atau";
+    title.textContent = "Drag a video here";
+    note.textContent = "mp4, mkv, mov — or";
     button.disabled = true;
   } else {
     const s = chosenSource;
     box.dataset.state = "ready";
     title.textContent = s.name;
-    note.textContent = s.kind === "file"
+    const rinci = s.kind === "file"
       ? `${fmtSize(s.size)} · ${fmtDuration(s.duration)}${s.width ? ` · ${s.width}×${s.height}` : ""}`
-      : "video akan diunduh saat pipeline dijalankan";
+      : "the video will be downloaded when the pipeline runs";
+    // Catatan tambahan dipakai saat project lama dipulihkan, supaya orang tahu
+    // pekerjaannya kembali dan tidak mengira harus mulai dari nol lagi.
+    note.textContent = catatan ? `${rinci} · ${catatan}` : rinci;
     button.disabled = false;
   }
 }
@@ -127,46 +163,61 @@ document.addEventListener("click", (e) => {
 fileInput.addEventListener("change", () => acceptFile(fileInput.files[0]));
 $("#urlInput").addEventListener("input", (e) => acceptURL(e.target.value));
 
-/* Tarik-lepas berlaku di SELURUH jendela. Kalau dijatuhkan di luar layar
-   Siapkan, aplikasi pindah ke sana dulu supaya hasilnya terlihat -- bukan
-   diam-diam masuk ke layar yang sedang tersembunyi. */
+/* Tarik-lepas hanya di PANEL drop, bukan sepanjang jendela.
+   Dulu ada tirai yang menutupi seluruh layar begitu berkas ditarik masuk.
+   Niatnya supaya tidak ada tempat yang meleset, tapi hasilnya seluruh
+   antarmuka tertutup untuk sebuah sasaran yang sebenarnya cuma satu kotak --
+   dan kotak itu sudah punya keadaan sorotnya sendiri, yang justru tidak
+   pernah kelihatan karena tertutup tirai.
 
-const curtain = document.createElement("div");
-curtain.className = "curtain-drop";
-curtain.innerHTML = '<div class="curtain-body"><h2>Lepaskan di sini</h2>' +
-                  '<p>mp4, mkv, mov, webm</p></div>';
-document.body.appendChild(curtain);
+   Penjaga di tingkat jendela tetap ada, tapi ia TIDAK menggambar apa pun:
+   tugasnya cuma membatalkan perilaku bawaan browser. Tanpa itu, berkas yang
+   dijatuhkan meleset dari panel akan DIBUKA oleh browser -- aplikasinya
+   ditinggalkan begitu saja beserta seluruh hasil kerja yang belum dirender. */
 
-let dragCount = 0;
 const hasFiles = (e) => [...((e.dataTransfer && e.dataTransfer.types) || [])].includes("Files");
 
-window.addEventListener("dragenter", (e) => {
-  if (!hasFiles(e)) return;
-  e.preventDefault();
-  dragCount++;
-  document.body.dataset.drag = "true";
-});
+["dragenter", "dragover", "drop"].forEach((ev) =>
+  window.addEventListener(ev, (e) => { if (hasFiles(e)) e.preventDefault(); }));
 
-window.addEventListener("dragover", (e) => {
-  if (!hasFiles(e)) return;
-  e.preventDefault();                      // wajib, kalau tidak drop diabaikan
-  e.dataTransfer.dropEffect = "copy";
-});
+const dropPanel = document.querySelector(".source-drop");
+if (dropPanel) {
+  // Penghitung, bukan satu bendera: dragleave ikut menembak setiap kali
+  // pointer melintasi anak-anak di dalam panel, jadi sorotannya berkedip.
+  let dragCount = 0;
+  const sorot = (on) => {
+    if (on) dropPanel.dataset.drag = "true";
+    else delete dropPanel.dataset.drag;
+  };
 
-window.addEventListener("dragleave", (e) => {
-  if (!hasFiles(e)) return;
-  dragCount = Math.max(0, dragCount - 1);
-  if (dragCount === 0) delete document.body.dataset.drag;
-});
+  dropPanel.addEventListener("dragenter", (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    dragCount++;
+    sorot(true);
+  });
 
-window.addEventListener("drop", (e) => {
-  if (!hasFiles(e)) return;
-  e.preventDefault();
-  dragCount = 0;
-  delete document.body.dataset.drag;
-  if ($("#app").dataset.stage !== "prepare") toStage("prepare");
-  acceptFile(e.dataTransfer.files[0]);
-});
+  dropPanel.addEventListener("dragover", (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();                    // wajib, kalau tidak drop diabaikan
+    e.dataTransfer.dropEffect = "copy";
+  });
+
+  dropPanel.addEventListener("dragleave", (e) => {
+    if (!hasFiles(e)) return;
+    dragCount = Math.max(0, dragCount - 1);
+    if (dragCount === 0) sorot(false);
+  });
+
+  dropPanel.addEventListener("drop", (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragCount = 0;
+    sorot(false);
+    acceptFile(e.dataTransfer.files[0]);
+  });
+}
 
 /* ───────────────── kandidat: setujui, tolak, batalkan ────────────────── */
 
@@ -207,6 +258,7 @@ $("#captionList").addEventListener("click", (e) => {
   all.forEach((b, i) => b.setAttribute("aria-pressed", String(i === o.active)));
   row.querySelector(".meta").textContent = o.choices[o.active].t;
   applyCaption();
+  if (typeof simpanProject === "function") simpanProject();
 });
 
 /* ───────────────── potong: klik jeda membuang celahnya ──────────────── */
@@ -224,17 +276,19 @@ $("#queueList").addEventListener("click", (e) => {
 
   if (action === "open") {
     // Backend yang membuka Explorer -- browser tidak boleh, dan tidak perlu.
-    if (!r.folder) { b.textContent = "folder belum siap"; setTimeout(drawQueue, 2000); return; }
+    if (!r.folder) { b.textContent = "folder not ready"; setTimeout(drawQueue, 2000); return; }
     fetch("/api/open-folder", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ folder: r.folder }),
     }).then((x) => x.json()).then((j) => {
       if (j.error) { b.textContent = j.error.slice(0, 24); setTimeout(drawQueue, 2500); }
-    }).catch(() => { b.textContent = "butuh klipian serve"; setTimeout(drawQueue, 2500); });
+    }).catch(() => { b.textContent = "needs klipian serve"; setTimeout(drawQueue, 2500); });
     return;
   }
-  if (action === "cancel") { r.pct = 0; r.note = "dibatalkan"; r.action = "Ulangi"; }
-  else if (action === "retry") { r.pct = 4; r.note = "berjalan"; r.action = "Batalkan"; }
+  // `act` yang dibaca mesin, `action` yang dibaca orang. Dulu cabangnya
+  // membandingkan LABEL tombol, jadi menerjemahkan label memutus tombolnya.
+  if (action === "cancel") { r.pct = 0; r.note = "cancelled"; r.action = "Retry"; r.act = "retry"; }
+  else if (action === "retry") { r.pct = 4; r.note = "running"; r.action = "Cancel"; r.act = "cancel"; }
   drawQueue();
 });
 
