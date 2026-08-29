@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wdth,wght@0,75..125,200..900;1,75..125,200..900&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="tokens.css?v=1787999152">
-<link rel="stylesheet" href="app.css?v=1787999152">
+<link rel="stylesheet" href="tokens.css?v=1788002490">
+<link rel="stylesheet" href="app.css?v=1788002490">
 </head>
 <body>
 
@@ -259,22 +259,23 @@
             <span class="eyebrow">Framing</span>
             <span class="data" id="reframeNote">drag the box onto whoever is talking, then lock it</span>
             <span class="data" id="framingWaktu"></span>
-            <!-- Butuh titik Split acuan sudah ada di awal klip (dua kotak
-                 diarahkan ke masing-masing orang) -- lihat aiFramingMulai()
-                 di framing.js untuk alasannya. -->
+            <!-- TIDAK butuh Split disiapkan dulu -- klik langsung jalan
+                 analisis; kalau lebih dari satu pembicara terdeteksi, ian
+                 diminta geser SATU kotak bergantian ke tiap orang begitu
+                 giliran mereka muncul. Lihat aiFramingMulai() di framing.js. -->
             <button class="btn" id="aiFramingBtn" type="button"
                     title="Auto-switch the frame based on who's talking">AI Framing</button>
           </div>
 
-          <!-- Muncul sesudah AI Framing selesai menganalisis, kalau lebih
-               dari satu pembicara terdeteksi -- pipeline diarization cuma
-               tahu SIAPA bicara, tidak tahu kotak mana yang harus dipakai,
-               jadi ian yang menjawabnya sekali per pembicara. -->
+          <!-- Muncul sesudah AI Framing selesai menganalisis -- pipeline
+               diarization cuma tahu SIAPA bicara dan KAPAN, sama sekali
+               tidak tahu ke mana kotaknya harus diarahkan. Preview digeser
+               ke giliran pertama tiap pembicara, ian tinggal geser kotak
+               yang sudah ada di kanvas ke orang itu lalu konfirmasi. -->
           <div class="ai-framing-tanya" id="aiFramingTanya" hidden>
             <span class="data" id="aiFramingTanyaTeks"></span>
             <span class="ai-framing-tombol">
-              <button class="btn" data-ai-pilih="0" type="button">Box 1</button>
-              <button class="btn" data-ai-pilih="1" type="button">Box 2</button>
+              <button class="btn main" data-ai-set type="button">Use this position</button>
               <button class="btn quiet" data-ai-lewati type="button">Skip this speaker</button>
             </span>
           </div>
@@ -457,16 +458,16 @@
   </main>
 </div>
 
-<script src="app.js?v=1787999152"></script>
-<script src="interactions.js?v=1787999152"></script>
-<script src="framing.js?v=1787999152"></script>
-<script src="analysis.js?v=1787999152"></script>
-<script src="player.js?v=1787999152"></script>
-<script src="roundtrip.js?v=1787999152"></script>
-<script src="history.js?v=1787999152"></script>
-<script src="timeline.js?v=1787999152"></script>
-<script src="teks.js?v=1787999152"></script>
-<script src="result.js?v=1787999152"></script>
-<script src="projects.js?v=1787999152"></script>
+<script src="app.js?v=1788002490"></script>
+<script src="interactions.js?v=1788002490"></script>
+<script src="framing.js?v=1788002490"></script>
+<script src="analysis.js?v=1788002490"></script>
+<script src="player.js?v=1788002490"></script>
+<script src="roundtrip.js?v=1788002490"></script>
+<script src="history.js?v=1788002490"></script>
+<script src="timeline.js?v=1788002490"></script>
+<script src="teks.js?v=1788002490"></script>
+<script src="result.js?v=1788002490"></script>
+<script src="projects.js?v=1788002490"></script>
 </body>
 </html>
