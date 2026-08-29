@@ -105,6 +105,25 @@ const CAPTION_OPTIONS = [
   { id: "watermark", label: "Watermark", active: 0, choices: [
       { t: "On", out: true },
       { t: "Off", out: false }] },
+  { id: "watermark-size", label: "Watermark size", active: 1, choices: [
+      { t: "Small", out: 22, px: 10 },
+      { t: "Medium", out: 32, px: 13 },
+      { t: "Large", out: 46, px: 17 }] },
+  // Opacity ditulis sebagai alpha ASS (&HAA...) -- 00 = penuh, FF = tak
+  // kelihatan sama sekali, KEBALIKAN dari intuisi opacity biasa. "Faint"
+  // sengaja pakai angka alpha BESAR (A8), "Bold" angka KECIL (40).
+  { id: "watermark-opacity", label: "Watermark opacity", active: 1, choices: [
+      { t: "Faint", out: "A8", css: .34 },
+      { t: "Medium", out: "80", css: .5 },
+      { t: "Bold", out: "40", css: .75 }] },
+  // "Bottom" TIDAK berarti mepet tepi bawah -- posisinya dihitung relatif
+  // ke posisi caption yang sedang aktif (lihat marginWatermark() di
+  // interactions.js dan fungsi sejenis di build_ass()), supaya watermark
+  // selalu jatuh tepat di bawah caption apa pun posisi caption-nya.
+  { id: "watermark-position", label: "Watermark position", active: 2, choices: [
+      { t: "Top", out: "top" },
+      { t: "Middle", out: "middle" },
+      { t: "Bottom", out: "bottom" }] },
 ];
 
 /* Gaya caption yang dikirim ke server. Inilah yang membuat pengaturan di
@@ -122,6 +141,9 @@ function captionStyle() {
     per_line: nilai("per-line").out,
     outline: nilai("outline").out,
     watermark: nilai("watermark").out,
+    watermark_size: nilai("watermark-size").out,
+    watermark_opacity: nilai("watermark-opacity").out,
+    watermark_position: nilai("watermark-position").out,
   };
 }
 

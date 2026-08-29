@@ -514,16 +514,18 @@ h1, h2, h3 {
 
 /* Bukan file font lokal seperti versi render (lihat FONTS_DIR di
    render.py) -- di browser, Mona Sans sudah dimuat lewat Google Fonts di
-   index.html, jadi cukup dipanggil nama familinya. Posisi 3% dari bawah
-   SAMA dengan margin_watermark di build_ass() -- preview harus jujur soal
-   di mana watermark akan muncul di berkas hasil. */
+   index.html, jadi cukup dipanggil nama familinya. top/bottom/font-size/
+   color SENGAJA tidak diisi di sini -- semua dihitung dan dipasang oleh
+   applyCaption() di interactions.js, meniru _watermark_placement() di
+   render.py persis, supaya preview jujur soal di mana watermark akan
+   muncul di berkas hasil (posisi & ukurannya ikut pilihan Top/Middle/
+   Bottom dan Size/Opacity di layar Captions). */
 .watermark916 {
-  position: absolute; left: 0; right: 0; bottom: 3%;
+  position: absolute; left: 0; right: 0;
   text-align: center; pointer-events: none;
   font-family: var(--font-ui); font-weight: 800;
   font-stretch: calc(var(--w-lebar) * 1%);
-  font-size: 13px; letter-spacing: -.02em;
-  color: rgba(255, 255, 255, .5);
+  letter-spacing: -.02em;
   text-shadow: 0 1px 3px rgba(0,0,0,.6);
 }
 .frame916[data-watermark="off"] .watermark916 { display: none; }

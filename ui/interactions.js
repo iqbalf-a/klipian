@@ -249,6 +249,35 @@ function applyCaption() {
 
   const frame = document.querySelector(".frame916");
   if (frame) frame.dataset.watermark = captionValue("watermark").out ? "on" : "off";
+
+  const wm = document.querySelector(".watermark916");
+  if (wm && frame) {
+    const ukuran = captionValue("watermark-size").px;
+    const opacity = captionValue("watermark-opacity").css;
+    const posisi = captionValue("watermark-position").out;
+    wm.style.fontSize = `${ukuran}px`;
+    wm.style.color = `rgba(255,255,255,${opacity})`;
+
+    // Sama persis logikanya dengan _watermark_placement() di
+    // klipian/render.py -- tinggi baris diperkirakan 1.3x ukuran font,
+    // diukur relatif ke TINGGI SUNGGUHAN panel preview (bukan angka
+    // konversi tetap) supaya tetap akurat di ukuran layar berapa pun.
+    const frameH = frame.getBoundingClientRect().height || 1;
+    const tinggiBarisPersen = ((ukuran * 1.3) / frameH) * 100;
+
+    wm.style.top = "auto";
+    wm.style.bottom = "auto";
+    wm.style.transform = "none";
+    if (posisi === "top") {
+      wm.style.top = `${Math.max(0, 16 - tinggiBarisPersen)}%`;
+    } else if (posisi === "middle") {
+      wm.style.top = "50%";
+      wm.style.transform = "translateY(-50%)";
+    } else {
+      const capMargin = captionValue("position").px;
+      wm.style.bottom = `${Math.max(2, capMargin - tinggiBarisPersen - 1)}%`;
+    }
+  }
 }
 
 $("#captionList").addEventListener("click", (e) => {

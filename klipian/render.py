@@ -116,6 +116,42 @@ def to_output_time(spans: list[Span], seconds: float) -> float | None:
     return None
 
 
+# Batas atas zona aman di panel preview (lihat .safe di ui/app.css,
+# top:16%) -- watermark posisi "Top" SENGAJA duduk persis DI ATAS garis
+# ini, bukan di dalamnya. Watermark bukan konten utama; kalau ada overlay
+# UI platform (tombol share, dsb.) menutupi pinggir, biar watermark yang
+# mengalah duluan, bukan wajah/caption.
+SAFE_AREA_TOP_PERCENT = 16.0
+
+
+def _watermark_placement(mode: str, size: float, H: int,
+                          caption_margin_bottom: int) -> tuple[int, int]:
+    """(Alignment ASS, MarginV) untuk posisi watermark.
+
+    Tinggi baris teks diperkirakan 1.3x ukuran font -- ASS tidak punya cara
+    mengukur tinggi glyph sungguhan tanpa benar-benar merender dulu, jadi
+    ini perkiraan, bukan presisi piksel. Cukup dekat untuk watermark satu
+    baris pendek seperti "klipian"."""
+    tinggi_baris = size * 1.3
+    if mode == "top":
+        # Alignment 8 = atas-tengah, MarginV dihitung dari ATAS. Tepi bawah
+        # watermark diusahakan pas di garis SAFE_AREA_TOP_PERCENT.
+        margin = max(0, int(H * SAFE_AREA_TOP_PERCENT / 100 - tinggi_baris))
+        return 8, margin
+    if mode == "middle":
+        # Alignment 5 = tengah-tengah (vertikal DAN horizontal) -- MarginV
+        # tidak berlaku untuk alignment ini, libass mengabaikannya.
+        return 5, 0
+    # "bottom": BUKAN mepet tepi bawah -- tepat DI BAWAH caption. Margin-nya
+    # selalu dibuat lebih kecil dari margin caption (lebih dekat ke tepi),
+    # berapa pun posisi caption yang sedang dipilih pengguna -- watermark
+    # otomatis ikut turun kalau caption digeser ke Bottom, dan ikut naik
+    # kalau caption digeser ke Top.
+    margin = max(int(H * 0.02),
+                 caption_margin_bottom - int(tinggi_baris) - int(H * 0.01))
+    return 2, margin
+
+
 def build_ass(job: RenderJob, words: list[Word], style: dict | None = None) -> str:
     """Caption karaoke: satu peristiwa per kata, menampilkan barisnya utuh
     dengan kata yang sedang diucapkan disorot. Watermark "klipian" ikut
@@ -129,6 +165,9 @@ def build_ass(job: RenderJob, words: list[Word], style: dict | None = None) -> s
          "color": "&H00FFFFFF&",          # warna dasar teks
          "highlight": "&H0000D6FF&",      # warna kata yang sedang diucapkan
          "watermark": True,               # tombol on/off dari layar Captions
+         "watermark_size": 32,
+         "watermark_opacity": "80",       # alpha ASS: 00 penuh .. FF tak kelihatan
+         "watermark_position": "bottom",  # top | middle | bottom
          **(style or {})}
 
     W, H = job.out_width, job.out_height
@@ -136,12 +175,9 @@ def build_ass(job: RenderJob, words: list[Word], style: dict | None = None) -> s
     # Baris Style memakai bentuk tanpa "&" penutup, tag \c memakai yang dengan.
     warna_style = g["color"].rstrip("&")
 
-    # Margin watermark SENGAJA dipatok kecil (dekat tepi bawah), bukan
-    # dihitung relatif ke posisi caption yang bisa diubah pengguna (16/24/34%)
-    # -- 3% selalu lebih kecil dari pilihan caption manapun, jadi watermark
-    # selalu "agak bawah dari caption" apa pun posisi caption-nya, tanpa
-    # perlu melacak ulang posisi caption di sini.
-    margin_watermark = int(H * 0.03)
+    wm_align, wm_margin = _watermark_placement(
+        g["watermark_position"], g["watermark_size"], H, margin_bottom)
+    wm_color = f"&H{g['watermark_opacity']}FFFFFF"
 
     header = f"""[Script Info]
 ScriptType: v4.00+
@@ -153,7 +189,7 @@ ScaledBorderAndShadow: yes
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, OutlineColour, BackColour, Bold, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Utama,{g['font']},{g['size']},{warna_style},&H00000000,&H80000000,1,1,{g['outline']},0,2,60,60,{margin_bottom},1
-Style: Watermark,Mona Sans ExtraBold,{max(20, int(g['size'] * 0.34))},&H80FFFFFF,&H00000000,&H60000000,0,1,1,0,2,60,60,{margin_watermark},1
+Style: Watermark,Mona Sans ExtraBold,{g['watermark_size']},{wm_color},&H00000000,&H60000000,0,1,1,0,{wm_align},60,60,{wm_margin},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
