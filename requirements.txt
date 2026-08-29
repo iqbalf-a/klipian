@@ -2,6 +2,11 @@
 #
 # Sengaja dijaga ringan: TIDAK memakai PyTorch. faster-whisper berjalan di
 # atas CTranslate2, jadi seluruh instalasi hanya ratusan MB, bukan giga.
+#
+# AI Framing (deteksi pembicara otomatis) BUTUH PyTorch lewat pyannote.audio
+# -- itu melanggar prinsip di atas, jadi sengaja dipisah ke
+# requirements-ai-framing.txt sebagai instalasi TAMBAHAN, opsional. Instalasi
+# dasar ini tetap ringan untuk yang tidak memakai fitur itu.
 
 faster-whisper>=1.1.0      # transkripsi word-level (CPU, CTranslate2)
 anthropic>=0.40.0          # pemilihan klip (fase 2)

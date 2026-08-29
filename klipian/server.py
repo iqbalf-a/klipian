@@ -50,6 +50,23 @@ ACTIVE_TRANSCRIBES: dict[str, str] = {}
 MAX_JOBS = 100  # batas entries di TUGAS supaya tidak memory leak
 
 
+def _load_dotenv() -> None:
+    """Baca .env manual, tanpa dependency tambahan -- cuma baris KEY=VALUE.
+
+    Dipakai untuk HF_TOKEN (AI Framing). Variabel yang sudah diset di
+    environment (mis. lewat shell) TIDAK ditimpa -- .env cuma pengisi
+    kekosongan untuk pemakaian sehari-hari yang lebih nyaman."""
+    env_file = ROOT / ".env"
+    if not env_file.is_file():
+        return
+    for line in env_file.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, v = line.split("=", 1)
+        os.environ.setdefault(k.strip(), v.strip())
+
+
 def _prune_jobs():
     """Buang entry yang sudah selesai/gagal kalau terlalu banyak."""
     with LOCK:
@@ -314,6 +331,35 @@ def _run_transcribe(job_id: str, req: dict) -> None:
             pass
 
 
+def _run_diarize(job_id: str, req: dict) -> None:
+    """AI Framing: siapa bicara di detik berapa, dalam SATU klip. Sengaja
+    dibatasi ke rentang klip (bukan seluruh video) -- diarization ~impas
+    dengan durasi audio di CPU, dan klip cuma 30-45 detik, bukan puluhan
+    menit."""
+    t = JOBS[job_id]
+    try:
+        video = _find_video(req["video"])
+        if not video:
+            raise FileNotFoundError(
+                f"{req['video']} tidak ada di folder yang dijangkau server.")
+        start = float(req.get("start", 0))
+        end = float(req.get("end", 0))
+        if end <= start:
+            raise ValueError("Invalid time range.")
+
+        from .diarize import diarize_segment
+        turns = diarize_segment(video, start, end)
+
+        with LOCK:
+            t["state"] = "done"
+            t["turns"] = turns
+
+    except Exception as exc:                       # noqa: BLE001
+        with LOCK:
+            t["state"] = "failed"
+            t["error"] = str(exc)
+
+
 # ══════════════════════════════ project ══════════════════════════════
 # Sebelum ini klipian tidak menyimpan apa pun: muat ulang halaman dan seluruh
 # Result, titik framing, serta koreksi teks lenyap. Project menyimpannya jadi
@@ -419,7 +465,8 @@ class Handler(BaseHTTPRequestHandler):
         # Salin dulu di dalam lock: thread render menulis dict yang sama, dan
         # json.dumps yang mengiterasinya sambil berubah akan melempar
         # "dictionary changed size during iteration".
-        if path.startswith("/api/render/") or path.startswith("/api/transcribe/"):
+        if (path.startswith("/api/render/") or path.startswith("/api/transcribe/")
+                or path.startswith("/api/diarize/")):
             with LOCK:
                 t = JOBS.get(path.rsplit("/", 1)[-1])
                 salinan = dict(t) if t else None
@@ -680,6 +727,21 @@ class Handler(BaseHTTPRequestHandler):
                              daemon=True).start()
             return self._send_json({"id": job_id})
 
+        if path == "/api/diarize":
+            try:
+                req = self._read_json()
+            except Exception as exc:               # noqa: BLE001
+                return self._send_json({"error": str(exc)}, 400)
+            if not req.get("video"):
+                return self._send_json({"error": "video required"}, 400)
+
+            _prune_jobs()
+            job_id = uuid.uuid4().hex[:8]
+            JOBS[job_id] = {"state": "running", "turns": [], "error": None}
+            threading.Thread(target=_run_diarize, args=(job_id, req),
+                             daemon=True).start()
+            return self._send_json({"id": job_id})
+
         if path == "/api/open-folder":
             try:
                 folder = Path(self._read_json().get("folder", "")).resolve()
@@ -718,6 +780,7 @@ def _sweep_temp() -> int:
 
 
 def serve(port: int = 5177) -> int:
+    _load_dotenv()
     leftover = _sweep_temp()
     srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     print("")

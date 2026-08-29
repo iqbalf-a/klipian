@@ -1,0 +1,13 @@
+# klipian -- dependensi TAMBAHAN untuk AI Framing (deteksi pembicara otomatis)
+#
+# Opsional: hanya perlu diinstal kalau memakai tombol "AI Framing" di layar
+# Framing. Menarik PyTorch (~ratusan MB) -- itu sebabnya dipisah dari
+# requirements.txt utama, bukan digabung begitu saja.
+#
+# Butuh HF_TOKEN sekali di awal untuk mengunduh bobot modelnya -- lihat
+# .env.example dan komentar di klipian/diarize.py.
+#
+#   pip install -r requirements.txt -r requirements-ai-framing.txt
+
+pyannote.audio>=4.0.0      # speaker diarization (CPU, lewat torch/torchaudio)
+soundfile>=0.12.0          # baca WAV manual -- workaround bug torchcodec di Windows
