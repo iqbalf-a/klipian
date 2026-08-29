@@ -116,12 +116,14 @@ def to_output_time(spans: list[Span], seconds: float) -> float | None:
     return None
 
 
-# Batas atas zona aman di panel preview (lihat .safe di ui/app.css,
-# top:16%) -- watermark posisi "Top" SENGAJA duduk persis DI ATAS garis
-# ini, bukan di dalamnya. Watermark bukan konten utama; kalau ada overlay
-# UI platform (tombol share, dsb.) menutupi pinggir, biar watermark yang
+# Batas zona aman di panel preview (lihat .safe di ui/app.css,
+# top:16%, bottom:20%) -- watermark posisi "Top"/"Bottom" SENGAJA duduk
+# persis DI LUAR garis-garis ini (di atas yang atas, di bawah yang bawah),
+# bukan di dalamnya. Watermark bukan konten utama; kalau ada overlay UI
+# platform (tombol share, dsb.) menutupi pinggir, biar watermark yang
 # mengalah duluan, bukan wajah/caption.
 SAFE_AREA_TOP_PERCENT = 16.0
+SAFE_AREA_BOTTOM_PERCENT = 20.0
 
 
 def _watermark_placement(mode: str, size: float, H: int,
@@ -142,13 +144,20 @@ def _watermark_placement(mode: str, size: float, H: int,
         # Alignment 5 = tengah-tengah (vertikal DAN horizontal) -- MarginV
         # tidak berlaku untuk alignment ini, libass mengabaikannya.
         return 5, 0
-    # "bottom": BUKAN mepet tepi bawah -- tepat DI BAWAH caption. Margin-nya
-    # selalu dibuat lebih kecil dari margin caption (lebih dekat ke tepi),
-    # berapa pun posisi caption yang sedang dipilih pengguna -- watermark
-    # otomatis ikut turun kalau caption digeser ke Bottom, dan ikut naik
-    # kalau caption digeser ke Top.
-    margin = max(int(H * 0.02),
-                 caption_margin_bottom - int(tinggi_baris) - int(H * 0.01))
+    # "bottom": dua syarat sekaligus -- (a) tepat DI BAWAH caption, margin
+    # lebih kecil dari margin caption (lebih dekat ke tepi) apa pun posisi
+    # caption yang dipilih, TAPI (b) SELURUH kotak teksnya (bukan cuma titik
+    # jangkarnya) tidak boleh masuk ke zona aman -- kalau caption-nya di
+    # Middle/Top, syarat (a) saja bisa mendorong watermark sampai ke DALAM
+    # zona aman (laporan nyata: watermark ketahuan masih di atas garis
+    # bawah zona aman). Tepi ATAS watermark (margin + tinggi_baris, karena
+    # Alignment 2 tumbuh ke atas dari titik jangkarnya) yang dibatasi supaya
+    # tidak lewat garis SAFE_AREA_BOTTOM_PERCENT -- persis logika "top" di
+    # atas, dicerminkan.
+    margin_bawah_caption = max(int(H * 0.02),
+                               caption_margin_bottom - int(tinggi_baris) - int(H * 0.01))
+    margin_maks_zona_aman = max(0, int(H * SAFE_AREA_BOTTOM_PERCENT / 100 - tinggi_baris))
+    margin = min(margin_bawah_caption, margin_maks_zona_aman)
     return 2, margin
 
 

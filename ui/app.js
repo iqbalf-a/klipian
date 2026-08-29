@@ -110,10 +110,16 @@ const CAPTION_OPTIONS = [
       { t: "Medium", out: 32, px: 13 },
       { t: "Large", out: 46, px: 17 }] },
   // Opacity ditulis sebagai alpha ASS (&HAA...) -- 00 = penuh, FF = tak
-  // kelihatan sama sekali, KEBALIKAN dari intuisi opacity biasa. "Faint"
-  // sengaja pakai angka alpha BESAR (A8), "Bold" angka KECIL (40).
-  { id: "watermark-opacity", label: "Watermark opacity", active: 1, choices: [
-      { t: "Faint", out: "A8", css: .34 },
+  // kelihatan sama sekali, KEBALIKAN dari intuisi opacity biasa: makin
+  // PUDAR pilihannya, makin BESAR angka alpha-nya. Dua tingkat paling pudar
+  // (Ghost, Whisper) ditambah setelah "Faint" bawaan ternyata masih
+  // kelihatan cukup terang di layar sungguhan -- bawaannya juga digeser ke
+  // "Faint" (bukan lagi "Medium") supaya kondisi baru default-nya lebih
+  // pudar dari sebelumnya.
+  { id: "watermark-opacity", label: "Watermark opacity", active: 2, choices: [
+      { t: "Ghost", out: "D8", css: .15 },
+      { t: "Whisper", out: "C0", css: .25 },
+      { t: "Faint", out: "A0", css: .37 },
       { t: "Medium", out: "80", css: .5 },
       { t: "Bold", out: "40", css: .75 }] },
   // "Bottom" TIDAK berarti mepet tepi bawah -- posisinya dihitung relatif

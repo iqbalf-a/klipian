@@ -274,8 +274,13 @@ function applyCaption() {
       wm.style.top = "50%";
       wm.style.transform = "translateY(-50%)";
     } else {
+      // Dua syarat sekaligus, sama seperti _watermark_placement() versi
+      // "bottom" di render.py: di bawah caption, TAPI tidak boleh sampai
+      // masuk zona aman (bottom:20% di CSS .safe) -- min() dari keduanya.
       const capMargin = captionValue("position").px;
-      wm.style.bottom = `${Math.max(2, capMargin - tinggiBarisPersen - 1)}%`;
+      const bawahCaption = Math.max(2, capMargin - tinggiBarisPersen - 1);
+      const batasZonaAman = Math.max(0, 20 - tinggiBarisPersen);
+      wm.style.bottom = `${Math.min(bawahCaption, batasZonaAman)}%`;
     }
   }
 }
