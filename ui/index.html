@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wdth,wght@0,75..125,200..900;1,75..125,200..900&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="tokens.css?v=1788008193">
-<link rel="stylesheet" href="app.css?v=1788008193">
+<link rel="stylesheet" href="tokens.css?v=1788009331">
+<link rel="stylesheet" href="app.css?v=1788009331">
 </head>
 <body>
 
@@ -21,6 +21,11 @@
       <span class="name" id="fileName"></span>
       <span class="data" id="fileDuration"></span>
     </span>
+    <!-- Selalu terlihat, tidak seperti dialog reload bawaan browser yang
+         cuma tampil kalau halaman sudah pernah disentuh (kebijakan browser,
+         bukan sesuatu yang bisa diatur dari sini) -- lihat
+         perbaruiStatusSimpan() di projects.js. -->
+    <span class="data work-only" id="statusSimpan"></span>
     <!-- Auto-save sudah jalan sendiri (lihat projects.js) -- tombol ini
          jaring pengaman tambahan, bukan satu-satunya cara tersimpan. -->
     <button class="btn quiet work-only" id="saveNowBtn" type="button"
@@ -462,16 +467,16 @@
   </main>
 </div>
 
-<script src="app.js?v=1788008193"></script>
-<script src="interactions.js?v=1788008193"></script>
-<script src="framing.js?v=1788008193"></script>
-<script src="analysis.js?v=1788008193"></script>
-<script src="player.js?v=1788008193"></script>
-<script src="roundtrip.js?v=1788008193"></script>
-<script src="history.js?v=1788008193"></script>
-<script src="timeline.js?v=1788008193"></script>
-<script src="teks.js?v=1788008193"></script>
-<script src="result.js?v=1788008193"></script>
-<script src="projects.js?v=1788008193"></script>
+<script src="app.js?v=1788009331"></script>
+<script src="interactions.js?v=1788009331"></script>
+<script src="framing.js?v=1788009331"></script>
+<script src="analysis.js?v=1788009331"></script>
+<script src="player.js?v=1788009331"></script>
+<script src="roundtrip.js?v=1788009331"></script>
+<script src="history.js?v=1788009331"></script>
+<script src="timeline.js?v=1788009331"></script>
+<script src="teks.js?v=1788009331"></script>
+<script src="result.js?v=1788009331"></script>
+<script src="projects.js?v=1788009331"></script>
 </body>
 </html>

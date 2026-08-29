@@ -95,7 +95,8 @@ h1, h2, h3 {
   backdrop-filter: blur(20px) saturate(150%);
   border-bottom: 1px solid var(--garis-kaca);
 }
-.topbar #saveNowBtn { margin-left: auto; min-width: 72px; }
+.topbar #statusSimpan { margin-left: auto; color: var(--teks-samar); }
+.topbar #saveNowBtn { min-width: 72px; }
 
 .brand {
   font-size: var(--t-20); font-weight: 800;

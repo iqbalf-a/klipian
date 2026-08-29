@@ -490,8 +490,15 @@ document.addEventListener("click", (e) => {
   }
 });
 
-$("#toHome").addEventListener("click", () => toStage("home"));
-$("#toMenuBtn").addEventListener("click", () => toStage("home"));
+// Kembali ke beranda itu keputusan SENGAJA meninggalkan project -- reload
+// sesudahnya semestinya tetap di beranda, bukan ditarik balik otomatis ke
+// project yang baru saja ditinggalkan.
+const keBerandaSengaja = () => {
+  if (typeof lupakanSesiAktif === "function") lupakanSesiAktif();
+  toStage("home");
+};
+$("#toHome").addEventListener("click", keBerandaSengaja);
+$("#toMenuBtn").addEventListener("click", keBerandaSengaja);
 $("#run").addEventListener("click", () => { toStage("work"); toScreen("analysis"); });
 
 $("#options").addEventListener("click", (e) => {

@@ -52,6 +52,17 @@ function keadaanProject() {
   };
 }
 
+/* Indikator yang SELALU kelihatan, tidak bergantung pada dialog reload
+   bawaan browser -- itu cuma tampil kalau halaman sudah pernah disentuh
+   (kebijakan anti-penyalahgunaan Chrome/Firefox, bukan sesuatu yang bisa
+   diakali dari kode), jadi tidak bisa diandalkan sendirian. Label ini
+   dibaca kapan saja, bukan cuma pas mau menutup halaman. */
+function perbaruiStatusSimpan() {
+  const el = $("#statusSimpan");
+  if (!el) return;
+  el.textContent = simpanTertunda ? "Unsaved changes…" : "";
+}
+
 /* Benar-benar menulis ke disk SEKARANG, membatalkan jeda yang masih
    berjalan kalau ada. Dipakai baik oleh timer di bawah maupun tombol Save
    manual -- keduanya harus menulis keadaan yang SAMA, jadi cuma satu jalan
@@ -61,6 +72,7 @@ async function tulisProjectSekarang() {
   simpanTimer = null;
   if (!projectAktif) return;
   simpanTertunda = true;
+  perbaruiStatusSimpan();
   try {
     await fetch("/api/project", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -69,6 +81,7 @@ async function tulisProjectSekarang() {
   } catch { /* tanpa backend, pekerjaan tetap jalan -- hanya tidak tersimpan */
   } finally {
     simpanTertunda = false;
+    perbaruiStatusSimpan();
   }
 }
 
@@ -80,6 +93,7 @@ async function tulisProjectSekarang() {
 function simpanProject() {
   if (!projectAktif) return;
   simpanTertunda = true;
+  perbaruiStatusSimpan();
   clearTimeout(simpanTimer);
   simpanTimer = setTimeout(tulisProjectSekarang, SIMPAN_TUNDA);
 }
@@ -161,6 +175,7 @@ async function muatProject(video) {
 async function bukaProject(video) {
   const adaLama = await muatProject(video);
   if (!adaLama) simpanProject();          // catat sebagai project baru
+  if (typeof ingatSesiAktif === "function") ingatSesiAktif(video);
   return adaLama;
 }
 
@@ -288,7 +303,10 @@ async function hapusProject(video) {
       body: JSON.stringify({ video, delete: true }),
     });
   } catch { /* tanpa backend tidak ada yang bisa dihapus */ }
-  if (projectAktif === video) projectAktif = null;   // jangan menulisnya lagi
+  if (projectAktif === video) {
+    projectAktif = null;   // jangan menulisnya lagi
+    lupakanSesiAktif();    // reload sesudah ini jangan coba masuk ke project yang baru dihapus
+  }
   renderProjects();
 }
 
@@ -331,19 +349,72 @@ $("#projectList")?.addEventListener("click", async (e) => {
     if (meta) meta.textContent = `move ${video} into samples/ to continue`;
     return;
   }
+  await bukaProjectDariBeranda(video);
+});
 
-  // Lanjutkan: berkasnya diambil dari samples/, bukan dari dialog berkas --
-  // project menyimpan NAMA, dan browser tidak boleh membuka path sendiri.
+/* Satu jalur untuk "masuk ke project ini dan lanjutkan mengedit" -- dipakai
+   klik kartu di beranda MAUPUN pemulihan otomatis saat halaman di-reload
+   (lihat pulihkanSesiTerakhir()). Dulu logika ini cuma ada di dalam
+   listener klik; disalin ulang di dua tempat gampang meleset kalau salah
+   satu diubah belakangan. */
+async function bukaProjectDariBeranda(video) {
+  // Berkasnya diambil dari samples/, bukan dari dialog berkas -- project
+  // menyimpan NAMA, dan browser tidak boleh membuka path sendiri.
   chosenSource = { kind: "file", name: video, url: `/samples/${encodeURIComponent(video)}` };
   if (typeof realTranscript !== "undefined" && typeof findTranscript === "function") {
     realTranscript = await findTranscript(video);
   }
-  await muatProject(video);
+  const ada = await muatProject(video);
   if (typeof prepareVideo === "function") prepareVideo();
   if (typeof drawSource === "function") drawSource();
+  if (typeof renderRecommendations === "function") renderRecommendations();
+  if (typeof drawTotalTimeline === "function") drawTotalTimeline();
+  ingatSesiAktif(video);
   toStage("work");
   toScreen(layarTerakhir);
-});
+  return ada;
+}
+
+/* ---------- tetap di layar yang sama setelah reload ----------
+   Sebelumnya reload SELALU kembali ke beranda drop-video, walau tadi
+   sedang di tengah mengedit klip -- project SENDIRI sudah tersimpan
+   otomatis, tapi "sedang membuka project yang mana" cuma hidup di memori
+   tab yang sekarang, hilang begitu di-reload. localStorage bertahan lewat
+   reload (beda dari variabel biasa), jadi cukup buat menyimpan PENUNJUK
+   video mana yang sedang dibuka -- bukan project-nya sendiri, yang tetap
+   di berkas seperti sebelumnya. */
+const KUNCI_SESI = "klipian:sesi-aktif";
+
+function ingatSesiAktif(video) {
+  try { localStorage.setItem(KUNCI_SESI, video); } catch { /* privat/penuh -- lupakan saja */ }
+}
+
+function lupakanSesiAktif() {
+  try { localStorage.removeItem(KUNCI_SESI); } catch { /* sama */ }
+}
+
+/* Dipanggil sekali saat halaman dimuat. Balik true kalau berhasil masuk
+   lagi ke project terakhir -- pemanggil TIDAK perlu jatuh ke toStage("home")
+   kalau ini sukses. */
+async function pulihkanSesiTerakhir() {
+  let video;
+  try { video = localStorage.getItem(KUNCI_SESI); } catch { return false; }
+  if (!video) return false;
+
+  // Video-nya mungkin sudah dipindah/dihapus sejak terakhir dibuka --
+  // diperiksa dulu lewat /api/video, bukan langsung dicoba lalu gagal
+  // diam-diam di tengah proses muat.
+  try {
+    const daftar = (await (await fetch("/api/video")).json()).video || [];
+    if (!daftar.includes(video)) { lupakanSesiAktif(); return false; }
+  } catch {
+    return false;   // server belum siap/offline -- jangan pura-pura berhasil
+  }
+
+  const ada = await bukaProjectDariBeranda(video);
+  if (!ada) { lupakanSesiAktif(); return false; }  // video ada tapi project-nya sendiri hilang
+  return true;
+}
 
 /* Kartu sudah bukan <button>, jadi Enter dan Spasi tidak lagi gratis.
    Tanpa ini kartunya bisa difokus tapi tidak bisa dijalankan dari papan
@@ -362,3 +433,11 @@ $("#projectList")?.addEventListener("keydown", (e) => {
    Modul yang bergantung pada urutan muat adalah modul yang menunggu untuk
    putus; ia mengurus permulaannya sendiri. */
 renderProjects();
+
+/* Sama alasannya: toStage("home") di app.js sudah keburu jalan sebelum
+   berkas ini dimuat, jadi "coba lanjutkan project terakhir" juga diurus di
+   sini, bukan di sana. Beranda sempat kelihatan sekilas dulu (wajar --
+   memeriksa /api/video dan memuat project itu proses async), lalu ditimpa
+   toStage("work") begitu pulihkanSesiTerakhir() selesai kalau memang ada
+   yang bisa dilanjutkan. */
+pulihkanSesiTerakhir();
