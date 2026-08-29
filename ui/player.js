@@ -121,13 +121,26 @@ function drawTime(passed) {
 
 function drawTimeline() {
   const track = $("#tlTrack");
-  if (!track || !activeClip) return;
+  if (!track) return;
+  if (!activeClip) {
+    // Tanpa ini, mengosongkan Result meninggalkan track dan label waktu
+    // klip TERAKHIR yang dipilih -- bukan keadaan "belum ada klip" yang
+    // sebenarnya sedang terjadi.
+    track.innerHTML = "";
+    $("#tlStartTime").textContent = "00:00";
+    $("#tlEndTime").textContent = "00:00";
+    const head = $("#tlHead");
+    if (head) head.style.left = "0%";
+    return;
+  }
   const total = clipOutDur(activeClip) || 1;
   track.innerHTML = activeClip.spans.map((p) => {
     const lebar = ((p.end - p.start) / total) * 100;
     return `<span class="tl-span" style="flex:0 0 ${lebar}%"
                   title="${jamPendek(p.start)} – ${jamPendek(p.end)}"></span>`;
   }).join("");
+  $("#tlStartTime").textContent = "00:00";
+  $("#tlEndTime").textContent = jamPendek(total);
   drawHead();
 }
 
@@ -343,6 +356,8 @@ playBtn?.addEventListener("click", () => {
     if (sourceToOut(activeClip, video.currentTime) === null) {
       video.currentTime = activeClip.spans[0].start;
     }
+    // Preview rekomendasi dan preview Result tidak boleh berbunyi bersamaan.
+    if (typeof tutupPreviewRekom === "function") tutupPreviewRekom();
     // play() menolak kalau segera disusul pause() (mis. klip habis di
     // detik yang sama). Ditelan supaya tidak jadi galat tak tertangkap.
     video.play().catch(() => {});
@@ -377,6 +392,10 @@ function setResultAsPreview() {
   if (typeof RESULT === "undefined" || !RESULT.length) {
     activeClip = null;
     drawTimeline();
+    // Tanpa ini panel LENGTH (renderPreview -> #clipInfo) menyisakan info
+    // klip terakhir yang dipilih walau Result baru saja dikosongkan --
+    // gejala yang sama dengan label timeline yang basi di atas.
+    if (typeof renderPreview === "function") renderPreview();
     return;
   }
   const klip = resultAsClip();
@@ -512,50 +531,3 @@ async function kirimRender(approved) {
   }, 700);
 }
 
-/* ══════════════════ GLOBAL TRANSPORT BAR (topbar) ══════════════════ */
-(function() {
-  const gPlay = $("#gPlayPause");
-  const gPrev = $("#gPrevFrame");
-  const gNext = $("#gNextFrame");
-  const gTime = $("#gTime");
-  const gMute = $("#gMute");
-  if (!gPlay) return;
-
-  function fmtSec(d) {
-    const t = Math.max(0, Math.round(d));
-    const m = String(Math.floor(t / 60)).padStart(2, "0");
-    const s = String(t % 60).padStart(2, "0");
-    return m + ":" + s;
-  }
-
-  /* Sync time display on seek / timeupdate */
-  function syncGTime() {
-    if (!video.src || !activeClip) { gTime.textContent = "0:00"; return; }
-    const out = sourceToOut(activeClip, video.currentTime);
-    gTime.textContent = fmtSec(out ?? 0);
-  }
-  video.addEventListener("timeupdate", syncGTime);
-  video.addEventListener("seeked", syncGTime);
-
-  /* Play / Pause */
-  gPlay.addEventListener("click", () => { playBtn.click(); });
-  /* Mirror playBtn label changes */
-  const origPlayClick = playBtn?.onclick;
-  const gObserver = new MutationObserver(() => {
-    gPlay.textContent = isPlaying ? "❚❚" : "▶";
-    gPlay.title = isPlaying ? "Pause" : "Play";
-  });
-  if (playBtn) gObserver.observe(playBtn, { childList: true });
-
-  /* Frame step */
-  gPrev.addEventListener("click", () => stepFrame(-1));
-  gNext.addEventListener("click", () => stepFrame(1));
-
-  /* Mute */
-  gMute.addEventListener("click", () => { muteBtn?.click(); });
-  const gMuteObs = new MutationObserver(() => {
-    gMute.textContent = video.muted ? "🔇" : "🔊";
-  });
-  if (muteBtn) gMuteObs.observe(muteBtn, { childList: true });
-  gMute.textContent = video.muted ? "🔇" : "🔊";
-})();

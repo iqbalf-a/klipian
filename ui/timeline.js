@@ -150,11 +150,16 @@ $("#tlTotal")?.addEventListener("pointerdown", (e) => {
   const frac = fracDariEvent(e, bar);
   if (frac === null) return;
 
+  // Disimpan supaya Escape bisa mengembalikan ke keadaan SEBELUM geseran ini
+  // -- bukan cuma mengosongkan seleksi. Menggeser grip "start" pada seleksi
+  // yang sudah ada dan menyesal di tengah jalan harusnya kembali ke seleksi
+  // lama, bukan hilang semuanya.
+  const selSebelum = SEL ? { ...SEL } : null;
   const grip = e.target.closest("[data-grip]");
   if (grip && SEL) {
-    seretSel = { jenis: grip.dataset.grip, bar };
+    seretSel = { jenis: grip.dataset.grip, bar, selSebelum };
   } else {
-    seretSel = { jenis: "baru", bar, jangkar: keDetik(frac) };
+    seretSel = { jenis: "baru", bar, jangkar: keDetik(frac), selSebelum };
     setSelection(seretSel.jangkar, seretSel.jangkar, false);
   }
   bar.setPointerCapture(e.pointerId);
@@ -181,10 +186,42 @@ $("#tlTotal")?.addEventListener("pointermove", (e) => {
       setSelection(SEL.start, SEL.end, true);      // dirapikan ke batas kata
       const sesudah = `${SEL.start.toFixed(2)}-${SEL.end.toFixed(2)}`;
       $("#pilihNote").textContent = sebelum === sesudah
-        ? "rentang dipilih"
-        : "titik potong dirapikan ke batas kata terdekat";
+        ? "range selected"
+        : "cut point snapped to the nearest word boundary";
     }
   }));
+
+/* Escape membatalkan. Dulu tidak ada jalan keluar sama sekali: mulai
+   menggeser lalu berubah pikiran berarti harus menggeser balik sampai
+   rentangnya kurang dari 0,5 detik supaya clearSelection() ikut kepicu --
+   menjengkelkan, dan menggeser grip pada seleksi yang SUDAH ada malah
+   menghapus semuanya, bukan kembali ke seleksi lama.
+
+   Dua keadaan:
+   - Sedang menggeser  -> kembali ke seleksi SEBELUM geseran ini (bukan
+     kosong, kalau sebelumnya memang sudah ada seleksi).
+   - Tidak sedang menggeser, tapi ada seleksi tersisa -> kosongkan saja,
+     "aku sudah lihat, tidak jadi". */
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  const t = e.target;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+
+  if (seretSel) {
+    const { selSebelum } = seretSel;
+    // seretSel dikosongkan lebih dulu, jadi pointerup/pointercancel yang
+    // masih akan menyusul (jari/mouse belum tentu terangkat) langsung
+    // no-op lewat `if (!seretSel) return;` di atas -- capture-nya sendiri
+    // dilepas otomatis oleh browser begitu pointer itu benar-benar terangkat.
+    seretSel = null;
+    if (selSebelum) setSelection(selSebelum.start, selSebelum.end, false);
+    else clearSelection();
+    $("#pilihNote").textContent = "selection cancelled";
+  } else if (SEL) {
+    clearSelection();
+    $("#pilihNote").textContent = "drag on the timeline to select a range";
+  }
+});
 
 /* ---------- ketik menit:detik ---------- */
 

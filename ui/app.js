@@ -266,11 +266,7 @@ function renderList() {
     </div>`).join("");
 }
 
-/* ───────────────────────── panel 9:16 ────────────────────────── */
-
-/* Panjang klip yang enak ditonton: satu gagasan utuh, bukan potongan kalimat.
-   Dulu angkanya berbeda per mode -- gameplay 15-25 detik karena satu Savage
-   tidak butuh konteks. Mode sudah tidak ada, jadi tinggal satu rentang. */
+/* Panjang klip yang enak ditonton: satu gagasan utuh, bukan potongan kalimat. */
 const RIBBON_DURATION = { ideal: [30, 45], scale: 75, hint: "sweet spot 30–45s" };
 
 function renderPreview() {
@@ -279,6 +275,27 @@ function renderPreview() {
   const top = f.querySelector(".field.top");
   const main = f.querySelector(".field.main");
   f.dataset.layout = d.layout;
+
+  // Yang ditinjau di preview adalah RESULT, bukan kandidat. Papan kandidat
+  // dengan status setuju/tolak sudah tidak ada.
+  const clip = (typeof activeClip !== "undefined" && activeClip) ? activeClip : null;
+
+  // `frame.dataset.video` dulu diset SEKALI di prepareVideo(), saat berkas
+  // baru dijatuhkan -- tidak pernah dievaluasi ulang setelahnya. Akibatnya
+  // begitu Result dikosongkan, elemen <video> tetap tampil membeku di frame
+  // terakhir yang sempat diputar (video.src-nya memang masih ada), seolah
+  // masih ada isi padahal Result sudah kosong. Sekarang ini dievaluasi ulang
+  // setiap kali preview digambar, mengikuti ADA/TIDAKNYA klip -- bukan
+  // sekadar ada/tidaknya sumber video.
+  f.dataset.video = clip ? "true" : "";
+  if (!clip && typeof video !== "undefined" && video && !video.paused) {
+    // Video yang terus jalan diam-diam di belakang layar tersembunyi cuma
+    // membakar CPU tanpa ada yang melihatnya.
+    video.pause();
+    if (typeof isPlaying !== "undefined") isPlaying = false;
+    if (typeof playBtn !== "undefined" && playBtn) playBtn.textContent = "▶";
+  }
+
   // Isi caption TIDAK ditulis di sini lagi. Dulu diisi teks peraga dari
   // DATA.caption, yang tidak ada hubungannya dengan klip yang sedang
   // dilihat. Sekarang drawCaption() mengisinya dari transkrip asli.
@@ -290,14 +307,13 @@ function renderPreview() {
   // Isi bidang preview ditentukan oleh kotak crop, bukan gambar tetap.
   if (typeof refreshPreviewFromCrop === "function") refreshPreviewFromCrop();
 
-  // Yang ditinjau di preview adalah RESULT, bukan kandidat. Papan kandidat
-  // dengan status setuju/tolak sudah tidak ada.
-  const clip = (typeof activeClip !== "undefined" && activeClip) ? activeClip : null;
+  const info = $("#clipInfo");
+  if (!info) return;
 
-  // Belum ada kandidat itu keadaan yang wajar, bukan kesalahan. Tanpa penjaga
-  // ini seluruh rantai render berhenti diam-diam.
+  // Belum ada klip itu keadaan yang wajar, bukan kesalahan. Tanpa penjaga
+  // ini panel LENGTH menyisakan info klip terakhir walau Result dikosongkan.
   if (!clip) {
-    $("#clipInfo").innerHTML =
+    info.innerHTML =
       `<div><div class="eyebrow">Result</div>
         <div class="clip-title" style="color:var(--teks-samar)">nothing selected</div></div>`;
     return;
@@ -308,7 +324,7 @@ function renderPreview() {
   const verdict = clip.dur < p.ideal[0] ? "under the sweet spot"
               : clip.dur > p.ideal[1] ? "over the sweet spot" : "in the sweet spot";
 
-  $("#clipInfo").innerHTML = `
+  info.innerHTML = `
     <div>
       <div class="eyebrow">Result${clip.spans && clip.spans.length > 1
         ? ` &middot; ${clip.spans.length} spans` : ""}</div>

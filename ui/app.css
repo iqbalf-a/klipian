@@ -535,7 +535,7 @@ h1, h2, h3 {
 }
 .meter-value { color: var(--teks); }
 
-/* ── kontrol pemutar preview ──────────────────────────────────────────────
+/* ═════════════════════ layar Klip / Framing / Teks ═════════════════
    Dulu semuanya dijejalkan ke satu baris: jam sampai terpotong jadi tiga
    baris, dan saklar "safe area" jadi pil lonjong besar yang menarik perhatian
    lebih dari tombol putar. Sekarang dua baris dengan tugas yang jelas:
@@ -1314,15 +1314,21 @@ h1, h2, h3 {
 }
 .klip-tab[aria-selected="true"] .dur-klip { color: inherit; }
 
-/* ---- timeline: tiap potongan satu batang, celah = yang dibuang ---- */
+/* ---- timeline: tiap potongan satu batang, celah = yang dibuang ----
+   Dua baris, bukan satu: batang di atas, jam di bawah. Sebelumnya `.tl-time`
+   dipusatkan (top:50%) di dalam kotak setinggi 22px yang sama dengan batang
+   6px-nya -- tulisan jam menembus tepat di tengah batang, bukan duduk di
+   bawahnya. Kotaknya sekarang dibuat cukup tinggi untuk dua baris, dan
+   semua anaknya diposisikan mutlak ke zona masing-masing: batang+penanda
+   di atas (tinggi tetap), jam menempel di dasar kotak. */
 .timeline {
   position: relative;
-  display: flex; align-items: center;
-  height: 22px; margin: var(--s3) 0 var(--s2);
+  height: 34px; margin: var(--s3) 0 var(--s2);
   cursor: pointer;
 }
 .timeline:focus-visible { outline: 2px solid var(--aksen); outline-offset: 3px; border-radius: var(--r-s); }
 .tl-track {
+  position: absolute; top: 4px; left: 0;
   display: flex; gap: 3px;
   width: 100%; height: 6px;
   border-radius: var(--r-pill);
@@ -1334,13 +1340,25 @@ h1, h2, h3 {
   background: color-mix(in srgb, var(--aksen) 38%, transparent);
 }
 .tl-head {
-  position: absolute; top: 2px; left: 0;
-  width: 2px; height: 18px;
+  position: absolute; top: 0; left: 0;
+  width: 2px; height: 14px;
   background: var(--teks);
   border-radius: 2px;
   pointer-events: none;
   transition: left 90ms linear;
 }
+
+.tl-time {
+  position: absolute;
+  bottom: 0;
+  font-family: var(--font-data);
+  font-size: 11px;
+  color: var(--teks-samar);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.tl-start { left: 0; }
+.tl-end { right: 0; }
 
 /* ═════════════════════ layar Klip / Framing / Teks ═════════════════
    Dua panel bertumpuk: rekomendasi AI di atas (cukup menit + judul),
@@ -1362,14 +1380,40 @@ h1, h2, h3 {
 /* ---- baris rekomendasi: pilih dengan centang ---- */
 .rekom-row {
   display: grid;
-  grid-template-columns: auto auto 1fr auto auto;
+  grid-template-columns: auto auto auto 1fr auto auto;
   align-items: center; gap: var(--s3);
   padding: 9px var(--s3);
   border-radius: var(--r-s);
   cursor: pointer;
 }
 .rekom-row:hover { background: var(--kaca); }
-.rekom-row input { accent-color: var(--aksen); width: 15px; height: 15px; cursor: pointer; }
+
+/* Tombol pratinjau: bulat kecil, sengaja tidak semenonjol tombol utama --
+   ini langkah eksplorasi, bukan aksi yang berdampak (beda dengan "Add to
+   Result"). aria-pressed="true" (sedang memutar rentang INI) diberi warna
+   aksen supaya jelas baris mana yang sumber suaranya. */
+.rekom-play {
+  font: inherit; font-size: 10px; line-height: 1;
+  width: 22px; height: 22px; flex: none;
+  display: grid; place-items: center;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--garis-kaca);
+  background: var(--kaca);
+  color: var(--teks-lemah);
+  cursor: pointer;
+  transition: background var(--cepat), color var(--cepat), border-color var(--cepat);
+}
+.rekom-play:hover { color: var(--teks); border-color: var(--garis-terang); }
+.rekom-play[aria-pressed="true"] {
+  color: var(--aksen); border-color: color-mix(in srgb, var(--aksen) 45%, transparent);
+  background: var(--aksen-lembut);
+}
+/* Selektor DIBATASI ke checkbox: bare ".rekom-row input" ikut menimpa lebar
+   kolom waktu (15x15px cocok untuk kotak centang, tapi menghancurkan input
+   mm:ss yang butuh ~40px -- "01:40" jadi terpotong nyaris tak terbaca). */
+.rekom-row input[type="checkbox"] {
+  accent-color: var(--aksen); width: 15px; height: 15px; cursor: pointer;
+}
 .rekom-row .num, .hasil-row .num {
   font-family: var(--font-data); font-size: 10px;
   min-width: 17px; height: 17px;
@@ -1382,7 +1426,25 @@ h1, h2, h3 {
   font-weight: 600; font-size: 14px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.rekom-waktu, .hasil-waktu { color: var(--teks-samar); }
+.hasil-waktu { color: var(--teks-samar); }
+
+/* Waktu rekomendasi bisa diedit -- dua kolom mm:ss kecil, bukan lagi teks
+   statis. Klik langsung pada kolomnya sendiri (bukan pada label di
+   sekitarnya) supaya perilaku bawaan browser tidak ikut mencentang baris. */
+.rekom-waktu {
+  display: inline-flex; align-items: center; gap: 4px;
+  color: var(--teks-samar);
+}
+.rekom-waktu-in {
+  font-family: var(--font-data); font-size: 12px;
+  width: 52px; padding: 3px 3px;
+  border-radius: var(--r-s);
+  border: 1px solid var(--garis-kaca);
+  background: var(--kaca);
+  color: var(--teks);
+  text-align: center;
+}
+.rekom-waktu-in:focus-visible { outline: 2px solid var(--aksen); outline-offset: 1px; }
 .rekom-dur, .hasil-dur { color: var(--teks-lemah); min-width: 34px; text-align: right; }
 .rekom-row:has(input:checked) {
   background: var(--aksen-lembut);
@@ -1426,6 +1488,33 @@ h1, h2, h3 {
 .pilih-head .data { color: var(--teks-samar); }
 .pilih-head #pilihNote { margin-right: auto; }
 
+/* Pratinjau video sumber utuh -- rasio alami, bukan dipaksa 9:16 seperti
+   panel di kanan yang terkunci ke Result. Duduk di atas bar timeline global
+   karena keduanya menunjuk video yang SAMA: lihat .tl-playhead di bawah. */
+.tl-preview {
+  margin: 0 var(--s5) var(--s3);
+  border-radius: var(--r-m);
+  overflow: hidden;
+  background: #000;
+  border: 1px solid var(--garis-kaca);
+}
+/* aspect-ratio dikunci ke rasio sumber ASLI (diset lewat JS begitu
+   loadedmetadata) supaya tingginya benar SEBELUM video sempat dimuat --
+   tanpa itu kotaknya melompat begitu metadata datang. 16/9 di sini cuma
+   nilai awal sebelum itu terjadi. max-height dinaikkan supaya videonya
+   benar-benar kelihatan, bukan sekadar strip tipis di atas bar timeline. */
+.tl-preview-video { display: block; width: 100%; aspect-ratio: 16 / 9; max-height: 400px; }
+.tl-preview-foot {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s2) var(--s3);
+  background: var(--kaca);
+}
+.tl-preview-foot .data { color: var(--teks-samar); }
+.tl-preview-foot #tlPreviewTitle {
+  margin-right: auto;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
 .tl-total {
   position: relative;
   height: 46px;
@@ -1450,6 +1539,20 @@ h1, h2, h3 {
   background: color-mix(in srgb, var(--aksen) 30%, transparent);
   border-left: 1px solid var(--aksen);
   border-right: 1px solid var(--aksen);
+}
+
+/* Penanda posisi #tlPreviewVideo di sepanjang bar 42:03 -- murni pasif,
+   TIDAK menerima klik (pointer-events:none): klik/geser di bar ini tetap
+   100% untuk memilih rentang manual, sama seperti sebelum ada pratinjau. */
+.tl-playhead {
+  position: absolute; top: -2px; bottom: -2px;
+  width: 2px;
+  background: #fff;
+  box-shadow: 0 0 10px -1px rgba(255,255,255,.7);
+  border-radius: 1px;
+  pointer-events: none;
+  z-index: 2;
+  transition: left 90ms linear;
 }
 
 .tl-sel {
@@ -1647,20 +1750,3 @@ h1, h2, h3 {
   background: none; color: var(--teks);
   min-width: 3ch;
 }
-
-/* ── Global transport bar in topbar ── */
-.global-transport{display:flex;align-items:center;gap:6px;margin-left:12px}
-.global-transport .putar{font-size:18px;padding:2px 8px;border-radius:6px;cursor:pointer}
-.global-transport .langkah{font-size:14px;padding:2px 6px;border-radius:4px;cursor:pointer;opacity:.8}
-.global-transport .langkah:hover{opacity:1}
-.global-transport .gt-time{font-family:monospace;font-size:13px;color:var(--ink,#1a1a2e);white-space:nowrap}
-.global-transport .saklar{font-size:14px;padding:2px 6px;border-radius:4px;cursor:pointer;background:none;border:none}
-
-/* ── Editable rekom-waktu inputs ── */
-.rekom-sec{
-  width:72px;padding:2px 4px;border:1px solid var(--border,#ddd);border-radius:4px;
-  font-family:monospace;font-size:12px;text-align:center;
-  background:var(--bg,#fff);color:var(--ink,#1a1a2e);
-}
-.rekom-sec:focus{outline:2px solid var(--brand,#6366f1);outline-offset:1px}
-
