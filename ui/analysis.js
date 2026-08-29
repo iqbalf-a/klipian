@@ -52,10 +52,22 @@ async function startAnalysis() {
   }
 
   const start = performance.now();
+  let gagalBeruntun = 0;
   analysisTimer = setInterval(async () => {
     let t;
-    try { t = await (await fetch(`/api/transcribe/${id}`)).json(); }
-    catch { return; }
+    try {
+      t = await (await fetch(`/api/transcribe/${id}`)).json();
+      gagalBeruntun = 0;
+    } catch {
+      // Server mati / job hilang: berhenti setelah beberapa kali gagal, jangan
+      // memutar interval selamanya tanpa kabar ke pengguna.
+      if (++gagalBeruntun >= 5) {
+        clearInterval(analysisTimer);
+        $("#transcribeStats").innerHTML =
+          "<span>Terputus dari server. Coba mulai ulang.</span>";
+      }
+      return;
+    }
 
     const elapsed = (performance.now() - start) / 1000;
     const remaining = t.percent > 2 ? elapsed * (100 - t.percent) / t.percent : 0;

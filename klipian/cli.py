@@ -66,14 +66,15 @@ def cmd_info(args: argparse.Namespace) -> int:
 def cmd_transcribe(args: argparse.Namespace) -> int:
     video = Path(args.video)
     cache = Cache(Path(args.cache_dir))
-    glossary = Glossary.load(Path(args.glossary) if args.glossary else None)
+    glossary_path = Path(args.glossary) if args.glossary else None
+    glossary = Glossary.load(glossary_path)
 
     info = probe(video)
     if not info.has_audio:
         print("This video has no audio track.", file=sys.stderr)
         return 1
 
-    tpath = cache.transcript_path(video, args.model, args.lang)
+    tpath = cache.transcript_path(video, args.model, args.lang, glossary_path)
 
     if tpath.exists() and not args.force:
         transcript = Transcript.load(tpath)
@@ -145,7 +146,10 @@ def _load_transcript(args):
     """Ambil transkrip dari cache. Kembalikan (video, None) kalau belum ada."""
     video = Path(args.video)
     cache = Cache(Path(args.cache_dir))
-    tpath = cache.transcript_path(video, args.model, args.lang)
+    # brief/import tidak punya --glossary; pakai default yang sama dengan
+    # yang dipakai transcribe supaya kunci cache-nya cocok.
+    gloss = DEFAULT_GLOSSARY if DEFAULT_GLOSSARY.exists() else None
+    tpath = cache.transcript_path(video, args.model, args.lang, gloss)
     if not tpath.exists():
         print("", file=sys.stderr)
         print(f"No transcript for {video.name} yet.", file=sys.stderr)
@@ -246,7 +250,11 @@ def cmd_render(args: argparse.Namespace) -> int:
         return 1
 
     import json
-    data = json.loads(file.read_text(encoding="utf-8"))
+    try:
+        data = json.loads(file.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        print(f"\nCandidates file is not valid JSON: {exc}\n", file=sys.stderr)
+        return 1
     items = data.get("candidates") or data.get("kandidat") or []
     if args.only:
         valid = [items[i - 1] for i in args.only if 0 < i <= len(items)]
@@ -271,6 +279,7 @@ def cmd_render(args: argparse.Namespace) -> int:
 
     succeeded = 0
     for i, k in enumerate(items, 1):
+        title = k.get("title") or k.get("judul") or f"klip-{i}"
         try:
             # candidates.json dari `klipian import` tidak menulis "spans",
             # jadi jalur normalnya justru cadangan di bawah ini. Kunci lama
@@ -284,20 +293,20 @@ def cmd_render(args: argparse.Namespace) -> int:
                     raise KeyError("start_sec/end_sec")
                 spans = [engine.Span(float(a), float(b))]
         except (KeyError, TypeError, ValueError) as exc:
-            print(f"  SKIP clip #{i} ({k.get('title', '?')}): invalid span data — {exc}",
+            print(f"  SKIP clip #{i} ({title}): invalid span data — {exc}",
                   file=sys.stderr)
             continue
 
         job = engine.RenderJob(
-            title=k["title"],
+            title=title,
             spans=spans,
             crop=engine.CropBox(*args.crop) if args.crop else engine.CropBox(),
             layout=args.layout,
             out_width=args.width,
         )
-        dest = out_dir / engine.safe_filename(k["title"], f"klip-{i}")
+        dest = out_dir / engine.safe_filename(title, f"klip-{i}")
 
-        print(f"[{i}/{len(items)}] {k['title']}")
+        print(f"[{i}/{len(items)}] {title}")
         try:
             engine.render(video, job, dest, words=words,
                          src_width=info.width, src_height=info.height,

@@ -94,7 +94,9 @@ def _cari_orang(bgr_region) -> tuple | None:
     if len(rects) == 0:
         return None
     # Yang skornya paling tinggi (paling yakin), bukan yang pertama.
-    idx = max(range(len(rects)), key=lambda i: weights[i])
+    # weights dari detectMultiScale berbentuk (n, 1) -- ambil skalar float,
+    # jangan bandingkan ndarray (ambiguous truth value kalau shape berubah).
+    idx = max(range(len(rects)), key=lambda i: float(weights[i]))
     return tuple(rects[idx])
 
 

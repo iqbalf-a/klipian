@@ -156,14 +156,28 @@ async function muatProject(video) {
       pos: (typeof realTranscript !== "undefined" && realTranscript?.duration)
         ? (k.startSec / realTranscript.duration) * 100 : 0,
       scores: k.total,
-      label: k.title.split(" ").slice(0, 3).join(" "),
+      // title bisa tidak ada di JSON tangan/versi lama -- jangan .split() null.
+      label: (k.title || "").split(" ").slice(0, 3).join(" "),
     }));
   }
+  // Indeks active harus dicek batas: berkas project bisa ditulis tangan atau
+  // dari versi lama dengan jumlah pilihan berbeda. Indeks di luar batas akan
+  // membuat choices[active] undefined dan menjatuhkan render caption.
   if (Array.isArray(d.caption) && typeof CAPTION_OPTIONS !== "undefined") {
-    d.caption.forEach((i, k) => { if (CAPTION_OPTIONS[k]) CAPTION_OPTIONS[k].active = i; });
+    d.caption.forEach((i, k) => {
+      if (CAPTION_OPTIONS[k] && Number.isInteger(i)
+          && i >= 0 && i < CAPTION_OPTIONS[k].choices.length) {
+        CAPTION_OPTIONS[k].active = i;
+      }
+    });
   }
   if (Array.isArray(d.output) && typeof OPTIONS !== "undefined") {
-    d.output.forEach((i, k) => { if (OPTIONS[k]) OPTIONS[k].active = i; });
+    d.output.forEach((i, k) => {
+      if (OPTIONS[k] && Number.isInteger(i)
+          && i >= 0 && i < OPTIONS[k].choices.length) {
+        OPTIONS[k].active = i;
+      }
+    });
   }
   if (d.title && $("#hasilJudul")) $("#hasilJudul").value = d.title;
   layarTerakhir = LAYAR_SAH.includes(d.screen) ? d.screen : "klip";
@@ -204,7 +218,14 @@ function urlSampul(p) {
   return `/api/thumb?${q}`;
 }
 
+let _renderProjectsInflight = null;
 async function renderProjects() {
+  // Dipanggil dari dua tempat saat load awal (self-invoke di bawah + hook
+  // toStage("home") di app.js). Tanpa penjaga ini keduanya fetch /api/projects
+  // dan menulis #projectList berbarengan. Satu panggilan yang sedang jalan
+  // dibagikan ke pemanggil berikutnya, bukan diulang.
+  if (_renderProjectsInflight) return _renderProjectsInflight;
+  _renderProjectsInflight = (async () => {
   const wadah = $("#projectList");
   if (!wadah) return;
   let item = [];
@@ -272,6 +293,9 @@ async function renderProjects() {
       </span>
     </div>`;
   }).join("");
+  })();
+  try { return await _renderProjectsInflight; }
+  finally { _renderProjectsInflight = null; }
 }
 
 /* ---------- menghapus, dengan konfirmasi ----------
@@ -357,14 +381,28 @@ $("#projectList")?.addEventListener("click", async (e) => {
    (lihat pulihkanSesiTerakhir()). Dulu logika ini cuma ada di dalam
    listener klik; disalin ulang di dua tempat gampang meleset kalau salah
    satu diubah belakangan. */
+let _bukaProjectGen = 0;
 async function bukaProjectDariBeranda(video) {
+  // Klik cepat / tumpang dengan pemulihan sesi: tandai generasi. Kalau ada
+  // pembukaan baru menyusul, yang lama berhenti sebelum menimpa state global
+  // (chosenSource/realTranscript/RESULT/FRAMING) milik yang menang.
+  const gen = ++_bukaProjectGen;
+  // Blob URL dari file yang tadi di-drop tidak pernah dilepas kalau kita
+  // langsung menimpanya dengan URL /samples/ -- lepaskan dulu.
+  if (typeof chosenSource !== "undefined" && chosenSource
+      && typeof chosenSource.url === "string" && chosenSource.url.startsWith("blob:")) {
+    URL.revokeObjectURL(chosenSource.url);
+  }
   // Berkasnya diambil dari samples/, bukan dari dialog berkas -- project
   // menyimpan NAMA, dan browser tidak boleh membuka path sendiri.
   chosenSource = { kind: "file", name: video, url: `/samples/${encodeURIComponent(video)}` };
   if (typeof realTranscript !== "undefined" && typeof findTranscript === "function") {
-    realTranscript = await findTranscript(video);
+    const tr = await findTranscript(video);
+    if (gen !== _bukaProjectGen) return false;   // sudah didahului pembukaan lain
+    realTranscript = tr;
   }
   const ada = await muatProject(video);
+  if (gen !== _bukaProjectGen) return false;
   if (typeof prepareVideo === "function") prepareVideo();
   if (typeof drawSource === "function") drawSource();
   if (typeof renderRecommendations === "function") renderRecommendations();

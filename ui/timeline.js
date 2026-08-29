@@ -230,11 +230,19 @@ document.addEventListener("keydown", (e) => {
 /* ---------- ketik menit:detik ---------- */
 
 function bacaKolomWaktu() {
-  const a = bacaWaktu($("#selStart").value);
-  const b = bacaWaktu($("#selEnd").value);
+  let a = bacaWaktu($("#selStart").value);
+  let b = bacaWaktu($("#selEnd").value);
   if (a === null || b === null) {
     $("#pilihNote").textContent = "time format is mm:ss, e.g. 16:56";
     return;
+  }
+  // Kolom menampilkan jamRange() yang dibulatkan ke detik bulat. Kalau sebuah
+  // kolom TIDAK diubah (nilai bulatnya masih sama dengan SEL), pertahankan
+  // nilai presisi SEL -- jangan biarkan pembulatan tampilan menggeser sisi
+  // yang tak disentuh sampai setengah detik saat mengedit sisi satunya.
+  if (SEL) {
+    if (Math.round(a) === Math.round(SEL.start)) a = SEL.start;
+    if (Math.round(b) === Math.round(SEL.end)) b = SEL.end;
   }
   if (b <= a) {
     $("#pilihNote").textContent = "end time must be later than start";

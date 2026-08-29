@@ -42,8 +42,12 @@ class Glossary:
         # Pola dan peta dibangun sekali di sini, bukan setiap apply().
         # apply() dipanggil sekali per kata: podcast 40 menit berarti ribuan
         # kali membangun ulang pola yang isinya tidak pernah berubah.
+        # Diurut dari yang PALING PANJANG dulu: alternasi regex leftmost-first,
+        # jadi "c" sebelum "c++" akan menutupi "c++". Yang panjang harus dicoba
+        # duluan supaya cocokan terpanjang menang.
+        fixes_urut = sorted(self.fixes, key=lambda wr: len(wr[0]), reverse=True)
         self._pattern = re.compile(
-            "|".join(_bounded(w) for w, _ in self.fixes), re.IGNORECASE
+            "|".join(_bounded(w) for w, _ in fixes_urut), re.IGNORECASE
         ) if self.fixes else None
         self._mapping = {w.lower(): r for w, r in self.fixes}
 

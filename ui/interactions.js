@@ -334,9 +334,22 @@ $("#queueList").addEventListener("click", (e) => {
   }
   // `act` yang dibaca mesin, `action` yang dibaca orang. Dulu cabangnya
   // membandingkan LABEL tombol, jadi menerjemahkan label memutus tombolnya.
-  if (action === "cancel") { r.pct = 0; r.note = "cancelled"; r.action = "Retry"; r.act = "retry"; }
-  else if (action === "retry") { r.pct = 4; r.note = "running"; r.action = "Cancel"; r.act = "cancel"; }
-  drawQueue();
+  if (action === "cancel") {
+    // Beri tahu server supaya ffmpeg yang sedang berjalan benar-benar
+    // dihentikan -- dulu Cancel cuma kosmetik dan job jalan terus di server.
+    r.note = "cancelling…";
+    drawQueue();
+    if (typeof renderJobId !== "undefined" && renderJobId) {
+      fetch("/api/render/cancel", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: renderJobId }),
+      }).catch(() => { /* poll akan menampilkan keadaan sebenarnya */ });
+    }
+    // Status akhir ("cancelled") datang dari poll begitu server mengonfirmasi.
+  } else if (action === "retry") {
+    // Retry menjalankan ulang render Result dari awal.
+    if (typeof startRender === "function") startRender();
+  }
 });
 
 drawSource();

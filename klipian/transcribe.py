@@ -11,7 +11,6 @@ memakai iGPU maupun NPU. Di Core Ultra 9 185H (16C/22T), model
 
 from __future__ import annotations
 
-import os
 import sys
 import time
 from pathlib import Path
@@ -87,7 +86,7 @@ def transcribe(
     model_size: str = DEFAULT_MODEL,
     language: str = "id",
     glossary: Glossary | None = None,
-    threads: int = 0,
+    threads: int = DEFAULT_THREADS,
     compute_type: str = "int8",
     beam_size: int = 5,
     vad: bool = True,
@@ -100,8 +99,9 @@ def transcribe(
     glossary = glossary or Glossary()
 
     if verbose:
-        cores = os.cpu_count() or 0
-        used = threads or cores
+        # threads=0 diterjemahkan CTranslate2 jadi ~4 thread, BUKAN semua core.
+        # Menampilkan jumlah core untuk 0 itu menyesatkan.
+        used = str(threads) if threads else "bawaan CTranslate2 (~4)"
         print(f"  model    : {model_size} ({compute_type}, CPU, {used} thread)")
         if glossary:
             print(f"  glosarium: {len(glossary.terms)} istilah, {len(glossary.fixes)} koreksi")

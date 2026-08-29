@@ -85,7 +85,10 @@ class RenderJob:
 
     @property
     def out_height(self) -> int:
-        return self.out_width * 16 // 9
+        # Dibulatkan genap: yuv420p (dipakai encode) menolak dimensi ganjil.
+        # out_width=1000 -> 1777 ganjil -> ffmpeg "height not divisible by 2".
+        h = self.out_width * 16 // 9
+        return h - (h & 1)
 
     @property
     def duration(self) -> float:
@@ -102,6 +105,18 @@ def _ass_time(d: float) -> str:
     m = int((d % 3600) // 60)
     dt = d % 60
     return f"{j}:{m:02d}:{dt:05.2f}"
+
+
+def _ass_escape(text: str) -> str:
+    r"""Netralkan karakter yang punya arti khusus di teks Dialogue ASS.
+
+    `{` membuka blok override (`{\b1}`), `\` mengawali tag. Transkrip yang
+    memuat karakter ini -- mis. teks "{music}" -- akan ditafsirkan sebagai
+    perintah gaya, bukan ditampilkan. `\h` (spasi keras) dipakai supaya
+    penggantinya tidak ikut ditelan sebagai override kosong."""
+    return (text.replace("\\", r"\\")
+                .replace("{", r"\{")
+                .replace("}", r"\}"))
 
 
 def to_output_time(spans: list[Span], seconds: float) -> float | None:
@@ -161,12 +176,16 @@ def _watermark_placement(mode: str, size: float, H: int,
     return 2, margin
 
 
-def build_ass(job: RenderJob, words: list[Word], style: dict | None = None) -> str:
+def build_ass(job: RenderJob, words: list[Word] | None, style: dict | None = None) -> str:
     """Caption karaoke: satu peristiwa per kata, menampilkan barisnya utuh
     dengan kata yang sedang diucapkan disorot. Watermark "klipian" ikut
     ditulis di sini juga -- satu Dialogue statis sepanjang video, bukan
     per-kata seperti caption -- supaya cuma satu file ASS dan satu filter
-    `ass=` yang perlu dijalankan ffmpeg, bukan dua lapis subtitle terpisah."""
+    `ass=` yang perlu dijalankan ffmpeg, bukan dua lapis subtitle terpisah.
+
+    `words` boleh None: jalur watermark-tanpa-transkrip menulis ASS tanpa
+    satu kata caption pun."""
+    words = words or []
     # Warna ditulis dalam format ASS &HAABBGGRR& -- urutannya BIRU-HIJAU-MERAH,
     # kebalikan dari hex web. Emas #FFD600 jadi &H0000D6FF&.
     g = {"font": "Arial", "size": 84, "per_line": 3,
@@ -223,11 +242,22 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     for w in words:
         a = to_output_time(job.spans, w.start)
         b = to_output_time(job.spans, w.end)
-        if a is not None and b is not None and b > a:
-            used.append((a, b, w.text.strip()))
+        # Kata yang menaddle batas potongan (cut jatuh di tengah kata, atau
+        # kata menjembatani dua potongan bersebelahan): salah satu ujungnya
+        # None. Jangan buang -- jepit ke potongan yang beririsan supaya
+        # katanya tetap muncul selama audionya terdengar.
+        if a is None or b is None:
+            for p in job.spans:
+                if w.end > p.start and w.start < p.end:      # ada irisan
+                    a = to_output_time(job.spans, max(w.start, p.start))
+                    b = to_output_time(job.spans, min(w.end, p.end))
+                    break
+        teks = _ass_escape(w.text.strip())
+        if a is not None and b is not None and b > a and teks:
+            used.append((a, b, teks))
 
     events = []
-    per_line = g["per_line"]
+    per_line = max(1, int(g["per_line"]))   # 0/negatif akan crash range()
     for i in range(0, len(used), per_line):
         group = used[i:i + per_line]
         # Kapan kelompok berikutnya mulai. Kata terakhir tiap kelompok harus
@@ -273,10 +303,15 @@ def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
     W, H = job.out_width, job.out_height
 
     def kotak(c: "CropBox") -> str:
-        return (f"crop={even(src_width * c.width / 100)}:"
-                f"{even(src_height * c.height / 100)}:"
-                f"{even(src_width * c.left / 100)}:"
-                f"{even(src_height * c.top / 100)}")
+        # Ukuran & offset dijepit ke dalam frame sumber: kalau left+width>100
+        # (mis. titik framing diseret ke tepi kanan) ffmpeg abort dengan
+        # "Invalid too big or non positive size". Jepit lebar dulu, lalu offset
+        # supaya x+w tidak pernah melewati batas.
+        cw = even(min(src_width, src_width * c.width / 100))
+        ch = even(min(src_height, src_height * c.height / 100))
+        cx = even(max(0, min(src_width - cw, src_width * c.left / 100)))
+        cy = even(max(0, min(src_height - ch, src_height * c.top / 100)))
+        return f"crop={cw}:{ch}:{cx}:{cy}"
 
     parts = []
     for i, span in enumerate(job.spans):
@@ -365,10 +400,18 @@ def safe_filename(title: str, fallback: str) -> str:
     return (name or fallback) + ".mp4"
 
 
+class RenderCancelled(RuntimeError):
+    """Render dihentikan atas permintaan (mis. tombol Cancel di UI)."""
+
+
 def render(source: Path, job: RenderJob, dest: Path,
            words: list[Word] | None = None, style: dict | None = None,
            src_width: int = 1920, src_height: int = 1080,
-           has_audio: bool = True, verbose: bool = True) -> Path:
+           has_audio: bool = True, verbose: bool = True,
+           cancel_check=None) -> Path:
+    """cancel_check: callable tanpa argumen yang mengembalikan True kalau
+    render harus dibatalkan. Diperiksa berkala selama ffmpeg berjalan; kalau
+    True, proses ffmpeg dibunuh dan RenderCancelled dilempar."""
     if not job.spans:
         raise RuntimeError("No spans to render.")
     if not has_audio:
@@ -417,24 +460,59 @@ def render(source: Path, job: RenderJob, dest: Path,
         # sekali dengan libx264 -- lebih lambat, tapi jadi, dan itu yang
         # dibutuhkan pengguna.
         urutan = ["h264_qsv", "libx264"] if has_encoder("h264_qsv") else ["libx264"]
-        result = None
+        result_err = None
         for i, encoder in enumerate(urutan):
             if verbose:
                 print(f"  encoder  : {encoder}")
                 if i == 0:
                     print(f"  spans    : {len(job.spans)}  ·  duration {job.duration:.1f}s")
 
-            result = subprocess.run(susun(encoder), capture_output=True, text=True,
-                                    encoding="utf-8", errors="replace", timeout=3600)
-            if result.returncode == 0:
+            code, result_err = _jalankan_ffmpeg(susun(encoder), cancel_check, dest)
+            if code == 0:
                 return dest
             if i < len(urutan) - 1 and verbose:
                 print(f"  {encoder} failed, retrying with {urutan[i+1]}")
 
-        tail = (result.stderr or "").strip().splitlines()[-14:]
+        tail = (result_err or "").strip().splitlines()[-14:]
         raise RuntimeError("ffmpeg gagal:\n" + "\n".join(tail))
 
     finally:
         # Bersihkan ASS file yang tertinggal kalau render gagal
         if ass_path and ass_path.exists():
             ass_path.unlink(missing_ok=True)
+
+
+def _jalankan_ffmpeg(cmd: list[str], cancel_check, dest: Path) -> tuple[int, str]:
+    """Jalankan ffmpeg dengan dukungan pembatalan. Kembalikan (returncode, stderr).
+
+    Pakai Popen + poll, bukan subprocess.run, supaya bisa memeriksa cancel_check
+    secara berkala dan membunuh ffmpeg di tengah encode -- bukan cuma di antara
+    klip. Timeout 1 jam tetap ditegakkan. Kalau dibatalkan, berkas keluaran
+    yang setengah jadi dihapus."""
+    import time as _time
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    mulai = _time.time()
+    try:
+        while True:
+            try:
+                _, err = proc.communicate(timeout=0.5)
+                stderr = err.decode("utf-8", "replace") if err else ""
+                return proc.returncode, stderr
+            except subprocess.TimeoutExpired:
+                pass                                # masih berjalan
+            if cancel_check and cancel_check():
+                proc.kill()
+                proc.wait()
+                dest.unlink(missing_ok=True)        # buang keluaran setengah jadi
+                raise RenderCancelled("Render dibatalkan.")
+            if _time.time() - mulai > 3600:
+                proc.kill()
+                proc.wait()
+                raise RuntimeError(
+                    "Render melebihi 1 jam dan dihentikan — berkas sumber "
+                    "mungkin rusak atau di drive jaringan yang menggantung.")
+    except RenderCancelled:
+        raise
+    except Exception:
+        proc.kill()
+        raise

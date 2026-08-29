@@ -38,17 +38,22 @@ const DATA = {
 
 let QUEUE = [];
 
-/* Antrian render bukan daftar tetap: isinya klip yang benar-benar kamu
-   setujui di papan Kandidat. */
+/* Antrian render bukan daftar tetap: isinya klip yang benar-benar dirender. */
 function buildQueue(daftar) {
-  const d = DATA;
   // Dulu dipatok "wajah di tengah" apa pun pilihannya, jadi baris riwayat
   // berbohong kalau kamu memilih Blur background.
   const layout = (typeof optionValue === "function") ? optionValue("format") : "Crop";
-  // Tanpa argumen: klip yang disetujui. Dengan argumen: persis klip itu --
-  // dipakai tombol render di preview yang hanya mengirim satu klip, supaya
-  // baris antrian sejajar dengan hasil yang dilaporkan server.
-  const approved = daftar || d.candidates.filter((k) => k.status === "approved");
+  // Tanpa argumen: turunkan dari RESULT -- itulah yang benar-benar dirender
+  // (satu berkas gabungan, lihat resultAsClip()). Papan kandidat dengan status
+  // "approved" sudah tidak ada; memfilter status di sini SELALU kosong dan
+  // membuat layar antrian tampak hampa walau render sedang berjalan.
+  // Dengan argumen: persis klip itu -- dipakai tombol render di preview yang
+  // hanya mengirim satu klip, supaya baris antrian sejajar dengan hasil server.
+  let approved = daftar;
+  if (!approved) {
+    const klip = (typeof resultAsClip === "function") ? resultAsClip() : null;
+    approved = klip ? [klip] : [];
+  }
   QUEUE = approved.map((k) => ({
     // Judulnya dulu, bukan tebakan nama berkas. Aturan judul->nama berkas ada
     // di server (safe_filename); menebaknya lagi di sini pernah menghasilkan

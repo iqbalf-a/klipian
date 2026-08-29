@@ -119,8 +119,13 @@ ${row}
 
 /* ---------- langkah 5: membaca balasan Claude ---------- */
 
-const toSeconds = (t) =>
-  String(t).trim().split(":").reduce((a, b) => a * 60 + Number(b), 0);
+const toSeconds = (t) => {
+  // String kosong/spasi -> NaN, bukan 0. Number("") adalah 0, jadi tanpa ini
+  // "start": "" lolos penjaga Number.isFinite dan jadi klip mulai 0:00.
+  const s = String(t ?? "").trim();
+  if (!s) return NaN;
+  return s.split(":").reduce((a, b) => a * 60 + Number(b), 0);
+};
 
 function extractJSON(text) {
   // JSON.parse melempar pesan teknis berbahasa Inggris ("Expected property
@@ -220,10 +225,13 @@ function importJSON(text) {
 function applyCandidates(candidates) {
   const d = DATA;
   d.candidates = candidates;
+  // realTranscript bisa null kalau JSON diimpor sebelum transkrip dimuat;
+  // importJSON/snapToWord menoleransinya, jadi di sini pun jangan deref buta.
+  const dur = realTranscript?.duration;
   d.marks = candidates.map((k) => ({
-    pos: (k.startSec / realTranscript.duration) * 100,
+    pos: dur ? (k.startSec / dur) * 100 : 0,
     scores: k.total,
-    label: k.title.split(" ").slice(0, 3).join(" "),
+    label: (k.title || "").split(" ").slice(0, 3).join(" "),
   }));
 
   // transkrip layar Potong memakai kata sungguhan di sekitar klip teratas

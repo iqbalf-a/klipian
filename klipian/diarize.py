@@ -73,7 +73,15 @@ def _merge_turns(turns: list[dict], min_gap: float = 1.5,
         if t["speaker"] == terakhir["speaker"] and t["start"] - terakhir["end"] < min_gap:
             terakhir["end"] = max(terakhir["end"], t["end"])
         else:
-            keluar.append(dict(t))
+            t = dict(t)
+            # Pembicara berbeda tapi waktunya beririsan (pyannote sesekali
+            # menyisakan overlap di batas). Konsumen framing mengira giliran
+            # disjoint, jadi geser mulai giliran ini ke akhir yang sebelumnya.
+            if t["start"] < terakhir["end"]:
+                t["start"] = terakhir["end"]
+            if t["end"] <= t["start"]:
+                continue                    # habis termakan overlap, buang
+            keluar.append(t)
     return keluar
 
 

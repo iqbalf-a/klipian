@@ -48,6 +48,9 @@ LOCK = threading.Lock()
 # masih dipakai yang lain
 ACTIVE_TRANSCRIBES: dict[str, str] = {}
 MAX_JOBS = 100  # batas entries di TUGAS supaya tidak memory leak
+# id job render yang diminta dibatalkan. _run_render memeriksanya lewat
+# cancel_check; render.py membunuh ffmpeg yang sedang berjalan kalau tercantum.
+CANCELLED: set[str] = set()
 
 
 def _load_dotenv() -> None:
@@ -67,16 +70,17 @@ def _load_dotenv() -> None:
         os.environ.setdefault(k.strip(), v.strip())
 
 
-def _prune_jobs():
-    """Buang entry yang sudah selesai/gagal kalau terlalu banyak."""
+def _register_job(job_id: str, entry: dict):
+    """Prune + insert dalam SATU pegangan lock. Kalau insert dilakukan di luar
+    lock sementara thread lain sedang meng-iterasi JOBS (prune), Python melempar
+    'dictionary changed size during iteration' dan request-nya putus."""
     with LOCK:
-        if len(JOBS) <= MAX_JOBS:
-            return
-        done = [k for k, v in JOBS.items()
-                   if v.get("state") in ("done", "failed")]
-        # Buang separuh yang paling lama (entry terawal = paling lama)
-        for k in done[:len(done) // 2]:
-            JOBS.pop(k, None)
+        if len(JOBS) > MAX_JOBS:
+            done = [k for k, v in JOBS.items()
+                    if v.get("state") in ("done", "failed")]
+            for k in done[:len(done) // 2]:
+                JOBS.pop(k, None)
+        JOBS[job_id] = entry
 
 
 # --------------------------------------------------------------------------
@@ -125,12 +129,14 @@ def _run_render(job_id: str, req: dict) -> None:
                 f"{req['video']} tidak ada di folder yang dijangkau server. "
                 f"Taruh berkasnya di samples/.")
 
-        # transkrip dipakai untuk caption; boleh tidak ada
+        # transkrip dipakai untuk caption; boleh tidak ada. Cari transkrip apa
+        # pun untuk video ini -- jangan menebak model/lang, karena tebakan yang
+        # meleset diam-diam menghilangkan caption tanpa pesan.
         words = []
         try:
             cache = Cache(ROOT / "cache")
-            path = cache.transcript_path(video, "large-v3-turbo", "id")
-            if path.exists():
+            path = cache.find_any_transcript(video)
+            if path and path.exists():
                 words = Transcript.load(path).words
         except Exception:
             pass
@@ -142,6 +148,10 @@ def _run_render(job_id: str, req: dict) -> None:
         t["total"] = len(clips)
 
         for i, k in enumerate(clips):
+            if job_id in CANCELLED:
+                with LOCK:
+                    t["state"] = "cancelled"
+                return
             with LOCK:
                 t["current"] = k["title"]
                 t["index"] = i
@@ -207,9 +217,15 @@ def _run_render(job_id: str, req: dict) -> None:
                 except (KeyError, TypeError, ValueError):
                     kata_klip = words          # bentuknya aneh: pakai transkrip
 
-            engine.render(video, job, dest, words=kata_klip, style=gaya,
-                         src_width=info.width, src_height=info.height,
-                         has_audio=info.has_audio, verbose=False)
+            try:
+                engine.render(video, job, dest, words=kata_klip, style=gaya,
+                             src_width=info.width, src_height=info.height,
+                             has_audio=info.has_audio, verbose=False,
+                             cancel_check=lambda: job_id in CANCELLED)
+            except engine.RenderCancelled:
+                with LOCK:
+                    t["state"] = "cancelled"
+                return
 
             with LOCK:
                 t["result"].append({
@@ -229,6 +245,8 @@ def _run_render(job_id: str, req: dict) -> None:
         with LOCK:
             t["state"] = "failed"
             t["error"] = str(exc)
+    finally:
+        CANCELLED.discard(job_id)                  # jangan bocor ke job id berikutnya
 
 
 def _run_transcribe(job_id: str, req: dict) -> None:
@@ -252,7 +270,9 @@ def _run_transcribe(job_id: str, req: dict) -> None:
         cache = Cache(ROOT / "cache")
         model = req.get("model", "large-v3-turbo")
         lang = req.get("lang", "id")
-        path = cache.transcript_path(video, model, lang)
+        gloss_path = ROOT / "prompts" / "glossary.txt"
+        path = cache.transcript_path(video, model, lang,
+                                     gloss_path if gloss_path.exists() else None)
 
         info = probe(video)
         with LOCK:
@@ -323,7 +343,12 @@ def _run_transcribe(job_id: str, req: dict) -> None:
             t["error"] = str(exc)
     finally:
         with LOCK:
-            ACTIVE_TRANSCRIBES.pop(req.get("video", ""), None)
+            # Hanya lepaskan slot kalau MASIH milik job ini. Kalau tidak, job
+            # lain untuk video yang sama sudah mendaftar dan pop tanpa syarat
+            # akan menghapus pendaftaran MILIK DIA -- membuka celah job ganda.
+            name = req.get("video", "")
+            if ACTIVE_TRANSCRIBES.get(name) == job_id:
+                ACTIVE_TRANSCRIBES.pop(name, None)
         try:
             for leftover in (ROOT / "cache").glob(f"*.{job_id}.wav"):
                 leftover.unlink(missing_ok=True)       # wav sementara tidak pernah ditinggal
@@ -377,27 +402,36 @@ def _project_path(video: str) -> Path:
 
 
 def _project_ringkas(file: Path) -> dict | None:
-    """Bentuk ringkas untuk daftar di beranda -- tidak memuat seluruh isi."""
+    """Bentuk ringkas untuk daftar di beranda -- tidak memuat seluruh isi.
+
+    Seluruh badan dibungkus try/except: berkas project bisa ditulis tangan
+    atau dari versi lama, jadi field yang bukan angka atau bentuk yang bukan
+    dict tidak boleh menjatuhkan seluruh daftar beranda. Yang rusak dilewati
+    diam-diam (return None)."""
     try:
         data = json.loads(file.read_text(encoding="utf-8"))
         st = file.stat()
-    except (OSError, ValueError):
+        if not isinstance(data, dict):
+            return None
+        spans = data.get("result") or []
+        total = sum(max(0.0, float(r.get("end", 0)) - float(r.get("start", 0)))
+                    for r in spans if isinstance(r, dict))
+        framing = data.get("framing") or [{}]
+        first_frame = framing[0] if isinstance(framing[0], dict) else {}
+        return {
+            "video": data.get("video", ""),
+            "title": data.get("title", ""),
+            "spans": len(spans),
+            "seconds": round(total, 1),
+            "at": int(st.st_mtime),
+            "thumbAt": float(spans[0]["start"]) if spans and isinstance(spans[0], dict) else 0.0,
+            # Sampul memakai kotak framing project itu sendiri. Kalau memakai
+            # kotak bawaan, dua project dari video yang sama terlihat identik
+            # walau bingkainya berbeda jauh.
+            "crop": ((first_frame.get("crops") or [None])[0]),
+        }
+    except (OSError, ValueError, TypeError, KeyError, IndexError):
         return None
-    spans = data.get("result") or []
-    total = sum(max(0.0, float(r.get("end", 0)) - float(r.get("start", 0)))
-                for r in spans)
-    return {
-        "video": data.get("video", ""),
-        "title": data.get("title", ""),
-        "spans": len(spans),
-        "seconds": round(total, 1),
-        "at": int(st.st_mtime),
-        "thumbAt": float(spans[0]["start"]) if spans else 0.0,
-        # Sampul memakai kotak framing project itu sendiri. Kalau memakai
-        # kotak bawaan, dua project dari video yang sama terlihat identik
-        # walau bingkainya berbeda jauh.
-        "crop": ((data.get("framing") or [{}])[0].get("crops") or [None])[0],
-    }
 
 
 def _thumbnail(video: Path, seconds: float, crop: dict, width: int) -> Path:
@@ -453,9 +487,16 @@ class Handler(BaseHTTPRequestHandler):
     def _read_json(self):
         n = int(self.headers.get("Content-Length", 0))
         MAX_BODY = 10 * 1024 * 1024  # 10 MB — batas body request
+        if n < 0:
+            raise ValueError("Content-Length negatif")
         if n > MAX_BODY:
             raise ValueError(f"Body terlalu besar ({n:,} byte, max {MAX_BODY:,})")
-        return json.loads(self.rfile.read(n) or b"{}")
+        data = json.loads(self.rfile.read(n) or b"{}")
+        # Semua handler memanggil .get() -- body non-objek (list/angka/string)
+        # akan melempar AttributeError di luar try/except. Tolak di sini.
+        if not isinstance(data, dict):
+            raise ValueError("Body JSON harus berupa objek")
+        return data
 
     # ---- GET ----
 
@@ -476,7 +517,13 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/thumb":
             q = parse_qs(urlparse(self.path).query)
-            num = lambda k, d: float(q.get(k, [d])[0])
+            # Query param non-numerik akan membuat float() melempar ValueError
+            # yang tidak tertangkap di do_GET -> koneksi putus tanpa respons.
+            def num(k, d):
+                try:
+                    return float(q.get(k, [d])[0])
+                except (TypeError, ValueError):
+                    return float(d)
             video = _find_video(q.get("video", [""])[0])
             if not video:
                 return self._send_json({"error": "video not found"}, 404)
@@ -695,15 +742,28 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as exc:               # noqa: BLE001
                 return self._send_json({"error": str(exc)}, 400)
 
-            _prune_jobs()
-
             job_id = uuid.uuid4().hex[:8]
-            JOBS[job_id] = {"state": "running", "done": 0,
+            _register_job(job_id, {"state": "running", "done": 0,
                                "total": len(req["clips"]), "index": 0,
-                               "current": "", "result": [], "error": None}
+                               "current": "", "result": [], "error": None})
             threading.Thread(target=_run_render, args=(job_id, req),
                              daemon=True).start()
             return self._send_json({"id": job_id})
+
+        if path == "/api/render/cancel":
+            try:
+                req = self._read_json()
+            except Exception as exc:               # noqa: BLE001
+                return self._send_json({"error": str(exc)}, 400)
+            job_id = str(req.get("id") or "")
+            # Tandai untuk dibatalkan; _run_render / render() memeriksanya dan
+            # membunuh ffmpeg yang sedang berjalan. Idempoten -- menandai job
+            # yang sudah selesai tidak berbahaya (di-discard di finally).
+            with LOCK:
+                ada = job_id in JOBS
+            if ada:
+                CANCELLED.add(job_id)
+            return self._send_json({"ok": ada})
 
         if path == "/api/transcribe":
             try:
@@ -711,18 +771,23 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as exc:               # noqa: BLE001
                 return self._send_json({"error": str(exc)}, 400)
             name = req.get("video", "")
-            _prune_jobs()
             # Seluruh check-then-register di dalam satu lock supaya tidak ada
-            # dua thread yang sama-sama lolos dan membuat job ganda.
+            # dua thread yang sama-sama lolos dan membuat job ganda, dan supaya
+            # insert JOBS tidak balapan dengan prune yang meng-iterasi JOBS.
             with LOCK:
+                if len(JOBS) > MAX_JOBS:
+                    old = [k for k, v in JOBS.items()
+                           if v.get("state") in ("done", "failed")]
+                    for k in old[:len(old) // 2]:
+                        JOBS.pop(k, None)
                 previous = ACTIVE_TRANSCRIBES.get(name)
                 if previous and JOBS.get(previous, {}).get("state") == "running":
                     return self._send_json({"id": previous, "already_running": True})
                 job_id = uuid.uuid4().hex[:8]
                 ACTIVE_TRANSCRIBES[name] = job_id
-            JOBS[job_id] = {"state": "running", "stage": "start", "percent": 0,
-                               "position": 0, "duration": 0, "file": None,
-                               "cached": False, "error": None}
+                JOBS[job_id] = {"state": "running", "stage": "start", "percent": 0,
+                                "position": 0, "duration": 0, "file": None,
+                                "cached": False, "error": None}
             threading.Thread(target=_run_transcribe, args=(job_id, req),
                              daemon=True).start()
             return self._send_json({"id": job_id})
@@ -735,9 +800,8 @@ class Handler(BaseHTTPRequestHandler):
             if not req.get("video"):
                 return self._send_json({"error": "video required"}, 400)
 
-            _prune_jobs()
             job_id = uuid.uuid4().hex[:8]
-            JOBS[job_id] = {"state": "running", "turns": [], "error": None}
+            _register_job(job_id, {"state": "running", "turns": [], "error": None})
             threading.Thread(target=_run_diarize, args=(job_id, req),
                              daemon=True).start()
             return self._send_json({"id": job_id})
@@ -794,9 +858,17 @@ class Handler(BaseHTTPRequestHandler):
 
 def _sweep_temp() -> int:
     """Buang wav sementara yang tertinggal dari job yang terhenti paksa.
-    Berkas ini bisa ratusan MB dan tidak ada gunanya setelah servernya mati."""
+    Berkas ini bisa ratusan MB dan tidak ada gunanya setelah servernya mati.
+
+    Hanya wav ber-suffix id job (8 hex) yang disapu -- itu yang ditulis
+    _run_transcribe. wav dari `klipian transcribe --keep-audio` memakai
+    fingerprint 16-hex dan sengaja disimpan pengguna, jangan ikut dihapus."""
+    import re
     n = 0
+    pola = re.compile(r"\.[0-9a-f]{8}\.wav$")
     for w in (ROOT / "cache").glob("*.wav"):
+        if not pola.search(w.name):
+            continue
         try:
             w.unlink()
             n += 1

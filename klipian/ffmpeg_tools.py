@@ -142,8 +142,16 @@ def has_encoder(name: str) -> bool:
         ffmpeg = _require("ffmpeg")
     except FFmpegMissing:
         return False
-    proc = subprocess.run(
-        [ffmpeg, "-hide_banner", "-encoders"],
-        capture_output=True, text=True, encoding="utf-8", errors="replace",
-    )
+    try:
+        proc = subprocess.run(
+            [ffmpeg, "-hide_banner", "-encoders"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=30,
+        )
+    except (subprocess.TimeoutExpired, OSError):
+        # ffmpeg menggantung atau gagal dijalankan -- anggap encoder tak ada
+        # dan biarkan pemanggil pakai jalur mundur libx264.
+        return False
+    if proc.returncode != 0:
+        return False
     return any(line.split()[1:2] == [name] for line in proc.stdout.splitlines() if line.strip())

@@ -70,8 +70,10 @@ function setClip(k) {
   if (!k) return;
   activeClip = k;
   if (!k.spans || !k.spans.length) {
-    k.spans = [{ start: k.startSec ?? secondsFromClock(k.in),
-                 end: (k.startSec ?? secondsFromClock(k.in)) + k.dur }];
+    // k.dur bisa datang sebagai string dari JSON impor ("54.7"); Number()
+    // supaya start + dur menjumlah, bukan menyambung string ("1254.7").
+    const start = k.startSec ?? secondsFromClock(k.in);
+    k.spans = [{ start, end: start + Number(k.dur) }];
   }
   if (video.src) video.currentTime = k.spans[0].start;
   drawTime(0);            // durasi total tetap tampil walau video belum dimuat
@@ -106,9 +108,15 @@ function outToSource(k, t) {
   return akhir ? akhir.end : 0;
 }
 
-const jamPendek = (d) =>
-  `${String(Math.floor(Math.max(0, d) / 60)).padStart(2, "0")}:` +
-  `${String(Math.floor(Math.max(0, d) % 60)).padStart(2, "0")}`;
+// Ikut menampilkan jam kalau sumbernya lebih dari 1 jam -- tanpa ini
+// 1:05:00 tampil "65:00". Sejajar dengan jamRange() di app.js.
+const jamPendek = (d) => {
+  const t = Math.max(0, Math.floor(d));
+  const j = Math.floor(t / 3600);
+  const m = String(Math.floor((t % 3600) / 60)).padStart(2, "0");
+  const s = String(t % 60).padStart(2, "0");
+  return j ? `${j}:${m}:${s}` : `${m}:${s}`;
+};
 
 function drawTime(passed) {
   const w = $("#clipTime");
@@ -204,7 +212,7 @@ video.addEventListener("timeupdate", () => {
     video.pause();
     video.currentTime = activeClip.spans[0].start;
     isPlaying = false;
-    playBtn.textContent = "▶";
+    if (playBtn) playBtn.textContent = "▶";
     drawTime(clipOutDur(activeClip));
     drawHead();
     drawCaption();
@@ -407,6 +415,7 @@ function setResultAsPreview() {
 /* ───────────────── alur render ───────────────── */
 
 let renderTimer = null;
+let renderJobId = null;             // id job render aktif, untuk pembatalan
 let framingTerakhir = null;   // titik framing yang sedang tampil di preview
 
 
@@ -431,11 +440,12 @@ function optionOut(id) {
    ada. Sekarang benar-benar memanggil ffmpeg lewat klipian serve. */
 
 
-/* Render klip yang disetujui di layar Kandidat. */
+/* Render seluruh Result sebagai satu berkas. Papan kandidat status "approved"
+   sudah tidak ada -- yang dirender adalah RESULT (lihat resultAsClip). */
 async function startRender() {
-  const approved = DATA.candidates.filter((k) => k.status === "approved");
-  if (!approved.length) return;
-  return kirimRender(approved);
+  const klip = (typeof resultAsClip === "function") ? resultAsClip() : null;
+  if (!klip) return;
+  return kirimRender([klip]);
 }
 
 /* Kirim satu atau banyak klip ke server. Dipakai tombol di layar Kandidat
@@ -493,6 +503,7 @@ async function kirimRender(approved) {
     }).then((r) => r.json());
     if (reply.error) throw new Error(reply.error);
     id = reply.id;
+    renderJobId = id;               // dipakai tombol Cancel untuk memberi tahu server
   } catch (err) {
     // Tanpa backend, katakan apa adanya -- jangan pura-pura merender.
     QUEUE.forEach((r) => { r.pct = 0; r.note = "needs klipian serve"; r.action = "Retry"; r.act = "retry"; });
@@ -509,6 +520,21 @@ async function kirimRender(approved) {
     try { t = await (await fetch(`/api/render/${id}`)).json(); }
     catch { return; }
 
+    // Server sudah mengonfirmasi pembatalan: hentikan polling, jangan timpa
+    // baris jadi "rendering/queued" lagi.
+    if (t.state === "cancelled") {
+      clearInterval(renderTimer);
+      renderJobId = null;
+      QUEUE.forEach((r, i) => {
+        if (i < t.done) { r.pct = 100; r.note = "done"; r.action = "Open folder"; r.act = "open"; }
+        else { r.pct = 0; r.note = "cancelled"; r.action = "Retry"; r.act = "retry"; }
+      });
+      drawQueue();
+      const head = document.querySelector('[data-screen="history"] .note');
+      if (head) head.textContent = "Render cancelled.";
+      return;
+    }
+
     QUEUE.forEach((r, i) => {
       if (i < t.done) { r.pct = 100; r.note = "done"; r.action = "Open folder"; r.act = "open"; }
       else if (i === t.index && t.state === "running") { r.pct = 55; r.note = "rendering"; r.action = "Cancel"; r.act = "cancel"; }
@@ -522,6 +548,7 @@ async function kirimRender(approved) {
 
     if (t.state !== "running") {
       clearInterval(renderTimer);
+      renderJobId = null;
       if (typeof muatRiwayat === "function") muatRiwayat();   // berkas baru masuk riwayat
       const head = document.querySelector('[data-screen="history"] .note');
       if (head) head.textContent = t.state === "failed"

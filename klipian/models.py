@@ -119,12 +119,16 @@ class Transcript:
     language: str
     model: str
     segments: list[Segment] = field(default_factory=list)
-    _words_cache: list[Word] = field(default_factory=list, repr=False)
+    _words_cache: list[Word] | None = field(default=None, repr=False)
 
     @property
     def words(self) -> list[Word]:
-        """Daftar semua kata. Di-cache supaya tidak rebuild setiap akses."""
-        if not self._words_cache:
+        """Daftar semua kata. Di-cache supaya tidak rebuild setiap akses.
+
+        Sentinel None, bukan `if not cache`: transkrip yang memang tak punya
+        kata (mis. cache lama segmen-saja) akan mem-build ulang list kosong
+        di SETIAP akses kalau penjaganya falsy."""
+        if self._words_cache is None:
             self._words_cache = [w for s in self.segments for w in s.words]
         return self._words_cache
 

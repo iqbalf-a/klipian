@@ -279,8 +279,13 @@ function putarPreviewRekom(idx) {
   if (v.src !== srcAbsolut) {
     v.src = chosenSource.url;
     v.addEventListener("loadedmetadata", mulai, { once: true });
-  } else {
+  } else if (v.readyState >= 1) {
+    // HAVE_METADATA+: aman men-set currentTime sekarang.
     mulai();
+  } else {
+    // src sama tapi metadata belum siap (muatPreviewUtuh baru men-set src) --
+    // tunggu, kalau tidak currentTime dibuang dan preview mulai dari 0.
+    v.addEventListener("loadedmetadata", mulai, { once: true });
   }
 }
 
@@ -421,10 +426,20 @@ $("#rekomList")?.addEventListener("change", (e) => {
 
   k[field] = detik;
   k.dur = Math.round(k.endSec - k.startSec);
+  // spans/in/out ikut disinkronkan: kalau tidak, kode yang membaca k.spans
+  // (render, preview) atau k.in/k.out (tampilan) masih memakai rentang lama.
+  k.spans = [{ start: k.startSec, end: k.endSec }];
+  if (typeof jamPendek === "function") {
+    k.in = jamPendek(k.startSec);
+    k.out = jamPendek(k.endSec);
+  }
   inp.value = jamPendek(detik);
   const baris = inp.closest(".rekom-row");
   const durEl = baris?.querySelector(".rekom-dur");
   if (durEl) durEl.textContent = `${k.dur}s`;
+  // Penanda tipis di timeline total digambar dari k.startSec/endSec -- redraw
+  // supaya ia ikut pindah, bukan tetap di posisi lama sampai redraw lain.
+  if (typeof drawTotalTimeline === "function") drawTotalTimeline();
 });
 
 function perbaruiTombolRekom() {

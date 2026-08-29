@@ -196,12 +196,20 @@ def parse_reply(transcript: Transcript, text: str) -> list[Candidate]:
     if not raw:
         raise ValueError('The JSON has no "clips" list.')
 
+    def pick(d, *keys):
+        # Ambil kunci PERTAMA yang ADA, bukan yang truthy: start=0 (angka)
+        # itu valid tapi falsy, `a or b` akan salah melompatinya.
+        for key in keys:
+            if key in d:
+                return d[key]
+        return None
+
     words = transcript.words
     result: list[Candidate] = []
     for k in raw:
         try:
-            m = seconds(k.get("start") or k.get("mulai"))
-            s = seconds(k.get("end") or k.get("selesai"))
+            m = seconds(pick(k, "start", "mulai"))
+            s = seconds(pick(k, "end", "selesai"))
         except (TypeError, ValueError):
             continue
         if s <= m:
@@ -234,7 +242,7 @@ def save_candidates(candidates: list[Candidate], video: Path, dest: Path) -> Pat
     """Bentuknya sengaja sama persis dengan yang dipakai prototipe UI, supaya
     nanti tinggal dibaca tanpa penerjemahan."""
     dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_text(json.dumps({
+    payload = json.dumps({
         "source": video.name,
         "candidates": [{
             "title": k.title,
@@ -248,5 +256,10 @@ def save_candidates(candidates: list[Candidate], video: Path, dest: Path) -> Pat
             "scores": k.scores,
             "reason": k.reason,
         } for k in candidates],
-    }, ensure_ascii=False, indent=1), encoding="utf-8")
+    }, ensure_ascii=False, indent=1)
+    # Tulis ke tmp lalu rename (atomic) -- impor yang terputus tidak
+    # meninggalkan candidates.json yang terpotong. Sama seperti Transcript.save.
+    tmp = dest.with_suffix(".tmp")
+    tmp.write_text(payload, encoding="utf-8")
+    tmp.replace(dest)
     return dest
