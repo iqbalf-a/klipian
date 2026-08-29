@@ -149,38 +149,30 @@ def fit_crop_to_face(video: Path, at: float, rough: dict) -> dict | None:
         gray_region = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
 
         found = _cari_wajah(gray_region, rw)
-        if found is not None:
-            fx, fy, fw, fh = found
-            # Wajah + ruang lebih di ATAS (rambut/topi) dan di BAWAH
-            # (bahu) -- kotak pas-pasan di tepi wajah bikin kepala
-            # kepotong begitu rasio dikunci ulang di client
-            # (samakanRasio menyesuaikan LEBAR mengikuti rasio target,
-            # tinggi yang pas-pasan jadi terlalu pendek untuk lebar
-            # barunya).
-            margin_x, margin_atas, margin_bawah = fw * 0.6, fh * 0.9, fh * 1.4
-        else:
+        if found is None:
             found = _cari_orang(region)
             if found is None:
                 return None
-            fx, fy, fw, fh = found
-            # Kotak HOG sudah mencakup badan -- tidak perlu margin
-            # tambahan sebesar wajah, cukup sedikit napas di semua sisi.
-            margin_x, margin_atas, margin_bawah = fw * 0.1, fh * 0.05, fh * 0.05
+        fx, fy, fw, fh = found
 
-        # Balik dari koordinat REGION ke koordinat FRAME UTUH.
+        # Balik dari koordinat REGION ke koordinat FRAME UTUH, lalu ambil
+        # TITIK TENGAHnya saja -- bukan dijadikan dasar ukuran kotak baru.
         fx, fy = fx + sx, fy + sy
+        fcx, fcy = fx + fw / 2, fy + fh / 2
 
-        left = max(0, fx - margin_x)
-        top = max(0, fy - margin_atas)
-        width = min(W - left, fw + margin_x * 2)
-        height = min(H - top, fh + margin_atas + margin_bawah)
-
-        # Jaring pengaman terakhir: kotak akhir yang jauh lebih sempit
-        # dari kotak kasarnya berarti ada yang salah di sepanjang
-        # perhitungan di atas. Lebih aman mengaku tidak ketemu daripada
-        # mengembalikan kotak yang jelas rusak.
-        if width < rw * 0.25:
-            return None
+        # Ukuran kotak akhir SAMA PERSIS dengan kotak kasar -- deteksi
+        # wajah/orang di sini cuma menggeser POSISInya supaya presisi,
+        # BUKAN menentukan seberapa zoom. Percobaan pertama membuat
+        # margin proporsional ke besar wajah yang terdeteksi (mis. lebar
+        # wajah x 2.2) -- untuk wajah yang kebetulan kecil di frame
+        # (orang duduk agak jauh dari kamera), hasilnya kotak super
+        # sempit, close-up paspoto yang jauh lebih rapat dari yang
+        # dimaksud kotak kasarnya (lebar kotak kasar 26%, hasilnya bisa
+        # cuma 7%). Zoom level itu keputusan ian lewat kotak kasarnya
+        # sendiri -- dihormati apa adanya, cuma posisinya yang dibetulkan.
+        width, height = rw, rh
+        left = max(0, min(W - width, fcx - width / 2))
+        top = max(0, min(H - height, fcy - height / 2))
 
         # float() eksplisit: OpenCV mengembalikan np.float64/np.int32, dan
         # json.dumps bawaan Python tidak tahu cara menulis tipe numpy --
