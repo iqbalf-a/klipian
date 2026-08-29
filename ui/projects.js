@@ -19,6 +19,7 @@
 
 const SIMPAN_TUNDA = 900;      // ms diam sebelum benar-benar ditulis
 let simpanTimer = null;
+let simpanTertunda = false;    // true sejak ada perubahan sampai tulisan ke disk selesai
 let projectAktif = null;       // nama video yang sedang dikerjakan
 let layarTerakhir = "klip";    // layar tempat pekerjaan ditinggalkan
 
@@ -51,20 +52,60 @@ function keadaanProject() {
   };
 }
 
+/* Benar-benar menulis ke disk SEKARANG, membatalkan jeda yang masih
+   berjalan kalau ada. Dipakai baik oleh timer di bawah maupun tombol Save
+   manual -- keduanya harus menulis keadaan yang SAMA, jadi cuma satu jalan
+   yang benar-benar melakukan fetch-nya. */
+async function tulisProjectSekarang() {
+  clearTimeout(simpanTimer);
+  simpanTimer = null;
+  if (!projectAktif) return;
+  simpanTertunda = true;
+  try {
+    await fetch("/api/project", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(keadaanProject()),
+    });
+  } catch { /* tanpa backend, pekerjaan tetap jalan -- hanya tidak tersimpan */
+  } finally {
+    simpanTertunda = false;
+  }
+}
+
 /* Dipanggil dari mana saja yang mengubah pekerjaan. Aman dipanggil beruntun:
-   yang benar-benar menulis hanya panggilan terakhir dalam satu jeda diam. */
+   yang benar-benar menulis hanya panggilan terakhir dalam satu jeda diam.
+   simpanTertunda dinyalakan SEKARANG (bukan saat timer akhirnya jalan) --
+   itulah yang dibaca peringatan "tutup/reload halaman" di bawah supaya
+   perubahan yang masih menunggu jeda tidak dikira sudah aman tersimpan. */
 function simpanProject() {
   if (!projectAktif) return;
+  simpanTertunda = true;
   clearTimeout(simpanTimer);
-  simpanTimer = setTimeout(async () => {
-    try {
-      await fetch("/api/project", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(keadaanProject()),
-      });
-    } catch { /* tanpa backend, pekerjaan tetap jalan -- hanya tidak tersimpan */ }
-  }, SIMPAN_TUNDA);
+  simpanTimer = setTimeout(tulisProjectSekarang, SIMPAN_TUNDA);
 }
+
+/* Tombol Save manual: sebetulnya tidak perlu (auto-save sudah jalan sendiri
+   tiap ada perubahan), tapi disediakan sebagai jaring pengaman tambahan buat
+   yang ingin kepastian visual "sudah tersimpan" sebelum menutup halaman. */
+$("#saveNowBtn")?.addEventListener("click", async () => {
+  const btn = $("#saveNowBtn");
+  if (!btn || btn.disabled) return;
+  btn.disabled = true;
+  btn.textContent = "Saving…";
+  await tulisProjectSekarang();
+  btn.textContent = "Saved";
+  setTimeout(() => { btn.textContent = "Save"; btn.disabled = false; }, 1200);
+});
+
+/* Menutup tab, reload, atau navigasi keluar sebelum jeda 900ms selesai
+   berarti perubahan terakhir belum tentu sempat tertulis. Browser tidak
+   mengizinkan pesan custom di dialog ini lagi (demi keamanan) -- yang
+   tampil tetap peringatan bawaannya, tapi itu sudah cukup jadi "alert". */
+window.addEventListener("beforeunload", (e) => {
+  if (!simpanTertunda) return;
+  e.preventDefault();
+  e.returnValue = "";
+});
 
 /* Memasang kembali keadaan yang tersimpan. Mengembalikan true kalau ada
    yang dipulihkan, supaya pemanggil bisa memberi tahu penggunanya. */
