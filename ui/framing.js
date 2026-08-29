@@ -475,4 +475,164 @@ $("#framingList")?.addEventListener("click", (e) => {
     }));
 })();
 
+/* ---------- AI Framing: giliran bicara -> titik framing otomatis ----------
+   Backend (klipian/diarize.py) cuma tahu SIAPA bicara dan KAPAN -- sama
+   sekali tidak tahu kotak mana di kanvas yang harus dipakai untuk orang itu.
+   Jadi butuh SATU titik Split acuan yang sudah ian atur sendiri di awal klip
+   (dua kotak diarahkan ke masing-masing orang, seperti alur manual biasa),
+   lalu untuk tiap pembicara yang terdeteksi ian menjawab sekali "itu kotak
+   1 atau kotak 2" -- video preview digeser ke giliran pertama orang itu
+   supaya kelihatan/kedengaran siapa yang dimaksud, tidak menebak dari nama
+   label abstrak "SPEAKER_00".
+
+   Sengaja dibatasi ke SATU komposisi kamera tetap: kalau video sumbernya
+   sendiri ganti shot di tengah klip, itu tetap dikerjakan manual seperti
+   sekarang -- AI Framing tidak mencoba menebak itu. */
+
+let aiFramingAntrian = null;   // { urutan, idx, turns, referensi, hasil }
+
+function aiFramingMulai() {
+  if (!activeClip || !activeClip.spans?.length) {
+    $("#reframeNote").textContent = "Select or add a clip to Result first.";
+    return;
+  }
+  const mulai = activeClip.spans[0].start;
+  const akhir = activeClip.spans[activeClip.spans.length - 1].end;
+
+  const referensi = framingPada(mulai);
+  if (!referensi || referensi.format !== "split" || (referensi.crops || []).length < 2) {
+    $("#reframeNote").textContent =
+      "Set up a Split framing point first (drag both boxes onto each person), then try AI Framing again.";
+    return;
+  }
+
+  const btn = $("#aiFramingBtn");
+  if (btn) { btn.disabled = true; btn.textContent = "Analyzing …"; }
+  $("#reframeNote").textContent = "AI Framing: listening for who's talking …";
+
+  fetch("/api/diarize", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ video: chosenSource?.name, start: mulai, end: akhir }),
+  })
+    .then((r) => r.json())
+    .then((d) => {
+      if (d.error) throw new Error(d.error);
+      aiFramingPoll(d.id, referensi);
+    })
+    .catch((err) => aiFramingGagal(err.message));
+}
+
+function aiFramingPoll(id, referensi) {
+  fetch(`/api/diarize/${id}`).then((r) => r.json()).then((d) => {
+    if (d.state === "running") { setTimeout(() => aiFramingPoll(id, referensi), 1500); return; }
+    if (d.state === "failed") throw new Error(d.error || "Diarization failed.");
+    aiFramingSiapkanAntrian(d.turns || [], referensi);
+  }).catch((err) => aiFramingGagal(err.message));
+}
+
+function aiFramingGagal(pesan) {
+  const btn = $("#aiFramingBtn");
+  if (btn) { btn.disabled = false; btn.textContent = "AI Framing"; }
+  $("#reframeNote").textContent = `AI Framing failed: ${pesan}`;
+}
+
+function aiFramingSiapkanAntrian(turns, referensi) {
+  const btn = $("#aiFramingBtn");
+  if (btn) { btn.disabled = false; btn.textContent = "AI Framing"; }
+
+  if (!turns.length) {
+    $("#reframeNote").textContent = "AI Framing: no speech detected in this clip.";
+    return;
+  }
+
+  // Urutan pembicara menurut giliran PERTAMA mereka -- yang paling awal
+  // ditanya duluan, supaya video yang diputar untuk konfirmasi juga
+  // berurutan secara alami, bukan lompat maju-mundur.
+  const pertama = new Map();
+  for (const t of turns) if (!pertama.has(t.speaker)) pertama.set(t.speaker, t);
+  const urutan = [...pertama.values()].sort((a, b) => a.start - b.start);
+
+  if (urutan.length === 1) {
+    // Cuma satu pembicara terdeteksi -- semua giliran otomatis kotak yang
+    // sama, tidak ada apa pun untuk ditanyakan.
+    aiFramingTerapkan(turns, { [urutan[0].speaker]: 0 }, referensi);
+    return;
+  }
+
+  aiFramingAntrian = { urutan, idx: 0, turns, referensi, hasil: {} };
+  aiFramingTanyaBerikutnya();
+}
+
+function aiFramingTanyaBerikutnya() {
+  const a = aiFramingAntrian;
+  if (!a || a.idx >= a.urutan.length) {
+    if (a) aiFramingTerapkan(a.turns, a.hasil, a.referensi);
+    aiFramingAntrian = null;
+    return;
+  }
+  const turn = a.urutan[a.idx];
+
+  // Digeser ke giliran pertama orang ini supaya kelihatan/kedengaran
+  // langsung siapa yang dimaksud -- lebih meyakinkan daripada menebak dari
+  // label "SPEAKER_00" yang tidak berarti apa-apa.
+  const v = $("#videoPreview");
+  if (v && v.src) {
+    try { v.currentTime = turn.start; } catch { /* metadata belum siap */ }
+  }
+
+  const teks = $("#aiFramingTanyaTeks");
+  if (teks) teks.textContent =
+    `Speaker ${a.idx + 1}/${a.urutan.length}, first heard at ${jamRange(turn.start)} — which box?`;
+  $("#aiFramingTanya")?.removeAttribute("hidden");
+}
+
+$("#aiFramingTanya")?.addEventListener("click", (e) => {
+  const a = aiFramingAntrian;
+  if (!a) return;
+  const pilih = e.target.closest("[data-ai-pilih]");
+  const lewati = e.target.closest("[data-ai-lewati]");
+  if (!pilih && !lewati) return;
+  if (pilih) a.hasil[a.urutan[a.idx].speaker] = Number(pilih.dataset.aiPilih);
+  a.idx++;
+  aiFramingTanyaBerikutnya();
+});
+
+function aiFramingTerapkan(turns, pemetaan, referensi) {
+  $("#aiFramingTanya")?.setAttribute("hidden", "");
+
+  // Disalin dulu SEBELUM loop, bukan dibaca langsung dari referensi.crops di
+  // dalam loop: referensi adalah OBJEK YANG SAMA persis dengan salah satu
+  // titik di FRAMING (bisa saja titik acuan Split itu sendiri), dan giliran
+  // pertama sering jatuh persis di detik yang sama dengan titik itu -- kalau
+  // dibaca langsung, penimpaan titik pertama ikut merusak referensi.crops
+  // untuk semua giliran SESUDAHNYA di loop yang sama.
+  const kotakAsli = referensi.crops.map((c) => ({ ...c }));
+
+  let ditambah = 0;
+  let kotakSebelumnya = null;
+  for (const t of turns) {
+    const kotak = pemetaan[t.speaker];
+    if (kotak === undefined) continue;         // pembicara yang dilewati
+    if (kotak === kotakSebelumnya) continue;    // sudah kotak yang sama, tidak perlu titik baru
+    kotakSebelumnya = kotak;
+
+    const crop = { ...(kotakAsli[kotak] || kotakAsli[0]) };
+    const sama = FRAMING.find((f) => Math.abs(f.at - t.start) < 0.35);
+    if (sama) {
+      sama.format = "single";
+      sama.crops = [crop];
+    } else {
+      FRAMING.push({ id: `f${++framingSeq}`, at: t.start, format: "single", crops: [crop] });
+      ditambah++;
+    }
+  }
+  FRAMING.sort((a, b) => a.at - b.at);
+  renderFraming();
+  if (typeof simpanProject === "function") simpanProject();
+  $("#reframeNote").textContent =
+    `AI Framing: ${ditambah} framing point${ditambah === 1 ? "" : "s"} added. Review and adjust if needed.`;
+}
+
+$("#aiFramingBtn")?.addEventListener("click", aiFramingMulai);
+
 resetFraming();
