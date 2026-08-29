@@ -491,9 +491,24 @@ $("#framingList")?.addEventListener("click", (e) => {
 
 let aiFramingAntrian = null;   // { urutan, idx, turns, referensi, hasil }
 
+/* Status AI Framing (error, proses, tanya) SELALU muncul di kotak kuning
+   #aiFramingTanya, bukan cuma teks kecil di #reframeNote -- itu yang
+   ternyata terlewat begitu saja pada percobaan pertama: pesan gagal-validasi
+   memang muncul, tapi cuma teks polos berdesakan dengan elemen lain di baris
+   judul, kelihatan seperti "tidak terjadi apa-apa". Kotak ini dipakai untuk
+   SEMUA status, dengan tombol pilihan ditampilkan hanya saat memang ada
+   pertanyaan untuk dijawab. */
+function aiFramingStatus(teks, { tombol = false } = {}) {
+  const isiTeks = $("#aiFramingTanyaTeks");
+  if (isiTeks) isiTeks.textContent = teks;
+  const grup = $("#aiFramingTanya .ai-framing-tombol");
+  if (grup) grup.hidden = !tombol;
+  $("#aiFramingTanya")?.removeAttribute("hidden");
+}
+
 function aiFramingMulai() {
   if (!activeClip || !activeClip.spans?.length) {
-    $("#reframeNote").textContent = "Select or add a clip to Result first.";
+    aiFramingStatus("Select or add a clip to Result first.");
     return;
   }
   const mulai = activeClip.spans[0].start;
@@ -501,14 +516,14 @@ function aiFramingMulai() {
 
   const referensi = framingPada(mulai);
   if (!referensi || referensi.format !== "split" || (referensi.crops || []).length < 2) {
-    $("#reframeNote").textContent =
-      "Set up a Split framing point first (drag both boxes onto each person), then try AI Framing again.";
+    aiFramingStatus(
+      "Set up a Split framing point first (drag both boxes onto each person), then try AI Framing again.");
     return;
   }
 
   const btn = $("#aiFramingBtn");
   if (btn) { btn.disabled = true; btn.textContent = "Analyzing …"; }
-  $("#reframeNote").textContent = "AI Framing: listening for who's talking …";
+  aiFramingStatus("AI Framing: listening for who's talking … (usually 25–35s per clip)");
 
   fetch("/api/diarize", {
     method: "POST", headers: { "Content-Type": "application/json" },
@@ -533,7 +548,7 @@ function aiFramingPoll(id, referensi) {
 function aiFramingGagal(pesan) {
   const btn = $("#aiFramingBtn");
   if (btn) { btn.disabled = false; btn.textContent = "AI Framing"; }
-  $("#reframeNote").textContent = `AI Framing failed: ${pesan}`;
+  aiFramingStatus(`AI Framing failed: ${pesan}`);
 }
 
 function aiFramingSiapkanAntrian(turns, referensi) {
@@ -541,7 +556,7 @@ function aiFramingSiapkanAntrian(turns, referensi) {
   if (btn) { btn.disabled = false; btn.textContent = "AI Framing"; }
 
   if (!turns.length) {
-    $("#reframeNote").textContent = "AI Framing: no speech detected in this clip.";
+    aiFramingStatus("AI Framing: no speech detected in this clip.");
     return;
   }
 
@@ -580,10 +595,9 @@ function aiFramingTanyaBerikutnya() {
     try { v.currentTime = turn.start; } catch { /* metadata belum siap */ }
   }
 
-  const teks = $("#aiFramingTanyaTeks");
-  if (teks) teks.textContent =
-    `Speaker ${a.idx + 1}/${a.urutan.length}, first heard at ${jamRange(turn.start)} — which box?`;
-  $("#aiFramingTanya")?.removeAttribute("hidden");
+  aiFramingStatus(
+    `Speaker ${a.idx + 1}/${a.urutan.length}, first heard at ${jamRange(turn.start)} — which box?`,
+    { tombol: true });
 }
 
 $("#aiFramingTanya")?.addEventListener("click", (e) => {
@@ -598,8 +612,6 @@ $("#aiFramingTanya")?.addEventListener("click", (e) => {
 });
 
 function aiFramingTerapkan(turns, pemetaan, referensi) {
-  $("#aiFramingTanya")?.setAttribute("hidden", "");
-
   // Disalin dulu SEBELUM loop, bukan dibaca langsung dari referensi.crops di
   // dalam loop: referensi adalah OBJEK YANG SAMA persis dengan salah satu
   // titik di FRAMING (bisa saja titik acuan Split itu sendiri), dan giliran
@@ -629,8 +641,8 @@ function aiFramingTerapkan(turns, pemetaan, referensi) {
   FRAMING.sort((a, b) => a.at - b.at);
   renderFraming();
   if (typeof simpanProject === "function") simpanProject();
-  $("#reframeNote").textContent =
-    `AI Framing: ${ditambah} framing point${ditambah === 1 ? "" : "s"} added. Review and adjust if needed.`;
+  aiFramingStatus(
+    `AI Framing: ${ditambah} framing point${ditambah === 1 ? "" : "s"} added. Review and adjust if needed.`);
 }
 
 $("#aiFramingBtn")?.addEventListener("click", aiFramingMulai);
