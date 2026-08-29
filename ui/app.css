@@ -1356,6 +1356,11 @@ h1, h2, h3 {
   position: relative;
   height: 34px; margin: var(--s3) 0 var(--s2);
   cursor: pointer;
+  /* Semua anaknya position:absolute -> tinggi konten minimumnya 0 di mata
+     flexbox. Tanpa ini, ".preview" (flex column) menyusutkan kotak ini
+     duluan saat isinya melebihi tinggi panel, dan batang+jam saling
+     menimpa karena keduanya diposisikan relatif ke tinggi kotak ini. */
+  flex-shrink: 0;
 }
 .timeline:focus-visible { outline: 2px solid var(--aksen); outline-offset: 3px; border-radius: var(--r-s); }
 .tl-track {
