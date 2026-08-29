@@ -102,6 +102,9 @@ const CAPTION_OPTIONS = [
       { t: "None", out: 0, px: 0 },
       { t: "Medium", out: 4, px: 2 },
       { t: "Thick", out: 8, px: 4 }] },
+  { id: "watermark", label: "Watermark", active: 0, choices: [
+      { t: "On", out: true },
+      { t: "Off", out: false }] },
 ];
 
 /* Gaya caption yang dikirim ke server. Inilah yang membuat pengaturan di
@@ -118,6 +121,7 @@ function captionStyle() {
     position: nilai("position").out,
     per_line: nilai("per-line").out,
     outline: nilai("outline").out,
+    watermark: nilai("watermark").out,
   };
 }
 

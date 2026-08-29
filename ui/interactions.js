@@ -246,6 +246,9 @@ function applyCaption() {
   // warna dipasang sebagai variabel di wadahnya supaya kata yang disorot
   // ikut berubah walau isinya digambar ulang tiap timeupdate
   cap.style.setProperty("--sorot", captionValue("highlight").css);
+
+  const frame = document.querySelector(".frame916");
+  if (frame) frame.dataset.watermark = captionValue("watermark").out ? "on" : "off";
 }
 
 $("#captionList").addEventListener("click", (e) => {

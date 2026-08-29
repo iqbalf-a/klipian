@@ -26,6 +26,13 @@ from pathlib import Path
 from .ffmpeg_tools import _require, has_encoder
 from .models import Transcript, Word
 
+# Font watermark "klipian" dibundel di sini (bukan cuma diandalkan dari
+# Google Fonts seperti di UI) -- rendernya lewat ffmpeg/libass di mesin
+# lokal, yang tidak bisa "pinjam" font web. fontsdir menunjuk ke folder ini
+# supaya libass menemukan "Mona Sans ExtraBold" tanpa perlu terpasang
+# sebagai font sistem.
+FONTS_DIR = Path(__file__).resolve().parent.parent / "assets" / "fonts"
+
 
 @dataclass
 class Span:
@@ -111,19 +118,30 @@ def to_output_time(spans: list[Span], seconds: float) -> float | None:
 
 def build_ass(job: RenderJob, words: list[Word], style: dict | None = None) -> str:
     """Caption karaoke: satu peristiwa per kata, menampilkan barisnya utuh
-    dengan kata yang sedang diucapkan disorot."""
+    dengan kata yang sedang diucapkan disorot. Watermark "klipian" ikut
+    ditulis di sini juga -- satu Dialogue statis sepanjang video, bukan
+    per-kata seperti caption -- supaya cuma satu file ASS dan satu filter
+    `ass=` yang perlu dijalankan ffmpeg, bukan dua lapis subtitle terpisah."""
     # Warna ditulis dalam format ASS &HAABBGGRR& -- urutannya BIRU-HIJAU-MERAH,
     # kebalikan dari hex web. Emas #FFD600 jadi &H0000D6FF&.
     g = {"font": "Arial", "size": 84, "per_line": 3,
          "outline": 4, "position": 24,
          "color": "&H00FFFFFF&",          # warna dasar teks
          "highlight": "&H0000D6FF&",      # warna kata yang sedang diucapkan
+         "watermark": True,               # tombol on/off dari layar Captions
          **(style or {})}
 
     W, H = job.out_width, job.out_height
     margin_bottom = int(H * g["position"] / 100)
     # Baris Style memakai bentuk tanpa "&" penutup, tag \c memakai yang dengan.
     warna_style = g["color"].rstrip("&")
+
+    # Margin watermark SENGAJA dipatok kecil (dekat tepi bawah), bukan
+    # dihitung relatif ke posisi caption yang bisa diubah pengguna (16/24/34%)
+    # -- 3% selalu lebih kecil dari pilihan caption manapun, jadi watermark
+    # selalu "agak bawah dari caption" apa pun posisi caption-nya, tanpa
+    # perlu melacak ulang posisi caption di sini.
+    margin_watermark = int(H * 0.03)
 
     header = f"""[Script Info]
 ScriptType: v4.00+
@@ -135,10 +153,15 @@ ScaledBorderAndShadow: yes
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, OutlineColour, BackColour, Bold, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Utama,{g['font']},{g['size']},{warna_style},&H00000000,&H80000000,1,1,{g['outline']},0,2,60,60,{margin_bottom},1
+Style: Watermark,Mona Sans ExtraBold,{max(20, int(g['size'] * 0.34))},&H80FFFFFF,&H00000000,&H60000000,0,1,1,0,2,60,60,{margin_watermark},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
+    if g["watermark"]:
+        header += (
+            f"Dialogue: 0,{_ass_time(0)},{_ass_time(job.duration)},"
+            f"Watermark,,0,0,0,,klipian\n")
 
     # hanya kata yang benar-benar masuk keluaran
     used = []
@@ -257,10 +280,18 @@ def build_filter(job: RenderJob, src_width: int, src_height: int,
         # Karakter yang punya makna syntaktis di FFmpeg filter graph harus
         # di-escape: backslash, colon (Windows drive), single quote (string
         # delimiter), brackets (label), semicolons (separator), equals (option).
-        path = str(ass_path).replace("\\", "/").replace(":", r"\:")
-        path = path.replace("'", r"\'").replace("[", r"\[").replace("]", r"\]")
-        path = path.replace(";", r"\;").replace("=", r"\=")
-        video_chain += f";[vv]ass='{path}'[vout]"
+        def _escape(p: str) -> str:
+            p = p.replace("\\", "/").replace(":", r"\:")
+            p = p.replace("'", r"\'").replace("[", r"\[").replace("]", r"\]")
+            return p.replace(";", r"\;").replace("=", r"\=")
+
+        path = _escape(str(ass_path))
+        # fontsdir menunjuk libass ke assets/fonts/ -- tanpa ini "Mona Sans
+        # ExtraBold" (dipakai style Watermark di build_ass) tidak ketemu
+        # kecuali kebetulan sudah terpasang sebagai font sistem, dan libass
+        # diam-diam jatuh ke font pengganti yang tidak mirip logo sama sekali.
+        fontsdir = _escape(str(FONTS_DIR))
+        video_chain += f";[vv]ass='{path}':fontsdir='{fontsdir}'[vout]"
     else:
         video_chain += ";[vv]null[vout]"
 
@@ -296,8 +327,15 @@ def render(source: Path, job: RenderJob, dest: Path,
     ffmpeg = _require("ffmpeg")
     dest.parent.mkdir(parents=True, exist_ok=True)
 
+    # Dulu file ASS cuma dibuat kalau ADA kata caption (`if words:`) --
+    # masuk akal selama ASS-nya cuma untuk caption. Sekarang watermark juga
+    # lewat file yang sama (lihat build_ass()), dan itu harus tetap muncul
+    # walau tidak ada satu kata pun (transkrip belum ada, atau caption
+    # sengaja dimatikan) -- jadi gate-nya sekarang "ada YANG PERLU ditulis
+    # ke ASS", bukan "ada kata".
+    watermark_aktif = (style or {}).get("watermark", True)
     ass_path = None
-    if words:
+    if words or watermark_aktif:
         ass_path = dest.with_suffix(".ass")
         ass_path.write_text(build_ass(job, words, style), encoding="utf-8")
 
