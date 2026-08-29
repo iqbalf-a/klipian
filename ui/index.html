@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wdth,wght@0,75..125,200..900;1,75..125,200..900&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="tokens.css?v=1787977941">
-<link rel="stylesheet" href="app.css?v=1787977941">
+<link rel="stylesheet" href="tokens.css?v=1787980221">
+<link rel="stylesheet" href="app.css?v=1787980221">
 </head>
 <body>
 
@@ -166,13 +166,22 @@
 
           <!-- Pratinjau video SUMBER UTUH -- rasio alami, bukan dipotong
                9:16 seperti panel di kanan yang terkunci ke Result. Duduk DI
-               ATAS bar timeline global karena keduanya menunjuk video yang
-               SAMA: playhead di bar bergerak mengikuti posisi video ini,
-               memberi konteks "rentang ini ada di menit berapa dari total".
-               Kontrolnya sendiri (Play/Pause) -- bisa dijalankan dari sini
-               langsung, tidak cuma lewat tombol Play di baris AI suggestion. -->
-          <div class="tl-preview" id="tlPreview" hidden>
+               ATAS bar #tlTotal. Dua bar terpisah dengan tanggung jawab
+               berbeda supaya tidak ambigu:
+                 - .tl-scrub di sini  -> geser/klik untuk PINDAH posisi putar
+                 - #tlTotal di bawah  -> drag untuk PILIH rentang klip
+               SELALU tampil (bukan cuma saat suggestion diputar) -- kalau
+               belum ada video dipilih, videonya kosong/hitam tapi panelnya
+               tetap ada, bukan hilang. Kontrolnya sendiri (Play/Pause, maju-
+               mundur frame) -- bisa dijalankan langsung dari sini, tidak
+               cuma lewat tombol Play di baris AI suggestion. -->
+          <div class="tl-preview" id="tlPreview">
             <video class="tl-preview-video" id="tlPreviewVideo" playsinline></video>
+            <div class="tl-scrub" id="tlScrub" role="slider" tabindex="0"
+                 aria-label="Seek playback position"
+                 aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <div class="tl-scrub-fill" id="tlScrubFill"></div>
+            </div>
             <div class="tl-preview-foot">
               <button class="langkah" id="tlPreviewPrev" type="button"
                       title="Back 1 frame" aria-label="Back one frame"><i>◀</i><b>1</b></button>
@@ -182,18 +191,12 @@
                       title="Forward 1 frame" aria-label="Forward one frame"><b>1</b><i>▶</i></button>
               <span class="data" id="tlPreviewTime">00:00 / 00:00</span>
               <span class="data" id="tlPreviewTitle"></span>
-              <button class="btn quiet" id="tlPreviewClose" type="button"
-                      aria-label="Close preview">Close</button>
             </div>
           </div>
 
           <div class="tl-total" id="tlTotal" role="application"
                aria-label="Video timeline, drag to select a range">
             <div class="tl-marks" id="tlMarks"></div>
-            <!-- Penanda pasif: bergerak sendiri mengikuti #tlPreviewVideo,
-                 tidak bisa disentuh. Klik/geser di bar ini TETAP murni untuk
-                 memilih rentang manual, seperti sebelumnya -- tidak berubah. -->
-            <div class="tl-playhead" id="tlPlayhead" hidden></div>
             <div class="tl-sel" id="tlSel" hidden>
               <b class="tl-grip kiri" data-grip="start" aria-label="Drag range start"></b>
               <b class="tl-grip kanan" data-grip="end" aria-label="Drag range end"></b>
@@ -432,16 +435,16 @@
   </main>
 </div>
 
-<script src="app.js?v=1787977941"></script>
-<script src="interactions.js?v=1787977941"></script>
-<script src="framing.js?v=1787977941"></script>
-<script src="analysis.js?v=1787977941"></script>
-<script src="player.js?v=1787977941"></script>
-<script src="roundtrip.js?v=1787977941"></script>
-<script src="history.js?v=1787977941"></script>
-<script src="timeline.js?v=1787977941"></script>
-<script src="teks.js?v=1787977941"></script>
-<script src="result.js?v=1787977941"></script>
-<script src="projects.js?v=1787977941"></script>
+<script src="app.js?v=1787980221"></script>
+<script src="interactions.js?v=1787980221"></script>
+<script src="framing.js?v=1787980221"></script>
+<script src="analysis.js?v=1787980221"></script>
+<script src="player.js?v=1787980221"></script>
+<script src="roundtrip.js?v=1787980221"></script>
+<script src="history.js?v=1787980221"></script>
+<script src="timeline.js?v=1787980221"></script>
+<script src="teks.js?v=1787980221"></script>
+<script src="result.js?v=1787980221"></script>
+<script src="projects.js?v=1787980221"></script>
 </body>
 </html>

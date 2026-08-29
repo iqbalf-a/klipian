@@ -40,6 +40,10 @@ function keadaanProject() {
       id: f.id, at: f.at, format: f.format, crops: f.crops,
     })),
     corrections: (typeof KOREKSI !== "undefined" ? KOREKSI : {}),
+    // Rekomendasi AI (hasil impor JSON dari Claude) TIDAK pernah tersimpan
+    // sebelum ini -- membuka lagi project yang sama selalu menampilkan "none
+    // yet" walau sudah pernah diimpor, memaksa impor ulang dari awal.
+    candidates: (typeof DATA !== "undefined" ? DATA.candidates : []) || [],
     caption: (typeof CAPTION_OPTIONS !== "undefined")
       ? CAPTION_OPTIONS.map((o) => o.active) : [],
     output: (typeof OPTIONS !== "undefined") ? OPTIONS.map((o) => o.active) : [],
@@ -91,6 +95,15 @@ async function muatProject(video) {
     }
   }
   if (d.corrections && typeof KOREKSI !== "undefined") KOREKSI = d.corrections;
+  if (Array.isArray(d.candidates) && typeof DATA !== "undefined") {
+    DATA.candidates = d.candidates;
+    DATA.marks = d.candidates.map((k) => ({
+      pos: (typeof realTranscript !== "undefined" && realTranscript?.duration)
+        ? (k.startSec / realTranscript.duration) * 100 : 0,
+      scores: k.total,
+      label: k.title.split(" ").slice(0, 3).join(" "),
+    }));
+  }
   if (Array.isArray(d.caption) && typeof CAPTION_OPTIONS !== "undefined") {
     d.caption.forEach((i, k) => { if (CAPTION_OPTIONS[k]) CAPTION_OPTIONS[k].active = i; });
   }

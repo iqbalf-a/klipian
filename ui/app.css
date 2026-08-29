@@ -1489,8 +1489,12 @@ h1, h2, h3 {
 .pilih-head #pilihNote { margin-right: auto; }
 
 /* Pratinjau video sumber utuh -- rasio alami, bukan dipaksa 9:16 seperti
-   panel di kanan yang terkunci ke Result. Duduk di atas bar timeline global
-   karena keduanya menunjuk video yang SAMA: lihat .tl-playhead di bawah. */
+   panel di kanan yang terkunci ke Result. Duduk di atas bar #tlTotal karena
+   fungsinya beda tapi saling melengkapi: bar scrub (.tl-scrub) di sini untuk
+   MENGGESER posisi putar, #tlTotal di bawah untuk MEMILIH rentang klip --
+   dua bar terpisah supaya klik/drag di masing-masing tidak ambigu.
+   SELALU ditampilkan (tidak pakai `hidden`), termasuk saat belum ada video
+   dipilih -- videonya kosong (hitam) tapi panelnya tetap ada. */
 .tl-preview {
   margin: 0 var(--s5) var(--s3);
   border-radius: var(--r-m);
@@ -1504,6 +1508,36 @@ h1, h2, h3 {
    nilai awal sebelum itu terjadi. max-height dinaikkan supaya videonya
    benar-benar kelihatan, bukan sekadar strip tipis di atas bar timeline. */
 .tl-preview-video { display: block; width: 100%; aspect-ratio: 16 / 9; max-height: 400px; }
+
+/* Bar scrub: geser/klik di mana saja untuk memindah posisi putar
+   #tlPreviewVideo. Terpisah dari #tlTotal supaya "pindah posisi" dan
+   "pilih rentang klip" tidak berebut gestur yang sama pada bar yang sama. */
+.tl-scrub {
+  position: relative;
+  height: 10px;
+  margin: var(--s2) var(--s3) 0;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, #fff 14%, transparent);
+  cursor: pointer;
+  touch-action: none;
+}
+.tl-scrub-fill {
+  position: absolute; top: 0; bottom: 0; left: 0;
+  width: 0%;
+  background: var(--aksen);
+  border-radius: var(--r-pill);
+  pointer-events: none;
+}
+.tl-scrub-fill::after {
+  content: "";
+  position: absolute; top: 50%; right: -6px;
+  width: 12px; height: 12px;
+  background: #fff;
+  border-radius: 50%;
+  transform: translateY(-50%);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, .4);
+}
+
 .tl-preview-foot {
   display: flex; align-items: center; gap: var(--s3);
   padding: var(--s2) var(--s3);
@@ -1539,20 +1573,6 @@ h1, h2, h3 {
   background: color-mix(in srgb, var(--aksen) 30%, transparent);
   border-left: 1px solid var(--aksen);
   border-right: 1px solid var(--aksen);
-}
-
-/* Penanda posisi #tlPreviewVideo di sepanjang bar 42:03 -- murni pasif,
-   TIDAK menerima klik (pointer-events:none): klik/geser di bar ini tetap
-   100% untuk memilih rentang manual, sama seperti sebelum ada pratinjau. */
-.tl-playhead {
-  position: absolute; top: -2px; bottom: -2px;
-  width: 2px;
-  background: #fff;
-  box-shadow: 0 0 10px -1px rgba(255,255,255,.7);
-  border-radius: 1px;
-  pointer-events: none;
-  z-index: 2;
-  transition: left 90ms linear;
 }
 
 .tl-sel {

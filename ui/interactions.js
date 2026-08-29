@@ -102,6 +102,7 @@ async function acceptFile(file) {
       if (typeof renderResult === "function") renderResult();
       if (typeof renderFraming === "function") renderFraming();
       if (typeof renderTeks === "function") renderTeks();
+      if (typeof renderRecommendations === "function") renderRecommendations();
       if (typeof drawTotalTimeline === "function") drawTotalTimeline();
       drawSource(null, "picked up where you left off");
     }

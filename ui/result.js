@@ -196,14 +196,25 @@ function renderRecommendations() {
    belum berarti apa-apa sebelum rentangnya masuk Result.
 
    Duduk di panel Timeline, DI ATAS bar #tlTotal -- bukan di panel AI
-   suggestions -- karena keduanya menunjuk video yang SAMA: sebuah playhead
-   pasif di #tlTotal bergerak mengikuti posisi video ini, memberi konteks
-   "rentang ini ada di menit berapa dari total 42:03". Bar itu sendiri
-   TIDAK berubah perilakunya -- klik/geser di sana tetap murni untuk
-   memilih rentang manual, playhead tidak bisa disentuh. */
+   suggestions -- karena keduanya menunjuk video yang SAMA. Panel ini SELALU
+   tampil, punya bar scrub sendiri (.tl-scrub, lihat muatPreviewUtuh() dan
+   handler #tlScrub di bawah) untuk pindah posisi putar bebas -- terpisah
+   dari #tlTotal yang tetap 100% murni untuk memilih rentang manual. */
 
 let previewIdx = null;      // indeks rekomendasi yang sedang dipratinjau
 let previewBatas = null;    // detik akhir -- video berhenti sendiri di sini
+
+// Memuat video sumber ke #tlPreviewVideo begitu ada, TANPA autoplay --
+// panelnya sekarang selalu tampil (bukan cuma saat suggestion diputar),
+// jadi harus ada isinya sedini mungkin, bukan menunggu Play ditekan.
+// Dipanggil dari drawTotalTimeline() tiap kali timeline digambar ulang,
+// yang sudah jadi titik kumpul setiap kali chosenSource berubah.
+function muatPreviewUtuh() {
+  const v = $("#tlPreviewVideo");
+  if (!v || !chosenSource?.url) return;
+  const srcAbsolut = new URL(chosenSource.url, location.href).href;
+  if (v.src !== srcAbsolut) v.src = chosenSource.url;
+}
 
 function ikonPlayRekom() {
   // Bukan cuma "baris ini yang aktif" -- harus "baris ini yang aktif DAN
@@ -225,8 +236,8 @@ function tutupPreviewRekom() {
   $("#tlPreviewVideo")?.pause();
   previewIdx = null;
   previewBatas = null;
-  $("#tlPreview")?.setAttribute("hidden", "");
-  $("#tlPlayhead")?.setAttribute("hidden", "");
+  const titleEl = $("#tlPreviewTitle");
+  if (titleEl) titleEl.textContent = "";
   ikonPlayRekom();
 }
 
@@ -245,8 +256,6 @@ function putarPreviewRekom(idx) {
     if (typeof playBtn !== "undefined" && playBtn) playBtn.textContent = "▶";
   }
 
-  box.removeAttribute("hidden");
-  $("#tlPlayhead")?.removeAttribute("hidden");
   const titleEl = $("#tlPreviewTitle");
   if (titleEl) titleEl.textContent = `${jamPendek(k.startSec)} – ${jamPendek(k.endSec)} · ${k.title}`;
 
@@ -277,7 +286,7 @@ function putarPreviewRekom(idx) {
 
 // Berhenti sendiri persis di detik akhir rekomendasi -- pratinjau rentang
 // INI saja, bukan lanjut ke bagian video sesudahnya yang tidak relevan.
-// Sekalian menggerakkan playhead di bar #tlTotal dan jam "posisi / total".
+// Sekalian menggerakkan isian bar scrub dan jam "posisi / total".
 $("#tlPreviewVideo")?.addEventListener("timeupdate", (e) => {
   const v = e.target;
   if (previewBatas !== null && v.currentTime >= previewBatas) v.pause();
@@ -286,14 +295,46 @@ $("#tlPreviewVideo")?.addEventListener("timeupdate", (e) => {
   if (jam && typeof durasiVideo === "function") {
     jam.textContent = `${jamRange(v.currentTime)} / ${jamRange(durasiVideo())}`;
   }
-  const head = $("#tlPlayhead");
-  if (head && typeof keFrac === "function") {
-    head.style.left = `${keFrac(v.currentTime) * 100}%`;
+  const fill = $("#tlScrubFill");
+  if (fill && typeof keFrac === "function") {
+    const persen = keFrac(v.currentTime) * 100;
+    fill.style.width = `${persen}%`;
+    $("#tlScrub")?.setAttribute("aria-valuenow", String(Math.round(persen)));
   }
 });
 $("#tlPreviewVideo")?.addEventListener("pause", ikonPlayRekom);
 $("#tlPreviewVideo")?.addEventListener("play", ikonPlayRekom);
-$("#tlPreviewClose")?.addEventListener("click", tutupPreviewRekom);
+
+// Bar scrub: klik atau geser di mana saja langsung memindah posisi putar.
+// Terpisah total dari #tlTotal (yang tetap murni untuk memilih rentang),
+// jadi tidak perlu membedakan "klik" vs "drag" di satu bar yang sama.
+function tlScrubSeek(clientX) {
+  const bar = $("#tlScrub");
+  const v = $("#tlPreviewVideo");
+  if (!bar || !v || !v.src || typeof keDetik !== "function") return;
+  const r = bar.getBoundingClientRect();
+  const frac = r.width ? Math.max(0, Math.min(1, (clientX - r.left) / r.width)) : 0;
+  try { v.currentTime = keDetik(frac); } catch { /* metadata belum siap */ }
+}
+$("#tlScrub")?.addEventListener("pointerdown", (e) => {
+  const bar = $("#tlScrub"), v = $("#tlPreviewVideo");
+  if (!bar || !v || !v.src) return;
+  e.preventDefault();
+  bar.setPointerCapture(e.pointerId);
+  // Menggeser bebas ke mana saja -- kalau sedang terkunci ke rentang satu
+  // rekomendasi (previewBatas), lepaskan kuncinya supaya tidak langsung
+  // dijeda paksa begitu melewati batas rentang lama itu.
+  previewIdx = null;
+  previewBatas = null;
+  const titleEl = $("#tlPreviewTitle");
+  if (titleEl) titleEl.textContent = "";
+  ikonPlayRekom();
+  tlScrubSeek(e.clientX);
+});
+$("#tlScrub")?.addEventListener("pointermove", (e) => {
+  if (e.buttons !== 1) return;
+  tlScrubSeek(e.clientX);
+});
 
 // Kontrol sendiri: menjeda/melanjutkan apa pun yang sedang dimuat, TANPA
 // perlu kembali ke baris AI suggestion yang memuatnya. Kalau video sudah
@@ -321,6 +362,11 @@ $("#tlPreviewVideo")?.addEventListener("loadedmetadata", (e) => {
   if (v.videoWidth && v.videoHeight) {
     v.style.aspectRatio = `${v.videoWidth} / ${v.videoHeight}`;
   }
+  // Browser tidak melukis frame apa pun sampai posisi digeser -- kotaknya
+  // hitam polos begitu src dipasang lewat muatPreviewUtuh() (tanpa play()
+  // atau seek). Nudge sekecil ini memaksa frame pertama tergambar tanpa
+  // kelihatan bergeser bagi mata.
+  if (v.currentTime === 0) { try { v.currentTime = 0.001; } catch { /* abaikan */ } }
 });
 
 /* Maju/mundur satu frame -- untuk memastikan pas TIDAK memotong kata atau
