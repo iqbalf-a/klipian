@@ -805,6 +805,17 @@ h1, h2, h3 {
   background: color-mix(in srgb, currentColor 18%, transparent);
 }
 
+/* Posisi titik ini di hasil GABUNGAN, bukan di video sumber -- muncul
+   cuma kalau Result terdiri dari beberapa span yang saling berjauhan di
+   sumber, supaya jelas "menit besar" di chip itu bukan salah/di luar
+   jangkauan, cuma posisi aslinya di video 42 menit yang utuh. */
+.chip .chip-out {
+  font-family: var(--font-data); font-style: normal;
+  font-size: 9px; margin-left: 4px;
+  color: var(--teks-samar);
+}
+.chip .chip-out::before { content: "· "; }
+
 .preset-bar {
   flex: none; display: flex; align-items: center; gap: var(--s2);
   padding: var(--s3) var(--s5) var(--s4);

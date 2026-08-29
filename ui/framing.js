@@ -261,12 +261,28 @@ function renderFraming() {
 
   const bar = $("#framingList");
   if (bar) {
-    bar.innerHTML = FRAMING.map((f, i) => `
+    // f.at itu posisi di VIDEO SUMBER utuh (00:00 = awal video 42 menit),
+    // bukan posisi di hasil gabungan -- begitu Result terdiri dari beberapa
+    // span yang saling berjauhan di sumber, chip-nya kelihatan "melompat"
+    // jauh melewati durasi Result sendiri (mis. "09:44" padahal Result cuma
+    // 3:14). Bukan salah -- itu memang posisi aslinya di sumber -- tapi
+    // membingungkan tanpa konteks. "· out h:mm" menunjukkan posisi yang
+    // SAMA itu relatif ke hasil gabungan, kalau titiknya jatuh di dalam
+    // salah satu span yang benar-benar dipakai (null kalau di luar span
+    // mana pun -- titik lama dari klip lain, atau titik 00:00 bawaan).
+    const outDari = (t) => (typeof activeClip !== "undefined" && activeClip?.spans
+      && typeof sourceToOut === "function") ? sourceToOut(activeClip, t) : null;
+
+    bar.innerHTML = FRAMING.map((f, i) => {
+      const out = outDari(f.at);
+      return `
       <button class="chip" data-framing="${f.id}"${f === aktif ? ' aria-pressed="true"' : ""}>
-        ${jamRange(f.at)}<em class="fmt">${f.format === "split" ? "2" : "1"}</em>${i > 0
+        ${jamRange(f.at)}<em class="fmt">${f.format === "split" ? "2" : "1"}</em>${out !== null
+          ? `<span class="chip-out">out ${jamRange(out)}</span>` : ""}${i > 0
           ? `<i class="buang" data-buang-framing="${f.id}" role="button"
                 aria-label="Delete point ${jamRange(f.at)}">×</i>` : ""}
-      </button>`).join("");
+      </button>`;
+    }).join("");
   }
 
   const bingkai = bingkaiPada(t);
@@ -506,13 +522,47 @@ function aiFramingStatus(teks, { tombol = false } = {}) {
   $("#aiFramingTanya")?.removeAttribute("hidden");
 }
 
-function aiFramingMulai() {
+/* Satu permintaan ke server, dibungkus Promise supaya bisa di-`await` di
+   dalam loop -- lihat aiFramingMulai() untuk alasan loopnya. */
+function aiFramingDiarizeSatuSpan(span) {
+  return fetch("/api/diarize", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ video: chosenSource?.name, start: span.start, end: span.end }),
+  })
+    .then((r) => r.json())
+    .then((d) => {
+      if (d.error) throw new Error(d.error);
+      return aiFramingPollPromise(d.id);
+    });
+}
+
+function aiFramingPollPromise(id) {
+  return new Promise((resolve, reject) => {
+    (function cek() {
+      fetch(`/api/diarize/${id}`).then((r) => r.json()).then((d) => {
+        if (d.state === "running") { setTimeout(cek, 1500); return; }
+        if (d.state === "failed") { reject(new Error(d.error || "Diarization failed.")); return; }
+        resolve(d.turns || []);
+      }).catch(reject);
+    })();
+  });
+}
+
+async function aiFramingMulai() {
   if (!activeClip || !activeClip.spans?.length) {
     aiFramingStatus("Select or add a clip to Result first.");
     return;
   }
-  const mulai = activeClip.spans[0].start;
-  const akhir = activeClip.spans[activeClip.spans.length - 1].end;
+  // Result bisa berupa BEBERAPA span terpisah yang disambung jadi satu MP4
+  // (menggabungkan beberapa rekomendasi AI, misalnya). Dulu di sini cuma
+  // diambil awal span PERTAMA sampai akhir span TERAKHIR -- untuk Result 4
+  // span yang saling berjauhan di video sumber, itu berarti menganalisis
+  // SELURUH rentang di antaranya juga, termasuk bagian yang sama sekali
+  // tidak ikut ke Result. Lambat, dan menghasilkan titik framing yang
+  // bertebaran sampai ke bagian video yang tidak relevan. Sekarang tiap
+  // span dianalisis SENDIRI-SENDIRI, cuma rentang aslinya.
+  const spans = activeClip.spans;
+  const mulai = spans[0].start;
 
   const referensi = framingPada(mulai);
   if (!referensi || referensi.format !== "split" || (referensi.crops || []).length < 2) {
@@ -523,26 +573,26 @@ function aiFramingMulai() {
 
   const btn = $("#aiFramingBtn");
   if (btn) { btn.disabled = true; btn.textContent = "Analyzing …"; }
-  aiFramingStatus("AI Framing: listening for who's talking … (usually 25–35s per clip)");
 
-  fetch("/api/diarize", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ video: chosenSource?.name, start: mulai, end: akhir }),
-  })
-    .then((r) => r.json())
-    .then((d) => {
-      if (d.error) throw new Error(d.error);
-      aiFramingPoll(d.id, referensi);
-    })
-    .catch((err) => aiFramingGagal(err.message));
-}
+  // Berurutan, BUKAN paralel: semua span berbagi satu model diarization
+  // yang sama di server (satu instance dimuat sekali, dipakai lagi supaya
+  // tidak menunggu belasan detik memuat ulang tiap kali) -- dua permintaan
+  // bersamaan ke model yang sama berisiko baku rebut/hasil kacau.
+  const semuaTurns = [];
+  try {
+    for (let i = 0; i < spans.length; i++) {
+      aiFramingStatus(spans.length > 1
+        ? `AI Framing: listening for who's talking … (span ${i + 1}/${spans.length})`
+        : "AI Framing: listening for who's talking … (usually 25–35s per clip)");
+      const turns = await aiFramingDiarizeSatuSpan(spans[i]);
+      semuaTurns.push(...turns);
+    }
+  } catch (err) {
+    aiFramingGagal(err.message);
+    return;
+  }
 
-function aiFramingPoll(id, referensi) {
-  fetch(`/api/diarize/${id}`).then((r) => r.json()).then((d) => {
-    if (d.state === "running") { setTimeout(() => aiFramingPoll(id, referensi), 1500); return; }
-    if (d.state === "failed") throw new Error(d.error || "Diarization failed.");
-    aiFramingSiapkanAntrian(d.turns || [], referensi);
-  }).catch((err) => aiFramingGagal(err.message));
+  aiFramingSiapkanAntrian(semuaTurns, referensi);
 }
 
 function aiFramingGagal(pesan) {

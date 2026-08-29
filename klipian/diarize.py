@@ -23,9 +23,16 @@ from __future__ import annotations
 
 import os
 import tempfile
+import threading
 from pathlib import Path
 
 _pipeline = None   # singleton -- memuat model butuh belasan detik, jangan berulang
+# Server-nya ThreadingHTTPServer: dua permintaan /api/diarize bisa datang
+# bersamaan (mis. tab lain, atau klip Result dengan beberapa span diproses
+# tanpa sengaja tumpang tindih). Model pyannote TIDAK dijamin aman dipanggil
+# dari dua thread sekaligus -- kunci ini memaksa satu inferensi jalan dulu
+# sampai selesai sebelum yang berikutnya mulai, apa pun yang memanggilnya.
+_pipeline_lock = threading.Lock()
 
 
 def _load_pipeline():
@@ -97,7 +104,8 @@ def diarize_segment(video: Path, start: float, end: float) -> list[dict]:
         if data.ndim == 1:
             data = data[:, None]
         waveform = torch.from_numpy(data.T)   # (channel, time)
-        result = pipeline({"waveform": waveform, "sample_rate": sr})
+        with _pipeline_lock:
+            result = pipeline({"waveform": waveform, "sample_rate": sr})
 
     turns = [
         {"start": round(start + turn.start, 3),
