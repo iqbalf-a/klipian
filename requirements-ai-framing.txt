@@ -11,3 +11,8 @@
 
 pyannote.audio>=4.0.0      # speaker diarization (CPU, lewat torch/torchaudio)
 soundfile>=0.12.0          # baca WAV manual -- workaround bug torchcodec di Windows
+# deteksi wajah (Haar cascade, BUKAN PyTorch) -- merapatkan kotak framing.
+# DIKUNCI di bawah 5.0: versi 5.x tidak lagi menyertakan berkas cascade-nya
+# sama sekali (perubahan packaging upstream) -- cv2.data.haarcascades jadi
+# folder kosong dan _load_detector() di facebox.py gagal memuat apa pun.
+opencv-python-headless>=4.9.0,<5.0.0

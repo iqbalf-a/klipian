@@ -611,38 +611,85 @@ $("#aiFramingTanya")?.addEventListener("click", (e) => {
   aiFramingTanyaBerikutnya();
 });
 
-function aiFramingTerapkan(turns, pemetaan, referensi) {
-  // Disalin dulu SEBELUM loop, bukan dibaca langsung dari referensi.crops di
-  // dalam loop: referensi adalah OBJEK YANG SAMA persis dengan salah satu
-  // titik di FRAMING (bisa saja titik acuan Split itu sendiri), dan giliran
-  // pertama sering jatuh persis di detik yang sama dengan titik itu -- kalau
-  // dibaca langsung, penimpaan titik pertama ikut merusak referensi.crops
-  // untuk semua giliran SESUDAHNYA di loop yang sama.
+/* Kotak yang sudah dites di sini KASAR, cuma posisi orang secara umum
+   (ditandai manual sekali di titik Split acuan) -- meleset dikit dari
+   wajah sungguhan itu wajar. Tanpa perbaikan, titik yang dihasilkan AI
+   Framing cuma menyalin mentah-mentah koordinat kasar itu ke SELURUH klip,
+   dan kalau orangnya bergeser sedikit atau geseran awalnya kurang pas,
+   hasilnya bisa menyorot kursi kosong -- persis keluhan yang mau
+   diperbaiki. Jadi tiap titik diperiksa ULANG posisinya lewat deteksi
+   wajah sungguhan (klipian/facebox.py) di detik giliran itu sendiri,
+   bukan cuma percaya satu koordinat statis untuk seluruh klip. */
+async function aiFramingCariWajah(at, kasar) {
+  try {
+    const r = await fetch("/api/facefit", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ video: chosenSource?.name, at, crop: kasar }),
+    });
+    const d = await r.json();
+    return d.crop || null;   // null = tidak ada wajah ketemu, pakai kotak kasar
+  } catch {
+    return null;
+  }
+}
+
+async function aiFramingTerapkan(turns, pemetaan, referensi) {
+  // Disalin dulu SEBELUM dipakai, bukan dibaca langsung dari referensi.crops:
+  // referensi adalah OBJEK YANG SAMA persis dengan salah satu titik di
+  // FRAMING (bisa saja titik acuan Split itu sendiri), dan giliran pertama
+  // sering jatuh persis di detik yang sama dengan titik itu -- kalau dibaca
+  // langsung, penimpaan titik pertama ikut merusak referensi.crops untuk
+  // semua giliran sesudahnya.
   const kotakAsli = referensi.crops.map((c) => ({ ...c }));
 
-  let ditambah = 0;
+  // Daftar rencana dulu, baru deteksi wajahnya dijalankan PARALEL untuk
+  // semuanya -- kalau berurutan, klip dengan banyak giliran bicara (mis. 15
+  // titik) bisa makan belasan detik cuma menunggu satu-satu.
+  const rencana = [];
   let kotakSebelumnya = null;
   for (const t of turns) {
     const kotak = pemetaan[t.speaker];
-    if (kotak === undefined) continue;         // pembicara yang dilewati
-    if (kotak === kotakSebelumnya) continue;    // sudah kotak yang sama, tidak perlu titik baru
+    if (kotak === undefined) continue;          // pembicara yang dilewati
+    if (kotak === kotakSebelumnya) continue;     // sudah kotak yang sama, tidak perlu titik baru
     kotakSebelumnya = kotak;
+    rencana.push({ at: t.start, kasar: kotakAsli[kotak] || kotakAsli[0] });
+  }
 
-    const crop = { ...(kotakAsli[kotak] || kotakAsli[0]) };
-    const sama = FRAMING.find((f) => Math.abs(f.at - t.start) < 0.35);
+  if (!rencana.length) {
+    // Bukan kegagalan -- cuma tidak ada giliran yang perlu berganti kotak
+    // (misal cuma satu pembicara sepanjang klip). Dulu ini dilaporkan
+    // sebagai "0 titik ditambahkan" yang kelihatan seperti error padahal
+    // benar begini adanya.
+    aiFramingStatus("AI Framing: no switching needed for this clip.");
+    return;
+  }
+
+  aiFramingStatus(
+    `AI Framing: fine-tuning ${rencana.length} frame${rencana.length === 1 ? "" : "s"} onto each face …`);
+  const hasilWajah = await Promise.all(
+    rencana.map((r) => aiFramingCariWajah(r.at, r.kasar)));
+
+  let ditambah = 0;
+  rencana.forEach((r, i) => {
+    const crop = { ...(hasilWajah[i] || r.kasar) };   // wajah tidak ketemu -> pakai kotak kasar
+    const sama = FRAMING.find((f) => Math.abs(f.at - r.at) < 0.35);
     if (sama) {
       sama.format = "single";
       sama.crops = [crop];
     } else {
-      FRAMING.push({ id: `f${++framingSeq}`, at: t.start, format: "single", crops: [crop] });
+      FRAMING.push({ id: `f${++framingSeq}`, at: r.at, format: "single", crops: [crop] });
       ditambah++;
     }
-  }
+  });
   FRAMING.sort((a, b) => a.at - b.at);
   renderFraming();
   if (typeof simpanProject === "function") simpanProject();
+
+  const tidakKetemu = hasilWajah.filter((h) => !h).length;
   aiFramingStatus(
-    `AI Framing: ${ditambah} framing point${ditambah === 1 ? "" : "s"} added. Review and adjust if needed.`);
+    `AI Framing: ${ditambah} framing point${ditambah === 1 ? "" : "s"} added, fitted onto each face.`
+    + (tidakKetemu ? ` (${tidakKetemu} used the rough box — no face detected there.)` : "")
+    + " Review and adjust if needed.");
 }
 
 $("#aiFramingBtn")?.addEventListener("click", aiFramingMulai);

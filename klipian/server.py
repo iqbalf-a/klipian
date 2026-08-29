@@ -742,6 +742,32 @@ class Handler(BaseHTTPRequestHandler):
                              daemon=True).start()
             return self._send_json({"id": job_id})
 
+        if path == "/api/facefit":
+            # Sinkron, bukan job async seperti /api/diarize -- satu frame
+            # cukup cepat dideteksi (di bawah 1 detik), tidak sepadan dengan
+            # ongkos polling untuk pekerjaan sesingkat itu.
+            try:
+                req = self._read_json()
+            except Exception as exc:               # noqa: BLE001
+                return self._send_json({"error": str(exc)}, 400)
+            video = _find_video(req.get("video", ""))
+            if not video:
+                return self._send_json({"error": "video not found"}, 404)
+            try:
+                at = float(req.get("at", 0))
+            except (TypeError, ValueError):
+                return self._send_json({"error": "invalid time"}, 400)
+            rough = req.get("crop") or {}
+
+            try:
+                from .facebox import fit_crop_to_face
+                crop = fit_crop_to_face(video, at, rough)
+            except Exception as exc:               # noqa: BLE001
+                return self._send_json({"error": str(exc)}, 500)
+            if not crop:
+                return self._send_json({"error": "no face detected"}, 404)
+            return self._send_json({"crop": crop})
+
         if path == "/api/open-folder":
             try:
                 folder = Path(self._read_json().get("folder", "")).resolve()
