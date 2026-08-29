@@ -186,7 +186,17 @@ def build_ass(job: RenderJob, words: list[Word], style: dict | None = None) -> s
 
     wm_align, wm_margin = _watermark_placement(
         g["watermark_position"], g["watermark_size"], H, margin_bottom)
+    # Alpha yang SAMA dipasang di warna ISI *dan* warna GARIS TEPI --
+    # sebelumnya cuma isi yang ikut warna_opacity, garis tepi dipatok hitam
+    # pekat tetap. Di latar terang garis tepi hitam itu tetap kontras
+    # berapa pun opacity dipilih -- kelihatan seperti "isi memudar, tepi
+    # tidak", bukan watermark yang memudar utuh sebagai satu kesatuan
+    # (laporan nyata dari ian, dan memang benar). ASS tidak punya properti
+    # "opacity" elemen seperti CSS -- alpha di channel warna INI yang jadi
+    # satu-satunya cara, jadi solusinya menyamakan alpha di semua warna
+    # yang dipakai, bukan mencari properti opacity yang memang tidak ada.
     wm_color = f"&H{g['watermark_opacity']}FFFFFF"
+    wm_outline_color = f"&H{g['watermark_opacity']}000000"
 
     header = f"""[Script Info]
 ScriptType: v4.00+
@@ -198,7 +208,7 @@ ScaledBorderAndShadow: yes
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, OutlineColour, BackColour, Bold, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Utama,{g['font']},{g['size']},{warna_style},&H00000000,&H80000000,1,1,{g['outline']},0,2,60,60,{margin_bottom},1
-Style: Watermark,Mona Sans ExtraBold,{g['watermark_size']},{wm_color},&H00000000,&H60000000,0,1,1,0,{wm_align},60,60,{wm_margin},1
+Style: Watermark,Mona Sans ExtraBold,{g['watermark_size']},{wm_color},{wm_outline_color},&H60000000,0,1,1,0,{wm_align},60,60,{wm_margin},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text

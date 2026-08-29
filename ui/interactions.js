@@ -256,7 +256,16 @@ function applyCaption() {
     const opacity = captionValue("watermark-opacity").css;
     const posisi = captionValue("watermark-position").out;
     wm.style.fontSize = `${ukuran}px`;
-    wm.style.color = `rgba(255,255,255,${opacity})`;
+    // opacity CSS di ELEMEN-nya, BUKAN rgba() di warna teks -- rgba() cuma
+    // memudarkan isi hurufnya, sedangkan text-shadow di bawahnya (lihat
+    // .watermark916 di app.css) tetap gelap solid. Hasilnya kelihatan
+    // abu-abu kotor di opacity rendah (isi nyaris tak kelihatan, bayangan
+    // gelapnya masih penuh), bukan putih pudar bersih. opacity elemen
+    // memudarkan KEDUANYA sekaligus, sama seperti alpha OutlineColour yang
+    // kini disamakan dengan PrimaryColour di build_ass() -- dua sisi
+    // (preview dan render) sekarang benar-benar konsisten.
+    wm.style.color = "#fff";
+    wm.style.opacity = opacity;
 
     // Sama persis logikanya dengan _watermark_placement() di
     // klipian/render.py -- tinggi baris diperkirakan 1.3x ukuran font,
