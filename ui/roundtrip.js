@@ -248,6 +248,7 @@ function applyCandidates(candidates) {
 async function prepareExport(videoName) {
   const panel = $("#exportPanel"), button = $("#downloadBrief"), note = $("#exportNote");
   note.textContent = "mencari transkrip …";
+  const sebelumnya = realTranscript;
   realTranscript = await findTranscript(videoName);
 
   if (!realTranscript) {
@@ -261,6 +262,16 @@ async function prepareExport(videoName) {
   note.textContent =
     `${realTranscript.words.length.toLocaleString("id")} kata · ${fmtStamp(realTranscript.duration)} · siap dijatuhkan ke Claude`;
   $("#importPanel").dataset.ready = "true";
+
+  // Kalau orang sudah sempat menambah klip manual SEBELUM transkrip ini
+  // datang (mis. transkripsi masih jalan saat "Buat klip manual" ditekan),
+  // caption-nya kosong karena kataResult() belum punya apa-apa untuk
+  // dipetakan -- dan tidak ada yang memicu gambar ulang begitu transkrip
+  // akhirnya siap. Redraw eksplisit di sini menutup celah itu.
+  if (!sebelumnya && typeof RESULT !== "undefined" && RESULT.length) {
+    if (typeof drawCaption === "function") drawCaption();
+    if (typeof renderTeks === "function") renderTeks();
+  }
 }
 
 $("#downloadBrief").addEventListener("click", async () => {

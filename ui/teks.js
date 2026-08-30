@@ -114,9 +114,26 @@ function renderTeks() {
   }
 
   if (!kata.length) {
-    list.innerHTML = `<p class="kosong-hasil">No words yet. Build a Result first and the
-      caption text will show up here.</p>`;
-    if (note) note.textContent = "none yet";
+    // Result ADA tapi kata-nya kosong bisa berarti dua hal yang beda:
+    // videonya belum pernah ditranskripsi sama sekali (umum di jalur klip
+    // manual -- README sengaja bilang "lewati langkah 2 dan 3", tapi
+    // transkripsi bawaannya tetap jalan otomatis lewat layar Analisis;
+    // masalahnya kalau project ini dibuka LANGSUNG ke layar Klip -- lewat
+    // kartu di beranda atau pemulihan sesi -- layar Analisis, dan
+    // transkripsinya, tidak pernah tersentuh), atau memang tidak ada kata
+    // yang jatuh di rentang klip ini. Pesan "tambah klip dulu" menyesatkan
+    // untuk kasus pertama -- klipnya sudah ada, yang kurang cuma transkrip.
+    const adaKlip = typeof activeClip !== "undefined" && activeClip?.spans?.length;
+    if (adaKlip && !realTranscript) {
+      list.innerHTML = `<p class="kosong-hasil">Video ini belum ditranskripsi, jadi caption-nya
+        belum ada teks untuk ditampilkan.
+        <button class="btn main" id="autoCaptionBtn" type="button">Auto Caption</button></p>`;
+      if (note) note.textContent = "belum ditranskripsi";
+    } else {
+      list.innerHTML = `<p class="kosong-hasil">No words yet. Build a Result first and the
+        caption text will show up here.</p>`;
+      if (note) note.textContent = "none yet";
+    }
     return;
   }
 
@@ -206,7 +223,63 @@ function mulaiEdit(b) {
   });
 }
 
+/* ---------- Auto Caption: transkripsi dipicu langsung dari layar ini ----
+   Jalur manual boleh melewati layar Analisis sepenuhnya (buka project lewat
+   kartu beranda / pemulihan sesi, langsung ke Klip) -- tidak ada yang pernah
+   memicu transkripsi untuk video itu. Tombol ini jalur pintasnya, tanpa
+   harus pindah ke Analisis dulu. */
+let autoCaptionTimer = null;
+
+async function mulaiAutoCaption(btn) {
+  const video = (typeof chosenSource !== "undefined" && chosenSource?.name)
+    || (typeof DATA !== "undefined" ? DATA.file : "");
+  if (!video) return;
+  const note = $("#teksNote");
+  if (btn) btn.disabled = true;
+  if (note) note.textContent = "memulai transkripsi …";
+
+  let id;
+  try {
+    const reply = await fetch("/api/transcribe", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ video }),
+    }).then((r) => r.json());
+    if (reply.error) throw new Error(reply.error);
+    id = reply.id;
+  } catch {
+    if (note) note.textContent = "Butuh backend. Jalankan: python -m klipian serve";
+    if (btn) btn.disabled = false;
+    return;
+  }
+
+  clearInterval(autoCaptionTimer);
+  autoCaptionTimer = setInterval(async () => {
+    let t;
+    try { t = await (await fetch(`/api/transcribe/${id}`)).json(); }
+    catch { return; }                        // server sesaat tidak menyahut -- coba lagi
+
+    if (t.state === "running") {
+      if (note) note.textContent = `mentranskripsi … ${t.percent || 0}%`;
+      return;
+    }
+    clearInterval(autoCaptionTimer);
+    if (t.state === "failed") {
+      if (note) note.textContent = `Transkripsi gagal: ${t.error}`;
+      if (btn) btn.disabled = false;
+      return;
+    }
+    // done: transkrip sudah ada di cache/, tinggal dibaca ke sisi klien.
+    if (typeof findTranscript === "function") {
+      realTranscript = await findTranscript(video);
+    }
+    renderTeks();
+    if (typeof drawCaption === "function") drawCaption();
+  }, 900);
+}
+
 $("#teksList")?.addEventListener("click", (e) => {
+  const autoBtn = e.target.closest("#autoCaptionBtn");
+  if (autoBtn) { mulaiAutoCaption(autoBtn); return; }
   const b = e.target.closest(".kata-teks");
   if (!b || b.querySelector("input")) return;
   mulaiEdit(b);

@@ -421,6 +421,17 @@ async function bukaProjectDariBeranda(video) {
   // tapi dijaga sama seperti bukaProject() kalau kelak dipanggil untuk video
   // yang belum pernah dibuka.
   if (!ada) {
+    // Project baru: TIDAK ADA jaminan RESULT/FRAMING/KOREKSI/kandidat di
+    // memori sekarang kosong -- kalau video sebelumnya sempat dikerjakan di
+    // tab yang sama tanpa reload, isinya masih milik video ITU, bukan video
+    // ini. Jalur drop-file (acceptFile() di interactions.js) sudah
+    // membersihkan ini lewat resetResult()/resetFraming()/resetTeks(); jalur
+    // ini (kartu beranda / pemulihan sesi) belum, dan project baru lewat
+    // sini secara teori mungkin -- lihat komentar bukaProjectDariBeranda().
+    if (typeof resetFraming === "function") resetFraming();
+    if (typeof resetResult === "function") resetResult();
+    if (typeof resetTeks === "function") resetTeks();
+    if (typeof DATA !== "undefined") { DATA.candidates = []; DATA.marks = []; }
     if (typeof terapkanPresetCaption === "function" && terapkanPresetCaption()) {
       if (typeof renderList === "function") renderList();
       if (typeof applyCaption === "function") applyCaption();
