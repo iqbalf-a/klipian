@@ -188,7 +188,20 @@ async function muatProject(video) {
    mulai dari kosong dengan nama itu sebagai kunci. */
 async function bukaProject(video) {
   const adaLama = await muatProject(video);
-  if (!adaLama) simpanProject();          // catat sebagai project baru
+  if (!adaLama) {
+    // Project baru: tidak ada apa pun untuk dipulihkan, jadi pakai gaya
+    // caption/watermark terakhir dipakai (lihat terapkanPresetCaption() di
+    // app.js) alih-alih default pabrik. Panel caption sudah sempat digambar
+    // dengan default SEBELUM titik ini (lihat acceptFile() di
+    // interactions.js), jadi harus digambar ulang di sini juga -- kalau
+    // tidak, tombol yang tersorot di layar tidak sesuai gaya yang sungguhan
+    // dipakai.
+    if (typeof terapkanPresetCaption === "function" && terapkanPresetCaption()) {
+      if (typeof renderList === "function") renderList();
+      if (typeof applyCaption === "function") applyCaption();
+    }
+    simpanProject();          // catat sebagai project baru
+  }
   if (typeof ingatSesiAktif === "function") ingatSesiAktif(video);
   return adaLama;
 }
@@ -403,6 +416,16 @@ async function bukaProjectDariBeranda(video) {
   }
   const ada = await muatProject(video);
   if (gen !== _bukaProjectGen) return false;
+  // Jalur ini biasanya hanya membuka project yang SUDAH ada (kartu beranda
+  // dan pemulihan sesi keduanya berasal dari project yang sudah tercatat),
+  // tapi dijaga sama seperti bukaProject() kalau kelak dipanggil untuk video
+  // yang belum pernah dibuka.
+  if (!ada) {
+    if (typeof terapkanPresetCaption === "function" && terapkanPresetCaption()) {
+      if (typeof renderList === "function") renderList();
+      if (typeof applyCaption === "function") applyCaption();
+    }
+  }
   if (typeof prepareVideo === "function") prepareVideo();
   if (typeof drawSource === "function") drawSource();
   if (typeof renderRecommendations === "function") renderRecommendations();

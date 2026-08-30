@@ -1405,6 +1405,10 @@ h1, h2, h3 {
   padding: var(--s4) var(--s5) var(--s3);
 }
 .rekom-head .data, .hasil-head .data { margin-right: auto; color: var(--teks-samar); }
+/* Layar Captions sekarang punya DUA tombol di baris ini ("Remove filler
+   words" + "Reset all"), bukan cuma satu seperti rekom-head/hasil-head
+   lain -- di panel yang sempit keduanya meluber keluar kotak tanpa ini. */
+#panel-teks .rekom-head { flex-wrap: wrap; row-gap: var(--s2); }
 
 /* Panel tanya-jawab AI Framing: satu pembicara per giliran, sampai semua
    terpetakan atau dilewati -- lihat aiFramingTanyaBerikutnya() di framing.js. */
@@ -1702,6 +1706,21 @@ h1, h2, h3 {
 .render-bar .data { min-width: 0; overflow: hidden; text-overflow: ellipsis;
                     white-space: nowrap; }
 .render-bar .btn { flex: none; }
+/* Dua tombol sekarang (Quick preview + Render Result), bukan cuma satu --
+   di panel sempit .data yang menyusut (min-width:0 di atas) tidak cukup
+   menyerap keduanya, jadi barisnya boleh pindah ke baris kedua. */
+.render-bar .baris { flex-wrap: wrap; row-gap: var(--s2); }
+#previewCepatNote { color: var(--teks-samar); }
+
+.preview-cepat {
+  display: flex; flex-direction: column; gap: var(--s2);
+}
+.preview-cepat video {
+  width: 100%; aspect-ratio: 9 / 16;
+  border-radius: var(--r-m);
+  background: #000;
+  max-height: 46vh;
+}
 
 .hasil-foot {
   display: flex; align-items: center; gap: var(--s3);
@@ -1761,7 +1780,8 @@ h1, h2, h3 {
 .rekom-head .btn:not(.main),
 .hasil-head .btn:not(.main),
 .pilih-head .btn:not(.main),
-.work-head .btn:not(.main) {
+.work-head .btn:not(.main),
+.render-bar .btn:not(.main) {
   border-color: var(--garis-kaca);
   background: var(--kaca);
   color: var(--teks-lemah);
@@ -1812,6 +1832,13 @@ h1, h2, h3 {
   color: var(--aksen);
   border-color: color-mix(in srgb, var(--aksen) 45%, transparent);
   background: var(--aksen-lembut);
+}
+.kata-teks.pengisi {
+  color: var(--teks-samar);
+  border-color: color-mix(in srgb, var(--bahaya) 35%, transparent);
+  border-style: dashed;
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--bahaya) 55%, transparent);
 }
 .kata-input {
   font: inherit; font-size: 13px;

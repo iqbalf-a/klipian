@@ -97,6 +97,7 @@ function renderResult() {
     if (total) total.textContent = "empty";
     const clr = $("#hasilClearBtn"); if (clr) clr.disabled = true;
     const btn = $("#hasilRenderBtn"); if (btn) btn.disabled = true;
+    const pratinjau = $("#previewCepatBtn"); if (pratinjau) pratinjau.disabled = true;
     const ringkas = $("#hasilRingkas"); if (ringkas) ringkas.textContent = "";
     if (typeof setResultAsPreview === "function") setResultAsPreview();
     if (typeof drawTotalTimeline === "function") drawTotalTimeline();
@@ -123,6 +124,7 @@ function renderResult() {
   const judul = $("#hasilJudul");
   if (judul && !judul.value.trim()) judul.placeholder = judulBawaan();
   const btn = $("#hasilRenderBtn"); if (btn) btn.disabled = false;
+  const pratinjau = $("#previewCepatBtn"); if (pratinjau) pratinjau.disabled = false;
   const ringkas = $("#hasilRingkas");
   if (ringkas) {
     ringkas.textContent = RESULT.length === 1

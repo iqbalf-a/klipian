@@ -158,6 +158,40 @@ function captionStyle() {
   };
 }
 
+/* Preset caption/watermark GLOBAL, terpisah dari project. Project menyimpan
+   pilihan MILIKNYA sendiri (lihat keadaanProject() di projects.js) supaya
+   membuka project lama tidak pernah mengubah gaya yang sudah dirender.
+   Tapi project BARU tidak punya apa-apa untuk dipulihkan -- tanpa ini ia
+   selalu mulai dari default pabrik, memaksa pilih ulang ukuran/posisi/opacity
+   watermark tiap kali video baru dijatuhkan, padahal biasanya orang mau gaya
+   yang sama seperti project sebelumnya. */
+const KUNCI_PRESET_CAPTION = "klipian:preset-caption";
+
+function simpanPresetCaption() {
+  try {
+    localStorage.setItem(KUNCI_PRESET_CAPTION,
+      JSON.stringify(CAPTION_OPTIONS.map((o) => o.active)));
+  } catch { /* privat/penuh -- preset cuma kenyamanan, bukan keharusan */ }
+}
+
+/* Dipanggil hanya untuk project BARU (lihat bukaProject/bukaProjectDariBeranda
+   di projects.js). Sama seperti pemulihan project di muatProject(): indeks
+   dicek batas, karena preset lama bisa berasal dari susunan CAPTION_OPTIONS
+   yang sudah berubah jumlah pilihannya. */
+function terapkanPresetCaption() {
+  let preset;
+  try { preset = JSON.parse(localStorage.getItem(KUNCI_PRESET_CAPTION)); }
+  catch { return false; }
+  if (!Array.isArray(preset)) return false;
+  preset.forEach((i, k) => {
+    if (CAPTION_OPTIONS[k] && Number.isInteger(i)
+        && i >= 0 && i < CAPTION_OPTIONS[k].choices.length) {
+      CAPTION_OPTIONS[k].active = i;
+    }
+  });
+  return true;
+}
+
 const $ = (s) => document.querySelector(s);
 
 /* mm:ss (atau j:mm:ss) dari detik. Dipakai framing, timeline, result, dan

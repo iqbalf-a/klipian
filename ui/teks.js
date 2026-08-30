@@ -42,6 +42,59 @@ function kataUntukRender() {
   return kataResult().map((w) => ({ text: w.text, start: w.start, end: w.end }));
 }
 
+/* ---------- kata pengisi ("eh", "anu", "hmm"...) ----------
+   Daftarnya sengaja pendek dan hanya interjeksi MURNI. Kata seperti "kan"
+   atau "gitu" sering dipakai sebagai pengisi juga, tapi keduanya tetap kata
+   fungsi yang sah di kalimat lain -- membuangnya buta bisa merusak makna.
+   Pelajaran yang sama seperti ambang "kata mungkin salah dengar" di
+   glosarium (README): ambang longgar menandai 10,3% kata dan hampir semuanya
+   ternyata benar. Interjeksi murni jauh lebih aman: kalimat tetap utuh
+   tanpanya, apa pun konteksnya.
+
+   Dicek terhadap w.text (SUDAH lewat koreksi), bukan w.asli -- kalau Whisper
+   salah dengar kata sungguhan sebagai "eh" dan orangnya sudah membetulkannya
+   di layar ini, koreksi itu yang harus dihormati, bukan tebakan Whisper. */
+const KATA_PENGISI = new Set([
+  "eh", "ee", "eee", "em", "emm", "ehm", "hmm", "hm", "mm", "anu", "euh",
+]);
+
+const kataPengisiKah = (teks) =>
+  KATA_PENGISI.has(teks.toLowerCase().replace(/[^\p{L}]/gu, ""));
+
+function kataPengisiDiResult() {
+  return kataResult().filter((w) => kataPengisiKah(w.text));
+}
+
+/* Membelah tiap potongan Result di sekitar kata pengisi -- mekanisme yang
+   sama dengan "buang bagian tengah" (lihat README): Result tetap daftar
+   rentang waktu, cuma jadi lebih banyak rentang yang lebih pendek. Potongan
+   yang tersisa lebih pendek dari 0,05 detik dibuang alih-alih ditinggalkan
+   sebagai rentang nyaris-nol yang tidak berarti apa-apa. */
+function buangKataPengisi() {
+  const pengisi = kataPengisiDiResult();
+  if (!pengisi.length || typeof RESULT === "undefined") return 0;
+  const AMBANG = 0.05;
+  const baru = [];
+  for (const r of RESULT) {
+    let kursor = r.start;
+    const dalam = pengisi
+      .filter((w) => w.start >= r.start && w.end <= r.end)
+      .sort((a, b) => a.start - b.start);
+    for (const w of dalam) {
+      if (w.start - kursor > AMBANG) {
+        baru.push({ ...r, id: `r${++resultSeq}`, start: kursor, end: w.start });
+      }
+      kursor = w.end;
+    }
+    if (r.end - kursor > AMBANG) {
+      baru.push({ ...r, id: `r${++resultSeq}`, start: kursor, end: r.end });
+    }
+  }
+  RESULT = baru;
+  renderResult();               // menulis project + menggambar ulang semuanya
+  return pengisi.length;
+}
+
 /* ---------- menggambar ---------- */
 
 function renderTeks() {
@@ -51,8 +104,14 @@ function renderTeks() {
 
   const kata = kataResult();
   const diubah = kata.filter((w) => w.diubah).length;
+  const pengisi = kata.filter((w) => kataPengisiKah(w.text)).length;
   const reset = $("#teksResetBtn");
   if (reset) reset.disabled = diubah === 0;
+  const pengisiBtn = $("#teksPengisiBtn");
+  if (pengisiBtn) {
+    pengisiBtn.disabled = pengisi === 0;
+    pengisiBtn.textContent = pengisi ? `Remove filler words (${pengisi})` : "Remove filler words";
+  }
 
   if (!kata.length) {
     list.innerHTML = `<p class="kosong-hasil">No words yet. Build a Result first and the
@@ -62,15 +121,21 @@ function renderTeks() {
   }
 
   if (note) {
-    note.textContent = diubah
-      ? `${kata.length} words · ${diubah} corrected`
+    const bagian = [`${kata.length} words`];
+    if (diubah) bagian.push(`${diubah} corrected`);
+    if (pengisi) bagian.push(`${pengisi} filler`);
+    note.textContent = bagian.length > 1 ? bagian.join(" · ")
       : `${kata.length} words · click a word to correct it`;
   }
 
-  list.innerHTML = kata.map((w) => `
-    <button class="kata-teks${w.diubah ? " diubah" : ""}" data-mulai="${kunciKata(w)}"
-            title="${jamRange(w.start)}${w.diubah ? ` · was &quot;${escapeHTML(w.asli)}&quot;` : ""}"
-    >${escapeHTML(w.text)}</button>`).join("");
+  list.innerHTML = kata.map((w) => {
+    const isPengisi = kataPengisiKah(w.text);
+    return `
+    <button class="kata-teks${w.diubah ? " diubah" : ""}${isPengisi ? " pengisi" : ""}"
+            data-mulai="${kunciKata(w)}"
+            title="${jamRange(w.start)}${w.diubah ? ` · was &quot;${escapeHTML(w.asli)}&quot;` : ""}${isPengisi ? " · filler word" : ""}"
+    >${escapeHTML(w.text)}</button>`;
+  }).join("");
 }
 
 /* ---------- membetulkan satu kata ----------
@@ -151,6 +216,13 @@ $("#teksResetBtn")?.addEventListener("click", () => {
   KOREKSI = {};
   renderTeks();
   if (typeof drawCaption === "function") drawCaption();
+});
+
+$("#teksPengisiBtn")?.addEventListener("click", () => {
+  // renderTeks() (dipanggil dari dalam renderResult(), lihat buangKataPengisi
+  // di atas) sudah menggambar ulang daftar kata dan menyimpan project --
+  // tidak ada yang perlu dilakukan lagi di sini.
+  buangKataPengisi();
 });
 
 /* Video baru = transkrip lain, koreksi lama tidak berlaku. */

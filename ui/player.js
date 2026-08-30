@@ -558,3 +558,62 @@ async function kirimRender(approved) {
   }, 700);
 }
 
+/* ───────────────── pratinjau cepat: render sungguhan, dipotong pendek ────
+   Beda dari panel 9:16 di atas -- itu tiruan CSS, dan tiruan bisa meleset
+   dari hasil ASS/ffmpeg asli (persis yang terjadi pada bug opacity
+   watermark). Ini memanggil ffmpeg SUNGGUHAN lewat /api/preview, cuma
+   dipotong PREVIEW_MAX_DETIK detik di server supaya tetap "cepat". */
+async function previewCepat() {
+  const klip = (typeof resultAsClip === "function") ? resultAsClip() : null;
+  const btn = $("#previewCepatBtn");
+  const note = $("#previewCepatNote");
+  if (!klip || !klip.spans?.length) return;
+
+  if (btn) { btn.disabled = true; btn.textContent = "Rendering…"; }
+  if (note) note.textContent = "";
+
+  const clip = {
+    title: klip.title,
+    // Sama seperti kirimRender(): potongan dipecah lagi di tiap titik
+    // framing supaya crop yang dipratinjau sungguhan sesuai yang dipilih.
+    spans: (typeof spansWithFraming === "function")
+      ? spansWithFraming(klip.spans)
+      : klip.spans,
+    style: captionStyle(),
+    words: (typeof kataUntukRender === "function") ? kataUntukRender() : undefined,
+    layout: optionOut("format"),
+    width: optionOut("resolution"),
+  };
+
+  try {
+    const reply = await fetch("/api/preview", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ video: chosenSource?.name || DATA.file, clip }),
+    }).then((r) => r.json());
+    if (reply.error) throw new Error(reply.error);
+    tampilkanPreviewCepat(reply.url);
+  } catch (err) {
+    if (note) note.textContent = err.message || "Preview failed.";
+  } finally {
+    if (btn) { btn.disabled = !RESULT.length; btn.textContent = "Quick preview"; }
+  }
+}
+
+function tampilkanPreviewCepat(url) {
+  const wrap = $("#previewCepatWrap");
+  const video = $("#previewCepatVideo");
+  if (!wrap || !video) return;
+  video.src = url;               // ?t=... di url sudah membuatnya beda tiap kali
+  video.play().catch(() => {});  // autoplay boleh ditolak browser -- bukan galat
+  wrap.hidden = false;
+}
+
+$("#previewCepatBtn")?.addEventListener("click", previewCepat);
+
+$("#previewCepatTutup")?.addEventListener("click", () => {
+  const wrap = $("#previewCepatWrap");
+  const video = $("#previewCepatVideo");
+  if (video) { video.pause(); video.removeAttribute("src"); video.load(); }
+  if (wrap) wrap.hidden = true;
+});
+

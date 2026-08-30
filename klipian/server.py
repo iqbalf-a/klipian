@@ -48,6 +48,12 @@ LOCK = threading.Lock()
 # masih dipakai yang lain
 ACTIVE_TRANSCRIBES: dict[str, str] = {}
 MAX_JOBS = 100  # batas entries di TUGAS supaya tidak memory leak
+# Pratinjau cepat (/api/preview): berapa detik dari klip yang sungguhan
+# dirender lewat ffmpeg, dengan filter caption+watermark yang PERSIS sama
+# seperti render penuh -- bukan cuma pratinjau CSS di browser, yang pernah
+# terbukti bisa beda dari hasil ASS/ffmpeg asli (lihat bug opacity watermark).
+# 3 detik cukup untuk melihat gaya, tapi cukup pendek supaya tetap "cepat".
+PREVIEW_MAX_DETIK = 3.0
 # id job render yang diminta dibatalkan. _run_render memeriksanya lewat
 # cancel_check; render.py membunuh ffmpeg yang sedang berjalan kalau tercantum.
 CANCELLED: set[str] = set()
@@ -120,6 +126,76 @@ def _find_video(name: str) -> Path | None:
     return None
 
 
+def _crop_dari(d) -> "engine.CropBox | None":
+    """Crop per potongan dari JSON klien. Kalau tidak ada, dipakai crop
+    milik klipnya. Dipakai baik oleh render sungguhan maupun pratinjau
+    cepat -- dua jalur itu membaca bentuk `spans` yang persis sama."""
+    if not isinstance(d, dict):
+        return None
+    return engine.CropBox(
+        left=float(d.get("left", 37)), top=float(d.get("top", 4)),
+        width=float(d.get("width", 26)), height=float(d.get("height", 92)))
+
+
+def _crops_dari(d) -> "list[engine.CropBox] | None":
+    """Dua kotak untuk bingkai split. Kurang dari dua = bukan split, jadi
+    diabaikan dan potongan itu memakai satu kotak."""
+    if not isinstance(d, list) or len(d) < 2:
+        return None
+    kotak = [_crop_dari(x) for x in d[:2]]
+    return kotak if all(kotak) else None
+
+
+def _spans_dari_klip(k: dict) -> "list[engine.Span]":
+    """`k["spans"]` (JSON klien) -> daftar engine.Span, siap dipakai RenderJob.
+    Satu bentuk, dipakai render sungguhan maupun pratinjau -- keduanya
+    menerima payload klip yang sama dari UI."""
+    try:
+        return [engine.Span(float(p["start"]), float(p["end"]),
+                            _crop_dari(p.get("crop")), _crops_dari(p.get("crops")))
+                   for p in k.get("spans", [])]
+    except (KeyError, TypeError, ValueError):
+        raise ValueError(
+            f"Clip \"{k.get('title', '?')}\" has no valid timestamps. "
+            f"Re-import Claude's reply, or cut the clip manually.") from None
+
+
+def _kata_klip(k: dict, bawaan: list) -> list:
+    """Teks caption boleh dikirim UI. Itu dipakai kalau kamu membetulkan kata
+    yang salah dengar di layar Edit -- koreksinya milik result ini saja dan
+    TIDAK ditulis balik ke transkrip, karena transkrip punya alurnya sendiri.
+    `bawaan` (transkrip dari cache/) dipakai kalau klip tidak mengirim
+    koreksinya sendiri, atau bentuknya tidak sah."""
+    if isinstance(k.get("words"), list) and k["words"]:
+        try:
+            from .models import Word
+            return [Word(text=str(w["text"]),
+                        start=float(w["start"]), end=float(w["end"]))
+                    for w in k["words"]]
+        except (KeyError, TypeError, ValueError):
+            pass
+    return bawaan
+
+
+def _potong_untuk_pratinjau(spans: "list[engine.Span]", batas_detik: float) -> "list[engine.Span]":
+    """Potong daftar span supaya total durasinya tidak lebih dari batas_detik,
+    memotong span TERAKHIR yang tercakup alih-alih membuangnya utuh -- supaya
+    pratinjau tetap sedekat mungkin ke batas yang diminta, bukan berhenti
+    jauh lebih pendek gara-gara span pertama saja sudah melebihi batas."""
+    hasil = []
+    sisa = batas_detik
+    for s in spans:
+        if sisa <= 0:
+            break
+        if s.length <= sisa:
+            hasil.append(s)
+            sisa -= s.length
+        else:
+            hasil.append(engine.Span(s.start, s.start + sisa, s.crop, s.crops))
+            sisa = 0
+    return hasil
+
+
 def _run_render(job_id: str, req: dict) -> None:
     t = JOBS[job_id]
     try:
@@ -156,34 +232,11 @@ def _run_render(job_id: str, req: dict) -> None:
                 t["current"] = k["title"]
                 t["index"] = i
 
-            def _crop(d):
-                """Crop per potongan. Kalau tidak ada, dipakai crop klipnya."""
-                if not isinstance(d, dict):
-                    return None
-                return engine.CropBox(
-                    left=float(d.get("left", 37)), top=float(d.get("top", 4)),
-                    width=float(d.get("width", 26)), height=float(d.get("height", 92)))
-
-            def _crops(d):
-                """Dua kotak untuk bingkai split. Kurang dari dua = bukan
-                split, jadi diabaikan dan potongan itu memakai satu kotak."""
-                if not isinstance(d, list) or len(d) < 2:
-                    return None
-                kotak = [_crop(x) for x in d[:2]]
-                return kotak if all(kotak) else None
-
-            try:
-                # p["crop"] inilah yang membuat framing berpindah di tengah
-                # klip: tiap potongan dibingkai sendiri sebelum disambung.
-                # p["crops"] berisi dua kotak dan bikin potongan itu jadi
-                # bingkai split atas-bawah.
-                spans = [engine.Span(float(p["start"]), float(p["end"]),
-                                     _crop(p.get("crop")), _crops(p.get("crops")))
-                            for p in k.get("spans", [])]
-            except (KeyError, TypeError, ValueError):
-                raise ValueError(
-                    f"Clip \"{k.get('title', '?')}\" has no valid timestamps. "
-                    f"Re-import Claude's reply, or cut the clip manually.") from None
+            # p["crop"] inilah yang membuat framing berpindah di tengah klip:
+            # tiap potongan dibingkai sendiri sebelum disambung. p["crops"]
+            # berisi dua kotak dan bikin potongan itu jadi bingkai split
+            # atas-bawah.
+            spans = _spans_dari_klip(k)
             if not spans:
                 raise ValueError(f"Clip \"{k.get('title', '?')}\" has no spans.")
             crop = k.get("crop") or {}
@@ -203,19 +256,7 @@ def _run_render(job_id: str, req: dict) -> None:
             # dikirim, build_ass memakai bawaannya.
             gaya = k.get("style") if isinstance(k.get("style"), dict) else None
 
-            # Teks caption boleh dikirim UI. Itu dipakai kalau kamu membetulkan
-            # kata yang salah dengar di layar Edit -- koreksinya milik result
-            # ini saja dan TIDAK ditulis balik ke transkrip, karena transkrip
-            # punya alurnya sendiri.
-            kata_klip = words
-            if isinstance(k.get("words"), list) and k["words"]:
-                try:
-                    from .models import Word
-                    kata_klip = [Word(text=str(w["text"]),
-                                      start=float(w["start"]), end=float(w["end"]))
-                                 for w in k["words"]]
-                except (KeyError, TypeError, ValueError):
-                    kata_klip = words          # bentuknya aneh: pakai transkrip
+            kata_klip = _kata_klip(k, words)
 
             try:
                 engine.render(video, job, dest, words=kata_klip, style=gaya,
@@ -764,6 +805,77 @@ class Handler(BaseHTTPRequestHandler):
             if ada:
                 CANCELLED.add(job_id)
             return self._send_json({"ok": ada})
+
+        if path == "/api/preview":
+            # Render SUNGGUHAN lewat ffmpeg, cuma dipotong pendek -- bukan
+            # tiruan CSS di browser. Sinkron (bukan job queue seperti
+            # /api/render): PREVIEW_MAX_DETIK cukup pendek untuk selesai
+            # dalam hitungan detik, dan ThreadingHTTPServer sudah menangani
+            # tiap request di thread-nya sendiri, jadi permintaan lain (poll
+            # antrian, dsb.) tidak ikut tertahan menunggu ini.
+            try:
+                req = self._read_json()
+                k = req.get("clip")
+                if not isinstance(k, dict):
+                    return self._send_json({"error": "no clip"}, 400)
+            except Exception as exc:                   # noqa: BLE001
+                return self._send_json({"error": str(exc)}, 400)
+
+            video = _find_video(req.get("video", ""))
+            if not video:
+                return self._send_json(
+                    {"error": f"{req.get('video')} tidak ada di folder yang "
+                               f"dijangkau server."}, 404)
+
+            try:
+                spans = _potong_untuk_pratinjau(_spans_dari_klip(k), PREVIEW_MAX_DETIK)
+                if not spans:
+                    return self._send_json({"error": "Clip has no spans."}, 400)
+
+                from .ffmpeg_tools import probe
+                info = probe(video)
+
+                crop = k.get("crop") or {}
+                job = engine.RenderJob(
+                    title="_preview",
+                    spans=spans,
+                    crop=engine.CropBox(
+                        left=crop.get("left", 37), top=crop.get("top", 4),
+                        width=crop.get("width", 26), height=crop.get("height", 92)),
+                    layout=k.get("layout", "face"),
+                    out_width=int(k.get("width", 1080)),
+                )
+
+                words = []
+                try:
+                    cache = Cache(ROOT / "cache")
+                    tpath = cache.find_any_transcript(video)
+                    if tpath and tpath.exists():
+                        words = Transcript.load(tpath).words
+                except Exception:                      # noqa: BLE001
+                    pass
+                kata_klip = _kata_klip(k, words)
+
+                gaya = k.get("style") if isinstance(k.get("style"), dict) else None
+
+                # Nama TETAP, ditimpa tiap kali -- pratinjau adalah sekali
+                # pakai, bukan berkas yang perlu dikumpulkan seperti hasil
+                # render sungguhan di antrian/riwayat.
+                dest = ROOT / "out" / video.stem / "_preview.mp4"
+                engine.render(video, job, dest, words=kata_klip, style=gaya,
+                              src_width=info.width, src_height=info.height,
+                              has_audio=info.has_audio, verbose=False)
+            except Exception as exc:                   # noqa: BLE001
+                return self._send_json({"error": str(exc)}, 500)
+
+            return self._send_json({
+                # Nama berkasnya tetap sama tiap kali -- tanpa penanda waktu
+                # ini elemen <video> di browser tidak akan memuat ulang versi
+                # yang baru saja ditimpa, walau server sudah menulis berkas
+                # yang benar-benar berbeda isinya.
+                "url": f"/out/{video.stem}/_preview.mp4?t={int(time.time())}",
+                "duration": round(job.duration, 1),
+            })
 
         if path == "/api/transcribe":
             try:

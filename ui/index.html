@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wdth,wght@0,75..125,200..900;1,75..125,200..900&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="tokens.css?v=1788010474">
-<link rel="stylesheet" href="app.css?v=1788010474">
+<link rel="stylesheet" href="tokens.css?v=1788090796">
+<link rel="stylesheet" href="app.css?v=1788090796">
 </head>
 <body>
 
@@ -338,6 +338,7 @@
           <div class="rekom-head">
             <span class="eyebrow">Words</span>
             <span class="data" id="teksNote">click a word to correct it</span>
+            <button class="btn" id="teksPengisiBtn" disabled>Remove filler words</button>
             <button class="btn" id="teksResetBtn" disabled>Reset all</button>
           </div>
           <div class="teks-list" id="teksList"></div>
@@ -460,23 +461,34 @@
                  aria-label="Result title, used as the file name"></label>
         <div class="baris">
           <span class="data" id="hasilRingkas"></span>
+          <span class="data" id="previewCepatNote"></span>
+          <button class="btn" id="previewCepatBtn" disabled>Quick preview</button>
           <button class="btn main large" id="hasilRenderBtn" disabled>Render Result</button>
+        </div>
+        <!-- Render sungguhan lewat ffmpeg, cuma PREVIEW_MAX_DETIK detik --
+             bukan tiruan CSS di panel 9:16 di atas, yang pernah terbukti bisa
+             beda dari hasil ASS/ffmpeg asli (lihat bug opacity watermark).
+             Dipakai untuk mengecek caption/watermark benar-benar seperti
+             yang diharapkan SEBELUM menunggu render penuh. -->
+        <div class="preview-cepat" id="previewCepatWrap" hidden>
+          <video id="previewCepatVideo" controls autoplay playsinline></video>
+          <button class="btn quiet" id="previewCepatTutup" type="button">Close preview</button>
         </div>
       </div>
     </aside>
   </main>
 </div>
 
-<script src="app.js?v=1788010474"></script>
-<script src="interactions.js?v=1788010474"></script>
-<script src="framing.js?v=1788010474"></script>
-<script src="analysis.js?v=1788010474"></script>
-<script src="player.js?v=1788010474"></script>
-<script src="roundtrip.js?v=1788010474"></script>
-<script src="history.js?v=1788010474"></script>
-<script src="timeline.js?v=1788010474"></script>
-<script src="teks.js?v=1788010474"></script>
-<script src="result.js?v=1788010474"></script>
-<script src="projects.js?v=1788010474"></script>
+<script src="app.js?v=1788090796"></script>
+<script src="interactions.js?v=1788090796"></script>
+<script src="framing.js?v=1788090796"></script>
+<script src="analysis.js?v=1788090796"></script>
+<script src="player.js?v=1788090796"></script>
+<script src="roundtrip.js?v=1788090796"></script>
+<script src="history.js?v=1788090796"></script>
+<script src="timeline.js?v=1788090796"></script>
+<script src="teks.js?v=1788090796"></script>
+<script src="result.js?v=1788090796"></script>
+<script src="projects.js?v=1788090796"></script>
 </body>
 </html>
