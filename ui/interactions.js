@@ -235,43 +235,48 @@ function captionValue(id) {
   return o ? o.choices[o.active] : null;
 }
 
+// PlayResY di render SELALU out_width*16/9 dibulatkan genap -- 1920 untuk
+// resolusi bawaan (1080p, lihat OPTIONS di app.js). SEMUA ukuran piksel di
+// preview (font caption, outline, font watermark) dihitung PROPORSIONAL
+// terhadap ini, bukan angka kalibrasi ".px" terpisah seperti sebelumnya --
+// nilai tetap itu cuma "kelihatan pas" di SATU ukuran jendela/kombinasi
+// tertentu, dan meleset di kombinasi lain: preview tampil wajar tapi hasil
+// render sungguhan beda ukuran (laporan ian, untuk watermark MAUPUN
+// caption -- keduanya bug yang sama, cuma elemen berbeda).
+const PLAYRES_Y_BAWAAN = 1920;
+const pxDariOut = (out, frameH) => (out / PLAYRES_Y_BAWAAN) * frameH;
+
 function applyCaption() {
   const cap = document.querySelector(".cap916");
+  const frame = document.querySelector(".frame916");
   if (!cap) return;
-  cap.style.fontSize = `${captionValue("size").px}px`;
+
+  const frameH = frame ? frame.getBoundingClientRect().height : 0;
+  // Kalau panel masih display:none (skrip baru dimuat, belum pindah ke
+  // layar kerja) atau belum diberi ukuran akhir oleh browser, rect-nya 0 --
+  // lebih aman DIAMKAN dulu (toScreen() di app.js memanggil ulang
+  // applyCaption() begitu panel benar-benar tampil, dan ResizeObserver di
+  // bawah menangkap perubahan ukuran sesudahnya) daripada menulis ukuran
+  // nyaris nol yang tersangkut sampai ada pemicu lain.
+  if (frameH > 0) {
+    cap.style.fontSize = `${pxDariOut(captionValue("size").out, frameH)}px`;
+    const thicknessPx = pxDariOut(captionValue("outline").out, frameH);
+    cap.style.webkitTextStroke = thicknessPx ? `${thicknessPx * 0.5}px rgba(0,0,0,.85)` : "";
+  }
   cap.style.bottom = `${captionValue("position").px}%`;
   cap.style.fontFamily = captionValue("font").out;
-  const thickness = captionValue("outline").px;
-  cap.style.webkitTextStroke = thickness ? `${thickness * 0.5}px rgba(0,0,0,.85)` : "";
   // warna dipasang sebagai variabel di wadahnya supaya kata yang disorot
   // ikut berubah walau isinya digambar ulang tiap timeupdate
   cap.style.setProperty("--sorot", captionValue("highlight").css);
 
-  const frame = document.querySelector(".frame916");
   if (frame) frame.dataset.watermark = captionValue("watermark").out ? "on" : "off";
 
   const wm = document.querySelector(".watermark916");
   if (wm && frame) {
-    // PlayResY di render SELALU out_width*16/9 dibulatkan genap -- 1920
-    // untuk resolusi bawaan (1080p, lihat OPTIONS di app.js). Ukuran
-    // watermark preview dihitung PROPORSIONAL terhadap itu (ukuranOut /
-    // PLAYRES_Y_BAWAAN), bukan angka px kalibrasi terpisah seperti
-    // sebelumnya -- nilai px tetap itu cuma "kelihatan pas" di SATU ukuran
-    // jendela tertentu, dan meleset di ukuran lain: watermark tampil wajar
-    // di preview tapi jadi jauh lebih kecil (dan posisinya sedikit lebih
-    // turun) di hasil render sungguhan. Laporan ian ("watermark sangat
-    // kecil di hasil render, posisinya juga kebawah") persis gejala ini.
-    const PLAYRES_Y_BAWAAN = 1920;
     const ukuranOut = captionValue("watermark-size").out;
     const opacity = captionValue("watermark-opacity").css;
     const posisi = captionValue("watermark-position").out;
-    const frameH = frame.getBoundingClientRect().height;
-    // Kalau panel masih display:none (skrip baru dimuat, belum pindah ke
-    // layar kerja), rect-nya 0 -- lebih aman DIAMKAN dulu (toScreen()
-    // memanggil ulang applyCaption() begitu panel benar-benar tampil,
-    // lihat app.js) daripada menulis ukuran nyaris nol yang tersangkut
-    // sampai ada perubahan lain yang memicu applyCaption() lagi.
-    if (frameH > 0) wm.style.fontSize = `${(ukuranOut / PLAYRES_Y_BAWAAN) * frameH}px`;
+    if (frameH > 0) wm.style.fontSize = `${pxDariOut(ukuranOut, frameH)}px`;
     // opacity CSS di ELEMEN-nya, BUKAN rgba() di warna teks -- rgba() cuma
     // memudarkan isi hurufnya, sedangkan text-shadow di bawahnya (lihat
     // .watermark916 di app.css) tetap gelap solid. Hasilnya kelihatan
@@ -310,6 +315,20 @@ function applyCaption() {
     }
   }
 }
+
+// Font-size caption & watermark di atas dalam PX ABSOLUT (lewat
+// pxDariOut()), dihitung sekali tiap applyCaption() dipanggil -- beda dari
+// posisi (top/bottom pakai %, yang otomatis mengikuti ukuran wadahnya tanpa
+// perlu dihitung ulang). Kalau .frame916 berubah ukuran SESUDAH
+// applyCaption() terakhir jalan (jendela di-resize, panel Claude di sebelah
+// dibuka/ditutup, dsb.), px yang tersimpan jadi basi -- tetap segitu
+// padahal frame-nya sudah beda tinggi. ResizeObserver menangkap perubahan
+// itu dan menghitung ulang.
+const frame916ResizeObserver = new ResizeObserver(() => {
+  if (typeof applyCaption === "function") applyCaption();
+});
+const _frame916 = document.querySelector(".frame916");
+if (_frame916) frame916ResizeObserver.observe(_frame916);
 
 $("#captionList").addEventListener("click", (e) => {
   const c = e.target.closest(".chip");

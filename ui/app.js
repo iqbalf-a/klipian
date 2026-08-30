@@ -88,10 +88,12 @@ const CAPTION_OPTIONS = [
       { t: "Arial", out: "Arial" },
       { t: "Impact", out: "Impact" },
       { t: "Verdana", out: "Verdana" }] },
+  // Tidak ada field .px di sini -- preview menghitung ukuran layar langsung
+  // dari .out (pxDariOut() di interactions.js), sama seperti watermark-size.
   { id: "size", label: "Size", active: 1, choices: [
-      { t: "Small", out: 64, px: 14 },
-      { t: "Medium", out: 84, px: 17 },
-      { t: "Large", out: 108, px: 22 }] },
+      { t: "Small", out: 64 },
+      { t: "Medium", out: 84 },
+      { t: "Large", out: 108 }] },
   { id: "highlight", label: "Highlight", active: 0, choices: [
       { t: "Gold", out: "&H0000D6FF&", css: "#FFD600" },
       { t: "White", out: "&H00FFFFFF&", css: "#FFFFFF" },
@@ -104,9 +106,9 @@ const CAPTION_OPTIONS = [
   { id: "per-line", label: "Words per line", active: 1, choices: [
       { t: "2", out: 2 }, { t: "3", out: 3 }, { t: "4", out: 4 }] },
   { id: "outline", label: "Outline", active: 1, choices: [
-      { t: "None", out: 0, px: 0 },
-      { t: "Medium", out: 4, px: 2 },
-      { t: "Thick", out: 8, px: 4 }] },
+      { t: "None", out: 0 },
+      { t: "Medium", out: 4 },
+      { t: "Thick", out: 8 }] },
   { id: "watermark", label: "Watermark", active: 0, choices: [
       { t: "On", out: true },
       { t: "Off", out: false }] },
