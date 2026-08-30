@@ -110,10 +110,13 @@ const CAPTION_OPTIONS = [
   { id: "watermark", label: "Watermark", active: 0, choices: [
       { t: "On", out: true },
       { t: "Off", out: false }] },
+  // Tidak ada field .px di sini (beda dari opsi ukuran caption di atas) --
+  // preview watermark menghitung ukuran layar langsung dari .out (lihat
+  // applyCaption() di interactions.js), bukan angka kalibrasi terpisah.
   { id: "watermark-size", label: "Watermark size", active: 1, choices: [
-      { t: "Small", out: 22, px: 10 },
-      { t: "Medium", out: 32, px: 13 },
-      { t: "Large", out: 46, px: 17 }] },
+      { t: "Small", out: 22 },
+      { t: "Medium", out: 32 },
+      { t: "Large", out: 46 }] },
   // Opacity ditulis sebagai alpha ASS (&HAA...) -- 00 = penuh, FF = tak
   // kelihatan sama sekali, KEBALIKAN dari intuisi opacity biasa: makin
   // PUDAR pilihannya, makin BESAR angka alpha-nya. Dua tingkat paling pudar
@@ -464,6 +467,16 @@ function toScreen(name) {
   if (typeof attachVideoGeometry === "function") {
     setTimeout(attachVideoGeometry, 0);
     setTimeout(attachVideoGeometry, 160);
+  }
+  // Ukuran watermark preview (lihat applyCaption() di interactions.js) sejak
+  // fix terakhir dihitung dari getBoundingClientRect().height milik
+  // .frame916 -- masalah yang SAMA seperti geometri video di atas: kalau
+  // dipanggil sebelum panel keluar dari display:none, tingginya kebaca 0
+  // dan watermark jatuh ke fallback nyaris tak kelihatan. Dipanggil ulang
+  // di sini dengan pola yang sama persis.
+  if (typeof applyCaption === "function") {
+    setTimeout(applyCaption, 0);
+    setTimeout(applyCaption, 160);
   }
 }
 

@@ -252,10 +252,26 @@ function applyCaption() {
 
   const wm = document.querySelector(".watermark916");
   if (wm && frame) {
-    const ukuran = captionValue("watermark-size").px;
+    // PlayResY di render SELALU out_width*16/9 dibulatkan genap -- 1920
+    // untuk resolusi bawaan (1080p, lihat OPTIONS di app.js). Ukuran
+    // watermark preview dihitung PROPORSIONAL terhadap itu (ukuranOut /
+    // PLAYRES_Y_BAWAAN), bukan angka px kalibrasi terpisah seperti
+    // sebelumnya -- nilai px tetap itu cuma "kelihatan pas" di SATU ukuran
+    // jendela tertentu, dan meleset di ukuran lain: watermark tampil wajar
+    // di preview tapi jadi jauh lebih kecil (dan posisinya sedikit lebih
+    // turun) di hasil render sungguhan. Laporan ian ("watermark sangat
+    // kecil di hasil render, posisinya juga kebawah") persis gejala ini.
+    const PLAYRES_Y_BAWAAN = 1920;
+    const ukuranOut = captionValue("watermark-size").out;
     const opacity = captionValue("watermark-opacity").css;
     const posisi = captionValue("watermark-position").out;
-    wm.style.fontSize = `${ukuran}px`;
+    const frameH = frame.getBoundingClientRect().height;
+    // Kalau panel masih display:none (skrip baru dimuat, belum pindah ke
+    // layar kerja), rect-nya 0 -- lebih aman DIAMKAN dulu (toScreen()
+    // memanggil ulang applyCaption() begitu panel benar-benar tampil,
+    // lihat app.js) daripada menulis ukuran nyaris nol yang tersangkut
+    // sampai ada perubahan lain yang memicu applyCaption() lagi.
+    if (frameH > 0) wm.style.fontSize = `${(ukuranOut / PLAYRES_Y_BAWAAN) * frameH}px`;
     // opacity CSS di ELEMEN-nya, BUKAN rgba() di warna teks -- rgba() cuma
     // memudarkan isi hurufnya, sedangkan text-shadow di bawahnya (lihat
     // .watermark916 di app.css) tetap gelap solid. Hasilnya kelihatan
@@ -269,10 +285,11 @@ function applyCaption() {
 
     // Sama persis logikanya dengan _watermark_placement() di
     // klipian/render.py -- tinggi baris diperkirakan 1.3x ukuran font,
-    // diukur relatif ke TINGGI SUNGGUHAN panel preview (bukan angka
-    // konversi tetap) supaya tetap akurat di ukuran layar berapa pun.
-    const frameH = frame.getBoundingClientRect().height || 1;
-    const tinggiBarisPersen = ((ukuran * 1.3) / frameH) * 100;
+    // sebagai PERSEN dari PLAYRES_Y_BAWAAN (persis seperti render membagi
+    // dengan H). Tidak lagi bergantung frameH di sini -- persennya sama
+    // di ukuran layar berapa pun, cuma font-size dalam px di atas yang
+    // perlu tahu frameH sungguhan.
+    const tinggiBarisPersen = (ukuranOut * 1.3 / PLAYRES_Y_BAWAAN) * 100;
 
     wm.style.top = "auto";
     wm.style.bottom = "auto";
