@@ -177,14 +177,27 @@ def _kata_klip(k: dict, bawaan: list) -> list:
     return bawaan
 
 
-def _potong_untuk_pratinjau(spans: "list[engine.Span]", batas_detik: float) -> "list[engine.Span]":
-    """Potong daftar span supaya total durasinya tidak lebih dari batas_detik,
-    memotong span TERAKHIR yang tercakup alih-alih membuangnya utuh -- supaya
-    pratinjau tetap sedekat mungkin ke batas yang diminta, bukan berhenti
-    jauh lebih pendek gara-gara span pertama saja sudah melebihi batas."""
+def _potong_untuk_pratinjau(spans: "list[engine.Span]", batas_detik: float,
+                            mulai_dari: float = 0.0) -> "list[engine.Span]":
+    """Ambil sepotong pendek dari `spans`, sepanjang maksimal batas_detik,
+    dimulai `mulai_dari` detik waktu KELUARAN (sesudah semua span disambung)
+    dari awal klip -- bukan selalu dari detik pertama. Klip yang panjang
+    (menit-an) nyaris tidak pernah terwakili oleh 3 detik pertamanya saja;
+    `mulai_dari` biasanya posisi scrub yang sedang dilihat user di preview,
+    supaya pratinjau cepat benar-benar menunjukkan momen yang sedang dicek.
+
+    Span TERAKHIR yang tercakup dipotong pas di batasnya alih-alih dibuang
+    utuh -- supaya pratinjau tetap sedekat mungkin ke batas yang diminta."""
     hasil = []
+    sisa_lewati = max(0.0, mulai_dari)
     sisa = batas_detik
     for s in spans:
+        if sisa_lewati > 0:
+            if s.length <= sisa_lewati:
+                sisa_lewati -= s.length
+                continue
+            s = engine.Span(s.start + sisa_lewati, s.end, s.crop, s.crops)
+            sisa_lewati = 0
         if sisa <= 0:
             break
         if s.length <= sisa:
@@ -828,7 +841,13 @@ class Handler(BaseHTTPRequestHandler):
                                f"dijangkau server."}, 404)
 
             try:
-                spans = _potong_untuk_pratinjau(_spans_dari_klip(k), PREVIEW_MAX_DETIK)
+                semua_span = _spans_dari_klip(k)
+                mulai_dari = float(req.get("mulaiDari") or 0)
+                spans = _potong_untuk_pratinjau(semua_span, PREVIEW_MAX_DETIK, mulai_dari)
+                if not spans and mulai_dari > 0:
+                    # Scrub jatuh persis di ekor klip (kurang dari sedetik
+                    # tersisa) -- daripada gagal, tampilkan dari awal saja.
+                    spans = _potong_untuk_pratinjau(semua_span, PREVIEW_MAX_DETIK)
                 if not spans:
                     return self._send_json({"error": "Clip has no spans."}, 400)
 

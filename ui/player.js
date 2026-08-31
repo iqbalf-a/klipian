@@ -585,13 +585,25 @@ async function previewCepat() {
     width: optionOut("resolution"),
   };
 
+  // Klip yang panjang (menit-an) nyaris tidak pernah terwakili oleh 3 detik
+  // PERTAMANYA saja -- posisi scrub yang sedang dilihat di panel preview
+  // itulah momen yang sebenarnya mau dicek, jadi pratinjau dimulai dari
+  // situ, bukan selalu dari awal.
+  const posisiSekarang = (video?.src && typeof sourceToOut === "function")
+    ? sourceToOut(klip, video.currentTime) : null;
+  const mulaiDari = posisiSekarang ?? 0;
+
   try {
     const reply = await fetch("/api/preview", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ video: chosenSource?.name || DATA.file, clip }),
+      body: JSON.stringify({ video: chosenSource?.name || DATA.file, clip, mulaiDari }),
     }).then((r) => r.json());
     if (reply.error) throw new Error(reply.error);
     tampilkanPreviewCepat(reply.url);
+    // Supaya jelas potongan MANA yang sedang dilihat -- tanpa ini orang
+    // bisa kira pratinjau selalu dari awal klip, padahal sekarang ikut
+    // posisi scrub (lihat mulaiDari di atas).
+    if (note) note.textContent = `previewing ${jamPendek(mulaiDari)}–${jamPendek(mulaiDari + (reply.duration || 0))}`;
   } catch (err) {
     if (note) note.textContent = err.message || "Preview failed.";
   } finally {
