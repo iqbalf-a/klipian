@@ -52,8 +52,8 @@ MAX_JOBS = 100  # batas entries di TUGAS supaya tidak memory leak
 # dirender lewat ffmpeg, dengan filter caption+watermark yang PERSIS sama
 # seperti render penuh -- bukan cuma pratinjau CSS di browser, yang pernah
 # terbukti bisa beda dari hasil ASS/ffmpeg asli (lihat bug opacity watermark).
-# 3 detik cukup untuk melihat gaya, tapi cukup pendek supaya tetap "cepat".
-PREVIEW_MAX_DETIK = 3.0
+# 5 detik cukup untuk melihat gaya, tapi cukup pendek supaya tetap "cepat".
+PREVIEW_MAX_DETIK = 5.0
 # id job render yang diminta dibatalkan. _run_render memeriksanya lewat
 # cancel_check; render.py membunuh ffmpeg yang sedang berjalan kalau tercantum.
 CANCELLED: set[str] = set()
