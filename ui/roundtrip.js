@@ -260,7 +260,7 @@ async function prepareExport(videoName) {
   panel.dataset.ready = "true";
   button.disabled = false;
   note.textContent =
-    `${realTranscript.words.length.toLocaleString("id")} kata · ${fmtStamp(realTranscript.duration)} · siap dijatuhkan ke Claude`;
+    `${realTranscript.words.length.toLocaleString("id")} kata · ${fmtStamp(realTranscript.duration)} · drop the JSON to your AI to analyze it`;
   $("#importPanel").dataset.ready = "true";
 
   // Kalau orang sudah sempat menambah klip manual SEBELUM transkrip ini

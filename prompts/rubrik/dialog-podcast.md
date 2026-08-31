@@ -29,6 +29,12 @@ harus sudah menaruh sesuatu di meja.
 | 6–8 | pernyataan menarik tapi butuh satu kalimat untuk terasa |
 | 1–4 | mulai dari basa-basi, "jadi gini", "oke lanjut", nama orang tanpa konteks |
 
+Kalau transkrip menunjukkan penonton/kru tertawa ramai atau bereaksi keras
+tepat sesudah suatu kalimat (tertulis sebagai "(tertawa)", "haha", "wkwk",
+atau interjeksi serupa), itu bukti nyata ada sesuatu yang mengena di
+kalimat sebelumnya -- bobot skor hook-nya naik. Reaksi ini sinyal langsung
+dari penonton sungguhan, bukan tebakan.
+
 ### 2. Utuh — bisa dimengerti tanpa nonton episodenya?
 
 Klip yang mengacu ke hal yang dibahas 20 menit sebelumnya akan
