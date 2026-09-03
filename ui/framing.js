@@ -671,29 +671,33 @@ $("#aiFramingTanya")?.addEventListener("click", (e) => {
 /* Kotak yang sudah dites di sini KASAR, cuma posisi orang secara umum
    (ditandai manual sekali di titik Split acuan) -- meleset dikit dari
    wajah sungguhan itu wajar. Tanpa perbaikan, titik yang dihasilkan AI
-   Framing cuma menyalin mentah-mentah koordinat kasar itu ke SELURUH klip,
-   dan kalau orangnya bergeser sedikit atau geseran awalnya kurang pas,
-   hasilnya bisa menyorot kursi kosong -- persis keluhan yang mau
-   diperbaiki. Jadi tiap titik diperiksa ULANG posisinya lewat deteksi
-   wajah sungguhan (klipian/facebox.py) di detik giliran itu sendiri,
-   bukan cuma percaya satu koordinat statis untuk seluruh klip. */
-async function aiFramingCariWajah(at, kasar) {
+   Framing cuma menyalin mentah-mentah koordinat kasar itu ke SELURUH
+   giliran, dan kalau orangnya bergeser di kursi atau geseran awalnya
+   kurang pas, hasilnya bisa menyorot kursi kosong -- persis keluhan yang
+   mau diperbaiki. Jadi SELURUH giliran [start, end) dilacak lewat deteksi
+   wajah sungguhan (klipian/facebox.py), bukan cuma titik awalnya -- bisa
+   mengembalikan LEBIH dari satu titik kalau subjeknya bergeser cukup jauh
+   selama giliran itu. klipian tetap potong keras (bukan pan kontinu); ini
+   cuma memastikan titik potongnya ikut gerak orangnya. Gagal/videonya
+   belum ada -> jatuh ke satu titik kotak kasar, sama seperti server-side
+   track_crops() kalau tidak ada wajah sama sekali. */
+async function aiFramingLacakWajah(start, end, kasar) {
   try {
-    const r = await fetch("/api/facefit", {
+    const r = await fetch("/api/facetrack", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ video: chosenSource?.name, at, crop: kasar }),
+      body: JSON.stringify({ video: chosenSource?.name, start, end, crop: kasar }),
     });
     const d = await r.json();
-    return d.crop || null;   // null = tidak ada wajah ketemu, pakai kotak kasar
+    return (d.points && d.points.length) ? d.points : [{ at: start, crop: kasar }];
   } catch {
-    return null;
+    return [{ at: start, crop: kasar }];
   }
 }
 
 async function aiFramingTerapkan(turns, posisi) {
-  // Daftar rencana dulu, baru deteksi wajahnya dijalankan PARALEL untuk
-  // semuanya -- kalau berurutan, klip dengan banyak giliran bicara (mis. 15
-  // titik) bisa makan belasan detik cuma menunggu satu-satu.
+  // Daftar rencana dulu, baru pelacakan wajahnya dijalankan PARALEL untuk
+  // semua giliran -- kalau berurutan, klip dengan banyak giliran bicara
+  // (mis. 15 titik) bisa makan belasan detik cuma menunggu satu-satu.
   const rencana = [];
   let pembicaraSebelumnya = null;
   for (const t of turns) {
@@ -701,7 +705,7 @@ async function aiFramingTerapkan(turns, posisi) {
     if (!kasar) continue;                          // pembicara yang dilewati
     if (t.speaker === pembicaraSebelumnya) continue; // pembicara sama, tidak perlu titik baru
     pembicaraSebelumnya = t.speaker;
-    rencana.push({ at: t.start, kasar });
+    rencana.push({ at: t.start, end: t.end, kasar });
   }
 
   if (!rencana.length) {
@@ -714,31 +718,32 @@ async function aiFramingTerapkan(turns, posisi) {
   }
 
   aiFramingStatus(
-    `AI Framing: fine-tuning ${rencana.length} frame${rencana.length === 1 ? "" : "s"} onto each face …`);
-  const hasilWajah = await Promise.all(
-    rencana.map((r) => aiFramingCariWajah(r.at, r.kasar)));
+    `AI Framing: tracking ${rencana.length} turn${rencana.length === 1 ? "" : "s"} onto each face …`);
+  const hasilPerGiliran = await Promise.all(
+    rencana.map((r) => aiFramingLacakWajah(r.at, r.end, r.kasar)));
 
   let ditambah = 0;
-  rencana.forEach((r, i) => {
-    const crop = { ...(hasilWajah[i] || r.kasar) };   // wajah tidak ketemu -> pakai kotak kasar
-    const sama = FRAMING.find((f) => Math.abs(f.at - r.at) < 0.35);
-    if (sama) {
-      sama.format = "single";
-      sama.crops = [crop];
-    } else {
-      FRAMING.push({ id: `f${++framingSeq}`, at: r.at, format: "single", crops: [crop] });
-      ditambah++;
+  for (const titikDaftar of hasilPerGiliran) {
+    for (const titik of titikDaftar) {
+      const crop = { ...titik.crop };
+      const sama = FRAMING.find((f) => Math.abs(f.at - titik.at) < 0.35);
+      if (sama) {
+        sama.format = "single";
+        sama.crops = [crop];
+      } else {
+        FRAMING.push({ id: `f${++framingSeq}`, at: titik.at, format: "single", crops: [crop] });
+        ditambah++;
+      }
     }
-  });
+  }
   FRAMING.sort((a, b) => a.at - b.at);
   renderFraming();
   if (typeof simpanProject === "function") simpanProject();
 
-  const tidakKetemu = hasilWajah.filter((h) => !h).length;
   aiFramingStatus(
-    `AI Framing: ${ditambah} framing point${ditambah === 1 ? "" : "s"} added, fitted onto each face.`
-    + (tidakKetemu ? ` (${tidakKetemu} used the rough box — no face detected there.)` : "")
-    + " Review and adjust if needed.");
+    `AI Framing: ${ditambah} framing point${ditambah === 1 ? "" : "s"} added across `
+    + `${rencana.length} turn${rencana.length === 1 ? "" : "s"}, tracking each speaker's face. `
+    + "Review and adjust if needed.");
 }
 
 $("#aiFramingBtn")?.addEventListener("click", aiFramingMulai);

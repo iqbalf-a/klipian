@@ -963,6 +963,33 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_json({"error": "no face detected"}, 404)
             return self._send_json({"crop": crop})
 
+        if path == "/api/facetrack":
+            # Sinkron juga, sama seperti /api/facefit -- tapi giliran panjang
+            # bisa makan beberapa detik (sampel per-frame + deteksi cascade
+            # berulang). Kalau kerasa lambat di UI nanti, ini kandidat pertama
+            # untuk dijadikan job async seperti /api/diarize.
+            try:
+                req = self._read_json()
+            except Exception as exc:               # noqa: BLE001
+                return self._send_json({"error": str(exc)}, 400)
+            video = _find_video(req.get("video", ""))
+            if not video:
+                return self._send_json({"error": "video not found"}, 404)
+            try:
+                start = float(req.get("start", 0))
+                end = float(req.get("end", 0))
+            except (TypeError, ValueError):
+                return self._send_json({"error": "invalid time"}, 400)
+            if end <= start:
+                return self._send_json({"error": "invalid range"}, 400)
+            rough = req.get("crop") or {}
+            try:
+                from .facebox import track_crops
+                points = track_crops(video, start, end, rough)
+            except Exception as exc:               # noqa: BLE001
+                return self._send_json({"error": str(exc)}, 500)
+            return self._send_json({"points": points})
+
         if path == "/api/open-folder":
             try:
                 folder = Path(self._read_json().get("folder", "")).resolve()
