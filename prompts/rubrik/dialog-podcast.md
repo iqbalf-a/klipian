@@ -35,6 +35,13 @@ atau interjeksi serupa), itu bukti nyata ada sesuatu yang mengena di
 kalimat sebelumnya -- bobot skor hook-nya naik. Reaksi ini sinyal langsung
 dari penonton sungguhan, bukan tebakan.
 
+Kalau berkas ini juga menyertakan bagian **"Momen energi audio menonjol"**,
+itu sinyal yang LEBIH KUAT lagi -- diukur langsung dari volume suara, bukan
+menunggu Whisper kebetulan menuliskannya sebagai teks. Kalau rentang waktu
+di daftar itu jatuh tepat sesudah sebuah kalimat, perlakukan sama seperti
+tawa yang tertulis di atas: bukti nyata, bukan tebakan. Kedua sinyal ini
+saling melengkapi, bukan gantian -- boleh dipakai bersama.
+
 ### 2. Utuh — bisa dimengerti tanpa nonton episodenya?
 
 Klip yang mengacu ke hal yang dibahas 20 menit sebelumnya akan

@@ -322,6 +322,22 @@ def _run_transcribe(job_id: str, req: dict) -> None:
                 f"{req['video']} is not in samples/.")
 
         cache = Cache(ROOT / "cache")
+
+        # Sekali per video, TIDAK tergantung apakah transkripnya sendiri
+        # sudah ter-cache -- makanya dicek di sini, sebelum jalur cache-hit
+        # transkrip di bawah bisa saja return lebih awal dan melewatkan ini.
+        # Non-fatal dengan sengaja: kegagalan analisis energi tidak boleh
+        # menggagalkan transkripsi yang jauh lebih penting.
+        epath = cache.energy_path(video)
+        if not epath.exists():
+            with LOCK:
+                t["stage"] = "energy"
+            try:
+                from .audio_energy import find_loud_moments
+                epath.write_text(json.dumps(find_loud_moments(video)), encoding="utf-8")
+            except Exception:                          # noqa: BLE001
+                pass
+
         model = req.get("model", "large-v3-turbo")
         lang = req.get("lang", "id")
         gloss_path = ROOT / "prompts" / "glossary.txt"
@@ -663,6 +679,25 @@ class Handler(BaseHTTPRequestHandler):
             # disediakan endpoint sendiri.
             file = sorted(p.name for p in (ROOT / "cache").glob("*.transcript.json"))
             return self._send_json({"transcript": file})
+
+        if path == "/api/audio-energy":
+            # Dibaca terpisah dari job transkripsi -- analisisnya dipicu di
+            # _run_transcribe() (lihat energy_path()) dan hasilnya cuma
+            # berkas cache biasa. Klien tidak perlu tahu bedanya "belum
+            # sempat dianalisis" vs "dianalisis, tidak ada momen menonjol"
+            # -- dua-duanya balas daftar kosong, bukan error.
+            q = parse_qs(urlparse(self.path).query)
+            video = _find_video(q.get("video", [""])[0])
+            if not video:
+                return self._send_json({"moments": []})
+            epath = Cache(ROOT / "cache").energy_path(video)
+            if not epath.is_file():
+                return self._send_json({"moments": []})
+            try:
+                moments = json.loads(epath.read_text(encoding="utf-8"))
+            except ValueError:
+                moments = []
+            return self._send_json({"moments": moments})
 
         if path == "/api/video":
             file = sorted(p.name for p in (ROOT / "samples").glob("*")

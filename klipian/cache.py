@@ -52,6 +52,13 @@ class Cache:
         fp = fingerprint(video)
         return self.root / f"{Path(video).stem}.{fp}.wav"
 
+    def energy_path(self, video: Path) -> Path:
+        """Momen energi audio tinggi (audio_energy.find_loud_moments) --
+        fingerprint video saja, tidak tergantung model/bahasa seperti
+        transcript_path()."""
+        fp = fingerprint(video)
+        return self.root / f"{Path(video).stem}.{fp}.energy.json"
+
     def find_any_transcript(self, video: Path) -> Path | None:
         """Transkrip apa pun untuk video ini, tanpa peduli model/lang/glossary.
 

@@ -70,6 +70,34 @@ async function buildBrief(name) {
     .map((s) => `[${fmtStamp(s.start)}] ${s.text.trim()}`)
     .join("\n");
 
+  // Sinyal TERPISAH dari transkrip -- murni dari volume suara (lihat
+  // klipian/audio_energy.py), dipicu otomatis sekali per video bareng
+  // transkripsi. Whisper jarang menuliskan tawa/reaksi keras sebagai teks
+  // yang bisa diandalkan; ini bukti yang sungguhan diukur, bukan tebakan
+  // dari tanda baca. Kosong kalau belum sempat dianalisis ATAU memang tidak
+  // ada momen menonjol -- dua-duanya sama saja di sini: bagiannya dilewati.
+  let energiBlok = "";
+  try {
+    const d = await (await fetch(`/api/audio-energy?video=${encodeURIComponent(name)}`)).json();
+    if (d.moments?.length) {
+      const daftar = d.moments
+        .map((m) => `- [${fmtStamp(m.start)}] – [${fmtStamp(m.end)}]`).join("\n");
+      energiBlok = `
+
+---
+
+## Momen energi audio menonjol (dari analisis volume, BUKAN transkrip)
+
+Rentang waktu berikut punya energi suara jauh di atas rata-rata video ini
+sendiri -- bisa tawa penonton, sorakan, reaksi keras, atau momen dramatis.
+Ini SINYAL pendukung, bukan fakta pasti: cocokkan dengan kalimat di
+transkrip sekitar waktu itu sebelum menjadikannya alasan skor.
+
+${daftar}
+`;
+    }
+  } catch { /* tanpa backend tidak ada yang bisa diambil -- brief tetap jalan tanpa bagian ini */ }
+
   return `# Cari klip — ${name}
 
 Halo. Tolong baca transkrip di bagian bawah berkas ini dan pilih momen yang
@@ -108,7 +136,7 @@ di luar bloknya.
   ]
 }
 \`\`\`
-
+${energiBlok}
 ---
 
 ## Transkrip
