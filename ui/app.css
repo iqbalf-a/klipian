@@ -816,75 +816,60 @@ h1, h2, h3 {
   content: ""; border: 1.5px solid currentColor; border-radius: 2px;
 }
 
-/* ── titik Framing sebagai timeline bergambar ──────────────────────────
+/* ── titik Framing sebagai strip thumbnail yang bisa di-scroll ──────────
    Dulu daftar chip datar ("00:12 · 1 · out 00:03" dst) -- susah dipindai
    begitu AI Framing menghasilkan banyak titik sekaligus (satu giliran bisa
-   >20 titik kalau subjeknya sering bergeser). Sekarang thumbnail sungguhan
-   (lewat /api/thumb, sudah ada) diposisikan di atas garis waktu sesuai
-   detiknya -- tapi cuma untuk titik yang cukup RENGGANG secara piksel
-   (diputuskan runtime oleh tampilkanThumbnailRenggang() di framing.js);
-   titik yang rapat cukup jadi tick kecil, supaya tidak saling menumpuk. */
+   >20 titik kalau subjeknya sering bergeser). Sekarang tiap titik SELALU
+   dapat thumbnail sungguhan (lewat /api/thumb, sudah ada) -- seberapa pun
+   rapat waktunya dengan tetangga, tidak ada yang disembunyikan/dikecilkan.
+   Ditata sebagai strip flex sebaris, BUKAN diposisikan proporsional ke
+   waktu di atas bar lebar tetap -- titik yang banyak membuat strip-nya
+   melebar dan di-scroll horizontal (overflow-x di bawah), bukan bikin
+   thumbnail berdesakan. */
 .framing-timeline {
-  position: relative;
-  height: 92px;
-  margin: 0 var(--s5) var(--s4);
-}
-/* Garis track digambar lewat ::before di bawah, bukan elemen .fr-track
-   sendiri -- satu-satunya yang perlu selebar penuh bar, tidak perlu
-   markup tambahan. */
-.framing-timeline::before {
-  content: "";
-  position: absolute; left: 0; right: 0; bottom: 22px;
-  height: 3px;
-  border-radius: var(--r-pill);
-  background: var(--kaca);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: var(--s2) var(--s5) var(--s4);
+  scrollbar-width: thin;
 }
 .fr-point {
-  position: absolute; bottom: 22px;
-  transform: translateX(-50%);
+  flex: 0 0 auto;
+  position: relative;
   display: flex; flex-direction: column; align-items: center;
+  width: 76px;
   cursor: pointer;
 }
-.fr-tick {
-  width: 2px; height: 10px;
-  background: var(--teks-samar);
-  border-radius: 1px;
-}
-.fr-active .fr-tick { background: var(--aksen); width: 3px; }
 .fr-thumb {
-  display: none;               /* diaktifkan lewat .fr-has-thumb, lihat JS */
-  width: 40px; aspect-ratio: 9 / 16;
+  width: 76px; aspect-ratio: 9 / 16;
   object-fit: cover;
   border-radius: var(--r-s);
-  border: 1px solid var(--garis-kaca);
-  margin-bottom: 4px;
+  border: 2px solid var(--garis-kaca);
   transition: border-color var(--cepat);
 }
+.fr-thumb-kosong { display: block; background: var(--kaca); }
 .fr-point:hover .fr-thumb { border-color: var(--teks-lemah); }
 .fr-active .fr-thumb { border-color: var(--aksen); }
 .fr-time {
-  display: none;                /* diaktifkan lewat .fr-has-thumb */
-  font-family: var(--font-data); font-size: 9px;
+  font-family: var(--font-data); font-size: 10px;
   color: var(--teks-samar);
-  margin-bottom: 4px; white-space: nowrap;
+  margin-top: 4px; white-space: nowrap;
 }
-.fr-active .fr-time { color: var(--aksen); }
-.fr-has-thumb .fr-thumb, .fr-has-thumb .fr-time { display: block; }
+.fr-active .fr-time { color: var(--aksen); font-weight: 650; }
 .fr-point .buang {
-  position: absolute; top: -6px; right: -8px;
-  width: 16px; height: 16px;
+  position: absolute; top: -6px; right: -6px;
+  width: 18px; height: 18px;
   display: flex; align-items: center; justify-content: center;
   border-radius: 50%;
   background: var(--bg-3);
   color: var(--teks-samar);
-  font-size: 11px; line-height: 1;
+  font-size: 12px; line-height: 1;
   opacity: 0; transition: opacity var(--cepat), color var(--cepat);
 }
 .fr-point:hover .buang { opacity: 1; }
 .fr-point .buang:hover { color: var(--bahaya); }
-/* Titik tick-only tidak punya thumbnail buat menaruh tombol hapus DI ATASnya
-   -- taruh di samping tick-nya saja, bukan menimpa. */
-.fr-point:not(.fr-has-thumb) .buang { top: -2px; right: -14px; }
 
 .preset-bar {
   flex: none; display: flex; align-items: center; gap: var(--s2);

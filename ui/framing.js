@@ -273,102 +273,36 @@ function renderFraming() {
     const outDari = (t) => (typeof activeClip !== "undefined" && activeClip?.spans
       && typeof sourceToOut === "function") ? sourceToOut(activeClip, t) : null;
 
-    // Skala bar dari RENTANG TITIK YANG ADA, bukan durasi video/Result --
-    // klip multi-span di sumber bisa punya jarak sumber yang jauh antar
-    // span, jadi "durasi video" akan membuang-buang ruang bar untuk
-    // rentang yang sama sekali tidak relevan. Ini juga otomatis
-    // menyesuaikan begitu titik ditambah/dihapus.
-    const semuaAt = FRAMING.map((f) => f.at);
-    const awal = Math.min(...semuaAt);
-    const akhir = Math.max(...semuaAt);
-    const rentang = akhir - awal;
-
+    // Setiap titik SELALU dapat thumbnail-nya sendiri, seberapa pun rapat
+    // waktunya dengan tetangganya -- strip-nya sebaris (flex), bukan
+    // diposisikan proporsional ke waktu di atas satu bar lebar tetap. Kalau
+    // titiknya banyak, striplah yang melebar dan boleh di-scroll horizontal
+    // (lihat overflow-x di CSS .framing-timeline) -- BUKAN thumbnail-nya
+    // yang dikecilkan atau sebagian titik dijadikan tick tanpa gambar.
     bar.innerHTML = FRAMING.map((f, i) => {
       const out = outDari(f.at);
-      const pct = rentang > 0 ? ((f.at - awal) / rentang) * 100 : 50;
-      const tip = `${jamRange(f.at)}${out !== null ? ` · out ${jamRange(out)}` : ""}`
-        + ` · ${f.format === "split" ? "Split" : "Single"}`;
-      // src BELUM dipasang -- data-src saja. Titik yang kepilih jadi
-      // "terlalu rapat" oleh pass pengukuran di bawah tidak pernah memicu
-      // permintaan /api/thumb sama sekali, bukan minta lalu disembunyikan.
+      const tip = `${out !== null ? `out ${jamRange(out)} · ` : ""}${f.format === "split" ? "Split" : "Single"}`;
       const thumbUrl = f.crops?.[0] && typeof chosenSource !== "undefined" && chosenSource?.name
         ? `/api/thumb?video=${encodeURIComponent(chosenSource.name)}&t=${f.at}`
           + `&left=${f.crops[0].left}&top=${f.crops[0].top}`
-          + `&width=${f.crops[0].width}&height=${f.crops[0].height}&w=64`
+          + `&width=${f.crops[0].width}&height=${f.crops[0].height}&w=96`
         : "";
       return `
       <div class="fr-point${f === aktif ? " fr-active" : ""}"
-           data-framing="${f.id}" data-at="${f.at}" style="left:${pct}%" title="${tip}">
-        ${thumbUrl ? `<img class="fr-thumb" data-src="${thumbUrl}" alt="" loading="lazy">` : ""}
+           data-framing="${f.id}" title="${tip}">
+        ${thumbUrl ? `<img class="fr-thumb" src="${thumbUrl}" alt="" loading="lazy">`
+                    : `<span class="fr-thumb fr-thumb-kosong"></span>`}
         <span class="fr-time">${jamRange(f.at)}</span>
-        <span class="fr-tick"></span>
         ${i > 0 ? `<i class="buang" data-buang-framing="${f.id}" role="button"
               aria-label="Delete point ${jamRange(f.at)}">×</i>` : ""}
       </div>`;
     }).join("");
-
-    // Thumbnail cuma untuk titik yang cukup RENGGANG secara piksel --
-    // ditunda ke frame berikutnya karena getBoundingClientRect() baru
-    // benar begitu elemen sungguhan sudah tampil (pola sama seperti
-    // attachVideoGeometry()/pasangPetak() di player.js untuk masalah
-    // serupa). Tanpa penundaan ini, panel yang baru saja keluar dari
-    // display:none akan terukur lebar 0 dan SEMUA titik jatuh ke tick.
-    requestAnimationFrame(() => tampilkanThumbnailRenggang(bar));
   }
 
   const bingkai = bingkaiPada(t);
   gambarKotak(bingkai.format, bingkai.crops);
   syncCanvasVideo();
   if (typeof attachVideoGeometry === "function") attachVideoGeometry();
-}
-
-/* Putuskan mana dari titik-titik yang barusan digambar cukup RENGGANG
-   (secara piksel, bukan secara detik -- dua titik yang berjauhan waktu
-   bisa saja tetap berdekatan di layar sempit) untuk dapat thumbnail
-   sungguhan. Diukur dari titik PALING KIRI ke kanan berurutan; jarak
-   dihitung dari titik TERAKHIR yang lolos, bukan dari tetangga sebelumnya
-   saja -- kalau tidak, serentetan titik yang masing-masing "cukup jauh"
-   dari tetangga tepat di sebelahnya bisa tetap menumpuk kalau dilihat
-   sebagai kelompok. */
-function tampilkanThumbnailRenggang(bar) {
-  const MIN_JARAK_PX = 64;
-  const rect = bar.getBoundingClientRect();
-  if (!rect.width) return;      // panel belum benar-benar tampil, coba lagi lain kali
-
-  const titik = [...bar.querySelectorAll(".fr-point")]
-    .map((el) => ({ el, x: (parseFloat(el.style.left) / 100) * rect.width }))
-    .sort((a, b) => a.x - b.x);
-
-  // Ditulis IDEMPOTEN dengan sengaja (bisa dipanggil ulang berkali-kali,
-  // lihat ResizeObserver di bawah) -- panel yang di-resize LEBIH SEMPIT
-  // bisa membuat titik yang tadinya renggang jadi rapat lagi, jadi
-  // keputusannya harus dihitung ULANG dari nol tiap kali, bukan cuma
-  // menambah. img.src cuma dipasang SEKALI per elemen (dicek dulu) supaya
-  // resize berulang tidak minta ulang /api/thumb yang sudah pernah diambil.
-  let terakhirX = -Infinity;
-  for (const { el, x } of titik) {
-    const img = el.querySelector(".fr-thumb");
-    if (!img) continue;         // titik ini memang tidak punya crop/video untuk di-thumbnail
-    if (x - terakhirX < MIN_JARAK_PX) {
-      el.classList.remove("fr-has-thumb");
-      continue;
-    }
-    if (!img.src) img.src = img.dataset.src;
-    el.classList.add("fr-has-thumb");
-    terakhirX = x;
-  }
-}
-
-// Panel berubah ukuran (jendela di-resize, sidebar dibuka/ditutup) harus
-// menghitung ULANG keputusan renggang/rapat -- persis pelajaran dari bug
-// ukuran watermark/caption sesi ini: nilai px yang dihitung sekali gampang
-// basi begitu kontainernya berubah ukuran. #framingList ada dari awal
-// (bukan dibuat ulang tiap render), jadi observer-nya dipasang sekali di
-// sini, bukan di dalam renderFraming() yang berulang kali dipanggil.
-const _framingListEl = $("#framingList");
-if (_framingListEl) {
-  new ResizeObserver(() => tampilkanThumbnailRenggang(_framingListEl))
-    .observe(_framingListEl);
 }
 
 /* Menaruh kotak di kanvas sesuai format. Kotak kedua hanya berarti saat
