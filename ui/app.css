@@ -744,10 +744,16 @@ h1, h2, h3 {
    rasionya beda muncul bilah kosong, dan crop 30% tidak lagi berarti 30%
    gambar sumber.
 
-   width `auto` (bukan 100%) supaya margin kiri-kanan benar-benar menyisipkan;
-   di kolom flex, anak dengan width auto meregang mengisi sisa lebar setelah
-   marginnya. aspect-ratio di sini cuma cadangan -- framing.js menguncinya ke
-   rasio video sumber begitu metadatanya terbaca. */
+   .panel (induknya) BUKAN flex container -- .canvas adalah kotak block
+   biasa. aspect-ratio di sini cuma cadangan, framing.js menguncinya ke
+   rasio video sumber begitu metadatanya terbaca (lihat ikutiPreview()
+   di framing.js).
+   Di layar lebar, rasio sumber x max-height bisa menghasilkan LEBAR lebih
+   kecil dari lebar panel -- tanpa margin kiri-kanan auto, kotak block
+   menempel ke tepi kiri (margin tetap cuma di kiri) dan sisa ruang jadi
+   celah kosong di kanan. margin auto memusatkannya; saat kanvas memang
+   selebar panel (kasus umum), auto tetap resolve ke celah simetris biasa
+   jadi tidak ada regresi di kasus itu. */
 .canvas {
   position: relative;
   flex: 0 1 auto; min-height: 0;
@@ -758,7 +764,7 @@ h1, h2, h3 {
      ke porsi viewport supaya ruang di bawah kanvas selalu tersisa. */
   max-height: 48vh;
   aspect-ratio: 16 / 9;
-  margin: 0 var(--s5);
+  margin: 0 auto;
   background: #000 center/cover no-repeat;
   border-radius: var(--r-l);
   border: 1px solid var(--garis-kaca);
@@ -1312,6 +1318,7 @@ h1, h2, h3 {
    di kolom vertikal semuanya terbaca dan urutannya jadi jelas. */
 
 .side {
+  position: relative;
   border-right: 1px solid var(--garis-kaca);
   background: color-mix(in srgb, var(--bg-1) 55%, transparent);
   backdrop-filter: blur(18px);
@@ -1319,7 +1326,25 @@ h1, h2, h3 {
   overflow-y: auto;
 }
 
-.rel-side { display: grid; gap: 2px; align-content: start; }
+/* Tombol sembunyikan sidebar duduk DI sidebar-nya sendiri, bukan di topbar
+   -- kontrol yang menyembunyikan sebuah panel wajar ditempel ke panel itu,
+   bukan ditaruh jauh di baris atas. Tombol munculkan-lagi (mengambang,
+   lihat .sidebar-restore) yang tetap di luar karena begitu sidebar
+   disembunyikan, elemen ini ikut hilang bersamanya. */
+.side-collapse {
+  position: absolute; top: var(--s3); right: var(--s3); z-index: 1;
+  font-size: var(--t-12); font-weight: 650;
+  padding: 3px 8px;
+  border: 1px solid var(--garis-kaca);
+  border-radius: var(--r-pill);
+  background: var(--bg-2);
+  color: var(--teks-samar);
+  cursor: pointer;
+  transition: color var(--cepat), background var(--cepat);
+}
+.side-collapse:hover { color: var(--teks); background: var(--kaca); }
+
+.rel-side { display: grid; gap: 2px; align-content: start; padding-top: 30px; }
 
 .rel-side .tab {
   width: 100%;
