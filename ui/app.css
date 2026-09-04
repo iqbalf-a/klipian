@@ -816,24 +816,75 @@ h1, h2, h3 {
   content: ""; border: 1.5px solid currentColor; border-radius: 2px;
 }
 
-/* Angka format di tiap titik framing: 1 atau 2. */
-.chip .fmt {
-  font-family: var(--font-data); font-style: normal;
-  font-size: 9px; margin-left: 6px;
-  padding: 1px 5px; border-radius: var(--r-pill);
-  background: color-mix(in srgb, currentColor 18%, transparent);
+/* ── titik Framing sebagai timeline bergambar ──────────────────────────
+   Dulu daftar chip datar ("00:12 · 1 · out 00:03" dst) -- susah dipindai
+   begitu AI Framing menghasilkan banyak titik sekaligus (satu giliran bisa
+   >20 titik kalau subjeknya sering bergeser). Sekarang thumbnail sungguhan
+   (lewat /api/thumb, sudah ada) diposisikan di atas garis waktu sesuai
+   detiknya -- tapi cuma untuk titik yang cukup RENGGANG secara piksel
+   (diputuskan runtime oleh tampilkanThumbnailRenggang() di framing.js);
+   titik yang rapat cukup jadi tick kecil, supaya tidak saling menumpuk. */
+.framing-timeline {
+  position: relative;
+  height: 92px;
+  margin: 0 var(--s5) var(--s4);
 }
-
-/* Posisi titik ini di hasil GABUNGAN, bukan di video sumber -- muncul
-   cuma kalau Result terdiri dari beberapa span yang saling berjauhan di
-   sumber, supaya jelas "menit besar" di chip itu bukan salah/di luar
-   jangkauan, cuma posisi aslinya di video 42 menit yang utuh. */
-.chip .chip-out {
-  font-family: var(--font-data); font-style: normal;
-  font-size: 9px; margin-left: 4px;
+/* Garis track digambar lewat ::before di bawah, bukan elemen .fr-track
+   sendiri -- satu-satunya yang perlu selebar penuh bar, tidak perlu
+   markup tambahan. */
+.framing-timeline::before {
+  content: "";
+  position: absolute; left: 0; right: 0; bottom: 22px;
+  height: 3px;
+  border-radius: var(--r-pill);
+  background: var(--kaca);
+}
+.fr-point {
+  position: absolute; bottom: 22px;
+  transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center;
+  cursor: pointer;
+}
+.fr-tick {
+  width: 2px; height: 10px;
+  background: var(--teks-samar);
+  border-radius: 1px;
+}
+.fr-active .fr-tick { background: var(--aksen); width: 3px; }
+.fr-thumb {
+  display: none;               /* diaktifkan lewat .fr-has-thumb, lihat JS */
+  width: 40px; aspect-ratio: 9 / 16;
+  object-fit: cover;
+  border-radius: var(--r-s);
+  border: 1px solid var(--garis-kaca);
+  margin-bottom: 4px;
+  transition: border-color var(--cepat);
+}
+.fr-point:hover .fr-thumb { border-color: var(--teks-lemah); }
+.fr-active .fr-thumb { border-color: var(--aksen); }
+.fr-time {
+  display: none;                /* diaktifkan lewat .fr-has-thumb */
+  font-family: var(--font-data); font-size: 9px;
   color: var(--teks-samar);
+  margin-bottom: 4px; white-space: nowrap;
 }
-.chip .chip-out::before { content: "· "; }
+.fr-active .fr-time { color: var(--aksen); }
+.fr-has-thumb .fr-thumb, .fr-has-thumb .fr-time { display: block; }
+.fr-point .buang {
+  position: absolute; top: -6px; right: -8px;
+  width: 16px; height: 16px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: var(--bg-3);
+  color: var(--teks-samar);
+  font-size: 11px; line-height: 1;
+  opacity: 0; transition: opacity var(--cepat), color var(--cepat);
+}
+.fr-point:hover .buang { opacity: 1; }
+.fr-point .buang:hover { color: var(--bahaya); }
+/* Titik tick-only tidak punya thumbnail buat menaruh tombol hapus DI ATASnya
+   -- taruh di samping tick-nya saja, bukan menimpa. */
+.fr-point:not(.fr-has-thumb) .buang { top: -2px; right: -14px; }
 
 .preset-bar {
   flex: none; display: flex; align-items: center; gap: var(--s2);
@@ -1130,11 +1181,6 @@ h1, h2, h3 {
 .btn:disabled { opacity: .4; cursor: not-allowed; }
 .btn.main:disabled:hover { background: var(--teks); }
 
-
-/* Kanvas reframe dipaksa 16:9 supaya persentase crop memetakan tepat ke
-   piksel gambar sumber. Dengan background-size:contain di kotak berbeda
-   rasio, ada bilah kosong -- dan crop 30% tidak lagi berarti 30% gambar. */
-.preset-list { display: flex; gap: var(--s2); flex-wrap: wrap; }
 
 /* Penanda mode: keterangan, bukan kontrol. Mode dipilih di menu utama, jadi
    membuatnya bisa diklik di sini memberi dua jalan untuk hal yang sama. */
