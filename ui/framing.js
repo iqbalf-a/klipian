@@ -281,7 +281,15 @@ function renderFraming() {
     // yang dikecilkan atau sebagian titik dijadikan tick tanpa gambar.
     bar.innerHTML = FRAMING.map((f, i) => {
       const out = outDari(f.at);
-      const tip = `${out !== null ? `out ${jamRange(out)} · ` : ""}${f.format === "split" ? "Split" : "Single"}`;
+      // Angka BESAR = posisi di RESULT yang sedang diedit (yang benar-benar
+      // dilihat orang di panel preview kanan) -- itu yang berarti langsung,
+      // bukan posisi di video sumber 42 menit. Sumbernya tetap ditampilkan
+      // (kecil, di bawahnya) untuk konteks/lompat-balik, bukan dibuang --
+      // cuma tidak lagi jadi angka UTAMA supaya tidak disangka posisi di
+      // Result (persis kebingungan yang dilaporkan ian: titik "07:58" pada
+      // Result yang cuma 1:25 kelihatan seperti di luar jangkauan, padahal
+      // itu memang posisi aslinya di sumber, bukan salah).
+      const tip = `${f.format === "split" ? "Split" : "Single"} · source ${jamRange(f.at)}`;
       const thumbUrl = f.crops?.[0] && typeof chosenSource !== "undefined" && chosenSource?.name
         ? `/api/thumb?video=${encodeURIComponent(chosenSource.name)}&t=${f.at}`
           + `&left=${f.crops[0].left}&top=${f.crops[0].top}`
@@ -292,7 +300,8 @@ function renderFraming() {
            data-framing="${f.id}" title="${tip}">
         ${thumbUrl ? `<img class="fr-thumb" src="${thumbUrl}" alt="" loading="lazy">`
                     : `<span class="fr-thumb fr-thumb-kosong"></span>`}
-        <span class="fr-time">${jamRange(f.at)}</span>
+        <span class="fr-time">${out !== null ? jamRange(out) : "—"}</span>
+        <span class="fr-time-src">src ${jamRange(f.at)}</span>
         ${i > 0 ? `<i class="buang" data-buang-framing="${f.id}" role="button"
               aria-label="Delete point ${jamRange(f.at)}">×</i>` : ""}
       </div>`;

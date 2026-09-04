@@ -852,12 +852,23 @@ h1, h2, h3 {
 .fr-thumb-kosong { display: block; background: var(--kaca); }
 .fr-point:hover .fr-thumb { border-color: var(--teks-lemah); }
 .fr-active .fr-thumb { border-color: var(--aksen); }
+/* Angka UTAMA = posisi di Result yang sedang diedit -- itu yang berarti
+   langsung bagi orang yang sedang melihat panel preview. .fr-time-src
+   (posisi di video sumber) sengaja lebih kecil/pudar di bawahnya: konteks
+   tambahan, bukan angka pertama yang dibaca (lihat komentar di
+   framing.js -- dulu kebalik, sumber yang besar, dan itu membingungkan
+   untuk Result yang jauh lebih pendek dari videonya). */
 .fr-time {
-  font-family: var(--font-data); font-size: 10px;
-  color: var(--teks-samar);
+  font-family: var(--font-data); font-size: 12px; font-weight: 650;
+  color: var(--teks-lemah);
   margin-top: 4px; white-space: nowrap;
 }
-.fr-active .fr-time { color: var(--aksen); font-weight: 650; }
+.fr-active .fr-time { color: var(--aksen); }
+.fr-time-src {
+  font-family: var(--font-data); font-size: 9px;
+  color: var(--teks-samar);
+  white-space: nowrap;
+}
 .fr-point .buang {
   position: absolute; top: -6px; right: -6px;
   width: 18px; height: 18px;
