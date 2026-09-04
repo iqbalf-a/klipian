@@ -532,23 +532,24 @@ $("#safeBtn").addEventListener("click", (e) => {
   e.currentTarget.setAttribute("aria-pressed", String(!on));
 });
 
-/* Navbar bisa disembunyikan buat layar yang kehabisan tinggi (mis. panel
-   Framing, kanvasnya sendiri sudah tinggi -- lihat .canvas di app.css).
-   Disimpan di localStorage supaya pilihannya bertahan lewat reload, sama
-   seperti pola sesi aktif di projects.js -- bukan cuma keadaan tab ini. */
-const KUNCI_NAVBAR = "klipian:navbar-tersembunyi";
-function terapkanNavbar(sembunyi) {
-  $("#app").dataset.navbar = sembunyi ? "hidden" : "";
-  const tombolMunculkan = $("#showNavbarBtn");
+/* Sidebar (tab Analyze/Clips/Framing/dst) bisa disembunyikan buat layar
+   yang kehabisan lebar (mis. panel Framing, kanvas+Framing Points butuh
+   ruang mendatar -- lihat .canvas di app.css). Disimpan di localStorage
+   supaya pilihannya bertahan lewat reload, sama seperti pola sesi aktif
+   di projects.js -- bukan cuma keadaan tab ini. */
+const KUNCI_SIDEBAR = "klipian:sidebar-tersembunyi";
+function terapkanSidebar(sembunyi) {
+  $("#app").dataset.sidebar = sembunyi ? "hidden" : "";
+  const tombolMunculkan = $("#showSidebarBtn");
   if (tombolMunculkan) tombolMunculkan.hidden = !sembunyi;
 }
-function setelNavbar(sembunyi) {
-  terapkanNavbar(sembunyi);
-  try { localStorage.setItem(KUNCI_NAVBAR, sembunyi ? "1" : "0"); } catch { /* privat/penuh */ }
+function setelSidebar(sembunyi) {
+  terapkanSidebar(sembunyi);
+  try { localStorage.setItem(KUNCI_SIDEBAR, sembunyi ? "1" : "0"); } catch { /* privat/penuh */ }
 }
-$("#hideNavbarBtn")?.addEventListener("click", () => setelNavbar(true));
-$("#showNavbarBtn")?.addEventListener("click", () => setelNavbar(false));
-try { terapkanNavbar(localStorage.getItem(KUNCI_NAVBAR) === "1"); } catch { /* default: tetap terlihat */ }
+$("#hideSidebarBtn")?.addEventListener("click", () => setelSidebar(true));
+$("#showSidebarBtn")?.addEventListener("click", () => setelSidebar(false));
+try { terapkanSidebar(localStorage.getItem(KUNCI_SIDEBAR) === "1"); } catch { /* default: tetap terlihat */ }
 
 // klik kata → tetapkan in, klik kata kedua → tetapkan out
 let anchor = null;
