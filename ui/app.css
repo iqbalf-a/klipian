@@ -49,6 +49,32 @@ body::before {
    jatuh ke baris berukuran tetap dan seluruh panel kolaps. */
 .app { position: relative; z-index: 1; height: 100vh;
        display: grid; grid-template-rows: var(--h-topbar) 1fr; }
+/* .topbar DITAMBATKAN eksplisit ke baris 1, .home/.stage ke baris 2 --
+   BUKAN dibiarkan auto-placement. Tanpa ini: begitu .topbar disembunyikan
+   (display:none, di bawah), ia keluar dari daftar item grid sama sekali,
+   dan .stage/.home yang tersisa jadi SATU-SATUNYA item -- auto-placement
+   menaruhnya di baris PERTAMA (kosong, bekas topbar), bukan baris kedua,
+   dan seluruh panggung kolaps ke tinggi 0. Dites langsung: itu persis
+   yang terjadi sebelum baris ini ditambahkan. */
+.topbar { grid-row: 1; }
+.home, .stage { grid-row: 2; }
+/* Baris topbar dinolkan, bukan cuma topbar-nya display:none -- kalau
+   tidak, grid-template-rows tetap menyisakan var(--h-topbar) kosong
+   (grid track tidak otomatis kolaps mengikuti display anaknya). */
+.app[data-navbar="hidden"] { grid-template-rows: 0 1fr; }
+.app[data-navbar="hidden"] .topbar { display: none; }
+.navbar-restore {
+  position: fixed; top: 6px; right: var(--s5); z-index: 60;
+  font-size: var(--t-12); font-weight: 650;
+  padding: 3px 11px;
+  border: 1px solid var(--garis-kaca);
+  border-radius: var(--r-pill);
+  background: var(--bg-2);
+  color: var(--teks-samar);
+  cursor: pointer;
+  transition: color var(--cepat), background var(--cepat);
+}
+.navbar-restore:hover { color: var(--teks); background: var(--kaca); }
 
 /* Hierarki dibangun dari LEBAR huruf, bukan hanya ukuran.
    Judul dilebarkan supaya punya kehadiran; label disempitkan supaya padat.
@@ -742,7 +768,12 @@ h1, h2, h3 {
 .canvas {
   position: relative;
   flex: 0 1 auto; min-height: 0;
-  width: auto; height: auto; max-height: 100%;
+  width: auto; height: auto;
+  /* Dulu max-height:100% -- di layar tinggi itu berarti kanvas melebar
+     sampai nyaris memenuhi seluruh panel, mendorong "Framing points" di
+     bawahnya keluar layar dan butuh scroll cuma untuk melihatnya. Dijepit
+     ke porsi viewport supaya ruang di bawah kanvas selalu tersisa. */
+  max-height: 48vh;
   aspect-ratio: 16 / 9;
   margin: 0 var(--s5);
   background: #000 center/cover no-repeat;

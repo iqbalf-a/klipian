@@ -532,6 +532,24 @@ $("#safeBtn").addEventListener("click", (e) => {
   e.currentTarget.setAttribute("aria-pressed", String(!on));
 });
 
+/* Navbar bisa disembunyikan buat layar yang kehabisan tinggi (mis. panel
+   Framing, kanvasnya sendiri sudah tinggi -- lihat .canvas di app.css).
+   Disimpan di localStorage supaya pilihannya bertahan lewat reload, sama
+   seperti pola sesi aktif di projects.js -- bukan cuma keadaan tab ini. */
+const KUNCI_NAVBAR = "klipian:navbar-tersembunyi";
+function terapkanNavbar(sembunyi) {
+  $("#app").dataset.navbar = sembunyi ? "hidden" : "";
+  const tombolMunculkan = $("#showNavbarBtn");
+  if (tombolMunculkan) tombolMunculkan.hidden = !sembunyi;
+}
+function setelNavbar(sembunyi) {
+  terapkanNavbar(sembunyi);
+  try { localStorage.setItem(KUNCI_NAVBAR, sembunyi ? "1" : "0"); } catch { /* privat/penuh */ }
+}
+$("#hideNavbarBtn")?.addEventListener("click", () => setelNavbar(true));
+$("#showNavbarBtn")?.addEventListener("click", () => setelNavbar(false));
+try { terapkanNavbar(localStorage.getItem(KUNCI_NAVBAR) === "1"); } catch { /* default: tetap terlihat */ }
+
 // klik kata → tetapkan in, klik kata kedua → tetapkan out
 let anchor = null;
 document.addEventListener("click", (e) => {
