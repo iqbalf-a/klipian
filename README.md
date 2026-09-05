@@ -210,7 +210,7 @@ buat apa yang terjadi SESUDAH klip jadi MP4.
 
 | Panel | Isinya |
 |---|---|
-| **Klip** | jadwal upload: status, sumber episode, judul/hook, deskripsi + hashtag, caption TikTok, tanggal & jam, link setelah posted. Diedit langsung di tabel, tersimpan ke `content/schedule/clips.json` |
+| **Klip** | jadwal upload: status, judul/hook, platform, tanggal & jam diedit langsung di tabel; sumber episode, file klip, deskripsi + hashtag, caption TikTok, link, catatan ada di dialog **Detail** per baris (tabel sengaja cuma kolom inti, biar tidak perlu scroll horizontal). Tersimpan ke `content/schedule/clips.json` |
 | **Hasil render** | isi `out/` apa adanya -- sumber datanya sama dengan layar History di editor |
 | **Assets** | isi `content/assets/`, tempat watermark/font/template custom di luar bawaan klipian |
 
@@ -226,10 +226,16 @@ sebuah sel selesai diedit.
 klipian/
 ├── klipian/           mesin
 │   ├── models.py        Word, Segment, Transcript  ← kontrak inti
+│   ├── cache.py         cache transkrip per sidik jari video+model+bahasa
 │   ├── transcribe.py    faster-whisper word-level
+│   ├── glossary.py      hotwords + koreksi istilah yang sering salah didengar
+│   ├── diarize.py       speaker diarization -- AI Framing tahu siapa bicara
+│   ├── facebox.py       deteksi wajah, arahkan kotak crop AI Framing
+│   ├── audio_energy.py  deteksi lonjakan volume, sinyal hook pelengkap transkrip
 │   ├── roundtrip.py     brief untuk Claude + impor balasannya
 │   ├── render.py        potongan → concat → crop → caption → MP4
-│   ├── server.py        API lokal: transkripsi, render, thumbnail
+│   ├── ffmpeg_tools.py  pembungkus tipis ffmpeg/ffprobe
+│   ├── server.py        API lokal: transkripsi, render, thumbnail, workspace
 │   └── cli.py
 ├── ui/                antarmuka -- tanpa framework, tanpa build step untuk jalan
 │   ├── index.html       kerangka editor + semua layar
@@ -246,7 +252,9 @@ klipian/
 │   │   │                  timeline, teks, result, projects)
 │   │   └── workspace/     satu berkas per panel workspace (helpers, clips,
 │   │                      render, assets)
-│   ├── assets/           ikon UI
+│   ├── assets/           gambar contoh mode lama (src-dialog.jpg,
+│   │                     src-gameplay.jpg) -- tidak lagi dipakai sejak
+│   │                     pemilihan mode di Home dihapus, belum dibersihkan
 │   └── tailwind.config.js
 ├── prompts/rubrik/    kriteria penilaian, bisa disunting tanpa sentuh kode
 ├── samples/           video yang sedang diproses — app baca dari sini

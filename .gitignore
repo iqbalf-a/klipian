@@ -16,5 +16,8 @@ samples/
 # source video files
 sources/
 
-# operasional konten (jadwal upload, dll) — bukan kode
-content/
+# operasional konten (jadwal upload, dll) — bukan kode. README-nya sendiri
+# TETAP dilacak (lihat pengecualian di bawah) supaya orang yang clone tahu
+# folder ini buat apa tanpa harus baca kode server.py.
+content/*
+!content/README.md
