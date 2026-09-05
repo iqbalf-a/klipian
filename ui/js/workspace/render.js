@@ -7,29 +7,30 @@
    Butuh $/escapeHTML/kapan dari helpers.js -- dimuat sebelum file ini.
    ========================================================================== */
 
+let RENDER = [];
+
 async function muatRender() {
   const note = $("#renderNote");
-  let render = [];
   try {
     const d = await (await fetch("/api/history")).json();
-    render = d.render || [];
+    RENDER = d.render || [];
   } catch {
     if (note) note.textContent = "needs klipian serve";
     $("#renderList").innerHTML = "";
     return;
   }
   if (note) {
-    const mb = render.reduce((t, r) => t + r.mb, 0);
-    note.textContent = render.length
-      ? `${render.length} file${render.length > 1 ? "s" : ""} · ${mb.toFixed(1)} MB`
+    const mb = RENDER.reduce((t, r) => t + r.mb, 0);
+    note.textContent = RENDER.length
+      ? `${RENDER.length} file${RENDER.length > 1 ? "s" : ""} · ${mb.toFixed(1)} MB`
       : "belum ada yang dirender";
   }
   const list = $("#renderList");
-  if (!render.length) {
+  if (!RENDER.length) {
     list.innerHTML = `<p class="ws-kosong">Folder out/ masih kosong.</p>`;
     return;
   }
-  list.innerHTML = render.map((r, i) => `
+  list.innerHTML = RENDER.map((r, i) => `
     <div class="ws-row" data-i="${i}">
       <span class="nama">${escapeHTML(r.file)} <span class="data">— ${escapeHTML(r.video)}</span></span>
       <span class="data">${r.mb} MB</span>
@@ -37,23 +38,24 @@ async function muatRender() {
       <button class="rounded-s px-2.5 py-1 text-[12px] hover:bg-kaca" data-aksi="putar">Play</button>
       <button class="rounded-s px-2.5 py-1 text-[12px] border border-garis hover:bg-kaca" data-aksi="buka">Open folder</button>
     </div>`).join("");
-  list.dataset.render = JSON.stringify(render);
 }
 
 $("#renderList")?.addEventListener("click", async (e) => {
   const b = e.target.closest("[data-aksi]");
   if (!b) return;
-  const list = $("#renderList");
-  const render = JSON.parse(list.dataset.render || "[]");
   const row = b.closest("[data-i]");
-  const r = render[Number(row.dataset.i)];
+  const r = RENDER[Number(row.dataset.i)];
   if (!r) return;
 
   if (b.dataset.aksi === "putar") {
     window.open(r.url, "_blank", "noopener");
     return;
   }
-  const semula = b.textContent;
+  // Label pemulih diambil dari data-label, BUKAN dari teks yang sedang
+  // tampil: klik kedua saat tombol masih menulis "opened" akan mengunci
+  // label sementara itu selamanya (lihat pola yang sama di history.js).
+  const semula = b.dataset.label || b.textContent;
+  b.dataset.label = semula;
   try {
     const j = await (await fetch("/api/open-folder", {
       method: "POST", headers: { "Content-Type": "application/json" },

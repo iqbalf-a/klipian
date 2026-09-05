@@ -886,29 +886,36 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as exc:               # noqa: BLE001
                 return self._send_json({"error": str(exc)}, 400)
 
-            clips = _load_clips()
             cid = str(req.get("id") or "")
 
-            if req.get("delete"):
+            # LOCK-kan seluruh baca-ubah-tulis: clips.json satu berkas dibagi
+            # semua request, dan server ini multi-thread (ThreadingHTTPServer).
+            # Tanpa ini, dua edit yang overlap bisa saling menimpa -- thread
+            # kedua menulis balik daftar yang dibacanya SEBELUM tulisan thread
+            # pertama selesai, dan perubahan pertama hilang tanpa galat.
+            with LOCK:
+                clips = _load_clips()
+
+                if req.get("delete"):
+                    if not cid:
+                        return self._send_json({"error": "id required"}, 400)
+                    clips = [c for c in clips if c.get("id") != cid]
+                    _save_clips(clips)
+                    return self._send_json({"ok": True, "deleted": True})
+
                 if not cid:
-                    return self._send_json({"error": "id required"}, 400)
-                clips = [c for c in clips if c.get("id") != cid]
+                    cid = uuid.uuid4().hex[:8]
+                req["id"] = cid
+                req["at"] = int(time.time())
+
+                for i, c in enumerate(clips):
+                    if c.get("id") == cid:
+                        clips[i] = req
+                        break
+                else:
+                    clips.append(req)
+
                 _save_clips(clips)
-                return self._send_json({"ok": True, "deleted": True})
-
-            if not cid:
-                cid = uuid.uuid4().hex[:8]
-            req["id"] = cid
-            req["at"] = int(time.time())
-
-            for i, c in enumerate(clips):
-                if c.get("id") == cid:
-                    clips[i] = req
-                    break
-            else:
-                clips.append(req)
-
-            _save_clips(clips)
             return self._send_json({"ok": True, "id": cid})
 
         if path == "/api/render":

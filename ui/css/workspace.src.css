@@ -46,8 +46,8 @@
   .ws-status { @apply font-semibold; }
   .ws-status[data-v="Draft"]     { @apply text-teks-samar; }
   .ws-status[data-v="Ready"]     { @apply text-aksen; }
-  .ws-status[data-v="Scheduled"] { color: var(--status-scheduled); }
-  .ws-status[data-v="Posted"]    { color: var(--status-posted); }
+  .ws-status[data-v="Scheduled"] { @apply text-status-scheduled; }
+  .ws-status[data-v="Posted"]    { @apply text-status-posted; }
   .ws-status[data-v="Discarded"] { @apply text-bahaya line-through; }
 
   .ws-hapus {
