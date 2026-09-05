@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wdth,wght@0,75..125,200..900;1,75..125,200..900&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="tokens.css?v=1788490674790">
-<link rel="stylesheet" href="app.css?v=1788490674790">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1788490674790">
+<link rel="stylesheet" href="/ui/css/app.css?v=1788490674790">
 </head>
 <body>
 
@@ -30,6 +30,9 @@
          jaring pengaman tambahan, bukan satu-satunya cara tersimpan. -->
     <button class="btn quiet work-only" id="saveNowBtn" type="button"
             title="Save now (this is on top of auto-save, not instead of it)">Save</button>
+    <!-- Selalu terlihat (bukan work-only) -- jadwal upload berguna dicek
+         kapan saja, bukan cuma saat sedang menyunting klip. -->
+    <a class="btn quiet" href="/workspace" title="Open the workspace dashboard">Workspace</a>
   </header>
   <!-- Sidebar kiri (tab Analyze/Clips/Framing/dst) makan lebar tetap yang
        tidak selalu perlu terlihat -- terutama panel Framing yang butuh
@@ -495,16 +498,16 @@
   </main>
 </div>
 
-<script src="app.js?v=1788490674790"></script>
-<script src="interactions.js?v=1788490674790"></script>
-<script src="framing.js?v=1788490674790"></script>
-<script src="analysis.js?v=1788490674790"></script>
-<script src="player.js?v=1788490674790"></script>
-<script src="roundtrip.js?v=1788490674790"></script>
-<script src="history.js?v=1788490674790"></script>
-<script src="timeline.js?v=1788490674790"></script>
-<script src="teks.js?v=1788490674790"></script>
-<script src="result.js?v=1788490674790"></script>
-<script src="projects.js?v=1788490674790"></script>
+<script src="/ui/js/editor/app.js?v=1788490674790"></script>
+<script src="/ui/js/editor/interactions.js?v=1788490674790"></script>
+<script src="/ui/js/editor/framing.js?v=1788490674790"></script>
+<script src="/ui/js/editor/analysis.js?v=1788490674790"></script>
+<script src="/ui/js/editor/player.js?v=1788490674790"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1788490674790"></script>
+<script src="/ui/js/editor/history.js?v=1788490674790"></script>
+<script src="/ui/js/editor/timeline.js?v=1788490674790"></script>
+<script src="/ui/js/editor/teks.js?v=1788490674790"></script>
+<script src="/ui/js/editor/result.js?v=1788490674790"></script>
+<script src="/ui/js/editor/projects.js?v=1788490674790"></script>
 </body>
 </html>

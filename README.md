@@ -199,6 +199,27 @@ satu file rubrik di `prompts/rubrik/`.
 
 ---
 
+## Workspace
+
+```
+http://127.0.0.1:5177/workspace
+```
+
+Dashboard operasional, terpisah dari editor. Bukan buat mengedit klip --
+buat apa yang terjadi SESUDAH klip jadi MP4.
+
+| Panel | Isinya |
+|---|---|
+| **Klip** | jadwal upload: status, sumber episode, judul/hook, deskripsi + hashtag, caption TikTok, tanggal & jam, link setelah posted. Diedit langsung di tabel, tersimpan ke `content/schedule/clips.json` |
+| **Hasil render** | isi `out/` apa adanya -- sumber datanya sama dengan layar History di editor |
+| **Assets** | isi `content/assets/`, tempat watermark/font/template custom di luar bawaan klipian |
+
+`clips.json` menggantikan pencatatan manual lewat spreadsheet -- satu baris
+lama di Excel sekarang satu baris di tabel ini, langsung tersimpan tiap kali
+sebuah sel selesai diedit.
+
+---
+
 ## Struktur
 
 ```
@@ -210,19 +231,29 @@ klipian/
 │   ├── render.py        potongan → concat → crop → caption → MP4
 │   ├── server.py        API lokal: transkripsi, render, thumbnail
 │   └── cli.py
-├── ui/                antarmuka
-│   ├── index.html       kerangka + semua layar
-│   ├── app.js           data & penggambaran tampilan
-│   ├── interactions.js  drop file, kandidat, caption, antrian
-│   ├── reframe.js       crop interaktif
-│   ├── analysis.js      menjalankan transkripsi
-│   ├── player.js        pemutar + kirim render
-│   ├── roundtrip.js     ekspor brief + impor balasan Claude
-│   └── manual.js        potong manual tanpa Claude
+├── ui/                antarmuka -- tanpa framework, tanpa build step untuk jalan
+│   ├── index.html       kerangka editor + semua layar
+│   ├── workspace.html   dashboard /workspace (lihat bagian Workspace di atas)
+│   ├── css/
+│   │   ├── tokens.css       warna/huruf/jarak — dipakai KEDUA halaman
+│   │   ├── app.css          gaya editor (index.html)
+│   │   ├── workspace.css    gaya workspace, di-generate dari Tailwind
+│   │   └── workspace.src.css  sumber Tailwind — bukan yang dimuat browser,
+│   │                          lihat komentar di dalamnya untuk build ulang
+│   ├── js/
+│   │   ├── editor/        satu berkas per layar editor (app, interactions,
+│   │   │                  framing, analysis, player, roundtrip, history,
+│   │   │                  timeline, teks, result, projects)
+│   │   └── workspace/     satu berkas per panel workspace (helpers, clips,
+│   │                      render, assets)
+│   ├── assets/           ikon UI
+│   └── tailwind.config.js
 ├── prompts/rubrik/    kriteria penilaian, bisa disunting tanpa sentuh kode
-├── samples/           taruh videomu di sini
+├── samples/           video yang sedang diproses — app baca dari sini
+├── sources/           arsip mentah di luar app (disalin ke samples/ saat dipakai)
 ├── cache/             transkrip (dibuat otomatis)
-└── out/               hasil render
+├── out/               hasil render
+└── content/           jadwal & status upload (clips.json) — lihat content/README.md
 ```
 
 ---

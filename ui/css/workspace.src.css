@@ -1,0 +1,68 @@
+/* klipian — workspace (sumber Tailwind)
+   ==========================================================================
+   Ini SUMBER, bukan yang dimuat halaman. Dibangun offline lewat Tailwind
+   CLI jadi css/workspace.css (statis) -- lihat catatan build di bawah.
+   Tidak ada CDN: klipian tetap jalan tanpa internet.
+
+   Build ulang (butuh Node.js -- cukup di mesin mana pun, hasilnya dikirim
+   balik sebagai berkas statis biasa; TIDAK dibutuhkan di laptop yang
+   menjalankan `klipian serve`):
+     npx tailwindcss -c tailwind.config.js -i css/workspace.src.css \
+       -o css/workspace.css --minify
+   ========================================================================== */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body { height: 100%; }
+  body {
+    @apply m-0 bg-surface-0 text-teks font-ui;
+    font-stretch: 100%;
+  }
+}
+
+@layer components {
+  /* Kartu panel -- dipakai 3x (Klip, Hasil render, Assets), disamakan di
+     sini daripada diulang sebagai utility panjang di tiap section. */
+  .ws-panel {
+    @apply bg-surface-2 rounded-m p-5 flex flex-col gap-4 shadow-kartu;
+  }
+
+  /* Input tabel: tanpa garis sampai disentuh -- tabel yang selalu bergaris
+     terasa seperti formulir, bukan lembar kerja yang enak dipindai. */
+  .ws-input {
+    @apply w-full bg-transparent border border-transparent rounded-s
+           px-2 py-1.5 text-[12.5px] text-teks resize-y font-ui
+           hover:border-garis focus:outline-none focus:border-aksen
+           focus:bg-surface-1;
+  }
+  select.ws-input { @apply cursor-pointer; }
+  textarea.ws-input { @apply min-h-[40px] resize-y; }
+
+  /* Status jadi sinyal warna, bukan cuma teks -- dashboard yang dilihat
+     sekilas harus tetap kebaca statusnya tanpa membaca satu-satu. */
+  .ws-status { @apply font-semibold; }
+  .ws-status[data-v="Draft"]     { @apply text-teks-samar; }
+  .ws-status[data-v="Ready"]     { @apply text-aksen; }
+  .ws-status[data-v="Scheduled"] { color: var(--status-scheduled); }
+  .ws-status[data-v="Posted"]    { color: var(--status-posted); }
+  .ws-status[data-v="Discarded"] { @apply text-bahaya line-through; }
+
+  .ws-hapus {
+    @apply bg-transparent border-0 text-teks-samar cursor-pointer text-base
+           leading-none p-1.5 rounded-s hover:text-bahaya hover:bg-kaca;
+  }
+
+  .ws-kosong { @apply text-teks-samar text-[13px] py-6 text-center; }
+
+  /* Baris render & asset -- 1 kolom lebar + beberapa kolom sempit rapat. */
+  .ws-row {
+    @apply grid items-center gap-3 py-2 px-3 border-b border-garis text-[13px]
+           last:border-b-0;
+    grid-template-columns: 1fr auto auto auto auto;
+  }
+  .ws-row .nama { @apply font-semibold truncate; }
+  .ws-row .data { @apply font-data text-[11px] text-teks-samar; }
+}

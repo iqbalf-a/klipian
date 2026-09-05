@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>klipian — workspace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wdth,wght@0,75..125,200..900;1,75..125,200..900&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap" rel="stylesheet">
+<!-- tokens.css dimuat DULUAN -- css/workspace.css cuma menunjuk ke custom
+     property yang didefinisikan di sana (lihat tailwind.config.js). -->
+<link rel="stylesheet" href="/ui/css/tokens.css">
+<link rel="stylesheet" href="/ui/css/workspace.css">
+</head>
+<body>
+
+<div class="flex flex-col min-h-screen">
+
+  <header class="flex items-center gap-4 h-[58px] px-5 shrink-0
+                  bg-surface-1 border-b border-garis">
+    <a class="text-teks font-extrabold no-underline hover:text-aksen"
+       style="font-stretch:118%" href="/" title="Back to editor">klipian</a>
+    <a class="text-teks-samar text-[12px] hover:text-teks" href="/" title="Back to editor">← Editor</a>
+    <span class="font-data text-[11px] text-teks-samar">/ workspace</span>
+    <span class="ml-auto font-data text-[12px] text-teks-samar" id="wsClock"></span>
+  </header>
+
+  <main class="flex-1 min-h-0 overflow-y-auto flex flex-col gap-6 p-6
+               max-w-[1400px] w-full mx-auto">
+
+    <!-- ══════════════════ KLIP — jadwal & status upload ══════════════════
+         Ganti content/schedule/content-calendar.xlsx: sama isinya (1 baris =
+         1 klip), tapi tersimpan di clips.json lewat /api/workspace/clips
+         supaya bisa diedit langsung dari sini, bukan buka Excel terpisah. -->
+    <section class="ws-panel" id="panelKlip">
+      <div class="flex items-center gap-3">
+        <h1 class="text-[20px] font-extrabold tracking-tight" style="font-stretch:112%">Klip</h1>
+        <span class="text-teks-samar text-[13px]" id="klipRingkasan">memuat…</span>
+        <button class="ml-auto rounded-s bg-aksen text-[13px] font-semibold px-3 py-1.5
+                       text-[oklch(0.145_0.010_258)] hover:brightness-110"
+                id="klipTambahBtn" type="button">+ Klip baru</button>
+      </div>
+      <div class="overflow-x-auto rounded-m">
+        <table class="w-full min-w-[1700px] border-collapse text-[13px]" id="klipTable">
+          <thead>
+            <tr>
+              <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
+                         uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
+                  style="width:110px">Status</th>
+              <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
+                         uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
+                  style="width:170px">Sumber episode</th>
+              <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
+                         uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
+                  style="width:160px">File klip</th>
+              <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
+                         uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
+                  style="width:200px">Judul / hook (YouTube)</th>
+              <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
+                         uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
+                  style="width:220px">Deskripsi + hashtag (YouTube)</th>
+              <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
+                         uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
+                  style="width:200px">Caption TikTok</th>
+              <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
+                         uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
+                  style="width:140px">Platform</th>
+              <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
+                         uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
+                  style="width:118px">Tgl upload</th>
+              <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
+                         uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
+                  style="width:80px">Jam</th>
+              <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
+                         uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
+                  style="width:150px">Link YouTube</th>
+              <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
+                         uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
+                  style="width:150px">Link TikTok</th>
+              <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
+                         uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
+                  style="width:160px">Catatan</th>
+              <th class="sticky top-0 z-10 bg-surface-2 border-b border-garis" style="width:36px"></th>
+            </tr>
+          </thead>
+          <tbody id="klipBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ══════════════════ HASIL RENDER — isi out/ apa adanya ══════════════════
+         Sumber data SAMA dengan /api/history (dipakai layar History di
+         editor) -- di sini cuma ditampilkan ulang, tidak ada endpoint baru,
+         supaya tidak ada dua definisi "apa yang sudah dirender". -->
+    <section class="ws-panel" id="panelRender">
+      <div class="flex items-center gap-3">
+        <h1 class="text-[20px] font-extrabold tracking-tight" style="font-stretch:112%">Hasil render</h1>
+        <span class="text-teks-samar text-[13px]" id="renderNote">memuat…</span>
+      </div>
+      <div id="renderList"></div>
+    </section>
+
+    <!-- ══════════════════ ASSETS — content/assets/ ══════════════════
+         Kosong secara default. Tempat taruh watermark/font/template custom
+         yang di luar bawaan klipian (assets/ di root, dipakai app sendiri). -->
+    <section class="ws-panel" id="panelAssets">
+      <div class="flex items-center gap-3">
+        <h1 class="text-[20px] font-extrabold tracking-tight" style="font-stretch:112%">Assets</h1>
+        <span class="text-teks-samar text-[13px]" id="assetNote">memuat…</span>
+      </div>
+      <div id="assetList"></div>
+    </section>
+
+  </main>
+</div>
+
+<script src="/ui/js/workspace/helpers.js"></script>
+<script src="/ui/js/workspace/clips.js"></script>
+<script src="/ui/js/workspace/render.js"></script>
+<script src="/ui/js/workspace/assets.js"></script>
+</body>
+</html>

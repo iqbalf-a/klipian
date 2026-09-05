@@ -40,6 +40,15 @@ SERVED_DIRS = ("ui", "cache", "out", "prompts", "samples")   # folder yang dilay
 # /api/project supaya nama berkas tidak jadi permukaan serang tersendiri.
 PROJECTS = ROOT / "projects"
 
+# Operasional konten (jadwal upload, status klip) -- bukan bagian dari alur
+# render, dan sengaja BUKAN berkas statis, sama seperti projects/ di atas.
+# Disimpan di luar cache/out/projects supaya tidak tercampur dengan yang
+# dikelola app, dan di-gitignore (lihat .gitignore) karena isinya operasional
+# harian, bukan kode.
+CONTENT = ROOT / "content"
+CLIPS_PATH = CONTENT / "schedule" / "clips.json"
+ASSETS_DIR = CONTENT / "assets"
+
 # pekerjaan render yang sedang / sudah berjalan
 JOBS: dict[str, dict] = {}
 LOCK = threading.Lock()
@@ -504,6 +513,36 @@ def _project_ringkas(file: Path) -> dict | None:
         return None
 
 
+# ═══════════════════════════════ workspace ═══════════════════════════════
+# Dashboard di /workspace: satu tempat untuk lihat hasil render (out/),
+# ngatur jadwal upload (clips.json), dan aset tambahan (content/assets/).
+# Terpisah dari project (state kerja per video) -- ini soal APA YANG TERJADI
+# SETELAH klip jadi MP4, bukan soal mengedit klipnya.
+
+def _load_clips() -> list[dict]:
+    """Satu berkas untuk semua klip -- beda dari project (satu berkas per
+    video) karena ini daftar flat yang dilihat lintas video sekaligus, mirip
+    spreadsheet. Berkas rusak atau belum ada dibalas daftar kosong, bukan
+    error -- dashboard yang belum pernah dipakai tidak boleh gagal muat."""
+    if not CLIPS_PATH.is_file():
+        return []
+    try:
+        data = json.loads(CLIPS_PATH.read_text(encoding="utf-8"))
+        return data.get("clip", []) if isinstance(data, dict) else []
+    except (OSError, ValueError):
+        return []
+
+
+def _save_clips(clips: list[dict]) -> None:
+    """Tulis ke berkas sementara lalu ganti nama, sama seperti project --
+    proses yang mati di tengah penulisan tidak boleh merusak clips.json."""
+    CLIPS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    tmp = CLIPS_PATH.with_suffix(".tmp")
+    tmp.write_text(json.dumps({"clip": clips}, ensure_ascii=False, indent=2),
+                    encoding="utf-8")
+    tmp.replace(CLIPS_PATH)
+
+
 def _thumbnail(video: Path, seconds: float, crop: dict, width: int) -> Path:
     """Satu frame dari detik klipnya, sudah dipotong 9:16.
 
@@ -673,6 +712,22 @@ class Handler(BaseHTTPRequestHandler):
             except ValueError:
                 return self._send_json({"error": "project file is corrupt"}, 500)
 
+        if path == "/api/workspace/clips":
+            return self._send_json({"clip": _load_clips()})
+
+        if path == "/api/workspace/assets":
+            # Dibuat kalau belum ada -- folder kosong itu keadaan normal
+            # (belum pernah nambah watermark/template custom), bukan error.
+            ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+            item = []
+            for f in sorted(ASSETS_DIR.iterdir()):
+                if f.is_file():
+                    st = f.stat()
+                    item.append({"name": f.name,
+                                 "kb": round(st.st_size / 1024, 1),
+                                 "at": int(st.st_mtime)})
+            return self._send_json({"asset": item})
+
         if path == "/api/cache":
             # UI perlu tahu transkrip apa saja yang tersedia. Server ini tidak
             # membuat daftar direktori HTML seperti http.server, jadi
@@ -704,16 +759,18 @@ class Handler(BaseHTTPRequestHandler):
                             if p.suffix.lower() in {".mp4", ".mkv", ".mov", ".webm"})
             return self._send_json({"video": file})
 
-        # "/" dialihkan ke "/ui/" -- BUKAN disajikan langsung, karena
-        # index.html memakai path skrip relatif dan akan meleset ke akar.
-        # "/ui/" sendiri disajikan sebagai index.html supaya alamatnya bersih.
-        if path.rstrip("/") == "":
-            self.send_response(302)
-            self.send_header("Location", "/ui/")
-            self.end_headers()
-            return
-        if path == "/ui/":
+        # Editor di root "/" -- bukan "/ui/". "/ui" tetap dilayani (dipakai
+        # berkas statis lewat SERVED_DIRS di bawah), tapi bukan lagi alamat
+        # yang disorongkan ke pengguna: "ui" itu nama folder di disk, bukan
+        # nama halaman. Dulu "/" dialihkan (302) ke "/ui/" karena index.html
+        # memakai path skrip RELATIF yang meleset kalau disajikan di root --
+        # sekarang semua path aset di index.html/workspace.html absolut
+        # (/ui/css/..., /ui/js/...), jadi halamannya sendiri boleh disajikan
+        # di alamat mana pun tanpa redirect.
+        if path.rstrip("/") in ("", "/ui"):
             path = "/ui/index.html"
+        if path.rstrip("/") == "/workspace":
+            path = "/ui/workspace.html"
 
         # Membuang ".." saja TIDAK cukup di Windows: satu komponen berisi
         # backslash atau huruf drive akan me-reset hasil joinpath, jadi
@@ -822,6 +879,37 @@ class Handler(BaseHTTPRequestHandler):
             tmp.write_text(json.dumps(req, ensure_ascii=False), encoding="utf-8")
             tmp.replace(f)
             return self._send_json({"ok": True})
+
+        if path == "/api/workspace/clips":
+            try:
+                req = self._read_json()
+            except Exception as exc:               # noqa: BLE001
+                return self._send_json({"error": str(exc)}, 400)
+
+            clips = _load_clips()
+            cid = str(req.get("id") or "")
+
+            if req.get("delete"):
+                if not cid:
+                    return self._send_json({"error": "id required"}, 400)
+                clips = [c for c in clips if c.get("id") != cid]
+                _save_clips(clips)
+                return self._send_json({"ok": True, "deleted": True})
+
+            if not cid:
+                cid = uuid.uuid4().hex[:8]
+            req["id"] = cid
+            req["at"] = int(time.time())
+
+            for i, c in enumerate(clips):
+                if c.get("id") == cid:
+                    clips[i] = req
+                    break
+            else:
+                clips.append(req)
+
+            _save_clips(clips)
+            return self._send_json({"ok": True, "id": cid})
 
         if path == "/api/render":
             try:

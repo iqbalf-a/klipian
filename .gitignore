@@ -15,3 +15,6 @@ samples/
 .hermes-tmp*
 # source video files
 sources/
+
+# operasional konten (jadwal upload, dll) — bukan kode
+content/
