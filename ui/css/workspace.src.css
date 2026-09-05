@@ -55,7 +55,25 @@
            leading-none p-1.5 rounded-s hover:text-bahaya hover:bg-kaca;
   }
 
+  .ws-detail {
+    @apply bg-transparent border border-garis text-teks-samar cursor-pointer
+           text-[12px] leading-none px-2 py-1 rounded-s
+           hover:text-teks hover:bg-kaca;
+  }
+
   .ws-kosong { @apply text-teks-samar text-[13px] py-6 text-center; }
+
+  /* Dialog detail klip: field yang tidak muat/tidak perlu selalu terlihat
+     di tabel (deskripsi, caption, link, catatan) -- lihat komentar di
+     workspace.html soal kenapa tabelnya sendiri cuma kolom inti. <dialog>
+     bawaan browser dipakai apa adanya (backdrop + focus trap gratis),
+     cuma perlu digambar ulang supaya cocok tema gelap. */
+  .ws-dialog {
+    @apply bg-surface-2 text-teks rounded-m p-5 border border-garis
+           w-full max-w-[560px] shadow-kartu;
+  }
+  .ws-dialog::backdrop { @apply bg-black/60; }
+  .ws-field { @apply flex flex-col gap-1.5 text-[12px] text-teks-samar; }
 
   /* Baris render & asset -- 1 kolom lebar + beberapa kolom sempit rapat. */
   .ws-row {

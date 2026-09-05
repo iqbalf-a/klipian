@@ -40,46 +40,30 @@
                        text-[oklch(0.145_0.010_258)] hover:brightness-110"
                 id="klipTambahBtn" type="button">+ Klip baru</button>
       </div>
+      <!-- Cuma kolom yang berguna dilihat sekilas: status, judul, platform,
+           jadwal. Sisanya (episode sumber, file, deskripsi, caption, link,
+           catatan) pindah ke dialog "Detail" per baris -- dulu 13 kolom
+           penuh bikin tabel selebar 1700px dan wajib scroll horizontal
+           cuma untuk melihat baris berikutnya. -->
       <div class="overflow-x-auto rounded-m">
-        <table class="w-full min-w-[1700px] border-collapse text-[13px]" id="klipTable">
+        <table class="w-full border-collapse text-[13px]" id="klipTable">
           <thead>
             <tr>
               <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
                          uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
                   style="width:110px">Status</th>
               <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
-                         uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
-                  style="width:170px">Sumber episode</th>
+                         uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis">Judul / hook</th>
               <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
                          uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
-                  style="width:160px">File klip</th>
+                  style="width:150px">Platform</th>
               <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
                          uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
-                  style="width:200px">Judul / hook (YouTube)</th>
+                  style="width:130px">Tgl upload</th>
               <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
                          uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
-                  style="width:220px">Deskripsi + hashtag (YouTube)</th>
-              <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
-                         uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
-                  style="width:200px">Caption TikTok</th>
-              <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
-                         uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
-                  style="width:140px">Platform</th>
-              <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
-                         uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
-                  style="width:118px">Tgl upload</th>
-              <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
-                         uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
-                  style="width:80px">Jam</th>
-              <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
-                         uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
-                  style="width:150px">Link YouTube</th>
-              <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
-                         uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
-                  style="width:150px">Link TikTok</th>
-              <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
-                         uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
-                  style="width:160px">Catatan</th>
+                  style="width:90px">Jam</th>
+              <th class="sticky top-0 z-10 bg-surface-2 border-b border-garis" style="width:80px"></th>
               <th class="sticky top-0 z-10 bg-surface-2 border-b border-garis" style="width:36px"></th>
             </tr>
           </thead>
@@ -87,6 +71,41 @@
         </table>
       </div>
     </section>
+
+    <!-- Field yang tidak muat/tidak perlu selalu terlihat di tabel di atas.
+         <dialog> bawaan browser: backdrop + Esc-to-close + focus trap gratis,
+         tidak perlu kode overlay sendiri. Judul ditampilkan sebagai konteks
+         SAJA (read-only) -- diedit dari tabel supaya tidak ada dua sumber
+         kebenaran untuk field yang sama. -->
+    <dialog class="ws-dialog" id="klipDetailDialog">
+      <form method="dialog" class="flex flex-col gap-4" id="klipDetailForm">
+        <div class="flex items-start gap-3">
+          <h2 class="text-[15px] font-extrabold leading-tight" id="klipDetailJudul">Detail klip</h2>
+          <button class="ml-auto ws-hapus" type="submit" value="cancel" title="Tutup">✕</button>
+        </div>
+        <label class="ws-field">Sumber episode
+          <input class="ws-input" type="text" data-field="episode"></label>
+        <label class="ws-field">File klip
+          <input class="ws-input" type="text" data-field="file"></label>
+        <label class="ws-field">Deskripsi + hashtag (YouTube)
+          <textarea class="ws-input" rows="3" data-field="description"></textarea></label>
+        <label class="ws-field">Caption TikTok
+          <textarea class="ws-input" rows="3" data-field="tiktokCaption"></textarea></label>
+        <label class="ws-field">Link YouTube
+          <input class="ws-input" type="url" data-field="youtubeUrl"></label>
+        <label class="ws-field">Link TikTok
+          <input class="ws-input" type="url" data-field="tiktokUrl"></label>
+        <label class="ws-field">Catatan
+          <textarea class="ws-input" rows="2" data-field="notes"></textarea></label>
+        <div class="flex gap-2 justify-end">
+          <button class="rounded-s px-3 py-1.5 text-[13px] border border-garis hover:bg-kaca"
+                  type="submit" value="cancel">Tutup</button>
+          <button class="rounded-s bg-aksen text-[13px] font-semibold px-3 py-1.5
+                         text-[oklch(0.145_0.010_258)] hover:brightness-110"
+                  type="submit" value="save">Simpan</button>
+        </div>
+      </form>
+    </dialog>
 
     <!-- ══════════════════ HASIL RENDER — isi out/ apa adanya ══════════════════
          Sumber data SAMA dengan /api/history (dipakai layar History di
