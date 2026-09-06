@@ -246,6 +246,17 @@ function syncCanvasVideo() {
   else $("#videoPreview2")?.pause();
 }
 
+// Dipisah dari renderFraming() supaya bisa dipanggil TIAP tick timeupdate --
+// renderFraming() sendiri menggambar ulang seluruh strip thumbnail titik
+// (mahal), jadi cuma dipanggil saat titik aktif benar-benar berpindah.
+// Tanpa fungsi terpisah ini, label waktu cuma ikut berubah saat playhead
+// melewati sebuah titik framing, bukan tiap detik berjalan -- kelihatan
+// seperti "membeku" saat diputar padahal cuma jarang digambar ulang.
+function perbaruiJamFraming() {
+  const jam = $("#framingWaktu");
+  if (jam) jam.textContent = `at ${jamRange(waktuTinjau())}`;
+}
+
 function renderFraming() {
   if (!FRAMING.length) resetFraming();
   const t = waktuTinjau();
@@ -254,8 +265,7 @@ function renderFraming() {
   // Pesan TIDAK ditulis di sini: renderFraming dipanggil sesudah aksi seperti
   // "kunci", dan menulisinya akan langsung menghapus konfirmasi yang baru saja
   // muncul. Pemanggil yang menentukan pesannya.
-  const jam = $("#framingWaktu");
-  if (jam) jam.textContent = `at ${jamRange(t)}`;
+  perbaruiJamFraming();
   const tag = $("#tagCrop1");
   if (tag) tag.textContent = aktif ? `from ${jamRange(aktif.at)}` : "";
 

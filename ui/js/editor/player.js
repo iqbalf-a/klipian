@@ -230,6 +230,10 @@ video.addEventListener("timeupdate", () => {
   // tiap tick supaya ia berjalan bersama preview, bukan membeku.
   if (typeof syncCanvasVideo === "function") syncCanvasVideo();
 
+  // Label waktu di layar Framing ikut tiap tick supaya tidak kelihatan
+  // membeku saat diputar (lihat catatan di perbaruiJamFraming()).
+  if (typeof perbaruiJamFraming === "function") perbaruiJamFraming();
+
   // Framing ikut berpindah saat pemutaran melewati titik berikutnya --
   // supaya preview benar-benar memperlihatkan apa yang akan dirender.
   if (typeof framingPada === "function") {
