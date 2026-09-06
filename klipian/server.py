@@ -610,7 +610,14 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.wfile.write(body)
+        except ConnectionError:
+            # Dipanggil dari SEMUA endpoint API, termasuk polling
+            # /api/transcribe/<id> yang ditembak berulang tiap ~1 detik --
+            # reload/navigasi keluar di tengah satu permintaan itu wajar,
+            # bukan galat. Sama seperti alasan di _send_file().
+            pass
 
     def _read_json(self):
         n = int(self.headers.get("Content-Length", 0))
@@ -667,7 +674,10 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(data)))
             self.send_header("Cache-Control", "max-age=3600")
             self.end_headers()
-            self.wfile.write(data)
+            try:
+                self.wfile.write(data)
+            except ConnectionError:
+                pass    # halaman ganti/tutup di tengah muat thumbnail -- wajar
             return
 
         if path == "/api/probe":
@@ -866,8 +876,17 @@ class Handler(BaseHTTPRequestHandler):
                     break
                 try:
                     self.wfile.write(blok)
-                except (BrokenPipeError, ConnectionResetError):
-                    return          # pemutar menutup koneksi saat seek -- wajar
+                except ConnectionError:
+                    # Pemutar menutup koneksi saat seek -- wajar, sering terjadi
+                    # setiap kali video di-scrub. BrokenPipeError/
+                    # ConnectionResetError sudah lama ditangkap di sini, tapi
+                    # Windows melempar ConnectionAbortedError (WinError 10053)
+                    # untuk kejadian yang SAMA PERSIS -- exception yang beda,
+                    # jadi lolos dan mencetak traceback penuh ke log tiap kali.
+                    # ConnectionError adalah induk ketiganya (juga
+                    # ConnectionRefusedError), jadi menangkap itu langsung
+                    # menutup celah ini untuk semua varian di semua OS.
+                    return
                 sisa -= len(blok)
 
     # ---- POST ----
