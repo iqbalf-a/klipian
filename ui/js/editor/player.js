@@ -241,6 +241,7 @@ video.addEventListener("timeupdate", () => {
     if (f && f !== framingTerakhir) {
       framingTerakhir = f;
       if (typeof renderFraming === "function") renderFraming();
+      if (typeof ikutiTitikAktif === "function") ikutiTitikAktif(f);
     }
   }
 });

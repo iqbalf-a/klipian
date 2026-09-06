@@ -257,6 +257,20 @@ function perbaruiJamFraming() {
   if (jam) jam.textContent = `at ${jamRange(waktuTinjau())}`;
 }
 
+/* Strip Framing Points bisa lebih lebar dari panelnya dan di-scroll
+   horizontal (banyak titik di video yang panjang). Tanpa ini, titik yang
+   jadi aktif saat playback lewat begitu saja bisa ada DI LUAR area yang
+   kelihatan -- state-nya sudah benar (fr-active sudah pindah), tapi dari
+   mata pengguna kelihatan seperti diam di titik terakhir yang mereka klik
+   sendiri, karena yang aktif sekarang tidak pernah masuk ke pandangan. */
+function ikutiTitikAktif(f) {
+  const bar = $("#framingList");
+  const el = f && bar?.querySelector(`[data-framing="${f.id}"]`);
+  if (!bar || !el) return;
+  const target = el.offsetLeft - (bar.clientWidth - el.clientWidth) / 2;
+  bar.scrollTo({ left: Math.max(0, target), behavior: "smooth" });
+}
+
 function renderFraming() {
   if (!FRAMING.length) resetFraming();
   const t = waktuTinjau();
