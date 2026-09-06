@@ -12,7 +12,7 @@
    Tidak ada API key di jalur ini. Yang mengeluarkan biaya cuma langganan
    Claude yang sudah kamu punya.
 
-   Transkripnya NYATA: dibaca dari cache/ yang diisi `klipian transcribe`.
+   Transkripnya NYATA: dibaca dari workspace/cache/ yang diisi `klipian transcribe`.
    Server melayani akar proyek, jadi UI bisa menjangkaunya.
    ========================================================================== */
 
@@ -31,7 +31,7 @@ async function listCache() {
     if (d.transcript?.length) return d.transcript;
   } catch { /* lanjut ke cadangan */ }
   try {
-    const html = await (await fetch(ROOT + "cache/")).text();
+    const html = await (await fetch(ROOT + "workspace/cache/")).text();
     return [...html.matchAll(/href="([^"]+\.transcript\.json)"/g)].map((m) => m[1]);
   } catch {
     return [];
@@ -43,7 +43,7 @@ async function findTranscript(videoName) {
   const all = await listCache();
   const matched = all.find((f) => decodeURIComponent(f).startsWith(stem + "."));
   if (!matched) return null;
-  const d = await (await fetch(ROOT + "cache/" + matched)).json();
+  const d = await (await fetch(ROOT + "workspace/cache/" + matched)).json();
   d.words = d.segments.flatMap((s) => s.words || []);
   return d;
 }

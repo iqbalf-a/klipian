@@ -538,7 +538,7 @@ $("#projectList")?.addEventListener("click", async (e) => {
   const video = kartu.dataset.project;
   if (kartu.classList.contains("hilang")) {
     const meta = kartu.querySelector(".project-meta");
-    if (meta) meta.textContent = `move ${video} into samples/ to continue`;
+    if (meta) meta.textContent = `move ${video} into workspace/samples/ to continue`;
     return;
   }
   await bukaProjectDariBeranda(video);
