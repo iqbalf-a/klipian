@@ -1600,9 +1600,16 @@ h1, h2, h3 {
   text-align: center;
 }
 .rekom-waktu-in:focus-visible { outline: 2px solid var(--aksen); outline-offset: 1px; }
-/* Kolom waktu di atas sudah bisa diklik langsung, tapi kotaknya tipis dan
-   gampang dikira teks biasa -- pensil ini cuma penanda "bisa diedit" yang
-   jelas kelihatan, fokus ke kolom start saat diklik. */
+/* Terkunci sampai tombol pensil dipencet -- baris ini <label> yang
+   membungkus checkbox pilih-Result, jadi kotak yang selalu bisa diklik
+   gampang tersenggol tanpa sengaja. */
+.rekom-waktu-in:disabled {
+  color: var(--teks-samar); border-color: transparent;
+  background: transparent; cursor: default;
+}
+/* Pensil buka kunci; begitu terbuka ikonnya ganti jadi centang (Save,
+   ditandai data-editing) supaya jelas ada langkah konfirmasi terpisah,
+   bukan cuma tombol yang berubah diam-diam. */
 .rekom-edit {
   font: inherit; font-size: 11px; line-height: 1;
   width: 20px; height: 20px; flex: none;
@@ -1614,6 +1621,10 @@ h1, h2, h3 {
   transition: color var(--cepat), background var(--cepat);
 }
 .rekom-edit:hover { color: var(--teks); background: var(--kaca); }
+.rekom-edit[data-editing="true"] {
+  color: var(--aksen); background: var(--aksen-lembut);
+}
+.rekom-edit[data-editing="true"]:hover { color: var(--aksen); }
 .rekom-dur, .hasil-dur { color: var(--teks-lemah); min-width: 34px; text-align: right; }
 .rekom-row:has(input:checked) {
   background: var(--aksen-lembut);

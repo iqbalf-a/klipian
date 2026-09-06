@@ -169,9 +169,16 @@ function renderRecommendations() {
   // adalah menolak seluruh rekomendasi lalu memilih rentang sendiri di
   // timeline. Formatnya mm:ss, sama seperti kolom "from"/"to" di atas --
   // bukan detik mentah -- supaya satu konvensi dipakai di seluruh layar ini.
-  // Tombol pensil (.rekom-edit) tidak menambah cara baru mengedit -- kedua
-  // kolom di atas sudah bisa diklik langsung -- ia cuma memfokuskan kolom
-  // "start", karena kotak setipis itu gampang terlewat dianggap teks biasa.
+  //
+  // Kotaknya TERKUNCI (disabled) sampai tombol pensil dipencet -- baris ini
+  // ada di dalam <label> yang membungkus checkbox "pilih buat Result", dan
+  // kotak waktu yang selalu bisa diklik langsung gampang tersenggol tanpa
+  // sengaja. Pensil membuka kunci + fokus ke kolom "start"; begitu terbuka
+  // ikonnya ganti jadi centang (Save) -- dipencet lagi buat mengunci ulang
+  // SEKALIGUS memastikan nilai yang barusan diketik ter-commit (lihat
+  // listener klik #rekomList: dispatch "change" manual, karena klik
+  // langsung ke tombol Save tanpa pindah fokus dulu tidak memicu event
+  // change bawaan browser).
   list.innerHTML = daftar.map((k, i) => `
     <label class="rekom-row">
       <button class="rekom-play" type="button" data-play="${i}"
@@ -181,11 +188,11 @@ function renderRecommendations() {
       <span class="rekom-judul">${escapeHTML(k.title)}</span>
       <span class="rekom-waktu">
         <input type="text" class="rekom-waktu-in" value="${jamPendek(k.startSec)}"
-               data-idx="${i}" data-field="startSec" size="5" spellcheck="false"
+               data-idx="${i}" data-field="startSec" size="5" spellcheck="false" disabled
                aria-label="Start time for ${escapeHTML(k.title)}">
         <span aria-hidden="true">–</span>
         <input type="text" class="rekom-waktu-in" value="${jamPendek(k.endSec)}"
-               data-idx="${i}" data-field="endSec" size="5" spellcheck="false"
+               data-idx="${i}" data-field="endSec" size="5" spellcheck="false" disabled
                aria-label="End time for ${escapeHTML(k.title)}">
         <button class="rekom-edit" type="button" data-edit-waktu="${i}"
                 title="Edit time" aria-label="Edit time for ${escapeHTML(k.title)}">✎</button>
@@ -405,8 +412,33 @@ $("#rekomList")?.addEventListener("click", (e) => {
   if (edit) {
     e.preventDefault();     // jangan sampai ikut mencentang baris
     const row = edit.closest(".rekom-row");
-    const inp = row?.querySelector('.rekom-waktu-in[data-field="startSec"]');
-    if (inp) { inp.focus(); inp.select(); }
+    const inputs = row ? [...row.querySelectorAll(".rekom-waktu-in")] : [];
+    const mulai = inputs.find((el) => el.dataset.field === "startSec");
+    if (!mulai) return;
+    const k = (DATA?.candidates || [])[Number(edit.dataset.editWaktu)];
+    const judul = k ? escapeHTML(k.title) : "";
+    const sedangEdit = !mulai.disabled;
+    if (sedangEdit) {
+      // Klik "Save": pastikan nilai yang barusan diketik ter-commit --
+      // klik langsung ke tombol ini (tanpa pindah fokus dulu dari kolom
+      // teks) TIDAK memicu event "change" bawaan browser, jadi dipicu
+      // manual di sini. Aman dipanggil walau nilainya tidak berubah
+      // (listener change memvalidasi ulang, bukan mengasumsikan berubah).
+      inputs.forEach((inp) => inp.dispatchEvent(new Event("change", { bubbles: true })));
+      inputs.forEach((inp) => { inp.disabled = true; });
+      edit.textContent = "✎";
+      edit.title = "Edit time";
+      edit.removeAttribute("data-editing");
+      edit.setAttribute("aria-label", `Edit time for ${judul}`);
+    } else {
+      inputs.forEach((inp) => { inp.disabled = false; });
+      mulai.focus();
+      mulai.select();
+      edit.textContent = "✓";
+      edit.title = "Save time";
+      edit.setAttribute("data-editing", "true");
+      edit.setAttribute("aria-label", `Save time for ${judul}`);
+    }
     return;
   }
   const btn = e.target.closest(".rekom-play");
