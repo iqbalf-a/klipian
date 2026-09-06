@@ -279,11 +279,32 @@ function drawCaption() {
   const out = sourceToOut(activeClip, t);
   if (out === null) { cap.innerHTML = ""; return; }
 
-  let i = dipakai.findIndex((w) => out < w.b);
-  if (i === -1) i = dipakai.length - 1;
-  const awalBaris = Math.floor(i / perBaris) * perBaris;
-  const baris = dipakai.slice(awalBaris, awalBaris + perBaris);
-  const sorot = i - awalBaris;
+  // Jendela tampil tiap baris harus SAMA dengan build_ass: baris baru MULAI
+  // tepat saat kata pertamanya diucapkan, bukan lebih awal cuma karena baris
+  // sebelumnya sudah lewat. Sebelumnya dicari lewat "kata mana yang belum
+  // berakhir" (out < w.b) tanpa mengecek sudah mulai atau belum -- begitu ada
+  // jeda sebelum baris berikutnya, seluruh barisnya (termasuk kata yang belum
+  // diucapkan) langsung tampil selama jeda itu (dilaporkan ian: "teks sudah
+  // muncul tapi pembicara belum bicara").
+  let baris = null, sorot = -1;
+  for (let g = 0; g < dipakai.length; g += perBaris) {
+    const grup = dipakai.slice(g, g + perBaris);
+    const berikutnya = dipakai[g + perBaris];        // kata pertama baris sesudahnya
+    const awal = grup[0].a;
+    const akhir = berikutnya ? berikutnya.a : grup[grup.length - 1].b + 0.4;
+    if (out < awal || out >= akhir) continue;
+    baris = grup;
+    // Kata yang disorot bertahan sampai kata BERIKUTNYA benar-benar mulai
+    // (bukan cuma sampai akhir katanya sendiri) -- sama seperti build_ass,
+    // supaya sorotan tidak berkedip kosong selama jeda di tengah baris.
+    sorot = grup.length - 1;
+    for (let j = 0; j < grup.length; j++) {
+      const batasAkhir = j < grup.length - 1 ? grup[j + 1].a : akhir;
+      if (out < batasAkhir) { sorot = j; break; }
+    }
+    break;
+  }
+  if (!baris) { cap.innerHTML = ""; return; }
 
   cap.innerHTML = baris
     .map((w, j) => (j === sorot ? `<mark>${escapeHTML(w.teks)}</mark>` : escapeHTML(w.teks)))
