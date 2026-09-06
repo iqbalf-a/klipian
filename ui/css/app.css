@@ -1431,6 +1431,21 @@ h1, h2, h3 {
 .result-picker .btn.quiet {
   padding: 4px 9px; font-size: var(--t-13); line-height: 1;
 }
+/* <select> polos tanpa ini tampil putih bawaan browser -- cuma kotak
+   pembungkus & tombolnya yang kena tema, elemen select-nya sendiri
+   kelupaan. Warna/border disamakan .input (app.css:1134), bukan gaya
+   baru. */
+.result-select {
+  font: inherit; font-size: var(--t-13);
+  padding: 5px 11px;
+  color: var(--teks);
+  background: var(--bg-1);
+  border: 1px solid var(--garis-kaca); border-radius: var(--r-pill);
+  cursor: pointer;
+  max-width: 160px;
+}
+.result-select:hover { border-color: var(--garis-terang); }
+.result-select:focus-visible { border-color: var(--aksen); outline: none; }
 
 /* ---- timeline: tiap potongan satu batang, celah = yang dibuang ----
    Dua baris, bukan satu: batang di atas, jam di bawah. Sebelumnya `.tl-time`
