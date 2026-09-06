@@ -1600,6 +1600,20 @@ h1, h2, h3 {
   text-align: center;
 }
 .rekom-waktu-in:focus-visible { outline: 2px solid var(--aksen); outline-offset: 1px; }
+/* Kolom waktu di atas sudah bisa diklik langsung, tapi kotaknya tipis dan
+   gampang dikira teks biasa -- pensil ini cuma penanda "bisa diedit" yang
+   jelas kelihatan, fokus ke kolom start saat diklik. */
+.rekom-edit {
+  font: inherit; font-size: 11px; line-height: 1;
+  width: 20px; height: 20px; flex: none;
+  display: grid; place-items: center;
+  border-radius: var(--r-pill);
+  border: 0; background: none;
+  color: var(--teks-samar);
+  cursor: pointer;
+  transition: color var(--cepat), background var(--cepat);
+}
+.rekom-edit:hover { color: var(--teks); background: var(--kaca); }
 .rekom-dur, .hasil-dur { color: var(--teks-lemah); min-width: 34px; text-align: right; }
 .rekom-row:has(input:checked) {
   background: var(--aksen-lembut);

@@ -169,6 +169,9 @@ function renderRecommendations() {
   // adalah menolak seluruh rekomendasi lalu memilih rentang sendiri di
   // timeline. Formatnya mm:ss, sama seperti kolom "from"/"to" di atas --
   // bukan detik mentah -- supaya satu konvensi dipakai di seluruh layar ini.
+  // Tombol pensil (.rekom-edit) tidak menambah cara baru mengedit -- kedua
+  // kolom di atas sudah bisa diklik langsung -- ia cuma memfokuskan kolom
+  // "start", karena kotak setipis itu gampang terlewat dianggap teks biasa.
   list.innerHTML = daftar.map((k, i) => `
     <label class="rekom-row">
       <button class="rekom-play" type="button" data-play="${i}"
@@ -184,6 +187,8 @@ function renderRecommendations() {
         <input type="text" class="rekom-waktu-in" value="${jamPendek(k.endSec)}"
                data-idx="${i}" data-field="endSec" size="5" spellcheck="false"
                aria-label="End time for ${escapeHTML(k.title)}">
+        <button class="rekom-edit" type="button" data-edit-waktu="${i}"
+                title="Edit time" aria-label="Edit time for ${escapeHTML(k.title)}">✎</button>
       </span>
       <span class="data rekom-dur">${k.dur}s</span>
     </label>`).join("");
@@ -376,25 +381,34 @@ $("#tlPreviewVideo")?.addEventListener("loadedmetadata", (e) => {
   if (v.currentTime === 0) { try { v.currentTime = 0.001; } catch { /* abaikan */ } }
 });
 
-/* Maju/mundur satu frame -- untuk memastikan pas TIDAK memotong kata atau
-   memulai di tengah gerakan, sama seperti kontrol serupa di preview Result.
-   Melangkah sambil jalan itu aneh, jadi dijeda dulu kalau perlu. Dibiarkan
-   bebas melewati batas rentang suggestion (previewBatas): justru itu
-   gunanya -- menilai apakah batasnya perlu digeser sedikit. */
-function tlPreviewStepFrame(arah) {
+/* Maju/mundur dalam DETIK, bukan frame -- panel ini buat menyisir video
+   sumber yang bisa berjam-jam untuk MENCARI rentang, jadi langkah kasar
+   lebih berguna daripada presisi frame (itu urusan preview Result di
+   kanan, lihat stepFrame() di player.js). Melangkah sambil jalan itu
+   aneh, jadi dijeda dulu kalau perlu. Dibiarkan bebas melewati batas
+   rentang suggestion (previewBatas): justru itu gunanya -- menilai
+   apakah batasnya perlu digeser sedikit. */
+function tlPreviewStepSeconds(detik) {
   const v = $("#tlPreviewVideo");
   if (!v || !v.src) return;
   if (!v.paused) v.pause();
-  const fps = (typeof sourceFps === "number" && sourceFps > 0) ? sourceFps : 30;
   const batas = v.duration || Infinity;
-  const tujuan = Math.max(0, Math.min(batas - 1 / fps / 2, v.currentTime + arah / fps));
+  const tujuan = Math.max(0, Math.min(batas, v.currentTime + detik));
   try { v.currentTime = tujuan; } catch { /* di luar jangkauan */ }
 }
 [["#tlPreviewPrev5", -5], ["#tlPreviewPrev2", -2], ["#tlPreviewPrev", -1],
  ["#tlPreviewNext", 1], ["#tlPreviewNext2", 2], ["#tlPreviewNext5", 5]]
-  .forEach(([sel, n]) => $(sel)?.addEventListener("click", () => tlPreviewStepFrame(n)));
+  .forEach(([sel, n]) => $(sel)?.addEventListener("click", () => tlPreviewStepSeconds(n)));
 
 $("#rekomList")?.addEventListener("click", (e) => {
+  const edit = e.target.closest("[data-edit-waktu]");
+  if (edit) {
+    e.preventDefault();     // jangan sampai ikut mencentang baris
+    const row = edit.closest(".rekom-row");
+    const inp = row?.querySelector('.rekom-waktu-in[data-field="startSec"]');
+    if (inp) { inp.focus(); inp.select(); }
+    return;
+  }
   const btn = e.target.closest(".rekom-play");
   if (!btn) return;
   e.preventDefault();       // jangan sampai ikut mencentang baris
