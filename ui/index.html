@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wdth,wght@0,75..125,200..900;1,75..125,200..900&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1788684596991">
-<link rel="stylesheet" href="/ui/css/app.css?v=1788684596991">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1788693433967">
+<link rel="stylesheet" href="/ui/css/app.css?v=1788693433967">
 </head>
 <body>
 
@@ -93,8 +93,13 @@
       <button class="side-collapse" id="hideSidebarBtn" type="button"
               title="Hide sidebar">⟨</button>
       <nav class="rel-side" id="tabs" role="tablist">
+        <!-- Label murni visual, bukan .tab -- toScreen()/arrow-key nav
+             (app.js) cuma menjaring .tab lewat querySelectorAll, jadi label
+             ini tidak ikut terhitung atau perlu ditangani khusus. -->
+        <span class="eyebrow rel-side-group">Preparation</span>
         <button class="tab" role="tab" id="tab-analysis" data-to="analysis" aria-controls="panel-analysis" aria-selected="false" tabindex="-1">Analyze</button>
         <button class="tab" role="tab" id="tab-klip" data-to="klip" aria-controls="panel-klip" aria-selected="true" tabindex="0">Clips</button>
+        <span class="eyebrow rel-side-group">Editing</span>
         <button class="tab" role="tab" id="tab-framing" data-to="framing" aria-controls="panel-framing" aria-selected="false" tabindex="-1">Framing</button>
         <button class="tab" role="tab" id="tab-teks" data-to="teks" aria-controls="panel-teks" aria-selected="false" tabindex="-1">Captions</button>
         <button class="tab" role="tab" id="tab-history" data-to="history" aria-controls="panel-history" aria-selected="false" tabindex="-1">History</button>
@@ -176,6 +181,16 @@
         <div class="work-head">
           <h1>Clips</h1>
           <span class="note" id="editNote">build a Result from AI suggestions or your own selection</span>
+          <!-- Ralat dari rencana awal: dropdown Result JUGA di sini, bukan
+               cuma Framing/Captions -- justru di Clips sumber Result-nya
+               dipilih (span yang ditambah di sini masuk ke Result yang
+               sedang aktif). Markup identik, disinkronkan renderResultSwitcher()
+               (projects.js) lewat class, sama seperti 2 instance lainnya. -->
+          <div class="result-picker right">
+            <select class="result-select" aria-label="Result being edited"></select>
+            <button class="btn quiet" type="button" data-result-aksi="new" title="New Result">+</button>
+            <button class="btn quiet" type="button" data-result-aksi="delete" title="Delete this Result">×</button>
+          </div>
         </div>
 
         <!-- timeline video utuh: seleksi rentang sendiri -->
@@ -269,6 +284,15 @@
         <div class="work-head">
           <h1>Framing</h1>
           <span class="note">lock the frame position per time point, one panel or two</span>
+          <!-- Sama seperti di Clips: dropdown Result di title, disinkronkan
+               renderResultSwitcher() (projects.js) lewat class
+               .result-select, bukan id, karena ada 3 instance identik
+               (Clips, Framing, Captions). -->
+          <div class="result-picker right">
+            <select class="result-select" aria-label="Result being edited"></select>
+            <button class="btn quiet" type="button" data-result-aksi="new" title="New Result">+</button>
+            <button class="btn quiet" type="button" data-result-aksi="delete" title="Delete this Result">×</button>
+          </div>
         </div>
 
         <!-- Framing: objek orang, berlaku untuk seluruh result -->
@@ -350,6 +374,11 @@
         <div class="work-head">
           <h1>Captions</h1>
           <span class="note">fix misheard words, then style them</span>
+          <div class="result-picker right">
+            <select class="result-select" aria-label="Result being edited"></select>
+            <button class="btn quiet" type="button" data-result-aksi="new" title="New Result">+</button>
+            <button class="btn quiet" type="button" data-result-aksi="delete" title="Delete this Result">×</button>
+          </div>
         </div>
 
         <!-- Teks caption: milik result ini saja, transkrip tidak disentuh -->
@@ -475,13 +504,6 @@
            layar Klip, Framing, maupun Teks tanpa pindah-pindah. Preview ini
            memang hasilnya -- tombolnya wajar ada di bawahnya. -->
       <div class="render-bar">
-        <!-- Satu project bisa punya lebih dari satu Result tersimpan (satu
-             video sumber, banyak klip terpisah) -- ini di render-bar, bukan
-             di panel Result saja, supaya terjangkau dari layar Framing/
-             Captions juga tanpa pindah ke tab Clips dulu. Diisi
-             renderResultSwitcher() (projects.js); title di bawah ini
-             MENGEDIT Result yang lagi aktif, bukan elemen terpisah. -->
-        <div class="clip-tabs" id="resultSwitch" role="tablist" aria-label="Saved results"></div>
         <label class="judul-input">title
           <input id="hasilJudul" value="" spellcheck="false" placeholder="output file name"
                  aria-label="Result title, used as the file name"></label>
@@ -505,16 +527,16 @@
   </main>
 </div>
 
-<script src="/ui/js/editor/app.js?v=1788684596991"></script>
-<script src="/ui/js/editor/interactions.js?v=1788684596991"></script>
-<script src="/ui/js/editor/framing.js?v=1788684596991"></script>
-<script src="/ui/js/editor/analysis.js?v=1788684596991"></script>
-<script src="/ui/js/editor/player.js?v=1788684596991"></script>
-<script src="/ui/js/editor/roundtrip.js?v=1788684596991"></script>
-<script src="/ui/js/editor/history.js?v=1788684596991"></script>
-<script src="/ui/js/editor/timeline.js?v=1788684596991"></script>
-<script src="/ui/js/editor/teks.js?v=1788684596991"></script>
-<script src="/ui/js/editor/result.js?v=1788684596991"></script>
-<script src="/ui/js/editor/projects.js?v=1788684596991"></script>
+<script src="/ui/js/editor/app.js?v=1788693433967"></script>
+<script src="/ui/js/editor/interactions.js?v=1788693433967"></script>
+<script src="/ui/js/editor/framing.js?v=1788693433967"></script>
+<script src="/ui/js/editor/analysis.js?v=1788693433967"></script>
+<script src="/ui/js/editor/player.js?v=1788693433967"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1788693433967"></script>
+<script src="/ui/js/editor/history.js?v=1788693433967"></script>
+<script src="/ui/js/editor/timeline.js?v=1788693433967"></script>
+<script src="/ui/js/editor/teks.js?v=1788693433967"></script>
+<script src="/ui/js/editor/result.js?v=1788693433967"></script>
+<script src="/ui/js/editor/projects.js?v=1788693433967"></script>
 </body>
 </html>

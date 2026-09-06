@@ -1346,6 +1346,13 @@ h1, h2, h3 {
 
 .rel-side { display: grid; gap: 2px; align-content: start; padding-top: 30px; }
 
+/* Label klaster ("Preparation", "Editing") -- murni visual, bukan .tab
+   (lihat komentar di index.html soal kenapa itu aman). */
+.rel-side-group {
+  padding: var(--s4) 13px 4px;
+}
+.rel-side-group:first-child { padding-top: 0; }
+
 .rel-side .tab {
   width: 100%;
   text-align: left;
@@ -1415,35 +1422,14 @@ h1, h2, h3 {
 }
 .chip .buang:hover { opacity: 1; color: var(--bahaya); }
 
-/* ---- pindah antar-Result tersimpan, di atas frame preview ----
-   Satu project bisa punya lebih dari satu Result (lihat #resultSwitch,
-   digambar renderResultSwitcher() di projects.js). */
-.clip-tabs {
-  display: flex; gap: var(--s2);
-  overflow-x: auto; scrollbar-width: thin;
-  padding: 0 0 var(--s2);
-  margin-bottom: var(--s2);
-}
-.klip-tab {
-  display: inline-flex; align-items: center; gap: 7px;
-  white-space: nowrap; flex: 0 0 auto;
-  max-width: 210px;
-}
-.klip-tab .nomor-klip {
-  font-family: var(--font-data);
-  font-size: 10px;
-  min-width: 15px; height: 15px;
-  display: grid; place-items: center;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--teks) 12%, transparent);
-}
-.klip-tab[aria-selected="true"] {
-  color: var(--aksen);
-  border-color: color-mix(in srgb, var(--aksen) 45%, transparent);
-  background: var(--aksen-lembut);
-}
-.klip-tab[aria-selected="true"] .nomor-klip {
-  background: var(--aksen); color: #0A0B0E;
+/* ---- pemilih Result, di title Clips/Framing/Captions ----
+   Satu project bisa punya lebih dari satu Result tersimpan -- tiga
+   instance identik (.result-select + tombol baru/hapus), disinkronkan
+   renderResultSwitcher() di projects.js. .right sudah dorong ke kanan
+   work-head (lihat aturannya di atas). */
+.result-picker { display: flex; gap: var(--s2); align-items: center; }
+.result-picker .btn.quiet {
+  padding: 4px 9px; font-size: var(--t-13); line-height: 1;
 }
 
 /* ---- timeline: tiap potongan satu batang, celah = yang dibuang ----

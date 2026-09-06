@@ -246,28 +246,30 @@ function deleteResultTab(id) {
   simpanProject();
 }
 
+/* Pemilih Result ada TIGA instance identik -- title layar Clips, Framing,
+   dan Captions, disatukan lewat class .result-select/[data-result-aksi],
+   bukan id, supaya ketiganya digambar ulang dan disinkronkan sekali jalan
+   dari sini. Clips justru tempat SUMBER Result-nya dipilih (span yang
+   ditambah di sana masuk ke Result yang sedang aktif) -- bukan cuma
+   Editing (Framing/Captions) yang butuh tahu Result mana yang aktif. */
 function renderResultSwitcher() {
-  const wadah = $("#resultSwitch");
-  if (!wadah) return;
-  const chip = SAVED_RESULTS.map((r, i) => `
-    <button class="chip klip-tab" role="tab" data-result="${r.id}"
-            aria-selected="${r.id === activeResultId}">
-      <span class="nomor-klip">${i + 1}</span>
-      <span>${escapeHTML(r.title || `Result ${i + 1}`)}</span>
-      ${SAVED_RESULTS.length > 1
-        ? `<i class="buang" data-buang-result="${r.id}" role="button"
-              aria-label="Delete Result ${i + 1}">×</i>` : ""}
-    </button>`).join("");
-  wadah.innerHTML = `${chip}
-    <button class="chip" id="newResultBtn" type="button">+ New Result</button>`;
+  const opsi = SAVED_RESULTS.map((r, i) => `
+    <option value="${r.id}" ${r.id === activeResultId ? "selected" : ""}>
+      ${escapeHTML(r.title || `Result ${i + 1}`)}</option>`).join("");
+  document.querySelectorAll(".result-select").forEach((sel) => { sel.innerHTML = opsi; });
+  document.querySelectorAll('[data-result-aksi="delete"]').forEach((b) => {
+    b.disabled = SAVED_RESULTS.length <= 1;
+  });
 }
 
-$("#resultSwitch")?.addEventListener("click", (e) => {
-  const hapus = e.target.closest("[data-buang-result]");
-  if (hapus) { e.stopPropagation(); deleteResultTab(hapus.dataset.buangResult); return; }
-  if (e.target.closest("#newResultBtn")) { newResult(); return; }
-  const tab = e.target.closest("[data-result]");
-  if (tab) switchResult(tab.dataset.result);
+document.querySelectorAll(".result-select").forEach((sel) => {
+  sel.addEventListener("change", () => switchResult(sel.value));
+});
+document.querySelectorAll('[data-result-aksi="new"]').forEach((b) => {
+  b.addEventListener("click", () => newResult());
+});
+document.querySelectorAll('[data-result-aksi="delete"]').forEach((b) => {
+  b.addEventListener("click", () => deleteResultTab(activeResultId));
 });
 
 /* Memasang kembali keadaan yang tersimpan. Mengembalikan true kalau ada
