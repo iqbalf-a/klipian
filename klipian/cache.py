@@ -13,14 +13,21 @@ from pathlib import Path
 
 
 def fingerprint(path: Path, extra: str = "") -> str:
-    """Identitas file berbasis path+ukuran+mtime.
+    """Identitas file berbasis ukuran+mtime -- SENGAJA TIDAK ikut path.
+
+    Path pernah ikut dihash, tapi itu berarti memindahkan videonya ke folder
+    lain (persis yang terjadi saat samples/ digabung jadi workspace/samples/)
+    membuat fingerprint-nya berubah, project/cache lama jadi tidak ketemu lagi
+    walau videonya persis sama -- kelihatan seperti kerjaan hilang padahal
+    cuma "salah lemari". Ukuran+mtime saja sudah cukup membedakan video yang
+    benar-benar berubah isinya, dan tahan terhadap video yang sekadar
+    dipindah/di-rename foldernya.
 
     Sengaja tidak menghash seluruh isi file -- video 2GB akan lambat dibaca,
     sementara kombinasi ini sudah cukup membedakan dalam pemakaian normal.
     """
-    p = Path(path).resolve()
-    st = p.stat()
-    raw = f"{p}|{st.st_size}|{st.st_mtime_ns}|{extra}"
+    st = Path(path).stat()
+    raw = f"{st.st_size}|{st.st_mtime_ns}|{extra}"
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
 
 
