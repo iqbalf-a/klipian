@@ -39,8 +39,8 @@ Ringan (~300 MB) karena **tidak memakai PyTorch** — faster-whisper berjalan di
 atas CTranslate2. Bobot model Whisper diunduh sekali saat dipakai pertama:
 1,6 GB untuk `large-v3-turbo`.
 
-**Taruh videomu di `samples/`.** Browser tidak memberi jalur lengkap ke server,
-jadi backend mencarinya berdasarkan nama berkas di folder itu.
+**Taruh videomu di `workspace/samples/`.** Browser tidak memberi jalur lengkap
+ke server, jadi backend mencarinya berdasarkan nama berkas di folder itu.
 
 ---
 
@@ -107,7 +107,7 @@ python -m klipian import video.mp4 balasan.json
 ```
 
 ```bash
-python -m klipian render video.mp4 out/video/candidates.json --only 1 --crop 58 8 26 84
+python -m klipian render video.mp4 workspace/out/video/candidates.json --only 1 --crop 58 8 26 84
 ```
 
 | Perintah | Fungsi |
@@ -210,9 +210,9 @@ buat apa yang terjadi SESUDAH klip jadi MP4.
 
 | Panel | Isinya |
 |---|---|
-| **Klip** | jadwal upload: status, judul/hook, platform, tanggal & jam diedit langsung di tabel; sumber episode, file klip, deskripsi + hashtag, caption TikTok, link, catatan ada di dialog **Detail** per baris (tabel sengaja cuma kolom inti, biar tidak perlu scroll horizontal). Tersimpan ke `content/schedule/clips.json` |
-| **Hasil render** | isi `out/` apa adanya -- sumber datanya sama dengan layar History di editor |
-| **Assets** | isi `content/assets/`, tempat watermark/font/template custom di luar bawaan klipian |
+| **Klip** | jadwal upload: status, judul/hook, platform, tanggal & jam diedit langsung di tabel; sumber episode, file klip, deskripsi + hashtag, caption TikTok, link, catatan ada di dialog **Detail** per baris (tabel sengaja cuma kolom inti, biar tidak perlu scroll horizontal). Tersimpan ke `workspace/schedule/clips.json` |
+| **Hasil render** | isi `workspace/out/` apa adanya -- sumber datanya sama dengan layar History di editor |
+| **Assets** | isi `workspace/assets/`, tempat watermark/font/template custom di luar bawaan klipian |
 
 `clips.json` menggantikan pencatatan manual lewat spreadsheet -- satu baris
 lama di Excel sekarang satu baris di tabel ini, langsung tersimpan tiap kali
@@ -252,16 +252,16 @@ klipian/
 │   │   │                  timeline, teks, result, projects)
 │   │   └── workspace/     satu berkas per panel workspace (helpers, clips,
 │   │                      render, assets)
-│   ├── assets/           gambar contoh mode lama (src-dialog.jpg,
-│   │                     src-gameplay.jpg) -- tidak lagi dipakai sejak
-│   │                     pemilihan mode di Home dihapus, belum dibersihkan
 │   └── tailwind.config.js
 ├── prompts/rubrik/    kriteria penilaian, bisa disunting tanpa sentuh kode
-├── samples/           video yang sedang diproses — app baca dari sini
-├── sources/           arsip mentah di luar app (disalin ke samples/ saat dipakai)
-├── cache/             transkrip (dibuat otomatis)
-├── out/               hasil render
-└── content/           jadwal & status upload (clips.json) — lihat content/README.md
+└── workspace/         SEMUA berkas kerja -- satu tempat, biar tidak bingung
+    │                  taruh video di mana (lihat workspace/README.md)
+    ├── samples/         video yang sedang diproses — app baca dari sini
+    ├── out/             hasil render
+    ├── cache/           transkrip (dibuat otomatis)
+    ├── projects/        state per video (Result, framing, koreksi teks)
+    ├── assets/          watermark/font/template custom, panel Assets di /workspace
+    └── schedule/        jadwal & status upload (clips.json), panel Klip di /workspace
 ```
 
 ---
@@ -289,7 +289,8 @@ klipian/
 server. Jalankan perintah di bagian atas.
 
 **"tidak ada di folder yang dijangkau server"** — videonya belum ada di
-`samples/`.
+`workspace/samples/`. Drag-drop di browser cuma buat preview lokal, bukan
+menyalin isi filenya ke server -- copy dulu berkas fisiknya ke situ.
 
 **MP4 hasil render 0 byte** — ffmpeg masih menulis. Tunggu baris antrian
 berbunyi `selesai` sebelum membuka folder.

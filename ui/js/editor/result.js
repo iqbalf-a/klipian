@@ -282,9 +282,10 @@ function putarPreviewRekom(idx) {
     v.play().catch(() => {});
   };
   // `v.src` SELALU berupa URL absolut begitu dibaca balik -- browser
-  // meresolusinya sendiri -- sedangkan chosenSource.url relatif ("/samples/
-  // ..."). Membandingkannya apa adanya SELALU meleset, jadi video di-reload
-  // ulang dari awal setiap kali Play ditekan, bahkan untuk suggestion dari
+  // meresolusinya sendiri -- sedangkan chosenSource.url relatif
+  // ("/workspace/samples/..."). Membandingkannya apa adanya SELALU meleset,
+  // jadi video di-reload ulang dari awal setiap kali Play ditekan, bahkan
+  // untuk suggestion dari
   // video yang sama: buffering yang terbuang, dan sesaat sesudah klik video
   // masih kelihatan diam menunggu loadedmetadata padahal seharusnya sudah
   // langsung jalan. Dua-duanya diresolusi ke bentuk absolut dulu sebelum

@@ -1,6 +1,6 @@
 /* klipian — workspace: panel Assets
    ==========================================================================
-   Isi content/assets/ -- tempat watermark/font/template custom di luar
+   Isi workspace/assets/ -- tempat watermark/font/template custom di luar
    bawaan klipian. Kosong secara default, itu keadaan normal (lihat
    /api/workspace/assets di server.py), bukan error.
 
@@ -18,12 +18,12 @@ async function muatAsset() {
     return;
   }
   if (note) note.textContent = asset.length
-    ? `${asset.length} berkas di content/assets/`
-    : "content/assets/ masih kosong";
+    ? `${asset.length} berkas di workspace/assets/`
+    : "workspace/assets/ masih kosong";
   const list = $("#assetList");
   if (!asset.length) {
     list.innerHTML = `<p class="ws-kosong">Taruh watermark/font/template custom
-      di folder <code>content/assets/</code> kalau butuh di luar bawaan klipian.</p>`;
+      di folder <code>workspace/assets/</code> kalau butuh di luar bawaan klipian.</p>`;
     return;
   }
   list.innerHTML = asset.map((a) => `

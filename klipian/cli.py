@@ -17,8 +17,8 @@ from .transcribe import (DEFAULT_MODEL, DEFAULT_THREADS, MODELS, WhisperMissing,
 from . import roundtrip
 
 ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_CACHE = ROOT / "cache"
-DEFAULT_OUT = ROOT / "out"
+DEFAULT_CACHE = ROOT / "workspace" / "cache"
+DEFAULT_OUT = ROOT / "workspace" / "out"
 DEFAULT_GLOSSARY = ROOT / "prompts" / "glossary.txt"
 RUBRICS = {
     "dialog": ROOT / "prompts" / "rubrik" / "dialog-podcast.md",

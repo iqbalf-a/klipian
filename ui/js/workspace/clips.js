@@ -2,7 +2,7 @@
    ==========================================================================
    Jadwal upload: status, sumber episode, judul/hook, deskripsi + hashtag,
    caption TikTok, tanggal & jam, link setelah posted. Diedit langsung di
-   tabel, tersimpan ke content/schedule/clips.json lewat /api/workspace/clips
+   tabel, tersimpan ke workspace/schedule/clips.json lewat /api/workspace/clips
    tiap kali sebuah sel selesai diedit (event "change", bukan tombol Save).
 
    Tabel cuma menampilkan kolom INLINE (status, judul, platform, jadwal) --

@@ -98,14 +98,14 @@ async function acceptFile(file) {
     setClip(DATA.candidates[0]);
   }
 
-  // Berkas dari luar samples/ hanya dapat URL blob: preview jalan, tapi
-  // transkripsi, thumbnail, dan render semuanya lewat _find_video() di server
-  // dan akan menjawab "video not found". Diberitahukan SEKARANG, bukan setelah
-  // menunggu transkripsi yang memang tidak akan pernah berhasil.
+  // Berkas dari luar workspace/samples/ hanya dapat URL blob: preview jalan,
+  // tapi transkripsi, thumbnail, dan render semuanya lewat _find_video() di
+  // server dan akan menjawab "video not found". Diberitahukan SEKARANG, bukan
+  // setelah menunggu transkripsi yang memang tidak akan pernah berhasil.
   try {
     const daftar = (await (await fetch("/api/video")).json()).video || [];
     if (!daftar.includes(file.name)) {
-      drawSource(null, "not in samples/ — move it there to transcribe and render");
+      drawSource(null, "not in workspace/samples/ — move it there to transcribe and render");
       document.querySelector(".source-drop")?.setAttribute("data-state", "warn");
     }
   } catch { /* tanpa backend, tidak ada yang bisa diperiksa */ }

@@ -556,14 +556,14 @@ async function bukaProjectDariBeranda(video) {
   // (chosenSource/realTranscript/RESULT/FRAMING) milik yang menang.
   const gen = ++_bukaProjectGen;
   // Blob URL dari file yang tadi di-drop tidak pernah dilepas kalau kita
-  // langsung menimpanya dengan URL /samples/ -- lepaskan dulu.
+  // langsung menimpanya dengan URL /workspace/samples/ -- lepaskan dulu.
   if (typeof chosenSource !== "undefined" && chosenSource
       && typeof chosenSource.url === "string" && chosenSource.url.startsWith("blob:")) {
     URL.revokeObjectURL(chosenSource.url);
   }
-  // Berkasnya diambil dari samples/, bukan dari dialog berkas -- project
-  // menyimpan NAMA, dan browser tidak boleh membuka path sendiri.
-  chosenSource = { kind: "file", name: video, url: `/samples/${encodeURIComponent(video)}` };
+  // Berkasnya diambil dari workspace/samples/, bukan dari dialog berkas --
+  // project menyimpan NAMA, dan browser tidak boleh membuka path sendiri.
+  chosenSource = { kind: "file", name: video, url: `/workspace/samples/${encodeURIComponent(video)}` };
   // Nama dulu, tampil seketika -- chosenSource di jalur ini tidak punya
   // .duration (bukan hasil readMeta() dari <video>, cuma nama dari catatan
   // project). Ditimpa lagi di bawah begitu transkrip (kalau ada) memberi

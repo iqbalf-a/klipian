@@ -34,20 +34,26 @@ from .models import Transcript
 from . import render as engine
 
 ROOT = Path(__file__).resolve().parent.parent
-SERVED_DIRS = ("ui", "cache", "out", "prompts", "samples")   # folder yang dilayani
+# Semua berkas kerja (video sumber, hasil render, cache, project, aset) ada
+# di SATU folder ini -- bukan tersebar (dulu samples/out/cache/projects/
+# content masing-masing di root), supaya orang yang baru pakai klipian tidak
+# bingung taruh video di mana (lihat workspace/README.md).
+WORKSPACE = ROOT / "workspace"
+SERVED_DIRS = ("ui", "prompts")   # folder di ROOT yang dilayani apa adanya
+# Sub-folder workspace/ yang boleh diakses langsung lewat URL /workspace/<...>
+# -- assets/ dan schedule/ SENGAJA tidak masuk sini, sama seperti projects/
+# di bawah: isinya cuma boleh lewat /api/workspace/... supaya nama berkas
+# tidak jadi permukaan serang tersendiri.
+WORKSPACE_SERVED = ("samples", "out", "cache")
 
 # Project TIDAK ikut dilayani sebagai berkas statis. Isinya hanya boleh lewat
 # /api/project supaya nama berkas tidak jadi permukaan serang tersendiri.
-PROJECTS = ROOT / "projects"
+PROJECTS = WORKSPACE / "projects"
 
 # Operasional konten (jadwal upload, status klip) -- bukan bagian dari alur
 # render, dan sengaja BUKAN berkas statis, sama seperti projects/ di atas.
-# Disimpan di luar cache/out/projects supaya tidak tercampur dengan yang
-# dikelola app, dan di-gitignore (lihat .gitignore) karena isinya operasional
-# harian, bukan kode.
-CONTENT = ROOT / "content"
-CLIPS_PATH = CONTENT / "schedule" / "clips.json"
-ASSETS_DIR = CONTENT / "assets"
+CLIPS_PATH = WORKSPACE / "schedule" / "clips.json"
+ASSETS_DIR = WORKSPACE / "assets"
 
 # pekerjaan render yang sedang / sudah berjalan
 JOBS: dict[str, dict] = {}
@@ -129,7 +135,7 @@ def _find_video(name: str) -> Path | None:
     if "/" in name or "\\" in name or ".." in name:
         return None
     for folder in ("samples", "", "out"):
-        p = ROOT / folder / name if folder else ROOT / name
+        p = WORKSPACE / folder / name if folder else WORKSPACE / name
         if p.is_file():
             return p
     return None
@@ -232,7 +238,7 @@ def _run_render(job_id: str, req: dict) -> None:
         # meleset diam-diam menghilangkan caption tanpa pesan.
         words = []
         try:
-            cache = Cache(ROOT / "cache")
+            cache = Cache(WORKSPACE / "cache")
             path = cache.find_any_transcript(video)
             if path and path.exists():
                 words = Transcript.load(path).words
@@ -241,7 +247,7 @@ def _run_render(job_id: str, req: dict) -> None:
 
         from .ffmpeg_tools import probe
         info = probe(video)
-        out_dir = ROOT / "out" / video.stem
+        out_dir = WORKSPACE / "out" / video.stem
         clips = req["clips"]
         t["total"] = len(clips)
 
@@ -294,7 +300,7 @@ def _run_render(job_id: str, req: dict) -> None:
                 t["result"].append({
                     "title": k["title"],
                     "file": name,
-                    "url": f"/out/{video.stem}/{name}",
+                    "url": f"/workspace/out/{video.stem}/{name}",
                     "folder": str(out_dir),
                     "mb": round(dest.stat().st_size / 1048576, 1),
                     "duration": round(job.duration, 1),
@@ -330,7 +336,7 @@ def _run_transcribe(job_id: str, req: dict) -> None:
             raise FileNotFoundError(
                 f"{req['video']} is not in samples/.")
 
-        cache = Cache(ROOT / "cache")
+        cache = Cache(WORKSPACE / "cache")
 
         # Sekali per video, TIDAK tergantung apakah transkripnya sendiri
         # sudah ter-cache -- makanya dicek di sini, sebelum jalur cache-hit
@@ -429,7 +435,7 @@ def _run_transcribe(job_id: str, req: dict) -> None:
             if ACTIVE_TRANSCRIBES.get(name) == job_id:
                 ACTIVE_TRANSCRIBES.pop(name, None)
         try:
-            for leftover in (ROOT / "cache").glob(f"*.{job_id}.wav"):
+            for leftover in (WORKSPACE / "cache").glob(f"*.{job_id}.wav"):
                 leftover.unlink(missing_ok=True)       # wav sementara tidak pernah ditinggal
         except Exception:                          # noqa: BLE001
             pass
@@ -475,7 +481,7 @@ def _project_path(video: str) -> Path:
     """Satu berkas per video. Kuncinya fingerprint yang sama dengan cache
     transkrip, jadi video yang berubah isinya otomatis jadi project lain."""
     from .cache import fingerprint
-    src = ROOT / "samples" / Path(video).name
+    src = WORKSPACE / "samples" / Path(video).name
     fp = fingerprint(src) if src.exists() else "unknown"
     return PROJECTS / f"{Path(video).stem}.{fp}.json"
 
@@ -533,8 +539,8 @@ def _project_ringkas(file: Path) -> dict | None:
 
 
 # ═══════════════════════════════ workspace ═══════════════════════════════
-# Dashboard di /workspace: satu tempat untuk lihat hasil render (out/),
-# ngatur jadwal upload (clips.json), dan aset tambahan (content/assets/).
+# Dashboard di /workspace: satu tempat untuk lihat hasil render (workspace/out/),
+# ngatur jadwal upload (clips.json), dan aset tambahan (workspace/assets/).
 # Terpisah dari project (state kerja per video) -- ini soal APA YANG TERJADI
 # SETELAH klip jadi MP4, bukan soal mengedit klipnya.
 
@@ -568,7 +574,7 @@ def _thumbnail(video: Path, seconds: float, crop: dict, width: int) -> Path:
     Kartu kandidat harus menampilkan wajah orang saat momen itu terjadi --
     frame generik tidak membantu memilih klip mana yang diambil."""
     from .ffmpeg_tools import _require, probe
-    dest = ROOT / "out" / video.stem / "thumbs" /         f"{int(seconds*10)}-{int(crop['left'])}-{int(crop['width'])}-{width}.jpg"
+    dest = WORKSPACE / "out" / video.stem / "thumbs" /         f"{int(seconds*10)}-{int(crop['left'])}-{int(crop['width'])}-{width}.jpg"
     if dest.exists():
         return dest
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -702,7 +708,7 @@ class Handler(BaseHTTPRequestHandler):
             # berkas yang benar-benar ada di disk itulah riwayat yang jujur,
             # dan tetap utuh setelah halaman dimuat ulang atau server mati.
             item = []
-            for mp4 in (ROOT / "out").glob("*/*.mp4"):
+            for mp4 in (WORKSPACE / "out").glob("*/*.mp4"):
                 try:
                     st = mp4.stat()
                 except OSError:
@@ -711,7 +717,7 @@ class Handler(BaseHTTPRequestHandler):
                     "file": mp4.name,
                     "video": mp4.parent.name,
                     "folder": str(mp4.parent),
-                    "url": f"/out/{mp4.parent.name}/{mp4.name}",
+                    "url": f"/workspace/out/{mp4.parent.name}/{mp4.name}",
                     "mb": round(st.st_size / 1048576, 1),
                     "at": int(st.st_mtime),
                 })
@@ -761,7 +767,7 @@ class Handler(BaseHTTPRequestHandler):
             # UI perlu tahu transkrip apa saja yang tersedia. Server ini tidak
             # membuat daftar direktori HTML seperti http.server, jadi
             # disediakan endpoint sendiri.
-            file = sorted(p.name for p in (ROOT / "cache").glob("*.transcript.json"))
+            file = sorted(p.name for p in (WORKSPACE / "cache").glob("*.transcript.json"))
             return self._send_json({"transcript": file})
 
         if path == "/api/audio-energy":
@@ -774,7 +780,7 @@ class Handler(BaseHTTPRequestHandler):
             video = _find_video(q.get("video", [""])[0])
             if not video:
                 return self._send_json({"moments": []})
-            epath = Cache(ROOT / "cache").energy_path(video)
+            epath = Cache(WORKSPACE / "cache").energy_path(video)
             if not epath.is_file():
                 return self._send_json({"moments": []})
             try:
@@ -784,7 +790,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"moments": moments})
 
         if path == "/api/video":
-            file = sorted(p.name for p in (ROOT / "samples").glob("*")
+            file = sorted(p.name for p in (WORKSPACE / "samples").glob("*")
                             if p.suffix.lower() in {".mp4", ".mkv", ".mov", ".webm"})
             return self._send_json({"video": file})
 
@@ -807,7 +813,12 @@ class Handler(BaseHTTPRequestHandler):
         # Komponen ditolak kalau mengandung pemisah jalur, lalu hasil akhirnya
         # tetap diperiksa harus berada di dalam ROOT.
         parts = [b for b in path.strip("/").split("/") if b not in ("", ".", "..")]
-        if not parts or parts[0] not in SERVED_DIRS:
+        if not parts:
+            return self._send_json({"error": "not served"}, 404)
+        if parts[0] == "workspace":
+            if len(parts) < 2 or parts[1] not in WORKSPACE_SERVED:
+                return self._send_json({"error": "not served"}, 404)
+        elif parts[0] not in SERVED_DIRS:
             return self._send_json({"error": "not served"}, 404)
         if any("\\" in b or "/" in b or b == ".." for b in parts):
             return self._send_json({"error": "invalid path"}, 400)
@@ -1035,7 +1046,7 @@ class Handler(BaseHTTPRequestHandler):
 
                 words = []
                 try:
-                    cache = Cache(ROOT / "cache")
+                    cache = Cache(WORKSPACE / "cache")
                     tpath = cache.find_any_transcript(video)
                     if tpath and tpath.exists():
                         words = Transcript.load(tpath).words
@@ -1048,7 +1059,7 @@ class Handler(BaseHTTPRequestHandler):
                 # Nama TETAP, ditimpa tiap kali -- pratinjau adalah sekali
                 # pakai, bukan berkas yang perlu dikumpulkan seperti hasil
                 # render sungguhan di antrian/riwayat.
-                dest = ROOT / "out" / video.stem / "_preview.mp4"
+                dest = WORKSPACE / "out" / video.stem / "_preview.mp4"
                 engine.render(video, job, dest, words=kata_klip, style=gaya,
                               src_width=info.width, src_height=info.height,
                               has_audio=info.has_audio, verbose=False)
@@ -1060,7 +1071,7 @@ class Handler(BaseHTTPRequestHandler):
                 # ini elemen <video> di browser tidak akan memuat ulang versi
                 # yang baru saja ditimpa, walau server sudah menulis berkas
                 # yang benar-benar berbeda isinya.
-                "url": f"/out/{video.stem}/_preview.mp4?t={int(time.time())}",
+                "url": f"/workspace/out/{video.stem}/_preview.mp4?t={int(time.time())}",
                 "duration": round(job.duration, 1),
             })
 
@@ -1192,7 +1203,7 @@ def _sweep_temp() -> int:
     import re
     n = 0
     pola = re.compile(r"\.[0-9a-f]{8}\.wav$")
-    for w in (ROOT / "cache").glob("*.wav"):
+    for w in (WORKSPACE / "cache").glob("*.wav"):
         if not pola.search(w.name):
             continue
         try:
