@@ -480,6 +480,24 @@ def _project_path(video: str) -> Path:
     return PROJECTS / f"{Path(video).stem}.{fp}.json"
 
 
+def _active_result(data: dict) -> dict:
+    """Bagian project yang berisi result/framing/title yang sedang aktif --
+    bentuk baru (satu project bisa punya beberapa Result tersimpan, lihat
+    SAVED_RESULTS/`results`+`activeResult` di projects.js) atau bentuk lama
+    (result/framing/title datar di level atas, dari sebelum fitur itu ada).
+    Project lama yang belum sempat dibuka ulang sejak fitur ini ada tetap
+    harus tampil benar di kartu beranda, bukan cuma project yang baru."""
+    results = data.get("results")
+    if isinstance(results, list) and results:
+        aktif = data.get("activeResult")
+        for r in results:
+            if isinstance(r, dict) and r.get("id") == aktif:
+                return r
+        pertama = results[0]
+        return pertama if isinstance(pertama, dict) else {}
+    return data
+
+
 def _project_ringkas(file: Path) -> dict | None:
     """Bentuk ringkas untuk daftar di beranda -- tidak memuat seluruh isi.
 
@@ -492,14 +510,15 @@ def _project_ringkas(file: Path) -> dict | None:
         st = file.stat()
         if not isinstance(data, dict):
             return None
-        spans = data.get("result") or []
+        aktif = _active_result(data)
+        spans = aktif.get("result") or []
         total = sum(max(0.0, float(r.get("end", 0)) - float(r.get("start", 0)))
                     for r in spans if isinstance(r, dict))
-        framing = data.get("framing") or [{}]
+        framing = aktif.get("framing") or [{}]
         first_frame = framing[0] if isinstance(framing[0], dict) else {}
         return {
             "video": data.get("video", ""),
-            "title": data.get("title", ""),
+            "title": aktif.get("title", ""),
             "spans": len(spans),
             "seconds": round(total, 1),
             "at": int(st.st_mtime),

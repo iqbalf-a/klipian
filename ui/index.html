@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wdth,wght@0,75..125,200..900;1,75..125,200..900&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1788490674790">
-<link rel="stylesheet" href="/ui/css/app.css?v=1788490674790">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1788684596991">
+<link rel="stylesheet" href="/ui/css/app.css?v=1788684596991">
 </head>
 <body>
 
@@ -475,6 +475,13 @@
            layar Klip, Framing, maupun Teks tanpa pindah-pindah. Preview ini
            memang hasilnya -- tombolnya wajar ada di bawahnya. -->
       <div class="render-bar">
+        <!-- Satu project bisa punya lebih dari satu Result tersimpan (satu
+             video sumber, banyak klip terpisah) -- ini di render-bar, bukan
+             di panel Result saja, supaya terjangkau dari layar Framing/
+             Captions juga tanpa pindah ke tab Clips dulu. Diisi
+             renderResultSwitcher() (projects.js); title di bawah ini
+             MENGEDIT Result yang lagi aktif, bukan elemen terpisah. -->
+        <div class="clip-tabs" id="resultSwitch" role="tablist" aria-label="Saved results"></div>
         <label class="judul-input">title
           <input id="hasilJudul" value="" spellcheck="false" placeholder="output file name"
                  aria-label="Result title, used as the file name"></label>
@@ -498,16 +505,16 @@
   </main>
 </div>
 
-<script src="/ui/js/editor/app.js?v=1788490674790"></script>
-<script src="/ui/js/editor/interactions.js?v=1788490674790"></script>
-<script src="/ui/js/editor/framing.js?v=1788490674790"></script>
-<script src="/ui/js/editor/analysis.js?v=1788490674790"></script>
-<script src="/ui/js/editor/player.js?v=1788490674790"></script>
-<script src="/ui/js/editor/roundtrip.js?v=1788490674790"></script>
-<script src="/ui/js/editor/history.js?v=1788490674790"></script>
-<script src="/ui/js/editor/timeline.js?v=1788490674790"></script>
-<script src="/ui/js/editor/teks.js?v=1788490674790"></script>
-<script src="/ui/js/editor/result.js?v=1788490674790"></script>
-<script src="/ui/js/editor/projects.js?v=1788490674790"></script>
+<script src="/ui/js/editor/app.js?v=1788684596991"></script>
+<script src="/ui/js/editor/interactions.js?v=1788684596991"></script>
+<script src="/ui/js/editor/framing.js?v=1788684596991"></script>
+<script src="/ui/js/editor/analysis.js?v=1788684596991"></script>
+<script src="/ui/js/editor/player.js?v=1788684596991"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1788684596991"></script>
+<script src="/ui/js/editor/history.js?v=1788684596991"></script>
+<script src="/ui/js/editor/timeline.js?v=1788684596991"></script>
+<script src="/ui/js/editor/teks.js?v=1788684596991"></script>
+<script src="/ui/js/editor/result.js?v=1788684596991"></script>
+<script src="/ui/js/editor/projects.js?v=1788684596991"></script>
 </body>
 </html>

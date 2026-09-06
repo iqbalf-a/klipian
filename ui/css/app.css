@@ -1415,15 +1415,14 @@ h1, h2, h3 {
 }
 .chip .buang:hover { opacity: 1; color: var(--bahaya); }
 
-/* ---- tab klip di atas frame preview ---- */
+/* ---- pindah antar-Result tersimpan, di atas frame preview ----
+   Satu project bisa punya lebih dari satu Result (lihat #resultSwitch,
+   digambar renderResultSwitcher() di projects.js). */
 .clip-tabs {
   display: flex; gap: var(--s2);
   overflow-x: auto; scrollbar-width: thin;
   padding: 0 0 var(--s2);
   margin-bottom: var(--s2);
-}
-.clip-tabs .kosong-tab {
-  font-size: var(--t-12); color: var(--teks-samar);
 }
 .klip-tab {
   display: inline-flex; align-items: center; gap: 7px;
@@ -1438,14 +1437,14 @@ h1, h2, h3 {
   border-radius: 4px;
   background: color-mix(in srgb, var(--teks) 12%, transparent);
 }
-.klip-tab[data-approved="true"] .nomor-klip {
+.klip-tab[aria-selected="true"] {
+  color: var(--aksen);
+  border-color: color-mix(in srgb, var(--aksen) 45%, transparent);
+  background: var(--aksen-lembut);
+}
+.klip-tab[aria-selected="true"] .nomor-klip {
   background: var(--aksen); color: #0A0B0E;
 }
-.klip-tab .dur-klip {
-  font-family: var(--font-data);
-  font-size: 10px; color: var(--teks-samar);
-}
-.klip-tab[aria-selected="true"] .dur-klip { color: inherit; }
 
 /* ---- timeline: tiap potongan satu batang, celah = yang dibuang ----
    Dua baris, bukan satu: batang di atas, jam di bawah. Sebelumnya `.tl-time`

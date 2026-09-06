@@ -61,10 +61,10 @@ async function acceptFile(file) {
   drawSource();
 
   // Video baru = orang di frame juga lain, jadi daftar objek dikosongkan dan
-  // dimulai lagi dari "Orang 1".
-  if (changed && typeof resetFraming === "function") resetFraming();
-  if (changed && typeof resetResult === "function") resetResult();
-  if (changed && typeof resetTeks === "function") resetTeks();
+  // dimulai lagi dari "Orang 1". resetProjectState() (projects.js) juga
+  // mengosongkan SAVED_RESULTS jadi satu Result baru -- Result video
+  // sebelumnya tidak boleh ikut terbawa ke video ini.
+  if (changed && typeof resetProjectState === "function") resetProjectState();
 
   // Video baru = sesi baru. Tanpa ini, kandidat dan ribbon dari file
   // sebelumnya ikut terbawa dan angkanya bertabrakan di layar.

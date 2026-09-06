@@ -28,19 +28,32 @@ let layarTerakhir = "klip";    // layar tempat pekerjaan ditinggalkan
    membuat toScreen() mematikan semua layar dan menyisakan area kerja kosong. */
 const LAYAR_SAH = ["analysis", "klip", "framing", "teks", "history"];
 
+/* Satu project sekarang bisa menyimpan LEBIH DARI SATU Result -- video
+   podcast yang sama wajar menghasilkan banyak klip terpisah, dan dulu mulai
+   klip ke-2 diam-diam menimpa rentang/framing/koreksi klip pertama.
+   RESULT/FRAMING/KOREKSI/#hasilJudul (result.js/framing.js/teks.js) TETAP
+   jadi "keadaan hidup Result yang sedang aktif" -- tidak berubah sama
+   sekali di berkas-berkas itu. Yang baru cuma lapisan penyimpanan di sini:
+   SAVED_RESULTS menampung tiap Result sebagai snapshot
+   { id, title, result, framing, corrections }, activeResultId menunjuk
+   yang sedang hidup. Lihat snapshotActiveResult()/loadResultIntoLiveState()
+   di bawah untuk jembatan antara keduanya. */
+let SAVED_RESULTS = [];
+let activeResultId = null;
+let resultTabSeq = 0;
+
 /* Seluruh keadaan yang layak dilanjutkan nanti. Sengaja TIDAK menyimpan
    transkrip: ia sudah ada di cache/ dan besarnya puluhan ribu kata. */
 function keadaanProject() {
+  // Result aktif disalin ke SAVED_RESULTS SEKARANG, bukan mengandalkan
+  // snapshot titik-pindah (switchResult/deleteResultTab) saja -- kalau
+  // tidak, edit yang terjadi SESUDAH pindah terakhir tapi SEBELUM timer
+  // simpanProject() menyala (900ms) tidak pernah ikut tersalin ke slotnya.
+  snapshotActiveResult();
   return {
     video: projectAktif,
-    title: (typeof $ === "function" && $("#hasilJudul")?.value.trim()) || "",
-    result: (typeof RESULT !== "undefined" ? RESULT : []).map((r) => ({
-      id: r.id, start: r.start, end: r.end, title: r.title, source: r.source,
-    })),
-    framing: (typeof FRAMING !== "undefined" ? FRAMING : []).map((f) => ({
-      id: f.id, at: f.at, format: f.format, crops: f.crops,
-    })),
-    corrections: (typeof KOREKSI !== "undefined" ? KOREKSI : {}),
+    results: SAVED_RESULTS,
+    activeResult: activeResultId,
     // Rekomendasi AI (hasil impor JSON dari Claude) TIDAK pernah tersimpan
     // sebelum ini -- membuka lagi project yang sama selalu menampilkan "none
     // yet" walau sudah pernah diimpor, memaksa impor ulang dari awal.
@@ -121,6 +134,142 @@ window.addEventListener("beforeunload", (e) => {
   e.returnValue = "";
 });
 
+/* ---------- Result: simpan-lebih-dari-satu per project ---------- */
+
+/* Salin keadaan HIDUP (RESULT/FRAMING/KOREKSI/judul) ke slot Result yang
+   sedang aktif di SAVED_RESULTS. Dipanggil SEBELUM keadaan hidup ditimpa
+   Result lain (pindah/hapus) dan di awal keadaanProject() -- dua lapis
+   jaga supaya urutan timer simpanProject() yang tertunda tidak relevan. */
+function snapshotActiveResult() {
+  if (!activeResultId) return;
+  const slot = SAVED_RESULTS.find((r) => r.id === activeResultId);
+  if (!slot) return;
+  slot.title = (typeof $ === "function" && $("#hasilJudul")?.value.trim()) || "";
+  slot.result = (typeof RESULT !== "undefined" ? RESULT : []).map((r) => ({
+    id: r.id, start: r.start, end: r.end, title: r.title, source: r.source,
+  }));
+  slot.framing = (typeof FRAMING !== "undefined" ? FRAMING : []).map((f) => ({
+    id: f.id, at: f.at, format: f.format, crops: f.crops,
+  }));
+  slot.corrections = (typeof KOREKSI !== "undefined" ? { ...KOREKSI } : {});
+}
+
+/* Kebalikan snapshotActiveResult(): pasang isi satu entri SAVED_RESULTS
+   jadi keadaan hidup. Dipakai baik saat project pertama kali dibuka maupun
+   saat pindah Result -- SELALU menimpa penuh (bukan "kalau tidak kosong"
+   seperti muatProject() dulu), supaya Result lama tidak pernah bocor ke
+   Result yang baru dipilih. */
+function loadResultIntoLiveState(entry) {
+  if (typeof RESULT !== "undefined") {
+    RESULT = Array.isArray(entry.result) ? entry.result : [];
+    if (typeof resultSeq !== "undefined") {
+      resultSeq = Math.max(0, ...RESULT.map((r) => parseInt(String(r.id).slice(1), 10) || 0));
+    }
+  }
+  if (typeof FRAMING !== "undefined") {
+    FRAMING = (Array.isArray(entry.framing) && entry.framing.length)
+      ? entry.framing
+      : [{ id: "f1", at: 0, format: "single", crops: [{ ...CROP_AWAL }] }];
+    if (typeof framingSeq !== "undefined") {
+      framingSeq = Math.max(0, ...FRAMING.map((f) => parseInt(String(f.id).slice(1), 10) || 0));
+    }
+  }
+  if (typeof KOREKSI !== "undefined") KOREKSI = entry.corrections || {};
+  if ($("#hasilJudul")) $("#hasilJudul").value = entry.title || "";
+  if (typeof renderResult === "function") renderResult();
+  if (typeof renderFraming === "function") renderFraming();
+  if (typeof renderTeks === "function") renderTeks();
+}
+
+/* Mulai project dari nol: satu Result kosong, jadi satu-satunya dan aktif.
+   Pengganti trio resetResult()+resetFraming()+resetTeks() lama -- sekarang
+   ada SAVED_RESULTS yang juga harus direset, bukan cuma keadaan hidupnya. */
+function resetProjectState() {
+  SAVED_RESULTS = [{ id: `res${++resultTabSeq}`, title: "", result: [], framing: [], corrections: {} }];
+  activeResultId = SAVED_RESULTS[0].id;
+  if (typeof resetResult === "function") resetResult();
+  if (typeof resetFraming === "function") resetFraming();
+  if (typeof resetTeks === "function") resetTeks();
+  renderResultSwitcher();
+}
+// RESULT/FRAMING/KOREKSI sudah punya nilai bawaan yang benar sejak deklarasi
+// (array/objek kosong, satu titik framing default -- lihat resetFraming()
+// di framing.js:774 yang juga menyalakan diri sendiri begitu dimuat). Tapi
+// SAVED_RESULTS/activeResultId TIDAK -- tanpa panggilan ini keduanya kosong
+// sampai project pertama dibuka, dan muatProject()/keadaanProject() akan
+// menyimpan project SAMA SEKALI TANPA Result begitu video pertama kali
+// dijatuhkan (acceptFile() cuma memanggil resetProjectState() kalau video
+// GANTI dari video sebelumnya, bukan saat ini video pertama yang dibuka).
+resetProjectState();
+
+/* "+ New Result": simpan yang sedang dikerjakan, lalu mulai Result baru
+   yang kosong dari video yang sama -- tanpa snapshot dulu, ini akan
+   menimpa Result yang sedang aktif alih-alih menambah yang lain. */
+function newResult() {
+  snapshotActiveResult();
+  const entry = { id: `res${++resultTabSeq}`, title: "", result: [], framing: [], corrections: {} };
+  SAVED_RESULTS.push(entry);
+  activeResultId = entry.id;
+  if (typeof resetResult === "function") resetResult();
+  if (typeof resetFraming === "function") resetFraming();
+  if (typeof resetTeks === "function") resetTeks();
+  if ($("#hasilJudul")) $("#hasilJudul").value = "";
+  renderResultSwitcher();
+  simpanProject();
+}
+
+function switchResult(id) {
+  if (id === activeResultId) return;
+  const target = SAVED_RESULTS.find((r) => r.id === id);
+  if (!target) return;
+  snapshotActiveResult();
+  activeResultId = id;
+  loadResultIntoLiveState(target);
+  renderResultSwitcher();
+  simpanProject();
+}
+
+/* Selalu menyisakan minimal satu Result -- project tanpa Result sama
+   sekali tidak punya arti (tidak ada apa pun untuk RESULT/FRAMING/KOREKSI
+   mengacu ke sana), sama seperti titik 00:00 di FRAMING yang tidak bisa
+   dihapus dengan alasan serupa. */
+function deleteResultTab(id) {
+  if (SAVED_RESULTS.length <= 1) return;
+  const i = SAVED_RESULTS.findIndex((r) => r.id === id);
+  if (i < 0) return;
+  if (id === activeResultId) {
+    const tetangga = SAVED_RESULTS[i - 1] || SAVED_RESULTS[i + 1];
+    switchResult(tetangga.id);   // sudah snapshot + load + simpanProject()
+  }
+  SAVED_RESULTS = SAVED_RESULTS.filter((r) => r.id !== id);
+  renderResultSwitcher();
+  simpanProject();
+}
+
+function renderResultSwitcher() {
+  const wadah = $("#resultSwitch");
+  if (!wadah) return;
+  const chip = SAVED_RESULTS.map((r, i) => `
+    <button class="chip klip-tab" role="tab" data-result="${r.id}"
+            aria-selected="${r.id === activeResultId}">
+      <span class="nomor-klip">${i + 1}</span>
+      <span>${escapeHTML(r.title || `Result ${i + 1}`)}</span>
+      ${SAVED_RESULTS.length > 1
+        ? `<i class="buang" data-buang-result="${r.id}" role="button"
+              aria-label="Delete Result ${i + 1}">×</i>` : ""}
+    </button>`).join("");
+  wadah.innerHTML = `${chip}
+    <button class="chip" id="newResultBtn" type="button">+ New Result</button>`;
+}
+
+$("#resultSwitch")?.addEventListener("click", (e) => {
+  const hapus = e.target.closest("[data-buang-result]");
+  if (hapus) { e.stopPropagation(); deleteResultTab(hapus.dataset.buangResult); return; }
+  if (e.target.closest("#newResultBtn")) { newResult(); return; }
+  const tab = e.target.closest("[data-result]");
+  if (tab) switchResult(tab.dataset.result);
+});
+
 /* Memasang kembali keadaan yang tersimpan. Mengembalikan true kalau ada
    yang dipulihkan, supaya pemanggil bisa memberi tahu penggunanya. */
 async function muatProject(video) {
@@ -133,23 +282,28 @@ async function muatProject(video) {
   } catch { return false; }
   if (!d || d.error) return false;
 
-  if (Array.isArray(d.result) && typeof RESULT !== "undefined") {
-    RESULT = d.result;
-    // resultSeq harus melewati id tertinggi yang dipulihkan, kalau tidak
-    // potongan berikutnya memakai id yang sudah dipakai dan saling menimpa.
-    if (typeof resultSeq !== "undefined") {
-      const n = Math.max(0, ...RESULT.map((r) => parseInt(String(r.id).slice(1), 10) || 0));
-      resultSeq = n;
-    }
+  if (Array.isArray(d.results) && d.results.length) {
+    SAVED_RESULTS = d.results;
+  } else {
+    // Bentuk lama (sebelum fitur simpan-lebih-dari-satu-Result): satu
+    // result/framing/corrections/title datar di level atas -- dibungkus
+    // jadi SATU entri implisit. Tidak menulis ulang berkasnya sekarang;
+    // bentuk baru baru tertulis pada penyimpanan otomatis berikutnya.
+    SAVED_RESULTS = [{
+      id: "res1",
+      title: d.title || "",
+      result: Array.isArray(d.result) ? d.result : [],
+      framing: Array.isArray(d.framing) ? d.framing : [],
+      corrections: d.corrections || {},
+    }];
   }
-  if (Array.isArray(d.framing) && d.framing.length && typeof FRAMING !== "undefined") {
-    FRAMING = d.framing;
-    if (typeof framingSeq !== "undefined") {
-      const n = Math.max(0, ...FRAMING.map((f) => parseInt(String(f.id).slice(1), 10) || 0));
-      framingSeq = n;
-    }
-  }
-  if (d.corrections && typeof KOREKSI !== "undefined") KOREKSI = d.corrections;
+  activeResultId = SAVED_RESULTS.some((r) => r.id === d.activeResult)
+    ? d.activeResult : SAVED_RESULTS[0].id;
+  // resultTabSeq harus melewati id tertinggi yang dipulihkan, kalau tidak
+  // Result baru berikutnya memakai id yang sudah dipakai dan saling menimpa.
+  resultTabSeq = Math.max(0, ...SAVED_RESULTS.map((r) => parseInt(String(r.id).slice(3), 10) || 0));
+  loadResultIntoLiveState(SAVED_RESULTS.find((r) => r.id === activeResultId));
+  renderResultSwitcher();
   if (Array.isArray(d.candidates) && typeof DATA !== "undefined") {
     DATA.candidates = d.candidates;
     DATA.marks = d.candidates.map((k) => ({
@@ -179,7 +333,6 @@ async function muatProject(video) {
       }
     });
   }
-  if (d.title && $("#hasilJudul")) $("#hasilJudul").value = d.title;
   layarTerakhir = LAYAR_SAH.includes(d.screen) ? d.screen : "klip";
   return true;
 }
@@ -421,16 +574,14 @@ async function bukaProjectDariBeranda(video) {
   // tapi dijaga sama seperti bukaProject() kalau kelak dipanggil untuk video
   // yang belum pernah dibuka.
   if (!ada) {
-    // Project baru: TIDAK ADA jaminan RESULT/FRAMING/KOREKSI/kandidat di
-    // memori sekarang kosong -- kalau video sebelumnya sempat dikerjakan di
-    // tab yang sama tanpa reload, isinya masih milik video ITU, bukan video
-    // ini. Jalur drop-file (acceptFile() di interactions.js) sudah
-    // membersihkan ini lewat resetResult()/resetFraming()/resetTeks(); jalur
-    // ini (kartu beranda / pemulihan sesi) belum, dan project baru lewat
-    // sini secara teori mungkin -- lihat komentar bukaProjectDariBeranda().
-    if (typeof resetFraming === "function") resetFraming();
-    if (typeof resetResult === "function") resetResult();
-    if (typeof resetTeks === "function") resetTeks();
+    // Project baru: TIDAK ADA jaminan RESULT/FRAMING/KOREKSI/SAVED_RESULTS/
+    // kandidat di memori sekarang kosong -- kalau video sebelumnya sempat
+    // dikerjakan di tab yang sama tanpa reload, isinya masih milik video
+    // ITU, bukan video ini. Jalur drop-file (acceptFile() di
+    // interactions.js) sudah membersihkan ini lewat resetProjectState();
+    // jalur ini (kartu beranda / pemulihan sesi) belum, dan project baru
+    // lewat sini secara teori mungkin -- lihat komentar bukaProjectDariBeranda().
+    resetProjectState();
     if (typeof DATA !== "undefined") { DATA.candidates = []; DATA.marks = []; }
     if (typeof terapkanPresetCaption === "function" && terapkanPresetCaption()) {
       if (typeof renderList === "function") renderList();
