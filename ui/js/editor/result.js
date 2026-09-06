@@ -390,8 +390,9 @@ function tlPreviewStepFrame(arah) {
   const tujuan = Math.max(0, Math.min(batas - 1 / fps / 2, v.currentTime + arah / fps));
   try { v.currentTime = tujuan; } catch { /* di luar jangkauan */ }
 }
-$("#tlPreviewPrev")?.addEventListener("click", () => tlPreviewStepFrame(-1));
-$("#tlPreviewNext")?.addEventListener("click", () => tlPreviewStepFrame(1));
+[["#tlPreviewPrev5", -5], ["#tlPreviewPrev2", -2], ["#tlPreviewPrev", -1],
+ ["#tlPreviewNext", 1], ["#tlPreviewNext2", 2], ["#tlPreviewNext5", 5]]
+  .forEach(([sel, n]) => $(sel)?.addEventListener("click", () => tlPreviewStepFrame(n)));
 
 $("#rekomList")?.addEventListener("click", (e) => {
   const btn = e.target.closest(".rekom-play");
