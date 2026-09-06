@@ -564,10 +564,18 @@ async function bukaProjectDariBeranda(video) {
   // Berkasnya diambil dari samples/, bukan dari dialog berkas -- project
   // menyimpan NAMA, dan browser tidak boleh membuka path sendiri.
   chosenSource = { kind: "file", name: video, url: `/samples/${encodeURIComponent(video)}` };
+  // Nama dulu, tampil seketika -- chosenSource di jalur ini tidak punya
+  // .duration (bukan hasil readMeta() dari <video>, cuma nama dari catatan
+  // project). Ditimpa lagi di bawah begitu transkrip (kalau ada) memberi
+  // durasi sungguhan.
+  if (typeof perbaruiTopbarBerkas === "function") perbaruiTopbarBerkas(video, NaN);
   if (typeof realTranscript !== "undefined" && typeof findTranscript === "function") {
     const tr = await findTranscript(video);
     if (gen !== _bukaProjectGen) return false;   // sudah didahului pembukaan lain
     realTranscript = tr;
+    if (typeof perbaruiTopbarBerkas === "function") {
+      perbaruiTopbarBerkas(video, tr?.duration);
+    }
   }
   const ada = await muatProject(video);
   if (gen !== _bukaProjectGen) return false;

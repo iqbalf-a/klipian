@@ -242,9 +242,19 @@ h1, h2, h3 {
   font-weight: 800;
   line-height: 1.05;
   letter-spacing: -.038em;
+  flex: none;
 }
-.work-head .note { color: var(--teks-samar); font-size: var(--t-13); }
-.work-head .right { margin-left: auto; }
+/* min-width:0 WAJIB di flex item supaya overflow/ellipsis di bawah ini
+   benar-benar berlaku -- bawaan flex item punya min-width:auto (seukuran
+   konten), jadi tanpa ini teks tetap memaksa row melebar/patah baris,
+   bukan terpotong "...". Ketauan pas .result-picker (Clips/Framing/
+   Captions) ditambah ke baris yang sama: catatannya dulu leluasa, sekarang
+   berebut ruang dan bisa patah sampai 5-6 baris di layar sempit. */
+.work-head .note {
+  color: var(--teks-samar); font-size: var(--t-13);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
+.work-head .right { margin-left: auto; flex: none; }
 
 /* ═══════════════════════════════════════════════ panel kaca */
 
@@ -1580,6 +1590,13 @@ h1, h2, h3 {
 .rekom-judul, .hasil-judul {
   font-weight: 600; font-size: 14px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  /* `overflow:hidden` bikin ukuran minimum otomatis kolom grid 1fr ini
+     jadi 0 (aturan CSS Grid, bukan bug browser) -- tanpa min-width ini,
+     menambah SATU elemen apa pun ke kolom .rekom-waktu di sebelahnya
+     (semuanya "auto", ikut memakan ruang duluan) bisa mendesak judul
+     ini sampai lebar 0px dan hilang total, bukan cuma terpotong.
+     Ketauan persis begini setelah nambah tombol pensil .rekom-edit. */
+  min-width: 90px;
 }
 .hasil-waktu { color: var(--teks-samar); }
 

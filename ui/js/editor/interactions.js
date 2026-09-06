@@ -31,6 +31,22 @@ const fmtDuration = (d) => {
   return h ? `${h}:${m}:${s}` : `${m}:${s}`;
 };
 
+/* Nama & durasi di topbar (#fileName/#fileDuration) -- SATU tempat,
+   dipanggil dari kedua jalur video "jadi aktif": acceptFile() di sini
+   (video baru dijatuhkan) dan bukaProjectDariBeranda() di projects.js
+   (project lama dibuka lagi lewat kartu beranda/pemulihan sesi). Sebelum
+   ini keduanya CUMA diisi oleh startAnalysis() (analysis.js), yang CUMA
+   jalan lewat tombol "Find clips" di beranda -- membuka project lama
+   tidak pernah memicunya, jadi topbar tetap menampilkan nama & durasi
+   PLACEHOLDER contoh dari app.js (radityadika-podcast.mp4, 42:03)
+   SELAMANYA, bukan cuma sesaat, sampai sebuah video BARU dijatuhkan. */
+function perbaruiTopbarBerkas(name, durasiDetik) {
+  if ($("#fileName")) $("#fileName").textContent = name || "";
+  if ($("#fileDuration")) {
+    $("#fileDuration").textContent = Number.isFinite(durasiDetik) ? fmtDuration(durasiDetik) : "";
+  }
+}
+
 /* Durasi dan resolusi dibaca sungguhan dari file lewat elemen <video>. */
 function readMeta(file) {
   return new Promise((end) => {
@@ -57,6 +73,7 @@ async function acceptFile(file) {
   const meta = await readMeta(file);
   const changed = chosenSource && chosenSource.name !== file.name;
   chosenSource = { kind: "file", name: file.name, size: file.size, ...meta };
+  perbaruiTopbarBerkas(chosenSource.name, chosenSource.duration);
   $("#urlInput").value = "";
   drawSource();
 
@@ -148,9 +165,26 @@ function drawSource(error, catatan) {
     const s = chosenSource;
     box.dataset.state = "ready";
     title.textContent = s.name;
-    const rinci = s.kind === "file"
-      ? `${fmtSize(s.size)} · ${fmtDuration(s.duration)}${s.width ? ` · ${s.width}×${s.height}` : ""}`
-      : "the video will be downloaded when the pipeline runs";
+    // Project lama dibuka lewat kartu beranda/pemulihan sesi: chosenSource
+    // di jalur itu cuma {kind,name,url} -- TIDAK ada size/duration/width
+    // sungguhan (bukan hasil readMeta() dari <video>, sumbernya cuma nama
+    // dari catatan project). Dulu ketiganya dipaksa ditampilkan (fmtSize/
+    // fmtDuration dipanggil ke undefined) dan hasilnya "NaN MB · durasi
+    // tidak terbaca" -- sekarang bagian yang memang tidak diketahui
+    // dilewati, bukan ditampilkan rusak. Durasi masih bisa didapat dari
+    // transkrip yang sudah pernah dibuat untuk video ini, kalau ada.
+    let rinci;
+    if (s.kind === "file") {
+      const bagian = [];
+      if (Number.isFinite(s.size)) bagian.push(fmtSize(s.size));
+      const durasi = Number.isFinite(s.duration) ? s.duration
+        : (typeof realTranscript !== "undefined" ? realTranscript?.duration : undefined);
+      if (Number.isFinite(durasi)) bagian.push(fmtDuration(durasi));
+      if (s.width) bagian.push(`${s.width}×${s.height}`);
+      rinci = bagian.length ? bagian.join(" · ") : "resuming this project";
+    } else {
+      rinci = "the video will be downloaded when the pipeline runs";
+    }
     // Catatan tambahan dipakai saat project lama dipulihkan, supaya orang tahu
     // pekerjaannya kembali dan tidak mengira harus mulai dari nol lagi.
     note.textContent = catatan ? `${rinci} · ${catatan}` : rinci;
