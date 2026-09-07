@@ -1522,8 +1522,8 @@ h1, h2, h3 {
    lain -- di panel yang sempit keduanya meluber keluar kotak tanpa ini. */
 #panel-teks .rekom-head { flex-wrap: wrap; row-gap: var(--s2); }
 
-/* Panel tanya-jawab AI Framing: satu pembicara per giliran, sampai semua
-   terpetakan atau dilewati -- lihat aiFramingTanyaBerikutnya() di framing.js. */
+/* Kotak status AI Framing (proses/error/hasil) -- lihat aiFramingStatus()
+   di framing.js. */
 .ai-framing-tanya {
   display: flex; align-items: center; gap: var(--s3);
   margin: 0 var(--s5) var(--s3);
@@ -1533,7 +1533,6 @@ h1, h2, h3 {
   border: 1px solid color-mix(in srgb, var(--aksen) 35%, var(--garis-kaca));
 }
 .ai-framing-tanya .data { margin-right: auto; }
-.ai-framing-tombol { display: flex; gap: var(--s2); }
 
 .rekom-list, .hasil-list { padding: 0 var(--s5) var(--s4); }
 

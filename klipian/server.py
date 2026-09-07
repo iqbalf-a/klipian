@@ -1169,6 +1169,34 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_json({"error": str(exc)}, 500)
             return self._send_json({"points": points})
 
+        if path == "/api/speakerlocate":
+            # Sinkron seperti /api/facetrack -- AI Framing sepenuhnya
+            # otomatis sekarang, tanpa konfirmasi manual per pembicara
+            # (lihat locate_speaker() di facebox.py buat alasannya).
+            try:
+                req = self._read_json()
+            except Exception as exc:               # noqa: BLE001
+                return self._send_json({"error": str(exc)}, 400)
+            video = _find_video(req.get("video", ""))
+            if not video:
+                return self._send_json({"error": "video not found"}, 404)
+            try:
+                start = float(req.get("start", 0))
+                end = float(req.get("end", 0))
+            except (TypeError, ValueError):
+                return self._send_json({"error": "invalid time"}, 400)
+            if end <= start:
+                return self._send_json({"error": "invalid range"}, 400)
+            crop_size = req.get("size") or {}
+            try:
+                from .facebox import locate_speaker
+                crop = locate_speaker(video, start, end, crop_size)
+            except Exception as exc:               # noqa: BLE001
+                return self._send_json({"error": str(exc)}, 500)
+            if not crop:
+                return self._send_json({"error": "no speaker detected"}, 404)
+            return self._send_json({"crop": crop})
+
         if path == "/api/scenecut":
             # Sinkron seperti /api/facetrack -- diff antar-frame lewat filter
             # scene bawaan ffmpeg jauh lebih murah daripada cascade wajah per

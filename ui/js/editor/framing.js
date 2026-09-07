@@ -542,15 +542,19 @@ $("#framingList")?.addEventListener("click", (e) => {
    Backend (klipian/diarize.py) cuma tahu SIAPA bicara dan KAPAN -- sama
    sekali tidak tahu kotak mana di kanvas yang harus dipakai untuk orang itu.
 
-   TIDAK butuh Split disiapkan dulu -- itu percobaan pertama yang salah:
-   memaksa ian menyiapkan dua kotak referensi SEBELUM analisis jalan
-   bertentangan dengan maksud "otomatis" dari fitur ini sendiri. Sekarang
-   klik tombolnya LANGSUNG memulai analisis; kotak baru diminta SESUDAH
-   tahu ada berapa pembicara dan kapan giliran masing-masing -- preview
-   digeser ke giliran pertama tiap orang, ian tinggal geser satu kotak
-   (kanvas tetap format Single) ke orang itu lalu konfirmasi. Tidak
-   dibatasi dua orang: berapa pun pembicara yang terdeteksi, masing-masing
-   ditanya sekali secara berurutan.
+   Sepenuhnya otomatis, TIDAK ADA konfirmasi manual per pembicara lagi.
+   Versi sebelumnya meminta ian menggeser satu kotak ke tiap pembicara yang
+   terdeteksi sebelum lanjut -- untuk podcast 2 orang itu 2 klik, tapi ian
+   menunjukkan podcast tidak selalu 2 orang, jadi konfirmasi satu-satu jadi
+   tidak praktis begitu pembicaranya lebih banyak. Posisi tiap pembicara
+   sekarang dicari sendiri lewat locate_speaker() (klipian/facebox.py) --
+   BUKAN dibimbing kotak kasar manual seperti fit_crop_to_face/track_crops,
+   melainkan mencari dari nol di (hampir) seluruh frame, dibimbing gerak-
+   mulut lintas beberapa sampel di giliran bicara itu. Risiko salah-tangkap
+   dari pencarian seluas ini (pernah terjadi sebelum facebox.py ditulis
+   ulang -- lihat docstring modul itu) ditahan dengan mewajibkan pemenang
+   gerak-mulut yang JELAS setiap kali ada >1 wajah, tanpa fallback "paling
+   tajam" -- sampel yang ambigu dibuang, bukan ditebak.
 
    Video sumber sendiri bisa ganti shot di tengah klip (zoom keluar jadi
    close-up, potong ke reaksi orang lain) meski pembicaranya tidak berganti
@@ -561,20 +565,14 @@ $("#framingList")?.addEventListener("click", (e) => {
    sungguhan dapat titik framing sendiri, bukan cuma titik di awal giliran
    yang lama-lama meleset begitu shot-nya berganti. */
 
-let aiFramingAntrian = null;   // { urutan, idx, turns, posisi }
-
-/* Status AI Framing (error, proses, tanya) SELALU muncul di kotak kuning
+/* Status AI Framing (proses, error, hasil) SELALU muncul di kotak kuning
    #aiFramingTanya, bukan cuma teks kecil di #reframeNote -- itu yang
    ternyata terlewat begitu saja pada percobaan pertama: pesan gagal-validasi
    memang muncul, tapi cuma teks polos berdesakan dengan elemen lain di baris
-   judul, kelihatan seperti "tidak terjadi apa-apa". Kotak ini dipakai untuk
-   SEMUA status, dengan tombol pilihan ditampilkan hanya saat memang ada
-   pertanyaan untuk dijawab. */
-function aiFramingStatus(teks, { tombol = false } = {}) {
+   judul, kelihatan seperti "tidak terjadi apa-apa". */
+function aiFramingStatus(teks) {
   const isiTeks = $("#aiFramingTanyaTeks");
   if (isiTeks) isiTeks.textContent = teks;
-  const grup = $("#aiFramingTanya .ai-framing-tombol");
-  if (grup) grup.hidden = !tombol;
   $("#aiFramingTanya")?.removeAttribute("hidden");
 }
 
@@ -666,7 +664,7 @@ async function aiFramingMulai() {
   const semuaCuts = [];
   for (const s of spans) semuaCuts.push(...(await aiFramingScenecutSatuSpan(s)));
 
-  aiFramingSiapkanAntrian(semuaTurns, semuaCuts);
+  aiFramingCariPosisiSemua(semuaTurns, semuaCuts);
 }
 
 function aiFramingGagal(pesan) {
@@ -675,76 +673,76 @@ function aiFramingGagal(pesan) {
   aiFramingStatus(`AI Framing failed: ${pesan}`);
 }
 
-function aiFramingSiapkanAntrian(turns, cuts) {
+/* Ukuran kotak KELUARAN buat locate_speaker() -- diambil dari kotak yang
+   sedang ada di kanvas (format Single) kalau ada, supaya ukuran yang
+   sudah disetel ian sebelumnya (zoom keluar/masuk) ikut dipakai, bukan
+   dipatok balik ke ukuran bawaan. Posisinya sendiri (left/top) diabaikan
+   di sini -- locate_speaker() yang menentukan posisi dari wajah yang
+   ditemukan, bukan dari kotak yang sedang tampil. */
+function aiFramingUkuranKeluaran() {
+  const kotak = formatKanvas === "single" ? kotakDiKanvas() : null;
+  const w = kotak?.[0];
+  return {
+    width: (w && Number.isFinite(w.width)) ? w.width : CROP_AWAL.width,
+    height: (w && Number.isFinite(w.height)) ? w.height : CROP_AWAL.height,
+  };
+}
+
+/* Cari posisi SATU pembicara secara otomatis dari giliran bicara
+   pertamanya -- lihat locate_speaker() di klipian/facebox.py. Gagal (tidak
+   ada wajah yang lolos syarat gerak-mulut jelas) -> null; pembicara itu
+   dilewati sama seperti dulu "Skip this speaker" manual, bukan menjatuhkan
+   seluruh AI Framing. */
+function aiFramingCariSpeaker(turn, ukuran) {
+  return fetch("/api/speakerlocate", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      video: chosenSource?.name, start: turn.start, end: turn.end, size: ukuran,
+    }),
+  })
+    .then((r) => r.json())
+    .then((d) => d.crop || null)
+    .catch(() => null);
+}
+
+async function aiFramingCariPosisiSemua(turns, cuts) {
   const btn = $("#aiFramingBtn");
-  if (btn) { btn.disabled = false; btn.textContent = "AI Framing"; }
 
   if (!turns.length) {
+    if (btn) { btn.disabled = false; btn.textContent = "AI Framing"; }
     aiFramingStatus("AI Framing: no speech detected in this clip.");
     return;
   }
 
-  // Urutan pembicara menurut giliran PERTAMA mereka -- yang paling awal
-  // ditanya duluan, supaya video yang diputar untuk konfirmasi juga
-  // berurutan secara alami, bukan lompat maju-mundur. SEMUA pembicara
-  // ditanya, termasuk kalau cuma satu -- tidak ada lagi kotak referensi
-  // bawaan untuk diam-diam dipakai ulang, jadi posisinya harus benar-benar
-  // dikonfirmasi minimal sekali.
+  // Giliran PERTAMA tiap pembicara -- posisinya cuma perlu dicari sekali
+  // per orang, bukan tiap giliran mereka bicara.
   const pertama = new Map();
   for (const t of turns) if (!pertama.has(t.speaker)) pertama.set(t.speaker, t);
-  const urutan = [...pertama.values()].sort((a, b) => a.start - b.start);
+  const daftarSpeaker = [...pertama.entries()].sort((a, b) => a[1].start - b[1].start);
 
-  aiFramingAntrian = { urutan, idx: 0, turns, cuts: cuts || [], posisi: {} };
-  aiFramingTanyaBerikutnya();
-}
+  const ukuran = aiFramingUkuranKeluaran();
+  aiFramingStatus(daftarSpeaker.length > 1
+    ? `AI Framing: locating ${daftarSpeaker.length} speakers …`
+    : "AI Framing: locating the speaker …");
 
-function aiFramingTanyaBerikutnya() {
-  const a = aiFramingAntrian;
-  if (!a || a.idx >= a.urutan.length) {
-    if (a) aiFramingTerapkan(a.turns, a.posisi, a.cuts);
-    aiFramingAntrian = null;
+  // Paralel -- tiap pencarian independen (rentang video beda-beda), dan
+  // menunggu satu-satu untuk banyak pembicara bisa lama tanpa alasan.
+  const hasil = await Promise.all(
+    daftarSpeaker.map(([, turn]) => aiFramingCariSpeaker(turn, ukuran)));
+
+  const posisi = {};
+  daftarSpeaker.forEach(([speaker], i) => { if (hasil[i]) posisi[speaker] = hasil[i]; });
+
+  if (btn) { btn.disabled = false; btn.textContent = "AI Framing"; }
+
+  if (!Object.keys(posisi).length) {
+    aiFramingStatus("AI Framing: couldn't confidently locate any speaker's face "
+      + "(no clear mouth-motion winner) — try again, or set the frame manually.");
     return;
   }
-  const turn = a.urutan[a.idx];
 
-  // Digeser ke giliran pertama orang ini supaya kelihatan/kedengaran
-  // langsung siapa yang dimaksud -- lebih meyakinkan daripada menebak dari
-  // label "SPEAKER_00" yang tidak berarti apa-apa. renderFraming() dipanggil
-  // supaya kanvas ikut menggambar ulang bingkai yang berlaku di detik baru
-  // ini -- kotak yang ian geser sesaat lagi adalah kotak PERTAMA di kanvas
-  // itu, apa pun formatnya sekarang.
-  const v = $("#videoPreview");
-  if (v && v.src) {
-    try { v.currentTime = turn.start; } catch { /* metadata belum siap */ }
-  }
-  renderFraming();
-
-  aiFramingStatus(
-    (a.urutan.length > 1
-      ? `Speaker ${a.idx + 1}/${a.urutan.length}, first heard at ${jamRange(turn.start)} — `
-      : `Only speaker detected, first heard at ${jamRange(turn.start)} — `)
-    + "drag the box onto them, then confirm.",
-    { tombol: true });
+  aiFramingTerapkan(turns, posisi, cuts);
 }
-
-$("#aiFramingTanya")?.addEventListener("click", (e) => {
-  const a = aiFramingAntrian;
-  if (!a) return;
-  const set = e.target.closest("[data-ai-set]");
-  const lewati = e.target.closest("[data-ai-lewati]");
-  if (!set && !lewati) return;
-  if (set) {
-    // Kotak PERTAMA di kanvas -- itu yang ian baru saja geser ke orangnya.
-    // Kalau kanvas kebetulan format Split (dua kotak), kotak kedua
-    // diabaikan; alur ini cuma pakai satu kotak per pembicara.
-    const kotak = kotakDiKanvas();
-    if (kotak && kotak[0]) {
-      a.posisi[a.urutan[a.idx].speaker] = { ...kotak[0] };
-    }
-  }
-  a.idx++;
-  aiFramingTanyaBerikutnya();
-});
 
 /* Kotak yang sudah dites di sini KASAR, cuma posisi orang secara umum
    (ditandai manual sekali di titik Split acuan) -- meleset dikit dari

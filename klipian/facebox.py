@@ -1,13 +1,21 @@
 """Deteksi wajah/orang untuk merapatkan kotak crop -- pelengkap AI Framing.
 
 Diarization (diarize.py) tahu KAPAN harus ganti frame. Modul ini menjawab
-pertanyaan yang beda: KE MANA persis kotaknya harus diarahkan. Tanpa ini,
-tiap titik framing yang dibuat AI Framing cuma salinan MENTAH dari posisi
-yang digeser manual sekali di awal klip -- kalau geseran awalnya kurang pas,
-atau orangnya sedikit bergerak di kursi sepanjang klip, hasilnya bisa
-memotong wajah atau menyorot kursi kosong di sebelahnya. Modul ini
-memeriksa ULANG posisi wajah sungguhan di SETIAP titik, bukan percaya begitu
-saja pada satu koordinat statis untuk seluruh klip.
+pertanyaan yang beda: KE MANA persis kotaknya harus diarahkan -- tiga cara,
+tiap satu butuh petunjuk posisi awal yang berbeda:
+
+  - fit_crop_to_face()  -- SATU titik, DI SEKITAR kotak kasar yang diketahui
+  - track_crops()       -- SATU RENTANG, DI SEKITAR kotak kasar yang diketahui
+  - locate_speaker()    -- SATU RENTANG, TANPA kotak kasar sama sekali
+    (mencari dari nol di hampir seluruh frame -- dipakai supaya AI Framing
+    bisa sepenuhnya otomatis, tanpa konfirmasi manual per pembicara)
+
+Tanpa fit_crop_to_face/track_crops, tiap titik framing yang dibuat AI
+Framing cuma salinan MENTAH dari posisi yang digeser manual sekali di awal
+klip -- kalau geseran awalnya kurang pas, atau orangnya sedikit bergerak di
+kursi sepanjang klip, hasilnya bisa memotong wajah atau menyorot kursi
+kosong di sebelahnya. Keduanya memeriksa ULANG posisi wajah sungguhan di
+SETIAP titik, bukan percaya begitu saja pada satu koordinat statis.
 
 Semua klasik OpenCV -- BUKAN model deep learning, tidak nambah beban PyTorch
 yang sudah dipakai diarization, tidak perlu unduh bobot terpisah dari mana
@@ -451,3 +459,105 @@ def track_crops(video: Path, start: float, end: float, rough: dict,
         "height": round(float(rh) / H * 100, 2),
     }
     return [{"at": start, "crop": crop}]
+
+
+# ══════════════════════════════ pencarian buta ══════════════════════════════
+# fit_crop_to_face dan track_crops BUTUH kotak kasar (rough) -- petunjuk
+# posisi AWAL untuk membatasi area pencarian, itulah tepatnya yang dulu
+# dikonfirmasi manual per pembicara di AI Framing ("geser kotak ke orangnya").
+# locate_speaker() TIDAK butuh petunjuk itu -- dipakai supaya AI Framing bisa
+# sepenuhnya otomatis, tanpa konfirmasi (ian: podcast tidak selalu 2 orang,
+# konfirmasi satu-satu per pembicara jadi tidak praktis).
+#
+# Risikonya PERSIS yang sudah pernah terjadi dan ditulis di docstring modul
+# ini: mencari seluas frame gampang salah tangkap tekstur (rambut, motif
+# kain) sebagai wajah kecil. locate_speaker() TIDAK meniru pengamanan
+# _pick_active_face apa adanya (yang boleh jatuh ke "wajah paling tajam" saat
+# gerak-mulut ambigu) -- di pencarian sebuas ini itu berbahaya, tekstur acak
+# bisa "tajam" begitu saja. Sampel yang wajahnya ganda tapi TANPA pemenang
+# gerak-mulut yang jelas DIBUANG, bukan ditebak; posisi akhir cuma dari
+# sampel yang benar-benar yakin, digabung lewat median lintas seluruh
+# giliran bicara -- bukan satu frame.
+
+def locate_speaker(video: Path, start: float, end: float,
+                    crop_size: dict, fps: int = 3) -> dict | None:
+    """Temukan posisi pembicara aktif di [start, end) TANPA petunjuk posisi
+    awal apa pun -- beda dari track_crops() yang melacak DI SEKITAR kotak
+    kasar yang sudah diketahui, ini mencari dari NOL di (hampir) seluruh
+    frame, dibimbing gerak-mulut lintas beberapa sampel.
+
+    `crop_size` = {width, height} PERSEN -- ukuran kotak KELUARAN, sengaja
+    dipisah total dari lebar area pencarian (yang selebar hampir seluruh
+    frame) supaya hasilnya tetap potret sempit, bukan selebar area yang
+    dipindai. `top`/`left` keluaran dihitung dari pusat wajah yang
+    ditemukan, bukan dari `crop_size`.
+
+    None kalau tidak ada satu pun sampel yang lolos syarat gerak-mulut
+    (caller jatuh ke kotak bawaan, sama seperti fit_crop_to_face/
+    track_crops kalau wajah tidak ketemu)."""
+    import cv2
+
+    from .ffmpeg_tools import _require, probe, run
+
+    info = probe(video)
+    W, H = info.width, info.height
+    dur = max(0.0, end - start)
+    if not W or not H or dur <= 0:
+        return None
+
+    cw = max(1, (crop_size.get("width", 26) / 100) * W)
+    ch = max(1, (crop_size.get("height", 84) / 100) * H)
+
+    # Margin tipis di tepi -- wajah podcast duduk nyaris tidak pernah
+    # menempel piksel 0, dan mengecualikan tepi menahan sedikit salah-
+    # tangkap di sudut frame (logo studio, watermark).
+    margin = 0.03
+    sx, sy = int(W * margin), int(H * margin)
+    ex, ey = int(W * (1 - margin)), int(H * (1 - margin))
+    rw_scan = ex - sx   # lebar area PENCARIAN -- bukan lebar kotak keluaran
+
+    with tempfile.TemporaryDirectory(prefix="klipian-locate-") as tmp:
+        run([
+            _require("ffmpeg"), "-y", "-loglevel", "error",
+            "-ss", f"{start:.3f}", "-i", str(video),
+            "-t", f"{dur:.3f}", "-vf", f"fps={fps}",
+            str(Path(tmp) / "l_%04d.jpg"),
+        ], desc="mencari pembicara aktif")
+
+        files = sorted(Path(tmp).glob("l_*.jpg"))
+        if not files:
+            return None
+
+        kandidat: list[tuple[float, float]] = []   # (cx, cy) piksel FRAME, per sampel yang lolos
+        prev_gray = None
+        for p in files:
+            img = cv2.imread(str(p))
+            if img is None:
+                continue
+            region = img[sy:ey, sx:ex]
+            gray = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
+            faces = _detect_faces(gray, rw_scan)
+            if not faces:
+                prev_gray = gray
+                continue
+            if len(faces) == 1:
+                fx, fy, fw, fh = faces[0]["bbox"]
+                kandidat.append((fx + sx + fw / 2, fy + sy + fh / 2))
+            elif prev_gray is not None and prev_gray.shape == gray.shape:
+                # >1 wajah: WAJIB pemenang gerak-mulut jelas. Tidak ada
+                # fallback "paling tajam" seperti _pick_active_face biasa --
+                # lihat alasan di komentar modul di atas.
+                scored = [(f, _mouth_motion(gray, prev_gray, f["mouth"])) for f in faces]
+                best, best_score = max(scored, key=lambda s: s[1])
+                rest_avg = (sum(s for _, s in scored) - best_score) / (len(scored) - 1)
+                if best_score > 1.0 and best_score > rest_avg * 2.0:
+                    fx, fy, fw, fh = best["bbox"]
+                    kandidat.append((fx + sx + fw / 2, fy + sy + fh / 2))
+            prev_gray = gray
+
+    if not kandidat:
+        return None
+
+    cx_med = sorted(c[0] for c in kandidat)[len(kandidat) // 2]
+    cy_med = sorted(c[1] for c in kandidat)[len(kandidat) // 2]
+    return _place_box(cx_med, cy_med, cw, ch, W, H)

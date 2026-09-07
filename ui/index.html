@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wdth,wght@0,75..125,200..900;1,75..125,200..900&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1788788156618">
-<link rel="stylesheet" href="/ui/css/app.css?v=1788788156618">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1788789269936">
+<link rel="stylesheet" href="/ui/css/app.css?v=1788789269936">
 </head>
 <body>
 
@@ -321,17 +321,11 @@
                     title="Auto-switch the frame based on who's talking">AI Framing</button>
           </div>
 
-          <!-- Muncul sesudah AI Framing selesai menganalisis -- pipeline
-               diarization cuma tahu SIAPA bicara dan KAPAN, sama sekali
-               tidak tahu ke mana kotaknya harus diarahkan. Preview digeser
-               ke giliran pertama tiap pembicara, ian tinggal geser kotak
-               yang sudah ada di kanvas ke orang itu lalu konfirmasi. -->
+          <!-- Status AI Framing (proses/error/hasil) -- sepenuhnya otomatis,
+               tidak ada lagi konfirmasi manual per pembicara di sini (lihat
+               locate_speaker() di klipian/facebox.py). -->
           <div class="ai-framing-tanya" id="aiFramingTanya" hidden>
             <span class="data" id="aiFramingTanyaTeks"></span>
-            <span class="ai-framing-tombol">
-              <button class="btn main" data-ai-set type="button">Use this position</button>
-              <button class="btn quiet" data-ai-lewati type="button">Skip this speaker</button>
-            </span>
           </div>
 
           <!-- Kanvas menampilkan FRAME ASLI pada posisi pemutaran preview,
@@ -539,16 +533,16 @@
   </main>
 </div>
 
-<script src="/ui/js/editor/app.js?v=1788788156618"></script>
-<script src="/ui/js/editor/interactions.js?v=1788788156618"></script>
-<script src="/ui/js/editor/framing.js?v=1788788156618"></script>
-<script src="/ui/js/editor/analysis.js?v=1788788156618"></script>
-<script src="/ui/js/editor/player.js?v=1788788156618"></script>
-<script src="/ui/js/editor/roundtrip.js?v=1788788156618"></script>
-<script src="/ui/js/editor/history.js?v=1788788156618"></script>
-<script src="/ui/js/editor/timeline.js?v=1788788156618"></script>
-<script src="/ui/js/editor/teks.js?v=1788788156618"></script>
-<script src="/ui/js/editor/result.js?v=1788788156618"></script>
-<script src="/ui/js/editor/projects.js?v=1788788156618"></script>
+<script src="/ui/js/editor/app.js?v=1788789269936"></script>
+<script src="/ui/js/editor/interactions.js?v=1788789269936"></script>
+<script src="/ui/js/editor/framing.js?v=1788789269936"></script>
+<script src="/ui/js/editor/analysis.js?v=1788789269936"></script>
+<script src="/ui/js/editor/player.js?v=1788789269936"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1788789269936"></script>
+<script src="/ui/js/editor/history.js?v=1788789269936"></script>
+<script src="/ui/js/editor/timeline.js?v=1788789269936"></script>
+<script src="/ui/js/editor/teks.js?v=1788789269936"></script>
+<script src="/ui/js/editor/result.js?v=1788789269936"></script>
+<script src="/ui/js/editor/projects.js?v=1788789269936"></script>
 </body>
 </html>
