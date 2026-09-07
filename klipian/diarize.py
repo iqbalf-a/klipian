@@ -67,22 +67,22 @@ def _merge_turns(turns: list[dict], min_gap: float = 1.5,
     turns = [t for t in turns if t["end"] - t["start"] >= min_dur]
     if not turns:
         return []
-    keluar = [dict(turns[0])]
+    merged = [dict(turns[0])]
     for t in turns[1:]:
-        terakhir = keluar[-1]
-        if t["speaker"] == terakhir["speaker"] and t["start"] - terakhir["end"] < min_gap:
-            terakhir["end"] = max(terakhir["end"], t["end"])
+        last = merged[-1]
+        if t["speaker"] == last["speaker"] and t["start"] - last["end"] < min_gap:
+            last["end"] = max(last["end"], t["end"])
         else:
             t = dict(t)
             # Pembicara berbeda tapi waktunya beririsan (pyannote sesekali
             # menyisakan overlap di batas). Konsumen framing mengira giliran
             # disjoint, jadi geser mulai giliran ini ke akhir yang sebelumnya.
-            if t["start"] < terakhir["end"]:
-                t["start"] = terakhir["end"]
+            if t["start"] < last["end"]:
+                t["start"] = last["end"]
             if t["end"] <= t["start"]:
                 continue                    # habis termakan overlap, buang
-            keluar.append(t)
-    return keluar
+            merged.append(t)
+    return merged
 
 
 def diarize_segment(video: Path, start: float, end: float) -> list[dict]:

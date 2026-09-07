@@ -253,7 +253,7 @@ def _region_rect(rough: dict, W: int, H: int, pad: float = 0.4) -> tuple:
     return sx, sy, ex, ey, rw, rh
 
 
-def _cari_orang(bgr_region) -> tuple | None:
+def _detect_person(bgr_region) -> tuple | None:
     """Cadangan kalau wajah tidak ketemu -- HOG+SVM deteksi badan/orang.
     Dilatih untuk pejalan kaki berdiri penuh badan, jadi untuk podcast
     duduk hasilnya kasar (biasanya lebih lebar dari badan sungguhan) --
@@ -347,7 +347,7 @@ def fit_crop_to_face(video: Path, at: float, rough: dict) -> dict | None:
         if chosen is not None:
             fx, fy, fw, fh = chosen["bbox"]
         else:
-            found = _cari_orang(frames[ref_idx][1][sy:ey, sx:ex])
+            found = _detect_person(frames[ref_idx][1][sy:ey, sx:ex])
             if found is None:
                 return None
             fx, fy, fw, fh = found

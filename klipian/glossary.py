@@ -29,9 +29,9 @@ def _bounded(word: str) -> str:
     menuntut karakter word sesudahnya, sehingga koreksinya tidak pernah
     berlaku dan tidak ada yang memberi tahu penggunanya.
     """
-    kiri = r"\b" if word[:1].isalnum() or word[:1] == "_" else ""
-    kanan = r"\b" if word[-1:].isalnum() or word[-1:] == "_" else ""
-    return kiri + re.escape(word) + kanan
+    left = r"\b" if word[:1].isalnum() or word[:1] == "_" else ""
+    right = r"\b" if word[-1:].isalnum() or word[-1:] == "_" else ""
+    return left + re.escape(word) + right
 
 
 class Glossary:
@@ -45,9 +45,9 @@ class Glossary:
         # Diurut dari yang PALING PANJANG dulu: alternasi regex leftmost-first,
         # jadi "c" sebelum "c++" akan menutupi "c++". Yang panjang harus dicoba
         # duluan supaya cocokan terpanjang menang.
-        fixes_urut = sorted(self.fixes, key=lambda wr: len(wr[0]), reverse=True)
+        sorted_fixes = sorted(self.fixes, key=lambda wr: len(wr[0]), reverse=True)
         self._pattern = re.compile(
-            "|".join(_bounded(w) for w, _ in fixes_urut), re.IGNORECASE
+            "|".join(_bounded(w) for w, _ in sorted_fixes), re.IGNORECASE
         ) if self.fixes else None
         self._mapping = {w.lower(): r for w, r in self.fixes}
 

@@ -170,11 +170,11 @@ def _watermark_placement(mode: str, size: float, H: int,
     mengukur tinggi glyph sungguhan tanpa benar-benar merender dulu, jadi
     ini perkiraan, bukan presisi piksel. Cukup dekat untuk watermark satu
     baris pendek seperti "klipian"."""
-    tinggi_baris = size * 1.3
+    line_height = size * 1.3
     if mode == "top":
         # Alignment 8 = atas-tengah, MarginV dihitung dari ATAS. Tepi bawah
         # watermark diusahakan pas di garis SAFE_AREA_TOP_PERCENT.
-        margin = max(0, int(H * SAFE_AREA_TOP_PERCENT / 100 - tinggi_baris))
+        margin = max(0, int(H * SAFE_AREA_TOP_PERCENT / 100 - line_height))
         return 8, margin
     if mode == "middle":
         # Alignment 5 = tengah-tengah (vertikal DAN horizontal) -- MarginV
@@ -190,10 +190,10 @@ def _watermark_placement(mode: str, size: float, H: int,
     # Alignment 2 tumbuh ke atas dari titik jangkarnya) yang dibatasi supaya
     # tidak lewat garis SAFE_AREA_BOTTOM_PERCENT -- persis logika "top" di
     # atas, dicerminkan.
-    margin_bawah_caption = max(int(H * 0.02),
-                               caption_margin_bottom - int(tinggi_baris) - int(H * 0.01))
-    margin_maks_zona_aman = max(0, int(H * SAFE_AREA_BOTTOM_PERCENT / 100 - tinggi_baris))
-    margin = min(margin_bawah_caption, margin_maks_zona_aman)
+    caption_bottom_margin = max(int(H * 0.02),
+                               caption_margin_bottom - int(line_height) - int(H * 0.01))
+    margin_maks_zona_aman = max(0, int(H * SAFE_AREA_BOTTOM_PERCENT / 100 - line_height))
+    margin = min(caption_bottom_margin, margin_maks_zona_aman)
     return 2, margin
 
 
@@ -332,7 +332,7 @@ def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
     even = lambda v: max(2, int(v) // 2 * 2)
     W, H = job.out_width, job.out_height
 
-    def kotak_piksel(c: "CropBox") -> tuple[int, int, int, int]:
+    def box_pixels(c: "CropBox") -> tuple[int, int, int, int]:
         # Ukuran & offset dijepit ke dalam frame sumber: kalau left+width>100
         # (mis. titik framing diseret ke tepi kanan) ffmpeg abort dengan
         # "Invalid too big or non positive size". Jepit lebar dulu, lalu offset
@@ -343,8 +343,8 @@ def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
         cy = even(max(0, min(src_height - ch, src_height * c.top / 100)))
         return cw, ch, cx, cy
 
-    def kotak(c: "CropBox") -> str:
-        cw, ch, cx, cy = kotak_piksel(c)
+    def box(c: "CropBox") -> str:
+        cw, ch, cx, cy = box_pixels(c)
         return f"crop={cw}:{ch}:{cx}:{cy}"
 
     parts = []
@@ -357,11 +357,11 @@ def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
             # di format split (v1) -- span.tracking diabaikan di sini kalau
             # sampai ada, sama seperti klien memang tidak pernah mengirimnya
             # untuk titik format Split.
-            atas, bawah = span.crops[0], span.crops[1]
+            top, bottom = span.crops[0], span.crops[1]
             h2 = even(H / 2)
             parts.append(f"{v},split=2[s{i}a][s{i}b]")
-            parts.append(f"[s{i}a]{kotak(atas)},scale={W}:{h2},setsar=1[c{i}a]")
-            parts.append(f"[s{i}b]{kotak(bawah)},scale={W}:{h2},setsar=1[c{i}b]")
+            parts.append(f"[s{i}a]{box(top)},scale={W}:{h2},setsar=1[c{i}a]")
+            parts.append(f"[s{i}b]{box(bottom)},scale={W}:{h2},setsar=1[c{i}b]")
             # scale penutup menjaga tinggi tetap H kalau H/2 dibulatkan.
             parts.append(f"[c{i}a][c{i}b]vstack=inputs=2,scale={W}:{H},setsar=1[v{i}]")
             parts.append(f"[0:a]atrim=start={span.start:.3f}:end={span.end:.3f},"
@@ -393,10 +393,10 @@ def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
                     raise RuntimeError(
                         "internal: _concat_filter butuh `dest` untuk span "
                         "yang di-track (head tracking).")
-                cw, ch, _, cy = kotak_piksel(c)
+                cw, ch, _, cy = box_pixels(c)
 
-                def cx_dari_persen(persen: float, _cw=cw) -> int:
-                    return even(max(0, min(src_width - _cw, src_width * persen / 100)))
+                def cx_from_percent(percent: float, _cw=cw) -> int:
+                    return even(max(0, min(src_width - _cw, src_width * percent / 100)))
 
                 tag = f"trk{i}"
                 cmd_path = dest.parent / f"{dest.stem}.track{i}.cmd"
@@ -405,17 +405,17 @@ def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
                 # cuma "kebetulan" jalan kalau id-nya sama dengan nama filter
                 # ("crop"), dan gagal DIAM-DIAM (tanpa error apa pun, cuma
                 # tidak pernah bergerak) untuk id kustom apa pun selain itu.
-                baris = [
-                    f"{kf['t']:.3f} crop@{tag} x {cx_dari_persen(kf['left'])};"
+                lines = [
+                    f"{kf['t']:.3f} crop@{tag} x {cx_from_percent(kf['left'])};"
                     for kf in span.tracking
                 ]
-                cmd_path.write_text("\n".join(baris) + "\n", encoding="utf-8")
-                x0 = cx_dari_persen(span.tracking[0]["left"])
+                cmd_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+                x0 = cx_from_percent(span.tracking[0]["left"])
                 cmd_esc = _escape_filter_path(str(cmd_path))
                 v += (f",crop@{tag}={cw}:{ch}:{x0}:{cy},scale={W}:{H},setsar=1,"
                      f"sendcmd=f='{cmd_esc}'")
             else:
-                v += f",{kotak(c)},scale={W}:{H},setsar=1"
+                v += f",{box(c)},scale={W}:{H},setsar=1"
         parts.append(f"{v}[v{i}]")
         parts.append(f"[0:a]atrim=start={span.start:.3f}:end={span.end:.3f},"
                      f"asetpts=PTS-STARTPTS[a{i}]")
@@ -508,16 +508,16 @@ def render(source: Path, job: RenderJob, dest: Path,
     # walau tidak ada satu kata pun (transkrip belum ada, atau caption
     # sengaja dimatikan) -- jadi gate-nya sekarang "ada YANG PERLU ditulis
     # ke ASS", bukan "ada kata".
-    watermark_aktif = (style or {}).get("watermark", True)
+    watermark_enabled = (style or {}).get("watermark", True)
     ass_path = None
-    if words or watermark_aktif:
+    if words or watermark_enabled:
         ass_path = dest.with_suffix(".ass")
         ass_path.write_text(build_ass(job, words, style), encoding="utf-8")
 
     try:
         filt = build_filter(job, src_width, src_height, ass_path, dest)
 
-        def susun(encoder: str) -> list[str]:
+        def build_cmd(encoder: str) -> list[str]:
             return [
                 ffmpeg, "-y", "-hide_banner", "-loglevel", "error", "-stats",
                 "-i", str(source),
@@ -536,19 +536,19 @@ def render(source: Path, job: RenderJob, dest: Path,
         # bahwa driver di mesin ini bisa memakainya. Kalau QSV gagal, ulangi
         # sekali dengan libx264 -- lebih lambat, tapi jadi, dan itu yang
         # dibutuhkan pengguna.
-        urutan = ["h264_qsv", "libx264"] if has_encoder("h264_qsv") else ["libx264"]
+        encoder_order = ["h264_qsv", "libx264"] if has_encoder("h264_qsv") else ["libx264"]
         result_err = None
-        for i, encoder in enumerate(urutan):
+        for i, encoder in enumerate(encoder_order):
             if verbose:
                 print(f"  encoder  : {encoder}")
                 if i == 0:
                     print(f"  spans    : {len(job.spans)}  ·  duration {job.duration:.1f}s")
 
-            code, result_err = _jalankan_ffmpeg(susun(encoder), cancel_check, dest)
+            code, result_err = _run_ffmpeg(build_cmd(encoder), cancel_check, dest)
             if code == 0:
                 return dest
-            if i < len(urutan) - 1 and verbose:
-                print(f"  {encoder} failed, retrying with {urutan[i+1]}")
+            if i < len(encoder_order) - 1 and verbose:
+                print(f"  {encoder} failed, retrying with {encoder_order[i+1]}")
 
         tail = (result_err or "").strip().splitlines()[-14:]
         raise RuntimeError("ffmpeg gagal:\n" + "\n".join(tail))
@@ -565,7 +565,7 @@ def render(source: Path, job: RenderJob, dest: Path,
             cmd_path.unlink(missing_ok=True)
 
 
-def _jalankan_ffmpeg(cmd: list[str], cancel_check, dest: Path) -> tuple[int, str]:
+def _run_ffmpeg(cmd: list[str], cancel_check, dest: Path) -> tuple[int, str]:
     """Jalankan ffmpeg dengan dukungan pembatalan. Kembalikan (returncode, stderr).
 
     Pakai Popen + poll, bukan subprocess.run, supaya bisa memeriksa cancel_check

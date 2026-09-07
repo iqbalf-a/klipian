@@ -68,7 +68,7 @@ MAX_JOBS = 100  # batas entries di TUGAS supaya tidak memory leak
 # seperti render penuh -- bukan cuma pratinjau CSS di browser, yang pernah
 # terbukti bisa beda dari hasil ASS/ffmpeg asli (lihat bug opacity watermark).
 # 5 detik cukup untuk melihat gaya, tapi cukup pendek supaya tetap "cepat".
-PREVIEW_MAX_DETIK = 5.0
+PREVIEW_MAX_SECONDS = 5.0
 # id job render yang diminta dibatalkan. _run_render memeriksanya lewat
 # cancel_check; render.py membunuh ffmpeg yang sedang berjalan kalau tercantum.
 CANCELLED: set[str] = set()
@@ -141,7 +141,7 @@ def _find_video(name: str) -> Path | None:
     return None
 
 
-def _crop_dari(d) -> "engine.CropBox | None":
+def _crop_from(d) -> "engine.CropBox | None":
     """Crop per potongan dari JSON klien. Kalau tidak ada, dipakai crop
     milik klipnya. Dipakai baik oleh render sungguhan maupun pratinjau
     cepat -- dua jalur itu membaca bentuk `spans` yang persis sama."""
@@ -152,16 +152,16 @@ def _crop_dari(d) -> "engine.CropBox | None":
         width=float(d.get("width", 26)), height=float(d.get("height", 92)))
 
 
-def _crops_dari(d) -> "list[engine.CropBox] | None":
+def _crops_from(d) -> "list[engine.CropBox] | None":
     """Dua kotak untuk bingkai split. Kurang dari dua = bukan split, jadi
     diabaikan dan potongan itu memakai satu kotak."""
     if not isinstance(d, list) or len(d) < 2:
         return None
-    kotak = [_crop_dari(x) for x in d[:2]]
+    kotak = [_crop_from(x) for x in d[:2]]
     return kotak if all(kotak) else None
 
 
-def _tracking_dari(d) -> "list[dict] | None":
+def _tracking_from(d) -> "list[dict] | None":
     """Lintasan head tracking OPSIONAL per potongan -- daftar {t, left}
     dari JSON klien (lihat track_head() di facebox.py yang mula-mula
     menghasilkannya). Bukan data inti seperti crop: entri yang rusak
@@ -169,25 +169,25 @@ def _tracking_dari(d) -> "list[dict] | None":
     (potongan itu tetap statis) -- bukan menggagalkan seluruh render."""
     if not isinstance(d, list):
         return None
-    keluar = []
+    result = []
     for kf in d:
         if not isinstance(kf, dict):
             continue
         try:
-            keluar.append({"t": float(kf["t"]), "left": float(kf["left"])})
+            result.append({"t": float(kf["t"]), "left": float(kf["left"])})
         except (KeyError, TypeError, ValueError):
             continue
-    return keluar if len(keluar) >= 2 else None
+    return result if len(result) >= 2 else None
 
 
-def _spans_dari_klip(k: dict) -> "list[engine.Span]":
+def _spans_from_clip(k: dict) -> "list[engine.Span]":
     """`k["spans"]` (JSON klien) -> daftar engine.Span, siap dipakai RenderJob.
     Satu bentuk, dipakai render sungguhan maupun pratinjau -- keduanya
     menerima payload klip yang sama dari UI."""
     try:
         return [engine.Span(float(p["start"]), float(p["end"]),
-                            _crop_dari(p.get("crop")), _crops_dari(p.get("crops")),
-                            _tracking_dari(p.get("tracking")))
+                            _crop_from(p.get("crop")), _crops_from(p.get("crops")),
+                            _tracking_from(p.get("tracking")))
                    for p in k.get("spans", [])]
     except (KeyError, TypeError, ValueError):
         raise ValueError(
@@ -195,11 +195,11 @@ def _spans_dari_klip(k: dict) -> "list[engine.Span]":
             f"Re-import Claude's reply, or cut the clip manually.") from None
 
 
-def _kata_klip(k: dict, bawaan: list) -> list:
+def _clip_words(k: dict, fallback: list) -> list:
     """Teks caption boleh dikirim UI. Itu dipakai kalau kamu membetulkan kata
     yang salah dengar di layar Edit -- koreksinya milik result ini saja dan
     TIDAK ditulis balik ke transkrip, karena transkrip punya alurnya sendiri.
-    `bawaan` (transkrip dari cache/) dipakai kalau klip tidak mengirim
+    `fallback` (transkrip dari cache/) dipakai kalau klip tidak mengirim
     koreksinya sendiri, atau bentuknya tidak sah."""
     if isinstance(k.get("words"), list) and k["words"]:
         try:
@@ -209,53 +209,53 @@ def _kata_klip(k: dict, bawaan: list) -> list:
                     for w in k["words"]]
         except (KeyError, TypeError, ValueError):
             pass
-    return bawaan
+    return fallback
 
 
-def _potong_untuk_pratinjau(spans: "list[engine.Span]", batas_detik: float,
-                            mulai_dari: float = 0.0) -> "list[engine.Span]":
-    """Ambil sepotong pendek dari `spans`, sepanjang maksimal batas_detik,
-    dimulai `mulai_dari` detik waktu KELUARAN (sesudah semua span disambung)
+def _trim_for_preview(spans: "list[engine.Span]", max_seconds: float,
+                       start_from: float = 0.0) -> "list[engine.Span]":
+    """Ambil sepotong pendek dari `spans`, sepanjang maksimal max_seconds,
+    dimulai `start_from` detik waktu KELUARAN (sesudah semua span disambung)
     dari awal klip -- bukan selalu dari detik pertama. Klip yang panjang
     (menit-an) nyaris tidak pernah terwakili oleh 3 detik pertamanya saja;
-    `mulai_dari` biasanya posisi scrub yang sedang dilihat user di preview,
+    `start_from` biasanya posisi scrub yang sedang dilihat user di preview,
     supaya pratinjau cepat benar-benar menunjukkan momen yang sedang dicek.
 
     Span TERAKHIR yang tercakup dipotong pas di batasnya alih-alih dibuang
     utuh -- supaya pratinjau tetap sedekat mungkin ke batas yang diminta."""
-    hasil = []
-    sisa_lewati = max(0.0, mulai_dari)
-    sisa = batas_detik
+    result = []
+    remaining_skip = max(0.0, start_from)
+    remaining = max_seconds
     for s in spans:
-        if sisa_lewati > 0:
-            if s.length <= sisa_lewati:
-                sisa_lewati -= s.length
+        if remaining_skip > 0:
+            if s.length <= remaining_skip:
+                remaining_skip -= s.length
                 continue
             # Awal potongan ini digeser maju -- kalau ada lintasan tracking,
             # waktunya (relatif ke awal LAMA) harus ikut digeser mundur
             # sejumlah yang sama, bukan dibawa mentah (bakal salah tempat)
             # ATAU didiamkan hilang (bakal jatuh ke kotak statis padahal
             # titiknya sebenarnya di-track).
-            s = engine.Span(s.start + sisa_lewati, s.end, s.crop, s.crops,
-                            _geser_tracking(s.tracking, sisa_lewati))
-            sisa_lewati = 0
-        if sisa <= 0:
+            s = engine.Span(s.start + remaining_skip, s.end, s.crop, s.crops,
+                            _shift_tracking(s.tracking, remaining_skip))
+            remaining_skip = 0
+        if remaining <= 0:
             break
-        if s.length <= sisa:
-            hasil.append(s)
-            sisa -= s.length
+        if s.length <= remaining:
+            result.append(s)
+            remaining -= s.length
         else:
             # Cuma akhirnya yang dipendekkan, awal (dan waktu tracking,
             # relatif ke awal) tidak berubah -- keyframe yang jatuh sesudah
             # batas baru tidak berbahaya dibawa apa adanya, sendcmd memang
             # tidak akan pernah mencapai waktu itu di potongan sependek ini.
-            hasil.append(engine.Span(s.start, s.start + sisa, s.crop, s.crops,
+            result.append(engine.Span(s.start, s.start + remaining, s.crop, s.crops,
                                      s.tracking))
-            sisa = 0
-    return hasil
+            remaining = 0
+    return result
 
 
-def _geser_tracking(tracking: "list[dict] | None", offset: float) -> "list[dict] | None":
+def _shift_tracking(tracking: "list[dict] | None", offset: float) -> "list[dict] | None":
     """Geser waktu tiap keyframe mundur `offset` detik -- dipakai saat span
     yang di-track dipotong dari DEPAN untuk pratinjau cepat. Keyframe yang
     jadi negatif (kejadiannya SEBELUM awal baru) dibuang; kurang dari 2
@@ -263,9 +263,9 @@ def _geser_tracking(tracking: "list[dict] | None", offset: float) -> "list[dict]
     lintasan yang keliru arah/waktunya)."""
     if not tracking:
         return None
-    geser = [{"t": round(kf["t"] - offset, 3), "left": kf["left"]}
+    shifted = [{"t": round(kf["t"] - offset, 3), "left": kf["left"]}
              for kf in tracking if kf["t"] - offset >= 0]
-    return geser if len(geser) >= 2 else None
+    return shifted if len(shifted) >= 2 else None
 
 
 def _run_render(job_id: str, req: dict) -> None:
@@ -308,7 +308,7 @@ def _run_render(job_id: str, req: dict) -> None:
             # tiap potongan dibingkai sendiri sebelum disambung. p["crops"]
             # berisi dua kotak dan bikin potongan itu jadi bingkai split
             # atas-bawah.
-            spans = _spans_dari_klip(k)
+            spans = _spans_from_clip(k)
             if not spans:
                 raise ValueError(f"Clip \"{k.get('title', '?')}\" has no spans.")
             crop = k.get("crop") or {}
@@ -326,12 +326,12 @@ def _run_render(job_id: str, req: dict) -> None:
 
             # Gaya caption datang dari layar Caption di UI. Kalau tidak
             # dikirim, build_ass memakai bawaannya.
-            gaya = k.get("style") if isinstance(k.get("style"), dict) else None
+            style = k.get("style") if isinstance(k.get("style"), dict) else None
 
-            kata_klip = _kata_klip(k, words)
+            clip_words = _clip_words(k, words)
 
             try:
-                engine.render(video, job, dest, words=kata_klip, style=gaya,
+                engine.render(video, job, dest, words=clip_words, style=style,
                              src_width=info.width, src_height=info.height,
                              has_audio=info.has_audio, verbose=False,
                              cancel_check=lambda: job_id in CANCELLED)
@@ -539,16 +539,16 @@ def _active_result(data: dict) -> dict:
     harus tampil benar di kartu beranda, bukan cuma project yang baru."""
     results = data.get("results")
     if isinstance(results, list) and results:
-        aktif = data.get("activeResult")
+        active = data.get("activeResult")
         for r in results:
-            if isinstance(r, dict) and r.get("id") == aktif:
+            if isinstance(r, dict) and r.get("id") == active:
                 return r
-        pertama = results[0]
-        return pertama if isinstance(pertama, dict) else {}
+        first = results[0]
+        return first if isinstance(first, dict) else {}
     return data
 
 
-def _project_ringkas(file: Path) -> dict | None:
+def _project_summary(file: Path) -> dict | None:
     """Bentuk ringkas untuk daftar di beranda -- tidak memuat seluruh isi.
 
     Seluruh badan dibungkus try/except: berkas project bisa ditulis tangan
@@ -560,15 +560,15 @@ def _project_ringkas(file: Path) -> dict | None:
         st = file.stat()
         if not isinstance(data, dict):
             return None
-        aktif = _active_result(data)
-        spans = aktif.get("result") or []
+        active = _active_result(data)
+        spans = active.get("result") or []
         total = sum(max(0.0, float(r.get("end", 0)) - float(r.get("start", 0)))
                     for r in spans if isinstance(r, dict))
-        framing = aktif.get("framing") or [{}]
+        framing = active.get("framing") or [{}]
         first_frame = framing[0] if isinstance(framing[0], dict) else {}
         return {
             "video": data.get("video", ""),
-            "title": aktif.get("title", ""),
+            "title": active.get("title", ""),
             "spans": len(spans),
             "seconds": round(total, 1),
             "at": int(st.st_mtime),
@@ -773,7 +773,7 @@ class Handler(BaseHTTPRequestHandler):
             # cacat tidak boleh membuat seluruh daftar gagal tampil.
             item = []
             for f in PROJECTS.glob("*.json"):
-                r = _project_ringkas(f)
+                r = _project_summary(f)
                 if r and r.get("video"):
                     item.append(r)
             item.sort(key=lambda x: x["at"], reverse=True)
@@ -892,16 +892,16 @@ class Handler(BaseHTTPRequestHandler):
         start, end = 0, size - 1
         status = 200
 
-        rentang = self.headers.get("Range", "")
-        if rentang.startswith("bytes="):
-            sisi = rentang[6:].split(",")[0].split("-")
+        range_header = self.headers.get("Range", "")
+        if range_header.startswith("bytes="):
+            range_parts = range_header[6:].split(",")[0].split("-")
             try:
-                if sisi[0].strip():                     # bytes=100-  /  bytes=100-200
-                    start = int(sisi[0])
-                    if len(sisi) > 1 and sisi[1].strip():
-                        end = min(int(sisi[1]), size - 1)
-                elif len(sisi) > 1 and sisi[1].strip():  # bytes=-500 (ekor)
-                    start = max(0, size - int(sisi[1]))
+                if range_parts[0].strip():                     # bytes=100-  /  bytes=100-200
+                    start = int(range_parts[0])
+                    if len(range_parts) > 1 and range_parts[1].strip():
+                        end = min(int(range_parts[1]), size - 1)
+                elif len(range_parts) > 1 and range_parts[1].strip():  # bytes=-500 (ekor)
+                    start = max(0, size - int(range_parts[1]))
             except ValueError:
                 start, end = 0, size - 1                 # Range ngawur: kirim utuh
             else:
@@ -922,11 +922,11 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
         self.end_headers()
 
-        sisa = end - start + 1
+        remaining = end - start + 1
         with file.open("rb") as f:
             f.seek(start)
-            while sisa > 0:
-                blok = f.read(min(64 * 1024, sisa))
+            while remaining > 0:
+                blok = f.read(min(64 * 1024, remaining))
                 if not blok:
                     break
                 try:
@@ -942,7 +942,7 @@ class Handler(BaseHTTPRequestHandler):
                     # ConnectionRefusedError), jadi menangkap itu langsung
                     # menutup celah ini untuk semua varian di semua OS.
                     return
-                sisa -= len(blok)
+                remaining -= len(blok)
 
     # ---- POST ----
 
@@ -1045,7 +1045,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/preview":
             # Render SUNGGUHAN lewat ffmpeg, cuma dipotong pendek -- bukan
             # tiruan CSS di browser. Sinkron (bukan job queue seperti
-            # /api/render): PREVIEW_MAX_DETIK cukup pendek untuk selesai
+            # /api/render): PREVIEW_MAX_SECONDS cukup pendek untuk selesai
             # dalam hitungan detik, dan ThreadingHTTPServer sudah menangani
             # tiap request di thread-nya sendiri, jadi permintaan lain (poll
             # antrian, dsb.) tidak ikut tertahan menunggu ini.
@@ -1064,13 +1064,13 @@ class Handler(BaseHTTPRequestHandler):
                                f"dijangkau server."}, 404)
 
             try:
-                semua_span = _spans_dari_klip(k)
-                mulai_dari = float(req.get("mulaiDari") or 0)
-                spans = _potong_untuk_pratinjau(semua_span, PREVIEW_MAX_DETIK, mulai_dari)
-                if not spans and mulai_dari > 0:
+                all_spans = _spans_from_clip(k)
+                start_from = float(req.get("mulaiDari") or 0)
+                spans = _trim_for_preview(all_spans, PREVIEW_MAX_SECONDS, start_from)
+                if not spans and start_from > 0:
                     # Scrub jatuh persis di ekor klip (kurang dari sedetik
                     # tersisa) -- daripada gagal, tampilkan dari awal saja.
-                    spans = _potong_untuk_pratinjau(semua_span, PREVIEW_MAX_DETIK)
+                    spans = _trim_for_preview(all_spans, PREVIEW_MAX_SECONDS)
                 if not spans:
                     return self._send_json({"error": "Clip has no spans."}, 400)
 
@@ -1096,15 +1096,15 @@ class Handler(BaseHTTPRequestHandler):
                         words = Transcript.load(tpath).words
                 except Exception:                      # noqa: BLE001
                     pass
-                kata_klip = _kata_klip(k, words)
+                clip_words = _clip_words(k, words)
 
-                gaya = k.get("style") if isinstance(k.get("style"), dict) else None
+                style = k.get("style") if isinstance(k.get("style"), dict) else None
 
                 # Nama TETAP, ditimpa tiap kali -- pratinjau adalah sekali
                 # pakai, bukan berkas yang perlu dikumpulkan seperti hasil
                 # render sungguhan di antrian/riwayat.
                 dest = WORKSPACE / "out" / video.stem / "_preview.mp4"
-                engine.render(video, job, dest, words=kata_klip, style=gaya,
+                engine.render(video, job, dest, words=clip_words, style=style,
                               src_width=info.width, src_height=info.height,
                               has_audio=info.has_audio, verbose=False)
             except Exception as exc:                   # noqa: BLE001
