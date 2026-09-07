@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wdth,wght@0,75..125,200..900;1,75..125,200..900&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1788795437994">
-<link rel="stylesheet" href="/ui/css/app.css?v=1788795437994">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1788795632287">
+<link rel="stylesheet" href="/ui/css/app.css?v=1788795632287">
 </head>
 <body>
 
@@ -338,12 +338,26 @@
                  ditemukan dan dipilih AI") -- tombol ini literally memicu
                  AI, jadi warnanya semestinya sudah aksen dari awal, bukan
                  abu-abu seperti tombol biasa (laporan nyata dari ian:
-                 "terlalu samar, tidak terlihat tombol aktif"). Ikon ✨ di
-                 depan teks (juga di tiap ganti label saat proses/selesai,
-                 lihat aiFramingMulai/aiFramingGagal/dst di framing.js)
-                 penanda visual "ini tombol AI", bukan sekadar hiasan. -->
+                 "terlalu samar, tidak terlihat tombol aktif"). Ikonnya
+                 SVG (fill="currentColor"), BUKAN emoji ✨ -- emoji dulu
+                 dipakai, tapi warnanya sendiri (kuning/putih bawaan font
+                 emoji) tidak bisa diatur CSS sama sekali, jadi "menyala"
+                 dan menyatu begitu saja dengan latar aksen kuning tombol
+                 ini (laporan nyata: "terlalu menyala, menyatu dengan
+                 kuning"). SVG ikut var(--aksen-teks) yang sama dengan
+                 teksnya (hampir hitam), penanda visual "ini tombol AI"
+                 tanpa isu warna itu. Teks di dalam <span> terpisah --
+                 aiFramingMulai/aiFramingGagal/dst di framing.js cuma
+                 mengganti isi span itu, bukan seluruh tombol, supaya
+                 ikonnya tidak ikut hilang tiap label berganti. -->
             <button class="btn main" id="aiFramingBtn" type="button"
-                    title="Auto-switch the frame based on who's talking">✨ AI Framing</button>
+                    title="Auto-switch the frame based on who's talking">
+              <svg class="ikon-ai" width="14" height="14" viewBox="0 0 24 24"
+                   fill="currentColor" aria-hidden="true">
+                <path d="M12 2 L14.2 9.8 L22 12 L14.2 14.2 L12 22 L9.8 14.2 L2 12 L9.8 9.8 Z"/>
+              </svg>
+              <span id="aiFramingBtnTeks">AI Framing</span>
+            </button>
           </div>
 
           <!-- Status AI Framing (proses/error/hasil) -- sepenuhnya otomatis,
@@ -573,16 +587,16 @@
   </main>
 </div>
 
-<script src="/ui/js/editor/app.js?v=1788795437994"></script>
-<script src="/ui/js/editor/interactions.js?v=1788795437994"></script>
-<script src="/ui/js/editor/framing.js?v=1788795437994"></script>
-<script src="/ui/js/editor/analysis.js?v=1788795437994"></script>
-<script src="/ui/js/editor/player.js?v=1788795437994"></script>
-<script src="/ui/js/editor/roundtrip.js?v=1788795437994"></script>
-<script src="/ui/js/editor/history.js?v=1788795437994"></script>
-<script src="/ui/js/editor/timeline.js?v=1788795437994"></script>
-<script src="/ui/js/editor/teks.js?v=1788795437994"></script>
-<script src="/ui/js/editor/result.js?v=1788795437994"></script>
-<script src="/ui/js/editor/projects.js?v=1788795437994"></script>
+<script src="/ui/js/editor/app.js?v=1788795632287"></script>
+<script src="/ui/js/editor/interactions.js?v=1788795632287"></script>
+<script src="/ui/js/editor/framing.js?v=1788795632287"></script>
+<script src="/ui/js/editor/analysis.js?v=1788795632287"></script>
+<script src="/ui/js/editor/player.js?v=1788795632287"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1788795632287"></script>
+<script src="/ui/js/editor/history.js?v=1788795632287"></script>
+<script src="/ui/js/editor/timeline.js?v=1788795632287"></script>
+<script src="/ui/js/editor/teks.js?v=1788795632287"></script>
+<script src="/ui/js/editor/result.js?v=1788795632287"></script>
+<script src="/ui/js/editor/projects.js?v=1788795632287"></script>
 </body>
 </html>

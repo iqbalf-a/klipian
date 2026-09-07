@@ -432,6 +432,12 @@ h1, h2, h3 {
 }
 .btn.main:disabled { background: var(--kaca-kuat); color: var(--teks-samar);
                      box-shadow: none; cursor: not-allowed; }
+
+/* Ikon di dalam tombol (mis. #aiFramingBtn) -- flex biar sejajar rapi
+   dengan teksnya, fill ikut currentColor jadi otomatis kontras di atas
+   latar apa pun tombolnya (aksen kuning, abu-abu, atau disabled). */
+.btn:has(svg) { display: inline-flex; align-items: center; gap: 6px; }
+.ikon-ai { flex: none; }
 .btn.main.large { padding: 10px 20px; font-size: var(--t-13); }
 
 .btn.quiet { background: none; border-color: transparent; color: var(--teks-samar); }

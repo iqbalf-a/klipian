@@ -576,6 +576,14 @@ function aiFramingStatus(teks) {
   $("#aiFramingTanya")?.removeAttribute("hidden");
 }
 
+/* Ganti isi <span> teks di dalam tombol #aiFramingBtn saja -- BUKAN
+   btn.textContent langsung, itu akan ikut menghapus ikon SVG-nya (lihat
+   markup di index.html). */
+function aiFramingBtnTeks(teks) {
+  const el = $("#aiFramingBtnTeks");
+  if (el) el.textContent = teks;
+}
+
 /* Overlay DI ATAS panel preview 9:16, terpisah dari kotak status di
    sidebar (aiFramingStatus) -- server bisa bekerja puluhan detik
    (diarization dkk), tanpa overlay ini preview kelihatan diam begitu
@@ -676,7 +684,7 @@ async function aiFramingMulai() {
   const spans = activeClip.spans;
 
   const btn = $("#aiFramingBtn");
-  if (btn) { btn.disabled = true; btn.textContent = "✨ Analyzing …"; }
+  if (btn) { btn.disabled = true; aiFramingBtnTeks("Analyzing …"); }
   aiFramingOverlayMulai();
 
   // Berurutan, BUKAN paralel: semua span berbagi satu model diarization
@@ -720,7 +728,7 @@ async function aiFramingMulai() {
 
 function aiFramingGagal(pesan) {
   const btn = $("#aiFramingBtn");
-  if (btn) { btn.disabled = false; btn.textContent = "✨ AI Framing"; }
+  if (btn) { btn.disabled = false; aiFramingBtnTeks("AI Framing"); }
   aiFramingStatus(`AI Framing failed: ${pesan}`);
   aiFramingOverlaySelesai();
 }
@@ -761,7 +769,7 @@ async function aiFramingCariPosisiSemua(turns, cuts) {
   const btn = $("#aiFramingBtn");
 
   if (!turns.length) {
-    if (btn) { btn.disabled = false; btn.textContent = "✨ AI Framing"; }
+    if (btn) { btn.disabled = false; aiFramingBtnTeks("AI Framing"); }
     aiFramingStatus("AI Framing: no speech detected in this clip.");
     aiFramingOverlaySelesai();
     return;
@@ -796,7 +804,7 @@ async function aiFramingCariPosisiSemua(turns, cuts) {
   const posisi = {};
   daftarSpeaker.forEach(([speaker], i) => { if (hasil[i]) posisi[speaker] = hasil[i]; });
 
-  if (btn) { btn.disabled = false; btn.textContent = "✨ AI Framing"; }
+  if (btn) { btn.disabled = false; aiFramingBtnTeks("AI Framing"); }
 
   if (!Object.keys(posisi).length) {
     aiFramingStatus("AI Framing: couldn't confidently locate any speaker's face "
