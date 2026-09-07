@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wdth,wght@0,75..125,200..900;1,75..125,200..900&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1788794717943">
-<link rel="stylesheet" href="/ui/css/app.css?v=1788794717943">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1788795296039">
+<link rel="stylesheet" href="/ui/css/app.css?v=1788795296039">
 </head>
 <body>
 
@@ -33,6 +33,21 @@
     <!-- Selalu terlihat (bukan work-only) -- jadwal upload berguna dicek
          kapan saja, bukan cuma saat sedang menyunting klip. -->
     <a class="btn quiet" href="/workspace" title="Open the workspace dashboard">Workspace</a>
+    <!-- Tombol "?" pojok kanan atas -- pola umum web (icon bantuan di top
+         bar), bukan di dalam media control yang sudah sempit (sebelumnya
+         di situ, sempat bikin baris overflow -- lihat riwayat commit).
+         work-only: pintasannya cuma berarti kalau ada klip yang sedang
+         dibuka. -->
+    <div class="shortcut-help work-only">
+      <button class="btn quiet" id="shortcutHelpBtn" type="button"
+              title="Keyboard shortcuts" aria-label="Keyboard shortcuts"
+              aria-expanded="false">?</button>
+      <div class="shortcut-panel" id="shortcutPanel" hidden role="tooltip">
+        <p><kbd>,</kbd> <kbd>.</kbd> step 1 <span id="shortcutUnitTeks">frame</span></p>
+        <p><kbd>Shift</kbd><kbd>,</kbd> <kbd>Shift</kbd><kbd>.</kbd> step 5</p>
+        <p><kbd>Space</kbd> play / pause</p>
+      </div>
+    </div>
   </header>
   <!-- Sidebar kiri (tab Analyze/Clips/Framing/dst) makan lebar tetap yang
        tidak selalu perlu terlihat -- terutama panel Framing yang butuh
@@ -518,18 +533,6 @@
                   aria-label="Mute" aria-pressed="false">🔊</button>
           <button class="saklar" id="safeBtn" title="Show safe area"
                   aria-label="Safe area" aria-pressed="true">safe</button>
-          <!-- Panel muncul DI ATAS tombolnya (bukan di bawah, yang akan
-               tertutup render-bar) -- lihat .shortcut-panel di app.css. -->
-          <div class="shortcut-help">
-            <button class="saklar" id="shortcutHelpBtn" type="button"
-                    title="Keyboard shortcuts" aria-label="Keyboard shortcuts"
-                    aria-expanded="false">?</button>
-            <div class="shortcut-panel" id="shortcutPanel" hidden role="tooltip">
-              <p><kbd>,</kbd> <kbd>.</kbd> step 1 <span id="shortcutUnitTeks">frame</span></p>
-              <p><kbd>Shift</kbd><kbd>,</kbd> <kbd>Shift</kbd><kbd>.</kbd> step 5</p>
-              <p><kbd>Space</kbd> play / pause</p>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -560,16 +563,16 @@
   </main>
 </div>
 
-<script src="/ui/js/editor/app.js?v=1788794717943"></script>
-<script src="/ui/js/editor/interactions.js?v=1788794717943"></script>
-<script src="/ui/js/editor/framing.js?v=1788794717943"></script>
-<script src="/ui/js/editor/analysis.js?v=1788794717943"></script>
-<script src="/ui/js/editor/player.js?v=1788794717943"></script>
-<script src="/ui/js/editor/roundtrip.js?v=1788794717943"></script>
-<script src="/ui/js/editor/history.js?v=1788794717943"></script>
-<script src="/ui/js/editor/timeline.js?v=1788794717943"></script>
-<script src="/ui/js/editor/teks.js?v=1788794717943"></script>
-<script src="/ui/js/editor/result.js?v=1788794717943"></script>
-<script src="/ui/js/editor/projects.js?v=1788794717943"></script>
+<script src="/ui/js/editor/app.js?v=1788795296039"></script>
+<script src="/ui/js/editor/interactions.js?v=1788795296039"></script>
+<script src="/ui/js/editor/framing.js?v=1788795296039"></script>
+<script src="/ui/js/editor/analysis.js?v=1788795296039"></script>
+<script src="/ui/js/editor/player.js?v=1788795296039"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1788795296039"></script>
+<script src="/ui/js/editor/history.js?v=1788795296039"></script>
+<script src="/ui/js/editor/timeline.js?v=1788795296039"></script>
+<script src="/ui/js/editor/teks.js?v=1788795296039"></script>
+<script src="/ui/js/editor/result.js?v=1788795296039"></script>
+<script src="/ui/js/editor/projects.js?v=1788795296039"></script>
 </body>
 </html>

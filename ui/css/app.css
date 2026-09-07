@@ -103,6 +103,14 @@ h1, h2, h3 {
   background: color-mix(in srgb, var(--bg-1) 72%, transparent);
   backdrop-filter: blur(20px) saturate(150%);
   border-bottom: 1px solid var(--garis-kaca);
+  /* position+z-index WAJIB di sini, bukan cuma di .shortcut-panel sendiri:
+     .topbar dan .stage cuma baris grid biasa (z-index:auto keduanya),
+     dan .stage datang SESUDAH .topbar di DOM -- popover yang meluber ke
+     bawah topbar (masuk ke area baris .stage) tertimpa isi .stage/.preview
+     berapa pun z-index popover-nya sendiri, karena z-index cuma dibanding
+     di DALAM satu stacking context yang sama. Mengangkat .topbar sendiri
+     yang benar-benar menutup celah ini. */
+  position: relative; z-index: 20;
 }
 .topbar #statusSimpan { margin-left: auto; color: var(--teks-samar); }
 .topbar #saveNowBtn { min-width: 72px; }
@@ -721,17 +729,20 @@ h1, h2, h3 {
   background: var(--aksen-lembut);
 }
 
-/* Tombol "?" + panelnya -- posisi relative di sini supaya panel bisa
-   absolute terhadap tombolnya sendiri, bukan terhadap seluruh baris. */
+/* Tombol "?" di topbar (pojok kanan atas, pola umum web) -- posisi
+   relative di sini supaya panel bisa absolute terhadap tombolnya
+   sendiri, bukan terhadap seluruh topbar. Sebelumnya di media control
+   preview, tapi baris itu sudah padat (sempat bikin overflow, lihat
+   riwayat commit) dan tombol bantuan memang lebih wajar di top bar,
+   bukan berdesakan dengan kontrol transport. */
 .shortcut-help { position: relative; }
-.shortcut-help .saklar { font-weight: 700; }
+.shortcut-help .btn { font-weight: 700; }
 
-/* Panel muncul DI ATAS tombolnya (bottom: 100%), bukan di bawah -- di
-   bawah baris ini sudah render-bar (judul/tombol Render), jadi panel akan
-   langsung tertutup kalau dibuka ke bawah. */
+/* Panel muncul DI BAWAH tombolnya (top: 100%) -- topbar ada di paling
+   atas halaman, membuka ke atas akan lari ke luar jendela. */
 .shortcut-panel {
   position: absolute;
-  bottom: calc(100% + 8px);
+  top: calc(100% + 8px);
   right: 0;
   z-index: 5;
   width: max-content;
