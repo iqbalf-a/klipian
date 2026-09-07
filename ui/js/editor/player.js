@@ -389,6 +389,10 @@ function perbaruiLabelLangkah() {
       maju.setAttribute("aria-label", `Forward ${judul[i]}`);
     }
   });
+  // Panel pintasan (lihat di bawah) ikut menyebut satuan yang sedang aktif,
+  // supaya "," "." di situ tidak kelihatan ambigu antara frame/detik.
+  const unitTeks = $("#shortcutUnitTeks");
+  if (unitTeks) unitTeks.textContent = stepUnit === "frame" ? "frame" : "second";
 }
 
 $("#stepUnitBtn")?.addEventListener("click", () => {
@@ -401,6 +405,33 @@ $("#stepUnitBtn")?.addEventListener("click", () => {
   }
   perbaruiLabelLangkah();
 });
+
+/* Panel pintasan papan tik -- tombol "?" buka/tutup, bukan selalu
+   tampil (panel preview 9:16 sudah sempit, teks penjelasan permanen
+   bakal mendesak tombol lain). Tutup lagi kalau klik di luar panel atau
+   tekan Escape -- pola popover standar, jangan biarkan menggantung
+   terbuka sampai ditutup manual lewat tombolnya sendiri lagi. */
+(function shortcutHelp() {
+  const btn = $("#shortcutHelpBtn");
+  const panel = $("#shortcutPanel");
+  if (!btn || !panel) return;
+  const tutup = () => {
+    panel.hidden = true;
+    btn.setAttribute("aria-expanded", "false");
+  };
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const buka = panel.hidden;
+    panel.hidden = !buka;
+    btn.setAttribute("aria-expanded", String(buka));
+  });
+  document.addEventListener("click", (e) => {
+    if (!panel.hidden && !panel.contains(e.target) && e.target !== btn) tutup();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !panel.hidden) tutup();
+  });
+})();
 
 /* Kanvas framing disamakan pada peristiwa seek dan putar/jeda -- bukan hanya
    pada timeupdate. Menggeser posisi saat video dijeda tidak selalu memicu

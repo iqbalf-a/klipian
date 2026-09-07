@@ -643,6 +643,12 @@ h1, h2, h3 {
 
 .transport-bawah {
   display: flex; align-items: center; gap: 5px;
+  /* Baris ini SUDAH padat (waktu + 4 saklar); tanpa wrap, tombol yang
+     tidak muat cuma terdorong diam-diam ke luar viewport (bukan
+     terpotong kelihatan -- lebih parah, hilang & tidak bisa diklik sama
+     sekali). row-gap kecil karena baris kedua jarang muncul, cuma di
+     panel yang benar-benar sempit. */
+  flex-wrap: wrap; row-gap: 4px;
 }
 .transport-bawah .time {
   margin-right: auto;
@@ -672,6 +678,47 @@ h1, h2, h3 {
   border-color: color-mix(in srgb, var(--aksen) 45%, transparent);
   background: var(--aksen-lembut);
 }
+
+/* Tombol "?" + panelnya -- posisi relative di sini supaya panel bisa
+   absolute terhadap tombolnya sendiri, bukan terhadap seluruh baris. */
+.shortcut-help { position: relative; }
+.shortcut-help .saklar { font-weight: 700; }
+
+/* Panel muncul DI ATAS tombolnya (bottom: 100%), bukan di bawah -- di
+   bawah baris ini sudah render-bar (judul/tombol Render), jadi panel akan
+   langsung tertutup kalau dibuka ke bawah. */
+.shortcut-panel {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  z-index: 5;
+  width: max-content;
+  max-width: 220px;
+  display: grid; gap: 6px;
+  padding: var(--s3) var(--s4);
+  border-radius: var(--r-m);
+  background: var(--bg-1);
+  border: 1px solid var(--garis-kaca);
+  box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.6);
+}
+.shortcut-panel p {
+  margin: 0;
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--font-data); font-size: 11px; color: var(--teks-lemah);
+}
+.shortcut-panel kbd {
+  font-family: var(--font-data); font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--garis-kaca);
+  background: var(--kaca-kuat);
+  color: var(--teks);
+}
+.shortcut-panel #shortcutUnitTeks {
+  margin-left: auto;
+  color: var(--aksen);
+}
+
 .icon {
   width: 32px; height: 30px; display: grid; place-items: center;
   border: 1px solid var(--garis-kaca); border-radius: var(--r-s);
