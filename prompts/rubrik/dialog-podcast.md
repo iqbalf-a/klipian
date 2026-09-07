@@ -12,6 +12,14 @@ Temukan **momen yang layak berdiri sendiri sebagai video vertikal pendek**.
 
 Kamu tidak melihat gambarnya. Menilai hanya dari kata-kata yang diucapkan.
 
+Terapkan rubrik ini secara MEKANIS: nilai tiap kriteria satu per satu
+berdasarkan bukti eksplisit di transkrip (kutipan, tanda tawa, energi
+audio), bukan kesan menyeluruh atau "vibe". Kalau berkas transkrip yang
+SAMA dijalankan ulang lewat rubrik ini, skor dan daftar klipnya
+seharusnya tidak jauh berbeda -- hindari variasi yang datang dari mood
+atau penekanan yang berubah-ubah antar percobaan, bukan dari perbedaan
+nyata di transkripnya.
+
 ---
 
 ## Lima kriteria
@@ -97,7 +105,19 @@ utuh, daripada dipenggal dan kehilangan maknanya.
 
 ## Berapa klip
 
-Keluarkan **8–15 kandidat**, diurutkan dari skor tertinggi.
+Kandidat **LOLOS** kalau skor total (rata-rata lima kriteria) ≥ 7. Keluarkan
+SEMUA yang lolos, diurutkan dari skor tertinggi -- minimal 8, maksimal 15.
+
+- Kurang dari 8 yang lolos ambang 7 → tetap keluarkan sampai 8 kandidat
+  terbaik yang ada (meski sebagian di bawah ambang), supaya jumlahnya
+  cukup untuk ditinjau.
+- Lebih dari 15 yang lolos → ambil 15 skor tertinggi saja.
+
+Ambang skor eksplisit ini penting untuk konsistensi: tanpa ambang, klip
+yang skornya pas-pasan di sekitar peringkat ke-8/ke-15 gampang berubah
+masuk-keluar daftar tiap kali rubrik ini dijalankan ulang, padahal
+skornya sendiri nyaris sama. Dengan ambang tetap, keputusan "lolos atau
+tidak" tidak bergantung pada kandidat lain di episode yang sama.
 
 Lebih baik mengeluarkan 8 yang benar-benar layak daripada 15 dengan lima di
 antaranya asal cukup. Pengguna meninjau semuanya secara manual; kandidat
