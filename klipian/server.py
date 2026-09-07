@@ -1169,6 +1169,31 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_json({"error": str(exc)}, 500)
             return self._send_json({"points": points})
 
+        if path == "/api/scenecut":
+            # Sinkron seperti /api/facetrack -- diff antar-frame lewat filter
+            # scene bawaan ffmpeg jauh lebih murah daripada cascade wajah per
+            # frame, satu giliran bicara (puluhan detik) beres dalam <1 detik.
+            try:
+                req = self._read_json()
+            except Exception as exc:               # noqa: BLE001
+                return self._send_json({"error": str(exc)}, 400)
+            video = _find_video(req.get("video", ""))
+            if not video:
+                return self._send_json({"error": "video not found"}, 404)
+            try:
+                start = float(req.get("start", 0))
+                end = float(req.get("end", 0))
+            except (TypeError, ValueError):
+                return self._send_json({"error": "invalid time"}, 400)
+            if end <= start:
+                return self._send_json({"error": "invalid range"}, 400)
+            try:
+                from .scenecut import detect_cuts
+                cuts = detect_cuts(video, start, end)
+            except Exception as exc:               # noqa: BLE001
+                return self._send_json({"error": str(exc)}, 500)
+            return self._send_json({"cuts": cuts})
+
         if path == "/api/open-folder":
             try:
                 folder = Path(self._read_json().get("folder", "")).resolve()

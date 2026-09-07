@@ -552,9 +552,14 @@ $("#framingList")?.addEventListener("click", (e) => {
    dibatasi dua orang: berapa pun pembicara yang terdeteksi, masing-masing
    ditanya sekali secara berurutan.
 
-   Sengaja dibatasi ke SATU komposisi kamera tetap: kalau video sumbernya
-   sendiri ganti shot di tengah klip, itu tetap dikerjakan manual seperti
-   sekarang -- AI Framing tidak mencoba menebak itu. */
+   Video sumber sendiri bisa ganti shot di tengah klip (zoom keluar jadi
+   close-up, potong ke reaksi orang lain) meski pembicaranya tidak berganti
+   -- diarization sama sekali tidak melihat itu, cuma dengar suara. Sinyal
+   TERPISAH untuk itu: klipian/scenecut.py mendeteksi potongan visual keras
+   lewat filter scene bawaan ffmpeg, dipakai memecah satu giliran bicara
+   jadi beberapa titik lacak (lihat aiFramingTerapkan) supaya tiap potongan
+   sungguhan dapat titik framing sendiri, bukan cuma titik di awal giliran
+   yang lama-lama meleset begitu shot-nya berganti. */
 
 let aiFramingAntrian = null;   // { urutan, idx, turns, posisi }
 
@@ -599,6 +604,21 @@ function aiFramingPollPromise(id) {
   });
 }
 
+/* Potongan visual keras di satu span -- sinyal TAMBAHAN, bukan wajib.
+   Gagal diam-diam (ffmpeg build lama tanpa filter scene, atau apa pun)
+   mengembalikan array kosong, bukan melempar -- AI Framing yang sudah
+   berhasil dari diarization tidak boleh ikut gagal cuma karena pelengkap
+   ini tersandung. */
+function aiFramingScenecutSatuSpan(span) {
+  return fetch("/api/scenecut", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ video: chosenSource?.name, start: span.start, end: span.end }),
+  })
+    .then((r) => r.json())
+    .then((d) => d.cuts || [])
+    .catch(() => []);
+}
+
 async function aiFramingMulai() {
   if (!activeClip || !activeClip.spans?.length) {
     aiFramingStatus("Select or add a clip to Result first.");
@@ -635,7 +655,18 @@ async function aiFramingMulai() {
     return;
   }
 
-  aiFramingSiapkanAntrian(semuaTurns);
+  // Potongan visual keras di video sumber -- dicari SESUDAH diarization
+  // (bukan sekaligus di loop yang sama) supaya kalau ini gagal/lambat tidak
+  // ikut mengacaukan pesan progres giliran bicara di atas. Gagal per span
+  // diam-diam jadi array kosong (lihat aiFramingScenecutSatuSpan) -- ini
+  // pelengkap, AI Framing tetap jalan dari diarization saja kalau ini kosong.
+  aiFramingStatus(spans.length > 1
+    ? "AI Framing: checking for shot changes …"
+    : "AI Framing: checking for shot changes … (usually a few seconds)");
+  const semuaCuts = [];
+  for (const s of spans) semuaCuts.push(...(await aiFramingScenecutSatuSpan(s)));
+
+  aiFramingSiapkanAntrian(semuaTurns, semuaCuts);
 }
 
 function aiFramingGagal(pesan) {
@@ -644,7 +675,7 @@ function aiFramingGagal(pesan) {
   aiFramingStatus(`AI Framing failed: ${pesan}`);
 }
 
-function aiFramingSiapkanAntrian(turns) {
+function aiFramingSiapkanAntrian(turns, cuts) {
   const btn = $("#aiFramingBtn");
   if (btn) { btn.disabled = false; btn.textContent = "AI Framing"; }
 
@@ -663,14 +694,14 @@ function aiFramingSiapkanAntrian(turns) {
   for (const t of turns) if (!pertama.has(t.speaker)) pertama.set(t.speaker, t);
   const urutan = [...pertama.values()].sort((a, b) => a.start - b.start);
 
-  aiFramingAntrian = { urutan, idx: 0, turns, posisi: {} };
+  aiFramingAntrian = { urutan, idx: 0, turns, cuts: cuts || [], posisi: {} };
   aiFramingTanyaBerikutnya();
 }
 
 function aiFramingTanyaBerikutnya() {
   const a = aiFramingAntrian;
   if (!a || a.idx >= a.urutan.length) {
-    if (a) aiFramingTerapkan(a.turns, a.posisi);
+    if (a) aiFramingTerapkan(a.turns, a.posisi, a.cuts);
     aiFramingAntrian = null;
     return;
   }
@@ -741,18 +772,35 @@ async function aiFramingLacakWajah(start, end, kasar) {
   }
 }
 
-async function aiFramingTerapkan(turns, posisi) {
+async function aiFramingTerapkan(turns, posisi, cuts) {
+  const daftarCuts = (cuts || []).slice().sort((a, b) => a - b);
+
   // Daftar rencana dulu, baru pelacakan wajahnya dijalankan PARALEL untuk
   // semua giliran -- kalau berurutan, klip dengan banyak giliran bicara
   // (mis. 15 titik) bisa makan belasan detik cuma menunggu satu-satu.
   const rencana = [];
   let pembicaraSebelumnya = null;
+  let potongDipakai = 0;
   for (const t of turns) {
     const kasar = posisi[t.speaker];
     if (!kasar) continue;                          // pembicara yang dilewati
     if (t.speaker === pembicaraSebelumnya) continue; // pembicara sama, tidak perlu titik baru
     pembicaraSebelumnya = t.speaker;
-    rencana.push({ at: t.start, end: t.end, kasar });
+
+    // Video sumber sendiri bisa berganti shot DI TENGAH giliran bicara ini
+    // (zoom keluar jadi close-up, potong ke reaksi orang lain) meski
+    // micnya masih orang yang sama -- diarization tidak melihat itu sama
+    // sekali. Potongan yang jatuh di dalam rentang giliran ini memecahnya
+    // jadi beberapa titik lacak, supaya tiap potongan sungguhan dapat
+    // titik framing sendiri, bukan cuma titik di awal giliran yang lama-
+    // lama meleset begitu shot-nya berganti.
+    const potongDalamGiliran = daftarCuts.filter((c) => c > t.start && c < t.end);
+    let awal = t.start;
+    for (const batas of [...potongDalamGiliran, t.end]) {
+      rencana.push({ at: awal, end: batas, kasar });
+      awal = batas;
+    }
+    potongDipakai += potongDalamGiliran.length;
   }
 
   if (!rencana.length) {
@@ -789,7 +837,10 @@ async function aiFramingTerapkan(turns, posisi) {
 
   aiFramingStatus(
     `AI Framing: ${ditambah} framing point${ditambah === 1 ? "" : "s"} added across `
-    + `${rencana.length} turn${rencana.length === 1 ? "" : "s"}, tracking each speaker's face. `
+    + `${rencana.length} segment${rencana.length === 1 ? "" : "s"}, tracking each speaker's face`
+    + (potongDipakai
+        ? ` (${potongDipakai} shot change${potongDipakai === 1 ? "" : "s"} detected mid-turn). `
+        : ". ")
     + "Review and adjust if needed.");
 }
 

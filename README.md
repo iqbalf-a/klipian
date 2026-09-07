@@ -231,6 +231,8 @@ klipian/
 │   ├── glossary.py      hotwords + koreksi istilah yang sering salah didengar
 │   ├── diarize.py       speaker diarization -- AI Framing tahu siapa bicara
 │   ├── facebox.py       deteksi wajah, arahkan kotak crop AI Framing
+│   ├── scenecut.py      deteksi potongan visual keras (ganti shot kamera)
+│   │                    di video sumber, pelengkap AI Framing
 │   ├── audio_energy.py  deteksi lonjakan volume, sinyal hook pelengkap transkrip
 │   ├── roundtrip.py     brief untuk Claude + impor balasannya
 │   ├── render.py        potongan → concat → crop → caption → MP4
