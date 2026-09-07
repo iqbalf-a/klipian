@@ -161,13 +161,33 @@ def _crops_dari(d) -> "list[engine.CropBox] | None":
     return kotak if all(kotak) else None
 
 
+def _tracking_dari(d) -> "list[dict] | None":
+    """Lintasan head tracking OPSIONAL per potongan -- daftar {t, left}
+    dari JSON klien (lihat track_head() di facebox.py yang mula-mula
+    menghasilkannya). Bukan data inti seperti crop: entri yang rusak
+    dibuang diam-diam, dan kurang dari 2 titik dianggap tidak ada
+    (potongan itu tetap statis) -- bukan menggagalkan seluruh render."""
+    if not isinstance(d, list):
+        return None
+    keluar = []
+    for kf in d:
+        if not isinstance(kf, dict):
+            continue
+        try:
+            keluar.append({"t": float(kf["t"]), "left": float(kf["left"])})
+        except (KeyError, TypeError, ValueError):
+            continue
+    return keluar if len(keluar) >= 2 else None
+
+
 def _spans_dari_klip(k: dict) -> "list[engine.Span]":
     """`k["spans"]` (JSON klien) -> daftar engine.Span, siap dipakai RenderJob.
     Satu bentuk, dipakai render sungguhan maupun pratinjau -- keduanya
     menerima payload klip yang sama dari UI."""
     try:
         return [engine.Span(float(p["start"]), float(p["end"]),
-                            _crop_dari(p.get("crop")), _crops_dari(p.get("crops")))
+                            _crop_dari(p.get("crop")), _crops_dari(p.get("crops")),
+                            _tracking_dari(p.get("tracking")))
                    for p in k.get("spans", [])]
     except (KeyError, TypeError, ValueError):
         raise ValueError(
@@ -211,7 +231,13 @@ def _potong_untuk_pratinjau(spans: "list[engine.Span]", batas_detik: float,
             if s.length <= sisa_lewati:
                 sisa_lewati -= s.length
                 continue
-            s = engine.Span(s.start + sisa_lewati, s.end, s.crop, s.crops)
+            # Awal potongan ini digeser maju -- kalau ada lintasan tracking,
+            # waktunya (relatif ke awal LAMA) harus ikut digeser mundur
+            # sejumlah yang sama, bukan dibawa mentah (bakal salah tempat)
+            # ATAU didiamkan hilang (bakal jatuh ke kotak statis padahal
+            # titiknya sebenarnya di-track).
+            s = engine.Span(s.start + sisa_lewati, s.end, s.crop, s.crops,
+                            _geser_tracking(s.tracking, sisa_lewati))
             sisa_lewati = 0
         if sisa <= 0:
             break
@@ -219,9 +245,27 @@ def _potong_untuk_pratinjau(spans: "list[engine.Span]", batas_detik: float,
             hasil.append(s)
             sisa -= s.length
         else:
-            hasil.append(engine.Span(s.start, s.start + sisa, s.crop, s.crops))
+            # Cuma akhirnya yang dipendekkan, awal (dan waktu tracking,
+            # relatif ke awal) tidak berubah -- keyframe yang jatuh sesudah
+            # batas baru tidak berbahaya dibawa apa adanya, sendcmd memang
+            # tidak akan pernah mencapai waktu itu di potongan sependek ini.
+            hasil.append(engine.Span(s.start, s.start + sisa, s.crop, s.crops,
+                                     s.tracking))
             sisa = 0
     return hasil
+
+
+def _geser_tracking(tracking: "list[dict] | None", offset: float) -> "list[dict] | None":
+    """Geser waktu tiap keyframe mundur `offset` detik -- dipakai saat span
+    yang di-track dipotong dari DEPAN untuk pratinjau cepat. Keyframe yang
+    jadi negatif (kejadiannya SEBELUM awal baru) dibuang; kurang dari 2
+    keyframe tersisa -> None (jatuh ke kotak statis, lebih aman daripada
+    lintasan yang keliru arah/waktunya)."""
+    if not tracking:
+        return None
+    geser = [{"t": round(kf["t"] - offset, 3), "left": kf["left"]}
+             for kf in tracking if kf["t"] - offset >= 0]
+    return geser if len(geser) >= 2 else None
 
 
 def _run_render(job_id: str, req: dict) -> None:
@@ -1196,6 +1240,34 @@ class Handler(BaseHTTPRequestHandler):
             if not crop:
                 return self._send_json({"error": "no speaker detected"}, 404)
             return self._send_json({"crop": crop})
+
+        if path == "/api/headtrack":
+            # Sinkron seperti /api/facetrack -- lintasan head tracking,
+            # OPSIONAL per titik framing, dipicu manual dari tombol "Track
+            # head" (lihat track_head() di facebox.py buat alasannya).
+            try:
+                req = self._read_json()
+            except Exception as exc:               # noqa: BLE001
+                return self._send_json({"error": str(exc)}, 400)
+            video = _find_video(req.get("video", ""))
+            if not video:
+                return self._send_json({"error": "video not found"}, 404)
+            try:
+                start = float(req.get("start", 0))
+                end = float(req.get("end", 0))
+            except (TypeError, ValueError):
+                return self._send_json({"error": "invalid time"}, 400)
+            if end <= start:
+                return self._send_json({"error": "invalid range"}, 400)
+            rough = req.get("crop") or {}
+            try:
+                from .facebox import track_head
+                keyframes = track_head(video, start, end, rough)
+            except Exception as exc:               # noqa: BLE001
+                return self._send_json({"error": str(exc)}, 500)
+            if not keyframes:
+                return self._send_json({"error": "not enough tracking data"}, 404)
+            return self._send_json({"keyframes": keyframes})
 
         if path == "/api/scenecut":
             # Sinkron seperti /api/facetrack -- diff antar-frame lewat filter

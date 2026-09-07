@@ -65,12 +65,43 @@ function framingPada(detik) {
   return hasil;
 }
 
+/* Posisi X hasil interpolasi LINEAR sepanjang lintasan head tracking pada
+   detik `t` (relatif ke awal titik, sama seperti satuan `keyframes[].t`).
+   Di luar rentang keyframe pertama/terakhir -> dijepit ke ujungnya
+   (bukan diekstrapolasi), sama seperti track_head() di facebox.py
+   menahan posisi di luar sampel yang benar-benar terukur. */
+function interpolasiLintasan(keyframes, t) {
+  if (!keyframes?.length) return null;
+  if (t <= keyframes[0].t) return keyframes[0].left;
+  const akhir = keyframes[keyframes.length - 1];
+  if (t >= akhir.t) return akhir.left;
+  for (let i = 1; i < keyframes.length; i++) {
+    if (t <= keyframes[i].t) {
+      const a = keyframes[i - 1], b = keyframes[i];
+      const frac = (t - a.t) / (b.t - a.t || 1);
+      return a.left + (b.left - a.left) * frac;
+    }
+  }
+  return akhir.left;
+}
+
 /* Bentuk bingkai yang berlaku pada detik itu, selalu lengkap: format dan
-   daftar kotaknya. Pemanggil tidak perlu tahu FRAMING kosong atau tidak. */
+   daftar kotaknya. Pemanggil tidak perlu tahu FRAMING kosong atau tidak.
+
+   Kalau titik yang berlaku punya `tracking` (head tracking, OPSIONAL --
+   lihat tombol "Track head"), X kotak PERTAMA ditimpa hasil interpolasi
+   lintasan -- bukan diam di posisi kotak dasarnya. Cuma format Single
+   yang didukung (v1); Y/lebar/tinggi tetap ikut kotak dasar seperti
+   biasa, sama seperti aturan "melacak X saja" yang sudah ada di
+   facebox.py. */
 function bingkaiPada(detik) {
   const f = framingPada(detik);
   const format = f ? f.format : "single";
-  const crops = f ? f.crops : [CROP_AWAL];
+  let crops = f ? f.crops : [CROP_AWAL];
+  if (f?.tracking?.keyframes?.length >= 2 && format === "single") {
+    const left = interpolasiLintasan(f.tracking.keyframes, detik - f.at);
+    if (left !== null) crops = [{ ...crops[0], left }];
+  }
   // Rasio disamakan DI SINI, bukan cuma saat menggambar. Versi sebelumnya
   // membetulkan kotak di kanvas tapi mengirim angka bawaan yang mentah ke
   // ffmpeg -- preview terlihat benar sementara berkas hasilnya melar.
@@ -114,11 +145,25 @@ function spansWithFraming(ranges) {
       const potongan = { start: batas[i], end: batas[i + 1] };
       if (b.format === "split" && b.crops.length >= 2) potongan.crops = b.crops;
       else potongan.crop = b.crops[0];
+      // keyframes tersimpan relatif ke AWAL TITIK (f.at), tapi render.py
+      // butuhnya relatif ke awal POTONGAN ini (batas[i]) -- dua-duanya
+      // beda kalau titiknya dikunci sebelum awal rentang Result ini
+      // sendiri. Digeser + dijepit di sini, sama seperti _geser_tracking()
+      // di server.py buat pratinjau cepat yang dipotong dari depan.
+      const titik = framingPada(batas[i]);
+      if (b.format === "single" && titik?.tracking?.keyframes?.length >= 2) {
+        const geser = titik.tracking.keyframes
+          .map((kf) => ({ t: round3(kf.t - (batas[i] - titik.at)), left: kf.left }))
+          .filter((kf) => kf.t >= 0);
+        if (geser.length >= 2) potongan.tracking = geser;
+      }
       keluar.push(potongan);
     }
   }
   return keluar;
 }
+
+const round3 = (n) => Math.round(n * 1000) / 1000;
 
 /* ---------- menggambar ---------- */
 
@@ -324,6 +369,7 @@ function renderFraming() {
            data-framing="${f.id}" title="${tip}">
         ${thumbUrl ? `<img class="fr-thumb" src="${thumbUrl}" alt="" loading="lazy">`
                     : `<span class="fr-thumb fr-thumb-kosong"></span>`}
+        ${f.tracking ? `<span class="fr-track-badge" title="Head tracking on">●</span>` : ""}
         <span class="fr-time">${out !== null ? jamRange(out) : "—"}</span>
         <span class="fr-time-src">src ${jamRange(f.at)}</span>
         ${i > 0 ? `<i class="buang" data-buang-framing="${f.id}" role="button"
@@ -336,6 +382,7 @@ function renderFraming() {
   gambarKotak(bingkai.format, bingkai.crops);
   syncCanvasVideo();
   if (typeof attachVideoGeometry === "function") attachVideoGeometry();
+  perbaruiTombolTrackHead();
 }
 
 /* Menaruh kotak di kanvas sesuai format. Kotak kedua hanya berarti saat
@@ -440,6 +487,11 @@ $("#kunciFraming")?.addEventListener("click", () => {
   const sama = FRAMING.find((f) => Math.abs(f.at - t) < 0.35);
   let pesan;
   if (sama) {
+    // Kotak dasar diganti manual -- lintasan tracking LAMA (kalau ada)
+    // relatif ke posisi kotak yang sekarang sudah tidak berlaku, jadi
+    // dibuang di sini, bukan dibiarkan nyangkut memakai posisi basi.
+    // "Track head" perlu ditekan ulang kalau titik ini masih mau di-track.
+    delete sama.tracking;
     sama.format = formatKanvas;
     sama.crops = crops;
     pesan = `point ${jamRange(sama.at)} updated`;
@@ -452,6 +504,95 @@ $("#kunciFraming")?.addEventListener("click", () => {
   if (typeof simpanProject === "function") simpanProject();
   $("#reframeNote").textContent =
     `${pesan} · ${formatKanvas === "split" ? "Split" : "Single"}`;
+});
+
+/* ---------- head tracking (opsional per titik) ----------
+   ian: kotak bergerak mengikuti kepala DI DALAM satu titik framing --
+   BUKAN pan berkelanjutan lintas video (klipian tetap potong keras ANTAR
+   titik, tidak berubah). Opsional per titik, default MATI -- diaktifkan
+   manual lewat tombol ini cuma pada titik yang memang perlu (ian: "tidak
+   semua titik perlu"). Cuma format Single yang didukung (v1) -- lihat
+   catatan di bingkaiPada()/track_head() (facebox.py) untuk alasannya. */
+
+/* Rentang [titik.at, akhir) yang dianalisis -- sampai titik BERIKUTNYA
+   kalau ada, atau sampai akhir potongan Result yang memuat titik ini
+   kalau ini titik terakhir (bukan sampai akhir video sumber utuh --
+   itu bisa jauh lebih panjang dari yang benar-benar dipakai). */
+function batasTracking(titik) {
+  const idx = FRAMING.indexOf(titik);
+  const berikutnya = FRAMING[idx + 1];
+  if (berikutnya) return berikutnya.at;
+  const span = (typeof activeClip !== "undefined" && activeClip?.spans || [])
+    .find((s) => titik.at >= s.start - 0.05 && titik.at < s.end);
+  return span ? span.end : titik.at;
+}
+
+async function trackHeadUntukTitik(titik) {
+  if (titik.tracking) {
+    // Toggle mati -- kembali ke kotak statis, tidak menghapus kotak
+    // dasarnya. Reversibel, sesuai permintaan ian.
+    delete titik.tracking;
+    renderFraming();
+    if (typeof simpanProject === "function") simpanProject();
+    $("#reframeNote").textContent = `head tracking off for point ${jamRange(titik.at)}`;
+    return;
+  }
+  const akhir = batasTracking(titik);
+  if (akhir - titik.at < 0.5) {
+    $("#reframeNote").textContent =
+      "head tracking needs a longer gap to the next point (or clip end).";
+    return;
+  }
+  const btn = $("#trackHeadBtn");
+  if (btn) { btn.disabled = true; btn.textContent = "Tracking…"; }
+  $("#reframeNote").textContent = "head tracking: analyzing head movement …";
+  try {
+    const r = await fetch("/api/headtrack", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        video: chosenSource?.name, start: titik.at, end: akhir, crop: titik.crops[0],
+      }),
+    });
+    const d = await r.json();
+    if (!d.keyframes) {
+      $("#reframeNote").textContent =
+        `head tracking: ${d.error || "not enough tracking data"} — point stays static.`;
+      return;
+    }
+    titik.tracking = { keyframes: d.keyframes };
+    renderFraming();
+    if (typeof simpanProject === "function") simpanProject();
+    $("#reframeNote").textContent = `head tracking on for point ${jamRange(titik.at)}`;
+  } catch {
+    $("#reframeNote").textContent = "head tracking failed — point stays static.";
+  } finally {
+    if (btn) { btn.disabled = false; }
+    perbaruiTombolTrackHead();
+  }
+}
+
+/* Label/keadaan tombol ikut titik yang SEDANG BERLAKU di posisi preview
+   (framingPada(waktuTinjau()), sama seperti renderFraming() menentukan
+   titik aktif untuk kanvas) -- dipanggil dari renderFraming() supaya
+   selalu sinkron tanpa perlu dipanggil manual di banyak tempat. */
+function perbaruiTombolTrackHead() {
+  const btn = $("#trackHeadBtn");
+  if (!btn || btn.disabled) return;
+  const titik = framingPada(waktuTinjau());
+  const bisa = titik && titik.format === "single";
+  btn.hidden = !bisa;
+  if (!bisa) return;
+  const aktif = !!titik.tracking;
+  btn.textContent = aktif ? "Tracking on" : "Track head";
+  btn.setAttribute("aria-pressed", String(aktif));
+  btn.title = aktif
+    ? "Turn off head tracking for this point"
+    : "Track head movement for this point only (optional, off by default)";
+}
+
+$("#trackHeadBtn")?.addEventListener("click", () => {
+  const titik = framingPada(waktuTinjau());
+  if (titik) trackHeadUntukTitik(titik);
 });
 
 $("#framingList")?.addEventListener("click", (e) => {

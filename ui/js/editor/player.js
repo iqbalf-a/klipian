@@ -242,6 +242,13 @@ video.addEventListener("timeupdate", () => {
       framingTerakhir = f;
       if (typeof renderFraming === "function") renderFraming();
       if (typeof ikutiTitikAktif === "function") ikutiTitikAktif(f);
+    } else if (f?.tracking?.keyframes?.length >= 2
+               && typeof attachVideoGeometry === "function") {
+      // Titik ini di-track: kotaknya bergerak TIAP tick selama titik ini
+      // masih berlaku, bukan cuma sekali saat titik berganti (jalur di
+      // atas). Titik tanpa tracking tetap pakai jalur lama -- statis
+      // sampai titik berikutnya, tanpa kerja tambahan tiap tick.
+      attachVideoGeometry();
     }
   }
 });

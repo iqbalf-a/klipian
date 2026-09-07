@@ -1024,6 +1024,18 @@ h1, h2, h3 {
 }
 .preset-bar .eyebrow { margin-right: var(--s2); }
 .preset-bar .btn { margin-left: auto; }
+.preset-bar .btn + .btn { margin-left: var(--s2); }
+#trackHeadBtn[aria-pressed="true"] {
+  background: var(--aksen); color: var(--aksen-teks); border-color: var(--aksen);
+}
+
+.fr-track-badge {
+  position: absolute; top: 4px; left: 4px;
+  width: 8px; height: 8px;
+  line-height: 8px; font-size: 8px;
+  color: var(--aksen);
+  text-shadow: 0 0 3px var(--bg-2), 0 0 3px var(--bg-2);
+}
 
 /* ═══════════════════════════════════════════════ daftar */
 

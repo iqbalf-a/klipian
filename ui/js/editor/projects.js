@@ -150,6 +150,12 @@ function snapshotActiveResult() {
   }));
   slot.framing = (typeof FRAMING !== "undefined" ? FRAMING : []).map((f) => ({
     id: f.id, at: f.at, format: f.format, crops: f.crops,
+    // tracking OPSIONAL (head tracking) -- daftar {t,left} kalau titik ini
+    // sedang di-track, kalau tidak field-nya sengaja TIDAK ditulis sama
+    // sekali (bukan `tracking: undefined`) supaya berkas project lama
+    // (dari sebelum fitur ini ada) tetap identik strukturnya kalau
+    // dibuka lalu disimpan ulang tanpa titik manapun di-track.
+    ...(f.tracking ? { tracking: f.tracking } : {}),
   }));
   slot.corrections = (typeof KOREKSI !== "undefined" ? { ...KOREKSI } : {});
 }

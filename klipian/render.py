@@ -34,6 +34,18 @@ from .models import Transcript, Word
 FONTS_DIR = Path(__file__).resolve().parent.parent / "assets" / "fonts"
 
 
+def _escape_filter_path(p: str) -> str:
+    """Karakter yang punya makna syntaktis di FFmpeg filter graph harus
+    di-escape: backslash, colon (Windows drive), single quote (string
+    delimiter), brackets (label), semicolons (separator), equals (option).
+    Dipakai untuk path berkas eksternal apa pun yang disisipkan ke dalam
+    string filter_complex -- ASS (build_filter) maupun sendcmd
+    (_concat_filter, head tracking)."""
+    p = p.replace("\\", "/").replace(":", r"\:")
+    p = p.replace("'", r"\'").replace("[", r"\[").replace("]", r"\]")
+    return p.replace(";", r"\;").replace("=", r"\=")
+
+
 @dataclass
 class Span:
     """Satu potongan. `crop` opsional: kalau diisi, potongan ini dibingkai
@@ -43,11 +55,20 @@ class Span:
     `crops` berisi DUA kotak untuk bingkai split: kotak pertama jadi bagian
     atas, kotak kedua bagian bawah, ditumpuk jadi satu frame 9:16. Dipakai
     saat dua orang di podcast duduk berjauhan dan dua-duanya mau kelihatan.
-    Kalau `crops` terisi, `crop` diabaikan."""
+    Kalau `crops` terisi, `crop` diabaikan.
+
+    `tracking` OPSIONAL: daftar {t, left} (t detik relatif ke AWAL potongan
+    ini sendiri, left persen) -- kalau terisi, X kotak `crop` bergerak
+    mengikuti lintasan ini sepanjang potongan (lihat sendcmd di
+    _concat_filter), bukan diam di satu posisi. Y/lebar/tinggi tetap ikut
+    `crop` seperti biasa. None/kosong = potongan ini statis seperti
+    sebelum fitur head tracking ada -- default, bukan hasil deteksi
+    otomatis; diaktifkan manual per titik framing di UI."""
     start: float
     end: float
     crop: "CropBox | None" = None
     crops: "list[CropBox] | None" = None
+    tracking: "list[dict] | None" = None
 
     @property
     def length(self) -> float:
@@ -287,7 +308,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 # --------------------------------------------------------------------------
 
 def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
-                   crop_dulu: bool) -> str:
+                   crop_dulu: bool, dest: "Path | None" = None) -> str:
     """Potong tiap bagian lalu sambung. setpts/asetpts wajib -- tanpa itu
     potongan kedua mewarisi timestamp aslinya dan hasilnya melompat.
 
@@ -298,11 +319,20 @@ def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
     Potongan yang punya `crops` dibingkai split: dipotong dua kali dari frame
     yang sama lalu ditumpuk atas-bawah. Jadi satu klip bisa berganti-ganti
     antara satu bingkai dan dua bingkai di titik mana pun.
+
+    Potongan yang punya `tracking` (head tracking, opsional per titik
+    framing) X-nya BERGERAK mengikuti lintasan lewat filter `sendcmd` --
+    lihat blok di bawah untuk alasan kenapa tiap potongan yang di-track
+    butuh BERKAS PERINTAH SENDIRI (tidak satu berkas dibagi bersama).
+    `dest` wajib diisi kalau ADA span yang di-track (dipakai membentuk nama
+    berkas perintahnya, di folder yang sama dengan tujuan render -- pola
+    yang sama seperti `ass_path` di render()); tidak dipakai sama sekali
+    kalau tidak ada span yang di-track.
     """
     even = lambda v: max(2, int(v) // 2 * 2)
     W, H = job.out_width, job.out_height
 
-    def kotak(c: "CropBox") -> str:
+    def kotak_piksel(c: "CropBox") -> tuple[int, int, int, int]:
         # Ukuran & offset dijepit ke dalam frame sumber: kalau left+width>100
         # (mis. titik framing diseret ke tepi kanan) ffmpeg abort dengan
         # "Invalid too big or non positive size". Jepit lebar dulu, lalu offset
@@ -311,6 +341,10 @@ def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
         ch = even(min(src_height, src_height * c.height / 100))
         cx = even(max(0, min(src_width - cw, src_width * c.left / 100)))
         cy = even(max(0, min(src_height - ch, src_height * c.top / 100)))
+        return cw, ch, cx, cy
+
+    def kotak(c: "CropBox") -> str:
+        cw, ch, cx, cy = kotak_piksel(c)
         return f"crop={cw}:{ch}:{cx}:{cy}"
 
     parts = []
@@ -319,7 +353,10 @@ def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
         if crop_dulu and span.crops and len(span.crops) >= 2:
             # Bingkai split: SATU potongan yang sama dipotong dua kali lalu
             # ditumpuk. split=2 wajib -- satu keluaran filter tidak boleh
-            # dipakai dua kali sebagai masukan.
+            # dipakai dua kali sebagai masukan. Head tracking TIDAK didukung
+            # di format split (v1) -- span.tracking diabaikan di sini kalau
+            # sampai ada, sama seperti klien memang tidak pernah mengirimnya
+            # untuk titik format Split.
             atas, bawah = span.crops[0], span.crops[1]
             h2 = even(H / 2)
             parts.append(f"{v},split=2[s{i}a][s{i}b]")
@@ -332,7 +369,53 @@ def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
             continue
         if crop_dulu:
             c = span.crop or job.crop
-            v += f",{kotak(c)},scale={W}:{H},setsar=1"
+            if span.tracking and len(span.tracking) >= 2:
+                # X kotak ini BERGERAK mengikuti lintasan (head tracking),
+                # bukan diam -- Y/lebar/tinggi tetap statis dari `c` seperti
+                # biasa (cuma sumbu X yang dilacak, konsisten dengan
+                # facebox.py). Kotak dikasih id UNIK (@trk{i}) dan
+                # dikomando lewat sendcmd dari berkas perintah KHUSUS
+                # potongan ini sendiri.
+                #
+                # KENAPA SATU BERKAS PER POTONGAN, bukan satu berkas dibagi
+                # semua potongan yang di-track: `t` di dalam sendcmd itu
+                # relatif ke waktu LOKAL potongan yang MEMBACA berkas itu
+                # (0 di awal potongan, karena setpts di atas mereset tiap
+                # potongan ke 0 sendiri-sendiri). Kalau satu berkas berisi
+                # baris untuk BEBERAPA potongan sekaligus, sendcmd milik
+                # potongan A akan ikut mencoba menjalankan baris milik
+                # potongan B setiap kali waktu lokal A kebetulan sama
+                # angkanya dengan waktu lokal B -- pergantian kotak yang
+                # SALAH, di potongan yang SALAH. Berkas terpisah per
+                # potongan menutup celah itu sepenuhnya: sendcmd potongan
+                # ini cuma pernah membaca baris milik potongan ini sendiri.
+                if dest is None:
+                    raise RuntimeError(
+                        "internal: _concat_filter butuh `dest` untuk span "
+                        "yang di-track (head tracking).")
+                cw, ch, _, cy = kotak_piksel(c)
+
+                def cx_dari_persen(persen: float, _cw=cw) -> int:
+                    return even(max(0, min(src_width - _cw, src_width * persen / 100)))
+
+                tag = f"trk{i}"
+                cmd_path = dest.parent / f"{dest.stem}.track{i}.cmd"
+                # Target di baris perintah HARUS bentuk penuh "crop@id", bukan
+                # id polos -- dipastikan lewat uji coba langsung: id polos
+                # cuma "kebetulan" jalan kalau id-nya sama dengan nama filter
+                # ("crop"), dan gagal DIAM-DIAM (tanpa error apa pun, cuma
+                # tidak pernah bergerak) untuk id kustom apa pun selain itu.
+                baris = [
+                    f"{kf['t']:.3f} crop@{tag} x {cx_dari_persen(kf['left'])};"
+                    for kf in span.tracking
+                ]
+                cmd_path.write_text("\n".join(baris) + "\n", encoding="utf-8")
+                x0 = cx_dari_persen(span.tracking[0]["left"])
+                cmd_esc = _escape_filter_path(str(cmd_path))
+                v += (f",crop@{tag}={cw}:{ch}:{x0}:{cy},scale={W}:{H},setsar=1,"
+                     f"sendcmd=f='{cmd_esc}'")
+            else:
+                v += f",{kotak(c)},scale={W}:{H},setsar=1"
         parts.append(f"{v}[v{i}]")
         parts.append(f"[0:a]atrim=start={span.start:.3f}:end={span.end:.3f},"
                      f"asetpts=PTS-STARTPTS[a{i}]")
@@ -343,12 +426,14 @@ def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
 
 
 def build_filter(job: RenderJob, src_width: int, src_height: int,
-                 ass_path: Path | None) -> str:
+                 ass_path: Path | None, dest: Path | None = None) -> str:
     # Layout blur memakai seluruh frame, jadi crop-nya tidak berarti apa-apa;
     # potongannya disambung dulu baru dikaburkan. Layout wajah sebaliknya:
     # tiap potongan dibingkai sendiri supaya framing bisa berpindah.
     crop_dulu = job.layout != "blur"
-    trim_chain = _concat_filter(job, src_width, src_height, crop_dulu)
+    # `dest` cuma dipakai _concat_filter() kalau ADA span yang di-track
+    # (head tracking) -- lihat alasan berkas-terpisah-per-potongan di sana.
+    trim_chain = _concat_filter(job, src_width, src_height, crop_dulu, dest)
 
     even = lambda v: max(2, int(v) // 2 * 2)
     W, H = job.out_width, job.out_height
@@ -367,20 +452,12 @@ def build_filter(job: RenderJob, src_width: int, src_height: int,
         video_chain = "[vc]null[vv]"
 
     if ass_path:
-        # Karakter yang punya makna syntaktis di FFmpeg filter graph harus
-        # di-escape: backslash, colon (Windows drive), single quote (string
-        # delimiter), brackets (label), semicolons (separator), equals (option).
-        def _escape(p: str) -> str:
-            p = p.replace("\\", "/").replace(":", r"\:")
-            p = p.replace("'", r"\'").replace("[", r"\[").replace("]", r"\]")
-            return p.replace(";", r"\;").replace("=", r"\=")
-
-        path = _escape(str(ass_path))
+        path = _escape_filter_path(str(ass_path))
         # fontsdir menunjuk libass ke assets/fonts/ -- tanpa ini "Mona Sans
         # ExtraBold" (dipakai style Watermark di build_ass) tidak ketemu
         # kecuali kebetulan sudah terpasang sebagai font sistem, dan libass
         # diam-diam jatuh ke font pengganti yang tidak mirip logo sama sekali.
-        fontsdir = _escape(str(FONTS_DIR))
+        fontsdir = _escape_filter_path(str(FONTS_DIR))
         video_chain += f";[vv]ass='{path}':fontsdir='{fontsdir}'[vout]"
     else:
         video_chain += ";[vv]null[vout]"
@@ -438,7 +515,7 @@ def render(source: Path, job: RenderJob, dest: Path,
         ass_path.write_text(build_ass(job, words, style), encoding="utf-8")
 
     try:
-        filt = build_filter(job, src_width, src_height, ass_path)
+        filt = build_filter(job, src_width, src_height, ass_path, dest)
 
         def susun(encoder: str) -> list[str]:
             return [
@@ -480,6 +557,12 @@ def render(source: Path, job: RenderJob, dest: Path,
         # Bersihkan ASS file yang tertinggal kalau render gagal
         if ass_path and ass_path.exists():
             ass_path.unlink(missing_ok=True)
+        # Berkas perintah sendcmd (head tracking) -- satu per potongan yang
+        # di-track, ditulis langsung oleh _concat_filter(). Namanya tidak
+        # diketahui di sini (dibentuk di dalam fungsi itu), jadi dicari lewat
+        # pola nama alih-alih daftar path eksplisit.
+        for cmd_path in dest.parent.glob(f"{dest.stem}.track*.cmd"):
+            cmd_path.unlink(missing_ok=True)
 
 
 def _jalankan_ffmpeg(cmd: list[str], cancel_check, dest: Path) -> tuple[int, str]:

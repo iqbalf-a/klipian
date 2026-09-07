@@ -461,6 +461,103 @@ def track_crops(video: Path, start: float, end: float, rough: dict,
     return [{"at": start, "crop": crop}]
 
 
+# ══════════════════════════════ head tracking ══════════════════════════════
+# track_crops (di atas) meringkas seluruh [start, end) jadi SATU titik
+# median -- cocok untuk AI Framing (satu kotak per giliran, potong keras).
+# track_head() beda tujuannya: bukan meringkas, tapi MEMPERTAHANKAN gerakan
+# sebagai LINTASAN -- dipakai fitur head tracking yang OPSIONAL per titik
+# framing (ian: "berlaku di 1 titik framing saja, tidak keseluruhan, dan
+# opsional -- tidak semua titik perlu"). Kotak yang bergerak mengikuti
+# kepala DI DALAM satu titik, potong keras tetap terjadi ANTAR titik --
+# klipian tidak berubah jadi pan berkelanjutan lintas video.
+
+def track_head(video: Path, start: float, end: float, rough: dict,
+               fps: int = 3, smooth_window: int = 5) -> list[dict] | None:
+    """Lintasan posisi wajah aktif sepanjang [start, end) -> daftar
+    {t, left} terurut waktu (t detik RELATIF ke `start`, left persen posisi
+    kotak) -- bukan satu titik median seperti track_crops(), karena di sini
+    gerakannya justru yang mau dipertahankan.
+
+    Sampel yang wajahnya tidak ketemu di-skip (bukan diisi placeholder) --
+    pemanggil (interpolasi di preview JS, sendcmd di render.py) menyambung
+    linear antar keyframe yang valid, jadi kekosongan pendek otomatis
+    "diseberangi" dengan mulus, bukan macet.
+
+    Deret cx mentah di-smooth pakai rata-rata bergerak simetris sebelum
+    dikembalikan -- deteksi wajah per-frame selalu berjitter dikit, tanpa
+    ini kotaknya bergetar alih-alih bergerak mulus.
+
+    None kalau sampel valid < 2 (tidak cukup untuk lintasan) -- pemanggil
+    membiarkan titik itu tetap statis, sama seperti sebelum tracking
+    dicoba."""
+    import cv2
+
+    from .ffmpeg_tools import _require, probe, run
+
+    info = probe(video)
+    W, H = info.width, info.height
+    dur = max(0.0, end - start)
+    if not W or not H or dur <= 0:
+        return None
+
+    # Region sama longgarnya dengan track_crops (pad=0.6) -- alasan sama:
+    # kepala boleh bergerak cukup jauh dari kotak kasar awal.
+    sx, sy, ex, ey, rw, rh = _region_rect(rough, W, H, pad=0.6)
+    if ex <= sx or ey <= sy:
+        return None
+
+    with tempfile.TemporaryDirectory(prefix="klipian-headtrack-") as tmp:
+        run([
+            _require("ffmpeg"), "-y", "-loglevel", "error",
+            "-ss", f"{start:.3f}", "-i", str(video),
+            "-t", f"{dur:.3f}", "-vf", f"fps={fps}",
+            str(Path(tmp) / "h_%04d.jpg"),
+        ], desc="melacak gerak kepala")
+
+        files = sorted(Path(tmp).glob("h_*.jpg"))
+        if not files:
+            return None
+
+        # (t relatif ke start, cx piksel FRAME) per sampel yang wajahnya
+        # ketemu. prev_gray direset ke None kalau satu frame gagal dibaca,
+        # supaya gerak-mulut tidak dihitung lintas jeda yang tidak mulus.
+        samples: list[tuple[float, float]] = []
+        prev_gray = None
+        locked_cx = rw / 2
+        for i, p in enumerate(files):
+            img = cv2.imread(str(p))
+            if img is None:
+                prev_gray = None
+                continue
+            region = img[sy:ey, sx:ex]
+            gray = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
+            faces = _detect_faces(gray, rw)
+            grays = [prev_gray, gray] if prev_gray is not None else [gray]
+            chosen = _pick_active_face(faces, grays, len(grays) - 1, locked_cx)
+            if chosen is not None:
+                locked_cx = chosen["cx"]
+                fx, fy, fw, fh = chosen["bbox"]
+                samples.append((i / fps, fx + sx + fw / 2))
+            prev_gray = gray
+
+    if len(samples) < 2:
+        return None
+
+    # Rata-rata bergerak simetris, jendela kecil (dijepit di tepi deret) --
+    # meredam getar deteksi tanpa menunda gerakan sungguhan terlalu jauh.
+    half = smooth_window // 2
+    keyframes = []
+    for i in range(len(samples)):
+        lo, hi = max(0, i - half), min(len(samples), i + half + 1)
+        avg_cx = sum(c for _, c in samples[lo:hi]) / (hi - lo)
+        left = max(0, min(W - rw, avg_cx - rw / 2))
+        keyframes.append({
+            "t": round(samples[i][0], 3),
+            "left": round(float(left) / W * 100, 2),
+        })
+    return keyframes
+
+
 # ══════════════════════════════ pencarian buta ══════════════════════════════
 # fit_crop_to_face dan track_crops BUTUH kotak kasar (rough) -- petunjuk
 # posisi AWAL untuk membatasi area pencarian, itulah tepatnya yang dulu
