@@ -334,7 +334,11 @@ async function muatFps(nama) {
   } catch { /* biarkan 30 */ }
 }
 
-function stepFrame(arah) {
+/* Inti langkah maju/mundur, dipakai stepFrame() (satuan frame) maupun
+   stepSeconds() (satuan detik) -- keduanya cuma beda cara menghitung
+   `langkah` dalam waktu KELUARAN, sisanya (jeda dulu kalau sedang
+   berjalan, jepit ke batas klip, gambar ulang) identik. */
+function langkahPreview(langkah) {
   if (!video.src || !activeClip) return;
   if (isPlaying) {                    // melangkah sambil berjalan itu aneh
     video.pause();
@@ -344,7 +348,6 @@ function stepFrame(arah) {
   const total = clipOutDur(activeClip);
   const kini = sourceToOut(activeClip, video.currentTime);
   const dari = kini === null ? 0 : kini;
-  const langkah = arah / sourceFps;          // arah = jumlah frame, boleh minus
   const tujuan = Math.max(0, Math.min(total - 1 / sourceFps / 2, dari + langkah));
   video.currentTime = outToSource(activeClip, tujuan);
   drawTime(tujuan);
@@ -352,6 +355,52 @@ function stepFrame(arah) {
   drawCaption();
   if (typeof syncCanvasVideo === "function") syncCanvasVideo();
 }
+
+function stepFrame(arah) { langkahPreview(arah / sourceFps); }   // arah = jumlah frame, boleh minus
+function stepSeconds(detik) { langkahPreview(detik); }            // detik boleh minus
+
+/* Satuan tombol langkah (frame/detik) -- ian: perlu detik juga, bukan
+   cuma frame ("frame" berguna untuk presisi di ujung klip, "detik" untuk
+   loncat lebih jauh tanpa menghitung berapa frame). Satu deret tombol
+   dipakai untuk KEDUANYA (label + fungsinya berganti lewat toggle ini),
+   bukan menggandakan jadi 12 tombol -- panel preview 9:16 sudah sempit. */
+let stepUnit = "frame";
+const LANGKAH_LABEL = { frame: ["5f", "2f", "1f"], seconds: ["5s", "2s", "1s"] };
+const LANGKAH_JUDUL = {
+  frame: ["5 frames", "2 frames", "1 frame"],
+  seconds: ["5 seconds", "2 seconds", "1 second"],
+};
+
+function perbaruiLabelLangkah() {
+  const label = LANGKAH_LABEL[stepUnit];
+  const judul = LANGKAH_JUDUL[stepUnit];
+  const arah = [5, 2, 1];
+  arah.forEach((n, i) => {
+    const mundur = $(`#prevFrame${n === 1 ? "Btn" : n}`);
+    const maju = $(`#nextFrame${n === 1 ? "Btn" : n}`);
+    if (mundur) {
+      mundur.querySelector("b").textContent = label[i];
+      mundur.title = `Back ${judul[i]}`;
+      mundur.setAttribute("aria-label", `Back ${judul[i]}`);
+    }
+    if (maju) {
+      maju.querySelector("b").textContent = label[i];
+      maju.title = `Forward ${judul[i]}`;
+      maju.setAttribute("aria-label", `Forward ${judul[i]}`);
+    }
+  });
+}
+
+$("#stepUnitBtn")?.addEventListener("click", () => {
+  stepUnit = stepUnit === "frame" ? "seconds" : "frame";
+  const btn = $("#stepUnitBtn");
+  if (btn) {
+    btn.textContent = stepUnit === "frame" ? "frame" : "sec";
+    btn.setAttribute("aria-pressed", String(stepUnit === "seconds"));
+    btn.setAttribute("aria-label", `Step unit: ${stepUnit === "frame" ? "frames" : "seconds"}`);
+  }
+  perbaruiLabelLangkah();
+});
 
 /* Kanvas framing disamakan pada peristiwa seek dan putar/jeda -- bukan hanya
    pada timeupdate. Menggeser posisi saat video dijeda tidak selalu memicu
@@ -367,19 +416,22 @@ const muteBtn = $("#muteBtn");
 
 [["#prevFrame5", -5], ["#prevFrame2", -2], ["#prevFrameBtn", -1],
  ["#nextFrameBtn", 1], ["#nextFrame2", 2], ["#nextFrame5", 5]]
-  .forEach(([sel, n]) => $(sel)?.addEventListener("click", () => stepFrame(n)));
+  .forEach(([sel, n]) => $(sel)?.addEventListener("click",
+    () => (stepUnit === "frame" ? stepFrame(n) : stepSeconds(n))));
 
 /* Pintasan papan tik: , dan . seperti kebiasaan editor video; spasi untuk
-   putar. Diabaikan saat kamu sedang mengetik di kolom isian. */
+   putar. Diabaikan saat kamu sedang mengetik di kolom isian. Ikut satuan
+   yang sedang aktif (stepUnit) -- sama seperti tombolnya di kanvas. */
 document.addEventListener("keydown", (e) => {
   const t = e.target;
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
-  // , dan . = 1 frame; Shift menahannya jadi 5 frame (< dan > di papan tik)
-  if (e.key === ",") { e.preventDefault(); stepFrame(-1); }
-  else if (e.key === ".") { e.preventDefault(); stepFrame(1); }
-  else if (e.key === "<") { e.preventDefault(); stepFrame(-5); }
-  else if (e.key === ">") { e.preventDefault(); stepFrame(5); }
+  const langkah = (n) => (stepUnit === "frame" ? stepFrame(n) : stepSeconds(n));
+  // , dan . = 1 satuan; Shift menahannya jadi 5 satuan (< dan > di papan tik)
+  if (e.key === ",") { e.preventDefault(); langkah(-1); }
+  else if (e.key === ".") { e.preventDefault(); langkah(1); }
+  else if (e.key === "<") { e.preventDefault(); langkah(-5); }
+  else if (e.key === ">") { e.preventDefault(); langkah(5); }
   else if (e.key === " " && video.src && activeClip) { e.preventDefault(); playBtn.click(); }
 });
 
