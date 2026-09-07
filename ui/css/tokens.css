@@ -29,28 +29,28 @@
   --bg-3: oklch(0.238 0.006 258);   /* kartu di atas panel */
 
   /* ---- kaca ---- */
-  --kaca:         oklch(1 0 0 / .045);
-  --kaca-kuat:    oklch(1 0 0 / .085);
-  --garis-kaca:   oklch(1 0 0 / .09);
-  --garis-terang: oklch(1 0 0 / .17);
+  --glass:         oklch(1 0 0 / .045);
+  --glass-strong:    oklch(1 0 0 / .085);
+  --glass-border:   oklch(1 0 0 / .09);
+  --border-bright: oklch(1 0 0 / .17);
 
   /* ---- teks: tangga L, bukan tangga opacity ---- */
-  --teks:       oklch(0.955 0.006 258);
-  --teks-lemah: oklch(0.700 0.018 258);
+  --text:       oklch(0.955 0.006 258);
+  --text-muted: oklch(0.700 0.018 258);
   /* L 0.560 hanya mencapai 3.34:1 di atas permukaan kartu -- gagal WCAG AA.
      Diukur: L 0.64 baru menembus 4.5:1. Dipakai 0.65 untuk margin. */
-  --teks-samar: oklch(0.650 0.020 258);
+  --text-faint: oklch(0.650 0.020 258);
 
   /* ---- aksen ----
      Satu warna saja. Dulu ada dua yang bertukar menurut mode -- kuning untuk
      podcast, pink untuk gameplay -- dan itu ikut hilang bersama modenya. */
-  --aksen:        oklch(0.865 0.170 96);
-  --aksen-lembut: oklch(0.865 0.170 96 / .16);
-  --aksen-glow:   oklch(0.865 0.170 96 / .45);
+  --accent:        oklch(0.865 0.170 96);
+  --accent-soft: oklch(0.865 0.170 96 / .16);
+  --accent-glow:   oklch(0.865 0.170 96 / .45);
   /* teks di ATAS bidang aksen -- ikut berubah kalau aksennya diganti */
-  --aksen-teks:   oklch(0.145 0.010 258);
+  --accent-text:   oklch(0.145 0.010 258);
 
-  --bahaya: oklch(0.660 0.190 25);
+  --danger: oklch(0.660 0.190 25);
 
   /* ---- huruf ----
      Mona Sans (GitHub, open source) — grotesque industrial dengan sumbu
@@ -67,11 +67,11 @@
   --t-14: 14px;  --t-17: 17px;  --t-20: 20px;  --t-24: 24px;  --t-29: 29px;
 
   /* ---- lebar huruf sebagai alat hierarki ---- */
-  --w-tampil: 118;   /* angka besar dan judul layar */
-  --w-lebar:  112;   /* judul kartu besar */
-  --w-judul:  105;   /* judul kartu */
-  --w-baca:   100;   /* teks biasa */
-  --w-padat:   92;   /* label, eyebrow */
+  --w-display: 118;   /* angka besar dan judul layar */
+  --w-wide:  112;   /* judul kartu besar */
+  --w-title:  105;   /* judul kartu */
+  --w-read:   100;   /* teks biasa */
+  --w-tight:   92;   /* label, eyebrow */
   --w-data:    88;   /* mono */
 
   /* ---- jarak ---- */
@@ -82,26 +82,26 @@
   --r-s: 10px; --r-m: 14px;  --r-l: 20px;  --r-pill: 999px;
 
   /* ---- bayangan: gelap butuh garis cahaya di tepi atas, bukan blur saja ---- */
-  --bayang-kartu:
+  --shadow-card:
     inset 0 1px 0 oklch(1 0 0 / .06),
     0 8px 24px -10px oklch(0 0 0 / .85);
-  --bayang-angkat:
+  --shadow-raised:
     inset 0 1px 0 oklch(1 0 0 / .10),
     0 20px 46px -14px oklch(0 0 0 / .92);
-  --bayang-panel:
+  --shadow-panel:
     inset 0 1px 0 oklch(1 0 0 / .05),
     0 24px 60px -30px oklch(0 0 0 / .9);
 
   /* ---- gerak ----
      Keluar cepat, masuk melambat, sedikit melewati target. Easing linear atau
      ease default adalah salah satu penanda antarmuka yang tidak digarap. */
-  --cepat:  150ms cubic-bezier(.32, .72, 0, 1);
-  --sedang: 320ms cubic-bezier(.32, .72, 0, 1);
-  --pegas:  420ms cubic-bezier(.34, 1.3, .48, 1);
+  --fast:  150ms cubic-bezier(.32, .72, 0, 1);
+  --medium: 320ms cubic-bezier(.32, .72, 0, 1);
+  --spring:  420ms cubic-bezier(.34, 1.3, .48, 1);
 
   /* ---- ukuran tetap ---- */
   --h-topbar: 58px;
   --h-ribbon: 96px;
   --w-preview: 356px;
-  --w-sisi:    168px;
+  --w-side:    168px;
 }

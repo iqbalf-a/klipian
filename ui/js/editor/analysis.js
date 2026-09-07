@@ -89,7 +89,7 @@ async function startAnalysis() {
       $("#exportPanel").dataset.warning = "true";
       const p = document.createElement("p");
       p.className = "step-note";
-      p.style.color = "var(--bahaya)";
+      p.style.color = "var(--danger)";
       p.textContent = "Laptop sedang pakai baterai — transkripsi bisa dua kali " +
                       "lebih lambat. Colokkan charger untuk mempercepat.";
       $("#transcribeStats").after(p);

@@ -391,7 +391,7 @@ function renderPreview() {
   if (!clip) {
     info.innerHTML =
       `<div><div class="eyebrow">Result</div>
-        <div class="clip-title" style="color:var(--teks-samar)">nothing selected</div></div>`;
+        <div class="clip-title" style="color:var(--text-faint)">nothing selected</div></div>`;
     return;
   }
 

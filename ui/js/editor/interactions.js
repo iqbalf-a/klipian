@@ -301,7 +301,7 @@ function applyCaption() {
   cap.style.fontFamily = captionValue("font").out;
   // warna dipasang sebagai variabel di wadahnya supaya kata yang disorot
   // ikut berubah walau isinya digambar ulang tiap timeupdate
-  cap.style.setProperty("--sorot", captionValue("highlight").css);
+  cap.style.setProperty("--highlight", captionValue("highlight").css);
 
   if (frame) frame.dataset.watermark = captionValue("watermark").out ? "on" : "off";
 
