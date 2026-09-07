@@ -351,26 +351,39 @@ def fit_crop_to_face(video: Path, at: float, rough: dict) -> dict | None:
 
 
 # ══════════════════════════════ pelacakan ══════════════════════════════
-# fit_crop_to_face menjawab SATU titik. track_crops menjawab SATU RENTANG:
-# subjek dilacak sepanjang giliran, dan tiap kali dia bergeser cukup jauh
-# (melewati deadzone) DAN bertahan cukup lama, sebuah titik framing BARU
-# dikeluarkan -- caller menaruhnya sebagai potongan (Span) baru. Ini bukan
-# pan kontinu; ini keputusan "kapan potong keras", sejalan dengan prinsip
-# framing klipian. Logika lock/tahan diadaptasi dari smart_crop, tapi
-# keluarannya diskret (deret titik), bukan geseran per-frame.
+# fit_crop_to_face menjawab SATU titik. track_crops juga menjawab SATU
+# titik -- tapi lebih tahan-noise, karena posisinya median dari BANYAK
+# sampel di sepanjang [start, end), bukan satu frame saja.
+#
+# Sebelumnya fungsi ini juga bisa mengeluarkan titik TAMBAHAN sendiri kapan
+# pun subjek bergeser cukup jauh (deadzone) dan bertahan cukup lama
+# (min_chunk) -- niatnya mengikuti orang yang pindah tempat duduk di
+# giliran panjang. Praktiknya, orang bicara wajar bergerak (menoleh,
+# condong ke depan) TANPA video sumbernya sendiri berganti shot atau
+# pembicaranya berganti -- dan karena klipian potong KERAS (bukan pan
+# kontinu, lihat catatan style di atas), titik tambahan dari gerak biasa
+# begini kelihatan seperti kesalahan framing di preview/hasil render,
+# bukan koreksi yang membantu (laporan nyata dari ian: "targetnya masih
+# orang yang sama... harusnya diam saja").
+#
+# SATU-SATUNYA alasan sah untuk titik framing baru sekarang datang dari
+# PEMANGGIL (aiFramingTerapkan di framing.js): giliran bicara berganti,
+# atau video sumber sendiri ganti shot (klipian/scenecut.py). Titik ini
+# TIDAK lagi menebak sendiri kapan harus memecah -- cukup satu posisi yang
+# mewakili SELURUH rentang yang diberikan.
 
 
 def track_crops(video: Path, start: float, end: float, rough: dict,
-                fps: int = 3, min_chunk: float = 1.2,
-                deadzone_frac: float = 0.12) -> list[dict]:
-    """Lacak wajah aktif sepanjang [start, end) -> daftar {at, crop}.
+                fps: int = 3) -> list[dict]:
+    """Posisi wajah aktif yang mewakili SELURUH [start, end) -> satu
+    {at: start, crop}. Diambil dari MEDIAN posisi di banyak sampel
+    (bukan cuma satu frame) -- median tahan terhadap outlier sesaat
+    (kepala menoleh penuh sedetik, salah tangkap wajah sekali sampel),
+    beda dari rata-rata yang bisa tertarik jauh oleh satu sampel aneh.
 
-    Selalu ada minimal satu titik (di `start`). Titik tambahan muncul hanya
-    saat subjek bergeser > deadzone_frac*lebar-sumber dari pusat titik
-    terakhir DAN sudah bertahan >= min_chunk detik -- peredam ini yang mencegah
-    jitter bikin klip kedap-kedip. Kalau tidak ada wajah sama sekali,
-    kembalikan satu titik memakai kotak kasar apa adanya (caller jatuh ke situ,
-    persis perilaku fit_crop_to_face yang mengembalikan None)."""
+    Kalau tidak ada wajah sama sekali di sepanjang rentang, kembalikan
+    kotak kasar apa adanya (caller jatuh ke situ, persis perilaku
+    fit_crop_to_face yang mengembalikan None)."""
     import cv2
 
     from .ffmpeg_tools import _require, probe, run
@@ -403,13 +416,12 @@ def track_crops(video: Path, start: float, end: float, rough: dict,
         # Pusat-x subjek aktif per sampel (piksel FRAME), None kalau tak ada
         # wajah di frame itu. prev_gray bergulir supaya gerak mulut bisa
         # diukur tanpa menyimpan semua frame sekaligus.
-        centers: list[tuple] = []   # (t, cx_or_None, face_or_None)
+        cx_list: list[float] = []
         prev_gray = None
         locked_cx = rw / 2          # region-coord; ~ pusat kotak kasar di awal
-        for i, p in enumerate(files):
+        for p in files:
             img = cv2.imread(str(p))
             if img is None:
-                centers.append((start + i / fps, None, None))
                 continue
             region = img[sy:ey, sx:ex]
             gray = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
@@ -419,55 +431,23 @@ def track_crops(video: Path, start: float, end: float, rough: dict,
             if chosen is not None:
                 locked_cx = chosen["cx"]                       # region-coord
                 fx, fy, fw, fh = chosen["bbox"]
-                centers.append((start + i / fps, fx + sx + fw / 2, chosen))
-            else:
-                centers.append((start + i / fps, None, None))
+                cx_list.append(fx + sx + fw / 2)
             prev_gray = gray
 
-    return _segments_from_centers(centers, start, rough, W, H, rw, rh,
-                                  fps, min_chunk, deadzone_frac)
-
-
-def _segments_from_centers(centers, start, rough, W, H, rw, rh,
-                           fps, min_chunk, deadzone_frac) -> list[dict]:
-    """Deret pusat-x per sampel -> deret titik framing diskret. Titik baru
-    dikeluarkan saat pusat bergeser > deadzone dari titik terakhir DAN sudah
-    bertahan >= min_chunk detik. Sampel tanpa wajah (cx None) di-skip: posisi
-    ditahan, umur-tahan direset supaya wajah yang muncul lagi harus bertahan
-    ulang sebelum memicu potongan (meniru smart_crop yang menahan posisi saat
-    deteksi hilang)."""
-    min_hold = max(2, int(round(fps * min_chunk)))
-    deadzone = W * deadzone_frac
-
-    # Titik pertama: pusat wajah pertama yang ketemu; kalau tak ada sama
-    # sekali, kotak kasar apa adanya.
-    first = next((c for c in centers if c[1] is not None), None)
-    if first is None:
+    if not cx_list:
         return [{"at": start, "crop": dict(rough)}]
 
-    def crop_at(cx: float) -> dict:
-        # x mengikuti wajah; y/tinggi/lebar ikut kotak kasar. Melacak x saja
-        # (seperti smart_crop) menjaga sumbu vertikal stabil -- wajah duduk
-        # nyaris tidak naik-turun, dan menahannya menghindari getar tegak.
-        left = max(0, min(W - rw, cx - rw / 2))
-        return {
-            "left": round(float(left) / W * 100, 2),
-            "top": float(rough.get("top", 4)),
-            "width": round(float(rw) / W * 100, 2),
-            "height": round(float(rh) / H * 100, 2),
-        }
+    cx_list.sort()
+    median_cx = cx_list[len(cx_list) // 2]
 
-    points = [{"at": start, "crop": crop_at(first[1])}]
-    seg_cx = first[1]
-    age = 0
-    for (t, cx, _face) in centers:
-        if cx is None:
-            age = 0
-            continue
-        if abs(cx - seg_cx) > deadzone and age >= min_hold:
-            points.append({"at": round(t, 3), "crop": crop_at(cx)})
-            seg_cx = cx
-            age = 0
-        else:
-            age += 1
-    return points
+    # x mengikuti wajah; y/tinggi/lebar ikut kotak kasar. Melacak x saja
+    # (seperti smart_crop) menjaga sumbu vertikal stabil -- wajah duduk
+    # nyaris tidak naik-turun, dan menahannya menghindari getar tegak.
+    left = max(0, min(W - rw, median_cx - rw / 2))
+    crop = {
+        "left": round(float(left) / W * 100, 2),
+        "top": float(rough.get("top", 4)),
+        "width": round(float(rw) / W * 100, 2),
+        "height": round(float(rh) / H * 100, 2),
+    }
+    return [{"at": start, "crop": crop}]

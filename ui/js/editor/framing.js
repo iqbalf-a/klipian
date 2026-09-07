@@ -750,15 +750,16 @@ $("#aiFramingTanya")?.addEventListener("click", (e) => {
    (ditandai manual sekali di titik Split acuan) -- meleset dikit dari
    wajah sungguhan itu wajar. Tanpa perbaikan, titik yang dihasilkan AI
    Framing cuma menyalin mentah-mentah koordinat kasar itu ke SELURUH
-   giliran, dan kalau orangnya bergeser di kursi atau geseran awalnya
-   kurang pas, hasilnya bisa menyorot kursi kosong -- persis keluhan yang
-   mau diperbaiki. Jadi SELURUH giliran [start, end) dilacak lewat deteksi
-   wajah sungguhan (klipian/facebox.py), bukan cuma titik awalnya -- bisa
-   mengembalikan LEBIH dari satu titik kalau subjeknya bergeser cukup jauh
-   selama giliran itu. klipian tetap potong keras (bukan pan kontinu); ini
-   cuma memastikan titik potongnya ikut gerak orangnya. Gagal/videonya
-   belum ada -> jatuh ke satu titik kotak kasar, sama seperti server-side
-   track_crops() kalau tidak ada wajah sama sekali. */
+   segmen, dan kalau geseran awalnya kurang pas, hasilnya bisa menyorot
+   kursi kosong -- persis keluhan yang mau diperbaiki. Jadi segmen
+   [start, end) yang sudah dipecah aiFramingTerapkan (per giliran bicara,
+   atau lebih kecil lagi kalau ada potongan visual di dalamnya) dilacak
+   lewat deteksi wajah sungguhan (klipian/facebox.py) untuk MENEMUKAN
+   posisi yang benar -- track_crops() sengaja mengembalikan SATU titik per
+   panggilan (posisi median dari banyak sampel), bukan memecah sendiri
+   lagi berdasar gerak wajah: alasan untuk titik BARU sudah diputuskan di
+   sini (giliran/potongan), bukan oleh gerak orang duduk yang wajar.
+   Gagal/videonya belum ada -> jatuh ke satu titik kotak kasar. */
 async function aiFramingLacakWajah(start, end, kasar) {
   try {
     const r = await fetch("/api/facetrack", {
@@ -778,30 +779,71 @@ async function aiFramingTerapkan(turns, posisi, cuts) {
   // Daftar rencana dulu, baru pelacakan wajahnya dijalankan PARALEL untuk
   // semua giliran -- kalau berurutan, klip dengan banyak giliran bicara
   // (mis. 15 titik) bisa makan belasan detik cuma menunggu satu-satu.
-  const rencana = [];
+  // Video sumber sering sudah berpindah shot SEBELUM diarization yakin
+  // giliran bicara baru resmi mulai (orang barunya kelihatan dulu sesaat
+  // sebelum benar-benar bicara) -- t.start yang datang dari audio jadi
+  // TELAT dibanding potongan videonya sendiri. Tanpa koreksi ini, hasil
+  // render kelihatan berganti frame DUA KALI: sekali dari potongan video
+  // sungguhan, sekali lagi (telat) saat framing kita baru menyusul di
+  // t.start (laporan nyata dari ian). 2 detik dipilih sebagai jendela
+  // toleransi -- cukup untuk selisih audio/visual yang wajar, tidak
+  // sampai menyerempet ke giliran SEBELUMNYA yang tidak terkait.
+  const TOLERANSI_AWAL = 2;
+
+  // Giliran yang benar-benar perlu titik (pembicara dikenal & baru
+  // dibanding giliran sebelumnya) -- dikumpulkan dulu SEBELUM logika
+  // potongan supaya "giliran sebelumnya" di bawah selalu berarti giliran
+  // yang IKUT DIPAKAI, bukan giliran mentah yang mungkin dilewati.
+  const giliranTerpilih = [];
   let pembicaraSebelumnya = null;
-  let potongDipakai = 0;
   for (const t of turns) {
     const kasar = posisi[t.speaker];
     if (!kasar) continue;                          // pembicara yang dilewati
     if (t.speaker === pembicaraSebelumnya) continue; // pembicara sama, tidak perlu titik baru
     pembicaraSebelumnya = t.speaker;
+    giliranTerpilih.push({ turn: t, kasar });
+  }
 
-    // Video sumber sendiri bisa berganti shot DI TENGAH giliran bicara ini
-    // (zoom keluar jadi close-up, potong ke reaksi orang lain) meski
-    // micnya masih orang yang sama -- diarization tidak melihat itu sama
-    // sekali. Potongan yang jatuh di dalam rentang giliran ini memecahnya
-    // jadi beberapa titik lacak, supaya tiap potongan sungguhan dapat
-    // titik framing sendiri, bukan cuma titik di awal giliran yang lama-
-    // lama meleset begitu shot-nya berganti.
-    const potongDalamGiliran = daftarCuts.filter((c) => c > t.start && c < t.end);
-    let awal = t.start;
-    for (const batas of [...potongDalamGiliran, t.end]) {
+  // Tahap 1 -- KLAIM: tiap giliran boleh mengambil SATU potongan di jendela
+  // toleransi sebelum t.start-nya sebagai awal sebenarnya. Diproses lebih
+  // dulu, terpisah dari tahap pemecahan giliran SEBELUMNYA di bawah --
+  // supaya potongan yang sebenarnya menandai pergantian ORANG tidak keburu
+  // "termakan" jadi pemecah di TENGAH giliran orang lama (kasar/kotak yang
+  // salah kalau sampai kejadian).
+  const potonganTerklaim = new Set();
+  const awalGiliran = giliranTerpilih.map(({ turn: t }) => {
+    const kandidat = daftarCuts.find((c) => !potonganTerklaim.has(c)
+      && c >= t.start - TOLERANSI_AWAL && c <= t.start);
+    if (kandidat !== undefined) potonganTerklaim.add(kandidat);
+    return kandidat !== undefined ? kandidat : t.start;
+  });
+
+  // Tahap 2 -- PECAH: video sumber sendiri bisa berganti shot DI TENGAH
+  // satu giliran bicara (zoom keluar jadi close-up, potong ke reaksi orang
+  // lain) meski micnya masih orang yang sama -- diarization tidak melihat
+  // itu sama sekali. Potongan yang jatuh di dalam rentang giliran ini
+  // (dan BELUM terklaim giliran berikutnya di tahap 1) memecahnya jadi
+  // beberapa titik lacak, supaya tiap potongan sungguhan dapat titik
+  // framing sendiri, bukan cuma titik di awal giliran yang lama-lama
+  // meleset begitu shot-nya berganti. Akhir giliran ini dijepit ke awal
+  // sebenarnya giliran BERIKUTNYA (kalau lebih awal dari t.end sendiri) --
+  // tanpa ini, giliran berikutnya yang "mencuri mundur" waktunya lewat
+  // klaim di Tahap 1 akan tumpang tindih dengan ekor giliran ini.
+  const rencana = [];
+  let potongDipakai = 0;
+  giliranTerpilih.forEach(({ turn: t, kasar }, i) => {
+    const awalSebenarnya = awalGiliran[i];
+    const akhirSebenarnya = (i + 1 < awalGiliran.length)
+      ? Math.min(t.end, awalGiliran[i + 1]) : t.end;
+    const potongDalamGiliran = daftarCuts.filter((c) => !potonganTerklaim.has(c)
+      && c > awalSebenarnya && c < akhirSebenarnya);
+    let awal = awalSebenarnya;
+    for (const batas of [...potongDalamGiliran, akhirSebenarnya]) {
       rencana.push({ at: awal, end: batas, kasar });
       awal = batas;
     }
-    potongDipakai += potongDalamGiliran.length;
-  }
+    potongDipakai += potongDalamGiliran.length + (awalSebenarnya !== t.start ? 1 : 0);
+  });
 
   if (!rencana.length) {
     // Bukan kegagalan -- cuma tidak ada giliran yang perlu berganti kotak
@@ -813,7 +855,7 @@ async function aiFramingTerapkan(turns, posisi, cuts) {
   }
 
   aiFramingStatus(
-    `AI Framing: tracking ${rencana.length} turn${rencana.length === 1 ? "" : "s"} onto each face …`);
+    `AI Framing: tracking ${rencana.length} segment${rencana.length === 1 ? "" : "s"} onto each face …`);
   const hasilPerGiliran = await Promise.all(
     rencana.map((r) => aiFramingLacakWajah(r.at, r.end, r.kasar)));
 
