@@ -676,7 +676,7 @@ async function aiFramingMulai() {
   const spans = activeClip.spans;
 
   const btn = $("#aiFramingBtn");
-  if (btn) { btn.disabled = true; btn.textContent = "Analyzing …"; }
+  if (btn) { btn.disabled = true; btn.textContent = "✨ Analyzing …"; }
   aiFramingOverlayMulai();
 
   // Berurutan, BUKAN paralel: semua span berbagi satu model diarization
@@ -720,7 +720,7 @@ async function aiFramingMulai() {
 
 function aiFramingGagal(pesan) {
   const btn = $("#aiFramingBtn");
-  if (btn) { btn.disabled = false; btn.textContent = "AI Framing"; }
+  if (btn) { btn.disabled = false; btn.textContent = "✨ AI Framing"; }
   aiFramingStatus(`AI Framing failed: ${pesan}`);
   aiFramingOverlaySelesai();
 }
@@ -761,7 +761,7 @@ async function aiFramingCariPosisiSemua(turns, cuts) {
   const btn = $("#aiFramingBtn");
 
   if (!turns.length) {
-    if (btn) { btn.disabled = false; btn.textContent = "AI Framing"; }
+    if (btn) { btn.disabled = false; btn.textContent = "✨ AI Framing"; }
     aiFramingStatus("AI Framing: no speech detected in this clip.");
     aiFramingOverlaySelesai();
     return;
@@ -796,7 +796,7 @@ async function aiFramingCariPosisiSemua(turns, cuts) {
   const posisi = {};
   daftarSpeaker.forEach(([speaker], i) => { if (hasil[i]) posisi[speaker] = hasil[i]; });
 
-  if (btn) { btn.disabled = false; btn.textContent = "AI Framing"; }
+  if (btn) { btn.disabled = false; btn.textContent = "✨ AI Framing"; }
 
   if (!Object.keys(posisi).length) {
     aiFramingStatus("AI Framing: couldn't confidently locate any speaker's face "

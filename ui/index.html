@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wdth,wght@0,75..125,200..900;1,75..125,200..900&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1788795296039">
-<link rel="stylesheet" href="/ui/css/app.css?v=1788795296039">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1788795437994">
+<link rel="stylesheet" href="/ui/css/app.css?v=1788795437994">
 </head>
 <body>
 
@@ -328,12 +328,22 @@
             <span class="eyebrow">Framing</span>
             <span class="data" id="reframeNote">drag the box onto whoever is talking, then lock it</span>
             <span class="data" id="framingWaktu"></span>
-            <!-- TIDAK butuh Split disiapkan dulu -- klik langsung jalan
-                 analisis; kalau lebih dari satu pembicara terdeteksi, ian
-                 diminta geser SATU kotak bergantian ke tiap orang begitu
-                 giliran mereka muncul. Lihat aiFramingMulai() di framing.js. -->
-            <button class="btn" id="aiFramingBtn" type="button"
-                    title="Auto-switch the frame based on who's talking">AI Framing</button>
+            <!-- Sepenuhnya otomatis -- klik langsung jalan (diarization,
+                 deteksi potongan, cari wajah tiap pembicara), tidak ada
+                 langkah konfirmasi manual apa pun. Lihat aiFramingMulai()
+                 di framing.js.
+
+                 .btn.main (aksen), bukan .btn polos: sejalan dengan aturan
+                 warna yang sudah ada di app.css ("AKSEN = apa yang
+                 ditemukan dan dipilih AI") -- tombol ini literally memicu
+                 AI, jadi warnanya semestinya sudah aksen dari awal, bukan
+                 abu-abu seperti tombol biasa (laporan nyata dari ian:
+                 "terlalu samar, tidak terlihat tombol aktif"). Ikon ✨ di
+                 depan teks (juga di tiap ganti label saat proses/selesai,
+                 lihat aiFramingMulai/aiFramingGagal/dst di framing.js)
+                 penanda visual "ini tombol AI", bukan sekadar hiasan. -->
+            <button class="btn main" id="aiFramingBtn" type="button"
+                    title="Auto-switch the frame based on who's talking">✨ AI Framing</button>
           </div>
 
           <!-- Status AI Framing (proses/error/hasil) -- sepenuhnya otomatis,
@@ -563,16 +573,16 @@
   </main>
 </div>
 
-<script src="/ui/js/editor/app.js?v=1788795296039"></script>
-<script src="/ui/js/editor/interactions.js?v=1788795296039"></script>
-<script src="/ui/js/editor/framing.js?v=1788795296039"></script>
-<script src="/ui/js/editor/analysis.js?v=1788795296039"></script>
-<script src="/ui/js/editor/player.js?v=1788795296039"></script>
-<script src="/ui/js/editor/roundtrip.js?v=1788795296039"></script>
-<script src="/ui/js/editor/history.js?v=1788795296039"></script>
-<script src="/ui/js/editor/timeline.js?v=1788795296039"></script>
-<script src="/ui/js/editor/teks.js?v=1788795296039"></script>
-<script src="/ui/js/editor/result.js?v=1788795296039"></script>
-<script src="/ui/js/editor/projects.js?v=1788795296039"></script>
+<script src="/ui/js/editor/app.js?v=1788795437994"></script>
+<script src="/ui/js/editor/interactions.js?v=1788795437994"></script>
+<script src="/ui/js/editor/framing.js?v=1788795437994"></script>
+<script src="/ui/js/editor/analysis.js?v=1788795437994"></script>
+<script src="/ui/js/editor/player.js?v=1788795437994"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1788795437994"></script>
+<script src="/ui/js/editor/history.js?v=1788795437994"></script>
+<script src="/ui/js/editor/timeline.js?v=1788795437994"></script>
+<script src="/ui/js/editor/teks.js?v=1788795437994"></script>
+<script src="/ui/js/editor/result.js?v=1788795437994"></script>
+<script src="/ui/js/editor/projects.js?v=1788795437994"></script>
 </body>
 </html>
