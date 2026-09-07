@@ -665,7 +665,7 @@ async function kirimRender(approved) {
     if (t.state !== "running") {
       clearInterval(renderTimer);
       renderJobId = null;
-      if (typeof muatRiwayat === "function") muatRiwayat();   // berkas baru masuk riwayat
+      if (typeof loadHistory === "function") loadHistory();   // berkas baru masuk riwayat
       const head = document.querySelector('[data-screen="history"] .note');
       if (head) head.textContent = t.state === "failed"
         ? `Failed: ${t.error}`

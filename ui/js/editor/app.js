@@ -443,7 +443,7 @@ function toScreen(name) {
     t.tabIndex = active ? 0 : -1;   // roving tabindex sesuai pola ARIA tabs
   });
 
-  if (name === "history" && typeof muatRiwayat === "function") muatRiwayat();
+  if (name === "history" && typeof loadHistory === "function") loadHistory();
 
   // Klip, Framing, dan Teks bertiga menyunting result yang SAMA, dan
   // preview-nya menampilkan hasil gabungan ketiganya. Jadi ketiganya digambar

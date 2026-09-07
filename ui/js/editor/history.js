@@ -9,55 +9,55 @@
    memang tidak perlu -- membuka Explorer sendiri.
    ========================================================================== */
 
-let RIWAYAT = [];
+let HISTORY = [];
 
 /* "just now", "12 min ago", "3 hr ago", "yesterday", lalu tanggal. */
-function kapan(detikEpoch) {
-  const lalu = Date.now() / 1000 - detikEpoch;
-  if (lalu < 90) return "just now";
-  if (lalu < 3600) return `${Math.round(lalu / 60)} min ago`;
-  if (lalu < 86400) return `${Math.round(lalu / 3600)} hr ago`;
-  if (lalu < 172800) return "yesterday";
-  return new Date(detikEpoch * 1000).toLocaleDateString("en-GB",
+function timeAgo(epochSeconds) {
+  const elapsed = Date.now() / 1000 - epochSeconds;
+  if (elapsed < 90) return "just now";
+  if (elapsed < 3600) return `${Math.round(elapsed / 60)} min ago`;
+  if (elapsed < 86400) return `${Math.round(elapsed / 3600)} hr ago`;
+  if (elapsed < 172800) return "yesterday";
+  return new Date(epochSeconds * 1000).toLocaleDateString("en-GB",
     { day: "numeric", month: "short" });
 }
 
-async function muatRiwayat() {
+async function loadHistory() {
   const note = $("#riwayatNote");
   try {
     const d = await (await fetch("/api/history")).json();
-    RIWAYAT = d.render || [];
+    HISTORY = d.render || [];
   } catch {
-    RIWAYAT = [];
+    HISTORY = [];
     if (note) note.textContent = "needs klipian serve";
-    gambarRiwayat();
+    renderHistory();
     return;
   }
   if (note) {
-    const mb = RIWAYAT.reduce((t, r) => t + r.mb, 0);
-    note.textContent = RIWAYAT.length
-      ? `${RIWAYAT.length} file${RIWAYAT.length > 1 ? "s" : ""} · ${mb.toFixed(1)} MB`
+    const mb = HISTORY.reduce((t, r) => t + r.mb, 0);
+    note.textContent = HISTORY.length
+      ? `${HISTORY.length} file${HISTORY.length > 1 ? "s" : ""} · ${mb.toFixed(1)} MB`
       : "nothing rendered yet";
   }
-  gambarRiwayat();
+  renderHistory();
 }
 
-function gambarRiwayat() {
+function renderHistory() {
   const list = $("#riwayatList");
   if (!list) return;
 
-  if (!RIWAYAT.length) {
+  if (!HISTORY.length) {
     list.innerHTML = `<p class="kosong-hasil">Nothing in the out/ folder yet.
       Build a Result on the Clips screen, then press Render.</p>`;
     return;
   }
 
-  list.innerHTML = RIWAYAT.map((r, i) => `
+  list.innerHTML = HISTORY.map((r, i) => `
     <div class="riwayat-row" data-riwayat="${i}">
       <span class="riwayat-nama">${escapeHTML(r.file)}</span>
       <span class="data riwayat-video">${escapeHTML(r.video)}</span>
       <span class="data riwayat-mb">${r.mb} MB</span>
-      <span class="data riwayat-kapan">${kapan(r.at)}</span>
+      <span class="data riwayat-kapan">${timeAgo(r.at)}</span>
       <button class="btn quiet" data-aksi="putar">Play</button>
       <button class="btn" data-aksi="buka">Open folder</button>
     </div>`).join("");
@@ -66,8 +66,8 @@ function gambarRiwayat() {
 $("#riwayatList")?.addEventListener("click", async (e) => {
   const b = e.target.closest("[data-aksi]");
   if (!b) return;
-  const baris = b.closest("[data-riwayat]");
-  const r = RIWAYAT[Number(baris.dataset.riwayat)];
+  const row = b.closest("[data-riwayat]");
+  const r = HISTORY[Number(row.dataset.riwayat)];
   if (!r) return;
 
   if (b.dataset.aksi === "putar") {
@@ -81,8 +81,8 @@ $("#riwayatList")?.addEventListener("click", async (e) => {
   // Label pemulih diambil dari data-label, BUKAN dari teks yang sedang
   // tampil: klik kedua saat tombol masih menulis "dibuka" akan mengunci
   // label sementara itu selamanya.
-  const semula = b.dataset.label || b.textContent;
-  b.dataset.label = semula;
+  const previous = b.dataset.label || b.textContent;
+  b.dataset.label = previous;
   try {
     const j = await (await fetch("/api/open-folder", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -93,7 +93,7 @@ $("#riwayatList")?.addEventListener("click", async (e) => {
   } catch (err) {
     b.textContent = String(err.message || "failed").slice(0, 22);
   }
-  setTimeout(() => { b.textContent = semula; }, 2200);
+  setTimeout(() => { b.textContent = previous; }, 2200);
 });
 
-$("#riwayatMuatBtn")?.addEventListener("click", muatRiwayat);
+$("#riwayatMuatBtn")?.addEventListener("click", loadHistory);
