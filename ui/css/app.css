@@ -550,6 +550,48 @@ h1, h2, h3 {
 }
 .frame916[data-watermark="off"] .watermark916 { display: none; }
 
+/* Overlay AI Framing -- menutupi seluruh panel preview selama server
+   bekerja (diarization dkk bisa puluhan detik), supaya kelihatan sedang
+   berjalan, bukan macet. z-index di atas video/caption/watermark, DI
+   BAWAH .safe (garis batas aman tetap kelihatan sebagai konteks). */
+.ai-framing-overlay {
+  position: absolute; inset: 0; z-index: 3;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--s3);
+  padding: var(--s5);
+  background: rgba(8, 9, 10, 0.82);
+  backdrop-filter: blur(2px);
+  text-align: center;
+}
+.ai-framing-spin {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  border: 3px solid color-mix(in srgb, var(--aksen) 25%, transparent);
+  border-top-color: var(--aksen);
+  animation: ai-framing-putar 0.8s linear infinite;
+}
+@keyframes ai-framing-putar { to { transform: rotate(360deg); } }
+.ai-framing-overlay-teks {
+  margin: 0; max-width: 85%;
+  font-family: var(--font-data); font-size: 12px; color: var(--teks);
+  line-height: 1.4;
+}
+.ai-framing-overlay-bar {
+  width: 70%; height: 4px;
+  border-radius: 999px;
+  background: var(--kaca-kuat);
+  overflow: hidden;
+}
+.ai-framing-overlay-bar i {
+  display: block; height: 100%;
+  background: var(--aksen);
+  transition: width 0.3s ease;
+}
+.ai-framing-overlay-pct {
+  font-family: var(--font-data); font-size: 10px; color: var(--teks-samar);
+  font-variant-numeric: tabular-nums;
+}
+
 /* info klip + ukuran durasi terhadap pita ideal */
 .clip-info { flex: none; display: grid; gap: var(--s3); padding-top: var(--s1); }
 .clip-title { font-size: 15px; font-weight: 700; letter-spacing: -.025em; }

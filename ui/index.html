@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wdth,wght@0,75..125,200..900;1,75..125,200..900&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1788794419461">
-<link rel="stylesheet" href="/ui/css/app.css?v=1788794419461">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1788794717943">
+<link rel="stylesheet" href="/ui/css/app.css?v=1788794717943">
 </head>
 <body>
 
@@ -458,6 +458,19 @@
              (lihat build_ass() di klipian/render.py), font-nya file lokal
              yang dibundel karena ffmpeg tidak bisa "pinjam" Google Fonts. -->
         <div class="watermark916" id="watermark916">klipian</div>
+
+        <!-- AI Framing bekerja di server (diarization, deteksi potongan,
+             cari wajah) -- tanpa ini panel preview kelihatan diam begitu
+             saja selama puluhan detik, seperti macet. aiFramingStatus()
+             (framing.js) yang mengisi teks & lebar bar-nya. -->
+        <div class="ai-framing-overlay" id="aiFramingOverlay" hidden>
+          <div class="ai-framing-spin" aria-hidden="true"></div>
+          <p class="ai-framing-overlay-teks" id="aiFramingOverlayTeks">Analyzing…</p>
+          <div class="ai-framing-overlay-bar">
+            <i id="aiFramingOverlayBar" style="width:0%"></i>
+          </div>
+          <span class="ai-framing-overlay-pct" id="aiFramingOverlayPct">0%</span>
+        </div>
       </div>
 
       <!-- timeline klip: hanya bagian yang ikut terender, potongan yang
@@ -547,16 +560,16 @@
   </main>
 </div>
 
-<script src="/ui/js/editor/app.js?v=1788794419461"></script>
-<script src="/ui/js/editor/interactions.js?v=1788794419461"></script>
-<script src="/ui/js/editor/framing.js?v=1788794419461"></script>
-<script src="/ui/js/editor/analysis.js?v=1788794419461"></script>
-<script src="/ui/js/editor/player.js?v=1788794419461"></script>
-<script src="/ui/js/editor/roundtrip.js?v=1788794419461"></script>
-<script src="/ui/js/editor/history.js?v=1788794419461"></script>
-<script src="/ui/js/editor/timeline.js?v=1788794419461"></script>
-<script src="/ui/js/editor/teks.js?v=1788794419461"></script>
-<script src="/ui/js/editor/result.js?v=1788794419461"></script>
-<script src="/ui/js/editor/projects.js?v=1788794419461"></script>
+<script src="/ui/js/editor/app.js?v=1788794717943"></script>
+<script src="/ui/js/editor/interactions.js?v=1788794717943"></script>
+<script src="/ui/js/editor/framing.js?v=1788794717943"></script>
+<script src="/ui/js/editor/analysis.js?v=1788794717943"></script>
+<script src="/ui/js/editor/player.js?v=1788794717943"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1788794717943"></script>
+<script src="/ui/js/editor/history.js?v=1788794717943"></script>
+<script src="/ui/js/editor/timeline.js?v=1788794717943"></script>
+<script src="/ui/js/editor/teks.js?v=1788794717943"></script>
+<script src="/ui/js/editor/result.js?v=1788794717943"></script>
+<script src="/ui/js/editor/projects.js?v=1788794717943"></script>
 </body>
 </html>
