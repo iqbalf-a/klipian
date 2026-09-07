@@ -308,11 +308,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 # --------------------------------------------------------------------------
 
 def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
-                   crop_dulu: bool, dest: "Path | None" = None) -> str:
+                   crop_first: bool, dest: "Path | None" = None) -> str:
     """Potong tiap bagian lalu sambung. setpts/asetpts wajib -- tanpa itu
     potongan kedua mewarisi timestamp aslinya dan hasilnya melompat.
 
-    crop_dulu=True membingkai TIAP potongan sebelum disambung, bukan sesudah.
+    crop_first=True membingkai TIAP potongan sebelum disambung, bukan sesudah.
     Itulah yang memungkinkan framing berpindah di tengah klip: potongan 1
     menyorot orang kiri, potongan 2 menyorot orang kanan.
 
@@ -350,7 +350,7 @@ def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
     parts = []
     for i, span in enumerate(job.spans):
         v = f"[0:v]trim=start={span.start:.3f}:end={span.end:.3f},setpts=PTS-STARTPTS"
-        if crop_dulu and span.crops and len(span.crops) >= 2:
+        if crop_first and span.crops and len(span.crops) >= 2:
             # Bingkai split: SATU potongan yang sama dipotong dua kali lalu
             # ditumpuk. split=2 wajib -- satu keluaran filter tidak boleh
             # dipakai dua kali sebagai masukan. Head tracking TIDAK didukung
@@ -367,7 +367,7 @@ def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
             parts.append(f"[0:a]atrim=start={span.start:.3f}:end={span.end:.3f},"
                          f"asetpts=PTS-STARTPTS[a{i}]")
             continue
-        if crop_dulu:
+        if crop_first:
             c = span.crop or job.crop
             if span.tracking and len(span.tracking) >= 2:
                 # X kotak ini BERGERAK mengikuti lintasan (head tracking),
@@ -430,10 +430,10 @@ def build_filter(job: RenderJob, src_width: int, src_height: int,
     # Layout blur memakai seluruh frame, jadi crop-nya tidak berarti apa-apa;
     # potongannya disambung dulu baru dikaburkan. Layout wajah sebaliknya:
     # tiap potongan dibingkai sendiri supaya framing bisa berpindah.
-    crop_dulu = job.layout != "blur"
+    crop_first = job.layout != "blur"
     # `dest` cuma dipakai _concat_filter() kalau ADA span yang di-track
     # (head tracking) -- lihat alasan berkas-terpisah-per-potongan di sana.
-    trim_chain = _concat_filter(job, src_width, src_height, crop_dulu, dest)
+    trim_chain = _concat_filter(job, src_width, src_height, crop_first, dest)
 
     even = lambda v: max(2, int(v) // 2 * 2)
     W, H = job.out_width, job.out_height

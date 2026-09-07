@@ -157,8 +157,8 @@ def _crops_from(d) -> "list[engine.CropBox] | None":
     diabaikan dan potongan itu memakai satu kotak."""
     if not isinstance(d, list) or len(d) < 2:
         return None
-    kotak = [_crop_from(x) for x in d[:2]]
-    return kotak if all(kotak) else None
+    boxes = [_crop_from(x) for x in d[:2]]
+    return boxes if all(boxes) else None
 
 
 def _tracking_from(d) -> "list[dict] | None":
