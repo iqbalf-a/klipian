@@ -54,18 +54,18 @@ function drawTotalTimeline() {
   const marks = $("#tlMarks");
   if (marks) {
     const recMarks = (DATA?.candidates || []).map((k) => `
-      <span class="tl-mark rekom" style="left:${toFraction(k.startSec) * 100}%;
+      <span class="tl-mark rec" style="left:${toFraction(k.startSec) * 100}%;
             width:${Math.max(0.4, (toFraction(k.endSec) - toFraction(k.startSec)) * 100)}%"
             title="${escapeHTML(k.title)}"></span>`).join("");
     const usedMarks = RESULT.map((r) => `
-      <span class="tl-mark hasil" style="left:${toFraction(r.start) * 100}%;
+      <span class="tl-mark result" style="left:${toFraction(r.start) * 100}%;
             width:${Math.max(0.4, (toFraction(r.end) - toFraction(r.start)) * 100)}%"
             title="${escapeHTML(r.title)}"></span>`).join("");
     marks.innerHTML = recMarks + usedMarks;
   }
 
   // time scale: 5 evenly spaced labels
-  const scale = $("#tlSkala");
+  const scale = $("#tlScale");
   if (scale) {
     scale.innerHTML = d
       ? [0, 0.25, 0.5, 0.75, 1].map((f) => `<span>${timeRange(d * f)}</span>`).join("")
@@ -186,7 +186,7 @@ $("#tlTotal")?.addEventListener("pointermove", (e) => {
     if (SELECTION && SELECTION.end - SELECTION.start < 0.5) { clearSelection(); return; }
     if (SELECTION) {
       const before = `${SELECTION.start.toFixed(2)}-${SELECTION.end.toFixed(2)}`;
-      setSelection(SELECTION.start, SELECTION.end, true);      // dirapikan ke batas kata
+      setSelection(SELECTION.start, SELECTION.end, true);      // snapped to word boundary
       const after = `${SELECTION.start.toFixed(2)}-${SELECTION.end.toFixed(2)}`;
       $("#pickNote").textContent = before === after
         ? "range selected"
@@ -252,12 +252,12 @@ function readTimeColumns() {
   const d = videoDuration();
   if (d && a >= d) {
     $("#pickNote").textContent =
-      `${timeRange(a)} melewati akhir video (${timeRange(d)})`;
+      `${timeRange(a)} is past the end of the video (${timeRange(d)})`;
     return;
   }
   if (d && b > d) {
     $("#pickNote").textContent =
-      `dipendekkan ke akhir video (${timeRange(d)})`;
+      `shortened to the end of the video (${timeRange(d)})`;
   } else {
     $("#pickNote").textContent = "range set from the numbers";
   }

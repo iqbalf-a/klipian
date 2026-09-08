@@ -1,12 +1,12 @@
-/* klipian — history render
+/* klipian — render history
    ==========================================================================
-   Daftar berkas yang benar-benar ada di folder out/, bukan catatan sesi.
-   Bedanya penting: kalau halaman dimuat ulang atau server dimatikan, riwayat
-   berbasis ingatan akan hilang padahal berkasnya masih ada di disk. Yang
-   ditampilkan di sini selalu isi disk yang sebenarnya.
+   A list of files that actually exist in the out/ folder, not a session
+   log. The difference matters: if the page reloads or the server stops, a
+   memory-based history would be lost even though the files are still on
+   disk. What's shown here is always the real disk contents.
 
-   Tombol "Buka folder" memanggil server, karena browser tidak boleh -- dan
-   memang tidak perlu -- membuka Explorer sendiri.
+   The "Open folder" button calls the server, because the browser isn't
+   allowed to -- and doesn't need to -- open Explorer on its own.
    ========================================================================== */
 
 let HISTORY = [];
@@ -54,10 +54,10 @@ function renderHistory() {
 
   list.innerHTML = HISTORY.map((r, i) => `
     <div class="history-row" data-history="${i}">
-      <span class="history-nama">${escapeHTML(r.file)}</span>
+      <span class="history-name">${escapeHTML(r.file)}</span>
       <span class="data history-video">${escapeHTML(r.video)}</span>
       <span class="data history-mb">${r.mb} MB</span>
-      <span class="data history-kapan">${timeAgo(r.at)}</span>
+      <span class="data history-when">${timeAgo(r.at)}</span>
       <button class="btn quiet" data-action="play">Play</button>
       <button class="btn" data-action="open">Open folder</button>
     </div>`).join("");
@@ -96,4 +96,4 @@ $("#historyList")?.addEventListener("click", async (e) => {
   setTimeout(() => { b.textContent = previous; }, 2200);
 });
 
-$("#historyMuatBtn")?.addEventListener("click", loadHistory);
+$("#historyReloadBtn")?.addEventListener("click", loadHistory);

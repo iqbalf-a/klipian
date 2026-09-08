@@ -23,7 +23,7 @@ const fmtSize = (b) => {
 };
 
 const fmtDuration = (d) => {
-  if (!isFinite(d)) return "durasi tidak terbaca";
+  if (!isFinite(d)) return "duration unreadable";
   const t = Math.round(d);
   const h = Math.floor(t / 3600);
   const m = String(Math.floor((t % 3600) / 60)).padStart(2, "0");
@@ -415,7 +415,7 @@ $("#queueList").addEventListener("click", (e) => {
       fetch("/api/render/cancel", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: renderJobId }),
-      }).catch(() => { /* poll akan menampilkan keadaan sebenarnya */ });
+      }).catch(() => { /* the poll will show the real state */ });
     }
     // Final status ("cancelled") comes from the poll once the server confirms.
   } else if (action === "retry") {

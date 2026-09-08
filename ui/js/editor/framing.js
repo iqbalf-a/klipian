@@ -299,7 +299,7 @@ function syncCanvasVideo() {
 // playhead crosses a framing point, not every second of playback -- it would
 // look "frozen" during playback when in fact it is simply redrawn infrequently.
 function updateFramingClock() {
-  const clockEl = $("#framingWaktu");
+  const clockEl = $("#framingClock");
   if (clockEl) clockEl.textContent = `at ${timeRange(reviewTime())}`;
 }
 
@@ -392,23 +392,23 @@ function drawBox(format, crops) {
   canvasFormat = format === "split" ? "split" : "single";
   const canvas = document.querySelector(".canvas");
   if (canvas) canvas.dataset.format = canvasFormat;
-  // Preview ikut diberi tahu: petak bawah cuma ada saat split.
+  // Preview is told too: the bottom slot only exists in split.
   const previewFrame = $("#frame");
   if (previewFrame) previewFrame.dataset.format = canvasFormat;
 
   const els = cropEls();
   applyCrop(els[0], matchRatio(crops[0] || INITIAL_CROP, canvasFormat));
-  // Kotak kedua selalu berasio split -- ia memang cuma dipakai di format itu.
+  // The second box always has the split ratio -- it's only ever used in that format.
   applyCrop(els[1], matchRatio(crops[1] || INITIAL_SPLIT_CROP[1], "split"));
 
   document.querySelectorAll("[data-format-choice]").forEach((b) =>
     b.setAttribute("aria-pressed", String(b.dataset.formatChoice === canvasFormat)));
 }
 
-/* Menyalin kotak dari kanvas ke titik yang sedang berlaku. Dipanggil terus
-   selama menggeser, bukan cuma saat dilepas: preview menghitung bingkainya
-   dari ANGKA di FRAMING, jadi kalau angkanya baru ditulis saat pointer
-   dilepas, preview diam saja sepanjang geseran. */
+/* Copies the box from the canvas to the currently active point. Called
+   continuously while dragging, not just on release: the preview computes
+   its frame from the NUMBERS in FRAMING, so if the numbers were only
+   written on pointer-up, the preview would stay frozen through the whole drag. */
 function saveBox() {
   const f = pointAt(reviewTime());
   const crops = boxOnCanvas();
@@ -418,7 +418,7 @@ function saveBox() {
   return f;
 }
 
-/* Kotak yang sedang tergambar di kanvas, dibaca balik jadi angka. */
+/* The box currently drawn on the canvas, read back out as numbers. */
 function boxOnCanvas() {
   const canvas = document.querySelector(".canvas");
   if (!canvas) return null;
@@ -434,19 +434,19 @@ function boxOnCanvas() {
   return out;
 }
 
-/* ---------- memilih format ---------- */
+/* ---------- choosing a format ---------- */
 
-/* Mengganti format LANGSUNG membuat titik di posisi yang sedang ditinjau,
-   bukan menyunting titik yang kebetulan sedang berlaku.
+/* Changing the format DIRECTLY creates a point at the currently reviewed
+   position, instead of editing whatever point happens to be active.
 
-   Versi pertama menyunting titik yang berlaku, dan itu menghancurkan
-   pekerjaan: kamu menyusun split di 00:00, maju ke 20:55, memilih
-   "Single" -- dan Split di 00:00 ikut berubah jadi Single tanpa pesan
-   apa pun. Padahal seluruh gunanya titik framing justru supaya format bisa
-   BERBEDA di detik yang berbeda.
+   The first version edited the active point, and that destroyed work: you
+   set up a split at 00:00, moved forward to 20:55, picked "Single" -- and
+   the Split at 00:00 silently turned into Single too, no message at all.
+   Yet the entire point of framing points is so the format CAN differ at
+   different seconds.
 
-   Titik di detik yang sama ditimpa, jadi bolak-balik memilih format tidak
-   menumpuk titik. */
+   A point at the same second is overwritten, so toggling the format back
+   and forth doesn't stack up points. */
 $("#framingFormat")?.addEventListener("click", (e) => {
   const b = e.target.closest("[data-format-choice]");
   if (!b) return;
@@ -455,9 +455,9 @@ $("#framingFormat")?.addEventListener("click", (e) => {
   const existing = FRAMING.find((f) => Math.abs(f.at - t) < 0.35);
   if (format === canvasFormat && existing) return;
 
-  // Kotaknya dimulai dari susunan bawaan format itu -- rasio kotak single
-  // dan split berbeda, jadi memakai ulang kotak lama cuma menghasilkan
-  // gambar gepeng.
+  // The box starts from that format's default layout -- single and split
+  // box ratios differ, so reusing the old box would just produce a
+  // squashed image.
   const crops = format === "split"
     ? INITIAL_SPLIT_CROP.map((c) => ({ ...c }))
     : [{ ...INITIAL_CROP }];
@@ -478,20 +478,20 @@ $("#framingFormat")?.addEventListener("click", (e) => {
     : `${message} Single · drag the box onto whoever is talking`;
 });
 
-/* ---------- kunci, pilih, hapus ---------- */
+/* ---------- lock, select, delete ---------- */
 
 $("#lockFraming")?.addEventListener("click", () => {
   const crops = boxOnCanvas() || frameAt(reviewTime()).crops;
   const t = Math.max(0, reviewTime());
 
-  // Titik di detik yang sama ditimpa, bukan digandakan.
+  // A point at the same second is overwritten, not duplicated.
   const existing = FRAMING.find((f) => Math.abs(f.at - t) < 0.35);
   let message;
   if (existing) {
-    // Kotak dasar diganti manual -- lintasan tracking LAMA (kalau ada)
-    // relatif ke posisi kotak yang sekarang sudah tidak berlaku, jadi
-    // dibuang di sini, bukan dibiarkan nyangkut memakai posisi basi.
-    // "Track head" perlu ditekan ulang kalau titik ini masih mau di-track.
+    // The base box was replaced manually -- the OLD tracking path (if any)
+    // is relative to the box's now-stale position, so it's dropped here
+    // instead of being left hanging using an outdated position.
+    // "Track head" needs to be pressed again if this point should still be tracked.
     delete existing.tracking;
     existing.format = canvasFormat;
     existing.crops = crops;
@@ -507,18 +507,18 @@ $("#lockFraming")?.addEventListener("click", () => {
     `${message} · ${canvasFormat === "split" ? "Split" : "Single"}`;
 });
 
-/* ---------- head tracking (opsional per titik) ----------
-   ian: kotak bergerak mengikuti kepala DI DALAM satu titik framing --
-   BUKAN pan berkelanjutan lintas video (klipian tetap potong keras ANTAR
-   titik, tidak berubah). Opsional per titik, default MATI -- diaktifkan
-   manual lewat tombol ini cuma pada titik yang memang perlu (ian: "tidak
-   semua titik perlu"). Cuma format Single yang didukung (v1) -- lihat
-   catatan di frameAt()/track_head() (facebox.py) untuk alasannya. */
+/* ---------- head tracking (optional per point) ----------
+   ian: the box moves to follow the head WITHIN one framing point --
+   NOT a continuous pan across the video (klipian still hard-cuts BETWEEN
+   points, unchanged). Optional per point, OFF by default -- turned on
+   manually via this button only on points that actually need it (ian:
+   "not every point needs it"). Only Single format is supported (v1) --
+   see the note in frameAt()/track_head() (facebox.py) for why. */
 
-/* Rentang [titik.at, akhir) yang dianalisis -- sampai titik BERIKUTNYA
-   kalau ada, atau sampai akhir potongan Result yang memuat titik ini
-   kalau ini titik terakhir (bukan sampai akhir video sumber utuh --
-   itu bisa jauh lebih panjang dari yang benar-benar dipakai). */
+/* The [point.at, end) range that gets analyzed -- up to the NEXT point
+   if there is one, or up to the end of the Result span containing this
+   point if it's the last point (not up to the end of the full source
+   video -- that could be far longer than what's actually used). */
 function trackingLimit(point) {
   const idx = FRAMING.indexOf(point);
   const next = FRAMING[idx + 1];
@@ -530,8 +530,8 @@ function trackingLimit(point) {
 
 async function trackHeadForPoint(point) {
   if (point.tracking) {
-    // Toggle mati -- kembali ke kotak statis, tidak menghapus kotak
-    // dasarnya. Reversibel, sesuai permintaan ian.
+    // Toggling off -- reverts to a static box, doesn't delete the
+    // underlying box. Reversible, per ian's request.
     delete point.tracking;
     renderFraming();
     if (typeof saveProject === "function") saveProject();
@@ -572,10 +572,10 @@ async function trackHeadForPoint(point) {
   }
 }
 
-/* Label/keadaan tombol ikut titik yang SEDANG BERLAKU di posisi preview
-   (pointAt(reviewTime()), sama seperti renderFraming() menentukan
-   titik aktif untuk kanvas) -- dipanggil dari renderFraming() supaya
-   selalu sinkron tanpa perlu dipanggil manual di banyak tempat. */
+/* Button label/state follows the point CURRENTLY ACTIVE at the preview
+   position (pointAt(reviewTime()), same as how renderFraming() determines
+   the active point for the canvas) -- called from renderFraming() so it
+   always stays in sync without needing to be called manually in many places. */
 function updateTrackHeadButton() {
   const btn = $("#trackHeadBtn");
   if (!btn || btn.disabled) return;
@@ -601,7 +601,7 @@ $("#framingList")?.addEventListener("click", (e) => {
   if (deleteIcon) {
     e.stopPropagation();
     const id = deleteIcon.dataset.deleteFraming;
-    if (FRAMING.length <= 1) return;              // titik 00:00 selalu ada
+    if (FRAMING.length <= 1) return;              // the 00:00 point always exists
     FRAMING = FRAMING.filter((f) => f.id !== id);
     renderFraming();
     return;
@@ -609,17 +609,17 @@ $("#framingList")?.addEventListener("click", (e) => {
   const chip = e.target.closest("[data-framing]");
   if (!chip) return;
   $("#reframeNote").textContent = "drag the box onto whoever is talking, then lock it";
-  // Klik titik = lompat ke detiknya, supaya kelihatan sedang membingkai apa.
+  // Clicking a point = jump to its second, so you can see what's being framed.
   const f = FRAMING.find((x) => x.id === chip.dataset.framing);
   if (!f) return;
   const v = $("#videoPreview");
   if (v && v.src) {
-    try { v.currentTime = f.at; } catch { /* di luar jangkauan */ }
+    try { v.currentTime = f.at; } catch { /* out of range */ }
   }
   renderFraming();
 });
 
-/* ---------- geser & ubah ukuran kotak ---------- */
+/* ---------- drag & resize box ---------- */
 
 (function interactiveCrop() {
   const canvas = document.querySelector(".canvas");
@@ -630,8 +630,8 @@ $("#framingList")?.addEventListener("click", (e) => {
   canvas.addEventListener("pointerdown", (e) => {
     const crop = e.target.closest(".crop");
     if (!crop) return;
-    // Kotak kedua tidak bisa disentuh saat format single: ia memang tidak
-    // ikut dirender, jadi menggesernya cuma menyesatkan.
+    // The second box can't be touched in single format: it's simply not
+    // rendered, so dragging it would only be misleading.
     if (canvasFormat !== "split" && cropEls().indexOf(crop) > 0) return;
     const k = canvas.getBoundingClientRect();
     const c = crop.getBoundingClientRect();
@@ -646,9 +646,9 @@ $("#framingList")?.addEventListener("click", (e) => {
     if (!active) return;
     const { crop, k } = active;
     if (active.resizing) {
-      // Rasio TERKUNCI: tingginya selalu lebar x rasio format. Yang dibatasi
-      // lebarnya, bukan tingginya -- kalau tingginya yang dipotong sendiri,
-      // kotaknya jadi gepeng dan hasil rendernya ikut gepeng.
+      // Ratio LOCKED: height is always width x format ratio. Width is what
+      // gets clamped, not height -- if height were clamped on its own, the
+      // box would go squashed and the rendered output would too.
       const ratio = RATIO[canvasFormat];
       const box = crop.getBoundingClientRect();
       const maxW = Math.min(k.right - box.left, (k.bottom - box.top) / ratio);
@@ -670,8 +670,8 @@ $("#framingList")?.addEventListener("click", (e) => {
     canvas.addEventListener(ev, () => {
       if (!active) return;
       active = null;
-      // Geseran langsung menempel ke titik yang sedang berlaku. Kalau kamu
-      // mau posisi ini mulai di detik lain, tekan "Kunci framing di sini".
+      // A drag attaches directly to the currently active point. If you want
+      // this position to start at a different second, press "Lock framing here".
       const f = saveBox() || pointAt(reviewTime());
       $("#reframeNote").textContent = f
         ? `point ${timeRange(f.at)} moved · press Lock to create a new point`
@@ -680,70 +680,70 @@ $("#framingList")?.addEventListener("click", (e) => {
     }));
 })();
 
-/* ---------- AI Framing: giliran bicara -> titik framing otomatis ----------
-   Backend (klipian/diarize.py) cuma tahu SIAPA bicara dan KAPAN -- sama
-   sekali tidak tahu kotak mana di kanvas yang harus dipakai untuk orang itu.
+/* ---------- AI Framing: speaker turns -> automatic framing points ----------
+   The backend (klipian/diarize.py) only knows WHO is speaking and WHEN --
+   it has no idea at all which box on the canvas should be used for that person.
 
-   Sepenuhnya otomatis, TIDAK ADA konfirmasi manual per pembicara lagi.
-   Versi sebelumnya meminta ian menggeser satu kotak ke tiap pembicara yang
-   terdeteksi sebelum lanjut -- untuk podcast 2 orang itu 2 klik, tapi ian
-   menunjukkan podcast tidak selalu 2 orang, jadi konfirmasi satu-satu jadi
-   tidak praktis begitu pembicaranya lebih banyak. Posisi tiap pembicara
-   sekarang dicari sendiri lewat locate_speaker() (klipian/facebox.py) --
-   BUKAN dibimbing kotak kasar manual seperti fit_crop_to_face/track_crops,
-   melainkan mencari dari nol di (hampir) seluruh frame, dibimbing gerak-
-   mulut lintas beberapa sampel di giliran bicara itu. Risiko salah-tangkap
-   dari pencarian seluas ini (pernah terjadi sebelum facebox.py ditulis
-   ulang -- lihat docstring modul itu) ditahan dengan mewajibkan pemenang
-   gerak-mulut yang JELAS setiap kali ada >1 wajah, tanpa fallback "paling
-   tajam" -- sampel yang ambigu dibuang, bukan ditebak.
+   Fully automatic, NO per-speaker manual confirmation anymore. The previous
+   version asked ian to drag one box onto each detected speaker before
+   continuing -- for a 2-person podcast that's 2 clicks, but ian pointed out
+   podcasts aren't always 2 people, so one-by-one confirmation became
+   impractical once there were more speakers. Each speaker's position is now
+   located on its own via locate_speaker() (klipian/facebox.py) -- NOT guided
+   by a manual rough box like fit_crop_to_face/track_crops, but searching from
+   scratch across (almost) the entire frame, guided by mouth motion across
+   several samples within that speaker turn. The risk of mis-detection from
+   such a broad search (this happened before facebox.py was rewritten -- see
+   that module's docstring) is contained by requiring a CLEAR mouth-motion
+   winner whenever there's more than one face, with no "sharpest" fallback --
+   ambiguous samples are discarded, not guessed at.
 
-   Video sumber sendiri bisa ganti shot di tengah klip (zoom keluar jadi
-   close-up, potong ke reaksi orang lain) meski pembicaranya tidak berganti
-   -- diarization sama sekali tidak melihat itu, cuma dengar suara. Sinyal
-   TERPISAH untuk itu: klipian/scenecut.py mendeteksi potongan visual keras
-   lewat filter scene bawaan ffmpeg, dipakai memecah satu giliran bicara
-   jadi beberapa titik lacak (lihat aiFramingApply) supaya tiap potongan
-   sungguhan dapat titik framing sendiri, bukan cuma titik di awal giliran
-   yang lama-lama meleset begitu shot-nya berganti. */
+   The source video itself can change shot mid-clip (zoom out to a close-up,
+   cut to another person's reaction) even though the speaker hasn't changed
+   -- diarization doesn't see that at all, it only hears audio. A SEPARATE
+   signal handles that: klipian/scenecut.py detects hard visual cuts via
+   ffmpeg's built-in scene filter, used to split one speaker turn into
+   several tracking points (see aiFramingApply) so each real cut gets its
+   own framing point, instead of just the point at the start of the turn
+   gradually drifting off as the shot changes. */
 
-/* Status AI Framing (proses, error, hasil) SELALU muncul di kotak kuning
-   #aiFramingTanya, bukan cuma teks kecil di #reframeNote -- itu yang
-   ternyata terlewat begitu saja pada percobaan pertama: pesan gagal-validasi
-   memang muncul, tapi cuma teks polos berdesakan dengan elemen lain di baris
-   judul, kelihatan seperti "tidak terjadi apa-apa". */
+/* AI Framing status (in progress, error, result) ALWAYS appears in the
+   yellow #aiFramingStatus box, not just as small text in #reframeNote --
+   that's exactly what got overlooked on the first attempt: the
+   validation-failure message did appear, but only as plain text crammed
+   in with other elements on the title row, looking like "nothing happened". */
 function aiFramingStatus(text) {
-  const textEl = $("#aiFramingTanyaTeks");
+  const textEl = $("#aiFramingStatusText");
   if (textEl) textEl.textContent = text;
-  $("#aiFramingTanya")?.removeAttribute("hidden");
+  $("#aiFramingStatus")?.removeAttribute("hidden");
 }
 
-/* Ganti isi <span> teks di dalam tombol #aiFramingBtn saja -- BUKAN
-   btn.textContent langsung, itu akan ikut menghapus ikon SVG-nya (lihat
-   markup di index.html). */
+/* Only replace the <span> text content inside the #aiFramingBtn button --
+   NOT btn.textContent directly, that would also wipe out its SVG icon
+   (see the markup in index.html). */
 function aiFramingBtnText(text) {
-  const el = $("#aiFramingBtnTeks");
+  const el = $("#aiFramingBtnText");
   if (el) el.textContent = text;
 }
 
-/* Overlay DI ATAS panel preview 9:16, terpisah dari kotak status di
-   sidebar (aiFramingStatus) -- server bisa bekerja puluhan detik
-   (diarization dkk), tanpa overlay ini preview kelihatan diam begitu
-   saja seperti macet, bukan seperti sedang dianalisis.
+/* Overlay ON TOP of the 9:16 preview panel, separate from the status box
+   in the sidebar (aiFramingStatus) -- the server can work for tens of
+   seconds (diarization etc.), and without this overlay the preview would
+   look frozen as if stuck, not like it's being analyzed.
 
-   Persen dihitung dari BOBOT TETAP per tahap pipeline (diarize/scenecut/
-   locate/terapkan), bukan dari "selesai dibagi total" yang totalnya baru
-   ketahuan belakangan (jumlah pembicara baru pasti sesudah diarize,
-   jumlah segmen baru pasti sesudah locate) -- kalau dihitung begitu,
-   angkanya bisa melompat MUNDUR persis saat total itu berubah. Dengan
-   bobot tetap, tiap tahap cuma mengisi jatahnya sendiri, jadi batangnya
-   selalu maju. */
-const AI_FRAMING_WEIGHT = { diarize: 40, scenecut: 10, locate: 30, terapkan: 20 };
+   Percent is computed from FIXED WEIGHTS per pipeline stage (diarize/
+   scenecut/locate/apply), not from "done divided by total" where the
+   total is only known later (speaker count is only certain after diarize,
+   segment count only certain after locate) -- computed that way, the
+   number could jump BACKWARD exactly when that total changes. With fixed
+   weights, each stage only fills its own share, so the bar always moves
+   forward. */
+const AI_FRAMING_WEIGHT = { diarize: 40, scenecut: 10, locate: 30, apply: 20 };
 const AI_FRAMING_OFFSET = {
   diarize: 0,
   scenecut: AI_FRAMING_WEIGHT.diarize,
   locate: AI_FRAMING_WEIGHT.diarize + AI_FRAMING_WEIGHT.scenecut,
-  terapkan: AI_FRAMING_WEIGHT.diarize + AI_FRAMING_WEIGHT.scenecut + AI_FRAMING_WEIGHT.locate,
+  apply: AI_FRAMING_WEIGHT.diarize + AI_FRAMING_WEIGHT.scenecut + AI_FRAMING_WEIGHT.locate,
 };
 
 function aiFramingOverlayStart() {
@@ -755,22 +755,22 @@ function aiFramingOverlayDone() {
   $("#aiFramingOverlay")?.setAttribute("hidden", "");
 }
 
-/* `selesai`/`total` posisi DI DALAM tahap itu saja (mis. span ke berapa
-   dari berapa span), bukan lintas seluruh pipeline -- offset tahapnya
-   yang menerjemahkan itu ke persen keseluruhan. */
+/* `done`/`total` are position WITHIN that stage only (e.g. which span
+   out of how many spans), not across the whole pipeline -- the stage's
+   offset is what translates that into an overall percentage. */
 function aiFramingOverlayProgress(stage, done, total, text) {
   const withinStage = total > 0 ? done / total : 0;
   const pct = Math.min(100, Math.round(AI_FRAMING_OFFSET[stage] + withinStage * AI_FRAMING_WEIGHT[stage]));
   const bar = $("#aiFramingOverlayBar");
   const pctEl = $("#aiFramingOverlayPct");
-  const textEl = $("#aiFramingOverlayTeks");
+  const textEl = $("#aiFramingOverlayText");
   if (bar) bar.style.width = `${pct}%`;
   if (pctEl) pctEl.textContent = `${pct}%`;
   if (textEl && text) textEl.textContent = text;
 }
 
-/* Satu permintaan ke server, dibungkus Promise supaya bisa di-`await` di
-   dalam loop -- lihat aiFramingStart() untuk alasan loopnya. */
+/* One request to the server, wrapped in a Promise so it can be `await`ed
+   inside a loop -- see aiFramingStart() for why the loop exists. */
 function aiFramingDiarizeOneSpan(span) {
   return fetch("/api/diarize", {
     method: "POST", headers: { "Content-Type": "application/json" },
@@ -795,11 +795,11 @@ function aiFramingPollPromise(id) {
   });
 }
 
-/* Potongan visual keras di satu span -- sinyal TAMBAHAN, bukan wajib.
-   Gagal diam-diam (ffmpeg build lama tanpa filter scene, atau apa pun)
-   mengembalikan array kosong, bukan melempar -- AI Framing yang sudah
-   berhasil dari diarization tidak boleh ikut gagal cuma karena pelengkap
-   ini tersandung. */
+/* Hard visual cuts within one span -- an ADDITIONAL signal, not required.
+   Fails silently (old ffmpeg build without the scene filter, or whatever
+   else) by returning an empty array instead of throwing -- AI Framing that
+   already succeeded from diarization must not fail just because this
+   extra piece stumbled. */
 function aiFramingScenecutOneSpan(span) {
   return fetch("/api/scenecut", {
     method: "POST", headers: { "Content-Type": "application/json" },
@@ -815,24 +815,24 @@ async function aiFramingStart() {
     aiFramingStatus("Select or add a clip to Result first.");
     return;
   }
-  // Result bisa berupa BEBERAPA span terpisah yang disambung jadi satu MP4
-  // (menggabungkan beberapa rekomendasi AI, misalnya). Dulu di sini cuma
-  // diambil awal span PERTAMA sampai akhir span TERAKHIR -- untuk Result 4
-  // span yang saling berjauhan di video sumber, itu berarti menganalisis
-  // SELURUH rentang di antaranya juga, termasuk bagian yang sama sekali
-  // tidak ikut ke Result. Lambat, dan menghasilkan titik framing yang
-  // bertebaran sampai ke bagian video yang tidak relevan. Sekarang tiap
-  // span dianalisis SENDIRI-SENDIRI, cuma rentang aslinya.
+  // A Result can be SEVERAL separate spans stitched into one MP4 (merging
+  // several AI recommendations, for example). This used to just take from
+  // the start of the FIRST span to the end of the LAST span -- for a
+  // Result with 4 spans far apart in the source video, that meant also
+  // analyzing the ENTIRE range in between, including parts that never made
+  // it into the Result at all. Slow, and produced framing points scattered
+  // into irrelevant parts of the video. Now each span is analyzed
+  // SEPARATELY, only its actual range.
   const spans = activeClip.spans;
 
   const btn = $("#aiFramingBtn");
   if (btn) { btn.disabled = true; aiFramingBtnText("Analyzing …"); }
   aiFramingOverlayStart();
 
-  // Berurutan, BUKAN paralel: semua span berbagi satu model diarization
-  // yang sama di server (satu instance dimuat sekali, dipakai lagi supaya
-  // tidak menunggu belasan detik memuat ulang tiap kali) -- dua permintaan
-  // bersamaan ke model yang sama berisiko baku rebut/hasil kacau.
+  // Sequential, NOT parallel: all spans share the same single diarization
+  // model on the server (one instance loaded once, reused so it doesn't
+  // wait ten-plus seconds reloading every time) -- two simultaneous
+  // requests to the same model risk contention/garbled results.
   const allTurns = [];
   try {
     for (let i = 0; i < spans.length; i++) {
@@ -850,11 +850,12 @@ async function aiFramingStart() {
     return;
   }
 
-  // Potongan visual keras di video sumber -- dicari SESUDAH diarization
-  // (bukan sekaligus di loop yang sama) supaya kalau ini gagal/lambat tidak
-  // ikut mengacaukan pesan progres giliran bicara di atas. Gagal per span
-  // diam-diam jadi array kosong (lihat aiFramingScenecutOneSpan) -- ini
-  // pelengkap, AI Framing tetap jalan dari diarization saja kalau ini kosong.
+  // Hard visual cuts in the source video -- looked up AFTER diarization
+  // (not in the same loop at once) so that if this fails/is slow it
+  // doesn't mess up the speaker-turn progress messages above. A per-span
+  // failure silently becomes an empty array (see aiFramingScenecutOneSpan)
+  // -- this is supplementary, AI Framing still works from diarization
+  // alone if this comes back empty.
   aiFramingStatus(spans.length > 1
     ? "AI Framing: checking for shot changes …"
     : "AI Framing: checking for shot changes … (usually a few seconds)");
@@ -875,12 +876,12 @@ function aiFramingFailed(message) {
   aiFramingOverlayDone();
 }
 
-/* Ukuran kotak KELUARAN buat locate_speaker() -- diambil dari kotak yang
-   sedang ada di kanvas (format Single) kalau ada, supaya ukuran yang
-   sudah disetel ian sebelumnya (zoom keluar/masuk) ikut dipakai, bukan
-   dipatok balik ke ukuran bawaan. Posisinya sendiri (left/top) diabaikan
-   di sini -- locate_speaker() yang menentukan posisi dari wajah yang
-   ditemukan, bukan dari kotak yang sedang tampil. */
+/* OUTPUT box size for locate_speaker() -- taken from the box currently
+   on the canvas (Single format) if there is one, so a size ian already
+   adjusted (zoomed in/out) carries over instead of snapping back to the
+   default size. Its position (left/top) is ignored here -- locate_speaker()
+   determines the position from the face it finds, not from the box
+   currently shown. */
 function aiFramingOutputSize() {
   const box = canvasFormat === "single" ? boxOnCanvas() : null;
   const w = box?.[0];
@@ -890,11 +891,11 @@ function aiFramingOutputSize() {
   };
 }
 
-/* Cari posisi SATU pembicara secara otomatis dari giliran bicara
-   pertamanya -- lihat locate_speaker() di klipian/facebox.py. Gagal (tidak
-   ada wajah yang lolos syarat gerak-mulut jelas) -> null; pembicara itu
-   dilewati sama seperti dulu "Skip this speaker" manual, bukan menjatuhkan
-   seluruh AI Framing. */
+/* Automatically finds the position of ONE speaker from their first
+   turn -- see locate_speaker() in klipian/facebox.py. Fails (no face
+   passes the clear mouth-motion requirement) -> null; that speaker is
+   skipped just like the old manual "Skip this speaker", instead of
+   dropping AI Framing entirely. */
 function aiFramingFindSpeaker(turn, size) {
   return fetch("/api/speakerlocate", {
     method: "POST", headers: { "Content-Type": "application/json" },
@@ -917,8 +918,8 @@ async function aiFramingFindAllPositions(turns, cuts) {
     return;
   }
 
-  // Giliran PERTAMA tiap pembicara -- posisinya cuma perlu dicari sekali
-  // per orang, bukan tiap giliran mereka bicara.
+  // Each speaker's FIRST turn -- their position only needs to be found
+  // once per person, not for every turn they speak.
   const firstTurn = new Map();
   for (const t of turns) if (!firstTurn.has(t.speaker)) firstTurn.set(t.speaker, t);
   const speakerList = [...firstTurn.entries()].sort((a, b) => a[1].start - b[1].start);
@@ -930,11 +931,11 @@ async function aiFramingFindAllPositions(turns, cuts) {
   aiFramingOverlayProgress("locate", 0, speakerList.length,
     speakerList.length > 1 ? `Locating ${speakerList.length} speakers…` : "Locating the speaker…");
 
-  // Paralel -- tiap pencarian independen (rentang video beda-beda), dan
-  // menunggu satu-satu untuk banyak pembicara bisa lama tanpa alasan.
-  // Progres tetap ikut per pencarian yang SELESAI (bukan cuma sesudah
-  // semuanya beres sekaligus) -- setiap .then() di sini nebeng jalan
-  // pencarian aslinya, TIDAK mengubah hasil atau urutan Promise.all.
+  // Parallel -- each search is independent (different video ranges), and
+  // waiting one by one for many speakers could take needlessly long.
+  // Progress still follows each search as it FINISHES (not only after
+  // everything is done at once) -- each .then() here just rides along
+  // the actual search, it does NOT change the result or Promise.all's order.
   let locateDone = 0;
   const results = await Promise.all(
     speakerList.map(([, turn]) => aiFramingFindSpeaker(turn, size).then((r) => {
@@ -958,20 +959,21 @@ async function aiFramingFindAllPositions(turns, cuts) {
   aiFramingApply(turns, positions, cuts);
 }
 
-/* Kotak yang sudah dites di sini KASAR, cuma posisi orang secara umum
-   (ditandai manual sekali di titik Split acuan) -- meleset dikit dari
-   wajah sungguhan itu wajar. Tanpa perbaikan, titik yang dihasilkan AI
-   Framing cuma menyalin mentah-mentah koordinat kasar itu ke SELURUH
-   segmen, dan kalau geseran awalnya kurang pas, hasilnya bisa menyorot
-   kursi kosong -- persis keluhan yang mau diperbaiki. Jadi segmen
-   [start, end) yang sudah dipecah aiFramingApply (per giliran bicara,
-   atau lebih kecil lagi kalau ada potongan visual di dalamnya) dilacak
-   lewat deteksi wajah sungguhan (klipian/facebox.py) untuk MENEMUKAN
-   posisi yang benar -- track_crops() sengaja mengembalikan SATU titik per
-   panggilan (posisi median dari banyak sampel), bukan memecah sendiri
-   lagi berdasar gerak wajah: alasan untuk titik BARU sudah diputuskan di
-   sini (giliran/potongan), bukan oleh gerak orang duduk yang wajar.
-   Gagal/videonya belum ada -> jatuh ke satu titik kotak kasar. */
+/* The box tested here is ROUGH, just a person's general position (marked
+   manually once at the reference Split point) -- being slightly off from
+   the actual face is expected. Without correction, the points AI Framing
+   produces would just copy that rough coordinate verbatim across the
+   ENTIRE segment, and if the initial placement is a bit off, the result
+   can end up highlighting an empty chair -- exactly the complaint this is
+   meant to fix. So the [start, end) segment already split by
+   aiFramingApply (per speaker turn, or smaller still if there's a visual
+   cut inside it) is tracked via real face detection (klipian/facebox.py)
+   to FIND the correct position -- track_crops() deliberately returns ONE
+   point per call (the median position across many samples), not splitting
+   further on its own based on face movement: the reason for a NEW point
+   is already decided here (turn/cut), not by a sitting person's normal
+   movement. Fails/video not ready yet -> falls back to a single rough-box
+   point. */
 async function aiFramingTrackFace(start, end, rough) {
   try {
     const r = await fetch("/api/facetrack", {
@@ -988,40 +990,39 @@ async function aiFramingTrackFace(start, end, rough) {
 async function aiFramingApply(turns, positions, cuts) {
   const cutList = (cuts || []).slice().sort((a, b) => a - b);
 
-  // Daftar rencana dulu, baru pelacakan wajahnya dijalankan PARALEL untuk
-  // semua giliran -- kalau berurutan, klip dengan banyak giliran bicara
-  // (mis. 15 titik) bisa makan belasan detik cuma menunggu satu-satu.
-  // Video sumber sering sudah berpindah shot SEBELUM diarization yakin
-  // giliran bicara baru resmi mulai (orang barunya kelihatan dulu sesaat
-  // sebelum benar-benar bicara) -- t.start yang datang dari audio jadi
-  // TELAT dibanding potongan videonya sendiri. Tanpa koreksi ini, hasil
-  // render kelihatan berganti frame DUA KALI: sekali dari potongan video
-  // sungguhan, sekali lagi (telat) saat framing kita baru menyusul di
-  // t.start (laporan nyata dari ian). 2 detik dipilih sebagai jendela
-  // toleransi -- cukup untuk selisih audio/visual yang wajar, tidak
-  // sampai menyerempet ke giliran SEBELUMNYA yang tidak terkait.
+  // Plan the list first, then run face tracking IN PARALLEL for all
+  // turns -- if sequential, a clip with many speaker turns (e.g. 15
+  // points) could take ten-plus seconds just waiting one by one.
+  // The source video often changes shot BEFORE diarization is confident a
+  // new speaker turn has officially started (the new person is visible
+  // briefly before actually speaking) -- t.start coming from audio ends up
+  // LATE compared to the video's own cut. Without this correction, the
+  // rendered result appears to change frame TWICE: once from the actual
+  // video cut, once more (late) when our framing finally catches up at
+  // t.start (a real report from ian). 2 seconds was chosen as the
+  // tolerance window -- enough for normal audio/visual offset, not so
+  // much that it bleeds into an unrelated PREVIOUS turn.
   const START_TOLERANCE = 2;
 
-  // Giliran yang benar-benar perlu titik (pembicara dikenal & baru
-  // dibanding giliran sebelumnya) -- dikumpulkan dulu SEBELUM logika
-  // potongan supaya "giliran sebelumnya" di bawah selalu berarti giliran
-  // yang IKUT DIPAKAI, bukan giliran mentah yang mungkin dilewati.
+  // Turns that actually need a point (known speaker & new compared to the
+  // previous turn) -- collected BEFORE the cut logic so "previous turn"
+  // below always means a turn that was ACTUALLY USED, not a raw turn that
+  // may have been skipped.
   const selectedTurns = [];
   let previousSpeaker = null;
   for (const t of turns) {
     const rough = positions[t.speaker];
-    if (!rough) continue;                          // pembicara yang dilewati
-    if (t.speaker === previousSpeaker) continue; // pembicara sama, tidak perlu titik baru
+    if (!rough) continue;                          // a skipped speaker
+    if (t.speaker === previousSpeaker) continue; // same speaker, no new point needed
     previousSpeaker = t.speaker;
     selectedTurns.push({ turn: t, rough });
   }
 
-  // Tahap 1 -- KLAIM: tiap giliran boleh mengambil SATU potongan di jendela
-  // toleransi sebelum t.start-nya sebagai awal sebenarnya. Diproses lebih
-  // dulu, terpisah dari tahap pemecahan giliran SEBELUMNYA di bawah --
-  // supaya potongan yang sebenarnya menandai pergantian ORANG tidak keburu
-  // "termakan" jadi pemecah di TENGAH giliran orang lama (kasar/kotak yang
-  // salah kalau sampai kejadian).
+  // Stage 1 -- CLAIM: each turn may take ONE cut within the tolerance
+  // window before its t.start as its real start. Processed first, separate
+  // from the PREVIOUS-turn splitting stage below -- so a cut that actually
+  // marks a change of PERSON doesn't get "eaten" as a splitter in the
+  // MIDDLE of the old person's turn (a rough/wrong box if that happens).
   const claimedCuts = new Set();
   const turnStarts = selectedTurns.map(({ turn: t }) => {
     const candidate = cutList.find((c) => !claimedCuts.has(c)
@@ -1030,17 +1031,17 @@ async function aiFramingApply(turns, positions, cuts) {
     return candidate !== undefined ? candidate : t.start;
   });
 
-  // Tahap 2 -- PECAH: video sumber sendiri bisa berganti shot DI TENGAH
-  // satu giliran bicara (zoom keluar jadi close-up, potong ke reaksi orang
-  // lain) meski micnya masih orang yang sama -- diarization tidak melihat
-  // itu sama sekali. Potongan yang jatuh di dalam rentang giliran ini
-  // (dan BELUM terklaim giliran berikutnya di tahap 1) memecahnya jadi
-  // beberapa titik lacak, supaya tiap potongan sungguhan dapat titik
-  // framing sendiri, bukan cuma titik di awal giliran yang lama-lama
-  // meleset begitu shot-nya berganti. Akhir giliran ini dijepit ke awal
-  // sebenarnya giliran BERIKUTNYA (kalau lebih awal dari t.end sendiri) --
-  // tanpa ini, giliran berikutnya yang "mencuri mundur" waktunya lewat
-  // klaim di Tahap 1 akan tumpang tindih dengan ekor giliran ini.
+  // Stage 2 -- SPLIT: the source video itself can change shot IN THE
+  // MIDDLE of one speaker turn (zoom out to a close-up, cut to another
+  // person's reaction) even though the mic is still the same person --
+  // diarization doesn't see that at all. A cut that falls within this
+  // turn's range (and hasn't ALREADY been claimed by the next turn in
+  // stage 1) splits it into several tracking points, so each real cut gets
+  // its own framing point, instead of just the point at the start of the
+  // turn gradually drifting off as the shot changes. This turn's end is
+  // clamped to the NEXT turn's actual start (if earlier than its own
+  // t.end) -- without this, a next turn that "steals back" time via a
+  // Stage 1 claim would overlap with this turn's tail.
   const plan = [];
   let cutsUsed = 0;
   selectedTurns.forEach(({ turn: t, rough }, i) => {
@@ -1058,10 +1059,10 @@ async function aiFramingApply(turns, positions, cuts) {
   });
 
   if (!plan.length) {
-    // Bukan kegagalan -- cuma tidak ada giliran yang perlu berganti kotak
-    // (misal cuma satu pembicara sepanjang klip). Dulu ini dilaporkan
-    // sebagai "0 titik ditambahkan" yang kelihatan seperti error padahal
-    // benar begini adanya.
+    // Not a failure -- there's simply no turn that needs a box switch
+    // (e.g. only one speaker throughout the clip). This used to be
+    // reported as "0 points added", which looked like an error when
+    // that's genuinely correct.
     aiFramingStatus("AI Framing: no switching needed for this clip.");
     aiFramingOverlayDone();
     return;
@@ -1069,13 +1070,13 @@ async function aiFramingApply(turns, positions, cuts) {
 
   aiFramingStatus(
     `AI Framing: tracking ${plan.length} segment${plan.length === 1 ? "" : "s"} onto each face …`);
-  aiFramingOverlayProgress("terapkan", 0, plan.length,
+  aiFramingOverlayProgress("apply", 0, plan.length,
     `Tracking ${plan.length} segment${plan.length === 1 ? "" : "s"}…`);
   let applyDone = 0;
   const resultsPerTurn = await Promise.all(
     plan.map((r) => aiFramingTrackFace(r.at, r.end, r.rough).then((result) => {
       applyDone++;
-      aiFramingOverlayProgress("terapkan", applyDone, plan.length);
+      aiFramingOverlayProgress("apply", applyDone, plan.length);
       return result;
     })));
 

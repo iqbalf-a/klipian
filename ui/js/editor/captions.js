@@ -125,10 +125,10 @@ function renderCaptions() {
     // transcript is missing.
     const hasClip = typeof activeClip !== "undefined" && activeClip?.spans?.length;
     if (hasClip && !realTranscript) {
-      list.innerHTML = `<p class="empty-message">Video ini belum ditranskripsi, jadi caption-nya
-        belum ada teks untuk ditampilkan.
+      list.innerHTML = `<p class="empty-message">This video hasn't been transcribed yet, so
+        there's no caption text to show.
         <button class="btn main" id="autoCaptionBtn" type="button">Auto Caption</button></p>`;
-      if (note) note.textContent = "belum ditranskripsi";
+      if (note) note.textContent = "not transcribed yet";
     } else {
       list.innerHTML = `<p class="empty-message">No words yet. Build a Result first and the
         caption text will show up here.</p>`;

@@ -85,40 +85,41 @@ async function buildBrief(name) {
 
 ---
 
-## Momen energi audio menonjol (dari analisis volume, BUKAN transkrip)
+## Prominent audio-energy moments (from volume analysis, NOT the transcript)
 
-Rentang waktu berikut punya energi suara jauh di atas rata-rata video ini
-sendiri -- bisa tawa penonton, sorakan, reaksi keras, atau momen dramatis.
-Ini SINYAL pendukung, bukan fakta pasti: cocokkan dengan kalimat di
-transkrip sekitar waktu itu sebelum menjadikannya alasan skor.
+The following time ranges have sound energy well above this video's own
+average -- could be audience laughter, cheering, a loud reaction, or a
+dramatic moment. This is a SUPPORTING signal, not a certain fact: cross-
+check it against the transcript's sentences around that time before using
+it as a reason for a score.
 
 ${energyList}
 `;
     }
   } catch { /* no backend means nothing to fetch -- brief still works without this section */ }
 
-  return `# Cari klip — ${name}
+  return `# Find clips — ${name}
 
-Halo. Tolong baca transkrip di bagian bawah berkas ini dan pilih momen yang
-layak dijadikan video vertikal pendek.
+Hello. Please read the transcript at the bottom of this file and pick moments
+worth turning into short vertical videos.
 
-**Durasi sumber:** ${fmtStamp(realTranscript.duration)} · **${realTranscript.words.length} kata**
+**Source duration:** ${fmtStamp(realTranscript.duration)} · **${realTranscript.words.length} words**
 
-Waktu yang kamu berikan tidak perlu presisi. Cukup menit:detik yang mendekati;
-klipian yang akan menggeser titik potongnya ke batas kata terdekat.
+The times you give don't need to be precise. Approximate min:sec is fine;
+klipian will snap the cut points to the nearest word boundary.
 
 ---
 
-## Rubrik penilaian
+## Evaluation rubric
 
 ${rubric}
 
 ---
 
-## Bentuk jawaban
+## Answer format
 
-Balas dengan **satu blok JSON** persis seperti ini, tanpa penjelasan tambahan
-di luar bloknya.
+Reply with **a single JSON block** exactly like this, no extra explanation
+outside the block.
 
 \`\`\`json
 {
@@ -127,10 +128,10 @@ di luar bloknya.
     {
       "start": "0:12",
       "end": "1:07",
-      "title": "Rugi 300 Juta karena Timing",
-      "hook": "kutipan persis dari transkrip",
+      "title": "Lose 300M Because of Timing",
+      "hook": "exact quote from transcript",
       "scores": { "hook": 9, "complete": 8, "payoff": 9, "emotion": 8, "duration": 9 },
-      "reason": "satu dua kalimat untuk dibaca manusia"
+      "reason": "one or two sentences for a human to read"
     }
   ]
 }
@@ -138,7 +139,7 @@ di luar bloknya.
 ${energyBlock}
 ---
 
-## Transkrip
+## Transcript
 
 ${row}
 `;
@@ -162,8 +163,8 @@ function extractJSON(text) {
     try {
       return JSON.parse(s);
     } catch {
-      throw new Error("Blok JSON-nya ada, tapi isinya rusak — salin ulang " +
-                      "balasan Claude dari awal sampai akhir blok.");
+      throw new Error("The JSON block is there, but its content is broken — copy " +
+                      "Claude's reply again from the start to the end of the block.");
     }
   };
   const fence = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
@@ -224,7 +225,7 @@ function importJSON(text) {
     const nums = Object.values(scores)
       .map(Number).filter(Number.isFinite);
     return {
-      title: (k.title || k.judul || "Tanpa judul").trim(),
+      title: (k.title || k.judul || "Untitled").trim(),
       hook: (k.hook || "").trim(),
       in: fmtStamp(m), out: fmtStamp(s),
       startSec: m, endSec: s,

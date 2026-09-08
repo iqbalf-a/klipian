@@ -244,7 +244,7 @@ function deleteResultTab(id) {
   if (i < 0) return;
   if (id === activeResultId) {
     const neighbor = SAVED_RESULTS[i - 1] || SAVED_RESULTS[i + 1];
-    switchResult(neighbor.id);   // sudah snapshot + load + saveProject()
+    switchResult(neighbor.id);   // already snapshots + loads + saveProject()
   }
   SAVED_RESULTS = SAVED_RESULTS.filter((r) => r.id !== id);
   renderResultSwitcher();
@@ -471,19 +471,19 @@ async function renderProjects() {
   finally { _renderProjectsInflight = null; }
 }
 
-/* ---------- menghapus, dengan konfirmasi ----------
-   Kartu ini memegang pekerjaan yang tidak bisa dibuat ulang: rentang yang
-   dipilih, titik framing, dan tiap kata yang dibetulkan. Sekali klik langsung
-   hilang adalah cara paling gampang kehilangan semua itu karena salah pencet.
+/* ---------- delete, with confirmation ----------
+   This card holds work that cannot be recreated: the selected ranges,
+   framing points, and every corrected word. One click straight to gone
+   is the easiest way to lose all of that from a misclick.
 
-   Konfirmasinya dua tombol di dalam kartunya sendiri, bukan confirm() bawaan
-   browser: yang bawaan memblokir seluruh halaman dan tidak bisa menyebutkan
-   APA yang hilang. Ia mundur sendiri sesudah beberapa detik didiamkan, jadi
-   kartu tidak tertinggal dalam keadaan menunggu.
+   Confirmation is two buttons inside the card itself, not the browser's
+   built-in confirm(): the built-in one blocks the whole page and can't
+   say WHAT is being lost. It backs off on its own after a few seconds of
+   no action, so the card doesn't stay stuck waiting.
 
-   Yang dihapus HANYA berkas project. MP4 di out/ dan transkrip di cache/
-   tidak ikut -- itu disebut di pesannya supaya tidak ada yang mengira
-   berkas hasilnya ikut lenyap. */
+   What's deleted is ONLY the project file. The MP4 in out/ and the
+   transcript in cache/ are not touched -- that's stated in the message so
+   nobody thinks the output files vanish too. */
 
 let confirmTimer = null;
 
@@ -499,10 +499,10 @@ async function deleteProject(video) {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ video, delete: true }),
     });
-  } catch { /* tanpa backend tidak ada yang bisa dihapus */ }
+  } catch { /* without a backend there's nothing to delete */ }
   if (activeProject === video) {
-    activeProject = null;   // jangan menulisnya lagi
-    forgetActiveSession();  // reload sesudah ini jangan coba masuk ke project yang baru dihapus
+    activeProject = null;   // don't write it again
+    forgetActiveSession();  // a reload after this shouldn't try to enter the just-deleted project
   }
   renderProjects();
 }
@@ -549,11 +549,11 @@ $("#projectList")?.addEventListener("click", async (e) => {
   await openProjectFromHome(video);
 });
 
-/* Satu jalur untuk "masuk ke project ini dan lanjutkan mengedit" -- dipakai
-   klik kartu di beranda MAUPUN pemulihan otomatis saat halaman di-reload
-   (lihat restoreLastSession()). Dulu logika ini cuma ada di dalam
-   listener klik; disalin ulang di dua tempat gampang meleset kalau salah
-   satu diubah belakangan. */
+/* One path for "enter this project and continue editing" -- used by BOTH
+   clicking a card on the home screen AND automatic restore when the page
+   is reloaded (see restoreLastSession()). This logic used to live only
+   inside the click listener; copying it to two places is easy to get out
+   of sync if only one is changed later. */
 let _openProjectGen = 0;
 async function openProjectFromHome(video) {
   // Fast click / race with session restore: tag the generation. If a new
@@ -569,14 +569,14 @@ async function openProjectFromHome(video) {
   // The file is fetched from workspace/samples/, not a file dialog --
   // projects store the NAME, and browsers can't open local paths directly.
   chosenSource = { kind: "file", name: video, url: `/workspace/samples/${encodeURIComponent(video)}` };
-  // Nama dulu, tampil seketika -- chosenSource di jalur ini tidak punya
-  // .duration (bukan hasil readMeta() dari <video>, cuma nama dari catatan
-  // project). Ditimpa lagi di bawah begitu transkrip (kalau ada) memberi
-  // durasi sungguhan.
+  // Name first, shown right away -- chosenSource on this path has no
+  // .duration (it's not the result of readMeta() from a <video>, just a
+  // name from the project record). Overwritten again below once the
+  // transcript (if any) supplies the real duration.
   if (typeof updateTopbarFile === "function") updateTopbarFile(video, NaN);
   if (typeof realTranscript !== "undefined" && typeof findTranscript === "function") {
     const tr = await findTranscript(video);
-    if (gen !== _openProjectGen) return false;   // sudah didahului pembukaan lain
+    if (gen !== _openProjectGen) return false;   // superseded by another open
     realTranscript = tr;
     if (typeof updateTopbarFile === "function") {
       updateTopbarFile(video, tr?.duration);
@@ -584,18 +584,19 @@ async function openProjectFromHome(video) {
   }
   const existed = await loadProject(video);
   if (gen !== _openProjectGen) return false;
-  // Jalur ini biasanya hanya membuka project yang SUDAH ada (kartu beranda
-  // dan pemulihan sesi keduanya berasal dari project yang sudah tercatat),
-  // tapi dijaga sama seperti openProject() kalau kelak dipanggil untuk video
-  // yang belum pernah dibuka.
+  // This path usually only opens a project that ALREADY exists (both the
+  // home card and session restore come from a project that's already on
+  // record), but it's guarded the same as openProject() in case it's ever
+  // called for a video that's never been opened before.
   if (!existed) {
-    // Project baru: TIDAK ADA jaminan RESULT/FRAMING/CORRECTIONS/SAVED_RESULTS/
-    // kandidat di memori sekarang kosong -- kalau video sebelumnya sempat
-    // dikerjakan di tab yang sama tanpa reload, isinya masih milik video
-    // ITU, bukan video ini. Jalur drop-file (acceptFile() di
-    // interactions.js) sudah membersihkan ini lewat resetProjectState();
-    // jalur ini (kartu beranda / pemulihan sesi) belum, dan project baru
-    // lewat sini secara teori mungkin -- lihat komentar openProjectFromHome().
+    // New project: there's NO guarantee RESULT/FRAMING/CORRECTIONS/
+    // SAVED_RESULTS/candidates are currently empty in memory -- if a
+    // previous video was worked on in the same tab without a reload, its
+    // contents still belong to THAT video, not this one. The drop-file
+    // path (acceptFile() in interactions.js) already clears this via
+    // resetProjectState(); this path (home card / session restore) hasn't,
+    // and a new project arriving via this path is theoretically possible --
+    // see the comment on openProjectFromHome().
     resetProjectState();
     if (typeof DATA !== "undefined") { DATA.candidates = []; DATA.marks = []; }
     if (typeof applyPresetCaption === "function" && applyPresetCaption()) {
@@ -613,14 +614,14 @@ async function openProjectFromHome(video) {
   return existed;
 }
 
-/* ---------- tetap di layar yang sama setelah reload ----------
-   Sebelumnya reload SELALU kembali ke beranda drop-video, walau tadi
-   sedang di tengah mengedit klip -- project SENDIRI sudah tersimpan
-   otomatis, tapi "sedang membuka project yang mana" cuma hidup di memori
-   tab yang sekarang, hilang begitu di-reload. localStorage bertahan lewat
-   reload (beda dari variabel biasa), jadi cukup buat menyimpan PENUNJUK
-   video mana yang sedang dibuka -- bukan project-nya sendiri, yang tetap
-   di berkas seperti sebelumnya. */
+/* ---------- stay on the same screen after a reload ----------
+   Previously a reload ALWAYS returned to the drop-video home screen, even
+   if you were in the middle of editing a clip -- the project ITSELF was
+   already auto-saved, but "which project is currently open" only lived in
+   the current tab's memory, lost the moment it's reloaded. localStorage
+   survives a reload (unlike a normal variable), so it's enough to store a
+   POINTER to which video is currently open -- not the project itself,
+   which still lives in a file as before. */
 const SESSION_KEY = "klipian:sesi-aktif";
 
 function rememberActiveSession(video) {
@@ -631,32 +632,32 @@ function forgetActiveSession() {
   try { localStorage.removeItem(SESSION_KEY); } catch { /* sama */ }
 }
 
-/* Dipanggil sekali saat halaman dimuat. Balik true kalau berhasil masuk
-   lagi ke project terakhir -- pemanggil TIDAK perlu jatuh ke toStage("home")
-   kalau ini sukses. */
+/* Called once when the page loads. Returns true if it successfully
+   re-entered the last project -- the caller does NOT need to fall back to
+   toStage("home") if this succeeds. */
 async function restoreLastSession() {
   let video;
   try { video = localStorage.getItem(SESSION_KEY); } catch { return false; }
   if (!video) return false;
 
-  // Video-nya mungkin sudah dipindah/dihapus sejak terakhir dibuka --
-  // diperiksa dulu lewat /api/video, bukan langsung dicoba lalu gagal
-  // diam-diam di tengah proses muat.
+  // The video may have been moved/deleted since it was last opened --
+  // checked first via /api/video, instead of trying directly and failing
+  // silently partway through loading.
   try {
     const available = (await (await fetch("/api/video")).json()).video || [];
     if (!available.includes(video)) { forgetActiveSession(); return false; }
   } catch {
-    return false;   // server belum siap/offline -- jangan pura-pura berhasil
+    return false;   // server not ready yet/offline -- don't pretend it succeeded
   }
 
   const existed = await openProjectFromHome(video);
-  if (!existed) { forgetActiveSession(); return false; }  // video ada tapi project-nya sendiri hilang
+  if (!existed) { forgetActiveSession(); return false; }  // video exists but its project is gone
   return true;
 }
 
-/* Kartu sudah bukan <button>, jadi Enter dan Spasi tidak lagi gratis.
-   Tanpa ini kartunya bisa difokus tapi tidak bisa dijalankan dari papan
-   ketik sama sekali. */
+/* The card is no longer a <button>, so Enter and Space aren't free anymore.
+   Without this the card could be focused but never activated from the
+   keyboard at all. */
 $("#projectList")?.addEventListener("keydown", (e) => {
   if (e.key !== "Enter" && e.key !== " ") return;
   const card = e.target.closest?.(".project-card");
@@ -665,17 +666,17 @@ $("#projectList")?.addEventListener("keydown", (e) => {
   card.click();
 });
 
-/* Menyalakan diri sendiri. app.js menjalankan toStage("home") di akhir
-   berkasnya sendiri -- jauh sebelum berkas ini sempat dimuat -- jadi hook di
-   sana belum melihat renderProjects() saat halaman pertama kali dibuka.
-   Modul yang bergantung pada urutan muat adalah modul yang menunggu untuk
-   putus; ia mengurus permulaannya sendiri. */
+/* Kicks itself off. app.js runs toStage("home") at the end of its own
+   file -- long before this file has had a chance to load -- so the hook
+   there hasn't seen renderProjects() when the page first opens. A module
+   that depends on load order is a module waiting to break; it handles
+   its own startup. */
 renderProjects();
 
-/* Sama alasannya: toStage("home") di app.js sudah keburu jalan sebelum
-   berkas ini dimuat, jadi "coba lanjutkan project terakhir" juga diurus di
-   sini, bukan di sana. Beranda sempat kelihatan sekilas dulu (wajar --
-   memeriksa /api/video dan memuat project itu proses async), lalu ditimpa
-   toStage("work") begitu restoreLastSession() selesai kalau memang ada
-   yang bisa dilanjutkan. */
+/* Same reason: toStage("home") in app.js already ran before this file
+   loaded, so "try to continue the last project" is also handled here,
+   not there. Home briefly flashes first (expected -- checking /api/video
+   and loading the project is an async process), then gets overwritten by
+   toStage("work") once restoreLastSession() finishes, if there really is
+   something to continue. */
 restoreLastSession();

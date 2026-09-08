@@ -273,7 +273,7 @@ function drawCaption() {
   const wordsPerLine = (typeof captionValue === "function"
     ? captionValue("per-line")?.out : 3) || 3;
 
-  // kata yang benar-benar masuk keluaran, seperti di build_ass
+  // words that actually make it into the output, same as in build_ass
   const used = [];
   for (const w of words) {
     const a = sourceToOut(activeClip, w.start);
@@ -295,7 +295,7 @@ function drawCaption() {
   let line = null, highlight = -1;
   for (let g = 0; g < used.length; g += wordsPerLine) {
     const group = used.slice(g, g + wordsPerLine);
-    const next = used[g + wordsPerLine];        // kata pertama baris sesudahnya
+    const next = used[g + wordsPerLine];        // first word of the following line
     const start = group[0].a;
     const end = next ? next.a : group[group.length - 1].b + 0.4;
     if (out < start || out >= end) continue;
@@ -397,7 +397,7 @@ function updateStepLabel() {
   });
   // The shortcut panel (see below) also references the active unit, so
   // the "," "." labels there don't look ambiguous between frames/seconds.
-  const unitEl = $("#shortcutUnitTeks");
+  const unitEl = $("#shortcutUnitText");
   if (unitEl) unitEl.textContent = stepUnit === "frame" ? "frame" : "second";
 }
 
@@ -499,7 +499,7 @@ muteBtn?.addEventListener("click", () => {
   video.muted = !video.muted;
   muteBtn.textContent = video.muted ? "🔇" : "🔊";
   muteBtn.setAttribute("aria-pressed", String(video.muted));
-  muteBtn.title = video.muted ? "Bunyikan" : "Bisukan";
+  muteBtn.title = video.muted ? "Unmute" : "Mute";
 });
 
 rewindBtn?.addEventListener("click", () => {
@@ -532,8 +532,8 @@ function setResultAsPreview() {
 /* ───────────────── render pipeline ───────────────── */
 
 let renderTimer = null;
-let renderJobId = null;             // id job render aktif, untuk pembatalan
-let lastFraming = null;   // titik framing yang sedang tampil di preview
+let renderJobId = null;             // id of the active render job, for cancellation
+let lastFraming = null;   // the framing point currently shown in the preview
 
 
 /* Human-readable values. For UI labels and history rows. */
@@ -572,16 +572,16 @@ async function sendRender(approved) {
   if (!approved || !approved.length) return;
 
 
-  // Klip tanpa waktu detik tidak bisa dirender. Sebelumnya yang seperti ini
-  // tetap dikirim dan server jatuh dengan KeyError 'mulai' -- pesan yang
-  // tidak berarti apa-apa bagi pengguna.
+  // A clip with no time points can't be rendered. Previously one like
+  // this was still sent and the server crashed with KeyError 'mulai' --
+  // a message that meant nothing to the user.
   const valid = approved.filter((k) =>
     (k.spans || []).every((p) => Number.isFinite(p.start) && Number.isFinite(p.end))
     && (k.spans || []).length);
   if (!valid.length) {
     const head = document.querySelector('[data-screen="history"] .note');
     if (head) head.textContent =
-      "Klip ini tidak punya titik waktu. Impor ulang dari Claude, atau buat klip manual.";
+      "This clip has no time points. Re-import from Claude, or create a manual clip.";
     toScreen("history");
     return;
   }
@@ -590,23 +590,22 @@ async function sendRender(approved) {
     video: chosenSource?.name || DATA.file,
     clips: valid.map((k) => ({
       title: k.title,
-      // Potongan dipecah lagi di tiap titik framing, dan masing-masing
-      // membawa crop-nya sendiri. Itulah yang membuat framing bisa berpindah
-      // di tengah klip.
+      // Spans are split again at each framing point, and each one carries
+      // its own crop. That's what lets framing change mid-clip.
       spans: (typeof spansWithFraming === "function")
         ? spansWithFraming(k.spans || [{ start: k.startSec, end: k.endSec }])
         : (k.spans || []).map((p) => ({ start: p.start, end: p.end })),
-      style: captionStyle(),         // pengaturan layar Caption ikut terkirim
-      // Teks yang sudah dibetulkan di layar Teks. Kalau tidak ada koreksi,
-      // isinya sama dengan transkrip -- server tetap menerimanya apa adanya.
+      style: captionStyle(),         // Caption screen settings are sent along too
+      // Words already corrected on the Captions screen. If there are no
+      // corrections, this matches the transcript -- the server accepts it as-is either way.
       words: (typeof wordsForRender === "function") ? wordsForRender() : undefined,
       layout: optionOut("format"),
       width: optionOut("resolution"),
     })),
   };
 
-  // Antrian harus sejajar dengan apa yang benar-benar dikirim: server
-  // melaporkan hasil per indeks, dan kalau isinya beda barisnya salah tunjuk.
+  // The queue must line up with what's actually sent: the server reports
+  // results by index, and if the contents differ the rows point to the wrong thing.
   buildQueue(valid);
   QUEUE.forEach((r) => { r.pct = 0; r.note = "queued"; r.action = "Cancel"; r.act = "cancel"; });
   drawQueue();
@@ -621,9 +620,9 @@ async function sendRender(approved) {
     }).then((r) => r.json());
     if (reply.error) throw new Error(reply.error);
     id = reply.id;
-    renderJobId = id;               // dipakai tombol Cancel untuk memberi tahu server
+    renderJobId = id;               // used by the Cancel button to notify the server
   } catch (err) {
-    // Tanpa backend, katakan apa adanya -- jangan pura-pura merender.
+    // Without a backend, say so plainly -- don't pretend to render.
     QUEUE.forEach((r) => { r.pct = 0; r.note = "needs klipian serve"; r.action = "Retry"; r.act = "retry"; });
     drawQueue();
     const head = document.querySelector('[data-screen="history"] .note');
@@ -638,8 +637,8 @@ async function sendRender(approved) {
     try { t = await (await fetch(`/api/render/${id}`)).json(); }
     catch { return; }
 
-    // Server sudah mengonfirmasi pembatalan: hentikan polling, jangan timpa
-    // baris jadi "rendering/queued" lagi.
+    // The server already confirmed the cancellation: stop polling, don't
+    // overwrite the row back to "rendering/queued".
     if (t.state === "cancelled") {
       clearInterval(renderTimer);
       renderJobId = null;
@@ -667,24 +666,25 @@ async function sendRender(approved) {
     if (t.state !== "running") {
       clearInterval(renderTimer);
       renderJobId = null;
-      if (typeof loadHistory === "function") loadHistory();   // berkas baru masuk riwayat
+      if (typeof loadHistory === "function") loadHistory();   // new file enters history
       const head = document.querySelector('[data-screen="history"] .note');
       if (head) head.textContent = t.state === "failed"
         ? `Failed: ${t.error}`
-        : `${t.done} klip selesai · ${(t.result || []).reduce((a, h) => a + h.mb, 0).toFixed(1)} MB`;
+        : `${t.done} clip${t.done === 1 ? "" : "s"} done · ${(t.result || []).reduce((a, h) => a + h.mb, 0).toFixed(1)} MB`;
     }
   }, 700);
 }
 
-/* ───────────────── pratinjau cepat: render sungguhan, dipotong pendek ────
-   Beda dari panel 9:16 di atas -- itu tiruan CSS, dan tiruan bisa meleset
-   dari hasil ASS/ffmpeg asli (persis yang terjadi pada bug opacity
-   watermark). Ini memanggil ffmpeg SUNGGUHAN lewat /api/preview, cuma
-   dipotong PREVIEW_MAX_DETIK detik di server supaya tetap "cepat". */
+/* ───────────────── quick preview: a real render, trimmed short ────
+   Different from the 9:16 panel above -- that's a CSS approximation, and
+   an approximation can drift from the real ASS/ffmpeg output (exactly
+   what happened with the watermark opacity bug). This calls REAL ffmpeg
+   via /api/preview, just trimmed to PREVIEW_MAX_SECONDS seconds on the
+   server to stay "quick". */
 async function quickPreview() {
   const resultClip = (typeof resultAsClip === "function") ? resultAsClip() : null;
-  const btn = $("#previewCepatBtn");
-  const note = $("#previewCepatNote");
+  const btn = $("#previewQuickBtn");
+  const note = $("#previewQuickNote");
   if (!resultClip || !resultClip.spans?.length) return;
 
   if (btn) { btn.disabled = true; btn.textContent = "Rendering…"; }
@@ -692,8 +692,8 @@ async function quickPreview() {
 
   const clip = {
     title: resultClip.title,
-    // Sama seperti sendRender(): potongan dipecah lagi di tiap titik
-    // framing supaya crop yang dipratinjau sungguhan sesuai yang dipilih.
+    // Same as sendRender(): spans are split again at each framing point
+    // so the crop actually previewed matches the one selected.
     spans: (typeof spansWithFraming === "function")
       ? spansWithFraming(resultClip.spans)
       : resultClip.spans,
@@ -703,10 +703,10 @@ async function quickPreview() {
     width: optionOut("resolution"),
   };
 
-  // Klip yang panjang (menit-an) nyaris tidak pernah terwakili oleh 3 detik
-  // PERTAMANYA saja -- posisi scrub yang sedang dilihat di panel preview
-  // itulah momen yang sebenarnya mau dicek, jadi pratinjau dimulai dari
-  // situ, bukan selalu dari awal.
+  // A long clip (minutes-long) is almost never represented by just its
+  // FIRST 3 seconds -- the scrub position currently being viewed in the
+  // preview panel is the moment actually being checked, so the preview
+  // starts from there instead of always from the beginning.
   const currentPosition = (video?.src && typeof sourceToOut === "function")
     ? sourceToOut(resultClip, video.currentTime) : null;
   const startFrom = currentPosition ?? 0;
@@ -718,9 +718,9 @@ async function quickPreview() {
     }).then((r) => r.json());
     if (reply.error) throw new Error(reply.error);
     showQuickPreview(reply.url);
-    // Supaya jelas potongan MANA yang sedang dilihat -- tanpa ini orang
-    // bisa kira pratinjau selalu dari awal klip, padahal sekarang ikut
-    // posisi scrub (lihat startFrom di atas).
+    // So it's clear WHICH span is being viewed -- without this, people
+    // might assume the preview always starts from the beginning of the
+    // clip, when it now follows the scrub position (see startFrom above).
     if (note) note.textContent = `previewing ${shortTime(startFrom)}–${shortTime(startFrom + (reply.duration || 0))}`;
   } catch (err) {
     if (note) note.textContent = err.message || "Preview failed.";
@@ -730,19 +730,19 @@ async function quickPreview() {
 }
 
 function showQuickPreview(url) {
-  const wrap = $("#previewCepatWrap");
-  const video = $("#previewCepatVideo");
+  const wrap = $("#previewQuickWrap");
+  const video = $("#previewQuickVideo");
   if (!wrap || !video) return;
-  video.src = url;               // ?t=... di url sudah membuatnya beda tiap kali
-  video.play().catch(() => {});  // autoplay boleh ditolak browser -- bukan galat
+  video.src = url;               // ?t=... in the url already makes it different each time
+  video.play().catch(() => {});  // autoplay may be blocked by the browser -- not an error
   wrap.hidden = false;
 }
 
-$("#previewCepatBtn")?.addEventListener("click", quickPreview);
+$("#previewQuickBtn")?.addEventListener("click", quickPreview);
 
-$("#previewCepatTutup")?.addEventListener("click", () => {
-  const wrap = $("#previewCepatWrap");
-  const video = $("#previewCepatVideo");
+$("#previewQuickClose")?.addEventListener("click", () => {
+  const wrap = $("#previewQuickWrap");
+  const video = $("#previewQuickVideo");
   if (video) { video.pause(); video.removeAttribute("src"); video.load(); }
   if (wrap) wrap.hidden = true;
 });

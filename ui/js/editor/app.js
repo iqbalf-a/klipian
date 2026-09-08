@@ -39,7 +39,7 @@ const DATA = {
 let QUEUE = [];
 
 /* Render queue is not a fixed list: it contains clips that are actually being rendered. */
-function buildQueue(daftar) {
+function buildQueue(list) {
   // Used to be locked to "face in center" regardless of choice, so the history
   // row would lie if you picked Blur background.
   const layout = (typeof optionValue === "function") ? optionValue("format") : "Crop";
@@ -49,10 +49,10 @@ function buildQueue(daftar) {
   // empty and makes the queue screen look blank even while rendering.
   // With argument: exactly that clip -- used by the render button in preview
   // which only sends one clip, so the queue row aligns with server results.
-  let approved = daftar;
+  let approved = list;
   if (!approved) {
-    const klip = (typeof resultAsClip === "function") ? resultAsClip() : null;
-    approved = klip ? [klip] : [];
+    const clip = (typeof resultAsClip === "function") ? resultAsClip() : null;
+    approved = clip ? [clip] : [];
   }
   QUEUE = approved.map((k) => ({
     // Title first, not filename guess. The title->filename rule lives on
@@ -285,11 +285,11 @@ function toStage(stage) {
   }
 }
 
-/* ───────────────────────── ribbon sumber ───────────────────────── */
+/* ───────────────────────── source ribbon ───────────────────────── */
 
 
 
-/* ───────────────────────── daftar ────────────────────────────── */
+/* ───────────────────────── queue ────────────────────────────── */
 /* Queue is split in two: buildQueue() derives its content from approved
    clips, drawQueue() renders the current state. If merged, pressing
    "Cancel" would immediately be overwritten by the re-derivation. */
@@ -420,7 +420,7 @@ function renderPreview() {
     </div>`;
 }
 
-/* ───────────────────────── navigasi ──────────────────────────── */
+/* ───────────────────────── navigation ──────────────────────────── */
 const NO_PREVIEW = ["video", "analysis", "history"];
 
 /* Three screens that edit the same result. Split into separate menus so
@@ -495,7 +495,7 @@ function drawAll() {
   renderList(); renderAnalysis(); renderPreview();
 }
 
-/* ───────────────────────── pasang ────────────────────────────── */
+/* ───────────────────────── wiring ────────────────────────────── */
 $("#tabs").addEventListener("click", (e) => {
   const t = e.target.closest(".tab");
   if (t) toScreen(t.dataset.to);
@@ -514,7 +514,7 @@ $("#tabs").addEventListener("keydown", (e) => {
   e.preventDefault();
 });
 
-// Panah kiri/kanan berpindah antar kata di transkrip.
+// Left/right arrows move between words in the transcript.
 document.addEventListener("keydown", (e) => {
   if (!document.activeElement?.classList.contains("word")) return;
   if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
@@ -533,11 +533,11 @@ $("#safeBtn").addEventListener("click", (e) => {
   e.currentTarget.setAttribute("aria-pressed", String(!on));
 });
 
-/* Sidebar (tab Analyze/Clips/Framing/dst) bisa disembunyikan buat layar
-   yang kehabisan lebar (mis. panel Framing, kanvas+Framing Points butuh
-   ruang mendatar -- lihat .canvas di app.css). Disimpan di localStorage
-   supaya pilihannya bertahan lewat reload, sama seperti pola sesi aktif
-   di projects.js -- bukan cuma keadaan tab ini. */
+/* Sidebar (Analyze/Clips/Framing/etc tabs) can be hidden for screens
+   that are short on width (e.g. the Framing panel, whose canvas+Framing
+   Points need horizontal room -- see .canvas in app.css). Stored in
+   localStorage so the choice survives a reload, same pattern as the
+   active-session key in projects.js -- not just this tab's state. */
 const SIDEBAR_KEY = "klipian:sidebar-tersembunyi";
 function applySidebar(collapsed) {
   $("#app").dataset.sidebar = collapsed ? "hidden" : "";
@@ -546,13 +546,13 @@ function applySidebar(collapsed) {
 }
 function setSidebar(collapsed) {
   applySidebar(collapsed);
-  try { localStorage.setItem(SIDEBAR_KEY, collapsed ? "1" : "0"); } catch { /* privat/penuh */ }
+  try { localStorage.setItem(SIDEBAR_KEY, collapsed ? "1" : "0"); } catch { /* private/full */ }
 }
 $("#hideSidebarBtn")?.addEventListener("click", () => setSidebar(true));
 $("#showSidebarBtn")?.addEventListener("click", () => setSidebar(false));
-try { applySidebar(localStorage.getItem(SIDEBAR_KEY) === "1"); } catch { /* default: tetap terlihat */ }
+try { applySidebar(localStorage.getItem(SIDEBAR_KEY) === "1"); } catch { /* default: stays visible */ }
 
-// klik kata → tetapkan in, klik kata kedua → tetapkan out
+// click a word → set in, click a second word → set out
 let anchor = null;
 document.addEventListener("click", (e) => {
   const k = e.target.closest(".word");
@@ -570,9 +570,9 @@ document.addEventListener("click", (e) => {
   }
 });
 
-// Kembali ke beranda itu keputusan SENGAJA meninggalkan project -- reload
-// sesudahnya semestinya tetap di beranda, bukan ditarik balik otomatis ke
-// project yang baru saja ditinggalkan.
+// Going home is a DELIBERATE decision to leave the project -- a reload
+// after that should stay on home, not get pulled automatically back into
+// the project that was just left.
 const goHomeDeliberately = () => {
   if (typeof forgetActiveSession === "function") forgetActiveSession();
   toStage("home");

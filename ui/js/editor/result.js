@@ -97,7 +97,7 @@ function renderResult() {
     if (total) total.textContent = "empty";
     const clr = $("#resultClearBtn"); if (clr) clr.disabled = true;
     const btn = $("#resultRenderBtn"); if (btn) btn.disabled = true;
-    const quickPreviewBtn = $("#previewCepatBtn"); if (quickPreviewBtn) quickPreviewBtn.disabled = true;
+    const quickPreviewBtn = $("#previewQuickBtn"); if (quickPreviewBtn) quickPreviewBtn.disabled = true;
     const summaryEl = $("#resultSummary"); if (summaryEl) summaryEl.textContent = "";
     if (typeof setResultAsPreview === "function") setResultAsPreview();
     if (typeof drawTotalTimeline === "function") drawTotalTimeline();
@@ -124,7 +124,7 @@ function renderResult() {
   const titleInput = $("#resultTitle");
   if (titleInput && !titleInput.value.trim()) titleInput.placeholder = defaultTitle();
   const btn = $("#resultRenderBtn"); if (btn) btn.disabled = false;
-  const quickPreviewBtn = $("#previewCepatBtn"); if (quickPreviewBtn) quickPreviewBtn.disabled = false;
+  const quickPreviewBtn = $("#previewQuickBtn"); if (quickPreviewBtn) quickPreviewBtn.disabled = false;
   const summaryEl = $("#resultSummary");
   if (summaryEl) {
     summaryEl.textContent = RESULT.length === 1
@@ -544,5 +544,5 @@ $("#resultRenderBtn")?.addEventListener("click", () => {
   if (typeof sendRender === "function") sendRender([clip]);
 });
 
-/* Manual path starts on the Klip screen: the timeline is there. */
+/* Manual path starts on the Clips screen: the timeline is there. */
 $("#manualClip")?.addEventListener("click", () => toScreen("klip"));

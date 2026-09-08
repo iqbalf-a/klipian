@@ -64,7 +64,7 @@ async function startAnalysis() {
       if (++consecutiveFailures >= 5) {
         clearInterval(analysisTimer);
         $("#transcribeStats").innerHTML =
-          "<span>Terputus dari server. Coba mulai ulang.</span>";
+          "<span>Disconnected from the server. Try starting over.</span>";
       }
       return;
     }
@@ -76,11 +76,11 @@ async function startAnalysis() {
     $("#fileDuration").textContent = fmtClock(t.duration || 0);
     $("#analysisNote").textContent = `${name} · ${fmtClock(t.duration || 0)}`;
     $("#transcribeStats").innerHTML = (t.cached
-      ? ["from cache", "transkrip sudah ada, tidak diulang"]
+      ? ["from cache", "transcript already exists, not repeated"]
       : [`${t.percent || 0}%`,
-         `${fmtClock(t.position || 0)} dari ${fmtClock(t.duration || 0)}`,
-         `berjalan ${fmtClock(elapsed)}`,
-         `sisa ~${fmtClock(remaining)}`]
+         `${fmtClock(t.position || 0)} of ${fmtClock(t.duration || 0)}`,
+         `running ${fmtClock(elapsed)}`,
+         `~${fmtClock(remaining)} left`]
     ).map((x) => `<span>${x}</span>`).join("");
 
     // Battery warning: the difference can be twofold, and the user deserves
@@ -90,8 +90,8 @@ async function startAnalysis() {
       const p = document.createElement("p");
       p.className = "step-note";
       p.style.color = "var(--danger)";
-      p.textContent = "Laptop sedang pakai baterai — transkripsi bisa dua kali " +
-                      "lebih lambat. Colokkan charger untuk mempercepat.";
+      p.textContent = "Laptop is running on battery — transcription can be twice " +
+                      "as slow. Plug in the charger to speed it up.";
       $("#transcribeStats").after(p);
     }
 
@@ -102,8 +102,8 @@ async function startAnalysis() {
         return;
       }
       $("#transcribeStats").innerHTML = t.cached
-        ? "<span>siap</span><span>transkrip diambil dari cache</span>"
-        : `<span>selesai</span><span>${fmtClock(t.duration)} ditranskripsi</span>`;
+        ? "<span>ready</span><span>transcript loaded from cache</span>"
+        : `<span>done</span><span>${fmtClock(t.duration)} transcribed</span>`;
       if (typeof prepareExport === "function") prepareExport(name);
     }
   }, 900);
