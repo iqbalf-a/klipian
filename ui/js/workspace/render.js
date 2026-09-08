@@ -35,8 +35,8 @@ async function loadRender() {
       <span class="name">${escapeHTML(r.file)} <span class="data">— ${escapeHTML(r.video)}</span></span>
       <span class="data">${r.mb} MB</span>
       <span class="data">${timeAgo(r.at)}</span>
-      <button class="rounded-s px-2.5 py-1 text-[12px] hover:bg-kaca" data-action="play">Play</button>
-      <button class="rounded-s px-2.5 py-1 text-[12px] border border-garis hover:bg-kaca" data-action="open">Open folder</button>
+      <button class="rounded-s px-2.5 py-1 text-[12px] hover:bg-glass" data-action="play">Play</button>
+      <button class="rounded-s px-2.5 py-1 text-[12px] border border-glass-border hover:bg-glass" data-action="open">Open folder</button>
     </div>`).join("");
 }
 

@@ -51,9 +51,9 @@ function row(c) {
     `<option value="${v}" ${v === cur ? "selected" : ""}>${v}</option>`).join("");
   const f = (name, type = "text") =>
     `<input class="ws-input" type="${type}" data-field="${name}" value="${escapeHTML(c[name] || "")}">`;
-  const td = "px-2 py-1 align-top border-b border-garis";
+  const td = "px-2 py-1 align-top border-b border-glass-border";
   return `
-    <tr class="hover:bg-kaca" data-id="${c.id}">
+    <tr class="hover:bg-glass" data-id="${c.id}">
       <td class="${td}">
         <select class="ws-input ws-status" data-field="status" data-v="${c.status || "Draft"}">
           ${opt(STATUS, c.status || "Draft")}
