@@ -1184,7 +1184,7 @@ h1, h2, h3 {
 
 /* Most recently opened project. A small marker, not an enlarged card:
    all that's needed is "this one just now", not emphasis. */
-.tanda-terakhir {
+.last-opened {
   position: absolute; top: 6px; left: 6px;
   font-family: var(--font-data); font-size: 9px;
   padding: 3px 7px; border-radius: var(--r-pill);
@@ -1194,8 +1194,8 @@ h1, h2, h3 {
 /* The video is unreachable by the server, so this project can't actually
    be continued. Dimmed and the cover is desaturated -- the card remains
    so it can still be deleted. */
-.project-card.hilang { opacity: .5; cursor: not-allowed; }
-.project-card.hilang .project-thumb { filter: grayscale(1); }
+.project-card.missing { opacity: .5; cursor: not-allowed; }
+.project-card.missing .project-thumb { filter: grayscale(1); }
 /* Cover for a video that doesn't exist. An empty field, not an <img> that
    will certainly 404 -- a request that's guaranteed to fail doesn't need
    to be sent. */
@@ -1203,7 +1203,7 @@ h1, h2, h3 {
    Covers its own card, not a dialog in the middle of the screen: what's
    being asked about is THAT card, so the question sits right where it's
    pointed. */
-.konfirmasi {
+.confirm {
   position: absolute; inset: 0;
   display: none;
   padding: var(--s4);
@@ -1213,12 +1213,12 @@ h1, h2, h3 {
   text-align: center;
   align-content: center; gap: var(--s2);
 }
-.project-card.tanya .konfirmasi { display: grid; }
-.project-card.tanya .delete-icon { display: none; }
-.tanya-teks { font-size: var(--t-13); font-weight: 700; }
-.tanya-sub { font-size: var(--t-11); color: var(--text-faint); line-height: 1.35; }
-.tanya-aksi { display: flex; gap: var(--s2); justify-content: center; margin-top: var(--s1); }
-.tanya-aksi .btn { border-color: var(--border-bright); }
+.project-card.confirming .confirm { display: grid; }
+.project-card.confirming .delete-icon { display: none; }
+.confirm-text { font-size: var(--t-13); font-weight: 700; }
+.confirm-sub { font-size: var(--t-11); color: var(--text-faint); line-height: 1.35; }
+.confirm-actions { display: flex; gap: var(--s2); justify-content: center; margin-top: var(--s1); }
+.confirm-actions .btn { border-color: var(--border-bright); }
 .btn.danger {
   background: var(--danger); border-color: transparent;
   color: oklch(0.98 0 0); font-weight: 700;
@@ -1233,8 +1233,8 @@ h1, h2, h3 {
   background: repeating-linear-gradient(45deg,
     var(--bg-2) 0 8px, var(--bg-1) 8px 16px);
 }
-.project-card.hilang:hover { transform: none; background: var(--glass); }
-.project-card.hilang .project-meta { color: var(--danger); }
+.project-card.missing:hover { transform: none; background: var(--glass); }
+.project-card.missing .project-meta { color: var(--danger); }
 
 /* File was dropped but lives outside samples/: not an error, but not ready
    either -- needs its own tone. */
@@ -1548,8 +1548,8 @@ h1, h2, h3 {
    were made, and hit render from the same place. */
 
 /* ---- object chip: person name, editable, deletable ---- */
-.chip .nama-objek { outline: none; }
-.chip .nama-objek[contenteditable="true"] {
+.chip .object-name { outline: none; }
+.chip .object-name[contenteditable="true"] {
   border-bottom: 1px dashed var(--accent);
   min-width: 3ch;
 }

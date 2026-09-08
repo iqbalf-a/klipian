@@ -442,23 +442,23 @@ async function renderProjects() {
     // button inside a button is invalid HTML -- the browser pulls it out of
     // its parent and the layout breaks.
     return `
-    <div class="project-card${missing ? " hilang" : ""}" data-project="${escapeHTML(p.video)}"
+    <div class="project-card${missing ? " missing" : ""}" data-project="${escapeHTML(p.video)}"
          role="button" tabindex="0"${missing ? ' aria-disabled="true"' : ""}>
       ${missing
         ? '<span class="project-thumb empty"></span>'
         : `<img class="project-thumb" alt="" loading="lazy" src="${coverUrl(p)}">`}
-      ${i === lastIdx ? '<span class="tanda-terakhir">last opened</span>' : ""}
-      <span class="project-nama">${escapeHTML(p.title || p.video)}</span>
+      ${i === lastIdx ? '<span class="last-opened">last opened</span>' : ""}
+      <span class="project-name">${escapeHTML(p.title || p.video)}</span>
       <span class="data project-meta">${missing
         ? "video not in samples/"
         : `${p.spans} span${p.spans === 1 ? "" : "s"} · ${Math.round(p.seconds)}s · ${timeAgo(p.at)}`}</span>
       <i class="delete-icon" data-delete-project="${escapeHTML(p.video)}" role="button"
          aria-label="Delete project ${escapeHTML(p.video)}">×</i>
-      <span class="konfirmasi">
-        <span class="tanya-teks">Delete this project?</span>
-        <span class="tanya-sub">Spans, framing and caption fixes are lost.
+      <span class="confirm">
+        <span class="confirm-text">Delete this project?</span>
+        <span class="confirm-sub">Spans, framing and caption fixes are lost.
           Rendered files stay in out/.</span>
-        <span class="tanya-aksi">
+        <span class="confirm-actions">
           <button class="btn" data-delete-cancel type="button">Keep</button>
           <button class="btn danger" data-delete-confirm="${escapeHTML(p.video)}"
                   type="button">Delete</button>
@@ -489,8 +489,8 @@ let confirmTimer = null;
 
 function cancelConfirm() {
   clearTimeout(confirmTimer);
-  document.querySelectorAll(".project-card.tanya")
-    .forEach((k) => k.classList.remove("tanya"));
+  document.querySelectorAll(".project-card.confirming")
+    .forEach((k) => k.classList.remove("confirming"));
 }
 
 async function deleteProject(video) {
@@ -508,13 +508,13 @@ async function deleteProject(video) {
 }
 
 $("#projectList")?.addEventListener("click", async (e) => {
-  // --- minta konfirmasi ---
+  // --- ask for confirmation ---
   const deleteIcon = e.target.closest("[data-delete-project]");
   if (deleteIcon) {
     e.stopPropagation();
     const card = deleteIcon.closest(".project-card");
     cancelConfirm();
-    card.classList.add("tanya");
+    card.classList.add("confirming");
     // Auto-dismiss: a card left in the "confirming" state would be
     // accidentally clicked long after the intent has passed.
     confirmTimer = setTimeout(cancelConfirm, 6000);
@@ -539,9 +539,9 @@ $("#projectList")?.addEventListener("click", async (e) => {
   if (!card) return;
   // A card in "confirming" state must not also open the project:
   // clicking around to cancel would jump into the editor instead.
-  if (card.classList.contains("tanya")) { cancelConfirm(); return; }
+  if (card.classList.contains("confirming")) { cancelConfirm(); return; }
   const video = card.dataset.project;
-  if (card.classList.contains("hilang")) {
+  if (card.classList.contains("missing")) {
     const meta = card.querySelector(".project-meta");
     if (meta) meta.textContent = `move ${video} into workspace/samples/ to continue`;
     return;
