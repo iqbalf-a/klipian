@@ -1,12 +1,13 @@
-"""Transkripsi dengan faster-whisper, menghasilkan timestamp per kata.
+"""Transcription with faster-whisper, producing a per-word timestamp.
 
-Kenapa word-level dan bukan kalimat-level: caption karaoke (highlight kata
-yang sedang diucapkan) dan pemotongan yang tidak memenggal kata di tengah
-keduanya mustahil tanpa timestamp per kata. Ini pondasi seluruh pipeline.
+Why word-level and not sentence-level: karaoke captions (highlighting the
+word currently being spoken) and cuts that don't chop a word in the middle
+are both impossible without per-word timestamps. This is the foundation of
+the whole pipeline.
 
-Berjalan sepenuhnya di CPU -- CTranslate2 (mesin faster-whisper) tidak
-memakai iGPU maupun NPU. Di Core Ultra 9 185H (16C/22T), model
-`large-v3-turbo` int8 memproses podcast 1 jam dalam ~8-15 menit.
+Runs entirely on CPU -- CTranslate2 (faster-whisper's engine) doesn't use
+the iGPU or NPU. On a Core Ultra 9 185H (16C/22T), the `large-v3-turbo`
+int8 model processes a 1-hour podcast in ~8-15 minutes.
 """
 
 from __future__ import annotations
@@ -70,7 +71,7 @@ class _Progress:
         sys.stderr.write(
             f"\r  [{bar}] {frac*100:5.1f}%  "
             f"{fmt_duration(position)}/{fmt_duration(self.total)}  "
-            f"berjalan {fmt_duration(elapsed)}  sisa ~{fmt_duration(eta)}   "
+            f"running {fmt_duration(elapsed)}  ~{fmt_duration(eta)} left   "
         )
         sys.stderr.flush()
 
@@ -101,10 +102,10 @@ def transcribe(
     if verbose:
         # threads=0 is interpreted by CTranslate2 as ~4 threads, NOT all cores.
         # Showing core count for 0 would be misleading.
-        used = str(threads) if threads else "bawaan CTranslate2 (~4)"
+        used = str(threads) if threads else "CTranslate2 default (~4)"
         print(f"  model    : {model_size} ({compute_type}, CPU, {used} thread)")
         if glossary:
-            print(f"  glosarium: {len(glossary.terms)} istilah, {len(glossary.fixes)} koreksi")
+            print(f"  glossary : {len(glossary.terms)} terms, {len(glossary.fixes)} corrections")
 
     # Model load time is separated from transcription time. If combined,
     # the "x realtime" number becomes misleading -- especially on first use
@@ -117,7 +118,7 @@ def transcribe(
         cpu_threads=threads,
     )
     if verbose:
-        print(f"  muat     : {fmt_duration(time.time() - load_started)}")
+        print(f"  load     : {fmt_duration(time.time() - load_started)}")
 
     work_started = time.time()
     segments_iter, info = model.transcribe(
@@ -168,7 +169,7 @@ def transcribe(
     if verbose:
         work = time.time() - work_started
         speed = total / work if work else 0.0
-        print(f"  proses   : {fmt_duration(work)}  ({speed:.1f}x realtime)")
+        print(f"  process  : {fmt_duration(work)}  ({speed:.1f}x realtime)")
 
     return Transcript(
         source=source_label or str(audio),

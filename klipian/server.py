@@ -323,7 +323,7 @@ def _run_render(job_id: str, req: dict) -> None:
                 layout=k.get("layout", "face"),
                 out_width=int(k.get("width", 1080)),
             )
-            name = engine.safe_filename(k["title"], f"klip-{i+1}")
+            name = engine.safe_filename(k["title"], f"clip-{i+1}")
             dest = out_dir / name
 
             # Caption style comes from the Caption screen in the UI. If not
@@ -426,7 +426,7 @@ def _run_transcribe(job_id: str, req: dict) -> None:
         extract_audio(video, wav)
         if not wav.is_file():
             raise FileNotFoundError(
-                f"Gagal menyiapkan audio sementara: {wav.name}")
+                f"Failed to prepare temporary audio: {wav.name}")
 
         with LOCK:
             t["stage"] = "transcribe"

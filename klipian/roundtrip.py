@@ -228,7 +228,7 @@ def parse_reply(transcript: Transcript, text: str) -> list[Candidate]:
         result.append(Candidate(
             start=a,
             end=b,
-            title=(k.get("title") or k.get("judul") or "Tanpa judul").strip(),
+            title=(k.get("title") or k.get("judul") or "Untitled").strip(),
             hook=(k.get("hook") or "").strip(),
             # Explicit check: empty dict {} is valid but falsy, don't use or
             scores=k["scores"] if "scores" in k else (k.get("skor") or {}),

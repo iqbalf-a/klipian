@@ -1,26 +1,28 @@
-"""Deteksi momen energi audio tinggi -- pelengkap transkrip untuk brief Claude.
+"""Detects moments of high audio energy -- a supplement to the transcript for
+Claude's brief.
 
-Whisper cuma menuliskan KATA yang diucapkan. Tawa penonton, sorakan, atau
-reaksi keras jarang tertranskripsi sebagai teks yang bisa diandalkan --
-kalaupun tertulis, bentuknya tidak konsisten ("haha", "(tertawa)", atau
-tidak sama sekali). Modul ini menjawab lewat jalur lain: murni dari VOLUME
-suara, tanpa peduli isi katanya. Lonjakan energi jauh di atas rata-rata
-video ITU SENDIRI kemungkinan besar reaksi/momen yang menonjol -- sinyal
-pendukung buat Claude, bukan fakta pasti (klip yang benar tetap ditentukan
-dari konteks kalimat di sekitarnya).
+Whisper only writes down the WORDS spoken. Audience laughter, cheering, or
+a loud reaction rarely gets transcribed as reliable text -- and even when it
+does, it's inconsistent ("haha", "(laughs)", or not at all). This module
+answers through a different path: purely from the VOLUME of the sound,
+regardless of what's said. An energy spike far above this video's OWN
+average is likely a standout reaction/moment -- a supporting signal for
+Claude, not a certain fact (the correct clip boundary is still determined
+from the surrounding sentence context).
 
-Diadaptasi dari referensi Auto-clipper/analysis/audio_detector.py
-(D:\\github-repos\\github-autoclipper) -- levelnya via `ffmpeg -af astats`,
-tanpa model, tanpa dependency baru. Dua bedanya:
+Adapted from the reference Auto-clipper/analysis/audio_detector.py
+(D:\\github-repos\\github-autoclipper) -- its levels come via
+`ffmpeg -af astats`, no model, no new dependency. Two differences:
 
-  1. Referensi memakai ambang desibel TETAP per-game (butuh profil per
-     jenis konten). Di sini ambangnya ADAPTIF -- persentil dari distribusi
-     level video itu sendiri -- supaya podcast pelan dan rekaman keras
-     sama-sama masuk akal tanpa perlu dikalibrasi manual.
-  2. Referensi memaksa cluster jadi durasi klip siap-pakai (min/max/
-     extension) dan melabeli isinya ("Gunfire/Explosion" dst -- spesifik
-     game). Di sini cukup rentang waktu apa adanya + sedikit padding
-     konteks; Claude yang menentukan batas klip dan menafsirkan isinya.
+  1. The reference uses a FIXED decibel threshold per-game (needs a profile
+     per content type). Here the threshold is ADAPTIVE -- a percentile of
+     the video's own level distribution -- so a quiet podcast and a loud
+     recording both make sense without needing manual calibration.
+  2. The reference forces clusters into ready-to-use clip durations (min/max/
+     extension) and labels their content ("Gunfire/Explosion" etc -- game-
+     specific). Here it's just the raw time range + a bit of context
+     padding; Claude is the one who decides the clip boundary and
+     interprets its content.
 """
 
 from __future__ import annotations
@@ -139,8 +141,8 @@ def _percentile(ordered: list[float], pct: float) -> float:
 
 def _cluster(levels: dict[int, float], threshold: float,
             merge_gap: float) -> list[tuple[int, int, float]]:
-    """Detik-detik >= threshold yang berdekatan (jarak <= merge_gap)
-    digabung jadi satu window (mulai, akhir, puncak)."""
+    """Adjacent seconds >= threshold (gap <= merge_gap) are merged into
+    one window (start, end, peak)."""
     loud = sorted(sec for sec, lvl in levels.items() if lvl >= threshold)
     if not loud:
         return []

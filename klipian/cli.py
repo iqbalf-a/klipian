@@ -48,7 +48,7 @@ def cmd_info(args: argparse.Namespace) -> int:
         warnings.append("Under 30 seconds -- too short to look for clips in.")
 
     if warnings:
-        print("Catatan:")
+        print("Note:")
         for w in warnings:
             print(f"  ! {w}")
         print()
@@ -186,7 +186,7 @@ def cmd_brief(args: argparse.Namespace) -> int:
 
 
 # --------------------------------------------------------------------------
-# perintah: impor  -- membaca balasan Claude
+# command: import  -- read Claude's reply
 # --------------------------------------------------------------------------
 
 def cmd_import(args: argparse.Namespace) -> int:
@@ -231,7 +231,7 @@ def cmd_import(args: argparse.Namespace) -> int:
 
 
 # --------------------------------------------------------------------------
-# perintah: render  -- di sinilah MP4 benar-benar keluar
+# command: render  -- this is where the MP4 actually comes out
 # --------------------------------------------------------------------------
 
 def cmd_render(args: argparse.Namespace) -> int:
@@ -260,8 +260,8 @@ def cmd_render(args: argparse.Namespace) -> int:
         valid = [items[i - 1] for i in args.only if 0 < i <= len(items)]
         bad = [i for i in args.only if not (0 < i <= len(items))]
         if bad:
-            print(f"  Catatan: nomor {', '.join(map(str, bad))} di luar range "
-                  f"(1-{len(items)}), diabaikan.", file=sys.stderr)
+            print(f"  Note: number{'s' if len(bad) > 1 else ''} {', '.join(map(str, bad))} "
+                  f"out of range (1-{len(items)}), ignored.", file=sys.stderr)
         items = valid
     if not items:
         print("No candidates selected.", file=sys.stderr)
@@ -279,11 +279,11 @@ def cmd_render(args: argparse.Namespace) -> int:
 
     succeeded = 0
     for i, k in enumerate(items, 1):
-        title = k.get("title") or k.get("judul") or f"klip-{i}"
+        title = k.get("title") or k.get("judul") or f"clip-{i}"
         try:
-            # candidates.json dari `klipian import` tidak menulis "spans",
-            # jadi jalur normalnya justru cadangan di bawah ini. Kunci lama
-            # (mulai_detik) tetap diterima supaya berkas lama masih terbaca.
+            # candidates.json from `klipian import` doesn't write "spans",
+            # so the fallback below is actually the normal path. The old key
+            # (mulai_detik) is still accepted so old files remain readable.
             spans = [engine.Span(float(p["start"]), float(p["end"]))
                      for p in k.get("spans", [])]
             if not spans:
@@ -304,7 +304,7 @@ def cmd_render(args: argparse.Namespace) -> int:
             layout=args.layout,
             out_width=args.width,
         )
-        dest = out_dir / engine.safe_filename(title, f"klip-{i}")
+        dest = out_dir / engine.safe_filename(title, f"clip-{i}")
 
         print(f"[{i}/{len(items)}] {title}")
         try:
@@ -312,7 +312,7 @@ def cmd_render(args: argparse.Namespace) -> int:
                          src_width=info.width, src_height=info.height,
                          has_audio=info.has_audio)
         except RuntimeError as exc:
-            print(f"  GAGAL: {exc}", file=sys.stderr)
+            print(f"  FAILED: {exc}", file=sys.stderr)
             continue
         size = dest.stat().st_size / 1048576
         print(f"  {dest.name}  ·  {size:.1f} MB")
@@ -325,7 +325,7 @@ def cmd_render(args: argparse.Namespace) -> int:
 
 
 # --------------------------------------------------------------------------
-# perintah: serve  -- UI dengan render yang benar-benar jalan
+# command: serve  -- UI with actually-working render
 # --------------------------------------------------------------------------
 
 def cmd_serve(args: argparse.Namespace) -> int:
@@ -334,20 +334,20 @@ def cmd_serve(args: argparse.Namespace) -> int:
 
 
 # --------------------------------------------------------------------------
-# perintah: run (menyusul)
+# command: run (coming later)
 # --------------------------------------------------------------------------
 
 def cmd_run(args: argparse.Namespace) -> int:
     print(
-        "\nPipeline lengkap belum tersedia.\n\n"
-        "Yang sudah jalan (fase 1):\n"
-        "  klipian info <video>        -- baca metadata\n"
-        "  klipian transcribe <video>  -- transkrip word-level + cache\n\n"
-        "Menyusul:\n"
-        "  fase 2  pemilihan klip oleh AI (--dry-run)\n"
-        "  fase 3  caption + layout blur, klip pertama jadi\n"
-        "  fase 4  layout split\n"
-        "  fase 5  layout track\n",
+        "\nThe full pipeline isn't available yet.\n\n"
+        "What already works (stage 1):\n"
+        "  klipian info <video>        -- read metadata\n"
+        "  klipian transcribe <video>  -- word-level transcript + cache\n\n"
+        "Coming next:\n"
+        "  stage 2  AI clip selection (--dry-run)\n"
+        "  stage 3  captions + blur layout, first clip working\n"
+        "  stage 4  split layout\n"
+        "  stage 5  track layout\n",
         file=sys.stderr,
     )
     return 2
@@ -364,7 +364,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="command", required=True)
 
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("video", help="file video/audio sumber")
+    common.add_argument("video", help="source video/audio file")
     common.add_argument("--cache-dir", default=str(DEFAULT_CACHE),
                         help="transcript cache folder")
     common.add_argument("--out-dir", default=str(DEFAULT_OUT), help="output folder")
@@ -375,17 +375,17 @@ def build_parser() -> argparse.ArgumentParser:
     s_tr = sub.add_parser("transcribe", parents=[common],
                           help="word-level transcription (result is cached)")
     s_tr.add_argument("--model", default=DEFAULT_MODEL, choices=MODELS,
-                      help=f"model Whisper (default: {DEFAULT_MODEL})")
+                      help=f"Whisper model (default: {DEFAULT_MODEL})")
     s_tr.add_argument("--lang", default="id", help="language code (default: id)")
     s_tr.add_argument("--threads", type=int, default=DEFAULT_THREADS,
-                      help=f"jumlah thread CPU (default {DEFAULT_THREADS}; 0 = bawaan CTranslate2)")
+                      help=f"CPU thread count (default {DEFAULT_THREADS}; 0 = CTranslate2 default)")
     s_tr.add_argument("--glossary", default=str(DEFAULT_GLOSSARY),
-                      help="file glosarium istilah")
+                      help="term glossary file")
     s_tr.add_argument("--force", action="store_true",
                       help="ignore the cache, transcribe again")
-    s_tr.add_argument("--srt", action="store_true", help="ekspor juga sebagai .srt")
+    s_tr.add_argument("--srt", action="store_true", help="also export as .srt")
     s_tr.add_argument("--keep-audio", action="store_true",
-                      help="jangan hapus wav sementara")
+                      help="don't delete the temporary wav")
     s_tr.add_argument("--preview", type=int, default=5, metavar="N",
                       help="show the first N segments (0 = none)")
     s_tr.set_defaults(func=cmd_transcribe)
@@ -414,7 +414,7 @@ def build_parser() -> argparse.ArgumentParser:
     s_render.add_argument("--width", type=int, default=1080, choices=[720, 1080])
     s_render.add_argument("--crop", type=float, nargs=4,
                           metavar=("LEFT", "TOP", "WIDTH", "HEIGHT"),
-                          help="kotak crop dalam persen, mis. 58 8 26 84")
+                          help="crop box in percent, e.g. 58 8 26 84")
     s_render.add_argument("--model", default=DEFAULT_MODEL, choices=MODELS)
     s_render.add_argument("--lang", default="id")
     s_render.set_defaults(func=cmd_render)
@@ -444,5 +444,5 @@ def main(argv: list[str] | None = None) -> int:
         print("\nDibatalkan.", file=sys.stderr)
         return 130
     except Exception as exc:
-        print(f"\nGalat tak terduga: {exc}\n", file=sys.stderr)
+        print(f"\nUnexpected error: {exc}\n", file=sys.stderr)
         return 1
