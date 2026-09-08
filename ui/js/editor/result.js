@@ -101,7 +101,7 @@ function renderResult() {
     const summaryEl = $("#hasilRingkas"); if (summaryEl) summaryEl.textContent = "";
     if (typeof setResultAsPreview === "function") setResultAsPreview();
     if (typeof drawTotalTimeline === "function") drawTotalTimeline();
-  if (typeof renderTeks === "function") renderTeks();
+  if (typeof renderCaptions === "function") renderCaptions();
     return;
   }
 
@@ -137,7 +137,7 @@ function renderResult() {
   // Penanda di timeline ikut result. Tanpa ini, potongan yang sudah dibuang
   // tetap tergambar kuning dan lama-lama batangnya penuh tumpukan.
   if (typeof drawTotalTimeline === "function") drawTotalTimeline();
-  if (typeof renderTeks === "function") renderTeks();
+  if (typeof renderCaptions === "function") renderCaptions();
 }
 
 /* ---------- rekomendasi AI: menit dan judul saja ---------- */

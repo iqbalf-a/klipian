@@ -454,7 +454,7 @@ function toScreen(name) {
     if (typeof renderFraming === "function") setTimeout(renderFraming, 0);
     if (typeof renderRecommendations === "function") renderRecommendations();
     if (typeof renderResult === "function") renderResult();
-    if (typeof renderTeks === "function") renderTeks();
+    if (typeof renderCaptions === "function") renderCaptions();
     if (typeof drawTotalTimeline === "function") drawTotalTimeline();
   }
 

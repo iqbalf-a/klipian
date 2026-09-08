@@ -298,7 +298,7 @@ async function prepareExport(videoName) {
   // akhirnya siap. Redraw eksplisit di sini menutup celah itu.
   if (!previous && typeof RESULT !== "undefined" && RESULT.length) {
     if (typeof drawCaption === "function") drawCaption();
-    if (typeof renderTeks === "function") renderTeks();
+    if (typeof renderCaptions === "function") renderCaptions();
   }
 }
 

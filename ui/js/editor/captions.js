@@ -14,32 +14,32 @@
    Transkrip punya alurnya sendiri; ini mode edit, bukan mode transkripsi.
    ========================================================================== */
 
-let KOREKSI = {};        // { "12.345": "kata yang benar" }
+let CORRECTIONS = {};    // { "12.345": "kata yang benar" }
 
-const kunciKata = (w) => w.start.toFixed(3);
+const wordKey = (w) => w.start.toFixed(3);
 
 /* Kata-kata yang benar-benar masuk result, sudah dengan koreksinya. */
-function kataResult() {
+function resultWords() {
   if (typeof activeClip === "undefined" || !activeClip?.spans?.length) return [];
-  const semua = realTranscript?.words || [];
-  const keluar = [];
-  for (const w of semua) {
-    const masuk = activeClip.spans.some((p) => w.start >= p.start && w.end <= p.end);
-    if (!masuk) continue;
-    const k = kunciKata(w);
-    keluar.push({
+  const allWords = realTranscript?.words || [];
+  const out = [];
+  for (const w of allWords) {
+    const inSpan = activeClip.spans.some((p) => w.start >= p.start && w.end <= p.end);
+    if (!inSpan) continue;
+    const k = wordKey(w);
+    out.push({
       start: w.start, end: w.end,
-      asli: w.text.trim(),
-      text: (KOREKSI[k] ?? w.text).trim(),
-      diubah: KOREKSI[k] !== undefined,
+      original: w.text.trim(),
+      text: (CORRECTIONS[k] ?? w.text).trim(),
+      edited: CORRECTIONS[k] !== undefined,
     });
   }
-  return keluar;
+  return out;
 }
 
 /* Bentuk yang dikirim ke server bersama permintaan render. */
-function kataUntukRender() {
-  return kataResult().map((w) => ({ text: w.text, start: w.start, end: w.end }));
+function wordsForRender() {
+  return resultWords().map((w) => ({ text: w.text, start: w.start, end: w.end }));
 }
 
 /* ---------- kata pengisi ("eh", "anu", "hmm"...) ----------
@@ -54,15 +54,15 @@ function kataUntukRender() {
    Dicek terhadap w.text (SUDAH lewat koreksi), bukan w.asli -- kalau Whisper
    salah dengar kata sungguhan sebagai "eh" dan orangnya sudah membetulkannya
    di layar ini, koreksi itu yang harus dihormati, bukan tebakan Whisper. */
-const KATA_PENGISI = new Set([
+const FILLER_WORDS = new Set([
   "eh", "ee", "eee", "em", "emm", "ehm", "hmm", "hm", "mm", "anu", "euh",
 ]);
 
-const kataPengisiKah = (teks) =>
-  KATA_PENGISI.has(teks.toLowerCase().replace(/[^\p{L}]/gu, ""));
+const isFillerWord = (text) =>
+  FILLER_WORDS.has(text.toLowerCase().replace(/[^\p{L}]/gu, ""));
 
-function kataPengisiDiResult() {
-  return kataResult().filter((w) => kataPengisiKah(w.text));
+function fillerWordsInResult() {
+  return resultWords().filter((w) => isFillerWord(w.text));
 }
 
 /* Membelah tiap potongan Result di sekitar kata pengisi -- mekanisme yang
@@ -70,50 +70,50 @@ function kataPengisiDiResult() {
    rentang waktu, cuma jadi lebih banyak rentang yang lebih pendek. Potongan
    yang tersisa lebih pendek dari 0,05 detik dibuang alih-alih ditinggalkan
    sebagai rentang nyaris-nol yang tidak berarti apa-apa. */
-function buangKataPengisi() {
-  const pengisi = kataPengisiDiResult();
-  if (!pengisi.length || typeof RESULT === "undefined") return 0;
-  const AMBANG = 0.05;
-  const baru = [];
+function removeFillerWords() {
+  const fillers = fillerWordsInResult();
+  if (!fillers.length || typeof RESULT === "undefined") return 0;
+  const THRESHOLD = 0.05;
+  const next = [];
   for (const r of RESULT) {
-    let kursor = r.start;
-    const dalam = pengisi
+    let cursor = r.start;
+    const withinSpan = fillers
       .filter((w) => w.start >= r.start && w.end <= r.end)
       .sort((a, b) => a.start - b.start);
-    for (const w of dalam) {
-      if (w.start - kursor > AMBANG) {
-        baru.push({ ...r, id: `r${++resultSeq}`, start: kursor, end: w.start });
+    for (const w of withinSpan) {
+      if (w.start - cursor > THRESHOLD) {
+        next.push({ ...r, id: `r${++resultSeq}`, start: cursor, end: w.start });
       }
-      kursor = w.end;
+      cursor = w.end;
     }
-    if (r.end - kursor > AMBANG) {
-      baru.push({ ...r, id: `r${++resultSeq}`, start: kursor, end: r.end });
+    if (r.end - cursor > THRESHOLD) {
+      next.push({ ...r, id: `r${++resultSeq}`, start: cursor, end: r.end });
     }
   }
-  RESULT = baru;
+  RESULT = next;
   renderResult();               // menulis project + menggambar ulang semuanya
-  return pengisi.length;
+  return fillers.length;
 }
 
 /* ---------- menggambar ---------- */
 
-function renderTeks() {
+function renderCaptions() {
   const list = $("#teksList");
   const note = $("#teksNote");
   if (!list) return;
 
-  const kata = kataResult();
-  const diubah = kata.filter((w) => w.diubah).length;
-  const pengisi = kata.filter((w) => kataPengisiKah(w.text)).length;
+  const words = resultWords();
+  const editedCount = words.filter((w) => w.edited).length;
+  const fillerCount = words.filter((w) => isFillerWord(w.text)).length;
   const reset = $("#teksResetBtn");
-  if (reset) reset.disabled = diubah === 0;
-  const pengisiBtn = $("#teksPengisiBtn");
-  if (pengisiBtn) {
-    pengisiBtn.disabled = pengisi === 0;
-    pengisiBtn.textContent = pengisi ? `Remove filler words (${pengisi})` : "Remove filler words";
+  if (reset) reset.disabled = editedCount === 0;
+  const fillerBtn = $("#teksPengisiBtn");
+  if (fillerBtn) {
+    fillerBtn.disabled = fillerCount === 0;
+    fillerBtn.textContent = fillerCount ? `Remove filler words (${fillerCount})` : "Remove filler words";
   }
 
-  if (!kata.length) {
+  if (!words.length) {
     // Result ADA tapi kata-nya kosong bisa berarti dua hal yang beda:
     // videonya belum pernah ditranskripsi sama sekali (umum di jalur klip
     // manual -- README sengaja bilang "lewati langkah 2 dan 3", tapi
@@ -123,8 +123,8 @@ function renderTeks() {
     // transkripsinya, tidak pernah tersentuh), atau memang tidak ada kata
     // yang jatuh di rentang klip ini. Pesan "tambah klip dulu" menyesatkan
     // untuk kasus pertama -- klipnya sudah ada, yang kurang cuma transkrip.
-    const adaKlip = typeof activeClip !== "undefined" && activeClip?.spans?.length;
-    if (adaKlip && !realTranscript) {
+    const hasClip = typeof activeClip !== "undefined" && activeClip?.spans?.length;
+    if (hasClip && !realTranscript) {
       list.innerHTML = `<p class="kosong-hasil">Video ini belum ditranskripsi, jadi caption-nya
         belum ada teks untuk ditampilkan.
         <button class="btn main" id="autoCaptionBtn" type="button">Auto Caption</button></p>`;
@@ -138,19 +138,19 @@ function renderTeks() {
   }
 
   if (note) {
-    const bagian = [`${kata.length} words`];
-    if (diubah) bagian.push(`${diubah} corrected`);
-    if (pengisi) bagian.push(`${pengisi} filler`);
-    note.textContent = bagian.length > 1 ? bagian.join(" · ")
-      : `${kata.length} words · click a word to correct it`;
+    const parts = [`${words.length} words`];
+    if (editedCount) parts.push(`${editedCount} corrected`);
+    if (fillerCount) parts.push(`${fillerCount} filler`);
+    note.textContent = parts.length > 1 ? parts.join(" · ")
+      : `${words.length} words · click a word to correct it`;
   }
 
-  list.innerHTML = kata.map((w) => {
-    const isPengisi = kataPengisiKah(w.text);
+  list.innerHTML = words.map((w) => {
+    const isFiller = isFillerWord(w.text);
     return `
-    <button class="kata-teks${w.diubah ? " diubah" : ""}${isPengisi ? " pengisi" : ""}"
-            data-mulai="${kunciKata(w)}"
-            title="${jamRange(w.start)}${w.diubah ? ` · was &quot;${escapeHTML(w.asli)}&quot;` : ""}${isPengisi ? " · filler word" : ""}"
+    <button class="kata-teks${w.edited ? " diubah" : ""}${isFiller ? " pengisi" : ""}"
+            data-mulai="${wordKey(w)}"
+            title="${jamRange(w.start)}${w.edited ? ` · was &quot;${escapeHTML(w.original)}&quot;` : ""}${isFiller ? " · filler word" : ""}"
     >${escapeHTML(w.text)}</button>`;
   }).join("");
 }
@@ -168,57 +168,57 @@ function renderTeks() {
    Sekarang keadaan edit dipegang di satu tempat, penyimpanannya idempoten,
    dan daftar SELALU digambar ulang di akhir supaya tidak ada tombol kosong. */
 
-let sedangEdit = null;      // { kunci, semula, input }
+let editingWord = null;      // { key, previousValue, input }
 
-function selesaiEdit(batal) {
-  if (!sedangEdit) return;
-  const { kunci, semula, input } = sedangEdit;
-  sedangEdit = null;                       // dulu, supaya tidak dipanggil dua kali
+function finishEdit(cancel) {
+  if (!editingWord) return;
+  const { key, previousValue, input } = editingWord;
+  editingWord = null;                      // dulu, supaya tidak dipanggil dua kali
 
-  if (!batal) {
-    const baru = input.value.trim();
-    const asli = (realTranscript?.words || [])
-      .find((w) => kunciKata(w) === kunci)?.text.trim() ?? semula;
+  if (!cancel) {
+    const value = input.value.trim();
+    const originalWord = (realTranscript?.words || [])
+      .find((w) => wordKey(w) === key)?.text.trim() ?? previousValue;
     // Dikembalikan ke aslinya = bukan koreksi lagi.
-    if (!baru || baru === asli) delete KOREKSI[kunci];
-    else KOREKSI[kunci] = baru;
+    if (!value || value === originalWord) delete CORRECTIONS[key];
+    else CORRECTIONS[key] = value;
   }
 
-  renderTeks();                            // tombol kosong mustahil bertahan
+  renderCaptions();                        // tombol kosong mustahil bertahan
   if (typeof drawCaption === "function") drawCaption();
   if (typeof simpanProject === "function") simpanProject();
 }
 
-function mulaiEdit(b) {
-  if (sedangEdit) selesaiEdit(false);      // yang sebelumnya disimpan dulu
-  const kunci = b.dataset.mulai;
-  const semula = b.textContent.trim();
+function startEdit(b) {
+  if (editingWord) finishEdit(false);      // yang sebelumnya disimpan dulu
+  const key = b.dataset.mulai;
+  const previousValue = b.textContent.trim();
 
   const input = document.createElement("input");
   input.className = "kata-input";
-  input.value = semula;
-  input.size = Math.max(3, semula.length);
+  input.value = previousValue;
+  input.size = Math.max(3, previousValue.length);
   b.textContent = "";
   b.appendChild(input);
-  sedangEdit = { kunci, semula, input };
+  editingWord = { key, previousValue, input };
 
   input.focus();
   input.select();
 
-  input.addEventListener("blur", () => selesaiEdit(false));
-  input.addEventListener("change", () => selesaiEdit(false));
+  input.addEventListener("blur", () => finishEdit(false));
+  input.addEventListener("change", () => finishEdit(false));
   input.addEventListener("keydown", (ev) => {
     ev.stopPropagation();                  // jangan picu pintasan , . spasi
-    if (ev.key === "Enter") { ev.preventDefault(); selesaiEdit(false); }
-    else if (ev.key === "Escape") { ev.preventDefault(); selesaiEdit(true); }
+    if (ev.key === "Enter") { ev.preventDefault(); finishEdit(false); }
+    else if (ev.key === "Escape") { ev.preventDefault(); finishEdit(true); }
     else if (ev.key === "Tab") {
       // berpindah ke kata sebelah, supaya bisa membetulkan beruntun
       ev.preventDefault();
-      selesaiEdit(false);
-      const semua = [...document.querySelectorAll(".kata-teks")];
-      const i = semua.findIndex((x) => x.dataset.mulai === kunci);
-      const tujuan = semua[i + (ev.shiftKey ? -1 : 1)];
-      if (tujuan) mulaiEdit(tujuan);
+      finishEdit(false);
+      const wordButtons = [...document.querySelectorAll(".kata-teks")];
+      const i = wordButtons.findIndex((x) => x.dataset.mulai === key);
+      const target = wordButtons[i + (ev.shiftKey ? -1 : 1)];
+      if (target) startEdit(target);
     }
   });
 }
@@ -230,7 +230,7 @@ function mulaiEdit(b) {
    harus pindah ke Analisis dulu. */
 let autoCaptionTimer = null;
 
-async function mulaiAutoCaption(btn) {
+async function startAutoCaption(btn) {
   const video = (typeof chosenSource !== "undefined" && chosenSource?.name)
     || (typeof DATA !== "undefined" ? DATA.file : "");
   if (!video) return;
@@ -272,34 +272,34 @@ async function mulaiAutoCaption(btn) {
     if (typeof findTranscript === "function") {
       realTranscript = await findTranscript(video);
     }
-    renderTeks();
+    renderCaptions();
     if (typeof drawCaption === "function") drawCaption();
   }, 900);
 }
 
 $("#teksList")?.addEventListener("click", (e) => {
   const autoBtn = e.target.closest("#autoCaptionBtn");
-  if (autoBtn) { mulaiAutoCaption(autoBtn); return; }
+  if (autoBtn) { startAutoCaption(autoBtn); return; }
   const b = e.target.closest(".kata-teks");
   if (!b || b.querySelector("input")) return;
-  mulaiEdit(b);
+  startEdit(b);
 });
 
 $("#teksResetBtn")?.addEventListener("click", () => {
-  KOREKSI = {};
-  renderTeks();
+  CORRECTIONS = {};
+  renderCaptions();
   if (typeof drawCaption === "function") drawCaption();
 });
 
 $("#teksPengisiBtn")?.addEventListener("click", () => {
-  // renderTeks() (dipanggil dari dalam renderResult(), lihat buangKataPengisi
-  // di atas) sudah menggambar ulang daftar kata dan menyimpan project --
-  // tidak ada yang perlu dilakukan lagi di sini.
-  buangKataPengisi();
+  // renderCaptions() (dipanggil dari dalam renderResult(), lihat
+  // removeFillerWords di atas) sudah menggambar ulang daftar kata dan
+  // menyimpan project -- tidak ada yang perlu dilakukan lagi di sini.
+  removeFillerWords();
 });
 
 /* Video baru = transkrip lain, koreksi lama tidak berlaku. */
-function resetTeks() {
-  KOREKSI = {};
-  renderTeks();
+function resetCaptions() {
+  CORRECTIONS = {};
+  renderCaptions();
 }

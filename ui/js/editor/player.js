@@ -266,8 +266,8 @@ function drawCaption() {
   if (!cap) return;
   // Sumber teksnya kata yang SUDAH dibetulkan, supaya preview memperlihatkan
   // caption yang benar-benar akan terbakar di berkas hasil.
-  const kata = (typeof kataResult === "function" && kataResult().length)
-    ? kataResult() : realTranscript?.words;
+  const kata = (typeof resultWords === "function" && resultWords().length)
+    ? resultWords() : realTranscript?.words;
   if (!activeClip || !kata?.length || !video.src) { cap.innerHTML = ""; return; }
 
   const t = video.currentTime;
@@ -597,7 +597,7 @@ async function kirimRender(approved) {
       style: captionStyle(),         // pengaturan layar Caption ikut terkirim
       // Teks yang sudah dibetulkan di layar Teks. Kalau tidak ada koreksi,
       // isinya sama dengan transkrip -- server tetap menerimanya apa adanya.
-      words: (typeof kataUntukRender === "function") ? kataUntukRender() : undefined,
+      words: (typeof wordsForRender === "function") ? wordsForRender() : undefined,
       layout: optionOut("format"),
       width: optionOut("resolution"),
     })),
@@ -696,7 +696,7 @@ async function previewCepat() {
       ? spansWithFraming(klip.spans)
       : klip.spans,
     style: captionStyle(),
-    words: (typeof kataUntukRender === "function") ? kataUntukRender() : undefined,
+    words: (typeof wordsForRender === "function") ? wordsForRender() : undefined,
     layout: optionOut("format"),
     width: optionOut("resolution"),
   };
