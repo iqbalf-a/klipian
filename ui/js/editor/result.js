@@ -68,7 +68,7 @@ function defaultTitle() {
    dan spans itulah yang disambung ffmpeg jadi satu berkas. */
 function resultAsClip() {
   if (!RESULT.length) return null;
-  const typed = $("#hasilJudul")?.value.trim();
+  const typed = $("#resultTitle")?.value.trim();
   return {
     title: typed || defaultTitle(),
     spans: RESULT.map((r) => ({ start: r.start, end: r.end })),
@@ -87,18 +87,18 @@ function resultAsClip() {
    pergantian layar tidak jadi beban. */
 function renderResult() {
   if (typeof saveProject === "function") saveProject();
-  const list = $("#hasilList");
-  const total = $("#hasilTotal");
+  const list = $("#resultList");
+  const total = $("#resultTotal");
   if (!list) return;
 
   if (!RESULT.length) {
-    list.innerHTML = `<p class="kosong-hasil">Result is empty. Pick a suggestion above, or
+    list.innerHTML = `<p class="empty-message">Result is empty. Pick a suggestion above, or
       select a range yourself on the timeline.</p>`;
     if (total) total.textContent = "empty";
-    const clr = $("#hasilClearBtn"); if (clr) clr.disabled = true;
-    const btn = $("#hasilRenderBtn"); if (btn) btn.disabled = true;
+    const clr = $("#resultClearBtn"); if (clr) clr.disabled = true;
+    const btn = $("#resultRenderBtn"); if (btn) btn.disabled = true;
     const quickPreviewBtn = $("#previewCepatBtn"); if (quickPreviewBtn) quickPreviewBtn.disabled = true;
-    const summaryEl = $("#hasilRingkas"); if (summaryEl) summaryEl.textContent = "";
+    const summaryEl = $("#resultSummary"); if (summaryEl) summaryEl.textContent = "";
     if (typeof setResultAsPreview === "function") setResultAsPreview();
     if (typeof drawTotalTimeline === "function") drawTotalTimeline();
   if (typeof renderCaptions === "function") renderCaptions();
@@ -106,26 +106,26 @@ function renderResult() {
   }
 
   list.innerHTML = RESULT.map((r, i) => `
-    <div class="hasil-row" data-hasil="${r.id}">
+    <div class="result-row" data-result="${r.id}">
       <span class="num">${i + 1}</span>
-      <span class="hasil-judul">${escapeHTML(r.title)}</span>
-      <span class="data hasil-waktu">${timeRange(r.start)} – ${timeRange(r.end)}</span>
-      <span class="data hasil-dur">${Math.round(r.end - r.start)}s</span>
-      <span class="lencana-asal" data-asal="${r.source}">${r.source === "ai" ? "AI" : "manual"}</span>
-      <button class="icon buang-hasil" data-buang-hasil="${r.id}"
+      <span class="result-title">${escapeHTML(r.title)}</span>
+      <span class="data result-time">${timeRange(r.start)} – ${timeRange(r.end)}</span>
+      <span class="data result-dur">${Math.round(r.end - r.start)}s</span>
+      <span class="source-badge" data-source="${r.source}">${r.source === "ai" ? "AI" : "manual"}</span>
+      <button class="icon delete-result" data-delete-result="${r.id}"
               aria-label="Remove ${escapeHTML(r.title)} from Result">×</button>
     </div>`).join("");
 
   if (total) {
     total.textContent = `${RESULT.length} span${RESULT.length > 1 ? "s" : ""} · ${Math.round(resultTotal())}s`;
   }
-  const clr = $("#hasilClearBtn"); if (clr) clr.disabled = false;
+  const clr = $("#resultClearBtn"); if (clr) clr.disabled = false;
 
-  const titleInput = $("#hasilJudul");
+  const titleInput = $("#resultTitle");
   if (titleInput && !titleInput.value.trim()) titleInput.placeholder = defaultTitle();
-  const btn = $("#hasilRenderBtn"); if (btn) btn.disabled = false;
+  const btn = $("#resultRenderBtn"); if (btn) btn.disabled = false;
   const quickPreviewBtn = $("#previewCepatBtn"); if (quickPreviewBtn) quickPreviewBtn.disabled = false;
-  const summaryEl = $("#hasilRingkas");
+  const summaryEl = $("#resultSummary");
   if (summaryEl) {
     summaryEl.textContent = RESULT.length === 1
       ? "one MP4 file"
@@ -143,8 +143,8 @@ function renderResult() {
 /* ---------- rekomendasi AI: menit dan judul saja ---------- */
 
 function renderRecommendations() {
-  const list = $("#rekomList");
-  const note = $("#rekomNote");
+  const list = $("#recList");
+  const note = $("#recNote");
   if (!list) return;
   const candidates = (DATA?.candidates) || [];
 
@@ -154,10 +154,10 @@ function renderRecommendations() {
   if (typeof closeRecPreview === "function") closeRecPreview();
 
   if (!candidates.length) {
-    list.innerHTML = `<p class="kosong-hasil">No suggestions yet. Import Claude's JSON on the
+    list.innerHTML = `<p class="empty-message">No suggestions yet. Import Claude's JSON on the
       Analyze screen, or just select a range on the timeline.</p>`;
     if (note) note.textContent = "none yet";
-    const b = $("#rekomAddBtn"); if (b) b.disabled = true;
+    const b = $("#recAddBtn"); if (b) b.disabled = true;
     return;
   }
 
@@ -176,28 +176,28 @@ function renderRecommendations() {
   // sengaja. Pensil membuka kunci + fokus ke kolom "start"; begitu terbuka
   // ikonnya ganti jadi centang (Save) -- dipencet lagi buat mengunci ulang
   // SEKALIGUS memastikan nilai yang barusan diketik ter-commit (lihat
-  // listener klik #rekomList: dispatch "change" manual, karena klik
+  // listener klik #recList: dispatch "change" manual, karena klik
   // langsung ke tombol Save tanpa pindah fokus dulu tidak memicu event
   // change bawaan browser).
   list.innerHTML = candidates.map((k, i) => `
-    <label class="rekom-row">
-      <button class="rekom-play" type="button" data-play="${i}"
+    <label class="rec-row">
+      <button class="rec-play" type="button" data-play="${i}"
               aria-label="Preview ${escapeHTML(k.title)}" aria-pressed="false">▶</button>
-      <input type="checkbox" data-rekom="${i}">
+      <input type="checkbox" data-rec="${i}">
       <span class="num">${i + 1}</span>
-      <span class="rekom-judul">${escapeHTML(k.title)}</span>
-      <span class="rekom-waktu">
-        <input type="text" class="rekom-waktu-in" value="${shortTime(k.startSec)}"
+      <span class="rec-title">${escapeHTML(k.title)}</span>
+      <span class="rec-time">
+        <input type="text" class="rec-time-in" value="${shortTime(k.startSec)}"
                data-idx="${i}" data-field="startSec" size="5" spellcheck="false" disabled
                aria-label="Start time for ${escapeHTML(k.title)}">
         <span aria-hidden="true">–</span>
-        <input type="text" class="rekom-waktu-in" value="${shortTime(k.endSec)}"
+        <input type="text" class="rec-time-in" value="${shortTime(k.endSec)}"
                data-idx="${i}" data-field="endSec" size="5" spellcheck="false" disabled
                aria-label="End time for ${escapeHTML(k.title)}">
-        <button class="rekom-edit" type="button" data-edit-waktu="${i}"
+        <button class="rec-edit" type="button" data-edit-time="${i}"
                 title="Edit time" aria-label="Edit time for ${escapeHTML(k.title)}">✎</button>
       </span>
-      <span class="data rekom-dur">${k.dur}s</span>
+      <span class="data rec-dur">${k.dur}s</span>
     </label>`).join("");
   if (note) note.textContent = `${candidates.length} suggestion${candidates.length > 1 ? "s" : ""}`;
   updateRecButton();
@@ -237,7 +237,7 @@ function updateRecPlayIcon() {
   // padahal videonya sudah diam.
   const v = $("#tlPreviewVideo");
   const nowPlaying = !!(v && !v.paused);
-  document.querySelectorAll(".rekom-play").forEach((b) => {
+  document.querySelectorAll(".rec-play").forEach((b) => {
     const active = Number(b.dataset.play) === previewIdx && nowPlaying;
     b.textContent = active ? "⏸" : "▶";
     b.setAttribute("aria-pressed", String(active));
@@ -408,15 +408,15 @@ function tlPreviewStepSeconds(seconds) {
  ["#tlPreviewNext", 1], ["#tlPreviewNext2", 2], ["#tlPreviewNext5", 5]]
   .forEach(([sel, n]) => $(sel)?.addEventListener("click", () => tlPreviewStepSeconds(n)));
 
-$("#rekomList")?.addEventListener("click", (e) => {
-  const edit = e.target.closest("[data-edit-waktu]");
+$("#recList")?.addEventListener("click", (e) => {
+  const edit = e.target.closest("[data-edit-time]");
   if (edit) {
     e.preventDefault();     // jangan sampai ikut mencentang baris
-    const row = edit.closest(".rekom-row");
-    const inputs = row ? [...row.querySelectorAll(".rekom-waktu-in")] : [];
+    const row = edit.closest(".rec-row");
+    const inputs = row ? [...row.querySelectorAll(".rec-time-in")] : [];
     const startInput = inputs.find((el) => el.dataset.field === "startSec");
     if (!startInput) return;
-    const k = (DATA?.candidates || [])[Number(edit.dataset.editWaktu)];
+    const k = (DATA?.candidates || [])[Number(edit.dataset.editTime)];
     const title = k ? escapeHTML(k.title) : "";
     const isEditing = !startInput.disabled;
     if (isEditing) {
@@ -442,7 +442,7 @@ $("#rekomList")?.addEventListener("click", (e) => {
     }
     return;
   }
-  const btn = e.target.closest(".rekom-play");
+  const btn = e.target.closest(".rec-play");
   if (!btn) return;
   e.preventDefault();       // jangan sampai ikut mencentang baris
   playRecPreview(Number(btn.dataset.play));
@@ -456,8 +456,8 @@ $("#rekomList")?.addEventListener("click", (e) => {
 
    Titiknya ikut dirapikan ke batas kata terdekat (snapToWord), sama seperti
    seleksi manual di timeline -- satu aturan potong berlaku di mana pun. */
-$("#rekomList")?.addEventListener("change", (e) => {
-  const inp = e.target.closest(".rekom-waktu-in");
+$("#recList")?.addEventListener("change", (e) => {
+  const inp = e.target.closest(".rec-time-in");
   if (!inp) return;
   const idx = Number(inp.dataset.idx);
   const field = inp.dataset.field;
@@ -484,8 +484,8 @@ $("#rekomList")?.addEventListener("change", (e) => {
     k.out = shortTime(k.endSec);
   }
   inp.value = shortTime(snapped);
-  const rowEl = inp.closest(".rekom-row");
-  const durEl = rowEl?.querySelector(".rekom-dur");
+  const rowEl = inp.closest(".rec-row");
+  const durEl = rowEl?.querySelector(".rec-dur");
   if (durEl) durEl.textContent = `${k.dur}s`;
   // Penanda tipis di timeline total digambar dari k.startSec/endSec -- redraw
   // supaya ia ikut pindah, bukan tetap di posisi lama sampai redraw lain.
@@ -493,23 +493,23 @@ $("#rekomList")?.addEventListener("change", (e) => {
 });
 
 function updateRecButton() {
-  const b = $("#rekomAddBtn");
+  const b = $("#recAddBtn");
   if (!b) return;
-  const n = document.querySelectorAll("#rekomList input:checked").length;
+  const n = document.querySelectorAll("#recList input:checked").length;
   b.disabled = n === 0;
   b.textContent = n ? `Add ${n} to Result` : "Add to Result";
 }
 
 /* ---------- kejadian ---------- */
 
-$("#rekomList")?.addEventListener("change", updateRecButton);
+$("#recList")?.addEventListener("change", updateRecButton);
 
-$("#rekomAddBtn")?.addEventListener("click", () => {
-  const selected = [...document.querySelectorAll("#rekomList input:checked")];
+$("#recAddBtn")?.addEventListener("click", () => {
+  const selected = [...document.querySelectorAll("#recList input:checked")];
   const candidates = DATA.candidates || [];
   let rejectedCount = 0;
   for (const c of selected) {
-    const k = candidates[Number(c.dataset.rekom)];
+    const k = candidates[Number(c.dataset.rec)];
     if (!k) continue;
     if (addToResult(k.startSec, k.endSec, k.title, "ai")) rejectedCount++;
     c.checked = false;
@@ -520,12 +520,12 @@ $("#rekomAddBtn")?.addEventListener("click", () => {
   }
 });
 
-$("#hasilList")?.addEventListener("click", (e) => {
-  const b = e.target.closest("[data-buang-hasil]");
-  if (b) removeFromResult(b.dataset.buangHasil);
+$("#resultList")?.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-delete-result]");
+  if (b) removeFromResult(b.dataset.deleteResult);
 });
 
-$("#hasilClearBtn")?.addEventListener("click", clearResult);
+$("#resultClearBtn")?.addEventListener("click", clearResult);
 
 /* Video baru = result ikut dikosongkan, seperti daftar objek. */
 function resetResult() {
@@ -536,7 +536,7 @@ function resetResult() {
 }
 
 /* Render: seluruh result jadi SATU berkas. */
-$("#hasilRenderBtn")?.addEventListener("click", () => {
+$("#resultRenderBtn")?.addEventListener("click", () => {
   const clip = resultAsClip();
   if (!clip) return;
   if (typeof sendRender === "function") sendRender([clip]);

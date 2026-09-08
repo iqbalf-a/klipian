@@ -653,7 +653,7 @@ h1, h2, h3 {
 }
 
 /* Tombol langkah: lebar TETAP, isinya panah + angka. */
-.langkah {
+.step {
   display: inline-flex; align-items: center; justify-content: center; gap: 2px;
   /* flex: none WAJIB. Tanpa itu flexbox memampatkan tombol di panel sempit,
      dan deretan yang seharusnya seragam jadi lebar-lebar berbeda -- itu yang
@@ -670,17 +670,17 @@ h1, h2, h3 {
   font-family: var(--font-data);
   transition: background var(--fast), color var(--fast), border-color var(--fast);
 }
-.langkah i { font-style: normal; font-size: 9px; line-height: 1; }
-.langkah b { font-size: 11px; font-weight: 700; line-height: 1; }
-.langkah:hover {
+.step i { font-style: normal; font-size: 9px; line-height: 1; }
+.step b { font-size: 11px; font-weight: 700; line-height: 1; }
+.step:hover {
   color: var(--text); border-color: var(--accent);
   background: var(--glass-strong);
 }
-.langkah:active { transform: translateY(1px); }
+.step:active { transform: translateY(1px); }
 
 /* Tombol putar: bulat penuh dan satu-satunya yang berwarna aksen, supaya
    jelas mana aksi utamanya. */
-.putar {
+.play-btn {
   flex: none;
   box-sizing: border-box;
   width: 38px; height: 38px;               /* sama persis -> lingkaran, bukan bulat telur */
@@ -694,8 +694,8 @@ h1, h2, h3 {
   box-shadow: 0 0 22px -8px var(--accent-glow);
   transition: filter var(--fast);
 }
-.putar:hover { filter: brightness(1.08); }
-.putar:active { transform: translateY(1px); }
+.play-btn:hover { filter: brightness(1.08); }
+.play-btn:active { transform: translateY(1px); }
 
 .transport-bawah {
   display: flex; align-items: center; gap: 5px;
@@ -1630,15 +1630,15 @@ h1, h2, h3 {
    Dua panel bertumpuk: rekomendasi AI di atas (cukup menit + judul),
    wadah Result di bawah. Yang di bawah itu yang jadi video. */
 
-.rekom-head, .hasil-head {
+.panel-head, .result-head {
   display: flex; align-items: center; gap: var(--s3);
   padding: var(--s4) var(--s5) var(--s3);
 }
-.rekom-head .data, .hasil-head .data { margin-right: auto; color: var(--text-faint); }
+.panel-head .data, .result-head .data { margin-right: auto; color: var(--text-faint); }
 /* Layar Captions sekarang punya DUA tombol di baris ini ("Remove filler
-   words" + "Reset all"), bukan cuma satu seperti rekom-head/hasil-head
+   words" + "Reset all"), bukan cuma satu seperti panel-head/result-head
    lain -- di panel yang sempit keduanya meluber keluar kotak tanpa ini. */
-#panel-teks .rekom-head { flex-wrap: wrap; row-gap: var(--s2); }
+#panel-teks .panel-head { flex-wrap: wrap; row-gap: var(--s2); }
 
 /* Kotak status AI Framing (proses/error/hasil) -- lihat aiFramingStatus()
    di framing.js. */
@@ -1652,15 +1652,15 @@ h1, h2, h3 {
 }
 .ai-framing-tanya .data { margin-right: auto; }
 
-.rekom-list, .hasil-list { padding: 0 var(--s5) var(--s4); }
+.rec-list, .result-list { padding: 0 var(--s5) var(--s4); }
 
-.kosong-hasil {
+.empty-message {
   margin: 0; padding: var(--s4) 0;
   color: var(--text-faint); font-size: 13px; line-height: 1.5;
 }
 
 /* ---- baris rekomendasi: pilih dengan centang ---- */
-.rekom-row {
+.rec-row {
   display: grid;
   grid-template-columns: auto auto auto 1fr auto auto;
   align-items: center; gap: var(--s3);
@@ -1668,13 +1668,13 @@ h1, h2, h3 {
   border-radius: var(--r-s);
   cursor: pointer;
 }
-.rekom-row:hover { background: var(--glass); }
+.rec-row:hover { background: var(--glass); }
 
 /* Tombol pratinjau: bulat kecil, sengaja tidak semenonjol tombol utama --
    ini langkah eksplorasi, bukan aksi yang berdampak (beda dengan "Add to
    Result"). aria-pressed="true" (sedang memutar rentang INI) diberi warna
    aksen supaya jelas baris mana yang sumber suaranya. */
-.rekom-play {
+.rec-play {
   font: inherit; font-size: 10px; line-height: 1;
   width: 22px; height: 22px; flex: none;
   display: grid; place-items: center;
@@ -1685,18 +1685,18 @@ h1, h2, h3 {
   cursor: pointer;
   transition: background var(--fast), color var(--fast), border-color var(--fast);
 }
-.rekom-play:hover { color: var(--text); border-color: var(--border-bright); }
-.rekom-play[aria-pressed="true"] {
+.rec-play:hover { color: var(--text); border-color: var(--border-bright); }
+.rec-play[aria-pressed="true"] {
   color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent);
   background: var(--accent-soft);
 }
-/* Selektor DIBATASI ke checkbox: bare ".rekom-row input" ikut menimpa lebar
+/* Selektor DIBATASI ke checkbox: bare ".rec-row input" ikut menimpa lebar
    kolom waktu (15x15px cocok untuk kotak centang, tapi menghancurkan input
    mm:ss yang butuh ~40px -- "01:40" jadi terpotong nyaris tak terbaca). */
-.rekom-row input[type="checkbox"] {
+.rec-row input[type="checkbox"] {
   accent-color: var(--accent); width: 15px; height: 15px; cursor: pointer;
 }
-.rekom-row .num, .hasil-row .num {
+.rec-row .num, .result-row .num {
   font-family: var(--font-data); font-size: 10px;
   min-width: 17px; height: 17px;
   display: grid; place-items: center;
@@ -1704,27 +1704,27 @@ h1, h2, h3 {
   background: color-mix(in srgb, var(--text) 12%, transparent);
   color: var(--text-muted);
 }
-.rekom-judul, .hasil-judul {
+.rec-title, .result-title {
   font-weight: 600; font-size: 14px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   /* `overflow:hidden` bikin ukuran minimum otomatis kolom grid 1fr ini
      jadi 0 (aturan CSS Grid, bukan bug browser) -- tanpa min-width ini,
-     menambah SATU elemen apa pun ke kolom .rekom-waktu di sebelahnya
+     menambah SATU elemen apa pun ke kolom .rec-time di sebelahnya
      (semuanya "auto", ikut memakan ruang duluan) bisa mendesak judul
      ini sampai lebar 0px dan hilang total, bukan cuma terpotong.
-     Ketauan persis begini setelah nambah tombol pensil .rekom-edit. */
+     Ketauan persis begini setelah nambah tombol pensil .rec-edit. */
   min-width: 90px;
 }
-.hasil-waktu { color: var(--text-faint); }
+.result-time { color: var(--text-faint); }
 
 /* Waktu rekomendasi bisa diedit -- dua kolom mm:ss kecil, bukan lagi teks
    statis. Klik langsung pada kolomnya sendiri (bukan pada label di
    sekitarnya) supaya perilaku bawaan browser tidak ikut mencentang baris. */
-.rekom-waktu {
+.rec-time {
   display: inline-flex; align-items: center; gap: 4px;
   color: var(--text-faint);
 }
-.rekom-waktu-in {
+.rec-time-in {
   font-family: var(--font-data); font-size: 12px;
   width: 52px; padding: 3px 3px;
   border-radius: var(--r-s);
@@ -1733,18 +1733,18 @@ h1, h2, h3 {
   color: var(--text);
   text-align: center;
 }
-.rekom-waktu-in:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.rec-time-in:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 /* Terkunci sampai tombol pensil dipencet -- baris ini <label> yang
    membungkus checkbox pilih-Result, jadi kotak yang selalu bisa diklik
    gampang tersenggol tanpa sengaja. */
-.rekom-waktu-in:disabled {
+.rec-time-in:disabled {
   color: var(--text-faint); border-color: transparent;
   background: transparent; cursor: default;
 }
 /* Pensil buka kunci; begitu terbuka ikonnya ganti jadi centang (Save,
    ditandai data-editing) supaya jelas ada langkah konfirmasi terpisah,
    bukan cuma tombol yang berubah diam-diam. */
-.rekom-edit {
+.rec-edit {
   font: inherit; font-size: 11px; line-height: 1;
   width: 20px; height: 20px; flex: none;
   display: grid; place-items: center;
@@ -1754,53 +1754,53 @@ h1, h2, h3 {
   cursor: pointer;
   transition: color var(--fast), background var(--fast);
 }
-.rekom-edit:hover { color: var(--text); background: var(--glass); }
-.rekom-edit[data-editing="true"] {
+.rec-edit:hover { color: var(--text); background: var(--glass); }
+.rec-edit[data-editing="true"] {
   color: var(--accent); background: var(--accent-soft);
 }
-.rekom-edit[data-editing="true"]:hover { color: var(--accent); }
-.rekom-dur, .hasil-dur { color: var(--text-muted); min-width: 34px; text-align: right; }
-.rekom-row:has(input:checked) {
+.rec-edit[data-editing="true"]:hover { color: var(--accent); }
+.rec-dur, .result-dur { color: var(--text-muted); min-width: 34px; text-align: right; }
+.rec-row:has(input:checked) {
   background: var(--accent-soft);
   box-shadow: inset 2px 0 0 var(--accent);
 }
 
 /* ---- baris result ---- */
-.hasil-row {
+.result-row {
   display: grid;
   grid-template-columns: auto 1fr auto auto auto auto;
   align-items: center; gap: var(--s3);
   padding: 9px var(--s3);
   border-radius: var(--r-s);
 }
-.hasil-row + .hasil-row { border-top: 1px solid var(--glass-border); }
-.hasil-row:hover { background: var(--glass); }
-.lencana-asal {
+.result-row + .result-row { border-top: 1px solid var(--glass-border); }
+.result-row:hover { background: var(--glass); }
+.source-badge {
   font-family: var(--font-data); font-size: 9px;
   letter-spacing: .04em; text-transform: uppercase;
   padding: 2px 6px; border-radius: var(--r-pill);
   border: 1px solid var(--glass-border);
   color: var(--text-faint);
 }
-.lencana-asal[data-asal="ai"] {
+.source-badge[data-source="ai"] {
   color: var(--accent);
   border-color: color-mix(in srgb, var(--accent) 40%, transparent);
   background: var(--accent-soft);
 }
-.buang-hasil {
+.delete-result {
   width: 24px; height: 24px;          /* target sentuh WCAG 2.2 */
   opacity: .5;
 }
-.buang-hasil:hover { opacity: 1; color: var(--danger); }
+.delete-result:hover { opacity: 1; color: var(--danger); }
 
 /* ══════════════════════ timeline video utuh ══════════════════════
    Satu batang untuk seluruh video. Penanda tipis = rekomendasi AI,
    blok padat = yang sudah masuk result. */
 
-.pilih-head, .pilih-foot { display: flex; align-items: center; gap: var(--s3); }
-.pilih-head { padding: var(--s4) var(--s5) var(--s3); }
-.pilih-head .data { color: var(--text-faint); }
-.pilih-head #pilihNote { margin-right: auto; }
+.pick-head, .pick-foot { display: flex; align-items: center; gap: var(--s3); }
+.pick-head { padding: var(--s4) var(--s5) var(--s3); }
+.pick-head .data { color: var(--text-faint); }
+.pick-head #pickNote { margin-right: auto; }
 
 /* Pratinjau video sumber utuh -- rasio alami, bukan dipaksa 9:16 seperti
    panel di kanan yang terkunci ke Result. Duduk di atas bar #tlTotal karena
@@ -1879,11 +1879,11 @@ h1, h2, h3 {
   position: absolute; top: 0; bottom: 0;
   border-radius: 2px;
 }
-.tl-mark.rekom {
+.tl-mark.rec {
   background: color-mix(in srgb, var(--text) 16%, transparent);
   top: 34%;
 }
-.tl-mark.hasil {
+.tl-mark.result {
   background: color-mix(in srgb, var(--accent) 30%, transparent);
   border-left: 1px solid var(--accent);
   border-right: 1px solid var(--accent);
@@ -1903,8 +1903,8 @@ h1, h2, h3 {
   background: var(--accent);
   opacity: .85;
 }
-.tl-grip.kiri { left: -5px; border-radius: 3px 0 0 3px; }
-.tl-grip.kanan { right: -5px; border-radius: 0 3px 3px 0; }
+.tl-grip.left { left: -5px; border-radius: 3px 0 0 3px; }
+.tl-grip.right { right: -5px; border-radius: 0 3px 3px 0; }
 .tl-grip:hover { opacity: 1; }
 
 .tl-skala {
@@ -1916,12 +1916,12 @@ h1, h2, h3 {
 
 /* Padding bawahnya 0 sejak dulu, jadi tombol "Masukkan ke result" duduk
    1px dari tepi panel. */
-.pilih-foot { padding: var(--s4) var(--s5); }
-.waktu-input {
+.pick-foot { padding: var(--s4) var(--s5); }
+.time-input {
   display: inline-flex; align-items: center; gap: 7px;
   font-size: var(--t-12); color: var(--text-faint);
 }
-.waktu-input input {
+.time-input input {
   font-family: var(--font-data); font-size: 13px;
   padding: 6px 9px;
   border-radius: var(--r-s);
@@ -1930,10 +1930,10 @@ h1, h2, h3 {
   color: var(--text);
   width: 74px;
 }
-.waktu-input input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.sel-dur { margin-right: auto; color: var(--text-muted); }
+.time-input input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.selection-dur { margin-right: auto; color: var(--text-muted); }
 
-.sel-teks {
+.selection-text {
   margin: var(--s3) var(--s5) var(--s4);
   padding: var(--s3);
   border-radius: var(--r-s);
@@ -1942,7 +1942,7 @@ h1, h2, h3 {
   font-size: 13px; line-height: 1.55;
   max-height: 68px; overflow: hidden;
 }
-.sel-teks:empty { display: none; }
+.selection-text:empty { display: none; }
 
 /* kaki panel Result: judul berkas + tombol render */
 /* ── batang render di bawah preview ──
@@ -1958,8 +1958,8 @@ h1, h2, h3 {
   padding-top: var(--s3);
   border-top: 1px solid var(--glass-border);
 }
-.render-bar .judul-input { width: 100%; min-width: 0; }
-.render-bar .judul-input input { width: 100%; min-width: 0; }
+.render-bar .title-input { width: 100%; min-width: 0; }
+.render-bar .title-input input { width: 100%; min-width: 0; }
 .render-bar .baris {
   display: flex; align-items: center; justify-content: space-between;
   gap: var(--s2);
@@ -1983,17 +1983,17 @@ h1, h2, h3 {
   max-height: 46vh;
 }
 
-.hasil-foot {
+.result-foot {
   display: flex; align-items: center; gap: var(--s3);
   padding: var(--s4) var(--s5);
   border-top: 1px solid var(--glass-border);
 }
-.judul-input {
+.title-input {
   display: inline-flex; align-items: center; gap: 7px;
   font-size: var(--t-12); color: var(--text-faint);
   flex: 1;
 }
-.judul-input input {
+.title-input input {
   font: inherit; font-size: 14px; font-weight: 600;
   padding: 7px 10px;
   border-radius: var(--r-s);
@@ -2002,7 +2002,7 @@ h1, h2, h3 {
   color: var(--text);
   flex: 1; min-width: 0;
 }
-.judul-input input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.title-input input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 /* titik warna di chip pilihan warna sorot */
 .chip .titik {
@@ -2038,9 +2038,9 @@ h1, h2, h3 {
 /* Tombol .btn polos tidak punya latar maupun border, jadi di dalam kepala
    panel ia terbaca sebagai teks biasa -- bukan sesuatu yang bisa diklik.
    Tombol aksi utama di kepala panel diberi bingkai supaya terlihat. */
-.rekom-head .btn:not(.main),
-.hasil-head .btn:not(.main),
-.pilih-head .btn:not(.main),
+.panel-head .btn:not(.main),
+.result-head .btn:not(.main),
+.pick-head .btn:not(.main),
 .work-head .btn:not(.main),
 .render-bar .btn:not(.main) {
   border-color: var(--glass-border);

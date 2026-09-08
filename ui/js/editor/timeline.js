@@ -48,7 +48,7 @@ function drawTotalTimeline() {
   if (typeof loadFullPreview === "function") loadFullPreview();
   const d = videoDuration();
 
-  const info = $("#pilihDurasi");
+  const info = $("#pickDuration");
   if (info) info.textContent = d ? `total ${timeRange(d)}` : "no video loaded";
 
   // penanda: rekomendasi AI tipis, potongan result padat
@@ -84,7 +84,7 @@ function drawSelection() {
     box.hidden = true;
     if (button) button.disabled = true;
     $("#selDur").textContent = "0s";
-    $("#selTeks").textContent = "";
+    $("#selText").textContent = "";
     return;
   }
   box.hidden = false;
@@ -102,7 +102,7 @@ function drawSelection() {
 
   // Perlihatkan omongan di dalam rentangnya -- angka saja tidak cukup untuk
   // tahu apakah potongannya benar.
-  const wordsEl = $("#selTeks");
+  const wordsEl = $("#selText");
   if (wordsEl) {
     const words = (realTranscript?.words || [])
       .filter((w) => w.start >= SELECTION.start && w.end <= SELECTION.end)
@@ -148,7 +148,7 @@ function fracFromEvent(e, bar) {
 $("#tlTotal")?.addEventListener("pointerdown", (e) => {
   const bar = e.currentTarget;
   if (!videoDuration()) {
-    $("#pilihNote").textContent = "no video or transcript yet";
+    $("#pickNote").textContent = "no video or transcript yet";
     return;
   }
   const frac = fracFromEvent(e, bar);
@@ -189,7 +189,7 @@ $("#tlTotal")?.addEventListener("pointermove", (e) => {
       const before = `${SELECTION.start.toFixed(2)}-${SELECTION.end.toFixed(2)}`;
       setSelection(SELECTION.start, SELECTION.end, true);      // dirapikan ke batas kata
       const after = `${SELECTION.start.toFixed(2)}-${SELECTION.end.toFixed(2)}`;
-      $("#pilihNote").textContent = before === after
+      $("#pickNote").textContent = before === after
         ? "range selected"
         : "cut point snapped to the nearest word boundary";
     }
@@ -220,10 +220,10 @@ document.addEventListener("keydown", (e) => {
     dragSelection = null;
     if (previousSelection) setSelection(previousSelection.start, previousSelection.end, false);
     else clearSelection();
-    $("#pilihNote").textContent = "selection cancelled";
+    $("#pickNote").textContent = "selection cancelled";
   } else if (SELECTION) {
     clearSelection();
-    $("#pilihNote").textContent = "drag on the timeline to select a range";
+    $("#pickNote").textContent = "drag on the timeline to select a range";
   }
 });
 
@@ -233,7 +233,7 @@ function readTimeColumns() {
   let a = parseTime($("#selStart").value);
   let b = parseTime($("#selEnd").value);
   if (a === null || b === null) {
-    $("#pilihNote").textContent = "time format is mm:ss, e.g. 16:56";
+    $("#pickNote").textContent = "time format is mm:ss, e.g. 16:56";
     return;
   }
   // Kolom menampilkan timeRange() yang dibulatkan ke detik bulat. Kalau sebuah
@@ -245,22 +245,22 @@ function readTimeColumns() {
     if (Math.round(b) === Math.round(SELECTION.end)) b = SELECTION.end;
   }
   if (b <= a) {
-    $("#pilihNote").textContent = "end time must be later than start";
+    $("#pickNote").textContent = "end time must be later than start";
     return;
   }
   // Angka di luar durasi video dulu dipangkas diam-diam jadi rentang nol, dan
   // tombolnya mati tanpa alasan yang kelihatan. Sekarang dikatakan.
   const d = videoDuration();
   if (d && a >= d) {
-    $("#pilihNote").textContent =
+    $("#pickNote").textContent =
       `${timeRange(a)} melewati akhir video (${timeRange(d)})`;
     return;
   }
   if (d && b > d) {
-    $("#pilihNote").textContent =
+    $("#pickNote").textContent =
       `dipendekkan ke akhir video (${timeRange(d)})`;
   } else {
-    $("#pilihNote").textContent = "range set from the numbers";
+    $("#pickNote").textContent = "range set from the numbers";
   }
   setSelection(a, b, false);       // angka yang diketik dihormati apa adanya
 }
@@ -279,9 +279,9 @@ $("#selAddBtn")?.addEventListener("click", () => {
   const title = `Clip ${timeRange(SELECTION.start)}`;
   const rejected = addToResult(SELECTION.start, SELECTION.end, title, "manual");
   if (rejected) {
-    $("#pilihNote").textContent = rejected;
+    $("#pickNote").textContent = rejected;
     return;
   }
-  $("#pilihNote").textContent = "added to Result";
+  $("#pickNote").textContent = "added to Result";
   clearSelection();               // kotak seleksi dilepas, bukan ditinggal
 });

@@ -31,7 +31,7 @@ const VALID_SCREENS = ["analysis", "klip", "framing", "teks", "history"];
 /* Satu project sekarang bisa menyimpan LEBIH DARI SATU Result -- video
    podcast yang sama wajar menghasilkan banyak klip terpisah, dan dulu mulai
    klip ke-2 diam-diam menimpa rentang/framing/koreksi klip pertama.
-   RESULT/FRAMING/CORRECTIONS/#hasilJudul (result.js/framing.js/captions.js) TETAP
+   RESULT/FRAMING/CORRECTIONS/#resultTitle (result.js/framing.js/captions.js) TETAP
    jadi "keadaan hidup Result yang sedang aktif" -- tidak berubah sama
    sekali di berkas-berkas itu. Yang baru cuma lapisan penyimpanan di sini:
    SAVED_RESULTS menampung tiap Result sebagai snapshot
@@ -144,7 +144,7 @@ function snapshotActiveResult() {
   if (!activeResultId) return;
   const slot = SAVED_RESULTS.find((r) => r.id === activeResultId);
   if (!slot) return;
-  slot.title = (typeof $ === "function" && $("#hasilJudul")?.value.trim()) || "";
+  slot.title = (typeof $ === "function" && $("#resultTitle")?.value.trim()) || "";
   slot.result = (typeof RESULT !== "undefined" ? RESULT : []).map((r) => ({
     id: r.id, start: r.start, end: r.end, title: r.title, source: r.source,
   }));
@@ -181,7 +181,7 @@ function loadResultIntoLiveState(entry) {
     }
   }
   if (typeof CORRECTIONS !== "undefined") CORRECTIONS = entry.corrections || {};
-  if ($("#hasilJudul")) $("#hasilJudul").value = entry.title || "";
+  if ($("#resultTitle")) $("#resultTitle").value = entry.title || "";
   if (typeof renderResult === "function") renderResult();
   if (typeof renderFraming === "function") renderFraming();
   if (typeof renderCaptions === "function") renderCaptions();
@@ -219,7 +219,7 @@ function newResult() {
   if (typeof resetResult === "function") resetResult();
   if (typeof resetFraming === "function") resetFraming();
   if (typeof resetCaptions === "function") resetCaptions();
-  if ($("#hasilJudul")) $("#hasilJudul").value = "";
+  if ($("#resultTitle")) $("#resultTitle").value = "";
   renderResultSwitcher();
   saveProject();
 }
@@ -253,7 +253,7 @@ function deleteResultTab(id) {
 }
 
 /* Pemilih Result ada TIGA instance identik -- title layar Clips, Framing,
-   dan Captions, disatukan lewat class .result-select/[data-result-aksi],
+   dan Captions, disatukan lewat class .result-select/[data-result-action],
    bukan id, supaya ketiganya digambar ulang dan disinkronkan sekali jalan
    dari sini. Clips justru tempat SUMBER Result-nya dipilih (span yang
    ditambah di sana masuk ke Result yang sedang aktif) -- bukan cuma
@@ -263,7 +263,7 @@ function renderResultSwitcher() {
     <option value="${r.id}" ${r.id === activeResultId ? "selected" : ""}>
       ${escapeHTML(r.title || `Result ${i + 1}`)}</option>`).join("");
   document.querySelectorAll(".result-select").forEach((sel) => { sel.innerHTML = options; });
-  document.querySelectorAll('[data-result-aksi="delete"]').forEach((b) => {
+  document.querySelectorAll('[data-result-action="delete"]').forEach((b) => {
     b.disabled = SAVED_RESULTS.length <= 1;
   });
 }
@@ -271,10 +271,10 @@ function renderResultSwitcher() {
 document.querySelectorAll(".result-select").forEach((sel) => {
   sel.addEventListener("change", () => switchResult(sel.value));
 });
-document.querySelectorAll('[data-result-aksi="new"]').forEach((b) => {
+document.querySelectorAll('[data-result-action="new"]').forEach((b) => {
   b.addEventListener("click", () => newResult());
 });
-document.querySelectorAll('[data-result-aksi="delete"]').forEach((b) => {
+document.querySelectorAll('[data-result-action="delete"]').forEach((b) => {
   b.addEventListener("click", () => deleteResultTab(activeResultId));
 });
 

@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wdth,wght@0,75..125,200..900;1,75..125,200..900&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1788846538373">
-<link rel="stylesheet" href="/ui/css/app.css?v=1788846538373">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1788848102879">
+<link rel="stylesheet" href="/ui/css/app.css?v=1788848102879">
 </head>
 <body>
 
@@ -203,17 +203,17 @@
                (projects.js) lewat class, sama seperti 2 instance lainnya. -->
           <div class="result-picker right">
             <select class="result-select" aria-label="Result being edited"></select>
-            <button class="btn quiet" type="button" data-result-aksi="new" title="New Result">+</button>
-            <button class="btn quiet" type="button" data-result-aksi="delete" title="Delete this Result">×</button>
+            <button class="btn quiet" type="button" data-result-action="new" title="New Result">+</button>
+            <button class="btn quiet" type="button" data-result-action="delete" title="Delete this Result">×</button>
           </div>
         </div>
 
         <!-- timeline video utuh: seleksi rentang sendiri -->
-        <div class="panel fit pilih">
-          <div class="pilih-head">
+        <div class="panel fit pick">
+          <div class="pick-head">
             <span class="eyebrow">Timeline</span>
-            <span class="data" id="pilihNote">drag on the timeline to select a range</span>
-            <span class="data" id="pilihDurasi"></span>
+            <span class="data" id="pickNote">drag on the timeline to select a range</span>
+            <span class="data" id="pickDuration"></span>
           </div>
 
           <!-- Pratinjau video SUMBER UTUH -- rasio alami, bukan dipotong
@@ -239,19 +239,19 @@
                  batas klip sudah dekat, dan itu urusan preview Result di kanan
                  (player.js), bukan panel scan ini. -->
             <div class="tl-preview-foot">
-              <button class="langkah" id="tlPreviewPrev5" type="button"
+              <button class="step" id="tlPreviewPrev5" type="button"
                       title="Back 5 seconds" aria-label="Back five seconds"><i>◀</i><b>5s</b></button>
-              <button class="langkah" id="tlPreviewPrev2" type="button"
+              <button class="step" id="tlPreviewPrev2" type="button"
                       title="Back 2 seconds" aria-label="Back two seconds"><i>◀</i><b>2s</b></button>
-              <button class="langkah" id="tlPreviewPrev" type="button"
+              <button class="step" id="tlPreviewPrev" type="button"
                       title="Back 1 second" aria-label="Back one second"><i>◀</i><b>1s</b></button>
-              <button class="langkah" id="tlPreviewPlay" type="button"
+              <button class="step" id="tlPreviewPlay" type="button"
                       aria-label="Play preview">▶</button>
-              <button class="langkah" id="tlPreviewNext" type="button"
+              <button class="step" id="tlPreviewNext" type="button"
                       title="Forward 1 second" aria-label="Forward one second"><b>1s</b><i>▶</i></button>
-              <button class="langkah" id="tlPreviewNext2" type="button"
+              <button class="step" id="tlPreviewNext2" type="button"
                       title="Forward 2 seconds" aria-label="Forward two seconds"><b>2s</b><i>▶</i></button>
-              <button class="langkah" id="tlPreviewNext5" type="button"
+              <button class="step" id="tlPreviewNext5" type="button"
                       title="Forward 5 seconds" aria-label="Forward five seconds"><b>5s</b><i>▶</i></button>
               <span class="data" id="tlPreviewTime">00:00 / 00:00</span>
               <span class="data" id="tlPreviewTitle"></span>
@@ -262,45 +262,45 @@
                aria-label="Video timeline, drag to select a range">
             <div class="tl-marks" id="tlMarks"></div>
             <div class="tl-sel" id="tlSel" hidden>
-              <b class="tl-grip kiri" data-grip="start" aria-label="Drag range start"></b>
-              <b class="tl-grip kanan" data-grip="end" aria-label="Drag range end"></b>
+              <b class="tl-grip left" data-grip="start" aria-label="Drag range start"></b>
+              <b class="tl-grip right" data-grip="end" aria-label="Drag range end"></b>
             </div>
           </div>
           <div class="tl-skala" id="tlSkala"></div>
 
-          <div class="pilih-foot">
-            <label class="waktu-input">from
+          <div class="pick-foot">
+            <label class="time-input">from
               <input id="selStart" value="00:00" size="7" spellcheck="false"
                      aria-label="Start time, minutes colon seconds"></label>
-            <label class="waktu-input">to
+            <label class="time-input">to
               <input id="selEnd" value="00:00" size="7" spellcheck="false"
                      aria-label="End time, minutes colon seconds"></label>
-            <span class="data sel-dur" id="selDur">0s</span>
+            <span class="data selection-dur" id="selDur">0s</span>
             <button class="btn main" id="selAddBtn" disabled>Add to Result</button>
           </div>
-          <p class="sel-teks" id="selTeks"></p>
+          <p class="selection-text" id="selText"></p>
         </div>
 
         <!-- rekomendasi AI: menit dan judul saja -->
-        <div class="panel fit rekom">
-          <div class="rekom-head">
+        <div class="panel fit rec">
+          <div class="panel-head">
             <span class="eyebrow">AI suggestions</span>
-            <span class="data" id="rekomNote">none yet</span>
-            <button class="btn main" id="rekomAddBtn" disabled>Add to Result</button>
+            <span class="data" id="recNote">none yet</span>
+            <button class="btn main" id="recAddBtn" disabled>Add to Result</button>
           </div>
           <!-- Tombol Play di tiap baris menjalankan #tlPreviewVideo di panel
                Timeline di atas -- lihat komentarnya di sana. -->
-          <div class="rekom-list" id="rekomList"></div>
+          <div class="rec-list" id="recList"></div>
         </div>
 
         <!-- wadah result: semua range yang akan disambung jadi satu MP4 -->
-        <div class="panel fit hasil">
-          <div class="hasil-head">
+        <div class="panel fit result">
+          <div class="result-head">
             <span class="eyebrow">Result</span>
-            <span class="data" id="hasilTotal">empty</span>
-            <button class="btn quiet" id="hasilClearBtn" disabled>Clear</button>
+            <span class="data" id="resultTotal">empty</span>
+            <button class="btn quiet" id="resultClearBtn" disabled>Clear</button>
           </div>
-          <div class="hasil-list" id="hasilList"></div>
+          <div class="result-list" id="resultList"></div>
         </div>
 
       </section>
@@ -317,14 +317,14 @@
                (Clips, Framing, Captions). -->
           <div class="result-picker right">
             <select class="result-select" aria-label="Result being edited"></select>
-            <button class="btn quiet" type="button" data-result-aksi="new" title="New Result">+</button>
-            <button class="btn quiet" type="button" data-result-aksi="delete" title="Delete this Result">×</button>
+            <button class="btn quiet" type="button" data-result-action="new" title="New Result">+</button>
+            <button class="btn quiet" type="button" data-result-action="delete" title="Delete this Result">×</button>
           </div>
         </div>
 
         <!-- Framing: objek orang, berlaku untuk seluruh result -->
         <div class="panel fit">
-          <div class="rekom-head">
+          <div class="panel-head">
             <span class="eyebrow">Framing</span>
             <span class="data" id="reframeNote">drag the box onto whoever is talking, then lock it</span>
             <span class="data" id="framingWaktu"></span>
@@ -424,14 +424,14 @@
           <span class="note">fix misheard words, then style them</span>
           <div class="result-picker right">
             <select class="result-select" aria-label="Result being edited"></select>
-            <button class="btn quiet" type="button" data-result-aksi="new" title="New Result">+</button>
-            <button class="btn quiet" type="button" data-result-aksi="delete" title="Delete this Result">×</button>
+            <button class="btn quiet" type="button" data-result-action="new" title="New Result">+</button>
+            <button class="btn quiet" type="button" data-result-action="delete" title="Delete this Result">×</button>
           </div>
         </div>
 
         <!-- Teks caption: milik result ini saja, transkrip tidak disentuh -->
         <div class="panel fit">
-          <div class="rekom-head">
+          <div class="panel-head">
             <span class="eyebrow">Words</span>
             <span class="data" id="teksNote">click a word to correct it</span>
             <button class="btn" id="teksPengisiBtn" disabled>Remove filler words</button>
@@ -442,7 +442,7 @@
 
         <!-- Subtitle: pengaturan ini benar-benar sampai ke berkas hasil -->
         <div class="panel fit">
-          <div class="rekom-head">
+          <div class="panel-head">
             <span class="eyebrow">Subtitle</span>
             <span class="data">live preview in the 9:16 panel</span>
           </div>
@@ -531,21 +531,21 @@
         <!-- Baris transport: mundur banyak di kiri, maju banyak di kanan,
              putar di tengah. Urutannya mengikuti arah waktu. -->
         <div class="transport">
-          <button class="langkah" id="prevFrame5" title="Back 5 frames"
+          <button class="step" id="prevFrame5" title="Back 5 frames"
                   aria-label="Back five frames"><i>◀</i><b>5f</b></button>
-          <button class="langkah" id="prevFrame2" title="Back 2 frames"
+          <button class="step" id="prevFrame2" title="Back 2 frames"
                   aria-label="Back two frames"><i>◀</i><b>2f</b></button>
-          <button class="langkah" id="prevFrameBtn" title="Back 1 frame (, key)"
+          <button class="step" id="prevFrameBtn" title="Back 1 frame (, key)"
                   aria-label="Back one frame"><i>◀</i><b>1f</b></button>
 
-          <button class="putar" id="playBtn" title="Play Result (space)"
+          <button class="play-btn" id="playBtn" title="Play Result (space)"
                   aria-label="Play Result">▶</button>
 
-          <button class="langkah" id="nextFrameBtn" title="Forward 1 frame (. key)"
+          <button class="step" id="nextFrameBtn" title="Forward 1 frame (. key)"
                   aria-label="Forward one frame"><b>1f</b><i>▶</i></button>
-          <button class="langkah" id="nextFrame2" title="Forward 2 frames"
+          <button class="step" id="nextFrame2" title="Forward 2 frames"
                   aria-label="Forward two frames"><b>2f</b><i>▶</i></button>
-          <button class="langkah" id="nextFrame5" title="Forward 5 frames"
+          <button class="step" id="nextFrame5" title="Forward 5 frames"
                   aria-label="Forward five frames"><b>5f</b><i>▶</i></button>
         </div>
 
@@ -567,14 +567,14 @@
            layar Klip, Framing, maupun Teks tanpa pindah-pindah. Preview ini
            memang hasilnya -- tombolnya wajar ada di bawahnya. -->
       <div class="render-bar">
-        <label class="judul-input">title
-          <input id="hasilJudul" value="" spellcheck="false" placeholder="output file name"
+        <label class="title-input">title
+          <input id="resultTitle" value="" spellcheck="false" placeholder="output file name"
                  aria-label="Result title, used as the file name"></label>
         <div class="baris">
-          <span class="data" id="hasilRingkas"></span>
+          <span class="data" id="resultSummary"></span>
           <span class="data" id="previewCepatNote"></span>
           <button class="btn" id="previewCepatBtn" disabled>Quick preview</button>
-          <button class="btn main large" id="hasilRenderBtn" disabled>Render Result</button>
+          <button class="btn main large" id="resultRenderBtn" disabled>Render Result</button>
         </div>
         <!-- Render sungguhan lewat ffmpeg, cuma PREVIEW_MAX_DETIK detik --
              bukan tiruan CSS di panel 9:16 di atas, yang pernah terbukti bisa
@@ -590,16 +590,16 @@
   </main>
 </div>
 
-<script src="/ui/js/editor/app.js?v=1788846538373"></script>
-<script src="/ui/js/editor/interactions.js?v=1788846538373"></script>
-<script src="/ui/js/editor/framing.js?v=1788846538373"></script>
-<script src="/ui/js/editor/analysis.js?v=1788846538373"></script>
-<script src="/ui/js/editor/player.js?v=1788846538373"></script>
-<script src="/ui/js/editor/roundtrip.js?v=1788846538373"></script>
-<script src="/ui/js/editor/history.js?v=1788846538373"></script>
-<script src="/ui/js/editor/timeline.js?v=1788846538373"></script>
-<script src="/ui/js/editor/captions.js?v=1788846538373"></script>
-<script src="/ui/js/editor/result.js?v=1788846538373"></script>
-<script src="/ui/js/editor/projects.js?v=1788846538373"></script>
+<script src="/ui/js/editor/app.js?v=1788848102879"></script>
+<script src="/ui/js/editor/interactions.js?v=1788848102879"></script>
+<script src="/ui/js/editor/framing.js?v=1788848102879"></script>
+<script src="/ui/js/editor/analysis.js?v=1788848102879"></script>
+<script src="/ui/js/editor/player.js?v=1788848102879"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1788848102879"></script>
+<script src="/ui/js/editor/history.js?v=1788848102879"></script>
+<script src="/ui/js/editor/timeline.js?v=1788848102879"></script>
+<script src="/ui/js/editor/captions.js?v=1788848102879"></script>
+<script src="/ui/js/editor/result.js?v=1788848102879"></script>
+<script src="/ui/js/editor/projects.js?v=1788848102879"></script>
 </body>
 </html>

@@ -47,7 +47,7 @@ function renderHistory() {
   if (!list) return;
 
   if (!HISTORY.length) {
-    list.innerHTML = `<p class="kosong-hasil">Nothing in the out/ folder yet.
+    list.innerHTML = `<p class="empty-message">Nothing in the out/ folder yet.
       Build a Result on the Clips screen, then press Render.</p>`;
     return;
   }
