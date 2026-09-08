@@ -170,11 +170,11 @@ function captionStyle() {
    selalu mulai dari default pabrik, memaksa pilih ulang ukuran/posisi/opacity
    watermark tiap kali video baru dijatuhkan, padahal biasanya orang mau gaya
    yang sama seperti project sebelumnya. */
-const KUNCI_PRESET_CAPTION = "klipian:preset-caption";
+const PRESET_CAPTION_KEY = "klipian:preset-caption";
 
-function simpanPresetCaption() {
+function savePresetCaption() {
   try {
-    localStorage.setItem(KUNCI_PRESET_CAPTION,
+    localStorage.setItem(PRESET_CAPTION_KEY,
       JSON.stringify(CAPTION_OPTIONS.map((o) => o.active)));
   } catch { /* privat/penuh -- preset cuma kenyamanan, bukan keharusan */ }
 }
@@ -183,9 +183,9 @@ function simpanPresetCaption() {
    di projects.js). Sama seperti pemulihan project di loadProject(): indeks
    dicek batas, karena preset lama bisa berasal dari susunan CAPTION_OPTIONS
    yang sudah berubah jumlah pilihannya. */
-function terapkanPresetCaption() {
+function applyPresetCaption() {
   let preset;
-  try { preset = JSON.parse(localStorage.getItem(KUNCI_PRESET_CAPTION)); }
+  try { preset = JSON.parse(localStorage.getItem(PRESET_CAPTION_KEY)); }
   catch { return false; }
   if (!Array.isArray(preset)) return false;
   preset.forEach((i, k) => {
@@ -203,7 +203,7 @@ const $ = (s) => document.querySelector(s);
    riwayat -- jadi tempatnya di sini, di berkas yang dimuat paling awal.
    Sebelumnya tinggal di result.js dan framing.js memakainya sebelum sempat
    dideklarasikan, jadi layar Framing melempar galat saat halaman dimuat. */
-const jamRange = (d) => {
+const timeRange = (d) => {
   const t = Math.max(0, Math.round(d));
   const j = Math.floor(t / 3600);
   const m = String(Math.floor((t % 3600) / 60)).padStart(2, "0");
@@ -425,15 +425,15 @@ const NO_PREVIEW = ["video", "analysis", "history"];
 /* Tiga layar yang menyunting result yang sama. Dipisah jadi menu sendiri
    supaya tiap layar punya satu urusan: Klip memilih potongannya, Framing
    mengatur bingkainya, Teks mengurus kata dan tampilannya. */
-const LAYAR_RESULT = ["klip", "framing", "teks"];
+const RESULT_SCREENS = ["klip", "framing", "teks"];
 
 /* Layar yang sedang dibuka. Disimpan bersama project supaya "Continue"
    mengembalikanmu ke tempat kamu berhenti -- kalau kamu sedang mengatur
    framing, kembali ke Framing, bukan dilempar ke Clips setiap kali. */
-let layarAktif = "klip";
+let activeScreen = "klip";
 
 function toScreen(name) {
-  layarAktif = name;
+  activeScreen = name;
   if (typeof saveProject === "function") saveProject();
   document.querySelectorAll(".screen").forEach((s) =>
     s.classList.toggle("active", s.dataset.screen === name));
@@ -450,7 +450,7 @@ function toScreen(name) {
   // ulang di layar mana pun dari ketiga itu -- kalau hanya layar yang sedang
   // dibuka yang digambar, preview memperlihatkan keadaan basi dari layar
   // sebelah. Semuanya menulis daftar pendek, jadi murah.
-  if (LAYAR_RESULT.includes(name)) {
+  if (RESULT_SCREENS.includes(name)) {
     if (typeof renderFraming === "function") setTimeout(renderFraming, 0);
     if (typeof renderRecommendations === "function") renderRecommendations();
     if (typeof renderResult === "function") renderResult();
@@ -537,19 +537,19 @@ $("#safeBtn").addEventListener("click", (e) => {
    ruang mendatar -- lihat .canvas di app.css). Disimpan di localStorage
    supaya pilihannya bertahan lewat reload, sama seperti pola sesi aktif
    di projects.js -- bukan cuma keadaan tab ini. */
-const KUNCI_SIDEBAR = "klipian:sidebar-tersembunyi";
-function terapkanSidebar(sembunyi) {
-  $("#app").dataset.sidebar = sembunyi ? "hidden" : "";
-  const tombolMunculkan = $("#showSidebarBtn");
-  if (tombolMunculkan) tombolMunculkan.hidden = !sembunyi;
+const SIDEBAR_KEY = "klipian:sidebar-tersembunyi";
+function applySidebar(collapsed) {
+  $("#app").dataset.sidebar = collapsed ? "hidden" : "";
+  const showBtn = $("#showSidebarBtn");
+  if (showBtn) showBtn.hidden = !collapsed;
 }
-function setelSidebar(sembunyi) {
-  terapkanSidebar(sembunyi);
-  try { localStorage.setItem(KUNCI_SIDEBAR, sembunyi ? "1" : "0"); } catch { /* privat/penuh */ }
+function setSidebar(collapsed) {
+  applySidebar(collapsed);
+  try { localStorage.setItem(SIDEBAR_KEY, collapsed ? "1" : "0"); } catch { /* privat/penuh */ }
 }
-$("#hideSidebarBtn")?.addEventListener("click", () => setelSidebar(true));
-$("#showSidebarBtn")?.addEventListener("click", () => setelSidebar(false));
-try { terapkanSidebar(localStorage.getItem(KUNCI_SIDEBAR) === "1"); } catch { /* default: tetap terlihat */ }
+$("#hideSidebarBtn")?.addEventListener("click", () => setSidebar(true));
+$("#showSidebarBtn")?.addEventListener("click", () => setSidebar(false));
+try { applySidebar(localStorage.getItem(SIDEBAR_KEY) === "1"); } catch { /* default: tetap terlihat */ }
 
 // klik kata → tetapkan in, klik kata kedua → tetapkan out
 let anchor = null;
@@ -572,12 +572,12 @@ document.addEventListener("click", (e) => {
 // Kembali ke beranda itu keputusan SENGAJA meninggalkan project -- reload
 // sesudahnya semestinya tetap di beranda, bukan ditarik balik otomatis ke
 // project yang baru saja ditinggalkan.
-const keBerandaSengaja = () => {
+const goHomeDeliberately = () => {
   if (typeof forgetActiveSession === "function") forgetActiveSession();
   toStage("home");
 };
-$("#toHome").addEventListener("click", keBerandaSengaja);
-$("#toMenuBtn").addEventListener("click", keBerandaSengaja);
+$("#toHome").addEventListener("click", goHomeDeliberately);
+$("#toMenuBtn").addEventListener("click", goHomeDeliberately);
 $("#run").addEventListener("click", () => { toStage("work"); toScreen("analysis"); });
 
 $("#options").addEventListener("click", (e) => {

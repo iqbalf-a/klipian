@@ -109,7 +109,7 @@ function renderResult() {
     <div class="hasil-row" data-hasil="${r.id}">
       <span class="num">${i + 1}</span>
       <span class="hasil-judul">${escapeHTML(r.title)}</span>
-      <span class="data hasil-waktu">${jamRange(r.start)} – ${jamRange(r.end)}</span>
+      <span class="data hasil-waktu">${timeRange(r.start)} – ${timeRange(r.end)}</span>
       <span class="data hasil-dur">${Math.round(r.end - r.start)}s</span>
       <span class="lencana-asal" data-asal="${r.source}">${r.source === "ai" ? "AI" : "manual"}</span>
       <button class="icon buang-hasil" data-buang-hasil="${r.id}"
@@ -313,7 +313,7 @@ $("#tlPreviewVideo")?.addEventListener("timeupdate", (e) => {
 
   const jam = $("#tlPreviewTime");
   if (jam && typeof videoDuration === "function") {
-    jam.textContent = `${jamRange(v.currentTime)} / ${jamRange(videoDuration())}`;
+    jam.textContent = `${timeRange(v.currentTime)} / ${timeRange(videoDuration())}`;
   }
   const fill = $("#tlScrubFill");
   if (fill && typeof toFraction === "function") {

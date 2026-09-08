@@ -61,7 +61,7 @@ function projectState() {
     caption: (typeof CAPTION_OPTIONS !== "undefined")
       ? CAPTION_OPTIONS.map((o) => o.active) : [],
     output: (typeof OPTIONS !== "undefined") ? OPTIONS.map((o) => o.active) : [],
-    screen: (typeof layarAktif !== "undefined") ? layarAktif : "klip",
+    screen: (typeof activeScreen !== "undefined") ? activeScreen : "klip",
   };
 }
 
@@ -351,13 +351,13 @@ async function openProject(video) {
   const hadExisting = await loadProject(video);
   if (!hadExisting) {
     // Project baru: tidak ada apa pun untuk dipulihkan, jadi pakai gaya
-    // caption/watermark terakhir dipakai (lihat terapkanPresetCaption() di
+    // caption/watermark terakhir dipakai (lihat applyPresetCaption() di
     // app.js) alih-alih default pabrik. Panel caption sudah sempat digambar
     // dengan default SEBELUM titik ini (lihat acceptFile() di
     // interactions.js), jadi harus digambar ulang di sini juga -- kalau
     // tidak, tombol yang tersorot di layar tidak sesuai gaya yang sungguhan
     // dipakai.
-    if (typeof terapkanPresetCaption === "function" && terapkanPresetCaption()) {
+    if (typeof applyPresetCaption === "function" && applyPresetCaption()) {
       if (typeof renderList === "function") renderList();
       if (typeof applyCaption === "function") applyCaption();
     }
@@ -599,7 +599,7 @@ async function openProjectFromHome(video) {
     // lewat sini secara teori mungkin -- lihat komentar openProjectFromHome().
     resetProjectState();
     if (typeof DATA !== "undefined") { DATA.candidates = []; DATA.marks = []; }
-    if (typeof terapkanPresetCaption === "function" && terapkanPresetCaption()) {
+    if (typeof applyPresetCaption === "function" && applyPresetCaption()) {
       if (typeof renderList === "function") renderList();
       if (typeof applyCaption === "function") applyCaption();
     }

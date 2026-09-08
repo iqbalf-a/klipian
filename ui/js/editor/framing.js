@@ -299,7 +299,7 @@ function syncCanvasVideo() {
 // seperti "membeku" saat diputar padahal cuma jarang digambar ulang.
 function updateFramingClock() {
   const clockEl = $("#framingWaktu");
-  if (clockEl) clockEl.textContent = `at ${jamRange(reviewTime())}`;
+  if (clockEl) clockEl.textContent = `at ${timeRange(reviewTime())}`;
 }
 
 /* Strip Framing Points bisa lebih lebar dari panelnya dan di-scroll
@@ -326,7 +326,7 @@ function renderFraming() {
   // muncul. Pemanggil yang menentukan pesannya.
   updateFramingClock();
   const tag = $("#tagCrop1");
-  if (tag) tag.textContent = active ? `from ${jamRange(active.at)}` : "";
+  if (tag) tag.textContent = active ? `from ${timeRange(active.at)}` : "";
 
   const bar = $("#framingList");
   if (bar) {
@@ -358,7 +358,7 @@ function renderFraming() {
       // Result (persis kebingungan yang dilaporkan ian: titik "07:58" pada
       // Result yang cuma 1:25 kelihatan seperti di luar jangkauan, padahal
       // itu memang posisi aslinya di sumber, bukan salah).
-      const tooltip = `${f.format === "split" ? "Split" : "Single"} · source ${jamRange(f.at)}`;
+      const tooltip = `${f.format === "split" ? "Split" : "Single"} · source ${timeRange(f.at)}`;
       const thumbUrl = f.crops?.[0] && typeof chosenSource !== "undefined" && chosenSource?.name
         ? `/api/thumb?video=${encodeURIComponent(chosenSource.name)}&t=${f.at}`
           + `&left=${f.crops[0].left}&top=${f.crops[0].top}`
@@ -370,10 +370,10 @@ function renderFraming() {
         ${thumbUrl ? `<img class="fr-thumb" src="${thumbUrl}" alt="" loading="lazy">`
                     : `<span class="fr-thumb fr-thumb-kosong"></span>`}
         ${f.tracking ? `<span class="fr-track-badge" title="Head tracking on">●</span>` : ""}
-        <span class="fr-time">${out !== null ? jamRange(out) : "—"}</span>
-        <span class="fr-time-src">src ${jamRange(f.at)}</span>
+        <span class="fr-time">${out !== null ? timeRange(out) : "—"}</span>
+        <span class="fr-time-src">src ${timeRange(f.at)}</span>
         ${i > 0 ? `<i class="buang" data-buang-framing="${f.id}" role="button"
-              aria-label="Delete point ${jamRange(f.at)}">×</i>` : ""}
+              aria-label="Delete point ${timeRange(f.at)}">×</i>` : ""}
       </div>`;
     }).join("");
   }
@@ -465,11 +465,11 @@ $("#framingFormat")?.addEventListener("click", (e) => {
   if (existing) {
     existing.format = format;
     existing.crops = crops;
-    message = `point ${jamRange(existing.at)} is now`;
+    message = `point ${timeRange(existing.at)} is now`;
   } else {
     FRAMING.push({ id: `f${++framingSeq}`, at: t, format, crops });
     FRAMING.sort((a, b2) => a.at - b2.at);
-    message = `new point at ${jamRange(t)},`;
+    message = `new point at ${timeRange(t)},`;
   }
   renderFraming();
   $("#reframeNote").textContent = format === "split"
@@ -494,11 +494,11 @@ $("#kunciFraming")?.addEventListener("click", () => {
     delete existing.tracking;
     existing.format = canvasFormat;
     existing.crops = crops;
-    message = `point ${jamRange(existing.at)} updated`;
+    message = `point ${timeRange(existing.at)} updated`;
   } else {
     FRAMING.push({ id: `f${++framingSeq}`, at: t, format: canvasFormat, crops });
     FRAMING.sort((a, b) => a.at - b.at);
-    message = `new point locked at ${jamRange(t)}`;
+    message = `new point locked at ${timeRange(t)}`;
   }
   renderFraming();
   if (typeof saveProject === "function") saveProject();
@@ -534,7 +534,7 @@ async function trackHeadForPoint(point) {
     delete point.tracking;
     renderFraming();
     if (typeof saveProject === "function") saveProject();
-    $("#reframeNote").textContent = `head tracking off for point ${jamRange(point.at)}`;
+    $("#reframeNote").textContent = `head tracking off for point ${timeRange(point.at)}`;
     return;
   }
   const end = trackingLimit(point);
@@ -562,7 +562,7 @@ async function trackHeadForPoint(point) {
     point.tracking = { keyframes: d.keyframes };
     renderFraming();
     if (typeof saveProject === "function") saveProject();
-    $("#reframeNote").textContent = `head tracking on for point ${jamRange(point.at)}`;
+    $("#reframeNote").textContent = `head tracking on for point ${timeRange(point.at)}`;
   } catch {
     $("#reframeNote").textContent = "head tracking failed — point stays static.";
   } finally {
@@ -673,7 +673,7 @@ $("#framingList")?.addEventListener("click", (e) => {
       // mau posisi ini mulai di detik lain, tekan "Kunci framing di sini".
       const f = saveBox() || pointAt(reviewTime());
       $("#reframeNote").textContent = f
-        ? `point ${jamRange(f.at)} moved · press Lock to create a new point`
+        ? `point ${timeRange(f.at)} moved · press Lock to create a new point`
         : "drag the box onto whoever is talking, then lock it";
       if (typeof attachVideoGeometry === "function") attachVideoGeometry();
     }));

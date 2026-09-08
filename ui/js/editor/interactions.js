@@ -376,7 +376,7 @@ $("#captionList").addEventListener("click", (e) => {
   row.querySelector(".meta").textContent = o.choices[o.active].t;
   applyCaption();
   if (typeof saveProject === "function") saveProject();
-  if (typeof simpanPresetCaption === "function") simpanPresetCaption();
+  if (typeof savePresetCaption === "function") savePresetCaption();
 });
 
 /* ───────────────── potong: klik jeda membuang celahnya ──────────────── */

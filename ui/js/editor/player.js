@@ -109,7 +109,7 @@ function outToSource(k, t) {
 }
 
 // Ikut menampilkan jam kalau sumbernya lebih dari 1 jam -- tanpa ini
-// 1:05:00 tampil "65:00". Sejajar dengan jamRange() di app.js.
+// 1:05:00 tampil "65:00". Sejajar dengan timeRange() di app.js.
 const shortTime = (d) => {
   const t = Math.max(0, Math.floor(d));
   const j = Math.floor(t / 3600);

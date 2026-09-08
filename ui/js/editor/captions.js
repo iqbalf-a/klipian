@@ -150,7 +150,7 @@ function renderCaptions() {
     return `
     <button class="kata-teks${w.edited ? " diubah" : ""}${isFiller ? " pengisi" : ""}"
             data-mulai="${wordKey(w)}"
-            title="${jamRange(w.start)}${w.edited ? ` · was &quot;${escapeHTML(w.original)}&quot;` : ""}${isFiller ? " · filler word" : ""}"
+            title="${timeRange(w.start)}${w.edited ? ` · was &quot;${escapeHTML(w.original)}&quot;` : ""}${isFiller ? " · filler word" : ""}"
     >${escapeHTML(w.text)}</button>`;
   }).join("");
 }

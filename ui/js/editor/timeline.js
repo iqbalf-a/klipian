@@ -49,7 +49,7 @@ function drawTotalTimeline() {
   const d = videoDuration();
 
   const info = $("#pilihDurasi");
-  if (info) info.textContent = d ? `total ${jamRange(d)}` : "no video loaded";
+  if (info) info.textContent = d ? `total ${timeRange(d)}` : "no video loaded";
 
   // penanda: rekomendasi AI tipis, potongan result padat
   const marks = $("#tlMarks");
@@ -69,7 +69,7 @@ function drawTotalTimeline() {
   const scale = $("#tlSkala");
   if (scale) {
     scale.innerHTML = d
-      ? [0, 0.25, 0.5, 0.75, 1].map((f) => `<span>${jamRange(d * f)}</span>`).join("")
+      ? [0, 0.25, 0.5, 0.75, 1].map((f) => `<span>${timeRange(d * f)}</span>`).join("")
       : "";
   }
   drawSelection();
@@ -93,8 +93,8 @@ function drawSelection() {
 
   // Kolom angka tidak ditimpa selagi kamu mengetik di dalamnya.
   const a = $("#selStart"), b = $("#selEnd");
-  if (a && document.activeElement !== a) a.value = jamRange(SELECTION.start);
-  if (b && document.activeElement !== b) b.value = jamRange(SELECTION.end);
+  if (a && document.activeElement !== a) a.value = timeRange(SELECTION.start);
+  if (b && document.activeElement !== b) b.value = timeRange(SELECTION.end);
 
   const dur = SELECTION.end - SELECTION.start;
   $("#selDur").textContent = `${Math.round(dur)}s`;
@@ -236,7 +236,7 @@ function readTimeColumns() {
     $("#pilihNote").textContent = "time format is mm:ss, e.g. 16:56";
     return;
   }
-  // Kolom menampilkan jamRange() yang dibulatkan ke detik bulat. Kalau sebuah
+  // Kolom menampilkan timeRange() yang dibulatkan ke detik bulat. Kalau sebuah
   // kolom TIDAK diubah (nilai bulatnya masih sama dengan SELECTION), pertahankan
   // nilai presisi SELECTION -- jangan biarkan pembulatan tampilan menggeser
   // sisi yang tak disentuh sampai setengah detik saat mengedit sisi satunya.
@@ -253,12 +253,12 @@ function readTimeColumns() {
   const d = videoDuration();
   if (d && a >= d) {
     $("#pilihNote").textContent =
-      `${jamRange(a)} melewati akhir video (${jamRange(d)})`;
+      `${timeRange(a)} melewati akhir video (${timeRange(d)})`;
     return;
   }
   if (d && b > d) {
     $("#pilihNote").textContent =
-      `dipendekkan ke akhir video (${jamRange(d)})`;
+      `dipendekkan ke akhir video (${timeRange(d)})`;
   } else {
     $("#pilihNote").textContent = "range set from the numbers";
   }
@@ -276,7 +276,7 @@ function readTimeColumns() {
 
 $("#selAddBtn")?.addEventListener("click", () => {
   if (!SELECTION) return;
-  const title = `Clip ${jamRange(SELECTION.start)}`;
+  const title = `Clip ${timeRange(SELECTION.start)}`;
   const rejected = addToResult(SELECTION.start, SELECTION.end, title, "manual");
   if (rejected) {
     $("#pilihNote").textContent = rejected;
