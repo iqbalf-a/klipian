@@ -2018,11 +2018,11 @@ h1, h2, h3 {
 .title-input input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 /* color dot on highlight color picker chip */
-.chip .titik {
+.chip .color-dot {
   display: inline-block;
   width: 9px; height: 9px;
   border-radius: 50%;
-  background: var(--titik, currentColor);
+  background: var(--color-dot, currentColor);
   margin-right: 6px;
   vertical-align: -1px;
   box-shadow: 0 0 0 1px rgba(0,0,0,.35);

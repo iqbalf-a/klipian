@@ -371,7 +371,7 @@ $("#captionList").addEventListener("click", (e) => {
   const o = CAPTION_OPTIONS.find((x) => x.id === row.dataset.caption);
   if (!o) return;
   const all = [...row.querySelectorAll(".chip")];
-  o.active = Number(c.dataset.pilih ?? all.indexOf(c));
+  o.active = Number(c.dataset.pick ?? all.indexOf(c));
   all.forEach((b, i) => b.setAttribute("aria-pressed", String(i === o.active)));
   row.querySelector(".meta").textContent = o.choices[o.active].t;
   applyCaption();

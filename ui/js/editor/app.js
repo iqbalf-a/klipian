@@ -336,8 +336,8 @@ function renderList() {
       <span style="display:flex;gap:var(--s2)">
         ${o.choices.map((p, i) => `
           <button class="chip"${i === o.active ? ' aria-pressed="true"' : ""}
-                  ${p.css ? `style="--titik:${p.css}"` : ""}
-                  data-pilih="${i}">${p.css ? '<i class="titik"></i>' : ""}${p.t}</button>`).join("")}
+                  ${p.css ? `style="--color-dot:${p.css}"` : ""}
+                  data-pick="${i}">${p.css ? '<i class="color-dot"></i>' : ""}${p.t}</button>`).join("")}
       </span>
       <span class="meta">${o.choices[o.active].t}</span>
     </div>`).join("");
