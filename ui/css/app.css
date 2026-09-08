@@ -1651,7 +1651,7 @@ h1, h2, h3 {
 /* The Captions screen now has TWO buttons in this row ("Remove filler
    words" + "Reset all"), not just one like other panel-head/result-head
    rows -- in a narrow panel both overflow their box without this. */
-#panel-teks .panel-head { flex-wrap: wrap; row-gap: var(--s2); }
+#panel-captions .panel-head { flex-wrap: wrap; row-gap: var(--s2); }
 
 /* AI Framing status box (processing/error/result) -- see aiFramingStatus()
    in framing.js. */
