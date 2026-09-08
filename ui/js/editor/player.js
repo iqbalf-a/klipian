@@ -37,9 +37,9 @@ const secondsFromClock = (t) =>
    kanvas. Sejak Framing punya layarnya sendiri, kanvas itu display:none
    setiap kali kamu berada di layar Klip atau Teks -- rect-nya nol, dan
    preview tidak pernah dapat ukuran sama sekali. */
-function pasangPetak(v, petak, crop) {
-  if (!v || !petak || !crop) return;
-  const f = petak.getBoundingClientRect();
+function attachBox(v, box, crop) {
+  if (!v || !box || !crop) return;
+  const f = box.getBoundingClientRect();
   // Layarnya bisa sedang tersembunyi; rect-nya nol dan pembagian menghasilkan
   // NaN. Dihitung ulang nanti saat layarnya terlihat.
   if (!f.width || !crop.width) return;
@@ -56,9 +56,9 @@ function pasangPetak(v, petak, crop) {
 function attachVideoGeometry() {
   if (!video.src || typeof frameAt !== "function") return;
   const b = frameAt(typeof reviewTime === "function" ? reviewTime() : 0);
-  pasangPetak(video, document.querySelector(".belah.atas"), b.crops[0]);
+  attachBox(video, document.querySelector(".belah.atas"), b.crops[0]);
   if (b.format === "split") {
-    pasangPetak($("#videoPreview2"), document.querySelector(".belah.bawah"),
+    attachBox($("#videoPreview2"), document.querySelector(".belah.bawah"),
                 b.crops[1]);
   }
 }
@@ -98,19 +98,19 @@ function sourceToOut(k, t) {
 
 /* waktu keluaran -> waktu sumber */
 function outToSource(k, t) {
-  let sisa = t;
+  let remaining = t;
   for (const p of k.spans) {
     const len = p.end - p.start;
-    if (sisa <= len) return p.start + sisa;
-    sisa -= len;
+    if (remaining <= len) return p.start + remaining;
+    remaining -= len;
   }
-  const akhir = k.spans[k.spans.length - 1];
-  return akhir ? akhir.end : 0;
+  const last = k.spans[k.spans.length - 1];
+  return last ? last.end : 0;
 }
 
 // Ikut menampilkan jam kalau sumbernya lebih dari 1 jam -- tanpa ini
 // 1:05:00 tampil "65:00". Sejajar dengan jamRange() di app.js.
-const jamPendek = (d) => {
+const shortTime = (d) => {
   const t = Math.max(0, Math.floor(d));
   const j = Math.floor(t / 3600);
   const m = String(Math.floor((t % 3600) / 60)).padStart(2, "0");
@@ -121,7 +121,7 @@ const jamPendek = (d) => {
 function drawTime(passed) {
   const w = $("#clipTime");
   if (!w || !activeClip) return;
-  w.textContent = `${jamPendek(passed)} / ${jamPendek(clipOutDur(activeClip))}`;
+  w.textContent = `${shortTime(passed)} / ${shortTime(clipOutDur(activeClip))}`;
 }
 
 
@@ -143,12 +143,12 @@ function drawTimeline() {
   }
   const total = clipOutDur(activeClip) || 1;
   track.innerHTML = activeClip.spans.map((p) => {
-    const lebar = ((p.end - p.start) / total) * 100;
-    return `<span class="tl-span" style="flex:0 0 ${lebar}%"
-                  title="${jamPendek(p.start)} – ${jamPendek(p.end)}"></span>`;
+    const width = ((p.end - p.start) / total) * 100;
+    return `<span class="tl-span" style="flex:0 0 ${width}%"
+                  title="${shortTime(p.start)} – ${shortTime(p.end)}"></span>`;
   }).join("");
   $("#tlStartTime").textContent = "00:00";
-  $("#tlEndTime").textContent = jamPendek(total);
+  $("#tlEndTime").textContent = shortTime(total);
   drawHead();
 }
 
@@ -177,10 +177,10 @@ $("#timeline")?.addEventListener("click", (e) => {
 
 $("#timeline")?.addEventListener("keydown", (e) => {
   if (!activeClip || !video.src) return;
-  const langkah = e.shiftKey ? 5 : 1;
-  const kini = sourceToOut(activeClip, video.currentTime) ?? 0;
-  if (e.key === "ArrowRight") video.currentTime = outToSource(activeClip, kini + langkah);
-  else if (e.key === "ArrowLeft") video.currentTime = outToSource(activeClip, Math.max(0, kini - langkah));
+  const step = e.shiftKey ? 5 : 1;
+  const current = sourceToOut(activeClip, video.currentTime) ?? 0;
+  if (e.key === "ArrowRight") video.currentTime = outToSource(activeClip, current + step);
+  else if (e.key === "ArrowLeft") video.currentTime = outToSource(activeClip, Math.max(0, current - step));
   else return;
   e.preventDefault();
   drawHead();
@@ -193,7 +193,7 @@ function prepareVideo() {
   }
   video.src = chosenSource.url;
   frame.dataset.video = "true";
-  muatFps(chosenSource.name);          // fps untuk melangkah per frame
+  loadFps(chosenSource.name);          // fps untuk melangkah per frame
   video.addEventListener("loadedmetadata", () => {
     attachVideoGeometry();
     if (activeClip) video.currentTime = Math.min(activeClip.spans[0].start, video.duration - 0.1);
@@ -238,8 +238,8 @@ video.addEventListener("timeupdate", () => {
   // supaya preview benar-benar memperlihatkan apa yang akan dirender.
   if (typeof pointAt === "function") {
     const f = pointAt(t);
-    if (f && f !== framingTerakhir) {
-      framingTerakhir = f;
+    if (f && f !== lastFraming) {
+      lastFraming = f;
       if (typeof renderFraming === "function") renderFraming();
       if (typeof followActivePoint === "function") followActivePoint(f);
     } else if (f?.tracking?.keyframes?.length >= 2
@@ -266,22 +266,22 @@ function drawCaption() {
   if (!cap) return;
   // Sumber teksnya kata yang SUDAH dibetulkan, supaya preview memperlihatkan
   // caption yang benar-benar akan terbakar di berkas hasil.
-  const kata = (typeof resultWords === "function" && resultWords().length)
+  const words = (typeof resultWords === "function" && resultWords().length)
     ? resultWords() : realTranscript?.words;
-  if (!activeClip || !kata?.length || !video.src) { cap.innerHTML = ""; return; }
+  if (!activeClip || !words?.length || !video.src) { cap.innerHTML = ""; return; }
 
   const t = video.currentTime;
-  const perBaris = (typeof captionValue === "function"
+  const wordsPerLine = (typeof captionValue === "function"
     ? captionValue("per-line")?.out : 3) || 3;
 
   // kata yang benar-benar masuk keluaran, seperti di build_ass
-  const dipakai = [];
-  for (const w of kata) {
+  const used = [];
+  for (const w of words) {
     const a = sourceToOut(activeClip, w.start);
     const b = sourceToOut(activeClip, w.end);
-    if (a !== null && b !== null && b > a) dipakai.push({ a, b, teks: w.text.trim() });
+    if (a !== null && b !== null && b > a) used.push({ a, b, text: w.text.trim() });
   }
-  if (!dipakai.length) { cap.innerHTML = ""; return; }
+  if (!used.length) { cap.innerHTML = ""; return; }
 
   const out = sourceToOut(activeClip, t);
   if (out === null) { cap.innerHTML = ""; return; }
@@ -293,28 +293,28 @@ function drawCaption() {
   // jeda sebelum baris berikutnya, seluruh barisnya (termasuk kata yang belum
   // diucapkan) langsung tampil selama jeda itu (dilaporkan ian: "teks sudah
   // muncul tapi pembicara belum bicara").
-  let baris = null, sorot = -1;
-  for (let g = 0; g < dipakai.length; g += perBaris) {
-    const grup = dipakai.slice(g, g + perBaris);
-    const berikutnya = dipakai[g + perBaris];        // kata pertama baris sesudahnya
-    const awal = grup[0].a;
-    const akhir = berikutnya ? berikutnya.a : grup[grup.length - 1].b + 0.4;
-    if (out < awal || out >= akhir) continue;
-    baris = grup;
+  let line = null, highlight = -1;
+  for (let g = 0; g < used.length; g += wordsPerLine) {
+    const group = used.slice(g, g + wordsPerLine);
+    const next = used[g + wordsPerLine];        // kata pertama baris sesudahnya
+    const start = group[0].a;
+    const end = next ? next.a : group[group.length - 1].b + 0.4;
+    if (out < start || out >= end) continue;
+    line = group;
     // Kata yang disorot bertahan sampai kata BERIKUTNYA benar-benar mulai
     // (bukan cuma sampai akhir katanya sendiri) -- sama seperti build_ass,
     // supaya sorotan tidak berkedip kosong selama jeda di tengah baris.
-    sorot = grup.length - 1;
-    for (let j = 0; j < grup.length; j++) {
-      const batasAkhir = j < grup.length - 1 ? grup[j + 1].a : akhir;
-      if (out < batasAkhir) { sorot = j; break; }
+    highlight = group.length - 1;
+    for (let j = 0; j < group.length; j++) {
+      const groupEnd = j < group.length - 1 ? group[j + 1].a : end;
+      if (out < groupEnd) { highlight = j; break; }
     }
     break;
   }
-  if (!baris) { cap.innerHTML = ""; return; }
+  if (!line) { cap.innerHTML = ""; return; }
 
-  cap.innerHTML = baris
-    .map((w, j) => (j === sorot ? `<mark>${escapeHTML(w.teks)}</mark>` : escapeHTML(w.teks)))
+  cap.innerHTML = line
+    .map((w, j) => (j === highlight ? `<mark>${escapeHTML(w.text)}</mark>` : escapeHTML(w.text)))
     .join(" ");
 }
 
@@ -329,10 +329,10 @@ function drawCaption() {
    perkiraan yang aman untuk kebanyakan rekaman. */
 let sourceFps = 30;
 
-async function muatFps(nama) {
-  if (!nama) return;
+async function loadFps(name) {
+  if (!name) return;
   try {
-    const d = await (await fetch(`/api/probe?video=${encodeURIComponent(nama)}`)).json();
+    const d = await (await fetch(`/api/probe?video=${encodeURIComponent(name)}`)).json();
     if (d.fps && d.fps > 1 && d.fps < 200) {
       sourceFps = d.fps;
       const el = $("#fpsNote");
@@ -345,7 +345,7 @@ async function muatFps(nama) {
    stepSeconds() (satuan detik) -- keduanya cuma beda cara menghitung
    `langkah` dalam waktu KELUARAN, sisanya (jeda dulu kalau sedang
    berjalan, jepit ke batas klip, gambar ulang) identik. */
-function langkahPreview(langkah) {
+function stepPreview(step) {
   if (!video.src || !activeClip) return;
   if (isPlaying) {                    // melangkah sambil berjalan itu aneh
     video.pause();
@@ -353,18 +353,18 @@ function langkahPreview(langkah) {
     playBtn.textContent = "▶";
   }
   const total = clipOutDur(activeClip);
-  const kini = sourceToOut(activeClip, video.currentTime);
-  const dari = kini === null ? 0 : kini;
-  const tujuan = Math.max(0, Math.min(total - 1 / sourceFps / 2, dari + langkah));
-  video.currentTime = outToSource(activeClip, tujuan);
-  drawTime(tujuan);
+  const current = sourceToOut(activeClip, video.currentTime);
+  const from = current === null ? 0 : current;
+  const target = Math.max(0, Math.min(total - 1 / sourceFps / 2, from + step));
+  video.currentTime = outToSource(activeClip, target);
+  drawTime(target);
   drawHead();
   drawCaption();
   if (typeof syncCanvasVideo === "function") syncCanvasVideo();
 }
 
-function stepFrame(arah) { langkahPreview(arah / sourceFps); }   // arah = jumlah frame, boleh minus
-function stepSeconds(detik) { langkahPreview(detik); }            // detik boleh minus
+function stepFrame(direction) { stepPreview(direction / sourceFps); }   // direction = jumlah frame, boleh minus
+function stepSeconds(seconds) { stepPreview(seconds); }                 // seconds boleh minus
 
 /* Satuan tombol langkah (frame/detik) -- ian: perlu detik juga, bukan
    cuma frame ("frame" berguna untuk presisi di ujung klip, "detik" untuk
@@ -372,34 +372,34 @@ function stepSeconds(detik) { langkahPreview(detik); }            // detik boleh
    dipakai untuk KEDUANYA (label + fungsinya berganti lewat toggle ini),
    bukan menggandakan jadi 12 tombol -- panel preview 9:16 sudah sempit. */
 let stepUnit = "frame";
-const LANGKAH_LABEL = { frame: ["5f", "2f", "1f"], seconds: ["5s", "2s", "1s"] };
-const LANGKAH_JUDUL = {
+const STEP_LABEL = { frame: ["5f", "2f", "1f"], seconds: ["5s", "2s", "1s"] };
+const STEP_TITLE = {
   frame: ["5 frames", "2 frames", "1 frame"],
   seconds: ["5 seconds", "2 seconds", "1 second"],
 };
 
-function perbaruiLabelLangkah() {
-  const label = LANGKAH_LABEL[stepUnit];
-  const judul = LANGKAH_JUDUL[stepUnit];
-  const arah = [5, 2, 1];
-  arah.forEach((n, i) => {
-    const mundur = $(`#prevFrame${n === 1 ? "Btn" : n}`);
-    const maju = $(`#nextFrame${n === 1 ? "Btn" : n}`);
-    if (mundur) {
-      mundur.querySelector("b").textContent = label[i];
-      mundur.title = `Back ${judul[i]}`;
-      mundur.setAttribute("aria-label", `Back ${judul[i]}`);
+function updateStepLabel() {
+  const label = STEP_LABEL[stepUnit];
+  const title = STEP_TITLE[stepUnit];
+  const sizes = [5, 2, 1];
+  sizes.forEach((n, i) => {
+    const back = $(`#prevFrame${n === 1 ? "Btn" : n}`);
+    const forward = $(`#nextFrame${n === 1 ? "Btn" : n}`);
+    if (back) {
+      back.querySelector("b").textContent = label[i];
+      back.title = `Back ${title[i]}`;
+      back.setAttribute("aria-label", `Back ${title[i]}`);
     }
-    if (maju) {
-      maju.querySelector("b").textContent = label[i];
-      maju.title = `Forward ${judul[i]}`;
-      maju.setAttribute("aria-label", `Forward ${judul[i]}`);
+    if (forward) {
+      forward.querySelector("b").textContent = label[i];
+      forward.title = `Forward ${title[i]}`;
+      forward.setAttribute("aria-label", `Forward ${title[i]}`);
     }
   });
   // Panel pintasan (lihat di bawah) ikut menyebut satuan yang sedang aktif,
   // supaya "," "." di situ tidak kelihatan ambigu antara frame/detik.
-  const unitTeks = $("#shortcutUnitTeks");
-  if (unitTeks) unitTeks.textContent = stepUnit === "frame" ? "frame" : "second";
+  const unitEl = $("#shortcutUnitTeks");
+  if (unitEl) unitEl.textContent = stepUnit === "frame" ? "frame" : "second";
 }
 
 $("#stepUnitBtn")?.addEventListener("click", () => {
@@ -410,7 +410,7 @@ $("#stepUnitBtn")?.addEventListener("click", () => {
     btn.setAttribute("aria-pressed", String(stepUnit === "seconds"));
     btn.setAttribute("aria-label", `Step unit: ${stepUnit === "frame" ? "frames" : "seconds"}`);
   }
-  perbaruiLabelLangkah();
+  updateStepLabel();
 });
 
 /* Panel pintasan papan tik -- tombol "?" buka/tutup, bukan selalu
@@ -422,21 +422,21 @@ $("#stepUnitBtn")?.addEventListener("click", () => {
   const btn = $("#shortcutHelpBtn");
   const panel = $("#shortcutPanel");
   if (!btn || !panel) return;
-  const tutup = () => {
+  const close = () => {
     panel.hidden = true;
     btn.setAttribute("aria-expanded", "false");
   };
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
-    const buka = panel.hidden;
-    panel.hidden = !buka;
-    btn.setAttribute("aria-expanded", String(buka));
+    const open = panel.hidden;
+    panel.hidden = !open;
+    btn.setAttribute("aria-expanded", String(open));
   });
   document.addEventListener("click", (e) => {
-    if (!panel.hidden && !panel.contains(e.target) && e.target !== btn) tutup();
+    if (!panel.hidden && !panel.contains(e.target) && e.target !== btn) close();
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !panel.hidden) tutup();
+    if (e.key === "Escape" && !panel.hidden) close();
   });
 })();
 
@@ -464,12 +464,12 @@ document.addEventListener("keydown", (e) => {
   const t = e.target;
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
-  const langkah = (n) => (stepUnit === "frame" ? stepFrame(n) : stepSeconds(n));
+  const step = (n) => (stepUnit === "frame" ? stepFrame(n) : stepSeconds(n));
   // , dan . = 1 satuan; Shift menahannya jadi 5 satuan (< dan > di papan tik)
-  if (e.key === ",") { e.preventDefault(); langkah(-1); }
-  else if (e.key === ".") { e.preventDefault(); langkah(1); }
-  else if (e.key === "<") { e.preventDefault(); langkah(-5); }
-  else if (e.key === ">") { e.preventDefault(); langkah(5); }
+  if (e.key === ",") { e.preventDefault(); step(-1); }
+  else if (e.key === ".") { e.preventDefault(); step(1); }
+  else if (e.key === "<") { e.preventDefault(); step(-5); }
+  else if (e.key === ">") { e.preventDefault(); step(5); }
   else if (e.key === " " && video.src && activeClip) { e.preventDefault(); playBtn.click(); }
 });
 
@@ -522,9 +522,9 @@ function setResultAsPreview() {
     if (typeof renderPreview === "function") renderPreview();
     return;
   }
-  const klip = resultAsClip();
-  klip.spans = RESULT.map((r) => ({ start: r.start, end: r.end }));
-  setClip(klip);
+  const clip = resultAsClip();
+  clip.spans = RESULT.map((r) => ({ start: r.start, end: r.end }));
+  setClip(clip);
 }
 
 
@@ -532,7 +532,7 @@ function setResultAsPreview() {
 
 let renderTimer = null;
 let renderJobId = null;             // id job render aktif, untuk pembatalan
-let framingTerakhir = null;   // titik framing yang sedang tampil di preview
+let lastFraming = null;   // titik framing yang sedang tampil di preview
 
 
 /* Yang dibaca ORANG. Untuk label di layar dan baris riwayat. */
@@ -559,14 +559,14 @@ function optionOut(id) {
 /* Render seluruh Result sebagai satu berkas. Papan kandidat status "approved"
    sudah tidak ada -- yang dirender adalah RESULT (lihat resultAsClip). */
 async function startRender() {
-  const klip = (typeof resultAsClip === "function") ? resultAsClip() : null;
-  if (!klip) return;
-  return kirimRender([klip]);
+  const clip = (typeof resultAsClip === "function") ? resultAsClip() : null;
+  if (!clip) return;
+  return sendRender([clip]);
 }
 
 /* Kirim satu atau banyak klip ke server. Dipakai tombol di layar Kandidat
    (semua yang disetujui) dan tombol di preview (klip yang sedang dilihat). */
-async function kirimRender(approved) {
+async function sendRender(approved) {
   if (!approved || !approved.length) return;
 
 
@@ -679,22 +679,22 @@ async function kirimRender(approved) {
    dari hasil ASS/ffmpeg asli (persis yang terjadi pada bug opacity
    watermark). Ini memanggil ffmpeg SUNGGUHAN lewat /api/preview, cuma
    dipotong PREVIEW_MAX_DETIK detik di server supaya tetap "cepat". */
-async function previewCepat() {
-  const klip = (typeof resultAsClip === "function") ? resultAsClip() : null;
+async function quickPreview() {
+  const resultClip = (typeof resultAsClip === "function") ? resultAsClip() : null;
   const btn = $("#previewCepatBtn");
   const note = $("#previewCepatNote");
-  if (!klip || !klip.spans?.length) return;
+  if (!resultClip || !resultClip.spans?.length) return;
 
   if (btn) { btn.disabled = true; btn.textContent = "Rendering…"; }
   if (note) note.textContent = "";
 
   const clip = {
-    title: klip.title,
-    // Sama seperti kirimRender(): potongan dipecah lagi di tiap titik
+    title: resultClip.title,
+    // Sama seperti sendRender(): potongan dipecah lagi di tiap titik
     // framing supaya crop yang dipratinjau sungguhan sesuai yang dipilih.
     spans: (typeof spansWithFraming === "function")
-      ? spansWithFraming(klip.spans)
-      : klip.spans,
+      ? spansWithFraming(resultClip.spans)
+      : resultClip.spans,
     style: captionStyle(),
     words: (typeof wordsForRender === "function") ? wordsForRender() : undefined,
     layout: optionOut("format"),
@@ -705,21 +705,21 @@ async function previewCepat() {
   // PERTAMANYA saja -- posisi scrub yang sedang dilihat di panel preview
   // itulah momen yang sebenarnya mau dicek, jadi pratinjau dimulai dari
   // situ, bukan selalu dari awal.
-  const posisiSekarang = (video?.src && typeof sourceToOut === "function")
-    ? sourceToOut(klip, video.currentTime) : null;
-  const mulaiDari = posisiSekarang ?? 0;
+  const currentPosition = (video?.src && typeof sourceToOut === "function")
+    ? sourceToOut(resultClip, video.currentTime) : null;
+  const startFrom = currentPosition ?? 0;
 
   try {
     const reply = await fetch("/api/preview", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ video: chosenSource?.name || DATA.file, clip, mulaiDari }),
+      body: JSON.stringify({ video: chosenSource?.name || DATA.file, clip, startFrom }),
     }).then((r) => r.json());
     if (reply.error) throw new Error(reply.error);
-    tampilkanPreviewCepat(reply.url);
+    showQuickPreview(reply.url);
     // Supaya jelas potongan MANA yang sedang dilihat -- tanpa ini orang
     // bisa kira pratinjau selalu dari awal klip, padahal sekarang ikut
-    // posisi scrub (lihat mulaiDari di atas).
-    if (note) note.textContent = `previewing ${jamPendek(mulaiDari)}–${jamPendek(mulaiDari + (reply.duration || 0))}`;
+    // posisi scrub (lihat startFrom di atas).
+    if (note) note.textContent = `previewing ${shortTime(startFrom)}–${shortTime(startFrom + (reply.duration || 0))}`;
   } catch (err) {
     if (note) note.textContent = err.message || "Preview failed.";
   } finally {
@@ -727,7 +727,7 @@ async function previewCepat() {
   }
 }
 
-function tampilkanPreviewCepat(url) {
+function showQuickPreview(url) {
   const wrap = $("#previewCepatWrap");
   const video = $("#previewCepatVideo");
   if (!wrap || !video) return;
@@ -736,7 +736,7 @@ function tampilkanPreviewCepat(url) {
   wrap.hidden = false;
 }
 
-$("#previewCepatBtn")?.addEventListener("click", previewCepat);
+$("#previewCepatBtn")?.addEventListener("click", quickPreview);
 
 $("#previewCepatTutup")?.addEventListener("click", () => {
   const wrap = $("#previewCepatWrap");

@@ -1065,7 +1065,7 @@ class Handler(BaseHTTPRequestHandler):
 
             try:
                 all_spans = _spans_from_clip(k)
-                start_from = float(req.get("mulaiDari") or 0)
+                start_from = float(req.get("startFrom") or 0)
                 spans = _trim_for_preview(all_spans, PREVIEW_MAX_SECONDS, start_from)
                 if not spans and start_from > 0:
                     # Scrub jatuh persis di ekor klip (kurang dari sedetik

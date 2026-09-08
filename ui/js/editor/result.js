@@ -187,11 +187,11 @@ function renderRecommendations() {
       <span class="num">${i + 1}</span>
       <span class="rekom-judul">${escapeHTML(k.title)}</span>
       <span class="rekom-waktu">
-        <input type="text" class="rekom-waktu-in" value="${jamPendek(k.startSec)}"
+        <input type="text" class="rekom-waktu-in" value="${shortTime(k.startSec)}"
                data-idx="${i}" data-field="startSec" size="5" spellcheck="false" disabled
                aria-label="Start time for ${escapeHTML(k.title)}">
         <span aria-hidden="true">–</span>
-        <input type="text" class="rekom-waktu-in" value="${jamPendek(k.endSec)}"
+        <input type="text" class="rekom-waktu-in" value="${shortTime(k.endSec)}"
                data-idx="${i}" data-field="endSec" size="5" spellcheck="false" disabled
                aria-label="End time for ${escapeHTML(k.title)}">
         <button class="rekom-edit" type="button" data-edit-waktu="${i}"
@@ -271,7 +271,7 @@ function playRecPreview(idx) {
   }
 
   const titleEl = $("#tlPreviewTitle");
-  if (titleEl) titleEl.textContent = `${jamPendek(k.startSec)} – ${jamPendek(k.endSec)} · ${k.title}`;
+  if (titleEl) titleEl.textContent = `${shortTime(k.startSec)} – ${shortTime(k.endSec)} · ${k.title}`;
 
   previewIdx = idx;
   previewLimit = k.endSec;
@@ -464,7 +464,7 @@ $("#rekomList")?.addEventListener("change", (e) => {
   const k = (DATA?.candidates || [])[idx];
   if (!k) return;
 
-  const revert = () => { inp.value = jamPendek(k[field]); };
+  const revert = () => { inp.value = shortTime(k[field]); };
   const raw = parseTime(inp.value);
   if (raw === null) { revert(); return; }
   const snapped = (typeof snapToWord === "function")
@@ -479,11 +479,11 @@ $("#rekomList")?.addEventListener("change", (e) => {
   // spans/in/out ikut disinkronkan: kalau tidak, kode yang membaca k.spans
   // (render, preview) atau k.in/k.out (tampilan) masih memakai rentang lama.
   k.spans = [{ start: k.startSec, end: k.endSec }];
-  if (typeof jamPendek === "function") {
-    k.in = jamPendek(k.startSec);
-    k.out = jamPendek(k.endSec);
+  if (typeof shortTime === "function") {
+    k.in = shortTime(k.startSec);
+    k.out = shortTime(k.endSec);
   }
-  inp.value = jamPendek(snapped);
+  inp.value = shortTime(snapped);
   const rowEl = inp.closest(".rekom-row");
   const durEl = rowEl?.querySelector(".rekom-dur");
   if (durEl) durEl.textContent = `${k.dur}s`;
@@ -539,7 +539,7 @@ function resetResult() {
 $("#hasilRenderBtn")?.addEventListener("click", () => {
   const clip = resultAsClip();
   if (!clip) return;
-  if (typeof kirimRender === "function") kirimRender([clip]);
+  if (typeof sendRender === "function") sendRender([clip]);
 });
 
 /* Jalur manual dimulai di layar Klip: timeline ada di sana. */
