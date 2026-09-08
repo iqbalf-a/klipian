@@ -312,12 +312,12 @@ $("#tlPreviewVideo")?.addEventListener("timeupdate", (e) => {
   if (previewBatas !== null && v.currentTime >= previewBatas) v.pause();
 
   const jam = $("#tlPreviewTime");
-  if (jam && typeof durasiVideo === "function") {
-    jam.textContent = `${jamRange(v.currentTime)} / ${jamRange(durasiVideo())}`;
+  if (jam && typeof videoDuration === "function") {
+    jam.textContent = `${jamRange(v.currentTime)} / ${jamRange(videoDuration())}`;
   }
   const fill = $("#tlScrubFill");
-  if (fill && typeof keFrac === "function") {
-    const persen = keFrac(v.currentTime) * 100;
+  if (fill && typeof toFraction === "function") {
+    const persen = toFraction(v.currentTime) * 100;
     fill.style.width = `${persen}%`;
     $("#tlScrub")?.setAttribute("aria-valuenow", String(Math.round(persen)));
   }
@@ -331,10 +331,10 @@ $("#tlPreviewVideo")?.addEventListener("play", ikonPlayRekom);
 function tlScrubSeek(clientX) {
   const bar = $("#tlScrub");
   const v = $("#tlPreviewVideo");
-  if (!bar || !v || !v.src || typeof keDetik !== "function") return;
+  if (!bar || !v || !v.src || typeof fracToSeconds !== "function") return;
   const r = bar.getBoundingClientRect();
   const frac = r.width ? Math.max(0, Math.min(1, (clientX - r.left) / r.width)) : 0;
-  try { v.currentTime = keDetik(frac); } catch { /* metadata belum siap */ }
+  try { v.currentTime = fracToSeconds(frac); } catch { /* metadata belum siap */ }
 }
 $("#tlScrub")?.addEventListener("pointerdown", (e) => {
   const bar = $("#tlScrub"), v = $("#tlPreviewVideo");
@@ -465,7 +465,7 @@ $("#rekomList")?.addEventListener("change", (e) => {
   if (!k) return;
 
   const kembalikan = () => { inp.value = jamPendek(k[field]); };
-  const mentah = bacaWaktu(inp.value);
+  const mentah = parseTime(inp.value);
   if (mentah === null) { kembalikan(); return; }
   const detik = (typeof snapToWord === "function")
     ? snapToWord(mentah, field === "startSec" ? "start" : "end")

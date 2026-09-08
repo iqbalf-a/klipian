@@ -19,22 +19,22 @@
    kali.
    ========================================================================== */
 
-let SEL = null;             // { start, end } dalam detik sumber, atau null
-let seretSel = null;        // keadaan sementara saat menggeser
+let SELECTION = null;       // { start, end } dalam detik sumber, atau null
+let dragSelection = null;   // keadaan sementara saat menggeser
 
-const durasiVideo = () =>
+const videoDuration = () =>
   realTranscript?.duration || chosenSource?.duration || 0;
 
 /* detik -> pecahan 0..1 di sepanjang batang, dan sebaliknya */
-const keFrac = (t) => { const d = durasiVideo(); return d ? Math.max(0, Math.min(1, t / d)) : 0; };
-const keDetik = (frac) => Math.max(0, Math.min(durasiVideo(), frac * durasiVideo()));
+const toFraction = (t) => { const d = videoDuration(); return d ? Math.max(0, Math.min(1, t / d)) : 0; };
+const fracToSeconds = (frac) => Math.max(0, Math.min(videoDuration(), frac * videoDuration()));
 
 /* "16:56" -> 1016. Menerima "1:02:03" juga. Kembalikan null kalau ngawur. */
-function bacaWaktu(teks) {
-  const bagian = String(teks).trim().split(":");
-  if (!bagian.length || bagian.some((b) => b.trim() === "" || isNaN(Number(b)))) return null;
-  const detik = bagian.reduce((a, b) => a * 60 + Number(b), 0);
-  return Number.isFinite(detik) ? detik : null;
+function parseTime(text) {
+  const parts = String(text).trim().split(":");
+  if (!parts.length || parts.some((b) => b.trim() === "" || isNaN(Number(b)))) return null;
+  const seconds = parts.reduce((a, b) => a * 60 + Number(b), 0);
+  return Number.isFinite(seconds) ? seconds : null;
 }
 
 /* ---------- menggambar ---------- */
@@ -46,7 +46,7 @@ function drawTotalTimeline() {
   // sedini mungkin -- titik kumpul ini sudah dipanggil tiap kali
   // chosenSource berubah, jadi dipakai juga untuk memuat videonya.
   if (typeof muatPreviewUtuh === "function") muatPreviewUtuh();
-  const d = durasiVideo();
+  const d = videoDuration();
 
   const info = $("#pilihDurasi");
   if (info) info.textContent = d ? `total ${jamRange(d)}` : "no video loaded";
@@ -54,21 +54,21 @@ function drawTotalTimeline() {
   // penanda: rekomendasi AI tipis, potongan result padat
   const marks = $("#tlMarks");
   if (marks) {
-    const rekom = (DATA?.candidates || []).map((k) => `
-      <span class="tl-mark rekom" style="left:${keFrac(k.startSec) * 100}%;
-            width:${Math.max(0.4, (keFrac(k.endSec) - keFrac(k.startSec)) * 100)}%"
+    const recMarks = (DATA?.candidates || []).map((k) => `
+      <span class="tl-mark rekom" style="left:${toFraction(k.startSec) * 100}%;
+            width:${Math.max(0.4, (toFraction(k.endSec) - toFraction(k.startSec)) * 100)}%"
             title="${escapeHTML(k.title)}"></span>`).join("");
-    const dipakai = RESULT.map((r) => `
-      <span class="tl-mark hasil" style="left:${keFrac(r.start) * 100}%;
-            width:${Math.max(0.4, (keFrac(r.end) - keFrac(r.start)) * 100)}%"
+    const usedMarks = RESULT.map((r) => `
+      <span class="tl-mark hasil" style="left:${toFraction(r.start) * 100}%;
+            width:${Math.max(0.4, (toFraction(r.end) - toFraction(r.start)) * 100)}%"
             title="${escapeHTML(r.title)}"></span>`).join("");
-    marks.innerHTML = rekom + dipakai;
+    marks.innerHTML = recMarks + usedMarks;
   }
 
   // skala waktu: 5 label merata
-  const skala = $("#tlSkala");
-  if (skala) {
-    skala.innerHTML = d
+  const scale = $("#tlSkala");
+  if (scale) {
+    scale.innerHTML = d
       ? [0, 0.25, 0.5, 0.75, 1].map((f) => `<span>${jamRange(d * f)}</span>`).join("")
       : "";
   }
@@ -76,41 +76,41 @@ function drawTotalTimeline() {
 }
 
 function drawSelection() {
-  const kotak = $("#tlSel");
-  const tombol = $("#selAddBtn");
-  if (!kotak) return;
+  const box = $("#tlSel");
+  const button = $("#selAddBtn");
+  if (!box) return;
 
-  if (!SEL) {
-    kotak.hidden = true;
-    if (tombol) tombol.disabled = true;
+  if (!SELECTION) {
+    box.hidden = true;
+    if (button) button.disabled = true;
     $("#selDur").textContent = "0s";
     $("#selTeks").textContent = "";
     return;
   }
-  kotak.hidden = false;
-  kotak.style.left = `${keFrac(SEL.start) * 100}%`;
-  kotak.style.width = `${Math.max(0.3, (keFrac(SEL.end) - keFrac(SEL.start)) * 100)}%`;
+  box.hidden = false;
+  box.style.left = `${toFraction(SELECTION.start) * 100}%`;
+  box.style.width = `${Math.max(0.3, (toFraction(SELECTION.end) - toFraction(SELECTION.start)) * 100)}%`;
 
   // Kolom angka tidak ditimpa selagi kamu mengetik di dalamnya.
   const a = $("#selStart"), b = $("#selEnd");
-  if (a && document.activeElement !== a) a.value = jamRange(SEL.start);
-  if (b && document.activeElement !== b) b.value = jamRange(SEL.end);
+  if (a && document.activeElement !== a) a.value = jamRange(SELECTION.start);
+  if (b && document.activeElement !== b) b.value = jamRange(SELECTION.end);
 
-  const dur = SEL.end - SEL.start;
+  const dur = SELECTION.end - SELECTION.start;
   $("#selDur").textContent = `${Math.round(dur)}s`;
-  if (tombol) tombol.disabled = dur < 0.5;
+  if (button) button.disabled = dur < 0.5;
 
   // Perlihatkan omongan di dalam rentangnya -- angka saja tidak cukup untuk
   // tahu apakah potongannya benar.
-  const teks = $("#selTeks");
-  if (teks) {
-    const kata = (realTranscript?.words || [])
-      .filter((w) => w.start >= SEL.start && w.end <= SEL.end)
+  const wordsEl = $("#selTeks");
+  if (wordsEl) {
+    const words = (realTranscript?.words || [])
+      .filter((w) => w.start >= SELECTION.start && w.end <= SELECTION.end)
       .map((w) => w.text.trim());
-    teks.textContent = kata.length
-      ? (kata.length > 60
-          ? kata.slice(0, 30).join(" ") + "  …  " + kata.slice(-20).join(" ")
-          : kata.join(" "))
+    wordsEl.textContent = words.length
+      ? (words.length > 60
+          ? words.slice(0, 30).join(" ") + "  …  " + words.slice(-20).join(" ")
+          : words.join(" "))
       : "no words in this range";
   }
 }
@@ -118,7 +118,7 @@ function drawSelection() {
 /* ---------- menyetel seleksi ---------- */
 
 function setSelection(start, end, snap) {
-  const d = durasiVideo();
+  const d = videoDuration();
   if (!d) return;
   start = Math.max(0, Math.min(d, start));
   end = Math.max(0, Math.min(d, end));
@@ -131,15 +131,15 @@ function setSelection(start, end, snap) {
     const b = snapToWord(end, "end");
     if (b > a) { start = a; end = b; }
   }
-  SEL = { start, end };
+  SELECTION = { start, end };
   drawSelection();
 }
 
-function clearSelection() { SEL = null; drawSelection(); }
+function clearSelection() { SELECTION = null; drawSelection(); }
 
 /* ---------- geser di batang ---------- */
 
-function fracDariEvent(e, bar) {
+function fracFromEvent(e, bar) {
   const r = bar.getBoundingClientRect();
   if (!r.width) return null;
   return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
@@ -147,49 +147,49 @@ function fracDariEvent(e, bar) {
 
 $("#tlTotal")?.addEventListener("pointerdown", (e) => {
   const bar = e.currentTarget;
-  if (!durasiVideo()) {
+  if (!videoDuration()) {
     $("#pilihNote").textContent = "no video or transcript yet";
     return;
   }
-  const frac = fracDariEvent(e, bar);
+  const frac = fracFromEvent(e, bar);
   if (frac === null) return;
 
   // Disimpan supaya Escape bisa mengembalikan ke keadaan SEBELUM geseran ini
   // -- bukan cuma mengosongkan seleksi. Menggeser grip "start" pada seleksi
   // yang sudah ada dan menyesal di tengah jalan harusnya kembali ke seleksi
   // lama, bukan hilang semuanya.
-  const selSebelum = SEL ? { ...SEL } : null;
+  const previousSelection = SELECTION ? { ...SELECTION } : null;
   const grip = e.target.closest("[data-grip]");
-  if (grip && SEL) {
-    seretSel = { jenis: grip.dataset.grip, bar, selSebelum };
+  if (grip && SELECTION) {
+    dragSelection = { kind: grip.dataset.grip, bar, previousSelection };
   } else {
-    seretSel = { jenis: "baru", bar, jangkar: keDetik(frac), selSebelum };
-    setSelection(seretSel.jangkar, seretSel.jangkar, false);
+    dragSelection = { kind: "new", bar, anchor: fracToSeconds(frac), previousSelection };
+    setSelection(dragSelection.anchor, dragSelection.anchor, false);
   }
   bar.setPointerCapture(e.pointerId);
   e.preventDefault();
 });
 
 $("#tlTotal")?.addEventListener("pointermove", (e) => {
-  if (!seretSel) return;
-  const frac = fracDariEvent(e, seretSel.bar);
+  if (!dragSelection) return;
+  const frac = fracFromEvent(e, dragSelection.bar);
   if (frac === null) return;
-  const t = keDetik(frac);
-  if (seretSel.jenis === "baru") setSelection(seretSel.jangkar, t, false);
-  else if (seretSel.jenis === "start") setSelection(t, SEL.end, false);
-  else setSelection(SEL.start, t, false);
+  const t = fracToSeconds(frac);
+  if (dragSelection.kind === "new") setSelection(dragSelection.anchor, t, false);
+  else if (dragSelection.kind === "start") setSelection(t, SELECTION.end, false);
+  else setSelection(SELECTION.start, t, false);
 });
 
 ["pointerup", "pointercancel"].forEach((ev) =>
   $("#tlTotal")?.addEventListener(ev, () => {
-    if (!seretSel) return;
-    seretSel = null;
-    if (SEL && SEL.end - SEL.start < 0.5) { clearSelection(); return; }
-    if (SEL) {
-      const sebelum = `${SEL.start.toFixed(2)}-${SEL.end.toFixed(2)}`;
-      setSelection(SEL.start, SEL.end, true);      // dirapikan ke batas kata
-      const sesudah = `${SEL.start.toFixed(2)}-${SEL.end.toFixed(2)}`;
-      $("#pilihNote").textContent = sebelum === sesudah
+    if (!dragSelection) return;
+    dragSelection = null;
+    if (SELECTION && SELECTION.end - SELECTION.start < 0.5) { clearSelection(); return; }
+    if (SELECTION) {
+      const before = `${SELECTION.start.toFixed(2)}-${SELECTION.end.toFixed(2)}`;
+      setSelection(SELECTION.start, SELECTION.end, true);      // dirapikan ke batas kata
+      const after = `${SELECTION.start.toFixed(2)}-${SELECTION.end.toFixed(2)}`;
+      $("#pilihNote").textContent = before === after
         ? "range selected"
         : "cut point snapped to the nearest word boundary";
     }
@@ -211,17 +211,17 @@ document.addEventListener("keydown", (e) => {
   const t = e.target;
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
 
-  if (seretSel) {
-    const { selSebelum } = seretSel;
-    // seretSel dikosongkan lebih dulu, jadi pointerup/pointercancel yang
+  if (dragSelection) {
+    const { previousSelection } = dragSelection;
+    // dragSelection dikosongkan lebih dulu, jadi pointerup/pointercancel yang
     // masih akan menyusul (jari/mouse belum tentu terangkat) langsung
-    // no-op lewat `if (!seretSel) return;` di atas -- capture-nya sendiri
+    // no-op lewat `if (!dragSelection) return;` di atas -- capture-nya sendiri
     // dilepas otomatis oleh browser begitu pointer itu benar-benar terangkat.
-    seretSel = null;
-    if (selSebelum) setSelection(selSebelum.start, selSebelum.end, false);
+    dragSelection = null;
+    if (previousSelection) setSelection(previousSelection.start, previousSelection.end, false);
     else clearSelection();
     $("#pilihNote").textContent = "selection cancelled";
-  } else if (SEL) {
+  } else if (SELECTION) {
     clearSelection();
     $("#pilihNote").textContent = "drag on the timeline to select a range";
   }
@@ -229,20 +229,20 @@ document.addEventListener("keydown", (e) => {
 
 /* ---------- ketik menit:detik ---------- */
 
-function bacaKolomWaktu() {
-  let a = bacaWaktu($("#selStart").value);
-  let b = bacaWaktu($("#selEnd").value);
+function readTimeColumns() {
+  let a = parseTime($("#selStart").value);
+  let b = parseTime($("#selEnd").value);
   if (a === null || b === null) {
     $("#pilihNote").textContent = "time format is mm:ss, e.g. 16:56";
     return;
   }
   // Kolom menampilkan jamRange() yang dibulatkan ke detik bulat. Kalau sebuah
-  // kolom TIDAK diubah (nilai bulatnya masih sama dengan SEL), pertahankan
-  // nilai presisi SEL -- jangan biarkan pembulatan tampilan menggeser sisi
-  // yang tak disentuh sampai setengah detik saat mengedit sisi satunya.
-  if (SEL) {
-    if (Math.round(a) === Math.round(SEL.start)) a = SEL.start;
-    if (Math.round(b) === Math.round(SEL.end)) b = SEL.end;
+  // kolom TIDAK diubah (nilai bulatnya masih sama dengan SELECTION), pertahankan
+  // nilai presisi SELECTION -- jangan biarkan pembulatan tampilan menggeser
+  // sisi yang tak disentuh sampai setengah detik saat mengedit sisi satunya.
+  if (SELECTION) {
+    if (Math.round(a) === Math.round(SELECTION.start)) a = SELECTION.start;
+    if (Math.round(b) === Math.round(SELECTION.end)) b = SELECTION.end;
   }
   if (b <= a) {
     $("#pilihNote").textContent = "end time must be later than start";
@@ -250,7 +250,7 @@ function bacaKolomWaktu() {
   }
   // Angka di luar durasi video dulu dipangkas diam-diam jadi rentang nol, dan
   // tombolnya mati tanpa alasan yang kelihatan. Sekarang dikatakan.
-  const d = durasiVideo();
+  const d = videoDuration();
   if (d && a >= d) {
     $("#pilihNote").textContent =
       `${jamRange(a)} melewati akhir video (${jamRange(d)})`;
@@ -266,7 +266,7 @@ function bacaKolomWaktu() {
 }
 
 ["#selStart", "#selEnd"].forEach((sel) => {
-  $(sel)?.addEventListener("change", bacaKolomWaktu);
+  $(sel)?.addEventListener("change", readTimeColumns);
   $(sel)?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") { e.preventDefault(); e.target.blur(); }
   });
@@ -275,11 +275,11 @@ function bacaKolomWaktu() {
 /* ---------- masukkan ke result ---------- */
 
 $("#selAddBtn")?.addEventListener("click", () => {
-  if (!SEL) return;
-  const judul = `Clip ${jamRange(SEL.start)}`;
-  const tolak = addToResult(SEL.start, SEL.end, judul, "manual");
-  if (tolak) {
-    $("#pilihNote").textContent = tolak;
+  if (!SELECTION) return;
+  const title = `Clip ${jamRange(SELECTION.start)}`;
+  const rejected = addToResult(SELECTION.start, SELECTION.end, title, "manual");
+  if (rejected) {
+    $("#pilihNote").textContent = rejected;
     return;
   }
   $("#pilihNote").textContent = "added to Result";
