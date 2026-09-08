@@ -2068,7 +2068,7 @@ h1, h2, h3 {
 /* ══════════════════ teks caption yang bisa dibetulkan ══════════════════
    Kata-kata yang akan terbakar di berkas hasil, satu tombol per kata.
    Klik untuk membetulkan; yang sudah diubah ditandai. */
-.teks-list {
+.text-list {
   display: flex; flex-wrap: wrap; gap: 4px;
   padding: var(--s3) var(--s5) var(--s4);
   /* 210px itu warisan waktu Teks masih berbagi satu layar dengan Timeline,
@@ -2078,7 +2078,7 @@ h1, h2, h3 {
   max-height: clamp(140px, 30vh, 380px);
   overflow-y: auto;
 }
-.kata-teks {
+.word-text {
   font: inherit; font-size: 13px;
   padding: 4px 8px;
   border: 1px solid transparent;
@@ -2088,20 +2088,20 @@ h1, h2, h3 {
   cursor: text;
   transition: background var(--fast), color var(--fast), border-color var(--fast);
 }
-.kata-teks:hover { color: var(--text); border-color: var(--glass-border); }
-.kata-teks.diubah {
+.word-text:hover { color: var(--text); border-color: var(--glass-border); }
+.word-text.diubah {
   color: var(--accent);
   border-color: color-mix(in srgb, var(--accent) 45%, transparent);
   background: var(--accent-soft);
 }
-.kata-teks.pengisi {
+.word-text.pengisi {
   color: var(--text-faint);
   border-color: color-mix(in srgb, var(--danger) 35%, transparent);
   border-style: dashed;
   text-decoration: line-through;
   text-decoration-color: color-mix(in srgb, var(--danger) 55%, transparent);
 }
-.kata-input {
+.word-input {
   font: inherit; font-size: 13px;
   border: 0; outline: none; padding: 0;
   background: none; color: var(--text);

@@ -98,16 +98,16 @@ function removeFillerWords() {
 /* ---------- menggambar ---------- */
 
 function renderCaptions() {
-  const list = $("#teksList");
-  const note = $("#teksNote");
+  const list = $("#textList");
+  const note = $("#textNote");
   if (!list) return;
 
   const words = resultWords();
   const editedCount = words.filter((w) => w.edited).length;
   const fillerCount = words.filter((w) => isFillerWord(w.text)).length;
-  const reset = $("#teksResetBtn");
+  const reset = $("#textResetBtn");
   if (reset) reset.disabled = editedCount === 0;
-  const fillerBtn = $("#teksPengisiBtn");
+  const fillerBtn = $("#textFillerBtn");
   if (fillerBtn) {
     fillerBtn.disabled = fillerCount === 0;
     fillerBtn.textContent = fillerCount ? `Remove filler words (${fillerCount})` : "Remove filler words";
@@ -148,8 +148,8 @@ function renderCaptions() {
   list.innerHTML = words.map((w) => {
     const isFiller = isFillerWord(w.text);
     return `
-    <button class="kata-teks${w.edited ? " diubah" : ""}${isFiller ? " pengisi" : ""}"
-            data-mulai="${wordKey(w)}"
+    <button class="word-text${w.edited ? " diubah" : ""}${isFiller ? " pengisi" : ""}"
+            data-start="${wordKey(w)}"
             title="${timeRange(w.start)}${w.edited ? ` · was &quot;${escapeHTML(w.original)}&quot;` : ""}${isFiller ? " · filler word" : ""}"
     >${escapeHTML(w.text)}</button>`;
   }).join("");
@@ -191,11 +191,11 @@ function finishEdit(cancel) {
 
 function startEdit(b) {
   if (editingWord) finishEdit(false);      // yang sebelumnya disimpan dulu
-  const key = b.dataset.mulai;
+  const key = b.dataset.start;
   const previousValue = b.textContent.trim();
 
   const input = document.createElement("input");
-  input.className = "kata-input";
+  input.className = "word-input";
   input.value = previousValue;
   input.size = Math.max(3, previousValue.length);
   b.textContent = "";
@@ -215,8 +215,8 @@ function startEdit(b) {
       // berpindah ke kata sebelah, supaya bisa membetulkan beruntun
       ev.preventDefault();
       finishEdit(false);
-      const wordButtons = [...document.querySelectorAll(".kata-teks")];
-      const i = wordButtons.findIndex((x) => x.dataset.mulai === key);
+      const wordButtons = [...document.querySelectorAll(".word-text")];
+      const i = wordButtons.findIndex((x) => x.dataset.start === key);
       const target = wordButtons[i + (ev.shiftKey ? -1 : 1)];
       if (target) startEdit(target);
     }
@@ -234,7 +234,7 @@ async function startAutoCaption(btn) {
   const video = (typeof chosenSource !== "undefined" && chosenSource?.name)
     || (typeof DATA !== "undefined" ? DATA.file : "");
   if (!video) return;
-  const note = $("#teksNote");
+  const note = $("#textNote");
   if (btn) btn.disabled = true;
   if (note) note.textContent = "memulai transkripsi …";
 
@@ -277,21 +277,21 @@ async function startAutoCaption(btn) {
   }, 900);
 }
 
-$("#teksList")?.addEventListener("click", (e) => {
+$("#textList")?.addEventListener("click", (e) => {
   const autoBtn = e.target.closest("#autoCaptionBtn");
   if (autoBtn) { startAutoCaption(autoBtn); return; }
-  const b = e.target.closest(".kata-teks");
+  const b = e.target.closest(".word-text");
   if (!b || b.querySelector("input")) return;
   startEdit(b);
 });
 
-$("#teksResetBtn")?.addEventListener("click", () => {
+$("#textResetBtn")?.addEventListener("click", () => {
   CORRECTIONS = {};
   renderCaptions();
   if (typeof drawCaption === "function") drawCaption();
 });
 
-$("#teksPengisiBtn")?.addEventListener("click", () => {
+$("#textFillerBtn")?.addEventListener("click", () => {
   // renderCaptions() (dipanggil dari dalam renderResult(), lihat
   // removeFillerWords di atas) sudah menggambar ulang daftar kata dan
   // menyimpan project -- tidak ada yang perlu dilakukan lagi di sini.
