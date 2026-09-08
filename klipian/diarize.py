@@ -1,22 +1,22 @@
-"""Deteksi pembicara aktif (speaker diarization) untuk AI Framing.
+"""Active speaker detection (speaker diarization) for AI Framing.
 
-Dipakai untuk menjawab "siapa yang bicara di detik ke berapa" dalam satu
-klip, supaya kotak framing bisa otomatis mengikuti orangnya -- lihat
-diskusi konsepnya sebelum modul ini ditulis: pendekatan audio-only lewat
-pyannote dipilih dibanding deteksi wajah manual, karena audio podcast yang
-direkam dengan mic terpisah jauh lebih bersih dan lebih murah dihitung
-daripada computer vision per-frame.
+Used to answer "who is speaking at which second" within a clip, so the
+framing box can automatically follow the person -- see the design discussion
+before this module was written: the audio-only approach via pyannote was
+chosen over manual face detection because podcast audio recorded with
+separate mics is much cleaner and cheaper to compute than per-frame
+computer vision.
 
-Butuh HF_TOKEN (lihat .env.example) -- model `speaker-diarization-community-1`
-gratis tapi tetap gated di HuggingFace: token dipakai SEKALI untuk mengunduh
-bobotnya, sesudah itu jalan offline seperti Whisper.
+Requires HF_TOKEN (see .env.example) -- the `speaker-diarization-community-1`
+model is free but still gated on HuggingFace: the token is used ONCE to
+download the weights, then it runs offline like Whisper.
 
-Catatan Windows: pyannote 4.x memakai `torchcodec` untuk decode audio, dan
-paket itu gagal memuat DLL native-nya di banyak instalasi Windows (lihat
-percobaan sebelum modul ini ditulis -- error "Could not load this library").
-Jalan pintasnya: audio dibaca manual lewat `soundfile`, lalu diberikan ke
-pipeline sebagai tensor waveform, bukan lewat path file -- itu membuat
-pipeline tidak pernah memanggil torchcodec sama sekali.
+Windows note: pyannote 4.x uses `torchcodec` to decode audio, and that
+package fails to load its native DLL on many Windows installations (see
+the experiments before this module was written -- error "Could not load
+this library"). The workaround: read audio manually via `soundfile`, then
+pass it to the pipeline as a waveform tensor instead of a file path -- this
+makes the pipeline never call torchcodec at all.
 """
 
 from __future__ import annotations
@@ -26,12 +26,12 @@ import tempfile
 import threading
 from pathlib import Path
 
-_pipeline = None   # singleton -- memuat model butuh belasan detik, jangan berulang
-# Server-nya ThreadingHTTPServer: dua permintaan /api/diarize bisa datang
-# bersamaan (mis. tab lain, atau klip Result dengan beberapa span diproses
-# tanpa sengaja tumpang tindih). Model pyannote TIDAK dijamin aman dipanggil
-# dari dua thread sekaligus -- kunci ini memaksa satu inferensi jalan dulu
-# sampai selesai sebelum yang berikutnya mulai, apa pun yang memanggilnya.
+_pipeline = None   # singleton -- loading the model takes tens of seconds, don't repeat
+# The server uses ThreadingHTTPServer: two /api/diarize requests can arrive
+# simultaneously (e.g. another tab, or a Result clip with multiple spans
+# being processed accidentally overlapping). The pyannote model is NOT safe
+# to call from two threads at once -- this lock forces one inference to
+# finish before the next one starts, regardless of who calls it.
 _pipeline_lock = threading.Lock()
 
 
@@ -43,10 +43,10 @@ def _load_pipeline():
     token = os.environ.get("HF_TOKEN", "").strip()
     if not token:
         raise RuntimeError(
-            "HF_TOKEN belum diset. Buat token gratis di "
-            "https://huggingface.co/settings/tokens, setujui akses model di "
+            "HF_TOKEN is not set. Create a free token at "
+            "https://huggingface.co/settings/tokens, grant model access at "
             "https://huggingface.co/pyannote/speaker-diarization-community-1, "
-            "lalu isi HF_TOKEN=... di file .env (lihat .env.example)."
+            "then set HF_TOKEN=... in the .env file (see .env.example)."
         )
     from pyannote.audio import Pipeline
     _pipeline = Pipeline.from_pretrained(
@@ -57,12 +57,12 @@ def _load_pipeline():
 
 def _merge_turns(turns: list[dict], min_gap: float = 1.5,
                   min_dur: float = 0.6) -> list[dict]:
-    """Giliran super pendek (<min_dur) dibuang -- kemungkinan besar
-    backchannel ("iya", "hmm", tertawa singkat), bukan giliran bicara
-    sungguhan. Giliran pembicara yang SAMA dengan jeda <min_gap digabung
-    jadi satu -- tanpa ini tiap jeda napas memicu titik framing baru dan
-    videonya kedap-kedip. Sejalan dengan prinsip FRAMING yang sudah ada:
-    potong keras, tidak merayap."""
+    """Super short turns (<min_dur) are dropped -- likely backchannel
+    ("yeah", "hmm", brief laughter), not real speaking turns. Consecutive
+    turns from the SAME speaker with gaps <min_gap are merged into one --
+    without this, every breath pause triggers a new framing point and the
+    video flickers. Consistent with the existing FRAMING principle: hard
+    cuts, no creeping."""
     turns = sorted(turns, key=lambda t: t["start"])
     turns = [t for t in turns if t["end"] - t["start"] >= min_dur]
     if not turns:
@@ -74,23 +74,23 @@ def _merge_turns(turns: list[dict], min_gap: float = 1.5,
             last["end"] = max(last["end"], t["end"])
         else:
             t = dict(t)
-            # Pembicara berbeda tapi waktunya beririsan (pyannote sesekali
-            # menyisakan overlap di batas). Konsumen framing mengira giliran
-            # disjoint, jadi geser mulai giliran ini ke akhir yang sebelumnya.
+            # Different speaker but overlapping times (pyannote occasionally
+            # leaves overlaps at boundaries). Framing consumers expect
+            # disjoint turns, so shift this turn's start to the previous end.
             if t["start"] < last["end"]:
                 t["start"] = last["end"]
             if t["end"] <= t["start"]:
-                continue                    # habis termakan overlap, buang
+                continue                    # fully consumed by overlap, discard
             merged.append(t)
     return merged
 
 
 def diarize_segment(video: Path, start: float, end: float) -> list[dict]:
-    """Giliran bicara dalam rentang [start, end) detik SUMBER video.
+    """Speaking turns within [start, end) seconds of the SOURCE video.
 
-    Kembalikan daftar {start, end, speaker} -- speaker berupa label
-    sembarang dari pipeline ("SPEAKER_00", dst), waktunya sudah relatif ke
-    video SUMBER (bukan relatif ke potongan segmennya)."""
+    Return a list of {start, end, speaker} -- speaker is an arbitrary label
+    from the pipeline ("SPEAKER_00", etc.), times are relative to the
+    SOURCE video (not relative to the segment cut)."""
     import soundfile as sf
     import torch
 
@@ -106,7 +106,7 @@ def diarize_segment(video: Path, start: float, end: float) -> list[dict]:
             "-i", str(video),
             "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le",
             str(wav),
-        ], desc="mengekstrak audio segmen")
+        ], desc="extracting segment audio")
 
         data, sr = sf.read(str(wav), dtype="float32")
         if data.ndim == 1:

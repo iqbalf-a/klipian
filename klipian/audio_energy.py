@@ -28,42 +28,41 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-# Baris headernya "frame:N    pts:N    pts_time:N" -- SATU baris, pts_time
-# bukan di awal baris sendiri seperti dikira semula (diwarisi dari asumsi
-# referensi juga). startswith("pts_time:") makanya tidak pernah cocok --
-# current_time tidak pernah maju dari 0, dan SELURUH level di seluruh file
-# salah kebaca sebagai detik ke-0. Dicek langsung lewat CLI sebelum
-# diperbaiki jadi regex-search, bukan startswith.
+# Header line is "frame:N    pts:N    pts_time:N" -- ONE line, pts_time is
+# NOT at the start of its own line as originally assumed (inherited from the
+# reference's assumption too). startswith("pts_time:") therefore never matched
+# -- current_time never advanced from 0, and ALL levels in the entire file
+# were misread as second 0. Verified directly via CLI before being fixed to
+# regex-search instead of startswith.
 _PTS_TIME_RE = re.compile(r"pts_time:(-?[\d.]+)")
 
-# `astats`-nya reset=N TIDAK menghitung dalam sampel seperti dikira referensi
-# asli (yang mengasumsikan reset=48000 ~ 1 detik di 48kHz) -- diuji langsung
-# lewat CLI, reset=16000 bahkan tidak reset sama sekali dalam 10 detik
-# pertama. Satuan reset di astats itu FRAME internal filter, bukan sampel,
-# dan ukuran frame itu sendiri tidak dijamin berapa. Perbaikannya: paksa
-# ukuran frame jadi PERSIS _SAMPLE_RATE sampel lewat asetnsamples dulu, baru
-# reset=1 (reset tiap frame) -- jadi tiap frame = tiap DETIK, dijamin,
-# bukan tebakan. Diverifikasi: pts_time keluar persis 0,1,2,3... dengan
-# Peak_level yang genuinely beda tiap detik (bukan nilai kumulatif yang
-# menyamar).
+# astats's reset=N does NOT count in samples as the original reference assumed
+# (which assumed reset=48000 ~ 1 second at 48kHz) -- tested directly via CLI,
+# reset=16000 doesn't even reset at all in the first 10 seconds. The reset
+# unit in astats is FRAME of the internal filter, not samples, and the frame
+# size itself is not guaranteed. The fix: force frame size to EXACTLY
+# _SAMPLE_RATE samples via asetnsamples first, then reset=1 (reset every
+# frame) -- so every frame = every SECOND, guaranteed, not guessed.
+# Verified: pts_time outputs exactly 0,1,2,3... with Peak_level genuinely
+# different each second (not cumulative values disguised).
 _SAMPLE_RATE = 16000
 
 
-# percentile=97 dipilih dari uji nyata, bukan tebakan: di podcast 42 menit
-# (radityadika-podcast.mp4) dan cuplikan gameplay 5 menit, 90 menandai
-# ~20% dan ~27% dari videonya sebagai "menonjol" -- terlalu longgar untuk
-# sinyal yang katanya "di luar kebiasaan". 97 menandai ~7-9% di keduanya,
-# proporsinya konsisten lintas dua jenis konten yang levelnya beda jauh --
-# itulah buktinya threshold adaptif ini bekerja tanpa perlu profil per-jenis
-# konten seperti referensi.
+# percentile=97 chosen from real-world testing, not a guess: on a 42-minute
+# podcast (radityadika-podcast.mp4) and a 5-minute gameplay clip, 90 marked
+# ~20% and ~27% of the video as "prominent" -- too loose for signals that are
+# supposedly "unusual". 97 marks ~7-9% on both, proportions consistent across
+# two content types with vastly different levels -- that's the proof this
+# adaptive threshold works without needing per-content-type profiles like the
+# reference.
 def find_loud_moments(video: Path, percentile: float = 97.0,
                       merge_gap: float = 4.0, pad: float = 1.0) -> list[dict]:
-    """Rentang waktu dengan energi audio jauh di atas rata-rata video ini.
+    """Time ranges with audio energy far above this video's average.
 
-    -> [{"start": float, "end": float, "peak_db": float}, ...] terurut waktu.
-    Video tanpa audio / analisis gagal -> [] (non-fatal dengan sengaja --
-    ini fitur pelengkap, kegagalannya tidak boleh menggagalkan transkripsi
-    yang memanggilnya)."""
+    -> [{"start": float, "end": float, "peak_db": float}, ...] sorted by time.
+    Video without audio / analysis failure -> [] (intentionally non-fatal --
+    this is a supplementary feature, its failure must not crash the
+    transcription that calls it)."""
     from .ffmpeg_tools import _require, probe, run
 
     try:
@@ -81,15 +80,15 @@ def find_loud_moments(video: Path, percentile: float = 97.0,
                    "astats=metadata=1:reset=1,"
                    "ametadata=print:key=lavfi.astats.Overall.Peak_level:file=-",
             "-f", "null", "-",
-        ], desc="menganalisis energi audio",
+        ], desc="analyzing audio energy",
            timeout=max(1800, info.duration * 4 if info.duration else 1800))
     except Exception:                                  # noqa: BLE001
         return []
 
     levels = _parse_astats(proc.stdout)
     if len(levels) < 10:
-        # Klip terlalu pendek atau parsing gagal total -- persentil dari
-        # segelintir titik tidak berarti apa-apa, jangan menandai apa pun.
+        # Clip too short or parsing completely failed -- percentile from a
+        # handful of points means nothing, don't mark anything.
         return []
 
     threshold = _percentile(sorted(levels.values()), percentile)
@@ -105,10 +104,10 @@ def find_loud_moments(video: Path, percentile: float = 97.0,
 
 
 def _parse_astats(stdout: str) -> dict[int, float]:
-    """Keluaran `ametadata=print` -> {detik: level_puncak_dB_tertinggi_di_detik_itu}.
-    Formatnya blok per-frame: baris "frame:N pts:N pts_time:N" (SATU baris,
-    lihat _PTS_TIME_RE) diikuti baris "lavfi.astats.Overall.Peak_level=Y"
-    untuk frame itu."""
+    """`ametadata=print` output -> {second: highest_peak_dB_in_that_second}.
+    Format is per-frame blocks: line "frame:N pts:N pts_time:N" (ONE line,
+    see _PTS_TIME_RE) followed by "lavfi.astats.Overall.Peak_level=Y"
+    for that frame."""
     levels: dict[int, float] = {}
     current_time = 0.0
     for raw in stdout.splitlines():

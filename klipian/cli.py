@@ -1,4 +1,4 @@
-"""Antarmuka baris perintah klipian."""
+"""Command-line interface for klipian."""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ RUBRICS = {
 
 
 # --------------------------------------------------------------------------
-# perintah: info
+# command: info
 # --------------------------------------------------------------------------
 
 def cmd_info(args: argparse.Namespace) -> int:
@@ -60,7 +60,7 @@ def cmd_info(args: argparse.Namespace) -> int:
 
 
 # --------------------------------------------------------------------------
-# perintah: transcribe
+# command: transcribe
 # --------------------------------------------------------------------------
 
 def cmd_transcribe(args: argparse.Namespace) -> int:
@@ -82,13 +82,13 @@ def cmd_transcribe(args: argparse.Namespace) -> int:
         print("Use --force to transcribe again.\n")
     else:
         print(f"\n{video.name}  ({fmt_duration(info.duration)})")
-        print("\n[1/2] Mengekstrak audio ...")
+        print("\n[1/2] Extracting audio ...")
         wav = cache.audio_path(video)
         extract_audio(video, wav)
         print(f"      {wav.name}")
 
         try:
-            print("\n[2/2] Transkripsi ...")
+            print("\n[2/2] Transcribing ...")
             started = time.time()
             transcript = transcribe(
                 wav,
@@ -101,7 +101,7 @@ def cmd_transcribe(args: argparse.Namespace) -> int:
             print(f"  total    : {fmt_duration(time.time() - started)}")
 
             transcript.save(tpath)
-            print(f"      disimpan: {tpath.name}")
+            print(f"      saved: {tpath.name}")
         finally:
             if not args.keep_audio:
                 wav.unlink(missing_ok=True)
@@ -120,7 +120,7 @@ def cmd_transcribe(args: argparse.Namespace) -> int:
             common = Counter(w.text.strip().lower() for w in suspects).most_common(8)
             print("           " + ", ".join(f"{k} x{n}" if n > 1 else k
                                             for k, n in common))
-            print("           calon isi prompts/glossary.txt")
+            print("           candidates for prompts/glossary.txt")
 
     if args.srt:
         out_dir = Path(args.out_dir) / video.stem
@@ -139,15 +139,15 @@ def cmd_transcribe(args: argparse.Namespace) -> int:
 
 
 # --------------------------------------------------------------------------
-# perintah: brief  -- berkas yang dijatuhkan ke Claude
+# command: brief  -- file to drop into Claude
 # --------------------------------------------------------------------------
 
 def _load_transcript(args):
-    """Ambil transkrip dari cache. Kembalikan (video, None) kalau belum ada."""
+    """Get transcript from cache. Return (video, None) if not found yet."""
     video = Path(args.video)
     cache = Cache(Path(args.cache_dir))
-    # brief/import tidak punya --glossary; pakai default yang sama dengan
-    # yang dipakai transcribe supaya kunci cache-nya cocok.
+    # brief/import don't have --glossary; use the same default that
+    # transcribe uses so the cache key matches.
     gloss = DEFAULT_GLOSSARY if DEFAULT_GLOSSARY.exists() else None
     tpath = cache.transcript_path(video, args.model, args.lang, gloss)
     if not tpath.exists():

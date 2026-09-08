@@ -1,20 +1,20 @@
-"""Render klip vertikal 9:16 — inilah yang benar-benar menghasilkan MP4.
+"""Render a 9:16 vertical clip -- this is what actually produces the MP4.
 
-Tiga hal yang dikerjakan di sini, dan urutannya penting:
+Three things done here, and the order matters:
 
-1. POTONGAN DISAMBUNG.
-   Klip bisa terdiri dari beberapa potongan (bagian di tengah dibuang).
-   ffmpeg memotong tiap bagian lalu menyambungnya jadi satu.
+1. CUTS ARE JOINED.
+   A clip can consist of multiple cuts (middle parts removed). ffmpeg cuts
+   each segment then joins them into one.
 
-2. CAPTION DIPETAKAN KE TIMELINE KELUARAN.
-   Setelah satu bagian dibuang, semua kata sesudahnya bergeser maju. Kata di
-   detik ke-650 sumber mungkin jatuh di detik ke-11 keluaran. Kalau dipakai
-   waktu sumbernya, subtitle muncul di tempat yang salah -- dan itu baru
-   ketahuan setelah render selesai.
+2. CAPTIONS ARE MAPPED TO THE OUTPUT TIMELINE.
+   Once a segment is removed, all subsequent words shift forward. A word at
+   source second 650 might land at output second 11. If source timestamps
+   were used, subtitles would appear in the wrong place -- and that would
+   only be discovered after rendering is complete.
 
-3. CROP LALU SKALA, bukan sebaliknya.
-   Crop di resolusi sumber mempertahankan detail; memperbesar dulu lalu
-   memotong membuang ketajaman.
+3. CROP FIRST, THEN SCALE, not the other way around.
+   Cropping at source resolution preserves detail; scaling first then
+   cropping discards sharpness.
 """
 
 from __future__ import annotations
@@ -26,20 +26,20 @@ from pathlib import Path
 from .ffmpeg_tools import _require, has_encoder
 from .models import Transcript, Word
 
-# Font watermark "klipian" dibundel di sini (bukan cuma diandalkan dari
-# Google Fonts seperti di UI) -- rendernya lewat ffmpeg/libass di mesin
-# lokal, yang tidak bisa "pinjam" font web. fontsdir menunjuk ke folder ini
-# supaya libass menemukan "Mona Sans ExtraBold" tanpa perlu terpasang
-# sebagai font sistem.
+# The "klipian" watermark font is bundled here (not just relying on Google
+# Fonts like the UI does) -- rendering is done via ffmpeg/libass on the
+# local machine, which can't "borrow" web fonts. fontsdir points to this
+# folder so libass finds "Mona Sans ExtraBold" without it needing to be
+# installed as a system font.
 FONTS_DIR = Path(__file__).resolve().parent.parent / "assets" / "fonts"
 
 
 def _escape_filter_path(p: str) -> str:
-    """Karakter yang punya makna syntaktis di FFmpeg filter graph harus
-    di-escape: backslash, colon (Windows drive), single quote (string
-    delimiter), brackets (label), semicolons (separator), equals (option).
-    Dipakai untuk path berkas eksternal apa pun yang disisipkan ke dalam
-    string filter_complex -- ASS (build_filter) maupun sendcmd
+    """Characters that have syntactic meaning in FFmpeg filter graphs must
+    be escaped: backslash, colon (Windows drive letter), single quote
+    (string delimiter), brackets (label), semicolons (separator), equals
+    (option). Used for any external file path inserted into a
+    filter_complex string -- ASS (build_filter) or sendcmd
     (_concat_filter, head tracking)."""
     p = p.replace("\\", "/").replace(":", r"\:")
     p = p.replace("'", r"\'").replace("[", r"\[").replace("]", r"\]")
@@ -48,22 +48,22 @@ def _escape_filter_path(p: str) -> str:
 
 @dataclass
 class Span:
-    """Satu potongan. `crop` opsional: kalau diisi, potongan ini dibingkai
-    sendiri -- itulah yang membuat framing bisa berpindah di tengah klip.
-    Kalau None, dipakai crop milik RenderJob.
+    """One cut. `crop` is optional: if provided, this cut is framed
+    independently -- that's what allows framing to shift mid-clip. If None,
+    the RenderJob's crop is used.
 
-    `crops` berisi DUA kotak untuk bingkai split: kotak pertama jadi bagian
-    atas, kotak kedua bagian bawah, ditumpuk jadi satu frame 9:16. Dipakai
-    saat dua orang di podcast duduk berjauhan dan dua-duanya mau kelihatan.
-    Kalau `crops` terisi, `crop` diabaikan.
+    `crops` holds TWO boxes for a split frame: first box becomes the top,
+    second box the bottom, stacked into one 9:16 frame. Used when two
+    people in a podcast sit far apart and both need to be visible. If
+    `crops` is set, `crop` is ignored.
 
-    `tracking` OPSIONAL: daftar {t, left} (t detik relatif ke AWAL potongan
-    ini sendiri, left persen) -- kalau terisi, X kotak `crop` bergerak
-    mengikuti lintasan ini sepanjang potongan (lihat sendcmd di
-    _concat_filter), bukan diam di satu posisi. Y/lebar/tinggi tetap ikut
-    `crop` seperti biasa. None/kosong = potongan ini statis seperti
-    sebelum fitur head tracking ada -- default, bukan hasil deteksi
-    otomatis; diaktifkan manual per titik framing di UI."""
+    `tracking` OPTIONAL: list of {t, left} (t seconds relative to the
+    START of this cut itself, left percent) -- if set, the X of the
+    `crop` box moves following this trajectory throughout the cut (see
+    sendcmd in _concat_filter), instead of staying at one position.
+    Y/width/height still follow `crop` as usual. None/empty = this cut is
+    static like before the head tracking feature existed -- the default,
+    not auto-detected; enabled manually per framing point in the UI."""
     start: float
     end: float
     crop: "CropBox | None" = None
@@ -77,8 +77,8 @@ class Span:
 
 @dataclass
 class CropBox:
-    """Rentang crop dalam PERSEN frame sumber, bukan piksel -- supaya tidak
-    bergantung pada resolusi sumbernya."""
+    """Crop range in PERCENT of source frame, not pixels -- so it doesn't
+    depend on the source resolution."""
     left: float = 37.0
     top: float = 4.0
     width: float = 26.0
@@ -94,20 +94,20 @@ class RenderJob:
     out_width: int = 1080
 
     def __post_init__(self):
-        # Validasi potongan: harus sorted & non-overlapping
+        # Validate cuts: must be sorted & non-overlapping
         for i, p in enumerate(self.spans):
             if p.end <= p.start:
                 raise ValueError(
-                    f"Potongan #{i+1} tidak sah: selesai ({p.end}) "
-                    f"harus lebih besar dari mulai ({p.start})")
+                    f"Cut #{i+1} is invalid: end ({p.end}) "
+                    f"must be greater than start ({p.start})")
             if i > 0 and p.start < self.spans[i-1].end:
                 raise ValueError(
-                    f"Potongan #{i+1} tumpang tindih dengan potongan #{i}")
+                    f"Cut #{i+1} overlaps with cut #{i}")
 
     @property
     def out_height(self) -> int:
-        # Dibulatkan genap: yuv420p (dipakai encode) menolak dimensi ganjil.
-        # out_width=1000 -> 1777 ganjil -> ffmpeg "height not divisible by 2".
+        # Rounded to even: yuv420p (used for encoding) rejects odd dimensions.
+        # out_width=1000 -> 1777 odd -> ffmpeg "height not divisible by 2".
         h = self.out_width * 16 // 9
         return h - (h & 1)
 
@@ -129,19 +129,19 @@ def _ass_time(d: float) -> str:
 
 
 def _ass_escape(text: str) -> str:
-    r"""Netralkan karakter yang punya arti khusus di teks Dialogue ASS.
+    r"""Neutralize characters that have special meaning in ASS Dialogue text.
 
-    `{` membuka blok override (`{\b1}`), `\` mengawali tag. Transkrip yang
-    memuat karakter ini -- mis. teks "{music}" -- akan ditafsirkan sebagai
-    perintah gaya, bukan ditampilkan. `\h` (spasi keras) dipakai supaya
-    penggantinya tidak ikut ditelan sebagai override kosong."""
+    `{` opens override blocks (`{\b1}`), `\` starts tags. Transcripts
+    containing these characters -- e.g. text "{music}" -- would be
+    interpreted as style commands instead of displayed. `\h` (hard space)
+    is used so the replacement isn't swallowed as an empty override."""
     return (text.replace("\\", r"\\")
                 .replace("{", r"\{")
                 .replace("}", r"\}"))
 
 
 def to_output_time(spans: list[Span], seconds: float) -> float | None:
-    """Peta waktu sumber -> waktu keluaran. None kalau jatuh di bagian dibuang."""
+    """Map source time -> output time. None if it falls in a discarded segment."""
     elapsed = 0.0
     for p in spans:
         if seconds < p.start:
@@ -152,44 +152,44 @@ def to_output_time(spans: list[Span], seconds: float) -> float | None:
     return None
 
 
-# Batas zona aman di panel preview (lihat .safe di ui/app.css,
-# top:16%, bottom:20%) -- watermark posisi "Top"/"Bottom" SENGAJA duduk
-# persis DI LUAR garis-garis ini (di atas yang atas, di bawah yang bawah),
-# bukan di dalamnya. Watermark bukan konten utama; kalau ada overlay UI
-# platform (tombol share, dsb.) menutupi pinggir, biar watermark yang
-# mengalah duluan, bukan wajah/caption.
+# Safe area bounds in the preview panel (see .safe in ui/app.css,
+# top:16%, bottom:20%) -- the "Top"/"Bottom" watermark positions are
+# DELIBERATELY placed OUTSIDE these lines (above the top, below the
+# bottom), not inside them. The watermark isn't main content; if a
+# platform UI overlay (share button, etc.) covers the edges, let the
+# watermark give way first, not the face/caption.
 SAFE_AREA_TOP_PERCENT = 16.0
 SAFE_AREA_BOTTOM_PERCENT = 20.0
 
 
 def _watermark_placement(mode: str, size: float, H: int,
                           caption_margin_bottom: int) -> tuple[int, int]:
-    """(Alignment ASS, MarginV) untuk posisi watermark.
+    """(ASS Alignment, MarginV) for watermark positioning.
 
-    Tinggi baris teks diperkirakan 1.3x ukuran font -- ASS tidak punya cara
-    mengukur tinggi glyph sungguhan tanpa benar-benar merender dulu, jadi
-    ini perkiraan, bukan presisi piksel. Cukup dekat untuk watermark satu
-    baris pendek seperti "klipian"."""
+    Text line height is estimated at 1.3x font size -- ASS has no way to
+    measure actual glyph height without truly rendering first, so this is
+    an approximation, not pixel-precise. Close enough for a short one-line
+    watermark like "klipian"."""
     line_height = size * 1.3
     if mode == "top":
-        # Alignment 8 = atas-tengah, MarginV dihitung dari ATAS. Tepi bawah
-        # watermark diusahakan pas di garis SAFE_AREA_TOP_PERCENT.
+        # Alignment 8 = top-center, MarginV counted from TOP. The bottom
+        # edge of the watermark is placed right at the SAFE_AREA_TOP_PERCENT line.
         margin = max(0, int(H * SAFE_AREA_TOP_PERCENT / 100 - line_height))
         return 8, margin
     if mode == "middle":
-        # Alignment 5 = tengah-tengah (vertikal DAN horizontal) -- MarginV
-        # tidak berlaku untuk alignment ini, libass mengabaikannya.
+        # Alignment 5 = dead center (vertical AND horizontal) -- MarginV
+        # doesn't apply for this alignment, libass ignores it.
         return 5, 0
-    # "bottom": dua syarat sekaligus -- (a) tepat DI BAWAH caption, margin
-    # lebih kecil dari margin caption (lebih dekat ke tepi) apa pun posisi
-    # caption yang dipilih, TAPI (b) SELURUH kotak teksnya (bukan cuma titik
-    # jangkarnya) tidak boleh masuk ke zona aman -- kalau caption-nya di
-    # Middle/Top, syarat (a) saja bisa mendorong watermark sampai ke DALAM
-    # zona aman (laporan nyata: watermark ketahuan masih di atas garis
-    # bawah zona aman). Tepi ATAS watermark (margin + tinggi_baris, karena
-    # Alignment 2 tumbuh ke atas dari titik jangkarnya) yang dibatasi supaya
-    # tidak lewat garis SAFE_AREA_BOTTOM_PERCENT -- persis logika "top" di
-    # atas, dicerminkan.
+    # "bottom": two conditions simultaneously -- (a) right BELOW caption,
+    # margin smaller than caption margin (closer to the edge) regardless of
+    # which caption position is chosen, BUT (b) the ENTIRE text box (not
+    # just its anchor point) must not enter the safe zone -- if the caption
+    # is at Middle/Top, condition (a) alone can push the watermark INTO the
+    # safe zone (real report: watermark was found above the bottom safe
+    # zone line). The TOP edge of the watermark (margin + line_height,
+    # because Alignment 2 grows upward from its anchor) is what's clamped
+    # to not cross SAFE_AREA_BOTTOM_PERCENT -- mirror image of the "top"
+    # logic above.
     caption_bottom_margin = max(int(H * 0.02),
                                caption_margin_bottom - int(line_height) - int(H * 0.01))
     margin_maks_zona_aman = max(0, int(H * SAFE_AREA_BOTTOM_PERCENT / 100 - line_height))
@@ -198,43 +198,43 @@ def _watermark_placement(mode: str, size: float, H: int,
 
 
 def build_ass(job: RenderJob, words: list[Word] | None, style: dict | None = None) -> str:
-    """Caption karaoke: satu peristiwa per kata, menampilkan barisnya utuh
-    dengan kata yang sedang diucapkan disorot. Watermark "klipian" ikut
-    ditulis di sini juga -- satu Dialogue statis sepanjang video, bukan
-    per-kata seperti caption -- supaya cuma satu file ASS dan satu filter
-    `ass=` yang perlu dijalankan ffmpeg, bukan dua lapis subtitle terpisah.
+    """Karaoke captions: one event per word, showing the full line with the
+    currently-spoken word highlighted. The "klipian" watermark is also
+    written here -- one static Dialogue spanning the entire video, not
+    per-word like captions -- so there's only one ASS file and one `ass=`
+    filter for ffmpeg to run, not two separate subtitle layers.
 
-    `words` boleh None: jalur watermark-tanpa-transkrip menulis ASS tanpa
-    satu kata caption pun."""
+    `words` may be None: the watermark-without-transcript path writes ASS
+    with no caption words at all."""
     words = words or []
-    # Warna ditulis dalam format ASS &HAABBGGRR& -- urutannya BIRU-HIJAU-MERAH,
-    # kebalikan dari hex web. Emas #FFD600 jadi &H0000D6FF&.
+    # Colors are written in ASS &HAABBGGRR& format -- order is
+    # BLUE-GREEN-RED, opposite of web hex. Gold #FFD600 becomes &H0000D6FF&.
     g = {"font": "Arial", "size": 84, "per_line": 3,
          "outline": 4, "position": 24,
-         "color": "&H00FFFFFF&",          # warna dasar teks
-         "highlight": "&H0000D6FF&",      # warna kata yang sedang diucapkan
-         "watermark": True,               # tombol on/off dari layar Captions
+         "color": "&H00FFFFFF&",          # base text color
+         "highlight": "&H0000D6FF&",      # color of the currently-spoken word
+         "watermark": True,               # on/off toggle from the Captions screen
          "watermark_size": 32,
-         "watermark_opacity": "80",       # alpha ASS: 00 penuh .. FF tak kelihatan
+         "watermark_opacity": "80",       # ASS alpha: 00 fully opaque .. FF invisible
          "watermark_position": "bottom",  # top | middle | bottom
          **(style or {})}
 
     W, H = job.out_width, job.out_height
     margin_bottom = int(H * g["position"] / 100)
-    # Baris Style memakai bentuk tanpa "&" penutup, tag \c memakai yang dengan.
+    # Style lines use the form without trailing "&", the \c tag uses the form with.
     warna_style = g["color"].rstrip("&")
 
     wm_align, wm_margin = _watermark_placement(
         g["watermark_position"], g["watermark_size"], H, margin_bottom)
-    # Alpha yang SAMA dipasang di warna ISI *dan* warna GARIS TEPI --
-    # sebelumnya cuma isi yang ikut warna_opacity, garis tepi dipatok hitam
-    # pekat tetap. Di latar terang garis tepi hitam itu tetap kontras
-    # berapa pun opacity dipilih -- kelihatan seperti "isi memudar, tepi
-    # tidak", bukan watermark yang memudar utuh sebagai satu kesatuan
-    # (laporan nyata dari ian, dan memang benar). ASS tidak punya properti
-    # "opacity" elemen seperti CSS -- alpha di channel warna INI yang jadi
-    # satu-satunya cara, jadi solusinya menyamakan alpha di semua warna
-    # yang dipakai, bukan mencari properti opacity yang memang tidak ada.
+    # The SAME alpha is applied to the FILL color *and* the OUTLINE color --
+    # previously only the fill followed watermark_opacity, the outline was
+    # locked to solid black. On bright backgrounds that black outline stays
+    # contrasting regardless of chosen opacity -- it looks like "fill fades,
+    # outline doesn't", not the watermark fading as a whole (real report
+    # from ian, and it was indeed correct). ASS has no per-element "opacity"
+    # property like CSS -- the alpha channel of THIS color is the only way,
+    # so the fix is to match the alpha across all colors used, not to look
+    # for an opacity property that doesn't exist.
     wm_color = f"&H{g['watermark_opacity']}FFFFFF"
     wm_outline_color = f"&H{g['watermark_opacity']}000000"
 
@@ -258,15 +258,15 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             f"Dialogue: 0,{_ass_time(0)},{_ass_time(job.duration)},"
             f"Watermark,,0,0,0,,klipian\n")
 
-    # hanya kata yang benar-benar masuk keluaran
+    # only words that actually land in the output
     used = []
     for w in words:
         a = to_output_time(job.spans, w.start)
         b = to_output_time(job.spans, w.end)
-        # Kata yang menaddle batas potongan (cut jatuh di tengah kata, atau
-        # kata menjembatani dua potongan bersebelahan): salah satu ujungnya
-        # None. Jangan buang -- jepit ke potongan yang beririsan supaya
-        # katanya tetap muncul selama audionya terdengar.
+        # Words that straddle a cut boundary (cut falls in the middle of a
+        # word, or a word bridges two adjacent cuts): one end is None.
+        # Don't discard -- clamp to the overlapping segment so the word
+        # still appears while the audio is audible.
         if a is None or b is None:
             for p in job.spans:
                 if w.end > p.start and w.start < p.end:      # ada irisan
@@ -278,12 +278,12 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             used.append((a, b, teks))
 
     events = []
-    per_line = max(1, int(g["per_line"]))   # 0/negatif akan crash range()
+    per_line = max(1, int(g["per_line"]))   # 0/negative would crash range()
     for i in range(0, len(used), per_line):
         group = used[i:i + per_line]
-        # Kapan kelompok berikutnya mulai. Kata terakhir tiap kelompok harus
-        # bertahan sampai titik itu -- kalau hanya sampai akhir katanya sendiri,
-        # caption berkedip di setiap pergantian baris.
+        # When the next group starts. The last word in each group must hold
+        # until that point -- if it only lasts to its own end, captions
+        # flicker at every line break.
         next_start = used[i + per_line][0] if i + per_line < len(used) else None
 
         for j, (a, b, _) in enumerate(group):
@@ -292,11 +292,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 for k, (_, _, t) in enumerate(group)
             )
             if j < len(group) - 1:
-                end = group[j + 1][0]          # sampai kata berikutnya
+                end = group[j + 1][0]          # until the next word
             elif next_start is not None:
-                end = next_start               # sampai baris berikutnya
+                end = next_start               # until the next line
             else:
-                end = b + 0.4                     # baris terakhir, beri sisa napas
+                end = b + 0.4                     # last line, give some breathing room
             events.append(
                 f"Dialogue: 0,{_ass_time(a)},{_ass_time(end)},Utama,,0,0,0,,{text}")
 
@@ -309,34 +309,34 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
 def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
                    crop_first: bool, dest: "Path | None" = None) -> str:
-    """Potong tiap bagian lalu sambung. setpts/asetpts wajib -- tanpa itu
-    potongan kedua mewarisi timestamp aslinya dan hasilnya melompat.
+    """Cut each segment then join. setpts/asetpts are mandatory -- without
+    them the second segment inherits its original timestamp and the output
+    jumps.
 
-    crop_first=True membingkai TIAP potongan sebelum disambung, bukan sesudah.
-    Itulah yang memungkinkan framing berpindah di tengah klip: potongan 1
-    menyorot orang kiri, potongan 2 menyorot orang kanan.
+    crop_first=True frames EACH segment before joining, not after. That's
+    what allows framing to shift mid-clip: cut 1 points at the left
+    person, cut 2 points at the right person.
 
-    Potongan yang punya `crops` dibingkai split: dipotong dua kali dari frame
-    yang sama lalu ditumpuk atas-bawah. Jadi satu klip bisa berganti-ganti
-    antara satu bingkai dan dua bingkai di titik mana pun.
+    Segments with `crops` are split-framed: cut twice from the same frame
+    then stacked top-to-bottom. So a clip can alternate between one frame
+    and two frames at any point.
 
-    Potongan yang punya `tracking` (head tracking, opsional per titik
-    framing) X-nya BERGERAK mengikuti lintasan lewat filter `sendcmd` --
-    lihat blok di bawah untuk alasan kenapa tiap potongan yang di-track
-    butuh BERKAS PERINTAH SENDIRI (tidak satu berkas dibagi bersama).
-    `dest` wajib diisi kalau ADA span yang di-track (dipakai membentuk nama
-    berkas perintahnya, di folder yang sama dengan tujuan render -- pola
-    yang sama seperti `ass_path` di render()); tidak dipakai sama sekali
-    kalau tidak ada span yang di-track.
+    Segments with `tracking` (head tracking, optional per framing point)
+    have their X MOVING along a trajectory via the `sendcmd` filter --
+    see the block below for why each tracked segment needs its OWN
+    COMMAND FILE (not one shared across all). `dest` is required when ANY
+    span is tracked (used to form the command file name, in the same
+    folder as the render destination -- same pattern as `ass_path` in
+    render()); not used at all when no span is tracked.
     """
     even = lambda v: max(2, int(v) // 2 * 2)
     W, H = job.out_width, job.out_height
 
     def box_pixels(c: "CropBox") -> tuple[int, int, int, int]:
-        # Ukuran & offset dijepit ke dalam frame sumber: kalau left+width>100
-        # (mis. titik framing diseret ke tepi kanan) ffmpeg abort dengan
-        # "Invalid too big or non positive size". Jepit lebar dulu, lalu offset
-        # supaya x+w tidak pernah melewati batas.
+        # Size & offset are clamped to fit within the source frame: if
+        # left+width>100 (e.g. framing point dragged to the right edge)
+        # ffmpeg aborts with "Invalid too big or non positive size". Clamp
+        # width first, then offset so x+w never exceeds the boundary.
         cw = even(min(src_width, src_width * c.width / 100))
         ch = even(min(src_height, src_height * c.height / 100))
         cx = even(max(0, min(src_width - cw, src_width * c.left / 100)))
@@ -351,18 +351,17 @@ def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
     for i, span in enumerate(job.spans):
         v = f"[0:v]trim=start={span.start:.3f}:end={span.end:.3f},setpts=PTS-STARTPTS"
         if crop_first and span.crops and len(span.crops) >= 2:
-            # Bingkai split: SATU potongan yang sama dipotong dua kali lalu
-            # ditumpuk. split=2 wajib -- satu keluaran filter tidak boleh
-            # dipakai dua kali sebagai masukan. Head tracking TIDAK didukung
-            # di format split (v1) -- span.tracking diabaikan di sini kalau
-            # sampai ada, sama seperti klien memang tidak pernah mengirimnya
-            # untuk titik format Split.
+            # Split frame: ONE segment cut twice then stacked. split=2 is
+            # mandatory -- a single filter output can't be used twice as
+            # input. Head tracking is NOT supported in split format (v1) --
+            # span.tracking is ignored here if it ever shows up, since the
+            # client never sends it for Split-format points anyway.
             top, bottom = span.crops[0], span.crops[1]
             h2 = even(H / 2)
             parts.append(f"{v},split=2[s{i}a][s{i}b]")
             parts.append(f"[s{i}a]{box(top)},scale={W}:{h2},setsar=1[c{i}a]")
             parts.append(f"[s{i}b]{box(bottom)},scale={W}:{h2},setsar=1[c{i}b]")
-            # scale penutup menjaga tinggi tetap H kalau H/2 dibulatkan.
+            # Closing scale keeps height at H when H/2 is rounded.
             parts.append(f"[c{i}a][c{i}b]vstack=inputs=2,scale={W}:{H},setsar=1[v{i}]")
             parts.append(f"[0:a]atrim=start={span.start:.3f}:end={span.end:.3f},"
                          f"asetpts=PTS-STARTPTS[a{i}]")
@@ -370,29 +369,28 @@ def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
         if crop_first:
             c = span.crop or job.crop
             if span.tracking and len(span.tracking) >= 2:
-                # X kotak ini BERGERAK mengikuti lintasan (head tracking),
-                # bukan diam -- Y/lebar/tinggi tetap statis dari `c` seperti
-                # biasa (cuma sumbu X yang dilacak, konsisten dengan
-                # facebox.py). Kotak dikasih id UNIK (@trk{i}) dan
-                # dikomando lewat sendcmd dari berkas perintah KHUSUS
-                # potongan ini sendiri.
+                # This box's X MOVES along a trajectory (head tracking),
+                # not static -- Y/width/height remain fixed from `c` as
+                # usual (only the X axis is tracked, consistent with
+                # facebox.py). The box gets a UNIQUE id (@trk{i}) and is
+                # controlled via sendcmd from a command file SPECIFIC to
+                # this segment.
                 #
-                # KENAPA SATU BERKAS PER POTONGAN, bukan satu berkas dibagi
-                # semua potongan yang di-track: `t` di dalam sendcmd itu
-                # relatif ke waktu LOKAL potongan yang MEMBACA berkas itu
-                # (0 di awal potongan, karena setpts di atas mereset tiap
-                # potongan ke 0 sendiri-sendiri). Kalau satu berkas berisi
-                # baris untuk BEBERAPA potongan sekaligus, sendcmd milik
-                # potongan A akan ikut mencoba menjalankan baris milik
-                # potongan B setiap kali waktu lokal A kebetulan sama
-                # angkanya dengan waktu lokal B -- pergantian kotak yang
-                # SALAH, di potongan yang SALAH. Berkas terpisah per
-                # potongan menutup celah itu sepenuhnya: sendcmd potongan
-                # ini cuma pernah membaca baris milik potongan ini sendiri.
+                # WHY ONE FILE PER SEGMENT, not one file shared across all
+                # tracked segments: `t` inside sendcmd is relative to the
+                # LOCAL time of the segment that READS the file (0 at the
+                # segment start, because setpts above resets each segment
+                # to 0 independently). If one file contained lines for
+                # MULTIPLE segments at once, sendcmd for segment A would
+                # also try to execute segment B's lines whenever A's local
+                # time happens to match B's numbers -- wrong box change, in
+                # the WRONG segment. Separate files per segment close this
+                # gap entirely: sendcmd for this segment only ever reads
+                # lines belonging to this segment itself.
                 if dest is None:
                     raise RuntimeError(
-                        "internal: _concat_filter butuh `dest` untuk span "
-                        "yang di-track (head tracking).")
+                        "internal: _concat_filter needs `dest` for a span "
+                        "that is tracked (head tracking).")
                 cw, ch, _, cy = box_pixels(c)
 
                 def cx_from_percent(percent: float, _cw=cw) -> int:
@@ -400,11 +398,11 @@ def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
 
                 tag = f"trk{i}"
                 cmd_path = dest.parent / f"{dest.stem}.track{i}.cmd"
-                # Target di baris perintah HARUS bentuk penuh "crop@id", bukan
-                # id polos -- dipastikan lewat uji coba langsung: id polos
-                # cuma "kebetulan" jalan kalau id-nya sama dengan nama filter
-                # ("crop"), dan gagal DIAM-DIAM (tanpa error apa pun, cuma
-                # tidak pernah bergerak) untuk id kustom apa pun selain itu.
+                # The target in command lines MUST be the full "crop@id" form,
+                # not a bare id -- confirmed by direct testing: bare ids only
+                # "happen to work" when the id matches the filter name
+                # ("crop"), and SILENTLY fail (no error at all, just never
+                # moves) for any custom id other than that.
                 lines = [
                     f"{kf['t']:.3f} crop@{tag} x {cx_from_percent(kf['left'])};"
                     for kf in span.tracking
@@ -427,19 +425,19 @@ def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
 
 def build_filter(job: RenderJob, src_width: int, src_height: int,
                  ass_path: Path | None, dest: Path | None = None) -> str:
-    # Layout blur memakai seluruh frame, jadi crop-nya tidak berarti apa-apa;
-    # potongannya disambung dulu baru dikaburkan. Layout wajah sebaliknya:
-    # tiap potongan dibingkai sendiri supaya framing bisa berpindah.
+    # Blur layout uses the full frame, so crop is meaningless; segments
+    # are joined first then blurred. Face layout is the opposite: each
+    # segment is framed independently so framing can shift.
     crop_first = job.layout != "blur"
-    # `dest` cuma dipakai _concat_filter() kalau ADA span yang di-track
-    # (head tracking) -- lihat alasan berkas-terpisah-per-potongan di sana.
+    # `dest` is only used by _concat_filter() when ANY span is tracked
+    # (head tracking) -- see the per-segment file reasoning there.
     trim_chain = _concat_filter(job, src_width, src_height, crop_first, dest)
 
     even = lambda v: max(2, int(v) // 2 * 2)
     W, H = job.out_width, job.out_height
 
     if job.layout == "blur":
-        # latar: seluruh frame diperbesar dan dikaburkan; depan: frame utuh
+        # background: full frame scaled and blurred; foreground: full frame
         video_chain = (
             f"[vc]split=2[bg][fg];"
             f"[bg]crop={even(src_height*9/16)}:{src_height}:{even((src_width-src_height*9/16)/2)}:0,"
@@ -448,15 +446,16 @@ def build_filter(job: RenderJob, src_width: int, src_height: int,
             f"[bgb][fgs]overlay=(W-w)/2:(H-h)/2[vv]"
         )
     else:
-        # sudah di-crop dan di-skala per potongan di atas
+        # already cropped and scaled per segment above
         video_chain = "[vc]null[vv]"
 
     if ass_path:
         path = _escape_filter_path(str(ass_path))
-        # fontsdir menunjuk libass ke assets/fonts/ -- tanpa ini "Mona Sans
-        # ExtraBold" (dipakai style Watermark di build_ass) tidak ketemu
-        # kecuali kebetulan sudah terpasang sebagai font sistem, dan libass
-        # diam-diam jatuh ke font pengganti yang tidak mirip logo sama sekali.
+        # fontsdir points libass to assets/fonts/ -- without this "Mona Sans
+        # ExtraBold" (used by the Watermark style in build_ass) won't be
+        # found unless it happens to be installed as a system font, and
+        # libass silently falls back to a substitute font that doesn't look
+        # anything like the logo.
         fontsdir = _escape_filter_path(str(FONTS_DIR))
         video_chain += f";[vv]ass='{path}':fontsdir='{fontsdir}'[vout]"
     else:
@@ -466,11 +465,11 @@ def build_filter(job: RenderJob, src_width: int, src_height: int,
 
 
 def safe_filename(title: str, fallback: str) -> str:
-    """Judul klip -> nama berkas. Satu aturan, dipakai server dan CLI.
+    """Clip title -> filename. One rule, used by both server and CLI.
 
-    Sebelumnya aturan ini ditulis ulang di tiga tempat dengan dua perilaku
-    berbeda, jadi nama yang ditampilkan UI tidak selalu sama dengan nama yang
-    benar-benar ditulis ke disk.
+    Previously this logic was reimplemented in three places with two
+    different behaviors, so the name displayed by the UI didn't always
+    match what was actually written to disk.
     """
     kept = "".join(c if c.isalnum() or c in "- " else " " for c in title)
     name = "-".join(kept.lower().split())
@@ -478,7 +477,7 @@ def safe_filename(title: str, fallback: str) -> str:
 
 
 class RenderCancelled(RuntimeError):
-    """Render dihentikan atas permintaan (mis. tombol Cancel di UI)."""
+    """Render stopped on request (e.g. Cancel button in the UI)."""
 
 
 def render(source: Path, job: RenderJob, dest: Path,
@@ -486,15 +485,15 @@ def render(source: Path, job: RenderJob, dest: Path,
            src_width: int = 1920, src_height: int = 1080,
            has_audio: bool = True, verbose: bool = True,
            cancel_check=None) -> Path:
-    """cancel_check: callable tanpa argumen yang mengembalikan True kalau
-    render harus dibatalkan. Diperiksa berkala selama ffmpeg berjalan; kalau
-    True, proses ffmpeg dibunuh dan RenderCancelled dilempar."""
+    """cancel_check: zero-argument callable that returns True if the render
+    should be cancelled. Checked periodically while ffmpeg runs; if True,
+    the ffmpeg process is killed and RenderCancelled is raised."""
     if not job.spans:
         raise RuntimeError("No spans to render.")
     if not has_audio:
-        # Filter graph di bawah selalu memakai [0:a]. Tanpa penjaga ini ffmpeg
-        # gagal dengan "Stream specifier ':a' in filtergraph description" --
-        # pesan yang tidak berarti apa-apa bagi pengguna.
+        # The filter graph below always uses [0:a]. Without this guard ffmpeg
+        # fails with "Stream specifier ':a' in filtergraph description" --
+        # a message that means nothing to the user.
         raise RuntimeError(
             f"{source.name} has no audio track, so it cannot be turned into "
             f"a clip. Use a source file that has sound.")
@@ -502,12 +501,12 @@ def render(source: Path, job: RenderJob, dest: Path,
     ffmpeg = _require("ffmpeg")
     dest.parent.mkdir(parents=True, exist_ok=True)
 
-    # Dulu file ASS cuma dibuat kalau ADA kata caption (`if words:`) --
-    # masuk akal selama ASS-nya cuma untuk caption. Sekarang watermark juga
-    # lewat file yang sama (lihat build_ass()), dan itu harus tetap muncul
-    # walau tidak ada satu kata pun (transkrip belum ada, atau caption
-    # sengaja dimatikan) -- jadi gate-nya sekarang "ada YANG PERLU ditulis
-    # ke ASS", bukan "ada kata".
+    # Previously the ASS file was only created when THERE WERE caption words
+    # (`if words:`) -- reasonable while ASS was only for captions. Now the
+    # watermark also goes through the same file (see build_ass()), and it
+    # must still appear even with zero words (transcript not yet available,
+    # or captions deliberately turned off) -- so the gate is now "is there
+    # ANYTHING that needs writing to ASS", not "are there words".
     watermark_enabled = (style or {}).get("watermark", True)
     ass_path = None
     if words or watermark_enabled:
@@ -532,10 +531,10 @@ def render(source: Path, job: RenderJob, dest: Path,
                 str(dest),
             ]
 
-        # has_encoder hanya membuktikan encodernya ada di build ffmpeg, bukan
-        # bahwa driver di mesin ini bisa memakainya. Kalau QSV gagal, ulangi
-        # sekali dengan libx264 -- lebih lambat, tapi jadi, dan itu yang
-        # dibutuhkan pengguna.
+        # has_encoder only proves the encoder exists in this ffmpeg build, not
+        # that the driver on this machine can use it. If QSV fails, retry
+        # once with libx264 -- slower, but it works, and that's what the
+        # user needs.
         encoder_order = ["h264_qsv", "libx264"] if has_encoder("h264_qsv") else ["libx264"]
         result_err = None
         for i, encoder in enumerate(encoder_order):
@@ -551,27 +550,27 @@ def render(source: Path, job: RenderJob, dest: Path,
                 print(f"  {encoder} failed, retrying with {encoder_order[i+1]}")
 
         tail = (result_err or "").strip().splitlines()[-14:]
-        raise RuntimeError("ffmpeg gagal:\n" + "\n".join(tail))
+        raise RuntimeError("ffmpeg failed:\n" + "\n".join(tail))
 
     finally:
-        # Bersihkan ASS file yang tertinggal kalau render gagal
+        # Clean up leftover ASS file if render failed
         if ass_path and ass_path.exists():
             ass_path.unlink(missing_ok=True)
-        # Berkas perintah sendcmd (head tracking) -- satu per potongan yang
-        # di-track, ditulis langsung oleh _concat_filter(). Namanya tidak
-        # diketahui di sini (dibentuk di dalam fungsi itu), jadi dicari lewat
-        # pola nama alih-alih daftar path eksplisit.
+        # sendcmd command files (head tracking) -- one per tracked segment,
+        # written directly by _concat_filter(). The names aren't known here
+        # (formed inside that function), so they're found by name pattern
+        # instead of an explicit path list.
         for cmd_path in dest.parent.glob(f"{dest.stem}.track*.cmd"):
             cmd_path.unlink(missing_ok=True)
 
 
 def _run_ffmpeg(cmd: list[str], cancel_check, dest: Path) -> tuple[int, str]:
-    """Jalankan ffmpeg dengan dukungan pembatalan. Kembalikan (returncode, stderr).
+    """Run ffmpeg with cancellation support. Return (returncode, stderr).
 
-    Pakai Popen + poll, bukan subprocess.run, supaya bisa memeriksa cancel_check
-    secara berkala dan membunuh ffmpeg di tengah encode -- bukan cuma di antara
-    klip. Timeout 1 jam tetap ditegakkan. Kalau dibatalkan, berkas keluaran
-    yang setengah jadi dihapus."""
+    Uses Popen + poll, not subprocess.run, so cancel_check can be
+    checked periodically and ffmpeg killed mid-encode -- not just between
+    clips. A 1-hour timeout is enforced. If cancelled, the partial output
+    file is deleted."""
     import time as _time
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     mulai = _time.time()
@@ -582,18 +581,18 @@ def _run_ffmpeg(cmd: list[str], cancel_check, dest: Path) -> tuple[int, str]:
                 stderr = err.decode("utf-8", "replace") if err else ""
                 return proc.returncode, stderr
             except subprocess.TimeoutExpired:
-                pass                                # masih berjalan
+                pass                                # still running
             if cancel_check and cancel_check():
                 proc.kill()
                 proc.wait()
-                dest.unlink(missing_ok=True)        # buang keluaran setengah jadi
-                raise RenderCancelled("Render dibatalkan.")
+                dest.unlink(missing_ok=True)        # discard partial output
+                raise RenderCancelled("Render cancelled.")
             if _time.time() - mulai > 3600:
                 proc.kill()
                 proc.wait()
                 raise RuntimeError(
-                    "Render melebihi 1 jam dan dihentikan — berkas sumber "
-                    "mungkin rusak atau di drive jaringan yang menggantung.")
+                    "Render exceeded 1 hour and was stopped -- the source "
+                    "file may be corrupt or on a network drive that hung.")
     except RenderCancelled:
         raise
     except Exception:

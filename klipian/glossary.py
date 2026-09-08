@@ -1,19 +1,20 @@
-"""Glosarium istilah.
+"""Term glossary.
 
-Menyelesaikan masalah paling umum pada transkripsi Bahasa Indonesia: nama
-orang, nama brand, dan istilah teknis yang salah didengar model. Dipakai dua
-kali dalam satu jalur:
+Solves the most common issues in Indonesian language transcription: proper
+names, brand names, and technical terms that the model mishears. Used twice
+in a pipeline:
 
-1. Sebagai `initial_prompt` ke Whisper -- model "dikenalkan" dulu dengan
-   istilah yang akan muncul, sehingga cenderung menuliskannya dengan benar.
-2. Sebagai koreksi find-replace setelah transkripsi, untuk yang tetap lolos.
+1. As `initial_prompt` to Whisper -- the model is "primed" with terms that
+   will appear, making it more likely to transcribe them correctly.
+2. As find-replace corrections after transcription, for terms that still
+   slip through.
 
-Format file (prompts/glossary.txt):
+File format (prompts/glossary.txt):
 
-    # baris berawalan pagar = komentar
-    Pegadaian                 <- istilah, masuk ke initial_prompt
+    # lines starting with # are comments
+    Pegadaian                 <- term, included in initial_prompt
     LoadRunner
-    pegadean => Pegadaian     <- koreksi, salah di kiri, benar di kanan
+    pegadean => Pegadaian     <- fix, misspelling on the left, correct on the right
 """
 
 from __future__ import annotations
@@ -23,11 +24,11 @@ from pathlib import Path
 
 
 def _bounded(word: str) -> str:
-    r"""Bungkus \b hanya di sisi yang berupa karakter word.
+    r"""Wrap \b only on sides that are word characters.
 
-    Tanpa ini, entri seperti "c++" jadi \bc\+\+\b -- dan \b sesudah "+"
-    menuntut karakter word sesudahnya, sehingga koreksinya tidak pernah
-    berlaku dan tidak ada yang memberi tahu penggunanya.
+    Without this, entries like "c++" become \bc\+\+\b -- and the \b after "+"
+    requires a word character after it, so the fix never actually matches
+    and nobody gets notified.
     """
     left = r"\b" if word[:1].isalnum() or word[:1] == "_" else ""
     right = r"\b" if word[-1:].isalnum() or word[-1:] == "_" else ""
@@ -39,12 +40,12 @@ class Glossary:
                  fixes: list[tuple[str, str]] | None = None):
         self.terms = terms or []
         self.fixes = fixes or []
-        # Pola dan peta dibangun sekali di sini, bukan setiap apply().
-        # apply() dipanggil sekali per kata: podcast 40 menit berarti ribuan
-        # kali membangun ulang pola yang isinya tidak pernah berubah.
-        # Diurut dari yang PALING PANJANG dulu: alternasi regex leftmost-first,
-        # jadi "c" sebelum "c++" akan menutupi "c++". Yang panjang harus dicoba
-        # duluan supaya cocokan terpanjang menang.
+        # Pattern and mapping are built once here, not on every apply().
+        # apply() is called once per word: a 40-minute podcast means thousands
+        # of rebuilds of a pattern that never changes content.
+        # Sorted by LONGEST first: regex alternation is leftmost-first,
+        # so "c" before "c++" would shadow "c++". Longer patterns must be
+        # tried first so the longest match wins.
         sorted_fixes = sorted(self.fixes, key=lambda wr: len(wr[0]), reverse=True)
         self._pattern = re.compile(
             "|".join(_bounded(w) for w, _ in sorted_fixes), re.IGNORECASE
@@ -80,8 +81,8 @@ class Glossary:
         return cls(terms, fixes)
 
     def initial_prompt(self, language: str = "id") -> str | None:
-        """Kalimat pembuka untuk Whisper. Ditulis natural, bukan daftar kaku --
-        model merespons lebih baik pada konteks berbentuk kalimat."""
+        """Opening sentence for Whisper. Written naturally, not as a rigid list --
+        the model responds better to sentence-shaped context."""
         if not self.terms:
             return None
         joined = ", ".join(self.terms)
@@ -90,25 +91,25 @@ class Glossary:
         return f"This conversation mentions the following terms and names: {joined}."
 
     def hotwords(self) -> str | None:
-        """Daftar istilah untuk parameter `hotwords` faster-whisper.
+        """Term list for faster-whisper's `hotwords` parameter.
 
-        Berbeda dari initial_prompt yang hanya mempengaruhi jendela pertama,
-        hotwords disisipkan ulang di setiap jendela 30 detik -- jadi istilahnya
-        tetap dikenali sampai akhir podcast, bukan cuma menit-menit awal.
+        Unlike initial_prompt which only affects the first window, hotwords
+        are re-injected every 30-second window -- so terms stay recognized
+        until the end of the podcast, not just the opening minutes.
         """
         return ", ".join(self.terms) if self.terms else None
 
     def apply(self, text: str) -> str:
-        """Koreksi find-replace, case-insensitive tapi mempertahankan batas kata.
+        """Find-replace correction, case-insensitive but preserving word boundaries.
 
-        Semua fix diterapkan dalam satu pass supaya tidak ada cascading
-        (fix 1 menghasilkan text yang lalu kena fix 2).
+        All fixes are applied in a single pass to avoid cascading
+        (fix 1 producing text that then triggers fix 2).
         """
         if not self._pattern:
             return text
-        # Satu regex gabungan (dibangun di __init__): \bpegadean\b|\bloadrunner\b|...
-        # re.sub dengan callable mengganti berdasarkan urutan match dalam text,
-        # bukan urutan di daftar -- jadi tidak ada cascading.
+        # Single combined regex (built in __init__): \bpegadean\b|\bloadrunner\b|...
+        # re.sub with a callable replaces based on match order in text,
+        # not list order -- so there is no cascading.
         def _swap(m: re.Match) -> str:
             return self._mapping[m.group(0).lower()]
 

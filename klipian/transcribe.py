@@ -18,13 +18,13 @@ from pathlib import Path
 from .glossary import Glossary
 from .models import Segment, Transcript, Word, fmt_duration
 
-# Model yang tersedia, dari cepat ke akurat.
+# Available models, from fast to accurate.
 MODELS = ["tiny", "base", "small", "medium", "large-v3-turbo", "large-v3"]
 DEFAULT_MODEL = "large-v3-turbo"
 
-# Diukur di Core Ultra 9 185H: 8 thread paling cepat, 22 justru turun karena
-# E-core ikut dipakai dan menghambat yang lain. Bawaan CTranslate2 (0) berarti
-# 4 thread saja -- kira-kira setengah kecepatannya, jadi jangan pakai 0.
+# Measured on Core Ultra 9 185H: 8 threads fastest, 22 actually slower because
+# E-cores get used and hold back the others. CTranslate2 default (0) means
+# only 4 threads -- roughly half the speed, so don't use 0.
 DEFAULT_THREADS = 8
 
 
@@ -37,15 +37,15 @@ def _load_backend():
         from faster_whisper import WhisperModel  # noqa: WPS433
     except ImportError as exc:  # pragma: no cover
         raise WhisperMissing(
-            "faster-whisper belum terpasang.\n"
-            "Jalankan:  pip install -r requirements.txt"
+            "faster-whisper not installed.\n"
+            "Run:  pip install -r requirements.txt"
         ) from exc
     return WhisperModel
 
 
 class _Progress:
-    """Progres berbasis posisi timestamp, bukan jumlah segmen -- lebih jujur
-    karena panjang tiap segmen tidak seragam."""
+    """Progress based on timestamp position, not segment count -- more honest
+    because segment lengths are uneven."""
 
     def __init__(self, total: float, enabled: bool = True):
         self.total = max(total, 0.001)
@@ -93,22 +93,22 @@ def transcribe(
     source_label: str | None = None,
     verbose: bool = True,
 ) -> Transcript:
-    """Transkripsikan file audio jadi objek Transcript."""
+    """Transcribe audio file into Transcript object."""
 
     WhisperModel = _load_backend()
     glossary = glossary or Glossary()
 
     if verbose:
-        # threads=0 diterjemahkan CTranslate2 jadi ~4 thread, BUKAN semua core.
-        # Menampilkan jumlah core untuk 0 itu menyesatkan.
+        # threads=0 is interpreted by CTranslate2 as ~4 threads, NOT all cores.
+        # Showing core count for 0 would be misleading.
         used = str(threads) if threads else "bawaan CTranslate2 (~4)"
         print(f"  model    : {model_size} ({compute_type}, CPU, {used} thread)")
         if glossary:
             print(f"  glosarium: {len(glossary.terms)} istilah, {len(glossary.fixes)} koreksi")
 
-    # Waktu muat model dipisah dari waktu transkripsi. Kalau digabung, angka
-    # "x realtime" jadi menyesatkan -- terutama pada pemakaian pertama ketika
-    # bobot model masih diunduh dari internet.
+    # Model load time is separated from transcription time. If combined,
+    # the "x realtime" number becomes misleading -- especially on first use
+    # when model weights are still downloading from the internet.
     load_started = time.time()
     model = WhisperModel(
         model_size,
@@ -127,8 +127,8 @@ def transcribe(
         word_timestamps=True,
         vad_filter=vad,
         vad_parameters={"min_silence_duration_ms": 500},
-        # Dimatikan supaya model tidak terjebak mengulang kalimat yang sama
-        # -- kegagalan klasik Whisper pada audio panjang.
+        # Disabled to prevent the model from getting stuck repeating the same
+        # sentence -- classic Whisper failure on long audio.
         condition_on_previous_text=False,
         initial_prompt=glossary.initial_prompt(language),
         hotwords=glossary.hotwords(),
@@ -148,10 +148,10 @@ def transcribe(
             )
             for w in (seg.words or [])
         ]
-        # Rekonstruksi segment text dari words yang sudah dikoreksi,
-        # jangan apply glossary lagi ke seg.text (akan double-apply).
-        # w.text dari Whisper sudah membawa spasi di depan (" halo"), jadi
-        # digabung tanpa pemisah -- kalau tidak, jadi spasi ganda.
+        # Reconstruct segment text from corrected words,
+        # don't apply glossary again to seg.text (would double-apply).
+        # w.text from Whisper already carries leading space (" hello"), so
+        # join without separator -- otherwise you get double spaces.
         seg_text = ("".join(w.text for w in words).strip() if words
                     else glossary.apply(seg.text))
         segments.append(

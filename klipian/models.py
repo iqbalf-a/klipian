@@ -1,8 +1,8 @@
-"""Kontrak data inti klipian.
+"""Core data contracts for klipian.
 
-Semua tahap pipeline (ingest -> transcribe -> select -> refine -> render)
-bicara lewat struktur di file ini. Kalau ada yang perlu diubah, ubah di sini
-dulu supaya tahap lain ikut menyesuaikan.
+All pipeline stages (ingest -> transcribe -> select -> refine -> render)
+communicate through the structures in this file. If anything needs to change,
+change it here first so other stages adjust accordingly.
 """
 
 from __future__ import annotations
@@ -14,19 +14,19 @@ from pathlib import Path
 
 
 def fmt_duration(seconds: float) -> str:
-    """Format durasi jadi H:MM:SS atau MM:SS."""
+    """Format duration as H:MM:SS or MM:SS."""
     m, s = divmod(int(seconds), 60)
     h, m = divmod(m, 60)
     return f"{h}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
 
 
-# Kata fungsi dan partikel percakapan Indonesia.
-# Diukur pada podcast 42 menit: 10.3% kata punya keyakinan di bawah 50%, tapi
-# hampir semuanya kata-kata ini -- pendek, diucapkan cepat, sering tumpang
-# tindih. Whisper ragu, tulisannya benar. Menandai semuanya membuat transkrip
-# terlihat rusak dan melatih pengguna mengabaikan peringatan.
-# Menyaringnya menurunkan penandaan dari 618 kata jadi 84 (1.4%), dan yang
-# tersisa memang salah dengar sungguhan.
+# Indonesian function words and conversational particles.
+# Measured on a 42-minute podcast: 10.3% of words had confidence below 50%,
+# but almost all of them were these words -- short, spoken fast, often
+# overlapping. Whisper is unsure, but the text is correct. Flagging them all
+# makes the transcript look broken and trains the user to ignore warnings.
+# Filtering them drops flagged words from 618 to 84 (1.4%), and the remainder
+# are genuinely misheard.
 STOPWORDS = set("""
 yang di ke dari ini itu dan atau tapi jadi kalau kalo gak nggak ga ya iya oke
 ada gue lu lo aku kamu saya kita mereka dia nya kan sih dong deh nah tuh kok
@@ -35,13 +35,14 @@ saja lagi terus karena emang sekarang waktu orang apa siapa gimana kenapa
 berapa satu dua tiga tidak akan pada dalam oleh agar supaya bahwa adalah
 """.split())
 
-LOW_CONF = 0.5      # batas keyakinan
-MIN_LEN_SUSPECT = 5   # kata pendek terlalu sering ragu untuk jadi sinyal
+LOW_CONF = 0.5      # confidence threshold
+MIN_LEN_SUSPECT = 5   # short words are too often uncertain to be a signal
 
 
 @dataclass
 class Word:
-    """Satu kata dengan timestamp. Fondasi caption karaoke dan cut presisi."""
+    """A single word with timestamp. Foundation for karaoke captions and
+    precision cuts."""
 
     text: str
     start: float
@@ -54,10 +55,10 @@ class Word:
 
     @property
     def suspect(self) -> bool:
-        """Layak ditandai sebagai kemungkinan salah dengar.
+        """Worth flagging as a likely mishearing.
 
-        Bukan sekadar `prob < 0.5`: itu menandai satu dari sepuluh kata dan
-        sebagian besar salah alarm. Lihat catatan di STOPWORDS.
+        Not simply `prob < 0.5`: that flags one in ten words and most are
+        false alarms. See the note above STOPWORDS.
         """
         t = re.sub(r"[^\w-]", "", self.text.strip().lower())
         return (self.prob < LOW_CONF
@@ -67,7 +68,7 @@ class Word:
 
 @dataclass
 class Segment:
-    """Satu kalimat/frasa dari Whisper, berisi kata-katanya."""
+    """One sentence/phrase from Whisper, containing its words."""
 
     text: str
     start: float
@@ -77,7 +78,7 @@ class Segment:
 
 @dataclass
 class MediaInfo:
-    """Hasil ffprobe."""
+    """Result of ffprobe."""
 
     path: str
     duration: float
@@ -112,7 +113,7 @@ class MediaInfo:
 
 @dataclass
 class Transcript:
-    """Transkrip lengkap satu video, dengan timestamp per kata."""
+    """Complete transcript for one video, with per-word timestamps."""
 
     source: str
     duration: float
@@ -123,11 +124,11 @@ class Transcript:
 
     @property
     def words(self) -> list[Word]:
-        """Daftar semua kata. Di-cache supaya tidak rebuild setiap akses.
+        """List of all words. Cached so we don't rebuild on every access.
 
-        Sentinel None, bukan `if not cache`: transkrip yang memang tak punya
-        kata (mis. cache lama segmen-saja) akan mem-build ulang list kosong
-        di SETIAP akses kalau penjaganya falsy."""
+        Sentinel None, not `if not cache`: a transcript that genuinely has
+        no words (e.g. an old segment-only cache) would rebuild an empty
+        list on EVERY access if the guard were falsy."""
         if self._words_cache is None:
             self._words_cache = [w for s in self.segments for w in s.words]
         return self._words_cache
@@ -138,18 +139,18 @@ class Transcript:
 
     @property
     def suspect_words(self) -> list[Word]:
-        """Kata yang layak dicek manusia -- calon isi glosarium."""
+        """Words worth checking by a human -- potential glossary entries."""
         return [w for w in self.words if w.suspect]
 
     def words_between(self, start: float, end: float) -> list[Word]:
-        """Kata-kata yang jatuh di dalam rentang waktu tertentu."""
+        """Words that fall within a given time range."""
         return [w for w in self.words if w.start >= start and w.end <= end]
 
-    # -- serialisasi -------------------------------------------------------
+    # -- serialization ------------------------------------------------------
 
     def to_dict(self) -> dict:
-        # _words_cache dibuang: asdict() ikut menyalinnya, dan kalau .words
-        # pernah diakses sebelum save() seluruh kata tersimpan dua kali.
+        # _words_cache is excluded: asdict() would copy it, and if .words
+        # was accessed before save(), all words would be stored twice.
         d = asdict(self)
         d.pop("_words_cache", None)
         return d
@@ -175,8 +176,8 @@ class Transcript:
 
     def save(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
-        # Tulis ke file sementara dulu, lalu rename — atomic di filesystem
-        # yang sama, supaya pembaca concurrently tidak dapat JSON setengah jadi.
+        # Write to a temporary file first, then rename -- atomic on the same
+        # filesystem, so concurrent readers don't get half-written JSON.
         tmp = path.with_suffix(".tmp")
         tmp.write_text(
             json.dumps(self.to_dict(), ensure_ascii=False, indent=1), encoding="utf-8"
@@ -187,11 +188,11 @@ class Transcript:
     def load(cls, path: Path) -> "Transcript":
         return cls.from_dict(json.loads(path.read_text(encoding="utf-8")))
 
-    # -- ekspor ------------------------------------------------------------
+    # -- export -------------------------------------------------------------
 
     def to_srt(self) -> str:
-        """SRT kalimat-level. Bukan untuk pipeline, hanya untuk dibaca manusia
-        atau dikoreksi manual kalau ada episode yang transkripnya kacau."""
+        """Sentence-level SRT. Not for the pipeline, just for humans to read
+        or manually correct when an episode's transcript is garbled."""
 
         def ts(t: float) -> str:
             ms = int(round(t * 1000))

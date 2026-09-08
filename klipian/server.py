@@ -1,18 +1,18 @@
-"""Server lokal — yang membuat tombol Render di UI benar-benar menghasilkan MP4.
+"""Local server -- what makes the Render button in the UI actually produce MP4.
 
-Halaman statis tidak bisa menjalankan ffmpeg. Selama UI cuma dilayani
-`http.server`, tombol Render tidak punya apa pun untuk dipanggil, dan
-progress yang ditampilkannya bohong. Berkas ini menutup lubang itu.
+Static pages can't run ffmpeg. As long as the UI is only served by
+`http.server`, the Render button has nothing to call, and the progress
+it displays is a lie. This file closes that gap.
 
-Sengaja memakai pustaka bawaan Python, bukan FastAPI: klipian menjaga
-instalasinya tetap ringan, dan untuk satu pengguna di satu mesin
-ThreadingHTTPServer sudah lebih dari cukup.
+Deliberately uses Python's built-in library, not FastAPI: klipian keeps
+its installation lightweight, and for one user on one machine
+ThreadingHTTPServer is more than enough.
 
     klipian serve            ->  http://127.0.0.1:5177
 
-Terikat ke 127.0.0.1 saja. Server ini membuka Explorer dan menjalankan
-ffmpeg atas permintaan HTTP; itu aman untuk alat lokal, tapi tidak boleh
-terjangkau dari jaringan.
+Bound to 127.0.0.1 only. This server opens Explorer and runs ffmpeg on
+HTTP requests; safe for a local tool, but must not be reachable from
+the network.
 """
 
 from __future__ import annotations
@@ -34,52 +34,52 @@ from .models import Transcript
 from . import render as engine
 
 ROOT = Path(__file__).resolve().parent.parent
-# Semua berkas kerja (video sumber, hasil render, cache, project, aset) ada
-# di SATU folder ini -- bukan tersebar (dulu samples/out/cache/projects/
-# content masing-masing di root), supaya orang yang baru pakai klipian tidak
-# bingung taruh video di mana (lihat workspace/README.md).
+# All working files (source video, rendered output, cache, project, assets)
+# live in THIS ONE folder -- not scattered (previously samples/out/cache/
+# projects/ each at root), so new klipian users aren't confused about where
+# to put videos (see workspace/README.md).
 WORKSPACE = ROOT / "workspace"
-SERVED_DIRS = ("ui", "prompts")   # folder di ROOT yang dilayani apa adanya
-# Sub-folder workspace/ yang boleh diakses langsung lewat URL /workspace/<...>
-# -- assets/ dan schedule/ SENGAJA tidak masuk sini, sama seperti projects/
-# di bawah: isinya cuma boleh lewat /api/workspace/... supaya nama berkas
-# tidak jadi permukaan serang tersendiri.
+SERVED_DIRS = ("ui", "prompts")   # folders under ROOT served as-is
+# Workspace sub-folders accessible directly via URL /workspace/<...> --
+# assets/ and schedule/ are deliberately excluded, same as projects/
+# below: their contents must only be accessed via /api/workspace/... so
+# file names don't become an attack surface on their own.
 WORKSPACE_SERVED = ("samples", "out", "cache")
 
-# Project TIDAK ikut dilayani sebagai berkas statis. Isinya hanya boleh lewat
-# /api/project supaya nama berkas tidak jadi permukaan serang tersendiri.
+# Projects are NOT served as static files. Their contents can only be
+# accessed via /api/project so file names don't become an attack surface.
 PROJECTS = WORKSPACE / "projects"
 
-# Operasional konten (jadwal upload, status klip) -- bukan bagian dari alur
-# render, dan sengaja BUKAN berkas statis, sama seperti projects/ di atas.
+# Operational content (upload schedule, clip status) -- not part of the
+# render flow, and deliberately NOT static files, same as projects/ above.
 CLIPS_PATH = WORKSPACE / "schedule" / "clips.json"
 ASSETS_DIR = WORKSPACE / "assets"
 
-# pekerjaan render yang sedang / sudah berjalan
+# Render jobs currently / already running
 JOBS: dict[str, dict] = {}
 LOCK = threading.Lock()
-# video -> id job transkripsi yang sedang berjalan, supaya tidak ada dua job
-# untuk berkas yang sama: yang selesai duluan menghapus wav sementara yang
-# masih dipakai yang lain
+# video -> running transcribe job id, so there aren't two jobs for the
+# same file: the first to finish deletes the temp wav the other is still using
 ACTIVE_TRANSCRIBES: dict[str, str] = {}
-MAX_JOBS = 100  # batas entries di TUGAS supaya tidak memory leak
-# Pratinjau cepat (/api/preview): berapa detik dari klip yang sungguhan
-# dirender lewat ffmpeg, dengan filter caption+watermark yang PERSIS sama
-# seperti render penuh -- bukan cuma pratinjau CSS di browser, yang pernah
-# terbukti bisa beda dari hasil ASS/ffmpeg asli (lihat bug opacity watermark).
-# 5 detik cukup untuk melihat gaya, tapi cukup pendek supaya tetap "cepat".
+MAX_JOBS = 100  # cap entries in JOBS to prevent memory leak
+# Quick preview (/api/preview): how many seconds of the clip are actually
+# rendered through ffmpeg, with the EXACT SAME caption+watermark filters
+# as the full render -- not just a CSS preview in the browser, which once
+# proved it could differ from the real ASS/ffmpeg output (see watermark
+# opacity bug). 5 seconds is enough to see the style, but short enough to
+# stay "quick".
 PREVIEW_MAX_SECONDS = 5.0
-# id job render yang diminta dibatalkan. _run_render memeriksanya lewat
-# cancel_check; render.py membunuh ffmpeg yang sedang berjalan kalau tercantum.
+# Render job ids marked for cancellation. _run_render checks via
+# cancel_check; render.py kills the running ffmpeg if listed.
 CANCELLED: set[str] = set()
 
 
 def _load_dotenv() -> None:
-    """Baca .env manual, tanpa dependency tambahan -- cuma baris KEY=VALUE.
+    """Read .env manually, no extra dependencies -- only KEY=VALUE lines.
 
-    Dipakai untuk HF_TOKEN (AI Framing). Variabel yang sudah diset di
-    environment (mis. lewat shell) TIDAK ditimpa -- .env cuma pengisi
-    kekosongan untuk pemakaian sehari-hari yang lebih nyaman."""
+    Used for HF_TOKEN (AI Framing). Variables already set in the
+    environment (e.g. via shell) are NOT overwritten -- .env only fills
+    gaps for more convenient daily use."""
     env_file = ROOT / ".env"
     if not env_file.is_file():
         return
@@ -92,9 +92,9 @@ def _load_dotenv() -> None:
 
 
 def _register_job(job_id: str, entry: dict):
-    """Prune + insert dalam SATU pegangan lock. Kalau insert dilakukan di luar
-    lock sementara thread lain sedang meng-iterasi JOBS (prune), Python melempar
-    'dictionary changed size during iteration' dan request-nya putus."""
+    """Prune + insert in a SINGLE lock hold. If insert is done outside the
+    lock while another thread is iterating JOBS (prune), Python throws
+    'dictionary changed size during iteration' and the request dies."""
     with LOCK:
         if len(JOBS) > MAX_JOBS:
             done = [k for k, v in JOBS.items()
@@ -109,9 +109,9 @@ def _register_job(job_id: str, entry: dict):
 # --------------------------------------------------------------------------
 
 def _on_battery() -> bool:
-    """Transkripsi di baterai bisa dua kali lebih lambat -- Intel membatasi
-    daya CPU, dan Whisper beban yang paling terasa terkena. Lebih baik
-    pengguna tahu sebelum menunggu 40 menit."""
+    """Transcription on battery can be twice as slow -- Intel throttles CPU
+    power, and Whisper is the workload most visibly affected. Better that
+    the user knows before waiting 40 minutes."""
     if sys.platform != "win32":
         return False
     try:
@@ -129,9 +129,9 @@ def _on_battery() -> bool:
 
 
 def _find_video(name: str) -> Path | None:
-    """Browser tidak memberi jalur lengkap, hanya nama berkas. Cari di folder
-    yang dijangkau server."""
-    # Cegah path traversal: hanya terima nama berkas tanpa direktori
+    """Browsers don't provide full paths, just filenames. Search the folders
+    the server can reach."""
+    # Prevent path traversal: only accept filenames without directory components
     if "/" in name or "\\" in name or ".." in name:
         return None
     for folder in ("samples", "", "out"):
@@ -142,9 +142,9 @@ def _find_video(name: str) -> Path | None:
 
 
 def _crop_from(d) -> "engine.CropBox | None":
-    """Crop per potongan dari JSON klien. Kalau tidak ada, dipakai crop
-    milik klipnya. Dipakai baik oleh render sungguhan maupun pratinjau
-    cepat -- dua jalur itu membaca bentuk `spans` yang persis sama."""
+    """Per-span crop from the client JSON. If absent, the clip's crop is
+    used. Shared by both the real render and the quick preview -- both
+    paths read the exact same `spans` format."""
     if not isinstance(d, dict):
         return None
     return engine.CropBox(
@@ -153,8 +153,8 @@ def _crop_from(d) -> "engine.CropBox | None":
 
 
 def _crops_from(d) -> "list[engine.CropBox] | None":
-    """Dua kotak untuk bingkai split. Kurang dari dua = bukan split, jadi
-    diabaikan dan potongan itu memakai satu kotak."""
+    """Two boxes for a split frame. Fewer than two = not a split, so ignored
+    and the segment uses a single box."""
     if not isinstance(d, list) or len(d) < 2:
         return None
     boxes = [_crop_from(x) for x in d[:2]]
@@ -162,11 +162,11 @@ def _crops_from(d) -> "list[engine.CropBox] | None":
 
 
 def _tracking_from(d) -> "list[dict] | None":
-    """Lintasan head tracking OPSIONAL per potongan -- daftar {t, left}
-    dari JSON klien (lihat track_head() di facebox.py yang mula-mula
-    menghasilkannya). Bukan data inti seperti crop: entri yang rusak
-    dibuang diam-diam, dan kurang dari 2 titik dianggap tidak ada
-    (potongan itu tetap statis) -- bukan menggagalkan seluruh render."""
+    """Optional per-segment head tracking trajectory -- list of {t, left}
+    from the client JSON (see track_head() in facebox.py which originally
+    produces it). Not core data like crop: corrupted entries are silently
+    discarded, and fewer than 2 points are treated as absent (the segment
+    stays static) -- rather than failing the entire render."""
     if not isinstance(d, list):
         return None
     result = []
@@ -181,9 +181,9 @@ def _tracking_from(d) -> "list[dict] | None":
 
 
 def _spans_from_clip(k: dict) -> "list[engine.Span]":
-    """`k["spans"]` (JSON klien) -> daftar engine.Span, siap dipakai RenderJob.
-    Satu bentuk, dipakai render sungguhan maupun pratinjau -- keduanya
-    menerima payload klip yang sama dari UI."""
+    """`k["spans"]` (client JSON) -> list of engine.Span, ready for RenderJob.
+    One format, used by both the real render and preview -- both receive
+    the same clip payload from the UI."""
     try:
         return [engine.Span(float(p["start"]), float(p["end"]),
                             _crop_from(p.get("crop")), _crops_from(p.get("crops")),
@@ -196,11 +196,12 @@ def _spans_from_clip(k: dict) -> "list[engine.Span]":
 
 
 def _clip_words(k: dict, fallback: list) -> list:
-    """Teks caption boleh dikirim UI. Itu dipakai kalau kamu membetulkan kata
-    yang salah dengar di layar Edit -- koreksinya milik result ini saja dan
-    TIDAK ditulis balik ke transkrip, karena transkrip punya alurnya sendiri.
-    `fallback` (transkrip dari cache/) dipakai kalau klip tidak mengirim
-    koreksinya sendiri, atau bentuknya tidak sah."""
+    """Caption text may be sent by the UI. It's used when you fix a
+    misheard word on the Edit screen -- the correction belongs to this
+    result only and is NOT written back to the transcript, because the
+    transcript has its own flow. `fallback` (transcript from cache/) is
+    used when the clip doesn't send its own corrections, or the format
+    is invalid."""
     if isinstance(k.get("words"), list) and k["words"]:
         try:
             from .models import Word
@@ -214,15 +215,17 @@ def _clip_words(k: dict, fallback: list) -> list:
 
 def _trim_for_preview(spans: "list[engine.Span]", max_seconds: float,
                        start_from: float = 0.0) -> "list[engine.Span]":
-    """Ambil sepotong pendek dari `spans`, sepanjang maksimal max_seconds,
-    dimulai `start_from` detik waktu KELUARAN (sesudah semua span disambung)
-    dari awal klip -- bukan selalu dari detik pertama. Klip yang panjang
-    (menit-an) nyaris tidak pernah terwakili oleh 3 detik pertamanya saja;
-    `start_from` biasanya posisi scrub yang sedang dilihat user di preview,
-    supaya pratinjau cepat benar-benar menunjukkan momen yang sedang dicek.
+    """Take a short slice from `spans`, up to max_seconds long, starting
+    `start_from` seconds of OUTPUT time (after all spans are joined) from
+    the beginning of the clip -- not always from the first second. Long
+    clips (minutes) are rarely represented by just their first 3 seconds;
+    `start_from` is usually the scrub position the user is looking at in
+    the preview, so the quick preview actually shows the moment being
+    checked.
 
-    Span TERAKHIR yang tercakup dipotong pas di batasnya alih-alih dibuang
-    utuh -- supaya pratinjau tetap sedekat mungkin ke batas yang diminta."""
+    The LAST span covered is trimmed exactly at the boundary instead of
+    being discarded whole -- so the preview stays as close as possible to
+    the requested boundary."""
     result = []
     remaining_skip = max(0.0, start_from)
     remaining = max_seconds
@@ -231,11 +234,11 @@ def _trim_for_preview(spans: "list[engine.Span]", max_seconds: float,
             if s.length <= remaining_skip:
                 remaining_skip -= s.length
                 continue
-            # Awal potongan ini digeser maju -- kalau ada lintasan tracking,
-            # waktunya (relatif ke awal LAMA) harus ikut digeser mundur
-            # sejumlah yang sama, bukan dibawa mentah (bakal salah tempat)
-            # ATAU didiamkan hilang (bakal jatuh ke kotak statis padahal
-            # titiknya sebenarnya di-track).
+            # This segment's start is shifted forward -- if there's tracking
+            # data, its times (relative to the OLD start) must be shifted
+            # back by the same amount, not passed through raw (would be
+            # misplaced) OR silently dropped (would fall back to a static
+            # box even though the point is actually tracked).
             s = engine.Span(s.start + remaining_skip, s.end, s.crop, s.crops,
                             _shift_tracking(s.tracking, remaining_skip))
             remaining_skip = 0
@@ -245,10 +248,10 @@ def _trim_for_preview(spans: "list[engine.Span]", max_seconds: float,
             result.append(s)
             remaining -= s.length
         else:
-            # Cuma akhirnya yang dipendekkan, awal (dan waktu tracking,
-            # relatif ke awal) tidak berubah -- keyframe yang jatuh sesudah
-            # batas baru tidak berbahaya dibawa apa adanya, sendcmd memang
-            # tidak akan pernah mencapai waktu itu di potongan sependek ini.
+            # Only the end is shortened, the start (and tracking times,
+            # relative to start) don't change -- keyframes falling after
+            # the new boundary are harmless if left as-is, sendcmd will
+            # never reach that time in a segment this short.
             result.append(engine.Span(s.start, s.start + remaining, s.crop, s.crops,
                                      s.tracking))
             remaining = 0
@@ -256,11 +259,11 @@ def _trim_for_preview(spans: "list[engine.Span]", max_seconds: float,
 
 
 def _shift_tracking(tracking: "list[dict] | None", offset: float) -> "list[dict] | None":
-    """Geser waktu tiap keyframe mundur `offset` detik -- dipakai saat span
-    yang di-track dipotong dari DEPAN untuk pratinjau cepat. Keyframe yang
-    jadi negatif (kejadiannya SEBELUM awal baru) dibuang; kurang dari 2
-    keyframe tersisa -> None (jatuh ke kotak statis, lebih aman daripada
-    lintasan yang keliru arah/waktunya)."""
+    """Shift every keyframe's time back by `offset` seconds -- used when a
+    tracked span is cut from the FRONT for a quick preview. Keyframes that
+    become negative (occurring BEFORE the new start) are discarded; fewer
+    than 2 keyframes remaining -> None (falls back to a static box, safer
+    than a trajectory with wrong direction/timing)."""
     if not tracking:
         return None
     shifted = [{"t": round(kf["t"] - offset, 3), "left": kf["left"]}
@@ -274,12 +277,12 @@ def _run_render(job_id: str, req: dict) -> None:
         video = _find_video(req["video"])
         if not video:
             raise FileNotFoundError(
-                f"{req['video']} tidak ada di folder yang dijangkau server. "
-                f"Taruh berkasnya di samples/.")
+                f"{req['video']} is not in a folder the server can reach. "
+                f"Put the file in samples/.")
 
-        # transkrip dipakai untuk caption; boleh tidak ada. Cari transkrip apa
-        # pun untuk video ini -- jangan menebak model/lang, karena tebakan yang
-        # meleset diam-diam menghilangkan caption tanpa pesan.
+        # Transcript used for captions; may be absent. Find ANY transcript
+        # for this video -- don't guess model/lang, because a wrong silent
+        # guess removes captions without a message.
         words = []
         try:
             cache = Cache(WORKSPACE / "cache")
@@ -304,10 +307,9 @@ def _run_render(job_id: str, req: dict) -> None:
                 t["current"] = k["title"]
                 t["index"] = i
 
-            # p["crop"] inilah yang membuat framing berpindah di tengah klip:
-            # tiap potongan dibingkai sendiri sebelum disambung. p["crops"]
-            # berisi dua kotak dan bikin potongan itu jadi bingkai split
-            # atas-bawah.
+            # p["crop"] is what makes framing shift mid-clip: each segment
+            # is framed independently before joining. p["crops"] holds two
+            # boxes and turns the segment into a top-bottom split frame.
             spans = _spans_from_clip(k)
             if not spans:
                 raise ValueError(f"Clip \"{k.get('title', '?')}\" has no spans.")
@@ -324,8 +326,8 @@ def _run_render(job_id: str, req: dict) -> None:
             name = engine.safe_filename(k["title"], f"klip-{i+1}")
             dest = out_dir / name
 
-            # Gaya caption datang dari layar Caption di UI. Kalau tidak
-            # dikirim, build_ass memakai bawaannya.
+            # Caption style comes from the Caption screen in the UI. If not
+            # sent, build_ass uses its defaults.
             style = k.get("style") if isinstance(k.get("style"), dict) else None
 
             clip_words = _clip_words(k, words)
@@ -359,15 +361,15 @@ def _run_render(job_id: str, req: dict) -> None:
             t["state"] = "failed"
             t["error"] = str(exc)
     finally:
-        CANCELLED.discard(job_id)                  # jangan bocor ke job id berikutnya
+        CANCELLED.discard(job_id)                  # don't leak to the next job id
 
 
 def _run_transcribe(job_id: str, req: dict) -> None:
-    """Transkripsi sungguhan dengan progress nyata.
+    """Real transcription with real progress.
 
-    Sebelumnya layar Analisis cuma menganimasikan bar selama 9 detik. Angkanya
-    memang diturunkan dari durasi file, tapi tidak ada yang benar-benar
-    ditranskripsi -- UI bergantung pada cache yang diisi lewat command.
+    Previously the Analysis screen just animated a bar for 9 seconds. The
+    numbers were derived from the file duration, but nothing was actually
+    transcribed -- the UI relied on cache filled via the command line.
     """
     t = JOBS[job_id]
     try:
@@ -382,11 +384,11 @@ def _run_transcribe(job_id: str, req: dict) -> None:
 
         cache = Cache(WORKSPACE / "cache")
 
-        # Sekali per video, TIDAK tergantung apakah transkripnya sendiri
-        # sudah ter-cache -- makanya dicek di sini, sebelum jalur cache-hit
-        # transkrip di bawah bisa saja return lebih awal dan melewatkan ini.
-        # Non-fatal dengan sengaja: kegagalan analisis energi tidak boleh
-        # menggagalkan transkripsi yang jauh lebih penting.
+        # Once per video, NOT dependent on whether the transcript itself
+        # is already cached -- that's why it's checked here, before the
+        # transcript cache-hit path below might return early and skip it.
+        # Deliberately non-fatal: a failed energy analysis must not fail
+        # the far more important transcription.
         epath = cache.energy_path(video)
         if not epath.exists():
             with LOCK:
@@ -418,8 +420,8 @@ def _run_transcribe(job_id: str, req: dict) -> None:
         with LOCK:
             t["stage"] = "audio"
 
-        # wav diberi akhiran id job: dua job untuk video yang sama tidak
-        # saling menghapus berkas sementara milik yang lain
+        # wav is given a job id suffix: two jobs for the same video don't
+        # delete each other's temporary files
         wav = cache.audio_path(video).with_suffix(f".{job_id}.wav")
         extract_audio(video, wav)
         if not wav.is_file():
@@ -429,14 +431,14 @@ def _run_transcribe(job_id: str, req: dict) -> None:
         with LOCK:
             t["stage"] = "transcribe"
 
-        # transcribe() mencetak progress ke stderr; di sini progresnya diambil
-        # dari posisi segmen supaya bisa dikirim ke UI
+        # transcribe() prints progress to stderr; here progress is read
+        # from segment positions so it can be sent to the UI
         import faster_whisper
         gloss = Glossary.load(ROOT / "prompts" / "glossary.txt")
-        # cpu_threads sengaja diset eksplisit. Bawaan faster-whisper (0)
-        # diterjemahkan CTranslate2 jadi 4 thread saja. Diukur di 185H:
-        # 8 thread paling cepat; 22 thread justru turun karena E-core ikut
-        # dipakai dan menghambat yang lain.
+        # cpu_threads is set explicitly on purpose. faster-whisper's default
+        # (0) is translated by CTranslate2 to just 4 threads. Benchmarked
+        # on 185H: 8 threads is fastest; 22 threads actually slows down
+        # because E-cores get used and bottleneck the others.
         wm = faster_whisper.WhisperModel(model, device="cpu", compute_type="int8",
                                          cpu_threads=int(req.get("threads", DEFAULT_THREADS)))
         segments_iter, meta = wm.transcribe(
@@ -472,30 +474,31 @@ def _run_transcribe(job_id: str, req: dict) -> None:
             t["error"] = str(exc)
     finally:
         with LOCK:
-            # Hanya lepaskan slot kalau MASIH milik job ini. Kalau tidak, job
-            # lain untuk video yang sama sudah mendaftar dan pop tanpa syarat
-            # akan menghapus pendaftaran MILIK DIA -- membuka celah job ganda.
+            # Only release the slot if it STILL belongs to this job. If not,
+            # another job for the same video has already registered and an
+            # unconditional pop would delete ITS registration -- opening a
+            # double-job race.
             name = req.get("video", "")
             if ACTIVE_TRANSCRIBES.get(name) == job_id:
                 ACTIVE_TRANSCRIBES.pop(name, None)
         try:
             for leftover in (WORKSPACE / "cache").glob(f"*.{job_id}.wav"):
-                leftover.unlink(missing_ok=True)       # wav sementara tidak pernah ditinggal
+                leftover.unlink(missing_ok=True)       # temp wav is never left behind
         except Exception:                          # noqa: BLE001
             pass
 
 
 def _run_diarize(job_id: str, req: dict) -> None:
-    """AI Framing: siapa bicara di detik berapa, dalam SATU klip. Sengaja
-    dibatasi ke rentang klip (bukan seluruh video) -- diarization ~impas
-    dengan durasi audio di CPU, dan klip cuma 30-45 detik, bukan puluhan
-    menit."""
+    """AI Framing: who speaks at what second, within ONE clip. Deliberately
+    limited to the clip range (not the whole video) -- diarization is
+    roughly 1:1 with audio duration on CPU, and clips are only 30-45
+    seconds, not tens of minutes."""
     t = JOBS[job_id]
     try:
         video = _find_video(req["video"])
         if not video:
             raise FileNotFoundError(
-                f"{req['video']} tidak ada di folder yang dijangkau server.")
+                f"{req['video']} is not in a folder the server can reach.")
         start = float(req.get("start", 0))
         end = float(req.get("end", 0))
         if end <= start:
@@ -515,15 +518,16 @@ def _run_diarize(job_id: str, req: dict) -> None:
 
 
 # ══════════════════════════════ project ══════════════════════════════
-# Sebelum ini klipian tidak menyimpan apa pun: muat ulang halaman dan seluruh
-# Result, titik framing, serta koreksi teks lenyap. Project menyimpannya jadi
-# satu JSON per video, di samping cache/ dan out/ -- bukan di localStorage,
-# supaya bertahan walau browser dibersihkan dan bisa dilihat serta di-backup
-# sebagai berkas biasa.
+# Before this, klipian saved nothing: reload the page and all Results,
+# framing points, and text corrections vanished. Project saves them as
+# one JSON per video, alongside cache/ and out/ -- not in localStorage,
+# so they survive browser clearing and can be viewed and backed up as
+# regular files.
 
 def _project_path(video: str) -> Path:
-    """Satu berkas per video. Kuncinya fingerprint yang sama dengan cache
-    transkrip, jadi video yang berubah isinya otomatis jadi project lain."""
+    """One file per video. Keyed by the same fingerprint as the transcript
+    cache, so a video whose content changes automatically becomes a
+    different project."""
     from .cache import fingerprint
     src = WORKSPACE / "samples" / Path(video).name
     fp = fingerprint(src) if src.exists() else "unknown"
@@ -531,12 +535,13 @@ def _project_path(video: str) -> Path:
 
 
 def _active_result(data: dict) -> dict:
-    """Bagian project yang berisi result/framing/title yang sedang aktif --
-    bentuk baru (satu project bisa punya beberapa Result tersimpan, lihat
-    SAVED_RESULTS/`results`+`activeResult` di projects.js) atau bentuk lama
-    (result/framing/title datar di level atas, dari sebelum fitur itu ada).
-    Project lama yang belum sempat dibuka ulang sejak fitur ini ada tetap
-    harus tampil benar di kartu beranda, bukan cuma project yang baru."""
+    """The part of a project containing the active result/framing/title --
+    new format (one project can have multiple saved Results, see
+    SAVED_RESULTS/`results`+`activeResult` in projects.js) or old format
+    (flat result/framing/title at top level, from before that feature
+    existed). Old projects that haven't been reopened since this feature
+    was added must still display correctly on the home card, not just
+    newer projects."""
     results = data.get("results")
     if isinstance(results, list) and results:
         active = data.get("activeResult")
@@ -549,12 +554,13 @@ def _active_result(data: dict) -> dict:
 
 
 def _project_summary(file: Path) -> dict | None:
-    """Bentuk ringkas untuk daftar di beranda -- tidak memuat seluruh isi.
+    """Compact form for the homepage listing -- doesn't load the full
+    contents.
 
-    Seluruh badan dibungkus try/except: berkas project bisa ditulis tangan
-    atau dari versi lama, jadi field yang bukan angka atau bentuk yang bukan
-    dict tidak boleh menjatuhkan seluruh daftar beranda. Yang rusak dilewati
-    diam-diam (return None)."""
+    The entire body is wrapped in try/except: project files can be
+    hand-edited or from older versions, so a non-numeric field or
+    non-dict shape must not crash the entire homepage listing. Corrupted
+    entries are silently skipped (return None)."""
     try:
         data = json.loads(file.read_text(encoding="utf-8"))
         st = file.stat()
@@ -573,9 +579,9 @@ def _project_summary(file: Path) -> dict | None:
             "seconds": round(total, 1),
             "at": int(st.st_mtime),
             "thumbAt": float(spans[0]["start"]) if spans and isinstance(spans[0], dict) else 0.0,
-            # Sampul memakai kotak framing project itu sendiri. Kalau memakai
-            # kotak bawaan, dua project dari video yang sama terlihat identik
-            # walau bingkainya berbeda jauh.
+            # Thumbnail uses the project's own framing box. If the default
+            # box were used, two projects from the same video would look
+            # identical even though their frames are very different.
             "crop": ((first_frame.get("crops") or [None])[0]),
         }
     except (OSError, ValueError, TypeError, KeyError, IndexError):
@@ -583,16 +589,17 @@ def _project_summary(file: Path) -> dict | None:
 
 
 # ═══════════════════════════════ workspace ═══════════════════════════════
-# Dashboard di /workspace: satu tempat untuk lihat hasil render (workspace/out/),
-# ngatur jadwal upload (clips.json), dan aset tambahan (workspace/assets/).
-# Terpisah dari project (state kerja per video) -- ini soal APA YANG TERJADI
-# SETELAH klip jadi MP4, bukan soal mengedit klipnya.
+# Dashboard at /workspace: one place to view render output (workspace/out/),
+# manage upload schedule (clips.json), and additional assets
+# (workspace/assets/). Separate from projects (per-video working state) --
+# this is about WHAT HAPPENS AFTER a clip becomes MP4, not about editing
+# the clip itself.
 
 def _load_clips() -> list[dict]:
-    """Satu berkas untuk semua klip -- beda dari project (satu berkas per
-    video) karena ini daftar flat yang dilihat lintas video sekaligus, mirip
-    spreadsheet. Berkas rusak atau belum ada dibalas daftar kosong, bukan
-    error -- dashboard yang belum pernah dipakai tidak boleh gagal muat."""
+    """One file for all clips -- unlike projects (one file per video)
+    because this is a flat list viewed across videos at once, like a
+    spreadsheet. Missing or corrupt files return an empty list, not an
+    error -- a dashboard that's never been used must not fail to load."""
     if not CLIPS_PATH.is_file():
         return []
     try:
@@ -603,8 +610,8 @@ def _load_clips() -> list[dict]:
 
 
 def _save_clips(clips: list[dict]) -> None:
-    """Tulis ke berkas sementara lalu ganti nama, sama seperti project --
-    proses yang mati di tengah penulisan tidak boleh merusak clips.json."""
+    """Write to a temporary file then rename, same as project -- a process
+    that dies mid-write must not corrupt clips.json."""
     CLIPS_PATH.parent.mkdir(parents=True, exist_ok=True)
     tmp = CLIPS_PATH.with_suffix(".tmp")
     tmp.write_text(json.dumps({"clip": clips}, ensure_ascii=False, indent=2),
@@ -613,10 +620,10 @@ def _save_clips(clips: list[dict]) -> None:
 
 
 def _thumbnail(video: Path, seconds: float, crop: dict, width: int) -> Path:
-    """Satu frame dari detik klipnya, sudah dipotong 9:16.
+    """One frame from the clip's second, already cropped to 9:16.
 
-    Kartu kandidat harus menampilkan wajah orang saat momen itu terjadi --
-    frame generik tidak membantu memilih klip mana yang diambil."""
+    Candidate cards need to show the person's face at that moment -- a
+    generic frame doesn't help decide which clip to pick."""
     from .ffmpeg_tools import _require, probe
     dest = WORKSPACE / "out" / video.stem / "thumbs" /         f"{int(seconds*10)}-{int(crop['left'])}-{int(crop['width'])}-{width}.jpg"
     if dest.exists():
@@ -636,7 +643,7 @@ def _thumbnail(video: Path, seconds: float, crop: dict, width: int) -> Path:
         "-vf", f"crop={cw}:{ch}:{cx}:{cy},scale={width}:-2",
         "-q:v", "4", str(dest)], capture_output=True)
     if result.returncode != 0:
-        # Thumbnail gagal — kembalikan path kosong supaya caller tahu
+        # Thumbnail failed -- return empty path so caller knows
         return Path()
     return dest
 
@@ -649,7 +656,7 @@ class Handler(BaseHTTPRequestHandler):
     server_version = "klipian"
 
     def log_message(self, format, *args):          # noqa: A002
-        if "/api/" in str(args):                   # diam untuk berkas statis
+        if "/api/" in str(args):                   # quiet for static files
             sys.stderr.write(f"  {args[0]}\n")
 
     # ---- util ----
@@ -663,24 +670,24 @@ class Handler(BaseHTTPRequestHandler):
         try:
             self.wfile.write(body)
         except ConnectionError:
-            # Dipanggil dari SEMUA endpoint API, termasuk polling
-            # /api/transcribe/<id> yang ditembak berulang tiap ~1 detik --
-            # reload/navigasi keluar di tengah satu permintaan itu wajar,
-            # bukan galat. Sama seperti alasan di _send_file().
+            # Called from ALL API endpoints, including the polling
+            # /api/transcribe/<id> that fires every ~1 second --
+            # reload/navigating away mid-request is normal, not an error.
+            # Same reason as in _send_file().
             pass
 
     def _read_json(self):
         n = int(self.headers.get("Content-Length", 0))
-        MAX_BODY = 10 * 1024 * 1024  # 10 MB — batas body request
+        MAX_BODY = 10 * 1024 * 1024  # 10 MB -- request body limit
         if n < 0:
-            raise ValueError("Content-Length negatif")
+            raise ValueError("Content-Length is negative")
         if n > MAX_BODY:
-            raise ValueError(f"Body terlalu besar ({n:,} byte, max {MAX_BODY:,})")
+            raise ValueError(f"Body too large ({n:,} bytes, max {MAX_BODY:,})")
         data = json.loads(self.rfile.read(n) or b"{}")
-        # Semua handler memanggil .get() -- body non-objek (list/angka/string)
-        # akan melempar AttributeError di luar try/except. Tolak di sini.
+        # All handlers call .get() -- a non-object body (list/number/string)
+        # would throw AttributeError outside try/except. Reject here.
         if not isinstance(data, dict):
-            raise ValueError("Body JSON harus berupa objek")
+            raise ValueError("JSON body must be an object")
         return data
 
     # ---- GET ----
@@ -688,8 +695,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):                              # noqa: N802
         path = unquote(urlparse(self.path).path)
 
-        # Salin dulu di dalam lock: thread render menulis dict yang sama, dan
-        # json.dumps yang mengiterasinya sambil berubah akan melempar
+        # Copy first inside the lock: the render thread writes to the same
+        # dict, and json.dumps iterating it while it changes will throw
         # "dictionary changed size during iteration".
         if (path.startswith("/api/render/") or path.startswith("/api/transcribe/")
                 or path.startswith("/api/diarize/")):
@@ -702,8 +709,8 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/thumb":
             q = parse_qs(urlparse(self.path).query)
-            # Query param non-numerik akan membuat float() melempar ValueError
-            # yang tidak tertangkap di do_GET -> koneksi putus tanpa respons.
+            # Non-numeric query params would make float() throw ValueError
+            # that's uncaught in do_GET -> connection drops without a response.
             def num(k, d):
                 try:
                     return float(q.get(k, [d])[0])
@@ -727,12 +734,12 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 self.wfile.write(data)
             except ConnectionError:
-                pass    # halaman ganti/tutup di tengah muat thumbnail -- wajar
+                pass    # page changed/closed mid-thumbnail load -- normal
             return
 
         if path == "/api/probe":
-            # UI perlu fps untuk melangkah per frame. Elemen <video> tidak
-            # pernah membocorkan angka itu, jadi ffprobe yang menjawab.
+            # UI needs fps to step per frame. The <video> element never
+            # exposes that number, so ffprobe is the answer.
             q = parse_qs(urlparse(self.path).query)
             video = _find_video(q.get("video", [""])[0])
             if not video:
@@ -748,9 +755,9 @@ class Handler(BaseHTTPRequestHandler):
             })
 
         if path == "/api/history":
-            # Riwayat dibaca dari isi folder out/, bukan dari ingatan sesi:
-            # berkas yang benar-benar ada di disk itulah riwayat yang jujur,
-            # dan tetap utuh setelah halaman dimuat ulang atau server mati.
+            # History is read from the out/ folder contents, not session
+            # memory: files that actually exist on disk are the honest
+            # history, and persist across page reloads or server restarts.
             item = []
             for mp4 in (WORKSPACE / "out").glob("*/*.mp4"):
                 try:
@@ -765,12 +772,12 @@ class Handler(BaseHTTPRequestHandler):
                     "mb": round(st.st_size / 1048576, 1),
                     "at": int(st.st_mtime),
                 })
-            item.sort(key=lambda x: x["at"], reverse=True)   # terbaru dulu
+            item.sort(key=lambda x: x["at"], reverse=True)   # newest first
             return self._send_json({"render": item})
 
         if path == "/api/projects":
-            # Daftar untuk beranda. Yang rusak dilewati diam-diam: satu berkas
-            # cacat tidak boleh membuat seluruh daftar gagal tampil.
+            # Listing for the homepage. Corrupted entries are silently
+            # skipped: one bad file must not crash the entire listing.
             item = []
             for f in PROJECTS.glob("*.json"):
                 r = _project_summary(f)
@@ -795,8 +802,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"clip": _load_clips()})
 
         if path == "/api/workspace/assets":
-            # Dibuat kalau belum ada -- folder kosong itu keadaan normal
-            # (belum pernah nambah watermark/template custom), bukan error.
+            # Created if missing -- an empty folder is normal
+            # (never added custom watermark/template), not an error.
             ASSETS_DIR.mkdir(parents=True, exist_ok=True)
             item = []
             for f in sorted(ASSETS_DIR.iterdir()):
@@ -808,18 +815,19 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"asset": item})
 
         if path == "/api/cache":
-            # UI perlu tahu transkrip apa saja yang tersedia. Server ini tidak
-            # membuat daftar direktori HTML seperti http.server, jadi
-            # disediakan endpoint sendiri.
+            # UI needs to know which transcripts are available. This server
+            # doesn't generate HTML directory listings like http.server, so
+            # a dedicated endpoint is provided.
             file = sorted(p.name for p in (WORKSPACE / "cache").glob("*.transcript.json"))
             return self._send_json({"transcript": file})
 
         if path == "/api/audio-energy":
-            # Dibaca terpisah dari job transkripsi -- analisisnya dipicu di
-            # _run_transcribe() (lihat energy_path()) dan hasilnya cuma
-            # berkas cache biasa. Klien tidak perlu tahu bedanya "belum
-            # sempat dianalisis" vs "dianalisis, tidak ada momen menonjol"
-            # -- dua-duanya balas daftar kosong, bukan error.
+            # Read separately from the transcription job -- the analysis is
+            # triggered in _run_transcribe() (see energy_path()) and the
+            # result is just a regular cache file. The client doesn't need
+            # to know the difference between "not yet analyzed" vs
+            # "analyzed, no notable moments" -- both return an empty list,
+            # not an error.
             q = parse_qs(urlparse(self.path).query)
             video = _find_video(q.get("video", [""])[0])
             if not video:
@@ -838,24 +846,24 @@ class Handler(BaseHTTPRequestHandler):
                             if p.suffix.lower() in {".mp4", ".mkv", ".mov", ".webm"})
             return self._send_json({"video": file})
 
-        # Editor di root "/" -- bukan "/ui/". "/ui" tetap dilayani (dipakai
-        # berkas statis lewat SERVED_DIRS di bawah), tapi bukan lagi alamat
-        # yang disorongkan ke pengguna: "ui" itu nama folder di disk, bukan
-        # nama halaman. Dulu "/" dialihkan (302) ke "/ui/" karena index.html
-        # memakai path skrip RELATIF yang meleset kalau disajikan di root --
-        # sekarang semua path aset di index.html/workspace.html absolut
-        # (/ui/css/..., /ui/js/...), jadi halamannya sendiri boleh disajikan
-        # di alamat mana pun tanpa redirect.
+        # Editor at root "/" -- not "/ui/". "/ui" is still served (used for
+        # static files via SERVED_DIRS below), but is no longer the address
+        # promoted to users: "ui" is a folder name on disk, not a page name.
+        # Previously "/" redirected (302) to "/ui/" because index.html used
+        # RELATIVE script paths that broke when served from root -- now all
+        # asset paths in index.html/workspace.html are absolute
+        # (/ui/css/..., /ui/js/...), so the pages themselves can be served
+        # at any address without redirects.
         if path.rstrip("/") in ("", "/ui"):
             path = "/ui/index.html"
         if path.rstrip("/") == "/workspace":
             path = "/ui/workspace.html"
 
-        # Membuang ".." saja TIDAK cukup di Windows: satu komponen berisi
-        # backslash atau huruf drive akan me-reset hasil joinpath, jadi
-        # "/ui/C:%5CWindows%5Cwin.ini" tadinya menyajikan berkas sistem.
-        # Komponen ditolak kalau mengandung pemisah jalur, lalu hasil akhirnya
-        # tetap diperiksa harus berada di dalam ROOT.
+        # Stripping ".." alone is NOT enough on Windows: a single path
+        # component containing a backslash or drive letter can reset the
+        # joinpath result, so "/ui/C:%5CWindows%5Cwin.ini" once served a
+        # system file. Components containing path separators are rejected,
+        # then the final result is still checked to be inside ROOT.
         parts = [b for b in path.strip("/").split("/") if b not in ("", ".", "..")]
         if not parts:
             return self._send_json({"error": "not served"}, 404)
@@ -881,12 +889,12 @@ class Handler(BaseHTTPRequestHandler):
         return self._send_file(file, mime)
 
     def _send_file(self, file: Path, mime: str) -> None:
-        """Kirim berkas per potongan, dan hormati header Range.
+        """Send files in chunks, respecting Range headers.
 
-        Dulu seluruh berkas dibaca ke memori lebih dulu -- video sumber 2 GB
-        berarti 2 GB RAM untuk satu permintaan. Accept-Ranges juga sudah
-        diiklankan padahal Range diabaikan, jadi seek di elemen <video> minta
-        potongan yang tidak pernah diberikan.
+        Previously the entire file was loaded into memory first -- a 2 GB
+        source video meant 2 GB of RAM for a single request. Accept-Ranges
+        was also advertised even though Range was ignored, so seeks in the
+        <video> element requested slices that were never delivered.
         """
         size = file.stat().st_size
         start, end = 0, size - 1
@@ -900,10 +908,10 @@ class Handler(BaseHTTPRequestHandler):
                     start = int(range_parts[0])
                     if len(range_parts) > 1 and range_parts[1].strip():
                         end = min(int(range_parts[1]), size - 1)
-                elif len(range_parts) > 1 and range_parts[1].strip():  # bytes=-500 (ekor)
+                elif len(range_parts) > 1 and range_parts[1].strip():  # bytes=-500 (tail)
                     start = max(0, size - int(range_parts[1]))
             except ValueError:
-                start, end = 0, size - 1                 # Range ngawur: kirim utuh
+                start, end = 0, size - 1                 # Malformed Range: send whole file
             else:
                 if start >= size or start > end:
                     self.send_response(416)
@@ -932,15 +940,16 @@ class Handler(BaseHTTPRequestHandler):
                 try:
                     self.wfile.write(blok)
                 except ConnectionError:
-                    # Pemutar menutup koneksi saat seek -- wajar, sering terjadi
-                    # setiap kali video di-scrub. BrokenPipeError/
-                    # ConnectionResetError sudah lama ditangkap di sini, tapi
-                    # Windows melempar ConnectionAbortedError (WinError 10053)
-                    # untuk kejadian yang SAMA PERSIS -- exception yang beda,
-                    # jadi lolos dan mencetak traceback penuh ke log tiap kali.
-                    # ConnectionError adalah induk ketiganya (juga
-                    # ConnectionRefusedError), jadi menangkap itu langsung
-                    # menutup celah ini untuk semua varian di semua OS.
+                    # Player closes the connection during seek -- normal,
+                    # happens every time the video is scrubbed.
+                    # BrokenPipeError/ConnectionResetError have been caught
+                    # here for a long time, but Windows throws
+                    # ConnectionAbortedError (WinError 10053) for the exact
+                    # same event -- different exception, so it slipped
+                    # through and printed a full traceback to the log each
+                    # time. ConnectionError is the parent of all three (also
+                    # ConnectionRefusedError), so catching that directly
+                    # closes this gap for all variants on all OS.
                     return
                 remaining -= len(blok)
 
@@ -957,8 +966,8 @@ class Handler(BaseHTTPRequestHandler):
             name = str(req.get("video") or "").strip()
             if not name:
                 return self._send_json({"error": "video required"}, 400)
-            # Nama berkas saja, tanpa komponen path -- nama dari klien tidak
-            # boleh menentukan DI MANA berkasnya ditulis.
+            # Filename only, no path components -- the name from the client
+            # must not determine WHERE the file is written.
             req["video"] = Path(name).name
             PROJECTS.mkdir(parents=True, exist_ok=True)
             f = _project_path(req["video"])
@@ -966,8 +975,8 @@ class Handler(BaseHTTPRequestHandler):
                 f.unlink(missing_ok=True)
                 return self._send_json({"ok": True, "deleted": True})
             req["at"] = int(time.time())
-            # Tulis ke berkas sementara lalu ganti nama: kalau proses mati di
-            # tengah penulisan, project lama tetap utuh, bukan separuh tertulis.
+            # Write to a temp file then rename: if the process dies mid-write,
+            # the old project stays intact, not half-written.
             tmp = f.with_suffix(".tmp")
             tmp.write_text(json.dumps(req, ensure_ascii=False), encoding="utf-8")
             tmp.replace(f)
@@ -981,11 +990,12 @@ class Handler(BaseHTTPRequestHandler):
 
             cid = str(req.get("id") or "")
 
-            # LOCK-kan seluruh baca-ubah-tulis: clips.json satu berkas dibagi
-            # semua request, dan server ini multi-thread (ThreadingHTTPServer).
-            # Tanpa ini, dua edit yang overlap bisa saling menimpa -- thread
-            # kedua menulis balik daftar yang dibacanya SEBELUM tulisan thread
-            # pertama selesai, dan perubahan pertama hilang tanpa galat.
+            # Lock the entire read-modify-write: clips.json is one file shared
+            # by all requests, and this server is multi-threaded
+            # (ThreadingHTTPServer). Without this, two overlapping edits can
+            # clobber each other -- the second thread writes back the list it
+            # read BEFORE the first thread's write finished, and the first
+            # change vanishes without an error.
             with LOCK:
                 clips = _load_clips()
 
@@ -1033,9 +1043,9 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as exc:               # noqa: BLE001
                 return self._send_json({"error": str(exc)}, 400)
             job_id = str(req.get("id") or "")
-            # Tandai untuk dibatalkan; _run_render / render() memeriksanya dan
-            # membunuh ffmpeg yang sedang berjalan. Idempoten -- menandai job
-            # yang sudah selesai tidak berbahaya (di-discard di finally).
+            # Mark for cancellation; _run_render / render() checks it and
+            # kills the running ffmpeg. Idempotent -- marking an already-
+            # finished job is harmless (discarded in finally).
             with LOCK:
                 ada = job_id in JOBS
             if ada:
@@ -1043,12 +1053,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"ok": ada})
 
         if path == "/api/preview":
-            # Render SUNGGUHAN lewat ffmpeg, cuma dipotong pendek -- bukan
-            # tiruan CSS di browser. Sinkron (bukan job queue seperti
-            # /api/render): PREVIEW_MAX_SECONDS cukup pendek untuk selesai
-            # dalam hitungan detik, dan ThreadingHTTPServer sudah menangani
-            # tiap request di thread-nya sendiri, jadi permintaan lain (poll
-            # antrian, dsb.) tidak ikut tertahan menunggu ini.
+            # REAL render through ffmpeg, just clipped short -- not a CSS
+            # imitation in the browser. Synchronous (not a job queue like
+            # /api/render): PREVIEW_MAX_SECONDS is short enough to finish
+            # in seconds, and ThreadingHTTPServer already handles each
+            # request in its own thread, so other requests (queue polling,
+            # etc.) aren't blocked waiting for this.
             try:
                 req = self._read_json()
                 k = req.get("clip")
@@ -1060,16 +1070,17 @@ class Handler(BaseHTTPRequestHandler):
             video = _find_video(req.get("video", ""))
             if not video:
                 return self._send_json(
-                    {"error": f"{req.get('video')} tidak ada di folder yang "
-                               f"dijangkau server."}, 404)
+                    {"error": f"{req.get('video')} is not in a folder the "
+                               f"server can reach."}, 404)
 
             try:
                 all_spans = _spans_from_clip(k)
                 start_from = float(req.get("startFrom") or 0)
                 spans = _trim_for_preview(all_spans, PREVIEW_MAX_SECONDS, start_from)
                 if not spans and start_from > 0:
-                    # Scrub jatuh persis di ekor klip (kurang dari sedetik
-                    # tersisa) -- daripada gagal, tampilkan dari awal saja.
+                    # Scrub landed exactly at the clip tail (less than one
+                    # second remaining) -- rather than failing, show from
+                    # the beginning.
                     spans = _trim_for_preview(all_spans, PREVIEW_MAX_SECONDS)
                 if not spans:
                     return self._send_json({"error": "Clip has no spans."}, 400)
@@ -1100,9 +1111,9 @@ class Handler(BaseHTTPRequestHandler):
 
                 style = k.get("style") if isinstance(k.get("style"), dict) else None
 
-                # Nama TETAP, ditimpa tiap kali -- pratinjau adalah sekali
-                # pakai, bukan berkas yang perlu dikumpulkan seperti hasil
-                # render sungguhan di antrian/riwayat.
+                # Filename is FIXED, overwritten each time -- previews are
+                # disposable, not files to collect like real render output
+                # in the queue/history.
                 dest = WORKSPACE / "out" / video.stem / "_preview.mp4"
                 engine.render(video, job, dest, words=clip_words, style=style,
                               src_width=info.width, src_height=info.height,
@@ -1111,10 +1122,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_json({"error": str(exc)}, 500)
 
             return self._send_json({
-                # Nama berkasnya tetap sama tiap kali -- tanpa penanda waktu
-                # ini elemen <video> di browser tidak akan memuat ulang versi
-                # yang baru saja ditimpa, walau server sudah menulis berkas
-                # yang benar-benar berbeda isinya.
+                # Filename stays the same each time -- without this timestamp
+                # the browser's <video> element won't reload the newly-
+                # overwritten version, even though the server wrote a
+                # completely different file.
                 "url": f"/workspace/out/{video.stem}/_preview.mp4?t={int(time.time())}",
                 "duration": round(job.duration, 1),
             })
@@ -1125,9 +1136,9 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as exc:               # noqa: BLE001
                 return self._send_json({"error": str(exc)}, 400)
             name = req.get("video", "")
-            # Seluruh check-then-register di dalam satu lock supaya tidak ada
-            # dua thread yang sama-sama lolos dan membuat job ganda, dan supaya
-            # insert JOBS tidak balapan dengan prune yang meng-iterasi JOBS.
+            # Entire check-then-register in one lock so no two threads both
+            # slip through and create duplicate jobs, and so the JOBS insert
+            # doesn't race with the prune that iterates JOBS.
             with LOCK:
                 if len(JOBS) > MAX_JOBS:
                     old = [k for k, v in JOBS.items()
@@ -1161,9 +1172,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"id": job_id})
 
         if path == "/api/facefit":
-            # Sinkron, bukan job async seperti /api/diarize -- satu frame
-            # cukup cepat dideteksi (di bawah 1 detik), tidak sepadan dengan
-            # ongkos polling untuk pekerjaan sesingkat itu.
+            # Synchronous, not an async job like /api/diarize -- one frame
+            # detects fast enough (under 1 second), not worth the polling
+            # overhead for a job that short.
             try:
                 req = self._read_json()
             except Exception as exc:               # noqa: BLE001
@@ -1187,10 +1198,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"crop": crop})
 
         if path == "/api/facetrack":
-            # Sinkron juga, sama seperti /api/facefit -- tapi giliran panjang
-            # bisa makan beberapa detik (sampel per-frame + deteksi cascade
-            # berulang). Kalau kerasa lambat di UI nanti, ini kandidat pertama
-            # untuk dijadikan job async seperti /api/diarize.
+            # Synchronous too, same as /api/facefit -- but long turns can
+            # take several seconds (per-frame sampling + repeated cascade
+            # detection). If this feels slow in the UI later, this is the
+            # first candidate to make an async job like /api/diarize.
             try:
                 req = self._read_json()
             except Exception as exc:               # noqa: BLE001
@@ -1214,9 +1225,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"points": points})
 
         if path == "/api/speakerlocate":
-            # Sinkron seperti /api/facetrack -- AI Framing sepenuhnya
-            # otomatis sekarang, tanpa konfirmasi manual per pembicara
-            # (lihat locate_speaker() di facebox.py buat alasannya).
+            # Synchronous like /api/facetrack -- AI Framing is now fully
+            # automatic, without manual per-speaker confirmation (see
+            # locate_speaker() in facebox.py for the reasoning).
             try:
                 req = self._read_json()
             except Exception as exc:               # noqa: BLE001
@@ -1242,9 +1253,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"crop": crop})
 
         if path == "/api/headtrack":
-            # Sinkron seperti /api/facetrack -- lintasan head tracking,
-            # OPSIONAL per titik framing, dipicu manual dari tombol "Track
-            # head" (lihat track_head() di facebox.py buat alasannya).
+            # Synchronous like /api/facetrack -- head tracking trajectory,
+            # OPTIONAL per framing point, triggered manually from the "Track
+            # head" button (see track_head() in facebox.py for the reasoning).
             try:
                 req = self._read_json()
             except Exception as exc:               # noqa: BLE001
@@ -1270,9 +1281,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"keyframes": keyframes})
 
         if path == "/api/scenecut":
-            # Sinkron seperti /api/facetrack -- diff antar-frame lewat filter
-            # scene bawaan ffmpeg jauh lebih murah daripada cascade wajah per
-            # frame, satu giliran bicara (puluhan detik) beres dalam <1 detik.
+            # Synchronous like /api/facetrack -- inter-frame diff via
+            # ffmpeg's built-in scene filter is far cheaper than per-frame
+            # face cascade, one speaking turn (tens of seconds) finishes in
+            # under 1 second.
             try:
                 req = self._read_json()
             except Exception as exc:               # noqa: BLE001
@@ -1299,9 +1311,9 @@ class Handler(BaseHTTPRequestHandler):
                 folder = Path(self._read_json().get("folder", "")).resolve()
                 if not folder.is_dir():
                     return self._send_json({"error": "folder not found"}, 404)
-                # Cegah path traversal: hanya buka folder di dalam project.
-                # Pakai is_relative_to, bukan startswith -- "klipian-lain"
-                # berawalan sama dengan "klipian" tapi folder yang berbeda.
+                # Prevent path traversal: only open folders inside the
+                # project. Use is_relative_to, not startswith -- "klipian-other"
+                # starts the same as "klipian" but is a different folder.
                 if not folder.is_relative_to(ROOT.resolve()):
                     return self._send_json(
                         {"error": "only folders inside the project can be opened"}, 403)
@@ -1319,12 +1331,14 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def _sweep_temp() -> int:
-    """Buang wav sementara yang tertinggal dari job yang terhenti paksa.
-    Berkas ini bisa ratusan MB dan tidak ada gunanya setelah servernya mati.
+    """Clean up temp wavs left behind by forcefully terminated jobs.
+    These files can be hundreds of MB and serve no purpose after the
+    server is shut down.
 
-    Hanya wav ber-suffix id job (8 hex) yang disapu -- itu yang ditulis
-    _run_transcribe. wav dari `klipian transcribe --keep-audio` memakai
-    fingerprint 16-hex dan sengaja disimpan pengguna, jangan ikut dihapus."""
+    Only wavs with a job id suffix (8 hex) are swept -- those are written
+    by _run_transcribe. wavs from `klipian transcribe --keep-audio` use a
+    16-hex fingerprint and are intentionally kept by the user, don't
+    delete those."""
     import re
     n = 0
     pola = re.compile(r"\.[0-9a-f]{8}\.wav$")
@@ -1345,7 +1359,7 @@ def serve(port: int = 5177) -> int:
     srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     print("")
     print(f"  klipian  ->  http://127.0.0.1:{port}")
-    print(f"  melayani {ROOT}")
+    print(f"  serving {ROOT}")
     if leftover:
         print(f"  cleaned up {leftover} leftover temp audio file(s)")
     print("  Ctrl+C to stop")
@@ -1353,5 +1367,5 @@ def serve(port: int = 5177) -> int:
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
-        print("\n  berhenti\n")
+        print("\n  stopped\n")
     return 0
