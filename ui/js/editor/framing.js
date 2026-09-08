@@ -307,9 +307,29 @@ function syncCanvasVideo() {
 // Without this separate function, the time label would only update when the
 // playhead crosses a framing point, not every second of playback -- it would
 // look "frozen" during playback when in fact it is simply redrawn infrequently.
+// f.at / reviewTime() are positions in the FULL SOURCE VIDEO (00:00 = start
+// of a 42-minute video), not in the concatenated Result -- when a Result
+// consists of several spans far apart in the source, a raw source position
+// can appear to "jump" beyond the Result's own duration (e.g. "09:44" when
+// the Result is only 3:14). That is not a bug -- it is the true source
+// position -- but it is meaningless while editing an already-cut clip
+// (ian: once cut, this clip starts at 00:00 regardless of where 00:00
+// falls in the source). null when the position falls outside every span
+// -- a stale point from another clip, or the still-unplaced default point.
+const outFrom = (t) => (typeof activeClip !== "undefined" && activeClip?.spans
+  && typeof sourceToOut === "function") ? sourceToOut(activeClip, t) : null;
+
+// Result-relative position, falling back to the raw source position only
+// when outFrom() can't place it (see above) -- used by the two single-number
+// readouts below, which don't have room to show both. The Framing Points
+// strip further down keeps the source position too (labeled "src", small,
+// secondary, with a "--" fallback instead) for the rarer case of jumping
+// back to the source.
+const outTime = (t) => { const out = outFrom(t); return out !== null ? out : t; };
+
 function updateFramingClock() {
   const clockEl = $("#framingClock");
-  if (clockEl) clockEl.textContent = `at ${timeRange(reviewTime())}`;
+  if (clockEl) clockEl.textContent = `at ${timeRange(outTime(reviewTime()))}`;
 }
 
 /* The Framing Points strip can be wider than its panel and scrolled
@@ -336,22 +356,10 @@ function renderFraming() {
   // just appeared. The caller decides the message.
   updateFramingClock();
   const tag = $("#tagCrop1");
-  if (tag) tag.textContent = active ? `from ${timeRange(active.at)}` : "";
+  if (tag) tag.textContent = active ? `from ${timeRange(outTime(active.at))}` : "";
 
   const bar = $("#framingList");
   if (bar) {
-    // f.at is a position in the FULL SOURCE VIDEO (00:00 = start of a 42-min
-    // video), not in the concatenated result -- when a Result consists of
-    // several spans far apart in the source, a point can appear to "jump"
-    // beyond the Result's own duration (e.g. "09:44" when the Result is only
-    // 3:14). That is not a bug -- it is the true source position -- but it is
-    // confusing without context. "out h:mm" in the tooltip shows that SAME
-    // position relative to the concatenated result, when the point falls
-    // within one of the actually used spans (null when outside any span --
-    // a stale point from another clip, or the default 00:00 point).
-    const outFrom = (t) => (typeof activeClip !== "undefined" && activeClip?.spans
-      && typeof sourceToOut === "function") ? sourceToOut(activeClip, t) : null;
-
     // Every point ALWAYS gets its own thumbnail, no matter how close in time
     // to its neighbors -- the strip is a row (flex), not positioned
     // proportionally on a single fixed-width bar. When there are many points,
