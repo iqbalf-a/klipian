@@ -368,7 +368,7 @@ function renderFraming() {
       <div class="fr-point${f === active ? " fr-active" : ""}"
            data-framing="${f.id}" title="${tooltip}">
         ${thumbUrl ? `<img class="fr-thumb" src="${thumbUrl}" alt="" loading="lazy">`
-                    : `<span class="fr-thumb fr-thumb-kosong"></span>`}
+                    : `<span class="fr-thumb fr-thumb-empty"></span>`}
         ${f.tracking ? `<span class="fr-track-badge" title="Head tracking on">●</span>` : ""}
         <span class="fr-time">${out !== null ? timeRange(out) : "—"}</span>
         <span class="fr-time-src">src ${timeRange(f.at)}</span>

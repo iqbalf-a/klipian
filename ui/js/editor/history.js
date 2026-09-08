@@ -58,19 +58,19 @@ function renderHistory() {
       <span class="data history-video">${escapeHTML(r.video)}</span>
       <span class="data history-mb">${r.mb} MB</span>
       <span class="data history-kapan">${timeAgo(r.at)}</span>
-      <button class="btn quiet" data-aksi="putar">Play</button>
-      <button class="btn" data-aksi="buka">Open folder</button>
+      <button class="btn quiet" data-action="play">Play</button>
+      <button class="btn" data-action="open">Open folder</button>
     </div>`).join("");
 }
 
 $("#historyList")?.addEventListener("click", async (e) => {
-  const b = e.target.closest("[data-aksi]");
+  const b = e.target.closest("[data-action]");
   if (!b) return;
   const row = b.closest("[data-history]");
   const r = HISTORY[Number(row.dataset.history)];
   if (!r) return;
 
-  if (b.dataset.aksi === "putar") {
+  if (b.dataset.action === "play") {
     window.open(r.url, "_blank", "noopener");
     return;
   }

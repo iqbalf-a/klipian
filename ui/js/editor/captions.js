@@ -148,7 +148,7 @@ function renderCaptions() {
   list.innerHTML = words.map((w) => {
     const isFiller = isFillerWord(w.text);
     return `
-    <button class="word-text${w.edited ? " diubah" : ""}${isFiller ? " pengisi" : ""}"
+    <button class="word-text${w.edited ? " edited" : ""}${isFiller ? " filler" : ""}"
             data-start="${wordKey(w)}"
             title="${timeRange(w.start)}${w.edited ? ` · was &quot;${escapeHTML(w.original)}&quot;` : ""}${isFiller ? " · filler word" : ""}"
     >${escapeHTML(w.text)}</button>`;

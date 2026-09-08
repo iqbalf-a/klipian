@@ -697,7 +697,7 @@ h1, h2, h3 {
 .play-btn:hover { filter: brightness(1.08); }
 .play-btn:active { transform: translateY(1px); }
 
-.transport-bawah {
+.transport-bottom {
   display: flex; align-items: center; gap: 5px;
   /* Baris ini SUDAH padat (waktu + 4 saklar); tanpa wrap, tombol yang
      tidak muat cuma terdorong diam-diam ke luar viewport (bukan
@@ -706,7 +706,7 @@ h1, h2, h3 {
      panel yang benar-benar sempit. */
   flex-wrap: wrap; row-gap: 4px;
 }
-.transport-bawah .time {
+.transport-bottom .time {
   margin-right: auto;
   white-space: nowrap;                     /* jam tidak lagi patah tiga baris */
   font-variant-numeric: tabular-nums;
@@ -714,7 +714,7 @@ h1, h2, h3 {
 }
 
 /* Saklar kecil: bentuknya sama semua, tidak ada yang lonjong. */
-.saklar {
+.toggle {
   flex: none;
   box-sizing: border-box;
   min-width: 28px; height: 26px;
@@ -728,8 +728,8 @@ h1, h2, h3 {
   cursor: pointer;
   transition: background var(--fast), color var(--fast), border-color var(--fast);
 }
-.saklar:hover { color: var(--text); border-color: var(--border-bright); }
-.saklar[aria-pressed="true"] {
+.toggle:hover { color: var(--text); border-color: var(--border-bright); }
+.toggle[aria-pressed="true"] {
   color: var(--accent);
   border-color: color-mix(in srgb, var(--accent) 45%, transparent);
   background: var(--accent-soft);
@@ -893,7 +893,7 @@ h1, h2, h3 {
 
 .crop { position: absolute; z-index: 1; cursor: move; border-radius: var(--r-s);
         box-shadow: 0 0 0 2px var(--accent), 0 0 30px -6px var(--accent-glow); }
-.crop.kedua { box-shadow: 0 0 0 2px rgba(255,255,255,.75), 0 0 26px -8px rgba(255,255,255,.35); }
+.crop.second { box-shadow: 0 0 0 2px rgba(255,255,255,.75), 0 0 26px -8px rgba(255,255,255,.35); }
 .crop .tag {
   position: absolute; top: -26px; left: -1px;
   font-family: var(--font-data); font-size: 10px;
@@ -901,12 +901,12 @@ h1, h2, h3 {
   padding: 3px 9px; border-radius: var(--r-pill);
   white-space: nowrap;
 }
-.crop.kedua .tag { background: #fff; color: #0A0B0E; }
+.crop.second .tag { background: #fff; color: #0A0B0E; }
 .crop b {
   position: absolute; width: 9px; height: 9px; border-radius: 2px;
   background: var(--accent); box-shadow: 0 0 10px -2px var(--accent-glow);
 }
-.crop.kedua b { background: #fff; }
+.crop.second b { background: #fff; }
 .crop b:nth-child(2) { left: -5px; top: -5px; }
 .crop b:nth-child(3) { right: -5px; top: -5px; }
 .crop b:nth-child(4) { left: -5px; bottom: -5px; }
@@ -914,7 +914,7 @@ h1, h2, h3 {
 
 /* Kotak kedua cuma berarti saat split; di format single ia disembunyikan
    supaya tidak ada kotak yang bisa digeser tapi tidak ikut dirender. */
-.canvas[data-format="single"] .crop.kedua { display: none; }
+.canvas[data-format="single"] .crop.second { display: none; }
 
 /* ── pilihan format bingkai ──
    Ikonnya menggambarkan hasilnya: satu petak penuh, atau dua petak
@@ -985,7 +985,7 @@ h1, h2, h3 {
   border: 2px solid var(--glass-border);
   transition: border-color var(--fast);
 }
-.fr-thumb-kosong { display: block; background: var(--glass); }
+.fr-thumb-empty { display: block; background: var(--glass); }
 .fr-point:hover .fr-thumb { border-color: var(--text-muted); }
 .fr-active .fr-thumb { border-color: var(--accent); }
 /* Angka UTAMA = posisi di Result yang sedang diedit -- itu yang berarti
@@ -1214,16 +1214,16 @@ h1, h2, h3 {
 .tanya-sub { font-size: var(--t-11); color: var(--text-faint); line-height: 1.35; }
 .tanya-aksi { display: flex; gap: var(--s2); justify-content: center; margin-top: var(--s1); }
 .tanya-aksi .btn { border-color: var(--border-bright); }
-.btn.bahaya {
+.btn.danger {
   background: var(--danger); border-color: transparent;
   color: oklch(0.98 0 0); font-weight: 700;
 }
-.btn.bahaya:hover { background: color-mix(in srgb, var(--danger) 84%, #fff); }
+.btn.danger:hover { background: color-mix(in srgb, var(--danger) 84%, #fff); }
 
 /* Kartu sudah bukan <button>, jadi fokusnya perlu ditandai sendiri. */
 .project-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.project-thumb.kosong {
+.project-thumb.empty {
   display: block;
   background: repeating-linear-gradient(45deg,
     var(--bg-2) 0 8px, var(--bg-1) 8px 16px);
@@ -1960,7 +1960,7 @@ h1, h2, h3 {
 }
 .render-bar .title-input { width: 100%; min-width: 0; }
 .render-bar .title-input input { width: 100%; min-width: 0; }
-.render-bar .baris {
+.render-bar .row {
   display: flex; align-items: center; justify-content: space-between;
   gap: var(--s2);
 }
@@ -1970,7 +1970,7 @@ h1, h2, h3 {
 /* Dua tombol sekarang (Quick preview + Render Result), bukan cuma satu --
    di panel sempit .data yang menyusut (min-width:0 di atas) tidak cukup
    menyerap keduanya, jadi barisnya boleh pindah ke baris kedua. */
-.render-bar .baris { flex-wrap: wrap; row-gap: var(--s2); }
+.render-bar .row { flex-wrap: wrap; row-gap: var(--s2); }
 #previewCepatNote { color: var(--text-faint); }
 
 .preview-cepat {
@@ -2089,12 +2089,12 @@ h1, h2, h3 {
   transition: background var(--fast), color var(--fast), border-color var(--fast);
 }
 .word-text:hover { color: var(--text); border-color: var(--glass-border); }
-.word-text.diubah {
+.word-text.edited {
   color: var(--accent);
   border-color: color-mix(in srgb, var(--accent) 45%, transparent);
   background: var(--accent-soft);
 }
-.word-text.pengisi {
+.word-text.filler {
   color: var(--text-faint);
   border-color: color-mix(in srgb, var(--danger) 35%, transparent);
   border-style: dashed;

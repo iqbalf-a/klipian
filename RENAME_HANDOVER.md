@@ -1,10 +1,10 @@
 # Handover: lanjutan rename klipian ke Bahasa Inggris
 
 Ditulis 8 September 2026, diperbarui 8 September 2026 (setelah batch
-Captions) supaya sesi Claude Code berikutnya — model apa pun, termasuk
-model lokal/gratis lewat `claude-free` — bisa lanjut kerja ini TANPA baca
-ulang histori chat sebelumnya. Baca file ini dari atas ke bawah, urut,
-sebelum menyentuh kode apa pun.
+Workspace/History) supaya sesi Claude Code berikutnya — model apa pun,
+termasuk model lokal/gratis lewat `claude-free` — bisa lanjut kerja ini
+TANPA baca ulang histori chat sebelumnya. Baca file ini dari atas ke bawah,
+urut, sebelum menyentuh kode apa pun.
 
 ## Sumber kebenaran
 
@@ -26,15 +26,15 @@ progress, lalu tanya ian.
 
 ## Status saat handover ini ditulis
 
-- **17 dari ~22-23 batch selesai** (estimasi total direvisi naik dari
+- **18 dari ~22-23 batch selesai** (estimasi total direvisi naik dari
   perkiraan awal 10-13 batch, karena Fase 3 `framing.js` harus dipecah dua
   dan Fase 4 ternyata ~65 class Indonesia, bukan ~45 seperti dugaan awal).
 - Fase 1 (39 token CSS), Fase 2 (133 fungsi Python), Fase 3 (identifier di
   11 modul JS editor) — **SELESAI TOTAL**.
 - Fase 4 (class CSS + id HTML + `data-*` attribute, per layar) — **jalan**,
-  3 dari 5 layar selesai: Framing, Clips/Result, Captions.
-- Commit terakhir: `4aea5aa` (`rename(fase-4/captions)`), sudah dipush ke
-  `origin/main`.
+  4 dari 5 layar selesai: Framing, Clips/Result, Captions, Workspace/History.
+- Commit terakhir: `5bcdc57` (`rename(fase-4/workspace-history)`), sudah
+  dipush ke `origin/main`.
 - Checkpoint sebelum seluruh pekerjaan rename ini dimulai: `4e0e9c2`.
 - **Temuan baru yang butuh keputusan ian, JANGAN dieksekusi sendiri**:
   nilai string `data-to`/`data-screen` untuk routing tab layar — `"klip"`
@@ -59,14 +59,11 @@ progress, lalu tanya ian.
    beres — jangan numpuk perubahan baru di atasnya, beresi dulu).
 3. Di plan file, cari tanda `- [ ]` PERTAMA yang belum tercentang di bagian
    "Fase". Per commit terakhir di atas, titik mulai berikutnya adalah
-   **Layar History/Workspace** di Fase 4 (`.riwayat-kapan/-list/-mb/-nama/
-   -row/-video`, `data-riwayat`, `data-hapus-project`, `.project-nama`,
-   PLUS `ws-kosong`/`.nama`/`.ws-hapus` di `workspace.src.css` — pipeline
-   Tailwind terpisah dari `app.css`, kerjakan sekalian di batch ini karena
-   sama-sama layar History/Workspace). Verifikasi ulang scope-nya lewat
-   grep dulu, jangan asumsi dari catatan plan — sudah 3x kejadian di batch
-   sebelumnya bahwa perkiraan awal plan meleset dari kondisi kode nyata
-   (lihat "Koreksi" di tiap batch Fase 4 yang sudah selesai).
+   **Layar Global/Shell** di Fase 4 (`.konfirmasi`/`.tanya*`/`data-aksi`/
+   `data-hapus-*`/dll). Verifikasi ulang scope-nya lewat grep dulu, jangan
+   asumsi dari catatan plan — sudah 3x kejadian di batch sebelumnya bahwa
+   perkiraan awal plan meleset dari kondisi kode nyata (lihat "Koreksi" di
+   tiap batch Fase 4 yang sudah selesai).
 4. Kerjakan **SATU** butir fase itu saja. Jangan menyerempet butir/fase
    lain walau kelihatan gampang sekalian dikerjakan.
 
@@ -187,8 +184,7 @@ ke ian dulu:
 
 ## Sisa pekerjaan setelah handover ini (ringkasan, detail lengkap di plan)
 
-- **Fase 4** — 2 layar tersisa: History/Workspace (+ `workspace.src.css`,
-  pipeline Tailwind terpisah dari `app.css`), Global/shell
+- **Fase 4** — 1 layar tersisa: Global/shell
   (`.konfirmasi`/`.tanya*`/`data-aksi`/`data-hapus-*`/dll). Plus satu item
   yang ditunda dari Fase 1: key tema Indonesia di `ui/tailwind.config.js`
   yang membentuk nama class Tailwind (`.bg-kaca`, `.text-teks-samar`,

@@ -35,19 +35,19 @@ async function muatRender() {
       <span class="name">${escapeHTML(r.file)} <span class="data">— ${escapeHTML(r.video)}</span></span>
       <span class="data">${r.mb} MB</span>
       <span class="data">${kapan(r.at)}</span>
-      <button class="rounded-s px-2.5 py-1 text-[12px] hover:bg-kaca" data-aksi="putar">Play</button>
-      <button class="rounded-s px-2.5 py-1 text-[12px] border border-garis hover:bg-kaca" data-aksi="buka">Open folder</button>
+      <button class="rounded-s px-2.5 py-1 text-[12px] hover:bg-kaca" data-action="play">Play</button>
+      <button class="rounded-s px-2.5 py-1 text-[12px] border border-garis hover:bg-kaca" data-action="open">Open folder</button>
     </div>`).join("");
 }
 
 $("#renderList")?.addEventListener("click", async (e) => {
-  const b = e.target.closest("[data-aksi]");
+  const b = e.target.closest("[data-action]");
   if (!b) return;
   const row = b.closest("[data-i]");
   const r = RENDER[Number(row.dataset.i)];
   if (!r) return;
 
-  if (b.dataset.aksi === "putar") {
+  if (b.dataset.action === "play") {
     window.open(r.url, "_blank", "noopener");
     return;
   }

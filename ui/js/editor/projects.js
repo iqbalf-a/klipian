@@ -446,22 +446,22 @@ async function renderProjects() {
     <div class="project-card${missing ? " hilang" : ""}" data-project="${escapeHTML(p.video)}"
          role="button" tabindex="0"${missing ? ' aria-disabled="true"' : ""}>
       ${missing
-        ? '<span class="project-thumb kosong"></span>'
+        ? '<span class="project-thumb empty"></span>'
         : `<img class="project-thumb" alt="" loading="lazy" src="${coverUrl(p)}">`}
       ${i === lastIdx ? '<span class="tanda-terakhir">last opened</span>' : ""}
       <span class="project-nama">${escapeHTML(p.title || p.video)}</span>
       <span class="data project-meta">${missing
         ? "video not in samples/"
         : `${p.spans} span${p.spans === 1 ? "" : "s"} · ${Math.round(p.seconds)}s · ${timeAgo(p.at)}`}</span>
-      <i class="delete-icon" data-hapus-project="${escapeHTML(p.video)}" role="button"
+      <i class="delete-icon" data-delete-project="${escapeHTML(p.video)}" role="button"
          aria-label="Delete project ${escapeHTML(p.video)}">×</i>
       <span class="konfirmasi">
         <span class="tanya-teks">Delete this project?</span>
         <span class="tanya-sub">Spans, framing and caption fixes are lost.
           Rendered files stay in out/.</span>
         <span class="tanya-aksi">
-          <button class="btn" data-hapus-batal type="button">Keep</button>
-          <button class="btn bahaya" data-hapus-ya="${escapeHTML(p.video)}"
+          <button class="btn" data-delete-cancel type="button">Keep</button>
+          <button class="btn danger" data-delete-confirm="${escapeHTML(p.video)}"
                   type="button">Delete</button>
         </span>
       </span>
@@ -510,7 +510,7 @@ async function deleteProject(video) {
 
 $("#projectList")?.addEventListener("click", async (e) => {
   // --- minta konfirmasi ---
-  const deleteIcon = e.target.closest("[data-hapus-project]");
+  const deleteIcon = e.target.closest("[data-delete-project]");
   if (deleteIcon) {
     e.stopPropagation();
     const card = deleteIcon.closest(".project-card");
@@ -522,15 +522,15 @@ $("#projectList")?.addEventListener("click", async (e) => {
     return;
   }
 
-  const confirmBtn = e.target.closest("[data-hapus-ya]");
+  const confirmBtn = e.target.closest("[data-delete-confirm]");
   if (confirmBtn) {
     e.stopPropagation();
     cancelConfirm();
-    await deleteProject(confirmBtn.dataset.hapusYa);
+    await deleteProject(confirmBtn.dataset.deleteConfirm);
     return;
   }
 
-  if (e.target.closest("[data-hapus-batal]")) {
+  if (e.target.closest("[data-delete-cancel]")) {
     e.stopPropagation();
     cancelConfirm();
     return;

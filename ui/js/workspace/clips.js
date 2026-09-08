@@ -62,8 +62,8 @@ function baris(c) {
       <td class="${td}"><select class="ws-input" data-field="platform">${opt(PLATFORM, c.platform || "YouTube + TikTok")}</select></td>
       <td class="${td}">${f("date", "date")}</td>
       <td class="${td}">${f("time", "time")}</td>
-      <td class="${td}"><button class="ws-detail" data-aksi="detail" type="button">Detail</button></td>
-      <td class="${td}"><button class="delete-btn" data-aksi="delete" type="button" title="Hapus klip ini">✕</button></td>
+      <td class="${td}"><button class="ws-detail" data-action="detail" type="button">Detail</button></td>
+      <td class="${td}"><button class="delete-btn" data-action="delete" type="button" title="Hapus klip ini">✕</button></td>
     </tr>`;
 }
 
@@ -125,12 +125,12 @@ $("#klipBody")?.addEventListener("change", (e) => {
 });
 
 $("#klipBody")?.addEventListener("click", async (e) => {
-  const detail = e.target.closest('[data-aksi="detail"]');
+  const detail = e.target.closest('[data-action="detail"]');
   if (detail) {
     bukaDetail(detail.closest("tr[data-id]")?.dataset.id);
     return;
   }
-  const b = e.target.closest('[data-aksi="hapus"]');
+  const b = e.target.closest('[data-action="delete"]');
   if (!b) return;
   const tr = b.closest("tr[data-id]");
   const id = tr?.dataset.id;
