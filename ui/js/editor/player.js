@@ -78,6 +78,19 @@ function setClip(k) {
   drawTime(0);            // total duration shows even before the video loads
   drawTimeline();
   if (typeof renderPreview === "function") renderPreview();
+
+  // The placeholder first framing point (see resetFraming() in framing.js)
+  // is created before any Result span exists, at a guessed `at: 0`. Now
+  // that this clip's real spans are known, slide it to match -- otherwise
+  // it stays pinned to source 00:00 forever (frame 0 of the whole source
+  // video), showing the same irrelevant thumbnail no matter which clip is
+  // open. Only touches it while still `auto` -- a point the user has
+  // actually locked/edited is never moved out from under them.
+  if (typeof FRAMING !== "undefined" && FRAMING[0]?.auto && FRAMING[0].at !== k.spans[0].start) {
+    FRAMING[0].at = k.spans[0].start;
+    FRAMING.sort((a, b) => a.at - b.at);
+    if (typeof renderFraming === "function") renderFraming();
+  }
 }
 
 /* Clip output duration: sum of segment lengths, not first-start to last-end. */

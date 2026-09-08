@@ -120,8 +120,17 @@ function reviewTime() {
 function resetFraming() {
   FRAMING = [];
   framingSeq = 0;
+  // `at: 0` here is just a placeholder -- this runs before the new Result
+  // has any span, so the clip's real source start isn't known yet. `auto:
+  // true` marks it as still that placeholder; setClip() (player.js) relocates
+  // it to the clip's actual start as soon as a span exists, so its thumbnail
+  // (see renderFraming()) shows a frame from THIS clip instead of always
+  // source 00:00 (frame 0 of the whole source video, ian: "always the same
+  // thumbnail no matter which clip"). The flag is dropped the moment the
+  // user manually edits this point (lock/format toggle), so a deliberate
+  // "yes I really want this point at 00:00" is never overridden.
   FRAMING.push({ id: `f${++framingSeq}`, at: 0, format: "single",
-                 crops: [{ ...INITIAL_CROP }] });
+                 crops: [{ ...INITIAL_CROP }], auto: true });
   renderFraming();
 }
 
@@ -466,6 +475,7 @@ $("#framingFormat")?.addEventListener("click", (e) => {
   if (existing) {
     existing.format = format;
     existing.crops = crops;
+    delete existing.auto;   // manually touched -- stop auto-relocating it
     message = `point ${timeRange(existing.at)} is now`;
   } else {
     FRAMING.push({ id: `f${++framingSeq}`, at: t, format, crops });
@@ -495,6 +505,7 @@ $("#lockFraming")?.addEventListener("click", () => {
     delete existing.tracking;
     existing.format = canvasFormat;
     existing.crops = crops;
+    delete existing.auto;   // manually touched -- stop auto-relocating it
     message = `point ${timeRange(existing.at)} updated`;
   } else {
     FRAMING.push({ id: `f${++framingSeq}`, at: t, format: canvasFormat, crops });
