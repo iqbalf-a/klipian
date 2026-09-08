@@ -86,7 +86,7 @@ function resultAsClip() {
    paling menyebalkan. Penyimpanannya ditunda, jadi panggilan berlebih dari
    pergantian layar tidak jadi beban. */
 function renderResult() {
-  if (typeof simpanProject === "function") simpanProject();
+  if (typeof saveProject === "function") saveProject();
   const list = $("#hasilList");
   const total = $("#hasilTotal");
   if (!list) return;

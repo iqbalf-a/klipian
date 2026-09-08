@@ -33,7 +33,7 @@ const fmtDuration = (d) => {
 
 /* Nama & durasi di topbar (#fileName/#fileDuration) -- SATU tempat,
    dipanggil dari kedua jalur video "jadi aktif": acceptFile() di sini
-   (video baru dijatuhkan) dan bukaProjectDariBeranda() di projects.js
+   (video baru dijatuhkan) dan openProjectFromHome() di projects.js
    (project lama dibuka lagi lewat kartu beranda/pemulihan sesi). Sebelum
    ini keduanya CUMA diisi oleh startAnalysis() (analysis.js), yang CUMA
    jalan lewat tombol "Find clips" di beranda -- membuka project lama
@@ -113,8 +113,8 @@ async function acceptFile(file) {
   // Video yang sama = project yang sama. Kalau pernah dikerjakan, Result,
   // titik framing, dan koreksi teksnya kembali; kalau belum, ini jadi
   // project barunya.
-  if (typeof bukaProject === "function") {
-    const lanjut = await bukaProject(file.name);
+  if (typeof openProject === "function") {
+    const lanjut = await openProject(file.name);
     if (lanjut) {
       if (typeof renderResult === "function") renderResult();
       if (typeof renderFraming === "function") renderFraming();
@@ -375,7 +375,7 @@ $("#captionList").addEventListener("click", (e) => {
   all.forEach((b, i) => b.setAttribute("aria-pressed", String(i === o.active)));
   row.querySelector(".meta").textContent = o.choices[o.active].t;
   applyCaption();
-  if (typeof simpanProject === "function") simpanProject();
+  if (typeof saveProject === "function") saveProject();
   if (typeof simpanPresetCaption === "function") simpanPresetCaption();
 });
 

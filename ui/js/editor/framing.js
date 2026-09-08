@@ -501,7 +501,7 @@ $("#kunciFraming")?.addEventListener("click", () => {
     pesan = `new point locked at ${jamRange(t)}`;
   }
   renderFraming();
-  if (typeof simpanProject === "function") simpanProject();
+  if (typeof saveProject === "function") saveProject();
   $("#reframeNote").textContent =
     `${pesan} · ${formatKanvas === "split" ? "Split" : "Single"}`;
 });
@@ -533,7 +533,7 @@ async function trackHeadUntukTitik(titik) {
     // dasarnya. Reversibel, sesuai permintaan ian.
     delete titik.tracking;
     renderFraming();
-    if (typeof simpanProject === "function") simpanProject();
+    if (typeof saveProject === "function") saveProject();
     $("#reframeNote").textContent = `head tracking off for point ${jamRange(titik.at)}`;
     return;
   }
@@ -561,7 +561,7 @@ async function trackHeadUntukTitik(titik) {
     }
     titik.tracking = { keyframes: d.keyframes };
     renderFraming();
-    if (typeof simpanProject === "function") simpanProject();
+    if (typeof saveProject === "function") saveProject();
     $("#reframeNote").textContent = `head tracking on for point ${jamRange(titik.at)}`;
   } catch {
     $("#reframeNote").textContent = "head tracking failed — point stays static.";
@@ -1094,7 +1094,7 @@ async function aiFramingTerapkan(turns, posisi, cuts) {
   }
   FRAMING.sort((a, b) => a.at - b.at);
   renderFraming();
-  if (typeof simpanProject === "function") simpanProject();
+  if (typeof saveProject === "function") saveProject();
 
   aiFramingStatus(
     `AI Framing: ${ditambah} framing point${ditambah === 1 ? "" : "s"} added across `

@@ -17,16 +17,16 @@
    berarti orang kehilangan pekerjaan justru karena lupa menekannya.
    ========================================================================== */
 
-const SIMPAN_TUNDA = 900;      // ms diam sebelum benar-benar ditulis
-let simpanTimer = null;
-let simpanTertunda = false;    // true sejak ada perubahan sampai tulisan ke disk selesai
-let projectAktif = null;       // nama video yang sedang dikerjakan
-let layarTerakhir = "klip";    // layar tempat pekerjaan ditinggalkan
+const SAVE_DELAY = 900;         // ms diam sebelum benar-benar ditulis
+let saveTimer = null;
+let savePending = false;        // true sejak ada perubahan sampai tulisan ke disk selesai
+let activeProject = null;       // nama video yang sedang dikerjakan
+let lastScreen = "klip";        // layar tempat pekerjaan ditinggalkan
 
 /* Nama layar dari berkas project TIDAK dipercaya begitu saja: berkasnya bisa
    ditulis tangan atau berasal dari versi lama. Nama yang tidak dikenal
    membuat toScreen() mematikan semua layar dan menyisakan area kerja kosong. */
-const LAYAR_SAH = ["analysis", "klip", "framing", "teks", "history"];
+const VALID_SCREENS = ["analysis", "klip", "framing", "teks", "history"];
 
 /* Satu project sekarang bisa menyimpan LEBIH DARI SATU Result -- video
    podcast yang sama wajar menghasilkan banyak klip terpisah, dan dulu mulai
@@ -44,14 +44,14 @@ let resultTabSeq = 0;
 
 /* Seluruh keadaan yang layak dilanjutkan nanti. Sengaja TIDAK menyimpan
    transkrip: ia sudah ada di cache/ dan besarnya puluhan ribu kata. */
-function keadaanProject() {
+function projectState() {
   // Result aktif disalin ke SAVED_RESULTS SEKARANG, bukan mengandalkan
   // snapshot titik-pindah (switchResult/deleteResultTab) saja -- kalau
   // tidak, edit yang terjadi SESUDAH pindah terakhir tapi SEBELUM timer
-  // simpanProject() menyala (900ms) tidak pernah ikut tersalin ke slotnya.
+  // saveProject() menyala (900ms) tidak pernah ikut tersalin ke slotnya.
   snapshotActiveResult();
   return {
-    video: projectAktif,
+    video: activeProject,
     results: SAVED_RESULTS,
     activeResult: activeResultId,
     // Rekomendasi AI (hasil impor JSON dari Claude) TIDAK pernah tersimpan
@@ -70,45 +70,45 @@ function keadaanProject() {
    (kebijakan anti-penyalahgunaan Chrome/Firefox, bukan sesuatu yang bisa
    diakali dari kode), jadi tidak bisa diandalkan sendirian. Label ini
    dibaca kapan saja, bukan cuma pas mau menutup halaman. */
-function perbaruiStatusSimpan() {
+function updateSaveStatus() {
   const el = $("#statusSimpan");
   if (!el) return;
-  el.textContent = simpanTertunda ? "Unsaved changes…" : "";
+  el.textContent = savePending ? "Unsaved changes…" : "";
 }
 
 /* Benar-benar menulis ke disk SEKARANG, membatalkan jeda yang masih
    berjalan kalau ada. Dipakai baik oleh timer di bawah maupun tombol Save
    manual -- keduanya harus menulis keadaan yang SAMA, jadi cuma satu jalan
    yang benar-benar melakukan fetch-nya. */
-async function tulisProjectSekarang() {
-  clearTimeout(simpanTimer);
-  simpanTimer = null;
-  if (!projectAktif) return;
-  simpanTertunda = true;
-  perbaruiStatusSimpan();
+async function writeProjectNow() {
+  clearTimeout(saveTimer);
+  saveTimer = null;
+  if (!activeProject) return;
+  savePending = true;
+  updateSaveStatus();
   try {
     await fetch("/api/project", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(keadaanProject()),
+      body: JSON.stringify(projectState()),
     });
   } catch { /* tanpa backend, pekerjaan tetap jalan -- hanya tidak tersimpan */
   } finally {
-    simpanTertunda = false;
-    perbaruiStatusSimpan();
+    savePending = false;
+    updateSaveStatus();
   }
 }
 
 /* Dipanggil dari mana saja yang mengubah pekerjaan. Aman dipanggil beruntun:
    yang benar-benar menulis hanya panggilan terakhir dalam satu jeda diam.
-   simpanTertunda dinyalakan SEKARANG (bukan saat timer akhirnya jalan) --
+   savePending dinyalakan SEKARANG (bukan saat timer akhirnya jalan) --
    itulah yang dibaca peringatan "tutup/reload halaman" di bawah supaya
    perubahan yang masih menunggu jeda tidak dikira sudah aman tersimpan. */
-function simpanProject() {
-  if (!projectAktif) return;
-  simpanTertunda = true;
-  perbaruiStatusSimpan();
-  clearTimeout(simpanTimer);
-  simpanTimer = setTimeout(tulisProjectSekarang, SIMPAN_TUNDA);
+function saveProject() {
+  if (!activeProject) return;
+  savePending = true;
+  updateSaveStatus();
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(writeProjectNow, SAVE_DELAY);
 }
 
 /* Tombol Save manual: sebetulnya tidak perlu (auto-save sudah jalan sendiri
@@ -119,7 +119,7 @@ $("#saveNowBtn")?.addEventListener("click", async () => {
   if (!btn || btn.disabled) return;
   btn.disabled = true;
   btn.textContent = "Saving…";
-  await tulisProjectSekarang();
+  await writeProjectNow();
   btn.textContent = "Saved";
   setTimeout(() => { btn.textContent = "Save"; btn.disabled = false; }, 1200);
 });
@@ -129,7 +129,7 @@ $("#saveNowBtn")?.addEventListener("click", async () => {
    mengizinkan pesan custom di dialog ini lagi (demi keamanan) -- yang
    tampil tetap peringatan bawaannya, tapi itu sudah cukup jadi "alert". */
 window.addEventListener("beforeunload", (e) => {
-  if (!simpanTertunda) return;
+  if (!savePending) return;
   e.preventDefault();
   e.returnValue = "";
 });
@@ -138,8 +138,8 @@ window.addEventListener("beforeunload", (e) => {
 
 /* Salin keadaan HIDUP (RESULT/FRAMING/CORRECTIONS/judul) ke slot Result yang
    sedang aktif di SAVED_RESULTS. Dipanggil SEBELUM keadaan hidup ditimpa
-   Result lain (pindah/hapus) dan di awal keadaanProject() -- dua lapis
-   jaga supaya urutan timer simpanProject() yang tertunda tidak relevan. */
+   Result lain (pindah/hapus) dan di awal projectState() -- dua lapis
+   jaga supaya urutan timer saveProject() yang tertunda tidak relevan. */
 function snapshotActiveResult() {
   if (!activeResultId) return;
   const slot = SAVED_RESULTS.find((r) => r.id === activeResultId);
@@ -163,7 +163,7 @@ function snapshotActiveResult() {
 /* Kebalikan snapshotActiveResult(): pasang isi satu entri SAVED_RESULTS
    jadi keadaan hidup. Dipakai baik saat project pertama kali dibuka maupun
    saat pindah Result -- SELALU menimpa penuh (bukan "kalau tidak kosong"
-   seperti muatProject() dulu), supaya Result lama tidak pernah bocor ke
+   seperti loadProject() dulu), supaya Result lama tidak pernah bocor ke
    Result yang baru dipilih. */
 function loadResultIntoLiveState(entry) {
   if (typeof RESULT !== "undefined") {
@@ -202,7 +202,7 @@ function resetProjectState() {
 // (array/objek kosong, satu titik framing default -- lihat resetFraming()
 // di framing.js:774 yang juga menyalakan diri sendiri begitu dimuat). Tapi
 // SAVED_RESULTS/activeResultId TIDAK -- tanpa panggilan ini keduanya kosong
-// sampai project pertama dibuka, dan muatProject()/keadaanProject() akan
+// sampai project pertama dibuka, dan loadProject()/projectState() akan
 // menyimpan project SAMA SEKALI TANPA Result begitu video pertama kali
 // dijatuhkan (acceptFile() cuma memanggil resetProjectState() kalau video
 // GANTI dari video sebelumnya, bukan saat ini video pertama yang dibuka).
@@ -221,7 +221,7 @@ function newResult() {
   if (typeof resetCaptions === "function") resetCaptions();
   if ($("#hasilJudul")) $("#hasilJudul").value = "";
   renderResultSwitcher();
-  simpanProject();
+  saveProject();
 }
 
 function switchResult(id) {
@@ -232,7 +232,7 @@ function switchResult(id) {
   activeResultId = id;
   loadResultIntoLiveState(target);
   renderResultSwitcher();
-  simpanProject();
+  saveProject();
 }
 
 /* Selalu menyisakan minimal satu Result -- project tanpa Result sama
@@ -244,12 +244,12 @@ function deleteResultTab(id) {
   const i = SAVED_RESULTS.findIndex((r) => r.id === id);
   if (i < 0) return;
   if (id === activeResultId) {
-    const tetangga = SAVED_RESULTS[i - 1] || SAVED_RESULTS[i + 1];
-    switchResult(tetangga.id);   // sudah snapshot + load + simpanProject()
+    const neighbor = SAVED_RESULTS[i - 1] || SAVED_RESULTS[i + 1];
+    switchResult(neighbor.id);   // sudah snapshot + load + saveProject()
   }
   SAVED_RESULTS = SAVED_RESULTS.filter((r) => r.id !== id);
   renderResultSwitcher();
-  simpanProject();
+  saveProject();
 }
 
 /* Pemilih Result ada TIGA instance identik -- title layar Clips, Framing,
@@ -259,10 +259,10 @@ function deleteResultTab(id) {
    ditambah di sana masuk ke Result yang sedang aktif) -- bukan cuma
    Editing (Framing/Captions) yang butuh tahu Result mana yang aktif. */
 function renderResultSwitcher() {
-  const opsi = SAVED_RESULTS.map((r, i) => `
+  const options = SAVED_RESULTS.map((r, i) => `
     <option value="${r.id}" ${r.id === activeResultId ? "selected" : ""}>
       ${escapeHTML(r.title || `Result ${i + 1}`)}</option>`).join("");
-  document.querySelectorAll(".result-select").forEach((sel) => { sel.innerHTML = opsi; });
+  document.querySelectorAll(".result-select").forEach((sel) => { sel.innerHTML = options; });
   document.querySelectorAll('[data-result-aksi="delete"]').forEach((b) => {
     b.disabled = SAVED_RESULTS.length <= 1;
   });
@@ -280,8 +280,8 @@ document.querySelectorAll('[data-result-aksi="delete"]').forEach((b) => {
 
 /* Memasang kembali keadaan yang tersimpan. Mengembalikan true kalau ada
    yang dipulihkan, supaya pemanggil bisa memberi tahu penggunanya. */
-async function muatProject(video) {
-  projectAktif = video;
+async function loadProject(video) {
+  activeProject = video;
   let d;
   try {
     const r = await fetch(`/api/project?video=${encodeURIComponent(video)}`);
@@ -341,15 +341,15 @@ async function muatProject(video) {
       }
     });
   }
-  layarTerakhir = LAYAR_SAH.includes(d.screen) ? d.screen : "klip";
+  lastScreen = VALID_SCREENS.includes(d.screen) ? d.screen : "klip";
   return true;
 }
 
 /* Video baru dijatuhkan: kalau ia punya project, lanjutkan; kalau tidak,
    mulai dari kosong dengan nama itu sebagai kunci. */
-async function bukaProject(video) {
-  const adaLama = await muatProject(video);
-  if (!adaLama) {
+async function openProject(video) {
+  const hadExisting = await loadProject(video);
+  if (!hadExisting) {
     // Project baru: tidak ada apa pun untuk dipulihkan, jadi pakai gaya
     // caption/watermark terakhir dipakai (lihat terapkanPresetCaption() di
     // app.js) alih-alih default pabrik. Panel caption sudah sempat digambar
@@ -361,10 +361,10 @@ async function bukaProject(video) {
       if (typeof renderList === "function") renderList();
       if (typeof applyCaption === "function") applyCaption();
     }
-    simpanProject();          // catat sebagai project baru
+    saveProject();          // catat sebagai project baru
   }
-  if (typeof ingatSesiAktif === "function") ingatSesiAktif(video);
-  return adaLama;
+  if (typeof rememberActiveSession === "function") rememberActiveSession(video);
+  return hadExisting;
 }
 
 /* ---------- daftar di beranda ---------- */
@@ -372,17 +372,17 @@ async function bukaProject(video) {
 /* Perhatikan namanya: `w` itu LEBAR KELUARAN sampul, sedangkan `width` itu
    lebar CROP dalam persen frame sumber. Tertukar sekali dan ffmpeg menolak
    crop 220% -- sampulnya gagal tanpa satu pun pesan di layar. */
-function urlSampul(p) {
-  const BAWAAN = { left: 37, top: 4, width: 26, height: 92 };
-  let c = p.crop || BAWAAN;
+function coverUrl(p) {
+  const DEFAULT_CROP = { left: 37, top: 4, width: 26, height: 92 };
+  let c = p.crop || DEFAULT_CROP;
   // Tinggi kotak framing diturunkan saat DIBACA (samakanRasio), jadi angka
   // yang tersimpan bisa saja nol atau tidak masuk akal. ffmpeg tetap menurut
   // dan memberi sampul setinggi 2 piksel -- gagal yang tidak berbunyi apa-apa.
-  const sah = Number.isFinite(c.width) && c.width > 1
+  const valid = Number.isFinite(c.width) && c.width > 1
            && Number.isFinite(c.height) && c.height > 1
            && c.left >= 0 && c.top >= 0
            && c.left + c.width <= 101 && c.top + c.height <= 101;
-  if (!sah) c = BAWAAN;
+  if (!valid) c = DEFAULT_CROP;
   const q = new URLSearchParams({
     video: p.video, t: String(p.thumbAt ?? 0),
     left: String(Math.round(c.left)), top: String(Math.round(c.top)),
@@ -400,57 +400,57 @@ async function renderProjects() {
   // dibagikan ke pemanggil berikutnya, bukan diulang.
   if (_renderProjectsInflight) return _renderProjectsInflight;
   _renderProjectsInflight = (async () => {
-  const wadah = $("#projectList");
-  if (!wadah) return;
-  let item = [];
+  const container = $("#projectList");
+  if (!container) return;
+  let items = [];
   try {
     const d = await (await fetch("/api/projects")).json();
-    item = d.project || [];
+    items = d.project || [];
   } catch {
     // Tanpa backend tidak ada project sama sekali -- sembunyikan, jangan
     // biarkan bagian kosong menggantung di beranda.
-    wadah.innerHTML = "";
-    wadah.closest(".recent")?.setAttribute("hidden", "");
+    container.innerHTML = "";
+    container.closest(".recent")?.setAttribute("hidden", "");
     return;
   }
   // Video yang tidak terjangkau server tidak bisa dilanjutkan sungguhan:
   // transkripsi, thumbnail, dan render semuanya lewat _find_video(), yang
   // hanya melihat samples/, akar project, dan out/. Ditandai di kartunya,
   // bukan dibiarkan gagal diam-diam setelah diklik.
-  let tersedia = null;
+  let available = null;
   try {
-    tersedia = new Set((await (await fetch("/api/video")).json()).video || []);
-  } catch { tersedia = null; }
+    available = new Set((await (await fetch("/api/video")).json()).video || []);
+  } catch { available = null; }
 
-  const bagian = wadah.closest(".recent");
-  if (!item.length) {
+  const section = container.closest(".recent");
+  if (!items.length) {
     // Isinya ikut dikosongkan, bukan cuma bagiannya disembunyikan: kartu basi
     // yang tertinggal akan berkelebat kalau bagian ini ditampilkan lagi nanti.
-    wadah.innerHTML = "";
-    bagian?.setAttribute("hidden", "");
+    container.innerHTML = "";
+    section?.setAttribute("hidden", "");
     return;
   }
-  bagian?.removeAttribute("hidden");
+  section?.removeAttribute("hidden");
 
   // Penandanya menempel pada project TERSEDIA yang terbaru, bukan pada kartu
   // pertama. Kalau yang terbaru kebetulan videonya hilang, penandanya lenyap
   // sama sekali -- padahal "yang mana tadi" justru pertanyaan yang dijawabnya.
-  const iTerakhir = item.findIndex((p) => !(tersedia && !tersedia.has(p.video)));
+  const lastIdx = items.findIndex((p) => !(available && !available.has(p.video)));
 
-  wadah.innerHTML = item.map((p, i) => {
-    const hilang = tersedia && !tersedia.has(p.video);
+  container.innerHTML = items.map((p, i) => {
+    const missing = available && !available.has(p.video);
     // div, BUKAN button: kartunya berisi tombol Keep dan Delete, dan tombol
     // di dalam tombol adalah HTML yang tidak sah -- browser mengeluarkannya
     // dari induknya dan tata letaknya berantakan.
     return `
-    <div class="project-card${hilang ? " hilang" : ""}" data-project="${escapeHTML(p.video)}"
-         role="button" tabindex="0"${hilang ? ' aria-disabled="true"' : ""}>
-      ${hilang
+    <div class="project-card${missing ? " hilang" : ""}" data-project="${escapeHTML(p.video)}"
+         role="button" tabindex="0"${missing ? ' aria-disabled="true"' : ""}>
+      ${missing
         ? '<span class="project-thumb kosong"></span>'
-        : `<img class="project-thumb" alt="" loading="lazy" src="${urlSampul(p)}">`}
-      ${i === iTerakhir ? '<span class="tanda-terakhir">last opened</span>' : ""}
+        : `<img class="project-thumb" alt="" loading="lazy" src="${coverUrl(p)}">`}
+      ${i === lastIdx ? '<span class="tanda-terakhir">last opened</span>' : ""}
       <span class="project-nama">${escapeHTML(p.title || p.video)}</span>
-      <span class="data project-meta">${hilang
+      <span class="data project-meta">${missing
         ? "video not in samples/"
         : `${p.spans} span${p.spans === 1 ? "" : "s"} · ${Math.round(p.seconds)}s · ${timeAgo(p.at)}`}</span>
       <i class="buang" data-hapus-project="${escapeHTML(p.video)}" role="button"
@@ -486,81 +486,81 @@ async function renderProjects() {
    tidak ikut -- itu disebut di pesannya supaya tidak ada yang mengira
    berkas hasilnya ikut lenyap. */
 
-let tanyaTimer = null;
+let confirmTimer = null;
 
-function batalTanya() {
-  clearTimeout(tanyaTimer);
+function cancelConfirm() {
+  clearTimeout(confirmTimer);
   document.querySelectorAll(".project-card.tanya")
     .forEach((k) => k.classList.remove("tanya"));
 }
 
-async function hapusProject(video) {
+async function deleteProject(video) {
   try {
     await fetch("/api/project", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ video, delete: true }),
     });
   } catch { /* tanpa backend tidak ada yang bisa dihapus */ }
-  if (projectAktif === video) {
-    projectAktif = null;   // jangan menulisnya lagi
-    lupakanSesiAktif();    // reload sesudah ini jangan coba masuk ke project yang baru dihapus
+  if (activeProject === video) {
+    activeProject = null;   // jangan menulisnya lagi
+    forgetActiveSession();  // reload sesudah ini jangan coba masuk ke project yang baru dihapus
   }
   renderProjects();
 }
 
 $("#projectList")?.addEventListener("click", async (e) => {
   // --- minta konfirmasi ---
-  const hapus = e.target.closest("[data-hapus-project]");
-  if (hapus) {
+  const deleteIcon = e.target.closest("[data-hapus-project]");
+  if (deleteIcon) {
     e.stopPropagation();
-    const kartu = hapus.closest(".project-card");
-    batalTanya();
-    kartu.classList.add("tanya");
+    const card = deleteIcon.closest(".project-card");
+    cancelConfirm();
+    card.classList.add("tanya");
     // Mundur sendiri: kartu yang ditinggalkan dalam keadaan bertanya akan
     // terpencet tanpa sengaja jauh setelah niatnya sudah lewat.
-    tanyaTimer = setTimeout(batalTanya, 6000);
+    confirmTimer = setTimeout(cancelConfirm, 6000);
     return;
   }
 
-  const ya = e.target.closest("[data-hapus-ya]");
-  if (ya) {
+  const confirmBtn = e.target.closest("[data-hapus-ya]");
+  if (confirmBtn) {
     e.stopPropagation();
-    batalTanya();
-    await hapusProject(ya.dataset.hapusYa);
+    cancelConfirm();
+    await deleteProject(confirmBtn.dataset.hapusYa);
     return;
   }
 
   if (e.target.closest("[data-hapus-batal]")) {
     e.stopPropagation();
-    batalTanya();
+    cancelConfirm();
     return;
   }
 
-  const kartu = e.target.closest("[data-project]");
-  if (!kartu) return;
+  const card = e.target.closest("[data-project]");
+  if (!card) return;
   // Kartu yang sedang bertanya tidak boleh sekaligus membuka project:
   // menekan di sekitarnya untuk membatalkan malah melompat ke editor.
-  if (kartu.classList.contains("tanya")) { batalTanya(); return; }
-  const video = kartu.dataset.project;
-  if (kartu.classList.contains("hilang")) {
-    const meta = kartu.querySelector(".project-meta");
+  if (card.classList.contains("tanya")) { cancelConfirm(); return; }
+  const video = card.dataset.project;
+  if (card.classList.contains("hilang")) {
+    const meta = card.querySelector(".project-meta");
     if (meta) meta.textContent = `move ${video} into workspace/samples/ to continue`;
     return;
   }
-  await bukaProjectDariBeranda(video);
+  await openProjectFromHome(video);
 });
 
 /* Satu jalur untuk "masuk ke project ini dan lanjutkan mengedit" -- dipakai
    klik kartu di beranda MAUPUN pemulihan otomatis saat halaman di-reload
-   (lihat pulihkanSesiTerakhir()). Dulu logika ini cuma ada di dalam
+   (lihat restoreLastSession()). Dulu logika ini cuma ada di dalam
    listener klik; disalin ulang di dua tempat gampang meleset kalau salah
    satu diubah belakangan. */
-let _bukaProjectGen = 0;
-async function bukaProjectDariBeranda(video) {
+let _openProjectGen = 0;
+async function openProjectFromHome(video) {
   // Klik cepat / tumpang dengan pemulihan sesi: tandai generasi. Kalau ada
   // pembukaan baru menyusul, yang lama berhenti sebelum menimpa state global
   // (chosenSource/realTranscript/RESULT/FRAMING) milik yang menang.
-  const gen = ++_bukaProjectGen;
+  const gen = ++_openProjectGen;
   // Blob URL dari file yang tadi di-drop tidak pernah dilepas kalau kita
   // langsung menimpanya dengan URL /workspace/samples/ -- lepaskan dulu.
   if (typeof chosenSource !== "undefined" && chosenSource
@@ -577,26 +577,26 @@ async function bukaProjectDariBeranda(video) {
   if (typeof perbaruiTopbarBerkas === "function") perbaruiTopbarBerkas(video, NaN);
   if (typeof realTranscript !== "undefined" && typeof findTranscript === "function") {
     const tr = await findTranscript(video);
-    if (gen !== _bukaProjectGen) return false;   // sudah didahului pembukaan lain
+    if (gen !== _openProjectGen) return false;   // sudah didahului pembukaan lain
     realTranscript = tr;
     if (typeof perbaruiTopbarBerkas === "function") {
       perbaruiTopbarBerkas(video, tr?.duration);
     }
   }
-  const ada = await muatProject(video);
-  if (gen !== _bukaProjectGen) return false;
+  const existed = await loadProject(video);
+  if (gen !== _openProjectGen) return false;
   // Jalur ini biasanya hanya membuka project yang SUDAH ada (kartu beranda
   // dan pemulihan sesi keduanya berasal dari project yang sudah tercatat),
-  // tapi dijaga sama seperti bukaProject() kalau kelak dipanggil untuk video
+  // tapi dijaga sama seperti openProject() kalau kelak dipanggil untuk video
   // yang belum pernah dibuka.
-  if (!ada) {
+  if (!existed) {
     // Project baru: TIDAK ADA jaminan RESULT/FRAMING/CORRECTIONS/SAVED_RESULTS/
     // kandidat di memori sekarang kosong -- kalau video sebelumnya sempat
     // dikerjakan di tab yang sama tanpa reload, isinya masih milik video
     // ITU, bukan video ini. Jalur drop-file (acceptFile() di
     // interactions.js) sudah membersihkan ini lewat resetProjectState();
     // jalur ini (kartu beranda / pemulihan sesi) belum, dan project baru
-    // lewat sini secara teori mungkin -- lihat komentar bukaProjectDariBeranda().
+    // lewat sini secara teori mungkin -- lihat komentar openProjectFromHome().
     resetProjectState();
     if (typeof DATA !== "undefined") { DATA.candidates = []; DATA.marks = []; }
     if (typeof terapkanPresetCaption === "function" && terapkanPresetCaption()) {
@@ -608,10 +608,10 @@ async function bukaProjectDariBeranda(video) {
   if (typeof drawSource === "function") drawSource();
   if (typeof renderRecommendations === "function") renderRecommendations();
   if (typeof drawTotalTimeline === "function") drawTotalTimeline();
-  ingatSesiAktif(video);
+  rememberActiveSession(video);
   toStage("work");
-  toScreen(layarTerakhir);
-  return ada;
+  toScreen(lastScreen);
+  return existed;
 }
 
 /* ---------- tetap di layar yang sama setelah reload ----------
@@ -622,36 +622,36 @@ async function bukaProjectDariBeranda(video) {
    reload (beda dari variabel biasa), jadi cukup buat menyimpan PENUNJUK
    video mana yang sedang dibuka -- bukan project-nya sendiri, yang tetap
    di berkas seperti sebelumnya. */
-const KUNCI_SESI = "klipian:sesi-aktif";
+const SESSION_KEY = "klipian:sesi-aktif";
 
-function ingatSesiAktif(video) {
-  try { localStorage.setItem(KUNCI_SESI, video); } catch { /* privat/penuh -- lupakan saja */ }
+function rememberActiveSession(video) {
+  try { localStorage.setItem(SESSION_KEY, video); } catch { /* privat/penuh -- lupakan saja */ }
 }
 
-function lupakanSesiAktif() {
-  try { localStorage.removeItem(KUNCI_SESI); } catch { /* sama */ }
+function forgetActiveSession() {
+  try { localStorage.removeItem(SESSION_KEY); } catch { /* sama */ }
 }
 
 /* Dipanggil sekali saat halaman dimuat. Balik true kalau berhasil masuk
    lagi ke project terakhir -- pemanggil TIDAK perlu jatuh ke toStage("home")
    kalau ini sukses. */
-async function pulihkanSesiTerakhir() {
+async function restoreLastSession() {
   let video;
-  try { video = localStorage.getItem(KUNCI_SESI); } catch { return false; }
+  try { video = localStorage.getItem(SESSION_KEY); } catch { return false; }
   if (!video) return false;
 
   // Video-nya mungkin sudah dipindah/dihapus sejak terakhir dibuka --
   // diperiksa dulu lewat /api/video, bukan langsung dicoba lalu gagal
   // diam-diam di tengah proses muat.
   try {
-    const daftar = (await (await fetch("/api/video")).json()).video || [];
-    if (!daftar.includes(video)) { lupakanSesiAktif(); return false; }
+    const available = (await (await fetch("/api/video")).json()).video || [];
+    if (!available.includes(video)) { forgetActiveSession(); return false; }
   } catch {
     return false;   // server belum siap/offline -- jangan pura-pura berhasil
   }
 
-  const ada = await bukaProjectDariBeranda(video);
-  if (!ada) { lupakanSesiAktif(); return false; }  // video ada tapi project-nya sendiri hilang
+  const existed = await openProjectFromHome(video);
+  if (!existed) { forgetActiveSession(); return false; }  // video ada tapi project-nya sendiri hilang
   return true;
 }
 
@@ -660,10 +660,10 @@ async function pulihkanSesiTerakhir() {
    ketik sama sekali. */
 $("#projectList")?.addEventListener("keydown", (e) => {
   if (e.key !== "Enter" && e.key !== " ") return;
-  const kartu = e.target.closest?.(".project-card");
-  if (!kartu) return;
+  const card = e.target.closest?.(".project-card");
+  if (!card) return;
   e.preventDefault();
-  kartu.click();
+  card.click();
 });
 
 /* Menyalakan diri sendiri. app.js menjalankan toStage("home") di akhir
@@ -677,6 +677,6 @@ renderProjects();
    berkas ini dimuat, jadi "coba lanjutkan project terakhir" juga diurus di
    sini, bukan di sana. Beranda sempat kelihatan sekilas dulu (wajar --
    memeriksa /api/video dan memuat project itu proses async), lalu ditimpa
-   toStage("work") begitu pulihkanSesiTerakhir() selesai kalau memang ada
+   toStage("work") begitu restoreLastSession() selesai kalau memang ada
    yang bisa dilanjutkan. */
-pulihkanSesiTerakhir();
+restoreLastSession();

@@ -186,7 +186,7 @@ function finishEdit(cancel) {
 
   renderCaptions();                        // tombol kosong mustahil bertahan
   if (typeof drawCaption === "function") drawCaption();
-  if (typeof simpanProject === "function") simpanProject();
+  if (typeof saveProject === "function") saveProject();
 }
 
 function startEdit(b) {

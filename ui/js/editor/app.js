@@ -164,7 +164,7 @@ function captionStyle() {
 }
 
 /* Preset caption/watermark GLOBAL, terpisah dari project. Project menyimpan
-   pilihan MILIKNYA sendiri (lihat keadaanProject() di projects.js) supaya
+   pilihan MILIKNYA sendiri (lihat projectState() di projects.js) supaya
    membuka project lama tidak pernah mengubah gaya yang sudah dirender.
    Tapi project BARU tidak punya apa-apa untuk dipulihkan -- tanpa ini ia
    selalu mulai dari default pabrik, memaksa pilih ulang ukuran/posisi/opacity
@@ -179,8 +179,8 @@ function simpanPresetCaption() {
   } catch { /* privat/penuh -- preset cuma kenyamanan, bukan keharusan */ }
 }
 
-/* Dipanggil hanya untuk project BARU (lihat bukaProject/bukaProjectDariBeranda
-   di projects.js). Sama seperti pemulihan project di muatProject(): indeks
+/* Dipanggil hanya untuk project BARU (lihat openProject/openProjectFromHome
+   di projects.js). Sama seperti pemulihan project di loadProject(): indeks
    dicek batas, karena preset lama bisa berasal dari susunan CAPTION_OPTIONS
    yang sudah berubah jumlah pilihannya. */
 function terapkanPresetCaption() {
@@ -434,7 +434,7 @@ let layarAktif = "klip";
 
 function toScreen(name) {
   layarAktif = name;
-  if (typeof simpanProject === "function") simpanProject();
+  if (typeof saveProject === "function") saveProject();
   document.querySelectorAll(".screen").forEach((s) =>
     s.classList.toggle("active", s.dataset.screen === name));
   document.querySelectorAll(".tab").forEach((t) => {
@@ -573,7 +573,7 @@ document.addEventListener("click", (e) => {
 // sesudahnya semestinya tetap di beranda, bukan ditarik balik otomatis ke
 // project yang baru saja ditinggalkan.
 const keBerandaSengaja = () => {
-  if (typeof lupakanSesiAktif === "function") lupakanSesiAktif();
+  if (typeof forgetActiveSession === "function") forgetActiveSession();
   toStage("home");
 };
 $("#toHome").addEventListener("click", keBerandaSengaja);
@@ -589,7 +589,7 @@ $("#options").addEventListener("click", (e) => {
   row.querySelectorAll(".chip").forEach((b, i) =>
     b.setAttribute("aria-pressed", String(i === o.active)));
   refreshHint(row, o);
-  if (typeof simpanProject === "function") simpanProject();
+  if (typeof saveProject === "function") saveProject();
   summarizeOptions();
 });
 
