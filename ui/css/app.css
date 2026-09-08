@@ -1,13 +1,13 @@
-/* klipian — komponen */
+/* klipian — components */
 
 *, *::before, *::after { box-sizing: border-box; }
 html, body { height: 100%; }
 
-/* [hidden] bawaan browser cuma `display: none` dengan spesifisitas paling
-   rendah, jadi kelas apa pun yang menyetel display akan mengalahkannya.
-   Itu yang membuat kotak galat kosong tetap terpampang di layar Analisis:
-   analysis.js sudah menyetel hidden = true, tapi `.error { display: flex }`
-   menang. Aturan ini menutup jebakan itu untuk semua komponen sekaligus. */
+/* Browser's default [hidden] is just `display: none` with the lowest
+   specificity, so any class that sets display will override it.
+   This is what keeps the empty error box visible on the Analysis screen:
+   analysis.js sets hidden = true, but `.error { display: flex }` wins.
+   This rule closes that trap for all components at once. */
 [hidden] { display: none !important; }
 
 body {
@@ -23,13 +23,13 @@ body {
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
 
-  /* Angka tidak boleh bergeser saat berubah. Di aplikasi yang penuh timecode
-     dan skor berjalan, proportional figures membuat baris terlihat gemetar. */
+  /* Numbers must not shift when they change. In an app full of timecodes
+     and running scores, proportional figures make the line look shaky. */
   font-variant-numeric: tabular-nums;
 }
 
-/* Cahaya ambien: dua noda besar yang sangat kabur, satu mengikuti warna mode.
-   Ini yang membuat latar gelap terasa punya ruang, bukan bidang mati. */
+/* Ambient light: two large, very blurred blobs, one following the accent color.
+   This is what gives the dark background a sense of depth instead of a flat plane. */
 body::before {
   content: "";
   position: fixed; inset: -20% -10% auto -10%;
@@ -43,25 +43,25 @@ body::before {
   transition: background var(--medium);
 }
 
-/* Dua baris saja: topbar lalu panggung. Baris ketiga dulu untuk pita
-   "Sumber" yang menandai kandidat di sepanjang video -- pita itu digantikan
-   timeline di layar Klip, dan barisnya ikut dibuang. Kalau ditinggal, panggung
-   jatuh ke baris berukuran tetap dan seluruh panel kolaps. */
+/* Two rows only: topbar then stage. There used to be a third row for the
+   "Source" strip that marked candidates along the video -- that strip was
+   replaced by the timeline on the Clips screen, and the row was removed.
+   If left behind, the stage would snap to a fixed-size row and the whole
+   layout would collapse. */
 .app { position: relative; z-index: 1; height: 100vh;
        display: grid; grid-template-rows: var(--h-topbar) 1fr; }
-/* .topbar DITAMBATKAN eksplisit ke baris 1, .home/.stage ke baris 2 --
-   BUKAN dibiarkan auto-placement. Kalau salah satu item grid ini pernah
-   di-display:none-kan (mis. fitur sembunyi/tampilkan), item yang tersisa
-   auto-placement ke baris PERTAMA yang kosong, bukan baris aslinya, dan
-   seluruh panggung kolaps ke tinggi 0 -- pernah kejadian nyata saat
-   navbar sempat dibuat bisa disembunyikan. Pin eksplisit ini menutup
-   jebakan itu untuk seterusnya. */
+/* .topbar is PINNED explicitly to row 1, .home/.stage to row 2 --
+   NOT left to auto-placement. If any of these grid items ever gets
+   display:none'd (e.g. a show/hide feature), the remaining items
+   auto-place into the FIRST empty row, not their original row, and the
+   whole stage collapses to height 0 -- this actually happened when the
+   navbar was made hideable. Explicit pinning closes this trap for good. */
 .topbar { grid-row: 1; }
 .home, .stage { grid-row: 2; }
 
-/* Hierarki dibangun dari LEBAR huruf, bukan hanya ukuran.
-   Judul dilebarkan supaya punya kehadiran; label disempitkan supaya padat.
-   text-wrap: balance mencegah kata tunggal menggantung di baris terakhir. */
+/* Hierarchy is built from LETTER WIDTH, not just size.
+   Titles are widened for presence; labels are narrowed for compactness.
+   text-wrap: balance prevents a single orphan word on the last line. */
 h1, h2, h3 {
   margin: 0;
   font-weight: 750;
@@ -70,9 +70,9 @@ h1, h2, h3 {
   text-wrap: balance;
 }
 
-/* Judul layar dibuat display: kapital, berat, lebar. Di antarmuka yang
-   isinya panel abu-abu semua, judul yang cuma sedikit lebih besar dari teks
-   biasa tidak menahan apa pun. */
+/* Screen titles are uppercase, heavy, and wide. In an interface full of
+   grey panels, a title that's only slightly larger than body text doesn't
+   hold anything back. */
 .work-head h1 {
   font-weight: 800;
   font-stretch: calc(var(--w-display) * 1%);
@@ -103,13 +103,13 @@ h1, h2, h3 {
   background: color-mix(in srgb, var(--bg-1) 72%, transparent);
   backdrop-filter: blur(20px) saturate(150%);
   border-bottom: 1px solid var(--glass-border);
-  /* position+z-index WAJIB di sini, bukan cuma di .shortcut-panel sendiri:
-     .topbar dan .stage cuma baris grid biasa (z-index:auto keduanya),
-     dan .stage datang SESUDAH .topbar di DOM -- popover yang meluber ke
-     bawah topbar (masuk ke area baris .stage) tertimpa isi .stage/.preview
-     berapa pun z-index popover-nya sendiri, karena z-index cuma dibanding
-     di DALAM satu stacking context yang sama. Mengangkat .topbar sendiri
-     yang benar-benar menutup celah ini. */
+  /* position+z-index are REQUIRED here, not just on .shortcut-panel itself:
+     .topbar and .stage are just plain grid rows (both z-index:auto), and
+     .stage comes AFTER .topbar in the DOM -- a popover that overflows
+     downward from the topbar (into the .stage row area) gets painted over
+     by .stage/.preview no matter how high the popover's own z-index is,
+     because z-index is only compared WITHIN the same stacking context.
+     Lifting .topbar itself is what truly closes this gap. */
   position: relative; z-index: 20;
 }
 .topbar #statusSimpan { margin-left: auto; color: var(--text-faint); }
@@ -129,7 +129,7 @@ h1, h2, h3 {
 
 .topbar .rest { margin-left: auto; display: flex; align-items: center; gap: var(--s3); }
 
-/* rel tab berbentuk pill, penanda aktif berupa kaca terang */
+/* Pill-shaped tab bar; the active indicator is a bright glass fill */
 .tabs {
   display: flex; gap: 2px; padding: 3px;
   background: var(--glass);
@@ -171,10 +171,10 @@ h1, h2, h3 {
   box-shadow: inset 0 0 0 1px var(--glass-border);
 }
 
-/* Sapuan: lebar mengikuti skor, dengan cahaya di sekelilingnya.
-   Lebarnya sengaja bisa setipis 4px karena ketipisan itu membawa informasi --
-   jadi area kliknya diperbesar lewat ::before yang tak terlihat, memenuhi
-   WCAG 2.2 target size 24x24 tanpa mengubah tampilannya. */
+/* Sweep: width tracks the score, with a glow around it.
+   Width is intentionally allowed to be as thin as 4px because that thinness
+   carries information -- so the click target is enlarged via an invisible
+   ::before, meeting WCAG 2.2 target size 24x24 without changing the look. */
 .mark {
   position: absolute; top: 4px; height: 16px;
   width: var(--w, 6px);
@@ -197,8 +197,8 @@ h1, h2, h3 {
 }
 .mark:hover { filter: brightness(1.2); transform: scaleY(1.18); }
 .mark:focus-visible { outline-offset: 4px; }
-/* Label dijepit di tepi: sapuan di posisi 0% atau 100% membuat label yang
-   ditengahkan terpotong keluar dari ribbon. */
+/* Label is pinned to the edge: when a sweep is at 0% or 100%, the centered
+   label would get clipped outside the ribbon. */
 .mark::after {
   content: attr(data-label);
   position: absolute; top: 22px; left: 50%; transform: translateX(-50%);
@@ -215,7 +215,7 @@ h1, h2, h3 {
   font-family: var(--font-data); font-size: 10px; color: var(--text-faint);
 }
 
-/* ═══════════════════════════════════════════════ panggung */
+/* ═══════════════════════════════════════════════ stage */
 
 .stage { display: grid; grid-template-columns: 1fr; min-height: 0; }
 .stage.has-preview { grid-template-columns: 1fr var(--w-preview); }
@@ -226,19 +226,20 @@ h1, h2, h3 {
 .screen { display: none; flex: 1; min-height: 0; flex-direction: column; gap: var(--s4); }
 .screen.active { display: flex; }
 
-/* Klip dan Teks bisa lebih tinggi dari jendela: beberapa panel bertumpuk.
-   Tanpa ini panel di bawah tidak terjangkau sama sekali. */
+/* Clips and Text can be taller than the window: multiple panels stack.
+   Without this, the panels below are completely unreachable. */
 .screen[data-screen="klip"].active,
 .screen[data-screen="teks"].active,
 .screen[data-screen="framing"].active,
 .screen[data-screen="history"].active {
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding-right: 4px;                 /* ruang untuk scrollbar */
+  padding-right: 4px;                 /* room for scrollbar */
 }
-/* Framing ikut di sini walau panelnya cuma satu: kanvasnya terkunci ke rasio
-   sumber dan lebar kolomnya yang membatasi, jadi memberi panel itu flex:1
-   hanya menyisakan ruang kosong di bawah kanvas -- bukan kanvas yang membesar. */
+/* Framing is included here even though it has only one panel: the canvas is
+   locked to the source ratio and the column width is what constrains it, so
+   giving the panel flex:1 just leaves empty space below the canvas -- it
+   doesn't make the canvas grow. */
 .screen[data-screen="klip"] > .panel,
 .screen[data-screen="teks"] > .panel,
 .screen[data-screen="framing"] > .panel { flex: none; }
@@ -252,19 +253,19 @@ h1, h2, h3 {
   letter-spacing: -.038em;
   flex: none;
 }
-/* min-width:0 WAJIB di flex item supaya overflow/ellipsis di bawah ini
-   benar-benar berlaku -- bawaan flex item punya min-width:auto (seukuran
-   konten), jadi tanpa ini teks tetap memaksa row melebar/patah baris,
-   bukan terpotong "...". Ketauan pas .result-picker (Clips/Framing/
-   Captions) ditambah ke baris yang sama: catatannya dulu leluasa, sekarang
-   berebut ruang dan bisa patah sampai 5-6 baris di layar sempit. */
+/* min-width:0 is REQUIRED on flex items so that overflow/ellipsis below
+   actually works -- the flex item default is min-width:auto (content-sized),
+   so without it the text still forces the row wider or wraps, instead of
+   being clipped to "...". This was discovered when .result-picker (Clips/
+   Framing/Captions) was added to the same row: the note used to have room,
+   now it fights for space and can wrap to 5-6 lines on narrow screens. */
 .work-head .note {
   color: var(--text-faint); font-size: var(--t-13);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
 }
 .work-head .right { margin-left: auto; flex: none; }
 
-/* ═══════════════════════════════════════════════ panel kaca */
+/* ═══════════════════════════════════════════════ glass panel */
 
 .panel {
   position: relative;
@@ -278,7 +279,7 @@ h1, h2, h3 {
 .panel.fit { flex: none; }
 .panel.body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 
-/* ═══════════════════════════════════════════════ kartu kandidat */
+/* ═══════════════════════════════════════════════ candidate card */
 
 .board {
   flex: 1; min-height: 0; overflow-y: auto;
@@ -309,7 +310,7 @@ h1, h2, h3 {
 }
 .card.rejected { opacity: .38; }
 
-/* Thumbnail memakai frame asli dari video sumber. */
+/* Thumbnail uses the original frame from the source video. */
 .card-media { position: relative; }
 .thumb {
   aspect-ratio: 9/16;
@@ -331,8 +332,8 @@ h1, h2, h3 {
 .card-body { display: grid; gap: var(--s3); align-content: start; min-width: 0; }
 .card h2 { font-size: var(--t-17); line-height: 1.2; letter-spacing: -.028em; }
 
-/* Kutipan yang ditandai AI. Bukan blok warna penuh: pita cahaya di belakang
-   teks, sehingga tulisannya tetap terbaca dan tidak seperti teks ter-block. */
+/* AI-flagged quote. Not a full color block: a light strip behind the text,
+   so it stays readable and doesn't look like a highlighter-blocked text. */
 .quote {
   margin: 0;
   hanging-punctuation: first;
@@ -376,9 +377,9 @@ h1, h2, h3 {
 }
 .card-foot .actions { margin-left: auto; display: flex; gap: var(--s1); align-items: center; flex: none; }
 
-/* Status, bukan aksi. Tenang, satu baris, dan tidak memakai warna aksen --
-   penanda "sudah disetujui" pada tingkat pandang sekilas sudah dikerjakan
-   oleh cincin di tepi kartu. */
+/* Status, not action. Quiet, single line, no accent color --
+   the "already approved" marker at a glance is already handled by
+   the ring on the card edge. */
 .pill-ready {
   display: inline-flex; align-items: center; gap: 5px;
   white-space: nowrap;
@@ -391,15 +392,15 @@ h1, h2, h3 {
 }
 .pill-ready::before { content: "¹3"; font-size: 10px; opacity: .75; }
 
-/* ═══════════════════════════════════════════════ tombol */
+/* ═══════════════════════════════════════════════ buttons */
 
-/* Aturan warna:
-   AKSEN  = apa yang ditemukan dan dipilih AI  (sapuan ribbon, kutipan,
-            seleksi transkrip, caption)
-   PUTIH  = aksi dan keadaan milik pengguna    (tombol, progress, status)
-   Sebelumnya aksen dipakai untuk dua-duanya, dan tombol Setujui jadi elemen
-   paling berisik di kartu -- mengalahkan judul dan kutipan yang justru harus
-   dibaca lebih dulu. */
+/* Color rules:
+   ACCENT = what the AI found and selected  (ribbon sweeps, quotes,
+            transcript selection, captions)
+   WHITE  = user-owned actions and states   (buttons, progress, status)
+   Previously accent was used for both, and the Approve button became the
+   noisiest element on the card -- drowning out the title and quote that
+   should be read first. */
 .btn {
   font: inherit; font-size: var(--t-12); font-weight: 650;
   font-stretch: calc(var(--w-read) * 1%);
@@ -414,13 +415,13 @@ h1, h2, h3 {
 }
 .btn:hover { color: var(--text); background: var(--glass); border-color: var(--glass-border); }
 
-/* Satu aksi utama per wilayah, dan warnanya aksen. Sisanya pil gelap.
-   Aturan itu yang membuat mata tahu ke mana harus pergi tanpa membaca. */
+/* One primary action per region, and it's accented. The rest are dark pills.
+   This rule is what makes the eye know where to go without reading. */
 .btn.main {
   border-color: transparent;
-  /* Warna teksnya ikut aksen, bukan dipaku. Aksen terang butuh teks gelap,
-     aksen redup butuh teks terang -- memakukan salah satunya membuat tombol
-     tidak terbaca begitu aksennya diganti. */
+  /* Text color follows the accent, not hardcoded. Bright accents need dark
+     text, muted accents need light text -- hardcoding either one makes the
+     button unreadable the moment the accent changes. */
   color: var(--accent-text);
   background: var(--accent);
   font-weight: 700;
@@ -433,9 +434,9 @@ h1, h2, h3 {
 .btn.main:disabled { background: var(--glass-strong); color: var(--text-faint);
                      box-shadow: none; cursor: not-allowed; }
 
-/* Ikon di dalam tombol (mis. #aiFramingBtn) -- flex biar sejajar rapi
-   dengan teksnya, fill ikut currentColor jadi otomatis kontras di atas
-   latar apa pun tombolnya (aksen kuning, abu-abu, atau disabled). */
+/* Icon inside a button (e.g. #aiFramingBtn) -- flex so it aligns neatly
+   with the text, fill follows currentColor so it's automatically contrasty
+   on any button background (accent yellow, grey, or disabled). */
 .btn:has(svg) { display: inline-flex; align-items: center; gap: 6px; }
 .ikon-ai { flex: none; }
 .btn.main.large { padding: 10px 20px; font-size: var(--t-13); }
@@ -479,11 +480,11 @@ h1, h2, h3 {
   padding: var(--s5) var(--s4);
   display: flex; flex-direction: column; gap: var(--s3);
   min-height: 0;
-  /* Frame 9:16 tingginya diturunkan dari lebar kolom dan tidak boleh menyusut
-     -- rasionya harus persis, kalau tidak preview berbohong soal bentuk
-     keluaran. Di jendela pendek kolom ini jadi lebih tinggi dari layar, dan
-     tanpa gulir kontrol transport serta tombol render tidak terjangkau sama
-     sekali. */
+  /* The 9:16 frame height is derived from the column width and must not
+     shrink -- the ratio has to be exact, otherwise the preview lies about
+     the output shape. In a short window this column becomes taller than the
+     screen, and without scrolling the transport controls and render button
+     are completely unreachable. */
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -494,7 +495,7 @@ h1, h2, h3 {
 }
 .preview-head .res { font-family: var(--font-data); letter-spacing: 0; text-transform: none; }
 
-/* SATU frame. Caption adalah overlay di dalamnya. */
+/* ONE frame. Caption is an overlay inside it. */
 .frame916 {
   position: relative; width: 100%;
   aspect-ratio: 9 / 16;
@@ -537,23 +538,25 @@ h1, h2, h3 {
   color: #fff;
   text-shadow: 0 1px 3px rgba(0,0,0,.9), 0 3px 14px rgba(0,0,0,.75);
 }
-/* Sorotan di preview harus SAMA BENTUKNYA dengan yang terbakar di berkas:
-   kata berwarna, bukan kotak berlatar. Kalau berbeda, preview berbohong soal
-   hasil akhirnya. Warnanya disetel applyCaption() dari pilihan Warna sorot. */
+/* The highlight in the preview must be THE SAME SHAPE as what gets burned
+   into the file: colored text, not a background box. If they differ, the
+   preview lies about the final result. The color is set by applyCaption()
+   from the Highlight Color choice. */
 .cap916 mark {
   background: none;
   color: var(--highlight, #FFD600);
   padding: 0;
 }
 
-/* Bukan file font lokal seperti versi render (lihat FONTS_DIR di
-   render.py) -- di browser, Mona Sans sudah dimuat lewat Google Fonts di
-   index.html, jadi cukup dipanggil nama familinya. top/bottom/font-size/
-   color SENGAJA tidak diisi di sini -- semua dihitung dan dipasang oleh
-   applyCaption() di interactions.js, meniru _watermark_placement() di
-   render.py persis, supaya preview jujur soal di mana watermark akan
-   muncul di berkas hasil (posisi & ukurannya ikut pilihan Top/Middle/
-   Bottom dan Size/Opacity di layar Captions). */
+/* Not a local font file like the render version (see FONTS_DIR in
+   render.py) -- in the browser, Mona Sans is already loaded via Google
+   Fonts in index.html, so just referencing the family name is enough.
+   top/bottom/font-size/color are INTENTIONALLY left unset here -- they
+   are all calculated and applied by applyCaption() in interactions.js,
+   mirroring _watermark_placement() in render.py exactly, so the preview
+   is honest about where the watermark will appear in the output file
+   (position & size follow the Top/Middle/Bottom and Size/Opacity choices
+   on the Captions screen). */
 .watermark916 {
   position: absolute; left: 0; right: 0;
   text-align: center; pointer-events: none;
@@ -564,10 +567,10 @@ h1, h2, h3 {
 }
 .frame916[data-watermark="off"] .watermark916 { display: none; }
 
-/* Overlay AI Framing -- menutupi seluruh panel preview selama server
-   bekerja (diarization dkk bisa puluhan detik), supaya kelihatan sedang
-   berjalan, bukan macet. z-index di atas video/caption/watermark, DI
-   BAWAH .safe (garis batas aman tetap kelihatan sebagai konteks). */
+/* AI Framing overlay -- covers the entire preview panel while the server
+   works (diarization etc. can take tens of seconds), so it looks like
+   something is running, not frozen. z-index above video/caption/watermark,
+   BELOW .safe (the safe-area guides stay visible as context). */
 .ai-framing-overlay {
   position: absolute; inset: 0; z-index: 3;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -606,7 +609,7 @@ h1, h2, h3 {
   font-variant-numeric: tabular-nums;
 }
 
-/* info klip + ukuran durasi terhadap pita ideal */
+/* Clip info + duration size against the ideal bar */
 .clip-info { flex: none; display: grid; gap: var(--s3); padding-top: var(--s1); }
 .clip-title { font-size: 15px; font-weight: 700; letter-spacing: -.025em; }
 
@@ -630,17 +633,17 @@ h1, h2, h3 {
 }
 .meter-value { color: var(--text); }
 
-/* ═════════════════════ layar Klip / Framing / Teks ═════════════════
-   Dulu semuanya dijejalkan ke satu baris: jam sampai terpotong jadi tiga
-   baris, dan saklar "safe area" jadi pil lonjong besar yang menarik perhatian
-   lebih dari tombol putar. Sekarang dua baris dengan tugas yang jelas:
+/* ═════════════════════ Clips / Framing / Text screens ═════════════════
+   Everything used to be crammed into one row: the clock got truncated to
+   three lines, and the "safe area" toggle became a big fat pill that
+   drew more attention than the play button. Now two rows with clear roles:
 
-     baris 1  transport -- mundur banyak | putar | maju banyak
-     baris 2  jam, lalu saklar-saklar kecil
+     row 1  transport -- skip back | play | skip forward
+     row 2  clock, then small toggles
 
-   Tombol langkah dibuat persegi membulat dengan lebar tetap, bukan pil yang
-   melar mengikuti isinya -- itu yang membuat deretannya terlihat lonjong dan
-   tidak sejajar. */
+   Step buttons are made rounded-rect with fixed width, not pills that
+   stretch to fit their content -- that's what made them look uneven and
+   misaligned. */
 .preview-foot {
   margin-top: auto;
   display: flex; flex-direction: column; gap: var(--s3);
@@ -652,12 +655,12 @@ h1, h2, h3 {
   gap: 4px;
 }
 
-/* Tombol langkah: lebar TETAP, isinya panah + angka. */
+/* Step button: FIXED width, content is arrow + number. */
 .step {
   display: inline-flex; align-items: center; justify-content: center; gap: 2px;
-  /* flex: none WAJIB. Tanpa itu flexbox memampatkan tombol di panel sempit,
-     dan deretan yang seharusnya seragam jadi lebar-lebar berbeda -- itu yang
-     membuatnya terlihat lonjong dan tidak sejajar. */
+  /* flex: none is REQUIRED. Without it, flexbox compresses the button in a
+     narrow panel, and the row that should be uniform ends up with varying
+     widths -- that's what makes them look uneven and misaligned. */
   flex: none;
   box-sizing: border-box;
   width: 34px; height: 28px;
@@ -678,12 +681,12 @@ h1, h2, h3 {
 }
 .step:active { transform: translateY(1px); }
 
-/* Tombol putar: bulat penuh dan satu-satunya yang berwarna aksen, supaya
-   jelas mana aksi utamanya. */
+/* Play button: full circle and the only accented one, so it's clear
+   which is the primary action. */
 .play-btn {
   flex: none;
   box-sizing: border-box;
-  width: 38px; height: 38px;               /* sama persis -> lingkaran, bukan bulat telur */
+  width: 38px; height: 38px;               /* exactly equal -> circle, not an oval */
   margin: 0 5px;
   display: grid; place-items: center;
   border-radius: 50%;
@@ -699,21 +702,21 @@ h1, h2, h3 {
 
 .transport-bottom {
   display: flex; align-items: center; gap: 5px;
-  /* Baris ini SUDAH padat (waktu + 4 saklar); tanpa wrap, tombol yang
-     tidak muat cuma terdorong diam-diam ke luar viewport (bukan
-     terpotong kelihatan -- lebih parah, hilang & tidak bisa diklik sama
-     sekali). row-gap kecil karena baris kedua jarang muncul, cuma di
-     panel yang benar-benar sempit. */
+  /* This row is ALREADY tight (clock + 4 toggles); without wrap, buttons
+     that don't fit just get silently pushed outside the viewport (not
+     visibly clipped -- worse, gone and completely unclickable). Small
+     row-gap because the second row rarely appears, only in truly narrow
+     panels. */
   flex-wrap: wrap; row-gap: 4px;
 }
 .transport-bottom .time {
   margin-right: auto;
-  white-space: nowrap;                     /* jam tidak lagi patah tiga baris */
+  white-space: nowrap;                     /* clock no longer wraps to three lines */
   font-variant-numeric: tabular-nums;
   color: var(--text-muted);
 }
 
-/* Saklar kecil: bentuknya sama semua, tidak ada yang lonjong. */
+/* Small toggles: all the same shape, none are oval. */
 .toggle {
   flex: none;
   box-sizing: border-box;
@@ -735,17 +738,17 @@ h1, h2, h3 {
   background: var(--accent-soft);
 }
 
-/* Tombol "?" di topbar (pojok kanan atas, pola umum web) -- posisi
-   relative di sini supaya panel bisa absolute terhadap tombolnya
-   sendiri, bukan terhadap seluruh topbar. Sebelumnya di media control
-   preview, tapi baris itu sudah padat (sempat bikin overflow, lihat
-   riwayat commit) dan tombol bantuan memang lebih wajar di top bar,
-   bukan berdesakan dengan kontrol transport. */
+/* "?" button in the topbar (top-right corner, common web pattern) --
+   position is relative here so the panel can be absolute relative to
+   the button itself, not the entire topbar. Previously in the preview
+   media control row, but that row was already packed (it caused overflow,
+   see commit history), and a help button is more naturally placed in the
+   top bar, not competing with the transport controls. */
 .shortcut-help { position: relative; }
 .shortcut-help .btn { font-weight: 700; }
 
-/* Panel muncul DI BAWAH tombolnya (top: 100%) -- topbar ada di paling
-   atas halaman, membuka ke atas akan lari ke luar jendela. */
+/* Panel appears BELOW its button (top: 100%) -- the topbar is at the very
+   top of the page; opening upward would go off-screen. */
 .shortcut-panel {
   position: absolute;
   top: calc(100% + 8px);
@@ -786,11 +789,11 @@ h1, h2, h3 {
 }
 .icon:hover { background: var(--glass-strong); }
 
-/* ═══════════════════════════════════════════════ potong */
+/* ═══════════════════════════════════════════════ clip */
 
 .tools { flex: none; padding: var(--s4) var(--s4) 0; }
 
-/* Waveform menempel langsung ke chip kata — satu alat, tanpa jarak. */
+/* Waveform sits directly on the word chip — one tool, no gap. */
 .wave {
   position: relative; height: 66px;
   display: flex; align-items: center; gap: 2px;
@@ -851,33 +854,33 @@ h1, h2, h3 {
 
 /* ═══════════════════════════════════════════════ reframe */
 
-/* SATU blok, sengaja. Sebelumnya aturan .canvas terpecah di tiga tempat
-   berjauhan di berkas ini, semuanya di tingkat atas, dan yang belakangan
-   diam-diam menimpa yang duluan -- `margin: auto` di salah satunya membatalkan
-   sisipan tepi yang ditulis di sini, jadi kanvasnya menempel tepi panel.
+/* ONE block, intentionally. Previously the .canvas rules were split across
+   three distant places in this file, all at top level, and later ones
+   silently overrode earlier ones -- `margin: auto` in one of them cancelled
+   the edge inset written here, so the canvas stuck to the panel edge.
 
-   background pakai `cover`, bukan `contain`: dengan contain di kotak yang
-   rasionya beda muncul bilah kosong, dan crop 30% tidak lagi berarti 30%
-   gambar sumber.
+   background uses `cover`, not `contain`: with contain, boxes whose aspect
+   ratio differs show blank bars, and a 30% crop no longer means 30% of
+   the source image.
 
-   .panel (induknya) BUKAN flex container -- .canvas adalah kotak block
-   biasa. aspect-ratio di sini cuma cadangan, framing.js menguncinya ke
-   rasio video sumber begitu metadatanya terbaca (lihat ikutiPreview()
-   di framing.js).
-   Di layar lebar, rasio sumber x max-height bisa menghasilkan LEBAR lebih
-   kecil dari lebar panel -- tanpa margin kiri-kanan auto, kotak block
-   menempel ke tepi kiri (margin tetap cuma di kiri) dan sisa ruang jadi
-   celah kosong di kanan. margin auto memusatkannya; saat kanvas memang
-   selebar panel (kasus umum), auto tetap resolve ke celah simetris biasa
-   jadi tidak ada regresi di kasus itu. */
+   .panel (its parent) is NOT a flex container -- .canvas is a plain block
+   box. aspect-ratio here is just a fallback; framing.js locks it to the
+   source video ratio once its metadata is read (see ikutiPreview()
+   in framing.js).
+   On wide screens, source ratio x max-height can produce a WIDTH smaller
+   than the panel -- without left/right auto margins, the block box sticks
+   to the left edge (margin only on the left) and the remaining space
+   becomes a gap on the right. margin auto centers it; when the canvas is
+   indeed panel-width (the common case), auto still resolves to the usual
+   symmetric gap, so no regression in that case. */
 .canvas {
   position: relative;
   flex: 0 1 auto; min-height: 0;
   width: auto; height: auto;
-  /* Dulu max-height:100% -- di layar tinggi itu berarti kanvas melebar
-     sampai nyaris memenuhi seluruh panel, mendorong "Framing points" di
-     bawahnya keluar layar dan butuh scroll cuma untuk melihatnya. Dijepit
-     ke porsi viewport supaya ruang di bawah kanvas selalu tersisa. */
+  /* Used to be max-height:100% -- on a tall screen that meant the canvas
+     expanded to nearly fill the entire panel, pushing "Framing points"
+     below it off-screen and requiring scroll just to see them. Capped to
+     a viewport fraction so there's always space below the canvas. */
   max-height: 48vh;
   aspect-ratio: 16 / 9;
   margin: 0 auto;
@@ -912,13 +915,13 @@ h1, h2, h3 {
 .crop b:nth-child(4) { left: -5px; bottom: -5px; }
 .crop b:nth-child(5) { right: -5px; bottom: -5px; }
 
-/* Kotak kedua cuma berarti saat split; di format single ia disembunyikan
-   supaya tidak ada kotak yang bisa digeser tapi tidak ikut dirender. */
+/* The second box only matters in split mode; in single format it is hidden
+   so there's no box that can be dragged but won't actually render. */
 .canvas[data-format="single"] .crop.second { display: none; }
 
-/* ── pilihan format bingkai ──
-   Ikonnya menggambarkan hasilnya: satu petak penuh, atau dua petak
-   bertumpuk. Lebih cepat dibaca daripada kata-kata. */
+/* ── frame format choices ──
+   The icons depict the result: one full tile, or two stacked tiles.
+   Faster to read than words. */
 .format-bar {
   flex: none; display: flex; gap: var(--s2);
   padding: 0 var(--s5); margin-bottom: var(--s3);
@@ -952,16 +955,16 @@ h1, h2, h3 {
   content: ""; border: 1.5px solid currentColor; border-radius: 2px;
 }
 
-/* ── titik Framing sebagai strip thumbnail yang bisa di-scroll ──────────
-   Dulu daftar chip datar ("00:12 · 1 · out 00:03" dst) -- susah dipindai
-   begitu AI Framing menghasilkan banyak titik sekaligus (satu giliran bisa
-   >20 titik kalau subjeknya sering bergeser). Sekarang tiap titik SELALU
-   dapat thumbnail sungguhan (lewat /api/thumb, sudah ada) -- seberapa pun
-   rapat waktunya dengan tetangga, tidak ada yang disembunyikan/dikecilkan.
-   Ditata sebagai strip flex sebaris, BUKAN diposisikan proporsional ke
-   waktu di atas bar lebar tetap -- titik yang banyak membuat strip-nya
-   melebar dan di-scroll horizontal (overflow-x di bawah), bukan bikin
-   thumbnail berdesakan. */
+/* ── Framing points as a scrollable thumbnail strip ──────────
+   Used to be a flat chip list ("00:12 · 1 · out 00:03" etc.) -- hard to
+   scan once AI Framing produces many points at once (one run can yield
+   >20 points if the subject shifts often). Now every point ALWAYS gets a
+   real thumbnail (via /api/thumb, already available) -- no matter how close
+   its time is to a neighbor, nothing is hidden/shrunk.
+   Arranged as a single-line flex strip, NOT positioned proportionally to
+   time on a fixed-width bar -- many points make the strip wider and it
+   scrolls horizontally (overflow-x below), rather than cramming
+   thumbnails together. */
 .framing-timeline {
   display: flex;
   align-items: flex-start;
@@ -988,12 +991,12 @@ h1, h2, h3 {
 .fr-thumb-empty { display: block; background: var(--glass); }
 .fr-point:hover .fr-thumb { border-color: var(--text-muted); }
 .fr-active .fr-thumb { border-color: var(--accent); }
-/* Angka UTAMA = posisi di Result yang sedang diedit -- itu yang berarti
-   langsung bagi orang yang sedang melihat panel preview. .fr-time-src
-   (posisi di video sumber) sengaja lebih kecil/pudar di bawahnya: konteks
-   tambahan, bukan angka pertama yang dibaca (lihat komentar di
-   framing.js -- dulu kebalik, sumber yang besar, dan itu membingungkan
-   untuk Result yang jauh lebih pendek dari videonya). */
+/* The PRIMARY number = position in the Result being edited -- that's what
+   matters immediately to someone looking at the preview panel. .fr-time-src
+   (position in the source video) is intentionally smaller/faded below it:
+   additional context, not the first number read (see comments in
+   framing.js -- it used to be the other way around, source was big, and
+   that was confusing for Results that are much shorter than the video). */
 .fr-time {
   font-family: var(--font-data); font-size: 12px; font-weight: 650;
   color: var(--text-muted);
@@ -1037,7 +1040,7 @@ h1, h2, h3 {
   text-shadow: 0 0 3px var(--bg-2), 0 0 3px var(--bg-2);
 }
 
-/* ═══════════════════════════════════════════════ daftar */
+/* ═══════════════════════════════════════════════ list */
 
 .list { display: grid; }
 .row {
@@ -1060,7 +1063,7 @@ h1, h2, h3 {
 }
 .progress.done > i { background: rgba(255,255,255,.9); }
 
-/* ═══════════════════════════════════════════════ jatuhkan file */
+/* ═══════════════════════════════════════════════ file drop */
 
 .drop {
   flex: 1; min-height: 0;
@@ -1075,7 +1078,7 @@ h1, h2, h3 {
 .drop h2 { font-size: 20px; }
 .drop p { margin: 0; color: var(--text-faint); font-size: 13px; }
 
-/* ═══════════════════════════════════════════════ galat */
+/* ═══════════════════════════════════════════════ error */
 
 .error {
   flex: none; display: flex; align-items: center; gap: var(--s3);
@@ -1088,7 +1091,7 @@ h1, h2, h3 {
 .error p { margin: 0; color: var(--text-muted); font-size: 13px; }
 .error .link { margin-left: auto; }
 
-/* ═══════════════════════════════════════════════ akses */
+/* ═══════════════════════════════════════════════ accessibility */
 
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
@@ -1103,26 +1106,26 @@ h1, h2, h3 {
 }
 @media (max-width: 1180px) { :root { --w-preview: 292px; } }
 
-/* ═══════════════════════════════════════════════ tahap navigasi
-   Tiga tingkat, bukan satu tumpukan tab:
-     beranda  -> pilih mode
-     siapkan  -> sumber + opsi
-     kerja    -> tab editor
-   Sebelumnya aplikasi membuka langsung di layar Kandidat dari proyek yang
-   seolah sudah terbuka -- tidak ada pintu masuk, dan pengguna kehilangan
-   orientasi. */
+/* ═══════════════════════════════════════════════ navigation stages
+   Three levels, not a flat tab stack:
+     home     -> choose mode
+     prepare  -> source + options
+     work     -> editor tabs
+   Previously the app opened directly to the Candidates screen of a
+   project that seemed already open -- no entry point, and the user
+   lost all orientation. */
 
-/* Dua tahap saja sejak pemilihan mode dibuang: beranda dan kerja. */
+/* Two stages only since mode selection was removed: home and work. */
 .home { display: none; overflow-y: auto; }
 [data-stage="home"] .home { display: block; }
 [data-stage="home"] .work-only,
 [data-stage="home"] .stage { display: none; }
 
-/* topbar tetap ada di semua tahap, tapi hanya berisi brand saat di beranda */
+/* topbar stays in all stages, but only contains the brand on the home screen */
 
-/* Reset tombol yang aman: JANGAN pakai `font: inherit` atau `background: none`
-   di sini -- keduanya menimpa gradien background-clip:text dan ukuran huruf
-   yang sudah diatur di aturan .brand sebelumnya, membuat wordmark hilang. */
+/* Safe button reset: do NOT use `font: inherit` or `background: none`
+   here -- both override the background-clip:text gradient and font size
+   already set in the earlier .brand rule, making the wordmark disappear. */
 .brand { font-family: inherit; border: 0; padding: 0; cursor: pointer; }
 [data-stage="home"] .brand { cursor: default; }
 
@@ -1138,9 +1141,9 @@ h1, h2, h3 {
 }
 .home-sub { margin: 0; max-width: 58ch; color: var(--text-muted); font-size: var(--t-14); }
 
-/* ── project yang belum selesai ──
-   Kartu, bukan baris: sampulnya yang membuat orang mengenali pekerjaannya
-   sendiri lebih cepat daripada membaca nama berkas. */
+/* ── unfinished projects ──
+   Cards, not rows: it's the cover thumbnail that lets people recognize
+   their own work faster than reading the filename. */
 .recent { margin-top: var(--s6); display: grid; gap: var(--s3); }
 .project-grid {
   display: grid; gap: var(--s3);
@@ -1179,8 +1182,8 @@ h1, h2, h3 {
 }
 .project-card:hover .delete-icon { opacity: 1; }
 
-/* Project terakhir yang dibuka. Penanda kecil, bukan kartu yang dibesarkan:
-   yang dibutuhkan cuma "yang ini tadi", bukan penekanan. */
+/* Most recently opened project. A small marker, not an enlarged card:
+   all that's needed is "this one just now", not emphasis. */
 .tanda-terakhir {
   position: absolute; top: 6px; left: 6px;
   font-family: var(--font-data); font-size: 9px;
@@ -1188,16 +1191,18 @@ h1, h2, h3 {
   background: var(--accent); color: oklch(0.145 0.010 258);
 }
 
-/* Videonya tidak terjangkau server, jadi project ini tidak bisa dilanjutkan
-   sungguhan. Diredupkan dan sampulnya dimatikan warnanya -- kartunya tetap
-   ada supaya bisa dihapus. */
+/* The video is unreachable by the server, so this project can't actually
+   be continued. Dimmed and the cover is desaturated -- the card remains
+   so it can still be deleted. */
 .project-card.hilang { opacity: .5; cursor: not-allowed; }
 .project-card.hilang .project-thumb { filter: grayscale(1); }
-/* Sampul untuk video yang tidak ada. Bidang kosong, bukan <img> yang pasti
-   404 -- permintaan yang sudah dipastikan gagal tidak perlu dikirim. */
-/* ── konfirmasi hapus ──
-   Menutupi kartunya sendiri, bukan dialog di tengah layar: yang ditanyakan
-   adalah kartu ITU, jadi pertanyaannya duduk di tempat yang ditunjuk. */
+/* Cover for a video that doesn't exist. An empty field, not an <img> that
+   will certainly 404 -- a request that's guaranteed to fail doesn't need
+   to be sent. */
+/* ── delete confirmation ──
+   Covers its own card, not a dialog in the middle of the screen: what's
+   being asked about is THAT card, so the question sits right where it's
+   pointed. */
 .konfirmasi {
   position: absolute; inset: 0;
   display: none;
@@ -1220,7 +1225,7 @@ h1, h2, h3 {
 }
 .btn.danger:hover { background: color-mix(in srgb, var(--danger) 84%, #fff); }
 
-/* Kartu sudah bukan <button>, jadi fokusnya perlu ditandai sendiri. */
+/* Card is no longer a <button>, so focus needs to be indicated separately. */
 .project-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .project-thumb.empty {
@@ -1231,8 +1236,8 @@ h1, h2, h3 {
 .project-card.hilang:hover { transform: none; background: var(--glass); }
 .project-card.hilang .project-meta { color: var(--danger); }
 
-/* Berkas dijatuhkan tapi ada di luar samples/: bukan galat, tapi bukan siap
-   juga -- perlu nada tersendiri. */
+/* File was dropped but lives outside samples/: not an error, but not ready
+   either -- needs its own tone. */
 .source-drop[data-state="warn"] {
   border-style: solid;
   border-color: color-mix(in srgb, var(--danger) 55%, transparent);
@@ -1240,7 +1245,7 @@ h1, h2, h3 {
 .source-drop[data-state="warn"] p { color: var(--danger); }
 .project-card .delete-icon:hover { background: var(--danger); }
 
-/* ═══════════════════════════════════════════════ beranda */
+/* ═══════════════════════════════════════════════ home */
 
 .prepare-body h1 {
   font-size: clamp(26px, 2.6vw, 34px);
@@ -1270,9 +1275,9 @@ h1, h2, h3 {
 .input:focus-visible { border-color: var(--accent); }
 
 .option { padding: var(--s2) var(--s5); }
-/* Dua baris: label + pilihan di atas, keterangan di bawah -- sejajar dengan
-   pilihannya, bukan dengan labelnya, supaya terbaca sebagai penjelasan
-   pilihan yang sedang aktif. */
+/* Two rows: label + choices on top, hint below -- aligned with the choice,
+   not with the label, so it reads as a description of the currently
+   active selection. */
 .option-row {
   display: grid;
   grid-template-columns: 150px 1fr;
@@ -1294,10 +1299,10 @@ h1, h2, h3 {
 .prepare-foot .data { color: var(--text-faint); }
 .btn.large { margin-left: auto; font-size: var(--t-13); padding: 11px 26px; }
 
-/* keadaan kotak sumber: kosong, sedang diseret, siap, atau galat */
-/* Satu-satunya penanda "lepaskan di sini" sekarang, jadi ia harus benar-benar
-   terbaca. Sebelumnya selalu tertutup tirai layar-penuh, sehingga samarnya
-   tidak pernah ketahuan. */
+/* Source box states: empty, being dragged, ready, or error */
+/* The only "drop here" indicator now, so it needs to be truly readable.
+   Previously it was always covered by a full-screen overlay, so its
+   subtlety was never noticed. */
 .source-drop[data-drag="true"] {
   border-color: var(--accent);
   border-style: solid;
@@ -1326,8 +1331,8 @@ h1, h2, h3 {
 .btn.main:disabled:hover { background: var(--text); }
 
 
-/* Penanda mode: keterangan, bukan kontrol. Mode dipilih di menu utama, jadi
-   membuatnya bisa diklik di sini memberi dua jalan untuk hal yang sama. */
+/* Mode badge: label, not control. Mode is chosen in the main menu, so
+   making it clickable here would give two ways to do the same thing. */
 .mode-mark {
   font-size: var(--t-12); font-weight: 650;
   color: var(--accent);
@@ -1338,9 +1343,9 @@ h1, h2, h3 {
 }
 .back-menu { padding: 6px 12px; }
 
-/* Kaki aksi: tempat keputusan "sudah cukup, render sekarang" diambil.
-   Sebelumnya tidak ada satu pun tombol yang memulai render -- antrian
-   menampilkan progress dari pekerjaan yang tidak pernah dimulai. */
+/* Action footer: where the "enough, render now" decision is made.
+   Previously there wasn't a single button that started rendering -- the
+   queue showed progress for a job that was never actually started. */
 .foot-actions {
   flex: none; display: flex; align-items: center; gap: var(--s4);
   padding-top: var(--s3); border-top: 1px solid var(--glass-border);
@@ -1348,17 +1353,19 @@ h1, h2, h3 {
 .foot-actions .data { color: var(--text-faint); }
 .foot-actions .btn { margin-left: auto; }
 
-/* Video asli di dalam frame 9:16. Ukurannya dihitung dari kotak crop supaya
-   yang terlihat persis bagian yang dipotong -- bukan seluruh frame diperkecil. */
-/* Petak preview. Format single memakai satu petak setinggi penuh; format
-   split membaginya dua sama tinggi, masing-masing 9:8 -- rasio yang sama
-   dengan kotak framingnya, jadi gambarnya tidak gepeng. */
+/* The actual video inside the 9:16 frame. Its size is derived from the crop
+   box so what's visible is exactly the cropped portion -- not the entire
+   frame scaled down. */
+/* Preview tiles. Single format uses one full-height tile; split format
+   divides it into two equal halves, each 9:8 -- the same ratio as the
+   framing box, so the images aren't squished. */
 .half { position: absolute; left: 0; right: 0; overflow: hidden; }
 .frame916[data-format="single"] .half.top    { top: 0; bottom: 0; }
 .frame916[data-format="single"] .half.bottom { display: none; }
 .frame916[data-format="split"]  .half.top    { top: 0;   height: 50%; }
 .frame916[data-format="split"]  .half.bottom { top: 50%; height: 50%; }
-/* Garis sambungnya ditegaskan supaya terbaca sebagai pilihan, bukan cacat. */
+/* The dividing line is made prominent so it reads as a deliberate choice,
+   not a defect. */
 .frame916[data-format="split"] .half.bottom::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px;
   background: rgba(255,255,255,.22); z-index: 2;
@@ -1373,9 +1380,10 @@ h1, h2, h3 {
 .frame916[data-video="true"] .video916 { display: block; }
 .frame916[data-video="true"] .field { opacity: 0; }
 
-/* ── langkah bernomor di layar Analisis ──
-   Alurnya memang berurutan dan melibatkan aplikasi lain di tengah, jadi
-   penomoran di sini membawa informasi -- bukan hiasan. */
+/* ── numbered steps on the Analysis screen ──
+   The flow is inherently sequential and involves another app in the
+   middle, so the numbering here carries information -- it's not
+   decorative. */
 .step { padding: var(--s5); display: grid; gap: var(--s4); }
 .step[data-ready="false"] { opacity: .45; }
 .step-head { display: flex; align-items: center; gap: var(--s4); }
@@ -1414,8 +1422,9 @@ h1, h2, h3 {
 .manual-path { padding: var(--s5); border-style: dashed; }
 .manual-path .num { font-size: var(--t-14); }
 
-/* Kontrol potongan dalam: membuang bagian di tengah klip. Mekanisme yang
-   sama dipakai untuk membuang jeda -- satu model, dua kegunaan. */
+/* In-clip cut control: removing a section in the middle of the clip.
+   The same mechanism is used for removing silences -- one model, two
+   uses. */
 .tools-cut {
   flex: none; display: flex; align-items: center; gap: var(--s3);
   padding: var(--s3) var(--s4);
@@ -1425,11 +1434,12 @@ h1, h2, h3 {
 .tools-cut .right { margin-left: auto; color: var(--text); }
 .word.dropped { opacity: .3; text-decoration: line-through; background: none; }
 
-/* Chip di luar rentang klip: terlihat, tapi jelas bukan bagian klipnya.
-   Tanpa pembeda ini, pengguna mengira semua kata di layar itu isi klip. */
+/* Chip outside the clip range: visible, but clearly not part of the clip.
+   Without this distinction, users think every word on screen is clip
+   content. */
 .word.outside { opacity: .42; }
 
-/* Keadaan kosong: menjelaskan langkah berikutnya, bukan sekadar bidang kosong */
+/* Empty state: explains the next step, not just a blank field */
 .empty {
   grid-column: 1 / -1;
   padding: var(--s7) var(--s5);
@@ -1440,10 +1450,11 @@ h1, h2, h3 {
 .empty h2 { font-size: var(--t-20); margin-bottom: var(--s2); }
 .empty p { margin: 0 auto; max-width: 46ch; color: var(--text-faint); font-size: var(--t-13); }
 
-/* ══════════════════════════════════════ sidebar kerja
-   Menu pindah dari topbar ke sisi kiri begitu masuk mode edit. Enam layar
-   dengan label penuh terlalu sesak di topbar bersama nama berkas dan mode;
-   di kolom vertikal semuanya terbaca dan urutannya jadi jelas. */
+/* ══════════════════════════════════════ work sidebar
+   The menu moves from the topbar to the left side once in edit mode.
+   Six screens with full labels were too cramped in the topbar alongside
+   the filename and mode; in a vertical column everything is readable and
+   the ordering becomes clear. */
 
 .side {
   position: relative;
@@ -1454,11 +1465,11 @@ h1, h2, h3 {
   overflow-y: auto;
 }
 
-/* Tombol sembunyikan sidebar duduk DI sidebar-nya sendiri, bukan di topbar
-   -- kontrol yang menyembunyikan sebuah panel wajar ditempel ke panel itu,
-   bukan ditaruh jauh di baris atas. Tombol munculkan-lagi (mengambang,
-   lihat .sidebar-restore) yang tetap di luar karena begitu sidebar
-   disembunyikan, elemen ini ikut hilang bersamanya. */
+/* The sidebar-hide button lives IN the sidebar itself, not in the topbar --
+   the control that hides a panel naturally belongs on that panel, not
+   placed far away in the top row. The restore button (floating,
+   see .sidebar-restore) stays outside because once the sidebar is hidden,
+   this element goes with it. */
 .side-collapse {
   position: absolute; top: var(--s3); right: var(--s3); z-index: 1;
   font-size: var(--t-12); font-weight: 650;
@@ -1474,8 +1485,8 @@ h1, h2, h3 {
 
 .rel-side { display: grid; gap: 2px; align-content: start; padding-top: 30px; }
 
-/* Label klaster ("Preparation", "Editing") -- murni visual, bukan .tab
-   (lihat komentar di index.html soal kenapa itu aman). */
+/* Cluster labels ("Preparation", "Editing") -- purely visual, not .tab
+   (see the comment in index.html for why that's safe). */
 .rel-side-group {
   padding: var(--s4) 13px 4px;
 }
@@ -1495,10 +1506,10 @@ h1, h2, h3 {
   color: var(--text);
   background: var(--accent-soft);
   border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
-  padding: 8px 12px;                  /* ganti rugi tebal garis tepi */
+  padding: 8px 12px;                  /* compensate for the border thickness */
 }
-/* penanda aktif: garis aksen di tepi kiri, bukan pil terang penuh --
-   di kolom vertikal, pil penuh terbaca seperti tombol yang ditekan */
+/* active indicator: accent line on the left edge, not a full bright pill --
+   in a vertical column, a full pill reads like a pressed button */
 .rel-side .tab[aria-selected="true"]::before {
   content: ""; position: absolute;
   left: 0; top: 20%; bottom: 20%; width: 3px;
@@ -1510,11 +1521,11 @@ h1, h2, h3 {
 .stage.has-preview { grid-template-columns: var(--w-side) 1fr var(--w-preview); }
 .stage { grid-template-columns: var(--w-side) 1fr; }
 
-/* Sidebar bisa disembunyikan (lihat #hideSidebarBtn, app.js) supaya panel
-   Framing punya lebih banyak lebar mendatar untuk kanvas + Framing Points.
-   Kolom gridnya diganti eksplisit ke JUMLAH item yang tersisa (.work +
-   .preview, tanpa .side) -- bukan cuma menyembunyikan .side -- supaya tidak
-   kena jebakan auto-placement yang sama seperti kasus .topbar di atas. */
+/* Sidebar can be hidden (see #hideSidebarBtn, app.js) so the Framing panel
+   gets more horizontal room for the canvas + Framing Points.
+   The grid columns are explicitly changed to the COUNT of remaining items
+   (.work + .preview, without .side) -- not just hiding .side -- to avoid
+   the same auto-placement trap as the .topbar case above. */
 .app[data-sidebar="hidden"] .side { display: none; }
 .app[data-sidebar="hidden"] .stage.has-preview { grid-template-columns: 1fr var(--w-preview); }
 .app[data-sidebar="hidden"] .stage { grid-template-columns: 1fr; }
@@ -1531,12 +1542,12 @@ h1, h2, h3 {
 }
 .sidebar-restore:hover { color: var(--text); background: var(--glass); }
 
-/* ══════════════════ objek reframe, tab klip, timeline ══════════════════
-   Tiga kontrol yang lahir dari satu ide: preview adalah HASILNYA, jadi kamu
-   harus bisa memilih klip mana yang dilihat, melihat di mana potongannya
-   dibuang, dan menekan render dari tempat yang sama. */
+/* ══════════════════ reframe objects, clip tabs, timeline ══════════════════
+   Three controls born from one idea: the preview IS the result, so you
+   should be able to choose which clip you're looking at, see where cuts
+   were made, and hit render from the same place. */
 
-/* ---- chip objek: nama orang, bisa diganti, bisa dihapus ---- */
+/* ---- object chip: person name, editable, deletable ---- */
 .chip .nama-objek { outline: none; }
 .chip .nama-objek[contenteditable="true"] {
   border-bottom: 1px dashed var(--accent);
@@ -1550,19 +1561,18 @@ h1, h2, h3 {
 }
 .chip .delete-icon:hover { opacity: 1; color: var(--danger); }
 
-/* ---- pemilih Result, di title Clips/Framing/Captions ----
-   Satu project bisa punya lebih dari satu Result tersimpan -- tiga
-   instance identik (.result-select + tombol baru/hapus), disinkronkan
-   renderResultSwitcher() di projects.js. .right sudah dorong ke kanan
-   work-head (lihat aturannya di atas). */
+/* ---- Result picker, in the Clips/Framing/Captions header ----
+   A single project can have more than one saved Result -- three identical
+   instances (.result-select + new/delete button), kept in sync by
+   renderResultSwitcher() in projects.js. .right is already pushed to the
+   right of work-head (see its rule above). */
 .result-picker { display: flex; gap: var(--s2); align-items: center; }
 .result-picker .btn.quiet {
   padding: 4px 9px; font-size: var(--t-13); line-height: 1;
 }
-/* <select> polos tanpa ini tampil putih bawaan browser -- cuma kotak
-   pembungkus & tombolnya yang kena tema, elemen select-nya sendiri
-   kelupaan. Warna/border disamakan .input (app.css:1134), bukan gaya
-   baru. */
+/* A bare <select> without this shows the browser's default white -- only
+   the wrapper box & button get themed, the select element itself was
+   forgotten. Colors/border match .input (app.css:1134), not a new style. */
 .result-select {
   font: inherit; font-size: var(--t-13);
   padding: 5px 11px;
@@ -1575,21 +1585,21 @@ h1, h2, h3 {
 .result-select:hover { border-color: var(--border-bright); }
 .result-select:focus-visible { border-color: var(--accent); outline: none; }
 
-/* ---- timeline: tiap potongan satu batang, celah = yang dibuang ----
-   Dua baris, bukan satu: batang di atas, jam di bawah. Sebelumnya `.tl-time`
-   dipusatkan (top:50%) di dalam kotak setinggi 22px yang sama dengan batang
-   6px-nya -- tulisan jam menembus tepat di tengah batang, bukan duduk di
-   bawahnya. Kotaknya sekarang dibuat cukup tinggi untuk dua baris, dan
-   semua anaknya diposisikan mutlak ke zona masing-masing: batang+penanda
-   di atas (tinggi tetap), jam menempel di dasar kotak. */
+/* ---- timeline: each cut is one bar, gap = what's removed ----
+   Two rows, not one: bar on top, clock below. Previously `.tl-time`
+   was centered (top:50%) inside a 22px box the same height as its 6px
+   bar -- the clock text cut right through the middle of the bar instead
+   of sitting below it. The box is now tall enough for two rows, and
+   all children are absolutely positioned to their own zones: bar+marker
+   on top (fixed height), clock anchored to the bottom of the box. */
 .timeline {
   position: relative;
   height: 34px; margin: var(--s3) 0 var(--s2);
   cursor: pointer;
-  /* Semua anaknya position:absolute -> tinggi konten minimumnya 0 di mata
-     flexbox. Tanpa ini, ".preview" (flex column) menyusutkan kotak ini
-     duluan saat isinya melebihi tinggi panel, dan batang+jam saling
-     menimpa karena keduanya diposisikan relatif ke tinggi kotak ini. */
+  /* All children are position:absolute -> minimum content height is 0 in the
+     eyes of flexbox. Without this, ".preview" (flex column) shrinks this
+     box first when its contents exceed the panel height, and the bar+clock
+     overlap because both are positioned relative to this box's height. */
   flex-shrink: 0;
 }
 .timeline:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: var(--r-s); }
@@ -1626,22 +1636,22 @@ h1, h2, h3 {
 .tl-start { left: 0; }
 .tl-end { right: 0; }
 
-/* ═════════════════════ layar Klip / Framing / Teks ═════════════════
-   Dua panel bertumpuk: rekomendasi AI di atas (cukup menit + judul),
-   wadah Result di bawah. Yang di bawah itu yang jadi video. */
+/* ═════════════════════ Clips / Framing / Text screens ═════════════════
+   Two stacked panels: AI recommendations on top (just minute + title),
+   Result container below. The one below is what becomes the video. */
 
 .panel-head, .result-head {
   display: flex; align-items: center; gap: var(--s3);
   padding: var(--s4) var(--s5) var(--s3);
 }
 .panel-head .data, .result-head .data { margin-right: auto; color: var(--text-faint); }
-/* Layar Captions sekarang punya DUA tombol di baris ini ("Remove filler
-   words" + "Reset all"), bukan cuma satu seperti panel-head/result-head
-   lain -- di panel yang sempit keduanya meluber keluar kotak tanpa ini. */
+/* The Captions screen now has TWO buttons in this row ("Remove filler
+   words" + "Reset all"), not just one like other panel-head/result-head
+   rows -- in a narrow panel both overflow their box without this. */
 #panel-teks .panel-head { flex-wrap: wrap; row-gap: var(--s2); }
 
-/* Kotak status AI Framing (proses/error/hasil) -- lihat aiFramingStatus()
-   di framing.js. */
+/* AI Framing status box (processing/error/result) -- see aiFramingStatus()
+   in framing.js. */
 .ai-framing-tanya {
   display: flex; align-items: center; gap: var(--s3);
   margin: 0 var(--s5) var(--s3);
@@ -1659,7 +1669,7 @@ h1, h2, h3 {
   color: var(--text-faint); font-size: 13px; line-height: 1.5;
 }
 
-/* ---- baris rekomendasi: pilih dengan centang ---- */
+/* ---- recommendation row: select with checkbox ---- */
 .rec-row {
   display: grid;
   grid-template-columns: auto auto auto 1fr auto auto;
@@ -1670,10 +1680,10 @@ h1, h2, h3 {
 }
 .rec-row:hover { background: var(--glass); }
 
-/* Tombol pratinjau: bulat kecil, sengaja tidak semenonjol tombol utama --
-   ini langkah eksplorasi, bukan aksi yang berdampak (beda dengan "Add to
-   Result"). aria-pressed="true" (sedang memutar rentang INI) diberi warna
-   aksen supaya jelas baris mana yang sumber suaranya. */
+/* Preview button: small circle, intentionally less prominent than the main
+   button -- this is an exploratory step, not a consequential action
+   (unlike "Add to Result"). aria-pressed="true" (currently playing THIS
+   range) gets accent color so it's clear which row is the audio source. */
 .rec-play {
   font: inherit; font-size: 10px; line-height: 1;
   width: 22px; height: 22px; flex: none;
@@ -1690,9 +1700,10 @@ h1, h2, h3 {
   color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent);
   background: var(--accent-soft);
 }
-/* Selektor DIBATASI ke checkbox: bare ".rec-row input" ikut menimpa lebar
-   kolom waktu (15x15px cocok untuk kotak centang, tapi menghancurkan input
-   mm:ss yang butuh ~40px -- "01:40" jadi terpotong nyaris tak terbaca). */
+/* Selector RESTRICTED to checkbox: the bare ".rec-row input" also overrode
+   the time column width (15x15px works for a checkbox but destroys the
+   mm:ss input that needs ~40px -- "01:40" got truncated nearly
+   unreadable). */
 .rec-row input[type="checkbox"] {
   accent-color: var(--accent); width: 15px; height: 15px; cursor: pointer;
 }
@@ -1707,19 +1718,19 @@ h1, h2, h3 {
 .rec-title, .result-title {
   font-weight: 600; font-size: 14px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  /* `overflow:hidden` bikin ukuran minimum otomatis kolom grid 1fr ini
-     jadi 0 (aturan CSS Grid, bukan bug browser) -- tanpa min-width ini,
-     menambah SATU elemen apa pun ke kolom .rec-time di sebelahnya
-     (semuanya "auto", ikut memakan ruang duluan) bisa mendesak judul
-     ini sampai lebar 0px dan hilang total, bukan cuma terpotong.
-     Ketauan persis begini setelah nambah tombol pensil .rec-edit. */
+  /* `overflow:hidden` makes the automatic minimum width of this 1fr grid
+     column 0 (CSS Grid spec, not a browser bug) -- without this min-width,
+     adding ANY single element to the adjacent .rec-time column (all "auto",
+     they consume space first) can squeeze this title to 0px width and make
+     it vanish entirely, not just truncate. This was discovered exactly this
+     way after adding the .rec-edit pencil button. */
   min-width: 90px;
 }
 .result-time { color: var(--text-faint); }
 
-/* Waktu rekomendasi bisa diedit -- dua kolom mm:ss kecil, bukan lagi teks
-   statis. Klik langsung pada kolomnya sendiri (bukan pada label di
-   sekitarnya) supaya perilaku bawaan browser tidak ikut mencentang baris. */
+/* Recommendation times are editable -- two small mm:ss fields, no longer
+   static text. Click is directly on the field itself (not on the surrounding
+   label) so the browser's default behavior doesn't also check the row. */
 .rec-time {
   display: inline-flex; align-items: center; gap: 4px;
   color: var(--text-faint);
@@ -1734,16 +1745,16 @@ h1, h2, h3 {
   text-align: center;
 }
 .rec-time-in:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-/* Terkunci sampai tombol pensil dipencet -- baris ini <label> yang
-   membungkus checkbox pilih-Result, jadi kotak yang selalu bisa diklik
-   gampang tersenggol tanpa sengaja. */
+/* Locked until the pencil button is pressed -- this row is a <label>
+   wrapping the Result-select checkbox, so a clickable box is easily
+   bumped accidentally. */
 .rec-time-in:disabled {
   color: var(--text-faint); border-color: transparent;
   background: transparent; cursor: default;
 }
-/* Pensil buka kunci; begitu terbuka ikonnya ganti jadi centang (Save,
-   ditandai data-editing) supaya jelas ada langkah konfirmasi terpisah,
-   bukan cuma tombol yang berubah diam-diam. */
+/* Pencil unlocks; once open the icon switches to a checkmark (Save,
+   marked data-editing) so it's clear there's a separate confirmation
+   step, not just a button that silently changed. */
 .rec-edit {
   font: inherit; font-size: 11px; line-height: 1;
   width: 20px; height: 20px; flex: none;
@@ -1765,7 +1776,7 @@ h1, h2, h3 {
   box-shadow: inset 2px 0 0 var(--accent);
 }
 
-/* ---- baris result ---- */
+/* ---- result row ---- */
 .result-row {
   display: grid;
   grid-template-columns: auto 1fr auto auto auto auto;
@@ -1788,27 +1799,28 @@ h1, h2, h3 {
   background: var(--accent-soft);
 }
 .delete-result {
-  width: 24px; height: 24px;          /* target sentuh WCAG 2.2 */
+  width: 24px; height: 24px;          /* WCAG 2.2 touch target */
   opacity: .5;
 }
 .delete-result:hover { opacity: 1; color: var(--danger); }
 
-/* ══════════════════════ timeline video utuh ══════════════════════
-   Satu batang untuk seluruh video. Penanda tipis = rekomendasi AI,
-   blok padat = yang sudah masuk result. */
+/* ══════════════════════ full video timeline ══════════════════════
+   One bar for the entire video. Thin markers = AI recommendations,
+   solid blocks = what's already in the result. */
 
 .pick-head, .pick-foot { display: flex; align-items: center; gap: var(--s3); }
 .pick-head { padding: var(--s4) var(--s5) var(--s3); }
 .pick-head .data { color: var(--text-faint); }
 .pick-head #pickNote { margin-right: auto; }
 
-/* Pratinjau video sumber utuh -- rasio alami, bukan dipaksa 9:16 seperti
-   panel di kanan yang terkunci ke Result. Duduk di atas bar #tlTotal karena
-   fungsinya beda tapi saling melengkapi: bar scrub (.tl-scrub) di sini untuk
-   MENGGESER posisi putar, #tlTotal di bawah untuk MEMILIH rentang klip --
-   dua bar terpisah supaya klik/drag di masing-masing tidak ambigu.
-   SELALU ditampilkan (tidak pakai `hidden`), termasuk saat belum ada video
-   dipilih -- videonya kosong (hitam) tapi panelnya tetap ada. */
+/* Full source video preview -- natural aspect ratio, not forced to 9:16
+   like the panel on the right that's locked to the Result. It sits above
+   the #tlTotal bar because their functions are different but complementary:
+   the scrub bar (.tl-scrub) here is for MOVING the playhead, #tlTotal
+   below is for SELECTING a clip range -- two separate bars so click/drag
+   in each is unambiguous.
+   ALWAYS shown (no `hidden`), including when no video is selected -- the
+   video area is empty (black) but the panel is still present. */
 .tl-preview {
   margin: 0 var(--s5) var(--s3);
   border-radius: var(--r-m);
@@ -1816,16 +1828,17 @@ h1, h2, h3 {
   background: #000;
   border: 1px solid var(--glass-border);
 }
-/* aspect-ratio dikunci ke rasio sumber ASLI (diset lewat JS begitu
-   loadedmetadata) supaya tingginya benar SEBELUM video sempat dimuat --
-   tanpa itu kotaknya melompat begitu metadata datang. 16/9 di sini cuma
-   nilai awal sebelum itu terjadi. max-height dinaikkan supaya videonya
-   benar-benar kelihatan, bukan sekadar strip tipis di atas bar timeline. */
+/* aspect-ratio is locked to the ORIGINAL source ratio (set via JS on
+   loadedmetadata) so the height is correct BEFORE the video has a chance
+   to load -- without that the box jumps when metadata arrives. 16/9 here
+   is just the initial value before that happens. max-height is raised so
+   the video is actually visible, not just a thin strip above the
+   timeline bar. */
 .tl-preview-video { display: block; width: 100%; aspect-ratio: 16 / 9; max-height: 400px; }
 
-/* Bar scrub: geser/klik di mana saja untuk memindah posisi putar
-   #tlPreviewVideo. Terpisah dari #tlTotal supaya "pindah posisi" dan
-   "pilih rentang klip" tidak berebut gestur yang sama pada bar yang sama. */
+/* Scrub bar: drag/click anywhere to move the playhead of
+   #tlPreviewVideo. Separate from #tlTotal so "move position" and
+   "select clip range" don't compete for the same gesture on the same bar. */
 .tl-scrub {
   position: relative;
   height: 10px;
@@ -1872,7 +1885,7 @@ h1, h2, h3 {
   border: 1px solid var(--glass-border);
   cursor: crosshair;
   overflow: hidden;
-  touch-action: none;              /* pointer event tidak direbut scroll */
+  touch-action: none;              /* pointer events not stolen by scroll */
 }
 .tl-marks { position: absolute; inset: 0; }
 .tl-mark {
@@ -1898,7 +1911,7 @@ h1, h2, h3 {
 }
 .tl-grip {
   position: absolute; top: 0; bottom: 0;
-  width: 10px;                     /* cukup lebar untuk ditangkap mouse */
+  width: 10px;                     /* wide enough for mouse capture */
   cursor: ew-resize;
   background: var(--accent);
   opacity: .85;
@@ -1914,8 +1927,8 @@ h1, h2, h3 {
   color: var(--text-faint);
 }
 
-/* Padding bawahnya 0 sejak dulu, jadi tombol "Masukkan ke result" duduk
-   1px dari tepi panel. */
+/* Bottom padding has been 0 all along, so the "Add to result" button sits
+   1px from the panel edge. */
 .pick-foot { padding: var(--s4) var(--s5); }
 .time-input {
   display: inline-flex; align-items: center; gap: 7px;
@@ -1944,14 +1957,14 @@ h1, h2, h3 {
 }
 .selection-text:empty { display: none; }
 
-/* kaki panel Result: judul berkas + tombol render */
-/* ── batang render di bawah preview ──
-   Ditaruh menempel pada preview, bukan pada panel Result, supaya terjangkau
-   dari layar Klip, Framing, maupun Teks. Preview memang hasilnya; tombol
-   yang membuat hasil itu wajar duduk di bawahnya. */
-/* Dua baris, bukan satu. Kolom preview cuma ~260px; dijejalkan sebaris,
-   label "judul" tergencet jadi nol lebar, kotak isiannya tinggal 21px, dan
-   tombolnya meleset keluar tepi. */
+/* Result panel footer: file title + render button */
+/* ── render bar below preview ──
+   Placed attached to the preview, not the Result panel, so it's reachable
+   from the Clips, Framing, or Text screens. The preview IS the result;
+   the button that produces it naturally sits below. */
+/* Two rows, not one. The preview column is only ~260px; crammed into one
+   row, the "title" label gets squeezed to zero width, its input field
+   shrinks to 21px, and the button slides off the edge. */
 .render-bar {
   flex: none;
   display: grid; gap: var(--s2);
@@ -1967,9 +1980,9 @@ h1, h2, h3 {
 .render-bar .data { min-width: 0; overflow: hidden; text-overflow: ellipsis;
                     white-space: nowrap; }
 .render-bar .btn { flex: none; }
-/* Dua tombol sekarang (Quick preview + Render Result), bukan cuma satu --
-   di panel sempit .data yang menyusut (min-width:0 di atas) tidak cukup
-   menyerap keduanya, jadi barisnya boleh pindah ke baris kedua. */
+/* Two buttons now (Quick preview + Render Result), not just one --
+   in a narrow panel the .data field shrinks (min-width:0 above) and can't
+   absorb both, so the row is allowed to wrap to a second line. */
 .render-bar .row { flex-wrap: wrap; row-gap: var(--s2); }
 #previewCepatNote { color: var(--text-faint); }
 
@@ -2004,7 +2017,7 @@ h1, h2, h3 {
 }
 .title-input input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-/* titik warna di chip pilihan warna sorot */
+/* color dot on highlight color picker chip */
 .chip .titik {
   display: inline-block;
   width: 9px; height: 9px;
@@ -2035,9 +2048,9 @@ h1, h2, h3 {
 .work-head .btn.right { margin-left: auto; }
 
 
-/* Tombol .btn polos tidak punya latar maupun border, jadi di dalam kepala
-   panel ia terbaca sebagai teks biasa -- bukan sesuatu yang bisa diklik.
-   Tombol aksi utama di kepala panel diberi bingkai supaya terlihat. */
+/* Plain .btn buttons have no background or border, so inside panel headers
+   they read as regular text -- not something clickable. The main action
+   button in panel headers gets a border so it's visible. */
 .panel-head .btn:not(.main),
 .result-head .btn:not(.main),
 .pick-head .btn:not(.main),
@@ -2048,33 +2061,33 @@ h1, h2, h3 {
   color: var(--text-muted);
 }
 
-/* Kanvas framing menampilkan frame video ASLI pada posisi pemutaran.
-   Sebelumnya isinya gambar contoh statis, jadi kamu membingkai momen yang
-   tidak sedang kamu lihat. */
+/* Framing canvas shows the ACTUAL video frame at the playback position.
+   It used to show a static sample image, so you were framing a moment
+   you weren't actually watching. */
 .canvas-video {
   position: absolute; inset: 0;
   width: 100%; height: 100%;
   object-fit: cover;
-  pointer-events: none;          /* klik tetap sampai ke kotak crop */
+  pointer-events: none;          /* clicks still reach the crop box */
 }
 
-/* chip titik framing: waktu + tombol hapus */
+/* framing point chip: time + delete button */
 #framingList .chip { font-family: var(--font-data); }
 
 
-/* dua label di kepala preview (fps dan resolusi) */
+/* two labels in preview header (fps and resolution) */
 .preview-head .res + .res { margin-left: var(--s2); }
 
-/* ══════════════════ teks caption yang bisa dibetulkan ══════════════════
-   Kata-kata yang akan terbakar di berkas hasil, satu tombol per kata.
-   Klik untuk membetulkan; yang sudah diubah ditandai. */
+/* ══════════════════ editable caption text ══════════════════
+   Words to be burned into the output file, one button per word.
+   Click to correct; edited ones are marked. */
 .text-list {
   display: flex; flex-wrap: wrap; gap: 4px;
   padding: var(--s3) var(--s5) var(--s4);
-  /* 210px itu warisan waktu Teks masih berbagi satu layar dengan Timeline,
-     Result, dan Framing. Sekarang Teks punya layarnya sendiri, jadi daftarnya
-     boleh memakai ruang yang ada -- makin sedikit menggulir, makin gampang
-     menemukan kata yang salah dengar. */
+  /* 210px is a relic from when Text shared one screen with Timeline,
+     Result, and Framing. Now Text has its own screen, so the list can
+     use the available space -- less scrolling, easier to find
+     misheard words. */
   max-height: clamp(140px, 30vh, 380px);
   overflow-y: auto;
 }

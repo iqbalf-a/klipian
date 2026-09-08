@@ -1,87 +1,87 @@
 /* klipian — design tokens
    ============================================================================
-   Arah: perkakas gelap modern. Permukaan dibedakan oleh tingkat cahaya, bukan
-   oleh garis. Aksen hanya menandai apa yang ditemukan dan dipilih AI.
+   Direction: modern dark tool. Surfaces are distinguished by lightness, not
+   by lines. Accent only marks what AI found and selected.
 
-   Tiga keputusan teknis yang mendasari file ini:
+   Three technical decisions underlying this file:
 
-   1. WARNA DITULIS DALAM OKLCH, bukan hex.
-      OKLCH itu perseptual seragam: menaikkan L sebesar 0.04 menghasilkan
-      kenaikan terang yang terasa sama, apa pun hue-nya. Dalam hex, tangga
-      #12151C -> #171B24 -> #1D2029 terlihat rata di kode tapi tidak rata di
-      mata. Ini juga yang membuat kuning dan pink bisa dibuat setara bobotnya.
+   1. COLORS WRITTEN IN OKLCH, not hex.
+      OKLCH is perceptually uniform: raising L by 0.04 produces the same
+      perceived brightness increase regardless of hue. In hex, the scale
+      #12151C -> #171B24 -> #1D2029 looks even in code but uneven to the
+      eye. This also makes yellow and pink achievable at equal weight.
 
-   2. HIERARKI MEMAKAI SUMBU LEBAR, bukan hanya ukuran dan tebal.
-      Mona Sans variable punya wdth 75-125. Judul dilebarkan supaya punya
-      kehadiran, label disempitkan supaya padat. Ini yang tidak bisa dilakukan
-      font berukuran tetap, dan yang membuat halaman tidak terasa seragam.
+   2. HIERARCHY USES WIDTH AXIS, not just size and weight.
+      Mona Sans variable has wdth 75-125. Titles are widened for presence,
+      labels are narrowed for density. This is what fixed-size fonts cannot
+      do, and what makes pages feel uniform.
 
-   3. ANGKA MEMAKAI TABULAR FIGURES.
-      Aplikasi editor penuh timecode dan skor yang berubah terus. Tanpa
-      tabular-nums, angka bergeser-geser setiap frame -- terlihat murah.
+   3. NUMBERS USE TABULAR FIGURES.
+      An editor app full of timecodes and constantly changing scores. Without
+      tabular-nums, numbers shift every frame -- looks cheap.
    ============================================================================ */
 
 :root {
-  /* ---- permukaan: satu hue, tangga L yang rata secara perseptual ---- */
-  --bg-0: oklch(0.118 0.003 258);   /* kanvas terdalam */
-  --bg-1: oklch(0.157 0.004 258);   /* bar dan rel */
-  --bg-2: oklch(0.193 0.005 258);   /* panel */
-  --bg-3: oklch(0.238 0.006 258);   /* kartu di atas panel */
+  /* ---- surfaces: single hue, perceptually even L scale ---- */
+  --bg-0: oklch(0.118 0.003 258);   /* deepest canvas */
+  --bg-1: oklch(0.157 0.004 258);   /* bars and rails */
+  --bg-2: oklch(0.193 0.005 258);   /* panels */
+  --bg-3: oklch(0.238 0.006 258);   /* cards on top of panels */
 
-  /* ---- kaca ---- */
+  /* ---- glass ---- */
   --glass:         oklch(1 0 0 / .045);
   --glass-strong:    oklch(1 0 0 / .085);
   --glass-border:   oklch(1 0 0 / .09);
   --border-bright: oklch(1 0 0 / .17);
 
-  /* ---- teks: tangga L, bukan tangga opacity ---- */
+  /* ---- text: L scale, not opacity scale ---- */
   --text:       oklch(0.955 0.006 258);
   --text-muted: oklch(0.700 0.018 258);
-  /* L 0.560 hanya mencapai 3.34:1 di atas permukaan kartu -- gagal WCAG AA.
-     Diukur: L 0.64 baru menembus 4.5:1. Dipakai 0.65 untuk margin. */
+  /* L 0.560 only reaches 3.34:1 on card surface -- fails WCAG AA.
+     Measured: L 0.64 just passes 4.5:1. Using 0.65 for margin. */
   --text-faint: oklch(0.650 0.020 258);
 
-  /* ---- aksen ----
-     Satu warna saja. Dulu ada dua yang bertukar menurut mode -- kuning untuk
-     podcast, pink untuk gameplay -- dan itu ikut hilang bersama modenya. */
+  /* ---- accent ----
+     Single color. There used to be two that swapped by mode -- yellow for
+     podcast, pink for gameplay -- and that disappeared with the modes. */
   --accent:        oklch(0.865 0.170 96);
   --accent-soft: oklch(0.865 0.170 96 / .16);
   --accent-glow:   oklch(0.865 0.170 96 / .45);
-  /* teks di ATAS bidang aksen -- ikut berubah kalau aksennya diganti */
+  /* text ON accent areas -- changes when accent changes */
   --accent-text:   oklch(0.145 0.010 258);
 
   --danger: oklch(0.660 0.190 25);
 
-  /* ---- huruf ----
-     Mona Sans (GitHub, open source) — grotesque industrial dengan sumbu
-     lebar dan slant. Bukan Inter, Roboto, Open Sans, Helvetica, Space
-     Grotesk, Geist, atau Satoshi: semuanya sudah jadi penanda "tidak ada
-     yang memilih apa pun di sini".
-     Martian Mono untuk data — mono berkarakter instrumen, bukan mono editor
-     kode yang biasa. */
+  /* ---- fonts ----
+     Mona Sans (GitHub, open source) -- industrial grotesque with wide
+     axis and slant. Not Inter, Roboto, Open Sans, Helvetica, Space
+     Grotesk, Geist, or Satoshi: all of those have become markers of
+     "nobody chose anything here".
+     Martian Mono for data -- instrument-character mono, not the usual
+     code-editor mono. */
   --font-ui:   "Mona Sans", system-ui, -apple-system, sans-serif;
   --font-data: "Martian Mono", ui-monospace, monospace;
 
-  /* ---- tangga ukuran: rasio 1.18, dibulatkan ke piksel ---- */
+  /* ---- size scale: 1.18 ratio, rounded to pixels ---- */
   --t-10: 10px;  --t-11: 11px;  --t-12: 12px;  --t-13: 13px;
   --t-14: 14px;  --t-17: 17px;  --t-20: 20px;  --t-24: 24px;  --t-29: 29px;
 
-  /* ---- lebar huruf sebagai alat hierarki ---- */
-  --w-display: 118;   /* angka besar dan judul layar */
-  --w-wide:  112;   /* judul kartu besar */
-  --w-title:  105;   /* judul kartu */
-  --w-read:   100;   /* teks biasa */
-  --w-tight:   92;   /* label, eyebrow */
+  /* ---- font width as hierarchy tool ---- */
+  --w-display: 118;   /* large numbers and screen titles */
+  --w-wide:  112;   /* large card titles */
+  --w-title:  105;   /* card titles */
+  --w-read:   100;   /* body text */
+  --w-tight:   92;   /* labels, eyebrow */
   --w-data:    88;   /* mono */
 
-  /* ---- jarak ---- */
+  /* ---- spacing ---- */
   --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px;
   --s5: 24px; --s6: 32px; --s7: 48px; --s8: 64px;
 
-  /* ---- sudut ---- */
+  /* ---- radii ---- */
   --r-s: 10px; --r-m: 14px;  --r-l: 20px;  --r-pill: 999px;
 
-  /* ---- bayangan: gelap butuh garis cahaya di tepi atas, bukan blur saja ---- */
+  /* ---- shadows: dark needs a highlight line at top edge, not just blur ---- */
   --shadow-card:
     inset 0 1px 0 oklch(1 0 0 / .06),
     0 8px 24px -10px oklch(0 0 0 / .85);
@@ -92,14 +92,14 @@
     inset 0 1px 0 oklch(1 0 0 / .05),
     0 24px 60px -30px oklch(0 0 0 / .9);
 
-  /* ---- gerak ----
-     Keluar cepat, masuk melambat, sedikit melewati target. Easing linear atau
-     ease default adalah salah satu penanda antarmuka yang tidak digarap. */
+  /* ---- motion ----
+     Fast out, slow in, slightly overshooting the target. Linear or default
+     ease is one of the markers of an unpolished interface. */
   --fast:  150ms cubic-bezier(.32, .72, 0, 1);
   --medium: 320ms cubic-bezier(.32, .72, 0, 1);
   --spring:  420ms cubic-bezier(.34, 1.3, .48, 1);
 
-  /* ---- ukuran tetap ---- */
+  /* ---- fixed sizes ---- */
   --h-topbar: 58px;
   --h-ribbon: 96px;
   --w-preview: 356px;

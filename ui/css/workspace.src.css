@@ -30,8 +30,8 @@
     @apply bg-surface-2 rounded-m p-5 flex flex-col gap-4 shadow-kartu;
   }
 
-  /* Input tabel: tanpa garis sampai disentuh -- tabel yang selalu bergaris
-     terasa seperti formulir, bukan lembar kerja yang enak dipindai. */
+  /* Table input: no border until touched -- a table that's always bordered
+     feels like a form, not a spreadsheet you can scan. */
   .ws-input {
     @apply w-full bg-transparent border border-transparent rounded-s
            px-2 py-1.5 text-[12.5px] text-teks resize-y font-ui
@@ -41,8 +41,8 @@
   select.ws-input { @apply cursor-pointer; }
   textarea.ws-input { @apply min-h-[40px] resize-y; }
 
-  /* Status jadi sinyal warna, bukan cuma teks -- dashboard yang dilihat
-     sekilas harus tetap kebaca statusnya tanpa membaca satu-satu. */
+  /* Status is a color signal, not just text -- a dashboard that's glanced
+     at must still be readable without reading each one. */
   .ws-status { @apply font-semibold; }
   .ws-status[data-v="Draft"]     { @apply text-teks-samar; }
   .ws-status[data-v="Ready"]     { @apply text-aksen; }
@@ -63,11 +63,11 @@
 
   .empty { @apply text-teks-samar text-[13px] py-6 text-center; }
 
-  /* Dialog detail klip: field yang tidak muat/tidak perlu selalu terlihat
-     di tabel (deskripsi, caption, link, catatan) -- lihat komentar di
-     workspace.html soal kenapa tabelnya sendiri cuma kolom inti. <dialog>
-     bawaan browser dipakai apa adanya (backdrop + focus trap gratis),
-     cuma perlu digambar ulang supaya cocok tema gelap. */
+  /* Clip detail dialog: fields that don't fit/aren't needed are always
+     visible in the table (description, caption, link, notes) -- see the
+     comment in workspace.html for why the table itself only has core columns.
+     The browser's default <dialog> is used as-is (free backdrop + focus trap),
+     just needs restyling to match the dark theme. */
   .ws-dialog {
     @apply bg-surface-2 text-teks rounded-m p-5 border border-garis
            w-full max-w-[560px] shadow-kartu;
@@ -75,7 +75,7 @@
   .ws-dialog::backdrop { @apply bg-black/60; }
   .ws-field { @apply flex flex-col gap-1.5 text-[12px] text-teks-samar; }
 
-  /* Baris render & asset -- 1 kolom lebar + beberapa kolom sempit rapat. */
+  /* Render & asset rows -- 1 wide column + several tight narrow columns. */
   .ws-row {
     @apply grid items-center gap-3 py-2 px-3 border-b border-garis text-[13px]
            last:border-b-0;
