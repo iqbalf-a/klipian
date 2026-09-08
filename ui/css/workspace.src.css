@@ -50,7 +50,7 @@
   .ws-status[data-v="Posted"]    { @apply text-status-posted; }
   .ws-status[data-v="Discarded"] { @apply text-bahaya line-through; }
 
-  .ws-hapus {
+  .delete-btn {
     @apply bg-transparent border-0 text-teks-samar cursor-pointer text-base
            leading-none p-1.5 rounded-s hover:text-bahaya hover:bg-kaca;
   }
@@ -61,7 +61,7 @@
            hover:text-teks hover:bg-kaca;
   }
 
-  .ws-kosong { @apply text-teks-samar text-[13px] py-6 text-center; }
+  .empty { @apply text-teks-samar text-[13px] py-6 text-center; }
 
   /* Dialog detail klip: field yang tidak muat/tidak perlu selalu terlihat
      di tabel (deskripsi, caption, link, catatan) -- lihat komentar di
@@ -81,6 +81,6 @@
            last:border-b-0;
     grid-template-columns: 1fr auto auto auto auto;
   }
-  .ws-row .nama { @apply font-semibold truncate; }
+  .ws-row .name { @apply font-semibold truncate; }
   .ws-row .data { @apply font-data text-[11px] text-teks-samar; }
 }

@@ -63,7 +63,7 @@ function baris(c) {
       <td class="${td}">${f("date", "date")}</td>
       <td class="${td}">${f("time", "time")}</td>
       <td class="${td}"><button class="ws-detail" data-aksi="detail" type="button">Detail</button></td>
-      <td class="${td}"><button class="ws-hapus" data-aksi="hapus" type="button" title="Hapus klip ini">✕</button></td>
+      <td class="${td}"><button class="delete-btn" data-aksi="delete" type="button" title="Hapus klip ini">✕</button></td>
     </tr>`;
 }
 
@@ -71,7 +71,7 @@ function gambarKlip() {
   const body = $("#klipBody");
   if (!body) return;
   if (!CLIPS.length) {
-    body.innerHTML = `<tr><td colspan="7" class="ws-kosong">
+    body.innerHTML = `<tr><td colspan="7" class="empty">
       Belum ada klip. Klik "+ Klip baru" buat mulai nyatet jadwal upload.
     </td></tr>`;
     return;

@@ -22,13 +22,13 @@ async function muatAsset() {
     : "workspace/assets/ masih kosong";
   const list = $("#assetList");
   if (!asset.length) {
-    list.innerHTML = `<p class="ws-kosong">Taruh watermark/font/template custom
+    list.innerHTML = `<p class="empty">Taruh watermark/font/template custom
       di folder <code>workspace/assets/</code> kalau butuh di luar bawaan klipian.</p>`;
     return;
   }
   list.innerHTML = asset.map((a) => `
     <div class="ws-row">
-      <span class="nama">${escapeHTML(a.name)}</span>
+      <span class="name">${escapeHTML(a.name)}</span>
       <span class="data">${a.kb} KB</span>
       <span class="data">${kapan(a.at)}</span>
     </div>`).join("");

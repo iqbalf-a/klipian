@@ -1164,7 +1164,7 @@ h1, h2, h3 {
   border-radius: var(--r-m); background: #000;
   margin-bottom: var(--s2);
 }
-.project-nama {
+.project-name {
   font-size: var(--t-13); font-weight: 650;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
@@ -2015,23 +2015,23 @@ h1, h2, h3 {
   box-shadow: 0 0 0 1px rgba(0,0,0,.35);
 }
 
-/* ══════════════════════════ riwayat render ══════════════════════════ */
-.riwayat-list { padding: var(--s3) var(--s5) var(--s4); }
-.riwayat-row {
+/* ══════════════════════════ history render ══════════════════════════ */
+.history-list { padding: var(--s3) var(--s5) var(--s4); }
+.history-row {
   display: grid;
   grid-template-columns: 1fr auto auto auto auto auto;
   align-items: center; gap: var(--s3);
   padding: 10px var(--s3);
   border-radius: var(--r-s);
 }
-.riwayat-row + .riwayat-row { border-top: 1px solid var(--glass-border); }
-.riwayat-row:hover { background: var(--glass); }
-.riwayat-nama {
+.history-row + .history-row { border-top: 1px solid var(--glass-border); }
+.history-row:hover { background: var(--glass); }
+.history-name {
   font-weight: 600; font-size: 14px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.riwayat-video { color: var(--text-faint); }
-.riwayat-mb, .riwayat-kapan { color: var(--text-muted); }
+.history-video { color: var(--text-faint); }
+.history-mb, .history-kapan { color: var(--text-muted); }
 .work-head .btn.right { margin-left: auto; }
 
 

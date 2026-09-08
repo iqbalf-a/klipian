@@ -1,4 +1,4 @@
-/* klipian — riwayat render
+/* klipian — history render
    ==========================================================================
    Daftar berkas yang benar-benar ada di folder out/, bukan catatan sesi.
    Bedanya penting: kalau halaman dimuat ulang atau server dimatikan, riwayat
@@ -23,7 +23,7 @@ function timeAgo(epochSeconds) {
 }
 
 async function loadHistory() {
-  const note = $("#riwayatNote");
+  const note = $("#historyNote");
   try {
     const d = await (await fetch("/api/history")).json();
     HISTORY = d.render || [];
@@ -43,7 +43,7 @@ async function loadHistory() {
 }
 
 function renderHistory() {
-  const list = $("#riwayatList");
+  const list = $("#historyList");
   if (!list) return;
 
   if (!HISTORY.length) {
@@ -53,21 +53,21 @@ function renderHistory() {
   }
 
   list.innerHTML = HISTORY.map((r, i) => `
-    <div class="riwayat-row" data-riwayat="${i}">
-      <span class="riwayat-nama">${escapeHTML(r.file)}</span>
-      <span class="data riwayat-video">${escapeHTML(r.video)}</span>
-      <span class="data riwayat-mb">${r.mb} MB</span>
-      <span class="data riwayat-kapan">${timeAgo(r.at)}</span>
+    <div class="history-row" data-history="${i}">
+      <span class="history-nama">${escapeHTML(r.file)}</span>
+      <span class="data history-video">${escapeHTML(r.video)}</span>
+      <span class="data history-mb">${r.mb} MB</span>
+      <span class="data history-kapan">${timeAgo(r.at)}</span>
       <button class="btn quiet" data-aksi="putar">Play</button>
       <button class="btn" data-aksi="buka">Open folder</button>
     </div>`).join("");
 }
 
-$("#riwayatList")?.addEventListener("click", async (e) => {
+$("#historyList")?.addEventListener("click", async (e) => {
   const b = e.target.closest("[data-aksi]");
   if (!b) return;
-  const row = b.closest("[data-riwayat]");
-  const r = HISTORY[Number(row.dataset.riwayat)];
+  const row = b.closest("[data-history]");
+  const r = HISTORY[Number(row.dataset.history)];
   if (!r) return;
 
   if (b.dataset.aksi === "putar") {
@@ -96,4 +96,4 @@ $("#riwayatList")?.addEventListener("click", async (e) => {
   setTimeout(() => { b.textContent = previous; }, 2200);
 });
 
-$("#riwayatMuatBtn")?.addEventListener("click", loadHistory);
+$("#historyMuatBtn")?.addEventListener("click", loadHistory);

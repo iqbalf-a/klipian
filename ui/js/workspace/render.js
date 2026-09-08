@@ -27,12 +27,12 @@ async function muatRender() {
   }
   const list = $("#renderList");
   if (!RENDER.length) {
-    list.innerHTML = `<p class="ws-kosong">Folder out/ masih kosong.</p>`;
+    list.innerHTML = `<p class="empty">Folder out/ masih kosong.</p>`;
     return;
   }
   list.innerHTML = RENDER.map((r, i) => `
     <div class="ws-row" data-i="${i}">
-      <span class="nama">${escapeHTML(r.file)} <span class="data">— ${escapeHTML(r.video)}</span></span>
+      <span class="name">${escapeHTML(r.file)} <span class="data">— ${escapeHTML(r.video)}</span></span>
       <span class="data">${r.mb} MB</span>
       <span class="data">${kapan(r.at)}</span>
       <button class="rounded-s px-2.5 py-1 text-[12px] hover:bg-kaca" data-aksi="putar">Play</button>
