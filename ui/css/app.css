@@ -226,10 +226,10 @@ h1, h2, h3 {
 .screen { display: none; flex: 1; min-height: 0; flex-direction: column; gap: var(--s4); }
 .screen.active { display: flex; }
 
-/* Clips and Text can be taller than the window: multiple panels stack.
+/* Clips and Captions can be taller than the window: multiple panels stack.
    Without this, the panels below are completely unreachable. */
-.screen[data-screen="klip"].active,
-.screen[data-screen="teks"].active,
+.screen[data-screen="clips"].active,
+.screen[data-screen="captions"].active,
 .screen[data-screen="framing"].active,
 .screen[data-screen="history"].active {
   overflow-y: auto;
@@ -240,8 +240,8 @@ h1, h2, h3 {
    locked to the source ratio and the column width is what constrains it, so
    giving the panel flex:1 just leaves empty space below the canvas -- it
    doesn't make the canvas grow. */
-.screen[data-screen="klip"] > .panel,
-.screen[data-screen="teks"] > .panel,
+.screen[data-screen="clips"] > .panel,
+.screen[data-screen="captions"] > .panel,
 .screen[data-screen="framing"] > .panel { flex: none; }
 
 .work-head { display: flex; align-items: center; gap: var(--s4); flex: none; }
@@ -655,8 +655,11 @@ h1, h2, h3 {
   gap: 4px;
 }
 
-/* Step button: FIXED width, content is arrow + number. */
-.step {
+/* Step button: FIXED width, content is arrow + number. Named .step-btn, NOT
+   .step -- .step is already taken by the numbered onboarding panels further
+   down this file (Analyze screen "Step 2/3"), and both are live classes on
+   real elements, so reusing .step here silently merged their two rule sets. */
+.step-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 2px;
   /* flex: none is REQUIRED. Without it, flexbox compresses the button in a
      narrow panel, and the row that should be uniform ends up with varying
@@ -673,13 +676,13 @@ h1, h2, h3 {
   font-family: var(--font-data);
   transition: background var(--fast), color var(--fast), border-color var(--fast);
 }
-.step i { font-style: normal; font-size: 9px; line-height: 1; }
-.step b { font-size: 11px; font-weight: 700; line-height: 1; }
-.step:hover {
+.step-btn i { font-style: normal; font-size: 9px; line-height: 1; }
+.step-btn b { font-size: 11px; font-weight: 700; line-height: 1; }
+.step-btn:hover {
   color: var(--text); border-color: var(--accent);
   background: var(--glass-strong);
 }
-.step:active { transform: translateY(1px); }
+.step-btn:active { transform: translateY(1px); }
 
 /* Play button: full circle and the only accented one, so it's clear
    which is the primary action. */
