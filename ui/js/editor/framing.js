@@ -702,7 +702,7 @@ $("#framingList")?.addEventListener("click", (e) => {
    -- diarization sama sekali tidak melihat itu, cuma dengar suara. Sinyal
    TERPISAH untuk itu: klipian/scenecut.py mendeteksi potongan visual keras
    lewat filter scene bawaan ffmpeg, dipakai memecah satu giliran bicara
-   jadi beberapa titik lacak (lihat aiFramingTerapkan) supaya tiap potongan
+   jadi beberapa titik lacak (lihat aiFramingApply) supaya tiap potongan
    sungguhan dapat titik framing sendiri, bukan cuma titik di awal giliran
    yang lama-lama meleset begitu shot-nya berganti. */
 
@@ -711,18 +711,18 @@ $("#framingList")?.addEventListener("click", (e) => {
    ternyata terlewat begitu saja pada percobaan pertama: pesan gagal-validasi
    memang muncul, tapi cuma teks polos berdesakan dengan elemen lain di baris
    judul, kelihatan seperti "tidak terjadi apa-apa". */
-function aiFramingStatus(teks) {
-  const isiTeks = $("#aiFramingTanyaTeks");
-  if (isiTeks) isiTeks.textContent = teks;
+function aiFramingStatus(text) {
+  const textEl = $("#aiFramingTanyaTeks");
+  if (textEl) textEl.textContent = text;
   $("#aiFramingTanya")?.removeAttribute("hidden");
 }
 
 /* Ganti isi <span> teks di dalam tombol #aiFramingBtn saja -- BUKAN
    btn.textContent langsung, itu akan ikut menghapus ikon SVG-nya (lihat
    markup di index.html). */
-function aiFramingBtnTeks(teks) {
+function aiFramingBtnText(text) {
   const el = $("#aiFramingBtnTeks");
-  if (el) el.textContent = teks;
+  if (el) el.textContent = text;
 }
 
 /* Overlay DI ATAS panel preview 9:16, terpisah dari kotak status di
@@ -737,40 +737,40 @@ function aiFramingBtnTeks(teks) {
    angkanya bisa melompat MUNDUR persis saat total itu berubah. Dengan
    bobot tetap, tiap tahap cuma mengisi jatahnya sendiri, jadi batangnya
    selalu maju. */
-const AI_FRAMING_BOBOT = { diarize: 40, scenecut: 10, locate: 30, terapkan: 20 };
+const AI_FRAMING_WEIGHT = { diarize: 40, scenecut: 10, locate: 30, terapkan: 20 };
 const AI_FRAMING_OFFSET = {
   diarize: 0,
-  scenecut: AI_FRAMING_BOBOT.diarize,
-  locate: AI_FRAMING_BOBOT.diarize + AI_FRAMING_BOBOT.scenecut,
-  terapkan: AI_FRAMING_BOBOT.diarize + AI_FRAMING_BOBOT.scenecut + AI_FRAMING_BOBOT.locate,
+  scenecut: AI_FRAMING_WEIGHT.diarize,
+  locate: AI_FRAMING_WEIGHT.diarize + AI_FRAMING_WEIGHT.scenecut,
+  terapkan: AI_FRAMING_WEIGHT.diarize + AI_FRAMING_WEIGHT.scenecut + AI_FRAMING_WEIGHT.locate,
 };
 
-function aiFramingOverlayMulai() {
+function aiFramingOverlayStart() {
   $("#aiFramingOverlay")?.removeAttribute("hidden");
-  aiFramingOverlayProgres("diarize", 0, 1, "Analyzing…");
+  aiFramingOverlayProgress("diarize", 0, 1, "Analyzing…");
 }
 
-function aiFramingOverlaySelesai() {
+function aiFramingOverlayDone() {
   $("#aiFramingOverlay")?.setAttribute("hidden", "");
 }
 
 /* `selesai`/`total` posisi DI DALAM tahap itu saja (mis. span ke berapa
    dari berapa span), bukan lintas seluruh pipeline -- offset tahapnya
    yang menerjemahkan itu ke persen keseluruhan. */
-function aiFramingOverlayProgres(tahap, selesai, total, teks) {
-  const dalamTahap = total > 0 ? selesai / total : 0;
-  const pct = Math.min(100, Math.round(AI_FRAMING_OFFSET[tahap] + dalamTahap * AI_FRAMING_BOBOT[tahap]));
+function aiFramingOverlayProgress(stage, done, total, text) {
+  const withinStage = total > 0 ? done / total : 0;
+  const pct = Math.min(100, Math.round(AI_FRAMING_OFFSET[stage] + withinStage * AI_FRAMING_WEIGHT[stage]));
   const bar = $("#aiFramingOverlayBar");
   const pctEl = $("#aiFramingOverlayPct");
-  const teksEl = $("#aiFramingOverlayTeks");
+  const textEl = $("#aiFramingOverlayTeks");
   if (bar) bar.style.width = `${pct}%`;
   if (pctEl) pctEl.textContent = `${pct}%`;
-  if (teksEl && teks) teksEl.textContent = teks;
+  if (textEl && text) textEl.textContent = text;
 }
 
 /* Satu permintaan ke server, dibungkus Promise supaya bisa di-`await` di
-   dalam loop -- lihat aiFramingMulai() untuk alasan loopnya. */
-function aiFramingDiarizeSatuSpan(span) {
+   dalam loop -- lihat aiFramingStart() untuk alasan loopnya. */
+function aiFramingDiarizeOneSpan(span) {
   return fetch("/api/diarize", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ video: chosenSource?.name, start: span.start, end: span.end }),
@@ -784,9 +784,9 @@ function aiFramingDiarizeSatuSpan(span) {
 
 function aiFramingPollPromise(id) {
   return new Promise((resolve, reject) => {
-    (function cek() {
+    (function check() {
       fetch(`/api/diarize/${id}`).then((r) => r.json()).then((d) => {
-        if (d.state === "running") { setTimeout(cek, 1500); return; }
+        if (d.state === "running") { setTimeout(check, 1500); return; }
         if (d.state === "failed") { reject(new Error(d.error || "Diarization failed.")); return; }
         resolve(d.turns || []);
       }).catch(reject);
@@ -799,7 +799,7 @@ function aiFramingPollPromise(id) {
    mengembalikan array kosong, bukan melempar -- AI Framing yang sudah
    berhasil dari diarization tidak boleh ikut gagal cuma karena pelengkap
    ini tersandung. */
-function aiFramingScenecutSatuSpan(span) {
+function aiFramingScenecutOneSpan(span) {
   return fetch("/api/scenecut", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ video: chosenSource?.name, start: span.start, end: span.end }),
@@ -809,7 +809,7 @@ function aiFramingScenecutSatuSpan(span) {
     .catch(() => []);
 }
 
-async function aiFramingMulai() {
+async function aiFramingStart() {
   if (!activeClip || !activeClip.spans?.length) {
     aiFramingStatus("Select or add a clip to Result first.");
     return;
@@ -825,53 +825,53 @@ async function aiFramingMulai() {
   const spans = activeClip.spans;
 
   const btn = $("#aiFramingBtn");
-  if (btn) { btn.disabled = true; aiFramingBtnTeks("Analyzing …"); }
-  aiFramingOverlayMulai();
+  if (btn) { btn.disabled = true; aiFramingBtnText("Analyzing …"); }
+  aiFramingOverlayStart();
 
   // Berurutan, BUKAN paralel: semua span berbagi satu model diarization
   // yang sama di server (satu instance dimuat sekali, dipakai lagi supaya
   // tidak menunggu belasan detik memuat ulang tiap kali) -- dua permintaan
   // bersamaan ke model yang sama berisiko baku rebut/hasil kacau.
-  const semuaTurns = [];
+  const allTurns = [];
   try {
     for (let i = 0; i < spans.length; i++) {
       aiFramingStatus(spans.length > 1
         ? `AI Framing: listening for who's talking … (span ${i + 1}/${spans.length})`
         : "AI Framing: listening for who's talking … (usually 25–35s per clip)");
-      aiFramingOverlayProgres("diarize", i, spans.length,
+      aiFramingOverlayProgress("diarize", i, spans.length,
         spans.length > 1 ? `Listening (span ${i + 1}/${spans.length})…` : "Listening for who's talking…");
-      const turns = await aiFramingDiarizeSatuSpan(spans[i]);
-      semuaTurns.push(...turns);
-      aiFramingOverlayProgres("diarize", i + 1, spans.length);
+      const turns = await aiFramingDiarizeOneSpan(spans[i]);
+      allTurns.push(...turns);
+      aiFramingOverlayProgress("diarize", i + 1, spans.length);
     }
   } catch (err) {
-    aiFramingGagal(err.message);
+    aiFramingFailed(err.message);
     return;
   }
 
   // Potongan visual keras di video sumber -- dicari SESUDAH diarization
   // (bukan sekaligus di loop yang sama) supaya kalau ini gagal/lambat tidak
   // ikut mengacaukan pesan progres giliran bicara di atas. Gagal per span
-  // diam-diam jadi array kosong (lihat aiFramingScenecutSatuSpan) -- ini
+  // diam-diam jadi array kosong (lihat aiFramingScenecutOneSpan) -- ini
   // pelengkap, AI Framing tetap jalan dari diarization saja kalau ini kosong.
   aiFramingStatus(spans.length > 1
     ? "AI Framing: checking for shot changes …"
     : "AI Framing: checking for shot changes … (usually a few seconds)");
-  aiFramingOverlayProgres("scenecut", 0, spans.length, "Checking for shot changes…");
-  const semuaCuts = [];
+  aiFramingOverlayProgress("scenecut", 0, spans.length, "Checking for shot changes…");
+  const allCuts = [];
   for (let i = 0; i < spans.length; i++) {
-    semuaCuts.push(...(await aiFramingScenecutSatuSpan(spans[i])));
-    aiFramingOverlayProgres("scenecut", i + 1, spans.length);
+    allCuts.push(...(await aiFramingScenecutOneSpan(spans[i])));
+    aiFramingOverlayProgress("scenecut", i + 1, spans.length);
   }
 
-  aiFramingCariPosisiSemua(semuaTurns, semuaCuts);
+  aiFramingFindAllPositions(allTurns, allCuts);
 }
 
-function aiFramingGagal(pesan) {
+function aiFramingFailed(message) {
   const btn = $("#aiFramingBtn");
-  if (btn) { btn.disabled = false; aiFramingBtnTeks("AI Framing"); }
-  aiFramingStatus(`AI Framing failed: ${pesan}`);
-  aiFramingOverlaySelesai();
+  if (btn) { btn.disabled = false; aiFramingBtnText("AI Framing"); }
+  aiFramingStatus(`AI Framing failed: ${message}`);
+  aiFramingOverlayDone();
 }
 
 /* Ukuran kotak KELUARAN buat locate_speaker() -- diambil dari kotak yang
@@ -880,9 +880,9 @@ function aiFramingGagal(pesan) {
    dipatok balik ke ukuran bawaan. Posisinya sendiri (left/top) diabaikan
    di sini -- locate_speaker() yang menentukan posisi dari wajah yang
    ditemukan, bukan dari kotak yang sedang tampil. */
-function aiFramingUkuranKeluaran() {
-  const kotak = canvasFormat === "single" ? boxOnCanvas() : null;
-  const w = kotak?.[0];
+function aiFramingOutputSize() {
+  const box = canvasFormat === "single" ? boxOnCanvas() : null;
+  const w = box?.[0];
   return {
     width: (w && Number.isFinite(w.width)) ? w.width : INITIAL_CROP.width,
     height: (w && Number.isFinite(w.height)) ? w.height : INITIAL_CROP.height,
@@ -894,11 +894,11 @@ function aiFramingUkuranKeluaran() {
    ada wajah yang lolos syarat gerak-mulut jelas) -> null; pembicara itu
    dilewati sama seperti dulu "Skip this speaker" manual, bukan menjatuhkan
    seluruh AI Framing. */
-function aiFramingCariSpeaker(turn, ukuran) {
+function aiFramingFindSpeaker(turn, size) {
   return fetch("/api/speakerlocate", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      video: chosenSource?.name, start: turn.start, end: turn.end, size: ukuran,
+      video: chosenSource?.name, start: turn.start, end: turn.end, size,
     }),
   })
     .then((r) => r.json())
@@ -906,55 +906,55 @@ function aiFramingCariSpeaker(turn, ukuran) {
     .catch(() => null);
 }
 
-async function aiFramingCariPosisiSemua(turns, cuts) {
+async function aiFramingFindAllPositions(turns, cuts) {
   const btn = $("#aiFramingBtn");
 
   if (!turns.length) {
-    if (btn) { btn.disabled = false; aiFramingBtnTeks("AI Framing"); }
+    if (btn) { btn.disabled = false; aiFramingBtnText("AI Framing"); }
     aiFramingStatus("AI Framing: no speech detected in this clip.");
-    aiFramingOverlaySelesai();
+    aiFramingOverlayDone();
     return;
   }
 
   // Giliran PERTAMA tiap pembicara -- posisinya cuma perlu dicari sekali
   // per orang, bukan tiap giliran mereka bicara.
-  const pertama = new Map();
-  for (const t of turns) if (!pertama.has(t.speaker)) pertama.set(t.speaker, t);
-  const daftarSpeaker = [...pertama.entries()].sort((a, b) => a[1].start - b[1].start);
+  const firstTurn = new Map();
+  for (const t of turns) if (!firstTurn.has(t.speaker)) firstTurn.set(t.speaker, t);
+  const speakerList = [...firstTurn.entries()].sort((a, b) => a[1].start - b[1].start);
 
-  const ukuran = aiFramingUkuranKeluaran();
-  aiFramingStatus(daftarSpeaker.length > 1
-    ? `AI Framing: locating ${daftarSpeaker.length} speakers …`
+  const size = aiFramingOutputSize();
+  aiFramingStatus(speakerList.length > 1
+    ? `AI Framing: locating ${speakerList.length} speakers …`
     : "AI Framing: locating the speaker …");
-  aiFramingOverlayProgres("locate", 0, daftarSpeaker.length,
-    daftarSpeaker.length > 1 ? `Locating ${daftarSpeaker.length} speakers…` : "Locating the speaker…");
+  aiFramingOverlayProgress("locate", 0, speakerList.length,
+    speakerList.length > 1 ? `Locating ${speakerList.length} speakers…` : "Locating the speaker…");
 
   // Paralel -- tiap pencarian independen (rentang video beda-beda), dan
   // menunggu satu-satu untuk banyak pembicara bisa lama tanpa alasan.
   // Progres tetap ikut per pencarian yang SELESAI (bukan cuma sesudah
   // semuanya beres sekaligus) -- setiap .then() di sini nebeng jalan
   // pencarian aslinya, TIDAK mengubah hasil atau urutan Promise.all.
-  let locateSelesai = 0;
-  const hasil = await Promise.all(
-    daftarSpeaker.map(([, turn]) => aiFramingCariSpeaker(turn, ukuran).then((r) => {
-      locateSelesai++;
-      aiFramingOverlayProgres("locate", locateSelesai, daftarSpeaker.length);
+  let locateDone = 0;
+  const results = await Promise.all(
+    speakerList.map(([, turn]) => aiFramingFindSpeaker(turn, size).then((r) => {
+      locateDone++;
+      aiFramingOverlayProgress("locate", locateDone, speakerList.length);
       return r;
     })));
 
-  const posisi = {};
-  daftarSpeaker.forEach(([speaker], i) => { if (hasil[i]) posisi[speaker] = hasil[i]; });
+  const positions = {};
+  speakerList.forEach(([speaker], i) => { if (results[i]) positions[speaker] = results[i]; });
 
-  if (btn) { btn.disabled = false; aiFramingBtnTeks("AI Framing"); }
+  if (btn) { btn.disabled = false; aiFramingBtnText("AI Framing"); }
 
-  if (!Object.keys(posisi).length) {
+  if (!Object.keys(positions).length) {
     aiFramingStatus("AI Framing: couldn't confidently locate any speaker's face "
       + "(no clear mouth-motion winner) — try again, or set the frame manually.");
-    aiFramingOverlaySelesai();
+    aiFramingOverlayDone();
     return;
   }
 
-  aiFramingTerapkan(turns, posisi, cuts);
+  aiFramingApply(turns, positions, cuts);
 }
 
 /* Kotak yang sudah dites di sini KASAR, cuma posisi orang secara umum
@@ -963,7 +963,7 @@ async function aiFramingCariPosisiSemua(turns, cuts) {
    Framing cuma menyalin mentah-mentah koordinat kasar itu ke SELURUH
    segmen, dan kalau geseran awalnya kurang pas, hasilnya bisa menyorot
    kursi kosong -- persis keluhan yang mau diperbaiki. Jadi segmen
-   [start, end) yang sudah dipecah aiFramingTerapkan (per giliran bicara,
+   [start, end) yang sudah dipecah aiFramingApply (per giliran bicara,
    atau lebih kecil lagi kalau ada potongan visual di dalamnya) dilacak
    lewat deteksi wajah sungguhan (klipian/facebox.py) untuk MENEMUKAN
    posisi yang benar -- track_crops() sengaja mengembalikan SATU titik per
@@ -971,21 +971,21 @@ async function aiFramingCariPosisiSemua(turns, cuts) {
    lagi berdasar gerak wajah: alasan untuk titik BARU sudah diputuskan di
    sini (giliran/potongan), bukan oleh gerak orang duduk yang wajar.
    Gagal/videonya belum ada -> jatuh ke satu titik kotak kasar. */
-async function aiFramingLacakWajah(start, end, kasar) {
+async function aiFramingTrackFace(start, end, rough) {
   try {
     const r = await fetch("/api/facetrack", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ video: chosenSource?.name, start, end, crop: kasar }),
+      body: JSON.stringify({ video: chosenSource?.name, start, end, crop: rough }),
     });
     const d = await r.json();
-    return (d.points && d.points.length) ? d.points : [{ at: start, crop: kasar }];
+    return (d.points && d.points.length) ? d.points : [{ at: start, crop: rough }];
   } catch {
-    return [{ at: start, crop: kasar }];
+    return [{ at: start, crop: rough }];
   }
 }
 
-async function aiFramingTerapkan(turns, posisi, cuts) {
-  const daftarCuts = (cuts || []).slice().sort((a, b) => a - b);
+async function aiFramingApply(turns, positions, cuts) {
+  const cutList = (cuts || []).slice().sort((a, b) => a - b);
 
   // Daftar rencana dulu, baru pelacakan wajahnya dijalankan PARALEL untuk
   // semua giliran -- kalau berurutan, klip dengan banyak giliran bicara
@@ -999,20 +999,20 @@ async function aiFramingTerapkan(turns, posisi, cuts) {
   // t.start (laporan nyata dari ian). 2 detik dipilih sebagai jendela
   // toleransi -- cukup untuk selisih audio/visual yang wajar, tidak
   // sampai menyerempet ke giliran SEBELUMNYA yang tidak terkait.
-  const TOLERANSI_AWAL = 2;
+  const START_TOLERANCE = 2;
 
   // Giliran yang benar-benar perlu titik (pembicara dikenal & baru
   // dibanding giliran sebelumnya) -- dikumpulkan dulu SEBELUM logika
   // potongan supaya "giliran sebelumnya" di bawah selalu berarti giliran
   // yang IKUT DIPAKAI, bukan giliran mentah yang mungkin dilewati.
-  const giliranTerpilih = [];
-  let pembicaraSebelumnya = null;
+  const selectedTurns = [];
+  let previousSpeaker = null;
   for (const t of turns) {
-    const kasar = posisi[t.speaker];
-    if (!kasar) continue;                          // pembicara yang dilewati
-    if (t.speaker === pembicaraSebelumnya) continue; // pembicara sama, tidak perlu titik baru
-    pembicaraSebelumnya = t.speaker;
-    giliranTerpilih.push({ turn: t, kasar });
+    const rough = positions[t.speaker];
+    if (!rough) continue;                          // pembicara yang dilewati
+    if (t.speaker === previousSpeaker) continue; // pembicara sama, tidak perlu titik baru
+    previousSpeaker = t.speaker;
+    selectedTurns.push({ turn: t, rough });
   }
 
   // Tahap 1 -- KLAIM: tiap giliran boleh mengambil SATU potongan di jendela
@@ -1021,12 +1021,12 @@ async function aiFramingTerapkan(turns, posisi, cuts) {
   // supaya potongan yang sebenarnya menandai pergantian ORANG tidak keburu
   // "termakan" jadi pemecah di TENGAH giliran orang lama (kasar/kotak yang
   // salah kalau sampai kejadian).
-  const potonganTerklaim = new Set();
-  const awalGiliran = giliranTerpilih.map(({ turn: t }) => {
-    const kandidat = daftarCuts.find((c) => !potonganTerklaim.has(c)
-      && c >= t.start - TOLERANSI_AWAL && c <= t.start);
-    if (kandidat !== undefined) potonganTerklaim.add(kandidat);
-    return kandidat !== undefined ? kandidat : t.start;
+  const claimedCuts = new Set();
+  const turnStarts = selectedTurns.map(({ turn: t }) => {
+    const candidate = cutList.find((c) => !claimedCuts.has(c)
+      && c >= t.start - START_TOLERANCE && c <= t.start);
+    if (candidate !== undefined) claimedCuts.add(candidate);
+    return candidate !== undefined ? candidate : t.start;
   });
 
   // Tahap 2 -- PECAH: video sumber sendiri bisa berganti shot DI TENGAH
@@ -1040,55 +1040,55 @@ async function aiFramingTerapkan(turns, posisi, cuts) {
   // sebenarnya giliran BERIKUTNYA (kalau lebih awal dari t.end sendiri) --
   // tanpa ini, giliran berikutnya yang "mencuri mundur" waktunya lewat
   // klaim di Tahap 1 akan tumpang tindih dengan ekor giliran ini.
-  const rencana = [];
-  let potongDipakai = 0;
-  giliranTerpilih.forEach(({ turn: t, kasar }, i) => {
-    const awalSebenarnya = awalGiliran[i];
-    const akhirSebenarnya = (i + 1 < awalGiliran.length)
-      ? Math.min(t.end, awalGiliran[i + 1]) : t.end;
-    const potongDalamGiliran = daftarCuts.filter((c) => !potonganTerklaim.has(c)
-      && c > awalSebenarnya && c < akhirSebenarnya);
-    let awal = awalSebenarnya;
-    for (const batas of [...potongDalamGiliran, akhirSebenarnya]) {
-      rencana.push({ at: awal, end: batas, kasar });
-      awal = batas;
+  const plan = [];
+  let cutsUsed = 0;
+  selectedTurns.forEach(({ turn: t, rough }, i) => {
+    const actualStart = turnStarts[i];
+    const actualEnd = (i + 1 < turnStarts.length)
+      ? Math.min(t.end, turnStarts[i + 1]) : t.end;
+    const cutsInTurn = cutList.filter((c) => !claimedCuts.has(c)
+      && c > actualStart && c < actualEnd);
+    let cursor = actualStart;
+    for (const boundary of [...cutsInTurn, actualEnd]) {
+      plan.push({ at: cursor, end: boundary, rough });
+      cursor = boundary;
     }
-    potongDipakai += potongDalamGiliran.length + (awalSebenarnya !== t.start ? 1 : 0);
+    cutsUsed += cutsInTurn.length + (actualStart !== t.start ? 1 : 0);
   });
 
-  if (!rencana.length) {
+  if (!plan.length) {
     // Bukan kegagalan -- cuma tidak ada giliran yang perlu berganti kotak
     // (misal cuma satu pembicara sepanjang klip). Dulu ini dilaporkan
     // sebagai "0 titik ditambahkan" yang kelihatan seperti error padahal
     // benar begini adanya.
     aiFramingStatus("AI Framing: no switching needed for this clip.");
-    aiFramingOverlaySelesai();
+    aiFramingOverlayDone();
     return;
   }
 
   aiFramingStatus(
-    `AI Framing: tracking ${rencana.length} segment${rencana.length === 1 ? "" : "s"} onto each face …`);
-  aiFramingOverlayProgres("terapkan", 0, rencana.length,
-    `Tracking ${rencana.length} segment${rencana.length === 1 ? "" : "s"}…`);
-  let terapkanSelesai = 0;
-  const hasilPerGiliran = await Promise.all(
-    rencana.map((r) => aiFramingLacakWajah(r.at, r.end, r.kasar).then((hasil) => {
-      terapkanSelesai++;
-      aiFramingOverlayProgres("terapkan", terapkanSelesai, rencana.length);
-      return hasil;
+    `AI Framing: tracking ${plan.length} segment${plan.length === 1 ? "" : "s"} onto each face …`);
+  aiFramingOverlayProgress("terapkan", 0, plan.length,
+    `Tracking ${plan.length} segment${plan.length === 1 ? "" : "s"}…`);
+  let applyDone = 0;
+  const resultsPerTurn = await Promise.all(
+    plan.map((r) => aiFramingTrackFace(r.at, r.end, r.rough).then((result) => {
+      applyDone++;
+      aiFramingOverlayProgress("terapkan", applyDone, plan.length);
+      return result;
     })));
 
-  let ditambah = 0;
-  for (const titikDaftar of hasilPerGiliran) {
-    for (const titik of titikDaftar) {
-      const crop = { ...titik.crop };
-      const sama = FRAMING.find((f) => Math.abs(f.at - titik.at) < 0.35);
-      if (sama) {
-        sama.format = "single";
-        sama.crops = [crop];
+  let added = 0;
+  for (const pointList of resultsPerTurn) {
+    for (const point of pointList) {
+      const crop = { ...point.crop };
+      const existing = FRAMING.find((f) => Math.abs(f.at - point.at) < 0.35);
+      if (existing) {
+        existing.format = "single";
+        existing.crops = [crop];
       } else {
-        FRAMING.push({ id: `f${++framingSeq}`, at: titik.at, format: "single", crops: [crop] });
-        ditambah++;
+        FRAMING.push({ id: `f${++framingSeq}`, at: point.at, format: "single", crops: [crop] });
+        added++;
       }
     }
   }
@@ -1097,15 +1097,15 @@ async function aiFramingTerapkan(turns, posisi, cuts) {
   if (typeof saveProject === "function") saveProject();
 
   aiFramingStatus(
-    `AI Framing: ${ditambah} framing point${ditambah === 1 ? "" : "s"} added across `
-    + `${rencana.length} segment${rencana.length === 1 ? "" : "s"}, tracking each speaker's face`
-    + (potongDipakai
-        ? ` (${potongDipakai} shot change${potongDipakai === 1 ? "" : "s"} detected mid-turn). `
+    `AI Framing: ${added} framing point${added === 1 ? "" : "s"} added across `
+    + `${plan.length} segment${plan.length === 1 ? "" : "s"}, tracking each speaker's face`
+    + (cutsUsed
+        ? ` (${cutsUsed} shot change${cutsUsed === 1 ? "" : "s"} detected mid-turn). `
         : ". ")
     + "Review and adjust if needed.");
-  aiFramingOverlaySelesai();
+  aiFramingOverlayDone();
 }
 
-$("#aiFramingBtn")?.addEventListener("click", aiFramingMulai);
+$("#aiFramingBtn")?.addEventListener("click", aiFramingStart);
 
 resetFraming();

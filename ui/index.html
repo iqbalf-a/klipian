@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wdth,wght@0,75..125,200..900;1,75..125,200..900&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1788842396582">
-<link rel="stylesheet" href="/ui/css/app.css?v=1788842396582">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1788843080706">
+<link rel="stylesheet" href="/ui/css/app.css?v=1788843080706">
 </head>
 <body>
 
@@ -330,7 +330,7 @@
             <span class="data" id="framingWaktu"></span>
             <!-- Sepenuhnya otomatis -- klik langsung jalan (diarization,
                  deteksi potongan, cari wajah tiap pembicara), tidak ada
-                 langkah konfirmasi manual apa pun. Lihat aiFramingMulai()
+                 langkah konfirmasi manual apa pun. Lihat aiFramingStart()
                  di framing.js.
 
                  .btn.main (aksen), bukan .btn polos: sejalan dengan aturan
@@ -347,7 +347,7 @@
                  kuning"). SVG ikut var(--accent-text) yang sama dengan
                  teksnya (hampir hitam), penanda visual "ini tombol AI"
                  tanpa isu warna itu. Teks di dalam <span> terpisah --
-                 aiFramingMulai/aiFramingGagal/dst di framing.js cuma
+                 aiFramingStart/aiFramingFailed/dst di framing.js cuma
                  mengganti isi span itu, bukan seluruh tombol, supaya
                  ikonnya tidak ikut hilang tiap label berganti. -->
             <button class="btn main" id="aiFramingBtn" type="button"
@@ -590,16 +590,16 @@
   </main>
 </div>
 
-<script src="/ui/js/editor/app.js?v=1788842396582"></script>
-<script src="/ui/js/editor/interactions.js?v=1788842396582"></script>
-<script src="/ui/js/editor/framing.js?v=1788842396582"></script>
-<script src="/ui/js/editor/analysis.js?v=1788842396582"></script>
-<script src="/ui/js/editor/player.js?v=1788842396582"></script>
-<script src="/ui/js/editor/roundtrip.js?v=1788842396582"></script>
-<script src="/ui/js/editor/history.js?v=1788842396582"></script>
-<script src="/ui/js/editor/timeline.js?v=1788842396582"></script>
-<script src="/ui/js/editor/captions.js?v=1788842396582"></script>
-<script src="/ui/js/editor/result.js?v=1788842396582"></script>
-<script src="/ui/js/editor/projects.js?v=1788842396582"></script>
+<script src="/ui/js/editor/app.js?v=1788843080706"></script>
+<script src="/ui/js/editor/interactions.js?v=1788843080706"></script>
+<script src="/ui/js/editor/framing.js?v=1788843080706"></script>
+<script src="/ui/js/editor/analysis.js?v=1788843080706"></script>
+<script src="/ui/js/editor/player.js?v=1788843080706"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1788843080706"></script>
+<script src="/ui/js/editor/history.js?v=1788843080706"></script>
+<script src="/ui/js/editor/timeline.js?v=1788843080706"></script>
+<script src="/ui/js/editor/captions.js?v=1788843080706"></script>
+<script src="/ui/js/editor/result.js?v=1788843080706"></script>
+<script src="/ui/js/editor/projects.js?v=1788843080706"></script>
 </body>
 </html>
