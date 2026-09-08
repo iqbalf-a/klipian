@@ -481,7 +481,7 @@ playBtn?.addEventListener("click", () => {
       video.currentTime = activeClip.spans[0].start;
     }
     // Preview rekomendasi dan preview Result tidak boleh berbunyi bersamaan.
-    if (typeof tutupPreviewRekom === "function") tutupPreviewRekom();
+    if (typeof closeRecPreview === "function") closeRecPreview();
     // play() menolak kalau segera disusul pause() (mis. klip habis di
     // detik yang sama). Ditelan supaya tidak jadi galat tak tertangkap.
     video.play().catch(() => {});

@@ -45,7 +45,7 @@ function drawTotalTimeline() {
   // Panel pratinjau di atas bar ini SELALU tampil, jadi harus punya isi
   // sedini mungkin -- titik kumpul ini sudah dipanggil tiap kali
   // chosenSource berubah, jadi dipakai juga untuk memuat videonya.
-  if (typeof muatPreviewUtuh === "function") muatPreviewUtuh();
+  if (typeof loadFullPreview === "function") loadFullPreview();
   const d = videoDuration();
 
   const info = $("#pilihDurasi");

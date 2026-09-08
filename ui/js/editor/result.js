@@ -29,12 +29,12 @@ function addToResult(start, end, title, source) {
   if (end - start < 0.5) return "range is too short";
 
   // Gabung dengan yang bersinggungan supaya tidak ada detik yang dobel.
-  const bersinggungan = RESULT.filter((r) => start < r.end && end > r.start);
-  if (bersinggungan.length) {
-    start = Math.min(start, ...bersinggungan.map((r) => r.start));
-    end = Math.max(end, ...bersinggungan.map((r) => r.end));
-    title = title || bersinggungan[0].title;
-    RESULT = RESULT.filter((r) => !bersinggungan.includes(r));
+  const overlapping = RESULT.filter((r) => start < r.end && end > r.start);
+  if (overlapping.length) {
+    start = Math.min(start, ...overlapping.map((r) => r.start));
+    end = Math.max(end, ...overlapping.map((r) => r.end));
+    title = title || overlapping[0].title;
+    RESULT = RESULT.filter((r) => !overlapping.includes(r));
   }
 
   RESULT.push({
@@ -59,7 +59,7 @@ function clearResult() {
 }
 
 /* Judul bawaan: judul potongan pertama, atau nama umum kalau isinya campuran. */
-function judulBawaan() {
+function defaultTitle() {
   if (!RESULT.length) return "";
   return RESULT.length === 1 ? RESULT[0].title : `${RESULT[0].title} +${RESULT.length - 1}`;
 }
@@ -68,9 +68,9 @@ function judulBawaan() {
    dan spans itulah yang disambung ffmpeg jadi satu berkas. */
 function resultAsClip() {
   if (!RESULT.length) return null;
-  const ketik = $("#hasilJudul")?.value.trim();
+  const typed = $("#hasilJudul")?.value.trim();
   return {
-    title: ketik || judulBawaan(),
+    title: typed || defaultTitle(),
     spans: RESULT.map((r) => ({ start: r.start, end: r.end })),
     startSec: RESULT[0].start,
     endSec: RESULT[RESULT.length - 1].end,
@@ -97,8 +97,8 @@ function renderResult() {
     if (total) total.textContent = "empty";
     const clr = $("#hasilClearBtn"); if (clr) clr.disabled = true;
     const btn = $("#hasilRenderBtn"); if (btn) btn.disabled = true;
-    const pratinjau = $("#previewCepatBtn"); if (pratinjau) pratinjau.disabled = true;
-    const ringkas = $("#hasilRingkas"); if (ringkas) ringkas.textContent = "";
+    const quickPreviewBtn = $("#previewCepatBtn"); if (quickPreviewBtn) quickPreviewBtn.disabled = true;
+    const summaryEl = $("#hasilRingkas"); if (summaryEl) summaryEl.textContent = "";
     if (typeof setResultAsPreview === "function") setResultAsPreview();
     if (typeof drawTotalTimeline === "function") drawTotalTimeline();
   if (typeof renderTeks === "function") renderTeks();
@@ -121,13 +121,13 @@ function renderResult() {
   }
   const clr = $("#hasilClearBtn"); if (clr) clr.disabled = false;
 
-  const judul = $("#hasilJudul");
-  if (judul && !judul.value.trim()) judul.placeholder = judulBawaan();
+  const titleInput = $("#hasilJudul");
+  if (titleInput && !titleInput.value.trim()) titleInput.placeholder = defaultTitle();
   const btn = $("#hasilRenderBtn"); if (btn) btn.disabled = false;
-  const pratinjau = $("#previewCepatBtn"); if (pratinjau) pratinjau.disabled = false;
-  const ringkas = $("#hasilRingkas");
-  if (ringkas) {
-    ringkas.textContent = RESULT.length === 1
+  const quickPreviewBtn = $("#previewCepatBtn"); if (quickPreviewBtn) quickPreviewBtn.disabled = false;
+  const summaryEl = $("#hasilRingkas");
+  if (summaryEl) {
+    summaryEl.textContent = RESULT.length === 1
       ? "one MP4 file"
       : `${RESULT.length} spans joined into one MP4`;
   }
@@ -146,14 +146,14 @@ function renderRecommendations() {
   const list = $("#rekomList");
   const note = $("#rekomNote");
   if (!list) return;
-  const daftar = (DATA?.candidates) || [];
+  const candidates = (DATA?.candidates) || [];
 
   // Daftarnya bisa berubah total (impor ulang dari Claude) sementara preview
   // masih menunjuk ke indeks lama -- ditutup dulu supaya tidak menunjuk ke
   // rekomendasi yang salah setelah render ulang.
-  if (typeof tutupPreviewRekom === "function") tutupPreviewRekom();
+  if (typeof closeRecPreview === "function") closeRecPreview();
 
-  if (!daftar.length) {
+  if (!candidates.length) {
     list.innerHTML = `<p class="kosong-hasil">No suggestions yet. Import Claude's JSON on the
       Analyze screen, or just select a range on the timeline.</p>`;
     if (note) note.textContent = "none yet";
@@ -179,7 +179,7 @@ function renderRecommendations() {
   // listener klik #rekomList: dispatch "change" manual, karena klik
   // langsung ke tombol Save tanpa pindah fokus dulu tidak memicu event
   // change bawaan browser).
-  list.innerHTML = daftar.map((k, i) => `
+  list.innerHTML = candidates.map((k, i) => `
     <label class="rekom-row">
       <button class="rekom-play" type="button" data-play="${i}"
               aria-label="Preview ${escapeHTML(k.title)}" aria-pressed="false">▶</button>
@@ -199,8 +199,8 @@ function renderRecommendations() {
       </span>
       <span class="data rekom-dur">${k.dur}s</span>
     </label>`).join("");
-  if (note) note.textContent = `${daftar.length} suggestion${daftar.length > 1 ? "s" : ""}`;
-  perbaruiTombolRekom();
+  if (note) note.textContent = `${candidates.length} suggestion${candidates.length > 1 ? "s" : ""}`;
+  updateRecButton();
 }
 
 /* ---------- pratinjau video sumber utuh, sebelum masuk Result ----------
@@ -216,46 +216,46 @@ function renderRecommendations() {
    dari #tlTotal yang tetap 100% murni untuk memilih rentang manual. */
 
 let previewIdx = null;      // indeks rekomendasi yang sedang dipratinjau
-let previewBatas = null;    // detik akhir -- video berhenti sendiri di sini
+let previewLimit = null;    // detik akhir -- video berhenti sendiri di sini
 
 // Memuat video sumber ke #tlPreviewVideo begitu ada, TANPA autoplay --
 // panelnya sekarang selalu tampil (bukan cuma saat suggestion diputar),
 // jadi harus ada isinya sedini mungkin, bukan menunggu Play ditekan.
 // Dipanggil dari drawTotalTimeline() tiap kali timeline digambar ulang,
 // yang sudah jadi titik kumpul setiap kali chosenSource berubah.
-function muatPreviewUtuh() {
+function loadFullPreview() {
   const v = $("#tlPreviewVideo");
   if (!v || !chosenSource?.url) return;
-  const srcAbsolut = new URL(chosenSource.url, location.href).href;
-  if (v.src !== srcAbsolut) v.src = chosenSource.url;
+  const absoluteSrc = new URL(chosenSource.url, location.href).href;
+  if (v.src !== absoluteSrc) v.src = chosenSource.url;
 }
 
-function ikonPlayRekom() {
+function updateRecPlayIcon() {
   // Bukan cuma "baris ini yang aktif" -- harus "baris ini yang aktif DAN
   // videonya benar-benar sedang jalan". Tanpa syarat kedua, ikon tetap ⏸
   // selamanya sesudah dijeda manual atau berhenti sendiri di endSec --
   // padahal videonya sudah diam.
   const v = $("#tlPreviewVideo");
-  const sedangMain = !!(v && !v.paused);
+  const nowPlaying = !!(v && !v.paused);
   document.querySelectorAll(".rekom-play").forEach((b) => {
-    const aktif = Number(b.dataset.play) === previewIdx && sedangMain;
-    b.textContent = aktif ? "⏸" : "▶";
-    b.setAttribute("aria-pressed", String(aktif));
+    const active = Number(b.dataset.play) === previewIdx && nowPlaying;
+    b.textContent = active ? "⏸" : "▶";
+    b.setAttribute("aria-pressed", String(active));
   });
-  const tombolSendiri = $("#tlPreviewPlay");
-  if (tombolSendiri) tombolSendiri.textContent = sedangMain ? "❚❚" : "▶";
+  const ownPlayBtn = $("#tlPreviewPlay");
+  if (ownPlayBtn) ownPlayBtn.textContent = nowPlaying ? "❚❚" : "▶";
 }
 
-function tutupPreviewRekom() {
+function closeRecPreview() {
   $("#tlPreviewVideo")?.pause();
   previewIdx = null;
-  previewBatas = null;
+  previewLimit = null;
   const titleEl = $("#tlPreviewTitle");
   if (titleEl) titleEl.textContent = "";
-  ikonPlayRekom();
+  updateRecPlayIcon();
 }
 
-function putarPreviewRekom(idx) {
+function playRecPreview(idx) {
   const k = (DATA?.candidates || [])[idx];
   const box = $("#tlPreview"), v = $("#tlPreviewVideo");
   if (!k || !box || !v || !chosenSource?.url) return;
@@ -274,10 +274,10 @@ function putarPreviewRekom(idx) {
   if (titleEl) titleEl.textContent = `${jamPendek(k.startSec)} – ${jamPendek(k.endSec)} · ${k.title}`;
 
   previewIdx = idx;
-  previewBatas = k.endSec;
-  ikonPlayRekom();
+  previewLimit = k.endSec;
+  updateRecPlayIcon();
 
-  const mulai = () => {
+  const startPlayback = () => {
     try { v.currentTime = k.startSec; } catch { /* metadata belum siap */ }
     v.play().catch(() => {});
   };
@@ -290,17 +290,17 @@ function putarPreviewRekom(idx) {
   // masih kelihatan diam menunggu loadedmetadata padahal seharusnya sudah
   // langsung jalan. Dua-duanya diresolusi ke bentuk absolut dulu sebelum
   // dibandingkan.
-  const srcAbsolut = new URL(chosenSource.url, location.href).href;
-  if (v.src !== srcAbsolut) {
+  const absoluteSrc = new URL(chosenSource.url, location.href).href;
+  if (v.src !== absoluteSrc) {
     v.src = chosenSource.url;
-    v.addEventListener("loadedmetadata", mulai, { once: true });
+    v.addEventListener("loadedmetadata", startPlayback, { once: true });
   } else if (v.readyState >= 1) {
     // HAVE_METADATA+: aman men-set currentTime sekarang.
-    mulai();
+    startPlayback();
   } else {
-    // src sama tapi metadata belum siap (muatPreviewUtuh baru men-set src) --
+    // src sama tapi metadata belum siap (loadFullPreview baru men-set src) --
     // tunggu, kalau tidak currentTime dibuang dan preview mulai dari 0.
-    v.addEventListener("loadedmetadata", mulai, { once: true });
+    v.addEventListener("loadedmetadata", startPlayback, { once: true });
   }
 }
 
@@ -309,7 +309,7 @@ function putarPreviewRekom(idx) {
 // Sekalian menggerakkan isian bar scrub dan jam "posisi / total".
 $("#tlPreviewVideo")?.addEventListener("timeupdate", (e) => {
   const v = e.target;
-  if (previewBatas !== null && v.currentTime >= previewBatas) v.pause();
+  if (previewLimit !== null && v.currentTime >= previewLimit) v.pause();
 
   const jam = $("#tlPreviewTime");
   if (jam && typeof videoDuration === "function") {
@@ -322,8 +322,8 @@ $("#tlPreviewVideo")?.addEventListener("timeupdate", (e) => {
     $("#tlScrub")?.setAttribute("aria-valuenow", String(Math.round(persen)));
   }
 });
-$("#tlPreviewVideo")?.addEventListener("pause", ikonPlayRekom);
-$("#tlPreviewVideo")?.addEventListener("play", ikonPlayRekom);
+$("#tlPreviewVideo")?.addEventListener("pause", updateRecPlayIcon);
+$("#tlPreviewVideo")?.addEventListener("play", updateRecPlayIcon);
 
 // Bar scrub: klik atau geser di mana saja langsung memindah posisi putar.
 // Terpisah total dari #tlTotal (yang tetap murni untuk memilih rentang),
@@ -345,10 +345,10 @@ $("#tlScrub")?.addEventListener("pointerdown", (e) => {
   // rekomendasi (previewBatas), lepaskan kuncinya supaya tidak langsung
   // dijeda paksa begitu melewati batas rentang lama itu.
   previewIdx = null;
-  previewBatas = null;
+  previewLimit = null;
   const titleEl = $("#tlPreviewTitle");
   if (titleEl) titleEl.textContent = "";
-  ikonPlayRekom();
+  updateRecPlayIcon();
   tlScrubSeek(e.clientX);
 });
 $("#tlScrub")?.addEventListener("pointermove", (e) => {
@@ -365,7 +365,7 @@ $("#tlPreviewPlay")?.addEventListener("click", () => {
   const v = $("#tlPreviewVideo");
   if (!v || !v.src) return;
   if (!v.paused) { v.pause(); return; }
-  if (previewBatas !== null && v.currentTime >= previewBatas - 0.05) {
+  if (previewLimit !== null && v.currentTime >= previewLimit - 0.05) {
     const k = (DATA?.candidates || [])[previewIdx];
     if (k) { try { v.currentTime = k.startSec; } catch { /* metadata belum siap */ } }
   }
@@ -396,13 +396,13 @@ $("#tlPreviewVideo")?.addEventListener("loadedmetadata", (e) => {
    aneh, jadi dijeda dulu kalau perlu. Dibiarkan bebas melewati batas
    rentang suggestion (previewBatas): justru itu gunanya -- menilai
    apakah batasnya perlu digeser sedikit. */
-function tlPreviewStepSeconds(detik) {
+function tlPreviewStepSeconds(seconds) {
   const v = $("#tlPreviewVideo");
   if (!v || !v.src) return;
   if (!v.paused) v.pause();
-  const batas = v.duration || Infinity;
-  const tujuan = Math.max(0, Math.min(batas, v.currentTime + detik));
-  try { v.currentTime = tujuan; } catch { /* di luar jangkauan */ }
+  const limit = v.duration || Infinity;
+  const target = Math.max(0, Math.min(limit, v.currentTime + seconds));
+  try { v.currentTime = target; } catch { /* di luar jangkauan */ }
 }
 [["#tlPreviewPrev5", -5], ["#tlPreviewPrev2", -2], ["#tlPreviewPrev", -1],
  ["#tlPreviewNext", 1], ["#tlPreviewNext2", 2], ["#tlPreviewNext5", 5]]
@@ -414,12 +414,12 @@ $("#rekomList")?.addEventListener("click", (e) => {
     e.preventDefault();     // jangan sampai ikut mencentang baris
     const row = edit.closest(".rekom-row");
     const inputs = row ? [...row.querySelectorAll(".rekom-waktu-in")] : [];
-    const mulai = inputs.find((el) => el.dataset.field === "startSec");
-    if (!mulai) return;
+    const startInput = inputs.find((el) => el.dataset.field === "startSec");
+    if (!startInput) return;
     const k = (DATA?.candidates || [])[Number(edit.dataset.editWaktu)];
-    const judul = k ? escapeHTML(k.title) : "";
-    const sedangEdit = !mulai.disabled;
-    if (sedangEdit) {
+    const title = k ? escapeHTML(k.title) : "";
+    const isEditing = !startInput.disabled;
+    if (isEditing) {
       // Klik "Save": pastikan nilai yang barusan diketik ter-commit --
       // klik langsung ke tombol ini (tanpa pindah fokus dulu dari kolom
       // teks) TIDAK memicu event "change" bawaan browser, jadi dipicu
@@ -430,22 +430,22 @@ $("#rekomList")?.addEventListener("click", (e) => {
       edit.textContent = "✎";
       edit.title = "Edit time";
       edit.removeAttribute("data-editing");
-      edit.setAttribute("aria-label", `Edit time for ${judul}`);
+      edit.setAttribute("aria-label", `Edit time for ${title}`);
     } else {
       inputs.forEach((inp) => { inp.disabled = false; });
-      mulai.focus();
-      mulai.select();
+      startInput.focus();
+      startInput.select();
       edit.textContent = "✓";
       edit.title = "Save time";
       edit.setAttribute("data-editing", "true");
-      edit.setAttribute("aria-label", `Save time for ${judul}`);
+      edit.setAttribute("aria-label", `Save time for ${title}`);
     }
     return;
   }
   const btn = e.target.closest(".rekom-play");
   if (!btn) return;
   e.preventDefault();       // jangan sampai ikut mencentang baris
-  putarPreviewRekom(Number(btn.dataset.play));
+  playRecPreview(Number(btn.dataset.play));
 });
 
 /* Membetulkan waktu satu rekomendasi. `label` membungkus checkbox DAN kedua
@@ -464,17 +464,17 @@ $("#rekomList")?.addEventListener("change", (e) => {
   const k = (DATA?.candidates || [])[idx];
   if (!k) return;
 
-  const kembalikan = () => { inp.value = jamPendek(k[field]); };
-  const mentah = parseTime(inp.value);
-  if (mentah === null) { kembalikan(); return; }
-  const detik = (typeof snapToWord === "function")
-    ? snapToWord(mentah, field === "startSec" ? "start" : "end")
-    : mentah;
+  const revert = () => { inp.value = jamPendek(k[field]); };
+  const raw = parseTime(inp.value);
+  if (raw === null) { revert(); return; }
+  const snapped = (typeof snapToWord === "function")
+    ? snapToWord(raw, field === "startSec" ? "start" : "end")
+    : raw;
 
-  const lain = field === "startSec" ? k.endSec : k.startSec;
-  if (field === "startSec" ? detik >= lain : detik <= lain) { kembalikan(); return; }
+  const other = field === "startSec" ? k.endSec : k.startSec;
+  if (field === "startSec" ? snapped >= other : snapped <= other) { revert(); return; }
 
-  k[field] = detik;
+  k[field] = snapped;
   k.dur = Math.round(k.endSec - k.startSec);
   // spans/in/out ikut disinkronkan: kalau tidak, kode yang membaca k.spans
   // (render, preview) atau k.in/k.out (tampilan) masih memakai rentang lama.
@@ -483,16 +483,16 @@ $("#rekomList")?.addEventListener("change", (e) => {
     k.in = jamPendek(k.startSec);
     k.out = jamPendek(k.endSec);
   }
-  inp.value = jamPendek(detik);
-  const baris = inp.closest(".rekom-row");
-  const durEl = baris?.querySelector(".rekom-dur");
+  inp.value = jamPendek(snapped);
+  const rowEl = inp.closest(".rekom-row");
+  const durEl = rowEl?.querySelector(".rekom-dur");
   if (durEl) durEl.textContent = `${k.dur}s`;
   // Penanda tipis di timeline total digambar dari k.startSec/endSec -- redraw
   // supaya ia ikut pindah, bukan tetap di posisi lama sampai redraw lain.
   if (typeof drawTotalTimeline === "function") drawTotalTimeline();
 });
 
-function perbaruiTombolRekom() {
+function updateRecButton() {
   const b = $("#rekomAddBtn");
   if (!b) return;
   const n = document.querySelectorAll("#rekomList input:checked").length;
@@ -502,21 +502,21 @@ function perbaruiTombolRekom() {
 
 /* ---------- kejadian ---------- */
 
-$("#rekomList")?.addEventListener("change", perbaruiTombolRekom);
+$("#rekomList")?.addEventListener("change", updateRecButton);
 
 $("#rekomAddBtn")?.addEventListener("click", () => {
-  const dipilih = [...document.querySelectorAll("#rekomList input:checked")];
-  const daftar = DATA.candidates || [];
-  let ditolak = 0;
-  for (const c of dipilih) {
-    const k = daftar[Number(c.dataset.rekom)];
+  const selected = [...document.querySelectorAll("#rekomList input:checked")];
+  const candidates = DATA.candidates || [];
+  let rejectedCount = 0;
+  for (const c of selected) {
+    const k = candidates[Number(c.dataset.rekom)];
     if (!k) continue;
-    if (addToResult(k.startSec, k.endSec, k.title, "ai")) ditolak++;
+    if (addToResult(k.startSec, k.endSec, k.title, "ai")) rejectedCount++;
     c.checked = false;
   }
-  perbaruiTombolRekom();
-  if (ditolak) {
-    $("#editNote").textContent = `${ditolak} suggestion${ditolak > 1 ? "s" : ""} skipped — invalid timing`;
+  updateRecButton();
+  if (rejectedCount) {
+    $("#editNote").textContent = `${rejectedCount} suggestion${rejectedCount > 1 ? "s" : ""} skipped — invalid timing`;
   }
 });
 
@@ -537,9 +537,9 @@ function resetResult() {
 
 /* Render: seluruh result jadi SATU berkas. */
 $("#hasilRenderBtn")?.addEventListener("click", () => {
-  const klip = resultAsClip();
-  if (!klip) return;
-  if (typeof kirimRender === "function") kirimRender([klip]);
+  const clip = resultAsClip();
+  if (!clip) return;
+  if (typeof kirimRender === "function") kirimRender([clip]);
 });
 
 /* Jalur manual dimulai di layar Klip: timeline ada di sana. */
