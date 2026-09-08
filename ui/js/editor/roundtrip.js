@@ -76,13 +76,13 @@ async function buildBrief(name) {
   // yang bisa diandalkan; ini bukti yang sungguhan diukur, bukan tebakan
   // dari tanda baca. Kosong kalau belum sempat dianalisis ATAU memang tidak
   // ada momen menonjol -- dua-duanya sama saja di sini: bagiannya dilewati.
-  let energiBlok = "";
+  let energyBlock = "";
   try {
     const d = await (await fetch(`/api/audio-energy?video=${encodeURIComponent(name)}`)).json();
     if (d.moments?.length) {
-      const daftar = d.moments
+      const energyList = d.moments
         .map((m) => `- [${fmtStamp(m.start)}] – [${fmtStamp(m.end)}]`).join("\n");
-      energiBlok = `
+      energyBlock = `
 
 ---
 
@@ -93,7 +93,7 @@ sendiri -- bisa tawa penonton, sorakan, reaksi keras, atau momen dramatis.
 Ini SINYAL pendukung, bukan fakta pasti: cocokkan dengan kalimat di
 transkrip sekitar waktu itu sebelum menjadikannya alasan skor.
 
-${daftar}
+${energyList}
 `;
     }
   } catch { /* tanpa backend tidak ada yang bisa diambil -- brief tetap jalan tanpa bagian ini */ }
@@ -136,7 +136,7 @@ di luar bloknya.
   ]
 }
 \`\`\`
-${energiBlok}
+${energyBlock}
 ---
 
 ## Transkrip
@@ -276,7 +276,7 @@ function applyCandidates(candidates) {
 async function prepareExport(videoName) {
   const panel = $("#exportPanel"), button = $("#downloadBrief"), note = $("#exportNote");
   note.textContent = "mencari transkrip …";
-  const sebelumnya = realTranscript;
+  const previous = realTranscript;
   realTranscript = await findTranscript(videoName);
 
   if (!realTranscript) {
@@ -296,7 +296,7 @@ async function prepareExport(videoName) {
   // caption-nya kosong karena kataResult() belum punya apa-apa untuk
   // dipetakan -- dan tidak ada yang memicu gambar ulang begitu transkrip
   // akhirnya siap. Redraw eksplisit di sini menutup celah itu.
-  if (!sebelumnya && typeof RESULT !== "undefined" && RESULT.length) {
+  if (!previous && typeof RESULT !== "undefined" && RESULT.length) {
     if (typeof drawCaption === "function") drawCaption();
     if (typeof renderTeks === "function") renderTeks();
   }
