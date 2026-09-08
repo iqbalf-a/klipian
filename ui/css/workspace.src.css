@@ -18,7 +18,7 @@
 @layer base {
   html, body { height: 100%; }
   body {
-    @apply m-0 bg-surface-0 text-teks font-ui;
+    @apply m-0 bg-surface-0 text-text font-ui;
     font-stretch: 100%;
   }
 }
@@ -27,15 +27,15 @@
   /* Panel card -- used 3x (Clips, Rendered output, Assets), unified here
      instead of repeated as a long utility list in each section. */
   .ws-panel {
-    @apply bg-surface-2 rounded-m p-5 flex flex-col gap-4 shadow-kartu;
+    @apply bg-surface-2 rounded-m p-5 flex flex-col gap-4 shadow-card;
   }
 
   /* Table input: no border until touched -- a table that's always bordered
      feels like a form, not a spreadsheet you can scan. */
   .ws-input {
     @apply w-full bg-transparent border border-transparent rounded-s
-           px-2 py-1.5 text-[12.5px] text-teks resize-y font-ui
-           hover:border-garis focus:outline-none focus:border-aksen
+           px-2 py-1.5 text-[12.5px] text-text resize-y font-ui
+           hover:border-glass-border focus:outline-none focus:border-accent
            focus:bg-surface-1;
   }
   select.ws-input { @apply cursor-pointer; }
@@ -44,24 +44,24 @@
   /* Status is a color signal, not just text -- a dashboard that's glanced
      at must still be readable without reading each one. */
   .ws-status { @apply font-semibold; }
-  .ws-status[data-v="Draft"]     { @apply text-teks-samar; }
-  .ws-status[data-v="Ready"]     { @apply text-aksen; }
+  .ws-status[data-v="Draft"]     { @apply text-text-faint; }
+  .ws-status[data-v="Ready"]     { @apply text-accent; }
   .ws-status[data-v="Scheduled"] { @apply text-status-scheduled; }
   .ws-status[data-v="Posted"]    { @apply text-status-posted; }
-  .ws-status[data-v="Discarded"] { @apply text-bahaya line-through; }
+  .ws-status[data-v="Discarded"] { @apply text-danger line-through; }
 
   .delete-btn {
-    @apply bg-transparent border-0 text-teks-samar cursor-pointer text-base
-           leading-none p-1.5 rounded-s hover:text-bahaya hover:bg-kaca;
+    @apply bg-transparent border-0 text-text-faint cursor-pointer text-base
+           leading-none p-1.5 rounded-s hover:text-danger hover:bg-glass;
   }
 
   .ws-detail {
-    @apply bg-transparent border border-garis text-teks-samar cursor-pointer
+    @apply bg-transparent border border-glass-border text-text-faint cursor-pointer
            text-[12px] leading-none px-2 py-1 rounded-s
-           hover:text-teks hover:bg-kaca;
+           hover:text-text hover:bg-glass;
   }
 
-  .empty { @apply text-teks-samar text-[13px] py-6 text-center; }
+  .empty { @apply text-text-faint text-[13px] py-6 text-center; }
 
   /* Clip detail dialog: fields that don't fit/aren't needed are always
      visible in the table (description, caption, link, notes) -- see the
@@ -69,18 +69,18 @@
      The browser's default <dialog> is used as-is (free backdrop + focus trap),
      just needs restyling to match the dark theme. */
   .ws-dialog {
-    @apply bg-surface-2 text-teks rounded-m p-5 border border-garis
-           w-full max-w-[560px] shadow-kartu;
+    @apply bg-surface-2 text-text rounded-m p-5 border border-glass-border
+           w-full max-w-[560px] shadow-card;
   }
   .ws-dialog::backdrop { @apply bg-black/60; }
-  .ws-field { @apply flex flex-col gap-1.5 text-[12px] text-teks-samar; }
+  .ws-field { @apply flex flex-col gap-1.5 text-[12px] text-text-faint; }
 
   /* Render & asset rows -- 1 wide column + several tight narrow columns. */
   .ws-row {
-    @apply grid items-center gap-3 py-2 px-3 border-b border-garis text-[13px]
+    @apply grid items-center gap-3 py-2 px-3 border-b border-glass-border text-[13px]
            last:border-b-0;
     grid-template-columns: 1fr auto auto auto auto;
   }
   .ws-row .name { @apply font-semibold truncate; }
-  .ws-row .data { @apply font-data text-[11px] text-teks-samar; }
+  .ws-row .data { @apply font-data text-[11px] text-text-faint; }
 }

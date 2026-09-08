@@ -17,12 +17,12 @@
 <div class="flex flex-col min-h-screen">
 
   <header class="flex items-center gap-4 h-[58px] px-5 shrink-0
-                  bg-surface-1 border-b border-garis">
-    <a class="text-teks font-extrabold no-underline hover:text-aksen"
+                  bg-surface-1 border-b border-glass-border">
+    <a class="text-text font-extrabold no-underline hover:text-accent"
        style="font-stretch:118%" href="/" title="Back to editor">klipian</a>
-    <a class="text-teks-samar text-[12px] hover:text-teks" href="/" title="Back to editor">← Editor</a>
-    <span class="font-data text-[11px] text-teks-samar">/ workspace</span>
-    <span class="ml-auto font-data text-[12px] text-teks-samar" id="wsClock"></span>
+    <a class="text-text-faint text-[12px] hover:text-text" href="/" title="Back to editor">← Editor</a>
+    <span class="font-data text-[11px] text-text-faint">/ workspace</span>
+    <span class="ml-auto font-data text-[12px] text-text-faint" id="wsClock"></span>
   </header>
 
   <main class="flex-1 min-h-0 overflow-y-auto flex flex-col gap-6 p-6
@@ -35,8 +35,8 @@
     <section class="ws-panel" id="panelClips">
       <div class="flex items-center gap-3">
         <h1 class="text-[20px] font-extrabold tracking-tight" style="font-stretch:112%">Clips</h1>
-        <span class="text-teks-samar text-[13px]" id="clipSummary">loading…</span>
-        <button class="ml-auto rounded-s bg-aksen text-[13px] font-semibold px-3 py-1.5
+        <span class="text-text-faint text-[13px]" id="clipSummary">loading…</span>
+        <button class="ml-auto rounded-s bg-accent text-[13px] font-semibold px-3 py-1.5
                        text-[oklch(0.145_0.010_258)] hover:brightness-110"
                 id="addClipBtn" type="button">+ New clip</button>
       </div>
@@ -50,21 +50,21 @@
           <thead>
             <tr>
               <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
-                         uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
+                         uppercase tracking-wider text-text-faint px-3 py-2 border-b border-glass-border"
                   style="width:110px">Status</th>
               <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
-                         uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis">Title / hook</th>
+                         uppercase tracking-wider text-text-faint px-3 py-2 border-b border-glass-border">Title / hook</th>
               <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
-                         uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
+                         uppercase tracking-wider text-text-faint px-3 py-2 border-b border-glass-border"
                   style="width:150px">Platform</th>
               <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
-                         uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
+                         uppercase tracking-wider text-text-faint px-3 py-2 border-b border-glass-border"
                   style="width:130px">Upload date</th>
               <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
-                         uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
+                         uppercase tracking-wider text-text-faint px-3 py-2 border-b border-glass-border"
                   style="width:90px">Time</th>
-              <th class="sticky top-0 z-10 bg-surface-2 border-b border-garis" style="width:80px"></th>
-              <th class="sticky top-0 z-10 bg-surface-2 border-b border-garis" style="width:36px"></th>
+              <th class="sticky top-0 z-10 bg-surface-2 border-b border-glass-border" style="width:80px"></th>
+              <th class="sticky top-0 z-10 bg-surface-2 border-b border-glass-border" style="width:36px"></th>
             </tr>
           </thead>
           <tbody id="clipBody"></tbody>
@@ -98,9 +98,9 @@
         <label class="ws-field">Notes
           <textarea class="ws-input" rows="2" data-field="notes"></textarea></label>
         <div class="flex gap-2 justify-end">
-          <button class="rounded-s px-3 py-1.5 text-[13px] border border-garis hover:bg-kaca"
+          <button class="rounded-s px-3 py-1.5 text-[13px] border border-glass-border hover:bg-glass"
                   type="submit" value="cancel">Close</button>
-          <button class="rounded-s bg-aksen text-[13px] font-semibold px-3 py-1.5
+          <button class="rounded-s bg-accent text-[13px] font-semibold px-3 py-1.5
                          text-[oklch(0.145_0.010_258)] hover:brightness-110"
                   type="submit" value="save">Save</button>
         </div>
@@ -114,7 +114,7 @@
     <section class="ws-panel" id="panelRender">
       <div class="flex items-center gap-3">
         <h1 class="text-[20px] font-extrabold tracking-tight" style="font-stretch:112%">Rendered output</h1>
-        <span class="text-teks-samar text-[13px]" id="renderNote">loading…</span>
+        <span class="text-text-faint text-[13px]" id="renderNote">loading…</span>
       </div>
       <div id="renderList"></div>
     </section>
@@ -125,7 +125,7 @@
     <section class="ws-panel" id="panelAssets">
       <div class="flex items-center gap-3">
         <h1 class="text-[20px] font-extrabold tracking-tight" style="font-stretch:112%">Assets</h1>
-        <span class="text-teks-samar text-[13px]" id="assetNote">loading…</span>
+        <span class="text-text-faint text-[13px]" id="assetNote">loading…</span>
       </div>
       <div id="assetList"></div>
     </section>
