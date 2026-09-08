@@ -142,6 +142,29 @@ function renderResult() {
 
 /* ---------- AI recommendations: minutes and titles only ---------- */
 
+/* One mm:ss field + its tiny ▲▼ stepper (+/-1 second) -- typing is still
+   the main path for a big correction, the stepper is for the common case
+   of nudging by a second or two (see commitRecTime()). Both the input and
+   the stepper stay disabled until the pencil unlocks the row, same lock
+   as before -- a clickable stepper sitting in a checkbox-wrapping <label>
+   would be just as easy to bump by accident as an always-editable input. */
+function recTimeField(i, field, value, label) {
+  return `
+    <span class="rec-time-field">
+      <input type="text" class="rec-time-in" value="${value}"
+             data-idx="${i}" data-field="${field}" size="5" spellcheck="false" disabled
+             inputmode="numeric" aria-label="${label}">
+      <span class="rec-time-step">
+        <button type="button" class="rec-step" data-idx="${i}" data-field="${field}"
+                data-dir="1" tabindex="-1" disabled
+                aria-label="Increase ${label.charAt(0).toLowerCase()}${label.slice(1)} by 1 second">▲</button>
+        <button type="button" class="rec-step" data-idx="${i}" data-field="${field}"
+                data-dir="-1" tabindex="-1" disabled
+                aria-label="Decrease ${label.charAt(0).toLowerCase()}${label.slice(1)} by 1 second">▼</button>
+      </span>
+    </span>`;
+}
+
 function renderRecommendations() {
   const list = $("#recList");
   const note = $("#recNote");
@@ -187,13 +210,9 @@ function renderRecommendations() {
       <span class="num">${i + 1}</span>
       <span class="rec-title">${escapeHTML(k.title)}</span>
       <span class="rec-time">
-        <input type="text" class="rec-time-in" value="${shortTime(k.startSec)}"
-               data-idx="${i}" data-field="startSec" size="5" spellcheck="false" disabled
-               aria-label="Start time for ${escapeHTML(k.title)}">
+        ${recTimeField(i, "startSec", shortTime(k.startSec), `Start time for ${escapeHTML(k.title)}`)}
         <span aria-hidden="true">–</span>
-        <input type="text" class="rec-time-in" value="${shortTime(k.endSec)}"
-               data-idx="${i}" data-field="endSec" size="5" spellcheck="false" disabled
-               aria-label="End time for ${escapeHTML(k.title)}">
+        ${recTimeField(i, "endSec", shortTime(k.endSec), `End time for ${escapeHTML(k.title)}`)}
         <button class="rec-edit" type="button" data-edit-time="${i}"
                 title="Edit time" aria-label="Edit time for ${escapeHTML(k.title)}">✎</button>
       </span>
@@ -413,6 +432,7 @@ $("#recList")?.addEventListener("click", (e) => {
     e.preventDefault();     // prevent accidentally toggling the row's checkbox
     const row = edit.closest(".rec-row");
     const inputs = row ? [...row.querySelectorAll(".rec-time-in")] : [];
+    const steps = row ? [...row.querySelectorAll(".rec-step")] : [];
     const startInput = inputs.find((el) => el.dataset.field === "startSec");
     if (!startInput) return;
     const k = (DATA?.candidates || [])[Number(edit.dataset.editTime)];
@@ -427,12 +447,14 @@ $("#recList")?.addEventListener("click", (e) => {
       // assuming a change occurred).
       inputs.forEach((inp) => inp.dispatchEvent(new Event("change", { bubbles: true })));
       inputs.forEach((inp) => { inp.disabled = true; });
+      steps.forEach((s) => { s.disabled = true; });
       edit.textContent = "✎";
       edit.title = "Edit time";
       edit.removeAttribute("data-editing");
       edit.setAttribute("aria-label", `Edit time for ${title}`);
     } else {
       inputs.forEach((inp) => { inp.disabled = false; });
+      steps.forEach((s) => { s.disabled = false; });
       startInput.focus();
       startInput.select();
       edit.textContent = "✓";
@@ -442,10 +464,41 @@ $("#recList")?.addEventListener("click", (e) => {
     }
     return;
   }
+  const step = e.target.closest(".rec-step");
+  if (step) {
+    e.preventDefault();     // prevent accidentally toggling the row's checkbox
+    const k = (DATA?.candidates || [])[Number(step.dataset.idx)];
+    if (!k) return;
+    commitRecTime(Number(step.dataset.idx), step.dataset.field,
+                  k[step.dataset.field] + Number(step.dataset.dir));
+    return;
+  }
   const btn = e.target.closest(".rec-play");
   if (!btn) return;
   e.preventDefault();       // prevent accidentally toggling the row's checkbox
   playRecPreview(Number(btn.dataset.play));
+});
+
+/* Only digits/colon are let through, plus editing & navigation keys --
+   typing a letter into a mm:ss field could never be saved anyway (see
+   commitRecTime/parseTime below); before this it just silently reverted
+   on blur with no explanation, which read as "the field is broken".
+   ArrowUp/ArrowDown nudge by 1 second, same step the ▲▼ buttons use --
+   the common correction here is a second or two, not a full retype. */
+$("#recList")?.addEventListener("keydown", (e) => {
+  const inp = e.target.closest(".rec-time-in");
+  if (!inp) return;
+  if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+    e.preventDefault();
+    const idx = Number(inp.dataset.idx);
+    const field = inp.dataset.field;
+    const k = (DATA?.candidates || [])[idx];
+    if (!k) return;
+    commitRecTime(idx, field, k[field] + (e.key === "ArrowUp" ? 1 : -1));
+    return;
+  }
+  if (e.ctrlKey || e.metaKey || e.key.length > 1) return;  // shortcuts, Backspace, Tab, arrows, etc.
+  if (!/[0-9:]/.test(e.key)) e.preventDefault();
 });
 
 /* Correcting a single recommendation's time. The `label` wraps both the
@@ -456,24 +509,21 @@ $("#recList")?.addEventListener("click", (e) => {
 
    The value is also snapped to the nearest word boundary (snapToWord),
    same as manual selection on the timeline -- one cutting rule applies
-   everywhere. */
-$("#recList")?.addEventListener("change", (e) => {
-  const inp = e.target.closest(".rec-time-in");
-  if (!inp) return;
-  const idx = Number(inp.dataset.idx);
-  const field = inp.dataset.field;
-  const k = (DATA?.candidates || [])[idx];
-  if (!k) return;
+   everywhere.
 
-  const revert = () => { inp.value = shortTime(k[field]); };
-  const raw = parseTime(inp.value);
-  if (raw === null) { revert(); return; }
+   Shared between manual typing (the "change" listener below) and the
+   ▲▼ stepper / arrow-key nudge above, so every path validates, snaps,
+   and syncs k.dur/k.spans/k.in/k.out the same way. Returns whether the
+   new time was accepted. */
+function commitRecTime(idx, field, rawSeconds) {
+  const k = (DATA?.candidates || [])[idx];
+  if (!k || !Number.isFinite(rawSeconds)) return false;
   const snapped = (typeof snapToWord === "function")
-    ? snapToWord(raw, field === "startSec" ? "start" : "end")
-    : raw;
+    ? snapToWord(rawSeconds, field === "startSec" ? "start" : "end")
+    : rawSeconds;
 
   const other = field === "startSec" ? k.endSec : k.startSec;
-  if (field === "startSec" ? snapped >= other : snapped <= other) { revert(); return; }
+  if (field === "startSec" ? snapped >= other : snapped <= other) return false;
 
   k[field] = snapped;
   k.dur = Math.round(k.endSec - k.startSec);
@@ -484,14 +534,33 @@ $("#recList")?.addEventListener("change", (e) => {
     k.in = shortTime(k.startSec);
     k.out = shortTime(k.endSec);
   }
-  inp.value = shortTime(snapped);
-  const rowEl = inp.closest(".rec-row");
-  const durEl = rowEl?.querySelector(".rec-dur");
-  if (durEl) durEl.textContent = `${k.dur}s`;
+  const row = document.querySelector(`.rec-row .rec-time-in[data-idx="${idx}"]`)?.closest(".rec-row");
+  if (row) {
+    const startEl = row.querySelector('.rec-time-in[data-field="startSec"]');
+    const endEl = row.querySelector('.rec-time-in[data-field="endSec"]');
+    if (startEl) startEl.value = shortTime(k.startSec);
+    if (endEl) endEl.value = shortTime(k.endSec);
+    const durEl = row.querySelector(".rec-dur");
+    if (durEl) durEl.textContent = `${k.dur}s`;
+  }
   // The thin marker on the total timeline is drawn from k.startSec/endSec --
   // redraw so it moves along, rather than staying at the old position until
   // the next redraw.
   if (typeof drawTotalTimeline === "function") drawTotalTimeline();
+  return true;
+}
+
+$("#recList")?.addEventListener("change", (e) => {
+  const inp = e.target.closest(".rec-time-in");
+  if (!inp) return;
+  const idx = Number(inp.dataset.idx);
+  const field = inp.dataset.field;
+  const k = (DATA?.candidates || [])[idx];
+  if (!k) return;
+  const raw = parseTime(inp.value);
+  if (raw === null || !commitRecTime(idx, field, raw)) {
+    inp.value = shortTime(k[field]);
+  }
 });
 
 function updateRecButton() {

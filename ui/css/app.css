@@ -1755,6 +1755,21 @@ h1, h2, h3 {
   color: var(--text-faint); border-color: transparent;
   background: transparent; cursor: default;
 }
+/* +/-1s stepper: a mm:ss field can't be a native <input type=number>
+   (wrong format entirely), so this is a hand-built equivalent -- two
+   stacked slivers instead of a side-by-side pair, to add as little width
+   as possible next to the already-narrow time field (see the .rec-title
+   min-width note above -- this column has no room to spare). */
+.rec-time-field { display: inline-flex; align-items: stretch; gap: 1px; }
+.rec-time-step { display: flex; flex-direction: column; }
+.rec-step {
+  font-size: 6px; line-height: 1; width: 11px; height: 9px;
+  padding: 0; border: 0; border-radius: 2px;
+  background: var(--glass); color: var(--text-faint);
+  cursor: pointer;
+}
+.rec-step:hover:not(:disabled) { color: var(--text); background: var(--glass-strong); }
+.rec-step:disabled { visibility: hidden; }
 /* Pencil unlocks; once open the icon switches to a checkmark (Save,
    marked data-editing) so it's clear there's a separate confirmation
    step, not just a button that silently changed. */

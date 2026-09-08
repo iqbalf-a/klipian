@@ -547,6 +547,7 @@ async function trackHeadForPoint(point) {
   const btn = $("#trackHeadBtn");
   if (btn) { btn.disabled = true; btn.textContent = "Tracking…"; }
   $("#reframeNote").textContent = "head tracking: analyzing head movement …";
+  $("#headTrackOverlay")?.removeAttribute("hidden");
   try {
     const r = await fetch("/api/headtrack", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -568,6 +569,7 @@ async function trackHeadForPoint(point) {
     $("#reframeNote").textContent = "head tracking failed — point stays static.";
   } finally {
     if (btn) { btn.disabled = false; }
+    $("#headTrackOverlay")?.setAttribute("hidden", "");
     updateTrackHeadButton();
   }
 }

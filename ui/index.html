@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wdth,wght@0,75..125,200..900;1,75..125,200..900&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1788871189556">
-<link rel="stylesheet" href="/ui/css/app.css?v=1788871189556">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1788876262563">
+<link rel="stylesheet" href="/ui/css/app.css?v=1788876262563">
 </head>
 <body>
 
@@ -516,6 +516,15 @@
           </div>
           <span class="ai-framing-overlay-pct" id="aiFramingOverlayPct">0%</span>
         </div>
+
+        <!-- Head tracking (see trackHeadForPoint() in framing.js) is ONE
+             blocking request, no sub-stages to report -- reuses the AI
+             Framing overlay's spinner/text classes but skips the progress
+             bar, since there's no real percentage to show. -->
+        <div class="ai-framing-overlay" id="headTrackOverlay" hidden>
+          <div class="ai-framing-spin" aria-hidden="true"></div>
+          <p class="ai-framing-overlay-text" id="headTrackOverlayText">Tracking head movement…</p>
+        </div>
       </div>
 
       <!-- clip timeline: only the rendered portion, discarded cuts
@@ -593,16 +602,16 @@
   </main>
 </div>
 
-<script src="/ui/js/editor/app.js?v=1788871189556"></script>
-<script src="/ui/js/editor/interactions.js?v=1788871189556"></script>
-<script src="/ui/js/editor/framing.js?v=1788871189556"></script>
-<script src="/ui/js/editor/analysis.js?v=1788871189556"></script>
-<script src="/ui/js/editor/player.js?v=1788871189556"></script>
-<script src="/ui/js/editor/roundtrip.js?v=1788871189556"></script>
-<script src="/ui/js/editor/history.js?v=1788871189556"></script>
-<script src="/ui/js/editor/timeline.js?v=1788871189556"></script>
-<script src="/ui/js/editor/captions.js?v=1788871189556"></script>
-<script src="/ui/js/editor/result.js?v=1788871189556"></script>
-<script src="/ui/js/editor/projects.js?v=1788871189556"></script>
+<script src="/ui/js/editor/app.js?v=1788876262563"></script>
+<script src="/ui/js/editor/interactions.js?v=1788876262563"></script>
+<script src="/ui/js/editor/framing.js?v=1788876262563"></script>
+<script src="/ui/js/editor/analysis.js?v=1788876262563"></script>
+<script src="/ui/js/editor/player.js?v=1788876262563"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1788876262563"></script>
+<script src="/ui/js/editor/history.js?v=1788876262563"></script>
+<script src="/ui/js/editor/timeline.js?v=1788876262563"></script>
+<script src="/ui/js/editor/captions.js?v=1788876262563"></script>
+<script src="/ui/js/editor/result.js?v=1788876262563"></script>
+<script src="/ui/js/editor/projects.js?v=1788876262563"></script>
 </body>
 </html>

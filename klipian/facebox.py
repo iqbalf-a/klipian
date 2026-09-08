@@ -471,22 +471,100 @@ def track_crops(video: Path, start: float, end: float, rough: dict,
 # whole thing, and optional -- not every point needs it"). The box moves
 # to follow the head WITHIN a single point, hard cuts still happen BETWEEN
 # points -- klipian doesn't become continuous panning across the video.
+#
+# Two separate problems used to make the result look choppy, not one:
+#   1. the raw per-sample cx jittered (fixed by smoothing, see
+#      _one_euro_smooth below)
+#   2. even after smoothing, samples were only ~3/sec apart, and the
+#      ffmpeg side that consumes them (sendcmd in render.py's
+#      _concat_filter) does NOT interpolate between command lines -- it
+#      HOLDS the crop position constant until the next line fires. Sparse
+#      commands produce a visible staircase (snap, hold, snap, hold) in
+#      the actual rendered file, not just a rough preview. Fixed by
+#      _resample_dense() below, which turns the smoothed trajectory into
+#      one point per output frame -- steps too fine-grained to perceive.
+
+def _one_euro_smooth(samples: list[tuple[float, float]], *, mincutoff: float = 1.0,
+                      beta: float = 0.3, dcutoff: float = 1.0) -> list[tuple[float, float]]:
+    """1-euro filter (Casiez et al. 2012) -- adaptive smoothing built for
+    exactly this kind of noisy position signal: kills small jitter while the
+    head is roughly still, but doesn't lag behind on genuine fast motion the
+    way a fixed-window moving average does (a wide window smooths jitter but
+    also smears real movement into a delayed, floaty box).
+
+    `samples` = (t, x) pairs, already time-sorted; gaps (frames where no face
+    was found are simply absent, not zero-filled) are fine -- dt is measured
+    from the actual previous sample, not assumed uniform."""
+    import math
+
+    def alpha(cutoff: float, dt: float) -> float:
+        tau = 1.0 / (2 * math.pi * cutoff)
+        return 1.0 / (1.0 + tau / dt)
+
+    out: list[tuple[float, float]] = []
+    x_prev = dx_prev = t_prev = None
+    for t, x in samples:
+        if t_prev is None:
+            out.append((t, x))
+            x_prev, dx_prev, t_prev = x, 0.0, t
+            continue
+        dt = max(t - t_prev, 1e-3)
+        dx = (x - x_prev) / dt
+        a_d = alpha(dcutoff, dt)
+        dx_hat = a_d * dx + (1 - a_d) * dx_prev
+        cutoff = mincutoff + beta * abs(dx_hat)
+        a = alpha(cutoff, dt)
+        x_hat = a * x + (1 - a) * x_prev
+        out.append((t, x_hat))
+        x_prev, dx_prev, t_prev = x_hat, dx_hat, t
+    return out
+
+
+def _resample_dense(samples: list[tuple[float, float]], out_fps: float) -> list[tuple[float, float]]:
+    """Upsamples an already-smoothed trajectory to one point per output
+    frame via linear interpolation -- not for extra smoothness, but so the
+    ffmpeg sendcmd step-holds (see the module docstring above) fire close
+    enough together to look continuous. `out_fps` is clamped to [12, 24]:
+    below 12 the steps stay visible, above 24 the command file grows for no
+    perceptible gain (24 is already smooth-panning territory)."""
+    import bisect
+
+    if len(samples) < 2 or out_fps <= 0:
+        return samples
+    out_fps = max(12.0, min(24.0, out_fps))
+    times = [s[0] for s in samples]
+    t0, t1 = times[0], times[-1]
+    step = 1.0 / out_fps
+    count = max(2, int(round((t1 - t0) / step)) + 1)
+    out: list[tuple[float, float]] = []
+    for i in range(count):
+        t = min(t1, t0 + i * step)
+        idx = max(0, min(bisect.bisect_right(times, t) - 1, len(samples) - 2))
+        a, b = samples[idx], samples[idx + 1]
+        frac = 0.0 if b[0] == a[0] else (t - a[0]) / (b[0] - a[0])
+        out.append((t, a[1] + (b[1] - a[1]) * frac))
+    return out
+
 
 def track_head(video: Path, start: float, end: float, rough: dict,
-               fps: int = 3, smooth_window: int = 5) -> list[dict] | None:
+               fps: int = 8) -> list[dict] | None:
     """Trajectory of active face position across [start, end) -> list of
     {t, left} sorted by time (t seconds RELATIVE to `start`, left percent
     box position) -- not a single median point like track_crops(), because
     here the motion is what we want to preserve.
 
     Samples where no face is found are skipped (not filled with
-    placeholders) -- the caller (interpolation in preview JS, sendcmd in
-    render.py) linearly interpolates between valid keyframes, so short
-    gaps are seamlessly "bridged" rather than stalling.
+    placeholders) -- interpolation (preview JS) and the dense resampling
+    below both bridge across the gap using the nearest valid samples on
+    either side, so short gaps are seamlessly "bridged" rather than
+    stalling.
 
-    Raw cx series is smoothed with a symmetric moving average before
-    being returned -- per-frame face detection always jitters slightly,
-    without this the box wobbles instead of moving smoothly.
+    Raw cx series is smoothed with a 1-euro filter, then resampled dense
+    (see _one_euro_smooth/_resample_dense above) before being returned --
+    per-frame face detection always jitters slightly, and ffmpeg's sendcmd
+    (render.py) holds position between commands rather than interpolating,
+    so both a smooth SIGNAL and a DENSE one are needed for the box to
+    actually look like it's panning instead of snapping.
 
     None if fewer than 2 valid samples (not enough for a trajectory) --
     the caller leaves the point static, same as before tracking was
@@ -544,16 +622,13 @@ def track_head(video: Path, start: float, end: float, rough: dict,
     if len(samples) < 2:
         return None
 
-    # Symmetric moving average, small window (clamped at series edges) --
-    # dampens detection jitter without delaying real motion too much.
-    half = smooth_window // 2
+    smoothed = _one_euro_smooth(samples)
+    dense = _resample_dense(smoothed, info.fps or fps)
     keyframes = []
-    for i in range(len(samples)):
-        lo, hi = max(0, i - half), min(len(samples), i + half + 1)
-        avg_cx = sum(c for _, c in samples[lo:hi]) / (hi - lo)
-        left = max(0, min(W - rw, avg_cx - rw / 2))
+    for t, cx in dense:
+        left = max(0, min(W - rw, cx - rw / 2))
         keyframes.append({
-            "t": round(samples[i][0], 3),
+            "t": round(t, 3),
             "left": round(float(left) / W * 100, 2),
         })
     return keyframes
