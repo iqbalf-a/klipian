@@ -574,13 +574,13 @@ async function openProjectFromHome(video) {
   // .duration (bukan hasil readMeta() dari <video>, cuma nama dari catatan
   // project). Ditimpa lagi di bawah begitu transkrip (kalau ada) memberi
   // durasi sungguhan.
-  if (typeof perbaruiTopbarBerkas === "function") perbaruiTopbarBerkas(video, NaN);
+  if (typeof updateTopbarFile === "function") updateTopbarFile(video, NaN);
   if (typeof realTranscript !== "undefined" && typeof findTranscript === "function") {
     const tr = await findTranscript(video);
     if (gen !== _openProjectGen) return false;   // sudah didahului pembukaan lain
     realTranscript = tr;
-    if (typeof perbaruiTopbarBerkas === "function") {
-      perbaruiTopbarBerkas(video, tr?.duration);
+    if (typeof updateTopbarFile === "function") {
+      updateTopbarFile(video, tr?.duration);
     }
   }
   const existed = await loadProject(video);

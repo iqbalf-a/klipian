@@ -40,10 +40,10 @@ const fmtDuration = (d) => {
    tidak pernah memicunya, jadi topbar tetap menampilkan nama & durasi
    PLACEHOLDER contoh dari app.js (radityadika-podcast.mp4, 42:03)
    SELAMANYA, bukan cuma sesaat, sampai sebuah video BARU dijatuhkan. */
-function perbaruiTopbarBerkas(name, durasiDetik) {
+function updateTopbarFile(name, durationSeconds) {
   if ($("#fileName")) $("#fileName").textContent = name || "";
   if ($("#fileDuration")) {
-    $("#fileDuration").textContent = Number.isFinite(durasiDetik) ? fmtDuration(durasiDetik) : "";
+    $("#fileDuration").textContent = Number.isFinite(durationSeconds) ? fmtDuration(durationSeconds) : "";
   }
 }
 
@@ -73,7 +73,7 @@ async function acceptFile(file) {
   const meta = await readMeta(file);
   const changed = chosenSource && chosenSource.name !== file.name;
   chosenSource = { kind: "file", name: file.name, size: file.size, ...meta };
-  perbaruiTopbarBerkas(chosenSource.name, chosenSource.duration);
+  updateTopbarFile(chosenSource.name, chosenSource.duration);
   $("#urlInput").value = "";
   drawSource();
 
@@ -103,8 +103,8 @@ async function acceptFile(file) {
   // server dan akan menjawab "video not found". Diberitahukan SEKARANG, bukan
   // setelah menunggu transkripsi yang memang tidak akan pernah berhasil.
   try {
-    const daftar = (await (await fetch("/api/video")).json()).video || [];
-    if (!daftar.includes(file.name)) {
+    const available = (await (await fetch("/api/video")).json()).video || [];
+    if (!available.includes(file.name)) {
       drawSource(null, "not in workspace/samples/ — move it there to transcribe and render");
       document.querySelector(".source-drop")?.setAttribute("data-state", "warn");
     }
@@ -114,8 +114,8 @@ async function acceptFile(file) {
   // titik framing, dan koreksi teksnya kembali; kalau belum, ini jadi
   // project barunya.
   if (typeof openProject === "function") {
-    const lanjut = await openProject(file.name);
-    if (lanjut) {
+    const resumed = await openProject(file.name);
+    if (resumed) {
       if (typeof renderResult === "function") renderResult();
       if (typeof renderFraming === "function") renderFraming();
       if (typeof renderCaptions === "function") renderCaptions();
@@ -137,7 +137,7 @@ function acceptURL(text) {
   }
 }
 
-function drawSource(error, catatan) {
+function drawSource(error, extraNote) {
   const box = document.querySelector(".source-drop");
   const button = $("#run");
   if (!box || !button) return;
@@ -145,9 +145,9 @@ function drawSource(error, catatan) {
   // Format dan Resolusi tidak berarti apa-apa sebelum ada videonya, dan
   // sebagai panel penuh ia mendorong daftar project keluar layar di jendela
   // pendek -- persis saat daftar itu paling dibutuhkan.
-  const ada = !!chosenSource && !error;
-  $("#options")?.toggleAttribute("hidden", !ada);
-  $("#prepareFoot")?.toggleAttribute("hidden", !ada);
+  const hasSource = !!chosenSource && !error;
+  $("#options")?.toggleAttribute("hidden", !hasSource);
+  $("#prepareFoot")?.toggleAttribute("hidden", !hasSource);
   const title = box.querySelector("h2");
   const note = box.querySelector("p");
 
@@ -173,21 +173,21 @@ function drawSource(error, catatan) {
     // tidak terbaca" -- sekarang bagian yang memang tidak diketahui
     // dilewati, bukan ditampilkan rusak. Durasi masih bisa didapat dari
     // transkrip yang sudah pernah dibuat untuk video ini, kalau ada.
-    let rinci;
+    let details;
     if (s.kind === "file") {
-      const bagian = [];
-      if (Number.isFinite(s.size)) bagian.push(fmtSize(s.size));
-      const durasi = Number.isFinite(s.duration) ? s.duration
+      const parts = [];
+      if (Number.isFinite(s.size)) parts.push(fmtSize(s.size));
+      const duration = Number.isFinite(s.duration) ? s.duration
         : (typeof realTranscript !== "undefined" ? realTranscript?.duration : undefined);
-      if (Number.isFinite(durasi)) bagian.push(fmtDuration(durasi));
-      if (s.width) bagian.push(`${s.width}×${s.height}`);
-      rinci = bagian.length ? bagian.join(" · ") : "resuming this project";
+      if (Number.isFinite(duration)) parts.push(fmtDuration(duration));
+      if (s.width) parts.push(`${s.width}×${s.height}`);
+      details = parts.length ? parts.join(" · ") : "resuming this project";
     } else {
-      rinci = "the video will be downloaded when the pipeline runs";
+      details = "the video will be downloaded when the pipeline runs";
     }
     // Catatan tambahan dipakai saat project lama dipulihkan, supaya orang tahu
     // pekerjaannya kembali dan tidak mengira harus mulai dari nol lagi.
-    note.textContent = catatan ? `${rinci} · ${catatan}` : rinci;
+    note.textContent = extraNote ? `${details} · ${extraNote}` : details;
     button.disabled = false;
   }
 }
@@ -220,7 +220,7 @@ if (dropPanel) {
   // Penghitung, bukan satu bendera: dragleave ikut menembak setiap kali
   // pointer melintasi anak-anak di dalam panel, jadi sorotannya berkedip.
   let dragCount = 0;
-  const sorot = (on) => {
+  const highlight = (on) => {
     if (on) dropPanel.dataset.drag = "true";
     else delete dropPanel.dataset.drag;
   };
@@ -229,7 +229,7 @@ if (dropPanel) {
     if (!hasFiles(e)) return;
     e.preventDefault();
     dragCount++;
-    sorot(true);
+    highlight(true);
   });
 
   dropPanel.addEventListener("dragover", (e) => {
@@ -241,7 +241,7 @@ if (dropPanel) {
   dropPanel.addEventListener("dragleave", (e) => {
     if (!hasFiles(e)) return;
     dragCount = Math.max(0, dragCount - 1);
-    if (dragCount === 0) sorot(false);
+    if (dragCount === 0) highlight(false);
   });
 
   dropPanel.addEventListener("drop", (e) => {
@@ -249,7 +249,7 @@ if (dropPanel) {
     e.preventDefault();
     e.stopPropagation();
     dragCount = 0;
-    sorot(false);
+    highlight(false);
     acceptFile(e.dataTransfer.files[0]);
   });
 }
@@ -277,8 +277,8 @@ function captionValue(id) {
 // tertentu, dan meleset di kombinasi lain: preview tampil wajar tapi hasil
 // render sungguhan beda ukuran (laporan ian, untuk watermark MAUPUN
 // caption -- keduanya bug yang sama, cuma elemen berbeda).
-const PLAYRES_Y_BAWAAN = 1920;
-const pxDariOut = (out, frameH) => (out / PLAYRES_Y_BAWAAN) * frameH;
+const PLAYRES_Y_DEFAULT = 1920;
+const pxFromOut = (out, frameH) => (out / PLAYRES_Y_DEFAULT) * frameH;
 
 function applyCaption() {
   const cap = document.querySelector(".cap916");
@@ -293,8 +293,8 @@ function applyCaption() {
   // bawah menangkap perubahan ukuran sesudahnya) daripada menulis ukuran
   // nyaris nol yang tersangkut sampai ada pemicu lain.
   if (frameH > 0) {
-    cap.style.fontSize = `${pxDariOut(captionValue("size").out, frameH)}px`;
-    const thicknessPx = pxDariOut(captionValue("outline").out, frameH);
+    cap.style.fontSize = `${pxFromOut(captionValue("size").out, frameH)}px`;
+    const thicknessPx = pxFromOut(captionValue("outline").out, frameH);
     cap.style.webkitTextStroke = thicknessPx ? `${thicknessPx * 0.5}px rgba(0,0,0,.85)` : "";
   }
   cap.style.bottom = `${captionValue("position").px}%`;
@@ -307,10 +307,10 @@ function applyCaption() {
 
   const wm = document.querySelector(".watermark916");
   if (wm && frame) {
-    const ukuranOut = captionValue("watermark-size").out;
+    const sizeOut = captionValue("watermark-size").out;
     const opacity = captionValue("watermark-opacity").css;
-    const posisi = captionValue("watermark-position").out;
-    if (frameH > 0) wm.style.fontSize = `${pxDariOut(ukuranOut, frameH)}px`;
+    const position = captionValue("watermark-position").out;
+    if (frameH > 0) wm.style.fontSize = `${pxFromOut(sizeOut, frameH)}px`;
     // opacity CSS di ELEMEN-nya, BUKAN rgba() di warna teks -- rgba() cuma
     // memudarkan isi hurufnya, sedangkan text-shadow di bawahnya (lihat
     // .watermark916 di app.css) tetap gelap solid. Hasilnya kelihatan
@@ -324,18 +324,18 @@ function applyCaption() {
 
     // Sama persis logikanya dengan _watermark_placement() di
     // klipian/render.py -- tinggi baris diperkirakan 1.3x ukuran font,
-    // sebagai PERSEN dari PLAYRES_Y_BAWAAN (persis seperti render membagi
+    // sebagai PERSEN dari PLAYRES_Y_DEFAULT (persis seperti render membagi
     // dengan H). Tidak lagi bergantung frameH di sini -- persennya sama
     // di ukuran layar berapa pun, cuma font-size dalam px di atas yang
     // perlu tahu frameH sungguhan.
-    const tinggiBarisPersen = (ukuranOut * 1.3 / PLAYRES_Y_BAWAAN) * 100;
+    const lineHeightPercent = (sizeOut * 1.3 / PLAYRES_Y_DEFAULT) * 100;
 
     wm.style.top = "auto";
     wm.style.bottom = "auto";
     wm.style.transform = "none";
-    if (posisi === "top") {
-      wm.style.top = `${Math.max(0, 16 - tinggiBarisPersen)}%`;
-    } else if (posisi === "middle") {
+    if (position === "top") {
+      wm.style.top = `${Math.max(0, 16 - lineHeightPercent)}%`;
+    } else if (position === "middle") {
       wm.style.top = "50%";
       wm.style.transform = "translateY(-50%)";
     } else {
@@ -343,15 +343,15 @@ function applyCaption() {
       // "bottom" di render.py: di bawah caption, TAPI tidak boleh sampai
       // masuk zona aman (bottom:20% di CSS .safe) -- min() dari keduanya.
       const capMargin = captionValue("position").px;
-      const bawahCaption = Math.max(2, capMargin - tinggiBarisPersen - 1);
-      const batasZonaAman = Math.max(0, 20 - tinggiBarisPersen);
-      wm.style.bottom = `${Math.min(bawahCaption, batasZonaAman)}%`;
+      const belowCaption = Math.max(2, capMargin - lineHeightPercent - 1);
+      const safeZoneLimit = Math.max(0, 20 - lineHeightPercent);
+      wm.style.bottom = `${Math.min(belowCaption, safeZoneLimit)}%`;
     }
   }
 }
 
 // Font-size caption & watermark di atas dalam PX ABSOLUT (lewat
-// pxDariOut()), dihitung sekali tiap applyCaption() dipanggil -- beda dari
+// pxFromOut()), dihitung sekali tiap applyCaption() dipanggil -- beda dari
 // posisi (top/bottom pakai %, yang otomatis mengikuti ukuran wadahnya tanpa
 // perlu dihitung ulang). Kalau .frame916 berubah ukuran SESUDAH
 // applyCaption() terakhir jalan (jendela di-resize, panel Claude di sebelah

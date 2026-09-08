@@ -89,7 +89,7 @@ const CAPTION_OPTIONS = [
       { t: "Impact", out: "Impact" },
       { t: "Verdana", out: "Verdana" }] },
   // Tidak ada field .px di sini -- preview menghitung ukuran layar langsung
-  // dari .out (pxDariOut() di interactions.js), sama seperti watermark-size.
+  // dari .out (pxFromOut() di interactions.js), sama seperti watermark-size.
   { id: "size", label: "Size", active: 1, choices: [
       { t: "Small", out: 64 },
       { t: "Medium", out: 84 },
