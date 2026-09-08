@@ -56,9 +56,9 @@ function attachBox(v, box, crop) {
 function attachVideoGeometry() {
   if (!video.src || typeof frameAt !== "function") return;
   const b = frameAt(typeof reviewTime === "function" ? reviewTime() : 0);
-  attachBox(video, document.querySelector(".belah.atas"), b.crops[0]);
+  attachBox(video, document.querySelector(".half.top"), b.crops[0]);
   if (b.format === "split") {
-    attachBox($("#videoPreview2"), document.querySelector(".belah.bawah"),
+    attachBox($("#videoPreview2"), document.querySelector(".half.bottom"),
                 b.crops[1]);
   }
 }

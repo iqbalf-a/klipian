@@ -453,7 +453,7 @@ async function renderProjects() {
       <span class="data project-meta">${missing
         ? "video not in samples/"
         : `${p.spans} span${p.spans === 1 ? "" : "s"} · ${Math.round(p.seconds)}s · ${timeAgo(p.at)}`}</span>
-      <i class="buang" data-hapus-project="${escapeHTML(p.video)}" role="button"
+      <i class="delete-icon" data-hapus-project="${escapeHTML(p.video)}" role="button"
          aria-label="Delete project ${escapeHTML(p.video)}">×</i>
       <span class="konfirmasi">
         <span class="tanya-teks">Delete this project?</span>

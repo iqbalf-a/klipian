@@ -372,7 +372,7 @@ function renderFraming() {
         ${f.tracking ? `<span class="fr-track-badge" title="Head tracking on">●</span>` : ""}
         <span class="fr-time">${out !== null ? timeRange(out) : "—"}</span>
         <span class="fr-time-src">src ${timeRange(f.at)}</span>
-        ${i > 0 ? `<i class="buang" data-buang-framing="${f.id}" role="button"
+        ${i > 0 ? `<i class="delete-icon" data-delete-framing="${f.id}" role="button"
               aria-label="Delete point ${timeRange(f.at)}">×</i>` : ""}
       </div>`;
     }).join("");
@@ -400,8 +400,8 @@ function drawBox(format, crops) {
   // Kotak kedua selalu berasio split -- ia memang cuma dipakai di format itu.
   applyCrop(els[1], matchRatio(crops[1] || INITIAL_SPLIT_CROP[1], "split"));
 
-  document.querySelectorAll("[data-format-pilih]").forEach((b) =>
-    b.setAttribute("aria-pressed", String(b.dataset.formatPilih === canvasFormat)));
+  document.querySelectorAll("[data-format-choice]").forEach((b) =>
+    b.setAttribute("aria-pressed", String(b.dataset.formatChoice === canvasFormat)));
 }
 
 /* Menyalin kotak dari kanvas ke titik yang sedang berlaku. Dipanggil terus
@@ -447,9 +447,9 @@ function boxOnCanvas() {
    Titik di detik yang sama ditimpa, jadi bolak-balik memilih format tidak
    menumpuk titik. */
 $("#framingFormat")?.addEventListener("click", (e) => {
-  const b = e.target.closest("[data-format-pilih]");
+  const b = e.target.closest("[data-format-choice]");
   if (!b) return;
-  const format = b.dataset.formatPilih;
+  const format = b.dataset.formatChoice;
   const t = Math.max(0, reviewTime());
   const existing = FRAMING.find((f) => Math.abs(f.at - t) < 0.35);
   if (format === canvasFormat && existing) return;
@@ -479,7 +479,7 @@ $("#framingFormat")?.addEventListener("click", (e) => {
 
 /* ---------- kunci, pilih, hapus ---------- */
 
-$("#kunciFraming")?.addEventListener("click", () => {
+$("#lockFraming")?.addEventListener("click", () => {
   const crops = boxOnCanvas() || frameAt(reviewTime()).crops;
   const t = Math.max(0, reviewTime());
 
@@ -596,10 +596,10 @@ $("#trackHeadBtn")?.addEventListener("click", () => {
 });
 
 $("#framingList")?.addEventListener("click", (e) => {
-  const deleteIcon = e.target.closest("[data-buang-framing]");
+  const deleteIcon = e.target.closest("[data-delete-framing]");
   if (deleteIcon) {
     e.stopPropagation();
-    const id = deleteIcon.dataset.buangFraming;
+    const id = deleteIcon.dataset.deleteFraming;
     if (FRAMING.length <= 1) return;              // titik 00:00 selalu ada
     FRAMING = FRAMING.filter((f) => f.id !== id);
     renderFraming();

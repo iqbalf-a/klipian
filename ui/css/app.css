@@ -923,7 +923,7 @@ h1, h2, h3 {
   flex: none; display: flex; gap: var(--s2);
   padding: 0 var(--s5); margin-bottom: var(--s3);
 }
-.fmt-pilih {
+.format-choice {
   font: inherit; font-size: var(--t-12); font-weight: 650;
   display: inline-flex; align-items: center; gap: 8px;
   padding: 7px 13px;
@@ -934,21 +934,21 @@ h1, h2, h3 {
   cursor: pointer;
   transition: all var(--fast);
 }
-.fmt-pilih:hover { color: var(--text); }
-.fmt-pilih[aria-pressed="true"] {
+.format-choice:hover { color: var(--text); }
+.format-choice[aria-pressed="true"] {
   color: var(--accent);
   border-color: color-mix(in srgb, var(--accent) 45%, transparent);
   background: var(--accent-soft);
 }
-.fmt-ikon {
+.format-icon {
   width: 11px; height: 18px; flex: none;
   border: 1.5px solid currentColor; border-radius: 2px;
 }
-.fmt-ikon.dua {
+.format-icon.split {
   display: grid; grid-template-rows: 1fr 1fr;
   border: 0; gap: 2px;
 }
-.fmt-ikon.dua::before, .fmt-ikon.dua::after {
+.format-icon.split::before, .format-icon.split::after {
   content: ""; border: 1.5px solid currentColor; border-radius: 2px;
 }
 
@@ -1005,7 +1005,7 @@ h1, h2, h3 {
   color: var(--text-faint);
   white-space: nowrap;
 }
-.fr-point .buang {
+.fr-point .delete-icon {
   position: absolute; top: -6px; right: -6px;
   width: 18px; height: 18px;
   display: flex; align-items: center; justify-content: center;
@@ -1015,8 +1015,8 @@ h1, h2, h3 {
   font-size: 12px; line-height: 1;
   opacity: 0; transition: opacity var(--fast), color var(--fast);
 }
-.fr-point:hover .buang { opacity: 1; }
-.fr-point .buang:hover { color: var(--danger); }
+.fr-point:hover .delete-icon { opacity: 1; }
+.fr-point .delete-icon:hover { color: var(--danger); }
 
 .preset-bar {
   flex: none; display: flex; align-items: center; gap: var(--s2);
@@ -1169,7 +1169,7 @@ h1, h2, h3 {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .project-meta { color: var(--text-faint); }
-.project-card .buang {
+.project-card .delete-icon {
   position: absolute; top: 6px; right: 6px;
   width: 22px; height: 22px; display: grid; place-items: center;
   font-style: normal; font-size: 13px; line-height: 1;
@@ -1177,7 +1177,7 @@ h1, h2, h3 {
   border-radius: var(--r-pill);
   opacity: 0; transition: opacity var(--fast);
 }
-.project-card:hover .buang { opacity: 1; }
+.project-card:hover .delete-icon { opacity: 1; }
 
 /* Project terakhir yang dibuka. Penanda kecil, bukan kartu yang dibesarkan:
    yang dibutuhkan cuma "yang ini tadi", bukan penekanan. */
@@ -1209,7 +1209,7 @@ h1, h2, h3 {
   align-content: center; gap: var(--s2);
 }
 .project-card.tanya .konfirmasi { display: grid; }
-.project-card.tanya .buang { display: none; }
+.project-card.tanya .delete-icon { display: none; }
 .tanya-teks { font-size: var(--t-13); font-weight: 700; }
 .tanya-sub { font-size: var(--t-11); color: var(--text-faint); line-height: 1.35; }
 .tanya-aksi { display: flex; gap: var(--s2); justify-content: center; margin-top: var(--s1); }
@@ -1238,7 +1238,7 @@ h1, h2, h3 {
   border-color: color-mix(in srgb, var(--danger) 55%, transparent);
 }
 .source-drop[data-state="warn"] p { color: var(--danger); }
-.project-card .buang:hover { background: var(--danger); }
+.project-card .delete-icon:hover { background: var(--danger); }
 
 /* ═══════════════════════════════════════════════ beranda */
 
@@ -1353,13 +1353,13 @@ h1, h2, h3 {
 /* Petak preview. Format single memakai satu petak setinggi penuh; format
    split membaginya dua sama tinggi, masing-masing 9:8 -- rasio yang sama
    dengan kotak framingnya, jadi gambarnya tidak gepeng. */
-.belah { position: absolute; left: 0; right: 0; overflow: hidden; }
-.frame916[data-format="single"] .belah.atas  { top: 0; bottom: 0; }
-.frame916[data-format="single"] .belah.bawah { display: none; }
-.frame916[data-format="split"]  .belah.atas  { top: 0;   height: 50%; }
-.frame916[data-format="split"]  .belah.bawah { top: 50%; height: 50%; }
+.half { position: absolute; left: 0; right: 0; overflow: hidden; }
+.frame916[data-format="single"] .half.top    { top: 0; bottom: 0; }
+.frame916[data-format="single"] .half.bottom { display: none; }
+.frame916[data-format="split"]  .half.top    { top: 0;   height: 50%; }
+.frame916[data-format="split"]  .half.bottom { top: 50%; height: 50%; }
 /* Garis sambungnya ditegaskan supaya terbaca sebagai pilihan, bukan cacat. */
-.frame916[data-format="split"] .belah.bawah::before {
+.frame916[data-format="split"] .half.bottom::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px;
   background: rgba(255,255,255,.22); z-index: 2;
 }
@@ -1542,13 +1542,13 @@ h1, h2, h3 {
   border-bottom: 1px dashed var(--accent);
   min-width: 3ch;
 }
-.chip .buang {
+.chip .delete-icon {
   font-style: normal;
   margin-left: 7px;
   opacity: .45;
   padding: 0 2px;
 }
-.chip .buang:hover { opacity: 1; color: var(--danger); }
+.chip .delete-icon:hover { opacity: 1; color: var(--danger); }
 
 /* ---- pemilih Result, di title Clips/Framing/Captions ----
    Satu project bisa punya lebih dari satu Result tersimpan -- tiga

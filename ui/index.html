@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wdth,wght@0,75..125,200..900;1,75..125,200..900&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1788844733080">
-<link rel="stylesheet" href="/ui/css/app.css?v=1788844733080">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1788846538373">
+<link rel="stylesheet" href="/ui/css/app.css?v=1788846538373">
 </head>
 <body>
 
@@ -375,11 +375,11 @@
                berpindah antara satu bingkai dan dua bingkai. -->
           <div class="format-bar" id="framingFormat" role="group"
                aria-label="Frame layout">
-            <button class="fmt-pilih" data-format-pilih="single" aria-pressed="true">
-              <span class="fmt-ikon satu"></span>Single
+            <button class="format-choice" data-format-choice="single" aria-pressed="true">
+              <span class="format-icon single"></span>Single
             </button>
-            <button class="fmt-pilih" data-format-pilih="split" aria-pressed="false">
-              <span class="fmt-ikon dua"></span>Split
+            <button class="format-choice" data-format-choice="split" aria-pressed="false">
+              <span class="format-icon split"></span>Split
             </button>
           </div>
 
@@ -400,7 +400,7 @@
 
           <div class="preset-bar">
             <span class="eyebrow">Framing points</span>
-            <button class="btn main" id="kunciFraming">Lock framing here</button>
+            <button class="btn main" id="lockFraming">Lock framing here</button>
             <button class="btn" id="trackHeadBtn" type="button" hidden
                     aria-pressed="false"
                     title="Track head movement for this point only (optional, off by default)">Track head</button>
@@ -488,10 +488,10 @@
            data-format="single">
         <div class="field top"></div>
         <div class="field main"></div>
-        <div class="belah atas">
+        <div class="half top">
           <video class="video916" id="videoPreview" playsinline></video>
         </div>
-        <div class="belah bawah">
+        <div class="half bottom">
           <video class="video916" id="videoPreview2" muted playsinline></video>
         </div>
         <div class="safe"></div>
@@ -590,16 +590,16 @@
   </main>
 </div>
 
-<script src="/ui/js/editor/app.js?v=1788844733080"></script>
-<script src="/ui/js/editor/interactions.js?v=1788844733080"></script>
-<script src="/ui/js/editor/framing.js?v=1788844733080"></script>
-<script src="/ui/js/editor/analysis.js?v=1788844733080"></script>
-<script src="/ui/js/editor/player.js?v=1788844733080"></script>
-<script src="/ui/js/editor/roundtrip.js?v=1788844733080"></script>
-<script src="/ui/js/editor/history.js?v=1788844733080"></script>
-<script src="/ui/js/editor/timeline.js?v=1788844733080"></script>
-<script src="/ui/js/editor/captions.js?v=1788844733080"></script>
-<script src="/ui/js/editor/result.js?v=1788844733080"></script>
-<script src="/ui/js/editor/projects.js?v=1788844733080"></script>
+<script src="/ui/js/editor/app.js?v=1788846538373"></script>
+<script src="/ui/js/editor/interactions.js?v=1788846538373"></script>
+<script src="/ui/js/editor/framing.js?v=1788846538373"></script>
+<script src="/ui/js/editor/analysis.js?v=1788846538373"></script>
+<script src="/ui/js/editor/player.js?v=1788846538373"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1788846538373"></script>
+<script src="/ui/js/editor/history.js?v=1788846538373"></script>
+<script src="/ui/js/editor/timeline.js?v=1788846538373"></script>
+<script src="/ui/js/editor/captions.js?v=1788846538373"></script>
+<script src="/ui/js/editor/result.js?v=1788846538373"></script>
+<script src="/ui/js/editor/projects.js?v=1788846538373"></script>
 </body>
 </html>
