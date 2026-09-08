@@ -122,6 +122,11 @@ function outToSource(k, t) {
 
 // Includes hours when the source exceeds 1 hour -- without this,
 // 1:05:00 would display as "65:00". Matches timeRange() in app.js.
+// Deliberately whole-second: also used for the AI suggestions' editable
+// start/end fields (result.js) and their +/-1s stepper -- adding decimals
+// here would change what those fields show and accept while typing,
+// which nobody asked for. preciseTime() below is the sub-second version,
+// kept separate so it can't leak into that unrelated feature.
 const shortTime = (d) => {
   const t = Math.max(0, Math.floor(d));
   const j = Math.floor(t / 3600);
@@ -130,10 +135,18 @@ const shortTime = (d) => {
   return j ? `${j}:${m}:${s}` : `${m}:${s}`;
 };
 
+// preciseTime() (hundredths of a second, not just whole seconds) is
+// defined in framing.js, loaded before this file (see the <script> order
+// in index.html) -- NOT redeclared here. ian wanted the Result preview's
+// own clock to match the precision the Framing screen just got; reusing
+// the one function avoids a duplicate top-level `const` across two files
+// that share this global scope, which is a fatal SyntaxError, not a
+// silent shadow (already learned the hard way once in this codebase).
+
 function drawTime(passed) {
   const w = $("#clipTime");
   if (!w || !activeClip) return;
-  w.textContent = `${shortTime(passed)} / ${shortTime(clipOutDur(activeClip))}`;
+  w.textContent = `${preciseTime(passed)} / ${preciseTime(clipOutDur(activeClip))}`;
 }
 
 
@@ -156,10 +169,10 @@ function drawTimeline() {
   track.innerHTML = activeClip.spans.map((p) => {
     const width = ((p.end - p.start) / total) * 100;
     return `<span class="tl-span" style="flex:0 0 ${width}%"
-                  title="${shortTime(p.start)} – ${shortTime(p.end)}"></span>`;
+                  title="${preciseTime(p.start)} – ${preciseTime(p.end)}"></span>`;
   }).join("");
   $("#tlStartTime").textContent = "00:00";
-  $("#tlEndTime").textContent = shortTime(total);
+  $("#tlEndTime").textContent = preciseTime(total);
   drawHead();
 }
 
