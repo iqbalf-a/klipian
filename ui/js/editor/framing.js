@@ -49,6 +49,28 @@ const RATIO = { single: 16 / 9, split: 8 / 9 };
 let FRAMING = [];          // [{ id, at, format, crops }] sorted by `at`
 let framingSeq = 0;
 
+/* Same idea as timeRange() (app.js), but keeps hundredths of a second --
+   ian: framing points need finer detail than whole seconds. timeRange()
+   itself stays whole-second everywhere else (Clips/Result/History), where
+   cuts snap to word boundaries and don't need sub-second precision; this
+   one is scoped to this file because framing points are locked to the
+   exact moment the video was paused on, and two points 400ms apart used
+   to both display as the same "00:16" -- indistinguishable in the
+   Framing Points strip below.
+   Rounds to whole centiseconds FIRST (integer math from there on) so a
+   value like 59.996s can't render as the invalid "00:60.00" -- the classic
+   bug from rounding the fractional part after already splitting off the
+   whole seconds. */
+const preciseTime = (d) => {
+  const cs = Math.round(Math.max(0, d) * 100);
+  const frac = cs % 100;
+  const wholeSec = Math.floor(cs / 100);
+  const j = Math.floor(wholeSec / 3600);
+  const m = String(Math.floor((wholeSec % 3600) / 60)).padStart(2, "0");
+  const s = String(wholeSec % 60).padStart(2, "0");
+  return `${j ? `${j}:${m}:` : `${m}:`}${s}.${String(frac).padStart(2, "0")}`;
+};
+
 const cropEls = () => [...document.querySelectorAll(".canvas .crop")];
 
 /* Format currently displayed on the canvas. */
@@ -329,7 +351,7 @@ const outTime = (t) => { const out = outFrom(t); return out !== null ? out : t; 
 
 function updateFramingClock() {
   const clockEl = $("#framingClock");
-  if (clockEl) clockEl.textContent = `at ${timeRange(outTime(reviewTime()))}`;
+  if (clockEl) clockEl.textContent = `at ${preciseTime(outTime(reviewTime()))}`;
 }
 
 /* The Framing Points strip can be wider than its panel and scrolled
@@ -356,7 +378,7 @@ function renderFraming() {
   // just appeared. The caller decides the message.
   updateFramingClock();
   const tag = $("#tagCrop1");
-  if (tag) tag.textContent = active ? `from ${timeRange(outTime(active.at))}` : "";
+  if (tag) tag.textContent = active ? `from ${preciseTime(outTime(active.at))}` : "";
 
   const bar = $("#framingList");
   if (bar) {
@@ -376,7 +398,7 @@ function renderFraming() {
       // the Result position (exactly the confusion ian reported: point "07:58"
       // on a 1:25 Result looks out of range, when it is actually the true
       // source position, not a bug).
-      const tooltip = `${f.format === "split" ? "Split" : "Single"} · source ${timeRange(f.at)}`;
+      const tooltip = `${f.format === "split" ? "Split" : "Single"} · source ${preciseTime(f.at)}`;
       const thumbUrl = f.crops?.[0] && typeof chosenSource !== "undefined" && chosenSource?.name
         ? `/api/thumb?video=${encodeURIComponent(chosenSource.name)}&t=${f.at}`
           + `&left=${f.crops[0].left}&top=${f.crops[0].top}`
@@ -388,10 +410,10 @@ function renderFraming() {
         ${thumbUrl ? `<img class="fr-thumb" src="${thumbUrl}" alt="" loading="lazy">`
                     : `<span class="fr-thumb fr-thumb-empty"></span>`}
         ${f.tracking ? `<span class="fr-track-badge" title="Head tracking on">●</span>` : ""}
-        <span class="fr-time">${out !== null ? timeRange(out) : "—"}</span>
-        <span class="fr-time-src">src ${timeRange(f.at)}</span>
+        <span class="fr-time">${out !== null ? preciseTime(out) : "—"}</span>
+        <span class="fr-time-src">src ${preciseTime(f.at)}</span>
         ${i > 0 ? `<i class="delete-icon" data-delete-framing="${f.id}" role="button"
-              aria-label="Delete point ${timeRange(f.at)}">×</i>` : ""}
+              aria-label="Delete point ${preciseTime(f.at)}">×</i>` : ""}
       </div>`;
     }).join("");
   }
@@ -484,11 +506,11 @@ $("#framingFormat")?.addEventListener("click", (e) => {
     existing.format = format;
     existing.crops = crops;
     delete existing.auto;   // manually touched -- stop auto-relocating it
-    message = `point ${timeRange(existing.at)} is now`;
+    message = `point ${preciseTime(existing.at)} is now`;
   } else {
     FRAMING.push({ id: `f${++framingSeq}`, at: t, format, crops });
     FRAMING.sort((a, b2) => a.at - b2.at);
-    message = `new point at ${timeRange(t)},`;
+    message = `new point at ${preciseTime(t)},`;
   }
   renderFraming();
   $("#reframeNote").textContent = format === "split"
@@ -514,11 +536,11 @@ $("#lockFraming")?.addEventListener("click", () => {
     existing.format = canvasFormat;
     existing.crops = crops;
     delete existing.auto;   // manually touched -- stop auto-relocating it
-    message = `point ${timeRange(existing.at)} updated`;
+    message = `point ${preciseTime(existing.at)} updated`;
   } else {
     FRAMING.push({ id: `f${++framingSeq}`, at: t, format: canvasFormat, crops });
     FRAMING.sort((a, b) => a.at - b.at);
-    message = `new point locked at ${timeRange(t)}`;
+    message = `new point locked at ${preciseTime(t)}`;
   }
   renderFraming();
   if (typeof saveProject === "function") saveProject();
@@ -554,7 +576,7 @@ async function trackHeadForPoint(point) {
     delete point.tracking;
     renderFraming();
     if (typeof saveProject === "function") saveProject();
-    $("#reframeNote").textContent = `head tracking off for point ${timeRange(point.at)}`;
+    $("#reframeNote").textContent = `head tracking off for point ${preciseTime(point.at)}`;
     return;
   }
   const end = trackingLimit(point);
@@ -583,7 +605,7 @@ async function trackHeadForPoint(point) {
     point.tracking = { keyframes: d.keyframes };
     renderFraming();
     if (typeof saveProject === "function") saveProject();
-    $("#reframeNote").textContent = `head tracking on for point ${timeRange(point.at)}`;
+    $("#reframeNote").textContent = `head tracking on for point ${preciseTime(point.at)}`;
   } catch {
     $("#reframeNote").textContent = "head tracking failed — point stays static.";
   } finally {
@@ -695,7 +717,7 @@ $("#framingList")?.addEventListener("click", (e) => {
       // this position to start at a different second, press "Lock framing here".
       const f = saveBox() || pointAt(reviewTime());
       $("#reframeNote").textContent = f
-        ? `point ${timeRange(f.at)} moved · press Lock to create a new point`
+        ? `point ${preciseTime(f.at)} moved · press Lock to create a new point`
         : "drag the box onto whoever is talking, then lock it";
       if (typeof attachVideoGeometry === "function") attachVideoGeometry();
     }));
