@@ -52,16 +52,16 @@ async function startAnalysis() {
   }
 
   const start = performance.now();
-  let gagalBeruntun = 0;
+  let consecutiveFailures = 0;
   analysisTimer = setInterval(async () => {
     let t;
     try {
       t = await (await fetch(`/api/transcribe/${id}`)).json();
-      gagalBeruntun = 0;
+      consecutiveFailures = 0;
     } catch {
       // Server mati / job hilang: berhenti setelah beberapa kali gagal, jangan
       // memutar interval selamanya tanpa kabar ke pengguna.
-      if (++gagalBeruntun >= 5) {
+      if (++consecutiveFailures >= 5) {
         clearInterval(analysisTimer);
         $("#transcribeStats").innerHTML =
           "<span>Terputus dari server. Coba mulai ulang.</span>";
