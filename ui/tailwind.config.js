@@ -1,15 +1,15 @@
-/* klipian — konfigurasi Tailwind, khusus halaman /workspace.
+/* klipian — Tailwind config, only for the /workspace page.
    ==========================================================================
-   Editor lama (index.html + css/app.css) TIDAK ikut migrasi -- itu UI yang
-   sudah stabil dan disetel detail (posisi crop dalam persen, dst.), migrasi
-   ke utility class berisiko tinggi untuk manfaat kecil. Tailwind cuma
-   dipakai untuk halaman baru yang memang belum ada investasi desain di
-   dalamnya.
+   The old editor (index.html + css/app.css) is NOT part of this migration
+   -- that UI is stable and tuned down to the detail (crop position in
+   percent, etc.), migrating it to utility classes is high risk for small
+   benefit. Tailwind is only used for the new page, which genuinely had no
+   design investment in it yet.
 
-   Warna & font TIDAK diduplikasi -- semuanya menunjuk ke custom property
-   yang sudah didefinisikan di css/tokens.css (satu sumber kebenaran untuk
-   kedua halaman). Kalau tokens.css berubah, workspace ikut berubah tanpa
-   perlu build ulang.
+   Colors & fonts are NOT duplicated -- everything points to the custom
+   properties already defined in css/tokens.css (one source of truth for
+   both pages). If tokens.css changes, the workspace changes along with it
+   without needing a rebuild.
    ========================================================================== */
 /** @type {import('tailwindcss').Config} */
 module.exports = {

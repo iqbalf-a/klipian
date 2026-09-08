@@ -1,12 +1,12 @@
-/* klipian — workspace (sumber Tailwind)
+/* klipian — workspace (Tailwind source)
    ==========================================================================
-   Ini SUMBER, bukan yang dimuat halaman. Dibangun offline lewat Tailwind
-   CLI jadi css/workspace.css (statis) -- lihat catatan build di bawah.
-   Tidak ada CDN: klipian tetap jalan tanpa internet.
+   This is the SOURCE, not what the page loads. Built offline via the
+   Tailwind CLI into css/workspace.css (static) -- see the build note below.
+   No CDN: klipian keeps working without internet.
 
-   Build ulang (butuh Node.js -- cukup di mesin mana pun, hasilnya dikirim
-   balik sebagai berkas statis biasa; TIDAK dibutuhkan di laptop yang
-   menjalankan `klipian serve`):
+   Rebuild (needs Node.js -- fine on any machine, the result is shipped
+   back as a plain static file; NOT needed on the laptop that runs
+   `klipian serve`):
      npx tailwindcss -c tailwind.config.js -i css/workspace.src.css \
        -o css/workspace.css --minify
    ========================================================================== */
@@ -24,8 +24,8 @@
 }
 
 @layer components {
-  /* Kartu panel -- dipakai 3x (Klip, Hasil render, Assets), disamakan di
-     sini daripada diulang sebagai utility panjang di tiap section. */
+  /* Panel card -- used 3x (Clips, Rendered output, Assets), unified here
+     instead of repeated as a long utility list in each section. */
   .ws-panel {
     @apply bg-surface-2 rounded-m p-5 flex flex-col gap-4 shadow-kartu;
   }

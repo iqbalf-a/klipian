@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="id">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wdth,wght@0,75..125,200..900;1,75..125,200..900&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1788859540758">
-<link rel="stylesheet" href="/ui/css/app.css?v=1788859540758">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1788863801608">
+<link rel="stylesheet" href="/ui/css/app.css?v=1788863801608">
 </head>
 <body>
 
@@ -30,39 +30,40 @@
          an extra safety net, not the only way to save. -->
     <button class="btn quiet work-only" id="saveNowBtn" type="button"
             title="Save now (this is on top of auto-save, not instead of it)">Save</button>
-    <!-- Selalu terlihat (bukan work-only) -- jadwal upload berguna dicek
-         kapan saja, bukan cuma saat sedang menyunting klip. -->
+    <!-- Always visible (not work-only) -- the upload schedule is useful to
+         check any time, not just while editing a clip. -->
     <a class="btn quiet" href="/workspace" title="Open the workspace dashboard">Workspace</a>
-    <!-- Tombol "?" pojok kanan atas -- pola umum web (icon bantuan di top
-         bar), bukan di dalam media control yang sudah sempit (sebelumnya
-         di situ, sempat bikin baris overflow -- lihat riwayat commit).
-         work-only: pintasannya cuma berarti kalau ada klip yang sedang
-         dibuka. -->
+    <!-- The "?" button in the top-right corner -- a common web pattern (help
+         icon in the top bar), not inside the already-cramped media control
+         (it used to be there, and once caused the row to overflow -- see the
+         commit history). work-only: its shortcuts only mean something when
+         a clip is open. -->
     <div class="shortcut-help work-only">
       <button class="btn quiet" id="shortcutHelpBtn" type="button"
               title="Keyboard shortcuts" aria-label="Keyboard shortcuts"
               aria-expanded="false">?</button>
       <div class="shortcut-panel" id="shortcutPanel" hidden role="tooltip">
-        <p><kbd>,</kbd> <kbd>.</kbd> step 1 <span id="shortcutUnitTeks">frame</span></p>
+        <p><kbd>,</kbd> <kbd>.</kbd> step 1 <span id="shortcutUnitText">frame</span></p>
         <p><kbd>Shift</kbd><kbd>,</kbd> <kbd>Shift</kbd><kbd>.</kbd> step 5</p>
         <p><kbd>Space</kbd> play / pause</p>
       </div>
     </div>
   </header>
-  <!-- Sidebar kiri (tab Analyze/Clips/Framing/dst) makan lebar tetap yang
-       tidak selalu perlu terlihat -- terutama panel Framing yang butuh
-       ruang mendatar untuk kanvas + Framing Points. Tombol sembunyikannya
-       (#hideSidebarBtn) ada DI DALAM .side sendiri (lihat di bawah), bukan
-       di topbar -- munculkan-lagi mengambang di sini karena begitu sidebar
-       disembunyikan, tombol yang di dalamnya ikut hilang. -->
+  <!-- The left sidebar (Analyze/Clips/Framing/etc tabs) takes up fixed
+       width that doesn't always need to be visible -- especially the
+       Framing panel, whose canvas + Framing Points need horizontal room.
+       Its hide button (#hideSidebarBtn) lives INSIDE .side itself (see
+       below), not in the topbar -- this floating show-again button lives
+       here because once the sidebar is hidden, the button inside it
+       disappears too. -->
   <button class="sidebar-restore" id="showSidebarBtn" type="button"
           title="Show sidebar" hidden>⟩</button>
 
-  <!-- ══════════════════ TAHAP 1 — JATUHKAN BERKAS ══════════════════
-       Dulu ada dua tahap: Beranda memilih mode (Podcast, Live MLBB, Restream
-       MPL, Tayangan TV), baru Siapkan memuat berkasnya. Mode dibuang karena
-       apa pun sumbernya yang dikerjakan sama saja, jadi dua tahap itu runtuh
-       jadi satu: jatuhkan berkas, lalu cari klip. -->
+  <!-- ══════════════════ STAGE 1 — DROP FILE ══════════════════
+       There used to be two stages: Home picked a mode (Podcast, Live MLBB,
+       Restream MPL, TV Shows), then Prepare loaded the file. The mode was
+       removed because regardless of source, the work is the same, so the
+       two stages collapsed into one: drop the file, then find clips. -->
   <section class="home" id="home">
     <div class="prepare-body">
       <p class="eyebrow">Home</p>
@@ -83,10 +84,10 @@
         </div>
       </div>
 
-      <!-- Opsi dan tombol disembunyikan sampai ada videonya: sebelum itu
-           keduanya tidak berarti apa-apa, dan sebagai panel penuh ia mendorong
-           daftar project keluar layar di jendela pendek -- persis saat daftar
-           itu paling dibutuhkan. -->
+      <!-- Options and the button are hidden until there's a video: before
+           that, neither means anything, and as a full panel it would push
+           the project list off-screen in a short window -- exactly when
+           that list is needed most. -->
       <div class="panel option" id="options" hidden></div>
 
       <div class="prepare-foot" id="prepareFoot" hidden>
@@ -94,8 +95,8 @@
         <button class="btn main large" id="run">Find clips</button>
       </div>
 
-      <!-- Pekerjaan yang belum selesai. Urutannya di bawah panel drop -- mulai
-           baru dulu, seperti CapCut. Disembunyikan sampai benar-benar ada. -->
+      <!-- Unfinished work. Placed below the drop panel -- new work first,
+           like CapCut. Hidden until it actually exists. -->
       <section class="recent" hidden>
         <p class="eyebrow">Continue working</p>
         <div class="project-grid" id="projectList"></div>
@@ -108,9 +109,9 @@
       <button class="side-collapse" id="hideSidebarBtn" type="button"
               title="Hide sidebar">⟨</button>
       <nav class="rel-side" id="tabs" role="tablist">
-        <!-- Label murni visual, bukan .tab -- toScreen()/arrow-key nav
-             (app.js) cuma menjaring .tab lewat querySelectorAll, jadi label
-             ini tidak ikut terhitung atau perlu ditangani khusus. -->
+        <!-- Purely visual label, not a .tab -- toScreen()/arrow-key nav
+             (app.js) only picks up .tab elements via querySelectorAll, so
+             this label doesn't get counted or need any special handling. -->
         <span class="eyebrow rel-side-group">Preparation</span>
         <button class="tab" role="tab" id="tab-analysis" data-to="analysis" aria-controls="panel-analysis" aria-selected="false" tabindex="-1">Analyze</button>
         <button class="tab" role="tab" id="tab-klip" data-to="klip" aria-controls="panel-klip" aria-selected="true" tabindex="0">Clips</button>
@@ -124,7 +125,7 @@
     <div class="work">
 
       <!-- ══════════════════════════ ANALYSIS ══════════════════════ -->
-      <section class="screen" data-screen="analysis" role="tabpanel" id="panel-analysis" aria-labelledby="tab-analisis" tabindex="0">
+      <section class="screen" data-screen="analysis" role="tabpanel" id="panel-analysis" aria-labelledby="tab-analysis" tabindex="0">
         <div class="work-head">
           <h1>Analyze</h1>
           <span class="note" id="analysisNote"></span>
@@ -177,7 +178,7 @@
             </div>
           </div>
           <textarea class="paste" id="pasteJSON" spellcheck="false"
-            placeholder='{ "klip": [ ... ] }  — pagar kode ```json dan kalimat pengantar boleh ikut'></textarea>
+            placeholder='{ "clips": [ ... ] }  — the ```json code fence and an intro sentence are fine to include'></textarea>
           <div class="step-foot">
             <span class="data" id="importNote"></span>
             <button class="btn main" id="importBtn" disabled>Cut into clips</button>
@@ -187,20 +188,21 @@
         <div class="error" id="error" hidden></div>
       </section>
 
-      <!-- ══════════════════════════ KLIP ═════════════════════════
-           Menyusun ISI result. Dua keran mengisi wadah yang sama: seleksi
-           manual di timeline, dan rekomendasi dari AI. Framing dan teks punya
-           layarnya sendiri -- di sini urusannya cuma potongan mana yang
-           masuk. -->
+      <!-- ══════════════════════════ CLIPS ═════════════════════════
+           Assembles the CONTENTS of a Result. Two taps fill the same
+           container: manual selection on the timeline, and AI
+           recommendations. Framing and captions have their own screens --
+           here it's only about which spans go in. -->
       <section class="screen" data-screen="klip" role="tabpanel" id="panel-klip" aria-labelledby="tab-klip" tabindex="0">
         <div class="work-head">
           <h1>Clips</h1>
           <span class="note" id="editNote">build a Result from AI suggestions or your own selection</span>
-          <!-- Ralat dari rencana awal: dropdown Result JUGA di sini, bukan
-               cuma Framing/Captions -- justru di Clips sumber Result-nya
-               dipilih (span yang ditambah di sini masuk ke Result yang
-               sedang aktif). Markup identik, disinkronkan renderResultSwitcher()
-               (projects.js) lewat class, sama seperti 2 instance lainnya. -->
+          <!-- Correction from the original plan: the Result dropdown is
+               ALSO here, not just Framing/Captions -- Clips is exactly
+               where a Result's spans get picked (a span added here goes
+               into whichever Result is currently active). Identical
+               markup, kept in sync by renderResultSwitcher() (projects.js)
+               via class, same as the other 2 instances. -->
           <div class="result-picker right">
             <select class="result-select" aria-label="Result being edited"></select>
             <button class="btn quiet" type="button" data-result-action="new" title="New Result">+</button>
@@ -266,7 +268,7 @@
               <b class="tl-grip right" data-grip="end" aria-label="Drag range end"></b>
             </div>
           </div>
-          <div class="tl-skala" id="tlSkala"></div>
+          <div class="tl-scale" id="tlScale"></div>
 
           <div class="pick-foot">
             <label class="time-input">from
@@ -327,52 +329,52 @@
           <div class="panel-head">
             <span class="eyebrow">Framing</span>
             <span class="data" id="reframeNote">drag the box onto whoever is talking, then lock it</span>
-            <span class="data" id="framingWaktu"></span>
-            <!-- Sepenuhnya otomatis -- klik langsung jalan (diarization,
-                 deteksi potongan, cari wajah tiap pembicara), tidak ada
-                 langkah konfirmasi manual apa pun. Lihat aiFramingStart()
-                 di framing.js.
+            <span class="data" id="framingClock"></span>
+            <!-- Fully automatic -- clicking runs it directly (diarization,
+                 cut detection, finding each speaker's face), no manual
+                 confirmation step at all. See aiFramingStart() in framing.js.
 
-                 .btn.main (aksen), bukan .btn polos: sejalan dengan aturan
-                 warna yang sudah ada di app.css ("AKSEN = apa yang
-                 ditemukan dan dipilih AI") -- tombol ini literally memicu
-                 AI, jadi warnanya semestinya sudah aksen dari awal, bukan
-                 abu-abu seperti tombol biasa (laporan nyata dari ian:
-                 "terlalu samar, tidak terlihat tombol aktif"). Ikonnya
-                 SVG (fill="currentColor"), BUKAN emoji ✨ -- emoji dulu
-                 dipakai, tapi warnanya sendiri (kuning/putih bawaan font
-                 emoji) tidak bisa diatur CSS sama sekali, jadi "menyala"
-                 dan menyatu begitu saja dengan latar aksen kuning tombol
-                 ini (laporan nyata: "terlalu menyala, menyatu dengan
-                 kuning"). SVG ikut var(--accent-text) yang sama dengan
-                 teksnya (hampir hitam), penanda visual "ini tombol AI"
-                 tanpa isu warna itu. Teks di dalam <span> terpisah --
-                 aiFramingStart/aiFramingFailed/dst di framing.js cuma
-                 mengganti isi span itu, bukan seluruh tombol, supaya
-                 ikonnya tidak ikut hilang tiap label berganti. -->
+                 .btn.main (accent), not a plain .btn: consistent with the
+                 color rule already in app.css ("ACCENT = what the AI found
+                 and chose") -- this button literally triggers AI, so its
+                 color should be accent from the start, not gray like an
+                 ordinary button (a real report from ian: "too faint,
+                 doesn't look like an active button"). Its icon is SVG
+                 (fill="currentColor"), NOT an emoji ✨ -- an emoji used to
+                 be used, but its own color (the font's built-in yellow/
+                 white) couldn't be controlled by CSS at all, so it "glowed"
+                 and blended right into this button's yellow accent
+                 background (a real report: "too glowing, blends into the
+                 yellow"). The SVG follows the same var(--accent-text) as
+                 its text (near-black), a visual marker of "this is the AI
+                 button" without that color issue. The text is in a
+                 separate <span> -- aiFramingStart/aiFramingFailed/etc in
+                 framing.js only replace that span's content, not the
+                 whole button, so the icon doesn't disappear every time the
+                 label changes. -->
             <button class="btn main" id="aiFramingBtn" type="button"
                     title="Auto-switch the frame based on who's talking">
-              <svg class="ikon-ai" width="14" height="14" viewBox="0 0 24 24"
+              <svg class="icon-ai" width="14" height="14" viewBox="0 0 24 24"
                    fill="currentColor" aria-hidden="true">
                 <path d="M12 2 L14.2 9.8 L22 12 L14.2 14.2 L12 22 L9.8 14.2 L2 12 L9.8 9.8 Z"/>
               </svg>
-              <span id="aiFramingBtnTeks">AI Framing</span>
+              <span id="aiFramingBtnText">AI Framing</span>
             </button>
           </div>
 
-          <!-- Status AI Framing (proses/error/hasil) -- sepenuhnya otomatis,
-               tidak ada lagi konfirmasi manual per pembicara di sini (lihat
-               locate_speaker() di klipian/facebox.py). -->
-          <div class="ai-framing-tanya" id="aiFramingTanya" hidden>
-            <span class="data" id="aiFramingTanyaTeks"></span>
+          <!-- AI Framing status (in progress/error/result) -- fully
+               automatic, no more per-speaker manual confirmation here (see
+               locate_speaker() in klipian/facebox.py). -->
+          <div class="ai-framing-status" id="aiFramingStatus" hidden>
+            <span class="data" id="aiFramingStatusText"></span>
           </div>
 
-          <!-- Kanvas menampilkan FRAME ASLI pada posisi pemutaran preview,
-               bukan gambar contoh. Framing hanya masuk akal kalau kamu melihat
-               momen yang sedang dibingkai. -->
-          <!-- Format bingkai berlaku untuk TITIK yang sedang aktif, bukan
-               seluruh klip: angle podcast berganti, jadi satu klip boleh
-               berpindah antara satu bingkai dan dua bingkai. -->
+          <!-- The canvas shows the ACTUAL frame at the preview playback
+               position, not a sample image. Framing only makes sense if
+               you can see the moment being framed. -->
+          <!-- The frame format applies to the currently active POINT, not
+               the whole clip: podcast angles change, so one clip can
+               switch between one frame and two frames. -->
           <div class="format-bar" id="framingFormat" role="group"
                aria-label="Frame layout">
             <button class="format-choice" data-format-choice="single" aria-pressed="true">
@@ -405,19 +407,20 @@
                     aria-pressed="false"
                     title="Track head movement for this point only (optional, off by default)">Track head</button>
           </div>
-          <!-- Thumbnail ambil frame sungguhan lewat /api/thumb (sudah ada,
-               dipakai juga oleh sampul project di beranda) -- titik yang
-               waktunya berdekatan sengaja TIDAK dapat thumbnail (lihat
-               renderFraming() di framing.js), cuma tick kecil, supaya tidak
-               saling menumpuk saat AI Framing menghasilkan banyak titik
-               rapat dalam satu giliran. -->
+          <!-- Thumbnails use a real frame via /api/thumb (already exists,
+               also used by project covers on the home screen) -- points
+               whose times are close together deliberately do NOT get a
+               thumbnail (see renderFraming() in framing.js), just a small
+               tick, so they don't overlap each other when AI Framing
+               produces many tightly-packed points within one turn. -->
           <div class="framing-timeline" id="framingList"></div>
         </div>
 
       </section>
 
-      <!-- ══════════════════════════ TEKS ═════════════════════════
-           Isi teksnya dan tampilannya, dua-duanya milik result ini saja. -->
+      <!-- ══════════════════════════ CAPTIONS ═════════════════════════
+           Their text content and their styling, both belong only to this
+           result. -->
       <section class="screen" data-screen="teks" role="tabpanel" id="panel-teks" aria-labelledby="tab-teks" tabindex="0">
         <div class="work-head">
           <h1>Captions</h1>
@@ -460,8 +463,8 @@
       <section class="screen" data-screen="history" role="tabpanel" id="panel-history" aria-labelledby="tab-history" tabindex="0">
         <div class="work-head">
           <h1>Render history</h1>
-          <span class="note" id="riwayatNote">loading …</span>
-          <button class="btn right" id="riwayatMuatBtn">Reload</button>
+          <span class="note" id="historyNote">loading …</span>
+          <button class="btn right" id="historyReloadBtn">Reload</button>
         </div>
         <!-- currently rendering, above finished files -->
         <div class="panel fit"><div class="list" id="queueList"></div></div>
@@ -507,7 +510,7 @@
              the text & bar width. -->
         <div class="ai-framing-overlay" id="aiFramingOverlay" hidden>
           <div class="ai-framing-spin" aria-hidden="true"></div>
-          <p class="ai-framing-overlay-teks" id="aiFramingOverlayTeks">Analyzing…</p>
+          <p class="ai-framing-overlay-text" id="aiFramingOverlayText">Analyzing…</p>
           <div class="ai-framing-overlay-bar">
             <i id="aiFramingOverlayBar" style="width:0%"></i>
           </div>
@@ -572,8 +575,8 @@
                  aria-label="Result title, used as the file name"></label>
         <div class="row">
           <span class="data" id="resultSummary"></span>
-          <span class="data" id="previewCepatNote"></span>
-          <button class="btn" id="previewCepatBtn" disabled>Quick preview</button>
+          <span class="data" id="previewQuickNote"></span>
+          <button class="btn" id="previewQuickBtn" disabled>Quick preview</button>
           <button class="btn main large" id="resultRenderBtn" disabled>Render Result</button>
         </div>
         <!-- Actual render via ffmpeg, only PREVIEW_MAX_DETIK seconds --
@@ -581,25 +584,25 @@
              to differ from the real ASS/ffmpeg output (see watermark opacity
              bug). Used to verify captions/watermark look exactly as expected
              BEFORE waiting for a full render. -->
-        <div class="preview-cepat" id="previewCepatWrap" hidden>
-          <video id="previewCepatVideo" controls autoplay playsinline></video>
-          <button class="btn quiet" id="previewCepatTutup" type="button">Close preview</button>
+        <div class="preview-quick" id="previewQuickWrap" hidden>
+          <video id="previewQuickVideo" controls autoplay playsinline></video>
+          <button class="btn quiet" id="previewQuickClose" type="button">Close preview</button>
         </div>
       </div>
     </aside>
   </main>
 </div>
 
-<script src="/ui/js/editor/app.js?v=1788859540758"></script>
-<script src="/ui/js/editor/interactions.js?v=1788859540758"></script>
-<script src="/ui/js/editor/framing.js?v=1788859540758"></script>
-<script src="/ui/js/editor/analysis.js?v=1788859540758"></script>
-<script src="/ui/js/editor/player.js?v=1788859540758"></script>
-<script src="/ui/js/editor/roundtrip.js?v=1788859540758"></script>
-<script src="/ui/js/editor/history.js?v=1788859540758"></script>
-<script src="/ui/js/editor/timeline.js?v=1788859540758"></script>
-<script src="/ui/js/editor/captions.js?v=1788859540758"></script>
-<script src="/ui/js/editor/result.js?v=1788859540758"></script>
-<script src="/ui/js/editor/projects.js?v=1788859540758"></script>
+<script src="/ui/js/editor/app.js?v=1788863801608"></script>
+<script src="/ui/js/editor/interactions.js?v=1788863801608"></script>
+<script src="/ui/js/editor/framing.js?v=1788863801608"></script>
+<script src="/ui/js/editor/analysis.js?v=1788863801608"></script>
+<script src="/ui/js/editor/player.js?v=1788863801608"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1788863801608"></script>
+<script src="/ui/js/editor/history.js?v=1788863801608"></script>
+<script src="/ui/js/editor/timeline.js?v=1788863801608"></script>
+<script src="/ui/js/editor/captions.js?v=1788863801608"></script>
+<script src="/ui/js/editor/result.js?v=1788863801608"></script>
+<script src="/ui/js/editor/projects.js?v=1788863801608"></script>
 </body>
 </html>
