@@ -328,7 +328,7 @@ $("#importBtn").addEventListener("click", () => {
     note.dataset.error = "false";
     note.textContent = `${candidates.length} suggestions imported`;
     if (typeof renderRecommendations === "function") renderRecommendations();
-    toScreen("klip");          // recommendations are not the final destination, result is
+    toScreen("clips");          // recommendations are not the final destination, result is
   } catch (err) {
     note.dataset.error = "true";
     note.textContent = err.message;

@@ -426,12 +426,12 @@ const NO_PREVIEW = ["video", "analysis", "history"];
 /* Three screens that edit the same result. Split into separate menus so
    each screen has one concern: Clips picks the cuts, Framing adjusts the
    frame, Text handles words and appearance. */
-const RESULT_SCREENS = ["klip", "framing", "teks"];
+const RESULT_SCREENS = ["clips", "framing", "captions"];
 
 /* The currently active screen. Saved with the project so "Continue" brings
    you back to where you left off -- if you were adjusting framing, you
    return to Framing, not thrown into Clips every time. */
-let activeScreen = "klip";
+let activeScreen = "clips";
 
 function toScreen(name) {
   activeScreen = name;
@@ -597,5 +597,5 @@ $("#options").addEventListener("click", (e) => {
 $("#fileName").textContent = DATA.file;
 $("#fileDuration").textContent = DATA.duration;
 drawAll();
-toScreen("klip");
+toScreen("clips");
 toStage("home");

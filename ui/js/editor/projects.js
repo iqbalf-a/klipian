@@ -20,12 +20,19 @@ const SAVE_DELAY = 900;         // ms to wait before actually writing to disk
 let saveTimer = null;
 let savePending = false;        // true from first change until the disk write completes
 let activeProject = null;       // name of the video currently being worked on
-let lastScreen = "klip";        // the screen where work was left off
+let lastScreen = "clips";        // the screen where work was left off
 
 /* Screen names from project files are NOT trusted blindly: files can be
    hand-edited or come from an older version. An unrecognized name causes
    toScreen() to turn off all screens and leave an empty workspace. */
-const VALID_SCREENS = ["analysis", "klip", "framing", "teks", "history"];
+const VALID_SCREENS = ["analysis", "clips", "framing", "captions", "history"];
+
+/* Old projects (saved before this rename) still have screen: "klip"/"teks"
+   on disk -- read once here so they still resume on the right screen,
+   instead of falling back to the "clips" default. New saves always write
+   the English name (see projectState() below); this map only exists to
+   translate what's already on disk. */
+const LEGACY_SCREEN_NAMES = { klip: "clips", teks: "captions" };
 
 /* One project can now store MORE THAN ONE Result -- the same podcast video
    naturally produces many separate clips, and previously starting clip #2
@@ -60,7 +67,7 @@ function projectState() {
     caption: (typeof CAPTION_OPTIONS !== "undefined")
       ? CAPTION_OPTIONS.map((o) => o.active) : [],
     output: (typeof OPTIONS !== "undefined") ? OPTIONS.map((o) => o.active) : [],
-    screen: (typeof activeScreen !== "undefined") ? activeScreen : "klip",
+    screen: (typeof activeScreen !== "undefined") ? activeScreen : "clips",
   };
 }
 
@@ -340,7 +347,8 @@ async function loadProject(video) {
       }
     });
   }
-  lastScreen = VALID_SCREENS.includes(d.screen) ? d.screen : "klip";
+  const savedScreen = LEGACY_SCREEN_NAMES[d.screen] || d.screen;
+  lastScreen = VALID_SCREENS.includes(savedScreen) ? savedScreen : "clips";
   return true;
 }
 

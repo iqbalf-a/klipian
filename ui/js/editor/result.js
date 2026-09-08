@@ -545,4 +545,4 @@ $("#resultRenderBtn")?.addEventListener("click", () => {
 });
 
 /* Manual path starts on the Clips screen: the timeline is there. */
-$("#manualClip")?.addEventListener("click", () => toScreen("klip"));
+$("#manualClip")?.addEventListener("click", () => toScreen("clips"));
