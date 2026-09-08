@@ -44,9 +44,9 @@ function pasangPetak(v, petak, crop) {
   // NaN. Dihitung ulang nanti saat layarnya terlihat.
   if (!f.width || !crop.width) return;
 
-  const rasio = (typeof rasioSumber === "function") ? rasioSumber() : 16 / 9;
+  const ratio = (typeof sourceRatio === "function") ? sourceRatio() : 16 / 9;
   const width = f.width * (100 / crop.width);
-  const height = width / rasio;
+  const height = width / ratio;
   v.style.width = `${width}px`;
   v.style.height = `${height}px`;
   v.style.transform =
@@ -54,8 +54,8 @@ function pasangPetak(v, petak, crop) {
 }
 
 function attachVideoGeometry() {
-  if (!video.src || typeof bingkaiPada !== "function") return;
-  const b = bingkaiPada(typeof waktuTinjau === "function" ? waktuTinjau() : 0);
+  if (!video.src || typeof frameAt !== "function") return;
+  const b = frameAt(typeof reviewTime === "function" ? reviewTime() : 0);
   pasangPetak(video, document.querySelector(".belah.atas"), b.crops[0]);
   if (b.format === "split") {
     pasangPetak($("#videoPreview2"), document.querySelector(".belah.bawah"),
@@ -231,17 +231,17 @@ video.addEventListener("timeupdate", () => {
   if (typeof syncCanvasVideo === "function") syncCanvasVideo();
 
   // Label waktu di layar Framing ikut tiap tick supaya tidak kelihatan
-  // membeku saat diputar (lihat catatan di perbaruiJamFraming()).
-  if (typeof perbaruiJamFraming === "function") perbaruiJamFraming();
+  // membeku saat diputar (lihat catatan di updateFramingClock()).
+  if (typeof updateFramingClock === "function") updateFramingClock();
 
   // Framing ikut berpindah saat pemutaran melewati titik berikutnya --
   // supaya preview benar-benar memperlihatkan apa yang akan dirender.
-  if (typeof framingPada === "function") {
-    const f = framingPada(t);
+  if (typeof pointAt === "function") {
+    const f = pointAt(t);
     if (f && f !== framingTerakhir) {
       framingTerakhir = f;
       if (typeof renderFraming === "function") renderFraming();
-      if (typeof ikutiTitikAktif === "function") ikutiTitikAktif(f);
+      if (typeof followActivePoint === "function") followActivePoint(f);
     } else if (f?.tracking?.keyframes?.length >= 2
                && typeof attachVideoGeometry === "function") {
       // Titik ini di-track: kotaknya bergerak TIAP tick selama titik ini

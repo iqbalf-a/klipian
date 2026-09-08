@@ -32,11 +32,11 @@
    contoh -- kalau tidak, kamu membingkai sesuatu yang tidak kamu lihat.
    ========================================================================== */
 
-const CROP_AWAL = { left: 37, top: 8, width: 26, height: 84 };
+const INITIAL_CROP = { left: 37, top: 8, width: 26, height: 84 };
 
 /* Dua kotak berdampingan sebagai titik awal split: kiri jadi bagian atas,
    kanan jadi bagian bawah. Tingginya sudah mengikuti rasio 9:8. */
-const CROP_SPLIT_AWAL = [
+const INITIAL_SPLIT_CROP = [
   { left: 4,  top: 17, width: 42, height: 66 },
   { left: 54, top: 17, width: 42, height: 66 },
 ];
@@ -44,7 +44,7 @@ const CROP_SPLIT_AWAL = [
 /* Tinggi kotak = lebar x rasio, dihitung dalam piksel kanvas.
    single: petak tujuannya 1080x1920 -> 16/9 kali lebarnya.
    split : tiap petak 1080x960      ->  8/9 kali lebarnya. */
-const RASIO = { single: 16 / 9, split: 8 / 9 };
+const RATIO = { single: 16 / 9, split: 8 / 9 };
 
 let FRAMING = [];          // [{ id, at, format, crops }] terurut menurut `at`
 let framingSeq = 0;
@@ -52,17 +52,17 @@ let framingSeq = 0;
 const cropEls = () => [...document.querySelectorAll(".canvas .crop")];
 
 /* Format yang sedang tergambar di kanvas. */
-let formatKanvas = "single";
+let canvasFormat = "single";
 
 /* Titik yang berlaku pada detik tertentu: titik terakhir yang `at`-nya
    tidak melewati detik itu. */
-function framingPada(detik) {
-  let hasil = FRAMING[0] || null;
+function pointAt(seconds) {
+  let result = FRAMING[0] || null;
   for (const f of FRAMING) {
-    if (f.at <= detik + 0.001) hasil = f;
+    if (f.at <= seconds + 0.001) result = f;
     else break;
   }
-  return hasil;
+  return result;
 }
 
 /* Posisi X hasil interpolasi LINEAR sepanjang lintasan head tracking pada
@@ -70,11 +70,11 @@ function framingPada(detik) {
    Di luar rentang keyframe pertama/terakhir -> dijepit ke ujungnya
    (bukan diekstrapolasi), sama seperti track_head() di facebox.py
    menahan posisi di luar sampel yang benar-benar terukur. */
-function interpolasiLintasan(keyframes, t) {
+function interpolatePath(keyframes, t) {
   if (!keyframes?.length) return null;
   if (t <= keyframes[0].t) return keyframes[0].left;
-  const akhir = keyframes[keyframes.length - 1];
-  if (t >= akhir.t) return akhir.left;
+  const last = keyframes[keyframes.length - 1];
+  if (t >= last.t) return last.left;
   for (let i = 1; i < keyframes.length; i++) {
     if (t <= keyframes[i].t) {
       const a = keyframes[i - 1], b = keyframes[i];
@@ -82,7 +82,7 @@ function interpolasiLintasan(keyframes, t) {
       return a.left + (b.left - a.left) * frac;
     }
   }
-  return akhir.left;
+  return last.left;
 }
 
 /* Bentuk bingkai yang berlaku pada detik itu, selalu lengkap: format dan
@@ -94,22 +94,22 @@ function interpolasiLintasan(keyframes, t) {
    yang didukung (v1); Y/lebar/tinggi tetap ikut kotak dasar seperti
    biasa, sama seperti aturan "melacak X saja" yang sudah ada di
    facebox.py. */
-function bingkaiPada(detik) {
-  const f = framingPada(detik);
+function frameAt(seconds) {
+  const f = pointAt(seconds);
   const format = f ? f.format : "single";
-  let crops = f ? f.crops : [CROP_AWAL];
+  let crops = f ? f.crops : [INITIAL_CROP];
   if (f?.tracking?.keyframes?.length >= 2 && format === "single") {
-    const left = interpolasiLintasan(f.tracking.keyframes, detik - f.at);
+    const left = interpolatePath(f.tracking.keyframes, seconds - f.at);
     if (left !== null) crops = [{ ...crops[0], left }];
   }
   // Rasio disamakan DI SINI, bukan cuma saat menggambar. Versi sebelumnya
   // membetulkan kotak di kanvas tapi mengirim angka bawaan yang mentah ke
   // ffmpeg -- preview terlihat benar sementara berkas hasilnya melar.
-  return { format, crops: crops.map((c) => samakanRasio(c, format)) };
+  return { format, crops: crops.map((c) => matchRatio(c, format)) };
 }
 
 /* Posisi pemutaran yang sedang ditinjau, dalam detik SUMBER. */
-function waktuTinjau() {
+function reviewTime() {
   const v = $("#videoPreview");
   if (v && v.src && Number.isFinite(v.currentTime)) return v.currentTime;
   if (typeof activeClip !== "undefined" && activeClip?.spans?.length)
@@ -121,7 +121,7 @@ function resetFraming() {
   FRAMING = [];
   framingSeq = 0;
   FRAMING.push({ id: `f${++framingSeq}`, at: 0, format: "single",
-                 crops: [{ ...CROP_AWAL }] });
+                 crops: [{ ...INITIAL_CROP }] });
   renderFraming();
 }
 
@@ -133,34 +133,34 @@ function resetFraming() {
    Potongan split membawa `crops` (dua kotak); potongan biasa membawa `crop`
    (satu kotak). Server membedakan keduanya lewat nama bidangnya. */
 function spansWithFraming(ranges) {
-  const keluar = [];
+  const out = [];
   for (const r of ranges) {
-    const batas = [r.start];
+    const bounds = [r.start];
     for (const f of FRAMING) {
-      if (f.at > r.start + 0.05 && f.at < r.end - 0.05) batas.push(f.at);
+      if (f.at > r.start + 0.05 && f.at < r.end - 0.05) bounds.push(f.at);
     }
-    batas.push(r.end);
-    for (let i = 0; i < batas.length - 1; i++) {
-      const b = bingkaiPada(batas[i]);
-      const potongan = { start: batas[i], end: batas[i + 1] };
-      if (b.format === "split" && b.crops.length >= 2) potongan.crops = b.crops;
-      else potongan.crop = b.crops[0];
+    bounds.push(r.end);
+    for (let i = 0; i < bounds.length - 1; i++) {
+      const b = frameAt(bounds[i]);
+      const piece = { start: bounds[i], end: bounds[i + 1] };
+      if (b.format === "split" && b.crops.length >= 2) piece.crops = b.crops;
+      else piece.crop = b.crops[0];
       // keyframes tersimpan relatif ke AWAL TITIK (f.at), tapi render.py
-      // butuhnya relatif ke awal POTONGAN ini (batas[i]) -- dua-duanya
+      // butuhnya relatif ke awal POTONGAN ini (bounds[i]) -- dua-duanya
       // beda kalau titiknya dikunci sebelum awal rentang Result ini
       // sendiri. Digeser + dijepit di sini, sama seperti _geser_tracking()
       // di server.py buat pratinjau cepat yang dipotong dari depan.
-      const titik = framingPada(batas[i]);
-      if (b.format === "single" && titik?.tracking?.keyframes?.length >= 2) {
-        const geser = titik.tracking.keyframes
-          .map((kf) => ({ t: round3(kf.t - (batas[i] - titik.at)), left: kf.left }))
+      const point = pointAt(bounds[i]);
+      if (b.format === "single" && point?.tracking?.keyframes?.length >= 2) {
+        const shifted = point.tracking.keyframes
+          .map((kf) => ({ t: round3(kf.t - (bounds[i] - point.at)), left: kf.left }))
           .filter((kf) => kf.t >= 0);
-        if (geser.length >= 2) potongan.tracking = geser;
+        if (shifted.length >= 2) piece.tracking = shifted;
       }
-      keluar.push(potongan);
+      out.push(piece);
     }
   }
-  return keluar;
+  return out;
 }
 
 const round3 = (n) => Math.round(n * 1000) / 1000;
@@ -174,7 +174,7 @@ const round3 = (n) => Math.round(n * 1000) / 1000;
 
    Kalau tingginya jadi melewati tepi bawah, yang dikecilkan lebarnya --
    bukan tingginya dipotong, karena itu justru merusak rasionya. */
-function rasioSumber() {
+function sourceRatio() {
   for (const sel of ["#canvasVideo", "#videoPreview"]) {
     const v = $(sel);
     if (v?.videoWidth && v?.videoHeight) return v.videoWidth / v.videoHeight;
@@ -182,13 +182,13 @@ function rasioSumber() {
   return 16 / 9;
 }
 
-function samakanRasio(crop, format) {
-  const A = rasioSumber();
+function matchRatio(crop, format) {
+  const baseRatio = sourceRatio();
   let width = crop.width;
-  let height = width * A * RASIO[format];
+  let height = width * baseRatio * RATIO[format];
   if (crop.top + height > 100) {
     height = 100 - crop.top;
-    width = height / (A * RASIO[format]);
+    width = height / (baseRatio * RATIO[format]);
   }
   return { ...crop, width, height };
 }
@@ -226,9 +226,9 @@ function readCrop(el, canvas) {
    melangkah per frame), saat berjalan boleh meleset sedikit supaya tidak
    tersendat oleh seek terus-menerus. */
 
-const targetIkut = new WeakMap();   // elemen -> posisi tujuan terakhirnya
+const followTarget = new WeakMap();   // elemen -> posisi tujuan terakhirnya
 
-function ikutiPreview(el) {
+function followPreview(el) {
   const v = $("#videoPreview");
   if (!el || !v) return;
   if (v.src && el.src !== v.src) el.src = v.src;
@@ -238,7 +238,7 @@ function ikutiPreview(el) {
   // hilang begitu saja dan elemennya tertinggal jauh di belakang preview.
   // Karena itu penyelarasan diulang begitu ia siap.
   if (el.readyState < 1) {
-    el.addEventListener("loadedmetadata", () => ikutiPreview(el), { once: true });
+    el.addEventListener("loadedmetadata", () => followPreview(el), { once: true });
     return;
   }
   // Kanvas dikunci ke rasio sumbernya. Tanpa ini rasio kanvas cuma kebetulan
@@ -246,20 +246,20 @@ function ikutiPreview(el) {
   // diam-diam dan persen kotak tidak lagi menunjuk bagian frame yang sama.
   if (el.id === "canvasVideo" && el.videoWidth && el.videoHeight) {
     const canvas = document.querySelector(".canvas");
-    const rasio = `${el.videoWidth} / ${el.videoHeight}`;
-    if (canvas && canvas.style.aspectRatio !== rasio) {
-      canvas.style.aspectRatio = rasio;
+    const ratio = `${el.videoWidth} / ${el.videoHeight}`;
+    if (canvas && canvas.style.aspectRatio !== ratio) {
+      canvas.style.aspectRatio = ratio;
     }
   }
-  const t = v.src ? v.currentTime : waktuTinjau();
-  const ambang = v.paused ? 0.02 : 0.20;
+  const t = v.src ? v.currentTime : reviewTime();
+  const threshold = v.paused ? 0.02 : 0.20;
 
   // Posisi tujuan disimpan, bukan cuma diminta sekali. Kalau lompatan
   // sebelumnya belum rampung, permintaan baru bisa tertelan browser -- dan
   // elemennya berhenti di posisi lama. Dengan tujuan tersimpan, permintaan
   // TERAKHIR yang selalu menang, diterapkan ulang saat lompatan selesai.
-  targetIkut.set(el, t);
-  if (!el.seeking && Math.abs(el.currentTime - t) > ambang) {
+  followTarget.set(el, t);
+  if (!el.seeking && Math.abs(el.currentTime - t) > threshold) {
     try { el.currentTime = t; } catch { /* di luar jangkauan */ }
   }
   // Ikut berjalan/berhenti bersama preview.
@@ -269,25 +269,25 @@ function ikutiPreview(el) {
 
 /* Begitu satu lompatan rampung, posisi tujuan terakhir diterapkan lagi kalau
    ternyata masih meleset. */
-function pasangSusulan(el) {
+function attachCatchUp(el) {
   el?.addEventListener("seeked", () => {
     const v = $("#videoPreview");
-    const tujuan = targetIkut.get(el);
-    if (!v || !v.src || tujuan === undefined) return;
-    const ambang = v.paused ? 0.02 : 0.20;
-    if (Math.abs(el.currentTime - tujuan) > ambang) {
-      try { el.currentTime = tujuan; } catch { /* di luar jangkauan */ }
+    const target = followTarget.get(el);
+    if (!v || !v.src || target === undefined) return;
+    const threshold = v.paused ? 0.02 : 0.20;
+    if (Math.abs(el.currentTime - target) > threshold) {
+      try { el.currentTime = target; } catch { /* di luar jangkauan */ }
     }
   });
 }
-pasangSusulan($("#canvasVideo"));
-pasangSusulan($("#videoPreview2"));
+attachCatchUp($("#canvasVideo"));
+attachCatchUp($("#videoPreview2"));
 
 function syncCanvasVideo() {
-  ikutiPreview($("#canvasVideo"));
+  followPreview($("#canvasVideo"));
   // Video petak bawah hanya perlu ikut saat memang dipakai. Membiarkannya
   // memutar diam-diam saat format single cuma membuang decoder.
-  if (formatKanvas === "split") ikutiPreview($("#videoPreview2"));
+  if (canvasFormat === "split") followPreview($("#videoPreview2"));
   else $("#videoPreview2")?.pause();
 }
 
@@ -297,9 +297,9 @@ function syncCanvasVideo() {
 // Tanpa fungsi terpisah ini, label waktu cuma ikut berubah saat playhead
 // melewati sebuah titik framing, bukan tiap detik berjalan -- kelihatan
 // seperti "membeku" saat diputar padahal cuma jarang digambar ulang.
-function perbaruiJamFraming() {
-  const jam = $("#framingWaktu");
-  if (jam) jam.textContent = `at ${jamRange(waktuTinjau())}`;
+function updateFramingClock() {
+  const clockEl = $("#framingWaktu");
+  if (clockEl) clockEl.textContent = `at ${jamRange(reviewTime())}`;
 }
 
 /* Strip Framing Points bisa lebih lebar dari panelnya dan di-scroll
@@ -308,7 +308,7 @@ function perbaruiJamFraming() {
    kelihatan -- state-nya sudah benar (fr-active sudah pindah), tapi dari
    mata pengguna kelihatan seperti diam di titik terakhir yang mereka klik
    sendiri, karena yang aktif sekarang tidak pernah masuk ke pandangan. */
-function ikutiTitikAktif(f) {
+function followActivePoint(f) {
   const bar = $("#framingList");
   const el = f && bar?.querySelector(`[data-framing="${f.id}"]`);
   if (!bar || !el) return;
@@ -318,15 +318,15 @@ function ikutiTitikAktif(f) {
 
 function renderFraming() {
   if (!FRAMING.length) resetFraming();
-  const t = waktuTinjau();
-  const aktif = framingPada(t);
+  const t = reviewTime();
+  const active = pointAt(t);
 
   // Pesan TIDAK ditulis di sini: renderFraming dipanggil sesudah aksi seperti
   // "kunci", dan menulisinya akan langsung menghapus konfirmasi yang baru saja
   // muncul. Pemanggil yang menentukan pesannya.
-  perbaruiJamFraming();
+  updateFramingClock();
   const tag = $("#tagCrop1");
-  if (tag) tag.textContent = aktif ? `from ${jamRange(aktif.at)}` : "";
+  if (tag) tag.textContent = active ? `from ${jamRange(active.at)}` : "";
 
   const bar = $("#framingList");
   if (bar) {
@@ -339,7 +339,7 @@ function renderFraming() {
     // yang SAMA itu relatif ke hasil gabungan, kalau titiknya jatuh di
     // dalam salah satu span yang benar-benar dipakai (null kalau di luar
     // span mana pun -- titik lama dari klip lain, atau titik 00:00 bawaan).
-    const outDari = (t) => (typeof activeClip !== "undefined" && activeClip?.spans
+    const outFrom = (t) => (typeof activeClip !== "undefined" && activeClip?.spans
       && typeof sourceToOut === "function") ? sourceToOut(activeClip, t) : null;
 
     // Setiap titik SELALU dapat thumbnail-nya sendiri, seberapa pun rapat
@@ -349,7 +349,7 @@ function renderFraming() {
     // (lihat overflow-x di CSS .framing-timeline) -- BUKAN thumbnail-nya
     // yang dikecilkan atau sebagian titik dijadikan tick tanpa gambar.
     bar.innerHTML = FRAMING.map((f, i) => {
-      const out = outDari(f.at);
+      const out = outFrom(f.at);
       // Angka BESAR = posisi di RESULT yang sedang diedit (yang benar-benar
       // dilihat orang di panel preview kanan) -- itu yang berarti langsung,
       // bukan posisi di video sumber 42 menit. Sumbernya tetap ditampilkan
@@ -358,15 +358,15 @@ function renderFraming() {
       // Result (persis kebingungan yang dilaporkan ian: titik "07:58" pada
       // Result yang cuma 1:25 kelihatan seperti di luar jangkauan, padahal
       // itu memang posisi aslinya di sumber, bukan salah).
-      const tip = `${f.format === "split" ? "Split" : "Single"} · source ${jamRange(f.at)}`;
+      const tooltip = `${f.format === "split" ? "Split" : "Single"} · source ${jamRange(f.at)}`;
       const thumbUrl = f.crops?.[0] && typeof chosenSource !== "undefined" && chosenSource?.name
         ? `/api/thumb?video=${encodeURIComponent(chosenSource.name)}&t=${f.at}`
           + `&left=${f.crops[0].left}&top=${f.crops[0].top}`
           + `&width=${f.crops[0].width}&height=${f.crops[0].height}&w=96`
         : "";
       return `
-      <div class="fr-point${f === aktif ? " fr-active" : ""}"
-           data-framing="${f.id}" title="${tip}">
+      <div class="fr-point${f === active ? " fr-active" : ""}"
+           data-framing="${f.id}" title="${tooltip}">
         ${thumbUrl ? `<img class="fr-thumb" src="${thumbUrl}" alt="" loading="lazy">`
                     : `<span class="fr-thumb fr-thumb-kosong"></span>`}
         ${f.tracking ? `<span class="fr-track-badge" title="Head tracking on">●</span>` : ""}
@@ -378,59 +378,59 @@ function renderFraming() {
     }).join("");
   }
 
-  const bingkai = bingkaiPada(t);
-  gambarKotak(bingkai.format, bingkai.crops);
+  const frame = frameAt(t);
+  drawBox(frame.format, frame.crops);
   syncCanvasVideo();
   if (typeof attachVideoGeometry === "function") attachVideoGeometry();
-  perbaruiTombolTrackHead();
+  updateTrackHeadButton();
 }
 
 /* Menaruh kotak di kanvas sesuai format. Kotak kedua hanya berarti saat
    split; di format single ia disembunyikan lewat data-format di kanvas. */
-function gambarKotak(format, crops) {
-  formatKanvas = format === "split" ? "split" : "single";
+function drawBox(format, crops) {
+  canvasFormat = format === "split" ? "split" : "single";
   const canvas = document.querySelector(".canvas");
-  if (canvas) canvas.dataset.format = formatKanvas;
+  if (canvas) canvas.dataset.format = canvasFormat;
   // Preview ikut diberi tahu: petak bawah cuma ada saat split.
-  const bingkai = $("#frame");
-  if (bingkai) bingkai.dataset.format = formatKanvas;
+  const previewFrame = $("#frame");
+  if (previewFrame) previewFrame.dataset.format = canvasFormat;
 
   const els = cropEls();
-  applyCrop(els[0], samakanRasio(crops[0] || CROP_AWAL, formatKanvas));
+  applyCrop(els[0], matchRatio(crops[0] || INITIAL_CROP, canvasFormat));
   // Kotak kedua selalu berasio split -- ia memang cuma dipakai di format itu.
-  applyCrop(els[1], samakanRasio(crops[1] || CROP_SPLIT_AWAL[1], "split"));
+  applyCrop(els[1], matchRatio(crops[1] || INITIAL_SPLIT_CROP[1], "split"));
 
   document.querySelectorAll("[data-format-pilih]").forEach((b) =>
-    b.setAttribute("aria-pressed", String(b.dataset.formatPilih === formatKanvas)));
+    b.setAttribute("aria-pressed", String(b.dataset.formatPilih === canvasFormat)));
 }
 
 /* Menyalin kotak dari kanvas ke titik yang sedang berlaku. Dipanggil terus
    selama menggeser, bukan cuma saat dilepas: preview menghitung bingkainya
    dari ANGKA di FRAMING, jadi kalau angkanya baru ditulis saat pointer
    dilepas, preview diam saja sepanjang geseran. */
-function simpanKotak() {
-  const f = framingPada(waktuTinjau());
-  const crops = kotakDiKanvas();
+function saveBox() {
+  const f = pointAt(reviewTime());
+  const crops = boxOnCanvas();
   if (!f || !crops) return null;
-  f.format = formatKanvas;
+  f.format = canvasFormat;
   f.crops = crops;
   return f;
 }
 
 /* Kotak yang sedang tergambar di kanvas, dibaca balik jadi angka. */
-function kotakDiKanvas() {
+function boxOnCanvas() {
   const canvas = document.querySelector(".canvas");
   if (!canvas) return null;
   const els = cropEls();
-  const n = formatKanvas === "split" ? 2 : 1;
-  const keluar = [];
+  const n = canvasFormat === "split" ? 2 : 1;
+  const out = [];
   for (let i = 0; i < n; i++) {
     if (!els[i]) return null;
     const geo = readCrop(els[i], canvas);
     if (!Number.isFinite(geo.width) || geo.width <= 0) return null;
-    keluar.push(geo);
+    out.push(geo);
   }
-  return keluar;
+  return out;
 }
 
 /* ---------- memilih format ---------- */
@@ -450,60 +450,60 @@ $("#framingFormat")?.addEventListener("click", (e) => {
   const b = e.target.closest("[data-format-pilih]");
   if (!b) return;
   const format = b.dataset.formatPilih;
-  const t = Math.max(0, waktuTinjau());
-  const sama = FRAMING.find((f) => Math.abs(f.at - t) < 0.35);
-  if (format === formatKanvas && sama) return;
+  const t = Math.max(0, reviewTime());
+  const existing = FRAMING.find((f) => Math.abs(f.at - t) < 0.35);
+  if (format === canvasFormat && existing) return;
 
   // Kotaknya dimulai dari susunan bawaan format itu -- rasio kotak single
   // dan split berbeda, jadi memakai ulang kotak lama cuma menghasilkan
   // gambar gepeng.
   const crops = format === "split"
-    ? CROP_SPLIT_AWAL.map((c) => ({ ...c }))
-    : [{ ...CROP_AWAL }];
+    ? INITIAL_SPLIT_CROP.map((c) => ({ ...c }))
+    : [{ ...INITIAL_CROP }];
 
-  let pesan;
-  if (sama) {
-    sama.format = format;
-    sama.crops = crops;
-    pesan = `point ${jamRange(sama.at)} is now`;
+  let message;
+  if (existing) {
+    existing.format = format;
+    existing.crops = crops;
+    message = `point ${jamRange(existing.at)} is now`;
   } else {
     FRAMING.push({ id: `f${++framingSeq}`, at: t, format, crops });
     FRAMING.sort((a, b2) => a.at - b2.at);
-    pesan = `new point at ${jamRange(t)},`;
+    message = `new point at ${jamRange(t)},`;
   }
   renderFraming();
   $("#reframeNote").textContent = format === "split"
-    ? `${pesan} Split · drag the top and bottom boxes onto each person`
-    : `${pesan} Single · drag the box onto whoever is talking`;
+    ? `${message} Split · drag the top and bottom boxes onto each person`
+    : `${message} Single · drag the box onto whoever is talking`;
 });
 
 /* ---------- kunci, pilih, hapus ---------- */
 
 $("#kunciFraming")?.addEventListener("click", () => {
-  const crops = kotakDiKanvas() || bingkaiPada(waktuTinjau()).crops;
-  const t = Math.max(0, waktuTinjau());
+  const crops = boxOnCanvas() || frameAt(reviewTime()).crops;
+  const t = Math.max(0, reviewTime());
 
   // Titik di detik yang sama ditimpa, bukan digandakan.
-  const sama = FRAMING.find((f) => Math.abs(f.at - t) < 0.35);
-  let pesan;
-  if (sama) {
+  const existing = FRAMING.find((f) => Math.abs(f.at - t) < 0.35);
+  let message;
+  if (existing) {
     // Kotak dasar diganti manual -- lintasan tracking LAMA (kalau ada)
     // relatif ke posisi kotak yang sekarang sudah tidak berlaku, jadi
     // dibuang di sini, bukan dibiarkan nyangkut memakai posisi basi.
     // "Track head" perlu ditekan ulang kalau titik ini masih mau di-track.
-    delete sama.tracking;
-    sama.format = formatKanvas;
-    sama.crops = crops;
-    pesan = `point ${jamRange(sama.at)} updated`;
+    delete existing.tracking;
+    existing.format = canvasFormat;
+    existing.crops = crops;
+    message = `point ${jamRange(existing.at)} updated`;
   } else {
-    FRAMING.push({ id: `f${++framingSeq}`, at: t, format: formatKanvas, crops });
+    FRAMING.push({ id: `f${++framingSeq}`, at: t, format: canvasFormat, crops });
     FRAMING.sort((a, b) => a.at - b.at);
-    pesan = `new point locked at ${jamRange(t)}`;
+    message = `new point locked at ${jamRange(t)}`;
   }
   renderFraming();
   if (typeof saveProject === "function") saveProject();
   $("#reframeNote").textContent =
-    `${pesan} · ${formatKanvas === "split" ? "Split" : "Single"}`;
+    `${message} · ${canvasFormat === "split" ? "Split" : "Single"}`;
 });
 
 /* ---------- head tracking (opsional per titik) ----------
@@ -512,33 +512,33 @@ $("#kunciFraming")?.addEventListener("click", () => {
    titik, tidak berubah). Opsional per titik, default MATI -- diaktifkan
    manual lewat tombol ini cuma pada titik yang memang perlu (ian: "tidak
    semua titik perlu"). Cuma format Single yang didukung (v1) -- lihat
-   catatan di bingkaiPada()/track_head() (facebox.py) untuk alasannya. */
+   catatan di frameAt()/track_head() (facebox.py) untuk alasannya. */
 
 /* Rentang [titik.at, akhir) yang dianalisis -- sampai titik BERIKUTNYA
    kalau ada, atau sampai akhir potongan Result yang memuat titik ini
    kalau ini titik terakhir (bukan sampai akhir video sumber utuh --
    itu bisa jauh lebih panjang dari yang benar-benar dipakai). */
-function batasTracking(titik) {
-  const idx = FRAMING.indexOf(titik);
-  const berikutnya = FRAMING[idx + 1];
-  if (berikutnya) return berikutnya.at;
+function trackingLimit(point) {
+  const idx = FRAMING.indexOf(point);
+  const next = FRAMING[idx + 1];
+  if (next) return next.at;
   const span = (typeof activeClip !== "undefined" && activeClip?.spans || [])
-    .find((s) => titik.at >= s.start - 0.05 && titik.at < s.end);
-  return span ? span.end : titik.at;
+    .find((s) => point.at >= s.start - 0.05 && point.at < s.end);
+  return span ? span.end : point.at;
 }
 
-async function trackHeadUntukTitik(titik) {
-  if (titik.tracking) {
+async function trackHeadForPoint(point) {
+  if (point.tracking) {
     // Toggle mati -- kembali ke kotak statis, tidak menghapus kotak
     // dasarnya. Reversibel, sesuai permintaan ian.
-    delete titik.tracking;
+    delete point.tracking;
     renderFraming();
     if (typeof saveProject === "function") saveProject();
-    $("#reframeNote").textContent = `head tracking off for point ${jamRange(titik.at)}`;
+    $("#reframeNote").textContent = `head tracking off for point ${jamRange(point.at)}`;
     return;
   }
-  const akhir = batasTracking(titik);
-  if (akhir - titik.at < 0.5) {
+  const end = trackingLimit(point);
+  if (end - point.at < 0.5) {
     $("#reframeNote").textContent =
       "head tracking needs a longer gap to the next point (or clip end).";
     return;
@@ -550,7 +550,7 @@ async function trackHeadUntukTitik(titik) {
     const r = await fetch("/api/headtrack", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        video: chosenSource?.name, start: titik.at, end: akhir, crop: titik.crops[0],
+        video: chosenSource?.name, start: point.at, end, crop: point.crops[0],
       }),
     });
     const d = await r.json();
@@ -559,47 +559,47 @@ async function trackHeadUntukTitik(titik) {
         `head tracking: ${d.error || "not enough tracking data"} — point stays static.`;
       return;
     }
-    titik.tracking = { keyframes: d.keyframes };
+    point.tracking = { keyframes: d.keyframes };
     renderFraming();
     if (typeof saveProject === "function") saveProject();
-    $("#reframeNote").textContent = `head tracking on for point ${jamRange(titik.at)}`;
+    $("#reframeNote").textContent = `head tracking on for point ${jamRange(point.at)}`;
   } catch {
     $("#reframeNote").textContent = "head tracking failed — point stays static.";
   } finally {
     if (btn) { btn.disabled = false; }
-    perbaruiTombolTrackHead();
+    updateTrackHeadButton();
   }
 }
 
 /* Label/keadaan tombol ikut titik yang SEDANG BERLAKU di posisi preview
-   (framingPada(waktuTinjau()), sama seperti renderFraming() menentukan
+   (pointAt(reviewTime()), sama seperti renderFraming() menentukan
    titik aktif untuk kanvas) -- dipanggil dari renderFraming() supaya
    selalu sinkron tanpa perlu dipanggil manual di banyak tempat. */
-function perbaruiTombolTrackHead() {
+function updateTrackHeadButton() {
   const btn = $("#trackHeadBtn");
   if (!btn || btn.disabled) return;
-  const titik = framingPada(waktuTinjau());
-  const bisa = titik && titik.format === "single";
-  btn.hidden = !bisa;
-  if (!bisa) return;
-  const aktif = !!titik.tracking;
-  btn.textContent = aktif ? "Tracking on" : "Track head";
-  btn.setAttribute("aria-pressed", String(aktif));
-  btn.title = aktif
+  const point = pointAt(reviewTime());
+  const canTrack = point && point.format === "single";
+  btn.hidden = !canTrack;
+  if (!canTrack) return;
+  const active = !!point.tracking;
+  btn.textContent = active ? "Tracking on" : "Track head";
+  btn.setAttribute("aria-pressed", String(active));
+  btn.title = active
     ? "Turn off head tracking for this point"
     : "Track head movement for this point only (optional, off by default)";
 }
 
 $("#trackHeadBtn")?.addEventListener("click", () => {
-  const titik = framingPada(waktuTinjau());
-  if (titik) trackHeadUntukTitik(titik);
+  const point = pointAt(reviewTime());
+  if (point) trackHeadForPoint(point);
 });
 
 $("#framingList")?.addEventListener("click", (e) => {
-  const buang = e.target.closest("[data-buang-framing]");
-  if (buang) {
+  const deleteIcon = e.target.closest("[data-buang-framing]");
+  if (deleteIcon) {
     e.stopPropagation();
-    const id = buang.dataset.buangFraming;
+    const id = deleteIcon.dataset.buangFraming;
     if (FRAMING.length <= 1) return;              // titik 00:00 selalu ada
     FRAMING = FRAMING.filter((f) => f.id !== id);
     renderFraming();
@@ -631,10 +631,10 @@ $("#framingList")?.addEventListener("click", (e) => {
     if (!crop) return;
     // Kotak kedua tidak bisa disentuh saat format single: ia memang tidak
     // ikut dirender, jadi menggesernya cuma menyesatkan.
-    if (formatKanvas !== "split" && cropEls().indexOf(crop) > 0) return;
+    if (canvasFormat !== "split" && cropEls().indexOf(crop) > 0) return;
     const k = canvas.getBoundingClientRect();
     const c = crop.getBoundingClientRect();
-    active = { crop, k, ubah: e.target.tagName === "B",
+    active = { crop, k, resizing: e.target.tagName === "B",
                dx: e.clientX - c.left, dy: e.clientY - c.top,
                w0: c.width, h0: c.height };
     crop.setPointerCapture(e.pointerId);
@@ -644,15 +644,15 @@ $("#framingList")?.addEventListener("click", (e) => {
   canvas.addEventListener("pointermove", (e) => {
     if (!active) return;
     const { crop, k } = active;
-    if (active.ubah) {
+    if (active.resizing) {
       // Rasio TERKUNCI: tingginya selalu lebar x rasio format. Yang dibatasi
       // lebarnya, bukan tingginya -- kalau tingginya yang dipotong sendiri,
       // kotaknya jadi gepeng dan hasil rendernya ikut gepeng.
-      const rasio = RASIO[formatKanvas];
-      const kotak = crop.getBoundingClientRect();
-      const maxW = Math.min(k.right - kotak.left, (k.bottom - kotak.top) / rasio);
-      const w = clamp(e.clientX - kotak.left, 40, Math.max(40, maxW));
-      const h = w * rasio;
+      const ratio = RATIO[canvasFormat];
+      const box = crop.getBoundingClientRect();
+      const maxW = Math.min(k.right - box.left, (k.bottom - box.top) / ratio);
+      const w = clamp(e.clientX - box.left, 40, Math.max(40, maxW));
+      const h = w * ratio;
       crop.style.width = `${(w / k.width) * 100}%`;
       crop.style.height = `${(h / k.height) * 100}%`;
     } else {
@@ -661,7 +661,7 @@ $("#framingList")?.addEventListener("click", (e) => {
       crop.style.left = `${(x / k.width) * 100}%`;
       crop.style.top = `${(y / k.height) * 100}%`;
     }
-    simpanKotak();
+    saveBox();
     if (typeof attachVideoGeometry === "function") attachVideoGeometry();
   });
 
@@ -671,7 +671,7 @@ $("#framingList")?.addEventListener("click", (e) => {
       active = null;
       // Geseran langsung menempel ke titik yang sedang berlaku. Kalau kamu
       // mau posisi ini mulai di detik lain, tekan "Kunci framing di sini".
-      const f = simpanKotak() || framingPada(waktuTinjau());
+      const f = saveBox() || pointAt(reviewTime());
       $("#reframeNote").textContent = f
         ? `point ${jamRange(f.at)} moved · press Lock to create a new point`
         : "drag the box onto whoever is talking, then lock it";
@@ -881,11 +881,11 @@ function aiFramingGagal(pesan) {
    di sini -- locate_speaker() yang menentukan posisi dari wajah yang
    ditemukan, bukan dari kotak yang sedang tampil. */
 function aiFramingUkuranKeluaran() {
-  const kotak = formatKanvas === "single" ? kotakDiKanvas() : null;
+  const kotak = canvasFormat === "single" ? boxOnCanvas() : null;
   const w = kotak?.[0];
   return {
-    width: (w && Number.isFinite(w.width)) ? w.width : CROP_AWAL.width,
-    height: (w && Number.isFinite(w.height)) ? w.height : CROP_AWAL.height,
+    width: (w && Number.isFinite(w.width)) ? w.width : INITIAL_CROP.width,
+    height: (w && Number.isFinite(w.height)) ? w.height : INITIAL_CROP.height,
   };
 }
 

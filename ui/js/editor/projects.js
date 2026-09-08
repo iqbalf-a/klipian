@@ -175,7 +175,7 @@ function loadResultIntoLiveState(entry) {
   if (typeof FRAMING !== "undefined") {
     FRAMING = (Array.isArray(entry.framing) && entry.framing.length)
       ? entry.framing
-      : [{ id: "f1", at: 0, format: "single", crops: [{ ...CROP_AWAL }] }];
+      : [{ id: "f1", at: 0, format: "single", crops: [{ ...INITIAL_CROP }] }];
     if (typeof framingSeq !== "undefined") {
       framingSeq = Math.max(0, ...FRAMING.map((f) => parseInt(String(f.id).slice(1), 10) || 0));
     }
@@ -375,7 +375,7 @@ async function openProject(video) {
 function coverUrl(p) {
   const DEFAULT_CROP = { left: 37, top: 4, width: 26, height: 92 };
   let c = p.crop || DEFAULT_CROP;
-  // Tinggi kotak framing diturunkan saat DIBACA (samakanRasio), jadi angka
+  // Tinggi kotak framing diturunkan saat DIBACA (matchRatio), jadi angka
   // yang tersimpan bisa saja nol atau tidak masuk akal. ffmpeg tetap menurut
   // dan memberi sampul setinggi 2 piksel -- gagal yang tidak berbunyi apa-apa.
   const valid = Number.isFinite(c.width) && c.width > 1
