@@ -4,12 +4,12 @@
    Rewritten here (not imported) because this page intentionally avoids
    loading app.js/history.js, which are tied to elements in index.html.
 
-   Requires $/escapeHTML/kapan from helpers.js -- loaded before this file.
+   Requires $/escapeHTML/timeAgo from helpers.js -- loaded before this file.
    ========================================================================== */
 
 let RENDER = [];
 
-async function muatRender() {
+async function loadRender() {
   const note = $("#renderNote");
   try {
     const d = await (await fetch("/api/history")).json();
@@ -23,18 +23,18 @@ async function muatRender() {
     const mb = RENDER.reduce((t, r) => t + r.mb, 0);
     note.textContent = RENDER.length
       ? `${RENDER.length} file${RENDER.length > 1 ? "s" : ""} · ${mb.toFixed(1)} MB`
-      : "belum ada yang dirender";
+      : "nothing rendered yet";
   }
   const list = $("#renderList");
   if (!RENDER.length) {
-    list.innerHTML = `<p class="empty">Folder out/ masih kosong.</p>`;
+    list.innerHTML = `<p class="empty">Nothing in the out/ folder yet.</p>`;
     return;
   }
   list.innerHTML = RENDER.map((r, i) => `
     <div class="ws-row" data-i="${i}">
       <span class="name">${escapeHTML(r.file)} <span class="data">— ${escapeHTML(r.video)}</span></span>
       <span class="data">${r.mb} MB</span>
-      <span class="data">${kapan(r.at)}</span>
+      <span class="data">${timeAgo(r.at)}</span>
       <button class="rounded-s px-2.5 py-1 text-[12px] hover:bg-kaca" data-action="play">Play</button>
       <button class="rounded-s px-2.5 py-1 text-[12px] border border-garis hover:bg-kaca" data-action="open">Open folder</button>
     </div>`).join("");
@@ -54,8 +54,8 @@ $("#renderList")?.addEventListener("click", async (e) => {
   // Restore label is read from data-label, NOT from the current visible
   // text: clicking again while the button still says "opened" would lock
   // that temporary label in permanently (same pattern as history.js).
-  const semula = b.dataset.label || b.textContent;
-  b.dataset.label = semula;
+  const previous = b.dataset.label || b.textContent;
+  b.dataset.label = previous;
   try {
     const j = await (await fetch("/api/open-folder", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -66,7 +66,7 @@ $("#renderList")?.addEventListener("click", async (e) => {
   } catch (err) {
     b.textContent = String(err.message || "failed").slice(0, 22);
   }
-  setTimeout(() => { b.textContent = semula; }, 2200);
+  setTimeout(() => { b.textContent = previous; }, 2200);
 });
 
-muatRender();
+loadRender();

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="id">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -32,13 +32,13 @@
          Replaces workspace/schedule/content-calendar.xlsx: same content (1 row =
          1 clip), but stored in clips.json via /api/workspace/clips so it can
          be edited directly from here instead of opening a separate Excel. -->
-    <section class="ws-panel" id="panelKlip">
+    <section class="ws-panel" id="panelClips">
       <div class="flex items-center gap-3">
-        <h1 class="text-[20px] font-extrabold tracking-tight" style="font-stretch:112%">Klip</h1>
-        <span class="text-teks-samar text-[13px]" id="klipRingkasan">memuat…</span>
+        <h1 class="text-[20px] font-extrabold tracking-tight" style="font-stretch:112%">Clips</h1>
+        <span class="text-teks-samar text-[13px]" id="clipSummary">loading…</span>
         <button class="ml-auto rounded-s bg-aksen text-[13px] font-semibold px-3 py-1.5
                        text-[oklch(0.145_0.010_258)] hover:brightness-110"
-                id="klipTambahBtn" type="button">+ Klip baru</button>
+                id="addClipBtn" type="button">+ New clip</button>
       </div>
       <!-- Only the columns that are useful at a glance: status, title, platform,
            schedule. The rest (source episode, file, description, caption, link,
@@ -46,28 +46,28 @@
            to make the table 1700px wide and require horizontal scrolling just
            to see the next row. -->
       <div class="overflow-x-auto rounded-m">
-        <table class="w-full border-collapse text-[13px]" id="klipTable">
+        <table class="w-full border-collapse text-[13px]" id="clipTable">
           <thead>
             <tr>
               <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
                          uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
                   style="width:110px">Status</th>
               <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
-                         uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis">Judul / hook</th>
+                         uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis">Title / hook</th>
               <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
                          uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
                   style="width:150px">Platform</th>
               <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
                          uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
-                  style="width:130px">Tgl upload</th>
+                  style="width:130px">Upload date</th>
               <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
                          uppercase tracking-wider text-teks-samar px-3 py-2 border-b border-garis"
-                  style="width:90px">Jam</th>
+                  style="width:90px">Time</th>
               <th class="sticky top-0 z-10 bg-surface-2 border-b border-garis" style="width:80px"></th>
               <th class="sticky top-0 z-10 bg-surface-2 border-b border-garis" style="width:36px"></th>
             </tr>
           </thead>
-          <tbody id="klipBody"></tbody>
+          <tbody id="clipBody"></tbody>
         </table>
       </div>
     </section>
@@ -77,32 +77,32 @@
          for free, no need for custom overlay code. Title is shown as context
          ONLY (read-only) -- edited from the table so there aren't two sources
          of truth for the same field. -->
-    <dialog class="ws-dialog" id="klipDetailDialog">
-      <form method="dialog" class="flex flex-col gap-4" id="klipDetailForm">
+    <dialog class="ws-dialog" id="clipDetailDialog">
+      <form method="dialog" class="flex flex-col gap-4" id="clipDetailForm">
         <div class="flex items-start gap-3">
-          <h2 class="text-[15px] font-extrabold leading-tight" id="klipDetailJudul">Detail klip</h2>
-          <button class="ml-auto delete-btn" type="submit" value="cancel" title="Tutup">✕</button>
+          <h2 class="text-[15px] font-extrabold leading-tight" id="clipDetailTitle">Clip details</h2>
+          <button class="ml-auto delete-btn" type="submit" value="cancel" title="Close">✕</button>
         </div>
-        <label class="ws-field">Sumber episode
+        <label class="ws-field">Source episode
           <input class="ws-input" type="text" data-field="episode"></label>
-        <label class="ws-field">File klip
+        <label class="ws-field">Clip file
           <input class="ws-input" type="text" data-field="file"></label>
-        <label class="ws-field">Deskripsi + hashtag (YouTube)
+        <label class="ws-field">Description + hashtags (YouTube)
           <textarea class="ws-input" rows="3" data-field="description"></textarea></label>
-        <label class="ws-field">Caption TikTok
+        <label class="ws-field">TikTok caption
           <textarea class="ws-input" rows="3" data-field="tiktokCaption"></textarea></label>
-        <label class="ws-field">Link YouTube
+        <label class="ws-field">YouTube link
           <input class="ws-input" type="url" data-field="youtubeUrl"></label>
-        <label class="ws-field">Link TikTok
+        <label class="ws-field">TikTok link
           <input class="ws-input" type="url" data-field="tiktokUrl"></label>
-        <label class="ws-field">Catatan
+        <label class="ws-field">Notes
           <textarea class="ws-input" rows="2" data-field="notes"></textarea></label>
         <div class="flex gap-2 justify-end">
           <button class="rounded-s px-3 py-1.5 text-[13px] border border-garis hover:bg-kaca"
-                  type="submit" value="cancel">Tutup</button>
+                  type="submit" value="cancel">Close</button>
           <button class="rounded-s bg-aksen text-[13px] font-semibold px-3 py-1.5
                          text-[oklch(0.145_0.010_258)] hover:brightness-110"
-                  type="submit" value="save">Simpan</button>
+                  type="submit" value="save">Save</button>
         </div>
       </form>
     </dialog>
@@ -113,8 +113,8 @@
          no second definition of "what's been rendered". -->
     <section class="ws-panel" id="panelRender">
       <div class="flex items-center gap-3">
-        <h1 class="text-[20px] font-extrabold tracking-tight" style="font-stretch:112%">Hasil render</h1>
-        <span class="text-teks-samar text-[13px]" id="renderNote">memuat…</span>
+        <h1 class="text-[20px] font-extrabold tracking-tight" style="font-stretch:112%">Rendered output</h1>
+        <span class="text-teks-samar text-[13px]" id="renderNote">loading…</span>
       </div>
       <div id="renderList"></div>
     </section>
@@ -125,7 +125,7 @@
     <section class="ws-panel" id="panelAssets">
       <div class="flex items-center gap-3">
         <h1 class="text-[20px] font-extrabold tracking-tight" style="font-stretch:112%">Assets</h1>
-        <span class="text-teks-samar text-[13px]" id="assetNote">memuat…</span>
+        <span class="text-teks-samar text-[13px]" id="assetNote">loading…</span>
       </div>
       <div id="assetList"></div>
     </section>

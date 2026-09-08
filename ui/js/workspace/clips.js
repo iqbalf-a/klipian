@@ -23,30 +23,30 @@ const DETAIL_FIELDS = ["episode", "file", "description", "tiktokCaption",
 
 let CLIPS = [];
 
-async function muatKlip() {
+async function loadClips() {
   try {
     const d = await (await fetch("/api/workspace/clips")).json();
     CLIPS = d.clip || [];
   } catch {
     CLIPS = [];
-    $("#klipRingkasan").textContent = "needs klipian serve";
-    gambarKlip();
+    $("#clipSummary").textContent = "needs klipian serve";
+    drawClips();
     return;
   }
-  ringkasKlip();
-  gambarKlip();
+  summarizeClips();
+  drawClips();
 }
 
-function ringkasKlip() {
+function summarizeClips() {
   const per = {};
   for (const c of CLIPS) per[c.status] = (per[c.status] || 0) + 1;
-  const bagian = STATUS.filter((s) => per[s]).map((s) => `${per[s]} ${s.toLowerCase()}`);
-  $("#klipRingkasan").textContent = bagian.length
-    ? `${CLIPS.length} klip · ${bagian.join(" · ")}`
-    : "belum ada klip";
+  const parts = STATUS.filter((s) => per[s]).map((s) => `${per[s]} ${s.toLowerCase()}`);
+  $("#clipSummary").textContent = parts.length
+    ? `${CLIPS.length} clip${CLIPS.length > 1 ? "s" : ""} · ${parts.join(" · ")}`
+    : "no clips yet";
 }
 
-function baris(c) {
+function row(c) {
   const opt = (list, cur) => list.map((v) =>
     `<option value="${v}" ${v === cur ? "selected" : ""}>${v}</option>`).join("");
   const f = (name, type = "text") =>
@@ -64,20 +64,20 @@ function baris(c) {
       <td class="${td}">${f("date", "date")}</td>
       <td class="${td}">${f("time", "time")}</td>
       <td class="${td}"><button class="ws-detail" data-action="detail" type="button">Detail</button></td>
-      <td class="${td}"><button class="delete-btn" data-action="delete" type="button" title="Hapus klip ini">✕</button></td>
+      <td class="${td}"><button class="delete-btn" data-action="delete" type="button" title="Delete this clip">✕</button></td>
     </tr>`;
 }
 
-function gambarKlip() {
-  const body = $("#klipBody");
+function drawClips() {
+  const body = $("#clipBody");
   if (!body) return;
   if (!CLIPS.length) {
     body.innerHTML = `<tr><td colspan="7" class="empty">
-      Belum ada klip. Klik "+ Klip baru" buat mulai nyatet jadwal upload.
+      No clips yet. Click "+ New clip" to start tracking your upload schedule.
     </td></tr>`;
     return;
   }
-  body.innerHTML = CLIPS.map(baris).join("");
+  body.innerHTML = CLIPS.map(row).join("");
 }
 
 /* Table rows only have inputs for INLINE_FIELDS -- detail fields (still
@@ -85,7 +85,7 @@ function gambarKlip() {
    not just the fields present in the DOM, so that editing in the table
    doesn't silently wipe out description/caption/link/notes that were
    filled in via the Detail dialog. */
-function kumpulkanBaris(tr) {
+function collectRow(tr) {
   const id = tr.dataset.id;
   const clip = { ...(CLIPS.find((c) => c.id === id) || {}), id };
   clip.status = $("[data-field=status]", tr).value;
@@ -97,7 +97,7 @@ function kumpulkanBaris(tr) {
   return clip;
 }
 
-async function simpanClip(clip) {
+async function saveClip(clip) {
   try {
     const j = await (await fetch("/api/workspace/clips", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -109,26 +109,26 @@ async function simpanClip(clip) {
     clip.id = j.id;
     const i = CLIPS.findIndex((c) => c.id === clip.id);
     if (i >= 0) CLIPS[i] = clip; else CLIPS.push(clip);
-    ringkasKlip();
+    summarizeClips();
     return j.id;
   } catch (err) {
-    console.error("gagal simpan klip:", err);
+    console.error("failed to save clip:", err);
     return null;
   }
 }
 
-$("#klipBody")?.addEventListener("change", (e) => {
+$("#clipBody")?.addEventListener("change", (e) => {
   const tr = e.target.closest("tr[data-id]");
   if (!tr) return;
   if (e.target.matches("[data-field=status]"))
     e.target.dataset.v = e.target.value;
-  simpanClip(kumpulkanBaris(tr));
+  saveClip(collectRow(tr));
 });
 
-$("#klipBody")?.addEventListener("click", async (e) => {
+$("#clipBody")?.addEventListener("click", async (e) => {
   const detail = e.target.closest('[data-action="detail"]');
   if (detail) {
-    bukaDetail(detail.closest("tr[data-id]")?.dataset.id);
+    openDetail(detail.closest("tr[data-id]")?.dataset.id);
     return;
   }
   const b = e.target.closest('[data-action="delete"]');
@@ -142,14 +142,14 @@ $("#klipBody")?.addEventListener("click", async (e) => {
       body: JSON.stringify({ id, delete: true }),
     });
   } catch (err) {
-    console.error("gagal hapus klip:", err);
+    console.error("failed to delete clip:", err);
   }
   CLIPS = CLIPS.filter((c) => c.id !== id);
-  ringkasKlip();
-  gambarKlip();
+  summarizeClips();
+  drawClips();
 });
 
-$("#klipTambahBtn")?.addEventListener("click", async () => {
+$("#addClipBtn")?.addEventListener("click", async () => {
   try {
     const j = await (await fetch("/api/workspace/clips", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -157,44 +157,44 @@ $("#klipTambahBtn")?.addEventListener("click", async () => {
     })).json();
     if (j.error) throw new Error(j.error);
     CLIPS.unshift({ id: j.id, status: "Draft", platform: "YouTube + TikTok" });
-    ringkasKlip();
-    gambarKlip();
+    summarizeClips();
+    drawClips();
   } catch (err) {
-    console.error("gagal bikin klip baru:", err);
+    console.error("failed to create new clip:", err);
   }
 });
 
 /* ---------- Detail dialog ---------- */
 
-const klipDialog = $("#klipDetailDialog");
-const klipDetailForm = $("#klipDetailForm");
+const clipDialog = $("#clipDetailDialog");
+const clipDetailForm = $("#clipDetailForm");
 
-function bukaDetail(id) {
-  if (!id || !klipDialog) return;
+function openDetail(id) {
+  if (!id || !clipDialog) return;
   const c = CLIPS.find((x) => x.id === id);
   if (!c) return;
-  klipDialog.dataset.id = id;
+  clipDialog.dataset.id = id;
   // Title here is read-only context -- edited from the table so there's
   // no single source of truth for the same field in two places.
-  $("#klipDetailJudul").textContent = c.title || "(tanpa judul)";
+  $("#clipDetailTitle").textContent = c.title || "(untitled)";
   for (const name of DETAIL_FIELDS) {
-    const el = $(`[data-field="${name}"]`, klipDetailForm);
+    const el = $(`[data-field="${name}"]`, clipDetailForm);
     if (el) el.value = c[name] || "";
   }
-  klipDialog.showModal();
+  clipDialog.showModal();
 }
 
-klipDialog?.addEventListener("close", async () => {
-  if (klipDialog.returnValue !== "save") return;
-  const id = klipDialog.dataset.id;
+clipDialog?.addEventListener("close", async () => {
+  if (clipDialog.returnValue !== "save") return;
+  const id = clipDialog.dataset.id;
   const existing = CLIPS.find((c) => c.id === id);
   if (!existing) return;
   const clip = { ...existing };
   for (const name of DETAIL_FIELDS) {
-    const el = $(`[data-field="${name}"]`, klipDetailForm);
+    const el = $(`[data-field="${name}"]`, clipDetailForm);
     if (el) clip[name] = el.value;
   }
-  await simpanClip(clip);
+  await saveClip(clip);
 });
 
-muatKlip();
+loadClips();

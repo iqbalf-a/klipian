@@ -5,10 +5,10 @@
    which is expected behavior (see /api/workspace/assets in server.py),
    not an error.
 
-   Requires $/escapeHTML/kapan from helpers.js -- loaded before this file.
+   Requires $/escapeHTML/timeAgo from helpers.js -- loaded before this file.
    ========================================================================== */
 
-async function muatAsset() {
+async function loadAssets() {
   const note = $("#assetNote");
   let asset = [];
   try {
@@ -19,20 +19,20 @@ async function muatAsset() {
     return;
   }
   if (note) note.textContent = asset.length
-    ? `${asset.length} berkas di workspace/assets/`
-    : "workspace/assets/ masih kosong";
+    ? `${asset.length} file${asset.length > 1 ? "s" : ""} in workspace/assets/`
+    : "workspace/assets/ is empty";
   const list = $("#assetList");
   if (!asset.length) {
-    list.innerHTML = `<p class="empty">Taruh watermark/font/template custom
-      di folder <code>workspace/assets/</code> kalau butuh di luar bawaan klipian.</p>`;
+    list.innerHTML = `<p class="empty">Put custom watermark/font/template files
+      in the <code>workspace/assets/</code> folder if you need them outside klipian's built-ins.</p>`;
     return;
   }
   list.innerHTML = asset.map((a) => `
     <div class="ws-row">
       <span class="name">${escapeHTML(a.name)}</span>
       <span class="data">${a.kb} KB</span>
-      <span class="data">${kapan(a.at)}</span>
+      <span class="data">${timeAgo(a.at)}</span>
     </div>`).join("");
 }
 
-muatAsset();
+loadAssets();

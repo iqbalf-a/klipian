@@ -15,20 +15,20 @@ function escapeHTML(s) {
 }
 
 /* "just now", "12 min ago", "3 hr ago", "yesterday", then date. */
-function kapan(detikEpoch) {
-  const lalu = Date.now() / 1000 - detikEpoch;
-  if (lalu < 90) return "just now";
-  if (lalu < 3600) return `${Math.round(lalu / 60)} min ago`;
-  if (lalu < 86400) return `${Math.round(lalu / 3600)} hr ago`;
-  if (lalu < 172800) return "yesterday";
-  return new Date(detikEpoch * 1000).toLocaleDateString("en-GB",
+function timeAgo(epochSeconds) {
+  const elapsed = Date.now() / 1000 - epochSeconds;
+  if (elapsed < 90) return "just now";
+  if (elapsed < 3600) return `${Math.round(elapsed / 60)} min ago`;
+  if (elapsed < 86400) return `${Math.round(elapsed / 3600)} hr ago`;
+  if (elapsed < 172800) return "yesterday";
+  return new Date(epochSeconds * 1000).toLocaleDateString("en-GB",
     { day: "numeric", month: "short" });
 }
 
-function jamSekarang() {
+function updateClock() {
   const el = $("#wsClock");
-  if (el) el.textContent = new Date().toLocaleTimeString("id-ID",
+  if (el) el.textContent = new Date().toLocaleTimeString("en-GB",
     { hour: "2-digit", minute: "2-digit" });
 }
-jamSekarang();
-setInterval(jamSekarang, 30000);
+updateClock();
+setInterval(updateClock, 30000);
