@@ -1,17 +1,18 @@
-/* klipian — workspace: panel Klip
+/* klipian — workspace: panel Clips
    ==========================================================================
-   Jadwal upload: status, sumber episode, judul/hook, deskripsi + hashtag,
-   caption TikTok, tanggal & jam, link setelah posted. Diedit langsung di
-   tabel, tersimpan ke workspace/schedule/clips.json lewat /api/workspace/clips
-   tiap kali sebuah sel selesai diedit (event "change", bukan tombol Save).
+   Upload schedule: status, episode source, title/hook, description +
+   hashtags, TikTok caption, date & time, post-publish link. Edited
+   directly in the table, saved to workspace/schedule/clips.json via
+   /api/workspace/clips whenever a cell finishes editing (the "change"
+   event, not a Save button).
 
-   Tabel cuma menampilkan kolom INLINE (status, judul, platform, jadwal) --
-   dulu 13 kolom penuh bikin tabel selebar 1700px dan wajib scroll horizontal
-   cuma untuk membaca baris berikutnya. Field DETAIL (episode, file,
-   deskripsi, caption, link, catatan) dipindah ke dialog per baris, dibuka
-   lewat tombol "Detail" (lihat bukaDetail()).
+   Table only shows INLINE columns (status, title, platform, schedule) --
+   the old 13-column layout made the table 1700px wide and forced
+   horizontal scrolling just to read the next row. DETAIL fields
+   (episode, file, description, caption, link, notes) were moved to a
+   per-row dialog, opened via the "Detail" button (see openDetail()).
 
-   Butuh $/escapeHTML dari helpers.js -- dimuat sebelum file ini.
+   Requires $/escapeHTML from helpers.js -- loaded before this file.
    ========================================================================== */
 
 const STATUS = ["Draft", "Ready", "Scheduled", "Posted", "Discarded"];
@@ -79,11 +80,11 @@ function gambarKlip() {
   body.innerHTML = CLIPS.map(baris).join("");
 }
 
-/* Baris tabel cuma punya input untuk INLINE_FIELDS -- field detail (masih
-   tersimpan di CLIPS dari muat/simpan sebelumnya) HARUS ikut disalin,
-   bukan cuma field yang ada di DOM, supaya edit-di-tabel tidak diam-diam
-   mengosongkan deskripsi/caption/link/catatan yang sudah diisi lewat
-   dialog Detail. */
+/* Table rows only have inputs for INLINE_FIELDS -- detail fields (still
+   stored in CLIPS from the previous load/save) MUST be carried along,
+   not just the fields present in the DOM, so that editing in the table
+   doesn't silently wipe out description/caption/link/notes that were
+   filled in via the Detail dialog. */
 function kumpulkanBaris(tr) {
   const id = tr.dataset.id;
   const clip = { ...(CLIPS.find((c) => c.id === id) || {}), id };
@@ -103,8 +104,8 @@ async function simpanClip(clip) {
       body: JSON.stringify(clip),
     })).json();
     if (j.error) throw new Error(j.error);
-    // id klip baru datang dari server -- baris yang baru dibuat lewat
-    // "+ Klip baru" belum punya id sampai simpanan pertama ini.
+    // New clip ID comes from the server -- rows created via "+ New clip"
+    // don't have an ID until this first save.
     clip.id = j.id;
     const i = CLIPS.findIndex((c) => c.id === clip.id);
     if (i >= 0) CLIPS[i] = clip; else CLIPS.push(clip);
@@ -134,7 +135,7 @@ $("#klipBody")?.addEventListener("click", async (e) => {
   if (!b) return;
   const tr = b.closest("tr[data-id]");
   const id = tr?.dataset.id;
-  if (!id) { tr.remove(); return; }   // baris kosong yang belum pernah disimpan
+  if (!id) { tr.remove(); return; }   // empty row that was never saved
   try {
     await fetch("/api/workspace/clips", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -163,7 +164,7 @@ $("#klipTambahBtn")?.addEventListener("click", async () => {
   }
 });
 
-/* ---------- dialog Detail ---------- */
+/* ---------- Detail dialog ---------- */
 
 const klipDialog = $("#klipDetailDialog");
 const klipDetailForm = $("#klipDetailForm");
@@ -173,8 +174,8 @@ function bukaDetail(id) {
   const c = CLIPS.find((x) => x.id === id);
   if (!c) return;
   klipDialog.dataset.id = id;
-  // Judul di sini cuma KONTEKS (read-only) -- diedit dari tabel supaya
-  // tidak ada dua sumber kebenaran untuk field yang sama.
+  // Title here is read-only context -- edited from the table so there's
+  // no single source of truth for the same field in two places.
   $("#klipDetailJudul").textContent = c.title || "(tanpa judul)";
   for (const name of DETAIL_FIELDS) {
     const el = $(`[data-field="${name}"]`, klipDetailForm);

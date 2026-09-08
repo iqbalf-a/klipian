@@ -1,9 +1,9 @@
-/* klipian — workspace: helper bersama
+/* klipian — workspace: shared helpers
    ==========================================================================
-   Dipakai oleh clips.js, render.js, assets.js -- dimuat PALING AWAL (lihat
-   urutan <script> di workspace.html). Halaman ini berdiri sendiri, tidak
-   memuat app.js: app.js terikat ke elemen index.html dan tidak perlu
-   dibebankan ke sini juga.
+   Used by clips.js, render.js, assets.js -- loaded FIRST (see <script>
+   order in workspace.html). This page is standalone, doesn't load app.js:
+   app.js is bound to index.html elements and doesn't need to be loaded
+   here too.
    ========================================================================== */
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -14,7 +14,7 @@ function escapeHTML(s) {
   })[c]);
 }
 
-/* "just now", "12 min ago", "3 hr ago", "yesterday", lalu tanggal. */
+/* "just now", "12 min ago", "3 hr ago", "yesterday", then date. */
 function kapan(detikEpoch) {
   const lalu = Date.now() / 1000 - detikEpoch;
   if (lalu < 90) return "just now";

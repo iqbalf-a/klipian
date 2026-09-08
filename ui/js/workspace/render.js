@@ -1,10 +1,10 @@
-/* klipian — workspace: panel Hasil render
+/* klipian — workspace: panel Render Results
    ==========================================================================
-   Sumbernya /api/history -- sama seperti layar History di editor. Ditulis
-   ulang di sini (bukan di-import) karena halaman ini sengaja tidak memuat
-   app.js/history.js yang terikat ke elemen index.html.
+   Source is /api/history -- same as the History panel in the editor.
+   Rewritten here (not imported) because this page intentionally avoids
+   loading app.js/history.js, which are tied to elements in index.html.
 
-   Butuh $/escapeHTML/kapan dari helpers.js -- dimuat sebelum file ini.
+   Requires $/escapeHTML/kapan from helpers.js -- loaded before this file.
    ========================================================================== */
 
 let RENDER = [];
@@ -51,9 +51,9 @@ $("#renderList")?.addEventListener("click", async (e) => {
     window.open(r.url, "_blank", "noopener");
     return;
   }
-  // Label pemulih diambil dari data-label, BUKAN dari teks yang sedang
-  // tampil: klik kedua saat tombol masih menulis "opened" akan mengunci
-  // label sementara itu selamanya (lihat pola yang sama di history.js).
+  // Restore label is read from data-label, NOT from the current visible
+  // text: clicking again while the button still says "opened" would lock
+  // that temporary label in permanently (same pattern as history.js).
   const semula = b.dataset.label || b.textContent;
   b.dataset.label = semula;
   try {

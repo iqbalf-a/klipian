@@ -1,10 +1,11 @@
 /* klipian — workspace: panel Assets
    ==========================================================================
-   Isi workspace/assets/ -- tempat watermark/font/template custom di luar
-   bawaan klipian. Kosong secara default, itu keadaan normal (lihat
-   /api/workspace/assets di server.py), bukan error.
+   Contents of workspace/assets/ -- where custom watermarks, fonts, and
+   templates live outside klipian's built-in defaults. Empty by default,
+   which is expected behavior (see /api/workspace/assets in server.py),
+   not an error.
 
-   Butuh $/escapeHTML/kapan dari helpers.js -- dimuat sebelum file ini.
+   Requires $/escapeHTML/kapan from helpers.js -- loaded before this file.
    ========================================================================== */
 
 async function muatAsset() {
