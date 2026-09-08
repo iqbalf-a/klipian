@@ -1,35 +1,34 @@
-/* klipian — round-trip lewat Claude web
+/* klipian — round-trip via Claude web
    ==========================================================================
-   Alurnya:
+   Flow:
 
-     1  drop video di layar Siapkan
-     2  aplikasi menyiapkan berkas berisi rubrik + transkrip   -> Unduh
-     3  berkas itu dijatuhkan ke Claude web, minta "kerjakan"
-     4  Claude web membalas JSON
-     5  JSON ditempel di sini                                  -> Impor
-     6  aplikasi memotong sesuai JSON, klip muncul di Kandidat
+     1  drop video on the Prepare screen
+     2  app builds a file containing rubric + transcript            -> Download
+     3  that file is dropped into Claude web, ask it to "work on it"
+     4  Claude web replies with JSON
+     5  JSON is pasted here                                        -> Import
+     6  app cuts according to JSON, clips appear in Candidates
 
-   Tidak ada API key di jalur ini. Yang mengeluarkan biaya cuma langganan
-   Claude yang sudah kamu punya.
+   No API key in this path. The only cost is your existing Claude subscription.
 
-   Transkripnya NYATA: dibaca dari workspace/cache/ yang diisi `klipian transcribe`.
-   Server melayani akar proyek, jadi UI bisa menjangkaunya.
+   The transcript is REAL: read from workspace/cache/ populated by `klipian transcribe`.
+   The server serves the project root, so the UI can reach it.
    ========================================================================== */
 
-const ROOT = "../";                       // ui/ -> akar proyek
+const ROOT = "../";                       // ui/ -> project root
 let realTranscript = null;                // { duration, segments[], words[] }
 
-/* ---------- menemukan transkrip yang cocok dengan file yang dijatuhkan ----
-   Nama berkas cache mengandung sidik jari, jadi dicocokkan lewat batang
-   namanya: radityadika-podcast.mp4 -> radityadika-podcast.*.transcript.json */
+/* ---------- finding a transcript that matches the dropped file ----
+   The cache filename contains a fingerprint, so we match via its stem:
+   radityadika-podcast.mp4 -> radityadika-podcast.*.transcript.json */
 
 async function listCache() {
-  // Server klipian menyediakan daftarnya lewat API. Kalau UI dibuka lewat
-  // http.server biasa, jatuh kembali ke daftar direktori HTML-nya.
+  // The klipian server provides the listing via API. If the UI is opened via
+  // a plain http.server, fall back to its HTML directory listing.
   try {
     const d = await (await fetch("/api/cache")).json();
     if (d.transcript?.length) return d.transcript;
-  } catch { /* lanjut ke cadangan */ }
+  } catch { /* fall back to directory listing */ }
   try {
     const html = await (await fetch(ROOT + "workspace/cache/")).text();
     return [...html.matchAll(/href="([^"]+\.transcript\.json)"/g)].map((m) => m[1]);
@@ -48,7 +47,7 @@ async function findTranscript(videoName) {
   return d;
 }
 
-/* ---------- langkah 2: menyusun berkas untuk Claude ---------- */
+/* ---------- step 2: building the file for Claude ---------- */
 
 const fmtStamp = (d) => {
   const t = Math.round(d);
@@ -58,8 +57,8 @@ const fmtStamp = (d) => {
 };
 
 async function buildBrief(name) {
-  // Satu rubrik saja sejak kategori dibuang. Yang ini bekerja dari transkrip,
-  // jadi berlaku untuk sumber apa pun yang ada suaranya.
+  // Just one rubric now that categories were removed. This one works from the transcript,
+  // so it applies to any source that has audio.
   const rubricFile = "dialog-podcast.md";
   let rubric = "";
   try { rubric = await (await fetch(ROOT + "prompts/rubrik/" + rubricFile)).text(); } catch {}
@@ -70,12 +69,12 @@ async function buildBrief(name) {
     .map((s) => `[${fmtStamp(s.start)}] ${s.text.trim()}`)
     .join("\n");
 
-  // Sinyal TERPISAH dari transkrip -- murni dari volume suara (lihat
-  // klipian/audio_energy.py), dipicu otomatis sekali per video bareng
-  // transkripsi. Whisper jarang menuliskan tawa/reaksi keras sebagai teks
-  // yang bisa diandalkan; ini bukti yang sungguhan diukur, bukan tebakan
-  // dari tanda baca. Kosong kalau belum sempat dianalisis ATAU memang tidak
-  // ada momen menonjol -- dua-duanya sama saja di sini: bagiannya dilewati.
+  // SEPARATE signal from the transcript -- purely from audio volume (see
+  // klipian/audio_energy.py), triggered automatically once per video alongside
+  // transcription. Whisper rarely captures laughter/strong reactions as reliable
+  // text; this is actual measured evidence, not punctuation guesswork.
+  // Empty if not yet analyzed OR if there simply are no prominent moments --
+  // both are the same here: the section is skipped.
   let energyBlock = "";
   try {
     const d = await (await fetch(`/api/audio-energy?video=${encodeURIComponent(name)}`)).json();
@@ -96,7 +95,7 @@ transkrip sekitar waktu itu sebelum menjadikannya alasan skor.
 ${energyList}
 `;
     }
-  } catch { /* tanpa backend tidak ada yang bisa diambil -- brief tetap jalan tanpa bagian ini */ }
+  } catch { /* no backend means nothing to fetch -- brief still works without this section */ }
 
   return `# Cari klip — ${name}
 
@@ -145,20 +144,20 @@ ${row}
 `;
 }
 
-/* ---------- langkah 5: membaca balasan Claude ---------- */
+/* ---------- step 5: reading Claude's reply ---------- */
 
 const toSeconds = (t) => {
-  // String kosong/spasi -> NaN, bukan 0. Number("") adalah 0, jadi tanpa ini
-  // "start": "" lolos penjaga Number.isFinite dan jadi klip mulai 0:00.
+  // Empty string/space -> NaN, not 0. Number("") is 0, so without this guard
+  // "start": "" would pass Number.isFinite and become a clip starting at 0:00.
   const s = String(t ?? "").trim();
   if (!s) return NaN;
   return s.split(":").reduce((a, b) => a * 60 + Number(b), 0);
 };
 
 function extractJSON(text) {
-  // JSON.parse melempar pesan teknis berbahasa Inggris ("Expected property
-  // name or '}' ... at position 14"). Dibungkus supaya yang dibaca pengguna
-  // adalah kalimat yang bisa ditindaklanjuti.
+  // JSON.parse throws a technical English error message ("Expected property
+  // name or '}' ... at position 14"). Wrapped so the user sees an
+  // actionable sentence instead.
   const parse = (s) => {
     try {
       return JSON.parse(s);
@@ -174,12 +173,12 @@ function extractJSON(text) {
   return parse(text.slice(a, b + 1));
 }
 
-/* Geser ke batas kata terdekat. Inilah yang tidak bisa dikerjakan Claude:
-   ia tidak punya timestamp per kata. Kita punya. */
-/* Sejauh mana titik potong boleh digeser. Sama dengan SNAP_MAX di
-   klipian/roundtrip.py -- kalau salah satu diubah, ubah keduanya. Batas kata
-   yang lebih jauh dari ini berarti Claude menunjuk ke keheningan, bukan ke
-   kata yang meleset sedikit. */
+/* Snap to nearest word boundary. This is what Claude cannot do:
+   it has no per-word timestamps. We do. */
+/* How far a cut point may be shifted. Must match SNAP_MAX in
+   klipian/roundtrip.py -- if one is changed, change both. A word boundary
+   farther away than this means Claude pointed at silence, not at a word
+   that is only slightly off. */
 const SNAP_MAX = 2.0;
 
 function snapToWord(time, side) {
@@ -191,35 +190,35 @@ function snapToWord(time, side) {
   return Math.abs(nearest - time) <= SNAP_MAX ? nearest : time;
 }
 
-/* Kunci Indonesia (klip, mulai, judul, ...) sengaja tetap diterima sebagai
-   cadangan. Prompt sekarang meminta kunci Inggris, tapi balasan Claude yang
-   terlanjur disimpan sebelum penggantian nama masih harus bisa diimpor --
-   dan Claude sesekali menjawab memakai istilah dari prosa promptnya. */
+/* Indonesian keys (klip, mulai, judul, ...) are intentionally still accepted as
+   fallback. The prompt now asks for English keys, but Claude replies that were
+   saved before the rename must still be importable -- and Claude occasionally
+   answers using terms from the prompt prose. */
 function importJSON(text) {
   const data = extractJSON(text);
   const raw = data.clips || data.klip || [];
-  if (!raw.length) throw new Error('JSON-nya tidak punya daftar "clips".');
+  if (!raw.length) throw new Error('JSON does not have a "clips" list.');
 
   const result = raw.map((k) => {
-    // Klip tanpa titik waktu dilewati, bukan diterima jadi 0:00. Tanpa penjaga
-    // ini toSeconds(undefined) menghasilkan NaN, dan perbandingan NaN yang
-    // selalu false membuat snapToWord memulangkan kata pertama -- satu field
-    // yang lupa ditulis Claude jadi klip yang mulai dari awal video.
+    // Clips without timestamps are skipped, not accepted as 0:00. Without this
+    // guard toSeconds(undefined) returns NaN, and the always-false NaN comparison
+    // causes snapToWord to return the first word -- one field Claude forgot to
+    // write turns into a clip starting at the beginning of the video.
     const m0 = toSeconds(k.start ?? k.mulai);
     const s0 = toSeconds(k.end ?? k.selesai);
     if (!Number.isFinite(m0) || !Number.isFinite(s0) || s0 <= m0) return null;
 
-    // Diperiksa lagi sesudah digeser: dua sisi bergerak sendiri-sendiri, jadi
-    // rentang yang tadinya sah bisa jadi terbalik. Kalau begitu, pakai angka
-    // asli dari Claude.
+    // Re-check after snapping: each side moves independently, so a range that
+    // was valid before can end up inverted. If so, fall back to the original
+    // numbers from Claude.
     let m = snapToWord(m0, "start");
     let s = snapToWord(s0, "end");
     if (s <= m) { m = m0; s = s0; }
 
-    // Skor DIPAKSA jadi angka di sini, di batas tempat data asing masuk.
-    // Claude sesekali menulis "sembilan" atau "9" (string), dan nilai bukan
-    // angka yang lolos sampai renderBoard membuat value.toFixed() melempar --
-    // papan Kandidat rusak permanen sampai halaman dimuat ulang.
+    // Scores are COERCED to numbers here, at the boundary where external data
+    // enters. Claude occasionally writes "nine" or "9" (string), and non-numeric
+    // values slip through until renderBoard calls value.toFixed() and throws --
+    // the Candidates board is permanently broken until the page reloads.
     const scores = k.scores || k.skor || {};
     const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
     const nums = Object.values(scores)
@@ -237,24 +236,24 @@ function importJSON(text) {
         payoff: num(scores.payoff),
       },
       reason: (k.reason || k.alasan || "").trim(),
-      spans: [{ start: m, end: s }],   // satu potongan utuh sampai dibelah
+      spans: [{ start: m, end: s }],   // one whole piece until split
     };
-  // Urutan AI dipertahankan, TIDAK diurut ulang berdasarkan skor. Skornya
-  // tidak ditampilkan di layar Klip, jadi mengurut ulang cuma membuat
-  // "rekomendasi nomor 1" di layar berbeda dengan nomor 1 di JSON.
+  // AI order is preserved, NOT re-sorted by score. Scores are not displayed
+  // on the Clip screen, so re-sorting only makes "recommendation #1" on
+  // screen differ from #1 in the JSON.
   }).filter((k) => k && k.dur > 0);
 
-  if (!result.length) throw new Error("Semua klip punya durasi nol atau negatif.");
+  if (!result.length) throw new Error("All clips have zero or negative duration.");
   return result;
 }
 
-/* ---------- memasang hasil ke seluruh aplikasi ---------- */
+/* ---------- wiring results into the rest of the app ---------- */
 
 function applyCandidates(candidates) {
   const d = DATA;
   d.candidates = candidates;
-  // realTranscript bisa null kalau JSON diimpor sebelum transkrip dimuat;
-  // importJSON/snapToWord menoleransinya, jadi di sini pun jangan deref buta.
+  // realTranscript can be null if JSON is imported before the transcript loads;
+  // importJSON/snapToWord tolerate it, so don't blindly deref here either.
   const dur = realTranscript?.duration;
   d.marks = candidates.map((k) => ({
     pos: dur ? (k.startSec / dur) * 100 : 0,
@@ -262,7 +261,7 @@ function applyCandidates(candidates) {
     label: (k.title || "").split(" ").slice(0, 3).join(" "),
   }));
 
-  // transkrip layar Potong memakai kata sungguhan di sekitar klip teratas
+  // Cut screen transcript uses real words around the top clip
 
 
   renderList(); renderPreview();
@@ -271,11 +270,11 @@ function applyCandidates(candidates) {
 }
 
 
-/* ---------- pemasangan kontrol ---------- */
+/* ---------- wiring controls ---------- */
 
 async function prepareExport(videoName) {
   const panel = $("#exportPanel"), button = $("#downloadBrief"), note = $("#exportNote");
-  note.textContent = "mencari transkrip …";
+  note.textContent = "searching for transcript ...";
   const previous = realTranscript;
   realTranscript = await findTranscript(videoName);
 
@@ -291,11 +290,11 @@ async function prepareExport(videoName) {
     `${realTranscript.words.length.toLocaleString("id")} kata · ${fmtStamp(realTranscript.duration)} · drop the JSON to your AI to analyze it`;
   $("#importPanel").dataset.ready = "true";
 
-  // Kalau orang sudah sempat menambah klip manual SEBELUM transkrip ini
-  // datang (mis. transkripsi masih jalan saat "Buat klip manual" ditekan),
-  // caption-nya kosong karena kataResult() belum punya apa-apa untuk
-  // dipetakan -- dan tidak ada yang memicu gambar ulang begitu transkrip
-  // akhirnya siap. Redraw eksplisit di sini menutup celah itu.
+  // If the user already added manual clips BEFORE this transcript arrived
+  // (e.g. transcription was still running when "Create manual clip" was pressed),
+  // the captions are empty because kataResult() has nothing to map yet -- and
+  // nothing triggers a redraw once the transcript finally becomes available.
+  // An explicit redraw here closes that gap.
   if (!previous && typeof RESULT !== "undefined" && RESULT.length) {
     if (typeof drawCaption === "function") drawCaption();
     if (typeof renderCaptions === "function") renderCaptions();
@@ -328,14 +327,14 @@ $("#importBtn").addEventListener("click", () => {
     note.dataset.error = "false";
     note.textContent = `${candidates.length} suggestions imported`;
     if (typeof renderRecommendations === "function") renderRecommendations();
-    toScreen("klip");          // rekomendasi bukan tujuan akhir, result yang tujuan
+    toScreen("klip");          // recommendations are not the final destination, result is
   } catch (err) {
     note.dataset.error = "true";
     note.textContent = err.message;
   }
 });
 
-/* .json bisa ditarik langsung ke kotak tempel */
+/* .json files can be dropped directly onto the paste box */
 $("#pasteJSON").addEventListener("drop", async (e) => {
   const f = e.dataTransfer?.files?.[0];
   if (!f) return;

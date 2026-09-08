@@ -1,13 +1,13 @@
-/* klipian — interaksi nyata
+/* klipian — real interactions
    ==========================================================================
-   app.js merender tampilan. File ini membuat kontrolnya benar-benar bekerja,
-   supaya yang diuji adalah ALURNYA, bukan gambarnya.
+   app.js renders the UI. This file makes the controls actually work,
+   so what gets tested is the FLOW, not the pictures.
 
-   Reframe punya berkas sendiri (reframe.js) karena logikanya paling berat.
-   Dimuat setelah app.js; memakai binding globalnya.
+   Reframe has its own file (reframe.js) because its logic is the heaviest.
+   Loaded after app.js; uses its global bindings.
    ========================================================================== */
 
-/* ───────────────── sumber: tarik file, pilih file, link YouTube ───────── */
+/* ───────────────── source: drag file, pick file, YouTube link ─────────── */
 
 const YT_PATTERN = /(?:youtube\.com\/(?:watch\?v=|shorts\/|live\/|embed\/)|youtu\.be\/)([\w-]{11})/;
 let chosenSource = null;
@@ -31,15 +31,15 @@ const fmtDuration = (d) => {
   return h ? `${h}:${m}:${s}` : `${m}:${s}`;
 };
 
-/* Nama & durasi di topbar (#fileName/#fileDuration) -- SATU tempat,
-   dipanggil dari kedua jalur video "jadi aktif": acceptFile() di sini
-   (video baru dijatuhkan) dan openProjectFromHome() di projects.js
-   (project lama dibuka lagi lewat kartu beranda/pemulihan sesi). Sebelum
-   ini keduanya CUMA diisi oleh startAnalysis() (analysis.js), yang CUMA
-   jalan lewat tombol "Find clips" di beranda -- membuka project lama
-   tidak pernah memicunya, jadi topbar tetap menampilkan nama & durasi
-   PLACEHOLDER contoh dari app.js (radityadika-podcast.mp4, 42:03)
-   SELAMANYA, bukan cuma sesaat, sampai sebuah video BARU dijatuhkan. */
+/* File name & duration in the topbar (#fileName/#fileDuration) -- SINGLE place,
+   called from both video "becomes active" paths: acceptFile() here
+   (new video dropped) and openProjectFromHome() in projects.js
+   (old project re-opened via home card / session restore). Before this
+   both were ONLY filled by startAnalysis() (analysis.js), which ONLY
+   ran via the "Find clips" button on the home page -- opening an old
+   project never triggered it, so the topbar kept showing the sample
+   placeholder from app.js (radityadika-podcast.mp4, 42:03)
+   FOREVER, not just momentarily, until a NEW video was dropped. */
 function updateTopbarFile(name, durationSeconds) {
   if ($("#fileName")) $("#fileName").textContent = name || "";
   if ($("#fileDuration")) {
@@ -47,7 +47,7 @@ function updateTopbarFile(name, durationSeconds) {
   }
 }
 
-/* Durasi dan resolusi dibaca sungguhan dari file lewat elemen <video>. */
+/* Duration and resolution are read from the actual file via the <video> element. */
 function readMeta(file) {
   return new Promise((end) => {
     const url = URL.createObjectURL(file);
@@ -66,7 +66,7 @@ async function acceptFile(file) {
     drawSource("That file is not a video. Use mp4, mkv, mov, or webm.");
     return;
   }
-  // Revoc blob URL sebelumnya supaya tidak memory leak
+  // Revoke the previous blob URL to prevent memory leaks
   if (chosenSource && chosenSource.url && chosenSource.url.startsWith("blob:")) {
     URL.revokeObjectURL(chosenSource.url);
   }
@@ -77,14 +77,14 @@ async function acceptFile(file) {
   $("#urlInput").value = "";
   drawSource();
 
-  // Video baru = orang di frame juga lain, jadi daftar objek dikosongkan dan
-  // dimulai lagi dari "Orang 1". resetProjectState() (projects.js) juga
-  // mengosongkan SAVED_RESULTS jadi satu Result baru -- Result video
-  // sebelumnya tidak boleh ikut terbawa ke video ini.
+  // New video = different person in frame, so clear the person list and
+  // start over from "Person 1". resetProjectState() (projects.js) also
+  // clears SAVED_RESULTS so a single new Result is created -- previous
+  // video's Results must not carry over to this one.
   if (changed && typeof resetProjectState === "function") resetProjectState();
 
-  // Video baru = sesi baru. Tanpa ini, kandidat dan ribbon dari file
-  // sebelumnya ikut terbawa dan angkanya bertabrakan di layar.
+  // New video = fresh session. Without this, candidates and ribbon from the
+  // previous file would carry over and clash on screen.
   if (changed || DATA.candidates.length) {
     DATA.candidates = [];
     DATA.marks = [];
@@ -98,21 +98,21 @@ async function acceptFile(file) {
     setClip(DATA.candidates[0]);
   }
 
-  // Berkas dari luar workspace/samples/ hanya dapat URL blob: preview jalan,
-  // tapi transkripsi, thumbnail, dan render semuanya lewat _find_video() di
-  // server dan akan menjawab "video not found". Diberitahukan SEKARANG, bukan
-  // setelah menunggu transkripsi yang memang tidak akan pernah berhasil.
+  // Files from outside workspace/samples/ only get a blob: URL -- preview works,
+  // but transcription, thumbnails, and rendering all go through _find_video()
+  // on the server and will return "video not found". Warn NOW, not after
+  // waiting for a transcription that was never going to succeed.
   try {
     const available = (await (await fetch("/api/video")).json()).video || [];
     if (!available.includes(file.name)) {
       drawSource(null, "not in workspace/samples/ — move it there to transcribe and render");
       document.querySelector(".source-drop")?.setAttribute("data-state", "warn");
     }
-  } catch { /* tanpa backend, tidak ada yang bisa diperiksa */ }
+  } catch { /* no backend -- nothing to check */ }
 
-  // Video yang sama = project yang sama. Kalau pernah dikerjakan, Result,
-  // titik framing, dan koreksi teksnya kembali; kalau belum, ini jadi
-  // project barunya.
+  // Same video = same project. If it was worked on before, Result,
+  // framing points, and text corrections come back; if not, this becomes
+  // the new project.
   if (typeof openProject === "function") {
     const resumed = await openProject(file.name);
     if (resumed) {
@@ -142,9 +142,9 @@ function drawSource(error, extraNote) {
   const button = $("#run");
   if (!box || !button) return;
 
-  // Format dan Resolusi tidak berarti apa-apa sebelum ada videonya, dan
-  // sebagai panel penuh ia mendorong daftar project keluar layar di jendela
-  // pendek -- persis saat daftar itu paling dibutuhkan.
+  // Format & Resolution mean nothing before a video is loaded, and as a full
+  // panel it pushes the project list off-screen on short windows -- exactly
+  // when that list is needed most.
   const hasSource = !!chosenSource && !error;
   $("#options")?.toggleAttribute("hidden", !hasSource);
   $("#prepareFoot")?.toggleAttribute("hidden", !hasSource);
@@ -165,14 +165,14 @@ function drawSource(error, extraNote) {
     const s = chosenSource;
     box.dataset.state = "ready";
     title.textContent = s.name;
-    // Project lama dibuka lewat kartu beranda/pemulihan sesi: chosenSource
-    // di jalur itu cuma {kind,name,url} -- TIDAK ada size/duration/width
-    // sungguhan (bukan hasil readMeta() dari <video>, sumbernya cuma nama
-    // dari catatan project). Dulu ketiganya dipaksa ditampilkan (fmtSize/
-    // fmtDuration dipanggil ke undefined) dan hasilnya "NaN MB · durasi
-    // tidak terbaca" -- sekarang bagian yang memang tidak diketahui
-    // dilewati, bukan ditampilkan rusak. Durasi masih bisa didapat dari
-    // transkrip yang sudah pernah dibuat untuk video ini, kalau ada.
+    // Old project opened via home card / session restore: chosenSource on
+    // that path is only {kind,name,url} -- NO real size/duration/width
+    // (not the readMeta() result from <video>, just the name from the
+    // project record). Previously all three were forced to display (fmtSize/
+    // fmtDuration called on undefined, producing "NaN MB · unreadable
+    // duration") -- now the parts that are genuinely unknown are skipped
+    // rather than displayed broken. Duration can still be recovered from
+    // a transcript that was already made for this video, if one exists.
     let details;
     if (s.kind === "file") {
       const parts = [];
@@ -185,8 +185,8 @@ function drawSource(error, extraNote) {
     } else {
       details = "the video will be downloaded when the pipeline runs";
     }
-    // Catatan tambahan dipakai saat project lama dipulihkan, supaya orang tahu
-    // pekerjaannya kembali dan tidak mengira harus mulai dari nol lagi.
+    // Extra note is used when an old project is restored, so the user knows
+    // their work is back and doesn't think they have to start from scratch.
     note.textContent = extraNote ? `${details} · ${extraNote}` : details;
     button.disabled = false;
   }
@@ -198,17 +198,17 @@ document.addEventListener("click", (e) => {
 fileInput.addEventListener("change", () => acceptFile(fileInput.files[0]));
 $("#urlInput").addEventListener("input", (e) => acceptURL(e.target.value));
 
-/* Tarik-lepas hanya di PANEL drop, bukan sepanjang jendela.
-   Dulu ada tirai yang menutupi seluruh layar begitu berkas ditarik masuk.
-   Niatnya supaya tidak ada tempat yang meleset, tapi hasilnya seluruh
-   antarmuka tertutup untuk sebuah sasaran yang sebenarnya cuma satu kotak --
-   dan kotak itu sudah punya keadaan sorotnya sendiri, yang justru tidak
-   pernah kelihatan karena tertutup tirai.
+/* Drag-and-drop only in the DROP PANEL, not across the whole window.
+   There used to be a curtain that covered the entire screen once a file
+   was dragged in. The intent was so no drop zone would be missed, but
+   the result was the entire UI hidden behind a curtain for what was
+   actually just one box -- and that box already had its own highlight
+   state, which never got seen because the curtain was on top.
 
-   Penjaga di tingkat jendela tetap ada, tapi ia TIDAK menggambar apa pun:
-   tugasnya cuma membatalkan perilaku bawaan browser. Tanpa itu, berkas yang
-   dijatuhkan meleset dari panel akan DIBUKA oleh browser -- aplikasinya
-   ditinggalkan begitu saja beserta seluruh hasil kerja yang belum dirender. */
+   The window-level guard is still there, but it does NOT draw anything:
+   its only job is to cancel the browser's default behavior. Without it,
+   a file dropped outside the panel would be OPENED by the browser -- the
+   app gets abandoned along with all the un-rendered work. */
 
 const hasFiles = (e) => [...((e.dataTransfer && e.dataTransfer.types) || [])].includes("Files");
 
@@ -217,8 +217,8 @@ const hasFiles = (e) => [...((e.dataTransfer && e.dataTransfer.types) || [])].in
 
 const dropPanel = document.querySelector(".source-drop");
 if (dropPanel) {
-  // Penghitung, bukan satu bendera: dragleave ikut menembak setiap kali
-  // pointer melintasi anak-anak di dalam panel, jadi sorotannya berkedip.
+  // Counter, not a single flag: dragleave fires every time the pointer
+  // crosses a child element inside the panel, so the highlight would flicker.
   let dragCount = 0;
   const highlight = (on) => {
     if (on) dropPanel.dataset.drag = "true";
@@ -234,7 +234,7 @@ if (dropPanel) {
 
   dropPanel.addEventListener("dragover", (e) => {
     if (!hasFiles(e)) return;
-    e.preventDefault();                    // wajib, kalau tidak drop diabaikan
+    e.preventDefault();                    // required, otherwise drop is ignored
     e.dataTransfer.dropEffect = "copy";
   });
 
@@ -254,29 +254,29 @@ if (dropPanel) {
   });
 }
 
-/* ───────────────── kandidat: setujui, tolak, batalkan ────────────────── */
+/* ───────────────── candidates: approve, reject, undo ──────────────────── */
 
 
-/* ───────────────── ribbon: klik sapuan membuka klipnya ───────────────── */
+/* ───────────────── ribbon: click a sweep to open its clip ─────────────── */
 
 
-/* ───────────────── caption: opsi mengubah preview seketika ───────────── */
+/* ───────────────── caption: options that update the preview live ──────── */
 
-/* Mengembalikan OBJEK pilihan yang sedang aktif: { t, out, px?, css? }.
-   Preview memakai .px (kotaknya kecil), render memakai .out. */
+/* Returns the active choice OBJECT: { t, out, px?, css? }.
+   Preview uses .px (small box), render uses .out. */
 function captionValue(id) {
   const o = CAPTION_OPTIONS.find((x) => x.id === id);
   return o ? o.choices[o.active] : null;
 }
 
-// PlayResY di render SELALU out_width*16/9 dibulatkan genap -- 1920 untuk
-// resolusi bawaan (1080p, lihat OPTIONS di app.js). SEMUA ukuran piksel di
-// preview (font caption, outline, font watermark) dihitung PROPORSIONAL
-// terhadap ini, bukan angka kalibrasi ".px" terpisah seperti sebelumnya --
-// nilai tetap itu cuma "kelihatan pas" di SATU ukuran jendela/kombinasi
-// tertentu, dan meleset di kombinasi lain: preview tampil wajar tapi hasil
-// render sungguhan beda ukuran (laporan ian, untuk watermark MAUPUN
-// caption -- keduanya bug yang sama, cuma elemen berbeda).
+// PlayResY in render is ALWAYS out_width*16/9 rounded to even -- 1920 for
+// the default resolution (1080p, see OPTIONS in app.js). ALL pixel sizes in
+// preview (caption font, outline, watermark font) are now computed
+// PROPORTIONAL to this, instead of separate ".px" calibration numbers as
+// before -- those fixed values only "looked right" at ONE specific window
+// size / combination, and broke at others: preview looked fine but actual
+// render was wrong size (ian's report, for both watermark AND caption --
+// same bug, different element).
 const PLAYRES_Y_DEFAULT = 1920;
 const pxFromOut = (out, frameH) => (out / PLAYRES_Y_DEFAULT) * frameH;
 
@@ -286,12 +286,12 @@ function applyCaption() {
   if (!cap) return;
 
   const frameH = frame ? frame.getBoundingClientRect().height : 0;
-  // Kalau panel masih display:none (skrip baru dimuat, belum pindah ke
-  // layar kerja) atau belum diberi ukuran akhir oleh browser, rect-nya 0 --
-  // lebih aman DIAMKAN dulu (toScreen() di app.js memanggil ulang
-  // applyCaption() begitu panel benar-benar tampil, dan ResizeObserver di
-  // bawah menangkap perubahan ukuran sesudahnya) daripada menulis ukuran
-  // nyaris nol yang tersangkut sampai ada pemicu lain.
+  // If the panel is still display:none (script just loaded, not yet on the
+  // work screen) or hasn't been given final size by the browser, rect is 0 --
+  // safer to DO NOTHING (toScreen() in app.js re-calls applyCaption() once
+  // the panel actually shows, and the ResizeObserver below catches size
+  // changes after that) rather than writing near-zero sizes that get stuck
+  // until some other trigger fires.
   if (frameH > 0) {
     cap.style.fontSize = `${pxFromOut(captionValue("size").out, frameH)}px`;
     const thicknessPx = pxFromOut(captionValue("outline").out, frameH);
@@ -299,8 +299,8 @@ function applyCaption() {
   }
   cap.style.bottom = `${captionValue("position").px}%`;
   cap.style.fontFamily = captionValue("font").out;
-  // warna dipasang sebagai variabel di wadahnya supaya kata yang disorot
-  // ikut berubah walau isinya digambar ulang tiap timeupdate
+  // color is set as a variable on the container so the highlighted word
+  // changes even when content is redrawn every timeupdate
   cap.style.setProperty("--highlight", captionValue("highlight").css);
 
   if (frame) frame.dataset.watermark = captionValue("watermark").out ? "on" : "off";
@@ -311,23 +311,23 @@ function applyCaption() {
     const opacity = captionValue("watermark-opacity").css;
     const position = captionValue("watermark-position").out;
     if (frameH > 0) wm.style.fontSize = `${pxFromOut(sizeOut, frameH)}px`;
-    // opacity CSS di ELEMEN-nya, BUKAN rgba() di warna teks -- rgba() cuma
-    // memudarkan isi hurufnya, sedangkan text-shadow di bawahnya (lihat
-    // .watermark916 di app.css) tetap gelap solid. Hasilnya kelihatan
-    // abu-abu kotor di opacity rendah (isi nyaris tak kelihatan, bayangan
-    // gelapnya masih penuh), bukan putih pudar bersih. opacity elemen
-    // memudarkan KEDUANYA sekaligus, sama seperti alpha OutlineColour yang
-    // kini disamakan dengan PrimaryColour di build_ass() -- dua sisi
-    // (preview dan render) sekarang benar-benar konsisten.
+    // opacity CSS on the ELEMENT, not rgba() on the text color -- rgba()
+    // only fades the letter content, while the text-shadow underneath (see
+    // .watermark916 in app.css) stays fully opaque. The result looks like
+    // dirty gray at low opacity (content nearly invisible, dark shadow still
+    // full-strength) instead of clean faded white. Element opacity fades
+    // BOTH together, matching the OutlineColour alpha that is now set equal
+    // to PrimaryColour in build_ass() -- both sides (preview and render)
+    // are now truly consistent.
     wm.style.color = "#fff";
     wm.style.opacity = opacity;
 
-    // Sama persis logikanya dengan _watermark_placement() di
-    // klipian/render.py -- tinggi baris diperkirakan 1.3x ukuran font,
-    // sebagai PERSEN dari PLAYRES_Y_DEFAULT (persis seperti render membagi
-    // dengan H). Tidak lagi bergantung frameH di sini -- persennya sama
-    // di ukuran layar berapa pun, cuma font-size dalam px di atas yang
-    // perlu tahu frameH sungguhan.
+    // Exactly the same logic as _watermark_placement() in
+    // klipian/render.py -- line height estimated at 1.3x font size,
+    // as a PERCENTAGE of PLAYRES_Y_DEFAULT (same way the render divides
+    // by H). No longer depends on frameH here -- the percentage is the
+    // same at any screen size, only the px font-size above needs to know
+    // the actual frameH.
     const lineHeightPercent = (sizeOut * 1.3 / PLAYRES_Y_DEFAULT) * 100;
 
     wm.style.top = "auto";
@@ -339,9 +339,9 @@ function applyCaption() {
       wm.style.top = "50%";
       wm.style.transform = "translateY(-50%)";
     } else {
-      // Dua syarat sekaligus, sama seperti _watermark_placement() versi
-      // "bottom" di render.py: di bawah caption, TAPI tidak boleh sampai
-      // masuk zona aman (bottom:20% di CSS .safe) -- min() dari keduanya.
+      // Two conditions at once, same as _watermark_placement() "bottom"
+      // variant in render.py: below caption, BUT must not enter the safe
+      // zone (bottom:20% in CSS .safe) -- min() of both.
       const capMargin = captionValue("position").px;
       const belowCaption = Math.max(2, capMargin - lineHeightPercent - 1);
       const safeZoneLimit = Math.max(0, 20 - lineHeightPercent);
@@ -350,14 +350,14 @@ function applyCaption() {
   }
 }
 
-// Font-size caption & watermark di atas dalam PX ABSOLUT (lewat
-// pxFromOut()), dihitung sekali tiap applyCaption() dipanggil -- beda dari
-// posisi (top/bottom pakai %, yang otomatis mengikuti ukuran wadahnya tanpa
-// perlu dihitung ulang). Kalau .frame916 berubah ukuran SESUDAH
-// applyCaption() terakhir jalan (jendela di-resize, panel Claude di sebelah
-// dibuka/ditutup, dsb.), px yang tersimpan jadi basi -- tetap segitu
-// padahal frame-nya sudah beda tinggi. ResizeObserver menangkap perubahan
-// itu dan menghitung ulang.
+// Caption & watermark font-size above is in ABSOLUTE PX (via
+// pxFromOut()), computed once per applyCaption() call -- unlike position
+// (top/bottom use %, which automatically follows container size without
+// needing recalculation). If .frame916 changes size AFTER the last
+// applyCaption() run (window resized, Claude side panel opened/closed,
+// etc.), the stored px values go stale -- still the same even though the
+// frame is now a different height. ResizeObserver catches that change
+// and recomputes.
 const frame916ResizeObserver = new ResizeObserver(() => {
   if (typeof applyCaption === "function") applyCaption();
 });
@@ -379,10 +379,10 @@ $("#captionList").addEventListener("click", (e) => {
   if (typeof savePresetCaption === "function") savePresetCaption();
 });
 
-/* ───────────────── potong: klik jeda membuang celahnya ──────────────── */
+/* ───────────────── cut: click pause to drop the gap ───────────────────── */
 
 
-/* ───────────────── antrian: batalkan / ulangi / buka folder ──────────── */
+/* ───────────────── queue: cancel / retry / open folder ────────────────── */
 
 $("#queueList").addEventListener("click", (e) => {
   const b = e.target.closest(".btn");
@@ -393,7 +393,7 @@ $("#queueList").addEventListener("click", (e) => {
   const action = b.dataset.action;
 
   if (action === "open") {
-    // Backend yang membuka Explorer -- browser tidak boleh, dan tidak perlu.
+    // Backend opens Explorer -- browser can't and shouldn't.
     if (!r.folder) { b.textContent = "folder not ready"; setTimeout(drawQueue, 2000); return; }
     fetch("/api/open-folder", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -403,11 +403,12 @@ $("#queueList").addEventListener("click", (e) => {
     }).catch(() => { b.textContent = "needs klipian serve"; setTimeout(drawQueue, 2500); });
     return;
   }
-  // `act` yang dibaca mesin, `action` yang dibaca orang. Dulu cabangnya
-  // membandingkan LABEL tombol, jadi menerjemahkan label memutus tombolnya.
+  // `act` is what the machine reads, `action` is what humans read. The old
+  // branch compared the BUTTON LABEL, so translating the label broke the
+  // button.
   if (action === "cancel") {
-    // Beri tahu server supaya ffmpeg yang sedang berjalan benar-benar
-    // dihentikan -- dulu Cancel cuma kosmetik dan job jalan terus di server.
+    // Tell the server to actually stop the running ffmpeg -- previously
+    // Cancel was only cosmetic and the job kept running on the server.
     r.note = "cancelling…";
     drawQueue();
     if (typeof renderJobId !== "undefined" && renderJobId) {
@@ -416,9 +417,9 @@ $("#queueList").addEventListener("click", (e) => {
         body: JSON.stringify({ id: renderJobId }),
       }).catch(() => { /* poll akan menampilkan keadaan sebenarnya */ });
     }
-    // Status akhir ("cancelled") datang dari poll begitu server mengonfirmasi.
+    // Final status ("cancelled") comes from the poll once the server confirms.
   } else if (action === "retry") {
-    // Retry menjalankan ulang render Result dari awal.
+    // Retry re-runs the Result render from the start.
     if (typeof startRender === "function") startRender();
   }
 });

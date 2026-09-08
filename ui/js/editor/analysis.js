@@ -1,13 +1,13 @@
-/* klipian — alur analisis
+/* klipian — analysis flow
    ==========================================================================
-   Menjalankan tahap Analisis memakai DURASI ASLI file yang dijatuhkan, bukan
-   angka tetap. Progressnya masih simulasi -- belum ada mesin di belakangnya --
-   tapi setiap angka yang ditampilkan diturunkan dari durasi sungguhan dan
-   dari kecepatan yang benar-benar terukur di mesin ini (2.3x realtime pada
-   large-v3-turbo, podcast Indonesia 42 menit selesai dalam 18:16).
+   Runs the Analysis stage using the ORIGINAL DURATION of the dropped file,
+   not a fixed number. Progress is still simulated -- there is no engine
+   behind it -- but every displayed value is derived from the real duration
+   and from a speed actually measured on this engine (2.3x realtime on
+   large-v3-turbo, a 42-minute Indonesian podcast finishes in 18:16).
 
-   Waktu tunggunya dimampatkan supaya bisa diperagakan; jam yang ditampilkan
-   tetap realistis.
+   Wait time is compressed so it can be demonstrated; the displayed clock
+   remains realistic.
    ========================================================================== */
 
 let analysisTimer = null;
@@ -23,8 +23,8 @@ const fmtClock = (seconds) => {
   return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 };
 
-/* Ribbon selama analisis: belum ada temuan, jadi tidak boleh ada sapuan.
-   Yang ditampilkan garis pemindaian yang merambat. */
+/* Ribbon during analysis: no findings yet, so no sweep should appear.
+   Instead, a scanning line that creeps across is shown. */
 
 async function startAnalysis() {
   clearInterval(analysisTimer);
@@ -45,7 +45,7 @@ async function startAnalysis() {
     if (reply.error) throw new Error(reply.error);
     id = reply.id;
   } catch (err) {
-    // Tanpa backend, jangan berpura-pura mentranskripsi.
+    // Without a backend, don't pretend to transcribe.
     $("#transcribeStats").innerHTML =
       "<span>Needs the backend. Run: python -m klipian serve</span>";
     return;
@@ -59,8 +59,8 @@ async function startAnalysis() {
       t = await (await fetch(`/api/transcribe/${id}`)).json();
       consecutiveFailures = 0;
     } catch {
-      // Server mati / job hilang: berhenti setelah beberapa kali gagal, jangan
-      // memutar interval selamanya tanpa kabar ke pengguna.
+      // Server down / job lost: stop after a few failures instead of
+      // spinning the interval forever with no feedback to the user.
       if (++consecutiveFailures >= 5) {
         clearInterval(analysisTimer);
         $("#transcribeStats").innerHTML =
@@ -83,8 +83,8 @@ async function startAnalysis() {
          `sisa ~${fmtClock(remaining)}`]
     ).map((x) => `<span>${x}</span>`).join("");
 
-    // Peringatan baterai: bedanya bisa dua kali lipat, dan pengguna berhak
-    // tahu sebelum menunggu -- bukan setelah.
+    // Battery warning: the difference can be twofold, and the user deserves
+    // to know before waiting -- not after.
     if (t.battery && !$("#exportPanel").dataset.warning) {
       $("#exportPanel").dataset.warning = "true";
       const p = document.createElement("p");
@@ -109,7 +109,7 @@ async function startAnalysis() {
   }, 900);
 }
 
-/* Tombol "Cari klip" di layar Siapkan menjalankan alur ini. */
+/* The "Search clips" button on the Prepare screen runs this flow. */
 $("#run").addEventListener("click", () => {
   toStage("work");
   toScreen("analysis");

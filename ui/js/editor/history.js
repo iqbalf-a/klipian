@@ -75,12 +75,12 @@ $("#historyList")?.addEventListener("click", async (e) => {
     return;
   }
 
-  // Buka folder dikerjakan server; kegagalannya dilaporkan di tombolnya
-  // sendiri supaya tidak perlu mencari pesan di tempat lain.
+  // Opening the folder is handled by the server; failures are reported on
+  // the button itself so the user doesn't have to look for messages elsewhere.
   //
-  // Label pemulih diambil dari data-label, BUKAN dari teks yang sedang
-  // tampil: klik kedua saat tombol masih menulis "dibuka" akan mengunci
-  // label sementara itu selamanya.
+  // The restore label is read from data-label, NOT from the currently
+  // displayed text: clicking again while the button still says "opened" would
+  // lock in that temporary label forever.
   const previous = b.dataset.label || b.textContent;
   b.dataset.label = previous;
   try {

@@ -1,24 +1,24 @@
-/* klipian — membetulkan teks caption
+/* klipian — correcting caption text
    ==========================================================================
-   Whisper sesekali salah dengar: nama orang, istilah, kata yang diucapkan
-   cepat. Sebelum ini satu-satunya jalan memperbaikinya adalah menambah baris
-   di prompts/glossary.txt lalu MENTRANSKRIPSI ULANG -- belasan menit untuk
-   membetulkan satu kata.
+   Whisper occasionally mishears names, jargon, or words spoken quickly. Before
+   this feature, the only way to fix mistakes was adding entries to
+   prompts/glossary.txt then RE-TRANSCRIBING -- over ten minutes to correct
+   a single word.
 
-   Di sini koreksinya milik RESULT saja:
+   Here corrections belong to RESULT only:
 
-     - transkrip di cache/ tidak disentuh sama sekali
-     - kata yang dibetulkan disimpan di KOREKSI, berkunci waktu mulai katanya
-     - saat render, daftar kata yang sudah dibetulkan ikut dikirim ke server
+     - the transcript in cache/ is never touched
+     - corrected words are stored in CORRECTIONS, keyed by their start time
+     - during render, the list of corrected words is sent along to the server
 
-   Transkrip punya alurnya sendiri; ini mode edit, bukan mode transkripsi.
+   The transcript has its own pipeline; this is edit mode, not transcription mode.
    ========================================================================== */
 
-let CORRECTIONS = {};    // { "12.345": "kata yang benar" }
+let CORRECTIONS = {};    // { "12.345": "corrected word" }
 
 const wordKey = (w) => w.start.toFixed(3);
 
-/* Kata-kata yang benar-benar masuk result, sudah dengan koreksinya. */
+/* Words that actually make it into the result, with corrections applied. */
 function resultWords() {
   if (typeof activeClip === "undefined" || !activeClip?.spans?.length) return [];
   const allWords = realTranscript?.words || [];
@@ -37,23 +37,23 @@ function resultWords() {
   return out;
 }
 
-/* Bentuk yang dikirim ke server bersama permintaan render. */
+/* The form sent to the server along with the render request. */
 function wordsForRender() {
   return resultWords().map((w) => ({ text: w.text, start: w.start, end: w.end }));
 }
 
-/* ---------- kata pengisi ("eh", "anu", "hmm"...) ----------
-   Daftarnya sengaja pendek dan hanya interjeksi MURNI. Kata seperti "kan"
-   atau "gitu" sering dipakai sebagai pengisi juga, tapi keduanya tetap kata
-   fungsi yang sah di kalimat lain -- membuangnya buta bisa merusak makna.
-   Pelajaran yang sama seperti ambang "kata mungkin salah dengar" di
-   glosarium (README): ambang longgar menandai 10,3% kata dan hampir semuanya
-   ternyata benar. Interjeksi murni jauh lebih aman: kalimat tetap utuh
-   tanpanya, apa pun konteksnya.
+/* ---------- filler words ("eh", "anu", "hmm"...) ----------
+   This list is intentionally short and only includes PURE interjections. Words
+   like "kan" or "gitu" are often used as fillers too, but both are still
+   valid function words in other sentences -- removing them blindly can break
+   meaning. Same lesson as the "possibly misheard word" threshold in the
+   glossary (README): a loose threshold flagged 10.3% of words and almost all
+   turned out to be correct. Pure interjections are much safer: the sentence
+   remains intact without them, regardless of context.
 
-   Dicek terhadap w.text (SUDAH lewat koreksi), bukan w.asli -- kalau Whisper
-   salah dengar kata sungguhan sebagai "eh" dan orangnya sudah membetulkannya
-   di layar ini, koreksi itu yang harus dihormati, bukan tebakan Whisper. */
+   Checked against w.text (ALREADY corrected), not w.original -- if Whisper
+   misheard a real word as "eh" and the user corrected it on this screen,
+   that correction is what should be honored, not Whisper's guess. */
 const FILLER_WORDS = new Set([
   "eh", "ee", "eee", "em", "emm", "ehm", "hmm", "hm", "mm", "anu", "euh",
 ]);
@@ -65,11 +65,10 @@ function fillerWordsInResult() {
   return resultWords().filter((w) => isFillerWord(w.text));
 }
 
-/* Membelah tiap potongan Result di sekitar kata pengisi -- mekanisme yang
-   sama dengan "buang bagian tengah" (lihat README): Result tetap daftar
-   rentang waktu, cuma jadi lebih banyak rentang yang lebih pendek. Potongan
-   yang tersisa lebih pendek dari 0,05 detik dibuang alih-alih ditinggalkan
-   sebagai rentang nyaris-nol yang tidak berarti apa-apa. */
+/* Splits each Result segment around filler words -- same mechanism as "trim
+   middle" (see README): Result stays a list of time ranges, just becomes
+   more shorter ranges. Remaining pieces shorter than 0.05 seconds are
+   discarded rather than left as near-zero ranges that mean nothing. */
 function removeFillerWords() {
   const fillers = fillerWordsInResult();
   if (!fillers.length || typeof RESULT === "undefined") return 0;
@@ -91,11 +90,11 @@ function removeFillerWords() {
     }
   }
   RESULT = next;
-  renderResult();               // menulis project + menggambar ulang semuanya
+  renderResult();               // writes project + redraws everything
   return fillers.length;
 }
 
-/* ---------- menggambar ---------- */
+/* ---------- rendering ---------- */
 
 function renderCaptions() {
   const list = $("#textList");
@@ -114,15 +113,16 @@ function renderCaptions() {
   }
 
   if (!words.length) {
-    // Result ADA tapi kata-nya kosong bisa berarti dua hal yang beda:
-    // videonya belum pernah ditranskripsi sama sekali (umum di jalur klip
-    // manual -- README sengaja bilang "lewati langkah 2 dan 3", tapi
-    // transkripsi bawaannya tetap jalan otomatis lewat layar Analisis;
-    // masalahnya kalau project ini dibuka LANGSUNG ke layar Klip -- lewat
-    // kartu di beranda atau pemulihan sesi -- layar Analisis, dan
-    // transkripsinya, tidak pernah tersentuh), atau memang tidak ada kata
-    // yang jatuh di rentang klip ini. Pesan "tambah klip dulu" menyesatkan
-    // untuk kasus pertama -- klipnya sudah ada, yang kurang cuma transkrip.
+    // Result EXISTS but its words are empty -- this can mean two different
+    // things: the video was never transcribed at all (common in the manual
+    // clip path -- the README deliberately says "skip steps 2 and 3", but
+    // default transcription still runs automatically through the Analysis
+    // screen; the issue is when this project is opened DIRECTLY to the Clips
+    // screen -- via the home card or session restore -- the Analysis screen,
+    // and its transcription, were never reached), or there are genuinely no
+    // words falling within this clip's range. The "add a clip first" message
+    // is misleading for the first case -- the clip already exists, only the
+    // transcript is missing.
     const hasClip = typeof activeClip !== "undefined" && activeClip?.spans?.length;
     if (hasClip && !realTranscript) {
       list.innerHTML = `<p class="empty-message">Video ini belum ditranskripsi, jadi caption-nya
@@ -155,42 +155,42 @@ function renderCaptions() {
   }).join("");
 }
 
-/* ---------- membetulkan satu kata ----------
-   Ditulis defensif dengan sengaja. Versi pertama mengosongkan isi tombol lalu
-   menaruh <input> di dalamnya, dan menyerahkan penyimpanan sepenuhnya ke event
-   blur. Dua akibatnya buruk:
+/* ---------- editing a single word ----------
+   Deliberately written defensively. The first version cleared the button's
+   content, placed an <input> inside it, and handed off saving entirely to the
+   blur event. Two bad outcomes:
 
-     - kalau fokus tidak mendarat, blur tidak pernah terjadi dan koreksinya
-       hilang tanpa jejak
-     - kalau proses edit terputus, tombolnya tinggal kosong -- katanya lenyap
-       dari daftar
+     - if focus never landed, blur never fired and the correction was lost
+       without a trace
+     - if the edit was interrupted, the button was left empty -- the word
+       appeared to vanish from the list
 
-   Sekarang keadaan edit dipegang di satu tempat, penyimpanannya idempoten,
-   dan daftar SELALU digambar ulang di akhir supaya tidak ada tombol kosong. */
+   Now the editing state is held in one place, saves are idempotent, and the
+   list is ALWAYS redrawn at the end so no empty button can remain. */
 
 let editingWord = null;      // { key, previousValue, input }
 
 function finishEdit(cancel) {
   if (!editingWord) return;
   const { key, previousValue, input } = editingWord;
-  editingWord = null;                      // dulu, supaya tidak dipanggil dua kali
+  editingWord = null;                      // null first, so it cannot be called twice
 
   if (!cancel) {
     const value = input.value.trim();
     const originalWord = (realTranscript?.words || [])
       .find((w) => wordKey(w) === key)?.text.trim() ?? previousValue;
-    // Dikembalikan ke aslinya = bukan koreksi lagi.
+    // Reverted to the original = no longer a correction.
     if (!value || value === originalWord) delete CORRECTIONS[key];
     else CORRECTIONS[key] = value;
   }
 
-  renderCaptions();                        // tombol kosong mustahil bertahan
+  renderCaptions();                        // no empty button can survive
   if (typeof drawCaption === "function") drawCaption();
   if (typeof saveProject === "function") saveProject();
 }
 
 function startEdit(b) {
-  if (editingWord) finishEdit(false);      // yang sebelumnya disimpan dulu
+  if (editingWord) finishEdit(false);      // save the previous edit first
   const key = b.dataset.start;
   const previousValue = b.textContent.trim();
 
@@ -208,11 +208,11 @@ function startEdit(b) {
   input.addEventListener("blur", () => finishEdit(false));
   input.addEventListener("change", () => finishEdit(false));
   input.addEventListener("keydown", (ev) => {
-    ev.stopPropagation();                  // jangan picu pintasan , . spasi
+    ev.stopPropagation();                  // don't trigger , . space shortcuts
     if (ev.key === "Enter") { ev.preventDefault(); finishEdit(false); }
     else if (ev.key === "Escape") { ev.preventDefault(); finishEdit(true); }
     else if (ev.key === "Tab") {
-      // berpindah ke kata sebelah, supaya bisa membetulkan beruntun
+      // move to the adjacent word so you can correct words in sequence
       ev.preventDefault();
       finishEdit(false);
       const wordButtons = [...document.querySelectorAll(".word-text")];
@@ -223,11 +223,11 @@ function startEdit(b) {
   });
 }
 
-/* ---------- Auto Caption: transkripsi dipicu langsung dari layar ini ----
-   Jalur manual boleh melewati layar Analisis sepenuhnya (buka project lewat
-   kartu beranda / pemulihan sesi, langsung ke Klip) -- tidak ada yang pernah
-   memicu transkripsi untuk video itu. Tombol ini jalur pintasnya, tanpa
-   harus pindah ke Analisis dulu. */
+/* ---------- Auto Caption: transcription triggered directly from this screen -
+   The manual path can skip the Analysis screen entirely (open a project via
+   the home card / session restore, jump straight to Clip) -- nothing ever
+   triggered transcription for that video. This button is the shortcut,
+   without having to navigate to Analysis first. */
 let autoCaptionTimer = null;
 
 async function startAutoCaption(btn) {
@@ -236,7 +236,7 @@ async function startAutoCaption(btn) {
   if (!video) return;
   const note = $("#textNote");
   if (btn) btn.disabled = true;
-  if (note) note.textContent = "memulai transkripsi …";
+  if (note) note.textContent = "starting transcription …";
 
   let id;
   try {
@@ -247,7 +247,7 @@ async function startAutoCaption(btn) {
     if (reply.error) throw new Error(reply.error);
     id = reply.id;
   } catch {
-    if (note) note.textContent = "Butuh backend. Jalankan: python -m klipian serve";
+    if (note) note.textContent = "Backend required. Run: python -m klipian serve";
     if (btn) btn.disabled = false;
     return;
   }
@@ -256,19 +256,19 @@ async function startAutoCaption(btn) {
   autoCaptionTimer = setInterval(async () => {
     let t;
     try { t = await (await fetch(`/api/transcribe/${id}`)).json(); }
-    catch { return; }                        // server sesaat tidak menyahut -- coba lagi
+    catch { return; }                        // server temporarily unreachable -- retry
 
     if (t.state === "running") {
-      if (note) note.textContent = `mentranskripsi … ${t.percent || 0}%`;
+      if (note) note.textContent = `transcribing … ${t.percent || 0}%`;
       return;
     }
     clearInterval(autoCaptionTimer);
     if (t.state === "failed") {
-      if (note) note.textContent = `Transkripsi gagal: ${t.error}`;
+      if (note) note.textContent = `Transcription failed: ${t.error}`;
       if (btn) btn.disabled = false;
       return;
     }
-    // done: transkrip sudah ada di cache/, tinggal dibaca ke sisi klien.
+    // done: transcript is already in cache/, just need to load it on the client side.
     if (typeof findTranscript === "function") {
       realTranscript = await findTranscript(video);
     }
@@ -292,13 +292,13 @@ $("#textResetBtn")?.addEventListener("click", () => {
 });
 
 $("#textFillerBtn")?.addEventListener("click", () => {
-  // renderCaptions() (dipanggil dari dalam renderResult(), lihat
-  // removeFillerWords di atas) sudah menggambar ulang daftar kata dan
-  // menyimpan project -- tidak ada yang perlu dilakukan lagi di sini.
+  // renderCaptions() (called from inside renderResult(), see
+  // removeFillerWords above) already redraws the word list and
+  // saves the project -- nothing else to do here.
   removeFillerWords();
 });
 
-/* Video baru = transkrip lain, koreksi lama tidak berlaku. */
+/* New video = different transcript, old corrections no longer apply. */
 function resetCaptions() {
   CORRECTIONS = {};
   renderCaptions();

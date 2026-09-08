@@ -1,61 +1,61 @@
-/* klipian — framing sepanjang waktu
+/* klipian -- framing over time
    ==========================================================================
-   Framing bukan lagi "objek orang" yang dipasang per klip. Model itu
-   mengandaikan tiap orang duduk di tempat yang tetap, padahal potongan
-   podcast sering berganti angle: orang yang sama bisa di kiri sekarang dan
-   di tengah semenit kemudian.
+   Framing is no longer a "per-person object" installed per clip. That model
+   assumed each person sits in a fixed position, yet podcast cuts frequently
+   change angle: the same person can be on the left now and in the center a
+   minute later.
 
-   Sekarang framing adalah DAFTAR TITIK di sepanjang video:
+   Framing is now a LIST OF POINTS along the video:
 
-       00:00  Single, kotak di tengah
-       05:12  Split, kiri di atas kanan di bawah
-       07:40  Single, kotak ke kanan
+       00:00  Single, box centered
+       05:12  Split, left on top right on bottom
+       07:40  Single, box to the right
 
-   Aturannya satu kalimat: satu titik berlaku sampai titik berikutnya, dan
-   perpindahannya potong keras -- tidak merayap.
+   The rule in one sentence: one point is valid until the next point, and
+   the transition is a hard cut -- no gradual shift.
 
-   Tiap titik punya FORMAT sendiri:
+   Each point has its own FORMAT:
 
-     single  satu kotak mengisi penuh frame 9:16
-     split   dua kotak ditumpuk atas-bawah, masing-masing separuh tinggi,
-             untuk momen dua orang duduk berjauhan tapi dua-duanya mau
-             kelihatan
+     single  one box filling the full 9:16 frame
+     split   two boxes stacked top-bottom, each half height,
+             for moments when two people sit far apart but both need
+             to be visible
 
-   Ukuran kotaknya bebas digeser dan dilebarkan, tapi rasionya TERKUNCI:
-   melebarkan kotak ikut menaikkan tingginya. Kotak yang rasionya tidak
-   sama dengan petak tujuannya cuma akan bikin gambar gepeng.
+   The box can be freely moved and resized, but its RATIO is LOCKED:
+   widening the box also raises its height. A box whose ratio does not
+   match its target cell will only produce a squished image.
 
-   Cara pakainya juga satu kalimat: putar preview ke momen yang kamu mau,
-   pilih formatnya, geser kotak ke orangnya, tekan "Kunci framing di sini".
+   Usage is also one sentence: scrub the preview to the moment you want,
+   pick the format, drag the box onto the person, press "Lock framing here".
 
-   Kanvasnya menampilkan frame video ASLI pada posisi itu, bukan gambar
-   contoh -- kalau tidak, kamu membingkai sesuatu yang tidak kamu lihat.
+   The canvas displays the ORIGINAL video frame at that position, not a
+   sample image -- otherwise you would be framing something you cannot see.
    ========================================================================== */
 
 const INITIAL_CROP = { left: 37, top: 8, width: 26, height: 84 };
 
-/* Dua kotak berdampingan sebagai titik awal split: kiri jadi bagian atas,
-   kanan jadi bagian bawah. Tingginya sudah mengikuti rasio 9:8. */
+/* Two side-by-side boxes as the initial split point: left becomes the top
+   half, right becomes the bottom half. Height already follows the 9:8 ratio. */
 const INITIAL_SPLIT_CROP = [
   { left: 4,  top: 17, width: 42, height: 66 },
   { left: 54, top: 17, width: 42, height: 66 },
 ];
 
-/* Tinggi kotak = lebar x rasio, dihitung dalam piksel kanvas.
-   single: petak tujuannya 1080x1920 -> 16/9 kali lebarnya.
-   split : tiap petak 1080x960      ->  8/9 kali lebarnya. */
+/* Box height = width x ratio, computed in canvas pixels.
+   single: target cell 1080x1920 -> 16/9 times the width.
+   split : each cell 1080x960   ->  8/9 times the width. */
 const RATIO = { single: 16 / 9, split: 8 / 9 };
 
-let FRAMING = [];          // [{ id, at, format, crops }] terurut menurut `at`
+let FRAMING = [];          // [{ id, at, format, crops }] sorted by `at`
 let framingSeq = 0;
 
 const cropEls = () => [...document.querySelectorAll(".canvas .crop")];
 
-/* Format yang sedang tergambar di kanvas. */
+/* Format currently displayed on the canvas. */
 let canvasFormat = "single";
 
-/* Titik yang berlaku pada detik tertentu: titik terakhir yang `at`-nya
-   tidak melewati detik itu. */
+/* The point valid at a given second: the last point whose `at` has not
+   passed that second yet. */
 function pointAt(seconds) {
   let result = FRAMING[0] || null;
   for (const f of FRAMING) {
@@ -65,11 +65,11 @@ function pointAt(seconds) {
   return result;
 }
 
-/* Posisi X hasil interpolasi LINEAR sepanjang lintasan head tracking pada
-   detik `t` (relatif ke awal titik, sama seperti satuan `keyframes[].t`).
-   Di luar rentang keyframe pertama/terakhir -> dijepit ke ujungnya
-   (bukan diekstrapolasi), sama seperti track_head() di facebox.py
-   menahan posisi di luar sampel yang benar-benar terukur. */
+/* Linearly interpolated X position along the head-tracking path at
+   second `t` (relative to the start of the point, same unit as `keyframes[].t`).
+   Outside the first/last keyframe range -> clamped to the endpoint
+   (not extrapolated), just like track_head() in facebox.py
+   holds position beyond truly measured samples. */
 function interpolatePath(keyframes, t) {
   if (!keyframes?.length) return null;
   if (t <= keyframes[0].t) return keyframes[0].left;
@@ -85,14 +85,14 @@ function interpolatePath(keyframes, t) {
   return last.left;
 }
 
-/* Bentuk bingkai yang berlaku pada detik itu, selalu lengkap: format dan
-   daftar kotaknya. Pemanggil tidak perlu tahu FRAMING kosong atau tidak.
+/* The frame shape valid at that second, always complete: format and
+   box list. The caller does not need to know whether FRAMING is empty.
 
-   Kalau titik yang berlaku punya `tracking` (head tracking, OPSIONAL --
-   lihat tombol "Track head"), X kotak PERTAMA ditimpa hasil interpolasi
-   lintasan -- bukan diam di posisi kotak dasarnya. Cuma format Single
-   yang didukung (v1); Y/lebar/tinggi tetap ikut kotak dasar seperti
-   biasa, sama seperti aturan "melacak X saja" yang sudah ada di
+   If the valid point has `tracking` (head tracking, OPTIONAL --
+   see the "Track head" button), the X of the FIRST box is overridden by
+   the interpolated path -- it no longer stays at the base-box position.
+   Only Single format is supported (v1); Y/width/height still follow the
+   base box as usual, matching the existing "track X only" rule in
    facebox.py. */
 function frameAt(seconds) {
   const f = pointAt(seconds);
@@ -102,13 +102,13 @@ function frameAt(seconds) {
     const left = interpolatePath(f.tracking.keyframes, seconds - f.at);
     if (left !== null) crops = [{ ...crops[0], left }];
   }
-  // Rasio disamakan DI SINI, bukan cuma saat menggambar. Versi sebelumnya
-  // membetulkan kotak di kanvas tapi mengirim angka bawaan yang mentah ke
-  // ffmpeg -- preview terlihat benar sementara berkas hasilnya melar.
+  // Ratio is matched HERE, not just when drawing. The previous version
+  // corrected the box on the canvas but sent raw default values to
+  // ffmpeg -- the preview looked right while the output file was stretched.
   return { format, crops: crops.map((c) => matchRatio(c, format)) };
 }
 
-/* Posisi pemutaran yang sedang ditinjau, dalam detik SUMBER. */
+/* Playback position currently being reviewed, in SOURCE seconds. */
 function reviewTime() {
   const v = $("#videoPreview");
   if (v && v.src && Number.isFinite(v.currentTime)) return v.currentTime;
@@ -125,13 +125,13 @@ function resetFraming() {
   renderFraming();
 }
 
-/* ---------- memotong span di batas titik framing ----------
-   Inilah yang membuat framing berpindah di tengah klip: satu range dipecah
-   jadi beberapa potongan, masing-masing dengan bingkainya sendiri. Mesin
-   render menyambungnya lagi jadi satu video.
+/* ---------- splitting spans at framing-point boundaries ----------
+   This is what makes framing change mid-clip: one range is split into
+   multiple pieces, each with its own frame. The render engine stitches
+   them back into a single video.
 
-   Potongan split membawa `crops` (dua kotak); potongan biasa membawa `crop`
-   (satu kotak). Server membedakan keduanya lewat nama bidangnya. */
+   Split pieces carry `crops` (two boxes); normal pieces carry `crop`
+   (one box). The server distinguishes the two by field name. */
 function spansWithFraming(ranges) {
   const out = [];
   for (const r of ranges) {
@@ -145,11 +145,11 @@ function spansWithFraming(ranges) {
       const piece = { start: bounds[i], end: bounds[i + 1] };
       if (b.format === "split" && b.crops.length >= 2) piece.crops = b.crops;
       else piece.crop = b.crops[0];
-      // keyframes tersimpan relatif ke AWAL TITIK (f.at), tapi render.py
-      // butuhnya relatif ke awal POTONGAN ini (bounds[i]) -- dua-duanya
-      // beda kalau titiknya dikunci sebelum awal rentang Result ini
-      // sendiri. Digeser + dijepit di sini, sama seperti _geser_tracking()
-      // di server.py buat pratinjau cepat yang dipotong dari depan.
+      // Keyframes are stored relative to the POINT START (f.at), but render.py
+      // needs them relative to the start of THIS PIECE (bounds[i]) -- the two
+      // differ when the point is locked before the start of this Result range.
+      // Shifted + clamped here, same as _shift_tracking() in server.py for the
+      // quick preview trimmed from the front.
       const point = pointAt(bounds[i]);
       if (b.format === "single" && point?.tracking?.keyframes?.length >= 2) {
         const shifted = point.tracking.keyframes
@@ -165,15 +165,15 @@ function spansWithFraming(ranges) {
 
 const round3 = (n) => Math.round(n * 1000) / 1000;
 
-/* ---------- menggambar ---------- */
+/* ---------- drawing ---------- */
 
-/* Tinggi kotak diturunkan dari LEBARNYA dan rasio kanvas yang sebenarnya,
-   bukan dari angka bawaan. Persentase tinggi untuk kotak berbentuk sama
-   berbeda antara sumber 16:9 dan 4:3, dan kotak yang bentuknya meleset dari
-   petak tujuannya bikin gambar melar saat di-scale oleh ffmpeg.
+/* Box height is derived from its WIDTH and the actual canvas ratio,
+   not from a default value. Height percentage for same-shaped boxes
+   differs between 16:9 and 4:3 sources, and a box whose shape misses
+   its target cell will produce a stretched image when scaled by ffmpeg.
 
-   Kalau tingginya jadi melewati tepi bawah, yang dikecilkan lebarnya --
-   bukan tingginya dipotong, karena itu justru merusak rasionya. */
+   If the height would exceed the bottom edge, reduce the width --
+   not the height, because that would break the ratio. */
 function sourceRatio() {
   for (const sel of ["#canvasVideo", "#videoPreview"]) {
     const v = $(sel);
@@ -212,21 +212,21 @@ function readCrop(el, canvas) {
   };
 }
 
-/* Kanvas framing dan preview adalah SATU posisi video yang sama, ditampilkan
-   beberapa kali: kanvas memperlihatkan frame utuh (untuk memilih bingkai),
-   preview memperlihatkan hasil sesudah dipotong dan dibingkai. Saat format
-   split, petak bawah preview punya video sendiri -- satu elemen <video> tidak
-   bisa menampilkan dua potongan berbeda sekaligus.
+/* The framing canvas and preview are the SAME video position, displayed
+   multiple times: the canvas shows the full frame (for choosing the frame),
+   the preview shows the result after cropping and framing. In split format,
+   the preview's bottom cell has its own video -- a single <video> element
+   cannot display two different crops at once.
 
-   Semuanya harus berjalan bersamaan. Dulu kanvas hanya di-seek saat
-   renderFraming() kebetulan dipanggil, jadi ia membeku sementara preview
-   berjalan -- dan kamu membingkai frame yang bukan frame yang sedang diputar.
+   Everything must run in sync. Previously the canvas was only seeked when
+   renderFraming() happened to be called, so it froze while the preview
+   played -- and you were framing a frame that was not the one being played.
 
-   Ambangnya berbeda menurut keadaan: saat dijeda harus persis (kamu sedang
-   melangkah per frame), saat berjalan boleh meleset sedikit supaya tidak
-   tersendat oleh seek terus-menerus. */
+   Thresholds differ by state: when paused it must be exact (you are
+   stepping frame by frame), when playing it may drift slightly so it does
+   not stutter from constant seeking. */
 
-const followTarget = new WeakMap();   // elemen -> posisi tujuan terakhirnya
+const followTarget = new WeakMap();   // element -> last target position
 
 function followPreview(el) {
   const v = $("#videoPreview");
@@ -234,16 +234,17 @@ function followPreview(el) {
   if (v.src && el.src !== v.src) el.src = v.src;
   if (!el.src) return;
 
-  // Video yang baru dipasang belum bisa di-seek; permintaan seek ke sana
-  // hilang begitu saja dan elemennya tertinggal jauh di belakang preview.
-  // Karena itu penyelarasan diulang begitu ia siap.
+  // A newly installed video cannot be seeked yet; the seek request to it
+  // is silently dropped and the element falls far behind the preview.
+  // Therefore the sync is retried once it is ready.
   if (el.readyState < 1) {
     el.addEventListener("loadedmetadata", () => followPreview(el), { once: true });
     return;
   }
-  // Kanvas dikunci ke rasio sumbernya. Tanpa ini rasio kanvas cuma kebetulan
-  // hasil tata letak; begitu ia beda dari videonya, object-fit:cover memotong
-  // diam-diam dan persen kotak tidak lagi menunjuk bagian frame yang sama.
+  // Canvas is locked to its source ratio. Without this the canvas ratio is
+  // merely a side effect of layout; once it differs from the video,
+  // object-fit:cover silently crops and box percentages no longer point to
+  // the same part of the frame.
   if (el.id === "canvasVideo" && el.videoWidth && el.videoHeight) {
     const canvas = document.querySelector(".canvas");
     const ratio = `${el.videoWidth} / ${el.videoHeight}`;
@@ -254,21 +255,21 @@ function followPreview(el) {
   const t = v.src ? v.currentTime : reviewTime();
   const threshold = v.paused ? 0.02 : 0.20;
 
-  // Posisi tujuan disimpan, bukan cuma diminta sekali. Kalau lompatan
-  // sebelumnya belum rampung, permintaan baru bisa tertelan browser -- dan
-  // elemennya berhenti di posisi lama. Dengan tujuan tersimpan, permintaan
-  // TERAKHIR yang selalu menang, diterapkan ulang saat lompatan selesai.
+  // Target position is stored, not just requested once. If the previous
+  // jump has not finished, the new request can be swallowed by the browser --
+  // and the element stops at the old position. With a stored target, the
+  // LAST request always wins, and is re-applied when the jump finishes.
   followTarget.set(el, t);
   if (!el.seeking && Math.abs(el.currentTime - t) > threshold) {
-    try { el.currentTime = t; } catch { /* di luar jangkauan */ }
+    try { el.currentTime = t; } catch { /* out of range */ }
   }
-  // Ikut berjalan/berhenti bersama preview.
+  // Play/pause in sync with the preview.
   if (!v.paused && el.paused) el.play().catch(() => {});
   else if (v.paused && !el.paused) el.pause();
 }
 
-/* Begitu satu lompatan rampung, posisi tujuan terakhir diterapkan lagi kalau
-   ternyata masih meleset. */
+/* Once a jump finishes, re-apply the last target position if it has
+   drifted out of sync. */
 function attachCatchUp(el) {
   el?.addEventListener("seeked", () => {
     const v = $("#videoPreview");
@@ -276,7 +277,7 @@ function attachCatchUp(el) {
     if (!v || !v.src || target === undefined) return;
     const threshold = v.paused ? 0.02 : 0.20;
     if (Math.abs(el.currentTime - target) > threshold) {
-      try { el.currentTime = target; } catch { /* di luar jangkauan */ }
+      try { el.currentTime = target; } catch { /* out of range */ }
     }
   });
 }
@@ -285,29 +286,29 @@ attachCatchUp($("#videoPreview2"));
 
 function syncCanvasVideo() {
   followPreview($("#canvasVideo"));
-  // Video petak bawah hanya perlu ikut saat memang dipakai. Membiarkannya
-  // memutar diam-diam saat format single cuma membuang decoder.
+  // Bottom-cell video only needs to follow when it is actually used. Letting
+  // it play silently during single format just wastes the decoder.
   if (canvasFormat === "split") followPreview($("#videoPreview2"));
   else $("#videoPreview2")?.pause();
 }
 
-// Dipisah dari renderFraming() supaya bisa dipanggil TIAP tick timeupdate --
-// renderFraming() sendiri menggambar ulang seluruh strip thumbnail titik
-// (mahal), jadi cuma dipanggil saat titik aktif benar-benar berpindah.
-// Tanpa fungsi terpisah ini, label waktu cuma ikut berubah saat playhead
-// melewati sebuah titik framing, bukan tiap detik berjalan -- kelihatan
-// seperti "membeku" saat diputar padahal cuma jarang digambar ulang.
+// Separated from renderFraming() so it can be called on EVERY timeupdate tick --
+// renderFraming() redraws the entire point thumbnail strip (expensive), so it is
+// only called when the active point actually changes.
+// Without this separate function, the time label would only update when the
+// playhead crosses a framing point, not every second of playback -- it would
+// look "frozen" during playback when in fact it is simply redrawn infrequently.
 function updateFramingClock() {
   const clockEl = $("#framingWaktu");
   if (clockEl) clockEl.textContent = `at ${timeRange(reviewTime())}`;
 }
 
-/* Strip Framing Points bisa lebih lebar dari panelnya dan di-scroll
-   horizontal (banyak titik di video yang panjang). Tanpa ini, titik yang
-   jadi aktif saat playback lewat begitu saja bisa ada DI LUAR area yang
-   kelihatan -- state-nya sudah benar (fr-active sudah pindah), tapi dari
-   mata pengguna kelihatan seperti diam di titik terakhir yang mereka klik
-   sendiri, karena yang aktif sekarang tidak pernah masuk ke pandangan. */
+/* The Framing Points strip can be wider than its panel and scrolled
+   horizontally (many points on a long video). Without this, the point
+   that becomes active during playback can end up OUTSIDE the visible area
+   -- its state is correct (fr-active has moved), but to the user it looks
+   like it is stuck on the last point they clicked, because the active one
+   never scrolls into view. */
 function followActivePoint(f) {
   const bar = $("#framingList");
   const el = f && bar?.querySelector(`[data-framing="${f.id}"]`);
@@ -321,43 +322,43 @@ function renderFraming() {
   const t = reviewTime();
   const active = pointAt(t);
 
-  // Pesan TIDAK ditulis di sini: renderFraming dipanggil sesudah aksi seperti
-  // "kunci", dan menulisinya akan langsung menghapus konfirmasi yang baru saja
-  // muncul. Pemanggil yang menentukan pesannya.
+  // Message is NOT written here: renderFraming is called after actions like
+  // "lock", and writing to it would immediately clear the confirmation that
+  // just appeared. The caller decides the message.
   updateFramingClock();
   const tag = $("#tagCrop1");
   if (tag) tag.textContent = active ? `from ${timeRange(active.at)}` : "";
 
   const bar = $("#framingList");
   if (bar) {
-    // f.at itu posisi di VIDEO SUMBER utuh (00:00 = awal video 42 menit),
-    // bukan posisi di hasil gabungan -- begitu Result terdiri dari beberapa
-    // span yang saling berjauhan di sumber, titik terlihat "melompat" jauh
-    // melewati durasi Result sendiri (mis. "09:44" padahal Result cuma
-    // 3:14). Bukan salah -- itu memang posisi aslinya di sumber -- tapi
-    // membingungkan tanpa konteks. "out h:mm" di tooltip menunjukkan posisi
-    // yang SAMA itu relatif ke hasil gabungan, kalau titiknya jatuh di
-    // dalam salah satu span yang benar-benar dipakai (null kalau di luar
-    // span mana pun -- titik lama dari klip lain, atau titik 00:00 bawaan).
+    // f.at is a position in the FULL SOURCE VIDEO (00:00 = start of a 42-min
+    // video), not in the concatenated result -- when a Result consists of
+    // several spans far apart in the source, a point can appear to "jump"
+    // beyond the Result's own duration (e.g. "09:44" when the Result is only
+    // 3:14). That is not a bug -- it is the true source position -- but it is
+    // confusing without context. "out h:mm" in the tooltip shows that SAME
+    // position relative to the concatenated result, when the point falls
+    // within one of the actually used spans (null when outside any span --
+    // a stale point from another clip, or the default 00:00 point).
     const outFrom = (t) => (typeof activeClip !== "undefined" && activeClip?.spans
       && typeof sourceToOut === "function") ? sourceToOut(activeClip, t) : null;
 
-    // Setiap titik SELALU dapat thumbnail-nya sendiri, seberapa pun rapat
-    // waktunya dengan tetangganya -- strip-nya sebaris (flex), bukan
-    // diposisikan proporsional ke waktu di atas satu bar lebar tetap. Kalau
-    // titiknya banyak, striplah yang melebar dan boleh di-scroll horizontal
-    // (lihat overflow-x di CSS .framing-timeline) -- BUKAN thumbnail-nya
-    // yang dikecilkan atau sebagian titik dijadikan tick tanpa gambar.
+    // Every point ALWAYS gets its own thumbnail, no matter how close in time
+    // to its neighbors -- the strip is a row (flex), not positioned
+    // proportionally on a single fixed-width bar. When there are many points,
+    // the strip itself widens and may be scrolled horizontally (see
+    // overflow-x in CSS .framing-timeline) -- NOT the thumbnails shrunk or
+    // some points turned into ticks without images.
     bar.innerHTML = FRAMING.map((f, i) => {
       const out = outFrom(f.at);
-      // Angka BESAR = posisi di RESULT yang sedang diedit (yang benar-benar
-      // dilihat orang di panel preview kanan) -- itu yang berarti langsung,
-      // bukan posisi di video sumber 42 menit. Sumbernya tetap ditampilkan
-      // (kecil, di bawahnya) untuk konteks/lompat-balik, bukan dibuang --
-      // cuma tidak lagi jadi angka UTAMA supaya tidak disangka posisi di
-      // Result (persis kebingungan yang dilaporkan ian: titik "07:58" pada
-      // Result yang cuma 1:25 kelihatan seperti di luar jangkauan, padahal
-      // itu memang posisi aslinya di sumber, bukan salah).
+      // BIG number = position in the RESULT being edited (what people actually
+      // see in the right preview panel) -- that is the directly meaningful
+      // one, not the position in the 42-minute source video. The source is
+      // still shown (smaller, below) for context/jump-back, not discarded --
+      // it just is no longer the PRIMARY number so it won't be mistaken for
+      // the Result position (exactly the confusion ian reported: point "07:58"
+      // on a 1:25 Result looks out of range, when it is actually the true
+      // source position, not a bug).
       const tooltip = `${f.format === "split" ? "Split" : "Single"} · source ${timeRange(f.at)}`;
       const thumbUrl = f.crops?.[0] && typeof chosenSource !== "undefined" && chosenSource?.name
         ? `/api/thumb?video=${encodeURIComponent(chosenSource.name)}&t=${f.at}`
@@ -385,8 +386,8 @@ function renderFraming() {
   updateTrackHeadButton();
 }
 
-/* Menaruh kotak di kanvas sesuai format. Kotak kedua hanya berarti saat
-   split; di format single ia disembunyikan lewat data-format di kanvas. */
+/* Place boxes on the canvas per format. The second box only matters in
+   split; in single format it is hidden via data-format on the canvas. */
 function drawBox(format, crops) {
   canvasFormat = format === "split" ? "split" : "single";
   const canvas = document.querySelector(".canvas");

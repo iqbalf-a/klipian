@@ -1,35 +1,34 @@
-/* klipian — timeline video utuh & seleksi rentang
+/* klipian — full video timeline & range selection
    ==========================================================================
-   Satu batang mewakili seluruh video. Kamu menggeser di atasnya untuk memilih
-   rentang, lalu memasukkannya ke result.
+   A single bar represents the entire video. You drag on it to select a
+   range, then add it to result.
 
-   Masalah yang harus dijawab desain ini: podcast 42 menit di batang selebar
-   900 piksel berarti 1 piksel ~ 2,8 detik. Menggeser saja tidak akan pernah
-   presisi. Karena itu ada TIGA jalan yang saling menutupi:
+   The problem this design solves: a 42-minute podcast on a 900px-wide bar
+   means 1px ~ 2.8 seconds. Dragging alone will never be precise. So there
+   are THREE complementary paths:
 
-     1. geser kasar  -> cari lokasinya
-     2. snap ke kata -> titiknya dirapikan otomatis ke batas kata terdekat
-     3. ketik angka  -> kalau kamu sudah tahu menit:detiknya
+     1. rough drag  -> find the location
+     2. snap to word -> cut point auto-refines to nearest word boundary
+     3. type numbers -> when you already know the mm:ss
 
-   Yang ketiga penting justru karena rekomendasi AI memberi angka: kamu bisa
-   mengetiknya langsung tanpa mencari-cari di batang.
+   The third is important precisely because AI recommendations give numbers:
+   you can type them directly without hunting on the bar.
 
-   Penanda di batang menunjukkan rekomendasi AI (garis tipis) dan potongan
-   yang sudah masuk result (blok padat), supaya tidak memilih yang sama dua
-   kali.
+   Markers on the bar show AI recommendations (thin lines) and cuts already
+   in result (solid blocks), so you don't select the same thing twice.
    ========================================================================== */
 
-let SELECTION = null;       // { start, end } dalam detik sumber, atau null
-let dragSelection = null;   // keadaan sementara saat menggeser
+let SELECTION = null;       // { start, end } in source seconds, or null
+let dragSelection = null;   // temporary state while dragging
 
 const videoDuration = () =>
   realTranscript?.duration || chosenSource?.duration || 0;
 
-/* detik -> pecahan 0..1 di sepanjang batang, dan sebaliknya */
+/* seconds -> fraction 0..1 along the bar, and vice versa */
 const toFraction = (t) => { const d = videoDuration(); return d ? Math.max(0, Math.min(1, t / d)) : 0; };
 const fracToSeconds = (frac) => Math.max(0, Math.min(videoDuration(), frac * videoDuration()));
 
-/* "16:56" -> 1016. Menerima "1:02:03" juga. Kembalikan null kalau ngawur. */
+/* "16:56" -> 1016. Accepts "1:02:03" too. Returns null if garbage. */
 function parseTime(text) {
   const parts = String(text).trim().split(":");
   if (!parts.length || parts.some((b) => b.trim() === "" || isNaN(Number(b)))) return null;
@@ -37,21 +36,21 @@ function parseTime(text) {
   return Number.isFinite(seconds) ? seconds : null;
 }
 
-/* ---------- menggambar ---------- */
+/* ---------- drawing ---------- */
 
 function drawTotalTimeline() {
   const bar = $("#tlTotal");
   if (!bar) return;
-  // Panel pratinjau di atas bar ini SELALU tampil, jadi harus punya isi
-  // sedini mungkin -- titik kumpul ini sudah dipanggil tiap kali
-  // chosenSource berubah, jadi dipakai juga untuk memuat videonya.
+  // Preview panel above this bar is ALWAYS visible, so it must have content
+  // as early as possible -- this gathering point is already called every time
+  // chosenSource changes, so it's also used to load the video.
   if (typeof loadFullPreview === "function") loadFullPreview();
   const d = videoDuration();
 
   const info = $("#pickDuration");
   if (info) info.textContent = d ? `total ${timeRange(d)}` : "no video loaded";
 
-  // penanda: rekomendasi AI tipis, potongan result padat
+  // markers: AI recommendations thin, result cuts solid
   const marks = $("#tlMarks");
   if (marks) {
     const recMarks = (DATA?.candidates || []).map((k) => `
@@ -65,7 +64,7 @@ function drawTotalTimeline() {
     marks.innerHTML = recMarks + usedMarks;
   }
 
-  // skala waktu: 5 label merata
+  // time scale: 5 evenly spaced labels
   const scale = $("#tlSkala");
   if (scale) {
     scale.innerHTML = d
@@ -91,7 +90,7 @@ function drawSelection() {
   box.style.left = `${toFraction(SELECTION.start) * 100}%`;
   box.style.width = `${Math.max(0.3, (toFraction(SELECTION.end) - toFraction(SELECTION.start)) * 100)}%`;
 
-  // Kolom angka tidak ditimpa selagi kamu mengetik di dalamnya.
+  // Number fields aren't overwritten while you're typing in them.
   const a = $("#selStart"), b = $("#selEnd");
   if (a && document.activeElement !== a) a.value = timeRange(SELECTION.start);
   if (b && document.activeElement !== b) b.value = timeRange(SELECTION.end);
@@ -100,8 +99,8 @@ function drawSelection() {
   $("#selDur").textContent = `${Math.round(dur)}s`;
   if (button) button.disabled = dur < 0.5;
 
-  // Perlihatkan omongan di dalam rentangnya -- angka saja tidak cukup untuk
-  // tahu apakah potongannya benar.
+  // Show the words within the range -- numbers alone aren't enough to
+  // know if the cut is right.
   const wordsEl = $("#selText");
   if (wordsEl) {
     const words = (realTranscript?.words || [])
@@ -115,7 +114,7 @@ function drawSelection() {
   }
 }
 
-/* ---------- menyetel seleksi ---------- */
+/* ---------- setting selection ---------- */
 
 function setSelection(start, end, snap) {
   const d = videoDuration();
@@ -124,8 +123,8 @@ function setSelection(start, end, snap) {
   end = Math.max(0, Math.min(d, end));
   if (end < start) [start, end] = [end, start];
 
-  // Snap dipakai setelah geseran selesai, bukan selama menggeser -- kalau
-  // tiap piksel ikut di-snap, kotaknya melompat-lompat dan susah diarahkan.
+  // Snap is used after dragging finishes, not during -- if every pixel
+  // snaps, the box jumps around and is hard to aim.
   if (snap && typeof snapToWord === "function" && realTranscript?.words?.length) {
     const a = snapToWord(start, "start");
     const b = snapToWord(end, "end");
@@ -137,7 +136,7 @@ function setSelection(start, end, snap) {
 
 function clearSelection() { SELECTION = null; drawSelection(); }
 
-/* ---------- geser di batang ---------- */
+/* ---------- dragging on the bar ---------- */
 
 function fracFromEvent(e, bar) {
   const r = bar.getBoundingClientRect();
@@ -154,10 +153,10 @@ $("#tlTotal")?.addEventListener("pointerdown", (e) => {
   const frac = fracFromEvent(e, bar);
   if (frac === null) return;
 
-  // Disimpan supaya Escape bisa mengembalikan ke keadaan SEBELUM geseran ini
-  // -- bukan cuma mengosongkan seleksi. Menggeser grip "start" pada seleksi
-  // yang sudah ada dan menyesal di tengah jalan harusnya kembali ke seleksi
-  // lama, bukan hilang semuanya.
+  // Saved so Escape can restore to the state BEFORE this drag
+  // -- not just clear the selection. Dragging the "start" grip on an existing
+  // selection and regretting halfway should restore the old selection,
+  // not lose everything.
   const previousSelection = SELECTION ? { ...SELECTION } : null;
   const grip = e.target.closest("[data-grip]");
   if (grip && SELECTION) {
@@ -195,17 +194,17 @@ $("#tlTotal")?.addEventListener("pointermove", (e) => {
     }
   }));
 
-/* Escape membatalkan. Dulu tidak ada jalan keluar sama sekali: mulai
-   menggeser lalu berubah pikiran berarti harus menggeser balik sampai
-   rentangnya kurang dari 0,5 detik supaya clearSelection() ikut kepicu --
-   menjengkelkan, dan menggeser grip pada seleksi yang SUDAH ada malah
-   menghapus semuanya, bukan kembali ke seleksi lama.
+/* Escape cancels. There used to be no exit at all: start dragging then
+   change your mind meant dragging back until the range was under 0.5
+   seconds to trigger clearSelection() -- frustrating, and dragging a grip
+   on an EXISTING selection would delete everything instead of restoring
+   the old selection.
 
-   Dua keadaan:
-   - Sedang menggeser  -> kembali ke seleksi SEBELUM geseran ini (bukan
-     kosong, kalau sebelumnya memang sudah ada seleksi).
-   - Tidak sedang menggeser, tapi ada seleksi tersisa -> kosongkan saja,
-     "aku sudah lihat, tidak jadi". */
+   Two states:
+   - Actively dragging -> restore to the selection BEFORE this drag (not
+     empty, if there was one before).
+   - Not dragging, but a lingering selection -> just clear it,
+     "I've seen it, never mind". */
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
   const t = e.target;
@@ -213,10 +212,10 @@ document.addEventListener("keydown", (e) => {
 
   if (dragSelection) {
     const { previousSelection } = dragSelection;
-    // dragSelection dikosongkan lebih dulu, jadi pointerup/pointercancel yang
-    // masih akan menyusul (jari/mouse belum tentu terangkat) langsung
-    // no-op lewat `if (!dragSelection) return;` di atas -- capture-nya sendiri
-    // dilepas otomatis oleh browser begitu pointer itu benar-benar terangkat.
+    // dragSelection is cleared first, so the pointerup/pointercancel that
+    // will still follow (finger/mouse may not have lifted yet) immediately
+    // no-ops via `if (!dragSelection) return;` above -- the capture itself
+    // is released automatically by the browser once the pointer actually lifts.
     dragSelection = null;
     if (previousSelection) setSelection(previousSelection.start, previousSelection.end, false);
     else clearSelection();
@@ -227,7 +226,7 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-/* ---------- ketik menit:detik ---------- */
+/* ---------- typing mm:ss ---------- */
 
 function readTimeColumns() {
   let a = parseTime($("#selStart").value);
@@ -236,10 +235,10 @@ function readTimeColumns() {
     $("#pickNote").textContent = "time format is mm:ss, e.g. 16:56";
     return;
   }
-  // Kolom menampilkan timeRange() yang dibulatkan ke detik bulat. Kalau sebuah
-  // kolom TIDAK diubah (nilai bulatnya masih sama dengan SELECTION), pertahankan
-  // nilai presisi SELECTION -- jangan biarkan pembulatan tampilan menggeser
-  // sisi yang tak disentuh sampai setengah detik saat mengedit sisi satunya.
+  // The column displays timeRange() rounded to whole seconds. If a column
+  // was NOT changed (its rounded value still matches SELECTION), preserve
+  // SELECTION's precise value -- don't let display rounding shift the
+  // untouched side by half a second when editing the other side.
   if (SELECTION) {
     if (Math.round(a) === Math.round(SELECTION.start)) a = SELECTION.start;
     if (Math.round(b) === Math.round(SELECTION.end)) b = SELECTION.end;
@@ -248,8 +247,8 @@ function readTimeColumns() {
     $("#pickNote").textContent = "end time must be later than start";
     return;
   }
-  // Angka di luar durasi video dulu dipangkas diam-diam jadi rentang nol, dan
-  // tombolnya mati tanpa alasan yang kelihatan. Sekarang dikatakan.
+  // Numbers beyond video duration used to be silently clamped to zero range,
+  // and the button died with no visible reason. Now it's explained.
   const d = videoDuration();
   if (d && a >= d) {
     $("#pickNote").textContent =
@@ -262,7 +261,7 @@ function readTimeColumns() {
   } else {
     $("#pickNote").textContent = "range set from the numbers";
   }
-  setSelection(a, b, false);       // angka yang diketik dihormati apa adanya
+  setSelection(a, b, false);       // typed numbers are respected as-is
 }
 
 ["#selStart", "#selEnd"].forEach((sel) => {
@@ -272,7 +271,7 @@ function readTimeColumns() {
   });
 });
 
-/* ---------- masukkan ke result ---------- */
+/* ---------- add to result ---------- */
 
 $("#selAddBtn")?.addEventListener("click", () => {
   if (!SELECTION) return;
@@ -283,5 +282,5 @@ $("#selAddBtn")?.addEventListener("click", () => {
     return;
   }
   $("#pickNote").textContent = "added to Result";
-  clearSelection();               // kotak seleksi dilepas, bukan ditinggal
+  clearSelection();               // selection box is released, not left behind
 });

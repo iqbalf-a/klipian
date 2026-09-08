@@ -1,18 +1,18 @@
-/* klipian — prototipe antarmuka
-   Data dipisah dari render supaya struktur ini langsung bisa dipindah ke React:
-   tiap fungsi render() di bawah setara satu komponen. */
+/* klipian — interface prototype
+   Data is separated from rendering so this structure can be directly moved to
+   React: each render() function below is equivalent to one component. */
 
-/* Cegah XSS: escape karakter HTML sebelum di-inject ke innerHTML */
+/* Prevent XSS: escape HTML characters before injecting into innerHTML */
 function escapeHTML(s) {
   if (typeof s !== "string") return "";
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
           .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
-/* Satu berkas, satu alur. Dulu DATA berkunci mode -- podcast dan MLBB
-   punya contoh sendiri-sendiri -- tapi caranya menyusun klip ternyata
-   sama saja: jatuhkan berkas, atur bingkai, betulkan teks. Kategori itu
-   cuma menambah satu pilihan di depan tanpa mengubah apa pun sesudahnya. */
+/* One file, one flow. DATA used to be mode-locked -- podcast and MLBB had
+   separate examples -- but the way clips are assembled turned out to be
+   identical: drop file, set frames, fix text. That category only added
+   one choice at the front without changing anything after. */
 const DATA = {
   file: "radityadika-podcast.mp4",
   duration: "42:03",
@@ -38,58 +38,58 @@ const DATA = {
 
 let QUEUE = [];
 
-/* Antrian render bukan daftar tetap: isinya klip yang benar-benar dirender. */
+/* Render queue is not a fixed list: it contains clips that are actually being rendered. */
 function buildQueue(daftar) {
-  // Dulu dipatok "wajah di tengah" apa pun pilihannya, jadi baris riwayat
-  // berbohong kalau kamu memilih Blur background.
+  // Used to be locked to "face in center" regardless of choice, so the history
+  // row would lie if you picked Blur background.
   const layout = (typeof optionValue === "function") ? optionValue("format") : "Crop";
-  // Tanpa argumen: turunkan dari RESULT -- itulah yang benar-benar dirender
-  // (satu berkas gabungan, lihat resultAsClip()). Papan kandidat dengan status
-  // "approved" sudah tidak ada; memfilter status di sini SELALU kosong dan
-  // membuat layar antrian tampak hampa walau render sedang berjalan.
-  // Dengan argumen: persis klip itu -- dipakai tombol render di preview yang
-  // hanya mengirim satu klip, supaya baris antrian sejajar dengan hasil server.
+  // Without argument: derive from RESULT -- that's what's actually being
+  // rendered (one merged file, see resultAsClip()). Candidate board with
+  // "approved" status no longer exists; filtering by status here is ALWAYS
+  // empty and makes the queue screen look blank even while rendering.
+  // With argument: exactly that clip -- used by the render button in preview
+  // which only sends one clip, so the queue row aligns with server results.
   let approved = daftar;
   if (!approved) {
     const klip = (typeof resultAsClip === "function") ? resultAsClip() : null;
     approved = klip ? [klip] : [];
   }
   QUEUE = approved.map((k) => ({
-    // Judulnya dulu, bukan tebakan nama berkas. Aturan judul->nama berkas ada
-    // di server (safe_filename); menebaknya lagi di sini pernah menghasilkan
-    // nama yang berbeda dari berkas yang benar-benar ditulis. Nama asli
-    // menimpanya begitu server melapor.
+    // Title first, not filename guess. The title->filename rule lives on
+    // the server (safe_filename); guessing again here once produced a
+    // different name from the file actually written. The real name
+    // overwrites it once the server reports back.
     name: k.title,
-    clip: k,       // dipegang supaya durasinya ikut kalau klipnya dipotong
+    clip: k,       // held so duration updates if the clip is trimmed
     layout, dur: `${k.dur}s`,
     pct: 0,
     note: "queued",
     action: "Cancel", act: "cancel",
-    folder: "",   // diisi server setelah render selesai
+    folder: "",   // filled by server after render completes
     url: "",
     mb: 0,
   }));
 }
 
-/* id dipakai kode, label dibaca manusia. Dulu keduanya satu dan sama, jadi
-   mengganti tulisan "Ukuran" ikut mematikan captionValue("ukuran").
+/* id is machine-readable, label is human-readable. They used to be one and
+   the same, so changing the label "Ukuran" would also break captionValue("ukuran").
 
-   Tiap pilihan punya tiga sisi:
-     t    tulisan di tombol
-     out  nilai yang DIKIRIM KE RENDER  (ukuran ASS, persen, warna ASS)
-     px   nilai untuk preview di layar, yang kotaknya jauh lebih kecil
+   Each choice has three facets:
+     t    button text
+     out  value SENT TO THE RENDER  (ASS size, percentage, ASS color)
+     px   value for on-screen preview, whose box is much smaller
 
-   Dulu yang ada cuma angka piksel preview, dan angka itu tidak pernah sampai
-   ke berkas hasil -- jadi mengubahnya tidak mengubah apa pun.
+   Originally there was only the pixel preview number, and that number never
+   reached the output file -- so changing it changed nothing.
 
-   Warna ASS berformat &HAABBGGRR& (biru-hijau-merah, kebalikan hex web). */
+   ASS colors use &HAABBGGRR& format (blue-green-red, opposite of web hex). */
 const CAPTION_OPTIONS = [
   { id: "font", label: "Font", active: 0, choices: [
       { t: "Arial", out: "Arial" },
       { t: "Impact", out: "Impact" },
       { t: "Verdana", out: "Verdana" }] },
-  // Tidak ada field .px di sini -- preview menghitung ukuran layar langsung
-  // dari .out (pxFromOut() di interactions.js), sama seperti watermark-size.
+  // No .px field here -- preview calculates screen size directly
+  // from .out (pxFromOut() in interactions.js), same as watermark-size.
   { id: "size", label: "Size", active: 1, choices: [
       { t: "Small", out: 64 },
       { t: "Medium", out: 84 },
@@ -112,38 +112,38 @@ const CAPTION_OPTIONS = [
   { id: "watermark", label: "Watermark", active: 0, choices: [
       { t: "On", out: true },
       { t: "Off", out: false }] },
-  // Tidak ada field .px di sini (beda dari opsi ukuran caption di atas) --
-  // preview watermark menghitung ukuran layar langsung dari .out (lihat
-  // applyCaption() di interactions.js), bukan angka kalibrasi terpisah.
+  // No .px field here (unlike the caption size option above) --
+  // watermark preview calculates screen size directly from .out (see
+  // applyCaption() in interactions.js), not a separate calibration number.
   { id: "watermark-size", label: "Watermark size", active: 1, choices: [
       { t: "Small", out: 22 },
       { t: "Medium", out: 32 },
       { t: "Large", out: 46 }] },
-  // Opacity ditulis sebagai alpha ASS (&HAA...) -- 00 = penuh, FF = tak
-  // kelihatan sama sekali, KEBALIKAN dari intuisi opacity biasa: makin
-  // PUDAR pilihannya, makin BESAR angka alpha-nya. Dua tingkat paling pudar
-  // (Ghost, Whisper) ditambah setelah "Faint" bawaan ternyata masih
-  // kelihatan cukup terang di layar sungguhan -- bawaannya juga digeser ke
-  // "Faint" (bukan lagi "Medium") supaya kondisi baru default-nya lebih
-  // pudar dari sebelumnya.
+  // Opacity is written as ASS alpha (&HAA...) -- 00 = fully opaque, FF = fully
+  // invisible, OPPOSITE of normal opacity intuition: the MORE FADED the
+  // choice, the LARGER the alpha number. The two most faded levels (Ghost,
+  // Whisper) were added after the default "Faint" but turned out still
+  // visible enough on real screens -- so the default was also shifted to
+  // "Faint" (no longer "Medium") so the new default starts more faded.
   { id: "watermark-opacity", label: "Watermark opacity", active: 2, choices: [
       { t: "Ghost", out: "D8", css: .15 },
       { t: "Whisper", out: "C0", css: .25 },
       { t: "Faint", out: "A0", css: .37 },
       { t: "Medium", out: "80", css: .5 },
       { t: "Bold", out: "40", css: .75 }] },
-  // "Bottom" TIDAK berarti mepet tepi bawah -- posisinya dihitung relatif
-  // ke posisi caption yang sedang aktif (lihat marginWatermark() di
-  // interactions.js dan fungsi sejenis di build_ass()), supaya watermark
-  // selalu jatuh tepat di bawah caption apa pun posisi caption-nya.
+  // "Bottom" does NOT mean flush with the bottom edge -- its position is
+  // calculated relative to the currently active caption position (see
+  // marginWatermark() in interactions.js and the equivalent in build_ass()),
+  // so the watermark always lands exactly below the caption regardless of
+  // where the caption is.
   { id: "watermark-position", label: "Watermark position", active: 2, choices: [
       { t: "Top", out: "top" },
       { t: "Middle", out: "middle" },
       { t: "Bottom", out: "bottom" }] },
 ];
 
-/* Gaya caption yang dikirim ke server. Inilah yang membuat pengaturan di
-   layar Caption benar-benar mengubah berkas hasil. */
+/* Caption style sent to the server. This is what makes the settings on the
+   Caption screen actually change the output file. */
 function captionStyle() {
   const nilai = (id) => {
     const o = CAPTION_OPTIONS.find((x) => x.id === id);
@@ -163,26 +163,26 @@ function captionStyle() {
   };
 }
 
-/* Preset caption/watermark GLOBAL, terpisah dari project. Project menyimpan
-   pilihan MILIKNYA sendiri (lihat projectState() di projects.js) supaya
-   membuka project lama tidak pernah mengubah gaya yang sudah dirender.
-   Tapi project BARU tidak punya apa-apa untuk dipulihkan -- tanpa ini ia
-   selalu mulai dari default pabrik, memaksa pilih ulang ukuran/posisi/opacity
-   watermark tiap kali video baru dijatuhkan, padahal biasanya orang mau gaya
-   yang sama seperti project sebelumnya. */
+/* GLOBAL caption/watermark preset, separate from projects. Projects store
+   their OWN choices (see projectState() in projects.js) so opening an old
+   project never overwrites the already-rendered style. But new projects have
+   nothing to restore -- without this, they always start from factory
+   defaults, forcing you to re-select watermark size/position/opacity every
+   time a new video is dropped, when people usually want the same style as
+   their previous project. */
 const PRESET_CAPTION_KEY = "klipian:preset-caption";
 
 function savePresetCaption() {
   try {
     localStorage.setItem(PRESET_CAPTION_KEY,
       JSON.stringify(CAPTION_OPTIONS.map((o) => o.active)));
-  } catch { /* privat/penuh -- preset cuma kenyamanan, bukan keharusan */ }
+  } catch { /* private/full -- preset is a convenience, not a requirement */ }
 }
 
-/* Dipanggil hanya untuk project BARU (lihat openProject/openProjectFromHome
-   di projects.js). Sama seperti pemulihan project di loadProject(): indeks
-   dicek batas, karena preset lama bisa berasal dari susunan CAPTION_OPTIONS
-   yang sudah berubah jumlah pilihannya. */
+/* Called only for NEW projects (see openProject/openProjectFromHome in
+   projects.js). Same as project restoration in loadProject(): indices are
+   bounds-checked because old presets may come from a CAPTION_OPTIONS layout
+   whose number of choices has changed. */
 function applyPresetCaption() {
   let preset;
   try { preset = JSON.parse(localStorage.getItem(PRESET_CAPTION_KEY)); }
@@ -199,10 +199,10 @@ function applyPresetCaption() {
 
 const $ = (s) => document.querySelector(s);
 
-/* mm:ss (atau j:mm:ss) dari detik. Dipakai framing, timeline, result, dan
-   riwayat -- jadi tempatnya di sini, di berkas yang dimuat paling awal.
-   Sebelumnya tinggal di result.js dan framing.js memakainya sebelum sempat
-   dideklarasikan, jadi layar Framing melempar galat saat halaman dimuat. */
+/* mm:ss (or j:mm:ss) from seconds. Used by framing, timeline, result, and
+   history -- so it lives here, in the earliest-loaded file. It previously
+   lived in result.js and framing.js used it before it was declared, so the
+   Framing screen threw an error on page load. */
 const timeRange = (d) => {
   const t = Math.max(0, Math.round(d));
   const j = Math.floor(t / 3600);
@@ -212,30 +212,31 @@ const timeRange = (d) => {
 };
 
 
-/* ═══════════════════════════ navigasi tahap ═══════════════════════════
-   Dulu ada tahap Beranda tersendiri untuk memilih mode -- Podcast, Live MLBB,
-   Restream MPL, Tayangan TV -- sebelum berkasnya dijatuhkan. Mode itu dibuang:
-   apa pun sumbernya, yang dikerjakan sama saja (jatuhkan berkas, atur bingkai,
-   betulkan teks), jadi kategorinya cuma satu pilihan tambahan di depan yang
-   tidak mengubah apa pun sesudahnya.
+/* ═══════════════════════════ stage navigation ═══════════════════════════
+   There used to be a separate Home stage for choosing a mode -- Podcast,
+   Live MLBB, Restream MPL, TV Shows -- before dropping the file. That mode
+   was removed: regardless of source, the work is the same (drop file, set
+   frame, fix text), so the category was just one extra upfront choice that
+   changed nothing afterward.
 
-   Sisa dua tahap: beranda (jatuhkan berkas) dan kerja. */
+   Two stages remain: home (drop file) and work. */
 
 const OPTIONS = [
-  // Tiga bagian, tiga tugas berbeda:
+  // Three parts, three different jobs:
   //
-  //   label   apa yang sedang diputuskan
-  //   choices nama pilihannya
-  //   hint    APA AKIBATNYA -- satu kalimat, ikut berganti saat dipilih
+  //   label   what is being decided
+  //   choices the choice names
+  //   hint    WHAT THE CONSEQUENCE IS -- one sentence, changes with selection
   //
-  // Tanpa hint, barisnya cuma berbunyi "Format: Crop / Blur background" dan
-  // tidak menjawab "format apanya?". Label lama "Wajah 9:16 / Blur 9:16" juga
-  // salah: tidak ada deteksi wajah di sini, kotaknya ditaruh sendiri. "9:16"
-  // memang perlu -- tapi tempatnya di label, bukan diulang di kedua pilihan.
+  // Without the hint, the row just reads "Format: Crop / Blur background" and
+  // doesn't answer "format of what?". The old label "Wajah 9:16 / Blur 9:16"
+  // was also wrong: there's no face detection here, the box is placed
+  // manually. "9:16" is needed -- but in the label, not repeated on both
+  // choices.
   //
-  // `out` memisahkan yang DIBACA MESIN dari yang DIBACA ORANG. Sebelumnya
-  // render bercabang lewat optionValue("format").startsWith("Blur") -- artinya
-  // mengganti tulisan di tombol diam-diam mengubah layout berkas hasil.
+  // `out` separates what the MACHINE reads from what PEOPLE read. Previously
+  // render branched via optionValue("format").startsWith("Blur") -- meaning
+  // changing the button text silently changed the output file layout.
   { id: "format", label: "Fill the 9:16 frame",
     choices: ["Crop", "Blur background"], out: ["face", "blur"], active: 0,
     hint: ["A tall slice of the source video. The left and right edges are cut off.",
@@ -258,17 +259,17 @@ function renderPrepare() {
   summarizeOptions();
 }
 
-/* Keterangan ikut pilihan yang sedang aktif. Ditulis ulang di tempat, bukan
-   lewat renderPrepare(), supaya fokus keyboard tidak lepas dari chip yang
-   baru saja ditekan. */
+/* Hint follows the currently active choice. It's rewritten in place, not
+   through renderPrepare(), so keyboard focus doesn't leave the chip that
+   was just pressed. */
 function refreshHint(row, o) {
   const el = row.querySelector(".hint");
   if (el && o.hint) el.textContent = o.hint[o.active];
 }
 
-/* Ringkasannya diturunkan dari OPTIONS, bukan dari lima slot yang dipatok.
-   Versi sebelumnya membaca value[2] sampai value[4] padahal OPTIONS tinggal
-   dua, jadi barisnya berbunyi "... undefined · undefined · undefined". */
+/* Summary is derived from OPTIONS, not from five hardcoded slots. The
+   previous version read value[2] through value[4] even though OPTIONS only
+   had two, so the row showed "... undefined · undefined · undefined". */
 function summarizeOptions() {
   $("#optionsSummary").textContent =
     OPTIONS.map((o) => o.choices[o.active]).join(" · ");
@@ -278,8 +279,8 @@ function toStage(stage) {
   $("#app").dataset.stage = stage;
   if (stage === "home") {
     renderPrepare();
-    // Daftar project dibaca ulang tiap kembali ke beranda, bukan sekali saat
-    // muat: kalau tidak, project yang baru saja dikerjakan tidak muncul.
+    // Project list is re-read every time we return to home, not once on
+    // load: otherwise, the project just worked on won't appear.
     if (typeof renderProjects === "function") renderProjects();
   }
 }
@@ -289,9 +290,9 @@ function toStage(stage) {
 
 
 /* ───────────────────────── daftar ────────────────────────────── */
-/* Antrian dipisah jadi dua: susunAntrian() menurunkan isinya dari klip yang
-   disetujui, gambarAntrian() menggambar keadaan saat ini. Kalau digabung,
-   menekan "Batalkan" akan langsung tertimpa oleh penurunan ulang. */
+/* Queue is split in two: buildQueue() derives its content from approved
+   clips, drawQueue() renders the current state. If merged, pressing
+   "Cancel" would immediately be overwritten by the re-derivation. */
 function drawQueue() {
   const head = document.querySelector('[data-screen="history"] .note');
   if (head) {
@@ -322,8 +323,8 @@ function drawQueue() {
 }
 
 function renderList() {
-  // Jangan overwrite ANTRIAN kalau sedang ada render berjalan — data folder
-  // dan progress dari server akan hilang kalau susunAntrian() dipanggil ulang.
+  // Don't overwrite the QUEUE if a render is in progress -- folder data
+  // and server progress will be lost if buildQueue() is called again.
   if (!QUEUE.length || QUEUE.every((r) => r.pct === 0 && !r.folder)) {
     buildQueue();
   }
@@ -342,7 +343,7 @@ function renderList() {
     </div>`).join("");
 }
 
-/* Panjang klip yang enak ditonton: satu gagasan utuh, bukan potongan kalimat. */
+/* Pleasant clip length to watch: one whole idea, not a cut-off sentence. */
 const RIBBON_DURATION = { ideal: [30, 45], scale: 75, hint: "sweet spot 30–45s" };
 
 function renderPreview() {
@@ -352,42 +353,42 @@ function renderPreview() {
   const main = f.querySelector(".field.main");
   f.dataset.layout = d.layout;
 
-  // Yang ditinjau di preview adalah RESULT, bukan kandidat. Papan kandidat
-  // dengan status setuju/tolak sudah tidak ada.
+  // What's reviewed in preview is RESULT, not candidates. The approve/reject
+  // candidate board no longer exists.
   const clip = (typeof activeClip !== "undefined" && activeClip) ? activeClip : null;
 
-  // `frame.dataset.video` dulu diset SEKALI di prepareVideo(), saat berkas
-  // baru dijatuhkan -- tidak pernah dievaluasi ulang setelahnya. Akibatnya
-  // begitu Result dikosongkan, elemen <video> tetap tampil membeku di frame
-  // terakhir yang sempat diputar (video.src-nya memang masih ada), seolah
-  // masih ada isi padahal Result sudah kosong. Sekarang ini dievaluasi ulang
-  // setiap kali preview digambar, mengikuti ADA/TIDAKNYA klip -- bukan
-  // sekadar ada/tidaknya sumber video.
+  // `frame.dataset.video` used to be set ONCE in prepareVideo(), when the file
+  // was first dropped -- never re-evaluated after. As a result, once Result
+  // was emptied, the <video> element stayed frozen on the last frame it played
+  // (video.src was still there), appearing to still have content when Result
+  // was actually empty. Now it's re-evaluated every time the preview is drawn,
+  // following the PRESENCE/ABSENCE of a clip -- not just the presence of a
+  // video source.
   f.dataset.video = clip ? "true" : "";
   if (!clip && typeof video !== "undefined" && video && !video.paused) {
-    // Video yang terus jalan diam-diam di belakang layar tersembunyi cuma
-    // membakar CPU tanpa ada yang melihatnya.
+    // Video that keeps running quietly behind a hidden screen just burns
+    // CPU with nobody watching.
     video.pause();
     if (typeof isPlaying !== "undefined") isPlaying = false;
     if (typeof playBtn !== "undefined" && playBtn) playBtn.textContent = "▶";
   }
 
-  // Isi caption TIDAK ditulis di sini lagi. Dulu diisi teks peraga dari
-  // DATA.caption, yang tidak ada hubungannya dengan klip yang sedang
-  // dilihat. Sekarang drawCaption() mengisinya dari transkrip asli.
+  // Caption content is NOT written here anymore. It used to be filled with
+  // preview text from DATA.caption, which had nothing to do with the clip
+  // being viewed. Now drawCaption() fills it from the original transcript.
   if (typeof drawCaption === "function") drawCaption();
 
   top.dataset.tag = "";
   main.dataset.tag = "VIDEO ← CROP";
 
-  // Isi bidang preview ditentukan oleh kotak crop, bukan gambar tetap.
+  // Preview field content is determined by the crop box, not a fixed image.
   if (typeof refreshPreviewFromCrop === "function") refreshPreviewFromCrop();
 
   const info = $("#clipInfo");
   if (!info) return;
 
-  // Belum ada klip itu keadaan yang wajar, bukan kesalahan. Tanpa penjaga
-  // ini panel LENGTH menyisakan info klip terakhir walau Result dikosongkan.
+  // No clip yet is a normal state, not an error. Without this guard the
+  // LENGTH panel would keep the last clip's info even after Result is emptied.
   if (!clip) {
     info.innerHTML =
       `<div><div class="eyebrow">Result</div>
@@ -422,14 +423,14 @@ function renderPreview() {
 /* ───────────────────────── navigasi ──────────────────────────── */
 const NO_PREVIEW = ["video", "analysis", "history"];
 
-/* Tiga layar yang menyunting result yang sama. Dipisah jadi menu sendiri
-   supaya tiap layar punya satu urusan: Klip memilih potongannya, Framing
-   mengatur bingkainya, Teks mengurus kata dan tampilannya. */
+/* Three screens that edit the same result. Split into separate menus so
+   each screen has one concern: Clips picks the cuts, Framing adjusts the
+   frame, Text handles words and appearance. */
 const RESULT_SCREENS = ["klip", "framing", "teks"];
 
-/* Layar yang sedang dibuka. Disimpan bersama project supaya "Continue"
-   mengembalikanmu ke tempat kamu berhenti -- kalau kamu sedang mengatur
-   framing, kembali ke Framing, bukan dilempar ke Clips setiap kali. */
+/* The currently active screen. Saved with the project so "Continue" brings
+   you back to where you left off -- if you were adjusting framing, you
+   return to Framing, not thrown into Clips every time. */
 let activeScreen = "klip";
 
 function toScreen(name) {
@@ -440,16 +441,16 @@ function toScreen(name) {
   document.querySelectorAll(".tab").forEach((t) => {
     const active = t.dataset.to === name;
     t.setAttribute("aria-selected", String(active));
-    t.tabIndex = active ? 0 : -1;   // roving tabindex sesuai pola ARIA tabs
+    t.tabIndex = active ? 0 : -1;   // roving tabindex per ARIA tabs pattern
   });
 
   if (name === "history" && typeof loadHistory === "function") loadHistory();
 
-  // Klip, Framing, dan Teks bertiga menyunting result yang SAMA, dan
-  // preview-nya menampilkan hasil gabungan ketiganya. Jadi ketiganya digambar
-  // ulang di layar mana pun dari ketiga itu -- kalau hanya layar yang sedang
-  // dibuka yang digambar, preview memperlihatkan keadaan basi dari layar
-  // sebelah. Semuanya menulis daftar pendek, jadi murah.
+  // Clips, Framing, and Text all three edit the SAME result, and the preview
+  // shows the combined output of all three. So all three are redrawn on any
+  // of the three screens -- if only the active screen were drawn, the preview
+  // would show stale state from a sibling screen. They all write short lists,
+  // so it's cheap.
   if (RESULT_SCREENS.includes(name)) {
     if (typeof renderFraming === "function") setTimeout(renderFraming, 0);
     if (typeof renderRecommendations === "function") renderRecommendations();
@@ -462,28 +463,28 @@ function toScreen(name) {
   $("#stage").classList.toggle("has-preview", hasPreview);
   $("#preview").style.display = hasPreview ? "" : "none";
 
-  /* Geometri video bergantung pada ukuran kanvas, yang baru ada setelah
-     layarnya keluar dari display:none. ResizeObserver ternyata tidak selalu
-     menembak pada transisi itu, jadi dipanggil eksplisit: sekali setelah
-     tata letak selesai, sekali lagi sebagai jaring pengaman. */
+  /* Video geometry depends on canvas size, which only exists after the
+     screen comes out of display:none. ResizeObserver doesn't always fire
+     on that transition, so it's called explicitly: once after layout is
+     done, once more as a safety net. */
   if (typeof attachVideoGeometry === "function") {
     setTimeout(attachVideoGeometry, 0);
     setTimeout(attachVideoGeometry, 160);
   }
-  // Ukuran watermark preview (lihat applyCaption() di interactions.js) sejak
-  // fix terakhir dihitung dari getBoundingClientRect().height milik
-  // .frame916 -- masalah yang SAMA seperti geometri video di atas: kalau
-  // dipanggil sebelum panel keluar dari display:none, tingginya kebaca 0
-  // dan watermark jatuh ke fallback nyaris tak kelihatan. Dipanggil ulang
-  // di sini dengan pola yang sama persis.
+  // Preview watermark size (see applyCaption() in interactions.js) since
+  // the last fix is calculated from getBoundingClientRect().height of
+  // .frame916 -- same problem as the video geometry above: if called before
+  // the panel exits display:none, its height reads as 0 and the watermark
+  // falls back to a nearly invisible size. Called again here with the exact
+  // same pattern.
   if (typeof applyCaption === "function") {
     setTimeout(applyCaption, 0);
     setTimeout(applyCaption, 160);
   }
 }
 
-/* Layar analisis mengacu ke file yang sedang dibuka. Kalau sudah ada file
-   yang dijatuhkan, analisis.js yang menimpanya dengan nama file sungguhan. */
+/* Analysis screen references the file being opened. If a file has already
+   been dropped, analysis.js overwrites it with the real filename. */
 function renderAnalysis() {
   const d = DATA;
   const el = $("#analysisNote");
@@ -501,7 +502,7 @@ $("#tabs").addEventListener("click", (e) => {
 });
 
 
-// Panah kiri/kanan berpindah tab, sesuai ARIA Authoring Practices.
+// Left/right arrows switch tabs, per ARIA Authoring Practices.
 $("#tabs").addEventListener("keydown", (e) => {
   if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
   const all = [...document.querySelectorAll(".tab")];

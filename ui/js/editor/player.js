@@ -1,47 +1,46 @@
-/* klipian — pemutar preview & alur render
+/* klipian — preview player & render pipeline
    ==========================================================================
-   Dua lubang di alur yang ditutup di sini:
+   Two holes in the pipeline that are patched here:
 
-   1. Preview 9:16 tidak bisa disetel. Tombol putar tidak memutar apa pun,
-      padahal file yang dijatuhkan sudah punya object URL sejak awal.
-      Sekarang video aslinya diputar DI DALAM frame, sudah ter-crop sesuai
-      kotak Reframe, dan berhenti tepat di ujung klip.
+   1. 9:16 preview could not be set. The play button did nothing, even though
+      the dropped file already had an object URL from the start.
+      Now the source video plays INSIDE the frame, already cropped to match
+      the Reframe box, and stops exactly at the clip boundary.
 
-   2. Tidak ada satu pun tombol yang memulai render. Antrian menampilkan
-      progress dari pekerjaan yang tidak pernah dimulai. Sekarang render
-      dijalankan dari layar Kandidat, atas klip yang kamu setujui.
+   2. No button started a render. The queue showed progress for a job that
+      was never launched. Now rendering runs from the Candidates screen,
+      for clips you have approved.
 
-   Rendernya masih simulasi -- belum ada ffmpeg di belakangnya -- tapi
-   waktunya diturunkan dari durasi klip yang sebenarnya.
+   The render is still a simulation -- no ffmpeg behind it yet -- but
+   timing is derived from the actual clip duration.
    ========================================================================== */
 
 const video = $("#videoPreview");
 const frame = $("#frame");
 
-let activeClip = null;      // { judul, mulai, akhir } dalam detik
+let activeClip = null;      // { title, start, end } in seconds
 let isPlaying = false;
 
 const secondsFromClock = (t) =>
   String(t).split(":").reduce((a, b) => a * 60 + Number(b), 0);
 
-/* Ukuran dan posisi video dihitung dari kotak crop.
-   Untuk menampilkan potongan selebar W% dari frame sumber di dalam kotak
-   selebar F, videonya harus dilebarkan jadi F * 100/W, lalu digeser
-   sejauh L% dari lebar itu. */
-/* Preview memotong dengan cara memperbesar <video> lalu menggesernya di dalam
-   petak yang ber-overflow hidden -- persis seperti crop di ffmpeg, tapi pakai
-   CSS. Rasio kotak framing sudah dikunci sama dengan rasio petaknya, jadi
-   melebarkan menurut lebar saja sudah pas: tingginya ikut sendiri.
+/* Video size and position are derived from the crop box.
+   To show a W%-wide slice of the source frame inside an F-wide box,
+   the video is scaled to F * 100/W, then shifted L% of that width. */
+/* Preview crops by scaling up the <video> and shifting it inside an
+   overflow-hidden container -- identical to an ffmpeg crop, but done in
+   CSS. The framing box aspect ratio is locked to the container ratio, so
+   scaling by width alone is enough: height follows automatically.
 
-   Ukurannya diambil dari ANGKA di FRAMING, bukan dari mengukur kotak di
-   kanvas. Sejak Framing punya layarnya sendiri, kanvas itu display:none
-   setiap kali kamu berada di layar Klip atau Teks -- rect-nya nol, dan
-   preview tidak pernah dapat ukuran sama sekali. */
+   Dimensions are read from the NUMBERS in Framing, not by measuring the
+   canvas box. Since Framing has its own screen now, the canvas is
+   display:none whenever you are on the Clips or Text screen -- its rect
+   is zero, so preview could never get valid measurements at all. */
 function attachBox(v, box, crop) {
   if (!v || !box || !crop) return;
   const f = box.getBoundingClientRect();
-  // Layarnya bisa sedang tersembunyi; rect-nya nol dan pembagian menghasilkan
-  // NaN. Dihitung ulang nanti saat layarnya terlihat.
+  // The screen may be hidden; its rect is zero and division produces NaN.
+  // Recalculated later when the screen becomes visible.
   if (!f.width || !crop.width) return;
 
   const ratio = (typeof sourceRatio === "function") ? sourceRatio() : 16 / 9;
@@ -63,29 +62,29 @@ function attachVideoGeometry() {
   }
 }
 
-/* Klip mana yang sedang ditinjau. Preview adalah HASILNYA: kalau ada bagian
-   yang dibuang, bagian itu ikut dilompati saat diputar, persis seperti di
-   berkas yang nanti dirender. */
+/* Which clip is being reviewed. The preview IS the result: if any section
+   was discarded, playback skips it entirely -- matching exactly what the
+   rendered file will contain. */
 function setClip(k) {
   if (!k) return;
   activeClip = k;
   if (!k.spans || !k.spans.length) {
-    // k.dur bisa datang sebagai string dari JSON impor ("54.7"); Number()
-    // supaya start + dur menjumlah, bukan menyambung string ("1254.7").
+    // k.dur may arrive as a string from imported JSON ("54.7"); Number()
+    // so that start + dur adds numerically, not concatenates ("1254.7").
     const start = k.startSec ?? secondsFromClock(k.in);
     k.spans = [{ start, end: start + Number(k.dur) }];
   }
   if (video.src) video.currentTime = k.spans[0].start;
-  drawTime(0);            // durasi total tetap tampil walau video belum dimuat
+  drawTime(0);            // total duration shows even before the video loads
   drawTimeline();
   if (typeof renderPreview === "function") renderPreview();
 }
 
-/* Durasi keluaran klip: jumlah panjang potongan, bukan jarak awal-akhir. */
+/* Clip output duration: sum of segment lengths, not first-start to last-end. */
 const clipOutDur = (k) =>
   (k?.spans || []).reduce((t, p) => t + (p.end - p.start), 0);
 
-/* waktu sumber -> waktu keluaran (null kalau jatuh di bagian yang dibuang) */
+/* source time -> output time (null when falling in a discarded section) */
 function sourceToOut(k, t) {
   let passed = 0;
   for (const p of k.spans) {
@@ -96,7 +95,7 @@ function sourceToOut(k, t) {
   return null;
 }
 
-/* waktu keluaran -> waktu sumber */
+/* output time -> source time */
 function outToSource(k, t) {
   let remaining = t;
   for (const p of k.spans) {
@@ -108,8 +107,8 @@ function outToSource(k, t) {
   return last ? last.end : 0;
 }
 
-// Ikut menampilkan jam kalau sumbernya lebih dari 1 jam -- tanpa ini
-// 1:05:00 tampil "65:00". Sejajar dengan timeRange() di app.js.
+// Includes hours when the source exceeds 1 hour -- without this,
+// 1:05:00 would display as "65:00". Matches timeRange() in app.js.
 const shortTime = (d) => {
   const t = Math.max(0, Math.floor(d));
   const j = Math.floor(t / 3600);
@@ -125,15 +124,14 @@ function drawTime(passed) {
 }
 
 
-/* ---------- timeline: potongan yang dibuang tampak sebagai celah ---------- */
+/* ---------- timeline: discarded segments appear as gaps ---------- */
 
 function drawTimeline() {
   const track = $("#tlTrack");
   if (!track) return;
   if (!activeClip) {
-    // Tanpa ini, mengosongkan Result meninggalkan track dan label waktu
-    // klip TERAKHIR yang dipilih -- bukan keadaan "belum ada klip" yang
-    // sebenarnya sedang terjadi.
+    // Without this, clearing Result leaves the track and time labels of
+    // the LAST selected clip -- not the true "no clip yet" state.
     track.innerHTML = "";
     $("#tlStartTime").textContent = "00:00";
     $("#tlEndTime").textContent = "00:00";
@@ -163,7 +161,7 @@ function drawHead() {
   if (tl) tl.setAttribute("aria-valuenow", Math.round((out / total) * 100));
 }
 
-/* Klik di timeline melompat ke posisi itu -- dalam waktu KELUARAN. */
+/* Clicking the timeline jumps to that position -- in OUTPUT time. */
 $("#timeline")?.addEventListener("click", (e) => {
   if (!activeClip || !video.src) return;
   const r = e.currentTarget.getBoundingClientRect();
@@ -193,7 +191,7 @@ function prepareVideo() {
   }
   video.src = chosenSource.url;
   frame.dataset.video = "true";
-  loadFps(chosenSource.name);          // fps untuk melangkah per frame
+  loadFps(chosenSource.name);          // fps for frame-by-frame stepping
   video.addEventListener("loadedmetadata", () => {
     attachVideoGeometry();
     if (activeClip) video.currentTime = Math.min(activeClip.spans[0].start, video.duration - 0.1);
@@ -204,9 +202,9 @@ video.addEventListener("timeupdate", () => {
   if (!activeClip || !activeClip.spans?.length) return;
   const t = video.currentTime;
 
-  // Lompati bagian yang dibuang: begitu ujung satu potongan lewat, langsung
-  // pindah ke awal potongan berikutnya. Inilah yang membuat preview sama
-  // dengan berkas hasil render.
+  // Skip discarded sections: as soon as one segment ends, jump to the
+  // start of the next segment. This is what makes the preview match
+  // the rendered output file.
   const i = activeClip.spans.findIndex((p) => t < p.end + 0.001);
   if (i === -1) {                                   // habis
     video.pause();
@@ -226,16 +224,16 @@ video.addEventListener("timeupdate", () => {
   drawHead();
   drawCaption();
 
-  // Kanvas framing menampilkan frame yang SAMA, tanpa dipotong. Disamakan
-  // tiap tick supaya ia berjalan bersama preview, bukan membeku.
+  // The framing canvas shows the SAME frame, un-cropped. Synced every
+  // tick so it advances with the preview instead of freezing.
   if (typeof syncCanvasVideo === "function") syncCanvasVideo();
 
-  // Label waktu di layar Framing ikut tiap tick supaya tidak kelihatan
-  // membeku saat diputar (lihat catatan di updateFramingClock()).
+  // Framing screen time label updates each tick so it doesn't appear
+  // frozen during playback (see note in updateFramingClock()).
   if (typeof updateFramingClock === "function") updateFramingClock();
 
-  // Framing ikut berpindah saat pemutaran melewati titik berikutnya --
-  // supaya preview benar-benar memperlihatkan apa yang akan dirender.
+  // Framing switches when playback passes the next point --
+  // so the preview truly reflects what will be rendered.
   if (typeof pointAt === "function") {
     const f = pointAt(t);
     if (f && f !== lastFraming) {
@@ -244,28 +242,29 @@ video.addEventListener("timeupdate", () => {
       if (typeof followActivePoint === "function") followActivePoint(f);
     } else if (f?.tracking?.keyframes?.length >= 2
                && typeof attachVideoGeometry === "function") {
-      // Titik ini di-track: kotaknya bergerak TIAP tick selama titik ini
-      // masih berlaku, bukan cuma sekali saat titik berganti (jalur di
-      // atas). Titik tanpa tracking tetap pakai jalur lama -- statis
-      // sampai titik berikutnya, tanpa kerja tambahan tiap tick.
+      // This point is tracked: the box moves EVERY tick while this point
+      // is still active, not just once when the point changes (code path
+      // above). Untracked points keep the old path -- static until the
+      // next point, with no extra per-tick work.
       attachVideoGeometry();
     }
   }
 });
 
-/* ---------- caption hidup di preview ----------
-   Dulu kotak caption berisi teks peraga yang dipaku di HTML ("bukan
-   investasi, INI JUDI") -- tidak pernah berubah, dan menyesatkan karena
-   bukan itu yang akan terbakar di berkas hasil.
+/* ---------- live captions in preview ----------
+   The caption box used to hold demo text hardcoded in HTML ("not an
+   investment, THIS IS GAMBLING") -- it never changed, and was misleading
+   because it did not match what would actually burn into the output file.
 
-   Sekarang isinya kata asli dari transkrip pada posisi pemutaran, dikelompok
-   per baris dengan aturan yang SAMA dengan build_ass di sisi Python, dan kata
-   yang sedang diucapkan disorot memakai warna dari layar Subtitle. */
+   Now it shows the original transcript words at the current playback
+   position, grouped per line using the SAME rules as build_ass on the
+   Python side, with the currently-spoken word highlighted in the
+   Subtitle screen colour. */
 function drawCaption() {
   const cap = $("#cap916");
   if (!cap) return;
-  // Sumber teksnya kata yang SUDAH dibetulkan, supaya preview memperlihatkan
-  // caption yang benar-benar akan terbakar di berkas hasil.
+  // The text source is ALREADY corrected words, so preview shows the
+  // captions that will actually burn into the output file.
   const words = (typeof resultWords === "function" && resultWords().length)
     ? resultWords() : realTranscript?.words;
   if (!activeClip || !words?.length || !video.src) { cap.innerHTML = ""; return; }
@@ -286,13 +285,13 @@ function drawCaption() {
   const out = sourceToOut(activeClip, t);
   if (out === null) { cap.innerHTML = ""; return; }
 
-  // Jendela tampil tiap baris harus SAMA dengan build_ass: baris baru MULAI
-  // tepat saat kata pertamanya diucapkan, bukan lebih awal cuma karena baris
-  // sebelumnya sudah lewat. Sebelumnya dicari lewat "kata mana yang belum
-  // berakhir" (out < w.b) tanpa mengecek sudah mulai atau belum -- begitu ada
-  // jeda sebelum baris berikutnya, seluruh barisnya (termasuk kata yang belum
-  // diucapkan) langsung tampil selama jeda itu (dilaporkan ian: "teks sudah
-  // muncul tapi pembicara belum bicara").
+  // Each line's display window must MATCH build_ass: a new line STARTS
+  // exactly when its first word is spoken, not earlier just because the
+  // previous line ended. Previously the check was "which word hasn't ended
+  // yet" (out < w.b) without verifying it had started -- so as soon as
+  // there was a gap before the next line, the entire line (including words
+  // not yet spoken) appeared for the duration of that gap (reported by ian:
+  // "text appeared but the speaker hasn't talked yet").
   let line = null, highlight = -1;
   for (let g = 0; g < used.length; g += wordsPerLine) {
     const group = used.slice(g, g + wordsPerLine);
@@ -301,9 +300,9 @@ function drawCaption() {
     const end = next ? next.a : group[group.length - 1].b + 0.4;
     if (out < start || out >= end) continue;
     line = group;
-    // Kata yang disorot bertahan sampai kata BERIKUTNYA benar-benar mulai
-    // (bukan cuma sampai akhir katanya sendiri) -- sama seperti build_ass,
-    // supaya sorotan tidak berkedip kosong selama jeda di tengah baris.
+    // The highlighted word persists until the NEXT word truly starts
+    // (not just until the end of the word itself) -- matching build_ass,
+    // so the highlight doesn't blink empty during a mid-line pause.
     highlight = group.length - 1;
     for (let j = 0; j < group.length; j++) {
       const groupEnd = j < group.length - 1 ? group[j + 1].a : end;
@@ -318,15 +317,15 @@ function drawCaption() {
     .join(" ");
 }
 
-/* ---------- melangkah per frame ----------
-   Langkahnya dihitung di waktu KELUARAN, bukan waktu sumber. Bedanya terasa
-   di sambungan antar potongan: maju satu frame di ujung potongan pertama
-   mendarat di frame pertama potongan berikutnya, bukan di detik yang sudah
-   kamu buang.
+/* ---------- frame-by-frame stepping ----------
+   Steps are calculated in OUTPUT time, not source time. The difference
+   matters at segment boundaries: stepping forward one frame at the end
+   of a segment lands on the first frame of the next segment, not on a
+   discarded second.
 
-   fps datang dari ffprobe lewat /api/probe -- elemen <video> tidak pernah
-   membocorkan angka itu. Kalau server tidak menjawab, dipakai 30 sebagai
-   perkiraan yang aman untuk kebanyakan rekaman. */
+   fps comes from ffprobe via /api/probe -- the <video> element never
+   exposes that number. If the server does not respond, 30 is used as a
+   safe default for most footage. */
 let sourceFps = 30;
 
 async function loadFps(name) {
@@ -341,13 +340,13 @@ async function loadFps(name) {
   } catch { /* biarkan 30 */ }
 }
 
-/* Inti langkah maju/mundur, dipakai stepFrame() (satuan frame) maupun
-   stepSeconds() (satuan detik) -- keduanya cuma beda cara menghitung
-   `langkah` dalam waktu KELUARAN, sisanya (jeda dulu kalau sedang
-   berjalan, jepit ke batas klip, gambar ulang) identik. */
+/* Core stepping logic, shared by stepFrame() (frame units) and
+   stepSeconds() (second units) -- the only difference is how `step`
+   is computed in OUTPUT time; the rest (pause if playing, clamp to
+   clip bounds, redraw) is identical. */
 function stepPreview(step) {
   if (!video.src || !activeClip) return;
-  if (isPlaying) {                    // melangkah sambil berjalan itu aneh
+  if (isPlaying) {                    // stepping while playing is odd
     video.pause();
     isPlaying = false;
     playBtn.textContent = "▶";
@@ -363,14 +362,14 @@ function stepPreview(step) {
   if (typeof syncCanvasVideo === "function") syncCanvasVideo();
 }
 
-function stepFrame(direction) { stepPreview(direction / sourceFps); }   // direction = jumlah frame, boleh minus
-function stepSeconds(seconds) { stepPreview(seconds); }                 // seconds boleh minus
+function stepFrame(direction) { stepPreview(direction / sourceFps); }   // direction = frame count, may be negative
+function stepSeconds(seconds) { stepPreview(seconds); }                 // seconds may be negative
 
-/* Satuan tombol langkah (frame/detik) -- ian: perlu detik juga, bukan
-   cuma frame ("frame" berguna untuk presisi di ujung klip, "detik" untuk
-   loncat lebih jauh tanpa menghitung berapa frame). Satu deret tombol
-   dipakai untuk KEDUANYA (label + fungsinya berganti lewat toggle ini),
-   bukan menggandakan jadi 12 tombol -- panel preview 9:16 sudah sempit. */
+/* Step-button unit (frames/seconds) -- ian: needs seconds too, not just
+   frames ("frames" are useful for precision at clip boundaries, "seconds"
+   for larger jumps without counting frames). One set of buttons serves
+   BOTH (labels + behaviour switch via this toggle), rather than
+   duplicating into 12 buttons -- the 9:16 preview panel is already tight. */
 let stepUnit = "frame";
 const STEP_LABEL = { frame: ["5f", "2f", "1f"], seconds: ["5s", "2s", "1s"] };
 const STEP_TITLE = {
@@ -396,8 +395,8 @@ function updateStepLabel() {
       forward.setAttribute("aria-label", `Forward ${title[i]}`);
     }
   });
-  // Panel pintasan (lihat di bawah) ikut menyebut satuan yang sedang aktif,
-  // supaya "," "." di situ tidak kelihatan ambigu antara frame/detik.
+  // The shortcut panel (see below) also references the active unit, so
+  // the "," "." labels there don't look ambiguous between frames/seconds.
   const unitEl = $("#shortcutUnitTeks");
   if (unitEl) unitEl.textContent = stepUnit === "frame" ? "frame" : "second";
 }
@@ -413,11 +412,11 @@ $("#stepUnitBtn")?.addEventListener("click", () => {
   updateStepLabel();
 });
 
-/* Panel pintasan papan tik -- tombol "?" buka/tutup, bukan selalu
-   tampil (panel preview 9:16 sudah sempit, teks penjelasan permanen
-   bakal mendesak tombol lain). Tutup lagi kalau klik di luar panel atau
-   tekan Escape -- pola popover standar, jangan biarkan menggantung
-   terbuka sampai ditutup manual lewat tombolnya sendiri lagi. */
+/* Keyboard shortcut panel -- "?" toggles open/closed, not always visible
+   (the 9:16 preview panel is already tight; permanent help text would
+   crowd out other buttons). Close again on outside click or Escape --
+   standard popover pattern, don't leave it hanging open until manually
+   closed via its own button. */
 (function shortcutHelp() {
   const btn = $("#shortcutHelpBtn");
   const panel = $("#shortcutPanel");
@@ -440,9 +439,9 @@ $("#stepUnitBtn")?.addEventListener("click", () => {
   });
 })();
 
-/* Kanvas framing disamakan pada peristiwa seek dan putar/jeda -- bukan hanya
-   pada timeupdate. Menggeser posisi saat video dijeda tidak selalu memicu
-   timeupdate, dan dulu kanvas tertinggal di posisi lamanya. */
+/* Framing canvas is synced on seek and play/pause events -- not just on
+   timeupdate. Scrubbing while paused does not always fire timeupdate,
+   and the canvas used to be left behind at its old position. */
 ["seeked", "play", "pause", "loadeddata"].forEach((ev) =>
   video.addEventListener(ev, () => {
     if (typeof syncCanvasVideo === "function") syncCanvasVideo();
@@ -457,15 +456,15 @@ const muteBtn = $("#muteBtn");
   .forEach(([sel, n]) => $(sel)?.addEventListener("click",
     () => (stepUnit === "frame" ? stepFrame(n) : stepSeconds(n))));
 
-/* Pintasan papan tik: , dan . seperti kebiasaan editor video; spasi untuk
-   putar. Diabaikan saat kamu sedang mengetik di kolom isian. Ikut satuan
-   yang sedang aktif (stepUnit) -- sama seperti tombolnya di kanvas. */
+/* Keyboard shortcuts: , and . as in most video editors; space to play.
+   Ignored when typing in an input field. Follows the active unit
+   (stepUnit) -- same as the buttons on the canvas. */
 document.addEventListener("keydown", (e) => {
   const t = e.target;
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   const step = (n) => (stepUnit === "frame" ? stepFrame(n) : stepSeconds(n));
-  // , dan . = 1 satuan; Shift menahannya jadi 5 satuan (< dan > di papan tik)
+  // , and . = 1 unit; Shift holds it to 5 units (< and > on the keyboard)
   if (e.key === ",") { e.preventDefault(); step(-1); }
   else if (e.key === ".") { e.preventDefault(); step(1); }
   else if (e.key === "<") { e.preventDefault(); step(-5); }
@@ -480,10 +479,11 @@ playBtn?.addEventListener("click", () => {
     if (sourceToOut(activeClip, video.currentTime) === null) {
       video.currentTime = activeClip.spans[0].start;
     }
-    // Preview rekomendasi dan preview Result tidak boleh berbunyi bersamaan.
+    // Recommendation preview and Result preview must not play audio together.
     if (typeof closeRecPreview === "function") closeRecPreview();
-    // play() menolak kalau segera disusul pause() (mis. klip habis di
-    // detik yang sama). Ditelan supaya tidak jadi galat tak tertangkap.
+    // play() rejects if immediately followed by pause() (e.g. the clip
+    // ends on the same second). Swallowed so it doesn't become an
+    // uncaught error.
     video.play().catch(() => {});
     playBtn.textContent = "❚❚";
   }
@@ -492,8 +492,9 @@ playBtn?.addEventListener("click", () => {
   if (typeof syncCanvasVideo === "function") syncCanvasVideo();
 });
 
-/* Suara: video sengaja TIDAK muted lagi. Dulu atribut muted membuat result
-   diputar tanpa audio sama sekali, padahal berkas hasilnya berbunyi. */
+/* Sound: the video is deliberately NOT muted anymore. Previously the
+   muted attribute caused the result to play without any audio, even
+   though the output file has sound. */
 muteBtn?.addEventListener("click", () => {
   video.muted = !video.muted;
   muteBtn.textContent = video.muted ? "🔇" : "🔊";
@@ -509,16 +510,16 @@ rewindBtn?.addEventListener("click", () => {
   }
 });
 
-/* Preview memutar RESULT. Inilah maksud "preview adalah hasilnya": yang kamu
-   lihat di frame 9:16 adalah berkas yang nanti keluar, lengkap dengan
-   lompatan di tiap sambungan antar potongan. */
+/* Preview plays the RESULT. This is what "preview is the output" means:
+   what you see in the 9:16 frame is the file that will come out,
+   complete with jumps at every segment boundary. */
 function setResultAsPreview() {
   if (typeof RESULT === "undefined" || !RESULT.length) {
     activeClip = null;
     drawTimeline();
-    // Tanpa ini panel LENGTH (renderPreview -> #clipInfo) menyisakan info
-    // klip terakhir yang dipilih walau Result baru saja dikosongkan --
-    // gejala yang sama dengan label timeline yang basi di atas.
+    // Without this the LENGTH panel (renderPreview -> #clipInfo) keeps
+    // the last selected clip's info even though Result was just cleared --
+    // same symptom as the stale timeline label above.
     if (typeof renderPreview === "function") renderPreview();
     return;
   }
@@ -528,44 +529,45 @@ function setResultAsPreview() {
 }
 
 
-/* ───────────────── alur render ───────────────── */
+/* ───────────────── render pipeline ───────────────── */
 
 let renderTimer = null;
 let renderJobId = null;             // id job render aktif, untuk pembatalan
 let lastFraming = null;   // titik framing yang sedang tampil di preview
 
 
-/* Yang dibaca ORANG. Untuk label di layar dan baris riwayat. */
+/* Human-readable values. For UI labels and history rows. */
 function optionValue(id) {
   const o = OPTIONS.find((x) => x.id === id);
   return o ? o.choices[o.active] : "";
 }
 
-/* Yang dibaca MESIN. Dipakai saat menyusun permintaan render, supaya tulisan
-   di tombol boleh diganti tanpa mengubah apa pun di berkas hasil. */
+/* Machine-readable values. Used when building the render request, so the
+   button labels can change without altering anything in the output file. */
 function optionOut(id) {
   const o = OPTIONS.find((x) => x.id === id);
   return o && o.out ? o.out[o.active] : undefined;
 }
 
 
-/* Render SUNGGUHAN lewat backend.
-   Sebelumnya bagian ini cuma menganimasikan progress bar -- tidak ada berkas
-   yang pernah dibuat, tapi antrian tetap menulis "selesai" dan menawarkan
-   "Open folder". Label yang berbohong lebih buruk daripada fitur yang belum
-   ada. Sekarang benar-benar memanggil ffmpeg lewat klipian serve. */
+/* REAL render via backend.
+   Previously this only animated the progress bar -- no file was ever
+   created, yet the queue still wrote "complete" and offered "Open folder".
+   Lying labels are worse than a missing feature. Now it actually calls
+   ffmpeg through klipian serve. */
 
 
-/* Render seluruh Result sebagai satu berkas. Papan kandidat status "approved"
-   sudah tidak ada -- yang dirender adalah RESULT (lihat resultAsClip). */
+/* Render the entire Result as one file. The Candidates screen "approved"
+   status no longer exists -- what renders is RESULT (see resultAsClip). */
 async function startRender() {
   const clip = (typeof resultAsClip === "function") ? resultAsClip() : null;
   if (!clip) return;
   return sendRender([clip]);
 }
 
-/* Kirim satu atau banyak klip ke server. Dipakai tombol di layar Kandidat
-   (semua yang disetujui) dan tombol di preview (klip yang sedang dilihat). */
+/* Send one or more clips to the server. Used by the button on the
+   Candidates screen (all approved) and the preview button (the clip being
+   viewed). */
 async function sendRender(approved) {
   if (!approved || !approved.length) return;
 

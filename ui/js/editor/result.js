@@ -1,20 +1,21 @@
-/* klipian — wadah Result
+/* klipian — Result container
    ==========================================================================
-   Result adalah SATU video: semua range di dalamnya disambung jadi satu MP4.
-   Dua keran mengisi wadah yang sama:
+   Result is ONE video: all ranges inside are joined into a single MP4.
+   Two faucets fill the same container:
 
-       timeline  ──  pilih range sendiri     ─┐
-                                              ├──>  RESULT  ──>  render
-       Claude    ──  pilih dari rekomendasi  ─┘
+       timeline  ──  pick ranges yourself       ─┐
+                                                  ├──>  RESULT  ──>  render
+       Claude    ──  pick from recommendations  ─┘
 
-   Dua aturan yang dipaksakan di sini, bukan di layar:
+   Two rules enforced here, not on screen:
 
-   1. URUT WAKTU. Mesin render menolak potongan yang tidak urut, jadi range
-      selalu disimpan terurut menit kecil dulu -- bukan urutan kamu memasukkan.
+   1. CHRONOLOGICAL ORDER. The render engine rejects clips that aren't in
+      order, so ranges are always stored sorted earliest-minute first -- not
+      the order you added them.
 
-   2. TIDAK BOLEH TUMPANG TINDIH. Range yang bersinggungan digabung jadi satu,
-      karena dua potongan yang beririsan akan membuat detik yang sama muncul
-      dua kali di video hasil.
+   2. NO OVERLAPPING. Ranges that touch are merged into one, because two
+      overlapping clips would make the same second appear twice in the output
+      video.
    ========================================================================== */
 
 let RESULT = [];          // [{ id, start, end, title, source }]
@@ -22,13 +23,13 @@ let resultSeq = 0;
 
 const resultTotal = () => RESULT.reduce((t, r) => t + (r.end - r.start), 0);
 
-/* Masukkan satu range. Mengembalikan alasan penolakan, atau null kalau masuk. */
+/* Add one range. Returns a rejection reason string, or null on success. */
 function addToResult(start, end, title, source) {
   start = Number(start); end = Number(end);
   if (!Number.isFinite(start) || !Number.isFinite(end)) return "could not read that time";
   if (end - start < 0.5) return "range is too short";
 
-  // Gabung dengan yang bersinggungan supaya tidak ada detik yang dobel.
+  // Merge with overlapping ranges so no second appears twice.
   const overlapping = RESULT.filter((r) => start < r.end && end > r.start);
   if (overlapping.length) {
     start = Math.min(start, ...overlapping.map((r) => r.start));
@@ -58,14 +59,14 @@ function clearResult() {
   renderResult();
 }
 
-/* Judul bawaan: judul potongan pertama, atau nama umum kalau isinya campuran. */
+/* Default title: the first clip's title, or a generic name when there's a mix. */
 function defaultTitle() {
   if (!RESULT.length) return "";
   return RESULT.length === 1 ? RESULT[0].title : `${RESULT[0].title} +${RESULT.length - 1}`;
 }
 
-/* Result -> satu klip yang dimengerti mesin render. Semua range jadi spans,
-   dan spans itulah yang disambung ffmpeg jadi satu berkas. */
+/* Result -> a single clip the render engine understands. All ranges become spans,
+   and it's those spans ffmpeg joins into one file. */
 function resultAsClip() {
   if (!RESULT.length) return null;
   const typed = $("#resultTitle")?.value.trim();
@@ -78,13 +79,12 @@ function resultAsClip() {
   };
 }
 
-/* ---------- menggambar ---------- */
+/* ---------- rendering ---------- */
 
-/* Setiap perubahan Result lewat sini -- tambah, buang, kosongkan. Pemicu
-   simpan dipasang di sini, bukan di tiap pemanggil: satu pemanggil yang
-   terlewat berarti pekerjaan hilang diam-diam, dan itu jenis kegagalan yang
-   paling menyebalkan. Penyimpanannya ditunda, jadi panggilan berlebih dari
-   pergantian layar tidak jadi beban. */
+/* Every Result change flows through here -- add, remove, clear. The save trigger
+   is wired here, not in every caller: one missed caller means work silently lost,
+   and that's the most annoying kind of failure. Saves are debounced so redundant
+   calls from screen switches don't become a burden. */
 function renderResult() {
   if (typeof saveProject === "function") saveProject();
   const list = $("#resultList");
@@ -132,15 +132,15 @@ function renderResult() {
       : `${RESULT.length} spans joined into one MP4`;
   }
 
-  // Preview memutar result, jadi ikut diperbarui.
+  // Preview plays the result, so update it too.
   if (typeof setResultAsPreview === "function") setResultAsPreview();
-  // Penanda di timeline ikut result. Tanpa ini, potongan yang sudah dibuang
-  // tetap tergambar kuning dan lama-lama batangnya penuh tumpukan.
+  // Timeline markers follow the result. Without this, removed clips stay
+  // drawn in yellow and the bar gradually fills up with stale marks.
   if (typeof drawTotalTimeline === "function") drawTotalTimeline();
   if (typeof renderCaptions === "function") renderCaptions();
 }
 
-/* ---------- rekomendasi AI: menit dan judul saja ---------- */
+/* ---------- AI recommendations: minutes and titles only ---------- */
 
 function renderRecommendations() {
   const list = $("#recList");
@@ -148,9 +148,9 @@ function renderRecommendations() {
   if (!list) return;
   const candidates = (DATA?.candidates) || [];
 
-  // Daftarnya bisa berubah total (impor ulang dari Claude) sementara preview
-  // masih menunjuk ke indeks lama -- ditutup dulu supaya tidak menunjuk ke
-  // rekomendasi yang salah setelah render ulang.
+  // The list can change entirely (re-import from Claude) while the preview
+  // still points to the old index -- close it first so it doesn't point to
+  // the wrong recommendation after re-rendering.
   if (typeof closeRecPreview === "function") closeRecPreview();
 
   if (!candidates.length) {
@@ -161,24 +161,24 @@ function renderRecommendations() {
     return;
   }
 
-  // Sengaja ringkas: menit, judul, durasi. Skor dan alasan tidak membantu
-  // memutuskan di layar ini -- yang dibutuhkan cuma "ambil atau tidak".
+  // Intentionally minimal: minutes, title, duration. Scores and reasons don't
+  // help on this screen -- all you need is "take it or leave it".
   //
-  // Waktunya BISA DIEDIT: Claude kadang menunjuk detik yang meleset sedikit
-  // dari yang dimaksud, dan sebelum ini satu-satunya jalan membetulkannya
-  // adalah menolak seluruh rekomendasi lalu memilih rentang sendiri di
-  // timeline. Formatnya mm:ss, sama seperti kolom "from"/"to" di atas --
-  // bukan detik mentah -- supaya satu konvensi dipakai di seluruh layar ini.
+  // Time IS EDITABLE: Claude sometimes points to seconds that are slightly off
+  // from what was intended, and before this the only way to fix it was to
+  // reject the entire recommendation and pick a range manually on the
+  // timeline. Format is mm:ss, same as the "from"/"to" columns above --
+  // not raw seconds -- so one convention is used across this screen.
   //
-  // Kotaknya TERKUNCI (disabled) sampai tombol pensil dipencet -- baris ini
-  // ada di dalam <label> yang membungkus checkbox "pilih buat Result", dan
-  // kotak waktu yang selalu bisa diklik langsung gampang tersenggol tanpa
-  // sengaja. Pensil membuka kunci + fokus ke kolom "start"; begitu terbuka
-  // ikonnya ganti jadi centang (Save) -- dipencet lagi buat mengunci ulang
-  // SEKALIGUS memastikan nilai yang barusan diketik ter-commit (lihat
-  // listener klik #recList: dispatch "change" manual, karena klik
-  // langsung ke tombol Save tanpa pindah fokus dulu tidak memicu event
-  // change bawaan browser).
+  // The input is LOCKED (disabled) until the pencil button is pressed -- this
+  // row sits inside a <label> wrapping the "pick for Result" checkbox, and a
+  // time field that's always clickable would be easy to bump accidentally.
+  // The pencil unlocks + focuses the "start" field; once open the icon flips
+  // to a checkmark (Save) -- press again to re-lock AND ensure the value
+  // just typed is committed (see the #recList click listener: a manual
+  // "change" dispatch, because clicking the Save button directly without
+  // moving focus away from the text field first doesn't fire the browser's
+  // native change event).
   list.innerHTML = candidates.map((k, i) => `
     <label class="rec-row">
       <button class="rec-play" type="button" data-play="${i}"
@@ -203,26 +203,27 @@ function renderRecommendations() {
   updateRecButton();
 }
 
-/* ---------- pratinjau video sumber utuh, sebelum masuk Result ----------
-   Panel 9:16 di kanan sudah dipakai (terkunci ke Result), jadi ini elemen
-   video TERPISAH, khusus untuk melihat rentang mentah sebuah rekomendasi
-   apa adanya -- belum dipotong, belum dibingkai, karena keduanya memang
-   belum berarti apa-apa sebelum rentangnya masuk Result.
+/* ---------- full source video preview, before entering Result ----------
+   The 9:16 panel on the right is already taken (locked to Result), so this is
+   a SEPARATE video element dedicated to viewing a recommendation's raw range
+   as-is -- not yet clipped, not yet framed, because both are meaningless
+   before the range enters Result.
 
-   Duduk di panel Timeline, DI ATAS bar #tlTotal -- bukan di panel AI
-   suggestions -- karena keduanya menunjuk video yang SAMA. Panel ini SELALU
-   tampil, punya bar scrub sendiri (.tl-scrub, lihat muatPreviewUtuh() dan
-   handler #tlScrub di bawah) untuk pindah posisi putar bebas -- terpisah
-   dari #tlTotal yang tetap 100% murni untuk memilih rentang manual. */
+   Sits in the Timeline panel, ABOVE the #tlTotal bar -- not in the AI
+   suggestions panel -- because both point to the SAME video. This panel is
+   ALWAYS visible, has its own scrub bar (.tl-scrub, see loadFullPreview()
+   and the #tlScrub handler below) for free-form position seeking -- separate
+   from #tlTotal which remains 100% dedicated to picking manual ranges. */
 
-let previewIdx = null;      // indeks rekomendasi yang sedang dipratinjau
-let previewLimit = null;    // detik akhir -- video berhenti sendiri di sini
+let previewIdx = null;      // index of the recommendation being previewed
+let previewLimit = null;    // end-second -- video stops here on its own
 
-// Memuat video sumber ke #tlPreviewVideo begitu ada, TANPA autoplay --
-// panelnya sekarang selalu tampil (bukan cuma saat suggestion diputar),
-// jadi harus ada isinya sedini mungkin, bukan menunggu Play ditekan.
-// Dipanggil dari drawTotalTimeline() tiap kali timeline digambar ulang,
-// yang sudah jadi titik kumpul setiap kali chosenSource berubah.
+// Loads the source video into #tlPreviewVideo as soon as it exists, WITHOUT
+// autoplay -- the panel is now always visible (not just when a suggestion is
+// playing), so it needs content as early as possible, not waiting for Play
+// to be pressed.
+// Called from drawTotalTimeline() every time the timeline is redrawn,
+// which is already the gathering point whenever chosenSource changes.
 function loadFullPreview() {
   const v = $("#tlPreviewVideo");
   if (!v || !chosenSource?.url) return;
@@ -231,10 +232,10 @@ function loadFullPreview() {
 }
 
 function updateRecPlayIcon() {
-  // Bukan cuma "baris ini yang aktif" -- harus "baris ini yang aktif DAN
-  // videonya benar-benar sedang jalan". Tanpa syarat kedua, ikon tetap ⏸
-  // selamanya sesudah dijeda manual atau berhenti sendiri di endSec --
-  // padahal videonya sudah diam.
+  // Not just "this row is active" -- it must be "this row is active AND
+  // the video is actually playing". Without the second condition, the icon
+  // stays as pause forever after a manual pause or auto-stop at endSec --
+  // even though the video is already idle.
   const v = $("#tlPreviewVideo");
   const nowPlaying = !!(v && !v.paused);
   document.querySelectorAll(".rec-play").forEach((b) => {
@@ -260,10 +261,10 @@ function playRecPreview(idx) {
   const box = $("#tlPreview"), v = $("#tlPreviewVideo");
   if (!k || !box || !v || !chosenSource?.url) return;
 
-  // Menekan tombol yang SAMA saat sedang jalan berarti jeda, bukan mengulang.
+  // Pressing the SAME button while playing means pause, not restart.
   if (previewIdx === idx && !v.paused) { v.pause(); return; }
 
-  // Preview Result dan preview rekomendasi tidak boleh berbunyi bersamaan.
+  // Result preview and recommendation preview must not play simultaneously.
   if (typeof video !== "undefined" && video && !video.paused) {
     video.pause();
     if (typeof isPlaying !== "undefined") isPlaying = false;
@@ -278,35 +279,33 @@ function playRecPreview(idx) {
   updateRecPlayIcon();
 
   const startPlayback = () => {
-    try { v.currentTime = k.startSec; } catch { /* metadata belum siap */ }
+    try { v.currentTime = k.startSec; } catch { /* metadata not ready yet */ }
     v.play().catch(() => {});
   };
-  // `v.src` SELALU berupa URL absolut begitu dibaca balik -- browser
-  // meresolusinya sendiri -- sedangkan chosenSource.url relatif
-  // ("/workspace/samples/..."). Membandingkannya apa adanya SELALU meleset,
-  // jadi video di-reload ulang dari awal setiap kali Play ditekan, bahkan
-  // untuk suggestion dari
-  // video yang sama: buffering yang terbuang, dan sesaat sesudah klik video
-  // masih kelihatan diam menunggu loadedmetadata padahal seharusnya sudah
-  // langsung jalan. Dua-duanya diresolusi ke bentuk absolut dulu sebelum
-  // dibandingkan.
+  // `v.src` is ALWAYS an absolute URL once read back -- the browser resolves
+  // it itself -- while chosenSource.url is relative ("/workspace/samples/...").
+  // Comparing them raw ALWAYS mismatches, so the video gets reloaded from
+  // scratch every time Play is pressed, even for suggestions from the same
+  // video: wasted buffering, and for a moment after clicking the video still
+  // appears idle waiting for loadedmetadata when it should have started
+  // playing immediately. Both are resolved to absolute form before comparing.
   const absoluteSrc = new URL(chosenSource.url, location.href).href;
   if (v.src !== absoluteSrc) {
     v.src = chosenSource.url;
     v.addEventListener("loadedmetadata", startPlayback, { once: true });
   } else if (v.readyState >= 1) {
-    // HAVE_METADATA+: aman men-set currentTime sekarang.
+    // HAVE_METADATA+: safe to set currentTime now.
     startPlayback();
   } else {
-    // src sama tapi metadata belum siap (loadFullPreview baru men-set src) --
-    // tunggu, kalau tidak currentTime dibuang dan preview mulai dari 0.
+    // Same src but metadata not ready yet (loadFullPreview just set src) --
+    // wait, otherwise currentTime is discarded and preview starts from 0.
     v.addEventListener("loadedmetadata", startPlayback, { once: true });
   }
 }
 
-// Berhenti sendiri persis di detik akhir rekomendasi -- pratinjau rentang
-// INI saja, bukan lanjut ke bagian video sesudahnya yang tidak relevan.
-// Sekalian menggerakkan isian bar scrub dan jam "posisi / total".
+// Stops automatically at the recommendation's end-second -- preview THIS
+// range only, not the irrelevant video section that follows.
+// Also updates the scrub bar fill and the "position / total" clock.
 $("#tlPreviewVideo")?.addEventListener("timeupdate", (e) => {
   const v = e.target;
   if (previewLimit !== null && v.currentTime >= previewLimit) v.pause();
@@ -325,25 +324,25 @@ $("#tlPreviewVideo")?.addEventListener("timeupdate", (e) => {
 $("#tlPreviewVideo")?.addEventListener("pause", updateRecPlayIcon);
 $("#tlPreviewVideo")?.addEventListener("play", updateRecPlayIcon);
 
-// Bar scrub: klik atau geser di mana saja langsung memindah posisi putar.
-// Terpisah total dari #tlTotal (yang tetap murni untuk memilih rentang),
-// jadi tidak perlu membedakan "klik" vs "drag" di satu bar yang sama.
+// Scrub bar: click or drag anywhere to jump the playback position.
+// Completely separate from #tlTotal (which stays purely for picking ranges),
+// so there's no need to distinguish "click" vs "drag" on a single bar.
 function tlScrubSeek(clientX) {
   const bar = $("#tlScrub");
   const v = $("#tlPreviewVideo");
   if (!bar || !v || !v.src || typeof fracToSeconds !== "function") return;
   const r = bar.getBoundingClientRect();
   const frac = r.width ? Math.max(0, Math.min(1, (clientX - r.left) / r.width)) : 0;
-  try { v.currentTime = fracToSeconds(frac); } catch { /* metadata belum siap */ }
+  try { v.currentTime = fracToSeconds(frac); } catch { /* metadata not ready yet */ }
 }
 $("#tlScrub")?.addEventListener("pointerdown", (e) => {
   const bar = $("#tlScrub"), v = $("#tlPreviewVideo");
   if (!bar || !v || !v.src) return;
   e.preventDefault();
   bar.setPointerCapture(e.pointerId);
-  // Menggeser bebas ke mana saja -- kalau sedang terkunci ke rentang satu
-  // rekomendasi (previewBatas), lepaskan kuncinya supaya tidak langsung
-  // dijeda paksa begitu melewati batas rentang lama itu.
+  // Free-seeking anywhere -- if currently locked to a single recommendation's
+  // range (previewBatas), release the lock so playback isn't immediately
+  // force-paused when crossing that old range boundary.
   previewIdx = null;
   previewLimit = null;
   const titleEl = $("#tlPreviewTitle");
@@ -356,53 +355,53 @@ $("#tlScrub")?.addEventListener("pointermove", (e) => {
   tlScrubSeek(e.clientX);
 });
 
-// Kontrol sendiri: menjeda/melanjutkan apa pun yang sedang dimuat, TANPA
-// perlu kembali ke baris AI suggestion yang memuatnya. Kalau video sudah
-// lewat batas akhir rekomendasi (berhenti sendiri sebelumnya), menekan Play
-// di sini mengulang dari awal rentang itu -- sama seperti menekan lagi
-// tombol Play di barisnya.
+// Standalone controls: pause/resume whatever is loaded, WITHOUT needing to
+// go back to the AI suggestion row that loaded it. If the video already
+// passed the recommendation's end boundary (auto-stopped earlier), pressing
+// Play here restarts from the beginning of that range -- same as pressing
+// the Play button on its row again.
 $("#tlPreviewPlay")?.addEventListener("click", () => {
   const v = $("#tlPreviewVideo");
   if (!v || !v.src) return;
   if (!v.paused) { v.pause(); return; }
   if (previewLimit !== null && v.currentTime >= previewLimit - 0.05) {
     const k = (DATA?.candidates || [])[previewIdx];
-    if (k) { try { v.currentTime = k.startSec; } catch { /* metadata belum siap */ } }
+    if (k) { try { v.currentTime = k.startSec; } catch { /* metadata not ready yet */ } }
   }
   v.play().catch(() => {});
 });
 
-/* Rasio kotak dikunci ke rasio SUMBER ASLI begitu metadatanya datang, bukan
-   dibiarkan pada nilai 16:9 di CSS. Sumber landscape yang bukan persis 16:9
-   (jarang, tapi ada) akan membuat kotaknya melompat ukuran begitu videonya
-   selesai dimuat kalau ini tidak dikerjakan -- dikunci sekali di awal supaya
-   tidak ada lompatan sama sekali. */
+/* Aspect ratio is locked to the SOURCE'S native ratio once metadata arrives,
+   rather than staying at the CSS default of 16:9. Landscape sources that
+   aren't exactly 16:9 (rare, but they exist) would cause the box to jump
+   in size once the video finishes loading if this isn't handled -- locked
+   once at the start so there's no jump at all. */
 $("#tlPreviewVideo")?.addEventListener("loadedmetadata", (e) => {
   const v = e.target;
   if (v.videoWidth && v.videoHeight) {
     v.style.aspectRatio = `${v.videoWidth} / ${v.videoHeight}`;
   }
-  // Browser tidak melukis frame apa pun sampai posisi digeser -- kotaknya
-  // hitam polos begitu src dipasang lewat muatPreviewUtuh() (tanpa play()
-  // atau seek). Nudge sekecil ini memaksa frame pertama tergambar tanpa
-  // kelihatan bergeser bagi mata.
-  if (v.currentTime === 0) { try { v.currentTime = 0.001; } catch { /* abaikan */ } }
+  // Browsers don't paint any frame until the position is nudged -- the box
+  // is blank black once src is set via loadFullPreview() (no play() or seek).
+  // A nudge this tiny forces the first frame to render without any visible
+  // shift to the eye.
+  if (v.currentTime === 0) { try { v.currentTime = 0.001; } catch { /* ignore */ } }
 });
 
-/* Maju/mundur dalam DETIK, bukan frame -- panel ini buat menyisir video
-   sumber yang bisa berjam-jam untuk MENCARI rentang, jadi langkah kasar
-   lebih berguna daripada presisi frame (itu urusan preview Result di
-   kanan, lihat stepFrame() di player.js). Melangkah sambil jalan itu
-   aneh, jadi dijeda dulu kalau perlu. Dibiarkan bebas melewati batas
-   rentang suggestion (previewBatas): justru itu gunanya -- menilai
-   apakah batasnya perlu digeser sedikit. */
+/* Step forward/backward in SECONDS, not frames -- this panel is for scrubbing
+   through source videos that can be hours long to FIND ranges, so coarse
+   steps are more useful than frame precision (that's the Result preview's
+   job on the right, see stepFrame() in player.js). Stepping while playing
+   is awkward, so it pauses first if needed. Allowed to freely cross the
+   suggestion's range boundary (previewBatas): that's exactly the point --
+   judging whether the boundary needs a slight nudge. */
 function tlPreviewStepSeconds(seconds) {
   const v = $("#tlPreviewVideo");
   if (!v || !v.src) return;
   if (!v.paused) v.pause();
   const limit = v.duration || Infinity;
   const target = Math.max(0, Math.min(limit, v.currentTime + seconds));
-  try { v.currentTime = target; } catch { /* di luar jangkauan */ }
+  try { v.currentTime = target; } catch { /* out of range */ }
 }
 [["#tlPreviewPrev5", -5], ["#tlPreviewPrev2", -2], ["#tlPreviewPrev", -1],
  ["#tlPreviewNext", 1], ["#tlPreviewNext2", 2], ["#tlPreviewNext5", 5]]
@@ -411,7 +410,7 @@ function tlPreviewStepSeconds(seconds) {
 $("#recList")?.addEventListener("click", (e) => {
   const edit = e.target.closest("[data-edit-time]");
   if (edit) {
-    e.preventDefault();     // jangan sampai ikut mencentang baris
+    e.preventDefault();     // prevent accidentally toggling the row's checkbox
     const row = edit.closest(".rec-row");
     const inputs = row ? [...row.querySelectorAll(".rec-time-in")] : [];
     const startInput = inputs.find((el) => el.dataset.field === "startSec");
@@ -420,11 +419,12 @@ $("#recList")?.addEventListener("click", (e) => {
     const title = k ? escapeHTML(k.title) : "";
     const isEditing = !startInput.disabled;
     if (isEditing) {
-      // Klik "Save": pastikan nilai yang barusan diketik ter-commit --
-      // klik langsung ke tombol ini (tanpa pindah fokus dulu dari kolom
-      // teks) TIDAK memicu event "change" bawaan browser, jadi dipicu
-      // manual di sini. Aman dipanggil walau nilainya tidak berubah
-      // (listener change memvalidasi ulang, bukan mengasumsikan berubah).
+      // "Save" click: ensure the value just typed is committed --
+      // clicking this button directly (without moving focus away from the
+      // text field first) does NOT fire the browser's native "change" event,
+      // so it's dispatched manually here. Safe to call even when the value
+      // hasn't changed (the change listener re-validates rather than
+      // assuming a change occurred).
       inputs.forEach((inp) => inp.dispatchEvent(new Event("change", { bubbles: true })));
       inputs.forEach((inp) => { inp.disabled = true; });
       edit.textContent = "✎";
@@ -444,18 +444,19 @@ $("#recList")?.addEventListener("click", (e) => {
   }
   const btn = e.target.closest(".rec-play");
   if (!btn) return;
-  e.preventDefault();       // jangan sampai ikut mencentang baris
+  e.preventDefault();       // prevent accidentally toggling the row's checkbox
   playRecPreview(Number(btn.dataset.play));
 });
 
-/* Membetulkan waktu satu rekomendasi. `label` membungkus checkbox DAN kedua
-   kolom ini -- klik pada teks biasa mencentang baris (perilaku <label>
-   bawaan), tapi klik pada input tetap fokus ke input, bukan ikut mencentang;
-   itu perilaku standar browser untuk form control bersarang, bukan sesuatu
-   yang perlu ditangani manual di sini.
+/* Correcting a single recommendation's time. The `label` wraps both the
+   checkbox AND these two columns -- clicking the text toggles the row
+   (default <label> behavior), but clicking an input keeps focus on the
+   input without toggling; that's standard browser behavior for nested
+   form controls, not something that needs manual handling here.
 
-   Titiknya ikut dirapikan ke batas kata terdekat (snapToWord), sama seperti
-   seleksi manual di timeline -- satu aturan potong berlaku di mana pun. */
+   The value is also snapped to the nearest word boundary (snapToWord),
+   same as manual selection on the timeline -- one cutting rule applies
+   everywhere. */
 $("#recList")?.addEventListener("change", (e) => {
   const inp = e.target.closest(".rec-time-in");
   if (!inp) return;
@@ -476,8 +477,8 @@ $("#recList")?.addEventListener("change", (e) => {
 
   k[field] = snapped;
   k.dur = Math.round(k.endSec - k.startSec);
-  // spans/in/out ikut disinkronkan: kalau tidak, kode yang membaca k.spans
-  // (render, preview) atau k.in/k.out (tampilan) masih memakai rentang lama.
+  // Keep spans/in/out in sync: otherwise code that reads k.spans
+  // (render, preview) or k.in/k.out (display) still uses the old range.
   k.spans = [{ start: k.startSec, end: k.endSec }];
   if (typeof shortTime === "function") {
     k.in = shortTime(k.startSec);
@@ -487,8 +488,9 @@ $("#recList")?.addEventListener("change", (e) => {
   const rowEl = inp.closest(".rec-row");
   const durEl = rowEl?.querySelector(".rec-dur");
   if (durEl) durEl.textContent = `${k.dur}s`;
-  // Penanda tipis di timeline total digambar dari k.startSec/endSec -- redraw
-  // supaya ia ikut pindah, bukan tetap di posisi lama sampai redraw lain.
+  // The thin marker on the total timeline is drawn from k.startSec/endSec --
+  // redraw so it moves along, rather than staying at the old position until
+  // the next redraw.
   if (typeof drawTotalTimeline === "function") drawTotalTimeline();
 });
 
@@ -500,7 +502,7 @@ function updateRecButton() {
   b.textContent = n ? `Add ${n} to Result` : "Add to Result";
 }
 
-/* ---------- kejadian ---------- */
+/* ---------- events ---------- */
 
 $("#recList")?.addEventListener("change", updateRecButton);
 
@@ -527,7 +529,7 @@ $("#resultList")?.addEventListener("click", (e) => {
 
 $("#resultClearBtn")?.addEventListener("click", clearResult);
 
-/* Video baru = result ikut dikosongkan, seperti daftar objek. */
+/* New video = result is also cleared, like an object list. */
 function resetResult() {
   RESULT = [];
   resultSeq = 0;
@@ -535,12 +537,12 @@ function resetResult() {
   renderRecommendations();
 }
 
-/* Render: seluruh result jadi SATU berkas. */
+/* Render: the entire result becomes ONE file. */
 $("#resultRenderBtn")?.addEventListener("click", () => {
   const clip = resultAsClip();
   if (!clip) return;
   if (typeof sendRender === "function") sendRender([clip]);
 });
 
-/* Jalur manual dimulai di layar Klip: timeline ada di sana. */
+/* Manual path starts on the Klip screen: the timeline is there. */
 $("#manualClip")?.addEventListener("click", () => toScreen("klip"));

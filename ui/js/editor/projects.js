@@ -1,62 +1,61 @@
-/* klipian — project: menyimpan pekerjaan yang belum selesai
+/* klipian — project: save unfinished work
    ==========================================================================
-   Sebelum ini klipian tidak menyimpan APA PUN. Muat ulang halaman -- atau
-   tutup browser tanpa sengaja -- dan seluruh Result, titik framing, serta
-   koreksi teks lenyap. Yang bertahan cuma transkrip di cache/ dan MP4 yang
-   sudah terlanjur dirender.
+   Before this, klipian saved NOTHING. Reload the page -- or close the browser
+   accidentally -- and all Results, framing points, and caption corrections
+   vanish. Only the transcript in cache/ and already-rendered MP4s survived.
 
-   Sekarang keadaan itu disimpan jadi satu JSON per video di folder projects/,
-   bukan di localStorage: ia bertahan walau cache browser dibersihkan, ikut
-   kalau kamu ganti browser, dan bisa dilihat serta di-backup sebagai berkas
-   biasa -- sama seperti cache/ dan out/.
+   Now the state is saved as one JSON per video in the projects/ folder,
+   not in localStorage: it survives browser cache clears, follows you when
+   you switch browsers, and can be viewed or backed up as plain files --
+   just like cache/ and out/.
 
-   Satu video = satu project. Jatuhkan video yang sama, pekerjaannya kembali.
+   One video = one project. Drop the same video again and the work returns.
 
-   Penyimpanannya OTOMATIS dan ditunda sesaat. Menyimpan di setiap geseran
-   kotak framing berarti puluhan tulisan per detik; menunggu tombol "simpan"
-   berarti orang kehilangan pekerjaan justru karena lupa menekannya.
+   Saving is AUTOMATIC and slightly delayed. Saving on every framing box
+   adjustment would mean dozens of writes per second; waiting for a "save"
+   button means people lose work precisely because they forgot to press it.
    ========================================================================== */
 
-const SAVE_DELAY = 900;         // ms diam sebelum benar-benar ditulis
+const SAVE_DELAY = 900;         // ms to wait before actually writing to disk
 let saveTimer = null;
-let savePending = false;        // true sejak ada perubahan sampai tulisan ke disk selesai
-let activeProject = null;       // nama video yang sedang dikerjakan
-let lastScreen = "klip";        // layar tempat pekerjaan ditinggalkan
+let savePending = false;        // true from first change until the disk write completes
+let activeProject = null;       // name of the video currently being worked on
+let lastScreen = "klip";        // the screen where work was left off
 
-/* Nama layar dari berkas project TIDAK dipercaya begitu saja: berkasnya bisa
-   ditulis tangan atau berasal dari versi lama. Nama yang tidak dikenal
-   membuat toScreen() mematikan semua layar dan menyisakan area kerja kosong. */
+/* Screen names from project files are NOT trusted blindly: files can be
+   hand-edited or come from an older version. An unrecognized name causes
+   toScreen() to turn off all screens and leave an empty workspace. */
 const VALID_SCREENS = ["analysis", "klip", "framing", "teks", "history"];
 
-/* Satu project sekarang bisa menyimpan LEBIH DARI SATU Result -- video
-   podcast yang sama wajar menghasilkan banyak klip terpisah, dan dulu mulai
-   klip ke-2 diam-diam menimpa rentang/framing/koreksi klip pertama.
-   RESULT/FRAMING/CORRECTIONS/#resultTitle (result.js/framing.js/captions.js) TETAP
-   jadi "keadaan hidup Result yang sedang aktif" -- tidak berubah sama
-   sekali di berkas-berkas itu. Yang baru cuma lapisan penyimpanan di sini:
-   SAVED_RESULTS menampung tiap Result sebagai snapshot
-   { id, title, result, framing, corrections }, activeResultId menunjuk
-   yang sedang hidup. Lihat snapshotActiveResult()/loadResultIntoLiveState()
-   di bawah untuk jembatan antara keduanya. */
+/* One project can now store MORE THAN ONE Result -- the same podcast video
+   naturally produces many separate clips, and previously starting clip #2
+   silently overwrote the range/framing/corrections of clip #1.
+   RESULT/FRAMING/CORRECTIONS/#resultTitle (result.js/framing.js/captions.js) STILL
+   represent the "live state" of the active Result -- completely unchanged
+   in those files. The only new addition is the persistence layer here:
+   SAVED_RESULTS holds each Result as a snapshot
+   { id, title, result, framing, corrections }, activeResultId points to
+   the live one. See snapshotActiveResult()/loadResultIntoLiveState()
+   below for the bridge between the two. */
 let SAVED_RESULTS = [];
 let activeResultId = null;
 let resultTabSeq = 0;
 
-/* Seluruh keadaan yang layak dilanjutkan nanti. Sengaja TIDAK menyimpan
-   transkrip: ia sudah ada di cache/ dan besarnya puluhan ribu kata. */
+/* The full state worth resuming later. Deliberately does NOT store the
+   transcript: it already exists in cache/ and can be tens of thousands of words. */
 function projectState() {
-  // Result aktif disalin ke SAVED_RESULTS SEKARANG, bukan mengandalkan
-  // snapshot titik-pindah (switchResult/deleteResultTab) saja -- kalau
-  // tidak, edit yang terjadi SESUDAH pindah terakhir tapi SEBELUM timer
-  // saveProject() menyala (900ms) tidak pernah ikut tersalin ke slotnya.
+  // Copy the active Result to SAVED_RESULTS NOW, not just relying on the
+  // switch-point snapshots (switchResult/deleteResultTab) -- otherwise, edits
+  // made AFTER the last switch but BEFORE the saveProject() timer fires (900ms)
+  // would never be copied into the slot.
   snapshotActiveResult();
   return {
     video: activeProject,
     results: SAVED_RESULTS,
     activeResult: activeResultId,
-    // Rekomendasi AI (hasil impor JSON dari Claude) TIDAK pernah tersimpan
-    // sebelum ini -- membuka lagi project yang sama selalu menampilkan "none
-    // yet" walau sudah pernah diimpor, memaksa impor ulang dari awal.
+    // AI recommendations (imported JSON from Claude) were NEVER saved before
+    // this -- reopening the same project always showed "none yet" even after
+    // a previous import, forcing a redundant re-import from scratch.
     candidates: (typeof DATA !== "undefined" ? DATA.candidates : []) || [],
     caption: (typeof CAPTION_OPTIONS !== "undefined")
       ? CAPTION_OPTIONS.map((o) => o.active) : [],
@@ -65,21 +64,20 @@ function projectState() {
   };
 }
 
-/* Indikator yang SELALU kelihatan, tidak bergantung pada dialog reload
-   bawaan browser -- itu cuma tampil kalau halaman sudah pernah disentuh
-   (kebijakan anti-penyalahgunaan Chrome/Firefox, bukan sesuatu yang bisa
-   diakali dari kode), jadi tidak bisa diandalkan sendirian. Label ini
-   dibaca kapan saja, bukan cuma pas mau menutup halaman. */
+/* An indicator that is ALWAYS visible, independent of the browser's built-in
+   reload dialog -- that one only appears if the page has been interacted with
+   (Chrome/Firefox anti-abuse policy, not something code can work around),
+   so it cannot be relied on alone. This label is checked at any time, not
+   only when closing the page. */
 function updateSaveStatus() {
   const el = $("#statusSimpan");
   if (!el) return;
   el.textContent = savePending ? "Unsaved changes…" : "";
 }
 
-/* Benar-benar menulis ke disk SEKARANG, membatalkan jeda yang masih
-   berjalan kalau ada. Dipakai baik oleh timer di bawah maupun tombol Save
-   manual -- keduanya harus menulis keadaan yang SAMA, jadi cuma satu jalan
-   yang benar-benar melakukan fetch-nya. */
+/* Actually writes to disk NOW, cancelling any pending delay. Used by both the
+   timer below and the manual Save button -- both must write the SAME state,
+   so only one code path actually performs the fetch. */
 async function writeProjectNow() {
   clearTimeout(saveTimer);
   saveTimer = null;
@@ -91,18 +89,18 @@ async function writeProjectNow() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(projectState()),
     });
-  } catch { /* tanpa backend, pekerjaan tetap jalan -- hanya tidak tersimpan */
+  } catch { /* no backend available, work continues -- just not persisted */
   } finally {
     savePending = false;
     updateSaveStatus();
   }
 }
 
-/* Dipanggil dari mana saja yang mengubah pekerjaan. Aman dipanggil beruntun:
-   yang benar-benar menulis hanya panggilan terakhir dalam satu jeda diam.
-   savePending dinyalakan SEKARANG (bukan saat timer akhirnya jalan) --
-   itulah yang dibaca peringatan "tutup/reload halaman" di bawah supaya
-   perubahan yang masih menunggu jeda tidak dikira sudah aman tersimpan. */
+/* Called from anywhere that modifies the work. Safe to call repeatedly:
+   only the last call within one quiet period actually writes.
+   savePending is set NOW (not when the timer finally fires) --
+   that's what the "close/reload page" warning below reads so that
+   changes still waiting for the delay are not mistaken for safely saved. */
 function saveProject() {
   if (!activeProject) return;
   savePending = true;
@@ -111,9 +109,9 @@ function saveProject() {
   saveTimer = setTimeout(writeProjectNow, SAVE_DELAY);
 }
 
-/* Tombol Save manual: sebetulnya tidak perlu (auto-save sudah jalan sendiri
-   tiap ada perubahan), tapi disediakan sebagai jaring pengaman tambahan buat
-   yang ingin kepastian visual "sudah tersimpan" sebelum menutup halaman. */
+/* Manual Save button: not strictly necessary (auto-save already runs on every
+   change), but provided as an extra safety net for those who want the visual
+   confirmation of "saved" before closing the page. */
 $("#saveNowBtn")?.addEventListener("click", async () => {
   const btn = $("#saveNowBtn");
   if (!btn || btn.disabled) return;
@@ -124,22 +122,23 @@ $("#saveNowBtn")?.addEventListener("click", async () => {
   setTimeout(() => { btn.textContent = "Save"; btn.disabled = false; }, 1200);
 });
 
-/* Menutup tab, reload, atau navigasi keluar sebelum jeda 900ms selesai
-   berarti perubahan terakhir belum tentu sempat tertulis. Browser tidak
-   mengizinkan pesan custom di dialog ini lagi (demi keamanan) -- yang
-   tampil tetap peringatan bawaannya, tapi itu sudah cukup jadi "alert". */
+/* Closing the tab, reloading, or navigating away before the 900ms delay
+   finishes means the latest change may not have been written yet. Browsers
+   no longer allow custom messages in this dialog (for security) -- only
+   the built-in warning shows, but that's enough as an "alert". */
 window.addEventListener("beforeunload", (e) => {
   if (!savePending) return;
   e.preventDefault();
   e.returnValue = "";
 });
 
-/* ---------- Result: simpan-lebih-dari-satu per project ---------- */
+/* ---------- Result: store-more-than-one per project ---------- */
 
-/* Salin keadaan HIDUP (RESULT/FRAMING/CORRECTIONS/judul) ke slot Result yang
-   sedang aktif di SAVED_RESULTS. Dipanggil SEBELUM keadaan hidup ditimpa
-   Result lain (pindah/hapus) dan di awal projectState() -- dua lapis
-   jaga supaya urutan timer saveProject() yang tertunda tidak relevan. */
+/* Copy the LIVE state (RESULT/FRAMING/CORRECTIONS/title) into the active
+   Result slot in SAVED_RESULTS. Called BEFORE the live state is overwritten
+   by another Result (switch/delete) and at the start of projectState() --
+   two layers of protection so the order of pending saveProject() timers
+   does not matter. */
 function snapshotActiveResult() {
   if (!activeResultId) return;
   const slot = SAVED_RESULTS.find((r) => r.id === activeResultId);
@@ -150,21 +149,21 @@ function snapshotActiveResult() {
   }));
   slot.framing = (typeof FRAMING !== "undefined" ? FRAMING : []).map((f) => ({
     id: f.id, at: f.at, format: f.format, crops: f.crops,
-    // tracking OPSIONAL (head tracking) -- daftar {t,left} kalau titik ini
-    // sedang di-track, kalau tidak field-nya sengaja TIDAK ditulis sama
-    // sekali (bukan `tracking: undefined`) supaya berkas project lama
-    // (dari sebelum fitur ini ada) tetap identik strukturnya kalau
-    // dibuka lalu disimpan ulang tanpa titik manapun di-track.
+    // OPTIONAL tracking (head tracking) -- a list of {t,left} if this point
+    // is being tracked; otherwise the field is deliberately OMITTED entirely
+    // (not `tracking: undefined`) so that old project files (from before this
+    // feature existed) remain structurally identical when opened and then
+    // re-saved with no tracked points.
     ...(f.tracking ? { tracking: f.tracking } : {}),
   }));
   slot.corrections = (typeof CORRECTIONS !== "undefined" ? { ...CORRECTIONS } : {});
 }
 
-/* Kebalikan snapshotActiveResult(): pasang isi satu entri SAVED_RESULTS
-   jadi keadaan hidup. Dipakai baik saat project pertama kali dibuka maupun
-   saat pindah Result -- SELALU menimpa penuh (bukan "kalau tidak kosong"
-   seperti loadProject() dulu), supaya Result lama tidak pernah bocor ke
-   Result yang baru dipilih. */
+/* Inverse of snapshotActiveResult(): load one SAVED_RESULTS entry into the
+   live state. Used both when opening a project for the first time and when
+   switching Results -- always FULL overwrite (not "if not empty" like the old
+   loadProject() did), so that old Results never leak into the newly selected
+   one. */
 function loadResultIntoLiveState(entry) {
   if (typeof RESULT !== "undefined") {
     RESULT = Array.isArray(entry.result) ? entry.result : [];
@@ -187,9 +186,9 @@ function loadResultIntoLiveState(entry) {
   if (typeof renderCaptions === "function") renderCaptions();
 }
 
-/* Mulai project dari nol: satu Result kosong, jadi satu-satunya dan aktif.
-   Pengganti trio resetResult()+resetFraming()+resetCaptions() lama -- sekarang
-   ada SAVED_RESULTS yang juga harus direset, bukan cuma keadaan hidupnya. */
+/* Start a project from scratch: one empty Result, making it the sole and
+   active one. Replaces the old resetResult()+resetFraming()+resetCaptions()
+   trio -- now SAVED_RESULTS must also be reset, not just the live state. */
 function resetProjectState() {
   SAVED_RESULTS = [{ id: `res${++resultTabSeq}`, title: "", result: [], framing: [], corrections: {} }];
   activeResultId = SAVED_RESULTS[0].id;
@@ -198,19 +197,19 @@ function resetProjectState() {
   if (typeof resetCaptions === "function") resetCaptions();
   renderResultSwitcher();
 }
-// RESULT/FRAMING/CORRECTIONS sudah punya nilai bawaan yang benar sejak deklarasi
-// (array/objek kosong, satu titik framing default -- lihat resetFraming()
-// di framing.js:774 yang juga menyalakan diri sendiri begitu dimuat). Tapi
-// SAVED_RESULTS/activeResultId TIDAK -- tanpa panggilan ini keduanya kosong
-// sampai project pertama dibuka, dan loadProject()/projectState() akan
-// menyimpan project SAMA SEKALI TANPA Result begitu video pertama kali
-// dijatuhkan (acceptFile() cuma memanggil resetProjectState() kalau video
-// GANTI dari video sebelumnya, bukan saat ini video pertama yang dibuka).
+// RESULT/FRAMING/CORRECTIONS already have correct defaults from their
+// declarations (empty array/object, one default framing point -- see
+// resetFraming() in framing.js:774 which also bootstraps itself on load).
+// But SAVED_RESULTS/activeResultId do NOT -- without this call both are empty
+// until the first project is opened, and loadProject()/projectState() will
+// save a project with NO Result at all the first time a video is dropped
+// (acceptFile() only calls resetProjectState() when the video CHANGES from
+// the previous one, not when it's the very first video opened).
 resetProjectState();
 
-/* "+ New Result": simpan yang sedang dikerjakan, lalu mulai Result baru
-   yang kosong dari video yang sama -- tanpa snapshot dulu, ini akan
-   menimpa Result yang sedang aktif alih-alih menambah yang lain. */
+/* "+ New Result": save what's being worked on, then start a new empty Result
+   from the same video -- without a preceding snapshot, this would overwrite
+   the active Result instead of adding another. */
 function newResult() {
   snapshotActiveResult();
   const entry = { id: `res${++resultTabSeq}`, title: "", result: [], framing: [], corrections: {} };
@@ -235,10 +234,10 @@ function switchResult(id) {
   saveProject();
 }
 
-/* Selalu menyisakan minimal satu Result -- project tanpa Result sama
-   sekali tidak punya arti (tidak ada apa pun untuk RESULT/FRAMING/CORRECTIONS
-   mengacu ke sana), sama seperti titik 00:00 di FRAMING yang tidak bisa
-   dihapus dengan alasan serupa. */
+/* Always keep at least one Result -- a project without any Result is
+   meaningless (there is nothing for RESULT/FRAMING/CORRECTIONS to refer to),
+   just like the 00:00 point in FRAMING which cannot be deleted for the same
+   reason. */
 function deleteResultTab(id) {
   if (SAVED_RESULTS.length <= 1) return;
   const i = SAVED_RESULTS.findIndex((r) => r.id === id);
@@ -252,12 +251,12 @@ function deleteResultTab(id) {
   saveProject();
 }
 
-/* Pemilih Result ada TIGA instance identik -- title layar Clips, Framing,
-   dan Captions, disatukan lewat class .result-select/[data-result-action],
-   bukan id, supaya ketiganya digambar ulang dan disinkronkan sekali jalan
-   dari sini. Clips justru tempat SUMBER Result-nya dipilih (span yang
-   ditambah di sana masuk ke Result yang sedang aktif) -- bukan cuma
-   Editing (Framing/Captions) yang butuh tahu Result mana yang aktif. */
+/* The Result switcher has THREE identical instances -- the Clips, Framing,
+   and Captions screens, unified via class .result-select/[data-result-action]
+   (not id), so all three are re-rendered and synchronized in one go from
+   here. Clips is actually where the SOURCE of a Result is chosen (spans
+   added there go into the active Result) -- not just Editing (Framing/Captions)
+   that needs to know which Result is active. */
 function renderResultSwitcher() {
   const options = SAVED_RESULTS.map((r, i) => `
     <option value="${r.id}" ${r.id === activeResultId ? "selected" : ""}>
@@ -278,8 +277,8 @@ document.querySelectorAll('[data-result-action="delete"]').forEach((b) => {
   b.addEventListener("click", () => deleteResultTab(activeResultId));
 });
 
-/* Memasang kembali keadaan yang tersimpan. Mengembalikan true kalau ada
-   yang dipulihkan, supaya pemanggil bisa memberi tahu penggunanya. */
+/* Restore a previously saved state. Returns true if something was restored,
+   so the caller can notify the user. */
 async function loadProject(video) {
   activeProject = video;
   let d;
@@ -293,10 +292,10 @@ async function loadProject(video) {
   if (Array.isArray(d.results) && d.results.length) {
     SAVED_RESULTS = d.results;
   } else {
-    // Bentuk lama (sebelum fitur simpan-lebih-dari-satu-Result): satu
-    // result/framing/corrections/title datar di level atas -- dibungkus
-    // jadi SATU entri implisit. Tidak menulis ulang berkasnya sekarang;
-    // bentuk baru baru tertulis pada penyimpanan otomatis berikutnya.
+    // Old format (before the save-more-than-one-Result feature): a flat
+    // result/framing/corrections/title at the top level -- wrap it into a
+    // SINGLE implicit entry. The file is NOT rewritten now; the new format
+    // will be written on the next auto-save.
     SAVED_RESULTS = [{
       id: "res1",
       title: d.title || "",
@@ -307,8 +306,8 @@ async function loadProject(video) {
   }
   activeResultId = SAVED_RESULTS.some((r) => r.id === d.activeResult)
     ? d.activeResult : SAVED_RESULTS[0].id;
-  // resultTabSeq harus melewati id tertinggi yang dipulihkan, kalau tidak
-  // Result baru berikutnya memakai id yang sudah dipakai dan saling menimpa.
+  // resultTabSeq must exceed the highest restored id, otherwise the next
+  // new Result would reuse an id that's already taken and overwrite it.
   resultTabSeq = Math.max(0, ...SAVED_RESULTS.map((r) => parseInt(String(r.id).slice(3), 10) || 0));
   loadResultIntoLiveState(SAVED_RESULTS.find((r) => r.id === activeResultId));
   renderResultSwitcher();
@@ -318,13 +317,13 @@ async function loadProject(video) {
       pos: (typeof realTranscript !== "undefined" && realTranscript?.duration)
         ? (k.startSec / realTranscript.duration) * 100 : 0,
       scores: k.total,
-      // title bisa tidak ada di JSON tangan/versi lama -- jangan .split() null.
+      // title may be absent in hand-edited/old-version JSON -- don't .split() null.
       label: (k.title || "").split(" ").slice(0, 3).join(" "),
     }));
   }
-  // Indeks active harus dicek batas: berkas project bisa ditulis tangan atau
-  // dari versi lama dengan jumlah pilihan berbeda. Indeks di luar batas akan
-  // membuat choices[active] undefined dan menjatuhkan render caption.
+  // Active index must be bounds-checked: project files can be hand-edited or
+  // from an older version with a different number of choices. An out-of-bounds
+  // index would make choices[active] undefined and break caption rendering.
   if (Array.isArray(d.caption) && typeof CAPTION_OPTIONS !== "undefined") {
     d.caption.forEach((i, k) => {
       if (CAPTION_OPTIONS[k] && Number.isInteger(i)
@@ -345,18 +344,17 @@ async function loadProject(video) {
   return true;
 }
 
-/* Video baru dijatuhkan: kalau ia punya project, lanjutkan; kalau tidak,
-   mulai dari kosong dengan nama itu sebagai kunci. */
+/* New video dropped: if it has a project, continue it; otherwise, start from
+   scratch using that name as the key. */
 async function openProject(video) {
   const hadExisting = await loadProject(video);
   if (!hadExisting) {
-    // Project baru: tidak ada apa pun untuk dipulihkan, jadi pakai gaya
-    // caption/watermark terakhir dipakai (lihat applyPresetCaption() di
-    // app.js) alih-alih default pabrik. Panel caption sudah sempat digambar
-    // dengan default SEBELUM titik ini (lihat acceptFile() di
-    // interactions.js), jadi harus digambar ulang di sini juga -- kalau
-    // tidak, tombol yang tersorot di layar tidak sesuai gaya yang sungguhan
-    // dipakai.
+    // New project: nothing to restore, so use the last-used caption/watermark
+    // style (see applyPresetCaption() in app.js) instead of factory defaults.
+    // The caption panel was already drawn with defaults BEFORE this point
+    // (see acceptFile() in interactions.js), so it must be redrawn here too --
+    // otherwise the highlighted button on screen doesn't match the style that's
+    // actually applied.
     if (typeof applyPresetCaption === "function" && applyPresetCaption()) {
       if (typeof renderList === "function") renderList();
       if (typeof applyCaption === "function") applyCaption();
@@ -367,17 +365,17 @@ async function openProject(video) {
   return hadExisting;
 }
 
-/* ---------- daftar di beranda ---------- */
+/* ---------- home page listing ---------- */
 
-/* Perhatikan namanya: `w` itu LEBAR KELUARAN sampul, sedangkan `width` itu
-   lebar CROP dalam persen frame sumber. Tertukar sekali dan ffmpeg menolak
-   crop 220% -- sampulnya gagal tanpa satu pun pesan di layar. */
+/* Watch the naming: `w` is the COVER OUTPUT width, while `width` is the
+   CROP width as a percentage of the source frame. Swap them once and ffmpeg
+   refuses a 220% crop -- the cover fails without a single error on screen. */
 function coverUrl(p) {
   const DEFAULT_CROP = { left: 37, top: 4, width: 26, height: 92 };
   let c = p.crop || DEFAULT_CROP;
-  // Tinggi kotak framing diturunkan saat DIBACA (matchRatio), jadi angka
-  // yang tersimpan bisa saja nol atau tidak masuk akal. ffmpeg tetap menurut
-  // dan memberi sampul setinggi 2 piksel -- gagal yang tidak berbunyi apa-apa.
+  // Framing box height is scaled down when READ (matchRatio), so the stored
+  // value can be zero or nonsensical. ffmpeg still obeys it and produces a
+  // cover 2 pixels tall -- a completely silent failure.
   const valid = Number.isFinite(c.width) && c.width > 1
            && Number.isFinite(c.height) && c.height > 1
            && c.left >= 0 && c.top >= 0
@@ -394,10 +392,10 @@ function coverUrl(p) {
 
 let _renderProjectsInflight = null;
 async function renderProjects() {
-  // Dipanggil dari dua tempat saat load awal (self-invoke di bawah + hook
-  // toStage("home") di app.js). Tanpa penjaga ini keduanya fetch /api/projects
-  // dan menulis #projectList berbarengan. Satu panggilan yang sedang jalan
-  // dibagikan ke pemanggil berikutnya, bukan diulang.
+  // Called from two places during initial load (self-invoke below + the
+  // toStage("home") hook in app.js). Without this guard both would fetch
+  // /api/projects and write #projectList at the same time. A single in-flight
+  // call is shared with the next caller, not repeated.
   if (_renderProjectsInflight) return _renderProjectsInflight;
   _renderProjectsInflight = (async () => {
   const container = $("#projectList");
@@ -407,16 +405,16 @@ async function renderProjects() {
     const d = await (await fetch("/api/projects")).json();
     items = d.project || [];
   } catch {
-    // Tanpa backend tidak ada project sama sekali -- sembunyikan, jangan
-    // biarkan bagian kosong menggantung di beranda.
+    // Without a backend there are no projects at all -- hide it, don't leave
+    // an empty section hanging on the home page.
     container.innerHTML = "";
     container.closest(".recent")?.setAttribute("hidden", "");
     return;
   }
-  // Video yang tidak terjangkau server tidak bisa dilanjutkan sungguhan:
-  // transkripsi, thumbnail, dan render semuanya lewat _find_video(), yang
-  // hanya melihat samples/, akar project, dan out/. Ditandai di kartunya,
-  // bukan dibiarkan gagal diam-diam setelah diklik.
+  // Videos unreachable by the server cannot be truly continued: transcription,
+  // thumbnails, and rendering all go through _find_video(), which only looks
+  // in samples/, the project root, and out/. Marked on the card rather than
+  // allowed to fail silently after being clicked.
   let available = null;
   try {
     available = new Set((await (await fetch("/api/video")).json()).video || []);
@@ -424,24 +422,25 @@ async function renderProjects() {
 
   const section = container.closest(".recent");
   if (!items.length) {
-    // Isinya ikut dikosongkan, bukan cuma bagiannya disembunyikan: kartu basi
-    // yang tertinggal akan berkelebat kalau bagian ini ditampilkan lagi nanti.
+    // Clear the contents entirely, not just hide a section: stale cards left
+    // behind would flash briefly if the section is shown again later.
     container.innerHTML = "";
     section?.setAttribute("hidden", "");
     return;
   }
   section?.removeAttribute("hidden");
 
-  // Penandanya menempel pada project TERSEDIA yang terbaru, bukan pada kartu
-  // pertama. Kalau yang terbaru kebetulan videonya hilang, penandanya lenyap
-  // sama sekali -- padahal "yang mana tadi" justru pertanyaan yang dijawabnya.
+  // The marker sticks to the newest AVAILABLE project, not the first card.
+  // If the newest one happens to have a missing video, the marker vanishes
+  // entirely -- even though "which one was it?" is precisely the question
+  // it's supposed to answer.
   const lastIdx = items.findIndex((p) => !(available && !available.has(p.video)));
 
   container.innerHTML = items.map((p, i) => {
     const missing = available && !available.has(p.video);
-    // div, BUKAN button: kartunya berisi tombol Keep dan Delete, dan tombol
-    // di dalam tombol adalah HTML yang tidak sah -- browser mengeluarkannya
-    // dari induknya dan tata letaknya berantakan.
+    // div, NOT a button: the card contains Keep and Delete buttons, and a
+    // button inside a button is invalid HTML -- the browser pulls it out of
+    // its parent and the layout breaks.
     return `
     <div class="project-card${missing ? " hilang" : ""}" data-project="${escapeHTML(p.video)}"
          role="button" tabindex="0"${missing ? ' aria-disabled="true"' : ""}>
@@ -516,8 +515,8 @@ $("#projectList")?.addEventListener("click", async (e) => {
     const card = deleteIcon.closest(".project-card");
     cancelConfirm();
     card.classList.add("tanya");
-    // Mundur sendiri: kartu yang ditinggalkan dalam keadaan bertanya akan
-    // terpencet tanpa sengaja jauh setelah niatnya sudah lewat.
+    // Auto-dismiss: a card left in the "confirming" state would be
+    // accidentally clicked long after the intent has passed.
     confirmTimer = setTimeout(cancelConfirm, 6000);
     return;
   }
@@ -538,8 +537,8 @@ $("#projectList")?.addEventListener("click", async (e) => {
 
   const card = e.target.closest("[data-project]");
   if (!card) return;
-  // Kartu yang sedang bertanya tidak boleh sekaligus membuka project:
-  // menekan di sekitarnya untuk membatalkan malah melompat ke editor.
+  // A card in "confirming" state must not also open the project:
+  // clicking around to cancel would jump into the editor instead.
   if (card.classList.contains("tanya")) { cancelConfirm(); return; }
   const video = card.dataset.project;
   if (card.classList.contains("hilang")) {
@@ -557,18 +556,18 @@ $("#projectList")?.addEventListener("click", async (e) => {
    satu diubah belakangan. */
 let _openProjectGen = 0;
 async function openProjectFromHome(video) {
-  // Klik cepat / tumpang dengan pemulihan sesi: tandai generasi. Kalau ada
-  // pembukaan baru menyusul, yang lama berhenti sebelum menimpa state global
-  // (chosenSource/realTranscript/RESULT/FRAMING) milik yang menang.
+  // Fast click / race with session restore: tag the generation. If a new
+  // open follows, the old one stops before overwriting the winner's
+  // global state (chosenSource/realTranscript/RESULT/FRAMING).
   const gen = ++_openProjectGen;
-  // Blob URL dari file yang tadi di-drop tidak pernah dilepas kalau kita
-  // langsung menimpanya dengan URL /workspace/samples/ -- lepaskan dulu.
+  // The blob URL from the previously dropped file is never released if we
+  // immediately overwrite it with a /workspace/samples/ URL -- revoke it first.
   if (typeof chosenSource !== "undefined" && chosenSource
       && typeof chosenSource.url === "string" && chosenSource.url.startsWith("blob:")) {
     URL.revokeObjectURL(chosenSource.url);
   }
-  // Berkasnya diambil dari workspace/samples/, bukan dari dialog berkas --
-  // project menyimpan NAMA, dan browser tidak boleh membuka path sendiri.
+  // The file is fetched from workspace/samples/, not a file dialog --
+  // projects store the NAME, and browsers can't open local paths directly.
   chosenSource = { kind: "file", name: video, url: `/workspace/samples/${encodeURIComponent(video)}` };
   // Nama dulu, tampil seketika -- chosenSource di jalur ini tidak punya
   // .duration (bukan hasil readMeta() dari <video>, cuma nama dari catatan
