@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wdth,wght@0,75..125,200..900;1,75..125,200..900&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap" rel="stylesheet">
-<!-- tokens.css dimuat DULUAN -- css/workspace.css cuma menunjuk ke custom
-     property yang didefinisikan di sana (lihat tailwind.config.js). -->
+<!-- tokens.css is loaded FIRST -- css/workspace.css just points to the custom
+     properties defined there (see tailwind.config.js). -->
 <link rel="stylesheet" href="/ui/css/tokens.css">
 <link rel="stylesheet" href="/ui/css/workspace.css">
 </head>
@@ -28,10 +28,10 @@
   <main class="flex-1 min-h-0 overflow-y-auto flex flex-col gap-6 p-6
                max-w-[1400px] w-full mx-auto">
 
-    <!-- ══════════════════ KLIP — jadwal & status upload ══════════════════
-         Ganti workspace/schedule/content-calendar.xlsx: sama isinya (1 baris =
-         1 klip), tapi tersimpan di clips.json lewat /api/workspace/clips
-         supaya bisa diedit langsung dari sini, bukan buka Excel terpisah. -->
+    <!-- ══════════════════ CLIPS — upload schedule & status ══════════════════
+         Replaces workspace/schedule/content-calendar.xlsx: same content (1 row =
+         1 clip), but stored in clips.json via /api/workspace/clips so it can
+         be edited directly from here instead of opening a separate Excel. -->
     <section class="ws-panel" id="panelKlip">
       <div class="flex items-center gap-3">
         <h1 class="text-[20px] font-extrabold tracking-tight" style="font-stretch:112%">Klip</h1>
@@ -40,11 +40,11 @@
                        text-[oklch(0.145_0.010_258)] hover:brightness-110"
                 id="klipTambahBtn" type="button">+ Klip baru</button>
       </div>
-      <!-- Cuma kolom yang berguna dilihat sekilas: status, judul, platform,
-           jadwal. Sisanya (episode sumber, file, deskripsi, caption, link,
-           catatan) pindah ke dialog "Detail" per baris -- dulu 13 kolom
-           penuh bikin tabel selebar 1700px dan wajib scroll horizontal
-           cuma untuk melihat baris berikutnya. -->
+      <!-- Only the columns that are useful at a glance: status, title, platform,
+           schedule. The rest (source episode, file, description, caption, link,
+           notes) moved to a per-row "Detail" dialog -- the full 13 columns used
+           to make the table 1700px wide and require horizontal scrolling just
+           to see the next row. -->
       <div class="overflow-x-auto rounded-m">
         <table class="w-full border-collapse text-[13px]" id="klipTable">
           <thead>
@@ -72,11 +72,11 @@
       </div>
     </section>
 
-    <!-- Field yang tidak muat/tidak perlu selalu terlihat di tabel di atas.
-         <dialog> bawaan browser: backdrop + Esc-to-close + focus trap gratis,
-         tidak perlu kode overlay sendiri. Judul ditampilkan sebagai konteks
-         SAJA (read-only) -- diedit dari tabel supaya tidak ada dua sumber
-         kebenaran untuk field yang sama. -->
+    <!-- Fields that don't fit / don't need to always be visible in the table
+         above. Native browser <dialog>: backdrop + Esc-to-close + focus trap
+         for free, no need for custom overlay code. Title is shown as context
+         ONLY (read-only) -- edited from the table so there aren't two sources
+         of truth for the same field. -->
     <dialog class="ws-dialog" id="klipDetailDialog">
       <form method="dialog" class="flex flex-col gap-4" id="klipDetailForm">
         <div class="flex items-start gap-3">
@@ -107,10 +107,10 @@
       </form>
     </dialog>
 
-    <!-- ══════════════════ HASIL RENDER — isi out/ apa adanya ══════════════════
-         Sumber data SAMA dengan /api/history (dipakai layar History di
-         editor) -- di sini cuma ditampilkan ulang, tidak ada endpoint baru,
-         supaya tidak ada dua definisi "apa yang sudah dirender". -->
+    <!-- ══════════════════ RENDERED OUTPUT — out/ contents as-is ══════════════════
+         Same data source as /api/history (used by the History screen in the
+         editor) -- just displayed again here, no new endpoint, so there's
+         no second definition of "what's been rendered". -->
     <section class="ws-panel" id="panelRender">
       <div class="flex items-center gap-3">
         <h1 class="text-[20px] font-extrabold tracking-tight" style="font-stretch:112%">Hasil render</h1>
@@ -120,8 +120,8 @@
     </section>
 
     <!-- ══════════════════ ASSETS — workspace/assets/ ══════════════════
-         Kosong secara default. Tempat taruh watermark/font/template custom
-         yang di luar bawaan klipian (assets/ di root, dipakai app sendiri). -->
+         Empty by default. Where to put custom watermark/font/template files
+         outside klipian's built-in ones (assets/ at root, used by the app itself). -->
     <section class="ws-panel" id="panelAssets">
       <div class="flex items-center gap-3">
         <h1 class="text-[20px] font-extrabold tracking-tight" style="font-stretch:112%">Assets</h1>

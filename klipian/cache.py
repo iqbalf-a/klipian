@@ -1,9 +1,9 @@
-"""Cache transkrip.
+"""Transcript cache.
 
-Alasan keberadaan file ini: transkripsi CPU untuk podcast 1 jam butuh
-belasan menit, sementara menyetel rubrik pemilihan klip perlu diulang
-berkali-kali. Tanpa cache, setiap percobaan membayar ongkos transkripsi lagi.
-Dengan cache, ongkos itu dibayar sekali per video.
+Why this file exists: CPU transcription for a 1-hour podcast takes over
+ten minutes, while tuning the clip-selection rubric needs to be repeated
+many times. Without a cache, every attempt pays the transcription cost
+again. With the cache, that cost is paid once per video.
 """
 
 from __future__ import annotations
@@ -13,18 +13,19 @@ from pathlib import Path
 
 
 def fingerprint(path: Path, extra: str = "") -> str:
-    """Identitas file berbasis ukuran+mtime -- SENGAJA TIDAK ikut path.
+    """File identity based on size+mtime -- DELIBERATELY excludes the path.
 
-    Path pernah ikut dihash, tapi itu berarti memindahkan videonya ke folder
-    lain (persis yang terjadi saat samples/ digabung jadi workspace/samples/)
-    membuat fingerprint-nya berubah, project/cache lama jadi tidak ketemu lagi
-    walau videonya persis sama -- kelihatan seperti kerjaan hilang padahal
-    cuma "salah lemari". Ukuran+mtime saja sudah cukup membedakan video yang
-    benar-benar berubah isinya, dan tahan terhadap video yang sekadar
-    dipindah/di-rename foldernya.
+    The path used to be part of the hash, but that meant moving the video
+    to another folder (exactly what happened when samples/ was merged into
+    workspace/samples/) changed its fingerprint, so old projects/caches
+    could no longer be found even though the video was identical -- it
+    looked like lost work when it was really just "wrong cabinet".
+    Size+mtime alone is enough to distinguish videos whose content actually
+    changed, and is resilient to a video simply being moved/renamed.
 
-    Sengaja tidak menghash seluruh isi file -- video 2GB akan lambat dibaca,
-    sementara kombinasi ini sudah cukup membedakan dalam pemakaian normal.
+    Deliberately doesn't hash the whole file content -- a 2GB video would
+    be slow to read, and this combination is already enough to distinguish
+    videos in normal use.
     """
     st = Path(path).stat()
     raw = f"{st.st_size}|{st.st_mtime_ns}|{extra}"
@@ -32,9 +33,9 @@ def fingerprint(path: Path, extra: str = "") -> str:
 
 
 def glossary_fingerprint(path: Path | None) -> str:
-    """Sidik jari glosarium berbasis ukuran+mtime -- masuk ke kunci cache
-    transkrip supaya menyunting glossary.txt memaksa transkripsi ulang, bukan
-    diam-diam memakai transkrip lama yang koreksinya belum kena."""
+    """Glossary fingerprint based on size+mtime -- goes into the transcript
+    cache key so editing glossary.txt forces a re-transcription, instead of
+    silently reusing an old transcript that didn't get the correction."""
     if not path:
         return ""
     p = Path(path)
@@ -60,18 +61,18 @@ class Cache:
         return self.root / f"{Path(video).stem}.{fp}.wav"
 
     def energy_path(self, video: Path) -> Path:
-        """Momen energi audio tinggi (audio_energy.find_loud_moments) --
-        fingerprint video saja, tidak tergantung model/bahasa seperti
+        """High audio-energy moments (audio_energy.find_loud_moments) --
+        video fingerprint only, doesn't depend on model/language like
         transcript_path()."""
         fp = fingerprint(video)
         return self.root / f"{Path(video).stem}.{fp}.energy.json"
 
     def find_any_transcript(self, video: Path) -> Path | None:
-        """Transkrip apa pun untuk video ini, tanpa peduli model/lang/glossary.
+        """Any transcript for this video, regardless of model/lang/glossary.
 
-        Dipakai jalur render untuk caption: kalau ada transkrip, pakai; tidak
-        perlu menebak dengan kombinasi persis mana video itu ditranskripsi.
-        Ambil yang paling baru kalau ada beberapa."""
-        cocok = sorted(self.root.glob(f"{Path(video).stem}.*.transcript.json"),
-                       key=lambda p: p.stat().st_mtime, reverse=True)
-        return cocok[0] if cocok else None
+        Used by the render path for captions: if a transcript exists, use
+        it; no need to guess the exact combination that video was
+        transcribed with. Picks the most recent one if there are several."""
+        matches = sorted(self.root.glob(f"{Path(video).stem}.*.transcript.json"),
+                         key=lambda p: p.stat().st_mtime, reverse=True)
+        return matches[0] if matches else None
