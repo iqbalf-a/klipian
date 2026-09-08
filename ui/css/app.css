@@ -1757,13 +1757,15 @@ h1, h2, h3 {
 }
 /* +/-1s stepper: a mm:ss field can't be a native <input type=number>
    (wrong format entirely), so this is a hand-built equivalent -- two
-   stacked slivers instead of a side-by-side pair, to add as little width
+   stacked buttons instead of a side-by-side pair, to add as little width
    as possible next to the already-narrow time field (see the .rec-title
-   min-width note above -- this column has no room to spare). */
-.rec-time-field { display: inline-flex; align-items: stretch; gap: 1px; }
-.rec-time-step { display: flex; flex-direction: column; }
+   min-width note above -- this column has no room to spare). Sized to
+   match the input's own height (~20px) split in two, not shrunk further --
+   an 11x9px first pass was unusably small to actually click. */
+.rec-time-field { display: inline-flex; align-items: stretch; gap: 2px; }
+.rec-time-step { display: flex; flex-direction: column; gap: 1px; }
 .rec-step {
-  font-size: 6px; line-height: 1; width: 11px; height: 9px;
+  font-size: 9px; line-height: 1; width: 18px; height: 12px;
   padding: 0; border: 0; border-radius: 2px;
   background: var(--glass); color: var(--text-faint);
   cursor: pointer;
