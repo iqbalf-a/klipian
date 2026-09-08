@@ -1,94 +1,112 @@
 # klipian
 
-Memotong podcast dan siaran panjang jadi klip vertikal 9:16 siap posting ke
-TikTok, YouTube Shorts, dan Instagram Reels.
+Cuts long podcasts and streams into vertical 9:16 clips ready to post to
+TikTok, YouTube Shorts, and Instagram Reels.
 
-`klip` + `ian` — terbaca "kliping".
-
-Berjalan **sepenuhnya di laptopmu**. Tidak ada akun, tidak ada unggahan,
-tidak ada langganan. Dan **tidak butuh API key.**
+Runs **entirely on your own machine.** No account, no uploads, no
+subscription — and **no API key required.**
 
 ---
 
-## Menjalankan
+## Running it
 
 ```bash
-cd D:\github-repos\klipian && .venv\Scripts\python.exe -m klipian serve
+python -m klipian serve
 ```
 
-Lalu buka **http://127.0.0.1:5177**
+Then open **http://127.0.0.1:5177**
 
-Server ini yang menjalankan Whisper dan ffmpeg. Tanpa dia, UI cuma halaman
-statis: tombol Cari klip dan Render tidak punya apa pun untuk dipanggil, dan
-akan mengatakannya terang-terangan.
+This server is what makes Whisper and ffmpeg actually run. Without it the UI
+is just a static page — the Find Clips and Render buttons have nothing to
+call, and they'll say so.
 
-Terikat ke `127.0.0.1` saja — server menjalankan ffmpeg dan membuka Explorer
-atas permintaan HTTP, jadi tidak boleh terjangkau dari jaringan.
+Bound to `127.0.0.1` only. The server opens the file explorer and runs
+ffmpeg in response to HTTP requests, so it must never be reachable from a
+network.
 
-### Instalasi pertama kali
+### First-time setup
 
-Butuh **Python 3.10+** dan **ffmpeg** di PATH.
+Requires **Python 3.10+** and **ffmpeg** on your `PATH`.
 
 ```bash
 python -m venv .venv
-.venv\Scripts\activate
+.venv\Scripts\activate        # Windows; use `source .venv/bin/activate` elsewhere
 pip install -r requirements.txt
 ```
 
-Ringan (~300 MB) karena **tidak memakai PyTorch** — faster-whisper berjalan di
-atas CTranslate2. Bobot model Whisper diunduh sekali saat dipakai pertama:
-1,6 GB untuk `large-v3-turbo`.
+Deliberately lightweight (~300 MB): the base install does **not** use
+PyTorch — faster-whisper runs on CTranslate2. The Whisper model weights
+download once on first use: **1.6 GB** for `large-v3-turbo`.
 
-**Taruh videomu di `workspace/samples/`.** Browser tidak memberi jalur lengkap
-ke server, jadi backend mencarinya berdasarkan nama berkas di folder itu.
+**AI Framing** (automatic speaker-following crop, powered by speaker
+diarization) needs a separate, optional install — it pulls in PyTorch:
+
+```bash
+pip install -r requirements.txt -r requirements-ai-framing.txt
+```
+
+It also needs a free HuggingFace token, set once as `HF_TOKEN` in a `.env`
+file (copy `.env.example`). The gated model page requires you to accept its
+terms before the token can download the weights — see the comments in
+`.env.example` for the exact link. After that first download it runs fully
+offline, same as Whisper.
+
+**Put your source videos in `workspace/samples/`.** The browser doesn't hand
+the server a full file path, so the backend looks videos up by filename in
+that folder — dragging a file into the browser previews it locally, but you
+still need to copy the actual file there before transcription or rendering
+can run.
 
 ---
 
-## Alur kerja
+## Workflow
 
-Ada dua jalan menuju klip yang sama. Keduanya berakhir di editor yang sama.
+Two paths reach the same editor.
 
-### A. Lewat Claude — tanpa API key
+### A. Through Claude — no API key
 
 ```
-1  BERANDA    pilih mode: Podcast / Live MLBB / Restream MPL / Tayangan TV
-2  SIAPKAN    tarik video, atur jumlah klip · durasi · format · resolusi
-                                                          [ Cari klip ]
-3  ANALISIS   ① transkripsi berjalan di mesinmu
-              ② [ Unduh berkas ]  →  jatuhkan ke Claude, minta "kerjakan"
-              ③ tempel balasan JSON  →  [ Potong jadi klip ]
-4  KANDIDAT   tinjau kartu, tiap kartu memakai frame dari detik klipnya
-                                                  Setujui / Tolak
-                                                     [ Render klip ]
-5  ANTRIAN    progress nyata  →  [ Buka folder ]  →  MP4
+1  HOME       drop a video, choose crop/blur and resolution   [ Find clips ]
+2  ANALYZE    ① transcription runs on your machine
+              ② [ Download file ]  ->  drop it into Claude, ask it to work
+              ③ paste the JSON reply  ->  [ Cut into clips ]
+3  CLIPS      pick from Claude's suggestions or select ranges on the
+              timeline yourself, both feed the same Result
+4  FRAMING    lock the crop position per time point (drag to reposition,
+              or let AI Framing follow whoever is speaking automatically)
+5  CAPTIONS   fix any misheard words, then style the karaoke captions
+6  HISTORY    render queue with live progress  ->  open the output folder
 ```
 
-Langkah 2 dan 3 memakai langganan Claude yang sudah kamu punya — bukan API
-berbayar. Keuntungan yang tidak ada di jalur API: **kamu melihat pertimbangan
-Claude sebelum apa pun dirender, dan bisa mendebatnya.**
+Steps ② and ③ use a Claude subscription you already have — not a paid API.
+The advantage over calling the API directly: **you see Claude's reasoning
+before anything renders, and can push back on it.**
 
-### B. Manual — tanpa Claude sama sekali
+### B. Manual — no Claude at all
 
-Di layar Analisis, tekan **Buat klip manual**. Lewati langkah ② dan ③; kamu
-yang menentukan rentangnya dengan mengklik kata di transkrip.
+On the Analyze screen, use **"Or cut it yourself."** That skips steps ② and
+③ entirely — you pick ranges straight from the transcript on the Clips
+screen.
 
-### Menyunting sebelum render
+### Editing before render
 
-| Layar | Yang bisa dilakukan |
+| Screen | What it does |
 |---|---|
-| **Potong** | klik kata untuk in/out · buang bagian di tengah · buang jeda |
-| **Reframe** | geser dan ubah ukuran crop, preview 9:16 ikut seketika |
-| **Caption** | gaya, ukuran, posisi, highlight — preview langsung |
+| **Clips** | drag a range on the timeline, or pick from AI suggestions; word-boundary snapping avoids cutting mid-word |
+| **Framing** | drag/resize the crop box per time point; **AI Framing** follows whoever is speaking automatically; optional per-point head tracking for smoother motion |
+| **Captions** | click any word to correct it; font, size, highlight color, position, words-per-line, outline, and watermark, all previewed live |
 
-Klip bukan satu rentang, melainkan **daftar potongan**. Membuang bagian di
-tengah membelahnya jadi dua, dan caption otomatis dipetakan ulang ke timeline
-keluaran — kata yang tadinya di detik 650 sumber jatuh di detik 11 keluaran.
+A clip is not a single range but a **list of cuts**. Removing a middle
+section splits it in two, and captions are automatically remapped onto the
+rendered timeline — a word that was at second 650 in the source lands at
+second 11 in the output.
 
 ---
 
-## Perintah baris perintah
+## CLI
 
-UI sudah mencakup semuanya, tapi tiap tahap bisa dijalankan sendiri.
+The UI already covers the whole pipeline, but each stage can be run on its
+own.
 
 ```bash
 python -m klipian info video.mp4
@@ -103,205 +121,188 @@ python -m klipian brief video.mp4 --mode dialog
 ```
 
 ```bash
-python -m klipian import video.mp4 balasan.json
+python -m klipian import video.mp4 reply.json
 ```
 
 ```bash
 python -m klipian render video.mp4 workspace/out/video/candidates.json --only 1 --crop 58 8 26 84
 ```
 
-| Perintah | Fungsi |
+| Command | Does |
 |---|---|
-| `info` | metadata media, cek encoder |
-| `transcribe` | transkripsi word-level, hasilnya di-cache |
-| `brief` | susun berkas untuk dijatuhkan ke Claude |
-| `import` | baca balasan JSON, geser ke batas kata |
-| `render` | hasilkan MP4 9:16 |
-| `serve` | jalankan UI dengan semua fungsi hidup |
+| `info` | media metadata, checks the available encoder |
+| `transcribe` | word-level transcription, result is cached |
+| `brief` | builds the file to drop into Claude |
+| `import` | reads Claude's JSON reply, snaps to word boundaries |
+| `render` | produces the 9:16 MP4 |
+| `serve` | runs the UI with everything wired up |
+
+`brief --mode` picks a rubric from `prompts/rubrik/` — currently `dialog`
+(podcast/talkshow) or `gameplay` (MLBB livestream commentary). The web UI's
+own Claude round-trip always uses the `dialog` rubric; the CLI is the only
+place the other one is reachable right now. Adding a new rubric means both
+a new `.md` file in `prompts/rubrik/` **and** registering it in `RUBRICS`
+in `klipian/cli.py`.
 
 ---
 
-## Kenapa dirancang begini
+## Design notes
 
-### Timestamp per kata itu pondasinya
+### Word-level timestamps are the foundation
 
-Tanpa timestamp per kata, caption karaoke mustahil dan pemotongan akan
-memenggal kata di tengah. Subtitle biasa (SRT) hanya punya timestamp per
-kalimat — tidak cukup.
+Without word-level timestamps, karaoke captions are impossible and cuts
+would land mid-word. Regular subtitles (SRT) only carry sentence-level
+timing — not enough.
 
-### Pembagian tugas dengan Claude
+### Division of labor with Claude
 
-| Siapa | Mengerjakan |
+| Who | Does |
 |---|---|
-| Claude | menilai isi, memberi waktu **kira-kira** menit:detik |
-| klipian | menggeser waktu itu ke **batas kata terdekat** |
+| Claude | judges content, gives **approximate** minute:second timing |
+| klipian | snaps that timing to the **nearest word boundary** |
 
-Claude tidak punya timestamp per kata dan tidak perlu punya. Memaksanya presisi
-milidetik justru bikin rapuh. Pada uji nyata pergeserannya 0,01–1,77 detik;
-yang terbesar terjadi saat tebakan jatuh di tengah jeda.
+Claude doesn't have word-level timestamps and doesn't need them — forcing
+millisecond precision out of it just makes it brittle. Measured in practice,
+the snap distance is 0.01–1.77 seconds; the largest snaps happen when a
+guess lands in the middle of a pause.
 
-### Cache transkrip
+### Transcript cache
 
-Transkripsi dibayar **sekali per video**, dikunci pada sidik jari berkas +
-model + bahasa. Menyetel rubrik atau mengulang pemotongan tidak mengulangnya.
+Transcription is paid for **once per video**, keyed to a fingerprint of the
+file + model + language. Tweaking a rubric or re-cutting never re-runs it.
 
-### Glosarium
+### Glossary
 
-`prompts/glossary.txt` menampung nama dan istilah yang sering salah didengar.
-Dipakai dua kali: sebagai `hotwords` ke Whisper (disisipkan ulang tiap jendela
-30 detik, jadi tetap dikenali sampai akhir), dan sebagai koreksi setelahnya.
+`prompts/glossary.txt` holds names and terms that are commonly misheard.
+Used twice: as `hotwords` fed to Whisper (re-injected every 30-second
+window, so it stays recognized to the end), and as a correction pass
+afterward.
 
-Isinya dari bukti, bukan tebakan: `transcribe` mencetak daftar **"kata mungkin
-salah dengar"** di akhir. Daftar itu bukan sekadar `keyakinan < 50%` — ambang
-polos menandai 10,3% kata dan hampir semuanya kata sambung yang sebenarnya
-benar. Setelah kata fungsi disaring, tinggal 1,4%, dan yang tersisa memang
-salah: `biokul`, `biukan`, `radhi`.
+Its contents come from evidence, not guesswork: `transcribe` prints a
+**"possibly misheard"** list at the end. That list isn't just
+`confidence < 50%` — a plain threshold flags 10.3% of words, and almost all
+of them are function words that are actually correct. After filtering those
+out, only 1.4% remains, and what's left really is wrong: names like
+`biokul`, `biukan`, `radhi`.
 
 ---
 
-## Performa
+## Performance
 
-Diukur langsung di **Intel Core Ultra 9 185H** (16C/22T, tanpa GPU diskrit).
+Measured on an **Intel Core Ultra 9 185H** (16C/22T, no discrete GPU).
 
-| Tahap | Colok listrik | Pakai baterai |
+| Stage | Plugged in | On battery |
 |---|---|---|
-| Transkripsi `large-v3-turbo` | **2,3× realtime** | **~1,0× realtime** |
-| Podcast 42 menit | 18 menit | ~42 menit |
-| Render klip 13 detik | ~14 detik | lebih lambat |
+| `large-v3-turbo` transcription | **2.3x realtime** | **~1.0x realtime** |
+| 42-minute podcast | 18 minutes | ~42 minutes |
+| 13-second clip render | ~14 seconds | slower |
 
-**Colokkan charger sebelum transkripsi panjang.** Selisihnya lebih dari dua
-kali lipat — Intel membatasi daya CPU saat di baterai, dan Whisper adalah
-beban yang paling terasa terkena. klipian mendeteksi ini dan memperingatkan
-di layar Analisis.
+**Plug in before a long transcription.** The gap is more than 2x — Intel
+throttles CPU power on battery, and Whisper is one of the workloads that
+feels it most. klipian detects this and warns on the Analyze screen.
 
-Jumlah thread diset 8, bukan bawaan faster-whisper. Bawaannya (`0`)
-diterjemahkan CTranslate2 jadi 4 thread saja. Diukur di 185H: 8 thread paling
-cepat, dan 22 thread justru **turun** karena E-core ikut dipakai.
+Thread count is fixed at 8, not faster-whisper's default. The default (`0`)
+gets translated by CTranslate2 into just 4 threads. Measured on the 185H: 8
+threads is fastest, and 22 threads is actually **slower**, because it pulls
+in the efficiency cores.
 
-Proyeksi siaran MLBB 2 jam 22 menit: transkripsi sekitar 62 menit.
+Projected for a 2h22m MLBB livestream: roughly 62 minutes to transcribe.
 
-CTranslate2 hanya memakai CPU — iGPU Arc dan NPU tidak dipakai untuk
-transkripsi. Tapi Arc **dipakai** untuk encoding lewat `h264_qsv`.
-
----
-
-## Mode
-
-| Mode | Sumber | Cara momen dicari |
-|---|---|---|
-| **Podcast** | talkshow, wawancara, ceramah | gagasan utuh dari transkrip |
-| **Live MLBB** | siaran streamer sendiri | announcer + reaksi streamer |
-| Restream MPL | nonton bareng siaran resmi | teriakan caster, fase draft dibuang |
-| Tayangan TV | variety show, komedi | punchline dari transkrip + tawa |
-
-Dua yang pertama diprioritaskan. Menambah mode tidak butuh kode baru — cukup
-satu file rubrik di `prompts/rubrik/`.
+CTranslate2 is CPU-only — the Arc iGPU and NPU aren't used for
+transcription. The Arc **is** used for encoding, via `h264_qsv`.
 
 ---
 
-## Workspace
+## Workspace dashboard
 
 ```
 http://127.0.0.1:5177/workspace
 ```
 
-Dashboard operasional, terpisah dari editor. Bukan buat mengedit klip --
-buat apa yang terjadi SESUDAH klip jadi MP4.
+An operational dashboard, separate from the editor — not for editing clips,
+but for what happens **after** a clip becomes an MP4.
 
-| Panel | Isinya |
+| Panel | Contents |
 |---|---|
-| **Klip** | jadwal upload: status, judul/hook, platform, tanggal & jam diedit langsung di tabel; sumber episode, file klip, deskripsi + hashtag, caption TikTok, link, catatan ada di dialog **Detail** per baris (tabel sengaja cuma kolom inti, biar tidak perlu scroll horizontal). Tersimpan ke `workspace/schedule/clips.json` |
-| **Hasil render** | isi `workspace/out/` apa adanya -- sumber datanya sama dengan layar History di editor |
-| **Assets** | isi `workspace/assets/`, tempat watermark/font/template custom di luar bawaan klipian |
+| **Clips** | upload schedule: status, title/hook, platform, date & time edited directly in the table; episode source, clip file, description + hashtags, TikTok caption, links, and notes live in a **Detail** dialog per row (the table itself stays to the essential columns, so it never needs horizontal scrolling). Saved to `workspace/schedule/clips.json` |
+| **Rendered output** | `workspace/out/` as-is — same data source as the History screen in the editor |
+| **Assets** | `workspace/assets/`, for custom watermarks/fonts/templates beyond klipian's defaults |
 
-`clips.json` menggantikan pencatatan manual lewat spreadsheet -- satu baris
-lama di Excel sekarang satu baris di tabel ini, langsung tersimpan tiap kali
-sebuah sel selesai diedit.
+`clips.json` replaces tracking uploads by hand in a spreadsheet — a row that
+used to live in Excel now lives in this table, saved the moment a cell is
+edited.
 
 ---
 
-## Struktur
+## Structure
 
 ```
 klipian/
-├── klipian/           mesin
-│   ├── models.py        Word, Segment, Transcript  ← kontrak inti
-│   ├── cache.py         cache transkrip per sidik jari video+model+bahasa
-│   ├── transcribe.py    faster-whisper word-level
-│   ├── glossary.py      hotwords + koreksi istilah yang sering salah didengar
-│   ├── diarize.py       speaker diarization -- AI Framing tahu siapa bicara
-│   ├── facebox.py       deteksi wajah, arahkan kotak crop AI Framing
-│   ├── scenecut.py      deteksi potongan visual keras (ganti shot kamera)
-│   │                    di video sumber, pelengkap AI Framing
-│   ├── audio_energy.py  deteksi lonjakan volume, sinyal hook pelengkap transkrip
-│   ├── roundtrip.py     brief untuk Claude + impor balasannya
-│   ├── render.py        potongan → concat → crop → caption → MP4
-│   ├── ffmpeg_tools.py  pembungkus tipis ffmpeg/ffprobe
-│   ├── server.py        API lokal: transkripsi, render, thumbnail, workspace
+├── klipian/                       engine
+│   ├── models.py                    Word, Segment, Transcript  ← core contract
+│   ├── cache.py                     transcript cache, keyed by video+model+language fingerprint
+│   ├── transcribe.py                faster-whisper word-level transcription
+│   ├── glossary.py                  hotwords + correction pass for commonly misheard terms
+│   ├── diarize.py                   speaker diarization -- lets AI Framing know who's talking
+│   ├── facebox.py                   face detection, drives AI Framing's crop box and head tracking
+│   ├── scenecut.py                  hard shot-change detection in the source video,
+│   │                                complements AI Framing
+│   ├── audio_energy.py              volume-spike detection, a secondary hook signal
+│   ├── roundtrip.py                 builds the Claude brief + imports its reply
+│   ├── render.py                    cuts -> concat -> crop -> captions -> MP4
+│   ├── ffmpeg_tools.py              thin wrapper around ffmpeg/ffprobe
+│   ├── server.py                    local API: transcription, render, thumbnails, workspace
 │   └── cli.py
-├── ui/                antarmuka -- tanpa framework, tanpa build step untuk jalan
-│   ├── index.html       kerangka editor + semua layar
-│   ├── workspace.html   dashboard /workspace (lihat bagian Workspace di atas)
+├── ui/                            interface -- no framework, no build step to run
+│   ├── index.html                   editor shell + every screen
+│   ├── workspace.html               the /workspace dashboard (see above)
 │   ├── css/
-│   │   ├── tokens.css       warna/huruf/jarak — dipakai KEDUA halaman
-│   │   ├── app.css          gaya editor (index.html)
-│   │   ├── workspace.css    gaya workspace, di-generate dari Tailwind
-│   │   └── workspace.src.css  sumber Tailwind — bukan yang dimuat browser,
-│   │                          lihat komentar di dalamnya untuk build ulang
+│   │   ├── tokens.css                 colors/type/spacing -- shared by BOTH pages
+│   │   ├── app.css                    editor styles (index.html)
+│   │   ├── workspace.css              workspace styles, generated from Tailwind
+│   │   └── workspace.src.css          Tailwind source -- not what the browser loads,
+│   │                                  see the comment inside for how to rebuild it
 │   ├── js/
-│   │   ├── editor/        satu berkas per layar editor (app, interactions,
-│   │   │                  framing, analysis, player, roundtrip, history,
-│   │   │                  timeline, teks, result, projects)
-│   │   └── workspace/     satu berkas per panel workspace (helpers, clips,
-│   │                      render, assets)
+│   │   ├── editor/                  one file per editor screen (app, interactions,
+│   │   │                            framing, analysis, player, roundtrip, history,
+│   │   │                            timeline, captions, result, projects)
+│   │   └── workspace/               one file per workspace panel (helpers, clips,
+│   │                                render, assets)
 │   └── tailwind.config.js
-├── prompts/rubrik/    kriteria penilaian, bisa disunting tanpa sentuh kode
-└── workspace/         SEMUA berkas kerja -- satu tempat, biar tidak bingung
-    │                  taruh video di mana (lihat workspace/README.md)
-    ├── samples/         video yang sedang diproses — app baca dari sini
-    ├── out/             hasil render
-    ├── cache/           transkrip (dibuat otomatis)
-    ├── projects/        state per video (Result, framing, koreksi teks)
-    ├── assets/          watermark/font/template custom, panel Assets di /workspace
-    └── schedule/        jadwal & status upload (clips.json), panel Klip di /workspace
+├── prompts/rubrik/                scoring rubrics, editable without touching code
+├── requirements.txt                base install (no PyTorch)
+├── requirements-ai-framing.txt     optional: AI Framing / speaker diarization
+├── .env.example                    copy to .env for HF_TOKEN (AI Framing only)
+└── workspace/                     ALL working files -- one place, so there's never
+    │                                doubt about where a video goes (see workspace/README.md)
+    ├── samples/                     videos currently being worked on -- the app reads from here
+    ├── out/                         render output
+    ├── cache/                       transcripts (created automatically)
+    ├── projects/                    per-video state (Result, framing points, caption corrections)
+    ├── assets/                      custom watermarks/fonts/templates, the Assets panel in /workspace
+    └── schedule/                    upload schedule & status (clips.json), the Clips panel in /workspace
 ```
 
 ---
 
-## Status
+## Troubleshooting
 
-- [x] Ingest, transkripsi word-level, cache, glosarium
-- [x] Pemilihan klip lewat round-trip Claude, tanpa API key
-- [x] Jalur manual tanpa Claude
-- [x] Model potongan: buang bagian di tengah klip
-- [x] Reframe: crop menggerakkan preview, preset per mode
-- [x] Caption `.ass` karaoke, dipetakan ke timeline keluaran
-- [x] Render MP4 9:16 dengan akselerasi Intel Arc
-- [x] UI penuh — semua tahap bisa dijalankan tanpa terminal
-- [ ] Layout `split` dua orang dan `blur` di UI
-- [ ] Deteksi facecam otomatis untuk mode gameplay
-- [ ] Objek bernama di Reframe (crop mengikuti orang tertentu)
-- [ ] Riwayat performa untuk menyetel rubrik dari hasil nyata
+**"Needs the backend. Run: python -m klipian serve"** — the UI was opened
+without the server running. Run the command at the top of this file.
 
----
+**"not reachable in the server's folder"** — the video isn't in
+`workspace/samples/` yet. Dragging a file into the browser only previews it
+locally, it doesn't copy the file to the server — copy the actual file
+there first.
 
-## Kalau ada yang tidak jalan
+**Rendered MP4 is 0 bytes** — ffmpeg is still writing it. Wait for the
+queue row to say "done" before opening the folder.
 
-**"Butuh backend. Jalankan: python -m klipian serve"** — UI dibuka tanpa
-server. Jalankan perintah di bagian atas.
+**Transcription is much slower than usual** — check whether the laptop is
+running on battery. On battery, speed drops from 2.3x to roughly 1.0x
+realtime; a 42-minute podcast that normally takes 18 minutes becomes
+~42 minutes. klipian warns about this on the Analyze screen.
 
-**"tidak ada di folder yang dijangkau server"** — videonya belum ada di
-`workspace/samples/`. Drag-drop di browser cuma buat preview lokal, bukan
-menyalin isi filenya ke server -- copy dulu berkas fisiknya ke situ.
-
-**MP4 hasil render 0 byte** — ffmpeg masih menulis. Tunggu baris antrian
-berbunyi `selesai` sebelum membuka folder.
-
-**Transkripsi jauh lebih lama dari biasanya** — cek apakah laptop sedang
-pakai baterai. Di baterai kecepatannya turun dari 2,3× jadi sekitar 1,0×
-realtime; podcast 42 menit yang biasanya 18 menit jadi ~42 menit. klipian
-memperingatkan ini di layar Analisis.
-
-**Transkripsi lama** — memang, walau sudah dicolok. Video 42 menit butuh
-sekitar 18 menit. Yang sudah pernah ditranskripsi langsung siap dan tertulis
-"diambil dari cache".
+**Transcription just takes a while** — that's expected, even plugged in. A
+42-minute video takes roughly 18 minutes. Anything already transcribed once
+is instant and marked "loaded from cache."
