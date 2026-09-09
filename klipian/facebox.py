@@ -61,8 +61,10 @@ import tempfile
 from pathlib import Path
 
 _YUNET_MODEL = Path(__file__).resolve().parent.parent / "assets" / "models" / "face_detection_yunet_2023mar.onnx"
+_SFACE_MODEL = Path(__file__).resolve().parent.parent / "assets" / "models" / "face_recognition_sface_2021dec.onnx"
 
 _face_detector = None
+_face_recognizer = None
 _hog_detector = None
 
 
@@ -80,6 +82,20 @@ def _load_face_detector():
     return _face_detector
 
 
+def _load_face_recognizer():
+    """SFace -- same opencv_zoo family as YuNet above (see
+    assets/models/SFace-LICENSE.txt), used to confirm face IDENTITY when
+    _pick_active_face()'s mouth-motion signal is ambiguous (see there).
+    No setInputSize() equivalent needed -- alignCrop() takes the raw
+    detection size as-is."""
+    global _face_recognizer
+    if _face_recognizer is not None:
+        return _face_recognizer
+    import cv2
+    _face_recognizer = cv2.FaceRecognizerSF.create(str(_SFACE_MODEL), "")
+    return _face_recognizer
+
+
 def _load_hog_detector():
     global _hog_detector
     if _hog_detector is not None:
@@ -94,16 +110,19 @@ def _load_hog_detector():
 def _detect_faces(region_bgr, rw: float) -> list[dict]:
     """All faces INSIDE `region_bgr` (BGR color image -- YuNet needs color,
     unlike the Haar cascades this replaced) -> list of
-    {cx, bbox:(x,y,w,h), mouth:(x,y,w,h), score} in REGION coordinates.
+    {cx, bbox:(x,y,w,h), mouth:(x,y,w,h), score, raw} in REGION coordinates.
 
     No NMS step here (unlike the old Haar version) -- YuNet already
     deduplicates internally (nms_threshold in _load_face_detector()), and
     there's only one detector pass now, not three fighting over the same
     face. `mouth` is centered on YuNet's own right/left mouth-corner
     landmarks -- tighter than the old "bottom 30% of face bbox" guess, and
-    used for mouth-motion scoring in _pick_active_face. Size filtered
-    (>= rw*0.15) same as before to keep small/distant faces from leaking
-    through as candidates."""
+    used for mouth-motion scoring in _pick_active_face. `raw` is YuNet's
+    untouched detection row (bbox + 5 landmarks + score) -- kept around
+    ONLY because _face_embedding()'s alignCrop() needs that exact
+    landmark-bearing row, not the simplified bbox/mouth klipian derives
+    from it. Size filtered (>= rw*0.15) same as before to keep
+    small/distant faces from leaking through as candidates."""
     import cv2
     h, w = region_bgr.shape[:2]
     if w <= 0 or h <= 0:
@@ -126,8 +145,29 @@ def _detect_faces(region_bgr, rw: float) -> list[dict]:
         mh = max(8, int(fh * 0.28))
         mouth = (int((rmx + lmx) / 2 - mw / 2), int((rmy + lmy) / 2 - mh / 2), mw, mh)
         faces.append({"cx": x + fw // 2, "bbox": (x, y, fw, fh),
-                      "mouth": mouth, "score": float(row[14])})
+                      "mouth": mouth, "score": float(row[14]), "raw": row})
     return faces
+
+
+def _face_embedding(region_bgr, face: dict):
+    """128-d identity embedding for one detected `face` (see
+    _detect_faces()) -- used by _pick_active_face() to confirm a
+    candidate is the SAME PERSON as whichever face was last confidently
+    locked, not just nearby. alignCrop() needs YuNet's raw landmark row
+    (`face["raw"]`), not the simplified bbox/mouth tuples klipian derives
+    from it -- the alignment is landmark-driven (rotates/scales the crop
+    so the eyes/mouth land on fixed reference points), which is why SFace
+    is paired with YuNet upstream in the first place."""
+    recognizer = _load_face_recognizer()
+    aligned = recognizer.alignCrop(region_bgr, face["raw"])
+    return recognizer.feature(aligned)
+
+
+# opencv_zoo's own documented threshold (sface.py in the model's reference
+# implementation): cosine similarity >= this -> same person. NOT a number
+# klipian invented -- using the vendor's own calibration rather than
+# guessing one from scratch.
+_SFACE_SAME_PERSON_COSINE = 0.363
 
 
 def _mouth_motion(gray_curr, gray_prev, mouth: tuple) -> float:
@@ -192,21 +232,40 @@ def _sharpness(gray, bbox: tuple) -> float:
 
 
 def _pick_active_face(faces: list[dict], grays: list, ref_idx: int,
-                       locked_cx: float | None) -> dict | None:
+                       locked_cx: float | None, region_bgr=None,
+                       locked_embedding=None):
     """From several faces in a region, pick the one CURRENTLY SPEAKING.
 
-    Priority: clear mouth-motion winner -> face nearest to the tracked
-    position (continuity) -> sharpest face (only if nothing is tracked yet).
-    `grays` = several consecutive region frames; mouth motion is summed
-    across pairs so a mouth phase (coincidentally closed in one frame)
-    doesn't mislead. Logic ported from smart_crop.pick_speaker_cx, but
-    returns the FACE (need bbox for centering the box), not just cx."""
-    if not faces:
-        return None
-    if len(faces) == 1:
-        return faces[0]
+    Priority: clear mouth-motion winner -> SAME PERSON as last time
+    (identity, via SFace -- only tried when `region_bgr`/`locked_embedding`
+    are given) -> face nearest to the tracked position (continuity) ->
+    sharpest face (only if nothing is tracked yet). `grays` = several
+    consecutive region frames; mouth motion is summed across pairs so a
+    mouth phase (coincidentally closed in one frame) doesn't mislead.
+    Logic ported from smart_crop.pick_speaker_cx, but returns the FACE
+    (need bbox for centering the box), not just cx.
 
-    if len(grays) >= 2:
+    The identity tier exists because plain nearest-x has no notion of
+    WHO is nearest -- after a scene cut, or when someone leans out of
+    frame and back, the spatially-closest face can easily be the WRONG
+    person. `region_bgr`/`locked_embedding` are optional so a caller that
+    doesn't track identity across calls (or is on its very first sample,
+    with nothing locked yet) can omit them and fall straight to
+    nearest-x, same as before this tier existed.
+
+    Returns (face, embedding) -- `embedding` is populated only when
+    `region_bgr` was given (None otherwise); it's for the CALLER to
+    remember and pass back in as `locked_embedding` on the NEXT call, the
+    same way `locked_cx` already gets threaded through track_crops()/
+    track_head()'s loops."""
+    if not faces:
+        return None, None
+
+    chosen = None
+    chosen_embedding = None
+    if len(faces) == 1:
+        chosen = faces[0]
+    elif len(grays) >= 2:
         scored = []
         for f in faces:
             total, pairs = 0.0, 0
@@ -220,16 +279,33 @@ def _pick_active_face(faces: list[dict], grays: list, ref_idx: int,
         # Threshold same as smart_crop: the winner must be clear (>1.0) AND
         # far above the average of the rest (2x), otherwise treat as ambiguous.
         if best_score > 1.0 and best_score > rest_avg * 2.0:
-            return best
+            chosen = best
 
-    # Ambiguous motion signal (two people both still or both moving):
-    # fall back to the face nearest the tracked position, don't guess.
-    # This was also the old facebox's intent -- "face nearest the rough box"
-    # -- just now mouth-motion gets first chance before falling here.
-    if locked_cx is not None:
-        return min(faces, key=lambda f: abs(f["cx"] - locked_cx))
+    if chosen is None and region_bgr is not None and locked_embedding is not None:
+        import cv2
+        recognizer = _load_face_recognizer()
+        scored_id = [(f, _face_embedding(region_bgr, f)) for f in faces]
+        best_f, best_emb = max(
+            scored_id,
+            key=lambda t: recognizer.match(locked_embedding, t[1], cv2.FaceRecognizerSF_FR_COSINE))
+        best_sim = recognizer.match(locked_embedding, best_emb, cv2.FaceRecognizerSF_FR_COSINE)
+        if best_sim >= _SFACE_SAME_PERSON_COSINE:
+            chosen, chosen_embedding = best_f, best_emb
 
-    return max(faces, key=lambda f: _sharpness(grays[ref_idx], f["bbox"]))
+    if chosen is None:
+        # Ambiguous motion, AND (no locked identity yet, or nothing matched
+        # it): fall back to the face nearest the tracked position, don't
+        # guess. This was also the old facebox's intent -- "face nearest
+        # the rough box" -- mouth-motion and identity just get first chance
+        # before falling here.
+        if locked_cx is not None:
+            chosen = min(faces, key=lambda f: abs(f["cx"] - locked_cx))
+        else:
+            chosen = max(faces, key=lambda f: _sharpness(grays[ref_idx], f["bbox"]))
+
+    if chosen_embedding is None and region_bgr is not None:
+        chosen_embedding = _face_embedding(region_bgr, chosen)
+    return chosen, chosen_embedding
 
 
 def _region_rect(rough: dict, W: int, H: int, pad: float = 0.4) -> tuple:
@@ -338,8 +414,12 @@ def fit_crop_to_face(video: Path, at: float, rough: dict) -> dict | None:
         grays = [cv2.cvtColor(r, cv2.COLOR_BGR2GRAY) for r in regions]
 
         faces = _detect_faces(regions[ref_idx], rw)
-        chosen = _pick_active_face(faces, grays, ref_idx,
-                                   locked_cx=(rw / 2))  # region center ~ rough box center
+        # No locked_embedding here (region center ~ rough box center is
+        # the only prior we have, and this is a one-shot lookup, not a
+        # loop with a previous sample to carry identity from) -- the
+        # identity tier in _pick_active_face() simply doesn't trigger
+        # without one, same net behavior as before this tier existed.
+        chosen, _ = _pick_active_face(faces, grays, ref_idx, locked_cx=(rw / 2))
         if chosen is not None:
             fx, fy, fw, fh = chosen["bbox"]
         else:
@@ -422,6 +502,7 @@ def track_crops(video: Path, start: float, end: float, rough: dict,
         cx_list: list[float] = []
         prev_gray = None
         locked_cx = rw / 2          # region-coord; ~ rough box center at start
+        locked_embedding = None    # SFace identity of the last confidently-chosen face
         for p in files:
             img = cv2.imread(str(p))
             if img is None:
@@ -430,9 +511,12 @@ def track_crops(video: Path, start: float, end: float, rough: dict,
             gray = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
             faces = _detect_faces(region, rw)
             grays = [prev_gray, gray] if prev_gray is not None else [gray]
-            chosen = _pick_active_face(faces, grays, len(grays) - 1, locked_cx)
+            chosen, embedding = _pick_active_face(
+                faces, grays, len(grays) - 1, locked_cx,
+                region_bgr=region, locked_embedding=locked_embedding)
             if chosen is not None:
                 locked_cx = chosen["cx"]                       # region-coord
+                locked_embedding = embedding
                 fx, fy, fw, fh = chosen["bbox"]
                 cx_list.append(fx + sx + fw / 2)
             prev_gray = gray
@@ -597,6 +681,7 @@ def track_head(video: Path, start: float, end: float, rough: dict,
         samples: list[tuple[float, float]] = []
         prev_gray = None
         locked_cx = rw / 2
+        locked_embedding = None    # SFace identity of the last confidently-chosen face
         for i, p in enumerate(files):
             img = cv2.imread(str(p))
             if img is None:
@@ -606,9 +691,12 @@ def track_head(video: Path, start: float, end: float, rough: dict,
             gray = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
             faces = _detect_faces(region, rw)
             grays = [prev_gray, gray] if prev_gray is not None else [gray]
-            chosen = _pick_active_face(faces, grays, len(grays) - 1, locked_cx)
+            chosen, embedding = _pick_active_face(
+                faces, grays, len(grays) - 1, locked_cx,
+                region_bgr=region, locked_embedding=locked_embedding)
             if chosen is not None:
                 locked_cx = chosen["cx"]
+                locked_embedding = embedding
                 fx, fy, fw, fh = chosen["bbox"]
                 samples.append((i / fps, fx + sx + fw / 2))
             prev_gray = gray
