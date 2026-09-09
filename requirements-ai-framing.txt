@@ -1,18 +1,23 @@
-# klipian -- dependensi TAMBAHAN untuk AI Framing (deteksi pembicara otomatis)
+# klipian -- ADDITIONAL dependencies for AI Framing (automatic speaker detection)
 #
-# Opsional: hanya perlu diinstal kalau memakai tombol "AI Framing" di layar
-# Framing. Menarik PyTorch (~ratusan MB) -- itu sebabnya dipisah dari
-# requirements.txt utama, bukan digabung begitu saja.
+# Optional: only needed if you use the "AI Framing" button on the Framing
+# screen. Pulls in PyTorch (~hundreds of MB) -- that's why it's split out
+# from the main requirements.txt instead of just being merged in.
 #
-# Butuh HF_TOKEN sekali di awal untuk mengunduh bobot modelnya -- lihat
-# .env.example dan komentar di klipian/diarize.py.
+# Needs HF_TOKEN once at the start to download the model weights -- see
+# .env.example and the comment in klipian/diarize.py.
 #
 #   pip install -r requirements.txt -r requirements-ai-framing.txt
 
-pyannote.audio>=4.0.0      # speaker diarization (CPU, lewat torch/torchaudio)
-soundfile>=0.12.0          # baca WAV manual -- workaround bug torchcodec di Windows
-# deteksi wajah (Haar cascade, BUKAN PyTorch) -- merapatkan kotak framing.
-# DIKUNCI di bawah 5.0: versi 5.x tidak lagi menyertakan berkas cascade-nya
-# sama sekali (perubahan packaging upstream) -- cv2.data.haarcascades jadi
-# folder kosong dan _load_detector() di facebox.py gagal memuat apa pun.
+pyannote.audio>=4.0.0      # speaker diarization (CPU, via torch/torchaudio)
+soundfile>=0.12.0          # manual WAV read -- workaround for a torchcodec bug on Windows
+# Face detection (YuNet, an ONNX model vendored at assets/models/ -- NOT
+# PyTorch) for tightening the crop box in AI Framing/manual framing points.
+# Version kept < 5.0 as a conservative choice, not a hard requirement like
+# it used to be: face detection used to run on Haar cascades, and 5.x
+# dropped the bundled cascade XML files entirely (an upstream packaging
+# change) -- that specific breakage no longer applies now that detection
+# is YuNet (a vendored ONNX file, not something cv2 needs to bundle). The
+# pin stays for now simply because 5.x hasn't been tested against this
+# codebase yet, not because of a known incompatibility.
 opencv-python-headless>=4.9.0,<5.0.0

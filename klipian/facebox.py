@@ -18,23 +18,29 @@ face or point at an empty chair beside them. Both methods RE-CHECK the
 actual face position at EVERY point, instead of trusting a single static
 coordinate.
 
-All classic OpenCV -- NOT deep learning models, doesn't add to the PyTorch
-load already used by diarization, no separate weight downloads from
-anywhere:
+Face detection is YuNet (cv2.FaceDetectorYN), a small (~230KB) ONNX model
+vendored at assets/models/face_detection_yunet_2023mar.onnx (MIT license,
+see assets/models/YuNet-LICENSE.txt) -- NOT a PyTorch model, doesn't add to
+the load already used by diarization, no download at runtime. Previously
+this was 3 Haar cascade passes per frame (frontal + profile + flipped
+profile); YuNet is trained on faces at varied angles so one pass covers
+what needed three, runs faster, and reports a real confidence score per
+detection -- Haar's binary detect/no-detect output structurally couldn't
+give the size-filter/NMS logic below anything to work with beyond box size.
 
-  1. Haar cascade face detection, FRONTAL + PROFILE (two directions via
-     cv2.flip), searched ONLY around the rough box (not the whole frame) --
-     limiting the search area alone filters out many false positives without
-     needing super tight parameters. Profile is added so speakers whose heads
-     are turned (common in two-person face-to-face podcasts) are still
-     caught; frontal-only would miss them.
+  1. Face detection, searched ONLY around the rough box (not the whole
+     frame) -- limiting the search area alone filters out many false
+     positives without needing tight detector parameters.
   2. If MORE than one face is found in that area (two people sitting close
      together), the one chosen is NOT the largest but the one whose MOUTH
      IS MOVING -- that's the person currently speaking. Measured from
-     inter-frame differences in the mouth region, weighted by Sobel gradient
-     so lip/jaw motion stands out above background noise. This idea comes
-     from the smart_crop reference; here it's used to pick the RIGHT PERSON,
-     not for continuous panning -- klipian still does hard cuts.
+     inter-frame differences in the mouth region (located via YuNet's own
+     mouth-corner landmarks), weighted by Sobel gradient so lip/jaw motion
+     stands out above background noise, and stabilized against a head's
+     own rigid motion first via optical-flow realignment (see
+     _mouth_motion()) so a nod or lean isn't mistaken for talking. This
+     idea comes from the smart_crop reference; here it's used to pick the
+     RIGHT PERSON, not for continuous panning -- klipian still does hard cuts.
   3. If no face is found at all: HOG+SVM person detection (built-in to
      OpenCV, no download) as fallback -- less accurate (trained for
      standing pedestrians, not sitting podcasters), but better than the raw
@@ -45,7 +51,7 @@ Real-world report before this module was rewritten: searching the ENTIRE
 frame with loose parameters occasionally misidentified textures (hair,
 fabric patterns) as small "faces", and the resulting box OVERWROTE a
 previously correct point -- not just a silent failure. Limiting the search
-area to around the rough box was the primary fix; size filters, NMS, and
+area to around the rough box was the primary fix; size filters and
 mouth-motion selection below are the next layers of defense.
 """
 
@@ -54,33 +60,24 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
+_YUNET_MODEL = Path(__file__).resolve().parent.parent / "assets" / "models" / "face_detection_yunet_2023mar.onnx"
+
 _face_detector = None
-_profile_detector = None
 _hog_detector = None
 
 
 def _load_face_detector():
+    """YuNet needs setInputSize() called before every detect() with a
+    DIFFERENT image size -- callers (_detect_faces) do that per region,
+    the (320, 320) here is just a required construction-time placeholder."""
     global _face_detector
     if _face_detector is not None:
         return _face_detector
     import cv2
-    cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-    _face_detector = cv2.CascadeClassifier(cascade_path)
+    _face_detector = cv2.FaceDetectorYN.create(
+        str(_YUNET_MODEL), "", (320, 320),
+        score_threshold=0.6, nms_threshold=0.3, top_k=5000)
     return _face_detector
-
-
-def _load_profile_detector():
-    """Profile face cascade (side-facing). Used in two directions: as-is for
-    faces looking one way, then on a flipped frame for the opposite direction
-    (OpenCV's profile cascade is only trained for one direction). May not
-    exist in certain OpenCV builds -> _detect_faces ignores it if empty."""
-    global _profile_detector
-    if _profile_detector is not None:
-        return _profile_detector
-    import cv2
-    _profile_detector = cv2.CascadeClassifier(
-        cv2.data.haarcascades + "haarcascade_profileface.xml")
-    return _profile_detector
 
 
 def _load_hog_detector():
@@ -94,71 +91,42 @@ def _load_hog_detector():
     return _hog_detector
 
 
-def _nms(boxes: list, iou_thr: float = 0.35) -> list:
-    """Discard duplicate detections (frontal & profile often mark the same
-    face). The largest area is kept first."""
-    if len(boxes) <= 1:
-        return boxes
-    import numpy as np
-    b = np.array(boxes, dtype=float)
-    x1, y1 = b[:, 0], b[:, 1]
-    x2, y2 = b[:, 0] + b[:, 2], b[:, 1] + b[:, 3]
-    areas = (x2 - x1) * (y2 - y1)
-    order = areas.argsort()[::-1]
-    keep = []
-    while len(order):
-        i = order[0]
-        keep.append(int(i))
-        xx1 = np.maximum(x1[i], x1[order[1:]])
-        yy1 = np.maximum(y1[i], y1[order[1:]])
-        xx2 = np.minimum(x2[i], x2[order[1:]])
-        yy2 = np.minimum(y2[i], y2[order[1:]])
-        inter = np.maximum(0, xx2 - xx1) * np.maximum(0, yy2 - yy1)
-        iou = inter / (areas[i] + areas[order[1:]] - inter + 1e-6)
-        order = order[1:][iou < iou_thr]
-    return [boxes[k] for k in keep]
+def _detect_faces(region_bgr, rw: float) -> list[dict]:
+    """All faces INSIDE `region_bgr` (BGR color image -- YuNet needs color,
+    unlike the Haar cascades this replaced) -> list of
+    {cx, bbox:(x,y,w,h), mouth:(x,y,w,h), score} in REGION coordinates.
 
-
-def _detect_faces(gray_region, rw: float) -> list[dict]:
-    """All faces INSIDE `gray_region` -> list of
-    {cx, bbox:(x,y,w,h), mouth:(x,y,w,h)} in REGION coordinates.
-
-    Frontal + profile (two directions). minNeighbors is left at 5 (not
-    increased) because the search area is already limited to around the
-    rough box -- that area limit itself filters most false positives.
-    `mouth` = bottom 30% of face bbox; used for mouth-motion scoring in
-    _pick_active_face. Size filtered (>= rw*0.15) same as the old version
-    to keep small textures from leaking through."""
+    No NMS step here (unlike the old Haar version) -- YuNet already
+    deduplicates internally (nms_threshold in _load_face_detector()), and
+    there's only one detector pass now, not three fighting over the same
+    face. `mouth` is centered on YuNet's own right/left mouth-corner
+    landmarks -- tighter than the old "bottom 30% of face bbox" guess, and
+    used for mouth-motion scoring in _pick_active_face. Size filtered
+    (>= rw*0.15) same as before to keep small/distant faces from leaking
+    through as candidates."""
     import cv2
-    kw = dict(scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
-    raw: list[tuple] = []
-
-    front = _load_face_detector()
-    for (x, y, w, h) in front.detectMultiScale(gray_region, **kw):
-        raw.append((int(x), int(y), int(w), int(h)))
-
-    prof = _load_profile_detector()
-    if prof is not None and not prof.empty():
-        for (x, y, w, h) in prof.detectMultiScale(gray_region, **kw):
-            raw.append((int(x), int(y), int(w), int(h)))
-        W = gray_region.shape[1]
-        flipped = cv2.flip(gray_region, 1)
-        for (x, y, w, h) in prof.detectMultiScale(flipped, **kw):
-            # Facing the opposite direction: detect on the flipped frame,
-            # then mirror the x-coordinate back to original region coords.
-            raw.append((W - int(x) - int(w), int(y), int(w), int(h)))
-
-    if not raw:
+    h, w = region_bgr.shape[:2]
+    if w <= 0 or h <= 0:
+        return []
+    detector = _load_face_detector()
+    detector.setInputSize((w, h))
+    _, raw = detector.detect(region_bgr)
+    if raw is None:
         return []
 
     faces = []
-    for (x, y, w, h) in _nms(raw):
-        if w < rw * 0.15:
+    for row in raw:
+        fw = float(row[2])
+        if fw < rw * 0.15:
             continue
-        my = y + int(h * 0.65)
-        mh = max(8, int(h * 0.30))
-        faces.append({"cx": x + w // 2, "bbox": (x, y, w, h),
-                      "mouth": (x, my, w, mh)})
+        x, y = int(round(float(row[0]))), int(round(float(row[1])))
+        fw, fh = int(round(fw)), int(round(float(row[3])))
+        rmx, rmy, lmx, lmy = float(row[10]), float(row[11]), float(row[12]), float(row[13])
+        mw = max(8, int(abs(lmx - rmx) * 1.6))
+        mh = max(8, int(fh * 0.28))
+        mouth = (int((rmx + lmx) / 2 - mw / 2), int((rmy + lmy) / 2 - mh / 2), mw, mh)
+        faces.append({"cx": x + fw // 2, "bbox": (x, y, fw, fh),
+                      "mouth": mouth, "score": float(row[14])})
     return faces
 
 
@@ -167,7 +135,24 @@ def _mouth_motion(gray_curr, gray_prev, mouth: tuple) -> float:
     weighted by Sobel gradient magnitude: motion at lip/jaw edges is
     amplified, flat background noise is suppressed. x-gradient captures
     jaw shift (profile), y-gradient captures lip open/close (frontal).
-    Ported from smart_crop."""
+    Ported from smart_crop.
+
+    Before the diff, `gray_prev`'s mouth crop is realigned to `gray_curr`'s
+    using the dominant (median) optical-flow vector between them -- this
+    cancels out RIGID motion (a head nod, leaning toward the mic) that
+    would otherwise show up as false mouth motion in a raw pixel diff,
+    isolating genuine non-rigid lip movement instead. Ported from research
+    on this exact problem (Huang, CVPRW 2020, "Improved Active Speaker
+    Detection Based on Optical Flow"). Deliberately only ADDS an alignment
+    step before the same diff+Sobel scoring used before -- not a wholesale
+    replacement with raw flow magnitude -- so the output stays on roughly
+    the same numeric scale as before (confirmed against real footage: two
+    candidate faces averaged 22.05/16.96 before, 21.10/14.07 after --
+    same ballpark, WIDER separation between them). That matters because
+    _pick_active_face()/locate_speaker() compare this score against fixed
+    thresholds (>1.0, 2x the runner-up) calibrated for the old scale --
+    replacing the formula outright would have made those numbers
+    meaningless without a fresh (and much harder to validate) calibration."""
     import cv2
     import numpy as np
     mx, my, mw, mh = mouth
@@ -177,6 +162,15 @@ def _mouth_motion(gray_curr, gray_prev, mouth: tuple) -> float:
     p = gray_prev[my:my + mh, mx:mx + mw]
     if c.size == 0 or c.shape != p.shape:
         return 0.0
+
+    if c.shape[0] >= 6 and c.shape[1] >= 6:
+        flow = cv2.calcOpticalFlowFarneback(
+            p, c, None, 0.5, 2, 7, 3, 5, 1.1, 0)
+        dx, dy = np.median(flow.reshape(-1, 2), axis=0)
+        shift = np.array([[1, 0, dx], [0, 1, dy]], dtype=np.float32)
+        p = cv2.warpAffine(p, shift, (p.shape[1], p.shape[0]),
+                           borderMode=cv2.BORDER_REPLICATE)
+
     diff = cv2.absdiff(c, p).astype(np.float32)
     gx = cv2.Sobel(c, cv2.CV_32F, 1, 0, ksize=3)
     gy = cv2.Sobel(c, cv2.CV_32F, 0, 1, ksize=3)
@@ -340,10 +334,10 @@ def fit_crop_to_face(video: Path, at: float, rough: dict) -> dict | None:
         # Reference frame = the one closest to `at`; detection runs there,
         # other frames are only used for measuring mouth motion.
         ref_idx = min(range(len(frames)), key=lambda i: abs(frames[i][0] - at))
-        grays = [cv2.cvtColor(img[sy:ey, sx:ex], cv2.COLOR_BGR2GRAY)
-                 for _, img in frames]
+        regions = [img[sy:ey, sx:ex] for _, img in frames]
+        grays = [cv2.cvtColor(r, cv2.COLOR_BGR2GRAY) for r in regions]
 
-        faces = _detect_faces(grays[ref_idx], rw)
+        faces = _detect_faces(regions[ref_idx], rw)
         chosen = _pick_active_face(faces, grays, ref_idx,
                                    locked_cx=(rw / 2))  # region center ~ rough box center
         if chosen is not None:
@@ -383,7 +377,7 @@ def fit_crop_to_face(video: Path, at: float, rough: dict) -> dict | None:
 
 
 def track_crops(video: Path, start: float, end: float, rough: dict,
-                fps: int = 3) -> list[dict]:
+                fps: int = 5) -> list[dict]:
     """Active face position representing the ENTIRE [start, end) -> one
     {at: start, crop}. Derived from the MEDIAN position across many samples
     (not just one frame) -- median is resistant to momentary outliers
@@ -434,7 +428,7 @@ def track_crops(video: Path, start: float, end: float, rough: dict,
                 continue
             region = img[sy:ey, sx:ex]
             gray = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
-            faces = _detect_faces(gray, rw)
+            faces = _detect_faces(region, rw)
             grays = [prev_gray, gray] if prev_gray is not None else [gray]
             chosen = _pick_active_face(faces, grays, len(grays) - 1, locked_cx)
             if chosen is not None:
@@ -610,7 +604,7 @@ def track_head(video: Path, start: float, end: float, rough: dict,
                 continue
             region = img[sy:ey, sx:ex]
             gray = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
-            faces = _detect_faces(gray, rw)
+            faces = _detect_faces(region, rw)
             grays = [prev_gray, gray] if prev_gray is not None else [gray]
             chosen = _pick_active_face(faces, grays, len(grays) - 1, locked_cx)
             if chosen is not None:
@@ -654,11 +648,14 @@ def track_head(video: Path, start: float, end: float, rough: dict,
 # single frame.
 
 def locate_speaker(video: Path, start: float, end: float,
-                    crop_size: dict, fps: int = 3) -> dict | None:
+                    crop_size: dict, fps: int = 5) -> dict | None:
     """Find the active speaker's position in [start, end) WITHOUT any
     initial position hint -- unlike track_crops() which tracks AROUND a
     known rough box, this searches from SCRATCH across (nearly) the entire
-    frame, guided by mouth-motion across several samples.
+    frame, guided by mouth-motion across several samples. fps bumped from
+    3 to 5 (more independent samples -> less chance the "clear winner"
+    threshold below fails on a single unlucky window) -- affordable now
+    that each sample's detection cost dropped too (see _detect_faces()).
 
     `crop_size` = {width, height} PERCENT -- the OUTPUT box size, deliberately
     fully decoupled from the search area width (which is nearly the whole
@@ -688,7 +685,6 @@ def locate_speaker(video: Path, start: float, end: float,
     margin = 0.03
     sx, sy = int(W * margin), int(H * margin)
     ex, ey = int(W * (1 - margin)), int(H * (1 - margin))
-    rw_scan = ex - sx   # SEARCH area width -- not the output box width
 
     with tempfile.TemporaryDirectory(prefix="klipian-locate-") as tmp:
         run([
@@ -710,7 +706,17 @@ def locate_speaker(video: Path, start: float, end: float,
                 continue
             region = img[sy:ey, sx:ex]
             gray = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
-            faces = _detect_faces(gray, rw_scan)
+            # `cw` (the OUTPUT crop width), NOT the search-area width
+            # (ex - sx, ~94% of the frame) -- _detect_faces' size filter is
+            # `w < rw * 0.15`, meant to compare against a face's EXPECTED
+            # size. This was a real, pre-existing bug (the search-area
+            # width used to be passed here), just masked until now: Haar
+            # cascade's looser boxes tended to run bigger, so real faces
+            # usually cleared the (wrong, oversized) threshold by accident.
+            # YuNet's boxes are tighter/more accurate -- the same threshold
+            # against the search-area width started rejecting every real
+            # face (measured: a 190px face vs. a ~270px minimum).
+            faces = _detect_faces(region, cw)
             if not faces:
                 prev_gray = gray
                 continue
