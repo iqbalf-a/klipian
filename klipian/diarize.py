@@ -85,8 +85,15 @@ def _merge_turns(turns: list[dict], min_gap: float = 1.5,
     return merged
 
 
-def diarize_segment(video: Path, start: float, end: float) -> list[dict]:
+def diarize_segment(video: Path, start: float, end: float, hook=None) -> list[dict]:
     """Speaking turns within [start, end) seconds of the SOURCE video.
+
+    `hook`, if given, is passed straight through to the pipeline call --
+    pyannote 4.x calls it as hook(step_name, step_artifact, file=..., and
+    for time-consuming steps ALSO total=, completed=) at each major stage
+    (segmentation, speaker_counting, embeddings, discrete_diarization).
+    Not klipian's concern to interpret those values -- the caller (see
+    _run_diarize() in server.py) is what turns them into a percentage.
 
     Return a list of {start, end, speaker} -- speaker is an arbitrary label
     from the pipeline ("SPEAKER_00", etc.), times are relative to the
@@ -113,7 +120,7 @@ def diarize_segment(video: Path, start: float, end: float) -> list[dict]:
             data = data[:, None]
         waveform = torch.from_numpy(data.T)   # (channel, time)
         with _pipeline_lock:
-            result = pipeline({"waveform": waveform, "sample_rate": sr})
+            result = pipeline({"waveform": waveform, "sample_rate": sr}, hook=hook)
 
     turns = [
         {"start": round(start + turn.start, 3),

@@ -488,6 +488,41 @@ def _run_transcribe(job_id: str, req: dict) -> None:
             pass
 
 
+# Weight/offset per pyannote hook stage (see diarize_segment()'s docstring
+# for where these names come from) -- same fixed-weight idea as
+# AI_FRAMING_WEIGHT/OFFSET in framing.js, so the bar only ever moves
+# forward even though the true per-stage cost isn't known in advance.
+# segmentation/embeddings are pyannote's two neural-network passes (the
+# expensive ones); speaker_counting/discrete_diarization are cheap
+# bookkeeping between them -- weighted accordingly, not evenly.
+_DIARIZE_STAGE_WEIGHT = {"segmentation": 45, "speaker_counting": 5,
+                         "embeddings": 45, "discrete_diarization": 5}
+_DIARIZE_STAGE_OFFSET: dict[str, int] = {}
+_acc = 0
+for _name, _w in _DIARIZE_STAGE_WEIGHT.items():
+    _DIARIZE_STAGE_OFFSET[_name] = _acc
+    _acc += _w
+del _acc, _name, _w
+
+
+def _diarize_hook(job_id: str):
+    """Turns pyannote's hook(step_name, step_artifact, total=, completed=)
+    callbacks into JOBS[job_id]["percent"] -- see _run_diarize(). An
+    unrecognized step_name (a pyannote version with different internal
+    stage names) just contributes 0 rather than raising -- a stale-looking
+    percent during that stage is a much smaller problem than crashing the
+    diarization job over a progress cosmetic."""
+    def hook(step_name, step_artifact, file=None, total=None, completed=None):
+        within = (completed / total) if (total and completed is not None) else 1.0
+        pct = _DIARIZE_STAGE_OFFSET.get(step_name, 0) + within * _DIARIZE_STAGE_WEIGHT.get(step_name, 0)
+        with LOCK:
+            t = JOBS.get(job_id)
+            if t is not None:
+                t["percent"] = min(99, round(pct))     # 100 reserved for true completion
+                t["stage"] = step_name
+    return hook
+
+
 def _run_diarize(job_id: str, req: dict) -> None:
     """AI Framing: who speaks at what second, within ONE clip. Deliberately
     limited to the clip range (not the whole video) -- diarization is
@@ -504,12 +539,25 @@ def _run_diarize(job_id: str, req: dict) -> None:
         if end <= start:
             raise ValueError("Invalid time range.")
 
+        cache = Cache(WORKSPACE / "cache")
+        path = cache.diarize_path(video, start, end)
+        if path.exists() and not req.get("force"):
+            turns = json.loads(path.read_text(encoding="utf-8"))
+            with LOCK:
+                t["state"] = "done"
+                t["turns"] = turns
+                t["cached"] = True
+                t["percent"] = 100
+            return
+
         from .diarize import diarize_segment
-        turns = diarize_segment(video, start, end)
+        turns = diarize_segment(video, start, end, hook=_diarize_hook(job_id))
+        path.write_text(json.dumps(turns), encoding="utf-8")
 
         with LOCK:
             t["state"] = "done"
             t["turns"] = turns
+            t["percent"] = 100
 
     except Exception as exc:                       # noqa: BLE001
         with LOCK:
@@ -1166,7 +1214,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_json({"error": "video required"}, 400)
 
             job_id = uuid.uuid4().hex[:8]
-            _register_job(job_id, {"state": "running", "turns": [], "error": None})
+            _register_job(job_id, {"state": "running", "turns": [], "error": None,
+                                   "percent": 0, "stage": "start", "cached": False})
             threading.Thread(target=_run_diarize, args=(job_id, req),
                              daemon=True).start()
             return self._send_json({"id": job_id})

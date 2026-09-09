@@ -67,6 +67,19 @@ class Cache:
         fp = fingerprint(video)
         return self.root / f"{Path(video).stem}.{fp}.energy.json"
 
+    def diarize_path(self, video: Path, start: float, end: float) -> Path:
+        """AI Framing speaker turns for one [start, end) span -- range goes
+        into the fingerprint (rounded to 10ms, plenty for a cache key) so
+        each span of a multi-span Result gets its own entry, and a slightly
+        adjusted range (e.g. after nudging an AI suggestion's start time)
+        correctly misses the cache instead of reusing a stale span's turns.
+        Same reasoning as transcript_path() -- diarization is the single
+        most expensive AI Framing stage (usually 25-35s), and re-running
+        AI Framing on a clip that hasn't changed (adjusting output size,
+        retrying after a failed locate step) shouldn't pay that again."""
+        fp = fingerprint(video, extra=f"{round(start, 2)}|{round(end, 2)}")
+        return self.root / f"{Path(video).stem}.{fp}.diarize.json"
+
     def find_any_transcript(self, video: Path) -> Path | None:
         """Any transcript for this video, regardless of model/lang/glossary.
 

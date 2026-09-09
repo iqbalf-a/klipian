@@ -816,8 +816,11 @@ function aiFramingOverlayProgress(stage, done, total, text) {
 }
 
 /* One request to the server, wrapped in a Promise so it can be `await`ed
-   inside a loop -- see aiFramingStart() for why the loop exists. */
-function aiFramingDiarizeOneSpan(span) {
+   inside a loop -- see aiFramingStart() for why the loop exists.
+   `onTick(percent)`, if given, is called on every poll tick with the
+   server's real within-span progress (0-99, see _diarize_hook() in
+   server.py -- driven by pyannote's own hook() callback, not a guess). */
+function aiFramingDiarizeOneSpan(span, onTick) {
   return fetch("/api/diarize", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ video: chosenSource?.name, start: span.start, end: span.end }),
@@ -825,15 +828,16 @@ function aiFramingDiarizeOneSpan(span) {
     .then((r) => r.json())
     .then((d) => {
       if (d.error) throw new Error(d.error);
-      return aiFramingPollPromise(d.id);
+      return aiFramingPollPromise(d.id, onTick);
     });
 }
 
-function aiFramingPollPromise(id) {
+function aiFramingPollPromise(id, onTick) {
   return new Promise((resolve, reject) => {
     (function check() {
       fetch(`/api/diarize/${id}`).then((r) => r.json()).then((d) => {
-        if (d.state === "running") { setTimeout(check, 1500); return; }
+        if (typeof onTick === "function" && typeof d.percent === "number") onTick(d.percent);
+        if (d.state === "running") { setTimeout(check, 700); return; }
         if (d.state === "failed") { reject(new Error(d.error || "Diarization failed.")); return; }
         resolve(d.turns || []);
       }).catch(reject);
@@ -875,6 +879,16 @@ async function aiFramingStart() {
   if (btn) { btn.disabled = true; aiFramingBtnText("Analyzing …"); }
   aiFramingOverlayStart();
 
+  // Scenecut has no dependency on diarize's output (only needs span
+  // start/end) and isn't behind the diarize pipeline's lock on the server
+  // -- fired here, running alongside the diarize loop below, instead of
+  // waiting for that loop to finish first like it used to. A per-span
+  // failure silently becomes an empty array (see aiFramingScenecutOneSpan),
+  // so this promise itself never rejects -- diarize's error handling below
+  // doesn't need to account for it.
+  const scenecutPromise = Promise.all(spans.map((s) => aiFramingScenecutOneSpan(s)))
+    .then((perSpan) => perSpan.flat());
+
   // Sequential, NOT parallel: all spans share the same single diarization
   // model on the server (one instance loaded once, reused so it doesn't
   // wait ten-plus seconds reloading every time) -- two simultaneous
@@ -887,7 +901,14 @@ async function aiFramingStart() {
         : "AI Framing: listening for who's talking … (usually 25–35s per clip)");
       aiFramingOverlayProgress("diarize", i, spans.length,
         spans.length > 1 ? `Listening (span ${i + 1}/${spans.length})…` : "Listening for who's talking…");
-      const turns = await aiFramingDiarizeOneSpan(spans[i]);
+      const turns = await aiFramingDiarizeOneSpan(spans[i], (pct) => {
+        // Real progress from pyannote's own hook, not a fixed animation --
+        // see _diarize_hook() in server.py. `i + pct/100` blends "which
+        // span" with "how far into that span", both against the same
+        // spans.length total, so this can never move backward relative to
+        // the plain `i`/`i + 1` writes around this call.
+        aiFramingOverlayProgress("diarize", i + pct / 100, spans.length);
+      });
       allTurns.push(...turns);
       aiFramingOverlayProgress("diarize", i + 1, spans.length);
     }
@@ -896,21 +917,15 @@ async function aiFramingStart() {
     return;
   }
 
-  // Hard visual cuts in the source video -- looked up AFTER diarization
-  // (not in the same loop at once) so that if this fails/is slow it
-  // doesn't mess up the speaker-turn progress messages above. A per-span
-  // failure silently becomes an empty array (see aiFramingScenecutOneSpan)
-  // -- this is supplementary, AI Framing still works from diarization
-  // alone if this comes back empty.
+  // scenecutPromise has been running since before the diarize loop above
+  // started (see the comment there) -- usually already resolved by now,
+  // so this rarely actually waits.
   aiFramingStatus(spans.length > 1
     ? "AI Framing: checking for shot changes …"
     : "AI Framing: checking for shot changes … (usually a few seconds)");
-  aiFramingOverlayProgress("scenecut", 0, spans.length, "Checking for shot changes…");
-  const allCuts = [];
-  for (let i = 0; i < spans.length; i++) {
-    allCuts.push(...(await aiFramingScenecutOneSpan(spans[i])));
-    aiFramingOverlayProgress("scenecut", i + 1, spans.length);
-  }
+  aiFramingOverlayProgress("scenecut", 0, 1, "Checking for shot changes…");
+  const allCuts = await scenecutPromise;
+  aiFramingOverlayProgress("scenecut", 1, 1);
 
   aiFramingFindAllPositions(allTurns, allCuts);
 }
