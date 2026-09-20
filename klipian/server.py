@@ -17,6 +17,7 @@ the network.
 
 from __future__ import annotations
 
+import importlib
 import json
 import mimetypes
 import os
@@ -79,6 +80,19 @@ PREVIEW_MAX_SECONDS = 5.0
 # Render job ids marked for cancellation. _run_render checks via
 # cancel_check; render.py kills the running ffmpeg if listed.
 CANCELLED: set[str] = set()
+
+
+# Endpoints handled by one shared block in do_POST -- see the comment
+# there. Each entry: (module, function, extra request key or None,
+# response key, 404 message when the result is empty or None).
+RANGE_ENDPOINTS = {
+    "/api/facetrack":     ("facebox", "track_crops", "crop", "points", None),
+    "/api/speakerlocate": ("facebox", "locate_speaker", "size", "crop",
+                           "no speaker detected"),
+    "/api/headtrack":     ("facebox", "track_head", "crop", "keyframes",
+                           "not enough tracking data"),
+    "/api/scenecut":      ("scenecut", "detect_cuts", None, "cuts", None),
+}
 
 
 def _load_dotenv() -> None:
@@ -1359,11 +1373,23 @@ class Handler(BaseHTTPRequestHandler):
                              daemon=True).start()
             return self._send_json({"id": job_id})
 
-        if path == "/api/facetrack":
-            # Synchronous, not an async job like /api/diarize -- but long turns can
-            # take several seconds (per-frame sampling + repeated cascade
-            # detection). If this feels slow in the UI later, this is the
-            # first candidate to make an async job like /api/diarize.
+        # -- video-range analysis endpoints --------------------------
+        # Four endpoints with an identical shape: read JSON, resolve the
+        # video, parse start/end, reject an empty range, call ONE function,
+        # wrap any failure in a 500. That preamble was written out four
+        # times, so a fix to (say) the range check had to be made in four
+        # places and could silently be applied to three. Each endpoint is
+        # now only the part that actually differs.
+        #
+        # All four are synchronous rather than async jobs like /api/diarize:
+        # scenecut finishes in under a second (ffmpeg's built-in scene
+        # filter is far cheaper than per-frame face detection) and the three
+        # facebox ones take a few seconds at most. ThreadingHTTPServer
+        # already gives each request its own thread, so nothing else waits
+        # meanwhile. If one of them ever gets slow enough to need a progress
+        # bar, /api/diarize is the pattern to copy.
+        if path in RANGE_ENDPOINTS:
+            module, fn_name, extra_key, out_key, empty_msg = RANGE_ENDPOINTS[path]
             try:
                 req = self._read_json()
             except Exception as exc:               # noqa: BLE001
@@ -1378,95 +1404,20 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_json({"error": "invalid time"}, 400)
             if end <= start:
                 return self._send_json({"error": "invalid range"}, 400)
-            rough = req.get("crop") or {}
+            args = [video, start, end]
+            if extra_key is not None:
+                args.append(req.get(extra_key) or {})
             try:
-                from .facebox import track_crops
-                points = track_crops(video, start, end, rough)
+                mod = importlib.import_module("." + module, __package__)
+                result = getattr(mod, fn_name)(*args)
             except Exception as exc:               # noqa: BLE001
                 return self._send_json({"error": str(exc)}, 500)
-            return self._send_json({"points": points})
-
-        if path == "/api/speakerlocate":
-            # Synchronous like /api/facetrack -- AI Framing is now fully
-            # automatic, without manual per-speaker confirmation (see
-            # locate_speaker() in facebox.py for the reasoning).
-            try:
-                req = self._read_json()
-            except Exception as exc:               # noqa: BLE001
-                return self._send_json({"error": str(exc)}, 400)
-            video = _find_video(req.get("video", ""))
-            if not video:
-                return self._send_json({"error": "video not found"}, 404)
-            try:
-                start = float(req.get("start", 0))
-                end = float(req.get("end", 0))
-            except (TypeError, ValueError):
-                return self._send_json({"error": "invalid time"}, 400)
-            if end <= start:
-                return self._send_json({"error": "invalid range"}, 400)
-            crop_size = req.get("size") or {}
-            try:
-                from .facebox import locate_speaker
-                crop = locate_speaker(video, start, end, crop_size)
-            except Exception as exc:               # noqa: BLE001
-                return self._send_json({"error": str(exc)}, 500)
-            if not crop:
-                return self._send_json({"error": "no speaker detected"}, 404)
-            return self._send_json({"crop": crop})
-
-        if path == "/api/headtrack":
-            # Synchronous like /api/facetrack -- head tracking trajectory,
-            # OPTIONAL per framing point, triggered manually from the "Track
-            # head" button (see track_head() in facebox.py for the reasoning).
-            try:
-                req = self._read_json()
-            except Exception as exc:               # noqa: BLE001
-                return self._send_json({"error": str(exc)}, 400)
-            video = _find_video(req.get("video", ""))
-            if not video:
-                return self._send_json({"error": "video not found"}, 404)
-            try:
-                start = float(req.get("start", 0))
-                end = float(req.get("end", 0))
-            except (TypeError, ValueError):
-                return self._send_json({"error": "invalid time"}, 400)
-            if end <= start:
-                return self._send_json({"error": "invalid range"}, 400)
-            rough = req.get("crop") or {}
-            try:
-                from .facebox import track_head
-                keyframes = track_head(video, start, end, rough)
-            except Exception as exc:               # noqa: BLE001
-                return self._send_json({"error": str(exc)}, 500)
-            if not keyframes:
-                return self._send_json({"error": "not enough tracking data"}, 404)
-            return self._send_json({"keyframes": keyframes})
-
-        if path == "/api/scenecut":
-            # Synchronous like /api/facetrack -- inter-frame diff via
-            # ffmpeg's built-in scene filter is far cheaper than per-frame
-            # face cascade, one speaking turn (tens of seconds) finishes in
-            # under 1 second.
-            try:
-                req = self._read_json()
-            except Exception as exc:               # noqa: BLE001
-                return self._send_json({"error": str(exc)}, 400)
-            video = _find_video(req.get("video", ""))
-            if not video:
-                return self._send_json({"error": "video not found"}, 404)
-            try:
-                start = float(req.get("start", 0))
-                end = float(req.get("end", 0))
-            except (TypeError, ValueError):
-                return self._send_json({"error": "invalid time"}, 400)
-            if end <= start:
-                return self._send_json({"error": "invalid range"}, 400)
-            try:
-                from .scenecut import detect_cuts
-                cuts = detect_cuts(video, start, end)
-            except Exception as exc:               # noqa: BLE001
-                return self._send_json({"error": str(exc)}, 500)
-            return self._send_json({"cuts": cuts})
+            # Some of these have a meaningful "ran fine, found nothing"
+            # answer that is NOT an error condition on the server side but
+            # is a 404 to the client; the others can't come back empty.
+            if empty_msg and not result:
+                return self._send_json({"error": empty_msg}, 404)
+            return self._send_json({out_key: result})
 
         if path == "/api/open-folder":
             try:

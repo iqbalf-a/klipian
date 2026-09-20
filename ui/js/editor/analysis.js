@@ -10,15 +10,13 @@
    remains realistic.
    ========================================================================== */
 
-let analysisTimer = null;
+// pollJob()'s stop handle (app.js) -- replaces the raw interval id.
+let analysisStop = null;
 
 
-
-/* Ribbon during analysis: no findings yet, so no sweep should appear.
-   Instead, a scanning line that creeps across is shown. */
 
 async function startAnalysis() {
-  clearInterval(analysisTimer);
+  if (analysisStop) { analysisStop(); analysisStop = null; }
   const d = DATA;
   const name = chosenSource ? chosenSource.name : d.file;
 
@@ -43,23 +41,10 @@ async function startAnalysis() {
   }
 
   const start = performance.now();
-  let consecutiveFailures = 0;
-  analysisTimer = setInterval(async () => {
-    let t;
-    try {
-      t = await (await fetch(`/api/transcribe/${id}`)).json();
-      consecutiveFailures = 0;
-    } catch {
-      // Server down / job lost: stop after a few failures instead of
-      // spinning the interval forever with no feedback to the user.
-      if (++consecutiveFailures >= 5) {
-        clearInterval(analysisTimer);
-        $("#transcribeStats").innerHTML =
-          "<span>Disconnected from the server. Try starting over.</span>";
-      }
-      return;
-    }
 
+  /* Everything that is redrawn on every poll. Runs on the running ticks and
+     once more at the end, so the final numbers match the last tick. */
+  const paint = (t) => {
     const elapsed = (performance.now() - start) / 1000;
     const remaining = t.percent > 2 ? elapsed * (100 - t.percent) / t.percent : 0;
 
@@ -86,8 +71,20 @@ async function startAnalysis() {
       $("#transcribeStats").after(p);
     }
 
-    if (t.state !== "running") {
-      clearInterval(analysisTimer);
+  };
+
+  if (analysisStop) analysisStop();
+  analysisStop = pollJob(`/api/transcribe/${id}`, {
+    interval: 900,
+    onTick: paint,
+    onFail: () => {
+      analysisStop = null;
+      $("#transcribeStats").innerHTML =
+        "<span>Disconnected from the server. Try starting over.</span>";
+    },
+    onDone: (t) => {
+      analysisStop = null;
+      paint(t);
       if (t.state === "failed") {
         $("#transcribeStats").innerHTML = `<span>Failed: ${escapeHTML(t.error)}</span>`;
         return;
@@ -96,8 +93,8 @@ async function startAnalysis() {
         ? "<span>ready</span><span>transcript loaded from cache</span>"
         : `<span>done</span><span>${timeRange(t.duration)} transcribed</span>`;
       if (typeof prepareExport === "function") prepareExport(name);
-    }
-  }, 900);
+    },
+  });
 }
 
 /* The "Search clips" button on the Prepare screen runs this flow. */

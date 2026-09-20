@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wdth,wght@0,75..125,200..900;1,75..125,200..900&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1789895119000">
-<link rel="stylesheet" href="/ui/css/app.css?v=1789895119000">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1789896242000">
+<link rel="stylesheet" href="/ui/css/app.css?v=1789896242000">
 </head>
 <body>
 
@@ -25,7 +25,7 @@
          only shows if the page has been interacted with (browser policy,
          not something controllable from here) -- see
          updateSaveStatus() in projects.js. -->
-    <span class="data work-only" id="statusSimpan"></span>
+    <span class="data work-only" id="statusSimpan" role="status"></span>
     <!-- Auto-save runs on its own (see projects.js) -- this button is
          an extra safety net, not the only way to save. -->
     <button class="btn quiet work-only" id="saveNowBtn" type="button"
@@ -91,7 +91,7 @@
       <div class="panel option" id="options" hidden></div>
 
       <div class="prepare-foot" id="prepareFoot" hidden>
-        <span class="data" id="optionsSummary"></span>
+        <span class="data" id="optionsSummary" role="status"></span>
         <button class="btn main large" id="run">Find clips</button>
       </div>
 
@@ -128,7 +128,7 @@
       <section class="screen" data-screen="analysis" role="tabpanel" id="panel-analysis" aria-labelledby="tab-analysis" tabindex="0">
         <div class="work-head">
           <h1>Analyze</h1>
-          <span class="note" id="analysisNote"></span>
+          <span class="note" id="analysisNote" role="status"></span>
         </div>
 
         <div class="panel fit" style="padding:var(--s5)">
@@ -196,7 +196,7 @@
       <section class="screen" data-screen="clips" role="tabpanel" id="panel-clips" aria-labelledby="tab-clips" tabindex="0">
         <div class="work-head">
           <h1>Clips</h1>
-          <span class="note" id="editNote">build a Result from AI suggestions or your own selection</span>
+          <span class="note" id="editNote" role="status">build a Result from AI suggestions or your own selection</span>
           <!-- Correction from the original plan: the Result dropdown is
                ALSO here, not just Framing/Captions -- Clips is exactly
                where a Result's spans get picked (a span added here goes
@@ -214,7 +214,7 @@
         <div class="panel fit pick">
           <div class="pick-head">
             <span class="eyebrow">Timeline</span>
-            <span class="data" id="pickNote">drag on the timeline to select a range</span>
+            <span class="data" id="pickNote" role="status">drag on the timeline to select a range</span>
             <span class="data" id="pickDuration"></span>
           </div>
 
@@ -260,7 +260,11 @@
             </div>
           </div>
 
-          <div class="tl-total" id="tlTotal" role="application"
+          <!-- No role="application" here: that role asks a screen reader to
+               give up its own shortcuts, and this div has no keyboard
+               handling to offer in return. Selecting a range by keyboard is
+               done with the mm:ss fields below, which is why they exist. -->
+          <div class="tl-total" id="tlTotal"
                aria-label="Video timeline, drag to select a range">
             <div class="tl-marks" id="tlMarks"></div>
             <div class="tl-sel" id="tlSel" hidden>
@@ -287,7 +291,7 @@
         <div class="panel fit rec">
           <div class="panel-head">
             <span class="eyebrow">AI suggestions</span>
-            <span class="data" id="recNote">none yet</span>
+            <span class="data" id="recNote" role="status">none yet</span>
             <button class="btn main" id="recAddBtn" disabled>Add to Result</button>
           </div>
           <!-- Play button in each row runs #tlPreviewVideo in the Timeline
@@ -328,7 +332,7 @@
         <div class="panel fit">
           <div class="panel-head">
             <span class="eyebrow">Framing</span>
-            <span class="data" id="reframeNote">drag the box onto whoever is talking, then lock it</span>
+            <span class="data" id="reframeNote" role="status">drag the box onto whoever is talking, then lock it</span>
             <span class="data" id="framingClock"></span>
             <!-- Fully automatic -- clicking runs it directly (diarization,
                  cut detection, finding each speaker's face), no manual
@@ -399,13 +403,19 @@
 
           <div class="canvas" data-format="single">
             <video class="canvas-video" id="canvasVideo" muted playsinline></video>
-            <div class="crop" tabindex="0" role="group" aria-label="Top framing box"
+            <!-- No role="group": that describes a CONTAINER of related
+                 controls, which this is not -- it is one draggable box. It
+                 stays focusable, and arrow keys now move and resize it (see
+                 the keydown handler in framing.js); before that it could be
+                 tabbed to and then did nothing at all. -->
+            <div class="crop" tabindex="0"
+                 aria-label="Top framing box — arrow keys move, Shift+arrows resize"
                  style="left:37%;top:8%;width:26%;height:84%">
               <span class="tag" id="tagCrop1"></span>
               <b></b><b></b><b></b><b></b>
             </div>
-            <div class="crop second" tabindex="0" role="group"
-                 aria-label="Bottom framing box"
+            <div class="crop second" tabindex="0"
+                 aria-label="Bottom framing box — arrow keys move, Shift+arrows resize"
                  style="left:54%;top:17%;width:42%;height:66%">
               <span class="tag">bottom</span>
               <b></b><b></b><b></b><b></b>
@@ -448,7 +458,7 @@
         <div class="panel fit">
           <div class="panel-head">
             <span class="eyebrow">Words</span>
-            <span class="data" id="textNote">click a word to correct it</span>
+            <span class="data" id="textNote" role="status">click a word to correct it</span>
             <button class="btn" id="textFillerBtn" disabled>Remove filler words</button>
             <button class="btn" id="textResetBtn" disabled>Reset all</button>
           </div>
@@ -475,7 +485,7 @@
       <section class="screen" data-screen="history" role="tabpanel" id="panel-history" aria-labelledby="tab-history" tabindex="0">
         <div class="work-head">
           <h1>Render history</h1>
-          <span class="note" id="historyNote">loading …</span>
+          <span class="note" id="historyNote" role="status">loading …</span>
           <button class="btn right" id="historyReloadBtn">Reload</button>
         </div>
         <!-- Render outcomes go HERE, not into #historyNote. That span is
@@ -604,8 +614,8 @@
           <input id="resultTitle" value="" spellcheck="false" placeholder="output file name"
                  aria-label="Result title, used as the file name"></label>
         <div class="row">
-          <span class="data" id="resultSummary"></span>
-          <span class="data" id="previewQuickNote"></span>
+          <span class="data" id="resultSummary" role="status"></span>
+          <span class="data" id="previewQuickNote" role="status"></span>
           <button class="btn" id="previewQuickBtn" disabled>Quick preview</button>
           <button class="btn main large" id="resultRenderBtn" disabled>Render Result</button>
         </div>
@@ -623,16 +633,16 @@
   </main>
 </div>
 
-<script src="/ui/js/editor/app.js?v=1789895119000"></script>
-<script src="/ui/js/editor/interactions.js?v=1789895119000"></script>
-<script src="/ui/js/editor/framing.js?v=1789895119000"></script>
-<script src="/ui/js/editor/analysis.js?v=1789895119000"></script>
-<script src="/ui/js/editor/player.js?v=1789895119000"></script>
-<script src="/ui/js/editor/roundtrip.js?v=1789895119000"></script>
-<script src="/ui/js/editor/history.js?v=1789895119000"></script>
-<script src="/ui/js/editor/timeline.js?v=1789895119000"></script>
-<script src="/ui/js/editor/captions.js?v=1789895119000"></script>
-<script src="/ui/js/editor/result.js?v=1789895119000"></script>
-<script src="/ui/js/editor/projects.js?v=1789895119000"></script>
+<script src="/ui/js/editor/app.js?v=1789896242000"></script>
+<script src="/ui/js/editor/interactions.js?v=1789896242000"></script>
+<script src="/ui/js/editor/framing.js?v=1789896242000"></script>
+<script src="/ui/js/editor/analysis.js?v=1789896242000"></script>
+<script src="/ui/js/editor/player.js?v=1789896242000"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1789896242000"></script>
+<script src="/ui/js/editor/history.js?v=1789896242000"></script>
+<script src="/ui/js/editor/timeline.js?v=1789896242000"></script>
+<script src="/ui/js/editor/captions.js?v=1789896242000"></script>
+<script src="/ui/js/editor/result.js?v=1789896242000"></script>
+<script src="/ui/js/editor/projects.js?v=1789896242000"></script>
 </body>
 </html>

@@ -228,7 +228,9 @@ function startEdit(b) {
    the home card / session restore, jump straight to Clip) -- nothing ever
    triggered transcription for that video. This button is the shortcut,
    without having to navigate to Analysis first. */
-let autoCaptionTimer = null;
+// pollJob() (app.js) hands back its own stop function; holding that is
+// what replaces the raw interval id this used to keep.
+let autoCaptionStop = null;
 
 async function startAutoCaption(btn) {
   const video = (typeof chosenSource !== "undefined" && chosenSource?.name)
@@ -252,43 +254,30 @@ async function startAutoCaption(btn) {
     return;
   }
 
-  clearInterval(autoCaptionTimer);
-  // Same bounded-retry policy as startAnalysis() in analysis.js. This loop
-  // used to `catch { return; }` with no counter, so killing the server left
-  // the tab polling a dead port every 900ms forever while the note stayed
-  // on "transcribing …" -- no error, no end.
-  let captionFailures = 0;
-  autoCaptionTimer = setInterval(async () => {
-    let t;
-    try {
-      t = await (await fetch(`/api/transcribe/${id}`)).json();
-      captionFailures = 0;
-    } catch {
-      if (++captionFailures >= 5) {
-        clearInterval(autoCaptionTimer);
-        if (note) note.textContent = "Lost contact with the server. Run: python -m klipian serve";
-        if (btn) btn.disabled = false;
-      }
-      return;
-    }
-
-    if (t.state === "running") {
+  if (typeof autoCaptionStop === "function") autoCaptionStop();
+  autoCaptionStop = pollJob(`/api/transcribe/${id}`, {
+    interval: 900,
+    onTick: (t) => {
       if (note) note.textContent = `transcribing … ${t.percent || 0}%`;
-      return;
-    }
-    clearInterval(autoCaptionTimer);
-    if (t.state === "failed") {
-      if (note) note.textContent = `Transcription failed: ${t.error}`;
+    },
+    onFail: () => {
+      if (note) note.textContent = "Lost contact with the server. Run: python -m klipian serve";
       if (btn) btn.disabled = false;
-      return;
-    }
-    // done: transcript is already in cache/, just need to load it on the client side.
-    if (typeof findTranscript === "function") {
-      realTranscript = await findTranscript(video);
-    }
-    renderCaptions();
-    if (typeof drawCaption === "function") drawCaption();
-  }, 900);
+    },
+    onDone: async (t) => {
+      if (t.state === "failed") {
+        if (note) note.textContent = `Transcription failed: ${t.error}`;
+        if (btn) btn.disabled = false;
+        return;
+      }
+      // done: transcript is already in cache/, just load it client-side.
+      if (typeof findTranscript === "function") {
+        realTranscript = await findTranscript(video);
+      }
+      renderCaptions();
+      if (typeof drawCaption === "function") drawCaption();
+    },
+  });
 }
 
 $("#textList")?.addEventListener("click", (e) => {

@@ -520,6 +520,10 @@ muteBtn?.addEventListener("click", () => {
   muteBtn.textContent = video.muted ? "🔇" : "🔊";
   muteBtn.setAttribute("aria-pressed", String(video.muted));
   muteBtn.title = video.muted ? "Unmute" : "Mute";
+  // aria-label OVERRIDES the button's text content, so without this line a
+  // screen reader kept announcing "Mute" forever, including while muted.
+  // #stepUnitBtn above already does this; this one was missed.
+  muteBtn.setAttribute("aria-label", video.muted ? "Unmute" : "Mute");
 });
 
 rewindBtn?.addEventListener("click", () => {
@@ -551,7 +555,8 @@ function setResultAsPreview() {
 
 /* ───────────────── render pipeline ───────────────── */
 
-let renderTimer = null;
+// pollJob()'s stop handle (app.js) -- replaces the raw interval id.
+let renderStop = null;
 let renderJobId = null;             // id of the active render job, for cancellation
 
 /* Both buttons below start an ffmpeg job on the server. Neither used to be
@@ -668,47 +673,10 @@ async function sendRender(approved) {
     return;
   }
 
-  clearInterval(renderTimer);
-  // Same bounded-retry policy as startAnalysis() in analysis.js. This used
-  // to `catch { return; }` with no counter: kill klipian serve mid-render
-  // and the queue row said "rendering" indefinitely while the tab hammered
-  // a dead port every 700ms.
-  let renderFailures = 0;
-  renderTimer = setInterval(async () => {
-    let t;
-    try {
-      t = await (await fetch(`/api/render/${id}`)).json();
-      renderFailures = 0;
-    } catch {
-      if (++renderFailures >= 5) {
-        clearInterval(renderTimer);
-        renderJobId = null;
-        updateRenderButtons();
-        QUEUE.forEach((r) => {
-          if (r.pct !== 100) { r.busy = false; r.note = "lost contact"; r.action = "Retry"; r.act = "retry"; }
-        });
-        drawQueue();
-        renderStatus("Lost contact with the server while rendering. "
-          + "Run: python -m klipian serve", true);
-      }
-      return;
-    }
-
-    // The server already confirmed the cancellation: stop polling, don't
-    // overwrite the row back to "rendering/queued".
-    if (t.state === "cancelled") {
-      clearInterval(renderTimer);
-      renderJobId = null;
-      updateRenderButtons();
-      QUEUE.forEach((r, i) => {
-        if (i < t.done) { r.pct = 100; r.busy = false; r.note = "done"; r.action = "Open folder"; r.act = "open"; }
-        else { r.pct = 0; r.busy = false; r.note = "cancelled"; r.action = "Retry"; r.act = "retry"; }
-      });
-      drawQueue();
-      renderStatus("Render cancelled.");
-      return;
-    }
-
+  /* Paint the queue rows from one server snapshot. Shared by the running
+     ticks and the final one, because they colour the same rows the same
+     way -- only the tail message differs. */
+  const paintQueue = (t) => {
     QUEUE.forEach((r, i) => {
       if (i < t.done) { r.pct = 100; r.busy = false; r.note = "done"; r.action = "Open folder"; r.act = "open"; }
       // r.pct used to be hardcoded to 55 here, so the bar sat at 55% for the
@@ -721,14 +689,40 @@ async function sendRender(approved) {
     });
     (t.result || []).forEach((h, i) => {
       if (QUEUE[i]) { QUEUE[i].name = h.file; QUEUE[i].url = h.url;
-                        QUEUE[i].folder = h.folder; QUEUE[i].mb = h.mb; }
+                      QUEUE[i].folder = h.folder; QUEUE[i].mb = h.mb; }
     });
     drawQueue();
+  };
 
-    if (t.state !== "running") {
-      clearInterval(renderTimer);
-      renderJobId = null;
-      updateRenderButtons();
+  const finish = () => { renderStop = null; renderJobId = null; updateRenderButtons(); };
+
+  if (renderStop) renderStop();
+  renderStop = pollJob(`/api/render/${id}`, {
+    interval: 700,
+    onTick: paintQueue,
+    onFail: () => {
+      finish();
+      QUEUE.forEach((r) => {
+        if (r.pct !== 100) { r.busy = false; r.note = "lost contact"; r.action = "Retry"; r.act = "retry"; }
+      });
+      drawQueue();
+      renderStatus("Lost contact with the server while rendering. "
+        + "Run: python -m klipian serve", true);
+    },
+    onDone: (t) => {
+      finish();
+      // The server already confirmed the cancellation: don't paint the rows
+      // back to "rendering/queued" on the way out.
+      if (t.state === "cancelled") {
+        QUEUE.forEach((r, i) => {
+          if (i < t.done) { r.pct = 100; r.busy = false; r.note = "done"; r.action = "Open folder"; r.act = "open"; }
+          else { r.pct = 0; r.busy = false; r.note = "cancelled"; r.action = "Retry"; r.act = "retry"; }
+        });
+        drawQueue();
+        renderStatus("Render cancelled.");
+        return;
+      }
+      paintQueue(t);
       if (typeof loadHistory === "function") loadHistory();   // new file enters history
       // The full ffmpeg error, in a box that wraps -- it used to be
       // ellipsized to one line in a span that was 0px wide on a narrow
@@ -739,8 +733,8 @@ async function sendRender(approved) {
           + `${(t.result || []).reduce((a, h) => a + h.mb, 0).toFixed(1)} MB`
           + (t.warning ? ` · ${t.warning}` : ""),
         t.state === "failed");
-    }
-  }, 700);
+    },
+  });
 }
 
 /* ───────────────── quick preview: a real render, trimmed short ────

@@ -535,7 +535,7 @@ async function renderProjects() {
         ? "video not in samples/"
         : `${p.spans} span${p.spans === 1 ? "" : "s"} · ${Math.round(p.seconds)}s · ${timeAgo(p.at)}`}</span>
       <i class="delete-icon" data-delete-project="${escapeHTML(p.video)}" role="button"
-         aria-label="Delete project ${escapeHTML(p.video)}">×</i>
+         tabindex="0" aria-label="Delete project ${escapeHTML(p.video)}">×</i>
       <span class="confirm">
         <span class="confirm-text">Delete this project?</span>
         <span class="confirm-sub">Spans, framing and caption fixes are lost.
@@ -588,6 +588,18 @@ async function deleteProject(video) {
   }
   renderProjects();
 }
+
+/* Same as the framing-point icon: role="button" on an <i> has to be given
+   Enter/Space by hand. Covers the confirm/cancel buttons too -- those ARE
+   real <button>s, so the browser already fires click for them; this only
+   has to catch the icon. */
+$("#projectList")?.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  const icon = e.target.closest("[data-delete-project]");
+  if (!icon) return;
+  e.preventDefault();
+  icon.click();
+});
 
 $("#projectList")?.addEventListener("click", async (e) => {
   // --- ask for confirmation ---

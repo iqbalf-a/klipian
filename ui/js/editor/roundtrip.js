@@ -242,6 +242,15 @@ function importJSON(text) {
   // AI order is preserved, NOT re-sorted by score. Scores are not displayed
   // on the Clip screen, so re-sorting only makes "recommendation #1" on
   // screen differ from #1 in the JSON.
+  //
+  // The Python twin (klipian/roundtrip.py, parse_reply) DOES sort best-first,
+  // and that difference is deliberate -- it prints to a terminal with the
+  // scores visible, where "#1 = best" is the useful order. Noted on both
+  // sides so neither gets "fixed" into the other by accident. The remaining
+  // differences between the two parsers are cosmetic: this one coerces
+  // scores into a fixed {hook, complete, payoff} shape with Number()
+  // fallbacks while Python stores them raw, and the two average `total`
+  // over Number.isFinite vs float()-able values -- same result in practice.
   }).filter((k) => k && k.dur > 0);
 
   if (!result.length) throw new Error("All clips have zero or negative duration.");

@@ -235,6 +235,14 @@ def parse_reply(transcript: Transcript, text: str) -> list[Candidate]:
             reason=(k.get("reason") or k.get("alasan") or "").strip(),
         ))
 
+    # Sorted best-first HERE but deliberately NOT in the JS twin
+    # (ui/js/editor/roundtrip.js). That is not drift, it is two surfaces:
+    # this list is printed to a terminal WITH its scores, so ordering by
+    # score is the useful order and `--only 1` lands on the best candidate.
+    # The Clips screen does not show scores at all, so re-sorting there only
+    # makes "suggestion #1" on screen disagree with #1 in the JSON file the
+    # user just pasted in. Both are intentional; don't "fix" one to match
+    # the other without deciding which surface changes.
     result.sort(key=lambda x: x.total, reverse=True)
     return result
 

@@ -376,6 +376,36 @@ $("#tlScrub")?.addEventListener("pointermove", (e) => {
   tlScrubSeek(e.clientX);
 });
 
+/* This element declares role="slider" with a full set of aria-valuemin/max/
+   now, and tabindex="0" -- so it is focusable and announced as adjustable --
+   but it had no key handling at all, only pointer events. Arrows did
+   nothing. Its visual twin #timeline (player.js) has had one all along, so
+   two identical-looking scrub bars behaved differently.
+   Same step convention as there: 1s, 5s with Shift, Home/End to the ends. */
+$("#tlScrub")?.addEventListener("keydown", (e) => {
+  const v = $("#tlPreviewVideo");
+  if (!v || !v.src || !Number.isFinite(v.duration)) return;
+  const step = e.shiftKey ? 5 : 1;
+  let t = v.currentTime;
+  if (e.key === "ArrowRight" || e.key === "ArrowUp") t += step;
+  else if (e.key === "ArrowLeft" || e.key === "ArrowDown") t -= step;
+  else if (e.key === "Home") t = 0;
+  else if (e.key === "End") t = v.duration;
+  else if (e.key === "PageUp") t += 10;
+  else if (e.key === "PageDown") t -= 10;
+  else return;
+  e.preventDefault();
+  // Keyboard seeking is free seeking, same as a pointer drag: release the
+  // single-recommendation lock so playback isn't force-paused at an old
+  // range boundary.
+  previewIdx = null;
+  previewLimit = null;
+  const titleEl = $("#tlPreviewTitle");
+  if (titleEl) titleEl.textContent = "";
+  updateRecPlayIcon();
+  try { v.currentTime = Math.max(0, Math.min(v.duration, t)); } catch { /* not ready */ }
+});
+
 // Standalone controls: pause/resume whatever is loaded, WITHOUT needing to
 // go back to the AI suggestion row that loaded it. If the video already
 // passed the recommendation's end boundary (auto-stopped earlier), pressing

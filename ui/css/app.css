@@ -832,6 +832,13 @@ h1, h2, h3 {
 }
 .fr-point:hover .delete-icon { opacity: 1; }
 .fr-point .delete-icon:hover { color: var(--danger); }
+/* Without this the icon is invisible until hover -- so a keyboard user
+   could tab onto a control they cannot see. Focus reveals it, same as
+   hover does. */
+.fr-point .delete-icon:focus-visible {
+  opacity: 1; color: var(--danger);
+  outline: 2px solid var(--accent); outline-offset: 1px;
+}
 
 /* Wraps for the same reason as .panel-head: "AI Framing" and "Track head"
    live here, and .panel is overflow:hidden with no scroll container, so a

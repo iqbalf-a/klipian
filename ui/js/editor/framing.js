@@ -430,7 +430,7 @@ function renderFraming() {
         <span class="fr-time">${out !== null ? preciseTime(out) : "—"}</span>
         <span class="fr-time-src">src ${preciseTime(f.at)}</span>
         ${i > 0 ? `<i class="delete-icon" data-delete-framing="${f.id}" role="button"
-              aria-label="Delete point ${preciseTime(f.at)}">×</i>` : ""}
+              tabindex="0" aria-label="Delete point ${preciseTime(f.at)}">×</i>` : ""}
       </div>`;
     }).join("");
   }
@@ -657,6 +657,17 @@ $("#trackHeadBtn")?.addEventListener("click", () => {
   if (point) trackHeadForPoint(point);
 });
 
+/* role="button" on the delete icon is a promise that Enter and Space work.
+   It is an <i>, not a <button> (a button inside the clickable point tile
+   would be invalid nesting), so the browser gives none of that for free. */
+$("#framingList")?.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  const icon = e.target.closest("[data-delete-framing]");
+  if (!icon) return;
+  e.preventDefault();
+  icon.click();
+});
+
 $("#framingList")?.addEventListener("click", (e) => {
   const deleteIcon = e.target.closest("[data-delete-framing]");
   if (deleteIcon) {
@@ -726,6 +737,72 @@ $("#framingList")?.addEventListener("click", (e) => {
     }
     saveBox();
     if (typeof attachVideoGeometry === "function") attachVideoGeometry();
+  });
+
+  /* Keyboard equivalent of the drag above. The box was focusable all along
+     (tabindex="0") but had only pointer handlers, so tabbing onto it and
+     pressing anything did nothing.
+
+     It also does something the mouse is bad at: a 0.5%-per-press nudge,
+     for the last bit of alignment on a face. Shift resizes instead of
+     moving, going through the same width-only path as the pointer resize
+     so the locked aspect ratio is preserved. Everything funnels through
+     saveBox() + saveProject(), exactly like pointerup. */
+  canvas.addEventListener("keydown", (e) => {
+    const crop = e.target.closest(".crop");
+    if (!crop) return;
+    if (canvasFormat !== "split" && cropEls().indexOf(crop) > 0) return;
+    const STEP = e.altKey ? 0.1 : 0.5;          // percent of the canvas
+    const k = canvas.getBoundingClientRect();
+    // Read the INLINE STYLE, not readCrop(). readCrop() measures
+    // getBoundingClientRect and converts back to percent, and that
+    // round-trip is not exact -- feeding it back in made every press drift
+    // slightly on the axis it was not supposed to touch, and made a 0.5
+    // step land as 0.56. The style percentages are the actual state;
+    // readCrop exists for the pointer path, which only ever has pixels.
+    const pct = (v, fallback) => {
+      const n = parseFloat(v);
+      return Number.isFinite(n) && String(v).endsWith("%") ? n : fallback;
+    };
+    const measured = readCrop(crop, canvas);
+    let left = pct(crop.style.left, measured.left);
+    let top = pct(crop.style.top, measured.top);
+    let width = pct(crop.style.width, measured.width);
+    const height = pct(crop.style.height, measured.height);
+    const resizing = e.shiftKey;
+
+    if (e.key === "ArrowLeft") resizing ? (width -= STEP) : (left -= STEP);
+    else if (e.key === "ArrowRight") resizing ? (width += STEP) : (left += STEP);
+    else if (e.key === "ArrowUp") resizing ? (width += STEP) : (top -= STEP);
+    else if (e.key === "ArrowDown") resizing ? (width -= STEP) : (top += STEP);
+    else return;
+    e.preventDefault();
+
+    if (resizing) {
+      // Height follows width through the same ratio rule the pointer resize
+      // uses, so the box can never go out of shape. Percent-of-canvas both
+      // ways: heightPct = widthPct * (canvasW / canvasH) * ratio.
+      const ratio = RATIO[canvasFormat];
+      const pctPerPct = (k.width / k.height) * ratio;
+      const maxW = Math.min(100 - left, (100 - top) / pctPerPct);
+      width = Math.max(4, Math.min(width, maxW));
+      crop.style.width = `${width}%`;
+      crop.style.height = `${width * pctPerPct}%`;
+      left = Math.max(0, Math.min(100 - width, left));
+      top = Math.max(0, Math.min(100 - width * pctPerPct, top));
+    } else {
+      left = Math.max(0, Math.min(100 - width, left));
+      top = Math.max(0, Math.min(100 - height, top));
+    }
+    crop.style.left = `${left}%`;
+    crop.style.top = `${top}%`;
+
+    const f = saveBox();
+    if (typeof attachVideoGeometry === "function") attachVideoGeometry();
+    if (f && typeof saveProject === "function") saveProject();
+    $("#reframeNote").textContent = f
+      ? `point ${preciseTime(f.at)} moved · press Lock to create a new point`
+      : "drag the box onto whoever is talking, then lock it";
   });
 
   ["pointerup", "pointercancel"].forEach((ev) =>
@@ -858,16 +935,24 @@ function aiFramingDiarizeOneSpan(span, onTick) {
     });
 }
 
+/* Promise wrapper around the shared pollJob() (app.js). This used to have
+   its own hand-rolled setTimeout loop that rejected on the FIRST network
+   blip -- the opposite extreme from the render loop, which retried
+   forever. Both now use the same 5-failure policy. */
 function aiFramingPollPromise(id, onTick) {
   return new Promise((resolve, reject) => {
-    (function check() {
-      fetch(`/api/diarize/${id}`).then((r) => r.json()).then((d) => {
+    pollJob(`/api/diarize/${id}`, {
+      interval: 700,
+      onTick: (d) => {
         if (typeof onTick === "function" && typeof d.percent === "number") onTick(d.percent);
-        if (d.state === "running") { setTimeout(check, 700); return; }
-        if (d.state === "failed") { reject(new Error(d.error || "Diarization failed.")); return; }
-        resolve(d.turns || []);
-      }).catch(reject);
-    })();
+      },
+      onDone: (d) => {
+        if (d.state === "failed") reject(new Error(d.error || "Diarization failed."));
+        else resolve(d.turns || []);
+      },
+      onFail: () => reject(new Error("Lost contact with the server while diarizing. "
+        + "Run: python -m klipian serve")),
+    });
   });
 }
 

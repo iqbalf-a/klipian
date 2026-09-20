@@ -303,6 +303,54 @@ function toStage(stage) {
 
 
 
+/* ───────────────────── job polling ──────────────────────────
+   Every long server task (transcribe, render, auto-caption, diarize) has
+   the same shape: POST to start, then poll GET /api/<x>/<id> until the
+   state stops being "running". That shape was written out four separate
+   times, with four DIFFERENT failure policies -- two of them retried
+   forever, so killing `klipian serve` mid-render left the tab hammering a
+   dead port while the UI sat on "rendering" with no end and no error.
+
+   One implementation, one policy. Returns a stop() so a caller can cancel
+   (the render Cancel button, a screen change) without reaching for the
+   interval id.
+
+     url          GET endpoint, already including the job id
+     interval     ms between polls
+     onTick(job)  called on every successful poll while still running
+     onDone(job)  called once, when state stops being "running"
+     onFail(err)  called once, after `maxFailures` consecutive failures
+     maxFailures  default 5 -- a single blip shouldn't end a long render */
+function pollJob(url, { interval = 800, onTick, onDone, onFail, maxFailures = 5 } = {}) {
+  let failures = 0;
+  let stopped = false;
+  let timer = null;
+
+  const stop = () => { stopped = true; clearInterval(timer); timer = null; };
+
+  timer = setInterval(async () => {
+    if (stopped) return;
+    let job;
+    try {
+      const r = await fetch(url);
+      job = await r.json();
+      failures = 0;
+    } catch (err) {
+      if (++failures >= maxFailures) {
+        stop();
+        if (onFail) onFail(err instanceof Error ? err : new Error(String(err)));
+      }
+      return;
+    }
+    if (stopped) return;          // a callback may have stopped us meanwhile
+    if (job.state === "running") { if (onTick) onTick(job); return; }
+    stop();
+    if (onDone) onDone(job);
+  }, interval);
+
+  return stop;
+}
+
 /* Render outcomes and queue counters. Deliberately NOT #historyNote --
    that span belongs to loadHistory() alone now. See the markup comment on
    #renderStatus in index.html for the race and the clipping this fixes.
