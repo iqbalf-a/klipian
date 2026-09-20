@@ -598,6 +598,16 @@ $("#resultList")?.addEventListener("click", (e) => {
 
 $("#resultClearBtn")?.addEventListener("click", clearResult);
 
+/* The title had NO listener at all: snapshotActiveResult() reads the field,
+   but only when something else already triggered a save. So typing a title
+   and then reloading lost it, while typing a title and then clicking another
+   screen kept it -- the same change persisting or not depending on what you
+   happened to do next. "input" rather than "change" so the debounced save
+   also covers closing the tab straight after typing, without blur. */
+$("#resultTitle")?.addEventListener("input", () => {
+  if (typeof saveProject === "function") saveProject();
+});
+
 /* New video = result is also cleared, like an object list. */
 function resetResult() {
   RESULT = [];

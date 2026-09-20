@@ -289,6 +289,10 @@ $("#textResetBtn")?.addEventListener("click", () => {
   CORRECTIONS = {};
   renderCaptions();
   if (typeof drawCaption === "function") drawCaption();
+  // Clearing corrections is a change like any other -- finishEdit() above
+  // saves, so undoing all of them has to save too, or the reset silently
+  // comes back on the next reload.
+  if (typeof saveProject === "function") saveProject();
 });
 
 $("#textFillerBtn")?.addEventListener("click", () => {

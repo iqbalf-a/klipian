@@ -19,6 +19,7 @@
 const SAVE_DELAY = 900;         // ms to wait before actually writing to disk
 let saveTimer = null;
 let savePending = false;        // true from first change until the disk write completes
+let saveError = "";             // last write failure, "" once a write succeeds
 let activeProject = null;       // name of the video currently being worked on
 let lastScreen = "clips";        // the screen where work was left off
 
@@ -79,7 +80,15 @@ function projectState() {
 function updateSaveStatus() {
   const el = $("#statusSimpan");
   if (!el) return;
-  el.textContent = savePending ? "Unsaved changes…" : "";
+  // Three states, not two: saved, waiting to save, and FAILED to save.
+  // The last one used to be invisible -- it looked exactly like "saved".
+  if (saveError) {
+    el.textContent = `Not saved — ${saveError}`;
+    el.classList.add("save-failed");
+  } else {
+    el.textContent = savePending ? "Unsaved changes…" : "";
+    el.classList.remove("save-failed");
+  }
 }
 
 /* Actually writes to disk NOW, cancelling any pending delay. Used by both the
@@ -91,16 +100,27 @@ async function writeProjectNow() {
   if (!activeProject) return;
   savePending = true;
   updateSaveStatus();
+  // savePending is cleared ONLY on a confirmed write. It used to be cleared
+  // in a `finally`, so a failed save flipped the indicator to blank and
+  // disarmed the close-page warning -- the exact opposite of what this file
+  // exists to do. Note fetch() does NOT reject on 4xx/5xx, so `r.ok` has to
+  // be checked explicitly: a disk-full or file-locked error on the server
+  // comes back as a response, not as a thrown error.
   try {
-    await fetch("/api/project", {
+    const r = await fetch("/api/project", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(projectState()),
     });
-  } catch { /* no backend available, work continues -- just not persisted */
-  } finally {
+    if (!r.ok) throw new Error(`server replied ${r.status}`);
+    saveError = "";
     savePending = false;
-    updateSaveStatus();
+  } catch (err) {
+    // Work continues either way -- it just isn't on disk, and now the label
+    // says so instead of pretending otherwise.
+    saveError = err && err.message ? err.message : "no connection";
   }
+  updateSaveStatus();
+  return !savePending;
 }
 
 /* Called from anywhere that modifies the work. Safe to call repeatedly:
@@ -124,8 +144,10 @@ $("#saveNowBtn")?.addEventListener("click", async () => {
   if (!btn || btn.disabled) return;
   btn.disabled = true;
   btn.textContent = "Saving…";
-  await writeProjectNow();
-  btn.textContent = "Saved";
+  // Report what actually happened. This used to say "Saved" unconditionally,
+  // which is the single most misleading thing a save button can do.
+  const ok = await writeProjectNow();
+  btn.textContent = ok ? "Saved" : "Failed";
   setTimeout(() => { btn.textContent = "Save"; btn.disabled = false; }, 1200);
 });
 
@@ -162,6 +184,12 @@ function snapshotActiveResult() {
     // feature existed) remain structurally identical when opened and then
     // re-saved with no tracked points.
     ...(f.tracking ? { tracking: f.tracking } : {}),
+    // OPTIONAL auto, same omit-when-false reasoning as `tracking` above.
+    // Marks the placeholder point that setClip() (player.js) may relocate to
+    // the clip start. Without saving it, the flag was lost on every reload
+    // and the first thumbnail went back to showing 00:00 of the SOURCE
+    // instead of the clip's real first frame.
+    ...(f.auto ? { auto: true } : {}),
   }));
   slot.corrections = (typeof CORRECTIONS !== "undefined" ? { ...CORRECTIONS } : {});
 }
@@ -181,7 +209,9 @@ function loadResultIntoLiveState(entry) {
   if (typeof FRAMING !== "undefined") {
     FRAMING = (Array.isArray(entry.framing) && entry.framing.length)
       ? entry.framing
-      : [{ id: "f1", at: 0, format: "single", crops: [{ ...INITIAL_CROP }] }];
+      // `auto: true` must match resetFraming() in framing.js -- this is the
+      // same untouched placeholder point, just reached via a different door.
+      : [{ id: "f1", at: 0, format: "single", crops: [{ ...INITIAL_CROP }], auto: true }];
     if (typeof framingSeq !== "undefined") {
       framingSeq = Math.max(0, ...FRAMING.map((f) => parseInt(String(f.id).slice(1), 10) || 0));
     }

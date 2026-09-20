@@ -592,6 +592,9 @@ $("#options").addEventListener("click", (e) => {
   refreshHint(row, o);
   if (typeof saveProject === "function") saveProject();
   summarizeOptions();
+  // The "Blur background" choice decides whether the Framing screen's work is
+  // used at all, so its warning there has to react from here.
+  if (typeof updateFramingLayoutWarning === "function") updateFramingLayoutWarning();
 });
 
 $("#fileName").textContent = DATA.file;

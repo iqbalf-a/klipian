@@ -371,8 +371,23 @@ function followActivePoint(f) {
   bar.scrollTo({ left: Math.max(0, target), behavior: "smooth" });
 }
 
+/* The "Blur background" output layout ignores framing entirely -- render.py
+   sets crop_first = (layout != "blur") and then never reads span.crop /
+   span.crops / span.tracking. That's correct behaviour (blur deliberately
+   keeps the whole frame), but it has to be VISIBLE here, or the work simply
+   disappears into the render with no explanation.
+   Called from renderFraming() and from the Export option handler (app.js),
+   since the setting lives on a different screen. */
+function updateFramingLayoutWarning() {
+  const warn = $("#framingLayoutWarn");
+  if (!warn) return;
+  const blur = typeof optionOut === "function" && optionOut("format") === "blur";
+  warn.hidden = !blur;
+}
+
 function renderFraming() {
   if (!FRAMING.length) resetFraming();
+  updateFramingLayoutWarning();
   const t = reviewTime();
   const active = pointAt(t);
 
@@ -516,6 +531,7 @@ $("#framingFormat")?.addEventListener("click", (e) => {
     message = `new point at ${preciseTime(t)},`;
   }
   renderFraming();
+  if (typeof saveProject === "function") saveProject();
   $("#reframeNote").textContent = format === "split"
     ? `${message} Split · drag the top and bottom boxes onto each person`
     : `${message} Single · drag the box onto whoever is talking`;
@@ -650,6 +666,7 @@ $("#framingList")?.addEventListener("click", (e) => {
     if (FRAMING.length <= 1) return;              // the 00:00 point always exists
     FRAMING = FRAMING.filter((f) => f.id !== id);
     renderFraming();
+    if (typeof saveProject === "function") saveProject();
     return;
   }
   const chip = e.target.closest("[data-framing]");
@@ -719,6 +736,16 @@ $("#framingList")?.addEventListener("click", (e) => {
       // A drag attaches directly to the currently active point. If you want
       // this position to start at a different second, press "Lock framing here".
       const f = saveBox() || pointAt(reviewTime());
+      // Persist on RELEASE, not on every pointermove: saveBox() runs
+      // continuously during the drag (so the preview follows the box), but
+      // persisting is debounced work that only the final position needs.
+      // Without this the whole drag was lost unless something ELSE happened
+      // to trigger a save later -- switching screens, usually -- which made
+      // the loss intermittent and therefore hard to believe.
+      // `auto` is deliberately NOT cleared here: dragging changes the box,
+      // not the point's position in TIME, so a placeholder point may still
+      // follow the clip start (see setClip() in player.js).
+      if (f && typeof saveProject === "function") saveProject();
       $("#reframeNote").textContent = f
         ? `point ${preciseTime(f.at)} moved · press Lock to create a new point`
         : "drag the box onto whoever is talking, then lock it";
@@ -1142,13 +1169,24 @@ async function aiFramingApply(turns, positions, cuts) {
     })));
 
   let added = 0;
+  let replaced = 0;
   for (const pointList of resultsPerTurn) {
     for (const point of pointList) {
       const crop = { ...point.crop };
       const existing = FRAMING.find((f) => Math.abs(f.at - point.at) < 0.35);
       if (existing) {
+        // Same two cleanups the manual Lock path does (see #lockFraming):
+        //   - `tracking` describes a path relative to the box that was just
+        //     replaced, so leaving it would drag the freshly located face
+        //     back to the OLD x position on every keyframe.
+        //   - `auto` marks the untouched placeholder point that setClip()
+        //     is allowed to relocate to the clip start. A point AI Framing
+        //     deliberately aimed at a face must not move on its own.
+        delete existing.tracking;
+        delete existing.auto;
         existing.format = "single";
         existing.crops = [crop];
+        replaced++;
       } else {
         FRAMING.push({ id: `f${++framingSeq}`, at: point.at, format: "single", crops: [crop] });
         added++;
@@ -1159,9 +1197,14 @@ async function aiFramingApply(turns, positions, cuts) {
   renderFraming();
   if (typeof saveProject === "function") saveProject();
 
+  // Count BOTH new and overwritten points. Counting only `added` reported
+  // "0 framing points added" on a perfectly successful run whose points all
+  // happened to land on existing ones -- which reads as a total failure.
+  const set = added + replaced;
   aiFramingStatus(
-    `AI Framing: ${added} framing point${added === 1 ? "" : "s"} added across `
-    + `${plan.length} segment${plan.length === 1 ? "" : "s"}, tracking each speaker's face`
+    `AI Framing: ${set} framing point${set === 1 ? "" : "s"} set`
+    + (replaced ? ` (${added} new, ${replaced} updated)` : "")
+    + ` across ${plan.length} segment${plan.length === 1 ? "" : "s"}, tracking each speaker's face`
     + (cutsUsed
         ? ` (${cutsUsed} shot change${cutsUsed === 1 ? "" : "s"} detected mid-turn). `
         : ". ")

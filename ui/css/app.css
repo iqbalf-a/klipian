@@ -113,6 +113,9 @@ h1, h2, h3 {
   position: relative; z-index: 20;
 }
 .topbar #statusSimpan { margin-left: auto; color: var(--text-faint); }
+/* A failed save must NOT look like the faint "waiting to save" state --
+   it's the one status in the topbar that needs to be noticed. */
+.topbar #statusSimpan.save-failed { color: var(--danger); font-weight: 600; }
 .topbar #saveNowBtn { min-width: 72px; }
 
 .brand {
@@ -922,6 +925,24 @@ h1, h2, h3 {
    so there's no box that can be dragged but won't actually render. */
 .canvas[data-format="single"] .crop.second { display: none; }
 
+/* ── "this screen's work is currently unused" notice ──
+   Deliberately NOT --danger: nothing is broken, the chosen output layout
+   simply doesn't use framing. Accent-tinted so it reads as information the
+   user has to act on, and it wraps freely (unlike the .data status spans,
+   which are single-line and clip). */
+.layout-warn {
+  flex: none;
+  margin: 0 var(--s5) var(--s3);
+  padding: var(--s2) var(--s3);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: var(--r-s);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--text);
+  font-size: 12px; line-height: 1.5;
+}
+.layout-warn b { font-weight: 650; }
+.layout-warn[hidden] { display: none; }
+
 /* ── frame format choices ──
    The icons depict the result: one full tile, or two stacked tiles.
    Faster to read than words. */
@@ -1024,9 +1045,13 @@ h1, h2, h3 {
 .fr-point:hover .delete-icon { opacity: 1; }
 .fr-point .delete-icon:hover { color: var(--danger); }
 
+/* Wraps for the same reason as .panel-head: "AI Framing" and "Track head"
+   live here, and .panel is overflow:hidden with no scroll container, so a
+   button pushed past its edge is unclickable rather than merely cramped. */
 .preset-bar {
   flex: none; display: flex; align-items: center; gap: var(--s2);
   padding: var(--s3) var(--s5) var(--s4);
+  flex-wrap: wrap; row-gap: var(--s2);
 }
 .preset-bar .eyebrow { margin-right: var(--s2); }
 .preset-bar .btn { margin-left: auto; }
@@ -1643,15 +1668,31 @@ h1, h2, h3 {
    Two stacked panels: AI recommendations on top (just minute + title),
    Result container below. The one below is what becomes the video. */
 
+/* flex-wrap is NOT optional here. .panel above is overflow:hidden (needed for
+   the border radius) with no scroll container, so anything pushed past the
+   panel's edge is not merely ugly -- it is invisible AND unclickable. Without
+   wrapping, "Add to Result", "AI Framing" and "Track head" were all partly or
+   entirely gone below ~900px with no way to reach them.
+   This used to be applied to #panel-captions only, as a one-off for the one
+   row that had two buttons. Every one of these rows has the same shape
+   (fixed-width buttons + one elastic text child), so it belongs on the base
+   rule rather than being re-discovered per screen. */
 .panel-head, .result-head {
   display: flex; align-items: center; gap: var(--s3);
   padding: var(--s4) var(--s5) var(--s3);
+  flex-wrap: wrap; row-gap: var(--s2);
 }
-.panel-head .data, .result-head .data { margin-right: auto; color: var(--text-faint); }
-/* The Captions screen now has TWO buttons in this row ("Remove filler
-   words" + "Reset all"), not just one like other panel-head/result-head
-   rows -- in a narrow panel both overflow their box without this. */
-#panel-captions .panel-head { flex-wrap: wrap; row-gap: var(--s2); }
+/* min-width:0 for the same reason as .work-head .note above: a flex item
+   defaults to min-width:auto, so the text refuses to shrink and shoves the
+   buttons out of the panel instead. */
+.panel-head .data, .result-head .data {
+  margin-right: auto; color: var(--text-faint); min-width: 0;
+}
+/* #reframeNote carries real messages -- including every head-tracking error
+   (see trackHeadForPoint() in framing.js) -- so it must not be allowed to
+   shrink into an unreadable one-word-per-line column. The flex basis is a
+   floor: below it the row wraps and the note keeps a usable width. */
+#reframeNote { flex: 1 1 14rem; overflow-wrap: anywhere; }
 
 /* AI Framing status box (processing/error/result) -- see aiFramingStatus()
    in framing.js. */
@@ -1675,7 +1716,12 @@ h1, h2, h3 {
 /* ---- recommendation row: select with checkbox ---- */
 .rec-row {
   display: grid;
-  grid-template-columns: auto auto auto 1fr auto auto;
+  /* minmax(0, 1fr), not plain 1fr: a 1fr track still has a min-content floor,
+     so a long title refused to shrink and pushed the duration + edit columns
+     out past the panel's overflow:hidden edge (invisible and unclickable) on
+     narrow windows. The title is the one thing here that can afford to be
+     truncated. */
+  grid-template-columns: auto auto auto minmax(0, 1fr) auto auto;
   align-items: center; gap: var(--s3);
   padding: 9px var(--s3);
   border-radius: var(--r-s);
@@ -1791,6 +1837,29 @@ h1, h2, h3 {
 }
 .rec-edit[data-editing="true"]:hover { color: var(--accent); }
 .rec-dur, .result-dur { color: var(--text-muted); min-width: 34px; text-align: right; }
+
+/* The editable start/end fields (.rec-time) have a hard min-content width of
+   ~183px -- two mm:ss inputs, two stepper columns and the pencil toggle -- so
+   on a narrow window they shoved the duration clean out of the panel, where
+   .panel's overflow:hidden made it invisible AND unclickable. Nothing here
+   can be usefully truncated, so the row splits in two instead: identity on
+   top, times below. Keyed to the viewport rather than the panel because the
+   preview column's width (--w-preview) is itself viewport-driven. */
+@media (max-width: 900px) {
+  /* Four columns, two rows: play / select / number / title on top, then
+     duration + times below. The title keeps ~90px this way; squeezing it
+     into a fifth column on one row left it under 50px. */
+  .rec-row { grid-template-columns: auto auto auto minmax(0, 1fr); }
+  /* .rec-title carries its own min-width:90px, which would overflow the
+     track and print straight over the duration -- the grid track alone
+     can't shrink an item that refuses to. */
+  .rec-row .rec-title { min-width: 0; }
+  .rec-row .rec-dur { grid-row: 2; grid-column: 1; text-align: left; }
+  .rec-row .rec-time { grid-row: 2; grid-column: 2 / -1; justify-content: flex-end; }
+  /* Buys back the ~12px the two mm:ss inputs need to fit on that second
+     row; the field still shows "00:00" without clipping. */
+  .rec-row .rec-time-in { width: 46px; }
+}
 .rec-row:has(input:checked) {
   background: var(--accent-soft);
   box-shadow: inset 2px 0 0 var(--accent);
@@ -1828,7 +1897,13 @@ h1, h2, h3 {
    One bar for the entire video. Thin markers = AI recommendations,
    solid blocks = what's already in the result. */
 
-.pick-head, .pick-foot { display: flex; align-items: center; gap: var(--s3); }
+/* Wraps for the same reason as .panel-head above: .pick-foot holds
+   "Add to Result", which was clipped out of existence below ~900px. */
+.pick-head, .pick-foot {
+  display: flex; align-items: center; gap: var(--s3);
+  flex-wrap: wrap; row-gap: var(--s2);
+}
+.pick-head .data, .pick-foot .data { min-width: 0; }
 .pick-head { padding: var(--s4) var(--s5) var(--s3); }
 .pick-head .data { color: var(--text-faint); }
 .pick-head #pickNote { margin-right: auto; }
@@ -1889,10 +1964,13 @@ h1, h2, h3 {
   display: flex; align-items: center; gap: var(--s3);
   padding: var(--s2) var(--s3);
   background: var(--glass);
+  /* Wraps rather than pushing the clock and the frame-step buttons out of
+     the panel, which clips them (see .panel's overflow:hidden). */
+  flex-wrap: wrap; row-gap: var(--s2);
 }
 .tl-preview-foot .data { color: var(--text-faint); }
 .tl-preview-foot #tlPreviewTitle {
-  margin-right: auto;
+  margin-right: auto; min-width: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
