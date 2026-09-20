@@ -156,68 +156,6 @@ h1, h2, h3 {
   background: var(--text);
 }
 
-/* ═══════════════════════════════════════════════ ribbon */
-
-.ribbon {
-  padding: var(--s3) var(--s5) var(--s2);
-  border-bottom: 1px solid var(--glass-border);
-  display: grid; grid-template-rows: auto 1fr auto; gap: var(--s2);
-  background: color-mix(in srgb, var(--bg-1) 45%, transparent);
-}
-.ribbon-head { display: flex; align-items: center; gap: var(--s3); }
-.ribbon-head strong { font-size: 12px; font-weight: 700; color: var(--text); }
-
-.ribbon-strip {
-  position: relative; height: 24px;
-  border-radius: var(--r-s);
-  background: linear-gradient(180deg, rgba(0,0,0,.4), rgba(255,255,255,.03));
-  box-shadow: inset 0 0 0 1px var(--glass-border);
-}
-
-/* Sweep: width tracks the score, with a glow around it.
-   Width is intentionally allowed to be as thin as 4px because that thinness
-   carries information -- so the click target is enlarged via an invisible
-   ::before, meeting WCAG 2.2 target size 24x24 without changing the look. */
-.mark {
-  position: absolute; top: 4px; height: 16px;
-  width: var(--w, 6px);
-  padding: 0; border: 0;
-  border-radius: 3px;
-  background: var(--accent);
-  box-shadow:
-    0 0 10px -1px var(--accent-glow),
-    0 0 22px -4px var(--accent-glow);
-  transform-origin: left center;
-  animation: sapu 220ms cubic-bezier(.2,.8,.3,1) both;
-  animation-delay: var(--d, 0ms);
-  cursor: pointer;
-  transition: filter var(--fast), transform var(--fast);
-}
-.mark::before {
-  content: ""; position: absolute;
-  left: 50%; top: 50%; transform: translate(-50%, -50%);
-  width: max(24px, 100%); height: 26px;
-}
-.mark:hover { filter: brightness(1.2); transform: scaleY(1.18); }
-.mark:focus-visible { outline-offset: 4px; }
-/* Label is pinned to the edge: when a sweep is at 0% or 100%, the centered
-   label would get clipped outside the ribbon. */
-.mark::after {
-  content: attr(data-label);
-  position: absolute; top: 22px; left: 50%; transform: translateX(-50%);
-  font-family: var(--font-data); font-size: 10px;
-  color: var(--text-faint); white-space: nowrap;
-}
-.mark[data-edge="left"]::after  { left: 0; transform: none; }
-.mark[data-edge="right"]::after { left: auto; right: 0; transform: none; }
-
-@keyframes sapu { from { transform: scaleX(0); opacity: 0 } to { transform: scaleX(1); opacity: 1 } }
-
-.ribbon-foot {
-  display: flex; justify-content: space-between;
-  font-family: var(--font-data); font-size: 10px; color: var(--text-faint);
-}
-
 /* ═══════════════════════════════════════════════ stage */
 
 .stage { display: grid; grid-template-columns: 1fr; min-height: 0; }
@@ -281,119 +219,11 @@ h1, h2, h3 {
 }
 .panel.fit { flex: none; }
 .panel.body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-
-/* ═══════════════════════════════════════════════ candidate card */
-
-.board {
-  flex: 1; min-height: 0; overflow-y: auto;
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
-  gap: var(--s4); align-content: start; padding: 2px var(--s1) var(--s5) 2px;
-}
-
-.card {
-  position: relative;
-  display: grid;
-  grid-template-columns: 92px 1fr;
-  gap: var(--s4);
-  padding: var(--s4);
-  background: linear-gradient(180deg, var(--bg-3), var(--bg-2));
-  border: 1px solid var(--glass-border);
-  border-radius: var(--r-l);
-  box-shadow: var(--shadow-card);
-  transition: transform var(--fast), box-shadow var(--fast), border-color var(--fast);
-}
-.card:hover {
-  transform: translateY(-3px);
-  border-color: var(--border-bright);
-  box-shadow: var(--shadow-raised);
-}
 .card.picked {
   border-color: color-mix(in srgb, var(--accent) 48%, transparent);
   box-shadow: var(--shadow-card), 0 0 26px -14px var(--accent-glow);
 }
 .card.rejected { opacity: .38; }
-
-/* Thumbnail uses the original frame from the source video. */
-.card-media { position: relative; }
-.thumb {
-  aspect-ratio: 9/16;
-  background: #000 center/cover no-repeat;
-  border-radius: var(--r-m);
-  box-shadow: inset 0 0 0 1px var(--glass-border);
-}
-.badge {
-  position: absolute; left: 50%; bottom: 7px; transform: translateX(-50%);
-  font-family: var(--font-data); font-size: 12px; font-weight: 500;
-  color: #fff;
-  background: rgba(8,9,12,.8);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--border-bright);
-  border-radius: var(--r-pill);
-  padding: 3px 9px;
-}
-
-.card-body { display: grid; gap: var(--s3); align-content: start; min-width: 0; }
-.card h2 { font-size: var(--t-17); line-height: 1.2; letter-spacing: -.028em; }
-
-/* AI-flagged quote. Not a full color block: a light strip behind the text,
-   so it stays readable and doesn't look like a highlighter-blocked text. */
-.quote {
-  margin: 0;
-  hanging-punctuation: first;
-  font-size: var(--t-13); line-height: 1.6;
-  color: var(--text-muted);
-  padding-left: var(--s3);
-  border-left: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
-}
-.quote .highlight {
-  color: var(--text);
-  background: linear-gradient(180deg, transparent 42%, var(--accent-soft) 42%);
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-  padding: 0 1px;
-}
-
-.score { display: grid; gap: 6px; }
-.score-row {
-  display: grid; grid-template-columns: 46px 1fr 28px;
-  align-items: center; gap: var(--s2);
-  font-size: var(--t-11); font-weight: 650;
-  font-stretch: calc(var(--w-tight) * 1%);
-  color: var(--text-faint);
-}
-.score-bar { height: 4px; border-radius: var(--r-pill); background: rgba(255,255,255,.07); }
-.score-bar > i {
-  display: block; height: 100%; border-radius: var(--r-pill);
-  background: linear-gradient(90deg, rgba(255,255,255,.26), rgba(255,255,255,.66));
-}
-.score-row .figure { font-family: var(--font-data); text-align: right; color: var(--text-muted); }
-
-.card-foot {
-  grid-column: 1 / -1;
-  display: flex; align-items: center; gap: var(--s3);
-  padding-top: var(--s3);
-  border-top: 1px solid var(--glass-border);
-  font-family: var(--font-data); font-size: 10.5px; color: var(--text-faint);
-}
-.card-foot .time {
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
-}
-.card-foot .actions { margin-left: auto; display: flex; gap: var(--s1); align-items: center; flex: none; }
-
-/* Status, not action. Quiet, single line, no accent color --
-   the "already approved" marker at a glance is already handled by
-   the ring on the card edge. */
-.pill-ready {
-  display: inline-flex; align-items: center; gap: 5px;
-  white-space: nowrap;
-  font-size: 11px; font-weight: 600;
-  color: var(--text);
-  background: var(--glass-strong);
-  border: 1px solid var(--border-bright);
-  border-radius: var(--r-pill);
-  padding: 5px 11px;
-}
-.pill-ready::before { content: "¹3"; font-size: 10px; opacity: .75; }
 
 /* ═══════════════════════════════════════════════ buttons */
 
@@ -794,69 +624,6 @@ h1, h2, h3 {
   transition: background var(--fast);
 }
 .icon:hover { background: var(--glass-strong); }
-
-/* ═══════════════════════════════════════════════ clip */
-
-.tools { flex: none; padding: var(--s4) var(--s4) 0; }
-
-/* Waveform sits directly on the word chip — one tool, no gap. */
-.wave {
-  position: relative; height: 66px;
-  display: flex; align-items: center; gap: 2px;
-  padding: 0 2px;
-  border-radius: var(--r-s) var(--r-s) 0 0;
-  background: rgba(0,0,0,.32);
-  box-shadow: inset 0 0 0 1px var(--glass-border);
-  overflow: hidden;
-}
-.wave i { flex: 1; min-width: 2px; border-radius: 1px; background: rgba(255,255,255,.13); }
-.wave i.inside {
-  background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 62%, transparent));
-  box-shadow: 0 0 10px -3px var(--accent-glow);
-}
-.edge-choice { position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; opacity: .55; }
-
-.tools-foot {
-  display: flex; justify-content: space-between;
-  font-family: var(--font-data); font-size: 10px; color: var(--text-faint);
-  padding: 6px 2px;
-  border-bottom: 1px solid var(--glass-border);
-}
-
-.transcript {
-  flex: 1; min-height: 0; overflow-y: auto;
-  padding: var(--s4) var(--s4) var(--s5);
-  font-size: 16px; line-height: 2.1; color: var(--text-muted);
-}
-.word {
-  cursor: pointer; padding: 3px 4px; border-radius: 5px;
-  transition: background var(--fast), color var(--fast);
-}
-.word:hover { background: var(--glass-strong); color: var(--text); }
-.word:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.word.inside {
-  color: #0A0B0E;
-  background: var(--accent);
-  box-shadow: 0 0 14px -5px var(--accent-glow);
-}
-.word.suspect { border-bottom: 2px dotted var(--danger); }
-
-.gap {
-  font-family: var(--font-data); font-size: var(--t-10);
-  color: var(--text-muted);
-  background: var(--glass); border: 1px solid var(--glass-border);
-  padding: 5px 9px; margin: 0 4px; border-radius: var(--r-pill);
-  cursor: pointer; min-height: 24px;
-}
-.gap:hover { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
-
-.legend {
-  flex: none; display: flex; gap: var(--s5);
-  padding: var(--s3) var(--s4);
-  border-top: 1px solid var(--glass-border);
-  font-size: 11px; color: var(--text-faint);
-}
-.legend u { text-decoration: none; border-bottom: 2px dotted var(--danger); }
 
 /* ═══════════════════════════════════════════════ reframe */
 
@@ -1410,27 +1177,7 @@ h1, h2, h3 {
 
 .btn:disabled { opacity: .4; cursor: not-allowed; }
 .btn.main:disabled:hover { background: var(--text); }
-
-
-/* Mode badge: label, not control. Mode is chosen in the main menu, so
-   making it clickable here would give two ways to do the same thing. */
-.mode-mark {
-  font-size: var(--t-12); font-weight: 650;
-  color: var(--accent);
-  background: var(--accent-soft);
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-  border-radius: var(--r-pill);
-  padding: 5px 12px;
-}
 .back-menu { padding: 6px 12px; }
-
-/* Action footer: where the "enough, render now" decision is made.
-   Previously there wasn't a single button that started rendering -- the
-   queue showed progress for a job that was never actually started. */
-.foot-actions {
-  flex: none; display: flex; align-items: center; gap: var(--s4);
-  padding-top: var(--s3); border-top: 1px solid var(--glass-border);
-}
 .foot-actions .data { color: var(--text-faint); }
 .foot-actions .btn { margin-left: auto; }
 
@@ -1502,23 +1249,8 @@ h1, h2, h3 {
 
 .manual-path { padding: var(--s5); border-style: dashed; }
 .manual-path .num { font-size: var(--t-14); }
-
-/* In-clip cut control: removing a section in the middle of the clip.
-   The same mechanism is used for removing silences -- one model, two
-   uses. */
-.tools-cut {
-  flex: none; display: flex; align-items: center; gap: var(--s3);
-  padding: var(--s3) var(--s4);
-  border-top: 1px solid var(--glass-border);
-}
 .tools-cut .data { color: var(--text-faint); }
 .tools-cut .right { margin-left: auto; color: var(--text); }
-.word.dropped { opacity: .3; text-decoration: line-through; background: none; }
-
-/* Chip outside the clip range: visible, but clearly not part of the clip.
-   Without this distinction, users think every word on screen is clip
-   content. */
-.word.outside { opacity: .42; }
 
 /* Empty state: explains the next step, not just a blank field */
 .empty {
@@ -2145,12 +1877,6 @@ h1, h2, h3 {
   border-radius: var(--r-m);
   background: #000;
   max-height: 46vh;
-}
-
-.result-foot {
-  display: flex; align-items: center; gap: var(--s3);
-  padding: var(--s4) var(--s5);
-  border-top: 1px solid var(--glass-border);
 }
 .title-input {
   display: inline-flex; align-items: center; gap: 7px;

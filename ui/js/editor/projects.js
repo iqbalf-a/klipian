@@ -401,13 +401,6 @@ async function loadProject(video) {
   renderResultSwitcher();
   if (Array.isArray(d.candidates) && typeof DATA !== "undefined") {
     DATA.candidates = d.candidates;
-    DATA.marks = d.candidates.map((k) => ({
-      pos: (typeof realTranscript !== "undefined" && realTranscript?.duration)
-        ? (k.startSec / realTranscript.duration) * 100 : 0,
-      scores: k.total,
-      // title may be absent in hand-edited/old-version JSON -- don't .split() null.
-      label: (k.title || "").split(" ").slice(0, 3).join(" "),
-    }));
   }
   // Active index must be bounds-checked: project files can be hand-edited or
   // from an older version with a different number of choices. An out-of-bounds
@@ -687,7 +680,7 @@ async function openProjectFromHome(video) {
     // and a new project arriving via this path is theoretically possible --
     // see the comment on openProjectFromHome().
     resetProjectState();
-    if (typeof DATA !== "undefined") { DATA.candidates = []; DATA.marks = []; }
+    if (typeof DATA !== "undefined") DATA.candidates = [];
     if (typeof applyPresetCaption === "function" && applyPresetCaption()) {
       if (typeof renderList === "function") renderList();
       if (typeof applyCaption === "function") applyCaption();

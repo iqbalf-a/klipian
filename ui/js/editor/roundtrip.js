@@ -255,15 +255,9 @@ function applyCandidates(candidates) {
   d.candidates = candidates;
   // realTranscript can be null if JSON is imported before the transcript loads;
   // importJSON/snapToWord tolerate it, so don't blindly deref here either.
-  const dur = realTranscript?.duration;
-  d.marks = candidates.map((k) => ({
-    pos: dur ? (k.startSec / dur) * 100 : 0,
-    scores: k.total,
-    label: (k.title || "").split(" ").slice(0, 3).join(" "),
-  }));
-
-  // Cut screen transcript uses real words around the top clip
-
+  // DATA.marks used to be computed here (and again in projects.js) and
+  // persisted into every project file. Nothing ever read it -- the ribbon
+  // it fed was removed with the candidate board.
 
   renderList(); renderPreview();
   if (typeof setClip === "function") setClip(candidates[0]);
@@ -302,7 +296,7 @@ async function prepareExport(videoName) {
   }
 }
 
-$("#downloadBrief").addEventListener("click", async () => {
+$("#downloadBrief")?.addEventListener("click", async () => {
   const name = chosenSource?.name || "video.mp4";
   const text = await buildBrief(name);
   const a = document.createElement("a");
@@ -314,13 +308,13 @@ $("#downloadBrief").addEventListener("click", async () => {
     `File downloaded · ${(text.length / 1024).toFixed(0)} KB · ~${Math.round(text.length / 3.5).toLocaleString("en")} tokens`;
 });
 
-$("#pasteJSON").addEventListener("input", (e) => {
+$("#pasteJSON")?.addEventListener("input", (e) => {
   $("#importBtn").disabled = !e.target.value.trim();
   $("#importNote").dataset.error = "false";
   $("#importNote").textContent = "";
 });
 
-$("#importBtn").addEventListener("click", () => {
+$("#importBtn")?.addEventListener("click", () => {
   const note = $("#importNote");
   try {
     const candidates = importJSON($("#pasteJSON").value);
@@ -336,7 +330,7 @@ $("#importBtn").addEventListener("click", () => {
 });
 
 /* .json files can be dropped directly onto the paste box */
-$("#pasteJSON").addEventListener("drop", async (e) => {
+$("#pasteJSON")?.addEventListener("drop", async (e) => {
   const f = e.dataTransfer?.files?.[0];
   if (!f) return;
   e.preventDefault();

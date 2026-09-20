@@ -1,22 +1,28 @@
 """Face/person detection for tightening crop boxes -- complement to AI Framing.
 
 Diarization (diarize.py) knows WHEN to change frames. This module answers
-the different question: WHERE exactly the box should point -- three methods,
+the different question: WHERE exactly the box should point -- two methods,
 each requiring a different kind of initial position hint:
 
-  - fit_crop_to_face()  -- ONE point, AROUND a known rough box
   - track_crops()       -- ONE RANGE, AROUND a known rough box
   - locate_speaker()    -- ONE RANGE, WITHOUT any rough box at all
     (searching from scratch across nearly the entire frame -- used so AI
     Framing can be fully automatic, without manual confirmation per speaker)
 
-Without fit_crop_to_face/track_crops, every framing point created by AI
-Framing is just a RAW copy of a position manually shifted once at the
-start of the clip -- if the initial shift was off, or the person moves
-slightly in their chair throughout the clip, the result can cut off a
-face or point at an empty chair beside them. Both methods RE-CHECK the
-actual face position at EVERY point, instead of trusting a single static
-coordinate.
+Without track_crops, every framing point created by AI Framing is just a
+RAW copy of a position manually shifted once at the start of the clip --
+if the initial shift was off, or the person moves slightly in their chair
+throughout the clip, the result can cut off a face or point at an empty
+chair beside them. It RE-CHECKS the actual face position at EVERY point,
+instead of trusting a single static coordinate.
+
+(There used to be a third, fit_crop_to_face() -- one point around a rough
+box, behind POST /api/facefit -- plus a HOG+SVM body-detection fallback
+underneath it. The UI button that called the endpoint was removed a while
+back and the endpoint was kept "just in case", but nothing could reach it
+from anywhere, which meant the body-detection fallback the docstring used
+to advertise as step 3 never ran in production either. All of it removed;
+it is one `git revert` away if a caller ever comes back.)
 
 Face detection is YuNet (cv2.FaceDetectorYN), a small (~230KB) ONNX model
 vendored at assets/models/face_detection_yunet_2023mar.onnx (MIT license,
@@ -65,7 +71,6 @@ _SFACE_MODEL = Path(__file__).resolve().parent.parent / "assets" / "models" / "f
 
 _face_detector = None
 _face_recognizer = None
-_hog_detector = None
 
 
 def _load_face_detector():
@@ -94,17 +99,6 @@ def _load_face_recognizer():
     import cv2
     _face_recognizer = cv2.FaceRecognizerSF.create(str(_SFACE_MODEL), "")
     return _face_recognizer
-
-
-def _load_hog_detector():
-    global _hog_detector
-    if _hog_detector is not None:
-        return _hog_detector
-    import cv2
-    hog = cv2.HOGDescriptor()
-    hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
-    _hog_detector = hog
-    return _hog_detector
 
 
 def _detect_faces(region_bgr, rw: float) -> list[dict]:
@@ -222,17 +216,8 @@ def _mouth_motion(gray_curr, gray_prev, mouth: tuple) -> float:
     return float(diff.mean())
 
 
-def _sharpness(gray, bbox: tuple) -> float:
-    import cv2
-    x, y, w, h = bbox
-    roi = gray[y:y + h, x:x + w]
-    if roi.size == 0:
-        return 0.0
-    return float(cv2.Laplacian(roi, cv2.CV_64F).var())
-
-
-def _pick_active_face(faces: list[dict], grays: list, ref_idx: int,
-                       locked_cx: float | None, region_bgr=None,
+def _pick_active_face(faces: list[dict], grays: list,
+                       locked_cx: float, region_bgr=None,
                        locked_embedding=None):
     """From several faces in a region, pick the one CURRENTLY SPEAKING.
 
@@ -298,10 +283,7 @@ def _pick_active_face(faces: list[dict], grays: list, ref_idx: int,
         # guess. This was also the old facebox's intent -- "face nearest
         # the rough box" -- mouth-motion and identity just get first chance
         # before falling here.
-        if locked_cx is not None:
-            chosen = min(faces, key=lambda f: abs(f["cx"] - locked_cx))
-        else:
-            chosen = max(faces, key=lambda f: _sharpness(grays[ref_idx], f["bbox"]))
+        chosen = min(faces, key=lambda f: abs(f["cx"] - locked_cx))
 
     if chosen_embedding is None and region_bgr is not None:
         chosen_embedding = _face_embedding(region_bgr, chosen)
@@ -323,19 +305,6 @@ def _region_rect(rough: dict, W: int, H: int, pad: float = 0.4) -> tuple:
     ex = int(min(W, rx + rw + pad_x))
     ey = int(min(H, ry + rh + pad_y))
     return sx, sy, ex, ey, rw, rh
-
-
-def _detect_person(bgr_region) -> tuple | None:
-    """Fallback when no face is found -- HOG+SVM person/body detection.
-    Trained for standing full-body pedestrians, so for sitting podcasters
-    the results are rough (usually wider than the actual body) -- but still
-    better than a static rough box that may have drifted off the person."""
-    hog = _load_hog_detector()
-    rects, weights = hog.detectMultiScale(bgr_region, winStride=(8, 8))
-    if len(rects) == 0:
-        return None
-    idx = max(range(len(rects)), key=lambda i: float(weights[i]))
-    return tuple(rects[idx])
 
 
 def _extract_frames(video: Path, at: float, tmp: str,
@@ -383,61 +352,9 @@ def _place_box(fcx: float, fcy: float, width: float, height: float,
     }
 
 
-def fit_crop_to_face(video: Path, at: float, rough: dict) -> dict | None:
-    """Find the MOST ACTIVE face (or, failing that, the person's body)
-    AROUND the ROUGH box `rough` ({left,top,width,height} percent), return
-    a new box centered on it -- also percent, aspect ratio NOT yet locked
-    (the client locks its own ratio via samakanRasio). None if everything
-    fails."""
-    import cv2
-
-    from .ffmpeg_tools import probe
-
-    info = probe(video)
-    W, H = info.width, info.height
-    if not W or not H:
-        return None
-
-    with tempfile.TemporaryDirectory(prefix="klipian-face-") as tmp:
-        frames = _extract_frames(video, at, tmp)
-        if not frames:
-            return None
-
-        sx, sy, ex, ey, rw, rh = _region_rect(rough, W, H)
-        if ex <= sx or ey <= sy:
-            return None
-
-        # Reference frame = the one closest to `at`; detection runs there,
-        # other frames are only used for measuring mouth motion.
-        ref_idx = min(range(len(frames)), key=lambda i: abs(frames[i][0] - at))
-        regions = [img[sy:ey, sx:ex] for _, img in frames]
-        grays = [cv2.cvtColor(r, cv2.COLOR_BGR2GRAY) for r in regions]
-
-        faces = _detect_faces(regions[ref_idx], rw)
-        # No locked_embedding here (region center ~ rough box center is
-        # the only prior we have, and this is a one-shot lookup, not a
-        # loop with a previous sample to carry identity from) -- the
-        # identity tier in _pick_active_face() simply doesn't trigger
-        # without one, same net behavior as before this tier existed.
-        chosen, _ = _pick_active_face(faces, grays, ref_idx, locked_cx=(rw / 2))
-        if chosen is not None:
-            fx, fy, fw, fh = chosen["bbox"]
-        else:
-            found = _detect_person(frames[ref_idx][1][sy:ey, sx:ex])
-            if found is None:
-                return None
-            fx, fy, fw, fh = found
-
-        # REGION -> WHOLE FRAME, then find the center point.
-        fcx = fx + sx + fw / 2
-        fcy = fy + sy + fh / 2
-        return _place_box(fcx, fcy, rw, rh, W, H)
-
-
 # ══════════════════════════════ tracking ══════════════════════════════
-# fit_crop_to_face answers ONE point. track_crops also answers ONE
-# point -- but is more noise-resistant, because its position is the
-# MEDIAN of MANY samples across [start, end), not just a single frame.
+# track_crops answers ONE point -- noise-resistant, because its position
+# is the MEDIAN of MANY samples across [start, end), not a single frame.
 #
 # Previously this function could also emit EXTRA points whenever the
 # subject shifted far enough (deadzone) and held long enough (min_chunk) --
@@ -465,8 +382,7 @@ def track_crops(video: Path, start: float, end: float, rough: dict,
     mean which can be pulled far off by a single odd sample.
 
     If no face is found throughout the range, return the rough box as-is
-    (caller falls through to it, same behavior as fit_crop_to_face
-    returning None)."""
+    (the caller falls through to it)."""
     import cv2
 
     from .ffmpeg_tools import _require, probe, run
@@ -477,9 +393,10 @@ def track_crops(video: Path, start: float, end: float, rough: dict,
     if not W or not H or dur <= 0:
         return [{"at": start, "crop": dict(rough)}]
 
-    # Tracking region is wider than fit_crop_to_face's (0.6): within one
-    # turn a person can shift in their chair further than a single manual
-    # adjustment, and we want to keep chasing them, not lose them at the edge.
+    # Tracking region is padded wider than a single-point lookup would
+    # need (0.6): within one turn a person can shift in their chair further
+    # than one manual adjustment, and we want to keep chasing them rather
+    # than lose them at the edge.
     sx, sy, ex, ey, rw, rh = _region_rect(rough, W, H, pad=0.6)
     if ex <= sx or ey <= sy:
         return [{"at": start, "crop": dict(rough)}]
@@ -512,7 +429,7 @@ def track_crops(video: Path, start: float, end: float, rough: dict,
             faces = _detect_faces(region, rw)
             grays = [prev_gray, gray] if prev_gray is not None else [gray]
             chosen, embedding = _pick_active_face(
-                faces, grays, len(grays) - 1, locked_cx,
+                faces, grays, locked_cx,
                 region_bgr=region, locked_embedding=locked_embedding)
             if chosen is not None:
                 locked_cx = chosen["cx"]                       # region-coord
@@ -692,7 +609,7 @@ def track_head(video: Path, start: float, end: float, rough: dict,
             faces = _detect_faces(region, rw)
             grays = [prev_gray, gray] if prev_gray is not None else [gray]
             chosen, embedding = _pick_active_face(
-                faces, grays, len(grays) - 1, locked_cx,
+                faces, grays, locked_cx,
                 region_bgr=region, locked_embedding=locked_embedding)
             if chosen is not None:
                 locked_cx = chosen["cx"]
@@ -717,9 +634,9 @@ def track_head(video: Path, start: float, end: float, rough: dict,
 
 
 # ══════════════════════════════ blind search ══════════════════════════════
-# fit_crop_to_face and track_crops NEED a rough box -- an initial position
-# hint to limit the search area, which is exactly what used to be manually
-# confirmed per speaker in AI Framing ("shift the box to the person").
+# track_crops NEEDS a rough box -- an initial position hint to limit the
+# search area, which is exactly what used to be manually confirmed per
+# speaker in AI Framing ("shift the box to the person").
 # locate_speaker() DOESN'T need that hint -- used so AI Framing can be
 # fully automatic, without confirmation (ian: podcasts aren't always 2
 # people, confirming one-by-one per speaker isn't practical).
@@ -752,8 +669,8 @@ def locate_speaker(video: Path, start: float, end: float,
     not from `crop_size`.
 
     None if not a single sample passes the mouth-motion criteria (caller
-    falls through to the default box, same as fit_crop_to_face/track_crops
-    when no face is found)."""
+    falls through to the default box, same as track_crops when no face is
+    found)."""
     import cv2
 
     from .ffmpeg_tools import _require, probe, run

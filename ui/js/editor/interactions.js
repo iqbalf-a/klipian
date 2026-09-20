@@ -22,14 +22,10 @@ const fmtSize = (b) => {
   return mb >= 1024 ? `${(mb / 1024).toFixed(2)} GB` : `${Math.round(mb)} MB`;
 };
 
-const fmtDuration = (d) => {
-  if (!isFinite(d)) return "duration unreadable";
-  const t = Math.round(d);
-  const h = Math.floor(t / 3600);
-  const m = String(Math.floor((t % 3600) / 60)).padStart(2, "0");
-  const s = String(t % 60).padStart(2, "0");
-  return h ? `${h}:${m}:${s}` : `${m}:${s}`;
-};
+/* Same clock as timeRange(), plus the one thing that is genuinely
+   different here: a file whose duration ffprobe could not read says so,
+   instead of silently reading as 00:00. */
+const fmtDuration = (d) => (isFinite(d) ? timeRange(d) : "duration unreadable");
 
 /* File name & duration in the topbar (#fileName/#fileDuration) -- SINGLE place,
    called from both video "becomes active" paths: acceptFile() here
@@ -83,12 +79,10 @@ async function acceptFile(file) {
   // video's Results must not carry over to this one.
   if (changed && typeof resetProjectState === "function") resetProjectState();
 
-  // New video = fresh session. Without this, candidates and ribbon from the
-  // previous file would carry over and clash on screen.
+  // New video = fresh session. Without this, candidates from the previous
+  // file would carry over and clash on screen.
   if (changed || DATA.candidates.length) {
     DATA.candidates = [];
-    DATA.marks = [];
-    DATA.words = [];
     if (typeof realTranscript !== "undefined") realTranscript = null;
     renderList();
     if (typeof renderRecommendations === "function") renderRecommendations();
@@ -196,7 +190,7 @@ document.addEventListener("click", (e) => {
   if (e.target.closest(".source-actions .btn")) fileInput.click();
 });
 fileInput.addEventListener("change", () => acceptFile(fileInput.files[0]));
-$("#urlInput").addEventListener("input", (e) => acceptURL(e.target.value));
+$("#urlInput")?.addEventListener("input", (e) => acceptURL(e.target.value));
 
 /* Drag-and-drop only in the DROP PANEL, not across the whole window.
    There used to be a curtain that covered the entire screen once a file
@@ -364,7 +358,7 @@ const frame916ResizeObserver = new ResizeObserver(() => {
 const _frame916 = document.querySelector(".frame916");
 if (_frame916) frame916ResizeObserver.observe(_frame916);
 
-$("#captionList").addEventListener("click", (e) => {
+$("#captionList")?.addEventListener("click", (e) => {
   const c = e.target.closest(".chip");
   if (!c) return;
   const row = c.closest(".row");
@@ -384,7 +378,7 @@ $("#captionList").addEventListener("click", (e) => {
 
 /* ───────────────── queue: cancel / retry / open folder ────────────────── */
 
-$("#queueList").addEventListener("click", (e) => {
+$("#queueList")?.addEventListener("click", (e) => {
   const b = e.target.closest(".btn");
   if (!b) return;
   const i = [...$("#queueList").children].indexOf(b.closest(".row"));

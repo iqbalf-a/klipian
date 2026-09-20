@@ -212,9 +212,9 @@ function renderRecommendations() {
       <span class="num">${i + 1}</span>
       <span class="rec-title">${escapeHTML(k.title)}</span>
       <span class="rec-time">
-        ${recTimeField(i, "startSec", shortTime(k.startSec), `Start time for ${escapeHTML(k.title)}`)}
+        ${recTimeField(i, "startSec", timeRange(k.startSec), `Start time for ${escapeHTML(k.title)}`)}
         <span aria-hidden="true">–</span>
-        ${recTimeField(i, "endSec", shortTime(k.endSec), `End time for ${escapeHTML(k.title)}`)}
+        ${recTimeField(i, "endSec", timeRange(k.endSec), `End time for ${escapeHTML(k.title)}`)}
         <button class="rec-edit" type="button" data-edit-time="${i}"
                 title="Edit time" aria-label="Edit time for ${escapeHTML(k.title)}">✎</button>
       </span>
@@ -293,7 +293,7 @@ function playRecPreview(idx) {
   }
 
   const titleEl = $("#tlPreviewTitle");
-  if (titleEl) titleEl.textContent = `${shortTime(k.startSec)} – ${shortTime(k.endSec)} · ${k.title}`;
+  if (titleEl) titleEl.textContent = `${timeRange(k.startSec)} – ${timeRange(k.endSec)} · ${k.title}`;
 
   previewIdx = idx;
   previewLimit = k.endSec;
@@ -532,16 +532,16 @@ function commitRecTime(idx, field, rawSeconds) {
   // Keep spans/in/out in sync: otherwise code that reads k.spans
   // (render, preview) or k.in/k.out (display) still uses the old range.
   k.spans = [{ start: k.startSec, end: k.endSec }];
-  if (typeof shortTime === "function") {
-    k.in = shortTime(k.startSec);
-    k.out = shortTime(k.endSec);
+  if (typeof timeRange === "function") {
+    k.in = timeRange(k.startSec);
+    k.out = timeRange(k.endSec);
   }
   const row = document.querySelector(`.rec-row .rec-time-in[data-idx="${idx}"]`)?.closest(".rec-row");
   if (row) {
     const startEl = row.querySelector('.rec-time-in[data-field="startSec"]');
     const endEl = row.querySelector('.rec-time-in[data-field="endSec"]');
-    if (startEl) startEl.value = shortTime(k.startSec);
-    if (endEl) endEl.value = shortTime(k.endSec);
+    if (startEl) startEl.value = timeRange(k.startSec);
+    if (endEl) endEl.value = timeRange(k.endSec);
     const durEl = row.querySelector(".rec-dur");
     if (durEl) durEl.textContent = `${k.dur}s`;
   }
@@ -561,7 +561,7 @@ $("#recList")?.addEventListener("change", (e) => {
   if (!k) return;
   const raw = parseTime(inp.value);
   if (raw === null || !commitRecTime(idx, field, raw)) {
-    inp.value = shortTime(k[field]);
+    inp.value = timeRange(k[field]);
   }
 });
 

@@ -120,20 +120,14 @@ function outToSource(k, t) {
   return last ? last.end : 0;
 }
 
-// Includes hours when the source exceeds 1 hour -- without this,
-// 1:05:00 would display as "65:00". Matches timeRange() in app.js.
-// Deliberately whole-second: also used for the AI suggestions' editable
-// start/end fields (result.js) and their +/-1s stepper -- adding decimals
-// here would change what those fields show and accept while typing,
-// which nobody asked for. preciseTime() below is the sub-second version,
-// kept separate so it can't leak into that unrelated feature.
-const shortTime = (d) => {
-  const t = Math.max(0, Math.floor(d));
-  const j = Math.floor(t / 3600);
-  const m = String(Math.floor((t % 3600) / 60)).padStart(2, "0");
-  const s = String(t % 60).padStart(2, "0");
-  return j ? `${j}:${m}:${s}` : `${m}:${s}`;
-};
+// shortTime() used to be declared here: the same whole-second clock as
+// timeRange() (app.js) apart from Math.floor vs Math.round, which was the
+// one difference and the visible bug (12:12 in the AI suggestions row,
+// 12:13 in the Result row below it, for the same clip). timeRange() took
+// the floor behaviour and this copy is gone -- do NOT reintroduce a
+// top-level `const timeRange` here; app.js already declares it, and a
+// duplicate top-level const across two plain <script> files is a fatal
+// SyntaxError that silently kills this entire file.
 
 // preciseTime() (hundredths of a second, not just whole seconds) is
 // defined in framing.js, loaded before this file (see the <script> order
@@ -795,7 +789,7 @@ async function quickPreview() {
     // So it's clear WHICH span is being viewed -- without this, people
     // might assume the preview always starts from the beginning of the
     // clip, when it now follows the scrub position (see startFrom above).
-    if (note) note.textContent = `previewing ${shortTime(startFrom)}–${shortTime(startFrom + (reply.duration || 0))}`
+    if (note) note.textContent = `previewing ${timeRange(startFrom)}–${timeRange(startFrom + (reply.duration || 0))}`
       + (reply.warning ? ` · ${reply.warning}` : "");
   } catch (err) {
     if (note) note.textContent = err.message || "Preview failed.";

@@ -9,8 +9,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wdth,wght@0,75..125,200..900;1,75..125,200..900&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap" rel="stylesheet">
 <!-- tokens.css is loaded FIRST -- css/workspace.css just points to the custom
      properties defined there (see tailwind.config.js). -->
-<link rel="stylesheet" href="/ui/css/tokens.css">
-<link rel="stylesheet" href="/ui/css/workspace.css">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1789895044000">
+<link rel="stylesheet" href="/ui/css/workspace.css?v=1789895044000">
 </head>
 <body>
 
@@ -37,7 +37,7 @@
         <h1 class="text-[20px] font-extrabold tracking-tight" style="font-stretch:112%">Clips</h1>
         <span class="text-text-faint text-[13px]" id="clipSummary">loading…</span>
         <button class="ml-auto rounded-s bg-accent text-[13px] font-semibold px-3 py-1.5
-                       text-[oklch(0.145_0.010_258)] hover:brightness-110"
+                       text-accent-text hover:brightness-110"
                 id="addClipBtn" type="button">+ New clip</button>
       </div>
       <!-- Only the columns that are useful at a glance: status, title, platform,
@@ -81,7 +81,7 @@
       <form method="dialog" class="flex flex-col gap-4" id="clipDetailForm">
         <div class="flex items-start gap-3">
           <h2 class="text-[15px] font-extrabold leading-tight" id="clipDetailTitle">Clip details</h2>
-          <button class="ml-auto delete-btn" type="submit" value="cancel" title="Close">✕</button>
+          <button class="ml-auto ws-close" type="submit" value="cancel" title="Close">✕</button>
         </div>
         <label class="ws-field">Source episode
           <input class="ws-input" type="text" data-field="episode"></label>
@@ -101,7 +101,7 @@
           <button class="rounded-s px-3 py-1.5 text-[13px] border border-glass-border hover:bg-glass"
                   type="submit" value="cancel">Close</button>
           <button class="rounded-s bg-accent text-[13px] font-semibold px-3 py-1.5
-                         text-[oklch(0.145_0.010_258)] hover:brightness-110"
+                         text-accent-text hover:brightness-110"
                   type="submit" value="save">Save</button>
         </div>
       </form>
@@ -133,9 +133,9 @@
   </main>
 </div>
 
-<script src="/ui/js/workspace/helpers.js"></script>
-<script src="/ui/js/workspace/clips.js"></script>
-<script src="/ui/js/workspace/render.js"></script>
-<script src="/ui/js/workspace/assets.js"></script>
+<script src="/ui/js/workspace/helpers.js?v=1789895044000"></script>
+<script src="/ui/js/workspace/clips.js?v=1789895044000"></script>
+<script src="/ui/js/workspace/render.js?v=1789895044000"></script>
+<script src="/ui/js/workspace/assets.js?v=1789895044000"></script>
 </body>
 </html>

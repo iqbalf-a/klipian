@@ -12,16 +12,7 @@
 
 let analysisTimer = null;
 
-const fmtClock = (seconds) => {
-  if (!isFinite(seconds) || seconds < 0) seconds = 0;
-  const t = Math.round(seconds);
-  const h = Math.floor(t / 3600);
-  const m = Math.floor((t % 3600) / 60);
-  const s = t % 60;
-  const mm = String(m).padStart(2, "0");
-  const ss = String(s).padStart(2, "0");
-  return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
-};
+
 
 /* Ribbon during analysis: no findings yet, so no sweep should appear.
    Instead, a scanning line that creeps across is shown. */
@@ -73,14 +64,14 @@ async function startAnalysis() {
     const remaining = t.percent > 2 ? elapsed * (100 - t.percent) / t.percent : 0;
 
     $("#transcribeBar").style.width = `${t.percent || 0}%`;
-    $("#fileDuration").textContent = fmtClock(t.duration || 0);
-    $("#analysisNote").textContent = `${name} · ${fmtClock(t.duration || 0)}`;
+    $("#fileDuration").textContent = timeRange(t.duration || 0);
+    $("#analysisNote").textContent = `${name} · ${timeRange(t.duration || 0)}`;
     $("#transcribeStats").innerHTML = (t.cached
       ? ["from cache", "transcript already exists, not repeated"]
       : [`${t.percent || 0}%`,
-         `${fmtClock(t.position || 0)} of ${fmtClock(t.duration || 0)}`,
-         `running ${fmtClock(elapsed)}`,
-         `~${fmtClock(remaining)} left`]
+         `${timeRange(t.position || 0)} of ${timeRange(t.duration || 0)}`,
+         `running ${timeRange(elapsed)}`,
+         `~${timeRange(remaining)} left`]
     ).map((x) => `<span>${x}</span>`).join("");
 
     // Battery warning: the difference can be twofold, and the user deserves
@@ -103,14 +94,14 @@ async function startAnalysis() {
       }
       $("#transcribeStats").innerHTML = t.cached
         ? "<span>ready</span><span>transcript loaded from cache</span>"
-        : `<span>done</span><span>${fmtClock(t.duration)} transcribed</span>`;
+        : `<span>done</span><span>${timeRange(t.duration)} transcribed</span>`;
       if (typeof prepareExport === "function") prepareExport(name);
     }
   }, 900);
 }
 
 /* The "Search clips" button on the Prepare screen runs this flow. */
-$("#run").addEventListener("click", () => {
+$("#run")?.addEventListener("click", () => {
   toStage("work");
   toScreen("analysis");
   startAnalysis();

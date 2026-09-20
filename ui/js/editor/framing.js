@@ -49,17 +49,16 @@ const RATIO = { single: 16 / 9, split: 8 / 9 };
 let FRAMING = [];          // [{ id, at, format, crops }] sorted by `at`
 let framingSeq = 0;
 
-/* Same idea as timeRange() (app.js) / shortTime() (player.js), but keeps
-   hundredths of a second -- ian wanted more detail than whole seconds,
-   first for framing points (two points 400ms apart used to both display
-   as the same "00:16", indistinguishable in the Framing Points strip
-   below), then for the Result preview's own clock (see drawTime() in
-   player.js, which reuses this function -- loaded after this file, see
-   the <script> order in index.html). timeRange()/shortTime() stay
-   whole-second everywhere else (Clips timeline, Result list, History, the
-   AI suggestions' editable time fields) -- those don't need sub-second
-   precision, and shortTime() specifically must not change format since
-   an editable field parses back whatever it displays.
+/* Same idea as timeRange() (app.js), but keeps hundredths of a second --
+   ian wanted more detail than whole seconds, first for framing points (two
+   points 400ms apart used to both display as the same "00:16",
+   indistinguishable in the Framing Points strip below), then for the
+   Result preview's own clock (see drawTime() in player.js, which reuses
+   this function -- loaded after this file, see the <script> order in
+   index.html). timeRange() stays whole-second everywhere else (Clips
+   timeline, Result list, History, the AI suggestions' editable time
+   fields) -- those don't need sub-second precision, and the editable ones
+   must not change format, since they parse back whatever they display.
    Rounds to whole centiseconds FIRST (integer math from there on) so a
    value like 59.996s can't render as the invalid "00:60.00" -- the classic
    bug from rounding the fractional part after already splitting off the

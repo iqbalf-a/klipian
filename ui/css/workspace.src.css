@@ -50,9 +50,19 @@
   .ws-status[data-v="Posted"]    { @apply text-status-posted; }
   .ws-status[data-v="Discarded"] { @apply text-danger line-through; }
 
+  /* DESTRUCTIVE only. This used to style both the table row's delete
+     button and the clip dialog's CLOSE button -- same glyph, same class,
+     same turn-red-on-hover -- so the harmless one signalled destruction
+     and the destructive one looked like a close button. */
   .delete-btn {
     @apply bg-transparent border-0 text-text-faint cursor-pointer text-base
            leading-none p-1.5 rounded-s hover:text-danger hover:bg-glass;
+  }
+
+  /* Dismisses a dialog; destroys nothing, so it does not go red. */
+  .ws-close {
+    @apply bg-transparent border-0 text-text-faint cursor-pointer text-base
+           leading-none p-1.5 rounded-s hover:text-text hover:bg-glass;
   }
 
   .ws-detail {

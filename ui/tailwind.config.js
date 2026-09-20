@@ -32,6 +32,11 @@ module.exports = {
         "text-faint": "var(--text-faint)",
         accent: "var(--accent)",
         "accent-soft": "var(--accent-soft)",
+        // Missing here was why workspace.html hardcoded the literal value of
+        // --accent-text on its two primary buttons -- the one thing app.css
+        // warns against, since it makes the button unreadable the moment the
+        // accent changes.
+        "accent-text": "var(--accent-text)",
         danger: "var(--danger)",
         "status-scheduled": "oklch(0.75 0.14 230)",
         "status-posted": "oklch(0.75 0.16 145)",

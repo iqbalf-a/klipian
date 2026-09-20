@@ -6,6 +6,19 @@ melanjutkan di sesi lain; bagian rencana asli dipertahankan sebagai riwayat
 keputusan, bagian "SISA PEKERJAAN" sekarang berisi apa yang benar-benar
 dieksekusi.
 
+> **Catatan lanjutan (audit debt cleanup).** Dokumen di bawah menyebut
+> endpoint `POST /api/facefit` "dipertahankan" walaupun tombol UI yang
+> memanggilnya sudah dihapus. Endpoint itu, beserta `fit_crop_to_face()`
+> dan fallback HOG+SVM di bawahnya (`_detect_person`/`_load_hog_detector`)
+> plus helper `_sharpness()`/parameter `ref_idx` yang hanya terjangkau
+> lewat jalur itu, **sekarang sudah dihapus seluruhnya** — tidak ada satu
+> pun pemanggil yang tersisa, sehingga fallback deteksi badan yang
+> didokumentasikan sebagai "langkah 3" di docstring `facebox.py` tidak
+> pernah benar-benar jalan di produksi. Riwayat keputusannya tetap
+> ditinggalkan di sini; kodenya bisa dikembalikan dengan satu `git revert`
+> kalau suatu saat ada pemanggilnya lagi. Yang masih hidup dan dipakai AI
+> Framing: `track_crops()`, `locate_speaker()`, `track_head()`.
+
 ## Sumber ide
 Referensi: `D:\github-repos\github-autoclipper\oentoro-autoclipper\scripts\smart_crop.py`.
 Yang diambil: pemilihan wajah lewat **skor gerak mulut** (siapa yang bicara),

@@ -12,28 +12,25 @@ function escapeHTML(s) {
 /* One file, one flow. DATA used to be mode-locked -- podcast and MLBB had
    separate examples -- but the way clips are assembled turned out to be
    identical: drop file, set frames, fix text. That category only added
-   one choice at the front without changing anything after. */
+   one choice at the front without changing anything after.
+
+   What used to live here: a 60-word hardcoded Indonesian transcript
+   (`words`), `suspect`, `cut`, `layout`, `marks`, and a real filename and
+   duration -- all left over from the prototype. Every one of them was
+   WRITE-ONLY or never referenced at all by the time the real transcript
+   pipeline landed: `words` was only ever reset to [] , `marks` was computed
+   twice (roundtrip.js and projects.js) and persisted into every project
+   file without anything ever reading it, and `suspect`/`cut`/`layout` had
+   no references anywhere.
+
+   `file` stays, as the empty fallback for the three places that do
+   `chosenSource?.name || DATA.file`. It used to hold a real filename, which
+   meant a render with no source silently targeted THAT video instead of
+   failing -- now the server gets "" and answers with a clear "not in
+   samples/" error, which the History status box shows. */
 const DATA = {
-  file: "radityadika-podcast.mp4",
-  duration: "42:03",
-  layout: "single",
+  file: "",
   candidates: [],
-  marks: [],
-  cut: { title: "Rugi 300 Juta karena Timing", in: "00:12.4", out: "01:07.1", dur: "54.7s" },
-  words: [
-    ["dan",0],["ini",0],["yang",0],["jarang",0],["aku",0],["cerita",0],["ke",0],["orang",0],
-    ["|",0],
-    ["saya",1],["rugi",1],["tiga",1],["ratus",1],["juta",1],["gara-gara",1],["satu",1],
-    ["keputusan",1],["dan",1],["orang",1],["selalu",1],["nanya",1],["uangnya",1],["ke",1],
-    ["mana",1],["padahal",1],["yang",1],["hilang",1],["itu",1],["bukan",1],["uangnya",1],
-    ["tapi",1],["dua",1],["tahun",1],["yang",1],["saya",1],["pakai",1],["buat",1],
-    ["percaya",1],["sama",1],["orang",1],["yang",1],["salah",1],
-    ["|",0],
-    ["time",0],["itu",0],["saya",0],["pikir",0],["kalau",0],["angkanya",0],["large",0],
-    ["berarti",0],["seriusnya",0],["juga",0],["large",0],["ternyata",0],["false",0],
-    ["begitu",0],["cara",0],["kerjanya",0],
-  ],
-  suspect: ["gara-gara", "seriusnya"],
 };
 
 let QUEUE = [];
@@ -199,12 +196,29 @@ function applyPresetCaption() {
 
 const $ = (s) => document.querySelector(s);
 
-/* mm:ss (or j:mm:ss) from seconds. Used by framing, timeline, result, and
-   history -- so it lives here, in the earliest-loaded file. It previously
-   lived in result.js and framing.js used it before it was declared, so the
-   Framing screen threw an error on page load. */
+/* THE whole-second clock: mm:ss, or h:mm:ss past an hour. Lives here, in
+   the earliest-loaded file, because framing/timeline/result/history all
+   need it (it used to live in result.js and framing.js called it before it
+   was declared, so the Framing screen threw on page load).
+
+   There used to be three of these. fmtClock() in analysis.js was a
+   byte-for-byte duplicate apart from its guard, and shortTime() in
+   player.js differed only in using Math.floor where this used Math.round.
+   That one difference was visible: the SAME clip read "12:12" in the AI
+   suggestions row and "12:13" in the Result row stacked directly below it.
+
+   FLOOR is the correct rounding, so that is what survived. These strings
+   are typed back in: the AI-suggestion start/end fields show this format
+   and parse it again, so a clip starting at 732.6s has to render as 12:12
+   -- rounding up to 12:13 would move the clip start a second later than
+   where it actually is every time the field round-trips.
+
+   preciseTime() (framing.js) is the deliberate exception -- hundredths,
+   for the framing points and the preview clock. fmtStamp() (roundtrip.js)
+   is the other one: it drops the leading zero on minutes to match the
+   Python fmt_time() that parses it back. */
 const timeRange = (d) => {
-  const t = Math.max(0, Math.round(d));
+  const t = Number.isFinite(d) ? Math.max(0, Math.floor(d)) : 0;
   const j = Math.floor(t / 3600);
   const m = String(Math.floor((t % 3600) / 60)).padStart(2, "0");
   const s = String(t % 60).padStart(2, "0");
@@ -435,7 +449,9 @@ function renderPreview() {
 }
 
 /* ───────────────────────── navigation ──────────────────────────── */
-const NO_PREVIEW = ["video", "analysis", "history"];
+// "video" was in this list for a screen that no longer exists -- index.html
+// has analysis / clips / framing / captions / history.
+const NO_PREVIEW = ["analysis", "history"];
 
 /* Three screens that edit the same result. Split into separate menus so
    each screen has one concern: Clips picks the cuts, Framing adjusts the
@@ -510,14 +526,14 @@ function drawAll() {
 }
 
 /* ───────────────────────── wiring ────────────────────────────── */
-$("#tabs").addEventListener("click", (e) => {
+$("#tabs")?.addEventListener("click", (e) => {
   const t = e.target.closest(".tab");
   if (t) toScreen(t.dataset.to);
 });
 
 
 // Left/right arrows switch tabs, per ARIA Authoring Practices.
-$("#tabs").addEventListener("keydown", (e) => {
+$("#tabs")?.addEventListener("keydown", (e) => {
   if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
   const all = [...document.querySelectorAll(".tab")];
   const i = all.indexOf(document.activeElement);
@@ -528,20 +544,8 @@ $("#tabs").addEventListener("keydown", (e) => {
   e.preventDefault();
 });
 
-// Left/right arrows move between words in the transcript.
-document.addEventListener("keydown", (e) => {
-  if (!document.activeElement?.classList.contains("word")) return;
-  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-  const all = [...document.querySelectorAll(".word")];
-  const i = all.indexOf(document.activeElement);
-  const j = Math.max(0, Math.min(all.length - 1, i + (e.key === "ArrowRight" ? 1 : -1)));
-  all[i].tabIndex = -1;
-  all[j].tabIndex = 0;
-  all[j].focus();
-  e.preventDefault();
-});
 
-$("#safeBtn").addEventListener("click", (e) => {
+$("#safeBtn")?.addEventListener("click", (e) => {
   const on = $("#frame").dataset.safe === "on";
   $("#frame").dataset.safe = on ? "off" : "on";
   e.currentTarget.setAttribute("aria-pressed", String(!on));
@@ -566,23 +570,13 @@ $("#hideSidebarBtn")?.addEventListener("click", () => setSidebar(true));
 $("#showSidebarBtn")?.addEventListener("click", () => setSidebar(false));
 try { applySidebar(localStorage.getItem(SIDEBAR_KEY) === "1"); } catch { /* default: stays visible */ }
 
-// click a word → set in, click a second word → set out
-let anchor = null;
-document.addEventListener("click", (e) => {
-  const k = e.target.closest(".word");
-  if (!k) return;
-  const all = [...document.querySelectorAll(".word")];
-  const i = all.indexOf(k);
-  if (anchor === null) {
-    anchor = i;
-    all.forEach((w) => w.classList.remove("inside"));
-    k.classList.add("inside");
-  } else {
-    const [a, b] = [Math.min(anchor, i), Math.max(anchor, i)];
-    all.forEach((w, j) => w.classList.toggle("inside", j >= a && j <= b));
-    anchor = null;
-  }
-});
+/* Two document-level handlers used to live here, driving `.word` markup
+   from the ORIGINAL transcript editor. Captions was rebuilt on `.word-text`
+   (see renderCaptions() in captions.js) and `.word` stopped being rendered,
+   but the handlers stayed bound -- querying the whole document for nothing
+   on every keydown and every click in the app. Removed along with the
+   ~110 lines of `.word`/`.tools`/`.wave`/`.transcript` CSS they styled.
+*/
 
 // Going home is a DELIBERATE decision to leave the project -- a reload
 // after that should stay on home, not get pulled automatically back into
@@ -591,11 +585,10 @@ const goHomeDeliberately = () => {
   if (typeof forgetActiveSession === "function") forgetActiveSession();
   toStage("home");
 };
-$("#toHome").addEventListener("click", goHomeDeliberately);
-$("#toMenuBtn").addEventListener("click", goHomeDeliberately);
-$("#run").addEventListener("click", () => { toStage("work"); toScreen("analysis"); });
+$("#toHome")?.addEventListener("click", goHomeDeliberately);
+$("#toMenuBtn")?.addEventListener("click", goHomeDeliberately);
 
-$("#options").addEventListener("click", (e) => {
+$("#options")?.addEventListener("click", (e) => {
   const c = e.target.closest(".chip");
   if (!c) return;
   const row = c.closest(".option-row");
@@ -611,8 +604,6 @@ $("#options").addEventListener("click", (e) => {
   if (typeof updateFramingLayoutWarning === "function") updateFramingLayoutWarning();
 });
 
-$("#fileName").textContent = DATA.file;
-$("#fileDuration").textContent = DATA.duration;
 drawAll();
 toScreen("clips");
 toStage("home");
