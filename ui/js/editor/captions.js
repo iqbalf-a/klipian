@@ -253,10 +253,24 @@ async function startAutoCaption(btn) {
   }
 
   clearInterval(autoCaptionTimer);
+  // Same bounded-retry policy as startAnalysis() in analysis.js. This loop
+  // used to `catch { return; }` with no counter, so killing the server left
+  // the tab polling a dead port every 900ms forever while the note stayed
+  // on "transcribing …" -- no error, no end.
+  let captionFailures = 0;
   autoCaptionTimer = setInterval(async () => {
     let t;
-    try { t = await (await fetch(`/api/transcribe/${id}`)).json(); }
-    catch { return; }                        // server temporarily unreachable -- retry
+    try {
+      t = await (await fetch(`/api/transcribe/${id}`)).json();
+      captionFailures = 0;
+    } catch {
+      if (++captionFailures >= 5) {
+        clearInterval(autoCaptionTimer);
+        if (note) note.textContent = "Lost contact with the server. Run: python -m klipian serve";
+        if (btn) btn.disabled = false;
+      }
+      return;
+    }
 
     if (t.state === "running") {
       if (note) note.textContent = `transcribing … ${t.percent || 0}%`;

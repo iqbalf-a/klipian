@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wdth,wght@0,75..125,200..900;1,75..125,200..900&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1789893497000">
-<link rel="stylesheet" href="/ui/css/app.css?v=1789893497000">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1789894038000">
+<link rel="stylesheet" href="/ui/css/app.css?v=1789894038000">
 </head>
 <body>
 
@@ -478,6 +478,15 @@
           <span class="note" id="historyNote">loading …</span>
           <button class="btn right" id="historyReloadBtn">Reload</button>
         </div>
+        <!-- Render outcomes go HERE, not into #historyNote. That span is
+             .work-head .note -- nowrap + ellipsis, and it measures 0px wide
+             on a narrow window -- so an ffmpeg error, the one message you
+             most need to read, was the one guaranteed to be clipped. Worse,
+             three modules wrote to it: sendRender()'s "backend down" text
+             was written after toScreen("history") had already kicked off an
+             async loadHistory(), which then overwrote it. #historyNote is
+             now loadHistory()'s alone; this box wraps and holds the rest. -->
+        <p class="render-status" id="renderStatus" role="status" hidden></p>
         <!-- currently rendering, above finished files -->
         <div class="panel fit"><div class="list" id="queueList"></div></div>
       
@@ -614,16 +623,16 @@
   </main>
 </div>
 
-<script src="/ui/js/editor/app.js?v=1789893497000"></script>
-<script src="/ui/js/editor/interactions.js?v=1789893497000"></script>
-<script src="/ui/js/editor/framing.js?v=1789893497000"></script>
-<script src="/ui/js/editor/analysis.js?v=1789893497000"></script>
-<script src="/ui/js/editor/player.js?v=1789893497000"></script>
-<script src="/ui/js/editor/roundtrip.js?v=1789893497000"></script>
-<script src="/ui/js/editor/history.js?v=1789893497000"></script>
-<script src="/ui/js/editor/timeline.js?v=1789893497000"></script>
-<script src="/ui/js/editor/captions.js?v=1789893497000"></script>
-<script src="/ui/js/editor/result.js?v=1789893497000"></script>
-<script src="/ui/js/editor/projects.js?v=1789893497000"></script>
+<script src="/ui/js/editor/app.js?v=1789894038000"></script>
+<script src="/ui/js/editor/interactions.js?v=1789894038000"></script>
+<script src="/ui/js/editor/framing.js?v=1789894038000"></script>
+<script src="/ui/js/editor/analysis.js?v=1789894038000"></script>
+<script src="/ui/js/editor/player.js?v=1789894038000"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1789894038000"></script>
+<script src="/ui/js/editor/history.js?v=1789894038000"></script>
+<script src="/ui/js/editor/timeline.js?v=1789894038000"></script>
+<script src="/ui/js/editor/captions.js?v=1789894038000"></script>
+<script src="/ui/js/editor/result.js?v=1789894038000"></script>
+<script src="/ui/js/editor/projects.js?v=1789894038000"></script>
 </body>
 </html>

@@ -574,6 +574,23 @@ def _run_ffmpeg(cmd: list[str], cancel_check, dest: Path) -> tuple[int, str]:
     import time as _time
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     mulai = _time.time()
+
+    def _stop() -> None:
+        """Kill, reap, and CLOSE THE PIPES. Only the normal return path
+        goes through communicate(), which closes them itself -- the cancel
+        and timeout paths did kill()+wait() and then raised, leaking two
+        descriptors per abandoned render for the lifetime of the server
+        process (and the bare `except` below skipped wait() as well, leaving
+        a zombie until GC)."""
+        proc.kill()
+        proc.wait()
+        for pipe in (proc.stdout, proc.stderr):
+            if pipe is not None:
+                try:
+                    pipe.close()
+                except OSError:
+                    pass
+
     try:
         while True:
             try:
@@ -583,18 +600,16 @@ def _run_ffmpeg(cmd: list[str], cancel_check, dest: Path) -> tuple[int, str]:
             except subprocess.TimeoutExpired:
                 pass                                # still running
             if cancel_check and cancel_check():
-                proc.kill()
-                proc.wait()
+                _stop()
                 dest.unlink(missing_ok=True)        # discard partial output
                 raise RenderCancelled("Render cancelled.")
             if _time.time() - mulai > 3600:
-                proc.kill()
-                proc.wait()
+                _stop()
                 raise RuntimeError(
                     "Render exceeded 1 hour and was stopped -- the source "
                     "file may be corrupt or on a network drive that hung.")
     except RenderCancelled:
         raise
     except Exception:
-        proc.kill()
+        _stop()
         raise

@@ -15,6 +15,7 @@ from __future__ import annotations
 import sys
 import time
 from pathlib import Path
+from typing import Callable
 
 from .glossary import Glossary
 from .models import Segment, Transcript, Word, fmt_duration
@@ -93,8 +94,15 @@ def transcribe(
     vad: bool = True,
     source_label: str | None = None,
     verbose: bool = True,
+    on_segment: "Callable[[float, float], None] | None" = None,
 ) -> Transcript:
-    """Transcribe audio file into Transcript object."""
+    """Transcribe audio file into Transcript object.
+
+    on_segment(position, total) is called after each decoded segment, both
+    in seconds. It exists so the HTTP server can report real progress to
+    the browser without re-implementing this whole function: `verbose`
+    writes a progress bar to stderr, which is right for the CLI and no use
+    at all to a web UI."""
 
     WhisperModel = _load_backend()
     glossary = glossary or Glossary()
@@ -164,6 +172,8 @@ def transcribe(
             )
         )
         progress.update(seg.end)
+        if on_segment:
+            on_segment(seg.end, total)
     progress.done()
 
     if verbose:

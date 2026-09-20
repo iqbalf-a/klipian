@@ -624,9 +624,8 @@ async function sendRender(approved) {
     (k.spans || []).every((p) => Number.isFinite(p.start) && Number.isFinite(p.end))
     && (k.spans || []).length);
   if (!valid.length) {
-    const head = document.querySelector('[data-screen="history"] .note');
-    if (head) head.textContent =
-      "This clip has no time points. Re-import from Claude, or create a manual clip.";
+    renderStatus("This clip has no time points. Re-import from Claude, "
+      + "or create a manual clip.", true);
     toScreen("history");
     return;
   }
@@ -671,17 +670,35 @@ async function sendRender(approved) {
     // Without a backend, say so plainly -- don't pretend to render.
     QUEUE.forEach((r) => { r.pct = 0; r.busy = false; r.note = "needs klipian serve"; r.action = "Retry"; r.act = "retry"; });
     drawQueue();
-    const head = document.querySelector('[data-screen="history"] .note');
-    if (head) head.textContent =
-      "Rendering needs the backend. Run: python -m klipian serve";
+    renderStatus("Rendering needs the backend. Run: python -m klipian serve", true);
     return;
   }
 
   clearInterval(renderTimer);
+  // Same bounded-retry policy as startAnalysis() in analysis.js. This used
+  // to `catch { return; }` with no counter: kill klipian serve mid-render
+  // and the queue row said "rendering" indefinitely while the tab hammered
+  // a dead port every 700ms.
+  let renderFailures = 0;
   renderTimer = setInterval(async () => {
     let t;
-    try { t = await (await fetch(`/api/render/${id}`)).json(); }
-    catch { return; }
+    try {
+      t = await (await fetch(`/api/render/${id}`)).json();
+      renderFailures = 0;
+    } catch {
+      if (++renderFailures >= 5) {
+        clearInterval(renderTimer);
+        renderJobId = null;
+        updateRenderButtons();
+        QUEUE.forEach((r) => {
+          if (r.pct !== 100) { r.busy = false; r.note = "lost contact"; r.action = "Retry"; r.act = "retry"; }
+        });
+        drawQueue();
+        renderStatus("Lost contact with the server while rendering. "
+          + "Run: python -m klipian serve", true);
+      }
+      return;
+    }
 
     // The server already confirmed the cancellation: stop polling, don't
     // overwrite the row back to "rendering/queued".
@@ -694,8 +711,7 @@ async function sendRender(approved) {
         else { r.pct = 0; r.busy = false; r.note = "cancelled"; r.action = "Retry"; r.act = "retry"; }
       });
       drawQueue();
-      const head = document.querySelector('[data-screen="history"] .note');
-      if (head) head.textContent = "Render cancelled.";
+      renderStatus("Render cancelled.");
       return;
     }
 
@@ -720,10 +736,15 @@ async function sendRender(approved) {
       renderJobId = null;
       updateRenderButtons();
       if (typeof loadHistory === "function") loadHistory();   // new file enters history
-      const head = document.querySelector('[data-screen="history"] .note');
-      if (head) head.textContent = t.state === "failed"
+      // The full ffmpeg error, in a box that wraps -- it used to be
+      // ellipsized to one line in a span that was 0px wide on a narrow
+      // window, i.e. the message you most need was the one you couldn't read.
+      renderStatus(t.state === "failed"
         ? `Failed: ${t.error}`
-        : `${t.done} clip${t.done === 1 ? "" : "s"} done · ${(t.result || []).reduce((a, h) => a + h.mb, 0).toFixed(1)} MB`;
+        : `${t.done} clip${t.done === 1 ? "" : "s"} done · `
+          + `${(t.result || []).reduce((a, h) => a + h.mb, 0).toFixed(1)} MB`
+          + (t.warning ? ` · ${t.warning}` : ""),
+        t.state === "failed");
     }
   }, 700);
 }

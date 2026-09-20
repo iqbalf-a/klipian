@@ -289,27 +289,37 @@ function toStage(stage) {
 
 
 
+/* Render outcomes and queue counters. Deliberately NOT #historyNote --
+   that span belongs to loadHistory() alone now. See the markup comment on
+   #renderStatus in index.html for the race and the clipping this fixes.
+   `failed` switches it to the danger styling. */
+function renderStatus(text, failed) {
+  const el = $("#renderStatus");
+  if (!el) return;
+  if (!text) { el.hidden = true; el.textContent = ""; el.classList.remove("failed"); return; }
+  el.textContent = text;
+  el.classList.toggle("failed", !!failed);
+  el.hidden = false;
+}
+
 /* ───────────────────────── queue ────────────────────────────── */
 /* Queue is split in two: buildQueue() derives its content from approved
    clips, drawQueue() renders the current state. If merged, pressing
    "Cancel" would immediately be overwritten by the re-derivation. */
 function drawQueue() {
-  const head = document.querySelector('[data-screen="history"] .note');
-  if (head) {
-    // `busy` rather than a percentage: the server reports progress per CLIP
-    // (done/index/total), never a fraction WITHIN the clip being rendered,
-    // so a running row has no honest number -- see the .working bar below.
-    const running = QUEUE.filter((r) => r.busy).length;
-    const end = QUEUE.filter((r) => r.pct === 100).length;
-    const queued = QUEUE.length - running - end;
-    head.textContent = QUEUE.length
-      ? `${running} running · ${queued} queued · ${end} done`
-      : "nothing rendered yet";
+  // `busy` rather than a percentage: the server reports progress per CLIP
+  // (done/index/total), never a fraction WITHIN the clip being rendered,
+  // so a running row has no honest number -- see the .working bar below.
+  const running = QUEUE.filter((r) => r.busy).length;
+  const end = QUEUE.filter((r) => r.pct === 100).length;
+  const queued = QUEUE.length - running - end;
+  if (QUEUE.length) {
+    renderStatus(`${running} running · ${queued} queued · ${end} done`);
   }
 
   $("#queueList").innerHTML = QUEUE.length
     ? QUEUE.map((r) => `
-        <div class="row" style="grid-template-columns:1fr auto auto auto auto auto">
+        <div class="row queue-row">
           <div class="title">${escapeHTML(r.name)}</div>
           <span class="meta">${r.layout}</span>
           <span class="meta">${r.clip ? r.clip.dur + "s" : r.dur}</span>

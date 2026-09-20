@@ -31,6 +31,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 from .cache import Cache
 from .models import Transcript
+from . import ffmpeg_tools
 from . import render as engine
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -58,6 +59,12 @@ ASSETS_DIR = WORKSPACE / "assets"
 # Render jobs currently / already running
 JOBS: dict[str, dict] = {}
 LOCK = threading.Lock()
+# clips.json has its own lock rather than sharing LOCK. LOCK is taken
+# several times per SECOND while a transcription reports progress, so
+# putting a file read-modify-write behind it made a /workspace dashboard
+# edit block every render/transcribe progress update, and vice versa.
+# Two unrelated resources, two locks.
+CLIPS_LOCK = threading.Lock()
 # video -> running transcribe job id, so there aren't two jobs for the
 # same file: the first to finish deletes the temp wav the other is still using
 ACTIVE_TRANSCRIBES: dict[str, str] = {}
@@ -326,7 +333,11 @@ def _run_render(job_id: str, req: dict) -> None:
         info = probe(video)
         out_dir = WORKSPACE / "out" / video.stem
         clips = req["clips"]
-        t["total"] = len(clips)
+        # Under LOCK like every other JOBS write in this function. Rebinding
+        # an existing key can't actually race, but the inconsistency is
+        # exactly the kind of thing the surrounding code is careful about.
+        with LOCK:
+            t["total"] = len(clips)
 
         for i, k in enumerate(clips):
             if job_id in CANCELLED:
@@ -461,37 +472,47 @@ def _run_transcribe(job_id: str, req: dict) -> None:
         with LOCK:
             t["stage"] = "transcribe"
 
-        # transcribe() prints progress to stderr; here progress is read
-        # from segment positions so it can be sent to the UI
-        import faster_whisper
+        # This used to be a second, inline implementation of transcribe():
+        # it built its own WhisperModel and its own Segment/Word objects,
+        # while still importing the real function and never calling it. The
+        # two had already drifted in an output-visible way -- this copy did
+        # gloss.apply(sg.text) on the segment text, whereas transcribe()
+        # deliberately rebuilds segment text from the already-corrected
+        # words precisely so the glossary is NOT applied twice. Both wrote
+        # to the SAME cache file, so the same video transcribed from the CLI
+        # and from the Analysis screen produced different text, and which
+        # one you got depended on which path happened to fill the cache.
+        #
+        # The only thing the server genuinely needed that the CLI didn't is
+        # progress reported to the browser instead of to stderr -- that is
+        # now an on_segment callback, and there is one implementation again.
         gloss = Glossary.load(ROOT / "prompts" / "glossary.txt")
-        # cpu_threads is set explicitly on purpose. faster-whisper's default
-        # (0) is translated by CTranslate2 to just 4 threads. Benchmarked
-        # on 185H: 8 threads is fastest; 22 threads actually slows down
-        # because E-cores get used and bottleneck the others.
-        wm = faster_whisper.WhisperModel(model, device="cpu", compute_type="int8",
-                                         cpu_threads=int(req.get("threads", DEFAULT_THREADS)))
-        segments_iter, meta = wm.transcribe(
-            str(wav), language=lang, beam_size=5, word_timestamps=True,
-            vad_filter=True, vad_parameters={"min_silence_duration_ms": 500},
-            condition_on_previous_text=False,
-            initial_prompt=gloss.initial_prompt(lang), hotwords=gloss.hotwords())
 
-        from .models import Segment, Word
-        segments = []
-        total = meta.duration or info.duration
-        for sg in segments_iter:
-            segments.append(Segment(
-                text=gloss.apply(sg.text), start=round(sg.start, 3), end=round(sg.end, 3),
-                words=[Word(text=gloss.apply(w.word), start=round(w.start, 3),
-                            end=round(w.end, 3), prob=round(getattr(w, "probability", 1.0), 3))
-                       for w in (sg.words or [])]))
+        def _tick(position: float, total: float) -> None:
             with LOCK:
-                t["position"] = sg.end
-                t["percent"] = min(100, round(sg.end / total * 100))
+                t["position"] = position
+                t["percent"] = min(100, round(position / total * 100)) if total else 0
 
-        Transcript(source=str(video), duration=total, language=meta.language or lang,
-                   model=model, segments=segments).save(path)
+        # cpu_threads is passed explicitly on purpose. faster-whisper's
+        # default (0) is translated by CTranslate2 to just 4 threads.
+        # Benchmarked on 185H: 8 threads is fastest; 22 threads actually
+        # slows down because E-cores get used and bottleneck the others.
+        result = transcribe(
+            wav,
+            model_size=model,
+            language=lang,
+            glossary=gloss,
+            threads=int(req.get("threads", DEFAULT_THREADS)),
+            source_label=str(video),
+            verbose=False,          # stderr progress is for the CLI
+            on_segment=_tick,
+        )
+        # faster-whisper occasionally reports duration 0 for a stream it
+        # can't measure; ffprobe's number is the reliable fallback. The old
+        # inline copy did this as `meta.duration or info.duration`.
+        if not result.duration:
+            result.duration = info.duration
+        result.save(path)
 
         with LOCK:
             t["state"] = "done"
@@ -605,11 +626,36 @@ def _run_diarize(job_id: str, req: dict) -> None:
 def _project_path(video: str) -> Path:
     """One file per video. Keyed by the same fingerprint as the transcript
     cache, so a video whose content changes automatically becomes a
-    different project."""
+    different project.
+
+    The fingerprint is unavailable for a video the server can't reach, and
+    the file used to be written as `<stem>.unknown.json`. That orphaned the
+    work the moment the user followed the UI's own advice: drop a video from
+    somewhere else, get told "not in workspace/samples/ -- move it there",
+    move it, reload -- and the path now resolves to `<stem>.<realfp>.json`,
+    a different file. The old one stayed listed on the home page, marked
+    missing, and could never be opened again, with a second card beside it
+    for the same video.
+
+    So an `.unknown.json` left over from that is MIGRATED here as soon as
+    the video becomes resolvable, instead of being stranded."""
     from .cache import fingerprint
     src = WORKSPACE / "samples" / Path(video).name
-    fp = fingerprint(src) if src.exists() else "unknown"
-    return PROJECTS / f"{Path(video).stem}.{fp}.json"
+    stem = Path(video).stem
+    if not src.exists():
+        return PROJECTS / f"{stem}.unknown.json"
+
+    real = PROJECTS / f"{stem}.{fingerprint(src)}.json"
+    orphan = PROJECTS / f"{stem}.unknown.json"
+    if orphan.exists() and not real.exists():
+        try:
+            orphan.replace(real)
+        except OSError:
+            # Migration is best-effort: if the rename fails (file locked,
+            # permissions), the new project still works -- the old one just
+            # stays where it was rather than taking the request down.
+            pass
+    return real
 
 
 def _active_result(data: dict) -> dict:
@@ -703,7 +749,13 @@ def _thumbnail(video: Path, seconds: float, crop: dict, width: int) -> Path:
     Candidate cards need to show the person's face at that moment -- a
     generic frame doesn't help decide which clip to pick."""
     from .ffmpeg_tools import _require, probe
-    dest = WORKSPACE / "out" / video.stem / "thumbs" /         f"{int(seconds*10)}-{int(crop['left'])}-{int(crop['width'])}-{width}.jpg"
+    # The cache name has to cover EVERY input that changes the picture.
+    # top/height used to be left out, so dragging the framing box up or
+    # down produced the same filename and the strip kept showing the old
+    # crop -- a stale thumbnail that looked like the drag hadn't worked.
+    dest = WORKSPACE / "out" / video.stem / "thumbs" / (
+        f"{int(seconds * 10)}-{int(crop['left'])}-{int(crop['top'])}"
+        f"-{int(crop['width'])}-{int(crop['height'])}-{width}.jpg")
     if dest.exists():
         return dest
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -715,13 +767,29 @@ def _thumbnail(video: Path, seconds: float, crop: dict, width: int) -> Path:
     cx = even(info.width * crop["left"] / 100)
     cy = even(info.height * crop["top"] / 100)
 
-    result = subprocess.run([
-        _require("ffmpeg"), "-y", "-loglevel", "error",
-        "-ss", f"{seconds:.2f}", "-i", str(video), "-frames:v", "1",
-        "-vf", f"crop={cw}:{ch}:{cx}:{cy},scale={width}:-2",
-        "-q:v", "4", str(dest)], capture_output=True)
-    if result.returncode != 0:
-        # Thumbnail failed -- return empty path so caller knows
+    # Render to a per-request temp file, then rename into place. Writing
+    # straight to `dest` was a TOCTOU: the home page fires one /api/thumb
+    # per project card and the framing strip one per point, so two request
+    # threads can target the same cache path -- thread A's exists() check
+    # passes while thread B's `ffmpeg -y` is midway through truncating and
+    # rewriting it, and A hands back a half-written JPEG. replace() is
+    # atomic, so a reader sees either the old file or the complete new one.
+    tmp = dest.with_name(f"{dest.stem}.{uuid.uuid4().hex[:8]}.tmp.jpg")
+    try:
+        # Via ffmpeg_tools.run(), whose docstring says a timeout is
+        # mandatory precisely so a hung ffmpeg can't pin a server thread
+        # forever -- this call used to bypass it with a bare subprocess.run.
+        # 60s is generous for a single frame; the default 3600 would mean a
+        # wedged decode holds the thread for an hour.
+        ffmpeg_tools.run([
+            _require("ffmpeg"), "-y", "-loglevel", "error",
+            "-ss", f"{seconds:.2f}", "-i", str(video), "-frames:v", "1",
+            "-vf", f"crop={cw}:{ch}:{cx}:{cy},scale={width}:-2",
+            "-q:v", "4", str(tmp)], desc="building a thumbnail", timeout=60)
+        tmp.replace(dest)
+    except (RuntimeError, OSError):
+        # Thumbnail failed -- return empty path so the caller knows.
+        tmp.unlink(missing_ok=True)
         return Path()
     return dest
 
@@ -1082,7 +1150,13 @@ class Handler(BaseHTTPRequestHandler):
             # clobber each other -- the second thread writes back the list it
             # read BEFORE the first thread's write finished, and the first
             # change vanishes without an error.
-            with LOCK:
+            #
+            # Nothing writes to the socket inside this block. The delete
+            # branch used to `return self._send_json(...)` while still
+            # holding the lock, so a slow or stalled client kept every other
+            # clips.json edit waiting on a network write.
+            deleted = False
+            with CLIPS_LOCK:
                 clips = _load_clips()
 
                 if req.get("delete"):
@@ -1090,21 +1164,23 @@ class Handler(BaseHTTPRequestHandler):
                         return self._send_json({"error": "id required"}, 400)
                     clips = [c for c in clips if c.get("id") != cid]
                     _save_clips(clips)
-                    return self._send_json({"ok": True, "deleted": True})
-
-                if not cid:
-                    cid = uuid.uuid4().hex[:8]
-                req["id"] = cid
-                req["at"] = int(time.time())
-
-                for i, c in enumerate(clips):
-                    if c.get("id") == cid:
-                        clips[i] = req
-                        break
+                    deleted = True
                 else:
-                    clips.append(req)
+                    if not cid:
+                        cid = uuid.uuid4().hex[:8]
+                    req["id"] = cid
+                    req["at"] = int(time.time())
 
-                _save_clips(clips)
+                    for i, c in enumerate(clips):
+                        if c.get("id") == cid:
+                            clips[i] = req
+                            break
+                    else:
+                        clips.append(req)
+
+                    _save_clips(clips)
+            if deleted:
+                return self._send_json({"ok": True, "deleted": True})
             return self._send_json({"ok": True, "id": cid})
 
         if path == "/api/render":
@@ -1132,11 +1208,18 @@ class Handler(BaseHTTPRequestHandler):
             # Mark for cancellation; _run_render / render() checks it and
             # kills the running ffmpeg. Idempotent -- marking an already-
             # finished job is harmless (discarded in finally).
+            # Only mark jobs that are STILL RUNNING. The button stays on
+            # screen until the next poll, so cancelling an already-finished
+            # job used to add its id here AFTER _run_render's finally had
+            # discarded it -- and unlike JOBS, which is capped at MAX_JOBS
+            # and pruned, CANCELLED had neither, so those ids stayed
+            # forever. Also taken under LOCK now, for the same reason the
+            # JOBS lookup beside it is.
             with LOCK:
-                ada = job_id in JOBS
-            if ada:
-                CANCELLED.add(job_id)
-            return self._send_json({"ok": ada})
+                running = JOBS.get(job_id, {}).get("state") == "running"
+                if running:
+                    CANCELLED.add(job_id)
+            return self._send_json({"ok": running})
 
         if path == "/api/preview":
             # REAL render through ffmpeg, just clipped short -- not a CSS
