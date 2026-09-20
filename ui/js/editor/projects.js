@@ -49,6 +49,14 @@ let SAVED_RESULTS = [];
 let activeResultId = null;
 let resultTabSeq = 0;
 
+/* Two-step delete for the Result "x" button -- see disarmResultDelete()
+   below for what this is and why. Declared up HERE rather than next to that
+   function because resetProjectState() calls renderResultSwitcher() during
+   load, which disarms; a `let` declared further down would still be in its
+   temporal dead zone at that moment and throw. */
+let resultDeleteArmed = null;   // the button currently showing "Delete?"
+let resultDeleteTimer = null;
+
 /* The full state worth resuming later. Deliberately does NOT store the
    transcript: it already exists in cache/ and can be tens of thousands of words. */
 function projectState() {
@@ -299,6 +307,10 @@ function renderResultSwitcher() {
     <option value="${r.id}" ${r.id === activeResultId ? "selected" : ""}>
       ${escapeHTML(r.title || `Result ${i + 1}`)}</option>`).join("");
   document.querySelectorAll(".result-select").forEach((sel) => { sel.innerHTML = options; });
+  // Anything that re-renders the switcher (switching, creating, deleting a
+  // Result) is a context change -- an armed "Delete?" left over from before
+  // it would now refer to a different Result than the user was looking at.
+  if (typeof disarmResultDelete === "function") disarmResultDelete();
   document.querySelectorAll('[data-result-action="delete"]').forEach((b) => {
     b.disabled = SAVED_RESULTS.length <= 1;
   });
@@ -310,8 +322,47 @@ document.querySelectorAll(".result-select").forEach((sel) => {
 document.querySelectorAll('[data-result-action="new"]').forEach((b) => {
   b.addEventListener("click", () => newResult());
 });
+/* Deleting a Result throws away its spans, every framing point and every
+   caption correction, with no undo -- strictly MORE work than deleting a
+   project, which has had a two-step confirmation all along. Yet this was a
+   single unguarded click on a "×" sitting 4px from the "+" that CREATES a
+   Result, both styled identically.
+
+   The project card's .confirming overlay doesn't transplant onto a 22px
+   inline button, so this is the same idea at button scale: the first click
+   arms it ("Delete?", danger colours), the second one within 4s does it.
+   Like the card version it backs off on its own, so an armed button can't
+   sit there waiting to catch a later misclick.
+
+   (State lives at the top of the file, not here: resetProjectState() runs
+   renderResultSwitcher() during load, which calls disarmResultDelete()
+   before this point in the file is reached -- a `let` declared here would
+   still be in its temporal dead zone and throw.) */
+function disarmResultDelete() {
+  clearTimeout(resultDeleteTimer);
+  resultDeleteTimer = null;
+  if (resultDeleteArmed) {
+    resultDeleteArmed.textContent = "×";
+    resultDeleteArmed.classList.remove("danger");
+    resultDeleteArmed.title = "Delete this Result";
+  }
+  resultDeleteArmed = null;
+}
+
 document.querySelectorAll('[data-result-action="delete"]').forEach((b) => {
-  b.addEventListener("click", () => deleteResultTab(activeResultId));
+  b.addEventListener("click", () => {
+    if (resultDeleteArmed === b) {
+      disarmResultDelete();
+      deleteResultTab(activeResultId);
+      return;
+    }
+    disarmResultDelete();   // only one armed at a time across the three screens
+    resultDeleteArmed = b;
+    b.textContent = "Delete?";
+    b.classList.add("danger");
+    b.title = "Click again to delete this Result — spans, framing and caption fixes are lost";
+    resultDeleteTimer = setTimeout(disarmResultDelete, 4000);
+  });
 });
 
 /* Restore a previously saved state. Returns true if something was restored,

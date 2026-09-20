@@ -1090,6 +1090,20 @@ h1, h2, h3 {
   background: linear-gradient(90deg, rgba(255,255,255,.3), rgba(255,255,255,.7));
 }
 .progress.done > i { background: rgba(255,255,255,.9); }
+/* Indeterminate: "working, duration unknown". The server reports render
+   progress per clip, never within one, so the row for the clip currently
+   being rendered has no honest percentage -- it used to be hardcoded to
+   55%, which on a multi-minute ffmpeg run reads as frozen. A moving stripe
+   says the same thing without claiming a number. */
+.progress.working > i {
+  background: repeating-linear-gradient(
+    115deg,
+    rgba(255,255,255,.55) 0 10px,
+    rgba(255,255,255,.18) 10px 20px);
+  background-size: 200% 100%;
+  animation: progress-working 1.1s linear infinite;
+}
+@keyframes progress-working { to { background-position: -40px 0; } }
 
 /* ═══════════════════════════════════════════════ file drop */
 
@@ -2157,6 +2171,20 @@ h1, h2, h3 {
   border-color: var(--glass-border);
   background: var(--glass);
   color: var(--text-muted);
+}
+/* ...but an ARMED delete still has to look dangerous. The rule above is
+   three classes deep, so the plain .btn.danger (two) loses to it -- which
+   is why the armed Result "Delete?" button came out looking like every
+   other quiet header button. Re-stated here, after it, at matching depth. */
+.panel-head .btn.danger,
+.result-head .btn.danger,
+.pick-head .btn.danger,
+.work-head .btn.danger,
+.result-picker .btn.danger {
+  background: var(--danger);
+  border-color: transparent;
+  color: oklch(0.98 0 0);
+  font-weight: 700;
 }
 
 /* Framing canvas shows the ACTUAL video frame at the playback position.

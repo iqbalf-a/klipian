@@ -559,6 +559,25 @@ function setResultAsPreview() {
 
 let renderTimer = null;
 let renderJobId = null;             // id of the active render job, for cancellation
+
+/* Both buttons below start an ffmpeg job on the server. Neither used to be
+   locked while one was already running: pressing Render twice launched a
+   SECOND job, overwrote renderJobId, and left the first one burning CPU
+   server-side with nothing tracking it -- Cancel then only cancelled the
+   second. Called from renderResult() (result.js) and from every point where
+   a render starts or ends. */
+function updateRenderButtons() {
+  const busy = renderJobId !== null;
+  const btn = $("#resultRenderBtn");
+  if (btn) {
+    btn.disabled = busy || !RESULT.length;
+    btn.textContent = busy ? "Rendering…" : "Render";
+  }
+  const quick = $("#previewQuickBtn");
+  // Quick preview has its own in-flight label handled in quickPreview();
+  // only add the "a full render is running" reason on top of it.
+  if (quick && !quick.dataset.busy) quick.disabled = busy || !RESULT.length;
+}
 let lastFraming = null;   // the framing point currently shown in the preview
 
 
@@ -633,7 +652,7 @@ async function sendRender(approved) {
   // The queue must line up with what's actually sent: the server reports
   // results by index, and if the contents differ the rows point to the wrong thing.
   buildQueue(valid);
-  QUEUE.forEach((r) => { r.pct = 0; r.note = "queued"; r.action = "Cancel"; r.act = "cancel"; });
+  QUEUE.forEach((r) => { r.pct = 0; r.busy = false; r.note = "queued"; r.action = "Cancel"; r.act = "cancel"; });
   drawQueue();
   toScreen("history");
 
@@ -647,9 +666,10 @@ async function sendRender(approved) {
     if (reply.error) throw new Error(reply.error);
     id = reply.id;
     renderJobId = id;               // used by the Cancel button to notify the server
+    updateRenderButtons();
   } catch (err) {
     // Without a backend, say so plainly -- don't pretend to render.
-    QUEUE.forEach((r) => { r.pct = 0; r.note = "needs klipian serve"; r.action = "Retry"; r.act = "retry"; });
+    QUEUE.forEach((r) => { r.pct = 0; r.busy = false; r.note = "needs klipian serve"; r.action = "Retry"; r.act = "retry"; });
     drawQueue();
     const head = document.querySelector('[data-screen="history"] .note');
     if (head) head.textContent =
@@ -668,9 +688,10 @@ async function sendRender(approved) {
     if (t.state === "cancelled") {
       clearInterval(renderTimer);
       renderJobId = null;
+      updateRenderButtons();
       QUEUE.forEach((r, i) => {
-        if (i < t.done) { r.pct = 100; r.note = "done"; r.action = "Open folder"; r.act = "open"; }
-        else { r.pct = 0; r.note = "cancelled"; r.action = "Retry"; r.act = "retry"; }
+        if (i < t.done) { r.pct = 100; r.busy = false; r.note = "done"; r.action = "Open folder"; r.act = "open"; }
+        else { r.pct = 0; r.busy = false; r.note = "cancelled"; r.action = "Retry"; r.act = "retry"; }
       });
       drawQueue();
       const head = document.querySelector('[data-screen="history"] .note');
@@ -679,9 +700,14 @@ async function sendRender(approved) {
     }
 
     QUEUE.forEach((r, i) => {
-      if (i < t.done) { r.pct = 100; r.note = "done"; r.action = "Open folder"; r.act = "open"; }
-      else if (i === t.index && t.state === "running") { r.pct = 55; r.note = "rendering"; r.action = "Cancel"; r.act = "cancel"; }
-      else { r.pct = 0; r.note = "queued"; r.action = "Cancel"; r.act = "cancel"; }
+      if (i < t.done) { r.pct = 100; r.busy = false; r.note = "done"; r.action = "Open folder"; r.act = "open"; }
+      // r.pct used to be hardcoded to 55 here, so the bar sat at 55% for the
+      // whole render and then snapped to 100 -- on the longest operation in
+      // the app, on a screen with nothing else moving, which reads as hung.
+      // The server reports progress per CLIP, not within one, so `busy`
+      // drives an indeterminate bar instead of inventing a number.
+      else if (i === t.index && t.state === "running") { r.pct = 0; r.busy = true; r.note = "rendering"; r.action = "Cancel"; r.act = "cancel"; }
+      else { r.pct = 0; r.busy = false; r.note = "queued"; r.action = "Cancel"; r.act = "cancel"; }
     });
     (t.result || []).forEach((h, i) => {
       if (QUEUE[i]) { QUEUE[i].name = h.file; QUEUE[i].url = h.url;
@@ -692,6 +718,7 @@ async function sendRender(approved) {
     if (t.state !== "running") {
       clearInterval(renderTimer);
       renderJobId = null;
+      updateRenderButtons();
       if (typeof loadHistory === "function") loadHistory();   // new file enters history
       const head = document.querySelector('[data-screen="history"] .note');
       if (head) head.textContent = t.state === "failed"
@@ -713,7 +740,7 @@ async function quickPreview() {
   const note = $("#previewQuickNote");
   if (!resultClip || !resultClip.spans?.length) return;
 
-  if (btn) { btn.disabled = true; btn.textContent = "Rendering…"; }
+  if (btn) { btn.dataset.busy = "1"; btn.disabled = true; btn.textContent = "Rendering…"; }
   if (note) note.textContent = "";
 
   const clip = {
@@ -747,11 +774,13 @@ async function quickPreview() {
     // So it's clear WHICH span is being viewed -- without this, people
     // might assume the preview always starts from the beginning of the
     // clip, when it now follows the scrub position (see startFrom above).
-    if (note) note.textContent = `previewing ${shortTime(startFrom)}–${shortTime(startFrom + (reply.duration || 0))}`;
+    if (note) note.textContent = `previewing ${shortTime(startFrom)}–${shortTime(startFrom + (reply.duration || 0))}`
+      + (reply.warning ? ` · ${reply.warning}` : "");
   } catch (err) {
     if (note) note.textContent = err.message || "Preview failed.";
   } finally {
-    if (btn) { btn.disabled = !RESULT.length; btn.textContent = "Quick preview"; }
+    if (btn) { delete btn.dataset.busy; btn.textContent = "Quick preview"; }
+    updateRenderButtons();
   }
 }
 
@@ -759,7 +788,7 @@ function showQuickPreview(url) {
   const wrap = $("#previewQuickWrap");
   const video = $("#previewQuickVideo");
   if (!wrap || !video) return;
-  video.src = url;               // ?t=... in the url already makes it different each time
+  video.src = url;               // unique filename per request -- no cache-buster needed
   video.play().catch(() => {});  // autoplay may be blocked by the browser -- not an error
   wrap.hidden = false;
 }

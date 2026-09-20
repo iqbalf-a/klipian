@@ -296,12 +296,15 @@ function toStage(stage) {
 function drawQueue() {
   const head = document.querySelector('[data-screen="history"] .note');
   if (head) {
-    const running = QUEUE.filter((r) => r.pct > 0 && r.pct < 100).length;
+    // `busy` rather than a percentage: the server reports progress per CLIP
+    // (done/index/total), never a fraction WITHIN the clip being rendered,
+    // so a running row has no honest number -- see the .working bar below.
+    const running = QUEUE.filter((r) => r.busy).length;
     const end = QUEUE.filter((r) => r.pct === 100).length;
-    const queued = QUEUE.filter((r) => r.pct === 0).length;
+    const queued = QUEUE.length - running - end;
     head.textContent = QUEUE.length
       ? `${running} running · ${queued} queued · ${end} done`
-      : "no clips approved yet";
+      : "nothing rendered yet";
   }
 
   $("#queueList").innerHTML = QUEUE.length
@@ -310,22 +313,23 @@ function drawQueue() {
           <div class="title">${escapeHTML(r.name)}</div>
           <span class="meta">${r.layout}</span>
           <span class="meta">${r.clip ? r.clip.dur + "s" : r.dur}</span>
-          <span class="progress ${r.pct === 100 ? "done" : ""}"><i style="width:${r.pct}%"></i></span>
+          <span class="progress ${r.pct === 100 ? "done" : ""}${r.busy ? " working" : ""}"
+          ><i style="width:${r.busy ? 100 : r.pct}%"></i></span>
           <span class="meta">${r.note}</span>
           <button class="btn ${r.pct === 100 ? "main" : ""}"
                   data-action="${r.pct === 100 ? "open" : (r.act || "cancel")}"
           >${r.action}</button>
         </div>`).join("")
     : `<div class="row" style="grid-template-columns:1fr"><div>
-         <div class="title">No clips approved yet</div>
-         <div class="sub">Approve a candidate and it will show up here.</div>
+         <div class="title">Nothing rendered yet</div>
+         <div class="sub">Build a Result on the Clips screen, then press Render.</div>
        </div></div>`;
 }
 
 function renderList() {
   // Don't overwrite the QUEUE if a render is in progress -- folder data
   // and server progress will be lost if buildQueue() is called again.
-  if (!QUEUE.length || QUEUE.every((r) => r.pct === 0 && !r.folder)) {
+  if (!QUEUE.length || QUEUE.every((r) => r.pct === 0 && !r.busy && !r.folder)) {
     buildQueue();
   }
   drawQueue();

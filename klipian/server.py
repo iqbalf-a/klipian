@@ -271,6 +271,24 @@ def _shift_tracking(tracking: "list[dict] | None", offset: float) -> "list[dict]
     return shifted if len(shifted) >= 2 else None
 
 
+def _prune_previews(folder: "Path", keep: "Path", max_age: float = 3600) -> None:
+    """Delete stale quick-preview files so the unique-name scheme doesn't
+    just accumulate MP4s forever. Only touches this folder, only files
+    matching the preview naming, and never one younger than `max_age`
+    (another request could still be writing or serving it). Failures are
+    ignored on purpose -- a preview that can't be cleaned up must not fail
+    the preview the user actually asked for."""
+    now = time.time()
+    for f in folder.glob("_preview.*"):
+        if f == keep:
+            continue
+        try:
+            if now - f.stat().st_mtime > max_age:
+                f.unlink()
+        except OSError:
+            pass
+
+
 def _run_render(job_id: str, req: dict) -> None:
     t = JOBS[job_id]
     try:
@@ -283,14 +301,26 @@ def _run_render(job_id: str, req: dict) -> None:
         # Transcript used for captions; may be absent. Find ANY transcript
         # for this video -- don't guess model/lang, because a wrong silent
         # guess removes captions without a message.
+        #
+        # A transcript that EXISTS but can't be read is a different thing
+        # from one that was never made, and the bare `except: pass` here
+        # used to erase that difference: a file truncated by a killed
+        # process, a JSON decode error or a locked file all produced
+        # words=[] and the render ran to completion, handing back an MP4
+        # with no subtitles and no error anywhere. The reason is recorded
+        # on the job now so the History row can say so. The exception list
+        # is narrow on purpose -- anything else is a real bug that should
+        # surface, not be absorbed here.
         words = []
         try:
             cache = Cache(WORKSPACE / "cache")
             path = cache.find_any_transcript(video)
             if path and path.exists():
                 words = Transcript.load(path).words
-        except Exception:
-            pass
+        except (OSError, ValueError, KeyError, TypeError) as exc:  # noqa: BLE001
+            with LOCK:
+                t["warning"] = (f"captions skipped: the transcript exists but "
+                                f"could not be read ({exc})")
 
         from .ffmpeg_tools import probe
         info = probe(video)
@@ -808,6 +838,14 @@ class Handler(BaseHTTPRequestHandler):
             # history, and persist across page reloads or server restarts.
             item = []
             for mp4 in (WORKSPACE / "out").glob("*/*.mp4"):
+                # Quick previews are not renders. They live in a .preview/
+                # subfolder now (one level deeper than this glob reaches),
+                # but the leading-underscore check also hides the
+                # _preview.mp4 files older builds left at this level --
+                # those used to appear in History and on the workspace
+                # dashboard as real output, one permanent row per video.
+                if mp4.name.startswith("_"):
+                    continue
                 try:
                     st = mp4.stat()
                 except OSError:
@@ -1147,22 +1185,43 @@ class Handler(BaseHTTPRequestHandler):
                     out_width=int(k.get("width", 1080)),
                 )
 
+                # Same reasoning as the render path above: an unreadable
+                # transcript is reported, not silently turned into "no
+                # captions". Returned in the response body since this
+                # endpoint is synchronous and has no job to hang it on.
                 words = []
+                warning = ""
                 try:
                     cache = Cache(WORKSPACE / "cache")
                     tpath = cache.find_any_transcript(video)
                     if tpath and tpath.exists():
                         words = Transcript.load(tpath).words
-                except Exception:                      # noqa: BLE001
-                    pass
+                except (OSError, ValueError, KeyError, TypeError) as exc:  # noqa: BLE001
+                    warning = (f"captions skipped: the transcript exists but "
+                               f"could not be read ({exc})")
                 clip_words = _clip_words(k, words)
 
                 style = k.get("style") if isinstance(k.get("style"), dict) else None
 
-                # Filename is FIXED, overwritten each time -- previews are
-                # disposable, not files to collect like real render output
-                # in the queue/history.
-                dest = WORKSPACE / "out" / video.stem / "_preview.mp4"
+                # Previews are disposable, but the name can NOT be fixed:
+                # /api/preview is synchronous with no lock or job registry,
+                # so two clicks in a row ran two ffmpeg processes writing
+                # the same _preview.mp4, while render()'s `finally` deleted
+                # the shared _preview.ass out from under whichever one was
+                # still reading it (and _concat_filter's _preview.track0.cmd
+                # collided the same way). A per-request id closes all three.
+                # Same fix the transcribe path already applies to its temp
+                # wav -- see the job-id suffix there.
+                #
+                # They also live in a .preview/ subfolder now: /api/history
+                # globs out/*/*.mp4, so every preview used to show up in the
+                # History screen and the workspace dashboard as if it were a
+                # real render, permanently, one row per source video.
+                pdir = WORKSPACE / "out" / video.stem / ".preview"
+                pdir.mkdir(parents=True, exist_ok=True)
+                tag = uuid.uuid4().hex[:8]
+                dest = pdir / f"_preview.{tag}.mp4"
+                _prune_previews(pdir, keep=dest)
                 engine.render(video, job, dest, words=clip_words, style=style,
                               src_width=info.width, src_height=info.height,
                               has_audio=info.has_audio, verbose=False)
@@ -1170,12 +1229,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_json({"error": str(exc)}, 500)
 
             return self._send_json({
-                # Filename stays the same each time -- without this timestamp
-                # the browser's <video> element won't reload the newly-
-                # overwritten version, even though the server wrote a
-                # completely different file.
-                "url": f"/workspace/out/{video.stem}/_preview.mp4?t={int(time.time())}",
+                "url": f"/workspace/out/{video.stem}/.preview/{dest.name}",
                 "duration": round(job.duration, 1),
+                **({"warning": warning} if warning else {}),
             })
 
         if path == "/api/transcribe":

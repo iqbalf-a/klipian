@@ -123,8 +123,10 @@ function renderResult() {
 
   const titleInput = $("#resultTitle");
   if (titleInput && !titleInput.value.trim()) titleInput.placeholder = defaultTitle();
-  const btn = $("#resultRenderBtn"); if (btn) btn.disabled = false;
-  const quickPreviewBtn = $("#previewQuickBtn"); if (quickPreviewBtn) quickPreviewBtn.disabled = false;
+  // Not a plain `disabled = false`: a render already in flight must keep
+  // both buttons locked, or a second ffmpeg job gets launched behind the
+  // first (see updateRenderButtons() in player.js).
+  if (typeof updateRenderButtons === "function") updateRenderButtons();
   const summaryEl = $("#resultSummary");
   if (summaryEl) {
     summaryEl.textContent = RESULT.length === 1

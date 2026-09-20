@@ -991,9 +991,20 @@ function aiFramingFindSpeaker(turn, size) {
       video: chosenSource?.name, start: turn.start, end: turn.end, size,
     }),
   })
-    .then((r) => r.json())
-    .then((d) => d.crop || null)
-    .catch(() => null);
+    .then(async (r) => {
+      const d = await r.json().catch(() => ({}));
+      if (d.crop) return { crop: d.crop };
+      // 404 "no speaker detected" means the ALGORITHM was unsure -- expected,
+      // and correctly handled by skipping that speaker. Anything else is a
+      // real fault: a missing assets/models/*.onnx, opencv not installed
+      // (requirements-ai-framing.txt is a separate optional install, so this
+      // is the LIKELY case, not an edge case), or ffmpeg failing. All of
+      // those used to be collapsed into null and reported as "no clear
+      // mouth-motion winner — try again", which is a specific, wrong
+      // diagnosis with no path to the actual cause.
+      return { error: d.error || `server replied ${r.status}`, hard: r.status !== 404 };
+    })
+    .catch((err) => ({ error: err?.message || "no connection to klipian serve", hard: true }));
 }
 
 async function aiFramingFindAllPositions(turns, cuts) {
@@ -1033,15 +1044,40 @@ async function aiFramingFindAllPositions(turns, cuts) {
     })));
 
   const positions = {};
-  speakerList.forEach(([speaker], i) => { if (results[i]) positions[speaker] = results[i]; });
+  const faults = [];
+  speakerList.forEach(([speaker], i) => {
+    const r = results[i];
+    if (r?.crop) positions[speaker] = r.crop;
+    else if (r?.hard) faults.push(r.error);
+  });
 
   if (btn) { btn.disabled = false; aiFramingBtnText("AI Framing"); }
 
   if (!Object.keys(positions).length) {
-    aiFramingStatus("AI Framing: couldn't confidently locate any speaker's face "
-      + "(no clear mouth-motion winner) — try again, or set the frame manually.");
+    if (faults.length) {
+      // Report what actually went wrong, not a guess about the algorithm.
+      // The dependency hint is added on the errors that look like a missing
+      // import or file, since AI Framing's requirements install separately.
+      const first = faults[0];
+      const looksLikeSetup = /module|import|no such file|onnx|cv2|opencv|torch/i.test(first);
+      aiFramingStatus(`AI Framing failed: ${first}`
+        + (looksLikeSetup
+            ? " — this looks like a setup problem, not a detection one: "
+              + "run `pip install -r requirements-ai-framing.txt`."
+            : ""));
+    } else {
+      aiFramingStatus("AI Framing: couldn't confidently locate any speaker's face "
+        + "(no clear mouth-motion winner) — try again, or set the frame manually.");
+    }
     aiFramingOverlayDone();
     return;
+  }
+  // Some speakers located, some genuinely broken -- say so rather than
+  // silently framing a subset and calling it a success.
+  if (faults.length) {
+    aiFramingStatus(`AI Framing: ${faults.length} speaker`
+      + `${faults.length === 1 ? "" : "s"} could not be located (${faults[0]}) — `
+      + "continuing with the rest.");
   }
 
   aiFramingApply(turns, positions, cuts);
@@ -1061,17 +1097,24 @@ async function aiFramingFindAllPositions(turns, cuts) {
    further on its own based on face movement: the reason for a NEW point
    is already decided here (turn/cut), not by a sitting person's normal
    movement. Fails/video not ready yet -> falls back to a single rough-box
-   point. */
+   point.
+
+   Returns { points, fallback }: `fallback` is true when the rough box was
+   used because tracking did NOT run, so the caller can say so instead of
+   reporting "tracking each speaker's face" for a run where every single
+   tracking call failed. */
 async function aiFramingTrackFace(start, end, rough) {
+  const rescue = { points: [{ at: start, crop: rough }], fallback: true };
   try {
     const r = await fetch("/api/facetrack", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ video: chosenSource?.name, start, end, crop: rough }),
     });
-    const d = await r.json();
-    return (d.points && d.points.length) ? d.points : [{ at: start, crop: rough }];
+    const d = await r.json().catch(() => ({}));
+    if (d.points && d.points.length) return { points: d.points, fallback: false };
+    return rescue;
   } catch {
-    return [{ at: start, crop: rough }];
+    return rescue;
   }
 }
 
@@ -1170,8 +1213,10 @@ async function aiFramingApply(turns, positions, cuts) {
 
   let added = 0;
   let replaced = 0;
-  for (const pointList of resultsPerTurn) {
-    for (const point of pointList) {
+  let untracked = 0;
+  for (const turnResult of resultsPerTurn) {
+    if (turnResult.fallback) untracked++;
+    for (const point of turnResult.points) {
       const crop = { ...point.crop };
       const existing = FRAMING.find((f) => Math.abs(f.at - point.at) < 0.35);
       if (existing) {
@@ -1201,10 +1246,18 @@ async function aiFramingApply(turns, positions, cuts) {
   // "0 framing points added" on a perfectly successful run whose points all
   // happened to land on existing ones -- which reads as a total failure.
   const set = added + replaced;
+  const tracked = plan.length - untracked;
   aiFramingStatus(
     `AI Framing: ${set} framing point${set === 1 ? "" : "s"} set`
     + (replaced ? ` (${added} new, ${replaced} updated)` : "")
-    + ` across ${plan.length} segment${plan.length === 1 ? "" : "s"}, tracking each speaker's face`
+    + ` across ${plan.length} segment${plan.length === 1 ? "" : "s"}`
+    // Don't claim face tracking ran when it didn't: on a fallback the point
+    // is just the rough located box copied across the segment.
+    + (untracked === 0
+        ? ", tracking each speaker's face"
+        : tracked === 0
+          ? " — face tracking did not run, so each point uses the rough located box"
+          : `, ${tracked} of them face-tracked (${untracked} fell back to the rough box)`)
     + (cutsUsed
         ? ` (${cutsUsed} shot change${cutsUsed === 1 ? "" : "s"} detected mid-turn). `
         : ". ")
