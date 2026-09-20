@@ -23,21 +23,35 @@ let resultSeq = 0;
 
 const resultTotal = () => RESULT.reduce((t, r) => t + (r.end - r.start), 0);
 
+/* How many existing rows the last addToResult() absorbed. Read by the
+   callers right after the call, so they can report a merge instead of a
+   plain "added". Deliberately a module-level flag rather than a changed
+   return type: addToResult() returns a REJECTION REASON or null, and both
+   call sites already branch on exactly that. */
+let lastAddWasMerge = 0;
+
 /* Add one range. Returns a rejection reason string, or null on success. */
 function addToResult(start, end, title, source) {
   start = Number(start); end = Number(end);
   if (!Number.isFinite(start) || !Number.isFinite(end)) return "could not read that time";
   if (end - start < 0.5) return "range is too short";
 
-  // Merge with overlapping ranges so no second appears twice.
+  // Merge with overlapping ranges so no second appears twice. This is the
+  // right behaviour, but it USED to happen silently while the caller still
+  // reported "added to Result" -- so a new clip that overlapped an existing
+  // one appeared to simply vanish. `merged` is handed back so the caller
+  // can say what actually happened.
   const overlapping = RESULT.filter((r) => start < r.end && end > r.start);
+  let merged = 0;
   if (overlapping.length) {
+    merged = overlapping.length;
     start = Math.min(start, ...overlapping.map((r) => r.start));
     end = Math.max(end, ...overlapping.map((r) => r.end));
     title = title || overlapping[0].title;
     RESULT = RESULT.filter((r) => !overlapping.includes(r));
   }
 
+  lastAddWasMerge = merged;
   RESULT.push({
     id: `r${++resultSeq}`,
     start, end,
@@ -589,10 +603,27 @@ $("#recList")?.addEventListener("change", (e) => {
   const field = inp.dataset.field;
   const k = (DATA?.candidates || [])[idx];
   if (!k) return;
+  const note = $("#recNote");
   const raw = parseTime(inp.value);
-  if (raw === null || !commitRecTime(idx, field, raw)) {
+  // A rejected value used to snap back with NO message at all, which reads
+  // as "the field is broken" -- the same complaint that was already fixed
+  // for typed letters (see the comment above the keydown filter). The two
+  // reasons a value is rejected are different, so say which one it was.
+  if (raw === null) {
     inp.value = timeRange(k[field]);
+    if (note) note.textContent = `couldn't read that time — use mm:ss, e.g. ${timeRange(k[field])}`;
+    return;
   }
+  if (!commitRecTime(idx, field, raw)) {
+    inp.value = timeRange(k[field]);
+    if (note) {
+      note.textContent = field === "startSec"
+        ? `start must stay before the end (${timeRange(k.endSec)})`
+        : `end must stay after the start (${timeRange(k.startSec)})`;
+    }
+    return;
+  }
+  if (note) note.textContent = `${k.title} · ${timeRange(k.startSec)} – ${timeRange(k.endSec)}`;
 });
 
 function updateRecButton() {
@@ -611,16 +642,25 @@ $("#recAddBtn")?.addEventListener("click", () => {
   const selected = [...document.querySelectorAll("#recList input:checked")];
   const candidates = DATA.candidates || [];
   let rejectedCount = 0;
+  let mergedCount = 0;
   for (const c of selected) {
     const k = candidates[Number(c.dataset.rec)];
     if (!k) continue;
     if (addToResult(k.startSec, k.endSec, k.title, "ai")) rejectedCount++;
+    else mergedCount += lastAddWasMerge;
     c.checked = false;
   }
   updateRecButton();
+  // Overlapping suggestions are merged into one span on purpose, but adding
+  // three and seeing one row appear reads as two of them being dropped.
+  const parts = [];
   if (rejectedCount) {
-    $("#editNote").textContent = `${rejectedCount} suggestion${rejectedCount > 1 ? "s" : ""} skipped — invalid timing`;
+    parts.push(`${rejectedCount} suggestion${rejectedCount > 1 ? "s" : ""} skipped — invalid timing`);
   }
+  if (mergedCount) {
+    parts.push(`${mergedCount} overlapping span${mergedCount > 1 ? "s" : ""} merged`);
+  }
+  if (parts.length) $("#editNote").textContent = parts.join(" · ");
 });
 
 $("#resultList")?.addEventListener("click", (e) => {

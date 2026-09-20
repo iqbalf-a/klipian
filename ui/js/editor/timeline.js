@@ -281,6 +281,9 @@ $("#selAddBtn")?.addEventListener("click", () => {
     $("#pickNote").textContent = rejected;
     return;
   }
-  $("#pickNote").textContent = "added to Result";
+  $("#pickNote").textContent = lastAddWasMerge
+    ? `overlapped ${lastAddWasMerge} existing span${lastAddWasMerge === 1 ? "" : "s"}`
+      + " — merged into one, so no second plays twice"
+    : "added to Result";
   clearSelection();               // selection box is released, not left behind
 });

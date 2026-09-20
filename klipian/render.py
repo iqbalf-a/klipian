@@ -464,6 +464,13 @@ def build_filter(job: RenderJob, src_width: int, src_height: int,
     return trim_chain + ";" + video_chain
 
 
+_WINDOWS_RESERVED = frozenset(
+    ["CON", "PRN", "AUX", "NUL"]
+    + [f"COM{i}" for i in range(1, 10)]
+    + [f"LPT{i}" for i in range(1, 10)]
+)
+
+
 def safe_filename(title: str, fallback: str) -> str:
     """Clip title -> filename. One rule, used by both server and CLI.
 
@@ -472,8 +479,15 @@ def safe_filename(title: str, fallback: str) -> str:
     match what was actually written to disk.
     """
     kept = "".join(c if c.isalnum() or c in "- " else " " for c in title)
-    name = "-".join(kept.lower().split())
-    return (name or fallback) + ".mp4"
+    name = "-".join(kept.lower().split()) or fallback
+    # Windows reserves these as DEVICE names, with or without an extension:
+    # opening "con.mp4" talks to the console, not a file. A clip titled
+    # "CON" or "Aux" (or "com1".."com9", "lpt1".."lpt9") therefore failed
+    # the render with an opaque OS error that said nothing about the title.
+    # Harmless everywhere else -- the suffix only appears for these names.
+    if name.upper() in _WINDOWS_RESERVED:
+        name = f"{name}-clip"
+    return name + ".mp4"
 
 
 class RenderCancelled(RuntimeError):

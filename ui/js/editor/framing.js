@@ -226,12 +226,31 @@ function matchRatio(crop, format) {
   return { ...crop, width, height };
 }
 
+/* Height of .crop .tag plus its offset -- see the rule in app.css. If the
+   box starts closer than this to the top of the canvas, the tag would be
+   clipped by .canvas's overflow:hidden, so it flips inside instead. */
+const TAG_CLEARANCE_PX = 26;
+
 function applyCrop(el, p) {
   if (!el || !p) return;
   el.style.left = `${p.left}%`;
   el.style.top = `${p.top}%`;
   el.style.width = `${p.width}%`;
   el.style.height = `${p.height}%`;
+  setTagPlacement(el);
+}
+
+/* `top` is a percentage of the canvas, so whether TAG_CLEARANCE_PX fits
+   depends on the canvas's current pixel height -- which changes with the
+   window. Measured rather than assumed. */
+function setTagPlacement(el) {
+  const canvas = el.closest(".canvas");
+  if (!canvas) return;
+  const h = canvas.getBoundingClientRect().height;
+  const topPct = parseFloat(el.style.top);
+  if (!h || !Number.isFinite(topPct)) return;
+  if ((topPct / 100) * h < TAG_CLEARANCE_PX) el.dataset.tagInside = "";
+  else delete el.dataset.tagInside;
 }
 
 function readCrop(el, canvas) {
@@ -735,6 +754,7 @@ $("#framingList")?.addEventListener("click", (e) => {
       crop.style.left = `${(x / k.width) * 100}%`;
       crop.style.top = `${(y / k.height) * 100}%`;
     }
+    setTagPlacement(crop);      // dragging past the top edge flips the tag
     saveBox();
     if (typeof attachVideoGeometry === "function") attachVideoGeometry();
   });
@@ -796,6 +816,7 @@ $("#framingList")?.addEventListener("click", (e) => {
     }
     crop.style.left = `${left}%`;
     crop.style.top = `${top}%`;
+    setTagPlacement(crop);
 
     const f = saveBox();
     if (typeof attachVideoGeometry === "function") attachVideoGeometry();

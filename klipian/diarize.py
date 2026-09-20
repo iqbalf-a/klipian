@@ -35,11 +35,33 @@ _pipeline = None   # singleton -- loading the model takes tens of seconds, don't
 _pipeline_lock = threading.Lock()
 
 
+# Guards the LOAD, separately from _pipeline_lock which guards inference.
+# Two locks rather than one: loading takes tens of seconds and only ever
+# happens once, while inference is taken on every call -- sharing a lock
+# would mean every diarize request queued behind an unrelated first load
+# even after it finished.
+_load_lock = threading.Lock()
+
+
 def _load_pipeline():
     global _pipeline
     if _pipeline is not None:
         return _pipeline
 
+    # Double-checked: the fast path above stays lock-free once loaded, and
+    # this re-check catches the case the lock exists for. Without it, two
+    # /api/diarize requests arriving before the first load finished BOTH
+    # ran Pipeline.from_pretrained -- tens of seconds and a full copy of
+    # the model in memory, twice. The comment on _pipeline_lock says two
+    # concurrent requests are expected, but nothing actually stopped this.
+    with _load_lock:
+        if _pipeline is not None:
+            return _pipeline
+        return _load_pipeline_locked()
+
+
+def _load_pipeline_locked():
+    global _pipeline
     token = os.environ.get("HF_TOKEN", "").strip()
     if not token:
         raise RuntimeError(

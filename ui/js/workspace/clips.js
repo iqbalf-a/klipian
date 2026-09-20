@@ -37,6 +37,17 @@ async function loadClips() {
   drawClips();
 }
 
+/* Workspace saves are fire-and-forget on every `change`, so a failure has
+   to be visible: the value stays in the input either way, and without this
+   there was nothing to distinguish "saved" from "silently lost". */
+function clipError(message) {
+  const el = $("#clipError");
+  if (!el) return;
+  if (!message) { el.hidden = true; el.textContent = ""; return; }
+  el.textContent = message;
+  el.hidden = false;
+}
+
 function summarizeClips() {
   const per = {};
   for (const c of CLIPS) per[c.status] = (per[c.status] || 0) + 1;
@@ -110,9 +121,12 @@ async function saveClip(clip) {
     const i = CLIPS.findIndex((c) => c.id === clip.id);
     if (i >= 0) CLIPS[i] = clip; else CLIPS.push(clip);
     summarizeClips();
+    clipError("");
     return j.id;
   } catch (err) {
     console.error("failed to save clip:", err);
+    clipError(`Not saved — ${err.message || "no connection to klipian serve"}. `
+      + "The value on screen is not on disk.");
     return null;
   }
 }
@@ -136,14 +150,22 @@ $("#clipBody")?.addEventListener("click", async (e) => {
   const tr = b.closest("tr[data-id]");
   const id = tr?.dataset.id;
   if (!id) { tr.remove(); return; }   // empty row that was never saved
+  // fetch() does not reject on 4xx/5xx, so the body has to be read: a
+  // server-side failure used to leave the row gone from the screen while
+  // it was still on disk, and reappearing on the next reload.
   try {
-    await fetch("/api/workspace/clips", {
+    const j = await (await fetch("/api/workspace/clips", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, delete: true }),
-    });
+    })).json();
+    if (j.error) throw new Error(j.error);
   } catch (err) {
     console.error("failed to delete clip:", err);
+    clipError(`Not deleted — ${err.message || "no connection to klipian serve"}. `
+      + "The clip is still on disk.");
+    return;
   }
+  clipError("");
   CLIPS = CLIPS.filter((c) => c.id !== id);
   summarizeClips();
   drawClips();
@@ -159,8 +181,10 @@ $("#addClipBtn")?.addEventListener("click", async () => {
     CLIPS.unshift({ id: j.id, status: "Draft", platform: "YouTube + TikTok" });
     summarizeClips();
     drawClips();
+    clipError("");
   } catch (err) {
     console.error("failed to create new clip:", err);
+    clipError(`Could not create the clip — ${err.message || "no connection to klipian serve"}.`);
   }
 });
 

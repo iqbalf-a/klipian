@@ -9,8 +9,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wdth,wght@0,75..125,200..900;1,75..125,200..900&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap" rel="stylesheet">
 <!-- tokens.css is loaded FIRST -- css/workspace.css just points to the custom
      properties defined there (see tailwind.config.js). -->
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1789895044000">
-<link rel="stylesheet" href="/ui/css/workspace.css?v=1789895044000">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1789922075000">
+<link rel="stylesheet" href="/ui/css/workspace.css?v=1789922075000">
 </head>
 <body>
 
@@ -35,7 +35,12 @@
     <section class="ws-panel" id="panelClips">
       <div class="flex items-center gap-3">
         <h1 class="text-[20px] font-extrabold tracking-tight" style="font-stretch:112%">Clips</h1>
-        <span class="text-text-faint text-[13px]" id="clipSummary">loading…</span>
+        <span class="text-text-faint text-[13px]" id="clipSummary" role="status">loading…</span>
+        <!-- The clips table saves on every `change` event, with no Save
+             button, so a save that FAILED left the edited value sitting in
+             the input looking committed -- the failure only reached the
+             console. This says so on screen instead. -->
+        <span class="text-danger text-[13px] font-semibold" id="clipError" role="alert" hidden></span>
         <button class="ml-auto rounded-s bg-accent text-[13px] font-semibold px-3 py-1.5
                        text-accent-text hover:brightness-110"
                 id="addClipBtn" type="button">+ New clip</button>
@@ -133,9 +138,9 @@
   </main>
 </div>
 
-<script src="/ui/js/workspace/helpers.js?v=1789895044000"></script>
-<script src="/ui/js/workspace/clips.js?v=1789895044000"></script>
-<script src="/ui/js/workspace/render.js?v=1789895044000"></script>
-<script src="/ui/js/workspace/assets.js?v=1789895044000"></script>
+<script src="/ui/js/workspace/helpers.js?v=1789922075000"></script>
+<script src="/ui/js/workspace/clips.js?v=1789922075000"></script>
+<script src="/ui/js/workspace/render.js?v=1789922075000"></script>
+<script src="/ui/js/workspace/assets.js?v=1789922075000"></script>
 </body>
 </html>

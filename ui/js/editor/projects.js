@@ -649,11 +649,30 @@ $("#projectList")?.addEventListener("click", async (e) => {
    inside the click listener; copying it to two places is easy to get out
    of sync if only one is changed later. */
 let _openProjectGen = 0;
+/* Opening a project awaits a transcript fetch, a project fetch and a video
+   load, and used to show NOTHING while it did -- click a card on the home
+   screen and the page just sat there. This is also the page-load restore
+   path (restoreLastSession), so a cold start looked frozen too.
+   The card marks itself busy; toStage("work") at the end takes the whole
+   home screen away, so nothing has to clear it on the success path. */
+function markProjectCardBusy(video) {
+  const cards = document.querySelectorAll("[data-project]");
+  for (const c of cards) {
+    const isThis = c.dataset.project === video;
+    c.classList.toggle("loading", isThis);
+    // Clicking a second card mid-load would race the first open; the
+    // generation guard below already discards the loser, but the cards
+    // should not both look active either.
+    c.setAttribute("aria-busy", String(isThis));
+  }
+}
+
 async function openProjectFromHome(video) {
   // Fast click / race with session restore: tag the generation. If a new
   // open follows, the old one stops before overwriting the winner's
   // global state (chosenSource/realTranscript/RESULT/FRAMING).
   const gen = ++_openProjectGen;
+  markProjectCardBusy(video);
   // The blob URL from the previously dropped file is never released if we
   // immediately overwrite it with a /workspace/samples/ URL -- revoke it first.
   if (typeof chosenSource !== "undefined" && chosenSource

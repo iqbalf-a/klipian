@@ -670,6 +670,13 @@ h1, h2, h3 {
 .crop { position: absolute; z-index: 1; cursor: move; border-radius: var(--r-s);
         box-shadow: 0 0 0 2px var(--accent), 0 0 30px -6px var(--accent-glow); }
 .crop.second { box-shadow: 0 0 0 2px rgba(255,255,255,.75), 0 0 26px -8px rgba(255,255,255,.35); }
+/* The tag sits ABOVE the box, which puts it outside .canvas -- and .canvas
+   is overflow:hidden, so near the top of the frame it was simply cut off.
+   Measured before this: with the box at top:2% (routine for an AI Framing
+   result, or any drag toward the top) 18 of its ~21px were gone, taking
+   with it the one thing that says WHICH time point you are editing.
+   [data-tag-inside] is set by applyCrop() when there isn't room above;
+   the tag then hangs just inside the top edge instead. */
 .crop .tag {
   position: absolute; top: -26px; left: -1px;
   font-family: var(--font-data); font-size: 10px;
@@ -677,6 +684,7 @@ h1, h2, h3 {
   padding: 3px 9px; border-radius: var(--r-pill);
   white-space: nowrap;
 }
+.crop[data-tag-inside] .tag { top: 4px; left: 4px; }
 .crop.second .tag { background: #fff; color: #0A0B0E; }
 .crop b {
   position: absolute; width: 9px; height: 9px; border-radius: 2px;
@@ -1082,6 +1090,23 @@ h1, h2, h3 {
 
 /* Card is no longer a <button>, so focus needs to be indicated separately. */
 .project-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Opening a project is three awaited round-trips; without this the home
+   screen simply sat still and a cold start looked frozen. A sweep across
+   the card, not a spinner: it says WHICH card is opening. */
+.project-card.loading { pointer-events: none; }
+.project-card.loading::after {
+  content: ""; position: absolute; inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(100deg,
+    transparent 30%,
+    color-mix(in srgb, var(--accent) 22%, transparent) 50%,
+    transparent 70%);
+  background-size: 250% 100%;
+  animation: card-loading 1.05s linear infinite;
+  pointer-events: none;
+}
+@keyframes card-loading { to { background-position: -150% 0; } }
 
 .project-thumb.empty {
   display: block;
