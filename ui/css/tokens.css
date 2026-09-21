@@ -11,10 +11,20 @@
       #12151C -> #171B24 -> #1D2029 looks even in code but uneven to the
       eye. This also makes yellow and pink achievable at equal weight.
 
-   2. HIERARCHY USES WIDTH AXIS, not just size and weight.
-      Mona Sans variable has wdth 75-125. Titles are widened for presence,
-      labels are narrowed for density. This is what fixed-size fonts cannot
-      do, and what makes pages feel uniform.
+   2. HIERARCHY USES SIZE, WEIGHT AND LETTER-SPACING.
+      It used to use a WIDTH axis as well -- Mona Sans has wdth 75-125, so
+      titles were widened to 118% for presence and labels narrowed to 88%
+      for density, which fixed-width fonts cannot do. Geist has a weight
+      axis only (asking Google Fonts for wdth returns HTTP 400), so that
+      layer is gone and the remaining three carry the hierarchy:
+
+        titles   larger + weight 700-800 + tighter tracking (-.015 to -.045em)
+        body     weight 450, tracking -.005em
+        labels   small + weight 700 + WIDE tracking (.13em), uppercase
+
+      Tracking is what replaced the width axis: negative to make large text
+      read as compact and deliberate, positive to make small text read as a
+      label rather than shrunken body copy.
 
    3. NUMBERS USE TABULAR FIGURES.
       An editor app full of timecodes and constantly changing scores. Without
@@ -56,12 +66,15 @@
   --danger: oklch(0.660 0.190 25);
 
   /* ---- fonts ----
-     Mona Sans (GitHub, open source) -- industrial grotesque with wide
-     axis and slant. Not Inter, Roboto, Open Sans, Helvetica, Space
-     Grotesk, Geist, or Satoshi: all of those have become markers of
-     "nobody chose anything here".
-     Martian Mono for data -- instrument-character mono, not the usual
-     code-editor mono.
+     Geist + Geist Mono (Vercel, SIL OFL). Chosen to match ian's portfolio
+     at ianlab.my.id -- the tool and the site should read as one thing.
+
+     This block used to argue the opposite, naming Geist among the fonts
+     that "have become markers of nobody chose anything here", and pairing
+     Mona Sans with Martian Mono instead. That reasoning was sound on its
+     own terms; it was overruled by a reason it did not account for, which
+     is that these two products belong to the same person. Recorded rather
+     than quietly deleted, because the trade below is real.
 
      WHERE THE MONO GOES. Only where character-for-character alignment is
      the point: timecodes, the editable mm:ss fields, sequence numbers,
@@ -71,20 +84,21 @@
      talking" read as terminal output, and since the mono face is ~31%
      wider for the same string it dominated every row it appeared in.
      See --font-data's remaining uses in app.css before adding another. */
-  --font-ui:   "Mona Sans", system-ui, -apple-system, sans-serif;
-  --font-data: "Martian Mono", ui-monospace, monospace;
+  --font-ui:    "Geist", system-ui, -apple-system, sans-serif;
+  --font-data:  "Geist Mono", ui-monospace, monospace;
+  /* The watermark burned into rendered videos -- NOT the UI face. Paired
+     with the ASS Style line in render.py, which names this exact family.
+     See the @font-face for it in fonts.css. */
+  --font-brand: "Mona Sans ExtraBold", "Geist", sans-serif;
 
   /* ---- size scale: 1.18 ratio, rounded to pixels ---- */
   --t-10: 10px;  --t-11: 11px;  --t-12: 12px;  --t-13: 13px;
   --t-14: 14px;  --t-17: 17px;  --t-20: 20px;  --t-24: 24px;  --t-29: 29px;
 
-  /* ---- font width as hierarchy tool ---- */
-  --w-display: 118;   /* large numbers and screen titles */
-  --w-wide:  112;   /* large card titles */
-  --w-title:  105;   /* card titles */
-  --w-read:   100;   /* body text */
-  --w-tight:   92;   /* labels, eyebrow */
-  --w-data:    88;   /* mono */
+  /* The --w-display..--w-data width scale lived here. Every one of its 13
+     uses is gone with the move to Geist, which has no width axis, so the
+     tokens went too rather than sitting as numbers nothing reads. What
+     replaced them is described in point 2 at the top of this file. */
 
   /* ---- spacing ---- */
   --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px;

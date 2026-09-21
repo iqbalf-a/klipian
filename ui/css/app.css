@@ -17,7 +17,6 @@ body {
   font-family: var(--font-ui);
   font-size: var(--t-14);
   font-weight: 450;
-  font-stretch: calc(var(--w-read) * 1%);
   line-height: 1.5;
   letter-spacing: -0.005em;
   -webkit-font-smoothing: antialiased;
@@ -69,7 +68,6 @@ body::before {
 h1, h2, h3 {
   margin: 0;
   font-weight: 750;
-  font-stretch: calc(var(--w-title) * 1%);
   letter-spacing: -0.03em;
   text-wrap: balance;
 }
@@ -81,15 +79,16 @@ h1, h2, h3 {
    appeared in. Numbers inside it still line up: tabular-nums is on body. */
 .data {
   font-size: var(--t-12);
-  font-stretch: calc(var(--w-read) * 1%);
   font-weight: 400;
   letter-spacing: -0.03em;
 }
 
 .eyebrow {
   font-size: var(--t-10); font-weight: 700;
-  font-stretch: calc(var(--w-tight) * 1%);
-  letter-spacing: .13em; text-transform: uppercase;
+  /* .13em -> .14em: these were also narrowed to 88% width, which Geist
+     can't do. Slightly wider tracking keeps them reading as labels rather
+     than shrunken body text, which is the job the narrowing was doing. */
+  letter-spacing: .14em; text-transform: uppercase;
   color: var(--text-faint);
 }
 
@@ -118,7 +117,6 @@ h1, h2, h3 {
 
 .brand {
   font-size: var(--t-20); font-weight: 800;
-  font-stretch: calc(var(--w-wide) * 1%);
   letter-spacing: -.045em;
   background: linear-gradient(96deg, var(--text) 20%, var(--accent) 130%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
@@ -139,7 +137,6 @@ h1, h2, h3 {
 }
 .tab {
   font: inherit; font-size: var(--t-12); font-weight: 650;
-  font-stretch: calc(var(--w-read) * 1%);
   letter-spacing: -.005em;
   color: var(--text-muted);
   background: none; border: 0;
@@ -216,7 +213,6 @@ h1, h2, h3 {
    ("Render history", not "RENDER HISTORY"). */
 .work-head h1 {
   font-size: clamp(var(--t-24), 2.1vw, var(--t-29));
-  font-stretch: calc(var(--w-title) * 1%);
   font-weight: 700;
   line-height: 1.05;
   letter-spacing: -.015em;
@@ -264,7 +260,6 @@ h1, h2, h3 {
    should be read first. */
 .btn {
   font: inherit; font-size: var(--t-12); font-weight: 650;
-  font-stretch: calc(var(--w-read) * 1%);
   white-space: nowrap;
   padding: 6px 13px;
   border-radius: var(--r-pill);
@@ -395,7 +390,6 @@ h1, h2, h3 {
   position: absolute; left: 7%; right: 7%; bottom: 23%;
   text-align: center; text-wrap: balance;
   font-size: var(--t-20); font-weight: 800;
-  font-stretch: calc(var(--w-wide) * 1%);
   line-height: 1.18; letter-spacing: -.035em;
   color: #fff;
   text-shadow: 0 1px 3px rgba(0,0,0,.9), 0 3px 14px rgba(0,0,0,.75);
@@ -410,9 +404,13 @@ h1, h2, h3 {
   padding: 0;
 }
 
-/* Not a local font file like the render version (see FONTS_DIR in
-   render.py) -- in the browser, Mona Sans is already loaded via Google
-   Fonts in index.html, so just referencing the family name is enough.
+/* THE SAME FILE libass uses (assets/fonts/MonaSans-ExtraBold.ttf, via
+   FONTS_DIR in render.py), declared as --font-brand in tokens.css. It did
+   not follow the UI to Geist: this mark is burned into every rendered
+   video, and changing it changes the output rather than the interface.
+   Previously this referenced the Google-hosted Mona Sans VARIABLE at
+   weight 800 while the render used the static ExtraBold cut -- close, but
+   not the same shapes. Both now come from one file.
    top/bottom/font-size/color are INTENTIONALLY left unset here -- they
    are all calculated and applied by applyCaption() in interactions.js,
    mirroring _watermark_placement() in render.py exactly, so the preview
@@ -422,8 +420,7 @@ h1, h2, h3 {
 .watermark916 {
   position: absolute; left: 0; right: 0;
   text-align: center; pointer-events: none;
-  font-family: var(--font-ui); font-weight: 800;
-  font-stretch: calc(var(--w-wide) * 1%);
+  font-family: var(--font-brand); font-weight: 800;
   letter-spacing: -.02em;
   text-shadow: 0 1px 3px rgba(0,0,0,.6);
 }
@@ -1028,7 +1025,6 @@ h1, h2, h3 {
 }
 .home-title {
   font-size: clamp(30px, 3.4vw, 44px);
-  font-stretch: calc(var(--w-wide) * 1%);
   font-weight: 800; line-height: 1.02; letter-spacing: -.042em;
 }
 .home-sub { margin: 0; max-width: 58ch; color: var(--text-muted); font-size: var(--t-14); }
@@ -1158,7 +1154,6 @@ h1, h2, h3 {
 
 .prepare-body h1 {
   font-size: clamp(26px, 2.6vw, 34px);
-  font-stretch: calc(var(--w-wide) * 1%);
   font-weight: 800; letter-spacing: -.04em;
 }
 
@@ -1231,7 +1226,6 @@ h1, h2, h3 {
 }
 .source-drop[data-state="ready"] h2 {
   font-size: var(--t-14);
-  font-stretch: calc(var(--w-data) * 1%);
 }
 .source-drop[data-state="error"] { border-color: var(--danger); }
 .source-drop[data-state="error"] h2 { color: var(--danger); }
