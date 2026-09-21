@@ -1,0 +1,70 @@
+/* klipian -- fonts, served from this repo
+   ==========================================================================
+   These used to come from the Google Fonts CDN, which contradicted the
+   project's own rule (workspace.src.css: "No CDN: klipian keeps working
+   without internet"). Everything else was already local -- the Tailwind
+   build, the watermark TTF that ffmpeg uses -- but the whole UI silently
+   fell back to system-ui the moment the machine was offline, which is
+   exactly the situation a local-first tool is built for.
+
+   Both faces are SIL OFL 1.1, so shipping them here is allowed; the
+   license texts sit beside them in assets/fonts/ (same pattern as the
+   vendored ONNX models in assets/models/).
+
+   VARIABLE fonts, one file per axis set -- not one file per weight. The
+   whole design system leans on the width axis for hierarchy
+   (--w-display..--w-data in tokens.css), which static instances cannot do.
+
+   Two subsets each, latin + latin-ext, taken straight from what Google
+   served. Cyrillic and Vietnamese are dropped (nothing here needs them)
+   and so is italic: the only <i> elements in the markup are the arrow
+   glyphs on the transport buttons, and those carry font-style:normal.
+
+   NOTE the UI's symbol glyphs -- the arrows, x, speaker -- are outside
+   both subsets, as they were outside Google's too. They render from a
+   system font now exactly as they did before; nothing changed there.
+
+   font-display:swap: text paints immediately in the fallback and reflows
+   when the face arrives. From local disk that window is a few ms.
+   ========================================================================== */
+
+
+@font-face {
+  font-family: "Mona Sans";
+  font-style: normal;
+  font-weight: 200 900;
+  font-stretch: 75% 125%;
+  font-display: swap;
+  src: url("/assets/fonts/MonaSans-Variable-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Mona Sans";
+  font-style: normal;
+  font-weight: 200 900;
+  font-stretch: 75% 125%;
+  font-display: swap;
+  src: url("/assets/fonts/MonaSans-Variable-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Martian Mono";
+  font-style: normal;
+  font-weight: 300 600;
+  font-stretch: 75% 112.5%;
+  font-display: swap;
+  src: url("/assets/fonts/MartianMono-Variable-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Martian Mono";
+  font-style: normal;
+  font-weight: 300 600;
+  font-stretch: 75% 112.5%;
+  font-display: swap;
+  src: url("/assets/fonts/MartianMono-Variable-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}

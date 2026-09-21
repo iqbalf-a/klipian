@@ -4,9 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>klipian — workspace</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wdth,wght@0,75..125,200..900;1,75..125,200..900&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap" rel="stylesheet">
+<!-- Fonts ship with the repo (assets/fonts/, SIL OFL) instead of coming
+     from the Google Fonts CDN -- see ui/css/fonts.css for why. Loaded
+     BEFORE the other stylesheets so the faces are declared by the time
+     anything asks for them. -->
+<link rel="stylesheet" href="/ui/css/fonts.css?v=1789922075000">
 <!-- tokens.css is loaded FIRST -- css/workspace.css just points to the custom
      properties defined there (see tailwind.config.js). -->
 <link rel="stylesheet" href="/ui/css/tokens.css?v=1789922075000">

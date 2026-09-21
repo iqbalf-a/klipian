@@ -24,7 +24,11 @@ body {
   overflow: hidden;
 
   /* Numbers must not shift when they change. In an app full of timecodes
-     and running scores, proportional figures make the line look shaky. */
+     and running scores, proportional figures make the line look shaky.
+     Note this has ALWAYS been here, and it covers the sans face -- so the
+     mono face spreading into status text, titles and filenames was never
+     buying alignment that wasn't already paid for. It was style, and at
+     ~31% wider per string it was style that cost a lot of room. */
   font-variant-numeric: tabular-nums;
 }
 
@@ -70,20 +74,14 @@ h1, h2, h3 {
   text-wrap: balance;
 }
 
-/* Screen titles are uppercase, heavy, and wide. In an interface full of
-   grey panels, a title that's only slightly larger than body text doesn't
-   hold anything back. */
-.work-head h1 {
-  font-weight: 800;
-  font-stretch: calc(var(--w-display) * 1%);
-  text-transform: uppercase;
-  letter-spacing: 0;
-}
 
+/* Status and meta text. Was Martian Mono, which is a DISPLAY mono -- fine
+   for a timecode, wrong for the sentences this actually carries. The mono
+   face is 31% wider for the same string, so it also dominated every row it
+   appeared in. Numbers inside it still line up: tabular-nums is on body. */
 .data {
-  font-family: var(--font-data);
-  font-size: var(--t-11);
-  font-stretch: calc(var(--w-data) * 1%);
+  font-size: var(--t-12);
+  font-stretch: calc(var(--w-read) * 1%);
   font-weight: 400;
   letter-spacing: -0.03em;
 }
@@ -127,7 +125,7 @@ h1, h2, h3 {
 }
 
 .file { display: flex; align-items: center; gap: var(--s3); color: var(--text-muted); }
-.file .name { font-family: var(--font-data); font-size: 12px; color: var(--text); }
+.file .name { font-size: 13px; font-weight: 550; color: var(--text); }
 .file .data { color: var(--text-faint); }
 
 .topbar .rest { margin-left: auto; display: flex; align-items: center; gap: var(--s3); }
@@ -186,12 +184,23 @@ h1, h2, h3 {
 .screen[data-screen="framing"] > .panel { flex: none; }
 
 .work-head { display: flex; align-items: center; gap: var(--s4); flex: none; }
+/* Screen titles. There were TWO .work-head h1 rules disagreeing with each
+   other -- one up in the base typography saying uppercase/800/width 118,
+   this one saying 800/width 112 -- and since they had equal specificity,
+   this one silently won and the other was decoration. Merged into this one.
+
+   Sentence case, not uppercase: the old treatment stacked three
+   intensifiers at once (heavy + wide + UPPERCASE), which read as stretched
+   and shouty, and it competed with .eyebrow, the other uppercase level on
+   the page. UPPERCASE belongs to the eyebrow alone now, so the two have
+   distinct jobs. The markup already carries the right casing
+   ("Render history", not "RENDER HISTORY"). */
 .work-head h1 {
   font-size: clamp(var(--t-24), 2.1vw, var(--t-29));
-  font-stretch: calc(var(--w-wide) * 1%);
-  font-weight: 800;
+  font-stretch: calc(var(--w-title) * 1%);
+  font-weight: 700;
   line-height: 1.05;
-  letter-spacing: -.038em;
+  letter-spacing: -.015em;
   flex: none;
 }
 /* min-width:0 is REQUIRED on flex items so that overflow/ellipsis below
@@ -423,7 +432,7 @@ h1, h2, h3 {
 @keyframes ai-framing-putar { to { transform: rotate(360deg); } }
 .ai-framing-overlay-text {
   margin: 0; max-width: 85%;
-  font-family: var(--font-data); font-size: 12px; color: var(--text);
+  font-size: 12px; color: var(--text);
   line-height: 1.4;
 }
 .ai-framing-overlay-bar {
@@ -449,7 +458,7 @@ h1, h2, h3 {
 .meter { display: grid; gap: 6px; }
 .meter-head, .meter-foot {
   display: flex; justify-content: space-between;
-  font-family: var(--font-data); font-size: 10px; color: var(--text-faint);
+  font-size: 10px; color: var(--text-faint);
 }
 .meter-bar {
   position: relative; height: 8px; border-radius: var(--r-pill);
@@ -563,7 +572,7 @@ h1, h2, h3 {
   border-radius: var(--r-s);
   background: var(--glass);
   color: var(--text-faint);
-  font-family: var(--font-data); font-size: 10px;
+  font-size: 10px;
   cursor: pointer;
   transition: background var(--fast), color var(--fast), border-color var(--fast);
 }
@@ -602,7 +611,7 @@ h1, h2, h3 {
 .shortcut-panel p {
   margin: 0;
   display: flex; align-items: center; gap: 6px;
-  font-family: var(--font-data); font-size: 11px; color: var(--text-muted);
+  font-size: 11px; color: var(--text-muted);
 }
 .shortcut-panel kbd {
   font-family: var(--font-data); font-size: 10px;
@@ -883,9 +892,9 @@ h1, h2, h3 {
 }
 .row:last-child { border-bottom: 0; }
 .row:hover { background: var(--glass); }
-.row .title { font-family: var(--font-data); font-size: 13px; color: var(--text); }
+.row .title { font-size: 13px; font-weight: 550; color: var(--text); }
 .row .sub { font-size: 12px; color: var(--text-faint); margin-top: 3px; }
-.row .meta { font-family: var(--font-data); font-size: 11px; color: var(--text-faint); }
+.row .meta { font-size: 12px; color: var(--text-faint); }
 
 .progress { width: 190px; height: 5px; border-radius: var(--r-pill); background: rgba(255,255,255,.07); }
 .progress > i {
@@ -1049,7 +1058,7 @@ h1, h2, h3 {
    all that's needed is "this one just now", not emphasis. */
 .last-opened {
   position: absolute; top: 6px; left: 6px;
-  font-family: var(--font-data); font-size: 9px;
+  font-size: 9px;
   padding: 3px 7px; border-radius: var(--r-pill);
   background: var(--accent); color: oklch(0.145 0.010 258);
 }
@@ -1201,7 +1210,7 @@ h1, h2, h3 {
   border-color: color-mix(in srgb, var(--accent) 50%, transparent);
 }
 .source-drop[data-state="ready"] h2 {
-  font-family: var(--font-data); font-size: var(--t-14);
+  font-size: var(--t-14);
   font-stretch: calc(var(--w-data) * 1%);
 }
 .source-drop[data-state="error"] { border-color: var(--danger); }
@@ -1693,7 +1702,7 @@ h1, h2, h3 {
 .result-row + .result-row { border-top: 1px solid var(--glass-border); }
 .result-row:hover { background: var(--glass); }
 .source-badge {
-  font-family: var(--font-data); font-size: 9px;
+  font-size: 9px;
   letter-spacing: .04em; text-transform: uppercase;
   padding: 2px 6px; border-radius: var(--r-pill);
   border: 1px solid var(--glass-border);

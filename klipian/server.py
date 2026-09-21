@@ -41,7 +41,22 @@ ROOT = Path(__file__).resolve().parent.parent
 # projects/ each at root), so new klipian users aren't confused about where
 # to put videos (see workspace/README.md).
 WORKSPACE = ROOT / "workspace"
-SERVED_DIRS = ("ui", "prompts")   # folders under ROOT served as-is
+# Folders under ROOT served as-is. "assets" holds only vendored, already-
+# public files with their licenses beside them -- the OFL web fonts the UI
+# loads (see ui/css/fonts.css) and the ONNX models. Note this is ROOT/assets,
+# NOT workspace/assets, which stays behind /api/workspace/... below for the
+# opposite reason: that one holds the user's own files.
+SERVED_DIRS = ("ui", "prompts", "assets")
+
+# Python's mimetypes table doesn't know these on every platform, and on
+# Windows it reads them out of the registry, so the answer differs per
+# machine. Registered explicitly: the UI's own fonts were being served as
+# application/octet-stream, which browsers tolerate for @font-face but
+# which is wrong and trips strict Content-Security-Policy setups.
+mimetypes.add_type("font/woff2", ".woff2")
+mimetypes.add_type("font/woff", ".woff")
+mimetypes.add_type("font/ttf", ".ttf")
+mimetypes.add_type("image/svg+xml", ".svg")
 # Workspace sub-folders accessible directly via URL /workspace/<...> --
 # assets/ and schedule/ are deliberately excluded, same as projects/
 # below: their contents must only be accessed via /api/workspace/... so

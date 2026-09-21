@@ -18,7 +18,10 @@
 
    3. NUMBERS USE TABULAR FIGURES.
       An editor app full of timecodes and constantly changing scores. Without
-      tabular-nums, numbers shift every frame -- looks cheap.
+      tabular-nums, numbers shift every frame -- looks cheap. Set once, on
+      body (app.css), which means it applies to the SANS face too. Worth
+      knowing when reaching for the mono face: it is not what makes numbers
+      line up, and never was.
    ============================================================================ */
 
 :root {
@@ -58,7 +61,16 @@
      Grotesk, Geist, or Satoshi: all of those have become markers of
      "nobody chose anything here".
      Martian Mono for data -- instrument-character mono, not the usual
-     code-editor mono. */
+     code-editor mono.
+
+     WHERE THE MONO GOES. Only where character-for-character alignment is
+     the point: timecodes, the editable mm:ss fields, sequence numbers,
+     resolution, percentages, keycaps, the JSON paste box. NOT status
+     text, titles, filenames or labels -- it used to reach into all of
+     those, which made sentences like "drag the box onto whoever is
+     talking" read as terminal output, and since the mono face is ~31%
+     wider for the same string it dominated every row it appeared in.
+     See --font-data's remaining uses in app.css before adding another. */
   --font-ui:   "Mona Sans", system-ui, -apple-system, sans-serif;
   --font-data: "Martian Mono", ui-monospace, monospace;
 
