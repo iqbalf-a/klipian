@@ -156,11 +156,30 @@ h1, h2, h3 {
 
 /* ═══════════════════════════════════════════════ stage */
 
-.stage { display: grid; grid-template-columns: 1fr; min-height: 0; }
+/* The three columns used to sit flush against each other, separated only
+   by a 1px border -- which is why the app read as one solid wall of
+   panels (measured: 80.5% of the viewport was panel at 1200px). They are
+   separate things, so they now look separate: a gap between them, and the
+   page background visible around the whole stage.
+
+   .work carries no padding of its own any more -- the stage's padding is
+   that margin now. Keeping both would double it. */
+.stage {
+  display: grid; grid-template-columns: 1fr; min-height: 0;
+  /* Scales with the window instead of being one fixed number. Measured at
+     1200px: a 20px gap looks noticeably calmer but costs the work column
+     32px, which is enough to start ellipsizing the panel-head text. On a
+     wide screen that width is free, on a narrow one it is not -- so the
+     breathing room appears exactly where there is room to spare.
+     clamp() rather than a media query so it moves continuously, with no
+     step where the layout visibly jumps. */
+  gap: clamp(var(--s3), 1.4vw, var(--s5));
+  padding: clamp(var(--s3), 1.4vw, var(--s5));
+}
 .stage.has-preview { grid-template-columns: 1fr var(--w-preview); }
 
 .work { min-height: 0; display: flex; flex-direction: column;
-         padding: var(--s5); gap: var(--s4); overflow: hidden; }
+         gap: var(--s4); overflow: hidden; }
 
 .screen { display: none; flex: 1; min-height: 0; flex-direction: column; gap: var(--s4); }
 .screen.active { display: flex; }
@@ -316,7 +335,8 @@ h1, h2, h3 {
 /* ═══════════════════════════════════════════════ preview 9:16 */
 
 .preview {
-  border-left: 1px solid var(--glass-border);
+  border: 1px solid var(--glass-border);   /* was border-left -- see .side */
+  border-radius: var(--r-l);
   background: color-mix(in srgb, var(--bg-1) 55%, transparent);
   backdrop-filter: blur(18px);
   padding: var(--s5) var(--s4);
@@ -1310,9 +1330,13 @@ h1, h2, h3 {
    the filename and mode; in a vertical column everything is readable and
    the ordering becomes clear. */
 
+/* A card like everything else, not a wall welded to the window edge.
+   border-right became a full border + radius when the stage gained a gap:
+   a single edge on a floating panel reads as a mistake. */
 .side {
   position: relative;
-  border-right: 1px solid var(--glass-border);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-l);
   background: color-mix(in srgb, var(--bg-1) 55%, transparent);
   backdrop-filter: blur(18px);
   padding: var(--s4) var(--s3);
@@ -1505,7 +1529,9 @@ h1, h2, h3 {
    rule rather than being re-discovered per screen. */
 .panel-head, .result-head {
   display: flex; align-items: center; gap: var(--s3);
-  padding: var(--s4) var(--s5) var(--s3);
+  /* 16/24/12 before. The extra top padding bought nothing -- the row is
+     one line of text next to a button -- and every panel paid it. */
+  padding: var(--s3) var(--s5);
   flex-wrap: wrap; row-gap: var(--s2);
 }
 /* min-width:0 for the same reason as .work-head .note above: a flex item
@@ -1540,6 +1566,9 @@ h1, h2, h3 {
 }
 
 /* ---- recommendation row: select with checkbox ---- */
+/* 9px vertical was tight enough that consecutive rows read as one block.
+   12px is the smallest step that separates them without costing a row of
+   visible content on a short window. */
 .rec-row {
   display: grid;
   /* minmax(0, 1fr), not plain 1fr: a 1fr track still has a min-content floor,
@@ -1549,7 +1578,7 @@ h1, h2, h3 {
      truncated. */
   grid-template-columns: auto auto auto minmax(0, 1fr) auto auto;
   align-items: center; gap: var(--s3);
-  padding: 9px var(--s3);
+  padding: 12px var(--s3);
   border-radius: var(--r-s);
   cursor: pointer;
 }
@@ -1696,7 +1725,7 @@ h1, h2, h3 {
   display: grid;
   grid-template-columns: auto 1fr auto auto auto auto;
   align-items: center; gap: var(--s3);
-  padding: 9px var(--s3);
+  padding: 12px var(--s3);
   border-radius: var(--r-s);
 }
 .result-row + .result-row { border-top: 1px solid var(--glass-border); }
