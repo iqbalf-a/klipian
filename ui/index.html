@@ -8,9 +8,9 @@
      from the Google Fonts CDN -- see ui/css/fonts.css for why. Loaded
      BEFORE the other stylesheets so the faces are declared by the time
      anything asks for them. -->
-<link rel="stylesheet" href="/ui/css/fonts.css?v=1790003343000">
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1790003343000">
-<link rel="stylesheet" href="/ui/css/app.css?v=1790003343000">
+<link rel="stylesheet" href="/ui/css/fonts.css?v=1790003812000">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1790003812000">
+<link rel="stylesheet" href="/ui/css/app.css?v=1790003812000">
 </head>
 <body>
 
@@ -32,6 +32,11 @@
          an extra safety net, not the only way to save. -->
     <button class="btn quiet work-only" id="saveNowBtn" type="button"
             title="Save now (this is on top of auto-save, not instead of it)">Save</button>
+    <!-- Three states, not two: Auto follows the operating system, and is
+         the default. Cycling through it rather than a plain on/off switch
+         is what lets someone get BACK to "follow the OS" after picking a
+         side once. Label and title are written by applyTheme() in app.js. -->
+    <button class="btn quiet" id="themeBtn" type="button" aria-live="polite"></button>
     <!-- Always visible (not work-only) -- the upload schedule is useful to
          check any time, not just while editing a clip. -->
     <a class="btn quiet" href="/workspace" title="Open the workspace dashboard">Workspace</a>
@@ -635,16 +640,16 @@
   </main>
 </div>
 
-<script src="/ui/js/editor/app.js?v=1790003343000"></script>
-<script src="/ui/js/editor/interactions.js?v=1790003343000"></script>
-<script src="/ui/js/editor/framing.js?v=1790003343000"></script>
-<script src="/ui/js/editor/analysis.js?v=1790003343000"></script>
-<script src="/ui/js/editor/player.js?v=1790003343000"></script>
-<script src="/ui/js/editor/roundtrip.js?v=1790003343000"></script>
-<script src="/ui/js/editor/history.js?v=1790003343000"></script>
-<script src="/ui/js/editor/timeline.js?v=1790003343000"></script>
-<script src="/ui/js/editor/captions.js?v=1790003343000"></script>
-<script src="/ui/js/editor/result.js?v=1790003343000"></script>
-<script src="/ui/js/editor/projects.js?v=1790003343000"></script>
+<script src="/ui/js/editor/app.js?v=1790003812000"></script>
+<script src="/ui/js/editor/interactions.js?v=1790003812000"></script>
+<script src="/ui/js/editor/framing.js?v=1790003812000"></script>
+<script src="/ui/js/editor/analysis.js?v=1790003812000"></script>
+<script src="/ui/js/editor/player.js?v=1790003812000"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1790003812000"></script>
+<script src="/ui/js/editor/history.js?v=1790003812000"></script>
+<script src="/ui/js/editor/timeline.js?v=1790003812000"></script>
+<script src="/ui/js/editor/captions.js?v=1790003812000"></script>
+<script src="/ui/js/editor/result.js?v=1790003812000"></script>
+<script src="/ui/js/editor/projects.js?v=1790003812000"></script>
 </body>
 </html>

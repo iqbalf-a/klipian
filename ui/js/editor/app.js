@@ -604,6 +604,56 @@ $("#safeBtn")?.addEventListener("click", (e) => {
    Points need horizontal room -- see .canvas in app.css). Stored in
    localStorage so the choice survives a reload, same pattern as the
    active-session key in projects.js -- not just this tab's state. */
+/* Theme: "auto" (follow the OS), "dark" or "light". Same storage pattern
+   as the sidebar preference below.
+
+   "auto" is stored as the ABSENCE of data-theme, not as data-theme="auto",
+   because the CSS decides it with :root:not([data-theme]) inside a
+   prefers-color-scheme query -- so removing the attribute is what hands
+   control back to the OS. A data-theme="auto" value would match neither
+   branch and land the page on the dark defaults. */
+const THEME_KEY = "klipian:theme";
+const THEMES = ["auto", "dark", "light"];
+
+function applyTheme(mode) {
+  const root = document.documentElement;
+  if (mode === "auto") root.removeAttribute("data-theme");
+  else root.dataset.theme = mode;
+
+  const btn = $("#themeBtn");
+  if (!btn) return;
+  const osIsLight = window.matchMedia?.("(prefers-color-scheme: light)").matches;
+  const effective = mode === "auto" ? (osIsLight ? "light" : "dark") : mode;
+  // The icon shows what you are LOOKING AT; the label says where it came
+  // from. Showing "the other one" is the common alternative and it reads
+  // as a lie when the answer is "whatever the system says".
+  btn.textContent = effective === "light" ? "☀" : "☾";
+  btn.title = mode === "auto"
+    ? `Theme: follows your system (currently ${effective}) — click to lock it`
+    : `Theme: ${mode} — click for ${THEMES[(THEMES.indexOf(mode) + 1) % THEMES.length]}`;
+  btn.setAttribute("aria-label", btn.title);
+  btn.dataset.mode = mode;
+}
+
+function readTheme() {
+  try {
+    const v = localStorage.getItem(THEME_KEY);
+    return THEMES.includes(v) ? v : "auto";
+  } catch { return "auto"; }        // private window / storage blocked
+}
+
+$("#themeBtn")?.addEventListener("click", () => {
+  const next = THEMES[(THEMES.indexOf(readTheme()) + 1) % THEMES.length];
+  try { localStorage.setItem(THEME_KEY, next); } catch { /* not persisted */ }
+  applyTheme(next);
+});
+
+// Keep the button honest while on "auto" and the OS flips underneath us.
+window.matchMedia?.("(prefers-color-scheme: light)")
+  .addEventListener?.("change", () => { if (readTheme() === "auto") applyTheme("auto"); });
+
+applyTheme(readTheme());
+
 const SIDEBAR_KEY = "klipian:sidebar-tersembunyi";
 function applySidebar(collapsed) {
   $("#app").dataset.sidebar = collapsed ? "hidden" : "";

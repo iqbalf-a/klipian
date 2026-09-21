@@ -65,6 +65,100 @@
 
   --danger: oklch(0.660 0.190 25);
 
+  /* ---- ink & scrim ----
+     --ink is the high-contrast fill: progress bars, the scrub handle, the
+     meter tick. It was hardcoded white in a dozen places, which is fine
+     until there is a light theme and a white fill sits on a white panel.
+     Alpha variants come from color-mix rather than a token each.
+     --scrim is the opposite: a darkening layer (drop shadows, the JSON
+     paste box, the dot ring). It stays black-based in BOTH themes --
+     shadows are shadows. */
+  --ink:   oklch(1 0 0);
+  --scrim: oklch(0 0 0);
+}
+
+/* Follows the operating system until the user picks a side. The
+   :not([data-theme]) guard is what makes that work: once applyTheme()
+   writes data-theme onto <html>, this block stops matching and the
+   explicit rule below wins, regardless of what the OS says. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --bg-0: oklch(0.958 0.003 258);
+    --bg-1: oklch(0.985 0.002 258);
+    --bg-2: oklch(1 0 0);
+    --bg-3: oklch(0.972 0.004 258);
+    --glass:         oklch(0 0 0 / .035);
+    --glass-strong:  oklch(0 0 0 / .070);
+    --glass-border:  oklch(0 0 0 / .105);
+    --border-bright: oklch(0 0 0 / .200);
+    --text:       oklch(0.240 0.012 258);
+    --text-muted: oklch(0.450 0.016 258);
+    --text-faint: oklch(0.545 0.016 258);
+    /* L 0.550, computed rather than eyeballed. At the 0.620 this started
+     at, the accent reaches only 3.72:1 as text on a white panel -- passes
+     for large text, fails for everything else, and it is used as a text
+     colour 22 times. 0.550 gives 4.95 on a panel, 4.56 on a card, and
+     4.88 for --accent-text on top of it: all three clear WCAG AA at once,
+     because darkening the fill helps both directions together. */
+  --accent:      oklch(0.550 0.145 75);
+    --accent-soft: oklch(0.550 0.145 75 / .14);
+    --accent-glow: oklch(0.550 0.145 75 / .30);
+    --accent-text: oklch(0.995 0 0);
+    --danger: oklch(0.545 0.205 25);
+    --ink:   oklch(0.250 0.010 258);
+    --scrim: oklch(0 0 0);
+  }
+}
+
+/* ══════════════════════════════ light theme ══════════════════════════════
+   Only the colour tokens change. Sizes, spacing, fonts and radii are
+   shared -- if a rule needs different numbers per theme, that is a sign
+   the rule is doing something the token system should be doing.
+
+   THE ACCENT HAD TO MOVE. In dark it is a bright yellow (L 0.865) with
+   near-black text on top. It is used as a TEXT colour 22 times, and at
+   that lightness on a white page it lands around 1.4:1 -- invisible. The
+   light accent is a deep amber instead, and --accent-text flips to near
+   white so filled buttons still read. Same hue family, opposite job.
+
+   Surfaces invert their logic rather than their numbers: in dark, raised
+   means lighter (bg-0 deepest, bg-3 highest). In light, the page is
+   faintly grey and the raised panels are pure white, which is what makes
+   a card look lifted on a light background.
+   ========================================================================= */
+:root[data-theme="light"] {
+  --bg-0: oklch(0.958 0.003 258);   /* page canvas -- faint grey, not white */
+  --bg-1: oklch(0.985 0.002 258);   /* bars and rails */
+  --bg-2: oklch(1 0 0);             /* panels -- the lifted surface */
+  --bg-3: oklch(0.972 0.004 258);   /* cards on top of panels */
+
+  /* Glass goes black-based here. White-on-white has nothing to tint. */
+  --glass:         oklch(0 0 0 / .035);
+  --glass-strong:  oklch(0 0 0 / .070);
+  --glass-border:  oklch(0 0 0 / .105);
+  --border-bright: oklch(0 0 0 / .200);
+
+  --text:       oklch(0.240 0.012 258);
+  --text-muted: oklch(0.450 0.016 258);
+  --text-faint: oklch(0.545 0.016 258);
+
+  --accent:      oklch(0.550 0.145 75);
+  --accent-soft: oklch(0.550 0.145 75 / .14);
+  --accent-glow: oklch(0.550 0.145 75 / .30);
+  --accent-text: oklch(0.995 0 0);          /* was near-black on yellow */
+
+  --danger: oklch(0.545 0.205 25);
+
+  --ink:   oklch(0.250 0.010 258);
+  --scrim: oklch(0 0 0);
+}
+
+/* ══════════════════ shared by both themes ══════════════════
+   Everything below is theme-INDEPENDENT: fonts, sizes, spacing, radii,
+   motion. If one of these ever needs a different value per theme, that is
+   a sign the rule using it is doing something the colour tokens should be
+   doing instead. */
+:root {
   /* ---- fonts ----
      Geist + Geist Mono (Vercel, SIL OFL). Chosen to match ian's portfolio
      at ianlab.my.id -- the tool and the site should read as one thing.
