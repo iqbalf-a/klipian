@@ -473,48 +473,56 @@ function coverUrl(p) {
 }
 
 /* Whether the home screen currently has anything to browse. Set by
-   renderProjects() on every call, read by applyHomeMode() and the two
-   button handlers below so "New Project"/"Back" know what's actually
-   available -- e.g. the Back button has nothing to go back to on a
-   first run and stays hidden even if somehow clicked. */
+   renderProjects() on every call, read by updateHomeView(). */
 let homeHasProjects = false;
 
-/* Two faces of the home screen -- see the markup comment in index.html.
-   "browse": recent projects first (CapCut/Premiere/DaVinci convention).
-   "create": the drop-video panel, either reached via "+ New Project" or
-   shown directly when there is nothing yet to browse.
-
-   Deliberately does NOT persist which mode was last chosen: every return
-   to home (toStage("home") -> renderProjects()) resets to the sensible
-   default for whatever the project list looks like NOW, the same way
-   Premiere always reopens on its project hub rather than mid-creation. */
-function applyHomeMode(mode) {
-  const recent = $(".recent");
-  const create = $("#newProjectPanel");
-  const back = $("#backToProjectsBtn");
+/* Home is a single view (project hub) now -- see the markup comment in
+   index.html. This only has to pick between "recent projects" and "no
+   projects yet", both driven by the same signal. renderProjects() calls
+   this on every return to home, so it always reflects the CURRENT list,
+   never a stale mode left over from a previous visit. */
+function updateHomeView() {
+  $(".recent")?.toggleAttribute("hidden", !homeHasProjects);
+  $("#homeEmpty")?.toggleAttribute("hidden", homeHasProjects);
   const title = $("#homeTitle");
   const sub = $("#homeSub");
-  if (!recent || !create) return;
-
-  const browsing = mode === "browse" && homeHasProjects;
-  recent.toggleAttribute("hidden", !browsing);
-  create.toggleAttribute("hidden", browsing);
-  // Only useful when there's a list behind it to return to.
-  back?.toggleAttribute("hidden", !homeHasProjects || browsing);
-
-  if (title) {
-    title.textContent = browsing ? "Continue where you left off" : "Start a new clip";
-  }
+  if (title) title.textContent = homeHasProjects ? "Continue where you left off" : "Start a new clip";
   if (sub) {
-    sub.textContent = browsing
+    sub.textContent = homeHasProjects
       ? "Pick up an existing project, or start something new."
-      : "Clips are built from the transcript: pick a range on the timeline, "
-        + "set the framing, fix the captions, then render.";
+      : "Drop a video, set the format, then pick clips from the transcript.";
   }
 }
 
-$("#newProjectBtn")?.addEventListener("click", () => applyHomeMode("create"));
-$("#backToProjectsBtn")?.addEventListener("click", () => applyHomeMode("browse"));
+/* "+ New Project" -- both instances (the recent-projects header and the
+   empty-state placeholder share this class, see index.html). Goes
+   straight into the editor rather than revealing a panel still on Home:
+   ian wanted the drop-video step to already be inside the editing page,
+   with Format/Resolution presented there as general project settings
+   (see the #projectSetup comment on the Analyze screen).
+
+   Proactively clears whatever project was last open in this tab, the same
+   cleanup acceptFile() already does when the CHOSEN VIDEO changes (see
+   interactions.js) -- without this, visiting Clips/Framing/Captions
+   before dropping a video would show the previous project's leftovers
+   instead of a clean slate. */
+function startNewProject() {
+  if (chosenSource?.url?.startsWith("blob:")) URL.revokeObjectURL(chosenSource.url);
+  chosenSource = null;
+  activeProject = null;
+  if (typeof DATA !== "undefined") DATA.candidates = [];
+  if (typeof realTranscript !== "undefined") realTranscript = null;
+  resetProjectState();
+  forgetActiveSession();
+  if (typeof updateTopbarFile === "function") updateTopbarFile("", NaN);
+  if (typeof drawSource === "function") drawSource();
+  if (typeof renderList === "function") renderList();
+  if (typeof renderRecommendations === "function") renderRecommendations();
+  toStage("work");
+  toScreen("analysis");
+}
+document.querySelectorAll(".new-project-btn").forEach((b) =>
+  b.addEventListener("click", startNewProject));
 
 let _renderProjectsInflight = null;
 async function renderProjects() {
@@ -536,7 +544,7 @@ async function renderProjects() {
     // drop-video view, same as a genuine first run.
     container.innerHTML = "";
     homeHasProjects = false;
-    applyHomeMode("create");
+    updateHomeView();
     return;
   }
   // Videos unreachable by the server cannot be truly continued: transcription,
@@ -553,11 +561,11 @@ async function renderProjects() {
     // behind would flash briefly if the section is shown again later.
     container.innerHTML = "";
     homeHasProjects = false;
-    applyHomeMode("create");
+    updateHomeView();
     return;
   }
   homeHasProjects = true;
-  applyHomeMode("browse");
+  updateHomeView();
 
   // The marker sticks to the newest AVAILABLE project, not the first card.
   // If the newest one happens to have a missing video, the marker vanishes

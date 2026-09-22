@@ -561,16 +561,17 @@ function toScreen(name) {
   }
 }
 
-/* Analysis screen references the file being opened. If a file has already
-   been dropped, analysis.js overwrites it with the real filename. */
-function renderAnalysis() {
-  const d = DATA;
-  const el = $("#analysisNote");
-  if (el) el.textContent = `${d.file} · ${d.duration}`;
-}
-
+/* renderAnalysis() used to live here, writing `${DATA.file} · ${DATA.duration}`
+   into #analysisNote before a video was chosen. Both fields were removed
+   from DATA when it was trimmed down to its real, live fields (file/
+   candidates) -- this was the one caller nobody updated, so the note sat
+   showing the literal string " · undefined" on a fresh Analyze screen.
+   #analysisNote already gets a real value the moment startAnalysis()
+   (analysis.js) actually has something to report; the markup default in
+   index.html now covers the time before that, same as every sibling
+   screen's work-head note. */
 function drawAll() {
-  renderList(); renderAnalysis(); renderPreview();
+  renderList(); renderPreview();
 }
 
 /* ───────────────────────── wiring ────────────────────────────── */

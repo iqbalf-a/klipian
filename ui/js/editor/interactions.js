@@ -136,12 +136,33 @@ function drawSource(error, extraNote) {
   const button = $("#run");
   if (!box || !button) return;
 
-  // Format & Resolution mean nothing before a video is loaded, and as a full
-  // panel it pushes the project list off-screen on short windows -- exactly
-  // when that list is needed most.
+  // Format & Resolution mean nothing before a video is loaded.
   const hasSource = !!chosenSource && !error;
   $("#options")?.toggleAttribute("hidden", !hasSource);
   $("#prepareFoot")?.toggleAttribute("hidden", !hasSource);
+
+  // #projectSetup (drop-zone + Format/Resolution, on the Analyze screen)
+  // collapses into a one-line #projectSetupSummary the moment a video is in
+  // place -- it stays reachable (click the summary to reopen it), since
+  // Format/Resolution are genuinely LIVE settings: render reads optionOut()
+  // fresh every time (player.js/framing.js), not just once at setup.
+  const setup = $("#projectSetup");
+  const summary = $("#projectSetupSummary");
+  if (setup && summary) {
+    setup.toggleAttribute("hidden", hasSource);
+    summary.toggleAttribute("hidden", !hasSource);
+    if (hasSource) {
+      const text = $("#projectSetupSummaryText");
+      if (text) {
+        const parts = [chosenSource.name];
+        if (typeof optionValue === "function") {
+          parts.push(optionValue("format"), optionValue("resolution"));
+        }
+        text.textContent = parts.join(" · ");
+      }
+    }
+  }
+
   const title = box.querySelector("h2");
   const note = box.querySelector("p");
 
@@ -190,6 +211,15 @@ document.addEventListener("click", (e) => {
   if (e.target.closest(".source-actions .btn")) fileInput.click();
 });
 fileInput.addEventListener("change", () => acceptFile(fileInput.files[0]));
+
+/* Reopens #projectSetup from its collapsed summary row (see drawSource()
+   above). No corresponding "collapse" handler is needed: the next
+   drawSource() call -- dropping a different video, or resuming a project --
+   naturally re-collapses it, same as it collapsed the first time. */
+$("#projectSetupSummary")?.addEventListener("click", () => {
+  $("#projectSetup")?.removeAttribute("hidden");
+  $("#projectSetupSummary")?.setAttribute("hidden", "");
+});
 $("#urlInput")?.addEventListener("input", (e) => acceptURL(e.target.value));
 
 /* Drag-and-drop only in the DROP PANEL, not across the whole window.

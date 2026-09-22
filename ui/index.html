@@ -8,10 +8,10 @@
      from the Google Fonts CDN -- see ui/css/fonts.css for why. Loaded
      BEFORE the other stylesheets so the faces are declared by the time
      anything asks for them. -->
-<link rel="stylesheet" href="/ui/css/fonts.css?v=1790077832000">
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1790077832000">
-<link rel="stylesheet" href="/ui/css/brand.css?v=1790077832000">
-<link rel="stylesheet" href="/ui/css/app.css?v=1790077832000">
+<link rel="stylesheet" href="/ui/css/fonts.css?v=1790080787000">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1790080787000">
+<link rel="stylesheet" href="/ui/css/brand.css?v=1790080787000">
+<link rel="stylesheet" href="/ui/css/app.css?v=1790080787000">
 </head>
 <body>
 
@@ -72,20 +72,22 @@
        Restream MPL, TV Shows), then Prepare loaded the file. The mode was
        removed because regardless of source, the work is the same, so the
        two stages collapsed into one: drop the file, then find clips. -->
-  <!-- Home has two views, toggled by applyHomeMode() in projects.js --
-       NOT two separate <section>s in the app.dataset.stage sense (still
-       one "home" stage), just two faces of it:
+  <!-- Home is a single view now: a project hub, like CapCut/Premiere/
+       DaVinci's home screen. It used to have a second "create" face with
+       the drop-video panel inline -- that panel MOVED into the Analyze
+       screen (#projectSetup, first tab inside the editor), because ian's
+       second request was that "+ New Project" should go straight into the
+       editing page, with drop-video and the Format/Resolution choices
+       living there as general project settings (they're read live at
+       render time either way -- see optionOut() in player.js/framing.js --
+       so keeping them reachable throughout the project, not just at
+       creation, was free).
 
-         "browse"  Recent projects first, like CapCut/Premiere/DaVinci's
-                    project hub -- this is where returning users land.
-         "create"  The drop-video panel, reached via "+ New Project" (or
-                    directly, when there are no projects yet to browse).
-
-       Video editors don't open straight into "drop a file" -- that's the
-       SECOND screen, reached after choosing to start something. Dropping
-       here creates the project the same way it always did (klipian keys
-       one project per video, see _project_path() in server.py), so this
-       is a reorder of what's shown first, not a new data model. -->
+       Video editors don't open straight into "drop a file" -- that's a
+       few steps in, reached after choosing to start something. Dropping
+       still creates the project the same way it always did (klipian keys
+       one project per video, see _project_path() in server.py); only
+       WHERE that happens changed. -->
   <section class="home" id="home">
     <div class="prepare-body">
       <p class="eyebrow">Home</p>
@@ -93,44 +95,23 @@
       <p class="home-sub" id="homeSub">Clips are built from the transcript: pick a range on the timeline,
         set the framing, fix the captions, then render.</p>
 
-      <!-- "browse" view. Hidden until renderProjects() confirms there IS
-           something to continue -- an empty grid with nothing in it would
-           just be a dead end above the real starting point. -->
+      <!-- Hidden until renderProjects() confirms there IS something to
+           continue -- an empty grid with nothing in it would just be a
+           dead end above the real starting point. -->
       <section class="recent" hidden>
         <div class="recent-head">
           <p class="eyebrow">Continue working</p>
-          <button class="btn main" id="newProjectBtn" type="button">+ New Project</button>
+          <button class="btn main new-project-btn" type="button">+ New Project</button>
         </div>
         <div class="project-grid" id="projectList"></div>
       </section>
 
-      <!-- "create" view. -->
-      <div id="newProjectPanel">
-        <!-- Only meaningful once there's a project list to return to --
-             renderProjects() shows/hides this alongside .recent itself. -->
-        <button class="btn quiet back-to-projects" id="backToProjectsBtn" type="button" hidden>← Back to projects</button>
-
-        <div class="panel source">
-          <div class="source-drop">
-            <h2>Drag a video here</h2>
-            <p>mp4, mkv, mov — or</p>
-            <div class="source-actions">
-              <button class="btn">Browse files</button>
-              <span class="split">or</span>
-              <input class="input" id="urlInput" type="url"
-                     placeholder="paste a YouTube link" aria-label="YouTube link">
-            </div>
-          </div>
-        </div>
-
-        <!-- Options and the button are hidden until there's a video: before
-             that, neither means anything. -->
-        <div class="panel option" id="options" hidden></div>
-
-        <div class="prepare-foot" id="prepareFoot" hidden>
-          <span class="data" id="optionsSummary" role="status"></span>
-          <button class="btn main large" id="run">Find clips</button>
-        </div>
+      <!-- The other face of the same choice: shown instead of .recent when
+           there is nothing yet to browse (first run, or the backend has no
+           project history). -->
+      <div class="home-empty" id="homeEmpty" hidden>
+        <p>Drop a video to start your first clip.</p>
+        <button class="btn main large new-project-btn" type="button">+ New Project</button>
       </div>
     </div>
   </section>
@@ -159,8 +140,46 @@
       <section class="screen" data-screen="analysis" role="tabpanel" id="panel-analysis" aria-labelledby="tab-analysis" tabindex="0">
         <div class="work-head">
           <h1>Analyze</h1>
-          <span class="note" id="analysisNote" role="status"></span>
+          <span class="note" id="analysisNote" role="status">drop a video, then find clips from the transcript</span>
         </div>
+
+        <!-- Project setup: source video + output Format/Resolution. Moved
+             here from Home -- "+ New Project" now drops you straight into
+             this screen with nothing chosen yet. drawSource() (interactions.js)
+             collapses this into #projectSetupSummary the moment a video is
+             in place, but it never goes away: Format/Resolution are read
+             LIVE at render time (optionOut() in player.js/framing.js), not
+             locked in once here, so they stay reachable for the life of the
+             project -- click the summary row to reopen this. -->
+        <div id="projectSetup">
+          <div class="panel source">
+            <div class="source-drop">
+              <h2>Drag a video here</h2>
+              <p>mp4, mkv, mov — or</p>
+              <div class="source-actions">
+                <button class="btn">Browse files</button>
+                <span class="split">or</span>
+                <input class="input" id="urlInput" type="url"
+                       placeholder="paste a YouTube link" aria-label="YouTube link">
+              </div>
+            </div>
+          </div>
+
+          <!-- Options and the button are hidden until there's a video:
+               before that, neither means anything. -->
+          <div class="panel option" id="options" hidden></div>
+
+          <div class="prepare-foot" id="prepareFoot" hidden>
+            <span class="data" id="optionsSummary" role="status"></span>
+            <button class="btn main large" id="run">Find clips</button>
+          </div>
+        </div>
+
+        <button class="panel-head project-setup-summary" id="projectSetupSummary"
+                type="button" hidden title="Change video, format or resolution">
+          <span class="data" id="projectSetupSummaryText"></span>
+          <span class="btn quiet" aria-hidden="true">Change</span>
+        </button>
 
         <div class="panel fit" style="padding:var(--s5)">
           <div style="display:flex;align-items:center;gap:var(--s3);margin-bottom:var(--s4)">
@@ -664,16 +683,16 @@
   </main>
 </div>
 
-<script src="/ui/js/editor/app.js?v=1790077832000"></script>
-<script src="/ui/js/editor/interactions.js?v=1790077832000"></script>
-<script src="/ui/js/editor/framing.js?v=1790077832000"></script>
-<script src="/ui/js/editor/analysis.js?v=1790077832000"></script>
-<script src="/ui/js/editor/player.js?v=1790077832000"></script>
-<script src="/ui/js/editor/roundtrip.js?v=1790077832000"></script>
-<script src="/ui/js/editor/history.js?v=1790077832000"></script>
-<script src="/ui/js/editor/timeline.js?v=1790077832000"></script>
-<script src="/ui/js/editor/captions.js?v=1790077832000"></script>
-<script src="/ui/js/editor/result.js?v=1790077832000"></script>
-<script src="/ui/js/editor/projects.js?v=1790077832000"></script>
+<script src="/ui/js/editor/app.js?v=1790080787000"></script>
+<script src="/ui/js/editor/interactions.js?v=1790080787000"></script>
+<script src="/ui/js/editor/framing.js?v=1790080787000"></script>
+<script src="/ui/js/editor/analysis.js?v=1790080787000"></script>
+<script src="/ui/js/editor/player.js?v=1790080787000"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1790080787000"></script>
+<script src="/ui/js/editor/history.js?v=1790080787000"></script>
+<script src="/ui/js/editor/timeline.js?v=1790080787000"></script>
+<script src="/ui/js/editor/captions.js?v=1790080787000"></script>
+<script src="/ui/js/editor/result.js?v=1790080787000"></script>
+<script src="/ui/js/editor/projects.js?v=1790080787000"></script>
 </body>
 </html>

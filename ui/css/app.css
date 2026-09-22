@@ -1159,12 +1159,42 @@ h1, h2, h3 {
   font-weight: 800; letter-spacing: -.04em;
 }
 
-/* Only shown when there's a project list to return to -- see
-   applyHomeMode() in projects.js. Sits above the drop panel, same
-   left edge, so it reads as "leaving this view" rather than a stray
-   floating control. */
-#newProjectPanel { display: grid; gap: var(--s3); }
-.back-to-projects { justify-self: start; }
+/* Drop-zone + Format/Resolution + Find-clips foot, as a group. These
+   used to be direct children of .prepare-body (display:grid; gap: var(--s4)),
+   which is what gave them spacing -- nested one level deeper here (inside
+   .screen's flex column instead), they need their own gap or they'd stack
+   flush against each other. */
+#projectSetup { display: grid; gap: var(--s4); }
+
+/* The other face of the project hub (see updateHomeView() in
+   projects.js) -- shown instead of .recent when there's nothing yet to
+   browse. Centered, not left-aligned like the rest of .prepare-body: with
+   no grid below it, a left-anchored button reads as unfinished. */
+.home-empty {
+  display: grid; justify-items: center; gap: var(--s4);
+  padding: var(--s7) 0;
+  color: var(--text-faint);
+}
+
+/* Project setup, collapsed. A <button> standing in for a whole panel --
+   same background/border/radius as .panel, plus the flex layout .panel-head
+   already provides for a text child pushed left of a trailing action. */
+.project-setup-summary {
+  width: 100%;
+  font: inherit; text-align: left; cursor: pointer;
+  background: color-mix(in srgb, var(--bg-2) 82%, transparent);
+  backdrop-filter: blur(18px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-l);
+  box-shadow: var(--shadow-panel);
+  transition: border-color var(--fast), background var(--fast);
+}
+.project-setup-summary:hover, .project-setup-summary:focus-visible {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--glass-border));
+}
+.project-setup-summary .data {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 
 .source { padding: var(--s6); }
 .source-drop {
