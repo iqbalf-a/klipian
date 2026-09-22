@@ -1025,7 +1025,16 @@ h1, h2, h3 {
 /* ── unfinished projects ──
    Cards, not rows: it's the cover thumbnail that lets people recognize
    their own work faster than reading the filename. */
-.recent { margin-top: var(--s6); display: grid; gap: var(--s3); }
+/* No margin-top here any more -- .recent used to sit BELOW the drop
+   panel and needed extra separation from it. Now it's the first thing
+   shown in "browse" mode, right after .home-sub, so the same var(--s4)
+   gap .prepare-body already applies between its children is enough. */
+.recent { display: grid; gap: var(--s3); }
+.recent-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s3);
+}
+.recent-head .eyebrow { margin: 0; }
 .project-grid {
   display: grid; gap: var(--s3);
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
@@ -1149,6 +1158,13 @@ h1, h2, h3 {
   font-size: clamp(26px, 2.6vw, 34px);
   font-weight: 800; letter-spacing: -.04em;
 }
+
+/* Only shown when there's a project list to return to -- see
+   applyHomeMode() in projects.js. Sits above the drop panel, same
+   left edge, so it reads as "leaving this view" rather than a stray
+   floating control. */
+#newProjectPanel { display: grid; gap: var(--s3); }
+.back-to-projects { justify-self: start; }
 
 .source { padding: var(--s6); }
 .source-drop {

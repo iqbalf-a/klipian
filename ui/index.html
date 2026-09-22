@@ -8,10 +8,10 @@
      from the Google Fonts CDN -- see ui/css/fonts.css for why. Loaded
      BEFORE the other stylesheets so the faces are declared by the time
      anything asks for them. -->
-<link rel="stylesheet" href="/ui/css/fonts.css?v=1790041685000">
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1790041685000">
-<link rel="stylesheet" href="/ui/css/brand.css?v=1790041685000">
-<link rel="stylesheet" href="/ui/css/app.css?v=1790041685000">
+<link rel="stylesheet" href="/ui/css/fonts.css?v=1790077832000">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1790077832000">
+<link rel="stylesheet" href="/ui/css/brand.css?v=1790077832000">
+<link rel="stylesheet" href="/ui/css/app.css?v=1790077832000">
 </head>
 <body>
 
@@ -72,43 +72,66 @@
        Restream MPL, TV Shows), then Prepare loaded the file. The mode was
        removed because regardless of source, the work is the same, so the
        two stages collapsed into one: drop the file, then find clips. -->
+  <!-- Home has two views, toggled by applyHomeMode() in projects.js --
+       NOT two separate <section>s in the app.dataset.stage sense (still
+       one "home" stage), just two faces of it:
+
+         "browse"  Recent projects first, like CapCut/Premiere/DaVinci's
+                    project hub -- this is where returning users land.
+         "create"  The drop-video panel, reached via "+ New Project" (or
+                    directly, when there are no projects yet to browse).
+
+       Video editors don't open straight into "drop a file" -- that's the
+       SECOND screen, reached after choosing to start something. Dropping
+       here creates the project the same way it always did (klipian keys
+       one project per video, see _project_path() in server.py), so this
+       is a reorder of what's shown first, not a new data model. -->
   <section class="home" id="home">
     <div class="prepare-body">
       <p class="eyebrow">Home</p>
-      <h1 class="home-title">Start a new clip</h1>
-      <p class="home-sub">Clips are built from the transcript: pick a range on the timeline,
+      <h1 class="home-title" id="homeTitle">Start a new clip</h1>
+      <p class="home-sub" id="homeSub">Clips are built from the transcript: pick a range on the timeline,
         set the framing, fix the captions, then render.</p>
 
-      <div class="panel source">
-        <div class="source-drop">
-          <h2>Drag a video here</h2>
-          <p>mp4, mkv, mov — or</p>
-          <div class="source-actions">
-            <button class="btn">Browse files</button>
-            <span class="split">or</span>
-            <input class="input" id="urlInput" type="url"
-                   placeholder="paste a YouTube link" aria-label="YouTube link">
-          </div>
-        </div>
-      </div>
-
-      <!-- Options and the button are hidden until there's a video: before
-           that, neither means anything, and as a full panel it would push
-           the project list off-screen in a short window -- exactly when
-           that list is needed most. -->
-      <div class="panel option" id="options" hidden></div>
-
-      <div class="prepare-foot" id="prepareFoot" hidden>
-        <span class="data" id="optionsSummary" role="status"></span>
-        <button class="btn main large" id="run">Find clips</button>
-      </div>
-
-      <!-- Unfinished work. Placed below the drop panel -- new work first,
-           like CapCut. Hidden until it actually exists. -->
+      <!-- "browse" view. Hidden until renderProjects() confirms there IS
+           something to continue -- an empty grid with nothing in it would
+           just be a dead end above the real starting point. -->
       <section class="recent" hidden>
-        <p class="eyebrow">Continue working</p>
+        <div class="recent-head">
+          <p class="eyebrow">Continue working</p>
+          <button class="btn main" id="newProjectBtn" type="button">+ New Project</button>
+        </div>
         <div class="project-grid" id="projectList"></div>
       </section>
+
+      <!-- "create" view. -->
+      <div id="newProjectPanel">
+        <!-- Only meaningful once there's a project list to return to --
+             renderProjects() shows/hides this alongside .recent itself. -->
+        <button class="btn quiet back-to-projects" id="backToProjectsBtn" type="button" hidden>← Back to projects</button>
+
+        <div class="panel source">
+          <div class="source-drop">
+            <h2>Drag a video here</h2>
+            <p>mp4, mkv, mov — or</p>
+            <div class="source-actions">
+              <button class="btn">Browse files</button>
+              <span class="split">or</span>
+              <input class="input" id="urlInput" type="url"
+                     placeholder="paste a YouTube link" aria-label="YouTube link">
+            </div>
+          </div>
+        </div>
+
+        <!-- Options and the button are hidden until there's a video: before
+             that, neither means anything. -->
+        <div class="panel option" id="options" hidden></div>
+
+        <div class="prepare-foot" id="prepareFoot" hidden>
+          <span class="data" id="optionsSummary" role="status"></span>
+          <button class="btn main large" id="run">Find clips</button>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -641,16 +664,16 @@
   </main>
 </div>
 
-<script src="/ui/js/editor/app.js?v=1790041685000"></script>
-<script src="/ui/js/editor/interactions.js?v=1790041685000"></script>
-<script src="/ui/js/editor/framing.js?v=1790041685000"></script>
-<script src="/ui/js/editor/analysis.js?v=1790041685000"></script>
-<script src="/ui/js/editor/player.js?v=1790041685000"></script>
-<script src="/ui/js/editor/roundtrip.js?v=1790041685000"></script>
-<script src="/ui/js/editor/history.js?v=1790041685000"></script>
-<script src="/ui/js/editor/timeline.js?v=1790041685000"></script>
-<script src="/ui/js/editor/captions.js?v=1790041685000"></script>
-<script src="/ui/js/editor/result.js?v=1790041685000"></script>
-<script src="/ui/js/editor/projects.js?v=1790041685000"></script>
+<script src="/ui/js/editor/app.js?v=1790077832000"></script>
+<script src="/ui/js/editor/interactions.js?v=1790077832000"></script>
+<script src="/ui/js/editor/framing.js?v=1790077832000"></script>
+<script src="/ui/js/editor/analysis.js?v=1790077832000"></script>
+<script src="/ui/js/editor/player.js?v=1790077832000"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1790077832000"></script>
+<script src="/ui/js/editor/history.js?v=1790077832000"></script>
+<script src="/ui/js/editor/timeline.js?v=1790077832000"></script>
+<script src="/ui/js/editor/captions.js?v=1790077832000"></script>
+<script src="/ui/js/editor/result.js?v=1790077832000"></script>
+<script src="/ui/js/editor/projects.js?v=1790077832000"></script>
 </body>
 </html>

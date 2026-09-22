@@ -472,6 +472,50 @@ function coverUrl(p) {
   return `/api/thumb?${q}`;
 }
 
+/* Whether the home screen currently has anything to browse. Set by
+   renderProjects() on every call, read by applyHomeMode() and the two
+   button handlers below so "New Project"/"Back" know what's actually
+   available -- e.g. the Back button has nothing to go back to on a
+   first run and stays hidden even if somehow clicked. */
+let homeHasProjects = false;
+
+/* Two faces of the home screen -- see the markup comment in index.html.
+   "browse": recent projects first (CapCut/Premiere/DaVinci convention).
+   "create": the drop-video panel, either reached via "+ New Project" or
+   shown directly when there is nothing yet to browse.
+
+   Deliberately does NOT persist which mode was last chosen: every return
+   to home (toStage("home") -> renderProjects()) resets to the sensible
+   default for whatever the project list looks like NOW, the same way
+   Premiere always reopens on its project hub rather than mid-creation. */
+function applyHomeMode(mode) {
+  const recent = $(".recent");
+  const create = $("#newProjectPanel");
+  const back = $("#backToProjectsBtn");
+  const title = $("#homeTitle");
+  const sub = $("#homeSub");
+  if (!recent || !create) return;
+
+  const browsing = mode === "browse" && homeHasProjects;
+  recent.toggleAttribute("hidden", !browsing);
+  create.toggleAttribute("hidden", browsing);
+  // Only useful when there's a list behind it to return to.
+  back?.toggleAttribute("hidden", !homeHasProjects || browsing);
+
+  if (title) {
+    title.textContent = browsing ? "Continue where you left off" : "Start a new clip";
+  }
+  if (sub) {
+    sub.textContent = browsing
+      ? "Pick up an existing project, or start something new."
+      : "Clips are built from the transcript: pick a range on the timeline, "
+        + "set the framing, fix the captions, then render.";
+  }
+}
+
+$("#newProjectBtn")?.addEventListener("click", () => applyHomeMode("create"));
+$("#backToProjectsBtn")?.addEventListener("click", () => applyHomeMode("browse"));
+
 let _renderProjectsInflight = null;
 async function renderProjects() {
   // Called from two places during initial load (self-invoke below + the
@@ -488,9 +532,11 @@ async function renderProjects() {
     items = d.project || [];
   } catch {
     // Without a backend there are no projects at all -- hide it, don't leave
-    // an empty section hanging on the home page.
+    // an empty section hanging on the home page. Falls through to the
+    // drop-video view, same as a genuine first run.
     container.innerHTML = "";
-    container.closest(".recent")?.setAttribute("hidden", "");
+    homeHasProjects = false;
+    applyHomeMode("create");
     return;
   }
   // Videos unreachable by the server cannot be truly continued: transcription,
@@ -502,15 +548,16 @@ async function renderProjects() {
     available = new Set((await (await fetch("/api/video")).json()).video || []);
   } catch { available = null; }
 
-  const section = container.closest(".recent");
   if (!items.length) {
     // Clear the contents entirely, not just hide a section: stale cards left
     // behind would flash briefly if the section is shown again later.
     container.innerHTML = "";
-    section?.setAttribute("hidden", "");
+    homeHasProjects = false;
+    applyHomeMode("create");
     return;
   }
-  section?.removeAttribute("hidden");
+  homeHasProjects = true;
+  applyHomeMode("browse");
 
   // The marker sticks to the newest AVAILABLE project, not the first card.
   // If the newest one happens to have a missing video, the marker vanishes
