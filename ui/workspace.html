@@ -8,11 +8,12 @@
      from the Google Fonts CDN -- see ui/css/fonts.css for why. Loaded
      BEFORE the other stylesheets so the faces are declared by the time
      anything asks for them. -->
-<link rel="stylesheet" href="/ui/css/fonts.css?v=1790003343000">
+<link rel="stylesheet" href="/ui/css/fonts.css?v=1790041685000">
 <!-- tokens.css is loaded FIRST -- css/workspace.css just points to the custom
      properties defined there (see tailwind.config.js). -->
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1790003343000">
-<link rel="stylesheet" href="/ui/css/workspace.css?v=1790003343000">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1790041685000">
+<link rel="stylesheet" href="/ui/css/brand.css?v=1790041685000">
+<link rel="stylesheet" href="/ui/css/workspace.css?v=1790041685000">
 </head>
 <body>
 
@@ -20,8 +21,7 @@
 
   <header class="flex items-center gap-4 h-[58px] px-5 shrink-0
                   bg-surface-1 border-b border-glass-border">
-    <a class="text-text font-extrabold no-underline hover:text-accent"
-       style="font-stretch:118%" href="/" title="Back to editor">klipian</a>
+    <a class="brand" href="/" title="Back to editor">klipian</a>
     <a class="text-text-faint text-[12px] hover:text-text" href="/" title="Back to editor">← Editor</a>
     <span class="font-data text-[11px] text-text-faint">/ workspace</span>
     <span class="ml-auto font-data text-[12px] text-text-faint" id="wsClock"></span>
@@ -36,7 +36,7 @@
          be edited directly from here instead of opening a separate Excel. -->
     <section class="ws-panel" id="panelClips">
       <div class="flex items-center gap-3">
-        <h1 class="text-[20px] font-extrabold tracking-tight" style="font-stretch:112%">Clips</h1>
+        <h1 class="text-[20px] font-extrabold tracking-tight">Clips</h1>
         <span class="text-text-faint text-[13px]" id="clipSummary" role="status">loading…</span>
         <!-- The clips table saves on every `change` event, with no Save
              button, so a save that FAILED left the edited value sitting in
@@ -120,7 +120,7 @@
          no second definition of "what's been rendered". -->
     <section class="ws-panel" id="panelRender">
       <div class="flex items-center gap-3">
-        <h1 class="text-[20px] font-extrabold tracking-tight" style="font-stretch:112%">Rendered output</h1>
+        <h1 class="text-[20px] font-extrabold tracking-tight">Rendered output</h1>
         <span class="text-text-faint text-[13px]" id="renderNote">loading…</span>
       </div>
       <div id="renderList"></div>
@@ -131,7 +131,7 @@
          outside klipian's built-in ones (assets/ at root, used by the app itself). -->
     <section class="ws-panel" id="panelAssets">
       <div class="flex items-center gap-3">
-        <h1 class="text-[20px] font-extrabold tracking-tight" style="font-stretch:112%">Assets</h1>
+        <h1 class="text-[20px] font-extrabold tracking-tight">Assets</h1>
         <span class="text-text-faint text-[13px]" id="assetNote">loading…</span>
       </div>
       <div id="assetList"></div>
@@ -140,9 +140,9 @@
   </main>
 </div>
 
-<script src="/ui/js/workspace/helpers.js?v=1790003343000"></script>
-<script src="/ui/js/workspace/clips.js?v=1790003343000"></script>
-<script src="/ui/js/workspace/render.js?v=1790003343000"></script>
-<script src="/ui/js/workspace/assets.js?v=1790003343000"></script>
+<script src="/ui/js/workspace/helpers.js?v=1790041685000"></script>
+<script src="/ui/js/workspace/clips.js?v=1790041685000"></script>
+<script src="/ui/js/workspace/render.js?v=1790041685000"></script>
+<script src="/ui/js/workspace/assets.js?v=1790041685000"></script>
 </body>
 </html>

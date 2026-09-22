@@ -19,7 +19,8 @@
   html, body { height: 100%; }
   body {
     @apply m-0 bg-surface-0 text-text font-ui;
-    font-stretch: 100%;
+    /* No font-stretch: Geist has no width axis (see fonts.css). It used to
+       pin the width against Mona Sans's 75-125 range. */
   }
 }
 

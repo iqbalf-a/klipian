@@ -1,0 +1,36 @@
+/* klipian -- the product mark
+   ==========================================================================
+   Its own file because BOTH pages show it and neither can reach the
+   other's stylesheet: the editor has app.css, /workspace has a Tailwind
+   build, and workspace/render.js documents that keeping the two
+   independent is deliberate. Restating the gradient in each would be two
+   definitions of one identity, and they would drift -- which is exactly
+   what happened here: the workspace copy was flat text at body size with
+   a leftover font-stretch, while the editor's was a 20px gradient.
+
+   The gradient runs from the text colour into the accent, so the mark
+   picks up the theme instead of being a fixed brand colour. That is also
+   why it reads correctly in both light and dark without a second rule.
+   ========================================================================== */
+.brand {
+  font-size: var(--t-20);
+  font-weight: 800;
+  letter-spacing: -.045em;
+  line-height: 1.1;
+  /* Painted through the text, not behind it. -webkit- prefix first: Safari
+     still needs it, and the unprefixed property alone leaves the text
+     fully transparent there. */
+  background: linear-gradient(96deg, var(--text) 20%, var(--accent) 130%);
+  -webkit-background-clip: text;
+          background-clip: text;
+  color: transparent;
+  /* The editor's is a <button> (it navigates home), the workspace's an
+     <a>. Reset both so they sit identically. */
+  font-family: inherit;
+  border: 0;
+  padding: 0;
+  text-decoration: none;
+  cursor: pointer;
+}
+/* Already home -- nothing to click through to. */
+[data-stage="home"] .brand { cursor: default; }

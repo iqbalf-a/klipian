@@ -115,13 +115,6 @@ h1, h2, h3 {
 .topbar #statusSimpan.save-failed { color: var(--danger); font-weight: 600; }
 .topbar #saveNowBtn { min-width: 72px; }
 
-.brand {
-  font-size: var(--t-20); font-weight: 800;
-  letter-spacing: -.045em;
-  background: linear-gradient(96deg, var(--text) 20%, var(--accent) 130%);
-  -webkit-background-clip: text; background-clip: text; color: transparent;
-}
-
 .file { display: flex; align-items: center; gap: var(--s3); color: var(--text-muted); }
 .file .name { font-size: 13px; font-weight: 550; color: var(--text); }
 .file .data { color: var(--text-faint); }
@@ -1016,8 +1009,7 @@ h1, h2, h3 {
 /* Safe button reset: do NOT use `font: inherit` or `background: none`
    here -- both override the background-clip:text gradient and font size
    already set in the earlier .brand rule, making the wordmark disappear. */
-.brand { font-family: inherit; border: 0; padding: 0; cursor: pointer; }
-[data-stage="home"] .brand { cursor: default; }
+/* .brand lives in brand.css -- shared with /workspace. */
 
 .prepare-body {
   max-width: 940px; margin: 0 auto;

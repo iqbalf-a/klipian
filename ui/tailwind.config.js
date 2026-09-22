@@ -41,9 +41,15 @@ module.exports = {
         "status-scheduled": "oklch(0.75 0.14 230)",
         "status-posted": "oklch(0.75 0.16 145)",
       },
+      // Point at the tokens, don't restate the family names. These used to
+      // spell out "Mona Sans" and "Martian Mono" literally, so when the UI
+      // moved to Geist the whole workspace page silently fell back to
+      // system-ui -- it was naming fonts that no longer ship. Same failure
+      // mode as the hardcoded --accent-text value fixed earlier: a value
+      // copied out of tokens.css cannot follow it when it changes.
       fontFamily: {
-        ui: ["Mona Sans", "system-ui", "-apple-system", "sans-serif"],
-        data: ["Martian Mono", "ui-monospace", "monospace"],
+        ui: "var(--font-ui)",
+        data: "var(--font-data)",
       },
       borderRadius: { s: "var(--r-s)", m: "var(--r-m)", l: "var(--r-l)" },
       boxShadow: { card: "var(--shadow-card)" },
