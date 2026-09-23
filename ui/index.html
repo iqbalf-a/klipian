@@ -8,10 +8,10 @@
      from the Google Fonts CDN -- see ui/css/fonts.css for why. Loaded
      BEFORE the other stylesheets so the faces are declared by the time
      anything asks for them. -->
-<link rel="stylesheet" href="/ui/css/fonts.css?v=1790142524000">
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1790142524000">
-<link rel="stylesheet" href="/ui/css/brand.css?v=1790142524000">
-<link rel="stylesheet" href="/ui/css/app.css?v=1790142524000">
+<link rel="stylesheet" href="/ui/css/fonts.css?v=1790144779000">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1790144779000">
+<link rel="stylesheet" href="/ui/css/brand.css?v=1790144779000">
+<link rel="stylesheet" href="/ui/css/app.css?v=1790144779000">
 </head>
 <body>
 
@@ -76,7 +76,12 @@
        here because once the sidebar is hidden, the button inside it
        disappears too. -->
   <button class="sidebar-restore" id="showSidebarBtn" type="button"
-          title="Show sidebar" hidden>⟩</button>
+          title="Show sidebar" aria-label="Show sidebar" hidden>
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <line x1="5" y1="4" x2="5" y2="20"/><path d="M15 8 L19 12 L15 16"/>
+    </svg>
+  </button>
 
   <!-- ══════════════════ STAGE 1 — DROP FILE ══════════════════
        There used to be two stages: Home picked a mode (Podcast, Live MLBB,
@@ -129,8 +134,17 @@
 
   <main class="stage has-preview" id="stage">
     <aside class="side work-only">
+      <!-- The bar is the sidebar's own edge, the chevron the direction it
+           goes. Same pair of shapes on #showSidebarBtn, mirrored -- drawn,
+           not typed: ⟨ and ⟩ were font glyphs, so the two buttons came out
+           different widths and sat on different baselines (ian). -->
       <button class="side-collapse" id="hideSidebarBtn" type="button"
-              title="Hide sidebar">⟨</button>
+              title="Hide sidebar" aria-label="Hide sidebar">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="5" y1="4" x2="5" y2="20"/><path d="M19 8 L15 12 L19 16"/>
+        </svg>
+      </button>
       <!-- Icons are hand-drawn geometric pictograms (waveform, scissors, crop
            corners, text lines, clock) -- generic shapes, not traced from any
            icon library. stroke="currentColor", no fill: they follow the
@@ -747,17 +761,17 @@
 
 <!-- Shared with /workspace (theme, clock, "?" popover) -- loaded first so
      the theme is applied before the editor's own scripts start drawing. -->
-<script src="/ui/js/shared/topbar.js?v=1790142524000"></script>
-<script src="/ui/js/editor/app.js?v=1790142524000"></script>
-<script src="/ui/js/editor/interactions.js?v=1790142524000"></script>
-<script src="/ui/js/editor/framing.js?v=1790142524000"></script>
-<script src="/ui/js/editor/analysis.js?v=1790142524000"></script>
-<script src="/ui/js/editor/player.js?v=1790142524000"></script>
-<script src="/ui/js/editor/roundtrip.js?v=1790142524000"></script>
-<script src="/ui/js/editor/history.js?v=1790142524000"></script>
-<script src="/ui/js/editor/timeline.js?v=1790142524000"></script>
-<script src="/ui/js/editor/captions.js?v=1790142524000"></script>
-<script src="/ui/js/editor/result.js?v=1790142524000"></script>
-<script src="/ui/js/editor/projects.js?v=1790142524000"></script>
+<script src="/ui/js/shared/topbar.js?v=1790144779000"></script>
+<script src="/ui/js/editor/app.js?v=1790144779000"></script>
+<script src="/ui/js/editor/interactions.js?v=1790144779000"></script>
+<script src="/ui/js/editor/framing.js?v=1790144779000"></script>
+<script src="/ui/js/editor/analysis.js?v=1790144779000"></script>
+<script src="/ui/js/editor/player.js?v=1790144779000"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1790144779000"></script>
+<script src="/ui/js/editor/history.js?v=1790144779000"></script>
+<script src="/ui/js/editor/timeline.js?v=1790144779000"></script>
+<script src="/ui/js/editor/captions.js?v=1790144779000"></script>
+<script src="/ui/js/editor/result.js?v=1790144779000"></script>
+<script src="/ui/js/editor/projects.js?v=1790144779000"></script>
 </body>
 </html>

@@ -1311,10 +1311,15 @@ h1, h2, h3 {
    placed far away in the top row. The restore button (floating,
    see .sidebar-restore) stays outside because once the sidebar is hidden,
    this element goes with it. */
-.side-collapse {
-  position: absolute; top: var(--s3); right: var(--s3); z-index: 1;
-  font-size: var(--t-12); font-weight: 650;
-  padding: 3px 8px;
+/* One rule for both halves of the toggle. They used to be two, and drifted
+   exactly as you'd expect: different padding either side of a text glyph
+   made them 22px and 28px wide, and the floating one sat 13px higher than
+   the one it replaces (ian: "tidak presisi saat sidebar muncul ataupun ke
+   hide"). A fixed square around a fixed-size icon can't drift. */
+.side-collapse, .sidebar-restore {
+  display: grid; place-items: center;
+  width: 26px; height: 26px;
+  padding: 0;
   border: 1px solid var(--glass-border);
   border-radius: var(--r-pill);
   background: var(--bg-2);
@@ -1322,7 +1327,8 @@ h1, h2, h3 {
   cursor: pointer;
   transition: color var(--fast), background var(--fast);
 }
-.side-collapse:hover { color: var(--text); background: var(--glass); }
+.side-collapse:hover, .sidebar-restore:hover { color: var(--text); background: var(--glass); }
+.side-collapse { position: absolute; top: var(--s3); right: var(--s3); z-index: 1; }
 
 /* Column, not just a block: .side-foot (Save + its status, further down)
    sticks to the bottom via margin-top:auto, which needs a flex ancestor
@@ -1431,18 +1437,15 @@ h1, h2, h3 {
 .app[data-sidebar="hidden"] .side { display: none; }
 .app[data-sidebar="hidden"] .stage.has-preview { grid-template-columns: 1fr var(--w-preview); }
 .app[data-sidebar="hidden"] .stage { grid-template-columns: 1fr; }
+/* Shares everything else with .side-collapse above. The offset has to
+   rebuild, from the viewport, what that button gets for free from being
+   inside .side: the stage's own --s3 of padding, .side's 1px border, then
+   the same --s3 again. A single --s3 (what this used to be) landed it
+   13px too high. */
 .sidebar-restore {
-  position: fixed; top: calc(var(--h-topbar) + var(--s3)); left: var(--s3); z-index: 60;
-  font-size: var(--t-12); font-weight: 650;
-  padding: 3px 11px;
-  border: 1px solid var(--glass-border);
-  border-radius: var(--r-pill);
-  background: var(--bg-2);
-  color: var(--text-faint);
-  cursor: pointer;
-  transition: color var(--fast), background var(--fast);
+  position: fixed; left: var(--s3); z-index: 60;
+  top: calc(var(--h-topbar) + var(--s3) * 2 + 1px);
 }
-.sidebar-restore:hover { color: var(--text); background: var(--glass); }
 
 /* ══════════════════ reframe objects, clip tabs, timeline ══════════════════
    Three controls born from one idea: the preview IS the result, so you
