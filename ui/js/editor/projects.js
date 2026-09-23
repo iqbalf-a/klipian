@@ -510,6 +510,9 @@ function startNewProject() {
   if (chosenSource?.url?.startsWith("blob:")) URL.revokeObjectURL(chosenSource.url);
   chosenSource = null;
   activeProject = null;
+  // Clearing the DATA isn't enough -- the <video> elements hold the file
+  // themselves and went on showing (and playing) it. See releaseVideo().
+  if (typeof releaseVideo === "function") releaseVideo();
   if (typeof DATA !== "undefined") DATA.candidates = [];
   if (typeof realTranscript !== "undefined") realTranscript = null;
   resetProjectState();

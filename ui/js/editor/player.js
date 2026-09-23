@@ -218,6 +218,30 @@ function prepareVideo() {
   }, { once: true });
 }
 
+/* The inverse of prepareVideo(): hand the file back.
+
+   "+ New Project" cleared the project's data but nothing ever released
+   these elements, so a new project with no video dropped yet still showed
+   the previous one's footage on Clips and Framing -- and it could still
+   be played (ian). FOUR elements, not one: the preview is copied into
+   #canvasVideo and, in split format, #videoPreview2 (followPreview() in
+   framing.js), and the timeline carries its own (result.js).
+
+   removeAttribute then load(), not src = "": an empty src resolves
+   against the page URL, so the element would try to load the document
+   itself as a video. load() is what actually drops the decoded frames and
+   stops the fetch -- without it the last frame stays on screen. Same
+   sequence #previewQuickClose already uses further down. */
+function releaseVideo() {
+  for (const v of [video, $("#canvasVideo"), $("#videoPreview2"), $("#tlPreviewVideo")]) {
+    if (!v) continue;
+    v.pause();
+    v.removeAttribute("src");
+    v.load();
+  }
+  frame.dataset.video = "";
+}
+
 video.addEventListener("timeupdate", () => {
   if (!activeClip || !activeClip.spans?.length) return;
   const t = video.currentTime;
