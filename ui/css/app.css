@@ -109,40 +109,16 @@ h1, h2, h3 {
      Lifting .topbar itself is what truly closes this gap. */
   position: relative; z-index: 20;
 }
-.topbar #statusSimpan { margin-left: auto; color: var(--text-faint); }
-/* A failed save must NOT look like the faint "waiting to save" state --
-   it's the one status in the topbar that needs to be noticed. */
-.topbar #statusSimpan.save-failed { color: var(--danger); font-weight: 600; }
-.topbar #saveNowBtn { min-width: 72px; }
+/* Save + its status moved INTO the project (.side-foot, sidebar) -- see
+   that rule further down. Save acts on ONE project; the topbar is
+   visible on Home too, where there is no project to save, so a
+   project-scoped control never belonged there. .tabs/.tab (the area
+   switch's pill styling) moved to brand.css, which /workspace also
+   loads and app.css doesn't reach. */
 
 .file { display: flex; align-items: center; gap: var(--s3); color: var(--text-muted); }
 .file .name { font-size: 13px; font-weight: 550; color: var(--text); }
 .file .data { color: var(--text-faint); }
-
-.topbar .rest { margin-left: auto; display: flex; align-items: center; gap: var(--s3); }
-
-/* Pill-shaped tab bar; the active indicator is a bright glass fill */
-.tabs {
-  display: flex; gap: 2px; padding: 3px;
-  background: var(--glass);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--r-pill);
-}
-.tab {
-  font: inherit; font-size: var(--t-12); font-weight: 650;
-  letter-spacing: -.005em;
-  color: var(--text-muted);
-  background: none; border: 0;
-  border-radius: var(--r-pill);
-  padding: 6px 13px;
-  cursor: pointer;
-  transition: color var(--fast), background var(--fast);
-}
-.tab:hover { color: var(--text); }
-.tab[aria-selected="true"] {
-  color: var(--bg-0);
-  background: var(--text);
-}
 
 /* ═══════════════════════════════════════════════ stage */
 
@@ -1271,7 +1247,7 @@ h1, h2, h3 {
 
 .btn:disabled { opacity: .4; cursor: not-allowed; }
 .btn.main:disabled:hover { background: var(--text); }
-.back-menu { padding: 6px 12px; }
+.btn-home { padding: 6px 12px; }
 .foot-actions .data { color: var(--text-faint); }
 .foot-actions .btn { margin-left: auto; }
 
@@ -1394,6 +1370,11 @@ h1, h2, h3 {
 }
 .side-collapse:hover { color: var(--text); background: var(--glass); }
 
+/* Column, not just a block: .side-foot (Save + its status, further down)
+   sticks to the bottom via margin-top:auto, which needs a flex ancestor
+   to push against. */
+.side { display: flex; flex-direction: column; }
+
 .rel-side { display: grid; gap: 2px; align-content: start; padding-top: 30px; }
 
 /* Cluster labels ("Preparation", "Editing") -- purely visual, not .tab
@@ -1403,31 +1384,47 @@ h1, h2, h3 {
 }
 .rel-side-group:first-child { padding-top: 0; }
 
+/* flex row, not just text: each tab now carries an icon (index.html) ahead
+   of its label. The icon has no colour of its own -- stroke="currentColor"
+   in the markup -- so it follows whatever colour the tab already is
+   (text-muted normally, text on hover/active) for free, no separate rule. */
 .rel-side .tab {
+  display: flex; align-items: center; gap: var(--s2);
   width: 100%;
   text-align: left;
   padding: 9px 13px;
   border-radius: var(--r-m);
   font-size: var(--t-13);
   letter-spacing: -.012em;
-  position: relative;
 }
+.rel-side .tab svg { flex: none; }
 .rel-side .tab:hover { background: var(--glass); }
+/* Soft fill + a matching outline is the whole active indicator now. There
+   used to also be a glowing accent bar on the left edge (::before,
+   box-shadow) -- with an icon now doing that job too, ian felt it was
+   fighting for attention rather than adding to it, so it's gone; the fill
+   alone reads as clearly "selected" in a short vertical list. */
 .rel-side .tab[aria-selected="true"] {
   color: var(--text);
   background: var(--accent-soft);
   border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
   padding: 8px 12px;                  /* compensate for the border thickness */
 }
-/* active indicator: accent line on the left edge, not a full bright pill --
-   in a vertical column, a full pill reads like a pressed button */
-.rel-side .tab[aria-selected="true"]::before {
-  content: ""; position: absolute;
-  left: 0; top: 20%; bottom: 20%; width: 3px;
-  border-radius: 0 3px 3px 0;
-  background: var(--accent);
-  box-shadow: 0 0 12px -1px var(--accent-glow);
+
+/* ── project controls, pinned to the bottom of the sidebar ──
+   Save is a PROJECT action -- it belongs inside the project, not in the
+   topbar, which is also visible on Home where there's no project to save. */
+.side-foot {
+  margin-top: auto;
+  padding-top: var(--s3);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s2);
+  border-top: 1px solid var(--glass-border);
 }
+.side-foot #statusSimpan { color: var(--text-faint); font-size: var(--t-12); }
+/* A failed save must NOT look like the faint "waiting to save" state --
+   it's the one status here that needs to be noticed. */
+.side-foot #statusSimpan.save-failed { color: var(--danger); font-weight: 600; }
+.side-foot #saveNowBtn { min-width: 72px; flex: none; }
 
 .stage.has-preview { grid-template-columns: var(--w-side) 1fr var(--w-preview); }
 .stage { grid-template-columns: var(--w-side) 1fr; }

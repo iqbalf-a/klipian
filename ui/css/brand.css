@@ -34,3 +34,57 @@
 }
 /* Already home -- nothing to click through to. */
 [data-stage="home"] .brand { cursor: default; }
+
+/* ══════════════════════════════ area switch ══════════════════════════════
+   klipian and /workspace are TWO SEPARATE PAGES (this one has app.js's SPA
+   routing, /workspace is its own Tailwind-built document) -- so switching
+   between them is a real navigation, not a panel toggle. That's why these
+   are plain <a href> with aria-current="page" on whichever one you're on,
+   not role="tab"/aria-selected: the ARIA tabs pattern specifically means
+   "selecting this swaps a panel in place, arrow keys move between them",
+   which isn't what happens here -- a screen reader user would be told to
+   expect something that then doesn't happen.
+
+   Was ian's fix for Workspace sitting in the topbar as just another quiet
+   button, indistinguishable from Save (project-scoped) or Theme (a
+   preference) despite being a destination as fundamental as the editor
+   itself. As a two-way switcher with a coloured active state, it reads as
+   "which area am I in", the same question .rel-side .tab already answers
+   for screens inside one project -- just one level up.
+
+   The pill container reuses .tabs, which used to be app.css-only (the
+   sidebar's own screen-switcher, before that moved to the vertical
+   .rel-side list and left this styling unused) -- moved here because
+   /workspace does not load app.css and needs the identical look.
+
+   The LINKS themselves are scoped ".area-switch a", deliberately NOT the
+   sidebar's ".tab" class: app.js's toScreen() and its arrow-key handler
+   both do document.querySelectorAll(".tab") with no scoping, on the
+   assumption that class only ever meant "one of the sidebar's five
+   screen tabs". Give these two links that same class and toScreen()
+   would stamp aria-selected="false" and tabIndex=-1 onto them on every
+   screen switch -- the second part removes them from the keyboard tab
+   order entirely. Same visual language, deliberately different class,
+   so the two widgets can't collide. */
+.tabs {
+  display: flex; gap: 2px; padding: 3px;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-pill);
+}
+.area-switch a {
+  font: inherit; font-size: var(--t-12); font-weight: 650;
+  letter-spacing: -.005em;
+  color: var(--text-muted);
+  text-decoration: none;
+  border-radius: var(--r-pill);
+  padding: 6px 13px;
+  cursor: pointer;
+  transition: color var(--fast), background var(--fast);
+}
+.area-switch a:hover { color: var(--text); }
+.area-switch a[aria-current="page"] {
+  color: var(--bg-0);
+  background: var(--text);
+}
+.topbar .area-switch { margin-left: auto; }
