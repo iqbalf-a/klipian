@@ -8,10 +8,10 @@
      from the Google Fonts CDN -- see ui/css/fonts.css for why. Loaded
      BEFORE the other stylesheets so the faces are declared by the time
      anything asks for them. -->
-<link rel="stylesheet" href="/ui/css/fonts.css?v=1790157428000">
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1790157428000">
-<link rel="stylesheet" href="/ui/css/brand.css?v=1790157428000">
-<link rel="stylesheet" href="/ui/css/app.css?v=1790157428000">
+<link rel="stylesheet" href="/ui/css/fonts.css?v=1790162295000">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1790162295000">
+<link rel="stylesheet" href="/ui/css/brand.css?v=1790162295000">
+<link rel="stylesheet" href="/ui/css/app.css?v=1790162295000">
 </head>
 <body>
 
@@ -593,7 +593,12 @@
       <section class="screen" data-screen="captions" role="tabpanel" id="panel-captions" aria-labelledby="tab-captions" tabindex="0">
         <div class="work-head">
           <h1>Captions</h1>
-          <span class="note">fix misheard words, then style them</span>
+          <!-- No .note here. It read "fix misheard words, then style them",
+               which the Style / Words / Watermark tabs below now say
+               outright -- and in a --w-config column it only ever rendered
+               as "fix misheard …" anyway (.work-head .note is nowrap +
+               ellipsis). The other screens keep theirs: they still have a
+               wide column and no tabs saying it for them. -->
           <div class="result-picker right">
             <select class="result-select" aria-label="Result being edited"></select>
             <button class="btn quiet" type="button" data-result-action="new" title="New Result">+</button>
@@ -838,17 +843,17 @@
 
 <!-- Shared with /workspace (theme, clock, "?" popover) -- loaded first so
      the theme is applied before the editor's own scripts start drawing. -->
-<script src="/ui/js/shared/topbar.js?v=1790157428000"></script>
-<script src="/ui/js/editor/app.js?v=1790157428000"></script>
-<script src="/ui/js/editor/interactions.js?v=1790157428000"></script>
-<script src="/ui/js/editor/framing.js?v=1790157428000"></script>
-<script src="/ui/js/editor/analysis.js?v=1790157428000"></script>
-<script src="/ui/js/editor/player.js?v=1790157428000"></script>
-<script src="/ui/js/editor/roundtrip.js?v=1790157428000"></script>
-<script src="/ui/js/editor/history.js?v=1790157428000"></script>
-<script src="/ui/js/editor/timeline.js?v=1790157428000"></script>
-<script src="/ui/js/editor/captions.js?v=1790157428000"></script>
-<script src="/ui/js/editor/result.js?v=1790157428000"></script>
-<script src="/ui/js/editor/projects.js?v=1790157428000"></script>
+<script src="/ui/js/shared/topbar.js?v=1790162295000"></script>
+<script src="/ui/js/editor/app.js?v=1790162295000"></script>
+<script src="/ui/js/editor/interactions.js?v=1790162295000"></script>
+<script src="/ui/js/editor/framing.js?v=1790162295000"></script>
+<script src="/ui/js/editor/analysis.js?v=1790162295000"></script>
+<script src="/ui/js/editor/player.js?v=1790162295000"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1790162295000"></script>
+<script src="/ui/js/editor/history.js?v=1790162295000"></script>
+<script src="/ui/js/editor/timeline.js?v=1790162295000"></script>
+<script src="/ui/js/editor/captions.js?v=1790162295000"></script>
+<script src="/ui/js/editor/result.js?v=1790162295000"></script>
+<script src="/ui/js/editor/projects.js?v=1790162295000"></script>
 </body>
 </html>
