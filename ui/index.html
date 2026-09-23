@@ -8,10 +8,10 @@
      from the Google Fonts CDN -- see ui/css/fonts.css for why. Loaded
      BEFORE the other stylesheets so the faces are declared by the time
      anything asks for them. -->
-<link rel="stylesheet" href="/ui/css/fonts.css?v=1790144779000">
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1790144779000">
-<link rel="stylesheet" href="/ui/css/brand.css?v=1790144779000">
-<link rel="stylesheet" href="/ui/css/app.css?v=1790144779000">
+<link rel="stylesheet" href="/ui/css/fonts.css?v=1790145581000">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1790145581000">
+<link rel="stylesheet" href="/ui/css/brand.css?v=1790145581000">
+<link rel="stylesheet" href="/ui/css/app.css?v=1790145581000">
 </head>
 <body>
 
@@ -77,9 +77,9 @@
        disappears too. -->
   <button class="sidebar-restore" id="showSidebarBtn" type="button"
           title="Show sidebar" aria-label="Show sidebar" hidden>
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-         stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <line x1="5" y1="4" x2="5" y2="20"/><path d="M15 8 L19 12 L15 16"/>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M9.5 5 L15.5 12 L9.5 19"/>
     </svg>
   </button>
 
@@ -134,15 +134,20 @@
 
   <main class="stage has-preview" id="stage">
     <aside class="side work-only">
-      <!-- The bar is the sidebar's own edge, the chevron the direction it
-           goes. Same pair of shapes on #showSidebarBtn, mirrored -- drawn,
+      <!-- Just the chevron. It had a vertical bar beside it standing for
+           the sidebar's edge, which ian read as a stray character rather
+           than part of the mark -- the direction alone is the whole
+           message. #showSidebarBtn carries the same shape mirrored. Drawn,
            not typed: ⟨ and ⟩ were font glyphs, so the two buttons came out
-           different widths and sat on different baselines (ian). -->
+           different widths and sat on different baselines. -->
       <button class="side-collapse" id="hideSidebarBtn" type="button"
               title="Hide sidebar" aria-label="Hide sidebar">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <line x1="5" y1="4" x2="5" y2="20"/><path d="M19 8 L15 12 L19 16"/>
+        <!-- Bigger and heavier than the tab icons beside it (15px/1.75):
+             those sit next to a text label that carries the meaning, this
+             one is alone in a 26px button and has to read on its own. -->
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M14.5 5 L8.5 12 L14.5 19"/>
         </svg>
       </button>
       <!-- Icons are hand-drawn geometric pictograms (waveform, scissors, crop
@@ -761,17 +766,17 @@
 
 <!-- Shared with /workspace (theme, clock, "?" popover) -- loaded first so
      the theme is applied before the editor's own scripts start drawing. -->
-<script src="/ui/js/shared/topbar.js?v=1790144779000"></script>
-<script src="/ui/js/editor/app.js?v=1790144779000"></script>
-<script src="/ui/js/editor/interactions.js?v=1790144779000"></script>
-<script src="/ui/js/editor/framing.js?v=1790144779000"></script>
-<script src="/ui/js/editor/analysis.js?v=1790144779000"></script>
-<script src="/ui/js/editor/player.js?v=1790144779000"></script>
-<script src="/ui/js/editor/roundtrip.js?v=1790144779000"></script>
-<script src="/ui/js/editor/history.js?v=1790144779000"></script>
-<script src="/ui/js/editor/timeline.js?v=1790144779000"></script>
-<script src="/ui/js/editor/captions.js?v=1790144779000"></script>
-<script src="/ui/js/editor/result.js?v=1790144779000"></script>
-<script src="/ui/js/editor/projects.js?v=1790144779000"></script>
+<script src="/ui/js/shared/topbar.js?v=1790145581000"></script>
+<script src="/ui/js/editor/app.js?v=1790145581000"></script>
+<script src="/ui/js/editor/interactions.js?v=1790145581000"></script>
+<script src="/ui/js/editor/framing.js?v=1790145581000"></script>
+<script src="/ui/js/editor/analysis.js?v=1790145581000"></script>
+<script src="/ui/js/editor/player.js?v=1790145581000"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1790145581000"></script>
+<script src="/ui/js/editor/history.js?v=1790145581000"></script>
+<script src="/ui/js/editor/timeline.js?v=1790145581000"></script>
+<script src="/ui/js/editor/captions.js?v=1790145581000"></script>
+<script src="/ui/js/editor/result.js?v=1790145581000"></script>
+<script src="/ui/js/editor/projects.js?v=1790145581000"></script>
 </body>
 </html>
