@@ -52,7 +52,19 @@ body::before {
    If left behind, the stage would snap to a fixed-size row and the whole
    layout would collapse. */
 .app { position: relative; z-index: 1; height: 100vh;
-       display: grid; grid-template-rows: var(--h-topbar) 1fr; }
+       display: grid; grid-template-rows: var(--h-topbar) 1fr;
+       /* The stage's outer margin, and the one number several things have
+          to agree on: .stage's own padding and gap, and #showSidebarBtn,
+          which is fixed-positioned outside .stage but must line up with
+          the edge that padding creates. Scales with the window instead of
+          being one fixed number -- measured at 1200px, a 20px gap looks
+          noticeably calmer but costs the work column 32px, enough to
+          start ellipsizing the panel-head text. On a wide screen that
+          width is free, on a narrow one it is not, so the breathing room
+          appears exactly where there is room to spare. clamp() rather
+          than a media query so it moves continuously, with no step where
+          the layout visibly jumps. */
+       --gutter: clamp(var(--s3), 1.4vw, var(--s5)); }
 /* .topbar is PINNED explicitly to row 1, .home/.stage to row 2 --
    NOT left to auto-placement. If any of these grid items ever gets
    display:none'd (e.g. a show/hide feature), the remaining items
@@ -131,15 +143,14 @@ h1, h2, h3 {
    that margin now. Keeping both would double it. */
 .stage {
   display: grid; grid-template-columns: 1fr; min-height: 0;
-  /* Scales with the window instead of being one fixed number. Measured at
-     1200px: a 20px gap looks noticeably calmer but costs the work column
-     32px, which is enough to start ellipsizing the panel-head text. On a
-     wide screen that width is free, on a narrow one it is not -- so the
-     breathing room appears exactly where there is room to spare.
-     clamp() rather than a media query so it moves continuously, with no
-     step where the layout visibly jumps. */
-  gap: clamp(var(--s3), 1.4vw, var(--s5));
-  padding: clamp(var(--s3), 1.4vw, var(--s5));
+  /* --gutter (on .app, above) rather than the clamp inline: #showSidebarBtn
+     is fixed-positioned OUTSIDE this element and has to line up with the
+     sidebar edge this padding creates, so the number has to be readable
+     from both places. It used to be written here only, and the button's
+     own offsets hardcoded 12px -- correct at the clamp's floor, drifting
+     from it at every wider window. */
+  gap: var(--gutter);
+  padding: var(--gutter);
 }
 .stage.has-preview { grid-template-columns: 1fr var(--w-preview); }
 
@@ -1437,14 +1448,24 @@ h1, h2, h3 {
 .app[data-sidebar="hidden"] .side { display: none; }
 .app[data-sidebar="hidden"] .stage.has-preview { grid-template-columns: 1fr var(--w-preview); }
 .app[data-sidebar="hidden"] .stage { grid-template-columns: 1fr; }
-/* Shares everything else with .side-collapse above. The offset has to
+/* With .side gone the work panel starts at the stage's own left padding --
+   straight under the restore button, which is fixed-positioned and so sat
+   on top of whatever the panel puts in its top-left corner: its heading
+   (ian's screenshot, the chevron inside the word "Framing"). Widening the
+   left padding by the button's own width gives it an empty strip to stand
+   in, reading as a collapsed rail rather than something dropped on the
+   text. Costs the button's width plus one gutter out of the 168px that
+   hiding the sidebar just reclaimed. */
+.app[data-sidebar="hidden"] .stage { padding-left: calc(var(--gutter) * 2 + 26px); }
+/* Shares everything else with .side-collapse above. The offsets have to
    rebuild, from the viewport, what that button gets for free from being
-   inside .side: the stage's own --s3 of padding, .side's 1px border, then
-   the same --s3 again. A single --s3 (what this used to be) landed it
-   13px too high. */
+   inside .side: the stage's --gutter of padding, .side's 1px border, then
+   .side's own --s3. A single --s3 (what this used to be) landed it 13px
+   too high, and hardcoding 12px for the gutter only held at the clamp's
+   floor -- on a wide window the two buttons drifted apart again. */
 .sidebar-restore {
-  position: fixed; left: var(--s3); z-index: 60;
-  top: calc(var(--h-topbar) + var(--s3) * 2 + 1px);
+  position: fixed; left: var(--gutter); z-index: 60;
+  top: calc(var(--h-topbar) + var(--gutter) + 1px + var(--s3));
 }
 
 /* ══════════════════ reframe objects, clip tabs, timeline ══════════════════
