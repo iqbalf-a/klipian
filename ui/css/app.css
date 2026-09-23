@@ -1329,7 +1329,17 @@ h1, h2, h3 {
    to push against. */
 .side { display: flex; flex-direction: column; }
 
-.rel-side { display: grid; gap: 2px; align-content: start; padding-top: 30px; }
+/* gap was 2px, which is nothing once a row is FILLED: the active tab draws
+   a border plus a soft fill, and at 2px that outline sat right against the
+   row above and below it -- two hovered neighbours read as one block
+   (ian: "antar border menu masih nempel"). 8px is enough air for the
+   border to be seen as belonging to one row.
+
+   It also sets the group rhythm, since the gap applies around the
+   "Preparation"/"Editing" labels too: 16px + gap above a label, 4px + gap
+   below it, so each label sits closer to the group it names than to the
+   one before it. */
+.rel-side { display: grid; gap: var(--s2); align-content: start; padding-top: 30px; }
 
 /* Cluster labels ("Preparation", "Editing") -- purely visual, not .tab
    (see the comment in index.html for why that's safe). */
