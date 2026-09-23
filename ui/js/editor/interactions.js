@@ -395,23 +395,41 @@ $("#panel-captions")?.addEventListener("click", (e) => {
   if (typeof savePresetCaption === "function") savePresetCaption();
 });
 
-/* Sliders. "input", not "change", so the preview tracks the handle while
-   it's being dragged -- that live feedback is the only way to judge a
-   position. The readout is rewritten in place rather than through
-   drawCaptionOptions(), which would replace the input mid-drag and drop
-   the pointer capture. */
+/* Slider and number field are two handles on one value, so they share a
+   listener and write each other. "input", not "change", so the preview
+   tracks the slider while it's being dragged -- that live feedback is the
+   only way to judge a position. The partner control is updated in place
+   rather than through drawCaptionOptions(), which would replace the element
+   under the pointer mid-drag.
+
+   An empty or half-typed number field ("-", "1e") parses to NaN: leave the
+   value alone and let the typing finish, rather than snapping the preview
+   to a clamped guess on every keystroke. */
 $("#panel-captions")?.addEventListener("input", (e) => {
-  const s = e.target.closest(".slider");
-  if (!s) return;
-  const row = s.closest(".caption-row");
+  const el = e.target.closest(".slider, .slider-number");
+  if (!el) return;
+  const row = el.closest(".caption-row");
   const o = CAPTION_OPTIONS.find((x) => x.id === row?.dataset.caption);
   if (!o || o.kind !== "range") return;
-  o.value = Number(s.value);
-  const out = row.querySelector(".slider-value");
-  if (out) out.textContent = `${o.value}${o.unit || ""}`;
+  const raw = Number(el.value);
+  if (el.value === "" || !Number.isFinite(raw)) return;
+  o.value = Math.min(o.max, Math.max(o.min, raw));
+  const partner = row.querySelector(el.classList.contains("slider") ? ".slider-number" : ".slider");
+  if (partner) partner.value = o.value;
   applyCaption();
   if (typeof saveProject === "function") saveProject();
   if (typeof savePresetCaption === "function") savePresetCaption();
+});
+
+/* Typing 999 leaves the field reading 999 while the value is clamped to the
+   maximum -- they disagree until the field is redrawn. Correct it when the
+   field is done being edited, not on every keystroke, which would fight
+   someone typing "1" on the way to "16". */
+$("#panel-captions")?.addEventListener("change", (e) => {
+  const el = e.target.closest(".slider-number");
+  if (!el) return;
+  const o = CAPTION_OPTIONS.find((x) => x.id === el.closest(".caption-row")?.dataset.caption);
+  if (o && o.kind === "range") el.value = o.value;
 });
 
 /* ───────────────── cut: click pause to drop the gap ───────────────────── */

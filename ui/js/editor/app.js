@@ -211,11 +211,27 @@ const LEGACY_CAPTION_VALUES = {
   size: [64, 84, 108],
   position: [16, 24, 34],
   "watermark-size": [22, 32, 46],
-  // Top/Middle/Bottom were computed from the caption's position; these are
-  // where they landed under a default caption, now that the watermark
-  // carries its own absolute Y.
-  "watermark-position": [78, 48, 18],
 };
+
+/* Where the old Top/Middle/Bottom modes actually put the watermark, as the
+   single bottom-anchored percentage it carries now.
+
+   This started as a flat table [78, 48, 18] and that was wrong for Bottom:
+   that mode measured from the CAPTION's position, so a fixed number only
+   held for a caption at its own default. ian's project came through with
+   the caption at 16% and the watermark at 18% -- sitting on top of it,
+   since the caption's own line reaches 21.7%. The formula below is the old
+   one, so a migrated project keeps the placement it was rendered with.
+
+   Top and Middle used different ASS alignments (8, measured from the top;
+   5, dead centre) and are converted to the same bottom-anchored scale. */
+function legacyWatermarkY(mode, captionY, watermarkSize) {
+  const line = (watermarkSize * 1.3 / 1920) * 100;   // the old line-height estimate
+  if (mode === 0) return Math.round(100 - 16 - line);      // Top: bottom edge on the 16% line
+  if (mode === 1) return Math.round(50 - line / 2);        // Middle: centred
+  // Bottom: below the caption, but never inside the bottom safe zone.
+  return Math.round(Math.min(Math.max(2, captionY - line - 1), Math.max(0, 20 - line)));
+}
 
 function readCaptionState(saved) {
   if (!saved || typeof saved !== "object") return false;
@@ -231,12 +247,16 @@ function readCaptionState(saved) {
   if (Array.isArray(saved)) {
     saved.forEach((i, slot) => {
       const id = LEGACY_CAPTION_SLOTS[slot];
-      if (!id) return;
+      if (!id || id === "watermark-position") return;   // handled after the loop
       const table = LEGACY_CAPTION_VALUES[id];
-      // watermark-position is gone; its index maps onto watermark-y.
-      put(id === "watermark-position" ? "watermark-y" : id,
-          table ? table[i] : i);
+      put(id, table ? table[i] : i);
     });
+    // Last, because it reads the caption position and watermark size the
+    // loop above just restored.
+    const mode = saved[LEGACY_CAPTION_SLOTS.indexOf("watermark-position")];
+    if (Number.isInteger(mode)) {
+      put("watermark-y", legacyWatermarkY(mode, captionOut("position"), captionOut("watermark-size")));
+    }
     return true;
   }
   for (const [id, raw] of Object.entries(saved)) put(id, raw);
@@ -521,15 +541,20 @@ function drawCaptionOptions() {
                 ${p.css ? `style="--color-dot:${p.css}"` : ""}
                 data-pick="${i}">${p.css ? '<i class="color-dot"></i>' : ""}${escapeHTML(p.t)}</button>`).join("")}
     </span>`;
-  // The number is shown beside the label, not under the slider: it's the
-  // answer to "what is it set to", which is what the label asks.
   const slider = (o) => `
     <input class="slider" type="range" min="${o.min}" max="${o.max}" step="${o.step}"
            value="${o.value}" aria-label="${escapeHTML(o.label)}">`;
+  // A real number field, not a read-out (ian): dragging is for finding a
+  // value, typing is for setting one you already know -- and a slider alone
+  // can't be told "84". It sits on the label's line, where the read-out was,
+  // because it answers the question the label asks.
+  const number = (o) => `
+    <input class="slider-number" type="number" min="${o.min}" max="${o.max}" step="${o.step}"
+           value="${o.value}" aria-label="${escapeHTML(o.label)} value">`;
   const row = (o) => `
     <div class="caption-row" data-caption="${o.id}">
       <span class="eyebrow">${escapeHTML(o.label)}${o.kind === "range"
-        ? `<b class="slider-value">${o.value}${o.unit || ""}</b>` : ""}</span>
+        ? `${number(o)}${o.unit ? `<i class="slider-unit">${o.unit}</i>` : ""}` : ""}</span>
       ${o.kind === "range" ? slider(o) : chips(o)}
       ${o.hint ? `<span class="hint">${escapeHTML(o.hint)}</span>` : ""}
     </div>`;

@@ -1511,11 +1511,29 @@ h1, h2, h3 {
 /* The value sits on the label's own line, pushed to the far end: it answers
    the question the label asks, so the two belong together. */
 .caption-row .eyebrow { display: flex; align-items: baseline; gap: var(--s2); }
-.caption-row .slider-value {
+.caption-row .slider-number {
   margin-left: auto;
+  width: 5ch;
+  font: inherit;
   font-family: var(--font-data); font-variant-numeric: tabular-nums;
   font-size: var(--t-12); letter-spacing: 0; text-transform: none;
+  text-align: right;
   color: var(--accent);
+  background: var(--glass); border: 1px solid var(--glass-border);
+  border-radius: var(--r-s);
+  padding: 2px 5px;
+}
+.caption-row .slider-number:focus-visible { outline: 1px solid var(--accent); }
+/* The spinners are 20px of chrome on a 5ch field, and the slider beside it
+   already covers "nudge by one". */
+.caption-row .slider-number::-webkit-inner-spin-button,
+.caption-row .slider-number::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.caption-row .slider-number { -moz-appearance: textfield; appearance: textfield; }
+/* The unit belongs to the number, so it sits after it rather than being
+   repeated inside the field where it would have to be parsed back out. */
+.caption-row .slider-unit {
+  font-style: normal; font-size: var(--t-12);
+  letter-spacing: 0; text-transform: none; color: var(--text-faint);
 }
 .slider {
   width: 100%; margin: 2px 0 4px;
