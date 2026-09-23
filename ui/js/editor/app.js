@@ -548,9 +548,25 @@ function drawCaptionOptions() {
   // value, typing is for setting one you already know -- and a slider alone
   // can't be told "84". It sits on the label's line, where the read-out was,
   // because it answers the question the label asks.
+  //
+  // The steppers are drawn here rather than left to the browser: the native
+  // spinner only appears on hover, sits at whatever size Chromium picks,
+  // and is styled for a light form -- three reasons it looked wrong next to
+  // everything else. Same chevron as the sidebar toggle, at stepper size.
+  const chevron = (d) => `<svg width="9" height="9" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="3.5" stroke-linecap="round"
+      stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
   const number = (o) => `
-    <input class="slider-number" type="number" min="${o.min}" max="${o.max}" step="${o.step}"
-           value="${o.value}" aria-label="${escapeHTML(o.label)} value">`;
+    <span class="num-field">
+      <input class="slider-number" type="number" min="${o.min}" max="${o.max}" step="${o.step}"
+             value="${o.value}" aria-label="${escapeHTML(o.label)} value">
+      <span class="num-step">
+        <button type="button" data-step="1" tabindex="-1"
+                aria-label="Increase ${escapeHTML(o.label)}">${chevron("M5 15 L12 8 L19 15")}</button>
+        <button type="button" data-step="-1" tabindex="-1"
+                aria-label="Decrease ${escapeHTML(o.label)}">${chevron("M5 9 L12 16 L19 9")}</button>
+      </span>
+    </span>`;
   const row = (o) => `
     <div class="caption-row" data-caption="${o.id}">
       <span class="eyebrow">${escapeHTML(o.label)}${o.kind === "range"

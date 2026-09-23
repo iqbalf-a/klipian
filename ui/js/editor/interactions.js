@@ -381,6 +381,25 @@ $("#panel-captions")?.addEventListener("click", (e) => {
     if (typeof resetCaptionGroup === "function") resetCaptionGroup(reset.dataset.resetGroup);
     return;
   }
+  // The stepper buttons beside a number field. One step of the option's own
+  // step size, clamped, writing both controls -- the same job the "input"
+  // listener below does for typing and dragging.
+  const step = e.target.closest("[data-step]");
+  if (step) {
+    const row = step.closest(".caption-row");
+    const o = CAPTION_OPTIONS.find((x) => x.id === row?.dataset.caption);
+    if (!o || o.kind !== "range") return;
+    o.value = Math.min(o.max, Math.max(o.min, o.value + Number(step.dataset.step) * o.step));
+    const num = row.querySelector(".slider-number");
+    const sl = row.querySelector(".slider");
+    if (num) num.value = o.value;
+    if (sl) sl.value = o.value;
+    applyCaption();
+    if (typeof saveProject === "function") saveProject();
+    if (typeof savePresetCaption === "function") savePresetCaption();
+    return;
+  }
+
   const c = e.target.closest(".chip");
   if (!c) return;
   const row = c.closest(".caption-row");
