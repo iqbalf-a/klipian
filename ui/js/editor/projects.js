@@ -792,34 +792,78 @@ async function openProjectFromHome(video) {
    which still lives in a file as before. */
 const SESSION_KEY = "klipian:sesi-aktif";
 
+/* ...and in the address bar as well (ian): /workspace had a real URL while
+   the editor was always just "/", whatever was open. So the open project
+   couldn't be linked to, and a reload only came back because of the
+   localStorage pointer above -- the address itself said nothing.
+
+   The video's filename IS the project key here: every /api/... call takes
+   ?video=<name>, the home cards carry it, and the server derives the
+   project file from it (_project_path()). The on-disk fingerprint in
+   <stem>.<fp>.json would be the more "id-like" thing, but it's a
+   server-side detail the UI never sees, and it CHANGES when the video is
+   re-encoded -- links made from it would rot.
+
+   replaceState, never pushState: this mirrors state that already changed,
+   it isn't itself a navigation. Pushing would stack an entry every time a
+   project opens (session restore included) and make Back walk back through
+   projects without actually reopening them -- the page doesn't re-run on
+   popstate. */
+function writeProjectUrl(video) {
+  const url = video ? `/edit/${encodeURIComponent(video)}` : "/";
+  if (location.pathname !== url) history.replaceState(null, "", url);
+}
+
+/* The project named by the current URL, if any. Wins over SESSION_KEY on
+   load: an explicit address is a stronger statement of intent than "what
+   this browser had open last time". */
+function urlProject() {
+  const m = location.pathname.match(/^\/edit\/(.+)$/);
+  if (!m) return "";
+  try { return decodeURIComponent(m[1]); } catch { return ""; }
+}
+
 function rememberActiveSession(video) {
   try { localStorage.setItem(SESSION_KEY, video); } catch { /* privat/penuh -- lupakan saja */ }
+  writeProjectUrl(video);
 }
 
 function forgetActiveSession() {
   try { localStorage.removeItem(SESSION_KEY); } catch { /* sama */ }
+  writeProjectUrl(null);
 }
 
-/* Called once when the page loads. Returns true if it successfully
-   re-entered the last project -- the caller does NOT need to fall back to
-   toStage("home") if this succeeds. */
+/* Called once when the page loads: enters the project named by the URL,
+   or failing that the one this browser had open last. Returns true if it
+   succeeded -- the caller does NOT need to fall back to toStage("home")
+   then. */
 async function restoreLastSession() {
-  let video;
-  try { video = localStorage.getItem(SESSION_KEY); } catch { return false; }
+  let stored = "";
+  try { stored = localStorage.getItem(SESSION_KEY) || ""; } catch { /* blocked */ }
+  const video = urlProject() || stored;
   if (!video) return false;
+
+  // Opening failed, for either of the two reasons below. A stale /edit/
+  // link only clears the address; it must NOT also throw away the stored
+  // session, which points at a different, still-valid project.
+  const giveUp = () => {
+    if (video === stored) forgetActiveSession();
+    else writeProjectUrl(null);
+    return false;
+  };
 
   // The video may have been moved/deleted since it was last opened --
   // checked first via /api/video, instead of trying directly and failing
   // silently partway through loading.
   try {
     const available = (await (await fetch("/api/video")).json()).video || [];
-    if (!available.includes(video)) { forgetActiveSession(); return false; }
+    if (!available.includes(video)) return giveUp();
   } catch {
     return false;   // server not ready yet/offline -- don't pretend it succeeded
   }
 
   const existed = await openProjectFromHome(video);
-  if (!existed) { forgetActiveSession(); return false; }  // video exists but its project is gone
+  if (!existed) return giveUp();   // video exists but its project is gone
   return true;
 }
 

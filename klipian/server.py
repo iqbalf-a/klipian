@@ -1041,6 +1041,14 @@ class Handler(BaseHTTPRequestHandler):
             path = "/ui/index.html"
         if path.rstrip("/") == "/workspace":
             path = "/ui/workspace.html"
+        # /edit/<video> is the same editor page -- which project it opens is
+        # decided in the browser (urlProject() in ui/js/editor/projects.js),
+        # not here, so nothing in this path is looked up or trusted: it is
+        # only ever handed back to index.html to read for itself. "/" still
+        # works and still restores the last session, so old links and
+        # bookmarks are unaffected.
+        if path.rstrip("/") == "/edit" or path.startswith("/edit/"):
+            path = "/ui/index.html"
 
         # Stripping ".." alone is NOT enough on Windows: a single path
         # component containing a backslash or drive letter can reset the
