@@ -89,8 +89,80 @@
 }
 /* ian: better on the right, just left of the Theme icon, rather than
    next to the logo -- so it moved again, this time to a genuinely
-   page-independent rule: margin-left:auto on the switch itself (not on
-   whatever happens to follow it, which is DIFFERENT per page -- Theme +
-   "?" on the editor, just the clock on /workspace). One rule, correct
-   on both, nothing to keep in sync by hand this time. */
+   page-independent rule: margin-left:auto on the switch itself, not on
+   whatever happens to follow it. One rule, correct on both pages,
+   nothing to keep in sync by hand. */
 .area-switch { margin-left: auto; }
+
+/* ══════════════════════════ topbar right-hand side ══════════════════════════
+   Theme, "?" and the clock, in that order, on BOTH pages -- ian's fix for
+   the editor having theme + help and no clock while /workspace had a clock
+   and neither of the others. They were three separate implementations in
+   three files before that (app.css, app.css, Tailwind classes inline);
+   here they're one, and the behaviour that drives them is likewise one
+   copy in js/shared/topbar.js.
+
+   Everything below reads from tokens.css, which both pages already load,
+   so nothing here depends on app.css or on the Tailwind build. */
+.btn {
+  font: inherit; font-size: var(--t-12); font-weight: 650;
+  white-space: nowrap;
+  padding: 6px 13px;
+  border-radius: var(--r-pill);
+  border: 1px solid transparent;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background var(--fast), border-color var(--fast), color var(--fast);
+}
+.btn:hover { color: var(--text); background: var(--glass); border-color: var(--glass-border); }
+.btn.quiet { background: none; border-color: transparent; color: var(--text-faint); }
+.btn.quiet:hover { color: var(--text); background: var(--glass); }
+
+/* position is relative so the panel can be absolute against the BUTTON,
+   not the whole topbar. */
+.shortcut-help { position: relative; }
+.shortcut-help .btn { font-weight: 700; }
+
+/* Panel appears BELOW its button (top: 100%) -- the topbar is at the very
+   top of the page; opening upward would go off-screen. */
+.shortcut-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 5;
+  width: max-content;
+  max-width: 260px;
+  display: grid; gap: 6px;
+  padding: var(--s3) var(--s4);
+  border-radius: var(--r-m);
+  background: var(--bg-1);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 12px 32px -12px color-mix(in srgb, var(--scrim) 60%, transparent);
+}
+.shortcut-panel p {
+  margin: 0;
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--text-muted);
+}
+/* The row is a flex line, so a bold term gets squeezed and breaks
+   mid-phrase ("Rendered / output") while the description beside it still
+   has room. The term keeps its width; the description is what wraps. */
+.shortcut-panel b { flex: none; color: var(--text); }
+.shortcut-panel kbd {
+  font-family: var(--font-data); font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-strong);
+  color: var(--text);
+}
+
+/* Last in the row on both pages. tabular-nums so the minute changing
+   doesn't shift the digits beside it. */
+#topClock {
+  font-size: var(--t-12);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+  white-space: nowrap;
+}

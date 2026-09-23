@@ -432,32 +432,11 @@ $("#stepUnitBtn")?.addEventListener("click", () => {
   updateStepLabel();
 });
 
-/* Keyboard shortcut panel -- "?" toggles open/closed, not always visible
-   (the 9:16 preview panel is already tight; permanent help text would
-   crowd out other buttons). Close again on outside click or Escape --
-   standard popover pattern, don't leave it hanging open until manually
-   closed via its own button. */
-(function shortcutHelp() {
-  const btn = $("#shortcutHelpBtn");
-  const panel = $("#shortcutPanel");
-  if (!btn || !panel) return;
-  const close = () => {
-    panel.hidden = true;
-    btn.setAttribute("aria-expanded", "false");
-  };
-  btn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const open = panel.hidden;
-    panel.hidden = !open;
-    btn.setAttribute("aria-expanded", String(open));
-  });
-  document.addEventListener("click", (e) => {
-    if (!panel.hidden && !panel.contains(e.target) && e.target !== btn) close();
-  });
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !panel.hidden) close();
-  });
-})();
+/* The "?" panel's open/close lives in js/shared/topbar.js -- /workspace
+   has the same button now, and the mechanics are identical. Only the
+   CONTENT is still editor-specific: the shortcuts listed in
+   #shortcutPanel in index.html, and the unit label kept current by
+   updateStepLabel() above. */
 
 /* Framing canvas is synced on seek and play/pause events -- not just on
    timeupdate. Scrubbing while paused does not always fire timeupdate,

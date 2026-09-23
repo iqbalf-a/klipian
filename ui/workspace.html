@@ -8,12 +8,12 @@
      from the Google Fonts CDN -- see ui/css/fonts.css for why. Loaded
      BEFORE the other stylesheets so the faces are declared by the time
      anything asks for them. -->
-<link rel="stylesheet" href="/ui/css/fonts.css?v=1790139257000">
+<link rel="stylesheet" href="/ui/css/fonts.css?v=1790140039000">
 <!-- tokens.css is loaded FIRST -- css/workspace.css just points to the custom
      properties defined there (see tailwind.config.js). -->
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1790139257000">
-<link rel="stylesheet" href="/ui/css/brand.css?v=1790139257000">
-<link rel="stylesheet" href="/ui/css/workspace.css?v=1790139257000">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1790140039000">
+<link rel="stylesheet" href="/ui/css/brand.css?v=1790140039000">
+<link rel="stylesheet" href="/ui/css/workspace.css?v=1790140039000">
 </head>
 <body>
 
@@ -32,12 +32,30 @@
       <a href="/">Edit</a>
       <a href="/workspace" aria-current="page">Workspace</a>
     </nav>
-    <!-- No ml-auto here any more -- .area-switch (brand.css) carries its
-         own margin-left:auto now, and the header's gap-4 already gives
-         this the same spacing as everything else in the row. Two auto
-         margins on one row would have split the leftover space between
-         them instead of landing the switch flush against this. -->
-    <span class="font-data text-[12px] text-text-faint" id="wsClock"></span>
+    <!-- Theme, "?", clock: same three controls, same order, same classes as
+         the editor's topbar (ian) -- this page used to have only the clock.
+         All three are styled by brand.css and driven by
+         js/shared/topbar.js, so neither side can drift from the other.
+
+         No ml-auto anywhere in here: .area-switch carries its own
+         margin-left:auto, and a second auto margin on the same row would
+         split the leftover space between the two instead of pushing this
+         whole group flush right. -->
+    <button class="btn quiet" id="themeBtn" type="button" aria-live="polite"></button>
+    <!-- No keyboard shortcuts on this page (nothing to transport-control),
+         so the panel answers the question this page actually raises: what
+         are these three sections, and where does their content come from. -->
+    <div class="shortcut-help">
+      <button class="btn quiet" id="shortcutHelpBtn" type="button"
+              title="About this page" aria-label="About this page"
+              aria-expanded="false">?</button>
+      <div class="shortcut-panel" id="shortcutPanel" hidden role="tooltip">
+        <p><b>Clips</b> upload schedule, edited in place</p>
+        <p><b>Rendered output</b> files the editor has rendered</p>
+        <p><b>Assets</b> your own logos and banners</p>
+      </div>
+    </div>
+    <span id="topClock"></span>
   </header>
 
   <main class="flex-1 min-h-0 overflow-y-auto flex flex-col gap-6 p-6
@@ -153,9 +171,11 @@
   </main>
 </div>
 
-<script src="/ui/js/workspace/helpers.js?v=1790139257000"></script>
-<script src="/ui/js/workspace/clips.js?v=1790139257000"></script>
-<script src="/ui/js/workspace/render.js?v=1790139257000"></script>
-<script src="/ui/js/workspace/assets.js?v=1790139257000"></script>
+<!-- Same file the editor loads -- the topbar's Theme / "?" / clock. -->
+<script src="/ui/js/shared/topbar.js?v=1790140039000"></script>
+<script src="/ui/js/workspace/helpers.js?v=1790140039000"></script>
+<script src="/ui/js/workspace/clips.js?v=1790140039000"></script>
+<script src="/ui/js/workspace/render.js?v=1790140039000"></script>
+<script src="/ui/js/workspace/assets.js?v=1790140039000"></script>
 </body>
 </html>

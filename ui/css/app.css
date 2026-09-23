@@ -226,18 +226,10 @@ h1, h2, h3 {
    Previously accent was used for both, and the Approve button became the
    noisiest element on the card -- drowning out the title and quote that
    should be read first. */
-.btn {
-  font: inherit; font-size: var(--t-12); font-weight: 650;
-  white-space: nowrap;
-  padding: 6px 13px;
-  border-radius: var(--r-pill);
-  border: 1px solid transparent;
-  background: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: background var(--fast), border-color var(--fast), color var(--fast);
-}
-.btn:hover { color: var(--text); background: var(--glass); border-color: var(--glass-border); }
+
+/* .btn and .btn.quiet themselves are in brand.css -- Theme and "?" are on
+   /workspace too now, and that page can't reach this file. Everything
+   below EXTENDS that base, and only exists in the editor. */
 
 /* One primary action per region, and it's accented. The rest are dark pills.
    This rule is what makes the eye know where to go without reading. */
@@ -264,9 +256,6 @@ h1, h2, h3 {
 .btn:has(svg) { display: inline-flex; align-items: center; gap: 6px; }
 .icon-ai { flex: none; }
 .btn.main.large { padding: 10px 20px; font-size: var(--t-13); }
-
-.btn.quiet { background: none; border-color: transparent; color: var(--text-faint); }
-.btn.quiet:hover { color: var(--text); background: var(--glass); }
 
 .chip {
   font: inherit; font-size: var(--t-12); font-weight: 650;
@@ -568,44 +557,10 @@ h1, h2, h3 {
   background: var(--accent-soft);
 }
 
-/* "?" button in the topbar (top-right corner, common web pattern) --
-   position is relative here so the panel can be absolute relative to
-   the button itself, not the entire topbar. Previously in the preview
-   media control row, but that row was already packed (it caused overflow,
-   see commit history), and a help button is more naturally placed in the
-   top bar, not competing with the transport controls. */
-.shortcut-help { position: relative; }
-.shortcut-help .btn { font-weight: 700; }
-
-/* Panel appears BELOW its button (top: 100%) -- the topbar is at the very
-   top of the page; opening upward would go off-screen. */
-.shortcut-panel {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  z-index: 5;
-  width: max-content;
-  max-width: 220px;
-  display: grid; gap: 6px;
-  padding: var(--s3) var(--s4);
-  border-radius: var(--r-m);
-  background: var(--bg-1);
-  border: 1px solid var(--glass-border);
-  box-shadow: 0 12px 32px -12px color-mix(in srgb, var(--scrim) 60%, transparent);
-}
-.shortcut-panel p {
-  margin: 0;
-  display: flex; align-items: center; gap: 6px;
-  font-size: 11px; color: var(--text-muted);
-}
-.shortcut-panel kbd {
-  font-family: var(--font-data); font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  border: 1px solid var(--glass-border);
-  background: var(--glass-strong);
-  color: var(--text);
-}
+/* The "?" button and its panel are in brand.css -- /workspace carries the
+   same pair now. This one rule stays here because the element it targets
+   only exists in the editor's copy of the panel: the live "frame"/"second"
+   label updateStepLabel() writes in player.js. */
 .shortcut-panel #shortcutUnitText {
   margin-left: auto;
   color: var(--accent);

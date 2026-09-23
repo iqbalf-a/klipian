@@ -25,10 +25,5 @@ function timeAgo(epochSeconds) {
     { day: "numeric", month: "short" });
 }
 
-function updateClock() {
-  const el = $("#wsClock");
-  if (el) el.textContent = new Date().toLocaleTimeString("en-GB",
-    { hour: "2-digit", minute: "2-digit" });
-}
-updateClock();
-setInterval(updateClock, 30000);
+/* The clock moved to js/shared/topbar.js (as #topClock) -- the editor
+   shows the same one now, and two copies of a clock is one too many. */
