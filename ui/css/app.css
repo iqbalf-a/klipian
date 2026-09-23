@@ -160,10 +160,16 @@ h1, h2, h3 {
 .screen { display: none; flex: 1; min-height: 0; flex-direction: column; gap: var(--s4); }
 .screen.active { display: flex; }
 
-/* Clips and Captions can be taller than the window: multiple panels stack.
-   Without this, the panels below are completely unreachable. */
+/* Clips can be taller than the window: multiple panels stack. Without this,
+   the panels below are completely unreachable.
+
+   Captions was in both of these lists and is in neither now: it shows
+   exactly ONE panel at a time behind its tabs, so nothing stacks and
+   nothing is out of reach. Leaving it in was what kept the Words list
+   boxed into 270px with 160px of empty column under it (ian) -- the
+   flex:none below beat .subtab-panel's flex:1 on specificity, so the panel
+   sized to its content instead of taking the room it had. */
 .screen[data-screen="clips"].active,
-.screen[data-screen="captions"].active,
 .screen[data-screen="framing"].active,
 .screen[data-screen="history"].active {
   overflow-y: auto;
@@ -175,7 +181,6 @@ h1, h2, h3 {
    giving the panel flex:1 just leaves empty space below the canvas -- it
    doesn't make the canvas grow. */
 .screen[data-screen="clips"] > .panel,
-.screen[data-screen="captions"] > .panel,
 .screen[data-screen="framing"] > .panel { flex: none; }
 
 .work-head { display: flex; align-items: center; gap: var(--s4); flex: none; }
@@ -1520,9 +1525,19 @@ h1, h2, h3 {
 }
 .subtab:hover { color: var(--text); }
 .subtab[aria-pressed="true"] { color: var(--bg-0); background: var(--text); }
-/* The Words tab holds every word in the clip, so it scrolls rather than
-   pushing the tab strip off the top. */
-.subtab-panel { min-height: 0; overflow-y: auto; }
+/* The visible tab takes the rest of the column. .panel.fit is flex:none,
+   which sized these to their content: the Words list ended up scrolling
+   inside 270px while 400px of column sat empty below it (ian). The panel
+   itself doesn't scroll -- it's a frame whose last child does, so the
+   Words tab's head (the note and its two buttons) stays put while the
+   words move under it. */
+.subtab-panel:not([hidden]) {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.subtab-panel > .list,
+.subtab-panel > .text-list { flex: 1; min-height: 0; overflow-y: auto; }
 
 /* .frame916 is width:100% with an aspect-ratio, so its HEIGHT comes from
    whatever column it's in -- dropped into a full-width middle column it
@@ -2173,11 +2188,11 @@ h1, h2, h3 {
 .text-list {
   display: flex; flex-wrap: wrap; gap: 4px;
   padding: var(--s3) var(--s5) var(--s4);
-  /* 210px is a relic from when Text shared one screen with Timeline,
-     Result, and Framing. Now Text has its own screen, so the list can
-     use the available space -- less scrolling, easier to find
-     misheard words. */
-  max-height: clamp(140px, 30vh, 380px);
+  /* No max-height. It was clamp(140px, 30vh, 380px), itself already a
+     loosening of a 210px cap from when this shared one screen with
+     Timeline, Result and Framing. It has a tab of its own now, so the cap
+     did nothing but keep the list short inside a panel with room to spare
+     -- the height comes from the tab (see .subtab-panel above). */
   overflow-y: auto;
 }
 .word-text {
