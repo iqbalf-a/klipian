@@ -797,30 +797,59 @@ const SESSION_KEY = "klipian:sesi-aktif";
    couldn't be linked to, and a reload only came back because of the
    localStorage pointer above -- the address itself said nothing.
 
-   The video's filename IS the project key here: every /api/... call takes
-   ?video=<name>, the home cards carry it, and the server derives the
-   project file from it (_project_path()). The on-disk fingerprint in
-   <stem>.<fp>.json would be the more "id-like" thing, but it's a
-   server-side detail the UI never sees, and it CHANGES when the video is
-   re-encoded -- links made from it would rot.
+   The address carries <stem>.<fingerprint> -- the project file's own
+   basename on disk, resolved through /api/project-id. It was the video's
+   filename at first, which is what every /api/... call is keyed by, but
+   ian asked whether names can collide and they can, just not in the
+   obvious way: two videos can't share a name inside workspace/samples/,
+   but a project is keyed by CONTENT (size+mtime, see fingerprint() in
+   cache.py), so re-encoding a video leaves the old project on disk and
+   starts a new one under the same filename -- two home cards, one name.
+   Renaming the video is the mirror image: same project, dead link,
+   because the fingerprint deliberately ignores the path.
+
+   The id isn't permanent either -- it's mtime-based, so restoring the
+   video from a backup mints a new one -- but it names exactly one
+   project, which a filename doesn't.
 
    replaceState, never pushState: this mirrors state that already changed,
    it isn't itself a navigation. Pushing would stack an entry every time a
    project opens (session restore included) and make Back walk back through
    projects without actually reopening them -- the page doesn't re-run on
    popstate. */
-function writeProjectUrl(video) {
-  const url = video ? `/edit/${encodeURIComponent(video)}` : "/";
+async function writeProjectUrl(video) {
+  if (!video) {
+    if (location.pathname !== "/") history.replaceState(null, "", "/");
+    return;
+  }
+  let id = "";
+  try {
+    const r = await fetch(`/api/project-id?video=${encodeURIComponent(video)}`);
+    id = (await r.json()).id || "";
+  } catch { /* server unreachable */ }
+  // Rather than fall back to a filename URL that would be a different
+  // shape from every other one, leave the address as it is: a wrong or
+  // inconsistent link is worse than a stale one.
+  if (!id) return;
+  const url = `/edit/${encodeURIComponent(id)}`;
   if (location.pathname !== url) history.replaceState(null, "", url);
 }
 
-/* The project named by the current URL, if any. Wins over SESSION_KEY on
-   load: an explicit address is a stronger statement of intent than "what
-   this browser had open last time". */
-function urlProject() {
+/* The project id in the current URL, if any. */
+function urlProjectId() {
   const m = location.pathname.match(/^\/edit\/(.+)$/);
   if (!m) return "";
   try { return decodeURIComponent(m[1]); } catch { return ""; }
+}
+
+/* ...and the video it belongs to, since that's what everything else here
+   is keyed by. Empty if the id names no project on disk. */
+async function videoForProjectId(id) {
+  try {
+    const r = await fetch(`/api/project-id?id=${encodeURIComponent(id)}`);
+    if (!r.ok) return "";
+    return (await r.json()).video || "";
+  } catch { return ""; }
 }
 
 function rememberActiveSession(video) {
@@ -836,11 +865,24 @@ function forgetActiveSession() {
 /* Called once when the page loads: enters the project named by the URL,
    or failing that the one this browser had open last. Returns true if it
    succeeded -- the caller does NOT need to fall back to toStage("home")
-   then. */
+   then.
+
+   The URL wins over the stored session: an explicit address is a stronger
+   statement of intent than "what this browser had open last time". */
 async function restoreLastSession() {
   let stored = "";
   try { stored = localStorage.getItem(SESSION_KEY) || ""; } catch { /* blocked */ }
-  const video = urlProject() || stored;
+  const id = urlProjectId();
+  let video = stored;
+  if (id) {
+    video = await videoForProjectId(id);
+    // A link to a project that isn't here goes to Home with the address
+    // cleared -- NOT to whatever this browser had open last. Silently
+    // substituting another project, and then rewriting the address to
+    // claim it was the one asked for, gives no sign the link was dead.
+    // The stored session is untouched, so a plain "/" still restores it.
+    if (!video) { writeProjectUrl(null); return false; }
+  }
   if (!video) return false;
 
   // Opening failed, for either of the two reasons below. A stale /edit/

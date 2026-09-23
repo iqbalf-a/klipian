@@ -981,6 +981,35 @@ class Handler(BaseHTTPRequestHandler):
             except ValueError:
                 return self._send_json({"error": "project file is corrupt"}, 500)
 
+        # Translates between the two names one project answers to: the video
+        # filename everything else here is keyed by, and <stem>.<fingerprint>,
+        # the project file's own basename, which is what /edit/<id> carries.
+        #
+        # It's a separate endpoint rather than an extra field on /api/project
+        # because that response IS the project document -- the user's file --
+        # and server-computed metadata doesn't belong mixed into it.
+        #
+        # Both directions are O(1): video -> id is _project_path(), id ->
+        # video is just reading PROJECTS/<id>.json, no scan.
+        if path == "/api/project-id":
+            q = parse_qs(urlparse(self.path).query)
+            pid = (q.get("id") or [""])[0]
+            name = (q.get("video") or [""])[0]
+            if pid:
+                # .name strips any path the client put in the id.
+                f = PROJECTS / f"{Path(pid).name}.json"
+                if not f.is_file():
+                    return self._send_json({"error": "not found"}, 404)
+                try:
+                    data = json.loads(f.read_text(encoding="utf-8"))
+                except ValueError:
+                    return self._send_json({"error": "project file is corrupt"}, 500)
+                return self._send_json({"id": f.stem, "video": data.get("video", "")})
+            if name:
+                return self._send_json({"id": _project_path(name).stem,
+                                        "video": Path(name).name})
+            return self._send_json({"error": "id or video required"}, 400)
+
         if path == "/api/workspace/clips":
             return self._send_json({"clip": _load_clips()})
 
