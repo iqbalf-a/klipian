@@ -87,4 +87,8 @@
   color: var(--bg-0);
   background: var(--text);
 }
-.topbar .area-switch { margin-left: auto; }
+/* No margin-left:auto here any more -- the switch sits right after the
+   logo on both pages now (see #themeBtn in app.css for what pushes the
+   REST of the topbar's right-hand group over on the editor page; there
+   is nothing to its right worth pushing on /workspace, so it needs none
+   there). */
