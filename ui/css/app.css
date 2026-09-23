@@ -1162,11 +1162,15 @@ h1, h2, h3 {
 /* Two rows: label + choices on top, hint below -- aligned with the choice,
    not with the label, so it reads as a description of the currently
    active selection. */
+/* Stacked, not label-beside-choices. This row's only home is the Settings
+   column now, and at --w-config a 150px label column left the choices about
+   190px -- so Resolution and Quality both broke mid-row, "4K" and "Best"
+   dropping onto a line of their own. Giving the chips the full width costs
+   one line of height per row and ends the wrapping. */
 .option-row {
   display: grid;
-  grid-template-columns: 150px 1fr;
-  grid-template-areas: "label pilihan" ".     terang";
-  align-items: center; column-gap: var(--s4); row-gap: 6px;
+  grid-template-areas: "label" "pilihan" "terang";
+  row-gap: 6px;
   padding: var(--s4) 0;
   border-bottom: 1px solid var(--glass-border);
 }
@@ -1457,6 +1461,42 @@ h1, h2, h3 {
    text. Costs the button's width plus one gutter out of the 168px that
    hiding the sidebar just reclaimed. */
 .app[data-sidebar="hidden"] .stage { padding-left: calc(var(--gutter) * 2 + 26px); }
+
+/* ── Settings: the one screen laid out the other way round ──
+   ian asked for the clip in the middle and its configuration in a panel on
+   the right. Everywhere else the middle column IS the work and .preview is
+   the narrow one beside it, so here the two swap roles.
+
+   All three are placed explicitly, ROW INCLUDED. Auto-placement walks the
+   items in DOM order (.side, .work, .preview) and only ever moves its
+   cursor forward, so once .work is pinned to column 3 it considers column 2
+   spent and drops .preview into a second row -- which it did: the preview
+   landed under the sidebar, 362px tall, with the 9:16 frame spilling off
+   the bottom of the window. Naming the row costs one declaration each and
+   removes the whole question.
+
+   These rules come after the sidebar-hidden ones above deliberately: the
+   one-attribute selectors match at equal specificity, so source order is
+   what decides. */
+.app[data-screen="settings"] .stage.has-preview {
+  grid-template-columns: var(--w-side) 1fr var(--w-config);
+}
+.app[data-screen="settings"] .side    { grid-column: 1; grid-row: 1; }
+.app[data-screen="settings"] .preview { grid-column: 2; grid-row: 1; }
+.app[data-screen="settings"] .work    { grid-column: 3; grid-row: 1; }
+.app[data-sidebar="hidden"][data-screen="settings"] .stage.has-preview {
+  grid-template-columns: 1fr var(--w-config);
+}
+.app[data-sidebar="hidden"][data-screen="settings"] .preview { grid-column: 1; grid-row: 1; }
+.app[data-sidebar="hidden"][data-screen="settings"] .work    { grid-column: 2; grid-row: 1; }
+
+/* .frame916 is width:100% with an aspect-ratio, so its HEIGHT comes from
+   whatever column it's in -- dropped into a full-width middle column it
+   grows far past the window. Every child is capped at the width this
+   column has on every other screen and centred, which is also what makes
+   it read as a card standing in open space rather than a stretched panel. */
+.app[data-screen="settings"] .preview { align-items: center; }
+.app[data-screen="settings"] .preview > * { width: min(100%, var(--w-preview)); }
 /* Shares everything else with .side-collapse above. The offsets have to
    rebuild, from the viewport, what that button gets for free from being
    inside .side: the stage's --gutter of padding, .side's 1px border, then

@@ -512,11 +512,7 @@ function renderPreview() {
 /* ───────────────────────── navigation ──────────────────────────── */
 // "video" was in this list for a screen that no longer exists -- index.html
 // has analysis / clips / framing / captions / history.
-// Settings is a list of choices, not clip work. The 9:16 panel doesn't
-// react to any of them (the option handler saves and updates the Framing
-// warning, nothing redraws the preview), so showing it beside them would
-// be a picture that ignores the switch you just flipped.
-const NO_PREVIEW = ["analysis", "history", "settings"];
+const NO_PREVIEW = ["analysis", "history"];
 
 /* Three screens that edit the same result. Split into separate menus so
    each screen has one concern: Clips picks the cuts, Framing adjusts the
@@ -530,6 +526,10 @@ let activeScreen = "clips";
 
 function toScreen(name) {
   activeScreen = name;
+  // On .app, not .stage: the stage's columns AND the elements placed into
+  // them are both restyled per screen (see the Settings layout in app.css),
+  // and .app is the common ancestor of all of them.
+  $("#app").dataset.screen = name;
   if (typeof saveProject === "function") saveProject();
   document.querySelectorAll(".screen").forEach((s) =>
     s.classList.toggle("active", s.dataset.screen === name));
