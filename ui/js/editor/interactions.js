@@ -384,16 +384,20 @@ const frame916ResizeObserver = new ResizeObserver(() => {
 const _frame916 = document.querySelector(".frame916");
 if (_frame916) frame916ResizeObserver.observe(_frame916);
 
-$("#captionList")?.addEventListener("click", (e) => {
+/* One listener for both containers: the Style tab's rows and the Watermark
+   tab's are the same widget over the same CAPTION_OPTIONS, only drawn into
+   two places (see drawCaptionOptions() in app.js). Bound to the section so
+   it survives either list being rewritten. */
+$("#panel-captions")?.addEventListener("click", (e) => {
   const c = e.target.closest(".chip");
   if (!c) return;
-  const row = c.closest(".row");
+  const row = c.closest(".caption-row");
+  if (!row) return;
   const o = CAPTION_OPTIONS.find((x) => x.id === row.dataset.caption);
   if (!o) return;
   const all = [...row.querySelectorAll(".chip")];
   o.active = Number(c.dataset.pick ?? all.indexOf(c));
   all.forEach((b, i) => b.setAttribute("aria-pressed", String(i === o.active)));
-  row.querySelector(".meta").textContent = o.choices[o.active].t;
   applyCaption();
   if (typeof saveProject === "function") saveProject();
   if (typeof savePresetCaption === "function") savePresetCaption();

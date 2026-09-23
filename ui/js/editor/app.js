@@ -419,17 +419,35 @@ function renderList() {
   }
   drawQueue();
 
-  $("#captionList").innerHTML = CAPTION_OPTIONS.map((o) => `
-    <div class="row" data-caption="${o.id}" style="grid-template-columns:130px 1fr auto">
-      <span class="eyebrow">${o.label}</span>
-      <span style="display:flex;gap:var(--s2)">
+  drawCaptionOptions();
+}
+
+/* The Captions screen splits these across a Style tab and a Watermark tab
+   (ian), so they're drawn into two containers by id prefix rather than one
+   flat list. Nothing else distinguishes them -- every watermark option is
+   named "watermark…" and no style option is -- so the prefix IS the group,
+   and adding a new option to either tab is still just an entry in
+   CAPTION_OPTIONS.
+
+   Rows are stacked, label above chips, for the same reason .option-row is:
+   they live in a --w-config column now, and a 130px label column left no
+   room for five colour chips. The trailing .meta echoing the active choice
+   went with it -- the pressed chip already says which one it is. */
+function drawCaptionOptions() {
+  const row = (o) => `
+    <div class="caption-row" data-caption="${o.id}">
+      <span class="eyebrow">${escapeHTML(o.label)}</span>
+      <span class="choices">
         ${o.choices.map((p, i) => `
           <button class="chip"${i === o.active ? ' aria-pressed="true"' : ""}
                   ${p.css ? `style="--color-dot:${p.css}"` : ""}
-                  data-pick="${i}">${p.css ? '<i class="color-dot"></i>' : ""}${p.t}</button>`).join("")}
+                  data-pick="${i}">${p.css ? '<i class="color-dot"></i>' : ""}${escapeHTML(p.t)}</button>`).join("")}
       </span>
-      <span class="meta">${o.choices[o.active].t}</span>
-    </div>`).join("");
+    </div>`;
+  const style = $("#captionList");
+  const mark = $("#watermarkList");
+  if (style) style.innerHTML = CAPTION_OPTIONS.filter((o) => !o.id.startsWith("watermark")).map(row).join("");
+  if (mark) mark.innerHTML = CAPTION_OPTIONS.filter((o) => o.id.startsWith("watermark")).map(row).join("");
 }
 
 /* Pleasant clip length to watch: one whole idea, not a cut-off sentence. */
@@ -669,6 +687,22 @@ const goHomeDeliberately = () => {
 };
 $("#toHome")?.addEventListener("click", goHomeDeliberately);
 $("#toMenuBtn")?.addEventListener("click", goHomeDeliberately);
+
+/* Caption sub-tabs. Plain show/hide -- each panel's contents are already
+   drawn and kept current by renderCaptions()/drawCaptionOptions(), so
+   switching is only a matter of which one is on screen. aria-pressed, not
+   the ARIA tabs pattern: these are toggle buttons over sibling panels, and
+   claiming role="tab" would promise arrow-key navigation that isn't here. */
+$("#captionTabs")?.addEventListener("click", (e) => {
+  const b = e.target.closest(".subtab");
+  if (!b) return;
+  const pick = b.dataset.subtab;
+  document.querySelectorAll("#captionTabs .subtab").forEach((t) =>
+    t.setAttribute("aria-pressed", String(t.dataset.subtab === pick)));
+  document.querySelectorAll("#panel-captions .subtab-panel").forEach((p) => {
+    p.hidden = p.dataset.subtabPanel !== pick;
+  });
+});
 
 $("#options")?.addEventListener("click", (e) => {
   const c = e.target.closest(".chip");

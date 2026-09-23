@@ -8,10 +8,10 @@
      from the Google Fonts CDN -- see ui/css/fonts.css for why. Loaded
      BEFORE the other stylesheets so the faces are declared by the time
      anything asks for them. -->
-<link rel="stylesheet" href="/ui/css/fonts.css?v=1790154455000">
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1790154455000">
-<link rel="stylesheet" href="/ui/css/brand.css?v=1790154455000">
-<link rel="stylesheet" href="/ui/css/app.css?v=1790154455000">
+<link rel="stylesheet" href="/ui/css/fonts.css?v=1790156418000">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1790156418000">
+<link rel="stylesheet" href="/ui/css/brand.css?v=1790156418000">
+<link rel="stylesheet" href="/ui/css/app.css?v=1790156418000">
 </head>
 <body>
 
@@ -601,10 +601,34 @@
           </div>
         </div>
 
-        <!-- Caption text: belongs to this result only, transcript untouched -->
-        <div class="panel fit">
+        <!-- Three tabs instead of two stacked panels (ian). They don't fit
+             side by side in this column -- it's --w-config wide now, the
+             clip having moved to the middle -- and they're not used
+             together anyway: you fix the words, or you style them, or you
+             place the watermark.
+
+             .subtab, deliberately NOT .tab: app.js's toScreen() and its
+             arrow-key handler both do an unscoped querySelectorAll(".tab")
+             on the assumption that class only ever means the sidebar's
+             screen tabs, and would stamp aria-selected and tabIndex=-1 onto
+             these on every screen switch -- the second part dropping them
+             out of the keyboard order entirely. Same reasoning as
+             .area-switch a in brand.css. -->
+        <nav class="tabs subtabs" id="captionTabs" aria-label="Caption settings">
+          <button class="subtab" type="button" data-subtab="style" aria-pressed="true">Style</button>
+          <button class="subtab" type="button" data-subtab="words" aria-pressed="false">Words</button>
+          <button class="subtab" type="button" data-subtab="watermark" aria-pressed="false">Watermark</button>
+        </nav>
+
+        <!-- Style: what the subtitle looks like. Live preview in the 9:16
+             panel beside it; these settings reach the output file too. -->
+        <div class="panel fit subtab-panel" data-subtab-panel="style">
+          <div class="list" id="captionList"></div>
+        </div>
+
+        <!-- Words: belongs to this Result only, the transcript is untouched. -->
+        <div class="panel fit subtab-panel" data-subtab-panel="words" hidden>
           <div class="panel-head">
-            <span class="eyebrow">Words</span>
             <span class="data" id="textNote" role="status">click a word to correct it</span>
             <button class="btn" id="textFillerBtn" disabled>Remove filler words</button>
             <button class="btn" id="textResetBtn" disabled>Reset all</button>
@@ -612,16 +636,8 @@
           <div class="text-list" id="textList"></div>
         </div>
 
-        <!-- Subtitle: these settings actually make it to the output file -->
-        <div class="panel fit">
-          <div class="panel-head">
-            <span class="eyebrow">Subtitle</span>
-            <span class="data">live preview in the 9:16 panel</span>
-          </div>
-        <div class="panel body" style="overflow-y:auto">
-          <div class="list" id="captionList"></div>
-        </div>
-      
+        <div class="panel fit subtab-panel" data-subtab-panel="watermark" hidden>
+          <div class="list" id="watermarkList"></div>
         </div>
 
       </section>
@@ -822,17 +838,17 @@
 
 <!-- Shared with /workspace (theme, clock, "?" popover) -- loaded first so
      the theme is applied before the editor's own scripts start drawing. -->
-<script src="/ui/js/shared/topbar.js?v=1790154455000"></script>
-<script src="/ui/js/editor/app.js?v=1790154455000"></script>
-<script src="/ui/js/editor/interactions.js?v=1790154455000"></script>
-<script src="/ui/js/editor/framing.js?v=1790154455000"></script>
-<script src="/ui/js/editor/analysis.js?v=1790154455000"></script>
-<script src="/ui/js/editor/player.js?v=1790154455000"></script>
-<script src="/ui/js/editor/roundtrip.js?v=1790154455000"></script>
-<script src="/ui/js/editor/history.js?v=1790154455000"></script>
-<script src="/ui/js/editor/timeline.js?v=1790154455000"></script>
-<script src="/ui/js/editor/captions.js?v=1790154455000"></script>
-<script src="/ui/js/editor/result.js?v=1790154455000"></script>
-<script src="/ui/js/editor/projects.js?v=1790154455000"></script>
+<script src="/ui/js/shared/topbar.js?v=1790156418000"></script>
+<script src="/ui/js/editor/app.js?v=1790156418000"></script>
+<script src="/ui/js/editor/interactions.js?v=1790156418000"></script>
+<script src="/ui/js/editor/framing.js?v=1790156418000"></script>
+<script src="/ui/js/editor/analysis.js?v=1790156418000"></script>
+<script src="/ui/js/editor/player.js?v=1790156418000"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1790156418000"></script>
+<script src="/ui/js/editor/history.js?v=1790156418000"></script>
+<script src="/ui/js/editor/timeline.js?v=1790156418000"></script>
+<script src="/ui/js/editor/captions.js?v=1790156418000"></script>
+<script src="/ui/js/editor/result.js?v=1790156418000"></script>
+<script src="/ui/js/editor/projects.js?v=1790156418000"></script>
 </body>
 </html>

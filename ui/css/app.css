@@ -1465,9 +1465,11 @@ h1, h2, h3 {
 /* ── Settings and Render: the two screens laid out the other way round ──
    ian asked for the clip in the middle and what acts on it in a panel on
    the right. Everywhere else the middle column IS the work and .preview is
-   the narrow one beside it, so on these two the roles swap.
+   the narrow one beside it, so on these the roles swap. Captions earns it
+   most of the three: its settings ARE a live preview of the 9:16 panel, so
+   watching them from a column beside the clip is the whole point.
 
-   All three are placed explicitly, ROW INCLUDED. Auto-placement walks the
+   All three columns are placed explicitly, ROW INCLUDED. Auto-placement walks the
    items in DOM order (.side, .work, .preview) and only ever moves its
    cursor forward, so once .work is pinned to column 3 it considers column 2
    spent and drops .preview into a second row -- which it did: the preview
@@ -1478,25 +1480,57 @@ h1, h2, h3 {
    These rules come after the sidebar-hidden ones above deliberately: the
    one-attribute selectors match at equal specificity, so source order is
    what decides. */
-.app:is([data-screen="settings"],[data-screen="render"]) .stage.has-preview {
+.app:is([data-screen="settings"],[data-screen="render"],[data-screen="captions"]) .stage.has-preview {
   grid-template-columns: var(--w-side) 1fr var(--w-config);
 }
-.app:is([data-screen="settings"],[data-screen="render"]) .side    { grid-column: 1; grid-row: 1; }
-.app:is([data-screen="settings"],[data-screen="render"]) .preview { grid-column: 2; grid-row: 1; }
-.app:is([data-screen="settings"],[data-screen="render"]) .work    { grid-column: 3; grid-row: 1; }
-.app[data-sidebar="hidden"]:is([data-screen="settings"],[data-screen="render"]) .stage.has-preview {
+.app:is([data-screen="settings"],[data-screen="render"],[data-screen="captions"]) .side    { grid-column: 1; grid-row: 1; }
+.app:is([data-screen="settings"],[data-screen="render"],[data-screen="captions"]) .preview { grid-column: 2; grid-row: 1; }
+.app:is([data-screen="settings"],[data-screen="render"],[data-screen="captions"]) .work    { grid-column: 3; grid-row: 1; }
+.app[data-sidebar="hidden"]:is([data-screen="settings"],[data-screen="render"],[data-screen="captions"]) .stage.has-preview {
   grid-template-columns: 1fr var(--w-config);
 }
-.app[data-sidebar="hidden"]:is([data-screen="settings"],[data-screen="render"]) .preview { grid-column: 1; grid-row: 1; }
-.app[data-sidebar="hidden"]:is([data-screen="settings"],[data-screen="render"]) .work    { grid-column: 2; grid-row: 1; }
+.app[data-sidebar="hidden"]:is([data-screen="settings"],[data-screen="render"],[data-screen="captions"]) .preview { grid-column: 1; grid-row: 1; }
+.app[data-sidebar="hidden"]:is([data-screen="settings"],[data-screen="render"],[data-screen="captions"]) .work    { grid-column: 2; grid-row: 1; }
+
+/* Caption settings, in three tabs down that right-hand column. Rows are
+   stacked for the same reason .option-row is: at --w-config a label column
+   beside the chips left nowhere for five colour swatches to sit. */
+.caption-row {
+  display: grid; row-gap: 6px;
+  padding: var(--s4) var(--s5);
+  border-bottom: 1px solid var(--glass-border);
+}
+.caption-row:last-child { border-bottom: 0; }
+.caption-row .choices { display: flex; gap: var(--s2); flex-wrap: wrap; }
+
+/* Reuses .tabs (brand.css) for the pill, like the topbar's area switch --
+   but the buttons are .subtab, never .tab: see the comment in index.html
+   for what an unscoped querySelectorAll(".tab") in toScreen() would do to
+   them. */
+.subtabs { align-self: stretch; }
+.subtab {
+  flex: 1;
+  font: inherit; font-size: var(--t-12); font-weight: 650;
+  color: var(--text-muted);
+  background: none; border: 0;
+  border-radius: var(--r-pill);
+  padding: 6px 13px;
+  cursor: pointer;
+  transition: color var(--fast), background var(--fast);
+}
+.subtab:hover { color: var(--text); }
+.subtab[aria-pressed="true"] { color: var(--bg-0); background: var(--text); }
+/* The Words tab holds every word in the clip, so it scrolls rather than
+   pushing the tab strip off the top. */
+.subtab-panel { min-height: 0; overflow-y: auto; }
 
 /* .frame916 is width:100% with an aspect-ratio, so its HEIGHT comes from
    whatever column it's in -- dropped into a full-width middle column it
    grows far past the window. Every child is capped at the width this
    column has on every other screen and centred, which is also what makes
    it read as a card standing in open space rather than a stretched panel. */
-.app:is([data-screen="settings"],[data-screen="render"]) .preview { align-items: center; }
-.app:is([data-screen="settings"],[data-screen="render"]) .preview > * { width: min(100%, var(--w-preview)); }
+.app:is([data-screen="settings"],[data-screen="render"],[data-screen="captions"]) .preview { align-items: center; }
+.app:is([data-screen="settings"],[data-screen="render"],[data-screen="captions"]) .preview > * { width: min(100%, var(--w-preview)); }
 /* Shares everything else with .side-collapse above. The offsets have to
    rebuild, from the viewport, what that button gets for free from being
    inside .side: the stage's --gutter of padding, .side's 1px border, then
