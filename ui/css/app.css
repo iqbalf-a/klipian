@@ -2063,12 +2063,18 @@ h1, h2, h3 {
 
 /* Plain .btn buttons have no background or border, so inside panel headers
    they read as regular text -- not something clickable. The main action
-   button in panel headers gets a border so it's visible. */
+   button in panel headers gets a border so it's visible. Same reasoning
+   applies to Save (.side-foot): it's .btn.quiet, which is background:none/
+   border-color:transparent by design (the quiet buttons scattered around
+   panel headers are meant to recede) -- but stacked full-width and alone
+   at the very bottom of the sidebar, "quiet" just read as unclickable
+   text, not a button that happens to be understated (ian). */
 .panel-head .btn:not(.main),
 .result-head .btn:not(.main),
 .pick-head .btn:not(.main),
 .work-head .btn:not(.main),
-.render-bar .btn:not(.main) {
+.render-bar .btn:not(.main),
+.side-foot .btn:not(.main) {
   border-color: var(--glass-border);
   background: var(--glass);
   color: var(--text-muted);
