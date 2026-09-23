@@ -313,11 +313,16 @@ function applyCaption() {
   // changes after that) rather than writing near-zero sizes that get stuck
   // until some other trigger fires.
   if (frameH > 0) {
-    cap.style.fontSize = `${pxFromOut(captionValue("size").out, frameH)}px`;
-    const thicknessPx = pxFromOut(captionValue("outline").out, frameH);
+    cap.style.fontSize = `${pxFromOut(captionOut("size"), frameH)}px`;
+    const thicknessPx = pxFromOut(captionOut("outline"), frameH);
     cap.style.webkitTextStroke = thicknessPx ? `${thicknessPx * 0.5}px rgba(0,0,0,.85)` : "";
   }
-  cap.style.bottom = `${captionValue("position").px}%`;
+  cap.style.bottom = `${captionOut("position")}%`;
+  // X is a percentage of the FRAME width, so it has to be applied as a
+  // translate of the full-width box, not a left offset on the text: the
+  // text is centred inside that box and a left offset would move the box's
+  // edge, narrowing it on one side instead of sliding the words across.
+  cap.style.transform = `translateX(${captionOut("x")}%)`;
   cap.style.fontFamily = captionValue("font").out;
   // color is set as a variable on the container so the highlighted word
   // changes even when content is redrawn every timeupdate
@@ -327,9 +332,8 @@ function applyCaption() {
 
   const wm = document.querySelector(".watermark916");
   if (wm && frame) {
-    const sizeOut = captionValue("watermark-size").out;
+    const sizeOut = captionOut("watermark-size");
     const opacity = captionValue("watermark-opacity").css;
-    const position = captionValue("watermark-position").out;
     if (frameH > 0) wm.style.fontSize = `${pxFromOut(sizeOut, frameH)}px`;
     // opacity CSS on the ELEMENT, not rgba() on the text color -- rgba()
     // only fades the letter content, while the text-shadow underneath (see
@@ -342,31 +346,14 @@ function applyCaption() {
     wm.style.color = "#fff";
     wm.style.opacity = opacity;
 
-    // Exactly the same logic as _watermark_placement() in
-    // klipian/render.py -- line height estimated at 1.3x font size,
-    // as a PERCENTAGE of PLAYRES_Y_DEFAULT (same way the render divides
-    // by H). No longer depends on frameH here -- the percentage is the
-    // same at any screen size, only the px font-size above needs to know
-    // the actual frameH.
-    const lineHeightPercent = (sizeOut * 1.3 / PLAYRES_Y_DEFAULT) * 100;
-
+    // Its own two percentages now, read the same way the caption's are --
+    // this used to reproduce _watermark_placement()'s three modes, all of
+    // which measured from the caption's position. That function is gone
+    // (ian wanted the two independent), and with it the only reason this
+    // block needed to know the caption's margin or estimate a line height.
     wm.style.top = "auto";
-    wm.style.bottom = "auto";
-    wm.style.transform = "none";
-    if (position === "top") {
-      wm.style.top = `${Math.max(0, 16 - lineHeightPercent)}%`;
-    } else if (position === "middle") {
-      wm.style.top = "50%";
-      wm.style.transform = "translateY(-50%)";
-    } else {
-      // Two conditions at once, same as _watermark_placement() "bottom"
-      // variant in render.py: below caption, BUT must not enter the safe
-      // zone (bottom:20% in CSS .safe) -- min() of both.
-      const capMargin = captionValue("position").px;
-      const belowCaption = Math.max(2, capMargin - lineHeightPercent - 1);
-      const safeZoneLimit = Math.max(0, 20 - lineHeightPercent);
-      wm.style.bottom = `${Math.min(belowCaption, safeZoneLimit)}%`;
-    }
+    wm.style.bottom = `${captionOut("watermark-y")}%`;
+    wm.style.transform = `translateX(${captionOut("watermark-x")}%)`;
   }
 }
 
@@ -389,6 +376,11 @@ if (_frame916) frame916ResizeObserver.observe(_frame916);
    two places (see drawCaptionOptions() in app.js). Bound to the section so
    it survives either list being rewritten. */
 $("#panel-captions")?.addEventListener("click", (e) => {
+  const reset = e.target.closest("[data-reset-group]");
+  if (reset) {
+    if (typeof resetCaptionGroup === "function") resetCaptionGroup(reset.dataset.resetGroup);
+    return;
+  }
   const c = e.target.closest(".chip");
   if (!c) return;
   const row = c.closest(".caption-row");
@@ -398,6 +390,25 @@ $("#panel-captions")?.addEventListener("click", (e) => {
   const all = [...row.querySelectorAll(".chip")];
   o.active = Number(c.dataset.pick ?? all.indexOf(c));
   all.forEach((b, i) => b.setAttribute("aria-pressed", String(i === o.active)));
+  applyCaption();
+  if (typeof saveProject === "function") saveProject();
+  if (typeof savePresetCaption === "function") savePresetCaption();
+});
+
+/* Sliders. "input", not "change", so the preview tracks the handle while
+   it's being dragged -- that live feedback is the only way to judge a
+   position. The readout is rewritten in place rather than through
+   drawCaptionOptions(), which would replace the input mid-drag and drop
+   the pointer capture. */
+$("#panel-captions")?.addEventListener("input", (e) => {
+  const s = e.target.closest(".slider");
+  if (!s) return;
+  const row = s.closest(".caption-row");
+  const o = CAPTION_OPTIONS.find((x) => x.id === row?.dataset.caption);
+  if (!o || o.kind !== "range") return;
+  o.value = Number(s.value);
+  const out = row.querySelector(".slider-value");
+  if (out) out.textContent = `${o.value}${o.unit || ""}`;
   applyCaption();
   if (typeof saveProject === "function") saveProject();
   if (typeof savePresetCaption === "function") savePresetCaption();

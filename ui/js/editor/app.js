@@ -85,21 +85,31 @@ const CAPTION_OPTIONS = [
       { t: "Arial", out: "Arial" },
       { t: "Impact", out: "Impact" },
       { t: "Verdana", out: "Verdana" }] },
-  // No .px field here -- preview calculates screen size directly
-  // from .out (pxFromOut() in interactions.js), same as watermark-size.
-  { id: "size", label: "Size", active: 1, choices: [
-      { t: "Small", out: 64 },
-      { t: "Medium", out: 84 },
-      { t: "Large", out: 108 }] },
+  // A slider, not three chips (ian asked for more variation). The number
+  // was always continuous underneath -- it goes straight into the ASS
+  // Fontsize -- so only the UI was rounding it to Small/Medium/Large. 84
+  // is what "Medium" was, so an untouched project renders identically.
+  { id: "size", label: "Font size", kind: "range",
+    min: 32, max: 160, step: 1, def: 84, value: 84,
+    hint: "In a 1080×1920 frame. The preview scales it to whatever size it's drawn at." },
   { id: "highlight", label: "Highlight", active: 0, choices: [
       { t: "Gold", out: "&H0000D6FF&", css: "#FFD600" },
       { t: "White", out: "&H00FFFFFF&", css: "#FFFFFF" },
       { t: "Green", out: "&H0076E600&", css: "#00E676" },
       { t: "Red", out: "&H004040FF&", css: "#FF4040" }] },
-  { id: "position", label: "Position", active: 1, choices: [
-      { t: "Bottom", out: 16, px: 16 },
-      { t: "Middle", out: 24, px: 24 },
-      { t: "Top", out: 34, px: 34 }] },
+  // Both axes are percentages of the frame, which is what the renderer
+  // already worked in: Y is the distance UP from the bottom edge, X the
+  // offset from the centre. 24 / 0 is exactly where "Middle" used to put it.
+  { id: "position", label: "Y position", kind: "range",
+    min: 2, max: 90, step: 1, def: 24, value: 24, unit: "%",
+    hint: "Distance up from the bottom edge." },
+  // ±25 rather than ±50: the shift is made by growing one side margin, and
+  // those margins are also where the text wraps (see _side_margins() in
+  // render.py). Past a quarter of the width the line is squeezed into a
+  // column too narrow to read.
+  { id: "x", label: "X position", kind: "range",
+    min: -25, max: 25, step: 1, def: 0, value: 0, unit: "%",
+    hint: "Offset from the centre. Negative moves left." },
   { id: "per-line", label: "Words per line", active: 1, choices: [
       { t: "2", out: 2 }, { t: "3", out: 3 }, { t: "4", out: 4 }] },
   { id: "outline", label: "Outline", active: 1, choices: [
@@ -109,54 +119,64 @@ const CAPTION_OPTIONS = [
   { id: "watermark", label: "Watermark", active: 0, choices: [
       { t: "On", out: true },
       { t: "Off", out: false }] },
-  // No .px field here (unlike the caption size option above) --
-  // watermark preview calculates screen size directly from .out (see
-  // applyCaption() in interactions.js), not a separate calibration number.
-  { id: "watermark-size", label: "Watermark size", active: 1, choices: [
-      { t: "Small", out: 22 },
-      { t: "Medium", out: 32 },
-      { t: "Large", out: 46 }] },
+  { id: "watermark-size", label: "Size", kind: "range",
+    min: 10, max: 90, step: 1, def: 32, value: 32,
+    hint: "In a 1080×1920 frame, same scale as the caption's." },
   // Opacity is written as ASS alpha (&HAA...) -- 00 = fully opaque, FF = fully
   // invisible, OPPOSITE of normal opacity intuition: the MORE FADED the
   // choice, the LARGER the alpha number. The two most faded levels (Ghost,
   // Whisper) were added after the default "Faint" but turned out still
   // visible enough on real screens -- so the default was also shifted to
   // "Faint" (no longer "Medium") so the new default starts more faded.
-  { id: "watermark-opacity", label: "Watermark opacity", active: 2, choices: [
+  { id: "watermark-opacity", label: "Opacity", active: 2, choices: [
       { t: "Ghost", out: "D8", css: .15 },
       { t: "Whisper", out: "C0", css: .25 },
       { t: "Faint", out: "A0", css: .37 },
       { t: "Medium", out: "80", css: .5 },
       { t: "Bold", out: "40", css: .75 }] },
-  // "Bottom" does NOT mean flush with the bottom edge -- its position is
-  // calculated relative to the currently active caption position (see
-  // marginWatermark() in interactions.js and the equivalent in build_ass()),
-  // so the watermark always lands exactly below the caption regardless of
-  // where the caption is.
-  { id: "watermark-position", label: "Watermark position", active: 2, choices: [
-      { t: "Top", out: "top" },
-      { t: "Middle", out: "middle" },
-      { t: "Bottom", out: "bottom" }] },
+  // The watermark used to have Top/Middle/Bottom, and those were computed
+  // RELATIVE to the caption -- it always landed just under it, wherever the
+  // caption went. ian asked for the two to be positioned independently, so
+  // it carries its own pair of percentages on the same scale as the
+  // caption's. 18 is where the old "Bottom" put it under a default caption,
+  // so nothing moves for a project that never touches these.
+  { id: "watermark-y", label: "Y position", kind: "range",
+    min: 2, max: 90, step: 1, def: 18, value: 18, unit: "%",
+    hint: "Distance up from the bottom edge. No longer tied to the caption." },
+  { id: "watermark-x", label: "X position", kind: "range",
+    min: -25, max: 25, step: 1, def: 0, value: 0, unit: "%",
+    hint: "Offset from the centre. Negative moves left." },
 ];
+
+/* The `active` declared above IS each chip option's factory default, and
+   `def` is each slider's. Captured here, before a project or the saved
+   preset overwrites `active`, so Reset has something to go back to. */
+for (const o of CAPTION_OPTIONS) o.factory = o.kind === "range" ? o.def : o.active;
+
+/* Reading an option without caring which kind it is. Chip options answer
+   with their active choice's `out`; sliders answer with their number. */
+function captionOut(id) {
+  const o = CAPTION_OPTIONS.find((x) => x.id === id);
+  if (!o) return null;
+  return o.kind === "range" ? o.value : o.choices[o.active].out;
+}
 
 /* Caption style sent to the server. This is what makes the settings on the
    Caption screen actually change the output file. */
 function captionStyle() {
-  const nilai = (id) => {
-    const o = CAPTION_OPTIONS.find((x) => x.id === id);
-    return o ? o.choices[o.active] : null;
-  };
   return {
-    font: nilai("font").out,
-    size: nilai("size").out,
-    highlight: nilai("highlight").out,
-    position: nilai("position").out,
-    per_line: nilai("per-line").out,
-    outline: nilai("outline").out,
-    watermark: nilai("watermark").out,
-    watermark_size: nilai("watermark-size").out,
-    watermark_opacity: nilai("watermark-opacity").out,
-    watermark_position: nilai("watermark-position").out,
+    font: captionOut("font"),
+    size: captionOut("size"),
+    highlight: captionOut("highlight"),
+    position: captionOut("position"),
+    x: captionOut("x"),
+    per_line: captionOut("per-line"),
+    outline: captionOut("outline"),
+    watermark: captionOut("watermark"),
+    watermark_size: captionOut("watermark-size"),
+    watermark_opacity: captionOut("watermark-opacity"),
+    watermark_y: captionOut("watermark-y"),
+    watermark_x: captionOut("watermark-x"),
   };
 }
 
@@ -169,29 +189,89 @@ function captionStyle() {
    their previous project. */
 const PRESET_CAPTION_KEY = "klipian:preset-caption";
 
+/* Keyed by id, not a positional array of indices like it used to be. Two
+   reasons: sliders store a VALUE, not an index into a choice list, and the
+   list itself changed shape (three options became sliders, watermark
+   position became two axes) -- with positions, every saved style would
+   have silently re-pointed. readCaptionState() below still reads the old
+   array form. */
+function captionState() {
+  const out = {};
+  for (const o of CAPTION_OPTIONS) out[o.id] = o.kind === "range" ? o.value : o.active;
+  return out;
+}
+
+/* The legacy positional format: which option each slot meant, and for the
+   three that became sliders, what number each index stood for. Kept so
+   projects and presets saved before the sliders still open with the style
+   they were rendered at. */
+const LEGACY_CAPTION_SLOTS = ["font", "size", "highlight", "position", "per-line",
+  "outline", "watermark", "watermark-size", "watermark-opacity", "watermark-position"];
+const LEGACY_CAPTION_VALUES = {
+  size: [64, 84, 108],
+  position: [16, 24, 34],
+  "watermark-size": [22, 32, 46],
+  // Top/Middle/Bottom were computed from the caption's position; these are
+  // where they landed under a default caption, now that the watermark
+  // carries its own absolute Y.
+  "watermark-position": [78, 48, 18],
+};
+
+function readCaptionState(saved) {
+  if (!saved || typeof saved !== "object") return false;
+  const put = (id, raw) => {
+    const o = CAPTION_OPTIONS.find((x) => x.id === id);
+    if (!o || typeof raw !== "number" || !Number.isFinite(raw)) return;
+    if (o.kind === "range") o.value = Math.min(o.max, Math.max(o.min, raw));
+    // Bounds-checked: a style saved when this option had more choices than
+    // it has now would otherwise point past the end of the list.
+    else if (Number.isInteger(raw) && raw >= 0 && raw < o.choices.length) o.active = raw;
+  };
+
+  if (Array.isArray(saved)) {
+    saved.forEach((i, slot) => {
+      const id = LEGACY_CAPTION_SLOTS[slot];
+      if (!id) return;
+      const table = LEGACY_CAPTION_VALUES[id];
+      // watermark-position is gone; its index maps onto watermark-y.
+      put(id === "watermark-position" ? "watermark-y" : id,
+          table ? table[i] : i);
+    });
+    return true;
+  }
+  for (const [id, raw] of Object.entries(saved)) put(id, raw);
+  return true;
+}
+
 function savePresetCaption() {
   try {
-    localStorage.setItem(PRESET_CAPTION_KEY,
-      JSON.stringify(CAPTION_OPTIONS.map((o) => o.active)));
+    localStorage.setItem(PRESET_CAPTION_KEY, JSON.stringify(captionState()));
   } catch { /* private/full -- preset is a convenience, not a requirement */ }
 }
 
 /* Called only for NEW projects (see openProject/openProjectFromHome in
-   projects.js). Same as project restoration in loadProject(): indices are
-   bounds-checked because old presets may come from a CAPTION_OPTIONS layout
-   whose number of choices has changed. */
+   projects.js). */
 function applyPresetCaption() {
   let preset;
   try { preset = JSON.parse(localStorage.getItem(PRESET_CAPTION_KEY)); }
   catch { return false; }
-  if (!Array.isArray(preset)) return false;
-  preset.forEach((i, k) => {
-    if (CAPTION_OPTIONS[k] && Number.isInteger(i)
-        && i >= 0 && i < CAPTION_OPTIONS[k].choices.length) {
-      CAPTION_OPTIONS[k].active = i;
-    }
-  });
-  return true;
+  return readCaptionState(preset);
+}
+
+/* Reset to default, per tab (ian). Style and Watermark get one each rather
+   than a single button for everything, so resetting the tab you're looking
+   at can't quietly undo the other one. */
+function resetCaptionGroup(group) {
+  for (const o of CAPTION_OPTIONS) {
+    const isWatermark = o.id.startsWith("watermark");
+    if ((group === "watermark") !== isWatermark) continue;
+    if (o.kind === "range") o.value = o.def;
+    else o.active = o.factory;
+  }
+  drawCaptionOptions();
+  applyCaption();
+  if (typeof saveProject === "function") saveProject();
+  savePresetCaption();
 }
 
 const $ = (s) => document.querySelector(s);
@@ -434,15 +514,24 @@ function renderList() {
    room for five colour chips. The trailing .meta echoing the active choice
    went with it -- the pressed chip already says which one it is. */
 function drawCaptionOptions() {
+  const chips = (o) => `
+    <span class="choices">
+      ${o.choices.map((p, i) => `
+        <button class="chip"${i === o.active ? ' aria-pressed="true"' : ""}
+                ${p.css ? `style="--color-dot:${p.css}"` : ""}
+                data-pick="${i}">${p.css ? '<i class="color-dot"></i>' : ""}${escapeHTML(p.t)}</button>`).join("")}
+    </span>`;
+  // The number is shown beside the label, not under the slider: it's the
+  // answer to "what is it set to", which is what the label asks.
+  const slider = (o) => `
+    <input class="slider" type="range" min="${o.min}" max="${o.max}" step="${o.step}"
+           value="${o.value}" aria-label="${escapeHTML(o.label)}">`;
   const row = (o) => `
     <div class="caption-row" data-caption="${o.id}">
-      <span class="eyebrow">${escapeHTML(o.label)}</span>
-      <span class="choices">
-        ${o.choices.map((p, i) => `
-          <button class="chip"${i === o.active ? ' aria-pressed="true"' : ""}
-                  ${p.css ? `style="--color-dot:${p.css}"` : ""}
-                  data-pick="${i}">${p.css ? '<i class="color-dot"></i>' : ""}${escapeHTML(p.t)}</button>`).join("")}
-      </span>
+      <span class="eyebrow">${escapeHTML(o.label)}${o.kind === "range"
+        ? `<b class="slider-value">${o.value}${o.unit || ""}</b>` : ""}</span>
+      ${o.kind === "range" ? slider(o) : chips(o)}
+      ${o.hint ? `<span class="hint">${escapeHTML(o.hint)}</span>` : ""}
     </div>`;
   const style = $("#captionList");
   const mark = $("#watermarkList");

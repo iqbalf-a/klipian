@@ -1507,6 +1507,21 @@ h1, h2, h3 {
 }
 .caption-row:last-child { border-bottom: 0; }
 .caption-row .choices { display: flex; gap: var(--s2); flex-wrap: wrap; }
+.caption-row .hint { font-size: 11px; color: var(--text-faint); }
+/* The value sits on the label's own line, pushed to the far end: it answers
+   the question the label asks, so the two belong together. */
+.caption-row .eyebrow { display: flex; align-items: baseline; gap: var(--s2); }
+.caption-row .slider-value {
+  margin-left: auto;
+  font-family: var(--font-data); font-variant-numeric: tabular-nums;
+  font-size: var(--t-12); letter-spacing: 0; text-transform: none;
+  color: var(--accent);
+}
+.slider {
+  width: 100%; margin: 2px 0 4px;
+  accent-color: var(--accent);   /* track fill + thumb, one line, both themes */
+  cursor: pointer;
+}
 
 /* Reuses .tabs (brand.css) for the pill, like the topbar's area switch --
    but the buttons are .subtab, never .tab: see the comment in index.html

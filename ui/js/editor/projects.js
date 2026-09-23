@@ -73,8 +73,7 @@ function projectState() {
     // this -- reopening the same project always showed "none yet" even after
     // a previous import, forcing a redundant re-import from scratch.
     candidates: (typeof DATA !== "undefined" ? DATA.candidates : []) || [],
-    caption: (typeof CAPTION_OPTIONS !== "undefined")
-      ? CAPTION_OPTIONS.map((o) => o.active) : [],
+    caption: (typeof captionState === "function") ? captionState() : {},
     output: (typeof OPTIONS !== "undefined") ? OPTIONS.map((o) => o.active) : [],
     screen: (typeof activeScreen !== "undefined") ? activeScreen : "clips",
   };
@@ -402,16 +401,15 @@ async function loadProject(video) {
   if (Array.isArray(d.candidates) && typeof DATA !== "undefined") {
     DATA.candidates = d.candidates;
   }
-  // Active index must be bounds-checked: project files can be hand-edited or
-  // from an older version with a different number of choices. An out-of-bounds
-  // index would make choices[active] undefined and break caption rendering.
-  if (Array.isArray(d.caption) && typeof CAPTION_OPTIONS !== "undefined") {
-    d.caption.forEach((i, k) => {
-      if (CAPTION_OPTIONS[k] && Number.isInteger(i)
-          && i >= 0 && i < CAPTION_OPTIONS[k].choices.length) {
-        CAPTION_OPTIONS[k].active = i;
-      }
-    });
+  // readCaptionState() (app.js) does the bounds-checking and takes either
+  // format: the object keyed by option id that's written now, or the
+  // positional array of indices projects saved before the sliders.
+  if (typeof readCaptionState === "function" && readCaptionState(d.caption)
+      && typeof drawCaptionOptions === "function") {
+    // Same trap the output options had: setting the values only changes the
+    // DATA, and the chips and sliders on the Captions screen go on showing
+    // the previous project's until something redraws them.
+    drawCaptionOptions();
   }
   // Bounds-checked per option, so a project saved before an option existed
   // (or with fewer choices than it has now) just leaves that one at its

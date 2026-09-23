@@ -157,49 +157,25 @@ def to_output_time(spans: list[Span], seconds: float) -> float | None:
     return None
 
 
-# Safe area bounds in the preview panel (see .safe in ui/app.css,
-# top:16%, bottom:20%) -- the "Top"/"Bottom" watermark positions are
-# DELIBERATELY placed OUTSIDE these lines (above the top, below the
-# bottom), not inside them. The watermark isn't main content; if a
-# platform UI overlay (share button, etc.) covers the edges, let the
-# watermark give way first, not the face/caption.
-SAFE_AREA_TOP_PERCENT = 16.0
-SAFE_AREA_BOTTOM_PERCENT = 20.0
+# Alignment 2 (bottom-centre) puts the text midway between MarginL and
+# MarginR, so moving the pair in opposite directions moves that centre.
+# That's how X position works here, rather than a pos() override on every
+# single line: the side margins also bound where the text WRAPS, so a
+# shifted caption still can't run off the frame.
+BASE_SIDE_MARGIN = 60
 
 
-def _watermark_placement(mode: str, size: float, H: int,
-                          caption_margin_bottom: int) -> tuple[int, int]:
-    """(ASS Alignment, MarginV) for watermark positioning.
+def _side_margins(x_percent: float, W: int) -> tuple[int, int]:
+    """(MarginL, MarginR) for a centre shifted x_percent of the width.
 
-    Text line height is estimated at 1.3x font size -- ASS has no way to
-    measure actual glyph height without truly rendering first, so this is
-    an approximation, not pixel-precise. Close enough for a short one-line
-    watermark like "klipian"."""
-    line_height = size * 1.3
-    if mode == "top":
-        # Alignment 8 = top-center, MarginV counted from TOP. The bottom
-        # edge of the watermark is placed right at the SAFE_AREA_TOP_PERCENT line.
-        margin = max(0, int(H * SAFE_AREA_TOP_PERCENT / 100 - line_height))
-        return 8, margin
-    if mode == "middle":
-        # Alignment 5 = dead center (vertical AND horizontal) -- MarginV
-        # doesn't apply for this alignment, libass ignores it.
-        return 5, 0
-    # "bottom": two conditions simultaneously -- (a) right BELOW caption,
-    # margin smaller than caption margin (closer to the edge) regardless of
-    # which caption position is chosen, BUT (b) the ENTIRE text box (not
-    # just its anchor point) must not enter the safe zone -- if the caption
-    # is at Middle/Top, condition (a) alone can push the watermark INTO the
-    # safe zone (real report: watermark was found above the bottom safe
-    # zone line). The TOP edge of the watermark (margin + line_height,
-    # because Alignment 2 grows upward from its anchor) is what's clamped
-    # to not cross SAFE_AREA_BOTTOM_PERCENT -- mirror image of the "top"
-    # logic above.
-    caption_bottom_margin = max(int(H * 0.02),
-                               caption_margin_bottom - int(line_height) - int(H * 0.01))
-    margin_maks_zona_aman = max(0, int(H * SAFE_AREA_BOTTOM_PERCENT / 100 - line_height))
-    margin = min(caption_bottom_margin, margin_maks_zona_aman)
-    return 2, margin
+    The side being moved away from keeps the base margin and the other grows
+    by twice the shift, since the centre only moves by half the difference.
+    A shift big enough to squeeze the text box is the caller's business --
+    the UI caps its slider well before that (see CAPTION_OPTIONS)."""
+    shift = int(W * x_percent / 100)
+    if shift >= 0:
+        return BASE_SIDE_MARGIN + 2 * shift, BASE_SIDE_MARGIN
+    return BASE_SIDE_MARGIN, BASE_SIDE_MARGIN - 2 * shift
 
 
 def build_ass(job: RenderJob, words: list[Word] | None, style: dict | None = None) -> str:
@@ -214,23 +190,34 @@ def build_ass(job: RenderJob, words: list[Word] | None, style: dict | None = Non
     words = words or []
     # Colors are written in ASS &HAABBGGRR& format -- order is
     # BLUE-GREEN-RED, opposite of web hex. Gold #FFD600 becomes &H0000D6FF&.
+    # position/x and their watermark twins are percentages: position is the
+    # distance up from the bottom edge, x the offset from the centre (0 =
+    # centred, negative = left). Every default below reproduces what the
+    # three-choice version produced, so a style that doesn't set them renders
+    # exactly as it did before -- watermark_y's 18 included, which is where
+    # the old "bottom" mode landed it under a default caption.
     g = {"font": "Arial", "size": 84, "per_line": 3,
-         "outline": 4, "position": 24,
+         "outline": 4, "position": 24, "x": 0,
          "color": "&H00FFFFFF&",          # base text color
          "highlight": "&H0000D6FF&",      # color of the currently-spoken word
          "watermark": True,               # on/off toggle from the Captions screen
          "watermark_size": 32,
          "watermark_opacity": "80",       # ASS alpha: 00 fully opaque .. FF invisible
-         "watermark_position": "bottom",  # top | middle | bottom
+         "watermark_y": 18, "watermark_x": 0,
          **(style or {})}
 
     W, H = job.out_width, job.out_height
     margin_bottom = int(H * g["position"] / 100)
+    margin_left, margin_right = _side_margins(g["x"], W)
+    # Both are Alignment 2 now. The watermark used to derive its placement
+    # from the caption's (see git history for _watermark_placement) so it
+    # always sat just below it; ian asked for the two to be positioned
+    # independently, so it carries its own percentages like the caption.
+    wm_margin = int(H * g["watermark_y"] / 100)
+    wm_left, wm_right = _side_margins(g["watermark_x"], W)
     # Style lines use the form without trailing "&", the \c tag uses the form with.
     warna_style = g["color"].rstrip("&")
 
-    wm_align, wm_margin = _watermark_placement(
-        g["watermark_position"], g["watermark_size"], H, margin_bottom)
     # The SAME alpha is applied to the FILL color *and* the OUTLINE color --
     # previously only the fill followed watermark_opacity, the outline was
     # locked to solid black. On bright backgrounds that black outline stays
@@ -252,8 +239,8 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, OutlineColour, BackColour, Bold, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Utama,{g['font']},{g['size']},{warna_style},&H00000000,&H80000000,1,1,{g['outline']},0,2,60,60,{margin_bottom},1
-Style: Watermark,Mona Sans ExtraBold,{g['watermark_size']},{wm_color},{wm_outline_color},&H60000000,0,1,1,0,{wm_align},60,60,{wm_margin},1
+Style: Utama,{g['font']},{g['size']},{warna_style},&H00000000,&H80000000,1,1,{g['outline']},0,2,{margin_left},{margin_right},{margin_bottom},1
+Style: Watermark,Mona Sans ExtraBold,{g['watermark_size']},{wm_color},{wm_outline_color},&H60000000,0,1,1,0,2,{wm_left},{wm_right},{wm_margin},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
