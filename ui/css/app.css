@@ -1519,7 +1519,12 @@ h1, h2, h3 {
 }
 .slider {
   width: 100%; margin: 2px 0 4px;
-  accent-color: var(--accent);   /* track fill + thumb, one line, both themes */
+  /* White (ian), via --text rather than a literal #fff: that's this file's
+     own rule for the colour -- "WHITE = user-owned actions and states",
+     see the buttons section -- and it's what keeps the slider dark on a
+     light background instead of vanishing into it. accent-color does the
+     track fill and the thumb in one line, in both themes. */
+  accent-color: var(--text);
   cursor: pointer;
 }
 
