@@ -26,7 +26,7 @@ let lastScreen = "clips";        // the screen where work was left off
 /* Screen names from project files are NOT trusted blindly: files can be
    hand-edited or come from an older version. An unrecognized name causes
    toScreen() to turn off all screens and leave an empty workspace. */
-const VALID_SCREENS = ["analysis", "clips", "framing", "captions", "history"];
+const VALID_SCREENS = ["analysis", "clips", "framing", "captions", "history", "settings"];
 
 /* Old projects (saved before this rename) still have screen: "klip"/"teks"
    on disk -- read once here so they still resume on the right screen,
@@ -413,6 +413,9 @@ async function loadProject(video) {
       }
     });
   }
+  // Bounds-checked per option, so a project saved before an option existed
+  // (or with fewer choices than it has now) just leaves that one at its
+  // default instead of pointing at nothing.
   if (Array.isArray(d.output) && typeof OPTIONS !== "undefined") {
     d.output.forEach((i, k) => {
       if (OPTIONS[k] && Number.isInteger(i)
@@ -420,6 +423,12 @@ async function loadProject(video) {
         OPTIONS[k].active = i;
       }
     });
+    // Setting .active only changes the DATA. renderPrepare() is what draws
+    // the chips, and it used to run solely from toStage("home") -- so
+    // opening a second project left the first one's choices lit up on
+    // screen while the render used the second one's. Invisible while these
+    // lived behind a summary row on Analyze; not any more.
+    if (typeof renderPrepare === "function") renderPrepare();
   }
   const savedScreen = LEGACY_SCREEN_NAMES[d.screen] || d.screen;
   lastScreen = VALID_SCREENS.includes(savedScreen) ? savedScreen : "clips";

@@ -392,6 +392,7 @@ def _run_render(job_id: str, req: dict) -> None:
                     width=crop.get("width", 26), height=crop.get("height", 92)),
                 layout=k.get("layout", "face"),
                 out_width=int(k.get("width", 1080)),
+                quality=int(k.get("quality", 21)),
             )
             name = engine.safe_filename(k["title"], f"clip-{i+1}")
             dest = out_dir / name

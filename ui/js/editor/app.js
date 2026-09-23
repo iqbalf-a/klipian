@@ -255,10 +255,23 @@ const OPTIONS = [
     choices: ["Crop", "Blur background"], out: ["face", "blur"], active: 0,
     hint: ["A tall slice of the source video. The left and right edges are cut off.",
            "The whole frame in the middle, with a blurred copy filling the space above and below."] },
-  { id: "resolution", label: "Resolution", choices: ["720p", "1080p"],
-    out: [720, 1080], active: 1,
+  // 2K and 4K are APPENDED, never inserted: a project stores each option's
+  // active INDEX (see projectState()), so putting a new choice in front of
+  // an existing one would silently re-point every project already saved.
+  { id: "resolution", label: "Resolution", choices: ["720p", "1080p", "2K", "4K"],
+    out: [720, 1080, 1440, 2160], active: 1,
     hint: ["720×1280 — smaller file, faster render.",
-           "1080×1920 — full size for TikTok, Reels and Shorts."] },
+           "1080×1920 — full size for TikTok, Reels and Shorts.",
+           "1440×2560 — beyond what the platforms show; only worth it if the source is larger.",
+           "2160×3840 — upscaled unless the source really is 4K, and much slower to render."] },
+  // The render used to hardcode -crf 21. Lower is better quality and a
+  // bigger file; these three sit either side of that old value, so
+  // "Balanced" reproduces exactly what every earlier render produced.
+  { id: "quality", label: "Quality", choices: ["Smaller file", "Balanced", "Best"],
+    out: [26, 21, 17], active: 1,
+    hint: ["Noticeably lighter files. Fine for talking heads, softer on fast motion.",
+           "The setting everything was rendered at until now.",
+           "Keeps detail in motion and gradients, at roughly double the size."] },
 ];
 
 function renderPrepare() {
@@ -499,7 +512,11 @@ function renderPreview() {
 /* ───────────────────────── navigation ──────────────────────────── */
 // "video" was in this list for a screen that no longer exists -- index.html
 // has analysis / clips / framing / captions / history.
-const NO_PREVIEW = ["analysis", "history"];
+// Settings is a list of choices, not clip work. The 9:16 panel doesn't
+// react to any of them (the option handler saves and updates the Framing
+// warning, nothing redraws the preview), so showing it beside them would
+// be a picture that ignores the switch you just flipped.
+const NO_PREVIEW = ["analysis", "history", "settings"];
 
 /* Three screens that edit the same result. Split into separate menus so
    each screen has one concern: Clips picks the cuts, Framing adjusts the

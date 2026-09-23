@@ -8,10 +8,10 @@
      from the Google Fonts CDN -- see ui/css/fonts.css for why. Loaded
      BEFORE the other stylesheets so the faces are declared by the time
      anything asks for them. -->
-<link rel="stylesheet" href="/ui/css/fonts.css?v=1790151723000">
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1790151723000">
-<link rel="stylesheet" href="/ui/css/brand.css?v=1790151723000">
-<link rel="stylesheet" href="/ui/css/app.css?v=1790151723000">
+<link rel="stylesheet" href="/ui/css/fonts.css?v=1790153140000">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1790153140000">
+<link rel="stylesheet" href="/ui/css/brand.css?v=1790153140000">
+<link rel="stylesheet" href="/ui/css/app.css?v=1790153140000">
 </head>
 <body>
 
@@ -198,6 +198,16 @@
           </svg>
           <span>History</span>
         </button>
+        <!-- Sliders, in the same drawn-pictogram language as the four above:
+             two tracks with a handle each, the usual shorthand for settings. -->
+        <button class="tab" role="tab" id="tab-settings" data-to="settings" aria-controls="panel-settings" aria-selected="false" tabindex="-1">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="4" y1="8" x2="20" y2="8"/><circle cx="15" cy="8" r="2.5"/>
+            <line x1="4" y1="16" x2="20" y2="16"/><circle cx="9" cy="16" r="2.5"/>
+          </svg>
+          <span>Settings</span>
+        </button>
       </nav>
       <!-- Save is a PROJECT action, pinned to the bottom of the panel that
            represents the open project -- moved out of the topbar, which is
@@ -224,14 +234,16 @@
           <span class="note" id="analysisNote" role="status">drop a video, then find clips from the transcript</span>
         </div>
 
-        <!-- Project setup: source video + output Format/Resolution. Moved
-             here from Home -- "+ New Project" now drops you straight into
-             this screen with nothing chosen yet. drawSource() (interactions.js)
-             collapses this into #projectSetupSummary the moment a video is
-             in place, but it never goes away: Format/Resolution are read
-             LIVE at render time (optionOut() in player.js/framing.js), not
-             locked in once here, so they stay reachable for the life of the
-             project -- click the summary row to reopen this. -->
+        <!-- Project setup: the source video. Moved here from Home -- "+ New
+             Project" drops you straight into this screen with nothing chosen
+             yet. drawSource() (interactions.js) collapses it into
+             #projectSetupSummary once a video is in place; click that row to
+             change the video.
+
+             Format and Resolution used to live in here too, behind that same
+             summary row. They're on the Settings screen now (ian) -- they
+             were never about THIS step: nothing on this screen reads them,
+             and render picks them up live whenever it runs. -->
         <div id="projectSetup">
           <div class="panel source">
             <div class="source-drop">
@@ -246,18 +258,14 @@
             </div>
           </div>
 
-          <!-- Options and the button are hidden until there's a video:
-               before that, neither means anything. -->
-          <div class="panel option" id="options" hidden></div>
-
+          <!-- Hidden until there's a video: before that it means nothing. -->
           <div class="prepare-foot" id="prepareFoot" hidden>
-            <span class="data" id="optionsSummary" role="status"></span>
             <button class="btn main large" id="run">Find clips</button>
           </div>
         </div>
 
         <button class="panel-head project-setup-summary" id="projectSetupSummary"
-                type="button" hidden title="Change video, format or resolution">
+                type="button" hidden title="Change video">
           <span class="data" id="projectSetupSummaryText"></span>
           <span class="btn quiet" aria-hidden="true">Change</span>
         </button>
@@ -637,6 +645,26 @@
         </div>
       </section>
 
+      <!-- ══════════════════ SETTINGS — one set for every Result ══════════════════
+           ian asked for the output settings to have their own place instead
+           of riding along inside Analyze's #projectSetup, where they were
+           tucked behind a summary row you had to know to click.
+
+           These are PROJECT-wide, not per-Result: every Result in this
+           project renders with whatever is chosen here, and render reads it
+           live (optionOut() in player.js/framing.js), so changing it after
+           a render just changes the next one. #options is written by
+           renderPrepare() in app.js from the OPTIONS array -- add a row
+           there, not here. -->
+      <section class="screen" data-screen="settings" role="tabpanel" id="panel-settings" aria-labelledby="tab-settings" tabindex="0">
+        <div class="work-head">
+          <h1>Settings</h1>
+          <span class="note" role="status">applies to every Result in this project</span>
+        </div>
+        <div class="panel option" id="options"></div>
+        <p class="render-status" id="optionsSummary" role="status"></p>
+      </section>
+
     </div>
 
     <!-- ══════════════════════ 9:16 output panel ══════════════════ -->
@@ -766,17 +794,17 @@
 
 <!-- Shared with /workspace (theme, clock, "?" popover) -- loaded first so
      the theme is applied before the editor's own scripts start drawing. -->
-<script src="/ui/js/shared/topbar.js?v=1790151723000"></script>
-<script src="/ui/js/editor/app.js?v=1790151723000"></script>
-<script src="/ui/js/editor/interactions.js?v=1790151723000"></script>
-<script src="/ui/js/editor/framing.js?v=1790151723000"></script>
-<script src="/ui/js/editor/analysis.js?v=1790151723000"></script>
-<script src="/ui/js/editor/player.js?v=1790151723000"></script>
-<script src="/ui/js/editor/roundtrip.js?v=1790151723000"></script>
-<script src="/ui/js/editor/history.js?v=1790151723000"></script>
-<script src="/ui/js/editor/timeline.js?v=1790151723000"></script>
-<script src="/ui/js/editor/captions.js?v=1790151723000"></script>
-<script src="/ui/js/editor/result.js?v=1790151723000"></script>
-<script src="/ui/js/editor/projects.js?v=1790151723000"></script>
+<script src="/ui/js/shared/topbar.js?v=1790153140000"></script>
+<script src="/ui/js/editor/app.js?v=1790153140000"></script>
+<script src="/ui/js/editor/interactions.js?v=1790153140000"></script>
+<script src="/ui/js/editor/framing.js?v=1790153140000"></script>
+<script src="/ui/js/editor/analysis.js?v=1790153140000"></script>
+<script src="/ui/js/editor/player.js?v=1790153140000"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1790153140000"></script>
+<script src="/ui/js/editor/history.js?v=1790153140000"></script>
+<script src="/ui/js/editor/timeline.js?v=1790153140000"></script>
+<script src="/ui/js/editor/captions.js?v=1790153140000"></script>
+<script src="/ui/js/editor/result.js?v=1790153140000"></script>
+<script src="/ui/js/editor/projects.js?v=1790153140000"></script>
 </body>
 </html>

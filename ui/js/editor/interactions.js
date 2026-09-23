@@ -136,16 +136,18 @@ function drawSource(error, extraNote) {
   const button = $("#run");
   if (!box || !button) return;
 
-  // Format & Resolution mean nothing before a video is loaded.
+  // "Find clips" means nothing before a video is loaded.
   const hasSource = !!chosenSource && !error;
-  $("#options")?.toggleAttribute("hidden", !hasSource);
   $("#prepareFoot")?.toggleAttribute("hidden", !hasSource);
 
-  // #projectSetup (drop-zone + Format/Resolution, on the Analyze screen)
-  // collapses into a one-line #projectSetupSummary the moment a video is in
-  // place -- it stays reachable (click the summary to reopen it), since
-  // Format/Resolution are genuinely LIVE settings: render reads optionOut()
-  // fresh every time (player.js/framing.js), not just once at setup.
+  // #projectSetup (the drop zone, on the Analyze screen) collapses into a
+  // one-line #projectSetupSummary the moment a video is in place -- click
+  // the summary to reopen it and change the video.
+  //
+  // The summary used to also spell out Format and Resolution, and #options
+  // used to be hidden and shown alongside the drop zone. Both moved to the
+  // Settings screen (ian), which is where they're read from now -- echoing
+  // them here as well would be a second place to keep in step.
   const setup = $("#projectSetup");
   const summary = $("#projectSetupSummary");
   if (setup && summary) {
@@ -153,13 +155,7 @@ function drawSource(error, extraNote) {
     summary.toggleAttribute("hidden", !hasSource);
     if (hasSource) {
       const text = $("#projectSetupSummaryText");
-      if (text) {
-        const parts = [chosenSource.name];
-        if (typeof optionValue === "function") {
-          parts.push(optionValue("format"), optionValue("resolution"));
-        }
-        text.textContent = parts.join(" · ");
-      }
+      if (text) text.textContent = chosenSource.name;
     }
   }
 

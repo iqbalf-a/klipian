@@ -92,6 +92,11 @@ class RenderJob:
     crop: CropBox = field(default_factory=CropBox)
     layout: str = "face"          # face | blur
     out_width: int = 1080
+    # x264's CRF: LOWER is better quality and a bigger file. 21 is what the
+    # encoder call was hardcoded to before the Settings screen let this be
+    # chosen, and stays the default -- a render that sends no quality comes
+    # out exactly as it used to.
+    quality: int = 21
 
     def __post_init__(self):
         # Validate cuts: must be sorted & non-overlapping
@@ -530,6 +535,13 @@ def render(source: Path, job: RenderJob, dest: Path,
     try:
         filt = build_filter(job, src_width, src_height, ass_path, dest)
 
+        # QSV's -global_quality is its own scale, not CRF, but it tracks the
+        # same direction and sat 3 above the CRF when both were hardcoded
+        # (24 against 21). That offset is kept, so picking a quality moves
+        # both encoders by the same amount rather than only the x264 path.
+        crf = max(0, min(51, int(job.quality)))
+        qsv_q = max(1, min(51, crf + 3))
+
         def build_cmd(encoder: str) -> list[str]:
             return [
                 ffmpeg, "-y", "-hide_banner", "-loglevel", "error", "-stats",
@@ -537,8 +549,8 @@ def render(source: Path, job: RenderJob, dest: Path,
                 "-filter_complex", filt,
                 "-map", "[vout]", "-map", "[ac]",
                 "-c:v", encoder,
-                *(["-global_quality", "24", "-preset", "medium"] if encoder == "h264_qsv"
-                  else ["-crf", "21", "-preset", "medium"]),
+                *(["-global_quality", str(qsv_q), "-preset", "medium"] if encoder == "h264_qsv"
+                  else ["-crf", str(crf), "-preset", "medium"]),
                 "-pix_fmt", "yuv420p",
                 "-c:a", "aac", "-b:a", "128k",
                 "-movflags", "+faststart",

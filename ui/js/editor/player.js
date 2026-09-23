@@ -647,6 +647,7 @@ async function sendRender(approved) {
       words: (typeof wordsForRender === "function") ? wordsForRender() : undefined,
       layout: optionOut("format"),
       width: optionOut("resolution"),
+      quality: optionOut("quality"),
     })),
   };
 
@@ -766,6 +767,7 @@ async function quickPreview() {
     words: (typeof wordsForRender === "function") ? wordsForRender() : undefined,
     layout: optionOut("format"),
     width: optionOut("resolution"),
+    quality: optionOut("quality"),
   };
 
   // A long clip (minutes-long) is almost never represented by just its
