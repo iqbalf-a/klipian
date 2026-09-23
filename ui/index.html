@@ -8,10 +8,10 @@
      from the Google Fonts CDN -- see ui/css/fonts.css for why. Loaded
      BEFORE the other stylesheets so the faces are declared by the time
      anything asks for them. -->
-<link rel="stylesheet" href="/ui/css/fonts.css?v=1790154097000">
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1790154097000">
-<link rel="stylesheet" href="/ui/css/brand.css?v=1790154097000">
-<link rel="stylesheet" href="/ui/css/app.css?v=1790154097000">
+<link rel="stylesheet" href="/ui/css/fonts.css?v=1790154455000">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1790154455000">
+<link rel="stylesheet" href="/ui/css/brand.css?v=1790154455000">
+<link rel="stylesheet" href="/ui/css/app.css?v=1790154455000">
 </head>
 <body>
 
@@ -190,6 +190,14 @@
             <line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="16" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/>
           </svg>
           <span>Captions</span>
+        </button>
+        <!-- Arrow leaving a tray: the Result going out as a file. -->
+        <button class="tab" role="tab" id="tab-render" data-to="render" aria-controls="panel-render" aria-selected="false" tabindex="-1">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3 L12 14 M8 10 L12 14 L16 10"/><path d="M4 17 L4 20 L20 20 L20 17"/>
+          </svg>
+          <span>Render</span>
         </button>
         <button class="tab" role="tab" id="tab-history" data-to="history" aria-controls="panel-history" aria-selected="false" tabindex="-1">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -645,6 +653,44 @@
         </div>
       </section>
 
+      <!-- ══════════════════ RENDER — turn the Result into a file ══════════════════
+           Same shape as Settings: the clip in the middle, what acts on it
+           down this column. Everything here used to be stacked underneath
+           the preview on every screen, which is what made that panel scroll
+           (ian) -- and none of it was ever used FROM Clips, Framing or
+           Captions, it was just in the way there. -->
+      <section class="screen" data-screen="render" role="tabpanel" id="panel-render" aria-labelledby="tab-render" tabindex="0">
+        <div class="work-head">
+          <h1>Render</h1>
+          <span class="note" role="status">check the length, then write the file</span>
+        </div>
+
+        <!-- The LENGTH readout: how long this Result runs and whether that
+             lands in the sweet spot. Written by renderPreview() in app.js. -->
+        <div class="clip-info" id="clipInfo"></div>
+
+        <div class="render-bar">
+          <label class="title-input">title
+            <input id="resultTitle" value="" spellcheck="false" placeholder="output file name"
+                   aria-label="Result title, used as the file name"></label>
+          <div class="row">
+            <span class="data" id="resultSummary" role="status"></span>
+            <span class="data" id="previewQuickNote" role="status"></span>
+            <button class="btn" id="previewQuickBtn" disabled>Quick preview</button>
+            <button class="btn main large" id="resultRenderBtn" disabled>Render Result</button>
+          </div>
+          <!-- Actual render via ffmpeg, only PREVIEW_MAX_DETIK seconds --
+               not the CSS mockup in the 9:16 panel, which has proven to
+               differ from the real ASS/ffmpeg output (see watermark opacity
+               bug). Used to verify captions/watermark look exactly as
+               expected BEFORE waiting for a full render. -->
+          <div class="preview-quick" id="previewQuickWrap" hidden>
+            <video id="previewQuickVideo" controls autoplay playsinline></video>
+            <button class="btn quiet" id="previewQuickClose" type="button">Close preview</button>
+          </div>
+        </div>
+      </section>
+
       <!-- ══════════════════ SETTINGS — one set for every Result ══════════════════
            ian asked for the output settings to have their own place instead
            of riding along inside Analyze's #projectSetup, where they were
@@ -727,8 +773,13 @@
         <span class="tl-time tl-end" id="tlEndTime">00:00</span>
       </div>
 
-      <div class="clip-info" id="clipInfo"></div>
-
+      <!-- #clipInfo (the LENGTH / sweet-spot readout) and the whole
+           .render-bar used to sit here, below the transport. Together with
+           this panel's own head, frame and timeline they came to 1120px of
+           content in a column about 725px tall, so Clips, Framing and
+           Captions all made you scroll past the clip to reach anything
+           (ian). Both moved to the Render screen, which is the only place
+           they were ever acted on. -->
       <div class="preview-foot">
         <!-- Transport row: big step back on left, big step forward on right,
              play in center. Order follows the direction of time. -->
@@ -765,46 +816,23 @@
         </div>
       </div>
 
-      <!-- Render sits here, not in the Result panel, so it's reachable from
-           Clips, Framing, or Captions screens without switching. This preview
-           IS the result -- the button naturally belongs below it. -->
-      <div class="render-bar">
-        <label class="title-input">title
-          <input id="resultTitle" value="" spellcheck="false" placeholder="output file name"
-                 aria-label="Result title, used as the file name"></label>
-        <div class="row">
-          <span class="data" id="resultSummary" role="status"></span>
-          <span class="data" id="previewQuickNote" role="status"></span>
-          <button class="btn" id="previewQuickBtn" disabled>Quick preview</button>
-          <button class="btn main large" id="resultRenderBtn" disabled>Render Result</button>
-        </div>
-        <!-- Actual render via ffmpeg, only PREVIEW_MAX_DETIK seconds --
-             not the CSS mockup in the 9:16 panel above, which has proven
-             to differ from the real ASS/ffmpeg output (see watermark opacity
-             bug). Used to verify captions/watermark look exactly as expected
-             BEFORE waiting for a full render. -->
-        <div class="preview-quick" id="previewQuickWrap" hidden>
-          <video id="previewQuickVideo" controls autoplay playsinline></video>
-          <button class="btn quiet" id="previewQuickClose" type="button">Close preview</button>
-        </div>
-      </div>
     </aside>
   </main>
 </div>
 
 <!-- Shared with /workspace (theme, clock, "?" popover) -- loaded first so
      the theme is applied before the editor's own scripts start drawing. -->
-<script src="/ui/js/shared/topbar.js?v=1790154097000"></script>
-<script src="/ui/js/editor/app.js?v=1790154097000"></script>
-<script src="/ui/js/editor/interactions.js?v=1790154097000"></script>
-<script src="/ui/js/editor/framing.js?v=1790154097000"></script>
-<script src="/ui/js/editor/analysis.js?v=1790154097000"></script>
-<script src="/ui/js/editor/player.js?v=1790154097000"></script>
-<script src="/ui/js/editor/roundtrip.js?v=1790154097000"></script>
-<script src="/ui/js/editor/history.js?v=1790154097000"></script>
-<script src="/ui/js/editor/timeline.js?v=1790154097000"></script>
-<script src="/ui/js/editor/captions.js?v=1790154097000"></script>
-<script src="/ui/js/editor/result.js?v=1790154097000"></script>
-<script src="/ui/js/editor/projects.js?v=1790154097000"></script>
+<script src="/ui/js/shared/topbar.js?v=1790154455000"></script>
+<script src="/ui/js/editor/app.js?v=1790154455000"></script>
+<script src="/ui/js/editor/interactions.js?v=1790154455000"></script>
+<script src="/ui/js/editor/framing.js?v=1790154455000"></script>
+<script src="/ui/js/editor/analysis.js?v=1790154455000"></script>
+<script src="/ui/js/editor/player.js?v=1790154455000"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1790154455000"></script>
+<script src="/ui/js/editor/history.js?v=1790154455000"></script>
+<script src="/ui/js/editor/timeline.js?v=1790154455000"></script>
+<script src="/ui/js/editor/captions.js?v=1790154455000"></script>
+<script src="/ui/js/editor/result.js?v=1790154455000"></script>
+<script src="/ui/js/editor/projects.js?v=1790154455000"></script>
 </body>
 </html>

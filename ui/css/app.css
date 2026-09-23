@@ -1462,10 +1462,10 @@ h1, h2, h3 {
    hiding the sidebar just reclaimed. */
 .app[data-sidebar="hidden"] .stage { padding-left: calc(var(--gutter) * 2 + 26px); }
 
-/* ── Settings: the one screen laid out the other way round ──
-   ian asked for the clip in the middle and its configuration in a panel on
+/* ── Settings and Render: the two screens laid out the other way round ──
+   ian asked for the clip in the middle and what acts on it in a panel on
    the right. Everywhere else the middle column IS the work and .preview is
-   the narrow one beside it, so here the two swap roles.
+   the narrow one beside it, so on these two the roles swap.
 
    All three are placed explicitly, ROW INCLUDED. Auto-placement walks the
    items in DOM order (.side, .work, .preview) and only ever moves its
@@ -1478,25 +1478,25 @@ h1, h2, h3 {
    These rules come after the sidebar-hidden ones above deliberately: the
    one-attribute selectors match at equal specificity, so source order is
    what decides. */
-.app[data-screen="settings"] .stage.has-preview {
+.app:is([data-screen="settings"],[data-screen="render"]) .stage.has-preview {
   grid-template-columns: var(--w-side) 1fr var(--w-config);
 }
-.app[data-screen="settings"] .side    { grid-column: 1; grid-row: 1; }
-.app[data-screen="settings"] .preview { grid-column: 2; grid-row: 1; }
-.app[data-screen="settings"] .work    { grid-column: 3; grid-row: 1; }
-.app[data-sidebar="hidden"][data-screen="settings"] .stage.has-preview {
+.app:is([data-screen="settings"],[data-screen="render"]) .side    { grid-column: 1; grid-row: 1; }
+.app:is([data-screen="settings"],[data-screen="render"]) .preview { grid-column: 2; grid-row: 1; }
+.app:is([data-screen="settings"],[data-screen="render"]) .work    { grid-column: 3; grid-row: 1; }
+.app[data-sidebar="hidden"]:is([data-screen="settings"],[data-screen="render"]) .stage.has-preview {
   grid-template-columns: 1fr var(--w-config);
 }
-.app[data-sidebar="hidden"][data-screen="settings"] .preview { grid-column: 1; grid-row: 1; }
-.app[data-sidebar="hidden"][data-screen="settings"] .work    { grid-column: 2; grid-row: 1; }
+.app[data-sidebar="hidden"]:is([data-screen="settings"],[data-screen="render"]) .preview { grid-column: 1; grid-row: 1; }
+.app[data-sidebar="hidden"]:is([data-screen="settings"],[data-screen="render"]) .work    { grid-column: 2; grid-row: 1; }
 
 /* .frame916 is width:100% with an aspect-ratio, so its HEIGHT comes from
    whatever column it's in -- dropped into a full-width middle column it
    grows far past the window. Every child is capped at the width this
    column has on every other screen and centred, which is also what makes
    it read as a card standing in open space rather than a stretched panel. */
-.app[data-screen="settings"] .preview { align-items: center; }
-.app[data-screen="settings"] .preview > * { width: min(100%, var(--w-preview)); }
+.app:is([data-screen="settings"],[data-screen="render"]) .preview { align-items: center; }
+.app:is([data-screen="settings"],[data-screen="render"]) .preview > * { width: min(100%, var(--w-preview)); }
 /* Shares everything else with .side-collapse above. The offsets have to
    rebuild, from the viewport, what that button gets for free from being
    inside .side: the stage's --gutter of padding, .side's 1px border, then

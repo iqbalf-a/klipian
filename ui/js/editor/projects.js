@@ -26,7 +26,7 @@ let lastScreen = "clips";        // the screen where work was left off
 /* Screen names from project files are NOT trusted blindly: files can be
    hand-edited or come from an older version. An unrecognized name causes
    toScreen() to turn off all screens and leave an empty workspace. */
-const VALID_SCREENS = ["analysis", "clips", "framing", "captions", "history", "settings"];
+const VALID_SCREENS = ["analysis", "clips", "framing", "captions", "render", "history", "settings"];
 
 /* Old projects (saved before this rename) still have screen: "klip"/"teks"
    on disk -- read once here so they still resume on the right screen,

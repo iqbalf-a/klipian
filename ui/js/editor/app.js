@@ -517,7 +517,9 @@ const NO_PREVIEW = ["analysis", "history"];
 /* Three screens that edit the same result. Split into separate menus so
    each screen has one concern: Clips picks the cuts, Framing adjusts the
    frame, Text handles words and appearance. */
-const RESULT_SCREENS = ["clips", "framing", "captions"];
+// Render joins them: it shows the same preview and is where the Result is
+// finally judged, so it needs the same redraw on arrival.
+const RESULT_SCREENS = ["clips", "framing", "captions", "render"];
 
 /* The currently active screen. Saved with the project so "Continue" brings
    you back to where you left off -- if you were adjusting framing, you
@@ -540,6 +542,15 @@ function toScreen(name) {
   });
 
   if (name === "history" && typeof loadHistory === "function") loadHistory();
+
+  // The LENGTH readout and the two buttons live only on this screen now, so
+  // arriving is the moment they have to be made current -- renderPreview()
+  // is otherwise driven by playback and result switching, neither of which
+  // has to have happened before you come here.
+  if (name === "render") {
+    if (typeof renderPreview === "function") renderPreview();
+    if (typeof updateRenderButtons === "function") updateRenderButtons();
+  }
 
   // Clips, Framing, and Text all three edit the SAME result, and the preview
   // shows the combined output of all three. So all three are redrawn on any
