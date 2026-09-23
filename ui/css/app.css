@@ -1536,8 +1536,19 @@ h1, h2, h3 {
   display: flex; flex-direction: column;
   overflow: hidden;
 }
+/* align-content is the whole point of this rule, not an afterthought.
+   Both of these size their own tracks -- .list is a grid of rows,
+   .text-list a wrapping flex row -- and both default to stretching those
+   tracks to fill the container. That was harmless while the container was
+   only as tall as its content; the moment flex:1 gave it the column's full
+   height, every caption row grew to 118px and every word button to 41px
+   (ian: "jadi melebar memanjang semua"). start keeps each track its own
+   size and leaves the slack at the bottom, where it belongs. */
 .subtab-panel > .list,
-.subtab-panel > .text-list { flex: 1; min-height: 0; overflow-y: auto; }
+.subtab-panel > .text-list {
+  flex: 1; min-height: 0; overflow-y: auto;
+  align-content: start;
+}
 
 /* .frame916 is width:100% with an aspect-ratio, so its HEIGHT comes from
    whatever column it's in -- dropped into a full-width middle column it
