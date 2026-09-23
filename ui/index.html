@@ -8,10 +8,10 @@
      from the Google Fonts CDN -- see ui/css/fonts.css for why. Loaded
      BEFORE the other stylesheets so the faces are declared by the time
      anything asks for them. -->
-<link rel="stylesheet" href="/ui/css/fonts.css?v=1790137017000">
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1790137017000">
-<link rel="stylesheet" href="/ui/css/brand.css?v=1790137017000">
-<link rel="stylesheet" href="/ui/css/app.css?v=1790137017000">
+<link rel="stylesheet" href="/ui/css/fonts.css?v=1790139257000">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1790139257000">
+<link rel="stylesheet" href="/ui/css/brand.css?v=1790139257000">
+<link rel="stylesheet" href="/ui/css/app.css?v=1790139257000">
 </head>
 <body>
 
@@ -31,21 +31,22 @@
            aria-current="page", not role="tab". -->
   <header class="topbar">
     <button class="brand" id="toHome" title="Back to home">klipian</button>
-    <!-- Right after the logo, same spot as on /workspace (workspace.html) --
-         it was on the FAR RIGHT here before, grouped with Theme, while
-         /workspace always had it left-anchored next to its own logo. Same
-         switcher, same page, two different positions was the "tidak
-         konsisten" ian flagged. margin-left:auto moved to #themeBtn below,
-         which is what actually needs to push the right-hand group over now. -->
-    <nav class="tabs area-switch" aria-label="Area">
-      <a href="/" aria-current="page">Edit</a>
-      <a href="/workspace">Workspace</a>
-    </nav>
     <button class="btn btn-home work-only" id="toMenuBtn">Home</button>
     <span class="file work-only">
       <span class="name" id="fileName"></span>
       <span class="data" id="fileDuration"></span>
     </span>
+    <!-- Right side, just left of Theme (ian) -- pushed there by its own
+         margin-left:auto (.area-switch in brand.css), which also drags
+         Theme + the "?" help button along right after it since nothing
+         between them forces a gap. Same rule, and the same position
+         relative to the trailing controls, on /workspace -- see the
+         comment on #wsClock there for how that page keeps it consistent
+         without a theme button of its own to anchor against. -->
+    <nav class="tabs area-switch" aria-label="Area">
+      <a href="/" aria-current="page">Edit</a>
+      <a href="/workspace">Workspace</a>
+    </nav>
     <!-- Three states, not two: Auto follows the operating system, and is
          the default. Cycling through it rather than a plain on/off switch
          is what lets someone get BACK to "follow the OS" after picking a
@@ -744,16 +745,16 @@
   </main>
 </div>
 
-<script src="/ui/js/editor/app.js?v=1790137017000"></script>
-<script src="/ui/js/editor/interactions.js?v=1790137017000"></script>
-<script src="/ui/js/editor/framing.js?v=1790137017000"></script>
-<script src="/ui/js/editor/analysis.js?v=1790137017000"></script>
-<script src="/ui/js/editor/player.js?v=1790137017000"></script>
-<script src="/ui/js/editor/roundtrip.js?v=1790137017000"></script>
-<script src="/ui/js/editor/history.js?v=1790137017000"></script>
-<script src="/ui/js/editor/timeline.js?v=1790137017000"></script>
-<script src="/ui/js/editor/captions.js?v=1790137017000"></script>
-<script src="/ui/js/editor/result.js?v=1790137017000"></script>
-<script src="/ui/js/editor/projects.js?v=1790137017000"></script>
+<script src="/ui/js/editor/app.js?v=1790139257000"></script>
+<script src="/ui/js/editor/interactions.js?v=1790139257000"></script>
+<script src="/ui/js/editor/framing.js?v=1790139257000"></script>
+<script src="/ui/js/editor/analysis.js?v=1790139257000"></script>
+<script src="/ui/js/editor/player.js?v=1790139257000"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1790139257000"></script>
+<script src="/ui/js/editor/history.js?v=1790139257000"></script>
+<script src="/ui/js/editor/timeline.js?v=1790139257000"></script>
+<script src="/ui/js/editor/captions.js?v=1790139257000"></script>
+<script src="/ui/js/editor/result.js?v=1790139257000"></script>
+<script src="/ui/js/editor/projects.js?v=1790139257000"></script>
 </body>
 </html>

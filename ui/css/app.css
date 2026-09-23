@@ -115,13 +115,6 @@ h1, h2, h3 {
    project-scoped control never belonged there. .tabs/.tab (the area
    switch's pill styling) moved to brand.css, which /workspace also
    loads and app.css doesn't reach. */
-/* Pushes Theme + the "?" help group to the far right. Used to be the area
-   switch's job (margin-left:auto on .area-switch), back when the switch
-   sat on the opposite end of the row from the logo -- now that it's right
-   next to the logo on both pages, #themeBtn (editor-only; /workspace has
-   no theme toggle) is what needs the auto margin instead. */
-#themeBtn { margin-left: auto; }
-
 .file { display: flex; align-items: center; gap: var(--s3); color: var(--text-muted); }
 .file .name { font-size: 13px; font-weight: 550; color: var(--text); }
 .file .data { color: var(--text-faint); }

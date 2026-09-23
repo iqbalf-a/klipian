@@ -87,8 +87,10 @@
   color: var(--bg-0);
   background: var(--text);
 }
-/* No margin-left:auto here any more -- the switch sits right after the
-   logo on both pages now (see #themeBtn in app.css for what pushes the
-   REST of the topbar's right-hand group over on the editor page; there
-   is nothing to its right worth pushing on /workspace, so it needs none
-   there). */
+/* ian: better on the right, just left of the Theme icon, rather than
+   next to the logo -- so it moved again, this time to a genuinely
+   page-independent rule: margin-left:auto on the switch itself (not on
+   whatever happens to follow it, which is DIFFERENT per page -- Theme +
+   "?" on the editor, just the clock on /workspace). One rule, correct
+   on both, nothing to keep in sync by hand this time. */
+.area-switch { margin-left: auto; }
