@@ -377,16 +377,20 @@ h1, h2, h3 {
   color: var(--highlight, #FFD600);
   padding: 0;
 }
-/* Box: the spoken word sits in a filled plate with dark text, and the rest
-   of the line loses its shadow -- in this mode libass gives those words no
-   outline at all, so a preview that kept one here would be promising an
-   edge the render doesn't burn. --box-pad is the same number the ASS
-   Outline field carries, which is what sizes the box there. */
-.cap916[data-highlight="box"] { text-shadow: none; }
+/* Box: the spoken word sits in a filled plate, and every word KEEPS its
+   outline -- the box is drawn on its own layer underneath the text now, so
+   the text layer is ordinary outlined text (see build_ass). An earlier
+   version dropped the outline here, correctly at the time: the box was
+   ASS's BorderStyle 3, which spends the outline to draw itself.
+   --box-pad is the same number the ASS Outline field carries. */
 .cap916[data-highlight="box"] mark {
   background: var(--highlight, #FFD600);
-  color: #000;
-  padding: 0 var(--box-pad, 4px);
+  color: #fff;
+  padding: .04em var(--box-pad, 4px);
+  /* The render rounds it too -- build_ass draws the box itself rather than
+     using ASS's square BorderStyle 3, at 28% of the box height. In em so it
+     follows the caption size, the same way that one follows the frame. */
+  border-radius: .36em;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }

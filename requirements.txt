@@ -10,3 +10,11 @@
 
 faster-whisper>=1.1.0      # transkripsi word-level (CPU, CTranslate2)
 anthropic>=0.40.0          # pemilihan klip (fase 2)
+
+# OPSIONAL. Dipakai HANYA oleh gaya caption "Box": kotak highlight yang
+# sudutnya membulat digambar sendiri (\p1) di build_ass(), dan untuk
+# menempatkannya perlu mengukur lebar kata. Tanpa Pillow -- atau bila
+# berkas fontnya tidak ketemu di mesin ini -- kotaknya tetap muncul, hanya
+# bersudut tajam (BorderStyle 3, ditempatkan libass sendiri). Jadi ini
+# BUKAN syarat untuk render berjalan.
+# pillow>=10.0.0

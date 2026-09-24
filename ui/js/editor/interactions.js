@@ -312,18 +312,17 @@ function applyCaption() {
   // the panel actually shows, and the ResizeObserver below catches size
   // changes after that) rather than writing near-zero sizes that get stuck
   // until some other trigger fires.
-  // In box mode the outline IS the box (BorderStyle 3 in build_ass), so the
-  // words around the spoken one get no stroke -- mirrored here, because a
-  // preview showing an outline the render won't burn is the one thing this
-  // panel must never do. The same number becomes the box's padding.
+  // Every word keeps its outline in both modes: the box is drawn on its own
+  // layer under the text now, so build_ass leaves the text layer ordinary.
+  // The same Outline number also sets the box's padding there, so it's
+  // handed to the CSS as well.
   const boxed = captionOut("highlight-style") === "box";
   cap.dataset.highlight = boxed ? "box" : "text";
   if (frameH > 0) {
     cap.style.fontSize = `${pxFromOut(captionOut("size"), frameH)}px`;
     const thicknessPx = pxFromOut(captionOut("outline"), frameH);
-    cap.style.webkitTextStroke = (!boxed && thicknessPx)
-      ? `${thicknessPx * 0.5}px rgba(0,0,0,.85)` : "";
-    cap.style.setProperty("--box-pad", `${thicknessPx}px`);
+    cap.style.webkitTextStroke = thicknessPx ? `${thicknessPx * 0.5}px rgba(0,0,0,.85)` : "";
+    cap.style.setProperty("--box-pad", `${thicknessPx + 4}px`);
   }
   cap.style.bottom = `${captionOut("position")}%`;
   // X is a percentage of the FRAME width, so it has to be applied as a

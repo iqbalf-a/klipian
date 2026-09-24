@@ -165,6 +165,82 @@ def to_output_time(spans: list[Span], seconds: float) -> float | None:
 BASE_SIDE_MARGIN = 60
 
 
+# ── rounded highlight box ────────────────────────────────────────────────
+# ASS has no rounded box: BorderStyle 3 draws a hard rectangle and there is
+# no radius property. \blur only smears the whole box (tried it). The only
+# shape ASS can round is one we draw ourselves in \p1 drawing mode -- and to
+# place that we have to know where the word lands, which means measuring the
+# text the way libass will lay it out.
+#
+# Everything here is best-effort on purpose. Pillow is NOT a declared
+# dependency (requirements.txt is deliberately light), the font file has to
+# be found on this machine, and the measurement has no HarfBuzz shaping
+# while libass does. Any of those failing returns None, and build_ass falls
+# back to the square BorderStyle 3 box -- which is always correctly placed,
+# because libass places it. A square box beats a rounded one in the wrong
+# spot.
+_FONT_FILES = {
+    "arial": ("arial.ttf", "arialbd.ttf"),
+    "impact": ("impact.ttf", "impact.ttf"),      # Impact ships one weight
+    "verdana": ("verdana.ttf", "verdanab.ttf"),
+}
+_FONT_DIRS = [
+    Path("C:/Windows/Fonts"),
+    Path("/usr/share/fonts"), Path("/usr/local/share/fonts"),
+    Path.home() / ".fonts", Path("/Library/Fonts"), Path.home() / "Library/Fonts",
+]
+
+
+def _font_path(name: str, bold: bool = True) -> Path | None:
+    files = _FONT_FILES.get(name.strip().lower())
+    if not files:
+        return None
+    wanted = files[1] if bold else files[0]
+    for d in _FONT_DIRS:
+        if not d.is_dir():
+            continue
+        hit = d / wanted
+        if hit.is_file():
+            return hit
+        # Linux buries them a few levels down
+        for found in d.rglob(wanted):
+            return found
+    return None
+
+
+def _measure(font_name: str, size: int):
+    """(width_of, space_width, ascent, descent), or None if it can't be done.
+
+    width_of is a callable rather than a precomputed list so the caller can
+    measure line by line, without having to hand over every word up front."""
+    try:
+        from PIL import ImageFont            # noqa: PLC0415 -- optional
+    except ImportError:
+        return None
+    path = _font_path(font_name)
+    if not path:
+        return None
+    try:
+        f = ImageFont.truetype(str(path), size)
+        asc, desc = f.getmetrics()
+        return f.getlength, f.getlength(" "), asc, desc
+    except OSError:
+        return None
+
+
+def _rounded_rect(x0: int, y0: int, x1: int, y1: int, r: int) -> str:
+    """ASS \\p1 drawing commands for a rounded rectangle.
+
+    The corners are beziers whose two control points sit ON the corner,
+    which is the standard way to approximate a quarter circle closely
+    enough at these sizes."""
+    r = max(0, min(r, (x1 - x0) // 2, (y1 - y0) // 2))
+    return (f"m {x0+r} {y0} l {x1-r} {y0} b {x1} {y0} {x1} {y0} {x1} {y0+r} "
+            f"l {x1} {y1-r} b {x1} {y1} {x1} {y1} {x1-r} {y1} "
+            f"l {x0+r} {y1} b {x0} {y1} {x0} {y1} {x0} {y1-r} "
+            f"l {x0} {y0+r} b {x0} {y0} {x0} {y0} {x0+r} {y0}")
+
+
 def _side_margins(x_percent: float, W: int) -> tuple[int, int]:
     """(MarginL, MarginR) for a centre shifted x_percent of the width.
 
@@ -233,8 +309,15 @@ def build_ass(job: RenderJob, words: list[Word] | None, style: dict | None = Non
     # outline at all in this mode. Plain white text, exactly like the
     # reference -- legible on most footage, thin on very bright footage.
     box_highlight = g["highlight_style"] == "box"
-    border_style = 3 if box_highlight else 1
-    border_colour = (g["highlight"] if box_highlight else "&H00000000&").rstrip("&")
+    # Rounded needs the word positions, so it only happens when the text can
+    # actually be measured (see _measure). Otherwise box mode still works --
+    # as the square BorderStyle 3 box, placed by libass itself.
+    rounded = _measure(g["font"], int(g["size"])) if box_highlight else None
+    square_box = box_highlight and not rounded
+    # With a drawn box the text layer goes back to being ordinary outlined
+    # text: the highlight is the shape underneath it, not the border.
+    border_style = 3 if square_box else 1
+    border_colour = (g["highlight"] if square_box else "&H00000000&").rstrip("&")
 
     # The SAME alpha is applied to the FILL color *and* the OUTLINE color --
     # previously only the fill followed watermark_opacity, the outline was
@@ -258,6 +341,7 @@ ScaledBorderAndShadow: yes
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, OutlineColour, BackColour, Bold, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Utama,{g['font']},{g['size']},{warna_style},{border_colour},&H80000000,1,{border_style},{g['outline']},0,2,{margin_left},{margin_right},{margin_bottom},1
+Style: Kotak,{g['font']},{g['size']},{g['highlight'].rstrip('&')},&H00000000,&H00000000,0,1,0,0,7,0,0,0,1
 Style: Watermark,Mona Sans ExtraBold,{g['watermark_size']},{wm_color},{wm_outline_color},&H60000000,0,1,1,0,2,{wm_left},{wm_right},{wm_margin},1
 
 [Events]
@@ -289,6 +373,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
     events = []
     per_line = max(1, int(g["per_line"]))   # 0/negative would crash range()
+
+    # Rounded box mode: the box is a shape we draw and position ourselves,
+    # so the text layer no longer has to carry the highlight at all. Each
+    # line becomes ONE text event (the words never change within a line --
+    # only which box is lit) plus one drawing event per word.
     for i in range(0, len(used), per_line):
         group = used[i:i + per_line]
         # When the next group starts. The last word in each group must hold
@@ -296,8 +385,41 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         # flicker at every line break.
         next_start = used[i + per_line][0] if i + per_line < len(used) else None
 
+        # Where each word in this line starts and ends across the frame,
+        # rebuilding the layout libass is about to perform: the line is
+        # centred between the side margins, words separated by one space.
+        spans_x = None
+        if rounded:
+            width_of, _space_w, asc, desc = rounded
+            texts = [t for _, _, t in group]
+            # Measured as PREFIXES of the real line, not as a sum of word
+            # widths plus a space each. Same reason libass gets it right:
+            # the width of "Dia itu suka" is not the width of its parts
+            # added up -- the pairs between them kern. Summing made the
+            # error grow word by word, visibly by the fourth one.
+            line_w = width_of(" ".join(texts))
+            left = margin_left + (W - margin_left - margin_right - line_w) / 2
+            spans_x = []
+            for k in range(len(texts)):
+                before = (" ".join(texts[:k]) + " ") if k else ""
+                spans_x.append((left + width_of(before),
+                                left + width_of(" ".join(texts[:k + 1]))))
+            # The line is \pos-ed at this same `left` rather than left to
+            # libass's own centring -- see the text event below. Mixing the
+            # two layouts was what made the boxes creep: measured here
+            # without HarfBuzz, the line comes out a little wider than the
+            # one libass draws, so the first box sat left of its word and
+            # the last sat right of its own. Positioning both from one
+            # number can't disagree with itself.
+            box_bottom = H - margin_bottom
+            box_top = box_bottom - asc - desc
+
         for j, (a, b, _) in enumerate(group):
-            if box_highlight:
+            if rounded:
+                # The text layer is identical for every word of this line, so
+                # it's written once after this loop; here only the box moves.
+                text = None
+            elif square_box:
                 # \3a, the BORDER ALPHA, is what turns the box on and off per
                 # word -- \3c (the colour) can't: with BorderStyle 3 every
                 # span already draws a box, so the non-active ones are hidden
@@ -321,8 +443,39 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 end = next_start               # until the next line
             else:
                 end = b + 0.4                     # last line, give some breathing room
-            events.append(
-                f"Dialogue: 0,{_ass_time(a)},{_ass_time(end)},Utama,,0,0,0,,{text}")
+
+            if rounded:
+                x0, x1 = spans_x[j]
+                pad = max(4, int(g["outline"]) + 4)
+                # Radius from the box's own height, so it stays the same
+                # shape at any font size instead of needing a setting.
+                top, bottom = int(box_top - pad), int(box_bottom + pad)
+                shape = _rounded_rect(int(x0) - pad, top, int(x1) + pad, bottom,
+                                      int((bottom - top) * 0.28))
+                events.append(
+                    f"Dialogue: 0,{_ass_time(a)},{_ass_time(end)},Kotak,,0,0,0,,"
+                    f"{{\\pos(0,0)\\p1}}{shape}{{\\p0}}")
+            else:
+                events.append(
+                    f"Dialogue: 0,{_ass_time(a)},{_ass_time(end)},Utama,,0,0,0,,{text}")
+
+        if rounded:
+            # EVERY WORD gets its own \pos, rather than one event holding the
+            # whole line. That's the point: measured here the line comes out
+            # 721px where libass draws 640 -- its font matching and synthetic
+            # bold aren't reproducible from outside it -- so any attempt to
+            # predict where libass would put each word was always going to
+            # drift, and it did, visibly by the fourth word. Laying the words
+            # out here instead makes the question disappear: a word and its
+            # box are placed from the same number, so they agree whether or
+            # not that number matches what libass would have chosen. The only
+            # thing that changes is the spacing between words, by a few
+            # pixels, evenly.
+            line_end = next_start if next_start is not None else group[-1][1] + 0.4
+            for (wx0, _), (_, _, t) in zip(spans_x, group):
+                events.append(
+                    f"Dialogue: 1,{_ass_time(group[0][0])},{_ass_time(line_end)},"
+                    f"Utama,,0,0,0,,{{\\an1\\pos({int(wx0)},{int(box_bottom)})}}{t}")
 
     return header + "\n".join(events) + "\n"
 
