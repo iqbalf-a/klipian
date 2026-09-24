@@ -97,6 +97,17 @@ const CAPTION_OPTIONS = [
       { t: "White", out: "&H00FFFFFF&", css: "#FFFFFF" },
       { t: "Green", out: "&H0076E600&", css: "#00E676" },
       { t: "Red", out: "&H004040FF&", css: "#FF4040" }] },
+  // How that colour is drawn, not which colour it is -- both choices use
+  // whatever Highlight above is set to (ian). "text" is the default so
+  // every style written before this renders exactly as it did.
+  //
+  // Box costs the outline: ASS draws a word's box and its outline with the
+  // same feature (BorderStyle 3, see build_ass()), so in this mode the
+  // words that aren't being spoken have none. That's the look ian picked --
+  // plain white, like the reference -- and the hint says so out loud.
+  { id: "highlight-style", label: "Highlight style", active: 0, choices: [
+      { t: "Text", out: "text" },
+      { t: "Box", out: "box" }] },
   // Both axes are percentages of the frame, which is what the renderer
   // already worked in: Y is the distance UP from the bottom edge, X the
   // offset from the centre. 24 / 0 is exactly where "Middle" used to put it.
@@ -168,6 +179,7 @@ function captionStyle() {
     font: captionOut("font"),
     size: captionOut("size"),
     highlight: captionOut("highlight"),
+    highlight_style: captionOut("highlight-style"),
     position: captionOut("position"),
     x: captionOut("x"),
     per_line: captionOut("per-line"),

@@ -200,6 +200,10 @@ def build_ass(job: RenderJob, words: list[Word] | None, style: dict | None = Non
          "outline": 4, "position": 24, "x": 0,
          "color": "&H00FFFFFF&",          # base text color
          "highlight": "&H0000D6FF&",      # color of the currently-spoken word
+         # "text" recolours the spoken word, "box" puts it in a filled box.
+         # Defaulting to "text" is what keeps every style written before this
+         # rendering exactly as it did.
+         "highlight_style": "text",
          "watermark": True,               # on/off toggle from the Captions screen
          "watermark_size": 32,
          "watermark_opacity": "80",       # ASS alpha: 00 fully opaque .. FF invisible
@@ -217,6 +221,20 @@ def build_ass(job: RenderJob, words: list[Word] | None, style: dict | None = Non
     wm_left, wm_right = _side_margins(g["watermark_x"], W)
     # Style lines use the form without trailing "&", the \c tag uses the form with.
     warna_style = g["color"].rstrip("&")
+
+    # BorderStyle 3 makes the outline an opaque box drawn in OutlineColour,
+    # and libass draws one PER SPAN -- which is what makes a box on a single
+    # word possible at all, since ASS has no inline tag for BorderStyle. So
+    # in box mode the outline colour becomes the highlight colour and the
+    # Outline number becomes the box's padding.
+    #
+    # The cost, and it's deliberate (ian chose it): a word's outline and its
+    # box are the same feature, so the words that AREN'T being spoken have no
+    # outline at all in this mode. Plain white text, exactly like the
+    # reference -- legible on most footage, thin on very bright footage.
+    box_highlight = g["highlight_style"] == "box"
+    border_style = 3 if box_highlight else 1
+    border_colour = (g["highlight"] if box_highlight else "&H00000000&").rstrip("&")
 
     # The SAME alpha is applied to the FILL color *and* the OUTLINE color --
     # previously only the fill followed watermark_opacity, the outline was
@@ -239,7 +257,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, OutlineColour, BackColour, Bold, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Utama,{g['font']},{g['size']},{warna_style},&H00000000,&H80000000,1,1,{g['outline']},0,2,{margin_left},{margin_right},{margin_bottom},1
+Style: Utama,{g['font']},{g['size']},{warna_style},{border_colour},&H80000000,1,{border_style},{g['outline']},0,2,{margin_left},{margin_right},{margin_bottom},1
 Style: Watermark,Mona Sans ExtraBold,{g['watermark_size']},{wm_color},{wm_outline_color},&H60000000,0,1,1,0,2,{wm_left},{wm_right},{wm_margin},1
 
 [Events]
@@ -279,10 +297,24 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         next_start = used[i + per_line][0] if i + per_line < len(used) else None
 
         for j, (a, b, _) in enumerate(group):
-            text = " ".join(
-                (r"{\c" + g["highlight"] + "}" + t + r"{\c" + g["color"] + "}") if k == j else t
-                for k, (_, _, t) in enumerate(group)
-            )
+            if box_highlight:
+                # \3a, the BORDER ALPHA, is what turns the box on and off per
+                # word -- \3c (the colour) can't: with BorderStyle 3 every
+                # span already draws a box, so the non-active ones are hidden
+                # by making them transparent, not by recolouring them. The
+                # line opens transparent (see prefix below) and each active
+                # word switches its own box on and the fill to black.
+                body = " ".join(
+                    (r"{\3a&H00&\1c&H00000000&}" + t + r"{\3a&HFF&\1c" + g["color"] + "}")
+                    if k == j else t
+                    for k, (_, _, t) in enumerate(group)
+                )
+                text = r"{\3a&HFF&}" + body
+            else:
+                text = " ".join(
+                    (r"{\c" + g["highlight"] + "}" + t + r"{\c" + g["color"] + "}") if k == j else t
+                    for k, (_, _, t) in enumerate(group)
+                )
             if j < len(group) - 1:
                 end = group[j + 1][0]          # until the next word
             elif next_start is not None:

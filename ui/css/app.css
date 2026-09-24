@@ -368,13 +368,27 @@ h1, h2, h3 {
   text-shadow: 0 1px 3px rgba(0,0,0,.9), 0 3px 14px rgba(0,0,0,.75);
 }
 /* The highlight in the preview must be THE SAME SHAPE as what gets burned
-   into the file: colored text, not a background box. If they differ, the
-   preview lies about the final result. The color is set by applyCaption()
-   from the Highlight Color choice. */
+   into the file. If they differ, the preview lies about the final result.
+   Both shapes are drawn here for that reason -- the colour comes from the
+   Highlight choice, the shape from Highlight style, both via
+   applyCaption(). */
 .cap916 mark {
   background: none;
   color: var(--highlight, #FFD600);
   padding: 0;
+}
+/* Box: the spoken word sits in a filled plate with dark text, and the rest
+   of the line loses its shadow -- in this mode libass gives those words no
+   outline at all, so a preview that kept one here would be promising an
+   edge the render doesn't burn. --box-pad is the same number the ASS
+   Outline field carries, which is what sizes the box there. */
+.cap916[data-highlight="box"] { text-shadow: none; }
+.cap916[data-highlight="box"] mark {
+  background: var(--highlight, #FFD600);
+  color: #000;
+  padding: 0 var(--box-pad, 4px);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 
 /* THE SAME FILE libass uses (assets/fonts/MonaSans-ExtraBold.ttf, via
