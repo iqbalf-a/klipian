@@ -223,7 +223,7 @@
   --h-topbar: 58px;
   --h-ribbon: 96px;
   --w-preview: 356px;
-  --w-side:    168px;
+  --w-side:    196px;
   /* Settings puts its choices in a column of their own on the right. Wider
      than --w-preview because a row there is label + up to four chips + a
      sentence of consequence, and at preview width the four-choice rows

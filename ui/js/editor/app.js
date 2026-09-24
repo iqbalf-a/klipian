@@ -101,10 +101,10 @@ const CAPTION_OPTIONS = [
   // whatever Highlight above is set to (ian). "text" is the default so
   // every style written before this renders exactly as it did.
   //
-  // Box costs the outline: ASS draws a word's box and its outline with the
-  // same feature (BorderStyle 3, see build_ass()), so in this mode the
-  // words that aren't being spoken have none. That's the look ian picked --
-  // plain white, like the reference -- and the hint says so out loud.
+  // Box draws a rounded plate on its own layer under the text, so every
+  // word keeps its outline (see build_ass). It briefly didn't: the first
+  // version used ASS's BorderStyle 3, which spends the outline to draw the
+  // box itself.
   { id: "highlight-style", label: "Highlight style", active: 0, choices: [
       { t: "Text", out: "text" },
       { t: "Box", out: "box" }] },
@@ -679,7 +679,7 @@ const NO_PREVIEW = ["analysis", "history"];
    frame, Text handles words and appearance. */
 // Render joins them: it shows the same preview and is where the Result is
 // finally judged, so it needs the same redraw on arrival.
-const RESULT_SCREENS = ["clips", "framing", "captions", "render"];
+const RESULT_SCREENS = ["clips", "framing", "captions", "render", "output"];
 
 /* The currently active screen. Saved with the project so "Continue" brings
    you back to where you left off -- if you were adjusting framing, you

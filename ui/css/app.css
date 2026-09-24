@@ -1503,17 +1503,17 @@ h1, h2, h3 {
    These rules come after the sidebar-hidden ones above deliberately: the
    one-attribute selectors match at equal specificity, so source order is
    what decides. */
-.app:is([data-screen="settings"],[data-screen="render"],[data-screen="captions"]) .stage.has-preview {
+.app:is([data-screen="output"],[data-screen="render"],[data-screen="captions"]) .stage.has-preview {
   grid-template-columns: var(--w-side) 1fr var(--w-config);
 }
-.app:is([data-screen="settings"],[data-screen="render"],[data-screen="captions"]) .side    { grid-column: 1; grid-row: 1; }
-.app:is([data-screen="settings"],[data-screen="render"],[data-screen="captions"]) .preview { grid-column: 2; grid-row: 1; }
-.app:is([data-screen="settings"],[data-screen="render"],[data-screen="captions"]) .work    { grid-column: 3; grid-row: 1; }
-.app[data-sidebar="hidden"]:is([data-screen="settings"],[data-screen="render"],[data-screen="captions"]) .stage.has-preview {
+.app:is([data-screen="output"],[data-screen="render"],[data-screen="captions"]) .side    { grid-column: 1; grid-row: 1; }
+.app:is([data-screen="output"],[data-screen="render"],[data-screen="captions"]) .preview { grid-column: 2; grid-row: 1; }
+.app:is([data-screen="output"],[data-screen="render"],[data-screen="captions"]) .work    { grid-column: 3; grid-row: 1; }
+.app[data-sidebar="hidden"]:is([data-screen="output"],[data-screen="render"],[data-screen="captions"]) .stage.has-preview {
   grid-template-columns: 1fr var(--w-config);
 }
-.app[data-sidebar="hidden"]:is([data-screen="settings"],[data-screen="render"],[data-screen="captions"]) .preview { grid-column: 1; grid-row: 1; }
-.app[data-sidebar="hidden"]:is([data-screen="settings"],[data-screen="render"],[data-screen="captions"]) .work    { grid-column: 2; grid-row: 1; }
+.app[data-sidebar="hidden"]:is([data-screen="output"],[data-screen="render"],[data-screen="captions"]) .preview { grid-column: 1; grid-row: 1; }
+.app[data-sidebar="hidden"]:is([data-screen="output"],[data-screen="render"],[data-screen="captions"]) .work    { grid-column: 2; grid-row: 1; }
 
 /* Caption settings, in three tabs down that right-hand column. Rows are
    stacked for the same reason .option-row is: at --w-config a label column
@@ -1632,8 +1632,8 @@ h1, h2, h3 {
    grows far past the window. Every child is capped at the width this
    column has on every other screen and centred, which is also what makes
    it read as a card standing in open space rather than a stretched panel. */
-.app:is([data-screen="settings"],[data-screen="render"],[data-screen="captions"]) .preview { align-items: center; }
-.app:is([data-screen="settings"],[data-screen="render"],[data-screen="captions"]) .preview > * { width: min(100%, var(--w-preview)); }
+.app:is([data-screen="output"],[data-screen="render"],[data-screen="captions"]) .preview { align-items: center; }
+.app:is([data-screen="output"],[data-screen="render"],[data-screen="captions"]) .preview > * { width: min(100%, var(--w-preview)); }
 /* Shares everything else with .side-collapse above. The offsets have to
    rebuild, from the viewport, what that button gets for free from being
    inside .side: the stage's --gutter of padding, .side's 1px border, then

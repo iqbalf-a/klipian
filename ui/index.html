@@ -8,10 +8,10 @@
      from the Google Fonts CDN -- see ui/css/fonts.css for why. Loaded
      BEFORE the other stylesheets so the faces are declared by the time
      anything asks for them. -->
-<link rel="stylesheet" href="/ui/css/fonts.css?v=1790263479000">
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1790263479000">
-<link rel="stylesheet" href="/ui/css/brand.css?v=1790263479000">
-<link rel="stylesheet" href="/ui/css/app.css?v=1790263479000">
+<link rel="stylesheet" href="/ui/css/fonts.css?v=1790274660000">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1790274660000">
+<link rel="stylesheet" href="/ui/css/brand.css?v=1790274660000">
+<link rel="stylesheet" href="/ui/css/app.css?v=1790274660000">
 </head>
 <body>
 
@@ -177,6 +177,17 @@
           <span>Clips</span>
         </button>
         <span class="eyebrow rel-side-group">Editing</span>
+        <!-- First in the group (ian): the file's shape is the thing to settle
+             before working inside it. Sliders, in the same drawn-pictogram
+             language as its neighbours -- two tracks with a handle each. -->
+        <button class="tab" role="tab" id="tab-output" data-to="output" aria-controls="panel-output" aria-selected="false" tabindex="-1">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="4" y1="8" x2="20" y2="8"/><circle cx="15" cy="8" r="2.5"/>
+            <line x1="4" y1="16" x2="20" y2="16"/><circle cx="9" cy="16" r="2.5"/>
+          </svg>
+          <span>Output Format</span>
+        </button>
         <button class="tab" role="tab" id="tab-framing" data-to="framing" aria-controls="panel-framing" aria-selected="false" tabindex="-1">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -205,16 +216,6 @@
             <circle cx="12" cy="12" r="9"/><path d="M12 7 L12 12 L16 14"/>
           </svg>
           <span>History</span>
-        </button>
-        <!-- Sliders, in the same drawn-pictogram language as the four above:
-             two tracks with a handle each, the usual shorthand for settings. -->
-        <button class="tab" role="tab" id="tab-settings" data-to="settings" aria-controls="panel-settings" aria-selected="false" tabindex="-1">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <line x1="4" y1="8" x2="20" y2="8"/><circle cx="15" cy="8" r="2.5"/>
-            <line x1="4" y1="16" x2="20" y2="16"/><circle cx="9" cy="16" r="2.5"/>
-          </svg>
-          <span>Settings</span>
         </button>
       </nav>
       <!-- Save is a PROJECT action, pinned to the bottom of the panel that
@@ -693,7 +694,14 @@
       <section class="screen" data-screen="render" role="tabpanel" id="panel-render" aria-labelledby="tab-render" tabindex="0">
         <div class="work-head">
           <h1>Render</h1>
-          <span class="note" role="status">check the length, then write the file</span>
+          <!-- Everything on this screen belongs to one Result, so it needs
+               the same picker as the other per-Result screens (ian noticed
+               it was the one missing it). -->
+          <div class="result-picker right">
+            <select class="result-select" aria-label="Result being edited"></select>
+            <button class="btn quiet" type="button" data-result-action="new" title="New Result">+</button>
+            <button class="btn quiet" type="button" data-result-action="delete" title="Delete this Result">×</button>
+          </div>
         </div>
 
         <!-- The LENGTH readout: how long this Result runs and whether that
@@ -722,21 +730,27 @@
         </div>
       </section>
 
-      <!-- ══════════════════ SETTINGS — one set for every Result ══════════════════
-           ian asked for the output settings to have their own place instead
-           of riding along inside Analyze's #projectSetup, where they were
-           tucked behind a summary row you had to know to click.
+      <!-- ══════════════════ OUTPUT FORMAT — per Result ══════════════════
+           Was "Settings", which ian rightly said named nothing: it holds
+           Format, Resolution and Quality, all of which decide the shape of
+           the file that comes out.
 
-           These are PROJECT-wide, not per-Result: every Result in this
-           project renders with whatever is chosen here, and render reads it
-           live (optionOut() in player.js/framing.js), so changing it after
-           a render just changes the next one. #options is written by
-           renderPrepare() in app.js from the OPTIONS array -- add a row
-           there, not here. -->
-      <section class="screen" data-screen="settings" role="tabpanel" id="panel-settings" aria-labelledby="tab-settings" tabindex="0">
+           And they belong to the RESULT, not the project. They used to be
+           stored once beside `results`, so giving one clip a different
+           resolution silently changed every other clip in the project --
+           hence the Result picker in this head, the same one Clips, Framing
+           and Captions carry.
+
+           #options is written by renderPrepare() in app.js from the OPTIONS
+           array -- add a row there, not here. -->
+      <section class="screen" data-screen="output" role="tabpanel" id="panel-output" aria-labelledby="tab-output" tabindex="0">
         <div class="work-head">
-          <h1>Settings</h1>
-          <span class="note" role="status">applies to every Result in this project</span>
+          <h1>Output Format</h1>
+          <div class="result-picker right">
+            <select class="result-select" aria-label="Result being edited"></select>
+            <button class="btn quiet" type="button" data-result-action="new" title="New Result">+</button>
+            <button class="btn quiet" type="button" data-result-action="delete" title="Delete this Result">×</button>
+          </div>
         </div>
         <div class="panel option" id="options"></div>
         <p class="render-status" id="optionsSummary" role="status"></p>
@@ -853,17 +867,17 @@
 
 <!-- Shared with /workspace (theme, clock, "?" popover) -- loaded first so
      the theme is applied before the editor's own scripts start drawing. -->
-<script src="/ui/js/shared/topbar.js?v=1790263479000"></script>
-<script src="/ui/js/editor/app.js?v=1790263479000"></script>
-<script src="/ui/js/editor/interactions.js?v=1790263479000"></script>
-<script src="/ui/js/editor/framing.js?v=1790263479000"></script>
-<script src="/ui/js/editor/analysis.js?v=1790263479000"></script>
-<script src="/ui/js/editor/player.js?v=1790263479000"></script>
-<script src="/ui/js/editor/roundtrip.js?v=1790263479000"></script>
-<script src="/ui/js/editor/history.js?v=1790263479000"></script>
-<script src="/ui/js/editor/timeline.js?v=1790263479000"></script>
-<script src="/ui/js/editor/captions.js?v=1790263479000"></script>
-<script src="/ui/js/editor/result.js?v=1790263479000"></script>
-<script src="/ui/js/editor/projects.js?v=1790263479000"></script>
+<script src="/ui/js/shared/topbar.js?v=1790274660000"></script>
+<script src="/ui/js/editor/app.js?v=1790274660000"></script>
+<script src="/ui/js/editor/interactions.js?v=1790274660000"></script>
+<script src="/ui/js/editor/framing.js?v=1790274660000"></script>
+<script src="/ui/js/editor/analysis.js?v=1790274660000"></script>
+<script src="/ui/js/editor/player.js?v=1790274660000"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1790274660000"></script>
+<script src="/ui/js/editor/history.js?v=1790274660000"></script>
+<script src="/ui/js/editor/timeline.js?v=1790274660000"></script>
+<script src="/ui/js/editor/captions.js?v=1790274660000"></script>
+<script src="/ui/js/editor/result.js?v=1790274660000"></script>
+<script src="/ui/js/editor/projects.js?v=1790274660000"></script>
 </body>
 </html>

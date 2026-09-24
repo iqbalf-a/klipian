@@ -26,14 +26,14 @@ let lastScreen = "clips";        // the screen where work was left off
 /* Screen names from project files are NOT trusted blindly: files can be
    hand-edited or come from an older version. An unrecognized name causes
    toScreen() to turn off all screens and leave an empty workspace. */
-const VALID_SCREENS = ["analysis", "clips", "framing", "captions", "render", "history", "settings"];
+const VALID_SCREENS = ["analysis", "clips", "framing", "captions", "render", "history", "output"];
 
 /* Old projects (saved before this rename) still have screen: "klip"/"teks"
    on disk -- read once here so they still resume on the right screen,
    instead of falling back to the "clips" default. New saves always write
    the English name (see projectState() below); this map only exists to
    translate what's already on disk. */
-const LEGACY_SCREEN_NAMES = { klip: "clips", teks: "captions" };
+const LEGACY_SCREEN_NAMES = { klip: "clips", teks: "captions", settings: "output" };
 
 /* One project can now store MORE THAN ONE Result -- the same podcast video
    naturally produces many separate clips, and previously starting clip #2
@@ -74,7 +74,9 @@ function projectState() {
     // a previous import, forcing a redundant re-import from scratch.
     candidates: (typeof DATA !== "undefined" ? DATA.candidates : []) || [],
     caption: (typeof captionState === "function") ? captionState() : {},
-    output: (typeof OPTIONS !== "undefined") ? OPTIONS.map((o) => o.active) : [],
+    // No project-level `output` any more -- each Result carries its own
+    // (see snapshotActiveResult). Projects written before this still have
+    // one, and loadProject() reads it to seed Results that lack theirs.
     screen: (typeof activeScreen !== "undefined") ? activeScreen : "clips",
   };
 }
@@ -180,6 +182,10 @@ function snapshotActiveResult() {
   const slot = SAVED_RESULTS.find((r) => r.id === activeResultId);
   if (!slot) return;
   slot.title = (typeof $ === "function" && $("#resultTitle")?.value.trim()) || "";
+  // Output Format belongs to the Result, not the project (ian). It used to
+  // sit beside `results` as one setting every Result rendered with -- so
+  // giving one clip a different resolution changed them all.
+  slot.output = (typeof OPTIONS !== "undefined") ? OPTIONS.map((o) => o.active) : [];
   slot.result = (typeof RESULT !== "undefined" ? RESULT : []).map((r) => ({
     id: r.id, start: r.start, end: r.end, title: r.title, source: r.source,
   }));
@@ -224,6 +230,20 @@ function loadResultIntoLiveState(entry) {
     }
   }
   if (typeof CORRECTIONS !== "undefined") CORRECTIONS = entry.corrections || {};
+  // Bounds-checked per option, so a Result saved before an option existed
+  // (or with fewer choices) just leaves that one where it is.
+  if (Array.isArray(entry.output) && typeof OPTIONS !== "undefined") {
+    entry.output.forEach((i, k) => {
+      if (OPTIONS[k] && Number.isInteger(i) && i >= 0 && i < OPTIONS[k].choices.length) {
+        OPTIONS[k].active = i;
+      }
+    });
+    // Setting .active only changes the data; renderPrepare() is what draws
+    // the chips. Without this, switching Results left the previous one's
+    // choices lit while the render used this one's -- the same trap the
+    // caption options had.
+    if (typeof renderPrepare === "function") renderPrepare();
+  }
   if ($("#resultTitle")) $("#resultTitle").value = entry.title || "";
   if (typeof renderResult === "function") renderResult();
   if (typeof renderFraming === "function") renderFraming();
@@ -234,7 +254,8 @@ function loadResultIntoLiveState(entry) {
    active one. Replaces the old resetResult()+resetFraming()+resetCaptions()
    trio -- now SAVED_RESULTS must also be reset, not just the live state. */
 function resetProjectState() {
-  SAVED_RESULTS = [{ id: `res${++resultTabSeq}`, title: "", result: [], framing: [], corrections: {} }];
+  SAVED_RESULTS = [{ id: `res${++resultTabSeq}`, title: "", result: [], framing: [], corrections: {},
+    output: (typeof OPTIONS !== "undefined") ? OPTIONS.map((o) => o.active) : [] }];
   activeResultId = SAVED_RESULTS[0].id;
   if (typeof resetResult === "function") resetResult();
   if (typeof resetFraming === "function") resetFraming();
@@ -256,7 +277,11 @@ resetProjectState();
    the active Result instead of adding another. */
 function newResult() {
   snapshotActiveResult();
-  const entry = { id: `res${++resultTabSeq}`, title: "", result: [], framing: [], corrections: {} };
+  // Inherits the Output Format on screen rather than starting at factory:
+  // a second clip from the same video almost always wants the same file
+  // shape as the first, and it's one click to change if it doesn't.
+  const entry = { id: `res${++resultTabSeq}`, title: "", result: [], framing: [], corrections: {},
+    output: (typeof OPTIONS !== "undefined") ? OPTIONS.map((o) => o.active) : [] };
   SAVED_RESULTS.push(entry);
   activeResultId = entry.id;
   if (typeof resetResult === "function") resetResult();
@@ -396,6 +421,15 @@ async function loadProject(video) {
   // resultTabSeq must exceed the highest restored id, otherwise the next
   // new Result would reuse an id that's already taken and overwrite it.
   resultTabSeq = Math.max(0, ...SAVED_RESULTS.map((r) => parseInt(String(r.id).slice(3), 10) || 0));
+  // Output Format lives on each Result now. A project saved before that has
+  // a single `output` beside `results` instead -- seed every Result that
+  // doesn't carry its own from it, so none opens with the wrong file shape.
+  // BEFORE loadResultIntoLiveState() below, which is what reads it.
+  if (Array.isArray(d.output)) {
+    for (const r of SAVED_RESULTS) {
+      if (!Array.isArray(r.output)) r.output = d.output.slice();
+    }
+  }
   loadResultIntoLiveState(SAVED_RESULTS.find((r) => r.id === activeResultId));
   renderResultSwitcher();
   if (Array.isArray(d.candidates) && typeof DATA !== "undefined") {
@@ -410,23 +444,6 @@ async function loadProject(video) {
     // DATA, and the chips and sliders on the Captions screen go on showing
     // the previous project's until something redraws them.
     drawCaptionOptions();
-  }
-  // Bounds-checked per option, so a project saved before an option existed
-  // (or with fewer choices than it has now) just leaves that one at its
-  // default instead of pointing at nothing.
-  if (Array.isArray(d.output) && typeof OPTIONS !== "undefined") {
-    d.output.forEach((i, k) => {
-      if (OPTIONS[k] && Number.isInteger(i)
-          && i >= 0 && i < OPTIONS[k].choices.length) {
-        OPTIONS[k].active = i;
-      }
-    });
-    // Setting .active only changes the DATA. renderPrepare() is what draws
-    // the chips, and it used to run solely from toStage("home") -- so
-    // opening a second project left the first one's choices lit up on
-    // screen while the render used the second one's. Invisible while these
-    // lived behind a summary row on Analyze; not any more.
-    if (typeof renderPrepare === "function") renderPrepare();
   }
   const savedScreen = LEGACY_SCREEN_NAMES[d.screen] || d.screen;
   lastScreen = VALID_SCREENS.includes(savedScreen) ? savedScreen : "clips";
