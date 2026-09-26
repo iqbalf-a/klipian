@@ -289,14 +289,17 @@ function captionValue(id) {
   return o ? o.choices[o.active] : null;
 }
 
-// PlayResY in render is ALWAYS out_width*16/9 rounded to even -- 1920 for
-// the default resolution (1080p, see OPTIONS in app.js). ALL pixel sizes in
-// preview (caption font, outline, watermark font) are now computed
-// PROPORTIONAL to this, instead of separate ".px" calibration numbers as
-// before -- those fixed values only "looked right" at ONE specific window
-// size / combination, and broke at others: preview looked fine but actual
-// render was wrong size (ian's report, for both watermark AND caption --
-// same bug, different element).
+// The render authors its subtitle layer against a fixed 1080x1920 and lets
+// libass scale it to the output (REF_W/REF_H in render.py), so this number
+// is now the same one on both sides rather than a lucky match. It used to
+// follow the output size there, which meant a style burned 50% larger at
+// 720p than this preview drew it -- found by rendering one.
+//
+// ALL pixel sizes in the preview (caption font, outline, watermark font)
+// are computed PROPORTIONAL to it, instead of the separate ".px"
+// calibration numbers this started with: those only "looked right" at ONE
+// window size and broke at others -- preview fine, render the wrong size
+// (ian's report, for both watermark AND caption -- same bug, two elements).
 const PLAYRES_Y_DEFAULT = 1920;
 const pxFromOut = (out, frameH) => (out / PLAYRES_Y_DEFAULT) * frameH;
 

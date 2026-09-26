@@ -164,6 +164,13 @@ def to_output_time(spans: list[Span], seconds: float) -> float | None:
 # shifted caption still can't run off the frame.
 BASE_SIDE_MARGIN = 60
 
+# The frame the subtitle layer is authored against, whatever the render's
+# actual resolution. Everything in the ASS -- Fontsize, margins, the drawn
+# box -- is expressed in this space, and libass scales it to the output.
+# 1080x1920 because that's what the UI has always previewed against
+# (PLAYRES_Y_DEFAULT in interactions.js), so the two finally agree.
+REF_W, REF_H = 1080, 1920
+
 
 # ── rounded highlight box ────────────────────────────────────────────────
 # ASS has no rounded box: BorderStyle 3 draws a hard rectangle and there is
@@ -286,7 +293,20 @@ def build_ass(job: RenderJob, words: list[Word] | None, style: dict | None = Non
          "watermark_y": 18, "watermark_x": 0,
          **(style or {})}
 
-    W, H = job.out_width, job.out_height
+    # The ASS coordinate system is FIXED at the reference frame, not the
+    # output size. PlayResX/Y is exactly that -- a coordinate space libass
+    # scales to whatever frame it draws into -- and using the output size
+    # instead made every absolute number mean a different thing per
+    # resolution: Fontsize 84 is 4.4% of a 1920-tall frame but 6.6% of a
+    # 1280-tall one, so the same style burned 50% larger at 720p than the
+    # preview showed. Big enough to push a line off the frame, which is how
+    # ian found it.
+    #
+    # Sizes and margins are authored once, here, and scale with the render.
+    # Checked: text rendered from this space into a 4K frame is as sharp as
+    # text authored at 4K natively -- libass scales the coordinates and
+    # rasterises at the target, it does not blow up a bitmap.
+    W, H = REF_W, REF_H
     margin_bottom = int(H * g["position"] / 100)
     margin_left, margin_right = _side_margins(g["x"], W)
     # Both are Alignment 2 now. The watermark used to derive its placement
