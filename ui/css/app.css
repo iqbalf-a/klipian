@@ -1185,7 +1185,7 @@ h1, h2, h3 {
 /* Two rows: label + choices on top, hint below -- aligned with the choice,
    not with the label, so it reads as a description of the currently
    active selection. */
-/* Stacked, not label-beside-choices. This row's only home is the Settings
+/* Stacked, not label-beside-choices. This row's only home is the Output Format
    column now, and at --w-config a 150px label column left the choices about
    190px -- so Resolution and Quality both broke mid-row, "4K" and "Best"
    dropping onto a line of their own. Giving the chips the full width costs
@@ -1485,7 +1485,7 @@ h1, h2, h3 {
    hiding the sidebar just reclaimed. */
 .app[data-sidebar="hidden"] .stage { padding-left: calc(var(--gutter) * 2 + 26px); }
 
-/* ── Settings and Render: the two screens laid out the other way round ──
+/* ── Output Format, Render and Captions: laid out the other way round ──
    ian asked for the clip in the middle and what acts on it in a panel on
    the right. Everywhere else the middle column IS the work and .preview is
    the narrow one beside it, so on these the roles swap. Captions earns it

@@ -689,7 +689,7 @@ let activeScreen = "clips";
 function toScreen(name) {
   activeScreen = name;
   // On .app, not .stage: the stage's columns AND the elements placed into
-  // them are both restyled per screen (see the Settings layout in app.css),
+  // them are both restyled per screen (see the Output Format layout in app.css),
   // and .app is the common ancestor of all of them.
   $("#app").dataset.screen = name;
   if (typeof saveProject === "function") saveProject();

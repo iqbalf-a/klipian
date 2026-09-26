@@ -8,10 +8,10 @@
      from the Google Fonts CDN -- see ui/css/fonts.css for why. Loaded
      BEFORE the other stylesheets so the faces are declared by the time
      anything asks for them. -->
-<link rel="stylesheet" href="/ui/css/fonts.css?v=1790274660000">
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1790274660000">
-<link rel="stylesheet" href="/ui/css/brand.css?v=1790274660000">
-<link rel="stylesheet" href="/ui/css/app.css?v=1790274660000">
+<link rel="stylesheet" href="/ui/css/fonts.css?v=1790431507000">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1790431507000">
+<link rel="stylesheet" href="/ui/css/brand.css?v=1790431507000">
+<link rel="stylesheet" href="/ui/css/app.css?v=1790431507000">
 </head>
 <body>
 
@@ -93,11 +93,11 @@
        the drop-video panel inline -- that panel MOVED into the Analyze
        screen (#projectSetup, first tab inside the editor), because ian's
        second request was that "+ New Project" should go straight into the
-       editing page, with drop-video and the Format/Resolution choices
-       living there as general project settings (they're read live at
-       render time either way -- see optionOut() in player.js/framing.js --
-       so keeping them reachable throughout the project, not just at
-       creation, was free).
+       editing page. Format and Resolution rode along in there at the time;
+       they live on the Output Format screen now, and belong to the Result
+       rather than the project. They're still read live at render time
+       (optionOut() in player.js/framing.js), so changing one after a
+       render only changes the next one.
 
        Video editors don't open straight into "drop a file" -- that's a
        few steps in, reached after choosing to start something. Dropping
@@ -250,7 +250,7 @@
              change the video.
 
              Format and Resolution used to live in here too, behind that same
-             summary row. They're on the Settings screen now (ian) -- they
+             summary row. They're on the Output Format screen now (ian) -- they
              were never about THIS step: nothing on this screen reads them,
              and render picks them up live whenever it runs. -->
         <div id="projectSetup">
@@ -686,7 +686,7 @@
       </section>
 
       <!-- ══════════════════ RENDER — turn the Result into a file ══════════════════
-           Same shape as Settings: the clip in the middle, what acts on it
+           Same shape as Output Format: the clip in the middle, what acts on it
            down this column. Everything here used to be stacked underneath
            the preview on every screen, which is what made that panel scroll
            (ian) -- and none of it was ever used FROM Clips, Framing or
@@ -867,17 +867,17 @@
 
 <!-- Shared with /workspace (theme, clock, "?" popover) -- loaded first so
      the theme is applied before the editor's own scripts start drawing. -->
-<script src="/ui/js/shared/topbar.js?v=1790274660000"></script>
-<script src="/ui/js/editor/app.js?v=1790274660000"></script>
-<script src="/ui/js/editor/interactions.js?v=1790274660000"></script>
-<script src="/ui/js/editor/framing.js?v=1790274660000"></script>
-<script src="/ui/js/editor/analysis.js?v=1790274660000"></script>
-<script src="/ui/js/editor/player.js?v=1790274660000"></script>
-<script src="/ui/js/editor/roundtrip.js?v=1790274660000"></script>
-<script src="/ui/js/editor/history.js?v=1790274660000"></script>
-<script src="/ui/js/editor/timeline.js?v=1790274660000"></script>
-<script src="/ui/js/editor/captions.js?v=1790274660000"></script>
-<script src="/ui/js/editor/result.js?v=1790274660000"></script>
-<script src="/ui/js/editor/projects.js?v=1790274660000"></script>
+<script src="/ui/js/shared/topbar.js?v=1790431507000"></script>
+<script src="/ui/js/editor/app.js?v=1790431507000"></script>
+<script src="/ui/js/editor/interactions.js?v=1790431507000"></script>
+<script src="/ui/js/editor/framing.js?v=1790431507000"></script>
+<script src="/ui/js/editor/analysis.js?v=1790431507000"></script>
+<script src="/ui/js/editor/player.js?v=1790431507000"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1790431507000"></script>
+<script src="/ui/js/editor/history.js?v=1790431507000"></script>
+<script src="/ui/js/editor/timeline.js?v=1790431507000"></script>
+<script src="/ui/js/editor/captions.js?v=1790431507000"></script>
+<script src="/ui/js/editor/result.js?v=1790431507000"></script>
+<script src="/ui/js/editor/projects.js?v=1790431507000"></script>
 </body>
 </html>

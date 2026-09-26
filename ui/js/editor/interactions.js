@@ -146,7 +146,7 @@ function drawSource(error, extraNote) {
   //
   // The summary used to also spell out Format and Resolution, and #options
   // used to be hidden and shown alongside the drop zone. Both moved to the
-  // Settings screen (ian), which is where they're read from now -- echoing
+  // Output Format screen (ian), which is where they're read from now -- echoing
   // them here as well would be a second place to keep in step.
   const setup = $("#projectSetup");
   const summary = $("#projectSetupSummary");

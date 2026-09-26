@@ -42,9 +42,9 @@ const LEGACY_SCREEN_NAMES = { klip: "clips", teks: "captions", settings: "output
    represent the "live state" of the active Result -- completely unchanged
    in those files. The only new addition is the persistence layer here:
    SAVED_RESULTS holds each Result as a snapshot
-   { id, title, result, framing, corrections }, activeResultId points to
-   the live one. See snapshotActiveResult()/loadResultIntoLiveState()
-   below for the bridge between the two. */
+   { id, title, result, framing, corrections, output }, activeResultId
+   points to the live one. See snapshotActiveResult()/
+   loadResultIntoLiveState() below for the bridge between the two. */
 let SAVED_RESULTS = [];
 let activeResultId = null;
 let resultTabSeq = 0;
@@ -320,12 +320,12 @@ function deleteResultTab(id) {
   saveProject();
 }
 
-/* The Result switcher has THREE identical instances -- the Clips, Framing,
-   and Captions screens, unified via class .result-select/[data-result-action]
-   (not id), so all three are re-rendered and synchronized in one go from
-   here. Clips is actually where the SOURCE of a Result is chosen (spans
-   added there go into the active Result) -- not just Editing (Framing/Captions)
-   that needs to know which Result is active. */
+/* The Result switcher has one instance per per-Result screen -- Clips,
+   Output Format, Framing, Captions and Render -- unified via class
+   .result-select/[data-result-action] (not id), so they're re-rendered and
+   synchronized in one go from here. Clips is where the SOURCE of a Result
+   is chosen (spans added there go into the active Result); the rest just
+   need to know which Result they're editing. */
 function renderResultSwitcher() {
   const options = SAVED_RESULTS.map((r, i) => `
     <option value="${r.id}" ${r.id === activeResultId ? "selected" : ""}>
