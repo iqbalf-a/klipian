@@ -677,6 +677,13 @@ def _slug(text: str) -> str:
     return out.strip("-")[:48] or "project"
 
 
+# The id every existing span and candidate is migrated onto, and the id of
+# the one asset a single-source project has. Short and stable rather than
+# random: it appears in every span of every project file, and a readable
+# constant is worth more there than uniqueness nothing depends on.
+FIRST_ASSET = "a1"
+
+
 def _new_project_id() -> str:
     """Short, random, and nothing to do with the video.
 
@@ -710,8 +717,13 @@ def _migrate_project(data: dict) -> tuple[dict, bool]:
 
     Reads both shapes and writes only the new one, the same approach used
     for the caption indices and for per-Result output. Nothing is removed
-    here -- `video` stays until the assets work lands -- so a file written
-    by this can still be read by the version before it.
+    here -- `video` stays, and still names the first video asset -- so a
+    file written by this can still be read by the version before it.
+
+    This runs on READ **and** on write, which is what lets the shape move
+    without the browser knowing yet: projectState() there builds its object
+    from scratch and has never heard of assets, but anything it posts comes
+    back through here and is completed before it reaches the disk.
 
     The project FILE is not renamed yet, deliberately. ian asked that the
     old file be left behind rather than deleted, and a renamed-plus-kept
@@ -731,6 +743,32 @@ def _migrate_project(data: dict) -> tuple[dict, bool]:
         # save; it at least orders the home cards sensibly.
         data["createdAt"] = int(data.get("at") or time.time())
         changed = True
+
+    # A project holds a LIST of sources, not one. Today every project has
+    # exactly one, so the list is built from `video` and everything already
+    # saved points at it -- but from here on the shape can carry five.
+    video = data.get("video") or ""
+    if not isinstance(data.get("assets"), list) or not data["assets"]:
+        data["assets"] = ([{"id": FIRST_ASSET, "kind": "video", "file": video}]
+                          if video else [])
+        changed = True
+
+    # Which source a span came from. There has only ever been one, so
+    # everything on disk belongs to the first asset. `source` next to it is
+    # NOT this -- that one records whether a span came from the AI or was
+    # drawn by hand, and keeps doing so.
+    first = data["assets"][0]["id"] if data["assets"] else FIRST_ASSET
+    for result in data.get("results") or []:
+        for span in result.get("result") or []:
+            if isinstance(span, dict) and not span.get("asset"):
+                span["asset"] = first
+                changed = True
+    # A hook belongs to the video it was found in, for the same reason.
+    for cand in data.get("candidates") or []:
+        if isinstance(cand, dict) and not cand.get("asset"):
+            cand["asset"] = first
+            changed = True
+
     return data, changed
 
 
