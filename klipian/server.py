@@ -231,6 +231,80 @@ def _spans_from_clip(k: dict) -> "list[engine.Span]":
             f"Re-import Claude's reply, or cut the clip manually.") from None
 
 
+def _load_transcript_words(video: Path, t: dict) -> list:
+    """ANY transcript for this video -- don't guess model/lang, because a
+    wrong silent guess removes captions without a message.
+
+    A transcript that EXISTS but can't be read is a different thing from
+    one that was never made, and a bare `except: pass` here used to erase
+    that difference: a file truncated by a killed process, a JSON decode
+    error or a locked file all produced words=[] and the render ran to
+    completion, handing back an MP4 with no subtitles and no error
+    anywhere. The reason is recorded on the job (`t`) so the History row
+    can say so. The exception list is narrow on purpose -- anything else
+    is a real bug that should surface, not be absorbed here.
+
+    Factored out of _run_render so a multi-asset render can call it once
+    per source video instead of once for the whole job."""
+    words = []
+    try:
+        cache = Cache(WORKSPACE / "cache")
+        path = cache.find_any_transcript(video)
+        if path and path.exists():
+            words = Transcript.load(path).words
+    except (OSError, ValueError, KeyError, TypeError) as exc:  # noqa: BLE001
+        with LOCK:
+            t["warning"] = (f"captions skipped: the transcript for {video.name} exists but "
+                            f"could not be read ({exc})")
+    return words
+
+
+def _asset_runs(spans: list[dict], default_video: str) -> list[tuple[str, list[dict]]]:
+    """Group a clip's raw span dicts into contiguous runs that share one
+    source video. Stage 1 (see the library-projects plan) doesn't let a
+    single MOMENT straddle two videos, so grouping at this level -- rather
+    than per span -- is enough, and it's what keeps a single-asset clip on
+    the exact path it always rendered through (one run, no join)."""
+    runs: list[tuple[str, list[dict]]] = []
+    for p in spans:
+        v = p.get("video") or default_video
+        if runs and runs[-1][0] == v:
+            runs[-1][1].append(p)
+        else:
+            runs.append((v, [p]))
+    return runs
+
+
+def _concat_renders(parts: list[Path], dest: Path, quality: int) -> None:
+    """Join finished per-asset renders into one file, in the given order.
+
+    Re-encodes (ffmpeg's concat FILTER) rather than stream-copying via the
+    concat DEMUXER. The pieces all come from the same pipeline -- same
+    resolution, same encoder, same audio codec -- so a copy concat would
+    usually work, but "usually" is exactly the kind of thing that breaks
+    silently on one machine's ffmpeg build and not another's (mismatched
+    SPS/PPS, non-monotonic timestamps at the join). Re-encoding costs a
+    few seconds on clips this short (ian: a compilation holds 3-5 moments)
+    and removes the question entirely."""
+    from .ffmpeg_tools import _require
+    ffmpeg = _require("ffmpeg")
+    n = len(parts)
+    inputs: list[str] = []
+    for p in parts:
+        inputs += ["-i", str(p)]
+    filt = "".join(f"[{i}:v:0][{i}:a:0]" for i in range(n)) + f"concat=n={n}:v=1:a=1[vout][aout]"
+    crf = max(0, min(51, int(quality)))
+    cmd = [ffmpeg, "-y", "-hide_banner", "-loglevel", "error",
+           *inputs, "-filter_complex", filt,
+           "-map", "[vout]", "-map", "[aout]",
+           "-c:v", "libx264", "-crf", str(crf), "-preset", "medium",
+           "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "128k",
+           "-movflags", "+faststart", str(dest)]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"could not join the rendered moments: {result.stderr[-500:]}")
+
+
 def _clip_words(k: dict, fallback: list) -> list:
     """Caption text may be sent by the UI. It's used when you fix a
     misheard word on the Edit screen -- the correction belongs to this
@@ -334,29 +408,10 @@ def _run_render(job_id: str, req: dict) -> None:
                 f"{req['video']} is not in a folder the server can reach. "
                 f"Put the file in samples/.")
 
-        # Transcript used for captions; may be absent. Find ANY transcript
-        # for this video -- don't guess model/lang, because a wrong silent
-        # guess removes captions without a message.
-        #
-        # A transcript that EXISTS but can't be read is a different thing
-        # from one that was never made, and the bare `except: pass` here
-        # used to erase that difference: a file truncated by a killed
-        # process, a JSON decode error or a locked file all produced
-        # words=[] and the render ran to completion, handing back an MP4
-        # with no subtitles and no error anywhere. The reason is recorded
-        # on the job now so the History row can say so. The exception list
-        # is narrow on purpose -- anything else is a real bug that should
-        # surface, not be absorbed here.
-        words = []
-        try:
-            cache = Cache(WORKSPACE / "cache")
-            path = cache.find_any_transcript(video)
-            if path and path.exists():
-                words = Transcript.load(path).words
-        except (OSError, ValueError, KeyError, TypeError) as exc:  # noqa: BLE001
-            with LOCK:
-                t["warning"] = (f"captions skipped: the transcript exists but "
-                                f"could not be read ({exc})")
+        # This job's one default video's transcript, used by every span that
+        # doesn't name its own asset -- see _load_transcript_words for what
+        # "any transcript" and the narrow exception list mean.
+        words = _load_transcript_words(video, t)
 
         from .ffmpeg_tools import probe
         info = probe(video)
@@ -392,50 +447,128 @@ def _run_render(job_id: str, req: dict) -> None:
                 t["current"] = k["title"]
                 t["index"] = i
 
-            # p["crop"] is what makes framing shift mid-clip: each segment
-            # is framed independently before joining. p["crops"] holds two
-            # boxes and turns the segment into a top-bottom split frame.
-            spans = _spans_from_clip(k)
-            if not spans:
+            spans_raw = k.get("spans", [])
+            if not spans_raw:
                 raise ValueError(f"Clip \"{k.get('title', '?')}\" has no spans.")
+            # A span can carry its own `video` (library projects, stage 1);
+            # one that doesn't belongs to the job's one video, exactly as
+            # every span has until now. Grouped into RUNS of contiguous
+            # spans sharing a video -- see _asset_runs -- because a single
+            # moment doesn't jump source mid-span.
+            runs = _asset_runs(spans_raw, req["video"])
+
             crop = k.get("crop") or {}
-            job = engine.RenderJob(
-                title=k["title"],
-                spans=spans,
-                crop=engine.CropBox(
-                    left=crop.get("left", 37), top=crop.get("top", 4),
-                    width=crop.get("width", 26), height=crop.get("height", 92)),
-                layout=k.get("layout", "face"),
-                out_width=int(k.get("width", 1080)),
-                quality=int(k.get("quality", 21)),
-            )
+            crop_box = engine.CropBox(
+                left=crop.get("left", 37), top=crop.get("top", 4),
+                width=crop.get("width", 26), height=crop.get("height", 92))
+            layout = k.get("layout", "face")
+            out_width = int(k.get("width", 1080))
+            quality = int(k.get("quality", 21))
+            # Caption style comes from the Caption screen in the UI. If not
+            # sent, build_ass uses its defaults. One style for the whole
+            # clip, single- or multi-asset alike -- it's a look, not a
+            # property of any one source video.
+            style = k.get("style") if isinstance(k.get("style"), dict) else None
             name = engine.safe_filename(k["title"], f"clip-{i+1}")
             dest = out_dir / name
 
-            # Caption style comes from the Caption screen in the UI. If not
-            # sent, build_ass uses its defaults.
-            style = k.get("style") if isinstance(k.get("style"), dict) else None
-
-            clip_words = _clip_words(k, words)
-
-            try:
-                engine.render(video, job, dest, words=clip_words, style=style,
-                             src_width=info.width, src_height=info.height,
-                             has_audio=info.has_audio, verbose=False,
-                             cancel_check=lambda: job_id in CANCELLED)
-            except engine.RenderCancelled:
-                with LOCK:
-                    t["state"] = "cancelled"
-                return
+            if len(runs) == 1 and runs[0][0] == req["video"]:
+                # Exactly today's path -- the request's one video, spans
+                # split only at framing points, one encode. Untouched, so a
+                # single-asset clip renders byte-identically to before this
+                # function learned what an asset is.
+                # p["crop"] is what makes framing shift mid-clip: each
+                # segment is framed independently before joining. p["crops"]
+                # holds two boxes and turns the segment into a split frame.
+                spans = _spans_from_clip(k)
+                job = engine.RenderJob(title=k["title"], spans=spans, crop=crop_box,
+                                       layout=layout, out_width=out_width, quality=quality)
+                clip_words = _clip_words(k, words)
+                try:
+                    engine.render(video, job, dest, words=clip_words, style=style,
+                                 src_width=info.width, src_height=info.height,
+                                 has_audio=info.has_audio, verbose=False,
+                                 cancel_check=lambda: job_id in CANCELLED)
+                except engine.RenderCancelled:
+                    with LOCK:
+                        t["state"] = "cancelled"
+                    return
+                duration = job.duration
+            else:
+                # Multi-asset: pass 1 of the library-projects plan. Each run
+                # goes through the SAME single-source pipeline as the branch
+                # above -- its own file, dimensions, transcript, crop and
+                # captions -- to its own temp file; the pieces are then
+                # joined. No multi-input filter graph, and every existing
+                # feature (split frame, head tracking, the rounded
+                # highlight box) works here for the same reason it works
+                # above: the code doing it is the code that already does it.
+                tmp_dir = out_dir / f".tmp-{job_id}"
+                tmp_dir.mkdir(parents=True, exist_ok=True)
+                parts: list[Path] = []
+                duration = 0.0
+                try:
+                    for ridx, (run_video_name, run_spans_raw) in enumerate(runs):
+                        run_video = _find_video(run_video_name)
+                        if not run_video:
+                            raise FileNotFoundError(
+                                f"{run_video_name} is not in a folder the server can "
+                                f"reach. Put the file in samples/.")
+                        run_info = probe(run_video)
+                        run_words = _load_transcript_words(run_video, t)
+                        run_spans = _spans_from_clip({"spans": run_spans_raw})
+                        run_job = engine.RenderJob(title=k["title"], spans=run_spans,
+                                                   crop=crop_box, layout=layout,
+                                                   out_width=out_width, quality=quality)
+                        part_dest = tmp_dir / f"part{ridx}.mp4"
+                        # k["words"] (client-sent corrections) is deliberately
+                        # NOT used here: those are keyed only by TIME, and two
+                        # unrelated source videos can share overlapping
+                        # timestamps -- reusing the whole clip's correction
+                        # list for one video's run risks pulling in a
+                        # correction that belongs to a different source
+                        # entirely. Each run's own transcript, uncorrected,
+                        # until the client grows a per-asset correction UI.
+                        engine.render(run_video, run_job, part_dest, words=run_words,
+                                     style=style, src_width=run_info.width,
+                                     src_height=run_info.height, has_audio=run_info.has_audio,
+                                     verbose=False, cancel_check=lambda: job_id in CANCELLED)
+                        parts.append(part_dest)
+                        duration += run_job.duration
+                    if job_id in CANCELLED:
+                        with LOCK:
+                            t["state"] = "cancelled"
+                        return
+                    if len(parts) == 1:
+                        parts[0].replace(dest)
+                    else:
+                        _concat_renders(parts, dest, quality)
+                except engine.RenderCancelled:
+                    with LOCK:
+                        t["state"] = "cancelled"
+                    return
+                finally:
+                    for p in parts:
+                        p.unlink(missing_ok=True)
+                        p.with_suffix(".ass").unlink(missing_ok=True)
+                    try:
+                        tmp_dir.rmdir()
+                    except OSError:
+                        pass
 
             with LOCK:
                 t["result"].append({
                     "title": k["title"],
                     "file": name,
-                    "url": f"/workspace/out/{video.stem}/{name}",
+                    # Relative to out_dir, not hardcoded to the job's one
+                    # video -- out_dir may already be the project's own
+                    # folder (_project_out_dir), which a multi-asset render
+                    # always uses and a single-asset one uses whenever the
+                    # project resolves.
+                    "url": f"/workspace/out/{out_dir.relative_to(WORKSPACE / 'out').as_posix()}/{name}",
                     "folder": str(out_dir),
                     "mb": round(dest.stat().st_size / 1048576, 1),
-                    "duration": round(job.duration, 1),
+                    "duration": round(duration, 1),
                 })
                 t["done"] = i + 1
 
