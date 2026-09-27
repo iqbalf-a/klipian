@@ -360,7 +360,22 @@ def _run_render(job_id: str, req: dict) -> None:
 
         from .ffmpeg_tools import probe
         info = probe(video)
+        # Renders belong to the PROJECT. Grouping them under the video's
+        # stem is the same thing only while a project holds exactly one
+        # video; a project with five episodes would scatter its output
+        # across five folders named after videos, with nothing showing
+        # they belong together (ian).
+        #
+        # A project that somehow can't be read still renders -- into the
+        # old video-stem folder -- rather than failing the job over a
+        # folder name.
         out_dir = WORKSPACE / "out" / video.stem
+        try:
+            pf = _project_path(req["video"])
+            if pf.is_file():
+                out_dir = _project_out_dir(json.loads(pf.read_text(encoding="utf-8")))
+        except (OSError, ValueError):
+            pass
         clips = req["clips"]
         # Under LOCK like every other JOBS write in this function. Rebinding
         # an existing key can't actually race, but the inconsistency is
@@ -653,6 +668,72 @@ def _run_diarize(job_id: str, req: dict) -> None:
 # so they survive browser clearing and can be viewed and backed up as
 # regular files.
 
+def _slug(text: str) -> str:
+    """A filename-safe, readable stub for a project name."""
+    keep = [c if (c.isalnum() or c in "-_") else "-" for c in (text or "").strip().lower()]
+    out = "".join(keep)
+    while "--" in out:
+        out = out.replace("--", "-")
+    return out.strip("-")[:48] or "project"
+
+
+def _new_project_id() -> str:
+    """Short, random, and nothing to do with the video.
+
+    The whole point of the id is that it does NOT come from the content:
+    the fingerprint-derived name below breaks the moment a video is
+    re-encoded or restored from a backup -- same footage, new size/mtime,
+    new fingerprint, and the project is orphaned with a second card beside
+    it for the same video. An id minted once and stored in the file can't
+    drift like that."""
+    return uuid.uuid4().hex[:12]
+
+
+def _project_id(data: dict) -> str:
+    """The id of a project dict, minting one if it predates ids."""
+    pid = str(data.get("id") or "").strip()
+    return pid if pid else _new_project_id()
+
+
+def _project_out_dir(data: dict) -> Path:
+    """Renders belong to the PROJECT, not to a video.
+
+    They used to be grouped as out/<video-stem>/, which is the same thing
+    only while a project holds exactly one video. A project with five
+    episodes would scatter its renders across five folders named after
+    videos, with nothing showing they belong together."""
+    return WORKSPACE / "out" / f"{_slug(data.get('name') or Path(data.get('video') or '').stem)}.{_project_id(data)}"
+
+
+def _migrate_project(data: dict) -> tuple[dict, bool]:
+    """Bring a project dict up to the current shape. Returns (data, changed).
+
+    Reads both shapes and writes only the new one, the same approach used
+    for the caption indices and for per-Result output. Nothing is removed
+    here -- `video` stays until the assets work lands -- so a file written
+    by this can still be read by the version before it.
+
+    The project FILE is not renamed yet, deliberately. ian asked that the
+    old file be left behind rather than deleted, and a renamed-plus-kept
+    pair would show as two cards for one project on the home screen. The
+    rename waits for the step where the client addresses projects by id
+    and the listing can tell the two apart."""
+    changed = False
+    if not data.get("id"):
+        data["id"] = _new_project_id()
+        changed = True
+    if not data.get("name"):
+        # What the home card showed before projects had names of their own.
+        data["name"] = Path(data.get("video") or "").stem or "Untitled"
+        changed = True
+    if not data.get("createdAt"):
+        # No better record exists for an old project than `at`, the last
+        # save; it at least orders the home cards sensibly.
+        data["createdAt"] = int(data.get("at") or time.time())
+        changed = True
+    return data, changed
+
+
 def _project_path(video: str) -> Path:
     """One file per video. Keyed by the same fingerprint as the transcript
     cache, so a video whose content changes automatically becomes a
@@ -728,6 +809,12 @@ def _project_summary(file: Path) -> dict | None:
         first_frame = framing[0] if isinstance(framing[0], dict) else {}
         return {
             "video": data.get("video", ""),
+            # Identity of its own. The home card can show a name ian chose
+            # and when the project was started, neither of which the video
+            # filename could ever tell it.
+            "id": data.get("id", ""),
+            "name": data.get("name", "") or Path(data.get("video", "")).stem,
+            "createdAt": int(data.get("createdAt") or st.st_mtime),
             "title": active.get("title", ""),
             "spans": len(spans),
             "seconds": round(total, 1),
@@ -978,9 +1065,23 @@ class Handler(BaseHTTPRequestHandler):
             if not f.exists():
                 return self._send_json({"error": "not found"}, 404)
             try:
-                return self._send_json(json.loads(f.read_text(encoding="utf-8")))
+                data = json.loads(f.read_text(encoding="utf-8"))
             except ValueError:
                 return self._send_json({"error": "project file is corrupt"}, 500)
+            # Migrating on READ, and writing back, means a project gains its
+            # id the first time it is opened rather than the first time it
+            # is saved -- so the id already exists for anything that asks
+            # between opening and the next save (the render below does).
+            data, changed = _migrate_project(data)
+            if changed:
+                try:
+                    f.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+                except OSError:
+                    # Best-effort, like the orphan rename above: the request
+                    # still answers with a migrated dict even if the disk
+                    # write fails, and the next save will carry it.
+                    pass
+            return self._send_json(data)
 
         # Translates between the two names one project answers to: the video
         # filename everything else here is keyed by, and <stem>.<fingerprint>,
@@ -1196,6 +1297,23 @@ class Handler(BaseHTTPRequestHandler):
                 f.unlink(missing_ok=True)
                 return self._send_json({"ok": True, "deleted": True})
             req["at"] = int(time.time())
+            # The project's IDENTITY is the server's to keep, not the
+            # client's to resend. projectState() in the browser builds its
+            # object from scratch and knows nothing about id/name/createdAt
+            # yet, so a plain write would erase them on the next autosave --
+            # which it did: the id was minted on open, wiped seconds later,
+            # and the render folder got a different one every time. Carry
+            # whatever the file already holds over anything the client
+            # didn't send.
+            if f.is_file():
+                try:
+                    old = json.loads(f.read_text(encoding="utf-8"))
+                    for key in ("id", "name", "createdAt"):
+                        if not req.get(key) and old.get(key):
+                            req[key] = old[key]
+                except (OSError, ValueError):
+                    pass
+            req, _ = _migrate_project(req)
             # Write to a temp file then rename: if the process dies mid-write,
             # the old project stays intact, not half-written.
             tmp = f.with_suffix(".tmp")
