@@ -634,6 +634,8 @@ async function sendRender(approved) {
 
   const request = {
     video: chosenSource?.name || DATA.file,
+    // Which project's folder the files go in (server: _project_out_dir).
+    project: (typeof activeProjectId !== "undefined" && activeProjectId) || undefined,
     clips: valid.map((k) => ({
       title: k.title,
       // Spans are split again at each framing point, and each one carries

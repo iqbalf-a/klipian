@@ -21,6 +21,12 @@ let saveTimer = null;
 let savePending = false;        // true from first change until the disk write completes
 let saveError = "";             // last write failure, "" once a write succeeds
 let activeProject = null;       // name of the video currently being worked on
+/* The open project's own id (server.py: _new_project_id). null for a
+   project that hasn't been saved yet -- its first save returns one. This,
+   not the video, is what the URL, the stored session, rename and delete
+   address: a project names its video, the video doesn't name the project. */
+let activeProjectId = null;
+const PROJECT_ID_RE = /^[0-9a-f]{6,32}$/;
 let lastScreen = "clips";        // the screen where work was left off
 
 /* Screen names from project files are NOT trusted blindly: files can be
@@ -66,6 +72,10 @@ function projectState() {
   // would never be copied into the slot.
   snapshotActiveResult();
   return {
+    // null until the first save answers with one -- the server then finds
+    // the project by `video` instead. Name/createdAt are NOT sent: the
+    // server keeps those, and only /api/project/rename changes the name.
+    id: activeProjectId,
     video: activeProject,
     results: SAVED_RESULTS,
     activeResult: activeResultId,
@@ -115,12 +125,23 @@ async function writeProjectNow() {
   // exists to do. Note fetch() does NOT reject on 4xx/5xx, so `r.ok` has to
   // be checked explicitly: a disk-full or file-locked error on the server
   // comes back as a response, not as a thrown error.
+  // Which project this write is FOR. A new video can be dropped while the
+  // request is in flight; its answer must not hand the old project's id
+  // to the new one.
+  const sentFor = activeProject;
   try {
     const r = await fetch("/api/project", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(projectState()),
     });
     if (!r.ok) throw new Error(`server replied ${r.status}`);
+    const reply = await r.json().catch(() => ({}));
+    // First save of a new project: the server just minted its id. Only
+    // now can the address bar and the stored session point at it.
+    if (reply.id && !activeProjectId && activeProject === sentFor) {
+      activeProjectId = reply.id;
+      rememberActiveSession();
+    }
     saveError = "";
     savePending = false;
   } catch (err) {
@@ -389,17 +410,34 @@ document.querySelectorAll('[data-result-action="delete"]').forEach((b) => {
   });
 });
 
-/* Restore a previously saved state. Returns true if something was restored,
-   so the caller can notify the user. */
+/* The saved project document, by `{ id }` (a card, the URL, the stored
+   session) or by `{ video }` (a dropped file -- "same video = same
+   project"). null if there is none or the server can't be reached. */
+async function fetchProject(ref) {
+  const q = ref.id ? `id=${encodeURIComponent(ref.id)}` : `video=${encodeURIComponent(ref.video || "")}`;
+  try {
+    const r = await fetch(`/api/project?${q}`);
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d && !d.error ? d : null;
+  } catch { return null; }
+}
+
+/* Restore a previously saved state for a dropped video. Returns true if
+   something was restored, so the caller can notify the user. */
 async function loadProject(video) {
   activeProject = video;
-  let d;
-  try {
-    const r = await fetch(`/api/project?video=${encodeURIComponent(video)}`);
-    if (!r.ok) return false;
-    d = await r.json();
-  } catch { return false; }
-  if (!d || d.error) return false;
+  activeProjectId = null;
+  const d = await fetchProject({ video });
+  if (!d) return false;
+  applyProject(d);
+  return true;
+}
+
+/* Put a fetched project document into the live state. */
+function applyProject(d) {
+  activeProjectId = d.id || null;
+  activeProject = d.video || activeProject;
 
   if (Array.isArray(d.results) && d.results.length) {
     SAVED_RESULTS = d.results;
@@ -447,7 +485,6 @@ async function loadProject(video) {
   }
   const savedScreen = LEGACY_SCREEN_NAMES[d.screen] || d.screen;
   lastScreen = VALID_SCREENS.includes(savedScreen) ? savedScreen : "clips";
-  return true;
 }
 
 /* New video dropped: if it has a project, continue it; otherwise, start from
@@ -465,9 +502,11 @@ async function openProject(video) {
       if (typeof renderList === "function") renderList();
       if (typeof applyCaption === "function") applyCaption();
     }
-    saveProject();          // catat sebagai project baru
+    // Recorded as a new project. It has no id until this first save
+    // answers, and writeProjectNow() updates the URL/session then.
+    saveProject();
   }
-  if (typeof rememberActiveSession === "function") rememberActiveSession(video);
+  rememberActiveSession();
   return hadExisting;
 }
 
@@ -534,6 +573,7 @@ function startNewProject() {
   if (chosenSource?.url?.startsWith("blob:")) URL.revokeObjectURL(chosenSource.url);
   chosenSource = null;
   activeProject = null;
+  activeProjectId = null;
   // Clearing the DATA isn't enough -- the <video> elements hold the file
   // themselves and went on showing (and playing) it. See releaseVideo().
   if (typeof releaseVideo === "function") releaseVideo();
@@ -550,6 +590,14 @@ function startNewProject() {
 }
 document.querySelectorAll(".new-project-btn").forEach((b) =>
   b.addEventListener("click", startNewProject));
+
+/* "12 Sep 2026" -- a date, not "3 days ago" like the edited time beside
+   it: when a project was STARTED is a fixed fact worth reading exactly. */
+function createdLabel(seconds) {
+  const d = new Date((Number(seconds) || 0) * 1000);
+  if (!seconds || Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
 
 let _renderProjectsInflight = null;
 async function renderProjects() {
@@ -602,29 +650,38 @@ async function renderProjects() {
 
   container.innerHTML = items.map((p, i) => {
     const missing = available && !available.has(p.video);
+    const name = p.name || p.video;
     // div, NOT a button: the card contains Keep and Delete buttons, and a
     // button inside a button is invalid HTML -- the browser pulls it out of
     // its parent and the layout breaks.
     return `
-    <div class="project-card${missing ? " missing" : ""}" data-project="${escapeHTML(p.video)}"
+    <div class="project-card${missing ? " missing" : ""}" data-project="${escapeHTML(p.id)}"
+         data-video="${escapeHTML(p.video)}"
          role="button" tabindex="0"${missing ? ' aria-disabled="true"' : ""}>
       ${missing
         ? '<span class="project-thumb empty"></span>'
         : `<img class="project-thumb" alt="" loading="lazy" src="${coverUrl(p)}">`}
       ${i === lastIdx ? '<span class="last-opened">last opened</span>' : ""}
-      <span class="project-name">${escapeHTML(p.title || p.video)}</span>
+      <span class="project-name" title="${escapeHTML(name)}">${escapeHTML(name)}</span>
       <span class="data project-meta">${missing
         ? "video not in samples/"
         : `${p.spans} span${p.spans === 1 ? "" : "s"} · ${Math.round(p.seconds)}s · ${timeAgo(p.at)}`}</span>
-      <i class="delete-icon" data-delete-project="${escapeHTML(p.video)}" role="button"
-         tabindex="0" aria-label="Delete project ${escapeHTML(p.video)}">×</i>
+      <span class="data project-created">created ${createdLabel(p.createdAt)}</span>
+      <i class="rename-icon" data-rename-project="${escapeHTML(p.id)}" role="button"
+         tabindex="0" aria-label="Rename project ${escapeHTML(name)}" title="Rename">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+        </svg></i>
+      <i class="delete-icon" data-delete-project="${escapeHTML(p.id)}" role="button"
+         tabindex="0" aria-label="Delete project ${escapeHTML(name)}">×</i>
       <span class="confirm">
         <span class="confirm-text">Delete this project?</span>
         <span class="confirm-sub">Spans, framing and caption fixes are lost.
           Rendered files stay in out/.</span>
         <span class="confirm-actions">
           <button class="btn" data-delete-cancel type="button">Keep</button>
-          <button class="btn danger" data-delete-confirm="${escapeHTML(p.video)}"
+          <button class="btn danger" data-delete-confirm="${escapeHTML(p.id)}"
                   type="button">Delete</button>
         </span>
       </span>
@@ -657,18 +714,73 @@ function cancelConfirm() {
     .forEach((k) => k.classList.remove("confirming"));
 }
 
-async function deleteProject(video) {
+async function deleteProject(id) {
   try {
     await fetch("/api/project", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ video, delete: true }),
+      body: JSON.stringify({ id, delete: true }),
     });
   } catch { /* without a backend there's nothing to delete */ }
-  if (activeProject === video) {
+  if (activeProjectId === id) {
     activeProject = null;   // don't write it again
+    activeProjectId = null;
     forgetActiveSession();  // a reload after this shouldn't try to enter the just-deleted project
   }
   renderProjects();
+}
+
+/* ---------- rename, in place on the card ----------
+   The name used to BE the video's filename. Now a project has its own
+   (server.py: `name`), because a project holding five episodes has no
+   single filename to be called by. The render folder deliberately does
+   not follow a rename -- see _project_out_dir(). */
+function startRename(card) {
+  const label = card.querySelector(".project-name");
+  if (!label || card.querySelector(".project-rename")) return;
+  cancelConfirm();
+  const input = document.createElement("input");
+  input.className = "project-rename";
+  input.type = "text";
+  input.maxLength = 80;
+  input.value = label.textContent;
+  input.setAttribute("aria-label", "Project name");
+  label.hidden = true;
+  label.after(input);
+  input.focus();
+  input.select();
+
+  let done = false;
+  const finish = async (save) => {
+    if (done) return;
+    done = true;
+    const name = input.value.trim().replace(/\s+/g, " ");
+    input.remove();
+    label.hidden = false;
+    if (!save || !name || name === label.textContent) return;
+    const before = label.textContent;
+    label.textContent = name;       // optimistic; put back if it fails
+    label.title = name;
+    try {
+      const r = await fetch("/api/project/rename", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: card.dataset.project, name }),
+      });
+      if (!r.ok) throw new Error(String(r.status));
+      label.textContent = (await r.json()).name || name;
+      label.title = label.textContent;
+    } catch {
+      label.textContent = before;
+      label.title = before;
+    }
+  };
+  input.addEventListener("keydown", (e) => {
+    // Stop here: the card's own keydown turns Enter/Space into a click that
+    // would open the project, and Space must type a space.
+    e.stopPropagation();
+    if (e.key === "Enter") { e.preventDefault(); finish(true); }
+    else if (e.key === "Escape") { e.preventDefault(); finish(false); }
+  });
+  input.addEventListener("blur", () => finish(true));
 }
 
 /* Same as the framing-point icon: role="button" on an <i> has to be given
@@ -677,13 +789,22 @@ async function deleteProject(video) {
    has to catch the icon. */
 $("#projectList")?.addEventListener("keydown", (e) => {
   if (e.key !== "Enter" && e.key !== " ") return;
-  const icon = e.target.closest("[data-delete-project]");
+  const icon = e.target.closest("[data-delete-project], [data-rename-project]");
   if (!icon) return;
   e.preventDefault();
   icon.click();
 });
 
 $("#projectList")?.addEventListener("click", async (e) => {
+  // Typing the new name: clicks inside the box stay inside it.
+  if (e.target.closest(".project-rename")) { e.stopPropagation(); return; }
+  const renameIcon = e.target.closest("[data-rename-project]");
+  if (renameIcon) {
+    e.stopPropagation();
+    startRename(renameIcon.closest(".project-card"));
+    return;
+  }
+
   // --- ask for confirmation ---
   const deleteIcon = e.target.closest("[data-delete-project]");
   if (deleteIcon) {
@@ -716,13 +837,12 @@ $("#projectList")?.addEventListener("click", async (e) => {
   // A card in "confirming" state must not also open the project:
   // clicking around to cancel would jump into the editor instead.
   if (card.classList.contains("confirming")) { cancelConfirm(); return; }
-  const video = card.dataset.project;
   if (card.classList.contains("missing")) {
     const meta = card.querySelector(".project-meta");
-    if (meta) meta.textContent = `move ${video} into workspace/samples/ to continue`;
+    if (meta) meta.textContent = `move ${card.dataset.video} into workspace/samples/ to continue`;
     return;
   }
-  await openProjectFromHome(video);
+  await openProjectFromHome(card.dataset.project);
 });
 
 /* One path for "enter this project and continue editing" -- used by BOTH
@@ -737,10 +857,10 @@ let _openProjectGen = 0;
    path (restoreLastSession), so a cold start looked frozen too.
    The card marks itself busy; toStage("work") at the end takes the whole
    home screen away, so nothing has to clear it on the success path. */
-function markProjectCardBusy(video) {
+function markProjectCardBusy(id) {
   const cards = document.querySelectorAll("[data-project]");
   for (const c of cards) {
-    const isThis = c.dataset.project === video;
+    const isThis = c.dataset.project === id;
     c.classList.toggle("loading", isThis);
     // Clicking a second card mid-load would race the first open; the
     // generation guard below already discards the loser, but the cards
@@ -749,12 +869,23 @@ function markProjectCardBusy(video) {
   }
 }
 
-async function openProjectFromHome(video) {
+async function openProjectFromHome(id) {
   // Fast click / race with session restore: tag the generation. If a new
   // open follows, the old one stops before overwriting the winner's
   // global state (chosenSource/realTranscript/RESULT/FRAMING).
   const gen = ++_openProjectGen;
-  markProjectCardBusy(video);
+  markProjectCardBusy(id);
+  const d = await fetchProject({ id });
+  if (gen !== _openProjectGen) return false;
+  if (!d || !d.video) { markProjectCardBusy(""); return false; }
+  return enterProject(d, gen);
+}
+
+/* Everything after the project document is in hand -- shared by a card
+   click and by session restore, which fetches the document itself first
+   so it can check the video is still there before entering. */
+async function enterProject(d, gen) {
+  const video = d.video;
   // The blob URL from the previously dropped file is never released if we
   // immediately overwrite it with a /workspace/samples/ URL -- revoke it first.
   if (typeof chosenSource !== "undefined" && chosenSource
@@ -777,36 +908,18 @@ async function openProjectFromHome(video) {
       updateTopbarFile(video, tr?.duration);
     }
   }
-  const existed = await loadProject(video);
-  if (gen !== _openProjectGen) return false;
-  // This path usually only opens a project that ALREADY exists (both the
-  // home card and session restore come from a project that's already on
-  // record), but it's guarded the same as openProject() in case it's ever
-  // called for a video that's never been opened before.
-  if (!existed) {
-    // New project: there's NO guarantee RESULT/FRAMING/CORRECTIONS/
-    // SAVED_RESULTS/candidates are currently empty in memory -- if a
-    // previous video was worked on in the same tab without a reload, its
-    // contents still belong to THAT video, not this one. The drop-file
-    // path (acceptFile() in interactions.js) already clears this via
-    // resetProjectState(); this path (home card / session restore) hasn't,
-    // and a new project arriving via this path is theoretically possible --
-    // see the comment on openProjectFromHome().
-    resetProjectState();
-    if (typeof DATA !== "undefined") DATA.candidates = [];
-    if (typeof applyPresetCaption === "function" && applyPresetCaption()) {
-      if (typeof renderList === "function") renderList();
-      if (typeof applyCaption === "function") applyCaption();
-    }
-  }
+  // Always an existing project on this path -- it was fetched above -- so
+  // the old "no project yet, start one" branch that used to sit here is
+  // gone: that only ever happens by dropping a file (openProject()).
+  applyProject(d);
   if (typeof prepareVideo === "function") prepareVideo();
   if (typeof drawSource === "function") drawSource();
   if (typeof renderRecommendations === "function") renderRecommendations();
   if (typeof drawTotalTimeline === "function") drawTotalTimeline();
-  rememberActiveSession(video);
+  rememberActiveSession();
   toStage("work");
   toScreen(lastScreen);
-  return existed;
+  return true;
 }
 
 /* ---------- stay on the same screen after a reload ----------
@@ -815,50 +928,29 @@ async function openProjectFromHome(video) {
    already auto-saved, but "which project is currently open" only lived in
    the current tab's memory, lost the moment it's reloaded. localStorage
    survives a reload (unlike a normal variable), so it's enough to store a
-   POINTER to which video is currently open -- not the project itself,
-   which still lives in a file as before. */
+   POINTER to which project is currently open -- its id -- not the project
+   itself, which still lives in a file as before. Browsers that last ran
+   the version before ids hold a video filename here instead;
+   restoreLastSession() still understands that. */
 const SESSION_KEY = "klipian:sesi-aktif";
 
-/* ...and in the address bar as well (ian): /workspace had a real URL while
-   the editor was always just "/", whatever was open. So the open project
-   couldn't be linked to, and a reload only came back because of the
-   localStorage pointer above -- the address itself said nothing.
+/* ...and in the address bar as well (ian): /edit/<project id>.
 
-   The address carries <stem>.<fingerprint> -- the project file's own
-   basename on disk, resolved through /api/project-id. It was the video's
-   filename at first, which is what every /api/... call is keyed by, but
-   ian asked whether names can collide and they can, just not in the
-   obvious way: two videos can't share a name inside workspace/samples/,
-   but a project is keyed by CONTENT (size+mtime, see fingerprint() in
-   cache.py), so re-encoding a video leaves the old project on disk and
-   starts a new one under the same filename -- two home cards, one name.
-   Renaming the video is the mirror image: same project, dead link,
-   because the fingerprint deliberately ignores the path.
-
-   The id isn't permanent either -- it's mtime-based, so restoring the
-   video from a backup mints a new one -- but it names exactly one
-   project, which a filename doesn't.
+   The address used to carry <stem>.<fingerprint>, the project file's name
+   when files were keyed by the video's size+mtime -- so re-encoding or
+   restoring the video from a backup changed it. The id is minted once
+   and stored in the project, so it doesn't. Links in the old shape still
+   open: the server remembers which project each old file became
+   (`legacyFile`, see _resolve_project_id), and the address is rewritten to
+   the id as soon as the project opens.
 
    replaceState, never pushState: this mirrors state that already changed,
    it isn't itself a navigation. Pushing would stack an entry every time a
    project opens (session restore included) and make Back walk back through
    projects without actually reopening them -- the page doesn't re-run on
    popstate. */
-async function writeProjectUrl(video) {
-  if (!video) {
-    if (location.pathname !== "/") history.replaceState(null, "", "/");
-    return;
-  }
-  let id = "";
-  try {
-    const r = await fetch(`/api/project-id?video=${encodeURIComponent(video)}`);
-    id = (await r.json()).id || "";
-  } catch { /* server unreachable */ }
-  // Rather than fall back to a filename URL that would be a different
-  // shape from every other one, leave the address as it is: a wrong or
-  // inconsistent link is worse than a stale one.
-  if (!id) return;
-  const url = `/edit/${encodeURIComponent(id)}`;
+function writeProjectUrl(id) {
+  const url = id ? `/edit/${encodeURIComponent(id)}` : "/";
   if (location.pathname !== url) history.replaceState(null, "", url);
 }
 
@@ -869,23 +961,16 @@ function urlProjectId() {
   try { return decodeURIComponent(m[1]); } catch { return ""; }
 }
 
-/* ...and the video it belongs to, since that's what everything else here
-   is keyed by. Empty if the id names no project on disk. */
-async function videoForProjectId(id) {
-  try {
-    const r = await fetch(`/api/project-id?id=${encodeURIComponent(id)}`);
-    if (!r.ok) return "";
-    return (await r.json()).video || "";
-  } catch { return ""; }
-}
-
-function rememberActiveSession(video) {
-  try { localStorage.setItem(SESSION_KEY, video); } catch { /* privat/penuh -- lupakan saja */ }
-  writeProjectUrl(video);
+/* A project that hasn't been saved yet has no id -- nothing to point at.
+   writeProjectNow() calls this again once its first save returns one. */
+function rememberActiveSession() {
+  if (!activeProjectId) return;
+  try { localStorage.setItem(SESSION_KEY, activeProjectId); } catch { /* private/full -- skip */ }
+  writeProjectUrl(activeProjectId);
 }
 
 function forgetActiveSession() {
-  try { localStorage.removeItem(SESSION_KEY); } catch { /* sama */ }
+  try { localStorage.removeItem(SESSION_KEY); } catch { /* same */ }
   writeProjectUrl(null);
 }
 
@@ -899,41 +984,50 @@ function forgetActiveSession() {
 async function restoreLastSession() {
   let stored = "";
   try { stored = localStorage.getItem(SESSION_KEY) || ""; } catch { /* blocked */ }
-  const id = urlProjectId();
-  let video = stored;
-  if (id) {
-    video = await videoForProjectId(id);
-    // A link to a project that isn't here goes to Home with the address
-    // cleared -- NOT to whatever this browser had open last. Silently
-    // substituting another project, and then rewriting the address to
-    // claim it was the one asked for, gives no sign the link was dead.
-    // The stored session is untouched, so a plain "/" still restores it.
-    if (!video) { writeProjectUrl(null); return false; }
-  }
-  if (!video) return false;
+  const urlId = urlProjectId();
+  const ref = urlId ? { id: urlId }
+    : PROJECT_ID_RE.test(stored) ? { id: stored }
+    : stored ? { video: stored }        // pointer written before ids
+    : null;
+  if (!ref) return false;
 
-  // Opening failed, for either of the two reasons below. A stale /edit/
-  // link only clears the address; it must NOT also throw away the stored
-  // session, which points at a different, still-valid project.
+  // Opening failed. A dead /edit/ link goes to Home with the address
+  // cleared -- NOT to whatever this browser had open last: silently
+  // substituting another project, and then rewriting the address to claim
+  // it was the one asked for, gives no sign the link was dead. And it must
+  // not throw away the stored session either, which points at a
+  // different, possibly still-valid project.
   const giveUp = () => {
-    if (video === stored) forgetActiveSession();
-    else writeProjectUrl(null);
+    if (urlId) writeProjectUrl(null);
+    else forgetActiveSession();
     return false;
   };
+
+  const gen = ++_openProjectGen;
+  let d;
+  try {
+    const q = ref.id ? `id=${encodeURIComponent(ref.id)}` : `video=${encodeURIComponent(ref.video)}`;
+    const r = await fetch(`/api/project?${q}`);
+    if (r.status === 404) return giveUp();
+    if (!r.ok) return false;
+    d = await r.json();
+  } catch {
+    return false;   // server not ready yet/offline -- don't pretend it succeeded
+  }
+  if (gen !== _openProjectGen) return false;   // a card was clicked meanwhile
+  if (!d || !d.video) return giveUp();
 
   // The video may have been moved/deleted since it was last opened --
   // checked first via /api/video, instead of trying directly and failing
   // silently partway through loading.
   try {
     const available = (await (await fetch("/api/video")).json()).video || [];
-    if (!available.includes(video)) return giveUp();
+    if (!available.includes(d.video)) return giveUp();
   } catch {
-    return false;   // server not ready yet/offline -- don't pretend it succeeded
+    return false;
   }
-
-  const existed = await openProjectFromHome(video);
-  if (!existed) return giveUp();   // video exists but its project is gone
-  return true;
+  if (gen !== _openProjectGen) return false;
+  return enterProject(d, gen);
 }
 
 /* The card is no longer a <button>, so Enter and Space aren't free anymore.
@@ -941,6 +1035,11 @@ async function restoreLastSession() {
    keyboard at all. */
 $("#projectList")?.addEventListener("keydown", (e) => {
   if (e.key !== "Enter" && e.key !== " ") return;
+  // Only for the card ITSELF. A key on anything inside it -- the rename box,
+  // the rename/delete icons (handled by the listener above), Keep/Delete
+  // buttons -- used to fall through to here as well and click the card
+  // right after, which cancelled the delete confirmation it had just opened.
+  if (e.target.closest?.(".project-rename, [data-delete-project], [data-rename-project], button")) return;
   const card = e.target.closest?.(".project-card");
   if (!card) return;
   e.preventDefault();

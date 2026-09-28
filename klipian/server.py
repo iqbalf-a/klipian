@@ -66,6 +66,18 @@ WORKSPACE_SERVED = ("samples", "out", "cache")
 # Projects are NOT served as static files. Their contents can only be
 # accessed via /api/project so file names don't become an attack surface.
 PROJECTS = WORKSPACE / "projects"
+# Where a project file named after its video (<stem>.<fingerprint>.json, the
+# layout before projects had ids) goes once its <id>.json exists. Moved,
+# not deleted (ian): kept intact and recoverable by hand, but out of the
+# folder the home screen lists, so it neither shows as a second card for
+# the same project nor comes back as one after that project is deleted.
+LEGACY_PROJECTS = PROJECTS / "legacy"
+# Serialises every write into PROJECTS. Two autosaves of a brand-new project
+# can arrive together; both look the project up by video, and without this
+# both could find nothing and mint two ids -- two cards for one project.
+# Re-entrant: the POST handler holds it while looking the project up, and
+# that lookup adopts legacy files under the same lock.
+PROJECTS_LOCK = threading.RLock()
 
 # Operational content (upload schedule, clip status) -- not part of the
 # render flow, and deliberately NOT static files, same as projects/ above.
@@ -425,12 +437,15 @@ def _run_render(job_id: str, req: dict) -> None:
         # old video-stem folder -- rather than failing the job over a
         # folder name.
         out_dir = WORKSPACE / "out" / video.stem
-        try:
-            pf = _project_path(req["video"])
-            if pf.is_file():
-                out_dir = _project_out_dir(json.loads(pf.read_text(encoding="utf-8")))
-        except (OSError, ValueError):
-            pass
+        # By the project's id when the client sends it; by video for a
+        # client from before ids, which is the same answer for any project
+        # that has only ever held one video.
+        pf = _project_file(req.get("project"))
+        if not (pf and pf.is_file()):
+            pf = _find_project_by_video(req["video"])
+        pdata = _read_project(pf) if pf else None
+        if pdata:
+            out_dir = _project_out_dir(pdata)
         clips = req["clips"]
         # Under LOCK like every other JOBS write in this function. Rebinding
         # an existing key can't actually race, but the inconsistency is
@@ -829,6 +844,13 @@ def _new_project_id() -> str:
     return uuid.uuid4().hex[:12]
 
 
+def _valid_project_id(pid) -> bool:
+    """Ids become FILE NAMES (<id>.json), so only what _new_project_id()
+    produces is accepted: lowercase hex, nothing that can carry a path."""
+    return (isinstance(pid, str) and 6 <= len(pid) <= 32
+            and all(c in "0123456789abcdef" for c in pid))
+
+
 def _project_id(data: dict) -> str:
     """The id of a project dict, minting one if it predates ids."""
     pid = str(data.get("id") or "").strip()
@@ -841,8 +863,14 @@ def _project_out_dir(data: dict) -> Path:
     They used to be grouped as out/<video-stem>/, which is the same thing
     only while a project holds exactly one video. A project with five
     episodes would scatter its renders across five folders named after
-    videos, with nothing showing they belong together."""
-    return WORKSPACE / "out" / f"{_slug(data.get('name') or Path(data.get('video') or '').stem)}.{_project_id(data)}"
+    videos, with nothing showing they belong together.
+
+    The slug is the one stored at creation (`outSlug`), not the current
+    name: renaming a project must not move a folder of files someone may
+    have open in a player, or split one project's renders across two
+    folders (ian's call on the plan's open question)."""
+    slug = data.get("outSlug") or _slug(data.get("name") or Path(data.get("video") or "").stem)
+    return WORKSPACE / "out" / f"{slug}.{_project_id(data)}"
 
 
 def _migrate_project(data: dict) -> tuple[dict, bool]:
@@ -858,18 +886,21 @@ def _migrate_project(data: dict) -> tuple[dict, bool]:
     from scratch and has never heard of assets, but anything it posts comes
     back through here and is completed before it reaches the disk.
 
-    The project FILE is not renamed yet, deliberately. ian asked that the
-    old file be left behind rather than deleted, and a renamed-plus-kept
-    pair would show as two cards for one project on the home screen. The
-    rename waits for the step where the client addresses projects by id
-    and the listing can tell the two apart."""
+    Moving the FILE to its id-based name is _adopt_legacy_projects()'s job,
+    not this one's -- this only ever touches the dict."""
     changed = False
-    if not data.get("id"):
+    if not _valid_project_id(data.get("id")):
         data["id"] = _new_project_id()
         changed = True
     if not data.get("name"):
         # What the home card showed before projects had names of their own.
         data["name"] = Path(data.get("video") or "").stem or "Untitled"
+        changed = True
+    if not data.get("outSlug"):
+        # Fixed from here on -- see _project_out_dir(). Taken from the name
+        # as it is NOW, which for every existing project is the name its
+        # renders' folder was already created under.
+        data["outSlug"] = _slug(data["name"])
         changed = True
     if not data.get("createdAt"):
         # No better record exists for an old project than `at`, the last
@@ -905,39 +936,118 @@ def _migrate_project(data: dict) -> tuple[dict, bool]:
     return data, changed
 
 
-def _project_path(video: str) -> Path:
-    """One file per video. Keyed by the same fingerprint as the transcript
-    cache, so a video whose content changes automatically becomes a
-    different project.
+def _project_file(pid) -> Path | None:
+    """PROJECTS/<id>.json, or None for anything that isn't an id."""
+    return PROJECTS / f"{pid}.json" if _valid_project_id(pid) else None
 
-    The fingerprint is unavailable for a video the server can't reach, and
-    the file used to be written as `<stem>.unknown.json`. That orphaned the
-    work the moment the user followed the UI's own advice: drop a video from
-    somewhere else, get told "not in workspace/samples/ -- move it there",
-    move it, reload -- and the path now resolves to `<stem>.<realfp>.json`,
-    a different file. The old one stayed listed on the home page, marked
-    missing, and could never be opened again, with a second card beside it
-    for the same video.
 
-    So an `.unknown.json` left over from that is MIGRATED here as soon as
-    the video becomes resolvable, instead of being stranded."""
-    from .cache import fingerprint
-    src = WORKSPACE / "samples" / Path(video).name
-    stem = Path(video).stem
-    if not src.exists():
-        return PROJECTS / f"{stem}.unknown.json"
+def _write_project(f: Path, data: dict) -> None:
+    """Temp file then rename: if the process dies mid-write, the old
+    project stays intact, not half-written."""
+    tmp = f.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    tmp.replace(f)
 
-    real = PROJECTS / f"{stem}.{fingerprint(src)}.json"
-    orphan = PROJECTS / f"{stem}.unknown.json"
-    if orphan.exists() and not real.exists():
-        try:
-            orphan.replace(real)
-        except OSError:
-            # Migration is best-effort: if the rename fails (file locked,
-            # permissions), the new project still works -- the old one just
-            # stays where it was rather than taking the request down.
-            pass
-    return real
+
+def _read_project(f: Path) -> dict | None:
+    try:
+        data = json.loads(f.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _adopt_legacy_projects() -> None:
+    """Give every project named after its video a file named after its id.
+
+    Before ids, a project lived at <stem>.<fingerprint>.json -- keyed by the
+    video's size+mtime, so re-encoding or restoring the video from a backup
+    orphaned the project and started a second one for the same footage
+    (and a video the server couldn't reach got <stem>.unknown.json, which
+    had its own orphaning problem). Now the file is <id>.json and merely
+    REFERENCES its video.
+
+    Cheap enough to run before every listing and lookup: once adopted, a
+    file isn't in PROJECTS any more, so after the first call this is one
+    glob that matches nothing it has to act on. A file that won't parse is
+    left exactly where it is -- nothing here can make it worse.
+
+    `legacyFile` records the old basename, which is what /edit/<...> links
+    written before this carried; _resolve_project_id() follows it so those
+    links still open the project instead of going dead."""
+    with PROJECTS_LOCK:
+        for f in list(PROJECTS.glob("*.json")):
+            if _valid_project_id(f.stem):
+                continue
+            data = _read_project(f)
+            if data is None:
+                continue
+            data, _ = _migrate_project(data)
+            data.setdefault("legacyFile", f.stem)
+            new = PROJECTS / f"{data['id']}.json"
+            try:
+                if not new.exists():
+                    _write_project(new, data)
+                LEGACY_PROJECTS.mkdir(parents=True, exist_ok=True)
+                dest = LEGACY_PROJECTS / f.name
+                if dest.exists():
+                    # Never overwrite an older kept copy with a newer one.
+                    dest = LEGACY_PROJECTS / f"{f.stem}.{int(time.time())}.json"
+                f.replace(dest)
+            except OSError:
+                # Best-effort: a locked file is simply tried again on the
+                # next call. The listing hides it meanwhile if its id
+                # already has a file (see /api/projects).
+                continue
+
+
+def _all_projects() -> list[tuple[Path, dict]]:
+    """Every readable id-named project, as (file, data)."""
+    _adopt_legacy_projects()
+    out = []
+    for f in PROJECTS.glob("*.json"):
+        if not _valid_project_id(f.stem):
+            continue
+        data = _read_project(f)
+        if data is not None:
+            out.append((f, data))
+    return out
+
+
+def _project_videos(data: dict) -> set[str]:
+    """Every video file a project uses -- its assets, and `video` for a
+    file written before assets existed."""
+    names = {a.get("file") for a in data.get("assets") or []
+             if isinstance(a, dict) and a.get("kind") == "video" and a.get("file")}
+    if data.get("video"):
+        names.add(data["video"])
+    return names
+
+
+def _find_project_by_video(video: str) -> Path | None:
+    """The project to resume when a video is dropped. "Same video = same
+    project" is still how dropping a file behaves, it's just a lookup now
+    rather than the file's name. More than one can match (a video re-used
+    in a second project); the most recently saved wins, which is the one
+    the user was last working on."""
+    name = Path(video).name
+    hits = [(d.get("at") or 0, f) for f, d in _all_projects() if name in _project_videos(d)]
+    return max(hits)[1] if hits else None
+
+
+def _resolve_project_id(pid: str) -> str:
+    """An id as given in a URL -> the id of a project that exists, or "".
+
+    Also accepts the old <stem>.<fingerprint> form that /edit/ links
+    carried before projects had ids, via the `legacyFile` recorded when
+    the project was adopted."""
+    f = _project_file(pid)
+    if f and f.is_file():
+        return pid
+    for f, d in _all_projects():
+        if d.get("legacyFile") == pid:
+            return f.stem
+    return ""
 
 
 def _active_result(data: dict) -> dict:
@@ -1221,7 +1331,7 @@ class Handler(BaseHTTPRequestHandler):
             # Listing for the homepage. Corrupted entries are silently
             # skipped: one bad file must not crash the entire listing.
             item = []
-            for f in PROJECTS.glob("*.json"):
+            for f, _ in _all_projects():
                 r = _project_summary(f)
                 if r and r.get("video"):
                     item.append(r)
@@ -1229,11 +1339,20 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"project": item})
 
         if path == "/api/project":
-            name = (parse_qs(urlparse(self.path).query).get("video") or [""])[0]
-            if not name:
-                return self._send_json({"error": "video required"}, 400)
-            f = _project_path(name)
-            if not f.exists():
+            # By id -- what the editor holds once a project is open, and what
+            # /edit/<id> carries. By video only for a drop, where the file
+            # is all the browser has: "same video = same project" still
+            # resumes the work (see _find_project_by_video).
+            q = parse_qs(urlparse(self.path).query)
+            pid = (q.get("id") or [""])[0]
+            name = (q.get("video") or [""])[0]
+            if pid:
+                f = _project_file(_resolve_project_id(pid))
+            elif name:
+                f = _find_project_by_video(name)
+            else:
+                return self._send_json({"error": "id or video required"}, 400)
+            if not f or not f.is_file():
                 return self._send_json({"error": "not found"}, 404)
             try:
                 data = json.loads(f.read_text(encoding="utf-8"))
@@ -1244,44 +1363,21 @@ class Handler(BaseHTTPRequestHandler):
             # is saved -- so the id already exists for anything that asks
             # between opening and the next save (the render below does).
             data, changed = _migrate_project(data)
+            # The file's name IS the id; a hand-edited `id` inside it can't
+            # be allowed to point the browser at some other file.
+            if data.get("id") != f.stem:
+                data["id"] = f.stem
+                changed = True
             if changed:
                 try:
-                    f.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+                    with PROJECTS_LOCK:
+                        _write_project(f, data)
                 except OSError:
-                    # Best-effort, like the orphan rename above: the request
-                    # still answers with a migrated dict even if the disk
-                    # write fails, and the next save will carry it.
+                    # Best-effort: the request still answers with a migrated
+                    # dict even if the disk write fails, and the next save
+                    # will carry it.
                     pass
             return self._send_json(data)
-
-        # Translates between the two names one project answers to: the video
-        # filename everything else here is keyed by, and <stem>.<fingerprint>,
-        # the project file's own basename, which is what /edit/<id> carries.
-        #
-        # It's a separate endpoint rather than an extra field on /api/project
-        # because that response IS the project document -- the user's file --
-        # and server-computed metadata doesn't belong mixed into it.
-        #
-        # Both directions are O(1): video -> id is _project_path(), id ->
-        # video is just reading PROJECTS/<id>.json, no scan.
-        if path == "/api/project-id":
-            q = parse_qs(urlparse(self.path).query)
-            pid = (q.get("id") or [""])[0]
-            name = (q.get("video") or [""])[0]
-            if pid:
-                # .name strips any path the client put in the id.
-                f = PROJECTS / f"{Path(pid).name}.json"
-                if not f.is_file():
-                    return self._send_json({"error": "not found"}, 404)
-                try:
-                    data = json.loads(f.read_text(encoding="utf-8"))
-                except ValueError:
-                    return self._send_json({"error": "project file is corrupt"}, 500)
-                return self._send_json({"id": f.stem, "video": data.get("video", "")})
-            if name:
-                return self._send_json({"id": _project_path(name).stem,
-                                        "video": Path(name).name})
-            return self._send_json({"error": "id or video required"}, 400)
 
         if path == "/api/workspace/clips":
             return self._send_json({"clip": _load_clips()})
@@ -1457,40 +1553,80 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as exc:               # noqa: BLE001
                 return self._send_json({"error": str(exc)}, 400)
             name = str(req.get("video") or "").strip()
-            if not name:
-                return self._send_json({"error": "video required"}, 400)
             # Filename only, no path components -- the name from the client
-            # must not determine WHERE the file is written.
-            req["video"] = Path(name).name
+            # must not determine WHERE anything is looked up or written.
+            if name:
+                req["video"] = Path(name).name
+            pid = req.get("id")
             PROJECTS.mkdir(parents=True, exist_ok=True)
-            f = _project_path(req["video"])
-            if req.get("delete"):
-                f.unlink(missing_ok=True)
-                return self._send_json({"ok": True, "deleted": True})
-            req["at"] = int(time.time())
-            # The project's IDENTITY is the server's to keep, not the
-            # client's to resend. projectState() in the browser builds its
-            # object from scratch and knows nothing about id/name/createdAt
-            # yet, so a plain write would erase them on the next autosave --
-            # which it did: the id was minted on open, wiped seconds later,
-            # and the render folder got a different one every time. Carry
-            # whatever the file already holds over anything the client
-            # didn't send.
-            if f.is_file():
-                try:
-                    old = json.loads(f.read_text(encoding="utf-8"))
-                    for key in ("id", "name", "createdAt"):
-                        if not req.get(key) and old.get(key):
+            with PROJECTS_LOCK:
+                # Which file: the id the client holds, or -- for the first
+                # save of a project the client has no id for yet -- the one
+                # this video already belongs to. Under the lock, so two
+                # first saves racing each other find the same answer.
+                if pid:
+                    f = _project_file(pid)
+                    if f is None:
+                        return self._send_json({"error": "invalid id"}, 400)
+                else:
+                    f = _find_project_by_video(name) if name else None
+
+                if req.get("delete"):
+                    if f:
+                        f.unlink(missing_ok=True)
+                    return self._send_json({"ok": True, "deleted": True})
+
+                if not name:
+                    return self._send_json({"error": "video required"}, 400)
+                if f is None:
+                    f = PROJECTS / f"{_new_project_id()}.json"
+
+                req["at"] = int(time.time())
+                # The project's IDENTITY is the server's to keep, not the
+                # client's to resend. projectState() in the browser builds
+                # its object from scratch and doesn't carry the name, so a
+                # plain write would erase it on the next autosave -- which
+                # is what happened with the id before this: minted on open,
+                # wiped seconds later. The name only changes through
+                # /api/project/rename. Assets too, for now: the editor can't
+                # add one yet, so anything it doesn't send is kept.
+                old = _read_project(f) if f.is_file() else None
+                if old:
+                    for key in ("name", "createdAt", "outSlug", "legacyFile"):
+                        if old.get(key):
                             req[key] = old[key]
-                except (OSError, ValueError):
-                    pass
-            req, _ = _migrate_project(req)
-            # Write to a temp file then rename: if the process dies mid-write,
-            # the old project stays intact, not half-written.
-            tmp = f.with_suffix(".tmp")
-            tmp.write_text(json.dumps(req, ensure_ascii=False), encoding="utf-8")
-            tmp.replace(f)
-            return self._send_json({"ok": True})
+                    if not req.get("assets") and old.get("assets"):
+                        req["assets"] = old["assets"]
+                req["id"] = f.stem
+                req.pop("delete", None)
+                req, _ = _migrate_project(req)
+                _write_project(f, req)
+            return self._send_json({"ok": True, "id": f.stem})
+
+        if path == "/api/project/rename":
+            try:
+                req = self._read_json()
+            except Exception as exc:               # noqa: BLE001
+                return self._send_json({"error": str(exc)}, 400)
+            # Collapsed whitespace and a length cap: it's shown on a card
+            # and in the topbar, and nothing about a name needs a newline.
+            new_name = " ".join(str(req.get("name") or "").split())[:80]
+            if not new_name:
+                return self._send_json({"error": "name required"}, 400)
+            f = _project_file(req.get("id"))
+            if f is None:
+                return self._send_json({"error": "invalid id"}, 400)
+            with PROJECTS_LOCK:
+                data = _read_project(f) if f.is_file() else None
+                if data is None:
+                    return self._send_json({"error": "not found"}, 404)
+                # outSlug is migrated in BEFORE the name changes, so a
+                # project renamed before it ever had one still keeps the
+                # render folder it already has.
+                data, _ = _migrate_project(data)
+                data["name"] = new_name
+                _write_project(f, data)
+            return self._send_json({"ok": True, "name": new_name})
 
         if path == "/api/workspace/clips":
             try:

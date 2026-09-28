@@ -1026,7 +1026,10 @@ h1, h2, h3 {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .project-meta { color: var(--text-faint); }
-.project-card .delete-icon {
+/* When the project was started -- a date, quieter than the line above. */
+.project-created { color: var(--text-faint); font-size: var(--t-11); opacity: .8; }
+.project-card .delete-icon,
+.project-card .rename-icon {
   position: absolute; top: 6px; right: 6px;
   width: 22px; height: 22px; display: grid; place-items: center;
   font-style: normal; font-size: 13px; line-height: 1;
@@ -1034,7 +1037,22 @@ h1, h2, h3 {
   border-radius: var(--r-pill);
   opacity: 0; transition: opacity var(--fast);
 }
-.project-card:hover .delete-icon { opacity: 1; }
+/* Beside ×, never on it: one misclick shouldn't be the other action. */
+.project-card .rename-icon { right: 34px; }
+.project-card:hover :is(.delete-icon, .rename-icon),
+.project-card :is(.delete-icon, .rename-icon):focus-visible { opacity: 1; }
+.project-card .rename-icon:hover { background: var(--accent); color: oklch(0.145 0.010 258); }
+.project-card.confirming .rename-icon { display: none; }
+/* Rename box: takes the name's place in the card, same size and weight,
+   so the card doesn't jump while typing. */
+.project-rename {
+  font: inherit; font-size: var(--t-13); font-weight: 650;
+  width: 100%; min-width: 0;
+  padding: 1px 6px; margin: 0 -6px;
+  color: var(--text); background: var(--bg-1);
+  border: 1px solid var(--accent); border-radius: var(--r-s);
+  outline: none; cursor: text;
+}
 
 /* Most recently opened project. A small marker, not an enlarged card:
    all that's needed is "this one just now", not emphasis. */
