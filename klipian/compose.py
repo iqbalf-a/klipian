@@ -70,6 +70,29 @@ def _ass_colour(hex_colour: str, default: str = "&H00FFFFFF") -> str:
     return f"&H00{h[4:6]}{h[2:4]}{h[0:2]}".upper()
 
 
+def shift_elements(raw, offset: float) -> list:
+    """Elements (or volume ranges) re-timed for a piece of the clip that
+    starts `offset` seconds in -- the quick preview renders a few seconds
+    from the scrub position, not from 0. Anything over before the piece
+    starts is dropped; a sound already playing is started that far INTO
+    its file (`from`), so the preview hears what the full render would."""
+    out = []
+    for e in raw if isinstance(raw, list) else []:
+        if not isinstance(e, dict):
+            continue
+        try:
+            s, t = float(e.get("start", 0)) - offset, float(e.get("end", 0)) - offset
+        except (TypeError, ValueError):
+            continue
+        if t <= 0:
+            continue
+        e = {**e, "start": max(0.0, s), "end": t}
+        if s < 0 and e.get("kind") == "sound":
+            e["from"] = float(e.get("from") or 0) - s
+        out.append(e)
+    return out
+
+
 def clean_elements(raw, duration: float, assets_dir: Path) -> list[dict]:
     """The client's overlay list, validated. Anything malformed or pointing
     at a file that isn't in workspace/assets/ is dropped rather than failing
@@ -104,6 +127,8 @@ def clean_elements(raw, duration: float, assets_dir: Path) -> list[dict]:
                 el["size"] = _num(e.get("size"), 40, 1, 100)
             else:
                 el["volume"] = _num(e.get("volume"), 1.0, 0.0, 4.0)
+                # Seconds into the file to start from (shift_elements).
+                el["from"] = _num(e.get("from"), 0.0, 0.0, 3600.0)
                 # A sound with no end plays to its own length; with one, it
                 # is cut there.
                 if el["end"] <= start:
@@ -218,8 +243,9 @@ def compose(src: Path, dest: Path, *, width: int, height: int, duration: float,
         idx = first_sound + k
         delay = int(s["start"] * 1000)
         length = max(0.05, s["end"] - s["start"])
+        skip = s.get("from", 0.0)
         graph.append(f"[{idx}:a]{to_stereo(probe(s['path']).channels)},"
-                     f"atrim=0:{length:.3f},asetpts=PTS-STARTPTS,"
+                     f"atrim={skip:.3f}:{skip + length:.3f},asetpts=PTS-STARTPTS,"
                      f"volume={s['volume']:.3f},adelay={delay}:all=1[s{k}]")
         mix.append(f"[s{k}]")
     if len(mix) > 1:
@@ -246,5 +272,5 @@ def compose(src: Path, dest: Path, *, width: int, height: int, duration: float,
             ass_path.unlink(missing_ok=True)
 
 
-__all__ = ["compose", "clean_elements", "clean_volumes", "build_label_ass",
+__all__ = ["compose", "clean_elements", "clean_volumes", "shift_elements", "build_label_ass",
            "RenderCancelled", "IMAGE_EXT", "SOUND_EXT"]

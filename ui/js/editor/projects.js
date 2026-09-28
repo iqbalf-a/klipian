@@ -73,12 +73,14 @@ function projectState() {
   snapshotActiveResult();
   return {
     // null until the first save answers with one -- the server then finds
-    // the project by `video` instead. Name/createdAt are NOT sent: the
-    // server keeps those, and only /api/project/rename changes the name.
+    // the project by its first video instead. Name/createdAt are NOT sent:
+    // the server keeps those, and only /api/project/rename changes the name.
     id: activeProjectId,
-    video: (typeof primaryAssetFile === "function" && primaryAssetFile()) || activeProject,
-    // The project's videos (assets.js). The first one is `video` above.
-    assets: (typeof ASSETS !== "undefined" && ASSETS.length) ? ASSETS : undefined,
+    // The project's videos (assets.js). No separate `video` any more: the
+    // first video asset is what that field used to say. A project with no
+    // asset list yet (nothing dropped) falls back to the one file it has.
+    assets: (typeof ASSETS !== "undefined" && ASSETS.length) ? ASSETS
+      : (activeProject ? [{ id: "a1", kind: "video", file: activeProject }] : undefined),
     activeAsset: (typeof activeAssetId !== "undefined") ? activeAssetId : undefined,
     // Only once an id has been handed out beyond the list -- a project
     // that never removed an asset doesn't need it.
@@ -232,7 +234,11 @@ function snapshotActiveResult() {
   slot.output = (typeof OPTIONS !== "undefined") ? OPTIONS.map((o) => o.active) : [];
   // Live spans and points sit on the shared virtual timeline (assets.js);
   // on disk they're what they really are -- a video and a second in it.
-  slot.result = (typeof RESULT !== "undefined" ? RESULT : []).map((r) => {
+  // `segments`: the plan's name for a Result's spans (each a segment of
+  // some asset, in play order). Written as `result` until the rename; the
+  // server migrates that on read, and loadResultIntoLiveState reads both.
+  delete slot.result;
+  slot.segments = (typeof RESULT !== "undefined" ? RESULT : []).map((r) => {
     const a = toReal(r.start);
     return { id: r.id, asset: a.id, start: a.t, end: unshift(r.end, assetOffset(a.id)),
       title: r.title, source: r.source,
@@ -274,8 +280,10 @@ function loadResultIntoLiveState(entry) {
   // shifting in place would corrupt SAVED_RESULTS for the next snapshot.
   const onTimeline = (x, key) => ({ ...x, [key]: x[key] + assetOffset(x.asset || "a1") });
   if (typeof RESULT !== "undefined") {
-    RESULT = Array.isArray(entry.result)
-      ? entry.result.map((r) => {
+    const stored = Array.isArray(entry.segments) ? entry.segments
+      : Array.isArray(entry.result) ? entry.result : null;
+    RESULT = stored
+      ? stored.map((r) => {
           const off = assetOffset(r.asset || "a1");
           const { asset, ...rest } = r;
           return { ...rest, start: r.start + off, end: r.end + off };
@@ -324,7 +332,7 @@ function loadResultIntoLiveState(entry) {
    active one. Replaces the old resetResult()+resetFraming()+resetCaptions()
    trio -- now SAVED_RESULTS must also be reset, not just the live state. */
 function resetProjectState() {
-  SAVED_RESULTS = [{ id: `res${++resultTabSeq}`, title: "", result: [], framing: [], corrections: {},
+  SAVED_RESULTS = [{ id: `res${++resultTabSeq}`, title: "", segments: [], framing: [], corrections: {},
     output: (typeof OPTIONS !== "undefined") ? OPTIONS.map((o) => o.active) : [] }];
   activeResultId = SAVED_RESULTS[0].id;
   if (typeof setOverlays === "function") setOverlays([]);
@@ -351,7 +359,7 @@ function newResult() {
   // Inherits the Output Format on screen rather than starting at factory:
   // a second clip from the same video almost always wants the same file
   // shape as the first, and it's one click to change if it doesn't.
-  const entry = { id: `res${++resultTabSeq}`, title: "", result: [], framing: [], corrections: {},
+  const entry = { id: `res${++resultTabSeq}`, title: "", segments: [], framing: [], corrections: {},
     output: (typeof OPTIONS !== "undefined") ? OPTIONS.map((o) => o.active) : [] };
   SAVED_RESULTS.push(entry);
   activeResultId = entry.id;
@@ -493,7 +501,9 @@ async function loadProject(video) {
    project was last left on. */
 function applyProject(d, preferFile) {
   activeProjectId = d.id || null;
-  activeProject = d.video || activeProject;
+  // The project's first video (`video` in a file the server hasn't
+  // migrated -- it no longer writes that field).
+  activeProject = projectPrimaryFile(d) || activeProject;
 
   // The project's videos, BEFORE any span is placed on the virtual
   // timeline below. A file from before assets has only `video`.
@@ -514,7 +524,7 @@ function applyProject(d, preferFile) {
     SAVED_RESULTS = [{
       id: "res1",
       title: d.title || "",
-      result: Array.isArray(d.result) ? d.result : [],
+      segments: Array.isArray(d.result) ? d.result : [],
       framing: Array.isArray(d.framing) ? d.framing : [],
       corrections: d.corrections || {},
     }];
@@ -950,13 +960,19 @@ async function openProjectFromHome(id) {
   markProjectCardBusy(id);
   const d = await fetchProject({ id });
   if (gen !== _openProjectGen) return false;
-  if (!d || !d.video) { markProjectCardBusy(""); return false; }
+  if (!d || !projectActiveFile(d)) { markProjectCardBusy(""); return false; }
   return enterProject(d, gen);
 }
 
 /* Everything after the project document is in hand -- shared by a card
    click and by session restore, which fetches the document itself first
    so it can check the video is still there before entering. */
+/* A project's first video. */
+function projectPrimaryFile(d) {
+  const list = (Array.isArray(d.assets) ? d.assets : []).filter((a) => a && (a.kind || "video") === "video");
+  return list[0]?.file || d.video || "";
+}
+
 /* The video a project opens on: the one it was left on, else its first. */
 function projectActiveFile(d) {
   const list = (Array.isArray(d.assets) ? d.assets : []).filter((a) => a && (a.kind || "video") === "video");
@@ -1105,7 +1121,7 @@ async function restoreLastSession() {
     return false;   // server not ready yet/offline -- don't pretend it succeeded
   }
   if (gen !== _openProjectGen) return false;   // a card was clicked meanwhile
-  if (!d || !d.video) return giveUp();
+  if (!d || !projectActiveFile(d)) return giveUp();
 
   // The video may have been moved/deleted since it was last opened --
   // checked first via /api/video, instead of trying directly and failing

@@ -859,7 +859,11 @@ async function quickPreview() {
   let run = [];
   for (const p of framed) {
     const len = p.end - p.start;
-    const sameVideo = run.length && assetIdAt(run[0].start) === assetIdAt(p.start);
+    // Same video AND still moving forward through it -- the server's
+    // RenderJob rejects spans that go backwards, which a reordered Result
+    // can have within one video (same rule as _asset_runs in server.py).
+    const sameVideo = run.length && assetIdAt(run[0].start) === assetIdAt(p.start)
+      && p.start >= run[run.length - 1].end;
     if (!sameVideo) {
       if (run.length && startFrom < passed) break;
       run = [];
@@ -881,13 +885,17 @@ async function quickPreview() {
     layout: optionOut("format"),
     width: optionOut("resolution"),
     quality: optionOut("quality"),
+    // Timeline elements in WHOLE-clip seconds; the server re-times them to
+    // this piece from overlayBase (below) and its own start.
+    ...(resultClip.overlays?.length ? { overlays: resultClip.overlays } : {}),
+    ...(resultClip.volumes?.length ? { volumes: resultClip.volumes } : {}),
   };
 
   try {
     const reply = await fetch("/api/preview", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ video: mainFile || chosenSource?.name || DATA.file, clip,
-                             startFrom: Math.max(0, startFrom - runStart) }),
+                             startFrom: Math.max(0, startFrom - runStart), overlayBase: runStart }),
     }).then((r) => r.json());
     if (reply.error) throw new Error(reply.error);
     showQuickPreview(reply.url);

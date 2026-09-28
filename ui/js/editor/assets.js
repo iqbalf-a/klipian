@@ -259,9 +259,6 @@ function setAssets(list, activeId, seq) {
   renderAssets();
 }
 
-/* The project's first video names it for "same video = same project" and
-   is the `video` field older readers of the file still look at. */
-const primaryAssetFile = () => videoAssets()[0]?.file || "";
 
 /* ---------- which assets a Result uses ---------- */
 
@@ -273,7 +270,7 @@ function assetUseCount(id) {
   let n = 0;
   const all = (typeof SAVED_RESULTS !== "undefined" ? SAVED_RESULTS : []);
   for (const r of all) {
-    for (const s of r.result || []) if ((s.asset || "a1") === id) n++;
+    for (const s of r.segments || r.result || []) if ((s.asset || "a1") === id) n++;
   }
   return n;
 }

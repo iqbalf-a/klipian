@@ -917,6 +917,15 @@ def _project_id(data: dict) -> str:
     return pid if pid else _new_project_id()
 
 
+def _primary_video(data: dict) -> str:
+    """The project's first video -- what `video` used to hold. Read from
+    `video` itself for a dict that hasn't been migrated yet."""
+    for a in data.get("assets") or []:
+        if isinstance(a, dict) and (a.get("kind") or "video") == "video" and a.get("file"):
+            return a["file"]
+    return data.get("video") or ""
+
+
 def _project_out_dir(data: dict) -> Path:
     """Renders belong to the PROJECT, not to a video.
 
@@ -929,7 +938,7 @@ def _project_out_dir(data: dict) -> Path:
     name: renaming a project must not move a folder of files someone may
     have open in a player, or split one project's renders across two
     folders (ian's call on the plan's open question)."""
-    slug = data.get("outSlug") or _slug(data.get("name") or Path(data.get("video") or "").stem)
+    slug = data.get("outSlug") or _slug(data.get("name") or Path(_primary_video(data)).stem)
     return WORKSPACE / "out" / f"{slug}.{_project_id(data)}"
 
 
@@ -937,9 +946,11 @@ def _migrate_project(data: dict) -> tuple[dict, bool]:
     """Bring a project dict up to the current shape. Returns (data, changed).
 
     Reads both shapes and writes only the new one, the same approach used
-    for the caption indices and for per-Result output. Nothing is removed
-    here -- `video` stays, and still names the first video asset -- so a
-    file written by this can still be read by the version before it.
+    for the caption indices and for per-Result output.
+
+    (`video` and each Result's `result` DO go now: they're rewritten as the
+    first asset and `segments`. The copies kept in projects/legacy/ are
+    the old shape, untouched.)
 
     This runs on READ **and** on write, which is what lets the shape move
     without the browser knowing yet: projectState() there builds its object
@@ -954,7 +965,7 @@ def _migrate_project(data: dict) -> tuple[dict, bool]:
         changed = True
     if not data.get("name"):
         # What the home card showed before projects had names of their own.
-        data["name"] = Path(data.get("video") or "").stem or "Untitled"
+        data["name"] = Path(_primary_video(data)).stem or "Untitled"
         changed = True
     if not data.get("outSlug"):
         # Fixed from here on -- see _project_out_dir(). Taken from the name
@@ -968,22 +979,49 @@ def _migrate_project(data: dict) -> tuple[dict, bool]:
         data["createdAt"] = int(data.get("at") or time.time())
         changed = True
 
-    # A project holds a LIST of sources, not one. Today every project has
-    # exactly one, so the list is built from `video` and everything already
-    # saved points at it -- but from here on the shape can carry five.
+    # A project holds a LIST of sources, not one. A file from before that
+    # has a single `video`: the list is built from it, and then `video`
+    # itself goes -- the project no longer has "a" video, its first asset
+    # is just the first of several (_primary_video reads it from there).
     video = data.get("video") or ""
     if not isinstance(data.get("assets"), list) or not data["assets"]:
         data["assets"] = ([{"id": FIRST_ASSET, "kind": "video", "file": video}]
                           if video else [])
         changed = True
+    if "video" in data:
+        del data["video"]
+        changed = True
+
+    # The oldest shape of all: one flat result/framing/corrections/title at
+    # the top level, from before a project could hold several Results.
+    if not isinstance(data.get("results"), list) and any(
+            k in data for k in ("result", "framing", "corrections")):
+        data["results"] = [{
+            "id": "res1", "title": data.pop("title", "") or "",
+            "segments": data.pop("result", None) or [],
+            "framing": data.pop("framing", None) or [],
+            "corrections": data.pop("corrections", None) or {},
+        }]
+        data.setdefault("activeResult", "res1")
+        changed = True
+
+    # A Result's spans are its `segments` (the plan's name: each is a
+    # segment of some asset, in play order). `result` was the name while a
+    # Result could only be cut from one video.
+    for res in data.get("results") or []:
+        if isinstance(res, dict) and "result" in res:
+            old = res.pop("result")
+            if not isinstance(res.get("segments"), list):
+                res["segments"] = old if isinstance(old, list) else []
+            changed = True
 
     # Which source a span came from. There has only ever been one, so
     # everything on disk belongs to the first asset. `source` next to it is
     # NOT this -- that one records whether a span came from the AI or was
     # drawn by hand, and keeps doing so.
     first = data["assets"][0]["id"] if data["assets"] else FIRST_ASSET
-    for result in data.get("results") or []:
-        for span in result.get("result") or []:
+    for res in data.get("results") or []:
+        for span in (res.get("segments") if isinstance(res, dict) else None) or []:
             if isinstance(span, dict) and not span.get("asset"):
                 span["asset"] = first
                 changed = True
@@ -1136,7 +1174,7 @@ def _span_video(data: dict, span: dict) -> str:
     for a in data.get("assets") or []:
         if isinstance(a, dict) and a.get("id") == aid and a.get("file"):
             return a["file"]
-    return data.get("video", "")
+    return _primary_video(data)
 
 
 def _project_summary(file: Path) -> dict | None:
@@ -1153,18 +1191,22 @@ def _project_summary(file: Path) -> dict | None:
         if not isinstance(data, dict):
             return None
         active = _active_result(data)
-        spans = active.get("result") or []
+        # `segments` now; `result` in a file not rewritten since the rename.
+        spans = active.get("segments") or active.get("result") or []
         total = sum(max(0.0, float(r.get("end", 0)) - float(r.get("start", 0)))
                     for r in spans if isinstance(r, dict))
         framing = active.get("framing") or [{}]
         first_frame = framing[0] if isinstance(framing[0], dict) else {}
+        video = _primary_video(data)
         return {
-            "video": data.get("video", ""),
+            # The project's first video: the card's "is it still there"
+            # check and the Home screen's missing marker read this.
+            "video": video,
             # Identity of its own. The home card can show a name ian chose
             # and when the project was started, neither of which the video
             # filename could ever tell it.
             "id": data.get("id", ""),
-            "name": data.get("name", "") or Path(data.get("video", "")).stem,
+            "name": data.get("name", "") or Path(video).stem,
             "createdAt": int(data.get("createdAt") or st.st_mtime),
             "title": active.get("title", ""),
             "spans": len(spans),
@@ -1174,7 +1216,7 @@ def _project_summary(file: Path) -> dict | None:
             # The first span's own video: in a project with several, the
             # cover frame has to come from the file thumbAt is a second of.
             "thumbVideo": _span_video(data, spans[0]) if spans and isinstance(spans[0], dict)
-                          else data.get("video", ""),
+                          else video,
             # Thumbnail uses the project's own framing box. If the default
             # box were used, two projects from the same video would look
             # identical even though their frames are very different.
@@ -1643,11 +1685,13 @@ class Handler(BaseHTTPRequestHandler):
                 req = self._read_json()
             except Exception as exc:               # noqa: BLE001
                 return self._send_json({"error": str(exc)}, 400)
-            name = str(req.get("video") or "").strip()
-            # Filename only, no path components -- the name from the client
-            # must not determine WHERE anything is looked up or written.
-            if name:
-                req["video"] = Path(name).name
+            # The project's first video: from its assets, or `video` from a
+            # client older than them. Filename only, no path components --
+            # the name from the client must not determine WHERE anything is
+            # looked up or written.
+            name = Path(str(_primary_video(req) or "").strip()).name
+            if req.get("video"):
+                req["video"] = Path(str(req["video"])).name
             pid = req.get("id")
             PROJECTS.mkdir(parents=True, exist_ok=True)
             with PROJECTS_LOCK:
@@ -1873,6 +1917,7 @@ class Handler(BaseHTTPRequestHandler):
                     # second remaining) -- rather than failing, show from
                     # the beginning.
                     spans = _trim_for_preview(all_spans, PREVIEW_MAX_SECONDS)
+                    start_from = 0.0
                 if not spans:
                     return self._send_json({"error": "Clip has no spans."}, 400)
 
@@ -1930,6 +1975,32 @@ class Handler(BaseHTTPRequestHandler):
                 engine.render(video, job, dest, words=clip_words, style=style,
                               src_width=info.width, src_height=info.height,
                               has_audio=info.has_audio, verbose=False)
+
+                # The Timeline's elements, same second pass as a full render
+                # (compose.py), re-timed to this piece: `overlayBase` is
+                # where the piece's run starts in the whole clip, start_from
+                # how far into the run the piece begins.
+                base = float(req.get("overlayBase") or 0) + start_from
+                elements = composer.clean_elements(
+                    composer.shift_elements(k.get("overlays"), base), job.duration, ASSETS_DIR)
+                volumes = composer.clean_volumes(
+                    composer.shift_elements(k.get("volumes"), base), job.duration)
+                if elements or volumes:
+                    raw = dest.with_name(dest.stem + ".pass1.mp4")
+                    dest.replace(raw)
+                    out_h = job.out_width * 16 // 9
+                    try:
+                        composer.compose(raw, dest, width=job.out_width, height=out_h - (out_h & 1),
+                                         duration=job.duration, elements=elements,
+                                         volumes=volumes, quality=job.quality,
+                                         has_audio=info.has_audio)
+                    except Exception as exc:           # noqa: BLE001
+                        dest.unlink(missing_ok=True)
+                        raw.replace(dest)
+                        warning = (warning + " · " if warning else "") + \
+                            f"timeline elements skipped: {exc}"
+                    finally:
+                        raw.unlink(missing_ok=True)
             except Exception as exc:                   # noqa: BLE001
                 return self._send_json({"error": str(exc)}, 500)
 
