@@ -37,6 +37,12 @@ function resultWords() {
       edited: CORRECTIONS[k] !== undefined,
     });
   }
+  // Listed in the order they'll be HEARD: source order, until the Timeline
+  // screen puts the spans in another order (player.js: spansInOrder).
+  if (typeof spansInOrder === "function" && !spansInOrder(activeClip.spans)) {
+    const at = (w) => sourceToOut(activeClip, w.start) ?? 0;
+    out.sort((a, b) => at(a) - at(b));
+  }
   return out;
 }
 

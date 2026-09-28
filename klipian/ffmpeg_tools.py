@@ -101,6 +101,7 @@ def probe(path: Path) -> MediaInfo:
         has_audio=astream is not None,
         vcodec=vcodec,
         acodec=(astream or {}).get("codec_name", ""),
+        channels=int((astream or {}).get("channels") or 0),
     )
 
 

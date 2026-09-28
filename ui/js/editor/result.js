@@ -45,24 +45,39 @@ function addToResult(start, end, title, source) {
   // reported "added to Result" -- so a new clip that overlapped an existing
   // one appeared to simply vanish. `merged` is handed back so the caller
   // can say what actually happened.
+  // Rule 1 above holds while the Result is still in source order. Once the
+  // Timeline screen has reordered it, that order is deliberate: a new span
+  // goes to the END (or into the place of the span it merged with), and
+  // nothing is re-sorted out from under the edit.
+  const wasInOrder = RESULT.every((r, i) => !i || RESULT[i - 1].start <= r.start);
   const overlapping = RESULT.filter((r) => start < r.end && end > r.start);
   let merged = 0;
+  let at = RESULT.length;
+  let volume;
   if (overlapping.length) {
     merged = overlapping.length;
+    at = RESULT.indexOf(overlapping[0]);
     start = Math.min(start, ...overlapping.map((r) => r.start));
     end = Math.max(end, ...overlapping.map((r) => r.end));
     title = title || overlapping[0].title;
+    volume = overlapping[0].volume;
     RESULT = RESULT.filter((r) => !overlapping.includes(r));
   }
 
   lastAddWasMerge = merged;
-  RESULT.push({
+  const entry = {
     id: `r${++resultSeq}`,
     start, end,
     title: title || `Clip ${RESULT.length + 1}`,
     source: source || "manual",
-  });
-  RESULT.sort((a, b) => a.start - b.start);
+  };
+  if (volume !== undefined) entry.volume = volume;
+  if (wasInOrder) {
+    RESULT.push(entry);
+    RESULT.sort((a, b) => a.start - b.start);
+  } else {
+    RESULT.splice(Math.min(at, RESULT.length), 0, entry);
+  }
   renderResult();
   return null;
 }
@@ -94,6 +109,9 @@ function resultAsClip() {
     startSec: RESULT[0].start,
     endSec: RESULT[RESULT.length - 1].end,
     dur: Math.round(resultTotal()),
+    // What the Timeline screen laid on top (compose.js).
+    overlays: (typeof overlaysForRender === "function") ? overlaysForRender() : [],
+    volumes: (typeof segmentVolumes === "function") ? segmentVolumes() : [],
   };
 }
 

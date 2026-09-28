@@ -68,6 +68,7 @@ function attachVideoGeometry() {
 function setClip(k) {
   if (!k) return;
   activeClip = k;
+  playSpan = 0;
   if (!k.spans || !k.spans.length) {
     // k.dur may arrive as a string from imported JSON ("54.7"); Number()
     // so that start + dur adds numerically, not concatenates ("1254.7").
@@ -99,10 +100,14 @@ const clipOutDur = (k) =>
 
 /* source time -> output time (null when falling in a discarded section) */
 function sourceToOut(k, t) {
+  // Looks for the span holding `t` rather than walking until one starts
+  // after it: the Timeline screen lets spans be put in any order, so a
+  // later span in the list can start EARLIER in the source. For spans in
+  // chronological order this returns exactly what the old early-exit
+  // version did.
   let passed = 0;
   for (const p of k.spans) {
-    if (t < p.start) return null;
-    if (t <= p.end) return passed + (t - p.start);
+    if (t >= p.start && t <= p.end) return passed + (t - p.start);
     passed += p.end - p.start;
   }
   return null;
@@ -250,6 +255,38 @@ function releaseVideo() {
   frame.dataset.video = "";
 }
 
+/* Spans in chronological order -- every Result until one is reordered. */
+const spansInOrder = (spans) => spans.every((p, i) => !i || spans[i - 1].start <= p.start);
+
+/* Which span of a REORDERED list is playing, so "the next one" can mean
+   the next in the list rather than the next in the source. */
+let playSpan = 0;
+const spanHolds = (p, t) => t >= p.start - 0.001 && t < p.end + 0.001;
+
+/* The span to be in at virtual second `t`, for spans in any order; -1
+   when the last one has finished. Returning a span whose start is after
+   `t` makes the caller seek there -- same contract as the sorted rule. */
+function nextSpanIndex(spans, t) {
+  if (!spans[playSpan]) playSpan = 0;
+  const cur = spans[playSpan];
+  if (spanHolds(cur, t)) return playSpan;
+  const next = spans[playSpan + 1];
+  // Ran straight on into the next span (they're adjacent in the source).
+  if (next && spanHolds(next, t)) return ++playSpan;
+  // Just played past the end of this one: on to the next in the LIST.
+  if (t >= cur.end && t - cur.end < 1.5) {
+    if (!next) return -1;
+    playSpan++;
+    return playSpan;
+  }
+  // A seek landed somewhere else -- whichever span holds it.
+  const j = spans.findIndex((p) => spanHolds(p, t));
+  if (j >= 0) { playSpan = j; return j; }
+  const k = spans.findIndex((p) => p.start > t);
+  if (k >= 0) playSpan = k;
+  return k;
+}
+
 video.addEventListener("timeupdate", () => {
   if (!activeClip || !activeClip.spans?.length) return;
   // Mid-switch to another video's file (vSeek, assets.js): currentTime is
@@ -261,8 +298,17 @@ video.addEventListener("timeupdate", () => {
   // Skip discarded sections: as soon as one segment ends, jump to the
   // start of the next segment. This is what makes the preview match
   // the rendered output file.
-  const i = activeClip.spans.findIndex((p) => t < p.end + 0.001);
+  //
+  // Spans in chronological order keep this exact rule -- "the first span
+  // not yet finished" IS the next one when they're sorted. Once the
+  // Timeline screen has put them in another order it isn't, and the next
+  // span is simply the one after the current in the list (nextSpanIndex).
+  const inOrder = spansInOrder(activeClip.spans);
+  const i = inOrder
+    ? activeClip.spans.findIndex((p) => t < p.end + 0.001)
+    : nextSpanIndex(activeClip.spans, t);
   if (i === -1) {                                   // habis
+    playSpan = 0;
     video.pause();
     vSeek(video, activeClip.spans[0].start);
     isPlaying = false;
@@ -274,11 +320,15 @@ video.addEventListener("timeupdate", () => {
     return;
   }
   const p = activeClip.spans[i];
-  if (t < p.start - 0.001) { vSeek(video, p.start); return; }
+  // Out of order, the next span can start EARLIER in the source than
+  // where playback is -- so "not inside it" is the test, not "before it".
+  if (t < p.start - 0.001 || (!inOrder && !spanHolds(p, t))) { vSeek(video, p.start); return; }
 
   drawTime(sourceToOut(activeClip, t) ?? 0);
   drawHead();
   drawCaption();
+  // Timeline elements (compose.js): labels, stickers, sounds, clip volume.
+  if (typeof composeTick === "function") composeTick(sourceToOut(activeClip, t) ?? 0);
 
   // The framing canvas shows the SAME frame, un-cropped. Synced every
   // tick so it advances with the preview instead of freezing.
@@ -336,6 +386,9 @@ function drawCaption() {
     const b = sourceToOut(activeClip, w.end);
     if (a !== null && b !== null && b > a) used.push({ a, b, text: w.text.trim() });
   }
+  // In OUTPUT order. Words arrive in source order, which is the same thing
+  // until the Timeline screen reorders the spans.
+  used.sort((x, y) => x.a - y.a);
   if (!used.length) { cap.innerHTML = ""; return; }
 
   const out = sourceToOut(activeClip, t);
@@ -671,6 +724,11 @@ async function sendRender(approved) {
         layout: optionOut("format"),
         width: optionOut("resolution"),
         quality: optionOut("quality"),
+        // Timeline elements and per-clip volume (compose.js), in output
+        // seconds. Only sent when there are any: the server's second pass
+        // runs only for a clip that carries them.
+        ...(k.overlays?.length ? { overlays: k.overlays } : {}),
+        ...(k.volumes?.length ? { volumes: k.volumes } : {}),
       };
     }),
   };

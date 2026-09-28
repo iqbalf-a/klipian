@@ -679,7 +679,7 @@ const NO_PREVIEW = ["assets", "analysis", "history"];
    frame, Text handles words and appearance. */
 // Render joins them: it shows the same preview and is where the Result is
 // finally judged, so it needs the same redraw on arrival.
-const RESULT_SCREENS = ["clips", "framing", "captions", "render", "output"];
+const RESULT_SCREENS = ["clips", "timeline", "framing", "captions", "render", "output"];
 
 /* The currently active screen. Saved with the project so "Continue" brings
    you back to where you left off -- if you were adjusting framing, you
@@ -703,6 +703,8 @@ function toScreen(name) {
 
   if (name === "history" && typeof loadHistory === "function") loadHistory();
   if (name === "assets" && typeof renderAssets === "function") renderAssets();
+  // After the Result-screen redraws below have set the preview's clip.
+  if (name === "timeline" && typeof renderTimeline === "function") setTimeout(renderTimeline, 0);
 
   // The LENGTH readout and the two buttons live only on this screen now, so
   // arriving is the moment they have to be made current -- renderPreview()

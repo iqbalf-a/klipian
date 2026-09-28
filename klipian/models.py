@@ -88,6 +88,9 @@ class MediaInfo:
     has_audio: bool
     vcodec: str = ""
     acodec: str = ""
+    # Audio channel count (0 = no audio / unknown). A mono source joined to
+    # a stereo one must be upmixed deliberately -- see compose.to_stereo.
+    channels: int = 0
 
     @property
     def aspect(self) -> float:

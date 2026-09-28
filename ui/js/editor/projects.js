@@ -32,7 +32,7 @@ let lastScreen = "clips";        // the screen where work was left off
 /* Screen names from project files are NOT trusted blindly: files can be
    hand-edited or come from an older version. An unrecognized name causes
    toScreen() to turn off all screens and leave an empty workspace. */
-const VALID_SCREENS = ["assets", "analysis", "clips", "framing", "captions", "render", "history", "output"];
+const VALID_SCREENS = ["assets", "timeline", "analysis", "clips", "framing", "captions", "render", "history", "output"];
 
 /* Old projects (saved before this rename) still have screen: "klip"/"teks"
    on disk -- read once here so they still resume on the right screen,
@@ -80,6 +80,10 @@ function projectState() {
     // The project's videos (assets.js). The first one is `video` above.
     assets: (typeof ASSETS !== "undefined" && ASSETS.length) ? ASSETS : undefined,
     activeAsset: (typeof activeAssetId !== "undefined") ? activeAssetId : undefined,
+    // Only once an id has been handed out beyond the list -- a project
+    // that never removed an asset doesn't need it.
+    assetSeq: (typeof assetSeq !== "undefined" && typeof ASSETS !== "undefined"
+      && assetSeq > Math.max(0, ...ASSETS.map((a) => assetNum(a.id)))) ? assetSeq : undefined,
     results: SAVED_RESULTS,
     activeResult: activeResultId,
     // AI recommendations (imported JSON from Claude) were NEVER saved before
@@ -231,8 +235,14 @@ function snapshotActiveResult() {
   slot.result = (typeof RESULT !== "undefined" ? RESULT : []).map((r) => {
     const a = toReal(r.start);
     return { id: r.id, asset: a.id, start: a.t, end: unshift(r.end, assetOffset(a.id)),
-      title: r.title, source: r.source };
+      title: r.title, source: r.source,
+      // Per-clip volume (Timeline screen); absent means 100%.
+      ...(r.volume !== undefined ? { volume: r.volume } : {}) };
   });
+  // Timeline elements, in output seconds. Absent when there are none, so a
+  // Result that never used the Timeline saves exactly as it always did.
+  if (typeof OVERLAYS !== "undefined" && OVERLAYS.length) slot.overlays = OVERLAYS.map((e) => ({ ...e }));
+  else delete slot.overlays;
   slot.framing = (typeof FRAMING !== "undefined" ? FRAMING : []).map((f) => ({
     id: f.id, asset: assetIdAt(f.at), at: toReal(f.at).t,
     format: f.format, crops: f.crops,
@@ -271,7 +281,8 @@ function loadResultIntoLiveState(entry) {
           return { ...rest, start: r.start + off, end: r.end + off };
         })
       : [];
-    RESULT.sort((a, b) => a.start - b.start);
+    // NOT re-sorted: the order on disk is the order they play in, which
+    // the Timeline screen lets differ from source order.
     if (typeof resultSeq !== "undefined") {
       resultSeq = Math.max(0, ...RESULT.map((r) => parseInt(String(r.id).slice(1), 10) || 0));
     }
@@ -288,6 +299,7 @@ function loadResultIntoLiveState(entry) {
     }
   }
   if (typeof CORRECTIONS !== "undefined") CORRECTIONS = entry.corrections || {};
+  if (typeof setOverlays === "function") setOverlays(entry.overlays || []);
   // Bounds-checked per option, so a Result saved before an option existed
   // (or with fewer choices) just leaves that one where it is.
   if (Array.isArray(entry.output) && typeof OPTIONS !== "undefined") {
@@ -315,6 +327,7 @@ function resetProjectState() {
   SAVED_RESULTS = [{ id: `res${++resultTabSeq}`, title: "", result: [], framing: [], corrections: {},
     output: (typeof OPTIONS !== "undefined") ? OPTIONS.map((o) => o.active) : [] }];
   activeResultId = SAVED_RESULTS[0].id;
+  if (typeof setOverlays === "function") setOverlays([]);
   if (typeof resetResult === "function") resetResult();
   if (typeof resetFraming === "function") resetFraming();
   if (typeof resetCaptions === "function") resetCaptions();
@@ -342,6 +355,7 @@ function newResult() {
     output: (typeof OPTIONS !== "undefined") ? OPTIONS.map((o) => o.active) : [] };
   SAVED_RESULTS.push(entry);
   activeResultId = entry.id;
+  if (typeof setOverlays === "function") setOverlays([]);
   if (typeof resetResult === "function") resetResult();
   if (typeof resetFraming === "function") resetFraming();
   if (typeof resetCaptions === "function") resetCaptions();
@@ -487,7 +501,7 @@ function applyProject(d, preferFile) {
     const list = (Array.isArray(d.assets) && d.assets.length) ? d.assets
       : (d.video ? [{ id: "a1", kind: "video", file: d.video }] : []);
     const byFile = preferFile && list.find((a) => a.file === preferFile);
-    setAssets(list, byFile ? byFile.id : d.activeAsset);
+    setAssets(list, byFile ? byFile.id : d.activeAsset, d.assetSeq);
   }
 
   if (Array.isArray(d.results) && d.results.length) {

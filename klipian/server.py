@@ -32,6 +32,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 from .cache import Cache
 from .models import Transcript
+from . import compose as composer
 from . import ffmpeg_tools
 from . import render as engine
 
@@ -280,7 +281,14 @@ def _asset_runs(spans: list[dict], default_video: str) -> list[tuple[str, list[d
     runs: list[tuple[str, list[dict]]] = []
     for p in spans:
         v = p.get("video") or default_video
-        if runs and runs[-1][0] == v:
+        # Same video AND still moving forward through it. The timeline
+        # screen lets segments be put in any order, and RenderJob rejects
+        # spans that go backwards within one render (they'd overlap in its
+        # source-to-output mapping) -- so an earlier moment placed after a
+        # later one starts a run of its own, joined like any other.
+        # Chronological spans never go backwards, so they stay one run.
+        forward = runs and float(p.get("start", 0)) >= float(runs[-1][1][-1].get("end", 0))
+        if runs and runs[-1][0] == v and forward:
             runs[-1][1].append(p)
         else:
             runs.append((v, [p]))
@@ -304,7 +312,16 @@ def _concat_renders(parts: list[Path], dest: Path, quality: int) -> None:
     inputs: list[str] = []
     for p in parts:
         inputs += ["-i", str(p)]
-    filt = "".join(f"[{i}:v:0][{i}:a:0]" for i in range(n)) + f"concat=n={n}:v=1:a=1[vout][aout]"
+    # Every piece's audio brought to plain stereo FIRST. Left to concat's
+    # own format negotiation, a mono episode joined to a stereo one was
+    # upmixed with a -3 dB pan law -- measured: a mono moment came out 3 dB
+    # quieter than its source. A mono channel is copied to both sides at
+    # full level instead, the way it sounded on its own.
+    from .compose import to_stereo
+    from .ffmpeg_tools import probe
+    pre = [f"[{i}:a:0]{to_stereo(probe(p).channels)}[a{i}]" for i, p in enumerate(parts)]
+    filt = ";".join(pre) + ";" + "".join(f"[{i}:v:0][a{i}]" for i in range(n)) \
+        + f"concat=n={n}:v=1:a=1[vout][aout]"
     crf = max(0, min(51, int(quality)))
     cmd = [ffmpeg, "-y", "-hide_banner", "-loglevel", "error",
            *inputs, "-filter_complex", filt,
@@ -582,6 +599,37 @@ def _run_render(job_id: str, req: dict) -> None:
                         tmp_dir.rmdir()
                     except OSError:
                         pass
+
+            # Pass 2 (compose.py): labels, stickers, sounds and per-segment
+            # volume, timed against the finished clip. Only a clip that has
+            # any reaches it -- every other render is exactly what pass 1
+            # wrote, untouched.
+            elements = composer.clean_elements(k.get("overlays"), duration, ASSETS_DIR)
+            volumes = composer.clean_volumes(k.get("volumes"), duration)
+            if elements or volumes:
+                with LOCK:
+                    t["current"] = f"{k['title']} · adding timeline elements"
+                raw = dest.with_name(dest.stem + ".pass1.mp4")
+                dest.replace(raw)
+                out_h = out_width * 16 // 9
+                try:
+                    composer.compose(raw, dest, width=out_width, height=out_h - (out_h & 1),
+                                     duration=duration, elements=elements, volumes=volumes,
+                                     quality=quality, cancel_check=lambda: job_id in CANCELLED)
+                except engine.RenderCancelled:
+                    raw.unlink(missing_ok=True)
+                    with LOCK:
+                        t["state"] = "cancelled"
+                    return
+                except Exception as exc:                # noqa: BLE001
+                    # The clip itself is fine -- keep it rather than lose a
+                    # finished render over a sticker, and say what's missing.
+                    dest.unlink(missing_ok=True)
+                    raw.replace(dest)
+                    with LOCK:
+                        t["warning"] = f"saved without its timeline elements: {exc}"
+                finally:
+                    raw.unlink(missing_ok=True)
 
             with LOCK:
                 t["result"].append({
@@ -1416,10 +1464,27 @@ class Handler(BaseHTTPRequestHandler):
             for f in sorted(ASSETS_DIR.iterdir()):
                 if f.is_file():
                     st = f.stat()
+                    ext = f.suffix.lower()
                     item.append({"name": f.name,
+                                 # What the timeline can use it as (compose.py).
+                                 "kind": ("image" if ext in composer.IMAGE_EXT
+                                          else "sound" if ext in composer.SOUND_EXT else "other"),
                                  "kb": round(st.st_size / 1024, 1),
                                  "at": int(st.st_mtime)})
             return self._send_json({"asset": item})
+
+        if path == "/api/workspace/asset-file":
+            # One image/sound from workspace/assets/, for the editor's preview.
+            # By NAME only, through this endpoint rather than as a static
+            # folder, for the reason given at ASSETS_DIR: the user's own files
+            # don't become URLs of their own. Path(...).name strips any path.
+            name = Path((parse_qs(urlparse(self.path).query).get("name") or [""])[0]).name
+            f = ASSETS_DIR / name
+            ext = f.suffix.lower()
+            if not name or ext not in (composer.IMAGE_EXT | composer.SOUND_EXT) or not f.is_file():
+                return self._send_json({"error": "not found"}, 404)
+            mime = mimetypes.guess_type(f.name)[0] or "application/octet-stream"
+            return self._send_file(f, mime)
 
         if path == "/api/cache":
             # UI needs to know which transcripts are available. This server
@@ -1628,6 +1693,45 @@ class Handler(BaseHTTPRequestHandler):
                 req, _ = _migrate_project(req)
                 _write_project(f, req)
             return self._send_json({"ok": True, "id": f.stem})
+
+        if path == "/api/workspace/asset-upload":
+            # An image or sound dropped on the Assets screen, saved into
+            # workspace/assets/ -- where the timeline's elements come from
+            # and where they already could be put by hand. Raw body, the
+            # file's name in the query: no multipart parsing for one file.
+            name = Path((parse_qs(urlparse(self.path).query).get("name") or [""])[0]).name.strip()
+            ext = Path(name).suffix.lower()
+            if not name or ext not in (composer.IMAGE_EXT | composer.SOUND_EXT):
+                return self._send_json({"error": "only images (png, jpg, webp, gif) and sounds "
+                                                  "(mp3, wav, m4a, ogg, flac) can be added"}, 400)
+            n = int(self.headers.get("Content-Length", 0))
+            MAX_ASSET = 100 * 1024 * 1024
+            if n <= 0 or n > MAX_ASSET:
+                return self._send_json({"error": f"file must be 1 byte to {MAX_ASSET // 1048576} MB"}, 400)
+            ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+            # Never over an existing file of the same name: that one may be
+            # in use by another project's timeline.
+            dest = ASSETS_DIR / name
+            i = 2
+            while dest.exists():
+                dest = ASSETS_DIR / f"{Path(name).stem}-{i}{ext}"
+                i += 1
+            tmp = dest.with_name(dest.name + ".part")
+            try:
+                with open(tmp, "wb") as out:
+                    remaining = n
+                    while remaining > 0:
+                        chunk = self.rfile.read(min(1 << 20, remaining))
+                        if not chunk:
+                            raise ConnectionError("upload ended early")
+                        out.write(chunk)
+                        remaining -= len(chunk)
+                tmp.replace(dest)
+            except (OSError, ConnectionError) as exc:
+                tmp.unlink(missing_ok=True)
+                return self._send_json({"error": f"could not save the file: {exc}"}, 500)
+            return self._send_json({"ok": True, "name": dest.name,
+                                    "kind": "image" if ext in composer.IMAGE_EXT else "sound"})
 
         if path == "/api/project/rename":
             try:

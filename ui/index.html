@@ -8,10 +8,10 @@
      from the Google Fonts CDN -- see ui/css/fonts.css for why. Loaded
      BEFORE the other stylesheets so the faces are declared by the time
      anything asks for them. -->
-<link rel="stylesheet" href="/ui/css/fonts.css?v=1790612296433">
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1790612296433">
-<link rel="stylesheet" href="/ui/css/brand.css?v=1790612296433">
-<link rel="stylesheet" href="/ui/css/app.css?v=1790612296433">
+<link rel="stylesheet" href="/ui/css/fonts.css?v=1790613009955">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1790613009955">
+<link rel="stylesheet" href="/ui/css/brand.css?v=1790613009955">
+<link rel="stylesheet" href="/ui/css/app.css?v=1790613009955">
 </head>
 <body>
 
@@ -198,6 +198,16 @@
           </svg>
           <span>Output Format</span>
         </button>
+        <!-- Segment order and what goes on top of the clip (compose.js).
+             Stacked tracks with a playhead through them. -->
+        <button class="tab" role="tab" id="tab-timeline" data-to="timeline" aria-controls="panel-timeline" aria-selected="false" tabindex="-1">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="3" y1="7" x2="14" y2="7"/><line x1="8" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="17" x2="11" y2="17"/><line x1="16" y1="3" x2="16" y2="21"/>
+          </svg>
+          <span>Timeline</span>
+        </button>
         <button class="tab" role="tab" id="tab-framing" data-to="framing" aria-controls="panel-framing" aria-selected="false" tabindex="-1">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -266,6 +276,19 @@
             <span class="eyebrow">Add from workspace/samples/</span>
           </div>
           <div class="asset-list" id="assetAddList"></div>
+        </div>
+        <!-- Stickers, memes and sound stings for the Timeline screen. They
+             live in workspace/assets/ (shared by every project); this list
+             is which of them THIS project uses. -->
+        <div class="panel fit">
+          <div class="panel-head"><span class="eyebrow">Images &amp; sounds</span>
+            <span class="data" id="assetMediaNote"></span></div>
+          <div class="asset-list" id="assetMediaList"></div>
+          <label class="asset-drop" id="assetDrop">
+            <input type="file" id="assetFileInput" accept="image/*,audio/*" multiple hidden>
+            <b>Drop images or sounds here</b>
+            <span>or click to choose — saved into workspace/assets/</span>
+          </label>
         </div>
       </section>
 
@@ -503,6 +526,44 @@
           <div class="result-list" id="resultList"></div>
         </div>
 
+      </section>
+
+      <!-- ══════════════════════════ TIMELINE ═════════════════════
+           The order a Result's moments play in, and the elements laid
+           over the finished clip: labels, stickers, sounds, per-clip
+           volume (compose.js). All timed in OUTPUT seconds. -->
+      <section class="screen" data-screen="timeline" role="tabpanel" id="panel-timeline" aria-labelledby="tab-timeline" tabindex="0">
+        <div class="work-head">
+          <h1>Timeline</h1>
+          <span class="note" id="tlxNote" role="status">add moments to the Result on Clips first</span>
+          <div class="result-picker right">
+            <select class="result-select" aria-label="Result being edited"></select>
+            <button class="btn quiet" type="button" data-result-action="new" title="New Result">+</button>
+            <button class="btn quiet" type="button" data-result-action="delete" title="Delete this Result">×</button>
+          </div>
+        </div>
+        <div class="panel fit tlx">
+          <div class="tlx-tools">
+            <button class="btn" id="tlxAddText" type="button">+ Text</button>
+            <button class="btn" id="tlxAddImage" type="button">+ Image</button>
+            <button class="btn" id="tlxAddSound" type="button">+ Sound</button>
+            <span class="data" id="tlxTime">00:00.00 / 00:00.00</span>
+          </div>
+          <div class="tlx-body">
+            <div class="tlx-labels" aria-hidden="true">
+              <span></span><span>Clips</span><span>Text</span><span>Images</span><span>Sound</span>
+            </div>
+            <div class="tlx-lanes" id="tlxLanes">
+              <div class="tlx-ruler" id="tlxRuler"></div>
+              <div class="tlx-lane" id="tlxClips"></div>
+              <div class="tlx-lane" id="tlxText"></div>
+              <div class="tlx-lane" id="tlxImage"></div>
+              <div class="tlx-lane" id="tlxSound"></div>
+              <div class="tlx-head" id="tlxHead" hidden></div>
+            </div>
+          </div>
+        </div>
+        <div class="panel fit tlx-inspector" id="tlxInspector"></div>
       </section>
 
       <!-- ══════════════════════════ FRAMING ══════════════════════
@@ -826,6 +887,8 @@
         </div>
         <div class="safe"></div>
         <div class="cap916" id="cap916"></div>
+        <!-- Timeline labels and stickers (compose.js: drawOverlays). -->
+        <div class="overlay-layer" id="overlayLayer" aria-hidden="true"></div>
         <!-- Preview only -- actual render via separate ASS styling
              (see build_ass() in klipian/render.py), fonts are bundled local
              files because ffmpeg can't "borrow" Google Fonts. -->
@@ -913,18 +976,19 @@
 
 <!-- Shared with /workspace (theme, clock, "?" popover) -- loaded first so
      the theme is applied before the editor's own scripts start drawing. -->
-<script src="/ui/js/shared/topbar.js?v=1790612296433"></script>
-<script src="/ui/js/editor/app.js?v=1790612296433"></script>
-<script src="/ui/js/editor/assets.js?v=1790612296433"></script>
-<script src="/ui/js/editor/interactions.js?v=1790612296433"></script>
-<script src="/ui/js/editor/framing.js?v=1790612296433"></script>
-<script src="/ui/js/editor/analysis.js?v=1790612296433"></script>
-<script src="/ui/js/editor/player.js?v=1790612296433"></script>
-<script src="/ui/js/editor/roundtrip.js?v=1790612296433"></script>
-<script src="/ui/js/editor/history.js?v=1790612296433"></script>
-<script src="/ui/js/editor/timeline.js?v=1790612296433"></script>
-<script src="/ui/js/editor/captions.js?v=1790612296433"></script>
-<script src="/ui/js/editor/result.js?v=1790612296433"></script>
-<script src="/ui/js/editor/projects.js?v=1790612296433"></script>
+<script src="/ui/js/shared/topbar.js?v=1790613009955"></script>
+<script src="/ui/js/editor/app.js?v=1790613009955"></script>
+<script src="/ui/js/editor/assets.js?v=1790613009955"></script>
+<script src="/ui/js/editor/interactions.js?v=1790613009955"></script>
+<script src="/ui/js/editor/framing.js?v=1790613009955"></script>
+<script src="/ui/js/editor/analysis.js?v=1790613009955"></script>
+<script src="/ui/js/editor/player.js?v=1790613009955"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1790613009955"></script>
+<script src="/ui/js/editor/history.js?v=1790613009955"></script>
+<script src="/ui/js/editor/timeline.js?v=1790613009955"></script>
+<script src="/ui/js/editor/captions.js?v=1790613009955"></script>
+<script src="/ui/js/editor/result.js?v=1790613009955"></script>
+<script src="/ui/js/editor/compose.js?v=1790613009955"></script>
+<script src="/ui/js/editor/projects.js?v=1790613009955"></script>
 </body>
 </html>
