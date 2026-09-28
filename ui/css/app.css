@@ -1706,6 +1706,52 @@ h1, h2, h3 {
 .result-select:hover { border-color: var(--border-bright); }
 .result-select:focus-visible { border-color: var(--accent); outline: none; }
 
+/* ---- assets: the project's videos (assets.js) ---- */
+/* Same look as .result-select -- one family of pickers in a work-head. */
+.asset-picker { display: flex; gap: var(--s2); align-items: center; flex: none; }
+.asset-picker[hidden] { display: none; }
+.asset-picker .eyebrow { margin: 0; }
+.asset-select {
+  font: inherit; font-size: var(--t-13);
+  padding: 5px 11px;
+  color: var(--text); background: var(--bg-1);
+  border: 1px solid var(--glass-border); border-radius: var(--r-pill);
+  cursor: pointer; max-width: 220px;
+}
+.asset-select:hover { border-color: var(--border-bright); }
+.asset-select:focus-visible { border-color: var(--accent); outline: none; }
+
+.asset-list { display: grid; }
+.asset-row {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  align-items: center; gap: var(--s3);
+  padding: 10px var(--s3); border-radius: var(--r-s);
+}
+.asset-row + .asset-row { border-top: 1px solid var(--glass-border); }
+.asset-row:hover { background: var(--glass); }
+/* The add list has no kind icon and one button, not two. */
+#assetAddList .asset-row { grid-template-columns: minmax(0, 1fr) auto auto; }
+.asset-kind { color: var(--text-muted); display: grid; place-items: center; }
+.asset-name {
+  font-size: var(--t-13); font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.asset-meta { color: var(--text-faint); font-size: var(--t-12); }
+.asset-row.missing .asset-meta { color: var(--danger); }
+.asset-row.active .asset-kind { color: var(--accent); }
+.asset-active {
+  font-size: 9px; letter-spacing: .04em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: var(--r-pill);
+  background: var(--accent); color: oklch(0.145 0.010 258);
+}
+.asset-row .btn:disabled { opacity: .4; cursor: not-allowed; }
+/* Which video each span of a mixed Result came from. */
+.result-list.multi .result-row { grid-template-columns: auto 1fr auto auto auto auto auto; }
+.result-asset {
+  color: var(--text-muted); font-size: var(--t-11);
+  max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
 /* ---- timeline: each cut is one bar, gap = what's removed ----
    Two rows, not one: bar on top, clock below. Previously `.tl-time`
    was centered (top:50%) inside a 22px box the same height as its 6px

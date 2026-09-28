@@ -32,7 +32,7 @@ let lastScreen = "clips";        // the screen where work was left off
 /* Screen names from project files are NOT trusted blindly: files can be
    hand-edited or come from an older version. An unrecognized name causes
    toScreen() to turn off all screens and leave an empty workspace. */
-const VALID_SCREENS = ["analysis", "clips", "framing", "captions", "render", "history", "output"];
+const VALID_SCREENS = ["assets", "analysis", "clips", "framing", "captions", "render", "history", "output"];
 
 /* Old projects (saved before this rename) still have screen: "klip"/"teks"
    on disk -- read once here so they still resume on the right screen,
@@ -76,19 +76,38 @@ function projectState() {
     // the project by `video` instead. Name/createdAt are NOT sent: the
     // server keeps those, and only /api/project/rename changes the name.
     id: activeProjectId,
-    video: activeProject,
+    video: (typeof primaryAssetFile === "function" && primaryAssetFile()) || activeProject,
+    // The project's videos (assets.js). The first one is `video` above.
+    assets: (typeof ASSETS !== "undefined" && ASSETS.length) ? ASSETS : undefined,
+    activeAsset: (typeof activeAssetId !== "undefined") ? activeAssetId : undefined,
     results: SAVED_RESULTS,
     activeResult: activeResultId,
     // AI recommendations (imported JSON from Claude) were NEVER saved before
     // this -- reopening the same project always showed "none yet" even after
     // a previous import, forcing a redundant re-import from scratch.
-    candidates: (typeof DATA !== "undefined" ? DATA.candidates : []) || [],
+    // Every video's, each tagged with the video it was found in: only the
+    // active video's are in DATA.candidates at any moment.
+    candidates: allCandidates(),
     caption: (typeof captionState === "function") ? captionState() : {},
     // No project-level `output` any more -- each Result carries its own
     // (see snapshotActiveResult). Projects written before this still have
     // one, and loadProject() reads it to seed Results that lack theirs.
     screen: (typeof activeScreen !== "undefined") ? activeScreen : "clips",
   };
+}
+
+/* Every video's AI suggestions, each tagged with its video. The active
+   video's are the live DATA.candidates; the others wait in
+   ASSET_CANDIDATES (assets.js) until their video is opened again. */
+function allCandidates() {
+  const live = (typeof DATA !== "undefined" ? DATA.candidates : []) || [];
+  if (typeof ASSET_CANDIDATES === "undefined") return live;
+  const tag = (list, id) => list.map((c) => (c.asset === id ? c : { ...c, asset: id }));
+  const out = tag(live, activeAssetId);
+  for (const [id, list] of Object.entries(ASSET_CANDIDATES)) {
+    if (id !== activeAssetId) out.push(...tag(list || [], id));
+  }
+  return out;
 }
 
 /* An indicator that is ALWAYS visible, independent of the browser's built-in
@@ -207,11 +226,16 @@ function snapshotActiveResult() {
   // sit beside `results` as one setting every Result rendered with -- so
   // giving one clip a different resolution changed them all.
   slot.output = (typeof OPTIONS !== "undefined") ? OPTIONS.map((o) => o.active) : [];
-  slot.result = (typeof RESULT !== "undefined" ? RESULT : []).map((r) => ({
-    id: r.id, start: r.start, end: r.end, title: r.title, source: r.source,
-  }));
+  // Live spans and points sit on the shared virtual timeline (assets.js);
+  // on disk they're what they really are -- a video and a second in it.
+  slot.result = (typeof RESULT !== "undefined" ? RESULT : []).map((r) => {
+    const a = toReal(r.start);
+    return { id: r.id, asset: a.id, start: a.t, end: unshift(r.end, assetOffset(a.id)),
+      title: r.title, source: r.source };
+  });
   slot.framing = (typeof FRAMING !== "undefined" ? FRAMING : []).map((f) => ({
-    id: f.id, at: f.at, format: f.format, crops: f.crops,
+    id: f.id, asset: assetIdAt(f.at), at: toReal(f.at).t,
+    format: f.format, crops: f.crops,
     // OPTIONAL tracking (head tracking) -- a list of {t,left} if this point
     // is being tracked; otherwise the field is deliberately OMITTED entirely
     // (not `tracking: undefined`) so that old project files (from before this
@@ -234,15 +258,28 @@ function snapshotActiveResult() {
    loadProject() did), so that old Results never leak into the newly selected
    one. */
 function loadResultIntoLiveState(entry) {
+  // Stored as (asset, real second) -- see snapshotActiveResult(); placed back
+  // on the virtual timeline here. A span or point with no asset predates
+  // them, and belongs to the first video. Copies, not the stored objects:
+  // shifting in place would corrupt SAVED_RESULTS for the next snapshot.
+  const onTimeline = (x, key) => ({ ...x, [key]: x[key] + assetOffset(x.asset || "a1") });
   if (typeof RESULT !== "undefined") {
-    RESULT = Array.isArray(entry.result) ? entry.result : [];
+    RESULT = Array.isArray(entry.result)
+      ? entry.result.map((r) => {
+          const off = assetOffset(r.asset || "a1");
+          const { asset, ...rest } = r;
+          return { ...rest, start: r.start + off, end: r.end + off };
+        })
+      : [];
+    RESULT.sort((a, b) => a.start - b.start);
     if (typeof resultSeq !== "undefined") {
       resultSeq = Math.max(0, ...RESULT.map((r) => parseInt(String(r.id).slice(1), 10) || 0));
     }
   }
   if (typeof FRAMING !== "undefined") {
     FRAMING = (Array.isArray(entry.framing) && entry.framing.length)
-      ? entry.framing
+      ? entry.framing.map((f) => { const { asset, ...rest } = onTimeline(f, "at"); return rest; })
+          .sort((a, b) => a.at - b.at)
       // `auto: true` must match resetFraming() in framing.js -- this is the
       // same untouched placeholder point, just reached via a different door.
       : [{ id: "f1", at: 0, format: "single", crops: [{ ...INITIAL_CROP }], auto: true }];
@@ -429,15 +466,29 @@ async function loadProject(video) {
   activeProject = video;
   activeProjectId = null;
   const d = await fetchProject({ video });
-  if (!d) return false;
-  applyProject(d);
+  if (!d) {
+    if (typeof setAssets === "function") setAssets([{ id: "a1", kind: "video", file: video }], "a1");
+    return false;
+  }
+  applyProject(d, video);
   return true;
 }
 
-/* Put a fetched project document into the live state. */
-function applyProject(d) {
+/* Put a fetched project document into the live state. `preferFile`: the
+   video to put on screen -- the one just dropped -- rather than the one the
+   project was last left on. */
+function applyProject(d, preferFile) {
   activeProjectId = d.id || null;
   activeProject = d.video || activeProject;
+
+  // The project's videos, BEFORE any span is placed on the virtual
+  // timeline below. A file from before assets has only `video`.
+  if (typeof setAssets === "function") {
+    const list = (Array.isArray(d.assets) && d.assets.length) ? d.assets
+      : (d.video ? [{ id: "a1", kind: "video", file: d.video }] : []);
+    const byFile = preferFile && list.find((a) => a.file === preferFile);
+    setAssets(list, byFile ? byFile.id : d.activeAsset);
+  }
 
   if (Array.isArray(d.results) && d.results.length) {
     SAVED_RESULTS = d.results;
@@ -471,7 +522,14 @@ function applyProject(d) {
   loadResultIntoLiveState(SAVED_RESULTS.find((r) => r.id === activeResultId));
   renderResultSwitcher();
   if (Array.isArray(d.candidates) && typeof DATA !== "undefined") {
-    DATA.candidates = d.candidates;
+    // Only the video on screen's suggestions are live; each other video's
+    // wait until it's opened (setActiveAsset in assets.js).
+    const mine = (c) => (c.asset || "a1") === activeAssetId;
+    DATA.candidates = d.candidates.filter(mine);
+    ASSET_CANDIDATES = {};
+    for (const c of d.candidates.filter((c) => !mine(c))) {
+      (ASSET_CANDIDATES[c.asset] ||= []).push(c);
+    }
   }
   // readCaptionState() (app.js) does the bounds-checking and takes either
   // format: the object keyed by option id that's written now, or the
@@ -527,7 +585,7 @@ function coverUrl(p) {
            && c.left + c.width <= 101 && c.top + c.height <= 101;
   if (!valid) c = DEFAULT_CROP;
   const q = new URLSearchParams({
-    video: p.video, t: String(p.thumbAt ?? 0),
+    video: p.thumbVideo || p.video, t: String(p.thumbAt ?? 0),
     left: String(Math.round(c.left)), top: String(Math.round(c.top)),
     width: String(Math.round(c.width)), height: String(Math.round(c.height)),
     w: "220",
@@ -574,6 +632,7 @@ function startNewProject() {
   chosenSource = null;
   activeProject = null;
   activeProjectId = null;
+  if (typeof setAssets === "function") setAssets([], null);
   // Clearing the DATA isn't enough -- the <video> elements hold the file
   // themselves and went on showing (and playing) it. See releaseVideo().
   if (typeof releaseVideo === "function") releaseVideo();
@@ -884,8 +943,14 @@ async function openProjectFromHome(id) {
 /* Everything after the project document is in hand -- shared by a card
    click and by session restore, which fetches the document itself first
    so it can check the video is still there before entering. */
+/* The video a project opens on: the one it was left on, else its first. */
+function projectActiveFile(d) {
+  const list = (Array.isArray(d.assets) ? d.assets : []).filter((a) => a && (a.kind || "video") === "video");
+  return (list.find((a) => a.id === d.activeAsset) || list[0])?.file || d.video || "";
+}
+
 async function enterProject(d, gen) {
-  const video = d.video;
+  const video = projectActiveFile(d);
   // The blob URL from the previously dropped file is never released if we
   // immediately overwrite it with a /workspace/samples/ URL -- revoke it first.
   if (typeof chosenSource !== "undefined" && chosenSource
@@ -911,7 +976,9 @@ async function enterProject(d, gen) {
   // Always an existing project on this path -- it was fetched above -- so
   // the old "no project yet, start one" branch that used to sit here is
   // gone: that only ever happens by dropping a file (openProject()).
-  applyProject(d);
+  applyProject(d, video);
+  // No transcript = no duration to draw the Clips timeline with.
+  if (typeof ensureSourceDuration === "function") ensureSourceDuration();
   if (typeof prepareVideo === "function") prepareVideo();
   if (typeof drawSource === "function") drawSource();
   if (typeof renderRecommendations === "function") renderRecommendations();
@@ -919,6 +986,15 @@ async function enterProject(d, gen) {
   rememberActiveSession();
   toStage("work");
   toScreen(lastScreen);
+  // The other videos' transcripts, for captions on spans taken from them.
+  // After entering: nothing on screen waits on these.
+  if (typeof loadAssetTranscripts === "function" && typeof isMultiAsset === "function" && isMultiAsset()) {
+    loadAssetTranscripts().then(() => {
+      if (gen !== _openProjectGen) return;
+      if (typeof renderCaptions === "function") renderCaptions();
+      if (typeof drawCaption === "function") drawCaption();
+    });
+  }
   return true;
 }
 
@@ -1022,7 +1098,7 @@ async function restoreLastSession() {
   // silently partway through loading.
   try {
     const available = (await (await fetch("/api/video")).json()).video || [];
-    if (!available.includes(d.video)) return giveUp();
+    if (!available.includes(projectActiveFile(d))) return giveUp();
   } catch {
     return false;
   }

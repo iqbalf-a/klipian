@@ -135,7 +135,9 @@ function frameAt(seconds) {
 /* Playback position currently being reviewed, in SOURCE seconds. */
 function reviewTime() {
   const v = $("#videoPreview");
-  if (v && v.src && Number.isFinite(v.currentTime)) return v.currentTime;
+  // Virtual seconds (assets.js): the element's own currentTime is a real
+  // second in whichever of the project's videos it has loaded.
+  if (v && v.src && Number.isFinite(v.currentTime)) return vNow(v);
   if (typeof activeClip !== "undefined" && activeClip?.spans?.length)
     return activeClip.spans[0].start;
   return 0;
@@ -284,6 +286,7 @@ function followPreview(el) {
   const v = $("#videoPreview");
   if (!el || !v) return;
   if (v.src && el.src !== v.src) el.src = v.src;
+  if (v.dataset.asset) el.dataset.asset = v.dataset.asset;
   if (!el.src) return;
 
   // A newly installed video cannot be seeked yet; the seek request to it
@@ -304,7 +307,9 @@ function followPreview(el) {
       canvas.style.aspectRatio = ratio;
     }
   }
-  const t = v.src ? v.currentTime : reviewTime();
+  // REAL seconds: both elements hold the same file, so the preview's own
+  // currentTime is exactly where this one belongs.
+  const t = v.src ? v.currentTime : toReal(reviewTime()).t;
   const threshold = v.paused ? 0.02 : 0.20;
 
   // Target position is stored, not just requested once. If the previous
@@ -434,9 +439,11 @@ function renderFraming() {
       // the Result position (exactly the confusion ian reported: point "07:58"
       // on a 1:25 Result looks out of range, when it is actually the true
       // source position, not a bug).
-      const tooltip = `${f.format === "split" ? "Split" : "Single"} · source ${preciseTime(f.at)}`;
-      const thumbUrl = f.crops?.[0] && typeof chosenSource !== "undefined" && chosenSource?.name
-        ? `/api/thumb?video=${encodeURIComponent(chosenSource.name)}&t=${f.at}`
+      const tooltip = `${f.format === "split" ? "Split" : "Single"} · source ${assetTimeLabel(f.at, preciseTime)}`;
+      // The point's own video and second -- not the active one's.
+      const fr = toReal(f.at);
+      const thumbUrl = f.crops?.[0] && fr.file
+        ? `/api/thumb?video=${encodeURIComponent(fr.file)}&t=${fr.t}`
           + `&left=${f.crops[0].left}&top=${f.crops[0].top}`
           + `&width=${f.crops[0].width}&height=${f.crops[0].height}&w=96`
         : "";
@@ -447,7 +454,7 @@ function renderFraming() {
                     : `<span class="fr-thumb fr-thumb-empty"></span>`}
         ${f.tracking ? `<span class="fr-track-badge" title="Head tracking on">●</span>` : ""}
         <span class="fr-time">${out !== null ? preciseTime(out) : "—"}</span>
-        <span class="fr-time-src">src ${preciseTime(f.at)}</span>
+        <span class="fr-time-src">src ${preciseTime(toReal(f.at).t)}</span>
         ${i > 0 ? `<i class="delete-icon" data-delete-framing="${f.id}" role="button"
               tabindex="0" aria-label="Delete point ${preciseTime(f.at)}">×</i>` : ""}
       </div>`;
@@ -629,9 +636,10 @@ async function trackHeadForPoint(point) {
   try {
     const r = await fetch("/api/headtrack", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        video: chosenSource?.name, start: point.at, end, crop: point.crops[0],
-      }),
+      // Keyframe times come back relative to the point, so only the
+      // request needs converting (assets.js).
+      body: (() => { const rr = realRange(point.at, end);
+        return JSON.stringify({ video: rr.video, start: rr.start, end: rr.end, crop: point.crops[0] }); })(),
     });
     const d = await r.json();
     if (!d.keyframes) {
@@ -705,9 +713,7 @@ $("#framingList")?.addEventListener("click", (e) => {
   const f = FRAMING.find((x) => x.id === chip.dataset.framing);
   if (!f) return;
   const v = $("#videoPreview");
-  if (v && v.src) {
-    try { v.currentTime = f.at; } catch { /* out of range */ }
-  }
+  if (v && v.src) vSeek(v, f.at);
   renderFraming();
 });
 
@@ -945,15 +951,19 @@ function aiFramingOverlayProgress(stage, done, total, text) {
    server's real within-span progress (0-99, see _diarize_hook() in
    server.py -- driven by pyannote's own hook() callback, not a guess). */
 function aiFramingDiarizeOneSpan(span, onTick) {
+  // The span's own video, in its real seconds; the turns that come back are
+  // put back on the virtual timeline (assets.js).
+  const rr = realRange(span.start, span.end);
   return fetch("/api/diarize", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ video: chosenSource?.name, start: span.start, end: span.end }),
+    body: JSON.stringify({ video: rr.video, start: rr.start, end: rr.end }),
   })
     .then((r) => r.json())
     .then((d) => {
       if (d.error) throw new Error(d.error);
       return aiFramingPollPromise(d.id, onTick);
-    });
+    })
+    .then((turns) => turns.map((t) => ({ ...t, start: t.start + rr.offset, end: t.end + rr.offset })));
 }
 
 /* Promise wrapper around the shared pollJob() (app.js). This used to have
@@ -983,12 +993,13 @@ function aiFramingPollPromise(id, onTick) {
    already succeeded from diarization must not fail just because this
    extra piece stumbled. */
 function aiFramingScenecutOneSpan(span) {
+  const rr = realRange(span.start, span.end);
   return fetch("/api/scenecut", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ video: chosenSource?.name, start: span.start, end: span.end }),
+    body: JSON.stringify({ video: rr.video, start: rr.start, end: rr.end }),
   })
     .then((r) => r.json())
-    .then((d) => d.cuts || [])
+    .then((d) => (d.cuts || []).map((c) => c + rr.offset))
     .catch(() => []);
 }
 
@@ -1092,9 +1103,8 @@ function aiFramingOutputSize() {
 function aiFramingFindSpeaker(turn, size) {
   return fetch("/api/speakerlocate", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      video: chosenSource?.name, start: turn.start, end: turn.end, size,
-    }),
+    body: (() => { const rr = realRange(turn.start, turn.end);
+      return JSON.stringify({ video: rr.video, start: rr.start, end: rr.end, size }); })(),
   })
     .then(async (r) => {
       const d = await r.json().catch(() => ({}));
@@ -1211,12 +1221,15 @@ async function aiFramingFindAllPositions(turns, cuts) {
 async function aiFramingTrackFace(start, end, rough) {
   const rescue = { points: [{ at: start, crop: rough }], fallback: true };
   try {
+    const rr = realRange(start, end);
     const r = await fetch("/api/facetrack", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ video: chosenSource?.name, start, end, crop: rough }),
+      body: JSON.stringify({ video: rr.video, start: rr.start, end: rr.end, crop: rough }),
     });
     const d = await r.json().catch(() => ({}));
-    if (d.points && d.points.length) return { points: d.points, fallback: false };
+    if (d.points && d.points.length) {
+      return { points: d.points.map((pt) => ({ ...pt, at: pt.at + rr.offset })), fallback: false };
+    }
     return rescue;
   } catch {
     return rescue;

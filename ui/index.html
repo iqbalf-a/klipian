@@ -8,10 +8,10 @@
      from the Google Fonts CDN -- see ui/css/fonts.css for why. Loaded
      BEFORE the other stylesheets so the faces are declared by the time
      anything asks for them. -->
-<link rel="stylesheet" href="/ui/css/fonts.css?v=1790603225273">
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1790603225273">
-<link rel="stylesheet" href="/ui/css/brand.css?v=1790603225273">
-<link rel="stylesheet" href="/ui/css/app.css?v=1790603225273">
+<link rel="stylesheet" href="/ui/css/fonts.css?v=1790612296433">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1790612296433">
+<link rel="stylesheet" href="/ui/css/brand.css?v=1790612296433">
+<link rel="stylesheet" href="/ui/css/app.css?v=1790612296433">
 </head>
 <body>
 
@@ -162,6 +162,15 @@
              (app.js) only picks up .tab elements via querySelectorAll, so
              this label doesn't get counted or need any special handling. -->
         <span class="eyebrow rel-side-group">Preparation</span>
+        <!-- The project's library of source videos (assets.js). Two stacked
+             frames: more than one piece of footage. -->
+        <button class="tab" role="tab" id="tab-assets" data-to="assets" aria-controls="panel-assets" aria-selected="false" tabindex="-1">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="8" width="14" height="12" rx="2"/><path d="M7 4 L19 4 Q21 4 21 6 L21 16"/>
+          </svg>
+          <span>Assets</span>
+        </button>
         <button class="tab" role="tab" id="tab-analysis" data-to="analysis" aria-controls="panel-analysis" aria-selected="false" tabindex="-1">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -237,11 +246,40 @@
 
     <div class="work">
 
+      <!-- ══════════════════════════ ASSETS ═══════════════════════
+           The project's source videos (assets.js). A project can hold
+           several: moments are taken from any of them on Clips, and a
+           Result that mixes them is joined into one MP4 on render. Only
+           raw footage belongs here -- a rendered clip has its captions
+           burned in and can't be restyled (library-projects plan, §7). -->
+      <section class="screen" data-screen="assets" role="tabpanel" id="panel-assets" aria-labelledby="tab-assets" tabindex="0">
+        <div class="work-head">
+          <h1>Assets</h1>
+          <span class="note" id="assetNote" role="status">no video yet</span>
+        </div>
+        <div class="panel fit">
+          <div class="panel-head"><span class="eyebrow">In this project</span></div>
+          <div class="asset-list" id="assetList"></div>
+        </div>
+        <div class="panel fit">
+          <div class="panel-head">
+            <span class="eyebrow">Add from workspace/samples/</span>
+          </div>
+          <div class="asset-list" id="assetAddList"></div>
+        </div>
+      </section>
+
       <!-- ══════════════════════════ ANALYSIS ══════════════════════ -->
       <section class="screen" data-screen="analysis" role="tabpanel" id="panel-analysis" aria-labelledby="tab-analysis" tabindex="0">
         <div class="work-head">
           <h1>Analyze</h1>
           <span class="note" id="analysisNote" role="status">drop a video, then find clips from the transcript</span>
+          <!-- Which of the project's videos this screen works on. Hidden
+               while the project has only one (renderAssets, assets.js). -->
+          <label class="asset-picker right" hidden>
+            <span class="eyebrow">Video</span>
+            <select class="asset-select" aria-label="Video to analyze"></select>
+          </label>
         </div>
 
         <!-- Project setup: the source video. Moved here from Home -- "+ New
@@ -346,6 +384,13 @@
         <div class="work-head">
           <h1>Clips</h1>
           <span class="note" id="editNote" role="status">build a Result from AI suggestions or your own selection</span>
+          <!-- Which video the timeline and suggestions below come from. A
+               Result can hold moments from several; hidden while the project
+               has only one video. -->
+          <label class="asset-picker" hidden>
+            <span class="eyebrow">Video</span>
+            <select class="asset-select" aria-label="Video to pick moments from"></select>
+          </label>
           <!-- Correction from the original plan: the Result dropdown is
                ALSO here, not just Framing/Captions -- Clips is exactly
                where a Result's spans get picked (a span added here goes
@@ -868,17 +913,18 @@
 
 <!-- Shared with /workspace (theme, clock, "?" popover) -- loaded first so
      the theme is applied before the editor's own scripts start drawing. -->
-<script src="/ui/js/shared/topbar.js?v=1790603225273"></script>
-<script src="/ui/js/editor/app.js?v=1790603225273"></script>
-<script src="/ui/js/editor/interactions.js?v=1790603225273"></script>
-<script src="/ui/js/editor/framing.js?v=1790603225273"></script>
-<script src="/ui/js/editor/analysis.js?v=1790603225273"></script>
-<script src="/ui/js/editor/player.js?v=1790603225273"></script>
-<script src="/ui/js/editor/roundtrip.js?v=1790603225273"></script>
-<script src="/ui/js/editor/history.js?v=1790603225273"></script>
-<script src="/ui/js/editor/timeline.js?v=1790603225273"></script>
-<script src="/ui/js/editor/captions.js?v=1790603225273"></script>
-<script src="/ui/js/editor/result.js?v=1790603225273"></script>
-<script src="/ui/js/editor/projects.js?v=1790603225273"></script>
+<script src="/ui/js/shared/topbar.js?v=1790612296433"></script>
+<script src="/ui/js/editor/app.js?v=1790612296433"></script>
+<script src="/ui/js/editor/assets.js?v=1790612296433"></script>
+<script src="/ui/js/editor/interactions.js?v=1790612296433"></script>
+<script src="/ui/js/editor/framing.js?v=1790612296433"></script>
+<script src="/ui/js/editor/analysis.js?v=1790612296433"></script>
+<script src="/ui/js/editor/player.js?v=1790612296433"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1790612296433"></script>
+<script src="/ui/js/editor/history.js?v=1790612296433"></script>
+<script src="/ui/js/editor/timeline.js?v=1790612296433"></script>
+<script src="/ui/js/editor/captions.js?v=1790612296433"></script>
+<script src="/ui/js/editor/result.js?v=1790612296433"></script>
+<script src="/ui/js/editor/projects.js?v=1790612296433"></script>
 </body>
 </html>

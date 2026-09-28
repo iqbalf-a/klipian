@@ -269,7 +269,12 @@ function applyCandidates(candidates) {
   // it fed was removed with the candidate board.
 
   renderList(); renderPreview();
-  if (typeof setClip === "function") setClip(candidates[0]);
+  // Suggestions are in the ACTIVE video's own seconds, while the preview
+  // runs on the virtual timeline (assets.js) -- the same thing only for the
+  // first video. For any other, leave the preview on the Result.
+  if (typeof setClip === "function" && !(typeof activeAssetOffset === "function" && activeAssetOffset())) {
+    setClip(candidates[0]);
+  }
 
 }
 

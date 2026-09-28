@@ -672,7 +672,7 @@ function renderPreview() {
 /* ───────────────────────── navigation ──────────────────────────── */
 // "video" was in this list for a screen that no longer exists -- index.html
 // has analysis / clips / framing / captions / history.
-const NO_PREVIEW = ["analysis", "history"];
+const NO_PREVIEW = ["assets", "analysis", "history"];
 
 /* Three screens that edit the same result. Split into separate menus so
    each screen has one concern: Clips picks the cuts, Framing adjusts the
@@ -702,6 +702,7 @@ function toScreen(name) {
   });
 
   if (name === "history" && typeof loadHistory === "function") loadHistory();
+  if (name === "assets" && typeof renderAssets === "function") renderAssets();
 
   // The LENGTH readout and the two buttons live only on this screen now, so
   // arriving is the moment they have to be made current -- renderPreview()

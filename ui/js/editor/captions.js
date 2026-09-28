@@ -21,7 +21,10 @@ const wordKey = (w) => w.start.toFixed(3);
 /* Words that actually make it into the result, with corrections applied. */
 function resultWords() {
   if (typeof activeClip === "undefined" || !activeClip?.spans?.length) return [];
-  const allWords = realTranscript?.words || [];
+  // Every video's words, on the same virtual timeline as the spans
+  // (assets.js) -- for a single-video project, realTranscript.words itself.
+  const allWords = (typeof resultTranscriptWords === "function")
+    ? resultTranscriptWords() : (realTranscript?.words || []);
   const out = [];
   for (const w of allWords) {
     const inSpan = activeClip.spans.some((p) => w.start >= p.start && w.end <= p.end);
@@ -150,7 +153,7 @@ function renderCaptions() {
     return `
     <button class="word-text${w.edited ? " edited" : ""}${isFiller ? " filler" : ""}"
             data-start="${wordKey(w)}"
-            title="${timeRange(w.start)}${w.edited ? ` · was &quot;${escapeHTML(w.original)}&quot;` : ""}${isFiller ? " · filler word" : ""}"
+            title="${typeof assetTimeLabel === "function" ? assetTimeLabel(w.start) : timeRange(w.start)}${w.edited ? ` · was &quot;${escapeHTML(w.original)}&quot;` : ""}${isFiller ? " · filler word" : ""}"
     >${escapeHTML(w.text)}</button>`;
   }).join("");
 }
@@ -177,7 +180,8 @@ function finishEdit(cancel) {
 
   if (!cancel) {
     const value = input.value.trim();
-    const originalWord = (realTranscript?.words || [])
+    const originalWord = ((typeof resultTranscriptWords === "function")
+      ? resultTranscriptWords() : (realTranscript?.words || []))
       .find((w) => wordKey(w) === key)?.text.trim() ?? previousValue;
     // Reverted to the original = no longer a correction.
     if (!value || value === originalWord) delete CORRECTIONS[key];

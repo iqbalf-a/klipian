@@ -74,7 +74,7 @@ function setClip(k) {
     const start = k.startSec ?? secondsFromClock(k.in);
     k.spans = [{ start, end: start + Number(k.dur) }];
   }
-  if (video.src) video.currentTime = k.spans[0].start;
+  if (video.src) vSeek(video, k.spans[0].start);
   drawTime(0);            // total duration shows even before the video loads
   drawTimeline();
   if (typeof renderPreview === "function") renderPreview();
@@ -173,7 +173,7 @@ function drawTimeline() {
 function drawHead() {
   const head = $("#tlHead");
   if (!head || !activeClip || !video.src) return;
-  const out = sourceToOut(activeClip, video.currentTime);
+  const out = sourceToOut(activeClip, vNow(video));
   const total = clipOutDur(activeClip) || 1;
   if (out === null) return;
   head.style.left = `${Math.min(100, (out / total) * 100)}%`;
@@ -187,7 +187,7 @@ $("#timeline")?.addEventListener("click", (e) => {
   const r = e.currentTarget.getBoundingClientRect();
   if (!r.width) return;
   const frac = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
-  video.currentTime = outToSource(activeClip, frac * clipOutDur(activeClip));
+  vSeek(video, outToSource(activeClip, frac * clipOutDur(activeClip)));
   drawHead();
   drawCaption();
   if (typeof syncCanvasVideo === "function") syncCanvasVideo();
@@ -196,9 +196,9 @@ $("#timeline")?.addEventListener("click", (e) => {
 $("#timeline")?.addEventListener("keydown", (e) => {
   if (!activeClip || !video.src) return;
   const step = e.shiftKey ? 5 : 1;
-  const current = sourceToOut(activeClip, video.currentTime) ?? 0;
-  if (e.key === "ArrowRight") video.currentTime = outToSource(activeClip, current + step);
-  else if (e.key === "ArrowLeft") video.currentTime = outToSource(activeClip, Math.max(0, current - step));
+  const current = sourceToOut(activeClip, vNow(video)) ?? 0;
+  if (e.key === "ArrowRight") vSeek(video, outToSource(activeClip, current + step));
+  else if (e.key === "ArrowLeft") vSeek(video, outToSource(activeClip, Math.max(0, current - step)));
   else return;
   e.preventDefault();
   drawHead();
@@ -210,11 +210,19 @@ function prepareVideo() {
     return;
   }
   video.src = chosenSource.url;
+  // Which of the project's videos this element holds (assets.js: vNow/vSeek).
+  video.dataset.asset = activeAssetId;
+  delete video.dataset.switching;
   frame.dataset.video = "true";
   loadFps(chosenSource.name);          // fps for frame-by-frame stepping
   video.addEventListener("loadedmetadata", () => {
     attachVideoGeometry();
-    if (activeClip) video.currentTime = Math.min(activeClip.spans[0].start, video.duration - 0.1);
+    if (!activeClip) return;
+    // Clamped inside this file when the first span is in it; a first span
+    // in another of the project's videos is a switch, which vSeek does.
+    const s = activeClip.spans[0].start;
+    const inThis = assetIdAt(s) === video.dataset.asset;
+    vSeek(video, inThis ? Math.min(s, assetOffset(video.dataset.asset) + video.duration - 0.1) : s);
   }, { once: true });
 }
 
@@ -244,7 +252,11 @@ function releaseVideo() {
 
 video.addEventListener("timeupdate", () => {
   if (!activeClip || !activeClip.spans?.length) return;
-  const t = video.currentTime;
+  // Mid-switch to another video's file (vSeek, assets.js): currentTime is
+  // the new file's 0 until its metadata lands, and acting on it would seek
+  // somewhere meaningless.
+  if (video.dataset.switching) return;
+  const t = vNow(video);
 
   // Skip discarded sections: as soon as one segment ends, jump to the
   // start of the next segment. This is what makes the preview match
@@ -252,7 +264,7 @@ video.addEventListener("timeupdate", () => {
   const i = activeClip.spans.findIndex((p) => t < p.end + 0.001);
   if (i === -1) {                                   // habis
     video.pause();
-    video.currentTime = activeClip.spans[0].start;
+    vSeek(video, activeClip.spans[0].start);
     isPlaying = false;
     if (playBtn) playBtn.textContent = "▶";
     drawTime(clipOutDur(activeClip));
@@ -262,7 +274,7 @@ video.addEventListener("timeupdate", () => {
     return;
   }
   const p = activeClip.spans[i];
-  if (t < p.start - 0.001) { video.currentTime = p.start; return; }
+  if (t < p.start - 0.001) { vSeek(video, p.start); return; }
 
   drawTime(sourceToOut(activeClip, t) ?? 0);
   drawHead();
@@ -313,7 +325,7 @@ function drawCaption() {
     ? resultWords() : realTranscript?.words;
   if (!activeClip || !words?.length || !video.src) { cap.innerHTML = ""; return; }
 
-  const t = video.currentTime;
+  const t = vNow(video);
   const wordsPerLine = (typeof captionValue === "function"
     ? captionValue("per-line")?.out : 3) || 3;
 
@@ -396,10 +408,10 @@ function stepPreview(step) {
     playBtn.textContent = "▶";
   }
   const total = clipOutDur(activeClip);
-  const current = sourceToOut(activeClip, video.currentTime);
+  const current = sourceToOut(activeClip, vNow(video));
   const from = current === null ? 0 : current;
   const target = Math.max(0, Math.min(total - 1 / sourceFps / 2, from + step));
-  video.currentTime = outToSource(activeClip, target);
+  vSeek(video, outToSource(activeClip, target));
   drawTime(target);
   drawHead();
   drawCaption();
@@ -499,8 +511,8 @@ playBtn?.addEventListener("click", () => {
   if (!video.src || !activeClip) return;
   if (isPlaying) { video.pause(); playBtn.textContent = "▶"; }
   else {
-    if (sourceToOut(activeClip, video.currentTime) === null) {
-      video.currentTime = activeClip.spans[0].start;
+    if (sourceToOut(activeClip, vNow(video)) === null) {
+      vSeek(video, activeClip.spans[0].start);
     }
     // Recommendation preview and Result preview must not play audio together.
     if (typeof closeRecPreview === "function") closeRecPreview();
@@ -531,7 +543,7 @@ muteBtn?.addEventListener("click", () => {
 
 rewindBtn?.addEventListener("click", () => {
   if (video.src && activeClip) {
-    video.currentTime = activeClip.spans[0].start;
+    vSeek(video, activeClip.spans[0].start);
     drawTime(0); drawHead(); drawCaption();
     if (typeof syncCanvasVideo === "function") syncCanvasVideo();
   }
@@ -632,25 +644,35 @@ async function sendRender(approved) {
     return;
   }
 
+  // Spans are split again at each framing point, and each one carries
+  // its own crop. That's what lets framing change mid-clip.
+  const framed = valid.map((k) => ((typeof spansWithFraming === "function")
+    ? spansWithFraming(k.spans || [{ start: k.startSec, end: k.endSec }])
+    : (k.spans || []).map((p) => ({ start: p.start, end: p.end }))));
+  // Spans and words go out in REAL seconds of their own video (assets.js,
+  // serverClipFields). The request's one `video` is the first span's; only
+  // spans from another video name theirs -- so a clip taken from a single
+  // video sends exactly the payload it always did.
+  const main = framed[0]?.length ? toReal(framed[0][0].start).file : "";
   const request = {
-    video: chosenSource?.name || DATA.file,
+    video: main || chosenSource?.name || DATA.file,
     // Which project's folder the files go in (server: _project_out_dir).
     project: (typeof activeProjectId !== "undefined" && activeProjectId) || undefined,
-    clips: valid.map((k) => ({
-      title: k.title,
-      // Spans are split again at each framing point, and each one carries
-      // its own crop. That's what lets framing change mid-clip.
-      spans: (typeof spansWithFraming === "function")
-        ? spansWithFraming(k.spans || [{ start: k.startSec, end: k.endSec }])
-        : (k.spans || []).map((p) => ({ start: p.start, end: p.end })),
-      style: captionStyle(),         // Caption screen settings are sent along too
+    clips: valid.map((k, i) => {
       // Words already corrected on the Captions screen. If there are no
       // corrections, this matches the transcript -- the server accepts it as-is either way.
-      words: (typeof wordsForRender === "function") ? wordsForRender() : undefined,
-      layout: optionOut("format"),
-      width: optionOut("resolution"),
-      quality: optionOut("quality"),
-    })),
+      const real = serverClipFields(framed[i],
+        (typeof wordsForRender === "function") ? wordsForRender() : undefined, main);
+      return {
+        title: k.title,
+        spans: real.spans,
+        style: captionStyle(),         // Caption screen settings are sent along too
+        words: real.words,
+        layout: optionOut("format"),
+        width: optionOut("resolution"),
+        quality: optionOut("quality"),
+      };
+    }),
   };
 
   // The queue must line up with what's actually sent: the server reports
@@ -758,32 +780,56 @@ async function quickPreview() {
   if (btn) { btn.dataset.busy = "1"; btn.disabled = true; btn.textContent = "Rendering…"; }
   if (note) note.textContent = "";
 
-  const clip = {
-    title: resultClip.title,
-    // Same as sendRender(): spans are split again at each framing point
-    // so the crop actually previewed matches the one selected.
-    spans: (typeof spansWithFraming === "function")
-      ? spansWithFraming(resultClip.spans)
-      : resultClip.spans,
-    style: captionStyle(),
-    words: (typeof wordsForRender === "function") ? wordsForRender() : undefined,
-    layout: optionOut("format"),
-    width: optionOut("resolution"),
-    quality: optionOut("quality"),
-  };
+  // Same as sendRender(): spans are split again at each framing point
+  // so the crop actually previewed matches the one selected.
+  const framed = (typeof spansWithFraming === "function")
+    ? spansWithFraming(resultClip.spans)
+    : resultClip.spans;
 
   // A long clip (minutes-long) is almost never represented by just its
   // FIRST 3 seconds -- the scrub position currently being viewed in the
   // preview panel is the moment actually being checked, so the preview
   // starts from there instead of always from the beginning.
   const currentPosition = (video?.src && typeof sourceToOut === "function")
-    ? sourceToOut(resultClip, video.currentTime) : null;
+    ? sourceToOut(resultClip, vNow(video)) : null;
   const startFrom = currentPosition ?? 0;
+
+  // A preview is a few seconds of ONE video: only the run of spans from
+  // the video the scrub position is in goes to the server (which previews
+  // one file), with startFrom made relative to where that run begins.
+  let runStart = 0, passed = 0;
+  let run = [];
+  for (const p of framed) {
+    const len = p.end - p.start;
+    const sameVideo = run.length && assetIdAt(run[0].start) === assetIdAt(p.start);
+    if (!sameVideo) {
+      if (run.length && startFrom < passed) break;
+      run = [];
+      runStart = passed;
+    }
+    run.push(p);
+    passed += len;
+  }
+  const real = serverClipFields(run,
+    (typeof wordsForRender === "function") ? wordsForRender() : undefined);
+  const mainFile = real.video;
+  const clip = {
+    title: resultClip.title,
+    spans: real.spans,
+    style: captionStyle(),
+    // Only this video's words, and without a `video` of their own: the
+    // preview request's one video IS theirs.
+    words: Array.isArray(real.words) ? real.words.filter((w) => !w.video) : real.words,
+    layout: optionOut("format"),
+    width: optionOut("resolution"),
+    quality: optionOut("quality"),
+  };
 
   try {
     const reply = await fetch("/api/preview", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ video: chosenSource?.name || DATA.file, clip, startFrom }),
+      body: JSON.stringify({ video: mainFile || chosenSource?.name || DATA.file, clip,
+                             startFrom: Math.max(0, startFrom - runStart) }),
     }).then((r) => r.json());
     if (reply.error) throw new Error(reply.error);
     showQuickPreview(reply.url);

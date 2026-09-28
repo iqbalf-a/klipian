@@ -35,6 +35,10 @@ function addToResult(start, end, title, source) {
   start = Number(start); end = Number(end);
   if (!Number.isFinite(start) || !Number.isFinite(end)) return "could not read that time";
   if (end - start < 0.5) return "range is too short";
+  // Both callers (timeline selection, AI suggestions) speak in the ACTIVE
+  // video's own seconds; RESULT lives on the shared virtual timeline
+  // (assets.js). A no-op for the first video, whose offset is 0.
+  if (typeof activeToVirtual === "function") { start = activeToVirtual(start); end = activeToVirtual(end); }
 
   // Merge with overlapping ranges so no second appears twice. This is the
   // right behaviour, but it USED to happen silently while the caller still
@@ -119,11 +123,18 @@ function renderResult() {
     return;
   }
 
+  // Times shown in the span's own video (assetTimeLabel), never the
+  // virtual second -- a span from a second episode would otherwise read
+  // as "277:46:40".
+  const clock = (t) => (typeof toReal === "function" ? timeRange(toReal(t).t) : timeRange(t));
+  const multi = typeof isMultiAsset === "function" && isMultiAsset();
+  list.classList.toggle("multi", multi);
   list.innerHTML = RESULT.map((r, i) => `
     <div class="result-row" data-result="${r.id}">
       <span class="num">${i + 1}</span>
       <span class="result-title">${escapeHTML(r.title)}</span>
-      <span class="data result-time">${timeRange(r.start)} – ${timeRange(r.end)}</span>
+      ${multi ? `<span class="data result-asset" title="${escapeHTML(toReal(r.start).file)}">${escapeHTML(assetStem(assetById(toReal(r.start).id)))}</span>` : ""}
+      <span class="data result-time">${clock(r.start)} – ${clock(r.end)}</span>
       <span class="data result-dur">${Math.round(r.end - r.start)}s</span>
       <span class="source-badge" data-source="${r.source}">${r.source === "ai" ? "AI" : "manual"}</span>
       <button class="icon delete-result" data-delete-result="${r.id}"

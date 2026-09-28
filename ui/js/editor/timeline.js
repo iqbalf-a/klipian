@@ -57,9 +57,15 @@ function drawTotalTimeline() {
       <span class="tl-mark rec" style="left:${toFraction(k.startSec) * 100}%;
             width:${Math.max(0.4, (toFraction(k.endSec) - toFraction(k.startSec)) * 100)}%"
             title="${escapeHTML(k.title)}"></span>`).join("");
-    const usedMarks = RESULT.map((r) => `
-      <span class="tl-mark result" style="left:${toFraction(r.start) * 100}%;
-            width:${Math.max(0.4, (toFraction(r.end) - toFraction(r.start)) * 100)}%"
+    // This bar is the ACTIVE video only: spans from the project's other
+    // videos don't belong on it, and the ones that do come back to this
+    // video's own seconds (RESULT is on the virtual timeline, assets.js).
+    const off = typeof activeAssetOffset === "function" ? activeAssetOffset() : 0;
+    const mine = typeof assetIdAt === "function"
+      ? RESULT.filter((r) => assetIdAt(r.start) === activeAssetId) : RESULT;
+    const usedMarks = mine.map((r) => `
+      <span class="tl-mark result" style="left:${toFraction(r.start - off) * 100}%;
+            width:${Math.max(0.4, (toFraction(r.end - off) - toFraction(r.start - off)) * 100)}%"
             title="${escapeHTML(r.title)}"></span>`).join("");
     marks.innerHTML = recMarks + usedMarks;
   }

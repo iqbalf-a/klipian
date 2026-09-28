@@ -335,6 +335,25 @@ def _clip_words(k: dict, fallback: list) -> list:
     return fallback
 
 
+def _run_words(k: dict, run_video: str, default_video: str, fallback) -> list:
+    """The caption words for one video's run of a multi-video clip.
+
+    The client sends one corrected word list for the whole clip, each word
+    in its own video's seconds and naming that video when it isn't the
+    request's one (same convention as spans, see serverClipFields in
+    ui/js/editor/assets.js). Two episodes can share a timestamp, so the
+    video is what keeps one episode's correction off the other's run.
+
+    `fallback` is only called when the client sent nothing for this video:
+    that video's transcript as-is, uncorrected."""
+    if isinstance(k.get("words"), list) and k["words"]:
+        mine = [w for w in k["words"]
+                if isinstance(w, dict) and (w.get("video") or default_video) == run_video]
+        if mine:
+            return _clip_words({"words": mine}, [])
+    return fallback()
+
+
 def _trim_for_preview(spans: "list[engine.Span]", max_seconds: float,
                        start_from: float = 0.0) -> "list[engine.Span]":
     """Take a short slice from `spans`, up to max_seconds long, starting
@@ -530,20 +549,13 @@ def _run_render(job_id: str, req: dict) -> None:
                                 f"{run_video_name} is not in a folder the server can "
                                 f"reach. Put the file in samples/.")
                         run_info = probe(run_video)
-                        run_words = _load_transcript_words(run_video, t)
+                        run_words = _run_words(k, run_video_name, req["video"],
+                                               lambda: _load_transcript_words(run_video, t))
                         run_spans = _spans_from_clip({"spans": run_spans_raw})
                         run_job = engine.RenderJob(title=k["title"], spans=run_spans,
                                                    crop=crop_box, layout=layout,
                                                    out_width=out_width, quality=quality)
                         part_dest = tmp_dir / f"part{ridx}.mp4"
-                        # k["words"] (client-sent corrections) is deliberately
-                        # NOT used here: those are keyed only by TIME, and two
-                        # unrelated source videos can share overlapping
-                        # timestamps -- reusing the whole clip's correction
-                        # list for one video's run risks pulling in a
-                        # correction that belongs to a different source
-                        # entirely. Each run's own transcript, uncorrected,
-                        # until the client grows a per-asset correction UI.
                         engine.render(run_video, run_job, part_dest, words=run_words,
                                      style=style, src_width=run_info.width,
                                      src_height=run_info.height, has_audio=run_info.has_audio,
@@ -1069,6 +1081,16 @@ def _active_result(data: dict) -> dict:
     return data
 
 
+def _span_video(data: dict, span: dict) -> str:
+    """The video file a stored span belongs to (its `asset`), falling back
+    to the project's first video for a span from before assets."""
+    aid = span.get("asset")
+    for a in data.get("assets") or []:
+        if isinstance(a, dict) and a.get("id") == aid and a.get("file"):
+            return a["file"]
+    return data.get("video", "")
+
+
 def _project_summary(file: Path) -> dict | None:
     """Compact form for the homepage listing -- doesn't load the full
     contents.
@@ -1101,6 +1123,10 @@ def _project_summary(file: Path) -> dict | None:
             "seconds": round(total, 1),
             "at": int(st.st_mtime),
             "thumbAt": float(spans[0]["start"]) if spans and isinstance(spans[0], dict) else 0.0,
+            # The first span's own video: in a project with several, the
+            # cover frame has to come from the file thumbAt is a second of.
+            "thumbVideo": _span_video(data, spans[0]) if spans and isinstance(spans[0], dict)
+                          else data.get("video", ""),
             # Thumbnail uses the project's own framing box. If the default
             # box were used, two projects from the same video would look
             # identical even though their frames are very different.
