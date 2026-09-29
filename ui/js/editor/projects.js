@@ -97,7 +97,7 @@ function projectState() {
     caption: (typeof captionState === "function") ? captionState() : {},
     // No project-level `output` any more -- each Result carries its own
     // (see snapshotActiveResult). Projects written before this still have
-    // one, and loadProject() reads it to seed Results that lack theirs.
+    // one, and applyProject() reads it to seed Results that lack theirs.
     screen: (typeof activeScreen !== "undefined") ? activeScreen : "clips",
   };
 }
@@ -138,10 +138,26 @@ function updateSaveStatus() {
 /* Actually writes to disk NOW, cancelling any pending delay. Used by both the
    timer below and the manual Save button -- both must write the SAME state,
    so only one code path actually performs the fetch. */
+/* The in-flight FIRST save of a new project. That save is what creates the
+   project on the server, so a second save starting before its answer came
+   back would create a second project for the same work -- it waits for
+   this one instead, and then saves under the id it got. */
+let creatingProject = null;
+
 async function writeProjectNow() {
   clearTimeout(saveTimer);
   saveTimer = null;
   if (!activeProject) return;
+  if (!activeProjectId && creatingProject) await creatingProject;
+  if (!activeProjectId) {
+    const run = writeProjectOnce(true);
+    creatingProject = run;
+    try { return await run; } finally { if (creatingProject === run) creatingProject = null; }
+  }
+  return writeProjectOnce(false);
+}
+
+async function writeProjectOnce(isNew) {
   savePending = true;
   updateSaveStatus();
   // savePending is cleared ONLY on a confirmed write. It used to be cleared
@@ -157,7 +173,11 @@ async function writeProjectNow() {
   try {
     const r = await fetch("/api/project", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(projectState()),
+      // `new`: a project without an id is a NEW project -- never matched to
+      // an existing one by its video. Two projects can use the same episode
+      // now, and matching used to be how a dropped file resumed its old
+      // project, which would overwrite that project with this empty one.
+      body: JSON.stringify({ ...projectState(), ...(isNew ? { new: true } : {}) }),
     });
     if (!r.ok) throw new Error(`server replied ${r.status}`);
     const reply = await r.json().catch(() => ({}));
@@ -345,10 +365,8 @@ function resetProjectState() {
 // declarations (empty array/object, one default framing point -- see
 // resetFraming() in framing.js:774 which also bootstraps itself on load).
 // But SAVED_RESULTS/activeResultId do NOT -- without this call both are empty
-// until the first project is opened, and loadProject()/projectState() will
-// save a project with NO Result at all the first time a video is dropped
-// (acceptFile() only calls resetProjectState() when the video CHANGES from
-// the previous one, not when it's the very first video opened).
+// until the first project is opened, and projectState() would save a
+// project with NO Result at all the first time a video is added.
 resetProjectState();
 
 /* "+ New Result": save what's being worked on, then start a new empty Result
@@ -482,23 +500,8 @@ async function fetchProject(ref) {
   } catch { return null; }
 }
 
-/* Restore a previously saved state for a dropped video. Returns true if
-   something was restored, so the caller can notify the user. */
-async function loadProject(video) {
-  activeProject = video;
-  activeProjectId = null;
-  const d = await fetchProject({ video });
-  if (!d) {
-    if (typeof setAssets === "function") setAssets([{ id: "a1", kind: "video", file: video }], "a1");
-    return false;
-  }
-  applyProject(d, video);
-  return true;
-}
-
 /* Put a fetched project document into the live state. `preferFile`: the
-   video to put on screen -- the one just dropped -- rather than the one the
-   project was last left on. */
+   video to put on screen, rather than the one the project was last left on. */
 function applyProject(d, preferFile) {
   activeProjectId = d.id || null;
   // The project's first video (`video` in a file the server hasn't
@@ -569,29 +572,6 @@ function applyProject(d, preferFile) {
   lastScreen = VALID_SCREENS.includes(savedScreen) ? savedScreen : "clips";
 }
 
-/* New video dropped: if it has a project, continue it; otherwise, start from
-   scratch using that name as the key. */
-async function openProject(video) {
-  const hadExisting = await loadProject(video);
-  if (!hadExisting) {
-    // New project: nothing to restore, so use the last-used caption/watermark
-    // style (see applyPresetCaption() in app.js) instead of factory defaults.
-    // The caption panel was already drawn with defaults BEFORE this point
-    // (see acceptFile() in interactions.js), so it must be redrawn here too --
-    // otherwise the highlighted button on screen doesn't match the style that's
-    // actually applied.
-    if (typeof applyPresetCaption === "function" && applyPresetCaption()) {
-      if (typeof renderList === "function") renderList();
-      if (typeof applyCaption === "function") applyCaption();
-    }
-    // Recorded as a new project. It has no id until this first save
-    // answers, and writeProjectNow() updates the URL/session then.
-    saveProject();
-  }
-  rememberActiveSession();
-  return hadExisting;
-}
-
 /* ---------- home page listing ---------- */
 
 /* Watch the naming: `w` is the COVER OUTPUT width, while `width` is the
@@ -641,16 +621,13 @@ function updateHomeView() {
 
 /* "+ New Project" -- both instances (the recent-projects header and the
    empty-state placeholder share this class, see index.html). Goes
-   straight into the editor rather than revealing a panel still on Home:
-   ian wanted the drop-video step to already be inside the editing page,
-   with Format/Resolution presented there as general project settings
-   (see the #projectSetup comment on the Analyze screen).
+   straight into the editor, on the Assets screen: a project starts by
+   adding its videos, and the first one added creates it
+   (addVideoToProject, assets.js).
 
-   Proactively clears whatever project was last open in this tab, the same
-   cleanup acceptFile() already does when the CHOSEN VIDEO changes (see
-   interactions.js) -- without this, visiting Clips/Framing/Captions
-   before dropping a video would show the previous project's leftovers
-   instead of a clean slate. */
+   Proactively clears whatever project was last open in this tab --
+   without this, visiting Clips/Framing/Captions before adding a video
+   would show the previous project's leftovers instead of a clean slate. */
 function startNewProject() {
   if (chosenSource?.url?.startsWith("blob:")) URL.revokeObjectURL(chosenSource.url);
   chosenSource = null;
@@ -669,7 +646,9 @@ function startNewProject() {
   if (typeof renderList === "function") renderList();
   if (typeof renderRecommendations === "function") renderRecommendations();
   toStage("work");
-  toScreen("analysis");
+  // A project starts by adding its videos (ian: Analyze only picks from
+  // the project's own videos, or takes a link).
+  toScreen("assets");
 }
 document.querySelectorAll(".new-project-btn").forEach((b) =>
   b.addEventListener("click", startNewProject));
@@ -991,9 +970,8 @@ async function enterProject(d, gen) {
   // projects store the NAME, and browsers can't open local paths directly.
   chosenSource = { kind: "file", name: video, url: `/workspace/samples/${encodeURIComponent(video)}` };
   // Name first, shown right away -- chosenSource on this path has no
-  // .duration (it's not the result of readMeta() from a <video>, just a
-  // name from the project record). Overwritten again below once the
-  // transcript (if any) supplies the real duration.
+  // .duration, just a name from the project record. Overwritten again
+  // below once the transcript (or ffprobe) supplies the real duration.
   if (typeof updateTopbarFile === "function") updateTopbarFile(video, NaN);
   if (typeof realTranscript !== "undefined" && typeof findTranscript === "function") {
     const tr = await findTranscript(video);
@@ -1005,7 +983,8 @@ async function enterProject(d, gen) {
   }
   // Always an existing project on this path -- it was fetched above -- so
   // the old "no project yet, start one" branch that used to sit here is
-  // gone: that only ever happens by dropping a file (openProject()).
+  // gone: a project only starts when its first video is added
+  // (addVideoToProject, assets.js).
   applyProject(d, video);
   // No transcript = no duration to draw the Clips timeline with.
   if (typeof ensureSourceDuration === "function") ensureSourceDuration();

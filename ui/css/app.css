@@ -1143,13 +1143,6 @@ h1, h2, h3 {
 .project-card.missing:hover { transform: none; background: var(--glass); }
 .project-card.missing .project-meta { color: var(--danger); }
 
-/* File was dropped but lives outside samples/: not an error, but not ready
-   either -- needs its own tone. */
-.source-drop[data-state="warn"] {
-  border-style: solid;
-  border-color: color-mix(in srgb, var(--danger) 55%, transparent);
-}
-.source-drop[data-state="warn"] p { color: var(--danger); }
 .project-card .delete-icon:hover { background: var(--danger); }
 
 /* ═══════════════════════════════════════════════ home */
@@ -1158,13 +1151,6 @@ h1, h2, h3 {
   font-size: clamp(26px, 2.6vw, 34px);
   font-weight: 800; letter-spacing: -.04em;
 }
-
-/* Drop-zone + Format/Resolution + Find-clips foot, as a group. These
-   used to be direct children of .prepare-body (display:grid; gap: var(--s4)),
-   which is what gave them spacing -- nested one level deeper here (inside
-   .screen's flex column instead), they need their own gap or they'd stack
-   flush against each other. */
-#projectSetup { display: grid; gap: var(--s4); }
 
 /* The other face of the project hub (see updateHomeView() in
    projects.js) -- shown instead of .recent when there's nothing yet to
@@ -1176,37 +1162,6 @@ h1, h2, h3 {
   color: var(--text-faint);
 }
 
-/* Project setup, collapsed. A <button> standing in for a whole panel --
-   same background/border/radius as .panel, plus the flex layout .panel-head
-   already provides for a text child pushed left of a trailing action. */
-.project-setup-summary {
-  width: 100%;
-  font: inherit; text-align: left; cursor: pointer;
-  background: color-mix(in srgb, var(--bg-2) 82%, transparent);
-  backdrop-filter: blur(18px);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--r-l);
-  box-shadow: var(--shadow-panel);
-  transition: border-color var(--fast), background var(--fast);
-}
-.project-setup-summary:hover, .project-setup-summary:focus-visible {
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--glass-border));
-}
-.project-setup-summary .data {
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-
-.source { padding: var(--s6); }
-.source-drop {
-  border: 1px dashed var(--border-bright); border-radius: var(--r-m);
-  padding: var(--s6) var(--s5);
-  display: grid; justify-items: center; gap: var(--s3); text-align: center;
-}
-.source-drop h2 { font-size: var(--t-20); }
-.source-drop p { margin: 0; color: var(--text-faint); font-size: var(--t-13); }
-.source-actions { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap;
-               justify-content: center; }
-.split { color: var(--text-faint); font-size: var(--t-12); }
 .input {
   font: inherit; font-size: var(--t-13);
   min-width: 260px; padding: 8px 13px;
@@ -1245,33 +1200,6 @@ h1, h2, h3 {
 .prepare-foot { display: flex; align-items: center; gap: var(--s4); margin-top: var(--s2); }
 .prepare-foot .data { color: var(--text-faint); }
 .btn.large { margin-left: auto; font-size: var(--t-13); padding: 11px 26px; }
-
-/* Source box states: empty, being dragged, ready, or error */
-/* The only "drop here" indicator now, so it needs to be truly readable.
-   Previously it was always covered by a full-screen overlay, so its
-   subtlety was never noticed. */
-.source-drop[data-drag="true"] {
-  border-color: var(--accent);
-  border-style: solid;
-  background: var(--accent-soft);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent),
-              0 0 30px -10px var(--accent-glow);
-  transform: scale(1.008);
-}
-.source-drop[data-drag="true"] h2 { color: var(--accent); }
-.source-drop {
-  transition: border-color var(--fast), background var(--fast),
-              box-shadow var(--fast), transform var(--fast);
-}
-.source-drop[data-state="ready"] {
-  border-style: solid;
-  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
-}
-.source-drop[data-state="ready"] h2 {
-  font-size: var(--t-14);
-}
-.source-drop[data-state="error"] { border-color: var(--danger); }
-.source-drop[data-state="error"] h2 { color: var(--danger); }
 
 .btn:disabled { opacity: .4; cursor: not-allowed; }
 .btn.main:disabled:hover { background: var(--text); }
@@ -2484,3 +2412,25 @@ h1, h2, h3 {
 }
 .asset-drop.over { border-color: var(--accent); color: var(--text); }
 .asset-thumb { width: 28px; height: 28px; object-fit: cover; border-radius: 6px; background: #000; }
+
+/* Analyze: which of the project's videos to work on, or a link. */
+.analyze-source { display: grid; gap: var(--s3); }
+.analyze-source .panel-head .data { color: var(--text-faint); margin-left: auto; }
+/* A whole row is the button: pick this video. */
+.asset-pick {
+  width: 100%; font: inherit; color: inherit; text-align: left; cursor: pointer;
+  background: none; border: 1px solid transparent;
+}
+.asset-pick.active { border-color: color-mix(in srgb, var(--accent) 45%, transparent); background: var(--accent-soft); }
+.asset-pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.link-row { display: flex; gap: var(--s2); align-items: center; }
+.link-row .input { flex: 1; min-width: 0; }
+.link-note { margin: 0; color: var(--text-faint); font-size: var(--t-12); }
+.link-note:empty { display: none; }
+/* Panel bodies: the same side inset .panel-head has (var(--s5)), so rows
+   line up under their heading instead of running into the panel's edge. */
+.analyze-source { padding-bottom: var(--s4); gap: var(--s2); }
+.analyze-source > :not(.panel-head) { margin-inline: var(--s5); }
+.analyze-source .prepare-foot { margin-top: var(--s1); }
+.panel > .asset-list { padding: 0 var(--s3) var(--s3); }
+.panel > .asset-drop { margin: 0 var(--s5) var(--s4); }

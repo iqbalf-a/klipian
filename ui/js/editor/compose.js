@@ -91,7 +91,8 @@ function overlaysForRender() {
     .map(({ id, ...e }) => ({ ...e, end: Math.min(e.end, total) }));
 }
 
-const assetFileUrl = (file) => `/api/workspace/asset-file?name=${encodeURIComponent(file)}`;
+// The project's own copy (projects/<id>/assets/, see assets.js).
+const assetFileUrl = (file) => projectMediaUrl(file);
 const libraryOf = (kind) => ASSETS.filter((a) => a.kind === kind);
 
 /* ---------- preview: labels and stickers in the 9:16 frame ---------- */

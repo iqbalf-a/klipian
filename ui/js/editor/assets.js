@@ -77,7 +77,8 @@ const activeToVirtual = (t) => t + activeAssetOffset();
 
 function assetUrl(a) {
   // A file dropped from outside workspace/samples/ only has a blob: URL,
-  // and only while it's the active one -- see acceptFile().
+  // and only while it's the active one (a project from before the drop
+  // zone went away can still be holding one).
   if (a.id === activeAssetId && chosenSource?.url && chosenSource.name === a.file) return chosenSource.url;
   return `/workspace/samples/${encodeURIComponent(a.file)}`;
 }
@@ -363,18 +364,40 @@ function mediaUseCount(file) {
   return n;
 }
 
+/* A project's images and sounds live in ITS OWN folder, projects/<id>/assets/
+   (ian). The shared library workspace/assets/ (logos, banners, templates)
+   is only a place to IMPORT from: importing copies the file in, so the
+   project keeps working however the shared file changes later. */
+const projectMediaUrl = (file) =>
+  `/api/project-asset-file?id=${encodeURIComponent(activeProjectId || "")}&name=${encodeURIComponent(file)}`;
+
+/* Uploads and imports need the project's folder, which needs an id -- a
+   project that has never been saved gets one now. */
+async function ensureProjectId() {
+  if (!activeProjectId && typeof writeProjectNow === "function") await writeProjectNow();
+  return activeProjectId;
+}
+
 async function renderMediaAssets() {
   const list = $("#assetMediaList");
+  const shared = $("#assetSharedList");
   if (!list) return;
-  let files = null;
-  try { files = (await (await fetch("/api/workspace/assets")).json()).asset || []; } catch { files = null; }
-  const media = ASSETS.filter((a) => a.kind === "image" || a.kind === "sound");
-  const inProject = new Set(media.map((a) => a.file));
-  const free = (files || []).filter((f) => (f.kind === "image" || f.kind === "sound") && !inProject.has(f.name));
   const note = $("#assetMediaNote");
-  if (note) note.textContent = media.length ? `${media.length} in this project` : "";
-  const icon = (kind, file) => kind === "image"
-    ? `<img class="asset-thumb" alt="" loading="lazy" src="/api/workspace/asset-file?name=${encodeURIComponent(file)}">`
+  if (!activeProjectId) {
+    list.innerHTML = `<p class="empty-message">Add a video first — images and sounds are kept in the project's own folder.</p>`;
+    if (shared) shared.innerHTML = "";
+    if (note) note.textContent = "";
+    return;
+  }
+  let own = null, lib = null;
+  try { own = (await (await fetch(`/api/project-assets?id=${encodeURIComponent(activeProjectId)}`)).json()).asset || []; } catch { own = null; }
+  try { lib = (await (await fetch("/api/workspace/assets")).json()).asset || []; } catch { lib = null; }
+  const media = ASSETS.filter((a) => a.kind === "image" || a.kind === "sound");
+  const listed = new Set(media.map((a) => a.file));
+  if (note) note.textContent = media.length ? `${media.length} in this project · projects/${activeProjectId}/assets/` : "";
+
+  const icon = (kind, url) => kind === "image"
+    ? `<img class="asset-thumb" alt="" loading="lazy" src="${url}">`
     : `<span class="asset-kind" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"
          stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
          <path d="M4 10 L4 14 L8 14 L13 18 L13 6 L8 10 Z"/><path d="M17 9 Q19 12 17 15"/></svg></span>`;
@@ -382,24 +405,38 @@ async function renderMediaAssets() {
     const uses = mediaUseCount(a.file);
     return `
     <div class="asset-row" data-asset-row="${a.id}">
-      ${icon(a.kind, a.file)}
+      ${icon(a.kind, projectMediaUrl(a.file))}
       <span class="asset-name" title="${escapeHTML(a.file)}">${escapeHTML(a.file)}</span>
       <span class="data asset-meta">${a.kind} · ${uses} use${uses === 1 ? "" : "s"}</span>
       <span></span>
       <button class="btn quiet" type="button" data-asset-remove="${a.id}"${uses ? " disabled" : ""}
-              title="${uses ? "Used on the Timeline — delete those elements first" : "Remove from this project (the file stays in workspace/assets/)"}">Remove</button>
+              title="${uses ? "Used on the Timeline — delete those elements first" : "Take it off this list (the file stays in the project's folder)"}">Remove</button>
     </div>`;
-  }).concat(free.map((f) => `
+  }).concat((own || []).filter((f) => !listed.has(f.name)).map((f) => `
     <div class="asset-row">
-      ${icon(f.kind, f.name)}
+      ${icon(f.kind, projectMediaUrl(f.name))}
       <span class="asset-name" title="${escapeHTML(f.name)}">${escapeHTML(f.name)}</span>
-      <span class="data asset-meta">${f.kind} · in workspace/assets/</span>
+      <span class="data asset-meta">${f.kind} · in the project's folder, not listed</span>
       <span></span>
       <button class="btn" type="button" data-media-add="${escapeHTML(f.name)}" data-kind="${f.kind}">Add</button>
     </div>`));
-  list.innerHTML = files === null
+  list.innerHTML = own === null
     ? `<p class="empty-message">Needs the backend. Run: python -m klipian serve</p>`
-    : (rows.join("") || `<p class="empty-message">No images or sounds yet. Drop some below.</p>`);
+    : (rows.join("") || `<p class="empty-message">No images or sounds yet. Drop some below, or import from the shared library.</p>`);
+
+  if (shared) {
+    const media2 = (lib || []).filter((f) => f.kind === "image" || f.kind === "sound");
+    shared.innerHTML = media2.length ? media2.map((f) => `
+      <div class="asset-row">
+        ${icon(f.kind, `/api/workspace/asset-file?name=${encodeURIComponent(f.name)}`)}
+        <span class="asset-name" title="${escapeHTML(f.name)}">${escapeHTML(f.name)}</span>
+        <span class="data asset-meta">${f.kind} · shared</span>
+        <span></span>
+        <button class="btn quiet" type="button" data-media-import="${escapeHTML(f.name)}"
+                title="Copy into this project">Import</button>
+      </div>`).join("")
+      : `<p class="empty-message">workspace/assets/ has no images or sounds.</p>`;
+  }
 }
 
 function addMediaAsset(file, kind) {
@@ -413,20 +450,42 @@ function addMediaAsset(file, kind) {
 
 async function uploadMedia(files) {
   const note = $("#assetMediaNote");
+  const id = await ensureProjectId();
+  if (!id) { if (note) note.textContent = "add a video to the project first"; return; }
   for (const f of files) {
     if (note) note.textContent = `uploading ${f.name} …`;
     try {
-      const r = await fetch(`/api/workspace/asset-upload?name=${encodeURIComponent(f.name)}`, {
+      const r = await fetch(`/api/project-asset-upload?id=${encodeURIComponent(id)}&name=${encodeURIComponent(f.name)}`, {
         method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: f,
       });
       const d = await r.json();
       if (!r.ok || d.error) throw new Error(d.error || `server replied ${r.status}`);
       addMediaAsset(d.name, d.kind);
     } catch (err) {
-      if (note) note.textContent = `${f.name}: ${err.message}`;
       await renderMediaAssets();
+      if (note) note.textContent = `${f.name}: ${err.message}`;
       return;
     }
+  }
+  await renderMediaAssets();
+}
+
+async function importMedia(name) {
+  const note = $("#assetMediaNote");
+  const id = await ensureProjectId();
+  if (!id) { if (note) note.textContent = "add a video to the project first"; return; }
+  try {
+    const r = await fetch("/api/project-asset-import", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, name }),
+    });
+    const d = await r.json();
+    if (!r.ok || d.error) throw new Error(d.error || `server replied ${r.status}`);
+    addMediaAsset(d.name, d.kind);
+  } catch (err) {
+    await renderMediaAssets();
+    if (note) note.textContent = `${name}: ${err.message}`;
+    return;
   }
   await renderMediaAssets();
 }
@@ -443,6 +502,97 @@ $("#assetDrop")?.addEventListener("drop", (e) => {
   $("#assetDrop").classList.remove("over");
   const files = [...(e.dataTransfer?.files || [])];
   if (files.length) uploadMedia(files);
+});
+
+/* Add a video from samples/ to the project -- from the Assets screen or a
+   finished link download -- and put it on screen. The FIRST video is also
+   the moment a new project starts: there's no drop zone any more to do
+   that (ian), so this does what dropping a file used to. */
+async function addVideoToProject(file) {
+  const existing = videoAssets().find((a) => a.file === file);
+  if (existing) {
+    await setActiveAsset(existing.id);
+    renderAssets();
+    return existing;
+  }
+  const first = !videoAssets().length;
+  const a = addAsset(file);
+  if (!a) return null;
+  const tr = await findTranscript(file).catch(() => null);
+  if (!first) {
+    ASSET_TRANSCRIPTS[a.id] = tr;
+    await setActiveAsset(a.id);
+    renderAssets();
+    return a;
+  }
+  activeProject = file;
+  activeAssetId = a.id;
+  chosenSource = { kind: "file", name: file, url: `/workspace/samples/${encodeURIComponent(file)}` };
+  realTranscript = tr;
+  ASSET_TRANSCRIPTS[a.id] = tr;
+  if (typeof DATA !== "undefined") DATA.candidates = [];
+  // A new project starts from the last-used caption/watermark style
+  // (applyPresetCaption, app.js), not factory defaults.
+  if (typeof applyPresetCaption === "function" && applyPresetCaption()) {
+    if (typeof renderList === "function") renderList();
+    if (typeof applyCaption === "function") applyCaption();
+  }
+  if (typeof updateTopbarFile === "function") updateTopbarFile(file, tr?.duration);
+  await ensureSourceDuration();
+  if (typeof prepareVideo === "function") prepareVideo();
+  if (typeof drawSource === "function") drawSource();
+  if (typeof renderRecommendations === "function") renderRecommendations();
+  if (typeof drawTotalTimeline === "function") drawTotalTimeline();
+  // Written now, not on the next autosave: this first save is what gives
+  // the project its id, its URL and its folder for images and sounds.
+  if (typeof writeProjectNow === "function") await writeProjectNow();
+  renderAssets();
+  return a;
+}
+
+/* Analyze's source list: the project's videos, one of which is on screen.
+   Picking one here is all "choose a video" means now. */
+async function renderAnalyzeSources() {
+  const list = $("#analyzeAssetList");
+  if (!list) return;
+  const vids = videoAssets();
+  if (!vids.length) {
+    list.innerHTML = `<p class="empty-message">This project has no video yet. Add one on the
+      <button class="btn quiet" type="button" data-goto="assets">Assets</button> screen,
+      or paste a link below.</p>`;
+    return;
+  }
+  let cached = _transcriptList;
+  if (!cached) {
+    try { cached = _transcriptList = (await (await fetch("/api/cache")).json()).transcript || []; } catch { cached = []; }
+  }
+  const transcribed = (file) => {
+    const stem = file.replace(/\.[^.]+$/, "");
+    return cached.some((f) => decodeURIComponent(f).startsWith(stem + "."));
+  };
+  list.innerHTML = vids.map((a) => {
+    const on = a.id === activeAssetId;
+    return `
+    <button type="button" class="asset-row asset-pick${on ? " active" : ""}" data-asset-pick="${a.id}"
+            aria-pressed="${on}">
+      <span class="asset-kind" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
+             stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="14" height="14" rx="2"/>
+          <path d="M17 10 L21 7 L21 17 L17 14"/></svg>
+      </span>
+      <span class="asset-name" title="${escapeHTML(a.file)}">${escapeHTML(a.file)}</span>
+      <span class="data asset-meta">${transcribed(a.file) ? "transcribed" : "not transcribed"}</span>
+      ${on ? '<span class="asset-active">selected</span>' : "<span></span>"}
+      <span></span>
+    </button>`;
+  }).join("");
+}
+
+$("#analyzeAssetList")?.addEventListener("click", async (e) => {
+  const go = e.target.closest("[data-goto]");
+  if (go) { toScreen(go.dataset.goto); return; }
+  const pick = e.target.closest("[data-asset-pick]");
+  if (pick) await setActiveAsset(pick.dataset.assetPick);
 });
 
 function addAsset(file) {
@@ -481,9 +631,7 @@ $("#panel-assets")?.addEventListener("click", async (e) => {
   const add = e.target.closest("[data-asset-add]");
   if (add) {
     add.disabled = true;
-    const a = addAsset(add.dataset.assetAdd);
-    if (a) ASSET_TRANSCRIPTS[a.id] = await findTranscript(a.file).catch(() => null);
-    renderAssets();
+    await addVideoToProject(add.dataset.assetAdd);
     return;
   }
   const open = e.target.closest("[data-asset-open]");
@@ -495,7 +643,9 @@ $("#panel-assets")?.addEventListener("click", async (e) => {
   const rm = e.target.closest("[data-asset-remove]");
   if (rm) { removeAsset(rm.dataset.assetRemove); renderAssets(); return; }
   const media = e.target.closest("[data-media-add]");
-  if (media) { addMediaAsset(media.dataset.mediaAdd, media.dataset.kind); renderMediaAssets(); }
+  if (media) { addMediaAsset(media.dataset.mediaAdd, media.dataset.kind); renderMediaAssets(); return; }
+  const imp = e.target.closest("[data-media-import]");
+  if (imp) { imp.disabled = true; importMedia(imp.dataset.mediaImport); }
 });
 
 document.querySelectorAll(".asset-select").forEach((sel) =>

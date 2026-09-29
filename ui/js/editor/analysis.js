@@ -92,6 +92,9 @@ async function startAnalysis() {
       $("#transcribeStats").innerHTML = t.cached
         ? "<span>ready</span><span>transcript loaded from cache</span>"
         : `<span>done</span><span>${timeRange(t.duration)} transcribed</span>`;
+      // The source list's "not transcribed" is now stale (assets.js caches
+      // the transcript listing).
+      if (typeof renderAnalyzeSources === "function") { _transcriptList = null; renderAnalyzeSources(); }
       if (typeof prepareExport === "function") prepareExport(name);
     },
   });

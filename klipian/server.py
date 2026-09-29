@@ -21,6 +21,7 @@ import importlib
 import json
 import mimetypes
 import os
+import shutil
 import subprocess
 import sys
 import threading
@@ -604,7 +605,9 @@ def _run_render(job_id: str, req: dict) -> None:
             # volume, timed against the finished clip. Only a clip that has
             # any reaches it -- every other render is exactly what pass 1
             # wrote, untouched.
-            elements = composer.clean_elements(k.get("overlays"), duration, ASSETS_DIR)
+            # Images and sounds come from the project's own folder.
+            media_dir = (_project_assets_dir(pdata.get("id")) if pdata else None) or (out_dir / ".no-assets")
+            elements = composer.clean_elements(k.get("overlays"), duration, media_dir)
             volumes = composer.clean_volumes(k.get("volumes"), duration)
             if elements or volumes:
                 with LOCK:
@@ -656,6 +659,89 @@ def _run_render(job_id: str, req: dict) -> None:
             t["error"] = str(exc)
     finally:
         CANCELLED.discard(job_id)                  # don't leak to the next job id
+
+
+def _run_fetch_link(job_id: str, url: str) -> None:
+    """Download a video from a link (YouTube and whatever else yt-dlp
+    handles) into samples/, where every other video of every project lives.
+
+    yt-dlp is OPTIONAL, like AI Framing's dependencies: the Python module
+    if it's installed in this environment, else the yt-dlp program on PATH.
+    Neither -> the job fails with how to install it, rather than the link
+    box silently doing nothing (which is what it did before: it only ever
+    recognised a YouTube address, nothing downloaded it)."""
+    t = JOBS[job_id]
+    samples = WORKSPACE / "samples"
+    samples.mkdir(parents=True, exist_ok=True)
+    # A readable, filesystem-safe name that still can't collide: the video
+    # id keeps two videos with the same title apart.
+    template = str(samples / "%(title).80s-%(id)s.%(ext)s")
+    fmt = "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*+ba/b"
+    try:
+        try:
+            import yt_dlp                      # noqa: F401
+            have_module = True
+        except ImportError:
+            have_module = False
+        if have_module:
+            import yt_dlp
+
+            def hook(d):
+                if job_id in CANCELLED:
+                    raise RuntimeError("cancelled")
+                if d.get("status") == "downloading":
+                    total = d.get("total_bytes") or d.get("total_bytes_estimate") or 0
+                    with LOCK:
+                        t["percent"] = int(d.get("downloaded_bytes", 0) * 100 / total) if total else 0
+            opts = {"format": fmt, "outtmpl": template, "restrictfilenames": True,
+                    "merge_output_format": "mp4", "noplaylist": True, "quiet": True,
+                    "no_warnings": True, "progress_hooks": [hook]}
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                path = Path(info.get("requested_downloads", [{}])[0].get("filepath")
+                            or ydl.prepare_filename(info)).with_suffix(".mp4")
+        else:
+            exe = shutil.which("yt-dlp")
+            if not exe:
+                raise RuntimeError("downloading from a link needs yt-dlp. Install it with: "
+                                   "pip install yt-dlp  (in klipian's .venv), then try again.")
+            proc = subprocess.Popen(
+                [exe, "--newline", "--no-playlist", "--restrict-filenames", "-f", fmt,
+                 "--merge-output-format", "mp4", "-o", template,
+                 "--print", "after_move:filepath", url],
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                encoding="utf-8", errors="replace")
+            path = None
+            tail = []
+            for line in proc.stdout:
+                line = line.strip()
+                tail = (tail + [line])[-8:]
+                if job_id in CANCELLED:
+                    proc.kill()
+                    raise RuntimeError("cancelled")
+                if "[download]" in line and "%" in line:
+                    try:
+                        pct = float(line.split("%")[0].split()[-1])
+                        with LOCK:
+                            t["percent"] = int(pct)
+                    except (ValueError, IndexError):
+                        pass
+                elif line and not line.startswith("[") and Path(line).suffix:
+                    path = Path(line)
+            if proc.wait() != 0 or not path:
+                raise RuntimeError("yt-dlp could not download that link:\n" + "\n".join(tail))
+        if not path or not path.is_file() or path.parent.resolve() != samples.resolve():
+            raise RuntimeError("the download finished but the file isn't in samples/")
+        with LOCK:
+            t["state"] = "done"
+            t["percent"] = 100
+            t["file"] = path.name
+    except Exception as exc:                       # noqa: BLE001
+        with LOCK:
+            t["state"] = "cancelled" if job_id in CANCELLED else "failed"
+            t["error"] = str(exc)
+    finally:
+        CANCELLED.discard(job_id)
 
 
 def _run_transcribe(job_id: str, req: dict) -> None:
@@ -1039,6 +1125,26 @@ def _project_file(pid) -> Path | None:
     return PROJECTS / f"{pid}.json" if _valid_project_id(pid) else None
 
 
+def _project_assets_dir(pid) -> Path | None:
+    """A project's own images and sounds: PROJECTS/<id>/assets/ (ian: assets
+    belong to the project). Videos are NOT here -- they stay in samples/,
+    one copy however many projects use them, and a project only lists
+    which ones it uses."""
+    return PROJECTS / pid / "assets" if _valid_project_id(pid) else None
+
+
+def _free_name(folder: Path, name: str) -> Path:
+    """`name` in `folder`, or name-2, name-3 ... if taken -- an upload never
+    replaces a file a timeline element may already point at."""
+    dest = folder / name
+    stem, ext = Path(name).stem, Path(name).suffix
+    i = 2
+    while dest.exists():
+        dest = folder / f"{stem}-{i}{ext}"
+        i += 1
+    return dest
+
+
 def _write_project(f: Path, data: dict) -> None:
     """Temp file then rename: if the process dies mid-write, the old
     project stays intact, not half-written."""
@@ -1359,7 +1465,7 @@ class Handler(BaseHTTPRequestHandler):
         # dict, and json.dumps iterating it while it changes will throw
         # "dictionary changed size during iteration".
         if (path.startswith("/api/render/") or path.startswith("/api/transcribe/")
-                or path.startswith("/api/diarize/")):
+                or path.startswith("/api/diarize/") or path.startswith("/api/fetch-link/")):
             with LOCK:
                 t = JOBS.get(path.rsplit("/", 1)[-1])
                 salinan = dict(t) if t else None
@@ -1515,8 +1621,35 @@ class Handler(BaseHTTPRequestHandler):
                                  "at": int(st.st_mtime)})
             return self._send_json({"asset": item})
 
+        if path == "/api/project-assets":
+            # This project's own images and sounds (projects/<id>/assets/).
+            folder = _project_assets_dir((parse_qs(urlparse(self.path).query).get("id") or [""])[0])
+            if folder is None:
+                return self._send_json({"error": "invalid id"}, 400)
+            item = []
+            if folder.is_dir():
+                for f in sorted(folder.iterdir()):
+                    ext = f.suffix.lower()
+                    if f.is_file() and ext in (composer.IMAGE_EXT | composer.SOUND_EXT):
+                        item.append({"name": f.name,
+                                     "kind": "image" if ext in composer.IMAGE_EXT else "sound",
+                                     "kb": round(f.stat().st_size / 1024, 1)})
+            return self._send_json({"asset": item})
+
+        if path == "/api/project-asset-file":
+            # One of them, for the editor's preview. By name only; .name
+            # strips any path a caller put in it.
+            q = parse_qs(urlparse(self.path).query)
+            folder = _project_assets_dir((q.get("id") or [""])[0])
+            name = Path((q.get("name") or [""])[0]).name
+            f = folder / name if folder is not None and name else None
+            if not f or f.suffix.lower() not in (composer.IMAGE_EXT | composer.SOUND_EXT) or not f.is_file():
+                return self._send_json({"error": "not found"}, 404)
+            return self._send_file(f, mimetypes.guess_type(f.name)[0] or "application/octet-stream")
+
         if path == "/api/workspace/asset-file":
-            # One image/sound from workspace/assets/, for the editor's preview.
+            # One image/sound from the shared library workspace/assets/ -- the
+            # thumbnails in the Assets screen's "import" list.
             # By NAME only, through this endpoint rather than as a static
             # folder, for the reason given at ASSETS_DIR: the user's own files
             # don't become URLs of their own. Path(...).name strips any path.
@@ -1703,6 +1836,11 @@ class Handler(BaseHTTPRequestHandler):
                     f = _project_file(pid)
                     if f is None:
                         return self._send_json({"error": "invalid id"}, 400)
+                elif req.get("new"):
+                    # A new project, explicitly: never merged into another
+                    # one that happens to use the same video (two projects
+                    # can share an episode now).
+                    f = None
                 else:
                     f = _find_project_by_video(name) if name else None
 
@@ -1734,16 +1872,22 @@ class Handler(BaseHTTPRequestHandler):
                         req["assets"] = old["assets"]
                 req["id"] = f.stem
                 req.pop("delete", None)
+                req.pop("new", None)
                 req, _ = _migrate_project(req)
                 _write_project(f, req)
             return self._send_json({"ok": True, "id": f.stem})
 
-        if path == "/api/workspace/asset-upload":
-            # An image or sound dropped on the Assets screen, saved into
-            # workspace/assets/ -- where the timeline's elements come from
-            # and where they already could be put by hand. Raw body, the
-            # file's name in the query: no multipart parsing for one file.
-            name = Path((parse_qs(urlparse(self.path).query).get("name") or [""])[0]).name.strip()
+        if path == "/api/project-asset-upload":
+            # An image or sound dropped on the Assets screen, saved into THIS
+            # project's own folder (projects/<id>/assets/) -- a project's
+            # stickers and stings belong to it, not to a pool every project
+            # draws from (ian). Raw body, the file's name in the query: no
+            # multipart parsing for one file.
+            q = parse_qs(urlparse(self.path).query)
+            folder = _project_assets_dir((q.get("id") or [""])[0])
+            if folder is None or not _project_file(folder.parent.name).is_file():
+                return self._send_json({"error": "save the project first"}, 400)
+            name = Path((q.get("name") or [""])[0]).name.strip()
             ext = Path(name).suffix.lower()
             if not name or ext not in (composer.IMAGE_EXT | composer.SOUND_EXT):
                 return self._send_json({"error": "only images (png, jpg, webp, gif) and sounds "
@@ -1752,14 +1896,8 @@ class Handler(BaseHTTPRequestHandler):
             MAX_ASSET = 100 * 1024 * 1024
             if n <= 0 or n > MAX_ASSET:
                 return self._send_json({"error": f"file must be 1 byte to {MAX_ASSET // 1048576} MB"}, 400)
-            ASSETS_DIR.mkdir(parents=True, exist_ok=True)
-            # Never over an existing file of the same name: that one may be
-            # in use by another project's timeline.
-            dest = ASSETS_DIR / name
-            i = 2
-            while dest.exists():
-                dest = ASSETS_DIR / f"{Path(name).stem}-{i}{ext}"
-                i += 1
+            folder.mkdir(parents=True, exist_ok=True)
+            dest = _free_name(folder, name)
             tmp = dest.with_name(dest.name + ".part")
             try:
                 with open(tmp, "wb") as out:
@@ -1774,6 +1912,38 @@ class Handler(BaseHTTPRequestHandler):
             except (OSError, ConnectionError) as exc:
                 tmp.unlink(missing_ok=True)
                 return self._send_json({"error": f"could not save the file: {exc}"}, 500)
+            return self._send_json({"ok": True, "name": dest.name,
+                                    "kind": "image" if ext in composer.IMAGE_EXT else "sound"})
+
+        if path == "/api/project-asset-import":
+            # A file from the shared library (workspace/assets/: logos,
+            # banners, templates) COPIED into the project's folder. A copy,
+            # not a reference: editing or deleting the shared file later
+            # must not change a project that already used it.
+            try:
+                req = self._read_json()
+            except Exception as exc:               # noqa: BLE001
+                return self._send_json({"error": str(exc)}, 400)
+            folder = _project_assets_dir(req.get("id"))
+            if folder is None or not _project_file(folder.parent.name).is_file():
+                return self._send_json({"error": "save the project first"}, 400)
+            name = Path(str(req.get("name") or "")).name
+            src = ASSETS_DIR / name
+            ext = src.suffix.lower()
+            if not name or ext not in (composer.IMAGE_EXT | composer.SOUND_EXT) or not src.is_file():
+                return self._send_json({"error": "not found in workspace/assets/"}, 404)
+            folder.mkdir(parents=True, exist_ok=True)
+            # Already imported once, byte-for-byte: reuse that copy rather
+            # than pile up banner-2.png, banner-3.png on every click.
+            same = folder / name
+            if same.is_file() and same.read_bytes() == src.read_bytes():
+                dest = same
+            else:
+                dest = _free_name(folder, name)
+                try:
+                    shutil.copyfile(src, dest)
+                except OSError as exc:
+                    return self._send_json({"error": f"could not copy the file: {exc}"}, 500)
             return self._send_json({"ok": True, "name": dest.name,
                                     "kind": "image" if ext in composer.IMAGE_EXT else "sound"})
 
@@ -1981,8 +2151,9 @@ class Handler(BaseHTTPRequestHandler):
                 # where the piece's run starts in the whole clip, start_from
                 # how far into the run the piece begins.
                 base = float(req.get("overlayBase") or 0) + start_from
+                media_dir = _project_assets_dir(req.get("project")) or (pdir / ".no-assets")
                 elements = composer.clean_elements(
-                    composer.shift_elements(k.get("overlays"), base), job.duration, ASSETS_DIR)
+                    composer.shift_elements(k.get("overlays"), base), job.duration, media_dir)
                 volumes = composer.clean_volumes(
                     composer.shift_elements(k.get("volumes"), base), job.duration)
                 if elements or volumes:
@@ -2009,6 +2180,21 @@ class Handler(BaseHTTPRequestHandler):
                 "duration": round(job.duration, 1),
                 **({"warning": warning} if warning else {}),
             })
+
+        if path == "/api/fetch-link":
+            # A link pasted on the Analyze screen -> a video in samples/
+            # (_run_fetch_link). Only http(s): anything else isn't a link.
+            try:
+                req = self._read_json()
+            except Exception as exc:               # noqa: BLE001
+                return self._send_json({"error": str(exc)}, 400)
+            url = str(req.get("url") or "").strip()
+            if urlparse(url).scheme not in ("http", "https") or not urlparse(url).netloc:
+                return self._send_json({"error": "that isn't a web link"}, 400)
+            job_id = uuid.uuid4().hex[:8]
+            _register_job(job_id, {"state": "running", "percent": 0, "file": None, "error": None})
+            threading.Thread(target=_run_fetch_link, args=(job_id, url), daemon=True).start()
+            return self._send_json({"id": job_id})
 
         if path == "/api/transcribe":
             try:

@@ -7,35 +7,23 @@
    Loaded after app.js; uses its global bindings.
    ========================================================================== */
 
-/* ───────────────── source: drag file, pick file, YouTube link ─────────── */
+/* ───────────────── source: a project video, or a link ────────────────────
+   The Analyze screen used to open with a drop zone: drop a file and it
+   became "the" video, keyed to a project by its filename. A project holds
+   several videos now (assets.js), so Analyze picks one of THEM -- or takes
+   a link, downloads it into workspace/samples/ and adds it to the project
+   (ian). Adding videos from samples/ is the Assets screen's job. */
 
-const YT_PATTERN = /(?:youtube\.com\/(?:watch\?v=|shorts\/|live\/|embed\/)|youtu\.be\/)([\w-]{11})/;
 let chosenSource = null;
-
-const fileInput = Object.assign(document.createElement("input"), {
-  type: "file", accept: "video/*,.mkv", hidden: true,
-});
-document.body.appendChild(fileInput);
-
-const fmtSize = (b) => {
-  const mb = b / 1048576;
-  return mb >= 1024 ? `${(mb / 1024).toFixed(2)} GB` : `${Math.round(mb)} MB`;
-};
 
 /* Same clock as timeRange(), plus the one thing that is genuinely
    different here: a file whose duration ffprobe could not read says so,
    instead of silently reading as 00:00. */
 const fmtDuration = (d) => (isFinite(d) ? timeRange(d) : "duration unreadable");
 
-/* File name & duration in the topbar (#fileName/#fileDuration) -- SINGLE place,
-   called from both video "becomes active" paths: acceptFile() here
-   (new video dropped) and openProjectFromHome() in projects.js
-   (old project re-opened via home card / session restore). Before this
-   both were ONLY filled by startAnalysis() (analysis.js), which ONLY
-   ran via the "Find clips" button on the home page -- opening an old
-   project never triggered it, so the topbar kept showing the sample
-   placeholder from app.js (radityadika-podcast.mp4, 42:03)
-   FOREVER, not just momentarily, until a NEW video was dropped. */
+/* File name & duration in the topbar (#fileName/#fileDuration) -- one
+   place, called whenever the video on screen changes: opening a project
+   (projects.js) and switching videos (setActiveAsset, assets.js). */
 function updateTopbarFile(name, durationSeconds) {
   if ($("#fileName")) $("#fileName").textContent = name || "";
   if ($("#fileDuration")) {
@@ -43,236 +31,95 @@ function updateTopbarFile(name, durationSeconds) {
   }
 }
 
-/* Duration and resolution are read from the actual file via the <video> element. */
-function readMeta(file) {
-  return new Promise((end) => {
-    const url = URL.createObjectURL(file);
-    const v = document.createElement("video");
-    v.preload = "metadata";
-    v.onloadedmetadata = () =>
-      end({ duration: v.duration, width: v.videoWidth, height: v.videoHeight, url });
-    v.onerror = () => end({ duration: NaN, width: 0, height: 0, url });
-    v.src = url;
+/* The Analyze screen's source panel: which of the project's videos is on
+   screen, and whether "Find clips" has anything to work on. Kept under its
+   old name -- every "the video changed" path already calls it. */
+function drawSource(error, extraNote) {
+  const button = $("#run");
+  const hasSource = !!chosenSource && !error;
+  $("#prepareFoot")?.toggleAttribute("hidden", !hasSource);
+  if (button) button.disabled = !hasSource;
+  const note = $("#analyzeSourceNote");
+  if (note) {
+    // realTranscript is read only once there IS a source: this also runs
+    // at load (below), before roundtrip.js has declared it.
+    const dur = chosenSource && (Number.isFinite(chosenSource.duration)
+      ? chosenSource.duration : realTranscript?.duration);
+    note.textContent = error || (chosenSource
+      ? [chosenSource.name, Number.isFinite(dur) ? fmtDuration(dur) : "", extraNote || ""].filter(Boolean).join(" · ")
+      : "");
+  }
+  if (typeof renderAnalyzeSources === "function") renderAnalyzeSources();
+}
+
+/* ---------- link -> a video in samples/ -> an asset of this project ---------- */
+
+let linkStop = null;
+
+async function fetchLink() {
+  const input = $("#urlInput");
+  const btn = $("#linkFetchBtn");
+  const note = $("#linkNote");
+  const url = input?.value.trim();
+  if (!url) return;
+  if (btn) btn.disabled = true;
+  if (note) note.textContent = "starting download …";
+  let id;
+  try {
+    const r = await fetch("/api/fetch-link", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+    const d = await r.json();
+    if (!r.ok || d.error) throw new Error(d.error || `server replied ${r.status}`);
+    id = d.id;
+  } catch (err) {
+    if (note) note.textContent = err.message || "Needs the backend. Run: python -m klipian serve";
+    if (btn) btn.disabled = false;
+    return;
+  }
+  if (linkStop) linkStop();
+  linkStop = pollJob(`/api/fetch-link/${id}`, {
+    interval: 900,
+    onTick: (t) => { if (note) note.textContent = `downloading … ${t.percent || 0}%`; },
+    onFail: () => {
+      linkStop = null;
+      if (note) note.textContent = "Lost contact with the server. Run: python -m klipian serve";
+      if (btn) btn.disabled = false;
+    },
+    onDone: async (t) => {
+      linkStop = null;
+      if (btn) btn.disabled = false;
+      if (t.state !== "done") {
+        if (note) note.textContent = t.error || "The download didn't finish.";
+        return;
+      }
+      if (input) input.value = "";
+      if (note) note.textContent = `saved as workspace/samples/${t.file}`;
+      // Into the project, and on screen.
+      await addVideoToProject(t.file);
+    },
   });
 }
 
-async function acceptFile(file) {
-  if (!file) return;
-  if (!/^video\//.test(file.type) && !/\.(mkv|mov|mp4|webm)$/i.test(file.name)) {
-    drawSource("That file is not a video. Use mp4, mkv, mov, or webm.");
-    return;
-  }
-  // Revoke the previous blob URL to prevent memory leaks
-  if (chosenSource && chosenSource.url && chosenSource.url.startsWith("blob:")) {
-    URL.revokeObjectURL(chosenSource.url);
-  }
-  const meta = await readMeta(file);
-  const changed = chosenSource && chosenSource.name !== file.name;
-  chosenSource = { kind: "file", name: file.name, size: file.size, ...meta };
-  updateTopbarFile(chosenSource.name, chosenSource.duration);
-  $("#urlInput").value = "";
-  drawSource();
-
-  // New video = different person in frame, so clear the person list and
-  // start over from "Person 1". resetProjectState() (projects.js) also
-  // clears SAVED_RESULTS so a single new Result is created -- previous
-  // video's Results must not carry over to this one.
-  if (changed && typeof resetProjectState === "function") resetProjectState();
-
-  // New video = fresh session. Without this, candidates from the previous
-  // file would carry over and clash on screen.
-  if (changed || DATA.candidates.length) {
-    DATA.candidates = [];
-    if (typeof realTranscript !== "undefined") realTranscript = null;
-    renderList();
-    if (typeof renderRecommendations === "function") renderRecommendations();
-  }
-  if (typeof prepareVideo === "function") {
-    prepareVideo();
-    setClip(DATA.candidates[0]);
-  }
-
-  // Files from outside workspace/samples/ only get a blob: URL -- preview works,
-  // but transcription, thumbnails, and rendering all go through _find_video()
-  // on the server and will return "video not found". Warn NOW, not after
-  // waiting for a transcription that was never going to succeed.
-  try {
-    const available = (await (await fetch("/api/video")).json()).video || [];
-    if (!available.includes(file.name)) {
-      drawSource(null, "not in workspace/samples/ — move it there to transcribe and render");
-      document.querySelector(".source-drop")?.setAttribute("data-state", "warn");
-    }
-  } catch { /* no backend -- nothing to check */ }
-
-  // Same video = same project. If it was worked on before, Result,
-  // framing points, and text corrections come back; if not, this becomes
-  // the new project.
-  if (typeof openProject === "function") {
-    const resumed = await openProject(file.name);
-    if (resumed) {
-      if (typeof renderResult === "function") renderResult();
-      if (typeof renderFraming === "function") renderFraming();
-      if (typeof renderCaptions === "function") renderCaptions();
-      if (typeof renderRecommendations === "function") renderRecommendations();
-      if (typeof drawTotalTimeline === "function") drawTotalTimeline();
-      drawSource(null, "picked up where you left off");
-    }
-  }
-}
-
-function acceptURL(text) {
-  const matched = text.match(YT_PATTERN);
-  if (matched) {
-    chosenSource = { kind: "youtube", name: `youtu.be/${matched[1]}`, id: matched[1] };
-    drawSource();
-  } else {
-    chosenSource = null;
-    drawSource(text.trim() ? "That link is not a YouTube address we recognise." : null);
-  }
-}
-
-function drawSource(error, extraNote) {
-  const box = document.querySelector(".source-drop");
-  const button = $("#run");
-  if (!box || !button) return;
-
-  // "Find clips" means nothing before a video is loaded.
-  const hasSource = !!chosenSource && !error;
-  $("#prepareFoot")?.toggleAttribute("hidden", !hasSource);
-
-  // #projectSetup (the drop zone, on the Analyze screen) collapses into a
-  // one-line #projectSetupSummary the moment a video is in place -- click
-  // the summary to reopen it and change the video.
-  //
-  // The summary used to also spell out Format and Resolution, and #options
-  // used to be hidden and shown alongside the drop zone. Both moved to the
-  // Output Format screen (ian), which is where they're read from now -- echoing
-  // them here as well would be a second place to keep in step.
-  const setup = $("#projectSetup");
-  const summary = $("#projectSetupSummary");
-  if (setup && summary) {
-    setup.toggleAttribute("hidden", hasSource);
-    summary.toggleAttribute("hidden", !hasSource);
-    if (hasSource) {
-      const text = $("#projectSetupSummaryText");
-      if (text) text.textContent = chosenSource.name;
-    }
-  }
-
-  const title = box.querySelector("h2");
-  const note = box.querySelector("p");
-
-  if (error) {
-    box.dataset.state = "error";
-    title.textContent = "Can't use this";
-    note.textContent = error;
-    button.disabled = true;
-  } else if (!chosenSource) {
-    box.dataset.state = "";
-    title.textContent = "Drag a video here";
-    note.textContent = "mp4, mkv, mov — or";
-    button.disabled = true;
-  } else {
-    const s = chosenSource;
-    box.dataset.state = "ready";
-    title.textContent = s.name;
-    // Old project opened via home card / session restore: chosenSource on
-    // that path is only {kind,name,url} -- NO real size/duration/width
-    // (not the readMeta() result from <video>, just the name from the
-    // project record). Previously all three were forced to display (fmtSize/
-    // fmtDuration called on undefined, producing "NaN MB · unreadable
-    // duration") -- now the parts that are genuinely unknown are skipped
-    // rather than displayed broken. Duration can still be recovered from
-    // a transcript that was already made for this video, if one exists.
-    let details;
-    if (s.kind === "file") {
-      const parts = [];
-      if (Number.isFinite(s.size)) parts.push(fmtSize(s.size));
-      const duration = Number.isFinite(s.duration) ? s.duration
-        : (typeof realTranscript !== "undefined" ? realTranscript?.duration : undefined);
-      if (Number.isFinite(duration)) parts.push(fmtDuration(duration));
-      if (s.width) parts.push(`${s.width}×${s.height}`);
-      details = parts.length ? parts.join(" · ") : "resuming this project";
-    } else {
-      details = "the video will be downloaded when the pipeline runs";
-    }
-    // Extra note is used when an old project is restored, so the user knows
-    // their work is back and doesn't think they have to start from scratch.
-    note.textContent = extraNote ? `${details} · ${extraNote}` : details;
-    button.disabled = false;
-  }
-}
-
-document.addEventListener("click", (e) => {
-  if (e.target.closest(".source-actions .btn")) fileInput.click();
+$("#urlInput")?.addEventListener("input", (e) => {
+  const btn = $("#linkFetchBtn");
+  if (btn) btn.disabled = !/^https?:\/\/\S+\.\S+/.test(e.target.value.trim());
 });
-fileInput.addEventListener("change", () => acceptFile(fileInput.files[0]));
-
-/* Reopens #projectSetup from its collapsed summary row (see drawSource()
-   above). No corresponding "collapse" handler is needed: the next
-   drawSource() call -- dropping a different video, or resuming a project --
-   naturally re-collapses it, same as it collapsed the first time. */
-$("#projectSetupSummary")?.addEventListener("click", () => {
-  $("#projectSetup")?.removeAttribute("hidden");
-  $("#projectSetupSummary")?.setAttribute("hidden", "");
+$("#urlInput")?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); if (!$("#linkFetchBtn")?.disabled) fetchLink(); }
 });
-$("#urlInput")?.addEventListener("input", (e) => acceptURL(e.target.value));
+$("#linkFetchBtn")?.addEventListener("click", fetchLink);
 
-/* Drag-and-drop only in the DROP PANEL, not across the whole window.
-   There used to be a curtain that covered the entire screen once a file
-   was dragged in. The intent was so no drop zone would be missed, but
-   the result was the entire UI hidden behind a curtain for what was
-   actually just one box -- and that box already had its own highlight
-   state, which never got seen because the curtain was on top.
-
-   The window-level guard is still there, but it does NOT draw anything:
-   its only job is to cancel the browser's default behavior. Without it,
-   a file dropped outside the panel would be OPENED by the browser -- the
-   app gets abandoned along with all the un-rendered work. */
-
+/* No drop zone any more, but the window-level guard stays: without it a
+   file dropped anywhere on the page (say, next to the Assets screen's
+   image drop area) would be OPENED by the browser, abandoning the app
+   along with all un-rendered work. It draws nothing; it only cancels the
+   browser's default. */
 const hasFiles = (e) => [...((e.dataTransfer && e.dataTransfer.types) || [])].includes("Files");
 
 ["dragenter", "dragover", "drop"].forEach((ev) =>
   window.addEventListener(ev, (e) => { if (hasFiles(e)) e.preventDefault(); }));
-
-const dropPanel = document.querySelector(".source-drop");
-if (dropPanel) {
-  // Counter, not a single flag: dragleave fires every time the pointer
-  // crosses a child element inside the panel, so the highlight would flicker.
-  let dragCount = 0;
-  const highlight = (on) => {
-    if (on) dropPanel.dataset.drag = "true";
-    else delete dropPanel.dataset.drag;
-  };
-
-  dropPanel.addEventListener("dragenter", (e) => {
-    if (!hasFiles(e)) return;
-    e.preventDefault();
-    dragCount++;
-    highlight(true);
-  });
-
-  dropPanel.addEventListener("dragover", (e) => {
-    if (!hasFiles(e)) return;
-    e.preventDefault();                    // required, otherwise drop is ignored
-    e.dataTransfer.dropEffect = "copy";
-  });
-
-  dropPanel.addEventListener("dragleave", (e) => {
-    if (!hasFiles(e)) return;
-    dragCount = Math.max(0, dragCount - 1);
-    if (dragCount === 0) highlight(false);
-  });
-
-  dropPanel.addEventListener("drop", (e) => {
-    if (!hasFiles(e)) return;
-    e.preventDefault();
-    e.stopPropagation();
-    dragCount = 0;
-    highlight(false);
-    acceptFile(e.dataTransfer.files[0]);
-  });
-}
 
 /* ───────────────── candidates: approve, reject, undo ──────────────────── */
 
