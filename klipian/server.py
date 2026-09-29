@@ -661,89 +661,6 @@ def _run_render(job_id: str, req: dict) -> None:
         CANCELLED.discard(job_id)                  # don't leak to the next job id
 
 
-def _run_fetch_link(job_id: str, url: str) -> None:
-    """Download a video from a link (YouTube and whatever else yt-dlp
-    handles) into samples/, where every other video of every project lives.
-
-    yt-dlp is OPTIONAL, like AI Framing's dependencies: the Python module
-    if it's installed in this environment, else the yt-dlp program on PATH.
-    Neither -> the job fails with how to install it, rather than the link
-    box silently doing nothing (which is what it did before: it only ever
-    recognised a YouTube address, nothing downloaded it)."""
-    t = JOBS[job_id]
-    samples = WORKSPACE / "samples"
-    samples.mkdir(parents=True, exist_ok=True)
-    # A readable, filesystem-safe name that still can't collide: the video
-    # id keeps two videos with the same title apart.
-    template = str(samples / "%(title).80s-%(id)s.%(ext)s")
-    fmt = "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*+ba/b"
-    try:
-        try:
-            import yt_dlp                      # noqa: F401
-            have_module = True
-        except ImportError:
-            have_module = False
-        if have_module:
-            import yt_dlp
-
-            def hook(d):
-                if job_id in CANCELLED:
-                    raise RuntimeError("cancelled")
-                if d.get("status") == "downloading":
-                    total = d.get("total_bytes") or d.get("total_bytes_estimate") or 0
-                    with LOCK:
-                        t["percent"] = int(d.get("downloaded_bytes", 0) * 100 / total) if total else 0
-            opts = {"format": fmt, "outtmpl": template, "restrictfilenames": True,
-                    "merge_output_format": "mp4", "noplaylist": True, "quiet": True,
-                    "no_warnings": True, "progress_hooks": [hook]}
-            with yt_dlp.YoutubeDL(opts) as ydl:
-                info = ydl.extract_info(url, download=True)
-                path = Path(info.get("requested_downloads", [{}])[0].get("filepath")
-                            or ydl.prepare_filename(info)).with_suffix(".mp4")
-        else:
-            exe = shutil.which("yt-dlp")
-            if not exe:
-                raise RuntimeError("downloading from a link needs yt-dlp. Install it with: "
-                                   "pip install yt-dlp  (in klipian's .venv), then try again.")
-            proc = subprocess.Popen(
-                [exe, "--newline", "--no-playlist", "--restrict-filenames", "-f", fmt,
-                 "--merge-output-format", "mp4", "-o", template,
-                 "--print", "after_move:filepath", url],
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-                encoding="utf-8", errors="replace")
-            path = None
-            tail = []
-            for line in proc.stdout:
-                line = line.strip()
-                tail = (tail + [line])[-8:]
-                if job_id in CANCELLED:
-                    proc.kill()
-                    raise RuntimeError("cancelled")
-                if "[download]" in line and "%" in line:
-                    try:
-                        pct = float(line.split("%")[0].split()[-1])
-                        with LOCK:
-                            t["percent"] = int(pct)
-                    except (ValueError, IndexError):
-                        pass
-                elif line and not line.startswith("[") and Path(line).suffix:
-                    path = Path(line)
-            if proc.wait() != 0 or not path:
-                raise RuntimeError("yt-dlp could not download that link:\n" + "\n".join(tail))
-        if not path or not path.is_file() or path.parent.resolve() != samples.resolve():
-            raise RuntimeError("the download finished but the file isn't in samples/")
-        with LOCK:
-            t["state"] = "done"
-            t["percent"] = 100
-            t["file"] = path.name
-    except Exception as exc:                       # noqa: BLE001
-        with LOCK:
-            t["state"] = "cancelled" if job_id in CANCELLED else "failed"
-            t["error"] = str(exc)
-    finally:
-        CANCELLED.discard(job_id)
-
-
 def _run_transcribe(job_id: str, req: dict) -> None:
     """Real transcription with real progress.
 
@@ -1465,7 +1382,7 @@ class Handler(BaseHTTPRequestHandler):
         # dict, and json.dumps iterating it while it changes will throw
         # "dictionary changed size during iteration".
         if (path.startswith("/api/render/") or path.startswith("/api/transcribe/")
-                or path.startswith("/api/diarize/") or path.startswith("/api/fetch-link/")):
+                or path.startswith("/api/diarize/")):
             with LOCK:
                 t = JOBS.get(path.rsplit("/", 1)[-1])
                 salinan = dict(t) if t else None
@@ -1555,7 +1472,8 @@ class Handler(BaseHTTPRequestHandler):
             item = []
             for f, _ in _all_projects():
                 r = _project_summary(f)
-                if r and r.get("video"):
+                # A project with no video left is still a project (ian).
+                if r and r.get("id"):
                     item.append(r)
             item.sort(key=lambda x: x["at"], reverse=True)
             return self._send_json({"project": item})
@@ -1849,7 +1767,9 @@ class Handler(BaseHTTPRequestHandler):
                         f.unlink(missing_ok=True)
                     return self._send_json({"ok": True, "deleted": True})
 
-                if not name:
+                if not name and not pid:
+                    # Only a NEW project needs one: its first video is what
+                    # starts it. An existing one may have had all removed.
                     return self._send_json({"error": "video required"}, 400)
                 if f is None:
                     f = PROJECTS / f"{_new_project_id()}.json"
@@ -1868,7 +1788,10 @@ class Handler(BaseHTTPRequestHandler):
                     for key in ("name", "createdAt", "outSlug", "legacyFile"):
                         if old.get(key):
                             req[key] = old[key]
-                    if not req.get("assets") and old.get("assets"):
+                    # Kept only when the client didn't send a list at all
+                    # (an older client). An EMPTY list is an answer: every
+                    # asset was removed, which a project is allowed (ian).
+                    if "assets" not in req and old.get("assets"):
                         req["assets"] = old["assets"]
                 req["id"] = f.stem
                 req.pop("delete", None)
@@ -2180,21 +2103,6 @@ class Handler(BaseHTTPRequestHandler):
                 "duration": round(job.duration, 1),
                 **({"warning": warning} if warning else {}),
             })
-
-        if path == "/api/fetch-link":
-            # A link pasted on the Analyze screen -> a video in samples/
-            # (_run_fetch_link). Only http(s): anything else isn't a link.
-            try:
-                req = self._read_json()
-            except Exception as exc:               # noqa: BLE001
-                return self._send_json({"error": str(exc)}, 400)
-            url = str(req.get("url") or "").strip()
-            if urlparse(url).scheme not in ("http", "https") or not urlparse(url).netloc:
-                return self._send_json({"error": "that isn't a web link"}, 400)
-            job_id = uuid.uuid4().hex[:8]
-            _register_job(job_id, {"state": "running", "percent": 0, "file": None, "error": None})
-            threading.Thread(target=_run_fetch_link, args=(job_id, url), daemon=True).start()
-            return self._send_json({"id": job_id})
 
         if path == "/api/transcribe":
             try:

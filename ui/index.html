@@ -8,10 +8,10 @@
      from the Google Fonts CDN -- see ui/css/fonts.css for why. Loaded
      BEFORE the other stylesheets so the faces are declared by the time
      anything asks for them. -->
-<link rel="stylesheet" href="/ui/css/fonts.css?v=1790702747935">
-<link rel="stylesheet" href="/ui/css/tokens.css?v=1790702747935">
-<link rel="stylesheet" href="/ui/css/brand.css?v=1790702747935">
-<link rel="stylesheet" href="/ui/css/app.css?v=1790702747935">
+<link rel="stylesheet" href="/ui/css/fonts.css?v=1790703163808">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1790703163808">
+<link rel="stylesheet" href="/ui/css/brand.css?v=1790703163808">
+<link rel="stylesheet" href="/ui/css/app.css?v=1790703163808">
 </head>
 <body>
 
@@ -301,10 +301,9 @@
           <span class="note" id="analysisNote" role="status">pick a video, then find clips from the transcript</span>
         </div>
 
-        <!-- Which video to analyze: one of THIS project's videos, or a link
-             that gets downloaded into workspace/samples/ and added to the
-             project (ian). No drop zone any more -- a project's videos are
-             added on the Assets screen; this only picks among them.
+        <!-- Which video to analyze: one of THIS project's videos (ian). No
+             drop zone any more -- a project's videos are added on the
+             Assets screen; this only picks among them.
 
              Format and Resolution used to live in here too. They're on the
              Output Format screen now (ian) -- nothing on this screen reads
@@ -315,12 +314,15 @@
             <span class="data" id="analyzeSourceNote"></span>
           </div>
           <div class="asset-list" id="analyzeAssetList"></div>
-          <div class="link-row">
-            <input class="input" id="urlInput" type="url" spellcheck="false"
-                   placeholder="or paste a video link (YouTube, …)" aria-label="Video link">
+          <!-- On screen, NOT wired up yet (ian): downloading from a link
+               comes later. Disabled rather than hidden so the place it
+               will live is already visible. -->
+          <div class="link-row" title="Not available yet">
+            <input class="input" id="urlInput" type="url" spellcheck="false" disabled
+                   placeholder="or paste a video link (YouTube, …)" aria-label="Video link (not available yet)">
             <button class="btn" id="linkFetchBtn" type="button" disabled>Download</button>
           </div>
-          <p class="data link-note" id="linkNote" role="status"></p>
+          <p class="data link-note">Downloading from a link isn't available yet.</p>
           <!-- Hidden until there's a video: before that it means nothing. -->
           <div class="prepare-foot" id="prepareFoot" hidden>
             <button class="btn main large" id="run">Find clips</button>
@@ -962,19 +964,19 @@
 
 <!-- Shared with /workspace (theme, clock, "?" popover) -- loaded first so
      the theme is applied before the editor's own scripts start drawing. -->
-<script src="/ui/js/shared/topbar.js?v=1790702747935"></script>
-<script src="/ui/js/editor/app.js?v=1790702747935"></script>
-<script src="/ui/js/editor/assets.js?v=1790702747935"></script>
-<script src="/ui/js/editor/interactions.js?v=1790702747935"></script>
-<script src="/ui/js/editor/framing.js?v=1790702747935"></script>
-<script src="/ui/js/editor/analysis.js?v=1790702747935"></script>
-<script src="/ui/js/editor/player.js?v=1790702747935"></script>
-<script src="/ui/js/editor/roundtrip.js?v=1790702747935"></script>
-<script src="/ui/js/editor/history.js?v=1790702747935"></script>
-<script src="/ui/js/editor/timeline.js?v=1790702747935"></script>
-<script src="/ui/js/editor/captions.js?v=1790702747935"></script>
-<script src="/ui/js/editor/result.js?v=1790702747935"></script>
-<script src="/ui/js/editor/compose.js?v=1790702747935"></script>
-<script src="/ui/js/editor/projects.js?v=1790702747935"></script>
+<script src="/ui/js/shared/topbar.js?v=1790703163808"></script>
+<script src="/ui/js/editor/app.js?v=1790703163808"></script>
+<script src="/ui/js/editor/assets.js?v=1790703163808"></script>
+<script src="/ui/js/editor/interactions.js?v=1790703163808"></script>
+<script src="/ui/js/editor/framing.js?v=1790703163808"></script>
+<script src="/ui/js/editor/analysis.js?v=1790703163808"></script>
+<script src="/ui/js/editor/player.js?v=1790703163808"></script>
+<script src="/ui/js/editor/roundtrip.js?v=1790703163808"></script>
+<script src="/ui/js/editor/history.js?v=1790703163808"></script>
+<script src="/ui/js/editor/timeline.js?v=1790703163808"></script>
+<script src="/ui/js/editor/captions.js?v=1790703163808"></script>
+<script src="/ui/js/editor/result.js?v=1790703163808"></script>
+<script src="/ui/js/editor/compose.js?v=1790703163808"></script>
+<script src="/ui/js/editor/projects.js?v=1790703163808"></script>
 </body>
 </html>

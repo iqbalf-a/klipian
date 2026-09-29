@@ -79,8 +79,9 @@ function projectState() {
     // The project's videos (assets.js). No separate `video` any more: the
     // first video asset is what that field used to say. A project with no
     // asset list yet (nothing dropped) falls back to the one file it has.
-    assets: (typeof ASSETS !== "undefined" && ASSETS.length) ? ASSETS
-      : (activeProject ? [{ id: "a1", kind: "video", file: activeProject }] : undefined),
+    // An empty list is sent as such: every asset can be removed (ian).
+    assets: (typeof ASSETS !== "undefined" && (ASSETS.length || activeProjectId)) ? ASSETS
+      : (activeProject ? [{ id: "a1", kind: "video", file: activeProject }] : []),
     activeAsset: (typeof activeAssetId !== "undefined") ? activeAssetId : undefined,
     // Only once an id has been handed out beyond the list -- a project
     // that never removed an asset doesn't need it.
@@ -147,7 +148,10 @@ let creatingProject = null;
 async function writeProjectNow() {
   clearTimeout(saveTimer);
   saveTimer = null;
-  if (!activeProject) return;
+  // A project exists once it has an id, video or not -- all of its videos
+  // can be removed (ian) and it still has to save. Before its first save,
+  // the first video is what starts it.
+  if (!activeProject && !activeProjectId) return;
   if (!activeProjectId && creatingProject) await creatingProject;
   if (!activeProjectId) {
     const run = writeProjectOnce(true);
@@ -204,7 +208,7 @@ async function writeProjectOnce(isNew) {
    that's what the "close/reload page" warning below reads so that
    changes still waiting for the delay are not mistaken for safely saved. */
 function saveProject() {
-  if (!activeProject) return;
+  if (!activeProject && !activeProjectId) return;   // see writeProjectNow()
   savePending = true;
   updateSaveStatus();
   clearTimeout(saveTimer);
@@ -506,7 +510,7 @@ function applyProject(d, preferFile) {
   activeProjectId = d.id || null;
   // The project's first video (`video` in a file the server hasn't
   // migrated -- it no longer writes that field).
-  activeProject = projectPrimaryFile(d) || activeProject;
+  activeProject = projectPrimaryFile(d) || null;   // null: every video removed
 
   // The project's videos, BEFORE any span is placed on the virtual
   // timeline below. A file from before assets has only `video`.
@@ -708,10 +712,13 @@ async function renderProjects() {
   // If the newest one happens to have a missing video, the marker vanishes
   // entirely -- even though "which one was it?" is precisely the question
   // it's supposed to answer.
-  const lastIdx = items.findIndex((p) => !(available && !available.has(p.video)));
+  // A project whose videos were all removed has no video to be missing.
+  const lacks = (p) => !!(p.video && available && !available.has(p.video));
+  const lastIdx = items.findIndex((p) => !lacks(p));
 
   container.innerHTML = items.map((p, i) => {
-    const missing = available && !available.has(p.video);
+    const missing = lacks(p);
+    const empty = !p.video;
     const name = p.name || p.video;
     // div, NOT a button: the card contains Keep and Delete buttons, and a
     // button inside a button is invalid HTML -- the browser pulls it out of
@@ -720,13 +727,14 @@ async function renderProjects() {
     <div class="project-card${missing ? " missing" : ""}" data-project="${escapeHTML(p.id)}"
          data-video="${escapeHTML(p.video)}"
          role="button" tabindex="0"${missing ? ' aria-disabled="true"' : ""}>
-      ${missing
+      ${missing || empty
         ? '<span class="project-thumb empty"></span>'
         : `<img class="project-thumb" alt="" loading="lazy" src="${coverUrl(p)}">`}
       ${i === lastIdx ? '<span class="last-opened">last opened</span>' : ""}
       <span class="project-name" title="${escapeHTML(name)}">${escapeHTML(name)}</span>
       <span class="data project-meta">${missing
         ? "video not in samples/"
+        : empty ? `no video yet · ${timeAgo(p.at)}`
         : `${p.spans} span${p.spans === 1 ? "" : "s"} · ${Math.round(p.seconds)}s · ${timeAgo(p.at)}`}</span>
       <span class="data project-created">created ${createdLabel(p.createdAt)}</span>
       <i class="rename-icon" data-rename-project="${escapeHTML(p.id)}" role="button"
@@ -939,7 +947,7 @@ async function openProjectFromHome(id) {
   markProjectCardBusy(id);
   const d = await fetchProject({ id });
   if (gen !== _openProjectGen) return false;
-  if (!d || !projectActiveFile(d)) { markProjectCardBusy(""); return false; }
+  if (!d) { markProjectCardBusy(""); return false; }
   return enterProject(d, gen);
 }
 
@@ -952,6 +960,24 @@ function projectPrimaryFile(d) {
   return list[0]?.file || d.video || "";
 }
 
+/* A project whose videos have all been removed: nothing to load or play,
+   so it opens on Assets, where the next one gets added. */
+function enterEmptyProject(d) {
+  if (chosenSource?.url?.startsWith("blob:")) URL.revokeObjectURL(chosenSource.url);
+  chosenSource = null;
+  if (typeof realTranscript !== "undefined") realTranscript = null;
+  if (typeof releaseVideo === "function") releaseVideo();
+  if (typeof updateTopbarFile === "function") updateTopbarFile("", NaN);
+  applyProject(d);
+  if (typeof drawSource === "function") drawSource();
+  if (typeof renderRecommendations === "function") renderRecommendations();
+  if (typeof drawTotalTimeline === "function") drawTotalTimeline();
+  rememberActiveSession();
+  toStage("work");
+  toScreen("assets");
+  return true;
+}
+
 /* The video a project opens on: the one it was left on, else its first. */
 function projectActiveFile(d) {
   const list = (Array.isArray(d.assets) ? d.assets : []).filter((a) => a && (a.kind || "video") === "video");
@@ -960,6 +986,7 @@ function projectActiveFile(d) {
 
 async function enterProject(d, gen) {
   const video = projectActiveFile(d);
+  if (!video) return enterEmptyProject(d);
   // The blob URL from the previously dropped file is never released if we
   // immediately overwrite it with a /workspace/samples/ URL -- revoke it first.
   if (typeof chosenSource !== "undefined" && chosenSource
@@ -1100,14 +1127,14 @@ async function restoreLastSession() {
     return false;   // server not ready yet/offline -- don't pretend it succeeded
   }
   if (gen !== _openProjectGen) return false;   // a card was clicked meanwhile
-  if (!d || !projectActiveFile(d)) return giveUp();
+  if (!d) return giveUp();
 
   // The video may have been moved/deleted since it was last opened --
   // checked first via /api/video, instead of trying directly and failing
   // silently partway through loading.
   try {
     const available = (await (await fetch("/api/video")).json()).video || [];
-    if (!available.includes(projectActiveFile(d))) return giveUp();
+    if (projectActiveFile(d) && !available.includes(projectActiveFile(d))) return giveUp();
   } catch {
     return false;
   }

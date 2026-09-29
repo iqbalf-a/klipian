@@ -314,7 +314,6 @@ async function renderAssets() {
     const uses = assetUseCount(a.id);
     const missing = _sampleList && !_sampleList.includes(a.file);
     const active = a.id === activeAssetId;
-    const removable = vids.length > 1 && uses === 0;
     return `
     <div class="asset-row${active ? " active" : ""}${missing ? " missing" : ""}" data-asset-row="${a.id}">
       <span class="asset-kind" aria-hidden="true">
@@ -327,8 +326,8 @@ async function renderAssets() {
         : `${hasTranscript(a.file) ? "transcribed" : "not transcribed"} · ${uses} span${uses === 1 ? "" : "s"} used`}</span>
       ${active ? '<span class="asset-active">on screen</span>'
         : `<button class="btn quiet" type="button" data-asset-open="${a.id}"${missing ? " disabled" : ""}>Open</button>`}
-      <button class="btn quiet" type="button" data-asset-remove="${a.id}"${removable ? "" : " disabled"}
-              title="${removable ? "Remove from this project" : (uses ? "Used by a Result — remove its spans first" : "A project keeps at least one video")}">Remove</button>
+      <button class="btn quiet" type="button" data-asset-remove="${a.id}"
+              title="${uses ? "Remove from this project — its spans in the Results go with it" : "Remove from this project (the file stays in samples/)"}">Remove</button>
     </div>`;
   }).join("") : `<p class="empty-message">No video yet. Add one below.</p>`;
 
@@ -409,8 +408,8 @@ async function renderMediaAssets() {
       <span class="asset-name" title="${escapeHTML(a.file)}">${escapeHTML(a.file)}</span>
       <span class="data asset-meta">${a.kind} · ${uses} use${uses === 1 ? "" : "s"}</span>
       <span></span>
-      <button class="btn quiet" type="button" data-asset-remove="${a.id}"${uses ? " disabled" : ""}
-              title="${uses ? "Used on the Timeline — delete those elements first" : "Take it off this list (the file stays in the project's folder)"}">Remove</button>
+      <button class="btn quiet" type="button" data-asset-remove="${a.id}"
+              title="${uses ? "Remove from this project — its Timeline elements go with it" : "Take it off this list"} (the file stays in the project's folder)">Remove</button>
     </div>`;
   }).concat((own || []).filter((f) => !listed.has(f.name)).map((f) => `
     <div class="asset-row">
@@ -505,7 +504,7 @@ $("#assetDrop")?.addEventListener("drop", (e) => {
 });
 
 /* Add a video from samples/ to the project -- from the Assets screen or a
-   finished link download -- and put it on screen. The FIRST video is also
+   anywhere else later -- and put it on screen. The FIRST video is also
    the moment a new project starts: there's no drop zone any more to do
    that (ian), so this does what dropping a file used to. */
 async function addVideoToProject(file) {
@@ -558,8 +557,7 @@ async function renderAnalyzeSources() {
   const vids = videoAssets();
   if (!vids.length) {
     list.innerHTML = `<p class="empty-message">This project has no video yet. Add one on the
-      <button class="btn quiet" type="button" data-goto="assets">Assets</button> screen,
-      or paste a link below.</p>`;
+      <button class="btn quiet" type="button" data-goto="assets">Assets</button> screen.</p>`;
     return;
   }
   let cached = _transcriptList;
@@ -604,30 +602,100 @@ function addAsset(file) {
   return a;
 }
 
+/* Remove an asset from the project. Always allowed -- a project can be
+   left with no assets at all (ian) -- but what used it goes with it: a
+   video's spans in every Result, an image's or sound's Timeline elements.
+   That's why the button asks first (see the click handler). The file
+   itself is never deleted: a video stays in samples/, an image or sound
+   stays in the project's folder and can be added back. */
 function removeAsset(id) {
   const a = assetById(id);
   if (!a) return false;
+  // Measure and edit what's on screen NOW, not the last snapshot.
+  if (typeof snapshotActiveResult === "function") snapshotActiveResult();
+  const all = (typeof SAVED_RESULTS !== "undefined" ? SAVED_RESULTS : []);
+
   if (a.kind !== "video") {
-    // An image or sound: only out of the project -- the file stays in
-    // workspace/assets/, where another project may be using it.
-    if (mediaUseCount(a.file) > 0) return false;
+    for (const r of all) {
+      if (!Array.isArray(r.overlays)) continue;
+      r.overlays = r.overlays.filter((e) => e.file !== a.file);
+      if (!r.overlays.length) delete r.overlays;
+    }
     ASSETS = ASSETS.filter((x) => x.id !== id);
+    if (typeof OVERLAYS !== "undefined" && OVERLAYS.some((e) => e.file === a.file)) {
+      OVERLAYS = OVERLAYS.filter((e) => e.file !== a.file);
+      if (typeof commitOverlays === "function") commitOverlays();
+    }
     if (typeof saveProject === "function") saveProject();
     return true;
   }
-  // Count against what's on screen NOW, not the last snapshot.
-  if (typeof snapshotActiveResult === "function") snapshotActiveResult();
-  if (videoAssets().length <= 1 || assetUseCount(id) > 0) return false;
-  ASSETS = ASSETS.filter((a) => a.id !== id);
+
+  for (const r of all) {
+    const key = Array.isArray(r.segments) ? "segments" : "result";
+    if (Array.isArray(r[key])) r[key] = r[key].filter((s) => (s.asset || "a1") !== id);
+  }
+  ASSETS = ASSETS.filter((x) => x.id !== id);
   delete ASSET_TRANSCRIPTS[id];
   delete ASSET_CANDIDATES[id];
   _shiftedWords.delete(id);
-  if (activeAssetId === id) setActiveAsset(videoAssets()[0].id);
+  if (typeof RESULT !== "undefined" && RESULT.some((r) => assetIdAt(r.start) === id)) {
+    RESULT = RESULT.filter((r) => assetIdAt(r.start) !== id);
+    if (typeof renderResult === "function") renderResult();
+  }
+  // The project's first video may have been this one.
+  activeProject = videoAssets()[0]?.file || null;
+  if (activeAssetId === id) {
+    const next = videoAssets()[0];
+    if (next) setActiveAsset(next.id);
+    else clearActiveVideo();
+  }
   if (typeof saveProject === "function") saveProject();
   return true;
 }
 
+/* The project's last video just went: nothing is on screen any more. */
+function clearActiveVideo() {
+  if (chosenSource?.url?.startsWith("blob:")) URL.revokeObjectURL(chosenSource.url);
+  chosenSource = null;
+  realTranscript = null;
+  activeAssetId = "a1";
+  if (typeof DATA !== "undefined") DATA.candidates = [];
+  if (typeof releaseVideo === "function") releaseVideo();
+  if (typeof updateTopbarFile === "function") updateTopbarFile("", NaN);
+  if (typeof clearSelection === "function") clearSelection();
+  if (typeof drawSource === "function") drawSource();
+  if (typeof renderRecommendations === "function") renderRecommendations();
+  if (typeof drawTotalTimeline === "function") drawTotalTimeline();
+}
+
+/* What removing this asset would take with it, for the confirm label. */
+function removalCost(a) {
+  if (a.kind === "video") {
+    if (typeof snapshotActiveResult === "function") snapshotActiveResult();
+    const n = assetUseCount(a.id);
+    return n ? ` (${n} span${n === 1 ? "" : "s"} too)` : "";
+  }
+  const n = mediaUseCount(a.file);
+  return n ? ` (${n} element${n === 1 ? "" : "s"} too)` : "";
+}
+
+/* Two clicks, like deleting a Result: the first arms the button and says
+   what goes with it, the second within 4 s removes. Backs off on its own
+   so an armed button can't wait around to catch a later misclick. */
+let removeArmed = null;
+let removeArmTimer = null;
+function disarmRemove() {
+  clearTimeout(removeArmTimer);
+  if (removeArmed) {
+    removeArmed.textContent = "Remove";
+    removeArmed.classList.remove("danger");
+  }
+  removeArmed = null;
+}
+
 $("#panel-assets")?.addEventListener("click", async (e) => {
+  const rm = e.target.closest("[data-asset-remove]");
+  if (!rm) disarmRemove();
   const add = e.target.closest("[data-asset-add]");
   if (add) {
     add.disabled = true;
@@ -640,8 +708,22 @@ $("#panel-assets")?.addEventListener("click", async (e) => {
     toScreen("clips");
     return;
   }
-  const rm = e.target.closest("[data-asset-remove]");
-  if (rm) { removeAsset(rm.dataset.assetRemove); renderAssets(); return; }
+  if (rm) {
+    if (removeArmed === rm) {
+      disarmRemove();
+      removeAsset(rm.dataset.assetRemove);
+      renderAssets();
+      return;
+    }
+    disarmRemove();
+    const a = assetById(rm.dataset.assetRemove);
+    if (!a) return;
+    removeArmed = rm;
+    rm.textContent = `Remove?${removalCost(a)}`;
+    rm.classList.add("danger");
+    removeArmTimer = setTimeout(disarmRemove, 4000);
+    return;
+  }
   const media = e.target.closest("[data-media-add]");
   if (media) { addMediaAsset(media.dataset.mediaAdd, media.dataset.kind); renderMediaAssets(); return; }
   const imp = e.target.closest("[data-media-import]");

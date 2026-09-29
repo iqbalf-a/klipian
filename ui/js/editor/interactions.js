@@ -10,9 +10,9 @@
 /* ───────────────── source: a project video, or a link ────────────────────
    The Analyze screen used to open with a drop zone: drop a file and it
    became "the" video, keyed to a project by its filename. A project holds
-   several videos now (assets.js), so Analyze picks one of THEM -- or takes
-   a link, downloads it into workspace/samples/ and adds it to the project
-   (ian). Adding videos from samples/ is the Assets screen's job. */
+   several videos now (assets.js), so Analyze picks one of THEM (ian);
+   adding videos from samples/ is the Assets screen's job. A link box sits
+   below the list, not wired up yet. */
 
 let chosenSource = null;
 
@@ -52,64 +52,10 @@ function drawSource(error, extraNote) {
   if (typeof renderAnalyzeSources === "function") renderAnalyzeSources();
 }
 
-/* ---------- link -> a video in samples/ -> an asset of this project ---------- */
-
-let linkStop = null;
-
-async function fetchLink() {
-  const input = $("#urlInput");
-  const btn = $("#linkFetchBtn");
-  const note = $("#linkNote");
-  const url = input?.value.trim();
-  if (!url) return;
-  if (btn) btn.disabled = true;
-  if (note) note.textContent = "starting download …";
-  let id;
-  try {
-    const r = await fetch("/api/fetch-link", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url }),
-    });
-    const d = await r.json();
-    if (!r.ok || d.error) throw new Error(d.error || `server replied ${r.status}`);
-    id = d.id;
-  } catch (err) {
-    if (note) note.textContent = err.message || "Needs the backend. Run: python -m klipian serve";
-    if (btn) btn.disabled = false;
-    return;
-  }
-  if (linkStop) linkStop();
-  linkStop = pollJob(`/api/fetch-link/${id}`, {
-    interval: 900,
-    onTick: (t) => { if (note) note.textContent = `downloading … ${t.percent || 0}%`; },
-    onFail: () => {
-      linkStop = null;
-      if (note) note.textContent = "Lost contact with the server. Run: python -m klipian serve";
-      if (btn) btn.disabled = false;
-    },
-    onDone: async (t) => {
-      linkStop = null;
-      if (btn) btn.disabled = false;
-      if (t.state !== "done") {
-        if (note) note.textContent = t.error || "The download didn't finish.";
-        return;
-      }
-      if (input) input.value = "";
-      if (note) note.textContent = `saved as workspace/samples/${t.file}`;
-      // Into the project, and on screen.
-      await addVideoToProject(t.file);
-    },
-  });
-}
-
-$("#urlInput")?.addEventListener("input", (e) => {
-  const btn = $("#linkFetchBtn");
-  if (btn) btn.disabled = !/^https?:\/\/\S+\.\S+/.test(e.target.value.trim());
-});
-$("#urlInput")?.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") { e.preventDefault(); if (!$("#linkFetchBtn")?.disabled) fetchLink(); }
-});
-$("#linkFetchBtn")?.addEventListener("click", fetchLink);
+/* The link box on Analyze is on screen but does nothing yet (ian): it
+   and its Download button are disabled in the markup. Downloading a link
+   into samples/ was built once (yt-dlp) and taken out again -- see git
+   history (commit 3eecf52) when it's wanted. */
 
 /* No drop zone any more, but the window-level guard stays: without it a
    file dropped anywhere on the page (say, next to the Assets screen's
