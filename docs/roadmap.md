@@ -229,6 +229,9 @@ P3 boleh jalan bersamaan dengan P1/P2, karena tidak menyentuh kode.
 
 **Hambatan #1 (2026-10-16): transkripsi gagal dengan
 `open() got an unexpected keyword argument 'metadata_errors'`.**
+**Selesai 2026-10-16** (`ebdabef` `e419d36` `da8afff` `a5d709b`). `.venv`
+sekarang berjalan di Python 3.14.8 dengan av 18.1.0, dan selftest punya
+cek decode.
 
 - **Penyebab, sudah direproduksi:** faster-whisper 1.2.1
   (`faster_whisper/audio.py:46`) memanggil
@@ -272,10 +275,10 @@ P3 boleh jalan bersamaan dengan P1/P2, karena tidak menyentuh kode.
 
 ### P4 — Sisa-sisa library-projects
 
-- **Keputusan ian (2026-10-16): pilihan (a).** Find clips memakai transkrip
-  yang ada lewat `Cache.find_transcript`, dan transkripsi ulang menjadi
-  tombol terpisah. Antrean sesi eksekusi: setelah tugas Python 3.14.
-  Latar belakangnya:
+- **Selesai 2026-10-16** (`cb3983f`, `161eb77`). Keputusan ian: pilihan
+  (a). Find clips memakai transkrip yang ada lewat
+  `Cache.find_transcript`, dan transkripsi ulang menjadi tombol
+  terpisah. Latar belakangnya:
   - Setelah 3b, editor, brief, dan render memakai
     `Cache.find_transcript`. Aturannya: transkrip dengan fingerprint
     persis kalau ada, kalau tidak ada, yang terbaru.
@@ -301,8 +304,8 @@ P3 boleh jalan bersamaan dengan P1/P2, karena tidak menyentuh kode.
   `workspace/samples/`, jadi tidak perlu lagi menyalin manual lewat
   Explorer. Download dari link tetap nonaktif untuk sekarang; kodenya
   masih ada di `3eecf52` kalau nanti dibutuhkan.
-  - Pakai pola yang sudah ada di `/api/project-asset-upload`
-    (server.py:~1803): body mentah, nama file di query, ditulis per
+  - Pakai pola yang sudah ada di `/api/project-asset-upload` (di
+    server.py; nomor barisnya berubah setelah P2): body mentah, nama file di query, ditulis per
     potongan 1 MB ke `.part`, lalu `replace`. Batas 100 MB di sana khusus
     untuk gambar/suara; video berukuran ratusan MB sampai beberapa GB
     (Syahrini 742 MB), jadi butuh batas sendiri.
