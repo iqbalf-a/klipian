@@ -527,6 +527,23 @@ def _run_transcribe(job_id: str, req: dict) -> None:
             except Exception:                          # noqa: BLE001
                 pass
 
+        # Audio cues (laughter, applause, shouts, music): once per video, and
+        # like the energy analysis above BEFORE the transcript cache-hit path,
+        # so a video that already has a transcript still gets them when Find
+        # clips is clicked. Never fatal, never silent: run_audio_cues saves a
+        # failure into the cache file and the job reports it, so the editor
+        # can say "failed" instead of showing nothing. A failed or out-of-date
+        # result is tried again.
+        from . import cues as cues_mod
+        record = cues_mod.audio_record(video, cache)
+        if record is None or record["status"] != "ok":
+            with LOCK:
+                t["stage"] = "cues"
+            record = cues_mod.run_audio_cues(video, cache)
+        with LOCK:
+            t["cues"] = {"status": record["status"], "error": record.get("error", ""),
+                         "seconds": record.get("seconds")}
+
         model = req.get("model", DEFAULT_MODEL)
         lang = req.get("lang", DEFAULT_LANGUAGE)
         gloss_path = GLOSSARY if GLOSSARY.exists() else None

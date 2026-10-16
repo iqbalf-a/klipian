@@ -37,6 +37,7 @@ from .models import Transcript
 from . import compose as composer
 from . import ffmpeg_tools
 from . import render as engine
+from . import cues as cues_mod
 from . import roundtrip
 from .jobs import (ACTIVE_TRANSCRIBES, CANCELLED, JOBS, LOCK, MAX_JOBS, _clip_words,
                    _register_job, _run_diarize, _run_render, _run_transcribe,
@@ -570,6 +571,15 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"error": f"No transcript yet for {name}"}, 404)
         return self._send_text(path.read_text(encoding="utf-8"), "application/json")
 
+    def _get_cues(self):
+        """What the audio and the word timings say about a video (cues.load):
+        the status of each detector, every cue, and the count per kind."""
+        q = parse_qs(urlparse(self.path).query)
+        video = find_video(q.get("video", [""])[0])
+        data = cues_mod.load(video, Cache(WORKSPACE / "cache"))
+        data["counts"] = cues_mod.counts(data["cues"])
+        return self._send_json(data)
+
     def _get_brief(self):
         """The file to drop into Claude -- see roundtrip.build_brief."""
         q = parse_qs(urlparse(self.path).query)
@@ -674,6 +684,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/cache": _get_cache,
         "/api/audio-energy": _get_audio_energy,
         "/api/transcript": _get_transcript,
+        "/api/cues": _get_cues,
         "/api/brief": _get_brief,
         "/api/video": _get_video,
         "/api/video-check": _get_video_check,
