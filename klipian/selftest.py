@@ -164,7 +164,8 @@ def check_render() -> tuple[str, str]:
             return FAIL, f"render ended {job['state']}: {job.get('error')}"
         produced = out_dir / job["result"][0]["file"]
         data = produced.read_bytes()
-        md5, size = hashlib.md5(data).hexdigest(), len(data)
+        md5, sha256, size = (hashlib.md5(data).hexdigest(),
+                             hashlib.sha256(data).hexdigest(), len(data))
         took = time.time() - started
     finally:
         server.PROJECTS = real_projects
@@ -172,7 +173,7 @@ def check_render() -> tuple[str, str]:
         shutil.rmtree(tmp_projects, ignore_errors=True)
         shutil.rmtree(out_dir, ignore_errors=True)
 
-    if (md5, size) != (baseline["md5"], baseline["bytes"]):
+    if (md5, sha256, size) != (baseline["md5"], baseline["sha256"], baseline["bytes"]):
         return FAIL, (f"output differs from the baseline\n"
                       f"      expected {baseline['md5']} ({baseline['bytes']} bytes)\n"
                       f"      got      {md5} ({size} bytes)")
