@@ -18,34 +18,18 @@
    from workspace/cache/ -- the same file the server picks for a video.
    ========================================================================== */
 
-const ROOT = "../";                       // ui/ -> project root
 let realTranscript = null;                // { duration, segments[], words[] }
 
 /* ---------- finding a transcript that matches the dropped file ----
-   The cache filename contains a fingerprint, so we match via its stem:
-   radityadika-podcast.mp4 -> radityadika-podcast.*.transcript.json */
-
-async function listCache() {
-  // The klipian server provides the listing via API. If the UI is opened via
-  // a plain http.server, fall back to its HTML directory listing.
-  try {
-    const d = await (await fetch("/api/cache")).json();
-    if (d.transcript?.length) return d.transcript;
-  } catch { /* fall back to directory listing */ }
-  try {
-    const html = await (await fetch(ROOT + "workspace/cache/")).text();
-    return [...html.matchAll(/href="([^"]+\.transcript\.json)"/g)].map((m) => m[1]);
-  } catch {
-    return [];
-  }
-}
+   The server decides which file that is (Cache.find_transcript): the one
+   made with the default settings if there is one, else the newest for this
+   video. The brief, the captions of a render and this page all go through
+   it, so they agree. */
 
 async function findTranscript(videoName) {
-  const stem = videoName.replace(/\.[^.]+$/, "");
-  const all = await listCache();
-  const matched = all.find((f) => decodeURIComponent(f).startsWith(stem + "."));
-  if (!matched) return null;
-  const d = await (await fetch(ROOT + "workspace/cache/" + matched)).json();
+  const res = await fetch(`/api/transcript?video=${encodeURIComponent(videoName)}`);
+  if (!res.ok) return null;
+  const d = await res.json();
   d.words = d.segments.flatMap((s) => s.words || []);
   return d;
 }

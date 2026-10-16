@@ -15,11 +15,12 @@ from .models import Transcript, fmt_duration
 from .transcribe import (DEFAULT_MODEL, DEFAULT_THREADS, MODELS, WhisperMissing,
                          transcribe)
 from . import roundtrip
+from .paths import GLOSSARY
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CACHE = ROOT / "workspace" / "cache"
 DEFAULT_OUT = ROOT / "workspace" / "out"
-DEFAULT_GLOSSARY = ROOT / "prompts" / "glossary.txt"
+DEFAULT_GLOSSARY = GLOSSARY
 RUBRICS = roundtrip.RUBRICS
 
 
@@ -143,11 +144,10 @@ def _load_transcript(args):
     """Get transcript from cache. Return (video, None) if not found yet."""
     video = Path(args.video)
     cache = Cache(Path(args.cache_dir))
-    # brief/import don't have --glossary; use the same default that
-    # transcribe uses so the cache key matches.
-    gloss = DEFAULT_GLOSSARY if DEFAULT_GLOSSARY.exists() else None
-    tpath = cache.transcript_path(video, args.model, args.lang, gloss)
-    if not tpath.exists():
+    # Cache.find_transcript is the one rule: this exact model/language if it
+    # was transcribed that way, else the newest transcript for the video.
+    tpath = cache.find_transcript(video, args.model, args.lang)
+    if tpath is None:
         print("", file=sys.stderr)
         print(f"No transcript for {video.name} yet.", file=sys.stderr)
         print(f"Run this first:  klipian transcribe {args.video}", file=sys.stderr)

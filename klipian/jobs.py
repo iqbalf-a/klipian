@@ -140,7 +140,7 @@ def _load_transcript_words(video: Path, t: dict) -> list:
     words = []
     try:
         cache = Cache(WORKSPACE / "cache")
-        path = cache.find_any_transcript(video)
+        path = cache.find_transcript(video)
         if path and path.exists():
             words = Transcript.load(path).words
     except (OSError, ValueError, KeyError, TypeError) as exc:  # noqa: BLE001

@@ -227,19 +227,12 @@ def _thumbnail(video: Path, seconds: float, crop: dict, width: int) -> Path:
     return dest
 
 
-def _ui_transcript(name: str) -> Transcript | None:
-    """The transcript the editor itself shows for this video: the first file
-    in cache/ (by name) that starts with the video's stem -- findTranscript()
-    in ui/js/editor/roundtrip.js. Not Cache.find_any_transcript(), which takes
-    the newest: the brief and the import must agree with the words the page
-    cuts on, and when a video has two transcripts the two rules can pick
-    different ones."""
-    stem = re.sub(r"\.[^.]+$", "", name)
-    cache = WORKSPACE / "cache"
-    for f in sorted(p.name for p in cache.glob("*.transcript.json")):
-        if f.startswith(stem + "."):
-            return Transcript.load(cache / f)
-    return None
+def _transcript_for(name: str) -> Transcript | None:
+    """The transcript for a video by file name (Cache.find_transcript), for
+    the endpoints that work from what the page knows: a name, not a path."""
+    video = find_video(name) or WORKSPACE / "samples" / Path(name).name
+    path = Cache(WORKSPACE / "cache").find_transcript(video)
+    return Transcript.load(path) if path else None
 
 
 def _energy_moments(name: str) -> list[dict]:
@@ -531,12 +524,22 @@ class Handler(BaseHTTPRequestHandler):
         q = parse_qs(urlparse(self.path).query)
         return self._send_json({"moments": _energy_moments(q.get("video", [""])[0])})
 
+    def _get_transcript(self):
+        """The transcript the page works from, as the file holds it."""
+        q = parse_qs(urlparse(self.path).query)
+        name = q.get("video", [""])[0]
+        video = find_video(name) or WORKSPACE / "samples" / Path(name).name
+        path = Cache(WORKSPACE / "cache").find_transcript(video)
+        if path is None:
+            return self._send_json({"error": f"No transcript yet for {name}"}, 404)
+        return self._send_text(path.read_text(encoding="utf-8"), "application/json")
+
     def _get_brief(self):
         """The file to drop into Claude -- see roundtrip.build_brief."""
         q = parse_qs(urlparse(self.path).query)
         name = q.get("video", [""])[0]
         try:
-            transcript = _ui_transcript(name)
+            transcript = _transcript_for(name)
         except (OSError, ValueError, KeyError) as exc:
             return self._send_json({"error": f"The transcript for {name} could not be read ({exc})"}, 500)
         if transcript is None:
@@ -616,6 +619,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/workspace/asset-file": _get_workspace_asset_file,
         "/api/cache": _get_cache,
         "/api/audio-energy": _get_audio_energy,
+        "/api/transcript": _get_transcript,
         "/api/brief": _get_brief,
         "/api/video": _get_video,
     }
@@ -912,7 +916,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             req = self._read_json()
             name = str(req.get("video") or "")
-            transcript = _ui_transcript(name)
+            transcript = _transcript_for(name)
         except Exception as exc:               # noqa: BLE001
             return self._send_json({"error": str(exc)}, 400)
         # No transcript is not an error here: the cut points just aren't snapped.
@@ -1017,7 +1021,7 @@ class Handler(BaseHTTPRequestHandler):
             warning = ""
             try:
                 cache = Cache(WORKSPACE / "cache")
-                tpath = cache.find_any_transcript(video)
+                tpath = cache.find_transcript(video)
                 if tpath and tpath.exists():
                     words = Transcript.load(tpath).words
             except (OSError, ValueError, KeyError, TypeError) as exc:  # noqa: BLE001

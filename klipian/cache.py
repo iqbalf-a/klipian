@@ -80,12 +80,32 @@ class Cache:
         fp = fingerprint(video, extra=f"{round(start, 2)}|{round(end, 2)}")
         return self.root / f"{Path(video).stem}.{fp}.diarize.json"
 
-    def find_any_transcript(self, video: Path) -> Path | None:
-        """Any transcript for this video, regardless of model/lang/glossary.
+    def find_transcript(self, video: Path, model: str | None = None,
+                        language: str = "id", glossary: Path | None = None) -> Path | None:
+        """THE transcript for a video -- the one rule every reader uses
+        (captions in a render, the brief, the editor, the CLI).
 
-        Used by the render path for captions: if a transcript exists, use
-        it; no need to guess the exact combination that video was
-        transcribed with. Picks the most recent one if there are several."""
-        matches = sorted(self.root.glob(f"{Path(video).stem}.*.transcript.json"),
+        The one transcribed with exactly these settings if there is one (the
+        defaults are what the app transcribes with); otherwise the newest
+        transcript made for a video of this name. A transcript made with other
+        settings, or before the video file or the glossary was touched, is
+        still the right words, and asking people to re-transcribe a 40-minute
+        episode for that would be worse than using it.
+
+        `video` may name a file that isn't there: then only the second rule
+        can apply."""
+        from .paths import GLOSSARY
+        from .transcribe import DEFAULT_MODEL
+        if glossary is None and GLOSSARY.is_file():
+            glossary = GLOSSARY
+        try:
+            exact = self.transcript_path(video, model or DEFAULT_MODEL, language, glossary)
+        except OSError:
+            exact = None
+        if exact is not None and exact.is_file():
+            return exact
+        prefix = Path(video).stem + "."
+        matches = sorted((p for p in self.root.glob("*.transcript.json")
+                          if p.name.startswith(prefix)),
                          key=lambda p: p.stat().st_mtime, reverse=True)
         return matches[0] if matches else None

@@ -23,3 +23,8 @@ def find_video(name: str) -> Path | None:
         if p.is_file():
             return p
     return None
+
+
+# The term glossary every transcription uses unless told otherwise; it is
+# part of the transcript cache key (see Cache.transcript_path).
+GLOSSARY = ROOT / "prompts" / "glossary.txt"
