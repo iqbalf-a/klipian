@@ -11,10 +11,15 @@ subscription — and **no API key required.**
 ## Running it
 
 ```bash
-python -m klipian serve
+.venv\Scripts\python.exe -m klipian serve
 ```
 
 Then open **http://127.0.0.1:5177**
+
+Always start it from the project's own `.venv` (as above, not with whichever
+`python` is first on your `PATH`): the packages it needs live there, and a
+Python that happens to have newer or older ones can break transcription (see
+*First-time setup* for how this has already happened once).
 
 This server is what makes Whisper and ffmpeg actually run. Without it the UI
 is just a static page — the Find Clips and Render buttons have nothing to
@@ -26,13 +31,26 @@ network.
 
 ### First-time setup
 
-Requires **Python 3.10+** and **ffmpeg** on your `PATH`.
+Requires **Python 3.14** and **ffmpeg** on your `PATH`. Install Python from
+python.org with the `py` launcher, then:
 
 ```bash
-python -m venv .venv
-.venv\Scripts\activate        # Windows; use `source .venv/bin/activate` elsewhere
-pip install -r requirements.txt
+py -3.14 -m venv .venv
+.venv\Scripts\python.exe -m pip install --upgrade pip
+.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
+
+Install into the `.venv` only (always `.venv\Scripts\python.exe -m pip ...`),
+never `pip install` to the global Python: a second copy of the packages there
+is how a newer PyAV ended up under faster-whisper and broke every
+transcription. `python -m klipian selftest` has a *decode* check that says so
+in seconds if the environment is wrong.
+
+**Rebuilding the environment** (a new Python, or it got into a bad state):
+close any running server, rename the old `.venv` aside (`.venv-old` is ignored
+by git) so there is a way back, and repeat the three commands above, plus the
+AI Framing install below if you use it. Delete the old one once everything
+works.
 
 Deliberately lightweight (~300 MB): the base install does **not** use
 PyTorch — faster-whisper runs on CTranslate2. The Whisper model weights
@@ -42,7 +60,7 @@ download once on first use: **1.6 GB** for `large-v3-turbo`.
 diarization) needs a separate, optional install — it pulls in PyTorch:
 
 ```bash
-pip install -r requirements.txt -r requirements-ai-framing.txt
+.venv\Scripts\python.exe -m pip install -r requirements.txt -r requirements-ai-framing.txt
 ```
 
 It also needs a free HuggingFace token, set once as `HF_TOKEN` in a `.env`
