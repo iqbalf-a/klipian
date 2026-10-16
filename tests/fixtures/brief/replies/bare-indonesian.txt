@@ -1,0 +1,2 @@
+Oke, ini hasilnya tanpa blok kode:
+{"klip":[{"mulai":"16:58","selesai":"17:10","judul":"Ngigo","hook":"","skor":{"hook":8,"complete":8,"payoff":8,"emotion":9},"alasan":"Lucu"},{"mulai":"17:00","selesai":"17:02","judul":"Pendek","skor":{"self_contained":7,"hook":6}}]}

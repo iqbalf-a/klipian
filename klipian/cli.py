@@ -20,10 +20,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CACHE = ROOT / "workspace" / "cache"
 DEFAULT_OUT = ROOT / "workspace" / "out"
 DEFAULT_GLOSSARY = ROOT / "prompts" / "glossary.txt"
-RUBRICS = {
-    "dialog": ROOT / "prompts" / "rubrik" / "dialog-podcast.md",
-    "gameplay": ROOT / "prompts" / "rubrik" / "gameplay-mlbb.md",
-}
+RUBRICS = roundtrip.RUBRICS
 
 
 # --------------------------------------------------------------------------
@@ -165,7 +162,8 @@ def cmd_brief(args: argparse.Namespace) -> int:
         return 1
 
     rubric = RUBRICS.get(args.mode, RUBRICS["dialog"])
-    text = roundtrip.build_brief(transcript, rubric, video)
+    energy = roundtrip.read_energy(Cache(Path(args.cache_dir)).energy_path(video))
+    text = roundtrip.build_brief(transcript, roundtrip.read_rubric(rubric), video.name, energy)
 
     dest = Path(args.out_dir) / video.stem / "brief-claude.md"
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -202,7 +200,7 @@ def cmd_import(args: argparse.Namespace) -> int:
         return 1
 
     try:
-        candidates = roundtrip.parse_reply(transcript, file.read_text(encoding="utf-8"))
+        candidates = roundtrip.parse_reply(transcript.words, file.read_text(encoding="utf-8"))
     except ValueError as exc:
         print("", file=sys.stderr)
         print(str(exc), file=sys.stderr)
@@ -215,6 +213,12 @@ def cmd_import(args: argparse.Namespace) -> int:
         print("", file=sys.stderr)
         return 1
 
+    # Best-first here, unlike the Clips screen (which keeps Claude's order,
+    # since it doesn't show scores): this list is printed with its scores,
+    # so ordering by score is the useful order and `--only 1` lands on the
+    # best candidate.
+    candidates.sort(key=lambda k: k["total"], reverse=True)
+
     dest = roundtrip.save_candidates(
         candidates, video, Path(args.out_dir) / video.stem / "candidates.json")
 
@@ -223,7 +227,7 @@ def cmd_import(args: argparse.Namespace) -> int:
     print("")
     print("  score   start   length  title")
     for k in candidates:
-        print(f"  {k.total:>4}  {roundtrip.fmt_time(k.start):>7}  {round(k.duration):>5}s  {k.title}")
+        print(f"  {k['total']:>4}  {roundtrip.fmt_stamp(k['startSec']):>7}  {k['dur']:>5}s  {k['title']}")
     print("")
     print("Cut points were snapped to the nearest word boundary.")
     print("")

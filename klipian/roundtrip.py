@@ -2,11 +2,14 @@
 
 Workflow:
 
-    klipian brief video.mp4      ->  out/<video>/brief-claude.md
-                                     drop into Claude, ask it to work
+    brief  ->  a file with the rubric and the transcript, dropped into Claude
     (Claude replies with JSON)
-    klipian import video.mp4 reply.json
-                                 ->  out/<video>/kandidat.json
+    import ->  that reply read back as clip candidates
+
+The UI reaches this through /api/brief and /api/import; the CLI
+(`klipian brief` / `klipian import`) calls the same functions. There is no
+second copy of the logic in the browser -- the first version had one, and the
+two could quietly drift apart on what is the product's core contract.
 
 Why this matters beyond just avoiding costs: you see Claude's reasoning
 before anything is rendered, and you can argue with it. API-based tools
@@ -20,62 +23,127 @@ Key division of labor:
 Claude doesn't need millisecond precision -- that's not its job, and forcing
 it only makes the results brittle. The per-word timestamps we already have in
 cache handle the final rounding.
+
+The arithmetic and edge cases here follow what the browser version did (it was
+the one being tuned through the UI), including JavaScript's rounding and its
+reading of numbers in text, so a reply imports to the same candidates as
+before the logic moved. tests/fixtures/brief/ holds that version's output and
+`klipian selftest` checks against it.
 """
 
 from __future__ import annotations
 
 import json
+import math
 import re
-from dataclasses import dataclass
+from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
 from .models import Transcript, Word
+from .paths import ROOT
+
+# The rubrics a brief can carry (CLI: --mode). The UI uses "dialog".
+RUBRICS = {
+    "dialog": ROOT / "prompts" / "rubrik" / "dialog-podcast.md",
+    "gameplay": ROOT / "prompts" / "rubrik" / "gameplay-mlbb.md",
+}
+
+# ECMAScript's whitespace + line terminators, which is what String.trim()
+# strips. Not the same set as Python's str.strip().
+_JS_WS = ("\t\n\v\f\r          "
+          "        　﻿")
 
 
-def fmt_time(seconds: float) -> str:
-    t = max(0, int(round(seconds)))  # clamp to 0 to avoid negative values
-    return f"{t // 60}:{t % 60:02d}" if t < 3600 else f"{t // 3600}:{(t % 3600) // 60:02d}:{t % 60:02d}"
+def _trim(s: str) -> str:
+    return s.strip(_JS_WS)
 
 
-def seconds(text: str) -> float:
-    """Accept 1:07, 01:07, or 1:24:10."""
-    parts = [float(x) for x in str(text).strip().split(":")]
-    result = 0.0
-    for b in parts:
-        result = result * 60 + b
-    return result
+def _js_round(x: float) -> int:
+    """Math.round: halves go up (Python's round() sends them to even)."""
+    f = math.floor(x)
+    return f + 1 if x - f >= 0.5 else f
+
+
+def fmt_stamp(seconds: float) -> str:
+    t = _js_round(seconds)
+    if t < 3600:
+        return f"{t // 60}:{t % 60:02d}"
+    return f"{t // 3600}:{(t % 3600) // 60:02d}:{t % 60:02d}"
 
 
 # --------------------------------------------------------------------------
-# EXPORT: files dropped into Claude
+# EXPORT: the file dropped into Claude
 # --------------------------------------------------------------------------
 
-def build_brief(transcript: Transcript, rubric: Path, video: Path) -> str:
+def read_rubric(path: Path) -> str:
+    """The rubric as the browser used to get it from fetch(): bytes decoded
+    as UTF-8 (BOM dropped), line endings untouched, empty if unreadable."""
+    try:
+        return path.read_bytes().decode("utf-8-sig")
+    except OSError:
+        return ""
+
+
+def read_energy(path: Path) -> list[dict]:
+    """A video's cached audio-energy moments. Missing or unreadable is the
+    same as "none found": the brief just leaves that section out."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    return data if isinstance(data, list) else []
+
+
+def _energy_block(moments: list[dict] | None) -> str:
+    """A SEPARATE signal from the transcript -- purely from audio volume (see
+    audio_energy.py), computed once per video alongside transcription.
+    Whisper rarely captures laughter or strong reactions as reliable text;
+    this is measured evidence, not punctuation guesswork. Empty when the
+    video hasn't been analysed or has no prominent moments -- both are the
+    same here: the section is skipped."""
+    if not moments:
+        return ""
+    energy_list = "\n".join(
+        f"- [{fmt_stamp(m['start'])}] – [{fmt_stamp(m['end'])}]" for m in moments)
+    return f"""
+
+---
+
+## Prominent audio-energy moments (from volume analysis, NOT the transcript)
+
+The following time ranges have sound energy well above this video's own
+average -- could be audience laughter, cheering, a loud reaction, or a
+dramatic moment. This is a SUPPORTING signal, not a certain fact: cross-
+check it against the transcript's sentences around that time before using
+it as a reason for a score.
+
+{energy_list}
+"""
+
+
+def build_brief(transcript: Transcript, rubric: str, name: str,
+                energy_moments: list[dict] | None = None) -> str:
     """A single self-contained file: task, rubric, transcript, and expected
     answer format. The user just drops it in and says "do it" -- no
-    additional explanation needed."""
+    additional explanation needed.
 
-    rubric_text = rubric.read_text(encoding="utf-8") if rubric.exists() else ""
+    `rubric` is the rubric's text (read_rubric), `name` the video's file name."""
     # strip rubric title so it doesn't clash with the brief title
-    rubric_text = re.sub(r"\A# .*?\n+", "", rubric_text)
-    # Strip rubric intro paragraph that addresses the USER, not Claude.
+    rubric = re.sub(r"\A# [^\n\r  ]*\n+", "", rubric, count=1)
+    # Strip the rubric's intro paragraph, which addresses the USER, not Claude.
     # "Edit this file if the results don't match your taste" is meaningless
     # to whoever is reading this brief.
-    rubric_text = re.sub(r"\AIni yang dibaca Claude.*?---\s*\n+", "", rubric_text, flags=re.S)
+    rubric = re.sub(r"\AIni yang dibaca Claude.*?---\s*\n+", "", rubric, count=1, flags=re.S)
 
-    lines = []
-    for seg in transcript.segments:
-        text = seg.text.strip()
-        if text:
-            lines.append(f"[{fmt_time(seg.start)}] {text}")
-    transcript_lines = "\n".join(lines)
+    row = "\n".join(f"[{fmt_stamp(s.start)}] {_trim(s.text)}"
+                    for s in transcript.segments if _trim(s.text))
 
-    return f"""# Find clips — {video.name}
+    return f"""# Find clips — {name}
 
 Hello. Please read the transcript at the bottom of this file and pick moments
 worth turning into short vertical videos.
 
-**Source duration:** {fmt_time(transcript.duration)} · **{len(transcript.words)} words**
+**Source duration:** {fmt_stamp(transcript.duration)} · **{len(transcript.words)} words**
 
 The times you give don't need to be precise. Approximate min:sec is fine;
 klipian will snap the cut points to the nearest word boundary.
@@ -84,18 +152,18 @@ klipian will snap the cut points to the nearest word boundary.
 
 ## Evaluation rubric
 
-{rubric_text}
+{rubric}
 
 ---
 
 ## Answer format
 
 Reply with **a single JSON block** exactly like this, no extra explanation
-outside the block. Save as `.json`, then import back into klipian.
+outside the block.
 
 ```json
 {{
-  "source": "{video.name}",
+  "source": "{name}",
   "clips": [
     {{
       "start": "0:12",
@@ -108,12 +176,12 @@ outside the block. Save as `.json`, then import back into klipian.
   ]
 }}
 ```
-
+{_energy_block(energy_moments)}
 ---
 
 ## Transcript
 
-{transcript_lines}
+{row}
 """
 
 
@@ -121,52 +189,130 @@ outside the block. Save as `.json`, then import back into klipian.
 # IMPORT: reading Claude's reply
 # --------------------------------------------------------------------------
 
-@dataclass
-class Candidate:
-    start: float
-    end: float
-    title: str
-    hook: str
-    scores: dict
-    reason: str
+_UNDEFINED = object()          # a key the reply doesn't have (JS: undefined)
 
-    @property
-    def duration(self) -> float:
-        return self.end - self.start
 
-    @property
-    def total(self) -> float:
-        n = []
-        for v in self.scores.values():
-            try:                       # "9" is counted, "nine" is skipped
-                n.append(float(v))
-            except (TypeError, ValueError):
-                pass
-        return round(sum(n) / len(n), 1) if n else 0.0
+def _truthy(v) -> bool:
+    """JS truthiness: [] and {} count as true, unlike Python."""
+    if v is _UNDEFINED or v is None or v is False:
+        return False
+    if isinstance(v, (int, float)):
+        return not (v == 0 or v != v)
+    if isinstance(v, str):
+        return v != ""
+    return True
+
+
+def _or(*values):
+    """JS `a || b || c`."""
+    for v in values:
+        if _truthy(v):
+            return v
+    return values[-1]
+
+
+def _nullish(a, b):
+    """JS `a ?? b`."""
+    return b if (a is _UNDEFINED or a is None) else a
+
+
+def _number(v) -> float:
+    """JS Number(v): '' and null are 0, junk is NaN."""
+    if v is _UNDEFINED:
+        return math.nan
+    if v is None:
+        return 0.0
+    if isinstance(v, bool):
+        return 1.0 if v else 0.0
+    if isinstance(v, (int, float)):
+        try:
+            return float(v)
+        except OverflowError:
+            return math.inf if v > 0 else -math.inf
+    if isinstance(v, str):
+        s = _trim(v)
+        if s == "":
+            return 0.0
+        if re.fullmatch(r"[+-]?([0-9]+\.?[0-9]*|\.[0-9]+)([eE][+-]?[0-9]+)?", s):
+            return float(s)
+        if re.fullmatch(r"[+-]?Infinity", s):
+            return -math.inf if s[0] == "-" else math.inf
+        for prefix, base in (("0x", 16), ("0o", 8), ("0b", 2)):
+            if s[:2].lower() == prefix and len(s) > 2:
+                try:
+                    return float(int(s[2:], base))
+                except ValueError:
+                    return math.nan
+        return math.nan
+    if isinstance(v, list):
+        if not v:
+            return 0.0
+        return _number(v[0]) if len(v) == 1 else math.nan
+    return math.nan
+
+
+def _finite(x: float) -> bool:
+    return not (math.isnan(x) or math.isinf(x))
+
+
+def _text(v) -> str:
+    """`(v || "").trim()` for a field that should be text."""
+    if not _truthy(v):
+        return ""
+    if not isinstance(v, str):
+        raise ValueError("A clip has a title, hook or reason that is not text.")
+    return _trim(v)
+
+
+def _to_seconds(t) -> float:
+    """'1:07', '01:07', '1:24:10' or a bare number. Empty or missing is NaN,
+    not 0: without that, "start": "" would become a clip starting at 0:00."""
+    if isinstance(t, (int, float)) and not isinstance(t, bool):
+        return _number(t)
+    if t is _UNDEFINED or t is None:
+        return math.nan
+    s = _trim(str(t) if not isinstance(t, bool) else ("true" if t else "false"))
+    if s == "":
+        return math.nan
+    total = 0.0
+    for part in s.split(":"):
+        total = total * 60 + _number(part)
+    return total
+
+
+def _parse_json(s: str):
+    def refuse(name):
+        raise ValueError(name)
+    try:
+        return json.loads(s, parse_constant=refuse)
+    except ValueError:
+        # json.loads accepts NaN/Infinity, JSON.parse doesn't; both end up here.
+        # The raw parser message is technical English; the user gets a sentence
+        # they can act on instead.
+        raise ValueError("The JSON block is there, but its content is broken — copy "
+                         "Claude's reply again from the start to the end of the block.") from None
 
 
 def extract_json(text: str) -> dict:
     """Claude's replies are often wrapped in code fences or prefixed with
-    prose. Grab the largest JSON object found, don't require a clean file."""
-    # Look inside code fences first. Use a lazy match ending at the closing
-    # fence -- identical to extractJSON() in ui/roundtrip.js. The old greedy
-    # version spanned from the first fence to the LAST fence, so replies
-    # with two code blocks failed in the CLI but worked in the UI.
+    prose. Look inside a code fence first, else take everything from the
+    first { to the last }; don't require a clean file."""
     fence = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.S)
     if fence:
-        return json.loads(fence.group(1))
-    # Fallback: find the largest { ... } (greedy rfind)
-    first, end = text.find("{"), text.rfind("}")
-    if first == -1 or end <= first:
-        raise ValueError("No JSON block found in that file.")
-    return json.loads(text[first:end + 1])
+        return _parse_json(fence.group(1))
+    first, last = text.find("{"), text.rfind("}")
+    if first == -1 or last <= first:
+        raise ValueError("No JSON block found in that text.")
+    return _parse_json(text[first:last + 1])
 
 
 # How far a cut point may be shifted to snap to a word boundary. A word
 # boundary farther than this means Claude pointed at silence, not at a word
 # that was slightly off -- the original number is correct there. Without
 # this limit, a 5-second clip in the middle of a long pause once ballooned
-# to 79 seconds.
+# to 79 seconds. The editor's own snapToWord() (ui/js/editor/roundtrip.js,
+# used when a boundary is dragged on the timeline) has the same limit; if
+# one changes, change both.
 SNAP_MAX = 2.0
 
 
@@ -179,91 +325,121 @@ def snap_to_word(words: list[Word], moment: float, side: str) -> float:
     This is the part Claude can't do: it doesn't have per-word timestamps.
     We do.
     """
-    if not words:
+    if not words or not _finite(moment):
         return moment
-    if side == "start":
-        candidates = [w.start for w in words]
-    else:
-        candidates = [w.end for w in words]
-    nearest = min(candidates, key=lambda t: abs(t - moment))
+    candidates = [w.start for w in words] if side == "start" else [w.end for w in words]
+    nearest = candidates[0]
+    for c in candidates[1:]:
+        if abs(c - moment) < abs(nearest - moment):
+            nearest = c
     return nearest if abs(nearest - moment) <= SNAP_MAX else moment
 
 
-def parse_reply(transcript: Transcript, text: str) -> list[Candidate]:
-    """English keys are primary; Indonesian keys are still accepted as
-    fallback so older Claude replies can still be imported."""
+def _score_values(scores) -> list:
+    """Object.values(scores)."""
+    if isinstance(scores, dict):
+        return list(scores.values())
+    if isinstance(scores, list):
+        return scores
+    if isinstance(scores, str):
+        return list(scores)
+    return []
+
+
+def _get(scores, key):
+    return scores.get(key, _UNDEFINED) if isinstance(scores, dict) else _UNDEFINED
+
+
+def _one_decimal(x: float) -> float:
+    """Number.prototype.toFixed(1): an exact half rounds up (8.25 -> 8.3)."""
+    return float(Decimal(x).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP))
+
+
+def parse_reply(words: list[Word], text: str) -> list[dict]:
+    """Claude's reply -> clip candidates, in the shape the editor uses (the
+    same one as before the logic moved here): title, hook, in/out (min:sec),
+    startSec/endSec, dur, total, scores {hook, complete, payoff}, reason and
+    spans. Candidates keep Claude's order. Raises ValueError with a message
+    meant for the person pasting the reply.
+
+    Indonesian keys (klip, mulai, judul, ...) are intentionally still accepted
+    as fallback. The prompt asks for English keys, but replies saved before
+    the rename must still be importable -- and Claude occasionally answers
+    using terms from the prompt prose."""
     data = extract_json(text)
-    raw = data.get("clips") or data.get("klip") or []
-    if not raw:
-        raise ValueError('The JSON has no "clips" list.')
+    raw = _or(data.get("clips", _UNDEFINED), data.get("klip", _UNDEFINED), [])
+    if not isinstance(raw, list) or not raw:
+        raise ValueError('JSON does not have a "clips" list.')
 
-    def pick(d, *keys):
-        # Take the FIRST key that EXISTS, not the first truthy one: start=0
-        # (a number) is valid but falsy, `a or b` would wrongly skip it.
-        for key in keys:
-            if key in d:
-                return d[key]
-        return None
-
-    words = transcript.words
-    result: list[Candidate] = []
+    result = []
     for k in raw:
-        try:
-            m = seconds(pick(k, "start", "mulai"))
-            s = seconds(pick(k, "end", "selesai"))
-        except (TypeError, ValueError):
+        if not isinstance(k, dict):
             continue
+        g = lambda key: k.get(key, _UNDEFINED)           # noqa: E731
+        # Clips without timestamps are skipped, not accepted as 0:00.
+        m0 = _to_seconds(_nullish(g("start"), g("mulai")))
+        s0 = _to_seconds(_nullish(g("end"), g("selesai")))
+        if not _finite(m0) or not _finite(s0) or s0 <= m0:
+            continue
+
+        # Re-check after snapping: each side moves independently, so a range
+        # that was valid before can end up inverted. If so, fall back to the
+        # original numbers from Claude.
+        m = snap_to_word(words, m0, "start")
+        s = snap_to_word(words, s0, "end")
         if s <= m:
+            m, s = m0, s0
+
+        # Scores are COERCED to numbers here, at the boundary where external
+        # data enters. Claude occasionally writes "nine" or "9" (string), and
+        # a non-numeric value must not reach the Clips screen as such.
+        scores = _or(g("scores"), g("skor"), {})
+        nums = [x for x in map(_number, _score_values(scores)) if _finite(x)]
+        total = 0.0
+        for x in nums:                       # in order: sum() is compensated
+            total += x
+        num = lambda v: (lambda n: n if _finite(n) else 0)(_number(v))   # noqa: E731
+        dur = _js_round(s - m)
+        if dur <= 0:
             continue
+        result.append({
+            "title": _text(_or(g("title"), g("judul"), "Untitled")),
+            "hook": _text(g("hook")),
+            "in": fmt_stamp(m), "out": fmt_stamp(s),
+            "startSec": m, "endSec": s,
+            "dur": dur,
+            "total": _one_decimal(total / len(nums)) if nums else 0,
+            "scores": {
+                "hook": num(_get(scores, "hook")),
+                "complete": num(_nullish(_get(scores, "complete"),
+                                         _get(scores, "self_contained"))),
+                "payoff": num(_get(scores, "payoff")),
+            },
+            "reason": _text(_or(g("reason"), g("alasan"))),
+            "spans": [{"start": m, "end": s}],     # one whole piece until split
+        })
 
-        # Checked AGAIN after snapping: the two sides move independently,
-        # so a range that was valid may become inverted. If that happens,
-        # use Claude's original numbers -- a slight miss is better than a
-        # broken candidate that only fails at render time.
-        a = round(snap_to_word(words, m, "start"), 3)
-        b = round(snap_to_word(words, s, "end"), 3)
-        if b <= a:
-            a, b = m, s
-
-        result.append(Candidate(
-            start=a,
-            end=b,
-            title=(k.get("title") or k.get("judul") or "Untitled").strip(),
-            hook=(k.get("hook") or "").strip(),
-            # Explicit check: empty dict {} is valid but falsy, don't use or
-            scores=k["scores"] if "scores" in k else (k.get("skor") or {}),
-            reason=(k.get("reason") or k.get("alasan") or "").strip(),
-        ))
-
-    # Sorted best-first HERE but deliberately NOT in the JS twin
-    # (ui/js/editor/roundtrip.js). That is not drift, it is two surfaces:
-    # this list is printed to a terminal WITH its scores, so ordering by
-    # score is the useful order and `--only 1` lands on the best candidate.
-    # The Clips screen does not show scores at all, so re-sorting there only
-    # makes "suggestion #1" on screen disagree with #1 in the JSON file the
-    # user just pasted in. Both are intentional; don't "fix" one to match
-    # the other without deciding which surface changes.
-    result.sort(key=lambda x: x.total, reverse=True)
+    if not result:
+        raise ValueError("All clips have zero or negative duration.")
     return result
 
 
-def save_candidates(candidates: list[Candidate], video: Path, dest: Path) -> Path:
-    """The format is intentionally identical to the UI prototype, so it can
-    be read directly without translation."""
+def save_candidates(candidates: list[dict], video: Path, dest: Path) -> Path:
+    """What `klipian import` writes and `klipian render` reads."""
     dest.parent.mkdir(parents=True, exist_ok=True)
     payload = json.dumps({
         "source": video.name,
         "candidates": [{
-            "title": k.title,
-            "hook": k.hook,
-            "in": fmt_time(k.start),
-            "out": fmt_time(k.end),
-            "start_sec": k.start,
-            "end_sec": k.end,
-            "dur": round(k.duration),
-            "total": k.total,
-            "scores": k.scores,
-            "reason": k.reason,
+            "title": k["title"],
+            "hook": k["hook"],
+            "in": k["in"],
+            "out": k["out"],
+            "start_sec": k["startSec"],
+            "end_sec": k["endSec"],
+            "dur": k["dur"],
+            "total": k["total"],
+            "scores": k["scores"],
+            "reason": k["reason"],
         } for k in candidates],
     }, ensure_ascii=False, indent=1)
     # Write to tmp then rename (atomic) -- a failed import won't leave a

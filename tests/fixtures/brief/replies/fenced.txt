@@ -1,0 +1,55 @@
+Here are the moments I'd cut. The first one is the strongest.
+
+```json
+{
+  "source": "radityadika-podcast.mp4",
+  "clips": [
+    {
+      "start": "16:56",
+      "end": "17:24",
+      "title": "  Digigit Saat Tidur ",
+      "hook": "Terparah kedua, dia pernah gigit",
+      "scores": { "hook": 9, "complete": 10, "payoff": 9, "emotion": 8, "duration": 9 },
+      "reason": "Premise is odd and the payoff lands. "
+    },
+    {
+      "start": "16:57.4",
+      "end": "17:03",
+      "title": "Bahasa Jepang",
+      "hook": "Dia itu suka ngigo",
+      "scores": { "hook": "8", "complete": 8, "payoff": 8, "emotion": 9 },
+      "reason": "Short and self-contained."
+    },
+    {
+      "start": "1:07:00",
+      "end": "1:08:00",
+      "title": "Past the transcript",
+      "scores": { "hook": "nine", "payoff": null },
+      "reason": "Times beyond the excerpt do not snap."
+    },
+    {
+      "start": "17:20",
+      "end": "17:10",
+      "title": "Backwards",
+      "scores": { "hook": 5 }
+    },
+    {
+      "title": "No times at all",
+      "scores": { "hook": 5 }
+    },
+    {
+      "start": "",
+      "end": "17:00",
+      "title": "Empty start"
+    },
+    {
+      "start": 1020,
+      "end": "17:00.2",
+      "title": "Numeric start",
+      "scores": {}
+    }
+  ]
+}
+```
+
+Let me know if you want more.

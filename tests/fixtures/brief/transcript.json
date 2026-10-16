@@ -1,0 +1,1199 @@
+{
+ "source": "radityadika-podcast.mp4",
+ "duration": 2523.2660625,
+ "language": "id",
+ "model": "large-v3-turbo",
+ "segments": [
+  {
+   "text": " Dia tidurnya aneh",
+   "start": 1002.57,
+   "end": 1003.43,
+   "words": [
+    {
+     "text": " Dia",
+     "start": 1002.57,
+     "end": 1002.77,
+     "prob": 0.995
+    },
+    {
+     "text": " tidurnya",
+     "start": 1002.77,
+     "end": 1003.13,
+     "prob": 0.998
+    },
+    {
+     "text": " aneh",
+     "start": 1003.13,
+     "end": 1003.43,
+     "prob": 0.999
+    }
+   ]
+  },
+  {
+   "text": " Aduh, terlalu aneh gimana tau",
+   "start": 1004.05,
+   "end": 1005.59,
+   "words": [
+    {
+     "text": " Aduh,",
+     "start": 1004.05,
+     "end": 1004.59,
+     "prob": 0.67
+    },
+    {
+     "text": " terlalu",
+     "start": 1004.69,
+     "end": 1004.85,
+     "prob": 0.555
+    },
+    {
+     "text": " aneh",
+     "start": 1004.85,
+     "end": 1005.21,
+     "prob": 0.86
+    },
+    {
+     "text": " gimana",
+     "start": 1005.21,
+     "end": 1005.53,
+     "prob": 0.692
+    },
+    {
+     "text": " tau",
+     "start": 1005.53,
+     "end": 1005.59,
+     "prob": 0.568
+    }
+   ]
+  },
+  {
+   "text": " Gia tidur dia",
+   "start": 1005.59,
+   "end": 1006.81,
+   "words": [
+    {
+     "text": " Gia",
+     "start": 1005.59,
+     "end": 1006.25,
+     "prob": 0.18
+    },
+    {
+     "text": " tidur",
+     "start": 1006.25,
+     "end": 1006.59,
+     "prob": 0.828
+    },
+    {
+     "text": " dia",
+     "start": 1006.59,
+     "end": 1006.81,
+     "prob": 0.724
+    }
+   ]
+  },
+  {
+   "text": " Kiku itu ngigo-an",
+   "start": 1007.38,
+   "end": 1008.51,
+   "words": [
+    {
+     "text": " Kiku",
+     "start": 1007.38,
+     "end": 1007.65,
+     "prob": 0.272
+    },
+    {
+     "text": " itu",
+     "start": 1007.65,
+     "end": 1007.85,
+     "prob": 0.505
+    },
+    {
+     "text": " ngigo",
+     "start": 1007.85,
+     "end": 1008.25,
+     "prob": 0.795
+    },
+    {
+     "text": "-an",
+     "start": 1008.25,
+     "end": 1008.51,
+     "prob": 0.677
+    }
+   ]
+  },
+  {
+   "text": " Gia itu ngigo-an",
+   "start": 1009.53,
+   "end": 1010.93,
+   "words": [
+    {
+     "text": " Gia",
+     "start": 1009.53,
+     "end": 1010.07,
+     "prob": 0.553
+    },
+    {
+     "text": " itu",
+     "start": 1010.07,
+     "end": 1010.07,
+     "prob": 0.794
+    },
+    {
+     "text": " ngigo",
+     "start": 1010.07,
+     "end": 1010.67,
+     "prob": 0.98
+    },
+    {
+     "text": "-an",
+     "start": 1010.67,
+     "end": 1010.93,
+     "prob": 0.99
+    }
+   ]
+  },
+  {
+   "text": " Oke, ini lu mbak",
+   "start": 1010.93,
+   "end": 1013.43,
+   "words": [
+    {
+     "text": " Oke,",
+     "start": 1010.93,
+     "end": 1011.65,
+     "prob": 0.736
+    },
+    {
+     "text": " ini",
+     "start": 1011.81,
+     "end": 1011.81,
+     "prob": 0.375
+    },
+    {
+     "text": " lu",
+     "start": 1011.81,
+     "end": 1012.21,
+     "prob": 0.617
+    },
+    {
+     "text": " mbak",
+     "start": 1012.21,
+     "end": 1013.43,
+     "prob": 0.544
+    }
+   ]
+  },
+  {
+   "text": " Oke, dari kamu dulu, abis itu aku cerita deh",
+   "start": 1013.43,
+   "end": 1015.39,
+   "words": [
+    {
+     "text": " Oke,",
+     "start": 1013.43,
+     "end": 1013.85,
+     "prob": 0.685
+    },
+    {
+     "text": " dari",
+     "start": 1014.03,
+     "end": 1014.17,
+     "prob": 0.993
+    },
+    {
+     "text": " kamu",
+     "start": 1014.17,
+     "end": 1014.37,
+     "prob": 0.99
+    },
+    {
+     "text": " dulu,",
+     "start": 1014.37,
+     "end": 1014.55,
+     "prob": 0.995
+    },
+    {
+     "text": " abis",
+     "start": 1014.65,
+     "end": 1014.79,
+     "prob": 0.946
+    },
+    {
+     "text": " itu",
+     "start": 1014.79,
+     "end": 1014.87,
+     "prob": 0.958
+    },
+    {
+     "text": " aku",
+     "start": 1014.87,
+     "end": 1014.95,
+     "prob": 0.96
+    },
+    {
+     "text": " cerita",
+     "start": 1014.95,
+     "end": 1015.27,
+     "prob": 0.96
+    },
+    {
+     "text": " deh",
+     "start": 1015.27,
+     "end": 1015.39,
+     "prob": 0.85
+    }
+   ]
+  },
+  {
+   "text": " Oke, fine",
+   "start": 1015.39,
+   "end": 1016.07,
+   "words": [
+    {
+     "text": " Oke,",
+     "start": 1015.39,
+     "end": 1015.65,
+     "prob": 0.012
+    },
+    {
+     "text": " fine",
+     "start": 1015.97,
+     "end": 1016.07,
+     "prob": 0.655
+    }
+   ]
+  },
+  {
+   "text": " Gia itu suka ngigo yang aneh-aneh",
+   "start": 1016.07,
+   "end": 1018.09,
+   "words": [
+    {
+     "text": " Gia",
+     "start": 1016.07,
+     "end": 1016.65,
+     "prob": 0.974
+    },
+    {
+     "text": " itu",
+     "start": 1016.65,
+     "end": 1016.69,
+     "prob": 0.717
+    },
+    {
+     "text": " suka",
+     "start": 1016.69,
+     "end": 1016.95,
+     "prob": 0.992
+    },
+    {
+     "text": " ngigo",
+     "start": 1016.95,
+     "end": 1017.23,
+     "prob": 0.989
+    },
+    {
+     "text": " yang",
+     "start": 1017.23,
+     "end": 1017.37,
+     "prob": 0.959
+    },
+    {
+     "text": " aneh",
+     "start": 1017.37,
+     "end": 1017.63,
+     "prob": 0.995
+    },
+    {
+     "text": "-aneh",
+     "start": 1017.63,
+     "end": 1018.09,
+     "prob": 0.992
+    }
+   ]
+  },
+  {
+   "text": " Dia yang pertama, ngigo suka bahasa Jepang",
+   "start": 1018.09,
+   "end": 1020.79,
+   "words": [
+    {
+     "text": " Dia",
+     "start": 1018.09,
+     "end": 1018.87,
+     "prob": 0.983
+    },
+    {
+     "text": " yang",
+     "start": 1018.87,
+     "end": 1019.11,
+     "prob": 0.991
+    },
+    {
+     "text": " pertama,",
+     "start": 1019.11,
+     "end": 1019.49,
+     "prob": 0.999
+    },
+    {
+     "text": " ngigo",
+     "start": 1019.65,
+     "end": 1019.81,
+     "prob": 0.986
+    },
+    {
+     "text": " suka",
+     "start": 1019.81,
+     "end": 1020.03,
+     "prob": 0.888
+    },
+    {
+     "text": " bahasa",
+     "start": 1020.03,
+     "end": 1020.31,
+     "prob": 0.971
+    },
+    {
+     "text": " Jepang",
+     "start": 1020.31,
+     "end": 1020.79,
+     "prob": 0.98
+    }
+   ]
+  },
+  {
+   "text": " Oh iya",
+   "start": 1021.49,
+   "end": 1022.11,
+   "words": [
+    {
+     "text": " Oh",
+     "start": 1021.49,
+     "end": 1021.83,
+     "prob": 0.912
+    },
+    {
+     "text": " iya",
+     "start": 1021.83,
+     "end": 1022.11,
+     "prob": 0.97
+    }
+   ]
+  },
+  {
+   "text": " Ngapain ngigo bahasa Jepang?",
+   "start": 1022.11,
+   "end": 1023.29,
+   "words": [
+    {
+     "text": " Ngapain",
+     "start": 1022.11,
+     "end": 1022.59,
+     "prob": 0.8
+    },
+    {
+     "text": " ngigo",
+     "start": 1022.59,
+     "end": 1022.75,
+     "prob": 0.656
+    },
+    {
+     "text": " bahasa",
+     "start": 1022.75,
+     "end": 1023.01,
+     "prob": 0.996
+    },
+    {
+     "text": " Jepang?",
+     "start": 1023.01,
+     "end": 1023.29,
+     "prob": 0.999
+    }
+   ]
+  },
+  {
+   "text": " Tapi bener gak?",
+   "start": 1023.33,
+   "end": 1023.85,
+   "words": [
+    {
+     "text": " Tapi",
+     "start": 1023.33,
+     "end": 1023.45,
+     "prob": 0.712
+    },
+    {
+     "text": " bener",
+     "start": 1023.45,
+     "end": 1023.73,
+     "prob": 0.966
+    },
+    {
+     "text": " gak?",
+     "start": 1023.73,
+     "end": 1023.85,
+     "prob": 0.503
+    }
+   ]
+  },
+  {
+   "text": " Ya enggak lah",
+   "start": 1023.99,
+   "end": 1024.73,
+   "words": [
+    {
+     "text": " Ya",
+     "start": 1023.99,
+     "end": 1024.07,
+     "prob": 0.721
+    },
+    {
+     "text": " enggak",
+     "start": 1024.07,
+     "end": 1024.43,
+     "prob": 0.884
+    },
+    {
+     "text": " lah",
+     "start": 1024.43,
+     "end": 1024.73,
+     "prob": 0.137
+    }
+   ]
+  },
+  {
+   "text": " Kayak gitu, terus",
+   "start": 1024.73,
+   "end": 1026.73,
+   "words": [
+    {
+     "text": " Kayak",
+     "start": 1024.73,
+     "end": 1025.33,
+     "prob": 0.716
+    },
+    {
+     "text": " gitu,",
+     "start": 1025.33,
+     "end": 1025.69,
+     "prob": 0.421
+    },
+    {
+     "text": " terus",
+     "start": 1025.85,
+     "end": 1026.73,
+     "prob": 0.943
+    }
+   ]
+  },
+  {
+   "text": " Terparah kedua, dia pernah gigit",
+   "start": 1027.45,
+   "end": 1029.71,
+   "words": [
+    {
+     "text": " Terparah",
+     "start": 1027.45,
+     "end": 1027.99,
+     "prob": 0.955
+    },
+    {
+     "text": " kedua,",
+     "start": 1027.99,
+     "end": 1028.37,
+     "prob": 0.99
+    },
+    {
+     "text": " dia",
+     "start": 1028.57,
+     "end": 1028.73,
+     "prob": 0.996
+    },
+    {
+     "text": " pernah",
+     "start": 1028.73,
+     "end": 1029.07,
+     "prob": 0.999
+    },
+    {
+     "text": " gigit",
+     "start": 1029.07,
+     "end": 1029.71,
+     "prob": 0.998
+    }
+   ]
+  },
+  {
+   "text": " Belakang aku pas lagi tidur",
+   "start": 1030.29,
+   "end": 1031.95,
+   "words": [
+    {
+     "text": " Belakang",
+     "start": 1030.29,
+     "end": 1030.83,
+     "prob": 0.879
+    },
+    {
+     "text": " aku",
+     "start": 1030.83,
+     "end": 1031.17,
+     "prob": 0.999
+    },
+    {
+     "text": " pas",
+     "start": 1031.17,
+     "end": 1031.39,
+     "prob": 0.842
+    },
+    {
+     "text": " lagi",
+     "start": 1031.39,
+     "end": 1031.57,
+     "prob": 0.996
+    },
+    {
+     "text": " tidur",
+     "start": 1031.57,
+     "end": 1031.95,
+     "prob": 1.0
+    }
+   ]
+  },
+  {
+   "text": " Jadi dia kayak ngelus-ngelus gini kan, aku udah kayak sebagai istri baru kan kayak, gitu kan, agak GR kan",
+   "start": 1032.67,
+   "end": 1039.25,
+   "words": [
+    {
+     "text": " Jadi",
+     "start": 1032.67,
+     "end": 1033.11,
+     "prob": 0.486
+    },
+    {
+     "text": " dia",
+     "start": 1033.11,
+     "end": 1033.27,
+     "prob": 0.958
+    },
+    {
+     "text": " kayak",
+     "start": 1033.27,
+     "end": 1033.41,
+     "prob": 0.867
+    },
+    {
+     "text": " ngelus",
+     "start": 1033.41,
+     "end": 1033.67,
+     "prob": 0.96
+    },
+    {
+     "text": "-ngelus",
+     "start": 1033.67,
+     "end": 1033.89,
+     "prob": 0.948
+    },
+    {
+     "text": " gini",
+     "start": 1033.89,
+     "end": 1034.05,
+     "prob": 0.933
+    },
+    {
+     "text": " kan,",
+     "start": 1034.05,
+     "end": 1034.17,
+     "prob": 0.804
+    },
+    {
+     "text": " aku",
+     "start": 1034.21,
+     "end": 1034.31,
+     "prob": 0.907
+    },
+    {
+     "text": " udah",
+     "start": 1034.31,
+     "end": 1034.43,
+     "prob": 0.98
+    },
+    {
+     "text": " kayak",
+     "start": 1034.43,
+     "end": 1034.69,
+     "prob": 0.969
+    },
+    {
+     "text": " sebagai",
+     "start": 1034.69,
+     "end": 1035.37,
+     "prob": 0.556
+    },
+    {
+     "text": " istri",
+     "start": 1035.37,
+     "end": 1035.93,
+     "prob": 0.995
+    },
+    {
+     "text": " baru",
+     "start": 1035.93,
+     "end": 1036.15,
+     "prob": 0.993
+    },
+    {
+     "text": " kan",
+     "start": 1036.15,
+     "end": 1036.29,
+     "prob": 0.917
+    },
+    {
+     "text": " kayak,",
+     "start": 1036.29,
+     "end": 1036.51,
+     "prob": 0.702
+    },
+    {
+     "text": " gitu",
+     "start": 1036.67,
+     "end": 1037.31,
+     "prob": 0.623
+    },
+    {
+     "text": " kan,",
+     "start": 1037.31,
+     "end": 1037.63,
+     "prob": 0.985
+    },
+    {
+     "text": " agak",
+     "start": 1037.85,
+     "end": 1038.37,
+     "prob": 0.983
+    },
+    {
+     "text": " GR",
+     "start": 1038.37,
+     "end": 1038.89,
+     "prob": 0.316
+    },
+    {
+     "text": " kan",
+     "start": 1038.89,
+     "end": 1039.25,
+     "prob": 0.979
+    }
+   ]
+  },
+  {
+   "text": " Tiba-tiba, gitu, terus aku nangis malam-malam kepojokan kayak, kenapa gue dingin",
+   "start": 1039.25,
+   "end": 1044.29,
+   "words": [
+    {
+     "text": " Tiba",
+     "start": 1039.25,
+     "end": 1039.99,
+     "prob": 0.541
+    },
+    {
+     "text": "-tiba,",
+     "start": 1039.99,
+     "end": 1040.21,
+     "prob": 0.995
+    },
+    {
+     "text": " gitu,",
+     "start": 1040.59,
+     "end": 1041.17,
+     "prob": 0.323
+    },
+    {
+     "text": " terus",
+     "start": 1041.47,
+     "end": 1041.69,
+     "prob": 0.946
+    },
+    {
+     "text": " aku",
+     "start": 1041.69,
+     "end": 1041.83,
+     "prob": 0.996
+    },
+    {
+     "text": " nangis",
+     "start": 1041.83,
+     "end": 1042.17,
+     "prob": 0.997
+    },
+    {
+     "text": " malam",
+     "start": 1042.17,
+     "end": 1042.43,
+     "prob": 0.928
+    },
+    {
+     "text": "-malam",
+     "start": 1042.43,
+     "end": 1042.59,
+     "prob": 0.906
+    },
+    {
+     "text": " kepojokan",
+     "start": 1042.59,
+     "end": 1043.07,
+     "prob": 0.811
+    },
+    {
+     "text": " kayak,",
+     "start": 1043.07,
+     "end": 1043.23,
+     "prob": 0.57
+    },
+    {
+     "text": " kenapa",
+     "start": 1043.35,
+     "end": 1043.67,
+     "prob": 0.927
+    },
+    {
+     "text": " gue",
+     "start": 1043.67,
+     "end": 1043.89,
+     "prob": 0.761
+    },
+    {
+     "text": " dingin",
+     "start": 1043.89,
+     "end": 1044.29,
+     "prob": 0.966
+    }
+   ]
+  },
+  {
+   "text": " Ngigonya ngigit-ngigit",
+   "start": 1044.29,
+   "end": 1045.51,
+   "words": [
+    {
+     "text": " Ngigonya",
+     "start": 1044.29,
+     "end": 1044.87,
+     "prob": 0.525
+    },
+    {
+     "text": " ngigit",
+     "start": 1044.87,
+     "end": 1045.29,
+     "prob": 0.696
+    },
+    {
+     "text": "-ngigit",
+     "start": 1045.29,
+     "end": 1045.51,
+     "prob": 0.673
+    }
+   ]
+  },
+  {
+   "text": " Lo mimpi apa bro?",
+   "start": 1046.11,
+   "end": 1046.85,
+   "words": [
+    {
+     "text": " Lo",
+     "start": 1046.11,
+     "end": 1046.23,
+     "prob": 0.172
+    },
+    {
+     "text": " mimpi",
+     "start": 1046.23,
+     "end": 1046.47,
+     "prob": 0.918
+    },
+    {
+     "text": " apa",
+     "start": 1046.47,
+     "end": 1046.69,
+     "prob": 0.984
+    },
+    {
+     "text": " bro?",
+     "start": 1046.69,
+     "end": 1046.85,
+     "prob": 0.863
+    }
+   ]
+  },
+  {
+   "text": " Sekarang gue ceritain versi gue ya, kiku selalu bilang kan gue itu ngigoan",
+   "start": 1046.93,
+   "end": 1050.05,
+   "words": [
+    {
+     "text": " Sekarang",
+     "start": 1046.93,
+     "end": 1047.19,
+     "prob": 0.98
+    },
+    {
+     "text": " gue",
+     "start": 1047.19,
+     "end": 1047.29,
+     "prob": 0.974
+    },
+    {
+     "text": " ceritain",
+     "start": 1047.29,
+     "end": 1047.61,
+     "prob": 0.989
+    },
+    {
+     "text": " versi",
+     "start": 1047.61,
+     "end": 1048.05,
+     "prob": 0.996
+    },
+    {
+     "text": " gue",
+     "start": 1048.05,
+     "end": 1048.21,
+     "prob": 0.99
+    },
+    {
+     "text": " ya,",
+     "start": 1048.21,
+     "end": 1048.39,
+     "prob": 0.917
+    },
+    {
+     "text": " kiku",
+     "start": 1048.65,
+     "end": 1048.79,
+     "prob": 0.301
+    },
+    {
+     "text": " selalu",
+     "start": 1048.79,
+     "end": 1049.01,
+     "prob": 0.994
+    },
+    {
+     "text": " bilang",
+     "start": 1049.01,
+     "end": 1049.19,
+     "prob": 0.992
+    },
+    {
+     "text": " kan",
+     "start": 1049.19,
+     "end": 1049.31,
+     "prob": 0.955
+    },
+    {
+     "text": " gue",
+     "start": 1049.31,
+     "end": 1049.47,
+     "prob": 0.612
+    },
+    {
+     "text": " itu",
+     "start": 1049.47,
+     "end": 1049.61,
+     "prob": 0.781
+    },
+    {
+     "text": " ngigoan",
+     "start": 1049.61,
+     "end": 1050.05,
+     "prob": 0.952
+    }
+   ]
+  },
+  {
+   "text": " Terus gue bilang, yang kamu tuh ngomong ke orang-orang aku tuh ngigoan",
+   "start": 1050.05,
+   "end": 1052.99,
+   "words": [
+    {
+     "text": " Terus",
+     "start": 1050.05,
+     "end": 1050.29,
+     "prob": 0.746
+    },
+    {
+     "text": " gue",
+     "start": 1050.29,
+     "end": 1050.41,
+     "prob": 0.997
+    },
+    {
+     "text": " bilang,",
+     "start": 1050.41,
+     "end": 1050.67,
+     "prob": 1.0
+    },
+    {
+     "text": " yang",
+     "start": 1050.79,
+     "end": 1050.91,
+     "prob": 0.594
+    },
+    {
+     "text": " kamu",
+     "start": 1050.91,
+     "end": 1051.15,
+     "prob": 0.996
+    },
+    {
+     "text": " tuh",
+     "start": 1051.15,
+     "end": 1051.27,
+     "prob": 0.931
+    },
+    {
+     "text": " ngomong",
+     "start": 1051.27,
+     "end": 1051.61,
+     "prob": 0.999
+    },
+    {
+     "text": " ke",
+     "start": 1051.61,
+     "end": 1052.03,
+     "prob": 0.902
+    },
+    {
+     "text": " orang",
+     "start": 1052.03,
+     "end": 1052.25,
+     "prob": 0.999
+    },
+    {
+     "text": "-orang",
+     "start": 1052.25,
+     "end": 1052.41,
+     "prob": 0.998
+    },
+    {
+     "text": " aku",
+     "start": 1052.41,
+     "end": 1052.57,
+     "prob": 0.8
+    },
+    {
+     "text": " tuh",
+     "start": 1052.57,
+     "end": 1052.67,
+     "prob": 0.873
+    },
+    {
+     "text": " ngigoan",
+     "start": 1052.67,
+     "end": 1052.99,
+     "prob": 0.997
+    }
+   ]
+  },
+  {
+   "text": " Kamu tuh ngigoan loh, apaan aku gak ngigoan?",
+   "start": 1052.99,
+   "end": 1055.25,
+   "words": [
+    {
+     "text": " Kamu",
+     "start": 1052.99,
+     "end": 1053.27,
+     "prob": 0.763
+    },
+    {
+     "text": " tuh",
+     "start": 1053.27,
+     "end": 1053.35,
+     "prob": 0.99
+    },
+    {
+     "text": " ngigoan",
+     "start": 1053.35,
+     "end": 1053.71,
+     "prob": 0.997
+    },
+    {
+     "text": " loh,",
+     "start": 1053.71,
+     "end": 1053.85,
+     "prob": 0.772
+    },
+    {
+     "text": " apaan",
+     "start": 1054.23,
+     "end": 1054.51,
+     "prob": 0.96
+    },
+    {
+     "text": " aku",
+     "start": 1054.51,
+     "end": 1054.65,
+     "prob": 0.994
+    },
+    {
+     "text": " gak",
+     "start": 1054.65,
+     "end": 1054.75,
+     "prob": 0.627
+    },
+    {
+     "text": " ngigoan?",
+     "start": 1054.75,
+     "end": 1055.25,
+     "prob": 0.996
+    }
+   ]
+  },
+  {
+   "text": " Oke, aku buktiin",
+   "start": 1055.51,
+   "end": 1056.91,
+   "words": [
+    {
+     "text": " Oke,",
+     "start": 1055.51,
+     "end": 1055.95,
+     "prob": 0.953
+    },
+    {
+     "text": " aku",
+     "start": 1056.19,
+     "end": 1056.39,
+     "prob": 0.998
+    },
+    {
+     "text": " buktiin",
+     "start": 1056.39,
+     "end": 1056.91,
+     "prob": 0.995
+    }
+   ]
+  },
+  {
+   "text": " Jadi waktu itu kiku pernah gitu dia ngigo",
+   "start": 1057.56,
+   "end": 1059.5,
+   "words": [
+    {
+     "text": " Jadi",
+     "start": 1057.56,
+     "end": 1058.0,
+     "prob": 0.897
+    },
+    {
+     "text": " waktu",
+     "start": 1058.0,
+     "end": 1058.12,
+     "prob": 0.968
+    },
+    {
+     "text": " itu",
+     "start": 1058.12,
+     "end": 1058.22,
+     "prob": 0.995
+    },
+    {
+     "text": " kiku",
+     "start": 1058.22,
+     "end": 1058.42,
+     "prob": 0.872
+    },
+    {
+     "text": " pernah",
+     "start": 1058.42,
+     "end": 1058.86,
+     "prob": 0.757
+    },
+    {
+     "text": " gitu",
+     "start": 1058.86,
+     "end": 1059.06,
+     "prob": 0.453
+    },
+    {
+     "text": " dia",
+     "start": 1059.06,
+     "end": 1059.22,
+     "prob": 0.636
+    },
+    {
+     "text": " ngigo",
+     "start": 1059.22,
+     "end": 1059.5,
+     "prob": 0.994
+    }
+   ]
+  },
+  {
+   "text": " Eh, eh, coba itu ambilin dulu apa yang itu?",
+   "start": 1059.5,
+   "end": 1061.44,
+   "words": [
+    {
+     "text": " Eh,",
+     "start": 1059.5,
+     "end": 1059.88,
+     "prob": 0.64
+    },
+    {
+     "text": " eh,",
+     "start": 1060.1,
+     "end": 1060.18,
+     "prob": 0.766
+    },
+    {
+     "text": " coba",
+     "start": 1060.38,
+     "end": 1060.54,
+     "prob": 0.811
+    },
+    {
+     "text": " itu",
+     "start": 1060.54,
+     "end": 1060.76,
+     "prob": 0.926
+    },
+    {
+     "text": " ambilin",
+     "start": 1060.76,
+     "end": 1061.02,
+     "prob": 0.905
+    },
+    {
+     "text": " dulu",
+     "start": 1061.02,
+     "end": 1061.1,
+     "prob": 0.911
+    },
+    {
+     "text": " apa",
+     "start": 1061.1,
+     "end": 1061.24,
+     "prob": 0.797
+    },
+    {
+     "text": " yang",
+     "start": 1061.24,
+     "end": 1061.32,
+     "prob": 0.399
+    },
+    {
+     "text": " itu?",
+     "start": 1061.32,
+     "end": 1061.44,
+     "prob": 0.452
+    }
+   ]
+  }
+ ]
+}

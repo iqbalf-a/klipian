@@ -1,0 +1,142 @@
+{
+ "bare-indonesian.txt": {
+  "ok": true,
+  "value": [
+   {
+    "title": "Ngigo",
+    "hook": "",
+    "in": "16:58",
+    "out": "17:10",
+    "startSec": 1018.09,
+    "endSec": 1029.71,
+    "dur": 12,
+    "total": 8.3,
+    "scores": {
+     "hook": 8,
+     "complete": 8,
+     "payoff": 8
+    },
+    "reason": "Lucu",
+    "spans": [
+     {
+      "start": 1018.09,
+      "end": 1029.71
+     }
+    ]
+   },
+   {
+    "title": "Pendek",
+    "hook": "",
+    "in": "17:00",
+    "out": "17:02",
+    "startSec": 1020.03,
+    "endSec": 1022.11,
+    "dur": 2,
+    "total": 6.5,
+    "scores": {
+     "hook": 6,
+     "complete": 7,
+     "payoff": 0
+    },
+    "reason": "",
+    "spans": [
+     {
+      "start": 1020.03,
+      "end": 1022.11
+     }
+    ]
+   }
+  ]
+ },
+ "broken.txt": {
+  "ok": false,
+  "error": "The JSON block is there, but its content is broken — copy Claude's reply again from the start to the end of the block."
+ },
+ "empty-clips.txt": {
+  "ok": false,
+  "error": "JSON does not have a \"clips\" list."
+ },
+ "fenced.txt": {
+  "ok": true,
+  "value": [
+   {
+    "title": "Digigit Saat Tidur",
+    "hook": "Terparah kedua, dia pernah gigit",
+    "in": "16:56",
+    "out": "17:24",
+    "startSec": 1015.97,
+    "endSec": 1043.89,
+    "dur": 28,
+    "total": 9,
+    "scores": {
+     "hook": 9,
+     "complete": 10,
+     "payoff": 9
+    },
+    "reason": "Premise is odd and the payoff lands.",
+    "spans": [
+     {
+      "start": 1015.97,
+      "end": 1043.89
+     }
+    ]
+   },
+   {
+    "title": "Bahasa Jepang",
+    "hook": "Dia itu suka ngigo",
+    "in": "16:57",
+    "out": "17:03",
+    "startSec": 1017.37,
+    "endSec": 1023.01,
+    "dur": 6,
+    "total": 8.3,
+    "scores": {
+     "hook": 8,
+     "complete": 8,
+     "payoff": 8
+    },
+    "reason": "Short and self-contained.",
+    "spans": [
+     {
+      "start": 1017.37,
+      "end": 1023.01
+     }
+    ]
+   },
+   {
+    "title": "Past the transcript",
+    "hook": "",
+    "in": "1:07:00",
+    "out": "1:08:00",
+    "startSec": 4020,
+    "endSec": 4080,
+    "dur": 60,
+    "total": 0,
+    "scores": {
+     "hook": 0,
+     "complete": 0,
+     "payoff": 0
+    },
+    "reason": "Times beyond the excerpt do not snap.",
+    "spans": [
+     {
+      "start": 4020,
+      "end": 4080
+     }
+    ]
+   }
+  ]
+ },
+ "no-clips-key.txt": {
+  "ok": false,
+  "error": "JSON does not have a \"clips\" list."
+ },
+ "no-json.txt": {
+  "ok": false,
+  "error": "No JSON block found in that text."
+ },
+ "zero-duration.txt": {
+  "ok": false,
+  "error": "All clips have zero or negative duration."
+ }
+}

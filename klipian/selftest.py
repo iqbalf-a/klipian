@@ -6,6 +6,9 @@ Two checks, each one that used to be done by hand:
   migrate  Old project shapes (tests/fixtures/migrate/*.old.json) go through
            projects._migrate_project() and must come out as the matching
            *.new.json.
+  brief    The Claude brief and the reading of Claude's replies (roundtrip.py)
+           against tests/fixtures/brief/: the output of the browser version
+           of that logic, from before it moved to Python.
   render   The request the UI sent for the baseline Result (res2 of project
            ea8b7a796f48, tests/fixtures/res2/request.json) goes through
            jobs._run_render() and the MP4 must be byte-identical to the one
@@ -122,6 +125,48 @@ def check_migrate(write_expected: bool = False) -> tuple[str, str]:
 
 
 # --------------------------------------------------------------------------
+# check: brief
+# --------------------------------------------------------------------------
+
+def check_brief() -> tuple[str, str]:
+    from . import roundtrip
+    from .models import Transcript
+
+    base = FIXTURES / "brief"
+    transcript = Transcript.load(base / "transcript.json")
+    problems = []
+
+    # Read as bytes so the comparison is on the bytes, not on what the
+    # platform makes of line endings.
+    want = (base / "brief.md").read_bytes().decode("utf-8")
+    got = roundtrip.build_brief(
+        transcript, roundtrip.read_rubric(base / "rubric.md"),
+        "radityadika-podcast.mp4", _load(base / "energy.json"))
+    if got != want:
+        at = next((i for i, (a, b) in enumerate(zip(want, got)) if a != b),
+                  min(len(want), len(got)))
+        problems.append(f"brief.md differs at character {at}: "
+                        f"expected {want[at:at + 40]!r}, got {got[at:at + 40]!r}")
+
+    # No energy file for the video: the section is left out, nothing else moves.
+    if "audio-energy" in roundtrip.build_brief(transcript, "", "x.mp4", []):
+        problems.append("an empty energy list still produced the energy section")
+
+    expected = _load(base / "imports.expected.json")
+    for name, want in sorted(expected.items()):
+        text = (base / "replies" / name).read_bytes().decode("utf-8")
+        try:
+            result = {"ok": True, "value": roundtrip.parse_reply(transcript.words, text)}
+        except ValueError as exc:
+            result = {"ok": False, "error": str(exc)}
+        problems += [f"{name} {d}" for d in _diff(want, result)]
+
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, f"brief.md identical; {len(expected)} replies read as before"
+
+
+# --------------------------------------------------------------------------
 # check: render
 # --------------------------------------------------------------------------
 
@@ -186,7 +231,7 @@ def check_render() -> tuple[str, str]:
     return PASS, f"{md5[:8]}... ({size} bytes) in {took:.0f}s"
 
 
-CHECKS = {"migrate": check_migrate, "render": check_render}
+CHECKS = {"migrate": check_migrate, "brief": check_brief, "render": check_render}
 
 
 def run(only: list[str] | None = None, write_expected: bool = False) -> int:
