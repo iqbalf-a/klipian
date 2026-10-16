@@ -126,13 +126,13 @@ def check_migrate(write_expected: bool = False) -> tuple[str, str]:
 # --------------------------------------------------------------------------
 
 def check_render() -> tuple[str, str]:
-    from . import server
+    from . import projects, server
 
     base = FIXTURES / "res2"
     baseline = _load(base / "baseline.json")
     req = _load(base / "request.json")
 
-    video = server._find_video(req["video"])
+    video = server.find_video(req["video"])
     if not video:
         return SKIP, f"{req['video']} is not in workspace/samples/"
 
@@ -151,8 +151,8 @@ def check_render() -> tuple[str, str]:
 
     req = dict(req, project=SELFTEST_ID)
     job_id = "selftest"
-    real_projects = server.PROJECTS
-    server.PROJECTS = tmp_projects
+    real_projects = projects.PROJECTS
+    projects.PROJECTS = tmp_projects
     try:
         server._register_job(job_id, {"state": "running", "done": 0,
                                       "total": len(req["clips"]), "index": 0,
@@ -162,13 +162,18 @@ def check_render() -> tuple[str, str]:
         job = server.JOBS[job_id]
         if job["state"] != "done":
             return FAIL, f"render ended {job['state']}: {job.get('error')}"
+        # The patch above has to be the one _run_render actually reads: if it
+        # weren't, the render would land in a real project's folder instead.
+        if Path(job["result"][0]["folder"]) != out_dir:
+            return FAIL, (f"rendered into {job['result'][0]['folder']}, not the "
+                          f"throwaway project -- is projects.PROJECTS still what it reads?")
         produced = out_dir / job["result"][0]["file"]
         data = produced.read_bytes()
         md5, sha256, size = (hashlib.md5(data).hexdigest(),
                              hashlib.sha256(data).hexdigest(), len(data))
         took = time.time() - started
     finally:
-        server.PROJECTS = real_projects
+        projects.PROJECTS = real_projects
         server.JOBS.pop(job_id, None)
         shutil.rmtree(tmp_projects, ignore_errors=True)
         shutil.rmtree(out_dir, ignore_errors=True)
