@@ -171,11 +171,12 @@ def check_brief() -> tuple[str, str]:
         if "## Audio & timing cues" not in text or expect not in text:
             problems.append(f"brief with cues {label}: expected the section to say {expect!r}")
 
+    fixture_cues = _load(base / "cues.json")["cues"]
     expected = _load(base / "imports.expected.json")
     for name, want in sorted(expected.items()):
         text = (base / "replies" / name).read_bytes().decode("utf-8")
         try:
-            result = {"ok": True, "value": roundtrip.parse_reply(transcript.words, text)}
+            result = {"ok": True, "value": roundtrip.parse_reply(transcript.words, text, fixture_cues)}
         except ValueError as exc:
             result = {"ok": False, "error": str(exc)}
         problems += [f"{name} {d}" for d in _diff(want, result)]

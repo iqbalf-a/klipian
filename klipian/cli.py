@@ -200,7 +200,8 @@ def cmd_import(args: argparse.Namespace) -> int:
         return 1
 
     try:
-        candidates = roundtrip.parse_reply(transcript.words, file.read_text(encoding="utf-8"))
+        cue_list = cues.load(video if video.is_file() else None, Cache(Path(args.cache_dir)))["cues"]
+        candidates = roundtrip.parse_reply(transcript.words, file.read_text(encoding="utf-8"), cue_list)
     except ValueError as exc:
         print("", file=sys.stderr)
         print(str(exc), file=sys.stderr)

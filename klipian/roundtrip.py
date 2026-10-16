@@ -39,6 +39,7 @@ import re
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
+from .cues import for_range
 from .models import Transcript, Word
 from .paths import ROOT
 
@@ -368,11 +369,15 @@ def _one_decimal(x: float) -> float:
     return float(Decimal(x).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP))
 
 
-def parse_reply(words: list[Word], text: str) -> list[dict]:
+def parse_reply(words: list[Word], text: str, cues: list[dict] | None = None) -> list[dict]:
     """Claude's reply -> clip candidates, in the shape the editor uses (the
     same one as before the logic moved here): title, hook, in/out (min:sec),
     startSec/endSec, dur, total, scores {hook, complete, payoff}, reason and
-    spans. Candidates keep Claude's order. Raises ValueError with a message
+    spans. Candidates keep Claude's order. With `cues` (cues.load()["cues"])
+    each also gets `cues`: the signals inside it or just after it (laughter,
+    applause, ...), worked out here from the detection, not by Claude, so the
+    same reply always gives the same list. Without them the key is absent,
+    which is how a candidate imported before this existed reads. Raises ValueError with a message
     meant for the person pasting the reply.
 
     Indonesian keys (klip, mulai, judul, ...) are intentionally still accepted
@@ -430,6 +435,7 @@ def parse_reply(words: list[Word], text: str) -> list[dict]:
             },
             "reason": _text(_or(g("reason"), g("alasan"))),
             "spans": [{"start": m, "end": s}],     # one whole piece until split
+            **({"cues": for_range(cues, m, s)} if cues is not None else {}),
         })
 
     if not result:
@@ -453,6 +459,7 @@ def save_candidates(candidates: list[dict], video: Path, dest: Path) -> Path:
             "total": k["total"],
             "scores": k["scores"],
             "reason": k["reason"],
+            **({"cues": k["cues"]} if "cues" in k else {}),
         } for k in candidates],
     }, ensure_ascii=False, indent=1)
     # Write to tmp then rename (atomic) -- a failed import won't leave a

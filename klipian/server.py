@@ -1031,7 +1031,8 @@ class Handler(BaseHTTPRequestHandler):
         # No transcript is not an error here: the cut points just aren't snapped.
         try:
             candidates = roundtrip.parse_reply(
-                transcript.words if transcript else [], str(req.get("text") or ""))
+                transcript.words if transcript else [], str(req.get("text") or ""),
+                cues_mod.load(find_video(name), Cache(WORKSPACE / "cache"))["cues"])
         except ValueError as exc:
             return self._send_json({"error": str(exc)}, 400)
         return self._send_json({"candidates": candidates})
