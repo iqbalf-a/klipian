@@ -471,6 +471,31 @@ disimpan di `assets/models/` bersama lisensinya, sama seperti YuNet.
 - sinyal lain: ian memutuskan per sinyal, ikut atau tidak. Sinyal yang
   mayoritas salah tidak ikut ke brief.
 
+**Integrasi selesai 2026-10-16** (`e511a56` … `83d9b14`). Isinya:
+- `klipian/cues.py`; tahap "cues" di Find clips; `GET /api/cues`;
+- bagian brief "Audio & timing cues", menggantikan `audio_energy` yang
+  dihapus;
+- `cues` per kandidat saat import;
+- chip ⓘ di Analyze, penanda di timeline Clips, dan lencana di saran AI.
+
+Untuk podcast, bagian cues di brief berisi sekitar 70 baris, termasuk
+26 tawa berlevel low. Kalau terlalu ramai, ubah tabel `LEVELS` di
+`cues.py` (tidak perlu deteksi ulang). Mengubah `DETECT` perlu menaikkan
+`CUES_VERSION`. File lama `workspace/cache/*.energy.json` sudah tidak
+dipakai.
+
+**Perbaikan tampilan (permintaan ian 2026-10-16, setelah dicek di layar).**
+Catatan "hook apa saja yang dicari" hanya muncul sebelum analisis suara
+pertama kali jalan. Sesudahnya kalimat itu menyusut menjadi "found: 47
+laughter · 1 shouts", terselip abu-abu di panel Transcribing. Chip di
+langkah 2 juga redup (opacity 0,45) sampai transkrip ada.
+
+Perbaikannya:
+- bagian tetap **"Hooks Find clips listens for"** di atas tombol Find
+  clips: enam baris dengan ⓘ dan status per sinyal;
+- kalimat di panel Transcribing dirapikan;
+- bentuk tunggal "1 shout".
+
 **Keputusan ian (2026-10-16): lanjut integrasi tanpa sesi mendengarkan.**
 Permintaannya: tawa dimasukkan ke brief **dan** ke result JSON, dan layar
 Analyze memberi catatan sinyal apa saja yang tertangkap. Karena syarat
