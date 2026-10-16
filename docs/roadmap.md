@@ -408,7 +408,7 @@ bawah. Antrean sesi eksekusi: setelah Add video.
 
 Ketiga sinyal YAMNet berasal dari **satu kali jalan** model. Jeda dan
 bicara cepat hanya hitungan dari timestamp kata. YAMNet (Google, Apache
-2.0, ±4 MB) dijalankan lewat `onnxruntime`, yang sudah terpasang sebagai
+2.0, 16 MB) dijalankan lewat `onnxruntime`, yang sudah terpasang sebagai
 dependensi faster-whisper, jadi **tidak ada paket baru**. File ONNX
 disimpan di `assets/models/` bersama lisensinya, sama seperti YuNet.
 
@@ -437,13 +437,66 @@ disimpan di `assets/models/` bersama lisensinya, sama seperti YuNet.
 5. ian mendengarkan 10 kandidat tawa teratas per video, dan 5 teratas
    untuk tiap sinyal lain.
 
+**Hasil uji coba (2026-10-16, commit `3bac5aa`, `tools/cues_spike.py`):**
+- Model `assets/models/yamnet.onnx` berukuran **16 MB** (bukan ±4 MB).
+  Dikonversi sendiri dari Kaggle `google/yamnet`; selisih skornya
+  dengan SavedModel maksimal 1,7e-06.
+- Cepat: sekitar 11–12 detik per episode 42–45 menit (decode ±3,5 detik,
+  YAMNet ±6 detik).
+- Jumlah temuan, podcast / Syahrini:
+
+  | Sinyal | Podcast | Syahrini | Catatan |
+  |---|---|---|---|
+  | Tawa | 47 | 47 | 17 di podcast berpuncak ≥ 0,5 |
+  | Tepuk tangan | 0 | 0 | |
+  | Teriakan | 0 | 1 | |
+  | Musik | 22 | 12 | podcast total hanya 0,5 menit |
+  | Jeda ≥ 3 detik | 8 | 3 | |
+  | Bicara cepat | 17 | 18 | |
+  | Energi relatif ≥ +6 dB | 63 | 61 | terlalu banyak untuk bermakna |
+
+- Rentang "hehehe" 2372–2385 detik **tertangkap tapi lemah**: puncak 0,45,
+  peringkat 21 dari 47. Tawanya pelan dan tertimpa bicara (Speech 0,80).
+- Dibandingkan dengan 10 kandidat yang dulu dipilih Claude tanpa data
+  tawa: kandidat itu mencakup 27% episode dan memuat 6–7 dari 20 tawa
+  teratas. Itu kira-kira sama dengan kebetulan. Lima dari 10 tawa
+  teratas jatuh di 10 menit pertama, padahal Claude tidak memilih satu
+  klip pun di sana. Jadi ada dua kemungkinan: detektornya meleset, atau
+  data tawa memang akan menunjukkan momen yang selama ini terlewat. Hanya
+  telinga yang bisa menjawab.
+
 **Syarat lanjut ke integrasi:**
 - tawa: minimal 7 dari 10 memang tawa, dan rentang "hehehe" di
   2372–2385 detik pada radityadika-podcast ikut tertangkap;
 - sinyal lain: ian memutuskan per sinyal, ikut atau tidak. Sinyal yang
   mayoritas salah tidak ikut ke brief.
 
-**Integrasi (baru dikerjakan setelah syarat terpenuhi):**
+**Keputusan ian (2026-10-16): lanjut integrasi tanpa sesi mendengarkan.**
+Permintaannya: tawa dimasukkan ke brief **dan** ke result JSON, dan layar
+Analyze memberi catatan sinyal apa saja yang tertangkap. Karena syarat
+"7 dari 10" tidak diuji dengan telinga, dipakai nilai awal yang bisa
+diubah:
+- **Masuk brief:** tawa (semua ≥ 0,3, bertingkat), musik (sebagai
+  "avoid"), jeda ≥ 3 detik, dan bicara cepat. Tepuk tangan, sorakan,
+  dan teriakan tetap dideteksi dan masuk kalau ada; untuk podcast
+  biasanya nol, dan chip-nya tampil "none found".
+- **Energi:** bagian lama "Prominent audio-energy moments" (puncak global)
+  diganti bagian baru. Energi relatif tidak masuk brief sendirian (63
+  temuan, terlalu banyak); ia hanya ikut menentukan tingkat tawa.
+- **Tingkat awal tawa:**
+  - high: puncak ≥ 0,6, atau puncak ≥ 0,5 dan panjang ≥ 2,5 detik;
+  - medium: puncak ≥ 0,45;
+  - low: sisanya, asal ≥ 0,3.
+
+  Dengan aturan ini, rentang "hehehe" 39:35 (puncak 0,45) masuk medium.
+  Ambang disimpan di satu tempat, supaya mudah disetel setelah ian
+  mendengar hasilnya.
+- **"Result JSON":** saat balasan Claude diimpor, setiap kandidat diberi
+  daftar `cues` yang jatuh di dalamnya atau sampai 5 detik sesudahnya.
+  Ini dihitung oleh klipian, bukan Claude, jadi deterministik. Daftar itu
+  disimpan di project dan tampil di kartu kandidat dan timeline Clips.
+
+**Integrasi:**
 - `klipian/cues.py`, dengan cache `<stem>.<fp>.cues.json`. Sinyal suara
   bisa langsung dihitung; jeda dan bicara cepat menunggu transkrip.
 - Tahap baru di `_run_transcribe`, di sebelah `energy`: sekali per
