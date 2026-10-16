@@ -67,12 +67,6 @@ const hasFiles = (e) => [...((e.dataTransfer && e.dataTransfer.types) || [])].in
 ["dragenter", "dragover", "drop"].forEach((ev) =>
   window.addEventListener(ev, (e) => { if (hasFiles(e)) e.preventDefault(); }));
 
-/* ───────────────── candidates: approve, reject, undo ──────────────────── */
-
-
-/* ───────────────── ribbon: click a sweep to open its clip ─────────────── */
-
-
 /* ───────────────── caption: options that update the preview live ──────── */
 
 /* Returns the active choice OBJECT: { t, out, px?, css? }.

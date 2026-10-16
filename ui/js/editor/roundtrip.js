@@ -121,13 +121,13 @@ async function prepareExport(videoName) {
   if (!realTranscript) {
     panel.dataset.ready = "false";
     button.disabled = true;
-    note.textContent = `No transcript yet. Run this first: klipian transcribe ${videoName}`;
+    note.textContent = "No transcript yet. Click Find clips to make one.";
     return;
   }
   panel.dataset.ready = "true";
   button.disabled = false;
   note.textContent =
-    `${realTranscript.words.length.toLocaleString("en")} words · ${fmtStamp(realTranscript.duration)} · drop the JSON to your AI to analyze it`;
+    `${realTranscript.words.length.toLocaleString("en")} words · ${fmtStamp(realTranscript.duration)} · drop the file into Claude to find clips`;
   $("#importPanel").dataset.ready = "true";
 
   // If the user already added manual clips BEFORE this transcript arrived
@@ -152,7 +152,7 @@ $("#downloadBrief")?.addEventListener("click", async () => {
   }
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([text], { type: "text/markdown" }));
-  a.download = `brief-claude-${name.replace(/\.[^.]+$/, "")}.md`;
+  a.download = `brief-${name.replace(/\.[^.]+$/, "")}.md`;
   a.click();
   URL.revokeObjectURL(a.href);
   $("#exportNote").textContent =

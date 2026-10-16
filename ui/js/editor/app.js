@@ -424,10 +424,6 @@ function toStage(stage) {
   }
 }
 
-/* ───────────────────────── source ribbon ───────────────────────── */
-
-
-
 /* ───────────────────── job polling ──────────────────────────
    Every long server task (transcribe, render, auto-caption, diarize) has
    the same shape: POST to start, then poll GET /api/<x>/<id> until the

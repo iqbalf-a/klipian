@@ -579,7 +579,7 @@ class Handler(BaseHTTPRequestHandler):
         except (OSError, ValueError, KeyError) as exc:
             return self._send_json({"error": f"The transcript for {name} could not be read ({exc})"}, 500)
         if transcript is None:
-            return self._send_json({"error": f"No transcript yet. Run this first: klipian transcribe {name}"}, 404)
+            return self._send_json({"error": "No transcript yet. Click Find clips on the Analyze screen to make one."}, 404)
         rubric = roundtrip.RUBRICS.get(q.get("mode", ["dialog"])[0], roundtrip.RUBRICS["dialog"])
         return self._send_text(roundtrip.build_brief(
             transcript, roundtrip.read_rubric(rubric), name, _energy_moments(name)),

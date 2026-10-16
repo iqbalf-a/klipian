@@ -619,7 +619,7 @@ function updateHomeView() {
   if (sub) {
     sub.textContent = homeHasProjects
       ? "Pick up an existing project, or start something new."
-      : "Drop a video, set the format, then pick clips from the transcript.";
+      : "Start a project, add a video, then pick clips from the transcript.";
   }
 }
 
