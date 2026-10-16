@@ -2,7 +2,8 @@
 
 Disusun 2026-10-16 di sesi analisis, untuk dibaca sesi eksekusi. Urutan di
 bawah adalah urutan pengerjaan. Yang bertanda **TANYA IAN** menunggu
-keputusan, jangan dikerjakan sebelum dijawab.
+keputusan, jangan dikerjakan sebelum dijawab. Keputusan yang sudah
+diambil diberi tanggal.
 
 ---
 
@@ -165,9 +166,41 @@ P3 boleh jalan bersamaan dengan P1/P2, karena tidak menyentuh kode.
 - Folder lama `out/radityadika-podcast/`, `out/cadera-gameplay-mlbb/`,
   dan `projects/legacy/` dibersihkan manual oleh ian. Jangan dihapus
   oleh sesi.
-- Memasukkan video masih harus disalin manual ke `workspace/samples/`.
-  **TANYA IAN**: perlu tombol "Add video" yang menyalin file, atau
-  download link (yt-dlp, kodenya ada di `3eecf52`)? Tunggu hasil P3.
+- **Tombol "Add video" di layar Assets** (diputuskan ian 2026-10-16).
+  Video dipilih dari mana saja di disk lalu disalin ke
+  `workspace/samples/`, jadi tidak perlu lagi menyalin manual lewat
+  Explorer. Download dari link tetap nonaktif untuk sekarang; kodenya
+  masih ada di `3eecf52` kalau nanti dibutuhkan.
+  - Pakai pola yang sudah ada di `/api/project-asset-upload`
+    (server.py:~1803): body mentah, nama file di query, ditulis per
+    potongan 1 MB ke `.part`, lalu `replace`. Batas 100 MB di sana khusus
+    untuk gambar/suara; video berukuran ratusan MB sampai beberapa GB
+    (Syahrini 742 MB), jadi butuh batas sendiri.
+  - Progress unggah wajib ditampilkan. Memakai `fetch` tidak memberi
+    progress unggah, jadi pakai `XMLHttpRequest` dengan `upload.onprogress`.
+  - Kalau nama file yang sama sudah ada di `samples/` dengan ukuran sama,
+    pakai file yang sudah ada (satu video bisa dipakai banyak project).
+    Kalau ukurannya beda, beri nama baru lewat `_free_name`. Jangan
+    pernah menimpa file lain.
+  - Setelah selesai, video ditambahkan ke project lewat jalur yang sama
+    dengan memilih dari `samples/` (`addVideoToProject`).
+  - README bagian "Put your source videos in `workspace/samples/`" dan
+    Troubleshooting "not reachable in the server's folder" ikut
+    diperbarui.
+
+### Dashboard `/workspace` dipertahankan
+
+Diputuskan ian 2026-10-16. Panel **Rendered output** yang membuatnya
+berguna: hasil render bisa dilihat tanpa membuka Explorer. Panel Clips
+(jadwal upload) belum dipakai (`clips.json` berisi 0 baris), tapi tetap
+dibiarkan.
+
+Akibatnya untuk pekerjaan lain:
+- Langkah P1.3 (thumbnail keluar dari `out/`) juga merapikan panel ini,
+  karena `out/` tidak lagi berisi folder `thumbs`.
+- Setiap perubahan pada `/api/history` atau susunan `out/` harus dicek
+  di dua tempat: layar History di editor **dan** panel Rendered output
+  di `/workspace`.
 
 ### P5 — Dokumentasi menyusul kenyataan
 
@@ -186,26 +219,21 @@ P3 boleh jalan bersamaan dengan P1/P2, karena tidak menyentuh kode.
     Home→Assets→Analyze→Clips→Framing→Captions→Timeline→Render.
   - Nada UI berbahasa Indonesia: kenyataannya UI berbahasa Inggris.
 
-### P6 — Mode gameplay (**TANYA IAN**: apakah akan mengklip MLBB?)
-
-Layout split (dua kotak bertumpuk) sudah ada di `framing.js`. Yang kurang:
-
-- Pilihan rubrik di UI. `roundtrip.js` masih hardcode `dialog-podcast.md`.
-  Kalau P2.2 selesai, pilihan ini tinggal satu parameter.
-- Sinyal hype/announcer ke brief. `audio_energy.py` sudah ada.
-- Preset framing per streamer.
-
 ---
 
 ## 3. Diparkir, sengaja tidak dikerjakan
+
+- **Mode gameplay.** ian tidak akan mengklip MLBB dalam waktu dekat
+  (diputuskan 2026-10-16). Kalau nanti dibuka lagi: layout split (dua
+  kotak bertumpuk) sudah ada di `framing.js`. Yang kurang:
+  - pilihan rubrik di UI (`roundtrip.js` masih hardcode
+    `dialog-podcast.md`; setelah P2.2 ini tinggal satu parameter);
+  - sinyal hype/announcer ke brief (`audio_energy.py` sudah ada);
+  - preset framing per streamer.
 
 - **Migrasi JS ke ES modules** (`type="module"`, `import`/`export`). Ini
   perbaikan nyata untuk utang nomor 4, tapi menyentuh 14 file sekaligus
   dan tidak bisa diverifikasi oleh selftest render. Kerjakan hanya jika
   global state mulai menimbulkan bug, atau pecah per file saat file itu
   sedang disentuh untuk alasan lain.
-- **Dashboard `/workspace`.** `clips.json` berisi 0 baris dan
-  `content-calendar.xlsx` masih ada, jadi tampaknya belum dipakai. Jangan
-  tambah fitur sampai dipakai. **TANYA IAN**: dipertahankan atau
-  dibekukan?
 - **Migrasi ke React/FastAPI seperti di brief desain:** tidak perlu.
