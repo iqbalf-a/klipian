@@ -320,6 +320,15 @@ cek decode.
   - README bagian "Put your source videos in `workspace/samples/`" dan
     Troubleshooting "not reachable in the server's folder" ikut
     diperbarui.
+  - Sekalian perbaiki teks UI yang basi (ditemukan saat P5): keadaan
+    kosong di Home masih menulis "Drop a video to start your first clip."
+    (`ui/index.html:125`) dan "Drop a video, set the format, then pick
+    clips…" (`projects.js:622`). Ganti dengan arahan ke Add video.
+  - Hapus juga banner komentar kosong sisa fitur lama:
+    "source ribbon" (`app.js:427`), "candidates: approve, reject, undo"
+    dan "ribbon: click a sweep…" (`interactions.js:70–73`). Di bawahnya
+    tidak ada kode. `RIBBON_DURATION` (`app.js:596`) masih dipakai, jadi
+    jangan ikut dihapus; cukup dinamai ulang kalau perlu.
 
 ### Dashboard `/workspace` dipertahankan
 
@@ -337,6 +346,12 @@ Akibatnya untuk pekerjaan lain:
 
 ### P5 — Dokumentasi menyusul kenyataan
 
+**Selesai 2026-10-16** (`2eb2980` README, `bef1d10` workspace/README,
+`0389b75` ui-design). Beberapa klaim baru dibaca dari kode, belum dilihat
+di layar: Mona Sans untuk merek dan watermark, pintasan `, . < > Space`,
+Output Format per Result, dan Remove dua klik. Cek di browser setelah
+transkripsi Syahrini selesai.
+
 - README:
   - Workflow masih menyebut "drop a video"; perbarui.
   - Daftar layar belum memuat Assets dan Timeline.
@@ -351,6 +366,59 @@ Akibatnya untuk pekerjaan lain:
   - Alur Meja→Antrian: kenyataannya
     Home→Assets→Analyze→Clips→Framing→Captions→Timeline→Render.
   - Nada UI berbahasa Indonesia: kenyataannya UI berbahasa Inggris.
+
+### P6 — Deteksi tawa: uji coba dulu, baru integrasi
+
+Disetujui ian 2026-10-16, termasuk mengunduh model YAMNet. Antrean
+sesi eksekusi: setelah Add video.
+
+**Kenapa perlu.** Tawa adalah tanda payoff yang paling jujur di podcast,
+dan rubrik `dialog-podcast.md` sudah menyuruh Claude memakainya. Tapi
+datanya tidak ada:
+- Whisper hanya menulis 6 kata mirip tawa ("hehehe") dalam 6045 kata
+  podcast 42 menit, dan semuanya di 3 menit terakhir.
+- `audio_energy` menemukan 45 momen, dan semuanya berpuncak di ≥ −0,5
+  dBFS. Audionya sudah di-mastering mentok, jadi "paling keras" tidak
+  bisa membedakan tawa dari bicara lantang.
+
+**Pendekatan.** YAMNet (Google, Apache 2.0, ±4 MB) punya kelas AudioSet
+Laughter, Giggle, Chuckle/chortle, Belly laugh, dan Snicker. Model ini
+dijalankan lewat `onnxruntime`, yang sudah terpasang sebagai dependensi
+faster-whisper, jadi **tidak ada paket baru**. File ONNX disimpan di
+`assets/models/` bersama lisensinya, sama seperti YuNet.
+
+**Uji coba (spike), tanpa menyentuh pipeline:**
+1. Ambil YAMNet dari sumber resmi (Kaggle Models/TF Hub `google/yamnet`),
+   lalu konversi ke ONNX di environment sementara di luar repo
+   (tensorflow + tf2onnx). Jangan dipasang ke `.venv`; hapus environment
+   itu setelah selesai. Jangan memakai file ONNX hasil konversi pihak
+   ketiga.
+2. Skrip uji coba terpisah dari paket `klipian`:
+   - audio diambil lewat ffmpeg sebagai 16 kHz mono;
+   - jendela YAMNet 0,96 detik dengan hop 0,48 detik;
+   - indeks kelas tawa diambil dari `yamnet_class_map.csv` berdasarkan
+     nama, jangan di-hardcode;
+   - frame yang berdekatan digabung menjadi rentang.
+3. Jalankan pada radityadika-podcast dan Syahrini, lalu catat waktu
+   prosesnya.
+4. Buat 20 kandidat teratas per video, masing-masing berupa potongan WAV
+   ±3 detik dengan nomor urut, plus satu daftar berisi waktu, skor, dan
+   kata-kata transkrip di sekitarnya (kalau transkrip ada). Simpan di
+   `workspace/cache/laughter-spike/`, bukan di `out/`.
+5. ian mendengarkan 10 kandidat teratas per video.
+
+**Syarat lanjut ke integrasi:** minimal 7 dari 10 memang tawa, dan
+rentang "hehehe" di 2372–2385 detik pada radityadika-podcast ikut
+tertangkap.
+
+**Integrasi (baru dikerjakan setelah syarat terpenuhi):**
+- `klipian/laughter.py`, dengan cache `<stem>.<fp>.laughter.json`;
+- tahap baru di `_run_transcribe`, di sebelah `energy`: sekali per video,
+  tidak fatal kalau gagal, dan tidak bergantung pada transkrip;
+- bagian "Laughter" di brief (`roundtrip.py`) beserta fixture selftest-nya;
+- penanda tawa di timeline layar Clips;
+- aturan batas klip: klip berakhir **setelah** tawa selesai, karena tawa
+  itulah payoff-nya. Hook tetap dicari dari kalimat sebelum tawa.
 
 ---
 
@@ -385,6 +453,12 @@ Akibatnya untuk pekerjaan lain:
     simpan teks mentah per kata (field `raw`), lalu sediakan aksi
     eksplisit "Re-apply glossary" yang selalu bekerja dari `raw`. Untuk
     transkrip yang sudah ada, satu-satunya jalan tetap Transcribe again.
+- **Ribbon sumber** (elemen tanda tangan di `ui-design.md` §7). Ribbon ini
+  sudah tidak ada di UI; yang tersisa hanya banner komentar kosong, yang
+  ikut dibersihkan bersama Add video. Kartu kandidat dengan skor dan
+  stempel juga tidak ada. **TANYA IAN**, tidak mendesak: kembalikan
+  ribbon sebagai peta "di mana klip ditemukan dalam episode", atau
+  lepaskan dari brief desain?
 - **Opsi B dari 2.3** (penyusunan request render pindah ke server). Buka
   lagi kalau ian butuh render tanpa UI. Saat itu, baseline hasil 3a
   menjadi jaring pengamannya.
