@@ -3,6 +3,61 @@
 Dokumen ini berdiri sendiri. Siapa pun yang membacanya tanpa konteks lain
 harus bisa membangun antarmukanya.
 
+> **Status 2026-10-16: yang sengaja tidak diikuti**
+>
+> Dokumen ini brief awal, dan prinsipnya masih dipegang: panel 9:16 permanen
+> di kanan sebagai **satu** frame dengan caption di dalamnya (§3.2 no. 1, §9.0),
+> aturan istilah kerja (§3.2 no. 9, §12), dan arah visual yang tidak generik
+> (§2, §3.1). Bagian di bawah ini sengaja tidak diikuti, atau belum ada di UI.
+> Jangan "memperbaiki" UI supaya cocok dengan dokumen tanpa memutuskannya dulu.
+>
+> - **§15 Stack.** React, Vite, Zustand, FastAPI, dan SSE tidak dipakai.
+>   Kenyataannya JavaScript biasa tanpa build step (satu scope bersama, urutan
+>   tag `<script>` di `ui/index.html` yang penting) dan server `http.server`
+>   dari stdlib Python. Progress memakai polling `/api/<x>/<id>`. Itu terbukti
+>   cukup untuk satu pengguna di satu mesin.
+> - **§5 Tipografi.** Archivo dan IBM Plex Mono tidak dipakai. Yang dipakai
+>   Geist (teks dan judul), Geist Mono (data: timecode, durasi, nama file), dan
+>   Mona Sans ExtraBold untuk merek "klipian" dan watermark, semuanya berkas
+>   lokal OFL di `assets/fonts/` (lihat `ui/css/fonts.css`). Watermark yang
+>   dibakar ke video oleh `render.py` juga Mona Sans, jadi preview dan hasil
+>   sama.
+>   Catatan: §3.1 melarang Geist sebagai display face; di UI sekarang Geist
+>   justru font utamanya.
+> - **§4 Palet.** Token sekarang `--bg-0…3`, `--text*`, `--accent` (kuning),
+>   `--danger`, dalam `oklch`, dengan tema gelap dan terang (tombol tema di
+>   topbar). Tidak ada permukaan kertas terang di atas meja gelap, tidak ada
+>   stabilo pink untuk mode gameplay, dan tidak ada cap tinta biru.
+> - **§13 Alur layar.** Alurnya sekarang: Home (daftar project) → Assets →
+>   Analyze → Clips → Output Format → Timeline → Framing → Captions → Render →
+>   History, sebagai sidebar dua grup (Preparation dan Editing). Satu project
+>   memegang beberapa video dan beberapa Result. Tidak ada layar Meja, Kandidat,
+>   atau Antrian yang terpisah; antrian render ada di History.
+> - **§12 Nada tulisan.** UI berbahasa Inggris ("Find clips", "Transcribe
+>   again", "Add to Result"), bukan Indonesia. Aturan istilah kerja (crop,
+>   render, preview, timeline, caption tetap istilah yang sama) otomatis
+>   terpenuhi, tapi tabel Jangan/Pakai di §12 tidak berlaku untuk kata
+>   Indonesianya.
+> - **§7 dan §9.2 Ribbon sumber, kartu klip, skor, stempel `SIAP RENDER`,
+>   tombol Setujui/Tolak.** Tidak ada di UI. Papan kandidat dan ribbon dihapus;
+>   saran AI muncul sebagai daftar "AI suggestions" di Clips (tanpa skor,
+>   dengan "Add to Result"), dan timeline Clips memilih rentang dengan drag.
+>   Aturan §3.2 no. 2 sampai 7 hanya relevan kalau elemen itu dikembalikan.
+> - **§9.1 Transkrip-sebagai-timeline.** Tidak ada chip kata maupun waveform
+>   di layar Clips; transkrip yang terpilih tampil sebagai teks di bawah
+>   timeline, dan koreksi kata dilakukan di Captions.
+> - **§1 dan §16 Mode `dialog` / `gameplay`, dan §9.3 preset framing per
+>   streamer.** UI tidak punya pemilih mode (selalu rubrik `dialog`; `gameplay`
+>   hanya lewat CLI), dan tidak ada preset framing atau deteksi facecam otomatis.
+>   Format `split` (dua kotak) ada di Framing; preset yang ada hanya untuk
+>   gaya caption.
+> - **§14 Pintasan keyboard.** Yang ada: `,` `.` (maju/mundur satu frame atau
+>   detik), `<` `>` (lima), dan `Space`. Bukan `←/→`, `I`, `O`, `Enter`.
+> - **§10 dan §3.1 Keadaan kosong, tata letak.** "Tarik file ke sini" tidak
+>   berlaku: video ditambahkan dari `workspace/samples/` di Assets. Kerangka
+>   sidebar kiri + topbar dipakai (yang dilarang §3.1); panel 9:16 permanen di
+>   kanan tetap ada.
+
 ---
 
 ## 1. Produknya apa
@@ -155,7 +210,7 @@ lebih dulu.
 
 ---
 
-## 5. Tipografi
+## 5. Tipografi (lihat Status di atas)
 
 Satu keluarga huruf, dua suara — memanfaatkan sumbu lebar variable font.
 
@@ -667,7 +722,7 @@ Yang muncul di layar adalah kata yang paling langsung menyebut isinya.
 
 ---
 
-## 13. Alur layar
+## 13. Alur layar (lihat Status di atas)
 
 ```
 1  MEJA        daftar video, tarik file baru, status tiap video
@@ -698,7 +753,7 @@ Ribbon sumber hadir di layar 2 sampai 4. Panel 9:16 hadir di layar 3 dan 4.
 
 ---
 
-## 15. Stack
+## 15. Stack (lihat Status di atas)
 
 | Bagian | Pilihan |
 |---|---|
