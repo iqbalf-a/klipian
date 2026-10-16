@@ -24,8 +24,8 @@ berganti nama saat project di-rename) sudah terjawab di kode: **tidak**.
 `outSlug` dibekukan sejak project dibuat.
 
 **Semua pengujian baru memakai satu video.** Sepanjang sekitar 170 commit,
-setiap fitur diverifikasi di `radityadika-podcast.mp4` (baseline res2
-`d2c1aa81…`, 7562941 byte). Hanya video itu yang punya transkrip di
+setiap fitur diverifikasi di `radityadika-podcast.mp4` (baseline res2,
+7562941 byte; lihat catatan hash di P1). Hanya video itu yang punya transkrip di
 `workspace/cache/`. Project kedua, "Raditya Dika - Apa Kabar Syahrini",
 berhenti di layar Analyze tanpa transkrip.
 
@@ -112,6 +112,21 @@ Diukur dengan skrip AST/regex sekali jalan. Repo ini belum punya linter.
 
 ### P1 — Jaring pengaman dan sapu bersih (sebelum fitur apa pun)
 
+**Selesai 2026-10-16**, commit `f44e5a5` `81250c6` `9afc814` `1fabd12`.
+`python -m klipian selftest` lolos: migrasi dua bentuk lama, dan render
+res2 dalam ~30 detik.
+
+> **Catatan hash baseline.** Angka `d2c1aa81e59babd7ee469b2494c8c762` di
+> commit-commit lama (`b94978f` sampai `1ff26e3`) adalah **32 karakter
+> pertama SHA-256**, bukan md5. Sesi lama menyebutnya "sha256 `d2c1aa81…`"
+> lalu memotongnya. Hash lengkapnya
+> `d2c1aa81e59babd7ee469b2494c8c762e1e12bbee7d87d107b944839be3e13c9`.
+> File yang sama punya md5 `0698726b12a6df2755ad47d8152bd55b`, dan md5
+> inilah yang dipakai `tests/fixtures/res2/baseline.json`. Keduanya
+> menunjuk byte yang sama, jadi output render **tidak pernah bergeser**.
+> Mulai sekarang, sebut baseline dengan md5 `0698726b…` saja, sesuai
+> selftest.
+
 1. **`python -m klipian selftest`**. Menjadikan ritual "res2
    byte-identical" satu perintah:
    - render project baseline lalu bandingkan md5-nya;
@@ -128,7 +143,7 @@ Diukur dengan skrip AST/regex sekali jalan. Repo ini belum punya linter.
 4. Ganti nama `activeProject` menjadi `primaryVideo` (atau nama serupa)
    beserta komentarnya.
 
-Selesai jika: `selftest` hijau, dan render res2 masih `d2c1aa81…`.
+Selesai jika: `selftest` hijau, dan render res2 masih md5 `0698726b…`.
 
 ### P2 — Rapikan struktur (setelah P1, karena butuh selftest)
 
