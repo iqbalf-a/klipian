@@ -1,0 +1,2 @@
+# Fixtures are compared byte for byte (selftest), so no line-ending conversion.
+tests/fixtures/** -text
