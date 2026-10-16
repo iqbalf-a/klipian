@@ -4,11 +4,11 @@ around without wondering what broke.
 Two checks, each one that used to be done by hand:
 
   migrate  Old project shapes (tests/fixtures/migrate/*.old.json) go through
-           server._migrate_project() and must come out as the matching
+           projects._migrate_project() and must come out as the matching
            *.new.json.
   render   The request the UI sent for the baseline Result (res2 of project
            ea8b7a796f48, tests/fixtures/res2/request.json) goes through
-           server._run_render() and the MP4 must be byte-identical to the one
+           jobs._run_render() and the MP4 must be byte-identical to the one
            recorded in tests/fixtures/res2/baseline.json.
 
 The render check needs the source video, which stays local (it is not in the
@@ -76,12 +76,12 @@ def _diff(want, got, where: str = "") -> list[str]:
 # --------------------------------------------------------------------------
 
 def _migrated(old_path: Path) -> dict:
-    from . import server
-    data, _ = server._migrate_project(_load(old_path))
+    from . import projects
+    data, _ = projects._migrate_project(_load(old_path))
     # A project with no id is given a random one; that is the one field that
     # can't be compared, so it is checked for being valid and then dropped.
     if "id" not in _load(old_path):
-        assert server._valid_project_id(data.get("id")), "no valid id was minted"
+        assert projects._valid_project_id(data.get("id")), "no valid id was minted"
         del data["id"]
     return data
 
@@ -107,11 +107,11 @@ def check_migrate(write_expected: bool = False) -> tuple[str, str]:
             continue
         problems += [f"{old.name} {d}" for d in _diff(_load(expected), got)]
         # Migrating what is already current must change nothing.
-        from . import server
+        from . import projects
         # (`id` was dropped above when the fixture has none; give it back.)
         current = json.loads(json.dumps(got))
         current.setdefault("id", SELFTEST_ID)
-        again, changed = server._migrate_project(json.loads(json.dumps(current)))
+        again, changed = projects._migrate_project(json.loads(json.dumps(current)))
         if changed or again != current:
             problems.append(f"{old.name}: migrating the result again changed it")
     if write_expected:
@@ -126,22 +126,23 @@ def check_migrate(write_expected: bool = False) -> tuple[str, str]:
 # --------------------------------------------------------------------------
 
 def check_render() -> tuple[str, str]:
-    from . import projects, server
+    from . import jobs, projects
+    from .paths import WORKSPACE, find_video
 
     base = FIXTURES / "res2"
     baseline = _load(base / "baseline.json")
     req = _load(base / "request.json")
 
-    video = server.find_video(req["video"])
+    video = find_video(req["video"])
     if not video:
         return SKIP, f"{req['video']} is not in workspace/samples/"
 
-    out_dir = server.WORKSPACE / "out" / f"{SELFTEST_SLUG}.{SELFTEST_ID}"
+    out_dir = WORKSPACE / "out" / f"{SELFTEST_SLUG}.{SELFTEST_ID}"
     if out_dir.exists():
         return FAIL, f"{out_dir} already exists (left over from a killed run?) -- delete it"
 
     # A throwaway project: it only has to say which video it holds, and its
-    # id/slug decide the output folder (server._project_out_dir).
+    # id/slug decide the output folder (projects._project_out_dir).
     tmp_projects = Path(tempfile.mkdtemp(prefix="klipian-selftest-"))
     (tmp_projects / f"{SELFTEST_ID}.json").write_text(json.dumps({
         "id": SELFTEST_ID, "name": SELFTEST_SLUG, "outSlug": SELFTEST_SLUG,
@@ -154,12 +155,12 @@ def check_render() -> tuple[str, str]:
     real_projects = projects.PROJECTS
     projects.PROJECTS = tmp_projects
     try:
-        server._register_job(job_id, {"state": "running", "done": 0,
+        jobs._register_job(job_id, {"state": "running", "done": 0,
                                       "total": len(req["clips"]), "index": 0,
                                       "current": "", "result": [], "error": None})
         started = time.time()
-        server._run_render(job_id, req)
-        job = server.JOBS[job_id]
+        jobs._run_render(job_id, req)
+        job = jobs.JOBS[job_id]
         if job["state"] != "done":
             return FAIL, f"render ended {job['state']}: {job.get('error')}"
         # The patch above has to be the one _run_render actually reads: if it
@@ -174,7 +175,7 @@ def check_render() -> tuple[str, str]:
         took = time.time() - started
     finally:
         projects.PROJECTS = real_projects
-        server.JOBS.pop(job_id, None)
+        jobs.JOBS.pop(job_id, None)
         shutil.rmtree(tmp_projects, ignore_errors=True)
         shutil.rmtree(out_dir, ignore_errors=True)
 
