@@ -367,6 +367,21 @@ Akibatnya untuk pekerjaan lain:
   global state mulai menimbulkan bug, atau pecah per file saat file itu
   sedang disentuh untuk alasan lain.
 - **Migrasi ke React/FastAPI seperti di brief desain:** tidak perlu.
+- **Menerapkan glossary baru ke transkrip lama** (dinilai 2026-10-16,
+  setelah Find clips memakai transkrip yang ada; `cb3983f`, `161eb77`).
+  - Jangan terapkan saat transkrip dimuat. Transkrip hanya menyimpan
+    teks yang *sudah* dikoreksi, jadi tidak ada teks mentah untuk
+    dikoreksi ulang.
+  - `Glossary.apply` aman kalau dijalankan sekali, tapi tidak kalau dua
+    kali: fix `a→b` lalu `b→c` akan mengubah `a` menjadi `c`.
+  - Fix yang dihapus dari glossary juga tidak pernah ditarik dari
+    transkrip lama.
+  - Efek terbesar glossary sebenarnya ada di hotwords dan
+    initial_prompt saat Whisper berjalan, dan itu tidak bisa diulang.
+  - Rancangan aman kalau nanti dibutuhkan: mulai transkripsi berikutnya,
+    simpan teks mentah per kata (field `raw`), lalu sediakan aksi
+    eksplisit "Re-apply glossary" yang selalu bekerja dari `raw`. Untuk
+    transkrip yang sudah ada, satu-satunya jalan tetap Transcribe again.
 - **Opsi B dari 2.3** (penyusunan request render pindah ke server). Buka
   lagi kalau ian butuh render tanpa UI. Saat itu, baseline hasil 3a
   menjadi jaring pengamannya.
