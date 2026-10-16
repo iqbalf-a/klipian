@@ -18,27 +18,27 @@ let CUES = { video: null, status: { audio: "not run", audio_error: "", timing: "
 /* One place for how each signal is named and explained. `source` says which
    detector must have run for the chip to mean anything. */
 const CUE_KINDS = [
-  { kind: "laughter", label: "Laughter", source: "audio",
+  { kind: "laughter", label: "Laughter", one: "Laughter", short: "a laugh after a line: it landed", source: "audio",
     what: "Laughter in the recording: the speakers', the crew's or an audience's.",
     how: "Detected from the sound by a small model that runs on this computer, not from the words.",
     use: "Claude is told where it is and how strong. A laugh right after a line is evidence the line landed, and a clip should end after it." },
-  { kind: "applause", label: "Applause", source: "audio",
+  { kind: "applause", label: "Applause", one: "Applause", short: "a payoff; the clip should end after it", source: "audio",
     what: "Clapping and cheering.",
     how: "Detected from the sound by a small model that runs on this computer.",
     use: "Treated like strong laughter: a payoff. The clip should end after it." },
-  { kind: "shout", label: "Shouts", source: "audio",
+  { kind: "shout", label: "Shouts", one: "Shout", short: "strong emotion; often an opening hook", source: "audio",
     what: "Shouting, yelling, screaming and gasps.",
     how: "Detected from the sound by a small model that runs on this computer.",
     use: "A sign of a strong emotion; often a good opening hook." },
-  { kind: "music", label: "Music", source: "audio", avoid: true,
+  { kind: "music", label: "Music", one: "Music", short: "to avoid: intros, ads, copyright", source: "audio", avoid: true,
     what: "Longer stretches of music: intros, outros, ads.",
     how: "Detected from the sound by a small model that runs on this computer.",
     use: "Marked 'avoid': not a clip, and a copyright risk if it ends up in one." },
-  { kind: "pause", label: "Pauses", source: "timing",
+  { kind: "pause", label: "Pauses", one: "Pause", short: "silence before a confession or punchline", source: "timing",
     what: "Three seconds or more of silence between two words.",
     how: "Counted from the transcript's word times, not from the audio.",
     use: "The pattern 'pause, then a confession or a punchline': the line after the pause is quoted so Claude can find it." },
-  { kind: "fast talk", label: "Fast talk", source: "timing",
+  { kind: "fast talk", label: "Fast talk", one: "Fast talk", short: "an excited, building story", source: "timing",
     what: "Stretches where the speaker talks much faster than usual in this video.",
     how: "Counted from the transcript's word times: words per 10 s above the 95th percentile of this video.",
     use: "Excited or building stories; supports the emotion score." },
@@ -48,14 +48,19 @@ const cueInfoIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none"
   stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
   <circle cx="12" cy="12" r="9"/><path d="M12 11 L12 16"/><circle cx="12" cy="7.8" r=".6" fill="currentColor"/></svg>`;
 
-/* "found" | "none" | "notrun" | "failed" | "wait", and the words for it. */
+/* The name for a count: "1 Shout", "2 Shouts"; "Laughter" and "Fast talk" do not change. */
+const cueLabel = (def, n) => (n === 1 ? def.one : def.label);
+
+/* "found" | "none" | "notrun" | "failed", and the words for it. The one place
+   that decides what a signal's status is: the chips, the legend and the
+   "Hooks Find clips listens for" list all read it. */
 function cueState(def) {
   const s = CUES.status || {};
   const n = (CUES.counts || {})[def.kind] || 0;
   const detector = def.source === "audio" ? s.audio : s.timing;
   if (detector === "failed") return { state: "failed", text: "failed" };
-  if (detector === "no transcript") return { state: "notrun", text: "needs transcript" };
-  if (detector !== "ok") return { state: "notrun", text: "not run" };
+  if (detector === "no transcript") return { state: "notrun", text: "waiting for transcript" };
+  if (detector !== "ok") return { state: "notrun", text: "not run yet" };
   return n ? { state: "found", text: String(n) } : { state: "none", text: "none found" };
 }
 
@@ -63,41 +68,52 @@ function cueChipHTML(def, { info = true } = {}) {
   const st = cueState(def);
   return `<span class="cue-chip" role="listitem" data-kind="${def.kind}" data-state="${st.state}">
     <i class="cue-dot" aria-hidden="true"></i>
-    <span class="cue-label">${def.label}${def.avoid ? " (avoid)" : ""}</span>
+    <span class="cue-label">${cueLabel(def, (CUES.counts || {})[def.kind] || 0)}${def.avoid ? " (avoid)" : ""}</span>
     <b>${st.text}</b>
     ${info ? `<button class="cue-info" type="button" data-cue-info="${def.kind}"
       aria-label="About ${def.label}">${cueInfoIcon}</button>` : ""}
   </span>`;
 }
 
+/* The chips in "Export for Claude": what went into the brief. Only once there
+   is a transcript to build it from; before that the panel is dimmed, and
+   counts on it would promise a file that can't be downloaded yet. */
 function drawCueChips() {
   const box = $("#cueChips");
-  if (box) box.innerHTML = CUE_KINDS.map((d) => cueChipHTML(d)).join("");
-  drawCuesNote();
+  if (box) {
+    const ready = $("#exportPanel")?.dataset.ready === "true";
+    box.innerHTML = ready
+      ? CUE_KINDS.map((d) => cueChipHTML(d)).join("")
+      : `<span class="cue-wait">The cues found in the video are added to this file once the transcript is ready.</span>`;
+  }
+  drawHooksList();
 }
 
-/* The sentence on Analyze about which signals Find clips looks for: before an
-   analysis it says what MAY be found, afterwards what WAS (or why not). */
-function drawCuesNote() {
-  const el = $("#cuesNote");
-  if (!el) return;
+/* "Hooks Find clips listens for", above the Find clips button: every signal
+   it looks for, always shown, with its own status (a count, none found, not
+   run yet, waiting for the transcript, failed). */
+function drawHooksList() {
+  const box = $("#hooksList");
+  if (!box) return;
+  box.innerHTML = CUE_KINDS.map((d) => {
+    const st = cueState(d);
+    const n = (CUES.counts || {})[d.kind] || 0;
+    return `<li class="hook-row" data-kind="${d.kind}" data-state="${st.state}">
+      <i class="cue-dot" aria-hidden="true"></i>
+      <span class="hook-name">${cueLabel(d, n)}${d.avoid ? " (avoid)" : ""}</span>
+      <span class="hook-short">${d.short}</span>
+      <button class="cue-info" type="button" data-cue-info="${d.kind}" aria-label="About ${d.label}">${cueInfoIcon}</button>
+      <b class="hook-status">${st.text}</b>
+    </li>`;
+  }).join("");
   const s = CUES.status || {};
-  if (s.audio === "not run") {
-    el.textContent = "Find clips also listens for what a transcript misses: laughter, applause and " +
-      "cheering, shouts and gasps, music (marked to avoid), long pauses and fast talk. " +
-      "Whatever it finds goes into the file for Claude.";
-    return;
+  const note = $("#hooksNote");
+  if (note) {
+    note.hidden = s.audio !== "failed";
+    note.textContent = s.audio === "failed"
+      ? `The audio analysis failed (${s.audio_error || "unknown error"}). Pauses and fast talk still come from the transcript.`
+      : "";
   }
-  if (s.audio === "failed") {
-    el.textContent = `The audio analysis failed (${s.audio_error || "unknown error"}), so the file for ` +
-      "Claude has no laughter, applause, shout or music cues. Pauses and fast talk still come from the transcript.";
-    return;
-  }
-  const found = CUE_KINDS.map((d) => [d, (CUES.counts || {})[d.kind] || 0]).filter(([, n]) => n);
-  el.textContent = found.length
-    ? "Found in this video and written into the file for Claude: " +
-      found.map(([d, n]) => `${n} ${d.label.toLowerCase()}`).join(" · ") + "."
-    : "No laughter, applause, shouts, music, long pauses or fast talk were found in this video.";
 }
 
 async function loadCues(videoName) {

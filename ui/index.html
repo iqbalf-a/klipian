@@ -334,6 +334,13 @@
             <button class="btn" id="linkFetchBtn" type="button" disabled>Download</button>
           </div>
           <p class="data link-note">Downloading from a link isn't available yet.</p>
+          <!-- What Find clips listens for besides the words (cues.js): always
+               there, with each signal's own status. -->
+          <section class="hooks" aria-labelledby="hooksTitle">
+            <h3 class="eyebrow" id="hooksTitle">Hooks Find clips listens for</h3>
+            <ul class="hooks-list" id="hooksList"></ul>
+            <p class="step-note hooks-note" id="hooksNote" hidden></p>
+          </section>
           <!-- Hidden until there's a video: before that it means nothing. -->
           <div class="prepare-foot" id="prepareFoot" hidden>
             <button class="btn main large" id="run">Find clips</button>
@@ -351,7 +358,6 @@
           <p style="margin:var(--s4) 0 0;color:var(--text-muted);font-size:13px">
             You can leave this running. The result is saved automatically.
           </p>
-          <p id="cuesNote" class="cues-note"></p>
           <!-- Once a transcript exists for the video. Find clips uses it as it
                is; this is the way to make a new one (it takes about as long as
                the first did, and the old one stays in use until the new one is

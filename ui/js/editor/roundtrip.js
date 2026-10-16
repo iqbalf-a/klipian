@@ -126,6 +126,7 @@ async function prepareExport(videoName) {
     return;
   }
   panel.dataset.ready = "true";
+  if (typeof drawCueChips === "function") drawCueChips();
   button.disabled = false;
   note.textContent =
     `${realTranscript.words.length.toLocaleString("en")} words · ${fmtStamp(realTranscript.duration)} · drop the file into Claude to find clips`;

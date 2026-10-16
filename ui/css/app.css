@@ -2473,7 +2473,6 @@ h1, h2, h3 {
   border: 0; border-radius: 50%; background: transparent; color: var(--text-faint); cursor: help;
 }
 .cue-info:hover, .cue-info:focus-visible { color: var(--text); outline: none; background: var(--glass-strong); }
-.cues-note { margin: var(--s3) 0 0; color: var(--text-muted); font-size: 13px; }
 .cue-tip {
   position: fixed; z-index: 50; width: 280px; padding: var(--s3) var(--s4);
   border: 1px solid var(--border-bright); border-radius: var(--r-s);
@@ -2496,3 +2495,25 @@ h1, h2, h3 {
   font-size: var(--t-11); color: var(--text-muted); white-space: nowrap;
 }
 .cue-badge.more { padding-left: 8px; }
+
+/* "Hooks Find clips listens for" (Analyze, above Find clips): one row per
+   signal -- name, what it means for a clip, (i), and its status. */
+.hooks { display: grid; gap: var(--s2); padding-top: var(--s3); }
+.hooks .eyebrow { margin: 0; }
+.hooks-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.hook-row {
+  display: grid; grid-template-columns: auto 130px minmax(0, 1fr) 20px 23ch;
+  align-items: center; gap: var(--s3); padding: 6px 0;
+  border-top: 1px solid var(--glass-border); font-size: var(--t-13);
+}
+.hook-row:first-child { border-top: 0; }
+.hook-name { font-weight: 600; }
+.hook-short { color: var(--text-muted); font-size: var(--t-12); overflow-wrap: anywhere; }
+.hook-status { font-family: var(--font-data); font-weight: 500; font-size: var(--t-12); text-align: right; }
+.hook-row[data-state="none"], .hook-row[data-state="notrun"] { color: var(--text-muted); }
+.hook-row[data-state="none"] .cue-dot, .hook-row[data-state="notrun"] .cue-dot { background: transparent; border: 1px solid var(--text-faint); }
+.hook-row[data-state="none"] .hook-status, .hook-row[data-state="notrun"] .hook-status { font-weight: 400; color: var(--text-faint); }
+.hook-row[data-state="failed"] .hook-status { color: var(--danger); }
+.hooks-note { margin: 0; color: var(--danger); }
+.cue-wait { color: var(--text-faint); font-size: var(--t-12); }
+@media (max-width: 700px) { .hook-row { grid-template-columns: auto minmax(0, 1fr) 20px 14ch; } .hook-short { display: none; } }
