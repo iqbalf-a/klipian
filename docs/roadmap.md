@@ -227,6 +227,49 @@ itu yang menentukan urutan sesudah P4.
 
 P3 boleh jalan bersamaan dengan P1/P2, karena tidak menyentuh kode.
 
+**Hambatan #1 (2026-10-16): transkripsi gagal dengan
+`open() got an unexpected keyword argument 'metadata_errors'`.**
+
+- **Penyebab, sudah direproduksi:** faster-whisper 1.2.1
+  (`faster_whisper/audio.py:46`) memanggil
+  `av.open(..., metadata_errors="ignore")`. PyAV 19 sudah tidak menerima
+  argumen itu, sedangkan PyAV 18.1 masih menerima.
+  `requirements.txt` hanya menulis `faster-whisper>=1.1.0`, sehingga
+  instalasi baru menarik av 19.
+- **Kenapa hanya sebagian yang kena:** ada dua environment di mesin ian.
+  - `.venv`: Python 3.11.15 dari uv
+    (`%APPDATA%\uv\python\cpython-3.11.15…`), av 18.1.0, dependensi
+    AI Framing lengkap. Transkripsi jalan. `launch.json` memakai yang ini.
+  - Python 3.12.7 sistem (`%LOCALAPPDATA%\Programs\Python\Python312`),
+    tempat requirements baru dipasang: av 19.0.1, dan tanpa
+    torch/pyannote/opencv/soundfile. Transkripsi gagal, dan AI Framing
+    juga tidak akan jalan di sini.
+- **Perbaikan (tugas sesi eksekusi, setelah 2.3):**
+  - Pin `av<19` di `requirements.txt`, dengan komentar yang menyebut
+    alasannya. Lepas pin itu begitu faster-whisper berhenti mengirim
+    `metadata_errors`.
+  - Tambahkan cek ke `selftest`: decode audio beberapa detik dari video
+    sampel lewat `faster_whisper.audio.decode_audio`. Dengan begitu,
+    environment yang rusak ketahuan sebelum transkripsi 20 menit dimulai.
+  - README bagian setup: jalankan server **dari `.venv`**, dan cara
+    membuat ulang `.venv` dari Python sistem kalau Python uv dihapus.
+- **Keputusan ian (2026-10-16): `.venv` dibuat ulang di atas Python
+  3.14.8**, lengkap dengan dependensi AI Framing, setelah `av<19`
+  terpasang.
+  - Kenapa 3.14, menurut pengecekan PyPI 2026-10-16:
+    - Python 3.15.0 (rilis 9 Okt) belum punya wheel Windows untuk
+      ctranslate2, torch, dan onnxruntime, jadi belum bisa dipakai.
+    - 3.14 didukung semua dependensi, termasuk av 18.1 (`cp311-abi3`),
+      dan masih rutin mendapat rilis bugfix dengan installer Windows
+      sampai 2030.
+    - 3.11 dan 3.12 sudah security-only, sehingga python.org tidak lagi
+      menyediakan installer. Itu alasan installer 3.11.15 tidak bisa
+      ditemukan.
+  - Buka lagi pertanyaan 3.15 setelah torch dan ctranslate2 merilis wheel
+    `cp315`.
+  - Setelah ini, `.venv` tidak lagi bergantung pada Python uv. Python
+    3.12 global tidak dipakai klipian.
+
 ### P4 — Sisa-sisa library-projects
 
 - Fallback `?video=` dan `legacyFile` di `/api/project`: tentukan kapan
