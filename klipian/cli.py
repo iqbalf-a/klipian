@@ -238,8 +238,70 @@ def cmd_import(args: argparse.Namespace) -> int:
 # command: render  -- this is where the MP4 actually comes out
 # --------------------------------------------------------------------------
 
+def cmd_replay(args: argparse.Namespace) -> int:
+    """Run a Result's last render again and compare. The request is the one
+    the editor sent (kept by the server, projects.read_render_records), run
+    through the same jobs._run_render the Render button reaches, into a
+    folder of its own that is deleted afterwards."""
+    import shutil
+    import tempfile
+    from . import jobs
+    from .projects import read_render_records
+
+    records = read_render_records(args.replay, args.result)
+    if not records:
+        what = f"Result {args.result} of project {args.replay}" if args.result \
+            else f"project {args.replay}"
+        print(f"\nNo finished render is remembered for {what}.\n"
+              f"Render it once from the editor (this only works for renders made "
+              f"after this was added).\n", file=sys.stderr)
+        return 1
+
+    status = 0
+    for rid, rec in records.items():
+        print(f"\n{args.replay} / {rid}  (rendered {time.strftime('%Y-%m-%d %H:%M', time.localtime(rec['at']))})")
+        missing = jobs.missing_inputs(rec["request"])
+        if missing:
+            print("  cannot replay here, not found: " + ", ".join(missing), file=sys.stderr)
+            status = 1
+            continue
+        tmp = Path(tempfile.mkdtemp(prefix="klipian-replay-"))
+        try:
+            try:
+                got = jobs.render_request(rec["request"], tmp)
+            except RuntimeError as exc:
+                print(f"  FAILED: {exc}", file=sys.stderr)
+                status = 1
+                continue
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+        want = {o["file"]: o for o in rec["outputs"]}
+        for o in got:
+            was = want.get(o["file"])
+            same = bool(was) and (o["md5"], o["sha256"], o["bytes"]) == (
+                was["md5"], was["sha256"], was["bytes"])
+            print(f"  {o['file']}: {'IDENTICAL' if same else 'DIFFERENT'}")
+            print(f"    now   md5 {o['md5']}  sha256 {o['sha256'][:16]}...  {o['bytes']:,} bytes")
+            if was:
+                print(f"    then  md5 {was['md5']}  sha256 {was['sha256'][:16]}...  {was['bytes']:,} bytes")
+            else:
+                print("    then  (this file was not in the earlier render)")
+            if not same:
+                status = 1
+    print()
+    return status
+
+
 def cmd_render(args: argparse.Namespace) -> int:
     from . import render as engine
+
+    if args.replay:
+        return cmd_replay(args)
+    if not (args.video and args.candidates):
+        print("\nUsage:  klipian render VIDEO CANDIDATES.json\n"
+              "        klipian render --replay PROJECT_ID [--result RESULT_ID]\n",
+              file=sys.stderr)
+        return 2
 
     video, transcript = _load_transcript(args)
     if transcript is None:
@@ -409,9 +471,21 @@ def build_parser() -> argparse.ArgumentParser:
     s_import.add_argument("--lang", default="id")
     s_import.set_defaults(func=cmd_import)
 
-    s_render = sub.add_parser("render", parents=[common],
-                              help="render clips into vertical 9:16 MP4")
-    s_render.add_argument("candidates", help="the candidates.json produced by import")
+    s_render = sub.add_parser("render", help="render clips into vertical 9:16 MP4")
+    s_render.add_argument("video", nargs="?", help="source video/audio file")
+    s_render.add_argument("candidates", nargs="?",
+                          help="the candidates.json produced by import")
+    s_render.add_argument("--cache-dir", default=str(DEFAULT_CACHE),
+                          help="transcript cache folder")
+    s_render.add_argument("--out-dir", default=str(DEFAULT_OUT), help="output folder")
+    s_render.add_argument("--replay", metavar="PROJECT_ID",
+                          help="instead of video + candidates: render again the request the "
+                               "editor last rendered for this project's Result(s), into a "
+                               "temporary folder, and compare the file with the one it made "
+                               "then. Nothing in out/ is touched.")
+    s_render.add_argument("--result", metavar="RESULT_ID",
+                          help="with --replay: just this Result (default: every Result "
+                               "that has been rendered)")
     s_render.add_argument("--only", type=int, nargs="+", metavar="N",
                           help="render only this clip number (1 = top)")
     s_render.add_argument("--layout", default="face", choices=["face", "blur"])
