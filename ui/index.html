@@ -269,6 +269,17 @@
         <div class="panel fit">
           <div class="panel-head">
             <span class="eyebrow">Add from workspace/samples/</span>
+            <!-- A video from anywhere on disk: copied into workspace/samples/
+                 (with progress), then added to this project. -->
+            <button class="btn add-video-btn" id="addVideoBtn" type="button">Add video…</button>
+            <input type="file" id="videoFileInput" accept=".mp4,.mkv,.mov,.webm,video/*" multiple hidden>
+          </div>
+          <div class="upload-row" id="videoUploadRow" hidden>
+            <div class="progress"><i id="videoUploadBar" style="width:0%"></i></div>
+            <div class="upload-line">
+              <span class="data" id="videoUploadNote" role="status"></span>
+              <button class="btn quiet" id="videoUploadCancel" type="button" hidden>Cancel</button>
+            </div>
           </div>
           <div class="asset-list" id="assetAddList"></div>
         </div>

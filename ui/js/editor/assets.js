@@ -274,6 +274,90 @@ function assetUseCount(id) {
   return n;
 }
 
+/* ---------- Add video: a file from anywhere on disk ----------
+   Copied into workspace/samples/ (the folder the server looks videos up in)
+   with a progress bar, then added to the project like one picked from the
+   list. fetch() can't report upload progress, hence XMLHttpRequest. */
+
+let videoUpload = null;          // the running request, for Cancel
+
+const mb = (b) => `${b >= 104857600 ? Math.round(b / 1048576) : (b / 1048576).toFixed(1)} MB`;
+
+function uploadVideo(file, paint) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    videoUpload = xhr;
+    const t0 = performance.now();
+    xhr.open("POST", `/api/video-upload?name=${encodeURIComponent(file.name)}`);
+    xhr.setRequestHeader("Content-Type", "application/octet-stream");
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) paint(e.loaded, e.total, (performance.now() - t0) / 1000);
+    };
+    xhr.onload = () => {
+      let d = {};
+      try { d = JSON.parse(xhr.responseText); } catch { /* not JSON: the status says it */ }
+      if (xhr.status >= 200 && xhr.status < 300 && d.name) resolve(d.name);
+      else reject(new Error(d.error || `Upload failed (${xhr.status}).`));
+    };
+    xhr.onerror = () => reject(new Error("Upload failed. Is klipian serve still running?"));
+    xhr.onabort = () => reject(new Error("Upload cancelled."));
+    xhr.send(file);
+  });
+}
+
+async function addVideoFromDisk(file) {
+  const row = $("#videoUploadRow"), bar = $("#videoUploadBar"), note = $("#videoUploadNote");
+  const cancel = $("#videoUploadCancel");
+  const say = (text, error = false) => {
+    row.hidden = false;
+    note.textContent = text;
+    note.dataset.error = error ? "true" : "false";
+  };
+  bar.style.width = "0%";
+  cancel.hidden = true;
+  say(`Checking ${file.name} …`);
+  try {
+    const chk = await (await fetch(`/api/video-check?name=${encodeURIComponent(file.name)}&size=${file.size}`)).json();
+    if (chk.error) throw new Error(chk.error);
+    let name = chk.reuse;
+    if (name) {
+      bar.style.width = "100%";
+      say(`${name} is already in workspace/samples/ — using that copy.`);
+    } else {
+      if (file.size + 1024 ** 3 > chk.free) {
+        throw new Error(`Not enough disk space: ${mb(file.size)} needed, ${mb(chk.free)} free.`);
+      }
+      cancel.hidden = false;
+      name = await uploadVideo(file, (done, total, secs) => {
+        const rate = secs > 0 ? done / secs : 0;
+        const left = rate > 0 ? (total - done) / rate : 0;
+        bar.style.width = `${(done / total * 100).toFixed(1)}%`;
+        say(`${file.name} · ${mb(done)} of ${mb(total)} · ${Math.round(done / total * 100)}%` +
+            (rate ? ` · ${mb(rate)}/s · ${left >= 60 ? `~${Math.round(left / 60)} min` : `~${Math.round(left)} s`} left` : ""));
+      });
+    }
+    cancel.hidden = true;
+    await addVideoToProject(name);
+    row.hidden = true;
+  } catch (err) {
+    cancel.hidden = true;
+    say(err.message, true);
+  } finally {
+    videoUpload = null;
+  }
+}
+
+$("#addVideoBtn")?.addEventListener("click", () => { if (!videoUpload) $("#videoFileInput").click(); });
+$("#videoUploadCancel")?.addEventListener("click", () => videoUpload?.abort());
+$("#videoFileInput")?.addEventListener("change", async (e) => {
+  const files = [...e.target.files];
+  e.target.value = "";             // choosing the same file again must fire "change" again
+  const btn = $("#addVideoBtn");
+  btn.disabled = true;
+  for (const f of files) await addVideoFromDisk(f);
+  btn.disabled = false;
+});
+
 /* ---------- Assets screen ---------- */
 
 let _sampleList = null;          // cache of /api/video for this render

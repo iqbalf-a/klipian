@@ -235,6 +235,42 @@ def _transcript_for(name: str) -> Transcript | None:
     return Transcript.load(path) if path else None
 
 
+VIDEO_EXT = {".mp4", ".mkv", ".mov", ".webm"}
+# A source video is hundreds of MB to a few GB (a 45-minute episode is about
+# 750 MB), unlike the images and sounds /api/project-asset-upload takes (100 MB).
+MAX_VIDEO = 10 * 1024 ** 3
+# Free space left over after an upload: transcription and renders need room too.
+VIDEO_DISK_MARGIN = 1024 ** 3
+VIDEO_UPLOAD_LOCK = threading.Lock()
+
+
+def _video_upload_problem(name: str, size: int) -> str:
+    """Why this file can't be taken as a source video, or "" if it can."""
+    if not name or Path(name).suffix.lower() not in VIDEO_EXT:
+        return "only mp4, mkv, mov and webm videos can be added"
+    if size <= 0 or size > MAX_VIDEO:
+        return f"a video must be 1 byte to {MAX_VIDEO // 1024 ** 3} GB"
+    return ""
+
+
+def _same_video(name: str, size: int) -> str | None:
+    """A file in workspace/samples/ that already holds exactly this upload:
+    `name` itself with this size, or one of the name-2, name-3 ... that an
+    earlier upload of a DIFFERENT file under the same name was given (see
+    _free_name). One video then serves any number of projects, and uploading
+    it again doesn't pile up copies."""
+    folder = WORKSPACE / "samples"
+    stem, ext = Path(name).stem, Path(name).suffix
+    i = 1
+    while True:
+        cand = folder / (name if i == 1 else f"{stem}-{i}{ext}")
+        if not cand.exists():
+            return None
+        if cand.is_file() and cand.stat().st_size == size:
+            return cand.name
+        i += 1
+
+
 def _energy_moments(name: str) -> list[dict]:
     """Prominent audio-energy moments for a video by file name. Empty when
     the video isn't found or hasn't been analysed -- not an error."""
@@ -551,8 +587,26 @@ class Handler(BaseHTTPRequestHandler):
 
     def _get_video(self):
         file = sorted(p.name for p in (WORKSPACE / "samples").glob("*")
-                        if p.suffix.lower() in {".mp4", ".mkv", ".mov", ".webm"})
+                        if p.suffix.lower() in VIDEO_EXT)
         return self._send_json({"video": file})
+
+    def _get_video_check(self):
+        """Before a video is uploaded: could it be, and is it already here?
+        `reuse` names a file in samples/ that already holds exactly this one
+        (same name and size), so the page can skip sending it."""
+        q = parse_qs(urlparse(self.path).query)
+        name = Path((q.get("name") or [""])[0]).name.strip()
+        try:
+            size = int((q.get("size") or ["0"])[0])
+        except ValueError:
+            size = 0
+        problem = _video_upload_problem(name, size)
+        if problem:
+            return self._send_json({"error": problem})
+        samples = WORKSPACE / "samples"
+        samples.mkdir(parents=True, exist_ok=True)
+        return self._send_json({"reuse": _same_video(name, size),
+                                "free": shutil.disk_usage(samples).free})
 
     def _get_static(self, path):
 
@@ -622,6 +676,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/transcript": _get_transcript,
         "/api/brief": _get_brief,
         "/api/video": _get_video,
+        "/api/video-check": _get_video_check,
     }
 
     def _send_file(self, file: Path, mime: str) -> None:
@@ -806,6 +861,68 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"error": f"could not save the file: {exc}"}, 500)
         return self._send_json({"ok": True, "name": dest.name,
                                 "kind": "image" if ext in composer.IMAGE_EXT else "sound"})
+
+    def _post_video_upload(self):
+        # A source video from anywhere on disk, saved into workspace/samples/
+        # (where the server looks videos up by name). Same shape as the
+        # image/sound upload above -- raw body, name in the query, written in
+        # 1 MB pieces to a .part file and then renamed -- but its own size
+        # limit: a 45-minute episode is ~750 MB.
+        q = parse_qs(urlparse(self.path).query)
+        name = Path((q.get("name") or [""])[0]).name.strip()
+        try:
+            n = int(self.headers.get("Content-Length", 0))
+        except ValueError:
+            n = 0
+        problem = _video_upload_problem(name, n)
+        if problem:
+            return self._send_json({"error": problem}, 400)
+        folder = WORKSPACE / "samples"
+        folder.mkdir(parents=True, exist_ok=True)
+        free = shutil.disk_usage(folder).free
+        if n + VIDEO_DISK_MARGIN > free:
+            return self._send_json({"error": f"not enough disk space: {n / 1024 ** 3:.1f} GB needed, "
+                                              f"{free / 1024 ** 3:.1f} GB free"}, 507)
+        same = _same_video(name, n)
+        if same:
+            # Already here. The client checks first, so this is a race or an
+            # old client: take the body off the wire and keep the file we have.
+            self._drain(n)
+            return self._send_json({"ok": True, "name": same, "existed": True})
+        tmp = folder / f"{name}.{uuid.uuid4().hex[:8]}.part"
+        try:
+            with open(tmp, "wb") as out:
+                remaining = n
+                while remaining > 0:
+                    chunk = self.rfile.read(min(1 << 20, remaining))
+                    if not chunk:
+                        raise ConnectionError("upload ended early")
+                    out.write(chunk)
+                    remaining -= len(chunk)
+            # Decided under a lock and as late as possible: another upload of
+            # the same name may have finished meanwhile, and a rename must
+            # never replace somebody else's file.
+            with VIDEO_UPLOAD_LOCK:
+                same = _same_video(name, n)
+                if same:
+                    tmp.unlink(missing_ok=True)
+                    return self._send_json({"ok": True, "name": same, "existed": True})
+                dest = _free_name(folder, name)
+                tmp.replace(dest)
+        except (OSError, ConnectionError) as exc:
+            tmp.unlink(missing_ok=True)
+            return self._send_json({"error": f"could not save the file: {exc}"}, 500)
+        return self._send_json({"ok": True, "name": dest.name, "existed": False})
+
+    def _drain(self, n: int) -> None:
+        try:
+            while n > 0:
+                chunk = self.rfile.read(min(1 << 20, n))
+                if not chunk:
+                    break
+                n -= len(chunk)
+        except OSError:
+            pass
 
     def _post_project_asset_import(self):
         # A file from the shared library (workspace/assets/: logos,
@@ -1201,6 +1318,7 @@ class Handler(BaseHTTPRequestHandler):
     POST_ROUTES = {
         "/api/project": _post_project,
         "/api/project-asset-upload": _post_project_asset_upload,
+        "/api/video-upload": _post_video_upload,
         "/api/project-asset-import": _post_project_asset_import,
         "/api/project/rename": _post_project_rename,
         "/api/workspace/clips": _post_workspace_clips,
@@ -1225,6 +1343,13 @@ def _sweep_temp() -> int:
     delete those."""
     import re
     n = 0
+    # Half-uploaded videos (Add video, interrupted by closing the server).
+    for part in (WORKSPACE / "samples").glob("*.part"):
+        try:
+            part.unlink()
+            n += 1
+        except OSError:
+            pass
     pola = re.compile(r"\.[0-9a-f]{8}\.wav$")
     for w in (WORKSPACE / "cache").glob("*.wav"):
         if not pola.search(w.name):
