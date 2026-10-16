@@ -161,7 +161,9 @@ h1, h2, h3 {
 .screen.active { display: flex; }
 
 /* Clips can be taller than the window: multiple panels stack. Without this,
-   the panels below are completely unreachable.
+   the panels below are completely unreachable. Analyze and Assets stack
+   panels the same way (on Analyze that put "Cut into clips" below the edge,
+   and a pasted reply made it worse); only zooming the page out reached them.
 
    Captions was in both of these lists and is in neither now: it shows
    exactly ONE panel at a time behind its tabs, so nothing stacks and
@@ -171,7 +173,9 @@ h1, h2, h3 {
    sized to its content instead of taking the room it had. */
 .screen[data-screen="clips"].active,
 .screen[data-screen="framing"].active,
-.screen[data-screen="history"].active {
+.screen[data-screen="history"].active,
+.screen[data-screen="analysis"].active,
+.screen[data-screen="assets"].active {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-right: 4px;                 /* room for scrollbar */
@@ -181,7 +185,9 @@ h1, h2, h3 {
    giving the panel flex:1 just leaves empty space below the canvas -- it
    doesn't make the canvas grow. */
 .screen[data-screen="clips"] > .panel,
-.screen[data-screen="framing"] > .panel { flex: none; }
+.screen[data-screen="framing"] > .panel,
+.screen[data-screen="analysis"] > .panel,
+.screen[data-screen="assets"] > .panel { flex: none; }
 
 .work-head { display: flex; align-items: center; gap: var(--s4); flex: none; }
 /* Screen titles. There were TWO .work-head h1 rules disagreeing with each

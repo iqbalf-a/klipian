@@ -161,6 +161,8 @@ $("#downloadBrief")?.addEventListener("click", async () => {
 
 $("#pasteJSON")?.addEventListener("input", (e) => {
   $("#importBtn").disabled = !e.target.value.trim();
+  // The button sits below a tall box; after pasting, bring it into view.
+  if (e.target.value.trim()) $("#importBtn").scrollIntoView({ block: "nearest" });
   $("#importNote").dataset.error = "false";
   $("#importNote").textContent = "";
 });
@@ -188,4 +190,5 @@ $("#pasteJSON")?.addEventListener("drop", async (e) => {
   e.stopPropagation();
   $("#pasteJSON").value = await f.text();
   $("#importBtn").disabled = false;
+  $("#importBtn").scrollIntoView({ block: "nearest" });
 });
