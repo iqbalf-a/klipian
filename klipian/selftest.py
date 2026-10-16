@@ -1,7 +1,7 @@
 """`python -m klipian selftest` -- the checks that let the code be moved
 around without wondering what broke.
 
-Three checks, each one that used to be done by hand:
+Four checks, each one that used to be done by hand:
 
   migrate  Old project shapes (tests/fixtures/migrate/*.old.json) go through
            projects._migrate_project() and must come out as the matching
@@ -9,6 +9,10 @@ Three checks, each one that used to be done by hand:
   brief    The Claude brief and the reading of Claude's replies (roundtrip.py)
            against tests/fixtures/brief/: the output of the browser version
            of that logic, from before it moved to Python.
+  decode   faster-whisper can decode audio in THIS environment (a few seconds
+           of a sample video). A broken install otherwise shows itself at the
+           start of a transcription, minutes into the wait. Skipped without a
+           sample video.
   render   Every baseline in tests/fixtures/<name>/ -- a request.json (what the
            editor sent) and a baseline.json (the md5, sha256 and size of the
            MP4 it produced). Each request goes through jobs._run_render(), the
@@ -172,6 +176,44 @@ def check_brief() -> tuple[str, str]:
 
 
 # --------------------------------------------------------------------------
+# check: decode
+# --------------------------------------------------------------------------
+
+def check_decode() -> tuple[str, str]:
+    from .paths import WORKSPACE
+
+    videos = sorted((p for p in (WORKSPACE / "samples").glob("*")
+                     if p.suffix.lower() in {".mp4", ".mkv", ".mov", ".webm"}),
+                    key=lambda p: p.stat().st_size) if (WORKSPACE / "samples").is_dir() else []
+    if not videos:
+        return SKIP, "no sample video in workspace/samples/"
+    try:
+        from faster_whisper.audio import decode_audio
+        import av
+    except ImportError as exc:
+        return FAIL, f"faster-whisper is not installed in this Python ({exc})"
+
+    from .ffmpeg_tools import _require, run
+    tmp = Path(tempfile.mkdtemp(prefix="klipian-selftest-"))
+    try:
+        wav = tmp / "sample.wav"
+        # A few seconds from the middle of the smallest sample, so it holds speech.
+        run([_require("ffmpeg"), "-y", "-loglevel", "error", "-ss", "10", "-t", "5",
+             "-i", str(videos[0]), "-vn", "-ac", "1", "-ar", "16000", str(wav)],
+            desc="cutting a few seconds of audio", timeout=120)
+        try:
+            audio = decode_audio(str(wav), sampling_rate=16000)
+        except Exception as exc:                       # noqa: BLE001
+            return FAIL, (f"faster-whisper cannot decode audio here "
+                          f"(PyAV {getattr(av, '__version__', '?')}): {exc}")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    if len(audio) < 16000:
+        return FAIL, f"decoded only {len(audio) / 16000:.1f}s of 5s"
+    return PASS, f"{len(audio) / 16000:.0f}s decoded from {videos[0].name} (PyAV {av.__version__})"
+
+
+# --------------------------------------------------------------------------
 # check: render
 # --------------------------------------------------------------------------
 
@@ -258,7 +300,8 @@ def promote(project_id: str, result_id: str, name: str) -> int:
     return 0
 
 
-CHECKS = {"migrate": check_migrate, "brief": check_brief, "render": check_render}
+CHECKS = {"migrate": check_migrate, "brief": check_brief, "decode": check_decode,
+          "render": check_render}
 
 
 def run(only: list[str] | None = None, write_expected: bool = False) -> int:
