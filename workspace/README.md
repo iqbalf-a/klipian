@@ -9,8 +9,8 @@ the repo root as `samples/`, `out/`, `cache/`, `projects/`, `sources/` and
 - `samples/` -- **put your source videos here.** A browser does not give the
   server a full path, so the backend looks a video up by filename in this
   folder (see `find_video()` in `klipian/paths.py`). A project's videos are
-  added from here on the Assets screen. Nothing copies a file in for you
-  yet: copy it here yourself first.
+  added from here on the Assets screen; **Add video…** there copies a file
+  in from anywhere on disk, or you can copy it here yourself.
 - `out/` -- rendered output, one subfolder per project (`<slug>.<id>/`, the
   slug fixed when the project was created). This is what the
   editor's History screen and the Rendered files panel at `/workspace` both

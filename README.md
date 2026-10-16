@@ -69,11 +69,14 @@ terms before the token can download the weights — see the comments in
 `.env.example` for the exact link. After that first download it runs fully
 offline, same as Whisper.
 
-**Put your source videos in `workspace/samples/`.** The browser doesn't hand
-the server a full file path, so the backend looks videos up by filename in
-that folder. A project's videos are added from that folder on the Assets
-screen; there is no button yet that copies a file in for you, so copy it
-there yourself first.
+**Source videos live in `workspace/samples/`.** The browser doesn't hand the
+server a full file path, so the backend looks videos up by filename in that
+folder. On the Assets screen, **Add video…** copies a file from anywhere on
+your disk into it (with a progress bar; up to 10 GB; mp4, mkv, mov, webm) and
+adds it to the project. A file with the same name and size is reused, a
+different one with the same name is saved as `name-2`, and nothing in the
+folder is ever overwritten. You can also copy files in yourself and pick them
+from the list on the same screen.
 
 ---
 
@@ -104,7 +107,7 @@ HISTORY        render queue with live progress, finished files
 ### A. Through Claude — no API key
 
 ```
-1  ASSETS     + New Project, then add the video from workspace/samples/
+1  ASSETS     + New Project, then Add video… (or pick one from workspace/samples/)
 2  ANALYZE    [ Find clips ]
               ① the transcript is made on your machine, or loaded if the
                  video already has one
@@ -142,7 +145,7 @@ screen.
 
 | Screen | What it does |
 |---|---|
-| **Assets** | the project's videos (several allowed: moments can come from any of them), plus its own images and sounds — dropped in, or imported from the shared `workspace/assets/` (a copy, so later changes to the shared file don't touch the project). Removing a video or file is two clicks |
+| **Assets** | the project's videos (several allowed: moments can come from any of them; add one from anywhere on disk with **Add video…**), plus its own images and sounds — dropped in, or imported from the shared `workspace/assets/` (a copy, so later changes to the shared file don't touch the project). Removing a video or file is two clicks |
 | **Clips** | drag a range on the timeline, or pick from AI suggestions; word-boundary snapping avoids cutting mid-word |
 | **Output Format** | crop or blur background, resolution (720p to 4K), quality — set per Result, so one clip can differ from another |
 | **Timeline** | reorder a Result's moments; add text labels, image stickers and sounds on their own tracks; set the volume of each moment |
@@ -393,10 +396,12 @@ without the server running. Run the command at the top of this file.
 **"not in samples/"** (next to a video on Assets or on a project card, or in
 an error when transcribing or rendering) — the server can't find that video
 in `workspace/samples/`. A project remembers a video by file name, so put the
-file back there under the same name. To add a video from elsewhere, copy it
-into `workspace/samples/` first, then add it on the Assets screen. (There's
-no button that copies a file in yet, and the paste-a-link box on Analyze
-isn't wired up.)
+file back there under the same name, or use **Add video…** on the Assets
+screen to copy it in again. (The paste-a-link box on Analyze isn't wired up.)
+
+**Add video… says "not enough disk space" or "a video must be … 10 GB"** —
+the copy needs the video's size plus 1 GB free on the drive that holds
+`workspace/`, and one file can be at most 10 GB.
 
 **Rendered MP4 is 0 bytes** — ffmpeg is still writing it. Wait for the
 queue row to say "done" before opening the folder.
