@@ -1,0 +1,19 @@
+{
+  "id": "0123456789ab",
+  "name": "Two results",
+  "outSlug": "two-results",
+  "createdAt": 1789000000,
+  "video": "podcast-test.mp4",
+  "results": [
+    {"id": "res1", "title": "", "result": [{"id": "r1", "start": 1.0, "end": 9.5, "title": "One", "source": "ai"}],
+     "framing": [{"id": "f1", "at": 0, "format": "single", "crops": [{"left": 5, "top": 0, "width": 30, "height": 99}]}],
+     "corrections": {}},
+    {"id": "res2", "title": "Second", "result": [{"id": "r2", "start": 20.0, "end": 31.0, "title": "Two", "source": "manual"}],
+     "framing": [], "corrections": {"20.000": "Yo"}}
+  ],
+  "activeResult": "res2",
+  "candidates": [{"title": "One", "startSec": 1.0, "endSec": 9.5, "spans": [{"start": 1.0, "end": 9.5}]}],
+  "caption": {"font": 0, "size": 84},
+  "screen": "clips",
+  "at": 1790000100
+}

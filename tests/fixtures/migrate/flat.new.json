@@ -1,0 +1,67 @@
+{
+  "candidates": [
+    {
+      "title": "Cold open",
+      "startSec": 12.5,
+      "endSec": 40.0,
+      "spans": [
+        {
+          "start": 12.5,
+          "end": 40.0
+        }
+      ],
+      "asset": "a1"
+    }
+  ],
+  "caption": {
+    "font": 0,
+    "size": 84
+  },
+  "screen": "history",
+  "at": 1790000000,
+  "name": "podcast-test",
+  "outSlug": "podcast-test",
+  "createdAt": 1790000000,
+  "assets": [
+    {
+      "id": "a1",
+      "kind": "video",
+      "file": "podcast-test.mp4"
+    }
+  ],
+  "results": [
+    {
+      "id": "res1",
+      "title": "Cold open",
+      "segments": [
+        {
+          "id": "r1",
+          "start": 12.5,
+          "end": 40.0,
+          "title": "Cold open",
+          "source": "ai",
+          "asset": "a1"
+        }
+      ],
+      "framing": [
+        {
+          "id": "f1",
+          "at": 0,
+          "format": "single",
+          "crops": [
+            {
+              "left": 10,
+              "top": 0,
+              "width": 31.5,
+              "height": 99.6
+            }
+          ]
+        }
+      ],
+      "corrections": {
+        "12.500": "Hai"
+      }
+    }
+  ],
+  "activeResult": "res1"
+}

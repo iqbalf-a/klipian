@@ -1,0 +1,11 @@
+{
+  "video": "podcast-test.mp4",
+  "title": "Cold open",
+  "result": [{"id": "r1", "start": 12.5, "end": 40.0, "title": "Cold open", "source": "ai"}],
+  "framing": [{"id": "f1", "at": 0, "format": "single", "crops": [{"left": 10, "top": 0, "width": 31.5, "height": 99.6}]}],
+  "corrections": {"12.500": "Hai"},
+  "candidates": [{"title": "Cold open", "startSec": 12.5, "endSec": 40.0, "spans": [{"start": 12.5, "end": 40.0}]}],
+  "caption": {"font": 0, "size": 84},
+  "screen": "history",
+  "at": 1790000000
+}

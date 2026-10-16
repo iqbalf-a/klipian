@@ -423,6 +423,9 @@ def build_parser() -> argparse.ArgumentParser:
     s_serve.add_argument("--port", type=int, default=5177)
     s_serve.set_defaults(func=cmd_serve)
 
+    from . import selftest
+    selftest.add_parser(sub)
+
     s_run = sub.add_parser("run", parents=[common],
                            help="full pipeline (not available yet)")
     s_run.set_defaults(func=cmd_run)

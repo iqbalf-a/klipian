@@ -1,0 +1,84 @@
+{
+  "id": "0123456789ab",
+  "name": "Two results",
+  "outSlug": "two-results",
+  "createdAt": 1789000000,
+  "results": [
+    {
+      "id": "res1",
+      "title": "",
+      "framing": [
+        {
+          "id": "f1",
+          "at": 0,
+          "format": "single",
+          "crops": [
+            {
+              "left": 5,
+              "top": 0,
+              "width": 30,
+              "height": 99
+            }
+          ]
+        }
+      ],
+      "corrections": {},
+      "segments": [
+        {
+          "id": "r1",
+          "start": 1.0,
+          "end": 9.5,
+          "title": "One",
+          "source": "ai",
+          "asset": "a1"
+        }
+      ]
+    },
+    {
+      "id": "res2",
+      "title": "Second",
+      "framing": [],
+      "corrections": {
+        "20.000": "Yo"
+      },
+      "segments": [
+        {
+          "id": "r2",
+          "start": 20.0,
+          "end": 31.0,
+          "title": "Two",
+          "source": "manual",
+          "asset": "a1"
+        }
+      ]
+    }
+  ],
+  "activeResult": "res2",
+  "candidates": [
+    {
+      "title": "One",
+      "startSec": 1.0,
+      "endSec": 9.5,
+      "spans": [
+        {
+          "start": 1.0,
+          "end": 9.5
+        }
+      ],
+      "asset": "a1"
+    }
+  ],
+  "caption": {
+    "font": 0,
+    "size": 84
+  },
+  "screen": "clips",
+  "at": 1790000100,
+  "assets": [
+    {
+      "id": "a1",
+      "kind": "video",
+      "file": "podcast-test.mp4"
+    }
+  ]
+}
