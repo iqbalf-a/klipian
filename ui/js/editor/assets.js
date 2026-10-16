@@ -520,7 +520,7 @@ async function addVideoToProject(file) {
     renderAssets();
     return a;
   }
-  activeProject = file;
+  primaryVideo = file;
   activeAssetId = a.id;
   chosenSource = { kind: "file", name: file, url: `/workspace/samples/${encodeURIComponent(file)}` };
   realTranscript = tr;
@@ -639,7 +639,7 @@ function removeAsset(id) {
     if (typeof renderResult === "function") renderResult();
   }
   // The project's first video may have been this one.
-  activeProject = videoAssets()[0]?.file || null;
+  primaryVideo = videoAssets()[0]?.file || null;
   if (activeAssetId === id) {
     const next = videoAssets()[0];
     if (next) setActiveAsset(next.id);

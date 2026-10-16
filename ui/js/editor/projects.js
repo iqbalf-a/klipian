@@ -20,7 +20,7 @@ const SAVE_DELAY = 900;         // ms to wait before actually writing to disk
 let saveTimer = null;
 let savePending = false;        // true from first change until the disk write completes
 let saveError = "";             // last write failure, "" once a write succeeds
-let activeProject = null;       // name of the video currently being worked on
+let primaryVideo = null;       // the project's first (primary) video; the project itself is activeProjectId
 /* The open project's own id (server.py: _new_project_id). null for a
    project that hasn't been saved yet -- its first save returns one. This,
    not the video, is what the URL, the stored session, rename and delete
@@ -81,7 +81,7 @@ function projectState() {
     // asset list yet (nothing dropped) falls back to the one file it has.
     // An empty list is sent as such: every asset can be removed (ian).
     assets: (typeof ASSETS !== "undefined" && (ASSETS.length || activeProjectId)) ? ASSETS
-      : (activeProject ? [{ id: "a1", kind: "video", file: activeProject }] : []),
+      : (primaryVideo ? [{ id: "a1", kind: "video", file: primaryVideo }] : []),
     activeAsset: (typeof activeAssetId !== "undefined") ? activeAssetId : undefined,
     // Only once an id has been handed out beyond the list -- a project
     // that never removed an asset doesn't need it.
@@ -151,7 +151,7 @@ async function writeProjectNow() {
   // A project exists once it has an id, video or not -- all of its videos
   // can be removed (ian) and it still has to save. Before its first save,
   // the first video is what starts it.
-  if (!activeProject && !activeProjectId) return;
+  if (!primaryVideo && !activeProjectId) return;
   if (!activeProjectId && creatingProject) await creatingProject;
   if (!activeProjectId) {
     const run = writeProjectOnce(true);
@@ -173,7 +173,7 @@ async function writeProjectOnce(isNew) {
   // Which project this write is FOR. A new video can be dropped while the
   // request is in flight; its answer must not hand the old project's id
   // to the new one.
-  const sentFor = activeProject;
+  const sentFor = primaryVideo;
   try {
     const r = await fetch("/api/project", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -187,7 +187,7 @@ async function writeProjectOnce(isNew) {
     const reply = await r.json().catch(() => ({}));
     // First save of a new project: the server just minted its id. Only
     // now can the address bar and the stored session point at it.
-    if (reply.id && !activeProjectId && activeProject === sentFor) {
+    if (reply.id && !activeProjectId && primaryVideo === sentFor) {
       activeProjectId = reply.id;
       rememberActiveSession();
     }
@@ -208,7 +208,7 @@ async function writeProjectOnce(isNew) {
    that's what the "close/reload page" warning below reads so that
    changes still waiting for the delay are not mistaken for safely saved. */
 function saveProject() {
-  if (!activeProject && !activeProjectId) return;   // see writeProjectNow()
+  if (!primaryVideo && !activeProjectId) return;   // see writeProjectNow()
   savePending = true;
   updateSaveStatus();
   clearTimeout(saveTimer);
@@ -510,7 +510,7 @@ function applyProject(d, preferFile) {
   activeProjectId = d.id || null;
   // The project's first video (`video` in a file the server hasn't
   // migrated -- it no longer writes that field).
-  activeProject = projectPrimaryFile(d) || null;   // null: every video removed
+  primaryVideo = projectPrimaryFile(d) || null;   // null: every video removed
 
   // The project's videos, BEFORE any span is placed on the virtual
   // timeline below. A file from before assets has only `video`.
@@ -635,7 +635,7 @@ function updateHomeView() {
 function startNewProject() {
   if (chosenSource?.url?.startsWith("blob:")) URL.revokeObjectURL(chosenSource.url);
   chosenSource = null;
-  activeProject = null;
+  primaryVideo = null;
   activeProjectId = null;
   if (typeof setAssets === "function") setAssets([], null);
   // Clearing the DATA isn't enough -- the <video> elements hold the file
@@ -792,7 +792,7 @@ async function deleteProject(id) {
     });
   } catch { /* without a backend there's nothing to delete */ }
   if (activeProjectId === id) {
-    activeProject = null;   // don't write it again
+    primaryVideo = null;   // don't write it again
     activeProjectId = null;
     forgetActiveSession();  // a reload after this shouldn't try to enter the just-deleted project
   }
