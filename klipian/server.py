@@ -1111,7 +1111,7 @@ class Handler(BaseHTTPRequestHandler):
             ACTIVE_TRANSCRIBES[name] = job_id
             JOBS[job_id] = {"state": "running", "stage": "start", "percent": 0,
                             "position": 0, "duration": 0, "file": None,
-                            "cached": False, "error": None}
+                            "cached": False, "exact": False, "error": None}
         threading.Thread(target=_run_transcribe, args=(job_id, req),
                          daemon=True).start()
         return self._send_json({"id": job_id})

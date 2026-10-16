@@ -23,6 +23,7 @@ from .models import Segment, Transcript, Word, fmt_duration
 # Available models, from fast to accurate.
 MODELS = ["tiny", "base", "small", "medium", "large-v3-turbo", "large-v3"]
 DEFAULT_MODEL = "large-v3-turbo"
+DEFAULT_LANGUAGE = "id"      # what the app transcribes in; the UI has no language choice
 
 # Measured on Core Ultra 9 185H: 8 threads fastest, 22 actually slower because
 # E-cores get used and hold back the others. CTranslate2 default (0) means

@@ -81,7 +81,7 @@ class Cache:
         return self.root / f"{Path(video).stem}.{fp}.diarize.json"
 
     def find_transcript(self, video: Path, model: str | None = None,
-                        language: str = "id", glossary: Path | None = None) -> Path | None:
+                        language: str | None = None, glossary: Path | None = None) -> Path | None:
         """THE transcript for a video -- the one rule every reader uses
         (captions in a render, the brief, the editor, the CLI).
 
@@ -95,11 +95,12 @@ class Cache:
         `video` may name a file that isn't there: then only the second rule
         can apply."""
         from .paths import GLOSSARY
-        from .transcribe import DEFAULT_MODEL
+        from .transcribe import DEFAULT_LANGUAGE, DEFAULT_MODEL
         if glossary is None and GLOSSARY.is_file():
             glossary = GLOSSARY
         try:
-            exact = self.transcript_path(video, model or DEFAULT_MODEL, language, glossary)
+            exact = self.transcript_path(video, model or DEFAULT_MODEL,
+                                        language or DEFAULT_LANGUAGE, glossary)
         except OSError:
             exact = None
         if exact is not None and exact.is_file():

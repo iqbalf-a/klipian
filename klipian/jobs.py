@@ -21,7 +21,7 @@ from .cache import Cache
 from .models import Transcript
 from . import compose as composer
 from . import render as engine
-from .paths import ROOT, WORKSPACE, find_video
+from .paths import GLOSSARY, WORKSPACE, find_video
 from .projects import (_find_project_by_video, _project_assets_dir, _project_file,
                        _project_out_dir, _read_project, write_render_record)
 
@@ -503,7 +503,7 @@ def _run_transcribe(job_id: str, req: dict) -> None:
     try:
         from .ffmpeg_tools import extract_audio, probe
         from .glossary import Glossary
-        from .transcribe import DEFAULT_THREADS, transcribe
+        from .transcribe import DEFAULT_LANGUAGE, DEFAULT_MODEL, DEFAULT_THREADS, transcribe
 
         video = find_video(req["video"])
         if not video:
@@ -527,23 +527,36 @@ def _run_transcribe(job_id: str, req: dict) -> None:
             except Exception:                          # noqa: BLE001
                 pass
 
-        model = req.get("model", "large-v3-turbo")
-        lang = req.get("lang", "id")
-        gloss_path = ROOT / "prompts" / "glossary.txt"
-        path = cache.transcript_path(video, model, lang,
-                                     gloss_path if gloss_path.exists() else None)
+        model = req.get("model", DEFAULT_MODEL)
+        lang = req.get("lang", DEFAULT_LANGUAGE)
+        gloss_path = GLOSSARY if GLOSSARY.exists() else None
+        # Where a transcript made NOW is saved. Also the file that counts as
+        # exact (find_transcript prefers it).
+        path = cache.transcript_path(video, model, lang, gloss_path)
 
         info = probe(video)
         with LOCK:
             t["duration"] = info.duration
             t["battery"] = _on_battery()
 
-        if path.exists() and not req.get("force"):
-            with LOCK:
-                t["state"] = "done"
-                t["cached"] = True
-                t["file"] = path.name
-            return
+        # Already transcribed? The same rule as everything that READS a
+        # transcript (Cache.find_transcript): this exact one, else the newest
+        # for the video. Otherwise Find clips would repeat 18 minutes of work
+        # whenever the video file or glossary.txt was touched since, while the
+        # editor shows the old transcript perfectly well. `force` is the
+        # "Transcribe again" button. The newest-fallback is only for the
+        # app's own model and language: asking for another one is asking for
+        # a different transcript, so it always runs.
+        if not req.get("force"):
+            found = cache.find_transcript(video, model, lang, gloss_path)
+            if found is not None and (found == path or (
+                    model == DEFAULT_MODEL and lang == DEFAULT_LANGUAGE)):
+                with LOCK:
+                    t["state"] = "done"
+                    t["cached"] = True
+                    t["exact"] = found == path
+                    t["file"] = found.name
+                return
 
         with LOCK:
             t["stage"] = "audio"
@@ -573,7 +586,7 @@ def _run_transcribe(job_id: str, req: dict) -> None:
         # The only thing the server genuinely needed that the CLI didn't is
         # progress reported to the browser instead of to stderr -- that is
         # now an on_segment callback, and there is one implementation again.
-        gloss = Glossary.load(ROOT / "prompts" / "glossary.txt")
+        gloss = Glossary.load(GLOSSARY)
 
         def _tick(position: float, total: float) -> None:
             with LOCK:
@@ -603,6 +616,7 @@ def _run_transcribe(job_id: str, req: dict) -> None:
 
         with LOCK:
             t["state"] = "done"
+            t["exact"] = True               # just made with today's settings
             t["file"] = path.name
             t["percent"] = 100
 
