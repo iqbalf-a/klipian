@@ -10,9 +10,11 @@ polls, and the same functions can be driven without it (see selftest)."""
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 import threading
+import time
 from pathlib import Path
 
 from .cache import Cache
@@ -21,7 +23,7 @@ from . import compose as composer
 from . import render as engine
 from .paths import ROOT, WORKSPACE, find_video
 from .projects import (_find_project_by_video, _project_assets_dir, _project_file,
-                       _project_out_dir, _read_project)
+                       _project_out_dir, _read_project, write_render_record)
 
 # Render jobs currently / already running
 JOBS: dict[str, dict] = {}
@@ -187,7 +189,10 @@ def _run_words(k: dict, run_video: str, default_video: str, fallback) -> list:
     return fallback()
 
 
-def _run_render(job_id: str, req: dict) -> None:
+def _run_render(job_id: str, req: dict, into: Path | None = None, record: bool = True) -> None:
+    """Render a request. `into` sends the files to that folder instead of the
+    project's own (a replay, the selftest); `record` is whether the finished
+    render is remembered as the Result's last (see _record_render)."""
     t = JOBS[job_id]
     try:
         video = find_video(req["video"])
@@ -222,6 +227,8 @@ def _run_render(job_id: str, req: dict) -> None:
         pdata = _read_project(pf) if pf else None
         if pdata:
             out_dir = _project_out_dir(pdata)
+        if into is not None:
+            out_dir = into
         clips = req["clips"]
         # Under LOCK like every other JOBS write in this function. Rebinding
         # an existing key can't actually race, but the inconsistency is
@@ -382,13 +389,15 @@ def _run_render(job_id: str, req: dict) -> None:
                     # folder (_project_out_dir), which a multi-asset render
                     # always uses and a single-asset one uses whenever the
                     # project resolves.
-                    "url": f"/workspace/out/{out_dir.relative_to(WORKSPACE / 'out').as_posix()}/{name}",
+                    "url": _out_url(out_dir, name),
                     "folder": str(out_dir),
                     "mb": round(dest.stat().st_size / 1048576, 1),
                     "duration": round(duration, 1),
                 })
                 t["done"] = i + 1
 
+        if record and pdata:
+            _record_render(job_id, req, pdata, out_dir)
         with LOCK:
             t["state"] = "done"
 
@@ -398,6 +407,89 @@ def _run_render(job_id: str, req: dict) -> None:
             t["error"] = str(exc)
     finally:
         CANCELLED.discard(job_id)                  # don't leak to the next job id
+
+
+def _out_url(out_dir: Path, name: str) -> str:
+    """Where the page can fetch a render from; empty for a folder outside out/
+    (a replay's temporary one)."""
+    try:
+        return f"/workspace/out/{out_dir.relative_to(WORKSPACE / 'out').as_posix()}/{name}"
+    except ValueError:
+        return ""
+
+
+def hash_file(path: Path) -> dict:
+    """What a render is compared by: md5, sha256, size."""
+    md5, sha = hashlib.md5(), hashlib.sha256()
+    size = 0
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            md5.update(chunk)
+            sha.update(chunk)
+            size += len(chunk)
+    return {"md5": md5.hexdigest(), "sha256": sha.hexdigest(), "bytes": size}
+
+
+def _record_render(job_id: str, req: dict, pdata: dict, out_dir: Path) -> None:
+    """Remember a FINISHED render as its Result's last one: the request as the
+    editor sent it, and the hashes of the files it produced. A cancelled or
+    failed render never gets here; neither does the quick preview, which is not
+    a render job. Failing to remember is a warning, never a failed render."""
+    t = JOBS[job_id]
+    result_id = req.get("result")
+    if not result_id:
+        return                              # an editor from before this existed
+    try:
+        outputs = [{"file": r["file"], **hash_file(out_dir / r["file"])} for r in t["result"]]
+        saved = write_render_record(pdata.get("id"), result_id, {
+            "project": pdata.get("id"), "result": result_id, "at": int(time.time()),
+            "request": req, "outputs": outputs,
+        })
+    except OSError as exc:
+        with LOCK:
+            t["warning"] = f"render finished, but could not be remembered for replay ({exc})"
+        return
+    if not saved:
+        with LOCK:
+            t["warning"] = "render finished, but its Result id is not usable for replay"
+
+
+def missing_inputs(req: dict) -> list[str]:
+    """What a request needs that isn't on this machine: its videos, and the
+    project's images and sounds that its timeline elements use. Empty means it
+    can be rendered. (A render without them would not fail -- it would quietly
+    come out different, which is worse.)"""
+    out = []
+    names = {req.get("video")}
+    for k in req.get("clips", []):
+        names.update(p.get("video") for p in k.get("spans", []) if isinstance(p, dict))
+        names.update(w.get("video") for w in k.get("words", []) if isinstance(w, dict))
+    out += [f"video {n}" for n in sorted(x for x in names if x) if not find_video(n)]
+    wanted = {Path(str(e.get("file") or "")).name
+              for k in req.get("clips", []) for e in k.get("overlays", []) or []
+              if isinstance(e, dict) and e.get("kind") in ("image", "sound") and e.get("file")}
+    if wanted:
+        folder = _project_assets_dir(req.get("project"))
+        out += [f"asset {n}" for n in sorted(wanted) if not (folder and (folder / n).is_file())]
+    return out
+
+
+def render_request(req: dict, into: Path) -> list[dict]:
+    """Run a render request to completion, in this thread, writing into `into`.
+    Returns [{file, md5, sha256, bytes}] per clip; raises RuntimeError with the
+    job's own message if it didn't finish. Not remembered as a Result's last
+    render. This is the server's render, driven without the server."""
+    job_id = "direct-" + str(time.time_ns())
+    _register_job(job_id, {"state": "running", "done": 0, "total": len(req["clips"]),
+                           "index": 0, "current": "", "result": [], "error": None})
+    try:
+        _run_render(job_id, req, into=into, record=False)
+        job = JOBS[job_id]
+        if job["state"] != "done":
+            raise RuntimeError(job.get("error") or f"render ended {job['state']}")
+        return [{"file": r["file"], **hash_file(into / r["file"])} for r in job["result"]]
+    finally:
+        JOBS.pop(job_id, None)
 
 
 def _run_transcribe(job_id: str, req: dict) -> None:

@@ -12,6 +12,7 @@ build on it."""
 from __future__ import annotations
 
 import json
+import re
 import threading
 import time
 import uuid
@@ -404,3 +405,38 @@ def _project_summary(file: Path) -> dict | None:
         }
     except (OSError, ValueError, TypeError, KeyError, IndexError):
         return None
+
+
+# What the last finished render of each Result was made from: the request the
+# editor sent, and what came out. PROJECTS/<id>/renders/<result id>.json.
+# Kept with the project (not in out/, which the dashboard lists as renders) so
+# `klipian render --replay` can run the same request again and compare.
+
+def render_record_file(pid, result_id) -> Path | None:
+    if not _valid_project_id(pid) or not re.fullmatch(r"[A-Za-z0-9_-]{1,40}", str(result_id or "")):
+        return None
+    return PROJECTS / pid / "renders" / f"{result_id}.json"
+
+
+def write_render_record(pid, result_id, record: dict) -> bool:
+    f = render_record_file(pid, result_id)
+    if f is None:
+        return False
+    f.parent.mkdir(parents=True, exist_ok=True)
+    _write_project(f, record)
+    return True
+
+
+def read_render_records(pid, result_id=None) -> dict[str, dict]:
+    """{result id: record} for a project -- one Result's, or all of them."""
+    folder = PROJECTS / pid / "renders" if _valid_project_id(pid) else None
+    if folder is None or not folder.is_dir():
+        return {}
+    files = ([render_record_file(pid, result_id)] if result_id
+             else sorted(folder.glob("*.json")))
+    out = {}
+    for f in files:
+        rec = _read_project(f) if f and f.is_file() else None
+        if rec:
+            out[f.stem] = rec
+    return out

@@ -711,6 +711,9 @@ async function sendRender(approved) {
     video: main || chosenSource?.name || DATA.file,
     // Which project's folder the files go in (server: _project_out_dir).
     project: (typeof activeProjectId !== "undefined" && activeProjectId) || undefined,
+    // Which Result this is, so the server can remember the request as that
+    // Result's last render (klipian render --replay).
+    result: (typeof activeResultId !== "undefined" && activeResultId) || undefined,
     clips: valid.map((k, i) => {
       // Words already corrected on the Captions screen. If there are no
       // corrections, this matches the transcript -- the server accepts it as-is either way.
