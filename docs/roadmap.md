@@ -324,6 +324,19 @@ cek decode.
     kosong di Home masih menulis "Drop a video to start your first clip."
     (`ui/index.html:125`) dan "Drop a video, set the format, then pick
     clips…" (`projects.js:622`). Ganti dengan arahan ke Add video.
+  - Teks di panel ekspor Analyze juga menyesatkan (ditemukan
+    2026-10-16, ian sempat mengira yang diekspor hanya subtitle):
+    - judulnya "Export to JSON" (`index.html:371`), dan catatannya "drop
+      the JSON to your AI" (`roundtrip.js:~129`), padahal file yang
+      diunduh adalah `brief-claude-<video>.md`, berisi rubrik, format
+      jawaban, momen keras, dan transkrip. Yang berformat JSON adalah
+      **balasan** Claude.
+    - Nama file unduhan diganti dari `brief-claude-<video>.md` menjadi
+      **`brief-<video>.md`** (permintaan ian 2026-10-16,
+      `roundtrip.js:~155`).
+    - "No transcript yet. Run this first: klipian transcribe …"
+      (`roundtrip.js:~123`) menyuruh memakai CLI, padahal tombol Find
+      clips ada di layar yang sama.
   - Hapus juga banner komentar kosong sisa fitur lama:
     "source ribbon" (`app.js:427`), "candidates: approve, reject, undo"
     dan "ribbon: click a sweep…" (`interactions.js:70–73`). Di bawahnya
@@ -367,58 +380,99 @@ transkripsi Syahrini selesai.
     Home→Assets→Analyze→Clips→Framing→Captions→Timeline→Render.
   - Nada UI berbahasa Indonesia: kenyataannya UI berbahasa Inggris.
 
-### P6 — Deteksi tawa: uji coba dulu, baru integrasi
+### P6 — Sinyal hook: deteksi suara dan timing, uji coba dulu, baru integrasi
 
-Disetujui ian 2026-10-16, termasuk mengunduh model YAMNet. Antrean
-sesi eksekusi: setelah Add video.
+Disetujui ian 2026-10-16, termasuk mengunduh model YAMNet. Semula hanya
+untuk tawa; diperluas ian di hari yang sama ke semua sinyal di tabel
+bawah. Antrean sesi eksekusi: setelah Add video.
 
-**Kenapa perlu.** Tawa adalah tanda payoff yang paling jujur di podcast,
-dan rubrik `dialog-podcast.md` sudah menyuruh Claude memakainya. Tapi
-datanya tidak ada:
+**Kenapa perlu.** Saat ini Claude hanya menerima teks transkrip dan daftar
+"momen keras", dan keduanya lemah:
 - Whisper hanya menulis 6 kata mirip tawa ("hehehe") dalam 6045 kata
   podcast 42 menit, dan semuanya di 3 menit terakhir.
 - `audio_energy` menemukan 45 momen, dan semuanya berpuncak di ≥ −0,5
   dBFS. Audionya sudah di-mastering mentok, jadi "paling keras" tidak
   bisa membedakan tawa dari bicara lantang.
 
-**Pendekatan.** YAMNet (Google, Apache 2.0, ±4 MB) punya kelas AudioSet
-Laughter, Giggle, Chuckle/chortle, Belly laugh, dan Snicker. Model ini
-dijalankan lewat `onnxruntime`, yang sudah terpasang sebagai dependensi
-faster-whisper, jadi **tidak ada paket baru**. File ONNX disimpan di
-`assets/models/` bersama lisensinya, sama seperti YuNet.
+**Sinyal yang dibangun** (angka contoh diukur dari radityadika-podcast):
+
+| Sinyal | Cara | Arti untuk Claude |
+|---|---|---|
+| Tawa | YAMNet: Laughter, Giggle, Chuckle/chortle, Belly laugh, Snicker | payoff; klip berakhir **setelah** tawa selesai |
+| Tepuk tangan / sorakan | YAMNet: Applause, Cheering | payoff kuat |
+| Teriakan / kaget | YAMNet: Shout, Yell, Screaming, Gasp | momen emosi; sering jadi hook pembuka |
+| Musik | YAMNet: Music | **hindari**: intro, outro, iklan, dan risiko hak cipta |
+| Jeda dramatis | jeda ≥ 3 detik sebelum sebuah kalimat (8 kali di podcast ini; ≥ 1,5 detik ada 61, terlalu banyak) | pola "jeda, lalu pengakuan atau punchline" |
+| Bicara mendadak cepat | kata per 10 detik di atas persentil 95 (median 24, maksimum 45) | antusias, cerita memuncak |
+| Energi relatif | `audio_energy` dibandingkan dengan sekitar ±60 detik (RMS, bukan puncak), bukan dengan seluruh video | pendukung; mungkin dihapus kalau sinyal YAMNet sudah cukup, diputuskan dari hasil uji coba |
+
+Ketiga sinyal YAMNet berasal dari **satu kali jalan** model. Jeda dan
+bicara cepat hanya hitungan dari timestamp kata. YAMNet (Google, Apache
+2.0, ±4 MB) dijalankan lewat `onnxruntime`, yang sudah terpasang sebagai
+dependensi faster-whisper, jadi **tidak ada paket baru**. File ONNX
+disimpan di `assets/models/` bersama lisensinya, sama seperti YuNet.
 
 **Uji coba (spike), tanpa menyentuh pipeline:**
 1. Ambil YAMNet dari sumber resmi (Kaggle Models/TF Hub `google/yamnet`),
    lalu konversi ke ONNX di environment sementara di luar repo
    (tensorflow + tf2onnx). Jangan dipasang ke `.venv`; hapus environment
    itu setelah selesai. Jangan memakai file ONNX hasil konversi pihak
-   ketiga.
+   ketiga. Unduhan dan pemasangan ini perlu konfirmasi langsung dari ian
+   di sesi eksekusi.
 2. Skrip uji coba terpisah dari paket `klipian`:
    - audio diambil lewat ffmpeg sebagai 16 kHz mono;
    - jendela YAMNet 0,96 detik dengan hop 0,48 detik;
-   - indeks kelas tawa diambil dari `yamnet_class_map.csv` berdasarkan
-     nama, jangan di-hardcode;
-   - frame yang berdekatan digabung menjadi rentang.
-3. Jalankan pada radityadika-podcast dan Syahrini, lalu catat waktu
-   prosesnya.
-4. Buat 20 kandidat teratas per video, masing-masing berupa potongan WAV
-   ±3 detik dengan nomor urut, plus satu daftar berisi waktu, skor, dan
-   kata-kata transkrip di sekitarnya (kalau transkrip ada). Simpan di
-   `workspace/cache/laughter-spike/`, bukan di `out/`.
-5. ian mendengarkan 10 kandidat teratas per video.
+   - indeks kelas diambil dari `yamnet_class_map.csv` berdasarkan nama,
+     jangan di-hardcode;
+   - frame yang berdekatan digabung menjadi rentang per jenis sinyal;
+   - jeda dramatis, bicara cepat, dan energi relatif dihitung juga.
+3. Jalankan pada radityadika-podcast dan Syahrini (transkripnya sudah
+   ada sejak 2026-10-16 21:56), lalu catat waktu prosesnya.
+4. Tulis keluaran ke `workspace/cache/cues-spike/<video>/`, bukan `out/`:
+   - tawa: 20 kandidat teratas;
+   - tiap sinyal lain: 5 teratas;
+   - masing-masing berupa potongan WAV ±3 detik bernomor, plus
+     `list.md` berisi waktu, skor, dan kata transkrip di sekitarnya;
+   - jumlah total tiap sinyal per video.
+5. ian mendengarkan 10 kandidat tawa teratas per video, dan 5 teratas
+   untuk tiap sinyal lain.
 
-**Syarat lanjut ke integrasi:** minimal 7 dari 10 memang tawa, dan
-rentang "hehehe" di 2372–2385 detik pada radityadika-podcast ikut
-tertangkap.
+**Syarat lanjut ke integrasi:**
+- tawa: minimal 7 dari 10 memang tawa, dan rentang "hehehe" di
+  2372–2385 detik pada radityadika-podcast ikut tertangkap;
+- sinyal lain: ian memutuskan per sinyal, ikut atau tidak. Sinyal yang
+  mayoritas salah tidak ikut ke brief.
 
 **Integrasi (baru dikerjakan setelah syarat terpenuhi):**
-- `klipian/laughter.py`, dengan cache `<stem>.<fp>.laughter.json`;
-- tahap baru di `_run_transcribe`, di sebelah `energy`: sekali per video,
-  tidak fatal kalau gagal, dan tidak bergantung pada transkrip;
-- bagian "Laughter" di brief (`roundtrip.py`) beserta fixture selftest-nya;
-- penanda tawa di timeline layar Clips;
-- aturan batas klip: klip berakhir **setelah** tawa selesai, karena tawa
-  itulah payoff-nya. Hook tetap dicari dari kalimat sebelum tawa.
+- `klipian/cues.py`, dengan cache `<stem>.<fp>.cues.json`. Sinyal suara
+  bisa langsung dihitung; jeda dan bicara cepat menunggu transkrip.
+- Tahap baru di `_run_transcribe`, di sebelah `energy`: sekali per
+  video, dan tidak fatal kalau gagal. Kegagalan dicatat, tidak ditelan
+  diam-diam, karena UI harus bisa bilang "tidak terdeteksi" atau "gagal".
+- **Brief:** satu bagian "Audio & timing cues", diurutkan menurut waktu.
+  - Setiap rentang diberi **tingkat** low / medium / high (permintaan
+    ian), contohnya `[12:05]–[12:09] laughter · high (4.1 s)` dan
+    `[0:00]–[0:42] music · avoid`.
+  - Tingkat dihitung dari skor, durasi, dan kerasnya dibanding sekitar.
+    Ambangnya ditetapkan dari hasil uji coba, bukan ditebak.
+  - Rubrik `dialog-podcast.md` ikut diperbarui: jelaskan tiap sinyal dan
+    bagaimana tingkat memengaruhi skor hook, payoff, dan emosi.
+  - Fixture brief di selftest sengaja diperbarui di commit yang sama.
+- **UI, layar Analyze, panel ekspor** (permintaan ian): satu baris chip
+  per sinyal yang menunjukkan apa yang tertangkap **dan masuk ke file
+  brief**, misalnya `Laughter 23 · Applause 4 · Shout 2 · Music 3 (avoid)
+  · Pauses 8 · Fast talk 12`.
+  - Tiap chip punya ikon info ⓘ dengan tooltip singkat: apa sinyalnya,
+    dari mana dideteksi, dan bagaimana Claude memakainya.
+  - Chip redup dengan teks "none found" kalau jumlahnya nol, dan
+    "not run" atau "failed" kalau deteksinya tidak jalan. Jangan sampai
+    kosong diam-diam.
+  - Ikon digambar sebagai SVG atau glyph teks seperti ikon lain di UI,
+    bukan emoji (`ui-design.md` §3.1). Warnanya pakai token yang ada.
+- **Layar Clips:** penanda per jenis sinyal di timeline, dengan legenda
+  yang sama dengan chip.
+- **Aturan batas klip:** klip berakhir setelah tawa atau tepuk tangan
+  selesai. Hook tetap dicari dari kalimat sebelumnya.
 
 ---
 
