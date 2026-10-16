@@ -79,7 +79,7 @@ utuh, daripada dipenggal dan kehilangan maknanya.
 
 ---
 
-## Audio & timing cues
+## Memakai daftar "Audio & timing cues"
 
 Berkas ini menyertakan daftar **"Audio & timing cues"**: sinyal yang
 dideteksi klipian dari **suara** dan dari **jarak antar kata**, bukan dari
