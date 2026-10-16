@@ -2,14 +2,13 @@
 __pycache__/
 *.pyc
 
-# semua berkas kerja (video sumber, hasil render, cache, project, aset,
-# jadwal upload) — bukan kode. README-nya sendiri TETAP dilacak (lihat
-# pengecualian di bawah) supaya orang yang clone tahu folder ini buat apa
-# tanpa harus baca kode server.py.
+# all working files (source videos, renders, cache, projects, assets, upload
+# schedule) -- not code. Its README IS tracked (see the exception below) so
+# anyone who clones knows what the folder is for without reading server.py.
 workspace/*
 !workspace/README.md
 
-# rahasia
+# secrets
 .env
 
 # hermes tmp

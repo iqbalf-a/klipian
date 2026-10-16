@@ -263,10 +263,6 @@ function setAssets(list, activeId, seq) {
 
 /* ---------- which assets a Result uses ---------- */
 
-function assetsUsedBy(spans) {
-  return new Set((spans || []).map((s) => assetIdAt(s.start)));
-}
-
 function assetUseCount(id) {
   let n = 0;
   const all = (typeof SAVED_RESULTS !== "undefined" ? SAVED_RESULTS : []);

@@ -1204,8 +1204,6 @@ h1, h2, h3 {
 .btn:disabled { opacity: .4; cursor: not-allowed; }
 .btn.main:disabled:hover { background: var(--text); }
 .btn-home { padding: 6px 12px; }
-.foot-actions .data { color: var(--text-faint); }
-.foot-actions .btn { margin-left: auto; }
 
 /* The actual video inside the 9:16 frame. Its size is derived from the crop
    box so what's visible is exactly the cropped portion -- not the entire
@@ -1275,8 +1273,6 @@ h1, h2, h3 {
 
 .manual-path { padding: var(--s5); border-style: dashed; }
 .manual-path .num { font-size: var(--t-14); }
-.tools-cut .data { color: var(--text-faint); }
-.tools-cut .right { margin-left: auto; color: var(--text); }
 
 /* Empty state: explains the next step, not just a blank field */
 .empty {
@@ -1614,12 +1610,7 @@ h1, h2, h3 {
    should be able to choose which clip you're looking at, see where cuts
    were made, and hit render from the same place. */
 
-/* ---- object chip: person name, editable, deletable ---- */
-.chip .object-name { outline: none; }
-.chip .object-name[contenteditable="true"] {
-  border-bottom: 1px dashed var(--accent);
-  min-width: 3ch;
-}
+/* ---- object chip: deletable ---- */
 .chip .delete-icon {
   font-style: normal;
   margin-left: 7px;

@@ -1,20 +1,18 @@
-# klipian -- dependensi
+# klipian -- dependencies
 #
-# Sengaja dijaga ringan: TIDAK memakai PyTorch. faster-whisper berjalan di
-# atas CTranslate2, jadi seluruh instalasi hanya ratusan MB, bukan giga.
+# Deliberately light: NO PyTorch. faster-whisper runs on CTranslate2, so the
+# whole install is a few hundred MB, not gigabytes.
 #
-# AI Framing (deteksi pembicara otomatis) BUTUH PyTorch lewat pyannote.audio
-# -- itu melanggar prinsip di atas, jadi sengaja dipisah ke
-# requirements-ai-framing.txt sebagai instalasi TAMBAHAN, opsional. Instalasi
-# dasar ini tetap ringan untuk yang tidak memakai fitur itu.
+# AI Framing (automatic speaker detection) NEEDS PyTorch through
+# pyannote.audio -- that breaks the principle above, so it is kept apart in
+# requirements-ai-framing.txt as an ADDITIONAL, optional install. The base
+# install stays light for anyone who doesn't use that feature.
 
-faster-whisper>=1.1.0      # transkripsi word-level (CPU, CTranslate2)
-anthropic>=0.40.0          # pemilihan klip (fase 2)
+faster-whisper>=1.1.0      # word-level transcription (CPU, CTranslate2)
 
-# OPSIONAL. Dipakai HANYA oleh gaya caption "Box": kotak highlight yang
-# sudutnya membulat digambar sendiri (\p1) di build_ass(), dan untuk
-# menempatkannya perlu mengukur lebar kata. Tanpa Pillow -- atau bila
-# berkas fontnya tidak ketemu di mesin ini -- kotaknya tetap muncul, hanya
-# bersudut tajam (BorderStyle 3, ditempatkan libass sendiri). Jadi ini
-# BUKAN syarat untuk render berjalan.
+# OPTIONAL. Used ONLY by the "Box" caption style: the rounded highlight box
+# is drawn by hand (\p1) in build_ass(), and placing it means measuring word
+# widths. Without Pillow -- or if the font file can't be found on this
+# machine -- the box still appears, just with square corners (BorderStyle 3,
+# placed by libass itself). So this is NOT required for rendering to work.
 # pillow>=10.0.0

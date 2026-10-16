@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .ffmpeg_tools import _require, has_encoder
-from .models import Transcript, Word
+from .models import Word
 
 # The "klipian" watermark font is bundled here (not just relying on Google
 # Fonts like the UI does) -- rendering is done via ffmpeg/libass on the
