@@ -163,8 +163,61 @@ Selesai jika: `selftest` hijau, dan render res2 masih md5 `0698726b…`.
    mem-parse balasan memakai `roundtrip.py`, lewat endpoint
    `/api/brief` dan `/api/import`. `roundtrip.js` tinggal UI (unduh,
    tempel, tampilkan). Rubrik dibaca server, bukan di-`fetch` browser.
-3. **CLI `render` menerima project** (`--project <id>`), memakai jalur
-   yang sama dengan server. Ini praktis gratis setelah langkah 1.
+3. ~~**CLI `render` menerima project** (`--project <id>`)~~. Asumsi
+   "praktis gratis" ternyata salah. Server tidak pernah menerima project,
+   hanya request jadi yang disusun JS dari `captionStyle()`/`OPTIONS`,
+   framing per titik, koreksi kata, dan overlay, yang tersebar di 6 file.
+   Diganti dengan 3a dan 3b di bawah.
+
+**Status 2026-10-16:** 2.1 dan 2.2 selesai (`2e1654e` … `9239a52`).
+`server.py` turun dari 2257 menjadi 1251 baris; `jobs.py` 611 baris,
+`projects.py` 406 baris. Selftest sekarang juga mengecek brief: brief
+identik, dan 7 balasan terbaca sama.
+
+**Keputusan 2.3 (ian, 2026-10-16): opsi C, ditambah aturan transkrip.**
+
+Tiga opsi yang ditimbang:
+
+| Opsi | Isi | Nasib |
+|---|---|---|
+| A | Salin logika penyusun request ke Python | Ditolak: duplikasi yang sama dengan yang baru dihapus di 2.2 |
+| B | Penyusunan request pindah ke server, JS memakainya | **Ditunda** sampai ada kebutuhan render tanpa UI (massal atau terjadwal) |
+| C | Server menyimpan request render terakhir per Result; CLI memutar ulang | **Dipilih** |
+
+3a. **Replay request render (opsi C).**
+   - Server menyimpan request render terakhir yang **selesai** per Result,
+     beserta md5, sha256, ukuran, dan waktu hasilnya. Quick preview tidak
+     ikut disimpan.
+   - CLI `render --replay <project> [--result <id>]` memutarnya ulang ke
+     lokasi sementara, lalu membandingkan hash-nya. File render milik
+     ian tidak pernah ditimpa.
+   - `selftest --promote` menyalin request tersimpan menjadi fixture
+     baseline baru di `tests/fixtures/<nama>/`. Selftest menjalankan
+     semua baseline yang ada, dan melewati (skip) baseline yang
+     videonya tidak ada.
+
+   Alasan memilih C: nol duplikasi, dan setiap Result yang dirender dari
+   UI bisa menjadi baseline. Ini langsung menjawab kelemahan "semua
+   pengujian baru memakai satu video": begitu Syahrini dirender di P3,
+   ada baseline kedua.
+
+   Batasan yang disadari: replay mengulang keadaan **saat dirender**,
+   bukan keadaan project sekarang.
+
+3b. **Satu aturan pemilihan transkrip.** Sekarang ada empat cara memilih
+   transkrip:
+   - UI `findTranscript()` (roundtrip.js:43) mengambil yang pertama
+     menurut nama dari listing cache, dan dipakai di 5 tempat;
+   - `server._ui_transcript()` meniru aturan UI;
+   - `Cache.find_any_transcript()` (render dan jobs) mengambil yang
+     terbaru;
+   - CLI `_load_transcript()`.
+
+   Kalau satu video punya dua transkrip, caption dan brief bisa memakai
+   transkrip yang berbeda. Aturan baru, satu fungsi di `cache.py`:
+   cocokkan dulu fingerprint (video, model, bahasa) yang persis, dan
+   kalau tidak ada, ambil yang terbaru. Semua pemakai, termasuk UI lewat
+   endpoint server, memakai fungsi itu.
 
 ### P3 — Siklus penuh dengan video kedua (kerja ian sebagai pengguna)
 
@@ -252,3 +305,6 @@ Akibatnya untuk pekerjaan lain:
   global state mulai menimbulkan bug, atau pecah per file saat file itu
   sedang disentuh untuk alasan lain.
 - **Migrasi ke React/FastAPI seperti di brief desain:** tidak perlu.
+- **Opsi B dari 2.3** (penyusunan request render pindah ke server). Buka
+  lagi kalau ian butuh render tanpa UI. Saat itu, baseline hasil 3a
+  menjadi jaring pengamannya.
