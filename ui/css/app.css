@@ -2324,7 +2324,9 @@ h1, h2, h3 {
    Stacked lanes over one shared time axis: clips on top, then text, image
    and sound elements. Everything is positioned in % of the Result's output
    length, so the lanes stretch with the panel and never scroll sideways. */
-.tlx { display: grid; gap: var(--s3); }
+/* .panel has no padding of its own (each kind of panel sets it), so without
+   this the toolbar, the lanes and the inspector sat flush against the border. */
+.tlx { display: grid; gap: var(--s3); padding: var(--s4) var(--s5); }
 .tlx-tools { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
 .tlx-tools .data { margin-left: auto; color: var(--text-faint); }
 .tlx-body { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: var(--s2); }
@@ -2380,7 +2382,7 @@ h1, h2, h3 {
   position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px;
   background: var(--danger); pointer-events: none;
 }
-.tlx-inspector { display: grid; gap: var(--s3); }
+.tlx-inspector { display: grid; gap: var(--s3); padding: var(--s4) var(--s5); }
 .tlx-insp-head { display: flex; align-items: center; gap: var(--s3); }
 .tlx-insp-head .eyebrow { margin: 0; }
 .tlx-insp-head .btn { margin-left: auto; }
