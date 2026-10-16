@@ -1290,7 +1290,9 @@ def _thumbnail(video: Path, seconds: float, crop: dict, width: int) -> Path:
     # top/height used to be left out, so dragging the framing box up or
     # down produced the same filename and the strip kept showing the old
     # crop -- a stale thumbnail that looked like the drag hadn't worked.
-    dest = WORKSPACE / "out" / video.stem / "thumbs" / (
+    # In cache/, not out/: these are throwaway pictures, and out/ is for what
+    # was rendered (History and /workspace both list it).
+    dest = WORKSPACE / "cache" / "thumbs" / video.stem / (
         f"{int(seconds * 10)}-{int(crop['left'])}-{int(crop['top'])}"
         f"-{int(crop['width'])}-{int(crop['height'])}-{width}.jpg")
     if dest.exists():
