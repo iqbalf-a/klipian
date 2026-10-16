@@ -135,6 +135,14 @@ glossary, the screen says so. **Transcribe again** (two clicks, it shows how
 long it will take) makes a new one; the old one stays in use until the new
 one is done.
 
+Find clips also listens for what a transcript misses and puts it in the file
+for Claude as a separate list, **Audio & timing cues**: laughter, applause and
+cheering, shouts and gasps, music (marked *avoid*), long pauses and fast talk
+(see *Design notes*). The export panel shows a chip per signal with how many
+were found (or "none found", "not run", "failed"), each with an (i) saying what
+it is and how it was detected. On the Clips screen the same cues are markers
+along the timeline, and each AI suggestion lists the ones inside it.
+
 ### B. Manual — no Claude at all
 
 On the Analyze screen, use **"Or cut it yourself."** That skips steps ② and
@@ -251,6 +259,32 @@ the newest transcript for a video of that name. Touching the glossary or the
 video file doesn't throw a 40-minute transcription away; **Transcribe again**
 on the Analyze screen is how to replace it on purpose.
 
+### Audio and timing cues
+
+Whisper writes down the words. It rarely writes laughter, never writes
+applause, and says nothing about a long silence or a sudden speed-up — and on
+audio mastered to the ceiling, "loudest" can't tell laughter from loud talk.
+So `klipian/cues.py` finds those separately:
+
+| Signal | How | Tells Claude |
+|---|---|---|
+| Laughter, applause/cheering, shouts/gasps | [YAMNet](https://www.kaggle.com/models/google/yamnet) (Google, Apache 2.0), converted to ONNX in `assets/models/` and run with onnxruntime — about 12 s for a 45-minute episode | what landed; a clip should end *after* it |
+| Music | the same pass | **avoid** (intros, outros, ads, copyright) |
+| Long pause | 3 s or more between two words, from the transcript's timestamps | "pause, then a confession or a punchline" |
+| Fast talk | words per 10 s above the 95th percentile of that video | an excited, building story |
+
+Each sound range gets a level — `low`, `medium` or `high` — from its score and
+length (a table at the top of `cues.py`, so it can be tuned without
+re-detecting). The brief lists them sorted by time, e.g.
+`[12:05]–[12:09] laughter · high (4.1 s)`; the section is never left out, and
+says so when nothing was found or the detection didn't run. When Claude's
+reply is imported, each candidate also gets the cues inside it or within 5 s
+after it (`cues` in the project), computed by klipian so the same reply always
+gives the same list. The sound detection is cached per video
+(`<name>.<fp>.cues.json`); the pause and fast-talk counts follow whichever
+transcript is in use. `tools/cues_spike.py` writes numbered WAV clips of what
+it finds, to listen to and judge.
+
 ### Glossary
 
 `prompts/glossary.txt` holds names and terms that are commonly misheard.
@@ -329,7 +363,7 @@ klipian/
 │   ├── facebox.py                   face detection, drives AI Framing's crop box and head tracking
 │   ├── scenecut.py                  hard shot-change detection in the source video,
 │   │                                complements AI Framing
-│   ├── audio_energy.py              volume-spike detection, a secondary hook signal
+│   ├── cues.py                      audio cues (YAMNet) and timing cues (pauses, fast talk)
 │   ├── roundtrip.py                 builds the Claude brief + reads its reply (behind
 │   │                                /api/brief, /api/import and the CLI)
 │   ├── render.py                    cuts -> concat -> crop -> captions -> MP4, and joining
@@ -366,6 +400,9 @@ klipian/
 │   │                                render, assets)
 │   └── tailwind.config.js
 ├── prompts/rubrik/                scoring rubrics, editable without touching code
+├── assets/models/                 vendored ONNX models with their licenses: YuNet and SFace
+│                                  (faces), YAMNet (sound events) and its class map
+├── tools/                         scripts that are not part of the app (cues_spike.py)
 ├── requirements.txt                base install (no PyTorch)
 ├── requirements-ai-framing.txt     optional: AI Framing / speaker diarization
 ├── .env.example                    copy to .env for HF_TOKEN (AI Framing only)
@@ -373,7 +410,7 @@ klipian/
     │                                doubt about where a video goes (see workspace/README.md)
     ├── samples/                     videos currently being worked on -- the app reads from here
     ├── out/                         render output, one folder per project: <slug>.<id>/
-    ├── cache/                       transcripts, audio energy, diarization (created
+    ├── cache/                       transcripts, audio cues, diarization (created
     │                                automatically); thumbs/ holds cached thumbnails
     ├── projects/                    one <id>.json per project (its videos, Results, framing
     │   │                            points, caption corrections), and per project:

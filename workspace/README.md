@@ -16,7 +16,7 @@ the repo root as `samples/`, `out/`, `cache/`, `projects/`, `sources/` and
   editor's History screen and the Rendered files panel at `/workspace` both
   read. Quick previews live in a `.preview/` subfolder and are deliberately
   excluded from both.
-- `cache/` -- transcripts, audio-energy analysis and diarization results.
+- `cache/` -- transcripts, audio-cue analysis and diarization results.
   Created automatically, safe to delete: anything needed is rebuilt on the
   next run. Thumbnails are cached under `cache/thumbs/` and are equally safe
   to delete. (Older `out/<video>/thumbs/` folders are leftovers and can be
