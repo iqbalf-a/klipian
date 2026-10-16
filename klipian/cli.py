@@ -14,7 +14,7 @@ from .glossary import Glossary
 from .models import Transcript, fmt_duration
 from .transcribe import (DEFAULT_MODEL, DEFAULT_THREADS, MODELS, WhisperMissing,
                          transcribe)
-from . import roundtrip
+from . import cues, roundtrip
 from .paths import GLOSSARY
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -162,8 +162,8 @@ def cmd_brief(args: argparse.Namespace) -> int:
         return 1
 
     rubric = RUBRICS.get(args.mode, RUBRICS["dialog"])
-    energy = roundtrip.read_energy(Cache(Path(args.cache_dir)).energy_path(video))
-    text = roundtrip.build_brief(transcript, roundtrip.read_rubric(rubric), video.name, energy)
+    cues_data = cues.load(video if video.is_file() else None, Cache(Path(args.cache_dir)))
+    text = roundtrip.build_brief(transcript, roundtrip.read_rubric(rubric), video.name, cues_data)
 
     dest = Path(args.out_dir) / video.stem / "brief-claude.md"
     dest.parent.mkdir(parents=True, exist_ok=True)

@@ -84,50 +84,63 @@ def read_rubric(path: Path) -> str:
         return ""
 
 
-def read_energy(path: Path) -> list[dict]:
-    """A video's cached audio-energy moments. Missing or unreadable is the
-    same as "none found": the brief just leaves that section out."""
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return []
-    return data if isinstance(data, list) else []
-
-
-def _energy_block(moments: list[dict] | None) -> str:
-    """A SEPARATE signal from the transcript -- purely from audio volume (see
-    audio_energy.py), computed once per video alongside transcription.
-    Whisper rarely captures laughter or strong reactions as reliable text;
-    this is measured evidence, not punctuation guesswork. Empty when the
-    video hasn't been analysed or has no prominent moments -- both are the
-    same here: the section is skipped."""
-    if not moments:
-        return ""
-    energy_list = "\n".join(
-        f"- [{fmt_stamp(m['start'])}] – [{fmt_stamp(m['end'])}]" for m in moments)
+def _cues_block(cues_data: dict | None) -> str:
+    """The brief's separate list of audio and timing cues (see cues.py): found
+    by klipian from the sound and the word timestamps, not from the words
+    themselves, so Claude is told where they come from and how sure they are.
+    The section is never left out: when there is nothing, or the detection
+    didn't run, it says so, so an empty list can't be mistaken for a missing one."""
+    status = (cues_data or {}).get("status", {})
+    cues = (cues_data or {}).get("cues", [])
+    lines = []
+    for c in sorted(cues, key=lambda c: (c["start"], c["kind"])):
+        at = f"[{fmt_stamp(c['start'])}]"
+        span = f"{at}–[{fmt_stamp(c['end'])}]"
+        if c["kind"] == "pause":
+            lines.append(f'- {at} pause {c["len"]:.1f} s before: "{c["before"]}"')
+        elif c["kind"] == "fast talk":
+            lines.append(f"- {span} fast talk")
+        elif c["kind"] == "music":
+            lines.append(f"- {span} music · avoid")
+        else:
+            lines.append(f"- {span} {c['kind']} · {c['level']} ({c['len']:.1f} s)")
+    notes = []
+    audio = status.get("audio", "not run")
+    if audio == "failed":
+        notes.append(f"Audio analysis failed ({status.get('audio_error', '')}), so there are no "
+                     "laughter, applause, shout or music cues for this video.")
+    elif audio != "ok":
+        notes.append("Audio analysis was not run for this video, so there are no laughter, "
+                     "applause, shout or music cues.")
+    if not lines:
+        notes.append("No audio or timing cues were detected in this video." if audio == "ok"
+                     else "No timing cues (long pauses, fast talk) were found either.")
+    body = "\n".join(lines + notes)
     return f"""
 
 ---
 
-## Prominent audio-energy moments (from volume analysis, NOT the transcript)
+## Audio & timing cues (detected locally, not from the transcript)
 
-The following time ranges have sound energy well above this video's own
-average -- could be audience laughter, cheering, a loud reaction, or a
-dramatic moment. This is a SUPPORTING signal, not a certain fact: cross-
-check it against the transcript's sentences around that time before using
-it as a reason for a score.
+These come from analysing the sound and the gaps between words, not from what is
+said. You can't hear the audio, so this is your only evidence about it. Each line
+has a time; `high` / `medium` / `low` says how strong and long the signal is.
+Treat them as supporting evidence and check them against the sentences around
+them. A clip that ends on laughter or applause should end AFTER it finishes.
+Avoid music.
 
-{energy_list}
+{body}
 """
 
 
 def build_brief(transcript: Transcript, rubric: str, name: str,
-                energy_moments: list[dict] | None = None) -> str:
+                cues_data: dict | None = None) -> str:
     """A single self-contained file: task, rubric, transcript, and expected
     answer format. The user just drops it in and says "do it" -- no
     additional explanation needed.
 
-    `rubric` is the rubric's text (read_rubric), `name` the video's file name."""
+    `rubric` is the rubric's text (read_rubric), `name` the video's file name,
+    `cues_data` what cues.load returned for the video (None: not run)."""
     # strip rubric title so it doesn't clash with the brief title
     rubric = re.sub(r"\A# [^\n\r  ]*\n+", "", rubric, count=1)
     # Strip the rubric's intro paragraph, which addresses the USER, not Claude.
@@ -176,7 +189,7 @@ outside the block.
   ]
 }}
 ```
-{_energy_block(energy_moments)}
+{_cues_block(cues_data)}
 ---
 
 ## Transcript

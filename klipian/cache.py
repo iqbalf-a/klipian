@@ -61,18 +61,10 @@ class Cache:
         return self.root / f"{Path(video).stem}.{fp}.wav"
 
     def cues_path(self, video: Path) -> Path:
-        """Raw audio cues (cues.run_audio_cues) -- video fingerprint only,
-        like energy_path() before it: they depend on the audio, not on the
-        transcript or its settings."""
+        """Raw audio cues (cues.run_audio_cues) -- video fingerprint only:
+        they depend on the audio, not on the transcript or its settings."""
         fp = fingerprint(video)
         return self.root / f"{Path(video).stem}.{fp}.cues.json"
-
-    def energy_path(self, video: Path) -> Path:
-        """High audio-energy moments (audio_energy.find_loud_moments) --
-        video fingerprint only, doesn't depend on model/language like
-        transcript_path()."""
-        fp = fingerprint(video)
-        return self.root / f"{Path(video).stem}.{fp}.energy.json"
 
     def diarize_path(self, video: Path, start: float, end: float) -> Path:
         """AI Framing speaker turns for one [start, end) span -- range goes

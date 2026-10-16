@@ -13,8 +13,9 @@ Temukan **momen yang layak berdiri sendiri sebagai video vertikal pendek**.
 Kamu tidak melihat gambarnya. Menilai hanya dari kata-kata yang diucapkan.
 
 Terapkan rubrik ini secara MEKANIS: nilai tiap kriteria satu per satu
-berdasarkan bukti eksplisit di transkrip (kutipan, tanda tawa, energi
-audio), bukan kesan menyeluruh atau "vibe". Kalau berkas transkrip yang
+berdasarkan bukti eksplisit di transkrip dan di bagian **"Audio & timing
+cues"** (kutipan, tawa, sinyal suara dan jeda), bukan kesan menyeluruh atau
+"vibe". Kalau berkas transkrip yang
 SAMA dijalankan ulang lewat rubrik ini, skor dan daftar klipnya
 seharusnya tidak jauh berbeda -- hindari variasi yang datang dari mood
 atau penekanan yang berubah-ubah antar percobaan, bukan dari perbedaan
@@ -43,12 +44,9 @@ atau interjeksi serupa), itu bukti nyata ada sesuatu yang mengena di
 kalimat sebelumnya -- bobot skor hook-nya naik. Reaksi ini sinyal langsung
 dari penonton sungguhan, bukan tebakan.
 
-Kalau berkas ini juga menyertakan bagian **"Momen energi audio menonjol"**,
-itu sinyal yang LEBIH KUAT lagi -- diukur langsung dari volume suara, bukan
-menunggu Whisper kebetulan menuliskannya sebagai teks. Kalau rentang waktu
-di daftar itu jatuh tepat sesudah sebuah kalimat, perlakukan sama seperti
-tawa yang tertulis di atas: bukti nyata, bukan tebakan. Kedua sinyal ini
-saling melengkapi, bukan gantian -- boleh dipakai bersama.
+Bagian **"Audio & timing cues"** di berkas ini memuat bukti yang lebih
+kuat lagi (lihat di bawah): tawa yang dideteksi dari suaranya, bukan
+menunggu Whisper kebetulan menuliskannya.
 
 ### 2. Utuh — bisa dimengerti tanpa nonton episodenya?
 
@@ -81,11 +79,37 @@ utuh, daripada dipenggal dan kehilangan maknanya.
 
 ---
 
+## Audio & timing cues
+
+Berkas ini menyertakan daftar **"Audio & timing cues"**: sinyal yang
+dideteksi klipian dari **suara** dan dari **jarak antar kata**, bukan dari
+apa yang diucapkan. Kamu tidak mendengar audionya, jadi ini satu-satunya
+bukti tentang suara. Tiap baris punya waktu; **tingkat** `low` / `medium` /
+`high` menunjukkan seberapa kuat dan lama sinyalnya. Perlakukan sebagai bukti
+pendukung, bukan kepastian: cocokkan dengan kalimat di sekitarnya.
+
+| Sinyal | Artinya | Pengaruhnya |
+|---|---|---|
+| `laughter` | tawa (pembicara, kru, atau penonton) | jatuh tepat sesudah sebuah kalimat = bukti kalimat itu mengena. `high`: naikkan hook (kalimat sebelum tawa) dan payoff (ujung klip) dengan jelas. `medium`: naikkan sedikit. `low`: abaikan kalau transkrip tidak mendukung |
+| `applause` | tepuk tangan, sorakan | payoff kuat; perlakukan seperti tawa `high` |
+| `shout` | teriakan, kaget | momen emosi: naikkan skor emosi; sering menjadi hook pembuka |
+| `music` · `avoid` | musik | **HINDARI.** Intro, outro, iklan, dan risiko hak cipta. Jangan jadikan rentang itu klip dan jangan biarkan klip memuatnya |
+| `pause` | jeda 3 detik atau lebih sebelum sebuah kalimat (kalimatnya dikutip) | pola "jeda, lalu pengakuan atau punchline": kalimat sesudah jeda adalah kandidat hook atau payoff |
+| `fast talk` | bicara jauh lebih cepat dari biasanya di episode ini | antusias, cerita memuncak; dukungan untuk skor emosi |
+
+Kalau bagian itu bilang tidak ada sinyal, atau bahwa analisis suara tidak
+jalan: nilai dari transkrip saja seperti biasa. Jangan mengarang sinyal.
+
+---
+
 ## Aturan batas potong
 
 - **Mulai di awal kalimat.** Jangan mulai di tengah frasa.
 - **Berhenti setelah kalimat penutup selesai.** Beri sedikit ruang, jangan
   memotong tepat di huruf terakhir.
+- **Klip yang berujung pada tawa atau tepuk tangan berakhir SETELAH sinyal
+  itu selesai** (waktu akhir di daftar cues), bukan sebelumnya. Hook-nya
+  tetap dicari dari kalimat sebelum tawa.
 - **Jeda panjang di dalam klip itu wajar** — nanti dirapikan terpisah.
 - Kalau dua kandidat bertumpang tindih, ambil yang skornya lebih tinggi
   saja. Jangan mengeluarkan dua klip dari potongan yang sama.
@@ -95,6 +119,7 @@ utuh, daripada dipenggal dan kehilangan maknanya.
 ## Yang tidak boleh dijadikan klip
 
 - Segmen sponsor dan bacaan iklan
+- Rentang bertanda `music · avoid` di daftar cues
 - Perkenalan, salam pembuka, dan penutup episode
 - Obrolan teknis di luar topik ("mic-nya bunyi ya", "sebentar, ini ngerekam?")
 - Momen yang lucunya bergantung pada apa yang terlihat di layar — kamu tidak

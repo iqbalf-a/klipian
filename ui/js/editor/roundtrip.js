@@ -43,7 +43,7 @@ const fmtStamp = (d) => {
     : `${Math.floor(t / 3600)}:${String(Math.floor((t % 3600) / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
 };
 
-/* The server builds it (rubric, transcript, audio-energy moments). */
+/* The server builds it (rubric, audio and timing cues, transcript). */
 async function buildBrief(name) {
   const res = await fetch(`/api/brief?video=${encodeURIComponent(name)}`);
   if (!res.ok) {

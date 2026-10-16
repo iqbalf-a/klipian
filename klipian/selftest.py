@@ -1,7 +1,7 @@
 """`python -m klipian selftest` -- the checks that let the code be moved
 around without wondering what broke.
 
-Four checks, each one that used to be done by hand:
+Five checks, each one that used to be done by hand:
 
   migrate  Old project shapes (tests/fixtures/migrate/*.old.json) go through
            projects._migrate_project() and must come out as the matching
@@ -9,6 +9,8 @@ Four checks, each one that used to be done by hand:
   brief    The Claude brief and the reading of Claude's replies (roundtrip.py)
            against tests/fixtures/brief/: the output of the browser version
            of that logic, from before it moved to Python.
+  cues     The rules in klipian/cues.py (levels, pauses, fast talk, which cues a
+           clip has) on small known inputs.
   decode   faster-whisper can decode audio in THIS environment (a few seconds
            of a sample video). A broken install otherwise shows itself at the
            start of a transcription, minutes into the wait. Skipped without a
@@ -150,16 +152,24 @@ def check_brief() -> tuple[str, str]:
     want = (base / "brief.md").read_bytes().decode("utf-8")
     got = roundtrip.build_brief(
         transcript, roundtrip.read_rubric(base / "rubric.md"),
-        "radityadika-podcast.mp4", _load(base / "energy.json"))
+        "radityadika-podcast.mp4", _load(base / "cues.json"))
     if got != want:
         at = next((i for i, (a, b) in enumerate(zip(want, got)) if a != b),
                   min(len(want), len(got)))
         problems.append(f"brief.md differs at character {at}: "
                         f"expected {want[at:at + 40]!r}, got {got[at:at + 40]!r}")
 
-    # No energy file for the video: the section is left out, nothing else moves.
-    if "audio-energy" in roundtrip.build_brief(transcript, "", "x.mp4", []):
-        problems.append("an empty energy list still produced the energy section")
+    # The cues section is never left out: with nothing found, with the
+    # detection not run, and with it failed, it still says so.
+    for label, data, expect in [
+            ("nothing found", {"status": {"audio": "ok", "timing": "ok"}, "cues": []},
+             "No audio or timing cues were detected"),
+            ("not run", None, "Audio analysis was not run"),
+            ("failed", {"status": {"audio": "failed", "audio_error": "boom", "timing": "ok"}, "cues": []},
+             "Audio analysis failed (boom)")]:
+        text = roundtrip.build_brief(transcript, "", "x.mp4", data)
+        if "## Audio & timing cues" not in text or expect not in text:
+            problems.append(f"brief with cues {label}: expected the section to say {expect!r}")
 
     expected = _load(base / "imports.expected.json")
     for name, want in sorted(expected.items()):
@@ -173,6 +183,60 @@ def check_brief() -> tuple[str, str]:
     if problems:
         return FAIL, "\n      ".join(problems)
     return PASS, f"brief.md identical; {len(expected)} replies read as before"
+
+
+# --------------------------------------------------------------------------
+# check: cues
+# --------------------------------------------------------------------------
+
+def check_cues() -> tuple[str, str]:
+    """The rules in cues.py, on small known inputs (no audio, no model)."""
+    from . import cues
+    from .models import Word
+
+    problems = []
+    for kind, peak, length, want in [
+            ("laughter", 0.60, 0.9, "high"), ("laughter", 0.50, 2.5, "high"),
+            ("laughter", 0.50, 1.0, "medium"), ("laughter", 0.45, 0.9, "medium"),
+            ("laughter", 0.449, 0.9, "low"), ("laughter", 0.30, 0.9, "low"),
+            ("laughter", 0.299, 0.9, None), ("applause", 0.61, 1.0, "high"),
+            ("music", 0.50, 5.0, "avoid")]:
+        got = cues.level_of(kind, peak, length)
+        if got != want:
+            problems.append(f"level_of({kind}, {peak}, {length}) = {got}, expected {want}")
+
+    # Pauses and fast talk from word times: 30 s of 3 words per second, then a
+    # 3.5 s silence, then a 10 s burst of 8 words per second.
+    words, t = [], 0.0
+    for i in range(90):
+        words.append(Word(text=f"w{i}", start=t, end=t + 0.2, prob=1.0))
+        t += 1 / 3
+    t += 3.5
+    for i in range(80):
+        words.append(Word(text=f"f{i}", start=t, end=t + 0.1, prob=1.0))
+        t += 1 / 8
+    got = cues.timing_cues(words, t + 5)
+    pauses = [c for c in got if c["kind"] == "pause"]
+    fast = [c for c in got if c["kind"] == "fast talk"]
+    if len(pauses) != 1 or pauses[0]["len"] < 3.4 or not pauses[0]["before"].startswith("f0 f1"):
+        problems.append(f"pause cue wrong: {pauses}")
+    if not fast or not (fast[0]["start"] >= 25 and fast[-1]["end"] <= t + 5):
+        problems.append(f"fast talk cue wrong: {fast}")
+
+    pool = [{"kind": "laughter", "start": 100.0, "end": 101.0, "level": "high"},
+            {"kind": "pause", "start": 123.0, "end": 126.4, "len": 3.4, "before": "x"},
+            {"kind": "laughter", "start": 140.0, "end": 141.0, "level": "low"}]
+    inside = cues.for_range(pool, 90.0, 135.1)           # a clip's cues: overlapping, or starting <= 5 s after its end
+    if [c["kind"] for c in inside] != ["laughter", "pause", "laughter"]:
+        problems.append(f"for_range kept {inside}")
+    if len(cues.for_range(pool, 90.0, 135.0)) != 2 or len(cues.for_range(pool, 90.0, 134.0)) != 2:
+        problems.append("for_range tail of 5 s is off")
+    if cues.counts(pool) != {"laughter": 2, "applause": 0, "shout": 0, "music": 0, "pause": 1, "fast talk": 0}:
+        problems.append("counts() is off")
+
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "levels, pauses, fast talk, per-clip cues"
 
 
 # --------------------------------------------------------------------------
@@ -300,7 +364,7 @@ def promote(project_id: str, result_id: str, name: str) -> int:
     return 0
 
 
-CHECKS = {"migrate": check_migrate, "brief": check_brief, "decode": check_decode,
+CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "decode": check_decode,
           "render": check_render}
 
 

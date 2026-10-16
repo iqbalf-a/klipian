@@ -171,18 +171,22 @@ outside the block.
 
 ---
 
-## Prominent audio-energy moments (from volume analysis, NOT the transcript)
+## Audio & timing cues (detected locally, not from the transcript)
 
-The following time ranges have sound energy well above this video's own
-average -- could be audience laughter, cheering, a loud reaction, or a
-dramatic moment. This is a SUPPORTING signal, not a certain fact: cross-
-check it against the transcript's sentences around that time before using
-it as a reason for a score.
+These come from analysing the sound and the gaps between words, not from what is
+said. You can't hear the audio, so this is your only evidence about it. Each line
+has a time; `high` / `medium` / `low` says how strong and long the signal is.
+Treat them as supporting evidence and check them against the sentences around
+them. A clip that ends on laughter or applause should end AFTER it finishes.
+Avoid music.
 
-- [17:16] – [17:19]
-- [17:55] – [17:58]
-- [0:41] – [0:44]
-- [2:31] – [2:34]
+- [16:45]–[16:48] laughter · high (2.9 s)
+- [16:50]–[16:59] music · avoid
+- [17:01] pause 3.4 s before: "Ngapain ngigo bahasa Jepang? Tapi bener"
+- [17:24]–[17:48] fast talk
+- [17:38]–[17:39] laughter · medium (1.0 s)
+- [17:40]–[17:43] applause · medium (2.9 s)
+- [20:00]–[20:01] laughter · low (1.0 s)
 
 ---
 

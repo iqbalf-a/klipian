@@ -272,15 +272,6 @@ def _same_video(name: str, size: int) -> str | None:
         i += 1
 
 
-def _energy_moments(name: str) -> list[dict]:
-    """Prominent audio-energy moments for a video by file name. Empty when
-    the video isn't found or hasn't been analysed -- not an error."""
-    video = find_video(name)
-    if not video:
-        return []
-    return roundtrip.read_energy(Cache(WORKSPACE / "cache").energy_path(video))
-
-
 # --------------------------------------------------------------------------
 # HTTP
 # --------------------------------------------------------------------------
@@ -551,16 +542,6 @@ class Handler(BaseHTTPRequestHandler):
         file = sorted(p.name for p in (WORKSPACE / "cache").glob("*.transcript.json"))
         return self._send_json({"transcript": file})
 
-    def _get_audio_energy(self):
-        # Read separately from the transcription job -- the analysis is
-        # triggered in _run_transcribe() (see energy_path()) and the
-        # result is just a regular cache file. The client doesn't need
-        # to know the difference between "not yet analyzed" vs
-        # "analyzed, no notable moments" -- both return an empty list,
-        # not an error.
-        q = parse_qs(urlparse(self.path).query)
-        return self._send_json({"moments": _energy_moments(q.get("video", [""])[0])})
-
     def _get_transcript(self):
         """The transcript the page works from, as the file holds it."""
         q = parse_qs(urlparse(self.path).query)
@@ -591,8 +572,9 @@ class Handler(BaseHTTPRequestHandler):
         if transcript is None:
             return self._send_json({"error": "No transcript yet. Click Find clips on the Analyze screen to make one."}, 404)
         rubric = roundtrip.RUBRICS.get(q.get("mode", ["dialog"])[0], roundtrip.RUBRICS["dialog"])
+        cues_data = cues_mod.load(find_video(name), Cache(WORKSPACE / "cache"))
         return self._send_text(roundtrip.build_brief(
-            transcript, roundtrip.read_rubric(rubric), name, _energy_moments(name)),
+            transcript, roundtrip.read_rubric(rubric), name, cues_data),
             "text/markdown")
 
     def _get_video(self):
@@ -682,7 +664,6 @@ class Handler(BaseHTTPRequestHandler):
         "/api/project-asset-file": _get_project_asset_file,
         "/api/workspace/asset-file": _get_workspace_asset_file,
         "/api/cache": _get_cache,
-        "/api/audio-energy": _get_audio_energy,
         "/api/transcript": _get_transcript,
         "/api/cues": _get_cues,
         "/api/brief": _get_brief,

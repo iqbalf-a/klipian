@@ -512,25 +512,9 @@ def _run_transcribe(job_id: str, req: dict) -> None:
 
         cache = Cache(WORKSPACE / "cache")
 
-        # Once per video, NOT dependent on whether the transcript itself
-        # is already cached -- that's why it's checked here, before the
-        # transcript cache-hit path below might return early and skip it.
-        # Deliberately non-fatal: a failed energy analysis must not fail
-        # the far more important transcription.
-        epath = cache.energy_path(video)
-        if not epath.exists():
-            with LOCK:
-                t["stage"] = "energy"
-            try:
-                from .audio_energy import find_loud_moments
-                epath.write_text(json.dumps(find_loud_moments(video)), encoding="utf-8")
-            except Exception:                          # noqa: BLE001
-                pass
-
         # Audio cues (laughter, applause, shouts, music): once per video, and
-        # like the energy analysis above BEFORE the transcript cache-hit path,
-        # so a video that already has a transcript still gets them when Find
-        # clips is clicked. Never fatal, never silent: run_audio_cues saves a
+        # BEFORE the transcript cache-hit path below, so a video that already
+        # has a transcript still gets them when Find clips is clicked. Never fatal, never silent: run_audio_cues saves a
         # failure into the cache file and the job reports it, so the editor
         # can say "failed" instead of showing nothing. A failed or out-of-date
         # result is tried again.
