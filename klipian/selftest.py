@@ -1,7 +1,7 @@
 """`python -m klipian selftest` -- the checks that let the code be moved
 around without wondering what broke.
 
-Two checks, each one that used to be done by hand:
+Three checks, each one that used to be done by hand:
 
   migrate  Old project shapes (tests/fixtures/migrate/*.old.json) go through
            projects._migrate_project() and must come out as the matching
@@ -9,20 +9,25 @@ Two checks, each one that used to be done by hand:
   brief    The Claude brief and the reading of Claude's replies (roundtrip.py)
            against tests/fixtures/brief/: the output of the browser version
            of that logic, from before it moved to Python.
-  render   The request the UI sent for the baseline Result (res2 of project
-           ea8b7a796f48, tests/fixtures/res2/request.json) goes through
-           jobs._run_render() and the MP4 must be byte-identical to the one
-           recorded in tests/fixtures/res2/baseline.json.
+  render   Every baseline in tests/fixtures/<name>/ -- a request.json (what the
+           editor sent) and a baseline.json (the md5, sha256 and size of the
+           MP4 it produced). Each request goes through jobs._run_render(), the
+           function the Render button reaches over HTTP, and the file must be
+           byte-identical. The first baseline is res2 of project ea8b7a796f48.
 
-The render check needs the source video, which stays local (it is not in the
-repo): without it the check is SKIPPED, not failed.
+A baseline needs what the request names: its source video, and the project's
+images and sounds if it uses any. They stay local (they are not in the repo):
+without them that baseline is SKIPPED, not failed. Files are written to a
+temporary folder, never to out/.
 
-The render goes through the real _run_render() -- the same function the
-Render button reaches over HTTP -- but writes into a throwaway project
-(workspace/out/selftest.<id>/, removed afterwards), so the real project's
-renders are never touched.
+Adding a baseline: render a Result in the editor, then
 
-    python -m klipian selftest                  both checks
+    python -m klipian selftest --promote PROJECT_ID RESULT_ID NAME
+
+copies the request the server remembered for that Result, and the hashes of
+what it produced, to tests/fixtures/NAME/.
+
+    python -m klipian selftest                  all checks
     python -m klipian selftest --only migrate   just the fast one
     python -m klipian selftest --write-expected rewrite the *.new.json files
                                                 from the current code (read
@@ -170,65 +175,87 @@ def check_brief() -> tuple[str, str]:
 # check: render
 # --------------------------------------------------------------------------
 
-def check_render() -> tuple[str, str]:
-    from . import jobs, projects
-    from .paths import WORKSPACE, find_video
+def _baselines() -> list[Path]:
+    return sorted(d for d in FIXTURES.iterdir()
+                  if (d / "request.json").is_file() and (d / "baseline.json").is_file())
 
-    base = FIXTURES / "res2"
+
+def _check_baseline(base: Path) -> tuple[str, str]:
+    from . import jobs
+
     baseline = _load(base / "baseline.json")
     req = _load(base / "request.json")
 
-    video = find_video(req["video"])
-    if not video:
-        return SKIP, f"{req['video']} is not in workspace/samples/"
+    missing = jobs.missing_inputs(req)
+    if missing:
+        return SKIP, "not found here: " + ", ".join(missing)
 
-    out_dir = WORKSPACE / "out" / f"{SELFTEST_SLUG}.{SELFTEST_ID}"
-    if out_dir.exists():
-        return FAIL, f"{out_dir} already exists (left over from a killed run?) -- delete it"
-
-    # A throwaway project: it only has to say which video it holds, and its
-    # id/slug decide the output folder (projects._project_out_dir).
-    tmp_projects = Path(tempfile.mkdtemp(prefix="klipian-selftest-"))
-    (tmp_projects / f"{SELFTEST_ID}.json").write_text(json.dumps({
-        "id": SELFTEST_ID, "name": SELFTEST_SLUG, "outSlug": SELFTEST_SLUG,
-        "createdAt": 0, "assets": [{"id": "a1", "kind": "video", "file": req["video"]}],
-        "results": [],
-    }), encoding="utf-8")
-
-    req = dict(req, project=SELFTEST_ID)
-    job_id = "selftest"
-    real_projects = projects.PROJECTS
-    projects.PROJECTS = tmp_projects
+    tmp = Path(tempfile.mkdtemp(prefix="klipian-selftest-"))
     try:
-        jobs._register_job(job_id, {"state": "running", "done": 0,
-                                      "total": len(req["clips"]), "index": 0,
-                                      "current": "", "result": [], "error": None})
         started = time.time()
-        jobs._run_render(job_id, req)
-        job = jobs.JOBS[job_id]
-        if job["state"] != "done":
-            return FAIL, f"render ended {job['state']}: {job.get('error')}"
-        # The patch above has to be the one _run_render actually reads: if it
-        # weren't, the render would land in a real project's folder instead.
-        if Path(job["result"][0]["folder"]) != out_dir:
-            return FAIL, (f"rendered into {job['result'][0]['folder']}, not the "
-                          f"throwaway project -- is projects.PROJECTS still what it reads?")
-        produced = out_dir / job["result"][0]["file"]
-        data = produced.read_bytes()
-        md5, sha256, size = (hashlib.md5(data).hexdigest(),
-                             hashlib.sha256(data).hexdigest(), len(data))
+        outputs = jobs.render_request(req, tmp)
         took = time.time() - started
+    except RuntimeError as exc:
+        return FAIL, str(exc)
     finally:
-        projects.PROJECTS = real_projects
-        jobs.JOBS.pop(job_id, None)
-        shutil.rmtree(tmp_projects, ignore_errors=True)
-        shutil.rmtree(out_dir, ignore_errors=True)
+        shutil.rmtree(tmp, ignore_errors=True)
 
-    if (md5, sha256, size) != (baseline["md5"], baseline["sha256"], baseline["bytes"]):
+    if len(outputs) != 1:
+        return FAIL, f"expected one file, got {len(outputs)}"
+    got = outputs[0]
+    if (got["md5"], got["sha256"], got["bytes"]) != (
+            baseline["md5"], baseline["sha256"], baseline["bytes"]):
         return FAIL, (f"output differs from the baseline\n"
                       f"      expected {baseline['md5']} ({baseline['bytes']} bytes)\n"
-                      f"      got      {md5} ({size} bytes)")
-    return PASS, f"{md5[:8]}... ({size} bytes) in {took:.0f}s"
+                      f"      got      {got['md5']} ({got['bytes']} bytes)")
+    return PASS, f"{got['md5'][:8]}... ({got['bytes']} bytes) in {took:.0f}s"
+
+
+def check_render() -> tuple[str, str]:
+    bases = _baselines()
+    if not bases:
+        return FAIL, "no baselines in tests/fixtures/*/ (request.json + baseline.json)"
+    results = [(b.name, *_check_baseline(b)) for b in bases]
+    statuses = {r[1] for r in results}
+    status = (FAIL if FAIL in statuses else SKIP if statuses == {SKIP} else PASS)
+    if len(results) == 1:
+        return status, results[0][2]
+    return status, "\n      ".join(f"{n:<14} {s}  {d}" for n, s, d in results)
+
+
+def promote(project_id: str, result_id: str, name: str) -> int:
+    """Turn the last render the server remembered for a Result into a baseline."""
+    import re
+    from .projects import read_render_records
+
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", name):
+        print(f"\n  NAME must be lowercase letters, digits and dashes, not {name!r}\n")
+        return 1
+    dest = FIXTURES / name
+    if dest.exists():
+        print(f"\n  {dest} already exists -- choose another NAME, or delete it first\n")
+        return 1
+    rec = read_render_records(project_id, result_id).get(result_id)
+    if not rec:
+        print(f"\n  No finished render is remembered for Result {result_id} of project "
+              f"{project_id}.\n  Render it from the editor first.\n")
+        return 1
+    if len(rec["outputs"]) != 1:
+        print(f"\n  That render made {len(rec['outputs'])} files; a baseline is one file.\n")
+        return 1
+    out = rec["outputs"][0]
+    dest.mkdir(parents=True)
+    (dest / "request.json").write_text(
+        json.dumps(rec["request"], ensure_ascii=False, separators=(",", ":")) + "\n",
+        encoding="utf-8", newline="\n")
+    (dest / "baseline.json").write_text(json.dumps({
+        "note": f"Result {result_id} of project {project_id}, rendered "
+                f"{time.strftime('%Y-%m-%d', time.localtime(rec['at']))}; promoted with selftest --promote.",
+        "md5": out["md5"], "sha256": out["sha256"], "bytes": out["bytes"],
+    }, indent=2) + "\n", encoding="utf-8", newline="\n")
+    print(f"\n  {dest.relative_to(ROOT)}  <-  {out['file']} ({out['bytes']:,} bytes)")
+    print("  It needs the same source video(s) and project assets on any machine that runs it.\n")
+    return 0
 
 
 CHECKS = {"migrate": check_migrate, "brief": check_brief, "render": check_render}
@@ -254,9 +281,13 @@ def run(only: list[str] | None = None, write_expected: bool = False) -> int:
 
 
 def add_parser(sub: argparse._SubParsersAction) -> None:
-    p = sub.add_parser("selftest", help="check migration and the baseline render")
+    p = sub.add_parser("selftest", help="check migration, the Claude brief and the baseline renders")
     p.add_argument("--only", nargs="+", choices=sorted(CHECKS),
                    help="run just these checks")
     p.add_argument("--write-expected", action="store_true",
                    help="rewrite the migrate fixtures' *.new.json from the current code")
-    p.set_defaults(func=lambda a: run(a.only, a.write_expected))
+    p.add_argument("--promote", nargs=3, metavar=("PROJECT_ID", "RESULT_ID", "NAME"),
+                   help="save the last render remembered for that Result as the baseline "
+                        "tests/fixtures/NAME/")
+    p.set_defaults(func=lambda a: promote(*a.promote) if a.promote
+                   else run(a.only, a.write_expected))
