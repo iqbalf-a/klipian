@@ -272,6 +272,25 @@ P3 boleh jalan bersamaan dengan P1/P2, karena tidak menyentuh kode.
 
 ### P4 — Sisa-sisa library-projects
 
+- **Keputusan ian (2026-10-16): pilihan (a).** Find clips memakai transkrip
+  yang ada lewat `Cache.find_transcript`, dan transkripsi ulang menjadi
+  tombol terpisah. Antrean sesi eksekusi: setelah tugas Python 3.14.
+  Latar belakangnya:
+  - Setelah 3b, editor, brief, dan render memakai
+    `Cache.find_transcript`. Aturannya: transkrip dengan fingerprint
+    persis kalau ada, kalau tidak ada, yang terbaru.
+  - Job transkripsi (`jobs.py:~533`) masih hanya menganggap cache "kena"
+    kalau fingerprint-nya persis. Fingerprint itu mencakup ukuran dan
+    mtime video **serta isi `glossary.txt`**.
+  - Akibatnya, mengubah glossary atau menyentuh file video membuat
+    "Find clips" mentranskripsi ulang (sekitar 18 menit untuk 42 menit
+    video). Padahal editor tetap menampilkan transkrip lama.
+    radityadika-podcast sudah dalam keadaan ini.
+  - Pilihan:
+    - (a) Find clips memakai aturan yang sama, dan transkripsi ulang
+      menjadi tombol terpisah;
+    - (b) biarkan seperti sekarang, tapi UI memberi tahu kenapa
+      transkripsi berjalan lagi.
 - Fallback `?video=` dan `legacyFile` di `/api/project`: tentukan kapan
   dihapus.
 - Folder lama `out/radityadika-podcast/`, `out/cadera-gameplay-mlbb/`,
