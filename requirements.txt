@@ -9,6 +9,13 @@
 # install stays light for anyone who doesn't use that feature.
 
 faster-whisper>=1.1.0      # word-level transcription (CPU, CTranslate2)
+# PyAV decodes the audio for faster-whisper. Held below 19 because
+# faster-whisper 1.2.1 still calls av.open(..., metadata_errors="ignore") and
+# PyAV 19 rejects that argument, so every transcription died at the first step
+# with "open() got an unexpected keyword argument 'metadata_errors'". Drop this
+# line once faster-whisper stops sending it (`klipian selftest` has a decode
+# check that says so before a 20-minute transcription does).
+av<19
 
 # OPTIONAL. Used ONLY by the "Box" caption style: the rounded highlight box
 # is drawn by hand (\p1) in build_ass(), and placing it means measuring word
