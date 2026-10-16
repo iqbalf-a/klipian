@@ -273,68 +273,6 @@ def _load_transcript_words(video: Path, t: dict) -> list:
     return words
 
 
-def _asset_runs(spans: list[dict], default_video: str) -> list[tuple[str, list[dict]]]:
-    """Group a clip's raw span dicts into contiguous runs that share one
-    source video. Stage 1 (see the library-projects plan) doesn't let a
-    single MOMENT straddle two videos, so grouping at this level -- rather
-    than per span -- is enough, and it's what keeps a single-asset clip on
-    the exact path it always rendered through (one run, no join)."""
-    runs: list[tuple[str, list[dict]]] = []
-    for p in spans:
-        v = p.get("video") or default_video
-        # Same video AND still moving forward through it. The timeline
-        # screen lets segments be put in any order, and RenderJob rejects
-        # spans that go backwards within one render (they'd overlap in its
-        # source-to-output mapping) -- so an earlier moment placed after a
-        # later one starts a run of its own, joined like any other.
-        # Chronological spans never go backwards, so they stay one run.
-        forward = runs and float(p.get("start", 0)) >= float(runs[-1][1][-1].get("end", 0))
-        if runs and runs[-1][0] == v and forward:
-            runs[-1][1].append(p)
-        else:
-            runs.append((v, [p]))
-    return runs
-
-
-def _concat_renders(parts: list[Path], dest: Path, quality: int) -> None:
-    """Join finished per-asset renders into one file, in the given order.
-
-    Re-encodes (ffmpeg's concat FILTER) rather than stream-copying via the
-    concat DEMUXER. The pieces all come from the same pipeline -- same
-    resolution, same encoder, same audio codec -- so a copy concat would
-    usually work, but "usually" is exactly the kind of thing that breaks
-    silently on one machine's ffmpeg build and not another's (mismatched
-    SPS/PPS, non-monotonic timestamps at the join). Re-encoding costs a
-    few seconds on clips this short (ian: a compilation holds 3-5 moments)
-    and removes the question entirely."""
-    from .ffmpeg_tools import _require
-    ffmpeg = _require("ffmpeg")
-    n = len(parts)
-    inputs: list[str] = []
-    for p in parts:
-        inputs += ["-i", str(p)]
-    # Every piece's audio brought to plain stereo FIRST. Left to concat's
-    # own format negotiation, a mono episode joined to a stereo one was
-    # upmixed with a -3 dB pan law -- measured: a mono moment came out 3 dB
-    # quieter than its source. A mono channel is copied to both sides at
-    # full level instead, the way it sounded on its own.
-    from .compose import to_stereo
-    from .ffmpeg_tools import probe
-    pre = [f"[{i}:a:0]{to_stereo(probe(p).channels)}[a{i}]" for i, p in enumerate(parts)]
-    filt = ";".join(pre) + ";" + "".join(f"[{i}:v:0][a{i}]" for i in range(n)) \
-        + f"concat=n={n}:v=1:a=1[vout][aout]"
-    crf = max(0, min(51, int(quality)))
-    cmd = [ffmpeg, "-y", "-hide_banner", "-loglevel", "error",
-           *inputs, "-filter_complex", filt,
-           "-map", "[vout]", "-map", "[aout]",
-           "-c:v", "libx264", "-crf", str(crf), "-preset", "medium",
-           "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "128k",
-           "-movflags", "+faststart", str(dest)]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        raise RuntimeError(f"could not join the rendered moments: {result.stderr[-500:]}")
-
-
 def _clip_words(k: dict, fallback: list) -> list:
     """Caption text may be sent by the UI. It's used when you fix a
     misheard word on the Edit screen -- the correction belongs to this
@@ -370,64 +308,6 @@ def _run_words(k: dict, run_video: str, default_video: str, fallback) -> list:
         if mine:
             return _clip_words({"words": mine}, [])
     return fallback()
-
-
-def _trim_for_preview(spans: "list[engine.Span]", max_seconds: float,
-                       start_from: float = 0.0) -> "list[engine.Span]":
-    """Take a short slice from `spans`, up to max_seconds long, starting
-    `start_from` seconds of OUTPUT time (after all spans are joined) from
-    the beginning of the clip -- not always from the first second. Long
-    clips (minutes) are rarely represented by just their first 3 seconds;
-    `start_from` is usually the scrub position the user is looking at in
-    the preview, so the quick preview actually shows the moment being
-    checked.
-
-    The LAST span covered is trimmed exactly at the boundary instead of
-    being discarded whole -- so the preview stays as close as possible to
-    the requested boundary."""
-    result = []
-    remaining_skip = max(0.0, start_from)
-    remaining = max_seconds
-    for s in spans:
-        if remaining_skip > 0:
-            if s.length <= remaining_skip:
-                remaining_skip -= s.length
-                continue
-            # This segment's start is shifted forward -- if there's tracking
-            # data, its times (relative to the OLD start) must be shifted
-            # back by the same amount, not passed through raw (would be
-            # misplaced) OR silently dropped (would fall back to a static
-            # box even though the point is actually tracked).
-            s = engine.Span(s.start + remaining_skip, s.end, s.crop, s.crops,
-                            _shift_tracking(s.tracking, remaining_skip))
-            remaining_skip = 0
-        if remaining <= 0:
-            break
-        if s.length <= remaining:
-            result.append(s)
-            remaining -= s.length
-        else:
-            # Only the end is shortened, the start (and tracking times,
-            # relative to start) don't change -- keyframes falling after
-            # the new boundary are harmless if left as-is, sendcmd will
-            # never reach that time in a segment this short.
-            result.append(engine.Span(s.start, s.start + remaining, s.crop, s.crops,
-                                     s.tracking))
-            remaining = 0
-    return result
-
-
-def _shift_tracking(tracking: "list[dict] | None", offset: float) -> "list[dict] | None":
-    """Shift every keyframe's time back by `offset` seconds -- used when a
-    tracked span is cut from the FRONT for a quick preview. Keyframes that
-    become negative (occurring BEFORE the new start) are discarded; fewer
-    than 2 keyframes remaining -> None (falls back to a static box, safer
-    than a trajectory with wrong direction/timing)."""
-    if not tracking:
-        return None
-    shifted = [{"t": round(kf["t"] - offset, 3), "left": kf["left"]}
-             for kf in tracking if kf["t"] - offset >= 0]
-    return shifted if len(shifted) >= 2 else None
 
 
 def _prune_previews(folder: "Path", keep: "Path", max_age: float = 3600) -> None:
@@ -505,9 +385,9 @@ def _run_render(job_id: str, req: dict) -> None:
             # A span can carry its own `video` (library projects, stage 1);
             # one that doesn't belongs to the job's one video, exactly as
             # every span has until now. Grouped into RUNS of contiguous
-            # spans sharing a video -- see _asset_runs -- because a single
+            # spans sharing a video -- see engine.asset_runs -- because a single
             # moment doesn't jump source mid-span.
-            runs = _asset_runs(spans_raw, req["video"])
+            runs = engine.asset_runs(spans_raw, req["video"])
 
             crop = k.get("crop") or {}
             crop_box = engine.CropBox(
@@ -587,7 +467,7 @@ def _run_render(job_id: str, req: dict) -> None:
                     if len(parts) == 1:
                         parts[0].replace(dest)
                     else:
-                        _concat_renders(parts, dest, quality)
+                        engine.concat_renders(parts, dest, quality)
                 except engine.RenderCancelled:
                     with LOCK:
                         t["state"] = "cancelled"
@@ -2006,12 +1886,12 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 all_spans = _spans_from_clip(k)
                 start_from = float(req.get("startFrom") or 0)
-                spans = _trim_for_preview(all_spans, PREVIEW_MAX_SECONDS, start_from)
+                spans = engine.trim_for_preview(all_spans, PREVIEW_MAX_SECONDS, start_from)
                 if not spans and start_from > 0:
                     # Scrub landed exactly at the clip tail (less than one
                     # second remaining) -- rather than failing, show from
                     # the beginning.
-                    spans = _trim_for_preview(all_spans, PREVIEW_MAX_SECONDS)
+                    spans = engine.trim_for_preview(all_spans, PREVIEW_MAX_SECONDS)
                     start_from = 0.0
                 if not spans:
                     return self._send_json({"error": "Clip has no spans."}, 400)

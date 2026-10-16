@@ -861,7 +861,7 @@ async function quickPreview() {
     const len = p.end - p.start;
     // Same video AND still moving forward through it -- the server's
     // RenderJob rejects spans that go backwards, which a reordered Result
-    // can have within one video (same rule as _asset_runs in server.py).
+    // can have within one video (same rule as asset_runs in render.py).
     const sameVideo = run.length && assetIdAt(run[0].start) === assetIdAt(p.start)
       && p.start >= run[run.length - 1].end;
     if (!sameVideo) {

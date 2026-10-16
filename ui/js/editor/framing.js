@@ -183,7 +183,7 @@ function spansWithFraming(ranges) {
       // Keyframes are stored relative to the POINT START (f.at), but render.py
       // needs them relative to the start of THIS PIECE (bounds[i]) -- the two
       // differ when the point is locked before the start of this Result range.
-      // Shifted + clamped here, same as _shift_tracking() in server.py for the
+      // Shifted + clamped here, same as shift_tracking() in render.py for the
       // quick preview trimmed from the front.
       const point = pointAt(bounds[i]);
       if (b.format === "single" && point?.tracking?.keyframes?.length >= 2) {
