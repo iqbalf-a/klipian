@@ -15,8 +15,12 @@ let analysisStop = null;
 
 
 
-async function startAnalysis() {
+/* `force`: transcribe even though a transcript already exists (the
+   "Transcribe again" button). Without it the server uses the transcript it
+   has -- see _run_transcribe. */
+async function startAnalysis({ force = false } = {}) {
   if (analysisStop) { analysisStop(); analysisStop = null; }
+  hideTranscriptActions();
   const d = DATA;
   const name = chosenSource ? chosenSource.name : d.file;
 
@@ -29,7 +33,7 @@ async function startAnalysis() {
   try {
     const reply = await fetch("/api/transcribe", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ video: name }),
+      body: JSON.stringify(force ? { video: name, force: true } : { video: name }),
     }).then((r) => r.json());
     if (reply.error) throw new Error(reply.error);
     id = reply.id;
@@ -96,9 +100,58 @@ async function startAnalysis() {
       // the transcript listing).
       if (typeof renderAnalyzeSources === "function") { _transcriptList = null; renderAnalyzeSources(); }
       if (typeof prepareExport === "function") prepareExport(name);
+      showTranscriptActions(t);
     },
   });
 }
+
+/* ---------- what to do about a transcript that already exists ---------- */
+
+// Whisper's speed on this machine, plugged in and on battery (README,
+// Performance): how long "Transcribe again" will take.
+const TRANSCRIBE_SPEED = { plugged: 2.3, battery: 1.0 };
+let retranscribeTimer = null;
+
+function disarmRetranscribe() {
+  clearTimeout(retranscribeTimer);
+  const btn = $("#retranscribeBtn");
+  if (btn) { btn.textContent = "Transcribe again"; btn.classList.remove("danger"); }
+}
+
+function hideTranscriptActions() {
+  disarmRetranscribe();
+  $("#transcriptActions").hidden = true;
+  $("#transcriptNote").hidden = true;
+}
+
+/* After the job reports a transcript (loaded from cache or just made). A
+   transcript made with other settings, an older copy of the video or an older
+   glossary is still the one in use; the sentence says so, and the button is
+   how to replace it. */
+function showTranscriptActions(t) {
+  const note = $("#transcriptNote");
+  note.textContent = t.cached && !t.exact
+    ? "This transcript was made with older settings, an older copy of the video or an older " +
+      "glossary than today's. It is still the one being used."
+    : "";
+  note.hidden = !note.textContent;
+  $("#transcriptActions").hidden = false;
+  $("#retranscribeBtn").dataset.minutes = String(Math.max(
+    1, Math.round((t.duration || 0) / (t.battery ? TRANSCRIBE_SPEED.battery : TRANSCRIBE_SPEED.plugged) / 60)));
+}
+
+/* Two clicks: the first says what it costs, the second within 4 s starts it. */
+$("#retranscribeBtn")?.addEventListener("click", (e) => {
+  const btn = e.currentTarget;
+  if (btn.classList.contains("danger")) {
+    disarmRetranscribe();
+    startAnalysis({ force: true });
+    return;
+  }
+  btn.textContent = `Transcribe again? About ${btn.dataset.minutes} min`;
+  btn.classList.add("danger");
+  retranscribeTimer = setTimeout(disarmRetranscribe, 4000);
+});
 
 /* The "Search clips" button on the Prepare screen runs this flow. */
 $("#run")?.addEventListener("click", () => {

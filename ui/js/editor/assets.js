@@ -210,6 +210,8 @@ async function ensureSourceDuration() {
 async function setActiveAsset(id) {
   const a = assetById(id);
   if (!a || id === activeAssetId) return;
+  // The Analyze screen's "Transcribe again" belongs to the video it was shown for.
+  if (typeof hideTranscriptActions === "function") hideTranscriptActions();
   // Park the outgoing video's transcript and suggestions...
   ASSET_TRANSCRIPTS[activeAssetId] = realTranscript;
   ASSET_CANDIDATES[activeAssetId] = (typeof DATA !== "undefined" ? DATA.candidates : []) || [];

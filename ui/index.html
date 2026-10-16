@@ -340,6 +340,15 @@
           <p style="margin:var(--s4) 0 0;color:var(--text-muted);font-size:13px">
             You can leave this running. The result is saved automatically.
           </p>
+          <!-- Once a transcript exists for the video. Find clips uses it as it
+               is; this is the way to make a new one (it takes about as long as
+               the first did, and the old one stays in use until the new one is
+               done). Two clicks, like Remove on the Assets screen. -->
+          <p id="transcriptNote" hidden
+             style="margin:var(--s3) 0 0;color:var(--text-muted);font-size:13px"></p>
+          <div id="transcriptActions" hidden style="margin-top:var(--s3)">
+            <button class="btn" id="retranscribeBtn" type="button">Transcribe again</button>
+          </div>
         </div>
 
         <div class="panel fit manual-path">
