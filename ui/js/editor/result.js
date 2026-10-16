@@ -262,6 +262,7 @@ function renderRecommendations() {
                 title="Edit time" aria-label="Edit time for ${escapeHTML(k.title)}">✎</button>
       </span>
       <span class="data rec-dur">${k.dur}s</span>
+      ${typeof cueBadgesHTML === "function" ? cueBadgesHTML(k) : ""}
     </label>`).join("");
   if (note) note.textContent = `${candidates.length} suggestion${candidates.length > 1 ? "s" : ""}`;
   updateRecButton();

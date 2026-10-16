@@ -212,6 +212,7 @@ async function setActiveAsset(id) {
   if (!a || id === activeAssetId) return;
   // The Analyze screen's "Transcribe again" belongs to the video it was shown for.
   if (typeof hideTranscriptActions === "function") hideTranscriptActions();
+  if (typeof loadCues === "function") loadCues(a.file);
   // Park the outgoing video's transcript and suggestions...
   ASSET_TRANSCRIPTS[activeAssetId] = realTranscript;
   ASSET_CANDIDATES[activeAssetId] = (typeof DATA !== "undefined" ? DATA.candidates : []) || [];
@@ -600,6 +601,7 @@ async function addVideoToProject(file) {
   const a = addAsset(file);
   if (!a) return null;
   const tr = await findTranscript(file).catch(() => null);
+  if (typeof loadCues === "function") loadCues(file);
   if (!first) {
     ASSET_TRANSCRIPTS[a.id] = tr;
     await setActiveAsset(a.id);

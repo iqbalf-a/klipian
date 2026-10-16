@@ -1013,6 +1013,7 @@ async function enterProject(d, gen) {
   // gone: a project only starts when its first video is added
   // (addVideoToProject, assets.js).
   applyProject(d, video);
+  if (typeof loadCues === "function") loadCues(video);
   // No transcript = no duration to draw the Clips timeline with.
   if (typeof ensureSourceDuration === "function") ensureSourceDuration();
   if (typeof prepareVideo === "function") prepareVideo();

@@ -2443,3 +2443,56 @@ h1, h2, h3 {
 .upload-line .data { color: var(--text-faint); min-width: 0; overflow-wrap: anywhere; }
 .upload-line .data[data-error="true"] { color: var(--danger); }
 .upload-line .btn { margin-left: auto; }
+
+/* ═══════════════════════════════════════════════ audio and timing cues (cues.js)
+   One colour per KIND, from the existing tokens: sounds that mean "this landed"
+   take the accent, music (to avoid) the danger colour, timing cues stay neutral. */
+[data-kind="laughter"], [data-kind="applause"], [data-kind="shout"] { --cue-color: var(--accent); }
+[data-kind="music"] { --cue-color: var(--danger); }
+[data-kind="pause"], [data-kind="fast talk"] { --cue-color: var(--text-muted); }
+
+.cue-chips, .cue-legend { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.cue-legend[hidden] { display: none; }
+.cue-legend { margin-top: var(--s2); }
+.cue-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 6px 4px 10px; border-radius: var(--r-pill);
+  border: 1px solid var(--glass-border); background: var(--glass);
+  font-size: var(--t-12); color: var(--text);
+}
+.cue-chip .cue-label { color: var(--text-muted); }
+.cue-chip b { font-family: var(--font-data); font-weight: 600; font-size: var(--t-12); }
+.cue-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--cue-color, var(--text-muted)); }
+/* Nothing found, or the detection hasn't run: still there, just quiet. */
+.cue-chip[data-state="none"], .cue-chip[data-state="notrun"] { opacity: .55; }
+.cue-chip[data-state="none"] .cue-dot, .cue-chip[data-state="notrun"] .cue-dot { background: transparent; border: 1px solid var(--text-faint); }
+.cue-chip[data-state="failed"] { border-color: var(--danger); }
+.cue-chip[data-state="failed"] b { color: var(--danger); }
+.cue-info {
+  display: grid; place-items: center; width: 20px; height: 20px; padding: 0;
+  border: 0; border-radius: 50%; background: transparent; color: var(--text-faint); cursor: help;
+}
+.cue-info:hover, .cue-info:focus-visible { color: var(--text); outline: none; background: var(--glass-strong); }
+.cues-note { margin: var(--s3) 0 0; color: var(--text-muted); font-size: 13px; }
+.cue-tip {
+  position: fixed; z-index: 50; width: 280px; padding: var(--s3) var(--s4);
+  border: 1px solid var(--border-bright); border-radius: var(--r-s);
+  background: var(--bg-3); color: var(--text); box-shadow: var(--shadow-panel);
+  font-size: var(--t-12); line-height: 1.45; pointer-events: none;
+}
+.cue-tip[hidden] { display: none; }
+.cue-tip p { margin: 6px 0 0; color: var(--text-muted); }
+.cue-tip p span { color: var(--text); font-weight: 600; margin-right: 4px; }
+
+/* Markers on the Clips timeline: a thin band along the bottom of the bar. */
+.tl-mark.cue { top: auto; bottom: 0; height: 6px; background: var(--cue-color); opacity: .85; border-radius: 1px; }
+.tl-mark.cue[data-level="low"] { opacity: .45; }
+
+/* The row under an AI suggestion. */
+.rec-cues { grid-column: 4 / -1; display: flex; flex-wrap: wrap; gap: 6px; margin-top: -4px; }
+.cue-badge {
+  display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px 1px 6px;
+  border-radius: var(--r-pill); border: 1px solid var(--glass-border);
+  font-size: var(--t-11); color: var(--text-muted); white-space: nowrap;
+}
+.cue-badge.more { padding-left: 8px; }

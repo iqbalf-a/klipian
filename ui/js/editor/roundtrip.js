@@ -117,6 +117,7 @@ async function prepareExport(videoName) {
   note.textContent = "searching for transcript ...";
   const previous = realTranscript;
   realTranscript = await findTranscript(videoName);
+  if (typeof loadCues === "function") loadCues(videoName);
 
   if (!realTranscript) {
     panel.dataset.ready = "false";

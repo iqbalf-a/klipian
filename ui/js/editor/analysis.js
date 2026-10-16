@@ -50,6 +50,12 @@ async function startAnalysis({ force = false } = {}) {
      once more at the end, so the final numbers match the last tick. */
   const paint = (t) => {
     const elapsed = (performance.now() - start) / 1000;
+    // The first seconds of a run: the audio is listened to for cues (about
+    // 12 s for an episode) before the transcript is made or loaded.
+    if (t.state === "running" && t.stage === "cues" && !t.percent) {
+      $("#transcribeStats").innerHTML = "<span>listening for laughter, music, applause …</span>";
+      return;
+    }
     const remaining = t.percent > 2 ? elapsed * (100 - t.percent) / t.percent : 0;
 
     $("#transcribeBar").style.width = `${t.percent || 0}%`;

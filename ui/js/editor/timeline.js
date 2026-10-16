@@ -67,7 +67,7 @@ function drawTotalTimeline() {
       <span class="tl-mark result" style="left:${toFraction(r.start - off) * 100}%;
             width:${Math.max(0.4, (toFraction(r.end - off) - toFraction(r.start - off)) * 100)}%"
             title="${escapeHTML(r.title)}"></span>`).join("");
-    marks.innerHTML = recMarks + usedMarks;
+    marks.innerHTML = (typeof cueMarksHTML === "function" ? cueMarksHTML() : "") + recMarks + usedMarks;
   }
 
   // time scale: 5 evenly spaced labels
@@ -77,6 +77,7 @@ function drawTotalTimeline() {
       ? [0, 0.25, 0.5, 0.75, 1].map((f) => `<span>${timeRange(d * f)}</span>`).join("")
       : "";
   }
+  if (typeof drawCueLegend === "function") drawCueLegend();
   drawSelection();
 }
 

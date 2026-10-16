@@ -351,6 +351,7 @@
           <p style="margin:var(--s4) 0 0;color:var(--text-muted);font-size:13px">
             You can leave this running. The result is saved automatically.
           </p>
+          <p id="cuesNote" class="cues-note"></p>
           <!-- Once a transcript exists for the video. Find clips uses it as it
                is; this is the way to make a new one (it takes about as long as
                the first did, and the old one stays in use until the new one is
@@ -384,6 +385,11 @@
             </div>
             <button class="btn main" id="downloadBrief" disabled>Download file</button>
           </div>
+          <!-- What klipian detected from the sound and the word timings and
+               wrote into that file (cues.js). Dim with "none found" / "not run"
+               / "failed" rather than left out. -->
+          <div class="cue-chips" id="cueChips" role="list"
+               aria-label="Audio and timing cues in the file for Claude"></div>
         </div>
 
         <!-- Step 3: import Claude's reply -->
@@ -498,6 +504,8 @@
             </div>
           </div>
           <div class="tl-scale" id="tlScale"></div>
+          <!-- Which kinds of cue the markers on the bar above are (cues.js). -->
+          <div class="cue-legend" id="cueLegend" role="list" aria-label="Cue markers on the timeline" hidden></div>
 
           <div class="pick-foot">
             <label class="time-input">from
@@ -992,11 +1000,14 @@
 <script src="/ui/js/editor/analysis.js?v=1790703163808"></script>
 <script src="/ui/js/editor/player.js?v=1790703163808"></script>
 <script src="/ui/js/editor/roundtrip.js?v=1790703163808"></script>
+<script src="/ui/js/editor/cues.js?v=1790703163808"></script>
 <script src="/ui/js/editor/history.js?v=1790703163808"></script>
 <script src="/ui/js/editor/timeline.js?v=1790703163808"></script>
 <script src="/ui/js/editor/captions.js?v=1790703163808"></script>
 <script src="/ui/js/editor/result.js?v=1790703163808"></script>
 <script src="/ui/js/editor/compose.js?v=1790703163808"></script>
 <script src="/ui/js/editor/projects.js?v=1790703163808"></script>
+<!-- The explanation behind a cue chip's (i): one floating box (cues.js). -->
+<div class="cue-tip" id="cueTip" role="tooltip" hidden></div>
 </body>
 </html>
