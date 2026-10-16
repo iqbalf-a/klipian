@@ -71,34 +71,66 @@ offline, same as Whisper.
 
 **Put your source videos in `workspace/samples/`.** The browser doesn't hand
 the server a full file path, so the backend looks videos up by filename in
-that folder — dragging a file into the browser previews it locally, but you
-still need to copy the actual file there before transcription or rendering
-can run.
+that folder. A project's videos are added from that folder on the Assets
+screen; there is no button yet that copies a file in for you, so copy it
+there yourself first.
 
 ---
 
 ## Workflow
 
-Two paths reach the same editor.
+A **project** holds one or more source videos and one or more **Results**. A
+Result is one clip in the making: a list of moments (segments) taken from any
+of the project's videos, in any order, with its own framing, caption fixes,
+output format and timeline elements. Rendering a Result makes one MP4;
+moments from different videos are joined into it. Everything is saved as you
+go (the Save button in the sidebar is only a safety net).
+
+The screens, in the order the sidebar lists them:
+
+```
+HOME           your projects, + New Project
+ASSETS         the project's videos, images and sounds
+ANALYZE        find clips: transcribe, then ask Claude (A) or cut by hand (B)
+CLIPS          pick moments from Claude's suggestions or the timeline
+OUTPUT FORMAT  crop or blur background, resolution, quality  (per Result)
+TIMELINE       order of the moments; labels, stickers, sounds, volume
+FRAMING        crop position per time point
+CAPTIONS       fix misheard words, style the karaoke captions
+RENDER         title, quick preview, render the Result
+HISTORY        render queue with live progress, finished files
+```
 
 ### A. Through Claude — no API key
 
 ```
-1  HOME       drop a video, choose crop/blur and resolution   [ Find clips ]
-2  ANALYZE    ① transcription runs on your machine
+1  ASSETS     + New Project, then add the video from workspace/samples/
+2  ANALYZE    [ Find clips ]
+              ① the transcript is made on your machine, or loaded if the
+                 video already has one
               ② [ Download file ]  ->  drop it into Claude, ask it to work
               ③ paste the JSON reply  ->  [ Cut into clips ]
-3  CLIPS      pick from Claude's suggestions or select ranges on the
+3  CLIPS      the suggestions fill the Result; add or trim moments on the
               timeline yourself, both feed the same Result
 4  FRAMING    lock the crop position per time point (drag to reposition,
               or let AI Framing follow whoever is speaking automatically)
-5  CAPTIONS   fix any misheard words, then style the karaoke captions
-6  HISTORY    render queue with live progress  ->  open the output folder
+5  CAPTIONS   fix any misheard words, then style the captions
+6  RENDER     quick preview, then render  ->  HISTORY shows progress and
+              opens the output folder
 ```
 
 Steps ② and ③ use a Claude subscription you already have — not a paid API.
 The advantage over calling the API directly: **you see Claude's reasoning
-before anything renders, and can push back on it.**
+before anything renders, and can push back on it.** The file in ② and the
+reading of the reply in ③ are made by the server (`/api/brief`,
+`/api/import`), with the same code the CLI uses.
+
+Find clips never repeats a transcription that already exists: if the video
+has a transcript it is loaded ("loaded from cache"), and if that transcript
+was made with older settings, an older copy of the video or an older
+glossary, the screen says so. **Transcribe again** (two clicks, it shows how
+long it will take) makes a new one; the old one stays in use until the new
+one is done.
 
 ### B. Manual — no Claude at all
 
@@ -110,14 +142,21 @@ screen.
 
 | Screen | What it does |
 |---|---|
+| **Assets** | the project's videos (several allowed: moments can come from any of them), plus its own images and sounds — dropped in, or imported from the shared `workspace/assets/` (a copy, so later changes to the shared file don't touch the project). Removing a video or file is two clicks |
 | **Clips** | drag a range on the timeline, or pick from AI suggestions; word-boundary snapping avoids cutting mid-word |
+| **Output Format** | crop or blur background, resolution (720p to 4K), quality — set per Result, so one clip can differ from another |
+| **Timeline** | reorder a Result's moments; add text labels, image stickers and sounds on their own tracks; set the volume of each moment |
 | **Framing** | drag/resize the crop box per time point; **AI Framing** follows whoever is speaking automatically; optional per-point head tracking for smoother motion |
 | **Captions** | click any word to correct it; font, size, highlight color, position, words-per-line, outline, and watermark, all previewed live |
 
-A clip is not a single range but a **list of cuts**. Removing a middle
+A Result is not a single range but a **list of cuts**. Removing a middle
 section splits it in two, and captions are automatically remapped onto the
 rendered timeline — a word that was at second 650 in the source lands at
 second 11 in the output.
+
+A project's renders go to `workspace/out/<slug>.<id>/`, where the slug comes
+from the project's name when it was created. It stays fixed when the project
+is renamed, so files you may have open don't move.
 
 ---
 
@@ -146,21 +185,31 @@ python -m klipian import video.mp4 reply.json
 python -m klipian render video.mp4 workspace/out/video/candidates.json --only 1 --crop 58 8 26 84
 ```
 
+```bash
+python -m klipian render --replay PROJECT_ID --result RESULT_ID
+```
+
+```bash
+python -m klipian selftest
+```
+
 | Command | Does |
 |---|---|
 | `info` | media metadata, checks the available encoder |
 | `transcribe` | word-level transcription, result is cached |
 | `brief` | builds the file to drop into Claude |
 | `import` | reads Claude's JSON reply, snaps to word boundaries |
-| `render` | produces the 9:16 MP4 |
+| `render` | produces the 9:16 MP4 from a candidates file; with `--replay`, renders again the request the editor last rendered for a Result, into a temporary folder, and compares its md5/sha256 with the file made then (nothing in `out/` is touched) |
+| `selftest` | checks that nothing drifted: old project files still migrate, the Claude brief and reading of replies are unchanged, faster-whisper can decode audio in this environment, and every baseline render (`tests/fixtures/<name>/`) comes out byte-identical. A baseline whose video or project assets aren't on this machine is skipped. `--promote PROJECT_ID RESULT_ID NAME` turns a Result's last editor render into a new baseline |
 | `serve` | runs the UI with everything wired up |
 
 `brief --mode` picks a rubric from `prompts/rubrik/` — currently `dialog`
 (podcast/talkshow) or `gameplay` (MLBB livestream commentary). The web UI's
 own Claude round-trip always uses the `dialog` rubric; the CLI is the only
-place the other one is reachable right now. Adding a new rubric means both
-a new `.md` file in `prompts/rubrik/` **and** registering it in `RUBRICS`
-in `klipian/cli.py`.
+place the other one is reachable right now (`/api/brief` takes a `mode`
+too, but the UI doesn't send one). Adding a new rubric means both a new `.md`
+file in `prompts/rubrik/` **and** registering it in `RUBRICS` in
+`klipian/roundtrip.py`.
 
 ---
 
@@ -186,8 +235,18 @@ guess lands in the middle of a pause.
 
 ### Transcript cache
 
-Transcription is paid for **once per video**, keyed to a fingerprint of the
-file + model + language. Tweaking a rubric or re-cutting never re-runs it.
+Transcription is paid for **once per video**. Tweaking a rubric or re-cutting
+never re-runs it. Each transcript is saved under a fingerprint of the video
+file (size and modified time), the model, the language and `prompts/glossary.txt`
+(its size and modified time), so an edited glossary or a re-encoded video makes
+a different file.
+
+Everything that reads a transcript — captions in a render, the Claude brief,
+the editor, the CLI — asks `Cache.find_transcript`, which has one rule: the
+transcript made with exactly the current settings if there is one, otherwise
+the newest transcript for a video of that name. Touching the glossary or the
+video file doesn't throw a 40-minute transcription away; **Transcribe again**
+on the Analyze screen is how to replace it on purpose.
 
 ### Glossary
 
@@ -244,7 +303,7 @@ but for what happens **after** a clip becomes an MP4.
 |---|---|
 | **Clips** | upload schedule: status, title/hook, platform, date & time edited directly in the table; episode source, clip file, description + hashtags, TikTok caption, links, and notes live in a **Detail** dialog per row (the table itself stays to the essential columns, so it never needs horizontal scrolling). Saved to `workspace/schedule/clips.json` |
 | **Rendered output** | `workspace/out/` as-is — same data source as the History screen in the editor |
-| **Assets** | `workspace/assets/`, for custom watermarks/fonts/templates beyond klipian's defaults |
+| **Assets** | `workspace/assets/`: a shared library of watermarks, logos, banners and templates. A project's Assets screen *imports* from it (it copies the file); a project's own images and sounds live in `workspace/projects/<id>/assets/` |
 
 `clips.json` replaces tracking uploads by hand in a spreadsheet — a row that
 used to live in Excel now lives in this table, saved the moment a cell is
@@ -256,9 +315,11 @@ edited.
 
 ```
 klipian/
-├── klipian/                       engine
+├── klipian/                       engine and server
 │   ├── models.py                    Word, Segment, Transcript  ← core contract
-│   ├── cache.py                     transcript cache, keyed by video+model+language fingerprint
+│   ├── paths.py                     where things live: ROOT, WORKSPACE, the glossary, find_video()
+│   ├── cache.py                     transcript cache; find_transcript() is the one rule
+│   │                                for which transcript a video uses
 │   ├── transcribe.py                faster-whisper word-level transcription
 │   ├── glossary.py                  hotwords + correction pass for commonly misheard terms
 │   ├── diarize.py                   speaker diarization -- lets AI Framing know who's talking
@@ -266,11 +327,22 @@ klipian/
 │   ├── scenecut.py                  hard shot-change detection in the source video,
 │   │                                complements AI Framing
 │   ├── audio_energy.py              volume-spike detection, a secondary hook signal
-│   ├── roundtrip.py                 builds the Claude brief + imports its reply
-│   ├── render.py                    cuts -> concat -> crop -> captions -> MP4
+│   ├── roundtrip.py                 builds the Claude brief + reads its reply (behind
+│   │                                /api/brief, /api/import and the CLI)
+│   ├── render.py                    cuts -> concat -> crop -> captions -> MP4, and joining
+│   │                                moments from several videos
+│   ├── compose.py                   second pass: labels, stickers, sounds, per-moment volume
 │   ├── ffmpeg_tools.py              thin wrapper around ffmpeg/ffprobe
-│   ├── server.py                    local API: transcription, render, thumbnails, workspace
+│   ├── projects.py                  project files: their shape, migration from older shapes,
+│   │                                and the last render remembered for each Result
+│   ├── jobs.py                      render / transcribe / diarize workers and the job registry
+│   ├── server.py                    HTTP only: route tables, static files, quick preview,
+│   │                                thumbnails, the /workspace dashboard's endpoints
+│   ├── selftest.py                  `klipian selftest`
 │   └── cli.py
+├── tests/fixtures/                what selftest compares against: migrate/ (old project
+│                                  shapes), brief/ (a Claude brief and replies), and one
+│                                  folder per baseline render (request.json + baseline.json)
 ├── ui/                            interface -- no framework, no build step to run
 │   ├── index.html                   editor shell + every screen
 │   ├── workspace.html               the /workspace dashboard (see above)
@@ -281,9 +353,12 @@ klipian/
 │   │   └── workspace.src.css          Tailwind source -- not what the browser loads,
 │   │                                  see the comment inside for how to rebuild it
 │   ├── js/
-│   │   ├── editor/                  one file per editor screen (app, interactions,
-│   │   │                            framing, analysis, player, roundtrip, history,
-│   │   │                            timeline, captions, result, projects)
+│   │   ├── editor/                  one file per editor area (app, assets, analysis,
+│   │   │                            roundtrip, result, interactions, framing, player,
+│   │   │                            timeline, compose, captions, history, projects);
+│   │   │                            classic scripts sharing one scope, so the order of
+│   │   │                            the <script> tags in index.html matters
+│   │   ├── shared/                  topbar.js, used by both pages
 │   │   └── workspace/               one file per workspace panel (helpers, clips,
 │   │                                render, assets)
 │   └── tailwind.config.js
@@ -294,10 +369,17 @@ klipian/
 └── workspace/                     ALL working files -- one place, so there's never
     │                                doubt about where a video goes (see workspace/README.md)
     ├── samples/                     videos currently being worked on -- the app reads from here
-    ├── out/                         render output
-    ├── cache/                       transcripts (created automatically)
-    ├── projects/                    per-video state (Result, framing points, caption corrections)
-    ├── assets/                      custom watermarks/fonts/templates, the Assets panel in /workspace
+    ├── out/                         render output, one folder per project: <slug>.<id>/
+    ├── cache/                       transcripts, audio energy, diarization (created
+    │                                automatically); thumbs/ holds cached thumbnails
+    ├── projects/                    one <id>.json per project (its videos, Results, framing
+    │   │                            points, caption corrections), and per project:
+    │   ├── <id>/assets/               its images and sounds
+    │   ├── <id>/renders/              the last finished render of each Result, for
+    │   │                              `render --replay` and `selftest --promote`
+    │   └── legacy/                    files from before projects had ids, kept as they were
+    ├── assets/                      shared library (logos, banners, templates), the Assets
+    │                                panel in /workspace; a project imports copies from it
     └── schedule/                    upload schedule & status (clips.json), the Clips panel in /workspace
 ```
 
@@ -308,10 +390,13 @@ klipian/
 **"Needs the backend. Run: python -m klipian serve"** — the UI was opened
 without the server running. Run the command at the top of this file.
 
-**"not reachable in the server's folder"** — the video isn't in
-`workspace/samples/` yet. Dragging a file into the browser only previews it
-locally, it doesn't copy the file to the server — copy the actual file
-there first.
+**"not in samples/"** (next to a video on Assets or on a project card, or in
+an error when transcribing or rendering) — the server can't find that video
+in `workspace/samples/`. A project remembers a video by file name, so put the
+file back there under the same name. To add a video from elsewhere, copy it
+into `workspace/samples/` first, then add it on the Assets screen. (There's
+no button that copies a file in yet, and the paste-a-link box on Analyze
+isn't wired up.)
 
 **Rendered MP4 is 0 bytes** — ffmpeg is still writing it. Wait for the
 queue row to say "done" before opening the folder.
@@ -324,3 +409,8 @@ realtime; a 42-minute podcast that normally takes 18 minutes becomes
 **Transcription just takes a while** — that's expected, even plugged in. A
 42-minute video takes roughly 18 minutes. Anything already transcribed once
 is instant and marked "loaded from cache."
+
+**`selftest` says "faster-whisper cannot decode audio here"** — the Python
+environment is broken, not the video. Run klipian from the project's `.venv`
+(see *First-time setup*); a global Python with a different PyAV is the usual
+cause.
