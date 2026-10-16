@@ -3,16 +3,19 @@
    Flow:
 
      1  drop video on the Prepare screen
-     2  app builds a file containing rubric + transcript            -> Download
+     2  the server builds a file containing rubric + transcript      -> Download
      3  that file is dropped into Claude web, ask it to "work on it"
      4  Claude web replies with JSON
-     5  JSON is pasted here                                        -> Import
+     5  JSON is pasted here, the server reads it                     -> Import
      6  app cuts according to JSON, clips appear in Candidates
 
    No API key in this path. The only cost is your existing Claude subscription.
 
-   The transcript is REAL: read from workspace/cache/ populated by `klipian transcribe`.
-   The server serves the project root, so the UI can reach it.
+   Steps 2 and 5 are klipian/roundtrip.py behind /api/brief and /api/import
+   (the CLI's `brief` and `import` call the same functions); this file is
+   only the screen around them. The transcript used here for the UI's own
+   needs (word counts, snapping a dragged boundary) is the REAL one, read
+   from workspace/cache/ -- the same file the server picks for a video.
    ========================================================================== */
 
 const ROOT = "../";                       // ui/ -> project root
@@ -47,7 +50,7 @@ async function findTranscript(videoName) {
   return d;
 }
 
-/* ---------- step 2: building the file for Claude ---------- */
+/* ---------- step 2: the file for Claude ---------- */
 
 const fmtStamp = (d) => {
   const t = Math.round(d);
@@ -56,130 +59,23 @@ const fmtStamp = (d) => {
     : `${Math.floor(t / 3600)}:${String(Math.floor((t % 3600) / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
 };
 
+/* The server builds it (rubric, transcript, audio-energy moments). */
 async function buildBrief(name) {
-  // Just one rubric now that categories were removed. This one works from the transcript,
-  // so it applies to any source that has audio.
-  const rubricFile = "dialog-podcast.md";
-  let rubric = "";
-  try { rubric = await (await fetch(ROOT + "prompts/rubrik/" + rubricFile)).text(); } catch {}
-  rubric = rubric.replace(/^# .*\n+/, "").replace(/^Ini yang dibaca Claude[\s\S]*?---\s*\n+/, "");
-
-  const row = realTranscript.segments
-    .filter((s) => s.text.trim())
-    .map((s) => `[${fmtStamp(s.start)}] ${s.text.trim()}`)
-    .join("\n");
-
-  // SEPARATE signal from the transcript -- purely from audio volume (see
-  // klipian/audio_energy.py), triggered automatically once per video alongside
-  // transcription. Whisper rarely captures laughter/strong reactions as reliable
-  // text; this is actual measured evidence, not punctuation guesswork.
-  // Empty if not yet analyzed OR if there simply are no prominent moments --
-  // both are the same here: the section is skipped.
-  let energyBlock = "";
-  try {
-    const d = await (await fetch(`/api/audio-energy?video=${encodeURIComponent(name)}`)).json();
-    if (d.moments?.length) {
-      const energyList = d.moments
-        .map((m) => `- [${fmtStamp(m.start)}] – [${fmtStamp(m.end)}]`).join("\n");
-      energyBlock = `
-
----
-
-## Prominent audio-energy moments (from volume analysis, NOT the transcript)
-
-The following time ranges have sound energy well above this video's own
-average -- could be audience laughter, cheering, a loud reaction, or a
-dramatic moment. This is a SUPPORTING signal, not a certain fact: cross-
-check it against the transcript's sentences around that time before using
-it as a reason for a score.
-
-${energyList}
-`;
-    }
-  } catch { /* no backend means nothing to fetch -- brief still works without this section */ }
-
-  return `# Find clips — ${name}
-
-Hello. Please read the transcript at the bottom of this file and pick moments
-worth turning into short vertical videos.
-
-**Source duration:** ${fmtStamp(realTranscript.duration)} · **${realTranscript.words.length} words**
-
-The times you give don't need to be precise. Approximate min:sec is fine;
-klipian will snap the cut points to the nearest word boundary.
-
----
-
-## Evaluation rubric
-
-${rubric}
-
----
-
-## Answer format
-
-Reply with **a single JSON block** exactly like this, no extra explanation
-outside the block.
-
-\`\`\`json
-{
-  "source": "${name}",
-  "clips": [
-    {
-      "start": "0:12",
-      "end": "1:07",
-      "title": "Lose 300M Because of Timing",
-      "hook": "exact quote from transcript",
-      "scores": { "hook": 9, "complete": 8, "payoff": 9, "emotion": 8, "duration": 9 },
-      "reason": "one or two sentences for a human to read"
-    }
-  ]
-}
-\`\`\`
-${energyBlock}
----
-
-## Transcript
-
-${row}
-`;
+  const res = await fetch(`/api/brief?video=${encodeURIComponent(name)}`);
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.error || "Could not build the file for Claude.");
+  }
+  return res.text();
 }
 
 /* ---------- step 5: reading Claude's reply ---------- */
 
-const toSeconds = (t) => {
-  // Empty string/space -> NaN, not 0. Number("") is 0, so without this guard
-  // "start": "" would pass Number.isFinite and become a clip starting at 0:00.
-  const s = String(t ?? "").trim();
-  if (!s) return NaN;
-  return s.split(":").reduce((a, b) => a * 60 + Number(b), 0);
-};
-
-function extractJSON(text) {
-  // JSON.parse throws a technical English error message ("Expected property
-  // name or '}' ... at position 14"). Wrapped so the user sees an
-  // actionable sentence instead.
-  const parse = (s) => {
-    try {
-      return JSON.parse(s);
-    } catch {
-      throw new Error("The JSON block is there, but its content is broken — copy " +
-                      "Claude's reply again from the start to the end of the block.");
-    }
-  };
-  const fence = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
-  if (fence) return parse(fence[1]);
-  const a = text.indexOf("{"), b = text.lastIndexOf("}");
-  if (a === -1 || b <= a) throw new Error("No JSON block found in that text.");
-  return parse(text.slice(a, b + 1));
-}
-
-/* Snap to nearest word boundary. This is what Claude cannot do:
-   it has no per-word timestamps. We do. */
-/* How far a cut point may be shifted. Must match SNAP_MAX in
-   klipian/roundtrip.py -- if one is changed, change both. A word boundary
-   farther away than this means Claude pointed at silence, not at a word
-   that is only slightly off. */
+/* Snap to nearest word boundary -- for a boundary the user drags (timeline.js,
+   result.js). Importing a reply does the same on the server, with the same
+   limit; if SNAP_MAX changes, change it in klipian/roundtrip.py too. A word
+   boundary farther away than this means the time points at silence, not at a
+   word that is only slightly off. */
 const SNAP_MAX = 2.0;
 
 function snapToWord(time, side) {
@@ -191,70 +87,21 @@ function snapToWord(time, side) {
   return Math.abs(nearest - time) <= SNAP_MAX ? nearest : time;
 }
 
-/* Indonesian keys (klip, mulai, judul, ...) are intentionally still accepted as
-   fallback. The prompt now asks for English keys, but Claude replies that were
-   saved before the rename must still be importable -- and Claude occasionally
-   answers using terms from the prompt prose. */
-function importJSON(text) {
-  const data = extractJSON(text);
-  const raw = data.clips || data.klip || [];
-  if (!raw.length) throw new Error('JSON does not have a "clips" list.');
-
-  const result = raw.map((k) => {
-    // Clips without timestamps are skipped, not accepted as 0:00. Without this
-    // guard toSeconds(undefined) returns NaN, and the always-false NaN comparison
-    // causes snapToWord to return the first word -- one field Claude forgot to
-    // write turns into a clip starting at the beginning of the video.
-    const m0 = toSeconds(k.start ?? k.mulai);
-    const s0 = toSeconds(k.end ?? k.selesai);
-    if (!Number.isFinite(m0) || !Number.isFinite(s0) || s0 <= m0) return null;
-
-    // Re-check after snapping: each side moves independently, so a range that
-    // was valid before can end up inverted. If so, fall back to the original
-    // numbers from Claude.
-    let m = snapToWord(m0, "start");
-    let s = snapToWord(s0, "end");
-    if (s <= m) { m = m0; s = s0; }
-
-    // Scores are COERCED to numbers here, at the boundary where external data
-    // enters. Claude occasionally writes "nine" or "9" (string), and non-numeric
-    // values slip through until renderBoard calls value.toFixed() and throws --
-    // the Candidates board is permanently broken until the page reloads.
-    const scores = k.scores || k.skor || {};
-    const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
-    const nums = Object.values(scores)
-      .map(Number).filter(Number.isFinite);
-    return {
-      title: (k.title || k.judul || "Untitled").trim(),
-      hook: (k.hook || "").trim(),
-      in: fmtStamp(m), out: fmtStamp(s),
-      startSec: m, endSec: s,
-      dur: Math.round(s - m),
-      total: nums.length ? +(nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(1) : 0,
-      scores: {
-        hook: num(scores.hook),
-        complete: num(scores.complete ?? scores.self_contained),
-        payoff: num(scores.payoff),
-      },
-      reason: (k.reason || k.alasan || "").trim(),
-      spans: [{ start: m, end: s }],   // one whole piece until split
-    };
-  // AI order is preserved, NOT re-sorted by score. Scores are not displayed
-  // on the Clip screen, so re-sorting only makes "recommendation #1" on
-  // screen differ from #1 in the JSON.
-  //
-  // The Python twin (klipian/roundtrip.py, parse_reply) DOES sort best-first,
-  // and that difference is deliberate -- it prints to a terminal with the
-  // scores visible, where "#1 = best" is the useful order. Noted on both
-  // sides so neither gets "fixed" into the other by accident. The remaining
-  // differences between the two parsers are cosmetic: this one coerces
-  // scores into a fixed {hook, complete, payoff} shape with Number()
-  // fallbacks while Python stores them raw, and the two average `total`
-  // over Number.isFinite vs float()-able values -- same result in practice.
-  }).filter((k) => k && k.dur > 0);
-
-  if (!result.length) throw new Error("All clips have zero or negative duration.");
-  return result;
+/* Claude's reply -> candidates, read by the server (roundtrip.parse_reply).
+   Rejects with a message meant to be shown as is. */
+async function importJSON(text) {
+  let res;
+  try {
+    res = await fetch("/api/import", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ video: chosenSource?.name || "", text }),
+    });
+  } catch {
+    throw new Error("Reading the reply needs the backend. Run: python -m klipian serve");
+  }
+  const d = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(d.error || "Could not read that reply.");
+  return d.candidates;
 }
 
 /* ---------- wiring results into the rest of the app ---------- */
@@ -312,7 +159,13 @@ async function prepareExport(videoName) {
 
 $("#downloadBrief")?.addEventListener("click", async () => {
   const name = chosenSource?.name || "video.mp4";
-  const text = await buildBrief(name);
+  let text;
+  try {
+    text = await buildBrief(name);
+  } catch (err) {
+    $("#exportNote").textContent = err.message;
+    return;
+  }
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([text], { type: "text/markdown" }));
   a.download = `brief-claude-${name.replace(/\.[^.]+$/, "")}.md`;
@@ -328,10 +181,10 @@ $("#pasteJSON")?.addEventListener("input", (e) => {
   $("#importNote").textContent = "";
 });
 
-$("#importBtn")?.addEventListener("click", () => {
+$("#importBtn")?.addEventListener("click", async () => {
   const note = $("#importNote");
   try {
-    const candidates = importJSON($("#pasteJSON").value);
+    const candidates = await importJSON($("#pasteJSON").value);
     applyCandidates(candidates);
     note.dataset.error = "false";
     note.textContent = `${candidates.length} suggestions imported`;

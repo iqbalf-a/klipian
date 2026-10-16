@@ -21,6 +21,7 @@ import importlib
 import json
 import mimetypes
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -36,6 +37,7 @@ from .models import Transcript
 from . import compose as composer
 from . import ffmpeg_tools
 from . import render as engine
+from . import roundtrip
 from .jobs import (ACTIVE_TRANSCRIBES, CANCELLED, JOBS, LOCK, MAX_JOBS, _clip_words,
                    _register_job, _run_diarize, _run_render, _run_transcribe,
                    _spans_from_clip)
@@ -225,6 +227,30 @@ def _thumbnail(video: Path, seconds: float, crop: dict, width: int) -> Path:
     return dest
 
 
+def _ui_transcript(name: str) -> Transcript | None:
+    """The transcript the editor itself shows for this video: the first file
+    in cache/ (by name) that starts with the video's stem -- findTranscript()
+    in ui/js/editor/roundtrip.js. Not Cache.find_any_transcript(), which takes
+    the newest: the brief and the import must agree with the words the page
+    cuts on, and when a video has two transcripts the two rules can pick
+    different ones."""
+    stem = re.sub(r"\.[^.]+$", "", name)
+    cache = WORKSPACE / "cache"
+    for f in sorted(p.name for p in cache.glob("*.transcript.json")):
+        if f.startswith(stem + "."):
+            return Transcript.load(cache / f)
+    return None
+
+
+def _energy_moments(name: str) -> list[dict]:
+    """Prominent audio-energy moments for a video by file name. Empty when
+    the video isn't found or hasn't been analysed -- not an error."""
+    video = find_video(name)
+    if not video:
+        return []
+    return roundtrip.read_energy(Cache(WORKSPACE / "cache").energy_path(video))
+
+
 # --------------------------------------------------------------------------
 # HTTP
 # --------------------------------------------------------------------------
@@ -252,6 +278,17 @@ class Handler(BaseHTTPRequestHandler):
             # reload/navigating away mid-request is normal, not an error.
             # Same reason as in _send_file().
             pass
+
+    def _send_text(self, text: str, mime: str, status=200):
+        body = text.encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", f"{mime}; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        try:
+            self.wfile.write(body)
+        except ConnectionError:
+            pass                                   # navigated away mid-download
 
     def _read_json(self):
         n = int(self.headers.get("Content-Length", 0))
@@ -492,17 +529,22 @@ class Handler(BaseHTTPRequestHandler):
         # "analyzed, no notable moments" -- both return an empty list,
         # not an error.
         q = parse_qs(urlparse(self.path).query)
-        video = find_video(q.get("video", [""])[0])
-        if not video:
-            return self._send_json({"moments": []})
-        epath = Cache(WORKSPACE / "cache").energy_path(video)
-        if not epath.is_file():
-            return self._send_json({"moments": []})
+        return self._send_json({"moments": _energy_moments(q.get("video", [""])[0])})
+
+    def _get_brief(self):
+        """The file to drop into Claude -- see roundtrip.build_brief."""
+        q = parse_qs(urlparse(self.path).query)
+        name = q.get("video", [""])[0]
         try:
-            moments = json.loads(epath.read_text(encoding="utf-8"))
-        except ValueError:
-            moments = []
-        return self._send_json({"moments": moments})
+            transcript = _ui_transcript(name)
+        except (OSError, ValueError, KeyError) as exc:
+            return self._send_json({"error": f"The transcript for {name} could not be read ({exc})"}, 500)
+        if transcript is None:
+            return self._send_json({"error": f"No transcript yet. Run this first: klipian transcribe {name}"}, 404)
+        rubric = roundtrip.RUBRICS.get(q.get("mode", ["dialog"])[0], roundtrip.RUBRICS["dialog"])
+        return self._send_text(roundtrip.build_brief(
+            transcript, roundtrip.read_rubric(rubric), name, _energy_moments(name)),
+            "text/markdown")
 
     def _get_video(self):
         file = sorted(p.name for p in (WORKSPACE / "samples").glob("*")
@@ -574,6 +616,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/workspace/asset-file": _get_workspace_asset_file,
         "/api/cache": _get_cache,
         "/api/audio-energy": _get_audio_energy,
+        "/api/brief": _get_brief,
         "/api/video": _get_video,
     }
 
@@ -864,6 +907,22 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"ok": True, "deleted": True})
         return self._send_json({"ok": True, "id": cid})
 
+    def _post_import(self):
+        """Claude's pasted reply -> clip candidates -- see roundtrip.parse_reply."""
+        try:
+            req = self._read_json()
+            name = str(req.get("video") or "")
+            transcript = _ui_transcript(name)
+        except Exception as exc:               # noqa: BLE001
+            return self._send_json({"error": str(exc)}, 400)
+        # No transcript is not an error here: the cut points just aren't snapped.
+        try:
+            candidates = roundtrip.parse_reply(
+                transcript.words if transcript else [], str(req.get("text") or ""))
+        except ValueError as exc:
+            return self._send_json({"error": str(exc)}, 400)
+        return self._send_json({"candidates": candidates})
+
     def _post_render(self):
         try:
             req = self._read_json()
@@ -1141,6 +1200,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/project-asset-import": _post_project_asset_import,
         "/api/project/rename": _post_project_rename,
         "/api/workspace/clips": _post_workspace_clips,
+        "/api/import": _post_import,
         "/api/render": _post_render,
         "/api/render/cancel": _post_render_cancel,
         "/api/preview": _post_preview,
