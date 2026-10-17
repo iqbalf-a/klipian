@@ -2518,3 +2518,7 @@ h1, h2, h3 {
 .hooks-rule { margin: var(--s2) 0 0; }
 .cue-wait { color: var(--text-faint); font-size: var(--t-12); }
 @media (max-width: 700px) { .hook-row { grid-template-columns: auto minmax(0, 1fr) 20px 14ch; } .hook-short { display: none; } }
+
+/* History: this project's files, then the other projects' under a heading. */
+.history-section { margin: var(--s4) 0 var(--s2); }
+.history-section:first-child { margin-top: var(--s2); }

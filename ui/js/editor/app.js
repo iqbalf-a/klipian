@@ -514,8 +514,8 @@ function drawQueue() {
           >${r.action}</button>
         </div>`).join("")
     : `<div class="row" style="grid-template-columns:1fr"><div>
-         <div class="title">Nothing rendered yet</div>
-         <div class="sub">Build a Result on the Clips screen, then press Render.</div>
+         <div class="title">Nothing is rendering</div>
+         <div class="sub">A render started from the Render screen shows its progress here.</div>
        </div></div>`;
 }
 

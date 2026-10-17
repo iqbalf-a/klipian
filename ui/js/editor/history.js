@@ -34,25 +34,26 @@ async function loadHistory() {
     return;
   }
   if (note) {
-    const mb = HISTORY.reduce((t, r) => t + r.mb, 0);
-    note.textContent = HISTORY.length
-      ? `${HISTORY.length} file${HISTORY.length > 1 ? "s" : ""} · ${mb.toFixed(1)} MB`
-      : "nothing rendered yet";
+    const mine = HISTORY.filter(isThisProject);
+    const mb = mine.reduce((t, r) => t + r.mb, 0);
+    const others = HISTORY.length - mine.length;
+    note.textContent = (mine.length
+      ? `${mine.length} file${mine.length > 1 ? "s" : ""} in this project · ${mb.toFixed(1)} MB`
+      : "nothing rendered in this project yet")
+      + (others ? ` · ${others} in other projects` : "");
   }
   renderHistory();
 }
 
-function renderHistory() {
-  const list = $("#historyList");
-  if (!list) return;
+/* A render's folder is <slug>.<project id> (the server's _project_out_dir), so
+   which project a file belongs to is the end of its folder name. */
+function isThisProject(r) {
+  return typeof activeProjectId !== "undefined" && !!activeProjectId
+    && r.video.endsWith(`.${activeProjectId}`);
+}
 
-  if (!HISTORY.length) {
-    list.innerHTML = `<p class="empty-message">Nothing in the out/ folder yet.
-      Build a Result on the Clips screen, then press Render.</p>`;
-    return;
-  }
-
-  list.innerHTML = HISTORY.map((r, i) => `
+function historyRowHTML(r, i) {
+  return `
     <div class="history-row" data-history="${i}">
       <span class="history-name">${escapeHTML(r.file)}</span>
       <span class="data history-video">${escapeHTML(r.video)}</span>
@@ -60,7 +61,31 @@ function renderHistory() {
       <span class="data history-when">${timeAgo(r.at)}</span>
       <button class="btn quiet" data-action="play">Play</button>
       <button class="btn" data-action="open">Open folder</button>
-    </div>`).join("");
+    </div>`;
+}
+
+function renderHistory() {
+  const list = $("#historyList");
+  if (!list) return;
+
+  // The files of THIS project first; the others (out/ holds every project's)
+  // under their own heading, so an empty "this project" can't read as
+  // "nothing rendered anywhere" next to a list of files.
+  const rows = HISTORY.map((r, i) => ({ r, i }));
+  const mine = rows.filter(({ r }) => isThisProject(r));
+  const others = rows.filter(({ r }) => !isThisProject(r));
+
+  const section = (title, items) => items.length ? `
+    <h3 class="eyebrow history-section">${title}</h3>
+    ${items.map(({ r, i }) => historyRowHTML(r, i)).join("")}` : "";
+
+  if (!mine.length) {
+    list.innerHTML = `<p class="empty-message">No renders in this project yet.
+      Build a Result on the Clips screen, then press Render.</p>`
+      + section("Other projects", others);
+    return;
+  }
+  list.innerHTML = section("This project", mine) + section("Other projects", others);
 }
 
 $("#historyList")?.addEventListener("click", async (e) => {
