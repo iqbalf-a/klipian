@@ -236,6 +236,9 @@ def _transcript_for(name: str) -> Transcript | None:
     return Transcript.load(path) if path else None
 
 
+# POSTs whose body is a file, not JSON (see Handler._guard).
+RAW_UPLOADS = {"/api/video-upload", "/api/project-asset-upload"}
+
 VIDEO_EXT = {".mp4", ".mkv", ".mov", ".webm"}
 # A source video is hundreds of MB to a few GB (a 45-minute episode is about
 # 750 MB), unlike the images and sounds /api/project-asset-upload takes (100 MB).
@@ -300,6 +303,44 @@ class Handler(BaseHTTPRequestHandler):
             # Same reason as in _send_file().
             pass
 
+    # ---- who may talk to this server ----
+
+    def _guard(self, post: bool) -> bool:
+        """The one place that decides whether a request is from the page this
+        server serves, or from some other site in the same browser.
+
+        Bound to 127.0.0.1 is not enough: any web page you have open can send
+        requests to 127.0.0.1:<port> (start a render, upload 10 GB into
+        samples/, overwrite a project, open a folder), and DNS rebinding can
+        even let it READ projects and transcripts. So:
+
+          * the Host header must be this server's own address (rebinding
+            arrives with the attacker's name in it);
+          * a POST that carries an Origin must carry ours (browsers always send
+            Origin on cross-site POSTs; curl and the CLI send none, and are fine);
+          * a JSON endpoint must be sent as application/json, which a cross-site
+            form or fetch cannot do without a preflight this server never
+            answers. The two raw uploads are exempt (their Origin is checked).
+
+        Answers 403 / 415 itself and returns False when the request is refused."""
+        port = self.server.server_address[1]
+        hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
+        host = self.headers.get("Host")
+        if host is not None and host.lower() not in hosts:
+            self._send_json({"error": "this server only answers on its own address"}, 403)
+            return False
+        if post:
+            origin = self.headers.get("Origin")
+            if origin is not None and origin.lower() not in {f"http://{h}" for h in hosts}:
+                self._send_json({"error": "cross-site request refused"}, 403)
+                return False
+            path = urlparse(self.path).path
+            ctype = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+            if path not in RAW_UPLOADS and ctype != "application/json":
+                self._send_json({"error": "send this as application/json"}, 415)
+                return False
+        return True
+
     def _send_text(self, text: str, mime: str, status=200):
         body = text.encode("utf-8")
         self.send_response(status)
@@ -328,6 +369,8 @@ class Handler(BaseHTTPRequestHandler):
     # ---- GET ----
 
     def do_GET(self):                              # noqa: N802
+        if not self._guard(post=False):
+            return
         path = unquote(urlparse(self.path).path)
 
         # Copy first inside the lock: the render thread writes to the same
@@ -739,6 +782,8 @@ class Handler(BaseHTTPRequestHandler):
     # ---- POST ----
 
     def do_POST(self):                             # noqa: N802
+        if not self._guard(post=True):
+            return
         path = urlparse(self.path).path
         route = self.POST_ROUTES.get(path)
         if route:

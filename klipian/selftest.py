@@ -1,7 +1,7 @@
 """`python -m klipian selftest` -- the checks that let the code be moved
 around without wondering what broke.
 
-Five checks, each one that used to be done by hand:
+Six checks, each one that used to be done by hand:
 
   migrate  Old project shapes (tests/fixtures/migrate/*.old.json) go through
            projects._migrate_project() and must come out as the matching
@@ -11,6 +11,8 @@ Five checks, each one that used to be done by hand:
            of that logic, from before it moved to Python.
   cues     The rules in klipian/cues.py (levels, pauses, fast talk, which cues a
            clip has) on small known inputs.
+  http     The server answers its own address and refuses another Host, a
+           foreign Origin on a POST, and a JSON endpoint sent as anything but JSON.
   decode   faster-whisper can decode audio in THIS environment (a few seconds
            of a sample video). A broken install otherwise shows itself at the
            start of a transcription, minutes into the wait. Skipped without a
@@ -252,6 +254,67 @@ def check_cues() -> tuple[str, str]:
 
 
 # --------------------------------------------------------------------------
+# check: http
+# --------------------------------------------------------------------------
+
+def check_http() -> tuple[str, str]:
+    """Who the server answers: its own pages yes; another Host, a foreign Origin,
+    or a JSON endpoint called with another content type, no. Runs the real
+    handler on a free port."""
+    import http.client
+    import threading
+    from http.server import ThreadingHTTPServer
+    from .server import Handler
+
+    import contextlib
+    import io
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    port = srv.server_address[1]
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    own = f"127.0.0.1:{port}"
+    quiet = contextlib.redirect_stderr(io.StringIO())     # the handler logs each /api/ request
+    quiet.__enter__()
+
+    def call(method, path, headers=None, body=None):
+        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
+        conn.putrequest(method, path, skip_host=True, skip_accept_encoding=True)
+        for k, v in {"Host": own, **(headers or {})}.items():
+            if v is not None:
+                conn.putheader(k, v)
+        if body is not None:
+            conn.putheader("Content-Length", str(len(body)))
+        conn.endheaders(body)
+        status = conn.getresponse().status
+        conn.close()
+        return status
+
+    js = {"Content-Type": "application/json"}
+    cancel = b'{"id": "none"}'
+    cases = [
+        ("GET own host", call("GET", "/api/video"), 200),
+        ("GET localhost", call("GET", "/api/video", {"Host": f"localhost:{port}"}), 200),
+        ("GET foreign host", call("GET", "/api/video", {"Host": "evil.example"}), 403),
+        ("GET rebound host, right port", call("GET", "/api/video", {"Host": f"evil.example:{port}"}), 403),
+        ("POST json, no Origin (curl, CLI)", call("POST", "/api/render/cancel", js, cancel), 200),
+        ("POST json, own Origin", call("POST", "/api/render/cancel", {**js, "Origin": f"http://{own}"}, cancel), 200),
+        ("POST json, foreign Origin", call("POST", "/api/render/cancel", {**js, "Origin": "https://evil.example"}, cancel), 403),
+        ("POST json, Origin null", call("POST", "/api/render/cancel", {**js, "Origin": "null"}, cancel), 403),
+        ("POST text/plain", call("POST", "/api/render/cancel", {"Content-Type": "text/plain"}, cancel), 415),
+        ("POST no content type", call("POST", "/api/render/cancel", None, cancel), 415),
+        ("raw upload, foreign Origin", call("POST", "/api/video-upload?name=x.mp4",
+                                            {"Content-Type": "application/octet-stream", "Origin": "https://evil.example"}, b"x"), 403),
+        ("foreign Host on a raw upload", call("POST", "/api/project-asset-upload?id=0&name=x.png",
+                                              {"Host": "evil.example", "Content-Type": "application/octet-stream"}, b"x"), 403),
+    ]
+    srv.shutdown()
+    quiet.__exit__(None, None, None)
+    bad = [f"{name}: {got}, expected {want}" for name, got, want in cases if got != want]
+    if bad:
+        return FAIL, "\n      ".join(bad)
+    return PASS, f"{len(cases)} requests answered as they should"
+
+
+# --------------------------------------------------------------------------
 # check: decode
 # --------------------------------------------------------------------------
 
@@ -376,7 +439,7 @@ def promote(project_id: str, result_id: str, name: str) -> int:
     return 0
 
 
-CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "decode": check_decode,
+CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "http": check_http, "decode": check_decode,
           "render": check_render}
 
 
