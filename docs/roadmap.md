@@ -484,6 +484,42 @@ Untuk podcast, bagian cues di brief berisi sekitar 70 baris, termasuk
 `CUES_VERSION`. File lama `workspace/cache/*.energy.json` sudah tidak
 dipakai.
 
+**Validasi pertama (2026-10-17, podcast, satu kali jalan Claude).**
+Brief baru yang berisi cues dibandingkan dengan 10 kandidat lama yang
+dibuat tanpa cues. Balasannya diproses lewat `parse_reply` dengan cues.
+
+| | Lama (tanpa cues) | Baru (dengan cues) |
+|---|---|---|
+| Jumlah klip / cakupan episode | 10 / 25% | 8 / 14% |
+| Klip di 10 menit pertama | 0 | 1 |
+| Klip yang berakhir tepat setelah tawa | 0/10 | 3/8 |
+| Tawa yang tertangkap (dibanding kebetulan) | 15/47 = 32% (kebetulan 25%) | 12/47 = 26% (kebetulan 14%), kira-kira 1,8× |
+
+- Kelima waktu tawa yang disebut Claude di alasannya (13:37, 38:25,
+  38:41, 21:39, 23:12) **cocok semua** dengan deteksi, termasuk
+  tingkatnya. Claude membaca bagian cues dengan benar dan tidak
+  mengarang.
+- Lima klip lama bertahan, tiga pilihan baru, dan empat klip lama
+  dibuang, di antaranya "Sirup" yang memuat tawa high di 11:08.
+- Tujuh dari sepuluh tawa high tetap tidak dipilih. Sebagian besar
+  memang bukan cerita yang bisa berdiri sendiri, misalnya basa-basi
+  soal posisi duduk di 0:49. Tawa adalah penanda, bukan klip.
+- Belum bisa disimpulkan dari satu kali jalan, karena Claude juga
+  bervariasi antar percobaan.
+- Tawa low ikut dipakai sebagai alasan, misalnya "tawa kecil di awal"
+  2:50 untuk pilihan baru "Ketahuan Habis Belanja". Ketepatan level low
+  belum pernah didengar.
+
+  **Tindak lanjut:** dengarkan tawa low yang dipakai Claude (2:50, 20:47,
+  23:09, 23:14, 38:41). Kalau sebagian besar salah, keluarkan level low
+  dari brief lewat tabel `LEVELS`; tidak perlu deteksi ulang.
+
+  **Hasil dengar ian (2026-10-17): 5 dari 5 memang tawa.** Padahal
+  semuanya deteksi tersingkat (satu jendela, ±1 detik) dengan skor
+  hanya 0,31–0,38. Level low **tetap masuk brief**, dan ambang 0,30
+  dipertahankan. Kalau nanti ingin menangkap lebih banyak tawa pelan,
+  ambang di bawah 0,30 baru boleh diuji dengan sesi dengar lagi.
+
 **Perbaikan tampilan (permintaan ian 2026-10-16, setelah dicek di layar).**
 Catatan "hook apa saja yang dicari" hanya muncul sebelum analisis suara
 pertama kali jalan. Sesudahnya kalimat itu menyusut menjadi "found: 47
