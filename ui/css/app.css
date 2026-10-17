@@ -1931,8 +1931,11 @@ h1, h2, h3 {
    .panel's overflow:hidden made it invisible AND unclickable. Nothing here
    can be usefully truncated, so the row splits in two instead: identity on
    top, times below. Keyed to the viewport rather than the panel because the
-   preview column's width (--w-preview) is itself viewport-driven. */
-@media (max-width: 900px) {
+   preview column's width (--w-preview) is itself viewport-driven. The one-row
+   layout needs a panel of about 470px, which is a 1050px window with the
+   sidebar open; this was 900px, and between 900 and 1050 the title (min 90px)
+   was printed over the start time. */
+@media (max-width: 1100px) {
   /* Four columns, two rows: play / select / number / title on top, then
      duration + times below. The title keeps ~90px this way; squeezing it
      into a fifth column on one row left it under 50px. */
