@@ -354,7 +354,7 @@ function playRecPreview(idx) {
     v.play().catch(() => {});
   };
   // `v.src` is ALWAYS an absolute URL once read back -- the browser resolves
-  // it itself -- while chosenSource.url is relative ("/workspace/samples/...").
+  // it itself -- while chosenSource.url is relative ("/workspace/sources/...").
   // Comparing them raw ALWAYS mismatches, so the video gets reloaded from
   // scratch every time Play is pressed, even for suggestions from the same
   // video: wasted buffering, and for a moment after clicking the video still

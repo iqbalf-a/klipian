@@ -61,8 +61,8 @@ harus bisa membangun antarmukanya.
 >   ada `I`, `O`, dan `Enter` untuk menyetujui.
 > - **§10 dan §3.1 Keadaan kosong, tata letak.** "Tarik file ke sini" tidak
 >   berlaku: di Assets video ditambahkan lewat **Add video…** (file dari mana
->   saja di disk, disalin ke `workspace/samples/`) atau dipilih dari daftar
->   `samples/`. Kerangka
+>   saja di disk, disalin ke `workspace/sources/`) atau dipilih dari daftar
+>   `sources/`. Kerangka
 >   sidebar kiri + topbar dipakai (yang dilarang §3.1); panel 9:16 permanen di
 >   kanan tetap ada.
 

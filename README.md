@@ -82,7 +82,7 @@ terms before the token can download the weights — see the comments in
 `.env.example` for the exact link. After that first download it runs fully
 offline, same as Whisper.
 
-**Source videos live in `workspace/samples/`.** The browser doesn't hand the
+**Source videos live in `workspace/sources/`.** The browser doesn't hand the
 server a full file path, so the backend looks videos up by filename in that
 folder. On the Assets screen, **Add video…** copies a file from anywhere on
 your disk into it (with a progress bar; up to 10 GB; mp4, mkv, mov, webm) and
@@ -120,7 +120,7 @@ HISTORY        render queue with live progress, finished files
 ### A. Through Claude — no API key
 
 ```
-1  ASSETS     + New Project, then Add video… (or pick one from workspace/samples/)
+1  ASSETS     + New Project, then Add video… (or pick one from workspace/sources/)
 2  ANALYZE    [ Find clips ]
               ① the transcript is made on your machine, or loaded if the
                  video already has one
@@ -426,7 +426,7 @@ klipian/
 ├── .env.example                    copy to .env for HF_TOKEN (AI Framing only)
 └── workspace/                     ALL working files -- one place, so there's never
     │                                doubt about where a video goes (see workspace/README.md)
-    ├── samples/                     videos currently being worked on -- the app reads from here
+    ├── sources/                     videos currently being worked on -- the app reads from here
     ├── out/                         render output, one folder per project: <slug>.<id>/
     ├── cache/                       transcripts, audio cues, diarization (created
     │                                automatically); thumbs/ holds cached thumbnails
@@ -447,9 +447,9 @@ klipian/
 **"Needs the backend. Run: python -m klipian serve"** — the UI was opened
 without the server running. Run the command at the top of this file.
 
-**"not in samples/"** (next to a video on Assets or on a project card, or in
+**"not in sources/"** (next to a video on Assets or on a project card, or in
 an error when transcribing or rendering) — the server can't find that video
-in `workspace/samples/`. A project remembers a video by file name, so put the
+in `workspace/sources/`. A project remembers a video by file name, so put the
 file back there under the same name, or use **Add video…** on the Assets
 screen to copy it in again. (The paste-a-link box on Analyze isn't wired up.)
 

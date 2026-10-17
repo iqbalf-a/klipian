@@ -729,7 +729,7 @@ async function renderProjects() {
   }
   // Videos unreachable by the server cannot be truly continued: transcription,
   // thumbnails, and rendering all go through _find_video(), which only looks
-  // in samples/, the project root, and out/. Marked on the card rather than
+  // in sources/, the project root, and out/. Marked on the card rather than
   // allowed to fail silently after being clicked.
   let available = null;
   try {
@@ -772,7 +772,7 @@ async function renderProjects() {
       ${i === lastIdx ? '<span class="last-opened">last opened</span>' : ""}
       <span class="project-name" title="${escapeHTML(name)}">${escapeHTML(name)}</span>
       <span class="data project-meta">${missing
-        ? "video not in samples/"
+        ? "video not in sources/"
         : empty ? `no video yet · ${timeAgo(p.at)}`
         : `${p.spans} span${p.spans === 1 ? "" : "s"} · ${Math.round(p.seconds)}s · ${timeAgo(p.at)}`}</span>
       <span class="data project-created">created ${createdLabel(p.createdAt)}</span>
@@ -959,7 +959,7 @@ $("#projectList")?.addEventListener("click", async (e) => {
   if (card.classList.contains("confirming")) { cancelConfirm(); return; }
   if (card.classList.contains("missing")) {
     const meta = card.querySelector(".project-meta");
-    if (meta) meta.textContent = `move ${card.dataset.video} into workspace/samples/ to continue`;
+    if (meta) meta.textContent = `move ${card.dataset.video} into workspace/sources/ to continue`;
     return;
   }
   await openProjectFromHome(card.dataset.project);
@@ -1039,14 +1039,14 @@ async function enterProject(d, gen) {
   const video = projectActiveFile(d);
   if (!video) return enterEmptyProject(d);
   // The blob URL from the previously dropped file is never released if we
-  // immediately overwrite it with a /workspace/samples/ URL -- revoke it first.
+  // immediately overwrite it with a /workspace/sources/ URL -- revoke it first.
   if (typeof chosenSource !== "undefined" && chosenSource
       && typeof chosenSource.url === "string" && chosenSource.url.startsWith("blob:")) {
     URL.revokeObjectURL(chosenSource.url);
   }
-  // The file is fetched from workspace/samples/, not a file dialog --
+  // The file is fetched from workspace/sources/, not a file dialog --
   // projects store the NAME, and browsers can't open local paths directly.
-  chosenSource = { kind: "file", name: video, url: `/workspace/samples/${encodeURIComponent(video)}` };
+  chosenSource = { kind: "file", name: video, url: `/workspace/sources/${encodeURIComponent(video)}` };
   // Name first, shown right away -- chosenSource on this path has no
   // .duration, just a name from the project record. Overwritten again
   // below once the transcript (or ffprobe) supplies the real duration.

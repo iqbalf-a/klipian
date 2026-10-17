@@ -321,11 +321,11 @@ def check_http() -> tuple[str, str]:
 def check_decode() -> tuple[str, str]:
     from .paths import WORKSPACE
 
-    videos = sorted((p for p in (WORKSPACE / "samples").glob("*")
+    videos = sorted((p for p in (WORKSPACE / "sources").glob("*")
                      if p.suffix.lower() in {".mp4", ".mkv", ".mov", ".webm"}),
-                    key=lambda p: p.stat().st_size) if (WORKSPACE / "samples").is_dir() else []
+                    key=lambda p: p.stat().st_size) if (WORKSPACE / "sources").is_dir() else []
     if not videos:
-        return SKIP, "no sample video in workspace/samples/"
+        return SKIP, "no source video in workspace/sources/"
     try:
         from faster_whisper.audio import decode_audio
         import av

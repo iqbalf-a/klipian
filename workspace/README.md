@@ -6,7 +6,7 @@ the repo root as `samples/`, `out/`, `cache/`, `projects/`, `sources/` and
 `content/`; they were merged into this one folder so that everything that is
 *work* lives in a single place.
 
-- `samples/` -- **put your source videos here.** A browser does not give the
+- `sources/` -- **put your source videos here.** A browser does not give the
   server a full path, so the backend looks a video up by filename in this
   folder (see `find_video()` in `klipian/paths.py`). A project's videos are
   added from here on the Assets screen; **Add video…** there copies a file

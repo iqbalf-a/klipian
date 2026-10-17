@@ -21,7 +21,7 @@ def find_video(name: str) -> Path | None:
     if (not name or name in (".", "..") or any(c in name for c in "/\\:\x00")
             or Path(name).name != name):
         return None
-    for folder in ("samples", "", "out"):
+    for folder in ("sources", "", "out"):
         p = WORKSPACE / folder / name if folder else WORKSPACE / name
         if p.is_file():
             return p

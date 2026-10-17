@@ -191,7 +191,7 @@ def _project_file(pid) -> Path | None:
 
 def _project_assets_dir(pid) -> Path | None:
     """A project's own images and sounds: PROJECTS/<id>/assets/ (ian: assets
-    belong to the project). Videos are NOT here -- they stay in samples/,
+    belong to the project). Videos are NOT here -- they stay in sources/,
     one copy however many projects use them, and a project only lists
     which ones it uses."""
     return PROJECTS / pid / "assets" if _valid_project_id(pid) else None

@@ -68,7 +68,7 @@ mimetypes.add_type("image/svg+xml", ".svg")
 # assets/ and schedule/ are deliberately excluded, same as projects/
 # below: their contents must only be accessed via /api/workspace/... so
 # file names don't become an attack surface on their own.
-WORKSPACE_SERVED = ("samples", "out", "cache")
+WORKSPACE_SERVED = ("sources", "out", "cache")
 
 
 # Operational content (upload schedule, clip status) -- not part of the
@@ -231,7 +231,7 @@ def _thumbnail(video: Path, seconds: float, crop: dict, width: int) -> Path:
 def _transcript_for(name: str) -> Transcript | None:
     """The transcript for a video by file name (Cache.find_transcript), for
     the endpoints that work from what the page knows: a name, not a path."""
-    video = find_video(name) or WORKSPACE / "samples" / Path(name).name
+    video = find_video(name) or WORKSPACE / "sources" / Path(name).name
     path = Cache(WORKSPACE / "cache").find_transcript(video)
     return Transcript.load(path) if path else None
 
@@ -286,12 +286,12 @@ def _video_upload_problem(name: str, size: int) -> str:
 
 
 def _same_video(name: str, size: int) -> str | None:
-    """A file in workspace/samples/ that already holds exactly this upload:
+    """A file in workspace/sources/ that already holds exactly this upload:
     `name` itself with this size, or one of the name-2, name-3 ... that an
     earlier upload of a DIFFERENT file under the same name was given (see
     _free_name). One video then serves any number of projects, and uploading
     it again doesn't pile up copies."""
-    folder = WORKSPACE / "samples"
+    folder = WORKSPACE / "sources"
     stem, ext = Path(name).stem, Path(name).suffix
     i = 1
     while True:
@@ -355,7 +355,7 @@ class Handler(BaseHTTPRequestHandler):
 
         Bound to 127.0.0.1 is not enough: any web page you have open can send
         requests to 127.0.0.1:<port> (start a render, upload 10 GB into
-        samples/, overwrite a project, open a folder), and DNS rebinding can
+        sources/, overwrite a project, open a folder), and DNS rebinding can
         even let it READ projects and transcripts. So:
 
           * the Host header must be this server's own address (rebinding
@@ -626,7 +626,7 @@ class Handler(BaseHTTPRequestHandler):
         """The transcript the page works from, as the file holds it."""
         q = parse_qs(urlparse(self.path).query)
         name = q.get("video", [""])[0]
-        video = find_video(name) or WORKSPACE / "samples" / Path(name).name
+        video = find_video(name) or WORKSPACE / "sources" / Path(name).name
         path = Cache(WORKSPACE / "cache").find_transcript(video)
         if path is None:
             return self._send_json({"error": f"No transcript yet for {name}"}, 404)
@@ -658,13 +658,13 @@ class Handler(BaseHTTPRequestHandler):
             "text/markdown")
 
     def _get_video(self):
-        file = sorted(p.name for p in (WORKSPACE / "samples").glob("*")
+        file = sorted(p.name for p in (WORKSPACE / "sources").glob("*")
                         if p.suffix.lower() in VIDEO_EXT)
         return self._send_json({"video": file})
 
     def _get_video_check(self):
         """Before a video is uploaded: could it be, and is it already here?
-        `reuse` names a file in samples/ that already holds exactly this one
+        `reuse` names a file in sources/ that already holds exactly this one
         (same name and size), so the page can skip sending it."""
         q = parse_qs(urlparse(self.path).query)
         name = Path((q.get("name") or [""])[0]).name.strip()
@@ -675,10 +675,10 @@ class Handler(BaseHTTPRequestHandler):
         problem = _video_upload_problem(name, size)
         if problem:
             return self._send_json({"error": problem})
-        samples = WORKSPACE / "samples"
-        samples.mkdir(parents=True, exist_ok=True)
+        sources = WORKSPACE / "sources"
+        sources.mkdir(parents=True, exist_ok=True)
         return self._send_json({"reuse": _same_video(name, size),
-                                "free": shutil.disk_usage(samples).free})
+                                "free": shutil.disk_usage(sources).free})
 
     def _get_static(self, path):
 
@@ -934,7 +934,7 @@ class Handler(BaseHTTPRequestHandler):
                                 "kind": "image" if ext in composer.IMAGE_EXT else "sound"})
 
     def _post_video_upload(self):
-        # A source video from anywhere on disk, saved into workspace/samples/
+        # A source video from anywhere on disk, saved into workspace/sources/
         # (where the server looks videos up by name). Same shape as the
         # image/sound upload above -- raw body, name in the query, written in
         # 1 MB pieces to a .part file and then renamed -- but its own size
@@ -948,7 +948,7 @@ class Handler(BaseHTTPRequestHandler):
         problem = _video_upload_problem(name, n)
         if problem:
             return self._send_json({"error": problem}, 400)
-        folder = WORKSPACE / "samples"
+        folder = WORKSPACE / "sources"
         folder.mkdir(parents=True, exist_ok=True)
         free = shutil.disk_usage(folder).free
         if n + VIDEO_DISK_MARGIN > free:
@@ -1417,7 +1417,7 @@ def _sweep_temp() -> int:
     import re
     n = 0
     # Half-uploaded videos (Add video, interrupted by closing the server).
-    for part in (WORKSPACE / "samples").glob("*.part"):
+    for part in (WORKSPACE / "sources").glob("*.part"):
         try:
             part.unlink()
             n += 1

@@ -199,7 +199,7 @@ def _run_render(job_id: str, req: dict, into: Path | None = None, record: bool =
         if not video:
             raise FileNotFoundError(
                 f"{req['video']} is not in a folder the server can reach. "
-                f"Put the file in samples/.")
+                f"Put the file in sources/.")
 
         # This job's one default video's transcript, used by every span that
         # doesn't name its own asset -- see _load_transcript_words for what
@@ -307,7 +307,7 @@ def _run_render(job_id: str, req: dict, into: Path | None = None, record: bool =
                         if not run_video:
                             raise FileNotFoundError(
                                 f"{run_video_name} is not in a folder the server can "
-                                f"reach. Put the file in samples/.")
+                                f"reach. Put the file in sources/.")
                         run_info = probe(run_video)
                         run_words = _run_words(k, run_video_name, req["video"],
                                                lambda: _load_transcript_words(run_video, t))
@@ -504,7 +504,7 @@ def _run_transcribe(job_id: str, req: dict) -> None:
         video = find_video(req["video"])
         if not video:
             raise FileNotFoundError(
-                f"{req['video']} is not in samples/.")
+                f"{req['video']} is not in sources/.")
 
         cache = Cache(WORKSPACE / "cache")
 

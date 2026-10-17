@@ -2457,7 +2457,7 @@ h1, h2, h3 {
 .panel > .asset-drop { margin: 0 var(--s5) var(--s4); }
 
 /* Add video (Assets): the button sits at the right of the panel head, the
-   progress row below it while a file is being copied into samples/. */
+   progress row below it while a file is being copied into sources/. */
 .panel-head .add-video-btn { margin-left: auto; }
 .upload-row { padding: 0 var(--s5) var(--s3); display: grid; gap: var(--s2); }
 .upload-row .progress { width: 100%; height: 6px; }

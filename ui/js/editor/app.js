@@ -27,7 +27,7 @@ function escapeHTML(s) {
    `chosenSource?.name || DATA.file`. It used to hold a real filename, which
    meant a render with no source silently targeted THAT video instead of
    failing -- now the server gets "" and answers with a clear "not in
-   samples/" error, which the History status box shows. */
+   sources/" error, which the History status box shows. */
 const DATA = {
   file: "",
   candidates: [],

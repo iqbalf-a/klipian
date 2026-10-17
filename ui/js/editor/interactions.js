@@ -11,7 +11,7 @@
    The Analyze screen used to open with a drop zone: drop a file and it
    became "the" video, keyed to a project by its filename. A project holds
    several videos now (assets.js), so Analyze picks one of THEM (ian);
-   adding videos from samples/ is the Assets screen's job. A link box sits
+   adding videos from sources/ is the Assets screen's job. A link box sits
    below the list, not wired up yet. */
 
 let chosenSource = null;
@@ -54,7 +54,7 @@ function drawSource(error, extraNote) {
 
 /* The link box on Analyze is on screen but does nothing yet (ian): it
    and its Download button are disabled in the markup. Downloading a link
-   into samples/ was built once (yt-dlp) and taken out again -- see git
+   into sources/ was built once (yt-dlp) and taken out again -- see git
    history (commit 3eecf52) when it's wanted. */
 
 /* No drop zone any more, but the window-level guard stays: without it a

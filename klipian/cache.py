@@ -17,7 +17,7 @@ def fingerprint(path: Path, extra: str = "") -> str:
 
     The path used to be part of the hash, but that meant moving the video
     to another folder (exactly what happened when samples/ was merged into
-    workspace/samples/) changed its fingerprint, so old projects/caches
+    workspace/samples/, now sources/) changed its fingerprint, so old projects/caches
     could no longer be found even though the video was identical -- it
     looked like lost work when it was really just "wrong cabinet".
     Size+mtime alone is enough to distinguish videos whose content actually

@@ -76,11 +76,11 @@ function toReal(vt) {
 const activeToVirtual = (t) => t + activeAssetOffset();
 
 function assetUrl(a) {
-  // A file dropped from outside workspace/samples/ only has a blob: URL,
+  // A file dropped from outside workspace/sources/ only has a blob: URL,
   // and only while it's the active one (a project from before the drop
   // zone went away can still be holding one).
   if (a.id === activeAssetId && chosenSource?.url && chosenSource.name === a.file) return chosenSource.url;
-  return `/workspace/samples/${encodeURIComponent(a.file)}`;
+  return `/workspace/sources/${encodeURIComponent(a.file)}`;
 }
 
 function assetTranscript(id) {
@@ -218,7 +218,7 @@ async function setActiveAsset(id) {
   ASSET_CANDIDATES[activeAssetId] = (typeof DATA !== "undefined" ? DATA.candidates : []) || [];
   activeAssetId = id;
   if (chosenSource?.url?.startsWith("blob:")) URL.revokeObjectURL(chosenSource.url);
-  chosenSource = { kind: "file", name: a.file, url: `/workspace/samples/${encodeURIComponent(a.file)}` };
+  chosenSource = { kind: "file", name: a.file, url: `/workspace/sources/${encodeURIComponent(a.file)}` };
   // ...and bring in the incoming one's. Fetched if it was never loaded.
   realTranscript = ASSET_TRANSCRIPTS[id] ?? (await findTranscript(a.file).catch(() => null));
   ASSET_TRANSCRIPTS[id] = realTranscript;
@@ -276,7 +276,7 @@ function assetUseCount(id) {
 }
 
 /* ---------- Add video: a file from anywhere on disk ----------
-   Copied into workspace/samples/ (the folder the server looks videos up in)
+   Copied into workspace/sources/ (the folder the server looks videos up in)
    with a progress bar, then added to the project like one picked from the
    list. fetch() can't report upload progress, hence XMLHttpRequest. */
 
@@ -323,7 +323,7 @@ async function addVideoFromDisk(file) {
     let name = chk.reuse;
     if (name) {
       bar.style.width = "100%";
-      say(`${name} is already in workspace/samples/ — using that copy.`);
+      say(`${name} is already in workspace/sources/ — using that copy.`);
     } else {
       if (file.size + 1024 ** 3 > chk.free) {
         throw new Error(`Not enough disk space: ${mb(file.size)} needed, ${mb(chk.free)} free.`);
@@ -405,12 +405,12 @@ async function renderAssets() {
           <path d="M17 10 L21 7 L21 17 L17 14"/></svg>
       </span>
       <span class="asset-name" title="${escapeHTML(a.file)}">${escapeHTML(a.file)}</span>
-      <span class="data asset-meta">${missing ? "not in samples/"
+      <span class="data asset-meta">${missing ? "not in sources/"
         : `${hasTranscript(a.file) ? "transcribed" : "not transcribed"} · ${uses} span${uses === 1 ? "" : "s"} used`}</span>
       ${active ? '<span class="asset-active">on screen</span>'
         : `<button class="btn quiet" type="button" data-asset-open="${a.id}"${missing ? " disabled" : ""}>Open</button>`}
       <button class="btn quiet" type="button" data-asset-remove="${a.id}"
-              title="${uses ? "Remove from this project — its spans in the Results go with it" : "Remove from this project (the file stays in samples/)"}">Remove</button>
+              title="${uses ? "Remove from this project — its spans in the Results go with it" : "Remove from this project (the file stays in sources/)"}">Remove</button>
     </div>`;
   }).join("") : `<p class="empty-message">No video yet. Add one below.</p>`;
 
@@ -426,7 +426,7 @@ async function renderAssets() {
           <span class="data asset-meta">${hasTranscript(f) ? "transcribed" : "not transcribed"}</span>
           <button class="btn" type="button" data-asset-add="${escapeHTML(f)}">Add</button>
         </div>`).join("")
-        : `<p class="empty-message">Every video in workspace/samples/ is already in this project.
+        : `<p class="empty-message">Every video in workspace/sources/ is already in this project.
              Put another file there to add it.</p>`;
     }
   }
@@ -586,7 +586,7 @@ $("#assetDrop")?.addEventListener("drop", (e) => {
   if (files.length) uploadMedia(files);
 });
 
-/* Add a video from samples/ to the project -- from the Assets screen or a
+/* Add a video from sources/ to the project -- from the Assets screen or a
    anywhere else later -- and put it on screen. The FIRST video is also
    the moment a new project starts: there's no drop zone any more to do
    that (ian), so this does what dropping a file used to. */
@@ -610,7 +610,7 @@ async function addVideoToProject(file) {
   }
   primaryVideo = file;
   activeAssetId = a.id;
-  chosenSource = { kind: "file", name: file, url: `/workspace/samples/${encodeURIComponent(file)}` };
+  chosenSource = { kind: "file", name: file, url: `/workspace/sources/${encodeURIComponent(file)}` };
   realTranscript = tr;
   ASSET_TRANSCRIPTS[a.id] = tr;
   if (typeof DATA !== "undefined") DATA.candidates = [];
@@ -690,7 +690,7 @@ function addAsset(file) {
    left with no assets at all (ian) -- but what used it goes with it: a
    video's spans in every Result, an image's or sound's Timeline elements.
    That's why the button asks first (see the click handler). The file
-   itself is never deleted: a video stays in samples/, an image or sound
+   itself is never deleted: a video stays in sources/, an image or sound
    stays in the project's folder and can be added back. */
 function removeAsset(id) {
   const a = assetById(id);
