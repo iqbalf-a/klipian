@@ -365,6 +365,18 @@ di layar: Mona Sans untuk merek dan watermark, pintasan `, . < > Space`,
 Output Format per Result, dan Remove dua klik. Cek di browser setelah
 transkripsi Syahrini selesai.
 
+**Dicek di browser 2026-10-17:**
+
+| Klaim | Hasil |
+|---|---|
+| Output Format per Result | benar: ada pemilih "Result 1" di layar, dan `output` tersimpan per Result |
+| Remove dua klik | benar: klik pertama menampilkan "Remove? (2 spans too)", lalu kembali sendiri setelah ±4 detik |
+| Mona Sans untuk merek dan watermark (`ui-design.md:21`) | **sebagian salah**: watermark memang Mona Sans ExtraBold, tapi merek "klipian" memakai Geist 800 bergradien |
+| Pintasan hanya `, . < > Space`, "bukan ←/→" (`ui-design.md:54`) | **salah**: `←/→` ada saat timeline preview difokuskan (1 detik; Shift 5 detik), `player.js:~201` |
+| "Video ditambahkan dari `workspace/samples/` di Assets" (`ui-design.md:56`) | **basi** sejak Add video |
+
+Koreksinya dikirim ke sesi eksekusi bersama perapian alat dengar cues.
+
 - README:
   - Workflow masih menyebut "drop a video"; perbarui.
   - Daftar layar belum memuat Assets dan Timeline.
