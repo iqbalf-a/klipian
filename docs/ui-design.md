@@ -38,11 +38,15 @@ harus bisa membangun antarmukanya.
 >   render, preview, timeline, caption tetap istilah yang sama) otomatis
 >   terpenuhi, tapi tabel Jangan/Pakai di §12 tidak berlaku untuk kata
 >   Indonesianya.
-> - **§7 dan §9.2 Ribbon sumber, kartu klip, skor, stempel `SIAP RENDER`,
->   tombol Setujui/Tolak.** Tidak ada di UI. Papan kandidat dan ribbon dihapus;
->   saran AI muncul sebagai daftar "AI suggestions" di Clips (tanpa skor,
->   dengan "Add to Result"), dan timeline Clips memilih rentang dengan drag.
->   Aturan §3.2 no. 2 sampai 7 hanya relevan kalau elemen itu dikembalikan.
+> - **§7 Ribbon sumber: dilepas (2026-10-17).** Tidak akan dibangun. Timeline
+>   di layar Clips menggantikannya: saran AI tampil sebagai blok di sepanjang
+>   durasi video, dan hook sebagai penanda di timeline yang sama, jadi sumber
+>   dan posisi saran terbaca di satu tempat.
+> - **§9.2 Kartu klip, skor, stempel `SIAP RENDER`, tombol Setujui/Tolak.**
+>   Tidak ada di UI. Papan kandidat dihapus; saran AI muncul sebagai daftar
+>   "AI suggestions" di Clips (tanpa skor, dengan "Add to Result"), dan timeline
+>   Clips memilih rentang dengan drag. Aturan §3.2 no. 2 sampai 7 hanya relevan
+>   kalau elemen itu dikembalikan.
 > - **§9.1 Transkrip-sebagai-timeline.** Tidak ada chip kata maupun waveform
 >   di layar Clips; transkrip yang terpilih tampil sebagai teks di bawah
 >   timeline, dan koreksi kata dilakukan di Captions.
@@ -299,6 +303,9 @@ perkakas, bukan cetakan.
 ---
 
 ## 7. Elemen tanda tangan: Ribbon sumber
+
+> **Dilepas 2026-10-17.** Pengganti: timeline di layar Clips (lihat kotak Status
+> di atas). Isi bagian ini dibiarkan sebagai catatan desain awal.
 
 Satu elemen yang bikin aplikasi ini diingat. Pita horizontal selebar layar
 yang mewakili **seluruh durasi sumber**, dengan sapuan stabilo di tempat klip
