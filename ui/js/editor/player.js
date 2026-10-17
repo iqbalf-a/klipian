@@ -838,7 +838,17 @@ async function quickPreview() {
   const note = $("#previewQuickNote");
   if (!resultClip || !resultClip.spans?.length) return;
 
-  if (btn) { btn.dataset.busy = "1"; btn.disabled = true; btn.textContent = "Rendering…"; }
+  // The server gives no progress for a preview (one synchronous ffmpeg run),
+  // so what can be shown honestly is that it is running and for how long.
+  // On battery this has taken over a minute.
+  const startedAt = performance.now();
+  const tick = () => {
+    const s = Math.floor((performance.now() - startedAt) / 1000);
+    if (btn) btn.textContent = `Rendering… ${s} s`;
+    if (note) note.textContent = s >= 15 ? "Still rendering: it is real video, and slower on battery." : "";
+  };
+  const ticker = setInterval(tick, 1000);
+  if (btn) { btn.dataset.busy = "1"; btn.disabled = true; btn.textContent = "Rendering… 0 s"; }
   if (note) note.textContent = "";
 
   // Same as sendRender(): spans are split again at each framing point
@@ -910,6 +920,7 @@ async function quickPreview() {
   } catch (err) {
     if (note) note.textContent = err.message || "Preview failed.";
   } finally {
+    clearInterval(ticker);
     if (btn) { delete btn.dataset.busy; btn.textContent = "Quick preview"; }
     updateRenderButtons();
   }
