@@ -401,8 +401,13 @@ def parse_reply(words: list[Word], text: str, cues: list[dict] | None = None) ->
     using terms from the prompt prose."""
     data = extract_json(text)
     raw = _or(data.get("clips", _UNDEFINED), data.get("klip", _UNDEFINED), [])
-    if not isinstance(raw, list) or not raw:
+    if not isinstance(raw, list) or ("clips" not in data and "klip" not in data):
         raise ValueError('JSON does not have a "clips" list.')
+    if not raw:
+        # The list is there, just empty: say so, it is not the same mistake as
+        # a reply with no list at all.
+        raise ValueError('The "clips" list is empty, so there is nothing to import. '
+                         "Ask Claude again, or check that you copied the whole reply.")
 
     result = []
     for k in raw:

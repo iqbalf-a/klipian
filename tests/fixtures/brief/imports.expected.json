@@ -74,7 +74,7 @@
  },
  "empty-clips.txt": {
   "ok": false,
-  "error": "JSON does not have a \"clips\" list."
+  "error": "The \"clips\" list is empty, so there is nothing to import. Ask Claude again, or check that you copied the whole reply."
  },
  "fenced.txt": {
   "ok": true,
