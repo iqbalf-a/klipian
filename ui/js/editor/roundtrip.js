@@ -163,25 +163,59 @@ $("#downloadBrief")?.addEventListener("click", async () => {
 
 $("#pasteJSON")?.addEventListener("input", (e) => {
   $("#importBtn").disabled = !e.target.value.trim();
+  disarmImport();
   // The button sits below a tall box; after pasting, bring it into view.
   if (e.target.value.trim()) $("#importBtn").scrollIntoView({ block: "nearest" });
   $("#importNote").dataset.error = "false";
   $("#importNote").textContent = "";
 });
 
+/* Importing a reply REPLACES the suggestions that are there. Two clicks when
+   there are any (the first says how many go), and the set that was replaced is
+   kept so "Undo import" on the Clips screen can give it back once. */
+let importArmTimer = null;
+let replacedSuggestions = null;       // { video, list } -- what the last import replaced
+
+function disarmImport() {
+  clearTimeout(importArmTimer);
+  const btn = $("#importBtn");
+  if (btn) { btn.textContent = "Cut into clips"; btn.classList.remove("danger"); }
+}
+
 $("#importBtn")?.addEventListener("click", async () => {
   const note = $("#importNote");
+  const btn = $("#importBtn");
+  const have = (DATA?.candidates || []).length;
+  if (have && !btn.classList.contains("danger")) {
+    btn.textContent = `Replace ${have} suggestion${have === 1 ? "" : "s"}?`;
+    btn.classList.add("danger");
+    importArmTimer = setTimeout(disarmImport, 4000);
+    return;
+  }
+  disarmImport();
   try {
     const candidates = await importJSON($("#pasteJSON").value);
+    replacedSuggestions = have ? { video: chosenSource?.name || "", list: DATA.candidates } : null;
     applyCandidates(candidates);
     note.dataset.error = "false";
-    note.textContent = `${candidates.length} suggestions imported`;
+    note.textContent = `${candidates.length} suggestion${candidates.length === 1 ? "" : "s"} imported`
+      + (have ? ` (replaced ${have})` : "");
     if (typeof renderRecommendations === "function") renderRecommendations();
+    if (typeof saveProject === "function") saveProject();
     toScreen("clips");          // recommendations are not the final destination, result is
   } catch (err) {
     note.dataset.error = "true";
     note.textContent = err.message;
   }
+});
+
+$("#recUndo")?.addEventListener("click", () => {
+  if (!replacedSuggestions || replacedSuggestions.video !== (chosenSource?.name || "")) return;
+  const { list } = replacedSuggestions;
+  replacedSuggestions = null;
+  applyCandidates(list);
+  if (typeof renderRecommendations === "function") renderRecommendations();
+  if (typeof saveProject === "function") saveProject();
 });
 
 /* .json files can be dropped directly onto the paste box */

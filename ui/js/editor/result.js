@@ -214,6 +214,12 @@ function renderRecommendations() {
   const list = $("#recList");
   const note = $("#recNote");
   if (!list) return;
+  const undo = $("#recUndo");
+  if (undo) {
+    undo.hidden = !(typeof replacedSuggestions !== "undefined" && replacedSuggestions
+      && replacedSuggestions.video === (chosenSource?.name || ""));
+    if (!undo.hidden) undo.textContent = `Undo import (bring back ${replacedSuggestions.list.length})`;
+  }
   const candidates = (DATA?.candidates) || [];
 
   // The list can change entirely (re-import from Claude) while the preview

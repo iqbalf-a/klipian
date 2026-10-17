@@ -533,6 +533,8 @@
           <div class="panel-head">
             <span class="eyebrow">AI suggestions</span>
             <span class="data" id="recNote" role="status">none yet</span>
+            <!-- After an import replaced earlier suggestions: gives them back (roundtrip.js). -->
+            <button class="btn quiet" id="recUndo" type="button" hidden>Undo import</button>
             <button class="btn main" id="recAddBtn" disabled>Add to Result</button>
           </div>
           <!-- Play button in each row runs #tlPreviewVideo in the Timeline
