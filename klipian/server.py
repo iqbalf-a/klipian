@@ -333,6 +333,22 @@ class Handler(BaseHTTPRequestHandler):
 
     # ---- who may talk to this server ----
 
+    def _refuse(self, message: str, status: int):
+        """Answer a request the guard turns away. The body it sent is read off
+        the socket first (up to 1 MiB): closing a connection with unread data
+        makes the OS reset it, and the client then sees a dropped connection
+        instead of the 403/415 (on Windows, some of the time)."""
+        try:
+            left = min(int(self.headers.get("Content-Length", 0)), 1024 ** 2)
+        except ValueError:
+            left = 0
+        while left > 0:
+            chunk = self.rfile.read(min(left, 65536))
+            if not chunk:
+                break
+            left -= len(chunk)
+        self._send_json({"error": message}, status)
+
     def _guard(self, post: bool) -> bool:
         """The one place that decides whether a request is from the page this
         server serves, or from some other site in the same browser.
@@ -355,17 +371,17 @@ class Handler(BaseHTTPRequestHandler):
         hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
         host = self.headers.get("Host")
         if host is not None and host.lower() not in hosts:
-            self._send_json({"error": "this server only answers on its own address"}, 403)
+            self._refuse("this server only answers on its own address", 403)
             return False
         if post:
             origin = self.headers.get("Origin")
             if origin is not None and origin.lower() not in {f"http://{h}" for h in hosts}:
-                self._send_json({"error": "cross-site request refused"}, 403)
+                self._refuse("cross-site request refused", 403)
                 return False
             path = urlparse(self.path).path
             ctype = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
             if path not in RAW_UPLOADS and ctype != "application/json":
-                self._send_json({"error": "send this as application/json"}, 415)
+                self._refuse("send this as application/json", 415)
                 return False
         return True
 
