@@ -23,17 +23,9 @@ from .paths import WORKSPACE
 # Projects are NOT served as static files. Their contents can only be
 # accessed via /api/project so file names don't become an attack surface.
 PROJECTS = WORKSPACE / "projects"
-# Where a project file named after its video (<stem>.<fingerprint>.json, the
-# layout before projects had ids) goes once its <id>.json exists. Moved,
-# not deleted (ian): kept intact and recoverable by hand, but out of the
-# folder the home screen lists, so it neither shows as a second card for
-# the same project nor comes back as one after that project is deleted.
-LEGACY_PROJECTS = PROJECTS / "legacy"
-# Serialises every write into PROJECTS. Two autosaves of a brand-new project
-# can arrive together; both look the project up by video, and without this
-# both could find nothing and mint two ids -- two cards for one project.
-# Re-entrant: the POST handler holds it while looking the project up, and
-# that lookup adopts legacy files under the same lock.
+# Serialises every write into PROJECTS, so two requests (an autosave and a
+# migrate-on-read, say) never write the same file at once.
+# Re-entrant: the POST handler holds it while it calls helpers that take it too.
 PROJECTS_LOCK = threading.RLock()
 
 
@@ -57,11 +49,10 @@ def _new_project_id() -> str:
     """Short, random, and nothing to do with the video.
 
     The whole point of the id is that it does NOT come from the content:
-    the fingerprint-derived name below breaks the moment a video is
-    re-encoded or restored from a backup -- same footage, new size/mtime,
-    new fingerprint, and the project is orphaned with a second card beside
-    it for the same video. An id minted once and stored in the file can't
-    drift like that."""
+    a name derived from the video's size and mtime breaks the moment it is
+    re-encoded or restored from a backup -- same footage, new fingerprint,
+    and the project is orphaned with a second card beside it for the same
+    video. An id minted once and stored in the file can't drift like that."""
     return uuid.uuid4().hex[:12]
 
 
@@ -110,16 +101,14 @@ def _migrate_project(data: dict) -> tuple[dict, bool]:
     for the caption indices and for per-Result output.
 
     (`video` and each Result's `result` DO go now: they're rewritten as the
-    first asset and `segments`. The copies kept in projects/legacy/ are
-    the old shape, untouched.)
+    first asset and `segments`.)
 
     This runs on READ **and** on write, which is what lets the shape move
     without the browser knowing yet: projectState() there builds its object
     from scratch and has never heard of assets, but anything it posts comes
     back through here and is completed before it reaches the disk.
 
-    Moving the FILE to its id-based name is _adopt_legacy_projects()'s job,
-    not this one's -- this only ever touches the dict."""
+    Only ever touches the dict, never the file's name (that is the id)."""
     changed = False
     if not _valid_project_id(data.get("id")):
         data["id"] = _new_project_id()
@@ -236,53 +225,8 @@ def _read_project(f: Path) -> dict | None:
     return data if isinstance(data, dict) else None
 
 
-def _adopt_legacy_projects() -> None:
-    """Give every project named after its video a file named after its id.
-
-    Before ids, a project lived at <stem>.<fingerprint>.json -- keyed by the
-    video's size+mtime, so re-encoding or restoring the video from a backup
-    orphaned the project and started a second one for the same footage
-    (and a video the server couldn't reach got <stem>.unknown.json, which
-    had its own orphaning problem). Now the file is <id>.json and merely
-    REFERENCES its video.
-
-    Cheap enough to run before every listing and lookup: once adopted, a
-    file isn't in PROJECTS any more, so after the first call this is one
-    glob that matches nothing it has to act on. A file that won't parse is
-    left exactly where it is -- nothing here can make it worse.
-
-    `legacyFile` records the old basename, which is what /edit/<...> links
-    written before this carried; _resolve_project_id() follows it so those
-    links still open the project instead of going dead."""
-    with PROJECTS_LOCK:
-        for f in list(PROJECTS.glob("*.json")):
-            if _valid_project_id(f.stem):
-                continue
-            data = _read_project(f)
-            if data is None:
-                continue
-            data, _ = _migrate_project(data)
-            data.setdefault("legacyFile", f.stem)
-            new = PROJECTS / f"{data['id']}.json"
-            try:
-                if not new.exists():
-                    _write_project(new, data)
-                LEGACY_PROJECTS.mkdir(parents=True, exist_ok=True)
-                dest = LEGACY_PROJECTS / f.name
-                if dest.exists():
-                    # Never overwrite an older kept copy with a newer one.
-                    dest = LEGACY_PROJECTS / f"{f.stem}.{int(time.time())}.json"
-                f.replace(dest)
-            except OSError:
-                # Best-effort: a locked file is simply tried again on the
-                # next call. The listing hides it meanwhile if its id
-                # already has a file (see /api/projects).
-                continue
-
-
 def _all_projects() -> list[tuple[Path, dict]]:
     """Every readable id-named project, as (file, data)."""
-    _adopt_legacy_projects()
     out = []
     for f in PROJECTS.glob("*.json"):
         if not _valid_project_id(f.stem):
@@ -291,42 +235,6 @@ def _all_projects() -> list[tuple[Path, dict]]:
         if data is not None:
             out.append((f, data))
     return out
-
-
-def _project_videos(data: dict) -> set[str]:
-    """Every video file a project uses -- its assets, and `video` for a
-    file written before assets existed."""
-    names = {a.get("file") for a in data.get("assets") or []
-             if isinstance(a, dict) and a.get("kind") == "video" and a.get("file")}
-    if data.get("video"):
-        names.add(data["video"])
-    return names
-
-
-def _find_project_by_video(video: str) -> Path | None:
-    """The project to resume when a video is dropped. "Same video = same
-    project" is still how dropping a file behaves, it's just a lookup now
-    rather than the file's name. More than one can match (a video re-used
-    in a second project); the most recently saved wins, which is the one
-    the user was last working on."""
-    name = Path(video).name
-    hits = [(d.get("at") or 0, f) for f, d in _all_projects() if name in _project_videos(d)]
-    return max(hits)[1] if hits else None
-
-
-def _resolve_project_id(pid: str) -> str:
-    """An id as given in a URL -> the id of a project that exists, or "".
-
-    Also accepts the old <stem>.<fingerprint> form that /edit/ links
-    carried before projects had ids, via the `legacyFile` recorded when
-    the project was adopted."""
-    f = _project_file(pid)
-    if f and f.is_file():
-        return pid
-    for f, d in _all_projects():
-        if d.get("legacyFile") == pid:
-            return f.stem
-    return ""
 
 
 def _active_result(data: dict) -> dict:

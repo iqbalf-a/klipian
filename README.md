@@ -433,9 +433,8 @@ klipian/
     ├── projects/                    one <id>.json per project (its videos, Results, framing
     │   │                            points, caption corrections), and per project:
     │   ├── <id>/assets/               its images and sounds
-    │   ├── <id>/renders/              the last finished render of each Result, for
-    │   │                              `render --replay` and `selftest --promote`
-    │   └── legacy/                    files from before projects had ids, kept as they were
+    │   └── <id>/renders/              the last finished render of each Result, for
+    │                                  `render --replay` and `selftest --promote`
     ├── assets/                      shared library (logos, banners, templates), the Assets
     │                                panel in /workspace; a project imports copies from it
     └── schedule/                    upload schedule & status (clips.json), the Clips panel in /workspace

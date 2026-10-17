@@ -43,10 +43,10 @@ from .jobs import (ACTIVE_TRANSCRIBES, CANCELLED, JOBS, LOCK, MAX_JOBS, _clip_wo
                    _register_job, _run_diarize, _run_render, _run_transcribe,
                    _spans_from_clip)
 from .paths import ROOT, WORKSPACE, find_video
-from .projects import (PROJECTS, PROJECTS_LOCK, _all_projects, _find_project_by_video,
+from .projects import (PROJECTS, PROJECTS_LOCK, _all_projects,
                        _free_name, _migrate_project, _new_project_id, _primary_video,
                        _project_assets_dir, _project_file, _project_summary,
-                       _read_project, _resolve_project_id, _write_project)
+                       _read_project, _write_project)
 
 # Folders under ROOT served as-is. "assets" holds only vendored, already-
 # public files with their licenses beside them -- the OFL web fonts the UI
@@ -520,19 +520,13 @@ class Handler(BaseHTTPRequestHandler):
         return self._send_json({"project": item})
 
     def _get_project(self):
-        # By id -- what the editor holds once a project is open, and what
-        # /edit/<id> carries. By video only for a drop, where the file
-        # is all the browser has: "same video = same project" still
-        # resumes the work (see _find_project_by_video).
+        # By id: what the editor holds once a project is open, and what
+        # /edit/<id> carries.
         q = parse_qs(urlparse(self.path).query)
         pid = (q.get("id") or [""])[0]
-        name = (q.get("video") or [""])[0]
-        if pid:
-            f = _project_file(_resolve_project_id(pid))
-        elif name:
-            f = _find_project_by_video(name)
-        else:
-            return self._send_json({"error": "id or video required"}, 400)
+        if not pid:
+            return self._send_json({"error": "id required"}, 400)
+        f = _project_file(pid)
         if not f or not f.is_file():
             return self._send_json({"error": "not found"}, 404)
         try:
@@ -850,21 +844,18 @@ class Handler(BaseHTTPRequestHandler):
         pid = req.get("id")
         PROJECTS.mkdir(parents=True, exist_ok=True)
         with PROJECTS_LOCK:
-            # Which file: the id the client holds, or -- for the first
-            # save of a project the client has no id for yet -- the one
-            # this video already belongs to. Under the lock, so two
-            # first saves racing each other find the same answer.
+            # Which file: the id the client holds, or -- for the first save
+            # of a project the client has no id for yet, which says `new` --
+            # none yet. Never matched to another project by its video: two
+            # projects can share an episode.
             if pid:
                 f = _project_file(pid)
                 if f is None:
                     return self._send_json({"error": "invalid id"}, 400)
             elif req.get("new"):
-                # A new project, explicitly: never merged into another
-                # one that happens to use the same video (two projects
-                # can share an episode now).
                 f = None
             else:
-                f = _find_project_by_video(name) if name else None
+                return self._send_json({"error": "id required (or new: true for a new project)"}, 400)
 
             if req.get("delete"):
                 if f:
@@ -889,7 +880,7 @@ class Handler(BaseHTTPRequestHandler):
             # add one yet, so anything it doesn't send is kept.
             old = _read_project(f) if f.is_file() else None
             if old:
-                for key in ("name", "createdAt", "outSlug", "legacyFile"):
+                for key in ("name", "createdAt", "outSlug"):
                     if old.get(key):
                         req[key] = old[key]
                 # Kept only when the client didn't send a list at all

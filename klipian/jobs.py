@@ -22,7 +22,7 @@ from .models import Transcript
 from . import compose as composer
 from . import render as engine
 from .paths import GLOSSARY, WORKSPACE, find_video
-from .projects import (_find_project_by_video, _project_assets_dir, _project_file,
+from .projects import (_project_assets_dir, _project_file,
                        _project_out_dir, _read_project, write_render_record)
 
 # Render jobs currently / already running
@@ -218,13 +218,9 @@ def _run_render(job_id: str, req: dict, into: Path | None = None, record: bool =
         # old video-stem folder -- rather than failing the job over a
         # folder name.
         out_dir = WORKSPACE / "out" / video.stem
-        # By the project's id when the client sends it; by video for a
-        # client from before ids, which is the same answer for any project
-        # that has only ever held one video.
+        # By the project's id, which the editor always sends.
         pf = _project_file(req.get("project"))
-        if not (pf and pf.is_file()):
-            pf = _find_project_by_video(req["video"])
-        pdata = _read_project(pf) if pf else None
+        pdata = _read_project(pf) if pf and pf.is_file() else None
         if pdata:
             out_dir = _project_out_dir(pdata)
         if into is not None:

@@ -24,8 +24,7 @@ the repo root as `samples/`, `out/`, `cache/`, `projects/`, `sources/` and
 - `projects/` -- one `<id>.json` per project: its videos, Results, framing
   points, caption corrections. Next to it, per project, `<id>/assets/` (its
   images and sounds) and `<id>/renders/` (the last finished render of each
-  Result, used by `klipian render --replay`). `legacy/` holds project files
-  from before projects had ids, kept as they were.
+  Result, used by `klipian render --replay`).
 - `assets/` -- a shared library: your own watermarks, logos, fonts and
   templates, beyond the ones klipian ships with. Listed as-is in the Assets
   panel at `/workspace`; a project's Assets screen imports copies from it.

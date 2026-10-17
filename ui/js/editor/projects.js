@@ -529,12 +529,10 @@ document.querySelectorAll('[data-result-action="delete"]').forEach((b) => {
 });
 
 /* The saved project document, by `{ id }` (a card, the URL, the stored
-   session) or by `{ video }` (a dropped file -- "same video = same
-   project"). null if there is none or the server can't be reached. */
+   session). null if there is none or the server can't be reached. */
 async function fetchProject(ref) {
-  const q = ref.id ? `id=${encodeURIComponent(ref.id)}` : `video=${encodeURIComponent(ref.video || "")}`;
   try {
-    const r = await fetch(`/api/project?${q}`);
+    const r = await fetch(`/api/project?id=${encodeURIComponent(ref.id)}`);
     if (!r.ok) return null;
     const d = await r.json();
     return d && !d.error ? d : null;
@@ -1096,20 +1094,13 @@ async function enterProject(d, gen) {
    the current tab's memory, lost the moment it's reloaded. localStorage
    survives a reload (unlike a normal variable), so it's enough to store a
    POINTER to which project is currently open -- its id -- not the project
-   itself, which still lives in a file as before. Browsers that last ran
-   the version before ids hold a video filename here instead;
-   restoreLastSession() still understands that. */
+   itself, which still lives in a file. */
 const SESSION_KEY = "klipian:sesi-aktif";
 
 /* ...and in the address bar as well (ian): /edit/<project id>.
 
-   The address used to carry <stem>.<fingerprint>, the project file's name
-   when files were keyed by the video's size+mtime -- so re-encoding or
-   restoring the video from a backup changed it. The id is minted once
-   and stored in the project, so it doesn't. Links in the old shape still
-   open: the server remembers which project each old file became
-   (`legacyFile`, see _resolve_project_id), and the address is rewritten to
-   the id as soon as the project opens.
+   The id is minted once and stored in the project, so re-encoding or
+   restoring the video from a backup does not change the address.
 
    replaceState, never pushState: this mirrors state that already changed,
    it isn't itself a navigation. Pushing would stack an entry every time a
@@ -1161,10 +1152,7 @@ async function restoreLastSession() {
   let stored = "";
   try { stored = localStorage.getItem(SESSION_KEY) || ""; } catch { /* blocked */ }
   const urlId = urlProjectId();
-  const ref = urlId ? { id: urlId }
-    : PROJECT_ID_RE.test(stored) ? { id: stored }
-    : stored ? { video: stored }        // pointer written before ids
-    : null;
+  const ref = urlId ? { id: urlId } : stored ? { id: stored } : null;
   if (!ref) return false;
 
   // Opening failed. A dead /edit/ link goes to Home with the address
@@ -1174,27 +1162,26 @@ async function restoreLastSession() {
   // not throw away the stored session either, which points at a
   // different, possibly still-valid project.
   const giveUp = (gone = false) => {
-    if (gone && ref.id) forgetProject(ref.id);   // deleted: don't try it again next load
+    if (gone) forgetProject(ref.id);   // deleted: don't try it again next load
     if (urlId) writeProjectUrl(null);
     else forgetActiveSession();
     return false;
   };
 
   const gen = ++_openProjectGen;
+  // Not an id (an address or a pointer from before ids): nothing to open.
+  if (!PROJECT_ID_RE.test(ref.id)) return giveUp(true);
   // A remembered id that is no longer in the list is not requested at all: the
   // request would only be a 404 in the console. (If the list can't be read, ask
   // for the project anyway.)
-  if (ref.id && PROJECT_ID_RE.test(ref.id)) {
-    try {
-      const known = (await (await fetch("/api/projects")).json()).project || [];
-      if (gen !== _openProjectGen) return false;
-      if (!known.some((p) => p.id === ref.id)) return giveUp(true);
-    } catch { /* fall through to the request below */ }
-  }
+  try {
+    const known = (await (await fetch("/api/projects")).json()).project || [];
+    if (gen !== _openProjectGen) return false;
+    if (!known.some((p) => p.id === ref.id)) return giveUp(true);
+  } catch { /* fall through to the request below */ }
   let d;
   try {
-    const q = ref.id ? `id=${encodeURIComponent(ref.id)}` : `video=${encodeURIComponent(ref.video)}`;
-    const r = await fetch(`/api/project?${q}`);
+    const r = await fetch(`/api/project?id=${encodeURIComponent(ref.id)}`);
     if (r.status === 404) return giveUp(true);
     if (!r.ok) return false;
     d = await r.json();
