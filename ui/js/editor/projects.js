@@ -770,7 +770,7 @@ async function renderProjects() {
          role="button" tabindex="0"${missing ? ' aria-disabled="true"' : ""}>
       ${missing || empty
         ? '<span class="project-thumb empty"></span>'
-        : `<img class="project-thumb" alt="" loading="lazy" src="${coverUrl(p)}">`}
+        : `<img class="project-thumb loading" alt="" loading="lazy" src="${coverUrl(p)}">`}
       ${i === lastIdx ? '<span class="last-opened">last opened</span>' : ""}
       <span class="project-name" title="${escapeHTML(name)}">${escapeHTML(name)}</span>
       <span class="data project-meta">${missing
@@ -798,6 +798,16 @@ async function renderProjects() {
       </span>
     </div>`;
   }).join("");
+  // The first thumbnail of a project is made by ffmpeg on the first request
+  // (seconds); until it arrives the card shows a shimmer instead of black.
+  container.querySelectorAll("img.project-thumb.loading").forEach((img) => {
+    const settle = (ok) => { img.classList.remove("loading"); if (!ok) img.classList.add("failed"); };
+    if (img.complete) settle(img.naturalWidth > 0);
+    else {
+      img.addEventListener("load", () => settle(true), { once: true });
+      img.addEventListener("error", () => settle(false), { once: true });
+    }
+  });
   })();
   try { return await _renderProjectsInflight; }
   finally { _renderProjectsInflight = null; }
