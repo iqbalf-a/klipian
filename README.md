@@ -10,11 +10,24 @@ subscription — and **no API key required.**
 
 ## Running it
 
+From `cmd` in the project folder, type `st`, press Tab, then Enter:
+
+```bash
+start.cmd
+```
+
+It starts the server from `.venv` and opens **http://127.0.0.1:5177** in the
+browser. `start.cmd 5180` uses another port; if klipian is already running
+on that port it just opens the browser. It checks for `.venv` and ffmpeg
+first and says what to do when either is missing. Type `start.cmd` (or let
+Tab complete it), not plain `start`, which is cmd's own command. Ctrl+C
+stops the server.
+
+Without the script, the same thing is:
+
 ```bash
 .venv\Scripts\python.exe -m klipian serve
 ```
-
-Then open **http://127.0.0.1:5177**
 
 Always start it from the project's own `.venv` (as above, not with whichever
 `python` is first on your `PATH`): the packages it needs live there, and a
@@ -407,6 +420,7 @@ klipian/
 ├── prompts/rubrik/                scoring rubrics, editable without touching code
 ├── assets/models/                 vendored ONNX models with their licenses: YuNet and SFace
 │                                  (faces), YAMNet (sound events) and its class map
+├── start.cmd                       starts the server from .venv and opens the editor
 ├── requirements.txt                base install (no PyTorch)
 ├── requirements-ai-framing.txt     optional: AI Framing / speaker diarization
 ├── .env.example                    copy to .env for HF_TOKEN (AI Framing only)
