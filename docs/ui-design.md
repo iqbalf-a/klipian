@@ -17,11 +17,11 @@ harus bisa membangun antarmukanya.
 >   dari stdlib Python. Progress memakai polling `/api/<x>/<id>`. Itu terbukti
 >   cukup untuk satu pengguna di satu mesin.
 > - **§5 Tipografi.** Archivo dan IBM Plex Mono tidak dipakai. Yang dipakai
->   Geist (teks dan judul), Geist Mono (data: timecode, durasi, nama file), dan
->   Mona Sans ExtraBold untuk merek "klipian" dan watermark, semuanya berkas
->   lokal OFL di `assets/fonts/` (lihat `ui/css/fonts.css`). Watermark yang
->   dibakar ke video oleh `render.py` juga Mona Sans, jadi preview dan hasil
->   sama.
+>   Geist (teks, judul, dan merek "klipian" di topbar, yang Geist 800 dengan
+>   gradien), Geist Mono (data: timecode, durasi, nama file), dan Mona Sans
+>   ExtraBold hanya untuk watermark dan label overlay yang dibakar ke video
+>   oleh `render.py` (preview memakai font yang sama, jadi hasilnya sama).
+>   Semuanya berkas lokal OFL di `assets/fonts/` (lihat `ui/css/fonts.css`).
 >   Catatan: §3.1 melarang Geist sebagai display face; di UI sekarang Geist
 >   justru font utamanya.
 > - **§4 Palet.** Token sekarang `--bg-0…3`, `--text*`, `--accent` (kuning),
@@ -51,10 +51,14 @@ harus bisa membangun antarmukanya.
 >   hanya lewat CLI), dan tidak ada preset framing atau deteksi facecam otomatis.
 >   Format `split` (dua kotak) ada di Framing; preset yang ada hanya untuk
 >   gaya caption.
-> - **§14 Pintasan keyboard.** Yang ada: `,` `.` (maju/mundur satu frame atau
->   detik), `<` `>` (lima), dan `Space`. Bukan `←/→`, `I`, `O`, `Enter`.
+> - **§14 Pintasan keyboard.** Yang ada: `,` `.` (mundur/maju satu frame atau
+>   detik), `<` `>` (lima), dan `Space` (putar/jeda); serta `←` `→` saat
+>   timeline preview difokuskan (geser 1 detik, dengan `Shift` 5 detik). Tidak
+>   ada `I`, `O`, dan `Enter` untuk menyetujui.
 > - **§10 dan §3.1 Keadaan kosong, tata letak.** "Tarik file ke sini" tidak
->   berlaku: video ditambahkan dari `workspace/samples/` di Assets. Kerangka
+>   berlaku: di Assets video ditambahkan lewat **Add video…** (file dari mana
+>   saja di disk, disalin ke `workspace/samples/`) atau dipilih dari daftar
+>   `samples/`. Kerangka
 >   sidebar kiri + topbar dipakai (yang dilarang §3.1); panel 9:16 permanen di
 >   kanan tetap ada.
 
