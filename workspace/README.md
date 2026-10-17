@@ -14,8 +14,8 @@ the repo root as `samples/`, `out/`, `cache/`, `projects/`, `sources/` and
 - `out/` -- rendered output, one subfolder per project (`<slug>.<id>/`, the
   slug fixed when the project was created). This is what the
   editor's History screen and the Rendered files panel at `/workspace` both
-  read. Quick previews live in a `.preview/` subfolder and are deliberately
-  excluded from both.
+  read. Quick previews are not renders and live in `cache/previews/`.
+  (Older ones in `out/<video>/.preview/` are leftovers and can be deleted.)
 - `cache/` -- transcripts, audio-cue analysis and diarization results.
   Created automatically, safe to delete: anything needed is rebuilt on the
   next run. Thumbnails are cached under `cache/thumbs/` and are equally safe

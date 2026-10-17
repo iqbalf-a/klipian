@@ -470,12 +470,10 @@ class Handler(BaseHTTPRequestHandler):
         # history, and persist across page reloads or server restarts.
         item = []
         for mp4 in (WORKSPACE / "out").glob("*/*.mp4"):
-            # Quick previews are not renders. They live in a .preview/
-            # subfolder now (one level deeper than this glob reaches),
-            # but the leading-underscore check also hides the
-            # _preview.mp4 files older builds left at this level --
-            # those used to appear in History and on the workspace
-            # dashboard as real output, one permanent row per video.
+            # Quick previews are not renders (they live in cache/previews/),
+            # but the leading-underscore check also hides the _preview.mp4
+            # files older builds left in out/ -- those used to appear in
+            # History and on the workspace dashboard as real output.
             if mp4.name.startswith("_"):
                 continue
             try:
@@ -1225,11 +1223,12 @@ class Handler(BaseHTTPRequestHandler):
             # Same fix the transcribe path already applies to its temp
             # wav -- see the job-id suffix there.
             #
-            # They also live in a .preview/ subfolder now: /api/history
-            # globs out/*/*.mp4, so every preview used to show up in the
-            # History screen and the workspace dashboard as if it were a
-            # real render, permanently, one row per source video.
-            pdir = WORKSPACE / "out" / video.stem / ".preview"
+            # They live in cache/previews/, not in out/: a preview is not a
+            # render, and out/ is what History and the dashboard list. (They
+            # used to sit in out/<video name>/.preview/, which put a folder
+            # named after the VIDEO back into out/ -- and a multi-video
+            # project has no one video to name it after.)
+            pdir = WORKSPACE / "cache" / "previews"
             pdir.mkdir(parents=True, exist_ok=True)
             tag = uuid.uuid4().hex[:8]
             dest = pdir / f"_preview.{tag}.mp4"
@@ -1268,7 +1267,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"error": str(exc)}, 500)
 
         return self._send_json({
-            "url": f"/workspace/out/{video.stem}/.preview/{dest.name}",
+            "url": f"/workspace/cache/previews/{dest.name}",
             "duration": round(job.duration, 1),
             **({"warning": warning} if warning else {}),
         })
