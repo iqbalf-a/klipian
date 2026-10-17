@@ -530,6 +530,10 @@ def _run_transcribe(job_id: str, req: dict) -> None:
 
         model = req.get("model", DEFAULT_MODEL)
         lang = req.get("lang", DEFAULT_LANGUAGE)
+        threads = int(req.get("threads", DEFAULT_THREADS))
+        with LOCK:
+            t["model"] = model          # for the page to show what actually runs
+            t["threads"] = threads
         gloss_path = GLOSSARY if GLOSSARY.exists() else None
         # Where a transcript made NOW is saved. Also the file that counts as
         # exact (find_transcript prefers it).
@@ -603,7 +607,7 @@ def _run_transcribe(job_id: str, req: dict) -> None:
             model_size=model,
             language=lang,
             glossary=gloss,
-            threads=int(req.get("threads", DEFAULT_THREADS)),
+            threads=threads,
             source_label=str(video),
             verbose=False,          # stderr progress is for the CLI
             on_segment=_tick,

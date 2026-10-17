@@ -21,6 +21,12 @@ let analysisStop = null;
 async function startAnalysis({ force = false } = {}) {
   if (analysisStop) { analysisStop(); analysisStop = null; }
   hideTranscriptActions();
+  $("#transcribePanel").hidden = false;
+  $("#transcribeTitle").textContent = "Transcript";
+  $("#transcribeLabel").textContent = "";
+  $("#transcribeLeave").hidden = true;
+  $("#transcribeBar").style.width = "0%";
+  $("#transcribeStats").innerHTML = "";
   const d = DATA;
   const name = chosenSource ? chosenSource.name : d.file;
 
@@ -59,6 +65,14 @@ async function startAnalysis({ force = false } = {}) {
     const remaining = t.percent > 2 ? elapsed * (100 - t.percent) / t.percent : 0;
 
     $("#transcribeBar").style.width = `${t.percent || 0}%`;
+    // What is actually running, from the job: the model and thread count the
+    // server uses, not a fixed string. Cached means nothing runs at all.
+    const running = t.state === "running" && !t.cached && t.stage !== "cues";
+    $("#transcribeTitle").textContent = t.state === "failed" ? "Transcript"
+      : running ? "Transcribing" : "Transcript";
+    $("#transcribeLabel").textContent = t.model && !t.cached
+      ? `${t.model} · CPU ${t.threads} threads` : "";
+    $("#transcribeLeave").hidden = !(t.state === "running" && !t.cached && t.stage === "transcribe");
     $("#fileDuration").textContent = timeRange(t.duration || 0);
     $("#analysisNote").textContent = `${name} · ${timeRange(t.duration || 0)}`;
     $("#transcribeStats").innerHTML = (t.cached
@@ -126,6 +140,8 @@ function disarmRetranscribe() {
 
 function hideTranscriptActions() {
   disarmRetranscribe();
+  const panel = $("#transcribePanel");
+  if (panel && !analysisStop) panel.hidden = true;
   $("#transcriptActions").hidden = true;
   $("#transcriptNote").hidden = true;
 }

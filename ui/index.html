@@ -349,15 +349,19 @@
           </div>
         </div>
 
-        <div class="panel fit" style="padding:var(--s5)">
+        <!-- Only once Find clips has been pressed for this video (analysis.js):
+             before that nothing is running, and an empty progress bar with
+             "you can leave this running" under it is a lie. The model and the
+             thread count come from the server's own job. -->
+        <div class="panel fit" id="transcribePanel" hidden style="padding:var(--s5)">
           <div style="display:flex;align-items:center;gap:var(--s3);margin-bottom:var(--s4)">
-            <h2 style="font-size:18px">Transcribing</h2>
-            <span class="data" style="color:var(--text-faint)">large-v3-turbo · CPU 22 threads</span>
+            <h2 style="font-size:18px" id="transcribeTitle">Transcript</h2>
+            <span class="data" id="transcribeLabel" style="color:var(--text-faint)"></span>
           </div>
           <div class="progress" style="width:100%;height:6px"><i id="transcribeBar" style="width:0%"></i></div>
           <div class="data" id="transcribeStats"
                style="display:flex;gap:var(--s5);margin-top:var(--s3);color:var(--text-faint)"></div>
-          <p style="margin:var(--s4) 0 0;color:var(--text-muted);font-size:13px">
+          <p id="transcribeLeave" hidden style="margin:var(--s4) 0 0;color:var(--text-muted);font-size:13px">
             You can leave this running. The result is saved automatically.
           </p>
           <!-- Once a transcript exists for the video. Find clips uses it as it
