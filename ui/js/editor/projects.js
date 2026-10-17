@@ -847,6 +847,7 @@ async function deleteProject(id) {
     activeProjectId = null;
     forgetActiveSession();  // a reload after this shouldn't try to enter the just-deleted project
   }
+  forgetProject(id);
   renderProjects();
 }
 
@@ -1140,6 +1141,15 @@ function forgetActiveSession() {
   writeProjectUrl(null);
 }
 
+/* Everything this browser remembers about a project that is gone: the pointer
+   to it (if that is what it points at) and the screen it was left on. */
+function forgetProject(id) {
+  try {
+    if (localStorage.getItem(SESSION_KEY) === id) localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(`klipian:screen:${id}`);
+  } catch { /* no storage */ }
+}
+
 /* Called once when the page loads: enters the project named by the URL,
    or failing that the one this browser had open last. Returns true if it
    succeeded -- the caller does NOT need to fall back to toStage("home")
@@ -1163,18 +1173,29 @@ async function restoreLastSession() {
   // it was the one asked for, gives no sign the link was dead. And it must
   // not throw away the stored session either, which points at a
   // different, possibly still-valid project.
-  const giveUp = () => {
+  const giveUp = (gone = false) => {
+    if (gone && ref.id) forgetProject(ref.id);   // deleted: don't try it again next load
     if (urlId) writeProjectUrl(null);
     else forgetActiveSession();
     return false;
   };
 
   const gen = ++_openProjectGen;
+  // A remembered id that is no longer in the list is not requested at all: the
+  // request would only be a 404 in the console. (If the list can't be read, ask
+  // for the project anyway.)
+  if (ref.id && PROJECT_ID_RE.test(ref.id)) {
+    try {
+      const known = (await (await fetch("/api/projects")).json()).project || [];
+      if (gen !== _openProjectGen) return false;
+      if (!known.some((p) => p.id === ref.id)) return giveUp(true);
+    } catch { /* fall through to the request below */ }
+  }
   let d;
   try {
     const q = ref.id ? `id=${encodeURIComponent(ref.id)}` : `video=${encodeURIComponent(ref.video)}`;
     const r = await fetch(`/api/project?${q}`);
-    if (r.status === 404) return giveUp();
+    if (r.status === 404) return giveUp(true);
     if (!r.ok) return false;
     d = await r.json();
   } catch {
