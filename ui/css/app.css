@@ -1254,6 +1254,8 @@ h1, h2, h3 {
 .step-head { display: flex; align-items: center; gap: var(--s4); }
 .step-head h2 { font-size: var(--t-17); }
 .step-head .btn { margin-left: auto; }
+.step-actions { margin-left: auto; display: flex; gap: var(--s2); flex: none; }
+.step-head .step-actions .btn { margin-left: 0; }
 .step-note { margin: 3px 0 0; color: var(--text-faint); font-size: var(--t-12); }
 
 .num {

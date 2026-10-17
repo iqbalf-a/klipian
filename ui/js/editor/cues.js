@@ -126,6 +126,8 @@ async function loadCues(videoName) {
   }
   drawCueChips();
   if (typeof drawTotalTimeline === "function") drawTotalTimeline();
+  // The brief carries the cues, so what was fetched before they arrived is stale.
+  if (typeof refreshBrief === "function") refreshBrief();
 }
 
 /* The active video's cues, or none while another video's are loaded. */

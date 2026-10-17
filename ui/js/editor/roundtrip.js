@@ -3,7 +3,7 @@
    Flow:
 
      1  drop video on the Prepare screen
-     2  the server builds a file containing rubric + transcript      -> Download
+     2  the server builds a file containing rubric + transcript      -> Copy / Download
      3  that file is dropped into Claude web, ask it to "work on it"
      4  Claude web replies with JSON
      5  JSON is pasted here, the server reads it                     -> Import
@@ -51,6 +51,31 @@ async function buildBrief(name) {
     throw new Error(d.error || "Could not build the file for Claude.");
   }
   return res.text();
+}
+
+/* The brief, fetched as soon as the transcript is ready and kept, so a click on
+   Copy can write to the clipboard at once. Some browsers refuse a clipboard
+   write that comes after a long await following the click. Dropped whenever
+   what it was built from may have changed: another video, a new transcript,
+   the cues arriving. `briefGen` lets a slow fetch that was overtaken throw its
+   answer away instead of storing it. */
+let briefCache = null;                    // { name, text }
+let briefGen = 0;
+
+function invalidateBrief() {
+  briefGen++;
+  briefCache = null;
+}
+
+async function refreshBrief() {
+  invalidateBrief();
+  const gen = briefGen;
+  const name = chosenSource?.name;
+  if (!name || $("#exportPanel")?.dataset.ready !== "true") return;
+  try {
+    const text = await buildBrief(name);
+    if (gen === briefGen && chosenSource?.name === name) briefCache = { name, text };
+  } catch { /* the click will fetch it and say why if it still fails */ }
 }
 
 /* ---------- step 5: reading Claude's reply ---------- */
@@ -113,21 +138,24 @@ function applyCandidates(candidates) {
 /* ---------- wiring controls ---------- */
 
 async function prepareExport(videoName) {
-  const panel = $("#exportPanel"), button = $("#downloadBrief"), note = $("#exportNote");
+  const panel = $("#exportPanel"), note = $("#exportNote");
+  const buttons = [$("#copyBrief"), $("#downloadBrief")];
   note.textContent = "searching for transcript ...";
   const previous = realTranscript;
+  invalidateBrief();
   realTranscript = await findTranscript(videoName);
   if (typeof loadCues === "function") loadCues(videoName);
 
   if (!realTranscript) {
     panel.dataset.ready = "false";
-    button.disabled = true;
+    buttons.forEach((b) => { b.disabled = true; });
     note.textContent = "No transcript yet. Click Find clips to make one.";
     return;
   }
   panel.dataset.ready = "true";
   if (typeof drawCueChips === "function") drawCueChips();
-  button.disabled = false;
+  buttons.forEach((b) => { b.disabled = false; });
+  refreshBrief();
   note.textContent =
     `${realTranscript.words.length.toLocaleString("en")} words · ${fmtStamp(realTranscript.duration)} · drop the file into Claude to find clips`;
   $("#importPanel").dataset.ready = "true";
@@ -142,6 +170,70 @@ async function prepareExport(videoName) {
     if (typeof renderCaptions === "function") renderCaptions();
   }
 }
+
+/* Plain-text copy for a browser without the async Clipboard API (or one that
+   refused it): a hidden textarea and execCommand. */
+function copyViaTextarea(text) {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.setAttribute("readonly", "");
+  ta.style.cssText = "position:fixed;top:0;left:0;opacity:0;pointer-events:none";
+  document.body.appendChild(ta);
+  ta.select();
+  let ok = false;
+  try { ok = document.execCommand("copy"); } catch { /* refused */ }
+  ta.remove();
+  return ok;
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch { return copyViaTextarea(text); }
+}
+
+$("#copyBrief")?.addEventListener("click", async (e) => {
+  const btn = e.currentTarget, note = $("#exportNote");
+  const name = chosenSource?.name || "video.mp4";
+  let text = briefCache?.name === name ? briefCache.text : null;
+  try {
+    if (text !== null) {
+      // The usual path: fetched already, so the write follows the click directly.
+      if (!(await copyText(text))) throw new Error("the browser refused to copy");
+    } else {
+      // Not fetched yet (clicked right after the transcript appeared, or the
+      // cues just changed): hand the clipboard a promise, which browsers that
+      // have ClipboardItem accept for exactly this.
+      const pending = buildBrief(name);
+      pending.catch(() => {});            // read below; no unhandled rejection
+      let wrote = false;
+      if (window.ClipboardItem && navigator.clipboard?.write) {
+        try {
+          await navigator.clipboard.write([new ClipboardItem({
+            "text/plain": pending.then((t) => new Blob([t], { type: "text/plain" })),
+          })]);
+          wrote = true;
+        } catch { /* fall back below, unless the brief itself failed */ }
+      }
+      text = await pending;
+      if (!wrote && !(await copyText(text))) throw new Error("the browser refused to copy");
+      briefCache = { name, text };
+    }
+  } catch (err) {
+    note.textContent = `Could not copy (${err.message}). Use Download file instead.`;
+    return;
+  }
+  note.textContent =
+    `Copied · ${(text.length / 1024).toFixed(0)} KB · ~${Math.round(text.length / 3.5).toLocaleString("en")} tokens · paste it into Claude`;
+  // Restored from data-label, not the visible text: a second click while it
+  // still says "Copied" would otherwise make that the permanent label.
+  const label = btn.dataset.label || btn.textContent;
+  btn.dataset.label = label;
+  btn.textContent = "Copied";
+  clearTimeout(btn._copiedTimer);
+  btn._copiedTimer = setTimeout(() => { btn.textContent = label; }, 2000);
+});
 
 $("#downloadBrief")?.addEventListener("click", async () => {
   const name = chosenSource?.name || "video.mp4";

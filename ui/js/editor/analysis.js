@@ -34,6 +34,7 @@ async function startAnalysis({ force = false } = {}) {
   $("#fileName").textContent = name;
   $("#error").hidden = true;
   $("#exportPanel").dataset.ready = "false";
+  if (typeof invalidateBrief === "function") invalidateBrief();   // a new transcript is coming
 
   let id;
   try {

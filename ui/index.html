@@ -395,7 +395,12 @@
               <h2>Export for Claude</h2>
               <p class="step-note" id="exportNote">waiting for the transcript</p>
             </div>
-            <button class="btn main" id="downloadBrief" disabled>Download file</button>
+            <!-- Same file either way (buildBrief): Copy puts it on the clipboard
+                 to paste into the chat, Download saves it to drop in. -->
+            <div class="step-actions">
+              <button class="btn main" id="copyBrief" type="button" disabled>Copy</button>
+              <button class="btn" id="downloadBrief" type="button" disabled>Download file</button>
+            </div>
           </div>
           <!-- What klipian detected from the sound and the word timings and
                wrote into that file (cues.js). Dim with "none found" / "not run"

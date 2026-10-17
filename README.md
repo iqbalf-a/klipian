@@ -124,7 +124,8 @@ HISTORY        render queue with live progress, finished files
 2  ANALYZE    [ Find clips ]
               ① the transcript is made on your machine, or loaded if the
                  video already has one
-              ② [ Download file ]  ->  drop it into Claude, ask it to work
+              ② [ Copy ]  ->  paste it into Claude, ask it to work
+                 ([ Download file ] gives the same text as a file to drop in)
               ③ paste the JSON reply  ->  [ Cut into clips ]
 3  CLIPS      the suggestions fill the Result; add or trim moments on the
               timeline yourself, both feed the same Result
