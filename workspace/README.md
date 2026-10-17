@@ -10,7 +10,10 @@ the repo root as `samples/`, `out/`, `cache/`, `projects/`, `sources/` and
   server a full path, so the backend looks a video up by filename in this
   folder (see `find_video()` in `klipian/paths.py`). A project's videos are
   added from here on the Assets screen; **Add video…** there copies a file
-  in from anywhere on disk, or you can copy it here yourself.
+  in from anywhere on disk, or you can copy it here yourself. The
+  **Sources** panel at `/workspace` lists what is here and which projects use
+  each video. Only this folder is searched: a render in `out/` is never taken
+  for a source.
 - `out/` -- rendered output, one subfolder per project (`<slug>.<id>/`, the
   slug fixed when the project was created). This is what the
   editor's History screen and the Rendered files panel at `/workspace` both

@@ -357,6 +357,7 @@ but for what happens **after** a clip becomes an MP4.
 | Panel | Contents |
 |---|---|
 | **Clips** | upload schedule: status, title/hook, platform, date & time edited directly in the table; episode source, clip file, description + hashtags, TikTok caption, links, and notes live in a **Detail** dialog per row (the table itself stays to the essential columns, so it never needs horizontal scrolling). Saved to `workspace/schedule/clips.json` |
+| **Sources** | the raw videos in `workspace/sources/`: size, length, when each came in, whether it has a transcript, and which projects use it (**not used** when none does). **Open folder** opens `workspace/sources/`. Lengths are read once per file and cached in `workspace/cache/` |
 | **Rendered output** | `workspace/out/` as-is — same data source as the History screen in the editor |
 | **Assets** | `workspace/assets/`: a shared library of watermarks, logos, banners and templates. A project's Assets screen *imports* from it (it copies the file); a project's own images and sounds live in `workspace/projects/<id>/assets/` |
 

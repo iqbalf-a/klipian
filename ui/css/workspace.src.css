@@ -25,7 +25,7 @@
 }
 
 @layer components {
-  /* Panel card -- used 3x (Clips, Rendered output, Assets), unified here
+  /* Panel card -- used 4x (Clips, Sources, Rendered output, Assets), unified here
      instead of repeated as a long utility list in each section. */
   .ws-panel {
     @apply bg-surface-2 rounded-m p-5 flex flex-col gap-4 shadow-card;
@@ -94,4 +94,16 @@
   }
   .ws-row .name { @apply font-semibold truncate; }
   .ws-row .data { @apply font-data text-[11px] text-text-faint; }
+
+  /* Sources rows: name, size, length, added, transcript, used by. A header
+     row (.head) names the columns, since six of them are not self-evident. */
+  .ws-row.sources {
+    grid-template-columns: minmax(0, 1fr) 76px 64px 64px 112px minmax(0, 220px);
+  }
+  .ws-row.sources .used { @apply truncate text-[12px]; }
+  .ws-row.sources .used[data-none="true"] { @apply text-text-faint; }
+  .ws-row.head {
+    @apply text-[10px] font-bold uppercase tracking-wider text-text-faint py-1.5;
+  }
+  .ws-row .done { @apply text-accent; }
 }

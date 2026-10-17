@@ -60,6 +60,12 @@ class Cache:
         fp = fingerprint(video)
         return self.root / f"{Path(video).stem}.{fp}.wav"
 
+    def probe_path(self, video: Path) -> Path:
+        """What ffprobe said about a video (the Sources panel's durations) --
+        video fingerprint only, so a file that is replaced is read again."""
+        fp = fingerprint(video)
+        return self.root / f"{Path(video).stem}.{fp}.probe.json"
+
     def cues_path(self, video: Path) -> Path:
         """Raw audio cues (cues.run_audio_cues) -- video fingerprint only:
         they depend on the audio, not on the transcript or its settings."""

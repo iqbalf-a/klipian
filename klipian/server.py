@@ -236,6 +236,27 @@ def _transcript_for(name: str) -> Transcript | None:
     return Transcript.load(path) if path else None
 
 
+def _source_duration(video: Path, cache: Cache) -> float | None:
+    """Length in seconds, read by ffprobe once per file (cached by the file's
+    fingerprint) so the dashboard doesn't probe gigabytes on every load.
+    None when the file can't be read."""
+    path = cache.probe_path(video)
+    try:
+        return float(json.loads(path.read_text(encoding="utf-8"))["duration"])
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
+    try:
+        from .ffmpeg_tools import probe
+        duration = float(probe(video).duration)
+    except Exception:                          # noqa: BLE001
+        return None
+    try:
+        path.write_text(json.dumps({"duration": duration}), encoding="utf-8")
+    except OSError:
+        pass
+    return duration
+
+
 # POSTs whose body is a file, not JSON (see Handler._guard).
 RAW_UPLOADS = {"/api/video-upload", "/api/project-asset-upload"}
 
@@ -575,6 +596,38 @@ class Handler(BaseHTTPRequestHandler):
                              "at": int(st.st_mtime)})
         return self._send_json({"asset": item})
 
+    def _get_workspace_sources(self):
+        """The raw videos in workspace/sources/ for the dashboard: size,
+        length, when each came in, whether it has a transcript, and which
+        projects use it (so a video nothing uses is easy to see)."""
+        folder = WORKSPACE / "sources"
+        folder.mkdir(parents=True, exist_ok=True)
+        cache = Cache(WORKSPACE / "cache")
+        used: dict[str, list[dict]] = {}
+        for f, data in _all_projects():
+            names = {a.get("file") for a in data.get("assets") or []
+                     if isinstance(a, dict) and (a.get("kind") or "video") == "video" and a.get("file")}
+            if data.get("video"):
+                names.add(data["video"])
+            for n in names:
+                used.setdefault(n, []).append({"id": f.stem, "name": data.get("name") or f.stem})
+        item = []
+        for f in sorted(folder.iterdir(), key=lambda p: p.name.lower()):
+            if not f.is_file() or f.suffix.lower() not in VIDEO_EXT:
+                continue
+            st = f.stat()
+            item.append({
+                "name": f.name,
+                "bytes": st.st_size,
+                # When it came in: the creation time where the platform keeps
+                # one (a copy gets a new one; the modified time is the camera's).
+                "at": int(getattr(st, "st_birthtime", None) or st.st_mtime),
+                "duration": _source_duration(f, cache),
+                "transcribed": cache.find_transcript(f) is not None,
+                "used_by": sorted(used.get(f.name, []), key=lambda u: u["name"].lower()),
+            })
+        return self._send_json({"source": item, "folder": str(folder)})
+
     def _get_project_assets(self):
         # This project's own images and sounds (projects/<id>/assets/).
         folder = _project_assets_dir((parse_qs(urlparse(self.path).query).get("id") or [""])[0])
@@ -740,6 +793,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/project": _get_project,
         "/api/workspace/clips": _get_workspace_clips,
         "/api/workspace/assets": _get_workspace_assets,
+        "/api/workspace/sources": _get_workspace_sources,
         "/api/project-assets": _get_project_assets,
         "/api/project-asset-file": _get_project_asset_file,
         "/api/workspace/asset-file": _get_workspace_asset_file,

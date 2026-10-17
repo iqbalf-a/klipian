@@ -51,6 +51,7 @@
               aria-expanded="false">?</button>
       <div class="shortcut-panel" id="shortcutPanel" hidden role="tooltip">
         <p><b>Clips</b> upload schedule, edited in place</p>
+        <p><b>Sources</b> your raw videos, in workspace/sources/</p>
         <p><b>Rendered output</b> files the editor has rendered</p>
         <p><b>Assets</b> your own logos and banners</p>
       </div>
@@ -145,6 +146,20 @@
       </form>
     </dialog>
 
+    <!-- ══════════════════ SOURCES — workspace/sources/ ══════════════════
+         The raw videos every project is cut from (input, between the
+         schedule and the output): size, length, transcript, and which
+         projects use each. /api/workspace/sources. -->
+    <section class="ws-panel" id="panelSources">
+      <div class="flex items-center gap-3">
+        <h1 class="text-[20px] font-extrabold tracking-tight">Sources</h1>
+        <span class="text-text-faint text-[13px]" id="sourceNote" role="status">loading…</span>
+        <button class="ml-auto rounded-s px-2.5 py-1 text-[12px] border border-glass-border hover:bg-glass"
+                id="sourceOpenBtn" type="button">Open folder</button>
+      </div>
+      <div id="sourceList"></div>
+    </section>
+
     <!-- ══════════════════ RENDERED OUTPUT — out/ contents as-is ══════════════════
          Same data source as /api/history (used by the History screen in the
          editor) -- just displayed again here, no new endpoint, so there's
@@ -175,6 +190,7 @@
 <script src="/ui/js/shared/topbar.js?v=1790703163808"></script>
 <script src="/ui/js/workspace/helpers.js?v=1790703163808"></script>
 <script src="/ui/js/workspace/clips.js?v=1790703163808"></script>
+<script src="/ui/js/workspace/sources.js?v=1790703163808"></script>
 <script src="/ui/js/workspace/render.js?v=1790703163808"></script>
 <script src="/ui/js/workspace/assets.js?v=1790703163808"></script>
 </body>
