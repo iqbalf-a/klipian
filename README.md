@@ -204,6 +204,10 @@ python -m klipian render --replay PROJECT_ID --result RESULT_ID
 python -m klipian selftest
 ```
 
+```bash
+python -m klipian cues video.mp4 --listen --kind laughter --level low --at 2:50 20:47
+```
+
 | Command | Does |
 |---|---|
 | `info` | media metadata, checks the available encoder |
@@ -211,6 +215,7 @@ python -m klipian selftest
 | `brief` | builds the file to drop into Claude |
 | `import` | reads Claude's JSON reply, snaps to word boundaries |
 | `render` | produces the 9:16 MP4 from a candidates file; with `--replay`, renders again the request the editor last rendered for a Result, into a temporary folder, and compares its md5/sha256 with the file made then (nothing in `out/` is touched) |
+| `cues` | the audio and timing cues found in a video, counted per kind and level; detects the sound cues first if that hasn't been done. `--listen` cuts ±3 s WAV clips of them plus a `list.md` (time, level, score, the words spoken there) into `workspace/cache/cues-listen/<video>/`: `--kind`, `--level`, `--top N` (the N strongest of each kind, default 10), or `--at 2:50 …` for the cues within 1 s of given times |
 | `selftest` | checks that nothing drifted: old project files still migrate, the Claude brief and reading of replies are unchanged, faster-whisper can decode audio in this environment, and every baseline render (`tests/fixtures/<name>/`) comes out byte-identical. A baseline whose video or project assets aren't on this machine is skipped. `--promote PROJECT_ID RESULT_ID NAME` turns a Result's last editor render into a new baseline |
 | `serve` | runs the UI with everything wired up |
 
@@ -282,8 +287,8 @@ reply is imported, each candidate also gets the cues inside it or within 5 s
 after it (`cues` in the project), computed by klipian so the same reply always
 gives the same list. The sound detection is cached per video
 (`<name>.<fp>.cues.json`); the pause and fast-talk counts follow whichever
-transcript is in use. `tools/cues_spike.py` writes numbered WAV clips of what
-it finds, to listen to and judge.
+transcript is in use. `python -m klipian cues VIDEO --listen` cuts WAV clips of what was found (same
+cache, same levels as the brief) so they can be judged by ear; see *CLI*.
 
 ### Glossary
 
@@ -402,7 +407,6 @@ klipian/
 ├── prompts/rubrik/                scoring rubrics, editable without touching code
 ├── assets/models/                 vendored ONNX models with their licenses: YuNet and SFace
 │                                  (faces), YAMNet (sound events) and its class map
-├── tools/                         scripts that are not part of the app (cues_spike.py)
 ├── requirements.txt                base install (no PyTorch)
 ├── requirements-ai-framing.txt     optional: AI Framing / speaker diarization
 ├── .env.example                    copy to .env for HF_TOKEN (AI Framing only)

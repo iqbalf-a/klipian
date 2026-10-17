@@ -392,6 +392,105 @@ def cmd_render(args: argparse.Namespace) -> int:
 
 
 # --------------------------------------------------------------------------
+# command: cues  -- what the audio and the word timings say; listen to it
+# --------------------------------------------------------------------------
+
+def _parse_time(text: str) -> float:
+    """'2:50', '1:02:30' or plain seconds."""
+    seconds = 0.0
+    for part in str(text).strip().split(":"):
+        seconds = seconds * 60 + float(part)
+    return seconds
+
+
+def _fmt_time(t: float) -> str:
+    t = int(round(t))
+    return f"{t // 3600}:{t // 60 % 60:02d}:{t % 60:02d}" if t >= 3600 else f"{t // 60}:{t % 60:02d}"
+
+
+def cmd_cues(args: argparse.Namespace) -> int:
+    """The cues klipian found in a video (cues.load: the same cache, the same
+    levels the brief uses). With --listen, WAV clips of them and a list.md in
+    <cache>/cues-listen/<video>/, so they can be judged by ear. Detects the
+    sound cues first if that hasn't been done."""
+    video = Path(args.video)
+    if not video.is_file():
+        from .paths import find_video
+        video = find_video(args.video) or video
+    if not video.is_file():
+        print(f"\nVideo not found: {args.video}\n", file=sys.stderr)
+        return 1
+    cache = Cache(Path(args.cache_dir))
+
+    record = cues.audio_record(video, cache)
+    if record is None or record["status"] != "ok":
+        print("Listening for sound cues (takes about 10 s for 45 minutes) ...")
+        record = cues.run_audio_cues(video, cache)
+        if record["status"] != "ok":
+            print(f"  failed: {record.get('error', '')}", file=sys.stderr)
+    data = cues.load(video, cache)
+    status = data["status"]
+    print()
+    print(f"{video.name}")
+    print(f"  sound cues  : {status['audio']}" + (f" ({status['audio_error']})" if status["audio_error"] else ""))
+    print(f"  timing cues : {status['timing']}")
+    counts = cues.counts(data["cues"])
+    for kind in cues.KINDS:
+        levels = ""
+        if kind in ("laughter", "applause", "shout"):
+            by = {lv: sum(1 for c in data["cues"] if c["kind"] == kind and c.get("level") == lv)
+                  for lv in ("high", "medium", "low")}
+            levels = "   " + ", ".join(f"{n} {lv}" for lv, n in by.items() if n)
+        print(f"  {kind:<10} {counts[kind]:>4}{levels}")
+    print()
+    if not args.listen:
+        print("Add --listen to cut WAV clips of them.\n")
+        return 0
+
+    try:
+        at = [_parse_time(t) for t in args.at] if args.at else None
+    except ValueError:
+        print("--at takes times like 2:50 or 1:02:30\n", file=sys.stderr)
+        return 2
+    chosen = cues.select(data["cues"], kind=args.kind, level=args.level,
+                         top=None if at else args.top, at=at)
+    if not chosen:
+        what = f"near {', '.join(args.at)}" if at else "matching that"
+        print(f"No cues {what}.\n", file=sys.stderr)
+        return 1
+
+    out = Path(args.cache_dir) / "cues-listen" / video.stem
+    out.mkdir(parents=True, exist_ok=True)
+    for old in list(out.glob("*.wav")) + list(out.glob("list.md")):
+        old.unlink()
+    wave = cues._decode(video)
+    words = []
+    tpath = cache.find_transcript(video)
+    if tpath:
+        words = Transcript.load(tpath).words
+
+    lines = [f"# Cues to listen to: {video.name}", "",
+             f"- sound cues: {status['audio']}; timing cues: {status['timing']}"
+             + (f"; transcript: {tpath.name}" if tpath else "; no transcript (words column empty)"),
+             f"- selection: " + ", ".join(filter(None, [
+                 f"kind {args.kind}" if args.kind else "", f"level {args.level}" if args.level else "",
+                 f"near {', '.join(args.at)}" if at else f"top {args.top} of each kind"])),
+             "", "| clip | kind | time | length | level | score | words around it |", "|---|---|---|---|---|---|---|"]
+    for c in chosen:
+        name = f"{c['kind'].replace(' ', '-')}-{int(c['start']) // 60:02d}m{int(c['start']) % 60:02d}s.wav"
+        cues.write_clip(wave, c["start"], c["end"], out / name)
+        score = (f"{c['peak']:.2f}" if "peak" in c else f"{c['len']:.1f} s" if c["kind"] == "pause"
+                 else f"{c.get('words', 0)} words/10 s")
+        text = cues.words_near(words, c["start"], c["end"]).replace("|", "/")
+        lines.append(f"| [{name}]({name}) | {c['kind']} | {_fmt_time(c['start'])}-{_fmt_time(c['end'])} "
+                     f"| {c['end'] - c['start']:.2f} s | {c.get('level', '')} | {score} | {text[:160]} |")
+    (out / "list.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"{len(chosen)} clip(s) (+-3 s around each) and list.md in")
+    print(f"  {out}\n")
+    return 0
+
+
+# --------------------------------------------------------------------------
 # command: serve  -- UI with actually-working render
 # --------------------------------------------------------------------------
 
@@ -497,6 +596,18 @@ def build_parser() -> argparse.ArgumentParser:
     s_render.add_argument("--model", default=DEFAULT_MODEL, choices=MODELS)
     s_render.add_argument("--lang", default="id")
     s_render.set_defaults(func=cmd_render)
+
+    s_cues = sub.add_parser("cues", parents=[common],
+                            help="the audio and timing cues found in a video; --listen to hear them")
+    s_cues.add_argument("--listen", action="store_true",
+                        help="cut +-3 s WAV clips of them, with a list.md, to <cache>/cues-listen/<video>/")
+    s_cues.add_argument("--kind", choices=cues.KINDS, help="only this kind of cue")
+    s_cues.add_argument("--level", choices=["low", "medium", "high"], help="only this level")
+    s_cues.add_argument("--top", type=int, default=10, metavar="N",
+                        help="the N strongest of each kind (default 10)")
+    s_cues.add_argument("--at", nargs="+", metavar="MM:SS",
+                        help="instead of --top: the cues within 1 s of these times")
+    s_cues.set_defaults(func=cmd_cues)
 
     s_serve = sub.add_parser("serve", help="run the UI with real rendering")
     s_serve.add_argument("--port", type=int, default=5177)

@@ -232,6 +232,18 @@ def check_cues() -> tuple[str, str]:
         problems.append(f"for_range kept {inside}")
     if len(cues.for_range(pool, 90.0, 135.0)) != 2 or len(cues.for_range(pool, 90.0, 134.0)) != 2:
         problems.append("for_range tail of 5 s is off")
+    # what `klipian cues --listen` picks: near a time (1 s either side), or the strongest N of a kind
+    sound = [{"kind": "laughter", "start": 170.4, "end": 171.36, "peak": 0.38, "level": "low"},
+             {"kind": "laughter", "start": 300.0, "end": 302.0, "peak": 0.80, "level": "high"},
+             {"kind": "laughter", "start": 400.0, "end": 401.0, "peak": 0.55, "level": "high"},
+             {"kind": "pause", "start": 500.0, "end": 504.0, "len": 4.0}]
+    if [c["start"] for c in cues.select(sound, at=[170.0])] != [170.4] or cues.select(sound, at=[160.0]):
+        problems.append("select(at=...) is off")
+    if [c["start"] for c in cues.select(sound, kind="laughter", top=2)] != [300.0, 400.0]:
+        problems.append("select(top=...) did not keep the strongest, in time order")
+    if [c["start"] for c in cues.select(sound, level="high")] != [300.0, 400.0]:
+        problems.append("select(level=...) is off")
+
     if cues.counts(pool) != {"laughter": 2, "applause": 0, "shout": 0, "music": 0, "pause": 1, "fast talk": 0}:
         problems.append("counts() is off")
 

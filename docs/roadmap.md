@@ -449,7 +449,7 @@ disimpan di `assets/models/` bersama lisensinya, sama seperti YuNet.
 5. ian mendengarkan 10 kandidat tawa teratas per video, dan 5 teratas
    untuk tiap sinyal lain.
 
-**Hasil uji coba (2026-10-16, commit `3bac5aa`, `tools/cues_spike.py`):**
+**Hasil uji coba (2026-10-16, commit `3bac5aa`; skrip `tools/cues_spike.py` kemudian diganti `python -m klipian cues VIDEO --listen`, yang memakai `cues.py` dan cache yang sama dengan brief):**
 - Model `assets/models/yamnet.onnx` berukuran **16 MB** (bukan ±4 MB).
   Dikonversi sendiri dari Kaggle `google/yamnet`; selisih skornya
   dengan SavedModel maksimal 1,7e-06.

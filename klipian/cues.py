@@ -26,8 +26,8 @@ minute) is stored on each audio range as `rel_db`. It does not decide a level
 yet, and is not a cue on its own: on mastered-to-the-ceiling audio "loud" says
 little, and 60 such stretches in an episode would only be noise for Claude.
 
-tools/cues_spike.py is the script that was used to find these values; it
-writes WAV clips next to a list for a person to listen to.
+`klipian cues VIDEO --listen` cuts WAV clips of what this module found (the
+same cache, the same levels) and lists them, to listen to and judge.
 """
 
 from __future__ import annotations
@@ -324,3 +324,56 @@ def for_range(cues: list[dict], start: float, end: float, tail: float = CLIP_TAI
                 item["level"] = c["level"]
             out.append(item)
     return out
+
+
+# ------------------------------------------------------------------ for listening
+
+def rank_key(c: dict):
+    """Strongest first, within one kind."""
+    if c["kind"] == "fast talk":
+        return (c.get("words", 0), c["end"] - c["start"])
+    if c["kind"] == "pause":
+        return (c["len"], 0.0)
+    if c["kind"] == "music":
+        return ((c["end"] - c["start"]) * c.get("mean", 0.0), 0.0)
+    return (c["peak"], c["end"] - c["start"])
+
+
+def select(cues: list[dict], kind: str | None = None, level: str | None = None,
+           top: int | None = None, at: list[float] | None = None, near: float = 1.0) -> list[dict]:
+    """The cues to listen to. `kind` / `level` filter. `at` (seconds) keeps the
+    cues within `near` seconds of any of those times; otherwise `top` keeps that
+    many of each kind, strongest first. Time order in the result."""
+    keep = [c for c in cues
+            if (kind is None or c["kind"] == kind) and (level is None or c.get("level") == level)]
+    if at:
+        keep = [c for c in keep if any(c["start"] - near <= t <= c["end"] + near for t in at)]
+    elif top:
+        by_kind: dict[str, list[dict]] = {}
+        for c in keep:
+            by_kind.setdefault(c["kind"], []).append(c)
+        keep = [c for group in by_kind.values()
+                for c in sorted(group, key=rank_key, reverse=True)[:top]]
+    return sorted(keep, key=lambda c: (c["start"], c["kind"]))
+
+
+def write_clip(wave, start: float, end: float, dest: Path, pad: float = 3.0, max_len: float = 14.0) -> None:
+    """A WAV of [start - pad, end + pad], at most `max_len` s (centred if longer)."""
+    import wave as wavefile
+    import numpy as np
+    a, b = start - pad, end + pad
+    if b - a > max_len:
+        mid = (start + end) / 2
+        a, b = mid - max_len / 2, mid + max_len / 2
+    a = max(0.0, a)
+    b = min(len(wave) / SR, b)
+    pcm = (np.clip(wave[int(a * SR):int(b * SR)], -1, 1) * 32767).astype("<i2")
+    with wavefile.open(str(dest), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(SR)
+        w.writeframes(pcm.tobytes())
+
+
+def words_near(words: list, start: float, end: float, pad: float = 1.0) -> str:
+    return " ".join(w.text.strip() for w in words if w.end >= start - pad and w.start <= end + pad)
