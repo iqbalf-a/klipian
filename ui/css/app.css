@@ -2515,5 +2515,6 @@ h1, h2, h3 {
 .hook-row[data-state="none"] .hook-status, .hook-row[data-state="notrun"] .hook-status { font-weight: 400; color: var(--text-faint); }
 .hook-row[data-state="failed"] .hook-status { color: var(--danger); }
 .hooks-note { margin: 0; color: var(--danger); }
+.hooks-rule { margin: var(--s2) 0 0; }
 .cue-wait { color: var(--text-faint); font-size: var(--t-12); }
 @media (max-width: 700px) { .hook-row { grid-template-columns: auto minmax(0, 1fr) 20px 14ch; } .hook-short { display: none; } }

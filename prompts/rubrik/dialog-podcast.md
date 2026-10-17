@@ -90,12 +90,12 @@ pendukung, bukan kepastian: cocokkan dengan kalimat di sekitarnya.
 
 | Sinyal | Artinya | Pengaruhnya |
 |---|---|---|
-| `laughter` | tawa (pembicara, kru, atau penonton) | jatuh tepat sesudah sebuah kalimat = bukti kalimat itu mengena. `high`: naikkan hook (kalimat sebelum tawa) dan payoff (ujung klip) dengan jelas. `medium`: naikkan sedikit. `low`: abaikan kalau transkrip tidak mendukung |
-| `applause` | tepuk tangan, sorakan | payoff kuat; perlakukan seperti tawa `high` |
-| `shout` | teriakan, kaget | momen emosi: naikkan skor emosi; sering menjadi hook pembuka |
+| `laughter` | tawa (pembicara, kru, atau penonton) | reaksi, bukan titik mulai: jatuh tepat sesudah sebuah kalimat = bukti kalimat itu mengena. `high`: naikkan hook (kalimat sebelum tawa) dan payoff (ujung klip) dengan jelas. `medium`: naikkan sedikit. `low`: tawa sungguhan tapi pelan atau pendek (sudah didengarkan: semuanya memang tawa); beri bobot kecil, jangan diabaikan |
+| `applause` | tepuk tangan, sorakan | reaksi, bukan titik mulai: payoff kuat; perlakukan seperti tawa `high` |
+| `shout` | teriakan, kaget | momen emosi: naikkan skor emosi. Kalimatnya bisa menjadi hook, tetapi klip tetap mulai dari awal topiknya, bukan di waktu teriakan (kecuali teriakannya sendiri pembuka yang berdiri sendiri, dinilai dari transkrip) |
 | `music` · `avoid` | musik | **HINDARI.** Intro, outro, iklan, dan risiko hak cipta. Jangan jadikan rentang itu klip dan jangan biarkan klip memuatnya |
-| `pause` | jeda 3 detik atau lebih sebelum sebuah kalimat (kalimatnya dikutip) | pola "jeda, lalu pengakuan atau punchline": kalimat sesudah jeda adalah kandidat hook atau payoff |
-| `fast talk` | bicara jauh lebih cepat dari biasanya di episode ini | antusias, cerita memuncak; dukungan untuk skor emosi |
+| `pause` | jeda 3 detik atau lebih sebelum sebuah kalimat (kalimatnya dikutip) | di tengah momen, bukan titik mulai. Pola "jeda, lalu pengakuan atau punchline": kalimat sesudah jeda sering jadi punchline (kandidat hook atau payoff), tetapi klip mulai dari awal topik |
+| `fast talk` | bicara jauh lebih cepat dari biasanya di episode ini | puncak cerita, bukan awalnya; dukungan untuk skor emosi. Klip mulai dari awal ceritanya |
 
 Kalau bagian itu bilang tidak ada sinyal, atau bahwa analisis suara tidak
 jalan: nilai dari transkrip saja seperti biasa. Jangan mengarang sinyal.
@@ -110,6 +110,18 @@ jalan: nilai dari transkrip saja seperti biasa. Jangan mengarang sinyal.
 - **Klip yang berujung pada tawa atau tepuk tangan berakhir SETELAH sinyal
   itu selesai** (waktu akhir di daftar cues), bukan sebelumnya. Hook-nya
   tetap dicari dari kalimat sebelum tawa.
+- **Waktu sebuah cue BUKAN titik mulai klip, untuk semua jenis cue.** Cue
+  adalah reaksi atau titik di tengah momen. Contoh: tawa di 03:00 berarti ada
+  sesuatu sesaat sebelumnya yang mengena; klip mulai dari awal topik atau
+  setup yang membangun ke sana, yang dicari dari transkrip (misalnya 02:45
+  kalau ceritanya mulai di situ), dan berakhir setelah tawanya selesai.
+  Tepuk tangan sama seperti tawa. Teriakan juga momen emosi di dalam topik:
+  mulai dari awal topiknya, kecuali teriakan itu sendiri pembuka yang bisa
+  berdiri sendiri (nilai dari transkrip). Jeda ada di tengah momen: kalimat
+  sesudahnya sering jadi punchline, tetapi klip mulai dari awal topik. Bicara
+  cepat menandai puncak cerita, bukan awalnya. Musik adalah rentang yang
+  dihindari, bukan titik potong; klip tidak boleh masuk ke dalamnya. Jangan
+  pernah memakai waktu cue langsung sebagai `start`.
 - **Jeda panjang di dalam klip itu wajar** — nanti dirapikan terpisah.
 - Kalau dua kandidat bertumpang tindih, ambil yang skornya lebih tinggi
   saja. Jangan mengeluarkan dua klip dari potongan yang sama.

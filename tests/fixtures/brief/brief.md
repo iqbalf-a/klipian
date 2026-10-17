@@ -177,8 +177,23 @@ These come from analysing the sound and the gaps between words, not from what is
 said. You can't hear the audio, so this is your only evidence about it. Each line
 has a time; `high` / `medium` / `low` says how strong and long the signal is.
 Treat them as supporting evidence and check them against the sentences around
-them. A clip that ends on laughter or applause should end AFTER it finishes.
-Avoid music.
+them.
+
+A cue's time is a reaction, or a point inside a moment. It is never a clip
+boundary and never a clip's `start`: a clip starts where its topic or story
+begins (found in the transcript), and ends after the cue's reaction is over.
+By kind:
+
+- laughter, applause: a reaction. Laughter at [3:00] means something just before
+  it landed; the clip starts where the topic building toward it begins (say
+  [2:45]) and ends AFTER the reaction finishes.
+- shout, gasp: an emotional moment. The clip still starts at the beginning of
+  its topic, unless the shout is itself a self-contained opening, which you
+  judge from the transcript.
+- pause: inside a moment. The line after it is often the punchline, but the clip
+  starts at the beginning of the topic.
+- fast talk: the peak of a story, not its start.
+- music: a stretch to avoid, not a cut point. A clip must not run into it.
 
 - [16:45]–[16:48] laughter · high (2.9 s)
 - [16:50]–[16:59] music · avoid
