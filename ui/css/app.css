@@ -2337,17 +2337,29 @@ h1, h2, h3 {
 /* .panel has no padding of its own (each kind of panel sets it), so without
    this the toolbar, the lanes and the inspector sat flush against the border. */
 .tlx { display: grid; gap: var(--s3); padding: var(--s4) var(--s5); }
+/* The timeline takes the height the inspector leaves, so with nothing selected
+   (a short inspector) the lanes grow into the room instead of it sitting empty
+   under the screen (ui-design 3.3), and with an element selected (a tall
+   inspector) they shrink back to 40px. The bars stretch with the lane: they are
+   top/bottom-anchored. Capped, so a very tall window doesn't get 200px lanes. */
+.panel.fit.tlx {
+  flex: 1 1 auto; grid-template-rows: auto minmax(0, 1fr); max-height: 560px;
+}
+.tlx-body { min-height: 210px; grid-template-rows: minmax(0, 1fr); }
+/* What is still taller than the window (a tall inspector in a short window)
+   scrolls instead of being cut off. */
+.screen[data-screen="timeline"] { overflow-y: auto; }
 .tlx-tools { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
 .tlx-tools .data { margin-left: auto; color: var(--text-faint); }
 .tlx-body { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: var(--s2); }
-.tlx-labels { display: grid; grid-template-rows: 20px repeat(4, 40px); gap: 6px; }
+.tlx-labels { display: grid; grid-template-rows: 20px repeat(4, minmax(40px, 1fr)); gap: 6px; }
 .tlx-labels span {
   font-size: var(--t-11); color: var(--text-faint);
   display: flex; align-items: center;
 }
 .tlx-lanes {
   position: relative; display: grid;
-  grid-template-rows: 20px repeat(4, 40px); gap: 6px;
+  grid-template-rows: 20px repeat(4, minmax(40px, 1fr)); gap: 6px;
   cursor: pointer; user-select: none;
 }
 .tlx-ruler { position: relative; border-bottom: 1px solid var(--glass-border); }
