@@ -738,6 +738,34 @@ workspace/
    - endpoint baru `GET /api/workspace/sources`. Durasi diambil dengan
      ffprobe dan di-cache per fingerprint, supaya dashboard tidak lambat.
 
+### P9 — Tombol "Copy brief" di samping "Download file"
+
+Keputusan ian (2026-10-17): dari daftar ide fitur, yang dikerjakan
+sekarang hanya ini. Panel "Export for Claude" di Analyze punya dua
+pilihan: **Download file** (seperti sekarang) dan **Copy** (brief
+langsung ke clipboard, untuk ditempel ke chat Claude).
+
+- Tombol Copy aktif dan nonaktif bersama tombol Download, mengikuti
+  ada atau tidaknya transkrip.
+- Isinya sama persis dengan file yang diunduh: `buildBrief` yang sama,
+  dari `/api/brief`.
+- **Brief diambil lebih dulu** begitu transkrip siap, lalu disimpan,
+  supaya klik Copy langsung menulis ke clipboard tanpa menunggu fetch.
+  Beberapa browser menolak `navigator.clipboard.writeText` kalau ada
+  `await` panjang di antara klik dan penulisan. Kalau brief belum
+  siap, pakai `ClipboardItem` dengan promise, atau fallback
+  `<textarea>` + `execCommand('copy')`.
+- Umpan balik: tombol berubah menjadi "Copied" selama ±2 detik, dan
+  catatannya menulis `Copied · 51 KB · ~14,800 tokens · paste it into
+  Claude`. Kalau gagal, tulis alasannya dan sarankan Download.
+- `http://127.0.0.1` dan `http://localhost` termasuk *secure context*,
+  jadi Clipboard API tersedia tanpa HTTPS.
+
+Ide lain dari daftar yang sama (paste reply, render banyak saran, render
+→ jadwal upload, preset caption, judul hook, notifikasi, transkripsi
+massal, cari di transkrip, buang jeda) **belum dipilih**. Catatannya ada
+di percakapan sesi analisis 2026-10-17, dan bisa diangkat kapan saja.
+
 ---
 
 ## 3. Diparkir, sengaja tidak dikerjakan
