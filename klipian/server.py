@@ -239,6 +239,34 @@ def _transcript_for(name: str) -> Transcript | None:
 # POSTs whose body is a file, not JSON (see Handler._guard).
 RAW_UPLOADS = {"/api/video-upload", "/api/project-asset-upload"}
 
+def _fill_candidate_cues(data: dict) -> None:
+    """Give the suggestions a project already holds the `cues` they would have
+    got on import (cues.for_range, the same rule), when they predate cues. Done
+    as the project is read, in the response only: the file is not touched, and
+    the editor writes them with its next real save. Only when the sound
+    detection has run for that video: a list without the sounds would be
+    stored as if it were complete."""
+    cache = Cache(WORKSPACE / "cache")
+    files = {a.get("id"): a.get("file") for a in data.get("assets") or []
+             if isinstance(a, dict) and (a.get("kind") or "video") == "video"}
+    loaded: dict[str, dict | None] = {}
+    for cand in data.get("candidates") or []:
+        if not isinstance(cand, dict) or "cues" in cand:
+            continue
+        name = files.get(cand.get("asset")) or _primary_video(data)
+        if name not in loaded:
+            video = find_video(name) if name else None
+            loaded[name] = cues_mod.load(video, cache) if video else None
+        info = loaded[name]
+        if not info or info["status"]["audio"] != "ok":
+            continue
+        try:
+            start, end = float(cand["startSec"]), float(cand["endSec"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        cand["cues"] = cues_mod.for_range(info["cues"], start, end)
+
+
 VIDEO_EXT = {".mp4", ".mkv", ".mov", ".webm"}
 # A source video is hundreds of MB to a few GB (a 45-minute episode is about
 # 750 MB), unlike the images and sounds /api/project-asset-upload takes (100 MB).
@@ -516,6 +544,7 @@ class Handler(BaseHTTPRequestHandler):
                 # dict even if the disk write fails, and the next save
                 # will carry it.
                 pass
+        _fill_candidate_cues(data)
         return self._send_json(data)
 
     def _get_workspace_clips(self):
