@@ -600,6 +600,85 @@ diubah:
 - **Aturan batas klip:** klip berakhir setelah tawa atau tepuk tangan
   selesai. Hook tetap dicari dari kalimat sebelumnya.
 
+### P7 — Temuan audit kedua (2026-10-17): kode, UI, fungsional
+
+Diuji di server lokal dan browser (1024 px dan 1440×900), memakai project
+Syahrini `21c71db3fb68` dan podcast. Semua data dipulihkan dari cadangan
+setelah pengujian. Kesehatan kode tetap baik: tidak ada kode mati, dan
+XSS aman. Judul berisi `<b>`/`<img onerror>` dari balasan AI tampil
+sebagai teks.
+
+**Tinggi**
+1. **Server tidak memeriksa Host maupun Origin.**
+   - Masalah: setiap situs yang sedang terbuka di browser bisa mengirim
+     POST lintas-situs ke `127.0.0.1:5177`, misalnya memulai render atau
+     transkripsi, mengunggah ke `samples/` (sampai 10 GB), menimpa
+     project, atau membuka folder. DNS rebinding juga bisa *membaca*
+     project dan transkrip.
+   - Bukti: GET dengan `Host: evil.example` dijawab 200, dan POST
+     `text/plain` dengan `Origin: https://evil.example` sampai ke handler.
+   - Perbaikan, di pintu masuk `do_GET`/`do_POST`:
+     - tolak Host selain `127.0.0.1:<port>` dan `localhost:<port>`;
+     - tolak POST yang membawa Origin asing;
+     - endpoint JSON wajib `Content-Type: application/json`, supaya
+       browser memaksa preflight.
+2. **Import balasan AI diam-diam mengganti semua saran lama.**
+   - Masalah: 13 saran menjadi 1 tanpa konfirmasi dan tanpa undo.
+   - Perbaikan: konfirmasi dua langkah ("Replace 13 suggestions?"),
+     pilihan Replace / Add, atau minimal simpan set sebelumnya supaya bisa
+     di-undo.
+
+**Sedang**
+3. **Pindah layar dianggap mengubah project.**
+   - Masalah: Analyze, Output Format, Framing, dan Render memunculkan
+     "Unsaved changes…" lalu `POST /api/project` setiap kali dibuka. Ada
+     lebih dari 10 penulisan dalam satu menit, dan `at` berubah sehingga
+     "x ago" dan "last opened" di Home ikut berubah.
+   - Perbaikan: layar terakhir disimpan diam-diam, tanpa menandai project
+     berubah.
+4. **Saran lama tidak punya lencana hook.**
+   - Masalah: 13 saran Syahrini diimpor sebelum cues ada, jadi tidak
+     punya `cues`.
+   - Perbaikan: hitung `cues.for_range` saat project dimuat atau
+     ditampilkan untuk kandidat yang belum punya, bukan hanya saat import.
+5. **Quick preview ditulis ke `out/<nama video>/.preview/`**
+   (server.py `_post_preview`).
+   - Masalah: folder bernama video muncul lagi di `out/`, yang dibaca
+     dashboard. Untuk project multi-video, preview juga memakai nama
+     video pertama.
+   - Perbaikan: pindahkan ke `cache/previews/`, seperti thumbnail.
+6. **Layar History bertentangan dengan dirinya sendiri.**
+   - Masalah: tertulis "Nothing rendered yet", tapi di bawahnya tampil
+     file render dari project lain.
+   - Perbaikan: pisahkan "project ini" dari "project lain", atau perbaiki
+     teks keadaan kosongnya.
+7. **Panel "Transcribing" di Analyze menyesatkan.**
+   - Masalah: panel tetap tampil saat tidak ada yang berjalan (progress
+     kosong dan tulisan "You can leave this running"). Labelnya juga
+     ditulis mati "large-v3-turbo · CPU 22 threads" (`index.html:355`),
+     padahal transkripsi memakai 8 thread (`DEFAULT_THREADS`).
+   - Perbaikan: sembunyikan panel atau tampilkan status "transcript
+     ready", dan ambil model serta thread dari server.
+
+**Rendah**
+8. Quick preview tidak menunjukkan progres. Pernah sekitar 70 detik
+   hanya bertuliskan "Rendering…", waktu itu laptop di baterai. Tampilkan
+   setidaknya waktu berjalan.
+9. Di lebar 1000–1200 px, judul di daftar AI suggestions menimpa kolom
+   waktu.
+10. Kartu di Home hitam polos selama thumbnail pertama dibuat. Perlu
+    placeholder atau tanda loading.
+11. `paths.find_video` menolak nama yang mengandung `..` di mana saja
+    (misalnya `Wow... ep.mp4`), padahal Add video menerimanya. Unggahan
+    berhasil, lalu video dinyatakan "not in samples". Cukup periksa
+    komponen path, bukan substring.
+12. `/api/import` dengan `clips: []` menjawab "JSON does not have a
+    \"clips\" list.", padahal list-nya ada tapi kosong.
+13. Sesi browser yang masih mengingat project yang sudah dihapus memicu
+    404 di console. Hapus sesi tersimpan saat project tidak ditemukan.
+14. Layar Timeline menyisakan bidang kosong besar di bawah inspector
+    (`ui-design.md` §3.3).
+
 ---
 
 ## 3. Diparkir, sengaja tidak dikerjakan
