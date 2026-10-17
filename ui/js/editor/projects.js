@@ -161,6 +161,35 @@ async function writeProjectNow() {
   return writeProjectOnce(false);
 }
 
+/* What the server has for the open project, as of the last load or confirmed
+   write, WITHOUT `screen` (which screen you are on is not work; see
+   rememberScreen). null until a project is loaded or written. */
+let savedSig = null;
+function stateSig() {
+  const { screen, ...rest } = projectState();
+  return JSON.stringify(rest);
+}
+
+/* The screen the work was left on. Kept in this browser per project instead of
+   in the project file, so moving between screens never writes the file; the
+   file's own `screen` is brought up to date by the next real save. */
+/* Right after a project has been applied: what is on screen IS what the server
+   has. Applying it redraws things that call saveProject() on the way (before
+   there was a baseline to compare with); that pending write would only bump
+   `at`, so it is dropped. */
+function markLoaded() {
+  savedSig = stateSig();
+  clearTimeout(saveTimer);
+  saveTimer = null;
+  savePending = false;
+  updateSaveStatus();
+}
+
+function rememberScreen(name) {
+  if (!activeProjectId) return;
+  try { localStorage.setItem(`klipian:screen:${activeProjectId}`, name); } catch { /* private window */ }
+}
+
 async function writeProjectOnce(isNew) {
   savePending = true;
   updateSaveStatus();
@@ -175,13 +204,15 @@ async function writeProjectOnce(isNew) {
   // to the new one.
   const sentFor = primaryVideo;
   try {
+    const state = projectState();
+    const sentSig = (() => { const { screen, ...rest } = state; return JSON.stringify(rest); })();
     const r = await fetch("/api/project", {
       method: "POST", headers: { "Content-Type": "application/json" },
       // `new`: a project without an id is a NEW project -- never matched to
       // an existing one by its video. Two projects can use the same episode
       // now, and matching used to be how a dropped file resumed its old
       // project, which would overwrite that project with this empty one.
-      body: JSON.stringify({ ...projectState(), ...(isNew ? { new: true } : {}) }),
+      body: JSON.stringify({ ...state, ...(isNew ? { new: true } : {}) }),
     });
     if (!r.ok) throw new Error(`server replied ${r.status}`);
     const reply = await r.json().catch(() => ({}));
@@ -193,6 +224,7 @@ async function writeProjectOnce(isNew) {
     }
     saveError = "";
     savePending = false;
+    savedSig = sentSig;
   } catch (err) {
     // Work continues either way -- it just isn't on disk, and now the label
     // says so instead of pretending otherwise.
@@ -209,6 +241,11 @@ async function writeProjectOnce(isNew) {
    changes still waiting for the delay are not mistaken for safely saved. */
 function saveProject() {
   if (!primaryVideo && !activeProjectId) return;   // see writeProjectNow()
+  // Nothing to write when the project is what the server already has. This is
+  // what lets every screen redraw itself (they all call this through
+  // renderResult and friends) without each visit being a save that bumps `at`
+  // and shows "Unsaved changes".
+  if (activeProjectId && savedSig !== null && stateSig() === savedSig) return;
   savePending = true;
   updateSaveStatus();
   clearTimeout(saveTimer);
@@ -573,7 +610,11 @@ function applyProject(d, preferFile) {
     drawCaptionOptions();
   }
   const savedScreen = LEGACY_SCREEN_NAMES[d.screen] || d.screen;
-  lastScreen = VALID_SCREENS.includes(savedScreen) ? savedScreen : "clips";
+  let remembered = null;
+  try { remembered = localStorage.getItem(`klipian:screen:${d.id}`); } catch { /* no storage */ }
+  const wanted = VALID_SCREENS.includes(remembered) ? remembered : savedScreen;
+  lastScreen = VALID_SCREENS.includes(wanted) ? wanted : "clips";
+  savedSig = null;               // set by enterProject once everything is applied
 }
 
 /* ---------- home page listing ---------- */
@@ -969,6 +1010,7 @@ function enterEmptyProject(d) {
   if (typeof releaseVideo === "function") releaseVideo();
   if (typeof updateTopbarFile === "function") updateTopbarFile("", NaN);
   applyProject(d);
+  markLoaded();
   if (typeof drawSource === "function") drawSource();
   if (typeof renderRecommendations === "function") renderRecommendations();
   if (typeof drawTotalTimeline === "function") drawTotalTimeline();
@@ -1013,6 +1055,7 @@ async function enterProject(d, gen) {
   // gone: a project only starts when its first video is added
   // (addVideoToProject, assets.js).
   applyProject(d, video);
+  markLoaded();               // the project as loaded is what the server has
   if (typeof loadCues === "function") loadCues(video);
   // No transcript = no duration to draw the Clips timeline with.
   if (typeof ensureSourceDuration === "function") ensureSourceDuration();

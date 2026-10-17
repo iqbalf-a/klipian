@@ -688,7 +688,10 @@ function toScreen(name) {
   // them are both restyled per screen (see the Output Format layout in app.css),
   // and .app is the common ancestor of all of them.
   $("#app").dataset.screen = name;
-  if (typeof saveProject === "function") saveProject();
+  // Which screen the work was left on is remembered, but looking at a screen
+  // is not a change to the project: no "Unsaved changes", no write, no new
+  // `at` (see rememberScreen and saveProject in projects.js).
+  if (typeof rememberScreen === "function") rememberScreen(name);
   document.querySelectorAll(".screen").forEach((s) =>
     s.classList.toggle("active", s.dataset.screen === name));
   document.querySelectorAll(".tab").forEach((t) => {
