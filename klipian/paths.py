@@ -13,19 +13,17 @@ WORKSPACE = ROOT / "workspace"
 
 
 def find_video(name: str) -> Path | None:
-    """Browsers don't provide full paths, just filenames. Search the folders
-    the server can reach."""
+    """Browsers don't provide full paths, just filenames. A source video is
+    looked up by name in workspace/sources/ and nowhere else: a render in
+    out/ must never be mistaken for a source."""
     # Prevent path traversal: the name must be ONE path component. Looking at
     # the components (not for ".." anywhere in the text) keeps a name like
     # "Wow... ep.mp4" usable; ":" would be a drive or a stream name on Windows.
     if (not name or name in (".", "..") or any(c in name for c in "/\\:\x00")
             or Path(name).name != name):
         return None
-    for folder in ("sources", "", "out"):
-        p = WORKSPACE / folder / name if folder else WORKSPACE / name
-        if p.is_file():
-            return p
-    return None
+    p = WORKSPACE / "sources" / name
+    return p if p.is_file() else None
 
 
 # The term glossary every transcription uses unless told otherwise; it is

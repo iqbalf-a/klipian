@@ -729,7 +729,7 @@ async function renderProjects() {
   }
   // Videos unreachable by the server cannot be truly continued: transcription,
   // thumbnails, and rendering all go through _find_video(), which only looks
-  // in sources/, the project root, and out/. Marked on the card rather than
+  // in sources/. Marked on the card rather than
   // allowed to fail silently after being clicked.
   let available = null;
   try {
