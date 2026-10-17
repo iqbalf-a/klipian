@@ -691,6 +691,53 @@ sebagai teks.
 14. Layar Timeline menyisakan bidang kosong besar di bawah inspector
     (`ui-design.md` §3.3).
 
+### P8 — `samples/` menjadi `sources/`, dan panel Sources di dashboard
+
+Keputusan ian (2026-10-17): nama `samples` terlalu ambigu. Kata itu juga
+dipakai `facebox.py` untuk "sampel pengukuran". Struktur workspace
+menjadi:
+
+```
+workspace/
+├── sources/    video mentah (raw), satu salinan dipakai banyak project
+├── assets/     library bersama: logo, banner, template (sudah ada)
+├── projects/   project + aset per project + rekaman render
+├── out/        hasil render per project
+├── cache/      transkrip, cues, thumbnail, preview
+└── schedule/   jadwal upload (dashboard)
+```
+
+1. **Ganti nama `samples` → `sources`** di kode, UI, dan dokumen (sekitar
+   15 file):
+   - server: `paths.py`, `server.py` (`WORKSPACE_SERVED`, upload),
+     `jobs.py`, `projects.py`, `selftest.py`;
+   - URL `/workspace/samples/…` yang dipakai pemutar;
+   - label UI seperti "Add from workspace/samples/";
+   - pesan galat "not in samples/";
+   - kedua README dan `ui-design.md`.
+
+   Arti lain kata "samples" di `facebox.py` tetap. Folder di disk
+   dipindah **sekali**; tidak ada fallback ke nama lama, karena workspace
+   baru dikosongkan dan tidak ada project yang merujuknya.
+2. **`find_video` hanya mencari di `sources/`.** Sekarang fungsi itu juga
+   mencari di root workspace dan di `out/`, sehingga hasil render bisa
+   terbaca sebagai sumber. Itu melanggar keputusan "aset video = video
+   mentah saja".
+3. **Panel "Sources" di `/workspace`**, dengan gaya yang sama seperti
+   panel Assets ("3 files in workspace/assets/"):
+   - judul: `Sources` + `3 videos in workspace/sources/ · 1.4 GB`;
+   - per baris: nama file, ukuran, durasi, tanggal masuk, status
+     transkrip (transcribed / not transcribed, lewat
+     `Cache.find_transcript`), dan **dipakai oleh project mana** (nama,
+     atau "not used"), supaya video yang tidak dipakai mudah dikenali;
+   - tombol `Open folder` untuk membuka `workspace/sources/`;
+   - keadaan kosong: arahkan ke Add video… di layar Assets editor, atau
+     salin file ke `workspace/sources/`;
+   - urutan panel di dashboard: Clips → **Sources** → Rendered output →
+     Assets (masuk → keluar → pendukung);
+   - endpoint baru `GET /api/workspace/sources`. Durasi diambil dengan
+     ffprobe dan di-cache per fingerprint, supaya dashboard tidak lambat.
+
 ---
 
 ## 3. Diparkir, sengaja tidak dikerjakan
