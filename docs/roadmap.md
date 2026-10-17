@@ -294,11 +294,23 @@ cek decode.
       menjadi tombol terpisah;
     - (b) biarkan seperti sekarang, tapi UI memberi tahu kenapa
       transkripsi berjalan lagi.
-- Fallback `?video=` dan `legacyFile` di `/api/project`: tentukan kapan
-  dihapus.
+- **Fallback `?video=` dan `legacyFile` di `/api/project`: dihapus**
+  (keputusan ian 2026-10-17). Semua project sekarang memakai id,
+  `projects/legacy/` sudah tidak ada, dan workspace sudah dikosongkan.
+  Jembatan untuk link `/edit/<nama-lama>` tidak dibutuhkan lagi.
+  Migrasi *bentuk* project lama (`_migrate_project`, diuji selftest
+  `migrate`) tetap dipertahankan.
 - Folder lama `out/radityadika-podcast/`, `out/cadera-gameplay-mlbb/`,
-  dan `projects/legacy/` dibersihkan manual oleh ian. Jangan dihapus
-  oleh sesi.
+  dan `projects/legacy/` sudah dibersihkan (2026-10-17).
+
+**Workspace dikosongkan (ian, 2026-10-17).** Semua isi selain `samples/`
+(cache, out, projects, schedule, assets) dipindahkan ke Recycle Bin,
+karena semuanya hasil coba-coba. Akibatnya:
+- project podcast `ea8b7a796f48` dan Syahrini `21c71db3fb68` sudah tidak
+  ada, jadi P3 mulai lagi dari awal dengan video di `samples/`;
+- transkrip harus dibuat ulang lewat Find clips;
+- selftest tetap lolos, karena baseline render memakai
+  `samples/radityadika-podcast.mp4` dan fixture di `tests/`.
 - **Tombol "Add video" di layar Assets** (diputuskan ian 2026-10-16).
   Video dipilih dari mana saja di disk lalu disalin ke
   `workspace/samples/`, jadi tidak perlu lagi menyalin manual lewat
@@ -715,9 +727,10 @@ sebagai teks.
 - **Ribbon sumber** (elemen tanda tangan di `ui-design.md` §7). Ribbon ini
   sudah tidak ada di UI; yang tersisa hanya banner komentar kosong, yang
   ikut dibersihkan bersama Add video. Kartu kandidat dengan skor dan
-  stempel juga tidak ada. **TANYA IAN**, tidak mendesak: kembalikan
-  ribbon sebagai peta "di mana klip ditemukan dalam episode", atau
-  lepaskan dari brief desain?
+  stempel juga tidak ada. **Dilepas dari brief desain** (keputusan ian
+  2026-10-17). Timeline di layar Clips sudah menjadi penggantinya: saran
+  AI tampil sebagai blok dan hook sebagai penanda, di sepanjang durasi
+  episode.
 - **Opsi B dari 2.3** (penyusunan request render pindah ke server). Buka
   lagi kalau ian butuh render tanpa UI. Saat itu, baseline hasil 3a
   menjadi jaring pengamannya.
