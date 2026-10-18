@@ -175,11 +175,17 @@ def _save_clips(clips: list[dict]) -> None:
     tmp.replace(CLIPS_PATH)
 
 
-def _thumbnail(video: Path, seconds: float, crop: dict, width: int) -> Path:
+def _thumbnail(video: Path, seconds: float, crop: dict, width: int,
+               picture: str = "9:16", background: str = "blur", position: float = 50.0) -> Path:
     """One frame from the clip's second, already cropped to 9:16.
 
     Candidate cards need to show the person's face at that moment -- a
-    generic frame doesn't help decide which clip to pick."""
+    generic frame doesn't help decide which clip to pick.
+
+    For a project whose picture is 3:4 or 16:9 the frame is composed the way
+    the render composes it (engine.picture_canvas): a 9:16 image with the
+    picture on black or a blurred copy, at its position. `width` is then the
+    width of that 9:16 image."""
     from .ffmpeg_tools import _require, probe
     # The cache name has to cover EVERY input that changes the picture.
     # top/height used to be left out, so dragging the framing box up or
@@ -189,7 +195,10 @@ def _thumbnail(video: Path, seconds: float, crop: dict, width: int) -> Path:
     # was rendered (History and /workspace both list it).
     dest = WORKSPACE / "cache" / "thumbs" / video.stem / (
         f"{int(seconds * 10)}-{int(crop['left'])}-{int(crop['top'])}"
-        f"-{int(crop['width'])}-{int(crop['height'])}-{width}.jpg")
+        f"-{int(crop['width'])}-{int(crop['height'])}-{width}"
+        + ("" if picture == "9:16" else
+           f"-{picture.replace(':', 'x')}-{background}-{int(position)}")
+        + ".jpg")
     if dest.exists():
         return dest
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -200,6 +209,21 @@ def _thumbnail(video: Path, seconds: float, crop: dict, width: int) -> Path:
     ch = even(info.height * crop["height"] / 100)
     cx = even(info.width * crop["left"] / 100)
     cy = even(info.height * crop["top"] / 100)
+    graph = None
+    if picture != "9:16":
+        W = even(width)
+        H = even(W * 16 / 9)
+        if picture == "3:4":
+            # The stored box may still have the 9:16 shape it was made with:
+            # keep its centre and height, and give it the 3:4 width.
+            cw = min(info.width, even(ch * 3 / 4))
+            cx = even(max(0, min(info.width - cw, info.width * (crop["left"] + crop["width"] / 2) / 100 - cw / 2)))
+            pre = f"crop={cw}:{ch}:{cx}:{cy},scale={W}:-2"
+            fw, fh = W, even(W * 4 / 3)
+        else:
+            pre, fw, fh = "null", info.width, info.height
+        graph = f"[0:v]{pre}[c];" + engine.picture_canvas(
+            picture, background, position, W, H, fw, fh, src="[c]", dst="[o]")
 
     # Render to a per-request temp file, then rename into place. Writing
     # straight to `dest` was a TOCTOU: the home page fires one /api/thumb
@@ -218,7 +242,8 @@ def _thumbnail(video: Path, seconds: float, crop: dict, width: int) -> Path:
         ffmpeg_tools.run([
             _require("ffmpeg"), "-y", "-loglevel", "error",
             "-ss", f"{seconds:.2f}", "-i", str(video), "-frames:v", "1",
-            "-vf", f"crop={cw}:{ch}:{cx}:{cy},scale={width}:-2",
+            *(["-filter_complex", graph, "-map", "[o]"] if graph else
+              ["-vf", f"crop={cw}:{ch}:{cx}:{cy},scale={width}:-2"]),
             "-q:v", "4", str(tmp)], desc="building a thumbnail", timeout=60)
         tmp.replace(dest)
     except (RuntimeError, OSError):
@@ -466,10 +491,14 @@ class Handler(BaseHTTPRequestHandler):
         video = find_video(q.get("video", [""])[0])
         if not video:
             return self._send_json({"error": "video not found"}, 404)
+        shape = engine.picture_options({
+            "picture": (q.get("picture") or [""])[0],
+            "background": (q.get("background") or [""])[0],
+            "position": (q.get("position") or ["50"])[0]})
         file = _thumbnail(video, num("t", 0),
                             {"left": num("left", 37), "top": num("top", 4),
                              "width": num("width", 26), "height": num("height", 92)},
-                            int(num("w", 132)))
+                            int(num("w", 132)), **shape)
         if not file.is_file():
             return self._send_json({"error": "could not build thumbnail"}, 500)
         data = file.read_bytes()

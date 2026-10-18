@@ -478,6 +478,7 @@ function renderPrepare() {
     </div>`).join("");
   updateOptionRows();
   summarizeOptions();
+  if (typeof attachVideoGeometry === "function") attachVideoGeometry();
 }
 
 /* Background and Position only mean something for a picture that is not 9:16;
@@ -980,6 +981,9 @@ $("#options")?.addEventListener("input", (e) => {
 function optionsChanged() {
   if (typeof updateFramingLayoutWarning === "function") updateFramingLayoutWarning();
   if (typeof onPictureChanged === "function") onPictureChanged();
+  // The preview shows the same composition the render will make.
+  if (typeof attachVideoGeometry === "function") attachVideoGeometry();
+  if (typeof syncCanvasVideo === "function") syncCanvasVideo();
 }
 
 drawAll();

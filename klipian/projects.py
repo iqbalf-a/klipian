@@ -310,6 +310,10 @@ def _project_summary(file: Path) -> dict | None:
             # box were used, two projects from the same video would look
             # identical even though their frames are very different.
             "crop": ((first_frame.get("crops") or [None])[0]),
+            # The Result's Output Format as saved (one entry per option, see
+            # OPTIONS in app.js): the card composes its cover the way the render
+            # will, from the picture, background and position in there.
+            "output": active.get("output") if isinstance(active.get("output"), list) else None,
         }
     except (OSError, ValueError, TypeError, KeyError, IndexError):
         return None

@@ -52,13 +52,58 @@ function attachBox(v, box, crop) {
     `translate(${-(crop.left / 100) * width}px, ${-(crop.top / 100) * height}px)`;
 }
 
+/* The picture inside the 9:16 frame, as Output Format has it (Picture,
+   Background, Position): which band of the frame the picture takes, and
+   whether a blurred copy is behind it. Mirrors render.picture_canvas -- the
+   preview has been wrong about the render before, so the numbers here are the
+   same ones: a 3:4 picture is 1080x1440 in the 1080x1920 frame (75% of its
+   height), a 16:9 one is the source frame at the frame's width, which is
+   (1/sourceRatio)/(16/9) of the height. */
+function applyPictureFrame() {
+  const f = $("#frame");
+  if (!f || typeof optionOut !== "function") return;
+  const picture = optionOut("picture") || "9:16";
+  f.dataset.picture = picture;
+  f.dataset.bg = optionOut("background") || "blur";
+  if (picture === "9:16") return;
+  const src = (typeof sourceRatio === "function") ? sourceRatio() : 16 / 9;
+  const heightPct = picture === "3:4" ? 75 : (1 / src) / (16 / 9) * 100;
+  f.style.setProperty("--pic-h", `${heightPct}%`);
+  f.style.setProperty("--pic-pos", String((optionOut("position") ?? 50) / 100));
+  // The render blurs with sigma 28 on a 1080-wide frame; this frame is smaller.
+  const w = f.getBoundingClientRect().width;
+  if (w) f.style.setProperty("--bg-blur", `${(28 * w / 1080).toFixed(1)}px`);
+}
+
+/* Whether the blurred copy is on screen right now. */
+function pictureHasBlur() {
+  const pic = optionOut("picture");
+  return (pic === "3:4" || pic === "16:9") && optionOut("background") === "blur";
+}
+
 function attachVideoGeometry() {
+  applyPictureFrame();
   if (!video.src || typeof frameAt !== "function") return;
   const b = frameAt(typeof reviewTime === "function" ? reviewTime() : 0);
-  attachBox(video, document.querySelector(".half.top"), b.crops[0]);
+  // A 16:9 picture is the whole frame whatever the framing boxes say.
+  const main = optionOut("picture") === "16:9"
+    ? { left: 0, top: 0, width: 100, height: 100 } : b.crops[0];
+  attachBox(video, document.querySelector(".half.top"), main);
   if (b.format === "split") {
     attachBox($("#videoPreview2"), document.querySelector(".half.bottom"),
                 b.crops[1]);
+  }
+  if (pictureHasBlur()) {
+    // The same picture again, scaled to fill the frame: a box as tall as the
+    // frame with the picture's own shape, centred -- so the frame shows its
+    // centre 9:16 slice, as the render's blur does.
+    const aspect = optionOut("picture") === "3:4" ? 3 / 4
+      : ((typeof sourceRatio === "function") ? sourceRatio() : 16 / 9);
+    const box = $("#bgBox");
+    if (box) {
+      box.style.width = `${(16 / 9) * aspect * 100}%`;
+      attachBox($("#videoBg"), box, main);
+    }
   }
 }
 

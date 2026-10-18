@@ -634,6 +634,20 @@ function coverUrl(p) {
     width: String(Math.round(c.width)), height: String(Math.round(c.height)),
     w: "220",
   });
+  // A 3:4 or 16:9 project's cover is composed like its render: the saved
+  // Output Format says which picture, on what, and where (OPTIONS, app.js).
+  const out = Array.isArray(p.output) ? p.output : [];
+  const pick = (id, k, dflt) => {
+    const o = OPTIONS.find((x) => x.id === id);
+    const i = out[k];
+    return (Number.isInteger(i) && o.out[i] !== undefined) ? o.out[i] : dflt;
+  };
+  const picture = pick("picture", 0, "9:16");
+  if (picture !== "9:16") {
+    q.set("picture", picture);
+    q.set("background", pick("background", 3, "blur"));
+    q.set("position", String(typeof out[4] === "number" ? out[4] : 50));
+  }
   return `/api/thumb?${q}`;
 }
 

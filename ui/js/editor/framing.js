@@ -362,6 +362,7 @@ function attachCatchUp(el) {
 }
 attachCatchUp($("#canvasVideo"));
 attachCatchUp($("#videoPreview2"));
+attachCatchUp($("#videoBg"));
 
 function syncCanvasVideo() {
   followPreview($("#canvasVideo"));
@@ -369,6 +370,10 @@ function syncCanvasVideo() {
   // it play silently during single format just wastes the decoder.
   if (canvasFormat === "split") followPreview($("#videoPreview2"));
   else $("#videoPreview2")?.pause();
+  // The blurred copy behind a 3:4 / 16:9 picture plays along; otherwise it
+  // would just waste a decoder.
+  if (typeof pictureHasBlur === "function" && pictureHasBlur()) followPreview($("#videoBg"));
+  else $("#videoBg")?.pause();
 }
 
 // Separated from renderFraming() so it can be called on EVERY timeupdate tick --

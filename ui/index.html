@@ -918,6 +918,12 @@
            data-format="single">
         <div class="field top"></div>
         <div class="field main"></div>
+        <!-- Picture 3:4 or 16:9 with a blurred background: a second copy of the
+             picture, scaled to fill the frame and blurred, behind the real one
+             (player.js, applyPictureFrame). Hidden for every other case. -->
+        <div class="bgfill" id="bgFill" aria-hidden="true">
+          <div class="bgbox" id="bgBox"><video class="video916" id="videoBg" muted playsinline></video></div>
+        </div>
         <div class="half top">
           <video class="video916" id="videoPreview" playsinline></video>
         </div>

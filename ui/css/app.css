@@ -1234,6 +1234,21 @@ h1, h2, h3 {
 .frame916[data-format="single"] .half.bottom { display: none; }
 .frame916[data-format="split"]  .half.top    { top: 0;   height: 50%; }
 .frame916[data-format="split"]  .half.bottom { top: 50%; height: 50%; }
+/* Picture 3:4 / 16:9 (Output Format): the picture is a band of the 9:16 frame,
+   --pic-h tall and --pic-pos of the way down the free space, exactly as the
+   render places it. The rest of the frame is black, or a blurred copy of the
+   picture (#bgFill). Set from player.js (applyPictureFrame). */
+.frame916[data-picture="3:4"] .half.top,
+.frame916[data-picture="16:9"] .half.top {
+  bottom: auto;
+  height: var(--pic-h, 75%);
+  top: calc((100% - var(--pic-h, 75%)) * var(--pic-pos, .5));
+}
+.bgfill { position: absolute; left: -4%; right: -4%; top: -4%; bottom: -4%; overflow: hidden; display: none; }
+.bgbox { position: absolute; top: 0; height: 100%; left: 50%; transform: translateX(-50%); }
+.frame916[data-video="true"][data-bg="blur"][data-picture="3:4"] .bgfill,
+.frame916[data-video="true"][data-bg="blur"][data-picture="16:9"] .bgfill { display: block; }
+.bgfill .video916 { filter: blur(var(--bg-blur, 8px)); }
 /* The dividing line is made prominent so it reads as a deliberate choice,
    not a defect. */
 .frame916[data-format="split"] .half.bottom::before {
