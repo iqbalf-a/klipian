@@ -777,7 +777,13 @@ Permintaan ian (2026-10-18): Output Format mendapat opsi **3:4** dan
 Keputusan ian:
 - **bertahap**: A dulu, B setelah A dicoba;
 - posisi gambar di dalam 9:16 **bisa diatur** (default di tengah);
-- latarnya **hitam atau blur**.
+- latarnya **hitam atau blur**;
+- **default latar: Black** untuk 3:4 dan 16:9 yang baru dipilih (ian,
+  2026-10-18). Result lama yang dulu "Blur background" tetap Blur: pilihan
+  Background disimpan `null` selama belum dipilih, dan `output` lama
+  berindeks Picture 16:9 tanpa entri Background dibaca sebagai Blur yang
+  sudah dipilih (`applyOutput`, `app.js`). Request render atau CLI tanpa
+  `background` tetap memakai default lama (blur).
 
 **Kondisi sekarang** (dibaca dari kode 2026-10-18):
 - `app.js` ~367: opsi `format` "Fill the 9:16 frame" punya pilihan

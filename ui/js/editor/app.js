@@ -392,8 +392,15 @@ const OPTIONS = [
            "Keeps detail in motion and gradients, at roughly double the size."] },
   // Around a picture that is not 9:16. Blur is index 0 because it is what the
   // only such layout ("Blur background") always had.
+  //
+  // OPTIONAL: nothing is chosen until the person picks one, and until then the
+  // background is Black (`fallback`) -- that is the default for a 3:4 or 16:9
+  // picture that was just selected. "Not chosen" is saved as null in `output`,
+  // which is what tells it apart from a chosen Blur (index 0) and from an entry
+  // that is missing altogether (a Result saved before this option existed; see
+  // applyOutput for what that one means).
   { id: "background", label: "Background", choices: ["Blur", "Black"], out: ["blur", "black"],
-    active: 0, def: 0, order: [1, 0],      // shown Black · Blur
+    active: 1, def: 1, optional: true, fallback: 1, chosen: false, order: [1, 0],      // shown Black · Blur
     shownWhen: () => optionOut("picture") !== "9:16",
     hint: ["A blurred copy of the picture fills the space above and below it.",
            "Plain black above and below the picture."] },
@@ -430,7 +437,8 @@ const OPTION_ROWS = ["picture", "background", "position", "resolution", "quality
 
 /* What a Result saves for the options, one entry each, in OPTIONS order. */
 function outputState() {
-  return OPTIONS.map((o) => (o.kind === "range" ? o.value : o.active));
+  return OPTIONS.map((o) => (o.kind === "range" ? o.value
+    : o.optional && !o.chosen ? null : o.active));
 }
 
 /* Put a saved `output` back. An entry that is missing (saved before the option
@@ -441,13 +449,41 @@ function applyOutput(saved) {
   const list = Array.isArray(saved) ? saved : [];
   OPTIONS.forEach((o, k) => {
     const raw = list[k];
+    const valid = Number.isInteger(raw) && raw >= 0 && raw < (o.choices ? o.choices.length : 0);
     if (o.kind === "range") {
       o.value = (typeof raw === "number" && Number.isFinite(raw))
         ? Math.min(o.max, Math.max(o.min, raw)) : o.def;
+    } else if (o.optional) {
+      // A choice that was made, or none yet (null, or any other value).
+      o.chosen = valid;
+      o.active = valid ? raw : o.fallback;
     } else {
-      o.active = (Number.isInteger(raw) && raw >= 0 && raw < o.choices.length) ? raw : o.def;
+      o.active = valid ? raw : o.def;
     }
   });
+  const bg = OPTIONS.find((o) => o.id === "background");
+  if (bg && savedBlurLayout(list)) { bg.chosen = true; bg.active = 0; }
+}
+
+/* A Result from before Background existed whose picture is the second one
+   ("Blur background", now 16:9) has NO background entry at all -- not even a
+   null -- and was always rendered on a blurred copy. That is a real choice
+   that was never written down, so it is read as one: Blur, chosen, and saved
+   as such the next time the project is written. (Black, the default for a
+   picture just selected, must not take it over.) A 9:16 one needs nothing:
+   it has no background to speak of until it is switched to 3:4 or 16:9. */
+function savedBlurLayout(list) {
+  const k = OPTIONS.findIndex((o) => o.id === "background");
+  return list[0] === 1 && list[k] === undefined;
+}
+
+/* The background a saved `output` stands for, as the render names it. Used by
+   the Home cover, which has the saved array and not the live options. */
+function savedBackground(list) {
+  const o = OPTIONS.find((x) => x.id === "background");
+  const raw = list[OPTIONS.indexOf(o)];
+  if (Number.isInteger(raw) && raw >= 0 && raw < o.choices.length) return o.out[raw];
+  return savedBlurLayout(list) ? "blur" : o.out[o.fallback];
 }
 
 /* One line saying what the picture is, for the queue and the summary:
@@ -953,6 +989,7 @@ $("#options")?.addEventListener("click", (e) => {
   // The chip's own index: the chips may be shown in another order than the
   // choices are stored in (`order`).
   o.active = Number(c.dataset.pick);
+  if (o.optional) o.chosen = true;      // from here on it is the person's choice
   row.querySelectorAll(".chip").forEach((b) =>
     b.setAttribute("aria-pressed", String(Number(b.dataset.pick) === o.active)));
   refreshHint(row, o);

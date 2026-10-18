@@ -169,7 +169,7 @@ screen.
 |---|---|
 | **Assets** | the project's videos (several allowed: moments can come from any of them; add one from anywhere on disk with **Add video…**), plus its own images and sounds — dropped in, or imported from the shared `workspace/assets/` (a copy, so later changes to the shared file don't touch the project). Removing a video or file is two clicks |
 | **Clips** | drag a range on the timeline, or pick from AI suggestions; word-boundary snapping avoids cutting mid-word |
-| **Output Format** | Picture (9:16 fills the frame; 3:4 or 16:9 sit inside the 9:16 file on a black or blurred background, at a Position you choose), resolution (720p to 4K), quality — set per Result, so one clip can differ from another. The file is always 9:16. Older "Crop" Results open as 9:16, older "Blur background" ones as 16:9 on blur at 50%, and render the same |
+| **Output Format** | Picture (9:16 fills the frame; 3:4 or 16:9 sit inside the 9:16 file on a black or blurred background, at a Position you choose; Black unless you pick Blur), resolution (720p to 4K), quality — set per Result, so one clip can differ from another. The file is always 9:16. Older "Crop" Results open as 9:16, older "Blur background" ones as 16:9 on blur at 50%, and render the same |
 | **Timeline** | reorder a Result's moments; add text labels, image stickers and sounds on their own tracks; set the volume of each moment |
 | **Framing** | drag/resize the crop box per time point; **AI Framing** follows whoever is speaking automatically; optional per-point head tracking for smoother motion |
 | **Captions** | click any word to correct it; font, size, highlight color, position, words-per-line, outline, and watermark, all previewed live |

@@ -645,7 +645,7 @@ function coverUrl(p) {
   const picture = pick("picture", 0, "9:16");
   if (picture !== "9:16") {
     q.set("picture", picture);
-    q.set("background", pick("background", 3, "blur"));
+    q.set("background", savedBackground(out));
     q.set("position", String(typeof out[4] === "number" ? out[4] : 50));
   }
   return `/api/thumb?${q}`;
