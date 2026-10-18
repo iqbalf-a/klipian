@@ -167,6 +167,11 @@ outside the block.
         "title": "Rugi 300 Juta Gara-gara Salah Timing",
         "caption": "Satu keputusan di waktu yang salah bisa mahal banget. Kamu pernah ngalamin juga?",
         "hashtags": ["#bisnis", "#podcast", "#belajarbisnis", "#kegagalan", "#motivasi"]
+      },
+      "angle": {
+        "take": "Keputusan yang kelihatan kecil bisa jadi yang paling mahal.",
+        "intro": "Satu keputusan ini bikin rugi 300 juta",
+        "notes": [{ "at": "0:14", "text": "Perhatikan nadanya di sini" }]
       }
     }
   ]
@@ -176,6 +181,12 @@ outside the block.
 `post` is the text for uploading the clip, written by you for each clip: `title`
 (up to 70 characters), `caption` (1–3 sentences, no hashtags in it) and
 `hashtags` (5–8, as a list). Leave it out if the rubric above does not ask for it.
+
+`angle` is a suggested point of view on the clip, for the person who cuts it to edit
+and make their own: `take` (one sentence), `intro` (an opening line, at most 12
+words) and `notes` (0–3 short comments of at most 8 words, each with `at`, the
+time inside the clip counted from its start, as min:sec). Leave it out if the
+rubric above does not ask for it.
 
 
 ---

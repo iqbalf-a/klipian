@@ -181,6 +181,8 @@ def check_brief() -> tuple[str, str]:
     real = roundtrip.read_rubric(roundtrip.RUBRICS["dialog"])
     if "## Teks posting" not in real or "Jangan menulis baris kredit" not in real:
         problems.append("prompts/rubrik/dialog-podcast.md lost its 'Teks posting' section or the credit rule")
+    if "## Sudut pandang" not in real or "Jangan mengulang kutipan" not in real:
+        problems.append("prompts/rubrik/dialog-podcast.md lost its 'Sudut pandang' section")
 
     fixture_cues = _load(base / "cues.json")["cues"]
     expected = _load(base / "imports.expected.json")

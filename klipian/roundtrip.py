@@ -218,6 +218,11 @@ outside the block.
         "title": "Rugi 300 Juta Gara-gara Salah Timing",
         "caption": "Satu keputusan di waktu yang salah bisa mahal banget. Kamu pernah ngalamin juga?",
         "hashtags": ["#bisnis", "#podcast", "#belajarbisnis", "#kegagalan", "#motivasi"]
+      }},
+      "angle": {{
+        "take": "Keputusan yang kelihatan kecil bisa jadi yang paling mahal.",
+        "intro": "Satu keputusan ini bikin rugi 300 juta",
+        "notes": [{{ "at": "0:14", "text": "Perhatikan nadanya di sini" }}]
       }}
     }}
   ]
@@ -227,6 +232,12 @@ outside the block.
 `post` is the text for uploading the clip, written by you for each clip: `title`
 (up to 70 characters), `caption` (1–3 sentences, no hashtags in it) and
 `hashtags` (5–8, as a list). Leave it out if the rubric above does not ask for it.
+
+`angle` is a suggested point of view on the clip, for the person who cuts it to edit
+and make their own: `take` (one sentence), `intro` (an opening line, at most 12
+words) and `notes` (0–3 short comments of at most 8 words, each with `at`, the
+time inside the clip counted from its start, as min:sec). Leave it out if the
+rubric above does not ask for it.
 {_cues_block(cues_data)}
 ---
 
@@ -345,6 +356,32 @@ def _post(v) -> dict | None:
     post = {"title": text(v.get("title")), "caption": text(v.get("caption")),
             "hashtags": _hashtags(v.get("hashtags"))}
     return post if (post["title"] or post["caption"] or post["hashtags"]) else None
+
+
+# Limits the rubric asks for, applied here so a long reply can't flood the UI.
+_ANGLE_NOTES = 3
+
+
+def _angle(v, duration: float) -> dict | None:
+    """The point of view Claude suggested for a clip -- optional, read gently like
+    `post`: text is trimmed, a field that is not text counts as empty, `notes`
+    must be a list of objects with usable text and a time (`at`, read like any
+    other time, counted from the START OF THE CLIP and held inside it). At most
+    three, earliest first. None when there is nothing usable."""
+    if not isinstance(v, dict):
+        return None
+    text = lambda x: _trim(x) if isinstance(x, str) else ""      # noqa: E731
+    notes = []
+    for n in (v.get("notes") if isinstance(v.get("notes"), list) else []):
+        if not isinstance(n, dict) or not text(n.get("text")):
+            continue
+        at = _to_seconds(_nullish(n.get("at", _UNDEFINED), None))
+        if not _finite(at):
+            continue
+        notes.append({"at": round(max(0.0, min(float(duration), at)), 2), "text": text(n.get("text"))})
+    notes = sorted(notes[:_ANGLE_NOTES], key=lambda n: n["at"])
+    angle = {"take": text(v.get("take")), "intro": text(v.get("intro")), "notes": notes}
+    return angle if (angle["take"] or angle["intro"] or notes) else None
 
 
 def _to_seconds(t) -> float:
@@ -495,6 +532,7 @@ def parse_reply(words: list[Word], text: str, cues: list[dict] | None = None) ->
         if dur <= 0:
             continue
         post = _post(g("post"))
+        angle = _angle(g("angle"), s - m)
         result.append({
             "title": _text(_or(g("title"), g("judul"), "Untitled")),
             "hook": _text(g("hook")),
@@ -513,6 +551,8 @@ def parse_reply(words: list[Word], text: str, cues: list[dict] | None = None) ->
             # Claude wrote any; absent otherwise, so a candidate from an older
             # reply reads exactly as it did.
             **({"post": post} if post else {}),
+            # A suggested point of view (take, intro, notes), likewise.
+            **({"angle": angle} if angle else {}),
             "spans": [{"start": m, "end": s}],     # one whole piece until split
             **({"cues": for_range(cues, m, s)} if cues is not None else {}),
         })
@@ -539,6 +579,7 @@ def save_candidates(candidates: list[dict], video: Path, dest: Path) -> Path:
             "scores": k["scores"],
             "reason": k["reason"],
             **({"post": k["post"]} if "post" in k else {}),
+            **({"angle": k["angle"]} if "angle" in k else {}),
             **({"cues": k["cues"]} if "cues" in k else {}),
         } for k in candidates],
     }, ensure_ascii=False, indent=1)

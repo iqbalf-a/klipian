@@ -1,0 +1,60 @@
+Each moment with a suggested point of view.
+
+```json
+{
+  "source": "radityadika-podcast.mp4",
+  "clips": [
+    {
+      "start": "16:56",
+      "end": "17:24",
+      "title": "Digigit Saat Tidur",
+      "hook": "Terparah kedua, dia pernah gigit",
+      "scores": { "hook": 9, "complete": 10, "payoff": 9, "emotion": 8, "duration": 9 },
+      "reason": "Premise is odd and the payoff lands.",
+      "angle": {
+        "take": "  Cerita tidur yang absurd, tapi ini soal betapa kita tidak sadar kebiasaan sendiri.  ",
+        "intro": "Pernah digigit pas tidur? Ini lebih aneh",
+        "notes": [
+          { "at": "0:20", "text": "Di sini mulai absurd" },
+          { "at": "0:05", "text": "  Perhatikan reaksinya  " },
+          { "at": "9:99", "text": "Setelah klip habis" },
+          { "at": "0:10", "text": "" },
+          { "at": "bukan waktu", "text": "Tanpa waktu" },
+          { "at": "0:12", "text": "Catatan ketiga" },
+          { "at": "0:13", "text": "Catatan keempat dibuang" }
+        ]
+      }
+    },
+    {
+      "start": "16:57.4",
+      "end": "17:03",
+      "title": "Bahasa Jepang",
+      "hook": "Dia itu suka ngigo",
+      "scores": { "hook": 8, "complete": 8, "payoff": 8, "emotion": 9 },
+      "reason": "Short and self-contained.",
+      "angle": { "intro": "Ngigo pakai bahasa lain", "notes": "bukan daftar" }
+    },
+    {
+      "start": "17:05",
+      "end": "17:20",
+      "title": "Tanpa Sudut Pandang",
+      "scores": { "hook": 7 },
+      "reason": "No angle, as before."
+    },
+    {
+      "start": "17:06",
+      "end": "17:22",
+      "title": "Sudut Pandang Rusak",
+      "scores": { "hook": 6 },
+      "angle": { "take": 5, "intro": ["x"], "notes": [] }
+    },
+    {
+      "start": "17:07",
+      "end": "17:23",
+      "title": "Sudut Pandang Bukan Objek",
+      "scores": { "hook": 6 },
+      "angle": "bukan objek"
+    }
+  ]
+}
+```

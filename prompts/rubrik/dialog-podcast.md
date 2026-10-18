@@ -200,3 +200,34 @@ Aturannya:
 - Jangan mengaku sebagai kreator, dan jangan mengarang kutipan.
 - **Jangan menulis baris kredit atau sumber, tautan, atau handle akun.** Itu
   ditambahkan klipian sendiri dari data yang diisi penggunanya.
+
+
+---
+
+## Sudut pandang
+
+Untuk tiap kandidat, tulis juga **sudut pandang**: draf yang membantu orang yang
+memotong klip ini menambahkan sesuatu dari dirinya, bukan sekadar mengunggah
+ulang omongan orang lain. Letakkan di kunci `angle`. Ini saran: pemilik klipnya
+yang menyuntingnya dan memutuskan apa yang dipakai, jadi tulis sebagai draf yang
+enak diubah.
+
+- **take** — satu kalimat: sudut pandang atau alasan kenapa momen ini penting.
+- **intro** — teks pembuka klip, **maksimal 12 kata**, yang tampil 2–3 detik di
+  awal. Membingkai klip dari sisi orang yang memotongnya.
+- **notes** — 0 sampai 3 komentar pendek yang muncul di tengah klip, masing-masing
+  **maksimal 8 kata**. Tiap note punya `at`: waktu dalam klip, dihitung dari
+  awal klip (bukan dari awal episode), dalam menit:detik, misalnya `"0:14"`.
+
+Aturannya:
+
+- **Harus menambah sesuatu**: konteks yang belum dimiliki penonton, pendapat,
+  kaitan ke topik yang lebih luas, atau pertanyaan. **Jangan mengulang kutipan**
+  atau meringkas apa yang sudah terdengar di klip.
+- Jangan merendahkan atau menyerang tamu, dan jangan menyesatkan: jangan
+  menambahkan fakta yang tidak ada di transkrip.
+- Jangan mengaku sebagai kreator video, dan jangan mengarang kutipan.
+- Bahasa santai, sesuai podcastnya.
+- **Variasikan polanya antar klip.** Jangan membuka semua klip dengan kalimat yang
+  sama (misalnya selalu "Ternyata..."), dan jangan memakai kerangka yang itu-itu
+  saja. Teks yang berpola sama di setiap klip terbaca seperti template.
