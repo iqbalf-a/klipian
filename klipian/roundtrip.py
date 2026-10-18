@@ -213,11 +213,20 @@ outside the block.
       "title": "Lose 300M Because of Timing",
       "hook": "exact quote from transcript",
       "scores": {{ "hook": 9, "complete": 8, "payoff": 9, "emotion": 8, "duration": 9 }},
-      "reason": "one or two sentences for a human to read"
+      "reason": "one or two sentences for a human to read",
+      "post": {{
+        "title": "Rugi 300 Juta Gara-gara Salah Timing",
+        "caption": "Satu keputusan di waktu yang salah bisa mahal banget. Kamu pernah ngalamin juga?",
+        "hashtags": ["#bisnis", "#podcast", "#belajarbisnis", "#kegagalan", "#motivasi"]
+      }}
     }}
   ]
 }}
 ```
+
+`post` is the text for uploading the clip, written by you for each clip: `title`
+(up to 70 characters), `caption` (1–3 sentences, no hashtags in it) and
+`hashtags` (5–8, as a list). Leave it out if the rubric above does not ask for it.
 {_cues_block(cues_data)}
 ---
 
@@ -304,6 +313,38 @@ def _text(v) -> str:
     if not isinstance(v, str):
         raise ValueError("A clip has a title, hook or reason that is not text.")
     return _trim(v)
+
+
+def _hashtags(v) -> list[str]:
+    """The tags of a post as a list of "#tag": from a list or from one string
+    ("bisnis, #podcast lucu"). Each loses anything that is not a letter, digit
+    or underscore and gets one leading #; empty ones and repeats (ignoring case)
+    go."""
+    if isinstance(v, str):
+        items = re.split(r"[\s,]+", v)
+    elif isinstance(v, list):
+        items = [x for x in v if isinstance(x, str)]
+    else:
+        return []
+    out, seen = [], set()
+    for item in items:
+        tag = re.sub(r"[^\w]", "", item)
+        if tag and tag.lower() not in seen:
+            seen.add(tag.lower())
+            out.append("#" + tag)
+    return out
+
+
+def _post(v) -> dict | None:
+    """The upload text Claude wrote for a clip -- optional, and read gently: a
+    field that is not text counts as empty, because a clip is not worth
+    refusing over its caption. None when there is nothing usable in it."""
+    if not isinstance(v, dict):
+        return None
+    text = lambda x: _trim(x) if isinstance(x, str) else ""      # noqa: E731
+    post = {"title": text(v.get("title")), "caption": text(v.get("caption")),
+            "hashtags": _hashtags(v.get("hashtags"))}
+    return post if (post["title"] or post["caption"] or post["hashtags"]) else None
 
 
 def _to_seconds(t) -> float:
@@ -453,6 +494,7 @@ def parse_reply(words: list[Word], text: str, cues: list[dict] | None = None) ->
         dur = _js_round(s - m)
         if dur <= 0:
             continue
+        post = _post(g("post"))
         result.append({
             "title": _text(_or(g("title"), g("judul"), "Untitled")),
             "hook": _text(g("hook")),
@@ -467,6 +509,10 @@ def parse_reply(words: list[Word], text: str, cues: list[dict] | None = None) ->
                 "payoff": num(_get(scores, "payoff")),
             },
             "reason": _text(_or(g("reason"), g("alasan"))),
+            # The text for uploading the clip (title, caption, hashtags), when
+            # Claude wrote any; absent otherwise, so a candidate from an older
+            # reply reads exactly as it did.
+            **({"post": post} if post else {}),
             "spans": [{"start": m, "end": s}],     # one whole piece until split
             **({"cues": for_range(cues, m, s)} if cues is not None else {}),
         })
@@ -492,6 +538,7 @@ def save_candidates(candidates: list[dict], video: Path, dest: Path) -> Path:
             "total": k["total"],
             "scores": k["scores"],
             "reason": k["reason"],
+            **({"post": k["post"]} if "post" in k else {}),
             **({"cues": k["cues"]} if "cues" in k else {}),
         } for k in candidates],
     }, ensure_ascii=False, indent=1)

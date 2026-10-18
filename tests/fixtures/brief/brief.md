@@ -162,11 +162,20 @@ outside the block.
       "title": "Lose 300M Because of Timing",
       "hook": "exact quote from transcript",
       "scores": { "hook": 9, "complete": 8, "payoff": 9, "emotion": 8, "duration": 9 },
-      "reason": "one or two sentences for a human to read"
+      "reason": "one or two sentences for a human to read",
+      "post": {
+        "title": "Rugi 300 Juta Gara-gara Salah Timing",
+        "caption": "Satu keputusan di waktu yang salah bisa mahal banget. Kamu pernah ngalamin juga?",
+        "hashtags": ["#bisnis", "#podcast", "#belajarbisnis", "#kegagalan", "#motivasi"]
+      }
     }
   ]
 }
 ```
+
+`post` is the text for uploading the clip, written by you for each clip: `title`
+(up to 70 characters), `caption` (1–3 sentences, no hashtags in it) and
+`hashtags` (5–8, as a list). Leave it out if the rubric above does not ask for it.
 
 
 ---

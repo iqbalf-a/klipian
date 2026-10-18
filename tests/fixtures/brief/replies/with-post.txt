@@ -1,0 +1,56 @@
+Here are the moments, each with the text for posting it.
+
+```json
+{
+  "source": "radityadika-podcast.mp4",
+  "clips": [
+    {
+      "start": "16:56",
+      "end": "17:24",
+      "title": "Digigit Saat Tidur",
+      "hook": "Terparah kedua, dia pernah gigit",
+      "scores": { "hook": 9, "complete": 10, "payoff": 9, "emotion": 8, "duration": 9 },
+      "reason": "Premise is odd and the payoff lands.",
+      "post": {
+        "title": "  Dia Pernah Gigit Orang Pas Lagi Tidur  ",
+        "caption": "Cerita paling absurd soal kebiasaan tidurnya. Kalian pernah digigit pas tidur juga?",
+        "hashtags": ["#podcast", "belajar bisnis", "#Podcast", "###lucu", "", "#radityadika", 7, "#tidur"]
+      }
+    },
+    {
+      "start": "16:57.4",
+      "end": "17:03",
+      "title": "Bahasa Jepang",
+      "hook": "Dia itu suka ngigo",
+      "scores": { "hook": 8, "complete": 8, "payoff": 8, "emotion": 9 },
+      "reason": "Short and self-contained.",
+      "post": {
+        "title": "Ngigo Pakai Bahasa Jepang",
+        "caption": "Ngigonya sampai ganti bahasa. Ada yang sama?",
+        "hashtags": "ngigo, #bahasajepang  lucu"
+      }
+    },
+    {
+      "start": "17:05",
+      "end": "17:20",
+      "title": "Tanpa Teks Posting",
+      "scores": { "hook": 7 },
+      "reason": "No post text at all, as before."
+    },
+    {
+      "start": "17:06",
+      "end": "17:22",
+      "title": "Teks Posting Rusak",
+      "scores": { "hook": 6 },
+      "post": { "title": 123, "caption": ["x"], "hashtags": { "a": 1 } }
+    },
+    {
+      "start": "17:07",
+      "end": "17:23",
+      "title": "Teks Posting Kosong",
+      "scores": { "hook": 6 },
+      "post": "bukan objek"
+    }
+  ]
+}
+```

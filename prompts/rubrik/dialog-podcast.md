@@ -173,3 +173,30 @@ Untuk tiap kandidat, tulis:
   perhatian di dalam klip itu. Jangan diparafrase.
 - **alasan** — satu atau dua kalimat, kenapa klip ini layak. Tulis untuk
   dibaca manusia yang sedang memutuskan pakai atau buang.
+
+
+---
+
+## Teks posting
+
+Untuk tiap kandidat, tulis juga **teks posting**: bahan yang nanti ditempel saat
+klipnya diunggah. Ini terpisah dari **judul** 2–5 kata di atas, yang menjadi
+nama file. (Di klipian, "caption" berarti subtitle yang dibakar ke video; teks
+posting bukan itu.) Letakkan di kunci `post`:
+
+- **title** — judul unggahan, **maksimal 70 karakter**. Boleh lebih panjang dan
+  lebih lengkap daripada judul file, selama masih jujur soal isi klipnya.
+- **caption** — 1–3 kalimat dalam bahasa santai seperti podcast-nya, diakhiri
+  pertanyaan atau ajakan. **Tanpa hashtag di dalamnya.**
+- **hashtags** — 5–8 tag huruf kecil, ditulis sebagai daftar. Sertakan nama
+  kreator atau tamu yang ada di klip kalau relevan.
+
+Aturannya:
+
+- Tidak ada clickbait bohong: judul dan caption harus sesuai dengan apa yang
+  benar-benar terjadi di klip. Jangan menjanjikan sesuatu yang tidak ada.
+- Tidak ada tag yang menyesatkan: nama orang yang tidak muncul di klip, atau
+  topik yang tidak dibahas.
+- Jangan mengaku sebagai kreator, dan jangan mengarang kutipan.
+- **Jangan menulis baris kredit atau sumber, tautan, atau handle akun.** Itu
+  ditambahkan klipian sendiri dari data yang diisi penggunanya.

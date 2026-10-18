@@ -174,6 +174,11 @@ def check_brief() -> tuple[str, str]:
         if "## Audio & timing cues" not in text or expect not in text:
             problems.append(f"brief with cues {label}: expected the section to say {expect!r}")
 
+    # The real rubric asks for post text, and forbids a credit line of Claude's own.
+    real = roundtrip.read_rubric(roundtrip.RUBRICS["dialog"])
+    if "## Teks posting" not in real or "Jangan menulis baris kredit" not in real:
+        problems.append("prompts/rubrik/dialog-podcast.md lost its 'Teks posting' section or the credit rule")
+
     fixture_cues = _load(base / "cues.json")["cues"]
     expected = _load(base / "imports.expected.json")
     for name, want in sorted(expected.items()):
