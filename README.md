@@ -110,7 +110,7 @@ ASSETS         the project's videos, images and sounds
 ANALYZE        find clips: transcribe, then ask Claude (A) or cut by hand (B)
 CLIPS          pick moments from Claude's suggestions or the timeline
 OUTPUT FORMAT  picture (9:16, 3:4 or 16:9), background, position, resolution, quality  (per Result)
-TIMELINE       order of the moments; labels, stickers, sounds, volume
+TIMELINE       order of the moments; labels (+ Credit adds the source), stickers, sounds, volume
 FRAMING        crop position per time point
 CAPTIONS       fix misheard words, style the karaoke captions
 RENDER         post text (title, caption, hashtags to paste at upload), quick

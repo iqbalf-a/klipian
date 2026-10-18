@@ -362,6 +362,35 @@ async function addElement(kind) {
   commitOverlays();
 }
 
+/* "+ Credit": a small text label with the source credit of the video(s) this
+   Result is cut from -- `Sumber: YouTube · Raditya Dika` -- over the whole clip,
+   at the top, clear of the captions and the watermark at the bottom. It is an
+   ordinary text element: edit, move or delete it like any other. Never added
+   automatically; and without a credit entered in Sources it says so instead of
+   inventing one. */
+async function addCreditLabel() {
+  const total = tlxTotal();
+  const note = $("#tlxNote");
+  if (!total) { if (note) note.textContent = "add moments to the Result on Clips first"; return; }
+  let credit = {};
+  try { credit = (await (await fetch("/api/credits")).json()).credit || {}; } catch { /* no backend */ }
+  const files = [...new Set(RESULT.map((r) => toReal(r.start).file).filter(Boolean))];
+  const labels = [];
+  for (const f of files) {
+    const short = credit[f]?.short;
+    if (short && !labels.includes(short)) labels.push(short);
+  }
+  if (!labels.length) {
+    if (note) note.textContent = "no credit entered for this video yet — add one in Sources on the /workspace dashboard";
+    return;
+  }
+  const e = { id: `o${++overlaySeq}`, kind: "text", ...OVERLAY_DEFAULTS.text,
+              start: 0, end: round2(total), text: labels.join(" / "), x: 50, y: 7, size: 34, box: true };
+  OVERLAYS.push(e);
+  tlxSel = { type: "el", id: e.id };
+  commitOverlays();
+}
+
 /* How long a sound file plays -- its bar is that long by default. */
 function soundLength(file) {
   return new Promise((done) => {
@@ -383,6 +412,7 @@ function moveClip(from, to) {
 $("#tlxAddText")?.addEventListener("click", () => addElement("text"));
 $("#tlxAddImage")?.addEventListener("click", () => addElement("image"));
 $("#tlxAddSound")?.addEventListener("click", () => addElement("sound"));
+$("#tlxAddCredit")?.addEventListener("click", addCreditLabel);
 
 /* Seek by clicking the ruler or an empty stretch of a lane. */
 $("#tlxLanes")?.addEventListener("pointerdown", (ev) => {
