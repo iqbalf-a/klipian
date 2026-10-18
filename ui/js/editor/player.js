@@ -648,20 +648,6 @@ function updateRenderButtons() {
 let lastFraming = null;   // the framing point currently shown in the preview
 
 
-/* Human-readable values. For UI labels and history rows. */
-function optionValue(id) {
-  const o = OPTIONS.find((x) => x.id === id);
-  return o ? o.choices[o.active] : "";
-}
-
-/* Machine-readable values. Used when building the render request, so the
-   button labels can change without altering anything in the output file. */
-function optionOut(id) {
-  const o = OPTIONS.find((x) => x.id === id);
-  return o && o.out ? o.out[o.active] : undefined;
-}
-
-
 /* REAL render via backend.
    Previously this only animated the progress bar -- no file was ever
    created, yet the queue still wrote "complete" and offered "Open folder".
@@ -724,7 +710,11 @@ async function sendRender(approved) {
         spans: real.spans,
         style: captionStyle(),         // Caption screen settings are sent along too
         words: real.words,
-        layout: optionOut("format"),
+        // The shape of the picture inside the 9:16 file and what is around it
+        // (render.picture_options). The older `layout` key is not sent.
+        picture: optionOut("picture"),
+        background: optionOut("background"),
+        position: optionOut("position"),
         width: optionOut("resolution"),
         quality: optionOut("quality"),
         // Timeline elements and per-clip volume (compose.js), in output
@@ -895,7 +885,9 @@ async function quickPreview() {
     // Only this video's words, and without a `video` of their own: the
     // preview request's one video IS theirs.
     words: Array.isArray(real.words) ? real.words.filter((w) => !w.video) : real.words,
-    layout: optionOut("format"),
+    picture: optionOut("picture"),
+    background: optionOut("background"),
+    position: optionOut("position"),
     width: optionOut("resolution"),
     quality: optionOut("quality"),
     // Timeline elements in WHOLE-clip seconds; the server re-times them to

@@ -1202,6 +1202,11 @@ h1, h2, h3 {
   border-bottom: 1px solid var(--glass-border);
 }
 .option-row:last-child { border-bottom: 0; }
+.option-row[hidden] { display: none; }
+/* Position: the slider and its read-out on one line. */
+.option-row .range-line { grid-area: pilihan; display: flex; align-items: center; gap: var(--s3); max-width: 420px; }
+.option-row .range-line .slider { flex: 1; }
+.option-row .range-line output { min-width: 4ch; text-align: right; color: var(--text); }
 .option-row .eyebrow { grid-area: label; }
 .option-row .choices { grid-area: pilihan; display: flex; gap: var(--s2); flex-wrap: wrap; }
 .option-row .hint {

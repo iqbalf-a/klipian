@@ -292,7 +292,7 @@ function snapshotActiveResult() {
   // Output Format belongs to the Result, not the project (ian). It used to
   // sit beside `results` as one setting every Result rendered with -- so
   // giving one clip a different resolution changed them all.
-  slot.output = (typeof OPTIONS !== "undefined") ? OPTIONS.map((o) => o.active) : [];
+  slot.output = (typeof outputState === "function") ? outputState() : [];
   // Live spans and points sit on the shared virtual timeline (assets.js);
   // on disk they're what they really are -- a video and a second in it.
   // `segments`: the plan's name for a Result's spans (each a segment of
@@ -369,14 +369,11 @@ function loadResultIntoLiveState(entry) {
   }
   if (typeof CORRECTIONS !== "undefined") CORRECTIONS = entry.corrections || {};
   if (typeof setOverlays === "function") setOverlays(entry.overlays || []);
-  // Bounds-checked per option, so a Result saved before an option existed
-  // (or with fewer choices) just leaves that one where it is.
-  if (Array.isArray(entry.output) && typeof OPTIONS !== "undefined") {
-    entry.output.forEach((i, k) => {
-      if (OPTIONS[k] && Number.isInteger(i) && i >= 0 && i < OPTIONS[k].choices.length) {
-        OPTIONS[k].active = i;
-      }
-    });
+  // Per option, bounds-checked; one the Result was saved without (it predates
+  // the option) takes its default -- see applyOutput() in app.js for why that
+  // is also the migration of "Crop" and "Blur background".
+  if (typeof OPTIONS !== "undefined") {
+    applyOutput(entry.output);
     // Setting .active only changes the data; renderPrepare() is what draws
     // the chips. Without this, switching Results left the previous one's
     // choices lit while the render used this one's -- the same trap the
@@ -394,7 +391,7 @@ function loadResultIntoLiveState(entry) {
    trio -- now SAVED_RESULTS must also be reset, not just the live state. */
 function resetProjectState() {
   SAVED_RESULTS = [{ id: `res${++resultTabSeq}`, title: "", segments: [], framing: [], corrections: {},
-    output: (typeof OPTIONS !== "undefined") ? OPTIONS.map((o) => o.active) : [] }];
+    output: (typeof outputState === "function") ? outputState() : [] }];
   activeResultId = SAVED_RESULTS[0].id;
   if (typeof setOverlays === "function") setOverlays([]);
   if (typeof resetResult === "function") resetResult();
@@ -419,7 +416,7 @@ function newResult() {
   // a second clip from the same video almost always wants the same file
   // shape as the first, and it's one click to change if it doesn't.
   const entry = { id: `res${++resultTabSeq}`, title: "", segments: [], framing: [], corrections: {},
-    output: (typeof OPTIONS !== "undefined") ? OPTIONS.map((o) => o.active) : [] };
+    output: (typeof outputState === "function") ? outputState() : [] };
   SAVED_RESULTS.push(entry);
   activeResultId = entry.id;
   if (typeof setOverlays === "function") setOverlays([]);

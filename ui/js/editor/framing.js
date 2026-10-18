@@ -404,8 +404,8 @@ function followActivePoint(f) {
 function updateFramingLayoutWarning() {
   const warn = $("#framingLayoutWarn");
   if (!warn) return;
-  const blur = typeof optionOut === "function" && optionOut("format") === "blur";
-  warn.hidden = !blur;
+  const whole = typeof optionOut === "function" && optionOut("picture") === "16:9";
+  warn.hidden = !whole;
 }
 
 function renderFraming() {

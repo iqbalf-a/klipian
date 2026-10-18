@@ -37,9 +37,8 @@ let QUEUE = [];
 
 /* Render queue is not a fixed list: it contains clips that are actually being rendered. */
 function buildQueue(list) {
-  // Used to be locked to "face in center" regardless of choice, so the history
-  // row would lie if you picked Blur background.
-  const layout = (typeof optionValue === "function") ? optionValue("format") : "Crop";
+  // The history row says which picture the file was rendered with.
+  const layout = (typeof pictureSummary === "function") ? pictureSummary() : "9:16";
   // Without argument: derive from RESULT -- that's what's actually being
   // rendered (one merged file, see resultAsClip()). Candidate board with
   // "approved" status no longer exists; filtering by status here is ALWAYS
@@ -354,24 +353,31 @@ const OPTIONS = [
   //   choices the choice names
   //   hint    WHAT THE CONSEQUENCE IS -- one sentence, changes with selection
   //
-  // Without the hint, the row just reads "Format: Crop / Blur background" and
-  // doesn't answer "format of what?". The old label "Wajah 9:16 / Blur 9:16"
-  // was also wrong: there's no face detection here, the box is placed
-  // manually. "9:16" is needed -- but in the label, not repeated on both
-  // choices.
-  //
   // `out` separates what the MACHINE reads from what PEOPLE read. Previously
   // render branched via optionValue("format").startsWith("Blur") -- meaning
   // changing the button text silently changed the output file layout.
-  { id: "format", label: "Fill the 9:16 frame",
-    choices: ["Crop", "Blur background"], out: ["face", "blur"], active: 0,
-    hint: ["A tall slice of the source video. The left and right edges are cut off.",
-           "The whole frame in the middle, with a blurred copy filling the space above and below."] },
-  // 2K and 4K are APPENDED, never inserted: a project stores each option's
-  // active INDEX (see projectState()), so putting a new choice in front of
-  // an existing one would silently re-point every project already saved.
+  //
+  // WHAT IS SAVED. A Result stores `output` as one entry per option, in THIS
+  // order: the active INDEX of a choice option, the number of a range one.
+  // So the order and the meaning of every index are fixed once saved:
+  //   - choices are only ever APPENDED, new options only ever go at the END;
+  //   - `order` (below) is how they are SHOWN, and may differ;
+  //   - a Result saved before an option existed has no entry for it, and gets
+  //     the option's default (see applyOutput) -- which is what makes the
+  //     older ones migrate by themselves:
+  //       "Crop" (index 0 of the first option)             = Picture 9:16
+  //       "Blur background" (index 1), no Background saved = Picture 16:9,
+  //                                  Background Blur, Position 50 -- exactly
+  //                                  what that choice rendered as.
+  { id: "picture", label: "Picture",
+    choices: ["9:16", "16:9", "3:4"], out: ["9:16", "16:9", "3:4"], active: 0, def: 0,
+    order: [0, 2, 1],                      // shown 9:16 · 3:4 · 16:9
+    hint: ["Fills the whole 9:16 frame with a tall slice of the source. The left and right edges are cut off.",
+           "The whole source frame across the width, with the space above and below filled by the background.",
+           "A 3:4 slice of the source across the width, with the space above and below filled by the background."] },
+  // 2K and 4K are APPENDED, never inserted: see above.
   { id: "resolution", label: "Resolution", choices: ["720p", "1080p", "2K", "4K"],
-    out: [720, 1080, 1440, 2160], active: 1,
+    out: [720, 1080, 1440, 2160], active: 1, def: 1,
     hint: ["720×1280 — smaller file, faster render.",
            "1080×1920 — full size for TikTok, Reels and Shorts.",
            "1440×2560 — beyond what the platforms show; only worth it if the source is larger.",
@@ -380,22 +386,109 @@ const OPTIONS = [
   // bigger file; these three sit either side of that old value, so
   // "Balanced" reproduces exactly what every earlier render produced.
   { id: "quality", label: "Quality", choices: ["Smaller file", "Balanced", "Best"],
-    out: [26, 21, 17], active: 1,
+    out: [26, 21, 17], active: 1, def: 1,
     hint: ["Noticeably lighter files. Fine for talking heads, softer on fast motion.",
            "The setting everything was rendered at until now.",
            "Keeps detail in motion and gradients, at roughly double the size."] },
+  // Around a picture that is not 9:16. Blur is index 0 because it is what the
+  // only such layout ("Blur background") always had.
+  { id: "background", label: "Background", choices: ["Blur", "Black"], out: ["blur", "black"],
+    active: 0, def: 0, order: [1, 0],      // shown Black · Blur
+    shownWhen: () => optionOut("picture") !== "9:16",
+    hint: ["A blurred copy of the picture fills the space above and below it.",
+           "Plain black above and below the picture."] },
+  // Where the picture sits in the 9:16 frame: 0 at the top, 100 at the bottom.
+  // A number in `output`, not an index.
+  { id: "position", label: "Position", kind: "range", min: 0, max: 100, step: 1, unit: "%",
+    value: 50, def: 50,
+    shownWhen: () => optionOut("picture") !== "9:16",
+    hint: ["How far down the free space the picture sits: 0% at the top, 50% in the middle, "
+           + "100% at the bottom. Captions can then use the space below it."] },
 ];
 
+/* Defined here, with OPTIONS (which draws itself as this file loads), not in
+   player.js: that one loads later.
+
+   Human-readable values. For UI labels and history rows. */
+function optionValue(id) {
+  const o = OPTIONS.find((x) => x.id === id);
+  if (!o) return "";
+  return o.kind === "range" ? `${o.value}${o.unit || ""}` : o.choices[o.active];
+}
+
+/* Machine-readable values. Used when building the render request, so the
+   button labels can change without altering anything in the output file. */
+function optionOut(id) {
+  const o = OPTIONS.find((x) => x.id === id);
+  if (!o) return undefined;
+  return o.kind === "range" ? o.value : o.out ? o.out[o.active] : undefined;
+}
+
+/* The order the rows are SHOWN in on the Output Format screen: the picture, what
+   goes around it, then the file. (OPTIONS itself is in saved order, see above.) */
+const OPTION_ROWS = ["picture", "background", "position", "resolution", "quality"];
+
+/* What a Result saves for the options, one entry each, in OPTIONS order. */
+function outputState() {
+  return OPTIONS.map((o) => (o.kind === "range" ? o.value : o.active));
+}
+
+/* Put a saved `output` back. An entry that is missing (saved before the option
+   existed) or out of range becomes the option's default, NOT whatever the last
+   Result left there: opening an older Result after a newer one must not carry
+   the newer one's Background and Position along. */
+function applyOutput(saved) {
+  const list = Array.isArray(saved) ? saved : [];
+  OPTIONS.forEach((o, k) => {
+    const raw = list[k];
+    if (o.kind === "range") {
+      o.value = (typeof raw === "number" && Number.isFinite(raw))
+        ? Math.min(o.max, Math.max(o.min, raw)) : o.def;
+    } else {
+      o.active = (Number.isInteger(raw) && raw >= 0 && raw < o.choices.length) ? raw : o.def;
+    }
+  });
+}
+
+/* One line saying what the picture is, for the queue and the summary:
+   "9:16", or "3:4 · black · 30%". */
+function pictureSummary() {
+  const pic = optionOut("picture");
+  if (pic === "9:16") return "9:16";
+  return `${pic} · ${optionOut("background")} · ${optionOut("position")}%`;
+}
+
 function renderPrepare() {
-  $("#options").innerHTML = OPTIONS.map((o) => `
+  const choiceRow = (o) => `
+      <span class="choices">
+        ${(o.order || o.choices.map((_, i) => i)).map((i) =>
+          `<button class="chip" data-pick="${i}"${i === o.active ? ' aria-pressed="true"' : ""}>${escapeHTML(o.choices[i])}</button>`).join("")}
+      </span>`;
+  const rangeRow = (o) => `
+      <span class="range-line">
+        <input class="slider" type="range" min="${o.min}" max="${o.max}" step="${o.step}"
+               value="${o.value}" aria-label="${escapeHTML(o.label)}">
+        <output class="data">${o.value}${o.unit || ""}</output>
+      </span>`;
+  $("#options").innerHTML = OPTION_ROWS.map((id) => OPTIONS.find((x) => x.id === id)).map((o) => `
     <div class="option-row" data-option="${o.id}">
       <span class="eyebrow">${escapeHTML(o.label)}</span>
-      <span class="choices">
-        ${o.choices.map((p, i) => `<button class="chip"${i === o.active ? ' aria-pressed="true"' : ""}>${escapeHTML(p)}</button>`).join("")}
-      </span>
-      <span class="hint">${escapeHTML(o.hint ? o.hint[o.active] : "")}</span>
+      ${o.kind === "range" ? rangeRow(o) : choiceRow(o)}
+      <span class="hint">${escapeHTML(o.kind === "range" ? o.hint[0] : o.hint ? o.hint[o.active] : "")}</span>
     </div>`).join("");
+  updateOptionRows();
   summarizeOptions();
+}
+
+/* Background and Position only mean something for a picture that is not 9:16;
+   for 9:16 their rows are hidden (not removed, so keyboard focus survives a
+   change of Picture). */
+function updateOptionRows() {
+  for (const o of OPTIONS) {
+    if (!o.shownWhen) continue;
+    const row = document.querySelector(`#options .option-row[data-option="${o.id}"]`);
+    if (row) row.hidden = !o.shownWhen();
+  }
 }
 
 /* Hint follows the currently active choice. It's rewritten in place, not
@@ -403,15 +496,18 @@ function renderPrepare() {
    was just pressed. */
 function refreshHint(row, o) {
   const el = row.querySelector(".hint");
-  if (el && o.hint) el.textContent = o.hint[o.active];
+  if (el && o.hint && o.kind !== "range") el.textContent = o.hint[o.active];
 }
 
-/* Summary is derived from OPTIONS, not from five hardcoded slots. The
-   previous version read value[2] through value[4] even though OPTIONS only
-   had two, so the row showed "... undefined · undefined · undefined". */
+/* The summary is derived from OPTIONS: what is shown, in the order it is shown. */
 function summarizeOptions() {
-  $("#optionsSummary").textContent =
-    OPTIONS.map((o) => o.choices[o.active]).join(" · ");
+  const parts = [];
+  for (const id of OPTION_ROWS) {
+    const o = OPTIONS.find((x) => x.id === id);
+    if (o.shownWhen && !o.shownWhen()) continue;
+    parts.push(o.kind === "range" ? `${o.value}${o.unit || ""}` : o.choices[o.active]);
+  }
+  $("#optionsSummary").textContent = parts.join(" · ");
 }
 
 function toStage(stage) {
@@ -853,16 +949,38 @@ $("#options")?.addEventListener("click", (e) => {
   if (!c) return;
   const row = c.closest(".option-row");
   const o = OPTIONS.find((x) => x.id === row.dataset.option);
-  o.active = [...row.querySelectorAll(".chip")].indexOf(c);
-  row.querySelectorAll(".chip").forEach((b, i) =>
-    b.setAttribute("aria-pressed", String(i === o.active)));
+  // The chip's own index: the chips may be shown in another order than the
+  // choices are stored in (`order`).
+  o.active = Number(c.dataset.pick);
+  row.querySelectorAll(".chip").forEach((b) =>
+    b.setAttribute("aria-pressed", String(Number(b.dataset.pick) === o.active)));
   refreshHint(row, o);
+  updateOptionRows();
   if (typeof saveProject === "function") saveProject();
   summarizeOptions();
-  // The "Blur background" choice decides whether the Framing screen's work is
-  // used at all, so its warning there has to react from here.
-  if (typeof updateFramingLayoutWarning === "function") updateFramingLayoutWarning();
+  optionsChanged();
 });
+
+$("#options")?.addEventListener("input", (e) => {
+  const input = e.target.closest("input.slider");
+  if (!input) return;
+  const o = OPTIONS.find((x) => x.id === input.closest(".option-row")?.dataset.option);
+  if (!o || o.kind !== "range") return;
+  o.value = Math.min(o.max, Math.max(o.min, Number(input.value)));
+  const out = input.closest(".option-row").querySelector("output");
+  if (out) out.textContent = `${o.value}${o.unit || ""}`;
+  if (typeof saveProject === "function") saveProject();
+  summarizeOptions();
+  optionsChanged();
+});
+
+/* What the other screens do when the Picture, Background or Position moves:
+   the Framing screen's box ratio and its note, and the preview's composition.
+   Each is optional: a screen not loaded yet simply has nothing to update. */
+function optionsChanged() {
+  if (typeof updateFramingLayoutWarning === "function") updateFramingLayoutWarning();
+  if (typeof onPictureChanged === "function") onPictureChanged();
+}
 
 drawAll();
 toScreen("clips");
