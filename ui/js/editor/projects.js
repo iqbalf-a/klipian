@@ -362,7 +362,7 @@ function loadResultIntoLiveState(entry) {
           .sort((a, b) => a.at - b.at)
       // `auto: true` must match resetFraming() in framing.js -- this is the
       // same untouched placeholder point, just reached via a different door.
-      : [{ id: "f1", at: 0, format: "single", crops: [{ ...INITIAL_CROP }], auto: true }];
+      : [{ id: "f1", at: 0, format: "single", crops: [initialCrop()], auto: true }];
     if (typeof framingSeq !== "undefined") {
       framingSeq = Math.max(0, ...FRAMING.map((f) => parseInt(String(f.id).slice(1), 10) || 0));
     }

@@ -41,10 +41,28 @@ const INITIAL_SPLIT_CROP = [
   { left: 54, top: 17, width: 42, height: 66 },
 ];
 
-/* Box height = width x ratio, computed in canvas pixels.
-   single: target cell 1080x1920 -> 16/9 times the width.
-   split : each cell 1080x960   ->  8/9 times the width. */
-const RATIO = { single: 16 / 9, split: 8 / 9 };
+/* Box height = width x ratio, computed in canvas pixels: the shape of the cell
+   the box is scaled into.
+   single, Picture 9:16: cell 1080x1920 -> 16/9 times the width.
+   single, Picture 3:4 : cell 1080x1440 ->  4/3 times the width.
+   split (9:16 only)   : each cell 1080x960 -> 8/9 times the width.
+   Picture 16:9 uses the whole frame, so no box is used at all (the 9:16 ratio
+   is kept for the boxes on the canvas, which the render then ignores). */
+function ratioFor(format) {
+  if (format === "split") return 8 / 9;
+  const picture = (typeof optionOut === "function") ? optionOut("picture") : "9:16";
+  return picture === "3:4" ? 4 / 3 : 16 / 9;
+}
+
+/* Whether the Output Format picture is 9:16 -- the only one with Split. */
+const pictureIs916 = () => !(typeof optionOut === "function") || optionOut("picture") === "9:16";
+
+/* The box a new point starts from, in the shape of the current picture. */
+function initialCrop() {
+  return (typeof optionOut === "function" && optionOut("picture") === "3:4")
+    ? { left: 30, top: 4, width: 39, height: 92 }
+    : { ...INITIAL_CROP };
+}
 
 let FRAMING = [];          // [{ id, at, format, crops }] sorted by `at`
 let framingSeq = 0;
@@ -120,8 +138,11 @@ function interpolatePath(keyframes, t) {
    facebox.py. */
 function frameAt(seconds) {
   const f = pointAt(seconds);
-  const format = f ? f.format : "single";
-  let crops = f ? f.crops : [INITIAL_CROP];
+  // A point made as Split keeps its two boxes, but for any picture other than
+  // 9:16 it is framed with the first one, as a single (the render does the
+  // same: render.py only stacks two boxes for a 9:16 picture).
+  const format = (f && f.format === "split" && pictureIs916()) ? "split" : "single";
+  let crops = f ? f.crops : [initialCrop()];
   if (f?.tracking?.keyframes?.length >= 2 && format === "single") {
     const left = interpolatePath(f.tracking.keyframes, seconds - f.at);
     if (left !== null) crops = [{ ...crops[0], left }];
@@ -156,7 +177,7 @@ function resetFraming() {
   // user manually edits this point (lock/format toggle), so a deliberate
   // "yes I really want this point at 00:00" is never overridden.
   FRAMING.push({ id: `f${++framingSeq}`, at: 0, format: "single",
-                 crops: [{ ...INITIAL_CROP }], auto: true });
+                 crops: [initialCrop()], auto: true });
   renderFraming();
 }
 
@@ -220,10 +241,11 @@ function sourceRatio() {
 function matchRatio(crop, format) {
   const baseRatio = sourceRatio();
   let width = crop.width;
-  let height = width * baseRatio * RATIO[format];
+  const ratio = ratioFor(format);
+  let height = width * baseRatio * ratio;
   if (crop.top + height > 100) {
     height = 100 - crop.top;
-    width = height / (baseRatio * RATIO[format]);
+    width = height / (baseRatio * ratio);
   }
   return { ...crop, width, height };
 }
@@ -394,18 +416,67 @@ function followActivePoint(f) {
   bar.scrollTo({ left: Math.max(0, target), behavior: "smooth" });
 }
 
-/* The "Blur background" output layout ignores framing entirely -- render.py
-   sets crop_first = (layout != "blur") and then never reads span.crop /
-   span.crops / span.tracking. That's correct behaviour (blur deliberately
-   keeps the whole frame), but it has to be VISIBLE here, or the work simply
-   disappears into the render with no explanation.
-   Called from renderFraming() and from the Export option handler (app.js),
+/* A 16:9 picture ignores framing entirely -- render.py sets crop_first =
+   (picture != "16:9") and then never reads span.crop / span.crops /
+   span.tracking. That's correct behaviour (it deliberately keeps the whole
+   frame), but it has to be VISIBLE here, or the work simply disappears into
+   the render with no explanation.
+   And Split (two boxes stacked) only exists for a 9:16 picture, so its button
+   is off for the others, with the reason.
+   Called from renderFraming() and from the Output Format handlers (app.js),
    since the setting lives on a different screen. */
 function updateFramingLayoutWarning() {
+  const picture = typeof optionOut === "function" ? optionOut("picture") : "9:16";
   const warn = $("#framingLayoutWarn");
-  if (!warn) return;
-  const whole = typeof optionOut === "function" && optionOut("picture") === "16:9";
-  warn.hidden = !whole;
+  if (warn) warn.hidden = picture !== "16:9";
+  const split = document.querySelector('[data-format-choice="split"]');
+  const note = $("#framingSplitNote");
+  if (split) {
+    split.disabled = picture !== "9:16";
+    split.title = split.disabled ? "Split is only for a 9:16 picture" : "";
+  }
+  if (note) note.hidden = picture === "9:16" || picture === "16:9";
+}
+
+/* The Picture changed on the Output Format screen: every framing box is
+   re-fitted to the new box shape, keeping its centre and its height (a person
+   framed head to waist stays framed that way, just narrower or wider), and a
+   Split point becomes a single one with its first box. Stateless on purpose --
+   it compares each box with the ratio it should have, so it does nothing when
+   the shape did not change (switching to 16:9 and back, a Result being loaded). */
+function onPictureChanged() {
+  const base = sourceRatio();
+  let changed = false;
+  for (const f of FRAMING) {
+    if (f.format === "split" && !pictureIs916()) {
+      f.format = "single";
+      f.crops = f.crops.slice(0, 1);
+      changed = true;
+    }
+    const want = ratioFor(f.format);
+    f.crops = f.crops.map((c) => {
+      const have = (c.height / c.width) / base;
+      if (Math.abs(have - want) < 0.02) return c;
+      const centre = c.left + c.width / 2;
+      let height = Math.min(100, c.height);
+      let width = height / (base * want);
+      if (width > 100) { width = 100; height = width * base * want; }
+      const left = Math.max(0, Math.min(100 - width, centre - width / 2));
+      const top = Math.max(0, Math.min(100 - height, c.top + c.height / 2 - height / 2));
+      // A tracked point follows the box's LEFT edge: it moves by the same
+      // amount the edge did.
+      if (f.tracking?.keyframes && c === f.crops[0]) {
+        const shift = left - c.left;
+        f.tracking.keyframes = f.tracking.keyframes.map((kf) => ({ ...kf, left: kf.left + shift }));
+      }
+      changed = true;
+      return { ...c, left, top, width, height };
+    });
+  }
+  if (changed) {
+    if (typeof renderFraming === "function") renderFraming();
+    if (typeof saveProject === "function") saveProject();
+  }
 }
 
 function renderFraming() {
@@ -479,7 +550,7 @@ function drawBox(format, crops) {
   if (previewFrame) previewFrame.dataset.format = canvasFormat;
 
   const els = cropEls();
-  applyCrop(els[0], matchRatio(crops[0] || INITIAL_CROP, canvasFormat));
+  applyCrop(els[0], matchRatio(crops[0] || initialCrop(), canvasFormat));
   // The second box always has the split ratio -- it's only ever used in that format.
   applyCrop(els[1], matchRatio(crops[1] || INITIAL_SPLIT_CROP[1], "split"));
 
@@ -542,7 +613,7 @@ $("#framingFormat")?.addEventListener("click", (e) => {
   // squashed image.
   const crops = format === "split"
     ? INITIAL_SPLIT_CROP.map((c) => ({ ...c }))
-    : [{ ...INITIAL_CROP }];
+    : [initialCrop()];
 
   let message;
   if (existing) {
@@ -747,7 +818,7 @@ $("#framingList")?.addEventListener("click", (e) => {
       // Ratio LOCKED: height is always width x format ratio. Width is what
       // gets clamped, not height -- if height were clamped on its own, the
       // box would go squashed and the rendered output would too.
-      const ratio = RATIO[canvasFormat];
+      const ratio = ratioFor(canvasFormat);
       const box = crop.getBoundingClientRect();
       const maxW = Math.min(k.right - box.left, (k.bottom - box.top) / ratio);
       const w = clamp(e.clientX - box.left, 40, Math.max(40, maxW));
@@ -808,7 +879,7 @@ $("#framingList")?.addEventListener("click", (e) => {
       // Height follows width through the same ratio rule the pointer resize
       // uses, so the box can never go out of shape. Percent-of-canvas both
       // ways: heightPct = widthPct * (canvasW / canvasH) * ratio.
-      const ratio = RATIO[canvasFormat];
+      const ratio = ratioFor(canvasFormat);
       const pctPerPct = (k.width / k.height) * ratio;
       const maxW = Math.min(100 - left, (100 - top) / pctPerPct);
       width = Math.max(4, Math.min(width, maxW));
@@ -1090,8 +1161,8 @@ function aiFramingOutputSize() {
   const box = canvasFormat === "single" ? boxOnCanvas() : null;
   const w = box?.[0];
   return {
-    width: (w && Number.isFinite(w.width)) ? w.width : INITIAL_CROP.width,
-    height: (w && Number.isFinite(w.height)) ? w.height : INITIAL_CROP.height,
+    width: (w && Number.isFinite(w.width)) ? w.width : initialCrop().width,
+    height: (w && Number.isFinite(w.height)) ? w.height : initialCrop().height,
   };
 }
 

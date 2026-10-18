@@ -669,16 +669,20 @@
           <!-- The frame format applies to the currently active POINT, not
                the whole clip: podcast angles change, so one clip can
                switch between one frame and two frames. -->
-          <!-- "Blur background" (Export screen) keeps the WHOLE source frame
-               and fills the 9:16 space with a blurred copy -- there is no
+          <!-- Picture 16:9 (Output Format screen) keeps the WHOLE source frame
+               and puts it on a background -- there is no
                crop, so every framing point here is ignored by the render.
                That is by design, but it used to happen silently: you could
                spend minutes placing points and get a file that used none of
                them. Shown/hidden by updateFramingLayoutWarning() in framing.js. -->
           <p class="layout-warn" id="framingLayoutWarn" role="status" hidden>
-            Output is set to <b>Blur background</b>, which keeps the full frame —
-            the framing points below are ignored. Switch to <b>Crop</b> on the
-            Export screen to use them.
+            Picture is <b>16:9</b>: it uses the whole frame, so the framing points
+            below are not used. Choose <b>9:16</b> or <b>3:4</b> on the Output
+            Format screen to use them.
+          </p>
+          <p class="layout-warn" id="framingSplitNote" role="status" hidden>
+            Picture is <b>3:4</b>: the box is locked to that shape, and Split (two
+            boxes) is only for a <b>9:16</b> picture.
           </p>
 
           <div class="format-bar" id="framingFormat" role="group"
