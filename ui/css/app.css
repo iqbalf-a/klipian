@@ -1709,6 +1709,12 @@ h1, h2, h3 {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .asset-meta { color: var(--text-faint); font-size: var(--t-12); }
+/* Where the video came from: a line under the row, with a link to edit it
+   (the credits live on the /workspace dashboard, Sources panel). */
+.asset-credit { grid-column: 2 / -1; color: var(--text-faint); font-size: var(--t-12);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.asset-credit a { color: var(--text-muted); text-decoration: underline; text-underline-offset: 2px; }
+.asset-credit a:hover { color: var(--text); }
 .asset-row.missing .asset-meta { color: var(--danger); }
 .asset-row.active .asset-kind { color: var(--accent); }
 .asset-active {

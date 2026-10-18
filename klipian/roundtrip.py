@@ -39,6 +39,7 @@ import re
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
+from . import credits as credits_mod
 from .cues import for_range
 from .models import Transcript, Word
 from .paths import ROOT
@@ -150,13 +151,14 @@ By kind:
 
 
 def build_brief(transcript: Transcript, rubric: str, name: str,
-                cues_data: dict | None = None) -> str:
+                cues_data: dict | None = None, credit: dict | None = None) -> str:
     """A single self-contained file: task, rubric, transcript, and expected
     answer format. The user just drops it in and says "do it" -- no
     additional explanation needed.
 
     `rubric` is the rubric's text (read_rubric), `name` the video's file name,
-    `cues_data` what cues.load returned for the video (None: not run)."""
+    `cues_data` what cues.load returned for the video (None: not run), `credit`
+    the video's credit (credits.py) -- named at the top when there is one."""
     # strip rubric title so it doesn't clash with the brief title
     rubric = re.sub(r"\A# [^\n\r  ]*\n+", "", rubric, count=1)
     # Strip the rubric's intro paragraph, which addresses the USER, not Claude.
@@ -167,12 +169,23 @@ def build_brief(transcript: Transcript, rubric: str, name: str,
     row = "\n".join(f"[{fmt_stamp(s.start)}] {_trim(s.text)}"
                     for s in transcript.segments if _trim(s.text))
 
+    # Who made the video, so Claude knows the creator and the guest, and the
+    # rule that goes with it: the credit line under a post is built by klipian
+    # from what the person entered, so nothing in it is invented.
+    source = credits_mod.brief_source(credit)
+    source_block = (
+        f"\n\n**Source:** {source}\n\n"
+        "klipian adds the source credit to each post by itself, from what its user "
+        "entered. Do not write a credit or source line, a link or a channel handle "
+        "of your own."
+    ) if source else ""
+
     return f"""# Find clips — {name}
 
 Hello. Please read the transcript at the bottom of this file and pick moments
 worth turning into short vertical videos.
 
-**Source duration:** {fmt_stamp(transcript.duration)} · **{len(transcript.words)} words**
+**Source duration:** {fmt_stamp(transcript.duration)} · **{len(transcript.words)} words**{source_block}
 
 The times you give don't need to be precise. Approximate min:sec is fine;
 klipian will snap the cut points to the nearest word boundary.

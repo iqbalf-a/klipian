@@ -24,6 +24,8 @@ function formatLength(sec) {
 }
 
 let SOURCES_FOLDER = "";
+let SOURCE_ROWS = [];             // what the table shows, for the credit form
+let creditOpen = "";              // the video whose credit form is open
 
 async function loadSources() {
   const note = $("#sourceNote");
@@ -32,6 +34,7 @@ async function loadSources() {
   try {
     const d = await (await fetch("/api/workspace/sources")).json();
     source = d.source || [];
+    SOURCE_ROWS = source;
     SOURCES_FOLDER = d.folder || "";
   } catch {
     if (note) note.textContent = "needs klipian serve";
@@ -48,9 +51,11 @@ async function loadSources() {
   note.textContent = `${source.length} video${source.length > 1 ? "s" : ""} in workspace/sources/ · ${formatBytes(total)}`;
   list.innerHTML = `
     <div class="ws-row sources head">
-      <span>Video</span><span>Size</span><span>Length</span><span>Added</span><span>Transcript</span><span>Used by</span>
-    </div>` + source.map((s) => {
+      <span>Video</span><span>Size</span><span>Length</span><span>Added</span><span>Transcript</span><span>Used by</span><span>Credit</span>
+    </div>` + source.map((s, i) => {
       const used = s.used_by.map((u) => u.name).join(", ");
+      const c = s.credit || {};
+      const who = [c.platform, c.creator].filter(Boolean).join(" · ") || (c.title ? `"${c.title}"` : "");
       return `
     <div class="ws-row sources">
       <span class="name" title="${escapeHTML(s.name)}">${escapeHTML(s.name)}</span>
@@ -59,9 +64,69 @@ async function loadSources() {
       <span class="data">${timeAgo(s.at)}</span>
       <span class="data ${s.transcribed ? "done" : ""}">${s.transcribed ? "transcribed" : "not transcribed"}</span>
       <span class="used" data-none="${used ? "false" : "true"}" title="${escapeHTML(used)}">${used ? escapeHTML(used) : "not used"}</span>
-    </div>`;
+      <button class="credit-btn" type="button" data-credit="${i}" data-set="${who ? "true" : "false"}"
+              title="${escapeHTML(s.credit_line || "Where this video came from")}">${who ? escapeHTML(who) : "+ credit"}</button>
+    </div>${creditOpen === s.name ? creditFormHTML(s, i) : ""}`;
     }).join("");
 }
+
+/* The credit of a source video: where it came from, kept in
+   workspace/sources/credits.json. The line under a post (Sumber: ...) is built
+   from these four fields by klipian; nobody has to type it. */
+function creditFormHTML(s, i) {
+  const c = s.credit || {};
+  const field = (key, label, ph) => `
+      <label class="ws-field">${label}
+        <input class="ws-input" type="${key === "url" ? "url" : "text"}" data-credit-field="${key}"
+               maxlength="${{ platform: 40, creator: 80, title: 200, url: 500 }[key]}"
+               placeholder="${ph}" value="${escapeHTML(c[key] || "")}"></label>`;
+  return `
+    <form class="credit-form" data-credit-form="${i}">
+      ${field("platform", "Platform", "YouTube")}
+      ${field("creator", "Creator", "Raditya Dika")}
+      ${field("title", "Title", "Apa Kabar Syahrini")}
+      ${field("url", "Link", "https://…")}
+      <div class="actions">
+        <button class="rounded-s bg-accent text-[13px] font-semibold px-3 py-1.5 text-accent-text hover:brightness-110"
+                type="submit">Save</button>
+        <button class="rounded-s px-2.5 py-1 text-[12px] border border-glass-border hover:bg-glass"
+                type="button" data-credit-cancel>Cancel</button>
+        <span class="data" id="creditPreview" role="status">${escapeHTML(s.credit_line || "nothing entered yet")}</span>
+      </div>
+    </form>`;
+}
+
+$("#sourceList")?.addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-credit]");
+  if (btn) {
+    const s = SOURCE_ROWS[Number(btn.dataset.credit)];
+    creditOpen = creditOpen === s.name ? "" : s.name;
+    loadSources();
+    return;
+  }
+  if (e.target.closest("[data-credit-cancel]")) { creditOpen = ""; loadSources(); }
+});
+
+$("#sourceList")?.addEventListener("submit", async (e) => {
+  const form = e.target.closest("[data-credit-form]");
+  if (!form) return;
+  e.preventDefault();
+  const s = SOURCE_ROWS[Number(form.dataset.creditForm)];
+  const body = { file: s.name };
+  form.querySelectorAll("[data-credit-field]").forEach((el) => { body[el.dataset.creditField] = el.value; });
+  const note = form.querySelector("#creditPreview");
+  try {
+    const r = await fetch("/api/credit", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || "could not save");
+    creditOpen = "";
+    loadSources();
+  } catch (err) {
+    if (note) note.textContent = String(err.message || "could not save");
+  }
+});
 
 $("#sourceOpenBtn")?.addEventListener("click", async (e) => {
   const b = e.currentTarget;

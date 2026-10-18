@@ -37,6 +37,7 @@ from .models import Transcript
 from . import compose as composer
 from . import ffmpeg_tools
 from . import render as engine
+from . import credits as credits_mod
 from . import cues as cues_mod
 from . import roundtrip
 from .jobs import (ACTIVE_TRANSCRIBES, CANCELLED, JOBS, LOCK, MAX_JOBS, _clip_words,
@@ -632,6 +633,7 @@ class Handler(BaseHTTPRequestHandler):
         folder = WORKSPACE / "sources"
         folder.mkdir(parents=True, exist_ok=True)
         cache = Cache(WORKSPACE / "cache")
+        credit = credits_mod.load(folder)
         used: dict[str, list[dict]] = {}
         for f, data in _all_projects():
             names = {a.get("file") for a in data.get("assets") or []
@@ -654,8 +656,35 @@ class Handler(BaseHTTPRequestHandler):
                 "duration": _source_duration(f, cache),
                 "transcribed": cache.find_transcript(f) is not None,
                 "used_by": sorted(used.get(f.name, []), key=lambda u: u["name"].lower()),
+                "credit": credit.get(f.name) or {},
+                "credit_line": credits_mod.line(credit.get(f.name)),
             })
         return self._send_json({"source": item, "folder": str(folder)})
+
+    def _get_credits(self):
+        """Every video's credit and the line built from it (credits.py), for the
+        screens that show where a video came from."""
+        credit = credits_mod.load()
+        return self._send_json({"credit": {
+            name: {**c, "line": credits_mod.line(c), "short": credits_mod.short(c)}
+            for name, c in credit.items()}})
+
+    def _post_credit(self):
+        """Set or clear one video's credit: {file, platform, creator, title, url}.
+        All four empty removes it."""
+        try:
+            req = self._read_json()
+        except Exception as exc:               # noqa: BLE001
+            return self._send_json({"error": str(exc)}, 400)
+        name = str(req.get("file") or "")
+        if Path(name).suffix.lower() not in VIDEO_EXT or not find_video(name):
+            return self._send_json({"error": f"{name or 'that video'} is not in workspace/sources/"}, 404)
+        try:
+            credits_mod.save(name, req)
+        except OSError as exc:
+            return self._send_json({"error": f"could not save the credit ({exc})"}, 500)
+        c = credits_mod.load().get(name) or {}
+        return self._send_json({"ok": True, "credit": c, "line": credits_mod.line(c)})
 
     def _get_project_assets(self):
         # This project's own images and sounds (projects/<id>/assets/).
@@ -735,8 +764,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"error": "No transcript yet. Click Find clips on the Analyze screen to make one."}, 404)
         rubric = roundtrip.RUBRICS.get(q.get("mode", ["dialog"])[0], roundtrip.RUBRICS["dialog"])
         cues_data = cues_mod.load(find_video(name), Cache(WORKSPACE / "cache"))
+        credit = credits_mod.load().get(name)
         return self._send_text(roundtrip.build_brief(
-            transcript, roundtrip.read_rubric(rubric), name, cues_data),
+            transcript, roundtrip.read_rubric(rubric), name, cues_data, credit),
             "text/markdown")
 
     def _get_video(self):
@@ -823,6 +853,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/workspace/clips": _get_workspace_clips,
         "/api/workspace/assets": _get_workspace_assets,
         "/api/workspace/sources": _get_workspace_sources,
+        "/api/credits": _get_credits,
         "/api/project-assets": _get_project_assets,
         "/api/project-asset-file": _get_project_asset_file,
         "/api/workspace/asset-file": _get_workspace_asset_file,
@@ -1485,6 +1516,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/transcribe": _post_transcribe,
         "/api/diarize": _post_diarize,
         "/api/open-folder": _post_open_folder,
+        "/api/credit": _post_credit,
     }
 
 

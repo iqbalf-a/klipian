@@ -98,7 +98,7 @@
   /* Sources rows: name, size, length, added, transcript, used by. A header
      row (.head) names the columns, since six of them are not self-evident. */
   .ws-row.sources {
-    grid-template-columns: minmax(0, 1fr) 76px 64px 64px 112px minmax(0, 220px);
+    grid-template-columns: minmax(0, 1fr) 76px 64px 64px 112px minmax(0, 160px) minmax(0, 180px);
   }
   .ws-row.sources .used { @apply truncate text-[12px]; }
   .ws-row.sources .used[data-none="true"] { @apply text-text-faint; }
@@ -106,4 +106,17 @@
     @apply text-[10px] font-bold uppercase tracking-wider text-text-faint py-1.5;
   }
   .ws-row .done { @apply text-accent; }
+  /* The credit of a source video: one cell that opens its form. */
+  .ws-row .credit-btn {
+    @apply bg-transparent border-0 cursor-pointer text-left truncate text-[12px] px-0 py-0.5
+           text-text-faint hover:text-text;
+  }
+  .ws-row .credit-btn[data-set="true"] { @apply text-text-muted; }
+  .credit-form {
+    @apply grid gap-2 px-3 pt-2 pb-3 border-b border-glass-border;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .credit-form .ws-input { @apply border-glass-border; }
+  .credit-form .actions { @apply flex items-center gap-2; grid-column: 1 / -1; }
+  .credit-form .actions .data { @apply font-data text-[11px] text-text-faint truncate; }
 }

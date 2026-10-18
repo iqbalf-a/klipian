@@ -1,7 +1,7 @@
 """`python -m klipian selftest` -- the checks that let the code be moved
 around without wondering what broke.
 
-Six checks, each one that used to be done by hand:
+Seven checks, each one that used to be done by hand:
 
   migrate  Old project shapes (tests/fixtures/migrate/*.old.json) go through
            projects._migrate_project() and must come out as the matching
@@ -11,6 +11,8 @@ Six checks, each one that used to be done by hand:
            of that logic, from before it moved to Python.
   cues     The rules in klipian/cues.py (levels, pauses, fast talk, which cues a
            clip has) on small known inputs.
+  credits  The credit line built from a video's platform, creator, title and link,
+           joined without duplicates, dropped with its video, and named in the brief.
   http     The server answers its own address and refuses another Host, a
            foreign Origin on a POST, and a JSON endpoint sent as anything but JSON.
   decode   faster-whisper can decode audio in THIS environment (a few seconds
@@ -315,6 +317,65 @@ def check_http() -> tuple[str, str]:
 
 
 # --------------------------------------------------------------------------
+# check: credits
+# --------------------------------------------------------------------------
+
+def check_credits() -> tuple[str, str]:
+    """The credit line and where it is kept: built from what was entered, joined
+    without duplicates, dropped with its video, and named in the brief."""
+    from . import credits, roundtrip
+    from .models import Transcript
+
+    problems = []
+    full = {"platform": "YouTube", "creator": "Raditya Dika", "title": "Apa Kabar Syahrini",
+            "url": "https://youtu.be/x"}
+    for label, got, want in [
+            ("line", credits.line(full),
+             'Sumber: YouTube Raditya Dika — "Apa Kabar Syahrini" (https://youtu.be/x)'),
+            ("short", credits.short(full), "Sumber: YouTube · Raditya Dika"),
+            ("brief source", credits.brief_source(full), 'YouTube · Raditya Dika · "Apa Kabar Syahrini"'),
+            ("title only", credits.line({"title": "T"}), 'Sumber: "T"'),
+            ("nothing", credits.line({}), ""),
+            ("link must be http(s)", credits.clean({"url": "javascript:alert(1)", "title": "T"}), {"title": "T"}),
+            ("long names are cut", len(credits.clean({"creator": "x" * 500})["creator"]), 80)]:
+        if got != want:
+            problems.append(f"{label}: expected {want!r}, got {got!r}")
+
+    tmp = Path(tempfile.mkdtemp(prefix="klipian-credits-"))
+    try:
+        for n in ("a.mp4", "b.mp4", "c.mp4"):
+            (tmp / n).write_bytes(b"x")
+        credits.save("a.mp4", full, tmp)
+        credits.save("b.mp4", full, tmp)                         # same credit twice
+        credits.save("c.mp4", {"platform": "TikTok", "creator": "Someone"}, tmp)
+        both = credits.lines(["a.mp4", "b.mp4", "c.mp4"], tmp).split("\n")
+        if len(both) != 2:
+            problems.append(f"two videos with one credit and a third: expected 2 lines, got {both}")
+        (tmp / "b.mp4").unlink()
+        credits.save("c.mp4", {"platform": "TikTok", "creator": "Someone Else"}, tmp)
+        if set(credits.load(tmp)) != {"a.mp4", "c.mp4"}:
+            problems.append(f"a video that is gone keeps its credit: {sorted(credits.load(tmp))}")
+        credits.save("a.mp4", {}, tmp)
+        if "a.mp4" in credits.load(tmp):
+            problems.append("an empty credit does not remove it")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+    # The brief names the source, and says the credit line is klipian's.
+    base = FIXTURES / "brief"
+    transcript = Transcript.load(base / "transcript.json")
+    text = roundtrip.build_brief(transcript, "", "x.mp4", None, full)
+    if '**Source:** YouTube · Raditya Dika · "Apa Kabar Syahrini"' not in text or "Do not write a credit" not in text:
+        problems.append("the brief with a credit does not name the source and forbid a credit line")
+    if "**Source:**" in roundtrip.build_brief(transcript, "", "x.mp4", None):
+        problems.append("the brief names a source when there is none")
+
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "credit line, dedupe, cleanup, brief source"
+
+
+# --------------------------------------------------------------------------
 # check: decode
 # --------------------------------------------------------------------------
 
@@ -439,7 +500,7 @@ def promote(project_id: str, result_id: str, name: str) -> int:
     return 0
 
 
-CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "http": check_http, "decode": check_decode,
+CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "http": check_http, "decode": check_decode,
           "render": check_render}
 
 

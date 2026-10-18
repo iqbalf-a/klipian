@@ -388,6 +388,10 @@ async function renderAssets() {
     return (_transcriptList || []).some((f) => decodeURIComponent(f).startsWith(stem + "."));
   };
 
+  // Where each video came from (credits.py), shown under it with a way to edit.
+  let credits = {};
+  try { credits = (await (await fetch("/api/credits")).json()).credit || {}; } catch { /* no backend */ }
+
   const vids = videoAssets();
   if (note) note.textContent = vids.length
     ? `${vids.length} video${vids.length === 1 ? "" : "s"} in this project`
@@ -411,6 +415,9 @@ async function renderAssets() {
         : `<button class="btn quiet" type="button" data-asset-open="${a.id}"${missing ? " disabled" : ""}>Open</button>`}
       <button class="btn quiet" type="button" data-asset-remove="${a.id}"
               title="${uses ? "Remove from this project — its spans in the Results go with it" : "Remove from this project (the file stays in sources/)"}">Remove</button>
+      <span class="data asset-credit">${credits[a.file]?.line
+        ? `${escapeHTML(credits[a.file].line)} · <a href="/workspace#panelSources" target="_blank" rel="noopener">edit</a>`
+        : `No source credit yet · <a href="/workspace#panelSources" target="_blank" rel="noopener">add one</a>`}</span>
     </div>`;
   }).join("") : `<p class="empty-message">No video yet. Add one below.</p>`;
 
