@@ -21,6 +21,7 @@ from .cache import Cache
 from .models import Transcript
 from . import compose as composer
 from . import render as engine
+from . import roundtrip
 from .paths import GLOSSARY, WORKSPACE, find_video
 from .projects import (_project_assets_dir, _project_file,
                        _project_out_dir, _read_project, write_render_record)
@@ -394,6 +395,7 @@ def _run_render(job_id: str, req: dict, into: Path | None = None, record: bool =
 
         if record and pdata:
             _record_render(job_id, req, pdata, out_dir)
+            _schedule_render(job_id, req, pdata)
         with LOCK:
             t["state"] = "done"
 
@@ -448,6 +450,37 @@ def _record_render(job_id: str, req: dict, pdata: dict, out_dir: Path) -> None:
     if not saved:
         with LOCK:
             t["warning"] = "render finished, but its Result id is not usable for replay"
+
+
+def _schedule_render(job_id: str, req: dict, pdata: dict) -> None:
+    """A finished render of a Result makes (or updates) its Draft row in the
+    upload schedule: title, file, the source credit, and the post text ready to
+    paste. Only for a real render of one Result -- never the quick preview (not a
+    job), a replay or the selftest (`record` is off for them). Failing to add the
+    row is a warning, never a failed render."""
+    from . import credits, schedule
+    t = JOBS[job_id]
+    clips = req.get("clips") or []
+    result_id = req.get("result")
+    if len(clips) != 1 or not result_id or not t["result"]:
+        return
+    k = clips[0]
+    try:
+        names = []
+        for span in k.get("spans") or []:
+            name = (span.get("video") if isinstance(span, dict) else None) or req.get("video")
+            if name and name not in names:
+                names.append(name)
+        row_id, created = schedule.upsert_render(
+            project_id=pdata.get("id"), result_id=str(result_id),
+            title=str(k.get("title") or ""), file_name=t["result"][0]["file"],
+            post=roundtrip._post(k.get("post")), credit_lines=credits.lines(names))
+    except (OSError, ValueError, TypeError) as exc:
+        with LOCK:
+            t["warning"] = f"render finished, but its upload-schedule row could not be saved ({exc})"
+        return
+    with LOCK:
+        t["schedule"] = {"id": row_id, "created": created}
 
 
 def missing_inputs(req: dict) -> list[str]:

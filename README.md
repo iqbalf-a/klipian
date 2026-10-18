@@ -113,7 +113,9 @@ OUTPUT FORMAT  picture (9:16, 3:4 or 16:9), background, position, resolution, qu
 TIMELINE       order of the moments; labels, stickers, sounds, volume
 FRAMING        crop position per time point
 CAPTIONS       fix misheard words, style the karaoke captions
-RENDER         title, quick preview, render the Result
+RENDER         post text (title, caption, hashtags to paste at upload), quick
+               preview, render the Result (it also adds a Draft row to the upload
+               schedule)
 HISTORY        render queue with live progress, finished files
 ```
 
@@ -357,8 +359,8 @@ but for what happens **after** a clip becomes an MP4.
 
 | Panel | Contents |
 |---|---|
-| **Clips** | upload schedule: status, title/hook, platform, date & time edited directly in the table; episode source, clip file, description + hashtags, TikTok caption, links, and notes live in a **Detail** dialog per row (the table itself stays to the essential columns, so it never needs horizontal scrolling). Saved to `workspace/schedule/clips.json` |
-| **Sources** | the raw videos in `workspace/sources/`: size, length, when each came in, whether it has a transcript, and which projects use it (**not used** when none does). **Open folder** opens `workspace/sources/`. Lengths are read once per file and cached in `workspace/cache/` |
+| **Clips** | upload schedule (a finished render adds a **Draft** row for its Result, with the title, file, source credit and the post text ready to paste; rendering that Result again updates the same row and never overwrites what you typed): status, title/hook, platform, date & time edited directly in the table; episode source, clip file, description + hashtags, TikTok caption, links, and notes live in a **Detail** dialog per row (the table itself stays to the essential columns, so it never needs horizontal scrolling). Saved to `workspace/schedule/clips.json` |
+| **Sources** | the raw videos in `workspace/sources/`: size, length, when each came in, whether it has a transcript, and which projects use it (**not used** when none does). **Open folder** opens `workspace/sources/`. Lengths are read once per file and cached in `workspace/cache/`. Each row has a **Credit** (platform, creator, title, link: where the video came from), kept in `workspace/sources/credits.json`. klipian builds the credit line from it — `Sumber: YouTube Raditya Dika — "Title" (link)` — for the post text and the schedule; Claude is told the source but never writes the line. A credit is attribution, not permission to reuse the video |
 | **Rendered output** | `workspace/out/` as-is — same data source as the History screen in the editor |
 | **Assets** | `workspace/assets/`: a shared library of watermarks, logos, banners and templates. A project's Assets screen *imports* from it (it copies the file); a project's own images and sounds live in `workspace/projects/<id>/assets/` |
 

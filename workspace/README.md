@@ -12,7 +12,8 @@ the repo root as `samples/`, `out/`, `cache/`, `projects/`, `sources/` and
   added from here on the Assets screen; **Add video…** there copies a file
   in from anywhere on disk, or you can copy it here yourself. The
   **Sources** panel at `/workspace` lists what is here and which projects use
-  each video. Only this folder is searched: a render in `out/` is never taken
+  each video, and holds its credit (`credits.json` here: platform, creator,
+  title and link per video). Only this folder is searched: a render in `out/` is never taken
   for a source.
 - `out/` -- rendered output, one subfolder per project (`<slug>.<id>/`, the
   slug fixed when the project was created). This is what the
@@ -36,6 +37,8 @@ the repo root as `samples/`, `out/`, `cache/`, `projects/`, `sources/` and
   date and time, source episode, clip file, YouTube description and hashtags,
   TikTok caption, YouTube/TikTok links, notes. Edited through the
   `/workspace` dashboard (Clips panel) rather than by hand -- see the
-  Workspace section of the main README.
+  Workspace section of the main README. A finished render adds a Draft row
+  (linked to its project and Result by `projectId` and `resultId`) and
+  re-rendering the same Result updates that row.
 - `schedule/content-calendar.xlsx` -- the tracker that predates `/workspace`,
   kept as an archive. klipian no longer reads it.

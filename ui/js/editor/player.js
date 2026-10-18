@@ -858,6 +858,8 @@ async function sendRender(approved) {
         ? `Failed: ${t.error}`
         : `${t.done} clip${t.done === 1 ? "" : "s"} done · `
           + `${(t.result || []).reduce((a, h) => a + h.mb, 0).toFixed(1)} MB`
+          + (t.schedule ? (t.schedule.created
+            ? " · added to the upload schedule (Draft)" : " · upload-schedule row updated") : "")
           + (t.warning ? ` · ${t.warning}` : ""),
         t.state === "failed");
     },

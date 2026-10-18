@@ -38,6 +38,7 @@ from . import compose as composer
 from . import ffmpeg_tools
 from . import render as engine
 from . import credits as credits_mod
+from .schedule import CLIPS_LOCK, load_clips as _load_clips, save_clips as _save_clips
 from . import cues as cues_mod
 from . import roundtrip
 from .jobs import (ACTIVE_TRANSCRIBES, CANCELLED, JOBS, LOCK, MAX_JOBS, _clip_words,
@@ -74,15 +75,9 @@ WORKSPACE_SERVED = ("sources", "out", "cache")
 
 # Operational content (upload schedule, clip status) -- not part of the
 # render flow, and deliberately NOT static files, same as projects/ above.
-CLIPS_PATH = WORKSPACE / "schedule" / "clips.json"
+# (The schedule file and its lock live in schedule.py: a finished render adds
+# its row there too.)
 ASSETS_DIR = WORKSPACE / "assets"
-
-# clips.json has its own lock rather than sharing LOCK. LOCK is taken
-# several times per SECOND while a transcription reports progress, so
-# putting a file read-modify-write behind it made a /workspace dashboard
-# edit block every render/transcribe progress update, and vice versa.
-# Two unrelated resources, two locks.
-CLIPS_LOCK = threading.Lock()
 # Quick preview (/api/preview): how many seconds of the clip are actually
 # rendered through ffmpeg, with the EXACT SAME caption+watermark filters
 # as the full render -- not just a CSS preview in the browser, which once
@@ -151,30 +146,6 @@ def _prune_previews(folder: "Path", keep: "Path", max_age: float = 3600) -> None
 # (workspace/assets/). Separate from projects (per-video working state) --
 # this is about WHAT HAPPENS AFTER a clip becomes MP4, not about editing
 # the clip itself.
-
-def _load_clips() -> list[dict]:
-    """One file for all clips -- unlike projects (one file per video)
-    because this is a flat list viewed across videos at once, like a
-    spreadsheet. Missing or corrupt files return an empty list, not an
-    error -- a dashboard that's never been used must not fail to load."""
-    if not CLIPS_PATH.is_file():
-        return []
-    try:
-        data = json.loads(CLIPS_PATH.read_text(encoding="utf-8"))
-        return data.get("clip", []) if isinstance(data, dict) else []
-    except (OSError, ValueError):
-        return []
-
-
-def _save_clips(clips: list[dict]) -> None:
-    """Write to a temporary file then rename, same as project -- a process
-    that dies mid-write must not corrupt clips.json."""
-    CLIPS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    tmp = CLIPS_PATH.with_suffix(".tmp")
-    tmp.write_text(json.dumps({"clip": clips}, ensure_ascii=False, indent=2),
-                    encoding="utf-8")
-    tmp.replace(CLIPS_PATH)
-
 
 def _thumbnail(video: Path, seconds: float, crop: dict, width: int,
                picture: str = "9:16", background: str = "blur", position: float = 50.0) -> Path:

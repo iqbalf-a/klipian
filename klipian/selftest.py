@@ -1,7 +1,7 @@
 """`python -m klipian selftest` -- the checks that let the code be moved
 around without wondering what broke.
 
-Seven checks, each one that used to be done by hand:
+Eight checks, each one that used to be done by hand:
 
   migrate  Old project shapes (tests/fixtures/migrate/*.old.json) go through
            projects._migrate_project() and must come out as the matching
@@ -13,6 +13,9 @@ Seven checks, each one that used to be done by hand:
            clip has) on small known inputs.
   credits  The credit line built from a video's platform, creator, title and link,
            joined without duplicates, dropped with its video, and named in the brief.
+  schedule A finished render makes one Draft row in the upload schedule for its
+           Result, rendering it again updates that row, and what was typed in the
+           row is kept.
   http     The server answers its own address and refuses another Host, a
            foreign Origin on a POST, and a JSON endpoint sent as anything but JSON.
   decode   faster-whisper can decode audio in THIS environment (a few seconds
@@ -381,6 +384,71 @@ def check_credits() -> tuple[str, str]:
 
 
 # --------------------------------------------------------------------------
+# check: schedule
+# --------------------------------------------------------------------------
+
+def check_schedule() -> tuple[str, str]:
+    """A finished render makes one Draft row for its Result, and rendering again
+    updates that row without touching what was typed into it."""
+    import threading
+    from . import jobs, schedule
+
+    problems = []
+    tmp = Path(tempfile.mkdtemp(prefix="klipian-schedule-"))
+    path = tmp / "schedule" / "clips.json"
+    lock = threading.Lock()
+    post = {"title": "Judul Unggahan", "caption": "Satu kalimat. Setuju?", "hashtags": ["#a", "#b"]}
+    credit = 'Sumber: YouTube Raditya Dika — "T" (https://x)'
+    try:
+        row_id, created = schedule.upsert_render(
+            project_id="p1", result_id="res1", title="file title", file_name="one.mp4",
+            post=post, credit_lines=credit, path=path, lock=lock)
+        rows = schedule.load_clips(path)
+        want = "Satu kalimat. Setuju?\n\n#a #b\n\n" + credit
+        row = rows[0] if rows else {}
+        if not created or len(rows) != 1 or row.get("status") != "Draft":
+            problems.append(f"first render: expected one new Draft row, got {rows}")
+        if row.get("title") != "Judul Unggahan" or row.get("description") != want                 or row.get("tiktokCaption") != want or row.get("file") != "one.mp4"                 or row.get("episode") != credit:
+            problems.append(f"first render: the row's text is wrong: {row}")
+
+        # Somebody edits the row on the dashboard (it keeps its links), then the
+        # Result is rendered again with a different title, post and file.
+        row["title"] = "Judul Saya"
+        row["description"] = ""
+        schedule.save_clips(rows, path)
+        again, created2 = schedule.upsert_render(
+            project_id="p1", result_id="res1", title="other", file_name="two.mp4",
+            post={"title": "Baru", "caption": "Baru", "hashtags": ["#z"]}, credit_lines=credit,
+            path=path, lock=lock)
+        rows = schedule.load_clips(path)
+        row = rows[0]
+        if again != row_id or created2 or len(rows) != 1:
+            problems.append("rendering the same Result again did not update its row")
+        if row.get("file") != "two.mp4":
+            problems.append("the file was not updated to the newest render")
+        if row.get("title") != "Judul Saya":
+            problems.append("a title typed on the dashboard was overwritten")
+        if row.get("description") != "Baru\n\n#z\n\n" + credit:
+            problems.append("an empty description was not filled")
+        # Another Result is another row.
+        schedule.upsert_render(project_id="p1", result_id="res2", title="t", file_name="x.mp4",
+                               post=None, credit_lines="", path=path, lock=lock)
+        if len(schedule.load_clips(path)) != 2:
+            problems.append("a second Result did not get its own row")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+    # Replays and the selftest render with record off: they must not add rows.
+    import inspect
+    if "record=False" not in inspect.getsource(jobs.render_request):
+        problems.append("render_request must run with record=False (no schedule rows from replays)")
+
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "one Draft row per Result, updated in place, edits kept"
+
+
+# --------------------------------------------------------------------------
 # check: decode
 # --------------------------------------------------------------------------
 
@@ -505,7 +573,7 @@ def promote(project_id: str, result_id: str, name: str) -> int:
     return 0
 
 
-CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "http": check_http, "decode": check_decode,
+CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "schedule": check_schedule, "http": check_http, "decode": check_decode,
           "render": check_render}
 
 
