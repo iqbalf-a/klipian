@@ -109,7 +109,7 @@ HOME           your projects, + New Project
 ASSETS         the project's videos, images and sounds
 ANALYZE        find clips: transcribe, then ask Claude (A) or cut by hand (B)
 CLIPS          pick moments from Claude's suggestions or the timeline
-OUTPUT FORMAT  crop or blur background, resolution, quality  (per Result)
+OUTPUT FORMAT  picture (9:16, 3:4 or 16:9), background, position, resolution, quality  (per Result)
 TIMELINE       order of the moments; labels, stickers, sounds, volume
 FRAMING        crop position per time point
 CAPTIONS       fix misheard words, style the karaoke captions
@@ -169,7 +169,7 @@ screen.
 |---|---|
 | **Assets** | the project's videos (several allowed: moments can come from any of them; add one from anywhere on disk with **Add video…**), plus its own images and sounds — dropped in, or imported from the shared `workspace/assets/` (a copy, so later changes to the shared file don't touch the project). Removing a video or file is two clicks |
 | **Clips** | drag a range on the timeline, or pick from AI suggestions; word-boundary snapping avoids cutting mid-word |
-| **Output Format** | crop or blur background, resolution (720p to 4K), quality — set per Result, so one clip can differ from another |
+| **Output Format** | Picture (9:16 fills the frame; 3:4 or 16:9 sit inside the 9:16 file on a black or blurred background, at a Position you choose), resolution (720p to 4K), quality — set per Result, so one clip can differ from another. The file is always 9:16. Older "Crop" Results open as 9:16, older "Blur background" ones as 16:9 on blur at 50%, and render the same |
 | **Timeline** | reorder a Result's moments; add text labels, image stickers and sounds on their own tracks; set the volume of each moment |
 | **Framing** | drag/resize the crop box per time point; **AI Framing** follows whoever is speaking automatically; optional per-point head tracking for smoother motion |
 | **Captions** | click any word to correct it; font, size, highlight color, position, words-per-line, outline, and watermark, all previewed live |
