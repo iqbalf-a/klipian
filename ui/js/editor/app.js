@@ -843,6 +843,7 @@ function toScreen(name) {
   // is otherwise driven by playback and result switching, neither of which
   // has to have happened before you come here.
   if (name === "render") {
+    if (typeof refreshPostCredit === "function") refreshPostCredit();
     if (typeof renderPreview === "function") renderPreview();
     if (typeof updateRenderButtons === "function") updateRenderButtons();
   }

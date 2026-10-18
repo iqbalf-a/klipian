@@ -293,6 +293,9 @@ function snapshotActiveResult() {
   // sit beside `results` as one setting every Result rendered with -- so
   // giving one clip a different resolution changed them all.
   slot.output = (typeof outputState === "function") ? outputState() : [];
+  // The post text (title, caption, hashtags), per Result; absent when empty.
+  const post = (typeof currentPost === "function") ? currentPost() : null;
+  if (post) slot.post = post; else delete slot.post;
   // Live spans and points sit on the shared virtual timeline (assets.js);
   // on disk they're what they really are -- a video and a second in it.
   // `segments`: the plan's name for a Result's spans (each a segment of
@@ -381,7 +384,9 @@ function loadResultIntoLiveState(entry) {
     if (typeof renderPrepare === "function") renderPrepare();
   }
   if ($("#resultTitle")) $("#resultTitle").value = entry.title || "";
+  if (typeof setPostFields === "function") setPostFields(entry.post);
   if (typeof renderResult === "function") renderResult();
+  if (typeof refreshPostCredit === "function") refreshPostCredit();
   if (typeof renderFraming === "function") renderFraming();
   if (typeof renderCaptions === "function") renderCaptions();
 }

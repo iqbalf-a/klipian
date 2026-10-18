@@ -762,6 +762,9 @@ async function sendRender(approved) {
         position: optionOut("position"),
         width: optionOut("resolution"),
         quality: optionOut("quality"),
+        // The post text, for the upload schedule (jobs.py): only for a real
+        // render, which is what this request is. The quick preview's is not.
+        ...(k.post ? { post: k.post } : {}),
         // Timeline elements and per-clip volume (compose.js), in output
         // seconds. Only sent when there are any: the server's second pass
         // runs only for a clip that carries them.

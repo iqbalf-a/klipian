@@ -854,6 +854,43 @@
              lands in the sweet spot. Written by renderPreview() in app.js. -->
         <div class="clip-info" id="clipInfo"></div>
 
+        <!-- Post text: what goes beside the video when it is uploaded. NOT the
+             captions burned into the video (Captions screen). Saved per Result;
+             post.js. -->
+        <div class="panel fit post-text" id="postPanel">
+          <div class="post-head">
+            <h2>Post text</h2>
+            <p class="step-note">What you paste when you upload this clip. Not the captions burned into the video.</p>
+          </div>
+          <label class="post-field">
+            <span class="post-label">Title <span class="data" id="postTitleCount" data-over="false">0 / 70</span></span>
+            <input id="postTitle" type="text" spellcheck="false" autocomplete="off"
+                   placeholder="the title of the upload (up to 70 characters)">
+          </label>
+          <label class="post-field">
+            <span class="post-label">Caption</span>
+            <textarea id="postCaption" rows="3" spellcheck="false"
+                      placeholder="1–3 short sentences, no hashtags in it"></textarea>
+          </label>
+          <label class="post-field">
+            <span class="post-label">Hashtags</span>
+            <input id="postTags" type="text" spellcheck="false" autocomplete="off"
+                   placeholder="#podcast #lucu">
+          </label>
+          <div class="post-credit">
+            <span class="post-label">Credit line
+              <a class="post-credit-link" href="/workspace#panelSources" target="_blank" rel="noopener"
+                 id="postCreditEdit">add one</a></span>
+            <p class="data" id="postCredit"></p>
+          </div>
+          <div class="post-actions">
+            <button class="btn" type="button" data-post-copy="title">Copy title</button>
+            <button class="btn" type="button" data-post-copy="description">Copy description</button>
+            <button class="btn" type="button" data-post-copy="hashtags">Copy hashtags</button>
+            <span class="data" id="postNote" role="status"></span>
+          </div>
+        </div>
+
         <div class="render-bar">
           <label class="title-input">title
             <input id="resultTitle" value="" spellcheck="false" placeholder="output file name"
@@ -1034,6 +1071,7 @@
 <script src="/ui/js/editor/timeline.js?v=1790703163808"></script>
 <script src="/ui/js/editor/captions.js?v=1790703163808"></script>
 <script src="/ui/js/editor/result.js?v=1790703163808"></script>
+<script src="/ui/js/editor/post.js?v=1790703163808"></script>
 <script src="/ui/js/editor/compose.js?v=1790703163808"></script>
 <script src="/ui/js/editor/projects.js?v=1790703163808"></script>
 <!-- The explanation behind a cue chip's (i): one floating box (cues.js). -->

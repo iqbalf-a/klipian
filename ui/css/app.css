@@ -2188,6 +2188,32 @@ h1, h2, h3 {
 /* Two rows, not one. The preview column is only ~260px; crammed into one
    row, the "title" label gets squeezed to zero width, its input field
    shrinks to 21px, and the button slides off the edge. */
+/* Post text (post.js): the title, caption and hashtags to paste at upload. */
+.post-text { display: grid; gap: var(--s3); padding: var(--s4) var(--s5); flex: none; }
+.post-head h2 { font-size: var(--t-17); }
+.post-field { display: grid; gap: 5px; }
+.post-label {
+  display: flex; align-items: baseline; gap: var(--s2);
+  font-size: var(--t-12); color: var(--text-faint);
+}
+.post-label .data[data-over="true"] { color: var(--danger); }
+.post-label .data { margin-left: auto; }
+.post-field input, .post-field textarea {
+  font: inherit; font-size: var(--t-13);
+  padding: 7px 10px; width: 100%; min-width: 0;
+  border-radius: var(--r-s);
+  border: 1px solid var(--glass-border);
+  background: var(--glass); color: var(--text);
+}
+.post-field textarea { resize: vertical; line-height: 1.4; }
+.post-field input:focus-visible, .post-field textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.post-credit .data { display: grid; gap: 2px; margin: 4px 0 0; color: var(--text-muted); white-space: pre-wrap; overflow-wrap: anywhere; }
+.post-credit .none { color: var(--text-faint); }
+.post-credit-link { margin-left: auto; color: var(--text-muted); text-decoration: underline; text-underline-offset: 2px; }
+.post-credit-link:hover { color: var(--text); }
+.post-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
+.post-actions .data { color: var(--text-faint); min-width: 0; }
+
 .render-bar {
   flex: none;
   display: grid; gap: var(--s2);

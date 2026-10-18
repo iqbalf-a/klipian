@@ -112,6 +112,9 @@ function resultAsClip() {
     // What the Timeline screen laid on top (compose.js).
     overlays: (typeof overlaysForRender === "function") ? overlaysForRender() : [],
     volumes: (typeof segmentVolumes === "function") ? segmentVolumes() : [],
+    // The text to post it with (post.js): kept with the render so the upload
+    // schedule gets a row for it.
+    ...((typeof currentPost === "function" && currentPost()) ? { post: currentPost() } : {}),
   };
 }
 
@@ -679,14 +682,18 @@ $("#recAddBtn")?.addEventListener("click", () => {
   const candidates = DATA.candidates || [];
   let rejectedCount = 0;
   let mergedCount = 0;
+  const added = [];
   for (const c of selected) {
     const k = candidates[Number(c.dataset.rec)];
     if (!k) continue;
+    added.push(k);
     if (addToResult(k.startSec, k.endSec, k.title, "ai")) rejectedCount++;
     else mergedCount += lastAddWasMerge;
     c.checked = false;
   }
   updateRecButton();
+  // The first suggestion's post text comes along, into an empty one (post.js).
+  if (typeof carryPostFrom === "function") carryPostFrom(added);
   // Overlapping suggestions are merged into one span on purpose, but adding
   // three and seeing one row appear reads as two of them being dropped.
   const parts = [];
@@ -720,6 +727,7 @@ $("#resultTitle")?.addEventListener("input", () => {
 function resetResult() {
   RESULT = [];
   resultSeq = 0;
+  if (typeof clearPostFields === "function") clearPostFields();
   renderResult();
   renderRecommendations();
 }
