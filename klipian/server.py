@@ -1252,7 +1252,7 @@ class Handler(BaseHTTPRequestHandler):
                 crop=engine.CropBox(
                     left=crop.get("left", 37), top=crop.get("top", 4),
                     width=crop.get("width", 26), height=crop.get("height", 92)),
-                layout=k.get("layout", "face"),
+                **engine.picture_options(k),
                 out_width=int(k.get("width", 1080)),
             )
 

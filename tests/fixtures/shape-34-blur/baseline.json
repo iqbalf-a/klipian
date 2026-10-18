@@ -1,0 +1,6 @@
+{
+  "note": "shape-34-blur: podcast-test.mp4 (1280x720), 3:4 picture on a blurred copy, centred. First checked by looking at the rendered frame (the source is a colour-bar test pattern, so position and bars are visible).",
+  "md5": "38fa6cb2f8a8879b3be476764c8d4a9a",
+  "sha256": "7646ed9f948cccb29f1e3f70749e23d91ac2c960b2b6380b4de3440ed6f106c5",
+  "bytes": 2491558
+}

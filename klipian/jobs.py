@@ -255,7 +255,7 @@ def _run_render(job_id: str, req: dict, into: Path | None = None, record: bool =
             crop_box = engine.CropBox(
                 left=crop.get("left", 37), top=crop.get("top", 4),
                 width=crop.get("width", 26), height=crop.get("height", 92))
-            layout = k.get("layout", "face")
+            picture = engine.picture_options(k)
             out_width = int(k.get("width", 1080))
             quality = int(k.get("quality", 21))
             # Caption style comes from the Caption screen in the UI. If not
@@ -276,7 +276,7 @@ def _run_render(job_id: str, req: dict, into: Path | None = None, record: bool =
                 # holds two boxes and turns the segment into a split frame.
                 spans = _spans_from_clip(k)
                 job = engine.RenderJob(title=k["title"], spans=spans, crop=crop_box,
-                                       layout=layout, out_width=out_width, quality=quality)
+                                       **picture, out_width=out_width, quality=quality)
                 clip_words = _clip_words(k, words)
                 try:
                     engine.render(video, job, dest, words=clip_words, style=style,
@@ -313,7 +313,7 @@ def _run_render(job_id: str, req: dict, into: Path | None = None, record: bool =
                                                lambda: _load_transcript_words(run_video, t))
                         run_spans = _spans_from_clip({"spans": run_spans_raw})
                         run_job = engine.RenderJob(title=k["title"], spans=run_spans,
-                                                   crop=crop_box, layout=layout,
+                                                   crop=crop_box, **picture,
                                                    out_width=out_width, quality=quality)
                         part_dest = tmp_dir / f"part{ridx}.mp4"
                         engine.render(run_video, run_job, part_dest, words=run_words,

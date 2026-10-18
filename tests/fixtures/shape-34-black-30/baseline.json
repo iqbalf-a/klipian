@@ -1,0 +1,6 @@
+{
+  "note": "shape-34-black-30: podcast-test.mp4 (1280x720), 3:4 picture on black, 30% down the free height. First checked by looking at the rendered frame (the source is a colour-bar test pattern, so position and bars are visible).",
+  "md5": "5b97beb854813c0d10aead35aec910e1",
+  "sha256": "0aa682a28b5f561eb3549c47f6ee6f18339ae50b79dc554cc3c58e58aedf201b",
+  "bytes": 2342082
+}

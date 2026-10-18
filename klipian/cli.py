@@ -340,7 +340,9 @@ def cmd_render(args: argparse.Namespace) -> int:
 
     print("")
     print(f"{video.name}  ->  {out_dir}")
-    print(f"  sumber {info.width}x{info.height}  ·  layout {args.layout}"
+    shape = engine.picture_options({"layout": args.layout, "picture": args.picture,
+                                    "background": args.background, "position": args.position})
+    print(f"  sumber {info.width}x{info.height}  ·  picture {shape['picture']}"
           f"  ·  {args.width}x{args.width * 16 // 9}")
     print("")
 
@@ -368,7 +370,7 @@ def cmd_render(args: argparse.Namespace) -> int:
             title=title,
             spans=spans,
             crop=engine.CropBox(*args.crop) if args.crop else engine.CropBox(),
-            layout=args.layout,
+            **shape,
             out_width=args.width,
         )
         dest = out_dir / engine.safe_filename(title, f"clip-{i}")
@@ -588,7 +590,14 @@ def build_parser() -> argparse.ArgumentParser:
                                "that has been rendered)")
     s_render.add_argument("--only", type=int, nargs="+", metavar="N",
                           help="render only this clip number (1 = top)")
-    s_render.add_argument("--layout", default="face", choices=["face", "blur"])
+    s_render.add_argument("--layout", default="face", choices=["face", "blur"],
+                          help="the older way to say it: blur = --picture 16:9 on a blurred copy")
+    s_render.add_argument("--picture", choices=["9:16", "16:9", "3:4"],
+                          help="shape of the picture inside the 9:16 file (default 9:16)")
+    s_render.add_argument("--background", choices=["blur", "black"], default="blur",
+                          help="around a 3:4 or 16:9 picture (default blur)")
+    s_render.add_argument("--position", type=float, default=50.0,
+                          help="0-100: how far down the free height the picture sits (default 50)")
     s_render.add_argument("--width", type=int, default=1080, choices=[720, 1080])
     s_render.add_argument("--crop", type=float, nargs=4,
                           metavar=("LEFT", "TOP", "WIDTH", "HEIGHT"),

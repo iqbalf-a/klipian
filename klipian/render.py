@@ -85,12 +85,46 @@ class CropBox:
     height: float = 92.0
 
 
+# The shape of the PICTURE inside the 9:16 file (Output Format > Picture).
+#   9:16  fills the file: each span cropped to a 9:16 box (what "Crop" was).
+#   3:4   each span cropped to a 3:4 box, scaled to the file's width, placed at
+#         `position` in the 9:16 canvas.
+#   16:9  the whole source frame, scaled to the file's width, placed the same
+#         way (what "Blur background" was, with Background = blur).
+# The canvas around a 3:4 or 16:9 picture is black or a blurred copy of it.
+PICTURES = ("9:16", "16:9", "3:4")
+BACKGROUNDS = ("blur", "black")
+
+
+def picture_options(k: dict) -> dict:
+    """picture / background / position of a render request's clip, as RenderJob
+    keyword arguments. Requests recorded before pictures existed carry
+    `layout` ("face" or "blur") instead: "blur" was the whole frame over a
+    blurred copy, i.e. picture 16:9 + blur + centred; "face" was 9:16."""
+    picture = k.get("picture")
+    if picture not in PICTURES:
+        picture = "16:9" if k.get("layout") == "blur" else "9:16"
+    background = k.get("background") if k.get("background") in BACKGROUNDS else "blur"
+    try:
+        position = float(k.get("position", 50))
+    except (TypeError, ValueError):
+        position = 50.0
+    if position != position:               # NaN
+        position = 50.0
+    return {"picture": picture, "background": background,
+            "position": max(0.0, min(100.0, position))}
+
+
 @dataclass
 class RenderJob:
     title: str
     spans: list[Span]
     crop: CropBox = field(default_factory=CropBox)
-    layout: str = "face"          # face | blur
+    picture: str = "9:16"
+    background: str = "blur"      # blur | black -- around a 3:4 or 16:9 picture
+    # How far down the free vertical space the picture sits, 0 (top) to 100
+    # (bottom). 50 centres it, which is how the whole-frame layout always sat.
+    position: float = 50.0
     out_width: int = 1080
     # x264's CRF: LOWER is better quality and a bigger file. 21 is what the
     # encoder call was hardcoded to before the Settings screen let this be
@@ -115,6 +149,17 @@ class RenderJob:
         # out_width=1000 -> 1777 odd -> ffmpeg "height not divisible by 2".
         h = self.out_width * 16 // 9
         return h - (h & 1)
+
+    @property
+    def picture_height(self) -> int:
+        """Height of a CROPPED picture inside the file: the whole canvas for
+        9:16, a 3:4 box scaled to the file's width for 3:4. (16:9 is the whole
+        source frame, so its height depends on the source and is not known
+        here.)"""
+        if self.picture == "3:4":
+            h = self.out_width * 4 // 3
+            return h - (h & 1)
+        return self.out_height
 
     @property
     def duration(self) -> float:
@@ -527,7 +572,13 @@ def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
     render()); not used at all when no span is tracked.
     """
     even = lambda v: max(2, int(v) // 2 * 2)
-    W, H = job.out_width, job.out_height
+    # The size each cropped span is scaled to: the whole canvas for 9:16, the
+    # 3:4 picture for 3:4. The split frame is a 9:16 thing only (two boxes
+    # stacked to fill the canvas), so for any other picture a span that carries
+    # two boxes is framed with its first.
+    W = job.out_width
+    H = job.picture_height
+    split_ok = job.picture == "9:16"
 
     def box_pixels(c: "CropBox") -> tuple[int, int, int, int]:
         # Size & offset are clamped to fit within the source frame: if
@@ -547,7 +598,7 @@ def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
     parts = []
     for i, span in enumerate(job.spans):
         v = f"[0:v]trim=start={span.start:.3f}:end={span.end:.3f},setpts=PTS-STARTPTS"
-        if crop_first and span.crops and len(span.crops) >= 2:
+        if crop_first and split_ok and span.crops and len(span.crops) >= 2:
             # Split frame: ONE segment cut twice then stacked. split=2 is
             # mandatory -- a single filter output can't be used twice as
             # input. Head tracking is NOT supported in split format (v1) --
@@ -564,7 +615,7 @@ def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
                          f"asetpts=PTS-STARTPTS[a{i}]")
             continue
         if crop_first:
-            c = span.crop or job.crop
+            c = span.crop or (span.crops[0] if span.crops and not split_ok else None) or job.crop
             if span.tracking and len(span.tracking) >= 2:
                 # This box's X MOVES along a trajectory (head tracking),
                 # not static -- Y/width/height remain fixed from `c` as
@@ -620,31 +671,53 @@ def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
     return ";".join(parts)
 
 
+def picture_canvas(picture: str, background: str, position: float,
+                   W: int, H: int, fw: int, fh: int,
+                   src: str = "[vc]", dst: str = "[vv]") -> str:
+    """The filter chain that puts a picture of `fw` x `fh` pixels (what `src`
+    carries) onto the W x H canvas, and nothing else.
+
+      9:16   the picture IS the canvas: nothing to do.
+      black  scaled to the canvas width, on black, `position` percent of the
+             free height down (50 = centred).
+      blur   the same, on a blurred copy of itself: the centre 9:16 slice of
+             the picture, scaled up to fill the canvas.
+
+    One function for the render (build_filter) and the thumbnails (server.py),
+    so a picture is composed the same way wherever it is shown."""
+    even = lambda v: max(2, int(v) // 2 * 2)
+    if picture == "9:16":
+        return f"{src}null{dst}"
+    centred = position == 50
+    if background == "black":
+        y = "(oh-ih)/2" if centred else f"(oh-ih)*{position / 100:g}"
+        return f"{src}scale={W}:-2,pad={W}:{H}:0:{y}:black{dst}"
+    y = "(H-h)/2" if centred else f"(H-h)*{position / 100:g}"
+    return (
+        f"{src}split=2[bg][fg];"
+        f"[bg]crop={even(fh*9/16)}:{fh}:{even((fw-fh*9/16)/2)}:0,"
+        f"scale={W}:{H},gblur=sigma=28[bgb];"
+        f"[fg]scale={W}:-2[fgs];"
+        f"[bgb][fgs]overlay=(W-w)/2:{y}{dst}"
+    )
+
+
 def build_filter(job: RenderJob, src_width: int, src_height: int,
                  ass_path: Path | None, dest: Path | None = None) -> str:
-    # Blur layout uses the full frame, so crop is meaningless; segments
-    # are joined first then blurred. Face layout is the opposite: each
-    # segment is framed independently so framing can shift.
-    crop_first = job.layout != "blur"
+    # 16:9 uses the full frame, so crop is meaningless there; segments are
+    # joined first, then placed on the canvas. The other pictures are the
+    # opposite: each segment is framed independently so framing can shift.
+    crop_first = job.picture != "16:9"
     # `dest` is only used by _concat_filter() when ANY span is tracked
     # (head tracking) -- see the per-segment file reasoning there.
     trim_chain = _concat_filter(job, src_width, src_height, crop_first, dest)
 
-    even = lambda v: max(2, int(v) // 2 * 2)
     W, H = job.out_width, job.out_height
-
-    if job.layout == "blur":
-        # background: full frame scaled and blurred; foreground: full frame
-        video_chain = (
-            f"[vc]split=2[bg][fg];"
-            f"[bg]crop={even(src_height*9/16)}:{src_height}:{even((src_width-src_height*9/16)/2)}:0,"
-            f"scale={W}:{H},gblur=sigma=28[bgb];"
-            f"[fg]scale={W}:-2[fgs];"
-            f"[bgb][fgs]overlay=(W-w)/2:(H-h)/2[vv]"
-        )
-    else:
-        # already cropped and scaled per segment above
-        video_chain = "[vc]null[vv]"
+    # What leaves the joined segments: the whole source frame (16:9), or the
+    # cropped picture, already scaled to the canvas width (3:4) or the canvas
+    # itself (9:16).
+    fw, fh = (src_width, src_height) if job.picture == "16:9" else (W, job.picture_height)
+    video_chain = picture_canvas(job.picture, job.background, job.position, W, H, fw, fh)
 
     if ass_path:
         path = _escape_filter_path(str(ass_path))
