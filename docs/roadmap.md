@@ -766,6 +766,78 @@ Ide lain dari daftar yang sama (paste reply, render banyak saran, render
 massal, cari di transkrip, buang jeda) **belum dipilih**. Catatannya ada
 di percakapan sesi analisis 2026-10-17, dan bisa diangkat kapan saja.
 
+### P10 — Bentuk gambar 3:4 dan 16:9 di Output Format
+
+Permintaan ian (2026-10-18): Output Format mendapat opsi **3:4** dan
+**16:9 (horizontal)**, dalam dua cara:
+- (A) hanya gambarnya yang 3:4 atau 16:9, sementara file tetap 9:16
+  dengan latar;
+- (B) file akhirnya sendiri berukuran 3:4 atau 16:9.
+
+Keputusan ian:
+- **bertahap**: A dulu, B setelah A dicoba;
+- posisi gambar di dalam 9:16 **bisa diatur** (default di tengah);
+- latarnya **hitam atau blur**.
+
+**Kondisi sekarang** (dibaca dari kode 2026-10-18):
+- `app.js` ~367: opsi `format` "Fill the 9:16 frame" punya pilihan
+  Crop (`face`) dan Blur background (`blur`).
+- File selalu 9:16 (`out_width`, dengan tinggi = lebar × 16/9).
+- `render.build_filter`: `blur` menggabungkan semua span, membuat latar
+  dari potongan 9:16 yang di-blur, lalu meletakkan frame utuh selebar W
+  di tengah. `face` memotong per span dengan kotak framing berasio 9:16
+  (`framing.js` `RATIO`, dan split 8:9 per sel).
+- Caption, label, dan watermark ditulis di ruang 1080×1920
+  (`render.REF_W/REF_H`, `compose.py`).
+- Project menyimpan `output` sebagai **indeks** pilihan. Menyisipkan
+  pilihan baru di depan akan menggeser arti indeks project lama; pilihan
+  baru hanya boleh ditambahkan di belakang, atau disimpan di kunci baru.
+
+**Tahap 1 (A): gambar 3:4 / 16:9 di dalam file 9:16**
+
+- Output Format per Result:
+  - **Picture**: `9:16` (seperti Crop sekarang) · `3:4` · `16:9`;
+  - **Background** (muncul kalau Picture bukan 9:16): `Black` · `Blur`;
+  - **Position** (muncul kalau Picture bukan 9:16): slider vertikal
+    0–100%, default 50 = tengah, supaya gambar bisa digeser ke atas dan
+    caption menempati area di bawahnya;
+  - Resolution dan Quality tetap.
+- **Kompatibilitas:**
+  - project lama "Crop" = Picture 9:16;
+  - project lama "Blur background" = Picture 16:9 + Background Blur +
+    Position 50;
+  - keduanya harus ter-render **byte-identical** seperti sebelumnya.
+    res2 sudah dijaga selftest. Untuk Blur, render satu klip sebelum
+    perubahan, lalu bandingkan sesudahnya, dan jadikan baseline selftest
+    kalau praktis.
+- **3:4:** kotak framing dikunci ke 3:4 (rasio di `framing.js`
+  mengikuti Picture), termasuk AI Framing, head tracking, dan
+  `track_head` di server. Hasilnya diskalakan ke lebar W (1080×1440 pada
+  1080p), lalu diletakkan di kanvas 9:16 pada y = (H − h) × posisi.
+- **16:9:** memakai frame utuh tanpa kotak crop, sama seperti Blur
+  sekarang. Layar Framing memberi tahu bahwa 16:9 memakai seluruh frame.
+- **Split (dua kotak)** hanya berlaku untuk Picture 9:16. Untuk 3:4/16:9
+  pilihannya dinonaktifkan dengan keterangan.
+- **Latar Black** = kanvas warna hitam. **Blur** = rantai blur yang
+  sekarang, digeneralisasi untuk 3:4 juga.
+- **Preview 9:16, quick preview, dan thumbnail** harus menunjukkan
+  komposisi yang sama dengan hasil render: bar hitam atau blur, dan
+  posisi gambarnya.
+- Caption dan label tetap di ruang 1080×1920. Slider Y Position caption
+  yang sudah ada bisa memindahkan caption ke area latar.
+- Render multi-sumber dan pass compose (label, sticker, suara) tidak
+  berubah, karena keduanya bekerja di kanvas 9:16.
+
+**Tahap 2 (B): file akhir 3:4 dan 16:9** (baru setelah tahap 1 dicoba)
+
+- Kanvas file mengikuti bentuk: 3:4 = 1080×1440, 16:9 = 1920×1080 pada
+  1080p. Label resolusi mengacu ke sisi pendek.
+- Ruang referensi caption, label, dan watermark per kanvas (ASS PlayRes),
+  bukan dikunci 1080×1920.
+- Panel preview, safe area, dan posisi default caption menyesuaikan
+  bentuk.
+- Baseline selftest baru per bentuk.
+
 ---
 
 ## 3. Diparkir, sengaja tidak dikerjakan
