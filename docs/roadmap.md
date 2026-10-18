@@ -925,6 +925,72 @@ klaim Content ID atau strike.
 - Label ini bisa diedit dan dipindahkan seperti label lain, dan tidak
   pernah ditambahkan otomatis.
 
+### P12 — Sudut pandang per klip: nilai tambah di atas potongan
+
+Latar belakang: pada 1 Okt 2026 YouTube mengumumkan bahwa rekomendasi
+Shorts akan lebih mengutamakan konten orisinal dan **mengurangi
+jangkauan kanal yang terutama mengunggah ulang klip orang lain tanpa
+perubahan berarti**.
+- Yang *tidak* dihitung orisinal: crop, flip, kecepatan, filter, caption
+  hasil transkripsi, dan edit template. Output klipian apa adanya
+  termasuk kategori ini.
+- Yang dihitung: komentar sendiri, edit yang unik, dan penceritaan.
+- Monetisasi tetap mengikuti kebijakan *reused content*.
+
+Sumber: laporan pihak ketiga yang mengutip TeamYouTube, misalnya
+outlierkit.com dan relevantaudience.com, 2026-10-18. Tanggal efektifnya
+belum dikonfirmasi YouTube.
+
+Ian setuju mencobanya (2026-10-18).
+
+**Prinsipnya: Claude menyarankan, ian yang memiliki.** Saran sudut
+pandang adalah draf. Nilai orisinalnya datang dari pandangan ian, jadi
+semuanya bisa diedit dan tidak pernah dipasang otomatis. Teks
+buatan AI yang selalu berpola sama bisa saja dinilai YouTube sebagai
+"template". Klipian tidak menjanjikan apa pun soal algoritma.
+
+**Tahap 1: saran berbasis teks**
+- **Balasan Claude** mendapat bagian opsional per klip:
+  ```json
+  "angle": {
+    "take":  "satu kalimat: sudut pandang atau kenapa momen ini penting",
+    "intro": "teks pembuka ≤ 12 kata, ±2–3 detik, membingkai klip dari sudut pandang clipper",
+    "notes": [ { "at": "0:14", "text": "komentar pop-up ≤ 8 kata" } ]
+  }
+  ```
+  - `intro` **bukan** ringkasan kutipan, melainkan konteks atau
+    pandangan yang belum dimiliki penonton.
+  - `notes`: 0–3 komentar singkat; `at` relatif terhadap awal klip.
+- **Rubrik `dialog-podcast.md`**, bagian baru "Sudut pandang":
+  - harus menambah sesuatu: konteks, pendapat, kaitan ke topik yang
+    lebih luas, atau pertanyaan;
+  - jangan mengulang kutipan;
+  - jangan merendahkan atau menyerang tamu, jangan menyesatkan;
+  - jangan mengaku sebagai kreator;
+  - bahasa santai sesuai podcast;
+  - variasikan pola antar klip, jangan semua dimulai dengan kalimat
+    yang sama.
+- **`parse_reply`:** `angle` opsional, dengan normalisasi seperti
+  `post`. Waktu `notes` dibatasi ke durasi klip. Disimpan di kandidat dan
+  dibawa ke Result.
+- **UI, panel "Angle"** di layar Render, di samping Post text, atau di
+  Timeline:
+  - menampilkan take, intro, dan notes, semuanya bisa diedit;
+  - **"Add intro"** memasang `intro` sebagai label teks di awal klip
+    (0 – ±2,5 detik, posisi atas atau tengah, kotak gelap);
+  - **"Add notes"** memasang `notes` sebagai label bertimer di waktu
+    output yang sesuai (dipetakan dari waktu di dalam klip);
+  - semuanya elemen Timeline biasa: bisa dipindah, diubah, dihapus, dan
+    tidak pernah dipasang otomatis.
+- `take` juga bisa dipakai ian sebagai bahan caption teks posting. Ia
+  tidak otomatis masuk ke `post.caption`.
+
+**Tahap 2 (nanti, setelah tahap 1 dicoba): voiceover sendiri**
+- Merekam suara ian dari mikrofon langsung di aplikasi (MediaRecorder)
+  sebagai elemen suara Timeline, memakai skrip `intro` sebagai contekan.
+- Volume diatur manual, sesuai keputusan lama "tanpa ducking otomatis".
+- Ini kontribusi orisinal yang paling kuat.
+
 ---
 
 ## 3. Diparkir, sengaja tidak dikerjakan
