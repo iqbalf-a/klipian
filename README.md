@@ -113,8 +113,10 @@ OUTPUT FORMAT  picture (9:16, 3:4 or 16:9), background, position, resolution, qu
 TIMELINE       order of the moments; labels (+ Credit adds the source), stickers, sounds, volume
 FRAMING        crop position per time point
 CAPTIONS       fix misheard words, style the karaoke captions
-RENDER         post text (title, caption, hashtags to paste at upload), quick
-               preview, render the Result (it also adds a Draft row to the upload
+RENDER         post text (title, caption, hashtags to paste at upload), angle
+               (Claude's suggested take, intro and notes, yours to edit; Add
+               intro / Add notes put them on the Timeline as ordinary labels),
+               quick preview, render the Result (it also adds a Draft row to the upload
                schedule)
 HISTORY        render queue with live progress, finished files
 ```

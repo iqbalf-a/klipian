@@ -296,6 +296,9 @@ function snapshotActiveResult() {
   // The post text (title, caption, hashtags), per Result; absent when empty.
   const post = (typeof currentPost === "function") ? currentPost() : null;
   if (post) slot.post = post; else delete slot.post;
+  // The angle (take, intro, notes), per Result; absent when empty.
+  const angle = (typeof currentAngle === "function") ? currentAngle() : null;
+  if (angle) slot.angle = angle; else delete slot.angle;
   // Live spans and points sit on the shared virtual timeline (assets.js);
   // on disk they're what they really are -- a video and a second in it.
   // `segments`: the plan's name for a Result's spans (each a segment of
@@ -385,6 +388,7 @@ function loadResultIntoLiveState(entry) {
   }
   if ($("#resultTitle")) $("#resultTitle").value = entry.title || "";
   if (typeof setPostFields === "function") setPostFields(entry.post);
+  if (typeof setAngleFields === "function") setAngleFields(entry.angle);
   if (typeof renderResult === "function") renderResult();
   if (typeof refreshPostCredit === "function") refreshPostCredit();
   if (typeof renderFraming === "function") renderFraming();

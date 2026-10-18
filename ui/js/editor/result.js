@@ -694,6 +694,7 @@ $("#recAddBtn")?.addEventListener("click", () => {
   updateRecButton();
   // The first suggestion's post text comes along, into an empty one (post.js).
   if (typeof carryPostFrom === "function") carryPostFrom(added);
+  if (typeof carryAngleFrom === "function") carryAngleFrom(added);
   // Overlapping suggestions are merged into one span on purpose, but adding
   // three and seeing one row appear reads as two of them being dropped.
   const parts = [];
@@ -728,6 +729,7 @@ function resetResult() {
   RESULT = [];
   resultSeq = 0;
   if (typeof clearPostFields === "function") clearPostFields();
+  if (typeof clearAngleFields === "function") clearAngleFields();
   renderResult();
   renderRecommendations();
 }

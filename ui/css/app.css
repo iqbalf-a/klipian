@@ -432,7 +432,12 @@ h1, h2, h3 {
 .ov-text {
   position: absolute; transform: translate(-50%, -50%);
   font-family: var(--font-brand); font-weight: 800;
-  line-height: 1.15; text-align: center; white-space: nowrap;
+  line-height: 1.15; text-align: center;
+  /* A long label wraps the way the render's does: libass breaks a line that is
+     wider than the frame less the labels' 40-unit side margins (compose.py,
+     MarginL/R 40 of 1080 = 3.7% each side), balancing the lines. It used to be
+     one unbroken line, which ran off the preview while the render wrapped. */
+  width: max-content; max-width: 92.6%; white-space: normal; text-wrap: balance;
   -webkit-text-stroke: .14em #000; paint-order: stroke fill;
 }
 .ov-text.box {
@@ -2213,6 +2218,15 @@ h1, h2, h3 {
 .post-credit-link:hover { color: var(--text); }
 .post-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
 .post-actions .data { color: var(--text-faint); min-width: 0; }
+
+/* With the Post text and Angle panels the Render screen is taller than a
+   window: it scrolls, instead of cutting its lower panels off. */
+.screen[data-screen="render"] { overflow-y: auto; }
+
+/* Angle (angle.js) uses the Post text panel's look; these are its note rows. */
+.angle-notes { display: grid; gap: 6px; }
+.angle-note-row { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: var(--s2); }
+.post-field .angle-note-row input { width: 100%; }
 
 .render-bar {
   flex: none;

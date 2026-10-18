@@ -391,6 +391,18 @@ async function addCreditLabel() {
   commitOverlays();
 }
 
+/* A text label put on the Timeline from outside it (angle.js: the intro and the
+   notes). Returns false, and adds nothing, when a text label with the same words
+   is already there -- pressing the button twice must not stack two copies. The
+   caller calls commitOverlays() once after a batch. */
+function addTextOverlay({ text, start, end, x = 50, y, size, box = true }) {
+  const same = (t) => String(t || "").trim().toLowerCase();
+  if (OVERLAYS.some((o) => o.kind === "text" && same(o.text) === same(text))) return false;
+  OVERLAYS.push({ id: `o${++overlaySeq}`, kind: "text", ...OVERLAY_DEFAULTS.text,
+                  text, start: round2(start), end: round2(end), x, y, size, box });
+  return true;
+}
+
 /* How long a sound file plays -- its bar is that long by default. */
 function soundLength(file) {
   return new Promise((done) => {
