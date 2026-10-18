@@ -844,6 +844,87 @@ Keputusan ian:
   bentuk.
 - Baseline selftest baru per bentuk.
 
+### P11 — Teks posting per klip, dan kredit sumber
+
+Pertanyaan ian (2026-10-18): apakah judul, caption, dan hashtag bisa
+dibuat dari JSON setiap klip, dan apakah sumber asli perlu dicantumkan.
+
+Istilah: "caption" di klipian berarti subtitle yang dibakar ke video.
+Teks saat mengunggah disebut **teks posting**.
+
+Keputusan ian:
+- teks posting dibuat Claude di balasan yang sama, ditampilkan dengan
+  tombol Copy, dan otomatis membuat baris jadwal setelah render;
+- kredit diisi **per video sumber**;
+- label kredit di video **opsional per klip**.
+
+**Catatan hak cipta** (disampaikan ke ian, bukan nasihat hukum): kredit
+itu etis, sering diwajibkan kreator yang membuka program clipper, dan
+YouTube Shorts punya "Related video" untuk menautkan episode asli.
+Tapi **kredit bukan izin**. Mengunggah ulang tanpa izin tetap berisiko
+klaim Content ID atau strike.
+
+**A. Kredit per video sumber**
+- Disimpan sebagai data pengguna, bukan cache:
+  `workspace/sources/credits.json`, berisi
+  `{ "<nama file>": { platform, creator, title, url } }`. Ikut
+  dibersihkan kalau videonya dihapus dari Sources.
+- Diisi dan diedit di panel **Sources** dashboard (per baris), dan
+  terlihat (dengan link edit) di layar Assets editor untuk video
+  project.
+- **Bentuk baris kredit ditentukan klipian, bukan Claude**, supaya tidak
+  ada nama atau link yang dikarang. Contoh:
+  `Sumber: YouTube Raditya Dika — "Apa Kabar Syahrini" (url)`. Kalau
+  Result memakai beberapa video, kreditnya digabung tanpa duplikat.
+- Brief menyertakan info sumber di kepala, misalnya
+  `Source: YouTube · Raditya Dika · "Apa Kabar Syahrini"`, supaya Claude
+  tahu siapa kreator dan bintang tamunya. Brief juga melarang Claude
+  menulis baris kredit sendiri.
+
+**B. Teks posting dari Claude**
+- Format jawaban di brief mendapat bagian opsional per klip:
+  `"post": { "title", "caption", "hashtags" }`.
+- Aturan di rubrik `dialog-podcast.md`, bagian baru "Teks posting":
+  - `title`: judul unggahan, maksimal 70 karakter, boleh lebih panjang
+    dari judul file 2–5 kata;
+  - `caption`: 1–3 kalimat bahasa santai sesuai podcast, diakhiri
+    pertanyaan atau ajakan, tanpa hashtag di dalamnya;
+  - `hashtags`: 5–8 tag huruf kecil, memuat nama kreator atau tamu kalau
+    relevan, tanpa tag menyesatkan;
+  - dilarang clickbait bohong dan dilarang mengaku sebagai kreator.
+- `parse_reply` menerima `post` sebagai opsional. Balasan lama tanpa
+  `post` tetap terbaca. Fixture brief dan import diperbarui dengan
+  sengaja, ditambah satu balasan fixture yang memuat `post`.
+- `post` disimpan di kandidat, lalu dibawa ke Result saat
+  ditambahkan. Result campuran memakai `post` kandidat pertama. Rentang
+  manual mulai dengan kolom kosong.
+
+**C. Layar Render: panel "Post text"**
+- Isinya Title, Caption, dan Hashtags yang bisa diedit (tersimpan per
+  Result), ditambah pratinjau baris kredit otomatis.
+- Tombol Copy:
+  - **Copy title**;
+  - **Copy description** (caption + baris kosong + hashtag + baris
+    kosong + kredit);
+  - **Copy hashtags**.
+
+**D. Jadwal upload otomatis**
+- Setelah render selesai, buat baris **Draft** di
+  `schedule/clips.json`, dengan isi:
+  - title dari `post.title` (atau judul Result);
+  - hook, file hasil render, `episode` = baris kredit;
+  - `description` dan `tiktokCaption` = blok deskripsi seperti di atas.
+- Baris ditautkan ke project id + result id. Render ulang Result yang
+  sama **memperbarui** baris itu (file selalu, kolom teks hanya kalau
+  masih kosong), jadi editan ian di dashboard tidak tertimpa.
+
+**E. Label kredit di video (opsional per klip)**
+- Tombol "+ Credit" di Timeline menambahkan label teks kecil, misalnya
+  `Sumber: YouTube · Raditya Dika`, di posisi default yang tidak
+  mengganggu caption.
+- Label ini bisa diedit dan dipindahkan seperti label lain, dan tidak
+  pernah ditambahkan otomatis.
+
 ---
 
 ## 3. Diparkir, sengaja tidak dikerjakan
