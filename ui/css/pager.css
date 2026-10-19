@@ -59,3 +59,24 @@
 }
 .sort-head:hover { color: var(--text); }
 .sort-head .sort-arrow { color: var(--accent); font-size: 9px; }
+
+/* Dashboard Clips: the tick column and the bulk-action bar (clips.js). */
+.ws-bulk {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  padding: 10px 12px;
+  border: 1px solid var(--accent);
+  border-radius: var(--r-s);
+  background: var(--accent-soft, var(--glass));
+  font-size: 12.5px;
+}
+.ws-bulk[hidden] { display: none; }
+.ws-bulk-count { font-weight: 700; color: var(--text); }
+.ws-bulk-group { display: inline-flex; align-items: center; gap: 8px; }
+.ws-bulk-label { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); }
+.ws-bulk .ws-input { width: auto; border-color: var(--glass-border); background-color: var(--bg-1); }
+.ws-bulk-note { flex-basis: 100%; color: var(--text-muted); }
+#clipBody tr[data-selected] { background: var(--accent-soft, var(--glass)); }
+#clipTable input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; }

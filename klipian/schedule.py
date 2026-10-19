@@ -108,6 +108,48 @@ def migrate_created(path: Path | None = None, lock: threading.Lock | None = None
         return from_file, from_at
 
 
+STATUSES = ("Draft", "Ready", "Scheduled", "Posted", "Discarded")
+
+
+def bulk_update(ids: list, status: str, date: str = "", time_: str = "",
+                path: Path | None = None, lock: threading.Lock | None = None) -> dict:
+    """Set the status of many rows in ONE save. When `date` is given it fills the
+    upload date (and `time_`, the time) of those rows that have NO date yet: a row
+    that already has one keeps both. Nothing else about a row changes -- `createdAt`
+    in particular is kept. Raises ValueError for a status or date nobody can use.
+    Returns {"clip": [the rows as saved], "dated": n, "kept": n (had a date), "missing": [ids]}."""
+    import re
+    if status not in STATUSES:
+        raise ValueError(f"status must be one of {', '.join(STATUSES)}")
+    if date and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
+        raise ValueError("date must be YYYY-MM-DD")
+    if time_ and not re.fullmatch(r"\d{2}:\d{2}", time_):
+        raise ValueError("time must be HH:MM")
+    wanted = {str(i) for i in ids}
+    with (lock or CLIPS_LOCK):
+        clips = load_clips(path)
+        changed, dated, kept = [], 0, 0
+        now = int(time.time())
+        for row in clips:
+            if str(row.get("id")) not in wanted:
+                continue
+            row["status"] = status
+            if date:
+                if (row.get("date") or "").strip():
+                    kept += 1
+                else:
+                    row["date"] = date
+                    if time_:
+                        row["time"] = time_
+                    dated += 1
+            row["at"] = now
+            changed.append(row)
+        if changed:
+            save_clips(clips, path)
+        found = {str(r.get("id")) for r in changed}
+        return {"clip": changed, "dated": dated, "kept": kept, "missing": sorted(wanted - found)}
+
+
 def description(post: dict | None, credit_lines: str = "") -> str:
     """The block pasted under an upload: caption, hashtags and the source credit,
     each only if there is one, with a blank line between. The Render screen's

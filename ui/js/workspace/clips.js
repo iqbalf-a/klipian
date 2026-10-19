@@ -23,6 +23,7 @@ const DETAIL_FIELDS = ["episode", "file", "description", "tiktokCaption",
 
 let CLIPS = [];
 const clipSort = createSort("clips");
+const SELECTED = new Set();          // ids of the ticked rows: they stay across pages and sorting
 const clipPager = createPager({ key: "clips", mount: $("#clipPager"), onChange: () => drawClips() });
 
 async function loadClips() {
@@ -66,7 +67,8 @@ function row(c) {
     `<input class="ws-input" type="${type}" data-field="${name}" value="${escapeHTML(c[name] || "")}">`;
   const td = "px-2 py-1 align-top border-b border-glass-border";
   return `
-    <tr class="hover:bg-glass" data-id="${c.id}">
+    <tr class="hover:bg-glass" data-id="${c.id}"${SELECTED.has(c.id) ? " data-selected" : ""}>
+      <td class="${td}"><input type="checkbox" data-select aria-label="Select this clip"${SELECTED.has(c.id) ? " checked" : ""}></td>
       <td class="${td}">
         <select class="ws-input ws-status" data-field="status" data-v="${c.status || "Draft"}">
           ${opt(STATUS, c.status || "Draft")}
@@ -87,9 +89,10 @@ function drawClips() {
   if (!body) return;
   const head = $("#clipCreatedHead");
   if (head) head.innerHTML = clipSort.headHTML("Created");
+  queueMicrotask(updateBulkBar);
   if (!CLIPS.length) {
     clipPager.slice([]);
-    body.innerHTML = `<tr><td colspan="8" class="empty">
+    body.innerHTML = `<tr><td colspan="9" class="empty">
       No clips yet. Click "+ New clip" to start tracking your upload schedule.
     </td></tr>`;
     return;
@@ -148,6 +151,12 @@ $("#clipCreatedHead")?.addEventListener("click", (e) => {
 $("#clipBody")?.addEventListener("change", (e) => {
   const tr = e.target.closest("tr[data-id]");
   if (!tr) return;
+  if (e.target.matches("[data-select]")) {        // a tick is not an edit: nothing is saved
+    if (e.target.checked) SELECTED.add(tr.dataset.id); else SELECTED.delete(tr.dataset.id);
+    tr.toggleAttribute("data-selected", e.target.checked);
+    updateBulkBar();
+    return;
+  }
   if (e.target.matches("[data-field=status]"))
     e.target.dataset.v = e.target.value;
   saveClip(collectRow(tr));
@@ -181,6 +190,7 @@ $("#clipBody")?.addEventListener("click", async (e) => {
   }
   clipError("");
   CLIPS = CLIPS.filter((c) => c.id !== id);
+  SELECTED.delete(id);
   summarizeClips();
   drawClips();
 });
@@ -204,6 +214,146 @@ $("#addClipBtn")?.addEventListener("click", async () => {
   }
 });
 
+/* ---------- bulk actions on the ticked rows ---------- */
+
+const pad2 = (n) => String(n).padStart(2, "0");
+const todayLocal = () => { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
+const nowLocal = () => { const d = new Date(); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
+
+function bulkNote(text) {
+  const el = $("#bulkNote");
+  if (el) el.textContent = text || "";
+}
+
+/* The bar shows while something is ticked; the header tick shows this page's state. */
+function updateBulkBar() {
+  const bar = $("#clipBulk");
+  if (!bar) return;
+  const wasHidden = bar.hidden;
+  bar.hidden = SELECTED.size === 0;
+  $("#bulkCount").textContent = `${SELECTED.size} selected`;
+  if (wasHidden && !bar.hidden) {                    // fresh bar: the date and time are now
+    $("#bulkDate").value = todayLocal();
+    $("#bulkTime").value = nowLocal();
+    bulkNote("");
+  }
+  const boxes = [...document.querySelectorAll("#clipBody [data-select]")];
+  const all = $("#clipSelectAll");
+  if (all) {
+    const on = boxes.filter((b) => b.checked).length;
+    all.checked = boxes.length > 0 && on === boxes.length;
+    all.indeterminate = on > 0 && on < boxes.length;
+    all.disabled = boxes.length === 0;
+  }
+}
+
+$("#clipSelectAll")?.addEventListener("change", (e) => {
+  document.querySelectorAll("#clipBody tr[data-id]").forEach((tr) => {
+    const box = $("[data-select]", tr);
+    if (!box) return;
+    box.checked = e.target.checked;
+    if (e.target.checked) SELECTED.add(tr.dataset.id); else SELECTED.delete(tr.dataset.id);
+    tr.toggleAttribute("data-selected", e.target.checked);
+  });
+  updateBulkBar();
+});
+
+$("#bulkClear")?.addEventListener("click", () => {
+  SELECTED.clear();
+  drawClips();
+});
+
+/* One request for the whole selection; the rows it changed come back and replace
+   the ones on screen, in the same places (the order is by Created, which it keeps). */
+async function bulkApply(body, done) {
+  const ids = [...SELECTED];
+  try {
+    const j = await (await fetch("/api/workspace/clips/bulk", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids, ...body }),
+    })).json();
+    if (j.error) throw new Error(j.error);
+    for (const row of j.clip) {
+      const i = CLIPS.findIndex((c) => c.id === row.id);
+      if (i >= 0) CLIPS[i] = row;
+    }
+    // Rows that no longer exist (deleted elsewhere) just leave the selection.
+    for (const id of j.missing || []) SELECTED.delete(id);
+    clipError("");
+    SELECTED.clear();
+    summarizeClips();
+    drawClips();
+    bulkNote("");
+    clipNotice(done(j));
+  } catch (err) {
+    console.error("bulk action failed:", err);
+    clipError(`Not saved — ${err.message || "no connection to klipian serve"}. Nothing was changed.`);
+  }
+}
+
+function clipNotice(text) {
+  const el = $("#clipNotice");
+  if (!el) return;
+  el.textContent = text || "";
+  el.hidden = !text;
+}
+
+$("#bulkPosted")?.addEventListener("click", () => {
+  const date = $("#bulkDate").value, time = $("#bulkTime").value;
+  if (!date) { bulkNote("Pick the upload date first (it fills the clips that have none yet)."); return; }
+  bulkApply({ status: "Posted", date, time }, (j) => {
+    const n = j.clip.length;
+    return `${n} clip${n === 1 ? "" : "s"} marked Posted`
+      + (j.dated ? ` · ${j.dated} got ${date}${time ? " " + time : ""}` : "")
+      + (j.kept ? ` · ${j.kept} already had a date (kept)` : "");
+  });
+});
+
+$("#bulkSetStatus")?.addEventListener("click", () => {
+  const status = $("#bulkStatus").value;
+  if (!status) { bulkNote("Choose a status first."); return; }
+  bulkApply({ status }, (j) => `${j.clip.length} clip${j.clip.length === 1 ? "" : "s"} set to ${status}`);
+});
+
+/* ---------- pasted links ---------- */
+
+// What counts as a link to a post on each platform.
+const LINK_RULES = {
+  youtubeUrl: { platform: "YouTube", example: "youtube.com/shorts/…, youtu.be/… or youtube.com/watch?v=…",
+    ok: /^https?:\/\/((www|m)\.)?youtube\.com\/(shorts\/[\w-]{6,}|watch\?(?:[^#]*&)?v=[\w-]{6,})|^https?:\/\/youtu\.be\/[\w-]{6,}/i },
+  tiktokUrl: { platform: "TikTok", example: "tiktok.com/@name/video/…, vm.tiktok.com/… or tiktok.com/t/…",
+    ok: /^https?:\/\/(www\.)?tiktok\.com\/(@[\w.]+\/video\/\d+|t\/[\w-]+)|^https?:\/\/(vm|vt)\.tiktok\.com\/[\w-]+/i },
+};
+
+/* Pasting a link means the clip IS posted: Draft or Ready becomes Posted, an empty
+   date and time are filled, and the platform includes where the link is from.
+   Scheduled and Discarded are left as they are (the person says so). Clearing a
+   link changes nothing. Returns what it changed, in words. */
+function applyLinkToClip(clip, was) {
+  const notes = [];
+  for (const [field, rule] of Object.entries(LINK_RULES)) {
+    const url = (clip[field] || "").trim();
+    if (!url || url === (was[field] || "").trim()) continue;      // empty or not new
+    if (!(clip.platform || "").includes(rule.platform)) {
+      // The other single platform, or none yet.
+      clip.platform = (clip.platform || "") ? "YouTube + TikTok" : rule.platform;
+      notes.push(`platform is now ${clip.platform}`);
+    }
+    if (clip.status === "Draft" || clip.status === "Ready" || !clip.status) {
+      clip.status = "Posted";
+      notes.push("status is now Posted");
+    } else if (clip.status !== "Posted") {
+      notes.push(`status stays ${clip.status}`);
+    }
+    if (clip.status === "Posted" && !(clip.date || "").trim()) {
+      clip.date = todayLocal();
+      if (!(clip.time || "").trim()) clip.time = nowLocal();
+      notes.push(`upload date set to ${clip.date} ${clip.time}`);
+    }
+  }
+  return notes;
+}
+
 /* ---------- Detail dialog ---------- */
 
 const clipDialog = $("#clipDetailDialog");
@@ -222,6 +372,7 @@ function openDetail(id) {
     const el = $(`[data-field="${name}"]`, clipDetailForm);
     if (el) el.value = c[name] || "";
   }
+  detailNote("");
   clipDialog.showModal();
   clipDialog.querySelectorAll("textarea.ws-input").forEach(growText);
 }
@@ -255,6 +406,32 @@ clipDetailForm?.addEventListener("click", async (e) => {
   }
 });
 
+function detailNote(text, bad = false) {
+  const el = $("#clipDetailNote");
+  if (!el) return;
+  el.textContent = text || "";
+  el.hidden = !text;
+  el.classList.toggle("text-danger", bad);
+}
+
+/* A link that is not a link to a post is refused, and the dialog stays open. Only a
+   link that was changed is checked, so an old value never blocks a save. */
+clipDetailForm?.addEventListener("submit", (e) => {
+  if (e.submitter?.value !== "save") return;
+  const existing = CLIPS.find((c) => c.id === clipDialog.dataset.id);
+  for (const [field, rule] of Object.entries(LINK_RULES)) {
+    const el = $(`[data-field="${field}"]`, clipDetailForm);
+    const url = (el?.value || "").trim();
+    if (url && url !== (existing?.[field] || "").trim() && !rule.ok.test(url)) {
+      e.preventDefault();
+      detailNote(`That is not a ${rule.platform} link to a post (${rule.example}).`, true);
+      el.focus();
+      return;
+    }
+  }
+  detailNote("");
+});
+
 clipDialog?.addEventListener("close", async () => {
   if (clipDialog.returnValue !== "save") return;
   const id = clipDialog.dataset.id;
@@ -265,7 +442,9 @@ clipDialog?.addEventListener("close", async () => {
     const el = $(`[data-field="${name}"]`, clipDetailForm);
     if (el) clip[name] = el.value;
   }
-  await saveClip(clip);
+  const notes = applyLinkToClip(clip, existing);
+  const saved = await saveClip(clip);
+  if (saved && notes.length) { drawClips(); clipNotice(`${clip.title || "Clip"}: ${notes.join(" · ")}`); }
 });
 
 loadClips();

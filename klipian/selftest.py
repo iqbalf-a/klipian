@@ -460,6 +460,23 @@ def check_schedule() -> tuple[str, str]:
         migrated = schedule.load_clips(path)
         if migrated[0].get("createdAt") != 456 or migrated[1].get("createdAt") != 123:
             problems.append(f"createdAt migration is wrong: {[r.get('createdAt') for r in migrated]}")
+        # Bulk Mark as Posted: one save, an existing date is kept, createdAt untouched.
+        migrated[1]["date"] = "2026-01-05"
+        migrated[1]["time"] = "09:30"
+        schedule.save_clips(migrated, path)
+        ids = [r["id"] for r in migrated]
+        res = schedule.bulk_update(ids + ["nope"], "Posted", "2026-10-18", "14:00", path, lock)
+        after = {r["id"]: r for r in schedule.load_clips(path)}
+        a, b = after[ids[0]], after[ids[1]]
+        if (a["status"], a.get("date"), a.get("time")) != ("Posted", "2026-10-18", "14:00")                 or (b["status"], b.get("date"), b.get("time")) != ("Posted", "2026-01-05", "09:30"):
+            problems.append(f"bulk Mark as Posted is wrong: {a} / {b}")
+        if (res["dated"], res["kept"], res["missing"]) != (1, 1, ["nope"]) or a.get("createdAt") != 456:
+            problems.append(f"bulk result is wrong: {res}")
+        try:
+            schedule.bulk_update(ids, "Nonsense", path=path, lock=lock)
+            problems.append("bulk update accepted a status that does not exist")
+        except ValueError:
+            pass
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

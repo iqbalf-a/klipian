@@ -38,7 +38,7 @@ from . import compose as composer
 from . import ffmpeg_tools
 from . import render as engine
 from . import credits as credits_mod
-from .schedule import (CLIPS_LOCK, created_of as _created_of, load_clips as _load_clips,
+from .schedule import (CLIPS_LOCK, bulk_update as _bulk_update, created_of as _created_of, load_clips as _load_clips,
                        migrate_created as _migrate_created, save_clips as _save_clips)
 from . import cues as cues_mod
 from . import roundtrip
@@ -1147,6 +1147,23 @@ class Handler(BaseHTTPRequestHandler):
             _write_project(f, data)
         return self._send_json({"ok": True, "name": new_name})
 
+    def _post_workspace_clips_bulk(self):
+        """One request for an action on many schedule rows: {ids, status, date?,
+        time?}. One read-modify-write, one save (see schedule.bulk_update)."""
+        try:
+            req = self._read_json()
+        except Exception as exc:               # noqa: BLE001
+            return self._send_json({"error": str(exc)}, 400)
+        ids = req.get("ids")
+        if not isinstance(ids, list) or not ids or len(ids) > 5000 or not all(isinstance(i, str) for i in ids):
+            return self._send_json({"error": "ids must be a list of row ids"}, 400)
+        try:
+            out = _bulk_update(ids, str(req.get("status") or ""), str(req.get("date") or ""),
+                               str(req.get("time") or ""))
+        except ValueError as exc:
+            return self._send_json({"error": str(exc)}, 400)
+        return self._send_json({"ok": True, **out})
+
     def _post_workspace_clips(self):
         try:
             req = self._read_json()
@@ -1494,6 +1511,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/project-asset-import": _post_project_asset_import,
         "/api/project/rename": _post_project_rename,
         "/api/workspace/clips": _post_workspace_clips,
+        "/api/workspace/clips/bulk": _post_workspace_clips_bulk,
         "/api/import": _post_import,
         "/api/render": _post_render,
         "/api/render/cancel": _post_render_cancel,

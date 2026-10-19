@@ -76,9 +76,35 @@
              the input looking committed -- the failure only reached the
              console. This says so on screen instead. -->
         <span class="text-danger text-[13px] font-semibold" id="clipError" role="alert" hidden></span>
+        <span class="text-text-faint text-[12px]" id="clipNotice" role="status" hidden></span>
         <button class="ml-auto rounded-s bg-accent text-[13px] font-semibold px-3 py-1.5
                        text-accent-text hover:brightness-110"
                 id="addClipBtn" type="button">+ New clip</button>
+      </div>
+      <!-- Bulk actions on the ticked rows (js/workspace/clips.js). Shown only while
+           something is ticked; the ticks follow the rows' ids, so they stay across
+           pages and sorting. -->
+      <div class="ws-bulk" id="clipBulk" role="group" aria-label="Actions for the selected clips" hidden>
+        <span class="ws-bulk-count" id="bulkCount" role="status"></span>
+        <span class="ws-bulk-group">
+          <button class="rounded-s bg-accent text-[13px] font-semibold px-3 py-1.5
+                         text-accent-text hover:brightness-110" id="bulkPosted" type="button">Mark as Posted</button>
+          <label class="ws-bulk-label">on
+            <input class="ws-input" type="date" id="bulkDate" aria-label="Upload date for Mark as Posted"></label>
+          <label class="ws-bulk-label">at
+            <input class="ws-input" type="time" id="bulkTime" aria-label="Upload time for Mark as Posted"></label>
+        </span>
+        <span class="ws-bulk-group">
+          <select class="ws-input" id="bulkStatus" aria-label="Set status of the selected clips">
+            <option value="">Set status…</option>
+            <option>Ready</option><option>Scheduled</option><option>Discarded</option><option>Draft</option>
+          </select>
+          <button class="rounded-s px-2.5 py-1 text-[12px] border border-glass-border hover:bg-glass"
+                  id="bulkSetStatus" type="button">Apply</button>
+        </span>
+        <button class="ml-auto rounded-s px-2.5 py-1 text-[12px] border border-glass-border hover:bg-glass"
+                id="bulkClear" type="button">Clear selection</button>
+        <span class="ws-bulk-note" id="bulkNote" role="status"></span>
       </div>
       <!-- Only the columns that are useful at a glance: status, title, platform,
            schedule. The rest (source episode, file, description, caption, link,
@@ -89,6 +115,8 @@
         <table class="w-full border-collapse text-[13px]" id="clipTable">
           <thead>
             <tr>
+              <th class="sticky top-0 z-10 bg-surface-2 border-b border-glass-border" style="width:34px">
+                <input type="checkbox" id="clipSelectAll" aria-label="Select all clips on this page"></th>
               <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
                          uppercase tracking-wider text-text-faint px-3 py-2 border-b border-glass-border"
                   style="width:110px">Status</th>
@@ -158,6 +186,7 @@
         </div>
         <label class="ws-field">Notes
           <textarea class="ws-input ws-notes" rows="4" data-field="notes"></textarea></label>
+        <p class="text-[12px] text-text-faint" id="clipDetailNote" role="status" hidden></p>
         <div class="flex gap-2 justify-end">
           <button class="rounded-s px-3 py-1.5 text-[13px] border border-glass-border hover:bg-glass"
                   type="submit" value="cancel">Close</button>
