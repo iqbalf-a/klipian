@@ -23,6 +23,7 @@ const DETAIL_FIELDS = ["episode", "file", "description", "tiktokCaption",
 
 let CLIPS = [];
 const clipSort = createSort("clips");
+let showGoneOnly = false;            // the "N with deleted files" filter
 const SELECTED = new Set();          // ids of the ticked rows: they stay across pages and sorting
 const clipPager = createPager({ key: "clips", mount: $("#clipPager"), onChange: () => drawClips() });
 
@@ -51,6 +52,16 @@ function clipError(message) {
   el.hidden = false;
 }
 
+function updateGoneCount() {
+  const btn = $("#clipGone");
+  if (!btn) return;
+  const n = CLIPS.filter((c) => c.fileMissing).length;
+  if (!n) showGoneOnly = false;
+  btn.hidden = n === 0;
+  btn.textContent = showGoneOnly ? `Showing ${n} with deleted files · show all` : `${n} with deleted files`;
+  btn.setAttribute("aria-pressed", String(showGoneOnly));
+}
+
 function summarizeClips() {
   const per = {};
   for (const c of CLIPS) per[c.status] = (per[c.status] || 0) + 1;
@@ -60,12 +71,26 @@ function summarizeClips() {
     : "no clips yet";
 }
 
+/* A row whose render file is gone from out/ (the server says so on every load;
+   it is not stored). Draft and Ready: the row is probably not wanted, so it can be
+   Discarded or deleted (each asks twice). Posted and Scheduled: just a note -- the
+   row is the record of what was posted, and deleting the local file afterwards is normal. */
+function goneTagHTML(c) {
+  if (!c.fileMissing) return "";
+  const open = c.status === "Draft" || c.status === "Ready" || !c.status;
+  return `<div class="ws-gone">
+      <span class="ws-gone-tag" title="${open ? "The render file is no longer in out/: this clip may not be wanted any more." : "The render file is no longer in out/. Normal after posting: this row is the record of it."}">file deleted</span>
+      ${open ? `<button class="ws-mini" type="button" data-gone="discard">Discard</button>
+      <button class="ws-mini" type="button" data-gone="delete">Delete row</button>` : ""}
+    </div>`;
+}
+
 function row(c) {
   const opt = (list, cur) => list.map((v) =>
     `<option value="${v}" ${v === cur ? "selected" : ""}>${v}</option>`).join("");
   const f = (name, type = "text") =>
     `<input class="ws-input" type="${type}" data-field="${name}" value="${escapeHTML(c[name] || "")}">`;
-  const td = "px-2 py-1 align-top border-b border-glass-border";
+  const td = "px-2 py-1 border-b border-glass-border";    // centred by pager.css
   return `
     <tr class="hover:bg-glass" data-id="${c.id}"${SELECTED.has(c.id) ? " data-selected" : ""}>
       <td class="${td}"><input type="checkbox" data-select aria-label="Select this clip"${SELECTED.has(c.id) ? " checked" : ""}></td>
@@ -74,7 +99,7 @@ function row(c) {
           ${opt(STATUS, c.status || "Draft")}
         </select>
       </td>
-      <td class="${td}">${f("title")}</td>
+      <td class="${td}">${f("title")}${goneTagHTML(c)}</td>
       <td class="${td}"><select class="ws-input" data-field="platform">${opt(PLATFORM, c.platform || "YouTube + TikTok")}</select></td>
       <td class="${td}">${f("date", "date")}</td>
       <td class="${td}">${f("time", "time")}</td>
@@ -89,6 +114,7 @@ function drawClips() {
   if (!body) return;
   const head = $("#clipCreatedHead");
   if (head) head.innerHTML = clipSort.headHTML("Created");
+  updateGoneCount();
   queueMicrotask(updateBulkBar);
   if (!CLIPS.length) {
     clipPager.slice([]);
@@ -97,7 +123,8 @@ function drawClips() {
     </td></tr>`;
     return;
   }
-  body.innerHTML = clipPager.slice(clipSort.apply(CLIPS, (c) => c.createdAt || c.at)).map(row).join("");
+  body.innerHTML = clipPager.slice(clipSort.apply(showGoneOnly ? CLIPS.filter((c) => c.fileMissing) : CLIPS,
+      (c) => c.createdAt || c.at)).map(row).join("");
 }
 
 /* Table rows only have inputs for INLINE_FIELDS -- detail fields (still
@@ -161,6 +188,38 @@ $("#clipBody")?.addEventListener("change", (e) => {
     e.target.dataset.v = e.target.value;
   saveClip(collectRow(tr));
 });
+
+$("#clipGone")?.addEventListener("click", () => {
+  showGoneOnly = !showGoneOnly;
+  clipPager.first();
+  drawClips();
+});
+
+/* Discard / Delete row on a row whose file is gone: two clicks, so one stray click
+   changes nothing. */
+$("#clipBody")?.addEventListener("click", async (e) => {
+  const gone = e.target.closest("[data-gone]");
+  if (!gone) return;
+  e.stopImmediatePropagation();
+  const tr = gone.closest("tr[data-id]");
+  if (!tr) return;
+  clearTimeout(gone._armTimer);
+  const label = gone.dataset.label || gone.textContent;
+  gone.dataset.label = label;
+  if (!gone.classList.contains("danger")) {
+    gone.textContent = "Sure?";
+    gone.classList.add("danger");
+    gone._armTimer = setTimeout(() => { gone.textContent = label; gone.classList.remove("danger"); }, 4000);
+    return;
+  }
+  if (gone.dataset.gone === "discard") {
+    const clip = collectRow(tr);
+    clip.status = "Discarded";
+    if (await saveClip(clip)) drawClips();
+  } else {
+    $('[data-action="delete"]', tr)?.click();       // the same delete as the row's x
+  }
+}, true);
 
 $("#clipBody")?.addEventListener("click", async (e) => {
   const detail = e.target.closest('[data-action="detail"]');

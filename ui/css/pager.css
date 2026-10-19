@@ -80,3 +80,44 @@
 .ws-bulk-note { flex-basis: 100%; color: var(--text-muted); }
 #clipBody tr[data-selected] { background: var(--accent-soft, var(--glass)); }
 #clipTable input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; }
+
+/* P19 B -- Clips table: every cell centred on the same line, controls of one height,
+   selects with the same padding on both sides and the arrow in a fixed place. */
+#clipTable td, #clipTable th { vertical-align: middle; }
+#clipTable td:first-child, #clipTable th:first-child { padding-left: 8px; padding-right: 8px; text-align: center; }
+#clipTable td:nth-child(3) { min-width: 150px; }
+#clipTable input[type="checkbox"], .ws-bulk input[type="checkbox"] {
+  width: 16px; height: 16px; margin: 0; vertical-align: middle;
+}
+#clipTable .ws-input, .ws-bulk .ws-input {
+  height: 32px; box-sizing: border-box; padding-top: 0; padding-bottom: 0;
+  color-scheme: dark;                      /* date and time icons show on the dark field */
+}
+#clipTable input[type="date"]::-webkit-calendar-picker-indicator,
+#clipTable input[type="time"]::-webkit-calendar-picker-indicator,
+.ws-bulk input::-webkit-calendar-picker-indicator { opacity: .75; cursor: pointer; }
+select.ws-input, .pager-size select, .ws-bulk select {
+  -webkit-appearance: none; appearance: none;
+  padding-left: 10px; padding-right: 28px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23a0a0aa' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+.pager-size select { height: 28px; padding-top: 0; padding-bottom: 0; }
+#clipTable .ws-detail { height: 30px; display: inline-flex; align-items: center; padding: 0 10px; }
+#clipTable .delete-btn { width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+.ws-created { display: inline-block; white-space: nowrap; }
+
+/* P19 A -- a render file that is gone, and a render file with no schedule row. */
+.ws-gone { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; padding-left: 8px; }
+.ws-gone-tag {
+  font-size: 11px; font-weight: 700; color: var(--danger);
+  border: 1px solid var(--danger); border-radius: 999px; padding: 1px 8px;
+}
+.ws-gone .ws-mini.danger, .ws-add-schedule.danger { color: var(--danger); border-color: var(--danger); }
+.ws-gone-count { color: var(--danger); border-color: var(--danger); }
+.ws-row.render {
+  grid-template-columns: minmax(0, 1fr) 64px 104px 118px 56px 100px;
+}
+.ws-add-schedule { white-space: nowrap; }
+#clipTable select[data-field="platform"] { min-width: 150px; }     /* "YouTube + TikTok" in full */

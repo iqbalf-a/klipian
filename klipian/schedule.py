@@ -75,6 +75,64 @@ def file_created(project_id: str | None, file_name: str | None) -> int | None:
     return None
 
 
+def project_of_folder(folder_name: str) -> str | None:
+    """The project id at the end of an out/ folder name (<slug>.<projectId>), or None
+    for a folder from before projects had ids."""
+    tail = str(folder_name).rsplit(".", 1)[-1] if "." in str(folder_name) else ""
+    return tail if len(tail) == 12 and all(c in "0123456789abcdef" for c in tail) else None
+
+
+def file_exists(project_id: str | None, file_name: str | None) -> bool:
+    return file_created(project_id, file_name) is not None
+
+
+def with_missing_flags(clips: list[dict]) -> list[dict]:
+    """The rows for the dashboard, each with `fileMissing: true` when its render file
+    is no longer in the project's folder in out/. Derived every time and NEVER
+    written to clips.json. A row with no file or no project has nothing to compare."""
+    out = []
+    for row in clips:
+        row = dict(row)
+        row.pop("fileMissing", None)
+        if row.get("projectId") and row.get("file") and not file_exists(row["projectId"], row["file"]):
+            row["fileMissing"] = True
+        out.append(row)
+    return out
+
+
+def scheduled_files(clips: list[dict] | None = None) -> tuple[set, set]:
+    """What the schedule already points at: {(projectId, file)} and, for rows with no
+    project, {file}."""
+    pairs, loose = set(), set()
+    for row in (clips if clips is not None else load_clips()):
+        if not row.get("file"):
+            continue
+        if row.get("projectId"):
+            pairs.add((row["projectId"], row["file"]))
+        else:
+            loose.add(row["file"])
+    return pairs, loose
+
+
+def add_file_row(title: str, file_name: str, project_id: str | None,
+                 path: Path | None = None, lock: threading.Lock | None = None) -> tuple[str, bool]:
+    """A Draft row for a render file that has none (named after the file). Never a
+    second row for a file the schedule already has."""
+    with (lock or CLIPS_LOCK):
+        clips = load_clips(path)
+        for row in clips:
+            if row.get("file") == file_name and (row.get("projectId") == project_id or not row.get("projectId")):
+                return row["id"], False
+        row = {"id": uuid.uuid4().hex[:8], "status": "Draft", "platform": "YouTube + TikTok",
+               "title": title, "file": file_name, "at": int(time.time()),
+               "createdAt": file_created(project_id, file_name) or int(time.time())}
+        if project_id:
+            row["projectId"] = project_id
+        clips.append(row)
+        save_clips(clips, path)
+        return row["id"], True
+
+
 def created_of(row: dict) -> int:
     """The creation time a row without `createdAt` should get: its render file's,
     else the last time it was saved (`at`), else now."""

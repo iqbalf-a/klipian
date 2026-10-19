@@ -503,6 +503,42 @@ def _schedule_render(job_id: str, req: dict, pdata: dict) -> None:
         t["schedule"] = {"id": row_id, "created": created}
 
 
+def add_render_to_schedule(folder: str, file_name: str) -> tuple[str, bool, str]:
+    """A render file the schedule does not know (rendered before the schedule
+    existed, or its row was deleted) gets a Draft row: from the render record of
+    the Result that made it when there is one (title, post text, credit, project and
+    result ids -- the same row a render makes), else from the file name alone. A file
+    the schedule already has gets no second row. Returns (row id, created, how)."""
+    from . import credits, schedule
+    pid = schedule.project_of_folder(folder)
+    pairs, loose = schedule.scheduled_files()
+    if (pid, file_name) in pairs or file_name in loose:
+        row = next(r for r in schedule.load_clips() if r.get("file") == file_name)
+        return row["id"], False, "already in the schedule"
+    if pid:
+        for result_id, rec in read_render_records(pid).items():
+            if not any(isinstance(o, dict) and o.get("file") == file_name for o in rec.get("outputs") or []):
+                continue
+            req = rec.get("request") or {}
+            clips = req.get("clips") or [{}]
+            k = clips[0] if isinstance(clips[0], dict) else {}
+            if any(r.get("projectId") == pid and r.get("resultId") == result_id for r in schedule.load_clips()):
+                break                      # that Result has its row (its newer file): no second one
+            names = []
+            for span in k.get("spans") or []:
+                name = (span.get("video") if isinstance(span, dict) else None) or req.get("video")
+                if name and name not in names:
+                    names.append(name)
+            row_id, created = schedule.upsert_render(
+                project_id=pid, result_id=str(result_id), title=str(k.get("title") or ""),
+                file_name=file_name, post=roundtrip._post(k.get("post")),
+                credit_lines=credits.lines(names))
+            return row_id, created, "from the render record"
+    title = " ".join(Path(file_name).stem.replace("-", " ").replace("_", " ").split()) or file_name
+    row_id, created = schedule.add_file_row(title, file_name, pid)
+    return row_id, created, "from the file name"
+
+
 def missing_inputs(req: dict) -> list[str]:
     """What a request needs that isn't on this machine: its videos, and the
     project's images and sounds that its timeline elements use. Empty means it

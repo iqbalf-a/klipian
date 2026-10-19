@@ -38,7 +38,8 @@ from . import compose as composer
 from . import ffmpeg_tools
 from . import render as engine
 from . import credits as credits_mod
-from .schedule import (CLIPS_LOCK, bulk_update as _bulk_update, created_of as _created_of, load_clips as _load_clips,
+from .schedule import (CLIPS_LOCK, bulk_update as _bulk_update, scheduled_files as _scheduled_files,
+                       project_of_folder as _project_of_folder, with_missing_flags as _with_missing_flags, created_of as _created_of, load_clips as _load_clips,
                        migrate_created as _migrate_created, save_clips as _save_clips)
 from . import cues as cues_mod
 from . import roundtrip
@@ -531,6 +532,11 @@ class Handler(BaseHTTPRequestHandler):
                 "created": int(getattr(st, "st_birthtime", None) or st.st_mtime),
             })
         item.sort(key=lambda x: x["created"], reverse=True)   # newest first
+        # Which files the upload schedule has a row for (by project and file name).
+        pairs, loose = _scheduled_files()
+        for it in item:
+            pid = _project_of_folder(it["video"])
+            it["scheduled"] = (pid, it["file"]) in pairs or it["file"] in loose
         return self._send_json({"render": item})
 
     def _get_projects(self):
@@ -588,7 +594,8 @@ class Handler(BaseHTTPRequestHandler):
         if from_file or from_at:
             print(f"klipian: clips.json: gave {from_file + from_at} rows a createdAt "
                   f"({from_file} from their render file, {from_at} from their last save)")
-        return self._send_json({"clip": _load_clips()})
+        # `fileMissing` is worked out now, against what is in out/, and not stored.
+        return self._send_json({"clip": _with_missing_flags(_load_clips())})
 
     def _get_workspace_assets(self):
         # Created if missing -- an empty folder is normal
@@ -1147,6 +1154,22 @@ class Handler(BaseHTTPRequestHandler):
             _write_project(f, data)
         return self._send_json({"ok": True, "name": new_name})
 
+    def _post_workspace_clips_from_render(self):
+        """Add a render file that has no schedule row: {folder, file} (names inside
+        out/, never paths). Never makes a second row for the same file."""
+        try:
+            req = self._read_json()
+        except Exception as exc:               # noqa: BLE001
+            return self._send_json({"error": str(exc)}, 400)
+        folder, file_name = str(req.get("folder") or ""), str(req.get("file") or "")
+        if (Path(folder).name != folder or Path(file_name).name != file_name
+                or not file_name.lower().endswith(".mp4") or file_name.startswith("_")
+                or not (WORKSPACE / "out" / folder / file_name).is_file()):
+            return self._send_json({"error": "that render file was not found"}, 404)
+        from .jobs import add_render_to_schedule
+        row_id, created, how = add_render_to_schedule(folder, file_name)
+        return self._send_json({"ok": True, "id": row_id, "created": created, "how": how})
+
     def _post_workspace_clips_bulk(self):
         """One request for an action on many schedule rows: {ids, status, date?,
         time?}. One read-modify-write, one save (see schedule.bulk_update)."""
@@ -1162,6 +1185,7 @@ class Handler(BaseHTTPRequestHandler):
                                str(req.get("time") or ""))
         except ValueError as exc:
             return self._send_json({"error": str(exc)}, 400)
+        out["clip"] = _with_missing_flags(out["clip"])
         return self._send_json({"ok": True, **out})
 
     def _post_workspace_clips(self):
@@ -1198,6 +1222,7 @@ class Handler(BaseHTTPRequestHandler):
                     cid = uuid.uuid4().hex[:8]
                 req["id"] = cid
                 req["at"] = int(time.time())
+                req.pop("fileMissing", None)       # derived on every read, never stored
 
                 for i, c in enumerate(clips):
                     if c.get("id") == cid:
@@ -1512,6 +1537,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/project/rename": _post_project_rename,
         "/api/workspace/clips": _post_workspace_clips,
         "/api/workspace/clips/bulk": _post_workspace_clips_bulk,
+        "/api/workspace/clips/from-render": _post_workspace_clips_from_render,
         "/api/import": _post_import,
         "/api/render": _post_render,
         "/api/render/cancel": _post_render_cancel,

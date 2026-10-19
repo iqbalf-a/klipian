@@ -472,6 +472,15 @@ def check_schedule() -> tuple[str, str]:
             problems.append(f"bulk Mark as Posted is wrong: {a} / {b}")
         if (res["dated"], res["kept"], res["missing"]) != (1, 1, ["nope"]) or a.get("createdAt") != 456:
             problems.append(f"bulk result is wrong: {res}")
+        # A row whose render file is not in out/ is flagged on read, and the flag is never stored.
+        flagged = schedule.with_missing_flags([{"id": "x", "projectId": "0123456789ab", "file": "gone.mp4"},
+                                               {"id": "y", "file": "no-project.mp4"}])
+        if not flagged[0].get("fileMissing") or "fileMissing" in flagged[1]:
+            problems.append(f"fileMissing flags are wrong: {flagged}")
+        first_id, was_new = schedule.add_file_row("Satu", "satu.mp4", None, path, lock)
+        again_id, again_new = schedule.add_file_row("Satu", "satu.mp4", None, path, lock)
+        if not was_new or again_new or first_id != again_id:
+            problems.append("adding a render file to the schedule twice made two rows")
         try:
             schedule.bulk_update(ids, "Nonsense", path=path, lock=lock)
             problems.append("bulk update accepted a status that does not exist")

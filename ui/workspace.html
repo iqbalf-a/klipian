@@ -71,6 +71,9 @@
       <div class="flex items-center gap-3">
         <h1 class="text-[20px] font-extrabold tracking-tight">Clips</h1>
         <span class="text-text-faint text-[13px]" id="clipSummary" role="status">loading…</span>
+        <!-- Rows whose render file is no longer in out/ (shown only when there are some);
+             a click shows just those. -->
+        <button class="ws-mini ws-gone-count" id="clipGone" type="button" hidden></button>
         <!-- The clips table saves on every `change` event, with no Save
              button, so a save that FAILED left the edited value sitting in
              the input looking committed -- the failure only reached the
@@ -115,7 +118,7 @@
         <table class="w-full border-collapse text-[13px]" id="clipTable">
           <thead>
             <tr>
-              <th class="sticky top-0 z-10 bg-surface-2 border-b border-glass-border" style="width:34px">
+              <th class="sticky top-0 z-10 bg-surface-2 border-b border-glass-border" style="width:36px">
                 <input type="checkbox" id="clipSelectAll" aria-label="Select all clips on this page"></th>
               <th class="sticky top-0 z-10 bg-surface-2 text-left text-[10px] font-bold
                          uppercase tracking-wider text-text-faint px-3 py-2 border-b border-glass-border"
