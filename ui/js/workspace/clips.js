@@ -373,6 +373,7 @@ function openDetail(id) {
     if (el) el.value = c[name] || "";
   }
   detailNote("");
+  clipDialog.returnValue = "";          // Esc keeps the LAST value otherwise: a cancel would save
   clipDialog.showModal();
   clipDialog.querySelectorAll("textarea.ws-input").forEach(growText);
 }
@@ -430,21 +431,25 @@ clipDetailForm?.addEventListener("submit", (e) => {
     }
   }
   detailNote("");
-});
-
-clipDialog?.addEventListener("close", async () => {
-  if (clipDialog.returnValue !== "save") return;
-  const id = clipDialog.dataset.id;
-  const existing = CLIPS.find((c) => c.id === id);
-  if (!existing) return;
-  const clip = { ...existing };
+  const values = {};
   for (const name of DETAIL_FIELDS) {
     const el = $(`[data-field="${name}"]`, clipDetailForm);
-    if (el) clip[name] = el.value;
+    if (el) values[name] = el.value;
   }
+  // Saved from HERE, with a copy of what is in the form now. The dialog's `close`
+  // event is no place for it: it arrives later, as its own task (late, or not at
+  // all while the page is hidden), by which time the dialog may be open for another
+  // row. Esc and Close never reach this handler, so they never save.
+  saveDetail(clipDialog.dataset.id, values);
+});
+
+async function saveDetail(id, values) {
+  const existing = CLIPS.find((c) => c.id === id);
+  if (!existing) return;
+  const clip = { ...existing, ...values };
   const notes = applyLinkToClip(clip, existing);
   const saved = await saveClip(clip);
   if (saved && notes.length) { drawClips(); clipNotice(`${clip.title || "Clip"}: ${notes.join(" · ")}`); }
-});
+}
 
 loadClips();
