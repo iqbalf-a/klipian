@@ -348,6 +348,7 @@ def cmd_render(args: argparse.Namespace) -> int:
     print("")
 
     succeeded = 0
+    used: set[str] = set()          # names written in this run: two clips never share a file
     for i, k in enumerate(items, 1):
         title = k.get("title") or k.get("judul") or f"clip-{i}"
         try:
@@ -374,7 +375,12 @@ def cmd_render(args: argparse.Namespace) -> int:
             **shape,
             out_width=args.width,
         )
-        dest = out_dir / engine.safe_filename(title, f"clip-{i}")
+        # The same rule as the editor's render: named after the post title when
+        # there is one, else the title.
+        name = engine.unique_filename(
+            engine.safe_filename(engine.clip_file_title(k) or title, f"clip-{i}"), used)
+        used.add(name.lower())
+        dest = out_dir / name
 
         print(f"[{i}/{len(items)}] {title}")
         try:

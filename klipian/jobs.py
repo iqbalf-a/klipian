@@ -24,7 +24,8 @@ from . import render as engine
 from . import roundtrip
 from .paths import GLOSSARY, WORKSPACE, find_video
 from .projects import (_project_assets_dir, _project_file,
-                       _project_out_dir, _read_project, write_render_record)
+                       _project_out_dir, _read_project, read_render_records,
+                       write_render_record)
 
 # Render jobs currently / already running
 JOBS: dict[str, dict] = {}
@@ -227,6 +228,7 @@ def _run_render(job_id: str, req: dict, into: Path | None = None, record: bool =
         if into is not None:
             out_dir = into
         clips = req["clips"]
+        taken = _files_of_other_results(pdata, req.get("result"))
         # Under LOCK like every other JOBS write in this function. Rebinding
         # an existing key can't actually race, but the inconsistency is
         # exactly the kind of thing the surrounding code is careful about.
@@ -264,7 +266,12 @@ def _run_render(job_id: str, req: dict, into: Path | None = None, record: bool =
             # clip, single- or multi-asset alike -- it's a look, not a
             # property of any one source video.
             style = k.get("style") if isinstance(k.get("style"), dict) else None
-            name = engine.safe_filename(k["title"], f"clip-{i+1}")
+            # Named after the post title (what YouTube will read as the video's
+            # title), else the Result's. Another Result's file is never taken: its
+            # name gets -2, -3 ... A Result rendered again keeps writing its own.
+            name = engine.unique_filename(
+                engine.safe_filename(engine.clip_file_title(k), f"clip-{i+1}"), taken)
+            taken.add(name.lower())
             dest = out_dir / name
 
             if len(runs) == 1 and runs[0][0] == req["video"]:
@@ -426,6 +433,19 @@ def hash_file(path: Path) -> dict:
             sha.update(chunk)
             size += len(chunk)
     return {"md5": md5.hexdigest(), "sha256": sha.hexdigest(), "bytes": size}
+
+
+def _files_of_other_results(pdata: dict | None, result_id) -> set[str]:
+    """Lower-cased names of the files the OTHER Results of this project last
+    rendered (their render records), which a new file must not overwrite."""
+    if not pdata:
+        return set()
+    try:
+        records = read_render_records(pdata.get("id"))
+    except OSError:
+        return set()
+    return {o["file"].lower() for rid, rec in records.items() if rid != str(result_id or "")
+            for o in rec.get("outputs") or [] if isinstance(o, dict) and o.get("file")}
 
 
 def _record_render(job_id: str, req: dict, pdata: dict, out_dir: Path) -> None:

@@ -19,6 +19,7 @@ Three things done here, and the order matters:
 
 from __future__ import annotations
 
+import re
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -741,15 +742,31 @@ _WINDOWS_RESERVED = frozenset(
 )
 
 
+FILENAME_MAX = 100          # characters before ".mp4"
+
+
 def safe_filename(title: str, fallback: str) -> str:
     """Clip title -> filename. One rule, used by both server and CLI.
 
-    Previously this logic was reimplemented in three places with two
-    different behaviors, so the name displayed by the UI didn't always
-    match what was actually written to disk.
+    The name is the title, because YouTube reads a video's title from its file name
+    when it is uploaded: "Dihujat Satu TikTok Gara-gara Peluk Artis" becomes
+    "Dihujat-Satu-TikTok-Gara-gara-Peluk-Artis.mp4" (YouTube shows the hyphens as
+    spaces). Upper and lower case are kept; spaces become "-" and a "-" that is
+    already there stays; letters (any script) and digits stay; apostrophes are
+    dropped without a gap (Don't -> Dont); everything else (punctuation, emoji,
+    the characters Windows does not allow in a name) is a separator. Doubled
+    separators collapse, none at either end, at most FILENAME_MAX characters, cut
+    at a word.
     """
-    kept = "".join(c if c.isalnum() or c in "- " else " " for c in title)
-    name = "-".join(kept.lower().split()) or fallback
+    text = str(title or "").replace("'", "").replace("\u2019", "")
+    kept = "".join(c if c.isalnum() or c == "-" else " " for c in text)
+    name = re.sub(r"-{2,}", "-", "-".join(kept.split())).strip("-")
+    if len(name) > FILENAME_MAX:
+        cut = name[:FILENAME_MAX]
+        if name[FILENAME_MAX] != "-" and "-" in cut:
+            cut = cut.rsplit("-", 1)[0]          # never half a word
+        name = cut.strip("-")
+    name = name or fallback
     # Windows reserves these as DEVICE names, with or without an extension:
     # opening "con.mp4" talks to the console, not a file. A clip titled
     # "CON" or "Aux" (or "com1".."com9", "lpt1".."lpt9") therefore failed
@@ -758,6 +775,32 @@ def safe_filename(title: str, fallback: str) -> str:
     if name.upper() in _WINDOWS_RESERVED:
         name = f"{name}-clip"
     return name + ".mp4"
+
+
+def clip_file_title(clip: dict) -> str:
+    """The words a clip's file is named after, in order: the post title (what the
+    upload will be called), the Result's title, the first moment's title. Empty
+    when there is none (the caller falls back to clip-N)."""
+    post = clip.get("post") if isinstance(clip.get("post"), dict) else {}
+    for candidate in (post.get("title"), clip.get("title")):
+        if isinstance(candidate, str) and candidate.strip():
+            return candidate
+    for span in clip.get("spans") or []:
+        if isinstance(span, dict) and isinstance(span.get("title"), str) and span["title"].strip():
+            return span["title"]
+    return ""
+
+
+def unique_filename(name: str, taken: set[str]) -> str:
+    """`name`, or name-2, name-3 ... when it is in `taken` (lower-cased names: a
+    Windows file system does not tell "A.mp4" from "a.mp4")."""
+    if name.lower() not in taken:
+        return name
+    stem, ext = name.rsplit(".", 1)
+    n = 2
+    while f"{stem}-{n}.{ext}".lower() in taken:
+        n += 1
+    return f"{stem}-{n}.{ext}"
 
 
 class RenderCancelled(RuntimeError):
