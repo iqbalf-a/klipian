@@ -39,6 +39,7 @@ function setOverlays(list) {
   syncSoundElements();
   drawOverlays();
   if (activeScreen === "timeline") renderTimeline();
+  if (typeof renderAngleStates === "function") renderAngleStates();
 }
 
 /* ---------- output-time helpers ---------- */
@@ -142,10 +143,19 @@ function drawOverlays(out) {
       // the text above them (app.css .ov-box / .ov-fg). Same width, same
       // wrapping, so the lines of both fall in the same places.
       const look = e.box ? "" : `-webkit-text-stroke:${u(LABEL_OUTLINE * 2)}px #000;`;
+      // The text layer carries the SAME horizontal padding as the box layer
+      // (invisible there), so both measure the same width and break at the same
+      // places -- at the edge of the wrap width a layer that was a padding
+      // narrower broke a line earlier or later than the other, and the text came
+      // out of its box. The wrap width is the render's (the frame less its 40-unit
+      // margins) for the text itself, so the container allows the padding on top.
+      const pad = u(LABEL_PAD);
       const inner = e.box
-        ? `<div class="ov-box"><span style="padding:${u(LABEL_PAD)}px">${text}</span></div><div class="ov-fg">${text}</div>`
+        ? `<div class="ov-box"><span style="padding:${pad}px">${text}</span></div>`
+          + `<div class="ov-fg" style="padding:0 ${pad}px">${text}</div>`
         : text;
-      return `<div class="ov-text${e.box ? " box" : ""}" style="${pos};font-size:${u(e.size * LABEL_EM)}px;`
+      const cap = e.box ? `max-width:calc(92.6% + ${2 * pad}px);` : "";
+      return `<div class="ov-text${e.box ? " box" : ""}" style="${pos};${cap}font-size:${u(e.size * LABEL_EM)}px;`
         + `line-height:${LABEL_LINE};${look}color:${escapeHTML(e.color)}">${inner}</div>`;
     }
     return `<img class="ov-image" alt="" src="${assetFileUrl(e.file)}" style="${pos};width:${e.size}%">`;
@@ -364,6 +374,7 @@ function renderInspector() {
 
 function commitOverlays() {
   _overlayKey = "";
+  if (typeof renderAngleStates === "function") renderAngleStates();
   syncSoundElements();
   drawOverlays();
   renderTimeline();
@@ -424,11 +435,14 @@ async function addCreditLabel() {
    notes). Returns false, and adds nothing, when a text label with the same words
    is already there -- pressing the button twice must not stack two copies. The
    caller calls commitOverlays() once after a batch. */
-function addTextOverlay({ text, start, end, x = 50, y, size, box = true }) {
+function addTextOverlay({ text, start, end, x = 50, y, size, box = true, origin }) {
   const same = (t) => String(t || "").trim().toLowerCase();
   if (OVERLAYS.some((o) => o.kind === "text" && same(o.text) === same(text))) return false;
   OVERLAYS.push({ id: `o${++overlaySeq}`, kind: "text", ...OVERLAY_DEFAULTS.text,
-                  text, start: round2(start), end: round2(end), x, y, size, box });
+                  text, start: round2(start), end: round2(end), x, y, size, box,
+                  // Which part of the Angle panel made it (angle.js): that panel
+                  // then keeps it in step. A label without one is never touched.
+                  ...(origin ? { origin } : {}) });
   return true;
 }
 

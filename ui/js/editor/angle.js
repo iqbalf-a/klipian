@@ -8,8 +8,9 @@
    (roundtrip.py: `angle`), and adding that suggestion to the Result brings it
    here -- but these are drafts. They are edited here, saved with the RESULT
    (`angle`: { take, intro, notes: [{ at, text }] }, left out when empty), and
-   NOTHING goes into the video until "Add intro" / "Add notes" is pressed. What
-   it adds are ordinary Timeline text labels: move, change or delete them there.
+   NOTHING goes into the video until "Add" is pressed on the intro or a note.
+   What it adds are ordinary Timeline text labels: move, change or delete them
+   there, or manage them from this panel (see "the labels it puts on the video").
 
    `at` of a note is seconds from the start of the clip. For a Result of several
    moments that is the start of the Result (its first moment), which is where
@@ -64,6 +65,7 @@ function setAngleFields(angle) {
     if ($(`#angleNoteText${i}`)) $(`#angleNoteText${i}`).value = n ? n.text : "";
   }
   updateAngleCount();
+  if (typeof renderAngleStates === "function") renderAngleStates();
 }
 
 const clearAngleFields = () => setAngleFields(null);
@@ -79,44 +81,114 @@ function carryAngleFrom(candidates) {
   if (typeof saveProject === "function") saveProject();
 }
 
-/* ---------- putting it on the Timeline ---------- */
+/* ---------- the labels it puts on the video ----------
+   Each part (the intro, each note) can be put on the video as an ordinary
+   Timeline text label, and the label remembers which part made it (`origin`:
+   "angle-intro", "angle-note-0".."2"). The panel shows, per part, whether it is
+   on the video and lets you add or remove it; editing the text (or a note's
+   time) here changes that label, and deleting the label on the Timeline puts the
+   part back to "Add". Position, size and colour changed on the Timeline are
+   left alone. A label with no origin is never touched. */
 
-function angleNote(text) {
+const originOf = (part) => (part === "intro" ? "angle-intro" : `angle-note-${part}`);
+const angleLabel = (part) => OVERLAYS.find((o) => o.origin === originOf(part));
+
+function angleStatus(text) {
   const el = $("#angleStatus");
   if (el) el.textContent = text;
 }
 
-$("#angleAddIntro")?.addEventListener("click", () => {
-  const a = currentAngle();
-  if (!a?.intro) { angleNote("Write an intro first."); return; }
-  const total = tlxTotal();
-  if (!total) { angleNote("Add moments to the Result on Clips first."); return; }
-  const added = addTextOverlay({
-    text: a.intro, start: 0, end: Math.min(total, ANGLE_INTRO_SECONDS), y: 16, size: ANGLE_INTRO_SIZE,
-  });
-  if (!added) { angleNote("The intro is already on the Timeline."); return; }
-  commitOverlays();
-  angleNote(`Intro added to the Timeline (0 – ${Math.min(total, ANGLE_INTRO_SECONDS)} s).`);
-});
+/* What each part says now: its text and, for a note, its start second. */
+function anglePart(part) {
+  if (part === "intro") return { text: ($("#angleIntro")?.value || "").trim() };
+  const text = ($(`#angleNoteText${part}`)?.value || "").trim();
+  const at = parseFloat($(`#angleNoteAt${part}`)?.value);
+  return { text, at: Number.isFinite(at) ? Math.max(0, at) : 0 };
+}
 
-$("#angleAddNotes")?.addEventListener("click", () => {
-  const a = currentAngle();
-  if (!a?.notes.length) { angleNote("Write a note first."); return; }
-  const total = tlxTotal();
-  if (!total) { angleNote("Add moments to the Result on Clips first."); return; }
-  let added = 0, skipped = 0;
-  for (const n of a.notes) {
-    const start = Math.max(0, Math.min(n.at, Math.max(0, total - 0.5)));
-    const ok = addTextOverlay({
-      text: n.text, start, end: Math.min(total, start + ANGLE_NOTE_SECONDS), y: 28, size: ANGLE_NOTE_SIZE,
-    });
-    if (ok) added++; else skipped++;
+const ANGLE_PARTS = ["intro", 0, 1, 2];
+
+/* Labels made before they carried an origin (the first version of this panel):
+   matched once by their words, then marked, so they are managed from here too. */
+function adoptAngleLabels() {
+  const same = (t) => String(t || "").trim().toLowerCase();
+  for (const part of ANGLE_PARTS) {
+    if (angleLabel(part)) continue;
+    const { text } = anglePart(part);
+    if (!text) continue;
+    const old = OVERLAYS.find((o) => o.kind === "text" && !o.origin && same(o.text) === same(text));
+    if (old) old.origin = originOf(part);
   }
-  if (added) commitOverlays();
-  angleNote(added
-    ? `${added} note${added === 1 ? "" : "s"} added to the Timeline`
-      + (skipped ? ` · ${skipped} already there` : "")
-    : "The notes are already on the Timeline.");
+}
+
+/* One line per part, at the right of its field: "Add", or "on the video" and "Remove". */
+function renderAngleStates() {
+  if (!$("#anglePanel")) return;
+  adoptAngleLabels();
+  for (const part of ANGLE_PARTS) {
+    const box = document.querySelector(`[data-angle-act="${part}"]`);
+    if (!box) continue;
+    const { text } = anglePart(part);
+    const label = angleLabel(part);
+    box.innerHTML = label
+      ? `<span class="angle-on">on the video</span><button class="btn quiet" type="button" data-angle-remove="${part}">Remove</button>`
+      : `<button class="btn" type="button" data-angle-add="${part}"${text ? "" : " disabled"}>Add</button>`;
+  }
+}
+
+/* The part's text and time, written into its label (not its place, size or colour). */
+function syncAngleLabel(part) {
+  const label = angleLabel(part);
+  if (!label) return false;
+  const { text, at } = anglePart(part);
+  if (!text) return false;                       // an emptied field leaves the label as it is
+  label.text = text;
+  if (part !== "intro") {
+    const total = tlxTotal();
+    const start = Math.max(0, Math.min(at, Math.max(0, total - 0.5)));
+    const length = label.end - label.start;
+    label.start = round2(start);
+    label.end = round2(Math.min(total || start + length, start + length));
+  }
+  return true;
+}
+
+function addAngleLabel(part) {
+  const total = tlxTotal();
+  if (!total) { angleStatus("Add moments to the Result on Clips first."); return; }
+  const { text, at } = anglePart(part);
+  if (!text) return;
+  if (part === "intro") {
+    OVERLAYS.push({ id: `o${++overlaySeq}`, kind: "text", ...OVERLAY_DEFAULTS.text, text, box: true,
+      start: 0, end: round2(Math.min(total, ANGLE_INTRO_SECONDS)), x: 50, y: 16, size: ANGLE_INTRO_SIZE,
+      origin: originOf("intro") });
+  } else {
+    const start = Math.max(0, Math.min(at, Math.max(0, total - 0.5)));
+    OVERLAYS.push({ id: `o${++overlaySeq}`, kind: "text", ...OVERLAY_DEFAULTS.text, text, box: true,
+      start: round2(start), end: round2(Math.min(total, start + ANGLE_NOTE_SECONDS)), x: 50, y: 28,
+      size: ANGLE_NOTE_SIZE, origin: originOf(part) });
+  }
+  commitOverlays();
+  angleStatus(part === "intro" ? "Intro is on the video." : `Note ${part + 1} is on the video.`);
+}
+
+document.querySelector("#anglePanel")?.addEventListener("click", (e) => {
+  const add = e.target.closest("[data-angle-add]");
+  const rem = e.target.closest("[data-angle-remove]");
+  if (add) {
+    const part = add.dataset.angleAdd === "intro" ? "intro" : Number(add.dataset.angleAdd);
+    // A label with the same words but no origin (made by hand) is taken over
+    // rather than duplicated.
+    adoptAngleLabels();
+    if (angleLabel(part)) { renderAngleStates(); return; }
+    addAngleLabel(part);
+  } else if (rem) {
+    const part = rem.dataset.angleRemove === "intro" ? "intro" : Number(rem.dataset.angleRemove);
+    OVERLAYS = OVERLAYS.filter((o) => o.origin !== originOf(part));
+    tlxSel = null;
+    commitOverlays();
+    angleStatus("Removed from the video.");
+  }
 });
 
 /* ---------- wiring ---------- */
@@ -126,8 +198,13 @@ $("#angleAddNotes")?.addEventListener("click", () => {
 ).forEach((sel) => {
   $(sel)?.addEventListener("input", () => {
     updateAngleCount();
+    // Editing a part that is on the video edits its label.
+    const changed = ANGLE_PARTS.some((part) => syncAngleLabel(part));
+    if (changed) commitOverlays(); else renderAngleStates();
     if (typeof saveProject === "function") saveProject();
   });
 });
 
 updateAngleCount();
+// (renderAngleStates() runs when a Result's fields and labels are loaded, not
+// here: the Timeline's OVERLAYS, in compose.js, are not defined yet at this point.)

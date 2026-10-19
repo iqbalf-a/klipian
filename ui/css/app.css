@@ -2229,7 +2229,13 @@ h1, h2, h3 {
 
 /* Angle (angle.js) uses the Post text panel's look; these are its note rows. */
 .angle-notes { display: grid; gap: 6px; }
-.angle-note-row { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: var(--s2); }
+.angle-note-row { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: var(--s2); align-items: center; }
+.angle-intro-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s2); align-items: center; }
+/* Per part: "Add", or "on the video" and "Remove". Same width either way. */
+.angle-act { display: flex; align-items: center; justify-content: flex-end; gap: var(--s2); min-width: 130px; }
+.angle-on { font-size: var(--t-12); color: var(--accent); }
+.angle-foot { margin: 0; }
+.angle-foot .data { margin-left: var(--s2); color: var(--text-muted); }
 .post-field .angle-note-row input { width: 100%; }
 
 .render-bar {

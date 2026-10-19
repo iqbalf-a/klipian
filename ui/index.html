@@ -864,7 +864,7 @@
         <div class="panel fit post-text" id="postPanel">
           <div class="post-head">
             <h2>Post text</h2>
-            <p class="step-note">What you paste when you upload this clip. Not the captions burned into the video.</p>
+            <p class="step-note">For the upload (YouTube/TikTok description). Not shown in the video.</p>
           </div>
           <label class="post-field">
             <span class="post-label">Title <span class="data" id="postTitleCount" data-over="false">0 / 70</span></span>
@@ -901,7 +901,7 @@
         <div class="panel fit post-text" id="anglePanel">
           <div class="post-head">
             <h2>Angle</h2>
-            <p class="step-note">Suggestions. Make them your own: your view is what makes a clip original.</p>
+            <p class="step-note">Draft ideas. Only the intro and notes go into the video, and only when you add them.</p>
           </div>
           <label class="post-field">
             <span class="post-label">Take</span>
@@ -911,8 +911,11 @@
           <label class="post-field">
             <span class="post-label">Intro, over the first seconds
               <span class="data" id="angleIntroCount" data-over="false">0 / 12 words</span></span>
-            <input id="angleIntro" type="text" spellcheck="false" autocomplete="off"
-                   placeholder="an opening line, up to 12 words">
+            <span class="angle-intro-row">
+              <input id="angleIntro" type="text" spellcheck="false" autocomplete="off"
+                     placeholder="an opening line, up to 12 words">
+              <span class="angle-act" data-angle-act="intro"></span>
+            </span>
           </label>
           <div class="post-field">
             <span class="post-label">Notes, comments over the clip
@@ -921,22 +924,22 @@
               <div class="angle-note-row">
                 <input id="angleNoteAt0" type="number" min="0" step="0.5" placeholder="s" aria-label="Note 1 time in seconds">
                 <input id="angleNoteText0" type="text" spellcheck="false" autocomplete="off" placeholder="up to 8 words" aria-label="Note 1">
+                <span class="angle-act" data-angle-act="0"></span>
               </div>
               <div class="angle-note-row">
                 <input id="angleNoteAt1" type="number" min="0" step="0.5" placeholder="s" aria-label="Note 2 time in seconds">
                 <input id="angleNoteText1" type="text" spellcheck="false" autocomplete="off" placeholder="up to 8 words" aria-label="Note 2">
+                <span class="angle-act" data-angle-act="1"></span>
               </div>
               <div class="angle-note-row">
                 <input id="angleNoteAt2" type="number" min="0" step="0.5" placeholder="s" aria-label="Note 3 time in seconds">
                 <input id="angleNoteText2" type="text" spellcheck="false" autocomplete="off" placeholder="up to 8 words" aria-label="Note 3">
+                <span class="angle-act" data-angle-act="2"></span>
               </div>
             </div>
           </div>
-          <div class="post-actions">
-            <button class="btn" type="button" id="angleAddIntro">Add intro</button>
-            <button class="btn" type="button" id="angleAddNotes">Add notes</button>
-            <span class="data" id="angleStatus" role="status"></span>
-          </div>
+          <p class="step-note angle-foot">Labels on the video: edit or delete them here or on the Timeline.
+            <span class="data" id="angleStatus" role="status"></span></p>
         </div>
 
         <div class="render-bar">
