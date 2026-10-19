@@ -84,6 +84,18 @@
            w-full max-w-[560px] shadow-card;
   }
   .ws-dialog::backdrop { @apply bg-black/60; }
+  /* The Detail dialog: wide, and its fields visible as fields (the table's
+     inputs hide their border until hover, which in here read as plain text). */
+  .ws-dialog.wide { @apply max-w-[880px]; }
+  .ws-dialog .ws-input { @apply border-glass-border bg-surface-1; }
+  .ws-dialog textarea.ws-input { min-height: 10rem; max-height: 45vh; }
+  .ws-dialog textarea.ws-notes { min-height: 5.5rem; }
+  .ws-pair { @apply grid gap-4; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ws-fhead { @apply flex items-center justify-between gap-2; }
+  .ws-mini {
+    @apply rounded-s border border-glass-border bg-transparent px-2 py-0.5 text-[11px]
+           text-text-muted cursor-pointer hover:bg-glass hover:text-text;
+  }
   .ws-field { @apply flex flex-col gap-1.5 text-[12px] text-text-faint; }
 
   /* Render & asset rows -- 1 wide column + several tight narrow columns. */

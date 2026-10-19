@@ -171,27 +171,8 @@ async function prepareExport(videoName) {
   }
 }
 
-/* Plain-text copy for a browser without the async Clipboard API (or one that
-   refused it): a hidden textarea and execCommand. */
-function copyViaTextarea(text) {
-  const ta = document.createElement("textarea");
-  ta.value = text;
-  ta.setAttribute("readonly", "");
-  ta.style.cssText = "position:fixed;top:0;left:0;opacity:0;pointer-events:none";
-  document.body.appendChild(ta);
-  ta.select();
-  let ok = false;
-  try { ok = document.execCommand("copy"); } catch { /* refused */ }
-  ta.remove();
-  return ok;
-}
-
-async function copyText(text) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch { return copyViaTextarea(text); }
-}
+// copyText() and copyViaTextarea() live in js/shared/clipboard.js (the /workspace
+// dashboard copies text too).
 
 $("#copyBrief")?.addEventListener("click", async (e) => {
   const btn = e.currentTarget, note = $("#exportNote");

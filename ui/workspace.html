@@ -116,26 +116,43 @@
          for free, no need for custom overlay code. Title is shown as context
          ONLY (read-only) -- edited from the table so there aren't two sources
          of truth for the same field. -->
-    <dialog class="ws-dialog" id="clipDetailDialog">
+    <dialog class="ws-dialog wide" id="clipDetailDialog">
       <form method="dialog" class="flex flex-col gap-4" id="clipDetailForm">
         <div class="flex items-start gap-3">
           <h2 class="text-[15px] font-extrabold leading-tight" id="clipDetailTitle">Clip details</h2>
+          <button class="ws-mini" type="button" data-copy-title>Copy title</button>
           <button class="ml-auto ws-close" type="submit" value="cancel" title="Close">✕</button>
         </div>
-        <label class="ws-field">Source episode
-          <input class="ws-input" type="text" data-field="episode"></label>
-        <label class="ws-field">Clip file
-          <input class="ws-input" type="text" data-field="file"></label>
-        <label class="ws-field">Description + hashtags (YouTube)
-          <textarea class="ws-input" rows="3" data-field="description"></textarea></label>
-        <label class="ws-field">TikTok caption
-          <textarea class="ws-input" rows="3" data-field="tiktokCaption"></textarea></label>
-        <label class="ws-field">YouTube link
-          <input class="ws-input" type="url" data-field="youtubeUrl"></label>
-        <label class="ws-field">TikTok link
-          <input class="ws-input" type="url" data-field="tiktokUrl"></label>
+        <div class="ws-pair">
+          <label class="ws-field">Source episode
+            <input class="ws-input" type="text" data-field="episode"></label>
+          <label class="ws-field">Clip file
+            <input class="ws-input" type="text" data-field="file"></label>
+        </div>
+        <div class="ws-field">
+          <span class="ws-fhead">Description + hashtags (YouTube)
+            <button class="ws-mini" type="button" data-copy="description">Copy</button></span>
+          <textarea class="ws-input" rows="8" data-field="description" aria-label="Description and hashtags"></textarea>
+        </div>
+        <div class="ws-field">
+          <span class="ws-fhead">TikTok caption
+            <button class="ws-mini" type="button" data-copy="tiktokCaption">Copy</button></span>
+          <textarea class="ws-input" rows="8" data-field="tiktokCaption" aria-label="TikTok caption"></textarea>
+        </div>
+        <div class="ws-pair">
+          <div class="ws-field">
+            <span class="ws-fhead">YouTube link
+              <button class="ws-mini" type="button" data-open="youtubeUrl">Open</button></span>
+            <input class="ws-input" type="url" data-field="youtubeUrl" aria-label="YouTube link">
+          </div>
+          <div class="ws-field">
+            <span class="ws-fhead">TikTok link
+              <button class="ws-mini" type="button" data-open="tiktokUrl">Open</button></span>
+            <input class="ws-input" type="url" data-field="tiktokUrl" aria-label="TikTok link">
+          </div>
+        </div>
         <label class="ws-field">Notes
-          <textarea class="ws-input" rows="2" data-field="notes"></textarea></label>
+          <textarea class="ws-input ws-notes" rows="4" data-field="notes"></textarea></label>
         <div class="flex gap-2 justify-end">
           <button class="rounded-s px-3 py-1.5 text-[13px] border border-glass-border hover:bg-glass"
                   type="submit" value="cancel">Close</button>
@@ -188,6 +205,7 @@
 
 <!-- Same file the editor loads -- the topbar's Theme / "?" / clock. -->
 <script src="/ui/js/shared/topbar.js?v=1790703163808"></script>
+<script src="/ui/js/shared/clipboard.js?v=1790703163808"></script>
 <script src="/ui/js/workspace/helpers.js?v=1790703163808"></script>
 <script src="/ui/js/workspace/clips.js?v=1790703163808"></script>
 <script src="/ui/js/workspace/sources.js?v=1790703163808"></script>

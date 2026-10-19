@@ -201,12 +201,43 @@ function openDetail(id) {
   // Title here is read-only context -- edited from the table so there's
   // no single source of truth for the same field in two places.
   $("#clipDetailTitle").textContent = c.title || "(untitled)";
+  $("#clipDetailTitle").dataset.title = c.title || "";
   for (const name of DETAIL_FIELDS) {
     const el = $(`[data-field="${name}"]`, clipDetailForm);
     if (el) el.value = c[name] || "";
   }
   clipDialog.showModal();
+  clipDialog.querySelectorAll("textarea.ws-input").forEach(growText);
 }
+
+/* A text area as tall as its text: at least its own rows, at most 45% of the
+   window, then it scrolls. */
+function growText(el) {
+  el.style.height = "auto";
+  el.style.height = `${Math.min(el.scrollHeight + 2, Math.round(window.innerHeight * 0.45))}px`;
+}
+
+clipDetailForm?.addEventListener("input", (e) => {
+  if (e.target.matches("textarea.ws-input")) growText(e.target);
+});
+
+/* Copy and Open buttons of the dialog. */
+clipDetailForm?.addEventListener("click", async (e) => {
+  const copy = e.target.closest("[data-copy], [data-copy-title]");
+  const open = e.target.closest("[data-open]");
+  if (copy) {
+    const text = copy.hasAttribute("data-copy-title")
+      ? ($("#clipDetailTitle").dataset.title || "")
+      : ($(`[data-field="${copy.dataset.copy}"]`, clipDetailForm)?.value || "");
+    if (!text.trim()) { copy.textContent = "Empty"; setTimeout(() => { copy.textContent = copy.dataset.label || "Copy"; }, 1200); return; }
+    copy.dataset.label = copy.dataset.label || copy.textContent;
+    if (await copyText(text)) flashCopied(copy);
+  } else if (open) {
+    const url = ($(`[data-field="${open.dataset.open}"]`, clipDetailForm)?.value || "").trim();
+    if (/^https?:\/\//i.test(url)) window.open(url, "_blank", "noopener");
+    else { open.textContent = "No link"; setTimeout(() => { open.textContent = "Open"; }, 1200); }
+  }
+});
 
 clipDialog?.addEventListener("close", async () => {
   if (clipDialog.returnValue !== "save") return;
