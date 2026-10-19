@@ -1251,6 +1251,112 @@ header order by file tersebut dibuat". Keputusan ian: **kedua tabel**
   - baris baru (render atau "+ New clip") tampil di posisi yang benar
     sesuai urutan aktif.
 
+### P16 — Upload otomatis ke YouTube Shorts (DITUNDA, rencana saja)
+
+Permintaan ian (2026-10-19): upload otomatis dari jadwal, mulai dari
+YouTube Shorts, sekaligus memperbarui baris di `/workspace` Clips. Ian
+memutuskan **menunda dulu dan menyiapkan rencananya**.
+
+**Jalurnya:** YouTube Data API v3 (`videos.insert`) dengan OAuth milik
+ian. Otomasi klik YouTube Studio lewat browser **tidak** dipakai, karena
+melanggar ketentuan layanan YouTube dan mudah rusak.
+
+**Batasan dari Google** (sumber pihak ketiga, dicek 2026-10-19; pastikan
+lagi di dokumen resmi sebelum mulai):
+- Project Google Cloud yang **belum lolos audit** (dibuat setelah 28 Juli
+  2020): video hasil upload API **terkunci private** dan tidak bisa
+  dibuka. Supaya bisa publik, project harus lolos **YouTube API Services
+  compliance audit**.
+- Kuota per project: angka 1.600 unit per upload dari 10.000 per hari,
+  atau 100 upload per hari sejak Juni 2026, masih simpang siur. Cek di
+  Cloud Console. Untuk 1–3 Shorts per hari, keduanya cukup.
+- OAuth client berstatus "Testing": refresh token kedaluwarsa setelah
+  ±7 hari, jadi perlu Connect ulang mingguan. Status "In production"
+  tanpa verifikasi Google memunculkan layar "unverified app" saat ian
+  login sendiri, tapi token bertahan lama. Ian yang memilih.
+
+**Persiapan ian (di luar klipian):**
+1. Google Cloud Console, login dengan akun Google pemilik kanal, lalu
+   buat project baru (misalnya `klipian`).
+2. APIs & Services → Library → **YouTube Data API v3** → Enable.
+3. Layar persetujuan OAuth (Google Auth Platform):
+   - tipe External;
+   - nama app, email support;
+   - tambahkan email sendiri sebagai **Test user**;
+   - scope `youtube.upload` dan `youtube.readonly`.
+4. Credentials → Create credentials → **OAuth client ID** → tipe
+   **Desktop app** → unduh JSON-nya, lalu simpan sebagai
+   `workspace/secrets/client_secret.json` (`workspace/*` tidak masuk git).
+5. Catat kuota upload di halaman Quotas.
+6. **Audit** dikerjakan *setelah* Tahap 1 jadi, karena formulirnya butuh
+   penjelasan dan demo cara aplikasi dipakai. Sesi analisis akan
+   menyusunkan teks pengajuannya. Sampai audit lolos, upload hanya
+   untuk uji (private).
+
+**Tahap 1 (klipian), satu klip dari jadwal:**
+- dependensi opsional `requirements-youtube.txt` (`google-api-python-client`,
+  `google-auth-oauthlib`), seperti AI Framing;
+- `klipian/youtube.py`, berisi OAuth loopback dan token di
+  `workspace/secrets/` (tidak pernah dikirim ke browser atau ditulis ke
+  log);
+- tombol **Connect YouTube** di dashboard (menampilkan nama kanal);
+- tombol **Upload to YouTube** per baris/Detail:
+  - file, title (≤100), description, tags dari hashtag;
+  - `publishAt` dari upload date + time; kalau kosong, langsung publik;
+  - `selfDeclaredMadeForKids` = false;
+  - cek: video vertikal dan ≤ 3 menit;
+- upload resumable sebagai job latar belakang, dengan progress dan
+  cancel;
+- setelah selesai, baris diperbarui: status Scheduled/Posted,
+  `youtubeUrl`, `videoId`;
+- pengaman upload dobel; pesan yang jelas untuk kuota habis dan video
+  terkunci private karena belum diaudit;
+- tombol **Check status**.
+
+**Tahap 2:** "Schedule all Ready" (upload massal dengan jadwal masing-masing).
+
+**Tahap 3:** TikTok Content Posting API (aplikasinya juga perlu review).
+
+### P17 — Nama file render = judul unggahan, dipisah "-"
+
+Saran ian (2026-10-19): nama file disamakan dengan title/hook, karena
+YouTube mengisi judul otomatis dari nama file, dan menurut ian YouTube
+membaca `podcast-radit` sebagai "podcast radit".
+
+Bahwa YouTube Studio mengisi judul default dari nama file sudah umum
+diketahui. Pengubahan "-" menjadi spasi belum terkonfirmasi dari sumber
+resmi; ian cukup cek sekali dengan satu upload. Setelah P16 jalan,
+judul akan diisi lewat API, jadi aturan ini terutama berguna untuk
+upload manual.
+
+**Sekarang:** `render.safe_filename(k["title"])` memakai judul Result
+(2–5 kata), lalu **mengubah semuanya menjadi huruf kecil**. Contohnya
+`dihujat-fans-gara-gara-peluk-artis.mp4`. Judul unggahan (`post.title`)
+tidak dipakai. Dua Result dengan judul sama akan menulis ke file yang
+sama di folder project dan saling menimpa; ini sempat terjadi pada
+res15/res16 karena bug P11b.
+
+**Aturan baru:**
+- **Sumber nama**, urut: `post.title` → judul Result → judul segmen
+  pertama → `clip-N`.
+- **Huruf besar dan kecil dipertahankan.** Spasi menjadi `-`; tanda
+  hubung yang sudah ada tetap (`Gara-gara`); karakter yang dilarang
+  Windows (`<>:"/\|?*`), emoji, dan simbol lain dibuang. Huruf Unicode
+  dan angka tetap dipakai. Separator ganda dirapatkan, tanpa `-` di awal
+  atau akhir, dan panjang maksimal ±100 karakter. Aturan nama perangkat
+  Windows yang dicadangkan (`CON` dan sejenisnya) tetap berlaku.
+  Contoh: `Dihujat-Satu-TikTok-Gara-gara-Peluk-Artis.mp4`.
+- **Tidak saling menimpa:** kalau nama itu sudah dipakai file Result
+  lain di folder project yang sama, tambahkan `-2`, `-3`, dan seterusnya.
+  Render ulang Result yang sama boleh menimpa file miliknya sendiri.
+- **Kalau judul berubah lalu dirender ulang:** file baru memakai nama
+  baru, dan baris jadwal mendapat `file` baru. File lama **tidak
+  dihapus** (aman); History menampilkan keduanya.
+- File yang sudah ada tidak diganti namanya. Aturan baru hanya berlaku
+  untuk render berikutnya.
+- Satu aturan untuk server dan CLI. Byte isi video tidak berubah, jadi
+  baseline selftest tetap identik.
+
 ---
 
 ## 3. Diparkir, sengaja tidak dikerjakan
