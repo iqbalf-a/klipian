@@ -55,6 +55,16 @@ let SAVED_RESULTS = [];
 let activeResultId = null;
 let resultTabSeq = 0;
 
+/* WHICH Result the live state (RESULT, FRAMING, CORRECTIONS, overlays, output,
+   post text, angle) belongs to. Set wherever the live state is (re)filled for a
+   Result: loadResultIntoLiveState(), resetProjectState(), newResult(). Checked
+   by snapshotActiveResult(): the live state is only ever written into the slot
+   of the Result it belongs to. If activeResultId and liveOwner disagree
+   (something switched Results without refilling), the slot is left alone and
+   the live state is refilled FROM it -- the other way round would hand this
+   Result another one's framing points, text and labels. */
+let liveOwner = null;
+
 /* Two-step delete for the Result "x" button -- see disarmResultDelete()
    below for what this is and why. Declared up HERE rather than next to that
    function because resetProjectState() calls renderResultSwitcher() during
@@ -288,6 +298,12 @@ function snapshotActiveResult() {
   if (!activeResultId) return;
   const slot = SAVED_RESULTS.find((r) => r.id === activeResultId);
   if (!slot) return;
+  if (liveOwner !== activeResultId) {
+    // The live state is another Result's: never write it here.
+    console.warn(`klipian: live state belongs to ${liveOwner}, not ${activeResultId}; refilled from the saved Result`);
+    loadResultIntoLiveState(slot);
+    return;
+  }
   // The Post text and Angle panels must hold THIS Result's text before they are
   // read: otherwise they are refilled from it, never saved over it.
   if (typeof syncPostAngleToActive === "function") syncPostAngleToActive(slot);
@@ -344,6 +360,7 @@ function snapshotActiveResult() {
    loadProject() did), so that old Results never leak into the newly selected
    one. */
 function loadResultIntoLiveState(entry) {
+  liveOwner = entry.id;
   // Stored as (asset, real second) -- see snapshotActiveResult(); placed back
   // on the virtual timeline here. A span or point with no asset predates
   // them, and belongs to the first video. Copies, not the stored objects:
@@ -405,6 +422,7 @@ function resetProjectState() {
   SAVED_RESULTS = [{ id: `res${++resultTabSeq}`, title: "", segments: [], framing: [], corrections: {},
     output: (typeof outputState === "function") ? outputState() : [] }];
   activeResultId = SAVED_RESULTS[0].id;
+  liveOwner = activeResultId;
   if (typeof setOverlays === "function") setOverlays([]);
   if (typeof resetResult === "function") resetResult();
   if (typeof resetFraming === "function") resetFraming();
@@ -431,6 +449,7 @@ function newResult() {
     output: (typeof outputState === "function") ? outputState() : [] };
   SAVED_RESULTS.push(entry);
   activeResultId = entry.id;
+  liveOwner = entry.id;
   if (typeof setOverlays === "function") setOverlays([]);
   if (typeof resetResult === "function") resetResult();
   if (typeof resetFraming === "function") resetFraming();

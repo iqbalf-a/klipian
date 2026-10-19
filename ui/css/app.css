@@ -2625,3 +2625,25 @@ h1, h2, h3 {
 /* History: this project's files, then the other projects' under a heading. */
 .history-section { margin: var(--s4) 0 var(--s2); }
 .history-section:first-child { margin-top: var(--s2); }
+
+/* P13: the Framing strip's start point, and the points outside the clip. */
+.fr-default {
+  display: block;
+  font-size: var(--t-11, 11px);
+  color: var(--accent);
+  text-align: center;
+  line-height: 1.2;
+}
+.framing-outside {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  margin: var(--s2) 0;
+  padding: var(--s2) var(--s3);
+  font-size: var(--t-12);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-s);
+  color: var(--text-muted);
+}
+.framing-outside[hidden] { display: none; }
+.framing-outside .btn { margin-left: auto; font-size: var(--t-12); padding: 3px 10px; }

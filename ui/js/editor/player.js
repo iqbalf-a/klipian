@@ -132,10 +132,16 @@ function setClip(k) {
   // video), showing the same irrelevant thumbnail no matter which clip is
   // open. Only touches it while still `auto` -- a point the user has
   // actually locked/edited is never moved out from under them.
-  if (typeof FRAMING !== "undefined" && FRAMING[0]?.auto && FRAMING[0].at !== k.spans[0].start) {
-    FRAMING[0].at = k.spans[0].start;
-    FRAMING.sort((a, b) => a.at - b.at);
-    if (typeof renderFraming === "function") renderFraming();
+  if (typeof FRAMING !== "undefined") {
+    if (typeof RESULT !== "undefined" && RESULT.length && typeof ensureStartPoint === "function") {
+      // The Result has moments: its start point follows ITS first moment (not
+      // whichever clip is being previewed).
+      if (ensureStartPoint() && typeof renderFraming === "function") renderFraming();
+    } else if (FRAMING[0]?.auto && FRAMING[0].at !== k.spans[0].start) {
+      FRAMING[0].at = k.spans[0].start;
+      FRAMING.sort((a, b) => a.at - b.at);
+      if (typeof renderFraming === "function") renderFraming();
+    }
   }
 }
 

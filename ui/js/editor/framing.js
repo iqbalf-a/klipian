@@ -96,11 +96,69 @@ const cropEls = () => [...document.querySelectorAll(".canvas .crop")];
 /* Format currently displayed on the canvas. */
 let canvasFormat = "single";
 
+/* ---------- which points count ----------
+   A point belongs to the Result it was locked in, so it only counts while it
+   falls inside one of that Result's moments (or exactly at its start). A point
+   outside them -- one that ended up in the wrong Result (see liveOwner in
+   projects.js, and aiFramingStale() below) -- is IGNORED here and in the render,
+   and is only listed on the Framing screen for the person to remove. Points are
+   in virtual source seconds, like RESULT. With no moment yet, all count. */
+const CLIP_EDGE = 0.05;
+const resultStart = () => ((typeof RESULT !== "undefined" && RESULT.length) ? RESULT[0].start : null);
+
+function pointInClip(f) {
+  if (typeof RESULT === "undefined" || !RESULT.length) return true;
+  return RESULT.some((r) => f.at >= r.start - CLIP_EDGE && f.at < r.end);
+}
+const usedPoints = () => FRAMING.filter(pointInClip);
+const outsidePoints = () => FRAMING.filter((f) => !pointInClip(f));
+
+/* The point at the very start of the clip: the one that frames second 0. */
+function isStartPoint(f) {
+  const s = resultStart();
+  return s === null ? FRAMING[0] === f : Math.abs(f.at - s) < CLIP_EDGE;
+}
+
+/* The box of the start point is still the default one (centered, in the shape
+   of the Picture): a point that was dragged is an ordinary point. */
+function isDefaultCrop(f) {
+  const d = initialCrop();
+  const c = f.crops?.[0];
+  return !!c && f.format !== "split" && !f.tracking
+    && Math.abs(c.left - d.left) < 1 && Math.abs(c.top - d.top) < 1 && Math.abs(c.width - d.width) < 1;
+}
+
+/* Every Result has a framing point exactly at the start of its clip, so second 0
+   is framed on purpose and never by whatever point happens to come before it.
+   It starts as a centered box (`auto`: untouched, it follows the clip start when
+   that moves) and stays when a later point is locked. One that was edited is a
+   normal point; if the clip then starts somewhere else, a new centered one
+   appears at the new start. Returns true when it changed something. */
+function ensureStartPoint() {
+  const s = resultStart();
+  if (s === null) return false;
+  let changed = false;
+  const placeholder = FRAMING.find((f) => f.auto);
+  const taken = FRAMING.some((f) => f !== placeholder && Math.abs(f.at - s) < CLIP_EDGE);
+  if (placeholder && taken) {
+    FRAMING = FRAMING.filter((f) => f !== placeholder);       // an edited point already sits at the start
+    changed = true;
+  } else if (placeholder) {
+    if (placeholder.at !== s) { placeholder.at = s; changed = true; }
+  } else if (!taken) {
+    FRAMING.push({ id: `f${++framingSeq}`, at: s, format: "single", crops: [initialCrop()], auto: true });
+    changed = true;
+  }
+  if (changed) FRAMING.sort((a, b) => a.at - b.at);
+  return changed;
+}
+
 /* The point valid at a given second: the last point whose `at` has not
    passed that second yet. */
 function pointAt(seconds) {
-  let result = FRAMING[0] || null;
-  for (const f of FRAMING) {
+  const points = usedPoints();
+  let result = points[0] || null;
+  for (const f of points) {
     if (f.at <= seconds + 0.001) result = f;
     else break;
   }
@@ -192,7 +250,7 @@ function spansWithFraming(ranges) {
   const out = [];
   for (const r of ranges) {
     const bounds = [r.start];
-    for (const f of FRAMING) {
+    for (const f of usedPoints()) {
       if (f.at > r.start + 0.05 && f.at < r.end - 0.05) bounds.push(f.at);
     }
     bounds.push(r.end);
@@ -486,6 +544,7 @@ function onPictureChanged() {
 
 function renderFraming() {
   if (!FRAMING.length) resetFraming();
+  ensureStartPoint();
   updateFramingLayoutWarning();
   const t = reviewTime();
   const active = pointAt(t);
@@ -505,7 +564,7 @@ function renderFraming() {
     // the strip itself widens and may be scrolled horizontally (see
     // overflow-x in CSS .framing-timeline) -- NOT the thumbnails shrunk or
     // some points turned into ticks without images.
-    bar.innerHTML = FRAMING.map((f, i) => {
+    bar.innerHTML = usedPoints().map((f) => {
       const out = outFrom(f.at);
       // BIG number = position in the RESULT being edited (what people actually
       // see in the right preview panel) -- that is the directly meaningful
@@ -530,19 +589,54 @@ function renderFraming() {
                     : `<span class="fr-thumb fr-thumb-empty"></span>`}
         ${f.tracking ? `<span class="fr-track-badge" title="Head tracking on">●</span>` : ""}
         <span class="fr-time">${out !== null ? preciseTime(out) : "—"}</span>
+        ${f.auto && isStartPoint(f) && isDefaultCrop(f)
+          ? `<span class="fr-default">centered (default)</span>` : ""}
         <span class="fr-time-src">src ${preciseTime(toReal(f.at).t)}</span>
-        ${i > 0 ? `<i class="delete-icon" data-delete-framing="${f.id}" role="button"
+        ${!isStartPoint(f) ? `<i class="delete-icon" data-delete-framing="${f.id}" role="button"
               tabindex="0" aria-label="Delete point ${preciseTime(f.at)}">×</i>` : ""}
       </div>`;
     }).join("");
   }
 
+  renderOutsideNote();
   const frame = frameAt(t);
   drawBox(frame.format, frame.crops);
   syncCanvasVideo();
   if (typeof attachVideoGeometry === "function") attachVideoGeometry();
   updateTrackHeadButton();
 }
+
+/* Points that are not inside this Result's moments (see "which points count"):
+   named, with a button -- two clicks -- to remove them. Never removed on their own. */
+function renderOutsideNote() {
+  const box = $("#framingOutside");
+  if (!box) return;
+  const n = outsidePoints().length;
+  box.hidden = n === 0;
+  if (!n) return;
+  $("#framingOutsideText").textContent =
+    `${n} framing point${n === 1 ? "" : "s"} outside this clip (ignored)`;
+  const btn = $("#framingOutsideRemove");
+  if (btn && !btn.classList.contains("danger")) btn.textContent = "Remove them";
+}
+
+$("#framingOutsideRemove")?.addEventListener("click", (e) => {
+  const btn = e.currentTarget;
+  clearTimeout(btn._armTimer);
+  const n = outsidePoints().length;
+  if (!n) return;
+  if (!btn.classList.contains("danger")) {
+    btn.textContent = `Remove ${n}?`;
+    btn.classList.add("danger");
+    btn._armTimer = setTimeout(() => { btn.classList.remove("danger"); btn.textContent = "Remove them"; }, 4000);
+    return;
+  }
+  btn.classList.remove("danger");
+  FRAMING = usedPoints();
+  renderFraming();
+  if (typeof saveProject === "function") saveProject();
+  $("#reframeNote").textContent = `removed ${n} framing point${n === 1 ? "" : "s"} that were outside this clip`;
+});
 
 /* Place boxes on the canvas per format. The second box only matters in
    split; in single format it is hidden via data-format on the canvas. */
@@ -610,7 +704,7 @@ $("#framingFormat")?.addEventListener("click", (e) => {
   if (!b) return;
   const format = b.dataset.formatChoice;
   const t = Math.max(0, reviewTime());
-  const existing = FRAMING.find((f) => Math.abs(f.at - t) < 0.35);
+  const existing = usedPoints().find((f) => Math.abs(f.at - t) < 0.35);
   if (format === canvasFormat && existing) return;
 
   // The box starts from that format's default layout -- single and split
@@ -645,7 +739,7 @@ $("#lockFraming")?.addEventListener("click", () => {
   const t = Math.max(0, reviewTime());
 
   // A point at the same second is overwritten, not duplicated.
-  const existing = FRAMING.find((f) => Math.abs(f.at - t) < 0.35);
+  const existing = usedPoints().find((f) => Math.abs(f.at - t) < 0.35);
   let message;
   if (existing) {
     // The base box was replaced manually -- the OLD tracking path (if any)
@@ -681,8 +775,8 @@ $("#lockFraming")?.addEventListener("click", () => {
    point if it's the last point (not up to the end of the full source
    video -- that could be far longer than what's actually used). */
 function trackingLimit(point) {
-  const idx = FRAMING.indexOf(point);
-  const next = FRAMING[idx + 1];
+  const points = usedPoints();
+  const next = points[points.indexOf(point) + 1];
   if (next) return next.at;
   const span = (typeof activeClip !== "undefined" && activeClip?.spans || [])
     .find((s) => point.at >= s.start - 0.05 && point.at < s.end);
@@ -776,7 +870,8 @@ $("#framingList")?.addEventListener("click", (e) => {
   if (deleteIcon) {
     e.stopPropagation();
     const id = deleteIcon.dataset.deleteFraming;
-    if (FRAMING.length <= 1) return;              // the 00:00 point always exists
+    const gone = FRAMING.find((f) => f.id === id);
+    if (!gone || isStartPoint(gone)) return;      // the 00:00 point always exists
     FRAMING = FRAMING.filter((f) => f.id !== id);
     renderFraming();
     if (typeof saveProject === "function") saveProject();
@@ -1079,11 +1174,28 @@ function aiFramingScenecutOneSpan(span) {
     .catch(() => []);
 }
 
+/* AI Framing takes tens of seconds, and the person can switch to another Result
+   (or open another project) meanwhile. What it finds belongs to the Result it
+   was started on: when it finishes anywhere else, it is dropped -- applying it to
+   whatever Result is open then is how points of one clip ended up in another. */
+let aiFramingOwner = null;
+const aiFramingStale = (owner) => owner !== (typeof activeResultId !== "undefined" ? activeResultId : null);
+
+function aiFramingAbandon() {
+  const btn = $("#aiFramingBtn");
+  if (btn) { btn.disabled = false; aiFramingBtnText("AI Framing"); }
+  aiFramingOverlayDone();
+  aiFramingStatus("AI Framing was for another Result, which you switched away from while it ran. "
+    + "Nothing was changed here. Run it again on this Result if you want it.");
+}
+
 async function aiFramingStart() {
   if (!activeClip || !activeClip.spans?.length) {
     aiFramingStatus("Select or add a clip to Result first.");
     return;
   }
+  const owner = activeResultId;
+  aiFramingOwner = owner;
   // A Result can be SEVERAL separate spans stitched into one MP4 (merging
   // several AI recommendations, for example). This used to just take from
   // the start of the FIRST span to the end of the LAST span -- for a
@@ -1135,6 +1247,7 @@ async function aiFramingStart() {
     aiFramingFailed(err.message);
     return;
   }
+  if (aiFramingStale(owner)) { aiFramingAbandon(); return; }
 
   // scenecutPromise has been running since before the diarize loop above
   // started (see the comment there) -- usually already resolved by now,
@@ -1146,7 +1259,8 @@ async function aiFramingStart() {
   const allCuts = await scenecutPromise;
   aiFramingOverlayProgress("scenecut", 1, 1);
 
-  aiFramingFindAllPositions(allTurns, allCuts);
+  if (aiFramingStale(owner)) { aiFramingAbandon(); return; }
+  aiFramingFindAllPositions(allTurns, allCuts, owner);
 }
 
 function aiFramingFailed(message) {
@@ -1198,7 +1312,7 @@ function aiFramingFindSpeaker(turn, size) {
     .catch((err) => ({ error: err?.message || "no connection to klipian serve", hard: true }));
 }
 
-async function aiFramingFindAllPositions(turns, cuts) {
+async function aiFramingFindAllPositions(turns, cuts, owner = activeResultId) {
   const btn = $("#aiFramingBtn");
 
   if (!turns.length) {
@@ -1234,6 +1348,7 @@ async function aiFramingFindAllPositions(turns, cuts) {
       return r;
     })));
 
+  if (aiFramingStale(owner)) { aiFramingAbandon(); return; }
   const positions = {};
   const faults = [];
   speakerList.forEach(([speaker], i) => {
@@ -1271,7 +1386,7 @@ async function aiFramingFindAllPositions(turns, cuts) {
       + "continuing with the rest.");
   }
 
-  aiFramingApply(turns, positions, cuts);
+  aiFramingApply(turns, positions, cuts, owner);
 }
 
 /* The box tested here is ROUGH, just a person's general position (marked
@@ -1312,7 +1427,7 @@ async function aiFramingTrackFace(start, end, rough) {
   }
 }
 
-async function aiFramingApply(turns, positions, cuts) {
+async function aiFramingApply(turns, positions, cuts, owner = activeResultId) {
   const cutList = (cuts || []).slice().sort((a, b) => a - b);
 
   // Plan the list first, then run face tracking IN PARALLEL for all
@@ -1405,6 +1520,7 @@ async function aiFramingApply(turns, positions, cuts) {
       return result;
     })));
 
+  if (aiFramingStale(owner)) { aiFramingAbandon(); return; }
   let added = 0;
   let replaced = 0;
   let untracked = 0;
