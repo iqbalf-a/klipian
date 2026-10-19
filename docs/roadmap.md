@@ -1404,6 +1404,43 @@ audit):**
 - Baris yang sudah punya `videoId` dilewati, kecuali status di YouTube
   berubah.
 
+### P19 — Sinkron file render ↔ jadwal, dan kerapian tabel Clips
+
+**A. Sinkron** (keputusan ian 2026-10-19). Menghapus file render tidak
+mengubah baris jadwal, dan baris itu tidak tahu filenya sudah hilang.
+Aturannya: **tidak ada yang dihapus otomatis.**
+- Baris Clips yang `file`-nya tidak ada lagi di folder project di `out/`
+  mendapat tanda **file deleted**:
+  - status **Draft/Ready**: tandanya menyarankan membuang baris, dengan
+    aksi cepat "Discard" atau "Delete row", keduanya dikonfirmasi;
+  - status **Posted/Scheduled**: tanda informatif saja, dan baris tetap
+    dipertahankan. Menghapus file lokal setelah posting itu wajar; baris
+    jadwal adalah catatan apa yang sudah diposting.
+  - Ada filter atau penghitung "N with deleted files" di kepala panel,
+    dan bisa dipilih massal lewat centang P18.
+- **Rendered output:** file yang tidak punya baris jadwal (dirender
+  sebelum P11, atau barisnya sudah dihapus) diberi tanda **not in
+  schedule** dan tombol **Add to schedule**. Tombol itu membuat baris
+  Draft dari rekaman render/Result kalau ada (title, post text, kredit,
+  projectId/resultId), atau dari nama file saja.
+- Render ulang yang membuat file lagi otomatis menghilangkan tanda file
+  deleted.
+- Pemeriksaan dilakukan saat panel dimuat (server membandingkan dengan isi
+  `out/`), tanpa job latar belakang.
+
+**B. Kerapian tabel Clips** (screenshot ian 2026-10-19, kata-katanya:
+"style select box tidak tengah simetris"):
+- Sel memakai `align-top`, sehingga checkbox, tanggal Created, dan tombol
+  Detail lebih tinggi daripada select dan input lain.
+- Isi select Status dan Platform, posisi panah, dan padding-nya tidak
+  simetris.
+- Perbaikan:
+  - semua sel rata tengah secara vertikal;
+  - tinggi semua kontrol dalam satu baris sama (select, input
+    tanggal/jam, tombol, checkbox);
+  - select dengan padding kiri-kanan yang sama dan panah di posisi tetap;
+  - ikon input tanggal/jam terlihat jelas.
+
 ---
 
 ## 3. Diparkir, sengaja tidak dikerjakan
