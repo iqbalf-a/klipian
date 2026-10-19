@@ -1170,6 +1170,50 @@ belum di-lock … framing lock terbawa walaupun beda result".
      dikonfirmasi dua klik. Tidak dihapus otomatis.
    - Render ulang Result yang terkena (res3) setelah dibersihkan.
 
+### P14 — Edit waktu manual: snap kecil, searah, dan terlihat
+
+Laporan ian (2026-10-19): mengedit waktu saran dari JSON Claude,
+misalnya akhir 03:10 diubah menjadi 03:12, kadang "menolak" dan kembali
+ke 03:11 atau 03:13.
+
+**Penyebab** (`result.js` `commitRecTime`, `roundtrip.js` `snapToWord`,
+`app.js` `timeRange`):
+- waktu yang diketik digeser ke batas kata **terdekat** sampai
+  `SNAP_MAX = 2,0` detik, ke arah mana pun;
+- tampilannya dibulatkan ke bawah ke detik penuh (`timeRange` memakai
+  `Math.floor`);
+- tidak ada pemberitahuan bahwa waktunya digeser.
+
+Contohnya, kata yang berakhir di 191,7 tampil sebagai 03:11, dan kata
+yang berakhir di 193,2 tampil sebagai 03:13. Snap 2 detik memang
+dibutuhkan untuk waktu perkiraan dari Claude, tapi terlalu jauh untuk
+waktu yang sengaja diketik.
+
+Kondisi lain: `setSelection(..., snap)` di `timeline.js` (from/to di
+layar Clips, setelah drag) memakai snap yang sama.
+
+**Keputusan ian (2026-10-19):**
+- **Hanya untuk ketikan manual** (waktu saran AI di Clips, from/to
+  Clips, dan field waktu lain yang diketik). Snap saat import balasan
+  Claude tetap 2,0 detik dan ke kata terdekat.
+- **Snap maksimal 0,6 detik dan searah:**
+  - awal: start kata terakhir yang ≤ waktu ketik dalam 0,6 detik; kalau
+    tidak ada, start kata pertama setelahnya dalam 0,6 detik; kalau
+    tidak ada juga, waktu persis;
+  - akhir: end kata pertama yang ≥ waktu ketik dalam 0,6 detik; kalau
+    tidak ada, end kata terakhir sebelumnya dalam 0,6 detik; kalau
+    tidak ada juga, waktu persis.
+
+  Dengan aturan ini, klip tidak terpotong lebih pendek dari yang
+  diketik.
+- **Persepuluhan detik** ditampilkan di field waktu yang bisa diedit
+  (`mm:ss.s`), supaya nilai tersimpan terlihat.
+- **Beri tahu kalau digeser**, misalnya: `end moved to 03:12.4, the end
+  of "kata", so no word is cut. Type 03:12.0 for exactly 03:12.`
+- **Desimal = waktu persis tanpa snap:** mengetik `03:12.0` atau
+  `192.5` dipakai apa adanya. `parseTime` menerima `mm:ss.s`,
+  `h:mm:ss.s`, dan detik polos.
+
 ---
 
 ## 3. Diparkir, sengaja tidak dikerjakan
