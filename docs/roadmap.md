@@ -1113,6 +1113,63 @@ dihapus dari layar Render, dan teks label keluar dari kotaknya di preview.
    - Jumlah di judul panel (misalnya "19 clips · 16 draft · 3 posted")
      tetap menghitung semua baris, bukan hanya halaman aktif.
 
+### P13 — Framing: titik 00:00 selalu ada, dan lock tidak terbawa antar Result
+
+Laporan ian (2026-10-19), kata-katanya: "pastikan lock frame di menit
+00:00 di tengah. kadang saya buat lock frame menit 2 ternyata menit 00
+belum di-lock … framing lock terbawa walaupun beda result".
+
+**Bukti di data ian** (dibaca, tidak diubah):
+- Project Syahrini `85f92e4cce2d`, **res3** (klip 2225,3–2283,1 detik)
+  punya 12 titik framing. Titik pertamanya di 1980,3, dan **9 titik di
+  1980–2015 berada di luar klipnya**. Rentang itu persis rentang **res4**
+  (klip 1980,3–2022,0). Artinya, titik lock res4 tersimpan juga di res3.
+- Titik framing disimpan dalam **detik sumber**, dan `pointAt(t)`
+  mengambil titik terakhir yang ≤ t. Akibatnya, di awal klip res3 yang
+  terpakai adalah titik nyasar dari res4, bukan titik 00:00 di tengah.
+  Ini cocok dengan keluhan "menit 00 belum di-lock".
+- Project lain tidak punya titik di luar klipnya. Banyak Result hanya
+  punya titik `auto` (placeholder, belum pernah di-lock); itu normal.
+
+**Kondisi kode** (`framing.js`, `projects.js`, `player.js`):
+- `resetFraming()` membuat titik placeholder `{at: 0, auto: true}` dengan
+  `initialCrop()`, yaitu crop tengah (`left 37, width 26` untuk 9:16,
+  `left 30, width 39` untuk 3:4).
+- `setClip()` memindahkan placeholder itu ke awal klip selama masih
+  `auto`.
+- `snapshotActiveResult()` menyimpan `FRAMING` (global) ke slot Result
+  aktif. Ini mekanisme yang sama dengan bocornya Post text/Angle di
+  P11b: kalau `FRAMING` masih milik Result lain saat snapshot, titiknya
+  ikut tersimpan.
+
+**Perbaikan:**
+1. **Pemilik state per Result untuk SEMUA state live**, bukan hanya
+   Post text/Angle. Mencakup `FRAMING`, `CORRECTIONS`, overlay/Timeline,
+   `output`, `RESULT`, dan `post`/`angle`. Satu guard di
+   `snapshotActiveResult`: kalau state live bukan milik Result aktif,
+   jangan pernah menulis ke slot itu; isi ulang dari slot.
+   Reproduksi dulu jalurnya, misalnya Result selector di layar
+   Framing/Timeline/Render, menambah saran saat Result lain aktif, atau
+   memindah rentang di Clips.
+2. **Titik di awal klip selalu ada.**
+   - Setiap Result punya titik framing yang tepat di awal klip (momen
+     pertama) dengan crop tengah sesuai Picture (9:16/3:4).
+   - Titik ini dibuat otomatis, tetap ada walaupun ian me-lock titik lain
+     yang lebih lambat, dan ikut bergeser kalau awal klip berubah, selama
+     ian belum mengeditnya.
+   - Di strip Framing points, titik ini tampil sebagai `00:00 · centered
+     (default)`, supaya jelas sudah ada dan terkunci di tengah. Begitu
+     ian mengeditnya, labelnya berubah menjadi titik biasa.
+   - Titik ini tidak bisa dihapus (aturan lama "the 00:00 point always
+     exists").
+3. **Titik di luar klip tidak dipakai.**
+   - Saat memuat dan saat render, titik framing yang jatuh di luar
+     semua rentang Result itu diabaikan, kecuali titik awal-klip.
+   - Untuk data lama, di layar Framing ada keterangan
+     `9 framing points outside this clip` dan tombol **Remove them**,
+     dikonfirmasi dua klik. Tidak dihapus otomatis.
+   - Render ulang Result yang terkena (res3) setelah dibersihkan.
+
 ---
 
 ## 3. Diparkir, sengaja tidak dikerjakan
