@@ -15,7 +15,7 @@ from .models import Transcript, fmt_duration
 from .transcribe import (DEFAULT_MODEL, DEFAULT_THREADS, MODELS, WhisperMissing,
                          transcribe)
 from . import credits, cues, roundtrip
-from .paths import GLOSSARY
+from .paths import GLOSSARY, safe_dirname
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CACHE = ROOT / "workspace" / "cache"
@@ -121,7 +121,7 @@ def cmd_transcribe(args: argparse.Namespace) -> int:
             print("           candidates for prompts/glossary.txt")
 
     if args.srt:
-        out_dir = Path(args.out_dir) / video.stem
+        out_dir = Path(args.out_dir) / safe_dirname(video.stem)
         out_dir.mkdir(parents=True, exist_ok=True)
         srt = out_dir / f"{video.stem}.srt"
         srt.write_text(transcript.to_srt(), encoding="utf-8")
@@ -166,7 +166,7 @@ def cmd_brief(args: argparse.Namespace) -> int:
     text = roundtrip.build_brief(transcript, roundtrip.read_rubric(rubric), video.name, cues_data,
                                  credits.load().get(video.name))
 
-    dest = Path(args.out_dir) / video.stem / "brief-claude.md"
+    dest = Path(args.out_dir) / safe_dirname(video.stem) / "brief-claude.md"
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(text, encoding="utf-8")
 
@@ -222,7 +222,7 @@ def cmd_import(args: argparse.Namespace) -> int:
     candidates.sort(key=lambda k: k["total"], reverse=True)
 
     dest = roundtrip.save_candidates(
-        candidates, video, Path(args.out_dir) / video.stem / "candidates.json")
+        candidates, video, Path(args.out_dir) / safe_dirname(video.stem) / "candidates.json")
 
     print("")
     print(f"{len(candidates)} kandidat diimpor  ->  {dest}")
@@ -336,7 +336,7 @@ def cmd_render(args: argparse.Namespace) -> int:
         return 1
 
     info = probe(video)
-    out_dir = Path(args.out_dir) / video.stem
+    out_dir = Path(args.out_dir) / safe_dirname(video.stem)
     words = transcript.words
 
     print("")
@@ -468,7 +468,7 @@ def cmd_cues(args: argparse.Namespace) -> int:
         print(f"No cues {what}.\n", file=sys.stderr)
         return 1
 
-    out = Path(args.cache_dir) / "cues-listen" / video.stem
+    out = Path(args.cache_dir) / "cues-listen" / safe_dirname(video.stem)
     out.mkdir(parents=True, exist_ok=True)
     for old in list(out.glob("*.wav")) + list(out.glob("list.md")):
         old.unlink()

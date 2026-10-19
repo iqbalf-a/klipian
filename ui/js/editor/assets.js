@@ -297,7 +297,7 @@ function uploadVideo(file, paint) {
     xhr.onload = () => {
       let d = {};
       try { d = JSON.parse(xhr.responseText); } catch { /* not JSON: the status says it */ }
-      if (xhr.status >= 200 && xhr.status < 300 && d.name) resolve(d.name);
+      if (xhr.status >= 200 && xhr.status < 300 && d.name) resolve({ name: d.name, renamedFrom: d.renamedFrom || null });
       else reject(new Error(d.error || `Upload failed (${xhr.status}).`));
     };
     xhr.onerror = () => reject(new Error("Upload failed. Is klipian serve still running?"));
@@ -321,6 +321,7 @@ async function addVideoFromDisk(file) {
     const chk = await (await fetch(`/api/video-check?name=${encodeURIComponent(file.name)}&size=${file.size}`)).json();
     if (chk.error) throw new Error(chk.error);
     let name = chk.reuse;
+    let renamedFrom = null;
     if (name) {
       bar.style.width = "100%";
       say(`${name} is already in workspace/sources/ — using that copy.`);
@@ -329,17 +330,20 @@ async function addVideoFromDisk(file) {
         throw new Error(`Not enough disk space: ${mb(file.size)} needed, ${mb(chk.free)} free.`);
       }
       cancel.hidden = false;
-      name = await uploadVideo(file, (done, total, secs) => {
+      const sent = await uploadVideo(file, (done, total, secs) => {
         const rate = secs > 0 ? done / secs : 0;
         const left = rate > 0 ? (total - done) / rate : 0;
         bar.style.width = `${(done / total * 100).toFixed(1)}%`;
         say(`${file.name} · ${mb(done)} of ${mb(total)} · ${Math.round(done / total * 100)}%` +
             (rate ? ` · ${mb(rate)}/s · ${left >= 60 ? `~${Math.round(left / 60)} min` : `~${Math.round(left)} s`} left` : ""));
       });
+      name = sent.name;
+      renamedFrom = sent.renamedFrom;
     }
     cancel.hidden = true;
     await addVideoToProject(name);
-    row.hidden = true;
+    if (renamedFrom) say(`Saved as ${name}: the space or dot before the extension in "${renamedFrom}" was removed.`);
+    else row.hidden = true;
   } catch (err) {
     cancel.hidden = true;
     say(err.message, true);

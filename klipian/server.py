@@ -46,7 +46,7 @@ from . import roundtrip
 from .jobs import (ACTIVE_TRANSCRIBES, CANCELLED, JOBS, LOCK, MAX_JOBS, _clip_words,
                    _register_job, _run_diarize, _run_render, _run_transcribe,
                    _spans_from_clip)
-from .paths import ROOT, WORKSPACE, find_video
+from .paths import ROOT, WORKSPACE, find_video, safe_dirname
 from .projects import (PROJECTS, PROJECTS_LOCK, _all_projects,
                        _free_name, _migrate_project, _new_project_id, _primary_video,
                        _project_assets_dir, _project_file, _project_summary,
@@ -167,7 +167,7 @@ def _thumbnail(video: Path, seconds: float, crop: dict, width: int,
     # crop -- a stale thumbnail that looked like the drag hadn't worked.
     # In cache/, not out/: these are throwaway pictures, and out/ is for what
     # was rendered (History and /workspace both list it).
-    dest = WORKSPACE / "cache" / "thumbs" / video.stem / (
+    dest = WORKSPACE / "cache" / "thumbs" / safe_dirname(video.stem) / (
         f"{int(seconds * 10)}-{int(crop['left'])}-{int(crop['top'])}"
         f"-{int(crop['width'])}-{int(crop['height'])}-{width}"
         + ("" if picture == "9:16" else
@@ -303,6 +303,15 @@ def _video_upload_problem(name: str, size: int) -> str:
     if size <= 0 or size > MAX_VIDEO:
         return f"a video must be 1 byte to {MAX_VIDEO // 1024 ** 3} GB"
     return ""
+
+
+def _tidy_video_name(name: str) -> str:
+    """The name a video is kept under in sources/: no space or dot between the name
+    and the extension ("Ibu-ibu .mp4" -> "Ibu-ibu.mp4"). Such a name made folders
+    named after it (thumbnails, ...) unusable on Windows; see paths.safe_dirname."""
+    p = Path(name)
+    stem = p.stem.strip(" .")
+    return f"{stem}{p.suffix}" if stem else name
 
 
 def _same_video(name: str, size: int) -> str | None:
@@ -767,7 +776,7 @@ class Handler(BaseHTTPRequestHandler):
         `reuse` names a file in sources/ that already holds exactly this one
         (same name and size), so the page can skip sending it."""
         q = parse_qs(urlparse(self.path).query)
-        name = Path((q.get("name") or [""])[0]).name.strip()
+        name = _tidy_video_name(Path((q.get("name") or [""])[0]).name.strip())
         try:
             size = int((q.get("size") or ["0"])[0])
         except ValueError:
@@ -1042,7 +1051,8 @@ class Handler(BaseHTTPRequestHandler):
         # 1 MB pieces to a .part file and then renamed -- but its own size
         # limit: a 45-minute episode is ~750 MB.
         q = parse_qs(urlparse(self.path).query)
-        name = Path((q.get("name") or [""])[0]).name.strip()
+        asked = Path((q.get("name") or [""])[0]).name.strip()
+        name = _tidy_video_name(asked)
         try:
             n = int(self.headers.get("Content-Length", 0))
         except ValueError:
@@ -1061,7 +1071,7 @@ class Handler(BaseHTTPRequestHandler):
             # Already here. The client checks first, so this is a race or an
             # old client: take the body off the wire and keep the file we have.
             self._drain(n)
-            return self._send_json({"ok": True, "name": same, "existed": True})
+            return self._send_json({"ok": True, "name": same, "existed": True, "renamedFrom": asked if asked != name else None})
         tmp = folder / f"{name}.{uuid.uuid4().hex[:8]}.part"
         try:
             with open(tmp, "wb") as out:
@@ -1085,7 +1095,8 @@ class Handler(BaseHTTPRequestHandler):
         except (OSError, ConnectionError) as exc:
             tmp.unlink(missing_ok=True)
             return self._send_json({"error": f"could not save the file: {exc}"}, 500)
-        return self._send_json({"ok": True, "name": dest.name, "existed": False})
+        return self._send_json({"ok": True, "name": dest.name, "existed": False,
+                                "renamedFrom": asked if asked != name else None})
 
     def _drain(self, n: int) -> None:
         try:

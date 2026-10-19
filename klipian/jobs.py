@@ -22,7 +22,7 @@ from .models import Transcript
 from . import compose as composer
 from . import render as engine
 from . import roundtrip
-from .paths import GLOSSARY, WORKSPACE, find_video
+from .paths import GLOSSARY, WORKSPACE, find_video, safe_dirname
 from .projects import (_project_assets_dir, _project_file,
                        _project_out_dir, _read_project, read_render_records,
                        write_render_record)
@@ -219,7 +219,7 @@ def _run_render(job_id: str, req: dict, into: Path | None = None, record: bool =
         # A project that somehow can't be read still renders -- into the
         # old video-stem folder -- rather than failing the job over a
         # folder name.
-        out_dir = WORKSPACE / "out" / video.stem
+        out_dir = WORKSPACE / "out" / safe_dirname(video.stem)
         # By the project's id, which the editor always sends.
         pf = _project_file(req.get("project"))
         pdata = _read_project(pf) if pf and pf.is_file() else None

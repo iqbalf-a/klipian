@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -10,6 +11,28 @@ ROOT = Path(__file__).resolve().parent.parent
 # projects/ each at root), so new klipian users aren't confused about where
 # to put videos (see workspace/README.md).
 WORKSPACE = ROOT / "workspace"
+
+
+_RESERVED_DIRNAMES = frozenset(
+    ["CON", "PRN", "AUX", "NUL"] + [f"COM{i}" for i in range(1, 10)] + [f"LPT{i}" for i in range(1, 10)])
+
+
+def safe_dirname(name: str) -> str:
+    """A folder name made from a video's stem (cache/thumbs/<stem>/, out/<stem>/ ...).
+
+    Windows silently drops spaces and dots at the END of a folder name, so a video
+    called "Ibu-ibu .mp4" (stem "Ibu-ibu ") got a folder called "Ibu-ibu" while the
+    code went on using the path WITH the space -- and every file written under it
+    failed (a broken thumbnail). So the name is made what the file system will keep:
+    no spaces or dots at either end, no characters it refuses, never empty, never a
+    device name (CON, NUL, COM1 ...). Names that were already fine come out unchanged.
+    """
+    n = re.sub(r'[<>:"/\\|?*\x00-\x1f]', " ", str(name or "")).strip(" .")
+    if not n:
+        n = "video"
+    if n.upper() in _RESERVED_DIRNAMES:
+        n += "-video"
+    return n
 
 
 def find_video(name: str) -> Path | None:
