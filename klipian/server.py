@@ -1230,7 +1230,7 @@ class Handler(BaseHTTPRequestHandler):
         if not isinstance(ids, list) or not ids or not all(isinstance(i, str) for i in ids):
             return self._send_json({"error": "ids must be a list of row ids"}, 400)
         try:
-            gone = _delete_rows(ids)
+            gone = _delete_rows(ids, keep=req.get("trash") is not False)
         except OSError as exc:
             return self._send_json({"error": f"could not delete: {exc}"}, 500)
         return self._send_json({"ok": True, "deleted": gone})

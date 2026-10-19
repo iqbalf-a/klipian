@@ -188,11 +188,12 @@ def _save_trash(rows: list[dict], path: Path) -> None:
 
 
 def delete_rows(ids: list, path: Path | None = None, lock: threading.Lock | None = None,
-                trash: Path | None = None) -> list[str]:
+                trash: Path | None = None, keep: bool = True) -> list[str]:
     """Delete rows in ONE save, and keep each deleted row (all its columns, and where
     it stood) in clips.trash.json, so a delete can be undone -- from the page's
     "Undo" now, or by hand later, even when the tab was closed. Returns the ids
-    that were deleted."""
+    that were deleted. `keep=False` skips the trash: for a row that holds nothing
+    (a "+ New clip" nobody filled in), which has nothing to undo."""
     wanted = {str(i) for i in ids}
     path = path or CLIPS_PATH
     trash = trash or (path.parent / "clips.trash.json")
@@ -205,7 +206,8 @@ def delete_rows(ids: list, path: Path | None = None, lock: threading.Lock | None
             else:
                 kept.append(row)
         if gone:
-            _save_trash(_load_trash(trash) + gone, trash)        # first: a failure here deletes nothing
+            if keep:
+                _save_trash(_load_trash(trash) + gone, trash)    # first: a failure here deletes nothing
             save_clips(kept, path)
         return [g["row"]["id"] for g in gone]
 

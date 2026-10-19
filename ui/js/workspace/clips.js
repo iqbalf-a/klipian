@@ -23,6 +23,7 @@ const DETAIL_FIELDS = ["episode", "file", "description", "tiktokCaption",
 
 let CLIPS = [];
 const clipSort = createSort("clips");
+let DRAFT = null;                    // the "+ New clip" row being filled in: local until Save
 let showGoneOnly = false;            // the "N with deleted files" filter
 const SELECTED = new Set();          // ids of the ticked rows: they stay across pages and sorting
 const clipPager = createPager({ key: "clips", mount: $("#clipPager"), onChange: () => drawClips() });
@@ -85,6 +86,41 @@ function goneTagHTML(c) {
     </div>`;
 }
 
+/* A row that holds nothing yet: no title, file, link, text or notes. */
+const isEmptyClip = (c) => !["title", "episode", "file", "description", "tiktokCaption",
+  "youtubeUrl", "tiktokUrl", "notes"].some((k) => String(c[k] || "").trim());
+
+/* "+ New clip" is a DRAFT: a row on screen with Save and Cancel, and NOT in the file.
+   It is sent to the server only by Save (or Enter in its title), so Cancel (or Esc)
+   leaves nothing behind -- no row to delete, nothing in the trash. */
+function draftRowHTML(d) {
+  const opt = (list, cur) => list.map((v) =>
+    `<option value="${v}" ${v === cur ? "selected" : ""}>${v}</option>`).join("");
+  const td = "px-2 py-1 border-b border-glass-border";
+  return `
+    <tr class="ws-draft" data-draft>
+      <td class="${td}"></td>
+      <td class="${td}"><select class="ws-input ws-status" data-draft-field="status" data-v="${d.status}">${opt(STATUS, d.status)}</select></td>
+      <td class="${td}"><input class="ws-input" type="text" data-draft-field="title" value="${escapeHTML(d.title)}" placeholder="New clip title / hook"></td>
+      <td class="${td}"><select class="ws-input" data-draft-field="platform">${opt(PLATFORM, d.platform)}</select></td>
+      <td class="${td}"><input class="ws-input" type="date" data-draft-field="date" value="${escapeHTML(d.date)}"></td>
+      <td class="${td}"><input class="ws-input" type="time" data-draft-field="time" value="${escapeHTML(d.time)}"></td>
+      <td class="${td}"><span class="data ws-created">not saved yet</span></td>
+      <td class="${td}" colspan="2">
+        <span class="ws-draft-actions">
+          <button class="rounded-s bg-accent text-[13px] font-semibold px-3 py-1.5 text-accent-text hover:brightness-110" type="button" data-draft-save>Save</button>
+          <button class="rounded-s px-2.5 py-1 text-[12px] border border-glass-border hover:bg-glass" type="button" data-draft-cancel>Cancel</button>
+        </span>
+      </td>
+    </tr>`;
+}
+
+/* What was typed into the draft row, kept when the table is redrawn meanwhile. */
+function syncDraftFromDom() {
+  if (!DRAFT) return;
+  document.querySelectorAll("#clipBody [data-draft-field]").forEach((el) => { DRAFT[el.dataset.draftField] = el.value; });
+}
+
 function row(c) {
   const opt = (list, cur) => list.map((v) =>
     `<option value="${v}" ${v === cur ? "selected" : ""}>${v}</option>`).join("");
@@ -115,15 +151,19 @@ function drawClips() {
   const head = $("#clipCreatedHead");
   if (head) head.innerHTML = clipSort.headHTML("Created");
   updateGoneCount();
+  syncDraftFromDom();
+  const draftHTML = DRAFT ? draftRowHTML(DRAFT) : "";
+  const add = $("#addClipBtn");
+  if (add) add.disabled = !!DRAFT;
   queueMicrotask(updateBulkBar);
   if (!CLIPS.length) {
     clipPager.slice([]);
-    body.innerHTML = `<tr><td colspan="9" class="empty">
+    body.innerHTML = draftHTML + (DRAFT ? "" : `<tr><td colspan="9" class="empty">
       No clips yet. Click "+ New clip" to start tracking your upload schedule.
-    </td></tr>`;
+    </td></tr>`);
     return;
   }
-  body.innerHTML = clipPager.slice(clipSort.apply(showGoneOnly ? CLIPS.filter((c) => c.fileMissing) : CLIPS,
+  body.innerHTML = draftHTML + clipPager.slice(clipSort.apply(showGoneOnly ? CLIPS.filter((c) => c.fileMissing) : CLIPS,
       (c) => c.createdAt || c.at)).map(row).join("");
 }
 
@@ -235,6 +275,9 @@ $("#clipBody")?.addEventListener("click", async (e) => {
   // Two clicks. A clip that was posted or is scheduled is the record of what went
   // out, with its links: it says so, in a heavier red.
   const c = CLIPS.find((x) => x.id === id);
+  // A row nobody filled in (it was saved empty before drafts existed, or after a
+  // field was touched and then cleared) holds nothing to lose: one click, no trash.
+  if (c && isEmptyClip(c) && !c.fileMissing) { await deleteClips([id], { empty: true }); return; }
   const posted = c && (c.status === "Posted" || c.status === "Scheduled");
   b.title = posted ? "Delete this posted clip? Its record and links are lost (Undo is offered for a few seconds)." : "Delete this clip";
   if (!armedClick(b, { armedText: posted ? "Delete posted clip?" : "Delete?", strong: !!posted })) return;
@@ -246,12 +289,12 @@ $("#clipBody")?.addEventListener("click", async (e) => {
    Undo puts the rows back exactly as they were -- every column, createdAt included,
    in the same place. fetch() does not reject on 4xx/5xx, so the body is read: a
    failed delete says so and leaves the rows on screen. */
-async function deleteClips(ids) {
+async function deleteClips(ids, { empty = false } = {}) {
   let deleted = [];
   try {
     const j = await (await fetch("/api/workspace/clips/delete", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids }),
+      body: JSON.stringify({ ids, ...(empty ? { trash: false } : {}) }),
     })).json();
     if (j.error) throw new Error(j.error);
     deleted = j.deleted || [];
@@ -266,6 +309,7 @@ async function deleteClips(ids) {
   deleted.forEach((id) => SELECTED.delete(id));
   summarizeClips();
   drawClips();
+  if (empty) return;                  // nothing in it: no notice, no Undo
   const n = deleted.length;
   showUndoToast(`${n} clip${n === 1 ? "" : "s"} deleted`, async () => {
     try {
@@ -282,14 +326,33 @@ async function deleteClips(ids) {
   });
 }
 
-$("#addClipBtn")?.addEventListener("click", async () => {
+$("#addClipBtn")?.addEventListener("click", () => {
+  if (DRAFT) { $('#clipBody [data-draft-field="title"]')?.focus(); return; }
+  DRAFT = { status: "Draft", platform: "YouTube + TikTok", title: "", date: "", time: "" };
+  clipPager.first();
+  drawClips();
+  const el = $('#clipBody [data-draft-field="title"]');
+  el?.focus();
+  el?.closest("tr")?.scrollIntoView({ block: "nearest" });
+});
+
+function cancelDraft() {
+  DRAFT = null;
+  drawClips();                    // nothing was sent, so there is nothing to undo or clean up
+}
+
+async function saveDraft() {
+  syncDraftFromDom();
+  if (!DRAFT) return;
+  const body = { ...DRAFT };
   try {
     const j = await (await fetch("/api/workspace/clips", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "Draft", platform: "YouTube + TikTok" }),
+      body: JSON.stringify(body),
     })).json();
     if (j.error) throw new Error(j.error);
-    CLIPS.unshift({ id: j.id, status: "Draft", platform: "YouTube + TikTok", createdAt: j.createdAt });
+    CLIPS.unshift({ ...body, id: j.id, createdAt: j.createdAt });
+    DRAFT = null;
     // The new row is the newest: first when newest comes first, else last.
     if (clipSort.dir() === "desc") clipPager.first(); else clipPager.last();
     summarizeClips();
@@ -297,8 +360,20 @@ $("#addClipBtn")?.addEventListener("click", async () => {
     clipError("");
   } catch (err) {
     console.error("failed to create new clip:", err);
-    clipError(`Could not create the clip — ${err.message || "no connection to klipian serve"}.`);
+    clipError(`Could not create the clip — ${err.message || "no connection to klipian serve"}. The draft is still here.`);
   }
+}
+
+$("#clipBody")?.addEventListener("click", (e) => {
+  if (e.target.closest("[data-draft-save]")) saveDraft();
+  else if (e.target.closest("[data-draft-cancel]")) cancelDraft();
+});
+
+$("#clipBody")?.addEventListener("keydown", (e) => {
+  const inDraft = e.target.closest("tr[data-draft]");
+  if (!inDraft) return;
+  if (e.key === "Escape") { e.preventDefault(); cancelDraft(); }
+  else if (e.key === "Enter" && e.target.matches('[data-draft-field="title"]')) { e.preventDefault(); saveDraft(); }
 });
 
 /* ---------- bulk actions on the ticked rows ---------- */

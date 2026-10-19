@@ -191,3 +191,8 @@ select.ws-input, .pager-size select, .ws-bulk select {
   color: #fff;
   background: var(--danger, #c0392b);
 }
+
+/* "+ New clip" draft row: marked as not saved yet, with its Save / Cancel. */
+#clipBody tr.ws-draft { background: var(--accent-soft, var(--glass)); }
+#clipBody tr.ws-draft .ws-input { border-color: var(--accent); background-color: var(--bg-1); }
+.ws-draft-actions { display: inline-flex; align-items: center; gap: 8px; }
