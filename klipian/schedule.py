@@ -19,6 +19,7 @@ from pathlib import Path
 from .paths import WORKSPACE
 
 CLIPS_PATH = WORKSPACE / "schedule" / "clips.json"
+OUT_DIR = WORKSPACE / "out"
 
 # clips.json has its own lock rather than sharing the jobs LOCK. That one is
 # taken several times per SECOND while a transcription reports progress, so
@@ -54,6 +55,59 @@ def save_clips(clips: list[dict], path: Path | None = None) -> None:
     tmp.replace(path)
 
 
+def file_created(project_id: str | None, file_name: str | None) -> int | None:
+    """When the render file of a row was made (creation time of
+    out/<slug>.<projectId>/<file>; the modified time where the system keeps no
+    creation time). None when the row has no project or the file is gone.
+
+    The row's own `at` is NOT a creation time -- it is overwritten on every save.
+    """
+    if not project_id or not file_name:
+        return None
+    try:
+        for folder in OUT_DIR.glob(f"*.{project_id}"):
+            f = folder / Path(file_name).name
+            if f.is_file():
+                st = f.stat()
+                return int(getattr(st, "st_birthtime", None) or st.st_mtime)
+    except OSError:
+        pass
+    return None
+
+
+def created_of(row: dict) -> int:
+    """The creation time a row without `createdAt` should get: its render file's,
+    else the last time it was saved (`at`), else now."""
+    return (file_created(row.get("projectId"), row.get("file"))
+            or int(row.get("at") or 0) or int(time.time()))
+
+
+def migrate_created(path: Path | None = None, lock: threading.Lock | None = None) -> tuple[int, int]:
+    """Give every row that has no `createdAt` one (once; rows that have one are
+    never touched). Only adds that column. Keeps a copy of the file as it was in
+    clips.pre-created.json (written once). Returns (rows given the time of their
+    file, rows given `at` or now)."""
+    path = path or CLIPS_PATH
+    with (lock or CLIPS_LOCK):
+        clips = load_clips(path)
+        from_file = from_at = 0
+        for row in clips:
+            if row.get("createdAt"):
+                continue
+            made = file_created(row.get("projectId"), row.get("file"))
+            if made:
+                from_file += 1
+            else:
+                from_at += 1
+            row["createdAt"] = made or int(row.get("at") or 0) or int(time.time())
+        if from_file or from_at:
+            backup = path.with_name("clips.pre-created.json")
+            if path.is_file() and not backup.exists():
+                backup.write_bytes(path.read_bytes())
+            save_clips(clips, path)
+        return from_file, from_at
+
+
 def description(post: dict | None, credit_lines: str = "") -> str:
     """The block pasted under an upload: caption, hashtags and the source credit,
     each only if there is one, with a blank line between. The Render screen's
@@ -85,12 +139,15 @@ def upsert_render(*, project_id: str, result_id: str, title: str, file_name: str
         created = row is None
         if created:
             row = {"id": uuid.uuid4().hex[:8], "status": "Draft", "platform": "YouTube + TikTok",
-                   "projectId": project_id, "resultId": result_id}
+                   "projectId": project_id, "resultId": result_id,
+                   # Stable: made once, never changed by edits or a render again.
+                   "createdAt": file_created(project_id, file_name) or int(time.time())}
             clips.append(row)
         row["file"] = file_name                       # always the newest render
         for key, value in wanted.items():
             if value and not (row.get(key) or "").strip():
                 row[key] = value
+        row.setdefault("createdAt", created_of(row))   # a row from before the column
         row["at"] = int(time.time())
         save_clips(clips, path)
         return row["id"], created

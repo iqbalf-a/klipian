@@ -38,7 +38,8 @@ from . import compose as composer
 from . import ffmpeg_tools
 from . import render as engine
 from . import credits as credits_mod
-from .schedule import CLIPS_LOCK, load_clips as _load_clips, save_clips as _save_clips
+from .schedule import (CLIPS_LOCK, created_of as _created_of, load_clips as _load_clips,
+                       migrate_created as _migrate_created, save_clips as _save_clips)
 from . import cues as cues_mod
 from . import roundtrip
 from .jobs import (ACTIVE_TRANSCRIBES, CANCELLED, JOBS, LOCK, MAX_JOBS, _clip_words,
@@ -525,8 +526,11 @@ class Handler(BaseHTTPRequestHandler):
                 "url": f"/workspace/out/{mp4.parent.name}/{mp4.name}",
                 "mb": round(st.st_size / 1048576, 1),
                 "at": int(st.st_mtime),
+                # When the file was made (the modified time where the system
+                # keeps no creation time): what the dashboard's Created column shows.
+                "created": int(getattr(st, "st_birthtime", None) or st.st_mtime),
             })
-        item.sort(key=lambda x: x["at"], reverse=True)   # newest first
+        item.sort(key=lambda x: x["created"], reverse=True)   # newest first
         return self._send_json({"render": item})
 
     def _get_projects(self):
@@ -578,6 +582,12 @@ class Handler(BaseHTTPRequestHandler):
         return self._send_json(data)
 
     def _get_workspace_clips(self):
+        # Rows from before the Created column get one now (once; see
+        # schedule.migrate_created).
+        from_file, from_at = _migrate_created()
+        if from_file or from_at:
+            print(f"klipian: clips.json: gave {from_file + from_at} rows a createdAt "
+                  f"({from_file} from their render file, {from_at} from their last save)")
         return self._send_json({"clip": _load_clips()})
 
     def _get_workspace_assets(self):
@@ -1174,15 +1184,19 @@ class Handler(BaseHTTPRequestHandler):
 
                 for i, c in enumerate(clips):
                     if c.get("id") == cid:
+                        # createdAt belongs to the server and never changes: an
+                        # edit (the page resends the row) keeps the stored one.
+                        req["createdAt"] = c.get("createdAt") or _created_of(c)
                         clips[i] = req
                         break
                 else:
+                    req["createdAt"] = int(time.time())
                     clips.append(req)
 
                 _save_clips(clips)
         if deleted:
             return self._send_json({"ok": True, "deleted": True})
-        return self._send_json({"ok": True, "id": cid})
+        return self._send_json({"ok": True, "id": cid, "createdAt": req.get("createdAt")})
 
     def _post_import(self):
         """Claude's pasted reply -> clip candidates -- see roundtrip.parse_reply."""

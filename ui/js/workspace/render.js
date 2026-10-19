@@ -8,6 +8,7 @@
    ========================================================================== */
 
 let RENDER = [];
+const renderSort = createSort("render");
 const renderPager = createPager({ key: "render", mount: $("#renderPager"), onChange: () => drawRender() });
 
 async function loadRender() {
@@ -38,19 +39,27 @@ function drawRender() {
     list.innerHTML = `<p class="empty">Nothing in the out/ folder yet.</p>`;
     return;
   }
-  const page = renderPager.slice(RENDER);
-  const first = RENDER.indexOf(page[0]);
-  list.innerHTML = page.map((r, k) => `
-    <div class="ws-row" data-i="${first + k}">
+  const page = renderPager.slice(renderSort.apply(RENDER, (r) => r.created || r.at));
+  list.innerHTML = `
+    <div class="ws-row head">
+      <span>File</span><span>Size</span><span>${renderSort.headHTML("Created")}</span><span></span><span></span>
+    </div>` + page.map((r) => `
+    <div class="ws-row" data-i="${RENDER.indexOf(r)}">
       <span class="name">${escapeHTML(r.file)} <span class="data">— ${escapeHTML(r.video)}</span></span>
       <span class="data">${r.mb} MB</span>
-      <span class="data">${timeAgo(r.at)}</span>
+      <span class="data" title="${escapeHTML(timeAgo(r.created || r.at))}">${fmtCreated(r.created || r.at)}</span>
       <button class="rounded-s px-2.5 py-1 text-[12px] hover:bg-glass" data-action="play">Play</button>
       <button class="rounded-s px-2.5 py-1 text-[12px] border border-glass-border hover:bg-glass" data-action="open">Open folder</button>
     </div>`).join("");
 }
 
 $("#renderList")?.addEventListener("click", async (e) => {
+  if (e.target.closest("[data-sort-created]")) {
+    renderSort.toggle();
+    renderPager.first();
+    drawRender();
+    return;
+  }
   const b = e.target.closest("[data-action]");
   if (!b) return;
   const row = b.closest("[data-i]");

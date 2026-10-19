@@ -22,6 +22,7 @@ const DETAIL_FIELDS = ["episode", "file", "description", "tiktokCaption",
   "youtubeUrl", "tiktokUrl", "notes"];
 
 let CLIPS = [];
+const clipSort = createSort("clips");
 const clipPager = createPager({ key: "clips", mount: $("#clipPager"), onChange: () => drawClips() });
 
 async function loadClips() {
@@ -75,6 +76,7 @@ function row(c) {
       <td class="${td}"><select class="ws-input" data-field="platform">${opt(PLATFORM, c.platform || "YouTube + TikTok")}</select></td>
       <td class="${td}">${f("date", "date")}</td>
       <td class="${td}">${f("time", "time")}</td>
+      <td class="${td}"><span class="data ws-created" title="${escapeHTML(timeAgo(c.createdAt || c.at))}">${fmtCreated(c.createdAt || c.at)}</span></td>
       <td class="${td}"><button class="ws-detail" data-action="detail" type="button">Detail</button></td>
       <td class="${td}"><button class="delete-btn" data-action="delete" type="button" title="Delete this clip">✕</button></td>
     </tr>`;
@@ -83,14 +85,16 @@ function row(c) {
 function drawClips() {
   const body = $("#clipBody");
   if (!body) return;
+  const head = $("#clipCreatedHead");
+  if (head) head.innerHTML = clipSort.headHTML("Created");
   if (!CLIPS.length) {
     clipPager.slice([]);
-    body.innerHTML = `<tr><td colspan="7" class="empty">
+    body.innerHTML = `<tr><td colspan="8" class="empty">
       No clips yet. Click "+ New clip" to start tracking your upload schedule.
     </td></tr>`;
     return;
   }
-  body.innerHTML = clipPager.slice(CLIPS).map(row).join("");
+  body.innerHTML = clipPager.slice(clipSort.apply(CLIPS, (c) => c.createdAt || c.at)).map(row).join("");
 }
 
 /* Table rows only have inputs for INLINE_FIELDS -- detail fields (still
@@ -120,6 +124,7 @@ async function saveClip(clip) {
     // New clip ID comes from the server -- rows created via "+ New clip"
     // don't have an ID until this first save.
     clip.id = j.id;
+    if (j.createdAt) clip.createdAt = j.createdAt;
     const i = CLIPS.findIndex((c) => c.id === clip.id);
     if (i >= 0) CLIPS[i] = clip; else CLIPS.push(clip);
     summarizeClips();
@@ -132,6 +137,13 @@ async function saveClip(clip) {
     return null;
   }
 }
+
+$("#clipCreatedHead")?.addEventListener("click", (e) => {
+  if (!e.target.closest("[data-sort-created]")) return;
+  clipSort.toggle();
+  clipPager.first();
+  drawClips();
+});
 
 $("#clipBody")?.addEventListener("change", (e) => {
   const tr = e.target.closest("tr[data-id]");
@@ -180,8 +192,9 @@ $("#addClipBtn")?.addEventListener("click", async () => {
       body: JSON.stringify({ status: "Draft", platform: "YouTube + TikTok" }),
     })).json();
     if (j.error) throw new Error(j.error);
-    CLIPS.unshift({ id: j.id, status: "Draft", platform: "YouTube + TikTok" });
-    clipPager.first();                    // the new row is at the top: show it
+    CLIPS.unshift({ id: j.id, status: "Draft", platform: "YouTube + TikTok", createdAt: j.createdAt });
+    // The new row is the newest: first when newest comes first, else last.
+    if (clipSort.dir() === "desc") clipPager.first(); else clipPager.last();
     summarizeClips();
     drawClips();
     clipError("");

@@ -416,6 +416,7 @@ def check_schedule() -> tuple[str, str]:
             project_id="p1", result_id="res1", title="file title", file_name="one.mp4",
             post=post, credit_lines=credit, path=path, lock=lock)
         rows = schedule.load_clips(path)
+        first_created = rows[0].get("createdAt") if rows else None
         want = "Satu kalimat. Setuju?\n\n#a #b\n\n" + credit
         row = rows[0] if rows else {}
         if not created or len(rows) != 1 or row.get("status") != "Draft":
@@ -438,6 +439,8 @@ def check_schedule() -> tuple[str, str]:
             problems.append("rendering the same Result again did not update its row")
         if row.get("file") != "two.mp4":
             problems.append("the file was not updated to the newest render")
+        if not row.get("createdAt") or row.get("createdAt") != first_created:
+            problems.append("a row's createdAt changed (or was missing) after rendering again")
         if row.get("title") != "Judul Saya":
             problems.append("a title typed on the dashboard was overwritten")
         if row.get("description") != "Baru\n\n#z\n\n" + credit:
@@ -447,6 +450,16 @@ def check_schedule() -> tuple[str, str]:
                                post=None, credit_lines="", path=path, lock=lock)
         if len(schedule.load_clips(path)) != 2:
             problems.append("a second Result did not get its own row")
+        # Rows from before the column get one (once); a row that has one is not touched.
+        old = schedule.load_clips(path)
+        old[0].pop("createdAt", None)
+        old[1]["createdAt"] = 123
+        old[0]["at"] = 456
+        schedule.save_clips(old, path)
+        schedule.migrate_created(path, lock)
+        migrated = schedule.load_clips(path)
+        if migrated[0].get("createdAt") != 456 or migrated[1].get("createdAt") != 123:
+            problems.append(f"createdAt migration is wrong: {[r.get('createdAt') for r in migrated]}")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

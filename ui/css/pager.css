@@ -41,3 +41,21 @@
   font-weight: 700;
 }
 .pager-gap { color: var(--text-faint); padding: 0 2px; }
+
+/* A table heading that sorts (js/shared/pager.js, createSort): looks like the
+   heading beside it, with the direction as an arrow. */
+.sort-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.sort-head:hover { color: var(--text); }
+.sort-head .sort-arrow { color: var(--accent); font-size: 9px; }

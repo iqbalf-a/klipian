@@ -94,5 +94,37 @@ function createPager({ key, mount, onChange }) {
       return items.slice(page * size, page * size + size);
     },
     first() { page = 0; },                      // e.g. a new row is added at the top
+    last() { page = Infinity; },                // ... or at the bottom (clamped by slice)
+  };
+}
+
+/* ---------- sorting a table by its Created time ----------
+   const sort = createSort("clips");            // "desc" (newest first) unless chosen
+   sort.apply(rows, (r) => r.createdAt);        // a sorted COPY; ties keep their order
+   sort.toggle();                               // flips and remembers (localStorage, try/catch)
+   sort.headHTML("Created");                    // the heading's button, arrow included
+   Sorting happens BEFORE paging: slice() the sorted copy. */
+function createSort(key) {
+  const K = `klipian.sort.${key}`;
+  let dir = "desc";
+  try { if (localStorage.getItem(K) === "asc") dir = "asc"; } catch { /* default */ }
+  return {
+    dir: () => dir,
+    toggle() {
+      dir = dir === "desc" ? "asc" : "desc";
+      try { localStorage.setItem(K, dir); } catch { /* not remembered */ }
+    },
+    apply(rows, time) {
+      const sign = dir === "desc" ? -1 : 1;
+      return rows.map((r, i) => ({ r, i, t: Number(time(r)) || 0 }))
+        .sort((a, b) => sign * (a.t - b.t) || a.i - b.i)
+        .map((x) => x.r);
+    },
+    headHTML(label) {
+      return `<button class="sort-head" type="button" data-sort-created
+        title="${dir === "desc" ? "Newest first: click for oldest first" : "Oldest first: click for newest first"}"
+        aria-label="Sort by ${label}, ${dir === "desc" ? "newest" : "oldest"} first">${label}
+        <span class="sort-arrow" aria-hidden="true">${dir === "desc" ? "▼" : "▲"}</span></button>`;
+    },
   };
 }
