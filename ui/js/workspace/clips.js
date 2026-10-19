@@ -243,15 +243,7 @@ $("#clipBody")?.addEventListener("click", async (e) => {
   e.stopImmediatePropagation();
   const tr = gone.closest("tr[data-id]");
   if (!tr) return;
-  clearTimeout(gone._armTimer);
-  const label = gone.dataset.label || gone.textContent;
-  gone.dataset.label = label;
-  if (!gone.classList.contains("danger")) {
-    gone.textContent = "Sure?";
-    gone.classList.add("danger");
-    gone._armTimer = setTimeout(() => { gone.textContent = label; gone.classList.remove("danger"); }, 4000);
-    return;
-  }
+  if (!armedClick(gone, { armedText: "Sure?" })) return;
   if (gone.dataset.gone === "discard") {
     const clip = collectRow(tr);
     clip.status = "Discarded";

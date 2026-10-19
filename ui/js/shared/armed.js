@@ -3,7 +3,8 @@
    armedClick(btn, { armedText, ms = 4000, strong = false })
      Call it first in a click handler: it returns false on the FIRST click (the button
      turns red and says `armedText` -- "Delete?" -- for `ms`, then goes back by
-     itself) and true on the SECOND, when the action should go ahead. `strong` is for
+     itself; a press elsewhere or Esc cancels it sooner) and true on the SECOND, when
+     the action should go ahead. Only one button is armed at a time. `strong` is for
      what costs more (a posted clip): a heavier red. The label is restored from
      data-label, so a second click while it says "Delete?" cannot make that the
      permanent label.
@@ -14,25 +15,48 @@
      showToast(text) is the same without the button.
    ========================================================================== */
 
-function armedClick(btn, { armedText = "Sure?", ms = 4000, strong = false } = {}) {
+let _armedBtn = null;                       // the one button that is armed right now
+
+/* Back to normal: the label, the colour, the hint, the listeners. Called by the
+   timeout, by the confirming click, and by both ways of cancelling. */
+function disarm(btn) {
+  if (!btn || !btn.classList.contains("armed")) return;
   clearTimeout(btn._armTimer);
-  const label = btn.dataset.label ?? btn.innerHTML;
-  btn.dataset.label = label;
-  if (btn.classList.contains("armed")) {
-    btn.classList.remove("armed", "danger", "strong");
-    btn.innerHTML = label;
-    btn.removeAttribute("aria-live");
+  btn.classList.remove("armed", "danger", "strong");
+  if (btn.dataset.label !== undefined) btn.innerHTML = btn.dataset.label;
+  btn.removeAttribute("aria-live");
+  if (btn._armTitle !== undefined) { btn.title = btn._armTitle; delete btn._armTitle; }
+  document.removeEventListener("pointerdown", btn._armOutside, true);
+  document.removeEventListener("keydown", btn._armKey, true);
+  if (_armedBtn === btn) _armedBtn = null;
+}
+
+function armedClick(btn, { armedText = "Sure?", ms = 4000, strong = false } = {}) {
+  if (btn.classList.contains("armed")) {      // the second click: go ahead
+    disarm(btn);
     return true;
   }
+  disarm(_armedBtn);                          // only one armed at a time
+  btn.dataset.label = btn.innerHTML;
+  btn._armTitle = btn.title;
   btn.classList.add("armed", "danger");
   btn.classList.toggle("strong", strong);
   btn.textContent = armedText;
+  btn.title = "Click again to confirm · Esc or click elsewhere to cancel";
   btn.setAttribute("aria-live", "polite");
-  btn._armTimer = setTimeout(() => {
-    btn.classList.remove("armed", "danger", "strong");
-    btn.innerHTML = label;
-    btn.removeAttribute("aria-live");
-  }, ms);
+  // A press anywhere else cancels (the press itself is not stopped, so the click
+  // still does what it was going to); so does Esc -- which, inside a dialog, must
+  // not close the dialog as well.
+  btn._armOutside = (e) => { if (!btn.contains(e.target)) disarm(btn); };
+  btn._armKey = (e) => {
+    if (e.key !== "Escape") return;
+    if (btn.closest("dialog")) e.preventDefault();
+    disarm(btn);
+  };
+  document.addEventListener("pointerdown", btn._armOutside, true);
+  document.addEventListener("keydown", btn._armKey, true);
+  btn._armTimer = setTimeout(() => disarm(btn), strong ? Math.max(ms, 6000) : ms);
+  _armedBtn = btn;
   return false;
 }
 
