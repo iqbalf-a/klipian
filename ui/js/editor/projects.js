@@ -288,6 +288,9 @@ function snapshotActiveResult() {
   if (!activeResultId) return;
   const slot = SAVED_RESULTS.find((r) => r.id === activeResultId);
   if (!slot) return;
+  // The Post text and Angle panels must hold THIS Result's text before they are
+  // read: otherwise they are refilled from it, never saved over it.
+  if (typeof syncPostAngleToActive === "function") syncPostAngleToActive(slot);
   slot.title = (typeof $ === "function" && $("#resultTitle")?.value.trim()) || "";
   // Output Format belongs to the Result, not the project (ian). It used to
   // sit beside `results` as one setting every Result rendered with -- so

@@ -48,7 +48,16 @@ function updatePostCount() {
   }
 }
 
+/* WHICH Result the Post text panel is showing. The panel is one set of fields
+   for whichever Result is open, so what it holds is only ever right for one
+   Result; saving it into another would hand that Result somebody else's text
+   (a Result that got the previous one's post and angle). Set whenever the fields
+   are filled; checked by syncPostAngleToActive() before anything is saved. */
+let postOwner = null;
+const currentOwner = () => (typeof activeResultId !== "undefined" ? activeResultId : null);
+
 function setPostFields(post) {
+  postOwner = currentOwner();
   const p = post || {};
   if ($("#postTitle")) $("#postTitle").value = p.title || "";
   if ($("#postCaption")) $("#postCaption").value = p.caption || "";
@@ -57,6 +66,58 @@ function setPostFields(post) {
 }
 
 const clearPostFields = () => setPostFields(null);
+
+/* Before a Result is written (snapshotActiveResult), make sure the Post text and
+   Angle panels belong to it. If they were filled for another Result they are
+   filled again from THIS one's saved data (empty when it has none) -- never saved
+   over it. Returns true when it had to correct them. */
+function syncPostAngleToActive(slot) {
+  const id = currentOwner();
+  let fixed = false;
+  if (postOwner !== id) { setPostFields(slot.post); fixed = true; }
+  if (typeof angleOwner !== "undefined" && angleOwner !== id && typeof setAngleFields === "function") {
+    setAngleFields(slot.angle); fixed = true;
+  }
+  return fixed;
+}
+
+/* The suggestion that this Result was made from: the one that has `key` ("post" or
+   "angle") and overlaps the Result's moments the most, its first moment counting
+   a little more. null when none does. */
+function suggestionForResult(key) {
+  const cands = (typeof DATA !== "undefined" && DATA.candidates) || [];
+  const off = (typeof activeAssetOffset === "function") ? activeAssetOffset() : 0;
+  let best = null, bestScore = 0;
+  for (const k of cands) {
+    if (!k?.[key]) continue;
+    RESULT.forEach((r, i) => {
+      const overlap = Math.min(r.end, k.endSec + off) - Math.max(r.start, k.startSec + off);
+      const score = overlap * (i === 0 ? 1.01 : 1);
+      if (overlap > 0 && score > bestScore) { best = k; bestScore = score; }
+    });
+  }
+  return best;
+}
+
+/* "Refill from suggestion": fill the panel from the suggestion this Result came
+   from. Two clicks when something is already written (the first says so). */
+function armRefill(btn, key, filled, apply, note) {
+  clearTimeout(btn._armTimer);
+  const label = btn.dataset.label || btn.textContent;
+  btn.dataset.label = label;
+  const k = suggestionForResult(key);
+  if (!k) { note(`No suggestion with ${key === "post" ? "post text" : "an angle"} overlaps this Result's moments.`); return; }
+  if (filled && !btn.classList.contains("danger")) {
+    btn.textContent = "Replace what is written?";
+    btn.classList.add("danger");
+    btn._armTimer = setTimeout(() => { btn.textContent = label; btn.classList.remove("danger"); }, 4000);
+    return;
+  }
+  btn.textContent = label;
+  btn.classList.remove("danger");
+  apply(k);
+  note(`Filled from the suggestion "${k.title}".`);
+}
 
 /* A suggestion's post text moves into the Result when it is added -- the first
    one that has any, and only into an empty Result text (a manual range brings
@@ -106,6 +167,13 @@ async function refreshPostCredit() {
     updatePostCount();
     if (typeof saveProject === "function") saveProject();
   });
+});
+
+$("#postRefill")?.addEventListener("click", (e) => {
+  armRefill(e.currentTarget, "post", !!currentPost(), (k) => {
+    setPostFields(k.post);
+    if (typeof saveProject === "function") saveProject();
+  }, (t) => { if ($("#postNote")) $("#postNote").textContent = t; });
 });
 
 document.querySelectorAll("[data-post-copy]").forEach((btn) => {

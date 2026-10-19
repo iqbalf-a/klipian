@@ -55,7 +55,11 @@ function updateAngleCount() {
   }
 }
 
+/* Which Result the Angle panel is showing (see postOwner in post.js). */
+let angleOwner = null;
+
 function setAngleFields(angle) {
+  angleOwner = (typeof activeResultId !== "undefined") ? activeResultId : null;
   const a = angle || {};
   if ($("#angleTake")) $("#angleTake").value = a.take || "";
   if ($("#angleIntro")) $("#angleIntro").value = a.intro || "";
@@ -189,6 +193,16 @@ document.querySelector("#anglePanel")?.addEventListener("click", (e) => {
     commitOverlays();
     angleStatus("Removed from the video.");
   }
+});
+
+/* "Refill from suggestion": the suggestion this Result came from (post.js,
+   suggestionForResult). The labels already on the video follow the new words. */
+$("#angleRefill")?.addEventListener("click", (e) => {
+  armRefill(e.currentTarget, "angle", !!currentAngle(), (k) => {
+    setAngleFields(k.angle);
+    if (ANGLE_PARTS.some((part) => syncAngleLabel(part))) commitOverlays();
+    if (typeof saveProject === "function") saveProject();
+  }, angleStatus);
 });
 
 /* ---------- wiring ---------- */

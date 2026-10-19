@@ -2227,6 +2227,9 @@ h1, h2, h3 {
    window: it scrolls, instead of cutting its lower panels off. */
 .screen[data-screen="render"] { overflow-y: auto; }
 
+.post-head h2 { display: flex; align-items: center; gap: var(--s3); }
+.refill-btn { font-size: var(--t-12); padding: 3px 10px; margin-left: auto; }
+
 /* Angle (angle.js) uses the Post text panel's look; these are its note rows. */
 .angle-notes { display: grid; gap: 6px; }
 .angle-note-row { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: var(--s2); align-items: center; }
