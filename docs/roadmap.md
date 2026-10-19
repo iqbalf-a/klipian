@@ -1070,6 +1070,35 @@ dihapus dari layar Render, dan teks label keluar dari kotaknya di preview.
      baris "Labels on the video: edit or delete them here or on the
      Timeline".
 
+**P11b: laporan ian 2026-10-19, dari dialog Detail jadwal upload.**
+1. **Bug: Post text dan Angle bocor ke Result berikutnya.**
+   - Bukti di project ca457bc104b4 ("Bocah-bocah Jadi Ibu-ibu"):
+     - res16 (segmen "Sewa Rumah Buat 10 Kucing") membawa `post` dan
+       `angle` milik res15 ("Kebiasaan Aneh Cewek Saat Ngaca…");
+     - res22 membawa milik res21 ("Sabun yang Wanginya Kayak Kerang").
+   - Akibatnya, jadwal upload punya dua baris berjudul sama untuk klip
+     yang berbeda.
+   - Dugaan: kolom panel tidak dikosongkan saat Result baru dibuat atau
+     dipilih, lalu isi yang tertinggal tersimpan ke Result baru.
+   - Perbaikan:
+     - setiap kali Result berganti atau dibuat, panel diisi dari Result
+       itu sendiri (kosong kalau tidak punya);
+     - tambahkan tombol "Refill from suggestion" untuk mengisi ulang dari
+       kandidat Result itu sendiri;
+     - data ian **tidak** diubah otomatis.
+2. **Dialog Detail di dashboard:**
+   - kolom Description dan TikTok caption terlalu kecil (3 baris);
+   - kolom lain (Source episode, YouTube/TikTok link, Notes) nyaris tidak
+     terlihat;
+   - belum ada tombol Copy.
+   - Perbaikan:
+     - dialog lebih lebar;
+     - textarea tumbuh mengikuti isinya, minimal ±8 baris dan maksimal
+       ±45% tinggi layar, lalu scroll;
+     - semua kolom terlihat jelas sebagai kolom input;
+     - tombol Copy untuk title, description, dan TikTok caption;
+     - tombol Open untuk link yang sudah terisi.
+
 ---
 
 ## 3. Diparkir, sengaja tidak dikerjakan
