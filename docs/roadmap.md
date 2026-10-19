@@ -1037,6 +1037,39 @@ render jadi acuan dan tidak diubah, semua baseline selftest tetap)
   punya metrik sendiri, jadi koreksinya per font; layak jadi pekerjaan
   tersendiri.
 
+**P12c: laporan ian 2026-10-19, dari layar Render (Result 11).**
+Ian bingung cara kerja Post text dan Angle, label intro tidak bisa
+dihapus dari layar Render, dan teks label keluar dari kotaknya di preview.
+
+1. **Bug preview: teks keluar dari kotak.**
+   - Penyebab: di `compose.js` (`drawOverlays`), lapisan kotak
+     (`.ov-box > span`) memakai padding horizontal, sedangkan lapisan
+     teks (`.ov-fg`) tidak. Lebar isi kedua lapisan berbeda, sehingga
+     lapisan kotak dipotong menjadi dua baris sementara teks tetap satu
+     baris. Hasilnya kotak dan teks tidak sejajar. Bug ini masuk lewat
+     `6f47f68`.
+   - Render (libass) tidak terkena.
+   - Perbaikan: kedua lapisan harus dipotong ke baris secara identik,
+     misalnya dengan padding horizontal transparan yang sama di
+     `.ov-fg`, atau padding kotak lewat `box-shadow`/`outline` yang
+     tidak mengubah lebar.
+2. **Angle mengelola labelnya sendiri.**
+   - Label yang dibuat Add intro dan Add notes diberi tanda asal
+     (misalnya `origin: "angle-intro"` / `"angle-note-<n>"`).
+   - Di panel Angle, setiap baris menunjukkan statusnya ("on the video")
+     dengan tombol **Remove**.
+   - Mengubah teks Intro atau Note memperbarui label yang tertaut.
+   - Menghapus label di Timeline mengubah statusnya kembali menjadi
+     "Add".
+   - Label tanpa tanda asal tidak tersentuh.
+3. **Penjelasan di UI.**
+   - **Post text** = teks untuk diunggah dan tidak masuk ke video.
+   - **Angle** = draf ide; hanya intro dan notes yang masuk ke video,
+     dan hanya kalau ditambahkan.
+   - Penjelasannya singkat, di kepala masing-masing panel, ditambah satu
+     baris "Labels on the video: edit or delete them here or on the
+     Timeline".
+
 ---
 
 ## 3. Diparkir, sengaja tidak dikerjakan
