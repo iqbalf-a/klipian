@@ -1357,6 +1357,53 @@ res15/res16 karena bug P11b.
 - Satu aturan untuk server dan CLI. Byte isi video tidak berubah, jadi
   baseline selftest tetap identik.
 
+### P18 — Menyamakan status jadwal dengan video yang sudah diunggah
+
+Keluhan ian (2026-10-19): bingung menyamakan video yang sudah diunggah
+dengan baris di Clips, karena status harus diubah satu per satu.
+Keputusan ian: **kerjakan B dulu**, dan A setelah ian menyiapkan Google
+Cloud.
+
+**B — Edit massal dan tempel link (dikerjakan sekarang):**
+- Kolom **centang** per baris di tabel Clips, ditambah centang "pilih
+  semua di halaman ini". Pilihan bertahan saat pindah halaman (P11b),
+  dan jumlah yang dipilih ditampilkan.
+- Bilah aksi muncul kalau ada yang dicentang:
+  - **Mark as Posted**: status Posted, tanggal dan jam unggah = sekarang
+    (bisa diubah sebelum diterapkan); tanggal yang sudah terisi tidak
+    ditimpa;
+  - **Set status…** untuk status lain (Ready, Scheduled, Discarded);
+  - **Clear selection**.
+- **Tempel link mengisi status:** di dialog Detail, mengisi YouTube link
+  atau TikTok link otomatis:
+  - mengubah status Draft/Ready menjadi **Posted**;
+  - mengisi tanggal dan jam unggah kalau masih kosong;
+  - menyesuaikan platform kalau perlu.
+
+  Link yang tidak valid ditolak dengan pesan. Menghapus link tidak
+  menurunkan status otomatis.
+- Satu kali simpan per aksi massal (server menerima daftar id). Edit
+  massal tidak mengubah `createdAt` (P15).
+
+**A — Sync from YouTube (setelah ian menyiapkan Google Cloud; tanpa
+audit):**
+- Persiapan sama dengan P16 sampai OAuth client Desktop app, cukup
+  dengan scope `youtube.readonly`. Audit Google hanya berlaku untuk
+  upload, jadi tidak diperlukan di sini. Alternatif API key hanya
+  membaca video publik (tidak termasuk yang terjadwal/private).
+- Tombol **Sync from YouTube** di dashboard:
+  - mengambil daftar video kanal (uploads playlist: id, judul, status,
+    `publishAt`/`publishedAt`);
+  - mencocokkan ke baris jadwal lewat judul yang dinormalisasi (huruf
+    kecil, tanpa tanda baca/hashtag); kalau gagal, lewat nama file
+    (judul default YouTube = nama file, lihat P17);
+  - **layar konfirmasi** dengan kelompok cocok / mungkin cocok / tidak
+    ketemu; ian mencentang, lalu klik Apply;
+  - baris yang dikonfirmasi: status Posted/Scheduled, `youtubeUrl`,
+    tanggal dan jam tayang, dan `videoId`.
+- Baris yang sudah punya `videoId` dilewati, kecuali status di YouTube
+  berubah.
+
 ---
 
 ## 3. Diparkir, sengaja tidak dikerjakan
