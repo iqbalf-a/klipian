@@ -1917,7 +1917,7 @@ h1, h2, h3 {
 }
 .rec-time-in {
   font-family: var(--font-data); font-size: 12px;
-  width: 52px; padding: 3px 3px;
+  width: 62px; padding: 3px 3px;     /* mm:ss.s */
   border-radius: var(--r-s);
   border: 1px solid var(--glass-border);
   background: var(--glass);
@@ -1992,7 +1992,7 @@ h1, h2, h3 {
   .rec-row .rec-time { grid-row: 2; grid-column: 2 / -1; justify-content: flex-end; }
   /* Buys back the ~12px the two mm:ss inputs need to fit on that second
      row; the field still shows "00:00" without clipping. */
-  .rec-row .rec-time-in { width: 46px; }
+  .rec-row .rec-time-in { width: 58px; }
 }
 .rec-row:has(input:checked) {
   background: var(--accent-soft);

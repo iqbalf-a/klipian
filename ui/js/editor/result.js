@@ -200,8 +200,8 @@ function recTimeField(i, field, value, label) {
   return `
     <span class="rec-time-field">
       <input type="text" class="rec-time-in" value="${value}"
-             data-idx="${i}" data-field="${field}" size="5" spellcheck="false" disabled
-             inputmode="numeric" aria-label="${label}">
+             data-idx="${i}" data-field="${field}" size="7" spellcheck="false" disabled
+             inputmode="decimal" aria-label="${label}">
       <span class="rec-time-step">
         <button type="button" class="rec-step" data-idx="${i}" data-field="${field}"
                 data-dir="1" tabindex="-1" disabled
@@ -264,9 +264,9 @@ function renderRecommendations() {
       <span class="num">${i + 1}</span>
       <span class="rec-title">${escapeHTML(k.title)}</span>
       <span class="rec-time">
-        ${recTimeField(i, "startSec", timeRange(k.startSec), `Start time for ${escapeHTML(k.title)}`)}
+        ${recTimeField(i, "startSec", timeTenths(k.startSec), `Start time for ${escapeHTML(k.title)}`)}
         <span aria-hidden="true">–</span>
-        ${recTimeField(i, "endSec", timeRange(k.endSec), `End time for ${escapeHTML(k.title)}`)}
+        ${recTimeField(i, "endSec", timeTenths(k.endSec), `End time for ${escapeHTML(k.title)}`)}
         <button class="rec-edit" type="button" data-edit-time="${i}"
                 title="Edit time" aria-label="Edit time for ${escapeHTML(k.title)}">✎</button>
       </span>
@@ -583,7 +583,7 @@ $("#recList")?.addEventListener("keydown", (e) => {
     return;
   }
   if (e.ctrlKey || e.metaKey || e.key.length > 1) return;  // shortcuts, Backspace, Tab, arrows, etc.
-  if (!/[0-9:]/.test(e.key)) e.preventDefault();
+  if (!/[0-9:.]/.test(e.key)) e.preventDefault();
 });
 
 /* Correcting a single recommendation's time. The `label` wraps both the
@@ -592,20 +592,22 @@ $("#recList")?.addEventListener("keydown", (e) => {
    input without toggling; that's standard browser behavior for nested
    form controls, not something that needs manual handling here.
 
-   The value is also snapped to the nearest word boundary (snapToWord),
-   same as manual selection on the timeline -- one cutting rule applies
-   everywhere.
+   A typed time without a decimal point is snapped to a word (snapManual,
+   app.js: 0.6 s at most, in the direction that keeps the word whole); one WITH
+   a decimal point ("03:12.0") is taken exactly -- `exact`. The same rule as the
+   from/to fields on the Clips screen.
 
    Shared between manual typing (the "change" listener below) and the
    ▲▼ stepper / arrow-key nudge above, so every path validates, snaps,
    and syncs k.dur/k.spans/k.in/k.out the same way. Returns whether the
    new time was accepted. */
-function commitRecTime(idx, field, rawSeconds) {
+function commitRecTime(idx, field, rawSeconds, exact = false) {
   const k = (DATA?.candidates || [])[idx];
   if (!k || !Number.isFinite(rawSeconds)) return false;
-  const snapped = (typeof snapToWord === "function")
-    ? snapToWord(rawSeconds, field === "startSec" ? "start" : "end")
-    : rawSeconds;
+  const side = field === "startSec" ? "start" : "end";
+  const res = (!exact && typeof snapManual === "function") ? snapManual(rawSeconds, side)
+    : { time: rawSeconds, word: null };
+  const snapped = res.time;
 
   const other = field === "startSec" ? k.endSec : k.startSec;
   if (field === "startSec" ? snapped >= other : snapped <= other) return false;
@@ -623,8 +625,8 @@ function commitRecTime(idx, field, rawSeconds) {
   if (row) {
     const startEl = row.querySelector('.rec-time-in[data-field="startSec"]');
     const endEl = row.querySelector('.rec-time-in[data-field="endSec"]');
-    if (startEl) startEl.value = timeRange(k.startSec);
-    if (endEl) endEl.value = timeRange(k.endSec);
+    if (startEl) startEl.value = timeTenths(k.startSec);
+    if (endEl) endEl.value = timeTenths(k.endSec);
     const durEl = row.querySelector(".rec-dur");
     if (durEl) durEl.textContent = `${k.dur}s`;
   }
@@ -632,7 +634,7 @@ function commitRecTime(idx, field, rawSeconds) {
   // redraw so it moves along, rather than staying at the old position until
   // the next redraw.
   if (typeof drawTotalTimeline === "function") drawTotalTimeline();
-  return true;
+  return { ...res, typed: rawSeconds, side };
 }
 
 $("#recList")?.addEventListener("change", (e) => {
@@ -643,26 +645,30 @@ $("#recList")?.addEventListener("change", (e) => {
   const k = (DATA?.candidates || [])[idx];
   if (!k) return;
   const note = $("#recNote");
-  const raw = parseTime(inp.value);
+  const parsed = parseTimeEx(inp.value);
   // A rejected value used to snap back with NO message at all, which reads
   // as "the field is broken" -- the same complaint that was already fixed
   // for typed letters (see the comment above the keydown filter). The two
   // reasons a value is rejected are different, so say which one it was.
-  if (raw === null) {
-    inp.value = timeRange(k[field]);
-    if (note) note.textContent = `couldn't read that time — use mm:ss, e.g. ${timeRange(k[field])}`;
+  if (parsed === null) {
+    inp.value = timeTenths(k[field]);
+    if (note) note.textContent = `couldn't read that time — use mm:ss or mm:ss.s, e.g. ${timeTenths(k[field])}`;
     return;
   }
-  if (!commitRecTime(idx, field, raw)) {
-    inp.value = timeRange(k[field]);
+  // Left alone (the text is still what the field showed): nothing to commit, so a
+  // blur or the Save button never re-snaps a time that was not touched.
+  if (inp.value.trim() === timeTenths(k[field])) return;
+  const done = commitRecTime(idx, field, parsed.seconds, parsed.exact);
+  if (!done) {
+    inp.value = timeTenths(k[field]);
     if (note) {
       note.textContent = field === "startSec"
-        ? `start must stay before the end (${timeRange(k.endSec)})`
-        : `end must stay after the start (${timeRange(k.startSec)})`;
+        ? `start must stay before the end (${timeTenths(k.endSec)})`
+        : `end must stay after the start (${timeTenths(k.startSec)})`;
     }
     return;
   }
-  if (note) note.textContent = `${k.title} · ${timeRange(k.startSec)} – ${timeRange(k.endSec)}`;
+  if (note) note.textContent = timeSetNote(done.side, done.side, done.typed, done);
 });
 
 function updateRecButton() {

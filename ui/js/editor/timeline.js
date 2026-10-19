@@ -28,13 +28,17 @@ const videoDuration = () =>
 const toFraction = (t) => { const d = videoDuration(); return d ? Math.max(0, Math.min(1, t / d)) : 0; };
 const fracToSeconds = (frac) => Math.max(0, Math.min(videoDuration(), frac * videoDuration()));
 
-/* "16:56" -> 1016. Accepts "1:02:03" too. Returns null if garbage. */
-function parseTime(text) {
-  const parts = String(text).trim().split(":");
-  if (!parts.length || parts.some((b) => b.trim() === "" || isNaN(Number(b)))) return null;
-  const seconds = parts.reduce((a, b) => a * 60 + Number(b), 0);
-  return Number.isFinite(seconds) ? seconds : null;
+/* "16:56" -> 1016, "16:56.4" -> 1016.4, "1:02:03(.5)", or plain seconds ("1016",
+   "1016.4"). { seconds, exact } or null if garbage. `exact` is true when the text
+   has a decimal point: that time is meant exactly and is never snapped to a word. */
+function parseTimeEx(text) {
+  const s = String(text).trim();
+  if (!/^\d+(:\d+){0,2}(\.\d+)?$/.test(s)) return null;
+  const seconds = s.split(":").reduce((a, b) => a * 60 + Number(b), 0);
+  return Number.isFinite(seconds) ? { seconds, exact: s.includes(".") } : null;
 }
+
+const parseTime = (text) => parseTimeEx(text)?.seconds ?? null;
 
 /* ---------- drawing ---------- */
 
@@ -99,8 +103,8 @@ function drawSelection() {
 
   // Number fields aren't overwritten while you're typing in them.
   const a = $("#selStart"), b = $("#selEnd");
-  if (a && document.activeElement !== a) a.value = timeRange(SELECTION.start);
-  if (b && document.activeElement !== b) b.value = timeRange(SELECTION.end);
+  if (a && document.activeElement !== a) a.value = timeTenths(SELECTION.start);
+  if (b && document.activeElement !== b) b.value = timeTenths(SELECTION.end);
 
   const dur = SELECTION.end - SELECTION.start;
   $("#selDur").textContent = `${Math.round(dur)}s`;
@@ -132,10 +136,17 @@ function setSelection(start, end, snap) {
 
   // Snap is used after dragging finishes, not during -- if every pixel
   // snaps, the box jumps around and is hard to aim.
-  if (snap && typeof snapToWord === "function" && realTranscript?.words?.length) {
-    const a = snapToWord(start, "start");
-    const b = snapToWord(end, "end");
-    if (b > a) { start = a; end = b; }
+  if (snap && typeof snapManual === "function" && realTranscript?.words?.length) {
+    const a = snapManual(start, "start");
+    const b = snapManual(end, "end");
+    if (b.time > a.time) {
+      const moved = Math.abs(a.time - start) > 0.001 || Math.abs(b.time - end) > 0.001;
+      start = a.time; end = b.time;
+      if (moved && $("#pickNote")) {
+        $("#pickNote").textContent = `range follows the words: ${timeTenths(start)} – ${timeTenths(end)}. `
+          + `Type a time with a decimal, like ${timeTenths(Math.round(start))}, for exactly that.`;
+      }
+    }
   }
   SELECTION = { start, end };
   drawSelection();
@@ -236,20 +247,24 @@ document.addEventListener("keydown", (e) => {
 /* ---------- typing mm:ss ---------- */
 
 function readTimeColumns() {
-  let a = parseTime($("#selStart").value);
-  let b = parseTime($("#selEnd").value);
-  if (a === null || b === null) {
-    $("#pickNote").textContent = "time format is mm:ss, e.g. 16:56";
+  const pa = parseTimeEx($("#selStart").value);
+  const pb = parseTimeEx($("#selEnd").value);
+  if (pa === null || pb === null) {
+    $("#pickNote").textContent = "time format is mm:ss or mm:ss.s, e.g. 16:56 or 16:56.4";
     return;
   }
-  // The column displays timeRange() rounded to whole seconds. If a column
-  // was NOT changed (its rounded value still matches SELECTION), preserve
-  // SELECTION's precise value -- don't let display rounding shift the
-  // untouched side by half a second when editing the other side.
-  if (SELECTION) {
-    if (Math.round(a) === Math.round(SELECTION.start)) a = SELECTION.start;
-    if (Math.round(b) === Math.round(SELECTION.end)) b = SELECTION.end;
-  }
+  // A column that was NOT changed (its text still is what SELECTION shows) keeps
+  // SELECTION's precise value, and is not snapped again. A changed one: a time with a
+  // decimal point is exactly that; one without is snapped to a word (snapManual).
+  const same = (text, t) => SELECTION && text.trim() === timeTenths(t);
+  const resolve = (p, text, side, kept) => {
+    if (same(text, kept)) return { time: kept, word: null, typed: kept, kept: true };
+    const res = p.exact ? { time: p.seconds, word: null } : snapManual(p.seconds, side);
+    return { ...res, typed: p.seconds };
+  };
+  const A = resolve(pa, $("#selStart").value, "start", SELECTION?.start);
+  const B = resolve(pb, $("#selEnd").value, "end", SELECTION?.end);
+  const a = A.time, b = B.time;
   if (b <= a) {
     $("#pickNote").textContent = "end time must be later than start";
     return;
@@ -262,13 +277,14 @@ function readTimeColumns() {
       `${timeRange(a)} is past the end of the video (${timeRange(d)})`;
     return;
   }
+  const notes = [];
+  if (!A.kept) notes.push(timeSetNote("start", "start", A.typed, A));
+  if (!B.kept) notes.push(timeSetNote("end", "end", B.typed, B));
   if (d && b > d) {
-    $("#pickNote").textContent =
-      `shortened to the end of the video (${timeRange(d)})`;
-  } else {
-    $("#pickNote").textContent = "range set from the numbers";
+    notes.push(`shortened to the end of the video (${timeRange(d)})`);
   }
-  setSelection(a, b, false);       // typed numbers are respected as-is
+  $("#pickNote").textContent = notes.join(" · ") || "range set from the numbers";
+  setSelection(a, b, false);       // already resolved above
 }
 
 ["#selStart", "#selEnd"].forEach((sel) => {

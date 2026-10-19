@@ -336,6 +336,52 @@ const timeRange = (d) => {
   return j ? `${j}:${m}:${s}` : `${m}:${s}`;
 };
 
+/* The fields you TYPE a time into (a suggestion's start/end, Clips from/to) show
+   tenths of a second: "03:12.4". A time with a decimal point is taken as exactly
+   that; one without is snapped to a word (snapManual). */
+const timeTenths = (d) => {
+  const n = Number.isFinite(d) ? Math.max(0, Math.round(d * 10)) : 0;
+  return `${timeRange(Math.floor(n / 10))}.${n % 10}`;
+};
+
+/* Snapping a time that was TYPED, so a cut does not land inside a word. Much
+   tighter than importing a reply (snapToWord, roundtrip.js: 2 s, nearest word
+   either way -- what a rough time from Claude needs), because here the person
+   means a time: at most MANUAL_SNAP_MAX seconds, and in one direction, the one
+   that keeps the word whole:
+     start: the last word that starts at or before the time; else the first
+            word that starts after it;
+     end:   the first word that ends at or after the time; else the last word
+            that ends before it.
+   Nothing within reach -> the time as typed. Returns { time, word } (`word` is
+   the text of the word it landed on, or null when the time was kept). */
+const MANUAL_SNAP_MAX = 0.6;
+
+function snapManual(time, side) {
+  const words = (typeof realTranscript !== "undefined" && realTranscript?.words) || [];
+  if (!words.length || !Number.isFinite(time)) return { time, word: null };
+  const within = (t) => Math.abs(t - time) <= MANUAL_SNAP_MAX + 1e-9;
+  let pick = null;
+  if (side === "start") {
+    for (const w of words) if (w.start <= time + 1e-9 && within(w.start)) pick = w;     // the last one
+    if (!pick) pick = words.find((w) => w.start > time && within(w.start)) || null;
+    return pick ? { time: pick.start, word: String(pick.text).trim() } : { time, word: null };
+  }
+  pick = words.find((w) => w.end >= time - 1e-9 && within(w.end)) || null;
+  if (!pick) for (const w of words) if (w.end < time && within(w.end)) pick = w;
+  return pick ? { time: pick.end, word: String(pick.text).trim() } : { time, word: null };
+}
+
+/* What to tell the person about a typed time: that it was moved (and why), or that
+   it was taken exactly. `typed` is what they entered, `res` what snapManual gave. */
+function timeSetNote(label, side, typed, res) {
+  if (res.word && Math.abs(res.time - typed) > 0.001) {
+    return `${label} moved to ${timeTenths(res.time)} — the ${side === "start" ? "start" : "end"} of "${res.word}", `
+      + `so no word is cut. Type ${timeTenths(typed)} for exactly ${timeRange(typed)}.`;
+  }
+  return `${label} set to exactly ${timeTenths(res.time)}`;
+}
+
 
 /* ═══════════════════════════ stage navigation ═══════════════════════════
    There used to be a separate Home stage for choosing a mode -- Podcast,
