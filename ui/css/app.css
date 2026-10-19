@@ -432,17 +432,21 @@ h1, h2, h3 {
 .ov-text {
   position: absolute; transform: translate(-50%, -50%);
   font-family: var(--font-brand); font-weight: 800;
-  line-height: 1.15; text-align: center;
-  /* A long label wraps the way the render's does: libass breaks a line that is
+  text-align: center;
+  /* Size, line height, padding and outline come inline from compose.js
+     (drawOverlays): they are the render's numbers, scaled. A long label wraps the way the render's does: libass breaks a line that is
      wider than the frame less the labels' 40-unit side margins (compose.py,
      MarginL/R 40 of 1080 = 3.7% each side), balancing the lines. It used to be
      one unbroken line, which ran off the preview while the render wrapped. */
   width: max-content; max-width: 92.6%; white-space: normal; text-wrap: balance;
-  -webkit-text-stroke: .14em #000; paint-order: stroke fill;
+  paint-order: stroke fill;
 }
-.ov-text.box {
-  -webkit-text-stroke: 0;
-  background: rgba(0, 0, 0, .7); padding: .12em .25em;
+.ov-text.box { -webkit-text-stroke: 0; display: grid; }
+.ov-text.box > * { grid-area: 1 / 1; min-width: 0; }
+.ov-text .ov-box { color: transparent; }
+.ov-text .ov-box > span {
+  background: rgba(0, 0, 0, .7);
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
 }
 .ov-image { position: absolute; transform: translate(-50%, -50%); height: auto; }
 

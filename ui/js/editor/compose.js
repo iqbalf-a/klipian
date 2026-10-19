@@ -97,6 +97,23 @@ const libraryOf = (kind) => ASSETS.filter((a) => a.kind === kind);
 
 /* ---------- preview: labels and stickers in the 9:16 frame ---------- */
 
+/* How a text label is sized in the preview, so it matches what the render draws
+   (klipian/compose.py, build_label_ass; measured, see docs/roadmap.md P12b).
+
+   The render hands libass `sN`, and libass takes N as the height of the whole
+   LINE -- the font's ascent plus descent -- not as the em. Mona Sans ExtraBold
+   (assets/fonts/MonaSans-ExtraBold.ttf) has unitsPerEm 1000 and hhea
+   ascent 1090 / descent -320, so one line is 1.41 em tall and the em is
+   1000/1410 = 0.709 of N. CSS font-size is the em, so using N there drew every
+   label 1.41 times too big. Measured in the render: box height = N + 36 (18
+   units of padding on each side), line step = N, capital H = 0.50 N. The outline
+   (a plain label) is 5 units each side, a fixed number, not a share of the size. */
+// LABEL_EM (em per unit of ASS font size) is defined in interactions.js, with
+// pxFromOut: the watermark uses it too.
+const LABEL_LINE = 1410 / 1000;         // line height, in em: exactly N after LABEL_EM
+const LABEL_PAD = 18;                   // LabelBox: padding on every side, in 1080x1920 units
+const LABEL_OUTLINE = 5;                // Label: outline each side, same units
+
 let _overlayKey = "";
 function drawOverlays(out) {
   const layer = $("#overlayLayer");
@@ -115,9 +132,21 @@ function drawOverlays(out) {
     if (e.kind === "text") {
       // Same reference as the captions (pxFromOut, interactions.js): a
       // size is px in the 1080x1920 frame, scaled to this panel.
-      const px = typeof pxFromOut === "function" ? pxFromOut(e.size, h) : e.size / 4;
-      return `<div class="ov-text${e.box ? " box" : ""}" style="${pos};font-size:${px}px;color:${escapeHTML(e.color)}">`
-        + `${escapeHTML(e.text).replace(/\n/g, "<br>")}</div>`;
+      const u = (n) => (typeof pxFromOut === "function" ? pxFromOut(n, h) : n / 4);
+      const text = escapeHTML(e.text).replace(/\n/g, "<br>");
+      // A boxed label draws a box behind EACH LINE, as libass does (so a second,
+      // shorter line has a shorter box, and the boxes of two lines overlap by the
+      // padding), and all the boxes go UNDER all the text. So there are two
+      // identical layers stacked in one grid cell: the boxes (an inline span
+      // whose background and padding repeat on every line, invisible text) and
+      // the text above them (app.css .ov-box / .ov-fg). Same width, same
+      // wrapping, so the lines of both fall in the same places.
+      const look = e.box ? "" : `-webkit-text-stroke:${u(LABEL_OUTLINE * 2)}px #000;`;
+      const inner = e.box
+        ? `<div class="ov-box"><span style="padding:${u(LABEL_PAD)}px">${text}</span></div><div class="ov-fg">${text}</div>`
+        : text;
+      return `<div class="ov-text${e.box ? " box" : ""}" style="${pos};font-size:${u(e.size * LABEL_EM)}px;`
+        + `line-height:${LABEL_LINE};${look}color:${escapeHTML(e.color)}">${inner}</div>`;
     }
     return `<img class="ov-image" alt="" src="${assetFileUrl(e.file)}" style="${pos};width:${e.size}%">`;
   }).join("");

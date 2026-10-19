@@ -90,6 +90,15 @@ function captionValue(id) {
 const PLAYRES_Y_DEFAULT = 1920;
 const pxFromOut = (out, frameH) => (out / PLAYRES_Y_DEFAULT) * frameH;
 
+/* An ASS font size is the height of the whole LINE (the font's ascent plus
+   descent), not the em that CSS font-size means. For Mona Sans ExtraBold
+   (assets/fonts/MonaSans-ExtraBold.ttf: unitsPerEm 1000, hhea ascent 1090,
+   descent -320) one line is 1.41 em, so the em is 1000/1410 of the ASS size.
+   Used for what the render sets in that font: Timeline labels (compose.js, see
+   there for the measurements) and the watermark. The captions use fonts with
+   other metrics and are NOT scaled by this. */
+const LABEL_EM = 1000 / 1410;
+
 function applyCaption() {
   const cap = document.querySelector(".cap916");
   const frame = document.querySelector(".frame916");
@@ -131,7 +140,7 @@ function applyCaption() {
   if (wm && frame) {
     const sizeOut = captionOut("watermark-size");
     const opacity = captionValue("watermark-opacity").css;
-    if (frameH > 0) wm.style.fontSize = `${pxFromOut(sizeOut, frameH)}px`;
+    if (frameH > 0) wm.style.fontSize = `${pxFromOut(sizeOut * LABEL_EM, frameH)}px`;
     // opacity CSS on the ELEMENT, not rgba() on the text color -- rgba()
     // only fades the letter content, while the text-shadow underneath (see
     // .watermark916 in app.css) stays fully opaque. The result looks like

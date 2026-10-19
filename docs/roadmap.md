@@ -991,6 +991,32 @@ buatan AI yang selalu berpola sama bisa saja dinilai YouTube sebagai
 - Volume diatur manual, sesuai keputusan lama "tanpa ducking otomatis".
 - Ini kontribusi orisinal yang paling kuat.
 
+**P12b — ukuran label di preview disamakan dengan render** (ian, 2026-10-19;
+render jadi acuan dan tidak diubah, semua baseline selftest tetap)
+- Penyebab: libass memakai ukuran font ASS sebagai tinggi baris penuh
+  (ascent + descent), CSS memakai em. Mona Sans ExtraBold: unitsPerEm 1000,
+  hhea 1090 / -320, jadi em = 1000/1410 = 0,709 dari ukuran ASS, dan satu baris
+  = ukuran ASS. Preview memakai ukuran ASS sebagai em: label 1,41x terlalu besar,
+  dan tinggi kotaknya terlalu kecil.
+- Terukur di render (34, 56, 72, 96): tinggi kotak = ukuran + 36 (padding 18 di
+  tiap sisi), jarak antarbaris = ukuran, huruf kapital H = 0,50 ukuran, outline
+  tetap 5 unit, kotak digambar per baris dan tumpang tindih, semua kotak di
+  bawah semua teks.
+- Sesudah kalibrasi (compose.js `LABEL_EM`, `LABEL_LINE`, `LABEL_PAD`,
+  `LABEL_OUTLINE`, kotak per baris dalam dua lapis), preview vs render: tinggi
+  kotak 70/92/108/132 sama persis; lebar kotak "Perhatikan bagian ini"
+  283,5/446,8/565,5/743,6 vs 284/442/558/732 (selisih terbesar 1,6%); lebar
+  "HHHH" 109,8/158,2/193,4/246,1 vs 110/158/194/246; dua baris ukuran 96:
+  227,9 x 141,1 vs 228 x 142.
+- Watermark: masalah yang sama (font sama). Preview 70/102/147 vs render
+  50/72/102 pada ukuran 22/32/46 (1,4x); sekarang 49,7/72,3/104. Diubah.
+- Caption karaoke: TIDAK cocok dan tidak diubah. Tinggi huruf kapital Arial
+  84 di render 52 unit vs 63 di preview (sekitar 1,2x; metrik Arial:
+  hhea 1854/-434 per 2048 = 1,117 em per baris), dan lebar "HHHH" beda lebih
+  jauh karena bobot 800 disintesis. Pilihan font caption banyak, tiap font
+  punya metrik sendiri, jadi koreksinya per font; layak jadi pekerjaan
+  tersendiri.
+
 ---
 
 ## 3. Diparkir, sengaja tidak dikerjakan
