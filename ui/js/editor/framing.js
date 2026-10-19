@@ -872,9 +872,15 @@ $("#framingList")?.addEventListener("click", (e) => {
     const id = deleteIcon.dataset.deleteFraming;
     const gone = FRAMING.find((f) => f.id === id);
     if (!gone || isStartPoint(gone)) return;      // the 00:00 point always exists
+    const before = FRAMING.slice();
     FRAMING = FRAMING.filter((f) => f.id !== id);
     renderFraming();
     if (typeof saveProject === "function") saveProject();
+    undoForResult("Framing point deleted", () => {
+      FRAMING = before;
+      renderFraming();
+      if (typeof saveProject === "function") saveProject();
+    });
     return;
   }
   const chip = e.target.closest("[data-framing]");

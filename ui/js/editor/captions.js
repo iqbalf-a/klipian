@@ -299,6 +299,15 @@ $("#textList")?.addEventListener("click", (e) => {
 });
 
 $("#textResetBtn")?.addEventListener("click", () => {
+  const before = { ...CORRECTIONS };
+  if (Object.keys(before).length) {
+    undoForResult("Word corrections reset", () => {
+      CORRECTIONS = before;
+      renderCaptions();
+      if (typeof drawCaption === "function") drawCaption();
+      if (typeof saveProject === "function") saveProject();
+    });
+  }
   CORRECTIONS = {};
   renderCaptions();
   if (typeof drawCaption === "function") drawCaption();
@@ -311,8 +320,10 @@ $("#textResetBtn")?.addEventListener("click", () => {
 $("#textFillerBtn")?.addEventListener("click", () => {
   // renderCaptions() (called from inside renderResult(), see
   // removeFillerWords above) already redraws the word list and
-  // saves the project -- nothing else to do here.
-  removeFillerWords();
+  // saves the project -- nothing else to do here (but the Undo).
+  const before = (typeof RESULT !== "undefined") ? RESULT.map((r) => ({ ...r })) : [];
+  const n = removeFillerWords();
+  if (n) undoForResult(`${n} filler word${n === 1 ? "" : "s"} cut out`, () => { RESULT = before; renderResult(); });
 });
 
 /* New video = different transcript, old corrections no longer apply. */

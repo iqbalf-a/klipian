@@ -65,6 +65,21 @@ let resultTabSeq = 0;
    Result another one's framing points, text and labels. */
 let liveOwner = null;
 
+/* "<what> · Undo" for a change to the Result that is open (a removed moment, a framing
+   point, a Timeline element ...). The Undo puts back what the screen held; if the
+   person has gone to another Result meanwhile it must NOT -- that state is now
+   another Result's -- so it says so instead. */
+function undoForResult(text, restore) {
+  const owner = activeResultId;
+  showUndoToast(text, () => {
+    if (activeResultId !== owner) {
+      showToast("Can't undo: you have switched to another Result.");
+      return;
+    }
+    restore();
+  });
+}
+
 /* Two-step delete for the Result "x" button -- see disarmResultDelete()
    below for what this is and why. Declared up HERE rather than next to that
    function because resetProjectState() calls renderResultSwitcher() during
@@ -889,6 +904,19 @@ async function deleteProject(id) {
   }
   forgetProject(id);
   renderProjects();
+  showUndoToast("Project deleted", async () => {
+    try {
+      const j = await (await fetch("/api/project/restore", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      })).json();
+      if (j.error) throw new Error(j.error);
+    } catch (err) {
+      showToast(`Could not undo: ${err.message || "no connection"}`);
+      return;
+    }
+    renderProjects();
+  }, { ms: 10000 });
 }
 
 /* ---------- rename, in place on the card ----------

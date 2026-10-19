@@ -472,6 +472,17 @@ def check_schedule() -> tuple[str, str]:
             problems.append(f"bulk Mark as Posted is wrong: {a} / {b}")
         if (res["dated"], res["kept"], res["missing"]) != (1, 1, ["nope"]) or a.get("createdAt") != 456:
             problems.append(f"bulk result is wrong: {res}")
+        # Delete keeps the row in the trash, and Undo puts it back exactly, in its place.
+        before_rows = schedule.load_clips(path)
+        gone = schedule.delete_rows([before_rows[0]["id"], "nope"], path, lock)
+        if gone != [before_rows[0]["id"]] or len(schedule.load_clips(path)) != len(before_rows) - 1:
+            problems.append(f"delete_rows is wrong: {gone}")
+        back = schedule.restore_rows([before_rows[0]["id"]], path, lock)
+        after_rows = schedule.load_clips(path)
+        if back != [before_rows[0]] or after_rows != before_rows:
+            problems.append("restore_rows did not bring the row back exactly as it was")
+        if schedule.restore_rows([before_rows[0]["id"]], path, lock):
+            problems.append("a row that is back already was restored twice")
         # A row whose render file is not in out/ is flagged on read, and the flag is never stored.
         flagged = schedule.with_missing_flags([{"id": "x", "projectId": "0123456789ab", "file": "gone.mp4"},
                                                {"id": "y", "file": "no-project.mp4"}])

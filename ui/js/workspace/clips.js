@@ -217,7 +217,7 @@ $("#clipBody")?.addEventListener("click", async (e) => {
     clip.status = "Discarded";
     if (await saveClip(clip)) drawClips();
   } else {
-    $('[data-action="delete"]', tr)?.click();       // the same delete as the row's x
+    await deleteClips([tr.dataset.id]);          // asked twice already; Undo follows
   }
 }, true);
 
@@ -232,27 +232,55 @@ $("#clipBody")?.addEventListener("click", async (e) => {
   const tr = b.closest("tr[data-id]");
   const id = tr?.dataset.id;
   if (!id) { tr.remove(); return; }   // empty row that was never saved
-  // fetch() does not reject on 4xx/5xx, so the body has to be read: a
-  // server-side failure used to leave the row gone from the screen while
-  // it was still on disk, and reappearing on the next reload.
+  // Two clicks. A clip that was posted or is scheduled is the record of what went
+  // out, with its links: it says so, in a heavier red.
+  const c = CLIPS.find((x) => x.id === id);
+  const posted = c && (c.status === "Posted" || c.status === "Scheduled");
+  b.title = posted ? "Delete this posted clip? Its record and links are lost (Undo is offered for a few seconds)." : "Delete this clip";
+  if (!armedClick(b, { armedText: posted ? "Delete posted clip?" : "Delete?", strong: !!posted })) return;
+  await deleteClips([id]);
+});
+
+/* One delete for the row's x, "Delete row" and "Delete selected": the server keeps
+   what it deleted (clips.trash.json), and the notice offers Undo for a few seconds.
+   Undo puts the rows back exactly as they were -- every column, createdAt included,
+   in the same place. fetch() does not reject on 4xx/5xx, so the body is read: a
+   failed delete says so and leaves the rows on screen. */
+async function deleteClips(ids) {
+  let deleted = [];
   try {
-    const j = await (await fetch("/api/workspace/clips", {
+    const j = await (await fetch("/api/workspace/clips/delete", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, delete: true }),
+      body: JSON.stringify({ ids }),
     })).json();
     if (j.error) throw new Error(j.error);
+    deleted = j.deleted || [];
   } catch (err) {
-    console.error("failed to delete clip:", err);
+    console.error("failed to delete clips:", err);
     clipError(`Not deleted — ${err.message || "no connection to klipian serve"}. `
-      + "The clip is still on disk.");
+      + "The clips are still on disk.");
     return;
   }
   clipError("");
-  CLIPS = CLIPS.filter((c) => c.id !== id);
-  SELECTED.delete(id);
+  CLIPS = CLIPS.filter((c) => !deleted.includes(c.id));
+  deleted.forEach((id) => SELECTED.delete(id));
   summarizeClips();
   drawClips();
-});
+  const n = deleted.length;
+  showUndoToast(`${n} clip${n === 1 ? "" : "s"} deleted`, async () => {
+    try {
+      const j = await (await fetch("/api/workspace/clips/restore", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: deleted }),
+      })).json();
+      if (j.error) throw new Error(j.error);
+      await loadClips();
+      clipNotice(`${(j.restored || []).length} clip${(j.restored || []).length === 1 ? "" : "s"} restored`);
+    } catch (err) {
+      clipError(`Could not undo — ${err.message || "no connection to klipian serve"}.`);
+    }
+  });
+}
 
 $("#addClipBtn")?.addEventListener("click", async () => {
   try {
@@ -315,6 +343,15 @@ $("#clipSelectAll")?.addEventListener("change", (e) => {
     tr.toggleAttribute("data-selected", e.target.checked);
   });
   updateBulkBar();
+});
+
+$("#bulkDelete")?.addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  const n = SELECTED.size;
+  if (!n) return;
+  const strong = [...SELECTED].some((id) => ["Posted", "Scheduled"].includes(CLIPS.find((c) => c.id === id)?.status));
+  if (!armedClick(btn, { armedText: strong ? `Delete ${n} (some posted)?` : `Delete ${n} clip${n === 1 ? "" : "s"}?`, strong })) return;
+  await deleteClips([...SELECTED]);
 });
 
 $("#bulkClear")?.addEventListener("click", () => {

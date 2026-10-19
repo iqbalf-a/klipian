@@ -38,7 +38,8 @@ from . import compose as composer
 from . import ffmpeg_tools
 from . import render as engine
 from . import credits as credits_mod
-from .schedule import (CLIPS_LOCK, bulk_update as _bulk_update, scheduled_files as _scheduled_files,
+from .schedule import (CLIPS_LOCK, bulk_update as _bulk_update, delete_rows as _delete_rows,
+                       restore_rows as _restore_rows, scheduled_files as _scheduled_files,
                        project_of_folder as _project_of_folder, with_missing_flags as _with_missing_flags, created_of as _created_of, load_clips as _load_clips,
                        migrate_created as _migrate_created, save_clips as _save_clips)
 from . import cues as cues_mod
@@ -940,6 +941,26 @@ class Handler(BaseHTTPRequestHandler):
             return self._post_range(path)
         self._send_json({"error": "unknown endpoint"}, 404)
 
+    def _post_project_restore(self):
+        """Undo deleting a project: the newest copy in projects/.trash/ comes back."""
+        try:
+            req = self._read_json()
+        except Exception as exc:               # noqa: BLE001
+            return self._send_json({"error": str(exc)}, 400)
+        f = _project_file(req.get("id"))
+        if f is None:
+            return self._send_json({"error": "invalid id"}, 400)
+        with PROJECTS_LOCK:
+            copies = sorted((PROJECTS / ".trash").glob(f"{f.stem}.*.json"), key=lambda p: p.stat().st_mtime) \
+                if (PROJECTS / ".trash").is_dir() else []
+            if f.is_file():
+                return self._send_json({"ok": True, "restored": False})
+            if not copies:
+                return self._send_json({"error": "nothing to restore"}, 404)
+            shutil.copy2(copies[-1], f)
+            copies[-1].unlink(missing_ok=True)
+        return self._send_json({"ok": True, "restored": True})
+
     def _post_project(self):
         try:
             req = self._read_json()
@@ -970,6 +991,14 @@ class Handler(BaseHTTPRequestHandler):
 
             if req.get("delete"):
                 if f:
+                    # A copy first (workspace/projects/.trash/): "Undo" puts it back
+                    # (/api/project/restore), and so can a person by hand.
+                    if f.is_file():
+                        trash = PROJECTS / ".trash"
+                        trash.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(f, trash / f"{f.stem}.{int(time.time())}.json")
+                        for old in sorted(trash.glob("*.json"), key=lambda p: p.stat().st_mtime)[:-20]:
+                            old.unlink(missing_ok=True)
                     f.unlink(missing_ok=True)
                 return self._send_json({"ok": True, "deleted": True})
 
@@ -1181,6 +1210,35 @@ class Handler(BaseHTTPRequestHandler):
         row_id, created, how = add_render_to_schedule(folder, file_name)
         return self._send_json({"ok": True, "id": row_id, "created": created, "how": how})
 
+    def _post_workspace_clips_delete(self):
+        """Delete rows ({ids}); the rows are kept in clips.trash.json for Undo."""
+        try:
+            req = self._read_json()
+        except Exception as exc:               # noqa: BLE001
+            return self._send_json({"error": str(exc)}, 400)
+        ids = req.get("ids")
+        if not isinstance(ids, list) or not ids or not all(isinstance(i, str) for i in ids):
+            return self._send_json({"error": "ids must be a list of row ids"}, 400)
+        try:
+            gone = _delete_rows(ids)
+        except OSError as exc:
+            return self._send_json({"error": f"could not delete: {exc}"}, 500)
+        return self._send_json({"ok": True, "deleted": gone})
+
+    def _post_workspace_clips_restore(self):
+        """Undo a delete ({ids}): the rows come back exactly as they were."""
+        try:
+            req = self._read_json()
+        except Exception as exc:               # noqa: BLE001
+            return self._send_json({"error": str(exc)}, 400)
+        ids = req.get("ids")
+        if not isinstance(ids, list) or not ids or not all(isinstance(i, str) for i in ids):
+            return self._send_json({"error": "ids must be a list of row ids"}, 400)
+        back = _restore_rows(ids)
+        from .schedule import with_missing_flags
+        return self._send_json({"ok": True, "restored": [r["id"] for r in back],
+                                "clip": with_missing_flags(back)})
+
     def _post_workspace_clips_bulk(self):
         """One request for an action on many schedule rows: {ids, status, date?,
         time?}. One read-modify-write, one save (see schedule.bulk_update)."""
@@ -1219,15 +1277,16 @@ class Handler(BaseHTTPRequestHandler):
         # holding the lock, so a slow or stalled client kept every other
         # clips.json edit waiting on a network write.
         deleted = False
+        if req.get("delete"):
+            if not cid:
+                return self._send_json({"error": "id required"}, 400)
+            _delete_rows([cid])
+            return self._send_json({"ok": True, "deleted": True})
         with CLIPS_LOCK:
             clips = _load_clips()
 
             if req.get("delete"):
-                if not cid:
-                    return self._send_json({"error": "id required"}, 400)
-                clips = [c for c in clips if c.get("id") != cid]
-                _save_clips(clips)
-                deleted = True
+                pass
             else:
                 if not cid:
                     cid = uuid.uuid4().hex[:8]
@@ -1542,12 +1601,15 @@ class Handler(BaseHTTPRequestHandler):
 
     POST_ROUTES = {
         "/api/project": _post_project,
+        "/api/project/restore": _post_project_restore,
         "/api/project-asset-upload": _post_project_asset_upload,
         "/api/video-upload": _post_video_upload,
         "/api/project-asset-import": _post_project_asset_import,
         "/api/project/rename": _post_project_rename,
         "/api/workspace/clips": _post_workspace_clips,
         "/api/workspace/clips/bulk": _post_workspace_clips_bulk,
+        "/api/workspace/clips/delete": _post_workspace_clips_delete,
+        "/api/workspace/clips/restore": _post_workspace_clips_restore,
         "/api/workspace/clips/from-render": _post_workspace_clips_from_render,
         "/api/import": _post_import,
         "/api/render": _post_render,

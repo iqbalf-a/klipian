@@ -83,13 +83,18 @@ function addToResult(start, end, title, source) {
 }
 
 function removeFromResult(id) {
+  const before = RESULT.map((r) => ({ ...r }));
   RESULT = RESULT.filter((r) => r.id !== id);
   renderResult();
+  undoForResult("Moment removed", () => { RESULT = before; renderResult(); });
 }
 
 function clearResult() {
+  const before = RESULT.map((r) => ({ ...r }));
   RESULT = [];
   renderResult();
+  if (before.length) undoForResult(`${before.length} moment${before.length === 1 ? "" : "s"} cleared`,
+    () => { RESULT = before; renderResult(); });
 }
 
 /* Default title: the first clip's title, or a generic name when there's a mix. */

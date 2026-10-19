@@ -166,6 +166,79 @@ def migrate_created(path: Path | None = None, lock: threading.Lock | None = None
         return from_file, from_at
 
 
+TRASH_PATH = WORKSPACE / "schedule" / "clips.trash.json"
+TRASH_KEEP = 200
+
+
+def _load_trash(path: Path) -> list[dict]:
+    if not path.is_file():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data.get("row", []) if isinstance(data, dict) else []
+    except (OSError, ValueError):
+        return []
+
+
+def _save_trash(rows: list[dict], path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps({"row": rows[-TRASH_KEEP:]}, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(path)
+
+
+def delete_rows(ids: list, path: Path | None = None, lock: threading.Lock | None = None,
+                trash: Path | None = None) -> list[str]:
+    """Delete rows in ONE save, and keep each deleted row (all its columns, and where
+    it stood) in clips.trash.json, so a delete can be undone -- from the page's
+    "Undo" now, or by hand later, even when the tab was closed. Returns the ids
+    that were deleted."""
+    wanted = {str(i) for i in ids}
+    path = path or CLIPS_PATH
+    trash = trash or (path.parent / "clips.trash.json")
+    with (lock or CLIPS_LOCK):
+        clips = load_clips(path)
+        gone, kept = [], []
+        for index, row in enumerate(clips):
+            if str(row.get("id")) in wanted:
+                gone.append({"row": row, "index": index, "deletedAt": int(time.time())})
+            else:
+                kept.append(row)
+        if gone:
+            _save_trash(_load_trash(trash) + gone, trash)        # first: a failure here deletes nothing
+            save_clips(kept, path)
+        return [g["row"]["id"] for g in gone]
+
+
+def restore_rows(ids: list, path: Path | None = None, lock: threading.Lock | None = None,
+                 trash: Path | None = None) -> list[dict]:
+    """Put deleted rows back exactly as they were (every column, `createdAt`
+    included) at the place they stood. A row whose id is back already is left
+    alone. Returns the rows restored."""
+    wanted = [str(i) for i in ids]
+    path = path or CLIPS_PATH
+    trash = trash or (path.parent / "clips.trash.json")
+    with (lock or CLIPS_LOCK):
+        clips = load_clips(path)
+        bin_ = _load_trash(trash)
+        have = {str(r.get("id")) for r in clips}
+        back = []
+        for rid in wanted:
+            entry = next((e for e in reversed(bin_) if str(e["row"].get("id")) == rid), None)
+            if entry is None:
+                continue
+            bin_.remove(entry)
+            if rid in have:
+                continue
+            clips.insert(min(int(entry.get("index", len(clips))), len(clips)), entry["row"])
+            have.add(rid)
+            back.append(entry["row"])
+        if back:
+            save_clips(clips, path)
+            _save_trash(bin_, trash)
+        return back
+
+
 STATUSES = ("Draft", "Ready", "Scheduled", "Posted", "Discarded")
 
 

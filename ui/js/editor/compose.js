@@ -372,6 +372,17 @@ function renderInspector() {
 
 /* ---------- editing ---------- */
 
+/* Delete (button or key) of the selected Timeline element, with an Undo notice: it is
+   a small, easily repeated action, so it asks nothing first. */
+function deleteSelectedElement() {
+  if (!tlxSel) return;
+  const before = OVERLAYS.map((e) => ({ ...e }));
+  OVERLAYS = OVERLAYS.filter((x) => x.id !== tlxSel.id);
+  tlxSel = null;
+  commitOverlays();
+  undoForResult("Timeline element deleted", () => { setOverlays(before); commitOverlays(); });
+}
+
 function commitOverlays() {
   _overlayKey = "";
   if (typeof renderAngleStates === "function") renderAngleStates();
@@ -600,9 +611,7 @@ $("#tlxInspector")?.addEventListener("click", (ev) => {
   const act = ev.target.closest("[data-act]")?.dataset.act;
   if (!act || !tlxSel) return;
   if (act === "delete") {
-    OVERLAYS = OVERLAYS.filter((x) => x.id !== tlxSel.id);
-    tlxSel = null;
-    commitOverlays();
+    deleteSelectedElement();
     return;
   }
   const i = RESULT.findIndex((r) => r.id === tlxSel.id);
@@ -624,9 +633,7 @@ document.addEventListener("keydown", (ev) => {
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT")) return;
   if (ev.key === "Delete" || ev.key === "Backspace") {
     ev.preventDefault();
-    OVERLAYS = OVERLAYS.filter((x) => x.id !== tlxSel.id);
-    tlxSel = null;
-    commitOverlays();
+    deleteSelectedElement();
   }
 });
 

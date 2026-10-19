@@ -1441,6 +1441,55 @@ Aturannya: **tidak ada yang dihapus otomatis.**
   - select dengan padding kiri-kanan yang sama dan panah di posisi tetap;
   - ikon input tanggal/jam terlihat jelas.
 
+### P20 — Konfirmasi dan undo saat menghapus
+
+Pertanyaan ian (2026-10-19): "apakah tidak ada verifikasi saat delete data di
+clips?" Ternyata ✕ di tabel Clips langsung menghapus. Keputusan: ✕ jadi dua
+klik, ada "Deleted · Undo" beberapa detik, dan semua tombol hapus lain diaudit.
+
+**Pembagian:** aksi yang menghilangkan catatan penting (baris jadwal, project)
+dikonfirmasi dua klik DAN bisa di-undo. Aksi kecil yang mudah diulang di
+editor (satu momen, satu titik framing, satu elemen Timeline) tidak
+bertanya, cukup diberi Undo. Undo di editor hanya berlaku untuk Result yang
+sedang terbuka: kalau sudah pindah Result, Undo menolak dengan pesan, karena
+state itu sekarang milik Result lain (lihat `liveOwner`, P13).
+
+**Mekanisme:**
+- `ui/js/shared/armed.js`: `armedClick(btn, {armedText, strong})` (klik
+  pertama menyalakan "Delete?" selama 4 detik, klik kedua melanjutkan) dan
+  `showUndoToast(text, onUndo)` (±8 detik, satu per waktu).
+- Baris jadwal: server menyimpan baris yang dihapus (semua kolom dan
+  posisinya) di `workspace/schedule/clips.trash.json` (200 terakhir) SEBELUM
+  menghapus. Undo memanggil `/api/workspace/clips/restore`; baris kembali
+  persis, termasuk `createdAt`. Karena penghapusan sungguhan terjadi di
+  server segera setelah dua klik, menutup tab saat notifikasi tampil tidak
+  menghilangkan apa pun yang tidak dimaksudkan: barisnya tetap ada di trash
+  dan bisa dikembalikan lewat endpoint yang sama.
+- Project: salinan JSON-nya disimpan di `workspace/projects/.trash/` (20
+  terakhir) sebelum dihapus; Undo memanggil `/api/project/restore`.
+- Hapus massal ("Delete selected" di bilah aksi P18): konfirmasi menyebut
+  jumlah ("Delete 3 clips?"), dan lebih tegas bila ada yang Posted/Scheduled.
+
+| Tombol | Layar | Sebelum | Sekarang |
+|---|---|---|---|
+| ✕ baris Clips | Dashboard | langsung hapus | dua klik ("Delete?"; "Delete posted clip?" merah tegas untuk Posted/Scheduled) + Undo |
+| Delete row (file hilang, P19) | Dashboard | dua klik | dua klik + Undo |
+| Discard (file hilang, P19) | Dashboard | dua klik | tetap (hanya mengubah status, bisa diubah lagi) |
+| Delete selected | Dashboard | belum ada | baru: dua klik dengan jumlah + Undo |
+| Hapus project (×) | Home | kartu konfirmasi Keep/Delete | tetap + Undo (salinan di `.trash`) |
+| × Result | Editor | dua klik | tetap (tidak diubah) |
+| Remove aset/video | Editor | dua klik + jumlah yang ikut hilang | tetap |
+| Remove them (titik framing di luar klip, P13) | Editor | dua klik | tetap |
+| ✕ momen di Result | Editor | langsung | Undo |
+| Clear Result | Editor | langsung | Undo |
+| Hapus filler words | Editor | langsung | Undo |
+| Reset koreksi kata | Editor | langsung | Undo |
+| × titik framing | Editor | langsung | Undo |
+| Delete elemen Timeline (tombol dan tombol Delete/Backspace) | Editor | langsung | Undo |
+| Remove label Angle | Editor | langsung | tetap: bisa ditambahkan lagi dengan Add (teksnya tetap di panel) |
+| Undo import (saran Claude) | Editor | sudah ada | tetap |
+| Sources, Rendered output, Assets | Dashboard | tidak ada tombol hapus | tidak berubah |
+
 ---
 
 ## 3. Diparkir, sengaja tidak dikerjakan

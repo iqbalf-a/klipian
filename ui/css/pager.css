@@ -121,3 +121,60 @@ select.ws-input, .pager-size select, .ws-bulk select {
 }
 .ws-add-schedule { white-space: nowrap; }
 #clipTable select[data-field="platform"] { min-width: 150px; }     /* "YouTube + TikTok" in full */
+
+/* Two-click delete buttons and the Undo notice (js/shared/armed.js). */
+.armed.danger {
+  color: var(--danger);
+  border-color: var(--danger);
+  font-weight: 700;
+}
+.armed.danger.strong { background: var(--danger); color: #fff; }
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: min(92vw, 560px);
+  padding: 10px 14px;
+  background: var(--bg-3, #202026);
+  color: var(--text);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-m, 10px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, .5);
+  font-size: 13px;
+}
+.toast-action {
+  font: inherit;
+  font-weight: 700;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 3px 12px;
+  cursor: pointer;
+}
+.toast-action:hover:not(:disabled) { background: var(--glass); }
+.toast-x { color: var(--text-faint); background: transparent; border: 0; cursor: pointer; font-size: 14px; }
+
+/* The Clips table's x: a bigger red button next to the row while it asks twice. */
+#clipTable td:last-child { position: relative; }
+.delete-btn.armed {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: auto !important;
+  padding: 0 10px !important;
+  white-space: nowrap;
+  z-index: 6;
+  background: var(--bg-1);
+  border: 1px solid var(--danger);
+  font-size: 12px;
+}
+.delete-btn.armed.strong { background: var(--danger); color: #fff; }
+.ws-bulk .armed.danger { background: transparent; }
+.ws-bulk .armed.danger.strong { background: var(--danger); }
