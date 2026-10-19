@@ -145,6 +145,26 @@ res2 dalam ~30 detik.
 
 Selesai jika: `selftest` hijau, dan render res2 masih md5 `0698726b…`.
 
+> **Catatan 2026-10-19: baseline tahan upgrade ffmpeg.** ffmpeg di-upgrade lewat
+> winget (8.1.2 ke 9.0.2, 18 Okt 22:37) dan keenam baseline render gagal, padahal
+> **stream video identik** (packet md5 sama, termasuk res2 dibandingkan dengan file
+> lamanya); yang berubah hanya audio AAC (SNR 37,5 dB, selisih terbesar 0,1 dB per
+> jendela 50 ms) dan tag encoder di container. Karena itu `baseline.json` sekarang
+> juga mencatat `ffmpeg` (baris versi), `video_md5` (packet md5 stream video) dan
+> `audio` (jumlah sampel dan RMS per 50 ms, mono 48 kHz; `klipian/fingerprint.py`).
+> Perbandingan: byte sama = PASS; kalau tidak, `video_md5` harus persis sama
+> (beda = FAIL, dengan versi ffmpeg lama dan baru), audio harus sama dalam
+> toleransi (jumlah sampel +-2048, selisih <= 1 dB per jendela di atas -50 dBFS;
+> volume setengah, audio bergeser, hilang atau lebih pendek = FAIL, diuji di
+> `selftest --only fingerprint`). Hasilnya PASS dengan catatan "toolchain changed
+> (ffmpeg A -> B) ... run `selftest --rebaseline` to record", tidak diam-diam.
+> `selftest --rebaseline [nama...]` merekam ulang dan menolak kalau stream video
+> berbeda (`--force` untuk gambar yang sengaja berubah, dengan ringkasan).
+> Baseline direkam ulang dengan ffmpeg 9.0.2. **Saran untuk ian** (dijalankan ian
+> sendiri): `winget pin add --id Gyan.FFmpeg`, supaya ffmpeg tidak ter-upgrade
+> diam-diam; lepaskan dengan `winget pin remove --id Gyan.FFmpeg` saat memang mau
+> upgrade, lalu jalankan selftest.
+
 ### P2 — Rapikan struktur (setelah P1, karena butuh selftest)
 
 1. **Pecah `server.py` tanpa mengubah perilaku:**

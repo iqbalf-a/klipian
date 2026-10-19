@@ -1,7 +1,7 @@
 """`python -m klipian selftest` -- the checks that let the code be moved
 around without wondering what broke.
 
-Eight checks, each one that used to be done by hand:
+Nine checks, each one that used to be done by hand:
 
   migrate  Old project shapes (tests/fixtures/migrate/*.old.json) go through
            projects._migrate_project() and must come out as the matching
@@ -13,6 +13,8 @@ Eight checks, each one that used to be done by hand:
            clip has) on small known inputs.
   credits  The credit line built from a video's platform, creator, title and link,
            joined without duplicates, dropped with its video, and named in the brief.
+  fingerprint  The audio comparison behind the render baselines: accepts what another
+           AAC encoder does to a sound, refuses quieter, shifted or missing sound.
   schedule A finished render makes one Draft row in the upload schedule for its
            Result, rendering it again updates that row, and what was typed in the
            row is kept.
@@ -38,7 +40,15 @@ Adding a baseline: render a Result in the editor, then
     python -m klipian selftest --promote PROJECT_ID RESULT_ID NAME
 
 copies the request the server remembered for that Result, and the hashes of
-what it produced, to tests/fixtures/NAME/.
+what it produced, to tests/fixtures/NAME/. Then
+
+    python -m klipian selftest --rebaseline NAME
+
+adds the stream fingerprints (see fingerprint.py). A baseline is compared by its
+bytes first; when only the toolchain changed (an ffmpeg upgrade), by its video
+stream (exactly) and its audio (within a tolerance), and the result says so.
+`--rebaseline` records the current render, and refuses when the video stream is
+not the recorded one (`--force` for a picture that changed on purpose).
 
     python -m klipian selftest                  all checks
     python -m klipian selftest --only migrate   just the fast one
@@ -451,6 +461,46 @@ def check_schedule() -> tuple[str, str]:
 
 
 # --------------------------------------------------------------------------
+# check: fingerprint
+# --------------------------------------------------------------------------
+
+def check_fingerprint() -> tuple[str, str]:
+    """The audio comparison that lets a baseline survive an ffmpeg upgrade must
+    accept what two AAC encoders do to the same sound (measured between ffmpeg 8.1
+    and 9.0: at most 0.1 dB per 50 ms window) and refuse sound that is missing,
+    shifted, shorter or quieter (a clip's volume bug is 6 dB)."""
+    import math
+    from .fingerprint import compare_audio
+
+    n = 600                                           # 30 s of 50 ms windows
+    levels = [-20.0 + 8.0 * math.sin(i / 7.0) if i % 50 < 40 else -80.0 for i in range(n)]
+    base = {"window_ms": 50, "samples": n * 2400, "rms_db": levels}
+
+    def made(rms=None, samples=None):
+        return {"window_ms": 50, "samples": samples if samples is not None else base["samples"],
+                "rms_db": rms if rms is not None else list(levels)}
+
+    problems = []
+    accept = [("same sound", made()),
+              ("another AAC encoder (+-0.3 dB)", made([x + (0.3 if i % 2 else -0.3) for i, x in enumerate(levels)])),
+              ("two AAC frames longer", made(samples=base["samples"] + 2048))]
+    refuse = [("half the volume", made([x - 6.0 for x in levels])),
+              ("shifted by a second", made(levels[20:] + [-80.0] * 20)),
+              ("silent", made([-120.0] * n)),
+              ("a second shorter", made(samples=base["samples"] - 48000)),
+              ("a loud part gone", made([(-80.0 if 100 <= i < 140 else x) for i, x in enumerate(levels)]))]
+    for label, got in accept:
+        if compare_audio(base, got):
+            problems.append(f"should be accepted but is not: {label}: {compare_audio(base, got)}")
+    for label, got in refuse:
+        if not compare_audio(base, got):
+            problems.append(f"should be refused but is accepted: {label}")
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "accepts encoder differences, refuses quieter, shifted, missing or shorter sound"
+
+
+# --------------------------------------------------------------------------
 # check: decode
 # --------------------------------------------------------------------------
 
@@ -497,35 +547,62 @@ def _baselines() -> list[Path]:
                   if (d / "request.json").is_file() and (d / "baseline.json").is_file())
 
 
-def _check_baseline(base: Path) -> tuple[str, str]:
+def _render_baseline(base: Path, want_fingerprint: bool):
+    """Render a baseline's request. Returns (output, fingerprint or None, seconds),
+    or (None, None, reason) when it cannot be rendered here."""
     from . import jobs
+    from .fingerprint import fingerprint
 
-    baseline = _load(base / "baseline.json")
     req = _load(base / "request.json")
-
     missing = jobs.missing_inputs(req)
     if missing:
-        return SKIP, "not found here: " + ", ".join(missing)
-
+        return None, None, SKIP, "not found here: " + ", ".join(missing)
     tmp = Path(tempfile.mkdtemp(prefix="klipian-selftest-"))
     try:
         started = time.time()
         outputs = jobs.render_request(req, tmp)
         took = time.time() - started
+        if len(outputs) != 1:
+            return None, None, FAIL, f"expected one file, got {len(outputs)}"
+        fp = fingerprint(tmp / outputs[0]["file"]) if want_fingerprint else None
     except RuntimeError as exc:
-        return FAIL, str(exc)
+        return None, None, FAIL, str(exc)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
+    return outputs[0], fp, took, ""
 
-    if len(outputs) != 1:
-        return FAIL, f"expected one file, got {len(outputs)}"
-    got = outputs[0]
-    if (got["md5"], got["sha256"], got["bytes"]) != (
-            baseline["md5"], baseline["sha256"], baseline["bytes"]):
-        return FAIL, (f"output differs from the baseline\n"
-                      f"      expected {baseline['md5']} ({baseline['bytes']} bytes)\n"
-                      f"      got      {got['md5']} ({got['bytes']} bytes)")
-    return PASS, f"{got['md5'][:8]}... ({got['bytes']} bytes) in {took:.0f}s"
+
+def _check_baseline(base: Path) -> tuple[str, str]:
+    from . import fingerprint as fpm
+
+    baseline = _load(base / "baseline.json")
+    # The streams are only looked at when the bytes differ: a render that is
+    # byte-identical needs no more than that.
+    got, fp, took, why = _render_baseline(base, want_fingerprint=True)
+    if got is None:
+        return took, why                        # (status, reason)
+    same_bytes = (got["md5"], got["sha256"], got["bytes"]) == (
+        baseline["md5"], baseline["sha256"], baseline["bytes"])
+    if same_bytes:
+        return PASS, f"{got['md5'][:8]}... ({got['bytes']} bytes) in {took:.0f}s"
+
+    was = baseline.get("ffmpeg", "an ffmpeg that was not recorded")
+    now = fp["ffmpeg"]
+    differs = (f"output differs from the baseline\n"
+               f"      expected {baseline['md5']} ({baseline['bytes']} bytes)\n"
+               f"      got      {got['md5']} ({got['bytes']} bytes)\n"
+               f"      baseline made with: {was}\n      now:                {now}")
+    if "video_md5" not in baseline or "audio" not in baseline:
+        return FAIL, (differs + "\n      this baseline has no stream fingerprint to compare "
+                      "(run `selftest --rebaseline` after checking the render by eye)")
+    if fp["video_md5"] != baseline["video_md5"]:
+        return FAIL, (differs + f"\n      the VIDEO stream differs "
+                      f"(packet md5 {baseline['video_md5']} expected, {fp['video_md5']} got)")
+    problem = fpm.compare_audio(baseline["audio"], fp["audio"])
+    if problem:
+        return FAIL, differs + f"\n      video stream identical, but {problem}"
+    return PASS, (f"toolchain changed ({was} -> {now}): video identical, audio within tolerance; "
+                  f"run `selftest --rebaseline {base.name}` to record")
 
 
 def check_render() -> tuple[str, str]:
@@ -538,6 +615,55 @@ def check_render() -> tuple[str, str]:
     if len(results) == 1:
         return status, results[0][2]
     return status, "\n      ".join(f"{n:<14} {s}  {d}" for n, s, d in results)
+
+
+def rebaseline(names: list[str], force: bool = False) -> int:
+    """Render the baselines again and rewrite their baseline.json (hashes,
+    ffmpeg version, video md5, audio fingerprint). Allowed only when the VIDEO
+    stream is the one the baseline already has: a toolchain upgrade changes the
+    audio encoder and the container tags, not the picture. A baseline that has no
+    video md5 yet is allowed (nothing to compare with: check the render by eye
+    first). A picture that changed on purpose needs --force, and what changed is
+    printed."""
+    bases = _baselines()
+    if names:
+        unknown = [n for n in names if n not in {b.name for b in bases}]
+        if unknown:
+            print(f"\n  no such baseline: {', '.join(unknown)}  (have: {', '.join(b.name for b in bases)})\n")
+            return 1
+        bases = [b for b in bases if b.name in names]
+    failed = False
+    print()
+    for base in bases:
+        old = _load(base / "baseline.json")
+        got, fp, took, why = _render_baseline(base, want_fingerprint=True)
+        if got is None:
+            print(f"  {base.name:<18} {took}  {why}")
+            failed = failed or took == FAIL
+            continue
+        old_video = old.get("video_md5")
+        if old_video and old_video != fp["video_md5"] and not force:
+            print(f"  {base.name:<18} REFUSED  the video stream changed "
+                  f"({old_video} -> {fp['video_md5']}); it is not a toolchain change. "
+                  f"Use --force if the picture changed on purpose.")
+            failed = True
+            continue
+        note = old.get("note", "")
+        new = {"note": note, "md5": got["md5"], "sha256": got["sha256"], "bytes": got["bytes"],
+               "ffmpeg": fp["ffmpeg"], "video_md5": fp["video_md5"], "audio": fp["audio"]}
+        (base / "baseline.json").write_text(json.dumps(new, indent=1) + "\n", encoding="utf-8", newline="\n")
+        changes = []
+        if old.get("md5") != got["md5"]:
+            changes.append(f"bytes {old.get('bytes')} -> {got['bytes']}")
+        if old.get("ffmpeg") != fp["ffmpeg"]:
+            changes.append(f"ffmpeg {old.get('ffmpeg', '(not recorded)')} -> {fp['ffmpeg']}")
+        if old_video and old_video != fp["video_md5"]:
+            changes.append(f"VIDEO changed on purpose ({old_video} -> {fp['video_md5']})")
+        if not old_video:
+            changes.append("stream fingerprint recorded for the first time")
+        print(f"  {base.name:<18} recorded in {took:.0f}s: " + ("; ".join(changes) or "nothing changed"))
+    print()
+    return 1 if failed else 0
 
 
 def promote(project_id: str, result_id: str, name: str) -> int:
@@ -575,7 +701,7 @@ def promote(project_id: str, result_id: str, name: str) -> int:
     return 0
 
 
-CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "schedule": check_schedule, "http": check_http, "decode": check_decode,
+CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "decode": check_decode,
           "render": check_render}
 
 
@@ -607,5 +733,12 @@ def add_parser(sub: argparse._SubParsersAction) -> None:
     p.add_argument("--promote", nargs=3, metavar=("PROJECT_ID", "RESULT_ID", "NAME"),
                    help="save the last render remembered for that Result as the baseline "
                         "tests/fixtures/NAME/")
+    p.add_argument("--rebaseline", nargs="*", metavar="NAME", default=None,
+                   help="render the baselines (all, or the ones named) again and record "
+                        "their hashes, ffmpeg version and stream fingerprints; refused when "
+                        "the video stream differs from the recorded one")
+    p.add_argument("--force", action="store_true",
+                   help="with --rebaseline: record a video that changed on purpose")
     p.set_defaults(func=lambda a: promote(*a.promote) if a.promote
+                   else rebaseline(a.rebaseline, a.force) if a.rebaseline is not None
                    else run(a.only, a.write_expected))
