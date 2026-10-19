@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="/ui/css/tokens.css?v=1790703163808">
 <link rel="stylesheet" href="/ui/css/brand.css?v=1790703163808">
 <link rel="stylesheet" href="/ui/css/workspace.css?v=1790703163808">
+<link rel="stylesheet" href="/ui/css/pager.css?v=1790703163808">
 </head>
 <body>
 
@@ -109,6 +110,7 @@
           <tbody id="clipBody"></tbody>
         </table>
       </div>
+      <div id="clipPager" hidden></div>
     </section>
 
     <!-- Fields that don't fit / don't need to always be visible in the table
@@ -175,6 +177,7 @@
                 id="sourceOpenBtn" type="button">Open folder</button>
       </div>
       <div id="sourceList"></div>
+      <div id="sourcePager" hidden></div>
     </section>
 
     <!-- ══════════════════ RENDERED OUTPUT — out/ contents as-is ══════════════════
@@ -187,6 +190,7 @@
         <span class="text-text-faint text-[13px]" id="renderNote">loading…</span>
       </div>
       <div id="renderList"></div>
+      <div id="renderPager" hidden></div>
     </section>
 
     <!-- ══════════════════ ASSETS — workspace/assets/ ══════════════════
@@ -198,6 +202,7 @@
         <span class="text-text-faint text-[13px]" id="assetNote">loading…</span>
       </div>
       <div id="assetList"></div>
+      <div id="assetPager" hidden></div>
     </section>
 
   </main>
@@ -206,6 +211,7 @@
 <!-- Same file the editor loads -- the topbar's Theme / "?" / clock. -->
 <script src="/ui/js/shared/topbar.js?v=1790703163808"></script>
 <script src="/ui/js/shared/clipboard.js?v=1790703163808"></script>
+<script src="/ui/js/shared/pager.js?v=1790703163808"></script>
 <script src="/ui/js/workspace/helpers.js?v=1790703163808"></script>
 <script src="/ui/js/workspace/clips.js?v=1790703163808"></script>
 <script src="/ui/js/workspace/sources.js?v=1790703163808"></script>

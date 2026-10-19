@@ -1,0 +1,43 @@
+/* klipian — pagination controls (js/shared/pager.js), used by the editor's
+   History and by every table on /workspace. A plain file, so it needs no
+   Tailwind build. */
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 10px 4px 2px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.pager[hidden] { display: none; }
+.pager-count { font-family: var(--font-data, inherit); color: var(--text-faint); }
+.pager-size { display: inline-flex; align-items: center; gap: 6px; }
+.pager-size select {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg-2);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  padding: 2px 6px;
+}
+.pager-nav { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-left: auto; }
+.pager-btn, .pager-num {
+  font: inherit;
+  min-width: 28px;
+  padding: 3px 9px;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.pager-btn:hover:not(:disabled), .pager-num:hover { background: var(--glass); color: var(--text); }
+.pager-btn:disabled { opacity: .4; cursor: default; }
+.pager-num[aria-current="page"] {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--glass);
+  font-weight: 700;
+}
+.pager-gap { color: var(--text-faint); padding: 0 2px; }

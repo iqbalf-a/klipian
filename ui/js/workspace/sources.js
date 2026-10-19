@@ -26,6 +26,7 @@ function formatLength(sec) {
 let SOURCES_FOLDER = "";
 let SOURCE_ROWS = [];             // what the table shows, for the credit form
 let creditOpen = "";              // the video whose credit form is open
+const sourcePager = createPager({ key: "sources", mount: $("#sourcePager"), onChange: () => drawSources() });
 
 async function loadSources() {
   const note = $("#sourceNote");
@@ -39,9 +40,11 @@ async function loadSources() {
   } catch {
     if (note) note.textContent = "needs klipian serve";
     list.innerHTML = "";
+    sourcePager.slice([]);
     return;
   }
   if (!source.length) {
+    sourcePager.slice([]);
     note.textContent = "workspace/sources/ is empty";
     list.innerHTML = `<p class="empty">No videos yet. Add one with <b>Add video…</b> on the
       Assets screen of a project, or copy the file into <code>workspace/sources/</code>.</p>`;
@@ -49,10 +52,19 @@ async function loadSources() {
   }
   const total = source.reduce((t, s) => t + s.bytes, 0);
   note.textContent = `${source.length} video${source.length > 1 ? "s" : ""} in workspace/sources/ · ${formatBytes(total)}`;
+  drawSources();
+}
+
+/* The current page of SOURCE_ROWS. The credit buttons carry the index into the
+   WHOLE list, so it still finds its video on page 2. */
+function drawSources() {
+  const list = $("#sourceList");
+  const first = SOURCE_ROWS.length ? SOURCE_ROWS.indexOf(sourcePager.slice(SOURCE_ROWS)[0]) : 0;
   list.innerHTML = `
     <div class="ws-row sources head">
       <span>Video</span><span>Size</span><span>Length</span><span>Added</span><span>Transcript</span><span>Used by</span><span>Credit</span>
-    </div>` + source.map((s, i) => {
+    </div>` + sourcePager.slice(SOURCE_ROWS).map((s, k) => {
+      const i = first + k;
       const used = s.used_by.map((u) => u.name).join(", ");
       const c = s.credit || {};
       const who = [c.platform, c.creator].filter(Boolean).join(" · ") || (c.title ? `"${c.title}"` : "");
@@ -101,10 +113,10 @@ $("#sourceList")?.addEventListener("click", (e) => {
   if (btn) {
     const s = SOURCE_ROWS[Number(btn.dataset.credit)];
     creditOpen = creditOpen === s.name ? "" : s.name;
-    loadSources();
+    drawSources();
     return;
   }
-  if (e.target.closest("[data-credit-cancel]")) { creditOpen = ""; loadSources(); }
+  if (e.target.closest("[data-credit-cancel]")) { creditOpen = ""; drawSources(); }
 });
 
 $("#sourceList")?.addEventListener("submit", async (e) => {

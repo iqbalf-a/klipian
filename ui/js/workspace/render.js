@@ -8,6 +8,7 @@
    ========================================================================== */
 
 let RENDER = [];
+const renderPager = createPager({ key: "render", mount: $("#renderPager"), onChange: () => drawRender() });
 
 async function loadRender() {
   const note = $("#renderNote");
@@ -17,6 +18,7 @@ async function loadRender() {
   } catch {
     if (note) note.textContent = "needs klipian serve";
     $("#renderList").innerHTML = "";
+    renderPager.slice([]);
     return;
   }
   if (note) {
@@ -25,13 +27,21 @@ async function loadRender() {
       ? `${RENDER.length} file${RENDER.length > 1 ? "s" : ""} · ${mb.toFixed(1)} MB`
       : "nothing rendered yet";
   }
+  drawRender();
+}
+
+/* The current page of RENDER; data-i stays the index into the whole list. */
+function drawRender() {
   const list = $("#renderList");
   if (!RENDER.length) {
+    renderPager.slice([]);
     list.innerHTML = `<p class="empty">Nothing in the out/ folder yet.</p>`;
     return;
   }
-  list.innerHTML = RENDER.map((r, i) => `
-    <div class="ws-row" data-i="${i}">
+  const page = renderPager.slice(RENDER);
+  const first = RENDER.indexOf(page[0]);
+  list.innerHTML = page.map((r, k) => `
+    <div class="ws-row" data-i="${first + k}">
       <span class="name">${escapeHTML(r.file)} <span class="data">— ${escapeHTML(r.video)}</span></span>
       <span class="data">${r.mb} MB</span>
       <span class="data">${timeAgo(r.at)}</span>

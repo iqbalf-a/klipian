@@ -1098,6 +1098,20 @@ dihapus dari layar Render, dan teks label keluar dari kotaknya di preview.
      - semua kolom terlihat jelas sebagai kolom input;
      - tombol Copy untuk title, description, dan TikTok caption;
      - tombol Open untuk link yang sudah terisi.
+3. **Pagination di semua tabel** (permintaan ian, 2026-10-19).
+   - Tabel di dashboard: Clips (jadwal upload, sekarang 19 baris),
+     Sources, Rendered output, dan Assets. Di editor: History.
+   - Perilaku seragam lewat satu komponen bersama:
+     - ukuran halaman bisa dipilih (10/25/50, default 10) dan diingat per
+       tabel di `localStorage` (try/catch);
+     - Prev/Next dan nomor halaman, plus keterangan `1–10 of 19`;
+     - kontrol pagination disembunyikan kalau semua baris muat satu
+       halaman;
+     - setelah baris dihapus atau ditambah, halaman tetap masuk akal;
+     - baris baru dari render muncul di urutan yang sama seperti
+       sekarang.
+   - Jumlah di judul panel (misalnya "19 clips · 16 draft · 3 posted")
+     tetap menghitung semua baris, bukan hanya halaman aktif.
 
 ---
 

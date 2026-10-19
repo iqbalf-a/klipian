@@ -22,6 +22,7 @@ const DETAIL_FIELDS = ["episode", "file", "description", "tiktokCaption",
   "youtubeUrl", "tiktokUrl", "notes"];
 
 let CLIPS = [];
+const clipPager = createPager({ key: "clips", mount: $("#clipPager"), onChange: () => drawClips() });
 
 async function loadClips() {
   try {
@@ -83,12 +84,13 @@ function drawClips() {
   const body = $("#clipBody");
   if (!body) return;
   if (!CLIPS.length) {
+    clipPager.slice([]);
     body.innerHTML = `<tr><td colspan="7" class="empty">
       No clips yet. Click "+ New clip" to start tracking your upload schedule.
     </td></tr>`;
     return;
   }
-  body.innerHTML = CLIPS.map(row).join("");
+  body.innerHTML = clipPager.slice(CLIPS).map(row).join("");
 }
 
 /* Table rows only have inputs for INLINE_FIELDS -- detail fields (still
@@ -179,6 +181,7 @@ $("#addClipBtn")?.addEventListener("click", async () => {
     })).json();
     if (j.error) throw new Error(j.error);
     CLIPS.unshift({ id: j.id, status: "Draft", platform: "YouTube + TikTok" });
+    clipPager.first();                    // the new row is at the top: show it
     summarizeClips();
     drawClips();
     clipError("");

@@ -64,6 +64,8 @@ function historyRowHTML(r, i) {
     </div>`;
 }
 
+const historyPager = createPager({ key: "history", mount: $("#historyPager"), onChange: () => renderHistory() });
+
 function renderHistory() {
   const list = $("#historyList");
   if (!list) return;
@@ -75,17 +77,20 @@ function renderHistory() {
   const mine = rows.filter(({ r }) => isThisProject(r));
   const others = rows.filter(({ r }) => !isThisProject(r));
 
-  const section = (title, items) => items.length ? `
-    <h3 class="eyebrow history-section">${title}</h3>
-    ${items.map(({ r, i }) => historyRowHTML(r, i)).join("")}` : "";
+  // This project's files first, then the others; one list, paged as one. A
+  // heading is drawn where the section changes on a page, and at the top of it.
+  const ordered = [...mine.map((x) => ({ ...x, title: "This project" })),
+    ...others.map((x) => ({ ...x, title: "Other projects" }))];
+  const shown = historyPager.slice(ordered);
+  let heading = null;
+  const rowsHTML = shown.map(({ r, i, title }) => {
+    const h = title !== heading ? `<h3 class="eyebrow history-section">${title}</h3>` : "";
+    heading = title;
+    return h + historyRowHTML(r, i);
+  }).join("");
 
-  if (!mine.length) {
-    list.innerHTML = `<p class="empty-message">No renders in this project yet.
-      Build a Result on the Clips screen, then press Render.</p>`
-      + section("Other projects", others);
-    return;
-  }
-  list.innerHTML = section("This project", mine) + section("Other projects", others);
+  list.innerHTML = (mine.length ? "" : `<p class="empty-message">No renders in this project yet.
+      Build a Result on the Clips screen, then press Render.</p>`) + rowsHTML;
 }
 
 $("#historyList")?.addEventListener("click", async (e) => {

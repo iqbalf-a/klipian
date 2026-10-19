@@ -8,12 +8,16 @@
    Requires $/escapeHTML/timeAgo from helpers.js -- loaded before this file.
    ========================================================================== */
 
+const assetPager = createPager({ key: "assets", mount: $("#assetPager"), onChange: () => drawAssets() });
+let ASSETS = [];
+
 async function loadAssets() {
   const note = $("#assetNote");
   let asset = [];
   try {
     const d = await (await fetch("/api/workspace/assets")).json();
     asset = d.asset || [];
+    ASSETS = asset;
   } catch {
     if (note) note.textContent = "needs klipian serve";
     return;
@@ -21,13 +25,19 @@ async function loadAssets() {
   if (note) note.textContent = asset.length
     ? `${asset.length} file${asset.length > 1 ? "s" : ""} in workspace/assets/`
     : "workspace/assets/ is empty";
+  drawAssets();
+}
+
+function drawAssets() {
+  const asset = ASSETS;
   const list = $("#assetList");
   if (!asset.length) {
+    assetPager.slice([]);
     list.innerHTML = `<p class="empty">Put custom watermark/font/template files
       in the <code>workspace/assets/</code> folder if you need them outside klipian's built-ins.</p>`;
     return;
   }
-  list.innerHTML = asset.map((a) => `
+  list.innerHTML = assetPager.slice(asset).map((a) => `
     <div class="ws-row">
       <span class="name">${escapeHTML(a.name)}</span>
       <span class="data">${a.kb} KB</span>
