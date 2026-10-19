@@ -1214,6 +1214,43 @@ layar Clips, setelah drag) memakai snap yang sama.
   `192.5` dipakai apa adanya. `parseTime` menerima `mm:ss.s`,
   `h:mm:ss.s`, dan detik polos.
 
+### P15 — Kolom "Created" dan urutan di tabel Clips dan Rendered output
+
+Permintaan ian (2026-10-19), kata-katanya: "tabel result clips tambahkan
+header order by file tersebut dibuat". Keputusan ian: **kedua tabel**
+(Clips jadwal upload dan Rendered output), **default terbaru di atas**.
+
+**Kondisi sekarang:**
+- Baris jadwal (`schedule/clips.json`) punya `at`, tapi nilainya
+  **diperbarui setiap kali baris disimpan** (`server.py` ~957 dan ~1173,
+  `schedule.py` ~94). Jadi `at` adalah "terakhir diubah", bukan "dibuat",
+  dan tidak bisa dipakai.
+- Rendered output (`/api/history`) sudah diurutkan dengan `st_mtime`
+  terbaru di atas, tanpa kolom waktu yang jelas dan tanpa header yang bisa
+  diklik.
+
+**Yang dibuat:**
+- **Clips:**
+  - kolom baru **Created** = waktu file klip itu dirender, yaitu waktu
+    pembuatan file hasil render di `out/<slug>.<projectId>/<file>`
+    (`st_birthtime`, cadangannya mtime);
+  - untuk baris tanpa file (dibuat lewat "+ New clip"), dipakai waktu
+    baris dibuat;
+  - simpan `createdAt` yang stabil di baris (diisi saat dibuat, tidak
+    pernah diubah oleh edit);
+  - migrasi sekali untuk baris lama: ambil waktu file kalau filenya
+    ada, kalau tidak pakai `at`.
+- **Rendered output:** kolom **Created** = waktu pembuatan file.
+- **Kedua tabel:**
+  - header **Created** bisa diklik untuk membalik urutan (▼ terbaru di
+    atas sebagai default, ▲ terlama di atas);
+  - pilihan urutan diingat per tabel di `localStorage`;
+  - pengurutan dilakukan **sebelum** pagination;
+  - format tanggal absolut (`18 Oct 14:32`) dengan tooltip relatif
+    ("2 hours ago");
+  - baris baru (render atau "+ New clip") tampil di posisi yang benar
+    sesuai urutan aktif.
+
 ---
 
 ## 3. Diparkir, sengaja tidak dikerjakan
