@@ -178,3 +178,16 @@ select.ws-input, .pager-size select, .ws-bulk select {
 .delete-btn.armed.strong { background: var(--danger); color: #fff; }
 .ws-bulk .armed.danger { background: transparent; }
 .ws-bulk .armed.danger.strong { background: var(--danger); }
+
+/* The server is older than the page (js/shared/version.js). */
+.stale-banner {
+  position: sticky;
+  top: 0;
+  z-index: 100001;
+  padding: 10px 16px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--danger, #c0392b);
+}

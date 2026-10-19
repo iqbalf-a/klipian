@@ -47,6 +47,7 @@ from . import roundtrip
 from .jobs import (ACTIVE_TRANSCRIBES, CANCELLED, JOBS, LOCK, MAX_JOBS, _clip_words,
                    _register_job, _run_diarize, _run_render, _run_transcribe,
                    _spans_from_clip)
+from . import buildid as _buildid  # noqa: F401  (STARTED is taken here, at start)
 from .paths import ROOT, WORKSPACE, find_video, safe_dirname
 from .projects import (PROJECTS, PROJECTS_LOCK, _all_projects,
                        _free_name, _migrate_project, _new_project_id, _primary_video,
@@ -514,6 +515,14 @@ class Handler(BaseHTTPRequestHandler):
             "fps": round(i.fps, 3), "has_audio": i.has_audio,
         })
 
+    def _get_version(self):
+        """`running`: the Python this server loaded at start; `disk`: what is in
+        klipian/*.py now. They differ after an update until the server is restarted."""
+        from . import buildid
+        disk = buildid.current()
+        return self._send_json({"running": buildid.STARTED, "disk": disk,
+                                "stale": buildid.STARTED != disk})
+
     def _get_history(self):
         # History is read from the out/ folder contents, not session
         # memory: files that actually exist on disk are the honest
@@ -844,6 +853,7 @@ class Handler(BaseHTTPRequestHandler):
 
     GET_ROUTES = {
         "/api/thumb": _get_thumb,
+        "/api/version": _get_version,
         "/api/probe": _get_probe,
         "/api/history": _get_history,
         "/api/projects": _get_projects,

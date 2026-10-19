@@ -48,7 +48,7 @@ function clipError(message) {
   const el = $("#clipError");
   if (!el) return;
   if (!message) { el.hidden = true; el.textContent = ""; return; }
-  el.textContent = message;
+  el.textContent = apiErrorText(message);
   el.hidden = false;
 }
 
