@@ -255,3 +255,8 @@ button.bg-accent:disabled, .ws-accent-btn:disabled, button.bg-accent:disabled:ho
 .yt-bulk-when { display: inline-flex; gap: 6px; flex-wrap: wrap; margin-right: 8px; }
 .yt-bulk-when .ws-input { width: auto; padding: 2px 6px; border-color: var(--glass-border); background-color: var(--surface-1, var(--bg-1)); }
 .yt-bulk-hint { color: var(--text-faint); font-size: 11.5px; margin-right: 8px; }
+
+.yt-bulk-tag { font-size: 10.5px; font-style: italic; color: var(--text-faint); margin-left: 2px; }
+.yt-bulk-tag[data-by="you"] { color: var(--text-muted); font-style: normal; }
+.yt-bulk-row[data-state="pending"] .yt-bulk-icon { color: oklch(.75 .16 145); }
+.yt-bulk-row [hidden] { display: none !important; }
