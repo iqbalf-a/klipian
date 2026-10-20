@@ -82,7 +82,9 @@
              console. This says so on screen instead. -->
         <span class="text-danger text-[13px] font-semibold" id="clipError" role="alert" hidden></span>
         <span class="text-text-faint text-[12px]" id="clipNotice" role="status" hidden></span>
-        <button class="ml-auto rounded-s bg-accent text-[13px] font-semibold px-3 py-1.5
+        <button class="guest-hidden ml-auto rounded-s px-2.5 py-1 text-[12px] border border-glass-border hover:bg-glass"
+                id="clipScheduleReady" type="button" hidden title="Upload every Ready clip to YouTube, each at its own date and time">Schedule all Ready</button>
+        <button class="rounded-s bg-accent text-[13px] font-semibold px-3 py-1.5
                        text-accent-text hover:brightness-110"
                 id="addClipBtn" type="button">+ New clip</button>
       </div>
@@ -107,6 +109,8 @@
           <button class="rounded-s px-2.5 py-1 text-[12px] border border-glass-border hover:bg-glass"
                   id="bulkSetStatus" type="button">Apply</button>
         </span>
+        <button class="guest-hidden rounded-s px-2.5 py-1 text-[12px] border border-glass-border hover:bg-glass"
+                id="bulkYouTube" type="button" title="Upload the selected clips to YouTube, one after another">Upload to YouTube…</button>
         <button class="ml-auto rounded-s px-2.5 py-1 text-[12px] border border-glass-border hover:bg-glass"
                 id="bulkDelete" type="button" title="Delete the selected clips (asks twice, can be undone)">Delete selected</button>
         <button class="rounded-s px-2.5 py-1 text-[12px] border border-glass-border hover:bg-glass"
@@ -212,6 +216,22 @@
                   type="submit" value="save">Save</button>
         </div>
       </form>
+    </dialog>
+
+    <dialog class="ws-dialog wide" id="ytBulkDialog" aria-labelledby="ytBulkTitle">
+      <div class="flex flex-col gap-4">
+        <div class="flex items-start gap-3">
+          <h2 class="text-[15px] font-extrabold leading-tight" id="ytBulkTitle">Upload to YouTube</h2>
+          <button class="ml-auto ws-close" type="button" id="ytBulkClose" title="Close (an upload that is running goes on)">✕</button>
+        </div>
+        <p class="text-[12px] text-text-faint" id="ytBulkQuota" role="status"></p>
+        <div id="ytBulkList" class="yt-bulk-list"></div>
+        <p class="text-[12px]" id="ytBulkNote" role="status"></p>
+        <div class="flex gap-2 justify-end">
+          <button class="rounded-s px-3 py-1.5 text-[13px] border border-glass-border hover:bg-glass" type="button" id="ytBulkCancel" hidden>Cancel after the current file</button>
+          <button class="rounded-s bg-accent text-[13px] font-semibold px-3 py-1.5 text-accent-text hover:brightness-110" type="button" id="ytBulkGo">Upload</button>
+        </div>
+      </div>
     </dialog>
 
     <!-- ══════════════════ SOURCES — workspace/sources/ ══════════════════

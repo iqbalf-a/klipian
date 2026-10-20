@@ -53,6 +53,14 @@ function clipError(message) {
   el.hidden = false;
 }
 
+function updateReadyButton() {
+  const btn = $("#clipScheduleReady");
+  if (!btn) return;
+  const n = CLIPS.filter((c) => c.status === "Ready").length;
+  btn.hidden = n === 0 || IS_GUEST;
+  btn.textContent = `Schedule all Ready (${n})`;
+}
+
 function updateGoneCount() {
   const btn = $("#clipGone");
   if (!btn) return;
@@ -151,6 +159,7 @@ function drawClips() {
   const head = $("#clipCreatedHead");
   if (head) head.innerHTML = clipSort.headHTML("Created");
   updateGoneCount();
+  updateReadyButton();
   syncDraftFromDom();
   const draftHTML = DRAFT ? draftRowHTML(DRAFT) : "";
   const add = $("#addClipBtn");
@@ -569,6 +578,102 @@ clipDetailForm?.addEventListener("click", async (e) => {
     if (/^https?:\/\//i.test(url)) window.open(url, "_blank", "noopener");
     else { open.textContent = "No link"; setTimeout(() => { open.textContent = "Open"; }, 1200); }
   }
+});
+
+/* ---------- upload to YouTube (P16): many rows, one queue ---------- */
+
+const ytBulk = { jobId: null, ids: [] };
+
+function ytBulkRows(rows) {
+  return rows.map((r) => {
+    const icon = { pending: "·", uploading: "↑", done: "✓", failed: "✕", skipped: "–" }[r.state] || "·";
+    const pct = r.state === "uploading" ? ` ${Math.round((r.progress || 0) * 100)}%` : "";
+    return `<div class="yt-bulk-row" data-state="${r.state}"><span class="yt-bulk-icon">${icon}</span>
+      <span class="yt-bulk-title">${escapeHTML(r.title || "(untitled)")}</span>
+      <span class="yt-bulk-msg">${escapeHTML(r.message || "")}${pct}</span></div>`;
+  }).join("");
+}
+
+/* The plan first: what will go, what is refused and why, today's quota. Nothing is sent
+   until "Upload". A bulk upload never publishes at once: every clip goes at its own date
+   and time. */
+async function openYtBulk(ids, what) {
+  const dlg = $("#ytBulkDialog"), list = $("#ytBulkList"), go = $("#ytBulkGo"), note = $("#ytBulkNote");
+  $("#ytBulkTitle").textContent = `Upload ${what} to YouTube`;
+  $("#ytBulkCancel").hidden = true; go.hidden = false; go.disabled = true; note.textContent = ""; list.innerHTML = "";
+  $("#ytBulkQuota").textContent = "Checking…";
+  dlg.showModal();
+  let st, plan;
+  try {
+    st = await (await fetch("/api/youtube/status")).json();
+    plan = await (await fetch("/api/youtube/bulk-plan", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }),
+    })).json();
+  } catch { note.textContent = "Cannot reach the klipian server."; return; }
+  if (plan.error) { note.textContent = plan.error; return; }
+  const n = plan.ok.length;
+  $("#ytBulkQuota").textContent = `Today's quota: ${plan.usedToday} of ${plan.limit} uploads used · this run sends ${Math.min(n, plan.remaining)}`
+    + (plan.overQuota ? ` · ${plan.overQuota} will not fit today and stay as they are` : "");
+  list.innerHTML = plan.ok.map((r) => `<div class="yt-bulk-row" data-state="pending"><span class="yt-bulk-icon">·</span>
+      <span class="yt-bulk-title">${escapeHTML(r.title)}</span><span class="yt-bulk-msg">${escapeHTML(r.when)}</span></div>`).join("")
+    + plan.refused.map((r) => `<div class="yt-bulk-row" data-state="failed"><span class="yt-bulk-icon">✕</span>
+      <span class="yt-bulk-title">${escapeHTML(r.title)}</span><span class="yt-bulk-msg">${escapeHTML(r.message)}</span></div>`).join("");
+  if (st.state !== "ok") { note.textContent = "This profile is not connected to YouTube: open the profile settings and connect it."; return; }
+  if (!n) { note.textContent = "Nothing here can be uploaded yet."; return; }
+  ytBulk.ids = plan.ok.map((r) => r.id);
+  go.textContent = `Upload ${n} clip${n === 1 ? "" : "s"}`;
+  go.disabled = false;
+}
+
+async function ytBulkWatch() {
+  const list = $("#ytBulkList"), note = $("#ytBulkNote");
+  for (;;) {
+    await new Promise((r) => setTimeout(r, 1000));
+    let s;
+    try { s = await (await fetch(`/api/youtube/bulk-state?id=${encodeURIComponent(ytBulk.jobId)}`)).json(); } catch { continue; }
+    if (list) list.innerHTML = ytBulkRows(s.rows || []);
+    $("#ytBulkQuota").textContent = `Today's quota: ${s.usedToday} of ${s.limit} uploads used`;
+    if (s.state === "running") continue;
+    note.textContent = s.note || (s.state === "cancelled" ? "Cancelled: the rest were not sent." : "Done.");
+    $("#ytBulkCancel").hidden = true;
+    ytBulk.jobId = null;
+    await loadClips();
+    const done = (s.rows || []).filter((r) => r.state === "done").length;
+    showToast(`${done} clip${done === 1 ? "" : "s"} uploaded to YouTube`, { ms: 8000 });
+    return;
+  }
+}
+
+$("#ytBulkGo")?.addEventListener("click", async (e) => {
+  const go = e.currentTarget;
+  go.disabled = true; $("#ytBulkNote").textContent = "Starting…";
+  try {
+    const j = await (await fetch("/api/youtube/bulk-start", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: ytBulk.ids }),
+    })).json();
+    if (j.error) { $("#ytBulkNote").textContent = j.error; go.disabled = false; return; }
+    ytBulk.jobId = j.id;
+    go.hidden = true; $("#ytBulkCancel").hidden = false; $("#ytBulkNote").textContent = "Uploading one clip after another. You can close this window; it goes on.";
+    ytBulkWatch();
+  } catch (err) { $("#ytBulkNote").textContent = `Could not start: ${err.message}`; go.disabled = false; }
+});
+
+$("#ytBulkCancel")?.addEventListener("click", async () => {
+  if (!ytBulk.jobId) return;
+  await fetch("/api/youtube/bulk-cancel", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: ytBulk.jobId }) });
+  $("#ytBulkNote").textContent = "Stopping after the file being sent…";
+});
+
+$("#ytBulkClose")?.addEventListener("click", () => $("#ytBulkDialog").close());
+
+$("#bulkYouTube")?.addEventListener("click", () => {
+  const ids = [...SELECTED];
+  if (ids.length) openYtBulk(ids, `${ids.length} selected clip${ids.length === 1 ? "" : "s"}`);
+});
+
+$("#clipScheduleReady")?.addEventListener("click", () => {
+  const ids = CLIPS.filter((c) => c.status === "Ready").map((c) => c.id);
+  if (ids.length) openYtBulk(ids, `all ${ids.length} Ready clip${ids.length === 1 ? "" : "s"}`);
 });
 
 /* ---------- upload to YouTube (P16): one row, from the Detail dialog ---------- */

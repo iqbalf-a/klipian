@@ -196,3 +196,13 @@ select.ws-input, .pager-size select, .ws-bulk select {
 #clipBody tr.ws-draft { background: var(--accent-soft, var(--glass)); }
 #clipBody tr.ws-draft .ws-input { border-color: var(--accent); background-color: var(--bg-1); }
 .ws-draft-actions { display: inline-flex; align-items: center; gap: 8px; }
+
+/* Upload to YouTube: the queue's list (Clips, bulk). */
+.yt-bulk-list { display: flex; flex-direction: column; max-height: 45vh; overflow: auto; border: 1px solid var(--glass-border); border-radius: var(--r-s); }
+.yt-bulk-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) minmax(0, 1.4fr); gap: 10px; align-items: center; padding: 7px 10px; font-size: 12.5px; border-bottom: 1px solid var(--glass-border); }
+.yt-bulk-row:last-child { border-bottom: 0; }
+.yt-bulk-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.yt-bulk-msg { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; }
+.yt-bulk-row[data-state="done"] .yt-bulk-icon { color: oklch(.75 .16 145); }
+.yt-bulk-row[data-state="failed"] .yt-bulk-icon, .yt-bulk-row[data-state="failed"] .yt-bulk-msg { color: var(--danger); }
+.yt-bulk-row[data-state="uploading"] .yt-bulk-icon { color: var(--accent); }

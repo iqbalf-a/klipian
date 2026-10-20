@@ -1368,6 +1368,26 @@ lagi di dokumen resmi sebelum mulai):
   sedang diproses/ditolak; video Scheduled yang sudah public di YouTube menjadi Posted.
 - Guest: ditolak server (403). Dokumen: `selftest` check `upload` memakai Google palsu.
 
+**P16 Tahap 2, yang dibuat (2026-10-20):** upload massal.
+- Dua jalan masuk: "Schedule all Ready (N)" di kepala panel Clips dan "Upload to YouTube…"
+  di bilah aksi P18 (baris terpilih). Keduanya membuka **rencana** dulu
+  (`/api/youtube/bulk-plan`, tidak mengirim apa pun): daftar yang akan diunggah (judul,
+  waktu tayang), daftar yang ditolak dengan alasannya (tidak ada file / "file deleted",
+  tanpa judul, judul > 100, tanggal+jam kosong atau lewat, file tidak terbaca, sudah
+  punya `videoId`), dan angka kuota hari ini (`UPLOAD_QUOTA_PER_DAY` = 100 per profile,
+  hasil ukur ian; dihitung klipian per hari Pasifik, `secrets/youtube-usage.json`) dengan
+  peringatan "N tidak muat hari ini dan tetap seperti semula". **Bulk tidak pernah
+  publish langsung**: baris tanpa tanggal/jam ditolak (single upload punya "Publish now").
+- Antrian (`start_bulk`): satu file demi satu, per-baris state (pending/uploading/done/
+  failed) dan progress; Cancel berhenti setelah file yang sedang dikirim; berhenti bersih
+  pada error kuota, token kedaluwarsa, atau offline (sisanya dibiarkan seperti semula,
+  tampil "not sent"), atau pada batas kuota lokal. Error lain per baris (mis. 400)
+  menandai baris itu gagal dan lanjut. Satu antrian per profile pada satu waktu; setiap
+  baris diperiksa ulang tepat sebelum dikirim. Tiap profile memakai token dan client-nya
+  sendiri. Dialog bisa ditutup (antrian jalan terus; toast saat selesai).
+- selftest `bulk`: rencana (penolakan dan kuota), urutan, berhenti pada kuota, cancel,
+  satu antrian per profile, penghitung harian.
+
 ### P17 — Nama file render = judul unggahan, dipisah "-"
 
 Saran ian (2026-10-19): nama file disamakan dengan title/hook, karena

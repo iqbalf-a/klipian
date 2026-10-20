@@ -1432,7 +1432,176 @@ def check_upload() -> tuple[str, str]:
         return FAIL, "\n      ".join(problems)
     return PASS, f"{len(uploads)} fake uploads: checks, schedule/publish-now, row update, no double upload, quota/offline/expired/cancel"
 
-CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload,
+
+# --------------------------------------------------------------------------
+# check: bulk upload (a queue of schedule rows; Google is a fake)
+# --------------------------------------------------------------------------
+
+def check_bulk() -> tuple[str, str]:
+    """The plan (what is refused and why, today's quota), a queue that goes file by file, stops
+    cleanly on a quota error and leaves the rest alone, a cancel that waits for the file being
+    sent, and the local daily counter. Google is a fake."""
+    import datetime as dt
+    from . import paths, profiles, recycle, schedule, youtube
+    from .ffmpeg_tools import _require, run
+
+    problems = []
+    order: list[str] = []
+
+    class FakeNet:
+        refresh_error = None
+        fail_on = None                  # title that gets a quota error
+        slow = False
+
+        @classmethod
+        def refresh(cls, token):
+            return token
+
+        @classmethod
+        def channels(cls, token):
+            return {"id": "UCbulk", "title": "Bulk Channel", "thumb": ""}
+
+        @classmethod
+        def upload(cls, token, file, body, progress, cancelled):
+            title = body["snippet"]["title"]
+            order.append(title)
+            if title == cls.fail_on:
+                raise youtube.map_http_error(403, "quotaExceeded")
+            for i in range(1, 4):
+                progress(i / 3)
+                if cls.slow:
+                    time.sleep(0.2)
+            return {"id": "B" + str(len(order))}
+
+        @classmethod
+        def video_status(cls, token, video_id):
+            return {"privacy": "private", "upload": "processed", "publishAt": "2031-01-01T00:00:00Z"}
+
+        @classmethod
+        def revoke(cls, token):
+            pass
+
+    real_net, real_bin = youtube._net, recycle.to_recycle_bin
+    youtube._net = FakeNet
+    recycle.to_recycle_bin = lambda p: Path(p).unlink()
+    profiles.write_meta("bk1", {"name": "bk1", "color": "#123456"})
+    profiles.ensure_dirs("bk1")
+    tok = paths.set_profile("bk1")
+    try:
+        pid = "1a2b3c4d5e6f"
+        folder = paths.OUT_ROOT / f"clips.{pid}"
+        folder.mkdir(parents=True)
+        vertical = folder / "base.mp4"
+        run([_require("ffmpeg"), "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=blue:s=108x192:d=1:r=10",
+             "-pix_fmt", "yuv420p", str(vertical)], desc="a vertical test clip", timeout=60)
+        youtube.save_client_secret(json.dumps({"installed": {"client_id": "1.apps.googleusercontent.com", "client_secret": "s"}}))
+        youtube._write_token_file({"token": {"token": "T", "refresh_token": "R"},
+                                   "channel": {"id": "UCbulk", "title": "Bulk Channel", "thumb": ""}, "state": "ok", "checkedAt": 1})
+        future = (dt.datetime.now() + dt.timedelta(days=2)).strftime("%Y-%m-%d")
+        n = [0]
+
+        def row(title="Judul", **kw):
+            n[0] += 1
+            file = kw.pop("file", f"b{n[0]}.mp4")
+            if file.startswith("b"):
+                shutil.copy2(vertical, folder / file)
+            rid, _ = schedule.add_file_row(title, file, pid)
+            schedule.set_fields(rid, {"date": future, "time": f"{9 + n[0] % 10:02d}:00", "status": "Ready", **kw})
+            return rid
+
+        def wait(jid, fn, until=("done", "stopped", "cancelled")):
+            for _ in range(200):
+                st = fn(jid)
+                if st["state"] in until:
+                    return st
+                time.sleep(0.05)
+            return st
+
+        # --- the plan
+        good1, good2, good3 = row("Satu"), row("Dua"), row("Tiga")
+        no_date = row("Tanpa Tanggal", date="", time="")
+        no_title = row(" ")
+        long_title = row("x" * 101)
+        gone = row("File Hilang", file="gone.mp4")
+        plan = youtube.bulk_plan([good1, good2, good3, no_date, no_title, long_title, gone])
+        refused = {r["id"]: r["message"] for r in plan["refused"]}
+        if [r["id"] for r in plan["ok"]] != [good1, good2, good3]:
+            problems.append(f"the plan accepted the wrong rows: {[r['id'] for r in plan['ok']]}")
+        for rid, why in ((no_date, "no upload date"), (no_title, "no title"), (long_title, "101"), (gone, "file deleted")):
+            if why not in refused.get(rid, ""):
+                problems.append(f"the plan did not refuse '{why}': {refused.get(rid)}")
+        if plan["usedToday"] != 0 or plan["remaining"] != 100 or plan["overQuota"] != 0:
+            problems.append(f"the quota in the plan is wrong: {plan}")
+
+        # --- a queue goes one by one, rows follow
+        jid = youtube.start_bulk([good1, good2, good3, no_date])
+        st = wait(jid, youtube.bulk_state)
+        if st["state"] != "done" or [r["state"] for r in st["rows"]] != ["done"] * 3 or order != ["Satu", "Dua", "Tiga"]:
+            problems.append(f"the queue did not send the three rows in order: {st} {order}")
+        for rid in (good1, good2, good3):
+            r = schedule.get_row(rid)
+            if r.get("status") != "Scheduled" or not r.get("videoId"):
+                problems.append(f"a row was not updated after its upload: {r}")
+        if youtube.uploads_today() != 3:
+            problems.append(f"today's counter should be 3, is {youtube.uploads_today()}")
+        if schedule.get_row(no_date).get("videoId"):
+            problems.append("bulk uploaded a row that has no date and time")
+
+        # --- a quota error stops cleanly: the rest are left alone
+        q1, q2, q3 = row("Q Uno"), row("Q Dos"), row("Q Tres")
+        FakeNet.fail_on = "Q Dos"
+        jq = youtube.start_bulk([q1, q2, q3])
+        sq = wait(jq, youtube.bulk_state)
+        FakeNet.fail_on = None
+        states = [r["state"] for r in sq["rows"]]
+        if sq["state"] != "stopped" or states != ["done", "failed", "pending"] or "upload limit" not in sq["note"].lower() and "quota" not in sq["note"].lower():
+            problems.append(f"a quota error should stop the queue and leave the rest: {sq}")
+        if schedule.get_row(q3).get("videoId") or schedule.get_row(q2).get("videoId") or schedule.get_row(q3).get("status") != "Ready":
+            problems.append("a row after the quota error was touched")
+
+        # --- cancel waits for the file being sent, then stops
+        FakeNet.slow = True
+        c1, c2 = row("C Uno"), row("C Dos")
+        jc = youtube.start_bulk([c1, c2])
+        time.sleep(0.2)
+        youtube.cancel_bulk(jc)
+        sc = wait(jc, youtube.bulk_state)
+        FakeNet.slow = False
+        if sc["state"] != "cancelled" or [r["state"] for r in sc["rows"]] != ["done", "pending"]:
+            problems.append(f"cancel should finish the file being sent and stop: {sc}")
+
+        # --- one queue per profile; the local counter stops at the limit
+        FakeNet.slow = True
+        d1, d2 = row("D Uno"), row("D Dos")
+        jd = youtube.start_bulk([d1, d2])
+        try:
+            youtube.start_bulk([d2])
+            problems.append("a second bulk upload started while one was running")
+        except youtube.YouTubeError:
+            pass
+        youtube.cancel_bulk(jd)
+        wait(jd, youtube.bulk_state)
+        FakeNet.slow = False
+        youtube._usage_file().write_text(json.dumps({"day": youtube._quota_day(), "count": 100}), encoding="utf-8")
+        e1 = row("E Uno")
+        plan2 = youtube.bulk_plan([e1])
+        if plan2["remaining"] != 0 or plan2["overQuota"] != 1:
+            problems.append(f"the plan did not show the quota used up: {plan2}")
+        je = youtube.start_bulk([e1])
+        se = wait(je, youtube.bulk_state)
+        if se["state"] != "stopped" or se["rows"][0]["state"] != "pending" or schedule.get_row(e1).get("videoId"):
+            problems.append(f"the queue should stop at the local limit without sending: {se}")
+    except Exception as exc:                           # noqa: BLE001
+        problems.append(f"raised {type(exc).__name__}: {exc}")
+    finally:
+        paths._profile.reset(tok)
+        youtube._net, recycle.to_recycle_bin = real_net, real_bin
+
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, f"{len(order)} fake uploads in queues: plan refusals, order, quota stop, cancel, one queue per profile, daily counter"
+
+CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "bulk": check_bulk,
           "decode": check_decode, "render": check_render}
 
 

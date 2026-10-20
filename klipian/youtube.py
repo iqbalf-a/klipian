@@ -480,7 +480,10 @@ def prepare(row: dict, publish_now: bool = False, probe_video: bool = True) -> d
         raise YouTubeError("not_ready", "The render file is not in the profile's out/ folder any more (file deleted).")
     if probe_video:
         from .ffmpeg_tools import probe
-        info = probe(file)
+        try:
+            info = probe(file)
+        except Exception:                              # noqa: BLE001  (unreadable: say so, do not crash a bulk plan)
+            raise YouTubeError("not_ready", "This file cannot be read as a video.") from None
         if not info.height > info.width:
             raise YouTubeError("not_ready", "This video is not vertical, so it cannot be a Short.")
         if info.duration > SHORTS_MAX_SECONDS:
@@ -504,6 +507,70 @@ def require_linked() -> dict:
         raise YouTubeError(st.get("state") or "none", st.get("message") or "This profile is not connected to YouTube: "
                            "open the profile settings and connect it.")
     return _load_token_file()
+
+
+# YouTube's quota for videos.insert: measured on the project klipian-podcast (2026-10-20):
+# 100 uploads a day per Google Cloud project, i.e. per profile (one project per channel).
+UPLOAD_QUOTA_PER_DAY = 100
+
+
+def _quota_day() -> str:
+    """The day the quota counts in: it resets at midnight Pacific time (fixed UTC-8 here: close
+    enough for a counter that only warns, and the server's own quota error is the real stop)."""
+    import datetime as dt
+    return dt.datetime.now(dt.timezone(dt.timedelta(hours=-8))).strftime("%Y-%m-%d")
+
+
+def _usage_file() -> Path:
+    return Path(paths.SECRETS / "youtube-usage.json")
+
+
+def uploads_today() -> int:
+    """How many videos THIS profile has uploaded today (counted by klipian)."""
+    try:
+        data = json.loads(_usage_file().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return 0
+    return int(data.get("count", 0)) if data.get("day") == _quota_day() else 0
+
+
+def _count_upload() -> None:
+    f = _usage_file()
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(json.dumps({"day": _quota_day(), "count": uploads_today() + 1}), encoding="utf-8")
+
+
+def _do_upload(row: dict, spec: dict, token: dict, progress, cancelled) -> dict:
+    """Send one prepared row to YouTube and bring the schedule row up to date. Returns
+    {videoId, url, status, warning}; raises YouTubeError (the row is then unchanged)."""
+    from . import schedule
+    result = _net.upload(token, spec["file"], spec["body"], progress, cancelled)
+    video_id = result.get("id")
+    if not video_id:
+        raise YouTubeError("other", "YouTube did not return a video id.")
+    _count_upload()
+    warning = ""
+    try:
+        got = _net.video_status(token, video_id)
+        if spec["publishAt"] and not got.get("publishAt") and got.get("privacy") == "private":
+            warning = ("YouTube kept the video private and ignored the schedule: the Google Cloud project "
+                       "has not passed the YouTube API audit yet, so API uploads stay locked as private.")
+        elif not spec["publishAt"] and got.get("privacy") not in (None, "public"):
+            warning = ("YouTube made the video " + str(got.get("privacy")) + " although it was sent as public: "
+                       "the Google Cloud project has not passed the YouTube API audit yet.")
+    except YouTubeError:
+        pass                                           # the upload itself worked; Check status can look again
+    fields = {"videoId": video_id, "youtubeUrl": f"https://youtube.com/shorts/{video_id}",
+              "status": "Scheduled" if spec["publishAt"] else "Posted", "uploadedAt": int(time.time())}
+    plat = (row.get("platform") or "")
+    if "YouTube" not in plat:
+        fields["platform"] = "YouTube + TikTok" if plat == "TikTok" else "YouTube"
+    if not spec["publishAt"] and not row.get("date"):
+        import datetime as dt
+        now = dt.datetime.now()
+        fields["date"], fields["time"] = now.strftime("%Y-%m-%d"), now.strftime("%H:%M")
+    schedule.set_fields(row["id"], fields)
+    return {"videoId": video_id, "url": fields["youtubeUrl"], "status": fields["status"], "warning": warning}
 
 
 def start_upload(row_id: str, publish_now: bool = False) -> str:
@@ -535,35 +602,9 @@ def start_upload(row_id: str, publish_now: bool = False) -> str:
 
     def run() -> None:
         try:
-            token = saved["token"]
-            result = _net.upload(token, spec["file"], spec["body"],
-                                 lambda p: job.__setitem__("progress", round(p, 3)), lambda: job["cancel"])
-            video_id = result.get("id")
-            if not video_id:
-                raise YouTubeError("other", "YouTube did not return a video id.")
-            warning = ""
-            try:
-                got = _net.video_status(token, video_id)
-                if spec["publishAt"] and not got.get("publishAt") and got.get("privacy") == "private":
-                    warning = ("YouTube kept the video private and ignored the schedule: the Google Cloud project "
-                               "has not passed the YouTube API audit yet, so API uploads stay locked as private.")
-                elif not spec["publishAt"] and got.get("privacy") not in (None, "public"):
-                    warning = ("YouTube made the video " + str(got.get("privacy")) + " although it was sent as public: "
-                               "the Google Cloud project has not passed the YouTube API audit yet.")
-            except YouTubeError:
-                pass                                   # the upload itself worked; Check status can look again
-            fields = {"videoId": video_id, "youtubeUrl": f"https://youtube.com/shorts/{video_id}",
-                      "status": "Scheduled" if spec["publishAt"] else "Posted", "uploadedAt": int(time.time())}
-            plat = (row.get("platform") or "")
-            if "YouTube" not in plat:
-                fields["platform"] = "YouTube + TikTok" if plat == "TikTok" else "YouTube"
-            if not spec["publishAt"] and not row.get("date"):
-                import datetime as dt
-                now = dt.datetime.now()
-                fields["date"], fields["time"] = now.strftime("%Y-%m-%d"), now.strftime("%H:%M")
-            schedule.set_fields(row_id, fields)
-            job.update({"state": "done", "videoId": video_id, "url": fields["youtubeUrl"],
-                        "status": fields["status"], "warning": warning, "progress": 1.0})
+            done = _do_upload(row, spec, saved["token"], lambda p: job.__setitem__("progress", round(p, 3)),
+                              lambda: job["cancel"])
+            job.update({"state": "done", "progress": 1.0, **done})
         except YouTubeError as exc:
             job.update({"state": "cancelled" if exc.code == "cancelled" else "failed", "code": exc.code, "message": exc.message})
         except Exception as exc:                       # noqa: BLE001
@@ -574,6 +615,120 @@ def start_upload(row_id: str, publish_now: bool = False) -> str:
 
     threading.Thread(target=contextvars.copy_context().run, args=(run,), daemon=True).start()
     return jid
+
+
+# --------------------------------------------------------------------------
+# uploading many rows (P16 stage 2): one queue, one file after another
+# --------------------------------------------------------------------------
+
+_BULKS: dict[str, dict] = {}
+_BULK_ACTIVE: set[str] = set()                         # profiles with a queue running
+
+
+def bulk_plan(ids: list) -> dict:
+    """Which of these rows can be uploaded now, and why the others cannot, and where today's
+    quota stands. Nothing is sent. A bulk upload never publishes at once: a row with no date and
+    time is refused here (single upload has "Publish now")."""
+    from . import schedule
+    if paths.current_profile() == GUEST:
+        raise YouTubeError("none", "The Guest has no YouTube account.")
+    ok, refused = [], []
+    for rid in ids:
+        row = schedule.get_row(rid)
+        if row is None:
+            refused.append({"id": rid, "title": "(gone)", "message": "That clip is not in the schedule any more.", "code": "not_ready"})
+            continue
+        try:
+            spec = prepare(row, publish_now=False)
+            ok.append({"id": rid, "title": row.get("title") or "", "publishAt": spec["publishAt"],
+                       "when": f"{row.get('date')} {row.get('time')}"})
+        except YouTubeError as exc:
+            refused.append({"id": rid, "title": row.get("title") or "(untitled)", "message": exc.message, "code": exc.code})
+    used = uploads_today()
+    return {"ok": ok, "refused": refused, "usedToday": used, "limit": UPLOAD_QUOTA_PER_DAY,
+            "remaining": max(0, UPLOAD_QUOTA_PER_DAY - used),
+            "overQuota": max(0, len(ok) - max(0, UPLOAD_QUOTA_PER_DAY - used))}
+
+
+def start_bulk(ids: list) -> str:
+    """Upload the rows that pass bulk_plan, one after another, in a background job. Stops
+    cleanly on a quota error (the rest stay as they are), on an expired connection, and
+    when cancelled (after the file being sent)."""
+    import contextvars
+    from . import schedule
+    plan = bulk_plan(ids)
+    if not plan["ok"]:
+        raise YouTubeError("not_ready", "None of these clips can be uploaded: " + (plan["refused"][0]["message"] if plan["refused"] else "nothing selected."))
+    saved = require_linked()
+    profile = paths.current_profile()
+    with _UPLOAD_LOCK:
+        if profile in _BULK_ACTIVE:
+            raise YouTubeError("already", "A bulk upload is already running for this profile.")
+        _BULK_ACTIVE.add(profile)
+    jid = uuid.uuid4().hex[:10]
+    rows = [{"id": r["id"], "title": r["title"], "state": "pending", "progress": 0.0, "message": ""} for r in plan["ok"]]
+    job = {"state": "running", "rows": rows, "cancel": False, "profile": profile, "note": ""}
+    with _UPLOAD_LOCK:
+        _BULKS[jid] = job
+
+    def run() -> None:
+        try:
+            for item in rows:
+                if job["cancel"]:
+                    break
+                if uploads_today() >= UPLOAD_QUOTA_PER_DAY:
+                    job.update({"state": "stopped", "note": f"Today's {UPLOAD_QUOTA_PER_DAY} uploads are used up. The rest are left as they were."})
+                    return
+                key = (profile, item["id"])
+                with _UPLOAD_LOCK:
+                    if key in _BUSY_ROWS:
+                        item.update({"state": "skipped", "message": "being uploaded elsewhere"})
+                        continue
+                    _BUSY_ROWS.add(key)
+                try:
+                    row = schedule.get_row(item["id"])
+                    spec = prepare(row, publish_now=False)           # again: the file or the time may have changed
+                    item["state"] = "uploading"
+                    done = _do_upload(row, spec, saved["token"], lambda p, it=item: it.__setitem__("progress", round(p, 3)),
+                                      lambda: False)                  # cancel waits for the file being sent
+                    item.update({"state": "done", "progress": 1.0, "message": done["warning"], **{k: done[k] for k in ("videoId", "url")}})
+                except YouTubeError as exc:
+                    item.update({"state": "failed", "message": exc.message})
+                    if exc.code in ("quota", "expired", "offline", "none", "no_client"):
+                        job.update({"state": "stopped", "note": exc.message + " The rest are left as they were."})
+                        return
+                except Exception as exc:                   # noqa: BLE001
+                    item.update({"state": "failed", "message": f"The upload failed ({type(exc).__name__})."})
+                finally:
+                    with _UPLOAD_LOCK:
+                        _BUSY_ROWS.discard(key)
+            job["state"] = "cancelled" if job["cancel"] else "done"
+        finally:
+            with _UPLOAD_LOCK:
+                _BULK_ACTIVE.discard(profile)
+            for item in rows:
+                if item["state"] == "pending":
+                    item["message"] = item["message"] or "not sent"
+
+    threading.Thread(target=contextvars.copy_context().run, args=(run,), daemon=True).start()
+    return jid
+
+
+def bulk_state(jid: str) -> dict:
+    with _UPLOAD_LOCK:
+        job = _BULKS.get(jid)
+        if not job:
+            return {"state": "missing"}
+        return {"state": job["state"], "note": job["note"], "rows": [dict(r) for r in job["rows"]],
+                "usedToday": uploads_today(), "limit": UPLOAD_QUOTA_PER_DAY}
+
+
+def cancel_bulk(jid: str) -> dict:
+    with _UPLOAD_LOCK:
+        job = _BULKS.get(jid)
+        if job:
+            job["cancel"] = True
+    return bulk_state(jid)
 
 
 def upload_state(jid: str) -> dict:

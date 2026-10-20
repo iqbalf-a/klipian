@@ -572,6 +572,10 @@ class Handler(BaseHTTPRequestHandler):
         q = parse_qs(urlparse(self.path).query)
         return self._youtube_reply(_youtube.check if (q.get("check") or [""])[0] == "1" else _youtube.status)
 
+    def _get_youtube_bulk_state(self):
+        q = parse_qs(urlparse(self.path).query)
+        return self._send_json(_youtube.bulk_state((q.get("id") or [""])[0]))
+
     def _get_youtube_upload_state(self):
         q = parse_qs(urlparse(self.path).query)
         return self._send_json(_youtube.upload_state((q.get("id") or [""])[0]))
@@ -596,6 +600,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._youtube_reply(lambda: {"id": _youtube.start_connect()})
         if action == "check":
             return self._youtube_reply(_youtube.check)
+        if action == "bulk-plan":
+            return self._youtube_reply(lambda: _youtube.bulk_plan([str(i) for i in (req.get("ids") or [])]))
+        if action == "bulk-start":
+            return self._youtube_reply(lambda: {"id": _youtube.start_bulk([str(i) for i in (req.get("ids") or [])])})
+        if action == "bulk-cancel":
+            return self._youtube_reply(lambda: _youtube.cancel_bulk(str(req.get("id") or "")))
         if action == "upload":
             return self._youtube_reply(lambda: {"id": _youtube.start_upload(str(req.get("row") or ""), bool(req.get("publishNow")))})
         if action == "upload-cancel":
@@ -980,6 +990,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/youtube/status": _get_youtube_status,
         "/api/youtube/connect-state": _get_youtube_connect_state,
         "/api/youtube/upload-state": _get_youtube_upload_state,
+        "/api/youtube/bulk-state": _get_youtube_bulk_state,
         "/api/probe": _get_probe,
         "/api/history": _get_history,
         "/api/projects": _get_projects,
@@ -1742,6 +1753,9 @@ class Handler(BaseHTTPRequestHandler):
         "/api/youtube/connect": _post_youtube,
         "/api/youtube/check": _post_youtube,
         "/api/youtube/upload": _post_youtube,
+        "/api/youtube/bulk-plan": _post_youtube,
+        "/api/youtube/bulk-start": _post_youtube,
+        "/api/youtube/bulk-cancel": _post_youtube,
         "/api/youtube/upload-cancel": _post_youtube,
         "/api/youtube/video-status": _post_youtube,
         "/api/youtube/disconnect": _post_youtube,
