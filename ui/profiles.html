@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>klipian — profiles</title>
+<link rel="stylesheet" href="/ui/css/fonts.css?v=1790703163808">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1790703163808">
+<link rel="stylesheet" href="/ui/css/brand.css?v=1790703163808">
+<link rel="stylesheet" href="/ui/css/pager.css?v=1790703163808">
+<link rel="stylesheet" href="/ui/css/profiles.css?v=1790703163808">
+</head>
+<body class="picker-body">
+  <!-- Who is working? One profile is one channel: its own sources, projects, renders,
+       schedule and YouTube account. No password: klipian runs on this computer, and a
+       profile only keeps the data apart. The choice is made per TAB. -->
+  <main class="picker">
+    <h1 class="picker-brand">klipian</h1>
+    <p class="picker-sub">Pilih profile untuk tab ini</p>
+    <div class="picker-grid" id="pickerGrid" role="list"></div>
+
+    <form class="picker-new" id="newForm" hidden>
+      <label>Nama <input id="newName" type="text" maxlength="40" required placeholder="mis. klipian lucu"></label>
+      <label>Warna <input id="newColor" type="color" value="#4aa8ff"></label>
+      <button class="btn main" type="submit">Buat</button>
+      <button class="btn quiet" type="button" id="newCancel">Batal</button>
+      <span class="picker-error" id="newError" role="alert"></span>
+    </form>
+
+    <div class="picker-guest" id="pickerGuest"></div>
+    <p class="picker-error" id="pickerError" role="alert"></p>
+  </main>
+<script src="/ui/js/shared/armed.js?v=1790703163808"></script>
+<script src="/ui/js/profiles-page.js?v=1790703163808"></script>
+</body>
+</html>

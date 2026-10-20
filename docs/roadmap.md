@@ -1735,6 +1735,30 @@ akun.
   tidak saling melihat project, baris jadwal, render, source, asset; tanpa profile
   ditolak; job render yang dimulai di profile A menulis ke A walaupun tab pindah ke B).
 
+
+**P21-B dan P21-G, yang dibuat (2026-10-20):**
+- Halaman `/profiles` (`ui/profiles.html`): kartu profile berwarna (satu klik masuk),
+  "+ Profile baru" (nama + warna), ganti nama, warna, hapus (`armedClick`; folder ke
+  Recycle Bin lewat `klipian/recycle.py`, SHFileOperation), "Masuk sebagai Guest" tetap
+  di bawah, dan "Clear guest data" (dua klik, isi `_guest` ke Recycle Bin, cache
+  bersama tetap). Tab tanpa profile diarahkan ke picker (`?next=`); profile yang
+  dihapus membuat tab kembali ke picker.
+- Chip profile berwarna di topbar editor dan dashboard (`profile-ui.js`): menu Switch
+  profile, Profile settings (nama, warna, teks watermark, rubrik bawaan, "pakai tampilan
+  caption sekarang sebagai bawaan"), dan untuk Guest "Clear guest data". Bawaan
+  profile: teks watermark masuk ke render lewat `style.watermark_text` (kosong tetap
+  "klipian", jadi baseline tidak berubah), rubrik bawaan dipakai `/api/brief` bila
+  `mode` tidak diberikan, preset caption dipakai proyek baru bila belum ada preset di
+  localStorage profile itu.
+- Guest: `_guest/` dibuat saat dipakai, tanpa `schedule/` dan `secrets/`. Server
+  menolak `/api/workspace/clips*` dan `/api/youtube*` dengan 403 untuk Guest. Render
+  tidak membuat baris jadwal, nama file memakai judul klip (post.title diabaikan), panel
+  Post dan Angle serta tabel Clips disembunyikan (`html[data-guest]`), dan tombol
+  "Add to schedule" tidak muncul.
+- Satu source di beberapa profile: Add video membuat hardlink bila file identik (nama,
+  ukuran, sha256) sudah ada di profile lain di drive yang sama, kalau tidak disalin
+  (`profiles.place_source`). Menghapus satu nama tidak menghapus yang lain (diuji).
+
 ---
 
 ## 3. Diparkir, sengaja tidak dikerjakan

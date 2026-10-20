@@ -615,4 +615,5 @@ async function saveDetail(id, values) {
   if (saved && notes.length) { drawClips(); clipNotice(`${clip.title || "Clip"}: ${notes.join(" · ")}`); }
 }
 
-loadClips();
+// The Guest has no schedule (the server refuses it, and the panel is not shown).
+if (!IS_GUEST) loadClips();

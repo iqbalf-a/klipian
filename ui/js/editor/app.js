@@ -285,7 +285,13 @@ function savePresetCaption() {
 function applyPresetCaption() {
   let preset;
   try { preset = JSON.parse(localStorage.getItem(PRESET_CAPTION_KEY)); }
-  catch { return false; }
+  catch { preset = null; }
+  // A profile can carry its own default caption look (profile settings).
+  if (!preset) {
+    try { preset = JSON.parse(sessionStorage.getItem("klipian:profile-meta") || "{}").defaults?.captionPreset; }
+    catch { preset = null; }
+  }
+  if (!preset) return false;
   return readCaptionState(preset);
 }
 

@@ -413,10 +413,12 @@ Style: Watermark,Mona Sans ExtraBold,{g['watermark_size']},{wm_color},{wm_outlin
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
+    # The watermark's words: "klipian" unless the profile (or style) says otherwise.
+    wm_text = re.sub(r"[{}\\\r\n]", " ", str(g.get("watermark_text") or "klipian")).strip()[:40] or "klipian"
     if g["watermark"]:
         header += (
             f"Dialogue: 0,{_ass_time(0)},{_ass_time(job.duration)},"
-            f"Watermark,,0,0,0,,klipian\n")
+            f"Watermark,,0,0,0,,{wm_text}\n")
 
     # only words that actually land in the output
     used = []

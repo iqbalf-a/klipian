@@ -88,7 +88,7 @@ def read_meta(pid: str) -> dict | None:
 def exists(pid) -> bool:
     if not valid_profile_id(pid):
         return False
-    return paths.profile_dir(pid).is_dir() if pid == GUEST else read_meta(pid) is not None
+    return True if pid == GUEST else read_meta(pid) is not None          # the Guest is always there
 
 
 def list_profiles() -> list[dict]:
@@ -102,6 +102,134 @@ def list_profiles() -> list[dict]:
                 if meta:
                     out.append(meta)
     return out
+
+
+# --------------------------------------------------------------------------
+# create, change, delete
+# --------------------------------------------------------------------------
+
+_COLOR = re.compile(r"#[0-9a-fA-F]{6}")
+RUBRIC_CHOICES = ("dialog", "gameplay")
+
+
+def _clean_name(name) -> str:
+    n = " ".join(str(name or "").split())[:40]
+    if not n:
+        raise ProfileError("give the profile a name")
+    return n
+
+
+def _clean_color(color) -> str:
+    c = str(color or "")
+    if not _COLOR.fullmatch(c):
+        raise ProfileError("the colour must look like #e8b923")
+    return c.lower()
+
+
+def _clean_defaults(d) -> dict:
+    """The per-profile defaults: watermark text, default rubric, caption look."""
+    d = d if isinstance(d, dict) else {}
+    out: dict = {}
+    wm = re.sub(r"[{}\\\r\n]", " ", str(d.get("watermark") or "")).strip()[:40]
+    if wm:
+        out["watermark"] = wm
+    if d.get("rubric") in RUBRIC_CHOICES:
+        out["rubric"] = d["rubric"]
+    preset = d.get("captionPreset")
+    if isinstance(preset, dict) and len(json.dumps(preset)) <= 4000:
+        out["captionPreset"] = preset
+    return out
+
+
+def defaults(pid: str | None = None) -> dict:
+    meta = read_meta(pid or paths.current_profile())
+    return (meta or {}).get("defaults") or {}
+
+
+def _free_id(name: str) -> str:
+    base = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:30] or "profile"
+    if not _PROFILE_ID_OK(base):
+        base = "p-" + base
+    pid, n = base, 2
+    while (paths.PROFILES_DIR / pid).exists() or pid == GUEST:
+        pid = f"{base}-{n}"
+        n += 1
+    return pid
+
+
+def _PROFILE_ID_OK(pid: str) -> bool:
+    return valid_profile_id(pid) and pid != GUEST
+
+
+def create(name, color=None) -> dict:
+    name = _clean_name(name)
+    if any(p["name"].lower() == name.lower() for p in list_profiles()):
+        raise ProfileError(f"there is a profile called {name} already")
+    color = _clean_color(color) if color else DEFAULT_COLORS[len(list_profiles()) % len(DEFAULT_COLORS)]
+    pid = _free_id(name)
+    write_meta(pid, {"name": name, "color": color, "defaults": {}})
+    ensure_dirs(pid)
+    return read_meta(pid)
+
+
+def update(pid: str, fields: dict) -> dict:
+    meta = read_meta(pid)
+    if pid == GUEST or meta is None:
+        raise ProfileError("that profile cannot be changed")
+    if "name" in fields:
+        name = _clean_name(fields["name"])
+        if any(p["name"].lower() == name.lower() and p["id"] != pid for p in list_profiles()):
+            raise ProfileError(f"there is a profile called {name} already")
+        meta["name"] = name
+    if "color" in fields:
+        meta["color"] = _clean_color(fields["color"])
+    if "defaults" in fields:
+        merged = {**meta.get("defaults", {}), **(fields["defaults"] if isinstance(fields["defaults"], dict) else {})}
+        meta["defaults"] = _clean_defaults({k: v for k, v in merged.items() if v not in ("", None)})
+    write_meta(pid, meta)
+    return read_meta(pid)
+
+
+def delete(pid: str) -> None:
+    """Send a profile's whole folder to the Recycle Bin (the Guest cannot be deleted)."""
+    from .recycle import to_recycle_bin
+    if pid == GUEST or not exists(pid):
+        raise ProfileError("that profile cannot be deleted")
+    to_recycle_bin(paths.profile_dir(pid))
+
+
+def clear_guest() -> None:
+    """Send everything the Guest made to the Recycle Bin. The shared cache stays."""
+    from .recycle import to_recycle_bin
+    base = paths.profile_dir(GUEST)
+    if base.is_dir():
+        for child in list(base.iterdir()):
+            to_recycle_bin(child)
+    ensure_dirs(GUEST)
+
+
+def place_source(tmp: Path, dest: Path) -> str:
+    """Put an uploaded video (`tmp`) at `dest`. When another profile already holds this
+    exact file (same name, size and bytes) on the same drive, link to it instead of
+    keeping a second copy: a hardlink is a name of its own, so deleting it in one
+    profile never removes it from the other. Returns "linked" or "saved"."""
+    size = tmp.stat().st_size
+    root = paths.PROFILES_DIR
+    if root.is_dir():
+        for other in root.iterdir():
+            cand = other / "sources" / dest.name
+            if other.name == paths.current_profile() or not cand.is_file() or cand.stat().st_size != size:
+                continue
+            try:
+                if _sha256(cand) != _sha256(tmp):
+                    continue
+                os.link(cand, dest)
+            except OSError:
+                continue                         # another drive, or no links here: a normal copy
+            tmp.unlink(missing_ok=True)
+            return "linked"
+    tmp.replace(dest)
+    return "saved"
 
 
 # --------------------------------------------------------------------------

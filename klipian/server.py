@@ -45,6 +45,7 @@ from .schedule import (CLIPS_LOCK, bulk_update as _bulk_update, delete_rows as _
                        migrate_created as _migrate_created, save_clips as _save_clips)
 from . import cues as cues_mod
 from . import roundtrip
+from .jobs import style_with_profile as _style_with_profile
 from .jobs import (ACTIVE_TRANSCRIBES, CANCELLED, JOBS, LOCK, MAX_JOBS, _clip_words,
                    _register_job, _run_diarize, _run_render, _run_transcribe,
                    _spans_from_clip)
@@ -442,6 +443,11 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json({"error": "that profile does not exist: reload the page", "needProfile": True}, 404)
             return False
         _paths.set_profile(pid)
+        if pid == _paths.GUEST:
+            _profiles.ensure_dirs(pid)             # made on first use (and after "Clear guest data")
+        if pid == _paths.GUEST and (path.startswith("/api/workspace/clips") or path.startswith("/api/youtube")):
+            self._send_json({"error": "not available for the Guest profile"}, 403)
+            return False
         return True
 
     def _send_text(self, text: str, mime: str, status=200):
@@ -550,6 +556,30 @@ class Handler(BaseHTTPRequestHandler):
         disk = buildid.current()
         return self._send_json({"running": buildid.STARTED, "disk": disk,
                                 "stale": buildid.STARTED != disk})
+
+    def _post_profiles(self):
+        """create / update / delete / clear-guest. None needs a profile in the header."""
+        try:
+            req = self._read_json()
+        except Exception as exc:               # noqa: BLE001
+            return self._send_json({"error": str(exc)}, 400)
+        action = urlparse(self.path).path.rsplit("/", 1)[-1]
+        try:
+            if action == "create":
+                return self._send_json({"ok": True, "profile": _profiles.create(req.get("name"), req.get("color"))})
+            if action == "update":
+                return self._send_json({"ok": True, "profile": _profiles.update(str(req.get("id") or ""), req)})
+            if action == "delete":
+                _profiles.delete(str(req.get("id") or ""))
+                return self._send_json({"ok": True})
+            if action == "clear-guest":
+                _profiles.clear_guest()
+                return self._send_json({"ok": True})
+        except _profiles.ProfileError as exc:
+            return self._send_json({"error": str(exc)}, 400)
+        except OSError as exc:
+            return self._send_json({"error": f"could not do that: {exc}"}, 500)
+        return self._send_json({"error": "unknown endpoint"}, 404)
 
     def _get_profiles(self):
         """The profiles to pick from, and the Guest. Names and colours only."""
@@ -802,7 +832,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"error": f"The transcript for {name} could not be read ({exc})"}, 500)
         if transcript is None:
             return self._send_json({"error": "No transcript yet. Click Find clips on the Analyze screen to make one."}, 404)
-        rubric = roundtrip.RUBRICS.get(q.get("mode", ["dialog"])[0], roundtrip.RUBRICS["dialog"])
+        mode = (q.get("mode") or [""])[0] or _profiles.defaults().get("rubric") or "dialog"
+        rubric = roundtrip.RUBRICS.get(mode, roundtrip.RUBRICS["dialog"])
         cues_data = cues_mod.load(find_video(name), Cache(CACHE_DIR))
         credit = credits_mod.load().get(name)
         return self._send_text(roundtrip.build_brief(
@@ -846,6 +877,8 @@ class Handler(BaseHTTPRequestHandler):
             path = "/ui/index.html"
         if path.rstrip("/") == "/workspace":
             path = "/ui/workspace.html"
+        if path.rstrip("/") == "/profiles":
+            path = "/ui/profiles.html"
         # /edit/<video> is the same editor page -- which project it opens is
         # decided in the browser (urlProject() in ui/js/editor/projects.js),
         # not here, so nothing in this path is looked up or trusted: it is
@@ -1171,7 +1204,7 @@ class Handler(BaseHTTPRequestHandler):
                     tmp.unlink(missing_ok=True)
                     return self._send_json({"ok": True, "name": same, "existed": True})
                 dest = _free_name(folder, name)
-                tmp.replace(dest)
+                _profiles.place_source(tmp, dest)      # a link to another profile's identical copy, else a rename
         except (OSError, ConnectionError) as exc:
             tmp.unlink(missing_ok=True)
             return self._send_json({"error": f"could not save the file: {exc}"}, 500)
@@ -1480,7 +1513,7 @@ class Handler(BaseHTTPRequestHandler):
                            f"could not be read ({exc})")
             clip_words = _clip_words(k, words)
 
-            style = k.get("style") if isinstance(k.get("style"), dict) else None
+            style = _style_with_profile(k.get("style") if isinstance(k.get("style"), dict) else None)
 
             # Previews are disposable, but the name can NOT be fixed:
             # /api/preview is synchronous with no lock or job registry,
@@ -1653,6 +1686,10 @@ class Handler(BaseHTTPRequestHandler):
     POST_ROUTES = {
         "/api/project": _post_project,
         "/api/project/restore": _post_project_restore,
+        "/api/profiles/create": _post_profiles,
+        "/api/profiles/update": _post_profiles,
+        "/api/profiles/delete": _post_profiles,
+        "/api/profiles/clear-guest": _post_profiles,
         "/api/project-asset-upload": _post_project_asset_upload,
         "/api/video-upload": _post_video_upload,
         "/api/project-asset-import": _post_project_asset_import,

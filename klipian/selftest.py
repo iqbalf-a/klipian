@@ -927,6 +927,58 @@ def check_profiles() -> tuple[str, str]:
         if call("GET", "/api/profiles")[0] != 200 or call("GET", "/api/version")[0] != 200:
             problems.append("the profile list and the version check must need no profile")
 
+        # --- the Guest edits and renders only: the server refuses the schedule and YouTube
+        for path in ("/api/workspace/clips", "/api/workspace/clips/bulk", "/api/youtube/status"):
+            method = "GET" if path.endswith(("clips", "status")) else "POST"
+            if call(method, path, "_guest", {} if method == "POST" else None)[0] != 403:
+                problems.append(f"the Guest was not refused at {path}")
+        if call("GET", "/api/workspace/clips", "alpha")[0] != 200:
+            problems.append("a normal profile lost the schedule endpoint")
+
+        # --- creating and changing profiles; the profile's own watermark words
+        st, made = call("POST", "/api/profiles/create", None, {"name": "Lucu", "color": "#4aa8ff"})
+        if st != 200 or made["profile"]["id"] != "lucu":
+            problems.append(f"creating a profile failed: {st} {made}")
+        elif call("POST", "/api/profiles/create", None, {"name": "lucu"})[0] != 400:
+            problems.append("a second profile with the same name was accepted")
+        else:
+            call("POST", "/api/profiles/update", None, {"id": "lucu", "defaults": {"watermark": "@lucu {x}", "rubric": "gameplay"}})
+            tok = paths.set_profile("lucu")
+            try:
+                from . import jobs
+                got = jobs.style_with_profile({"watermark": True})
+                if got.get("watermark_text") != "@lucu  x":
+                    problems.append(f"the profile's watermark words were not applied: {got}")
+                if jobs.style_with_profile({"watermark_text": "mine"})["watermark_text"] != "mine":
+                    problems.append("a style that names its own watermark text must keep it")
+            finally:
+                paths._profile.reset(tok)
+        if call("POST", "/api/profiles/update", None, {"id": "_guest", "name": "x"})[0] != 400:
+            problems.append("the Guest could be renamed")
+        if call("POST", "/api/profiles/delete", None, {"id": "_guest"})[0] != 400:
+            problems.append("the Guest could be deleted")
+
+        # --- the same video in two profiles: one file on disk, two names (a hardlink)
+        tok = paths.set_profile("alpha")
+        try:
+            (paths.SOURCES / "same.mp4").write_bytes(b"identical bytes " * 1000)
+        finally:
+            paths._profile.reset(tok)
+        tok = paths.set_profile("beta")
+        try:
+            tmpf = paths.SOURCES / "same.mp4.part"
+            tmpf.write_bytes(b"identical bytes " * 1000)
+            how = profiles.place_source(tmpf, paths.SOURCES / "same.mp4")
+            if how == "linked" and not (paths.SOURCES / "same.mp4").samefile(paths.profile_dir("alpha") / "sources" / "same.mp4"):
+                problems.append("a linked source is not the other profile's file")
+            if (paths.SOURCES / "same.mp4").read_bytes() != b"identical bytes " * 1000:
+                problems.append("a source placed in a second profile has the wrong bytes")
+            (paths.SOURCES / "same.mp4").unlink()                  # deleting one name...
+        finally:
+            paths._profile.reset(tok)
+        if not (paths.profile_dir("alpha") / "sources" / "same.mp4").is_file():
+            problems.append("deleting a source in one profile removed it from another")
+
         # --- a job keeps its profile when the tab switches
         src = paths.DEFAULT_WORKSPACE
         have = (paths.profile_dir("selftest") / "sources")

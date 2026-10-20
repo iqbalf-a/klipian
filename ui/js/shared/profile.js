@@ -13,17 +13,28 @@
 
 const PROFILE_PICKER = "/profiles";
 
+/* This tab's profile. A tab that has none (a new tab, a bookmark) goes to the picker
+   first and comes back here: "Satu klik untuk masuk". */
 const PROFILE = (() => {
   let id = null;
   try { id = sessionStorage.getItem("klipian:profile"); } catch { /* no storage */ }
-  if (!id) { try { id = localStorage.getItem("klipian:last-profile"); } catch { /* no storage */ } }
+  if (!id) {
+    // Without any storage the picker could never remember the choice: fall back to the
+    // last profile rather than loop.
+    let storageWorks = true;
+    try { sessionStorage.setItem("klipian:probe", "1"); sessionStorage.removeItem("klipian:probe"); }
+    catch { storageWorks = false; }
+    if (storageWorks) {
+      location.replace(`${PROFILE_PICKER}?next=${encodeURIComponent(location.pathname + location.search)}`);
+      return "";
+    }
+    try { id = localStorage.getItem("klipian:last-profile"); } catch { /* none */ }
+  }
   return id || "podcast";
 })();
 
-try {
-  sessionStorage.setItem("klipian:profile", PROFILE);
-  localStorage.setItem("klipian:last-profile", PROFILE);
-} catch { /* no storage: the default is used on every load */ }
+document.documentElement.dataset.guest = PROFILE === "_guest" ? "true" : "false";
+const IS_GUEST = PROFILE === "_guest";
 
 const profileKey = (key) => `p:${PROFILE}:${key}`;
 
@@ -39,7 +50,18 @@ function profileUrl(url) {
     if (path.startsWith("/api/") && !path.startsWith("/api/profiles")) {
       const headers = new Headers(init.headers || (typeof input !== "string" ? input.headers : undefined));
       headers.set("X-Klipian-Profile", PROFILE);
-      return nativeFetch(input, { ...init, headers });
+      return nativeFetch(input, { ...init, headers }).then((reply) => {
+        // This profile was deleted (or never existed): back to the picker.
+        if (reply.status === 404) {
+          reply.clone().json().then((j) => {
+            if (j?.needProfile) {
+              try { sessionStorage.removeItem("klipian:profile"); } catch { /* none */ }
+              location.replace(`${PROFILE_PICKER}?next=${encodeURIComponent(location.pathname)}`);
+            }
+          }).catch(() => {});
+        }
+        return reply;
+      });
     }
     return nativeFetch(input, init);
   };

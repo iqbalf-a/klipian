@@ -24,7 +24,7 @@ async function loadRender() {
   }
   if (note) {
     const mb = RENDER.reduce((t, r) => t + r.mb, 0);
-    const loose = RENDER.filter((r) => r.scheduled === false).length;
+    const loose = IS_GUEST ? 0 : RENDER.filter((r) => r.scheduled === false).length;
     note.textContent = RENDER.length
       ? `${RENDER.length} file${RENDER.length > 1 ? "s" : ""} · ${mb.toFixed(1)} MB`
         + (loose ? ` · ${loose} not in the schedule` : "")
@@ -50,7 +50,7 @@ function drawRender() {
       <span class="name" title="${escapeHTML(r.file)}">${escapeHTML(r.file)} <span class="data">— ${escapeHTML(r.video)}</span></span>
       <span class="data">${r.mb} MB</span>
       <span class="data" title="${escapeHTML(timeAgo(r.created || r.at))}">${fmtCreated(r.created || r.at)}</span>
-      ${r.scheduled === false
+      ${r.scheduled === false && !IS_GUEST
         ? `<button class="ws-mini ws-add-schedule" type="button" data-action="schedule" title="This file has no row in the upload schedule">Add to schedule</button>`
         : `<span></span>`}
       <button class="rounded-s px-2.5 py-1 text-[12px] hover:bg-glass" data-action="play">Play</button>

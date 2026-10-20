@@ -1,0 +1,83 @@
+/* klipian — the profile picker, and the profile chip in the topbar (both pages). */
+
+.picker-body { min-height: 100vh; background: var(--bg-0); color: var(--text); font-family: var(--font-ui); margin: 0; }
+.picker { max-width: 860px; margin: 0 auto; padding: 56px 24px; }
+.picker-brand { font-size: 34px; font-weight: 800; letter-spacing: -.03em; margin: 0; }
+.picker-sub { color: var(--text-muted); margin: 6px 0 28px; }
+.picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 16px; }
+.picker-card {
+  display: flex; flex-direction: column; gap: 8px; align-items: stretch;
+  padding: 14px; border-radius: var(--r-m, 12px);
+  background: var(--bg-2); border: 1px solid var(--glass-border);
+  box-shadow: inset 0 3px 0 var(--pc, var(--accent));
+}
+.picker-card.last { outline: 2px solid var(--pc, var(--accent)); outline-offset: 2px; }
+.picker-enter, .picker-add {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  background: transparent; border: 0; color: inherit; font: inherit; cursor: pointer; padding: 8px 0;
+}
+.picker-add { border: 1px dashed var(--glass-border); border-radius: var(--r-m, 12px); box-shadow: none; justify-content: center; min-height: 150px; }
+.picker-swatch {
+  width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--pc, var(--glass)); color: #101014; font-size: 28px; font-weight: 800;
+}
+.picker-add .picker-swatch { background: var(--glass); color: var(--text-muted); }
+.picker-name { font-weight: 700; font-size: 15px; }
+.picker-rename { font: inherit; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--accent); background: var(--bg-1); color: var(--text); text-align: center; }
+.picker-tools { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.picker-tools input[type="color"] { width: 28px; height: 28px; padding: 0; border: 1px solid var(--glass-border); border-radius: 6px; background: transparent; cursor: pointer; }
+.picker-new { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 18px; padding: 14px; border: 1px solid var(--glass-border); border-radius: var(--r-m, 12px); }
+.picker-new label { display: flex; align-items: center; gap: 8px; color: var(--text-muted); }
+.picker-new input[type="text"] { font: inherit; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-1); color: var(--text); }
+.picker-guest { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 36px; padding-top: 22px; border-top: 1px solid var(--glass-border); }
+.picker-guest-btn { background: #3a3d45; color: var(--text); border: 1px solid var(--glass-border); padding: 10px 18px; }
+.picker-guest-note { color: var(--text-muted); font-size: 12.5px; flex: 1; min-width: 220px; }
+.picker-error { color: var(--danger); min-height: 1.2em; font-size: 13px; margin: 10px 0 0; }
+
+/* The chip: who this tab is working as. A colour so the wrong channel is hard to edit. */
+.profile-chip { position: relative; display: inline-flex; }
+.profile-chip-btn {
+  display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: 12.5px; font-weight: 700;
+  color: var(--text); background: transparent; border: 1px solid var(--glass-border);
+  border-radius: 999px; padding: 4px 12px 4px 8px; cursor: pointer;
+}
+.profile-chip-btn:hover { background: var(--glass); }
+.profile-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--pc, #8b8f98); flex: none; }
+.profile-yt { width: 8px; height: 8px; border-radius: 50%; background: #6b6f78; flex: none; }
+.profile-yt[data-state="ok"] { background: #4cd07d; }
+.profile-yt[data-state="expired"] { background: #e8b923; }
+.profile-yt[hidden] { display: none; }
+.profile-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 1000; min-width: 220px;
+  background: var(--bg-2); border: 1px solid var(--glass-border); border-radius: var(--r-m, 10px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .5); padding: 6px; display: flex; flex-direction: column;
+}
+.profile-menu[hidden] { display: none; }
+.profile-menu button {
+  font: inherit; font-size: 13px; text-align: left; color: var(--text); background: transparent; border: 0;
+  border-radius: 6px; padding: 8px 10px; cursor: pointer;
+}
+.profile-menu button:hover { background: var(--glass); }
+.profile-menu .armed.danger { color: var(--danger); }
+
+.profile-settings { width: min(92vw, 460px); border: 1px solid var(--glass-border); border-radius: var(--r-m, 12px); background: var(--bg-2); color: var(--text); padding: 20px; }
+.profile-settings::backdrop { background: rgba(0, 0, 0, .6); }
+.profile-settings form { display: flex; flex-direction: column; gap: 14px; }
+.profile-settings label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--text-faint); }
+.profile-settings input[type="text"], .profile-settings select {
+  font: inherit; font-size: 13px; color: var(--text); background: var(--bg-1);
+  border: 1px solid var(--glass-border); border-radius: 6px; padding: 7px 10px;
+}
+.profile-settings .row { display: flex; gap: 10px; justify-content: flex-end; align-items: center; }
+.profile-settings h2 { margin: 0 0 4px; font-size: 16px; }
+.profile-settings .note { font-size: 12px; color: var(--text-muted); margin: 0; }
+
+/* The Guest only edits and renders: what belongs to the schedule, the post text and
+   YouTube is not shown (and the server refuses it as well). */
+html[data-guest="true"] #postPanel,
+html[data-guest="true"] #anglePanel,
+html[data-guest="true"] #panelClips,
+html[data-guest="true"] .ws-add-schedule,
+html[data-guest="true"] .guest-hidden { display: none !important; }
+
+.picker-new[hidden] { display: none; }

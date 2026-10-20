@@ -22,7 +22,7 @@ from .models import Transcript
 from . import compose as composer
 from . import render as engine
 from . import roundtrip
-from .paths import CACHE_DIR, GLOSSARY, OUT_ROOT, current_profile, find_video, safe_dirname
+from .paths import CACHE_DIR, GLOSSARY, GUEST, OUT_ROOT, current_profile, find_video, safe_dirname
 from .projects import (_project_assets_dir, _project_file,
                        _project_out_dir, _read_project, read_render_records,
                        write_render_record)
@@ -265,12 +265,13 @@ def _run_render(job_id: str, req: dict, into: Path | None = None, record: bool =
             # sent, build_ass uses its defaults. One style for the whole
             # clip, single- or multi-asset alike -- it's a look, not a
             # property of any one source video.
-            style = k.get("style") if isinstance(k.get("style"), dict) else None
+            style = style_with_profile(k.get("style") if isinstance(k.get("style"), dict) else None)
             # Named after the post title (what YouTube will read as the video's
             # title), else the Result's. Another Result's file is never taken: its
             # name gets -2, -3 ... A Result rendered again keeps writing its own.
             name = engine.unique_filename(
-                engine.safe_filename(engine.clip_file_title(k), f"clip-{i+1}"), taken)
+                engine.safe_filename(engine.clip_file_title(
+                    {**k, "post": None} if current_profile() == GUEST else k), f"clip-{i+1}"), taken)
             taken.add(name.lower())
             dest = out_dir / name
 
@@ -402,7 +403,8 @@ def _run_render(job_id: str, req: dict, into: Path | None = None, record: bool =
 
         if record and pdata:
             _record_render(job_id, req, pdata, out_dir)
-            _schedule_render(job_id, req, pdata)
+            if current_profile() != GUEST:           # the Guest makes no schedule rows
+                _schedule_render(job_id, req, pdata)
         with LOCK:
             t["state"] = "done"
 
@@ -538,6 +540,16 @@ def add_render_to_schedule(folder: str, file_name: str) -> tuple[str, bool, str]
     title = " ".join(Path(file_name).stem.replace("-", " ").replace("_", " ").split()) or file_name
     row_id, created = schedule.add_file_row(title, file_name, pid)
     return row_id, created, "from the file name"
+
+
+def style_with_profile(style: dict | None) -> dict | None:
+    """The caption style of a request, with the profile's own watermark text when the
+    request does not name one."""
+    from . import profiles
+    wm = profiles.defaults().get("watermark")
+    if wm and not (style or {}).get("watermark_text"):
+        return {**(style or {}), "watermark_text": wm}
+    return style
 
 
 def missing_inputs(req: dict) -> list[str]:
