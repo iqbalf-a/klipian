@@ -1286,6 +1286,21 @@ lagi di dokumen resmi sebelum mulai):
   `profiles/<id>/secrets/client_secret.json`. File bersama di
   `workspace/secrets/` hanya menjadi cadangan untuk profile yang belum punya
   client sendiri.
+- **Status persiapan ian (2026-10-20), project `klipian-podcast`:**
+  - YouTube Data API v3 aktif;
+  - OAuth consent screen External, status Testing, dengan test user dan
+    scope `youtube.upload` + `youtube.readonly`;
+  - OAuth client Desktop app "klipian desktop";
+  - `workspace/secrets/client_secret.json` (dicek: tipe `installed`,
+    project `klipian-podcast`, di-ignore git).
+
+  Migrasi P21-A memindahkan file itu ke
+  `profiles/podcast/secrets/client_secret.json`. Channel kedua memakai
+  project sendiri, dan file JSON-nya **tetap bernama `client_secret.json`**
+  di `profiles/<id>/secrets/` miliknya. Foldernya yang membedakan, bukan
+  nama filenya. Pengaturan profile (P21-C) sebaiknya punya tombol
+  "Choose client_secret.json" supaya ian tidak perlu memindah file
+  sendiri. Audit belum diajukan.
 - OAuth client berstatus "Testing": refresh token kedaluwarsa setelah
   ±7 hari, jadi perlu Connect ulang mingguan. Status "In production"
   tanpa verifikasi Google memunculkan layar "unverified app" saat ian
