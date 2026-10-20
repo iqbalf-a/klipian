@@ -260,6 +260,36 @@ def check_brief() -> tuple[str, str]:
     cands, notes, err = read("spaced-tag.txt")
     if err or cands[0]["post"]["hashtags"] != ["#beladiri", "#MuayThai", "#podcast"] or notes:
         problems.append(f"'#bela diri' should import as '#beladiri' without any repair note: {err or cands[0]['post']}")
+    # The "source" line: a straight quote copied from a video name breaks the JSON. When klipian knows
+    # the video, that one line is replaced by the name (with a note); no other line is ever touched.
+    known = 'NOICE - DEDDY CORBUZIER GAK ADA ORANG NGEGYM BUAT KESEHATAN! TAI KUCING!” - PODCAST BAHLUL.mp4'
+    text = (base / "replies" / "source-quote.txt").read_bytes().decode("utf-8")
+    try:
+        roundtrip.parse_reply_notes(transcript.words, text, fixture_cues)
+        problems.append("a source with a straight quote in it parsed without the known video name")
+    except ValueError as exc:
+        if "line 2," not in str(exc) or "quote inside the video name" not in str(exc):
+            problems.append(f"the source-quote error should point at the source line: {str(exc)[:120]!r}")
+    cands, notes, source_err = None, [], ""
+    try:
+        cands, notes = roundtrip.parse_reply_notes(transcript.words, text, fixture_cues, known)
+    except ValueError as exc:
+        source_err = str(exc)
+    if source_err or not cands or not any('"source" line was replaced' in n for n in notes):
+        problems.append(f"the source line was not replaced by the known name: {source_err or notes}")
+    other = (base / "replies" / "source-ok-other-broken.txt").read_bytes().decode("utf-8")
+    try:
+        roundtrip.parse_reply_notes(transcript.words, other, fixture_cues, known)
+        problems.append("a reply broken on another line was accepted because of the source repair")
+    except ValueError as exc:
+        if "Single quotes" not in str(exc):
+            problems.append(f"a break on another line should report its own error: {str(exc)[:120]!r}")
+    # the same reply, whose source is right, is not touched and says nothing
+    ok_reply = text.replace(text[text.index('"source": "'):text.index('",', text.index('"source": "')) + 2], '"source": "x.mp4",')
+    cands, notes = roundtrip.parse_reply_notes(transcript.words, ok_reply, fixture_cues, known)
+    if notes:
+        problems.append(f"a good source line was reported as repaired: {notes}")
+
     # A reply that parses is never touched: text that merely looks like the slip stays as written.
     tricky = '{"a": "x.replace(\\" \\", \\"\\") a, ]", "b": [1, 2]}'
     notes = []
@@ -1973,6 +2003,12 @@ def check_ytdl() -> tuple[str, str]:
             ("CON", ""): "CON-video",
             ("", ""): "YouTube video",
             ("Chan", "Emoji \U0001F602 ok"): "Chan - Emoji \U0001F602 ok",
+            # quote characters never stay in a name (they would break the reply's "source" line)
+            ("NOICE", "GAK ADA ORANG! TAI KUCING!” - PODCAST"): "NOICE - GAK ADA ORANG! TAI KUCING! - PODCAST",
+            ("Chan", 'a "b" “c” „d‟ ‘f’ ‚s‛ `g` ´h´ «i» ‹j› \'k\''): "Chan - a b c d f s g h i j k",
+            ("Chan", "Don't miss Jum'at"): "Chan - Dont miss Jumat",
+            ("Chan", '"“”\''): "Chan",
+            ('“', '”'): "YouTube video",
         }
         for (ch, ti), want in stems.items():
             got = ytdl.file_stem(ch, ti)

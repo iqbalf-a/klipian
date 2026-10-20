@@ -265,6 +265,14 @@
   "ok": false,
   "error": "The JSON block is broken at line 12, column 18:\n            \"title\": 'Bela Diri Pagi',\n                     ^\nSingle quotes (') around text or keys: JSON needs plain double quotes (\").\nFix that spot, or copy Claude's reply again from the start to the end of the block."
  },
+ "source-ok-other-broken.txt": {
+  "ok": false,
+  "error": "The JSON block is broken at line 11, column 26:\n    … \"post\": { \"title\": 'single' }\n                         ^\nSingle quotes (') around text or keys: JSON needs plain double quotes (\").\nFix that spot, or copy Claude's reply again from the start to the end of the block."
+ },
+ "source-quote.txt": {
+  "ok": false,
+  "error": "The JSON block is broken at line 2, column 88:\n    …HATAN! TAI KUCING!\" - PODCAST BAHLUL.mp4\n                         ^\nA quote inside the video name on the \"source\" line: remove the quote or write it as \\\" (klipian also repairs this line itself when it knows the video).\nFix that spot, or copy Claude's reply again from the start to the end of the block."
+ },
  "spaced-tag.txt": {
   "ok": true,
   "value": [

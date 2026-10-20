@@ -1509,7 +1509,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             candidates, notes = roundtrip.parse_reply_notes(
                 transcript.words if transcript else [], str(req.get("text") or ""),
-                cues_mod.load(find_video(name), Cache(CACHE_DIR))["cues"])
+                cues_mod.load(find_video(name), Cache(CACHE_DIR))["cues"], name or None)
         except ValueError as exc:
             return self._send_json({"error": str(exc)}, 400)
         # The final YouTube title is composed here, by this profile's rule, from title and hashtags

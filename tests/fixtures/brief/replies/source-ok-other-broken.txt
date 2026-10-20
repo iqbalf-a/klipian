@@ -1,0 +1,18 @@
+Here you go.
+
+```json
+{
+  "source": "x.mp4",
+  "clips": [
+    {
+      "start": "16:56",
+      "end": "17:24",
+      "title": "Digigit Saat Tidur",
+      "hook": "Terparah kedua",
+      "scores": { "hook": 9, "complete": 10, "payoff": 9 },
+      "reason": "Odd.",
+      "post": { "title": 'single' }
+    }
+  ]
+}
+```

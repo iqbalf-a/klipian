@@ -474,6 +474,9 @@ def _hint(s: str, pos: int) -> str:
     line_end = s.find("\n", pos)
     line = s[line_start:line_end if line_end != -1 else len(s)]
     before = s[:pos].rstrip()
+    if _SOURCE_LINE.match(line.rstrip("\r")) and not rest.startswith(("//", "/*")):
+        return ('A quote inside the video name on the "source" line: remove the quote or write it as \\" '
+                '(klipian also repairs this line itself when it knows the video).')
     if rest.startswith(("//", "/*")):
         return "A comment (// or /* */) in the JSON: remove it. JSON has no comments."
     if rest[:1] in "“”" or (any(c in line for c in "“”") and rest[:1] not in "'"):
@@ -514,7 +517,26 @@ def _where(s: str, exc: json.JSONDecodeError) -> str:
     return f"line {lineno}, column {col}:\n    {lead}{seg}\n    {caret}"
 
 
-def _parse_json(s: str, notes: list[str] | None = None):
+_SOURCE_LINE = re.compile(r'^(\s*"source"\s*:\s*)(.*?)(,?)\s*$')
+
+
+def _fix_source_line(s: str, exc: json.JSONDecodeError, source: str) -> str | None:
+    """The reply's top-level "source" line with its value replaced by the known video name, when the
+    parse error is ON that line (a quote copied from the video name into the text); else None.
+    Only that one line and only that key: nothing else is looked at or changed."""
+    lines = s.split("\n")
+    if not 1 <= exc.lineno <= len(lines):
+        return None
+    m = _SOURCE_LINE.match(lines[exc.lineno - 1].rstrip("\r"))
+    clips_at = s.find('"clips"')
+    line_start = sum(len(x) + 1 for x in lines[:exc.lineno - 1])
+    if not m or (0 <= clips_at < line_start):
+        return None
+    lines[exc.lineno - 1] = m.group(1) + json.dumps(source, ensure_ascii=False) + m.group(3)
+    return "\n".join(lines)
+
+
+def _parse_json(s: str, notes: list[str] | None = None, source: str | None = None):
     def refuse(name):
         raise ValueError(name)
     try:
@@ -522,15 +544,21 @@ def _parse_json(s: str, notes: list[str] | None = None):
     except json.JSONDecodeError as exc:
         # The commonest slips of an AI reply: a text with .replace(" ", "") after it, and a trailing
         # comma. Those two are fixed (by reading the text, never by running it) and the person is told.
-        fixed, done = _repair(s)
-        if done:
+        base, said = s, []
+        if source:
+            swapped = _fix_source_line(s, exc, source)
+            if swapped is not None:
+                base = swapped
+                said = ['The "source" line was replaced with the video name klipian knows (the reply had a quote inside it)']
+        fixed, done = _repair(base)
+        if done or said:
             try:
                 value = json.loads(fixed, parse_constant=refuse)
             except ValueError:
-                pass
+                pass                                     # still broken: the ORIGINAL error is reported
             else:
                 if notes is not None:
-                    notes.extend(done)
+                    notes.extend(said + done)
                 return value
         raise ValueError(
             f"The JSON block is broken at {_where(s, exc)}\n{_hint(s, exc.pos)}\n"
@@ -541,18 +569,18 @@ def _parse_json(s: str, notes: list[str] | None = None):
                          "Claude's reply again from the start to the end of the block.") from None
 
 
-def extract_json(text: str, notes: list[str] | None = None) -> dict:
+def extract_json(text: str, notes: list[str] | None = None, source: str | None = None) -> dict:
     """Claude's replies are often wrapped in code fences or prefixed with
     prose. Look inside a code fence first, else take everything from the
     first { to the last }; don't require a clean file. `notes` collects what
     was repaired (see _repair)."""
     fence = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.S)
     if fence:
-        return _parse_json(fence.group(1), notes)
+        return _parse_json(fence.group(1), notes, source)
     first, last = text.find("{"), text.rfind("}")
     if first == -1 or last <= first:
         raise ValueError("No JSON block found in that text.")
-    return _parse_json(text[first:last + 1], notes)
+    return _parse_json(text[first:last + 1], notes, source)
 
 
 # How far a cut point may be shifted to snap to a word boundary. A word
@@ -604,13 +632,16 @@ def _one_decimal(x: float) -> float:
     return float(Decimal(x).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP))
 
 
-def parse_reply(words: list[Word], text: str, cues: list[dict] | None = None) -> list[dict]:
+def parse_reply(words: list[Word], text: str, cues: list[dict] | None = None,
+                source: str | None = None) -> list[dict]:
     """Claude's reply -> clip candidates; see parse_reply_notes."""
-    return parse_reply_notes(words, text, cues)[0]
+    return parse_reply_notes(words, text, cues, source)[0]
 
 
-def parse_reply_notes(words: list[Word], text: str, cues: list[dict] | None = None) -> tuple[list[dict], list[str]]:
-    """(candidates, what was repaired in the JSON on the way: see _repair, as sentences).
+def parse_reply_notes(words: list[Word], text: str, cues: list[dict] | None = None,
+                      source: str | None = None) -> tuple[list[dict], list[str]]:
+    """(candidates, what was repaired in the JSON on the way: see _repair, as sentences). `source` is
+    the video the reply is imported for: a "source" line that breaks the JSON is replaced by it.
 
     Claude's reply -> clip candidates, in the shape the editor uses (the
     same one as before the logic moved here): title, hook, in/out (min:sec),
@@ -627,7 +658,7 @@ def parse_reply_notes(words: list[Word], text: str, cues: list[dict] | None = No
     the rename must still be importable -- and Claude occasionally answers
     using terms from the prompt prose."""
     notes: list[str] = []
-    data = extract_json(text, notes)
+    data = extract_json(text, notes, source)
     raw = _or(data.get("clips", _UNDEFINED), data.get("klip", _UNDEFINED), [])
     if not isinstance(raw, list) or ("clips" not in data and "klip" not in data):
         raise ValueError('JSON does not have a "clips" list.')
