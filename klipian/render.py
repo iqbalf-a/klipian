@@ -318,14 +318,16 @@ def _side_margins(x_percent: float, W: int) -> tuple[int, int]:
 #     PAUSE_SPLIT, after a word that ends in . ? ! , and after a word that ends in a comma when the
 #     line already has two words or more. `per_line` is a MAXIMUM: a line may have one word.
 #  2. No text during silence. A word's window runs from its own start to the start of the next word
-#     (of the same line or of the next line) when that gap is at most HOLD_GAP, so short gaps do not
+#     (of the same line or of the next line) when that gap is at most HOLD_GAP (= PAUSE_SPLIT: a gap above it starts a new line, so within a
+#     line the text never blanks), so short gaps do not
 #     flicker; otherwise it ends TAIL after its own end. The last word of the clip: its end + TAIL.
 #  3. Reveal. "spoken" (default) shows only the words that have started (the rest of the line is laid
 #     out but invisible, so nothing shifts when they appear); "line" shows the whole line from the
 #     first word's start, as it always did, but within the windows of rule 2.
 #  4. The highlighted word is the one whose window it is.
 PAUSE_SPLIT = 0.35      # seconds of silence between two words that starts a new line
-HOLD_GAP = 0.25         # a gap up to this is bridged (the word stays until the next one starts)
+HOLD_GAP = PAUSE_SPLIT  # a gap up to this is bridged (the word stays until the next one starts): the SAME
+#                         number as the line break, so inside a line no gap is ever blank
 TAIL = 0.15             # how long a word stays after it ended, when it is not bridged
 _SENTENCE_END = re.compile(r"[.?!]$")
 

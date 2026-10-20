@@ -2693,7 +2693,7 @@ def check_captions() -> tuple[str, str]:
     # line, a full line (3) splits, a full stop splits, a comma splits only after two words
     W = [(0.00, 0.30, "Halo,"),       # a comma after ONE word: no split
          (0.50, 0.80, "semua"),       # 0.2 gap from "Halo," -> bridged
-         (1.10, 1.40, "yang"),        # 0.3 gap: inside the line, not bridged (> HOLD_GAP, <= PAUSE_SPLIT)
+         (1.10, 1.40, "yang"),        # 0.3 gap: inside the line and bridged too (HOLD_GAP = PAUSE_SPLIT = 0.35)
          (1.45, 1.70, "hadir"),       # the line was full (3) -> new line
          (1.75, 2.00, "hari,"),       # a comma after the SECOND word: the line ends
          (2.05, 2.30, "ini."),        # a full stop: the line ends (a line of one word)
@@ -2704,7 +2704,7 @@ def check_captions() -> tuple[str, str]:
     if got != [["Halo,", "semua", "yang"], ["hadir", "hari,"], ["ini."], ["Lanjut", "ya"]]:
         problems.append(f"the lines are wrong: {got}")
     wins = [[(round(s, 3), round(e, 3)) for s, e in line["windows"]] for line in lines]
-    want = [[(0.0, 0.5), (0.5, 0.95), (1.1, 1.45)],      # bridged | 0.8 + tail (gap 0.3 is silence) | gap 0.05 held
+    want = [[(0.0, 0.5), (0.5, 1.1), (1.1, 1.45)],       # bridged (0.2) | bridged (0.3) | bridged (0.05)
             [(1.45, 1.75), (1.75, 2.05)],
             [(2.05, 2.45)],                              # 2.30 + tail: the pause after it is empty
             [(3.1, 3.45), (3.45, 3.85)]]                 # the last word: 3.70 + tail
@@ -2724,8 +2724,16 @@ def check_captions() -> tuple[str, str]:
         problems.append("the last word should keep a 0.15 s tail")
     if caption_at(W, 3, "spoken", 0.4) is None:
         problems.append("a gap of 0.2 s must be bridged (no flicker)")
-    if caption_at(W, 3, "spoken", 0.97) is not None:
-        problems.append("a gap of 0.3 s is silence: the line must be gone")
+    if caption_at(W, 3, "spoken", 0.97) is None:
+        problems.append("a gap of 0.3 s inside a line is bridged: the text must not blank")
+    # just under and just over the line-break gap: 0.34 s stays one line with no blank; 0.36 s is a new line
+    # and the screen is empty between the tail and the next word
+    near = caption_plan([(0.0, 0.3, "a"), (0.64, 0.9, "b")], 3)
+    far = caption_plan([(0.0, 0.3, "a"), (0.66, 0.9, "b")], 3)
+    if [len(x["words"]) for x in near] != [2] or near[0]["windows"][0] != (0.0, 0.64):
+        problems.append(f"a gap of 0.34 s should be bridged inside one line: {near}")
+    if [len(x["words"]) for x in far] != [1, 1] or abs(far[0]["windows"][0][1] - 0.45) > 1e-9             or caption_at([(0.0, 0.3, "a"), (0.66, 0.9, "b")], 3, "spoken", 0.5) is not None:
+        problems.append(f"a gap of 0.36 s should start a new line and leave the screen empty after the tail: {far}")
     a1, a2 = caption_at(W, 3, "spoken", 0.2), caption_at(W, 3, "line", 0.2)
     if not (a1 and a2 and a1["shown"] == 1 and a2["shown"] == 3 and a1["highlight"] == a2["highlight"] == 0):
         problems.append(f"'As spoken' shows only the words said, 'Whole line' all of them: {a1} {a2}")
@@ -2782,7 +2790,7 @@ def check_captions() -> tuple[str, str]:
             "const at = input.times.map((t) => ['spoken', 'line'].map((r) => { const x = m.captionAt(used, input.perLine, r, t);"
             "  return x ? { words: x.words.map((w) => w.text), shown: x.shown, highlight: x.highlight } : null; }));"
             "process.stdout.write(JSON.stringify({ plan, at }));")
-        times = [round(0.05 * i, 3) for i in range(0, 80)] + [0.4, 0.97, 2.44, 2.6, 3.84, 3.86]
+        times = [round(0.05 * i, 3) for i in range(0, 80)] + [0.4, 0.97, 1.02, 2.44, 2.6, 3.84, 3.86]
         payload = json.dumps({"words": W, "perLine": 3, "times": times})
         proc = subprocess.run([node, "-e", driver, str(js)], input=payload.encode("utf-8"), capture_output=True, timeout=60)
         if proc.returncode != 0:

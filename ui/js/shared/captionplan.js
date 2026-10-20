@@ -6,7 +6,8 @@
       PAUSE_SPLIT, after a word that ends in . ? !, and after a word ending in a comma when the line
       already has two words or more. `perLine` is a MAXIMUM: a line may have one word.
    2. No text during silence: a word's window runs from its own start to the start of the next word
-      (same line or next line) when that gap is at most HOLD_GAP, so short gaps do not flicker;
+      (same line or next line) when that gap is at most HOLD_GAP (= PAUSE_SPLIT: a gap above it starts a new line, so within a
+      line the text never blanks), so short gaps do not flicker;
       otherwise it ends TAIL after its own end. The last word: its end + TAIL.
    3. Reveal: "spoken" (default) shows only the words that have started, the rest of the line stays
       laid out but invisible (nothing shifts); "line" shows the whole line from the first word.
@@ -14,7 +15,7 @@
    ========================================================================== */
 
 const CAPTION_PAUSE_SPLIT = 0.35;
-const CAPTION_HOLD_GAP = 0.25;
+const CAPTION_HOLD_GAP = CAPTION_PAUSE_SPLIT;   // the same number: inside a line no gap is ever blank
 const CAPTION_TAIL = 0.15;
 
 function captionEndsWith(text, re) {
