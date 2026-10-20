@@ -82,7 +82,8 @@ terms before the token can download the weights — see the comments in
 `.env.example` for the exact link. After that first download it runs fully
 offline, same as Whisper.
 
-**Source videos live in `workspace/sources/`.** The browser doesn't hand the
+**Source videos live in the profile's `sources/` folder**
+(`workspace/profiles/<profile>/sources/`; see *Profiles* below). The browser doesn't hand the
 server a full file path, so the backend looks videos up by filename in that
 folder. On the Assets screen, **Add video…** copies a file from anywhere on
 your disk into it (with a progress bar; up to 10 GB; mp4, mkv, mov, webm) and
@@ -124,7 +125,7 @@ HISTORY        render queue with live progress, finished files
 ### A. Through Claude — no API key
 
 ```
-1  ASSETS     + New Project, then Add video… (or pick one from workspace/sources/)
+1  ASSETS     + New Project, then Add video… (or pick one from this profile's sources)
 2  ANALYZE    [ Find clips ]
               ① the transcript is made on your machine, or loaded if the
                  video already has one
@@ -171,7 +172,7 @@ screen.
 
 | Screen | What it does |
 |---|---|
-| **Assets** | the project's videos (several allowed: moments can come from any of them; add one from anywhere on disk with **Add video…**), plus its own images and sounds — dropped in, or imported from the shared `workspace/assets/` (a copy, so later changes to the shared file don't touch the project). Removing a video or file is two clicks |
+| **Assets** | the project's videos (several allowed: moments can come from any of them; add one from anywhere on disk with **Add video…**), plus its own images and sounds — dropped in, or imported from the profile's library (`profiles/<id>/assets/`; a copy, so later changes to the library file don't touch the project). Removing a video or file is two clicks |
 | **Clips** | drag a range on the timeline, or pick from AI suggestions; word-boundary snapping avoids cutting mid-word |
 | **Output Format** | Picture (9:16 fills the frame; 3:4 or 16:9 sit inside the 9:16 file on a black or blurred background, at a Position you choose; Black unless you pick Blur), resolution (720p to 4K), quality — set per Result, so one clip can differ from another. The file is always 9:16. Older "Crop" Results open as 9:16, older "Blur background" ones as 16:9 on blur at 50%, and render the same |
 | **Timeline** | reorder a Result's moments; add text labels, image stickers and sounds on their own tracks; set the volume of each moment |
@@ -183,7 +184,7 @@ section splits it in two, and captions are automatically remapped onto the
 rendered timeline — a word that was at second 650 in the source lands at
 second 11 in the output.
 
-A project's renders go to `workspace/out/<slug>.<id>/`, where the slug comes
+A project's renders go to `workspace/profiles/<profile>/out/<slug>.<id>/`, where the slug comes
 from the project's name when it was created. It stays fixed when the project
 is renamed, so files you may have open don't move.
 
@@ -211,7 +212,7 @@ python -m klipian import video.mp4 reply.json
 ```
 
 ```bash
-python -m klipian render video.mp4 workspace/out/video/candidates.json --only 1 --crop 58 8 26 84
+python -m klipian render video.mp4 workspace/profiles/podcast/out/video/candidates.json --only 1 --crop 58 8 26 84
 ```
 
 ```bash
@@ -350,6 +351,104 @@ transcription. The Arc **is** used for encoding, via `h264_qsv`.
 
 ---
 
+## Profiles
+
+A **profile** is one channel: its own sources, projects, renders, upload schedule,
+assets and YouTube account. klipian runs on your own computer, so there is no password:
+a profile only keeps the data apart (and keeps you from editing the wrong channel).
+
+- **Picker and chip.** The first page of a tab is the profile picker
+  (`/profiles`): a card per profile (name and colour), **+ Profile baru**, and a fixed
+  **Masuk sebagai Guest**. The choice belongs to the *tab*: two tabs can work in two
+  profiles side by side, and a background render or upload keeps writing to the profile it
+  started in. A coloured chip in the top bar of the editor and of `/workspace` says who you
+  are; its menu switches profile or opens the profile settings. From the picker a profile
+  can be renamed, recoloured or deleted (two clicks; its folder goes to the Recycle Bin).
+- **Settings per profile** (chip → *Profile settings*): the watermark's words (empty keeps
+  "klipian"), the default rubric for Find clips, the caption look new projects start with,
+  and **hashtag placement** for YouTube (in the title by default, in the description, or in
+  both; 2 or 3 hashtags in the title; optionally `#shorts`).
+- **Guest** is for editing and rendering only. It has its own folder (`_guest`) with no
+  schedule and no secrets: a render makes no schedule row, there is no Post text panel, no
+  Clips table and no YouTube — the server refuses those endpoints for the Guest, not only
+  the page. Find clips and Copy brief still work. **Clear guest data** (two clicks) sends
+  everything the Guest made to the Recycle Bin. Transcripts and thumbnails live in the
+  shared cache, so a video already transcribed in another profile is ready at once.
+- **The same video in two profiles.** Each profile keeps its own copy of a source, with its
+  own project, renders, schedule and credit. When **Add video…** finds an identical file
+  (same bytes) in another profile on the same drive, it makes a hard link instead of a
+  second copy (deleting one name never removes the other), and copies that profile's
+  source credit if this one has none.
+- **Migration.** A workspace from before profiles (`sources/`, `projects/`, `out/`,
+  `schedule/`, `assets/` and `secrets/client_secret.json` straight under `workspace/`)
+  becomes the profile **podcast** ("klipian podcast") the first time the server starts, or
+  on demand with `python -m klipian migrate-profiles` (stop the server first). Before
+  anything moves, every JSON file is copied, with its SHA-256, to
+  `workspace/backups/migrate-<time>/`; the folders are then *moved* (same drive), counts and
+  hashes are checked, and everything goes back if anything differs. Running it again does
+  nothing.
+- **CLI.** `python -m klipian --profile lucu render …` (or `KLIPIAN_PROFILE=lucu`) works in
+  that profile's folders; the default is `podcast`. A command run before the migration says
+  to run `migrate-profiles` first.
+
+## YouTube upload
+
+Each profile can be connected to its own YouTube channel and upload its schedule rows
+(YouTube Shorts). It uses the YouTube Data API with *your* Google Cloud project; klipian
+never clicks through YouTube Studio.
+
+**One-time setup, per channel** (one Google Cloud project per channel, so each channel has
+its own quota):
+
+1. In [Google Cloud Console](https://console.cloud.google.com/), sign in with the Google
+   account that owns the channel and create a project.
+2. *APIs & Services → Library → YouTube Data API v3 → Enable.*
+3. *Google Auth Platform*: audience **External**, app name and support email; add the
+   channel owner's Google account as a **Test user**; add the scopes `youtube.upload`
+   and `youtube.readonly`.
+4. *Credentials → Create credentials → OAuth client ID → **Desktop app*** and download its
+   JSON.
+5. Install the optional packages once:
+   `.venv\Scripts\python.exe -m pip install -r requirements-youtube.txt`.
+6. In klipian: chip → *Profile settings → YouTube account → **Choose client_secret.json…***
+   (the file is kept in that profile's `secrets/` folder, never sent back to the browser),
+   then **Connect YouTube** and sign in in the tab that opens.
+
+**The two status rows** in the settings: *Client* — green when the file is a valid Desktop
+app client (project name shown), red when it is not, grey when none is chosen; *Account* —
+green "Connected" with the channel's name, yellow when it needs attention (expired,
+another channel, offline), red when Google refuses the sign-in because the account is not a
+test user, grey when not connected. The dot on the chip follows the same colours. While the
+project is in *Testing* the connection expires after about 7 days: **Connect again**. A
+channel can belong to one profile only. **Disconnect** (two clicks) revokes the token at
+Google and sends it to the Recycle Bin.
+
+**Uploading.** *Detail* dialog of a clip → **Upload to YouTube**: checks first (title ≤ 100
+characters, the render file is there, a vertical video of at most 3 minutes, not uploaded
+before), then sends it as a background upload with progress and Cancel. The clip's date and
+time become YouTube's scheduled publish time (a time in the past is refused; with no date
+and time you can **Publish now**, after a second click). Afterwards the row gets its link
+and video id and becomes Scheduled or Posted; **Check status** asks YouTube how the video
+stands. **Bulk:** *Schedule all Ready* (Clips header) or *Upload to YouTube…* in the bar for
+ticked rows opens a plan first — what will go, what is refused and why (no file, no title,
+title over 100, no date/time), and today's quota — then uploads one clip after another;
+*Cancel after this file* stops the queue, a quota error or an expired connection stops it
+cleanly and leaves the rest as they were. A bulk upload never publishes immediately.
+Quota: 100 uploads a day per Google Cloud project (what the project showed), so per profile.
+
+**Locked private until audit.** A Google Cloud project that has not passed YouTube's API
+audit makes YouTube keep API uploads **private**, whatever was asked. klipian notices that
+after an upload and says so; until the audit is passed, uploads are useful as tests (or as
+a way to get the file and title onto YouTube before publishing by hand).
+
+**Hashtags and the title.** Where a clip's hashtags go (title, description, both) is the
+profile's setting and is applied at upload; the Detail dialog's *On YouTube* preview and
+the Post panel show the exact title and description. The brief you give Claude states the
+profile's rule in numbers (e.g. "the first 3 hashtags in the title plus #shorts; title +
+hashtags at most 100 characters"), and asks for hashtags ordered from the most specific to
+the most general. klipian composes the final title itself and warns when it would pass 100
+characters.
+
 ## Workspace dashboard
 
 ```
@@ -361,10 +460,10 @@ but for what happens **after** a clip becomes an MP4.
 
 | Panel | Contents |
 |---|---|
-| **Clips** | upload schedule (a finished render adds a **Draft** row for its Result, with the title, file, source credit and the post text ready to paste; rendering that Result again updates the same row and never overwrites what you typed): status, title/hook, platform, date & time edited directly in the table; episode source, clip file, description + hashtags, TikTok caption, links, and notes live in a **Detail** dialog per row (the table itself stays to the essential columns, so it never needs horizontal scrolling). Saved to `workspace/schedule/clips.json` |
-| **Sources** | the raw videos in `workspace/sources/`: size, length, when each came in, whether it has a transcript, and which projects use it (**not used** when none does). **Open folder** opens `workspace/sources/`. Lengths are read once per file and cached in `workspace/cache/`. Each row has a **Credit** (platform, creator, title, link: where the video came from), kept in `workspace/sources/credits.json`. klipian builds the credit line from it — `Sumber: YouTube Raditya Dika — "Title" (link)` — for the post text and the schedule; Claude is told the source but never writes the line. A credit is attribution, not permission to reuse the video |
-| **Rendered output** | `workspace/out/` as-is — same data source as the History screen in the editor |
-| **Assets** | `workspace/assets/`: a shared library of watermarks, logos, banners and templates. A project's Assets screen *imports* from it (it copies the file); a project's own images and sounds live in `workspace/projects/<id>/assets/` |
+| **Clips** | upload schedule (a finished render adds a **Draft** row for its Result, with the title, file, source credit and the post text ready to paste; rendering that Result again updates the same row and never overwrites what you typed): status, title/hook, platform, date & time edited directly in the table; episode source, clip file, description + hashtags, TikTok caption, links, and notes live in a **Detail** dialog per row (the table itself stays to the essential columns, so it never needs horizontal scrolling). Saved to the profile's `schedule/clips.json`. Rows can be ticked for bulk actions (Mark as Posted, Set status, Delete, Upload to YouTube); a pasted YouTube/TikTok link marks a clip Posted; a row whose render file is gone is flagged "file deleted"; **Created** is sortable; deleting asks twice and can be undone |
+| **Sources** | the raw videos in this profile's `sources/` folder: size, length, when each came in, whether it has a transcript, and which projects use it (**not used** when none does). **Open folder** opens the profile's sources folder. Lengths are read once per file and cached in `workspace/cache/` (shared). Each row has a **Credit** (platform, creator, title, link: where the video came from), kept in the profile's `sources/credits.json`. klipian builds the credit line from it — `Sumber: YouTube Raditya Dika — "Title" (link)` — for the post text and the schedule; Claude is told the source but never writes the line. A credit is attribution, not permission to reuse the video |
+| **Rendered output** | the profile's `out/` as-is — same data source as the History screen in the editor; a file with no schedule row gets **Add to schedule** |
+| **Assets** | the profile's `assets/` folder (**Open folder**): a library of watermarks, logos, banners and templates. A project's Assets screen *imports* from it (it copies the file); a project's own images and sounds live in `projects/<id>/assets/` of the same profile |
 
 `clips.json` replaces tracking uploads by hand in a spreadsheet — a row that
 used to live in Excel now lives in this table, saved the moment a cell is
@@ -419,7 +518,9 @@ klipian/
 │   │   │                            timeline, compose, captions, history, projects);
 │   │   │                            classic scripts sharing one scope, so the order of
 │   │   │                            the <script> tags in index.html matters
-│   │   ├── shared/                  topbar.js, used by both pages
+│   │   ├── shared/                  used by both pages: profile (which profile this tab is in),
+│   │   │                            topbar, profile-ui (chip and settings), pager, armed (two-click
+│   │   │                            buttons, Undo notices), hashtags, clipboard, version banner
 │   │   └── workspace/               one file per workspace panel (helpers, clips,
 │   │                                render, assets)
 │   └── tailwind.config.js
@@ -429,21 +530,27 @@ klipian/
 ├── start.cmd                       starts the server from .venv and opens the editor
 ├── requirements.txt                base install (no PyTorch)
 ├── requirements-ai-framing.txt     optional: AI Framing / speaker diarization
+├── requirements-youtube.txt        optional: YouTube account and upload
 ├── .env.example                    copy to .env for HF_TOKEN (AI Framing only)
 └── workspace/                     ALL working files -- one place, so there's never
     │                                doubt about where a video goes (see workspace/README.md)
-    ├── sources/                     videos currently being worked on -- the app reads from here
-    ├── out/                         render output, one folder per project: <slug>.<id>/
-    ├── cache/                       transcripts, audio cues, diarization (created
-    │                                automatically); thumbs/ holds cached thumbnails
-    ├── projects/                    one <id>.json per project (its videos, Results, framing
-    │   │                            points, caption corrections), and per project:
-    │   ├── <id>/assets/               its images and sounds
-    │   └── <id>/renders/              the last finished render of each Result, for
-    │                                  `render --replay` and `selftest --promote`
-    ├── assets/                      shared library (logos, banners, templates), the Assets
-    │                                panel in /workspace; a project imports copies from it
-    └── schedule/                    upload schedule & status (clips.json), the Clips panel in /workspace
+    ├── cache/                       SHARED by every profile: transcripts, audio cues, diarization
+    │                                (created automatically); thumbs/ holds cached thumbnails
+    ├── backups/                     migrate-<time>/ : the JSON backup of a migration
+    ├── secrets/                     fallback client_secret.json for profiles that have none
+    └── profiles/<id>/               one per channel (and _guest, with no schedule or secrets)
+        ├── profile.json               name, colour, defaults (watermark, rubric, caption, hashtags)
+        ├── sources/                   videos being worked on -- the app reads from here; credits.json
+        ├── out/                       render output, one folder per project: <slug>.<id>/
+        ├── projects/                  one <id>.json per project (its videos, Results, framing
+        │   │                          points, caption corrections), and per project:
+        │   ├── <id>/assets/             its images and sounds
+        │   └── <id>/renders/            the last finished render of each Result, for
+        │                                `render --replay` and `selftest --promote`
+        ├── assets/                    library (logos, banners, templates), the Assets panel in
+        │                              /workspace; a project imports copies from it
+        ├── schedule/                  upload schedule (clips.json, clips.trash.json), the Clips panel
+        └── secrets/                   this channel's client_secret.json and youtube.json (the token)
 ```
 
 ---
@@ -455,13 +562,14 @@ without the server running. Run the command at the top of this file.
 
 **"not in sources/"** (next to a video on Assets or on a project card, or in
 an error when transcribing or rendering) — the server can't find that video
-in `workspace/sources/`. A project remembers a video by file name, so put the
+in this profile's sources folder. A project remembers a video by file name, so put the
 file back there under the same name, or use **Add video…** on the Assets
 screen to copy it in again. (The paste-a-link box on Analyze isn't wired up.)
 
 **Add video… says "not enough disk space" or "a video must be … 10 GB"** —
 the copy needs the video's size plus 1 GB free on the drive that holds
-`workspace/`, and one file can be at most 10 GB.
+`workspace/`, and one file can be at most 10 GB. (A name that ends in a space or a dot before
+the extension is tidied when saved, and the page says so.)
 
 **Rendered MP4 is 0 bytes** — ffmpeg is still writing it. Wait for the
 queue row to say "done" before opening the folder.

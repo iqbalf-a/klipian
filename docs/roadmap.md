@@ -1251,7 +1251,7 @@ header order by file tersebut dibuat". Keputusan ian: **kedua tabel**
   - baris baru (render atau "+ New clip") tampil di posisi yang benar
     sesuai urutan aktif.
 
-### P16 — Upload otomatis ke YouTube Shorts (DITUNDA, rencana saja)
+### P16 — Upload otomatis ke YouTube Shorts (DIBANGUN 2026-10-20; uji nyata dan audit Google menunggu ian)
 
 Permintaan ian (2026-10-19): upload otomatis dari jadwal, mulai dari
 YouTube Shorts, sekaligus memperbarui baris di `/workspace` Clips. Ian
@@ -1497,7 +1497,11 @@ Cloud.
   massal tidak mengubah `createdAt` (P15).
 
 **A — Sync from YouTube (setelah ian menyiapkan Google Cloud; tanpa
-audit):**
+audit; BELUM dibangun). Catatan 2026-10-20: karena profile, Sync berjalan
+per profile dengan token profile itu sendiri (`secrets/youtube.json`) dan
+hanya butuh `youtube.readonly`, yang sudah diminta saat Connect (scope
+`youtube.upload` + `youtube.readonly`), jadi tidak ada persiapan Google
+tambahan. Yang dicocokkan adalah baris jadwal profile itu saja.**
 - Persiapan sama dengan P16 sampai OAuth client Desktop app, cukup
   dengan scope `youtube.readonly`. Audit Google hanya berlaku untuk
   upload, jadi tidak diperlukan di sini. Alternatif API key hanya
@@ -1601,7 +1605,7 @@ state itu sekarang milik Result lain (lihat `liveOwner`, P13).
 | Undo import (saran Claude) | Editor | sudah ada | tetap |
 | Sources, Rendered output, Assets | Dashboard | tidak ada tombol hapus | tidak berubah |
 
-### P21 — Profile per channel, tanpa password (DITUNDA, rencana saja)
+### P21 — Profile per channel, tanpa password (DIBANGUN 2026-10-20: A, B, G, C; uji nyata menunggu ian; D belum)
 
 Ide ian (2026-10-20): nanti akan ada lebih dari satu akun klipian. Sudah ada
 "klipian podcast", dan mungkin menyusul "klipian" untuk cuplikan lucu dari TV
@@ -1865,6 +1869,22 @@ akun.
   `/check`, `/disconnect`; Guest ditolak 403.
 - Catatan: membuka pengaturan profile memanggil `check` (jaringan) hanya bila profile
   itu sudah punya token; tanpa token tidak ada panggilan keluar.
+
+### Audit setelah P16/P21 (2026-10-20)
+
+Hasil audit ian/sesi analisis setelah profile, Guest, YouTube, dan hashtag:
+- **Kata-kata di UI** yang masih menyebut folder lama (`workspace/sources/`,
+  `workspace/assets/`) diganti dengan nama pendek ("this profile's sources") dan tombol
+  **Open folder** yang membuka folder profile (path lengkapnya di tooltip, dari server, jadi
+  tidak bisa basi). Panel Assets di `/workspace` mendapat tombol Open folder. "Assets"
+  sekarang per profile (`profiles/<id>/assets/`), dan teksnya mengatakan itu.
+- **README.md** punya bagian *Profiles* dan *YouTube upload*, jalur lama diperbaiki;
+  `workspace/README.md` ditulis ulang untuk susunan baru (cache bersama, `profiles/<id>/`,
+  `_guest`, `secrets/` cadangan, `backups/migrate-*`, jangan commit secrets).
+- **Kredit antar profile:** Add video yang menautkan/menyalin source identik (sha256) dari
+  profile lain menyalin entri kredit file itu ke `sources/credits.json` profile ini bila
+  belum ada (tidak pernah menimpa), dan halaman menyebutnya. Selftest `profiles` memeriksa
+  kasus disalin dan tidak ditimpa.
 
 ---
 
