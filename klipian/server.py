@@ -49,6 +49,7 @@ from .jobs import style_with_profile as _style_with_profile
 from .jobs import (ACTIVE_TRANSCRIBES, CANCELLED, JOBS, LOCK, MAX_JOBS, _clip_words,
                    _register_job, _run_diarize, _run_render, _run_transcribe,
                    _spans_from_clip)
+from . import hashtags as _hashtags_mod
 from . import paths as _paths
 from . import youtube as _youtube
 from . import profiles as _profiles
@@ -896,7 +897,8 @@ class Handler(BaseHTTPRequestHandler):
         cues_data = cues_mod.load(find_video(name), Cache(CACHE_DIR))
         credit = credits_mod.load().get(name)
         return self._send_text(roundtrip.build_brief(
-            transcript, roundtrip.read_rubric(rubric), name, cues_data, credit),
+            transcript, roundtrip.read_rubric(rubric), name, cues_data, credit,
+            _hashtags_mod.brief_rule(_profiles.hashtag_settings())),
             "text/markdown")
 
     def _get_video(self):
@@ -1472,6 +1474,16 @@ class Handler(BaseHTTPRequestHandler):
                 cues_mod.load(find_video(name), Cache(CACHE_DIR))["cues"])
         except ValueError as exc:
             return self._send_json({"error": str(exc)}, 400)
+        # The final YouTube title is composed here, by this profile's rule, from title and hashtags
+        # (what Claude wrote in youtubeTitle is not used): one that would not fit 100 characters
+        # is flagged, so the person sees it before rendering.
+        settings = _profiles.hashtag_settings()
+        for k in candidates:
+            post = k.get("post")
+            if post:
+                warning = _hashtags_mod.title_warning(post.get("title", ""), post.get("hashtags"), settings)
+                if warning:
+                    k["postWarning"] = warning
         return self._send_json({"candidates": candidates})
 
     def _post_render(self):

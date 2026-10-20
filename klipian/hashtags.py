@@ -92,3 +92,42 @@ def plan(title: str, description: str, hashtags, settings: dict | None = None) -
         present.add(t)
     return {"title": final, "description": description if s["placement"] == "both" else without,
             "tags": api_tags}
+
+
+def title_warning(title: str, hashtags, settings: dict | None = None) -> str:
+    """"" when the title this profile wants fits YouTube's 100 characters; else a sentence for the
+    person. `plan()` drops a tag that does not fit, so this looks at the title WITH all of the tags
+    the profile wants in it (the first N, and #shorts): that is what the brief asks Claude to keep
+    within 100, and what the Post panel warns about before a render."""
+    s = settings_of(settings)
+    title = " ".join(str(title or "").split())
+    if s["placement"] == "description":
+        return (f"The title is {len(title)} characters; YouTube allows {TITLE_MAX}: shorten the title."
+                if len(title) > TITLE_MAX else "")
+    tags = norm_tags(hashtags)
+    present = {norm_tag(t) for t in re.findall(r"#(\w+)", title)}
+    wanted = [t for t in tags[:s["titleTags"]] + (["shorts"] if s["shorts"] else []) if t not in present]
+    full = len(title) + sum(1 + 1 + len(t) for t in wanted)
+    if full > TITLE_MAX:
+        return (f"The final YouTube title would be {full} characters (YouTube allows {TITLE_MAX}): "
+                "shorten the title or the hashtags.")
+    return ""
+
+
+def brief_rule(settings: dict | None = None) -> str:
+    """The profile's hashtag rule in concrete numbers, for the brief Claude reads."""
+    s = settings_of(settings)
+    n = s["titleTags"]
+    extra = " + ' #shorts'" if s["shorts"] else ""
+    common = ("Order the hashtags from the most specific and important to the most general. "
+              "Hashtags: lowercase, no spaces" + (", and do not write #shorts yourself (klipian adds it)."
+                                                  if s["shorts"] else "."))
+    if s["placement"] == "description":
+        return ("Hashtags go in the description only. `post.title` must be at most 100 characters and "
+                "carry no hashtags. " + common)
+    where = "the first {n} hashtags in the YouTube title{shorts}".format(
+        n=n, shorts=", plus #shorts" if s["shorts"] else "")
+    first = ("This profile puts " + where + " (and all of them in the description). "
+             if s["placement"] == "both" else "This profile puts " + where + ". ")
+    return (first + f"`post.title` + ' ' + the first {n} hashtags{extra} must be at most 100 characters "
+            "in total. " + common)

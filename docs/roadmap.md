@@ -1408,6 +1408,22 @@ lagi di dokumen resmi sebelum mulai):
   dan "Copy description" di layar Render mengikuti penempatan yang sama.
 - `ui/js/shared/hashtags.js` adalah salinan logika Python; selftest `hashtags` menjalankan
   keduanya (node) pada 12 kasus dan mensyaratkan jawaban yang sama.
+- **Brief dan impor (tambahan, 2026-10-20):** brief (Copy brief / Download) kini memuat blok
+  "Hashtags for this profile" yang dibangun saat brief dibuat dari pengaturan profile
+  permintaan, dengan angka konkret ("the first 3 hashtags in the YouTube title, plus #shorts.
+  `post.title` + ' ' + the first 3 hashtags + ' #shorts' must be at most 100 characters in
+  total"; mode Description: "Hashtags go in the description only … title at most 100 characters
+  and no hashtags"; Both). Teks rubrik statis tetap menjadikan "judul maks 70" sebagai target
+  gaya, blok yang dibangun adalah batas keras. AI juga diminta `post.youtubeTitle` (judul akhir
+  persis seperti di YouTube, sebagai contoh bentuk jadi). klipian TIDAK memercayainya: saat impor
+  server menyusun judul akhir sendiri dari title + hashtags (`hashtags.plan`) dan, bila judul
+  yang diinginkan profile (judul + N hashtag + #shorts) melewati 100 karakter, menambah
+  `postWarning` pada kandidat; Post panel menampilkan pratinjau "On YouTube" dan peringatan yang
+  sama secara langsung (`hashtagWarning`, kembaran JS) sebelum render. `youtubeTitle` yang
+  berbeda dari susunan klipian diabaikan tanpa peringatan; balasan lama tanpa `youtubeTitle`
+  tetap valid. Fixture: `brief.md` diperbarui (blok hashtag dengan aturan Title N=3 + #shorts
+  dan contoh `youtubeTitle`), balasan baru `with-youtube-title.txt` dan entrinya di
+  `imports.expected.json`; kasus peringatan panjang judul ada di check `brief`.
 - Rubrik `dialog-podcast.md` ("Teks posting"): hashtag diurutkan dari yang paling spesifik,
   tanpa `#shorts`, tanpa spasi. Fixture brief punya salinan rubrik sendiri, jadi tidak perlu
   diubah.

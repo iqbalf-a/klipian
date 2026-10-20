@@ -166,14 +166,29 @@ def check_brief() -> tuple[str, str]:
     # Read as bytes so the comparison is on the bytes, not on what the
     # platform makes of line endings.
     want = (base / "brief.md").read_bytes().decode("utf-8")
+    from . import hashtags as ht
+    rule = ht.brief_rule({"placement": "title", "shorts": True, "titleTags": 3})
     got = roundtrip.build_brief(
         transcript, roundtrip.read_rubric(base / "rubric.md"),
-        "radityadika-podcast.mp4", _load(base / "cues.json"))
+        "radityadika-podcast.mp4", _load(base / "cues.json"), None, rule)
     if got != want:
         at = next((i for i, (a, b) in enumerate(zip(want, got)) if a != b),
                   min(len(want), len(got)))
         problems.append(f"brief.md differs at character {at}: "
                         f"expected {want[at:at + 40]!r}, got {got[at:at + 40]!r}")
+
+    # The profile's hashtag rule is written into the brief in numbers, and changes with the setting.
+    for settings, expect in (
+            ({"placement": "title", "shorts": False, "titleTags": 2}, "first 2 hashtags in the YouTube title"),
+            ({"placement": "description"}, "Hashtags go in the description only"),
+            ({"placement": "both", "titleTags": 3}, "and all of them in the description")):
+        text = roundtrip.build_brief(transcript, "", "x.mp4", None, None, ht.brief_rule(settings))
+        if "**Hashtags for this profile:**" not in text or expect not in text or "at most 100 characters" not in text:
+            problems.append(f"the brief's hashtag block for {settings} should say {expect!r} and the 100-character limit")
+    if "**Hashtags for this profile:**" in roundtrip.build_brief(transcript, "", "x.mp4", None):
+        problems.append("a brief built with no profile rule must not carry a hashtag block")
+    if '"youtubeTitle"' not in got:
+        problems.append("the brief's example reply lost youtubeTitle")
 
     # The cues section is never left out: with nothing found, with the
     # detection not run, and with it failed, it still says so.
@@ -195,6 +210,21 @@ def check_brief() -> tuple[str, str]:
         problems.append("prompts/rubrik/dialog-podcast.md lost its 'Sudut pandang' section")
 
     fixture_cues = _load(base / "cues.json")["cues"]
+    # An import: the final title is composed by klipian, not taken from youtubeTitle; one that
+    # would pass 100 characters is flagged (the server adds postWarning), one that fits is not,
+    # and a reply with no youtubeTitle at all (every older one) is as valid as before.
+    reply = (base / "replies" / "with-youtube-title.txt").read_bytes().decode("utf-8")
+    cands = roundtrip.parse_reply(transcript.words, reply, fixture_cues)
+    default = {"placement": "title", "shorts": False, "titleTags": 3}
+    warns = [ht.title_warning(k["post"]["title"], k["post"]["hashtags"], default) for k in cands]
+    if not warns[0] or "characters" not in warns[0] or warns[1]:
+        problems.append(f"the final-title length warning on import is wrong: {warns}")
+    if "youtubeTitle" in ht.plan(cands[0]["post"]["title"], "", cands[0]["post"]["hashtags"], default):
+        problems.append("klipian must compose the final title itself, not use youtubeTitle")
+    if ht.plan(cands[1]["post"]["title"], "", cands[1]["post"]["hashtags"], default)["title"] != "Suka Ngigo #ngigo #tidur":
+        problems.append("the final title of a short clip was composed wrongly")
+    if ht.title_warning(cands[0]["post"]["title"], cands[0]["post"]["hashtags"], {"placement": "description"}):
+        problems.append("a title under 100 characters needs no warning in description mode")
     expected = _load(base / "imports.expected.json")
     for name, want in sorted(expected.items()):
         text = (base / "replies" / name).read_bytes().decode("utf-8")
@@ -1688,6 +1718,8 @@ def check_hashtags() -> tuple[str, str]:
         ("normalisation", "Judul", "x", ["#Ra Ditya!", "KOMEDI-2", "\u00c9COLE", "", "#", "komedi2", "snake_case"], T3),
         ("the 15-tag cap", "Judul", "x", [f"t{i}" for i in range(20)], {**T3, "placement": "both"}),
         ("tags with commas on their own line", "Judul", "Cap\n\n#a, #b,#c\n\nSumber", None, T2),
+        ("a long title that cannot take its tags", "y" * 97, "x", ["#a", "#b"], {**T3, "shorts": True}),
+        ("a title over 100 in description mode", "z" * 101, "x", ["#a"], {**T3, "placement": "description"}),
     ]
     problems = []
     got = {name: ht.plan(t, d, h, s) for name, t, d, h, s in cases}
@@ -1727,16 +1759,20 @@ def check_hashtags() -> tuple[str, str]:
         note = " (the JS agreement was skipped: node is not installed)"
     else:
         driver = ("const m=require(process.argv[1]);const cs=JSON.parse(require('fs').readFileSync(0,'utf8'));"
-                  "process.stdout.write(JSON.stringify(cs.map(c=>m.hashtagPlan(c.title,c.description,c.hashtags,c.settings))));")
+                  "process.stdout.write(JSON.stringify(cs.map(c=>[m.hashtagPlan(c.title,c.description,c.hashtags,c.settings),"
+                  "m.hashtagWarning(c.title,c.hashtags,c.settings)])));")
         payload = json.dumps([{"title": t, "description": d, "hashtags": h, "settings": s} for _, t, d, h, s in cases])
         proc = subprocess.run([node, "-e", driver, str(js)], input=payload.encode("utf-8"), capture_output=True, timeout=60)
         if proc.returncode != 0:
             problems.append(f"node could not run hashtags.js: {proc.stderr.decode('utf-8', 'replace')[:200]}")
         else:
             theirs = json.loads(proc.stdout.decode("utf-8"))
-            for (name, *_), want in zip(cases, theirs):
+            for (name, t, d, h, s_), (want, want_warn) in zip(cases, theirs):
                 if want != got[name]:
                     problems.append(f"JS and Python disagree on '{name}': JS {want} / Python {got[name]}")
+                if want_warn != ht.title_warning(t, h, s_):
+                    problems.append(f"JS and Python disagree on the length warning of '{name}': "
+                                    f"JS {want_warn!r} / Python {ht.title_warning(t, h, s_)!r}")
         note = " and the browser's JS agrees"
     if problems:
         return FAIL, "\n      ".join(problems)

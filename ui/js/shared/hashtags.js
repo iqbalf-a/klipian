@@ -80,4 +80,21 @@ function hashtagPlan(title, description, hashtags, settings) {
   return { title: final, description: s.placement === "both" ? description : without, tags: apiTags };
 }
 
-if (typeof module !== "undefined") module.exports = { hashtagPlan, hashtagSettings, normTag, normTags, splitDescription };
+/* "" when the title this profile wants fits 100 characters, else a sentence (hashtags.py,
+   title_warning). Looks at the title WITH all the tags the profile wants in it. */
+function hashtagWarning(title, hashtags, settings) {
+  const s = hashtagSettings(settings);
+  title = String(title ?? "").split(/\s+/).filter(Boolean).join(" ");
+  const len = [...title].length;
+  if (s.placement === "description") {
+    return len > HASHTAG_TITLE_MAX ? `The title is ${len} characters; YouTube allows ${HASHTAG_TITLE_MAX}: shorten the title.` : "";
+  }
+  const tags = normTags(hashtags);
+  const present = new Set([...title.matchAll(/#([\p{L}\p{N}_]+)/gu)].map((m) => normTag(m[1])));
+  const wanted = tags.slice(0, s.titleTags).concat(s.shorts ? ["shorts"] : []).filter((t) => !present.has(t));
+  const full = len + wanted.reduce((n, t) => n + 2 + [...t].length, 0);
+  return full > HASHTAG_TITLE_MAX
+    ? `The final YouTube title would be ${full} characters (YouTube allows ${HASHTAG_TITLE_MAX}): shorten the title or the hashtags.` : "";
+}
+
+if (typeof module !== "undefined") module.exports = { hashtagPlan, hashtagWarning, hashtagSettings, normTag, normTags, splitDescription };

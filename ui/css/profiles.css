@@ -102,3 +102,5 @@ html[data-guest="true"] .guest-hidden { display: none !important; }
 .profile-settings label.check { flex-direction: row; align-items: center; gap: 8px; color: var(--text-muted); font-size: 13px; }
 #ytPreview .ws-input { background-color: var(--bg-0); color: var(--text-muted); }
 #ytPreviewTitle[data-over="true"] { border-color: var(--danger); }
+.post-warn { color: var(--danger); font-size: 12px; margin: 4px 0 0; }
+.post-warn[hidden] { display: none; }

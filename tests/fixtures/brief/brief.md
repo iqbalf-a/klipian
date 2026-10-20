@@ -166,7 +166,8 @@ outside the block.
       "post": {
         "title": "Rugi 300 Juta Gara-gara Salah Timing",
         "caption": "Satu keputusan di waktu yang salah bisa mahal banget. Kamu pernah ngalamin juga?",
-        "hashtags": ["#bisnis", "#podcast", "#belajarbisnis", "#kegagalan", "#motivasi"]
+        "hashtags": ["#bisnis", "#podcast", "#belajarbisnis", "#kegagalan", "#motivasi"],
+        "youtubeTitle": "Rugi 300 Juta Gara-gara Salah Timing #bisnis #podcast #belajarbisnis"
       },
       "angle": {
         "take": "Keputusan yang kelihatan kecil bisa jadi yang paling mahal.",
@@ -180,7 +181,12 @@ outside the block.
 
 `post` is the text for uploading the clip, written by you for each clip: `title`
 (up to 70 characters), `caption` (1–3 sentences, no hashtags in it) and
-`hashtags` (5–8, as a list). Leave it out if the rubric above does not ask for it.
+`hashtags` (5–8, as a list). Also give `youtubeTitle`: the final title exactly as it
+will appear on YouTube, as an example of the finished form (klipian composes the final
+title itself from `title` and `hashtags`, so this is only a check on your side). Leave
+`post` out if the rubric above does not ask for it.
+
+**Hashtags for this profile:** This profile puts the first 3 hashtags in the YouTube title, plus #shorts. `post.title` + ' ' + the first 3 hashtags + ' #shorts' must be at most 100 characters in total. Order the hashtags from the most specific and important to the most general. Hashtags: lowercase, no spaces, and do not write #shorts yourself (klipian adds it).
 
 `angle` is a suggested point of view on the clip, for the person who cuts it to edit
 and make their own: `take` (one sentence), `intro` (an opening line, at most 12

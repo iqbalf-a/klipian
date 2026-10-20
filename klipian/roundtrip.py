@@ -150,15 +150,22 @@ By kind:
 """
 
 
+def _hashtag_block(rule: str) -> str:
+    return f"\n**Hashtags for this profile:** {rule}\n" if rule else ""
+
+
 def build_brief(transcript: Transcript, rubric: str, name: str,
-                cues_data: dict | None = None, credit: dict | None = None) -> str:
+                cues_data: dict | None = None, credit: dict | None = None,
+                hashtag_rule: str = "") -> str:
     """A single self-contained file: task, rubric, transcript, and expected
     answer format. The user just drops it in and says "do it" -- no
     additional explanation needed.
 
     `rubric` is the rubric's text (read_rubric), `name` the video's file name,
     `cues_data` what cues.load returned for the video (None: not run), `credit`
-    the video's credit (credits.py) -- named at the top when there is one."""
+    the video's credit (credits.py) -- named at the top when there is one.
+    `hashtag_rule` is the profile's rule for where hashtags go, in numbers
+    (hashtags.brief_rule); left out when empty."""
     # strip rubric title so it doesn't clash with the brief title
     rubric = re.sub(r"\A# [^\n\r  ]*\n+", "", rubric, count=1)
     # Strip the rubric's intro paragraph, which addresses the USER, not Claude.
@@ -217,7 +224,8 @@ outside the block.
       "post": {{
         "title": "Rugi 300 Juta Gara-gara Salah Timing",
         "caption": "Satu keputusan di waktu yang salah bisa mahal banget. Kamu pernah ngalamin juga?",
-        "hashtags": ["#bisnis", "#podcast", "#belajarbisnis", "#kegagalan", "#motivasi"]
+        "hashtags": ["#bisnis", "#podcast", "#belajarbisnis", "#kegagalan", "#motivasi"],
+        "youtubeTitle": "Rugi 300 Juta Gara-gara Salah Timing #bisnis #podcast #belajarbisnis"
       }},
       "angle": {{
         "take": "Keputusan yang kelihatan kecil bisa jadi yang paling mahal.",
@@ -231,8 +239,11 @@ outside the block.
 
 `post` is the text for uploading the clip, written by you for each clip: `title`
 (up to 70 characters), `caption` (1–3 sentences, no hashtags in it) and
-`hashtags` (5–8, as a list). Leave it out if the rubric above does not ask for it.
-
+`hashtags` (5–8, as a list). Also give `youtubeTitle`: the final title exactly as it
+will appear on YouTube, as an example of the finished form (klipian composes the final
+title itself from `title` and `hashtags`, so this is only a check on your side). Leave
+`post` out if the rubric above does not ask for it.
+{_hashtag_block(hashtag_rule)}
 `angle` is a suggested point of view on the clip, for the person who cuts it to edit
 and make their own: `take` (one sentence), `intro` (an opening line, at most 12
 words) and `notes` (0–3 short comments of at most 8 words, each with `at`, the
@@ -355,7 +366,14 @@ def _post(v) -> dict | None:
     text = lambda x: _trim(x) if isinstance(x, str) else ""      # noqa: E731
     post = {"title": text(v.get("title")), "caption": text(v.get("caption")),
             "hashtags": _hashtags(v.get("hashtags"))}
-    return post if (post["title"] or post["caption"] or post["hashtags"]) else None
+    if not (post["title"] or post["caption"] or post["hashtags"]):
+        return None
+    # The final title Claude wrote as an example. klipian does not trust it: it composes the
+    # final title itself (hashtags.plan) and only keeps this one for a person to compare.
+    yt = text(v.get("youtubeTitle"))
+    if yt:
+        post["youtubeTitle"] = yt
+    return post
 
 
 # Limits the rubric asks for, applied here so a long reply can't flood the UI.

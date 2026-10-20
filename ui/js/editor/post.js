@@ -39,6 +39,26 @@ function currentPost() {
   return (title || caption || hashtags.length) ? { title, caption, hashtags } : null;
 }
 
+/* The title as it will be on YouTube under this profile's hashtag rule (hashtags.js, the same
+   logic the upload uses), and a warning when it would not fit 100 characters -- before the render. */
+function updatePostPreview() {
+  const box = $("#postFinalTitle");
+  if (!box) return;
+  const title = ($("#postTitle")?.value || "").trim();
+  const tags = parseTags($("#postTags")?.value);
+  const s = profileHashtagSettings();
+  const plan = hashtagPlan(title, "", tags, s);
+  box.textContent = plan.title || "(no title yet)";
+  const count = $("#postFinalCount");
+  if (count) count.textContent = `${[...plan.title].length} / 100`;
+  const warn = $("#postWarn");
+  if (warn) {
+    const text = title ? hashtagWarning(title, tags, s) : "";
+    warn.textContent = text;
+    warn.hidden = !text;
+  }
+}
+
 function updatePostCount() {
   const n = ($("#postTitle")?.value || "").trim().length;
   const el = $("#postTitleCount");
@@ -46,6 +66,7 @@ function updatePostCount() {
     el.textContent = `${n} / ${POST_TITLE_MAX}`;
     el.dataset.over = String(n > POST_TITLE_MAX);
   }
+  updatePostPreview();
 }
 
 /* WHICH Result the Post text panel is showing. The panel is one set of fields
