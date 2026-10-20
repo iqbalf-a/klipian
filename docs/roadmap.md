@@ -1368,6 +1368,28 @@ lagi di dokumen resmi sebelum mulai):
   sedang diproses/ditolak; video Scheduled yang sudah public di YouTube menjadi Posted.
 - Guest: ditolak server (403). Dokumen: `selftest` check `upload` memakai Google palsu.
 
+**P16 Tahap 2b, yang dibuat (2026-10-21):** cek status otomatis untuk baris Scheduled.
+- `youtube.refresh_due()` (POST `/api/youtube/refresh-due`, Guest 403): baris profile ini
+  berstatus Scheduled, punya `videoId`, dan tanggal+jam lokalnya sudah lewat (+2 menit
+  toleransi). Id dikirim berkelompok (`_Net.video_statuses`, `videos.list part=status`,
+  50 id per panggilan = 1 unit kuota, jadi 70 video = 2 panggilan). Hasil dibaca dengan
+  aturan yang sama seperti Check status (`read_status`): public → Posted; masih terjadwal →
+  dibiarkan; locked / rejected / processing / removed → status tidak diubah, baris diberi
+  `ytWarning` (+ `ytWarningText`), dilaporkan sekali saja.
+- Tenang: tidak tersambung, offline, atau tidak ada yang jatuh tempo adalah jawaban
+  (`skipped`), bukan error. Paling banyak satu pengecekan sungguhan per profile per 10 menit
+  (di memori dan `secrets/youtube-refresh.json`, jadi tahan restart); tombol Check status
+  di Detail tidak kena batas itu.
+- Dashboard: dipanggil saat panel Clips dimuat, tiap 10 menit selama halaman terlihat, dan
+  sekali saat halaman kembali terlihat setelah tersembunyi lebih dari 10 menit. Tabel digambar
+  ulang dan muncul toast hanya bila ada yang berubah ("N clip is now Posted on YouTube");
+  peringatan tampil sebagai toast, chip kecil di samping status, dan di bagian YouTube pada
+  Detail. Editor tidak memakainya.
+- selftest `refresh`: due/belum (waktu depan, masa toleransi), batch 50, Posted, scheduled
+  tetap, locked/removed/processing jadi peringatan sekali, profile lain tidak tersentuh,
+  tidak tersambung/offline/tidak ada yang due, throttle (termasuk setelah restart) dan
+  bypass Check status, Guest 403.
+
 **P16 Tahap 2, yang dibuat (2026-10-20):** upload massal.
 - Dua jalan masuk: "Schedule all Ready (N)" di kepala panel Clips dan "Upload to YouTube…"
   di bilah aksi P18 (baris terpilih). Keduanya membuka **rencana** dulu

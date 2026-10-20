@@ -130,6 +130,13 @@ function syncDraftFromDom() {
   document.querySelectorAll("#clipBody [data-draft-field]").forEach((el) => { DRAFT[el.dataset.draftField] = el.value; });
 }
 
+/* What YouTube reported about this clip's video (youtube.refresh_due): a small chip next to the
+   status, with the sentence in its title. The status itself is not changed by a warning. */
+function warnChipHTML(c) {
+  if (!c.ytWarning) return "";
+  return ` <span class="ws-warn" data-kind="${escapeHTML(c.ytWarning)}" title="${escapeHTML(c.ytWarningText || "")}">${escapeHTML(c.ytWarning)}</span>`;
+}
+
 function row(c) {
   const opt = (list, cur) => list.map((v) =>
     `<option value="${v}" ${v === cur ? "selected" : ""}>${v}</option>`).join("");
@@ -142,7 +149,7 @@ function row(c) {
       <td class="${td}">
         <select class="ws-input ws-status" data-field="status" data-v="${c.status || "Draft"}">
           ${opt(STATUS, c.status || "Draft")}
-        </select>
+        </select>${warnChipHTML(c)}
       </td>
       <td class="${td}">${f("title")}${goneTagHTML(c)}</td>
       <td class="${td}"><select class="ws-input" data-field="platform">${opt(PLATFORM, c.platform || "YouTube + TikTok")}</select></td>
@@ -777,6 +784,7 @@ async function refreshYouTubeSection(c) {
   const btn = $("#ytUploadBtn"), check = $("#ytCheckBtn"), cancel = $("#ytCancelBtn"), bar = $("#ytProgress");
   if (!btn) return;
   bar.hidden = true; cancel.hidden = true; ytMsg("");
+  if (c.ytWarning) ytMsg(`YouTube: ${c.ytWarningText || c.ytWarning}`);
   btn.disabled = false; btn.dataset.row = c.id;
   const running = ytUploading && ytUploading.rowId === c.id;
   check.hidden = !c.videoId;
@@ -910,5 +918,40 @@ async function saveDetail(id, values) {
   if (saved && notes.length) clipNotice(`${clip.title || "Clip"}: ${notes.join(" · ")}`);
 }
 
+/* ---------- the automatic status check of Scheduled rows (youtube.refresh_due) ---------- */
+
+const YT_REFRESH_MS = 10 * 60 * 1000;
+let ytRefreshBusy = false, ytRefreshLast = 0;
+
+/* Ask the server to look at the Scheduled rows whose time has passed. It answers quietly when the
+   profile is not connected, is offline, has nothing due or was checked a moment ago; only a change
+   (Posted, a new warning) redraws the table and shows a notice. */
+async function ytRefreshDue() {
+  if (IS_GUEST || ytRefreshBusy) return;
+  ytRefreshBusy = true;
+  ytRefreshLast = Date.now();
+  try {
+    const j = await (await fetch("/api/youtube/refresh-due", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+    })).json();
+    if (!j.ok) return;
+    const posted = j.posted || [], warnings = j.warnings || [];
+    if (!posted.length && !warnings.length) return;
+    await loadClips();
+    if (posted.length) showToast(`${posted.length} clip${posted.length === 1 ? " is" : "s are"} now Posted on YouTube.`);
+    for (const w of warnings) {
+      const title = CLIPS.find((c) => c.id === w.id)?.title || "A clip";
+      showToast(`${title}: ${w.message}`, { ms: 12000 });
+    }
+  } catch { /* offline or the server is busy: the next check tries again */ }
+  finally { ytRefreshBusy = false; }
+}
+
+// While the page is visible: every 10 minutes; and once when it comes back after being hidden longer.
+setInterval(() => { if (document.visibilityState === "visible") ytRefreshDue(); }, YT_REFRESH_MS);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && Date.now() - ytRefreshLast > YT_REFRESH_MS) ytRefreshDue();
+});
+
 // The Guest has no schedule (the server refuses it, and the panel is not shown).
-if (!IS_GUEST) loadClips();
+if (!IS_GUEST) loadClips().then(ytRefreshDue);

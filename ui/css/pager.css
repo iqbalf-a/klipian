@@ -220,3 +220,20 @@ button.bg-accent:disabled, .ws-accent-btn:disabled, button.bg-accent:disabled:ho
   opacity: .4;
   cursor: not-allowed;
 }
+
+/* A problem YouTube reported for a clip's video (locked, rejected, processing, removed). */
+.ws-warn {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  cursor: help;
+  white-space: nowrap;
+}
+.ws-warn[data-kind="processing"] { color: var(--text-muted); border-color: var(--glass-border); }

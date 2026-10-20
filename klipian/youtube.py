@@ -262,6 +262,32 @@ class _Net:
                 "publishAt": st.get("publishAt"), "rejection": st.get("rejectionReason") or st.get("failureReason")}
 
     @staticmethod
+    def video_statuses(token: dict, video_ids: list[str]) -> dict:
+        """videos.list part=status for up to 50 videos in ONE call (1 quota unit) ->
+        {id: {privacy, upload, publishAt, rejection}}; an id YouTube does not return is {"gone": True}."""
+        try:
+            from googleapiclient.discovery import build
+            from googleapiclient.errors import HttpError
+            from google.oauth2.credentials import Credentials
+        except ImportError:
+            raise YouTubeError("no_library", "Install the YouTube packages.") from None
+        creds = Credentials.from_authorized_user_info(token, list(SCOPES))
+        try:
+            reply = build("youtube", "v3", credentials=creds, cache_discovery=False).videos().list(
+                part="status", id=",".join(video_ids), maxResults=50).execute()
+        except HttpError as exc:
+            raise map_http_error(getattr(getattr(exc, "resp", None), "status", 0), _reason(exc)) from None
+        except OSError:
+            raise YouTubeError("offline", "Could not reach Google.") from None
+        out = {vid: {"gone": True} for vid in video_ids}
+        for item in reply.get("items") or []:
+            st = item.get("status") or {}
+            out[item.get("id")] = {"privacy": st.get("privacyStatus"), "upload": st.get("uploadStatus"),
+                                   "publishAt": st.get("publishAt"),
+                                   "rejection": st.get("rejectionReason") or st.get("failureReason")}
+        return out
+
+    @staticmethod
     def revoke(token: dict) -> None:
         """Ask Google to cancel the token. OSError when it cannot be reached."""
         import urllib.parse
@@ -783,28 +809,156 @@ def cancel_upload(jid: str) -> dict:
     return upload_state(jid)
 
 
+def read_status(got: dict) -> tuple[str, str]:
+    """What a videos.list answer means: (kind, a sentence). Kinds: removed, rejected, processing,
+    public, scheduled, locked (private with no schedule: the project has not passed the API audit)."""
+    privacy, upload = got.get("privacy"), got.get("upload")
+    if got.get("gone"):
+        return "removed", "YouTube does not have this video any more (deleted there?)."
+    if got.get("rejection"):
+        return "rejected", f"YouTube did not accept it: {got['rejection']}."
+    if upload and upload != "processed":
+        return "processing", f"YouTube is still processing it ({upload})."
+    if privacy == "public":
+        return "public", "Public."
+    if got.get("publishAt"):
+        return "scheduled", f"Scheduled for {got['publishAt']}."
+    return "locked", ("Private (locked: the project has not passed the API audit)." if privacy == "private"
+                      else "Private.")
+
+
+# What the row remembers of a problem YouTube reported: ytWarning (the kind) and ytWarningText.
+_WARN_KINDS = ("removed", "rejected", "processing", "locked")
+
+
+def _apply_status(row: dict, kind: str, text: str) -> dict:
+    """Bring one schedule row up to date with what YouTube said. Returns {"posted": bool,
+    "warning": kind | None, "changed": bool}; the row is written only when something changed."""
+    from . import schedule
+    fields: dict = {}
+    if kind == "public" and row.get("status") == "Scheduled":
+        fields["status"] = "Posted"
+    warn = kind if kind in _WARN_KINDS else ""
+    if (row.get("ytWarning") or "") != warn:
+        fields["ytWarning"] = warn
+        fields["ytWarningText"] = text if warn else ""
+    if fields:
+        schedule.set_fields(row["id"], fields)
+    return {"posted": fields.get("status") == "Posted", "warning": warn or None,
+            "changed": bool(fields), "newWarning": bool(warn) and (row.get("ytWarning") or "") != warn}
+
+
 def video_status(row_id: str) -> dict:
     """Ask YouTube how an uploaded row's video stands, and bring the row up to date: a
-    Scheduled video that is public now becomes Posted."""
+    Scheduled video that is public now becomes Posted. Always asks (the automatic check's
+    10-minute throttle does not apply to this button)."""
     from . import schedule
     row = schedule.get_row(row_id)
     if row is None or not row.get("videoId"):
         raise YouTubeError("not_ready", "This clip has not been uploaded to YouTube.")
     saved = require_linked()
     got = _net.video_status(saved["token"], row["videoId"])
-    if got.get("gone"):
-        return {"text": "YouTube does not have this video any more (deleted there?).", "gone": True}
-    privacy, upload = got.get("privacy"), got.get("upload")
-    if got.get("rejection"):
-        text = f"YouTube did not accept it: {got['rejection']}."
-    elif upload and upload != "processed":
-        text = f"YouTube is still processing it ({upload})."
-    elif privacy == "public":
-        text = "Public."
-        if row.get("status") == "Scheduled":
-            schedule.set_fields(row_id, {"status": "Posted"})
-    elif got.get("publishAt"):
-        text = f"Scheduled for {got['publishAt']}."
-    else:
-        text = f"Private{' (locked: the project has not passed the API audit)' if privacy == 'private' else ''}."
-    return {"text": text, "privacy": privacy, "upload": upload, "publishAt": got.get("publishAt")}
+    kind, text = read_status(got)
+    _apply_status(row, kind, text)
+    if kind == "removed":
+        return {"text": text, "gone": True}
+    return {"text": text, "privacy": got.get("privacy"), "upload": got.get("upload"), "publishAt": got.get("publishAt")}
+
+
+# --------------------------------------------------------------------------
+# the automatic check of Scheduled rows (P16 stage 2b)
+# --------------------------------------------------------------------------
+
+REFRESH_EVERY = 600                 # seconds: at most one real call per profile in this time
+REFRESH_GRACE = 120                 # a row is due this long after its date and time
+REFRESH_BATCH = 50                  # ids per videos.list call
+_REFRESH_LAST: dict[str, int] = {}
+
+
+def _refresh_file() -> Path:
+    return Path(paths.SECRETS / "youtube-refresh.json")
+
+
+def _last_refresh() -> int:
+    pid = paths.current_profile()
+    if pid not in _REFRESH_LAST:
+        try:
+            _REFRESH_LAST[pid] = int(json.loads(_refresh_file().read_text(encoding="utf-8")).get("last", 0))
+        except (OSError, ValueError, TypeError):
+            _REFRESH_LAST[pid] = 0
+    return _REFRESH_LAST[pid]
+
+
+def _set_last_refresh(now: int) -> None:
+    _REFRESH_LAST[paths.current_profile()] = now
+    try:
+        f = _refresh_file()
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(json.dumps({"last": now}), encoding="utf-8")
+    except OSError:
+        pass                                            # the memory copy still throttles
+
+
+def _is_due(row: dict, now: float) -> bool:
+    """A Scheduled row with a video whose date and time (local) are behind us by the grace."""
+    import datetime as dt
+    if row.get("status") != "Scheduled" or not row.get("videoId"):
+        return False
+    try:
+        when = dt.datetime.strptime(f"{(row.get('date') or '').strip()} {(row.get('time') or '').strip()}",
+                                    "%Y-%m-%d %H:%M").astimezone().timestamp()
+    except ValueError:
+        return False
+    return when + REFRESH_GRACE <= now
+
+
+def refresh_due() -> dict:
+    """Check this profile's due Scheduled rows against YouTube, in batches of 50 ids, and make
+    public ones Posted; problems (locked, rejected, still processing, removed) are written to the
+    row as ytWarning. Returns {checked, posted: [ids], warnings: [{id, kind, message}] (new ones
+    only), skipped: reason | None, nextCheckAt}. Quiet by design: not connected, offline and
+    "nothing due" are answers, not errors. At most one real check per profile every 10 minutes."""
+    from . import schedule
+    if paths.current_profile() == GUEST:
+        raise YouTubeError("none", "The Guest has no YouTube account.")
+    now = int(time.time())
+    out = {"checked": 0, "posted": [], "warnings": [], "skipped": None, "nextCheckAt": now + REFRESH_EVERY}
+    last = _last_refresh()
+    if now - last < REFRESH_EVERY:
+        return {**out, "skipped": "throttled", "nextCheckAt": last + REFRESH_EVERY}
+    due = [r for r in schedule.load_clips() if _is_due(r, now)]
+    if not due:
+        return {**out, "skipped": "nothing due"}
+    if status().get("light") != "green":
+        return {**out, "skipped": "not connected"}
+    try:
+        saved = require_linked()
+    except YouTubeError as exc:
+        _set_last_refresh(now)
+        return {**out, "skipped": "offline" if exc.code == "offline" else (
+            "not connected" if exc.code in ("none", "no_client", "no_library", "expired", "different",
+                                            "not_test_user") else exc.code)}
+    _set_last_refresh(now)
+    by_video: dict[str, list[dict]] = {}
+    for r in due:
+        by_video.setdefault(r["videoId"], []).append(r)
+    ids = list(by_video)
+    got: dict = {}
+    try:
+        for i in range(0, len(ids), REFRESH_BATCH):
+            got.update(_net.video_statuses(saved["token"], ids[i:i + REFRESH_BATCH]))
+    except YouTubeError as exc:
+        # what was read before the failure is still used below; the rest waits for the next check
+        out["skipped"] = "offline" if exc.code == "offline" else exc.code
+    for vid, rows in by_video.items():
+        if vid not in got:
+            continue
+        kind, text = read_status(got[vid])
+        for row in rows:
+            out["checked"] += 1
+            res = _apply_status(row, kind, text)
+            if res["posted"]:
+                out["posted"].append(row["id"])
+            if res["newWarning"]:
+                out["warnings"].append({"id": row["id"], "kind": res["warning"], "message": text})
+    return out

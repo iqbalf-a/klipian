@@ -625,6 +625,8 @@ class Handler(BaseHTTPRequestHandler):
             req = self._read_json()
         except Exception as exc:               # noqa: BLE001
             return self._send_json({"error": str(exc)}, 400)
+        if action == "refresh-due":
+            return self._youtube_reply(_youtube.refresh_due)
         if action == "client":
             # The contents come from a file the person chose; they are checked and kept, never echoed.
             def put():
@@ -1804,6 +1806,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/ytdl/start": _post_ytdl,
         "/api/ytdl/cancel": _post_ytdl,
         "/api/ytdl/update": _post_ytdl,
+        "/api/youtube/refresh-due": _post_youtube,
         "/api/youtube/client": _post_youtube,
         "/api/youtube/connect": _post_youtube,
         "/api/youtube/check": _post_youtube,

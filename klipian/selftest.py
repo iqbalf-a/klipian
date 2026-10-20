@@ -2265,7 +2265,232 @@ def check_ytdl() -> tuple[str, str]:
     return PASS, "names, credit with link in all hashtag modes, no second download, cancel/fail clean, errors, missing yt-dlp"
 
 
-CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl,
+def check_refresh() -> tuple[str, str]:
+    """The automatic check of Scheduled rows (youtube.refresh_due), against a fake Google: which
+    rows are due (date and time past, with the grace), 50 ids per call, public -> Posted, still
+    scheduled stays, locked / removed -> a warning on the row (said once), other profiles untouched,
+    not connected / offline / nothing due as quiet answers, the 10-minute throttle (kept across a
+    restart; the manual Check status ignores it), and the Guest refused."""
+    import contextlib
+    import datetime as dt
+    import http.client
+    import io
+    import threading
+    from http.server import ThreadingHTTPServer
+    from . import paths, profiles, recycle, schedule, youtube
+    from .server import Handler
+
+    problems = []
+    calls: list[list[str]] = []
+    singles: list[str] = []
+
+    class FakeNet:
+        statuses: dict = {}
+        offline = False
+
+        @classmethod
+        def refresh(cls, token):
+            if cls.offline:
+                raise youtube.YouTubeError("offline", "Could not reach Google.")
+            return token
+
+        @classmethod
+        def channels(cls, token):
+            return {"id": "UCrf", "title": "Rf Channel", "thumb": ""}
+
+        @classmethod
+        def video_statuses(cls, token, ids):
+            if cls.offline:
+                raise youtube.YouTubeError("offline", "Could not reach Google.")
+            calls.append(list(ids))
+            return {i: dict(cls.statuses.get(i) or {"gone": True}) for i in ids}
+
+        @classmethod
+        def video_status(cls, token, vid):
+            singles.append(vid)
+            return dict(cls.statuses.get(vid) or {"gone": True})
+
+        @classmethod
+        def revoke(cls, token):
+            pass
+
+    PUBLIC = {"privacy": "public", "upload": "processed"}
+    SCHED = {"privacy": "private", "upload": "processed", "publishAt": "2031-01-01T00:00:00Z"}
+    LOCKED = {"privacy": "private", "upload": "processed"}
+
+    def connect(pid):
+        profiles.write_meta(pid, {"name": pid, "color": "#123456"})
+        profiles.ensure_dirs(pid)
+        tok = paths.set_profile(pid)
+        try:
+            good = {"installed": {"client_id": "1.apps.googleusercontent.com", "client_secret": "s"}}
+            youtube.save_client_secret(json.dumps(good))
+            youtube._write_token_file({"token": {"token": "T", "refresh_token": "R"},
+                                       "channel": {"id": "UCrf", "title": "Rf Channel", "thumb": ""},
+                                       "state": "ok", "checkedAt": 1})
+        finally:
+            paths._profile.reset(tok)
+
+    def when(minutes_ago):
+        t = dt.datetime.now() - dt.timedelta(minutes=minutes_ago)
+        return t.strftime("%Y-%m-%d"), t.strftime("%H:%M")
+
+    def put(pid, rows):
+        tok = paths.set_profile(pid)
+        try:
+            schedule.save_clips(rows)
+        finally:
+            paths._profile.reset(tok)
+
+    def rows_of(pid):
+        tok = paths.set_profile(pid)
+        try:
+            return {r["id"]: r for r in schedule.load_clips()}
+        finally:
+            paths._profile.reset(tok)
+
+    def refresh(pid, age=None):
+        """refresh_due as profile `pid`; `age` pretends the last check was that many seconds ago."""
+        tok = paths.set_profile(pid)
+        try:
+            if age is not None:
+                youtube._set_last_refresh(int(time.time()) - age)
+            return youtube.refresh_due()
+        finally:
+            paths._profile.reset(tok)
+
+    real_net, real_bin = youtube._net, recycle.to_recycle_bin
+    youtube._net = FakeNet
+    recycle.to_recycle_bin = lambda p: Path(p).unlink()
+    youtube._REFRESH_LAST.clear()
+    try:
+        for pid in ("rf1", "rf2", "rf3", "rf4"):
+            connect(pid) if pid != "rf4" else (profiles.write_meta(pid, {"name": pid, "color": "#123456"}), profiles.ensure_dirs(pid))
+        d3, t3 = when(3)
+        d1, t1 = when(1)
+        df, tf = (dt.datetime.now() + dt.timedelta(days=2)).strftime("%Y-%m-%d"), "10:00"
+
+        def row(i, vid, status="Scheduled", date=d3, time_=t3, **kw):
+            return {"id": i, "title": f"T {i}", "status": status, "videoId": vid, "date": date, "time": time_, **kw}
+
+        FakeNet.statuses = {"vA": PUBLIC, "vB": SCHED, "vC": LOCKED, "vG": PUBLIC, "vZ": PUBLIC,
+                            "vP": {"privacy": "private", "upload": "uploaded"}}
+        put("rf1", [row("A", "vA"), row("B", "vB"), row("C", "vC"), row("D", "vD"),
+                    row("E", "vE", date=df, time_=tf),               # not due: in the future
+                    row("F", "vF", date=d1, time_=t1),               # not due yet: inside the grace
+                    row("H", "vH", status="Posted"),                 # already Posted
+                    row("I", "", status="Scheduled"),                # never uploaded
+                    row("P", "vP")])                                 # still processing
+        put("rf2", [row("Z", "vZ")])                                 # another profile's due row
+        ZBEFORE = rows_of("rf2")
+
+        # --- due rows are checked in one call; the answers are applied
+        r = refresh("rf1")
+        if len(calls) != 1 or sorted(calls[0]) != ["vA", "vB", "vC", "vD", "vP"]:
+            problems.append(f"only the due rows should be asked for, in one call: {calls}")
+        got = rows_of("rf1")
+        if r["checked"] != 5 or r["posted"] != ["A"] or got["A"]["status"] != "Posted":
+            problems.append(f"a public video should become Posted: {r}")
+        if got["B"]["status"] != "Scheduled" or got["B"].get("ytWarning"):
+            problems.append(f"a video still scheduled on YouTube must stay as it is: {got['B']}")
+        kinds = {w["id"]: w["kind"] for w in r["warnings"]}
+        if kinds != {"C": "locked", "D": "removed", "P": "processing"} or got["C"]["ytWarning"] != "locked" \
+                or got["D"]["ytWarning"] != "removed" or not got["C"].get("ytWarningText"):
+            problems.append(f"locked / removed / processing should be warnings on the row: {r['warnings']}")
+        if got["C"]["status"] != "Scheduled" or got["E"]["status"] != "Scheduled" or got["F"].get("ytWarning"):
+            problems.append("a warning must not change the status, and rows not due are not touched")
+        if r["skipped"] is not None or not r["nextCheckAt"] > time.time():
+            problems.append(f"a normal check has no skipped reason and a next time: {r}")
+        if rows_of("rf2") != ZBEFORE or any("vZ" in c for c in calls):
+            problems.append("another profile's row was asked about or changed")
+
+        # --- the throttle: nothing is sent within 10 minutes, even after a restart; Check status ignores it
+        n = len(calls)
+        r2 = refresh("rf1")
+        if r2["skipped"] != "throttled" or len(calls) != n or r2["checked"]:
+            problems.append(f"a second check within 10 minutes should send nothing: {r2}")
+        youtube._REFRESH_LAST.clear()                                # a restart: the time is read from the file
+        r2 = refresh("rf1")
+        if r2["skipped"] != "throttled" or len(calls) != n:
+            problems.append("the throttle was lost when the server restarted")
+        tok = paths.set_profile("rf1")
+        try:
+            youtube.video_status("C")
+        finally:
+            paths._profile.reset(tok)
+        if singles != ["vC"]:
+            problems.append(f"the manual Check status should ask at once, whatever the throttle: {singles}")
+
+        # --- later: the warnings are not repeated; a locked video that went public is Posted and cleared
+        r3 = refresh("rf1", age=601)
+        if len(calls) != n + 1 or r3["warnings"] or r3["posted"]:
+            problems.append(f"the same warnings must not be reported again: {r3}")
+        FakeNet.statuses["vC"] = PUBLIC
+        r3 = refresh("rf1", age=601)
+        got = rows_of("rf1")
+        if r3["posted"] != ["C"] or got["C"]["status"] != "Posted" or got["C"].get("ytWarning"):
+            problems.append(f"a video that went public should become Posted and lose its warning: {r3} {got['C']}")
+
+        # --- the 50-id batches: 70 videos are 2 calls
+        put("rf3", [row(f"R{i}", f"v{i}") for i in range(70)])
+        FakeNet.statuses = {f"v{i}": PUBLIC for i in range(70)}
+        before = len(calls)
+        r4 = refresh("rf3")
+        sizes = [len(c) for c in calls[before:]]
+        if sizes != [50, 20] or r4["checked"] != 70 or len(r4["posted"]) != 70:
+            problems.append(f"70 videos should be asked for in calls of 50 and 20: {sizes} {r4['checked']}")
+
+        # --- quiet answers: not connected, offline, nothing due
+        put("rf4", [row("N", "vN")])
+        before = len(calls)
+        r5 = refresh("rf4")
+        if r5["skipped"] != "not connected" or len(calls) != before or r5["checked"]:
+            problems.append(f"a profile that is not connected should be skipped quietly: {r5}")
+        FakeNet.offline = True
+        put("rf1", [row("W", "vW")])
+        r5 = refresh("rf1", age=601)
+        FakeNet.offline = False
+        if r5["skipped"] != "offline" or rows_of("rf1")["W"]["status"] != "Scheduled":
+            problems.append(f"offline should be a quiet skip that changes nothing: {r5}")
+        put("rf1", [row("E", "vE", date=df, time_=tf)])
+        r5 = refresh("rf1", age=601)
+        if r5["skipped"] != "nothing due" or r5["checked"]:
+            problems.append(f"with nothing due the answer is 'nothing due': {r5}")
+
+        # --- over HTTP: the Guest is refused, a profile gets the same answer shape
+        refresh("rf1", age=5)                                        # a check just happened
+        srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        port = srv.server_address[1]
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        quiet = contextlib.redirect_stderr(io.StringIO())
+        quiet.__enter__()
+        try:
+            def call(profile):
+                conn = http.client.HTTPConnection("127.0.0.1", port, timeout=30)
+                conn.request("POST", "/api/youtube/refresh-due", body=b"{}",
+                             headers={"Host": f"127.0.0.1:{port}", "X-Klipian-Profile": profile,
+                                      "Content-Type": "application/json"})
+                resp = conn.getresponse()
+                raw = resp.read()
+                conn.close()
+                return resp.status, (json.loads(raw) if raw else {})
+            if call(paths.GUEST)[0] != 403:
+                problems.append("the Guest should be refused (403)")
+            st, j = call("rf1")
+            if st != 200 or not j.get("ok") or j.get("skipped") != "throttled" or "nextCheckAt" not in j or "posted" not in j:
+                problems.append(f"the endpoint's answer: {st} {j}")
+        finally:
+            quiet.__exit__(None, None, None)
+            srv.shutdown()
+    finally:
+        youtube._net, recycle.to_recycle_bin = real_net, real_bin
+        youtube._REFRESH_LAST.clear()
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "due/grace, 50-id batches, Posted, scheduled stays, warnings once, throttle (restart, manual bypass), quiet skips, other profiles untouched, Guest 403"
+
+
+CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl,
           "decode": check_decode, "render": check_render}
 
 
