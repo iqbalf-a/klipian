@@ -1759,6 +1759,33 @@ akun.
   ukuran, sha256) sudah ada di profile lain di drive yang sama, kalau tidak disalin
   (`profiles.place_source`). Menghapus satu nama tidak menghapus yang lain (diuji).
 
+**P21-C, yang dibuat (2026-10-20):**
+- `klipian/youtube.py`. Semua panggilan ke Google lewat empat fungsi di `_Net`
+  (`flow`, `refresh`, `channels`, `revoke`), jadi uji mengganti keempatnya dan tidak pernah
+  menjangkau Google. Token dan client secret tidak pernah dikirim ke browser, ditulis ke
+  log, atau dicetak: halaman hanya menerima `state`, kalimat penjelasan, dan label
+  channel (nama, id, thumbnail). Dependensi opsional: `requirements-youtube.txt`
+  (sudah dipasang di `.venv`).
+- File per profile: `secrets/client_secret.json` (cadangan: `workspace/secrets/`) dan
+  `secrets/youtube.json` (token + channel + status terakhir). "Choose
+  client_secret.json" di pengaturan profile membaca file di browser dan mengirim
+  isinya ke server, yang memvalidasi (kunci `installed`, `client_id` berakhiran
+  `.apps.googleusercontent.com`, ada `client_secret`) sebelum menyimpannya dan tidak
+  pernah mengulang isinya.
+- Status: Tidak tertaut, Tertaut ✓ (nama channel + waktu cek), Kedaluwarsa
+  (`invalid_grant`), Channel berbeda, Client belum ada, Akun bukan test user
+  (`access_denied` saat login), Tidak bisa dicek (offline; status terakhir tetap dan
+  ditandai), dan paket belum terpasang. Tombol: Connect YouTube / Connect ulang,
+  Check connection (refresh + `channels.list mine=true`), Disconnect (dua klik: revoke di
+  Google lalu `youtube.json` ke Recycle Bin; kalau offline token tetap dibuang dan
+  pesan menyebut cara mencabut manual). Satu channel hanya untuk satu profile: login
+  yang menghasilkan channel profile lain ditolak ("Channel X is already used by the
+  profile Y") dan tidak meninggalkan token. Titik status di chip: hijau/kuning/abu.
+- API: `/api/youtube/status[?check=1]`, `/client`, `/connect` (+ `/connect-state`),
+  `/check`, `/disconnect`; Guest ditolak 403.
+- Catatan: membuka pengaturan profile memanggil `check` (jaringan) hanya bila profile
+  itu sudah punya token; tanpa token tidak ada panggilan keluar.
+
 ---
 
 ## 3. Diparkir, sengaja tidak dikerjakan

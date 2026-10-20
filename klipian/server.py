@@ -50,6 +50,7 @@ from .jobs import (ACTIVE_TRANSCRIBES, CANCELLED, JOBS, LOCK, MAX_JOBS, _clip_wo
                    _register_job, _run_diarize, _run_render, _run_transcribe,
                    _spans_from_clip)
 from . import paths as _paths
+from . import youtube as _youtube
 from . import profiles as _profiles
 from . import buildid as _buildid  # noqa: F401  (STARTED is taken here, at start)
 from .paths import (ASSETS, CACHE_DIR, OUT_ROOT, ROOT, SOURCES, WORKSPACE, find_video,
@@ -557,6 +558,44 @@ class Handler(BaseHTTPRequestHandler):
         return self._send_json({"running": buildid.STARTED, "disk": disk,
                                 "stale": buildid.STARTED != disk})
 
+    # ---- the profile's YouTube account (youtube.py; the Guest is refused in _set_profile) ----
+
+    def _youtube_reply(self, fn, *args):
+        try:
+            return self._send_json({"ok": True, **fn(*args)})
+        except _youtube.YouTubeError as exc:
+            return self._send_json({"error": exc.message, "code": exc.code, "ok": False}, 400)
+        except OSError as exc:
+            return self._send_json({"error": f"could not do that: {exc}"}, 500)
+
+    def _get_youtube_status(self):
+        q = parse_qs(urlparse(self.path).query)
+        return self._youtube_reply(_youtube.check if (q.get("check") or [""])[0] == "1" else _youtube.status)
+
+    def _get_youtube_connect_state(self):
+        q = parse_qs(urlparse(self.path).query)
+        return self._send_json(_youtube.connect_state((q.get("id") or [""])[0]))
+
+    def _post_youtube(self):
+        action = urlparse(self.path).path.rsplit("/", 1)[-1]
+        try:
+            req = self._read_json()
+        except Exception as exc:               # noqa: BLE001
+            return self._send_json({"error": str(exc)}, 400)
+        if action == "client":
+            # The contents come from a file the person chose; they are checked and kept, never echoed.
+            def put():
+                _youtube.save_client_secret(str(req.get("text") or ""))
+                return _youtube.status()
+            return self._youtube_reply(put)
+        if action == "connect":
+            return self._youtube_reply(lambda: {"id": _youtube.start_connect()})
+        if action == "check":
+            return self._youtube_reply(_youtube.check)
+        if action == "disconnect":
+            return self._youtube_reply(_youtube.disconnect)
+        return self._send_json({"error": "unknown endpoint"}, 404)
+
     def _post_profiles(self):
         """create / update / delete / clear-guest. None needs a profile in the header."""
         try:
@@ -928,6 +967,8 @@ class Handler(BaseHTTPRequestHandler):
         "/api/thumb": _get_thumb,
         "/api/version": _get_version,
         "/api/profiles": _get_profiles,
+        "/api/youtube/status": _get_youtube_status,
+        "/api/youtube/connect-state": _get_youtube_connect_state,
         "/api/probe": _get_probe,
         "/api/history": _get_history,
         "/api/projects": _get_projects,
@@ -1686,6 +1727,10 @@ class Handler(BaseHTTPRequestHandler):
     POST_ROUTES = {
         "/api/project": _post_project,
         "/api/project/restore": _post_project_restore,
+        "/api/youtube/client": _post_youtube,
+        "/api/youtube/connect": _post_youtube,
+        "/api/youtube/check": _post_youtube,
+        "/api/youtube/disconnect": _post_youtube,
         "/api/profiles/create": _post_profiles,
         "/api/profiles/update": _post_profiles,
         "/api/profiles/delete": _post_profiles,

@@ -26,6 +26,7 @@
     const name = meta ? meta.name : PROFILE;
     const color = meta ? meta.color : "#8b8f98";
     slot.className = "profile-chip";
+    window.PROFILE_META = meta;
     slot.style.setProperty("--pc", color);
     slot.innerHTML = `
       <button class="profile-chip-btn" type="button" id="profileChipBtn" aria-haspopup="menu" aria-expanded="false"
@@ -77,6 +78,13 @@
             <option value="dialog"${d.rubric !== "gameplay" ? " selected" : ""}>Dialog / podcast</option>
             <option value="gameplay"${d.rubric === "gameplay" ? " selected" : ""}>Gameplay</option>
           </select></label>
+        <section class="yt-box" id="ytBox" aria-label="YouTube account">
+          <h3>YouTube account</h3>
+          <p class="note" id="ytLine">Checking…</p>
+          <div class="row yt-actions" id="ytActions"></div>
+          <input type="file" id="ytFile" accept=".json,application/json" hidden>
+          <p class="note" id="ytMsg" role="status"></p>
+        </section>
         ${canPreset ? `<p class="note">Caption look: ${d.captionPreset ? "a default is saved." : "none saved yet."}
           <button class="btn quiet" type="button" data-pm="preset">Use the current caption look as this profile's default</button></p>` : ""}
         <p class="note" id="profileSettingsNote" role="status"></p>
@@ -110,6 +118,92 @@
     });
     dlg.addEventListener("close", () => dlg.remove());
     dlg.showModal();
+    youTubeSection(dlg);
+  }
+
+  /* ---- the YouTube account (P21-C): what the token is, never the token itself ---- */
+  const YT_HELP = {
+    none: "Not linked. Choose the client_secret.json of this channel's Google Cloud project, then Connect.",
+    no_client: "No client yet. Choose this channel's client_secret.json (see the setup checklist in docs/roadmap.md, P16).",
+    no_library: "The YouTube packages are not installed. Run: .venv\\Scripts\\python.exe -m pip install -r requirements-youtube.txt",
+    expired: "The connection expired (a Testing project's token lasts about 7 days). Connect again.",
+    different: "The token is valid but belongs to another channel than the saved one. Connect again to accept it.",
+    not_test_user: "Google refused the sign-in: add this Google account as a Test user (Google Auth Platform > Audience > Test users), then Connect.",
+    offline: "Could not reach Google; the last known state is shown.",
+  };
+
+  async function youTubeSection(dlg) {
+    const line = dlg.querySelector("#ytLine"), msg = dlg.querySelector("#ytMsg"), box = dlg.querySelector("#ytActions");
+    const file = dlg.querySelector("#ytFile");
+    let busy = false;
+
+    const btn = (act, label, extra = "") => `<button class="btn quiet" type="button" data-yt="${act}" ${extra}>${label}</button>`;
+    function paint(j) {
+      const st = j.state || "none";
+      const who = j.channel?.title ? `<b>${esc(j.channel.title)}</b>` : "";
+      const when = j.checkedAt ? ` · checked ${new Date(j.checkedAt * 1000).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}` : "";
+      line.innerHTML = st === "ok" ? `Linked ✓ ${who}${when}` : esc(YT_HELP[st] || j.message || st);
+      msg.textContent = j.message && st === "ok" ? j.message : (st === "offline" ? j.message : "");
+      const linked = st === "ok" || st === "expired" || st === "different" || st === "offline";
+      box.innerHTML = [
+        btn("client", j.hasClient ? "Change client_secret.json…" : "Choose client_secret.json…"),
+        (j.hasClient && st !== "ok") ? btn("connect", st === "expired" || st === "different" ? "Connect again" : "Connect YouTube") : "",
+        linked ? btn("check", "Check connection") : "",
+        linked ? btn("disconnect", "Disconnect") : "",
+      ].join("");
+      window.refreshYouTubeDot?.();
+    }
+    async function call(path, body) {
+      const r = await fetch(path, body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      return r.json().catch(() => ({ error: "no answer" }));
+    }
+    async function refresh(check) {
+      try { paint(await call(check ? "/api/youtube/status?check=1" : "/api/youtube/status")); }
+      catch { line.textContent = "Cannot reach the klipian server."; }
+    }
+
+    box.addEventListener("click", async (e) => {
+      const b = e.target.closest("[data-yt]");
+      if (!b || busy) return;
+      const act = b.dataset.yt;
+      msg.textContent = "";
+      if (act === "client") { file.click(); return; }
+      if (act === "disconnect") {
+        if (!armedClick(b, { armedText: "Disconnect?", strong: true })) return;
+      }
+      busy = true;
+      try {
+        if (act === "check") { line.textContent = "Checking with YouTube…"; paint(await call("/api/youtube/check", {})); }
+        else if (act === "disconnect") { const j = await call("/api/youtube/disconnect", {}); paint(j); msg.textContent = j.message || ""; }
+        else if (act === "connect") {
+          const j = await call("/api/youtube/connect", {});
+          if (j.error) { msg.textContent = j.error; await refresh(false); return; }
+          line.textContent = "Sign in with Google in the tab that opened…";
+          for (let i = 0; i < 240; i++) {                  // up to ~6 minutes
+            await new Promise((r) => setTimeout(r, 1500));
+            const s = await call(`/api/youtube/connect-state?id=${encodeURIComponent(j.id)}`);
+            if (s.state === "done") { paint(s.status); return; }
+            if (s.state === "failed" || s.state === "missing") {
+              msg.textContent = s.message || "Connecting failed.";
+              await refresh(false);
+              if (s.code && YT_HELP[s.code]) line.textContent = YT_HELP[s.code];
+              return;
+            }
+          }
+          msg.textContent = "Timed out waiting for the sign-in.";
+        }
+      } finally { busy = false; }
+    });
+    file.addEventListener("change", async () => {
+      const f = file.files[0];
+      file.value = "";
+      if (!f) return;
+      const j = await call("/api/youtube/client", { text: await f.text() });
+      if (j.error) { msg.textContent = j.error; return; }
+      paint(j);
+      msg.textContent = "client_secret.json saved for this profile.";
+    });
+    await refresh(true);
   }
 
   slot.addEventListener("click", async (e) => {
@@ -136,6 +230,21 @@
   document.addEventListener("pointerdown", (e) => { if (!slot.contains(e.target)) closeMenu(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeMenu(); });
 
+  // The chip's YouTube dot: green (linked and checked), yellow (needs attention), grey (not linked).
+  async function paintYouTube() {
+    const dot = document.getElementById("profileYt");
+    if (!dot) return;
+    try {
+      const j = await (await fetch("/api/youtube/status")).json();
+      if (!j.ok && !j.state) return;
+      const s = j.state || "none";
+      dot.dataset.state = s === "ok" ? "ok" : (s === "none" || s === "no_client" || s === "no_library") ? "none" : "expired";
+      dot.title = `YouTube: ${j.channel?.title || (s === "none" ? "not linked" : s)}`;
+      dot.hidden = false;
+    } catch { /* the dot stays hidden */ }
+  }
+
   draw();
-  load();
+  load().then(paintYouTube);
+  window.refreshYouTubeDot = paintYouTube;
 })();

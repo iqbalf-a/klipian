@@ -81,3 +81,8 @@ html[data-guest="true"] .ws-add-schedule,
 html[data-guest="true"] .guest-hidden { display: none !important; }
 
 .picker-new[hidden] { display: none; }
+
+.profile-settings .yt-box { border-top: 1px solid var(--glass-border); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.profile-settings .yt-box h3 { margin: 0; font-size: 13px; }
+.profile-settings .yt-actions { flex-wrap: wrap; justify-content: flex-start; }
+.profile-settings .note b { color: var(--text); }

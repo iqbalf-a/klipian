@@ -1026,7 +1026,193 @@ def check_profiles() -> tuple[str, str]:
         return FAIL, "\n      ".join(problems)
     return PASS, "projects, schedule, renders, sources and assets stay in their own profile; a job keeps its profile"
 
-CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles,
+
+# --------------------------------------------------------------------------
+# check: youtube (a profile's account; every call to Google is a fake here)
+# --------------------------------------------------------------------------
+
+def check_youtube() -> tuple[str, str]:
+    """Connect, check and disconnect against a fake Google: the states (linked, expired,
+    another channel, offline, no client), one channel per profile, the client_secret
+    validation, and that no token ever reaches an answer meant for the browser. Nothing
+    here can reach Google: the four network functions are replaced."""
+    import http.client
+    import threading
+    import contextlib
+    import io
+    import os
+    from http.server import ThreadingHTTPServer
+    from . import paths, profiles, recycle, youtube
+    from .server import Handler
+
+    SECRET = "SECRET-TOKEN-VALUE-0123456789"
+    problems = []
+
+    class FakeNet:
+        channel = {"id": "UC111", "title": "Fake Channel", "thumb": ""}
+        refresh_error = None
+        flow_error = None
+        revoked: list = []
+        revoke_error = None
+
+        @classmethod
+        def flow(cls, client_file):
+            if cls.flow_error:
+                raise cls.flow_error
+            return {"token": SECRET, "refresh_token": SECRET + "-R", "client_id": "x"}
+
+        @classmethod
+        def refresh(cls, token):
+            if cls.refresh_error:
+                raise cls.refresh_error
+            return token
+
+        @classmethod
+        def channels(cls, token):
+            return dict(cls.channel)
+
+        @classmethod
+        def revoke(cls, token):
+            if cls.revoke_error:
+                raise cls.revoke_error
+            cls.revoked.append(token.get("refresh_token"))
+
+    real_net, real_bin = youtube._net, recycle.to_recycle_bin
+    youtube._net = FakeNet
+    recycle.to_recycle_bin = lambda p: Path(p).unlink()       # no Recycle Bin from the selftest
+    for pid in ("yt1", "yt2"):
+        profiles.write_meta(pid, {"name": pid, "color": "#123456"})
+        profiles.ensure_dirs(pid)
+
+    good = json.dumps({"installed": {"client_id": "1.apps.googleusercontent.com", "client_secret": "FAKE", "project_id": "p"}})
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    port = srv.server_address[1]
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    quiet = contextlib.redirect_stderr(io.StringIO())
+    quiet.__enter__()
+    seen: list[str] = []                                       # everything sent to the browser
+
+    def call(method, path, profile, body=None):
+        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=30)
+        headers = {"Host": f"127.0.0.1:{port}", "X-Klipian-Profile": profile}
+        data = None
+        if body is not None:
+            data = json.dumps(body).encode()
+            headers["Content-Type"] = "application/json"
+        conn.request(method, path, body=data, headers=headers)
+        r = conn.getresponse()
+        raw = r.read().decode("utf-8", "replace")
+        conn.close()
+        seen.append(raw)
+        try:
+            return r.status, json.loads(raw)
+        except ValueError:
+            return r.status, {}
+
+    def connect(profile):
+        st, j = call("POST", "/api/youtube/connect", profile, {})
+        if st != 200:
+            return j
+        for _ in range(100):
+            st, s = call("GET", f"/api/youtube/connect-state?id={j['id']}", profile)
+            if s.get("state") in ("done", "failed"):
+                return s
+            time.sleep(0.05)
+        return {"state": "timeout"}
+
+    try:
+        # --- the client_secret.json is checked before it is kept
+        for label, text in (("not JSON", "nope"), ("a web client", json.dumps({"web": {"client_id": "1.apps.googleusercontent.com"}})),
+                            ("wrong client_id", json.dumps({"installed": {"client_id": "x", "client_secret": "s"}}))):
+            st, j = call("POST", "/api/youtube/client", "yt1", {"text": text})
+            if st != 400 or j.get("code") != "no_client":
+                problems.append(f"a client_secret that is {label} was accepted ({st})")
+        st, j = call("GET", "/api/youtube/status", "yt1")
+        if j.get("state") != "no_client":
+            problems.append(f"with no client the state should be no_client, is {j.get('state')}")
+        if call("POST", "/api/youtube/connect", "yt1", {})[0] != 400:
+            problems.append("connect with no client was not refused")
+        st, j = call("POST", "/api/youtube/client", "yt1", {"text": good})
+        if st != 200 or j.get("state") != "none" or "FAKE" in json.dumps(j):
+            problems.append(f"saving a good client_secret failed or echoed it: {st} {j}")
+        if not (paths.profile_dir("yt1") / "secrets" / "client_secret.json").is_file():
+            problems.append("client_secret.json was not kept in the profile's secrets/")
+
+        # --- connect: linked, with the channel's label and no token
+        s = connect("yt1")
+        if s.get("state") != "done" or s["status"]["state"] != "ok" or s["status"]["channel"]["title"] != "Fake Channel":
+            problems.append(f"connecting did not link the channel: {s}")
+        tf = paths.profile_dir("yt1") / "secrets" / "youtube.json"
+        if not tf.is_file() or SECRET not in tf.read_text(encoding="utf-8"):
+            problems.append("the token was not kept in the profile's secrets/youtube.json")
+
+        # --- one channel for one profile
+        call("POST", "/api/youtube/client", "yt2", {"text": good})
+        s2 = connect("yt2")
+        if s2.get("state") != "failed" or "already used" not in s2.get("message", ""):
+            problems.append(f"a second profile took the same channel: {s2}")
+        if (paths.profile_dir("yt2") / "secrets" / "youtube.json").is_file():
+            problems.append("a refused channel left a token behind")
+
+        # --- the states of a check
+        st, j = call("POST", "/api/youtube/check", "yt1", {})
+        if j.get("state") != "ok" or not j.get("checkedAt"):
+            problems.append(f"check should be ok: {j}")
+        FakeNet.refresh_error = youtube.YouTubeError("expired", "expired")
+        st, j = call("POST", "/api/youtube/check", "yt1", {})
+        if j.get("state") != "expired" or call("GET", "/api/youtube/status", "yt1")[1].get("state") != "expired":
+            problems.append(f"invalid_grant should give expired, remembered: {j}")
+        FakeNet.refresh_error = youtube.YouTubeError("offline", "offline")
+        st, j = call("POST", "/api/youtube/check", "yt1", {})
+        if j.get("state") != "expired" or not j.get("offline"):
+            problems.append(f"offline must keep the last state and say so: {j}")
+        FakeNet.refresh_error = None
+        FakeNet.channel = {"id": "UC999", "title": "Other Channel", "thumb": ""}
+        st, j = call("POST", "/api/youtube/check", "yt1", {})
+        if j.get("state") != "different":
+            problems.append(f"a token for another channel should give different: {j}")
+        FakeNet.channel = {"id": "UC111", "title": "Fake Channel", "thumb": ""}
+        FakeNet.flow_error = youtube.YouTubeError("not_test_user", "add the test user")
+        s3 = connect("yt1")
+        if s3.get("code") != "not_test_user":
+            problems.append(f"access_denied should be explained as not_test_user: {s3}")
+        FakeNet.flow_error = None
+        os.replace(paths.profile_dir("yt1") / "secrets" / "client_secret.json",
+                   paths.profile_dir("yt1") / "secrets" / "client_secret.hold")
+        if call("POST", "/api/youtube/check", "yt1", {})[1].get("state") != "no_client":
+            problems.append("a missing client_secret.json should give no_client")
+        os.replace(paths.profile_dir("yt1") / "secrets" / "client_secret.hold",
+                   paths.profile_dir("yt1") / "secrets" / "client_secret.json")
+
+        # --- disconnect: revoked, token gone; offline: still gone, and it says so
+        st, j = call("POST", "/api/youtube/disconnect", "yt1", {})
+        if j.get("state") != "none" or tf.is_file() or FakeNet.revoked != [SECRET + "-R"]:
+            problems.append(f"disconnect should revoke and drop the token: {j} {FakeNet.revoked}")
+        connect("yt1")
+        FakeNet.revoke_error = OSError("down")
+        st, j = call("POST", "/api/youtube/disconnect", "yt1", {})
+        if tf.is_file() or "could not be reached" not in j.get("message", ""):
+            problems.append(f"an offline disconnect must still drop the token and say so: {j}")
+        FakeNet.revoke_error = None
+
+        # --- the Guest has no account
+        if call("GET", "/api/youtube/status", "_guest")[0] != 403:
+            problems.append("the Guest was not refused at /api/youtube/status")
+
+        # --- nothing sent to the browser carries a token or the client secret
+        leaked = [x for x in seen if SECRET in x or "FAKE" in x or "refresh_token" in x]
+        if leaked:
+            problems.append("a token or secret reached an answer meant for the browser")
+    finally:
+        srv.shutdown()
+        quiet.__exit__(None, None, None)
+        youtube._net, recycle.to_recycle_bin = real_net, real_bin
+
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "client check, connect, one channel per profile, expired/different/offline/no_client/test-user, disconnect; no token reaches the browser"
+
+CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube,
           "decode": check_decode, "render": check_render}
 
 

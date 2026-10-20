@@ -1,0 +1,9 @@
+# klipian -- ADDITIONAL dependencies for the YouTube account (profile settings) and upload.
+#
+# Optional: only needed to connect a profile to a YouTube channel and to upload from the
+# Clips table (docs/roadmap.md, P21-C and P16). Without them everything else works and the
+# YouTube section of the profile settings says what to install.
+#
+#   .venv\Scripts\python.exe -m pip install -r requirements-youtube.txt
+google-api-python-client>=2.100
+google-auth-oauthlib>=1.2
