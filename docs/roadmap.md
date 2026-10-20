@@ -1623,12 +1623,53 @@ susunannya.
 - P21-A sebaiknya selesai sebelum P16, supaya P16 langsung dibuat per
   profile.
 
+**Guest** (permintaan ian 2026-10-20: "tambahkan sebagai guest, ... tidak
+perlu menyimpan analisis di clips. untuk guest edit videonya saja").
+
+Guest adalah pilihan tetap di halaman pilih profile ("Masuk sebagai Guest").
+Tidak dibuat, tidak bisa diganti nama, dan tidak bisa dihapus. Guest
+**hanya untuk mengedit dan me-render video**, tanpa catatan jadwal atau
+akun.
+
+- **Yang tetap ada:**
+  - Add video, transkripsi, Clips/Result, caption, framing, Timeline,
+    watermark;
+  - render dan Open folder.
+- **Yang tidak ada:**
+  - Render tidak membuat atau memperbarui baris jadwal Clips (`jobs.py`
+    melewati `schedule`). Pesan render tidak menyebut "added to the upload
+    schedule".
+  - Panel Post (teks posting, Angle) dan nama file berbasis judul
+    unggahan (P17). File render memakai nama klip biasa.
+  - Di dashboard: tabel Clips, Mark as Posted, Sync dari YouTube, dan
+    "Add to schedule" di Rendered output disembunyikan. Sources dan
+    Rendered output tetap ada.
+  - Bagian Akun YouTube (P21-C) dan upload (P16) tidak muncul. Server
+    juga menolak endpoint jadwal dan YouTube untuk Guest, jadi bukan hanya
+    disembunyikan di UI.
+- **Data:**
+  - Folder sendiri `workspace/profiles/_guest/`, dengan susunan yang sama
+    tapi tanpa `schedule/` dan `secrets/`.
+  - Project tetap tersimpan, supaya reload tidak menghilangkan editan.
+  - Cache bersama tetap dipakai, jadi video yang sudah ditranskripsi di
+    profile lain langsung siap.
+  - Tombol "Clear guest data" (dua klik, P20) memindahkan isi `_guest/`
+    ke Recycle Bin. Cache bersama tidak ikut dihapus.
+- **Tampilan:** chip topbar bertuliskan "Guest" dengan warna netral, tanpa
+  titik status YouTube.
+- **Asumsi yang perlu dikonfirmasi ian:** Find clips (saran AI) dan Copy
+  brief tetap tersedia untuk Guest sebagai alat bantu memilih momen,
+  tetapi hasilnya hanya masuk ke Result dan tidak menghasilkan teks
+  posting atau baris Clips. Kalau Guest sebaiknya tanpa analisis AI sama
+  sekali, cukup sembunyikan kedua tombol itu.
+
 **Tahapan:**
 
 | Tahap | Isi |
 |---|---|
 | P21-A | Folder per profile, migrasi "podcast", profile per permintaan (`contextvars`), dan selftest yang membuktikan dua profile tidak saling bocor |
 | P21-B | Halaman pilih profile, chip di topbar, buat/ganti nama/hapus, dan pengaturan bawaan per profile |
+| P21-G | Guest: tanpa jadwal Clips, tanpa Post, dan tanpa YouTube (ditolak juga di server), dengan data di `_guest/` dan tombol "Clear guest data". Dikerjakan bersama P21-B |
 | P21-C | Pengaturan Akun YouTube per profile: Connect, cek validitas dengan status yang jelas, Disconnect, satu channel untuk satu profile. Bisa selesai sebelum fitur upload P16, karena pengecekan hanya memanggil `channels.list` |
 | P21-D | Rubrik baru `prompts/rubrik/` untuk cuplikan lucu TV/YouTube. Perlu masukan ian soal kriteria "lucu yang layak diklip" |
 
