@@ -19,7 +19,8 @@ dialog.ytdl-dlg::backdrop { background: rgba(0, 0, 0, .6); }
 .ytdl-dlg button.ytdl-btn { border: 1px solid var(--glass-border); background: transparent; color: var(--text);
   border-radius: var(--r-s); padding: 6px 12px; font-size: 13px; cursor: pointer; }
 .ytdl-dlg button.ytdl-btn:hover:not(:disabled) { background: var(--glass); }
-.ytdl-dlg button.ytdl-btn:disabled { opacity: .5; cursor: default; }
+.ytdl-dlg button.ytdl-btn:disabled { opacity: .4; cursor: not-allowed; }
+.ytdl-dlg button.ytdl-btn.primary:disabled:hover { filter: none; }
 .ytdl-dlg button.ytdl-btn.primary { background: var(--accent); color: var(--accent-text); border-color: transparent; font-weight: 600; }
 .ytdl-dlg button.ytdl-btn.primary:hover:not(:disabled) { filter: brightness(1.1); background: var(--accent); }
 .ytdl-dlg button.ytdl-btn.hot { border-color: var(--accent); }

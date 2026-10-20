@@ -1453,6 +1453,7 @@ def check_upload() -> tuple[str, str]:
             ("a date but no time", row(time=""), "both"),
             ("a time in the past", row(date=past), "already passed"),
             ("no date and no time", row(date="", time=""), "no upload date"),
+            ("no date and no time: where to set them", row(date="", time=""), "UPLOAD DATE / TIME"),
         ]
         for label, rid, why in cases:
             if not refused(rid, why):
@@ -1675,7 +1676,8 @@ def check_bulk() -> tuple[str, str]:
         for rid, why in ((no_date, "upload date and time"), (no_title, "no title"), (long_title, "101"), (gone, "file deleted")):
             if why not in refused.get(rid, ""):
                 problems.append(f"the plan did not refuse '{why}': {refused.get(rid)}")
-        if "publish it now" in refused.get(no_date, "") or "never publishes" not in refused.get(no_date, ""):
+        if ("publish it now" in refused.get(no_date, "") or "never publishes" not in refused.get(no_date, "")
+                or "UPLOAD DATE / TIME" not in refused.get(no_date, "") or "in Detail" not in refused.get(no_date, "")):
             problems.append(f"the bulk refusal must not offer to publish now: {refused.get(no_date)}")
         if plan.get("running") is not False:
             problems.append("the plan should say no queue is running")

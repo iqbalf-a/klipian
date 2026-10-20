@@ -206,3 +206,16 @@ select.ws-input, .pager-size select, .ws-bulk select {
 .yt-bulk-row[data-state="done"] .yt-bulk-icon { color: oklch(.75 .16 145); }
 .yt-bulk-row[data-state="failed"] .yt-bulk-icon, .yt-bulk-row[data-state="failed"] .yt-bulk-msg { color: var(--danger); }
 .yt-bulk-row[data-state="uploading"] .yt-bulk-icon { color: var(--accent); }
+
+/* A button that cannot be pressed must look it: the accent buttons (Tailwind's bg-accent, the
+   prebuilt workspace.css has no disabled style) and the small outlined ones. The reason is shown
+   in words next to the buttons where there is room (e.g. #ytBulkWhy). */
+button.bg-accent:disabled, .ws-accent-btn:disabled, button.bg-accent:disabled:hover {
+  opacity: .4;
+  cursor: not-allowed;
+  filter: none;
+}
+.ws-mini:disabled, .ws-detail:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}

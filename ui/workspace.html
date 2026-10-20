@@ -198,6 +198,13 @@
         </div>
         <section class="ws-field guest-hidden" id="ytUpload" aria-label="Upload to YouTube">
           <span class="ws-fhead">YouTube upload <span id="ytUploadState"></span></span>
+          <!-- The same two fields as the table's UPLOAD DATE / TIME cells (one row, one value). -->
+          <div class="ws-pair">
+            <label class="ws-field">Upload date
+              <input class="ws-input" type="date" data-field="date"></label>
+            <label class="ws-field">Upload time
+              <input class="ws-input" type="time" data-field="time"></label>
+          </div>
           <div class="flex gap-2 items-center flex-wrap">
             <button class="ws-mini" type="button" id="ytUploadBtn">Upload to YouTube</button>
             <button class="ws-mini" type="button" id="ytCheckBtn" hidden>Check status</button>
@@ -210,6 +217,7 @@
           <input class="ws-input" type="text" id="detailHashtags" placeholder="#podcast #lucu"></label>
         <div class="ws-field guest-hidden" id="ytPreview">
           <span class="ws-fhead">On YouTube <span class="text-text-faint">(preview of what would be sent)</span></span>
+          <span class="text-[12px] text-text-faint" id="ytPreviewWhen"></span>
           <input class="ws-input" type="text" id="ytPreviewTitle" readonly aria-label="Title on YouTube">
           <textarea class="ws-input" id="ytPreviewDesc" rows="4" readonly aria-label="Description on YouTube"></textarea>
         </div>
@@ -235,6 +243,7 @@
         <p class="text-[12px] text-text-faint" id="ytBulkQuota" role="status"></p>
         <div id="ytBulkList" class="yt-bulk-list"></div>
         <p class="text-[12px]" id="ytBulkNote" role="status"></p>
+        <p class="text-[12px] text-danger" id="ytBulkWhy" role="status" hidden></p>
         <div class="flex gap-2 justify-end">
           <button class="rounded-s px-3 py-1.5 text-[13px] border border-glass-border hover:bg-glass" type="button" id="ytBulkCancel">Cancel</button>
           <button class="rounded-s bg-accent text-[13px] font-semibold px-3 py-1.5 text-accent-text hover:brightness-110" type="button" id="ytBulkGo">Upload</button>

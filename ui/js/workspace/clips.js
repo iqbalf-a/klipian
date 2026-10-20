@@ -18,8 +18,9 @@
 const STATUS = ["Draft", "Ready", "Scheduled", "Posted", "Discarded"];
 const PLATFORM = ["YouTube", "TikTok", "YouTube + TikTok"];
 const INLINE_FIELDS = ["title", "date", "time"];
+// date and time are also table cells (INLINE_FIELDS): the same row fields, edited in either place
 const DETAIL_FIELDS = ["episode", "file", "description", "tiktokCaption",
-  "youtubeUrl", "tiktokUrl", "notes"];
+  "youtubeUrl", "tiktokUrl", "notes", "date", "time"];
 
 let CLIPS = [];
 const clipSort = createSort("clips");
@@ -561,14 +562,17 @@ function updateYtPreview() {
   const len = [...plan.title].length;
   t.title = `${len} of 100 characters`;
   t.dataset.over = String(len > 100);
+  const when = $("#ytPreviewWhen");
+  if (when) when.textContent = v.date && v.time ? `Goes to YouTube at ${v.date} ${v.time}, as scheduled.`
+    : "No upload date and time yet: set them above to schedule it.";
   growText(d);
 }
 
 clipDetailForm?.addEventListener("input", (e) => {
-  if (e.target.matches('[data-field="description"], #detailHashtags')) updateYtPreview();
+  if (e.target.matches('[data-field="description"], [data-field="date"], [data-field="time"], #detailHashtags')) updateYtPreview();
 });
 
-function openDetail(id) {
+function openDetail(id, focusField = "") {
   if (!id || !clipDialog) return;
   const c = CLIPS.find((x) => x.id === id);
   if (!c) return;
@@ -589,6 +593,7 @@ function openDetail(id) {
   clipDialog.showModal();
   updateYtPreview();
   clipDialog.querySelectorAll("textarea.ws-input").forEach(growText);
+  if (focusField) $(`[data-field="${focusField}"]`, clipDetailForm)?.focus();
 }
 
 /* A text area as tall as its text: at least its own rows, at most 45% of the
@@ -637,6 +642,9 @@ function ytBulkGoState(enabled, count, why) {
   go.disabled = !enabled;
   go.textContent = count ? `Upload ${count}` : "Upload";
   go.title = enabled ? "" : (why || "");
+  // The reason in plain sight, not only in the tooltip of a button that looks active.
+  const reason = $("#ytBulkWhy");
+  if (reason) { reason.textContent = enabled ? "" : (why || ""); reason.hidden = enabled || !why; }
 }
 
 function ytBulkRows(rows) {
@@ -675,7 +683,7 @@ async function openYtBulk(ids, what) {
       <span class="yt-bulk-title" title="${escapeHTML(r.finalTitle || r.title)}">${escapeHTML(r.finalTitle || r.title)}</span><span class="yt-bulk-msg">${escapeHTML(r.when)}</span></div>`).join("")
     + plan.refused.map((r) => `<div class="yt-bulk-row" data-state="failed"><span class="yt-bulk-icon">✕</span>
       <span class="yt-bulk-title">${escapeHTML(r.title)}</span>
-      <span class="yt-bulk-msg">${escapeHTML(r.message)} <button class="ws-mini" type="button" data-ytdetail="${escapeHTML(r.id)}">Detail</button></span></div>`).join("");
+      <span class="yt-bulk-msg">${escapeHTML(r.message)} <button class="ws-mini" type="button" data-ytdetail="${escapeHTML(r.id)}"${/upload date|date and time/i.test(r.message || "") ? ' data-focus="date"' : ""}>Detail</button></span></div>`).join("");
   // Nothing can be sent when the plan is empty, the account is not green (not connected, or the
   // client is not valid), or a queue is already running: Upload is off, and says why.
   ytBulk.ids = plan.ok.map((r) => r.id);
@@ -683,7 +691,12 @@ async function openYtBulk(ids, what) {
   if (plan.running) why = "A bulk upload is already running for this profile.";
   else if (st.client?.state === "invalid") why = "The client_secret.json is not valid: fix it in the profile settings.";
   else if (st.light !== "green") why = "This profile is not connected to YouTube.";
-  else if (!n) why = "Nothing here can be sent yet: fix the clips marked ✕ first.";
+  else if (!n) {
+    const noDate = plan.refused.length && plan.refused.every((r) => /^No upload date/i.test(r.message || ""));
+    why = noDate
+      ? `Nothing can be sent yet: give ${plan.refused.length === 1 ? "the clip" : "the clips"} an upload date and time (in the table or in Detail).`
+      : "Nothing can be sent yet: fix the clips marked ✕ (each has a Detail button).";
+  }
   if (st.light !== "green" || st.client?.state === "invalid") {
     note.innerHTML = `${escapeHTML(st.client?.state === "invalid" ? "The client_secret.json is not valid." : "This profile is not connected to YouTube.")}
       <button class="ws-mini" type="button" id="ytBulkSettings">Open profile settings</button>`;
@@ -738,7 +751,7 @@ $("#ytBulkClose")?.addEventListener("click", () => $("#ytBulkDialog").close());
 /* From the dialog: a refused clip's Detail, and the profile settings at the YouTube section. */
 $("#ytBulkDialog")?.addEventListener("click", (e) => {
   const d = e.target.closest("[data-ytdetail]");
-  if (d) { $("#ytBulkDialog").close(); openDetail(d.dataset.ytdetail); return; }
+  if (d) { $("#ytBulkDialog").close(); openDetail(d.dataset.ytdetail, d.dataset.focus || ""); return; }
   if (e.target.closest("#ytBulkSettings")) { $("#ytBulkDialog").close(); window.openProfileSettings?.({ section: "ytBox" }); }
 });
 
@@ -817,8 +830,8 @@ async function ytPoll(jobId, rowId) {
 $("#ytUploadBtn")?.addEventListener("click", async (e) => {
   const btn = e.currentTarget;
   const id = clipDialog.dataset.id;
-  const c = CLIPS.find((x) => x.id === id);
-  const when = c && c.date && c.time ? `${c.date} ${c.time}` : "";
+  const v = detailValues();                      // what the dialog shows now, saved first by ytSaveFirst
+  const when = v.date && v.time ? `${v.date} ${v.time}` : "";
   const publishNow = !when;
   if (!armedClick(btn, { armedText: publishNow ? "Publish now?" : `Schedule for ${when}?`, strong: publishNow, ms: 6000 })) return;
   btn.disabled = true; ytMsg("Saving, then uploading…");
@@ -893,7 +906,8 @@ async function saveDetail(id, values) {
   const clip = { ...existing, ...values };
   const notes = applyLinkToClip(clip, existing);
   const saved = await saveClip(clip);
-  if (saved && notes.length) { drawClips(); clipNotice(`${clip.title || "Clip"}: ${notes.join(" · ")}`); }
+  if (saved) drawClips();                          // the table shows what Detail changed (date, time ...)
+  if (saved && notes.length) clipNotice(`${clip.title || "Clip"}: ${notes.join(" · ")}`);
 }
 
 // The Guest has no schedule (the server refuses it, and the panel is not shown).

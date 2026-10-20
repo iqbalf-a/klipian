@@ -477,11 +477,11 @@ def _publish_at(row: dict, publish_now: bool, bulk: bool = False):
     date, time_ = (row.get("date") or "").strip(), (row.get("time") or "").strip()
     if not date and not time_:
         if bulk:
-            raise YouTubeError("not_ready", "No upload date and time. Fill them in (Detail) to schedule it; "
+            raise YouTubeError("not_ready", "No upload date and time. Set them in the table (UPLOAD DATE / TIME) or in Detail; "
                                "bulk upload never publishes immediately.")
         if not publish_now:
-            raise YouTubeError("not_ready", "This clip has no upload date and time. Fill them in to schedule it, "
-                               "or choose to publish it now.")
+            raise YouTubeError("not_ready", "This clip has no upload date and time. Set them in the table (UPLOAD DATE / TIME) or in "
+                               "Detail to schedule it, or choose to publish it now.")
         return None
     if not date or not time_:
         raise YouTubeError("not_ready", "Fill in both the upload date and the upload time.")
