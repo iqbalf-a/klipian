@@ -1490,6 +1490,92 @@ state itu sekarang milik Result lain (lihat `liveOwner`, P13).
 | Undo import (saran Claude) | Editor | sudah ada | tetap |
 | Sources, Rendered output, Assets | Dashboard | tidak ada tombol hapus | tidak berubah |
 
+### P21 — Profile per channel, tanpa password (DITUNDA, rencana saja)
+
+Ide ian (2026-10-20): nanti akan ada lebih dari satu akun klipian. Sudah ada
+"klipian podcast", dan mungkin menyusul "klipian" untuk cuplikan lucu dari TV
+atau YouTube. Usulnya ada pilihan seperti sign in, tanpa password, cukup
+profile. Setiap profile bisa upload otomatis dengan akun YouTube yang
+berbeda. **Status: dicatat saja, belum dikerjakan** (keputusan ian
+2026-10-20).
+
+**Konsep:** satu profile untuk satu channel. Setiap profile punya sources,
+projects, render, jadwal Clips, assets, dan akun YouTube sendiri. klipian
+berjalan di komputer ian, jadi tidak perlu password. Profile hanya pemisah
+data, bukan pengaman.
+
+**Susunan folder:**
+```
+workspace/
+  cache/                 ← tetap dipakai bersama (transkrip, cue, probe, thumbs)
+  profiles/
+    podcast/             ← isi workspace sekarang dipindah ke sini
+      profile.json       (nama, warna, pengaturan bawaan)
+      sources/ projects/ out/ schedule/ assets/ secrets/
+    lucu/ ...
+```
+- `cache/` dipakai bersama karena isinya per video. Video yang sama di dua
+  profile tidak perlu ditranskripsi ulang.
+- **Migrasi:** isi workspace sekarang menjadi profile "podcast" lewat skrip,
+  dengan cadangan dan pengecekan sebelum dan sesudah, seperti saat rename
+  video `Ibu-ibu .mp4`. Tautan render `/workspace/out/...` dibaca dari profile
+  yang sedang dipakai, jadi data project lama tidak perlu ditulis ulang.
+- **Yang belum diputuskan:** apakah satu source boleh dipakai di dua
+  profile. Usulnya: source terpisah per profile, dan transkripnya diambil
+  dari cache bersama.
+
+**Profile dipilih per tab, bukan per server.**
+- Hari ini `WORKSPACE` adalah konstanta yang disalin saat import:
+  - `paths.py`: `WORKSPACE`
+  - `projects.py`: `PROJECTS`
+  - `schedule.py`: `CLIPS_PATH`, `OUT_DIR`, `TRASH_PATH`
+  - `server.py`: `ASSETS_DIR`
+  - `credits.py`, `jobs.py`
+  - `cli.py`: `DEFAULT_CACHE`, `DEFAULT_OUT`
+- Rancangan:
+  - Setiap permintaan API membawa profile, misalnya lewat header.
+  - Server menyimpannya di `contextvars` per permintaan, lalu
+    `paths.workspace()` membacanya. Server tidak menyimpan "profile aktif"
+    global.
+  - Job render atau analisis menyalin context saat mulai, jadi tetap menulis
+    ke profile asalnya meskipun tab pindah profile.
+- Alasannya: dua tab bisa memakai dua profile tanpa saling menimpa. Ini
+  masalah yang sama dengan kebocoran Result dan Post (`liveOwner`, P13).
+- Pengaturan di localStorage diberi awalan profile, misalnya
+  `klipian:preset-caption` dan `klipian:sesi-aktif`. `klipian:theme` tetap
+  global.
+
+**Tampilan:**
+- Halaman pertama berisi pilihan profile (kotak nama dan warna) dan
+  "+ Profile baru". Satu klik untuk masuk.
+- Chip profile berwarna di topbar untuk berpindah, supaya tidak salah
+  mengedit channel.
+- Pengaturan bawaan per profile: teks watermark, rubrik bawaan, dan preset
+  caption.
+- Hapus profile dengan dua klik (`armedClick`, P20), lalu foldernya masuk
+  Recycle Bin.
+
+**Upload YouTube per profile** (ditautkan ke P16 dan P18-A):
+- `client_secret.json` cukup satu dan dipakai bersama (`workspace/secrets/`).
+- Token login disimpan per profile di `profiles/<id>/secrets/`. Tiap
+  profile login dengan akun atau channel-nya sendiri.
+- Halaman profile menampilkan "Terhubung ke: <nama channel>". Upload dari
+  Clips selalu memakai akun profile itu.
+- Selama OAuth client berstatus "Testing", setiap akun Google harus
+  didaftarkan sebagai test user.
+- Dua channel dalam satu akun Google (Brand Account) dipilih saat login.
+- P21-A sebaiknya selesai sebelum P16, supaya P16 langsung dibuat per
+  profile.
+
+**Tahapan:**
+
+| Tahap | Isi |
+|---|---|
+| P21-A | Folder per profile, migrasi "podcast", profile per permintaan (`contextvars`), dan selftest yang membuktikan dua profile tidak saling bocor |
+| P21-B | Halaman pilih profile, chip di topbar, buat/ganti nama/hapus, dan pengaturan bawaan per profile |
+| P21-C | Login YouTube per profile (bagian dari P16/P18-A) |
+| P21-D | Rubrik baru `prompts/rubrik/` untuk cuplikan lucu TV/YouTube. Perlu masukan ian soal kriteria "lucu yang layak diklip" |
+
 ---
 
 ## 3. Diparkir, sengaja tidak dikerjakan
