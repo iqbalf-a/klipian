@@ -2300,6 +2300,8 @@ h1, h2, h3 {
 
 /* ══════════════════════════ history render ══════════════════════════ */
 .history-list { padding: var(--s3) var(--s5) var(--s4); }
+/* The pager lines up with the rows above it instead of touching the panel's edge. */
+#historyPager.pager { padding: var(--s3) var(--s5) var(--s4); border-top: 1px solid var(--glass-border); }
 .history-row {
   display: grid;
   grid-template-columns: 1fr auto auto auto auto auto;
