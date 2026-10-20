@@ -720,7 +720,7 @@ async function openYtBulk(ids, what) {
   const tomorrow = new Date(Date.now() + 24 * 3600 * 1000);
   $("#ytAfDate").value = localDate(tomorrow);
   $("#ytAfTime").value = "18:30";
-  $("#ytAfEvery").value = "1";
+  $("#ytAfEvery").value = "0";                         // 0: every clip at the same date and time
   $("#ytAfUnit").value = "day";
   $("#ytAfAll").checked = false;
   dlg.showModal();
@@ -783,9 +783,9 @@ function ytBulkSlots(count) {
   const date = $("#ytAfDate").value, time = $("#ytAfTime").value;
   const every = Number($("#ytAfEvery").value), unit = $("#ytAfUnit").value;
   const stepHours = unit === "day" ? every * 24 : every;
-  if (!date || !time) return { error: "Pick a start date and time." };
-  if (!isFutureSlot(date, time)) return { error: "The start has passed: pick a time in the future." };
-  if (!Number.isFinite(every) || every < 1 || !Number.isInteger(every) || stepHours < 1) return { error: "The interval must be a whole number, at least 1 hour." };
+  if (!date || !time) return { error: "Pick a date and time." };
+  if (!isFutureSlot(date, time)) return { error: "That time has passed: pick a time in the future." };
+  if (!Number.isFinite(every) || !Number.isInteger(every) || every < 0) return { error: "The gap must be a whole number, 0 or more." };
   const start = new Date(`${date}T${time}`).getTime();
   return { slots: Array.from({ length: count }, (_, i) => new Date(start + i * stepHours * 3600 * 1000)) };
 }
@@ -801,6 +801,18 @@ function ytBulkSync() {
   const targets = ytBulk.confirmed ? [] : rows.filter((r) => r.dataset.kind === "sched" || (all && r.dataset.kind === "ok"));
   const proposal = ytBulkSlots(targets.length);
   $("#ytAfMsg").textContent = proposal.error && targets.length ? proposal.error : "";
+  // The controls say what they do: one clip needs no gap; with a gap of 0 the date and time are shared by all.
+  const one = targets.length === 1, gap0 = Number($("#ytAfEvery").value) === 0;
+  $("#ytAfGap").hidden = one;
+  $("#ytAfDateLabel").textContent = one ? "Goes live on" : gap0 ? "Date" : "Start date";
+  $("#ytAfTimeLabel").textContent = one ? "at" : gap0 ? "Time" : "Start time";
+  const preview = $("#ytAfPreview"), spread = $("#ytAfSpread");
+  if (proposal.slots && targets.length >= 2) {
+    const when = (d) => fmtWhen(localDate(d), localTime(d));
+    preview.textContent = gap0 ? `All ${targets.length} clips: ${when(proposal.slots[0])}`
+      : proposal.slots.slice(0, 3).map((d, i) => `Clip ${i + 1}: ${when(d)}`).join(" · ") + (targets.length > 3 ? " · …" : "");
+  } else preview.textContent = "";
+  spread.hidden = !(proposal.slots && targets.length >= 2 && gap0);
   ytBulk.effective = new Map();                       // id -> {date, time} for the rows that will be sent
   ytBulk.sendIds = [];                                // every row that shows ✓
   let sendable = 0;

@@ -230,3 +230,16 @@
      wrapped. */
   --w-config:  408px;
 }
+
+
+/* Native controls follow the theme: without this a dark page still opens a WHITE list for every
+   <select> (near-white text on white), and date/time pickers keep light chrome. The theme logic
+   mirrors the token blocks above: dark by default, light for data-theme="light" or, with no
+   choice made, a light system preference. The option colours are set too, for browsers that
+   paint the list from the page's own colours. */
+:root { color-scheme: dark; }
+:root[data-theme="light"] { color-scheme: light; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) { color-scheme: light; }
+}
+select option, select optgroup { background-color: var(--bg-2); color: var(--text); }

@@ -266,15 +266,17 @@
         <div class="yt-autofill" id="ytAutofill" hidden>
           <span class="ws-fhead">Schedule <span class="text-text-faint">(local time)</span></span>
           <div class="yt-af-row">
-            <label class="ws-field">Start date <input class="ws-input" type="date" id="ytAfDate"></label>
-            <label class="ws-field">Start time <input class="ws-input" type="time" id="ytAfTime" value="18:30"></label>
-            <label class="ws-field">Every
-              <span class="yt-af-every"><input class="ws-input" type="number" id="ytAfEvery" min="1" step="1" value="1" aria-label="Interval">
-                <select class="ws-input" id="ytAfUnit" aria-label="Interval unit"><option value="day" selected>days</option><option value="hour">hours</option></select></span></label>
+            <label class="ws-field"><span id="ytAfDateLabel">Date</span> <input class="ws-input" type="date" id="ytAfDate"></label>
+            <label class="ws-field"><span id="ytAfTimeLabel">Time</span> <input class="ws-input" type="time" id="ytAfTime" value="18:30"></label>
+            <label class="ws-field" id="ytAfGap">Gap between clips
+              <span class="yt-af-every"><input class="ws-input" type="number" id="ytAfEvery" min="0" step="1" value="0" aria-label="Gap between clips">
+                <select class="ws-input" id="ytAfUnit" aria-label="Gap unit"><option value="day" selected>days</option><option value="hour">hours</option></select></span></label>
           </div>
+          <p class="text-[12px]" id="ytAfPreview"></p>
+          <p class="text-[12px] text-text-faint" id="ytAfSpread" hidden>Shorts usually do better spaced out; set a gap to spread them.</p>
           <label class="yt-af-all"><input type="checkbox" id="ytAfAll"> also reschedule rows that already have a time</label>
-          <p class="text-[12px] text-text-faint">The clips without a date and time get one from these settings, in this order;
-            change a row to override it. Nothing is saved until you press Upload.</p>
+          <p class="text-[12px] text-text-faint">The clips without a date and time get one from these settings, in the order below
+            (a gap of 0 gives them all the same time); change a row to override it. Nothing is saved until you press Upload.</p>
           <span class="text-[12px] text-danger" id="ytAfMsg" role="status"></span>
         </div>
         <div id="ytBulkList" class="yt-bulk-list"></div>

@@ -92,7 +92,6 @@
 }
 #clipTable .ws-input, .ws-bulk .ws-input {
   height: 32px; box-sizing: border-box; padding-top: 0; padding-bottom: 0;
-  color-scheme: dark;                      /* date and time icons show on the dark field */
 }
 #clipTable input[type="date"]::-webkit-calendar-picker-indicator,
 #clipTable input[type="time"]::-webkit-calendar-picker-indicator,
