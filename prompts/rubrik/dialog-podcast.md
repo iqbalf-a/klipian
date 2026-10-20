@@ -44,6 +44,35 @@ atau interjeksi serupa), itu bukti nyata ada sesuatu yang mengena di
 kalimat sebelumnya -- bobot skor hook-nya naik. Reaksi ini sinyal langsung
 dari penonton sungguhan, bukan tebakan.
 
+**Topik yang berpotensi viral.** Selain kalimat pembukanya, lihat juga
+*apa yang dibahas*. Beberapa topik cenderung dibagikan dan dikomentari orang
+lebih dari yang lain, misalnya:
+- uang dan angka nyata (gaji, utang, rugi, harga);
+- hubungan, keluarga, dan pernikahan;
+- pengakuan atau rahasia yang baru pertama kali diceritakan;
+- pendapat yang membelah penonton (setuju atau tidak setuju);
+- pengalaman sehari-hari yang sangat relatable ("ini gue banget");
+- cerita tentang orang terkenal;
+- nostalgia;
+- fakta yang mengejutkan;
+- tips yang langsung bisa dipakai.
+
+Daftar ini hanya contoh, bukan batasan. Pakai juga pengetahuanmu sendiri
+tentang apa yang biasanya ramai di Shorts, TikTok, dan Reels Indonesia, lalu
+lanjutkan analisisnya sendiri.
+
+Aturannya:
+- Topik yang berpotensi viral boleh **menaikkan skor hook atau emosi**, tetapi
+  hanya kalau topik itu memang dibahas di klip. Jangan menaikkan skor karena
+  menebak hal yang tidak diucapkan.
+- Tuliskan potensinya di **alasan**, misalnya *"topik utang ke keluarga:
+  relatable dan memancing komentar"*, supaya manusia yang membaca bisa ikut
+  menilai.
+- Potensi viral tidak menyelamatkan klip yang tidak utuh atau tidak punya
+  payoff. Keempat kriteria lain tetap berlaku.
+- Jangan memilih klip karena kontroversinya menyesatkan, mempermalukan
+  seseorang, atau memelintir maksud pembicara.
+
 Bagian **"Audio & timing cues"** di berkas ini memuat bukti yang lebih
 kuat lagi (lihat di bawah): tawa yang dideteksi dari suaranya, bukan
 menunggu Whisper kebetulan menuliskannya.
