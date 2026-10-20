@@ -391,6 +391,34 @@ a profile only keeps the data apart (and keeps you from editing the wrong channe
   that profile's folders; the default is `podcast`. A command run before the migration says
   to run `migrate-profiles` first.
 
+## Add from YouTube
+
+A source video can come straight from a YouTube link (yt-dlp): **From YouTube link…** in the
+editor's Add video (Assets), or **+ From YouTube** in the Sources panel of `/workspace`. It
+works in every profile, the Guest included, and the file goes into that profile's `sources/`.
+
+1. Paste the link and press **Check**: the title, channel, length and an estimate of the size
+   are shown, and nothing is downloaded yet.
+2. **Download** runs in the background with progress, speed and time left, and a **Cancel**
+   that removes everything it had written. The dialog may be closed meanwhile.
+
+- The file is `<channel> - <title>.mp4` (no video id; characters Windows refuses are dropped,
+  at most about 150 characters, ` (2)` when a *different* video already has that name).
+  MP4 up to 1080p, H.264 when YouTube has it, joined with klipian's ffmpeg. One link is one
+  video, never a playlist.
+- **The credit is filled in** (`credits.json` of the profile: YouTube, the channel, the title,
+  the link `https://www.youtube.com/watch?v=<id>`, and the video id and date), unless the video
+  already has a credit. The link goes into every post description (`Sumber: YouTube <channel> —
+  "<title>" (<link>)`), whichever hashtag placement the profile uses.
+- The same video is never downloaded twice: the profile already has it, or another profile on
+  the same drive does (then it is linked and its credit copied).
+- Not possible, by design: private, age-restricted or members-only videos, live streams that are
+  not finished, anything that needs a sign-in. There is no login or cookie support, and no MP3.
+  Download only what you may use: a credit is attribution, not permission.
+- yt-dlp is an optional install: `.venv\Scripts\python.exe -m pip install -r requirements-download.txt`
+  (the dialog shows this command when it is missing). YouTube changes often, so the dialog has an
+  **Update yt-dlp** button (it runs `pip install -U yt-dlp` in the `.venv`) and shows the version.
+
 ## YouTube upload
 
 Each profile can be connected to its own YouTube channel and upload its schedule rows
@@ -531,6 +559,7 @@ klipian/
 ├── requirements.txt                base install (no PyTorch)
 ├── requirements-ai-framing.txt     optional: AI Framing / speaker diarization
 ├── requirements-youtube.txt        optional: YouTube account and upload
+├── requirements-download.txt       optional: Add from YouTube (yt-dlp)
 ├── .env.example                    copy to .env for HF_TOKEN (AI Framing only)
 └── workspace/                     ALL working files -- one place, so there's never
     │                                doubt about where a video goes (see workspace/README.md)

@@ -1,0 +1,8 @@
+# klipian -- ADDITIONAL dependency for "Add from YouTube" (docs/roadmap.md, P22).
+#
+# Optional: only needed to download a source video from a YouTube link. Without it
+# everything else works and the dialog says what to install. YouTube changes often;
+# the dialog has an "Update yt-dlp" button (it runs pip install -U yt-dlp in this venv).
+#
+#   .venv\Scripts\python.exe -m pip install -r requirements-download.txt
+yt-dlp>=2025.1.1

@@ -1723,6 +1723,7 @@ def check_hashtags() -> tuple[str, str]:
 
     desc = "Satu kalimat. Setuju?\n\n#raditya #komedi #podcast #lucu\n\nSumber: YouTube Raditya Dika"
     tags4 = ["#raditya", "#komedi", "#podcast", "#lucu"]
+    descy = desc.replace("Sumber: YouTube Raditya Dika", 'Sumber: YouTube Raditya Dika — "Apa Kabar" (https://www.youtube.com/watch?v=aaaaaaaaaaa)')
     T2 = {"placement": "title", "shorts": False, "titleTags": 2}
     T3 = {"placement": "title", "shorts": False, "titleTags": 3}
     long_title = "x" * 88
@@ -1737,6 +1738,9 @@ def check_hashtags() -> tuple[str, str]:
         ("description mode, as today", "Podcast Lucu", desc, tags4, {**T3, "placement": "description", "shorts": True}),
         ("both", "Podcast Lucu", desc, tags4, {**T3, "placement": "both"}),
         ("normalisation", "Judul", "x", ["#Ra Ditya!", "KOMEDI-2", "\u00c9COLE", "", "#", "komedi2", "snake_case"], T3),
+        ("credit link, title mode", "Podcast Lucu", descy, tags4, T3),
+        ("credit link, description mode", "Podcast Lucu", descy, tags4, {**T3, "placement": "description"}),
+        ("credit link, both", "Podcast Lucu", descy, tags4, {**T3, "placement": "both"}),
         ("the 15-tag cap", "Judul", "x", [f"t{i}" for i in range(20)], {**T3, "placement": "both"}),
         ("tags with commas on their own line", "Judul", "Cap\n\n#a, #b,#c\n\nSumber", None, T2),
         ("a long title that cannot take its tags", "y" * 97, "x", ["#a", "#b"], {**T3, "shorts": True}),
@@ -1799,7 +1803,388 @@ def check_hashtags() -> tuple[str, str]:
         return FAIL, "\n      ".join(problems)
     return PASS, f"{len(cases)} placements{note}"
 
-CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "bulk": check_bulk, "hashtags": check_hashtags,
+def check_ytdl() -> tuple[str, str]:
+    """Add from YouTube with a fake yt-dlp (nothing here reaches the network): the link, the file
+    name, the credit (filled in, never overwritten, with its link in the description in every
+    hashtag placement), no second download in the same profile or another, cancel and failure
+    cleaning up, the error messages, yt-dlp missing, and the endpoints (the Guest included)."""
+    import contextlib
+    import http.client
+    import importlib.util
+    import io
+    import os
+    import threading
+    from http.server import ThreadingHTTPServer
+    from unittest import mock
+    from . import credits, hashtags as ht, paths, profiles, schedule, ytdl
+    from .server import Handler
+
+    problems = []
+    A, B, C, D, E, LIVE = "aaaaaaaaaaa", "bbbbbbbbbbb", "ccccccccccc", "ddddddddddd", "eeeeeeeeeee", "lllllllllll"
+    URL_A = f"https://www.youtube.com/watch?v={A}"
+
+    def mkinfo(vid, channel, title, **more):
+        return {"id": vid, "channel": channel, "title": title, "duration": 61, "height": 1080,
+                "thumbnail": f"https://i.ytimg.com/vi/{vid}/hq.jpg",
+                "requested_formats": [{"filesize": 3_000_000}, {"filesize_approx": 500_000}], **more}
+
+    class Fake:
+        infos = {A: mkinfo(A, "Raditya Dika", "Apa Kabar Syahrini"),
+                 B: mkinfo(B, "Raditya Dika", "Apa Kabar Syahrini"),
+                 C: mkinfo(C, "Chan: nel?", 'Odd <title> "quoted" / slash \\ pipe | star * ... '),
+                 D: mkinfo(D, "Cancel Chan", "Cancel me"), E: mkinfo(E, "Guest Chan", "Guest video"),
+                 LIVE: mkinfo(LIVE, "Live Chan", "Live now", is_live=True)}
+        installed = True
+        err = None
+        dl_error = None
+        cancel_mid = False
+        calls = {"info": 0, "download": 0}
+
+        @classmethod
+        def version(cls):
+            return "2099.01.01" if cls.installed else None
+
+        @classmethod
+        def info(cls, url):
+            cls.calls["info"] += 1
+            if not cls.installed:
+                raise ytdl.YtError("missing", "yt-dlp is not installed.", command="pip install yt-dlp")
+            if cls.err:
+                raise cls.err
+            return dict(cls.infos[url.split("v=")[-1]])
+
+        @classmethod
+        def download(cls, url, folder, hook, ffmpeg_dir):
+            cls.calls["download"] += 1
+            (folder / "video.f137.mp4.part").write_bytes(b"partial")
+            step = {"status": "downloading", "filename": "video.f137.mp4", "downloaded_bytes": 50,
+                    "total_bytes": 100, "speed": 1e6, "eta": 3, "info_dict": {"requested_formats": [1, 2]}}
+            hook(step)
+            if cls.cancel_mid:
+                for ev in list(ytdl._CANCEL.values()):
+                    ev.set()
+            hook(step)                                   # raises once cancelled
+            if cls.dl_error:
+                raise cls.dl_error
+            hook({"postprocessor": "Merger", "status": "started"})
+            (folder / "video.mp4").write_bytes(b"VIDEO " + url.encode())
+            (folder / "video.f137.mp4.part").unlink()
+
+        @classmethod
+        def cancelled_exception(cls):
+            return ytdl._Cancelled
+
+    @contextlib.contextmanager
+    def as_profile(pid):
+        tok = paths.set_profile(pid)
+        try:
+            yield
+        finally:
+            paths._profile.reset(tok)
+
+    def wait(jid, limit=15):
+        t0 = time.time()
+        while time.time() - t0 < limit:
+            s = ytdl.state(jid)
+            if s.get("state") not in ("queued", "running"):
+                return s
+            time.sleep(0.05)
+        return ytdl.state(jid)
+
+    def code_of(fn, *a):
+        try:
+            fn(*a)
+        except ytdl.YtError as exc:
+            return exc.code
+        return None
+
+    for pid in ("yta", "ytb"):
+        profiles.write_meta(pid, {"name": pid, "color": "#123456"})
+        profiles.ensure_dirs(pid)
+    profiles.ensure_dirs(paths.GUEST)
+    real_net = ytdl._net
+    ytdl._net = Fake
+    try:
+        # --- the link
+        good = {f"https://www.youtube.com/watch?v={A}": A, f"youtube.com/watch?v={A}&t=5s": A,
+                f"https://youtu.be/{A}?si=x": A, f"https://m.youtube.com/watch?v={A}&list=PLx": A,
+                f"https://www.youtube.com/shorts/{A}": A, f"https://www.youtube.com/live/{A}": A, A: A}
+        for link, want in good.items():
+            if code_of(ytdl.video_id, link) or ytdl.video_id(link) != want:
+                problems.append(f"a YouTube link was not understood: {link}")
+        for link in ("", "https://vimeo.com/12345", "https://www.youtube.com/playlist?list=PLabc",
+                     "https://www.youtube.com/@somechannel", "https://evil.example/watch?v=" + A,
+                     "https://www.youtube.com.evil.example/watch?v=" + A, "file:///c:/x.mp4", "not a link at all"):
+            if code_of(ytdl.video_id, link) != "not_youtube":
+                problems.append(f"'{link}' should be refused as not a YouTube video link")
+
+        # --- the file name
+        stems = {
+            ("Raditya Dika", "Apa Kabar Syahrini"): "Raditya Dika - Apa Kabar Syahrini",
+            ("Chan: nel?", "Judul. "): "Chan nel - Judul",
+            ("  Chan  ", "  ...Judul...  "): "Chan - Judul",
+            ("", "Only a title"): "Only a title",
+            ("Only Channel", ""): "Only Channel",
+            ("CON", ""): "CON-video",
+            ("", ""): "YouTube video",
+            ("Chan", "Emoji \U0001F602 ok"): "Chan - Emoji \U0001F602 ok",
+        }
+        for (ch, ti), want in stems.items():
+            got = ytdl.file_stem(ch, ti)
+            if got != want:
+                problems.append(f"file name for {ch!r} / {ti!r}: {got!r}, wanted {want!r}")
+        for ch, ti in (("Chan: nel?", 'a<b>c"d/e\\f|g?h*i'), ("x" * 300, "y" * 300), ("Chan", "t" * 400 + "... ")):
+            stem = ytdl.file_stem(ch, ti)
+            if len(stem) > ytdl.MAX_STEM or stem != stem.strip(" ."):
+                problems.append(f"a long or odd name is not cut cleanly: {stem[:40]!r} ({len(stem)})")
+            if any(c in stem for c in '<>:"/\\|?*'):
+                problems.append(f"a forbidden character stayed in {stem!r}")
+        long_stem = ytdl.file_stem("x" * 300, "y" * 300)
+        if not long_stem.startswith("x" * ytdl.MAX_CHANNEL + " - y"):
+            problems.append(f"a long channel name should be cut so the title keeps room: {long_stem[:70]!r}")
+
+        # --- the preview (nothing is downloaded)
+        with as_profile("yta"):
+            before = dict(Fake.calls)
+            p = ytdl.preview(URL_A)
+            if (p["id"], p["title"], p["channel"], p["fileName"], p["size"], p["url"]) != (
+                    A, "Apa Kabar Syahrini", "Raditya Dika", "Raditya Dika - Apa Kabar Syahrini.mp4", 3_500_000, URL_A):
+                problems.append(f"preview: {p}")
+            if Fake.calls["download"] != before["download"]:
+                problems.append("a preview downloaded something")
+            if code_of(ytdl.preview, f"https://youtu.be/{LIVE}") != "live":
+                problems.append("a live stream should be refused with the 'live' code")
+            if code_of(ytdl.preview, "https://vimeo.com/1") != "not_youtube":
+                problems.append("the preview accepted a link that is not YouTube")
+
+        # --- the download: file, credit, link in the description
+        with as_profile("yta"):
+            r = ytdl.start(URL_A)
+            s = wait(r["id"])
+            name = "Raditya Dika - Apa Kabar Syahrini.mp4"
+            if s.get("state") != "done" or s.get("name") != name:
+                problems.append(f"the download did not finish as {name}: {s}")
+            f = paths.SOURCES / name
+            if not f.is_file() or f.read_bytes() != b"VIDEO " + URL_A.encode():
+                problems.append("the downloaded file is missing or wrong")
+            c = credits.load().get(name) or {}
+            want = {"platform": "YouTube", "creator": "Raditya Dika", "title": "Apa Kabar Syahrini",
+                    "url": URL_A, "videoId": A}
+            if {k: c.get(k) for k in want} != want or c.get("downloaded") != time.strftime("%Y-%m-%d"):
+                problems.append(f"the credit is not filled in as expected: {c}")
+            if (paths.SOURCES / ".ytdl").exists():
+                problems.append("the temporary folder was left behind after a finished download")
+            line = credits.line(c)
+            expect = f'Sumber: YouTube Raditya Dika — "Apa Kabar Syahrini" ({URL_A})'
+            if line != expect:
+                problems.append(f"the credit line changed: {line!r}")
+            # the same link, the same profile: no second download
+            n = Fake.calls["download"]
+            again = ytdl.start(URL_A)
+            if again.get("id") or again.get("name") != name or Fake.calls["download"] != n:
+                problems.append(f"the same video was downloaded again: {again}")
+            if ytdl.preview(URL_A)["inProfile"] != name:
+                problems.append("the preview does not say the video is already in this profile")
+            # editing the credit in Sources keeps which video it is
+            credits.save(name, {"platform": "YouTube", "creator": "Raditya", "title": "Apa Kabar", "url": URL_A})
+            if (credits.load().get(name) or {}).get("videoId") != A:
+                problems.append("editing the credit forgot the video id")
+            credits.save(name, {"platform": "YouTube", "creator": "Raditya Dika", "title": "Apa Kabar Syahrini", "url": URL_A})
+            # a DIFFERENT video with the same channel and title gets " (2)"
+            s2 = wait(ytdl.start(f"https://youtu.be/{B}")["id"])
+            if s2.get("name") != "Raditya Dika - Apa Kabar Syahrini (2).mp4":
+                problems.append(f"a name clash with a different video should end in (2): {s2.get('name')}")
+            # a file that was put there by hand under the wanted name is not taken for the video
+            (paths.SOURCES / "Chan nel - Odd title.mp4").write_bytes(b"mine")
+            Fake.infos[C] = mkinfo(C, "Chan: nel?", "Odd title")
+            s3 = wait(ytdl.start(f"https://youtu.be/{C}")["id"])
+            if s3.get("name") != "Chan nel - Odd title (2).mp4" or (paths.SOURCES / "Chan nel - Odd title.mp4").read_bytes() != b"mine":
+                problems.append(f"a file that was already there was replaced or not avoided: {s3.get('name')}")
+            # an existing credit is never overwritten
+            (paths.SOURCES / "hand.mp4").write_bytes(b"x")
+            credits.save("hand.mp4", {"platform": "TikTok", "creator": "Mine"})
+            if ytdl._put_credit("hand.mp4", {"platform": "YouTube", "creator": "Other", "videoId": A}):
+                problems.append("_put_credit reported writing over an existing credit")
+            if (credits.load().get("hand.mp4") or {}).get("creator") != "Mine":
+                problems.append("an existing credit was overwritten")
+
+            # the credit line with its link, in the description, in every hashtag placement
+            post = {"caption": "Cuplikan lucu.", "hashtags": ["#raditya", "#komedi", "#podcast"]}
+            desc = schedule.description(post, credits.lines([name]))
+            for placement in ht.PLACEMENTS:
+                for shorts in (False, True):
+                    plan = ht.plan("Judul Clip", desc, post["hashtags"],
+                                   {"placement": placement, "shorts": shorts, "titleTags": 3})
+                    if expect not in plan["description"]:
+                        problems.append(f"the credit line (with its link) is not in the description in '{placement}' mode")
+            brief = credits.brief_source(credits.load().get(name))
+            if brief != 'YouTube · Raditya Dika · "Apa Kabar Syahrini"':
+                problems.append(f"the brief names the source differently: {brief!r}")
+
+        # --- the same video in another profile: linked, credit copied, no download
+        with as_profile("ytb"):
+            n = Fake.calls["download"]
+            p = ytdl.preview(URL_A)
+            if p["inOtherProfile"] != "yta" or p["inProfile"]:
+                problems.append(f"the preview does not say another profile has it: {p}")
+            r = ytdl.start(URL_A)
+            if r.get("id") or r.get("copiedFrom") != "yta" or Fake.calls["download"] != n:
+                problems.append(f"another profile's copy was not used: {r}")
+            mine = paths.SOURCES / (r.get("name") or "none.mp4")
+            theirs = paths.profile_dir("yta") / "sources" / "Raditya Dika - Apa Kabar Syahrini.mp4"
+            if not mine.is_file() or mine.read_bytes() != theirs.read_bytes():
+                problems.append("the copied video is missing or wrong")
+            c = credits.load().get(mine.name) or {}
+            if c.get("url") != URL_A or c.get("videoId") != A or c.get("creator") != "Raditya Dika":
+                problems.append(f"the credit was not copied with the video: {c}")
+            mine.unlink()                                       # deleting here keeps the other profile's file
+            if not theirs.is_file():
+                problems.append("deleting the copy removed the other profile's video")
+
+        # --- cancel and failure clean up
+        with as_profile("ytb"):
+            Fake.cancel_mid = True
+            s = wait(ytdl.start(f"https://youtu.be/{D}")["id"])
+            Fake.cancel_mid = False
+            if s.get("state") != "cancelled":
+                problems.append(f"cancel did not end as cancelled: {s}")
+            left = [p.name for p in paths.SOURCES.iterdir() if p.name != "credits.json"]
+            if left or (paths.SOURCES / ".ytdl").exists():
+                problems.append(f"a cancelled download left files behind: {left}")
+            Fake.dl_error = RuntimeError("ERROR: [youtube] bbbbbbbbbbb: Private video. Sign in if you've been granted access")
+            s = wait(ytdl.start(f"https://youtu.be/{D}")["id"])
+            Fake.dl_error = None
+            if s.get("state") != "failed" or s.get("code") != "private":
+                problems.append(f"a failed download should say it is private: {s}")
+            if [p.name for p in paths.SOURCES.iterdir() if p.name != "credits.json"]:
+                problems.append("a failed download left files behind")
+            # an old leftover (the server died mid-download) is swept at the next start
+            (paths.SOURCES / ".ytdl" / "deadbeef").mkdir(parents=True)
+            (paths.SOURCES / ".ytdl" / "deadbeef" / "video.mp4.part").write_bytes(b"x")
+            ytdl.clean_stale()
+            if (paths.SOURCES / ".ytdl").exists():
+                problems.append("a stale temporary folder was not swept")
+            # no ffmpeg: said before anything starts
+            with mock.patch("klipian.ytdl.shutil.which", return_value=None):
+                if code_of(ytdl.start, f"https://youtu.be/{D}") != "no_ffmpeg":
+                    problems.append("no ffmpeg should be reported before the download starts")
+
+        # --- what yt-dlp says, as the person reads it
+        table = {
+            "ERROR: [youtube] x: Private video. Sign in": "private",
+            "ERROR: [youtube] x: Video unavailable. This video has been removed by the uploader": "removed",
+            "ERROR: [youtube] x: This video is not available": "removed",
+            "ERROR: [youtube] x: Sign in to confirm your age. This video may be inappropriate": "age",
+            "ERROR: [youtube] x: This video is available to this channel's members on level: Gold (members-only content)": "paywall",
+            "ERROR: [youtube] x: This live event will begin in 2 hours.": "live",
+            "ERROR: [youtube] x: Premieres in 3 days": "live",
+            "ERROR: Unable to download webpage: <urlopen error [Errno 11001] getaddrinfo failed>": "network",
+            "ERROR: unable to download video data: HTTP Error 403: Forbidden": "outdated",
+            "ERROR: [youtube] x: Sign in to confirm you\u2019re not a bot": "outdated",
+            "ERROR: [youtube] Requested format is not available": "outdated",
+            "ERROR: Postprocessing: ffprobe and ffmpeg not found": "no_ffmpeg",
+            "ERROR: Something nobody has seen before": "other",
+            "\x1b[0;31mERROR:\x1b[0m [youtube] x: Private video": "private",
+        }
+        for text, want in table.items():
+            got = ytdl.map_error(RuntimeError(text))
+            if got.code != want or not got.message or "\x1b" in got.message:
+                problems.append(f"'{text[:60]}' came out as {got.code}, wanted {want}")
+        if ytdl.map_error(ConnectionError("x")).code != "network":
+            problems.append("a ConnectionError is a network error")
+        with as_profile("yta"):
+            Fake.err = RuntimeError("ERROR: [youtube] x: Private video")
+            if code_of(ytdl.preview, f"https://youtu.be/{C}") != "private":
+                problems.append("an error from yt-dlp in the preview was not mapped")
+            Fake.err = None
+
+        # --- yt-dlp not installed
+        Fake.installed = False
+        with as_profile("yta"):
+            st = ytdl.status()
+            if st["installed"] or "pip install" not in st["command"] or "requirements-download.txt" not in st["command"]:
+                problems.append(f"the status should say yt-dlp is missing and how to install it: {st}")
+            if code_of(ytdl.start, f"https://youtu.be/{C}") != "missing":
+                problems.append("a download without yt-dlp should say it is missing")
+            if code_of(ytdl.preview, f"https://youtu.be/{C}") != "missing":
+                problems.append("a preview without yt-dlp should say it is missing")
+        Fake.installed = True
+        ytdl._net = real_net
+        if importlib.util.find_spec("yt_dlp") is None:
+            with as_profile("yta"):
+                if code_of(ytdl.preview, URL_A) != "missing":
+                    problems.append("the real network layer should report yt-dlp missing when it is not installed")
+        ytdl._net = Fake
+
+        # --- over HTTP (the Guest is allowed)
+        srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        port = srv.server_address[1]
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        quiet = contextlib.redirect_stderr(io.StringIO())
+        quiet.__enter__()
+
+        def call(method, path, profile=None, body=None):
+            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=30)
+            headers = {"Host": f"127.0.0.1:{port}"}
+            if profile:
+                headers["X-Klipian-Profile"] = profile
+            data = None
+            if body is not None:
+                data = json.dumps(body).encode()
+                headers["Content-Type"] = "application/json"
+            conn.request(method, path, body=data, headers=headers)
+            r = conn.getresponse()
+            raw = r.read()
+            conn.close()
+            try:
+                return r.status, json.loads(raw)
+            except ValueError:
+                return r.status, {}
+
+        try:
+            if call("GET", "/api/ytdl/status")[0] != 400:
+                problems.append("/api/ytdl/status without a profile should be refused")
+            st, j = call("GET", "/api/ytdl/status", "yta")
+            if st != 200 or not j.get("installed") or j.get("version") != "2099.01.01":
+                problems.append(f"/api/ytdl/status: {st} {j}")
+            st, j = call("POST", "/api/ytdl/preview", "yta", {"url": "https://vimeo.com/1"})
+            if st != 400 or j.get("code") != "not_youtube":
+                problems.append(f"a link that is not YouTube over HTTP: {st} {j}")
+            st, j = call("POST", "/api/ytdl/preview", paths.GUEST, {"url": f"https://youtu.be/{E}"})
+            if st != 200 or j.get("title") != "Guest video":
+                problems.append(f"the Guest could not preview: {st} {j}")
+            st, j = call("POST", "/api/ytdl/start", paths.GUEST, {"url": f"https://youtu.be/{E}"})
+            if st != 200 or not j.get("id"):
+                problems.append(f"the Guest could not start a download: {st} {j}")
+            else:
+                t0 = time.time()
+                s = {}
+                while time.time() - t0 < 15:
+                    st, s = call("GET", f"/api/ytdl/state?id={j['id']}", paths.GUEST)
+                    if s.get("state") in ("done", "failed", "cancelled"):
+                        break
+                    time.sleep(0.05)
+                if s.get("state") != "done":
+                    problems.append(f"the Guest's download: {s}")
+                elif not (paths.profile_dir(paths.GUEST) / "sources" / s["name"]).is_file() \
+                        or not credits.load(paths.profile_dir(paths.GUEST) / "sources").get(s["name"]):
+                    problems.append("the Guest's video or credit is not in the Guest's sources")
+                # another profile cannot read this job
+                if call("GET", f"/api/ytdl/state?id={j['id']}", "yta")[1].get("state") != "missing":
+                    problems.append("one profile can see another's download job")
+            if call("POST", "/api/ytdl/cancel", "yta", {"id": "nothing"})[1].get("state") != "missing":
+                problems.append("cancelling an unknown job should say it is missing")
+        finally:
+            quiet.__exit__(None, None, None)
+            srv.shutdown()
+    finally:
+        ytdl._net = real_net
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "names, credit with link in all hashtag modes, no second download, cancel/fail clean, errors, missing yt-dlp"
+
+
+CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl,
           "decode": check_decode, "render": check_render}
 
 

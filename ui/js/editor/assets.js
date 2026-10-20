@@ -358,6 +358,11 @@ async function addVideoFromDisk(file) {
 
 $("#addVideoBtn")?.addEventListener("click", () => { if (!videoUpload) $("#videoFileInput").click(); });
 $("#videoUploadCancel")?.addEventListener("click", () => videoUpload?.abort());
+// From a YouTube link (shared/ytdl.js): the download lands in the sources folder with its credit
+// filled in, and is added to this project like a file chosen from disk.
+$("#addYouTubeBtn")?.addEventListener("click", () => openYouTubeDialog({
+  onAdded: async (name) => { try { await addVideoToProject(name); } catch (err) { showToast?.(String(err.message || err)); } },
+}));
 $("#videoFileInput")?.addEventListener("change", async (e) => {
   const files = [...e.target.files];
   e.target.value = "";             // choosing the same file again must fire "change" again

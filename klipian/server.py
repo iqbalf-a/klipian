@@ -52,6 +52,7 @@ from .jobs import (ACTIVE_TRANSCRIBES, CANCELLED, JOBS, LOCK, MAX_JOBS, _clip_wo
 from . import hashtags as _hashtags_mod
 from . import paths as _paths
 from . import youtube as _youtube
+from . import ytdl as _ytdl
 from . import profiles as _profiles
 from . import buildid as _buildid  # noqa: F401  (STARTED is taken here, at start)
 from .paths import (ASSETS, CACHE_DIR, OUT_ROOT, ROOT, SOURCES, WORKSPACE, find_video,
@@ -585,6 +586,39 @@ class Handler(BaseHTTPRequestHandler):
         q = parse_qs(urlparse(self.path).query)
         return self._send_json(_youtube.connect_state((q.get("id") or [""])[0]))
 
+    # ---- Add from YouTube (ytdl.py; allowed for the Guest too) ----
+
+    def _ytdl_reply(self, fn):
+        try:
+            return self._send_json({"ok": True, **fn()})
+        except _ytdl.YtError as exc:
+            return self._send_json({"ok": False, "error": exc.message, "code": exc.code, **exc.extra}, 400)
+        except OSError as exc:
+            return self._send_json({"ok": False, "error": f"could not do that: {exc}", "code": "other"}, 500)
+
+    def _get_ytdl_status(self):
+        return self._ytdl_reply(_ytdl.status)
+
+    def _get_ytdl_state(self):
+        q = parse_qs(urlparse(self.path).query)
+        return self._send_json(_ytdl.state((q.get("id") or [""])[0]))
+
+    def _post_ytdl(self):
+        action = urlparse(self.path).path.rsplit("/", 1)[-1]
+        try:
+            req = self._read_json()
+        except Exception as exc:               # noqa: BLE001
+            return self._send_json({"error": str(exc)}, 400)
+        if action == "preview":
+            return self._ytdl_reply(lambda: _ytdl.preview(str(req.get("url") or "")))
+        if action == "start":
+            return self._ytdl_reply(lambda: _ytdl.start(str(req.get("url") or "")))
+        if action == "cancel":
+            return self._ytdl_reply(lambda: _ytdl.cancel(str(req.get("id") or "")))
+        if action == "update":
+            return self._ytdl_reply(lambda: {"id": _ytdl.start_update()})
+        return self._send_json({"error": "unknown action"}, 404)
+
     def _post_youtube(self):
         action = urlparse(self.path).path.rsplit("/", 1)[-1]
         try:
@@ -990,6 +1024,8 @@ class Handler(BaseHTTPRequestHandler):
         "/api/thumb": _get_thumb,
         "/api/version": _get_version,
         "/api/profiles": _get_profiles,
+        "/api/ytdl/status": _get_ytdl_status,
+        "/api/ytdl/state": _get_ytdl_state,
         "/api/youtube/status": _get_youtube_status,
         "/api/youtube/connect-state": _get_youtube_connect_state,
         "/api/youtube/upload-state": _get_youtube_upload_state,
@@ -1763,6 +1799,10 @@ class Handler(BaseHTTPRequestHandler):
     POST_ROUTES = {
         "/api/project": _post_project,
         "/api/project/restore": _post_project_restore,
+        "/api/ytdl/preview": _post_ytdl,
+        "/api/ytdl/start": _post_ytdl,
+        "/api/ytdl/cancel": _post_ytdl,
+        "/api/ytdl/update": _post_ytdl,
         "/api/youtube/client": _post_youtube,
         "/api/youtube/connect": _post_youtube,
         "/api/youtube/check": _post_youtube,

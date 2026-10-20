@@ -20,7 +20,10 @@ from pathlib import Path
 from .paths import SOURCES
 
 FIELDS = ("platform", "creator", "title", "url")
-_LIMITS = {"platform": 40, "creator": 80, "title": 200, "url": 500}
+# Kept with the credit but never part of the credit line: what "Add from YouTube" (ytdl.py)
+# records to recognise the same video later (its id) and when it came in.
+EXTRA = ("videoId", "downloaded")
+_LIMITS = {"platform": 40, "creator": 80, "title": 200, "url": 500, "videoId": 20, "downloaded": 20}
 
 
 def credits_file(folder: Path | None = None) -> Path:
@@ -33,7 +36,7 @@ def clean(entry) -> dict:
     out = {}
     if not isinstance(entry, dict):
         return out
-    for key in FIELDS:
+    for key in FIELDS + EXTRA:
         val = entry.get(key)
         if not isinstance(val, str):
             continue
@@ -70,6 +73,11 @@ def save(name: str, entry, folder: Path | None = None) -> dict[str, dict]:
     credits = load(folder)
     credit = clean(entry)
     if credit:
+        # editing the four fields in Sources must not forget which YouTube video this is
+        old = credits.get(name) or {}
+        for key in EXTRA:
+            if key not in credit and key in old:
+                credit[key] = old[key]
         credits[name] = credit
     else:
         credits.pop(name, None)

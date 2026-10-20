@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="/ui/css/app.css?v=1790703163808">
 <link rel="stylesheet" href="/ui/css/pager.css?v=1790703163808">
 <link rel="stylesheet" href="/ui/css/profiles.css?v=1790703163808">
+<link rel="stylesheet" href="/ui/css/ytdl.css?v=1790703163808">
 </head>
 <body>
 
@@ -275,6 +276,8 @@
             <!-- A video from anywhere on disk: copied into the profile's sources folder
                  (with progress), then added to this project. -->
             <button class="btn add-video-btn" id="addVideoBtn" type="button">Add video…</button>
+            <!-- A YouTube link: preview, then download into the sources folder (ytdl.js). -->
+            <button class="btn add-video-btn" id="addYouTubeBtn" type="button">From YouTube link…</button>
             <input type="file" id="videoFileInput" accept=".mp4,.mkv,.mov,.webm,video/*" multiple hidden>
           </div>
           <div class="upload-row" id="videoUploadRow" hidden>
@@ -1130,6 +1133,7 @@
 <script src="/ui/js/shared/pager.js?v=1790703163808"></script>
 <script src="/ui/js/shared/armed.js?v=1790703163808"></script>
 <script src="/ui/js/shared/hashtags.js?v=1790703163808"></script>
+<script src="/ui/js/shared/ytdl.js?v=1790703163808"></script>
 <script src="/ui/js/shared/version.js?v=1790703163808"></script>
 <script src="/ui/js/shared/profile-ui.js?v=1790703163808"></script>
 <script src="/ui/js/editor/app.js?v=1790703163808"></script>

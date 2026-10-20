@@ -1886,7 +1886,7 @@ Hasil audit ian/sesi analisis setelah profile, Guest, YouTube, dan hashtag:
   belum ada (tidak pernah menimpa), dan halaman menyebutnya. Selftest `profiles` memeriksa
   kasus disalin dan tidak ditimpa.
 
-### P22 — Add from YouTube: unduh source langsung di klipian
+### P22 — Add from YouTube: unduh source langsung di klipian (DIBANGUN 2026-10-20; uji nyata dengan yt-dlp menunggu ian)
 
 Permintaan ian (2026-10-20): "sepertinya sekarang sudah saatnya mengaktifkan
 fitur download youtube". ian sudah punya tool `D:\github-repos\youtube-downloader`

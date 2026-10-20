@@ -142,6 +142,8 @@ $("#sourceList")?.addEventListener("submit", async (e) => {
   }
 });
 
+$("#sourceYtBtn")?.addEventListener("click", () => openYouTubeDialog({ onAdded: () => loadSources() }));
+
 $("#sourceOpenBtn")?.addEventListener("click", async (e) => {
   const b = e.currentTarget;
   // The label is restored from data-label, not the visible text (same
