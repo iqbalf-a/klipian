@@ -1520,9 +1520,21 @@ workspace/
   dengan cadangan dan pengecekan sebelum dan sesudah, seperti saat rename
   video `Ibu-ibu .mp4`. Tautan render `/workspace/out/...` dibaca dari profile
   yang sedang dipakai, jadi data project lama tidak perlu ditulis ulang.
-- **Yang belum diputuskan:** apakah satu source boleh dipakai di dua
-  profile. Usulnya: source terpisah per profile, dan transkripnya diambil
-  dari cache bersama.
+- **Satu source boleh dipakai di beberapa profile** (keputusan ian
+  2026-10-20: antar profile tidak ada hubungan apa pun). Yang
+  berlaku:
+  - Setiap profile menyimpan source di `sources/`-nya sendiri, dengan
+    project, render, jadwal, dan kredit (`credits.json`) masing-masing.
+  - Tidak ada tautan, sinkron, atau peringatan "dipakai di profile lain".
+    Menghapus atau mengganti nama di satu profile tidak memengaruhi
+    profile lain.
+  - Transkrip, cue, dan thumbnail diambil dari `cache/` bersama, yang
+    kuncinya fingerprint video. Video yang sama di profile kedua langsung
+    siap tanpa transkripsi ulang.
+  - Hemat disk (opsional): Add video boleh membuat hardlink NTFS kalau file
+    identik sudah ada di profile lain pada drive yang sama. Hardlink tetap
+    dua nama yang berdiri sendiri, jadi menghapus satu tidak menghapus
+    yang lain. Kalau beda drive atau gagal, file disalin biasa.
 
 **Profile dipilih per tab, bukan per server.**
 - Hari ini `WORKSPACE` adalah konstanta yang disalin saat import:
