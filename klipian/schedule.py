@@ -16,10 +16,10 @@ import time
 import uuid
 from pathlib import Path
 
-from .paths import WORKSPACE
+from .paths import OUT_ROOT, SCHEDULE_DIR
 
-CLIPS_PATH = WORKSPACE / "schedule" / "clips.json"
-OUT_DIR = WORKSPACE / "out"
+CLIPS_PATH = SCHEDULE_DIR / "clips.json"
+OUT_DIR = OUT_ROOT
 
 # clips.json has its own lock rather than sharing the jobs LOCK. That one is
 # taken several times per SECOND while a transcription reports progress, so
@@ -166,7 +166,7 @@ def migrate_created(path: Path | None = None, lock: threading.Lock | None = None
         return from_file, from_at
 
 
-TRASH_PATH = WORKSPACE / "schedule" / "clips.trash.json"
+TRASH_PATH = SCHEDULE_DIR / "clips.trash.json"
 TRASH_KEEP = 200
 
 

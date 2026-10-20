@@ -18,11 +18,11 @@ import time
 import uuid
 from pathlib import Path
 
-from .paths import WORKSPACE
+from .paths import OUT_ROOT, PROJECTS_DIR
 
 # Projects are NOT served as static files. Their contents can only be
 # accessed via /api/project so file names don't become an attack surface.
-PROJECTS = WORKSPACE / "projects"
+PROJECTS = PROJECTS_DIR
 # Serialises every write into PROJECTS, so two requests (an autosave and a
 # migrate-on-read, say) never write the same file at once.
 # Re-entrant: the POST handler holds it while it calls helpers that take it too.
@@ -91,7 +91,7 @@ def _project_out_dir(data: dict) -> Path:
     have open in a player, or split one project's renders across two
     folders (ian's call on the plan's open question)."""
     slug = data.get("outSlug") or _slug(data.get("name") or Path(_primary_video(data)).stem)
-    return WORKSPACE / "out" / f"{slug}.{_project_id(data)}"
+    return OUT_ROOT / f"{slug}.{_project_id(data)}"
 
 
 def _migrate_project(data: dict) -> tuple[dict, bool]:

@@ -198,7 +198,7 @@ function captionStyle() {
    defaults, forcing you to re-select watermark size/position/opacity every
    time a new video is dropped, when people usually want the same style as
    their previous project. */
-const PRESET_CAPTION_KEY = "klipian:preset-caption";
+const PRESET_CAPTION_KEY = profileKey("klipian:preset-caption");
 
 /* Keyed by id, not a positional array of indices like it used to be. Two
    reasons: sliders store a VALUE, not an index into a choice list, and the

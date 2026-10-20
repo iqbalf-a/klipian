@@ -22,7 +22,7 @@ from .models import Transcript
 from . import compose as composer
 from . import render as engine
 from . import roundtrip
-from .paths import GLOSSARY, WORKSPACE, find_video, safe_dirname
+from .paths import CACHE_DIR, GLOSSARY, OUT_ROOT, current_profile, find_video, safe_dirname
 from .projects import (_project_assets_dir, _project_file,
                        _project_out_dir, _read_project, read_render_records,
                        write_render_record)
@@ -143,7 +143,7 @@ def _load_transcript_words(video: Path, t: dict) -> list:
     per source video instead of once for the whole job."""
     words = []
     try:
-        cache = Cache(WORKSPACE / "cache")
+        cache = Cache(CACHE_DIR)
         path = cache.find_transcript(video)
         if path and path.exists():
             words = Transcript.load(path).words
@@ -219,7 +219,7 @@ def _run_render(job_id: str, req: dict, into: Path | None = None, record: bool =
         # A project that somehow can't be read still renders -- into the
         # old video-stem folder -- rather than failing the job over a
         # folder name.
-        out_dir = WORKSPACE / "out" / safe_dirname(video.stem)
+        out_dir = OUT_ROOT / safe_dirname(video.stem)
         # By the project's id, which the editor always sends.
         pf = _project_file(req.get("project"))
         pdata = _read_project(pf) if pf and pf.is_file() else None
@@ -418,7 +418,8 @@ def _out_url(out_dir: Path, name: str) -> str:
     """Where the page can fetch a render from; empty for a folder outside out/
     (a replay's temporary one)."""
     try:
-        return f"/workspace/out/{out_dir.relative_to(WORKSPACE / 'out').as_posix()}/{name}"
+        # ?profile=: a <video> or <a> cannot send the profile header the API calls do
+        return f"/workspace/out/{out_dir.relative_to(OUT_ROOT).as_posix()}/{name}?profile={current_profile()}"
     except ValueError:
         return ""
 
@@ -595,7 +596,7 @@ def _run_transcribe(job_id: str, req: dict) -> None:
             raise FileNotFoundError(
                 f"{req['video']} is not in sources/.")
 
-        cache = Cache(WORKSPACE / "cache")
+        cache = Cache(CACHE_DIR)
 
         # Audio cues (laughter, applause, shouts, music): once per video, and
         # BEFORE the transcript cache-hit path below, so a video that already
@@ -724,7 +725,7 @@ def _run_transcribe(job_id: str, req: dict) -> None:
             if ACTIVE_TRANSCRIBES.get(name) == job_id:
                 ACTIVE_TRANSCRIBES.pop(name, None)
         try:
-            for leftover in (WORKSPACE / "cache").glob(f"*.{job_id}.wav"):
+            for leftover in CACHE_DIR.glob(f"*.{job_id}.wav"):
                 leftover.unlink(missing_ok=True)       # temp wav is never left behind
         except Exception:                          # noqa: BLE001
             pass
@@ -781,7 +782,7 @@ def _run_diarize(job_id: str, req: dict) -> None:
         if end <= start:
             raise ValueError("Invalid time range.")
 
-        cache = Cache(WORKSPACE / "cache")
+        cache = Cache(CACHE_DIR)
         path = cache.diarize_path(video, start, end)
         if path.exists() and not req.get("force"):
             turns = json.loads(path.read_text(encoding="utf-8"))

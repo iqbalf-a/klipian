@@ -300,7 +300,8 @@ def check_http() -> tuple[str, str]:
     def call(method, path, headers=None, body=None):
         conn = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
         conn.putrequest(method, path, skip_host=True, skip_accept_encoding=True)
-        for k, v in {"Host": own, **(headers or {})}.items():
+        # every API call names its profile (a call without one is refused: see check_profiles)
+        for k, v in {"Host": own, "X-Klipian-Profile": "selftest", **(headers or {})}.items():
             if v is not None:
                 conn.putheader(k, v)
         if body is not None:
@@ -555,11 +556,11 @@ def check_fingerprint() -> tuple[str, str]:
 # --------------------------------------------------------------------------
 
 def check_decode() -> tuple[str, str]:
-    from .paths import WORKSPACE
+    from .paths import SOURCES
 
-    videos = sorted((p for p in (WORKSPACE / "sources").glob("*")
+    videos = sorted((p for p in SOURCES.glob("*")
                      if p.suffix.lower() in {".mp4", ".mkv", ".mov", ".webm"}),
-                    key=lambda p: p.stat().st_size) if (WORKSPACE / "sources").is_dir() else []
+                    key=lambda p: p.stat().st_size) if SOURCES.is_dir() else []
     if not videos:
         return SKIP, "no source video in workspace/sources/"
     try:
@@ -751,23 +752,246 @@ def promote(project_id: str, result_id: str, name: str) -> int:
     return 0
 
 
-CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "decode": check_decode,
-          "render": check_render}
+
+# --------------------------------------------------------------------------
+# a scratch workspace for every check
+# --------------------------------------------------------------------------
+
+import contextlib
+
+
+def _real_find(name: str) -> Path | None:
+    """A source video on THIS machine, wherever the real workspace keeps it (in a
+    profile's sources/, or straight under workspace/sources/ before profiles)."""
+    from . import paths
+    real = paths.DEFAULT_WORKSPACE
+    for cand in [*real.glob("profiles/*/sources/" + name), real / "sources" / name]:
+        if cand.is_file():
+            return cand
+    return None
+
+
+def _real_project_assets(pid: str) -> Path | None:
+    from . import paths
+    real = paths.DEFAULT_WORKSPACE
+    for cand in [*real.glob(f"profiles/*/projects/{pid}/assets"), real / "projects" / pid / "assets"]:
+        if cand.is_dir():
+            return cand
+    return None
+
+
+@contextlib.contextmanager
+def scratch_workspace():
+    """Run the checks in a throwaway workspace with one profile ("selftest"), never in
+    the real one: nothing a check writes can reach a person's data, and the checks do
+    not depend on whether the real workspace has been moved to profiles yet. The source
+    videos and project assets the baselines need are LINKED in (same drive: a hardlink,
+    no copy), else copied. The folder is inside workspace/ (ignored by git) for that."""
+    import os
+    from . import paths, profiles
+
+    real = paths.DEFAULT_WORKSPACE
+    real.mkdir(parents=True, exist_ok=True)
+    tmp = Path(tempfile.mkdtemp(prefix=".selftest-", dir=real))
+    paths.use_workspace(tmp)
+    token = paths.set_profile("selftest")
+    profiles.write_meta("selftest", {"name": "selftest", "color": "#888888"})
+    profiles.ensure_dirs("selftest")
+
+    def bring(src: Path, dst: Path) -> None:
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            os.link(src, dst)
+        except OSError:
+            shutil.copy2(src, dst)
+
+    try:
+        for base in _baselines():
+            req = _load(base / "request.json")
+            names = {req.get("video")}
+            for k in req.get("clips", []):
+                names.update(p.get("video") for p in k.get("spans", []) if isinstance(p, dict))
+            for n in sorted(x for x in names if x):
+                src = _real_find(n)
+                if src and not (paths.SOURCES / n).exists():
+                    bring(src, paths.SOURCES / n)
+            pid = req.get("project")
+            assets = _real_project_assets(pid) if pid else None
+            if assets:
+                for f in assets.iterdir():
+                    if f.is_file():
+                        bring(f, paths.PROJECTS_DIR / pid / "assets" / f.name)
+        yield tmp
+    finally:
+        paths._profile.reset(token)
+        paths.use_workspace(None)
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+# --------------------------------------------------------------------------
+# check: profiles
+# --------------------------------------------------------------------------
+
+def check_profiles() -> tuple[str, str]:
+    """Two profiles never see each other's projects, schedule rows, renders, sources or
+    assets; a request with no profile is refused; and a job started in one profile keeps
+    writing to it after the tab has switched to another."""
+    import http.client
+    import threading
+    import contextlib
+    import io
+    from http.server import ThreadingHTTPServer
+    from . import paths, profiles, schedule
+    from .projects import PROJECTS, _write_project, _all_projects
+    from .server import Handler
+
+    problems = []
+    for pid in ("alpha", "beta"):
+        profiles.write_meta(pid, {"name": pid, "color": "#123456"})
+        profiles.ensure_dirs(pid)
+
+    # --- the file layer: what each profile holds
+    pid_proj = "0123456789ab"
+    tok = paths.set_profile("alpha")
+    try:
+        _write_project(PROJECTS / f"{pid_proj}.json", {"id": pid_proj, "name": "A", "assets": []})
+        schedule.add_file_row("Satu", "satu.mp4", pid_proj)
+        (paths.OUT_ROOT / f"a.{pid_proj}").mkdir(parents=True)
+        (paths.OUT_ROOT / f"a.{pid_proj}" / "satu.mp4").write_bytes(b"x")
+        (paths.ASSETS / "logo.png").write_bytes(b"x")
+        (paths.SOURCES / "only-alpha.mp4").write_bytes(b"x")
+    finally:
+        paths._profile.reset(tok)
+    tok = paths.set_profile("beta")
+    try:
+        seen = {"projects": len(_all_projects()), "rows": len(schedule.load_clips()),
+                "renders": len(list(paths.OUT_ROOT.glob("*/*"))), "assets": len(list(paths.ASSETS.glob("*"))),
+                "sources": len(list(paths.SOURCES.glob("*")))}
+        if any(seen.values()):
+            problems.append(f"beta can see alpha's data: {seen}")
+        if paths.find_video("only-alpha.mp4"):
+            problems.append("beta finds a source video that is alpha's")
+    finally:
+        paths._profile.reset(tok)
+    tok = paths.set_profile("alpha")
+    try:
+        if len(_all_projects()) != 1 or len(schedule.load_clips()) != 1:
+            problems.append("alpha lost its own data")
+    finally:
+        paths._profile.reset(tok)
+
+    # --- over HTTP, with the real handler
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    port = srv.server_address[1]
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    quiet = contextlib.redirect_stderr(io.StringIO())
+    quiet.__enter__()
+
+    def call(method, path, profile=None, body=None):
+        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=60)
+        headers = {"Host": f"127.0.0.1:{port}"}
+        if profile:
+            headers["X-Klipian-Profile"] = profile
+        data = None
+        if body is not None:
+            data = json.dumps(body).encode()
+            headers["Content-Type"] = "application/json"
+        conn.request(method, path, body=data, headers=headers)
+        r = conn.getresponse()
+        raw = r.read()
+        conn.close()
+        try:
+            return r.status, json.loads(raw)
+        except ValueError:
+            return r.status, raw
+
+    try:
+        st, _ = call("GET", "/api/workspace/clips")
+        if st != 400:
+            problems.append(f"a call with no profile was answered {st}, not 400")
+        st, _ = call("GET", "/api/workspace/clips", "nosuch")
+        if st != 404:
+            problems.append(f"a call for a profile that does not exist was answered {st}, not 404")
+        st, a = call("GET", "/api/workspace/clips", "alpha")
+        st2, b = call("GET", "/api/workspace/clips", "beta")
+        if st != 200 or st2 != 200 or len(a["clip"]) != 1 or b["clip"]:
+            problems.append(f"schedule over HTTP is not separate per profile: {a} / {b}")
+        st, p = call("GET", "/api/projects", "beta")
+        if st != 200 or p.get("project"):
+            problems.append(f"beta lists alpha's projects over HTTP: {p}")
+        if call("GET", "/workspace/sources/only-alpha.mp4?profile=alpha")[0] != 200 \
+                or call("GET", "/workspace/sources/only-alpha.mp4?profile=beta")[0] != 404:
+            problems.append("a source is served outside its own profile")
+        if call("GET", "/workspace/sources/only-alpha.mp4")[0] != 400:
+            problems.append("a media URL with no profile was not refused")
+        if call("GET", "/api/profiles")[0] != 200 or call("GET", "/api/version")[0] != 200:
+            problems.append("the profile list and the version check must need no profile")
+
+        # --- a job keeps its profile when the tab switches
+        src = paths.DEFAULT_WORKSPACE
+        have = (paths.profile_dir("selftest") / "sources")
+        video = next((p.name for p in have.glob("*.mp4")), None) if have.is_dir() else None
+        if video:
+            # the baselines' videos were staged into the "selftest" profile; give alpha one
+            tok = paths.set_profile("alpha")
+            try:
+                try:
+                    os_link = __import__("os").link
+                    os_link(have / video, paths.SOURCES / video)
+                except OSError:
+                    shutil.copy2(have / video, paths.SOURCES / video)
+            finally:
+                paths._profile.reset(tok)
+            clip = {"title": "Switch Test", "spans": [{"start": 1.0, "end": 2.5}], "width": 360, "quality": 35}
+            st, j = call("POST", "/api/render", "alpha", {"video": video, "clips": [clip]})
+            if st != 200:
+                problems.append(f"could not start a render: {st} {j}")
+            else:
+                # "the tab switches to beta" while the job runs
+                done = None
+                t0 = time.time()
+                while time.time() - t0 < 120:
+                    call("GET", "/api/workspace/clips", "beta")
+                    st, s = call("GET", f"/api/render/{j['id']}", "beta")
+                    if s.get("state") in ("done", "failed", "cancelled"):
+                        done = s
+                        break
+                    time.sleep(0.4)
+                if not done or done.get("state") != "done":
+                    problems.append(f"the render did not finish: {done and done.get('error')}")
+                else:
+                    in_alpha = list(paths.profile_dir("alpha").glob("out/*/Switch-Test.mp4"))
+                    in_beta = list(paths.profile_dir("beta").glob("out/*/*.mp4"))
+                    if not in_alpha or in_beta:
+                        problems.append(f"the job wrote to the wrong profile: alpha {len(in_alpha)}, beta {len(in_beta)}")
+                    if "profile=alpha" not in (done["result"][0].get("url") or ""):
+                        problems.append(f"the render's URL does not name its profile: {done['result'][0].get('url')}")
+    finally:
+        srv.shutdown()
+        quiet.__exit__(None, None, None)
+
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "projects, schedule, renders, sources and assets stay in their own profile; a job keeps its profile"
+
+CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles,
+          "decode": check_decode, "render": check_render}
 
 
 def run(only: list[str] | None = None, write_expected: bool = False) -> int:
     names = only or list(CHECKS)
     failed = False
     print()
-    for name in names:
-        print(f"  {name:<8} ", end="", flush=True)
-        try:
-            status, detail = (check_migrate(write_expected) if name == "migrate"
-                              else CHECKS[name]())
-        except Exception as exc:                   # noqa: BLE001
-            status, detail = FAIL, f"raised {type(exc).__name__}: {exc}"
-        print(f"{status}  {detail}")
-        failed = failed or status == FAIL
+    with scratch_workspace():
+        for name in names:
+            print(f"  {name:<8} ", end="", flush=True)
+            try:
+                status, detail = (check_migrate(write_expected) if name == "migrate"
+                                  else CHECKS[name]())
+            except Exception as exc:               # noqa: BLE001
+                status, detail = FAIL, f"raised {type(exc).__name__}: {exc}"
+            print(f"{status}  {detail}")
+            failed = failed or status == FAIL
     print()
     print("selftest FAILED" if failed else "selftest ok")
     print()

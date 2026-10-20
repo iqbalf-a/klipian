@@ -17,14 +17,14 @@ import json
 import os
 from pathlib import Path
 
-from .paths import WORKSPACE
+from .paths import SOURCES
 
 FIELDS = ("platform", "creator", "title", "url")
 _LIMITS = {"platform": 40, "creator": 80, "title": 200, "url": 500}
 
 
 def credits_file(folder: Path | None = None) -> Path:
-    return (folder or WORKSPACE / "sources") / "credits.json"
+    return (folder or SOURCES) / "credits.json"
 
 
 def clean(entry) -> dict:
@@ -47,7 +47,7 @@ def clean(entry) -> dict:
 
 def load(folder: Path | None = None) -> dict[str, dict]:
     """{file name: credit}, for the files that are still in the folder."""
-    folder = folder or WORKSPACE / "sources"
+    folder = folder or SOURCES
     try:
         data = json.loads(credits_file(folder).read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -66,7 +66,7 @@ def save(name: str, entry, folder: Path | None = None) -> dict[str, dict]:
     """Set (or, with nothing in it, remove) the credit of one video, and drop
     the credits of videos that are no longer in the folder. Written to a temp
     file and renamed, like every other file the server writes."""
-    folder = folder or WORKSPACE / "sources"
+    folder = folder or SOURCES
     credits = load(folder)
     credit = clean(entry)
     if credit:

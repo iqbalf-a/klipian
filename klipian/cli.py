@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import time
 from pathlib import Path
@@ -15,11 +16,11 @@ from .models import Transcript, fmt_duration
 from .transcribe import (DEFAULT_MODEL, DEFAULT_THREADS, MODELS, WhisperMissing,
                          transcribe)
 from . import credits, cues, roundtrip
-from .paths import GLOSSARY, safe_dirname
+from .paths import CACHE_DIR, GLOSSARY, OUT_ROOT, safe_dirname
 
 ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_CACHE = ROOT / "workspace" / "cache"
-DEFAULT_OUT = ROOT / "workspace" / "out"
+DEFAULT_CACHE = CACHE_DIR       # shared by every profile
+DEFAULT_OUT = OUT_ROOT          # the profile of $KLIPIAN_PROFILE (default "podcast")
 DEFAULT_GLOSSARY = GLOSSARY
 RUBRICS = roundtrip.RUBRICS
 
@@ -536,6 +537,9 @@ def build_parser() -> argparse.ArgumentParser:
         description="Cut long podcasts into vertical 9:16 clips ready to post.",
     )
     p.add_argument("--version", action="version", version=f"klipian {__version__}")
+    p.add_argument("--profile", metavar="ID", default=None,
+                   help="the profile whose sources, projects and out/ to use "
+                        "(default: $KLIPIAN_PROFILE, else podcast)")
     sub = p.add_subparsers(dest="command", required=True)
 
     common = argparse.ArgumentParser(add_help=False)
@@ -625,6 +629,11 @@ def build_parser() -> argparse.ArgumentParser:
                         help="instead of --top: the cues within 1 s of these times")
     s_cues.set_defaults(func=cmd_cues)
 
+    s_mig = sub.add_parser("migrate-profiles",
+                           help="move the workspace into profiles/podcast/ (once; backed up and checked)")
+    s_mig.add_argument("--force", action="store_true", help="even if a server seems to be running")
+    s_mig.set_defaults(func=cmd_migrate_profiles)
+
     s_serve = sub.add_parser("serve", help="run the UI with real rendering")
     s_serve.add_argument("--port", type=int, default=5177)
     s_serve.set_defaults(func=cmd_serve)
@@ -639,9 +648,50 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def cmd_migrate_profiles(args) -> int:
+    """Move the workspace as it was before profiles into profiles/podcast/ (the server
+    does this by itself when it starts; this is the same thing on demand)."""
+    from . import profiles
+    if not args.force and profiles.legacy_present() and _server_running():
+        print("\nA klipian server is running. Stop it (Ctrl+C in its window) and run this again.\n",
+              file=sys.stderr)
+        return 1
+    report = profiles.migrate_legacy(force=args.force)
+    if report["state"] == "nothing":
+        print("\nNothing to move: the workspace is already organised in profiles.\n")
+    return 0 if report["state"] in ("nothing", "migrated") else 1
+
+
+def _server_running() -> bool:
+    """Is a klipian server answering on one of the usual ports?"""
+    import json as _json
+    import urllib.request
+    for port in (5177, 5178, 5179, 5180):
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/version", timeout=0.6) as r:
+                if "running" in _json.loads(r.read() or b"{}"):
+                    return True
+        except Exception:                          # noqa: BLE001
+            continue
+    return False
+
+
 def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    # --profile names the profile BEFORE the parser builds the default folders.
+    for i, a in enumerate(argv):
+        if a == "--profile" and i + 1 < len(argv):
+            os.environ["KLIPIAN_PROFILE"] = argv[i + 1]
+        elif a.startswith("--profile="):
+            os.environ["KLIPIAN_PROFILE"] = a.split("=", 1)[1]
     args = build_parser().parse_args(argv)
     try:
+        from . import profiles
+        # (the selftest works in a scratch workspace of its own, and serve migrates itself)
+        if args.command not in ("migrate-profiles", "serve", "selftest") and profiles.legacy_present():
+            print("\nThis workspace has not been moved into profiles yet. Stop any running "
+                  "server, then run:\n\n  python -m klipian migrate-profiles\n", file=sys.stderr)
+            return 1
         return args.func(args)
     except (FFmpegMissing, WhisperMissing) as exc:
         print(f"\n{exc}\n", file=sys.stderr)

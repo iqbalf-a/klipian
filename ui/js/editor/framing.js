@@ -578,9 +578,9 @@ function renderFraming() {
       // The point's own video and second -- not the active one's.
       const fr = toReal(f.at);
       const thumbUrl = f.crops?.[0] && fr.file
-        ? `/api/thumb?video=${encodeURIComponent(fr.file)}&t=${fr.t}`
+        ? profileUrl(`/api/thumb?video=${encodeURIComponent(fr.file)}&t=${fr.t}`
           + `&left=${f.crops[0].left}&top=${f.crops[0].top}`
-          + `&width=${f.crops[0].width}&height=${f.crops[0].height}&w=96`
+          + `&width=${f.crops[0].width}&height=${f.crops[0].height}&w=96`)
         : "";
       return `
       <div class="fr-point${f === active ? " fr-active" : ""}"

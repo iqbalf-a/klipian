@@ -80,7 +80,7 @@ function assetUrl(a) {
   // and only while it's the active one (a project from before the drop
   // zone went away can still be holding one).
   if (a.id === activeAssetId && chosenSource?.url && chosenSource.name === a.file) return chosenSource.url;
-  return `/workspace/sources/${encodeURIComponent(a.file)}`;
+  return profileUrl(`/workspace/sources/${encodeURIComponent(a.file)}`);
 }
 
 function assetTranscript(id) {
@@ -218,7 +218,7 @@ async function setActiveAsset(id) {
   ASSET_CANDIDATES[activeAssetId] = (typeof DATA !== "undefined" ? DATA.candidates : []) || [];
   activeAssetId = id;
   if (chosenSource?.url?.startsWith("blob:")) URL.revokeObjectURL(chosenSource.url);
-  chosenSource = { kind: "file", name: a.file, url: `/workspace/sources/${encodeURIComponent(a.file)}` };
+  chosenSource = { kind: "file", name: a.file, url: profileUrl(`/workspace/sources/${encodeURIComponent(a.file)}`) };
   // ...and bring in the incoming one's. Fetched if it was never loaded.
   realTranscript = ASSET_TRANSCRIPTS[id] ?? (await findTranscript(a.file).catch(() => null));
   ASSET_TRANSCRIPTS[id] = realTranscript;
@@ -291,6 +291,7 @@ function uploadVideo(file, paint) {
     const t0 = performance.now();
     xhr.open("POST", `/api/video-upload?name=${encodeURIComponent(file.name)}`);
     xhr.setRequestHeader("Content-Type", "application/octet-stream");
+    xhr.setRequestHeader("X-Klipian-Profile", PROFILE);
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) paint(e.loaded, e.total, (performance.now() - t0) / 1000);
     };
@@ -462,7 +463,7 @@ function mediaUseCount(file) {
    is only a place to IMPORT from: importing copies the file in, so the
    project keeps working however the shared file changes later. */
 const projectMediaUrl = (file) =>
-  `/api/project-asset-file?id=${encodeURIComponent(activeProjectId || "")}&name=${encodeURIComponent(file)}`;
+  profileUrl(`/api/project-asset-file?id=${encodeURIComponent(activeProjectId || "")}&name=${encodeURIComponent(file)}`);
 
 /* Uploads and imports need the project's folder, which needs an id -- a
    project that has never been saved gets one now. */
@@ -621,7 +622,7 @@ async function addVideoToProject(file) {
   }
   primaryVideo = file;
   activeAssetId = a.id;
-  chosenSource = { kind: "file", name: file, url: `/workspace/sources/${encodeURIComponent(file)}` };
+  chosenSource = { kind: "file", name: file, url: profileUrl(`/workspace/sources/${encodeURIComponent(file)}`) };
   realTranscript = tr;
   ASSET_TRANSCRIPTS[a.id] = tr;
   if (typeof DATA !== "undefined") DATA.candidates = [];

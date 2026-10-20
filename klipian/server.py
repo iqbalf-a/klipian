@@ -17,6 +17,7 @@ the network.
 
 from __future__ import annotations
 
+import contextvars
 import importlib
 import json
 import mimetypes
@@ -47,8 +48,11 @@ from . import roundtrip
 from .jobs import (ACTIVE_TRANSCRIBES, CANCELLED, JOBS, LOCK, MAX_JOBS, _clip_words,
                    _register_job, _run_diarize, _run_render, _run_transcribe,
                    _spans_from_clip)
+from . import paths as _paths
+from . import profiles as _profiles
 from . import buildid as _buildid  # noqa: F401  (STARTED is taken here, at start)
-from .paths import ROOT, WORKSPACE, find_video, safe_dirname
+from .paths import (ASSETS, CACHE_DIR, OUT_ROOT, ROOT, SOURCES, WORKSPACE, find_video,
+                    safe_dirname)
 from .projects import (PROJECTS, PROJECTS_LOCK, _all_projects,
                        _free_name, _migrate_project, _new_project_id, _primary_video,
                        _project_assets_dir, _project_file, _project_summary,
@@ -81,7 +85,7 @@ WORKSPACE_SERVED = ("sources", "out", "cache")
 # render flow, and deliberately NOT static files, same as projects/ above.
 # (The schedule file and its lock live in schedule.py: a finished render adds
 # its row there too.)
-ASSETS_DIR = WORKSPACE / "assets"
+ASSETS_DIR = ASSETS
 # Quick preview (/api/preview): how many seconds of the clip are actually
 # rendered through ffmpeg, with the EXACT SAME caption+watermark filters
 # as the full render -- not just a CSS preview in the browser, which once
@@ -169,7 +173,7 @@ def _thumbnail(video: Path, seconds: float, crop: dict, width: int,
     # crop -- a stale thumbnail that looked like the drag hadn't worked.
     # In cache/, not out/: these are throwaway pictures, and out/ is for what
     # was rendered (History and /workspace both list it).
-    dest = WORKSPACE / "cache" / "thumbs" / safe_dirname(video.stem) / (
+    dest = CACHE_DIR / "thumbs" / safe_dirname(video.stem) / (
         f"{int(seconds * 10)}-{int(crop['left'])}-{int(crop['top'])}"
         f"-{int(crop['width'])}-{int(crop['height'])}-{width}"
         + ("" if picture == "9:16" else
@@ -232,8 +236,8 @@ def _thumbnail(video: Path, seconds: float, crop: dict, width: int,
 def _transcript_for(name: str) -> Transcript | None:
     """The transcript for a video by file name (Cache.find_transcript), for
     the endpoints that work from what the page knows: a name, not a path."""
-    video = find_video(name) or WORKSPACE / "sources" / Path(name).name
-    path = Cache(WORKSPACE / "cache").find_transcript(video)
+    video = find_video(name) or SOURCES / Path(name).name
+    path = Cache(CACHE_DIR).find_transcript(video)
     return Transcript.load(path) if path else None
 
 
@@ -268,7 +272,7 @@ def _fill_candidate_cues(data: dict) -> None:
     the editor writes them with its next real save. Only when the sound
     detection has run for that video: a list without the sounds would be
     stored as if it were complete."""
-    cache = Cache(WORKSPACE / "cache")
+    cache = Cache(CACHE_DIR)
     files = {a.get("id"): a.get("file") for a in data.get("assets") or []
              if isinstance(a, dict) and (a.get("kind") or "video") == "video"}
     loaded: dict[str, dict | None] = {}
@@ -322,7 +326,7 @@ def _same_video(name: str, size: int) -> str | None:
     earlier upload of a DIFFERENT file under the same name was given (see
     _free_name). One video then serves any number of projects, and uploading
     it again doesn't pile up copies."""
-    folder = WORKSPACE / "sources"
+    folder = SOURCES
     stem, ext = Path(name).stem, Path(name).suffix
     i = 1
     while True:
@@ -414,6 +418,30 @@ class Handler(BaseHTTPRequestHandler):
             if path not in RAW_UPLOADS and ctype != "application/json":
                 self._refuse("send this as application/json", 415)
                 return False
+        return self._set_profile()
+
+    # Pages, the profile list and the version check need no profile. Everything else
+    # does, and says which: a tab from before profiles (or one whose profile was
+    # deleted) fails loudly instead of writing into the wrong profile.
+    def _set_profile(self) -> bool:
+        parsed = urlparse(self.path)
+        path = unquote(parsed.path)
+        _paths.set_profile(None)               # this thread served another request before
+        parts = [p for p in path.split("/") if p]
+        media = len(parts) >= 2 and parts[0] == "workspace" and parts[1] in ("sources", "out")
+        if not path.startswith("/api/") and not media:
+            return True
+        if path.startswith("/api/profiles") or path == "/api/version":
+            return True
+        pid = (self.headers.get("X-Klipian-Profile")
+               or (parse_qs(parsed.query).get("profile") or [""])[0])
+        if not pid:
+            self._send_json({"error": "no profile selected: reload the page", "needProfile": True}, 400)
+            return False
+        if not _paths.valid_profile_id(pid) or not _profiles.exists(pid):
+            self._send_json({"error": "that profile does not exist: reload the page", "needProfile": True}, 404)
+            return False
+        _paths.set_profile(pid)
         return True
 
     def _send_text(self, text: str, mime: str, status=200):
@@ -523,12 +551,17 @@ class Handler(BaseHTTPRequestHandler):
         return self._send_json({"running": buildid.STARTED, "disk": disk,
                                 "stale": buildid.STARTED != disk})
 
+    def _get_profiles(self):
+        """The profiles to pick from, and the Guest. Names and colours only."""
+        return self._send_json({"profile": _profiles.list_profiles(),
+                                "guest": _profiles.read_meta(_paths.GUEST)})
+
     def _get_history(self):
         # History is read from the out/ folder contents, not session
         # memory: files that actually exist on disk are the honest
         # history, and persist across page reloads or server restarts.
         item = []
-        for mp4 in (WORKSPACE / "out").glob("*/*.mp4"):
+        for mp4 in OUT_ROOT.glob("*/*.mp4"):
             # Quick previews are not renders (they live in cache/previews/),
             # but the leading-underscore check also hides the _preview.mp4
             # files older builds left in out/ -- those used to appear in
@@ -543,7 +576,7 @@ class Handler(BaseHTTPRequestHandler):
                 "file": mp4.name,
                 "video": mp4.parent.name,
                 "folder": str(mp4.parent),
-                "url": f"/workspace/out/{mp4.parent.name}/{mp4.name}",
+                "url": f"/workspace/out/{mp4.parent.name}/{mp4.name}?profile={_paths.current_profile()}",
                 "mb": round(st.st_size / 1048576, 1),
                 "at": int(st.st_mtime),
                 # When the file was made (the modified time where the system
@@ -637,9 +670,9 @@ class Handler(BaseHTTPRequestHandler):
         """The raw videos in workspace/sources/ for the dashboard: size,
         length, when each came in, whether it has a transcript, and which
         projects use it (so a video nothing uses is easy to see)."""
-        folder = WORKSPACE / "sources"
+        folder = SOURCES
         folder.mkdir(parents=True, exist_ok=True)
-        cache = Cache(WORKSPACE / "cache")
+        cache = Cache(CACHE_DIR)
         credit = credits_mod.load(folder)
         used: dict[str, list[dict]] = {}
         for f, data in _all_projects():
@@ -737,15 +770,15 @@ class Handler(BaseHTTPRequestHandler):
         # UI needs to know which transcripts are available. This server
         # doesn't generate HTML directory listings like http.server, so
         # a dedicated endpoint is provided.
-        file = sorted(p.name for p in (WORKSPACE / "cache").glob("*.transcript.json"))
+        file = sorted(p.name for p in CACHE_DIR.glob("*.transcript.json"))
         return self._send_json({"transcript": file})
 
     def _get_transcript(self):
         """The transcript the page works from, as the file holds it."""
         q = parse_qs(urlparse(self.path).query)
         name = q.get("video", [""])[0]
-        video = find_video(name) or WORKSPACE / "sources" / Path(name).name
-        path = Cache(WORKSPACE / "cache").find_transcript(video)
+        video = find_video(name) or SOURCES / Path(name).name
+        path = Cache(CACHE_DIR).find_transcript(video)
         if path is None:
             return self._send_json({"error": f"No transcript yet for {name}"}, 404)
         return self._send_text(path.read_text(encoding="utf-8"), "application/json")
@@ -755,7 +788,7 @@ class Handler(BaseHTTPRequestHandler):
         the status of each detector, every cue, and the count per kind."""
         q = parse_qs(urlparse(self.path).query)
         video = find_video(q.get("video", [""])[0])
-        data = cues_mod.load(video, Cache(WORKSPACE / "cache"))
+        data = cues_mod.load(video, Cache(CACHE_DIR))
         data["counts"] = cues_mod.counts(data["cues"])
         return self._send_json(data)
 
@@ -770,14 +803,14 @@ class Handler(BaseHTTPRequestHandler):
         if transcript is None:
             return self._send_json({"error": "No transcript yet. Click Find clips on the Analyze screen to make one."}, 404)
         rubric = roundtrip.RUBRICS.get(q.get("mode", ["dialog"])[0], roundtrip.RUBRICS["dialog"])
-        cues_data = cues_mod.load(find_video(name), Cache(WORKSPACE / "cache"))
+        cues_data = cues_mod.load(find_video(name), Cache(CACHE_DIR))
         credit = credits_mod.load().get(name)
         return self._send_text(roundtrip.build_brief(
             transcript, roundtrip.read_rubric(rubric), name, cues_data, credit),
             "text/markdown")
 
     def _get_video(self):
-        file = sorted(p.name for p in (WORKSPACE / "sources").glob("*")
+        file = sorted(p.name for p in SOURCES.glob("*")
                         if p.suffix.lower() in VIDEO_EXT)
         return self._send_json({"video": file})
 
@@ -794,7 +827,7 @@ class Handler(BaseHTTPRequestHandler):
         problem = _video_upload_problem(name, size)
         if problem:
             return self._send_json({"error": problem})
-        sources = WORKSPACE / "sources"
+        sources = SOURCES
         sources.mkdir(parents=True, exist_ok=True)
         return self._send_json({"reuse": _same_video(name, size),
                                 "free": shutil.disk_usage(sources).free})
@@ -838,12 +871,19 @@ class Handler(BaseHTTPRequestHandler):
         if any("\\" in b or "/" in b or b == ".." for b in parts):
             return self._send_json({"error": "invalid path"}, 400)
 
-        file = ROOT.joinpath(*parts)
+        # /workspace/sources and /workspace/out are the PROFILE's (set by _set_profile);
+        # cache/ is shared; everything else is under the install folder.
+        if parts[0] == "workspace" and parts[1] in ("sources", "out"):
+            base = _paths.profile_dir()
+            file = base.joinpath(*parts[1:])
+        else:
+            base = ROOT if parts[0] != "workspace" else _paths.workspace_dir()
+            file = base.joinpath(*(parts if parts[0] != "workspace" else parts[1:]))
         try:
             file = file.resolve(strict=True)
         except OSError:
             return self._send_json({"error": f"not found: {path}"}, 404)
-        if not file.is_relative_to(ROOT.resolve()):
+        if not file.is_relative_to(base.resolve()):
             return self._send_json({"error": "invalid path"}, 400)
         if not file.is_file():
             return self._send_json({"error": f"not found: {path}"}, 404)
@@ -854,6 +894,7 @@ class Handler(BaseHTTPRequestHandler):
     GET_ROUTES = {
         "/api/thumb": _get_thumb,
         "/api/version": _get_version,
+        "/api/profiles": _get_profiles,
         "/api/probe": _get_probe,
         "/api/history": _get_history,
         "/api/projects": _get_projects,
@@ -1099,7 +1140,7 @@ class Handler(BaseHTTPRequestHandler):
         problem = _video_upload_problem(name, n)
         if problem:
             return self._send_json({"error": problem}, 400)
-        folder = WORKSPACE / "sources"
+        folder = SOURCES
         folder.mkdir(parents=True, exist_ok=True)
         free = shutil.disk_usage(folder).free
         if n + VIDEO_DISK_MARGIN > free:
@@ -1214,7 +1255,7 @@ class Handler(BaseHTTPRequestHandler):
         folder, file_name = str(req.get("folder") or ""), str(req.get("file") or "")
         if (Path(folder).name != folder or Path(file_name).name != file_name
                 or not file_name.lower().endswith(".mp4") or file_name.startswith("_")
-                or not (WORKSPACE / "out" / folder / file_name).is_file()):
+                or not (OUT_ROOT / folder / file_name).is_file()):
             return self._send_json({"error": "that render file was not found"}, 404)
         from .jobs import add_render_to_schedule
         row_id, created, how = add_render_to_schedule(folder, file_name)
@@ -1332,7 +1373,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             candidates = roundtrip.parse_reply(
                 transcript.words if transcript else [], str(req.get("text") or ""),
-                cues_mod.load(find_video(name), Cache(WORKSPACE / "cache"))["cues"])
+                cues_mod.load(find_video(name), Cache(CACHE_DIR))["cues"])
         except ValueError as exc:
             return self._send_json({"error": str(exc)}, 400)
         return self._send_json({"candidates": candidates})
@@ -1349,7 +1390,7 @@ class Handler(BaseHTTPRequestHandler):
         _register_job(job_id, {"state": "running", "done": 0,
                            "total": len(req["clips"]), "index": 0,
                            "current": "", "result": [], "error": None})
-        threading.Thread(target=_run_render, args=(job_id, req),
+        threading.Thread(target=contextvars.copy_context().run, args=(_run_render, job_id, req),
                          daemon=True).start()
         return self._send_json({"id": job_id})
 
@@ -1430,7 +1471,7 @@ class Handler(BaseHTTPRequestHandler):
             words = []
             warning = ""
             try:
-                cache = Cache(WORKSPACE / "cache")
+                cache = Cache(CACHE_DIR)
                 tpath = cache.find_transcript(video)
                 if tpath and tpath.exists():
                     words = Transcript.load(tpath).words
@@ -1456,7 +1497,7 @@ class Handler(BaseHTTPRequestHandler):
             # used to sit in out/<video name>/.preview/, which put a folder
             # named after the VIDEO back into out/ -- and a multi-video
             # project has no one video to name it after.)
-            pdir = WORKSPACE / "cache" / "previews"
+            pdir = CACHE_DIR / "previews"
             pdir.mkdir(parents=True, exist_ok=True)
             tag = uuid.uuid4().hex[:8]
             dest = pdir / f"_preview.{tag}.mp4"
@@ -1523,7 +1564,7 @@ class Handler(BaseHTTPRequestHandler):
             JOBS[job_id] = {"state": "running", "stage": "start", "percent": 0,
                             "position": 0, "duration": 0, "file": None,
                             "cached": False, "exact": False, "error": None}
-        threading.Thread(target=_run_transcribe, args=(job_id, req),
+        threading.Thread(target=contextvars.copy_context().run, args=(_run_transcribe, job_id, req),
                          daemon=True).start()
         return self._send_json({"id": job_id})
 
@@ -1538,7 +1579,7 @@ class Handler(BaseHTTPRequestHandler):
         job_id = uuid.uuid4().hex[:8]
         _register_job(job_id, {"state": "running", "turns": [], "error": None,
                                "percent": 0, "stage": "start", "cached": False})
-        threading.Thread(target=_run_diarize, args=(job_id, req),
+        threading.Thread(target=contextvars.copy_context().run, args=(_run_diarize, job_id, req),
                          daemon=True).start()
         return self._send_json({"id": job_id})
 
@@ -1644,14 +1685,14 @@ def _sweep_temp() -> int:
     import re
     n = 0
     # Half-uploaded videos (Add video, interrupted by closing the server).
-    for part in (WORKSPACE / "sources").glob("*.part"):
+    for part in SOURCES.glob("*.part"):
         try:
             part.unlink()
             n += 1
         except OSError:
             pass
     pola = re.compile(r"\.[0-9a-f]{8}\.wav$")
-    for w in (WORKSPACE / "cache").glob("*.wav"):
+    for w in CACHE_DIR.glob("*.wav"):
         if not pola.search(w.name):
             continue
         try:
@@ -1665,6 +1706,11 @@ def _sweep_temp() -> int:
 def serve(port: int = 5177) -> int:
     _load_dotenv()
     leftover = _sweep_temp()
+    # The workspace as it was before profiles becomes the profile "podcast" (once;
+    # backed up and checked, see profiles.migrate_legacy). The server has just started,
+    # so no job is running.
+    _profiles.migrate_legacy(log=lambda m: print(f"  {m}"))
+    _profiles.ensure_dirs(_paths.GUEST)
     srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     print("")
     print(f"  klipian  ->  http://127.0.0.1:{port}")

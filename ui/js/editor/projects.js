@@ -212,7 +212,7 @@ function markLoaded() {
 
 function rememberScreen(name) {
   if (!activeProjectId) return;
-  try { localStorage.setItem(`klipian:screen:${activeProjectId}`, name); } catch { /* private window */ }
+  try { localStorage.setItem(profileKey(`klipian:screen:${activeProjectId}`), name); } catch { /* private window */ }
 }
 
 async function writeProjectOnce(isNew) {
@@ -652,7 +652,7 @@ function applyProject(d, preferFile) {
   }
   const savedScreen = LEGACY_SCREEN_NAMES[d.screen] || d.screen;
   let remembered = null;
-  try { remembered = localStorage.getItem(`klipian:screen:${d.id}`); } catch { /* no storage */ }
+  try { remembered = localStorage.getItem(profileKey(`klipian:screen:${d.id}`)); } catch { /* no storage */ }
   const wanted = VALID_SCREENS.includes(remembered) ? remembered : savedScreen;
   lastScreen = VALID_SCREENS.includes(wanted) ? wanted : "clips";
   savedSig = null;               // set by enterProject once everything is applied
@@ -694,7 +694,7 @@ function coverUrl(p) {
     q.set("background", savedBackground(out));
     q.set("position", String(typeof out[4] === "number" ? out[4] : 50));
   }
-  return `/api/thumb?${q}`;
+  return profileUrl(`/api/thumb?${q}`);
 }
 
 /* Whether the home screen currently has anything to browse. Set by
@@ -1116,7 +1116,7 @@ async function enterProject(d, gen) {
   }
   // The file is fetched from workspace/sources/, not a file dialog --
   // projects store the NAME, and browsers can't open local paths directly.
-  chosenSource = { kind: "file", name: video, url: `/workspace/sources/${encodeURIComponent(video)}` };
+  chosenSource = { kind: "file", name: video, url: profileUrl(`/workspace/sources/${encodeURIComponent(video)}`) };
   // Name first, shown right away -- chosenSource on this path has no
   // .duration, just a name from the project record. Overwritten again
   // below once the transcript (or ffprobe) supplies the real duration.
@@ -1165,7 +1165,7 @@ async function enterProject(d, gen) {
    survives a reload (unlike a normal variable), so it's enough to store a
    POINTER to which project is currently open -- its id -- not the project
    itself, which still lives in a file. */
-const SESSION_KEY = "klipian:sesi-aktif";
+const SESSION_KEY = profileKey("klipian:sesi-aktif");
 
 /* ...and in the address bar as well (ian): /edit/<project id>.
 
@@ -1207,7 +1207,7 @@ function forgetActiveSession() {
 function forgetProject(id) {
   try {
     if (localStorage.getItem(SESSION_KEY) === id) localStorage.removeItem(SESSION_KEY);
-    localStorage.removeItem(`klipian:screen:${id}`);
+    localStorage.removeItem(profileKey(`klipian:screen:${id}`));
   } catch { /* no storage */ }
 }
 

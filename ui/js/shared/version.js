@@ -23,6 +23,17 @@ function showStaleBanner() {
   document.body.prepend(bar);
 }
 
+/* The server has no such profile (deleted, or this tab is from before profiles). */
+function showProfileBanner(text) {
+  if (document.getElementById("profileBanner")) return;
+  const bar = document.createElement("div");
+  bar.id = "profileBanner";
+  bar.className = "stale-banner";
+  bar.setAttribute("role", "alert");
+  bar.textContent = text || "Choose a profile: reload the page.";
+  document.body.prepend(bar);
+}
+
 /* "unknown endpoint" as the person should read it. */
 function apiErrorText(message) {
   return /unknown endpoint/i.test(String(message || "")) ? STALE_MESSAGE : String(message || "");
@@ -32,8 +43,11 @@ function apiErrorText(message) {
   const nativeFetch = window.fetch.bind(window);
   window.fetch = async (...args) => {
     const reply = await nativeFetch(...args);
-    if (reply.status === 404) {
-      reply.clone().json().then((j) => { if (/unknown endpoint/i.test(j?.error || "")) showStaleBanner(); }).catch(() => {});
+    if (reply.status === 404 || reply.status === 400) {
+      reply.clone().json().then((j) => {
+        if (/unknown endpoint/i.test(j?.error || "")) showStaleBanner();
+        else if (j?.needProfile) showProfileBanner(j.error);
+      }).catch(() => {});
     }
     return reply;
   };

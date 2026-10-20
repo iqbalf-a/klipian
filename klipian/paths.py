@@ -2,15 +2,113 @@
 
 from __future__ import annotations
 
+import contextvars
+import os
 import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-# All working files (source video, rendered output, cache, project, assets)
-# live in THIS ONE folder -- not scattered (previously samples/out/cache/
-# projects/ each at root), so new klipian users aren't confused about where
-# to put videos (see workspace/README.md).
-WORKSPACE = ROOT / "workspace"
+# $KLIPIAN_WORKSPACE points the whole program at another folder (a scratch copy for tests).
+DEFAULT_WORKSPACE = Path(os.environ["KLIPIAN_WORKSPACE"]) if os.environ.get("KLIPIAN_WORKSPACE") else ROOT / "workspace"
+
+# All working files live under ONE folder, workspace/ (see workspace/README.md):
+#   cache/                 shared by every profile (per-video transcripts, cues, thumbnails)
+#   profiles/<id>/         one profile = one channel: sources, projects, out, schedule,
+#                          assets and secrets of its own
+# WHICH profile is not a global: the server sets it per request (contextvars), a
+# background job takes a copy of the context when it starts, so a job keeps writing
+# to the profile it began in even after the tab switches to another one.
+
+_workspace_override: Path | None = None
+
+
+def use_workspace(path) -> None:
+    """Point everything at another workspace folder (the selftest's scratch copy); None
+    goes back to workspace/."""
+    global _workspace_override
+    _workspace_override = Path(path) if path else None
+
+
+def workspace_dir() -> Path:
+    return _workspace_override or DEFAULT_WORKSPACE
+
+
+class _Dyn(os.PathLike):
+    """A folder that is worked out when it is USED, not when this module is imported:
+    what `PROJECTS`, `SOURCES`, `OUT_ROOT` ... are, because they depend on the
+    profile of the request or job running. Behaves as the Path it stands for."""
+
+    def __init__(self, fn):
+        self._fn = fn
+
+    def _path(self) -> Path:
+        return self._fn()
+
+    def __fspath__(self) -> str:
+        return os.fspath(self._path())
+
+    def __truediv__(self, other):
+        # Still lazy: `SCHEDULE_DIR / "clips.json"` written at the top of a module must
+        # follow the profile too, not be fixed at import.
+        return _Dyn(lambda: self._path() / other)
+
+    def __str__(self) -> str:
+        return str(self._path())
+
+    def __repr__(self) -> str:
+        return f"<{self._path()}>"
+
+    def __eq__(self, other):
+        return self._path() == (other._path() if isinstance(other, _Dyn) else other)
+
+    def __hash__(self):
+        return hash(self._path())
+
+    def __getattr__(self, name):               # glob, mkdir, is_dir, parent, name ...
+        return getattr(self._path(), name)
+
+
+WORKSPACE = _Dyn(workspace_dir)
+CACHE_DIR = _Dyn(lambda: workspace_dir() / "cache")          # shared by every profile
+PROFILES_DIR = _Dyn(lambda: workspace_dir() / "profiles")
+
+GUEST = "_guest"
+DEFAULT_PROFILE = "podcast"
+_PROFILE_ID = re.compile(r"[a-z0-9][a-z0-9_-]{0,39}")
+
+_profile: contextvars.ContextVar = contextvars.ContextVar("klipian_profile", default=None)
+
+
+def valid_profile_id(pid) -> bool:
+    return isinstance(pid, str) and (pid == GUEST or bool(_PROFILE_ID.fullmatch(pid)))
+
+
+def set_profile(pid: str | None):
+    """Make `pid` the profile of the current request/job (returns the token to undo it)."""
+    if pid is not None and not valid_profile_id(pid):
+        raise ValueError(f"not a profile id: {pid!r}")
+    return _profile.set(pid)
+
+
+def current_profile() -> str:
+    """The profile of what is running now: the request's or job's; for the CLI and
+    scripts, $KLIPIAN_PROFILE, else "podcast"."""
+    pid = _profile.get() or os.environ.get("KLIPIAN_PROFILE") or DEFAULT_PROFILE
+    if not valid_profile_id(pid):
+        raise ValueError(f"not a profile id: {pid!r}")
+    return pid
+
+
+def profile_dir(pid: str | None = None) -> Path:
+    return workspace_dir() / "profiles" / (pid or current_profile())
+
+
+SOURCES = _Dyn(lambda: profile_dir() / "sources")
+PROJECTS_DIR = _Dyn(lambda: profile_dir() / "projects")
+OUT_ROOT = _Dyn(lambda: profile_dir() / "out")
+SCHEDULE_DIR = _Dyn(lambda: profile_dir() / "schedule")
+ASSETS = _Dyn(lambda: profile_dir() / "assets")
+SECRETS = _Dyn(lambda: profile_dir() / "secrets")
 
 
 _RESERVED_DIRNAMES = frozenset(
@@ -37,7 +135,7 @@ def safe_dirname(name: str) -> str:
 
 def find_video(name: str) -> Path | None:
     """Browsers don't provide full paths, just filenames. A source video is
-    looked up by name in workspace/sources/ and nowhere else: a render in
+    looked up by name in the profile's sources/ and nowhere else: a render in
     out/ must never be mistaken for a source."""
     # Prevent path traversal: the name must be ONE path component. Looking at
     # the components (not for ".." anywhere in the text) keeps a name like
@@ -45,7 +143,7 @@ def find_video(name: str) -> Path | None:
     if (not name or name in (".", "..") or any(c in name for c in "/\\:\x00")
             or Path(name).name != name):
         return None
-    p = WORKSPACE / "sources" / name
+    p = SOURCES / name
     return p if p.is_file() else None
 
 

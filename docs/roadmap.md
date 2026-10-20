@@ -1705,6 +1705,36 @@ akun.
 | P21-C | Pengaturan Akun YouTube per profile: Connect, cek validitas dengan status yang jelas, Disconnect, satu channel untuk satu profile. Bisa selesai sebelum fitur upload P16, karena pengecekan hanya memanggil `channels.list` |
 | P21-D | Rubrik baru `prompts/rubrik/` untuk cuplikan lucu TV/YouTube. Perlu masukan ian soal kriteria "lucu yang layak diklip" |
 
+
+**P21-A, yang dibuat (2026-10-20):**
+- `paths.py`: `WORKSPACE`, `SOURCES`, `PROJECTS_DIR`, `OUT_ROOT`, `SCHEDULE_DIR`,
+  `ASSETS`, `SECRETS` adalah folder "malas" (`_Dyn`) yang dihitung saat dipakai, dari
+  profile permintaan atau job saat itu (`contextvars`), bukan saat import. `cache/`
+  tetap bersama. `$KLIPIAN_WORKSPACE` menunjuk workspace lain (salinan uji).
+- Server: setiap `/api/...` (kecuali `/api/profiles*` dan `/api/version`) dan media
+  `/workspace/sources|out/...` wajib membawa profile: header `X-Klipian-Profile`, atau
+  `?profile=` untuk `<video>`/`<img>`/`<a>` yang tidak bisa mengirim header. Tanpa itu
+  400, profile yang tidak ada 404 (`needProfile`, banner di halaman). Thread job
+  menyalin context saat mulai. URL render/riwayat yang dikirim server memuat
+  `?profile=`.
+- Klien: `ui/js/shared/profile.js` (dimuat pertama) menyimpan profile per TAB
+  (`sessionStorage`), menambahkan header ke semua `fetch /api/...`, dan menyediakan
+  `profileUrl()` dan `profileKey()` (preset caption dan sesi aktif per profile; tema,
+  pager, urutan tetap global).
+- Migrasi (`profiles.migrate_legacy`): berjalan otomatis **saat server start** (belum
+  ada job), atau `python -m klipian migrate-profiles` (menolak bila server terdeteksi
+  berjalan; `--force` untuk melewati). Mencadangkan semua JSON beserta hash ke
+  `workspace/backups/migrate-<waktu>/` (manifest berisi sha256 dan jumlah file per
+  folder), memindah dengan rename (drive sama), memeriksa hash dan jumlah/ukuran file
+  sesudahnya, dan memindah balik bila ada yang tidak cocok. Tidak melakukan apa-apa
+  bila tidak ada yang perlu dipindah; menolak bila folder lama dan baru sama-sama
+  berisi. CLI memakai `--profile` / `$KLIPIAN_PROFILE` (bawaan `podcast`) dan menolak
+  jalan sebelum migrasi.
+- selftest: berjalan di workspace sementara (`workspace/.selftest-*`, tautan keras ke
+  video dan asset yang dibutuhkan baseline), dengan check baru `profiles` (dua profile
+  tidak saling melihat project, baris jadwal, render, source, asset; tanpa profile
+  ditolak; job render yang dimulai di profile A menulis ke A walaupun tab pindah ke B).
+
 ---
 
 ## 3. Diparkir, sengaja tidak dikerjakan
