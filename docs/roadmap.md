@@ -1567,15 +1567,59 @@ workspace/
 - Hapus profile dengan dua klik (`armedClick`, P20), lalu foldernya masuk
   Recycle Bin.
 
-**Upload YouTube per profile** (ditautkan ke P16 dan P18-A):
-- `client_secret.json` cukup satu dan dipakai bersama (`workspace/secrets/`).
-- Token login disimpan per profile di `profiles/<id>/secrets/`. Tiap
-  profile login dengan akun atau channel-nya sendiri.
-- Halaman profile menampilkan "Terhubung ke: <nama channel>". Upload dari
-  Clips selalu memakai akun profile itu.
-- Selama OAuth client berstatus "Testing", setiap akun Google harus
-  didaftarkan sebagai test user.
-- Dua channel dalam satu akun Google (Brand Account) dipilih saat login.
+**Pengaturan profile → Akun YouTube** (permintaan ian 2026-10-20: "untuk
+saat ini youtube dulu saja"). Ditautkan ke P16 dan P18-A.
+
+Setiap profile punya bagian **Akun YouTube** di pengaturannya. Platform lain
+(TikTok, Instagram) belum masuk. Bagian ini dirancang sebagai daftar akun
+per platform, jadi platform lain nanti cukup menambah baris tanpa mengubah
+susunannya.
+
+- **Kredensial:**
+  - `client_secret.json` (OAuth client Desktop app) cukup satu dan dipakai
+    bersama di `workspace/secrets/`.
+  - Token disimpan per profile di `profiles/<id>/secrets/youtube.json`.
+  - Token tidak pernah dikirim ke browser, ditulis ke log, atau masuk git.
+    Browser hanya menerima status.
+- **Tautkan akun:**
+  - Tombol "Connect YouTube" membuka login Google lewat OAuth loopback,
+    sama seperti di P16.
+  - Scope yang diminta: `youtube.upload` dan `youtube.readonly`.
+  - Akun Google dan channel dipilih di halaman Google. Untuk Brand Account,
+    channel dipilih di layar itu.
+  - Setelah berhasil, klipian langsung memanggil `channels.list mine=true`
+    dan menyimpan nama channel, ID, dan thumbnail-nya sebagai label.
+- **Satu channel hanya untuk satu profile:** kalau channel yang dipilih
+  sudah tertaut ke profile lain, klipian menolak dengan pesan "Channel X
+  sudah dipakai profile Y". Ini mencegah dua profile meng-upload ke
+  channel yang sama tanpa sengaja.
+- **Cek validitas** (tombol "Check connection", juga otomatis saat halaman
+  pengaturan dibuka dan sebelum setiap upload): klipian me-refresh token
+  lalu memanggil `channels.list mine=true`. Statusnya satu dari:
+
+  | Status | Arti | Tindakan yang ditawarkan |
+  |---|---|---|
+  | Tidak tertaut | belum ada token | Connect YouTube |
+  | Tertaut ✓ | token bisa di-refresh dan channel cocok; tampil "dicek <waktu>" | Check connection, Disconnect |
+  | Kedaluwarsa | refresh ditolak (`invalid_grant`), biasanya karena token "Testing" berumur ±7 hari atau akses dicabut | Connect ulang |
+  | Channel berbeda | token valid tapi channel-nya bukan yang tersimpan | Connect ulang atau terima channel baru |
+  | Client belum ada | `client_secret.json` tidak ada atau rusak | tautan ke checklist persiapan P16 |
+  | Akun bukan test user | Google menolak login karena akun belum didaftarkan sebagai test user (selama status "Testing") | petunjuk menambahkan test user |
+  | Tidak bisa dicek | tidak ada internet atau Google tidak menjawab; status terakhir tetap ditampilkan | Coba lagi |
+
+- **Disconnect:**
+  - Dua klik (`armedClick`, P20).
+  - Mencabut token di Google (revoke), lalu memindahkan `youtube.json` ke
+    Recycle Bin.
+  - Kalau revoke gagal karena offline, token tetap dibuang dari profile
+    dan statusnya memberi tahu.
+- **Di luar halaman pengaturan:**
+  - Chip profile di topbar menampilkan titik status YouTube: hijau, kuning
+    untuk kedaluwarsa, atau abu-abu untuk tidak tertaut.
+  - Upload dari Clips (P16) selalu memakai akun profile itu, dan
+    menolak dengan tautan ke pengaturan kalau statusnya bukan Tertaut.
+- Selama OAuth client berstatus "Testing", setiap akun Google pemilik
+  channel harus didaftarkan sebagai test user (catat di checklist P16).
 - P21-A sebaiknya selesai sebelum P16, supaya P16 langsung dibuat per
   profile.
 
@@ -1585,7 +1629,7 @@ workspace/
 |---|---|
 | P21-A | Folder per profile, migrasi "podcast", profile per permintaan (`contextvars`), dan selftest yang membuktikan dua profile tidak saling bocor |
 | P21-B | Halaman pilih profile, chip di topbar, buat/ganti nama/hapus, dan pengaturan bawaan per profile |
-| P21-C | Login YouTube per profile (bagian dari P16/P18-A) |
+| P21-C | Pengaturan Akun YouTube per profile: Connect, cek validitas dengan status yang jelas, Disconnect, satu channel untuk satu profile. Bisa selesai sebelum fitur upload P16, karena pengecekan hanya memanggil `channels.list` |
 | P21-D | Rubrik baru `prompts/rubrik/` untuk cuplikan lucu TV/YouTube. Perlu masukan ian soal kriteria "lucu yang layak diklip" |
 
 ---
