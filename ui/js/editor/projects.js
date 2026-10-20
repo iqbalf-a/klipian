@@ -1029,7 +1029,7 @@ $("#projectList")?.addEventListener("click", async (e) => {
   if (card.classList.contains("confirming")) { cancelConfirm(); return; }
   if (card.classList.contains("missing")) {
     const meta = card.querySelector(".project-meta");
-    if (meta) meta.textContent = `move ${card.dataset.video} into workspace/sources/ to continue`;
+    if (meta) meta.textContent = `add ${card.dataset.video} to this profile's sources to continue`;
     return;
   }
   await openProjectFromHome(card.dataset.project);

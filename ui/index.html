@@ -95,7 +95,7 @@
        DaVinci's home screen. It used to have a second "create" face with
        a drop-video panel inline; that moved into the editor, and then went
        away altogether: "+ New Project" opens the Assets screen, where a
-       project's videos are added from workspace/sources/ (or on Analyze,
+       project's videos are added from the profile's sources folder (or on Analyze,
        from a link). The first video added is what starts the project
        (addVideoToProject, assets.js).
 
@@ -271,8 +271,8 @@
         </div>
         <div class="panel fit">
           <div class="panel-head">
-            <span class="eyebrow">Add from workspace/sources/</span>
-            <!-- A video from anywhere on disk: copied into workspace/sources/
+            <span class="eyebrow">Add from this profile's sources</span>
+            <!-- A video from anywhere on disk: copied into the profile's sources folder
                  (with progress), then added to this project. -->
             <button class="btn add-video-btn" id="addVideoBtn" type="button">Add video…</button>
             <input type="file" id="videoFileInput" accept=".mp4,.mkv,.mov,.webm,video/*" multiple hidden>
@@ -303,7 +303,7 @@
              a file into the project, so later changes to the shared file
              can't change a project that used it. -->
         <div class="panel fit">
-          <div class="panel-head"><span class="eyebrow">Import from workspace/assets/</span></div>
+          <div class="panel-head"><span class="eyebrow">Import from this profile's assets</span></div>
           <div class="asset-list" id="assetSharedList"></div>
         </div>
       </section>

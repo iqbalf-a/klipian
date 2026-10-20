@@ -37,6 +37,8 @@ async function loadSources() {
     source = d.source || [];
     SOURCE_ROWS = source;
     SOURCES_FOLDER = d.folder || "";
+    const open = $("#sourceOpenBtn");
+    if (open) open.title = SOURCES_FOLDER;          // where the files really are, whatever the profile
   } catch {
     if (note) note.textContent = "needs klipian serve";
     list.innerHTML = "";
@@ -45,13 +47,13 @@ async function loadSources() {
   }
   if (!source.length) {
     sourcePager.slice([]);
-    note.textContent = "workspace/sources/ is empty";
+    note.textContent = "this profile's sources folder is empty";
     list.innerHTML = `<p class="empty">No videos yet. Add one with <b>Add video…</b> on the
-      Assets screen of a project, or copy the file into <code>workspace/sources/</code>.</p>`;
+      Assets screen of a project, or copy the file into this profile's sources folder (<b>Open folder</b>).</p>`;
     return;
   }
   const total = source.reduce((t, s) => t + s.bytes, 0);
-  note.textContent = `${source.length} video${source.length > 1 ? "s" : ""} in workspace/sources/ · ${formatBytes(total)}`;
+  note.textContent = `${source.length} video${source.length > 1 ? "s" : ""} in this profile's sources · ${formatBytes(total)}`;
   drawSources();
 }
 

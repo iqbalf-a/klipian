@@ -54,7 +54,7 @@
               aria-expanded="false">?</button>
       <div class="shortcut-panel" id="shortcutPanel" hidden role="tooltip">
         <p><b>Clips</b> upload schedule, edited in place</p>
-        <p><b>Sources</b> your raw videos, in workspace/sources/</p>
+        <p><b>Sources</b> your raw videos, in this profile's sources folder (Open folder)</p>
         <p><b>Rendered output</b> files the editor has rendered</p>
         <p><b>Assets</b> your own logos and banners</p>
       </div>
@@ -241,7 +241,7 @@
       </div>
     </dialog>
 
-    <!-- ══════════════════ SOURCES — workspace/sources/ ══════════════════
+    <!-- ══════════════════ SOURCES — the profile's sources/ ══════════════════
          The raw videos every project is cut from (input, between the
          schedule and the output): size, length, transcript, and which
          projects use each. /api/workspace/sources. -->
@@ -269,13 +269,15 @@
       <div id="renderPager" hidden></div>
     </section>
 
-    <!-- ══════════════════ ASSETS — workspace/assets/ ══════════════════
+    <!-- ══════════════════ ASSETS — the profile's assets/ ══════════════════
          Empty by default. Where to put custom watermark/font/template files
          outside klipian's built-in ones (assets/ at root, used by the app itself). -->
     <section class="ws-panel" id="panelAssets">
       <div class="flex items-center gap-3">
         <h1 class="text-[20px] font-extrabold tracking-tight">Assets</h1>
         <span class="text-text-faint text-[13px]" id="assetNote">loading…</span>
+        <button class="ml-auto rounded-s px-2.5 py-1 text-[12px] border border-glass-border hover:bg-glass"
+                id="assetOpenBtn" type="button">Open folder</button>
       </div>
       <div id="assetList"></div>
       <div id="assetPager" hidden></div>

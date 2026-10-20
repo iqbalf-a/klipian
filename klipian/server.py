@@ -754,7 +754,8 @@ class Handler(BaseHTTPRequestHandler):
                                       else "sound" if ext in composer.SOUND_EXT else "other"),
                              "kb": round(st.st_size / 1024, 1),
                              "at": int(st.st_mtime)})
-        return self._send_json({"asset": item})
+        # `folder`: where THIS profile's assets really are (the Open folder button uses it).
+        return self._send_json({"asset": item, "folder": str(ASSETS_DIR)})
 
     def _get_workspace_sources(self):
         """The raw videos in workspace/sources/ for the dashboard: size,
@@ -1269,12 +1270,13 @@ class Handler(BaseHTTPRequestHandler):
                     tmp.unlink(missing_ok=True)
                     return self._send_json({"ok": True, "name": same, "existed": True})
                 dest = _free_name(folder, name)
-                _profiles.place_source(tmp, dest)      # a link to another profile's identical copy, else a rename
+                placed = _profiles.place_source(tmp, dest)   # a link to another profile's identical copy, else a rename
         except (OSError, ConnectionError) as exc:
             tmp.unlink(missing_ok=True)
             return self._send_json({"error": f"could not save the file: {exc}"}, 500)
         return self._send_json({"ok": True, "name": dest.name, "existed": False,
-                                "renamedFrom": asked if asked != name else None})
+                                "renamedFrom": asked if asked != name else None,
+                                "creditFrom": placed.get("creditFrom")})
 
     def _drain(self, n: int) -> None:
         try:

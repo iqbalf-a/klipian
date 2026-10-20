@@ -989,16 +989,23 @@ def check_profiles() -> tuple[str, str]:
             problems.append("the Guest could be deleted")
 
         # --- the same video in two profiles: one file on disk, two names (a hardlink)
+        from . import credits
         tok = paths.set_profile("alpha")
         try:
             (paths.SOURCES / "same.mp4").write_bytes(b"identical bytes " * 1000)
+            credits.save("same.mp4", {"platform": "YouTube", "creator": "Raditya Dika", "title": "T", "url": "https://youtu.be/xxxxxxxxxxx"})
         finally:
             paths._profile.reset(tok)
         tok = paths.set_profile("beta")
         try:
             tmpf = paths.SOURCES / "same.mp4.part"
             tmpf.write_bytes(b"identical bytes " * 1000)
-            how = profiles.place_source(tmpf, paths.SOURCES / "same.mp4")
+            placed = profiles.place_source(tmpf, paths.SOURCES / "same.mp4")
+            how = placed["how"]
+            # the credit of the same video comes along when this profile has none
+            mine = credits.load().get("same.mp4") or {}
+            if mine.get("creator") != "Raditya Dika" or placed.get("creditFrom") != "alpha":
+                problems.append(f"the credit was not copied from the other profile: {mine} / {placed}")
             if how == "linked" and not (paths.SOURCES / "same.mp4").samefile(paths.profile_dir("alpha") / "sources" / "same.mp4"):
                 problems.append("a linked source is not the other profile's file")
             if (paths.SOURCES / "same.mp4").read_bytes() != b"identical bytes " * 1000:
@@ -1008,6 +1015,20 @@ def check_profiles() -> tuple[str, str]:
             paths._profile.reset(tok)
         if not (paths.profile_dir("alpha") / "sources" / "same.mp4").is_file():
             problems.append("deleting a source in one profile removed it from another")
+        # an existing credit is never overwritten
+        profiles.write_meta("gamma", {"name": "gamma", "color": "#123456"})
+        profiles.ensure_dirs("gamma")
+        tok = paths.set_profile("gamma")
+        try:
+            (paths.SOURCES / "credits.json").write_text(json.dumps({"same2.mp4": {"platform": "TikTok", "creator": "Mine"}}), encoding="utf-8")
+            tmpf = paths.SOURCES / "same2.mp4.part"
+            tmpf.write_bytes(b"identical bytes " * 1000)
+            placed = profiles.place_source(tmpf, paths.SOURCES / "same2.mp4")
+            kept = credits.load().get("same2.mp4") or {}
+            if kept.get("creator") != "Mine" or placed.get("creditFrom"):
+                problems.append(f"an existing credit was overwritten (or reported as copied): {kept} / {placed}")
+        finally:
+            paths._profile.reset(tok)
 
         # --- a job keeps its profile when the tab switches
         src = paths.DEFAULT_WORKSPACE

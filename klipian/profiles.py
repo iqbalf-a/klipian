@@ -223,28 +223,60 @@ def clear_guest() -> None:
     ensure_dirs(GUEST)
 
 
-def place_source(tmp: Path, dest: Path) -> str:
-    """Put an uploaded video (`tmp`) at `dest`. When another profile already holds this
-    exact file (same name, size and bytes) on the same drive, link to it instead of
-    keeping a second copy: a hardlink is a name of its own, so deleting it in one
-    profile never removes it from the other. Returns "linked" or "saved"."""
+def place_source(tmp: Path, dest: Path) -> dict:
+    """Put an uploaded video (`tmp`) at `dest`. When another profile already holds this exact file
+    (same size and bytes, under any name) on the same drive, link to it instead of keeping a second
+    copy: a hardlink is a name of its own, so deleting it in one profile never removes it from the
+    other. If that profile has a credit for the file and this one has none, the credit entry is
+    copied (an existing credit is never overwritten).
+
+    Returns {"how": "linked" | "saved", "creditFrom": the other profile's name or None}."""
+    from . import credits
     size = tmp.stat().st_size
     root = paths.PROFILES_DIR
+    same_file = None                                  # (profile id, the other file)
     if root.is_dir():
-        for other in root.iterdir():
-            cand = other / "sources" / dest.name
-            if other.name == paths.current_profile() or not cand.is_file() or cand.stat().st_size != size:
+        mine = tmp_hash = None
+        for other in sorted(root.iterdir()):
+            folder = other / "sources"
+            if other.name == paths.current_profile() or not folder.is_dir():
                 continue
-            try:
-                if _sha256(cand) != _sha256(tmp):
+            # the same name first, then any file of the same size
+            cands = sorted((f for f in folder.iterdir() if f.is_file() and f.stat().st_size == size
+                            and f.suffix.lower() in (".mp4", ".mkv", ".mov", ".webm")),
+                           key=lambda f: f.name != dest.name)
+            for cand in cands:
+                try:
+                    tmp_hash = tmp_hash or _sha256(tmp)
+                    if _sha256(cand) != tmp_hash:
+                        continue
+                except OSError:
                     continue
-                os.link(cand, dest)
-            except OSError:
-                continue                         # another drive, or no links here: a normal copy
+                same_file = (other.name, cand)
+                break
+            if same_file:
+                break
+    how = "saved"
+    if same_file:
+        try:
+            os.link(same_file[1], dest)
             tmp.unlink(missing_ok=True)
-            return "linked"
-    tmp.replace(dest)
-    return "saved"
+            how = "linked"
+        except OSError:
+            pass                                      # another drive, or no links here: a normal copy
+    if how == "saved":
+        tmp.replace(dest)
+    credit_from = None
+    if same_file:
+        try:
+            theirs = credits.load(paths.profile_dir(same_file[0]) / "sources").get(same_file[1].name)
+            if theirs and dest.name not in credits.load():
+                credits.save(dest.name, theirs)
+                meta = read_meta(same_file[0])
+                credit_from = (meta or {}).get("name") or same_file[0]
+        except OSError:
+            pass
+    return {"how": how, "creditFrom": credit_from}
 
 
 # --------------------------------------------------------------------------

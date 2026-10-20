@@ -298,7 +298,7 @@ function uploadVideo(file, paint) {
     xhr.onload = () => {
       let d = {};
       try { d = JSON.parse(xhr.responseText); } catch { /* not JSON: the status says it */ }
-      if (xhr.status >= 200 && xhr.status < 300 && d.name) resolve({ name: d.name, renamedFrom: d.renamedFrom || null });
+      if (xhr.status >= 200 && xhr.status < 300 && d.name) resolve({ name: d.name, renamedFrom: d.renamedFrom || null, creditFrom: d.creditFrom || null });
       else reject(new Error(d.error || `Upload failed (${xhr.status}).`));
     };
     xhr.onerror = () => reject(new Error("Upload failed. Is klipian serve still running?"));
@@ -322,10 +322,10 @@ async function addVideoFromDisk(file) {
     const chk = await (await fetch(`/api/video-check?name=${encodeURIComponent(file.name)}&size=${file.size}`)).json();
     if (chk.error) throw new Error(chk.error);
     let name = chk.reuse;
-    let renamedFrom = null;
+    let renamedFrom = null, creditFrom = null;
     if (name) {
       bar.style.width = "100%";
-      say(`${name} is already in workspace/sources/ — using that copy.`);
+      say(`${name} is already in this profile's sources — using that copy.`);
     } else {
       if (file.size + 1024 ** 3 > chk.free) {
         throw new Error(`Not enough disk space: ${mb(file.size)} needed, ${mb(chk.free)} free.`);
@@ -340,11 +340,14 @@ async function addVideoFromDisk(file) {
       });
       name = sent.name;
       renamedFrom = sent.renamedFrom;
+      creditFrom = sent.creditFrom;
     }
     cancel.hidden = true;
     await addVideoToProject(name);
-    if (renamedFrom) say(`Saved as ${name}: the space or dot before the extension in "${renamedFrom}" was removed.`);
-    else row.hidden = true;
+    const notes = [];
+    if (renamedFrom) notes.push(`Saved as ${name}: the space or dot before the extension in "${renamedFrom}" was removed.`);
+    if (creditFrom) notes.push(`The source credit was copied from the profile "${creditFrom}" (same video).`);
+    if (notes.length) say(notes.join(" ")); else row.hidden = true;
   } catch (err) {
     cancel.hidden = true;
     say(err.message, true);
@@ -438,8 +441,8 @@ async function renderAssets() {
           <span class="data asset-meta">${hasTranscript(f) ? "transcribed" : "not transcribed"}</span>
           <button class="btn" type="button" data-asset-add="${escapeHTML(f)}">Add</button>
         </div>`).join("")
-        : `<p class="empty-message">Every video in workspace/sources/ is already in this project.
-             Put another file there to add it.</p>`;
+        : `<p class="empty-message">Every video in this profile's sources is already in this project.
+             Add another with Add video… to use it.</p>`;
     }
   }
   await renderMediaAssets();
@@ -459,9 +462,9 @@ function mediaUseCount(file) {
 }
 
 /* A project's images and sounds live in ITS OWN folder, projects/<id>/assets/
-   (ian). The shared library workspace/assets/ (logos, banners, templates)
+   (ian). The profile's library (profiles/<id>/assets/: logos, banners, templates)
    is only a place to IMPORT from: importing copies the file in, so the
-   project keeps working however the shared file changes later. */
+   project keeps working however the library file changes later. */
 const projectMediaUrl = (file) =>
   profileUrl(`/api/project-asset-file?id=${encodeURIComponent(activeProjectId || "")}&name=${encodeURIComponent(file)}`);
 
@@ -529,7 +532,7 @@ async function renderMediaAssets() {
         <button class="btn quiet" type="button" data-media-import="${escapeHTML(f.name)}"
                 title="Copy into this project">Import</button>
       </div>`).join("")
-      : `<p class="empty-message">workspace/assets/ has no images or sounds.</p>`;
+      : `<p class="empty-message">This profile's assets folder has no images or sounds (Assets on the Workspace page opens it).</p>`;
   }
 }
 
