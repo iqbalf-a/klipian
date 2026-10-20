@@ -1714,6 +1714,38 @@ def check_bulk() -> tuple[str, str]:
         if plan["usedToday"] != 0 or plan["remaining"] != 100 or plan["overQuota"] != 0:
             problems.append(f"the quota in the plan is wrong: {plan}")
 
+        # --- a schedule given in the dialog: rows refused ONLY for their date/time are flagged, many
+        # rows are set in one request (the same two fields as the table), and the plan then accepts them
+        import datetime as _dt
+        e1, e2 = row("Kosong Satu", date="", time=""), row("Kosong Dua", date="", time="")
+        old = row("Sudah Lewat", date=(_dt.datetime.now() - _dt.timedelta(days=2)).strftime("%Y-%m-%d"))
+        plan = youtube.bulk_plan([e1, old, no_title, e2])
+        flags = {r["id"]: r["needsSchedule"] for r in plan["refused"]}
+        if flags != {e1: True, old: True, no_title: False, e2: True}:
+            problems.append(f"only rows refused for their date/time should offer inputs: {flags}")
+        d1 = (_dt.datetime.now() + _dt.timedelta(days=2)).strftime("%Y-%m-%d")
+        d2 = (_dt.datetime.now() + _dt.timedelta(days=3)).strftime("%Y-%m-%d")
+        out = schedule.set_schedules([{"id": e1, "date": d1, "time": "18:30"}, {"id": old, "date": d2, "time": "18:30"},
+                                      {"id": e2, "date": d2, "time": "09:00"}, {"id": "nope", "date": d1, "time": "10:00"}])
+        if len(out["clip"]) != 3 or out["missing"] != ["nope"]:
+            problems.append(f"set_schedules should change the three rows in one go: {out}")
+        got = schedule.get_row(e2)
+        if (got["date"], got["time"]) != (d2, "09:00") or got["title"] != "Kosong Dua" or got.get("createdAt") != schedule.get_row(e2).get("createdAt"):
+            problems.append(f"a schedule must change the date and time only: {got}")
+        plan = youtube.bulk_plan([e1, old, no_title, e2])
+        if [r["id"] for r in plan["ok"]] != [e1, old, e2] or {r["id"] for r in plan["refused"]} != {no_title}:
+            problems.append(f"the plan should accept the rows that were given a schedule: {[r['id'] for r in plan['ok']]}")
+        if plan["ok"][0]["date"] != d1 or plan["ok"][0]["time"] != "18:30":
+            problems.append(f"an accepted row should carry its date and time: {plan['ok'][0]}")
+        for bad in ([{"id": e1, "date": "21-10-2030", "time": "18:30"}], [{"id": e1, "date": d1, "time": "6pm"}], ["x"]):
+            try:
+                schedule.set_schedules(bad)
+                problems.append(f"set_schedules accepted {bad}")
+            except ValueError:
+                pass
+        if schedule.get_row(e1)["date"] != d1:
+            problems.append("a refused request must not change anything")
+
         # --- a queue goes one by one, rows follow
         jid = youtube.start_bulk([good1, good2, good3, no_date])
         st = wait(jid, youtube.bulk_state)

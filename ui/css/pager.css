@@ -237,3 +237,21 @@ button.bg-accent:disabled, .ws-accent-btn:disabled, button.bg-accent:disabled:ho
   white-space: nowrap;
 }
 .ws-warn[data-kind="processing"] { color: var(--text-muted); border-color: var(--glass-border); }
+
+/* The action bar: Mark as Posted with its own date and time is one segment; the other actions are
+   set apart by a divider. */
+.ws-bulk-posted { padding: 4px 10px; border: 1px dashed var(--glass-border); border-radius: var(--r-s); }
+.ws-bulk-sep { align-self: stretch; width: 1px; min-height: 24px; background: var(--glass-border); }
+.ws-bulk-sep[hidden] { display: none; }
+
+/* The bulk upload dialog: Auto-fill and the inline date/time of a row. */
+.yt-autofill { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid var(--glass-border); border-radius: var(--r-s); }
+.yt-autofill[hidden] { display: none; }
+.yt-af-row { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; }
+.yt-af-every { display: inline-flex; gap: 6px; }
+.yt-af-every input { width: 64px; }
+.yt-af-all { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+.yt-bulk-row.sched { grid-template-columns: 22px minmax(0, 1fr) minmax(0, 2.2fr); }
+.yt-bulk-when { display: inline-flex; gap: 6px; flex-wrap: wrap; margin-right: 8px; }
+.yt-bulk-when .ws-input { width: auto; padding: 2px 6px; border-color: var(--glass-border); background-color: var(--surface-1, var(--bg-1)); }
+.yt-bulk-hint { color: var(--text-faint); font-size: 11.5px; margin-right: 8px; }

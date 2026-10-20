@@ -39,7 +39,7 @@ from . import compose as composer
 from . import ffmpeg_tools
 from . import render as engine
 from . import credits as credits_mod
-from .schedule import (CLIPS_LOCK, bulk_update as _bulk_update, delete_rows as _delete_rows,
+from .schedule import (CLIPS_LOCK, bulk_update as _bulk_update, set_schedules as _set_schedules, delete_rows as _delete_rows,
                        restore_rows as _restore_rows, scheduled_files as _scheduled_files,
                        project_of_folder as _project_of_folder, with_missing_flags as _with_missing_flags, created_of as _created_of, load_clips as _load_clips,
                        migrate_created as _migrate_created, save_clips as _save_clips)
@@ -1428,6 +1428,23 @@ class Handler(BaseHTTPRequestHandler):
         return self._send_json({"ok": True, "restored": [r["id"] for r in back],
                                 "clip": with_missing_flags(back)})
 
+    def _post_workspace_clips_schedule(self):
+        """The upload date and time of many rows in one request: {rows: [{id, date, time}]}
+        (the bulk upload dialog's inline inputs and its Auto-fill). One read-modify-write."""
+        try:
+            req = self._read_json()
+        except Exception as exc:               # noqa: BLE001
+            return self._send_json({"error": str(exc)}, 400)
+        rows = req.get("rows")
+        if not isinstance(rows, list) or not rows or len(rows) > 5000:
+            return self._send_json({"error": "rows must be a list of {id, date, time}"}, 400)
+        try:
+            out = _set_schedules(rows)
+        except ValueError as exc:
+            return self._send_json({"error": str(exc)}, 400)
+        out["clip"] = _with_missing_flags(out["clip"])
+        return self._send_json({"ok": True, **out})
+
     def _post_workspace_clips_bulk(self):
         """One request for an action on many schedule rows: {ids, status, date?,
         time?}. One read-modify-write, one save (see schedule.bulk_update)."""
@@ -1827,6 +1844,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/project/rename": _post_project_rename,
         "/api/workspace/clips": _post_workspace_clips,
         "/api/workspace/clips/bulk": _post_workspace_clips_bulk,
+        "/api/workspace/clips/schedule": _post_workspace_clips_schedule,
         "/api/workspace/clips/delete": _post_workspace_clips_delete,
         "/api/workspace/clips/restore": _post_workspace_clips_restore,
         "/api/workspace/clips/from-render": _post_workspace_clips_from_render,

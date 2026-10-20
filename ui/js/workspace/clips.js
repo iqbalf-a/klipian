@@ -640,6 +640,8 @@ const ytBulk = { jobId: null, ids: [], mode: "plan" };   // mode: plan | running
    (queue running), Close (queue over). */
 function ytBulkMode(mode) {
   ytBulk.mode = mode;
+  const af = $("#ytAutofill");
+  if (af) af.hidden = mode !== "plan";
   $("#ytBulkCancel").textContent = mode === "running" ? "Cancel after this file" : mode === "ended" ? "Close" : "Cancel";
 }
 
@@ -666,7 +668,26 @@ function ytBulkRows(rows) {
 
 /* The plan first: what will go, what is refused and why, today's quota. Nothing is sent
    until "Upload". A bulk upload never publishes at once: every clip goes at its own date
-   and time. */
+   and time -- the row's own date and time (the table's cells, Detail), which this dialog can
+   also set: inline inputs on a row that lacks them, and Auto-fill for many at once. */
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/* "2026-10-22" + "18:30" -> "Thu 22 Oct 18:30" (local time, like everywhere else). */
+function fmtWhen(date, time) {
+  const d = new Date(`${date}T${time || "00:00"}`);
+  if (!date || Number.isNaN(d.getTime())) return "";
+  return `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}${time ? " " + time : ""}`;
+}
+
+const localDate = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const localTime = (d) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+/* A time YouTube will take as "in the future": more than 5 minutes ahead (the server asks for 2). */
+const isFutureSlot = (date, time) => {
+  const d = new Date(`${date}T${time}`);
+  return !Number.isNaN(d.getTime()) && d.getTime() > Date.now() + 5 * 60 * 1000;
+};
+
 async function openYtBulk(ids, what) {
   const dlg = $("#ytBulkDialog"), list = $("#ytBulkList"), note = $("#ytBulkNote");
   $("#ytBulkTitle").textContent = `Upload ${what} to YouTube`;
@@ -674,7 +695,20 @@ async function openYtBulk(ids, what) {
   ytBulkGoState(false, 0, "Checking…");
   note.textContent = ""; list.innerHTML = "";
   $("#ytBulkQuota").textContent = "Checking…";
+  $("#ytAutofill").hidden = true;
+  ytBulk.request = ids.slice();
+  ytBulk.plan = null;
+  const tomorrow = new Date(Date.now() + 24 * 3600 * 1000);
+  if (!$("#ytAfDate").value || !isFutureSlot($("#ytAfDate").value, $("#ytAfTime").value || "18:30")) $("#ytAfDate").value = localDate(tomorrow);
+  if (!$("#ytAfTime").value) $("#ytAfTime").value = "18:30";
   dlg.showModal();
+  await ytBulkPlan();
+}
+
+/* (Re)read the plan for the rows asked for and draw it: one line per row, in the order they were
+   selected. A row that is refused only for want of a date/time gets its inputs right there. */
+async function ytBulkPlan() {
+  const list = $("#ytBulkList"), note = $("#ytBulkNote"), ids = ytBulk.request;
   let st, plan;
   try {
     st = await (await fetch("/api/youtube/status")).json();
@@ -683,14 +717,30 @@ async function openYtBulk(ids, what) {
     })).json();
   } catch { note.textContent = "Cannot reach the klipian server."; return; }
   if (plan.error) { note.textContent = plan.error; return; }
+  ytBulk.plan = plan;
   const n = plan.ok.length;
   $("#ytBulkQuota").textContent = `Today's quota: ${plan.usedToday} of ${plan.limit} uploads used · this run sends ${Math.min(n, plan.remaining)}`
     + (plan.overQuota ? ` · ${plan.overQuota} will not fit today and stay as they are` : "");
-  list.innerHTML = plan.ok.map((r) => `<div class="yt-bulk-row" data-state="pending"><span class="yt-bulk-icon">·</span>
-      <span class="yt-bulk-title" title="${escapeHTML(r.finalTitle || r.title)}">${escapeHTML(r.finalTitle || r.title)}</span><span class="yt-bulk-msg">${escapeHTML(r.when)}</span></div>`).join("")
-    + plan.refused.map((r) => `<div class="yt-bulk-row" data-state="failed"><span class="yt-bulk-icon">✕</span>
+  const byId = new Map([...plan.ok.map((r) => [r.id, { ...r, okRow: true }]), ...plan.refused.map((r) => [r.id, r])]);
+  list.innerHTML = ids.filter((id) => byId.has(id)).map((id) => {
+    const r = byId.get(id);
+    if (r.okRow) {
+      const t = r.finalTitle || r.title;
+      return `<div class="yt-bulk-row" data-state="pending" data-id="${escapeHTML(r.id)}"><span class="yt-bulk-icon">·</span>
+        <span class="yt-bulk-title" title="${escapeHTML(t)}">${escapeHTML(t)}</span>
+        <span class="yt-bulk-msg">${escapeHTML(fmtWhen(r.date, r.time) || r.when)}</span></div>`;
+    }
+    const sched = r.needsSchedule
+      ? `<span class="yt-bulk-when"><input class="ws-input" type="date" data-ytwhen="date" value="${escapeHTML(r.date || "")}" aria-label="Upload date of ${escapeHTML(r.title)}">
+          <input class="ws-input" type="time" data-ytwhen="time" value="${escapeHTML(r.time || "")}" aria-label="Upload time of ${escapeHTML(r.title)}"></span>
+         <span class="yt-bulk-hint" data-ytwhen-msg>Set a date and time (in the future) to include it.</span>`
+      : `<span class="yt-bulk-msg">${escapeHTML(r.message)}</span>`;
+    return `<div class="yt-bulk-row${r.needsSchedule ? " sched" : ""}" data-state="failed" data-id="${escapeHTML(r.id)}"><span class="yt-bulk-icon">✕</span>
       <span class="yt-bulk-title">${escapeHTML(r.title)}</span>
-      <span class="yt-bulk-msg">${escapeHTML(r.message)} <button class="ws-mini" type="button" data-ytdetail="${escapeHTML(r.id)}"${/upload date|date and time/i.test(r.message || "") ? ' data-focus="date"' : ""}>Detail</button></span></div>`).join("");
+      <span class="yt-bulk-msg">${sched}
+        <button class="ws-mini" type="button" data-ytdetail="${escapeHTML(r.id)}"${r.needsSchedule || /upload date|date and time/i.test(r.message || "") ? ' data-focus="date"' : ""}>Detail</button></span></div>`;
+  }).join("");
+  $("#ytAutofill").hidden = false;
   // Nothing can be sent when the plan is empty, the account is not green (not connected, or the
   // client is not valid), or a queue is already running: Upload is off, and says why.
   ytBulk.ids = plan.ok.map((r) => r.id);
@@ -701,7 +751,7 @@ async function openYtBulk(ids, what) {
   else if (!n) {
     const noDate = plan.refused.length && plan.refused.every((r) => /^No upload date/i.test(r.message || ""));
     why = noDate
-      ? `Nothing can be sent yet: give ${plan.refused.length === 1 ? "the clip" : "the clips"} an upload date and time (in the table or in Detail).`
+      ? `Nothing can be sent yet: give ${plan.refused.length === 1 ? "the clip" : "the clips"} an upload date and time (right here, or in the table or Detail).`
       : "Nothing can be sent yet: fix the clips marked ✕ (each has a Detail button).";
   }
   if (st.light !== "green" || st.client?.state === "invalid") {
@@ -709,9 +759,67 @@ async function openYtBulk(ids, what) {
       <button class="ws-mini" type="button" id="ytBulkSettings">Open profile settings</button>`;
   } else if (plan.running) {
     note.textContent = "A bulk upload is already running for this profile.";
-  }
+  } else note.textContent = "";
   ytBulkGoState(!why, n, why);
 }
+
+/* Save dates and times to the rows (ONE request, the same two fields as the table and Detail),
+   draw the table behind the dialog again, and read the plan again so ✕ turns into ✓. */
+async function ytBulkSaveSchedule(items) {
+  if (!items.length) return true;
+  try {
+    const j = await (await fetch("/api/workspace/clips/schedule", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rows: items }),
+    })).json();
+    if (j.error || !j.ok) throw new Error(j.error || "not saved");
+  } catch (err) {
+    $("#ytAfMsg").textContent = `Not saved — ${err.message}.`;
+    return false;
+  }
+  await loadClips();
+  await ytBulkPlan();
+  return true;
+}
+
+// A row's own inputs: saved as soon as both are filled and in the future.
+$("#ytBulkList")?.addEventListener("change", (e) => {
+  const input = e.target.closest("[data-ytwhen]");
+  if (!input) return;
+  const row = input.closest(".yt-bulk-row");
+  const date = $('[data-ytwhen="date"]', row).value, time = $('[data-ytwhen="time"]', row).value;
+  const msg = $("[data-ytwhen-msg]", row);
+  if (!date || !time) { msg.textContent = "Fill in both the date and the time."; return; }
+  if (!isFutureSlot(date, time)) { msg.textContent = "That time has passed: pick a time in the future."; return; }
+  msg.textContent = "Saving…";
+  ytBulkSaveSchedule([{ id: row.dataset.id, date, time }]);
+});
+
+/* Auto-fill: start date + time, then every N hours or days, down the list in its order. Only rows
+   without a usable schedule (none, half, or past) are filled; rows that already have a valid future
+   time keep it unless "also reschedule" is ticked. The first row filled gets the start, the next one
+   start + interval, and so on. */
+$("#ytAfApply")?.addEventListener("click", async () => {
+  const msg = $("#ytAfMsg"), plan = ytBulk.plan;
+  msg.textContent = "";
+  if (!plan) return;
+  const date = $("#ytAfDate").value, time = $("#ytAfTime").value;
+  const every = Number($("#ytAfEvery").value), unit = $("#ytAfUnit").value;
+  const stepHours = unit === "day" ? every * 24 : every;
+  if (!date || !time) { msg.textContent = "Pick a start date and time."; return; }
+  if (!isFutureSlot(date, time)) { msg.textContent = "The start has passed: pick a time in the future."; return; }
+  if (!Number.isFinite(every) || every < 1 || stepHours < 1) { msg.textContent = "The interval must be at least 1 hour."; return; }
+  const all = $("#ytAfAll").checked;
+  const byId = new Map([...plan.ok.map((r) => [r.id, { ...r, valid: true }]), ...plan.refused.filter((r) => r.needsSchedule).map((r) => [r.id, r])]);
+  const targets = ytBulk.request.filter((id) => byId.has(id) && (all || !byId.get(id).valid));
+  if (!targets.length) { msg.textContent = "Every clip here already has a schedule. Tick the box to reschedule them."; return; }
+  const start = new Date(`${date}T${time}`);
+  const items = targets.map((id, i) => {
+    const d = new Date(start.getTime() + i * stepHours * 3600 * 1000);
+    return { id, date: localDate(d), time: localTime(d) };
+  });
+  msg.textContent = `Setting ${items.length} clip${items.length === 1 ? "" : "s"}…`;
+  if (await ytBulkSaveSchedule(items)) $("#ytAfMsg").textContent = `${items.length} clip${items.length === 1 ? "" : "s"} scheduled, ${every} ${unit}${every === 1 ? "" : "s"} apart.`;
+});
 
 async function ytBulkWatch() {
   const list = $("#ytBulkList"), note = $("#ytBulkNote");

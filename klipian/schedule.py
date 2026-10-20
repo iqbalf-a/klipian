@@ -316,6 +316,37 @@ def bulk_update(ids: list, status: str, date: str = "", time_: str = "",
         return {"clip": changed, "dated": dated, "kept": kept, "missing": sorted(wanted - found)}
 
 
+def set_schedules(items: list, path: Path | None = None, lock: threading.Lock | None = None) -> dict:
+    """Set the upload date and time of many rows in ONE save: items = [{id, date, time}]. Both
+    fields are written together (the same two fields as the table and Detail); nothing else about
+    a row changes. Raises ValueError for a date or time nobody can use. Returns
+    {"clip": [the rows as saved], "missing": [ids]}."""
+    import re
+    wanted: dict[str, tuple[str, str]] = {}
+    for it in items:
+        if not isinstance(it, dict):
+            raise ValueError("each row needs an id, a date and a time")
+        date, time_ = str(it.get("date") or ""), str(it.get("time") or "")
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
+            raise ValueError("date must be YYYY-MM-DD")
+        if not re.fullmatch(r"\d{2}:\d{2}", time_):
+            raise ValueError("time must be HH:MM")
+        wanted[str(it.get("id"))] = (date, time_)
+    with (lock or CLIPS_LOCK):
+        clips = load_clips(path)
+        changed, now = [], int(time.time())
+        for row in clips:
+            pair = wanted.get(str(row.get("id")))
+            if pair is None:
+                continue
+            row["date"], row["time"] = pair
+            row["at"] = now
+            changed.append(row)
+        if changed:
+            save_clips(clips, path)
+        return {"clip": changed, "missing": sorted(set(wanted) - {str(r.get("id")) for r in changed})}
+
+
 def description(post: dict | None, credit_lines: str = "") -> str:
     """The block pasted under an upload: caption, hashtags and the source credit,
     each only if there is one, with a blank line between. The Render screen's

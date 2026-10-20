@@ -704,9 +704,17 @@ def bulk_plan(ids: list) -> dict:
         try:
             spec = prepare(row, publish_now=False, bulk=True)
             ok.append({"id": rid, "title": row.get("title") or "", "finalTitle": spec["title"], "publishAt": spec["publishAt"],
-                       "when": f"{row.get('date')} {row.get('time')}"})
+                       "when": f"{row.get('date')} {row.get('time')}", "date": row.get("date") or "", "time": row.get("time") or ""})
         except YouTubeError as exc:
-            refused.append({"id": rid, "title": row.get("title") or "(untitled)", "message": exc.message, "code": exc.code})
+            # needsSchedule: the ONLY thing wrong is the upload date/time (none, half, past), so the
+            # dialog can offer inputs for it right in the row.
+            try:
+                _publish_at(row, False, bulk=True)
+                needs = False
+            except YouTubeError as again:
+                needs = again.message == exc.message
+            refused.append({"id": rid, "title": row.get("title") or "(untitled)", "message": exc.message, "code": exc.code,
+                            "needsSchedule": needs, "date": row.get("date") or "", "time": row.get("time") or ""})
     used = uploads_today()
     return {"ok": ok, "refused": refused, "usedToday": used, "limit": UPLOAD_QUOTA_PER_DAY,
             "running": paths.current_profile() in _BULK_ACTIVE,
