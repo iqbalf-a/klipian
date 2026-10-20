@@ -1561,9 +1561,13 @@ def check_bulk() -> tuple[str, str]:
         refused = {r["id"]: r["message"] for r in plan["refused"]}
         if [r["id"] for r in plan["ok"]] != [good1, good2, good3]:
             problems.append(f"the plan accepted the wrong rows: {[r['id'] for r in plan['ok']]}")
-        for rid, why in ((no_date, "no upload date"), (no_title, "no title"), (long_title, "101"), (gone, "file deleted")):
+        for rid, why in ((no_date, "upload date and time"), (no_title, "no title"), (long_title, "101"), (gone, "file deleted")):
             if why not in refused.get(rid, ""):
                 problems.append(f"the plan did not refuse '{why}': {refused.get(rid)}")
+        if "publish it now" in refused.get(no_date, "") or "never publishes" not in refused.get(no_date, ""):
+            problems.append(f"the bulk refusal must not offer to publish now: {refused.get(no_date)}")
+        if plan.get("running") is not False:
+            problems.append("the plan should say no queue is running")
         if plan["usedToday"] != 0 or plan["remaining"] != 100 or plan["overQuota"] != 0:
             problems.append(f"the quota in the plan is wrong: {plan}")
 

@@ -469,13 +469,16 @@ _UPLOAD_LOCK = threading.Lock()
 _BUSY_ROWS: set[tuple[str, str]] = set()             # (profile, row id) with an upload running
 
 
-def _publish_at(row: dict, publish_now: bool):
+def _publish_at(row: dict, publish_now: bool, bulk: bool = False):
     """The RFC 3339 UTC time to schedule at, or None to publish at once. The row's date and
     time are the person's local ones. A date without a time (or the reverse) is refused;
     a time in the past is refused too, rather than quietly published now."""
     import datetime as dt
     date, time_ = (row.get("date") or "").strip(), (row.get("time") or "").strip()
     if not date and not time_:
+        if bulk:
+            raise YouTubeError("not_ready", "No upload date and time. Fill them in (Detail) to schedule it; "
+                               "bulk upload never publishes immediately.")
         if not publish_now:
             raise YouTubeError("not_ready", "This clip has no upload date and time. Fill them in to schedule it, "
                                "or choose to publish it now.")
@@ -493,7 +496,7 @@ def _publish_at(row: dict, publish_now: bool):
     return when.strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
 
-def prepare(row: dict, publish_now: bool = False, probe_video: bool = True) -> dict:
+def prepare(row: dict, publish_now: bool = False, probe_video: bool = True, bulk: bool = False) -> dict:
     """Everything an upload of this row needs, checked: {file, body, publishAt}. Raises
     YouTubeError("not_ready", ...) saying what is missing. Used by single and bulk upload."""
     import re
@@ -522,7 +525,7 @@ def prepare(row: dict, publish_now: bool = False, probe_video: bool = True) -> d
             raise YouTubeError("not_ready", "This video is not vertical, so it cannot be a Short.")
         if info.duration > SHORTS_MAX_SECONDS:
             raise YouTubeError("not_ready", f"This video is {info.duration / 60:.1f} minutes: a Short can be at most 3.")
-    publish_at = _publish_at(row, publish_now)
+    publish_at = _publish_at(row, publish_now, bulk)
     tags = []
     for t in re.findall(r"#(\w{1,30})", description):
         if t.lower() not in (x.lower() for x in tags) and len(tags) < 15:
@@ -673,13 +676,14 @@ def bulk_plan(ids: list) -> dict:
             refused.append({"id": rid, "title": "(gone)", "message": "That clip is not in the schedule any more.", "code": "not_ready"})
             continue
         try:
-            spec = prepare(row, publish_now=False)
+            spec = prepare(row, publish_now=False, bulk=True)
             ok.append({"id": rid, "title": row.get("title") or "", "publishAt": spec["publishAt"],
                        "when": f"{row.get('date')} {row.get('time')}"})
         except YouTubeError as exc:
             refused.append({"id": rid, "title": row.get("title") or "(untitled)", "message": exc.message, "code": exc.code})
     used = uploads_today()
     return {"ok": ok, "refused": refused, "usedToday": used, "limit": UPLOAD_QUOTA_PER_DAY,
+            "running": paths.current_profile() in _BULK_ACTIVE,
             "remaining": max(0, UPLOAD_QUOTA_PER_DAY - used),
             "overQuota": max(0, len(ok) - max(0, UPLOAD_QUOTA_PER_DAY - used))}
 
@@ -721,7 +725,7 @@ def start_bulk(ids: list) -> str:
                     _BUSY_ROWS.add(key)
                 try:
                     row = schedule.get_row(item["id"])
-                    spec = prepare(row, publish_now=False)           # again: the file or the time may have changed
+                    spec = prepare(row, publish_now=False, bulk=True)  # again: the file or the time may have changed
                     item["state"] = "uploading"
                     done = _do_upload(row, spec, saved["token"], lambda p, it=item: it.__setitem__("progress", round(p, 3)),
                                       lambda: False)                  # cancel waits for the file being sent

@@ -120,7 +120,15 @@
     dlg.addEventListener("close", () => dlg.remove());
     dlg.showModal();
     youTubeSection(dlg);
+    return dlg;
   }
+
+  /* Other scripts (the bulk upload dialog) can open the settings at the YouTube section. */
+  window.openProfileSettings = (opts = {}) => {
+    const dlg = openSettings();
+    if (opts.section) dlg?.querySelector(`#${opts.section}`)?.scrollIntoView({ block: "center" });
+    return dlg;
+  };
 
   /* ---- the YouTube account (P21-C): what the token is, never the token itself ---- */
   const YT_HELP = {

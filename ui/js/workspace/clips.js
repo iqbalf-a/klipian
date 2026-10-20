@@ -582,7 +582,22 @@ clipDetailForm?.addEventListener("click", async (e) => {
 
 /* ---------- upload to YouTube (P16): many rows, one queue ---------- */
 
-const ytBulk = { jobId: null, ids: [] };
+const ytBulk = { jobId: null, ids: [], mode: "plan" };   // mode: plan | running | ended
+
+/* The one secondary button: Cancel (plan: closes, sends nothing), "Cancel after this file"
+   (queue running), Close (queue over). */
+function ytBulkMode(mode) {
+  ytBulk.mode = mode;
+  $("#ytBulkCancel").textContent = mode === "running" ? "Cancel after this file" : mode === "ended" ? "Close" : "Cancel";
+}
+
+function ytBulkGoState(enabled, count, why) {
+  const go = $("#ytBulkGo");
+  go.hidden = false;
+  go.disabled = !enabled;
+  go.textContent = count ? `Upload ${count}` : "Upload";
+  go.title = enabled ? "" : (why || "");
+}
 
 function ytBulkRows(rows) {
   return rows.map((r) => {
@@ -598,9 +613,11 @@ function ytBulkRows(rows) {
    until "Upload". A bulk upload never publishes at once: every clip goes at its own date
    and time. */
 async function openYtBulk(ids, what) {
-  const dlg = $("#ytBulkDialog"), list = $("#ytBulkList"), go = $("#ytBulkGo"), note = $("#ytBulkNote");
+  const dlg = $("#ytBulkDialog"), list = $("#ytBulkList"), note = $("#ytBulkNote");
   $("#ytBulkTitle").textContent = `Upload ${what} to YouTube`;
-  $("#ytBulkCancel").hidden = true; go.hidden = false; go.disabled = true; note.textContent = ""; list.innerHTML = "";
+  ytBulkMode("plan");
+  ytBulkGoState(false, 0, "Checking…");
+  note.textContent = ""; list.innerHTML = "";
   $("#ytBulkQuota").textContent = "Checking…";
   dlg.showModal();
   let st, plan;
@@ -617,12 +634,23 @@ async function openYtBulk(ids, what) {
   list.innerHTML = plan.ok.map((r) => `<div class="yt-bulk-row" data-state="pending"><span class="yt-bulk-icon">·</span>
       <span class="yt-bulk-title">${escapeHTML(r.title)}</span><span class="yt-bulk-msg">${escapeHTML(r.when)}</span></div>`).join("")
     + plan.refused.map((r) => `<div class="yt-bulk-row" data-state="failed"><span class="yt-bulk-icon">✕</span>
-      <span class="yt-bulk-title">${escapeHTML(r.title)}</span><span class="yt-bulk-msg">${escapeHTML(r.message)}</span></div>`).join("");
-  if (st.state !== "ok") { note.textContent = "This profile is not connected to YouTube: open the profile settings and connect it."; return; }
-  if (!n) { note.textContent = "Nothing here can be uploaded yet."; return; }
+      <span class="yt-bulk-title">${escapeHTML(r.title)}</span>
+      <span class="yt-bulk-msg">${escapeHTML(r.message)} <button class="ws-mini" type="button" data-ytdetail="${escapeHTML(r.id)}">Detail</button></span></div>`).join("");
+  // Nothing can be sent when the plan is empty, the account is not green (not connected, or the
+  // client is not valid), or a queue is already running: Upload is off, and says why.
   ytBulk.ids = plan.ok.map((r) => r.id);
-  go.textContent = `Upload ${n} clip${n === 1 ? "" : "s"}`;
-  go.disabled = false;
+  let why = "";
+  if (plan.running) why = "A bulk upload is already running for this profile.";
+  else if (st.client?.state === "invalid") why = "The client_secret.json is not valid: fix it in the profile settings.";
+  else if (st.light !== "green") why = "This profile is not connected to YouTube.";
+  else if (!n) why = "Nothing here can be sent yet: fix the clips marked ✕ first.";
+  if (st.light !== "green" || st.client?.state === "invalid") {
+    note.innerHTML = `${escapeHTML(st.client?.state === "invalid" ? "The client_secret.json is not valid." : "This profile is not connected to YouTube.")}
+      <button class="ws-mini" type="button" id="ytBulkSettings">Open profile settings</button>`;
+  } else if (plan.running) {
+    note.textContent = "A bulk upload is already running for this profile.";
+  }
+  ytBulkGoState(!why, n, why);
 }
 
 async function ytBulkWatch() {
@@ -635,7 +663,7 @@ async function ytBulkWatch() {
     $("#ytBulkQuota").textContent = `Today's quota: ${s.usedToday} of ${s.limit} uploads used`;
     if (s.state === "running") continue;
     note.textContent = s.note || (s.state === "cancelled" ? "Cancelled: the rest were not sent." : "Done.");
-    $("#ytBulkCancel").hidden = true;
+    ytBulkMode("ended");
     ytBulk.jobId = null;
     await loadClips();
     const done = (s.rows || []).filter((r) => r.state === "done").length;
@@ -653,18 +681,26 @@ $("#ytBulkGo")?.addEventListener("click", async (e) => {
     })).json();
     if (j.error) { $("#ytBulkNote").textContent = j.error; go.disabled = false; return; }
     ytBulk.jobId = j.id;
-    go.hidden = true; $("#ytBulkCancel").hidden = false; $("#ytBulkNote").textContent = "Uploading one clip after another. You can close this window; it goes on.";
+    go.hidden = true; ytBulkMode("running"); $("#ytBulkNote").textContent = "Uploading one clip after another. You can close this window; it goes on.";
     ytBulkWatch();
   } catch (err) { $("#ytBulkNote").textContent = `Could not start: ${err.message}`; go.disabled = false; }
 });
 
 $("#ytBulkCancel")?.addEventListener("click", async () => {
+  if (ytBulk.mode !== "running") { $("#ytBulkDialog").close(); return; }   // Cancel / Close: nothing is sent
   if (!ytBulk.jobId) return;
   await fetch("/api/youtube/bulk-cancel", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: ytBulk.jobId }) });
   $("#ytBulkNote").textContent = "Stopping after the file being sent…";
 });
 
 $("#ytBulkClose")?.addEventListener("click", () => $("#ytBulkDialog").close());
+
+/* From the dialog: a refused clip's Detail, and the profile settings at the YouTube section. */
+$("#ytBulkDialog")?.addEventListener("click", (e) => {
+  const d = e.target.closest("[data-ytdetail]");
+  if (d) { $("#ytBulkDialog").close(); openDetail(d.dataset.ytdetail); return; }
+  if (e.target.closest("#ytBulkSettings")) { $("#ytBulkDialog").close(); window.openProfileSettings?.({ section: "ytBox" }); }
+});
 
 $("#bulkYouTube")?.addEventListener("click", () => {
   const ids = [...SELECTED];
