@@ -2673,7 +2673,141 @@ def check_manual() -> tuple[str, str]:
     return PASS, "upload and name cleaning, same bytes reused, (2) on a clash, title from the name, file resolved and flagged, upload checks, History, Add to schedule, Guest 403"
 
 
-CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl,
+def check_captions() -> tuple[str, str]:
+    """When caption words are on screen: lines break at pauses and sentence ends (per_line is a
+    maximum), short gaps are bridged and long ones leave the screen empty, "As spoken" hides the
+    words not yet said while "Whole line" shows them, the last word keeps a short tail -- in the
+    planner, in the .ass text build_ass writes (plain, square-box and rounded-box styles), and in
+    the editor's JS (ui/js/shared/captionplan.js, run with node) on the same word list."""
+    import contextlib
+    import re
+    from unittest import mock
+    import shutil as _sh
+    import subprocess
+    from . import render
+    from .models import Word
+    from .render import RenderJob, Span, build_ass, caption_at, caption_plan
+
+    problems = []
+    # (start, end, text): a 0.2 s gap is bridged, a 0.3 s gap (inside a line) is not, a 0.8 s pause splits a
+    # line, a full line (3) splits, a full stop splits, a comma splits only after two words
+    W = [(0.00, 0.30, "Halo,"),       # a comma after ONE word: no split
+         (0.50, 0.80, "semua"),       # 0.2 gap from "Halo," -> bridged
+         (1.10, 1.40, "yang"),        # 0.3 gap: inside the line, not bridged (> HOLD_GAP, <= PAUSE_SPLIT)
+         (1.45, 1.70, "hadir"),       # the line was full (3) -> new line
+         (1.75, 2.00, "hari,"),       # a comma after the SECOND word: the line ends
+         (2.05, 2.30, "ini."),        # a full stop: the line ends (a line of one word)
+         (3.10, 3.40, "Lanjut"),      # a 0.8 s pause: new line
+         (3.45, 3.70, "ya")]          # the last word
+    lines = caption_plan(W, 3)
+    got = [[w[2] for w in line["words"]] for line in lines]
+    if got != [["Halo,", "semua", "yang"], ["hadir", "hari,"], ["ini."], ["Lanjut", "ya"]]:
+        problems.append(f"the lines are wrong: {got}")
+    wins = [[(round(s, 3), round(e, 3)) for s, e in line["windows"]] for line in lines]
+    want = [[(0.0, 0.5), (0.5, 0.95), (1.1, 1.45)],      # bridged | 0.8 + tail (gap 0.3 is silence) | gap 0.05 held
+            [(1.45, 1.75), (1.75, 2.05)],
+            [(2.05, 2.45)],                              # 2.30 + tail: the pause after it is empty
+            [(3.1, 3.45), (3.45, 3.85)]]                 # the last word: 3.70 + tail
+    if wins != want:
+        problems.append(f"the windows are wrong: {wins}")
+    one = caption_plan([(0.0, 0.3, "Satu,"), (0.4, 0.7, "dua")], 3)
+    if [len(x["words"]) for x in one] != [2]:
+        problems.append("a comma after the first word of a line must not split it")
+    if [len(x["words"]) for x in caption_plan([(0, .3, "a"), (.35, .6, "b"), (.65, .9, "c"), (.95, 1.2, "d")], 3)] != [3, 1]:
+        problems.append("per_line is a maximum: 4 words in a row make 3 + 1")
+    if [len(x["words"]) for x in caption_plan([(0, .3, "a"), (.7, 1.0, "b")], 3)] != [1, 1]:
+        problems.append("a pause above PAUSE_SPLIT must start a new line (a line of one word is fine)")
+    # on screen: nothing during the long silence, the tail after the last word, short gaps bridged
+    if caption_at(W, 3, "spoken", 2.6) is not None or caption_at(W, 3, "spoken", 2.44) is None:
+        problems.append("the screen should be empty during a long pause and not before the tail is over")
+    if caption_at(W, 3, "spoken", 3.84) is None or caption_at(W, 3, "spoken", 3.86) is not None:
+        problems.append("the last word should keep a 0.15 s tail")
+    if caption_at(W, 3, "spoken", 0.4) is None:
+        problems.append("a gap of 0.2 s must be bridged (no flicker)")
+    if caption_at(W, 3, "spoken", 0.97) is not None:
+        problems.append("a gap of 0.3 s is silence: the line must be gone")
+    a1, a2 = caption_at(W, 3, "spoken", 0.2), caption_at(W, 3, "line", 0.2)
+    if not (a1 and a2 and a1["shown"] == 1 and a2["shown"] == 3 and a1["highlight"] == a2["highlight"] == 0):
+        problems.append(f"'As spoken' shows only the words said, 'Whole line' all of them: {a1} {a2}")
+
+    # --- the .ass text, in the three highlight styles
+    words = [Word(t, a, b) for a, b, t in W]
+    job = RenderJob(title="t", spans=[Span(0.0, 4.0)])
+    for hs in ("text", "box", "square"):
+        for reveal in ("spoken", "line"):
+            # "square" = the box without measurable fonts (libass draws it as BorderStyle 3)
+            with mock.patch.object(render, "_measure", return_value=None) if hs == "square" else contextlib.nullcontext():
+                ass = build_ass(job, words, {"highlight_style": "box" if hs == "square" else hs, "reveal": reveal, "watermark": False})
+            events = re.findall(r"Dialogue: (\d),(\d+:\d\d:\d\d\.\d\d),(\d+:\d\d:\d\d\.\d\d),(Utama|Kotak),,[^,]*,[^,]*,[^,]*,,(.*)", ass)
+
+            def secs(x):
+                h, m, s = x.split(":")
+                return int(h) * 3600 + int(m) * 60 + float(s)
+            spans = [(secs(a), secs(b), txt) for _, a, b, _, txt in events]
+            if not spans:
+                problems.append(f"{hs}/{reveal}: no caption events were written")
+                continue
+            if any(s < 3.09 and e > 2.46 for s, e, _ in spans):
+                problems.append(f"{hs}/{reveal}: text is on screen during the pause between 2.45 and 3.10")
+            if max(e for _, e, _ in spans) > 3.86:
+                problems.append(f"{hs}/{reveal}: the last line stays longer than its tail: {max(e for _, e, _ in spans)}")
+            body = [t for _, _, t in spans if "\\p1" not in t]
+            if any("\\an1\\pos" in t for t in body):
+                # rounded box: every word is its own event, so "hidden" means "not there yet"
+                said = min(a for a, _, t in spans if t.endswith("semua") and "\\an1\\pos" in t)
+                if abs(said - (0.5 if reveal == "spoken" else 0.0)) > 0.011:
+                    problems.append(f"{hs}/{reveal}: 'semua' appears at {said}")
+            else:
+                hidden = [t for t in body if "\\alpha&HFF&" in t or "\\1a&HFF&" in t]
+                if reveal == "spoken" and not hidden:
+                    problems.append(f"{hs}/spoken: the words not yet said are not hidden")
+                if reveal == "line" and hidden:
+                    problems.append(f"{hs}/line: the whole line must show without hidden words")
+            # the first event of the first line hides the two words that are not yet said, keeping their place
+            first = min(spans)[2] if reveal == "spoken" and hs == "text" else ""
+            if first and not re.search(r"\{\\c&H0000D6FF&\}Halo,\{\\c&H00FFFFFF&\} \{\\alpha&HFF&\}semua yang$", first):
+                problems.append(f"the first event of 'As spoken' should show only 'Halo,': {first}")
+
+    # --- the editor's JS on the same list
+    node = _sh.which("node")
+    js = Path(__file__).resolve().parent.parent / "ui" / "js" / "shared" / "captionplan.js"
+    note = ""
+    if not node or not js.is_file():
+        note = " (the JS agreement was skipped: node is not installed)"
+    else:
+        driver = (
+            "const m = require(process.argv[1]); const input = JSON.parse(require('fs').readFileSync(0, 'utf8'));"
+            "const used = input.words.map(([a, b, text]) => ({ a, b, text }));"
+            "const plan = m.captionPlan(used, input.perLine).map((l) => ({ words: l.words.map((w) => w.text), windows: l.windows }));"
+            "const at = input.times.map((t) => ['spoken', 'line'].map((r) => { const x = m.captionAt(used, input.perLine, r, t);"
+            "  return x ? { words: x.words.map((w) => w.text), shown: x.shown, highlight: x.highlight } : null; }));"
+            "process.stdout.write(JSON.stringify({ plan, at }));")
+        times = [round(0.05 * i, 3) for i in range(0, 80)] + [0.4, 0.97, 2.44, 2.6, 3.84, 3.86]
+        payload = json.dumps({"words": W, "perLine": 3, "times": times})
+        proc = subprocess.run([node, "-e", driver, str(js)], input=payload.encode("utf-8"), capture_output=True, timeout=60)
+        if proc.returncode != 0:
+            problems.append(f"node could not run captionplan.js: {proc.stderr.decode('utf-8', 'replace')[:200]}")
+        else:
+            out = json.loads(proc.stdout.decode("utf-8"))
+            for pl, jl in zip(caption_plan(W, 3), out["plan"]):
+                if [w[2] for w in pl["words"]] != jl["words"] or any(abs(x - y) > 1e-9 for a, b in zip(pl["windows"], jl["windows"]) for x, y in zip(a, b)):
+                    problems.append(f"JS and Python disagree on a line: {pl} / {jl}")
+            if len(out["plan"]) != len(caption_plan(W, 3)):
+                problems.append("JS and Python disagree on the number of lines")
+            for t, js_at in zip(times, out["at"]):
+                for r, got in zip(("spoken", "line"), js_at):
+                    py = caption_at(W, 3, r, t)
+                    py = {"words": [w[2] for w in py["words"]], "shown": py["shown"], "highlight": py["highlight"]} if py else None
+                    if py != got:
+                        problems.append(f"JS and Python disagree at {t}s ({r}): {py} / {got}")
+                        break
+            note = " and the editor's JS agrees"
+    if problems:
+        return FAIL, "\n      ".join(problems[:12])
+    return PASS, "lines break at pauses, silence is empty, As spoken hides future words, tails" + note
+
+
+CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl,
           "decode": check_decode, "render": check_render}
 
 

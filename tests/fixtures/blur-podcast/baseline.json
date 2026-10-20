@@ -1,10 +1,10 @@
 {
  "note": "blur-podcast: podcast-test.mp4 (1280x720), blur layout, made with the code before P10 (picture shapes) to prove it renders the same afterwards.",
- "md5": "70e9a6fbd0b23844ca6f118f014050da",
- "sha256": "86974f6e07d5d80f67b8e7d66bd9b2e5378e9a58822cabe8842963088a738d15",
- "bytes": 2693223,
+ "md5": "9e9400c2a5a16bb8c43db9aa3e0075a5",
+ "sha256": "2531f614659a2d378ece98903bc41150366acbaee9b0b0cabbe856cc5803cc82",
+ "bytes": 2664013,
  "ffmpeg": "ffmpeg version 9.0.2-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers",
- "video_md5": "8468424905948a075de2380a5e193f32",
+ "video_md5": "ccbe92516ce7cc48309c7a1f820853ac",
  "audio": {
   "window_ms": 50,
   "samples": 384000,

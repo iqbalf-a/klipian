@@ -307,6 +307,89 @@ def _side_margins(x_percent: float, W: int) -> tuple[int, int]:
     return BASE_SIDE_MARGIN, BASE_SIDE_MARGIN - 2 * shift
 
 
+# --------------------------------------------------------------------------
+# when each caption word is on screen (shared with the editor's preview)
+# --------------------------------------------------------------------------
+#
+# THE RULES -- ui/js/shared/captionplan.js has the same function and must give the SAME numbers
+# (selftest check `captions` runs both on one word list):
+#
+#  1. Lines break at pauses. A new line starts when the gap between two consecutive words is above
+#     PAUSE_SPLIT, after a word that ends in . ? ! , and after a word that ends in a comma when the
+#     line already has two words or more. `per_line` is a MAXIMUM: a line may have one word.
+#  2. No text during silence. A word's window runs from its own start to the start of the next word
+#     (of the same line or of the next line) when that gap is at most HOLD_GAP, so short gaps do not
+#     flicker; otherwise it ends TAIL after its own end. The last word of the clip: its end + TAIL.
+#  3. Reveal. "spoken" (default) shows only the words that have started (the rest of the line is laid
+#     out but invisible, so nothing shifts when they appear); "line" shows the whole line from the
+#     first word's start, as it always did, but within the windows of rule 2.
+#  4. The highlighted word is the one whose window it is.
+PAUSE_SPLIT = 0.35      # seconds of silence between two words that starts a new line
+HOLD_GAP = 0.25         # a gap up to this is bridged (the word stays until the next one starts)
+TAIL = 0.15             # how long a word stays after it ended, when it is not bridged
+_SENTENCE_END = re.compile(r"[.?!]$")
+
+
+def _ends_with(text: str, pattern: "re.Pattern[str]") -> bool:
+    return bool(pattern.search(text.rstrip("\"'\u201d\u2019)]}")))
+
+
+def caption_plan(used: list, per_line: int) -> list[dict]:
+    """Lines of caption words and the window of each word. `used` = [(start, end, text)] in output
+    order. Returns [{"words": [(a, b, text)...], "windows": [(start, end)...]}] with one window per
+    word (start == the word's start; end <= start means the window is empty and is skipped)."""
+    per_line = max(1, int(per_line))
+    lines: list[list] = []
+    cur: list = []
+    for w in used:
+        if cur and (len(cur) >= per_line or w[0] - cur[-1][1] > PAUSE_SPLIT):
+            lines.append(cur)
+            cur = []
+        cur.append(w)
+        t = w[2]
+        if _ends_with(t, _SENTENCE_END) or (len(cur) >= 2 and _ends_with(t, re.compile(r",$"))):
+            lines.append(cur)
+            cur = []
+    if cur:
+        lines.append(cur)
+    flat = [w for line in lines for w in line]
+    plan = []
+    n = 0
+    for line in lines:
+        windows = []
+        for j, (a, b, _t) in enumerate(line):
+            nxt = flat[n + j + 1] if n + j + 1 < len(flat) else None
+            end = nxt[0] if (nxt is not None and nxt[0] - b <= HOLD_GAP) else b + TAIL
+            windows.append((a, end))
+        n += len(line)
+        plan.append({"words": line, "windows": windows})
+    return plan
+
+
+def caption_at(used: list, per_line: int, reveal: str, t: float) -> dict | None:
+    """What is on screen at output time `t`: {"words", "shown", "highlight"} or None (same as the
+    editor's captionAt). `shown` = how many words of the line are visible."""
+    for line in caption_plan(used, per_line):
+        for j, (s, e) in enumerate(line["windows"]):
+            if e > s and s <= t < e:
+                return {"words": line["words"], "shown": len(line["words"]) if reveal == "line" else j + 1,
+                        "highlight": j}
+    return None
+
+
+def _merged(windows: list[tuple[float, float]]) -> list[tuple[float, float]]:
+    """Non-empty windows with the ones that touch joined into one."""
+    out: list[list[float]] = []
+    for s, e in windows:
+        if e <= s:
+            continue
+        if out and abs(out[-1][1] - s) < 1e-9:
+            out[-1][1] = e
+        else:
+            out.append([s, e])
+    return [(s, e) for s, e in out]
+
+
 def build_ass(job: RenderJob, words: list[Word] | None, style: dict | None = None) -> str:
     """Karaoke captions: one event per word, showing the full line with the
     currently-spoken word highlighted. The "klipian" watermark is also
@@ -326,6 +409,8 @@ def build_ass(job: RenderJob, words: list[Word] | None, style: dict | None = Non
     # exactly as it did before -- watermark_y's 18 included, which is where
     # the old "bottom" mode landed it under a default caption.
     g = {"font": "Arial", "size": 84, "per_line": 3,
+         "reveal": "spoken",              # "spoken": only the words already said show; "line": the whole line
+
          "outline": 4, "position": 24, "x": 0,
          "color": "&H00FFFFFF&",          # base text color
          "highlight": "&H0000D6FF&",      # color of the currently-spoken word
@@ -440,18 +525,14 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             used.append((a, b, teks))
 
     events = []
-    per_line = max(1, int(g["per_line"]))   # 0/negative would crash range()
+    per_line = max(1, int(g["per_line"]))   # a MAXIMUM now (see caption_plan); 0/negative must not crash
+    spoken = g.get("reveal") != "line"       # "As spoken" (default): only the words that have started
 
     # Rounded box mode: the box is a shape we draw and position ourselves,
     # so the text layer no longer has to carry the highlight at all. Each
-    # line becomes ONE text event (the words never change within a line --
-    # only which box is lit) plus one drawing event per word.
-    for i in range(0, len(used), per_line):
-        group = used[i:i + per_line]
-        # When the next group starts. The last word in each group must hold
-        # until that point -- if it only lasts to its own end, captions
-        # flicker at every line break.
-        next_start = used[i + per_line][0] if i + per_line < len(used) else None
+    # word gets its own text event plus one drawing event per word.
+    for line in caption_plan(used, per_line):
+        group, windows = line["words"], line["windows"]
 
         # Where each word in this line starts and ends across the frame,
         # rebuilding the layout libass is about to perform: the line is
@@ -483,9 +564,15 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             box_top = box_bottom - asc - desc
 
         for j, (a, b, _) in enumerate(group):
+            start, end = windows[j]
+            if end <= start:
+                continue
+            # How many words of the line are shown in this word's window: the ones that have started
+            # ("As spoken") or all of them ("Whole line"). The others are laid out but invisible, so
+            # the line does not shift when they appear.
+            shown = j + 1 if spoken else len(group)
             if rounded:
-                # The text layer is identical for every word of this line, so
-                # it's written once after this loop; here only the box moves.
+                # The text layer is written once per word after this loop; here only the box moves.
                 text = None
             elif square_box:
                 # \3a, the BORDER ALPHA, is what turns the box on and off per
@@ -497,20 +584,18 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 body = " ".join(
                     (r"{\3a&H00&\1c&H00000000&}" + t + r"{\3a&HFF&\1c" + g["color"] + "}")
                     if k == j else t
-                    for k, (_, _, t) in enumerate(group)
+                    for k, (_, _, t) in enumerate(group[:shown])
                 )
+                if shown < len(group):                  # \1a: the fill only (the box is already transparent)
+                    body += r" {\1a&HFF&}" + " ".join(t for _, _, t in group[shown:])
                 text = r"{\3a&HFF&}" + body
             else:
                 text = " ".join(
                     (r"{\c" + g["highlight"] + "}" + t + r"{\c" + g["color"] + "}") if k == j else t
-                    for k, (_, _, t) in enumerate(group)
+                    for k, (_, _, t) in enumerate(group[:shown])
                 )
-            if j < len(group) - 1:
-                end = group[j + 1][0]          # until the next word
-            elif next_start is not None:
-                end = next_start               # until the next line
-            else:
-                end = b + 0.4                     # last line, give some breathing room
+                if shown < len(group):                  # \alpha hides fill, outline and shadow together
+                    text += r" {\alpha&HFF&}" + " ".join(t for _, _, t in group[shown:])
 
             if rounded:
                 x0, x1 = spans_x[j]
@@ -521,11 +606,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 shape = _rounded_rect(int(x0) - pad, top, int(x1) + pad, bottom,
                                       int((bottom - top) * 0.28))
                 events.append(
-                    f"Dialogue: 0,{_ass_time(a)},{_ass_time(end)},Kotak,,0,0,0,,"
+                    f"Dialogue: 0,{_ass_time(start)},{_ass_time(end)},Kotak,,0,0,0,,"
                     f"{{\\pos(0,0)\\p1}}{shape}{{\\p0}}")
             else:
                 events.append(
-                    f"Dialogue: 0,{_ass_time(a)},{_ass_time(end)},Utama,,0,0,0,,{text}")
+                    f"Dialogue: 0,{_ass_time(start)},{_ass_time(end)},Utama,,0,0,0,,{text}")
 
         if rounded:
             # EVERY WORD gets its own \pos, rather than one event holding the
@@ -539,11 +624,13 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             # not that number matches what libass would have chosen. The only
             # thing that changes is the spacing between words, by a few
             # pixels, evenly.
-            line_end = next_start if next_start is not None else group[-1][1] + 0.4
-            for (wx0, _), (_, _, t) in zip(spans_x, group):
-                events.append(
-                    f"Dialogue: 1,{_ass_time(group[0][0])},{_ass_time(line_end)},"
-                    f"Utama,,0,0,0,,{{\\an1\\pos({int(wx0)},{int(box_bottom)})}}{t}")
+            # A word's text is on screen in the windows from its own (As spoken) or the line's first
+            # (Whole line) onward; windows that touch are one event.
+            for k, ((wx0, _), (_, _, t)) in enumerate(zip(spans_x, group)):
+                for s, e in _merged(windows[k:] if spoken else windows):
+                    events.append(
+                        f"Dialogue: 1,{_ass_time(s)},{_ass_time(e)},"
+                        f"Utama,,0,0,0,,{{\\an1\\pos({int(wx0)},{int(box_bottom)})}}{t}")
 
     return header + "\n".join(events) + "\n"
 

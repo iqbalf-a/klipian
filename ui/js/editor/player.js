@@ -429,6 +429,7 @@ function drawCaption() {
   const t = vNow(video);
   const wordsPerLine = (typeof captionValue === "function"
     ? captionValue("per-line")?.out : 3) || 3;
+  const reveal = (typeof captionValue === "function" ? captionValue("reveal")?.out : null) || "spoken";
 
   // words that actually make it into the output, same as in build_ass
   const used = [];
@@ -445,35 +446,16 @@ function drawCaption() {
   const out = sourceToOut(activeClip, t);
   if (out === null) { cap.innerHTML = ""; return; }
 
-  // Each line's display window must MATCH build_ass: a new line STARTS
-  // exactly when its first word is spoken, not earlier just because the
-  // previous line ended. Previously the check was "which word hasn't ended
-  // yet" (out < w.b) without verifying it had started -- so as soon as
-  // there was a gap before the next line, the entire line (including words
-  // not yet spoken) appeared for the duration of that gap (reported by ian:
-  // "text appeared but the speaker hasn't talked yet").
-  let line = null, highlight = -1;
-  for (let g = 0; g < used.length; g += wordsPerLine) {
-    const group = used.slice(g, g + wordsPerLine);
-    const next = used[g + wordsPerLine];        // first word of the following line
-    const start = group[0].a;
-    const end = next ? next.a : group[group.length - 1].b + 0.4;
-    if (out < start || out >= end) continue;
-    line = group;
-    // The highlighted word persists until the NEXT word truly starts
-    // (not just until the end of the word itself) -- matching build_ass,
-    // so the highlight doesn't blink empty during a mid-line pause.
-    highlight = group.length - 1;
-    for (let j = 0; j < group.length; j++) {
-      const groupEnd = j < group.length - 1 ? group[j + 1].a : end;
-      if (out < groupEnd) { highlight = j; break; }
-    }
-    break;
-  }
-  if (!line) { cap.innerHTML = ""; return; }
-
-  cap.innerHTML = line
-    .map((w, j) => (j === highlight ? `<mark>${escapeHTML(w.text)}</mark>` : escapeHTML(w.text)))
+  // The same rules as build_ass (shared/captionplan.js): lines break at pauses, nothing is on screen in
+  // silence, and "As spoken" keeps the words not yet said laid out but invisible (no shifting).
+  const at = captionAt(used, wordsPerLine, reveal, out);
+  if (!at) { cap.innerHTML = ""; return; }
+  cap.innerHTML = at.words
+    .map((w, j) => {
+      const text = escapeHTML(w.text);
+      if (j >= at.shown) return `<span style="visibility:hidden">${text}</span>`;
+      return j === at.highlight ? `<mark>${text}</mark>` : text;
+    })
     .join(" ");
 }
 

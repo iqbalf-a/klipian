@@ -1,10 +1,10 @@
 {
  "note": "face-podcast: podcast-test.mp4 (1280x720), face layout, made with the code before P10 (picture shapes) to prove it renders the same afterwards.",
- "md5": "f83f39ecafad884fe2736192f8eab728",
- "sha256": "38757e81721c5f783b45eed98d74024a91f587ea76c92af5a487508973738cf1",
- "bytes": 1035213,
+ "md5": "036bcd0fe979e2ab1648830a7cc5db71",
+ "sha256": "a2ccf5d4c6eb7895004bb540fd1495cb60bd23bce2a48b3d3eaa8ac82d75f839",
+ "bytes": 1007600,
  "ffmpeg": "ffmpeg version 9.0.2-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers",
- "video_md5": "f7395532705d065efbfe7088fbfeedbf",
+ "video_md5": "53cd725f47329085058a80ba9d422c80",
  "audio": {
   "window_ms": 50,
   "samples": 384000,

@@ -1,10 +1,10 @@
 {
  "note": "shape-34-blur: podcast-test.mp4 (1280x720), 3:4 picture on a blurred copy, centred. First checked by looking at the rendered frame (the source is a colour-bar test pattern, so position and bars are visible).",
- "md5": "3451fb924547a20d30e7e164c2a4c98f",
- "sha256": "feb20e6a5f716bc3744cbcd237ad951209c343cd8e71faa6a98f34efe7a2d2d1",
- "bytes": 2491583,
+ "md5": "9e53141a18ede664b7ce56574e755c21",
+ "sha256": "18b646a9219ba4fd2622a231a54000c0d69d70573022598e748de2cd5b5ddfa4",
+ "bytes": 2468268,
  "ffmpeg": "ffmpeg version 9.0.2-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers",
- "video_md5": "6a7d67dc0bef9742275aaa5ba5d6f96c",
+ "video_md5": "322f91b6eeefe822ec6cd40041dab04b",
  "audio": {
   "window_ms": 50,
   "samples": 384000,

@@ -1,10 +1,10 @@
 {
  "note": "shape-169-black: podcast-test.mp4 (1280x720), 16:9 whole frame on black, centred. First checked by looking at the rendered frame (the source is a colour-bar test pattern, so position and bars are visible).",
- "md5": "0d394318e3c9a7d1121feb45e621b374",
- "sha256": "98ea8f8103f7a689fb2fe66464128039716c9826610f7d4b3a99ef508aa031b7",
- "bytes": 2378159,
+ "md5": "1ea2205616bab8c725df5e1750e05903",
+ "sha256": "0e2371e1eb59132028ca3cfa609de16aebce42e5e0f948c45890f66e562075c1",
+ "bytes": 2362008,
  "ffmpeg": "ffmpeg version 9.0.2-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers",
- "video_md5": "b449d625ea53d377e6ae6c68b8e768dc",
+ "video_md5": "5e645f4fc48a3ca384ab3566f3a57944",
  "audio": {
   "window_ms": 50,
   "samples": 384000,

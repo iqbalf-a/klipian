@@ -120,8 +120,15 @@ const CAPTION_OPTIONS = [
   { id: "x", label: "X position", kind: "range",
     min: -25, max: 25, step: 1, def: 0, value: 0, unit: "%",
     hint: "Offset from the centre. Negative moves left." },
+  // A MAXIMUM: a line also ends at a pause or after a sentence end (shared/captionplan.js).
   { id: "per-line", label: "Words per line", active: 1, choices: [
       { t: "2", out: 2 }, { t: "3", out: 3 }, { t: "4", out: 4 }] },
+  // "As spoken": a word shows when it is said (the rest of the line is laid out but invisible, so
+  // nothing shifts). "Whole line": the line appears when its first word starts. Default As spoken, also
+  // for projects and presets saved before this option existed.
+  { id: "reveal", label: "Words appear", active: 0, choices: [
+      { t: "As spoken", out: "spoken" },
+      { t: "Whole line", out: "line" }] },
   { id: "outline", label: "Outline", active: 1, choices: [
       { t: "None", out: 0 },
       { t: "Medium", out: 4 },
@@ -182,6 +189,7 @@ function captionStyle() {
     position: captionOut("position"),
     x: captionOut("x"),
     per_line: captionOut("per-line"),
+    reveal: captionOut("reveal"),
     outline: captionOut("outline"),
     watermark: captionOut("watermark"),
     watermark_size: captionOut("watermark-size"),
