@@ -208,6 +208,60 @@ class _Net:
         return {"id": items[0]["id"], "title": sn.get("title") or "", "thumb": thumb}
 
     @staticmethod
+    def upload(token: dict, file: Path, body: dict, progress, cancelled) -> dict:
+        """videos.insert as a resumable upload in chunks. `progress(0..1)` is called after
+        each chunk, `cancelled()` between chunks. Returns the API's video resource."""
+        try:
+            from googleapiclient.discovery import build
+            from googleapiclient.errors import HttpError
+            from googleapiclient.http import MediaFileUpload
+            from google.oauth2.credentials import Credentials
+        except ImportError:
+            raise YouTubeError("no_library", "Install the YouTube packages.") from None
+        creds = Credentials.from_authorized_user_info(token, list(SCOPES))
+        service = build("youtube", "v3", credentials=creds, cache_discovery=False)
+        media = MediaFileUpload(str(file), mimetype="video/mp4", chunksize=8 * 1024 * 1024, resumable=True)
+        request = service.videos().insert(part="snippet,status", body=body, media_body=media)
+        try:
+            response = None
+            while response is None:
+                if cancelled():
+                    raise YouTubeError("cancelled", "The upload was cancelled.")
+                chunk, response = request.next_chunk()
+                if chunk is not None:
+                    progress(chunk.progress())
+        except HttpError as exc:
+            raise map_http_error(getattr(getattr(exc, "resp", None), "status", 0), _reason(exc)) from None
+        except OSError:
+            raise YouTubeError("offline", "Lost the connection to Google. Nothing was published; try again.") from None
+        progress(1.0)
+        return response
+
+    @staticmethod
+    def video_status(token: dict, video_id: str) -> dict:
+        """videos.list part=status for one video -> {privacy, upload, publishAt, rejection}."""
+        try:
+            from googleapiclient.discovery import build
+            from googleapiclient.errors import HttpError
+            from google.oauth2.credentials import Credentials
+        except ImportError:
+            raise YouTubeError("no_library", "Install the YouTube packages.") from None
+        creds = Credentials.from_authorized_user_info(token, list(SCOPES))
+        try:
+            reply = build("youtube", "v3", credentials=creds, cache_discovery=False).videos().list(
+                part="status", id=video_id).execute()
+        except HttpError as exc:
+            raise map_http_error(getattr(getattr(exc, "resp", None), "status", 0), _reason(exc)) from None
+        except OSError:
+            raise YouTubeError("offline", "Could not reach Google.") from None
+        items = reply.get("items") or []
+        if not items:
+            return {"gone": True}
+        st = items[0].get("status") or {}
+        return {"privacy": st.get("privacyStatus"), "upload": st.get("uploadStatus"),
+                "publishAt": st.get("publishAt"), "rejection": st.get("rejectionReason") or st.get("failureReason")}
+
+    @staticmethod
     def revoke(token: dict) -> None:
         """Ask Google to cancel the token. OSError when it cannot be reached."""
         import urllib.parse
@@ -222,6 +276,31 @@ class _Net:
 
 
 _net = _Net
+
+
+def _reason(exc) -> str:
+    """The error `reason` of a googleapiclient HttpError (e.g. quotaExceeded), or ""."""
+    try:
+        details = json.loads(exc.content.decode("utf-8", "replace"))
+        return str(((details.get("error") or {}).get("errors") or [{}])[0].get("reason") or "")
+    except (ValueError, AttributeError, IndexError, TypeError):
+        return ""
+
+
+def map_http_error(status: int, reason: str) -> YouTubeError:
+    """What a failed YouTube call means for the person."""
+    if reason in ("quotaExceeded", "dailyLimitExceeded", "uploadLimitExceeded", "rateLimitExceeded"):
+        return YouTubeError("quota", "YouTube's upload limit is used up for now (this project's daily quota, or "
+                            "the channel's own daily upload limit). Try again tomorrow.")
+    if status == 401 or reason in ("authError", "invalidCredentials"):
+        return YouTubeError("expired", "Google no longer accepts this connection. Connect again in the profile settings.")
+    if reason in ("youtubeSignupRequired", "channelNotFound"):
+        return YouTubeError("other", "This Google account has no YouTube channel.")
+    if status == 403:
+        return YouTubeError("forbidden", "YouTube refused the request (403" + (f" {reason}" if reason else "") + ").")
+    if status == 400:
+        return YouTubeError("bad_request", "YouTube refused the video details (400" + (f" {reason}" if reason else "") + ").")
+    return YouTubeError("other", f"YouTube answered {status}.")
 
 
 # --------------------------------------------------------------------------
@@ -341,3 +420,198 @@ def start_connect() -> str:
 def connect_state(jid: str) -> dict:
     with _JOBS_LOCK:
         return dict(_JOBS.get(jid) or {"state": "missing"})
+
+
+# --------------------------------------------------------------------------
+# uploading one schedule row (P16 stage 1)
+# --------------------------------------------------------------------------
+
+TITLE_MAX = 100
+DESCRIPTION_MAX = 5000
+SHORTS_MAX_SECONDS = 180
+
+_UPLOADS: dict[str, dict] = {}
+_UPLOAD_LOCK = threading.Lock()
+_BUSY_ROWS: set[tuple[str, str]] = set()             # (profile, row id) with an upload running
+
+
+def _publish_at(row: dict, publish_now: bool):
+    """The RFC 3339 UTC time to schedule at, or None to publish at once. The row's date and
+    time are the person's local ones. A date without a time (or the reverse) is refused;
+    a time in the past is refused too, rather than quietly published now."""
+    import datetime as dt
+    date, time_ = (row.get("date") or "").strip(), (row.get("time") or "").strip()
+    if not date and not time_:
+        if not publish_now:
+            raise YouTubeError("not_ready", "This clip has no upload date and time. Fill them in to schedule it, "
+                               "or choose to publish it now.")
+        return None
+    if not date or not time_:
+        raise YouTubeError("not_ready", "Fill in both the upload date and the upload time.")
+    try:
+        local = dt.datetime.strptime(f"{date} {time_}", "%Y-%m-%d %H:%M").astimezone()
+    except ValueError:
+        raise YouTubeError("not_ready", "The upload date or time is not valid.") from None
+    when = local.astimezone(dt.timezone.utc)
+    if when <= dt.datetime.now(dt.timezone.utc) + dt.timedelta(minutes=2):
+        raise YouTubeError("not_ready", f"The upload time ({date} {time_}) has already passed. Pick a time in "
+                           "the future, or clear the date and time to publish now.")
+    return when.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+
+def prepare(row: dict, publish_now: bool = False, probe_video: bool = True) -> dict:
+    """Everything an upload of this row needs, checked: {file, body, publishAt}. Raises
+    YouTubeError("not_ready", ...) saying what is missing. Used by single and bulk upload."""
+    import re
+    from . import schedule
+    if row.get("videoId"):
+        raise YouTubeError("already", f"This clip was already uploaded (video {row['videoId']}). Uploading it "
+                           "again would make a second video.")
+    title = " ".join(str(row.get("title") or "").replace("<", " ").replace(">", " ").split())
+    if not title:
+        raise YouTubeError("not_ready", "This clip has no title.")
+    if len(title) > TITLE_MAX:
+        raise YouTubeError("not_ready", f"The title is {len(title)} characters; YouTube allows {TITLE_MAX}.")
+    description = str(row.get("description") or "")
+    if len(description) > DESCRIPTION_MAX:
+        raise YouTubeError("not_ready", f"The description is longer than {DESCRIPTION_MAX} characters.")
+    file = schedule.find_render_file(row.get("projectId"), row.get("file"))
+    if file is None:
+        raise YouTubeError("not_ready", "The render file is not in the profile's out/ folder any more (file deleted).")
+    if probe_video:
+        from .ffmpeg_tools import probe
+        info = probe(file)
+        if not info.height > info.width:
+            raise YouTubeError("not_ready", "This video is not vertical, so it cannot be a Short.")
+        if info.duration > SHORTS_MAX_SECONDS:
+            raise YouTubeError("not_ready", f"This video is {info.duration / 60:.1f} minutes: a Short can be at most 3.")
+    publish_at = _publish_at(row, publish_now)
+    tags = []
+    for t in re.findall(r"#(\w{1,30})", description):
+        if t.lower() not in (x.lower() for x in tags) and len(tags) < 15:
+            tags.append(t)
+    body = {"snippet": {"title": title, "description": description, "tags": tags, "categoryId": "22"},
+            "status": {"selfDeclaredMadeForKids": False,
+                       "privacyStatus": "private" if publish_at else "public",
+                       **({"publishAt": publish_at} if publish_at else {})}}
+    return {"file": file, "body": body, "publishAt": publish_at}
+
+
+def require_linked() -> dict:
+    """The profile's token after a live check, or YouTubeError saying why not."""
+    st = check()
+    if st.get("state") != "ok":
+        raise YouTubeError(st.get("state") or "none", st.get("message") or "This profile is not connected to YouTube: "
+                           "open the profile settings and connect it.")
+    return _load_token_file()
+
+
+def start_upload(row_id: str, publish_now: bool = False) -> str:
+    """Begin uploading a schedule row as a background job. Returns the job id."""
+    import contextvars
+    from . import schedule
+    if paths.current_profile() == GUEST:
+        raise YouTubeError("none", "The Guest has no YouTube account.")
+    row = schedule.get_row(row_id)
+    if row is None:
+        raise YouTubeError("not_ready", "That clip is not in the schedule any more.")
+    key = (paths.current_profile(), str(row_id))
+    with _UPLOAD_LOCK:
+        if key in _BUSY_ROWS:
+            raise YouTubeError("already", "This clip is being uploaded right now.")
+        _BUSY_ROWS.add(key)
+    try:
+        spec = prepare(row, publish_now)
+        saved = require_linked()
+    except BaseException:
+        with _UPLOAD_LOCK:
+            _BUSY_ROWS.discard(key)
+        raise
+    jid = uuid.uuid4().hex[:10]
+    job = {"state": "uploading", "progress": 0.0, "row": row_id, "cancel": False,
+           "scheduled": spec["publishAt"], "profile": key[0]}
+    with _UPLOAD_LOCK:
+        _UPLOADS[jid] = job
+
+    def run() -> None:
+        try:
+            token = saved["token"]
+            result = _net.upload(token, spec["file"], spec["body"],
+                                 lambda p: job.__setitem__("progress", round(p, 3)), lambda: job["cancel"])
+            video_id = result.get("id")
+            if not video_id:
+                raise YouTubeError("other", "YouTube did not return a video id.")
+            warning = ""
+            try:
+                got = _net.video_status(token, video_id)
+                if spec["publishAt"] and not got.get("publishAt") and got.get("privacy") == "private":
+                    warning = ("YouTube kept the video private and ignored the schedule: the Google Cloud project "
+                               "has not passed the YouTube API audit yet, so API uploads stay locked as private.")
+                elif not spec["publishAt"] and got.get("privacy") not in (None, "public"):
+                    warning = ("YouTube made the video " + str(got.get("privacy")) + " although it was sent as public: "
+                               "the Google Cloud project has not passed the YouTube API audit yet.")
+            except YouTubeError:
+                pass                                   # the upload itself worked; Check status can look again
+            fields = {"videoId": video_id, "youtubeUrl": f"https://youtube.com/shorts/{video_id}",
+                      "status": "Scheduled" if spec["publishAt"] else "Posted", "uploadedAt": int(time.time())}
+            plat = (row.get("platform") or "")
+            if "YouTube" not in plat:
+                fields["platform"] = "YouTube + TikTok" if plat == "TikTok" else "YouTube"
+            if not spec["publishAt"] and not row.get("date"):
+                import datetime as dt
+                now = dt.datetime.now()
+                fields["date"], fields["time"] = now.strftime("%Y-%m-%d"), now.strftime("%H:%M")
+            schedule.set_fields(row_id, fields)
+            job.update({"state": "done", "videoId": video_id, "url": fields["youtubeUrl"],
+                        "status": fields["status"], "warning": warning, "progress": 1.0})
+        except YouTubeError as exc:
+            job.update({"state": "cancelled" if exc.code == "cancelled" else "failed", "code": exc.code, "message": exc.message})
+        except Exception as exc:                       # noqa: BLE001
+            job.update({"state": "failed", "code": "other", "message": f"The upload failed ({type(exc).__name__})."})
+        finally:
+            with _UPLOAD_LOCK:
+                _BUSY_ROWS.discard(key)
+
+    threading.Thread(target=contextvars.copy_context().run, args=(run,), daemon=True).start()
+    return jid
+
+
+def upload_state(jid: str) -> dict:
+    with _UPLOAD_LOCK:
+        job = _UPLOADS.get(jid)
+        return {k: v for k, v in job.items() if k != "cancel"} if job else {"state": "missing"}
+
+
+def cancel_upload(jid: str) -> dict:
+    with _UPLOAD_LOCK:
+        job = _UPLOADS.get(jid)
+        if job:
+            job["cancel"] = True
+    return upload_state(jid)
+
+
+def video_status(row_id: str) -> dict:
+    """Ask YouTube how an uploaded row's video stands, and bring the row up to date: a
+    Scheduled video that is public now becomes Posted."""
+    from . import schedule
+    row = schedule.get_row(row_id)
+    if row is None or not row.get("videoId"):
+        raise YouTubeError("not_ready", "This clip has not been uploaded to YouTube.")
+    saved = require_linked()
+    got = _net.video_status(saved["token"], row["videoId"])
+    if got.get("gone"):
+        return {"text": "YouTube does not have this video any more (deleted there?).", "gone": True}
+    privacy, upload = got.get("privacy"), got.get("upload")
+    if got.get("rejection"):
+        text = f"YouTube did not accept it: {got['rejection']}."
+    elif upload and upload != "processed":
+        text = f"YouTube is still processing it ({upload})."
+    elif privacy == "public":
+        text = "Public."
+        if row.get("status") == "Scheduled":
+            schedule.set_fields(row_id, {"status": "Posted"})
+    elif got.get("publishAt"):
+        text = f"Scheduled for {got['publishAt']}."
+    else:
+        text = f"Private{' (locked: the project has not passed the API audit)' if privacy == 'private' else ''}."
+    return {"text": text, "privacy": privacy, "upload": upload, "publishAt": got.get("publishAt")}

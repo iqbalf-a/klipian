@@ -536,6 +536,7 @@ function openDetail(id) {
     if (el) el.value = c[name] || "";
   }
   detailNote("");
+  refreshYouTubeSection(c);
   clipDialog.returnValue = "";          // Esc keeps the LAST value otherwise: a cancel would save
   clipDialog.showModal();
   clipDialog.querySelectorAll("textarea.ws-input").forEach(growText);
@@ -568,6 +569,114 @@ clipDetailForm?.addEventListener("click", async (e) => {
     if (/^https?:\/\//i.test(url)) window.open(url, "_blank", "noopener");
     else { open.textContent = "No link"; setTimeout(() => { open.textContent = "Open"; }, 1200); }
   }
+});
+
+/* ---------- upload to YouTube (P16): one row, from the Detail dialog ---------- */
+
+let ytUploading = null;                 // { jobId, rowId } while an upload runs
+
+function ytMsg(text) { const el = $("#ytUploadMsg"); if (el) el.textContent = text || ""; }
+
+/* What the section offers for this row: Upload (when it can be), Check status (when it
+   has a videoId), and why not otherwise. */
+async function refreshYouTubeSection(c) {
+  const btn = $("#ytUploadBtn"), check = $("#ytCheckBtn"), cancel = $("#ytCancelBtn"), bar = $("#ytProgress");
+  if (!btn) return;
+  bar.hidden = true; cancel.hidden = true; ytMsg("");
+  btn.disabled = false; btn.dataset.row = c.id;
+  const running = ytUploading && ytUploading.rowId === c.id;
+  check.hidden = !c.videoId;
+  $("#ytUploadState").textContent = c.videoId ? `uploaded · ${c.videoId}` : "";
+  if (c.videoId) { btn.disabled = true; btn.title = "Already uploaded"; return; }
+  if (running) { btn.disabled = true; cancel.hidden = false; bar.hidden = false; return; }
+  if (!c.file || c.fileMissing) { btn.disabled = true; ytMsg("There is no render file for this clip (file deleted)."); return; }
+  try {
+    const j = await (await fetch("/api/youtube/status")).json();
+    if (j.state !== "ok") {
+      btn.disabled = true;
+      ytMsg(j.state === "none" || j.state === "no_client"
+        ? "This profile is not connected to YouTube: open the profile settings (the chip at the top) and connect it."
+        : (j.message || `YouTube: ${j.state}. Open the profile settings.`));
+    }
+  } catch { btn.disabled = true; ytMsg("Cannot reach the klipian server."); }
+}
+
+async function ytSaveFirst(id) {
+  // The upload reads the SAVED row, so what is in the dialog is saved first.
+  const values = {};
+  for (const name of DETAIL_FIELDS) {
+    const el = $(`[data-field="${name}"]`, clipDetailForm);
+    if (el) values[name] = el.value;
+  }
+  await saveDetail(id, values);
+}
+
+async function ytPoll(jobId, rowId) {
+  const bar = $("#ytProgress"), cancel = $("#ytCancelBtn"), btn = $("#ytUploadBtn");
+  for (;;) {
+    await new Promise((r) => setTimeout(r, 800));
+    let s;
+    try { s = await (await fetch(`/api/youtube/upload-state?id=${encodeURIComponent(jobId)}`)).json(); }
+    catch { continue; }
+    if (clipDialog.dataset.id === rowId && bar) { bar.hidden = false; bar.value = s.progress || 0; }
+    if (s.state === "uploading") continue;
+    ytUploading = null;
+    await loadClips();
+    const c = CLIPS.find((x) => x.id === rowId);
+    if (s.state === "done") {
+      showToast(`Uploaded to YouTube: ${c?.title || "clip"}${s.warning ? " — see the note" : ""}`, { ms: 10000 });
+      if (clipDialog.open && clipDialog.dataset.id === rowId) {
+        await refreshYouTubeSection(c);
+        ytMsg(`${s.status}: ${s.url}${s.warning ? " — " + s.warning : ""}`);
+      }
+      else if (s.warning) clipNotice(`${c?.title || "Clip"}: ${s.warning}`);
+    } else if (clipDialog.open && clipDialog.dataset.id === rowId) {
+      cancel.hidden = true; bar.hidden = true; btn.disabled = false;
+      ytMsg(s.state === "cancelled" ? "Upload cancelled. Nothing was published." : (s.message || "The upload failed."));
+    }
+    return;
+  }
+}
+
+$("#ytUploadBtn")?.addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  const id = clipDialog.dataset.id;
+  const c = CLIPS.find((x) => x.id === id);
+  const when = c && c.date && c.time ? `${c.date} ${c.time}` : "";
+  const publishNow = !when;
+  if (!armedClick(btn, { armedText: publishNow ? "Publish now?" : `Schedule for ${when}?`, strong: publishNow, ms: 6000 })) return;
+  btn.disabled = true; ytMsg("Saving, then uploading…");
+  try {
+    await ytSaveFirst(id);
+    const j = await (await fetch("/api/youtube/upload", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ row: id, publishNow }),
+    })).json();
+    if (j.error) { btn.disabled = false; ytMsg(j.error); return; }
+    ytUploading = { jobId: j.id, rowId: id };
+    $("#ytCancelBtn").hidden = false; $("#ytProgress").hidden = false; $("#ytProgress").value = 0;
+    ytMsg("Uploading… you can close this window; the upload goes on.");
+    ytPoll(j.id, id);
+  } catch (err) { btn.disabled = false; ytMsg(`Could not start: ${err.message}`); }
+});
+
+$("#ytCancelBtn")?.addEventListener("click", async () => {
+  if (!ytUploading) return;
+  await fetch("/api/youtube/upload-cancel", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: ytUploading.jobId }) });
+  ytMsg("Cancelling after the current piece…");
+});
+
+$("#ytCheckBtn")?.addEventListener("click", async () => {
+  const id = clipDialog.dataset.id;
+  ytMsg("Asking YouTube…");
+  try {
+    const j = await (await fetch("/api/youtube/video-status", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ row: id }),
+    })).json();
+    ytMsg(j.error || j.text);
+    if (!j.error) { await loadClips(); }
+  } catch (err) { ytMsg(`Could not check: ${err.message}`); }
 });
 
 function detailNote(text, bad = false) {

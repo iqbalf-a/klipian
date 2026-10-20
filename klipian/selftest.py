@@ -1212,7 +1212,227 @@ def check_youtube() -> tuple[str, str]:
         return FAIL, "\n      ".join(problems)
     return PASS, "client check, connect, one channel per profile, expired/different/offline/no_client/test-user, disconnect; no token reaches the browser"
 
-CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube,
+
+# --------------------------------------------------------------------------
+# check: upload (one schedule row to YouTube; Google is a fake)
+# --------------------------------------------------------------------------
+
+def check_upload() -> tuple[str, str]:
+    """What an upload checks before it starts, what it does to the row, and every way it can
+    fail: not connected, title/file/video problems, a time in the past, a second upload,
+    quota, a lost connection, cancel, and a project that is not audited. Google is a fake."""
+    import datetime as dt
+    from . import paths, profiles, recycle, schedule, youtube
+    from .ffmpeg_tools import _require, run
+
+    problems = []
+    uploads: list = []
+
+    class FakeNet:
+        refresh_error = None
+        upload_error = None
+        slow = False
+        status = {"privacy": "private", "upload": "processed", "publishAt": "2031-01-01T00:00:00Z"}
+
+        @classmethod
+        def refresh(cls, token):
+            if cls.refresh_error:
+                raise cls.refresh_error
+            return token
+
+        @classmethod
+        def channels(cls, token):
+            return {"id": "UCup", "title": "Up Channel", "thumb": ""}
+
+        @classmethod
+        def upload(cls, token, file, body, progress, cancelled):
+            uploads.append((file.name, body))
+            if cls.upload_error:
+                raise cls.upload_error
+            for i in range(1, 5):
+                if cancelled():
+                    raise youtube.YouTubeError("cancelled", "The upload was cancelled.")
+                progress(i / 4)
+                if cls.slow:
+                    time.sleep(0.15)
+            return {"id": "VID" + str(len(uploads))}
+
+        @classmethod
+        def video_status(cls, token, video_id):
+            return dict(cls.status)
+
+        @classmethod
+        def revoke(cls, token):
+            pass
+
+    real_net, real_bin = youtube._net, recycle.to_recycle_bin
+    youtube._net = FakeNet
+    recycle.to_recycle_bin = lambda p: Path(p).unlink()
+    profiles.write_meta("up1", {"name": "up1", "color": "#123456"})
+    profiles.ensure_dirs("up1")
+    tok = paths.set_profile("up1")
+    try:
+        pid = "0a1b2c3d4e5f"
+        folder = paths.OUT_ROOT / f"clips.{pid}"
+        folder.mkdir(parents=True)
+        ff = _require("ffmpeg")
+        vertical, wide = folder / "vertical.mp4", folder / "wide.mp4"
+        run([ff, "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=blue:s=108x192:d=1:r=10", "-pix_fmt", "yuv420p", str(vertical)], desc="a vertical test clip", timeout=60)
+        run([ff, "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=red:s=192x108:d=1:r=10", "-pix_fmt", "yuv420p", str(wide)], desc="a wide test clip", timeout=60)
+        future = (dt.datetime.now() + dt.timedelta(days=3)).strftime("%Y-%m-%d")
+        past = (dt.datetime.now() - dt.timedelta(days=1)).strftime("%Y-%m-%d")
+
+        made = [0]
+
+        def row(**kw):
+            file = kw.pop("file", None)
+            if file is None:                         # one render file per row (a file has one row)
+                made[0] += 1
+                file = f"clip{made[0]}.mp4"
+                shutil.copy2(vertical, folder / file)
+            rid, _ = schedule.add_file_row(kw.pop("title", "Judul Satu"), file, pid)
+            fields = {"description": "Satu kalimat. #podcast #lucu #podcast", "date": future, "time": "18:30", "status": "Ready", **kw}
+            schedule.set_fields(rid, fields)
+            return rid
+
+        def refused(rid, why, publish_now=False):
+            try:
+                youtube.start_upload(rid, publish_now)
+            except youtube.YouTubeError as exc:
+                return why in exc.message or why == exc.code
+            return False
+
+        # --- not connected
+        r0 = row(title="Not Connected")
+        if not refused(r0, "none") and not refused(r0, "not connected"):
+            try:
+                youtube.start_upload(r0)
+                problems.append("an upload started with no YouTube account")
+            except youtube.YouTubeError:
+                pass
+        # connect (fake)
+        good = {"installed": {"client_id": "1.apps.googleusercontent.com", "client_secret": "s"}}
+        youtube.save_client_secret(json.dumps(good))
+        saved = {"token": {"token": "T", "refresh_token": "R"}, "channel": {"id": "UCup", "title": "Up Channel", "thumb": ""}}
+        youtube._write_token_file({**saved, "state": "ok", "checkedAt": 1})
+
+        # --- what is checked before anything is sent
+        cases = [
+            ("no title", row(title=" "), "has no title"),
+            ("a title over 100", row(title="x" * 101), "101 characters"),
+            ("a deleted file", row(file="gone.mp4"), "file deleted"),
+            ("a wide video", row(file="wide.mp4"), "not vertical"),
+            ("a date but no time", row(time=""), "both"),
+            ("a time in the past", row(date=past), "already passed"),
+            ("no date and no time", row(date="", time=""), "no upload date"),
+        ]
+        for label, rid, why in cases:
+            if not refused(rid, why):
+                problems.append(f"{label} was not refused with '{why}'")
+
+        # --- a scheduled upload: the row follows, the body is right
+        rid = row(title="Scheduled Clip")
+        jid = youtube.start_upload(rid)
+        for _ in range(100):
+            st = youtube.upload_state(jid)
+            if st["state"] in ("done", "failed", "cancelled"):
+                break
+            time.sleep(0.05)
+        after = schedule.get_row(rid)
+        body = uploads[-1][1]
+        if st["state"] != "done" or after.get("status") != "Scheduled" or after.get("videoId") != st.get("videoId") \
+                or "youtube.com/shorts/" not in (after.get("youtubeUrl") or "") or "YouTube" not in after.get("platform", ""):
+            problems.append(f"a scheduled upload did not update its row: {st} {after}")
+        if body["status"]["privacyStatus"] != "private" or "publishAt" not in body["status"] \
+                or body["status"]["selfDeclaredMadeForKids"] is not False or body["snippet"]["tags"] != ["podcast", "lucu"]:
+            problems.append(f"the upload body is wrong: {body}")
+        else:
+            utc = dt.datetime.strptime(body["status"]["publishAt"], "%Y-%m-%dT%H:%M:%S.000Z").replace(tzinfo=dt.timezone.utc)
+            local = dt.datetime.strptime(f"{future} 18:30", "%Y-%m-%d %H:%M").astimezone()
+            if utc != local.astimezone(dt.timezone.utc):
+                problems.append("publishAt is not the row's local date and time in UTC")
+        # the project is not audited: YouTube ignores the schedule and keeps the video private
+        FakeNet.status = {"privacy": "private", "upload": "processed", "publishAt": None}
+        rl = row(title="Locked Clip")
+        jl = youtube.start_upload(rl)
+        for _ in range(100):
+            sl = youtube.upload_state(jl)
+            if sl["state"] != "uploading":
+                break
+            time.sleep(0.05)
+        if sl.get("state") != "done" or "audit" not in (sl.get("warning") or ""):
+            problems.append(f"a locked-private upload was not explained: {sl}")
+        FakeNet.status = {"privacy": "private", "upload": "processed", "publishAt": "2031-01-01T00:00:00Z"}
+
+        # --- never twice
+        if not refused(rid, "already"):
+            problems.append("a clip that has a videoId could be uploaded again")
+        FakeNet.slow = True
+        r2 = row(title="Busy Clip")
+        j2 = youtube.start_upload(r2)
+        if not refused(r2, "being uploaded"):
+            problems.append("a second upload of a clip that is uploading was not refused")
+        youtube.cancel_upload(j2)
+        for _ in range(100):
+            s2 = youtube.upload_state(j2)
+            if s2["state"] != "uploading":
+                break
+            time.sleep(0.05)
+        FakeNet.slow = False
+        if s2["state"] != "cancelled" or schedule.get_row(r2).get("videoId"):
+            problems.append(f"cancel did not stop the upload cleanly: {s2}")
+
+        # --- every way it can fail leaves the row alone and says why
+        def fails(error, code):
+            FakeNet.upload_error = error
+            r = row(title=f"Fail {code}")
+            j = youtube.start_upload(r)
+            for _ in range(100):
+                s = youtube.upload_state(j)
+                if s["state"] != "uploading":
+                    break
+                time.sleep(0.05)
+            FakeNet.upload_error = None
+            if s["state"] != "failed" or s.get("code") != code or schedule.get_row(r).get("videoId"):
+                problems.append(f"{code}: {s}")
+        fails(youtube.map_http_error(403, "quotaExceeded"), "quota")
+        fails(youtube.YouTubeError("offline", "down"), "offline")
+        fails(youtube.map_http_error(401, ""), "expired")
+        if youtube.map_http_error(403, "forbidden").code != "forbidden" or youtube.map_http_error(400, "x").code != "bad_request":
+            problems.append("map_http_error gave the wrong code for 403/400")
+        FakeNet.refresh_error = youtube.YouTubeError("expired", "expired")
+        if not refused(row(title="Expired Token"), "expired"):
+            problems.append("an upload started with an expired token")
+        FakeNet.refresh_error = None
+
+        # --- publish now (no date): only when asked for
+        rn = row(title="Now Clip", date="", time="")
+        jn = youtube.start_upload(rn, publish_now=True)
+        for _ in range(100):
+            sn = youtube.upload_state(jn)
+            if sn["state"] != "uploading":
+                break
+            time.sleep(0.05)
+        if sn["state"] != "done" or "publishAt" in uploads[-1][1]["status"] or uploads[-1][1]["status"]["privacyStatus"] != "public" \
+                or schedule.get_row(rn).get("status") != "Posted":
+            problems.append(f"publishing now did not give a public video and a Posted row: {sn}")
+
+        # --- Check status brings a scheduled row up to date
+        FakeNet.status = {"privacy": "public", "upload": "processed", "publishAt": None}
+        out = youtube.video_status(rid)
+        if schedule.get_row(rid).get("status") != "Posted" or "Public" not in out["text"]:
+            problems.append(f"Check status did not mark a now-public video Posted: {out}")
+    except Exception as exc:                           # noqa: BLE001
+        problems.append(f"raised {type(exc).__name__}: {exc}")
+    finally:
+        paths._profile.reset(tok)
+        youtube._net, recycle.to_recycle_bin = real_net, real_bin
+
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, f"{len(uploads)} fake uploads: checks, schedule/publish-now, row update, no double upload, quota/offline/expired/cancel"
+
+CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload,
           "decode": check_decode, "render": check_render}
 
 

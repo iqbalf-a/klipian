@@ -191,6 +191,16 @@
             <input class="ws-input" type="url" data-field="tiktokUrl" aria-label="TikTok link">
           </div>
         </div>
+        <section class="ws-field guest-hidden" id="ytUpload" aria-label="Upload to YouTube">
+          <span class="ws-fhead">YouTube upload <span id="ytUploadState"></span></span>
+          <div class="flex gap-2 items-center flex-wrap">
+            <button class="ws-mini" type="button" id="ytUploadBtn">Upload to YouTube</button>
+            <button class="ws-mini" type="button" id="ytCheckBtn" hidden>Check status</button>
+            <button class="ws-mini" type="button" id="ytCancelBtn" hidden>Cancel upload</button>
+            <progress id="ytProgress" max="1" value="0" hidden></progress>
+          </div>
+          <p class="text-[12px] text-text-faint" id="ytUploadMsg" role="status"></p>
+        </section>
         <label class="ws-field">Notes
           <textarea class="ws-input ws-notes" rows="4" data-field="notes"></textarea></label>
         <p class="text-[12px] text-text-faint" id="clipDetailNote" role="status" hidden></p>

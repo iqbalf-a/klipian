@@ -1348,6 +1348,26 @@ lagi di dokumen resmi sebelum mulai):
 
 **Tahap 3:** TikTok Content Posting API (aplikasinya juga perlu review).
 
+**P16 Tahap 1, yang dibuat (2026-10-20):** upload satu baris dari dialog Detail.
+- `youtube.prepare(row)` memeriksa sebelum apa pun dikirim: sudah punya `videoId`
+  (tolak, cegah dobel), judul ada dan ≤ 100 (tanda `<>` dibuang), deskripsi ≤ 5000,
+  file render ada (bukan "file deleted"), video vertikal dan ≤ 3 menit (ffprobe), dan
+  tanggal+jam: dua-duanya terisi dan di masa depan (lewat/terisi sebagian ditolak);
+  tanpa keduanya hanya boleh bila diminta "Publish now" (dua klik, merah tegas).
+  `publishAt` = tanggal dan jam lokal baris dikonversi ke UTC (privacy `private` +
+  `publishAt`); tag dari hashtag di deskripsi (maks 15); `selfDeclaredMadeForKids` false.
+- Upload resumable per 8 MB sebagai job latar belakang (`_Net.upload`), dengan progress
+  dan Cancel (dicek antar-chunk), satu upload per baris pada satu waktu. Setelah selesai
+  baris diisi: `videoId`, `youtubeUrl` (shorts), status Scheduled/Posted, platform
+  mencakup YouTube, `uploadedAt`, dan tanggal/jam bila publish-now. Gagal = baris tidak
+  berubah. Pesan jelas: kuota habis (`quotaExceeded`/`uploadLimitExceeded`), token
+  kedaluwarsa (`invalid_grant`/401), offline, 403/400 YouTube. Setelah upload `videos.list`
+  mengecek apakah YouTube mengabaikan jadwal: kalau video tetap private tanpa `publishAt`
+  (project belum lolos audit) job memberi peringatan "locked private".
+- **Check status**: `videos.list part=status`; tampil Public/Scheduled/Private (locked)/
+  sedang diproses/ditolak; video Scheduled yang sudah public di YouTube menjadi Posted.
+- Guest: ditolak server (403). Dokumen: `selftest` check `upload` memakai Google palsu.
+
 ### P17 — Nama file render = judul unggahan, dipisah "-"
 
 Saran ian (2026-10-19): nama file disamakan dengan title/hook, karena

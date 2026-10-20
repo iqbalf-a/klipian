@@ -133,6 +133,39 @@ def add_file_row(title: str, file_name: str, project_id: str | None,
         return row["id"], True
 
 
+def find_render_file(project_id: str | None, file_name: str | None) -> Path | None:
+    """The render file of a row on disk (out/<slug>.<projectId>/<file>), or None."""
+    if not project_id or not file_name:
+        return None
+    try:
+        for folder in OUT_DIR.glob(f"*.{project_id}"):
+            f = folder / Path(file_name).name
+            if f.is_file():
+                return f
+    except OSError:
+        pass
+    return None
+
+
+def get_row(row_id: str, path: Path | None = None) -> dict | None:
+    return next((dict(r) for r in load_clips(path) if str(r.get("id")) == str(row_id)), None)
+
+
+def set_fields(row_id: str, fields: dict, path: Path | None = None,
+               lock: threading.Lock | None = None) -> dict | None:
+    """Change some columns of one row (and `at`), keeping everything else, `createdAt`
+    included. Returns the row, or None when it is gone."""
+    with (lock or CLIPS_LOCK):
+        clips = load_clips(path)
+        for row in clips:
+            if str(row.get("id")) == str(row_id):
+                row.update(fields)
+                row["at"] = int(time.time())
+                save_clips(clips, path)
+                return dict(row)
+    return None
+
+
 def created_of(row: dict) -> int:
     """The creation time a row without `createdAt` should get: its render file's,
     else the last time it was saved (`at`), else now."""

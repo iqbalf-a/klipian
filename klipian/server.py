@@ -572,6 +572,10 @@ class Handler(BaseHTTPRequestHandler):
         q = parse_qs(urlparse(self.path).query)
         return self._youtube_reply(_youtube.check if (q.get("check") or [""])[0] == "1" else _youtube.status)
 
+    def _get_youtube_upload_state(self):
+        q = parse_qs(urlparse(self.path).query)
+        return self._send_json(_youtube.upload_state((q.get("id") or [""])[0]))
+
     def _get_youtube_connect_state(self):
         q = parse_qs(urlparse(self.path).query)
         return self._send_json(_youtube.connect_state((q.get("id") or [""])[0]))
@@ -592,6 +596,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._youtube_reply(lambda: {"id": _youtube.start_connect()})
         if action == "check":
             return self._youtube_reply(_youtube.check)
+        if action == "upload":
+            return self._youtube_reply(lambda: {"id": _youtube.start_upload(str(req.get("row") or ""), bool(req.get("publishNow")))})
+        if action == "upload-cancel":
+            return self._youtube_reply(lambda: _youtube.cancel_upload(str(req.get("id") or "")))
+        if action == "video-status":
+            return self._youtube_reply(lambda: _youtube.video_status(str(req.get("row") or "")))
         if action == "disconnect":
             return self._youtube_reply(_youtube.disconnect)
         return self._send_json({"error": "unknown endpoint"}, 404)
@@ -969,6 +979,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/profiles": _get_profiles,
         "/api/youtube/status": _get_youtube_status,
         "/api/youtube/connect-state": _get_youtube_connect_state,
+        "/api/youtube/upload-state": _get_youtube_upload_state,
         "/api/probe": _get_probe,
         "/api/history": _get_history,
         "/api/projects": _get_projects,
@@ -1730,6 +1741,9 @@ class Handler(BaseHTTPRequestHandler):
         "/api/youtube/client": _post_youtube,
         "/api/youtube/connect": _post_youtube,
         "/api/youtube/check": _post_youtube,
+        "/api/youtube/upload": _post_youtube,
+        "/api/youtube/upload-cancel": _post_youtube,
+        "/api/youtube/video-status": _post_youtube,
         "/api/youtube/disconnect": _post_youtube,
         "/api/profiles/create": _post_profiles,
         "/api/profiles/update": _post_profiles,
