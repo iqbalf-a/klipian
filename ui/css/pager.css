@@ -238,12 +238,6 @@ button.bg-accent:disabled, .ws-accent-btn:disabled, button.bg-accent:disabled:ho
 }
 .ws-warn[data-kind="processing"] { color: var(--text-muted); border-color: var(--glass-border); }
 
-/* The action bar: Mark as Posted with its own date and time is one segment; the other actions are
-   set apart by a divider. */
-.ws-bulk-posted { padding: 4px 10px; border: 1px dashed var(--glass-border); border-radius: var(--r-s); }
-.ws-bulk-sep { align-self: stretch; width: 1px; min-height: 24px; background: var(--glass-border); }
-.ws-bulk-sep[hidden] { display: none; }
-
 /* The bulk upload dialog: Auto-fill and the inline date/time of a row. */
 .yt-autofill { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid var(--glass-border); border-radius: var(--r-s); }
 .yt-autofill[hidden] { display: none; }

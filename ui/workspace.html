@@ -94,21 +94,11 @@
            pages and sorting. -->
       <div class="ws-bulk" id="clipBulk" role="group" aria-label="Actions for the selected clips" hidden>
         <span class="ws-bulk-count" id="bulkCount" role="status"></span>
-        <!-- ONE segment: the date and time belong to Mark as Posted only (when it went live). The
-             upload schedule of a clip is its own date/time in the table (or Detail, or the bulk
-             upload dialog), never these. -->
-        <span class="ws-bulk-group ws-bulk-posted" role="group" aria-label="Mark as Posted"
-              title="The date and time here are for Mark as Posted only: when the clips went live. They do not schedule an upload.">
-          <button class="rounded-s bg-accent text-[13px] font-semibold px-3 py-1.5
-                         text-accent-text hover:brightness-110" id="bulkPosted" type="button">Mark as Posted</button>
-          <label class="ws-bulk-label">posted on
-            <input class="ws-input" type="date" id="bulkDate" aria-label="When it went live: date (for Mark as Posted only)"
-                   title="When it went live (for Mark as Posted only)"></label>
-          <label class="ws-bulk-label">at
-            <input class="ws-input" type="time" id="bulkTime" aria-label="When it went live: time (for Mark as Posted only)"
-                   title="When it went live (for Mark as Posted only)"></label>
-        </span>
-        <span class="ws-bulk-sep" aria-hidden="true"></span>
+        <!-- Mark as Posted asks for when it went live in a small dialog of its own (markPostedDialog), so
+             the bar has no dates: the upload schedule lives in the table and the bulk upload dialog. -->
+        <button class="rounded-s bg-accent text-[13px] font-semibold px-3 py-1.5
+                       text-accent-text hover:brightness-110" id="bulkPosted" type="button"
+                title="For clips you posted yourself (e.g. on TikTok or in YouTube Studio)">Mark as Posted</button>
         <span class="ws-bulk-group">
           <select class="ws-input" id="bulkStatus" aria-label="Set status of the selected clips">
             <option value="">Set status…</option>
@@ -117,7 +107,6 @@
           <button class="rounded-s px-2.5 py-1 text-[12px] border border-glass-border hover:bg-glass"
                   id="bulkSetStatus" type="button">Apply</button>
         </span>
-        <span class="ws-bulk-sep guest-hidden" aria-hidden="true"></span>
         <button class="guest-hidden rounded-s px-2.5 py-1 text-[12px] border border-glass-border hover:bg-glass"
                 id="bulkYouTube" type="button" title="Upload the selected clips to YouTube, one after another">Upload to YouTube…</button>
         <button class="ml-auto rounded-s px-2.5 py-1 text-[12px] border border-glass-border hover:bg-glass"
@@ -238,6 +227,30 @@
           <button class="rounded-s bg-accent text-[13px] font-semibold px-3 py-1.5
                          text-accent-text hover:brightness-110"
                   type="submit" value="save">Save</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Mark as Posted: when it went live. Esc and a click outside cancel; nothing changes until the button. -->
+    <dialog class="ws-dialog" id="markPostedDialog" aria-labelledby="markPostedTitle">
+      <form method="dialog" class="flex flex-col gap-4" id="markPostedForm">
+        <div class="flex items-start gap-3">
+          <h2 class="text-[15px] font-extrabold leading-tight" id="markPostedTitle">Mark clips as posted</h2>
+          <button class="ml-auto ws-close" type="submit" value="cancel" title="Cancel">✕</button>
+        </div>
+        <p class="text-[12px] text-text-faint">For clips you uploaded yourself (e.g. on TikTok or in YouTube Studio).</p>
+        <div class="ws-pair">
+          <label class="ws-field">Went live on
+            <input class="ws-input" type="date" id="markPostedDate"></label>
+          <label class="ws-field">at
+            <input class="ws-input" type="time" id="markPostedTime"></label>
+        </div>
+        <p class="text-[12px] text-text-faint">A clip that already has an upload date keeps it; this one is filled in for the clips that have none.</p>
+        <div class="flex gap-2 justify-end">
+          <button class="rounded-s px-3 py-1.5 text-[13px] border border-glass-border hover:bg-glass"
+                  type="submit" value="cancel">Cancel</button>
+          <button class="rounded-s bg-accent text-[13px] font-semibold px-3 py-1.5 text-accent-text hover:brightness-110"
+                  type="submit" value="ok" id="markPostedOk">Mark as Posted</button>
         </div>
       </form>
     </dialog>

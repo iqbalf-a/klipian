@@ -403,11 +403,7 @@ function updateBulkBar() {
   const wasHidden = bar.hidden;
   bar.hidden = SELECTED.size === 0;
   $("#bulkCount").textContent = `${SELECTED.size} selected`;
-  if (wasHidden && !bar.hidden) {                    // fresh bar: the date and time are now
-    $("#bulkDate").value = todayLocal();
-    $("#bulkTime").value = nowLocal();
-    bulkNote("");
-  }
+  if (wasHidden && !bar.hidden) bulkNote("");
   const boxes = [...document.querySelectorAll("#clipBody [data-select]")];
   const all = $("#clipSelectAll");
   if (all) {
@@ -478,9 +474,26 @@ function clipNotice(text) {
   el.hidden = !text;
 }
 
+/* Mark as Posted: a small dialog asks when it went live (today and now to start with); Esc, Cancel and a
+   click outside change nothing. The same server call as before (status, date, time). */
+const markPostedDialog = $("#markPostedDialog");
 $("#bulkPosted")?.addEventListener("click", () => {
-  const date = $("#bulkDate").value, time = $("#bulkTime").value;
-  if (!date) { bulkNote("Pick the upload date first (it fills the clips that have none yet)."); return; }
+  if (!SELECTED.size) return;
+  $("#markPostedTitle").textContent = `Mark ${SELECTED.size} clip${SELECTED.size === 1 ? "" : "s"} as posted`;
+  $("#markPostedDate").value = todayLocal();
+  $("#markPostedTime").value = nowLocal();
+  markPostedDialog.returnValue = "";
+  markPostedDialog.showModal();
+});
+markPostedDialog?.addEventListener("click", (e) => {
+  // outside the box = on the backdrop (the dialog's own padding does not count)
+  const r = markPostedDialog.getBoundingClientRect();
+  if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) markPostedDialog.close("cancel");
+});
+$("#markPostedForm")?.addEventListener("submit", (e) => {
+  if (e.submitter?.value !== "ok") return;
+  const date = $("#markPostedDate").value, time = $("#markPostedTime").value;
+  if (!date) { e.preventDefault(); $("#markPostedDate").focus(); return; }
   bulkApply({ status: "Posted", date, time }, (j) => {
     const n = j.clip.length;
     return `${n} clip${n === 1 ? "" : "s"} marked Posted`
