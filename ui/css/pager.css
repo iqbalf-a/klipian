@@ -86,6 +86,7 @@
 #clipTable td, #clipTable th { vertical-align: middle; }
 #clipTable td:first-child, #clipTable th:first-child { padding-left: 8px; padding-right: 8px; text-align: center; }
 #clipTable td:nth-child(3) { min-width: 150px; }
+#clipTable .ws-status { min-width: 124px; }   /* the longest status, "Scheduled", plus the arrow */
 #clipTable input[type="checkbox"], .ws-bulk input[type="checkbox"] {
   width: 16px; height: 16px; margin: 0; vertical-align: middle;
 }
