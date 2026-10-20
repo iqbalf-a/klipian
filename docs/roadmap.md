@@ -1267,9 +1267,25 @@ lagi di dokumen resmi sebelum mulai):
   2020): video hasil upload API **terkunci private** dan tidak bisa
   dibuka. Supaya bisa publik, project harus lolos **YouTube API Services
   compliance audit**.
-- Kuota per project: angka 1.600 unit per upload dari 10.000 per hari,
-  atau 100 upload per hari sejak Juni 2026, masih simpang siur. Cek di
-  Cloud Console. Untuk 1–3 Shorts per hari, keduanya cukup.
+- Kuota per project, **dicek ian di Cloud Console 2026-10-20** (project
+  `klipian-podcast`):
+  - **Video Uploads per day = 100** dan **Video Uploads per minute = 100**,
+    sebagai kuota upload tersendiri;
+  - Queries per day = 10.000 untuk panggilan lain (`channels.list`,
+    `videos.list`, cek status);
+  - Search Queries per day = 100.
+
+  Jadi upload massal dibatasi **100 video per hari per project**, jauh di
+  atas kebutuhan 1–3 Shorts per hari. Masih perlu dipastikan pada upload
+  uji pertama apakah `videos.insert` juga memakan unit Queries per day
+  (lihat angka Current usage). YouTube juga punya batas upload harian per
+  channel sendiri, di luar kuota API.
+- **Satu project Google Cloud untuk satu channel** (ian 2026-10-20 membuat
+  project `klipian podcast`). Kuota tiap channel jadi terpisah. Untuk P21-C,
+  `client_secret.json` disimpan **per profile** di
+  `profiles/<id>/secrets/client_secret.json`. File bersama di
+  `workspace/secrets/` hanya menjadi cadangan untuk profile yang belum punya
+  client sendiri.
 - OAuth client berstatus "Testing": refresh token kedaluwarsa setelah
   ±7 hari, jadi perlu Connect ulang mingguan. Status "In production"
   tanpa verifikasi Google memunculkan layar "unverified app" saat ian
@@ -1576,8 +1592,9 @@ per platform, jadi platform lain nanti cukup menambah baris tanpa mengubah
 susunannya.
 
 - **Kredensial:**
-  - `client_secret.json` (OAuth client Desktop app) cukup satu dan dipakai
-    bersama di `workspace/secrets/`.
+  - `client_secret.json` (OAuth client Desktop app) **per profile** di
+    `profiles/<id>/secrets/`, karena satu project Google Cloud untuk satu
+    channel (lihat P16). File di `workspace/secrets/` hanya cadangan.
   - Token disimpan per profile di `profiles/<id>/secrets/youtube.json`.
   - Token tidak pernah dikirim ke browser, ditulis ke log, atau masuk git.
     Browser hanya menerima status.
