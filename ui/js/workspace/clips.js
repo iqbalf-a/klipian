@@ -531,6 +531,43 @@ function applyLinkToClip(clip, was) {
 const clipDialog = $("#clipDetailDialog");
 const clipDetailForm = $("#clipDetailForm");
 
+/* The Hashtags field holds "#a #b"; the row keeps a list. A row from before the list existed shows
+   the hashtags found on the description's hashtag-only lines. */
+const tagsToInput = (c) => (Array.isArray(c.hashtags) && c.hashtags.length ? c.hashtags : splitDescription(c.description).tags)
+  .map((t) => `#${normTag(t)}`).filter((t) => t !== "#").join(" ");
+const inputToTags = (text) => normTags((String(text).match(/#?[\p{L}\p{N}_]+/gu) || []));
+
+/* What the dialog holds now, as a row: the text fields and the hashtag list. */
+function detailValues() {
+  const values = {};
+  for (const name of DETAIL_FIELDS) {
+    const el = $(`[data-field="${name}"]`, clipDetailForm);
+    if (el) values[name] = el.value;
+  }
+  values.hashtags = inputToTags($("#detailHashtags")?.value || "");
+  return values;
+}
+
+/* "On YouTube": the exact title and description that would be sent, following the profile's
+   hashtag setting (hashtags.js, the same logic as the server's). Live while the fields change. */
+function updateYtPreview() {
+  const t = $("#ytPreviewTitle"), d = $("#ytPreviewDesc");
+  if (!t || !d || !clipDialog.dataset.id) return;
+  const v = detailValues();
+  const row = CLIPS.find((x) => x.id === clipDialog.dataset.id) || {};
+  const plan = hashtagPlan(row.title || "", v.description || "", v.hashtags, profileHashtagSettings());
+  t.value = plan.title;
+  d.value = plan.description;
+  const len = [...plan.title].length;
+  t.title = `${len} of 100 characters`;
+  t.dataset.over = String(len > 100);
+  growText(d);
+}
+
+clipDetailForm?.addEventListener("input", (e) => {
+  if (e.target.matches('[data-field="description"], #detailHashtags')) updateYtPreview();
+});
+
 function openDetail(id) {
   if (!id || !clipDialog) return;
   const c = CLIPS.find((x) => x.id === id);
@@ -545,9 +582,12 @@ function openDetail(id) {
     if (el) el.value = c[name] || "";
   }
   detailNote("");
+  const hashtagsEl = $("#detailHashtags");
+  if (hashtagsEl) hashtagsEl.value = tagsToInput(c);
   refreshYouTubeSection(c);
   clipDialog.returnValue = "";          // Esc keeps the LAST value otherwise: a cancel would save
   clipDialog.showModal();
+  updateYtPreview();
   clipDialog.querySelectorAll("textarea.ws-input").forEach(growText);
 }
 
@@ -632,7 +672,7 @@ async function openYtBulk(ids, what) {
   $("#ytBulkQuota").textContent = `Today's quota: ${plan.usedToday} of ${plan.limit} uploads used · this run sends ${Math.min(n, plan.remaining)}`
     + (plan.overQuota ? ` · ${plan.overQuota} will not fit today and stay as they are` : "");
   list.innerHTML = plan.ok.map((r) => `<div class="yt-bulk-row" data-state="pending"><span class="yt-bulk-icon">·</span>
-      <span class="yt-bulk-title">${escapeHTML(r.title)}</span><span class="yt-bulk-msg">${escapeHTML(r.when)}</span></div>`).join("")
+      <span class="yt-bulk-title" title="${escapeHTML(r.finalTitle || r.title)}">${escapeHTML(r.finalTitle || r.title)}</span><span class="yt-bulk-msg">${escapeHTML(r.when)}</span></div>`).join("")
     + plan.refused.map((r) => `<div class="yt-bulk-row" data-state="failed"><span class="yt-bulk-icon">✕</span>
       <span class="yt-bulk-title">${escapeHTML(r.title)}</span>
       <span class="yt-bulk-msg">${escapeHTML(r.message)} <button class="ws-mini" type="button" data-ytdetail="${escapeHTML(r.id)}">Detail</button></span></div>`).join("");
@@ -744,12 +784,7 @@ async function refreshYouTubeSection(c) {
 
 async function ytSaveFirst(id) {
   // The upload reads the SAVED row, so what is in the dialog is saved first.
-  const values = {};
-  for (const name of DETAIL_FIELDS) {
-    const el = $(`[data-field="${name}"]`, clipDetailForm);
-    if (el) values[name] = el.value;
-  }
-  await saveDetail(id, values);
+  await saveDetail(id, detailValues());
 }
 
 async function ytPoll(jobId, rowId) {
@@ -844,11 +879,7 @@ clipDetailForm?.addEventListener("submit", (e) => {
     }
   }
   detailNote("");
-  const values = {};
-  for (const name of DETAIL_FIELDS) {
-    const el = $(`[data-field="${name}"]`, clipDetailForm);
-    if (el) values[name] = el.value;
-  }
+  const values = detailValues();
   // Saved from HERE, with a copy of what is in the form now. The dialog's `close`
   // event is no place for it: it arrives later, as its own task (late, or not at
   // all while the page is hidden), by which time the dialog may be open for another

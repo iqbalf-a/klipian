@@ -1388,6 +1388,30 @@ lagi di dokumen resmi sebelum mulai):
 - selftest `bulk`: rencana (penolakan dan kuota), urutan, berhenti pada kuota, cancel,
   satu antrian per profile, penghitung harian.
 
+**P16, penempatan hashtag per profile (2026-10-20):** judul Shorts biasanya memuat hashtag.
+- Pengaturan profile "Hashtag placement": **Title** (bawaan untuk semua profile, termasuk
+  yang sudah ada), Description (perilaku lama), atau Both; ditambah "Hashtags in the title"
+  (2 atau 3, bawaan 3) dan "Add #shorts to the title" (bawaan mati). Disimpan di
+  `profile.json` (`hashtagPlacement`, `titleTags`, `addShorts`).
+- Diterapkan **saat upload** (`youtube.prepare`, single dan bulk) lewat `klipian/hashtags.py`,
+  bukan saat baris disimpan. Baris menyimpan daftar `hashtags` (diisi `upsert_render`
+  dari `post.hashtags`, tidak menimpa edit manual); baris lama tanpa daftar itu dibaca dari
+  baris deskripsi yang hanya berisi hashtag. Mode Title: judul = judul baris + N hashtag
+  pertama (satu per satu selama ≤ 100 karakter, berhenti di yang tidak muat, tag yang sudah
+  ada di judul dilewati) + `#shorts` di akhir (tambahan di luar N); deskripsi tanpa baris
+  hashtag, baris kosong dirapatkan. Both: judul seperti Title, deskripsi lengkap. Description:
+  seperti dulu. Field API `tags` selalu memuat semua hashtag (dinormalisasi: huruf kecil, hanya
+  huruf/angka/garis bawah, tanpa duplikat, maks 15) ditambah `shorts` bila aktif. Judul baris
+  yang sudah > 100 tetap ditolak.
+- Detail dialog: kolom "Hashtags" (daftar di baris) dan pratinjau "On YouTube" (judul dan
+  deskripsi persis yang akan dikirim, live). Rencana bulk menampilkan judul akhir. "Copy title"
+  dan "Copy description" di layar Render mengikuti penempatan yang sama.
+- `ui/js/shared/hashtags.js` adalah salinan logika Python; selftest `hashtags` menjalankan
+  keduanya (node) pada 12 kasus dan mensyaratkan jawaban yang sama.
+- Rubrik `dialog-podcast.md` ("Teks posting"): hashtag diurutkan dari yang paling spesifik,
+  tanpa `#shorts`, tanpa spasi. Fixture brief punya salinan rubrik sendiri, jadi tidak perlu
+  diubah.
+
 ### P17 — Nama file render = judul unggahan, dipisah "-"
 
 Saran ian (2026-10-19): nama file disamakan dengan title/hook, karena

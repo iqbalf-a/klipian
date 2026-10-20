@@ -1325,7 +1325,7 @@ def check_upload() -> tuple[str, str]:
                 file = f"clip{made[0]}.mp4"
                 shutil.copy2(vertical, folder / file)
             rid, _ = schedule.add_file_row(kw.pop("title", "Judul Satu"), file, pid)
-            fields = {"description": "Satu kalimat. #podcast #lucu #podcast", "date": future, "time": "18:30", "status": "Ready", **kw}
+            fields = {"description": "Satu kalimat.\n\n#podcast #lucu #podcast", "date": future, "time": "18:30", "status": "Ready", **kw}
             schedule.set_fields(rid, fields)
             return rid
 
@@ -1378,8 +1378,8 @@ def check_upload() -> tuple[str, str]:
                 or "youtube.com/shorts/" not in (after.get("youtubeUrl") or "") or "YouTube" not in after.get("platform", ""):
             problems.append(f"a scheduled upload did not update its row: {st} {after}")
         if body["status"]["privacyStatus"] != "private" or "publishAt" not in body["status"] \
-                or body["status"]["selfDeclaredMadeForKids"] is not False or body["snippet"]["tags"] != ["podcast", "lucu"]:
-            problems.append(f"the upload body is wrong: {body}")
+                or body["status"]["selfDeclaredMadeForKids"] is not False or body["snippet"]["tags"] != ["podcast", "lucu"]                 or body["snippet"]["title"] != "Scheduled Clip #podcast #lucu" or "#" in body["snippet"]["description"]:
+            problems.append(f"the upload body is wrong (default: hashtags in the title, not the description): {body}")
         else:
             utc = dt.datetime.strptime(body["status"]["publishAt"], "%Y-%m-%dT%H:%M:%S.000Z").replace(tzinfo=dt.timezone.utc)
             local = dt.datetime.strptime(f"{future} 18:30", "%Y-%m-%d %H:%M").astimezone()
@@ -1438,6 +1438,23 @@ def check_upload() -> tuple[str, str]:
         if not refused(row(title="Expired Token"), "expired"):
             problems.append("an upload started with an expired token")
         FakeNet.refresh_error = None
+
+        # --- the profile's hashtag placement is applied at upload
+        for settings, want_title, want_desc_tags in (
+                ({"hashtagPlacement": "description"}, "Placed Clip", True),
+                ({"hashtagPlacement": "both", "addShorts": True, "titleTags": 2}, "Placed Clip #podcast #lucu #shorts", True),
+                ({"hashtagPlacement": "title", "addShorts": False, "titleTags": 3}, "Placed Clip #podcast #lucu", False)):
+            profiles.update("up1", {"defaults": settings})
+            rp = row(title="Placed Clip")
+            spec = youtube.prepare(schedule.get_row(rp))
+            if spec["title"] != want_title or ("#podcast" in spec["description"]) != want_desc_tags:
+                problems.append(f"placement {settings}: title {spec['title']!r}, description {spec['description']!r}")
+        profiles.update("up1", {"defaults": {"hashtagPlacement": "title", "addShorts": False}})
+        # a row stored by a render keeps its hashtag list apart from the description
+        rid_h, _ = schedule.upsert_render(project_id=pid, result_id="resH", title="T", file_name="b1.mp4",
+                                          post={"title": "T", "caption": "C", "hashtags": ["#a", "#b"]}, credit_lines="")
+        if schedule.get_row(rid_h).get("hashtags") != ["#a", "#b"]:
+            problems.append("upsert_render did not keep the hashtag list on the row")
 
         # --- publish now (no date): only when asked for
         rn = row(title="Now Clip", date="", time="")
@@ -1639,7 +1656,93 @@ def check_bulk() -> tuple[str, str]:
         return FAIL, "\n      ".join(problems)
     return PASS, f"{len(order)} fake uploads in queues: plan refusals, order, quota stop, cancel, one queue per profile, daily counter"
 
-CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "bulk": check_bulk,
+
+# --------------------------------------------------------------------------
+# check: hashtags (where they go on YouTube; Python and the browser's JS agree)
+# --------------------------------------------------------------------------
+
+def check_hashtags() -> tuple[str, str]:
+    """Title / description / both, 2 or 3 tags in the title, #shorts, the 100-character cut, a tag
+    already in the title, an old row (tags only in its description), normalisation and the 15-tag
+    cap -- and the SAME answers from ui/js/shared/hashtags.js (run with node), which the browser's
+    preview and the Render screen's Copy use."""
+    import shutil as _sh
+    import subprocess
+    from . import hashtags as ht
+
+    desc = "Satu kalimat. Setuju?\n\n#raditya #komedi #podcast #lucu\n\nSumber: YouTube Raditya Dika"
+    tags4 = ["#raditya", "#komedi", "#podcast", "#lucu"]
+    T2 = {"placement": "title", "shorts": False, "titleTags": 2}
+    T3 = {"placement": "title", "shorts": False, "titleTags": 3}
+    long_title = "x" * 88
+    cases = [
+        ("title mode, 2 tags", "Podcast Lucu", desc, tags4, T2),
+        ("title mode, 3 tags", "Podcast Lucu", desc, tags4, T3),
+        ("the 100-character cut", long_title, desc, tags4, T3),
+        ("a tag already in the title", "Raditya #komedi", desc, tags4, T2),
+        ("#shorts on, last", "Podcast Lucu", desc, tags4, {**T3, "shorts": True}),
+        ("#shorts off", "Podcast Lucu", desc, tags4, T3),
+        ("an old row: tags only in the description", "Podcast Lucu", desc, None, T3),
+        ("description mode, as today", "Podcast Lucu", desc, tags4, {**T3, "placement": "description", "shorts": True}),
+        ("both", "Podcast Lucu", desc, tags4, {**T3, "placement": "both"}),
+        ("normalisation", "Judul", "x", ["#Ra Ditya!", "KOMEDI-2", "\u00c9COLE", "", "#", "komedi2", "snake_case"], T3),
+        ("the 15-tag cap", "Judul", "x", [f"t{i}" for i in range(20)], {**T3, "placement": "both"}),
+        ("tags with commas on their own line", "Judul", "Cap\n\n#a, #b,#c\n\nSumber", None, T2),
+    ]
+    problems = []
+    got = {name: ht.plan(t, d, h, s) for name, t, d, h, s in cases}
+
+    def eq(name, field, want):
+        if got[name][field] != want:
+            problems.append(f"{name}: {field} is {got[name][field]!r}, expected {want!r}")
+
+    without = "Satu kalimat. Setuju?\n\nSumber: YouTube Raditya Dika"
+    eq("title mode, 2 tags", "title", "Podcast Lucu #raditya #komedi")
+    eq("title mode, 2 tags", "description", without)
+    eq("title mode, 3 tags", "title", "Podcast Lucu #raditya #komedi #podcast")
+    eq("title mode, 3 tags", "tags", ["raditya", "komedi", "podcast", "lucu"])
+    final = got["the 100-character cut"]["title"]
+    if len(final) > 100 or not final.startswith(long_title + " #raditya") or "#komedi" in final:
+        problems.append(f"the 100-character cut is wrong ({len(final)}): {final!r}")
+    eq("a tag already in the title", "title", "Raditya #komedi #raditya")
+    eq("#shorts on, last", "title", "Podcast Lucu #raditya #komedi #podcast #shorts")
+    eq("#shorts on, last", "tags", ["raditya", "komedi", "podcast", "lucu", "shorts"])
+    eq("#shorts off", "tags", ["raditya", "komedi", "podcast", "lucu"])
+    eq("an old row: tags only in the description", "title", "Podcast Lucu #raditya #komedi #podcast")
+    eq("an old row: tags only in the description", "description", without)
+    eq("description mode, as today", "title", "Podcast Lucu")
+    eq("description mode, as today", "description", desc)
+    eq("both", "title", "Podcast Lucu #raditya #komedi #podcast")
+    eq("both", "description", desc)
+    eq("normalisation", "tags", ["raditya", "komedi2", "\u00e9cole", "snake_case"])
+    if len(got["the 15-tag cap"]["tags"]) != 15:
+        problems.append(f"the 15-tag cap: {len(got['the 15-tag cap']['tags'])} tags")
+    eq("tags with commas on their own line", "description", "Cap\n\nSumber")
+    eq("tags with commas on their own line", "title", "Judul #a #b")
+
+    # the browser's JS must say the same
+    node = _sh.which("node")
+    js = ROOT / "ui" / "js" / "shared" / "hashtags.js"
+    if not node or not js.is_file():
+        note = " (the JS agreement was skipped: node is not installed)"
+    else:
+        driver = ("const m=require(process.argv[1]);const cs=JSON.parse(require('fs').readFileSync(0,'utf8'));"
+                  "process.stdout.write(JSON.stringify(cs.map(c=>m.hashtagPlan(c.title,c.description,c.hashtags,c.settings))));")
+        payload = json.dumps([{"title": t, "description": d, "hashtags": h, "settings": s} for _, t, d, h, s in cases])
+        proc = subprocess.run([node, "-e", driver, str(js)], input=payload.encode("utf-8"), capture_output=True, timeout=60)
+        if proc.returncode != 0:
+            problems.append(f"node could not run hashtags.js: {proc.stderr.decode('utf-8', 'replace')[:200]}")
+        else:
+            theirs = json.loads(proc.stdout.decode("utf-8"))
+            for (name, *_), want in zip(cases, theirs):
+                if want != got[name]:
+                    problems.append(f"JS and Python disagree on '{name}': JS {want} / Python {got[name]}")
+        note = " and the browser's JS agrees"
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, f"{len(cases)} placements{note}"
+
+CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "bulk": check_bulk, "hashtags": check_hashtags,
           "decode": check_decode, "render": check_render}
 
 

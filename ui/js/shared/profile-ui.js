@@ -86,6 +86,18 @@
           <input type="file" id="ytFile" accept=".json,application/json" hidden>
           <p class="note" id="ytMsg" role="status"></p>
         </section>
+        <label>Hashtag placement (YouTube)
+          <select name="hashtagPlacement">
+            <option value="title"${d.hashtagPlacement === "description" || d.hashtagPlacement === "both" ? "" : " selected"}>In the title</option>
+            <option value="description"${d.hashtagPlacement === "description" ? " selected" : ""}>In the description</option>
+            <option value="both"${d.hashtagPlacement === "both" ? " selected" : ""}>In both</option>
+          </select></label>
+        <label>Hashtags in the title
+          <select name="titleTags">
+            <option value="2"${d.titleTags === 2 ? " selected" : ""}>2</option>
+            <option value="3"${d.titleTags === 2 ? "" : " selected"}>3</option>
+          </select></label>
+        <label class="check"><input type="checkbox" name="addShorts"${d.addShorts ? " checked" : ""}> Add #shorts to the title</label>
         ${canPreset ? `<p class="note">Caption look: ${d.captionPreset ? "a default is saved." : "none saved yet."}
           <button class="btn quiet" type="button" data-pm="preset">Use the current caption look as this profile's default</button></p>` : ""}
         <p class="note" id="profileSettingsNote" role="status"></p>
@@ -100,7 +112,8 @@
       const f = Object.fromEntries(new FormData(dlg.querySelector("form")));
       try {
         const j = await post("/api/profiles/update", { id: PROFILE, name: f.name, color: f.color,
-          defaults: { watermark: f.watermark, rubric: f.rubric } });
+          defaults: { watermark: f.watermark, rubric: f.rubric, hashtagPlacement: f.hashtagPlacement,
+            titleTags: Number(f.titleTags), addShorts: !!f.addShorts } });
         meta = j.profile;
         draw();
       } catch (err) {

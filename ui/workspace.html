@@ -205,6 +205,13 @@
           </div>
           <p class="text-[12px] text-text-faint" id="ytUploadMsg" role="status"></p>
         </section>
+        <label class="ws-field guest-hidden">Hashtags (kept on the clip; where they go on YouTube is the profile's setting)
+          <input class="ws-input" type="text" id="detailHashtags" placeholder="#podcast #lucu"></label>
+        <div class="ws-field guest-hidden" id="ytPreview">
+          <span class="ws-fhead">On YouTube <span class="text-text-faint">(preview of what would be sent)</span></span>
+          <input class="ws-input" type="text" id="ytPreviewTitle" readonly aria-label="Title on YouTube">
+          <textarea class="ws-input" id="ytPreviewDesc" rows="4" readonly aria-label="Description on YouTube"></textarea>
+        </div>
         <label class="ws-field">Notes
           <textarea class="ws-input ws-notes" rows="4" data-field="notes"></textarea></label>
         <p class="text-[12px] text-text-faint" id="clipDetailNote" role="status" hidden></p>
@@ -283,6 +290,7 @@
 <script src="/ui/js/shared/clipboard.js?v=1790703163808"></script>
 <script src="/ui/js/shared/pager.js?v=1790703163808"></script>
 <script src="/ui/js/shared/armed.js?v=1790703163808"></script>
+<script src="/ui/js/shared/hashtags.js?v=1790703163808"></script>
 <script src="/ui/js/shared/version.js?v=1790703163808"></script>
 <script src="/ui/js/shared/profile-ui.js?v=1790703163808"></script>
 <script src="/ui/js/workspace/helpers.js?v=1790703163808"></script>

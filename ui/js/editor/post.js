@@ -134,8 +134,17 @@ function carryPostFrom(candidates) {
    one, with a blank line between. */
 function postDescription(post = currentPost()) {
   const p = post || {};
-  return [p.caption || "", (p.hashtags || []).join(" "), postCreditLines]
+  const whole = [p.caption || "", (p.hashtags || []).join(" "), postCreditLines]
     .filter(Boolean).join("\n\n");
+  // Where the hashtags go is the profile's choice (hashtags.js): in the title, in the
+  // description, or both. What is copied here is what an upload would send.
+  return hashtagPlan(p.title || "", whole, p.hashtags, profileHashtagSettings()).description;
+}
+
+/* The title as it would be on YouTube (with its hashtags, when the profile puts them there). */
+function postTitleForCopy(post = currentPost()) {
+  const p = post || {};
+  return hashtagPlan(p.title || "", "", p.hashtags, profileHashtagSettings()).title;
 }
 
 /* The credit line(s) of the videos this Result is cut from, as the server builds
@@ -180,7 +189,7 @@ document.querySelectorAll("[data-post-copy]").forEach((btn) => {
   btn.addEventListener("click", async () => {
     const kind = btn.dataset.postCopy;
     const post = currentPost() || { title: "", caption: "", hashtags: [] };
-    const text = kind === "title" ? post.title
+    const text = kind === "title" ? postTitleForCopy(post)
       : kind === "hashtags" ? post.hashtags.join(" ")
       : postDescription(post);
     const note = $("#postNote");

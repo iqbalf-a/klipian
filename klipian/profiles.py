@@ -135,6 +135,12 @@ def _clean_defaults(d) -> dict:
         out["watermark"] = wm
     if d.get("rubric") in RUBRIC_CHOICES:
         out["rubric"] = d["rubric"]
+    if d.get("hashtagPlacement") in ("title", "description", "both"):
+        out["hashtagPlacement"] = d["hashtagPlacement"]
+    if "addShorts" in d:
+        out["addShorts"] = bool(d["addShorts"])
+    if d.get("titleTags") in (2, 3):
+        out["titleTags"] = d["titleTags"]
     preset = d.get("captionPreset")
     if isinstance(preset, dict) and len(json.dumps(preset)) <= 4000:
         out["captionPreset"] = preset
@@ -144,6 +150,15 @@ def _clean_defaults(d) -> dict:
 def defaults(pid: str | None = None) -> dict:
     meta = read_meta(pid or paths.current_profile())
     return (meta or {}).get("defaults") or {}
+
+
+def hashtag_settings(pid: str | None = None) -> dict:
+    """Where this profile puts a clip's hashtags on YouTube (see hashtags.py). The default for
+    every profile, existing ones included: in the title."""
+    from . import hashtags
+    d = defaults(pid)
+    return hashtags.settings_of({"placement": d.get("hashtagPlacement"), "shorts": d.get("addShorts"),
+                                 "titleTags": d.get("titleTags")})
 
 
 def _free_id(name: str) -> str:

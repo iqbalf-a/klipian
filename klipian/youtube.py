@@ -526,15 +526,15 @@ def prepare(row: dict, publish_now: bool = False, probe_video: bool = True, bulk
         if info.duration > SHORTS_MAX_SECONDS:
             raise YouTubeError("not_ready", f"This video is {info.duration / 60:.1f} minutes: a Short can be at most 3.")
     publish_at = _publish_at(row, publish_now, bulk)
-    tags = []
-    for t in re.findall(r"#(\w{1,30})", description):
-        if t.lower() not in (x.lower() for x in tags) and len(tags) < 15:
-            tags.append(t)
-    body = {"snippet": {"title": title, "description": description, "tags": tags, "categoryId": "22"},
+    # Where the hashtags go (title / description / both) is the profile's choice, applied here.
+    from . import hashtags as ht, profiles
+    final = ht.plan(title, description, row.get("hashtags"), profiles.hashtag_settings())
+    body = {"snippet": {"title": final["title"], "description": final["description"], "tags": final["tags"], "categoryId": "22"},
             "status": {"selfDeclaredMadeForKids": False,
                        "privacyStatus": "private" if publish_at else "public",
                        **({"publishAt": publish_at} if publish_at else {})}}
-    return {"file": file, "body": body, "publishAt": publish_at}
+    return {"file": file, "body": body, "publishAt": publish_at,
+            "title": final["title"], "description": final["description"]}
 
 
 def require_linked() -> dict:
@@ -677,7 +677,7 @@ def bulk_plan(ids: list) -> dict:
             continue
         try:
             spec = prepare(row, publish_now=False, bulk=True)
-            ok.append({"id": rid, "title": row.get("title") or "", "publishAt": spec["publishAt"],
+            ok.append({"id": rid, "title": row.get("title") or "", "finalTitle": spec["title"], "publishAt": spec["publishAt"],
                        "when": f"{row.get('date')} {row.get('time')}"})
         except YouTubeError as exc:
             refused.append({"id": rid, "title": row.get("title") or "(untitled)", "message": exc.message, "code": exc.code})

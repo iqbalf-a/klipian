@@ -352,6 +352,11 @@ def upsert_render(*, project_id: str, result_id: str, title: str, file_name: str
                    "createdAt": file_created(project_id, file_name) or int(time.time())}
             clips.append(row)
         row["file"] = file_name                       # always the newest render
+        # The hashtag list is kept on the row, apart from the description: where the tags go
+        # on YouTube (title and/or description) is decided at upload (hashtags.py). Like the
+        # text columns: only while the row has none (a person's edit stays).
+        if (post or {}).get("hashtags") and not row.get("hashtags"):
+            row["hashtags"] = list(post["hashtags"])
         for key, value in wanted.items():
             if value and not (row.get(key) or "").strip():
                 row[key] = value

@@ -189,7 +189,11 @@ posting bukan itu.) Letakkan di kunci `post`:
 - **caption** — 1–3 kalimat dalam bahasa santai seperti podcast-nya, diakhiri
   pertanyaan atau ajakan. **Tanpa hashtag di dalamnya.**
 - **hashtags** — 5–8 tag huruf kecil, ditulis sebagai daftar. Sertakan nama
-  kreator atau tamu yang ada di klip kalau relevan.
+  kreator atau tamu yang ada di klip kalau relevan. **Urutkan dari yang paling
+  spesifik dan penting ke yang paling umum**, karena tiga yang pertama bisa
+  ikut ditaruh di judul unggahan. **Jangan menulis `#shorts`** (klipian
+  menambahkannya sendiri kalau profilnya memintanya) dan **tanpa spasi** di
+  dalam satu tag.
 
 Aturannya:
 
