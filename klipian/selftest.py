@@ -576,6 +576,16 @@ def check_schedule() -> tuple[str, str]:
             problems.append(f"bulk Mark as Posted is wrong: {a} / {b}")
         if (res["dated"], res["kept"], res["missing"]) != (1, 1, ["nope"]) or a.get("createdAt") != 456:
             problems.append(f"bulk result is wrong: {res}")
+        # overwrite (Mark as Posted: when it went live) replaces an existing date and time; the default keeps them
+        res2 = schedule.bulk_update(ids, "Posted", "2026-10-19", "20:15", path, lock, overwrite=True)
+        after = {r["id"]: r for r in schedule.load_clips(path)}
+        if any((after[i].get("date"), after[i].get("time")) != ("2026-10-19", "20:15") for i in ids) \
+                or (res2["dated"], res2["kept"]) != (len(ids), 0) or after[ids[0]].get("createdAt") != 456:
+            problems.append(f"bulk overwrite should replace every date and time: {res2} {[after[i].get('date') for i in ids]}")
+        schedule.bulk_update(ids, "Posted", "2026-10-30", "10:00", path, lock)
+        after = {r["id"]: r for r in schedule.load_clips(path)}
+        if any((after[i].get("date"), after[i].get("time")) != ("2026-10-19", "20:15") for i in ids):
+            problems.append("without overwrite an existing date and time must be kept")
         # Delete keeps the row in the trash, and Undo puts it back exactly, in its place.
         before_rows = schedule.load_clips(path)
         gone = schedule.delete_rows([before_rows[0]["id"], "nope"], path, lock)

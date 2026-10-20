@@ -1457,7 +1457,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"error": "ids must be a list of row ids"}, 400)
         try:
             out = _bulk_update(ids, str(req.get("status") or ""), str(req.get("date") or ""),
-                               str(req.get("time") or ""))
+                               str(req.get("time") or ""), overwrite=req.get("overwrite") is True)
         except ValueError as exc:
             return self._send_json({"error": str(exc)}, 400)
         out["clip"] = _with_missing_flags(out["clip"])

@@ -494,11 +494,10 @@ $("#markPostedForm")?.addEventListener("submit", (e) => {
   if (e.submitter?.value !== "ok") return;
   const date = $("#markPostedDate").value, time = $("#markPostedTime").value;
   if (!date) { e.preventDefault(); $("#markPostedDate").focus(); return; }
-  bulkApply({ status: "Posted", date, time }, (j) => {
+  // overwrite: the went-live date and time replace each clip's own upload date and time
+  bulkApply({ status: "Posted", date, time, overwrite: true }, (j) => {
     const n = j.clip.length;
-    return `${n} clip${n === 1 ? "" : "s"} marked Posted`
-      + (j.dated ? ` · ${j.dated} got ${date}${time ? " " + time : ""}` : "")
-      + (j.kept ? ` · ${j.kept} already had a date (kept)` : "");
+    return `${n} clip${n === 1 ? "" : "s"} marked Posted · went live ${date}${time ? " " + time : ""}`;
   });
 });
 

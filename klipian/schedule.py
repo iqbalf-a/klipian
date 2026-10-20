@@ -278,10 +278,12 @@ STATUSES = ("Draft", "Ready", "Scheduled", "Posted", "Discarded")
 
 
 def bulk_update(ids: list, status: str, date: str = "", time_: str = "",
-                path: Path | None = None, lock: threading.Lock | None = None) -> dict:
+                path: Path | None = None, lock: threading.Lock | None = None,
+                overwrite: bool = False) -> dict:
     """Set the status of many rows in ONE save. When `date` is given it fills the
     upload date (and `time_`, the time) of those rows that have NO date yet: a row
-    that already has one keeps both. Nothing else about a row changes -- `createdAt`
+    that already has one keeps both -- unless `overwrite` is true (Mark as Posted: when
+    it went live), which gives EVERY row that date and time. Nothing else about a row changes -- `createdAt`
     in particular is kept. Raises ValueError for a status or date nobody can use.
     Returns {"clip": [the rows as saved], "dated": n, "kept": n (had a date), "missing": [ids]}."""
     import re
@@ -301,7 +303,10 @@ def bulk_update(ids: list, status: str, date: str = "", time_: str = "",
                 continue
             row["status"] = status
             if date:
-                if (row.get("date") or "").strip():
+                if overwrite:
+                    row["date"], row["time"] = date, time_
+                    dated += 1
+                elif (row.get("date") or "").strip():
                     kept += 1
                 else:
                     row["date"] = date
