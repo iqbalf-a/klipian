@@ -234,9 +234,52 @@ def check_brief() -> tuple[str, str]:
             result = {"ok": False, "error": str(exc)}
         problems += [f"{name} {d}" for d in _diff(want, result)]
 
+    # The brief says plainly that the reply is plain JSON and that tags are finished text.
+    if "Plain JSON only: no code, function calls, expressions, variables or comments" not in got.replace("\n", " "):
+        problems.append("the brief lost its 'plain JSON only' sentence")
+    if 'Write each hashtag as plain finished text, e.g. "#beladiri"' not in got or "lowercase, no spaces" in got:
+        problems.append("the brief's hashtag wording is not the finished-text rule")
+
+    # A reply with JavaScript in the JSON: the exact .replace(" ", "") slip and a trailing comma are
+    # repaired (by reading, never running) and said; other code, single quotes, comments, unquoted keys,
+    # curly quotes and a comma that cannot be repaired are refused with the line, column and a hint.
+    def read(name):
+        text = (base / "replies" / name).read_bytes().decode("utf-8")
+        try:
+            cands, notes = roundtrip.parse_reply_notes(transcript.words, text, fixture_cues)
+            return cands, notes, ""
+        except ValueError as exc:
+            return None, [], str(exc)
+
+    cands, notes, err = read("code-replace.txt")
+    if err or [c["post"]["hashtags"] for c in cands] != [["#beladiri", "#podcast", "#MuayThai"]] or not any("replace" in n for n in notes):
+        problems.append(f"the .replace(' ', '') slip was not repaired and said: {err or notes}")
+    cands, notes, err = read("trailing-comma.txt")
+    if err or not any("comma" in n for n in notes):
+        problems.append(f"a trailing comma was not repaired and said: {err or notes}")
+    cands, notes, err = read("spaced-tag.txt")
+    if err or cands[0]["post"]["hashtags"] != ["#beladiri", "#MuayThai", "#podcast"] or notes:
+        problems.append(f"'#bela diri' should import as '#beladiri' without any repair note: {err or cands[0]['post']}")
+    # A reply that parses is never touched: text that merely looks like the slip stays as written.
+    tricky = '{"a": "x.replace(\\" \\", \\"\\") a, ]", "b": [1, 2]}'
+    notes = []
+    if roundtrip.extract_json(tricky, notes) != {"a": 'x.replace(" ", "") a, ]', "b": [1, 2]} or notes:
+        problems.append(f"valid JSON that contains the slip as text was changed: {notes}")
+    for name, want, pos in (
+            ("code-call.txt", "Code inside the JSON", "line 14, column 34"),
+            ("code-plus.txt", "Code inside the JSON", "line 12, column 30"),
+            ("single-quotes.txt", "Single quotes", "line 12, column 18"),
+            ("comments.txt", "comment", "line 12, column 36"),
+            ("unquoted-key.txt", "has no quotes", "line 12, column 9"),
+            ("curly-quotes.txt", "Curly quotes", "line 12, column 18"),
+            ("comma-and-quote.txt", "trailing comma", "line 14, column 45")):
+        cands, notes, err = read(name)
+        if cands is not None or want not in err or pos not in err or "^" not in err:
+            problems.append(f"{name}: expected a message with '{pos}' and '{want}', got {cands and 'a result'}: {err[:160]!r}")
+
     if problems:
         return FAIL, "\n      ".join(problems)
-    return PASS, f"brief.md identical; {len(expected)} replies read as before"
+    return PASS, f"brief.md identical; {len(expected)} replies read as before; JSON slips repaired or located"
 
 
 # --------------------------------------------------------------------------

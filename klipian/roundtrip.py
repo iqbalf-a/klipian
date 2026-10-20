@@ -208,7 +208,8 @@ klipian will snap the cut points to the nearest word boundary.
 ## Answer format
 
 Reply with **a single JSON block** exactly like this, no extra explanation
-outside the block.
+outside the block. Plain JSON only: no code, function calls, expressions, variables
+or comments; every value is finished text or a number.
 
 ```json
 {{
@@ -418,30 +419,140 @@ def _to_seconds(t) -> float:
     return total
 
 
-def _parse_json(s: str):
+_CODE_CALL = re.compile(r"^\.\s*[A-Za-z_$][\w$]*\s*\(")
+_BARE = re.compile(r"^[A-Za-z_$][\w$]*")
+_REPLACE_CALL = re.compile(r"""^\.replace\(\s*(?:" "|' ')\s*,\s*(?:""|'')\s*\)""")
+_CURLY = "“”‘’"
+
+
+def _repair(s: str) -> tuple[str, list[str]]:
+    """Fix the two slips that are safe to fix, nothing else and never by running anything:
+    `"text".replace(" ", "")` (the text with its spaces removed) and a trailing comma before ] or }.
+    The text is read as JSON strings and what lies between them, so what is inside a string is
+    never touched by the comma rule. Returns (text, what was fixed)."""
+    out: list[str] = []
+    done: list[str] = []
+    i, n = 0, len(s)
+    while i < n:
+        ch = s[i]
+        if ch == '"':
+            j = i + 1
+            while j < n and s[j] != '"':
+                j += 2 if s[j] == "\\" else 1
+            lit = s[i:j + 1]
+            m = _REPLACE_CALL.match(s[j + 1:]) if j < n else None
+            if m:
+                lit = lit.replace(" ", "")
+                j += m.end()
+                if "replace" not in done:
+                    done.append("replace")
+            out.append(lit)
+            i = j + 1
+        elif ch == ",":
+            k = i + 1
+            while k < n and s[k] in " \t\r\n":
+                k += 1
+            if k < n and s[k] in "]}":
+                if "comma" not in done:
+                    done.append("comma")
+            else:
+                out.append(ch)
+            i += 1
+        else:
+            out.append(ch)
+            i += 1
+    words = {"replace": 'a text followed by .replace(" ", "") became the text with its spaces removed',
+             "comma": "a comma before a closing bracket was removed"}
+    return "".join(out), [words[x] for x in done]
+
+
+def _hint(s: str, pos: int) -> str:
+    """What is most likely wrong at `pos` of a JSON block that would not parse, in words for the
+    person who pasted it (the common slips of an AI reply). The text is only looked at, never run."""
+    rest = s[pos:]
+    line_start = s.rfind("\n", 0, pos) + 1
+    line_end = s.find("\n", pos)
+    line = s[line_start:line_end if line_end != -1 else len(s)]
+    before = s[:pos].rstrip()
+    if rest.startswith(("//", "/*")):
+        return "A comment (// or /* */) in the JSON: remove it. JSON has no comments."
+    if rest[:1] in "“”" or (any(c in line for c in "“”") and rest[:1] not in "'"):
+        return 'Curly quotes (“ ”) used as JSON quotes: use plain straight double quotes (") around text and keys.'
+    if _CODE_CALL.match(rest) or rest.startswith("+"):
+        return ('Code inside the JSON (e.g. .replace(...), or texts joined with +): replace it with the '
+                'finished text, e.g. "#beladiri".')
+    if rest.startswith("'") or (rest[:1] in "‘’"):
+        return "Single quotes (') around text or keys: JSON needs plain double quotes (\")."
+    if (before.endswith(",") and rest[:1] in "]}") or re.match(r",\s*[\]}]", rest):
+        return "A trailing comma before a closing ] or }: remove the last comma."
+    m = _BARE.match(rest)
+    if m:
+        word = m.group(0)
+        after = rest[m.end():].lstrip()
+        if after.startswith(":"):
+            return f'The key {word} has no quotes: write it as "{word}".'
+        if word in ("True", "False", "None", "undefined", "NaN", "Infinity"):
+            return f"{word} is not JSON: use true, false, null, a number or text in double quotes."
+        if after.startswith("("):
+            return (f"Code inside the JSON (a call such as {word}(...)): replace it with the "
+                    "finished text or number.")
+        return (f"The bare word {word} where JSON needs text or a number: put finished text in double "
+                "quotes. No variables or code.")
+    return "Check the commas, quotes and brackets near here."
+
+
+def _where(s: str, exc: json.JSONDecodeError) -> str:
+    """`line 12, column 9:` and about 40 characters around it with a caret under the spot."""
+    lines = s.split("\n")
+    lineno = min(max(exc.lineno, 1), len(lines))
+    text = lines[lineno - 1].rstrip("\r")
+    col = min(max(exc.colno, 1), len(text) + 1)
+    start = max(0, col - 21)
+    seg = text[start:col + 19]
+    lead = "…" if start else ""
+    caret = " " * (len(lead) + col - 1 - start) + "^"
+    return f"line {lineno}, column {col}:\n    {lead}{seg}\n    {caret}"
+
+
+def _parse_json(s: str, notes: list[str] | None = None):
     def refuse(name):
         raise ValueError(name)
     try:
         return json.loads(s, parse_constant=refuse)
+    except json.JSONDecodeError as exc:
+        # The commonest slips of an AI reply: a text with .replace(" ", "") after it, and a trailing
+        # comma. Those two are fixed (by reading the text, never by running it) and the person is told.
+        fixed, done = _repair(s)
+        if done:
+            try:
+                value = json.loads(fixed, parse_constant=refuse)
+            except ValueError:
+                pass
+            else:
+                if notes is not None:
+                    notes.extend(done)
+                return value
+        raise ValueError(
+            f"The JSON block is broken at {_where(s, exc)}\n{_hint(s, exc.pos)}\n"
+            "Fix that spot, or copy Claude's reply again from the start to the end of the block.") from None
     except ValueError:
         # json.loads accepts NaN/Infinity, JSON.parse doesn't; both end up here.
-        # The raw parser message is technical English; the user gets a sentence
-        # they can act on instead.
         raise ValueError("The JSON block is there, but its content is broken — copy "
                          "Claude's reply again from the start to the end of the block.") from None
 
 
-def extract_json(text: str) -> dict:
+def extract_json(text: str, notes: list[str] | None = None) -> dict:
     """Claude's replies are often wrapped in code fences or prefixed with
     prose. Look inside a code fence first, else take everything from the
-    first { to the last }; don't require a clean file."""
+    first { to the last }; don't require a clean file. `notes` collects what
+    was repaired (see _repair)."""
     fence = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.S)
     if fence:
-        return _parse_json(fence.group(1))
+        return _parse_json(fence.group(1), notes)
     first, last = text.find("{"), text.rfind("}")
     if first == -1 or last <= first:
         raise ValueError("No JSON block found in that text.")
-    return _parse_json(text[first:last + 1])
+    return _parse_json(text[first:last + 1], notes)
 
 
 # How far a cut point may be shifted to snap to a word boundary. A word
@@ -494,7 +605,14 @@ def _one_decimal(x: float) -> float:
 
 
 def parse_reply(words: list[Word], text: str, cues: list[dict] | None = None) -> list[dict]:
-    """Claude's reply -> clip candidates, in the shape the editor uses (the
+    """Claude's reply -> clip candidates; see parse_reply_notes."""
+    return parse_reply_notes(words, text, cues)[0]
+
+
+def parse_reply_notes(words: list[Word], text: str, cues: list[dict] | None = None) -> tuple[list[dict], list[str]]:
+    """(candidates, what was repaired in the JSON on the way: see _repair, as sentences).
+
+    Claude's reply -> clip candidates, in the shape the editor uses (the
     same one as before the logic moved here): title, hook, in/out (min:sec),
     startSec/endSec, dur, total, scores {hook, complete, payoff}, reason and
     spans. Candidates keep Claude's order. With `cues` (cues.load()["cues"])
@@ -508,7 +626,8 @@ def parse_reply(words: list[Word], text: str, cues: list[dict] | None = None) ->
     as fallback. The prompt asks for English keys, but replies saved before
     the rename must still be importable -- and Claude occasionally answers
     using terms from the prompt prose."""
-    data = extract_json(text)
+    notes: list[str] = []
+    data = extract_json(text, notes)
     raw = _or(data.get("clips", _UNDEFINED), data.get("klip", _UNDEFINED), [])
     if not isinstance(raw, list) or ("clips" not in data and "klip" not in data):
         raise ValueError('JSON does not have a "clips" list.')
@@ -577,7 +696,7 @@ def parse_reply(words: list[Word], text: str, cues: list[dict] | None = None) ->
 
     if not result:
         raise ValueError("All clips have zero or negative duration.")
-    return result
+    return result, notes
 
 
 def save_candidates(candidates: list[dict], video: Path, dest: Path) -> Path:

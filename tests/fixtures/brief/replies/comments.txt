@@ -1,0 +1,22 @@
+Here are the moments.
+
+```json
+{
+  "source": "radityadika-podcast.mp4",
+  "clips": [
+    {
+      "start": "16:56",
+      "end": "17:24",
+      "title": "Digigit Saat Tidur",
+      "hook": "Terparah kedua, dia pernah gigit",
+      "scores": { "hook": 9, "complete": 10, "payoff": 9 },
+      "reason": "Premise is odd.",
+      "post": {
+        "title": "Bela Diri Pagi", // the title
+        "caption": "Latihan pagi.",
+        "hashtags": ["#beladiri"]
+      }
+    }
+  ]
+}
+```

@@ -150,7 +150,8 @@ Untuk tiap kandidat, tulis:
 ## Answer format
 
 Reply with **a single JSON block** exactly like this, no extra explanation
-outside the block.
+outside the block. Plain JSON only: no code, function calls, expressions, variables
+or comments; every value is finished text or a number.
 
 ```json
 {
@@ -186,7 +187,7 @@ will appear on YouTube, as an example of the finished form (klipian composes the
 title itself from `title` and `hashtags`, so this is only a check on your side). Leave
 `post` out if the rubric above does not ask for it.
 
-**Hashtags for this profile:** This profile puts the first 3 hashtags in the YouTube title, plus #shorts. `post.title` + ' ' + the first 3 hashtags + ' #shorts' must be at most 100 characters in total. Order the hashtags from the most specific and important to the most general. Hashtags: lowercase, no spaces, and do not write #shorts yourself (klipian adds it).
+**Hashtags for this profile:** This profile puts the first 3 hashtags in the YouTube title, plus #shorts. `post.title` + ' ' + the first 3 hashtags + ' #shorts' must be at most 100 characters in total. Order the hashtags from the most specific and important to the most general. Write each hashtag as plain finished text, e.g. "#beladiri"; klipian lowercases and removes spaces itself, so never transform text with code, and do not write #shorts yourself (klipian adds it).
 
 `angle` is a suggested point of view on the clip, for the person who cuts it to edit
 and make their own: `take` (one sentence), `intro` (an opening line, at most 12

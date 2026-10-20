@@ -98,6 +98,8 @@ function snapToWord(time, side) {
 
 /* Claude's reply -> candidates, read by the server (roundtrip.parse_reply).
    Rejects with a message meant to be shown as is. */
+let lastImportNotes = [];       // what the server repaired in the last reply it read (said in the note)
+
 async function importJSON(text) {
   let res;
   try {
@@ -110,6 +112,7 @@ async function importJSON(text) {
   }
   const d = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(d.error || "Could not read that reply.");
+  lastImportNotes = d.notes || [];
   return d.candidates;
 }
 
@@ -272,13 +275,15 @@ $("#importBtn")?.addEventListener("click", async () => {
     applyCandidates(candidates);
     note.dataset.error = "false";
     note.textContent = `${candidates.length} suggestion${candidates.length === 1 ? "" : "s"} imported`
-      + (have ? ` (replaced ${have})` : "");
+      + (have ? ` (replaced ${have})` : "")
+      + (lastImportNotes.length ? `. Fixed in the reply: ${lastImportNotes.join("; ")}.` : "");
     if (typeof renderRecommendations === "function") renderRecommendations();
     if (typeof saveProject === "function") saveProject();
     toScreen("clips");          // recommendations are not the final destination, result is
   } catch (err) {
     note.dataset.error = "true";
     note.textContent = err.message;
+    note.style.whiteSpace = "pre-wrap";       // the message shows the line and a caret under the spot
   }
 });
 

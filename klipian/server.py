@@ -1507,7 +1507,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"error": str(exc)}, 400)
         # No transcript is not an error here: the cut points just aren't snapped.
         try:
-            candidates = roundtrip.parse_reply(
+            candidates, notes = roundtrip.parse_reply_notes(
                 transcript.words if transcript else [], str(req.get("text") or ""),
                 cues_mod.load(find_video(name), Cache(CACHE_DIR))["cues"])
         except ValueError as exc:
@@ -1522,7 +1522,8 @@ class Handler(BaseHTTPRequestHandler):
                 warning = _hashtags_mod.title_warning(post.get("title", ""), post.get("hashtags"), settings)
                 if warning:
                     k["postWarning"] = warning
-        return self._send_json({"candidates": candidates})
+        # `notes`: what was repaired in the JSON (a .replace(" ", "") or a trailing comma), to be said
+        return self._send_json({"candidates": candidates, "notes": notes})
 
     def _post_render(self):
         try:

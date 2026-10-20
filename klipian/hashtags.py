@@ -120,8 +120,9 @@ def brief_rule(settings: dict | None = None) -> str:
     n = s["titleTags"]
     extra = " + ' #shorts'" if s["shorts"] else ""
     common = ("Order the hashtags from the most specific and important to the most general. "
-              "Hashtags: lowercase, no spaces" + (", and do not write #shorts yourself (klipian adds it)."
-                                                  if s["shorts"] else "."))
+              "Write each hashtag as plain finished text, e.g. \"#beladiri\"; klipian lowercases and removes "
+              "spaces itself, so never transform text with code"
+              + (", and do not write #shorts yourself (klipian adds it)." if s["shorts"] else "."))
     if s["placement"] == "description":
         return ("Hashtags go in the description only. `post.title` must be at most 100 characters and "
                 "carry no hashtags. " + common)
