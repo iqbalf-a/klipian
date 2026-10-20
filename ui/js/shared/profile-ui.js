@@ -33,7 +33,7 @@
               title="Profile: ${esc(name)}">
         <span class="profile-dot" aria-hidden="true"></span>
         <span>${esc(name)}</span>
-        ${isGuest ? "" : `<span class="profile-yt" id="profileYt" data-state="none" hidden title="YouTube"></span>`}
+        ${isGuest ? "" : `<span class="profile-yt" id="profileYt" data-light="grey" hidden title="YouTube"></span>`}
       </button>
       <div class="profile-menu" id="profileMenu" role="menu" hidden>
         <button type="button" role="menuitem" data-pm="switch">Switch profile…</button>
@@ -80,7 +80,8 @@
           </select></label>
         <section class="yt-box" id="ytBox" aria-label="YouTube account">
           <h3>YouTube account</h3>
-          <p class="note" id="ytLine">Checking…</p>
+          <div class="yt-row" id="ytClientRow"><span class="yt-badge" data-light="grey">Client</span><span class="yt-row-text" id="ytClientText">Checking…</span></div>
+          <div class="yt-row" id="ytAccountRow"><span class="yt-badge" data-light="grey">Account</span><span class="yt-row-text" id="ytLine">Checking…</span></div>
           <div class="row yt-actions" id="ytActions"></div>
           <input type="file" id="ytFile" accept=".json,application/json" hidden>
           <p class="note" id="ytMsg" role="status"></p>
@@ -140,14 +141,33 @@
     const btn = (act, label, extra = "") => `<button class="btn quiet" type="button" data-yt="${act}" ${extra}>${label}</button>`;
     function paint(j) {
       const st = j.state || "none";
-      const who = j.channel?.title ? `<b>${esc(j.channel.title)}</b>` : "";
-      const when = j.checkedAt ? ` · checked ${new Date(j.checkedAt * 1000).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}` : "";
-      line.innerHTML = st === "ok" ? `Linked ✓ ${who}${when}` : esc(YT_HELP[st] || j.message || st);
+      const c = j.client || { state: j.hasClient ? "valid" : "missing" };
+      // Row 1: the client_secret.json, judged here with no network.
+      const cLight = c.state === "valid" ? "green" : c.state === "invalid" ? "red" : "grey";
+      dlg.querySelector("#ytClientRow .yt-badge").dataset.light = cLight;
+      dlg.querySelector("#ytClientRow .yt-badge").textContent = c.state === "valid" ? "Client ✓" : c.state === "invalid" ? "Client ✕" : "Client";
+      dlg.querySelector("#ytClientText").innerHTML = c.state === "valid"
+        ? `Valid${c.projectId ? ` · project <b>${esc(c.projectId)}</b>` : ""} · ${c.source === "shared" ? "shared fallback (workspace/secrets)" : "this profile"}`
+        : c.state === "invalid" ? esc(c.reason || "This file is not a usable client_secret.json.") : "Not chosen yet.";
+      // Row 2: the YouTube account. Green only when the client is valid too (the chip's dot says the same).
+      const aLight = st === "ok" ? (c.state === "valid" ? "green" : "yellow")
+        : st === "not_test_user" ? "red" : (st === "none" || st === "no_client" || st === "no_library") ? "grey" : "yellow";
+      const badge = dlg.querySelector("#ytAccountRow .yt-badge");
+      badge.dataset.light = aLight;
+      badge.textContent = st === "ok" ? "Connected ✓" : st === "expired" ? "Expired" : st === "different" ? "Other channel"
+        : st === "not_test_user" ? "Not a test user" : st === "offline" ? "Offline" : "Not connected";
+      const when = j.checkedAt ? `checked ${new Date(j.checkedAt * 1000).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}` : "";
+      const thumb = j.channel?.thumb ? `<img class="yt-thumb" src="${esc(j.channel.thumb)}" alt="" referrerpolicy="no-referrer">` : "";
+      const who = j.channel?.title ? `${thumb}<b>${esc(j.channel.title)}</b>` : "";
+      line.innerHTML = st === "ok" ? `${who}${when ? " · " + when : ""}`
+        : st === "offline" ? `last known: ${who || esc(YT_HELP.offline)}${when ? " · " + when : ""}`
+        : esc(YT_HELP[st] || j.message || st);
       msg.textContent = j.message && st === "ok" ? j.message : (st === "offline" ? j.message : "");
       const linked = st === "ok" || st === "expired" || st === "different" || st === "offline";
       box.innerHTML = [
         btn("client", j.hasClient ? "Change client_secret.json…" : "Choose client_secret.json…"),
-        (j.hasClient && st !== "ok") ? btn("connect", st === "expired" || st === "different" ? "Connect again" : "Connect YouTube") : "",
+        (st !== "ok") ? btn("connect", st === "expired" || st === "different" ? "Connect again" : "Connect YouTube",
+          c.state === "valid" ? "" : `disabled title="${c.state === "invalid" ? "The client_secret.json is not valid: choose a correct one first." : "Choose the client_secret.json first."}"`) : "",
         linked ? btn("check", "Check connection") : "",
         linked ? btn("disconnect", "Disconnect") : "",
       ].join("");
@@ -238,7 +258,7 @@
       const j = await (await fetch("/api/youtube/status")).json();
       if (!j.ok && !j.state) return;
       const s = j.state || "none";
-      dot.dataset.state = s === "ok" ? "ok" : (s === "none" || s === "no_client" || s === "no_library") ? "none" : "expired";
+      dot.dataset.light = j.light || "grey";                    // the same colour the badges show
       dot.title = `YouTube: ${j.channel?.title || (s === "none" ? "not linked" : s)}`;
       dot.hidden = false;
     } catch { /* the dot stays hidden */ }

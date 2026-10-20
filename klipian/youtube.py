@@ -307,12 +307,46 @@ def map_http_error(status: int, reason: str) -> YouTubeError:
 # what the pages and the upload use
 # --------------------------------------------------------------------------
 
+def client_info() -> dict:
+    """The state of this profile's client_secret.json, worked out here with no network, by the
+    same rules save_client_secret applies. {state: valid|missing|invalid, projectId, source:
+    profile|shared, reason}. Only the project id (not a secret) is ever returned from the file."""
+    f = client_path()
+    if f is None:
+        return {"state": "missing", "projectId": "", "source": "", "reason": "No client_secret.json chosen yet."}
+    source = "profile" if f.parent == Path(paths.SECRETS) or f.resolve().parent == Path(paths.SECRETS).resolve() else "shared"
+    try:
+        data = json.loads(f.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"state": "invalid", "projectId": "", "source": source, "reason": "The file cannot be read as JSON."}
+    try:
+        inst = validate_client_secret(data)
+    except YouTubeError as exc:
+        return {"state": "invalid", "projectId": "", "source": source, "reason": exc.message.split(". ")[0].rstrip(".") + "."}
+    return {"state": "valid", "projectId": str(inst.get("project_id") or ""), "source": source, "reason": ""}
+
+
+def _light(state: str, client: dict) -> str:
+    """One colour for the chip's dot and the badges, so they always agree: green = linked AND the
+    client is valid; yellow = needs attention; red = the client is invalid or the account is not a
+    test user; grey = nothing linked."""
+    if client["state"] == "invalid" or state == "not_test_user":
+        return "red"
+    if state == "ok":
+        return "green" if client["state"] == "valid" else "yellow"
+    if state in ("none", "no_client", "no_library"):
+        return "grey"
+    return "yellow"
+
+
 def _public(state: str, message: str = "", channel: dict | None = None, checked: int | None = None) -> dict:
-    """What may go to the browser: a state, a sentence, the channel's label. Never a token."""
+    """What may go to the browser: a state, a sentence, the channel's label, the client's state.
+    Never a token, a client_id or a client_secret."""
+    client = client_info()
     return {"state": state, "message": message, "checkedAt": checked,
             "channel": ({"title": channel.get("title", ""), "id": channel.get("id", ""),
                          "thumb": channel.get("thumb", "")} if channel else None),
-            "hasClient": client_path() is not None}
+            "hasClient": client["state"] != "missing", "client": client, "light": _light(state, client)}
 
 
 def status() -> dict:

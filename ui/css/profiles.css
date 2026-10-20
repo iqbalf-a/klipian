@@ -43,9 +43,12 @@
 }
 .profile-chip-btn:hover { background: var(--glass); }
 .profile-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--pc, #8b8f98); flex: none; }
-.profile-yt { width: 8px; height: 8px; border-radius: 50%; background: #6b6f78; flex: none; }
-.profile-yt[data-state="ok"] { background: #4cd07d; }
-.profile-yt[data-state="expired"] { background: #e8b923; }
+/* One set of colours for the chip's dot and the badges in the settings, so they always agree. */
+:root { --yt-green: #4cd07d; --yt-yellow: #e8b923; --yt-red: #ff5d5d; --yt-grey: #6b6f78; }
+.profile-yt { width: 8px; height: 8px; border-radius: 50%; background: var(--yt-grey); flex: none; }
+.profile-yt[data-light="green"] { background: var(--yt-green); }
+.profile-yt[data-light="yellow"] { background: var(--yt-yellow); }
+.profile-yt[data-light="red"] { background: var(--yt-red); }
 .profile-yt[hidden] { display: none; }
 .profile-menu {
   position: absolute; right: 0; top: calc(100% + 6px); z-index: 1000; min-width: 220px;
@@ -86,3 +89,13 @@ html[data-guest="true"] .guest-hidden { display: none !important; }
 .profile-settings .yt-box h3 { margin: 0; font-size: 13px; }
 .profile-settings .yt-actions { flex-wrap: wrap; justify-content: flex-start; }
 .profile-settings .note b { color: var(--text); }
+.yt-row { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text-muted); }
+.yt-row-text { min-width: 0; }
+.yt-badge {
+  flex: none; min-width: 104px; text-align: center; font-weight: 700; font-size: 11px;
+  padding: 3px 10px; border-radius: 999px; color: #101014; background: var(--yt-grey);
+}
+.yt-badge[data-light="green"] { background: var(--yt-green); }
+.yt-badge[data-light="yellow"] { background: var(--yt-yellow); }
+.yt-badge[data-light="red"] { background: var(--yt-red); }
+.yt-thumb { width: 18px; height: 18px; border-radius: 50%; vertical-align: middle; margin-right: 6px; }

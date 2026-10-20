@@ -1138,10 +1138,43 @@ def check_youtube() -> tuple[str, str]:
         if not (paths.profile_dir("yt1") / "secrets" / "client_secret.json").is_file():
             problems.append("client_secret.json was not kept in the profile's secrets/")
 
+        # --- the client's own state, judged locally: valid (profile), shared fallback, missing, invalid
+        own = paths.profile_dir("yt1") / "secrets" / "client_secret.json"
+        shared = paths.workspace_dir() / "secrets" / "client_secret.json"
+        st, j = call("GET", "/api/youtube/status", "yt1")
+        cl = j.get("client", {})
+        if cl.get("state") != "valid" or cl.get("source") != "profile" or cl.get("projectId") != "p" or j.get("light") != "grey":
+            problems.append(f"a valid client from the profile should say so (and the light stays grey until linked): {j}")
+        keep = own.read_bytes()
+        own.unlink()
+        if call("GET", "/api/youtube/status", "yt1")[1]["client"]["state"] != "missing":
+            problems.append("no client anywhere should be missing")
+        shared.parent.mkdir(parents=True, exist_ok=True)
+        shared.write_bytes(keep)
+        cl = call("GET", "/api/youtube/status", "yt1")[1]["client"]
+        if cl["state"] != "valid" or cl["source"] != "shared":
+            problems.append(f"the shared fallback should be valid with source shared: {cl}")
+        shared.unlink()
+        own.write_text("{\"installed\": {\"client_id\": \"nope\", \"client_secret\": \"HIDDEN-CLIENT-SECRET\"}}", encoding="utf-8")
+        st, j = call("GET", "/api/youtube/status", "yt1")
+        if j["client"]["state"] != "invalid" or j["light"] != "red" or "HIDDEN" in json.dumps(j) or not j["client"]["reason"]:
+            problems.append(f"an invalid client should be red with a reason and no content: {j}")
+        own.write_text("not json", encoding="utf-8")
+        if call("GET", "/api/youtube/status", "yt1")[1]["client"]["state"] != "invalid":
+            problems.append("a client that is not JSON should be invalid")
+        own.write_bytes(keep)
+
         # --- connect: linked, with the channel's label and no token
         s = connect("yt1")
         if s.get("state") != "done" or s["status"]["state"] != "ok" or s["status"]["channel"]["title"] != "Fake Channel":
             problems.append(f"connecting did not link the channel: {s}")
+        elif s["status"].get("light") != "green":
+            problems.append(f"linked with a valid client should be green: {s['status']}")
+        # the client goes bad AFTER connecting: the light must not stay green
+        own.write_text("garbage", encoding="utf-8")
+        if call("GET", "/api/youtube/status", "yt1")[1].get("light") != "red":
+            problems.append("a client that became invalid left the light green")
+        own.write_bytes(keep)
         tf = paths.profile_dir("yt1") / "secrets" / "youtube.json"
         if not tf.is_file() or SECRET not in tf.read_text(encoding="utf-8"):
             problems.append("the token was not kept in the profile's secrets/youtube.json")
@@ -1200,7 +1233,8 @@ def check_youtube() -> tuple[str, str]:
             problems.append("the Guest was not refused at /api/youtube/status")
 
         # --- nothing sent to the browser carries a token or the client secret
-        leaked = [x for x in seen if SECRET in x or "FAKE" in x or "refresh_token" in x]
+        leaked = [x for x in seen if SECRET in x or "FAKE" in x or "refresh_token" in x
+                  or "1.apps.googleusercontent.com" in x or "HIDDEN-CLIENT-SECRET" in x or '"client_secret"' in x]
         if leaked:
             problems.append("a token or secret reached an answer meant for the browser")
     finally:
