@@ -110,7 +110,9 @@ function draftRowHTML(d) {
     <tr class="ws-draft" data-draft>
       <td class="${td}"></td>
       <td class="${td}"><select class="ws-input ws-status" data-draft-field="status" data-v="${d.status}">${opt(STATUS, d.status)}</select></td>
-      <td class="${td}"><input class="ws-input" type="text" data-draft-field="title" value="${escapeHTML(d.title)}" placeholder="New clip title / hook"></td>
+      <td class="${td}"><input class="ws-input" type="text" data-draft-field="title" value="${escapeHTML(d.title)}" placeholder="New clip title / hook">
+        <div class="ws-fileline"><button class="ws-mini" type="button" data-draft-choose>Choose video…</button>
+          <span class="data" data-draft-file>${d.file ? escapeHTML(d.file) : "no video file (for a clip klipian did not render)"}</span></div></td>
       <td class="${td}"><select class="ws-input" data-draft-field="platform">${opt(PLATFORM, d.platform)}</select></td>
       <td class="${td}"><input class="ws-input" type="date" data-draft-field="date" value="${escapeHTML(d.date)}"></td>
       <td class="${td}"><input class="ws-input" type="time" data-draft-field="time" value="${escapeHTML(d.time)}"></td>
@@ -137,6 +139,12 @@ function warnChipHTML(c) {
   return ` <span class="ws-warn" data-kind="${escapeHTML(c.ytWarning)}" title="${escapeHTML(c.ytWarningText || "")}">${escapeHTML(c.ytWarning)}</span>`;
 }
 
+/* A clip with a video of its own (chosen by hand, kept in out/manual/) shows its file name under the title. */
+function fileLineHTML(c) {
+  if (c.fileFolder !== "manual" || !c.file) return "";
+  return `<div class="ws-fileline"><span class="data" title="out/manual/${escapeHTML(c.file)}">${escapeHTML(c.file)}</span></div>`;
+}
+
 function row(c) {
   const opt = (list, cur) => list.map((v) =>
     `<option value="${v}" ${v === cur ? "selected" : ""}>${v}</option>`).join("");
@@ -151,7 +159,7 @@ function row(c) {
           ${opt(STATUS, c.status || "Draft")}
         </select>${warnChipHTML(c)}
       </td>
-      <td class="${td}">${f("title")}${goneTagHTML(c)}</td>
+      <td class="${td}">${f("title")}${goneTagHTML(c)}${fileLineHTML(c)}</td>
       <td class="${td}"><select class="ws-input" data-field="platform">${opt(PLATFORM, c.platform || "YouTube + TikTok")}</select></td>
       <td class="${td}">${f("date", "date")}</td>
       <td class="${td}">${f("time", "time")}</td>
@@ -376,7 +384,76 @@ async function saveDraft() {
 $("#clipBody")?.addEventListener("click", (e) => {
   if (e.target.closest("[data-draft-save]")) saveDraft();
   else if (e.target.closest("[data-draft-cancel]")) cancelDraft();
+  else if (e.target.closest("[data-draft-choose]")) chooseClipVideo("draft");
 });
+
+/* ---------- a clip with a video of its own ("Choose video…") ---------- */
+
+let clipFileFor = "";                    // "draft" or "detail": who asked for the picker
+let detailPending = null;               // {fileFolder, title}: what Detail will save with the chosen file
+
+/* Send the chosen file to the server (out/manual/ of this profile); resolves {file, title, existed}. */
+function uploadClipFile(file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `/api/workspace/clips/file?name=${encodeURIComponent(file.name)}`);
+    xhr.setRequestHeader("Content-Type", "application/octet-stream");
+    xhr.setRequestHeader("X-Klipian-Profile", PROFILE);
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(Math.round(100 * e.loaded / e.total)); };
+    xhr.onload = () => {
+      let d = {};
+      try { d = JSON.parse(xhr.responseText); } catch { /* the status says it */ }
+      if (xhr.status >= 200 && xhr.status < 300 && d.file) resolve(d);
+      else reject(new Error(d.error || `Upload failed (${xhr.status}).`));
+    };
+    xhr.onerror = () => reject(new Error("Upload failed. Is klipian serve still running?"));
+    xhr.send(file);
+  });
+}
+
+function chooseClipVideo(who) {
+  clipFileFor = who;
+  const input = $("#clipFileInput");
+  input.value = "";
+  input.click();
+}
+
+$("#clipFileInput")?.addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const who = clipFileFor;
+  const say = (text, bad = false) => {
+    if (who === "draft") { const el = $("#clipBody [data-draft-file]"); if (el) el.textContent = text; }
+    else detailNote(text, bad);
+  };
+  say(`Sending ${file.name} …`);
+  try {
+    const d = await uploadClipFile(file, (pct) => say(`Sending ${file.name} · ${pct}%`));
+    if (who === "draft" && DRAFT) {
+      syncDraftFromDom();
+      DRAFT.file = d.file;
+      DRAFT.fileFolder = "manual";
+      if (!String(DRAFT.title || "").trim()) {                           // never over a title that was typed
+        DRAFT.title = d.title;
+        const t = $('#clipBody [data-draft-field="title"]');
+        if (t) t.value = d.title;                                       // drawClips reads the inputs first
+      }
+      drawClips();
+      $('#clipBody [data-draft-field="title"]')?.focus();
+    } else if (who === "detail" && clipDialog.open) {
+      const el = $('[data-field="file"]', clipDetailForm);
+      if (el) el.value = d.file;
+      detailPending = { fileFolder: "manual", title: d.title };
+      const existing = CLIPS.find((c) => c.id === clipDialog.dataset.id);
+      if (existing && !String(existing.title || "").trim()) $("#clipDetailTitle").textContent = d.title;
+      detailNote(`${d.file}${d.existed ? " (the same video was already there)" : ""} — press Save to keep it.`);
+    }
+  } catch (err) {
+    say(err.message, true);
+  }
+});
+
+$("#detailChooseVideo")?.addEventListener("click", () => chooseClipVideo("detail"));
 
 $("#clipBody")?.addEventListener("keydown", (e) => {
   const inDraft = e.target.closest("tr[data-draft]");
@@ -565,6 +642,11 @@ function detailValues() {
     if (el) values[name] = el.value;
   }
   values.hashtags = inputToTags($("#detailHashtags")?.value || "");
+  if (detailPending) {
+    values.fileFolder = detailPending.fileFolder;
+    const existing = CLIPS.find((c) => c.id === clipDialog.dataset.id);
+    if (existing && !String(existing.title || "").trim()) values.title = detailPending.title;   // never over a typed title
+  }
   return values;
 }
 
@@ -596,6 +678,9 @@ function openDetail(id, focusField = "") {
   const c = CLIPS.find((x) => x.id === id);
   if (!c) return;
   clipDialog.dataset.id = id;
+  detailPending = null;
+  const chooseWrap = $("#detailChooseWrap");
+  if (chooseWrap) chooseWrap.hidden = !!c.projectId;           // a rendered clip has its file already
   // Title here is read-only context -- edited from the table so there's
   // no single source of truth for the same field in two places.
   $("#clipDetailTitle").textContent = c.title || "(untitled)";

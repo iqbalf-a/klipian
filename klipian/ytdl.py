@@ -161,13 +161,8 @@ def canonical_url(vid: str) -> str:
 # Quote characters are left out of a file name: the name goes into Claude's reply ("source": "...")
 # and a quote copied as a straight one would break the JSON. An apostrophe inside a word goes too
 # ("Don't" -> "Dont"); the credit keeps the title as YouTube wrote it.
-_QUOTES = "\"\u201c\u201d\u201e\u201f'\u2018\u2019\u201a\u201b`\u00b4\u00ab\u00bb\u2039\u203a"
-_NO_QUOTES = {ord(c): None for c in _QUOTES}
-
-
 def _clean(text: str) -> str:
-    text = (text or "").translate(_NO_QUOTES)
-    return " ".join(paths.safe_dirname(text).split()).strip(" .") if text.strip() else ""
+    return paths.safe_name(text)
 
 
 def file_stem(channel: str, title: str) -> str:

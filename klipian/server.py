@@ -39,6 +39,7 @@ from . import compose as composer
 from . import ffmpeg_tools
 from . import render as engine
 from . import credits as credits_mod
+from .schedule import manual_dir as _schedule_manual_dir, title_from_file as _title_from_file
 from .schedule import (CLIPS_LOCK, bulk_update as _bulk_update, set_schedules as _set_schedules, delete_rows as _delete_rows,
                        restore_rows as _restore_rows, scheduled_files as _scheduled_files,
                        project_of_folder as _project_of_folder, with_missing_flags as _with_missing_flags, created_of as _created_of, load_clips as _load_clips,
@@ -267,7 +268,7 @@ def _source_duration(video: Path, cache: Cache) -> float | None:
 
 
 # POSTs whose body is a file, not JSON (see Handler._guard).
-RAW_UPLOADS = {"/api/video-upload", "/api/project-asset-upload"}
+RAW_UPLOADS = {"/api/video-upload", "/api/project-asset-upload", "/api/workspace/clips/file"}
 
 def _fill_candidate_cues(data: dict) -> None:
     """Give the suggestions a project already holds the `cues` they would have
@@ -1261,6 +1262,66 @@ class Handler(BaseHTTPRequestHandler):
         return self._send_json({"ok": True, "name": dest.name,
                                 "kind": "image" if ext in composer.IMAGE_EXT else "sound"})
 
+    def _post_clip_file(self):
+        """A video chosen for a schedule row that klipian did not render (the row's "Choose video…"):
+        kept in out/manual/ under a clean name (paths.safe_name, " (2)" on a clash with a DIFFERENT file;
+        the same bytes again are reused). Raw body, name in the query, like the source upload. Answers
+        {file, folder, existed, title} where `title` is a first title made from the name."""
+        import hashlib
+        q = parse_qs(urlparse(self.path).query)
+        asked = Path((q.get("name") or [""])[0]).name.strip()
+        ext = Path(asked).suffix.lower()
+        stem = _paths.safe_name(Path(asked).stem) or "video"
+        try:
+            n = int(self.headers.get("Content-Length", 0))
+        except ValueError:
+            n = 0
+        if ext not in (".mp4", ".mov", ".webm"):
+            return self._send_json({"error": "choose an mp4, mov or webm video"}, 400)
+        if n <= 0 or n > MAX_VIDEO:
+            return self._send_json({"error": f"a video must be 1 byte to {MAX_VIDEO // 1024 ** 3} GB"}, 400)
+        folder = _schedule_manual_dir()
+        folder.mkdir(parents=True, exist_ok=True)
+        if n + VIDEO_DISK_MARGIN > shutil.disk_usage(folder).free:
+            return self._send_json({"error": "not enough disk space for this video"}, 507)
+        tmp = folder / f".{uuid.uuid4().hex[:8]}.part"
+        digest = hashlib.sha256()
+        try:
+            with open(tmp, "wb") as out:
+                remaining = n
+                while remaining > 0:
+                    chunk = self.rfile.read(min(1 << 20, remaining))
+                    if not chunk:
+                        raise ConnectionError("upload ended early")
+                    out.write(chunk)
+                    digest.update(chunk)
+                    remaining -= len(chunk)
+            with VIDEO_UPLOAD_LOCK:
+                same = None
+                for cand in sorted(folder.glob(f"*{ext}")):
+                    if cand.is_file() and cand.stat().st_size == n:
+                        h = hashlib.sha256()
+                        with open(cand, "rb") as fh:
+                            for block in iter(lambda: fh.read(1 << 20), b""):
+                                h.update(block)
+                        if h.digest() == digest.digest():
+                            same = cand
+                            break
+                if same:
+                    tmp.unlink(missing_ok=True)
+                    name, existed = same.name, True
+                else:
+                    name, i = f"{stem}{ext}", 2
+                    while (folder / name).exists():
+                        name, i = f"{stem} ({i}){ext}", i + 1
+                    tmp.replace(folder / name)
+                    existed = False
+        except (OSError, ConnectionError) as exc:
+            tmp.unlink(missing_ok=True)
+            return self._send_json({"error": f"could not save the file: {exc}"}, 500)
+        return self._send_json({"ok": True, "file": name, "folder": "manual", "existed": existed,
+                                "title": _title_from_file(name)})
+
     def _post_video_upload(self):
         # A source video from anywhere on disk, saved into workspace/sources/
         # (where the server looks videos up by name). Same shape as the
@@ -1395,6 +1456,12 @@ class Handler(BaseHTTPRequestHandler):
                 or not file_name.lower().endswith(".mp4") or file_name.startswith("_")
                 or not (OUT_ROOT / folder / file_name).is_file()):
             return self._send_json({"error": "that render file was not found"}, 404)
+        if folder == "manual":                       # a video chosen by hand: its row says where the file is
+            from . import schedule as _sch
+            row_id, created = _sch.add_file_row(_sch.title_from_file(file_name), file_name, None)
+            if created:
+                _sch.set_fields(row_id, {"fileFolder": "manual"})
+            return self._send_json({"ok": True, "id": row_id, "created": created, "how": "manual"})
         from .jobs import add_render_to_schedule
         row_id, created, how = add_render_to_schedule(folder, file_name)
         return self._send_json({"ok": True, "id": row_id, "created": created, "how": how})
@@ -1840,6 +1907,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/profiles/clear-guest": _post_profiles,
         "/api/project-asset-upload": _post_project_asset_upload,
         "/api/video-upload": _post_video_upload,
+        "/api/workspace/clips/file": _post_clip_file,
         "/api/project-asset-import": _post_project_asset_import,
         "/api/project/rename": _post_project_rename,
         "/api/workspace/clips": _post_workspace_clips,

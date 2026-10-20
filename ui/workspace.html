@@ -158,6 +158,8 @@
          for free, no need for custom overlay code. Title is shown as context
          ONLY (read-only) -- edited from the table so there aren't two sources
          of truth for the same field. -->
+    <!-- One hidden picker for "Choose video…" in the new-clip row and in Detail (clips.js). -->
+    <input type="file" id="clipFileInput" accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" hidden>
     <dialog class="ws-dialog wide" id="clipDetailDialog">
       <form method="dialog" class="flex flex-col gap-4" id="clipDetailForm">
         <div class="flex items-start gap-3">
@@ -170,6 +172,12 @@
             <input class="ws-input" type="text" data-field="episode"></label>
           <label class="ws-field">Clip file
             <input class="ws-input" type="text" data-field="file"></label>
+        </div>
+        <div class="ws-field guest-hidden" id="detailChooseWrap" hidden>
+          <span class="ws-fhead">Video file
+            <button class="ws-mini" type="button" id="detailChooseVideo">Choose video…</button></span>
+          <span class="text-[12px] text-text-faint">For a clip klipian did not render: the file is kept in this profile's out/manual/ folder
+            and its name fills the Clip file box (and the title, if the clip has none).</span>
         </div>
         <div class="ws-field">
           <span class="ws-fhead">Description + hashtags (YouTube)

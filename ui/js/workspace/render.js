@@ -47,7 +47,7 @@ function drawRender() {
       <span>File</span><span>Size</span><span>${renderSort.headHTML("Created")}</span><span></span><span></span><span></span>
     </div>` + page.map((r) => `
     <div class="ws-row render" data-i="${RENDER.indexOf(r)}">
-      <span class="name" title="${escapeHTML(r.file)}">${escapeHTML(r.file)} <span class="data">— ${escapeHTML(r.video)}</span></span>
+      <span class="name" title="${escapeHTML(r.file)}">${escapeHTML(r.file)} <span class="data">— ${r.video === "manual" ? "Manual (chosen by hand)" : escapeHTML(r.video)}</span></span>
       <span class="data">${r.mb} MB</span>
       <span class="data" title="${escapeHTML(timeAgo(r.created || r.at))}">${fmtCreated(r.created || r.at)}</span>
       ${r.scheduled === false && !IS_GUEST

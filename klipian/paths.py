@@ -133,6 +133,19 @@ def safe_dirname(name: str) -> str:
     return n
 
 
+# Quote characters never stay in a file name we make (a quote copied as a straight one breaks the
+# "source" line of Claude's reply; see ytdl.py). An apostrophe inside a word goes too ("Don't" -> "Dont").
+_QUOTES = "\"\u201c\u201d\u201e\u201f'\u2018\u2019\u201a\u201b`\u00b4\u00ab\u00bb\u2039\u203a"
+_NO_QUOTES = {ord(c): None for c in _QUOTES}
+
+
+def safe_name(text: str) -> str:
+    """A file or folder name from free text: quotes removed, what Windows refuses removed, spaces
+    collapsed, no space or dot at either end. "" when nothing is left."""
+    text = (text or "").translate(_NO_QUOTES)
+    return " ".join(safe_dirname(text).split()).strip(" .") if text.strip() else ""
+
+
 def find_video(name: str) -> Path | None:
     """Browsers don't provide full paths, just filenames. A source video is
     looked up by name in the profile's sources/ and nowhere else: a render in

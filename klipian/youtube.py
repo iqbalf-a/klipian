@@ -538,7 +538,7 @@ def prepare(row: dict, publish_now: bool = False, probe_video: bool = True, bulk
     description = str(row.get("description") or "")
     if len(description) > DESCRIPTION_MAX:
         raise YouTubeError("not_ready", f"The description is longer than {DESCRIPTION_MAX} characters.")
-    file = schedule.find_render_file(row.get("projectId"), row.get("file"))
+    file = schedule.row_file(row)
     if file is None:
         raise YouTubeError("not_ready", "The render file is not in the profile's out/ folder any more (file deleted).")
     if probe_video:

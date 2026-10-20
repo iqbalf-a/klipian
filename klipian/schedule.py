@@ -94,7 +94,7 @@ def with_missing_flags(clips: list[dict]) -> list[dict]:
     for row in clips:
         row = dict(row)
         row.pop("fileMissing", None)
-        if row.get("projectId") and row.get("file") and not file_exists(row["projectId"], row["file"]):
+        if row.get("file") and (row.get("projectId") or is_manual(row)) and row_file(row) is None:
             row["fileMissing"] = True
         out.append(row)
     return out
@@ -133,6 +133,47 @@ def add_file_row(title: str, file_name: str, project_id: str | None,
         return row["id"], True
 
 
+MANUAL = "manual"                   # out/manual/: video files that were not rendered by klipian
+
+
+def manual_dir() -> Path:
+    return Path(OUT_DIR) / MANUAL
+
+
+def is_manual(row: dict) -> bool:
+    """A row whose video was chosen by hand (fileFolder "manual"), not rendered from a project."""
+    return row.get("fileFolder") == MANUAL and bool(row.get("file"))
+
+
+def row_file(row: dict) -> Path | None:
+    """The video file of a row on disk: out/manual/<file> for a manual row, else the render file."""
+    if is_manual(row):
+        f = manual_dir() / Path(row["file"]).name
+        return f if f.is_file() else None
+    return find_render_file(row.get("projectId"), row.get("file"))
+
+
+def row_file_created(row: dict) -> int | None:
+    """When the row's file was made (None: no file, or it is gone)."""
+    if is_manual(row):
+        f = row_file(row)
+        if f is None:
+            return None
+        st = f.stat()
+        return int(getattr(st, "st_birthtime", None) or st.st_mtime)
+    return file_created(row.get("projectId"), row.get("file"))
+
+
+def title_from_file(file_name: str) -> str:
+    """A first title for a clip from its file name: '-' and '_' become spaces, spaces collapse,
+    and when the name is all lowercase each word gets a capital; at most 100 characters."""
+    import re
+    text = " ".join(re.sub(r"[-_]+", " ", Path(str(file_name or "")).stem).split())
+    if text == text.lower():
+        text = " ".join(w[:1].upper() + w[1:] for w in text.split(" "))
+    return text[:100].rstrip()
+
+
 def find_render_file(project_id: str | None, file_name: str | None) -> Path | None:
     """The render file of a row on disk (out/<slug>.<projectId>/<file>), or None."""
     if not project_id or not file_name:
@@ -169,7 +210,7 @@ def set_fields(row_id: str, fields: dict, path: Path | None = None,
 def created_of(row: dict) -> int:
     """The creation time a row without `createdAt` should get: its render file's,
     else the last time it was saved (`at`), else now."""
-    return (file_created(row.get("projectId"), row.get("file"))
+    return (row_file_created(row)
             or int(row.get("at") or 0) or int(time.time()))
 
 
@@ -185,7 +226,7 @@ def migrate_created(path: Path | None = None, lock: threading.Lock | None = None
         for row in clips:
             if row.get("createdAt"):
                 continue
-            made = file_created(row.get("projectId"), row.get("file"))
+            made = row_file_created(row)
             if made:
                 from_file += 1
             else:

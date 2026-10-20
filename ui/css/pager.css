@@ -253,3 +253,7 @@ button.bg-accent:disabled, .ws-accent-btn:disabled, button.bg-accent:disabled:ho
 .yt-bulk-tag[data-by="you"] { color: var(--text-muted); font-style: normal; }
 .yt-bulk-row[data-state="pending"] .yt-bulk-icon { color: oklch(.75 .16 145); }
 .yt-bulk-row [hidden] { display: none !important; }
+
+/* A clip with a video of its own: its file name under the title, and the picker in the new-clip row. */
+.ws-fileline { display: flex; align-items: center; gap: 6px; margin-top: 3px; font-size: 11px; color: var(--text-faint); min-width: 0; }
+.ws-fileline .data { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

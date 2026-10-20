@@ -2532,7 +2532,148 @@ def check_refresh() -> tuple[str, str]:
     return PASS, "due/grace, 50-id batches, Posted, scheduled stays, warnings once, throttle (restart, manual bypass), quiet skips, other profiles untouched, Guest 403"
 
 
-CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl,
+def check_manual() -> tuple[str, str]:
+    """A clip row with a video of its own (out/manual/): the upload and its name cleaning, the same
+    bytes reused and a different file with the same name kept as " (2)", the title made from the
+    file name, the file resolved and flagged when missing, the upload checks accepting it, the
+    History listing, "Add to schedule" for a manual file, and the Guest refused."""
+    import contextlib
+    import http.client
+    import io
+    import threading
+    from http.server import ThreadingHTTPServer
+    from . import paths, profiles, schedule, youtube
+    from .ffmpeg_tools import _require, run
+    from .server import Handler
+
+    problems = []
+    profiles.write_meta("mn1", {"name": "mn1", "color": "#123456"})
+    profiles.ensure_dirs("mn1")
+    tok = paths.set_profile("mn1")
+    srv = None
+    quiet = contextlib.redirect_stderr(io.StringIO())
+    try:
+        # --- the title from a file name
+        for name, want in (("bela_diri-pagi.mp4", "Bela Diri Pagi"), ("Bela-Diri Pagi.mp4", "Bela Diri Pagi"),
+                           ("udah  siap__lagi.mov", "Udah Siap Lagi"), ("x" * 150 + ".mp4", "X" + "x" * 99)):
+            if schedule.title_from_file(name) != want:
+                problems.append(f"title from {name[:30]!r}: {schedule.title_from_file(name)[:40]!r}, wanted {want[:40]!r}")
+
+        ff = _require("ffmpeg")
+        work = paths.workspace_dir() / "mn-src"
+        work.mkdir(parents=True, exist_ok=True)
+        vertical, vertical2, wide = work / "v1.mp4", work / "v2.mp4", work / "wide.mp4"
+        run([ff, "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=blue:s=108x192:d=1:r=10", "-pix_fmt", "yuv420p", str(vertical)], desc="a vertical clip", timeout=60)
+        run([ff, "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=green:s=108x192:d=1:r=10", "-pix_fmt", "yuv420p", str(vertical2)], desc="another vertical clip", timeout=60)
+        run([ff, "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=red:s=192x108:d=1:r=10", "-pix_fmt", "yuv420p", str(wide)], desc="a wide clip", timeout=60)
+
+        srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        port = srv.server_address[1]
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        quiet.__enter__()
+
+        def call(method, path, profile="mn1", body=None, raw=None):
+            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=60)
+            headers = {"Host": f"127.0.0.1:{port}", "X-Klipian-Profile": profile}
+            data = raw
+            if body is not None:
+                data = json.dumps(body).encode()
+                headers["Content-Type"] = "application/json"
+            elif raw is not None:
+                headers["Content-Type"] = "application/octet-stream"
+            conn.request(method, path, body=data, headers=headers)
+            r = conn.getresponse()
+            content = r.read()
+            conn.close()
+            try:
+                return r.status, json.loads(content)
+            except ValueError:
+                return r.status, {}
+
+        def put(path, name):
+            return call("POST", "/api/workspace/clips/file?name=" + __import__("urllib.parse").parse.quote(name), raw=path.read_bytes())
+
+        # --- the upload: a clean name, the same bytes reused, a different file kept apart
+        st, a = put(vertical, 'Bela_Diri  "Pagi" .mp4')
+        manual = schedule.manual_dir()
+        if st != 200 or a.get("file") != "Bela_Diri Pagi.mp4" or a.get("folder") != "manual" or a.get("existed") \
+                or a.get("title") != "Bela Diri Pagi" or not (manual / "Bela_Diri Pagi.mp4").is_file():
+            problems.append(f"the manual upload: {st} {a}")
+        st, b = put(vertical, "other name.mp4")
+        if st != 200 or b.get("file") != "Bela_Diri Pagi.mp4" or not b.get("existed"):
+            problems.append(f"the same bytes should reuse the file that is there: {st} {b}")
+        st, c = put(vertical2, "Bela_Diri Pagi.mp4")
+        if st != 200 or c.get("file") != "Bela_Diri Pagi (2).mp4" or c.get("existed"):
+            problems.append(f"a different file with the same name should become (2): {st} {c}")
+        if put(wide, "wide.txt")[0] != 400:
+            problems.append("a file that is not mp4/mov/webm should be refused")
+        if [p.name for p in manual.glob(".*")]:
+            problems.append("temporary upload files were left behind")
+        if call("POST", "/api/workspace/clips/file?name=x.mp4", paths.GUEST, raw=b"abc")[0] != 403:
+            problems.append("the Guest should be refused (no clips table)")
+
+        # --- a row with that file
+        rid, _ = schedule.add_file_row("Bela Diri Pagi", "Bela_Diri Pagi.mp4", None)
+        schedule.set_fields(rid, {"fileFolder": "manual", "description": "Satu kalimat.", "date": "", "time": ""})
+        row = schedule.get_row(rid)
+        if schedule.row_file(row) != manual / "Bela_Diri Pagi.mp4" or schedule.row_file_created(row) is None:
+            problems.append("the row's file was not found in out/manual")
+        if any(r.get("fileMissing") for r in schedule.with_missing_flags([row])):
+            problems.append("a manual row whose file is there must not be flagged")
+        # the upload checks accept it (vertical, short, title), and refuse a wide one like any other file
+        try:
+            spec = youtube.prepare(row, publish_now=True)
+            if Path(spec["file"]) != manual / "Bela_Diri Pagi.mp4":
+                problems.append(f"prepare used another file: {spec['file']}")
+        except youtube.YouTubeError as exc:
+            problems.append(f"prepare refused a good manual row: {exc.message}")
+        shutil.copy2(wide, manual / "wide clip.mp4")
+        rid2, _ = schedule.add_file_row("Wide", "wide clip.mp4", None)
+        schedule.set_fields(rid2, {"fileFolder": "manual"})
+        try:
+            youtube.prepare(schedule.get_row(rid2), publish_now=True)
+            problems.append("a wide manual video was accepted")
+        except youtube.YouTubeError as exc:
+            if "vertical" not in exc.message.lower():
+                problems.append(f"a wide manual video should be refused as not vertical: {exc.message}")
+        # History lists the file under "manual", and it is already in the schedule
+        st, h = call("GET", "/api/history")
+        listed = {(r["video"], r["file"]): r for r in h.get("render", [])}
+        got = listed.get(("manual", "Bela_Diri Pagi.mp4"))
+        if not got or got.get("scheduled") is not True:
+            problems.append(f"History should list the manual file as scheduled: {got}")
+        # a manual file with no row can be added to the schedule, and the row knows it is a manual one
+        shutil.copy2(vertical2, manual / "Tanpa Baris.mp4")
+        st, j = call("POST", "/api/workspace/clips/from-render", body={"folder": "manual", "file": "Tanpa Baris.mp4"})
+        added = schedule.get_row(j.get("id", "")) or {}
+        if st != 200 or added.get("fileFolder") != "manual" or schedule.row_file(added) is None:
+            problems.append(f"'Add to schedule' for a manual file: {st} {j} {added}")
+        # deleting the row never deletes the video
+        schedule.delete_rows([rid])
+        if not (manual / "Bela_Diri Pagi.mp4").is_file():
+            problems.append("deleting the row removed the video file")
+        # the file goes missing: flagged, and the upload says so
+        (manual / "Bela_Diri Pagi.mp4").unlink()
+        row = schedule.get_row(rid) or {**row}
+        if not schedule.with_missing_flags([row])[0].get("fileMissing") or schedule.row_file(row) is not None:
+            problems.append("a manual row whose file is gone should be flagged fileMissing")
+        try:
+            youtube.prepare(row, publish_now=True)
+            problems.append("prepare accepted a manual row whose file is gone")
+        except youtube.YouTubeError as exc:
+            if "file deleted" not in exc.message:
+                problems.append(f"a missing manual file should say 'file deleted': {exc.message}")
+    finally:
+        if srv:
+            quiet.__exit__(None, None, None)
+            srv.shutdown()
+        paths._profile.reset(tok)
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "upload and name cleaning, same bytes reused, (2) on a clash, title from the name, file resolved and flagged, upload checks, History, Add to schedule, Guest 403"
+
+
+CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl,
           "decode": check_decode, "render": check_render}
 
 
