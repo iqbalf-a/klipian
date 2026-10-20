@@ -1886,6 +1886,77 @@ Hasil audit ian/sesi analisis setelah profile, Guest, YouTube, dan hashtag:
   belum ada (tidak pernah menimpa), dan halaman menyebutnya. Selftest `profiles` memeriksa
   kasus disalin dan tidak ditimpa.
 
+### P22 — Add from YouTube: unduh source langsung di klipian
+
+Permintaan ian (2026-10-20): "sepertinya sekarang sudah saatnya mengaktifkan
+fitur download youtube". ian sudah punya tool `D:\github-repos\youtube-downloader`
+(Tkinter + yt-dlp, MP4/MP3, nama file `%(title).180B [%(id)s].%(ext)s`).
+Tool itu **tidak diubah**: klipian memakai yt-dlp langsung dengan logika
+serupa. Keputusan ian: nama file `Channel - Judul`, ada pratinjau, kredit
+terisi otomatis, MP4 1080p H.264, job dengan progress dan cancel, tanpa unduh
+ulang, dan yt-dlp opsional dengan tombol update.
+
+- **Tempat:**
+  - tab **From YouTube link** di Add video (editor);
+  - tombol **+ From YouTube** di panel Sources (dashboard).
+
+  File masuk ke `sources/` milik **profile permintaan**. Guest juga boleh
+  (sumber untuk diedit), dan kreditnya tetap disimpan di profile Guest.
+- **Pratinjau:** `extract_info(download=False)` menampilkan judul, channel,
+  durasi, thumbnail, dan perkiraan ukuran. Unduhan baru berjalan setelah
+  dikonfirmasi.
+- **Nama file:** `<channel> - <judul>.mp4`, dengan aturan:
+  - karakter terlarang Windows dibuang, juga spasi dan titik di ujung nama
+    (sama seperti `paths.safe_dirname`), tanpa nama perangkat;
+  - maksimal ±150 karakter;
+  - bentrok nama untuk video *berbeda* ditambah ` (2)`;
+  - ID video tidak masuk nama file.
+
+  Contoh yang sudah ada: `Raditya Dika - Apa Kabar Syahrini.mp4`.
+- **Kredit otomatis** di `credits.json` profile:
+  - `platform` = YouTube, `creator` = nama channel, `title` = judul video,
+    `url` = link kanonik `https://www.youtube.com/watch?v=<id>`;
+  - ID video dan tanggal unduh disimpan untuk deteksi duplikat;
+  - kredit yang sudah ada tidak ditimpa.
+- **Format:**
+  - MP4 maksimal 1080p, video H.264 bila tersedia:
+    `bv*[vcodec^=avc1][height<=1080]+ba[ext=m4a]/b[ext=mp4][height<=1080]/bv*[height<=1080]+ba/b`;
+  - digabung ke mp4 dengan ffmpeg yang sudah dipakai klipian;
+  - tanpa 4K atau AV1, karena keluaran Shorts 1080 dan file besar hanya
+    memperlambat transkripsi dan render.
+- **Job latar belakang:**
+  - menyalin context profile;
+  - progress persen, kecepatan, ETA, dan Cancel;
+  - file sementara di folder `.part` yang dibersihkan saat batal atau gagal;
+  - dialog boleh ditutup;
+  - satu link = satu video (`noplaylist`).
+- **Tanpa unduh ulang:**
+  - ID yang sudah ada di profile ini → pakai file yang ada;
+  - ID yang ada di profile lain → hardlink dan salin kredit (lewat
+    `profiles.place_source`, P21).
+- **Dependensi:**
+  - `requirements-download.txt` (yt-dlp), opsional seperti
+    `requirements-youtube.txt`. Kalau belum terpasang, dialog menampilkan
+    perintah pemasangannya;
+  - tombol **Update yt-dlp** (pip install -U di `.venv`), karena YouTube
+    sering berubah dan yt-dlp lama bisa gagal;
+  - versi yt-dlp ditampilkan.
+- **Batasan:** tanpa login atau cookies, tanpa melewati DRM, video privat,
+  batas umur, atau paywall, dan tanpa MP3.
+- **Pesan error yang jelas:** link bukan video YouTube, video privat atau
+  dihapus, live yang belum selesai, jaringan, ffmpeg tidak ada, dan yt-dlp
+  perlu diperbarui.
+- **Hak cipta:** satu kalimat pengingat kecil di dialog ("unduh hanya konten
+  yang boleh kamu pakai; kredit bukan izin"), tanpa memblokir apa pun.
+- **Selftest (tanpa jaringan, yt-dlp ditiru):**
+  - nama file dari channel dan judul, termasuk karakter aneh, ujung
+    spasi/titik, panjang, dan bentrok nama;
+  - kredit terisi dan tidak ditimpa;
+  - duplikat ID di profile yang sama dan di profile lain;
+  - cancel membersihkan `.part`;
+  - error dipetakan ke pesan yang benar;
+  - yt-dlp tidak terpasang.
+
 ---
 
 ## 3. Diparkir, sengaja tidak dikerjakan
