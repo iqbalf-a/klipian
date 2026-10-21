@@ -240,11 +240,15 @@ python -m klipian cues video.mp4 --listen --kind laughter --level low --at 2:50 
 
 `brief --mode` picks a rubric from `prompts/rubrik/` — currently `dialog`
 (podcast/talkshow) or `gameplay` (MLBB livestream commentary). The web UI's
-own Claude round-trip always uses the `dialog` rubric; the CLI is the only
-place the other one is reachable right now (`/api/brief` takes a `mode`
-too, but the UI doesn't send one). Adding a new rubric means both a new `.md`
-file in `prompts/rubrik/` **and** registering it in `RUBRICS` in
-`klipian/roundtrip.py`.
+own round-trip and Find clips with Claude use the profile's default rubric
+(Profile settings), or the one picked above the cues on the Analyze screen.
+Your own rubrics live in `workspace/rubrics/<name>.md`, shared by every
+profile: Profile settings -> "New rubric from template..." copies one of the
+templates in `prompts/rubrik/templates/` (komedi-tv, edukasi, gaming,
+motivasi, podcast). A rubric must keep the sections the brief and the posting
+text depend on (Tugas, Lima kriteria, Audio & timing cues, Judul dan hook,
+Teks posting with the credit rule, Sudut pandang, Topik yang berpotensi
+viral); one that lacks one is refused with its name (`klipian/rubrics.py`).
 
 ---
 

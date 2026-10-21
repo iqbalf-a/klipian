@@ -2650,3 +2650,7 @@ h1, h2, h3 {
 .bulk-plan-ai { display: block; padding: 8px 10px; border: 1px solid var(--glass-border); border-radius: var(--r-s); cursor: pointer; }
 .bulk-plan-ai input:disabled + * { opacity: .5; }
 .bulk-plan-sub { color: var(--text-faint); font-size: 11.5px; }
+
+.rubric-pick { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); margin: var(--s2) 0; }
+.rubric-pick select { max-width: 100%; }
+.rubric-pick .note[data-error="true"] { color: var(--danger); }

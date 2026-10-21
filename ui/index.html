@@ -410,6 +410,11 @@
                       title="Send this brief to Claude through the API (needs a key in Profile settings)">Find clips with Claude</button>
             </div>
           </div>
+          <!-- Which rubric the brief carries (P26): the profile's default unless another is chosen here. -->
+          <div class="rubric-pick">
+            <label>Rubric <select id="briefRubric" aria-label="Rubric for this brief"></select></label>
+            <span class="note" id="rubricNote" role="status"></span>
+          </div>
           <!-- What klipian detected from the sound and the word timings and
                wrote into that file (cues.js). Dim with "none found" / "not run"
                / "failed" rather than left out. -->

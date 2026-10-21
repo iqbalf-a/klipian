@@ -2155,6 +2155,19 @@ Untuk memutuskan niche mana yang dilanjutkan.
 **Status P24–P27 (2026-10-21):** dicatat. P24 dikirim ke sesi eksekusi
 setelah P23 selesai, dan P25–P27 menyusul sesuai urutan.
 
+**P26 selesai di kode (2026-10-21):** template di `prompts/rubrik/templates/`
+(komedi-tv, edukasi, gaming, motivasi; struktur wajib sama dengan
+dialog-podcast, bobot per niche ada di teks rubrik). Rubrik buatan sendiri
+disimpan di `workspace/rubrics/<slug>.md` (dibagi semua profile, tidak masuk
+git), dibuat dari template lewat Profile settings ("New rubric from
+template..."), bisa dibuka (file/folder) dan dihapus (ke Recycle Bin; profile
+yang memakainya jatuh ke dialog dengan catatan). Bagian wajib dicek saat
+dipakai dan saat disimpan; rubrik yang kurang satu bagian ditolak dengan nama
+bagiannya. Rubrik bawaan `gameplay` dikecualikan dari cek itu (lebih tua).
+Find clips, Copy brief dan Download memakai rubrik default profile, atau
+pilihan per brief di layar Analyze (ini jalan Guest memilih). Blok sistem yang
+di-cache tetap byte-stabil per rubrik. Selftest `rubrics`.
+
 **P24 selesai di kode (belum dicoba dengan key asli):** backend `claude_api.py`
 + `/api/claude/*`, tombol "Find clips with Claude" (dialog konfirmasi: model,
 token input, perkiraan biaya, jumlah klip), bagian "Anthropic API" di Profile

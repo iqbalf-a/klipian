@@ -73,11 +73,26 @@
         <label>Name <input type="text" name="name" maxlength="40" value="${esc(meta?.name || "")}"></label>
         <label>Colour <input type="color" name="color" value="${esc(meta?.color || "#e8b923")}"></label>
         <label>Watermark text <input type="text" name="watermark" maxlength="40" value="${esc(d.watermark || "")}" placeholder="klipian"></label>
-        <label>Default rubric (Find clips)
-          <select name="rubric">
-            <option value="dialog"${d.rubric !== "gameplay" ? " selected" : ""}>Dialog / podcast</option>
-            <option value="gameplay"${d.rubric === "gameplay" ? " selected" : ""}>Gameplay</option>
-          </select></label>
+        <section class="yt-box" id="rubricBox" aria-label="Rubric">
+          <label>Default rubric (Find clips, Copy brief)
+            <select name="rubric" id="rubricSel">
+              <option value="dialog"${d.rubric && d.rubric !== "dialog" ? "" : " selected"}>Dialog / podcast</option>
+              <option value="gameplay"${d.rubric === "gameplay" ? " selected" : ""}>Gameplay (Mobile Legends)</option>
+              ${d.rubric && d.rubric !== "dialog" && d.rubric !== "gameplay" ? `<option value="${esc(d.rubric)}" selected>${esc(d.rubric)}</option>` : ""}
+            </select></label>
+          <div class="row yt-actions">
+            <button class="btn quiet" type="button" data-rb="new">New rubric from template…</button>
+            <button class="btn quiet" type="button" data-rb="open" hidden>Open file</button>
+            <button class="btn quiet" type="button" data-rb="folder">Open folder</button>
+            <button class="btn quiet" type="button" data-rb="delete" hidden>Delete…</button>
+          </div>
+          <div class="row" id="rubricNew" hidden>
+            <select id="rubricTemplate" aria-label="Template"></select>
+            <input type="text" id="rubricName" maxlength="60" placeholder="Name, e.g. Komedi Radio" aria-label="Rubric name">
+            <button class="btn quiet" type="button" data-rb="create">Create</button>
+          </div>
+          <p class="note" id="rubricMsg" role="status"></p>
+        </section>
         <section class="yt-box" id="ytBox" aria-label="YouTube account">
           <h3>YouTube account</h3>
           <div class="yt-row" id="ytClientRow"><span class="yt-badge" data-light="grey">Client</span><span class="yt-row-text" id="ytClientText">Checking…</span></div>
@@ -147,8 +162,74 @@
     dlg.addEventListener("close", () => dlg.remove());
     dlg.showModal();
     youTubeSection(dlg);
+    rubricSection(dlg);
     if (!isGuest) claudeSection(dlg);
     return dlg;
+  }
+
+  /* ---- rubrics per niche (P26): built-in, templates, and the person's own in workspace/rubrics ---- */
+  async function rubricSection(dlg) {
+    const sel = dlg.querySelector("#rubricSel"), msg = dlg.querySelector("#rubricMsg");
+    const tpl = dlg.querySelector("#rubricTemplate"), nameIn = dlg.querySelector("#rubricName");
+    const call = async (path, body) => {
+      const r = await fetch(path, body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      return r.json().catch(() => ({ error: "no answer" }));
+    };
+    const say = (t, bad) => { msg.dataset.error = bad ? "true" : "false"; msg.textContent = t; };
+    let data = null;
+    const mine = () => data?.workspace.find((x) => x.id === sel.value);
+    function paint(want) {
+      const keep = want ?? sel.value;
+      sel.innerHTML = "";
+      const add = (v, t) => sel.append(Object.assign(document.createElement("option"), { value: v, textContent: t }));
+      for (const x of data.builtin) add(x.id, x.name);
+      for (const x of data.workspace) add(x.id, x.name + (x.missing.length ? " (incomplete)" : ""));
+      if (keep && ![...sel.options].some((o) => o.value === keep)) add(keep, `${keep} (missing)`);
+      sel.value = keep || "dialog";
+      tpl.innerHTML = data.templates.map((t) => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join("");
+      const m = mine();
+      dlg.querySelector('[data-rb="open"]').hidden = !m;
+      dlg.querySelector('[data-rb="delete"]').hidden = !m;
+      if (m?.missing.length) say(`This rubric is missing ${m.missing.join("; ")}. It will not be used until it is fixed.`, true);
+      else if (keep && ![...data.builtin, ...data.workspace].some((x) => x.id === keep)) say(`The rubric "${keep}" is not there any more: Dialog / podcast is used until you choose another.`, true);
+      else say("");
+    }
+    const load = async (want) => { const j = await call("/api/rubrics"); if (j.ok) { data = j; paint(want); } else say(j.error || "Could not read the rubrics.", true); };
+    await load(sel.value);
+    sel.addEventListener("change", () => paint());
+    const choose = async (id) => {            // the chosen rubric is saved at once, like the caption look
+      const j = await call("/api/profiles/update", { id: PROFILE, defaults: { rubric: id } });
+      if (j.profile) { meta = j.profile; draw(); }
+    };
+    dlg.querySelector("#rubricBox").addEventListener("click", async (e) => {
+      const act = e.target.closest("[data-rb]")?.dataset.rb;
+      if (!act) return;
+      if (act === "new") { dlg.querySelector("#rubricNew").hidden = false; nameIn.focus(); }
+      else if (act === "create") {
+        const j = await call("/api/rubrics/create", { template: tpl.value, name: nameIn.value });
+        if (!j.ok) return say(j.error, true);
+        nameIn.value = "";
+        dlg.querySelector("#rubricNew").hidden = true;
+        await load(j.id);
+        await choose(j.id);
+        say(`Made workspace/rubrics/${j.id}.md and chose it. Open the file to adapt it to your channel.`);
+      } else if (act === "open" || act === "folder") {
+        const j = await call("/api/rubrics/open", act === "open" ? { id: sel.value } : {});
+        if (!j.ok) say(j.error, true);
+      } else if (act === "delete") {
+        const m = mine();
+        if (!m) return;
+        const ok = typeof confirmDialog === "function"
+          ? await confirmDialog({ title: "Delete this rubric?", message: `"${m.name}" goes to the Recycle Bin. A profile that uses it falls back to Dialog / podcast.`, confirmText: "Delete" })
+          : window.confirm(`Delete "${m.name}"?`);
+        if (!ok) return;
+        const j = await call("/api/rubrics/delete", { id: m.id });
+        if (!j.ok) return say(j.error, true);
+        await load("dialog");
+        await choose("dialog");
+        say(`Deleted "${m.name}" (it is in the Recycle Bin). Dialog / podcast is the default now.`);
+      }
+    });
   }
 
   /* ---- the Anthropic API (P24): the key is typed here, kept on the server, and never shown again ---- */

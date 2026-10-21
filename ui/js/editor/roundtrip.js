@@ -43,9 +43,15 @@ const fmtStamp = (d) => {
     : `${Math.floor(t / 3600)}:${String(Math.floor((t % 3600) / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
 };
 
+/* Which rubric the brief carries: "" = this profile's default (Profile settings), else a rubric id chosen
+   here. Remembered per profile, which is how the Guest (no profile settings) picks one. */
+let briefRubric = (() => {
+  try { return localStorage.getItem(`klipian:briefRubric:${PROFILE}`) || ""; } catch { return ""; }
+})();
+
 /* The server builds it (rubric, audio and timing cues, transcript). */
 async function buildBrief(name) {
-  const res = await fetch(`/api/brief?video=${encodeURIComponent(name)}`);
+  const res = await fetch(`/api/brief?video=${encodeURIComponent(name)}${briefRubric ? `&mode=${encodeURIComponent(briefRubric)}` : ""}`);
   if (!res.ok) {
     const d = await res.json().catch(() => ({}));
     throw new Error(d.error || "Could not build the file for Claude.");
@@ -77,6 +83,40 @@ async function refreshBrief() {
     if (gen === briefGen && chosenSource?.name === name) briefCache = { name, text };
   } catch { /* the click will fetch it and say why if it still fails */ }
 }
+
+/* The rubric select above the cues: the profile's default, the built-in ones and the workspace's own. */
+async function drawRubricPick() {
+  const sel = $("#briefRubric"), note = $("#rubricNote");
+  if (!sel) return;
+  let d;
+  try {
+    const r = await fetch(`/api/rubrics${briefRubric ? `?mode=${encodeURIComponent(briefRubric)}` : ""}`);
+    d = await r.json();
+    if (!r.ok) throw new Error(d.error || "failed");
+  } catch { return; }                       // no backend: the select stays empty
+  const all = [...d.builtin, ...d.workspace];
+  if (briefRubric && !all.some((x) => x.id === briefRubric)) briefRubric = "";   // one that was deleted
+  sel.innerHTML = "";
+  const opt = (value, text) => sel.append(Object.assign(document.createElement("option"), { value, textContent: text }));
+  opt("", "Profile default");
+  for (const x of all) opt(x.id, x.name + (x.missing?.length ? " (incomplete)" : ""));
+  sel.value = briefRubric;
+  note.dataset.error = "false";
+  const cur = d.current || {};
+  if (cur.error) { note.dataset.error = "true"; note.textContent = cur.error; }
+  else {
+    const used = all.find((x) => x.id === cur.id);
+    note.textContent = cur.note || (used ? `The file for Claude uses: ${used.name}` : "");
+    if (used) sel.options[0].textContent = `Profile default (${used.name})`;
+  }
+}
+
+$("#briefRubric")?.addEventListener("change", (e) => {
+  briefRubric = e.target.value;
+  try { localStorage.setItem(`klipian:briefRubric:${PROFILE}`, briefRubric); } catch { /* no storage */ }
+  drawRubricPick();
+  refreshBrief();
+});
 
 /* ---------- step 5: reading Claude's reply ---------- */
 
@@ -162,6 +202,7 @@ async function prepareExport(videoName) {
   if (typeof drawCueChips === "function") drawCueChips();
   buttons.forEach((b) => { b.disabled = false; });
   refreshBrief();
+  drawRubricPick();
   note.textContent =
     `${realTranscript.words.length.toLocaleString("en")} words · ${fmtStamp(realTranscript.duration)} · drop the file into Claude to find clips`;
   $("#importPanel").dataset.ready = "true";
@@ -274,6 +315,8 @@ function claudeConfirmBody(plan) {
   };
   row("Model", plan.model + (plan.modelHow ? ` (${plan.modelHow})` : ""));
   row("Effort", plan.effort);
+  const rubricName = $("#briefRubric")?.selectedOptions?.[0]?.textContent;
+  if (rubricName) row("Rubric", rubricName.replace(/^Profile default \((.*)\)$/, "$1"));
   row("Input", `${plan.inputTokens.toLocaleString("en")} tokens`);
   row("Clips asked for", `about ${plan.count}`);
   row("Estimated cost", plan.cost
@@ -314,7 +357,7 @@ $("#findWithClaude")?.addEventListener("click", async () => {
     const st = await claudeApi("/api/claude/status");
     if (!st.sdk) throw Object.assign(new Error("The Anthropic package is not installed."), { command: st.command });
     if (!st.hasKey) throw Object.assign(new Error("No API key yet."), { code: "no_key" });
-    plan = await claudeApi("/api/claude/plan", { video: name, count: 12 });
+    plan = await claudeApi("/api/claude/plan", { video: name, count: 12, rubric: briefRubric });
   } catch (err) {
     claudeProblem(note, err);
     btn.disabled = false;
@@ -331,7 +374,7 @@ $("#findWithClaude")?.addEventListener("click", async () => {
   if (!ok) { note.textContent = ""; return; }
   let job;
   try {
-    job = await claudeApi("/api/claude/find", { video: name, count: plan.count });
+    job = await claudeApi("/api/claude/find", { video: name, count: plan.count, rubric: briefRubric });
   } catch (err) { claudeProblem(note, err); return; }
   claudeRun = { id: job.id, video: name };
   btn.textContent = "Cancel";

@@ -111,3 +111,6 @@ html[data-guest="true"] .guest-hidden { display: none !important; }
 .claude-usage th:first-child, .claude-usage td:first-child { text-align: left; }
 .claude-plan { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
 .claude-plan-row { display: flex; justify-content: space-between; gap: 16px; }
+
+.profile-settings #rubricMsg[data-error="true"] { color: var(--danger); }
+.profile-settings #rubricNew { flex-wrap: wrap; gap: 6px; }
