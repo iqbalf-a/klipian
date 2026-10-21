@@ -2155,6 +2155,14 @@ Untuk memutuskan niche mana yang dilanjutkan.
 **Status P24–P27 (2026-10-21):** dicatat. P24 dikirim ke sesi eksekusi
 setelah P23 selesai, dan P25–P27 menyusul sesuai urutan.
 
+**P24 selesai di kode (belum dicoba dengan key asli):** backend `claude_api.py`
++ `/api/claude/*`, tombol "Find clips with Claude" (dialog konfirmasi: model,
+token input, perkiraan biaya, jumlah klip), bagian "Anthropic API" di Profile
+settings (key, Test, model, effort, tabel pemakaian), pemakaian per brief
+disimpan di project. Diuji dengan klien palsu dan SDK asli lewat mock
+transport; panggilan pertama dengan key asli dilakukan ian. Harga adalah
+perkiraan (konstanta `PRICES` di `claude_api.py`).
+
 ---
 
 ## 3. Diparkir, sengaja tidak dikerjakan

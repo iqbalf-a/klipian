@@ -86,6 +86,20 @@
           <input type="file" id="ytFile" accept=".json,application/json" hidden>
           <p class="note" id="ytMsg" role="status"></p>
         </section>
+        ${isGuest ? "" : `<section class="yt-box" id="claudeBox" aria-label="Anthropic API">
+          <h3>Anthropic API <small>(Find clips with Claude)</small></h3>
+          <p class="note" id="claudeState">Checking…</p>
+          <label>API key <input type="password" id="claudeKey" autocomplete="off" spellcheck="false" placeholder="sk-ant-…"></label>
+          <div class="row yt-actions">
+            <button class="btn quiet" type="button" data-cl="save">Save key</button>
+            <button class="btn quiet" type="button" data-cl="test">Test</button>
+            <button class="btn quiet" type="button" data-cl="remove">Remove key</button>
+          </div>
+          <label>Model <select id="claudeModel"><option value="">Newest Opus of this account (default)</option></select></label>
+          <label>Effort <select id="claudeEffort"></select></label>
+          <p class="note" id="claudeMsg" role="status"></p>
+          <div id="claudeUsage"></div>
+        </section>`}
         <label>Hashtag placement (YouTube)
           <select name="hashtagPlacement">
             <option value="title"${d.hashtagPlacement === "description" || d.hashtagPlacement === "both" ? "" : " selected"}>In the title</option>
@@ -133,7 +147,71 @@
     dlg.addEventListener("close", () => dlg.remove());
     dlg.showModal();
     youTubeSection(dlg);
+    if (!isGuest) claudeSection(dlg);
     return dlg;
+  }
+
+  /* ---- the Anthropic API (P24): the key is typed here, kept on the server, and never shown again ---- */
+  async function claudeSection(dlg) {
+    const state = dlg.querySelector("#claudeState"), msg = dlg.querySelector("#claudeMsg");
+    const key = dlg.querySelector("#claudeKey"), model = dlg.querySelector("#claudeModel"), effort = dlg.querySelector("#claudeEffort");
+    const call = async (path, body) => {
+      const r = await fetch(path, body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      return r.json().catch(() => ({ error: "no answer" }));
+    };
+    const say = (t, bad) => { msg.dataset.error = bad ? "true" : "false"; msg.textContent = t; };
+    function paint(st) {
+      const src = { saved: "A key is saved for this workspace.", env: "Using the key from the ANTHROPIC_API_KEY environment variable.", none: "No key yet." }[st.keySource] || "";
+      state.textContent = (st.sdk ? "" : `The Anthropic package is not installed. Run: ${st.command}  `) + src;
+      key.value = "";
+      effort.innerHTML = st.efforts.map((e) => `<option value="${esc(e)}"${e === st.effort ? " selected" : ""}>${esc(e)}${e === "high" ? " (default)" : ""}</option>`).join("");
+      if (st.model && ![...model.options].some((o) => o.value === st.model)) model.append(new Option(st.model, st.model));
+      model.value = st.model || "";
+    }
+    async function usage() {
+      const u = await call("/api/claude/usage");
+      const box = dlg.querySelector("#claudeUsage");
+      if (!u.months?.length) { box.textContent = ""; return; }
+      const n = (v) => Number(v || 0).toLocaleString("en");
+      box.innerHTML = `<table class="claude-usage"><thead><tr><th>Month</th><th>Calls</th><th>Input</th><th>Output</th><th>Cache read</th><th>Cost (estimate)</th></tr></thead><tbody>`
+        + u.months.map((m) => `<tr><td>${esc(m.month)}</td><td>${n(m.calls)}</td><td>${n(m.input)}</td><td>${n(m.output)}</td><td>${n(m.cacheRead)}</td><td>$${m.cost.toFixed(2)}${m.unpriced ? "+" : ""}</td></tr>`).join("")
+        + `</tbody></table>`;
+    }
+    const st = await call("/api/claude/status");
+    if (st.error) { state.textContent = st.error; return; }
+    paint(st);
+    usage();
+    async function loadModels(s) {
+      if (!s.sdk || !s.hasKey) return;
+      const m = await call("/api/claude/models");
+      if (m.ok) for (const x of m.models) if (![...model.options].some((o) => o.value === x.id)) model.append(new Option(x.name || x.id, x.id));
+      model.value = s.model || "";
+    }
+    loadModels(st);
+    const save = async (body, done) => {
+      const j = await call("/api/claude/settings", body);
+      if (j.error) return say(j.error, true);
+      paint(j);
+      say(done);
+      loadModels(j);
+    };
+    model.addEventListener("change", () => save({ model: model.value }, "Model saved."));
+    effort.addEventListener("change", () => save({ effort: effort.value }, "Effort saved."));
+    dlg.querySelector("#claudeBox").addEventListener("click", async (e) => {
+      const act = e.target.closest("[data-cl]")?.dataset.cl;
+      if (!act) return;
+      if (act === "save") {
+        if (!key.value.trim()) return say("Type the key first.", true);
+        await save({ apiKey: key.value.trim() }, "Key saved. Use Test to check it.");
+      } else if (act === "remove") {
+        await save({ removeKey: true }, "Key removed.");
+      } else if (act === "test") {
+        say("Testing…");
+        const j = await call("/api/claude/test", {});
+        say(j.ok ? j.note : (j.command ? `${j.error} Run: ${j.command}` : j.error), !j.ok);
+        if (j.ok) usage();
+      }
+    });
   }
 
   /* Other scripts (the bulk upload dialog) can open the settings at the YouTube section. */

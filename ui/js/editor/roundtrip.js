@@ -145,7 +145,7 @@ function applyCandidates(candidates) {
 
 async function prepareExport(videoName) {
   const panel = $("#exportPanel"), note = $("#exportNote");
-  const buttons = [$("#copyBrief"), $("#downloadBrief")];
+  const buttons = [$("#copyBrief"), $("#downloadBrief"), $("#findWithClaude")];
   note.textContent = "searching for transcript ...";
   const previous = realTranscript;
   invalidateBrief();
@@ -238,6 +238,143 @@ $("#downloadBrief")?.addEventListener("click", async () => {
   URL.revokeObjectURL(a.href);
   $("#exportNote").textContent =
     `File downloaded · ${(text.length / 1024).toFixed(0)} KB · ~${Math.round(text.length / 3.5).toLocaleString("en")} tokens`;
+});
+
+/* ---------- Find clips with Claude (P24): the server holds the key, makes the call and imports the reply ---------- */
+
+let claudeRun = null;           // { id, video } while a call is in flight
+
+async function claudeApi(path, body) {
+  let res;
+  try {
+    res = await fetch(path, body === undefined ? {} : {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  } catch {
+    throw new Error("This needs the backend. Run: python -m klipian serve");
+  }
+  const d = await res.json().catch(() => ({}));
+  if (!res.ok || d.ok === false || d.error) {
+    const e = new Error(d.error || `failed (${res.status})`);
+    e.code = d.code; e.command = d.command;
+    throw e;
+  }
+  return d;
+}
+
+function claudeConfirmBody(plan) {
+  const box = document.createElement("div");
+  box.className = "claude-plan";
+  const row = (k, v) => {
+    const r = document.createElement("div");
+    r.className = "claude-plan-row";
+    const a = document.createElement("span"); a.textContent = k;
+    const b = document.createElement("b"); b.textContent = v;
+    r.append(a, b);
+    box.append(r);
+  };
+  row("Model", plan.model + (plan.modelHow ? ` (${plan.modelHow})` : ""));
+  row("Effort", plan.effort);
+  row("Input", `${plan.inputTokens.toLocaleString("en")} tokens`);
+  row("Clips asked for", `about ${plan.count}`);
+  row("Estimated cost", plan.cost
+    ? `$${plan.cost.low.toFixed(2)} – $${plan.cost.high.toFixed(2)}${plan.cost.assumed ? " (price assumed by model family)" : ""}`
+    : "unknown (no price known for this model)");
+  const n = document.createElement("p");
+  n.className = "note";
+  n.textContent = "An estimate: Claude's thinking and answer are billed as output and are not known until it is done. "
+    + "The part of the file that is the same for every episode is cached, so the next one costs less.";
+  box.append(n);
+  return box;
+}
+
+function claudeProblem(note, err) {
+  note.dataset.error = "true";
+  note.textContent = err.command ? `${err.message} Run: ${err.command}` : err.message;
+  if (err.code === "no_key" || err.code === "auth") {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "btn quiet"; b.textContent = "Open Profile settings";
+    b.addEventListener("click", () => window.openProfileSettings?.({ section: "claudeBox" }));
+    note.append(" ", b);
+  }
+}
+
+$("#findWithClaude")?.addEventListener("click", async () => {
+  const btn = $("#findWithClaude"), note = $("#exportNote");
+  const name = chosenSource?.name || "";
+  if (claudeRun) {
+    btn.disabled = true;
+    try { await claudeApi("/api/claude/cancel", { id: claudeRun.id }); } catch { /* the poll shows the result */ }
+    return;
+  }
+  note.dataset.error = "false";
+  let plan;
+  btn.disabled = true;
+  try {
+    note.textContent = "Counting tokens…";
+    const st = await claudeApi("/api/claude/status");
+    if (!st.sdk) throw Object.assign(new Error("The Anthropic package is not installed."), { command: st.command });
+    if (!st.hasKey) throw Object.assign(new Error("No API key yet."), { code: "no_key" });
+    plan = await claudeApi("/api/claude/plan", { video: name, count: 12 });
+  } catch (err) {
+    claudeProblem(note, err);
+    btn.disabled = false;
+    return;
+  }
+  btn.disabled = false;
+  const have = (DATA?.candidates || []).length;
+  const ok = await confirmDialog({
+    title: "Find clips with Claude",
+    body: claudeConfirmBody(plan),
+    warning: have ? `This replaces the ${have} suggestion${have === 1 ? "" : "s"} now on the Clips screen (Undo import brings them back).` : "",
+    confirmText: "Send to Claude", tone: "primary",
+  });
+  if (!ok) { note.textContent = ""; return; }
+  let job;
+  try {
+    job = await claudeApi("/api/claude/find", { video: name, count: plan.count });
+  } catch (err) { claudeProblem(note, err); return; }
+  claudeRun = { id: job.id, video: name };
+  btn.textContent = "Cancel";
+  const label = { sending: "Sending the episode to Claude…", thinking: "Claude is thinking…", writing: "Claude is writing the list…",
+                  importing: "Importing the clips…", preparing: "Getting ready…" };
+  let s = {};
+  for (;;) {
+    await new Promise((r) => setTimeout(r, 1000));
+    try { s = await claudeApi(`/api/claude/job?id=${encodeURIComponent(job.id)}`); } catch { s = { state: "failed", message: "Lost contact with the server." }; }
+    if (s.state === "missing") s = { state: "failed", message: "The job was lost (the server restarted?)." };
+    if (s.state !== "running") break;
+    note.textContent = label[s.step] || s.message || "Working…";
+  }
+  claudeRun = null;
+  btn.textContent = "Find clips with Claude";
+  btn.disabled = false;
+  if (s.state === "cancelled") { note.textContent = s.message; return; }
+  if (s.state !== "done") {
+    claudeProblem(note, { message: s.message || "Claude could not find clips.", code: s.code, command: s.command });
+    if (s.reply) {
+      $("#pasteJSON").value = s.reply;           // kept so it can be fixed by hand and imported
+      $("#importBtn").disabled = false;
+      note.append(" The reply is in the box below.");
+    }
+    return;
+  }
+  const candidates = s.candidates || [];
+  const importId = Date.now().toString(36);
+  for (const k of candidates) k.importId = importId;
+  replacedSuggestions = have ? { video: name, list: DATA.candidates } : null;
+  lastImportNotes = s.notes || [];
+  applyCandidates(candidates);
+  const u = s.usage || {};
+  DATA.claudeUsage = [...(DATA.claudeUsage || []), { at: Date.now(), model: s.model, input: u.input, output: u.output,
+    cacheRead: u.cacheRead, cacheWrite: u.cacheWrite, cost: u.cost, seconds: u.seconds }];
+  note.dataset.error = "false";
+  note.textContent = `${candidates.length} suggestion${candidates.length === 1 ? "" : "s"} from ${s.model} (${s.how})`
+    + (u.cost != null ? ` · about $${u.cost.toFixed(2)}` : "")
+    + (u.cacheRead ? ` · ${u.cacheRead.toLocaleString("en")} tokens read from cache` : "")
+    + (lastImportNotes.length ? `. Fixed in the reply: ${lastImportNotes.join("; ")}.` : "");
+  if (typeof renderRecommendations === "function") renderRecommendations();
+  if (typeof saveProject === "function") saveProject();
+  toScreen("clips");
 });
 
 $("#pasteJSON")?.addEventListener("input", (e) => {

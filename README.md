@@ -558,6 +558,7 @@ klipian/
 ├── start.cmd                       starts the server from .venv and opens the editor
 ├── requirements.txt                base install (no PyTorch)
 ├── requirements-ai-framing.txt     optional: AI Framing / speaker diarization
+├── requirements-claude.txt         optional: Find clips with Claude (Anthropic API)
 ├── requirements-youtube.txt        optional: YouTube account and upload
 ├── requirements-download.txt       optional: Add from YouTube (yt-dlp)
 ├── .env.example                    copy to .env for HF_TOKEN (AI Framing only)

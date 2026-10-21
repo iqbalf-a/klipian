@@ -112,6 +112,8 @@ function projectState() {
     // Every video's, each tagged with the video it was found in: only the
     // active video's are in DATA.candidates at any moment.
     candidates: allCandidates(),
+    // what each "Find clips with Claude" call used (tokens, model, estimated cost), kept with the project
+    claudeUsage: (typeof DATA !== "undefined" && DATA.claudeUsage?.length) ? DATA.claudeUsage : undefined,
     caption: (typeof captionState === "function") ? captionState() : {},
     // No project-level `output` any more -- each Result carries its own
     // (see snapshotActiveResult). Projects written before this still have
@@ -592,6 +594,7 @@ function applyProject(d, preferFile) {
   }
   loadResultIntoLiveState(SAVED_RESULTS.find((r) => r.id === activeResultId));
   renderResultSwitcher();
+  if (typeof DATA !== "undefined") DATA.claudeUsage = Array.isArray(d.claudeUsage) ? d.claudeUsage : [];
   if (Array.isArray(d.candidates) && typeof DATA !== "undefined") {
     // Only the video on screen's suggestions are live; each other video's
     // wait until it's opened (setActiveAsset in assets.js).

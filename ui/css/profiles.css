@@ -103,3 +103,11 @@ html[data-guest="true"] .guest-hidden { display: none !important; }
 #ytPreviewTitle[data-over="true"] { border-color: var(--danger); }
 .post-warn { color: var(--danger); font-size: 12px; margin: 4px 0 0; }
 .post-warn[hidden] { display: none; }
+
+.profile-settings .yt-box h3 small { font-weight: 400; opacity: .7; }
+.profile-settings #claudeMsg[data-error="true"] { color: var(--danger); }
+.claude-usage { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.claude-usage th, .claude-usage td { text-align: right; padding: 3px 6px; border-bottom: 1px solid var(--glass-border); }
+.claude-usage th:first-child, .claude-usage td:first-child { text-align: left; }
+.claude-plan { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
+.claude-plan-row { display: flex; justify-content: space-between; gap: 16px; }
