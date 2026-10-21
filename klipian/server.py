@@ -49,6 +49,7 @@ from . import roundtrip
 from .jobs import style_with_profile as _style_with_profile
 from .jobs import cancel_job as _cancel_job, start_project_render as _start_project_render
 from .jobs import estimate_seconds as _estimate_seconds, plan_project_render as _plan_project_render
+from . import claude_api as _claude
 from .jobs import (ACTIVE_TRANSCRIBES, CANCELLED, JOBS, LOCK, MAX_JOBS, _clip_words,
                    _register_job, _run_diarize, _run_render, _run_transcribe,
                    _spans_from_clip)
@@ -246,6 +247,40 @@ def _transcript_for(name: str) -> Transcript | None:
     video = find_video(name) or SOURCES / Path(name).name
     path = Cache(CACHE_DIR).find_transcript(video)
     return Transcript.load(path) if path else None
+
+
+def _import_reply(name: str, text: str) -> tuple[list, list]:
+    """Claude's reply (pasted, or returned by the API) -> (clip candidates, what was repaired). No transcript is not
+    an error: the cut points just aren't snapped. Raises ValueError with a message for the person."""
+    transcript = _transcript_for(name)
+    candidates, notes = roundtrip.parse_reply_notes(
+        transcript.words if transcript else [], text,
+        cues_mod.load(find_video(name), Cache(CACHE_DIR))["cues"], name or None)
+    # The final YouTube title is composed here, by this profile's rule, from title and hashtags
+    # (what Claude wrote in youtubeTitle is not used): one that would not fit 100 characters
+    # is flagged, so the person sees it before rendering.
+    settings = _profiles.hashtag_settings()
+    for k in candidates:
+        post = k.get("post")
+        if post:
+            warning = _hashtags_mod.title_warning(post.get("title", ""), post.get("hashtags"), settings)
+            if warning:
+                k["postWarning"] = warning
+    return candidates, notes
+
+
+def _claude_parts(name: str):
+    """build_parts(count) for the Claude API: the brief of this video, split into the static system text and this
+    episode's text (roundtrip.build_api_brief), from the same inputs as /api/brief."""
+    transcript = _transcript_for(name)
+    if transcript is None:
+        raise ValueError("No transcript yet. Click Find clips on the Analyze screen to make one.")
+    mode = _profiles.defaults().get("rubric") or "dialog"
+    rubric = roundtrip.read_rubric(roundtrip.RUBRICS.get(mode, roundtrip.RUBRICS["dialog"]))
+    cues_data = cues_mod.load(find_video(name), Cache(CACHE_DIR))
+    credit = credits_mod.load().get(name)
+    rule = _hashtags_mod.brief_rule(_profiles.hashtag_settings())
+    return lambda count: roundtrip.build_api_brief(transcript, rubric, name, cues_data, credit, rule, count)
 
 
 def _source_duration(video: Path, cache: Cache) -> float | None:
@@ -590,6 +625,67 @@ class Handler(BaseHTTPRequestHandler):
     def _get_youtube_connect_state(self):
         q = parse_qs(urlparse(self.path).query)
         return self._send_json(_youtube.connect_state((q.get("id") or [""])[0]))
+
+    # ---- Find clips with Claude (claude_api.py; the key never leaves the server) ----
+
+    def _claude_reply(self, fn):
+        try:
+            return self._send_json({"ok": True, **fn()})
+        except _claude.ClaudeError as exc:
+            return self._send_json({"ok": False, "error": exc.message, "code": exc.code,
+                                    **({"command": exc.extra["command"]} if "command" in exc.extra else {})}, 400)
+        except ValueError as exc:
+            return self._send_json({"ok": False, "error": str(exc), "code": "not_ready"}, 400)
+
+    def _get_claude_status(self):
+        return self._send_json({"ok": True, **_claude.status()})
+
+    def _get_claude_models(self):
+        def models():
+            found = _claude.list_models()
+            return {"models": found, "newestOpus": _claude.newest_opus(found), "chosen": _claude.load_settings().get("model") or ""}
+        return self._claude_reply(models)
+
+    def _get_claude_usage(self):
+        return self._send_json({"ok": True, **_claude.usage_summary()})
+
+    def _get_claude_job(self):
+        q = parse_qs(urlparse(self.path).query)
+        return self._send_json(_claude.job_state((q.get("id") or [""])[0]))
+
+    def _post_claude(self):
+        action = urlparse(self.path).path.rsplit("/", 1)[-1]
+        try:
+            req = self._read_json()
+        except Exception as exc:               # noqa: BLE001
+            return self._send_json({"error": str(exc)}, 400)
+        if action == "settings":
+            if _paths.current_profile() == _paths.GUEST:
+                return self._send_json({"error": "not available for the Guest profile"}, 403)
+
+            def save():
+                _claude.save_settings(api_key=req.get("apiKey") if isinstance(req.get("apiKey"), str) else None,
+                                      remove_key=req.get("removeKey") is True,
+                                      model=req.get("model") if isinstance(req.get("model"), str) else None,
+                                      effort=req.get("effort") if isinstance(req.get("effort"), str) else None)
+                return _claude.status()
+            return self._claude_reply(save)
+        if action == "test":
+            return self._claude_reply(_claude.test_key)
+        if action == "cancel":
+            return self._send_json(_claude.cancel(str(req.get("id") or "")))
+        name = str(req.get("video") or "")
+        count = req.get("count")
+        count = count if isinstance(count, int) and 1 <= count <= 40 else 12
+        if action == "plan":
+            return self._claude_reply(lambda: _claude.plan_find(_claude_parts(name), count))
+        if action == "find":
+            def start():
+                parts = _claude_parts(name)
+                return {"id": _claude.start_find(parts, lambda text: _import_reply(name, text), video=name, count=count,
+                                                 project=str(req.get("project") or "") or None)}
+            return self._claude_reply(start)
+        return self._send_json({"error": "unknown action"}, 404)
 
     # ---- Add from YouTube (ytdl.py; allowed for the Guest too) ----
 
@@ -1031,6 +1127,10 @@ class Handler(BaseHTTPRequestHandler):
         "/api/thumb": _get_thumb,
         "/api/version": _get_version,
         "/api/profiles": _get_profiles,
+        "/api/claude/status": _get_claude_status,
+        "/api/claude/models": _get_claude_models,
+        "/api/claude/usage": _get_claude_usage,
+        "/api/claude/job": _get_claude_job,
         "/api/ytdl/status": _get_ytdl_status,
         "/api/ytdl/state": _get_ytdl_state,
         "/api/youtube/status": _get_youtube_status,
@@ -1597,21 +1697,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"error": str(exc)}, 400)
         # No transcript is not an error here: the cut points just aren't snapped.
         try:
-            candidates, notes = roundtrip.parse_reply_notes(
-                transcript.words if transcript else [], str(req.get("text") or ""),
-                cues_mod.load(find_video(name), Cache(CACHE_DIR))["cues"], name or None)
+            candidates, notes = _import_reply(name, str(req.get("text") or ""))
         except ValueError as exc:
             return self._send_json({"error": str(exc)}, 400)
-        # The final YouTube title is composed here, by this profile's rule, from title and hashtags
-        # (what Claude wrote in youtubeTitle is not used): one that would not fit 100 characters
-        # is flagged, so the person sees it before rendering.
-        settings = _profiles.hashtag_settings()
-        for k in candidates:
-            post = k.get("post")
-            if post:
-                warning = _hashtags_mod.title_warning(post.get("title", ""), post.get("hashtags"), settings)
-                if warning:
-                    k["postWarning"] = warning
         # `notes`: what was repaired in the JSON (a .replace(" ", "") or a trailing comma), to be said
         return self._send_json({"candidates": candidates, "notes": notes})
 
@@ -1954,6 +2042,11 @@ class Handler(BaseHTTPRequestHandler):
         "/api/render": _post_render,
         "/api/render/cancel": _post_render_cancel,
         "/api/render/plan": _post_render_plan,
+        "/api/claude/settings": _post_claude,
+        "/api/claude/test": _post_claude,
+        "/api/claude/plan": _post_claude,
+        "/api/claude/find": _post_claude,
+        "/api/claude/cancel": _post_claude,
         "/api/preview": _post_preview,
         "/api/transcribe": _post_transcribe,
         "/api/diarize": _post_diarize,

@@ -1,0 +1,8 @@
+# klipian -- ADDITIONAL dependency for "Find clips with Claude" (docs/roadmap.md, P24).
+#
+# Optional: only needed to send the brief to Claude through the API instead of pasting it by hand.
+# Without it everything else works (Copy brief / Download file / Import are unchanged) and the page says
+# what to install. The key is typed in Profile settings -> Anthropic API.
+#
+#   .venv\Scripts\python.exe -m pip install -r requirements-claude.txt
+anthropic>=0.50

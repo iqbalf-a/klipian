@@ -154,58 +154,22 @@ def _hashtag_block(rule: str) -> str:
     return f"\n**Hashtags for this profile:** {rule}\n" if rule else ""
 
 
-def build_brief(transcript: Transcript, rubric: str, name: str,
-                cues_data: dict | None = None, credit: dict | None = None,
-                hashtag_rule: str = "") -> str:
-    """A single self-contained file: task, rubric, transcript, and expected
-    answer format. The user just drops it in and says "do it" -- no
-    additional explanation needed.
-
-    `rubric` is the rubric's text (read_rubric), `name` the video's file name,
-    `cues_data` what cues.load returned for the video (None: not run), `credit`
-    the video's credit (credits.py) -- named at the top when there is one.
-    `hashtag_rule` is the profile's rule for where hashtags go, in numbers
-    (hashtags.brief_rule); left out when empty."""
+def _clean_rubric(rubric: str) -> str:
+    """The rubric as Claude reads it."""
     # strip rubric title so it doesn't clash with the brief title
     rubric = re.sub(r"\A# [^\n\r  ]*\n+", "", rubric, count=1)
     # Strip the rubric's intro paragraph, which addresses the USER, not Claude.
     # "Edit this file if the results don't match your taste" is meaningless
     # to whoever is reading this brief.
     rubric = re.sub(r"\AIni yang dibaca Claude.*?---\s*\n+", "", rubric, count=1, flags=re.S)
+    return rubric
 
-    row = "\n".join(f"[{fmt_stamp(s.start)}] {_trim(s.text)}"
-                    for s in transcript.segments if _trim(s.text))
 
-    # Who made the video, so Claude knows the creator and the guest, and the
-    # rule that goes with it: the credit line under a post is built by klipian
-    # from what the person entered, so nothing in it is invented.
-    source = credits_mod.brief_source(credit)
-    source_block = (
-        f"\n\n**Source:** {source}\n\n"
-        "klipian adds the source credit to each post by itself, from what its user "
-        "entered. Do not write a credit or source line, a link or a channel handle "
-        "of your own."
-    ) if source else ""
-
-    return f"""# Find clips — {name}
-
-Hello. Please read the transcript at the bottom of this file and pick moments
-worth turning into short vertical videos.
-
-**Source duration:** {fmt_stamp(transcript.duration)} · **{len(transcript.words)} words**{source_block}
-
-The times you give don't need to be precise. Approximate min:sec is fine;
-klipian will snap the cut points to the nearest word boundary.
-
----
-
-## Evaluation rubric
-
-{rubric}
-
----
-
-## Answer format
+def _answer_format(name: str, hashtag_rule: str) -> str:
+    """The "Answer format" section of the brief: the JSON shape, what `post` and `angle` are, and the
+    profile's hashtag rule. The same text for the pasted brief and for the API (where `name` is a
+    placeholder, so the text never changes from one episode to the next and can be cached)."""
+    return f"""## Answer format
 
 Reply with **a single JSON block** exactly like this, no extra explanation
 outside the block. Plain JSON only: no code, function calls, expressions, variables
@@ -250,6 +214,105 @@ and make their own: `take` (one sentence), `intro` (an opening line, at most 12
 words) and `notes` (0–3 short comments of at most 8 words, each with `at`, the
 time inside the clip counted from its start, as min:sec). Leave it out if the
 rubric above does not ask for it.
+"""
+
+
+def build_brief(transcript: Transcript, rubric: str, name: str,
+                cues_data: dict | None = None, credit: dict | None = None,
+                hashtag_rule: str = "") -> str:
+    """A single self-contained file: task, rubric, transcript, and expected
+    answer format. The user just drops it in and says "do it" -- no
+    additional explanation needed.
+
+    `rubric` is the rubric's text (read_rubric), `name` the video's file name,
+    `cues_data` what cues.load returned for the video (None: not run), `credit`
+    the video's credit (credits.py) -- named at the top when there is one.
+    `hashtag_rule` is the profile's rule for where hashtags go, in numbers
+    (hashtags.brief_rule); left out when empty."""
+    rubric = _clean_rubric(rubric)
+
+    row = "\n".join(f"[{fmt_stamp(s.start)}] {_trim(s.text)}"
+                    for s in transcript.segments if _trim(s.text))
+
+    # Who made the video, so Claude knows the creator and the guest, and the
+    # rule that goes with it: the credit line under a post is built by klipian
+    # from what the person entered, so nothing in it is invented.
+    source = credits_mod.brief_source(credit)
+    source_block = (
+        f"\n\n**Source:** {source}\n\n"
+        "klipian adds the source credit to each post by itself, from what its user "
+        "entered. Do not write a credit or source line, a link or a channel handle "
+        "of your own."
+    ) if source else ""
+
+    return f"""# Find clips — {name}
+
+Hello. Please read the transcript at the bottom of this file and pick moments
+worth turning into short vertical videos.
+
+**Source duration:** {fmt_stamp(transcript.duration)} · **{len(transcript.words)} words**{source_block}
+
+The times you give don't need to be precise. Approximate min:sec is fine;
+klipian will snap the cut points to the nearest word boundary.
+
+---
+
+## Evaluation rubric
+
+{rubric}
+
+---
+
+{_answer_format(name, hashtag_rule)}{_cues_block(cues_data)}
+---
+
+## Transcript
+
+{row}
+"""
+
+
+def build_api_brief(transcript: Transcript, rubric: str, name: str, cues_data: dict | None = None,
+                    credit: dict | None = None, hashtag_rule: str = "", count: int = 12) -> tuple[str, str]:
+    """The same brief, split for the Claude API (P24): (system, user).
+
+    `system` is everything that does not change from one episode to the next -- the task, the
+    rubric, the answer format with the profile's hashtag rule -- and nothing else (no file name, no
+    time, no count), so the API can cache it and the next episode of the same profile reads it from
+    the cache. `user` is this episode: its name, how many clips to look for, its length, the credit,
+    the cues and the transcript."""
+    system = f"""Hello. You help a short-video editor choose moments worth turning into short vertical
+videos. The user message holds one episode's transcript (and the sound and timing cues found
+in it); pick moments from it by the rubric below.
+
+The times you give don't need to be precise. Approximate min:sec is fine; klipian will snap the
+cut points to the nearest word boundary.
+
+---
+
+## Evaluation rubric
+
+{_clean_rubric(rubric)}
+
+---
+
+{_answer_format("(the file name given in the user message)", hashtag_rule)}
+Your whole reply is that one JSON object, nothing before or after it.
+"""
+    row = "\n".join(f"[{fmt_stamp(s.start)}] {_trim(s.text)}"
+                    for s in transcript.segments if _trim(s.text))
+    source = credits_mod.brief_source(credit)
+    source_block = (
+        f"\n\n**Source:** {source}\n\n"
+        "klipian adds the source credit to each post by itself, from what its user "
+        "entered. Do not write a credit or source line, a link or a channel handle "
+        "of your own."
+    ) if source else ""
+    user = f"""# Find clips — {name}
+
+Look for about {max(1, int(count))} moments (fewer if the episode does not have that many good ones).
+
+**Source duration:** {fmt_stamp(transcript.duration)} · **{len(transcript.words)} words**{source_block}
 {_cues_block(cues_data)}
 ---
 
@@ -257,6 +320,7 @@ rubric above does not ask for it.
 
 {row}
 """
+    return system, user
 
 
 # --------------------------------------------------------------------------

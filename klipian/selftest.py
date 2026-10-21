@@ -3031,7 +3031,425 @@ def check_batch() -> tuple[str, str]:
     return PASS, "3 Results in order, refusals with reasons, schedule rows and last requests, cancel one / the running one / all, the Guest"
 
 
-CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl,
+def check_claude() -> tuple[str, str]:
+    """Find clips with Claude through the API (claude_api.py) with a FAKE client: nothing here reaches the
+    network, and no real key is used. The request (streamed, adaptive thinking, the static part cached, no
+    sampling parameters, no prefill), the model chosen, structured output and the plain-text fallback, usage
+    and cost recorded, every error class mapped, a refusal and a cut-off reply imported as nothing, cancel,
+    the key never in a response or a log, the SDK missing."""
+    import contextlib
+    import http.client
+    import io
+    import os
+    import threading
+    from datetime import datetime, timezone
+    from http.server import ThreadingHTTPServer
+    from types import SimpleNamespace as NS
+    from . import claude_api as ca, paths, profiles, roundtrip
+    from .cache import Cache
+    from .models import Transcript
+    from .server import Handler
+
+    problems = []
+    SECRET = "sk-ant-TESTSECRET-0123456789"
+
+    # ---- a fake SDK: the classes carry the real SDK's names (the mapping reads the names)
+    class AnthropicError(Exception):
+        pass
+
+    class APIError(AnthropicError):
+        def __init__(self, message="x", status_code=None):
+            super().__init__(message)
+            self.message, self.status_code = message, status_code
+
+    class APIConnectionError(APIError):
+        pass
+
+    class APITimeoutError(APIConnectionError):
+        pass
+
+    class APIStatusError(APIError):
+        pass
+
+    def status_class(name, code, base=APIStatusError):
+        return type(name, (base,), {"code": code})
+
+    AuthenticationError = status_class("AuthenticationError", 401)
+    PermissionDeniedError = status_class("PermissionDeniedError", 403)
+    NotFoundError = status_class("NotFoundError", 404)
+    BadRequestError = status_class("BadRequestError", 400)
+    RequestTooLargeError = status_class("RequestTooLargeError", 413)
+    RateLimitError = status_class("RateLimitError", 429)
+    InternalServerError = status_class("InternalServerError", 500)
+    OverloadedError = status_class("OverloadedError", 529)
+    ServiceUnavailableError = status_class("ServiceUnavailableError", 503)
+
+    GOOD = json.dumps({"source": "x", "clips": [
+        {"start": "0:10", "end": "0:30", "title": "Satu", "hook": "halo", "scores": {"hook": 8, "complete": 8, "payoff": 8},
+         "reason": "bagus", "post": {"title": "Judul", "caption": "Teks.", "hashtags": ["#a", "#b"]}}]})
+
+    class Fake:
+        """The client and the SDK module in one."""
+        def __init__(self):
+            self.keys, self.streams, self.counts, self.closed = [], [], [], False
+            self.model_list = [NS(id="claude-opus-4-8", display_name="Claude Opus 4.8", created_at=datetime(2026, 1, 1, tzinfo=timezone.utc)),
+                           NS(id="claude-opus-5-5", display_name="Claude Opus 5.5", created_at=datetime(2026, 6, 1, tzinfo=timezone.utc)),
+                           NS(id="claude-sonnet-5", display_name="Claude Sonnet 5", created_at=datetime(2026, 7, 1, tzinfo=timezone.utc)),
+                           NS(id="other-thing", display_name="x", created_at=datetime(2026, 8, 1, tzinfo=timezone.utc))]
+            self.list_error = None
+            self.retrieve_error = None
+            self.script = []                       # what each stream call does: an Exception to raise, or a dict
+            self.slow = 0.0
+            self.sdk = True
+
+        # -- the SDK module
+        def available(self):
+            return self.sdk
+
+        def client(self, api_key):
+            if not self.sdk:
+                raise ca.ClaudeError("no_sdk", "not installed", command="pip install")
+            self.keys.append(api_key)
+            return self
+
+        # -- the client
+        @property
+        def messages(self):
+            return self
+
+        def count_tokens(self, **kw):
+            self.counts.append(kw)
+            if self.count_error and "format" in kw["output_config"]:
+                raise self.count_error
+            return NS(input_tokens=48000)
+
+        count_error = None
+
+        def stream(self, **kw):
+            self.streams.append(kw)
+            return Fake.Stream(self, kw, self.script.pop(0) if self.script else {})
+
+        class Stream:
+            def __init__(self, fake, kw, plan):
+                self.fake, self.kw, self.plan = fake, kw, plan
+
+            def __enter__(self):
+                if isinstance(self.plan, BaseException):
+                    raise self.plan
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def __iter__(self):
+                yield NS(type="content_block_start", content_block=NS(type="thinking"))
+                for _ in range(int(self.fake.slow * 20)):
+                    time.sleep(0.05)
+                    yield NS(type="ping")
+                yield NS(type="content_block_start", content_block=NS(type="text"))
+
+            def close(self):
+                self.fake.closed = True
+
+            def get_final_message(self):
+                p = self.plan
+                usage = NS(input_tokens=p.get("in", 1000), output_tokens=p.get("out", 2000),
+                           cache_read_input_tokens=p.get("read", 0), cache_creation_input_tokens=p.get("write", 0))
+                return NS(stop_reason=p.get("stop", "end_turn"), stop_details=p.get("details"), usage=usage,
+                          content=[NS(type="thinking", thinking=""), NS(type="text", text=p.get("text", GOOD))])
+
+    class ModelsApi:
+        def __init__(self, fake):
+            self.fake = fake
+
+        def list(self):
+            if self.fake.list_error:
+                raise self.fake.list_error
+            return iter(self.fake.model_list)
+
+        def retrieve(self, mid):
+            if self.fake.retrieve_error:
+                raise self.fake.retrieve_error
+            return NS(id=mid, display_name="Fake " + mid)
+
+    Fake.models = property(lambda self: ModelsApi(self))
+    fake = Fake()
+
+    def wait(jid, limit=20):
+        t0 = time.time()
+        while time.time() - t0 < limit:
+            s = ca.job_state(jid)
+            if s.get("state") != "running":
+                return s
+            time.sleep(0.03)
+        return ca.job_state(jid)
+
+    # a transcript for the brief
+    video = "claude-test.mp4"
+    (paths.SOURCES / video).write_bytes(b"not a real video")
+    cache = Cache(paths.CACHE_DIR)
+    from .paths import GLOSSARY
+    from .transcribe import DEFAULT_LANGUAGE, DEFAULT_MODEL
+    tpath = cache.transcript_path(paths.SOURCES / video, DEFAULT_MODEL, DEFAULT_LANGUAGE, GLOSSARY if GLOSSARY.is_file() else None)
+    Transcript.load(FIXTURES / "brief" / "transcript.json").save(tpath)
+    other = "claude-other.mp4"
+    (paths.SOURCES / other).write_bytes(b"another one")
+    Transcript.load(FIXTURES / "brief" / "transcript.json").save(cache.transcript_path(
+        paths.SOURCES / other, DEFAULT_MODEL, DEFAULT_LANGUAGE, GLOSSARY if GLOSSARY.is_file() else None))
+
+    from . import server as _server
+    real_sdk = ca._sdk
+    ca._sdk = fake
+    saved_env = {k: os.environ.pop(k, None) for k in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")}
+    srv = None
+    err = io.StringIO()
+    quiet = contextlib.redirect_stderr(err)
+    try:
+        ca.save_settings(api_key=SECRET)
+        parts = _server._claude_parts(video)
+
+        # --- the model: the newest Opus of the account (not a Sonnet that is newer), else the one chosen
+        job = ca.start_find(parts, lambda text: _server._import_reply(video, text), video=video, count=9)
+        s = wait(job)
+        kw = fake.streams[-1]
+        if s["state"] != "done" or s["model"] != "claude-opus-5-5":
+            problems.append(f"the default model should be the newest Opus of the account: {s.get('model')} {s.get('message')}")
+        if fake.keys[-1] != SECRET:
+            problems.append("the saved key was not the one handed to the SDK")
+        # --- the request: streamed, adaptive thinking, cached static part, no sampling, no prefill
+        if kw["thinking"] != {"type": "adaptive"} or kw["max_tokens"] != ca.MAX_TOKENS or kw["model"] != "claude-opus-5-5":
+            problems.append(f"request shape: {kw['thinking']} {kw['max_tokens']} {kw['model']}")
+        if any(k in kw for k in ("temperature", "top_p", "top_k", "budget_tokens", "prefill")):
+            problems.append("a sampling parameter was sent (current models reject them)")
+        if kw["system"][0].get("cache_control") != {"type": "ephemeral"} or "Evaluation rubric" not in kw["system"][0]["text"]:
+            problems.append("the static part (rubric, format) must be the system block with cache_control")
+        if len(kw["messages"]) != 1 or kw["messages"][0]["role"] != "user" or "## Transcript" not in kw["messages"][0]["content"] \
+                or "about 9 moments" not in kw["messages"][0]["content"] or video not in kw["messages"][0]["content"]:
+            problems.append("the episode (and how many clips) belongs in the user message, with no assistant prefill")
+        if kw["output_config"].get("effort") != "high" or kw["output_config"].get("format", {}).get("type") != "json_schema":
+            problems.append(f"effort high and the JSON schema were expected: {kw['output_config']}")
+        if video in kw["system"][0]["text"] or "about 9" in kw["system"][0]["text"]:
+            problems.append("the system block must not change from one episode to the next (it is the cached part)")
+        sysB = _server._claude_parts(other)(5)[0]
+        if sysB != kw["system"][0]["text"]:
+            problems.append("two episodes of one profile must share a byte-identical system block")
+        if s.get("how") != "structured output" or len(s["candidates"]) != 1 or s["candidates"][0]["title"] != "Satu":
+            problems.append(f"the structured reply was not imported like a pasted one: {s.get('how')} {s.get('candidates')}")
+
+        # --- usage and cost: recorded per call, summed per month
+        ca.save_settings(model="claude-opus-4-8")
+        fake.script = [{"in": 2000, "out": 3000, "read": 40000, "write": 7000}]
+        s = wait(ca.start_find(parts, lambda text: _server._import_reply(video, text), video=video))
+        want = (2000 * 5 + 40000 * 5 * 0.1 + 7000 * 5 * 1.25 + 3000 * 25) / 1e6
+        if s["state"] != "done" or s["model"] != "claude-opus-4-8" or abs(s["usage"]["cost"] - round(want, 4)) > 1e-9 \
+                or s["usage"]["cacheRead"] != 40000 or s["usage"]["cacheWrite"] != 7000:
+            problems.append(f"usage and cost: {s.get('usage')} wanted {want}")
+        total = ca.usage_summary()["months"][0]
+        if total["calls"] != 2 or total["cacheRead"] != 40000 or abs(total["cost"] - (round(want, 4) + ca.cost_of("claude-opus-5-5", {"input": 1000, "output": 2000}))) > 1e-3:
+            problems.append(f"the monthly total: {total}")
+
+        # --- the plan: the exact request is counted, nothing is generated
+        n = len(fake.streams)
+        plan = ca.plan_find(parts, 9)
+        c = fake.counts[-1]
+        if plan["inputTokens"] != 48000 or plan["model"] != "claude-opus-4-8" or len(fake.streams) != n:
+            problems.append(f"plan: {plan}")
+        if "max_tokens" in c or c["thinking"] != {"type": "adaptive"} or c["system"][0].get("cache_control") is None:
+            problems.append("the tokens must be counted for the very request that would be sent")
+        if abs(plan["cost"]["low"] - round(48000 * 5 / 1e6 + ca.EXPECTED_OUTPUT_TOKENS * 25 / 1e6, 2)) > 1e-9 or plan["cost"]["assumed"]:
+            problems.append(f"plan cost: {plan['cost']}")
+        if ca.price_of("claude-opus-9-9") is None or not ca.price_of("claude-opus-9-9")[2] or ca.price_of("zzz") is not None:
+            problems.append("an unknown Opus is priced as the family (assumed), an unknown model not at all")
+
+        # --- the schema is refused (a 400 about the format): plain text and the repairs, and it says so
+        fake.script = [BadRequestError("output_config.format: json_schema is not supported for this model", 400), {"text": "```json\n" + GOOD + "\n```"}]
+        n = len(fake.streams)
+        s = wait(ca.start_find(parts, lambda text: _server._import_reply(video, text), video=video))
+        if s["state"] != "done" or s["how"] != "plain text and the import repairs" or len(fake.streams) != n + 2 \
+                or "format" in fake.streams[-1]["output_config"] or "format" not in fake.streams[-2]["output_config"]:
+            problems.append(f"the plain-text fallback: {s.get('state')} {s.get('how')} {len(fake.streams) - n} calls")
+        fake.count_error = BadRequestError("output_config.format is not supported", 400)
+        if ca.plan_find(parts, 9)["structured"] is not False:
+            problems.append("count_tokens should fall back to plain text too")
+        fake.count_error = None
+
+        # --- every error class
+        cases = [(AuthenticationError("bad key", 401), "auth"), (PermissionDeniedError("no", 403), "permission"),
+                 (NotFoundError("model", 404), "model"), (RateLimitError("slow", 429), "rate_limit"),
+                 (OverloadedError("busy", 529), "overloaded"), (InternalServerError("boom", 500), "overloaded"),
+                 (ServiceUnavailableError("down", 503), "overloaded"), (APIStatusError("teapot", 418), "api"),
+                 (APIStatusError("gateway", 502), "overloaded"), (RequestTooLargeError("big", 413), "too_large"),
+                 (BadRequestError("Your credit balance is too low to access the API", 400), "no_credit"),
+                 (BadRequestError("messages: roles must alternate", 400), "bad_request"),
+                 (APITimeoutError("t"), "timeout"), (APIConnectionError("c"), "offline"),
+                 (AnthropicError("Could not resolve authentication method. Expected api_key"), "no_key"),
+                 (RuntimeError("weird"), "other")]
+        for exc, code in cases:
+            fake.script = [exc]
+            s = wait(ca.start_find(parts, lambda text: _server._import_reply(video, text), video=video))
+            if s["state"] != "failed" or s.get("code") != code or SECRET in s.get("message", "") or s.get("candidates"):
+                problems.append(f"{type(exc).__name__} should end as {code}: {s.get('state')} {s.get('code')} {s.get('message', '')[:60]}")
+
+        # --- a refusal, a reply cut at max_tokens, an empty one, one that is not JSON: nothing is imported
+        before = len(ca._read_usage())
+        for plan_, code in (({"stop": "refusal", "details": NS(explanation="a policy")}, "refusal"),
+                            ({"stop": "max_tokens", "text": GOOD[:60]}, "max_tokens"),
+                            ({"text": "   "}, "empty"), ({"text": "this is not json at all"}, "bad_reply")):
+            fake.script = [plan_]
+            s = wait(ca.start_find(parts, lambda text: _server._import_reply(video, text), video=video))
+            if s["state"] != "failed" or s.get("code") != code or "candidates" in s:
+                problems.append(f"{code}: {s.get('state')} {s.get('code')} {'candidates' in s}")
+            if code == "bad_reply" and s.get("reply") != "this is not json at all":
+                problems.append("a reply that could not be read is kept for the manual import")
+        if len(ca._read_usage()) != before + 4:
+            problems.append("a call that cost tokens is recorded even when nothing is imported")
+
+        # --- cancel: the stream is closed and nothing is imported or recorded
+        fake.slow, fake.closed = 3.0, False
+        before = len(ca._read_usage())
+        fake.script = [{}]
+        jid = ca.start_find(parts, lambda text: _server._import_reply(video, text), video=video)
+        time.sleep(0.4)
+        ca.cancel(jid)
+        s = wait(jid)
+        fake.slow = 0.0
+        if s["state"] != "cancelled" or not fake.closed or s.get("candidates") or len(ca._read_usage()) != before:
+            problems.append(f"cancel: {s.get('state')} closed={fake.closed}")
+
+        # --- settings: the key goes in and never comes out
+        ca.save_settings(remove_key=True)
+        if ca.key_source() != "none" or ca.load_settings().get("apiKey"):
+            problems.append("the key was not removed")
+        os.environ["ANTHROPIC_API_KEY"] = "sk-ant-ENV"
+        if ca.key_source() != "env":
+            problems.append("ANTHROPIC_API_KEY should count as a key")
+        del os.environ["ANTHROPIC_API_KEY"]
+        ca.save_settings(api_key=SECRET, effort="low")
+        try:
+            ca.save_settings(effort="turbo")
+            problems.append("an unknown effort was accepted")
+        except ca.ClaudeError:
+            pass
+        if ca.status()["effort"] != "low" or SECRET in json.dumps(ca.status()):
+            problems.append("the settings answer must not hold the key")
+        fake.script = [{}]
+        wait(ca.start_find(parts, lambda text: _server._import_reply(video, text), video=video))
+        if fake.streams[-1]["output_config"]["effort"] != "low":
+            problems.append("the effort of the settings was not used")
+        ca.save_settings(effort="high")
+
+        # --- over HTTP: every answer is free of the key; the Guest can look for clips but not change the key
+        srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        port = srv.server_address[1]
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        quiet.__enter__()
+        seen = []
+
+        def call(method, path, profile="selftest", body=None):
+            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=30)
+            headers = {"Host": f"127.0.0.1:{port}", "X-Klipian-Profile": profile}
+            data = None
+            if body is not None:
+                data = json.dumps(body).encode()
+                headers["Content-Type"] = "application/json"
+            conn.request(method, path, body=data, headers=headers)
+            r = conn.getresponse()
+            raw = r.read().decode("utf-8", "replace")
+            conn.close()
+            seen.append(raw)
+            try:
+                return r.status, json.loads(raw)
+            except ValueError:
+                return r.status, {}
+
+        st, j = call("GET", "/api/claude/status")
+        if st != 200 or not j["sdk"] or j["keySource"] != "saved" or "apiKey" in j:
+            problems.append(f"status: {st} {j}")
+        st, j = call("GET", "/api/claude/models")
+        if st != 200 or j["newestOpus"] != "claude-opus-5-5" or [m["id"] for m in j["models"]][0] != "claude-sonnet-5":
+            problems.append(f"models: {st} {j}")
+        st, j = call("POST", "/api/claude/test", body={})
+        if st != 200 or not j["ok"]:
+            problems.append(f"test: {st} {j}")
+        fake.retrieve_error = AuthenticationError("nope", 401)
+        st, j = call("POST", "/api/claude/test", body={})
+        fake.retrieve_error = None
+        if st != 400 or j.get("code") != "auth":
+            problems.append(f"a refused key on Test: {st} {j}")
+        st, j = call("POST", "/api/claude/settings", body={"model": "claude-opus-4-8", "apiKey": SECRET})
+        if st != 200 or SECRET in json.dumps(j) or j["model"] != "claude-opus-4-8":
+            problems.append(f"settings: {st}")
+        st, j = call("POST", "/api/claude/plan", body={"video": video, "count": 9})
+        if st != 200 or j["inputTokens"] != 48000 or j["count"] != 9:
+            problems.append(f"plan over HTTP: {st} {j}")
+        st, j = call("POST", "/api/claude/plan", body={"video": "no-such.mp4"})
+        if st != 400 or "transcript" not in j.get("error", "").lower():
+            problems.append(f"plan with no transcript: {st} {j}")
+        fake.script = [{}]
+        st, j = call("POST", "/api/claude/find", body={"video": video, "count": 9})
+        done = {}
+        for _ in range(100):
+            st2, done = call("GET", f"/api/claude/job?id={j.get('id')}")
+            if done.get("state") != "running":
+                break
+            time.sleep(0.05)
+        if st != 200 or done.get("state") != "done" or done["candidates"][0]["title"] != "Satu" or not done.get("usage"):
+            problems.append(f"find over HTTP: {st} {done.get('state')} {done.get('message')}")
+        gtok = paths.set_profile(paths.GUEST)
+        try:
+            profiles.ensure_dirs(paths.GUEST)
+            (paths.SOURCES / video).write_bytes(b"guest copy")
+        finally:
+            paths._profile.reset(gtok)
+        if call("POST", "/api/claude/settings", paths.GUEST, {"apiKey": "x"})[0] != 403:
+            problems.append("the Guest must not change the key")
+        if call("GET", "/api/claude/status", paths.GUEST)[0] != 200:
+            problems.append("the Guest can see the status")
+        st, j = call("GET", "/api/claude/usage")
+        if st != 200 or not j["months"] or j["months"][0]["calls"] < 5:
+            problems.append(f"usage over HTTP: {st} {str(j)[:120]}")
+        if any(SECRET in raw for raw in seen) or SECRET in ca._usage_file().read_text(encoding="utf-8") \
+                or SECRET in err.getvalue():
+            problems.append("the API key appeared in a response, the usage log or a log")
+
+        # --- the SDK is not installed
+        fake.sdk = False
+        st, j = call("GET", "/api/claude/status")
+        if j.get("sdk") is not False:
+            problems.append("status should say the SDK is missing")
+        st, j = call("POST", "/api/claude/plan", body={"video": video})
+        if st != 400 or j.get("code") != "no_sdk" or "requirements-claude.txt" not in j.get("command", "") + ca.install_command():
+            problems.append(f"missing SDK: {st} {j}")
+        fake.sdk = True
+        ca._sdk = real_sdk
+        import importlib.util
+        if importlib.util.find_spec("anthropic") is None:
+            try:
+                real_sdk.client(None)
+                problems.append("the real SDK layer should say the package is missing")
+            except ca.ClaudeError as exc:
+                if exc.code != "no_sdk":
+                    problems.append(f"the real SDK layer: {exc.code}")
+        ca._sdk = fake
+    finally:
+        if srv:
+            quiet.__exit__(None, None, None)
+            srv.shutdown()
+        ca._sdk = real_sdk
+        for k, v in saved_env.items():
+            if v is not None:
+                os.environ[k] = v
+        for f in (ca._file(), ca._usage_file()):
+            f.unlink(missing_ok=True)
+        for n in (video, other):
+            (paths.SOURCES / n).unlink(missing_ok=True)
+    if problems:
+        return FAIL, "\n      ".join(problems[:10])
+    return PASS, "request shape, model default, cached system block, structured/plain fallback, usage and cost, 16 error classes, refusal/max_tokens/empty/bad reply import nothing, cancel, key never leaks, no SDK"
+
+
+
+CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl,
           "decode": check_decode, "render": check_render}
 
 
