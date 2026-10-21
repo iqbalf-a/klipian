@@ -563,6 +563,7 @@ function renderResultSwitcher() {
     <option value="${r.id}" ${r.id === activeResultId ? "selected" : ""}>
       ${escapeHTML(r.title || `Result ${i + 1}`)}</option>`).join("");
   document.querySelectorAll(".result-select").forEach((sel) => { sel.innerHTML = options; });
+  drawResultMenus();
   if (typeof renderAllResults === "function") renderAllResults();
   // Anything that re-renders the switcher (switching, creating, deleting a
   // Result) is a context change -- an armed "Delete?" left over from before
@@ -575,6 +576,142 @@ function renderResultSwitcher() {
 document.querySelectorAll(".result-select").forEach((sel) => {
   sel.addEventListener("change", () => switchResult(sel.value));
 });
+/* ---------- the Result switcher: a trigger and a listbox in place of the native <select> ----------
+   One per .result-picker (Clips, Output Format, Timeline, Framing, Captions, Render). The <select class="result-select">
+   stays in the page, hidden and kept in sync by renderResultSwitcher() above, so anything that reads it still works;
+   choosing in the listbox calls switchResult(), which saves the open Result first, as before. */
+var resultMenuOpen = null;                 // the picker whose popover is open
+
+function resultMenuItems() {
+  const rows = (typeof bulkRows === "function") ? bulkRows() : null;
+  return SAVED_RESULTS.map((r, i) => {
+    const row = rows?.find((x) => x.id === r.id);
+    return { id: r.id, n: i + 1, title: row?.title || r.title || `Result ${i + 1}`,
+      seconds: row ? Math.round(row.duration) : null, rendered: !!(row ? row.renderedAt : r.renderedAt), open: r.id === activeResultId };
+  });
+}
+
+function closeResultMenu(focusTrigger = false) {
+  const pk = resultMenuOpen;
+  if (!pk) return;
+  resultMenuOpen = null;
+  const pop = pk.querySelector(".result-pop"), trig = pk.querySelector(".result-trigger");
+  pop.hidden = true;
+  trig.setAttribute("aria-expanded", "false");
+  trig.removeAttribute("aria-controls");
+  if (focusTrigger) trig.focus();
+}
+
+function drawResultMenu(pk) {
+  const pop = pk.querySelector(".result-pop");
+  const items = resultMenuItems();
+  pop.innerHTML = items.map((it) => `
+    <li role="option" id="${pk.dataset.menuId}-${it.id}" data-id="${escapeHTML(it.id)}" aria-selected="${it.open}">
+      <span class="result-check" aria-hidden="true">${it.open ? "✓" : ""}</span>
+      <span class="result-name">${it.n} · ${escapeHTML(it.title)}</span>
+      <span class="result-meta">${it.rendered ? '<span class="result-done" title="Rendered">rendered ✓</span>' : ""}${it.seconds ? `${it.seconds}s` : ""}</span>
+    </li>`).join("");
+  return items;
+}
+
+function setResultActive(pk, li) {
+  const pop = pk.querySelector(".result-pop");
+  pop.querySelectorAll("[data-active]").forEach((x) => x.removeAttribute("data-active"));
+  if (!li) { pop.removeAttribute("aria-activedescendant"); return; }
+  li.dataset.active = "true";
+  pop.setAttribute("aria-activedescendant", li.id);
+  li.scrollIntoView({ block: "nearest" });
+}
+
+function openResultMenu(pk) {
+  if (resultMenuOpen && resultMenuOpen !== pk) closeResultMenu();
+  const pop = pk.querySelector(".result-pop"), trig = pk.querySelector(".result-trigger");
+  drawResultMenu(pk);
+  pop.hidden = false;
+  trig.setAttribute("aria-expanded", "true");
+  trig.setAttribute("aria-controls", pop.id);
+  resultMenuOpen = pk;
+  pop.focus({ preventScroll: true });
+  setResultActive(pk, pop.querySelector('[aria-selected="true"]') || pop.querySelector("li"));
+}
+
+function chooseResult(pk, li) {
+  const id = li?.dataset.id;
+  closeResultMenu(true);
+  if (id && id !== activeResultId) switchResult(id);
+}
+
+function buildResultMenu(pk, n) {
+  pk.dataset.menuId = `rm${n}`;
+  const trig = document.createElement("button");
+  trig.type = "button";
+  trig.className = "result-trigger";
+  trig.setAttribute("aria-haspopup", "listbox");
+  trig.setAttribute("aria-expanded", "false");
+  trig.setAttribute("aria-label", "Result being edited");
+  const pop = document.createElement("ul");
+  pop.className = "result-pop";
+  pop.id = `rm${n}-pop`;
+  pop.setAttribute("role", "listbox");
+  pop.setAttribute("aria-label", "Results of this project");
+  pop.tabIndex = -1;
+  pop.hidden = true;
+  const sel = pk.querySelector(".result-select");
+  sel.hidden = true;
+  sel.tabIndex = -1;
+  sel.setAttribute("aria-hidden", "true");
+  sel.before(trig, pop);
+  trig.addEventListener("click", () => { if (resultMenuOpen === pk) closeResultMenu(); else openResultMenu(pk); });
+  trig.addEventListener("keydown", (e) => {
+    if (["ArrowDown", "ArrowUp"].includes(e.key)) { e.preventDefault(); openResultMenu(pk); }
+  });
+  pop.addEventListener("click", (e) => { const li = e.target.closest("li"); if (li) chooseResult(pk, li); });
+  pop.addEventListener("pointermove", (e) => { const li = e.target.closest("li"); if (li && li.dataset.active !== "true") setResultActive(pk, li); });
+  pop.addEventListener("keydown", (e) => {
+    const lis = [...pop.querySelectorAll("li")];
+    const at = lis.findIndex((x) => x.dataset.active === "true");
+    const go = (i) => { e.preventDefault(); setResultActive(pk, lis[Math.max(0, Math.min(lis.length - 1, i))]); };
+    if (e.key === "ArrowDown") go(at + 1);
+    else if (e.key === "ArrowUp") go(at - 1);
+    else if (e.key === "Home") go(0);
+    else if (e.key === "End") go(lis.length - 1);
+    else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); chooseResult(pk, lis[at]); }
+    else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeResultMenu(true); }
+    else if (e.key === "Tab") closeResultMenu();
+    else if (e.key.length === 1 && /\S/.test(e.key)) {            // type-ahead on the title
+      const ch = e.key.toLowerCase();
+      const from = at + 1;
+      const hit = [...lis.slice(from), ...lis.slice(0, from)].find((x) => x.querySelector(".result-name").textContent.split(" · ").slice(1).join(" · ").toLowerCase().startsWith(ch));
+      if (hit) { e.preventDefault(); setResultActive(pk, hit); }
+    }
+  });
+  return trig;
+}
+
+document.addEventListener("pointerdown", (e) => {
+  if (resultMenuOpen && !resultMenuOpen.contains(e.target)) closeResultMenu();
+});
+
+/* The trigger's text and the open list follow the Results (called by renderResultSwitcher). */
+function drawResultMenus() {
+  const items = resultMenuItems();
+  const cur = items.find((it) => it.open);
+  document.querySelectorAll(".result-picker").forEach((pk, i) => {
+    if (!pk.querySelector(".result-select")) return;
+    const trig = pk.querySelector(".result-trigger") || buildResultMenu(pk, i);
+    trig.innerHTML = `<span class="result-trigger-text">Result ${cur ? cur.n : 1}${cur?.title ? ` · ${escapeHTML(cur.title)}` : ""}</span><span class="result-caret" aria-hidden="true">▾</span>`;
+    trig.title = cur ? `Result ${cur.n} of ${items.length}: ${cur.title}` : "";
+    if (resultMenuOpen === pk) drawResultMenu(pk);
+  });
+}
+
+/* A shadow under a work header that has content scrolled beneath it. */
+document.querySelectorAll(".screen").forEach((sc) => {
+  sc.addEventListener("scroll", () => {
+    sc.querySelector(":scope > .work-head")?.classList.toggle("stuck", sc.scrollTop > 2);
+  }, { passive: true });
+});
+
 document.querySelectorAll('[data-result-action="new"]').forEach((b) => {
   b.addEventListener("click", () => newResult());
 });
