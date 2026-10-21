@@ -1979,6 +1979,55 @@ ulang, dan yt-dlp opsional dengan tombol update.
   - error dipetakan ke pesan yang benar;
   - yt-dlp tidak terpasang.
 
+### P23 — Render massal dari hasil brief
+
+Permintaan ian (2026-10-21): "fitur render bulk terutama dari result ai json
+brief". Hasil impor brief Claude adalah Result-Result terpisah, dan saat ini
+setiap Result harus dibuka lalu dirender satu per satu.
+
+**Kenapa perlu pekerjaan dasar dulu:**
+- Request render disusun browser dari Result yang **sedang terbuka**
+  (`player.js` sendRender, dengan data dari 6 file: framing, koreksi kata,
+  `captionStyle()`, overlay, Output Format, dan post).
+- Keputusan 2.3 menunda **opsi B** ("penyusunan request pindah ke server")
+  sampai ada kebutuhan render tanpa UI, massal atau terjadwal. Render massal
+  adalah kebutuhan itu.
+
+**Rancangan:**
+1. **Penyusun request di server.**
+   - Python membaca Result tersimpan di project (span, titik framing,
+     koreksi kata, overlay/volume, post) dan pengaturan project (gaya
+     caption dan Output Format), lalu menyusun request yang sama persis
+     dengan yang dibuat `sendRender`.
+   - **Uji identik:** untuk setiap Result yang punya request render terakhir
+     tersimpan (`projects/<id>/renders/<result>.json`, replay 3a), request
+     susunan server harus **sama** dengan request tersimpan. Bidang yang
+     memang berbeda karena waktu harus disebutkan dan dijelaskan.
+   - Pengujian memakai salinan project ian di scratch, ditambah fixture
+     selftest.
+   - Setelah lolos, render satuan dari editor juga memakai penyusun
+     server, jadi aturannya hanya satu. JS cukup mengirim
+     `{project, results:[…]}`.
+2. **Tampilan di editor, layar Clips (daftar Result):**
+   - centang per Result, tombol **Select all from this brief** (Result
+     dari impor yang sama), dan tombol **Render selected (N)**;
+   - sebelum mulai, ringkasan berisi jumlah klip, total durasi, perkiraan
+     waktu, dan klip yang ditolak beserta alasannya (tanpa span, video
+     source hilang, dan sebagainya).
+3. **Antrean di History:** berurutan, dengan progress dan Cancel per klip.
+   Setiap klip yang selesai masuk jadwal Clips sebagai Draft (teks posting,
+   hashtag, dan kredit), sama seperti render satuan. Request terakhir per
+   Result tetap disimpan untuk replay.
+4. **Framing:** Result hasil impor belum punya titik framing, jadi
+   dirender dengan framing bawaan (titik 00:00). Ada pilihan **"Run AI
+   Framing first for clips without framing"** yang **mati secara bawaan**.
+   Kalau dinyalakan, AI Framing (pergantian pembicara) dijalankan per klip
+   tanpa titik framing, hasilnya disimpan ke Result, lalu klip dirender.
+5. **Profile:** job menyalin context profile (P21). Guest boleh merender,
+   tapi tanpa baris jadwal.
+
+**Status:** dikirim ke sesi eksekusi 2026-10-21.
+
 ---
 
 ## 3. Diparkir, sengaja tidak dikerjakan
