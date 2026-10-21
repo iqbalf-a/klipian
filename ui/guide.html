@@ -7,17 +7,33 @@
 <link rel="stylesheet" href="/ui/css/fonts.css">
 <link rel="stylesheet" href="/ui/css/tokens.css">
 <link rel="stylesheet" href="/ui/css/brand.css">
+<link rel="stylesheet" href="/ui/css/pager.css">
+<link rel="stylesheet" href="/ui/css/profiles.css">
 <link rel="stylesheet" href="/ui/css/guide.css">
+<script>
+/* Does THIS tab have a profile? A link from the editor carries it (?profile=<id>: a tab opened by a link has no
+   sessionStorage of its own); a tab from the picker has none. profile.js, which sends a tab without a profile to the
+   picker, is therefore loaded only when there is one. */
+(function () {
+  const q = new URLSearchParams(location.search).get("profile");
+  try {
+    if (q && /^[A-Za-z0-9_-]{1,40}$/.test(q)) sessionStorage.setItem("klipian:profile", q);
+    if (q) history.replaceState(null, "", location.pathname + location.hash);
+  } catch { /* no storage */ }
+  let id = null;
+  try { id = sessionStorage.getItem("klipian:profile"); } catch { /* none */ }
+  window.GUIDE_HAS_PROFILE = !!id;
+})();
+</script>
 </head>
 <body class="guide-body">
 
 <header class="guide-top">
   <a class="brand" href="/" title="Kembali ke editor">klipian</a>
-  <nav class="tabs area-switch" aria-label="Area">
-    <a href="/">Edit</a>
-    <a href="/workspace">Workspace</a>
+  <nav class="tabs area-switch" aria-label="Area" id="areaSwitch">
     <a href="/guide" aria-current="page">Guide</a>
   </nav>
+  <div id="profileChip"></div>
   <button class="btn quiet" id="themeBtn" type="button" aria-live="polite"></button>
   <span id="topClock"></span>
 </header>
@@ -283,7 +299,28 @@
   </main>
 </div>
 
+<script>
+/* The switch: with a profile the same three items as everywhere (Edit | Workspace | Guide); without one, Edit and
+   Workspace would only bounce to the picker, so there is "Choose profile" (back to the picker, which returns here). */
+(function () {
+  const nav = document.getElementById("areaSwitch");
+  if (window.GUIDE_HAS_PROFILE) {
+    nav.innerHTML = '<a href="/">Edit</a><a href="/workspace">Workspace</a><a href="/guide" aria-current="page">Guide</a>';
+  } else {
+    nav.innerHTML = '<a href="/profiles?next=%2Fguide">Choose profile</a><a href="/guide" aria-current="page">Guide</a>';
+    document.getElementById("profileChip").remove();
+  }
+})();
+</script>
 <script src="/ui/js/shared/topbar.js"></script>
+<script>
+/* The profile chip (name, colour, menu, settings), only when this tab has a profile. */
+if (window.GUIDE_HAS_PROFILE) {
+  for (const src of ["/ui/js/shared/profile.js", "/ui/js/shared/armed.js", "/ui/js/shared/profile-ui.js"]) {
+    document.write('<script src="' + src + '"><' + '/script>');
+  }
+}
+</script>
 <script>
 /* The table of contents marks the section being read. */
 (function toc() {

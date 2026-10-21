@@ -38,6 +38,17 @@ const IS_GUEST = PROFILE === "_guest";
 
 const profileKey = (key) => `p:${PROFILE}:${key}`;
 
+/* The guide opens in a NEW tab, which has no sessionStorage of its own (a link with target=_blank is noopener), so the
+   profile of this tab goes in the link: /guide?profile=<id>#anchor. The guide page takes it as its profile, so its
+   Edit and Workspace links lead back here. Every link to /guide is fixed up below. */
+function guideUrl(hash = "") {
+  return `/guide?profile=${encodeURIComponent(PROFILE)}${hash}`;
+}
+document.querySelectorAll('a[href^="/guide"]:not([aria-current])').forEach((a) => {
+  a.href = guideUrl(a.getAttribute("href").replace(/^\/guide/, ""));
+  a.target = "_blank";
+});
+
 function profileUrl(url) {
   return `${url}${url.includes("?") ? "&" : "?"}profile=${encodeURIComponent(PROFILE)}`;
 }

@@ -3843,6 +3843,7 @@ def check_guide() -> tuple[str, str]:
             continue
         text = f.read_text(encoding="utf-8", errors="replace")
         linked |= set(re.findall(r"/guide#([A-Za-z0-9_-]+)", text))
+        linked |= set(re.findall(r'guideUrl\("#([A-Za-z0-9_-]+)"', text))
         for block in re.findall(r"YT_GUIDE = \{([^}]*)\}", text):
             linked |= set(re.findall(r'"([a-z-]+)"', block)) - {"none", "no_client", "expired", "different", "not_test_user", "offline", "no_library"}
     for anchor in sorted(linked):

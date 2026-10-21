@@ -346,12 +346,12 @@
       line.innerHTML = st === "ok" ? `${who}${when ? " · " + when : ""}`
         : st === "offline" ? `last known: ${who || esc(YT_HELP.offline)}${when ? " · " + when : ""}`
         : esc(YT_HELP[st] || j.message || st)
-          + (YT_GUIDE[st] ? ` <a class="yt-guide" href="/guide#${YT_GUIDE[st]}" target="_blank" rel="noopener">Panduan</a>` : "");
+          + (YT_GUIDE[st] ? ` <a class="yt-guide" href="${guideUrl("#" + YT_GUIDE[st])}" target="_blank" rel="noopener">Panduan</a>` : "");
       msg.textContent = j.message && st === "ok" ? j.message : (st === "offline" ? j.message : "");
       const linked = st === "ok" || st === "expired" || st === "different" || st === "offline";
       box.innerHTML = [
         btn("client", j.hasClient ? "Change client_secret.json…" : "Choose client_secret.json…"),
-        `<a class="btn quiet yt-guide-btn" href="/guide#youtube" target="_blank" rel="noopener">Setup guide</a>`,
+        `<a class="btn quiet yt-guide-btn" href="${guideUrl("#youtube")}" target="_blank" rel="noopener">Setup guide</a>`,
         (st !== "ok") ? btn("connect", st === "expired" || st === "different" ? "Connect again" : "Connect YouTube",
           c.state === "valid" ? "" : `disabled title="${c.state === "invalid" ? "The client_secret.json is not valid: choose a correct one first." : "Choose the client_secret.json first."}"`) : "",
         linked ? btn("check", "Check connection") : "",
