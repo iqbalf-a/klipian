@@ -2026,6 +2026,21 @@ setiap Result harus dibuka lalu dirender satu per satu.
 5. **Profile:** job menyalin context profile (P21). Guest boleh merender,
    tapi tanpa baris jadwal.
 
+**Fase 1 selesai (2026-10-21): penyusun request di server, `klipian/renderreq.py`.**
+- `build_request(project, result_id, words_of=, size_of=)` menyusun request yang sama dengan `sendRender`
+  untuk satu Result tersimpan, dengan aturan yang sama (`spansWithFraming`, `ensureStartPoint`,
+  `matchRatio`, `serverClipFields`, koreksi kata, overlay/volume, `captionStyle`, `applyOutput`, pembulatan
+  gaya JavaScript). Tidak menulis apa pun.
+- **Bukti identik** pada salinan project ian (scratch, hanya baca): 25 Result punya request terakhir
+  tersimpan, 2 belum pernah dirender. **24 identik**, dengan satu pengecualian yang diharapkan: render
+  sebelum 4cde304 belum punya `style.reveal` ("Words appear"). **1 berbeda** (`2a95bfd6b9a0/res8`): proyek
+  disimpan 7,5 jam setelah render terakhirnya, dan Result itu sejak itu diubah (gambar 16:9 → 9:16 dan satu
+  titik framing baru), jadi request susunan server memang berbeda.
+- selftest `renderreq`: project fixture (`tests/fixtures/renderreq/`) dengan titik framing, koreksi, overlay,
+  volume, dua video, Result terbalik dan Result kosong; request yang disusun harus sama dengan
+  `expected.json` dan dicek dengan tangan pada angka kuncinya. Fixture baseline render (`request.json`)
+  adalah request tanpa dokumen project, jadi tidak bisa disusun ulang dari project.
+
 **Status:** dikirim ke sesi eksekusi 2026-10-21.
 
 ### P24 — Find clips lewat Claude API (tanpa salin-tempel)

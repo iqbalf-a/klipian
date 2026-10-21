@@ -2815,7 +2815,81 @@ def check_captions() -> tuple[str, str]:
     return PASS, "lines break at pauses, silence is empty, As spoken hides future words, tails" + note
 
 
-CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl,
+def check_renderreq() -> tuple[str, str]:
+    """The render request built on the server from a saved project (renderreq.py): the requests of
+    tests/fixtures/renderreq/ (a project with framing points, corrections, an overlay, volumes, two videos, a
+    reversed Result and an empty one), spot-checked by hand below and compared with the checked-in expected
+    requests. The proof against the REAL stored requests of a workspace is run by hand (docs/roadmap.md P23);
+    this keeps the rules from drifting."""
+    from . import renderreq
+
+    base = FIXTURES / "renderreq"
+    project = _load(base / "project.json")
+    expected = _load(base / "expected.json")
+    words = {"ep1.mp4": [{"text": f"w{k}", "start": k * 0.5, "end": k * 0.5 + 0.4} for k in range(120)],
+             "ep2.mp4": [{"text": f"v{k}", "start": 100 + k * 0.5, "end": 100 + k * 0.5 + 0.4} for k in range(20)]}
+    sizes = {"ep1.mp4": (1920, 1080), "ep2.mp4": (1280, 720)}
+    problems = []
+    built = {}
+    for rid in ("res1", "res2", "res3", "res4"):
+        try:
+            built[rid] = renderreq.build_request(project, rid, words_of=words.get, size_of=sizes.get)
+        except renderreq.RequestError as exc:
+            built[rid] = {"error": exc.code}
+        problems += [f"{rid} {d}" for d in _diff(expected[rid], built[rid])]
+
+    # by hand, so the expected file is not just a copy of what the code says
+    c1 = built["res1"]["clips"][0]
+    if [(s["start"], s["end"], s["crop"]["left"]) for s in c1["spans"]] != [(10, 15, 40), (15, 20, 60)]:
+        problems.append("res1: the range should be split at the framing point inside it (15 s), and the point at 400 s ignored")
+    if abs(c1["spans"][0]["crop"]["height"] - 20 * (16 / 9) * (16 / 9)) > 1e-9:
+        problems.append("res1: a box's height follows its width and the shape of the source and of the picture (16:9 and 16:9)")
+    if [(w["text"], w["start"]) for w in c1["words"] if w["start"] in (12.5, 13.0)] != [("Dikoreksi", 12.5), ("", 13.0)]:
+        problems.append("res1: corrections are keyed by the word's start with three decimals, and an empty one is kept")
+    if (c1["picture"], c1["background"], c1["position"], c1["width"], c1["quality"]) != ("16:9", "black", 30, 1440, 26):
+        problems.append("res1: the output options are read by index in the saved order")
+    if c1["style"] != {"font": "Impact", "size": 90, "highlight": "&H0076E600&", "highlight_style": "box", "position": 30,
+                       "x": -5, "per_line": 2, "reveal": "line", "outline": 8, "watermark": True, "watermark_size": 40,
+                       "watermark_opacity": "80", "watermark_y": 20, "watermark_x": 2}:
+        problems.append(f"res1: the caption style (including 'Words appear') was not read from the project: {c1['style']}")
+    if c1["title"] != "Satu" or "overlays" in c1 or "volumes" in c1:
+        problems.append("res1: the title falls back to the first moment's; no overlays or volumes were asked for")
+    c2 = built["res2"]["clips"][0]
+    if built["res2"]["video"] != "ep1.mp4" or [s.get("video") for s in c2["spans"]] != [None, "ep2.mp4"] \
+            or [s["start"] for s in c2["spans"]] != [5, 100]:
+        problems.append(f"res2: spans are in the real seconds of their own video; only the other video names itself: {c2['spans']}")
+    if any(w.get("video") != "ep2.mp4" for w in c2["words"][6:]) or [w["text"] for w in c2["words"][6:8]] != ["v0", "Ganti"]:
+        problems.append("res2: words of the second video carry their file and its corrections (keyed on the shared timeline)")
+    if c2["overlays"] != [{"kind": "label", "start": 1, "end": 7.25, "text": "Halo"}] \
+            or c2["volumes"] != [{"start": 0.0, "end": 3.0, "volume": 0.5}]:
+        problems.append(f"res2: overlays are cut to the clip's length (the second starts after it) and volumes are in output seconds: {c2.get('overlays')} {c2.get('volumes')}")
+    if (c2["picture"], c2["background"], c2["position"], c2["width"], c2["quality"]) != ("9:16", "black", 50, 1080, 21):
+        problems.append("res2: a Result with no saved output takes the defaults")
+    c3 = built["res3"]["clips"][0]
+    if [(s["start"], s["end"]) for s in c3["spans"]] != [(30, 35), (10, 12)] or c3["words"][0]["text"] != "w60" \
+            or c3["words"][10]["text"] != "w20":
+        problems.append("res3: spans keep the order they play in, and the words are listed as they will be heard")
+    if [k["t"] for k in c3["spans"][1].get("tracking", [])] != [20.0, 22.0, 25.0]:
+        problems.append("res3: a tracked point's keyframes are shifted to the start of each piece")
+    if (c3["picture"], c3["background"], c3["position"]) != ("3:4", "black", 70):
+        problems.append("res3: a Background that was never chosen (null) is black")
+    if built["res4"] != {"error": "no_spans"}:
+        problems.append("res4: a Result with no moments cannot be rendered")
+    try:
+        renderreq.build_request(project, "nope", words_of=words.get, size_of=sizes.get)
+        problems.append("an unknown Result was accepted")
+    except renderreq.RequestError as exc:
+        if exc.code != "no_result":
+            problems.append(f"an unknown Result: {exc.code}")
+    # JavaScript rounding: halves go up, and a second video's seconds lose their offset to the microsecond
+    if renderreq._js_round(2.5) != 3 or renderreq._js_round(-0.5) != 0 or renderreq._unshift(1000100.123456789, 1e6) != 100.123457:
+        problems.append("the JavaScript rounding is not reproduced")
+    if problems:
+        return FAIL, "\n      ".join(problems[:10])
+    return PASS, "4 Results built from a saved project equal the expected requests (framing split, corrections, two videos, overlays, volumes)"
+
+
+CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl,
           "decode": check_decode, "render": check_render}
 
 

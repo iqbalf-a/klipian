@@ -1,0 +1,69 @@
+{
+ "id": "0f1e2d3c4b5a",
+ "assets": [
+  {"id": "a1", "kind": "video", "file": "ep1.mp4"},
+  {"id": "a2", "kind": "video", "file": "ep2.mp4"},
+  {"id": "a3", "kind": "image", "file": "logo.png"}
+ ],
+ "activeAsset": "a1",
+ "caption": {"font": 1, "size": 90, "highlight": 2, "highlight-style": 1, "position": 30, "x": -5, "per-line": 0,
+             "reveal": 1, "outline": 2, "watermark": 0, "watermark-size": 40, "watermark-opacity": 3,
+             "watermark-y": 20, "watermark-x": 2},
+ "activeResult": "res1",
+ "results": [
+  {
+   "id": "res1",
+   "title": "",
+   "segments": [
+    {"id": "r1", "asset": "a1", "start": 10, "end": 20, "title": "Satu", "source": "ai"}
+   ],
+   "framing": [
+    {"id": "f1", "asset": "a1", "at": 10, "format": "single", "crops": [{"left": 40, "top": 5, "width": 20, "height": 70}]},
+    {"id": "f2", "asset": "a1", "at": 15, "format": "single", "crops": [{"left": 60, "top": 5, "width": 20, "height": 70}]},
+    {"id": "f3", "asset": "a1", "at": 400, "format": "single", "crops": [{"left": 1, "top": 1, "width": 20, "height": 70}]}
+   ],
+   "corrections": {"12.500": "Dikoreksi", "13.000": ""},
+   "output": [1, 2, 0, 1, 30],
+   "post": {"title": "Judul Satu", "caption": "Teks satu.", "hashtags": ["#satu", "#dua"]}
+  },
+  {
+   "id": "res2",
+   "title": "Gabungan dua video",
+   "segments": [
+    {"id": "r1", "asset": "a1", "start": 5, "end": 8, "title": "A", "source": "manual", "volume": 0.5},
+    {"id": "r2", "asset": "a2", "start": 100, "end": 104.25, "title": "B", "source": "manual"}
+   ],
+   "framing": [
+    {"id": "f1", "asset": "a1", "at": 5, "format": "split", "crops": [{"left": 4, "top": 17, "width": 42, "height": 66}, {"left": 54, "top": 17, "width": 42, "height": 66}]},
+    {"id": "f2", "asset": "a2", "at": 100, "format": "single", "crops": [{"left": 50, "top": 0, "width": 30, "height": 99}], "auto": true}
+   ],
+   "corrections": {"1000100.500": "Ganti"},
+   "overlays": [
+    {"id": "o1", "kind": "label", "start": 1, "end": 99, "text": "Halo"},
+    {"id": "o2", "kind": "sticker", "start": 50, "end": 60, "file": "logo.png"}
+   ],
+   "post": {"title": "", "caption": "", "hashtags": ["#gabung"]}
+  },
+  {
+   "id": "res3",
+   "title": "Urutan terbalik",
+   "result": [
+    {"id": "r1", "start": 30, "end": 35, "title": "Akhir", "source": "ai"},
+    {"id": "r2", "start": 10, "end": 12, "title": "Awal", "source": "ai"}
+   ],
+   "framing": [
+    {"id": "f1", "asset": "a1", "at": 30, "format": "single", "crops": [{"left": 30, "top": 4, "width": 39, "height": 92}],
+     "tracking": {"keyframes": [{"t": 0, "left": 30}, {"t": 2, "left": 40}, {"t": 5, "left": 31}]}}
+   ],
+   "corrections": {},
+   "output": [2, 1, 1, null, 70]
+  },
+  {
+   "id": "res4",
+   "title": "",
+   "segments": [],
+   "framing": [],
+   "corrections": {}
+  }
+ ]
+}
