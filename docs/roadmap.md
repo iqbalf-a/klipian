@@ -2196,6 +2196,59 @@ disimpan di project. Diuji dengan klien palsu dan SDK asli lewat mock
 transport; panggilan pertama dengan key asli dilakukan ian. Harga adalah
 perkiraan (konstanta `PRICES` di `claude_api.py`).
 
+### P28 — Motion Studio (`/remotion`): konten animasi dengan Remotion (RENCANA, belum matang)
+
+Ide ian (2026-10-21): sedang ramai Shorts berisi animasi motion yang dibuat
+dengan Claude + Remotion, dan ini bisa menjadi niche baru bertema motion.
+Usulnya ada fitur `/remotion` untuk edit manual seperti aplikasi editor, dan
+kalau memungkinkan juga memakai AI agent untuk mengedit kode. **Status:
+dicatat saja, masih rencana dan belum matang** (keputusan ian 2026-10-21).
+
+**Bagian yang sudah pasti:** hasil render motion masuk ke alur yang sudah ada
+di klipian, jadi tidak perlu membangun ulang:
+- baris Clips (seperti klip manual, `fileFolder` `motion`);
+- teks posting dan hashtag (P16);
+- upload satu klip atau massal dengan jadwal (P16, termasuk dialog jadwal
+  bertahap);
+- cek status otomatis (Tahap 2b);
+- profile per channel (P21).
+
+**Rancangan awal (bisa berubah):**
+- **Jangan membangun editor dari nol.** Remotion Studio (editor lokal
+  berbasis browser, dengan pratinjau, timeline, dan props) dipakai untuk edit
+  manual. Klipian hanya mengelola project, membuka Studio, merender, lalu
+  menyerahkan hasilnya ke Clips.
+- **Project per profile** di `profiles/<id>/motion/<project>/`. Templat awal
+  9:16 1080×1920 (kinetic typography, explainer, grafik/data, quote card)
+  memakai warna dan font profile.
+- **AI agent**, bertahap:
+  - awal: tombol Open folder / Open in VS Code atau Claude Code, sehingga ian
+    memakai agent yang sudah ada;
+  - lanjut: panel AI (Claude API, key P24) yang mengusulkan perubahan sebagai
+    **diff yang harus disetujui**, lalu klipian menjalankan cek TypeScript dan
+    merender satu frame pratinjau. Error dikirim balik ke Claude. Setiap
+    project punya riwayat git sendiri untuk Undo.
+- **Keamanan:** kode buatan AI berjalan di komputer ian (Node). Karena itu:
+  - setiap perubahan lewat persetujuan;
+  - agent hanya boleh menyentuh folder project-nya;
+  - tidak ada pemasangan paket baru tanpa persetujuan.
+- **Render:** `remotion render` sebagai job latar belakang dengan progress
+  dan Cancel. Hasilnya masuk ke `out/motion/` dan menjadi baris di Clips.
+
+**Pertanyaan terbuka sebelum dikerjakan:**
+1. Lisensi Remotion untuk pemakaian ian. Setahu kita gratis untuk individu
+   dan perusahaan kecil; cek di situs Remotion.
+2. Waktu render di mesin ian, dengan spike P28-A: template 10 detik
+   1080×1920.
+3. Seberapa jauh editor sendiri di klipian dibutuhkan, dibandingkan cukup
+   Remotion Studio.
+4. Panel AI di klipian, atau cukup Claude Code di luar.
+5. Profile, channel, dan rubrik ide konten untuk niche motion.
+
+**Tahapan usulan:** P28-A spike (render dan ukur, cek lisensi) → P28-B halaman
+`/remotion` (project, template, Studio, Render → Clips) → P28-C panel AI (diff,
+setuju, cek, pratinjau) → P28-D profile niche motion dan render massal.
+
 ---
 
 ## 3. Diparkir, sengaja tidak dikerjakan
