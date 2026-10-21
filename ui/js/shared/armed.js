@@ -15,7 +15,8 @@
      message (the caller keeps a reference and can read its fields after the answer). tone "primary" is for a
      question that is not a deletion: the button is the accent colour. tone "strong" is for what is
      already out in the world (a posted clip, a profile, a YouTube connection): a heavier red, and the
-     `warning` line stands out. Only one is open at a time (a new one answers the old one false). The Undo
+     `warning` line stands out. tone "caution" is for an action that is not a deletion but takes effect at
+     once out in the world (Publish now): the accent colour with a heavier ring, never red. Only one is open at a time (a new one answers the old one false). The Undo
      toast of an action is separate and stays: this replaces the confirm step only. */
 let _confirmOpen = null;
 

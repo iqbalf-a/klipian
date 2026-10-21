@@ -761,7 +761,6 @@ function ytBulkGoState(enabled, count, why) {
   go.disabled = !enabled;
   const now = ytBulk.publishMode === "now";
   go.textContent = now ? (count ? `Publish ${count} now` : "Publish now") : (count ? `Upload ${count}` : "Upload");
-  go.classList.toggle("danger", now);                  // "Publish now" is not the friendly accent button
   go.classList.toggle("main", !now);
   go.title = enabled ? "" : (why || "");
   // The reason in plain sight, not only in the tooltip of a button that looks active.
@@ -1080,7 +1079,7 @@ $("#ytBulkGo")?.addEventListener("click", async (e) => {
       const go2 = await confirmDialog({
         title: `Publish ${ytBulk.ids.length} video${ytBulk.ids.length === 1 ? "" : "s"} now?`,
         message: `These ${ytBulk.ids.length} video${ytBulk.ids.length === 1 ? "" : "s"} go PUBLIC on YouTube right away, one after another, as soon as each finishes uploading. This cannot be undone from klipian.`,
-        body: list, confirmText: "Publish now", tone: "strong",
+        body: list, confirmText: "Publish now", tone: "caution",
       });
       if (!go2) { note.textContent = "Nothing was sent."; go.disabled = false; return; }
     }
@@ -1193,7 +1192,7 @@ $("#ytUploadBtn")?.addEventListener("click", async (e) => {
   // be on YouTube); a scheduled upload goes with one click: its date and time are shown right above the
   // button and it can be changed or cancelled in YouTube Studio.
   if (publishNow && !(await confirmDialog({
-    title: "Publish this clip now?", tone: "strong", confirmText: "Publish now",
+    title: "Publish this clip now?", tone: "caution", confirmText: "Publish now",
     message: $("#ytPreviewTitle")?.value || $("#clipDetailTitle")?.dataset.title || "",
     warning: "It goes public on YouTube straight away; this cannot be undone from klipian.",
   }))) return;

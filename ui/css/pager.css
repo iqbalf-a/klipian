@@ -233,8 +233,8 @@ button.bg-accent:disabled, .ws-accent-btn:disabled, button.bg-accent:disabled:ho
 .yt-mode-opt { font: inherit; font-size: 12px; font-weight: 650; padding: 5px 14px; border: 0; border-radius: var(--r-pill); background: transparent; color: var(--text-muted); cursor: pointer; }
 .yt-mode-opt:hover { color: var(--text); }
 .yt-mode-opt[aria-checked="true"] { background: var(--text); color: var(--bg-0); }
-.yt-mode-opt[data-ytmode="now"][aria-checked="true"] { background: var(--danger); color: #fff; }
-.yt-now-warn { padding: 10px 14px; border: 1px solid var(--danger); border-left-width: 4px; border-radius: var(--r-s); background: color-mix(in oklab, var(--danger) 10%, transparent);
+.yt-mode-opt[data-ytmode="now"][aria-checked="true"] { background: var(--accent); color: var(--accent-text); }
+.yt-now-warn { padding: 10px 14px; border: 1px solid var(--accent); border-left-width: 4px; border-radius: var(--r-s); background: color-mix(in oklab, var(--accent) 12%, transparent);
   color: var(--text); font-size: 12.5px; }
 .yt-now-warn p { margin: 0; }
 .yt-now-warn .yt-now-sub { margin-top: 4px; color: var(--text-muted); font-size: 12px; }
@@ -268,5 +268,13 @@ dialog.confirm-dlg::backdrop { background: rgba(0, 0, 0, .6); }
 .confirm-dlg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .confirm-dlg[data-tone="primary"] .confirm-ok.btn { background: var(--accent); color: var(--accent-text); }
+.confirm-dlg[data-tone="primary"] .confirm-ok.btn:hover,
+.confirm-dlg[data-tone="caution"] .confirm-ok.btn:hover { background: var(--accent); filter: brightness(1.08); }
+/* "caution": not a deletion, but it goes out into the world at once (Publish now). Accent, never red. */
+.confirm-dlg[data-tone="caution"] { border-color: var(--accent); }
+.confirm-dlg[data-tone="caution"] .confirm-ok.btn { background: var(--accent); color: var(--accent-text); font-weight: 800;
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 40%, transparent); }
+.confirm-dlg[data-tone="caution"] .confirm-warn { color: var(--text); border-left-color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 12%, transparent); }
 .confirm-msg { white-space: pre-line; }
 dialog.confirm-dlg:has(.bulk-plan) { width: min(560px, calc(100vw - 32px)); }
