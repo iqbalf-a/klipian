@@ -25,6 +25,7 @@ const fmtDuration = (d) => (isFinite(d) ? timeRange(d) : "duration unreadable");
    place, called whenever the video on screen changes: opening a project
    (projects.js) and switching videos (setActiveAsset, assets.js). */
 function updateTopbarFile(name, durationSeconds) {
+  if (typeof fitTimeFields === "function") fitTimeFields(durationSeconds);
   if ($("#fileName")) $("#fileName").textContent = name || "";
   if ($("#fileDuration")) {
     $("#fileDuration").textContent = Number.isFinite(durationSeconds) ? fmtDuration(durationSeconds) : "";

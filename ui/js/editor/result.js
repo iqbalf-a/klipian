@@ -129,7 +129,23 @@ function resultAsClip() {
    is wired here, not in every caller: one missed caller means work silently lost,
    and that's the most annoying kind of failure. Saves are debounced so redundant
    calls from screen switches don't become a burden. */
+/* Time fields are sized from what they hold: "mm:ss.d" is 7 characters, "h:mm:ss.d" is 9, so a source of an hour or
+   more (or any time past it in the suggestions or the Result) widens every time field by the same two characters and
+   nothing is cut off. --tw is the width of an editable time in ch, --tr of a read-only one (no tenths). Called
+   whenever the video, the suggestions or the Result change. */
+let timeFieldDuration = 0;
+function fitTimeFields(durationSeconds) {
+  if (Number.isFinite(durationSeconds)) timeFieldDuration = Math.max(0, durationSeconds);
+  const longest = Math.max(timeFieldDuration,
+    ...((typeof DATA !== "undefined" && DATA.candidates) || []).map((k) => Math.max(k.startSec || 0, k.endSec || 0)),
+    ...(typeof RESULT !== "undefined" ? RESULT : []).map((r) => (typeof toReal === "function" ? toReal(r.end).t : r.end) || 0));
+  const long = longest >= 3600 || (typeof realTranscript !== "undefined" && realTranscript?.duration >= 3600);
+  document.documentElement.style.setProperty("--tw", long ? "9" : "7");
+  document.documentElement.style.setProperty("--tr", long ? "7" : "5");
+}
+
 function renderResult() {
+  fitTimeFields();
   if (typeof saveProject === "function") saveProject();
   if (typeof renderAllResults === "function") renderAllResults();
   const list = $("#resultList");
@@ -230,6 +246,7 @@ function renderRecommendations() {
     if (!undo.hidden) undo.textContent = `Undo import (bring back ${replacedSuggestions.list.length})`;
   }
   const candidates = (DATA?.candidates) || [];
+  fitTimeFields();
 
   // The list can change entirely (re-import from Claude) while the preview
   // still points to the old index -- close it first so it doesn't point to

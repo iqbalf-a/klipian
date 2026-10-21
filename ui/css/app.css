@@ -1885,7 +1885,7 @@ h1, h2, h3 {
      way after adding the .rec-edit pencil button. */
   min-width: 90px;
 }
-.result-time { color: var(--text-faint); }
+.result-time { color: var(--text-faint); white-space: nowrap; font-variant-numeric: tabular-nums; min-width: calc(var(--tr, 5) * 2ch + 3ch); }
 
 /* Recommendation times are editable -- two small mm:ss fields, no longer
    static text. Click is directly on the field itself (not on the surrounding
@@ -1896,7 +1896,8 @@ h1, h2, h3 {
 }
 .rec-time-in {
   font-family: var(--font-data); font-size: 12px;
-  width: 62px; padding: 3px 3px;     /* mm:ss.s */
+  /* wide enough for the longest time of the project: --tw characters (result.js fitTimeFields) */
+  width: calc(var(--tw, 7) * 1ch + 14px); padding: 3px 3px; font-variant-numeric: tabular-nums;
   border-radius: var(--r-s);
   border: 1px solid var(--glass-border);
   background: var(--glass);
@@ -1971,7 +1972,6 @@ h1, h2, h3 {
   .rec-row .rec-time { grid-row: 2; grid-column: 2 / -1; justify-content: flex-end; }
   /* Buys back the ~12px the two mm:ss inputs need to fit on that second
      row; the field still shows "00:00" without clipping. */
-  .rec-row .rec-time-in { width: 58px; }
 }
 .rec-row:has(input:checked) {
   background: var(--accent-soft);
@@ -2152,7 +2152,7 @@ h1, h2, h3 {
   border: 1px solid var(--glass-border);
   background: var(--glass);
   color: var(--text);
-  width: 74px;
+  width: calc(var(--tw, 7) * 1ch + 26px); font-variant-numeric: tabular-nums;
 }
 .time-input input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .selection-dur { margin-right: auto; color: var(--text-muted); }
