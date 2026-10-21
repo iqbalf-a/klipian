@@ -2788,3 +2788,26 @@ dialog.confirm-dlg:has(.post-reply-text) { width: min(640px, calc(100vw - 32px))
 .post-ai-dlg-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 8px; }
 .post-ai-dlg-note { margin: 0; min-height: 1.4em; color: var(--text-muted); }
 .post-ai-dlg-note[data-error="true"] { color: var(--danger); }
+
+/* The segmented time field: the same box as the upload schedule's time input (.ws-input in workspace.css): the same
+   padding, radius, border, face and tabular digits; the focused segment is the selection, in the accent colour. */
+.rec-time-in, .time-input input#selStart, .time-input input#selEnd {
+  font-family: var(--font-ui); font-size: 12.5px; font-variant-numeric: tabular-nums; letter-spacing: 0;
+  height: 30px; padding: 0 .5rem; box-sizing: content-box; text-align: left;
+  color: var(--text); background: var(--bg-1);
+  border: 1px solid var(--glass-border); border-radius: var(--r-s);
+  caret-color: transparent;
+}
+.rec-time-in:hover:not(:disabled), .time-input input:hover { border-color: var(--border-bright); }
+.rec-time-in:focus, .time-input input:focus { border-color: var(--accent); outline: none; }
+.rec-time-in::selection, .time-input input#selStart::selection, .time-input input#selEnd::selection {
+  background: color-mix(in oklab, var(--accent) 38%, transparent); color: var(--text);
+}
+.rec-time-in:disabled { color: var(--text-faint); border-color: transparent; background: transparent; }
+.rec-time-in, .time-input input#selStart, .time-input input#selEnd { color-scheme: light dark; }
+:root[data-theme="dark"] .rec-time-in, :root[data-theme="dark"] .time-input input { color-scheme: dark; }
+:root[data-theme="light"] .rec-time-in, :root[data-theme="light"] .time-input input { color-scheme: light; }
+.rec-time-field .rec-time-step { height: 32px; }
+
+/* compact in the suggestion rows */
+.rec-time-in { font-size: 12px; height: 22px; padding: 0 5px; width: calc(var(--tw, 7) * 1ch + 12px); }

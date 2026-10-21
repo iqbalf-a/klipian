@@ -247,7 +247,7 @@ document.addEventListener("keydown", (e) => {
 /* ---------- typing mm:ss ---------- */
 
 function readTimeColumns() {
-  const ra = tfParse($("#selStart").value), rb = tfParse($("#selEnd").value);
+  const ra = tfFieldParse($("#selStart")), rb = tfFieldParse($("#selEnd"));
   for (const [r, el] of [[ra, $("#selStart")], [rb, $("#selEnd")]]) {
     if (!r.ok) {
       tfInvalid(el, r.error);
@@ -260,14 +260,16 @@ function readTimeColumns() {
   // A column that was NOT changed (its text still is what SELECTION shows) keeps
   // SELECTION's precise value, and is not snapped again. A changed one: a time with a
   // decimal point is exactly that; one without is snapped to a word (snapManual).
-  const same = (text, t) => SELECTION && text.trim() === timeTenths(t);
-  const resolve = (p, text, side, kept) => {
-    if (same(text, kept)) return { time: kept, word: null, typed: kept, kept: true };
+  const same = (el, t) => SELECTION && Math.abs(tfParse(el.value).seconds - t) < 0.05 && el.dataset.exact !== "1";
+  const resolve = (p, el, side, kept) => {
+    if (same(el, kept)) return { time: kept, word: null, typed: kept, kept: true };
     const res = p.exact ? { time: p.seconds, word: null } : snapManual(p.seconds, side);
     return { ...res, typed: p.seconds };
   };
-  const A = resolve(pa, $("#selStart").value, "start", SELECTION?.start);
-  const B = resolve(pb, $("#selEnd").value, "end", SELECTION?.end);
+  const A = resolve(pa, $("#selStart"), "start", SELECTION?.start);
+  const B = resolve(pb, $("#selEnd"), "end", SELECTION?.end);
+  delete $("#selStart").dataset.exact;
+  delete $("#selEnd").dataset.exact;
   const a = A.time, b = B.time;
   if (b <= a) {
     $("#pickNote").textContent = "end time must be later than start";

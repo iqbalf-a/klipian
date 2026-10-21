@@ -212,26 +212,15 @@ function renderResult() {
 
 /* ---------- AI recommendations: minutes and titles only ---------- */
 
-/* One mm:ss field + its tiny ▲▼ stepper (+/-1 second) -- typing is still
-   the main path for a big correction, the stepper is for the common case
-   of nudging by a second or two (see commitRecTime()). Both the input and
-   the stepper stay disabled until the pencil unlocks the row, same lock
-   as before -- a clickable stepper sitting in a checkbox-wrapping <label>
-   would be just as easy to bump by accident as an always-editable input. */
+/* One segmented time field (timefield.js: type a part, ↑ ↓ change it). It stays disabled until the pencil unlocks the
+   row, same lock as before -- a clickable field sitting in a checkbox-wrapping <label> would be easy to bump by
+   accident. (The ▲▼ stepper that used to sit beside it is gone: the arrow keys change the focused part.) */
 function recTimeField(i, field, value, label) {
   return `
     <span class="rec-time-field">
       <input type="text" class="rec-time-in" value="${value}"
              data-idx="${i}" data-field="${field}" size="7" maxlength="${typeof tfMaxLength === "function" ? tfMaxLength(tfLong()) : 9}" spellcheck="false" disabled
              inputmode="decimal" aria-label="${label}">
-      <span class="rec-time-step">
-        <button type="button" class="rec-step" data-idx="${i}" data-field="${field}"
-                data-dir="1" tabindex="-1" disabled
-                aria-label="Increase ${label.charAt(0).toLowerCase()}${label.slice(1)} by 1 second">▲</button>
-        <button type="button" class="rec-step" data-idx="${i}" data-field="${field}"
-                data-dir="-1" tabindex="-1" disabled
-                aria-label="Decrease ${label.charAt(0).toLowerCase()}${label.slice(1)} by 1 second">▼</button>
-      </span>
     </span>`;
 }
 
@@ -656,7 +645,7 @@ $("#recList")?.addEventListener("change", (e) => {
   const k = (DATA?.candidates || [])[idx];
   if (!k) return;
   const note = $("#recNote");
-  const parsed = tfParse(inp.value);
+  const parsed = tfFieldParse(inp);
   // A rejected value is shown, not undone: the field goes red and says why (Esc puts the old value back). The
   // reasons differ (not a time, seconds or minutes past 59, before the start / after the end), so it says which.
   if (!parsed.ok) {
@@ -670,8 +659,9 @@ $("#recList")?.addEventListener("change", (e) => {
   if (length && parsed.seconds > length) { parsed.seconds = length; parsed.exact = true; clamped = true; }
   // Left alone (the text is still what the field showed): nothing to commit, so a
   // blur or the Save button never re-snaps a time that was not touched.
-  if (inp.value.trim() === timeTenths(k[field])) return;
+  if (Math.abs(parsed.seconds - k[field]) < 0.05 && inp.dataset.exact !== "1") return;
   const done = commitRecTime(idx, field, parsed.seconds, parsed.exact);
+  delete inp.dataset.exact;
   if (!done) {
     tfInvalid(inp, field === "startSec" ? "start must stay before the end" : "end must stay after the start");
     if (note) {
