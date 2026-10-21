@@ -1121,6 +1121,8 @@ class Handler(BaseHTTPRequestHandler):
             path = "/ui/workspace.html"
         if path.rstrip("/") == "/profiles":
             path = "/ui/profiles.html"
+        if path.rstrip("/") == "/guide":
+            path = "/ui/guide.html"             # static: no profile needed
         # /edit/<video> is the same editor page -- which project it opens is
         # decided in the browser (urlProject() in ui/js/editor/projects.js),
         # not here, so nothing in this path is looked up or trusted: it is

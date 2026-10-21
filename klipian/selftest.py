@@ -3816,7 +3816,63 @@ def check_rubrics() -> tuple[str, str]:
     return PASS, "5 templates complete and in the brief, workspace rubric listed/chosen/used (cached block byte-stable), deleted falls back with a note, bad ids refused, a missing section refused by name, dialog unchanged, Guest allowed"
 
 
-CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl,
+def check_guide() -> tuple[str, str]:
+    """The guide page (ui/guide.html): /guide is served with no profile, its stylesheet too, and every anchor the
+    interface links to (/guide#...) and every entry of its table of contents exists in the page."""
+    import contextlib
+    import http.client
+    import io
+    import re
+    import threading
+    from http.server import ThreadingHTTPServer
+    from .server import Handler
+
+    problems = []
+    page = (ROOT / "ui" / "guide.html").read_text(encoding="utf-8")
+    ids = set(re.findall(r'\bid="([^"]+)"', page))
+    for must in ("youtube", "youtube-status", "claude", "download", "profiles", "bulk", "youtube-client", "youtube-test-user",
+                 "youtube-expired"):
+        if must not in ids:
+            problems.append(f"the guide lost its #{must} section")
+    for anchor in re.findall(r'href="#([^"]+)"', page):
+        if anchor not in ids:
+            problems.append(f"the guide's own link #{anchor} points nowhere")
+    linked = set()
+    for f in list((ROOT / "ui").rglob("*.js")) + list((ROOT / "ui").rglob("*.html")):
+        if f.name == "guide.html":
+            continue
+        text = f.read_text(encoding="utf-8", errors="replace")
+        linked |= set(re.findall(r"/guide#([A-Za-z0-9_-]+)", text))
+        for block in re.findall(r"YT_GUIDE = \{([^}]*)\}", text):
+            linked |= set(re.findall(r'"([a-z-]+)"', block)) - {"none", "no_client", "expired", "different", "not_test_user", "offline", "no_library"}
+    for anchor in sorted(linked):
+        if anchor not in ids:
+            problems.append(f"the interface links to /guide#{anchor}, which the guide does not have")
+    if not linked:
+        problems.append("expected the interface to link to the guide")
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    port = srv.server_address[1]
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    quiet = contextlib.redirect_stderr(io.StringIO())
+    quiet.__enter__()
+    try:
+        for path, needle in (("/guide", 'id="youtube"'), ("/guide/", 'id="bulk"'), ("/ui/css/guide.css", ".guide-toc")):
+            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=15)
+            conn.request("GET", path, headers={"Host": f"127.0.0.1:{port}"})
+            r = conn.getresponse()
+            body = r.read().decode("utf-8", "replace")
+            conn.close()
+            if r.status != 200 or needle not in body:
+                problems.append(f"GET {path}: {r.status}")
+    finally:
+        quiet.__exit__(None, None, None)
+        srv.shutdown()
+    if problems:
+        return FAIL, "\n      ".join(problems[:10])
+    return PASS, f"/guide and its stylesheet are served without a profile; the {len(linked)} anchors the interface links to and the table of contents all exist"
+
+
+CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl,
           "decode": check_decode, "render": check_render}
 
 

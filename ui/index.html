@@ -60,14 +60,16 @@
          work-only: these shortcuts only mean something when a clip is open,
          so the button hides on the home screen. /workspace has its own "?"
          with its own contents; only the open/close is shared. -->
-    <div class="shortcut-help work-only">
+    <div class="shortcut-help">
       <button class="btn quiet" id="shortcutHelpBtn" type="button"
-              title="Keyboard shortcuts" aria-label="Keyboard shortcuts"
+              title="Help: keyboard shortcuts and the guide" aria-label="Help"
               aria-expanded="false">?</button>
-      <div class="shortcut-panel" id="shortcutPanel" hidden role="tooltip">
-        <p><kbd>,</kbd> <kbd>.</kbd> step 1 <span id="shortcutUnitText">frame</span></p>
-        <p><kbd>Shift</kbd><kbd>,</kbd> <kbd>Shift</kbd><kbd>.</kbd> step 5</p>
-        <p><kbd>Space</kbd> play / pause</p>
+      <div class="shortcut-panel" id="shortcutPanel" hidden role="region" aria-label="Help">
+        <p class="shortcut-sub work-only">Keyboard shortcuts</p>
+        <p class="work-only"><kbd>,</kbd> <kbd>.</kbd> step 1 <span id="shortcutUnitText">frame</span></p>
+        <p class="work-only"><kbd>Shift</kbd><kbd>,</kbd> <kbd>Shift</kbd><kbd>.</kbd> step 5</p>
+        <p class="work-only"><kbd>Space</kbd> play / pause</p>
+        <p class="shortcut-guide"><a href="/guide" target="_blank" rel="noopener">Guide: setup, downloads, bulk render →</a></p>
       </div>
     </div>
     <span id="topClock"></span>

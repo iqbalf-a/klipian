@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>klipian — panduan</title>
+<link rel="stylesheet" href="/ui/css/fonts.css">
+<link rel="stylesheet" href="/ui/css/tokens.css">
+<link rel="stylesheet" href="/ui/css/brand.css">
+<link rel="stylesheet" href="/ui/css/guide.css">
+</head>
+<body class="guide-body">
+
+<header class="guide-top">
+  <a class="brand" href="/" title="Kembali ke editor">klipian</a>
+  <nav class="tabs area-switch" aria-label="Area">
+    <a href="/">Edit</a>
+    <a href="/workspace">Workspace</a>
+    <a href="/guide" aria-current="page">Guide</a>
+  </nav>
+  <button class="btn quiet" id="themeBtn" type="button" aria-live="polite"></button>
+  <span id="topClock"></span>
+</header>
+
+<div class="guide-wrap">
+
+  <nav class="guide-toc" aria-label="Daftar isi">
+    <p class="guide-toc-title">Panduan</p>
+    <ol>
+      <li><a href="#youtube">YouTube: satu project Google Cloud per channel</a>
+        <ol>
+          <li><a href="#youtube-project">1. Buat project</a></li>
+          <li><a href="#youtube-api">2. Aktifkan YouTube Data API</a></li>
+          <li><a href="#youtube-consent">3. Layar persetujuan</a></li>
+          <li><a href="#youtube-test-user">4. Test user</a></li>
+          <li><a href="#youtube-scopes">5. Data Access</a></li>
+          <li><a href="#youtube-client">6. Client dan file JSON</a></li>
+          <li><a href="#youtube-connect">7. Hubungkan di klipian</a></li>
+          <li><a href="#youtube-testing">Status Testing dan audit</a></li>
+        </ol>
+      </li>
+      <li><a href="#youtube-status">Status dan arti warna</a></li>
+      <li><a href="#claude">Claude API: Find clips with Claude</a></li>
+      <li><a href="#download">Unduh dari YouTube</a></li>
+      <li><a href="#profiles">Profile dan Guest</a></li>
+      <li><a href="#bulk">Render massal</a></li>
+    </ol>
+  </nav>
+
+  <main class="guide-main">
+
+    <h1>Panduan klipian</h1>
+    <p class="lead">Halaman ini statis: tidak ada data profile di sini. Nama menu ditulis persis seperti di
+      Google Cloud console (2026) dan di klipian, supaya bisa diikuti langkah demi langkah.</p>
+
+    <!-- ============================================================ A -->
+    <section id="youtube">
+      <h2>A. YouTube: satu project Google Cloud per channel</h2>
+      <p><b>Kenapa satu project per channel.</b> Kuota unggah YouTube Data API dihitung per project Google Cloud:
+        yang kami ukur adalah <b>100 unggahan per hari per project</b>. Kalau semua channel memakai satu project,
+        kuotanya dibagi. Project terpisah juga memisahkan token, jadi satu channel yang bermasalah tidak
+        mengganggu yang lain.</p>
+      <p class="note">Tidak perlu menagih apa pun. Jangan klik <b>Try for free</b> atau mengisi billing: YouTube Data API
+        v3 gratis dalam kuota ini.</p>
+
+      <h3 id="youtube-project">1. Buat project</h3>
+      <ol>
+        <li>Buka <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">console.cloud.google.com</a>
+          dengan akun Google yang sama dengan pemilik channel.</li>
+        <li>Klik pemilih project di bar atas (<b>Select a project</b>) › <b>New project</b>.</li>
+        <li>Beri nama, misalnya <code>klipian-lucu</code>, lalu <b>Create</b>. Pastikan project baru itu yang
+          terpilih di bar atas.</li>
+      </ol>
+
+      <h3 id="youtube-api">2. Aktifkan YouTube Data API v3</h3>
+      <ol>
+        <li><b>APIs &amp; Services</b> › <b>Library</b>.</li>
+        <li>Cari <b>YouTube Data API v3</b> › <b>Enable</b>.</li>
+        <li>Cek kuotanya: <b>APIs &amp; Services</b> › <b>Enabled APIs &amp; services</b> › YouTube Data API v3 ›
+          <b>Quotas &amp; System Limits</b>, lihat baris <b>Video Uploads per day</b>.</li>
+      </ol>
+
+      <h3 id="youtube-consent">3. Layar persetujuan (Google Auth Platform)</h3>
+      <ol>
+        <li>Buka <b>Google Auth Platform</b> › <b>Get started</b>.</li>
+        <li><b>App name</b>: bebas (misalnya <code>klipian</code>). <b>User support email</b>: emailmu.</li>
+        <li><b>Audience</b>: pilih <b>External</b>.</li>
+        <li><b>Contact information</b>: emailmu. Setujui kebijakan, lalu <b>Create</b>.</li>
+      </ol>
+      <p>Menu di kiri sekarang: <b>Overview</b>, <b>Branding</b>, <b>Audience</b>, <b>Clients</b>, <b>Data Access</b>.</p>
+
+      <h3 id="youtube-test-user">4. Test user: akun pemilik channel ini</h3>
+      <ol>
+        <li><b>Audience</b> › bagian <b>Test users</b> › <b>Add users</b>.</li>
+        <li>Isi akun Google yang <b>memiliki channel ini</b>, lalu <b>Save</b>.</li>
+      </ol>
+      <p class="warn">Kalau akun itu tidak ada di daftar, Google menolak masuk dengan pesan “belum diverifikasi /
+        akses diblokir”. klipian menampilkannya sebagai <b>Not a test user</b> (merah).</p>
+
+      <h3 id="youtube-scopes">5. Data Access: izin yang dibutuhkan</h3>
+      <ol>
+        <li><b>Data Access</b> › <b>Add or remove scopes</b>.</li>
+        <li>Centang <code>…/auth/youtube.upload</code> dan <code>…/auth/youtube.readonly</code>
+          (kalau tidak tampil di daftar, tempel di kolom <b>Manually add scopes</b> › <b>Add to table</b>).</li>
+        <li><b>Update</b>, lalu <b>Save</b>.</li>
+      </ol>
+
+      <h3 id="youtube-client">6. Client (Desktop app) dan file JSON</h3>
+      <ol>
+        <li><b>Clients</b> › <b>Create client</b>.</li>
+        <li><b>Application type</b>: <b>Desktop app</b>. Nama bebas. Biarkan kotak <b>AI-powered agent</b> tidak tercentang.</li>
+        <li><b>Create</b>, lalu klik <b>Download JSON</b> <b>saat itu juga</b>: rahasia (secret) client bisa jadi hanya
+          ditampilkan sekali.</li>
+        <li>Simpan file itu di tempat aman, misalnya folder pribadimu. Namanya biasanya <code>client_secret_….json</code>.</li>
+      </ol>
+      <p class="warn"><b>Jangan bagikan file JSON itu</b> dan jangan ditempel di chat, email, atau repo. Siapa pun yang
+        memegangnya bisa memakai kuota project-mu. klipian hanya menyimpannya di folder profile ini.</p>
+
+      <h3 id="youtube-connect">7. Hubungkan di klipian</h3>
+      <ol>
+        <li>Buka profile channel yang benar (nama dan warna profile tampil di pojok atas).</li>
+        <li><b>Profile settings</b> › bagian <b>YouTube account</b> › <b>Choose client_secret.json…</b> › pilih file
+          tadi. Baris <b>Client</b> menjadi hijau (<b>Client ✓</b>).</li>
+        <li><b>Connect YouTube</b>. Browser terbuka: masuk dengan akun <b>pemilik channel ini</b>, pilih channel yang
+          benar kalau ditanya, lalu izinkan.</li>
+        <li>Baris <b>Account</b> menjadi hijau: <b>Connected ✓</b> dengan nama channel. Selesai.</li>
+      </ol>
+
+      <h3 id="youtube-testing">Status Testing dan audit</h3>
+      <ul>
+        <li><b>Testing = sambung ulang tiap kira-kira 7 hari.</b> Selama project berstatus <b>Testing</b>, token Google
+          kedaluwarsa sekitar tujuh hari. klipian menandainya <b>Expired</b> (kuning): tekan <b>Connect again</b>.</li>
+        <li><b>Unggahan dari project yang belum diaudit dikunci private.</b> YouTube menahan video yang diunggah lewat API
+          dari project yang belum lolos audit menjadi <b>privat</b> (“locked private”). Jadi video-nya
+          sampai, tetapi kamu perlu mengubah visibilitasnya sendiri di YouTube Studio, atau mengajukan
+          <b>audit YouTube API Services</b> supaya unggahan publik diizinkan. Jadwal publikasi dari klipian
+          tidak mengubah ini.</li>
+      </ul>
+    </section>
+
+    <!-- ============================================================ B -->
+    <section id="youtube-status">
+      <h2>B. Status dan arti warna</h2>
+      <p>Di <b>Profile settings</b> › <b>YouTube account</b> ada dua baris, dan titik kecil di samping nama profile
+        memakai warna yang sama.</p>
+
+      <h3>Baris <b>Client</b> (file client_secret.json)</h3>
+      <dl class="states">
+        <dt><span class="dot green"></span> Client ✓</dt>
+        <dd>File valid. Project Google Cloud yang dipakai ditampilkan, dan apakah dari profile ini atau
+          cadangan bersama (<code>workspace/secrets</code>).</dd>
+        <dt><span class="dot red"></span> Client ✕</dt>
+        <dd>Bukan client_secret.json yang bisa dipakai (salah jenis client, file rusak). Pilih lagi; harus
+          <b>Desktop app</b> (bagian <a href="#youtube-client">6</a>).</dd>
+        <dt><span class="dot grey"></span> Client</dt>
+        <dd>Belum dipilih. <b>Choose client_secret.json…</b></dd>
+      </dl>
+
+      <h3>Baris <b>Account</b></h3>
+      <dl class="states" id="youtube-expired">
+        <dt><span class="dot green"></span> Connected ✓</dt>
+        <dd>Tersambung dan token diterima. Hijau penuh hanya kalau baris Client juga hijau.</dd>
+        <dt><span class="dot grey"></span> Not connected</dt>
+        <dd>Belum ada tautan. Pilih client dulu, lalu <b>Connect YouTube</b> (bagian <a href="#youtube-connect">7</a>).
+          “No client yet” artinya file client belum dipilih.</dd>
+        <dt><span class="dot yellow"></span> Expired</dt>
+        <dd>Sambungan kedaluwarsa (project berstatus Testing: sekitar 7 hari). Tekan <b>Connect again</b>.</dd>
+        <dt><span class="dot yellow"></span> Other channel</dt>
+        <dd>Token sah tetapi milik channel lain dari yang tersimpan. <b>Connect again</b> untuk menerima channel baru,
+          atau masuk dengan akun yang benar.</dd>
+        <dt><span class="dot red"></span> Not a test user</dt>
+        <dd>Google menolak masuk: tambahkan akun itu di <b>Google Auth Platform</b> › <b>Audience</b> › <b>Test users</b>
+          (<a href="#youtube-test-user">bagian 4</a>), lalu Connect lagi.</dd>
+        <dt><span class="dot yellow"></span> Offline</dt>
+        <dd>Google tidak terjangkau; status terakhir yang diketahui ditampilkan. Coba lagi saat internet kembali
+          (<b>Check connection</b>).</dd>
+        <dt><span class="dot grey"></span> Paket YouTube belum terpasang</dt>
+        <dd>Jalankan sekali: <code>.venv\Scripts\python.exe -m pip install -r requirements-youtube.txt</code></dd>
+      </dl>
+    </section>
+
+    <!-- ============================================================ C -->
+    <section id="claude">
+      <h2>C. Claude API (Find clips with Claude)</h2>
+      <p>Opsional. Tanpa ini semuanya tetap jalan: <b>Copy brief</b> atau <b>Download file</b> di layar Analyze, tempel
+        ke Claude di web, lalu tempel jawabannya lagi di klipian. <b>Cara manual itu tidak butuh key.</b></p>
+      <h3>Memasang key</h3>
+      <ol>
+        <li>Buka <a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a> ›
+          <b>API Keys</b> › buat key. Akun harus punya <b>kredit</b> (isi saldo di <b>Billing</b>), kalau tidak panggilan ditolak.</li>
+        <li>Pasang paketnya sekali: <code>.venv\Scripts\python.exe -m pip install -r requirements-claude.txt</code></li>
+        <li>Di klipian: <b>Profile settings</b> › <b>Anthropic API</b> › tempel key › <b>Save key</b> › <b>Test</b>.
+          Key disimpan di server lokal dan tidak pernah dikirim ke browser lagi. Jangan menempelnya di chat atau repo.</li>
+        <li>Pilih <b>Model</b> (bawaan: Opus terbaru di akunmu) dan <b>Effort</b>. Tabel di bawahnya menunjukkan pemakaian per bulan.</li>
+      </ol>
+      <h3>Memakainya</h3>
+      <ol>
+        <li>Di layar <b>Analyze</b>, tekan <b>Find clips with Claude</b>.</li>
+        <li>Dialog menampilkan model, jumlah token masuk, dan <b>perkiraan biaya</b> sebelum apa pun dikirim. Itu
+          perkiraan: token berpikir dan jawaban baru diketahui setelah selesai.</li>
+        <li>Tekan <b>Send to Claude</b>. Hasilnya masuk seperti impor manual (saran AI di layar Clips). <b>Cancel</b>
+          menghentikannya.</li>
+      </ol>
+      <p class="note">Rubrik yang dipakai (dialog, gameplay, atau rubrik sendiri di <code>workspace/rubrics</code>) dipilih di
+        Profile settings, atau per brief di layar Analyze.</p>
+    </section>
+
+    <!-- ============================================================ D -->
+    <section id="download">
+      <h2>D. Unduh dari YouTube</h2>
+      <p>Di layar Assets (atau Analyze) pilih <b>Add from YouTube</b>, tempel satu tautan video, <b>Check</b>, lalu
+        <b>Download</b>. Berkas masuk ke folder <code>sources</code> profile dengan nama “channel - judul.mp4” dan
+        kreditnya terisi otomatis.</p>
+      <h3>Yang dibutuhkan</h3>
+      <ol>
+        <li><b>yt-dlp</b>: <code>.venv\Scripts\python.exe -m pip install -r requirements-download.txt</code>
+          (memasang <code>yt-dlp[default]</code>). YouTube sering berubah: kalau unduhan gagal, tekan
+          <b>Update yt-dlp</b> di dialog.</li>
+        <li><b>Node.js</b> (atau deno) di PATH, dari <a href="https://nodejs.org/" target="_blank" rel="noopener">nodejs.org</a>.
+          Tanpa runtime JavaScript, YouTube menolak unduhan panjang (HTTP 403). Dialog menampilkan runtime yang dipakai
+          di sebelah versi yt-dlp; kalau tertulis “no JS runtime”, pasang Node.js lalu <b>Update yt-dlp</b>.</li>
+        <li><b>ffmpeg</b> (sudah dibutuhkan klipian) untuk menggabungkan video dan suara.</li>
+      </ol>
+      <h3>Tips</h3>
+      <ul>
+        <li>Video 83 menit pada 1080p bisa sekitar 1,8 GB. Pilih <b>720p (smaller)</b> di kartu pratinjau kalau
+          ruang atau waktu terbatas; ukurannya diperbarui.</li>
+        <li>Kalau gagal, pesan ramah ditampilkan dengan baris kecil berisi error aslinya dan tombol
+          <b>Copy details</b>. Salin dan kirim itu kalau perlu bantuan. Lognya juga ada di <code>ytdl.log</code> di folder profile.</li>
+        <li>Video privat, berbatas umur, atau khusus member tidak bisa diunduh: klipian tidak masuk (sign in).</li>
+      </ul>
+      <p class="warn"><b>Kredit bukan izin.</b> Mengisi kredit sumber hanya memberi atribusi; itu tidak memberimu hak
+        memakai ulang video orang lain. Unduh hanya konten yang boleh kamu pakai.</p>
+    </section>
+
+    <!-- ============================================================ E -->
+    <section id="profiles">
+      <h2>E. Profile dan Guest</h2>
+      <ul>
+        <li><b>Satu profile = satu channel.</b> Masing-masing punya sources, project, hasil render, jadwal unggah,
+          akun YouTube, dan pengaturan (watermark, rubrik, hashtag) sendiri. Rubrik buatan sendiri dan cache transkrip
+          dipakai bersama semua profile.</li>
+        <li>Profile dipilih <b>per tab</b> browser: dua tab bisa memakai dua channel sekaligus. Nama dan warna profile
+          selalu tampil di pojok atas supaya tidak salah channel. Tidak ada password: klipian jalan di komputermu dan
+          profile hanya memisahkan data.</li>
+        <li>Membuat profile baru: halaman pemilih profile › <b>Profile baru</b> (nama, warna). Lalu pilih rubrik di
+          <b>Profile settings</b>, hubungkan YouTube (bagian <a href="#youtube">A</a>).</li>
+        <li><b>Guest</b>: untuk mencoba cepat. Bisa mengedit, merender, mengunduh dari YouTube, dan memakai Find clips
+          with Claude (key-nya disimpan di workspace, dipakai bersama semua profile; mengaturnya dari profile biasa). Tidak punya jadwal unggah, akun YouTube,
+          atau pengaturan. <b>Clear guest data</b> di menu profile menghapus semua buatan Guest ke Recycle Bin.</li>
+      </ul>
+    </section>
+
+    <!-- ============================================================ F -->
+    <section id="bulk">
+      <h2>F. Render massal</h2>
+      <p>Layar <b>Clips</b> membaca dari atas ke bawah:</p>
+      <ol>
+        <li><b>Choose moments</b>: centang saran AI di daftar. Lalu pilih <b>salah satu</b> dari dua jalan:
+          <ul>
+            <li><b>One video from these moments</b> (<b>Add N to this Result</b>): saran yang dicentang digabung ke
+              Result yang terbuka. Satu render = <b>satu file</b>.</li>
+            <li><b>A separate video for each</b> (<b>Make N separate Results</b>): tiap saran menjadi Result sendiri
+              dan mewarisi format output Result yang terbuka. Render = <b>N file</b>.</li>
+          </ul></li>
+        <li><b>Results</b>: daftar klip yang akan dirender. Tiap baris menunjukkan durasi, format output, framing, dan
+          kapan terakhir dirender. <b>Tick</b> = ikut Output format / Delete / Render; <b>Editing</b> = Result yang
+          sedang terbuka di bawahnya. Pilih cepat: <b>Select all from this brief</b>, <b>All</b>, <b>None</b>.</li>
+        <li><b>Output format…</b>: satu format (Picture, Background, Position, Resolution, Quality) untuk semua Result
+          yang dicentang, dengan pratinjau satu klip contoh. “Keep each Result's own” membiarkan satu kontrol tetap seperti
+          aslinya, jadi misalnya hanya Picture yang diubah.</li>
+        <li><b>Render selected (N)</b>: dialog rencana menampilkan tiap klip beserta formatnya, perkiraan waktu, dan opsi
+          AI Framing untuk klip tanpa framing. Hasilnya ada di layar <b>History</b>.</li>
+      </ol>
+      <p><b>Delete selected</b> dan ✕ di tiap baris menghapus Result (ada Undo beberapa detik). Berkas yang sudah dirender
+        dan baris jadwal unggah <b>tidak</b> pernah ikut terhapus.</p>
+      <p class="note">Framing otomatis (titik 00:00 yang belum disentuh) memakai tinggi penuh video dengan lebar sesuai
+        bentuk gambar, di tengah. Titik yang kamu atur sendiri tidak berubah.</p>
+    </section>
+
+    <footer class="guide-foot">Panduan ini ada di <code>ui/guide.html</code>. Keyboard: <kbd>,</kbd> <kbd>.</kbd> mundur/maju
+      satu frame, <kbd>Shift</kbd> + itu lima frame, <kbd>Space</kbd> putar/jeda (di editor).</footer>
+  </main>
+</div>
+
+<script src="/ui/js/shared/topbar.js"></script>
+<script>
+/* The table of contents marks the section being read. */
+(function toc() {
+  const links = [...document.querySelectorAll(".guide-toc a")];
+  const byId = new Map(links.map((a) => [a.getAttribute("href").slice(1), a]));
+  const targets = [...byId.keys()].map((id) => document.getElementById(id)).filter(Boolean);
+  if (!("IntersectionObserver" in window)) return;
+  const seen = new Set();
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) { if (e.isIntersecting) seen.add(e.target.id); else seen.delete(e.target.id); }
+    const first = targets.find((t) => seen.has(t.id));
+    links.forEach((a) => a.removeAttribute("aria-current"));
+    if (first) byId.get(first.id)?.setAttribute("aria-current", "true");
+  }, { rootMargin: "-70px 0px -60% 0px" });
+  targets.forEach((t) => io.observe(t));
+})();
+</script>
+</body>
+</html>

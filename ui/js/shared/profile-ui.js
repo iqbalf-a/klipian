@@ -305,13 +305,17 @@
   /* ---- the YouTube account (P21-C): what the token is, never the token itself ---- */
   const YT_HELP = {
     none: "Not linked. Choose the client_secret.json of this channel's Google Cloud project, then Connect.",
-    no_client: "No client yet. Choose this channel's client_secret.json (see the setup checklist in docs/roadmap.md, P16).",
+    no_client: "No client yet. Choose this channel's client_secret.json (the guide has the steps).",
     no_library: "The YouTube packages are not installed. Run: .venv\\Scripts\\python.exe -m pip install -r requirements-youtube.txt",
     expired: "The connection expired (a Testing project's token lasts about 7 days). Connect again.",
     different: "The token is valid but belongs to another channel than the saved one. Connect again to accept it.",
     not_test_user: "Google refused the sign-in: add this Google account as a Test user (Google Auth Platform > Audience > Test users), then Connect.",
     offline: "Could not reach Google; the last known state is shown.",
   };
+
+  /* Where in /guide each state of the YouTube account is explained. */
+  const YT_GUIDE = { none: "youtube-client", no_client: "youtube-client", expired: "youtube-expired", different: "youtube-expired",
+    not_test_user: "youtube-test-user", offline: "youtube-status", no_library: "youtube-status" };
 
   async function youTubeSection(dlg) {
     const line = dlg.querySelector("#ytLine"), msg = dlg.querySelector("#ytMsg"), box = dlg.querySelector("#ytActions");
@@ -341,11 +345,13 @@
       const who = j.channel?.title ? `${thumb}<b>${esc(j.channel.title)}</b>` : "";
       line.innerHTML = st === "ok" ? `${who}${when ? " · " + when : ""}`
         : st === "offline" ? `last known: ${who || esc(YT_HELP.offline)}${when ? " · " + when : ""}`
-        : esc(YT_HELP[st] || j.message || st);
+        : esc(YT_HELP[st] || j.message || st)
+          + (YT_GUIDE[st] ? ` <a class="yt-guide" href="/guide#${YT_GUIDE[st]}" target="_blank" rel="noopener">Panduan</a>` : "");
       msg.textContent = j.message && st === "ok" ? j.message : (st === "offline" ? j.message : "");
       const linked = st === "ok" || st === "expired" || st === "different" || st === "offline";
       box.innerHTML = [
         btn("client", j.hasClient ? "Change client_secret.json…" : "Choose client_secret.json…"),
+        `<a class="btn quiet yt-guide-btn" href="/guide#youtube" target="_blank" rel="noopener">Setup guide</a>`,
         (st !== "ok") ? btn("connect", st === "expired" || st === "different" ? "Connect again" : "Connect YouTube",
           c.state === "valid" ? "" : `disabled title="${c.state === "invalid" ? "The client_secret.json is not valid: choose a correct one first." : "Choose the client_secret.json first."}"`) : "",
         linked ? btn("check", "Check connection") : "",

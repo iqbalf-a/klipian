@@ -114,3 +114,8 @@ html[data-guest="true"] .guest-hidden { display: none !important; }
 
 .profile-settings #rubricMsg[data-error="true"] { color: var(--danger); }
 .profile-settings #rubricNew { flex-wrap: wrap; gap: 6px; }
+
+.picker-guide { margin: 18px 0 0; text-align: center; font-size: 13px; }
+.picker-guide a { color: var(--text-muted); text-decoration: underline; text-underline-offset: 2px; }
+.picker-guide a:hover { color: var(--text); }
+.yt-guide { margin-left: 6px; white-space: nowrap; color: var(--accent); }

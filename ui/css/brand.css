@@ -166,3 +166,10 @@
   color: var(--text-faint);
   white-space: nowrap;
 }
+
+/* the guide link and a small heading inside the "?" panel */
+.shortcut-panel .shortcut-sub { font-weight: 700; color: var(--text-faint); text-transform: uppercase; letter-spacing: .1em; font-size: 10px; }
+.shortcut-panel .shortcut-guide { margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--glass-border); }
+.shortcut-panel .shortcut-guide a { color: var(--accent); text-decoration: none; font-weight: 600; }
+.shortcut-panel .shortcut-guide a:hover { text-decoration: underline; }
+.shortcut-panel .work-only[hidden] { display: none; }
