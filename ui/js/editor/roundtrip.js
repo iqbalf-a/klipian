@@ -113,6 +113,9 @@ async function importJSON(text) {
   const d = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(d.error || "Could not read that reply.");
   lastImportNotes = d.notes || [];
+  // which import a suggestion came from: the Results made from it carry it too (bulk.js, "from this brief")
+  const importId = Date.now().toString(36);
+  for (const k of d.candidates) k.importId = importId;
   return d.candidates;
 }
 

@@ -732,7 +732,7 @@ function resultLabel(id) {
 
 /* Render these Results of the open project, one after another (server: jobs.start_project_render).
    The project is saved first, so the server sees exactly what is on screen. */
-async function renderSavedResults(resultIds, { aiFraming = false } = {}) {
+async function renderSavedResults(resultIds, { note = "" } = {}) {
   const ids = resultIds.filter(Boolean);
   if (!ids.length) { renderStatus("There is no Result to render.", true); toScreen("history"); return; }
   if (renderJobId !== null) { renderStatus("A render is already running: wait for it, or cancel it first.", true); toScreen("history"); return; }
@@ -756,7 +756,7 @@ async function renderSavedResults(resultIds, { aiFraming = false } = {}) {
     reply = await fetch("/api/render", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ project: activeProjectId, results: ids, ...(aiFraming ? { aiFraming: true } : {}) }),
+      body: JSON.stringify({ project: activeProjectId, results: ids }),
     }).then((r) => r.json());
   } catch {
     // Without a backend, say so plainly -- don't pretend to render.
@@ -827,7 +827,7 @@ async function renderSavedResults(resultIds, { aiFraming = false } = {}) {
       const bad = t.state === "failed" || (!done.length && failed.length);
       renderStatus(bad
         ? `Failed: ${t.error || failed[0]?.error || "the render failed"}`
-        : `${done.length} clip${done.length === 1 ? "" : "s"} done · `
+        : (note ? `${note} · ` : "") + `${done.length} clip${done.length === 1 ? "" : "s"} done · `
           + `${done.reduce((a, x) => a + (x.output?.mb || 0), 0).toFixed(1)} MB`
           + (failed.length ? ` · ${failed.length} failed (${failed[0].error})` : "")
           + (cancelled.length ? ` · ${cancelled.length} cancelled` : "")

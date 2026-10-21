@@ -505,6 +505,7 @@ function renderResultSwitcher() {
     <option value="${r.id}" ${r.id === activeResultId ? "selected" : ""}>
       ${escapeHTML(r.title || `Result ${i + 1}`)}</option>`).join("");
   document.querySelectorAll(".result-select").forEach((sel) => { sel.innerHTML = options; });
+  if (typeof renderAllResults === "function") renderAllResults();
   // Anything that re-renders the switcher (switching, creating, deleting a
   // Result) is a context change -- an armed "Delete?" left over from before
   // it would now refer to a different Result than the user was looking at.

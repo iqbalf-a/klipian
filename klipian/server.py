@@ -48,6 +48,7 @@ from . import cues as cues_mod
 from . import roundtrip
 from .jobs import style_with_profile as _style_with_profile
 from .jobs import cancel_job as _cancel_job, start_project_render as _start_project_render
+from .jobs import estimate_seconds as _estimate_seconds, plan_project_render as _plan_project_render
 from .jobs import (ACTIVE_TRANSCRIBES, CANCELLED, JOBS, LOCK, MAX_JOBS, _clip_words,
                    _register_job, _run_diarize, _run_render, _run_transcribe,
                    _spans_from_clip)
@@ -1623,8 +1624,7 @@ class Handler(BaseHTTPRequestHandler):
             # The Results of a SAVED project: the server builds each request itself (renderreq.py), so what is
             # rendered is what is saved. One job, one clip after another; see jobs.start_project_render.
             try:
-                started = _start_project_render(str(req["project"]), [str(r) for r in req["results"]],
-                                                bool(req.get("aiFraming")))
+                started = _start_project_render(str(req["project"]), [str(r) for r in req["results"]])
             except ValueError as exc:
                 return self._send_json({"error": str(exc)}, 400)
             return self._send_json(started)
@@ -1638,6 +1638,24 @@ class Handler(BaseHTTPRequestHandler):
         threading.Thread(target=contextvars.copy_context().run, args=(_run_render, job_id, req),
                          daemon=True).start()
         return self._send_json({"id": job_id})
+
+    def _post_render_plan(self):
+        """What a bulk render of these Results of a SAVED project would do, before it starts: the clips (title,
+        length, picture), the ones that cannot be rendered and why, and a time estimate. Nothing is rendered."""
+        try:
+            req = self._read_json()
+        except Exception as exc:               # noqa: BLE001
+            return self._send_json({"error": str(exc)}, 400)
+        pf = _project_file(str(req.get("project") or ""))
+        pdata = _read_project(pf) if pf and pf.is_file() else None
+        if not pdata:
+            return self._send_json({"error": "That project is not saved yet."}, 400)
+        ids = [str(r) for r in dict.fromkeys(req.get("results") or [])]
+        items, refused = _plan_project_render(pdata, ids)
+        seconds, how = _estimate_seconds([i["duration"] for i in items])
+        return self._send_json({"items": [{k: v for k, v in i.items() if k != "request"} for i in items],
+                                "refused": refused, "totalDuration": round(sum(i["duration"] for i in items), 1),
+                                "estimateSeconds": seconds, "estimateHow": how})
 
     def _post_render_cancel(self):
         try:
@@ -1935,6 +1953,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/import": _post_import,
         "/api/render": _post_render,
         "/api/render/cancel": _post_render_cancel,
+        "/api/render/plan": _post_render_plan,
         "/api/preview": _post_preview,
         "/api/transcribe": _post_transcribe,
         "/api/diarize": _post_diarize,

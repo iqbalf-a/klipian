@@ -477,7 +477,7 @@ def plan_project_render(pdata: dict, result_ids: list[str]) -> tuple[list[dict],
     return items, refused
 
 
-def start_project_render(project_id: str, result_ids: list[str], ai_framing: bool = False) -> dict:
+def start_project_render(project_id: str, result_ids: list[str]) -> dict:
     """Render these Results of the saved project, one after another, as one job. Returns {id, items, refused};
     raises ValueError when nothing can be rendered."""
     pf = _project_file(project_id)
@@ -495,20 +495,52 @@ def start_project_render(project_id: str, result_ids: list[str], ai_framing: boo
                     "state": "queued", "error": None, "cancel": False} for it in items]
     _register_job(batch_id, {"state": "running", "done": 0, "total": len(items), "index": 0, "current": "",
                              "result": [], "error": None, "batch": True, "items": entry_items,
-                             "refused": refused, "aiFraming": bool(ai_framing)})
+                             "refused": refused})
     import contextvars
     threading.Thread(target=contextvars.copy_context().run,
-                     args=(_run_batch, batch_id, [it["request"] for it in items], bool(ai_framing)),
+                     args=(_run_batch, batch_id, [it["request"] for it in items]),
                      daemon=True).start()
     return {"id": batch_id, "items": [dict(i) for i in entry_items], "refused": refused}
 
 
-def _with_ai_framing(req: dict, item: dict, t: dict) -> dict:
-    """The request with AI Framing applied (phase 3 of P23); for now the request as it is."""
-    return req
+def _speed_file() -> Path:
+    from .paths import profile_dir
+    return profile_dir() / "render-speed.json"
 
 
-def _run_batch(batch_id: str, requests: list[dict], ai_framing: bool = False) -> None:
+def _note_speed(seconds: float, duration: float) -> None:
+    """Remember how long a finished clip took (wall seconds per second of output), last 10, for the estimate."""
+    if duration <= 0 or seconds <= 0:
+        return
+    try:
+        f = _speed_file()
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            data = []
+        data = (data if isinstance(data, list) else [])[-9:] + [{"sec": round(seconds, 2), "dur": round(duration, 2)}]
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(json.dumps(data), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def estimate_seconds(durations: list[float]) -> tuple[int, str]:
+    """(seconds, how it was worked out): the median of the last renders' speed, else about 30 s a clip."""
+    ratios = []
+    try:
+        for x in json.loads(_speed_file().read_text(encoding="utf-8")):
+            if x.get("dur", 0) > 0:
+                ratios.append(float(x["sec"]) / float(x["dur"]))
+    except (OSError, ValueError, TypeError, KeyError):
+        ratios = []
+    if ratios:
+        ratios.sort()
+        return int(round(sum(durations) * ratios[len(ratios) // 2])), "from the last renders"
+    return 30 * len(durations), "a rough guess of 30 s a clip until a render has been timed"
+
+
+def _run_batch(batch_id: str, requests: list[dict]) -> None:
     """Run the requests one after another, each as a render job of its own (so each records its last request,
     makes its schedule row and its History entry exactly as a single render does)."""
     t = JOBS[batch_id]
@@ -525,13 +557,8 @@ def _run_batch(batch_id: str, requests: list[dict], ai_framing: bool = False) ->
                 item["state"] = "running"
                 t["index"] = i
                 t["current"] = item["title"]
-            if ai_framing:
-                try:
-                    req = _with_ai_framing(req, item, t)
-                except Exception as exc:             # noqa: BLE001
-                    with LOCK:
-                        item["note"] = f"AI Framing failed ({exc}); rendered with the framing it has"
             sub = f"{batch_id}-{i}"
+            started_at = time.time()
             _register_job(sub, {"state": "running", "done": 0, "total": 1, "index": 0, "current": "",
                                 "result": [], "error": None})
             with LOCK:
@@ -548,6 +575,8 @@ def _run_batch(batch_id: str, requests: list[dict], ai_framing: bool = False) ->
                 if sj.get("result"):
                     item["output"] = sj["result"][0]
                     t["result"].append(sj["result"][0])
+                    if item["state"] == "done":
+                        _note_speed(time.time() - started_at, float(sj["result"][0].get("duration") or item["duration"]))
                 for key in ("schedule", "warning"):
                     if sj.get(key):
                         item[key] = sj[key]

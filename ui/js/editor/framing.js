@@ -1101,6 +1101,25 @@ function aiFramingOverlayStart() {
 
 function aiFramingOverlayDone() {
   $("#aiFramingOverlay")?.setAttribute("hidden", "");
+  // every way AI Framing can end (done, nothing to do, failed, abandoned) passes here
+  if (aiFramingWaiter) { const w = aiFramingWaiter; aiFramingWaiter = null; w(); }
+}
+
+/* Run AI Framing on a Result and wait for it (the bulk render, bulk.js): the same flow as the button, on
+   the Result made active. Resolves {ok, setup, note}; `setup` = the optional packages are missing. */
+let aiFramingWaiter = null;
+async function aiFramingForResult(id) {
+  if (id !== activeResultId && typeof switchResult === "function") {
+    switchResult(id);
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  if (!activeClip?.spans?.length) return { ok: false, setup: false, note: "no moments" };
+  const finished = new Promise((resolve) => { aiFramingWaiter = resolve; });
+  aiFramingStart();
+  await finished;
+  const text = $("#aiFramingStatusText")?.textContent || "";
+  const failed = /^AI Framing failed|couldn't confidently|another Result|no speech detected/i.test(text);
+  return { ok: !failed, setup: /requirements-ai-framing|setup problem/i.test(text), note: text.replace(/^AI Framing:?\s*/i, "").slice(0, 80) };
 }
 
 /* `done`/`total` are position WITHIN that stage only (e.g. which span

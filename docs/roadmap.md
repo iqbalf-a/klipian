@@ -2041,6 +2041,24 @@ setiap Result harus dibuka lalu dirender satu per satu.
   `expected.json` dan dicek dengan tangan pada angka kuncinya. Fixture baseline render (`request.json`)
   adalah request tanpa dokumen project, jadi tidak bisa disusun ulang dari project.
 
+**Fase 2 dan 3 selesai (2026-10-21).**
+- `POST /api/render` menerima `{project, results:[…]}`: server menyusun request tiap Result dari project tersimpan
+  dan menjalankannya satu per satu sebagai satu job (`jobs.start_project_render`); tiap klip mencatat request
+  terakhir, baris jadwal Draft, dan entri History persis seperti render satuan (Guest tanpa baris jadwal). Cancel
+  per klip dan Cancel all. Render satuan editor sekarang menyimpan project lalu hanya mengirim id Result; bentuk
+  lama `{video, clips}` tetap ada untuk CLI/replay dan tes. Bukti byte: render dari editor untuk satu Result
+  salinan project ian sama persis (md5) dengan replay request lamanya.
+- `POST /api/render/plan`: ringkasan sebelum mulai (klip, total durasi, perkiraan dari kecepatan render terakhir
+  atau 30 dtk per klip, yang ditolak dan alasannya).
+- Editor, layar Clips: daftar "All Results" dengan centang, "Select all from this brief" (Result dengan
+  `importId` yang sama; yang lama tanpa id: semua Result yang hanya berisi saran AI), "Render selected (N)", dan
+  tombol baru "As its own Result" di saran AI (satu Result per saran yang dicentang, karena impor hanya membuat
+  saran, bukan Result). Pilihan "Run AI Framing first for clips without framing" (mati secara bawaan) menjalankan
+  alur AI Framing editor per Result di layar Framing, menyimpan titiknya ke Result, lalu merender; kalau paket
+  opsionalnya tidak ada, klip dirender dengan framing bawaan.
+- selftest `batch`: urutan, penolakan beralasan, baris jadwal dan request terakhir, cancel satu/yang sedang
+  jalan/semua, Guest.
+
 **Status:** dikirim ke sesi eksekusi 2026-10-21.
 
 ### P24 — Find clips lewat Claude API (tanpa salin-tempel)

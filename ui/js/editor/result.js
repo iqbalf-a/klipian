@@ -131,6 +131,7 @@ function resultAsClip() {
    calls from screen switches don't become a burden. */
 function renderResult() {
   if (typeof saveProject === "function") saveProject();
+  if (typeof renderAllResults === "function") renderAllResults();
   const list = $("#resultList");
   const total = $("#resultTotal");
   if (!list) return;
@@ -682,11 +683,43 @@ function updateRecButton() {
   const n = document.querySelectorAll("#recList input:checked").length;
   b.disabled = n === 0;
   b.textContent = n ? `Add ${n} to Result` : "Add to Result";
+  const each = $("#recEachBtn");
+  if (each) { each.disabled = n === 0; each.textContent = n > 1 ? `${n} as separate Results` : "As its own Result"; }
 }
 
 /* ---------- events ---------- */
 
+/* A Result made only of suggestions keeps the import of the first one (bulk.js: "Select all from this brief"). */
+function tagResultWithImport(suggestions) {
+  const slot = (typeof SAVED_RESULTS !== "undefined") ? SAVED_RESULTS.find((r) => r.id === activeResultId) : null;
+  const first = suggestions.find((k) => k?.importId);
+  if (slot && first && !slot.importId && RESULT.length && RESULT.every((r) => r.source === "ai")) slot.importId = first.importId;
+  if (typeof renderAllResults === "function") renderAllResults();
+}
+
 $("#recList")?.addEventListener("change", updateRecButton);
+
+/* "Each as its own Result": a Result per ticked suggestion (the first goes into the open Result when that is
+   still empty), so a whole brief can be ticked in the Results list and rendered at once (bulk.js). */
+$("#recEachBtn")?.addEventListener("click", () => {
+  const selected = [...document.querySelectorAll("#recList input:checked")];
+  const candidates = DATA.candidates || [];
+  let made = 0, skipped = 0;
+  for (const c of selected) {
+    const k = candidates[Number(c.dataset.rec)];
+    c.checked = false;
+    if (!k) continue;
+    if (RESULT.length && typeof newResult === "function") newResult();
+    if (addToResult(k.startSec, k.endSec, k.title, "ai")) { skipped++; continue; }
+    if (typeof carryPostFrom === "function") carryPostFrom([k]);
+    if (typeof carryAngleFrom === "function") carryAngleFrom([k]);
+    tagResultWithImport([k]);
+    made++;
+  }
+  updateRecButton();
+  $("#editNote").textContent = `${made} Result${made === 1 ? "" : "s"} made, one per suggestion`
+    + (skipped ? ` · ${skipped} skipped (invalid timing)` : "") + ". Tick them below to render them together.";
+});
 
 $("#recAddBtn")?.addEventListener("click", () => {
   const selected = [...document.querySelectorAll("#recList input:checked")];
@@ -706,6 +739,7 @@ $("#recAddBtn")?.addEventListener("click", () => {
   // The first suggestion's post text comes along, into an empty one (post.js).
   if (typeof carryPostFrom === "function") carryPostFrom(added);
   if (typeof carryAngleFrom === "function") carryAngleFrom(added);
+  tagResultWithImport(added);
   // Overlapping suggestions are merged into one span on purpose, but adding
   // three and seeing one row appear reads as two of them being dropped.
   const parts = [];

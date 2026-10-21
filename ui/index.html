@@ -550,6 +550,8 @@
             <span class="data" id="recNote" role="status">none yet</span>
             <!-- After an import replaced earlier suggestions: gives them back (roundtrip.js). -->
             <button class="btn quiet" id="recUndo" type="button" hidden>Undo import</button>
+            <button class="btn" id="recEachBtn" type="button" disabled
+                    title="Make a separate Result of each ticked suggestion, to render them together">As its own Result</button>
             <button class="btn main" id="recAddBtn" disabled>Add to Result</button>
           </div>
           <!-- Play button in each row runs #tlPreviewVideo in the Timeline
@@ -565,6 +567,19 @@
             <button class="btn quiet" id="resultClearBtn" disabled>Clear</button>
           </div>
           <div class="result-list" id="resultList"></div>
+        </div>
+
+        <!-- Every Result of the project, to render several at once (bulk.js) -->
+        <div class="panel fit allres">
+          <div class="result-head">
+            <span class="eyebrow">All Results</span>
+            <span class="data" id="allResNote" role="status"></span>
+            <button class="btn quiet" id="bulkSelectBrief" type="button" title="Tick the Results made from the same Claude import">Select all from this brief</button>
+            <button class="btn quiet" id="bulkSelectAll" type="button">All</button>
+            <button class="btn quiet" id="bulkSelectNone" type="button">None</button>
+            <button class="btn main" id="bulkRenderBtn" type="button" disabled>Render selected</button>
+          </div>
+          <div class="allres-list" id="allResList"></div>
         </div>
 
       </section>
@@ -1154,6 +1169,7 @@
 <script src="/ui/js/editor/angle.js?v=1790703163808"></script>
 <script src="/ui/js/editor/compose.js?v=1790703163808"></script>
 <script src="/ui/js/editor/projects.js?v=1790703163808"></script>
+<script src="/ui/js/editor/bulk.js?v=1790703163808"></script>
 <!-- The explanation behind a cue chip's (i): one floating box (cues.js). -->
 <div class="cue-tip" id="cueTip" role="tooltip" hidden></div>
 </body>

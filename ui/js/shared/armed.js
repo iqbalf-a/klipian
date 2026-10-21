@@ -9,15 +9,17 @@
    ========================================================================== */
 
 /* ---------- confirmDialog: the confirmation of a destructive action ----------
-   confirmDialog({ title, message, warning, confirmText = "Delete", tone = "danger", cancelText = "Cancel" })
+   confirmDialog({ title, message, warning, body, confirmText = "Delete", tone = "danger", cancelText = "Cancel" })
      -> Promise<boolean>. A native <dialog>: focus starts on Cancel; Esc, the ✕, Cancel and a click on the
-     backdrop answer false; the red button answers true (Enter on it too). tone "strong" is for what is
+     backdrop answer false; the red button answers true (Enter on it too). `body` is an element shown under the
+     message (the caller keeps a reference and can read its fields after the answer). tone "primary" is for a
+     question that is not a deletion: the button is the accent colour. tone "strong" is for what is
      already out in the world (a posted clip, a profile, a YouTube connection): a heavier red, and the
      `warning` line stands out. Only one is open at a time (a new one answers the old one false). The Undo
      toast of an action is separate and stays: this replaces the confirm step only. */
 let _confirmOpen = null;
 
-function confirmDialog({ title = "Are you sure?", message = "", warning = "", confirmText = "Delete",
+function confirmDialog({ title = "Are you sure?", message = "", warning = "", body = null, confirmText = "Delete",
                          tone = "danger", cancelText = "Cancel" } = {}) {
   _confirmOpen?.(false);
   return new Promise((resolve) => {
@@ -45,6 +47,7 @@ function confirmDialog({ title = "Are you sure?", message = "", warning = "", co
     actions.append(cancel, ok);
     dlg.append(head);
     if (message) dlg.append(el("p", "confirm-msg", message));
+    if (body) dlg.append(body);
     if (warning) dlg.append(el("p", "confirm-warn", warning));
     dlg.append(actions);
 
@@ -63,6 +66,7 @@ function confirmDialog({ title = "Are you sure?", message = "", warning = "", co
     ok.addEventListener("click", () => finish(true));
     dlg.addEventListener("cancel", (e) => { e.preventDefault(); finish(false); });      // Esc
     dlg.addEventListener("click", (e) => {                                              // the backdrop
+      if (e.target !== dlg) return;       // a click inside (a field of the body, a key press on it) is not the backdrop
       const r = dlg.getBoundingClientRect();
       if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) finish(false);
     });
