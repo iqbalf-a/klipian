@@ -268,6 +268,17 @@
           <button class="ml-auto ws-close" type="button" id="ytBulkClose" title="Close (an upload that is running goes on)">✕</button>
         </div>
         <p class="text-[12px] text-text-faint" id="ytBulkQuota" role="status"></p>
+        <!-- One mode for the whole run, always Schedule when the dialog opens (clips.js): "Publish now" sends every
+             row public at once, and says so. -->
+        <div class="yt-mode" id="ytModeBar" role="radiogroup" aria-label="When to upload">
+          <button type="button" class="yt-mode-opt" role="radio" aria-checked="true" data-ytmode="schedule">Schedule</button>
+          <button type="button" class="yt-mode-opt" role="radio" aria-checked="false" data-ytmode="now">Publish now</button>
+        </div>
+        <div class="yt-now-warn" id="ytNowWarn" role="alert" hidden>
+          <p><b>These <span id="ytNowCount">0</span> videos go PUBLIC on YouTube right away</b>, one after another, as soon as each
+            finishes uploading. This cannot be undone from klipian.</p>
+          <p class="yt-now-sub">Shorts posted at the same moment tend to compete with each other: spacing them out (Schedule) usually does better.</p>
+        </div>
         <!-- Auto-fill: dates and times for the clips that have none (saved to the rows themselves). -->
         <div class="yt-autofill" id="ytAutofill" hidden>
           <span class="ws-fhead">Schedule <span class="text-text-faint">(local time)</span></span>

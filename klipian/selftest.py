@@ -1638,6 +1638,8 @@ def check_bulk() -> tuple[str, str]:
         refresh_error = None
         fail_on = None                  # title that gets a quota error
         slow = False
+        bodies: list = []               # every body sent, to see what was asked of YouTube
+        public_now = False              # report a video without publishAt as public
 
         @classmethod
         def refresh(cls, token):
@@ -1651,6 +1653,7 @@ def check_bulk() -> tuple[str, str]:
         def upload(cls, token, file, body, progress, cancelled):
             title = body["snippet"]["title"]
             order.append(title)
+            cls.bodies.append(body)
             if title == cls.fail_on:
                 raise youtube.map_http_error(403, "quotaExceeded")
             for i in range(1, 4):
@@ -1661,6 +1664,8 @@ def check_bulk() -> tuple[str, str]:
 
         @classmethod
         def video_status(cls, token, video_id):
+            if cls.public_now:
+                return {"privacy": "public", "upload": "processed"}
             return {"privacy": "private", "upload": "processed", "publishAt": "2031-01-01T00:00:00Z"}
 
         @classmethod
@@ -1792,6 +1797,70 @@ def check_bulk() -> tuple[str, str]:
         FakeNet.slow = False
         if sc["state"] != "cancelled" or [r["state"] for r in sc["rows"]] != ["done", "pending"]:
             problems.append(f"cancel should finish the file being sent and stop: {sc}")
+
+        # --- "now" mode (Publish now): every row public at once, whatever its date and time; one mode per run
+        FakeNet.bodies.clear()
+        FakeNet.public_now = True
+        nw1 = row("Now Satu")                                          # has a future date: ignored
+        nw2 = row("Now Dua", date="", time="")                         # no date and time: not a reason to refuse
+        nw3 = row("Now Tiga", date=(_dt.datetime.now() - _dt.timedelta(days=2)).strftime("%Y-%m-%d"))   # a past date: likewise
+        n_title, n_long, n_gone = row(" "), row("y" * 101), row("Now Hilang", file="gone2.mp4")
+        n_done = row("Now Sudah")
+        schedule.set_fields(n_done, {"videoId": "OLD123", "status": "Posted"})
+        ids_now = [nw1, nw2, nw3, n_title, n_long, n_gone, n_done]
+        pn = youtube.bulk_plan(ids_now, "now")
+        if pn.get("mode") != "now" or [r["id"] for r in pn["ok"]] != [nw1, nw2, nw3] or any(r["publishAt"] for r in pn["ok"]):
+            problems.append(f"the 'now' plan should accept the three rows with no publishAt: {pn.get('mode')} {[r['id'] for r in pn['ok']]}")
+        if {r["id"] for r in pn["refused"]} != {n_title, n_long, n_gone, n_done}:
+            problems.append(f"the other refusals must stand in 'now' mode: {[r['id'] for r in pn['refused']]}")
+        if any(r.get("needsSchedule") for r in pn["refused"]) or [r["when"] for r in pn["ok"]] != ["now"] * 3:
+            problems.append("in 'now' mode nothing asks for a schedule and every row goes 'now'")
+        ps = youtube.bulk_plan(ids_now)                                # the default is still Schedule
+        if ps.get("mode") != "schedule" or nw2 in [r["id"] for r in ps["ok"]] or nw3 in [r["id"] for r in ps["ok"]]:
+            problems.append("the default mode must stay Schedule (no date / a past date refused)")
+        for bad in ("later", "NOW", "publish"):
+            for fn in (lambda b=bad: youtube.bulk_plan([nw1], b), lambda b=bad: youtube.start_bulk([nw1], b)):
+                try:
+                    fn()
+                    problems.append(f"mode {bad!r} should be refused: one mode per run, from the known two")
+                except youtube.YouTubeError:
+                    pass
+        before = dt.datetime.now()
+        jn = youtube.start_bulk(ids_now, "now")
+        sn = wait(jn, youtube.bulk_state)
+        if sn["state"] != "done" or sn.get("mode") != "now" or [r["state"] for r in sn["rows"]] != ["done"] * 3:
+            problems.append(f"the 'now' queue should send the three accepted rows: {sn}")
+        if len(FakeNet.bodies) != 3 or any(b["status"].get("privacyStatus") != "public" or "publishAt" in b["status"] for b in FakeNet.bodies):
+            problems.append(f"'now' uploads must be public with no publishAt: {[b['status'] for b in FakeNet.bodies]}")
+        for rid in (nw1, nw2, nw3):
+            r = schedule.get_row(rid)
+            when = dt.datetime.strptime(f"{r.get('date')} {r.get('time')}", "%Y-%m-%d %H:%M")
+            if r.get("status") != "Posted" or not r.get("videoId") or "youtube.com/shorts/" not in (r.get("youtubeUrl") or "") \
+                    or abs((when - before.replace(second=0, microsecond=0)).total_seconds()) > 180:
+                problems.append(f"a 'now' row should be Posted with the moment it went live, a video id and a link: {r}")
+        for rid in (n_title, n_long, n_gone, n_done):
+            if schedule.get_row(rid).get("videoId") not in (None, "", "OLD123"):
+                problems.append("a refused row was uploaded in 'now' mode")
+        # cancel after the current file, and the quota stop, in 'now' mode
+        FakeNet.slow = True
+        k1, k2 = row("Kan Uno", date="", time=""), row("Kan Dos", date="", time="")
+        jk = youtube.start_bulk([k1, k2], "now")
+        time.sleep(0.2)
+        youtube.cancel_bulk(jk)
+        sk = wait(jk, youtube.bulk_state)
+        FakeNet.slow = False
+        if sk["state"] != "cancelled" or [r["state"] for r in sk["rows"]] != ["done", "pending"] or schedule.get_row(k2).get("videoId"):
+            problems.append(f"cancel in 'now' mode should finish the file being sent and stop: {sk}")
+        z1, z2, z3 = row("Z Uno", date="", time=""), row("Z Dos", date="", time=""), row("Z Tres", date="", time="")
+        FakeNet.fail_on = "Z Dos"
+        jz = youtube.start_bulk([z1, z2, z3], "now")
+        sz = wait(jz, youtube.bulk_state)
+        FakeNet.fail_on = None
+        if sz["state"] != "stopped" or [r["state"] for r in sz["rows"]] != ["done", "failed", "pending"] or schedule.get_row(z3).get("videoId"):
+            problems.append(f"a quota error in 'now' mode should stop the queue and leave the rest: {sz}")
+        FakeNet.public_now = False
+        if youtube.bulk_state(jn).get("mode") != "now" or youtube.bulk_state(jid).get("mode") != "schedule":
+            problems.append("a run keeps the mode it started with")
 
         # --- one queue per profile; the local counter stops at the limit
         FakeNet.slow = True

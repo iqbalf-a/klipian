@@ -498,8 +498,11 @@ _BUSY_ROWS: set[tuple[str, str]] = set()             # (profile, row id) with an
 def _publish_at(row: dict, publish_now: bool, bulk: bool = False):
     """The RFC 3339 UTC time to schedule at, or None to publish at once. The row's date and
     time are the person's local ones. A date without a time (or the reverse) is refused;
-    a time in the past is refused too, rather than quietly published now."""
+    a time in the past is refused too, rather than quietly published now. A bulk run in "now" mode
+    (bulk and publish_now) publishes every row at once, whatever date and time it has."""
     import datetime as dt
+    if bulk and publish_now:
+        return None
     date, time_ = (row.get("date") or "").strip(), (row.get("time") or "").strip()
     if not date and not time_:
         if bulk:
@@ -560,7 +563,8 @@ def prepare(row: dict, publish_now: bool = False, probe_video: bool = True, bulk
                        "privacyStatus": "private" if publish_at else "public",
                        **({"publishAt": publish_at} if publish_at else {})}}
     return {"file": file, "body": body, "publishAt": publish_at,
-            "title": final["title"], "description": final["description"]}
+            "title": final["title"], "description": final["description"],
+            "goLive": bool(bulk and publish_now)}             # a bulk "now": the row gets the moment it went live
 
 
 def require_linked() -> dict:
@@ -628,7 +632,7 @@ def _do_upload(row: dict, spec: dict, token: dict, progress, cancelled) -> dict:
     plat = (row.get("platform") or "")
     if "YouTube" not in plat:
         fields["platform"] = "YouTube + TikTok" if plat == "TikTok" else "YouTube"
-    if not spec["publishAt"] and not row.get("date"):
+    if not spec["publishAt"] and (spec.get("goLive") or not row.get("date")):
         import datetime as dt
         now = dt.datetime.now()
         fields["date"], fields["time"] = now.strftime("%Y-%m-%d"), now.strftime("%H:%M")
@@ -688,11 +692,26 @@ _BULKS: dict[str, dict] = {}
 _BULK_ACTIVE: set[str] = set()                         # profiles with a queue running
 
 
-def bulk_plan(ids: list) -> dict:
+BULK_MODES = ("schedule", "now")
+
+
+def _bulk_mode(mode) -> str:
+    """One mode for a whole run: "schedule" (each row at its own date and time, the default) or "now"
+    (every row public at once). Anything else is refused: the client never mixes the two."""
+    mode = "schedule" if mode in (None, "") else mode
+    if mode not in BULK_MODES:
+        raise YouTubeError("not_ready", f"Unknown upload mode: {mode!r}.")
+    return mode
+
+
+def bulk_plan(ids: list, mode: str = "schedule") -> dict:
     """Which of these rows can be uploaded now, and why the others cannot, and where today's
-    quota stands. Nothing is sent. A bulk upload never publishes at once: a row with no date and
-    time is refused here (single upload has "Publish now")."""
+    quota stands. Nothing is sent. In "schedule" mode a row with no date and time is refused here;
+    in "now" mode every row is public at once, so the date and time are not asked for (every other
+    refusal stands: no file, no title, a long title, already uploaded)."""
     from . import schedule
+    mode = _bulk_mode(mode)
+    now = mode == "now"
     if paths.current_profile() == GUEST:
         raise YouTubeError("none", "The Guest has no YouTube account.")
     ok, refused = [], []
@@ -702,33 +721,37 @@ def bulk_plan(ids: list) -> dict:
             refused.append({"id": rid, "title": "(gone)", "message": "That clip is not in the schedule any more.", "code": "not_ready"})
             continue
         try:
-            spec = prepare(row, publish_now=False, bulk=True)
+            spec = prepare(row, publish_now=now, bulk=True)
             ok.append({"id": rid, "title": row.get("title") or "", "finalTitle": spec["title"], "publishAt": spec["publishAt"],
-                       "when": f"{row.get('date')} {row.get('time')}", "date": row.get("date") or "", "time": row.get("time") or ""})
+                       "when": "now" if now else f"{row.get('date')} {row.get('time')}",
+                       "date": row.get("date") or "", "time": row.get("time") or ""})
         except YouTubeError as exc:
             # needsSchedule: the ONLY thing wrong is the upload date/time (none, half, past), so the
             # dialog can offer inputs for it right in the row.
             try:
-                _publish_at(row, False, bulk=True)
+                _publish_at(row, now, bulk=True)
                 needs = False
             except YouTubeError as again:
                 needs = again.message == exc.message
             refused.append({"id": rid, "title": row.get("title") or "(untitled)", "message": exc.message, "code": exc.code,
                             "needsSchedule": needs, "date": row.get("date") or "", "time": row.get("time") or ""})
     used = uploads_today()
-    return {"ok": ok, "refused": refused, "usedToday": used, "limit": UPLOAD_QUOTA_PER_DAY,
+    return {"mode": mode, "ok": ok, "refused": refused, "usedToday": used, "limit": UPLOAD_QUOTA_PER_DAY,
             "running": paths.current_profile() in _BULK_ACTIVE,
             "remaining": max(0, UPLOAD_QUOTA_PER_DAY - used),
             "overQuota": max(0, len(ok) - max(0, UPLOAD_QUOTA_PER_DAY - used))}
 
 
-def start_bulk(ids: list) -> str:
+def start_bulk(ids: list, mode: str = "schedule") -> str:
     """Upload the rows that pass bulk_plan, one after another, in a background job. Stops
     cleanly on a quota error (the rest stay as they are), on an expired connection, and
-    when cancelled (after the file being sent)."""
+    when cancelled (after the file being sent). `mode` is one for the whole run: "schedule" or
+    "now" (every row public at once)."""
     import contextvars
     from . import schedule
-    plan = bulk_plan(ids)
+    mode = _bulk_mode(mode)
+    now = mode == "now"
+    plan = bulk_plan(ids, mode)
     if not plan["ok"]:
         raise YouTubeError("not_ready", "None of these clips can be uploaded: " + (plan["refused"][0]["message"] if plan["refused"] else "nothing selected."))
     saved = require_linked()
@@ -739,7 +762,7 @@ def start_bulk(ids: list) -> str:
         _BULK_ACTIVE.add(profile)
     jid = uuid.uuid4().hex[:10]
     rows = [{"id": r["id"], "title": r["title"], "state": "pending", "progress": 0.0, "message": ""} for r in plan["ok"]]
-    job = {"state": "running", "rows": rows, "cancel": False, "profile": profile, "note": ""}
+    job = {"state": "running", "rows": rows, "cancel": False, "profile": profile, "note": "", "mode": mode}
     with _UPLOAD_LOCK:
         _BULKS[jid] = job
 
@@ -759,7 +782,7 @@ def start_bulk(ids: list) -> str:
                     _BUSY_ROWS.add(key)
                 try:
                     row = schedule.get_row(item["id"])
-                    spec = prepare(row, publish_now=False, bulk=True)  # again: the file or the time may have changed
+                    spec = prepare(row, publish_now=now, bulk=True)  # again: the file or the time may have changed
                     item["state"] = "uploading"
                     done = _do_upload(row, spec, saved["token"], lambda p, it=item: it.__setitem__("progress", round(p, 3)),
                                       lambda: False)                  # cancel waits for the file being sent
@@ -791,7 +814,7 @@ def bulk_state(jid: str) -> dict:
         job = _BULKS.get(jid)
         if not job:
             return {"state": "missing"}
-        return {"state": job["state"], "note": job["note"], "rows": [dict(r) for r in job["rows"]],
+        return {"state": job["state"], "mode": job.get("mode", "schedule"), "note": job["note"], "rows": [dict(r) for r in job["rows"]],
                 "usedToday": uploads_today(), "limit": UPLOAD_QUOTA_PER_DAY}
 
 

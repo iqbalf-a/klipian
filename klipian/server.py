@@ -780,9 +780,9 @@ class Handler(BaseHTTPRequestHandler):
         if action == "check":
             return self._youtube_reply(_youtube.check)
         if action == "bulk-plan":
-            return self._youtube_reply(lambda: _youtube.bulk_plan([str(i) for i in (req.get("ids") or [])]))
+            return self._youtube_reply(lambda: _youtube.bulk_plan([str(i) for i in (req.get("ids") or [])], str(req.get("mode") or "schedule")))
         if action == "bulk-start":
-            return self._youtube_reply(lambda: {"id": _youtube.start_bulk([str(i) for i in (req.get("ids") or [])])})
+            return self._youtube_reply(lambda: {"id": _youtube.start_bulk([str(i) for i in (req.get("ids") or [])], str(req.get("mode") or "schedule"))})
         if action == "bulk-cancel":
             return self._youtube_reply(lambda: _youtube.cancel_bulk(str(req.get("id") or "")))
         if action == "upload":

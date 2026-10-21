@@ -741,14 +741,17 @@ clipDetailForm?.addEventListener("click", async (e) => {
 
 /* ---------- upload to YouTube (P16): many rows, one queue ---------- */
 
-const ytBulk = { jobId: null, ids: [], mode: "plan" };   // mode: plan | running | ended
+const ytBulk = { jobId: null, ids: [], mode: "plan", publishMode: "schedule" };   // mode: plan | running | ended; publishMode: schedule | now
 
 /* The one secondary button: Cancel (plan: closes, sends nothing), "Cancel after this file"
    (queue running), Close (queue over). */
 function ytBulkMode(mode) {
   ytBulk.mode = mode;
   const af = $("#ytAutofill");
-  if (af) af.hidden = mode !== "plan";
+  if (af) af.hidden = mode !== "plan" || ytBulk.publishMode === "now";
+  const bar = $("#ytModeBar");
+  if (bar) bar.hidden = mode !== "plan";
+  if (mode !== "plan" && $("#ytNowWarn")) $("#ytNowWarn").hidden = ytBulk.publishMode !== "now" || mode === "ended";
   $("#ytBulkCancel").textContent = mode === "running" ? "Cancel after this file" : mode === "ended" ? "Close" : "Cancel";
 }
 
@@ -756,7 +759,10 @@ function ytBulkGoState(enabled, count, why) {
   const go = $("#ytBulkGo");
   go.hidden = false;
   go.disabled = !enabled;
-  go.textContent = count ? `Upload ${count}` : "Upload";
+  const now = ytBulk.publishMode === "now";
+  go.textContent = now ? (count ? `Publish ${count} now` : "Publish now") : (count ? `Upload ${count}` : "Upload");
+  go.classList.toggle("danger", now);                  // "Publish now" is not the friendly accent button
+  go.classList.toggle("main", !now);
   go.title = enabled ? "" : (why || "");
   // The reason in plain sight, not only in the tooltip of a button that looks active.
   const reason = $("#ytBulkWhy");
@@ -801,6 +807,7 @@ const isFutureSlot = (date, time) => {
 async function openYtBulk(ids, what) {
   const dlg = $("#ytBulkDialog"), list = $("#ytBulkList"), note = $("#ytBulkNote");
   $("#ytBulkTitle").textContent = `Upload ${what} to YouTube`;
+  ytBulkSetPublishMode("schedule");                    // never remembered: every time the dialog opens it is Schedule
   ytBulkMode("plan");
   ytBulkGoState(false, 0, "Checking…");
   note.textContent = ""; list.innerHTML = "";
@@ -821,13 +828,31 @@ async function openYtBulk(ids, what) {
   await ytBulkPlan();
 }
 
+/* The mode of the whole run: Schedule (each row at its own date and time) or Publish now (every row public at once). */
+function ytBulkSetPublishMode(mode) {
+  ytBulk.publishMode = mode;
+  document.querySelectorAll("[data-ytmode]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.ytmode === mode)));
+  const now = mode === "now";
+  if ($("#ytNowWarn")) $("#ytNowWarn").hidden = !now;
+  if ($("#ytAutofill")) $("#ytAutofill").hidden = now || ytBulk.mode !== "plan";
+}
+
+$("#ytModeBar")?.addEventListener("click", async (e) => {
+  const opt = e.target.closest("[data-ytmode]");
+  if (!opt || ytBulk.mode !== "plan" || opt.dataset.ytmode === ytBulk.publishMode) return;
+  ytBulkSetPublishMode(opt.dataset.ytmode);
+  ytBulk.confirmed = false;
+  ytBulkGoState(false, 0, "Checking…");
+  await ytBulkPlan();                                  // the server judges again, in the new mode
+});
+
 /* Ask the server for the plan of the rows asked for. Returns it (or null when it cannot be read). */
 async function ytBulkFetch() {
   const note = $("#ytBulkNote");
   try {
     ytBulk.status = await (await fetch("/api/youtube/status")).json();
     const plan = await (await fetch("/api/youtube/bulk-plan", {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: ytBulk.request }),
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: ytBulk.request, mode: ytBulk.publishMode }),
     })).json();
     if (plan.error) { note.textContent = plan.error; return null; }
     return plan;
@@ -856,7 +881,7 @@ function ytBulkDraw(plan) {
     if (r.okRow) {
       return `<div class="yt-bulk-row sendable" data-kind="ok" data-state="pending" data-id="${escapeHTML(r.id)}" data-date="${escapeHTML(r.date || "")}" data-time="${escapeHTML(r.time || "")}">
         <span class="yt-bulk-icon">✓</span><span class="yt-bulk-title" title="${t}">${t}</span>
-        <span class="yt-bulk-msg"><span class="yt-bulk-saved">${escapeHTML(fmtWhen(r.date, r.time) || r.when)}</span>${inputs}</span></div>`;
+        <span class="yt-bulk-msg"><span class="yt-bulk-saved">${ytBulk.publishMode === "now" ? "publishes right away" : escapeHTML(fmtWhen(r.date, r.time) || r.when)}</span>${inputs}</span></div>`;
     }
     const detail = `<button class="btn sm" type="button" data-ytdetail="${escapeHTML(r.id)}"${r.needsSchedule || /upload date|date and time/i.test(r.message || "") ? ' data-focus="date"' : ""}>Detail</button>`;
     if (r.needsSchedule) {
@@ -867,7 +892,7 @@ function ytBulkDraw(plan) {
     return `<div class="yt-bulk-row" data-kind="refused" data-state="failed" data-id="${escapeHTML(r.id)}"><span class="yt-bulk-icon">✕</span>
       <span class="yt-bulk-title" title="${t}">${t}</span><span class="yt-bulk-msg">${escapeHTML(r.message)} ${detail}</span></div>`;
   }).join("");
-  $("#ytAutofill").hidden = false;
+  $("#ytAutofill").hidden = ytBulk.publishMode === "now";
   ytBulkSync();
 }
 
@@ -891,8 +916,9 @@ function ytBulkSync() {
   if (!plan) return;
   const all = $("#ytAfAll").checked;
   const rows = [...document.querySelectorAll("#ytBulkList .yt-bulk-row")];
-  // After the server refused some rows at Upload, the list shows its verdict as it is: no proposals.
-  const targets = ytBulk.confirmed ? [] : rows.filter((r) => r.dataset.kind === "sched" || (all && r.dataset.kind === "ok"));
+  // After the server refused some rows at Upload, the list shows its verdict as it is: no proposals. In Publish now
+  // there is no schedule at all, so no row takes proposals or inputs.
+  const targets = (ytBulk.confirmed || ytBulk.publishMode === "now") ? [] : rows.filter((r) => r.dataset.kind === "sched" || (all && r.dataset.kind === "ok"));
   const proposal = ytBulkSlots(targets.length);
   $("#ytAfMsg").textContent = proposal.error && targets.length ? proposal.error : "";
   // The controls say what they do: one clip needs no gap; with a gap of 0 the date and time are shared by all.
@@ -946,6 +972,7 @@ function ytBulkSync() {
     if (ok) { sendable++; ytBulk.sendIds.push(id); }
   });
   ytBulk.sendable = sendable;
+  if ($("#ytNowCount")) $("#ytNowCount").textContent = String(sendable);
   const sends = Math.min(sendable, plan.remaining);
   $("#ytBulkQuota").textContent = `Today's quota: ${plan.usedToday} of ${plan.limit} uploads used · this run sends ${sends}`
     + (sendable > plan.remaining ? ` · ${sendable - plan.remaining} will not fit today and stay as they are` : "");
@@ -1014,7 +1041,7 @@ async function ytBulkWatch() {
     ytBulk.jobId = null;
     await loadClips();
     const done = (s.rows || []).filter((r) => r.state === "done").length;
-    showToast(`${done} clip${done === 1 ? "" : "s"} uploaded to YouTube`, { ms: 8000 });
+    showToast(`${done} clip${done === 1 ? "" : "s"} ${s.mode === "now" ? "published on" : "uploaded to"} YouTube`, { ms: 8000 });
     return;
   }
 }
@@ -1023,8 +1050,9 @@ $("#ytBulkGo")?.addEventListener("click", async (e) => {
   const go = e.currentTarget, note = $("#ytBulkNote");
   go.disabled = true; note.textContent = "Starting…";
   try {
+    const now = ytBulk.publishMode === "now";
     if (!ytBulk.confirmed) {
-      const items = [...ytBulk.effective].map(([id, w]) => ({ id, date: w.date, time: w.time }));
+      const items = now ? [] : [...ytBulk.effective].map(([id, w]) => ({ id, date: w.date, time: w.time }));
       if (items.length) note.textContent = `Saving ${items.length} schedule${items.length === 1 ? "" : "s"}…`;
       if (!(await ytBulkSaveSchedule(items))) { go.disabled = false; return; }
       const plan = await ytBulkFetch();
@@ -1041,8 +1069,23 @@ $("#ytBulkGo")?.addEventListener("click", async (e) => {
       }
       ytBulk.ids = plan.ok.map((r) => r.id);
     }
+    if (now) {
+      // The last word before anything goes public: a strong confirmation (focus starts on Cancel).
+      const known = new Map((ytBulk.plan?.ok || []).map((r) => [r.id, r.finalTitle || r.title]));
+      const titles = ytBulk.ids.map((id) => known.get(id) || id);
+      const list = document.createElement("ul");
+      list.className = "bulk-plan-list";
+      for (const t of titles.slice(0, 12)) { const li = document.createElement("li"); li.textContent = t; list.append(li); }
+      if (titles.length > 12) { const li = document.createElement("li"); li.textContent = `…and ${titles.length - 12} more`; list.append(li); }
+      const go2 = await confirmDialog({
+        title: `Publish ${ytBulk.ids.length} video${ytBulk.ids.length === 1 ? "" : "s"} now?`,
+        message: `These ${ytBulk.ids.length} video${ytBulk.ids.length === 1 ? "" : "s"} go PUBLIC on YouTube right away, one after another, as soon as each finishes uploading. This cannot be undone from klipian.`,
+        body: list, confirmText: "Publish now", tone: "strong",
+      });
+      if (!go2) { note.textContent = "Nothing was sent."; go.disabled = false; return; }
+    }
     const j = await (await fetch("/api/youtube/bulk-start", {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: ytBulk.ids }),
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: ytBulk.ids, mode: ytBulk.publishMode }),
     })).json();
     if (j.error) { note.textContent = j.error; go.disabled = false; return; }
     ytBulk.jobId = j.id;

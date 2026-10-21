@@ -227,6 +227,18 @@ button.bg-accent:disabled, .ws-accent-btn:disabled, button.bg-accent:disabled:ho
 .yt-bulk-tag[data-by="you"] { color: var(--text-muted); font-style: normal; }
 .yt-bulk-row[data-state="pending"] .yt-bulk-icon { color: oklch(.75 .16 145); }
 .yt-bulk-row [hidden] { display: none !important; }
+/* Schedule | Publish now: a segmented switch (not a button), and the warning that goes with "now". */
+.yt-mode { display: inline-flex; gap: 2px; padding: 3px; align-self: flex-start; background: var(--glass); border: 1px solid var(--glass-border); border-radius: var(--r-pill); }
+.yt-mode[hidden] { display: none; }
+.yt-mode-opt { font: inherit; font-size: 12px; font-weight: 650; padding: 5px 14px; border: 0; border-radius: var(--r-pill); background: transparent; color: var(--text-muted); cursor: pointer; }
+.yt-mode-opt:hover { color: var(--text); }
+.yt-mode-opt[aria-checked="true"] { background: var(--text); color: var(--bg-0); }
+.yt-mode-opt[data-ytmode="now"][aria-checked="true"] { background: var(--danger); color: #fff; }
+.yt-now-warn { padding: 10px 14px; border: 1px solid var(--danger); border-left-width: 4px; border-radius: var(--r-s); background: color-mix(in oklab, var(--danger) 10%, transparent);
+  color: var(--text); font-size: 12.5px; }
+.yt-now-warn p { margin: 0; }
+.yt-now-warn .yt-now-sub { margin-top: 4px; color: var(--text-muted); font-size: 12px; }
+.yt-now-warn[hidden] { display: none; }
 
 /* A clip with a video of its own: its file name under the title, and the picker in the new-clip row. */
 .ws-fileline { display: flex; align-items: center; gap: 6px; margin-top: 3px; font-size: 11px; color: var(--text-faint); min-width: 0; }
