@@ -210,7 +210,11 @@
       msg.textContent = "";
       if (act === "client") { file.click(); return; }
       if (act === "disconnect") {
-        if (!armedClick(b, { armedText: "Disconnect?", strong: true })) return;
+        if (!(await confirmDialog({
+          title: "Disconnect from YouTube?", tone: "strong", confirmText: "Disconnect",
+          message: "klipian asks Google to cancel its access and forgets this profile's login. Videos already uploaded stay on YouTube.",
+          warning: "Uploading and the status checks stop until you connect again.",
+        }))) return;
       }
       busy = true;
       try {
@@ -261,7 +265,10 @@
     } else if (item.dataset.pm === "settings") {
       openSettings();
     } else if (item.dataset.pm === "clear") {
-      if (!armedClick(item, { armedText: "Clear guest data?", strong: true })) return;
+      if (!(await confirmDialog({
+        title: "Clear the Guest data?", tone: "strong", confirmText: "Clear guest data",
+        message: "Everything the Guest made (sources, projects, renders) goes to the Recycle Bin.",
+      }))) return;
       try {
         await post("/api/profiles/clear-guest");
         location.href = "/";                  // the pages start empty again

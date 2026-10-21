@@ -260,7 +260,7 @@ $("#clipGone")?.addEventListener("click", () => {
   drawClips();
 });
 
-/* Discard / Delete row on a row whose file is gone: two clicks, so one stray click
+/* Discard / Delete row on a row whose file is gone: asked first (a dialog), so one stray click
    changes nothing. */
 $("#clipBody")?.addEventListener("click", async (e) => {
   const gone = e.target.closest("[data-gone]");
@@ -268,13 +268,17 @@ $("#clipBody")?.addEventListener("click", async (e) => {
   e.stopImmediatePropagation();
   const tr = gone.closest("tr[data-id]");
   if (!tr) return;
-  if (!armedClick(gone, { armedText: "Sure?" })) return;
-  if (gone.dataset.gone === "discard") {
+  const gtitle = (CLIPS.find((x) => x.id === tr.dataset.id)?.title || "").trim() || "(untitled)";
+  const discard = gone.dataset.gone === "discard";
+  if (!(await confirmDialog(discard
+    ? { title: "Discard this clip?", message: `${gtitle} — its video file is gone. It is marked Discarded and stays in the table.`, confirmText: "Discard" }
+    : { title: "Delete this clip?", message: `${gtitle} — its video file is gone.` }))) return;
+  if (discard) {
     const clip = collectRow(tr);
     clip.status = "Discarded";
     if (await saveClip(clip)) drawClips();
   } else {
-    await deleteClips([tr.dataset.id]);          // asked twice already; Undo follows
+    await deleteClips([tr.dataset.id]);          // asked already; Undo follows
   }
 }, true);
 
@@ -296,8 +300,11 @@ $("#clipBody")?.addEventListener("click", async (e) => {
   // field was touched and then cleared) holds nothing to lose: one click, no trash.
   if (c && isEmptyClip(c) && !c.fileMissing) { await deleteClips([id], { empty: true }); return; }
   const posted = c && (c.status === "Posted" || c.status === "Scheduled");
-  b.title = posted ? "Delete this posted clip? Its record and links are lost (Undo is offered for a few seconds)." : "Delete this clip";
-  if (!armedClick(b, { armedText: posted ? "Delete posted clip?" : "Delete?", strong: !!posted })) return;
+  const name = ((c && c.title) || "").trim() || "(untitled)";
+  if (!(await confirmDialog({
+    title: "Delete this clip?", message: name, tone: posted ? "strong" : "danger",
+    warning: posted ? "It is already on YouTube/TikTok; deleting the row does not remove the video there." : "",
+  }))) return;
   await deleteClips([id]);
 });
 
@@ -503,11 +510,14 @@ $("#clipSelectAll")?.addEventListener("change", (e) => {
 });
 
 $("#bulkDelete")?.addEventListener("click", async (e) => {
-  const btn = e.currentTarget;
   const n = SELECTED.size;
   if (!n) return;
-  const strong = [...SELECTED].some((id) => ["Posted", "Scheduled"].includes(CLIPS.find((c) => c.id === id)?.status));
-  if (!armedClick(btn, { armedText: strong ? `Delete ${n} (some posted)?` : `Delete ${n} clip${n === 1 ? "" : "s"}?`, strong })) return;
+  const posted = [...SELECTED].filter((id) => ["Posted", "Scheduled"].includes(CLIPS.find((c) => c.id === id)?.status)).length;
+  if (!(await confirmDialog({
+    title: `Delete ${n} clip${n === 1 ? "" : "s"}?`, tone: posted ? "strong" : "danger",
+    message: posted ? `${posted} of them ${posted === 1 ? "is" : "are"} Posted or Scheduled.` : "",
+    warning: posted ? "Those are already on YouTube/TikTok; deleting the rows does not remove the videos there." : "",
+  }))) return;
   await deleteClips([...SELECTED]);
 });
 

@@ -122,7 +122,7 @@ select.ws-input, .pager-size select, .ws-bulk select {
 .ws-add-schedule { white-space: nowrap; }
 #clipTable select[data-field="platform"] { min-width: 150px; }     /* "YouTube + TikTok" in full */
 
-/* Two-click delete buttons and the Undo notice (js/shared/armed.js). */
+/* The armed (two-click) button of Publish now and the Undo notice (js/shared/armed.js). */
 .armed.danger {
   color: var(--danger);
   border-color: var(--danger);
@@ -159,25 +159,6 @@ select.ws-input, .pager-size select, .ws-bulk select {
 }
 .toast-action:hover:not(:disabled) { background: var(--glass); }
 .toast-x { color: var(--text-faint); background: transparent; border: 0; cursor: pointer; font-size: 14px; }
-
-/* The Clips table's x: a bigger red button next to the row while it asks twice. */
-#clipTable td:last-child { position: relative; }
-.delete-btn.armed {
-  position: absolute;
-  right: 6px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: auto !important;
-  padding: 0 10px !important;
-  white-space: nowrap;
-  z-index: 6;
-  background: var(--bg-1);
-  border: 1px solid var(--danger);
-  font-size: 12px;
-}
-.delete-btn.armed.strong { background: var(--danger); color: #fff; }
-.ws-bulk .armed.danger { background: transparent; }
-.ws-bulk .armed.danger.strong { background: var(--danger); }
 
 /* The server is older than the page (js/shared/version.js). */
 .stale-banner {
@@ -257,3 +238,28 @@ button.bg-accent:disabled, .ws-accent-btn:disabled, button.bg-accent:disabled:ho
 /* A clip with a video of its own: its file name under the title, and the picker in the new-clip row. */
 .ws-fileline { display: flex; align-items: center; gap: 6px; margin-top: 3px; font-size: 11px; color: var(--text-faint); min-width: 0; }
 .ws-fileline .data { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* The confirmation dialog of a destructive action (confirmDialog in js/shared/armed.js). */
+dialog.confirm-dlg {
+  width: min(420px, calc(100vw - 32px)); padding: 18px 20px; border-radius: var(--r-m);
+  border: 1px solid var(--glass-border); background: var(--bg-2); color: var(--text);
+  box-shadow: var(--shadow-card);
+}
+dialog.confirm-dlg::backdrop { background: rgba(0, 0, 0, .6); }
+.confirm-dlg[data-tone="strong"] { border-color: var(--danger); }
+.confirm-head { display: flex; align-items: flex-start; gap: 12px; }
+.confirm-head h2 { margin: 0; font-size: 15px; font-weight: 800; line-height: 1.3; overflow-wrap: anywhere; }
+.confirm-x { margin-left: auto; border: 0; background: transparent; color: var(--text-faint); font-size: 16px; line-height: 1;
+  padding: 6px; border-radius: var(--r-s); cursor: pointer; }
+.confirm-x:hover { background: var(--glass); color: var(--text); }
+.confirm-msg { margin: 10px 0 0; font-size: 13px; color: var(--text-muted); overflow-wrap: anywhere; }
+.confirm-warn { margin: 10px 0 0; padding: 6px 10px; font-size: 12.5px; color: var(--danger);
+  border-left: 3px solid var(--danger); background: var(--glass); border-radius: 0 var(--r-s) var(--r-s) 0; overflow-wrap: anywhere; }
+.confirm-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+.confirm-cancel, .confirm-ok { font-size: 13px; padding: 6px 14px; border-radius: var(--r-s); cursor: pointer; }
+.confirm-cancel { border: 1px solid var(--glass-border); background: transparent; color: var(--text); }
+.confirm-cancel:hover { background: var(--glass); }
+.confirm-ok { border: 1px solid transparent; background: var(--danger); color: #fff; font-weight: 600; }
+.confirm-ok:hover { filter: brightness(1.1); }
+.confirm-dlg[data-tone="strong"] .confirm-ok { font-weight: 800; box-shadow: 0 0 0 2px color-mix(in oklab, var(--danger) 45%, transparent); }
+.confirm-dlg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

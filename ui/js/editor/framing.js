@@ -607,7 +607,7 @@ function renderFraming() {
 }
 
 /* Points that are not inside this Result's moments (see "which points count"):
-   named, with a button -- two clicks -- to remove them. Never removed on their own. */
+   named, with a button (it asks first) to remove them. Never removed on their own. */
 function renderOutsideNote() {
   const box = $("#framingOutside");
   if (!box) return;
@@ -617,21 +617,16 @@ function renderOutsideNote() {
   $("#framingOutsideText").textContent =
     `${n} framing point${n === 1 ? "" : "s"} outside this clip (ignored)`;
   const btn = $("#framingOutsideRemove");
-  if (btn && !btn.classList.contains("danger")) btn.textContent = "Remove them";
+  if (btn) btn.textContent = "Remove them";
 }
 
-$("#framingOutsideRemove")?.addEventListener("click", (e) => {
-  const btn = e.currentTarget;
-  clearTimeout(btn._armTimer);
+$("#framingOutsideRemove")?.addEventListener("click", async () => {
   const n = outsidePoints().length;
   if (!n) return;
-  if (!btn.classList.contains("danger")) {
-    btn.textContent = `Remove ${n}?`;
-    btn.classList.add("danger");
-    btn._armTimer = setTimeout(() => { btn.classList.remove("danger"); btn.textContent = "Remove them"; }, 4000);
-    return;
-  }
-  btn.classList.remove("danger");
+  if (!(await confirmDialog({
+    title: `Remove ${n} framing point${n === 1 ? "" : "s"}?`, confirmText: "Remove",
+    message: `${n === 1 ? "It is" : "They are"} outside this clip, so ${n === 1 ? "it is" : "they are"} ignored in the render anyway.`,
+  }))) return;
   FRAMING = usedPoints();
   renderFraming();
   if (typeof saveProject === "function") saveProject();

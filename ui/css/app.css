@@ -1075,7 +1075,6 @@ h1, h2, h3 {
 .project-card:hover :is(.delete-icon, .rename-icon),
 .project-card :is(.delete-icon, .rename-icon):focus-visible { opacity: 1; }
 .project-card .rename-icon:hover { background: var(--accent); color: oklch(0.145 0.010 258); }
-.project-card.confirming .rename-icon { display: none; }
 /* Rename box: takes the name's place in the card, same size and weight,
    so the card doesn't jump while typing. */
 .project-rename {
@@ -1104,26 +1103,6 @@ h1, h2, h3 {
 /* Cover for a video that doesn't exist. An empty field, not an <img> that
    will certainly 404 -- a request that's guaranteed to fail doesn't need
    to be sent. */
-/* ── delete confirmation ──
-   Covers its own card, not a dialog in the middle of the screen: what's
-   being asked about is THAT card, so the question sits right where it's
-   pointed. */
-.confirm {
-  position: absolute; inset: 0;
-  display: none;
-  padding: var(--s4);
-  border-radius: var(--r-l);
-  background: color-mix(in srgb, var(--bg-0) 93%, transparent);
-  backdrop-filter: blur(6px);
-  text-align: center;
-  align-content: center; gap: var(--s2);
-}
-.project-card.confirming .confirm { display: grid; }
-.project-card.confirming .delete-icon { display: none; }
-.confirm-text { font-size: var(--t-13); font-weight: 700; }
-.confirm-sub { font-size: var(--t-11); color: var(--text-faint); line-height: 1.35; }
-.confirm-actions { display: flex; gap: var(--s2); justify-content: center; margin-top: var(--s1); }
-.confirm-actions .btn { border-color: var(--border-bright); }
 .btn.danger {
   background: var(--danger); border-color: transparent;
   color: oklch(0.98 0 0); font-weight: 700;

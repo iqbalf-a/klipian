@@ -783,23 +783,20 @@ function removalCost(a) {
   return n ? ` (${n} element${n === 1 ? "" : "s"} too)` : "";
 }
 
-/* Two clicks, like deleting a Result: the first arms the button and says
-   what goes with it, the second within 4 s removes. Backs off on its own
-   so an armed button can't wait around to catch a later misclick. */
-let removeArmed = null;
-let removeArmTimer = null;
-function disarmRemove() {
-  clearTimeout(removeArmTimer);
-  if (removeArmed) {
-    removeArmed.textContent = "Remove";
-    removeArmed.classList.remove("danger");
-  }
-  removeArmed = null;
+/* Asked first, in a dialog that says what goes with the asset (the spans or elements that use it). */
+async function confirmRemoveAsset(a) {
+  const m = removalCost(a).match(/\((\d+) (span|element)s? too\)/);
+  const n = m ? Number(m[1]) : 0;
+  const name = a.file || (a.kind === "video" ? "this video" : "this item");
+  return confirmDialog({
+    title: `Remove ${name} from this project?`, confirmText: "Remove",
+    message: n ? `${n} ${m[2]}${n === 1 ? "" : "s"} that use${n === 1 ? "s" : ""} it ${n === 1 ? "goes" : "go"} with it.`
+               : "Nothing in the project uses it. The file itself stays in the sources / assets folder.",
+  });
 }
 
 $("#panel-assets")?.addEventListener("click", async (e) => {
   const rm = e.target.closest("[data-asset-remove]");
-  if (!rm) disarmRemove();
   const add = e.target.closest("[data-asset-add]");
   if (add) {
     add.disabled = true;
@@ -813,19 +810,11 @@ $("#panel-assets")?.addEventListener("click", async (e) => {
     return;
   }
   if (rm) {
-    if (removeArmed === rm) {
-      disarmRemove();
-      removeAsset(rm.dataset.assetRemove);
-      renderAssets();
-      return;
-    }
-    disarmRemove();
     const a = assetById(rm.dataset.assetRemove);
     if (!a) return;
-    removeArmed = rm;
-    rm.textContent = `Remove?${removalCost(a)}`;
-    rm.classList.add("danger");
-    removeArmTimer = setTimeout(disarmRemove, 4000);
+    if (!(await confirmRemoveAsset(a))) return;
+    removeAsset(rm.dataset.assetRemove);
+    renderAssets();
     return;
   }
   const media = e.target.closest("[data-media-add]");

@@ -61,7 +61,6 @@
   border-radius: 6px; padding: 8px 10px; cursor: pointer;
 }
 .profile-menu button:hover { background: var(--glass); }
-.profile-menu .armed.danger { color: var(--danger); }
 
 .profile-settings { width: min(92vw, 460px); border: 1px solid var(--glass-border); border-radius: var(--r-m, 12px); background: var(--bg-2); color: var(--text); padding: 20px; }
 .profile-settings::backdrop { background: rgba(0, 0, 0, .6); }

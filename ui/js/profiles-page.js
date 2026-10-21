@@ -86,14 +86,22 @@ document.addEventListener("click", async (e) => {
   }
   const del = e.target.closest("[data-delete]");
   if (del) {
-    if (!armedClick(del, { armedText: "Hapus?", strong: true })) return;
+    const label = (del.closest(".picker-card")?.querySelector(".picker-name")?.textContent || "").trim();
+    if (!(await confirmDialog({
+      title: label ? `Delete the profile ${label}?` : "Delete this profile?", tone: "strong", confirmText: "Delete profile",
+      message: "Its sources, projects, renders, schedule and settings go to the Recycle Bin.",
+      warning: "A connected YouTube channel is disconnected from klipian (the channel itself is not touched).",
+    }))) return;
     try { await api("/api/profiles/delete", { id: del.dataset.delete }); showError(""); } catch (err) { showError(err.message); }
     draw();
     return;
   }
   const clear = e.target.closest("#clearGuest");
   if (clear) {
-    if (!armedClick(clear, { armedText: "Hapus data Guest?", strong: true })) return;
+    if (!(await confirmDialog({
+      title: "Clear the Guest data?", tone: "strong", confirmText: "Clear guest data",
+      message: "Everything the Guest made (sources, projects, renders) goes to the Recycle Bin.",
+    }))) return;
     try { await api("/api/profiles/clear-guest"); showError("Data Guest dipindahkan ke Recycle Bin."); } catch (err) { showError(err.message); }
   }
 });

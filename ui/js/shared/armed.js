@@ -60,6 +60,71 @@ function armedClick(btn, { armedText = "Sure?", ms = 4000, strong = false } = {}
   return false;
 }
 
+
+/* ---------- confirmDialog: the confirmation of a destructive action ----------
+   confirmDialog({ title, message, warning, confirmText = "Delete", tone = "danger", cancelText = "Cancel" })
+     -> Promise<boolean>. A native <dialog>: focus starts on Cancel; Esc, the ✕, Cancel and a click on the
+     backdrop answer false; the red button answers true (Enter on it too). tone "strong" is for what is
+     already out in the world (a posted clip, a profile, a YouTube connection): a heavier red, and the
+     `warning` line stands out. Only one is open at a time (a new one answers the old one false). The Undo
+     toast of an action is separate and stays: this replaces the confirm step only. */
+let _confirmOpen = null;
+
+function confirmDialog({ title = "Are you sure?", message = "", warning = "", confirmText = "Delete",
+                         tone = "danger", cancelText = "Cancel" } = {}) {
+  _confirmOpen?.(false);
+  return new Promise((resolve) => {
+    const dlg = document.createElement("dialog");
+    dlg.className = "confirm-dlg";
+    dlg.dataset.tone = tone;
+    const el = (tag, cls, text) => {
+      const e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text !== undefined) e.textContent = text;
+      return e;
+    };
+    const head = el("div", "confirm-head");
+    const h = el("h2", "", title);
+    h.id = "confirmDlgTitle";
+    const x = el("button", "confirm-x", "✕");
+    x.type = "button"; x.title = cancelText; x.setAttribute("aria-label", cancelText);
+    head.append(h, x);
+    dlg.setAttribute("aria-labelledby", h.id);
+    const actions = el("div", "confirm-actions");
+    const cancel = el("button", "confirm-cancel", cancelText);
+    cancel.type = "button";
+    const ok = el("button", "confirm-ok", confirmText);
+    ok.type = "button";
+    actions.append(cancel, ok);
+    dlg.append(head);
+    if (message) dlg.append(el("p", "confirm-msg", message));
+    if (warning) dlg.append(el("p", "confirm-warn", warning));
+    dlg.append(actions);
+
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      _confirmOpen = null;
+      try { dlg.close(); } catch { /* already closed */ }
+      dlg.remove();
+      resolve(value);
+    };
+    _confirmOpen = finish;
+    cancel.addEventListener("click", () => finish(false));
+    x.addEventListener("click", () => finish(false));
+    ok.addEventListener("click", () => finish(true));
+    dlg.addEventListener("cancel", (e) => { e.preventDefault(); finish(false); });      // Esc
+    dlg.addEventListener("click", (e) => {                                              // the backdrop
+      const r = dlg.getBoundingClientRect();
+      if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) finish(false);
+    });
+    document.body.append(dlg);
+    dlg.showModal();
+    cancel.focus();
+  });
+}
+
 let _toastTimer = null;
 
 function showToast(text, { ms = 8000, action = null, onAction = null } = {}) {
