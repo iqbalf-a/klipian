@@ -1251,7 +1251,12 @@ header order by file tersebut dibuat". Keputusan ian: **kedua tabel**
   - baris baru (render atau "+ New clip") tampil di posisi yang benar
     sesuai urutan aktif.
 
-### P16 — Upload otomatis ke YouTube Shorts (DIBANGUN 2026-10-20; uji nyata dan audit Google menunggu ian)
+### P16 — Upload otomatis ke YouTube Shorts (DIBANGUN 2026-10-20; TERUJI NYATA 2026-10-22)
+
+**Uji nyata ian (2026-10-22):**
+- Upload terjadwal dari klipian (project `klipian-podcast`, status OAuth Testing, belum diaudit) berubah dari Scheduled menjadi **Public** pada waktunya. Video tidak terkunci private, jadi **audit belum diperlukan** untuk saat ini.
+- Upload massal terjadwal di profile **klipian lucu** (project kedua, channel kedua) berhasil.
+- Deteksi "locked private" (peringatan audit) tetap dipertahankan, karena kebijakan Google bisa berubah.
 
 Permintaan ian (2026-10-19): upload otomatis dari jadwal, mulai dari
 YouTube Shorts, sekaligus memperbarui baris di `/workspace` Clips. Ian
@@ -1627,7 +1632,7 @@ state itu sekarang milik Result lain (lihat `liveOwner`, P13).
 | Undo import (saran Claude) | Editor | sudah ada | tetap |
 | Sources, Rendered output, Assets | Dashboard | tidak ada tombol hapus | tidak berubah |
 
-### P21 — Profile per channel, tanpa password (DIBANGUN 2026-10-20: A, B, G, C; uji nyata menunggu ian; D belum)
+### P21 — Profile per channel, tanpa password (DIBANGUN 2026-10-20: A, B, G, C; TERUJI NYATA 2026-10-22 dengan dua channel; D dikerjakan di P26)
 
 Ide ian (2026-10-20): nanti akan ada lebih dari satu akun klipian. Sudah ada
 "klipian podcast", dan mungkin menyusul "klipian" untuk cuplikan lucu dari TV
@@ -1908,7 +1913,7 @@ Hasil audit ian/sesi analisis setelah profile, Guest, YouTube, dan hashtag:
   belum ada (tidak pernah menimpa), dan halaman menyebutnya. Selftest `profiles` memeriksa
   kasus disalin dan tidak ditimpa.
 
-### P22 — Add from YouTube: unduh source langsung di klipian (DIBANGUN 2026-10-20; uji nyata dengan yt-dlp menunggu ian)
+### P22 — Add from YouTube: unduh source langsung di klipian (DIBANGUN 2026-10-20; TERUJI NYATA 2026-10-22: unduh lewat yt-dlp dengan Node.js berhasil, dan 3 video klipian lucu dari source unduhan ter-upload)
 
 Permintaan ian (2026-10-20): "sepertinya sekarang sudah saatnya mengaktifkan
 fitur download youtube". ian sudah punya tool `D:\github-repos\youtube-downloader`
