@@ -36,14 +36,15 @@ const secondsFromClock = (t) =>
    canvas box. Since Framing has its own screen now, the canvas is
    display:none whenever you are on the Clips or Text screen -- its rect
    is zero, so preview could never get valid measurements at all. */
-function attachBox(v, box, crop) {
+function attachBox(v, box, crop, srcRatio = null) {
   if (!v || !box || !crop) return;
   const f = box.getBoundingClientRect();
   // The screen may be hidden; its rect is zero and division produces NaN.
   // Recalculated later when the screen becomes visible.
   if (!f.width || !crop.width) return;
 
-  const ratio = (typeof sourceRatio === "function") ? sourceRatio() : 16 / 9;
+  // srcRatio: the shape of THIS video, for a frame that is not the main preview (the Output format dialog's sample).
+  const ratio = srcRatio || ((typeof sourceRatio === "function") ? sourceRatio() : 16 / 9);
   const width = f.width * (100 / crop.width);
   const height = width / ratio;
   v.style.width = `${width}px`;
@@ -59,51 +60,59 @@ function attachBox(v, box, crop) {
    same ones: a 3:4 picture is 1080x1440 in the 1080x1920 frame (75% of its
    height), a 16:9 one is the source frame at the frame's width, which is
    (1/sourceRatio)/(16/9) of the height. */
-function applyPictureFrame() {
-  const f = $("#frame");
-  if (!f || typeof optionOut !== "function") return;
-  const picture = optionOut("picture") || "9:16";
+function applyPictureFrame(f = $("#frame"), get = optionOut, srcRatio = null) {
+  if (!f || typeof get !== "function") return;
+  const picture = get("picture") || "9:16";
   f.dataset.picture = picture;
-  f.dataset.bg = optionOut("background") || "blur";
+  f.dataset.bg = get("background") || "blur";
   if (picture === "9:16") return;
-  const src = (typeof sourceRatio === "function") ? sourceRatio() : 16 / 9;
+  const src = srcRatio || ((typeof sourceRatio === "function") ? sourceRatio() : 16 / 9);
   const heightPct = picture === "3:4" ? 75 : (1 / src) / (16 / 9) * 100;
   f.style.setProperty("--pic-h", `${heightPct}%`);
-  f.style.setProperty("--pic-pos", String((optionOut("position") ?? 50) / 100));
+  f.style.setProperty("--pic-pos", String((get("position") ?? 50) / 100));
   // The render blurs with sigma 28 on a 1080-wide frame; this frame is smaller.
   const w = f.getBoundingClientRect().width;
   if (w) f.style.setProperty("--bg-blur", `${(28 * w / 1080).toFixed(1)}px`);
 }
 
 /* Whether the blurred copy is on screen right now. */
-function pictureHasBlur() {
-  const pic = optionOut("picture");
-  return (pic === "3:4" || pic === "16:9") && optionOut("background") === "blur";
+function pictureHasBlur(get = optionOut) {
+  const pic = get("picture");
+  return (pic === "3:4" || pic === "16:9") && get("background") === "blur";
+}
+
+/* The picture and its blurred copy laid out inside a 9:16 frame (the main preview's #frame, or the small one in
+   the Output format dialog). `get(id)` answers for the options (optionOut, or the dialog's draft), `crop` is the
+   framing box of the top picture, `srcRatio` the shape of the video when it is not the main one. `parts`:
+   { video, box, bg, bgBox } -- the picture's <video> and the box it sits in, the blurred copy's. */
+function layoutPictureInFrame(frameEl, parts, get, crop, srcRatio = null) {
+  applyPictureFrame(frameEl, get, srcRatio);
+  // A 16:9 picture is the whole frame whatever the framing boxes say.
+  const main = get("picture") === "16:9" ? { left: 0, top: 0, width: 100, height: 100 } : crop;
+  attachBox(parts.video, parts.box, main, srcRatio);
+  if (pictureHasBlur(get)) {
+    // The same picture again, scaled to fill the frame: a box as tall as the
+    // frame with the picture's own shape, centred -- so the frame shows its
+    // centre 9:16 slice, as the render's blur does.
+    const aspect = get("picture") === "3:4" ? 3 / 4
+      : (srcRatio || ((typeof sourceRatio === "function") ? sourceRatio() : 16 / 9));
+    if (parts.bgBox) {
+      parts.bgBox.style.width = `${(16 / 9) * aspect * 100}%`;
+      attachBox(parts.bg, parts.bgBox, main, srcRatio);
+    }
+  }
+  return main;
 }
 
 function attachVideoGeometry() {
   applyPictureFrame();
   if (!video.src || typeof frameAt !== "function") return;
   const b = frameAt(typeof reviewTime === "function" ? reviewTime() : 0);
-  // A 16:9 picture is the whole frame whatever the framing boxes say.
-  const main = optionOut("picture") === "16:9"
-    ? { left: 0, top: 0, width: 100, height: 100 } : b.crops[0];
-  attachBox(video, document.querySelector(".half.top"), main);
+  layoutPictureInFrame($("#frame"), { video, box: document.querySelector(".half.top"), bg: $("#videoBg"), bgBox: $("#bgBox") },
+    optionOut, b.crops[0]);
   if (b.format === "split") {
     attachBox($("#videoPreview2"), document.querySelector(".half.bottom"),
                 b.crops[1]);
-  }
-  if (pictureHasBlur()) {
-    // The same picture again, scaled to fill the frame: a box as tall as the
-    // frame with the picture's own shape, centred -- so the frame shows its
-    // centre 9:16 slice, as the render's blur does.
-    const aspect = optionOut("picture") === "3:4" ? 3 / 4
-      : ((typeof sourceRatio === "function") ? sourceRatio() : 16 / 9);
-    const box = $("#bgBox");
-    if (box) {
-      box.style.width = `${(16 / 9) * aspect * 100}%`;
-      attachBox($("#videoBg"), box, main);
-    }
   }
 }
 

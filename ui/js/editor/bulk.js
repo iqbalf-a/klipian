@@ -206,6 +206,7 @@ $("#bulkDeleteBtn")?.addEventListener("click", () => { if (BULK_TICKED.size) del
    rows show for which picture), in a dialog, prefilled with the open Result's choices. Each row can be left
    alone ("keep each Result's own"), so only the Picture, say, is changed. Resolves true when applied. */
 async function bulkOutputDialog(ids) {
+  let afterDraw = () => {};                      // the preview, once it is built (below)
   const draft = outputState();
   const keep = new Set();
   const body = document.createElement("div");
@@ -230,6 +231,7 @@ async function bulkOutputDialog(ids) {
         row.querySelector(".hint").textContent = o.hint ? o.hint[Number.isInteger(draft[k]) ? draft[k] : o.active] : "";
       }
     }
+    afterDraw();
   };
   for (const id of OPTION_ROWS) {
     const o = OPTIONS.find((x) => x.id === id);
@@ -268,13 +270,97 @@ async function bulkOutputDialog(ids) {
     rowsEl[id] = row;
     body.append(row);
   }
+  /* ---- the preview: one of the ticked Results, as it would look with the values set here ----
+     A still frame of the sample's first moment (about 1 s in) in a small 9:16 frame, laid out by the same
+     function as the main preview (layoutPictureInFrame, player.js) with the draft's values -- and, for a control
+     left on "keep each Result's own", the SAMPLE's own value. Two hidden-in-the-frame <video>s of its own (the
+     picture and its blurred copy), so the main preview and the open Result are never touched. */
+  snapshotActiveResult();                       // the saved copy of the open Result is current (the draft starts from it)
+  const sampleIds = ids.filter((id) => SAVED_RESULTS.some((r) => r.id === id));
+  let sampleId = sampleIds[0];
+  const side = document.createElement("div");
+  side.className = "bulk-out-side";
+  side.innerHTML = `
+    <label class="bulk-out-sample" hidden>Sample <select aria-label="Sample Result for the preview"></select></label>
+    <div class="bulk-out-stage">
+      <div class="frame916" data-video="true" data-format="single" data-safe="off" data-picture="9:16" data-bg="black">
+        <div class="bgfill" aria-hidden="true"><div class="bgbox"><video class="video916" muted playsinline preload="auto"></video></div></div>
+        <div class="half top"><video class="video916" muted playsinline preload="auto"></video></div>
+        <p class="bulk-out-msg" role="status">Loading frame…</p>
+      </div>
+    </div>
+    <p class="bulk-out-spec data" aria-live="polite"></p>`;
+  const stage = side.querySelector(".frame916");
+  const [vBg, vTop] = stage.querySelectorAll("video");
+  const msg = stage.querySelector(".bulk-out-msg");
+  const specEl = side.querySelector(".bulk-out-spec");
+  const sel = side.querySelector("select");
+  const titles = Object.fromEntries(bulkRows().map((r) => [r.id, r.title]));
+  for (const id of sampleIds) sel.append(Object.assign(document.createElement("option"), { value: id, textContent: titles[id] || id }));
+  side.querySelector(".bulk-out-sample").hidden = sampleIds.length < 2;
+  let sampleTime = 0, sampleAsset = "a1", sampleLoaded = false;
+
+  const slotOf = (id) => SAVED_RESULTS.find((r) => r.id === id);
+  const drawStage = () => {
+    const slot = slotOf(sampleId);
+    if (!slot) return;
+    // the sample's values, with the draft laid over every control that is not kept
+    const eff = mergeOutput(slot.output, draft, keep);
+    const vals = withOutput(eff, () => Object.fromEntries(OPTIONS.map((o) => [o.id, optionOut(o.id)])));
+    const get = (id) => vals[id];
+    const base = vTop.videoWidth && vTop.videoHeight ? vTop.videoWidth / vTop.videoHeight : 16 / 9;
+    // the sample's own framing box at that second, re-fitted to the picture's shape (as changing Picture does)
+    const pts = (slot.framing || []).filter((p) => (p.asset || "a1") === sampleAsset);
+    const point = [...pts].reverse().find((p) => p.at <= sampleTime) || pts[0];
+    const want = withOutput(eff, () => ratioFor("single"));
+    const own = point?.crops?.[0] || withOutput(eff, initialCrop);
+    layoutPictureInFrame(stage, { video: vTop, box: stage.querySelector(".half.top"), bg: vBg, bgBox: stage.querySelector(".bgbox") },
+      get, refitCrop(own, base, want), base);
+    const w = vals.resolution;
+    specEl.textContent = `${w}×${Math.round(w * 16 / 9)} · ${withOutput(eff, () => optionValue("quality"))}`;
+    msg.hidden = sampleLoaded;
+  };
+  afterDraw = drawStage;
+
+  const loadSample = (id) => {
+    sampleId = id;
+    const slot = slotOf(id);
+    const seg = (Array.isArray(slot?.segments) ? slot.segments : [])[0];
+    sampleAsset = seg?.asset || "a1";
+    sampleTime = seg ? seg.start + Math.min(1, (seg.end - seg.start) / 2) : 0;
+    sampleLoaded = false;
+    msg.hidden = false;
+    msg.textContent = "Loading frame…";
+    const asset = assetById(sampleAsset);
+    if (!seg || !asset) { msg.textContent = "No frame to show for this Result."; drawStage(); return; }
+    const url = assetUrl(asset);
+    let pending = 0;
+    const seeked = () => { if (--pending <= 0) { sampleLoaded = true; drawStage(); } };
+    for (const v of [vTop, vBg]) {
+      pending++;
+      v.addEventListener("seeked", seeked, { once: true });
+      v.addEventListener("error", () => { msg.hidden = false; msg.textContent = "The frame could not be loaded."; }, { once: true });
+      const go = () => { try { v.currentTime = sampleTime; } catch { seeked(); } };
+      if (v.getAttribute("src") === url && v.readyState >= 1) go();
+      else { v.addEventListener("loadedmetadata", go, { once: true }); v.src = url; }
+    }
+    drawStage();
+  };
+  sel.addEventListener("change", () => loadSample(sel.value));
+
+  const wrap = document.createElement("div");
+  wrap.className = "bulk-out-wrap";
+  wrap.append(body, side);
   draw();
+  loadSample(sampleId);
   const names = bulkRows().filter((r) => ids.includes(r.id)).map((r) => r.title);
   const ok = await confirmDialog({
     title: `Output format for ${ids.length} Result${ids.length === 1 ? "" : "s"}`,
     message: `Starts from the open Result's format. ${names.slice(0, 3).join(", ")}${names.length > 3 ? ` and ${names.length - 3} more` : ""} ${names.length === 1 ? "gets" : "get"} what is set here.`,
-    body, confirmText: "Apply", tone: "primary",
+    body: wrap, confirmText: "Apply", tone: "primary",
   });
+  afterDraw = () => {};
+  for (const v of [vTop, vBg]) { v.pause(); v.removeAttribute("src"); v.load(); }       // the sample's own decoders go
   if (!ok) return false;
   applyOutputToResults(ids, draft, keep);
   const note = $("#editNote");

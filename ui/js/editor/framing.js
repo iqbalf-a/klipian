@@ -296,6 +296,21 @@ function sourceRatio() {
   return 16 / 9;
 }
 
+/* A framing box re-fitted to a box shape (`want`: height/width of the box in the source's own proportions, see
+   ratioFor), keeping its centre and its height; the same box when it already has that shape. Pure: the Output
+   format dialog's sample uses it too, to show a Result's own framing under another Picture. */
+function refitCrop(c, base, want) {
+  const have = (c.height / c.width) / base;
+  if (Math.abs(have - want) < 0.02) return c;
+  const centre = c.left + c.width / 2;
+  let height = Math.min(100, c.height);
+  let width = height / (base * want);
+  if (width > 100) { width = 100; height = width * base * want; }
+  const left = Math.max(0, Math.min(100 - width, centre - width / 2));
+  const top = Math.max(0, Math.min(100 - height, c.top + c.height / 2 - height / 2));
+  return { ...c, left, top, width, height };
+}
+
 function matchRatio(crop, format) {
   const baseRatio = sourceRatio();
   let width = crop.width;
@@ -518,22 +533,16 @@ function onPictureChanged() {
     }
     const want = ratioFor(f.format);
     f.crops = f.crops.map((c) => {
-      const have = (c.height / c.width) / base;
-      if (Math.abs(have - want) < 0.02) return c;
-      const centre = c.left + c.width / 2;
-      let height = Math.min(100, c.height);
-      let width = height / (base * want);
-      if (width > 100) { width = 100; height = width * base * want; }
-      const left = Math.max(0, Math.min(100 - width, centre - width / 2));
-      const top = Math.max(0, Math.min(100 - height, c.top + c.height / 2 - height / 2));
+      const fitted = refitCrop(c, base, want);
+      if (fitted === c) return c;
       // A tracked point follows the box's LEFT edge: it moves by the same
       // amount the edge did.
       if (f.tracking?.keyframes && c === f.crops[0]) {
-        const shift = left - c.left;
+        const shift = fitted.left - c.left;
         f.tracking.keyframes = f.tracking.keyframes.map((kf) => ({ ...kf, left: kf.left + shift }));
       }
       changed = true;
-      return { ...c, left, top, width, height };
+      return fitted;
     });
   }
   if (changed) {
