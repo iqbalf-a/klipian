@@ -1146,7 +1146,14 @@ $("#ytUploadBtn")?.addEventListener("click", async (e) => {
   const v = detailValues();                      // what the dialog shows now, saved first by ytSaveFirst
   const when = v.date && v.time ? `${v.date} ${v.time}` : "";
   const publishNow = !when;
-  if (!armedClick(btn, { armedText: publishNow ? "Publish now?" : `Schedule for ${when}?`, strong: publishNow, ms: 6000 })) return;
+  // Publishing at once cannot be taken back from klipian, so it asks (a dialog, with the title that will
+  // be on YouTube); a scheduled upload goes with one click: its date and time are shown right above the
+  // button and it can be changed or cancelled in YouTube Studio.
+  if (publishNow && !(await confirmDialog({
+    title: "Publish this clip now?", tone: "strong", confirmText: "Publish now",
+    message: $("#ytPreviewTitle")?.value || $("#clipDetailTitle")?.dataset.title || "",
+    warning: "It goes public on YouTube straight away; this cannot be undone from klipian.",
+  }))) return;
   btn.disabled = true; ytMsg("Saving, then uploading…");
   try {
     await ytSaveFirst(id);
