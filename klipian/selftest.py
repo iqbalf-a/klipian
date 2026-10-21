@@ -2950,6 +2950,7 @@ def check_renderreq() -> tuple[str, str]:
     reversed Result and an empty one), spot-checked by hand below and compared with the checked-in expected
     requests. The proof against the REAL stored requests of a workspace is run by hand (docs/roadmap.md P23);
     this keeps the rules from drifting."""
+    import copy
     from . import renderreq
 
     base = FIXTURES / "renderreq"
@@ -3010,9 +3011,45 @@ def check_renderreq() -> tuple[str, str]:
     except renderreq.RequestError as exc:
         if exc.code != "no_result":
             problems.append(f"an unknown Result: {exc.code}")
+    # The default framing box: the FULL height of the source, as wide as the picture's shape needs on that source,
+    # centred -- for an `auto` point (the untouched start point), whatever crop it has stored; a box the person
+    # placed is never touched.
+    def auto_project(picture, auto=True, stored=None):
+        pr = copy.deepcopy(project)
+        pr["results"] = [{"id": "resA", "title": "A", "corrections": {}, "output": [picture, 1, 1, 1, 50],
+                          "segments": [{"id": "s1", "asset": "a1", "start": 10, "end": 20, "title": "t", "source": "manual"}],
+                          "framing": [{"id": "f1", "asset": "a1", "at": 10, "format": "single",
+                                       "crops": [stored or {"left": 1, "top": 2, "width": 3, "height": 4}], **({"auto": True} if auto else {})}]}]
+        return pr
+
+    def box(picture, size, **kw):
+        pr = auto_project(picture, **kw)
+        return renderreq.build_request(pr, "resA", words_of=words.get, size_of=lambda f: size)["clips"][0]["spans"][0]["crop"]
+
+    for picture, size, want_w in ((0, (1920, 1080), 100 / (16 / 9 * 16 / 9)), (2, (1920, 1080), 100 / (16 / 9 * 4 / 3)),
+                                  (0, (1440, 1080), 100 / (4 / 3 * 16 / 9)), (2, (1440, 1080), 100 / (4 / 3 * 4 / 3))):
+        b = box(picture, size)
+        if abs(b["width"] - want_w) > 1e-9 or abs(b["left"] - (100 - want_w) / 2) > 1e-9 or b["top"] != 0 or abs(b["height"] - 100) > 1e-9:
+            problems.append(f"default box for picture {picture} on {size}: {b}, wanted width {want_w}")
+    if abs(box(0, (1920, 1080))["width"] - 31.640625) > 1e-9:
+        problems.append("a 9:16 box on a 16:9 source should be 31.64% wide")
+    tall = box(0, (1080, 2400))                          # too tall a source: the width would pass 100%
+    if (tall["left"], tall["width"]) != (0, 100) or abs(tall["height"] - 100 * 0.45 * 16 / 9) > 1e-6 or abs(tall["top"] - (100 - tall["height"]) / 2) > 1e-9:
+        problems.append(f"the clamp: full width, the height that fits, centred: {tall}")
+    mine = box(0, (1920, 1080), auto=False, stored={"left": 37, "top": 4, "width": 26, "height": 92})
+    if (mine["left"], mine["top"], mine["width"]) != (37, 4, 26):
+        problems.append(f"a box the person placed must be used as it is: {mine}")
+    if box(0, (1920, 1080), auto=True, stored={"left": 37, "top": 4, "width": 26, "height": 92})["width"] == 26:
+        problems.append("an auto point's stored box must not be used")
+    # no framing at all: the same default
+    bare = auto_project(0)
+    bare["results"][0]["framing"] = []
+    nb = renderreq.build_request(bare, "resA", words_of=words.get, size_of=lambda f: (1920, 1080))["clips"][0]["spans"][0]["crop"]
+    if abs(nb["width"] - 31.640625) > 1e-9 or nb["top"] != 0:
+        problems.append(f"a Result with no framing points should get the default box: {nb}")
+
     # An Output Format applied to SEVERAL Results (the Results list, "Output format..."): each chosen Result's
     # request changes, and the one that was not chosen, and the one that cannot be rendered, do not.
-    import copy
     changed = copy.deepcopy(project)
     applied = [1, 0, 2, 0, 20]                     # 16:9 · 720p · Best · Blur · position 20 (app.js OPTIONS order)
     for r in changed["results"]:

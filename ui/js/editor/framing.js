@@ -32,8 +32,6 @@
    sample image -- otherwise you would be framing something you cannot see.
    ========================================================================== */
 
-const INITIAL_CROP = { left: 37, top: 8, width: 26, height: 84 };
-
 /* Two side-by-side boxes as the initial split point: left becomes the top
    half, right becomes the bottom half. Height already follows the 9:8 ratio. */
 const INITIAL_SPLIT_CROP = [
@@ -57,11 +55,29 @@ function ratioFor(format) {
 /* Whether the Output Format picture is 9:16 -- the only one with Split. */
 const pictureIs916 = () => !(typeof optionOut === "function") || optionOut("picture") === "9:16";
 
-/* The box a new point starts from, in the shape of the current picture. */
+/* The box a new point starts from: the FULL height of the source, as wide as the picture's shape needs on this
+   source, centred. `srcRatio` is the source's width/height, `ratio` the box's height/width in the source's own
+   proportions (ratioFor). For 9:16 on a 16:9 source that is a 31.6%-wide box, for 3:4 a 42.2% one. A source too
+   tall for that (the width would pass 100%) gets the full width and the height that fits, centred vertically.
+   klipian/renderreq.py default_crop is the same arithmetic. */
+function defaultCropFor(format, srcRatio, ratio = ratioFor(format)) {
+  const width = 100 / (srcRatio * ratio);
+  if (width > 100) {
+    const height = 100 * srcRatio * ratio;
+    return { left: 0, top: (100 - height) / 2, width: 100, height };
+  }
+  return { left: (100 - width) / 2, top: 0, width, height: 100 };
+}
+
 function initialCrop() {
-  return (typeof optionOut === "function" && optionOut("picture") === "3:4")
-    ? { left: 30, top: 4, width: 39, height: 92 }
-    : { ...INITIAL_CROP };
+  return defaultCropFor("single", sourceRatio());
+}
+
+/* A point's boxes. An `auto` point (the untouched start point every Result has; the flag is dropped the moment a
+   box is dragged or locked) always follows the current default, so Results made before the default changed, or
+   on a source of another shape, are framed by it with nothing to redo. */
+function pointCrops(f) {
+  return (f.auto && f.format !== "split" && !f.tracking) ? [initialCrop()] : f.crops;
 }
 
 let FRAMING = [];          // [{ id, at, format, crops }] sorted by `at`
@@ -123,7 +139,7 @@ function isStartPoint(f) {
    of the Picture): a point that was dragged is an ordinary point. */
 function isDefaultCrop(f) {
   const d = initialCrop();
-  const c = f.crops?.[0];
+  const c = pointCrops(f)?.[0];
   return !!c && f.format !== "split" && !f.tracking
     && Math.abs(c.left - d.left) < 1 && Math.abs(c.top - d.top) < 1 && Math.abs(c.width - d.width) < 1;
 }
@@ -200,7 +216,7 @@ function frameAt(seconds) {
   // 9:16 it is framed with the first one, as a single (the render does the
   // same: render.py only stacks two boxes for a 9:16 picture).
   const format = (f && f.format === "split" && pictureIs916()) ? "split" : "single";
-  let crops = f ? f.crops : [initialCrop()];
+  let crops = f ? pointCrops(f) : [initialCrop()];
   if (f?.tracking?.keyframes?.length >= 2 && format === "single") {
     const left = interpolatePath(f.tracking.keyframes, seconds - f.at);
     if (left !== null) crops = [{ ...crops[0], left }];
@@ -526,6 +542,7 @@ function onPictureChanged() {
   const base = sourceRatio();
   let changed = false;
   for (const f of FRAMING) {
+    if (f.auto) continue;                // an untouched start point is always the default (pointCrops)
     if (f.format === "split" && !pictureIs916()) {
       f.format = "single";
       f.crops = f.crops.slice(0, 1);
@@ -586,10 +603,11 @@ function renderFraming() {
       const tooltip = `${f.format === "split" ? "Split" : "Single"} · source ${assetTimeLabel(f.at, preciseTime)}`;
       // The point's own video and second -- not the active one's.
       const fr = toReal(f.at);
-      const thumbUrl = f.crops?.[0] && fr.file
+      const shown = pointCrops(f)?.[0];
+      const thumbUrl = shown && fr.file
         ? profileUrl(`/api/thumb?video=${encodeURIComponent(fr.file)}&t=${fr.t}`
-          + `&left=${f.crops[0].left}&top=${f.crops[0].top}`
-          + `&width=${f.crops[0].width}&height=${f.crops[0].height}&w=96`)
+          + `&left=${shown.left}&top=${shown.top}`
+          + `&width=${shown.width}&height=${shown.height}&w=96`)
         : "";
       return `
       <div class="fr-point${f === active ? " fr-active" : ""}"
@@ -813,7 +831,7 @@ async function trackHeadForPoint(point) {
       // Keyframe times come back relative to the point, so only the
       // request needs converting (assets.js).
       body: (() => { const rr = realRange(point.at, end);
-        return JSON.stringify({ video: rr.video, start: rr.start, end: rr.end, crop: point.crops[0] }); })(),
+        return JSON.stringify({ video: rr.video, start: rr.start, end: rr.end, crop: pointCrops(point)[0] }); })(),
     });
     const d = await r.json();
     if (!d.keyframes) {

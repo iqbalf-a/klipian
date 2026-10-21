@@ -823,7 +823,7 @@ function applyProject(d, preferFile) {
    CROP width as a percentage of the source frame. Swap them once and ffmpeg
    refuses a 220% crop -- the cover fails without a single error on screen. */
 function coverUrl(p) {
-  const DEFAULT_CROP = { left: 37, top: 4, width: 26, height: 92 };
+  const DEFAULT_CROP = defaultCropFor("single", 16 / 9, 16 / 9);       // framing.js: full height, centred
   let c = p.crop || DEFAULT_CROP;
   // Framing box height is scaled down when READ (matchRatio), so the stored
   // value can be zero or nonsensical. ffmpeg still obeys it and produces a

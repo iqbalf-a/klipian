@@ -313,7 +313,8 @@ async function bulkOutputDialog(ids) {
     const pts = (slot.framing || []).filter((p) => (p.asset || "a1") === sampleAsset);
     const point = [...pts].reverse().find((p) => p.at <= sampleTime) || pts[0];
     const want = withOutput(eff, () => ratioFor("single"));
-    const own = point?.crops?.[0] || withOutput(eff, initialCrop);
+    // the sample's own box -- an untouched (auto) point is the default, which depends on this video and picture
+    const own = (point && !point.auto && point.crops?.[0]) || withOutput(eff, () => defaultCropFor("single", base));
     layoutPictureInFrame(stage, { video: vTop, box: stage.querySelector(".half.top"), bg: vBg, bgBox: stage.querySelector(".bgbox") },
       get, refitCrop(own, base, want), base);
     const w = vals.resolution;

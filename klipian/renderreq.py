@@ -58,8 +58,6 @@ _OUT_QUALITY = [26, 21, 17]
 _OUT_BACKGROUND = ["blur", "black"]
 _OUTPUT_ORDER = ["picture", "resolution", "quality", "background", "position"]
 
-INITIAL_CROP = {"left": 37, "top": 8, "width": 26, "height": 84}        # framing.js
-INITIAL_CROP_34 = {"left": 30, "top": 4, "width": 39, "height": 92}
 
 
 class RequestError(Exception):
@@ -164,14 +162,25 @@ def output_options(saved) -> dict:
 # framing (framing.js)
 # --------------------------------------------------------------------------
 
-def _initial_crop(picture: str) -> dict:
-    return dict(INITIAL_CROP_34 if picture == "3:4" else INITIAL_CROP)
-
-
 def _ratio_for(fmt: str, picture: str) -> float:
     if fmt == "split":
         return 8 / 9
     return 4 / 3 if picture == "3:4" else 16 / 9
+
+
+def default_crop(fmt: str, picture: str, base_ratio: float) -> dict:
+    """framing.js defaultCropFor: the default box -- the FULL height of the source, as wide as the picture's shape
+    needs on this source, centred; a source too tall for that gets the full width and the height that fits."""
+    width = 100 / (base_ratio * _ratio_for(fmt, picture))
+    if width > 100:
+        height = 100 * base_ratio * _ratio_for(fmt, picture)
+        return {"left": 0, "top": (100 - height) / 2, "width": 100, "height": height}
+    return {"left": (100 - width) / 2, "top": 0, "width": width, "height": 100}
+
+
+def _initial_crop(picture: str) -> dict:
+    """What an auto point stores. Never read back: an auto point is framed by default_crop (frame_at)."""
+    return default_crop("single", picture, 16 / 9)
 
 
 def _match_ratio(crop: dict, fmt: str, picture: str, base_ratio: float) -> dict:
@@ -263,13 +272,18 @@ class _Framing:
     def frame_at(self, seconds):
         f = self.point_at(seconds)
         fmt = "split" if (f and f.get("format") == "split" and self.picture == "9:16") else "single"
-        crops = f["crops"] if f else [_initial_crop(self.picture)]
+        base = self.ratio(seconds)
+        if f and f.get("auto") and fmt == "single" and not f.get("tracking"):
+            crops = [default_crop("single", self.picture, base)]   # an untouched start point follows the default
+        elif f:
+            crops = f["crops"]
+        else:
+            crops = [default_crop("single", self.picture, base)]
         tracking = (f or {}).get("tracking")
         if tracking and len(tracking.get("keyframes") or []) >= 2 and fmt == "single":
             left = _interpolate_path(tracking["keyframes"], seconds - f["at"])
             if left is not None:
                 crops = [{**crops[0], "left": left}]
-        base = self.ratio(seconds)
         return fmt, [_match_ratio(c, fmt, self.picture, base) for c in crops]
 
     def spans(self, ranges: list[dict]) -> list[dict]:
