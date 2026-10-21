@@ -21,6 +21,7 @@ function showStaleBanner() {
   bar.setAttribute("role", "alert");
   bar.textContent = STALE_MESSAGE;
   document.body.prepend(bar);
+  fitBanners();
 }
 
 /* The server has no such profile (deleted, or this tab is from before profiles). */
@@ -32,7 +33,18 @@ function showProfileBanner(text) {
   bar.setAttribute("role", "alert");
   bar.textContent = text || "Choose a profile: reload the page.";
   document.body.prepend(bar);
+  fitBanners();
 }
+
+/* A banner sits above the page and takes room from it: the editor's .app is
+   100vh tall, so without this its bottom (the last panel, the Save button)
+   was pushed below the window where nothing could scroll to it. app.css
+   subtracts --banner-h from that height. */
+function fitBanners() {
+  const h = [...document.querySelectorAll(".stale-banner")].reduce((n, b) => n + b.offsetHeight, 0);
+  document.documentElement.style.setProperty("--banner-h", `${h}px`);
+}
+window.addEventListener("resize", () => { if (document.querySelector(".stale-banner")) fitBanners(); });
 
 /* "unknown endpoint" as the person should read it. */
 function apiErrorText(message) {

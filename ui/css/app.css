@@ -51,7 +51,7 @@ body::before {
    replaced by the timeline on the Clips screen, and the row was removed.
    If left behind, the stage would snap to a fixed-size row and the whole
    layout would collapse. */
-.app { position: relative; z-index: 1; height: 100vh;
+.app { position: relative; z-index: 1; height: calc(100vh - var(--banner-h, 0px));  /* minus a restart/profile banner (version.js) */
        display: grid; grid-template-rows: var(--h-topbar) 1fr;
        /* The stage's outer margin, and the one number several things have
           to agree on: .stage's own padding and gap, and #showSidebarBtn,
