@@ -858,16 +858,10 @@ def _cue_text(c: dict, out_start: float, out_end: float) -> str:
     return f"- {span} {kind}" + (f" · {c['level']}" if c.get("level") else "")
 
 
-def build_result_brief(project: dict, result_id: str, *, words_of, size_of, cues_of, credit_of,
-                       rubric: str, hashtag_rule: str = "") -> str:
-    """One self-contained file asking Claude (chat, no API) for the post text of ONE Result: the clip's own words,
-    in the order they are heard and with the corrections applied (the words the render uses, renderreq), with
-    times from the start of the clip (what the reply's notes count from); the cues inside it; the source credit
-    context; the rubric's "Judul dan hook", "Teks posting" and "Sudut pandang" sections verbatim; the profile's
-    hashtag rule; and the reply shape. Raises ValueError with a message for the person (no moments, a rubric
-    without a required section)."""
+def _result_parts(project: dict, result_id: str, *, words_of, size_of, cues_of, credit_of) -> dict:
+    """What a post-text brief says about ONE Result: its title, length, moments, words (as "[m:ss] text" lines counted from
+    the start of the clip), the cues inside it and the sources. Raises ValueError for a Result with no moments."""
     from . import credits as _credits, cues as _cues, renderreq
-    sections = rubric_sections(rubric)
     try:
         req = renderreq.build_request(project, result_id, words_of=words_of, size_of=size_of)
     except renderreq.RequestError as exc:
@@ -909,7 +903,8 @@ def build_result_brief(project: dict, result_id: str, *, words_of, size_of, cues
     for i, s in enumerate(segments, 1):
         file = files.get(s.get("asset") or "a1", main)
         length = s["end"] - s["start"]
-        where = f"{fmt_stamp(s['start'])}–{fmt_stamp(s['end'])} of {file}" if len(set(files.values())) > 1 else f"{fmt_stamp(s['start'])}–{fmt_stamp(s['end'])} of the video"
+        where = (f"{fmt_stamp(s['start'])}–{fmt_stamp(s['end'])} of {file}" if len(set(files.values())) > 1
+                 else f"{fmt_stamp(s['start'])}–{fmt_stamp(s['end'])} of the video")
         moment_lines.append(f"{i}. [{fmt_stamp(at)}–{fmt_stamp(at + length)}] from {where}")
         for c in _cues.for_range(cues_of(file) or [], s["start"], s["end"], tail=0):
             a = max(at, at + (c["start"] - s["start"]))
@@ -924,35 +919,70 @@ def build_result_brief(project: dict, result_id: str, *, words_of, size_of, cues
         text = _credits.brief_source(credit_of(f))
         if text and text not in sources:
             sources.append(text)
-    source_block = ""
-    if sources:
-        source_block = ("\n**Source of the video:** " + "; ".join(sources) + "\n\n"
-                        "klipian adds the source credit to the post by itself, from what its user entered. "
-                        "Do not write a credit or source line, a link or a channel handle of your own.\n")
     title = (entry.get("title") or "").strip() or clip.get("title") or result_id
-    return f"""# Post text for one clip — {title}
+    return {"id": result_id, "title": title, "total": total, "moments": moment_lines, "transcript": transcript,
+            "cues": cue_lines, "sources": sources}
+
+
+_SOURCE_NOTE = ("klipian adds the source credit to the post by itself, from what its user entered. "
+                "Do not write a credit or source line, a link or a channel handle of your own.")
+
+
+def _clip_block(p: dict, heading: str, level: str) -> str:
+    """One Result's part of a brief: its moments, its words and its cues."""
+    source = f"\n**Source of the video:** {'; '.join(p['sources'])}\n" if p["sources"] else ""
+    return f"""{heading}
+
+The clip runs {fmt_stamp(p['total'])}. All times start at 0:00 at the start of the CLIP, not of the video.
+{source}
+{level} The moments of the clip
+
+{chr(10).join(p['moments'])}
+
+{level} What is said (from the start of the clip)
+
+{p['transcript']}
+
+{level} Sound and timing cues inside the clip (detected locally, not from the words)
+
+{chr(10).join(p['cues'])}
+"""
+
+
+def build_result_brief(project: dict, result_id: str, *, words_of, size_of, cues_of, credit_of,
+                       rubric: str, hashtag_rule: str = "") -> str:
+    """One self-contained file asking Claude (chat, no API) for the post text of ONE Result: the clip's own words,
+    in the order they are heard and with the corrections applied (the words the render uses, renderreq), with
+    times from the start of the clip (what the reply's notes count from); the cues inside it; the source credit
+    context; the rubric's "Judul dan hook", "Teks posting" and "Sudut pandang" sections verbatim; the profile's
+    hashtag rule; and the reply shape. Raises ValueError with a message for the person (no moments, a rubric
+    without a required section)."""
+    sections = rubric_sections(rubric)
+    p = _result_parts(project, result_id, words_of=words_of, size_of=size_of, cues_of=cues_of, credit_of=credit_of)
+    source_block = f"\n**Source of the video:** {'; '.join(p['sources'])}\n\n{_SOURCE_NOTE}\n" if p["sources"] else ""
+    return f"""# Post text for one clip — {p['title']}
 
 You help a short-video editor write the text that goes with ONE finished clip: a short title for the clip, the
 upload title, the caption and hashtags, and an angle that makes it the editor's own. The clip is already cut: do not
 look for other moments and do not change its times. Below are its words (what is said, in the order it plays), the
 sound and timing cues inside it, and the parts of the editor's rubric that say how to write the text.
 
-The clip runs {fmt_stamp(total)}. All times here start at 0:00 at the start of the CLIP, not of the video.
+The clip runs {fmt_stamp(p['total'])}. All times here start at 0:00 at the start of the CLIP, not of the video.
 {source_block}
 ## The moments of the clip
 
-{chr(10).join(moment_lines)}
+{chr(10).join(p['moments'])}
 
 ## What is said (from the start of the clip)
 
-{transcript}
+{p['transcript']}
 
 ## Sound and timing cues inside the clip (detected locally, not from the words)
 
 You cannot hear the audio: these come from analysing the sound and the gaps between words. Treat them as supporting
 evidence about the reactions in the clip.
 
-{chr(10).join(cue_lines)}
+{chr(10).join(p['cues'])}
 
 ---
 
@@ -968,21 +998,7 @@ Reply with **a single JSON block** exactly like this, no extra explanation outsi
 code, function calls, expressions, variables or comments; every value is finished text or a number.
 
 ```json
-{{
-  "title": "2 to 5 words",
-  "hook": "exact quote from the clip",
-  "post": {{
-    "title": "Rugi 300 Juta Gara-gara Salah Timing",
-    "caption": "Satu keputusan di waktu yang salah bisa mahal banget. Kamu pernah ngalamin juga?",
-    "hashtags": ["#bisnis", "#podcast", "#belajarbisnis", "#kegagalan", "#motivasi"],
-    "youtubeTitle": "Rugi 300 Juta Gara-gara Salah Timing #bisnis #podcast #belajarbisnis"
-  }},
-  "angle": {{
-    "take": "Keputusan yang kelihatan kecil bisa jadi yang paling mahal.",
-    "intro": "Satu keputusan ini bikin rugi 300 juta",
-    "notes": [{{ "at": "0:14", "text": "Perhatikan nadanya di sini" }}]
-  }}
-}}
+{_REPLY_EXAMPLE}
 ```
 
 `title` is the clip's own short name (2–5 words, it becomes the file name). `hook` is the sentence from the clip
@@ -991,33 +1007,142 @@ minutes:seconds from the START OF THE CLIP.
 {_hashtag_block(hashtag_rule)}"""
 
 
-_RESULT_REPLY_KEYS = ("title", "post.title", "post.caption", "post.hashtags", "angle.take", "angle.intro")
+_REPLY_FIELDS = '''"title": "2 to 5 words",
+  "hook": "exact quote from the clip",
+  "post": {
+    "title": "Rugi 300 Juta Gara-gara Salah Timing",
+    "caption": "Satu keputusan di waktu yang salah bisa mahal banget. Kamu pernah ngalamin juga?",
+    "hashtags": ["#bisnis", "#podcast", "#belajarbisnis", "#kegagalan", "#motivasi"],
+    "youtubeTitle": "Rugi 300 Juta Gara-gara Salah Timing #bisnis #podcast #belajarbisnis"
+  },
+  "angle": {
+    "take": "Keputusan yang kelihatan kecil bisa jadi yang paling mahal.",
+    "intro": "Satu keputusan ini bikin rugi 300 juta",
+    "notes": [{ "at": "0:14", "text": "Perhatikan nadanya di sini" }]
+  }'''
+_REPLY_EXAMPLE = "{\n  " + _REPLY_FIELDS + "\n}"
 
 
-def parse_result_reply(text: str, duration: float) -> tuple[dict, list[str]]:
-    """Claude's reply for ONE Result -> ({title, hook, post, angle}, what was repaired). The JSON is read with the same
-    reader and repairs as the main import (extract_json). A reply in the other shape (a "clips" list) is read from its
-    first clip. Raises ValueError naming what is missing or broken: title, post.title / caption / hashtags and
-    angle.take / intro are needed; the hook and the notes are optional."""
-    notes: list[str] = []
-    data = extract_json(text, notes)
-    if "clips" in data and isinstance(data["clips"], list) and data["clips"] and isinstance(data["clips"][0], dict):
-        data = data["clips"][0]
+def build_results_brief(project: dict, result_ids: list[str], *, words_of, size_of, cues_of, credit_of,
+                        rubric: str, hashtag_rule: str = "") -> str:
+    """ONE brief for several Results: each with its own id, words, moments and cues (as in build_result_brief), then the
+    rubric's three sections once, the hashtag rule once, and a reply shape that holds one entry per Result:
+    {"results": [{"id", "title", "hook", "post", "angle"}, ...]}. Raises ValueError (a Result with no moments is named)."""
+    if not result_ids:
+        raise ValueError("No Result was chosen.")
+    sections = rubric_sections(rubric)
+    blocks = []
+    for rid in result_ids:
+        try:
+            p = _result_parts(project, rid, words_of=words_of, size_of=size_of, cues_of=cues_of, credit_of=credit_of)
+        except ValueError as exc:
+            who = next((r.get("title") or rid for r in project.get("results") or [] if r.get("id") == rid), rid)
+            raise ValueError(f'"{who}": {exc}') from None
+        blocks.append(_clip_block(p, f'### Clip `{rid}` — {p["title"]}', "####"))
+    names = ", ".join(f"`{r}`" for r in result_ids)
+    example = "{\n  \"results\": [\n    {\n      \"id\": \"" + result_ids[0] + "\",\n      " + _REPLY_FIELDS.replace("\n  ", "\n      ") + "\n    }\n  ]\n}"
+    return f"""# Post text for {len(result_ids)} clips
+
+You help a short-video editor write the text that goes with {len(result_ids)} finished clips: for each, a short title for the
+clip, the upload title, the caption and hashtags, and an angle that makes it the editor's own. The clips are already
+cut: do not look for other moments and do not change their times. Each clip below has an id ({names}), its words
+(what is said, in the order it plays), and the sound and timing cues inside it. Write each one on its own, by the
+rubric below; do not mix their content.
+
+## The clips
+
+{chr(10).join(blocks)}
+
+{_SOURCE_NOTE}
+
+---
+
+## How to write them (the editor's rubric)
+
+{sections}
+
+---
+
+## Answer format
+
+Reply with **a single JSON block** exactly like this, no extra explanation outside the block, with ONE entry for every clip
+id above. Plain JSON only: no code, function calls, expressions, variables or comments; every value is finished text or a number.
+
+```json
+{example}
+```
+
+`id` is the clip's id exactly as written above. `title` is the clip's own short name (2–5 words, it becomes the file
+name). `hook` is the sentence from that clip that holds attention most, quoted exactly. `post` and `angle` are written
+as the rubric above says; `at` is in minutes:seconds from the START OF THAT CLIP.
+{_hashtag_block(hashtag_rule)}"""
+
+
+def _result_fields(data: dict, duration: float) -> tuple[dict, list[str]]:
+    """({title, hook, post, angle}, the names of what is missing) from one Result's part of a reply."""
     title = _text(data.get("title")) if isinstance(data.get("title"), (str, type(None))) else ""
     post = _post(data.get("post"))
     angle = _angle(data.get("angle"), duration)
     missing = []
     if not title:
         missing.append("title")
-    for key, value in (("title", post and post["title"]), ("caption", post and post["caption"]),
-                       ("hashtags", post and post["hashtags"])):
-        if not value:
+    for key in ("title", "caption", "hashtags"):
+        if not (post and post[key]):
             missing.append(f"post.{key}")
-    for key, value in (("take", angle and angle["take"]), ("intro", angle and angle["intro"])):
-        if not value:
+    for key in ("take", "intro"):
+        if not (angle and angle[key]):
             missing.append(f"angle.{key}")
+    hook = data.get("hook")
+    return {"title": title, "hook": _text(hook) if isinstance(hook, str) else "", "post": post, "angle": angle}, missing
+
+
+def parse_result_reply(text: str, duration: float) -> tuple[dict, list[str]]:
+    """Claude's reply for ONE Result -> ({title, hook, post, angle}, what was repaired). The JSON is read with the same
+    reader and repairs as the main import (extract_json). A reply in the other shape (a "clips" or "results" list) is read from
+    its first entry. Raises ValueError naming what is missing or broken: title, post.title / caption / hashtags and
+    angle.take / intro are needed; the hook and the notes are optional."""
+    notes: list[str] = []
+    data = extract_json(text, notes)
+    for key in ("clips", "results"):
+        if isinstance(data.get(key), list) and data[key] and isinstance(data[key][0], dict):
+            data = data[key][0]
+            break
+    fields, missing = _result_fields(data, duration)
     if missing:
         raise ValueError("The reply does not have: " + ", ".join(missing)
                          + ". Ask Claude again (it should answer with the whole JSON block), or fill those in by hand.")
-    hook = data.get("hook")
-    return {"title": title, "hook": _text(hook) if isinstance(hook, str) else "", "post": post, "angle": angle}, notes
+    return fields, notes
+
+
+def parse_results_reply(text: str, durations: dict[str, float]) -> tuple[dict[str, dict], list[str]]:
+    """Claude's reply for SEVERAL Results ({"results": [{"id", title, hook, post, angle}, ...]}) -> ({id: fields}, what was
+    repaired). `durations` is {id: clip length} of the Results asked for. An entry for an id that was not asked for is
+    ignored (and said); a Result with no entry, or with a field missing, is named in the error: nothing is half-read."""
+    notes: list[str] = []
+    data = extract_json(text, notes)
+    entries = data.get("results")
+    if not isinstance(entries, list):
+        if len(durations) == 1 and isinstance(data, dict) and any(k in data for k in ("post", "angle", "title")):
+            entries = [{**data, "id": next(iter(durations))}]       # a reply for one clip, without the list
+        else:
+            raise ValueError('The reply has no "results" list. Ask Claude again (it should answer with the whole JSON block).')
+    out: dict[str, dict] = {}
+    problems: list[str] = []
+    for e in entries:
+        if not isinstance(e, dict):
+            continue
+        rid = e.get("id") if isinstance(e.get("id"), str) else ""
+        if rid not in durations:
+            notes.append(f'an entry with the id "{rid or "?"}" was not asked for and was ignored')
+            continue
+        fields, missing = _result_fields(e, durations[rid])
+        if missing:
+            problems.append(f"{rid}: " + ", ".join(missing))
+        else:
+            out[rid] = fields
+    absent = [rid for rid in durations if rid not in out and not any(p.startswith(f"{rid}:") for p in problems)]
+    problems += [f"{rid}: no entry" for rid in absent]
+    if problems:
+        raise ValueError("The reply is not complete. Missing, by clip id: " + "; ".join(problems)
+                         + ". Ask Claude again (one entry per clip, the whole JSON block), or fill those in by hand.")
+    return out, notes

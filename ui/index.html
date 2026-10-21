@@ -605,6 +605,7 @@
           <div class="allres-list" id="allResList"></div>
           <div class="allres-bar">
             <span class="allres-bar-label">With the ticked Results:</span>
+            <button class="btn" id="bulkPostBtn" type="button" disabled>Write post text…</button>
             <button class="btn" id="bulkOutputBtn" type="button" disabled>Output format…</button>
             <button class="btn" id="bulkDeleteBtn" type="button" disabled>Delete selected</button>
             <span class="step-no" aria-hidden="true">3</span>
@@ -618,6 +619,8 @@
             <span class="eyebrow">Open Result: moments</span>
             <span class="data" id="resultOpenName"></span>
             <span class="data" id="resultTotal">empty</span>
+            <button class="btn" id="resultPostBtn" type="button"
+                    title="Claude writes this Result's title, post text and angle (no API key: copy, paste, paste back)">Write post text with Claude</button>
             <button class="btn quiet" id="resultClearBtn" disabled>Clear</button>
           </div>
           <div class="result-list" id="resultList"></div>
@@ -935,6 +938,20 @@
               title="Fill from the suggestion this Result was made from">Refill from suggestion</button></h2>
             <p class="step-note">For the upload (YouTube/TikTok description). Not shown in the video.</p>
           </div>
+          <!-- Write all of it with Claude in the chat, no API key: a brief of THIS clip to paste there, and Claude's
+               reply pasted back (post.js, klipian/roundtrip.py build_result_brief / parse_result_reply). First thing in
+               the panel, in the accent colour: it is the quickest way to fill everything below. -->
+          <div class="post-ai" id="postAi">
+            <span class="post-label">Write it all with Claude <span class="data">no API key: copy, paste in the Claude chat, paste the reply back</span></span>
+            <div class="post-actions">
+              <button class="btn main" type="button" id="postBriefCopy"
+                      title="A short brief of this clip only (its words, the rubric's post-text rules, your hashtag rule) to paste into Claude">Copy brief for this Result</button>
+              <button class="btn" type="button" id="postBriefDownload" title="The same brief as a file to drop into Claude">Download</button>
+              <button class="btn main" type="button" id="postReplyPaste"
+                      title="Paste Claude's JSON reply: it fills the Result title, the post text and the angle">Paste reply…</button>
+              <span class="data" id="postAiNote" role="status"></span>
+            </div>
+          </div>
           <label class="post-field">
             <span class="post-label">Title <span class="data" id="postTitleCount" data-over="false">0 / 70</span></span>
             <input id="postTitle" type="text" spellcheck="false" autocomplete="off"
@@ -966,19 +983,6 @@
             <button class="btn" type="button" data-post-copy="description">Copy description</button>
             <button class="btn" type="button" data-post-copy="hashtags">Copy hashtags</button>
             <span class="data" id="postNote" role="status"></span>
-          </div>
-          <!-- Write all of it with Claude in the chat, no API key: a brief of THIS clip to paste there, and Claude's
-               reply pasted back (post.js, klipian/roundtrip.py build_result_brief / parse_result_reply). -->
-          <div class="post-ai" id="postAi">
-            <span class="post-label">Write it with Claude <span class="data">no API key: copy, paste in the chat, paste the reply back</span></span>
-            <div class="post-actions">
-              <button class="btn" type="button" id="postBriefCopy"
-                      title="A short brief of this clip only (its words, the rubric's post-text rules, your hashtag rule) to paste into Claude">Copy brief for this Result</button>
-              <button class="btn quiet" type="button" id="postBriefDownload" title="The same brief as a file to drop into Claude">Download</button>
-              <button class="btn" type="button" id="postReplyPaste"
-                      title="Paste Claude's JSON reply: it fills the Result title, the post text and the angle">Paste reply…</button>
-              <span class="data" id="postAiNote" role="status"></span>
-            </div>
           </div>
         </div>
 

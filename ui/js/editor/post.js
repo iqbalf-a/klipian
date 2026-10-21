@@ -234,38 +234,41 @@ document.querySelectorAll("[data-post-copy]").forEach((btn) => {
 });
 
 /* ---------- the post text written with Claude in the chat (no API key) ----------
-   "Copy brief for this Result": the server builds a short brief of THIS clip (klipian/roundtrip.py
-   build_result_brief) from the saved project: this page assembles no text. "Paste reply…": the reply goes to the server
-   (the same reader and repairs as the main import), and its fields fill the Result's title, post text and angle,
-   asking first when something is already written; the Undo toast puts all of it back. */
+   For ONE Result or SEVERAL: "Copy brief" (the server builds it from the saved project: this page assembles no text),
+   "Download" the same, and "Paste reply…": the reply goes to the server (the same reader and repairs as the main
+   import) and its fields fill each Result's title, post text and angle, asking first when something is already written
+   (one list per Result); one Undo toast puts all of it back. The same three actions are in the Post text panel (the open
+   Result), in a dialog from a Results row, from the "Open Result" panel and, for the ticked Results, from the Results bar. */
 
 const postAiNote = (text, bad = false) => {
   const el = $("#postAiNote");
   if (el) { el.textContent = text; el.dataset.error = String(bad); }
 };
 
-async function resultBriefUrl() {
+async function briefUrlFor(ids) {
   const saved = (typeof writeProjectNow === "function") ? await writeProjectNow() : true;
   if (!saved || !activeProjectId) throw new Error("The project could not be saved, so the brief cannot be made.");
   const mode = (typeof briefRubric !== "undefined" && briefRubric) ? `&mode=${encodeURIComponent(briefRubric)}` : "";
-  return `/api/result-brief?project=${encodeURIComponent(activeProjectId)}&result=${encodeURIComponent(activeResultId)}${mode}`;
+  const project = `project=${encodeURIComponent(activeProjectId)}`;
+  return ids.length === 1
+    ? `/api/result-brief?${project}&result=${encodeURIComponent(ids[0])}${mode}`
+    : `/api/results-brief?${project}&results=${ids.map(encodeURIComponent).join(",")}${mode}`;
 }
 
-async function fetchResultBrief() {
-  const res = await fetch(await resultBriefUrl());
+async function fetchBriefFor(ids) {
+  const res = await fetch(await briefUrlFor(ids));
   if (!res.ok) {
     const d = await res.json().catch(() => ({}));
-    throw new Error(d.error || "Could not build the brief for this Result.");
+    throw new Error(d.error || "Could not build the brief.");
   }
   return res.text();
 }
 
-$("#postBriefCopy")?.addEventListener("click", async (e) => {
-  const btn = e.currentTarget;
-  btn.disabled = true;
-  postAiNote("Building the brief…");
+/* `say(text, bad)` shows the outcome where the person pressed the button. */
+async function copyBriefFor(ids, say) {
+  say("Building the brief…");
   try {
-    const pending = fetchResultBrief();
+    const pending = fetchBriefFor(ids);
     pending.catch(() => {});
     let wrote = false;
     // a clipboard write that comes after a long wait can be refused: hand the clipboard the promise
@@ -277,30 +280,30 @@ $("#postBriefCopy")?.addEventListener("click", async (e) => {
     }
     const text = await pending;
     if (!wrote && !(await copyText(text))) throw new Error("the browser refused to copy: use Download instead");
-    postAiNote(`Copied · ${(text.length / 1024).toFixed(1)} KB · paste it into Claude, then press Paste reply…`);
+    say(`Copied · ${(text.length / 1024).toFixed(1)} KB · paste it into Claude, then press Paste reply…`);
   } catch (err) {
-    postAiNote(err.message, true);
-  } finally {
-    btn.disabled = false;
+    say(err.message, true);
   }
-});
+}
 
-$("#postBriefDownload")?.addEventListener("click", async () => {
+async function downloadBriefFor(ids, say) {
   try {
-    const text = await fetchResultBrief();
-    const name = ($("#resultTitle")?.value.trim() || "result").replace(/[^\p{L}\p{N}_-]+/gu, "-").replace(/^-+|-+$/g, "") || "result";
+    const text = await fetchBriefFor(ids);
+    const rows = typeof bulkRows === "function" ? bulkRows() : [];
+    const first = rows.find((r) => r.id === ids[0])?.title || "result";
+    const name = (ids.length > 1 ? `${ids.length}-results` : first).replace(/[^\p{L}\p{N}_-]+/gu, "-").replace(/^-+|-+$/g, "") || "result";
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([text], { type: "text/markdown" }));
     a.download = `post-brief-${name}.md`;
     a.click();
     URL.revokeObjectURL(a.href);
-    postAiNote(`File downloaded · ${(text.length / 1024).toFixed(1)} KB`);
+    say(`File downloaded · ${(text.length / 1024).toFixed(1)} KB`);
   } catch (err) {
-    postAiNote(err.message, true);
+    say(err.message, true);
   }
-});
+}
 
-/* The fields as they are now, in the shape postReplyPlan() reads. */
+/* The fields of the open Result as they are now, in the shape postReplyPlan() reads. */
 const postFieldsNow = () => ({ title: $("#resultTitle")?.value.trim() || "", post: currentPost(), angle: currentAngle() });
 
 function applyPostFields(f) {
@@ -312,55 +315,139 @@ function applyPostFields(f) {
   if (typeof saveProject === "function") saveProject();
 }
 
-async function askForReply(text = "") {
+/* A Result's title, post text and angle: from the live fields for the open one, from the saved Result otherwise. */
+function postFieldsOf(id) {
+  if (id === activeResultId) return JSON.parse(JSON.stringify(postFieldsNow()));
+  const slot = SAVED_RESULTS.find((r) => r.id === id) || {};
+  return JSON.parse(JSON.stringify({ title: slot.title || "", post: slot.post || null, angle: slot.angle || null }));
+}
+
+function setPostFieldsOf(id, f) {
+  if (id === activeResultId) { applyPostFields(f); return; }
+  const slot = SAVED_RESULTS.find((r) => r.id === id);
+  if (!slot) return;
+  slot.title = f.title || "";
+  const p = f.post;
+  if (p && (p.title || p.caption || (p.hashtags || []).length)) slot.post = { title: p.title || "", caption: p.caption || "", hashtags: p.hashtags || [] };
+  else delete slot.post;
+  const a = f.angle;
+  if (a && (a.take || a.intro || (a.notes || []).length)) slot.angle = { take: a.take || "", intro: a.intro || "", notes: a.notes || [] };
+  else delete slot.angle;
+}
+
+async function askForReply(text = "", many = false) {
   const body = document.createElement("div");
   const area = Object.assign(document.createElement("textarea"), { rows: 10, spellcheck: false, value: text,
     placeholder: "Paste Claude's reply here (the whole message is fine: the JSON block is found in it)" });
   area.className = "post-reply-text";
   body.append(area);
   const ok = await confirmDialog({
-    title: "Paste Claude's reply", message: "It fills this Result's title, the post text and the angle.",
+    title: "Paste Claude's reply",
+    message: many ? "It fills each Result's title, post text and angle." : "It fills this Result's title, post text and angle.",
     body, confirmText: "Read the reply", tone: "primary",
   });
   return ok ? area.value : null;
 }
 
-$("#postReplyPaste")?.addEventListener("click", async () => {
-  let text = await askForReply();
+async function pasteReplyFor(ids, say) {
+  let text = await askForReply("", ids.length > 1);
   let reply = null;
   while (text !== null) {
-    if (!text.trim()) { postAiNote("Nothing was pasted.", true); return; }
+    if (!text.trim()) { say("Nothing was pasted.", true); return; }
     try {
       const saved = (typeof writeProjectNow === "function") ? await writeProjectNow() : true;
-      if (!saved || !activeProjectId) { postAiNote("The project could not be saved, so the reply cannot be read.", true); return; }
-      const res = await fetch("/api/result-reply", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ project: activeProjectId, result: activeResultId, text }) });
+      if (!saved || !activeProjectId) { say("The project could not be saved, so the reply cannot be read.", true); return; }
+      const res = await fetch("/api/results-reply", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ project: activeProjectId, results: ids, text }) });
       const d = await res.json().catch(() => ({}));
       if (!res.ok || d.error) throw new Error(d.error || "Could not read that reply.");
       reply = d;
       break;
     } catch (err) {
-      postAiNote(err.message, true);
-      text = await askForReply(text);                  // the text stays, so it can be fixed
+      say(err.message, true);
+      text = await askForReply(text, ids.length > 1);                 // the text stays, so it can be fixed
     }
   }
   if (!reply) return;
-  const before = postFieldsNow();
-  const plan = postReplyPlan(before, reply);
-  if (plan.conflicts.length) {
+  if (typeof snapshotActiveResult === "function") snapshotActiveResult();
+  const titles = Object.fromEntries((typeof bulkRows === "function" ? bulkRows() : []).map((r) => [r.id, r.title]));
+  const before = {}, plans = {}, asked = [];
+  for (const id of ids) {
+    before[id] = postFieldsOf(id);
+    plans[id] = postReplyPlan(before[id], reply.results[id]);
+    if (plans[id].conflicts.length) asked.push([id, plans[id].conflicts]);
+  }
+  if (asked.length) {
     const list = document.createElement("ul");
     list.className = "bulk-plan-list";
-    for (const c of plan.conflicts) { const li = document.createElement("li"); li.textContent = c; list.append(li); }
+    for (const [id, conflicts] of asked) {
+      const li = document.createElement("li");
+      li.textContent = (ids.length > 1 ? `${titles[id] || id}: ` : "") + conflicts.join(", ");
+      list.append(li);
+    }
     const go = await confirmDialog({ title: "Replace what is written?", message: "These already have text and would be replaced:",
       body: list, confirmText: "Replace", tone: "primary" });
-    if (!go) { postAiNote("Nothing was changed."); return; }
+    if (!go) { say("Nothing was changed."); return; }
   }
-  applyPostFields(plan.next);
-  const rendered = (typeof SAVED_RESULTS !== "undefined" ? SAVED_RESULTS : []).find((r) => r.id === activeResultId)?.renderedAt;
-  const warn = $("#postWarn") && !$("#postWarn").hidden ? ` · ${$("#postWarn").textContent}` : "";
-  postAiNote(`Filled from Claude's reply: title, post text and angle${reply.notes?.length ? ` (fixed in the reply: ${reply.notes.join("; ")})` : ""}`
-    + warn + (rendered ? " · This Result was rendered before: its upload-schedule row takes the new text at the next render." : "") + ".");
-  if (typeof undoForResult === "function") undoForResult("Post text filled from Claude's reply", () => { applyPostFields(before); postAiNote("Put back what was there."); });
+  for (const id of ids) setPostFieldsOf(id, plans[id].next);
+  if (typeof snapshotActiveResult === "function") snapshotActiveResult();
+  if (typeof renderResultSwitcher === "function") renderResultSwitcher();
+  if (typeof saveProject === "function") saveProject();
+  const warnings = Object.entries(reply.postWarnings || {}).map(([id, w]) => (ids.length > 1 ? `${titles[id] || id}: ` : "") + w);
+  const rendered = ids.filter((id) => SAVED_RESULTS.find((r) => r.id === id)?.renderedAt).length;
+  say(`Filled from Claude's reply: ${ids.length > 1 ? `${ids.length} Results` : "title, post text and angle"}`
+    + (reply.notes?.length ? ` (fixed in the reply: ${reply.notes.join("; ")})` : "")
+    + (warnings.length ? ` · ${warnings[0]}` : "")
+    + (rendered ? ` · ${rendered > 1 ? `${rendered} were` : "This Result was"} rendered before: the upload-schedule row takes the new text at the next render` : "") + ".");
+  if (typeof undoForResult === "function") {
+    undoForResult(ids.length > 1 ? `Post text filled for ${ids.length} Results` : "Post text filled from Claude's reply", () => {
+      for (const id of ids) setPostFieldsOf(id, before[id]);
+      if (typeof snapshotActiveResult === "function") snapshotActiveResult();
+      if (typeof renderResultSwitcher === "function") renderResultSwitcher();
+      if (typeof saveProject === "function") saveProject();
+      say("Put back what was there.");
+    });
+  }
+}
+
+/* The launcher dialog: the three actions for these Results, with their own note (used by the Results rows, the Open
+   Result panel and the Results bar). Paste reply… closes it first (one dialog at a time), then asks for the reply. */
+async function writePostTextDialog(ids) {
+  if (!ids.length) return;
+  const rows = typeof bulkRows === "function" ? bulkRows() : [];
+  const names = ids.map((id) => rows.find((r) => r.id === id)?.title || id);
+  const body = document.createElement("div");
+  body.className = "post-ai-dlg";
+  const intro = Object.assign(document.createElement("p"), { className: "confirm-msg",
+    textContent: ids.length === 1
+      ? `Claude writes the title, the post text (title, caption, hashtags) and the angle for "${names[0]}". No API key: copy the brief, paste it in the Claude chat, paste the reply back.`
+      : `One brief for ${ids.length} Results (${names.slice(0, 3).join(", ")}${names.length > 3 ? ", …" : ""}). No API key: copy it, paste it in the Claude chat, paste the reply back.` });
+  const note = Object.assign(document.createElement("p"), { className: "data post-ai-dlg-note" });
+  note.setAttribute("role", "status");
+  const say = (t, bad = false) => { note.textContent = t; note.dataset.error = String(bad); };
+  const mk = (label, cls, fn) => { const b = Object.assign(document.createElement("button"), { type: "button", className: `btn ${cls}`, textContent: label }); b.addEventListener("click", fn); return b; };
+  let paste = false;
+  const row = document.createElement("div");
+  row.className = "post-ai-dlg-actions";
+  row.append(
+    mk(ids.length > 1 ? `Copy brief for ${ids.length} Results` : "Copy brief for this Result", "main", () => copyBriefFor(ids, say)),
+    mk("Download", "", () => downloadBriefFor(ids, say)),
+    mk("Paste reply…", "main", () => { paste = true; body.closest("dialog")?.querySelector(".confirm-cancel")?.click(); }));
+  body.append(intro, row, note);
+  setTimeout(() => { const ok = body.closest("dialog")?.querySelector(".confirm-ok"); if (ok) ok.hidden = true; }, 0);
+  await confirmDialog({ title: ids.length === 1 ? "Write post text with Claude" : `Write post text for ${ids.length} Results`,
+    body, cancelText: "Close", tone: "primary" });
+  if (paste) await pasteReplyFor(ids, (t, bad) => { postAiNote(t, bad); const n = $("#editNote"); if (n && !bad) n.textContent = t; });
+}
+
+$("#postBriefCopy")?.addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  await copyBriefFor([activeResultId], postAiNote);
+  btn.disabled = false;
 });
+$("#postBriefDownload")?.addEventListener("click", () => downloadBriefFor([activeResultId], postAiNote));
+$("#postReplyPaste")?.addEventListener("click", () => pasteReplyFor([activeResultId], postAiNote));
+$("#resultPostBtn")?.addEventListener("click", () => writePostTextDialog([activeResultId]));
 
 updatePostCount();

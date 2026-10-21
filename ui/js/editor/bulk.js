@@ -55,6 +55,8 @@ function bulkRows() {
       framed: (r.framing || []).some((p) => !p.auto),
       framing: bulkFramingText(live ? FRAMING : r.framing),
       renderedAt: r.renderedAt || 0,
+      postTitle: (live ? currentPost()?.title : r.post?.title) || "",
+      hasPost: !!(live ? currentPost() : r.post),
     };
   });
 }
@@ -86,6 +88,8 @@ function renderAllResults() {
           <span>${r.moments ? `${Math.round(r.duration)}s · ${r.moments} moment${r.moments === 1 ? "" : "s"}` : "no moments yet"}</span>
           <span title="Output format">${escapeHTML(r.format)}</span>
           <span title="Framing">framing: ${escapeHTML(r.framing)}</span>
+          ${r.hasPost ? `<span class="post-ok" title="Post text written: ${escapeHTML(r.postTitle)}">post ✓ ${escapeHTML(r.postTitle || "(no title)")}</span>`
+            : '<span class="not-rendered" title="This Result has no post text yet">no post text</span>'}
           ${r.renderedAt ? `<span class="rendered" title="Last render of this Result">✓ rendered ${escapeHTML(bulkAgo(r.renderedAt))}</span>`
             : '<span class="not-rendered">not rendered</span>'}
         </div>
@@ -93,12 +97,13 @@ function renderAllResults() {
       <div class="allres-actions">
         ${r.live ? '<span class="btn quiet allres-editing" title="This Result is open below in Open Result: moments" aria-current="true">Editing</span>'
           : '<button class="btn quiet" type="button" data-bulk-open>Open</button>'}
+        <button class="btn quiet" type="button" data-bulk-post title="Write the post text with Claude (copy a brief, paste the reply)">Post text…</button>
         <button class="btn quiet allres-x" type="button" data-bulk-delete title="Delete this Result" aria-label="Delete ${escapeHTML(r.title)}">✕</button>
       </div>
     </div>`).join("");
   const n = BULK_TICKED.size;
   const none = "Tick the Results you want first";
-  for (const [id, word] of [["bulkRenderBtn", "Render selected"], ["bulkOutputBtn", "Output format…"], ["bulkDeleteBtn", "Delete selected"]]) {
+  for (const [id, word] of [["bulkRenderBtn", "Render selected"], ["bulkPostBtn", "Write post text…"], ["bulkOutputBtn", "Output format…"], ["bulkDeleteBtn", "Delete selected"]]) {
     const b = document.getElementById(id);
     if (!b) continue;
     b.textContent = n ? `${word.replace("…", "")} (${n})${word.endsWith("…") ? "…" : ""}` : word;
@@ -122,6 +127,7 @@ $("#allResList")?.addEventListener("click", (e) => {
   if (!id) return;
   if (e.target.closest("[data-bulk-open]") && typeof switchResult === "function") switchResult(id);
   else if (e.target.closest("[data-bulk-delete]")) deleteResultsAsked([id]);
+  else if (e.target.closest("[data-bulk-post]")) writePostTextDialog([id]);
 });
 
 $("#bulkSelectAll")?.addEventListener("click", () => {
@@ -369,6 +375,11 @@ async function bulkOutputDialog(ids) {
     + (keep.size ? ` (kept each one's own ${[...keep].join(", ")})` : "") + ".";
   return true;
 }
+
+$("#bulkPostBtn")?.addEventListener("click", () => {
+  const ids = bulkRows().filter((r) => BULK_TICKED.has(r.id)).map((r) => r.id);
+  if (ids.length) writePostTextDialog(ids);
+});
 
 $("#bulkOutputBtn")?.addEventListener("click", async () => {
   if (BULK_TICKED.size) { await bulkOutputDialog([...BULK_TICKED]); renderAllResults(); }

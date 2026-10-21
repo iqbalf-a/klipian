@@ -3998,6 +3998,45 @@ def check_resultpost() -> tuple[str, str]:
         except ValueError as exc:
             if want not in str(exc):
                 problems.append(f"{bad!r}: {exc}")
+    # ONE brief for several Results, and the reply with one entry per Result
+    def many(ids):
+        return roundtrip.build_results_brief(project, ids, words_of=words.get, size_of=lambda f: (1920, 1080),
+                                             cues_of=lambda f: laugh if f == "ep1.mp4" else [], credit_of=credit.get,
+                                             rubric=rubric, hashtag_rule=rule)
+
+    mb = many(["res1", "res2"])
+    if "`res1`" not in mb or "`res2`" not in mb or not re.search(r"\bw20\b", mb) or not re.search(r"\bv0\b", mb) or re.search(r"\bw100\b", mb):
+        problems.append("the brief of several Results should hold each one's own id and words, and nobody else's")
+    if mb.count("## Teks posting") != 1 or mb.count(rule) != 1 or mb.count("Plain JSON only") != 1 or '"results"' not in mb:
+        problems.append("the rubric sections, the hashtag rule and the JSON sentence belong once; the reply shape has a results list")
+    if mb.count("[0:00]") < 2:
+        problems.append("each clip's times start at 0:00")
+    for ids, want in ((["res1", "res4"], "res4"), ([], "No Result")):
+        try:
+            many(ids)
+            problems.append(f"{ids} should be refused")
+        except ValueError as exc:
+            if want not in str(exc):
+                problems.append(f"{ids}: {exc}")
+    entry = lambda rid, **kw: {"id": rid, "title": "T " + rid, "post": {"title": "P", "caption": "C", "hashtags": ["a"]},   # noqa: E731
+                               "angle": {"take": "k", "intro": "i"}, **kw}
+    reply = "```json\n" + json.dumps({"results": [entry("res1"), entry("res2", hook="h"), entry("zzz")]}) + "\n```"
+    got, notes = roundtrip.parse_results_reply(reply, {"res1": 10.0, "res2": 7.25})
+    if sorted(got) != ["res1", "res2"] or got["res2"]["hook"] != "h" or got["res1"]["post"]["hashtags"] != ["#a"] or not any("zzz" in n for n in notes):
+        problems.append(f"a reply of several Results: {sorted(got)} {notes}")
+    for text, want in ((json.dumps({"results": [entry("res1")]}), "res2: no entry"),
+                       (json.dumps({"results": [entry("res1"), {"id": "res2", "title": "x", "post": {"title": "P"}, "angle": {"take": "k"}}]}),
+                        "res2: post.caption, post.hashtags, angle.intro"),
+                       (json.dumps({"clips": []}), 'no "results" list')):
+        try:
+            roundtrip.parse_results_reply(text, {"res1": 10.0, "res2": 7.25})
+            problems.append(f"{want!r} should have been refused")
+        except ValueError as exc:
+            if want not in str(exc) or ("res1:" in str(exc)):
+                problems.append(f"the message should name {want!r} and only what is wrong: {exc}")
+    one = roundtrip.parse_results_reply(json.dumps({k: v for k, v in entry("x").items() if k != "id"}), {"res1": 10.0})[0]
+    if list(one) != ["res1"]:
+        problems.append("a reply for a single clip without a list should be read for the one Result asked for")
     if problems:
         return FAIL, "\n      ".join(problems[:10])
     return PASS, "the brief holds only the Result's words (corrections, clip times, two videos), cues inside it, credit context, the rubric's 3 sections, the hashtag rule; rubric sections refused by name; reply fills every field, slips repaired, missing keys named"

@@ -2780,3 +2780,11 @@ dialog.confirm-dlg:has(.bulk-out-wrap) { width: min(780px, calc(100vw - 32px)); 
 .post-reply-text { width: 100%; min-height: 180px; margin-top: 8px; font-family: var(--font-data); font-size: 12px; padding: 8px 10px;
   color: var(--text); background: var(--bg-1); border: 1px solid var(--glass-border); border-radius: var(--r-s); resize: vertical; }
 dialog.confirm-dlg:has(.post-reply-text) { width: min(640px, calc(100vw - 32px)); }
+
+/* the "Write it all with Claude" block: first in the Post text panel, in the accent colour */
+#postAi.post-ai { margin: 0 0 var(--s3); padding: var(--s3); border: 1px solid color-mix(in oklab, var(--accent) 45%, transparent);
+  border-radius: var(--r-s); background: color-mix(in oklab, var(--accent) 8%, transparent); }
+.allres-meta .post-ok { color: var(--text-muted); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.post-ai-dlg-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 8px; }
+.post-ai-dlg-note { margin: 0; min-height: 1.4em; color: var(--text-muted); }
+.post-ai-dlg-note[data-error="true"] { color: var(--danger); }
