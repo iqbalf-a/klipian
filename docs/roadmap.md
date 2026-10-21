@@ -2028,6 +2028,100 @@ setiap Result harus dibuka lalu dirender satu per satu.
 
 **Status:** dikirim ke sesi eksekusi 2026-10-21.
 
+### P24 — Find clips lewat Claude API (tanpa salin-tempel)
+
+Arah ian (2026-10-21): ingin menambah channel dan mencari niche yang cocok,
+jadi butuh otomasi yang lebih banyak dan mudah. Langkah paling repot sekarang
+adalah Copy brief → tempel ke Claude → salin balasan → impor. **Dikerjakan
+setelah P23.**
+
+- **Tombol "Find clips with Claude"** di layar Analyze/Clips. Brief yang sama
+  (`/api/brief`, rubrik profile, aturan hashtag P16, JSON murni) dikirim ke
+  Claude API. Balasannya diimpor lewat jalur yang sama dengan impor manual
+  (`roundtrip`, termasuk perbaikan JSON f238480 dan 6b22735). Jalur
+  salin-tempel tetap ada.
+- **SDK:** paket resmi `anthropic` (Python), sebagai dependensi opsional
+  `requirements-claude.txt`.
+  - Panggilan **streaming** (`messages.stream` + `get_final_message`),
+    karena transkrip 1–2 jam bisa puluhan ribu token.
+  - `thinking: {type: "adaptive"}`.
+  - `max_tokens` cukup besar untuk 10–20 kandidat.
+- **Model:** dipilih di pengaturan. Bawaannya Opus terbaru yang tersedia
+  di akun; cek lewat Models API saat dibangun. `claude-opus-4-8` adalah
+  bawaan yang dikenal, dan model Claude 5 lebih baru bila akun
+  mendukungnya. Tidak pernah diturunkan diam-diam ke model lebih murah.
+- **Prompt caching:** bagian statis (rubrik, aturan, contoh JSON) diletakkan
+  di depan dengan `cache_control`, lalu transkrip dan cues di belakang.
+  Analisis ulang episode yang sama juga bisa memakai cache.
+- **JSON:** pakai structured output (`output_config.format` dengan skema
+  kandidat) supaya balasan selalu JSON valid. Kalau tidak cocok dengan
+  bentuk balasan yang ada, tetap pakai parser + perbaikan yang ada.
+- **API key:** dimasukkan ian sendiri di Settings, disimpan di
+  `workspace/secrets/anthropic.json` (bersama untuk semua profile, atau per
+  profile kalau ian mau tagihan terpisah). Kalau ada, `ANTHROPIC_API_KEY`
+  juga dihormati. Key tidak pernah ke browser, log, atau git.
+- **Biaya dan transparansi:**
+  - sebelum kirim: hitung token (`count_tokens`) dan perkiraan biaya;
+  - sesudah: catat token input, output, dan cache dari `usage` per brief
+    di project, dan tampilkan ringkasannya per profile per bulan.
+- **Error:** typed exception SDK (rate limit, overloaded, auth, koneksi),
+  retry bawaan SDK, pesan yang jelas, dan stop reason `refusal` atau
+  `max_tokens` ditangani. Tidak ada impor sebagian diam-diam.
+- **Job latar belakang** dengan progress (mengirim / Claude berpikir /
+  mengimpor) dan Cancel. Hasilnya muncul sebagai Result baru seperti impor
+  manual, dengan id impor untuk "Select all from this brief" (P23).
+
+### P25 — Autopilot: dari link sampai Draft
+
+Satu halaman per profile: tempel satu atau beberapa link YouTube (atau pilih
+source yang sudah ada). Setiap video berjalan berurutan:
+
+1. unduh (P22);
+2. transkripsi;
+3. Find clips (P24);
+4. ambil **N klip teratas** berdasarkan skor (N diatur, bawaan 5);
+5. AI Framing opsional;
+6. render massal (P23);
+7. masuk Clips sebagai **Draft**.
+
+**Upload tidak otomatis:** ian meninjau, lalu memakai Upload massal. Ada
+progres per video per langkah. Video yang gagal di satu langkah berhenti di
+situ dengan alasannya, dan video lain tetap jalan. Bisa ditinggal (job
+server) dan bisa di-Cancel. Bergantung pada P22, P23, dan P24.
+
+### P26 — Rubrik per niche
+
+Perluasan P21-D.
+- **Rubrik baru dari template** di pengaturan profile, misalnya:
+  - komedi/cuplikan TV;
+  - edukasi/explainer;
+  - gaming;
+  - motivasi;
+  - podcast (yang ada).
+- Rubrik disalin ke `prompts/rubrik/<nama>.md` dan bisa diedit. Bagian
+  wajib (Teks posting, aturan kredit, aturan JSON) dicek seperti selftest
+  rubrik podcast.
+- Rubrik bawaan profile dipakai Find clips dan Copy brief.
+- Membuat channel uji baru cukup: buat profile → pilih rubrik → connect
+  YouTube → Autopilot.
+
+### P27 — Dashboard niche
+
+Untuk memutuskan niche mana yang dilanjutkan.
+- **Data per klip** (videoId dari upload): views, like, komentar dari Data
+  API `videos.list part=statistics` (murah, 50 id per panggilan), plus rata-
+  rata durasi tonton dan persentase ditonton dari **YouTube Analytics API**
+  (scope tambahan `yt-analytics.readonly`, jadi profile perlu Connect
+  ulang).
+- **Tampilan:** per profile per minggu (klip tayang, total views, median
+  views per klip, retensi rata-rata), lalu perbandingan antar profile, dan
+  klip terbaik/terburuk per niche dengan rubrik dan sumbernya.
+- **Penarikan data:** berkala dengan throttle seperti P16 Tahap 2b, dan
+  disimpan lokal per profile.
+
+**Status P24–P27 (2026-10-21):** dicatat. P24 dikirim ke sesi eksekusi
+setelah P23 selesai, dan P25–P27 menyusul sesuai urutan.
+
 ---
 
 ## 3. Diparkir, sengaja tidak dikerjakan
