@@ -693,6 +693,10 @@ function drawQueue() {
     renderStatus(`${running} running · ${queued} queued · ${end} done`);
   }
 
+  // "Cancel all" only makes sense while several clips are queued
+  const cancelAll = $("#queueCancelAll");
+  if (cancelAll) cancelAll.hidden = !(typeof renderJobId !== "undefined" && renderJobId !== null && QUEUE.filter((r) => r.pct !== 100).length > 1);
+
   $("#queueList").innerHTML = QUEUE.length
     ? QUEUE.map((r) => `
         <div class="row queue-row">

@@ -15,6 +15,7 @@ import json
 import sys
 import threading
 import time
+import uuid
 from pathlib import Path
 
 from .cache import Cache
@@ -22,7 +23,7 @@ from .models import Transcript
 from . import compose as composer
 from . import render as engine
 from . import roundtrip
-from .paths import CACHE_DIR, GLOSSARY, GUEST, OUT_ROOT, current_profile, find_video, safe_dirname
+from .paths import CACHE_DIR, GLOSSARY, GUEST, OUT_ROOT, SOURCES, current_profile, find_video, safe_dirname
 from .projects import (_project_assets_dir, _project_file,
                        _project_out_dir, _read_project, read_render_records,
                        write_render_record)
@@ -414,6 +415,193 @@ def _run_render(job_id: str, req: dict, into: Path | None = None, record: bool =
             t["error"] = str(exc)
     finally:
         CANCELLED.discard(job_id)                  # don't leak to the next job id
+
+
+# --------------------------------------------------------------------------
+# rendering Results of a saved project (P23): one request per Result, built here, run one after another
+# --------------------------------------------------------------------------
+
+def _request_adapters():
+    """What renderreq needs from the machine: the words of a video (transcript cache) and its size."""
+    from . import renderreq
+    cache = Cache(CACHE_DIR)
+    words: dict = {}
+    sizes: dict = {}
+
+    def words_of(file):
+        if file not in words:
+            video = find_video(file) or (SOURCES / Path(file).name)
+            path = cache.find_transcript(video) if file else None
+            words[file] = renderreq.words_from_transcript_json(path) if path else None
+        return words[file]
+
+    def size_of(file):
+        if file not in sizes:
+            video = find_video(file) if file else None
+            try:
+                from .ffmpeg_tools import probe
+                info = probe(video) if video else None
+                sizes[file] = (info.width, info.height) if info else None
+            except Exception:                        # noqa: BLE001
+                sizes[file] = None
+        return sizes[file]
+
+    return words_of, size_of
+
+
+def plan_project_render(pdata: dict, result_ids: list[str]) -> tuple[list[dict], list[dict]]:
+    """For each Result asked for: its request, or why it cannot be rendered.
+    Returns (items, refused): items = [{result, title, request, duration}], refused = [{result, title, code, message}]."""
+    from . import renderreq
+    words_of, size_of = _request_adapters()
+    titles = {r.get("id"): (r.get("title") or "") for r in pdata.get("results") or [] if isinstance(r, dict)}
+    items, refused = [], []
+    for rid in result_ids:
+        title = titles.get(rid, "") or str(rid)
+        try:
+            req = renderreq.build_request(pdata, rid, words_of=words_of, size_of=size_of)
+        except renderreq.RequestError as exc:
+            refused.append({"result": rid, "title": title, "code": exc.code, "message": exc.message})
+            continue
+        clip = req["clips"][0]
+        files = {req["video"]} | {s.get("video") for s in clip["spans"] if s.get("video")}
+        missing = sorted(f for f in files if f and not find_video(f))
+        if missing:
+            refused.append({"result": rid, "title": clip["title"], "code": "no_source",
+                            "message": f"{missing[0]} is not in this profile's sources."})
+            continue
+        duration = sum(s["end"] - s["start"] for s in clip["spans"])
+        layout = clip["picture"] if clip["picture"] == "9:16" else f"{clip['picture']} · {clip['background']} · {clip['position']}%"
+        items.append({"result": rid, "title": clip["title"], "request": req, "duration": round(duration, 1),
+                      "layout": layout})
+    return items, refused
+
+
+def start_project_render(project_id: str, result_ids: list[str], ai_framing: bool = False) -> dict:
+    """Render these Results of the saved project, one after another, as one job. Returns {id, items, refused};
+    raises ValueError when nothing can be rendered."""
+    pf = _project_file(project_id)
+    pdata = _read_project(pf) if pf and pf.is_file() else None
+    if not pdata:
+        raise ValueError("That project is not saved yet.")
+    ids = [str(r) for r in dict.fromkeys(result_ids)]
+    if not ids:
+        raise ValueError("No Result was chosen.")
+    items, refused = plan_project_render(pdata, ids)
+    if not items:
+        raise ValueError(refused[0]["message"] if refused else "Nothing to render.")
+    batch_id = uuid.uuid4().hex[:8]
+    entry_items = [{"result": it["result"], "title": it["title"], "duration": it["duration"], "layout": it["layout"],
+                    "state": "queued", "error": None, "cancel": False} for it in items]
+    _register_job(batch_id, {"state": "running", "done": 0, "total": len(items), "index": 0, "current": "",
+                             "result": [], "error": None, "batch": True, "items": entry_items,
+                             "refused": refused, "aiFraming": bool(ai_framing)})
+    import contextvars
+    threading.Thread(target=contextvars.copy_context().run,
+                     args=(_run_batch, batch_id, [it["request"] for it in items], bool(ai_framing)),
+                     daemon=True).start()
+    return {"id": batch_id, "items": [dict(i) for i in entry_items], "refused": refused}
+
+
+def _with_ai_framing(req: dict, item: dict, t: dict) -> dict:
+    """The request with AI Framing applied (phase 3 of P23); for now the request as it is."""
+    return req
+
+
+def _run_batch(batch_id: str, requests: list[dict], ai_framing: bool = False) -> None:
+    """Run the requests one after another, each as a render job of its own (so each records its last request,
+    makes its schedule row and its History entry exactly as a single render does)."""
+    t = JOBS[batch_id]
+    items = t["items"]
+    try:
+        for i, req in enumerate(requests):
+            item = items[i]
+            with LOCK:
+                stop_all = batch_id in CANCELLED
+                skip = item["cancel"]
+                if stop_all or skip:
+                    item["state"] = "cancelled"
+                    continue
+                item["state"] = "running"
+                t["index"] = i
+                t["current"] = item["title"]
+            if ai_framing:
+                try:
+                    req = _with_ai_framing(req, item, t)
+                except Exception as exc:             # noqa: BLE001
+                    with LOCK:
+                        item["note"] = f"AI Framing failed ({exc}); rendered with the framing it has"
+            sub = f"{batch_id}-{i}"
+            _register_job(sub, {"state": "running", "done": 0, "total": 1, "index": 0, "current": "",
+                                "result": [], "error": None})
+            with LOCK:
+                item["job"] = sub
+                if item["cancel"]:                   # cancelled while AI Framing ran
+                    CANCELLED.add(sub)
+            _run_render(sub, req)
+            with LOCK:
+                sj = JOBS.pop(sub, None) or {}
+                item["job"] = None
+                item["state"] = {"done": "done", "cancelled": "cancelled"}.get(sj.get("state"), "failed")
+                if item["state"] == "failed":
+                    item["error"] = sj.get("error") or "the render failed"
+                if sj.get("result"):
+                    item["output"] = sj["result"][0]
+                    t["result"].append(sj["result"][0])
+                for key in ("schedule", "warning"):
+                    if sj.get(key):
+                        item[key] = sj[key]
+                t["done"] = sum(1 for x in items if x["state"] == "done")
+        with LOCK:
+            cancelled = batch_id in CANCELLED
+            for x in items:
+                if x["state"] == "queued":
+                    x["state"] = "cancelled"
+            if cancelled:
+                t["state"] = "cancelled"
+            elif items and all(x["state"] == "failed" for x in items):
+                t["state"] = "failed"
+                t["error"] = items[0]["error"]
+            else:
+                t["state"] = "done"
+    except Exception as exc:                          # noqa: BLE001
+        with LOCK:
+            t["state"] = "failed"
+            t["error"] = str(exc)
+    finally:
+        CANCELLED.discard(batch_id)
+
+
+def cancel_job(job_id: str, item: int | None = None) -> bool:
+    """Cancel a render job. For a batch: the whole batch (`item` None) or one clip of it (a queued one is
+    skipped, the running one is stopped and the next one starts). True when something was cancelled."""
+    with LOCK:
+        t = JOBS.get(job_id)
+        if not t or t.get("state") != "running":
+            return False
+        if not t.get("batch"):
+            CANCELLED.add(job_id)
+            return True
+        items = t["items"]
+        if item is None:
+            CANCELLED.add(job_id)
+            for x in items:
+                if x.get("job"):
+                    CANCELLED.add(x["job"])
+            return True
+        if not 0 <= item < len(items):
+            return False
+        x = items[item]
+        if x["state"] == "queued":
+            x["cancel"] = True
+            x["state"] = "cancelled"
+            return True
+        if x["state"] == "running":
+            x["cancel"] = True
+            if x.get("job"):
+                CANCELLED.add(x["job"])
+            return True
+        return False
 
 
 def _out_url(out_dir: Path, name: str) -> str:

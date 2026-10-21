@@ -290,16 +290,28 @@ $("#queueList")?.addEventListener("click", (e) => {
     r.note = "cancelling…";
     drawQueue();
     if (typeof renderJobId !== "undefined" && renderJobId) {
+      // One clip of the queue (a running one stops and the next starts; a waiting one is skipped)
       fetch("/api/render/cancel", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: renderJobId }),
+        body: JSON.stringify({ id: renderJobId, item: i }),
       }).catch(() => { /* the poll will show the real state */ });
     }
     // Final status ("cancelled") comes from the poll once the server confirms.
   } else if (action === "retry") {
-    // Retry re-runs the Result render from the start.
-    if (typeof startRender === "function") startRender();
+    // Retry re-renders that clip's Result.
+    if (r.resultId && typeof renderSavedResults === "function") renderSavedResults([r.resultId]);
+    else if (typeof startRender === "function") startRender();
   }
+});
+
+/* Cancel all: the clip that is rendering stops and nothing after it starts. */
+$("#queueCancelAll")?.addEventListener("click", () => {
+  if (typeof renderJobId === "undefined" || !renderJobId) return;
+  QUEUE.forEach((r) => { if (r.pct !== 100) r.note = "cancelling…"; });
+  drawQueue();
+  fetch("/api/render/cancel", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: renderJobId }),
+  }).catch(() => { /* the poll will show the real state */ });
 });
 
 drawSource();

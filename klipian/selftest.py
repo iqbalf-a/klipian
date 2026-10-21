@@ -2889,7 +2889,149 @@ def check_renderreq() -> tuple[str, str]:
     return PASS, "4 Results built from a saved project equal the expected requests (framing split, corrections, two videos, overlays, volumes)"
 
 
-CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl,
+def check_batch() -> tuple[str, str]:
+    """Rendering Results of a saved project (jobs.start_project_render): the server builds each request,
+    runs them one after another, every finished clip records its last request and makes its schedule Draft
+    row (none for the Guest), one clip or all can be cancelled, and a Result that cannot be rendered is
+    refused with a reason. Real renders of the baseline's short test video."""
+    import os
+    from . import jobs, paths, profiles, schedule
+    from .projects import PROJECTS_DIR, _read_project, _write_project, read_render_records
+
+    video = "podcast-test.mp4"
+    if not (paths.SOURCES / video).is_file():
+        return SKIP, f"{video} is not available here"
+    problems = []
+
+    def result(rid, start, title, **more):
+        return {"id": rid, "title": "", "segments": [{"id": "r1", "asset": "a1", "start": start, "end": start + 1.5,
+                                                      "title": title, "source": "ai"}],
+                "framing": [], "corrections": {}, "output": [0, 0, 2, None, 50],
+                "post": {"title": f"Post {title}", "caption": "Teks.", "hashtags": ["#a", "#b"]}, **more}
+
+    def make_project(pid, results, assets=None):
+        _write_project(PROJECTS_DIR / f"{pid}.json", {
+            "id": pid, "name": "Batch", "assets": assets or [{"id": "a1", "kind": "video", "file": video}],
+            "activeAsset": "a1", "results": results, "activeResult": results[0]["id"], "candidates": [],
+            "caption": {"per-line": 1}, "at": 1, "createdAt": 1})
+
+    def wait(job_id, limit=120):
+        t0 = time.time()
+        while time.time() - t0 < limit:
+            with jobs.LOCK:
+                t = jobs.JOBS.get(job_id)
+                state = t["state"] if t else "missing"
+            if state != "running":
+                return state
+            time.sleep(0.1)
+        return "timeout"
+
+    pid = "00a1b2c3d4e5"
+    make_project(pid, [result("res1", 3.0, "Satu"), result("res2", 5.0, "Dua"), result("res3", 7.0, "Tiga"),
+                       {"id": "res4", "title": "", "segments": [], "framing": [], "corrections": {}},
+                       result("res5", 9.0, "Lima")])
+    try:
+        # --- all in order; refused ones listed with a reason
+        started = jobs.start_project_render(pid, ["res1", "res4", "res2", "nope", "res3"])
+        if [r["result"] for r in started["refused"]] != ["res4", "nope"] \
+                or [r["code"] for r in started["refused"]] != ["no_spans", "no_result"]:
+            problems.append(f"refused Results: {started['refused']}")
+        state = wait(started["id"])
+        batch = dict(jobs.JOBS[started["id"]])
+        items = batch["items"]
+        if state != "done" or [i["state"] for i in items] != ["done"] * 3 or [i["result"] for i in items] != ["res1", "res2", "res3"]:
+            problems.append(f"the batch did not render the three Results in order: {state} {[(i['result'], i['state'], i.get('error')) for i in items]}")
+        files = [i.get("output", {}).get("file") for i in items]
+        out_dir = paths.OUT_ROOT
+        found = [next(iter(out_dir.glob(f"*/{f}")), None) for f in files if f]
+        if len(found) != 3 or not all(found):
+            problems.append(f"the rendered files are not in the project's out folder: {files}")
+        if [i.get("schedule", {}).get("created") for i in items] != [True, True, True]:
+            problems.append(f"every clip should make its schedule Draft row: {[i.get('schedule') for i in items]}")
+        rows = schedule.load_clips()
+        by_result = {r.get("resultId"): r for r in rows}
+        if sorted(by_result) != ["res1", "res2", "res3"] or by_result["res2"]["title"] != "Post Dua" or by_result["res1"]["status"] != "Draft":
+            problems.append(f"the schedule rows: {[(r.get('resultId'), r.get('title'), r.get('status')) for r in rows]}")
+        records = read_render_records(pid)
+        if sorted(records) != ["res1", "res2", "res3"]:
+            problems.append(f"the last request of each Result should be stored: {sorted(records)}")
+        else:
+            from . import renderreq
+            words_of, size_of = jobs._request_adapters()
+            want = renderreq.build_request(_read_project(PROJECTS_DIR / f"{pid}.json"), "res2", words_of=words_of, size_of=size_of)
+            if records["res2"]["request"] != want:
+                problems.append("the stored last request is not the one the server built")
+
+        # --- cancel one clip that is still queued: the others go on
+        started = jobs.start_project_render(pid, ["res1", "res2", "res3"])
+        jobs.cancel_job(started["id"], 2)
+        state = wait(started["id"])
+        states = [i["state"] for i in jobs.JOBS[started["id"]]["items"]]
+        if state != "done" or states != ["done", "done", "cancelled"]:
+            problems.append(f"cancelling one queued clip: {state} {states}")
+
+        # --- cancel the clip that is rendering: the next one still renders
+        started = jobs.start_project_render(pid, ["res1", "res2"])
+        for _ in range(100):                                # until the first one runs
+            if jobs.JOBS[started["id"]]["items"][0]["state"] == "running" and jobs.JOBS[started["id"]]["items"][0].get("job"):
+                break
+            time.sleep(0.02)
+        jobs.cancel_job(started["id"], 0)
+        state = wait(started["id"])
+        states = [i["state"] for i in jobs.JOBS[started["id"]]["items"]]
+        if state != "done" or states[1] != "done" or states[0] not in ("cancelled", "done"):
+            problems.append(f"cancelling the running clip must not stop the next one: {state} {states}")
+
+        # --- cancel all
+        before = len(schedule.load_clips())
+        started = jobs.start_project_render(pid, ["res5", "res1", "res2"])
+        jobs.cancel_job(started["id"])
+        state = wait(started["id"])
+        items = jobs.JOBS[started["id"]]["items"]
+        if state != "cancelled" or any(i["state"] not in ("cancelled", "done") for i in items) \
+                or [i["state"] for i in items[1:]] != ["cancelled", "cancelled"]:
+            problems.append(f"Cancel all: {state} {[i['state'] for i in items]}")
+        if len(schedule.load_clips()) != before + (1 if items[0]["state"] == "done" else 0):
+            problems.append("a cancelled clip must not make a schedule row")
+
+        # --- a source that is not in this profile's sources
+        make_project("00a1b2c3d4e6", [result("res1", 3.0, "X")], [{"id": "a1", "kind": "video", "file": "gone.mp4"}])
+        try:
+            jobs.start_project_render("00a1b2c3d4e6", ["res1"])
+            problems.append("a Result whose video is not in the sources was accepted")
+        except ValueError as exc:
+            if "gone.mp4" not in str(exc):
+                problems.append(f"a missing source should be named: {exc}")
+        try:
+            jobs.start_project_render("ffffffffffff", ["res1"])
+            problems.append("an unsaved project was accepted")
+        except ValueError:
+            pass
+
+        # --- the Guest renders, and makes no schedule row
+        gtok = paths.set_profile(paths.GUEST)
+        try:
+            profiles.ensure_dirs(paths.GUEST)
+            src = paths.SOURCES / video
+            if not src.exists():
+                os.link(paths.profile_dir("selftest") / "sources" / video, src)
+            make_project("00a1b2c3d4e7", [result("res1", 3.0, "Tamu")])
+            started = jobs.start_project_render("00a1b2c3d4e7", ["res1"])
+            state = wait(started["id"])
+            it = jobs.JOBS[started["id"]]["items"][0]
+            if state != "done" or it["state"] != "done" or it.get("schedule"):
+                problems.append(f"the Guest renders without a schedule row: {state} {it}")
+        finally:
+            paths._profile.reset(gtok)
+    finally:
+        for f in (PROJECTS_DIR).glob("00a1b2c3d4e*.json"):
+            f.unlink(missing_ok=True)
+    if problems:
+        return FAIL, "\n      ".join(problems[:8])
+    return PASS, "3 Results in order, refusals with reasons, schedule rows and last requests, cancel one / the running one / all, the Guest"
+
+
+CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl,
           "decode": check_decode, "render": check_render}
 
 

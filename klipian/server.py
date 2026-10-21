@@ -47,6 +47,7 @@ from .schedule import (CLIPS_LOCK, bulk_update as _bulk_update, set_schedules as
 from . import cues as cues_mod
 from . import roundtrip
 from .jobs import style_with_profile as _style_with_profile
+from .jobs import cancel_job as _cancel_job, start_project_render as _start_project_render
 from .jobs import (ACTIVE_TRANSCRIBES, CANCELLED, JOBS, LOCK, MAX_JOBS, _clip_words,
                    _register_job, _run_diarize, _run_render, _run_transcribe,
                    _spans_from_clip)
@@ -496,6 +497,8 @@ class Handler(BaseHTTPRequestHandler):
                 salinan = dict(t) if t else None
                 if salinan and isinstance(salinan.get("result"), list):
                     salinan["result"] = list(salinan["result"])
+                if salinan and isinstance(salinan.get("items"), list):
+                    salinan["items"] = [dict(x) for x in salinan["items"]]
             return self._send_json(salinan or {"state": "missing"}, 200 if salinan else 404)
         route = self.GET_ROUTES.get(path)
         if route:
@@ -1614,10 +1617,19 @@ class Handler(BaseHTTPRequestHandler):
     def _post_render(self):
         try:
             req = self._read_json()
-            if not req.get("clips"):
-                return self._send_json({"error": "no clips"}, 400)
         except Exception as exc:               # noqa: BLE001
             return self._send_json({"error": str(exc)}, 400)
+        if req.get("project") and isinstance(req.get("results"), list):
+            # The Results of a SAVED project: the server builds each request itself (renderreq.py), so what is
+            # rendered is what is saved. One job, one clip after another; see jobs.start_project_render.
+            try:
+                started = _start_project_render(str(req["project"]), [str(r) for r in req["results"]],
+                                                bool(req.get("aiFraming")))
+            except ValueError as exc:
+                return self._send_json({"error": str(exc)}, 400)
+            return self._send_json(started)
+        if not req.get("clips"):
+            return self._send_json({"error": "no clips"}, 400)
 
         job_id = uuid.uuid4().hex[:8]
         _register_job(job_id, {"state": "running", "done": 0,
@@ -1633,6 +1645,10 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as exc:               # noqa: BLE001
             return self._send_json({"error": str(exc)}, 400)
         job_id = str(req.get("id") or "")
+        item = req.get("item")
+        if JOBS.get(job_id, {}).get("batch"):
+            # A batch of Results: all of it, or one clip (`item` = its index)
+            return self._send_json({"ok": _cancel_job(job_id, item if isinstance(item, int) else None)})
         # Mark for cancellation; _run_render / render() checks it and
         # kills the running ffmpeg. Idempotent -- marking an already-
         # finished job is harmless (discarded in finally).

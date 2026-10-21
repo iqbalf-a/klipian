@@ -702,7 +702,6 @@ async function startRender() {
 async function sendRender(approved) {
   if (!approved || !approved.length) return;
 
-
   // A clip with no time points can't be rendered. Previously one like
   // this was still sent and the server crashed with KeyError 'mulai' --
   // a message that meant nothing to the user.
@@ -715,104 +714,94 @@ async function sendRender(approved) {
     toScreen("history");
     return;
   }
+  // The request is no longer put together here: the SERVER builds it from the saved Result
+  // (klipian/renderreq.py, proven equal to what this function used to send), so what is
+  // rendered is what is saved. This only says which Result.
+  return renderSavedResults([(typeof activeResultId !== "undefined" && activeResultId) || ""]);
+}
 
-  // Spans are split again at each framing point, and each one carries
-  // its own crop. That's what lets framing change mid-clip.
-  const framed = valid.map((k) => ((typeof spansWithFraming === "function")
-    ? spansWithFraming(k.spans || [{ start: k.startSec, end: k.endSec }])
-    : (k.spans || []).map((p) => ({ start: p.start, end: p.end }))));
-  // Spans and words go out in REAL seconds of their own video (assets.js,
-  // serverClipFields). The request's one `video` is the first span's; only
-  // spans from another video name theirs -- so a clip taken from a single
-  // video sends exactly the payload it always did.
-  const main = framed[0]?.length ? toReal(framed[0][0].start).file : "";
-  const request = {
-    video: main || chosenSource?.name || DATA.file,
-    // Which project's folder the files go in (server: _project_out_dir).
-    project: (typeof activeProjectId !== "undefined" && activeProjectId) || undefined,
-    // Which Result this is, so the server can remember the request as that
-    // Result's last render (klipian render --replay).
-    result: (typeof activeResultId !== "undefined" && activeResultId) || undefined,
-    clips: valid.map((k, i) => {
-      // Words already corrected on the Captions screen. If there are no
-      // corrections, this matches the transcript -- the server accepts it as-is either way.
-      const real = serverClipFields(framed[i],
-        (typeof wordsForRender === "function") ? wordsForRender() : undefined, main);
-      return {
-        title: k.title,
-        spans: real.spans,
-        style: captionStyle(),         // Caption screen settings are sent along too
-        words: real.words,
-        // The shape of the picture inside the 9:16 file and what is around it
-        // (render.picture_options). The older `layout` key is not sent.
-        picture: optionOut("picture"),
-        background: optionOut("background"),
-        position: optionOut("position"),
-        width: optionOut("resolution"),
-        quality: optionOut("quality"),
-        // The post text, for the upload schedule (jobs.py): only for a real
-        // render, which is what this request is. The quick preview's is not.
-        ...(k.post ? { post: k.post } : {}),
-        // Timeline elements and per-clip volume (compose.js), in output
-        // seconds. Only sent when there are any: the server's second pass
-        // runs only for a clip that carries them.
-        ...(k.overlays?.length ? { overlays: k.overlays } : {}),
-        ...(k.volumes?.length ? { volumes: k.volumes } : {}),
-      };
-    }),
-  };
+/* A name for a Result before the server has answered: its typed title, else its first moment's. */
+function resultLabel(id) {
+  if (id === activeResultId) {
+    const clip = (typeof resultAsClip === "function") ? resultAsClip() : null;
+    if (clip?.title) return clip.title;
+  }
+  const r = (typeof SAVED_RESULTS !== "undefined" ? SAVED_RESULTS : []).find((x) => x.id === id);
+  return r?.title || r?.segments?.[0]?.title || id;
+}
 
-  // The queue must line up with what's actually sent: the server reports
-  // results by index, and if the contents differ the rows point to the wrong thing.
-  buildQueue(valid);
-  QUEUE.forEach((r) => { r.pct = 0; r.busy = false; r.note = "queued"; r.action = "Cancel"; r.act = "cancel"; });
+/* Render these Results of the open project, one after another (server: jobs.start_project_render).
+   The project is saved first, so the server sees exactly what is on screen. */
+async function renderSavedResults(resultIds, { aiFraming = false } = {}) {
+  const ids = resultIds.filter(Boolean);
+  if (!ids.length) { renderStatus("There is no Result to render.", true); toScreen("history"); return; }
+  if (renderJobId !== null) { renderStatus("A render is already running: wait for it, or cancel it first.", true); toScreen("history"); return; }
+  const layout = (typeof pictureSummary === "function") ? pictureSummary() : "9:16";
+  QUEUE = ids.map((id) => ({ name: resultLabel(id), resultId: id, layout, dur: "", pct: 0, busy: false,
+                             note: "saving the project", action: "Cancel", act: "cancel", folder: "", url: "", mb: 0 }));
   drawQueue();
   toScreen("history");
+  renderStatus("Saving the project…");
+  let saved = false;
+  try { saved = (typeof writeProjectNow === "function") ? !!(await writeProjectNow()) : true; } catch { saved = false; }
+  if (!saved || !activeProjectId) {
+    QUEUE = [];
+    drawQueue();
+    renderStatus("The project could not be saved, so nothing was rendered. Press Save, then Render again.", true);
+    return;
+  }
 
-  let id;
+  let reply;
   try {
-    const reply = await fetch("/api/render", {
+    reply = await fetch("/api/render", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(request),
+      body: JSON.stringify({ project: activeProjectId, results: ids, ...(aiFraming ? { aiFraming: true } : {}) }),
     }).then((r) => r.json());
-    if (reply.error) throw new Error(reply.error);
-    id = reply.id;
-    renderJobId = id;               // used by the Cancel button to notify the server
-    updateRenderButtons();
-  } catch (err) {
+  } catch {
     // Without a backend, say so plainly -- don't pretend to render.
     QUEUE.forEach((r) => { r.pct = 0; r.busy = false; r.note = "needs klipian serve"; r.action = "Retry"; r.act = "retry"; });
     drawQueue();
     renderStatus("Rendering needs the backend. Run: python -m klipian serve", true);
     return;
   }
+  if (reply.error) {
+    QUEUE = [];
+    drawQueue();
+    renderStatus(reply.error, true);
+    return;
+  }
+  renderJobId = reply.id;                  // used by the Cancel buttons to notify the server
+  updateRenderButtons();
+  const refused = reply.refused || [];
+  const refusedNote = refused.length
+    ? ` · not rendered: ${refused.map((r) => `${r.title} (${r.message})`).join("; ")}` : "";
+  QUEUE = reply.items.map((it) => ({ name: it.title, resultId: it.result, layout: it.layout || layout,
+                                     dur: `${Math.round(it.duration)}s`, pct: 0, busy: false, note: "queued",
+                                     action: "Cancel", act: "cancel", folder: "", url: "", mb: 0 }));
+  drawQueue();
 
-  /* Paint the queue rows from one server snapshot. Shared by the running
-     ticks and the final one, because they colour the same rows the same
-     way -- only the tail message differs. */
+  /* Paint the queue rows from one server snapshot (one row per clip, in the order they run). */
   const paintQueue = (t) => {
-    QUEUE.forEach((r, i) => {
-      if (i < t.done) { r.pct = 100; r.busy = false; r.note = "done"; r.action = "Open folder"; r.act = "open"; }
-      // r.pct used to be hardcoded to 55 here, so the bar sat at 55% for the
-      // whole render and then snapped to 100 -- on the longest operation in
-      // the app, on a screen with nothing else moving, which reads as hung.
-      // The server reports progress per CLIP, not within one, so `busy`
-      // drives an indeterminate bar instead of inventing a number.
-      else if (i === t.index && t.state === "running") { r.pct = 0; r.busy = true; r.note = "rendering"; r.action = "Cancel"; r.act = "cancel"; }
+    (t.items || []).forEach((it, i) => {
+      const r = QUEUE[i];
+      if (!r) return;
+      if (it.output) { r.name = it.output.file; r.url = it.output.url; r.folder = it.output.folder; r.mb = it.output.mb; }
+      if (it.state === "done") { r.pct = 100; r.busy = false; r.note = "done"; r.action = "Open folder"; r.act = "open"; }
+      // The server reports progress per CLIP, not within one, so `busy` drives an indeterminate bar
+      // instead of inventing a number (r.pct used to be hardcoded to 55 and then snapped to 100).
+      else if (it.state === "running") { r.pct = 0; r.busy = true; r.note = it.note || "rendering"; r.action = "Cancel"; r.act = "cancel"; }
+      else if (it.state === "failed") { r.pct = 0; r.busy = false; r.note = `failed: ${it.error || ""}`.slice(0, 80); r.action = "Retry"; r.act = "retry"; }
+      else if (it.state === "cancelled") { r.pct = 0; r.busy = false; r.note = "cancelled"; r.action = "Retry"; r.act = "retry"; }
       else { r.pct = 0; r.busy = false; r.note = "queued"; r.action = "Cancel"; r.act = "cancel"; }
-    });
-    (t.result || []).forEach((h, i) => {
-      if (QUEUE[i]) { QUEUE[i].name = h.file; QUEUE[i].url = h.url;
-                      QUEUE[i].folder = h.folder; QUEUE[i].mb = h.mb; }
     });
     drawQueue();
   };
 
-  const finish = () => { renderStop = null; renderJobId = null; updateRenderButtons(); };
+  const finish = () => { renderStop = null; renderJobId = null; updateRenderButtons(); drawQueue(); };
 
   if (renderStop) renderStop();
-  renderStop = pollJob(`/api/render/${id}`, {
+  renderStop = pollJob(`/api/render/${reply.id}`, {
     interval: 700,
     onTick: paintQueue,
     onFail: () => {
@@ -826,30 +815,27 @@ async function sendRender(approved) {
     },
     onDone: (t) => {
       finish();
-      // The server already confirmed the cancellation: don't paint the rows
-      // back to "rendering/queued" on the way out.
-      if (t.state === "cancelled") {
-        QUEUE.forEach((r, i) => {
-          if (i < t.done) { r.pct = 100; r.busy = false; r.note = "done"; r.action = "Open folder"; r.act = "open"; }
-          else { r.pct = 0; r.busy = false; r.note = "cancelled"; r.action = "Retry"; r.act = "retry"; }
-        });
-        drawQueue();
-        renderStatus("Render cancelled.");
-        return;
-      }
       paintQueue(t);
-      if (typeof loadHistory === "function") loadHistory();   // new file enters history
-      // The full ffmpeg error, in a box that wraps -- it used to be
-      // ellipsized to one line in a span that was 0px wide on a narrow
-      // window, i.e. the message you most need was the one you couldn't read.
-      renderStatus(t.state === "failed"
-        ? `Failed: ${t.error}`
-        : `${t.done} clip${t.done === 1 ? "" : "s"} done · `
-          + `${(t.result || []).reduce((a, h) => a + h.mb, 0).toFixed(1)} MB`
-          + (t.schedule ? (t.schedule.created
-            ? " · added to the upload schedule (Draft)" : " · upload-schedule row updated") : "")
-          + (t.warning ? ` · ${t.warning}` : ""),
-        t.state === "failed");
+      if (typeof loadHistory === "function") loadHistory();   // new files enter history
+      const done = (t.items || []).filter((x) => x.state === "done");
+      const failed = (t.items || []).filter((x) => x.state === "failed");
+      const cancelled = (t.items || []).filter((x) => x.state === "cancelled");
+      const scheduled = done.filter((x) => x.schedule);
+      const warnings = done.map((x) => x.warning).filter(Boolean);
+      // The full ffmpeg error, in a box that wraps -- it used to be ellipsized to one line in a span
+      // that was 0px wide on a narrow window.
+      const bad = t.state === "failed" || (!done.length && failed.length);
+      renderStatus(bad
+        ? `Failed: ${t.error || failed[0]?.error || "the render failed"}`
+        : `${done.length} clip${done.length === 1 ? "" : "s"} done · `
+          + `${done.reduce((a, x) => a + (x.output?.mb || 0), 0).toFixed(1)} MB`
+          + (failed.length ? ` · ${failed.length} failed (${failed[0].error})` : "")
+          + (cancelled.length ? ` · ${cancelled.length} cancelled` : "")
+          + (scheduled.length ? ` · ${scheduled.length === 1
+            ? (scheduled[0].schedule.created ? "added to the upload schedule (Draft)" : "upload-schedule row updated")
+            : `${scheduled.length} in the upload schedule`}` : "")
+          + (warnings.length ? ` · ${warnings[0]}` : "") + refusedNote,
+        !!bad);
     },
   });
 }
