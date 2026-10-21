@@ -1961,8 +1961,16 @@ def check_ytdl() -> tuple[str, str]:
         def version(cls):
             return "2099.01.01" if cls.installed else None
 
+        js = {"runtime": "node", "path": "node", "ejs": True}
+        qualities: list = []
+
         @classmethod
-        def info(cls, url):
+        def js_state(cls):
+            return cls.js
+
+        @classmethod
+        def info(cls, url, quality=1080):
+            cls.qualities.append(quality)
             cls.calls["info"] += 1
             if not cls.installed:
                 raise ytdl.YtError("missing", "yt-dlp is not installed.", command="pip install yt-dlp")
@@ -1971,7 +1979,7 @@ def check_ytdl() -> tuple[str, str]:
             return dict(cls.infos[url.split("v=")[-1]])
 
         @classmethod
-        def download(cls, url, folder, hook, ffmpeg_dir):
+        def download(cls, url, folder, hook, ffmpeg_dir, quality=1080):
             cls.calls["download"] += 1
             (folder / "video.f137.mp4.part").write_bytes(b"partial")
             step = {"status": "downloading", "filename": "video.f137.mp4", "downloaded_bytes": 50,
@@ -2021,6 +2029,8 @@ def check_ytdl() -> tuple[str, str]:
     profiles.ensure_dirs(paths.GUEST)
     real_net = ytdl._net
     ytdl._net = Fake
+    hush = contextlib.redirect_stderr(io.StringIO())         # the failures logged to the console on purpose
+    hush.__enter__()
     try:
         # --- the link
         good = {f"https://www.youtube.com/watch?v={A}": A, f"youtube.com/watch?v={A}&t=5s": A,
@@ -2221,6 +2231,124 @@ def check_ytdl() -> tuple[str, str]:
                 problems.append("an error from yt-dlp in the preview was not mapped")
             Fake.err = None
 
+        # --- the JavaScript runtime (YouTube's signature challenge): a refusal without one is not "outdated"
+        Fake.js = {"runtime": None, "path": None, "ejs": True}
+        no_js = {
+            "ERROR: unable to download video data: HTTP Error 403: Forbidden": "js_runtime",
+            "ERROR: [youtube] x: Sign in to confirm you\u2019re not a bot": "js_runtime",
+            "ERROR: [youtube] Requested format is not available": "js_runtime",
+            "WARNING: nsig extraction failed: Some formats may be missing": "js_runtime",
+            "ERROR: [youtube] x: Private video. Sign in": "private",
+            "ERROR: [youtube] x: Sign in to confirm your age": "age",
+            "ERROR: Unable to download webpage: getaddrinfo failed": "network",
+        }
+        for text, want in no_js.items():
+            got = ytdl.map_error(RuntimeError(text))
+            if got.code != want:
+                problems.append(f"without a JS runtime '{text[:50]}' came out as {got.code}, wanted {want}")
+        m = ytdl.map_error(RuntimeError("HTTP Error 403: Forbidden"))
+        if "No JavaScript runtime found" not in m.message or "Node.js" not in m.message or "outdated" in m.message.lower():
+            problems.append(f"the js_runtime sentence: {m.message!r}")
+        if ytdl.status()["jsRuntime"] is not None:
+            problems.append("the status should say there is no JavaScript runtime")
+        Fake.js = {"runtime": "node", "path": "node", "ejs": False}
+        got = ytdl.map_error(RuntimeError("HTTP Error 403: Forbidden"))
+        if got.code != "js_runtime" or "yt-dlp-ejs" not in got.message:
+            problems.append(f"a runtime without the solver should say so: {got.code} {got.message!r}")
+        Fake.js = {"runtime": "node", "path": "node", "ejs": True}
+        if ytdl.map_error(RuntimeError("HTTP Error 403: Forbidden")).code != "outdated":
+            problems.append("with a runtime and the solver, a 403 stays 'outdated'")
+        st = ytdl.status()
+        if st["jsRuntime"] != "node" or st["ejs"] is not True:
+            problems.append(f"the status should name the runtime: {st}")
+
+        # --- the real error is kept: returned as detail, logged, nothing secret in either
+        with as_profile("yta"):
+            log = Path(paths.profile_dir()) / "ytdl.log"
+            log.unlink(missing_ok=True)
+            Fake.js = {"runtime": None, "path": None, "ejs": True}
+            Fake.dl_error = RuntimeError("ERROR: unable to download video data: HTTP Error 403: Forbidden\n"
+                                         "url https://rr1.googlevideo.com/videoplayback?expire=1&sig=SECRETSIG&n=NN&key=yt8\n"
+                                         "Cookie: SID=SECRETCOOKIE")
+            with contextlib.redirect_stderr(io.StringIO()) as console:
+                s = wait(ytdl.start(f"https://youtu.be/{D}")["id"])
+            Fake.dl_error = None
+            Fake.js = {"runtime": "node", "path": "node", "ejs": True}
+            if s.get("state") != "failed" or s.get("code") != "js_runtime":
+                problems.append(f"a 403 without a runtime should fail as js_runtime: {s}")
+            if not str(s.get("detail", "")).startswith("ERROR: unable to download video data: HTTP Error 403"):
+                problems.append(f"the job should carry the first line of the real error: {s.get('detail')!r}")
+            blob = json.dumps(s) + (log.read_text(encoding="utf-8") if log.is_file() else "") + console.getvalue()
+            if "SECRETSIG" in blob or "SECRETCOOKIE" in blob or "SID=" in blob:
+                problems.append("a token or cookie reached the detail, the log or the console")
+            if not log.is_file() or "403" not in log.read_text(encoding="utf-8") or "[ytdl]" not in console.getvalue():
+                problems.append("the real error was not written to ytdl.log and the console")
+            if len(s.get("report", "").splitlines()) > 20:
+                problems.append("the report should be cut at 20 lines")
+            with contextlib.redirect_stderr(io.StringIO()):
+                Fake.err = RuntimeError("ERROR: [youtube] x: Something odd happened")
+                try:
+                    ytdl.preview(f"https://youtu.be/{C}")
+                except ytdl.YtError as exc:
+                    if not exc.extra.get("detail", "").startswith("ERROR: [youtube] x: Something odd"):
+                        problems.append(f"a preview failure should carry the detail too: {exc.extra}")
+                Fake.err = None
+
+        # --- the real network layer: js_runtimes passed (deno first, else node, else none), the quality picks the format
+        seen_opts = []
+
+        class FakeYT:
+            class YoutubeDL:
+                def __init__(self, opts):
+                    seen_opts.append(opts)
+
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *a):
+                    return False
+
+                def extract_info(self, url, download=False):
+                    return {}
+
+                def download(self, urls):
+                    pass
+
+        real = ytdl._Net()
+        real.module = lambda: FakeYT
+        for have, want in (({"deno": "/bin/deno", "node": "/bin/node"}, "deno"), ({"node": "/bin/node"}, "node"), ({}, None)):
+            with mock.patch("klipian.ytdl.shutil.which", side_effect=lambda n, have=have: have.get(n)):
+                seen_opts.clear()
+                real.info("u")
+                real.download("u", Path("."), lambda d: None, "ff")
+                for o in seen_opts:
+                    jr = o.get("js_runtimes")
+                    if (want is None and jr is not None) or (want and jr != {want: {"path": have[want]}}):
+                        problems.append(f"js_runtimes with {sorted(have)} on the PATH: {jr}")
+        seen_opts.clear()
+        real.info("u", 720)
+        real.download("u", Path("."), lambda d: None, "ff", 720)
+        real.info("u")
+        if "height<=720" not in seen_opts[0]["format"] or "height<=720" not in seen_opts[1]["format"] \
+                or "height<=1080" not in seen_opts[2]["format"] or "720" in seen_opts[2]["format"]:
+            problems.append("the quality should choose the format (1080 is the default)")
+        with as_profile("yta"):
+            Fake.qualities.clear()
+            ytdl.preview(f"https://youtu.be/{E}", 720)
+            ytdl.preview(f"https://youtu.be/{E}", "banana")
+            if Fake.qualities != [720, 1080] or ytdl.preview(f"https://youtu.be/{E}", 720)["quality"] != 720:
+                problems.append(f"the preview did not pass the quality on: {Fake.qualities}")
+        req = (Path(paths.ROOT) / "requirements-download.txt").read_text(encoding="utf-8")
+        if not any(ln.strip().startswith("yt-dlp[default]") for ln in req.splitlines()):
+            problems.append("requirements-download.txt must ask for yt-dlp[default] (it brings yt-dlp-ejs)")
+        with as_profile("yta"):
+            ran = []
+            with mock.patch("klipian.ytdl.subprocess.run", side_effect=lambda cmd, **kw: ran.append(cmd) or type(
+                    "P", (), {"returncode": 0, "stdout": "", "stderr": ""})()):
+                wait(ytdl.start_update())
+            if not ran or "yt-dlp[default]" not in ran[0] or "-U" not in ran[0]:
+                problems.append(f"Update yt-dlp should run pip install -U yt-dlp[default]: {ran}")
+
         # --- yt-dlp not installed
         Fake.installed = False
         with as_profile("yta"):
@@ -2301,10 +2429,11 @@ def check_ytdl() -> tuple[str, str]:
             quiet.__exit__(None, None, None)
             srv.shutdown()
     finally:
+        hush.__exit__(None, None, None)
         ytdl._net = real_net
     if problems:
         return FAIL, "\n      ".join(problems)
-    return PASS, "names, credit with link in all hashtag modes, no second download, cancel/fail clean, errors, missing yt-dlp"
+    return PASS, "names, credit with link in all hashtag modes, no second download, cancel/fail clean, errors, JS runtime handling, real error kept (detail, log, no secrets), quality, missing yt-dlp"
 
 
 def check_refresh() -> tuple[str, str]:

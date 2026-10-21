@@ -12,6 +12,8 @@ let _ytDlg = null;               // the <dialog>, built on first use
 let _ytJob = null;               // { id, kind, timer } while a download or an update is being followed
 let _ytOnAdded = null;           // what to call with the file name when the download is done
 let _ytPreview = null;           // the preview currently shown
+let _ytQuality = 1080;           // 1080 (default) or 720 (a smaller file)
+let _ytStatusInfo = null;        // the last /api/ytdl/status (version, JS runtime)
 
 async function _ytApi(path, body) {
   const res = await fetch(path, body === undefined ? {} : {
@@ -61,6 +63,7 @@ function _ytBuild() {
       <div data-card></div>
       <div class="ytdl-bar" data-bar hidden><i></i></div>
       <p class="ytdl-msg" data-msg role="status"></p>
+      <p class="ytdl-detail" data-detail hidden><span data-detail-text></span> <button class="ytdl-btn" type="button" data-copy>Copy details</button></p>
       <div data-install hidden>
         <p class="ytdl-small">yt-dlp, the part that downloads, is not installed yet. Run this once, or press Install yt-dlp:</p>
         <code data-cmd></code>
@@ -84,13 +87,34 @@ function _ytBuild() {
   q("[data-go]").addEventListener("click", _ytGo);
   q("[data-stop]").addEventListener("click", _ytStop);
   q("[data-update]").addEventListener("click", _ytUpdate);
+  q("[data-copy]").addEventListener("click", _ytCopyDetails);
   return dlg;
 }
+
+let _ytReport = "";              // what "Copy details" copies
 
 function _ytSay(text, error = false) {
   const m = _ytq("[data-msg]");
   m.textContent = text || "";
   m.dataset.error = error ? "true" : "false";
+  _ytq("[data-detail]").hidden = true;       // a new message drops the details of the old one
+}
+
+/* The real error under the friendly message, small and muted, with a way to hand it on. */
+function _ytDetail(d) {
+  if (!d?.detail) return;
+  const s = _ytStatusInfo || {};
+  _ytReport = [`yt-dlp ${s.version || "?"} · JS runtime: ${s.jsRuntime || "none"}${s.ejs ? " + ejs" : ""}`,
+    `code: ${d.code || "?"}`, d.report || d.detail].join("\n");
+  _ytq("[data-detail-text]").textContent = d.detail;
+  _ytq("[data-detail]").hidden = false;
+}
+
+async function _ytCopyDetails() {
+  const b = _ytq("[data-copy]");
+  const ok = typeof copyText === "function" ? await copyText(_ytReport) : false;
+  b.textContent = ok ? "Copied" : "Could not copy";
+  setTimeout(() => { b.textContent = "Copy details"; }, 1800);
 }
 
 /* What is visible: the preview card, the buttons, the bar. `busy` locks the inputs. */
@@ -107,21 +131,28 @@ function _ytShow({ card = true, go = false, stop = false, bar = false, busy = fa
 /* An error reply from the server: what it said, and what to do about it. */
 function _ytProblem(d) {
   _ytSay(d.error || "Something went wrong.", true);
+  _ytDetail(d);
   const missing = d.code === "missing";
   if (missing) _ytq("[data-install]").hidden = false;     // (otherwise what the status said stays)
   if (missing && d.command) _ytq("[data-cmd]").textContent = d.command;
-  _ytq("[data-update]").classList.toggle("hot", d.code === "outdated" || missing);
+  _ytq("[data-update]").classList.toggle("hot", d.code === "outdated" || d.code === "js_runtime" || missing);
   _ytq("[data-update]").textContent = missing ? "Install yt-dlp" : "Update yt-dlp";
 }
 
 async function _ytStatus() {
   const s = await _ytApi("/api/ytdl/status");
-  _ytq("[data-ver]").textContent = s.installed ? `yt-dlp ${s.version}` : "yt-dlp is not installed";
+  _ytStatusInfo = s;
+  const js = s.jsRuntime ? ` · JS: ${s.jsRuntime}${s.ejs ? "" : " (solver missing)"}` : " · no JS runtime";
+  _ytq("[data-ver]").textContent = s.installed ? `yt-dlp ${s.version}${js}` : "yt-dlp is not installed";
   _ytq("[data-install]").hidden = !!s.installed;
   _ytq("[data-cmd]").textContent = s.command || "";
   _ytq("[data-update]").textContent = s.installed ? "Update yt-dlp" : "Install yt-dlp";
   _ytq("[data-update]").classList.toggle("hot", !s.installed);
   if (s.installed && s.ffmpeg === false) _ytSay("ffmpeg was not found: klipian needs it to join the video and sound.", true);
+  else if (s.installed && (!s.jsRuntime || !s.ejs) && !_ytJob) {
+    _ytSay(!s.jsRuntime ? "No JavaScript runtime found: install Node.js (or deno) so YouTube downloads work reliably."
+                        : "yt-dlp's YouTube solver is missing: press Update yt-dlp.", true);
+  }
   return s;
 }
 
@@ -131,7 +162,7 @@ async function _ytCheck() {
   _ytPreview = null;
   _ytShow({ card: false, busy: true });
   _ytSay("Looking at the video…");
-  const d = await _ytApi("/api/ytdl/preview", { url });
+  const d = await _ytApi("/api/ytdl/preview", { url, quality: _ytQuality });
   _ytShow({ card: false, busy: false });
   if (!d.ok) { _ytProblem(d); return; }
   _ytq("[data-install]").hidden = true;
@@ -142,7 +173,8 @@ async function _ytCheck() {
     d.thumbnail ? _ytEl("img", { src: d.thumbnail, alt: "", referrerPolicy: "no-referrer" }) : null,
     _ytEl("div", {}, _ytEl("b", { text: d.title || "(no title)" }),
       _ytEl("div", { class: "ytdl-meta", text: meta }),
-      _ytEl("div", { class: "ytdl-meta", text: `Saved as ${d.fileName}` })));
+      _ytEl("div", { class: "ytdl-meta", text: `Saved as ${d.fileName}` }),
+      _ytQualityPick(d)));
   _ytq("[data-card]").replaceChildren(card);
   const go = _ytq("[data-go]");
   if (d.inProfile) {
@@ -156,6 +188,18 @@ async function _ytCheck() {
     go.textContent = "Download";
   }
   _ytShow({ go: true });
+}
+
+/* 1080p is the default. A long video is a big file (83 minutes is about 1.8 GB), so 720p is offered: the vertical
+   crop of a 16:9 source uses only part of the frame anyway. Choosing one looks at the link again for the new size. */
+function _ytQualityPick(d) {
+  if (d.inProfile || d.inOtherProfile) return null;
+  const sel = _ytEl("select", { class: "ytdl-q", ariaLabel: "Video quality" });
+  for (const [v, t] of [[1080, "1080p (best)"], [720, "720p (smaller)"]]) {
+    sel.append(Object.assign(document.createElement("option"), { value: v, textContent: t, selected: v === (d.quality || 1080) }));
+  }
+  sel.addEventListener("change", () => { _ytQuality = Number(sel.value); _ytCheck(); });
+  return _ytEl("div", { class: "ytdl-meta" }, document.createTextNode("Quality "), sel);
 }
 
 function _ytFollow(id, kind) {
@@ -195,7 +239,7 @@ function _ytFollow(id, kind) {
     } else {
       _ytShow({ card: !!_ytPreview, go: !!_ytPreview, busy: false });
       if (!open) showToast?.(s.message || "The YouTube download failed");
-      _ytProblem({ error: s.message, code: s.code, command: s.command });
+      _ytProblem({ error: s.message, code: s.code, command: s.command, detail: s.detail, report: s.report });
     }
   };
   _ytJob = { id, kind, timer: setInterval(tick, 700) };
@@ -206,7 +250,7 @@ async function _ytGo() {
   if (!_ytPreview) return;
   _ytShow({ go: false, busy: true });
   _ytSay("Starting…");
-  const d = await _ytApi("/api/ytdl/start", { url: _ytPreview.url });
+  const d = await _ytApi("/api/ytdl/start", { url: _ytPreview.url, quality: _ytPreview.quality || _ytQuality });
   if (!d.ok) { _ytShow({ go: true, busy: false }); _ytProblem(d); return; }
   if (!d.id) {                                 // already here, or linked from another profile
     _ytShow({ go: false, busy: false });

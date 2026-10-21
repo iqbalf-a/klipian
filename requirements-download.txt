@@ -2,7 +2,10 @@
 #
 # Optional: only needed to download a source video from a YouTube link. Without it
 # everything else works and the dialog says what to install. YouTube changes often;
-# the dialog has an "Update yt-dlp" button (it runs pip install -U yt-dlp in this venv).
+# the dialog has an "Update yt-dlp" button (it runs pip install -U "yt-dlp[default]" in this venv).
+#
+# [default] brings yt-dlp-ejs, the solver for YouTube's signature challenge. It also needs a JavaScript
+# runtime on the PATH: Node.js (https://nodejs.org) or deno. Without both, long downloads can fail with 403.
 #
 #   .venv\Scripts\python.exe -m pip install -r requirements-download.txt
-yt-dlp>=2025.1.1
+yt-dlp[default]>=2025.1.1

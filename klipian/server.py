@@ -752,9 +752,9 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as exc:               # noqa: BLE001
             return self._send_json({"error": str(exc)}, 400)
         if action == "preview":
-            return self._ytdl_reply(lambda: _ytdl.preview(str(req.get("url") or "")))
+            return self._ytdl_reply(lambda: _ytdl.preview(str(req.get("url") or ""), req.get("quality") or 1080))
         if action == "start":
-            return self._ytdl_reply(lambda: _ytdl.start(str(req.get("url") or "")))
+            return self._ytdl_reply(lambda: _ytdl.start(str(req.get("url") or ""), req.get("quality") or 1080))
         if action == "cancel":
             return self._ytdl_reply(lambda: _ytdl.cancel(str(req.get("id") or "")))
         if action == "update":

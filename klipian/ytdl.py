@@ -21,6 +21,7 @@ from __future__ import annotations
 import contextvars
 import datetime
 import importlib
+import importlib.util
 import json
 import os
 import re
@@ -34,8 +35,13 @@ from pathlib import Path
 
 from . import credits, paths
 
-FORMAT = ("bv*[vcodec^=avc1][height<=1080]+ba[ext=m4a]/b[ext=mp4][height<=1080]"
-          "/bv*[height<=1080]+ba/b")
+def _format(height: int) -> str:
+    return (f"bv*[vcodec^=avc1][height<={height}]+ba[ext=m4a]/b[ext=mp4][height<={height}]"
+            f"/bv*[height<={height}]+ba/b")
+
+
+FORMAT = _format(1080)
+QUALITIES = {1080: FORMAT, 720: _format(720)}          # 1080 is the default; 720 is the smaller file
 MAX_STEM = 150            # characters of the file name without the extension
 MAX_CHANNEL = 50          # a long channel name never eats the whole title
 _ID = re.compile(r"^[A-Za-z0-9_-]{11}$")
@@ -76,16 +82,36 @@ class _Net:
         except Exception:                                   # noqa: BLE001
             return None
 
-    def info(self, url: str) -> dict:
+    def js_state(self) -> dict:
+        """The JavaScript runtime YouTube's signature challenge needs (deno preferred, else node) and whether
+        yt-dlp's solver package (yt-dlp-ejs, part of yt-dlp[default]) is installed."""
+        for name in ("deno", "node"):
+            found = shutil.which(name)
+            if found:
+                return {"runtime": name, "path": found, "ejs": self._ejs()}
+        return {"runtime": None, "path": None, "ejs": self._ejs()}
+
+    def _ejs(self) -> bool:
+        try:
+            return importlib.util.find_spec("yt_dlp_ejs") is not None
+        except (ImportError, ValueError):
+            return False
+
+    def _js_opts(self) -> dict:
+        st = self.js_state()
+        return {"js_runtimes": {st["runtime"]: {"path": st["path"]}}} if st["runtime"] else {}
+
+    def info(self, url: str, quality: int = 1080) -> dict:
         yt = self.module()
         opts = {"quiet": True, "no_warnings": True, "noplaylist": True, "skip_download": True,
-                "format": FORMAT, "socket_timeout": 20, "retries": 2}
+                "format": QUALITIES.get(quality, FORMAT), "socket_timeout": 20, "retries": 2, **self._js_opts()}
         with yt.YoutubeDL(opts) as ydl:
             return ydl.extract_info(url, download=False)
 
-    def download(self, url: str, folder: Path, hook, ffmpeg_dir: str) -> None:
+    def download(self, url: str, folder: Path, hook, ffmpeg_dir: str, quality: int = 1080) -> None:
         yt = self.module()
-        opts = {"quiet": True, "no_warnings": True, "noplaylist": True, "format": FORMAT,
+        opts = {"quiet": True, "no_warnings": True, "noplaylist": True, "format": QUALITIES.get(quality, FORMAT),
+                **self._js_opts(),
                 "merge_output_format": "mp4", "outtmpl": str(folder / "video.%(ext)s"),
                 "ffmpeg_location": ffmpeg_dir, "progress_hooks": [hook],
                 "postprocessor_hooks": [hook], "socket_timeout": 20, "retries": 3,
@@ -222,11 +248,19 @@ def find_in_other_profile(vid: str) -> tuple[str, str] | None:
 # what is installed
 # --------------------------------------------------------------------------
 
+def _js() -> dict:
+    try:
+        return _net.js_state()
+    except Exception:                                       # noqa: BLE001
+        return {"runtime": "unknown", "path": None, "ejs": True}      # a layer that cannot tell: do not blame JS
+
+
 def status() -> dict:
     version = _net.version()
     ffmpeg = bool(shutil.which("ffmpeg"))
+    js = _js()
     out = {"installed": version is not None, "version": version, "ffmpeg": ffmpeg,
-           "command": install_command()}
+           "command": install_command(), "jsRuntime": js["runtime"], "ejs": bool(js["ejs"])}
     return out
 
 
@@ -234,12 +268,61 @@ def status() -> dict:
 # errors
 # --------------------------------------------------------------------------
 
+JS_MISSING = ("No JavaScript runtime found: install Node.js (or deno) so YouTube downloads work reliably. "
+              "Then press Update yt-dlp, which also installs yt-dlp's solver for it.")
+EJS_MISSING = ("yt-dlp's YouTube solver (yt-dlp-ejs) is not installed, so YouTube downloads can fail. "
+               "Press Update yt-dlp to install it.")
+# what a missing JavaScript runtime looks like from the outside: the request is refused or formats are missing
+_JS_SYMPTOMS = ("http error 403", "sign in to confirm", "nsig", "signature", "requested format",
+                "player response", "unable to extract")
+_SECRET = re.compile(r"(?i)((?:[?&;\s](?:key|sig|signature|lsig|token|pot|n|ei|cookie)=)|(?:authorization:\s*)|(?:cookie:\s*))[^&\s'\"]+")
+
+
+def _redact(text: str) -> str:
+    return _SECRET.sub(r"\1…", text)
+
+
+def _report(exc: BaseException) -> tuple[str, str]:
+    """(the first line, up to 20 lines) of what yt-dlp raised: for the log and the details, never cookies or tokens."""
+    raw = _redact(_ANSI.sub("", str(exc) or type(exc).__name__)).strip()
+    lines = [ln.rstrip() for ln in raw.splitlines() if ln.strip()][:20] or [type(exc).__name__]
+    return lines[0][:300], "\n".join(lines)[:4000]
+
+
+def _log_failure(code: str, report: str) -> None:
+    """The real error text, kept: on the server console and in this profile's ytdl.log."""
+    stamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[ytdl] {stamp} {code}: {report}", file=sys.stderr, flush=True)
+    try:
+        log = Path(paths.profile_dir()) / "ytdl.log"
+        old = log.read_text(encoding="utf-8")[-60000:] if log.is_file() else ""
+        log.write_text(old + f"{stamp} [{code}]\n{report}\n\n", encoding="utf-8")
+    except OSError:
+        pass
+
+
 def map_error(exc: BaseException) -> YtError:
-    """A yt-dlp/network failure as an error the person can act on."""
+    """A yt-dlp/network failure as an error the person can act on, carrying `detail` (the first line of what
+    yt-dlp really said) and `report` (up to 20 lines); the same text is logged."""
     if isinstance(exc, YtError):
         return exc
+    err = _map_error(exc)
+    detail, report = _report(exc)
+    err.extra.setdefault("detail", detail)
+    err.extra.setdefault("report", report)
+    _log_failure(err.code, report)
+    return err
+
+
+def _map_error(exc: BaseException) -> YtError:
     raw = _ANSI.sub("", str(exc) or type(exc).__name__)
     low = raw.lower()
+    js = _js()
+    if js["runtime"] is None or not js["ejs"]:
+        # Without a runtime (or its solver) YouTube refuses long downloads: that is not an out-of-date yt-dlp,
+        # and updating it does not help. Said first, unless the error is about something else entirely.
+        if any(k in low for k in _JS_SYMPTOMS) and not any(k in low for k in ("private video", "confirm your age", "age-restricted")):
+            return YtError("js_runtime", JS_MISSING if js["runtime"] is None else EJS_MISSING)
     if isinstance(exc, ImportError):
         return YtError("missing", "yt-dlp is not installed.", command=install_command())
     if "ffmpeg" in low and ("not found" in low or "not installed" in low or "no such file" in low
@@ -292,13 +375,21 @@ def _size_estimate(info: dict) -> int | None:
     return total or None
 
 
-def preview(url: str) -> dict:
+def _quality(q) -> int:
+    try:
+        return int(q) if int(q) in QUALITIES else 1080
+    except (TypeError, ValueError):
+        return 1080
+
+
+def preview(url: str, quality=1080) -> dict:
     """What the link is, before anything is downloaded."""
     vid = video_id(url)
+    quality = _quality(quality)
     existing = find_in_profile(vid)
     other = None if existing else find_in_other_profile(vid)
     try:
-        info = _net.info(canonical_url(vid))
+        info = _net.info(canonical_url(vid), quality)
     except YtError:
         raise
     except Exception as exc:                                  # noqa: BLE001
@@ -315,7 +406,7 @@ def preview(url: str) -> dict:
     title = info.get("title") or ""
     out = {"id": vid, "title": title, "channel": channel, "duration": info.get("duration"),
            "thumbnail": info.get("thumbnail"), "size": _size_estimate(info),
-           "height": info.get("height"), "url": canonical_url(vid),
+           "height": info.get("height"), "url": canonical_url(vid), "quality": quality,
            "fileName": existing or f"{file_stem(channel, title)}.mp4",
            "inProfile": existing, "inOtherProfile": other[0] if other else None}
     if out["thumbnail"] and not str(out["thumbnail"]).lower().startswith("https://"):
@@ -400,7 +491,7 @@ def _from_other(other: tuple[str, str]) -> tuple[str, str | None]:
     return dest_name, pid
 
 
-def start(url: str) -> dict:
+def start(url: str, quality=1080) -> dict:
     """Begin the download. Returns {"id": job id}, or {"id": None, "name": file} when this
     profile already has the video (nothing to do) -- a copy from another profile is made at once."""
     vid = video_id(url)
@@ -416,6 +507,7 @@ def start(url: str) -> dict:
         return {"id": None, "name": name, "existed": False, "copiedFrom": pid}
     if not st["ffmpeg"]:
         raise YtError("no_ffmpeg", "ffmpeg was not found. klipian needs it to join the video and sound.")
+    quality = _quality(quality)
     prof = paths.current_profile()
     with _JOBS_LOCK:
         running = _ACTIVE.get((prof, vid))
@@ -430,12 +522,12 @@ def start(url: str) -> dict:
                       "videoId": vid, "temp": str(temp), "title": None}
         _CANCEL[jid] = ev
         _ACTIVE[(prof, vid)] = jid
-    threading.Thread(target=contextvars.copy_context().run, args=(_run, jid, vid, temp, ev),
+    threading.Thread(target=contextvars.copy_context().run, args=(_run, jid, vid, temp, ev, quality),
                      daemon=True).start()
     return {"id": jid, "name": None, "existed": False}
 
 
-def _run(jid: str, vid: str, temp: Path, ev: threading.Event) -> None:
+def _run(jid: str, vid: str, temp: Path, ev: threading.Event, quality: int = 1080) -> None:
     prof = paths.current_profile()
     cancel_exc = _net.cancelled_exception()
     seen: list[str] = []
@@ -461,7 +553,7 @@ def _run(jid: str, vid: str, temp: Path, ev: threading.Event) -> None:
 
     try:
         _set(jid, state="running", message="Reading the video…")
-        info = _net.info(canonical_url(vid))
+        info = _net.info(canonical_url(vid), quality)
         if info.get("is_live") or (info.get("live_status") or "") in ("is_live", "is_upcoming"):
             raise YtError("live", "This is a live stream (or a premiere) that is not finished. "
                                   "Try again after it has ended.")
@@ -473,7 +565,7 @@ def _run(jid: str, vid: str, temp: Path, ev: threading.Event) -> None:
                                   f"(twice, while joining), {free / 1024 ** 3:.1f} GB free.")
         temp.mkdir(parents=True, exist_ok=True)
         ffmpeg_dir = str(Path(shutil.which("ffmpeg") or "").parent)
-        _net.download(canonical_url(vid), temp, hook, ffmpeg_dir)
+        _net.download(canonical_url(vid), temp, hook, ffmpeg_dir, quality)
         if ev.is_set():
             raise cancel_exc("cancelled")
         made = sorted(p for p in temp.glob("video.*") if p.suffix.lower() == ".mp4" and p.is_file())
@@ -494,7 +586,7 @@ def _run(jid: str, vid: str, temp: Path, ev: threading.Event) -> None:
         else:
             err = map_error(exc)
             _set(jid, state="failed", code=err.code, message=err.message, speed=None, eta=None,
-                 **({"command": err.extra["command"]} if "command" in err.extra else {}))
+                 **{k: err.extra[k] for k in ("command", "detail", "report") if k in err.extra})
     finally:
         shutil.rmtree(temp, ignore_errors=True)
         try:
@@ -533,7 +625,7 @@ def start_update() -> str:
     def run() -> None:
         try:
             before = _net.version()
-            proc = subprocess.run([sys.executable, "-m", "pip", "install", "-U", "yt-dlp"],
+            proc = subprocess.run([sys.executable, "-m", "pip", "install", "-U", "yt-dlp[default]"],
                                   capture_output=True, text=True, encoding="utf-8", errors="replace",
                                   timeout=300)
             if proc.returncode != 0:
