@@ -2042,7 +2042,7 @@ h1, h2, h3 {
    is just the initial value before that happens. max-height is raised so
    the video is actually visible, not just a thin strip above the
    timeline bar. */
-.tl-preview-video { display: block; width: 100%; aspect-ratio: 16 / 9; max-height: 400px; }
+.tl-preview-video { display: block; width: 100%; aspect-ratio: 16 / 9; max-height: min(400px, 34vh); }
 
 /* Scrub bar: drag/click anywhere to move the playhead of
    #tlPreviewVideo. Separate from #tlTotal so "move position" and
@@ -2632,9 +2632,33 @@ h1, h2, h3 {
 /* ── All Results (bulk.js): a tick box per Result, to render several at once ── */
 .allres-list { display: flex; flex-direction: column; }
 .allres-row {
-  display: grid; grid-template-columns: 22px 26px minmax(0, 1fr) auto auto auto; gap: var(--s3);
+  display: grid; grid-template-columns: 22px 26px minmax(0, 1fr) auto; gap: var(--s3);
   align-items: center; padding: var(--s2) var(--s3); border-bottom: 1px solid var(--border);
 }
+.allres-row.active { box-shadow: inset 3px 0 0 var(--accent); }
+.allres-main { min-width: 0; display: flex; flex-wrap: wrap; align-items: center; column-gap: var(--s2); row-gap: 2px; }
+.allres-main .allres-name { max-width: 100%; }
+.allres-meta { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 2px var(--s3); font-size: var(--t-12, 12px); color: var(--text-muted); }
+.allres-meta .rendered { color: var(--ok, #3fb871); }
+.allres-meta .not-rendered { color: var(--text-faint); }
+.allres-actions { display: flex; align-items: center; gap: var(--s1, 4px); }
+.allres-actions .btn { padding: 3px 10px; font-size: var(--t-12, 12px); }
+.allres-open { font-size: 11px; color: var(--accent); padding: 0 8px; }
+.allres-x:hover { color: var(--danger); }
+.allres-head { flex-wrap: wrap; row-gap: var(--s2); }
+.allres-pick { margin-left: auto; display: flex; flex-wrap: wrap; gap: var(--s1, 4px); }
+.allres-empty { margin: 0; padding: var(--s3) var(--s4); color: var(--text-muted); }
+.allres-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); padding: var(--s3); border-top: 1px solid var(--border); }
+.allres-bar-label { color: var(--text-muted); font-size: var(--t-12, 12px); margin-right: auto; }
+.allres-bar .step-no { margin-left: var(--s3); }
+.step-no { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font-size: 11px; font-weight: 700;
+  background: var(--accent); color: var(--accent-text, #111); flex: none; }
+.bulk-out { margin-top: 8px; display: flex; flex-direction: column; }
+.bulk-out .option-row { padding: var(--s2) 0; }
+.bulk-out .option-row.kept .choices, .bulk-out .option-row.kept .range-line { opacity: .45; }
+.bulk-out-keep { font-size: 11.5px; color: var(--text-muted); cursor: pointer; }
+.bulk-plan-fmt { color: var(--text-muted); }
+dialog.confirm-dlg:has(.bulk-out) { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; }
 .allres-row:last-child { border-bottom: 0; }
 .allres-row.active { background: var(--accent-soft, var(--glass)); }
 .allres-row input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; }
@@ -2654,3 +2678,6 @@ h1, h2, h3 {
 .rubric-pick { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); margin: var(--s2) 0; }
 .rubric-pick select { max-width: 100%; }
 .rubric-pick .note[data-error="true"] { color: var(--danger); }
+
+/* the last panel of the Clips screen keeps some air below it when scrolled to the end */
+.screen[data-screen="clips"] { padding-bottom: var(--s6, 24px); }

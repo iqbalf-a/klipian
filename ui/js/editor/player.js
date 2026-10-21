@@ -787,7 +787,17 @@ async function renderSavedResults(resultIds, { note = "" } = {}) {
       const r = QUEUE[i];
       if (!r) return;
       if (it.output) { r.name = it.output.file; r.url = it.output.url; r.folder = it.output.folder; r.mb = it.output.mb; }
-      if (it.state === "done") { r.pct = 100; r.busy = false; r.note = "done"; r.action = "Open folder"; r.act = "open"; }
+      if (it.state === "done") {
+        r.pct = 100; r.busy = false; r.note = "done"; r.action = "Open folder"; r.act = "open";
+        // the Results list says when each was last rendered (bulk.js)
+        const slot = r.resultId && SAVED_RESULTS.find((x) => x.id === r.resultId);
+        if (slot && !r.stamped) {
+          r.stamped = true;
+          slot.renderedAt = Math.round(Date.now() / 1000);
+          if (typeof saveProject === "function") saveProject();
+          if (typeof renderAllResults === "function") renderAllResults();
+        }
+      }
       // The server reports progress per CLIP, not within one, so `busy` drives an indeterminate bar
       // instead of inventing a number (r.pct used to be hardcoded to 55 and then snapped to 100).
       else if (it.state === "running") { r.pct = 0; r.busy = true; r.note = it.note || "rendering"; r.action = "Cancel"; r.act = "cancel"; }

@@ -2155,6 +2155,19 @@ Untuk memutuskan niche mana yang dilanjutkan.
 **Status P24–P27 (2026-10-21):** dicatat. P24 dikirim ke sesi eksekusi
 setelah P23 selesai, dan P25–P27 menyusul sesuai urutan.
 
+**P23 lanjutan dari pemakaian ian (2026-10-21):** layar Clips disusun mengikuti
+langkah: 1 Choose suggestions, 2 Results (daftar klip yang akan di-render),
+3 Render, lalu "Open Result: moments" sebagai rincian baris yang terbuka.
+Tiap baris: judul, durasi, jumlah momen, format output, framing, dan kapan
+terakhir di-render. Aksi massal di bawah daftar: **Output format...** (satu
+format ditulis ke semua Result yang dicentang, per kontrol bisa "keep each
+Result's own"), **Delete selected** dan hapus per baris (dialog + Undo; file
+render dan baris jadwal tidak pernah dihapus), **Render selected**. Dialog
+rencana render menampilkan format tiap klip dan tombol Output format...
+sebelum render. "As separate Results" memakai format Result yang terbuka.
+Selftest renderreq: format yang diterapkan masuk ke request Result terpilih
+saja.
+
 **P26 selesai di kode (2026-10-21):** template di `prompts/rubrik/templates/`
 (komedi-tv, edukasi, gaming, motivasi; struktur wajib sama dengan
 dialog-podcast, bobot per niche ada di teks rubrik). Rubrik buatan sendiri

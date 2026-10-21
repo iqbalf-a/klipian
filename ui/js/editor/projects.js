@@ -468,6 +468,62 @@ function newResult() {
   saveProject();
 }
 
+/* Take Results out of the project (the Results list deletes one or many at once). What is lost is the Result
+   itself -- its moments, framing points, caption fixes, post text -- never a rendered file or a schedule row.
+   The open one is saved first, and if it is among them the nearest remaining Result is opened; a project keeps at
+   least one Result, so removing every one leaves a fresh empty Result (with the output format on screen).
+   Returns what was removed, for restoreResults() (the Undo). */
+function removeResults(ids) {
+  const set = new Set(ids);
+  snapshotActiveResult();
+  const gone = SAVED_RESULTS.map((entry, index) => ({ entry: JSON.parse(JSON.stringify(entry)), index })).filter((x) => set.has(x.entry.id));
+  if (!gone.length) return [];
+  let next = activeResultId;
+  if (set.has(activeResultId)) {
+    const i = SAVED_RESULTS.findIndex((r) => r.id === activeResultId);
+    next = (SAVED_RESULTS.slice(0, i).reverse().find((r) => !set.has(r.id))
+      || SAVED_RESULTS.slice(i + 1).find((r) => !set.has(r.id)))?.id || null;
+  }
+  SAVED_RESULTS = SAVED_RESULTS.filter((r) => !set.has(r.id));
+  let placeholder = null;
+  if (!SAVED_RESULTS.length) {
+    placeholder = { id: `res${++resultTabSeq}`, title: "", segments: [], framing: [], corrections: {},
+      output: (typeof outputState === "function") ? outputState() : [] };
+    SAVED_RESULTS.push(placeholder);
+    next = placeholder.id;
+  }
+  gone.placeholder = placeholder ? placeholder.id : null;
+  if (next !== activeResultId) {
+    activeResultId = next;
+    loadResultIntoLiveState(SAVED_RESULTS.find((r) => r.id === next));
+  }
+  renderResultSwitcher();
+  saveProject();
+  return gone;
+}
+
+/* The Undo of removeResults(): the Results go back to where they were (the open one stays open). */
+function restoreResults(gone) {
+  if (!gone?.length) return;
+  snapshotActiveResult();
+  if (gone.placeholder) {
+    const p = SAVED_RESULTS.find((r) => r.id === gone.placeholder);
+    if (p && !(p.segments || []).length) {
+      SAVED_RESULTS = SAVED_RESULTS.filter((r) => r !== p);
+      if (activeResultId === p.id) activeResultId = null;
+    }
+  }
+  for (const { entry, index } of [...gone].sort((a, b) => a.index - b.index)) {
+    SAVED_RESULTS.splice(Math.min(index, SAVED_RESULTS.length), 0, entry);
+  }
+  if (!activeResultId || !SAVED_RESULTS.some((r) => r.id === activeResultId)) {
+    activeResultId = SAVED_RESULTS[0].id;
+    loadResultIntoLiveState(SAVED_RESULTS[0]);
+  }
+  renderResultSwitcher();
+  saveProject();
+}
+
 function switchResult(id) {
   if (id === activeResultId) return;
   const target = SAVED_RESULTS.find((r) => r.id === id);
@@ -527,6 +583,7 @@ document.querySelectorAll('[data-result-action="new"]').forEach((b) => {
    from the "+" that CREATES a Result, so it asks first (a dialog). */
 document.querySelectorAll('[data-result-action="delete"]').forEach((b) => {
   b.addEventListener("click", async () => {
+    if (typeof deleteResultsAsked === "function") { await deleteResultsAsked([activeResultId]); return; }   // bulk.js
     if (!(await confirmDialog({
       title: "Delete this Result?", confirmText: "Delete",
       message: "Its spans, framing points and caption fixes are lost.",

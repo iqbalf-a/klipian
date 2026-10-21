@@ -451,6 +451,8 @@
         <div class="work-head">
           <h1>Clips</h1>
           <span class="note" id="editNote" role="status">build a Result from AI suggestions or your own selection</span>
+          <!-- The Results list is below the timeline and the suggestions: one click takes you to it (bulk.js). -->
+          <button class="btn quiet" id="jumpResults" type="button" title="Go to the list of Results to render">↓ Results</button>
           <!-- Which video the timeline and suggestions below come from. A
                Result can hold moments from several; hidden while the project
                has only one video. -->
@@ -553,40 +555,51 @@
         <!-- AI suggestions: minutes and titles only -->
         <div class="panel fit rec">
           <div class="panel-head">
-            <span class="eyebrow">AI suggestions</span>
+            <span class="step-no" aria-hidden="true">1</span><span class="eyebrow">Choose suggestions</span>
             <span class="data" id="recNote" role="status">none yet</span>
             <!-- After an import replaced earlier suggestions: gives them back (roundtrip.js). -->
             <button class="btn quiet" id="recUndo" type="button" hidden>Undo import</button>
             <button class="btn" id="recEachBtn" type="button" disabled
-                    title="Make a separate Result of each ticked suggestion, to render them together">As its own Result</button>
-            <button class="btn main" id="recAddBtn" disabled>Add to Result</button>
+                    title="Make a separate Result of each ticked suggestion (each keeps the open Result's output format), to render them together">As separate Results</button>
+            <button class="btn main" id="recAddBtn" disabled title="Put the ticked suggestions into the open Result, as one clip">Add to this Result</button>
           </div>
           <!-- Play button in each row runs #tlPreviewVideo in the Timeline
                panel above -- see its comment there. -->
           <div class="rec-list" id="recList"></div>
         </div>
 
-        <!-- Result container: all ranges to be joined into one MP4 -->
+        <!-- Step 2 and 3: every Result of the project, the clips you will render (bulk.js) -->
+        <div class="panel fit allres">
+          <div class="result-head allres-head">
+            <span class="step-no" aria-hidden="true">2</span>
+            <span class="eyebrow">Results</span>
+            <span class="data" id="allResNote" role="status"></span>
+            <span class="allres-pick">
+              <button class="btn quiet" id="bulkSelectBrief" type="button" title="Tick the Results made from the same Claude import">Select all from this brief</button>
+              <button class="btn quiet" id="bulkSelectAll" type="button">All</button>
+              <button class="btn quiet" id="bulkSelectNone" type="button">None</button>
+            </span>
+          </div>
+          <p class="allres-empty" id="allResEmpty" hidden>No Results yet: tick AI suggestions above and press As separate Results.</p>
+          <div class="allres-list" id="allResList"></div>
+          <div class="allres-bar">
+            <span class="allres-bar-label">With the ticked Results:</span>
+            <button class="btn" id="bulkOutputBtn" type="button" disabled>Output format…</button>
+            <button class="btn" id="bulkDeleteBtn" type="button" disabled>Delete selected</button>
+            <span class="step-no" aria-hidden="true">3</span>
+            <button class="btn main" id="bulkRenderBtn" type="button" disabled>Render selected</button>
+          </div>
+        </div>
+
+        <!-- The open Result (a row of the list above): its moments, joined into one MP4 -->
         <div class="panel fit result">
           <div class="result-head">
-            <span class="eyebrow">Result</span>
+            <span class="eyebrow">Open Result: moments</span>
+            <span class="data" id="resultOpenName"></span>
             <span class="data" id="resultTotal">empty</span>
             <button class="btn quiet" id="resultClearBtn" disabled>Clear</button>
           </div>
           <div class="result-list" id="resultList"></div>
-        </div>
-
-        <!-- Every Result of the project, to render several at once (bulk.js) -->
-        <div class="panel fit allres">
-          <div class="result-head">
-            <span class="eyebrow">All Results</span>
-            <span class="data" id="allResNote" role="status"></span>
-            <button class="btn quiet" id="bulkSelectBrief" type="button" title="Tick the Results made from the same Claude import">Select all from this brief</button>
-            <button class="btn quiet" id="bulkSelectAll" type="button">All</button>
-            <button class="btn quiet" id="bulkSelectNone" type="button">None</button>
-            <button class="btn main" id="bulkRenderBtn" type="button" disabled>Render selected</button>
-          </div>
-          <div class="allres-list" id="allResList"></div>
         </div>
 
       </section>

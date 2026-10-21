@@ -554,6 +554,56 @@ function pictureSummary() {
   return `${pic} · ${optionOut("background")} · ${optionOut("position")}%`;
 }
 
+
+/* ───────── the Output Format of Results that are NOT open (bulk.js) ─────────
+   OPTIONS holds the open Result's choices; a saved Result has only its `output` array. These read and write
+   such an array through the same definitions, by laying it over OPTIONS for a moment and putting the open
+   Result's choices back -- so a missing entry, an out-of-range one or an old "Blur background" mean here exactly
+   what they mean when the Result is opened (applyOutput above), and nothing is restated. */
+function withOutput(saved, fn) {
+  const keep = outputState();
+  applyOutput(saved);
+  try { return fn(); } finally { applyOutput(keep); }
+}
+
+/* One entry per option, defaults filled in as opening the Result would. */
+function normalizedOutput(saved) {
+  return withOutput(saved, outputState);
+}
+
+/* A short line for a list: "9:16 · 1080p", "16:9 · blur bg · 1080p". */
+function describeOutput(saved) {
+  return withOutput(saved, () => {
+    const pic = optionOut("picture");
+    const bg = pic === "9:16" ? "" : ` · ${optionOut("background")} bg`;
+    return `${pic}${bg} · ${optionValue("resolution")}`;
+  });
+}
+
+/* `draft` is an output array (outputState() shape). Every option not in `keep` (a Set of option ids) is written
+   over what the Result has; the others stay as the Result has them. */
+function mergeOutput(saved, draft, keep) {
+  const base = normalizedOutput(saved);
+  return OPTIONS.map((o, k) => (keep.has(o.id) ? base[k] : draft[k]));
+}
+
+/* Write a format into saved Results (the open one included), save, and redraw whatever shows it. */
+function applyOutputToResults(ids, draft, keep) {
+  snapshotActiveResult();
+  for (const id of ids) {
+    const slot = SAVED_RESULTS.find((r) => r.id === id);
+    if (slot) slot.output = mergeOutput(slot.output, draft, keep);
+  }
+  const open = SAVED_RESULTS.find((r) => r.id === activeResultId);
+  if (open && ids.includes(open.id)) {
+    applyOutput(open.output);
+    renderPrepare();
+    optionsChanged();
+  }
+  renderResultSwitcher();
+  saveProject();
+}
+
 function renderPrepare() {
   const choiceRow = (o) => `
       <span class="choices">

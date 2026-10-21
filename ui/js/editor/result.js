@@ -682,9 +682,9 @@ function updateRecButton() {
   if (!b) return;
   const n = document.querySelectorAll("#recList input:checked").length;
   b.disabled = n === 0;
-  b.textContent = n ? `Add ${n} to Result` : "Add to Result";
+  b.textContent = n ? `Add ${n} to this Result` : "Add to this Result";
   const each = $("#recEachBtn");
-  if (each) { each.disabled = n === 0; each.textContent = n > 1 ? `${n} as separate Results` : "As its own Result"; }
+  if (each) { each.disabled = n === 0; each.textContent = n > 1 ? `${n} as separate Results` : n === 1 ? "As its own Result" : "As separate Results"; }
 }
 
 /* ---------- events ---------- */

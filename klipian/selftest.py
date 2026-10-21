@@ -3010,6 +3010,29 @@ def check_renderreq() -> tuple[str, str]:
     except renderreq.RequestError as exc:
         if exc.code != "no_result":
             problems.append(f"an unknown Result: {exc.code}")
+    # An Output Format applied to SEVERAL Results (the Results list, "Output format..."): each chosen Result's
+    # request changes, and the one that was not chosen, and the one that cannot be rendered, do not.
+    import copy
+    changed = copy.deepcopy(project)
+    applied = [1, 0, 2, 0, 20]                     # 16:9 · 720p · Best · Blur · position 20 (app.js OPTIONS order)
+    for r in changed["results"]:
+        if r["id"] in ("res1", "res2"):
+            r["output"] = list(applied)
+    again = {rid: renderreq.build_request(changed, rid, words_of=words.get, size_of=sizes.get) for rid in ("res1", "res2", "res3")}
+    for rid in ("res1", "res2"):
+        cc = again[rid]["clips"][0]
+        if (cc["picture"], cc["background"], cc["position"], cc["width"], cc["quality"]) != ("16:9", "blur", 20, 720, 17):
+            problems.append(f"an applied Output Format did not reach the request of {rid}: {cc['picture']} {cc['background']} {cc['position']} {cc['width']} {cc['quality']}")
+    if again["res3"] != built["res3"]:
+        problems.append("a Result that was not chosen changed when others got a new Output Format")
+    # only the Picture changed, the rest kept (the "keep each Result's own" choice): width, quality, position stay
+    only = copy.deepcopy(project)
+    for r in only["results"]:
+        if r["id"] == "res1":
+            r["output"] = [2] + list(r["output"][1:])          # Picture 3:4, everything else as it was
+    o1 = renderreq.build_request(only, "res1", words_of=words.get, size_of=sizes.get)["clips"][0]
+    if (o1["picture"], o1["width"], o1["quality"], o1["position"]) != ("3:4", c1["width"], c1["quality"], c1["position"]):
+        problems.append("changing only the Picture must leave resolution, quality and position as they were")
     # JavaScript rounding: halves go up, and a second video's seconds lose their offset to the microsecond
     if renderreq._js_round(2.5) != 3 or renderreq._js_round(-0.5) != 0 or renderreq._unshift(1000100.123456789, 1e6) != 100.123457:
         problems.append("the JavaScript rounding is not reproduced")
