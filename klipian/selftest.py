@@ -3874,22 +3874,136 @@ def check_guide() -> tuple[str, str]:
 
 
 def check_timefield() -> tuple[str, str]:
-    """The masked time field's pure functions (ui/js/editor/timefield.js), run by node on tests/timefield.test.js:
+    """The browser code's pure functions, run by node on tests/*.test.js: the masked time field (ui/js/editor/timefield.js:
     digits fill from the right, tenths, the shapes for a short and a long source, seconds and minutes above 59 refused,
-    empty and garbage, formatting and the round trip. Skipped (with a note) when node is not installed."""
+    empty and garbage, formatting and the round trip) and the merge of Claude's reply for one Result into its fields
+    (postreply.js). Skipped (with a note) when node is not installed."""
     import shutil
     import subprocess
     node = shutil.which("node")
     if not node:
-        return PASS, "skipped: node is not installed (tests/timefield.test.js not run)"
-    proc = subprocess.run([node, str(ROOT / "tests" / "timefield.test.js")], capture_output=True, text=True, encoding="utf-8",
-                          errors="replace", timeout=60)
-    if proc.returncode != 0:
-        return FAIL, (proc.stderr or proc.stdout).strip().splitlines()[-1][:300]
-    return PASS, proc.stdout.strip().splitlines()[-1]
+        return PASS, "skipped: node is not installed (tests/*.test.js not run)"
+    done = []
+    for test in sorted((ROOT / "tests").glob("*.test.js")):
+        proc = subprocess.run([node, str(test)], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
+        if proc.returncode != 0:
+            return FAIL, f"{test.name}: " + (proc.stderr or proc.stdout).strip().splitlines()[-1][:300]
+        done.append(proc.stdout.strip().splitlines()[-1])
+    return PASS, "; ".join(done)
 
 
-CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl,
+def check_resultpost() -> tuple[str, str]:
+    """Post text for ONE Result through Claude chat (roundtrip.build_result_brief / parse_result_reply): the brief holds
+    only that Result's words (corrections applied, times from the clip's start, two videos), the cues inside it, the
+    credit context, the rubric's three sections and the hashtag rule; a rubric without a section is refused by name; a
+    reply fills every field (tags normalised, note times in seconds), the .replace slip is repaired, a missing key is
+    reported by name."""
+    import copy
+    import re
+    from . import roundtrip
+
+    base = FIXTURES / "renderreq"
+    project = _load(base / "project.json")
+    words = {"ep1.mp4": [{"text": f"w{k}", "start": k * 0.5, "end": k * 0.5 + 0.4} for k in range(120)],
+             "ep2.mp4": [{"text": f"v{k}", "start": 100 + k * 0.5, "end": 100 + k * 0.5 + 0.4} for k in range(20)]}
+    rubric = roundtrip.read_rubric(roundtrip.RUBRICS["dialog"])
+    rule = "TESTRULE: the first 3 hashtags go in the title."
+    credit = {"ep1.mp4": {"platform": "YouTube", "creator": "Raditya Dika", "title": "Ep Satu", "url": "https://youtu.be/x"}}
+    laugh = [{"kind": "laughter", "start": 14.0, "end": 15.5, "level": "high", "peak": 0.9, "len": 1.5},
+             {"kind": "laughter", "start": 50.0, "end": 51.0, "level": "high", "peak": 0.9, "len": 1.0}]
+    problems = []
+
+    def brief(rid, rub=rubric):
+        return roundtrip.build_result_brief(project, rid, words_of=words.get, size_of=lambda f: (1920, 1080),
+                                            cues_of=lambda f: laugh if f == "ep1.mp4" else [], credit_of=credit.get,
+                                            rubric=rub, hashtag_rule=rule)
+
+    b = brief("res1")                                     # moment 10-20 s of ep1, corrections at 12.5 and 13.0
+    if "Dikoreksi" not in b or re.search(r"\bw25\b", b):
+        problems.append("the corrected word should be in the brief and the one it replaced not")
+    for k in (20, 21, 39):
+        if not re.search(rf"\bw{k}\b", b):
+            problems.append(f"a word of the clip (w{k}) is missing")
+    for k in (0, 5, 19, 40, 100):
+        if re.search(rf"\bw{k}\b", b):
+            problems.append(f"a word outside the clip (w{k}) is in the brief")
+    if "[0:00] w20" not in b:
+        problems.append("times should start at 0:00 at the start of the clip")
+    if "laughter · high" not in b or "[0:04]" not in b or b.count("laughter") != 1:
+        problems.append("only the cue inside the clip should be listed, from the clip's start (14 s -> 0:04)")
+    if "YouTube · Raditya Dika" not in b or "https://youtu.be/x" in b or "Do not write a credit" not in b:
+        problems.append("the credit context should name the source, without the link, and forbid a credit line of Claude's own")
+    for h in ("## Judul dan hook", "## Teks posting", "## Sudut pandang"):
+        if h not in b:
+            problems.append(f"the rubric section {h} is not in the brief")
+    if "Jangan menulis baris kredit" not in b or "Jangan mengulang kutipan" not in b:
+        problems.append("the rubric sections should come verbatim")
+    if "## Lima kriteria" in b or "## Berapa klip" in b:
+        problems.append("only the three sections of the rubric belong in this brief")
+    if rule not in b or "Plain JSON only" not in b or '"angle"' not in b or '"youtubeTitle"' not in b or "START OF THE CLIP" not in b:
+        problems.append("the hashtag rule, the JSON sentence and the reply shape belong in the brief")
+    two = brief("res2")                                   # two videos
+    if not re.search(r"\bv0\b", two) or "ep2.mp4" not in two or re.search(r"\bw30\b", two):
+        problems.append("a Result of two videos: its words from both, no others")
+    for rid, want in (("res4", "no time points"), ("nope", "not in the project")):
+        try:
+            brief(rid)
+            problems.append(f"{rid} should be refused")
+        except ValueError as exc:
+            if want not in str(exc):
+                problems.append(f"{rid}: {exc}")
+    try:
+        brief("res1", rubric.replace("## Teks posting", "## Teks"))
+        problems.append("a rubric without 'Teks posting' must be refused")
+    except ValueError as exc:
+        if "Teks posting" not in str(exc):
+            problems.append(f"the message should name the section: {exc}")
+    for tpl in ("komedi-tv", "edukasi", "gaming", "motivasi"):
+        if "## Teks posting" not in brief("res1", roundtrip.read_rubric(ROOT / "prompts" / "rubrik" / "templates" / f"{tpl}.md")):
+            problems.append(f"the {tpl} template should work for this brief")
+
+    # the reply
+    good = """Tentu, ini:
+```json
+{"title": "Rugi Karena Timing", "hook": "satu keputusan", "post": {"title": "Rugi 300 Juta", "caption": "Satu keputusan. Kamu pernah?",
+ "hashtags": "bisnis, #podcast lucu", "youtubeTitle": "x"},
+ "angle": {"take": "Keputusan kecil mahal.", "intro": "Satu keputusan ini", "notes": [{"at": "0:04", "text": "Dengar nadanya"}, {"at": "9:59", "text": "Jauh"}]}}
+```"""
+    f, notes = roundtrip.parse_result_reply(good, 10.0)
+    if (f["title"], f["hook"]) != ("Rugi Karena Timing", "satu keputusan") or f["post"]["hashtags"] != ["#bisnis", "#podcast", "#lucu"] \
+            or f["post"]["caption"] != "Satu keputusan. Kamu pernah?" or f["angle"]["take"] != "Keputusan kecil mahal." \
+            or f["angle"]["intro"] != "Satu keputusan ini" or [n["at"] for n in f["angle"]["notes"]] != [4.0, 10.0] or notes:
+        problems.append(f"a reply did not fill every field: {f} {notes}")
+    slipped = good.replace('"Satu keputusan. Kamu pernah?"', '"Satu keputusan. Kamu pernah?".replace(" ", "")').replace('"Jauh"}]', '"Jauh"},]')
+    f2, notes2 = roundtrip.parse_result_reply(slipped, 10.0)
+    if f2["post"]["caption"] != "Satukeputusan.Kamupernah?" or len(notes2) != 2:
+        problems.append(f"the .replace slip and the trailing comma should be repaired and said: {f2['post']['caption']} {notes2}")
+    wrapped = '{"clips": [{"title": "Dari klip", "post": {"title": "T", "caption": "C", "hashtags": ["a"]}, "angle": {"take": "k", "intro": "i"}}]}'
+    if roundtrip.parse_result_reply(wrapped, 10.0)[0]["title"] != "Dari klip":
+        problems.append("a reply in the clips shape should be read from its first clip")
+    broken = '{"title": "x", "post": {"title": "T", "hashtags": ["a"]}, "angle": {"intro": "i"}}'
+    try:
+        roundtrip.parse_result_reply(broken, 10.0)
+        problems.append("a reply with missing keys should be refused")
+    except ValueError as exc:
+        for key in ("post.caption", "angle.take"):
+            if key not in str(exc):
+                problems.append(f"the message should name {key}: {exc}")
+        if "post.title" in str(exc) or "angle.intro" in str(exc):
+            problems.append(f"the message names something that is there: {exc}")
+    for bad, want in (("no json here", "No JSON block"), ('{"title": "x", "post": {"a": }}', "broken")):
+        try:
+            roundtrip.parse_result_reply(bad, 10.0)
+            problems.append(f"{bad!r} should be refused")
+        except ValueError as exc:
+            if want not in str(exc):
+                problems.append(f"{bad!r}: {exc}")
+    if problems:
+        return FAIL, "\n      ".join(problems[:10])
+    return PASS, "the brief holds only the Result's words (corrections, clip times, two videos), cues inside it, credit context, the rubric's 3 sections, the hashtag rule; rubric sections refused by name; reply fills every field, slips repaired, missing keys named"
+
+
+CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl,
           "decode": check_decode, "render": check_render}
 
 

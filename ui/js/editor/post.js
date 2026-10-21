@@ -233,4 +233,134 @@ document.querySelectorAll("[data-post-copy]").forEach((btn) => {
   });
 });
 
+/* ---------- the post text written with Claude in the chat (no API key) ----------
+   "Copy brief for this Result": the server builds a short brief of THIS clip (klipian/roundtrip.py
+   build_result_brief) from the saved project: this page assembles no text. "Paste reply…": the reply goes to the server
+   (the same reader and repairs as the main import), and its fields fill the Result's title, post text and angle,
+   asking first when something is already written; the Undo toast puts all of it back. */
+
+const postAiNote = (text, bad = false) => {
+  const el = $("#postAiNote");
+  if (el) { el.textContent = text; el.dataset.error = String(bad); }
+};
+
+async function resultBriefUrl() {
+  const saved = (typeof writeProjectNow === "function") ? await writeProjectNow() : true;
+  if (!saved || !activeProjectId) throw new Error("The project could not be saved, so the brief cannot be made.");
+  const mode = (typeof briefRubric !== "undefined" && briefRubric) ? `&mode=${encodeURIComponent(briefRubric)}` : "";
+  return `/api/result-brief?project=${encodeURIComponent(activeProjectId)}&result=${encodeURIComponent(activeResultId)}${mode}`;
+}
+
+async function fetchResultBrief() {
+  const res = await fetch(await resultBriefUrl());
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.error || "Could not build the brief for this Result.");
+  }
+  return res.text();
+}
+
+$("#postBriefCopy")?.addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  postAiNote("Building the brief…");
+  try {
+    const pending = fetchResultBrief();
+    pending.catch(() => {});
+    let wrote = false;
+    // a clipboard write that comes after a long wait can be refused: hand the clipboard the promise
+    if (window.ClipboardItem && navigator.clipboard?.write) {
+      try {
+        await navigator.clipboard.write([new ClipboardItem({ "text/plain": pending.then((t) => new Blob([t], { type: "text/plain" })) })]);
+        wrote = true;
+      } catch { /* fall back below, unless the brief itself failed */ }
+    }
+    const text = await pending;
+    if (!wrote && !(await copyText(text))) throw new Error("the browser refused to copy: use Download instead");
+    postAiNote(`Copied · ${(text.length / 1024).toFixed(1)} KB · paste it into Claude, then press Paste reply…`);
+  } catch (err) {
+    postAiNote(err.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+$("#postBriefDownload")?.addEventListener("click", async () => {
+  try {
+    const text = await fetchResultBrief();
+    const name = ($("#resultTitle")?.value.trim() || "result").replace(/[^\p{L}\p{N}_-]+/gu, "-").replace(/^-+|-+$/g, "") || "result";
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([text], { type: "text/markdown" }));
+    a.download = `post-brief-${name}.md`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    postAiNote(`File downloaded · ${(text.length / 1024).toFixed(1)} KB`);
+  } catch (err) {
+    postAiNote(err.message, true);
+  }
+});
+
+/* The fields as they are now, in the shape postReplyPlan() reads. */
+const postFieldsNow = () => ({ title: $("#resultTitle")?.value.trim() || "", post: currentPost(), angle: currentAngle() });
+
+function applyPostFields(f) {
+  if ($("#resultTitle")) $("#resultTitle").value = f.title || "";
+  setPostFields(f.post);
+  setAngleFields(f.angle);
+  if (typeof snapshotActiveResult === "function") snapshotActiveResult();
+  if (typeof renderResultSwitcher === "function") renderResultSwitcher();
+  if (typeof saveProject === "function") saveProject();
+}
+
+async function askForReply(text = "") {
+  const body = document.createElement("div");
+  const area = Object.assign(document.createElement("textarea"), { rows: 10, spellcheck: false, value: text,
+    placeholder: "Paste Claude's reply here (the whole message is fine: the JSON block is found in it)" });
+  area.className = "post-reply-text";
+  body.append(area);
+  const ok = await confirmDialog({
+    title: "Paste Claude's reply", message: "It fills this Result's title, the post text and the angle.",
+    body, confirmText: "Read the reply", tone: "primary",
+  });
+  return ok ? area.value : null;
+}
+
+$("#postReplyPaste")?.addEventListener("click", async () => {
+  let text = await askForReply();
+  let reply = null;
+  while (text !== null) {
+    if (!text.trim()) { postAiNote("Nothing was pasted.", true); return; }
+    try {
+      const saved = (typeof writeProjectNow === "function") ? await writeProjectNow() : true;
+      if (!saved || !activeProjectId) { postAiNote("The project could not be saved, so the reply cannot be read.", true); return; }
+      const res = await fetch("/api/result-reply", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ project: activeProjectId, result: activeResultId, text }) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok || d.error) throw new Error(d.error || "Could not read that reply.");
+      reply = d;
+      break;
+    } catch (err) {
+      postAiNote(err.message, true);
+      text = await askForReply(text);                  // the text stays, so it can be fixed
+    }
+  }
+  if (!reply) return;
+  const before = postFieldsNow();
+  const plan = postReplyPlan(before, reply);
+  if (plan.conflicts.length) {
+    const list = document.createElement("ul");
+    list.className = "bulk-plan-list";
+    for (const c of plan.conflicts) { const li = document.createElement("li"); li.textContent = c; list.append(li); }
+    const go = await confirmDialog({ title: "Replace what is written?", message: "These already have text and would be replaced:",
+      body: list, confirmText: "Replace", tone: "primary" });
+    if (!go) { postAiNote("Nothing was changed."); return; }
+  }
+  applyPostFields(plan.next);
+  const rendered = (typeof SAVED_RESULTS !== "undefined" ? SAVED_RESULTS : []).find((r) => r.id === activeResultId)?.renderedAt;
+  const warn = $("#postWarn") && !$("#postWarn").hidden ? ` · ${$("#postWarn").textContent}` : "";
+  postAiNote(`Filled from Claude's reply: title, post text and angle${reply.notes?.length ? ` (fixed in the reply: ${reply.notes.join("; ")})` : ""}`
+    + warn + (rendered ? " · This Result was rendered before: its upload-schedule row takes the new text at the next render." : "") + ".");
+  if (typeof undoForResult === "function") undoForResult("Post text filled from Claude's reply", () => { applyPostFields(before); postAiNote("Put back what was there."); });
+});
+
 updatePostCount();

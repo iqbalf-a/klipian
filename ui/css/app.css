@@ -2773,3 +2773,10 @@ dialog.confirm-dlg:has(.bulk-out-wrap) { width: min(780px, calc(100vw - 32px)); 
 /* a time field that was refused (timefield.js): red, with the reason in its tooltip and the note above */
 .rec-time-in.tf-bad, .time-input input.tf-bad { border-color: var(--danger); color: var(--danger); background: color-mix(in oklab, var(--danger) 10%, transparent); }
 .rec-time-in:disabled.tf-bad { border-color: var(--danger); }
+
+/* Post text written with Claude in the chat (post.js) */
+.post-ai { display: flex; flex-direction: column; gap: var(--s2); margin-top: var(--s3); padding-top: var(--s3); border-top: 1px solid var(--glass-border); }
+#postAiNote[data-error="true"] { color: var(--danger); }
+.post-reply-text { width: 100%; min-height: 180px; margin-top: 8px; font-family: var(--font-data); font-size: 12px; padding: 8px 10px;
+  color: var(--text); background: var(--bg-1); border: 1px solid var(--glass-border); border-radius: var(--r-s); resize: vertical; }
+dialog.confirm-dlg:has(.post-reply-text) { width: min(640px, calc(100vw - 32px)); }

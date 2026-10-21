@@ -821,3 +821,203 @@ def save_candidates(candidates: list[dict], video: Path, dest: Path) -> Path:
     tmp.write_text(payload, encoding="utf-8")
     tmp.replace(dest)
     return dest
+
+
+# --------------------------------------------------------------------------
+# POST TEXT FOR ONE RESULT through Claude chat (no API key): a short brief and a reply parser
+# --------------------------------------------------------------------------
+
+RESULT_SECTIONS = ("Judul dan hook", "Teks posting", "Sudut pandang")
+
+
+def rubric_sections(rubric: str, names=RESULT_SECTIONS) -> str:
+    """The named "## " sections of a rubric, verbatim and in the order given. A section runs from its heading to
+    the next heading or the next "---" line. Raises ValueError naming the first one the rubric lacks."""
+    text = rubric.replace("\r\n", "\n")
+    out = []
+    for name in names:
+        m = re.search(rf"^## {re.escape(name)}[ \t]*$", text, re.M)
+        if not m:
+            raise ValueError(f'The rubric has no "{name}" section, which the post text needs. '
+                             "Add it back (compare with a template) or choose another rubric.")
+        end = re.search(r"^(?:## |---[ \t]*$)", text[m.end():], re.M)
+        out.append(text[m.start():m.end() + (end.start() if end else len(text) - m.end())].strip())
+    return "\n\n".join(out)
+
+
+def _cue_text(c: dict, out_start: float, out_end: float) -> str:
+    kind = c["kind"]
+    at = f"[{fmt_stamp(out_start)}]"
+    if kind == "pause":
+        return f"- {at} long pause"
+    span = f"{at}–[{fmt_stamp(out_end)}]"
+    if kind == "music":
+        return f"- {span} music · avoid"
+    if kind == "fast talk":
+        return f"- {span} fast talk"
+    return f"- {span} {kind}" + (f" · {c['level']}" if c.get("level") else "")
+
+
+def build_result_brief(project: dict, result_id: str, *, words_of, size_of, cues_of, credit_of,
+                       rubric: str, hashtag_rule: str = "") -> str:
+    """One self-contained file asking Claude (chat, no API) for the post text of ONE Result: the clip's own words,
+    in the order they are heard and with the corrections applied (the words the render uses, renderreq), with
+    times from the start of the clip (what the reply's notes count from); the cues inside it; the source credit
+    context; the rubric's "Judul dan hook", "Teks posting" and "Sudut pandang" sections verbatim; the profile's
+    hashtag rule; and the reply shape. Raises ValueError with a message for the person (no moments, a rubric
+    without a required section)."""
+    from . import credits as _credits, cues as _cues, renderreq
+    sections = rubric_sections(rubric)
+    try:
+        req = renderreq.build_request(project, result_id, words_of=words_of, size_of=size_of)
+    except renderreq.RequestError as exc:
+        raise ValueError(exc.message) from None
+    clip = req["clips"][0]
+    main = req.get("video") or ""
+    entry = next(r for r in project["results"] if r.get("id") == result_id)
+    files = {a["id"]: a["file"] for a in project.get("assets") or [] if isinstance(a, dict) and a.get("id") and a.get("file")}
+    segments = [s for s in (entry.get("segments") if isinstance(entry.get("segments"), list) else entry.get("result") or [])
+                if isinstance(s, dict)]
+
+    # where each piece of the clip starts, in clip seconds
+    spans, cum, total = clip["spans"], [], 0.0
+    for s in spans:
+        cum.append(total)
+        total += s["end"] - s["start"]
+
+    def clip_time(word: dict) -> float:
+        file = word.get("video") or main
+        for i, s in enumerate(spans):
+            if (s.get("video") or main) == file and s["start"] - 1e-6 <= word["start"] and word["end"] <= s["end"] + 1e-6:
+                return cum[i] + (word["start"] - s["start"])
+        return 0.0
+
+    lines, line, last_end = [], [], None
+    for w in clip["words"]:
+        t = clip_time(w)
+        if line and (t - last_end >= 0.8 or len(line) >= 14 or (len(line) >= 6 and line[-1][1].endswith((".", "?", "!")))):
+            lines.append(line)
+            line = []
+        line.append((t, w["text"]))
+        last_end = t + (w["end"] - w["start"])
+    if line:
+        lines.append(line)
+    transcript = "\n".join(f"[{fmt_stamp(l[0][0])}] {' '.join(x[1] for x in l)}" for l in lines) or "(no words were found for this clip)"
+
+    # the moments in the order they play, and the cues inside them (from the start of the clip)
+    moment_lines, cue_lines, at = [], [], 0.0
+    for i, s in enumerate(segments, 1):
+        file = files.get(s.get("asset") or "a1", main)
+        length = s["end"] - s["start"]
+        where = f"{fmt_stamp(s['start'])}–{fmt_stamp(s['end'])} of {file}" if len(set(files.values())) > 1 else f"{fmt_stamp(s['start'])}–{fmt_stamp(s['end'])} of the video"
+        moment_lines.append(f"{i}. [{fmt_stamp(at)}–{fmt_stamp(at + length)}] from {where}")
+        for c in _cues.for_range(cues_of(file) or [], s["start"], s["end"], tail=0):
+            a = max(at, at + (c["start"] - s["start"]))
+            b = min(at + length, at + (c["end"] - s["start"]))
+            cue_lines.append(_cue_text(c, a, b))
+        at += length
+    if not cue_lines:
+        cue_lines = ["No audio or timing cues were found inside this clip (or the analysis was not run)."]
+
+    sources = []
+    for f in dict.fromkeys(files.get(s.get("asset") or "a1", main) for s in segments):
+        text = _credits.brief_source(credit_of(f))
+        if text and text not in sources:
+            sources.append(text)
+    source_block = ""
+    if sources:
+        source_block = ("\n**Source of the video:** " + "; ".join(sources) + "\n\n"
+                        "klipian adds the source credit to the post by itself, from what its user entered. "
+                        "Do not write a credit or source line, a link or a channel handle of your own.\n")
+    title = (entry.get("title") or "").strip() or clip.get("title") or result_id
+    return f"""# Post text for one clip — {title}
+
+You help a short-video editor write the text that goes with ONE finished clip: a short title for the clip, the
+upload title, the caption and hashtags, and an angle that makes it the editor's own. The clip is already cut: do not
+look for other moments and do not change its times. Below are its words (what is said, in the order it plays), the
+sound and timing cues inside it, and the parts of the editor's rubric that say how to write the text.
+
+The clip runs {fmt_stamp(total)}. All times here start at 0:00 at the start of the CLIP, not of the video.
+{source_block}
+## The moments of the clip
+
+{chr(10).join(moment_lines)}
+
+## What is said (from the start of the clip)
+
+{transcript}
+
+## Sound and timing cues inside the clip (detected locally, not from the words)
+
+You cannot hear the audio: these come from analysing the sound and the gaps between words. Treat them as supporting
+evidence about the reactions in the clip.
+
+{chr(10).join(cue_lines)}
+
+---
+
+## How to write it (the editor's rubric)
+
+{sections}
+
+---
+
+## Answer format
+
+Reply with **a single JSON block** exactly like this, no extra explanation outside the block. Plain JSON only: no
+code, function calls, expressions, variables or comments; every value is finished text or a number.
+
+```json
+{{
+  "title": "2 to 5 words",
+  "hook": "exact quote from the clip",
+  "post": {{
+    "title": "Rugi 300 Juta Gara-gara Salah Timing",
+    "caption": "Satu keputusan di waktu yang salah bisa mahal banget. Kamu pernah ngalamin juga?",
+    "hashtags": ["#bisnis", "#podcast", "#belajarbisnis", "#kegagalan", "#motivasi"],
+    "youtubeTitle": "Rugi 300 Juta Gara-gara Salah Timing #bisnis #podcast #belajarbisnis"
+  }},
+  "angle": {{
+    "take": "Keputusan yang kelihatan kecil bisa jadi yang paling mahal.",
+    "intro": "Satu keputusan ini bikin rugi 300 juta",
+    "notes": [{{ "at": "0:14", "text": "Perhatikan nadanya di sini" }}]
+  }}
+}}
+```
+
+`title` is the clip's own short name (2–5 words, it becomes the file name). `hook` is the sentence from the clip
+that holds attention most, quoted exactly. `post` and `angle` are written as the rubric above says; `at` is in
+minutes:seconds from the START OF THE CLIP.
+{_hashtag_block(hashtag_rule)}"""
+
+
+_RESULT_REPLY_KEYS = ("title", "post.title", "post.caption", "post.hashtags", "angle.take", "angle.intro")
+
+
+def parse_result_reply(text: str, duration: float) -> tuple[dict, list[str]]:
+    """Claude's reply for ONE Result -> ({title, hook, post, angle}, what was repaired). The JSON is read with the same
+    reader and repairs as the main import (extract_json). A reply in the other shape (a "clips" list) is read from its
+    first clip. Raises ValueError naming what is missing or broken: title, post.title / caption / hashtags and
+    angle.take / intro are needed; the hook and the notes are optional."""
+    notes: list[str] = []
+    data = extract_json(text, notes)
+    if "clips" in data and isinstance(data["clips"], list) and data["clips"] and isinstance(data["clips"][0], dict):
+        data = data["clips"][0]
+    title = _text(data.get("title")) if isinstance(data.get("title"), (str, type(None))) else ""
+    post = _post(data.get("post"))
+    angle = _angle(data.get("angle"), duration)
+    missing = []
+    if not title:
+        missing.append("title")
+    for key, value in (("title", post and post["title"]), ("caption", post and post["caption"]),
+                       ("hashtags", post and post["hashtags"])):
+        if not value:
+            missing.append(f"post.{key}")
+    for key, value in (("take", angle and angle["take"]), ("intro", angle and angle["intro"])):
+        if not value:
+            missing.append(f"angle.{key}")
+    if missing:
+        raise ValueError("The reply does not have: " + ", ".join(missing)
+                         + ". Ask Claude again (it should answer with the whole JSON block), or fill those in by hand.")
+    hook = data.get("hook")
+    return {"title": title, "hook": _text(hook) if isinstance(hook, str) else "", "post": post, "angle": angle}, notes

@@ -1082,6 +1082,53 @@ class Handler(BaseHTTPRequestHandler):
             _hashtags_mod.brief_rule(_profiles.hashtag_settings())),
             "text/markdown")
 
+    # ---- post text for ONE Result through Claude chat (no API key): the brief and the reply ----
+
+    def _saved_project(self, project_id: str):
+        pf = _project_file(project_id)
+        return _read_project(pf) if pf and pf.is_file() else None
+
+    def _get_result_brief(self):
+        """The file for Claude asking for the post text of one Result of a SAVED project (roundtrip.build_result_brief)."""
+        q = parse_qs(urlparse(self.path).query)
+        pdata = self._saved_project((q.get("project") or [""])[0])
+        if not pdata:
+            return self._send_json({"error": "That project is not saved yet."}, 400)
+        try:
+            _, rubric, _ = _rubric_for((q.get("mode") or [""])[0])
+            from .jobs import _request_adapters
+            words_of, size_of = _request_adapters()
+            cache = Cache(CACHE_DIR)
+            credits_by_file = credits_mod.load()
+            text = roundtrip.build_result_brief(
+                pdata, (q.get("result") or [""])[0], words_of=words_of, size_of=size_of,
+                cues_of=lambda f: cues_mod.load(find_video(f), cache)["cues"] if f else [],
+                credit_of=lambda f: credits_by_file.get(f), rubric=rubric,
+                hashtag_rule=_hashtags_mod.brief_rule(_profiles.hashtag_settings()))
+        except (ValueError, _rubrics.RubricError) as exc:
+            return self._send_json({"error": str(exc)}, 400)
+        return self._send_text(text, "text/markdown")
+
+    def _post_result_reply(self):
+        """Claude's reply for one Result -> its fields (the page fills them in and asks before replacing)."""
+        try:
+            req = self._read_json()
+        except Exception as exc:               # noqa: BLE001
+            return self._send_json({"error": str(exc)}, 400)
+        pdata = self._saved_project(str(req.get("project") or ""))
+        entry = next((r for r in (pdata or {}).get("results") or [] if isinstance(r, dict) and r.get("id") == req.get("result")), None)
+        if not entry:
+            return self._send_json({"error": "That Result is not in the saved project."}, 400)
+        stored = entry.get("segments") if isinstance(entry.get("segments"), list) else entry.get("result") or []
+        duration = sum(max(0.0, (s.get("end") or 0) - (s.get("start") or 0)) for s in stored if isinstance(s, dict))
+        try:
+            fields, notes = roundtrip.parse_result_reply(str(req.get("text") or ""), duration)
+        except ValueError as exc:
+            return self._send_json({"error": str(exc)}, 400)
+        settings = _profiles.hashtag_settings()
+        warning = _hashtags_mod.title_warning(fields["post"].get("title", ""), fields["post"].get("hashtags"), settings)
+        return self._send_json({"ok": True, **fields, "notes": notes, **({"postWarning": warning} if warning else {})})
+
     def _get_video(self):
         file = sorted(p.name for p in SOURCES.glob("*")
                         if p.suffix.lower() in VIDEO_EXT)
@@ -1198,6 +1245,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/transcript": _get_transcript,
         "/api/cues": _get_cues,
         "/api/brief": _get_brief,
+        "/api/result-brief": _get_result_brief,
         "/api/video": _get_video,
         "/api/video-check": _get_video_check,
     }
@@ -2088,6 +2136,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/render": _post_render,
         "/api/render/cancel": _post_render_cancel,
         "/api/render/plan": _post_render_plan,
+        "/api/result-reply": _post_result_reply,
         "/api/rubrics/create": _post_rubrics,
         "/api/rubrics/delete": _post_rubrics,
         "/api/rubrics/open": _post_rubrics,

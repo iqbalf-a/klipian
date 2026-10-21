@@ -967,6 +967,19 @@
             <button class="btn" type="button" data-post-copy="hashtags">Copy hashtags</button>
             <span class="data" id="postNote" role="status"></span>
           </div>
+          <!-- Write all of it with Claude in the chat, no API key: a brief of THIS clip to paste there, and Claude's
+               reply pasted back (post.js, klipian/roundtrip.py build_result_brief / parse_result_reply). -->
+          <div class="post-ai" id="postAi">
+            <span class="post-label">Write it with Claude <span class="data">no API key: copy, paste in the chat, paste the reply back</span></span>
+            <div class="post-actions">
+              <button class="btn" type="button" id="postBriefCopy"
+                      title="A short brief of this clip only (its words, the rubric's post-text rules, your hashtag rule) to paste into Claude">Copy brief for this Result</button>
+              <button class="btn quiet" type="button" id="postBriefDownload" title="The same brief as a file to drop into Claude">Download</button>
+              <button class="btn" type="button" id="postReplyPaste"
+                      title="Paste Claude's JSON reply: it fills the Result title, the post text and the angle">Paste reply…</button>
+              <span class="data" id="postAiNote" role="status"></span>
+            </div>
+          </div>
         </div>
 
         <!-- Angle: a point of view on the clip, to make it your own (angle.js).
@@ -1207,6 +1220,7 @@
 <script src="/ui/js/editor/timeline.js?v=1790703163808"></script>
 <script src="/ui/js/editor/captions.js?v=1790703163808"></script>
 <script src="/ui/js/editor/result.js?v=1790703163808"></script>
+<script src="/ui/js/editor/postreply.js?v=1790703163808"></script>
 <script src="/ui/js/editor/post.js?v=1790703163808"></script>
 <script src="/ui/js/editor/angle.js?v=1790703163808"></script>
 <script src="/ui/js/editor/compose.js?v=1790703163808"></script>

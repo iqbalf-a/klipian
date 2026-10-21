@@ -60,6 +60,7 @@
       <li><a href="#download">Unduh dari YouTube</a></li>
       <li><a href="#profiles">Profile dan Guest</a></li>
       <li><a href="#bulk">Render massal</a></li>
+      <li><a href="#post">Teks posting untuk satu klip</a></li>
     </ol>
   </nav>
 
@@ -292,6 +293,32 @@
         dan baris jadwal unggah <b>tidak</b> pernah ikut terhapus.</p>
       <p class="note">Framing otomatis (titik 00:00 yang belum disentuh) memakai tinggi penuh video dengan lebar sesuai
         bentuk gambar, di tengah. Titik yang kamu atur sendiri tidak berubah.</p>
+    </section>
+
+    <!-- ============================================================ G -->
+    <section id="post">
+      <h2>G. Teks posting untuk satu klip (tanpa API key)</h2>
+      <p>Untuk klip yang kamu potong sendiri (momen diketik tangan) atau Result mana pun: judul Result, judul unggahan,
+        caption, hashtag, dan sudut pandang bisa ditulis Claude lewat <b>chat</b>, cukup salin dan tempel. Tidak perlu
+        API key dan tidak ada biaya selain langgananmu.</p>
+      <ol>
+        <li>Buka layar <b>Render</b> dengan Result yang dimaksud, panel <b>Post text</b>, bagian
+          <b>Write it with Claude</b>.</li>
+        <li>Tekan <b>Copy brief for this Result</b> (atau <b>Download</b>). Isinya singkat: kata-kata klip ini saja (sudah
+          dengan koreksi, waktunya dihitung dari awal klip), sinyal suara di dalamnya, konteks sumber, bagian rubrik
+          <i>Judul dan hook</i>, <i>Teks posting</i>, dan <i>Sudut pandang</i>, aturan hashtag profile, dan bentuk jawaban.
+          Rubrik yang dipakai: pilihan profile, atau pilihan di layar Analyze.</li>
+        <li>Tempel ke Claude di web (chat baru) dan kirim.</li>
+        <li>Salin jawabannya, lalu di klipian tekan <b>Paste reply…</b> dan tempel. Pesan Claude utuh boleh: blok JSON-nya
+          dicari sendiri, dan salah ketik yang umum (koma di ujung, <code>.replace</code>) diperbaiki dan diberi tahu.</li>
+        <li>Kolom yang terisi: <b>judul Result</b> (nama di daftar dan nama berkas), <b>Post text</b> (judul, caption,
+          hashtag), dan <b>Angle</b> (take, intro, notes). Kalau sebagian sudah ada isinya, klipian bertanya
+          <b>Replace what is written?</b> dengan daftar kolomnya. <b>Undo</b> mengembalikan semuanya.</li>
+      </ol>
+      <p class="note">Kalau jawaban kurang satu kolom, pesan menyebut yang mana (misalnya <code>post.caption</code>): minta
+        Claude menjawab lagi dengan blok JSON lengkap. Judul akhir yang lebih dari 100 karakter diberi peringatan seperti
+        biasa. Kalau Result itu sudah pernah dirender, baris jadwal unggahnya memakai teks baru pada render berikutnya.
+        Panel ini tidak ada untuk profile Guest.</p>
     </section>
 
     <footer class="guide-foot">Panduan ini ada di <code>ui/guide.html</code>. Keyboard: <kbd>,</kbd> <kbd>.</kbd> mundur/maju
