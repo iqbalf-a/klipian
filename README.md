@@ -16,9 +16,10 @@ From `cmd` in the project folder, type `st`, press Tab, then Enter:
 start.cmd
 ```
 
-It starts the server from `.venv` and opens **http://127.0.0.1:5177** in the
-browser. `start.cmd 5180` uses another port; if klipian is already running
-on that port it just opens the browser. It checks for `.venv` and ffmpeg
+It starts the server from `.venv` and prints its address,
+**http://127.0.0.1:5177**: open it in your browser yourself (set
+`KLIPIAN_OPEN_BROWSER=1` to have it open a tab for you). `start.cmd 5180` uses
+another port; if klipian is already running on that port it just says so. It checks for `.venv` and ffmpeg
 first and says what to do when either is missing. Type `start.cmd` (or let
 Tab complete it), not plain `start`, which is cmd's own command. Ctrl+C
 stops the server.
@@ -559,7 +560,7 @@ klipian/
 ├── prompts/rubrik/                scoring rubrics, editable without touching code
 ├── assets/models/                 vendored ONNX models with their licenses: YuNet and SFace
 │                                  (faces), YAMNet (sound events) and its class map
-├── start.cmd                       starts the server from .venv and opens the editor
+├── start.cmd                       starts the server from .venv (no browser tab)
 ├── requirements.txt                base install (no PyTorch)
 ├── requirements-ai-framing.txt     optional: AI Framing / speaker diarization
 ├── requirements-claude.txt         optional: Find clips with Claude (Anthropic API)

@@ -1,12 +1,13 @@
 @echo off
-rem klipian -- start the local server and open the editor. Run it from cmd:
+rem klipian -- start the local server. Run it from cmd:
 rem
 rem   start.cmd          port 5177   (type "st" then Tab)
 rem   start.cmd 5180     another port
 rem
 rem Not plain "start": that is cmd's own command. Runs from .venv, never the
 rem global Python (README, "First-time setup"). Ctrl+C stops the server.
-rem Set KLIPIAN_NO_BROWSER=1 to start it without opening a browser tab.
+rem It does not open a browser: open the address it prints yourself.
+rem Set KLIPIAN_OPEN_BROWSER=1 to have it open a tab for you.
 
 setlocal
 cd /d "%~dp0"
@@ -41,12 +42,15 @@ if not errorlevel 1 (
   echo.
   echo   klipian is already running at %URL%
   echo.
-  if not defined KLIPIAN_NO_BROWSER start "" "%URL%"
+  if defined KLIPIAN_OPEN_BROWSER start "" "%URL%"
   exit /b 0
 )
 
-rem Open the browser a moment after the server starts.
-if not defined KLIPIAN_NO_BROWSER start "" /b cmd /c "timeout /t 3 /nobreak >nul & start %URL%"
+rem Open a browser only when asked (KLIPIAN_OPEN_BROWSER=1); otherwise just say where it is.
+if defined KLIPIAN_OPEN_BROWSER start "" /b cmd /c "timeout /t 3 /nobreak >nul & start %URL%"
+echo.
+echo   klipian: open %URL% in your browser
+echo.
 
 "%PY%" -m klipian serve --port %PORT%
 endlocal
