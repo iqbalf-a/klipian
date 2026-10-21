@@ -3449,7 +3449,185 @@ def check_claude() -> tuple[str, str]:
 
 
 
-CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl,
+def check_rubrics() -> tuple[str, str]:
+    """Rubrics per niche (rubrics.py): every template passes the required-section check and goes into a brief
+    with its own text and the hashtag block; a rubric in the workspace is listed, chosen and used; a deleted one
+    falls back to dialog with a note; a bad id is refused; a rubric missing a section is refused naming it; the
+    dialog brief stays what it was. Nothing is opened and nothing reaches the real Recycle Bin."""
+    import contextlib
+    import http.client
+    import io
+    import threading
+    from http.server import ThreadingHTTPServer
+    from . import paths, profiles, recycle, roundtrip, rubrics
+    from .cache import Cache
+    from .models import Transcript
+    from .server import Handler
+
+    problems = []
+    real_open, real_bin = rubrics._open, recycle.to_recycle_bin
+    opened = []
+    rubrics._open = opened.append
+    recycle.to_recycle_bin = lambda path: Path(path).unlink(missing_ok=True)       # the scratch workspace: no bin
+    srv = None
+    quiet = contextlib.redirect_stderr(io.StringIO())
+    video = "rubric-test.mp4"
+    try:
+        transcript = Transcript.load(FIXTURES / "brief" / "transcript.json")
+        rule = "TESTRULE: hashtags go first in the title."
+        # --- every template is complete, and is what the brief carries
+        names = [t["id"] for t in rubrics.templates()]
+        if sorted(names) != ["edukasi", "gaming", "komedi-tv", "motivasi", "podcast"]:
+            problems.append(f"templates found: {names}")
+        for t in names:
+            text = rubrics._read(rubrics._template_path(t))
+            if rubrics.check(text):
+                problems.append(f"template {t} lacks {rubrics.check(text)}")
+            body = roundtrip.build_brief(transcript, text, "x.mp4", None, None, rule)
+            api_sys, _ = roundtrip.build_api_brief(transcript, text, "x.mp4", None, None, rule, 5)
+            marker = next(ln for ln in text.splitlines() if ln.startswith("### 1."))
+            for label, out in (("brief", body), ("api brief", api_sys)):
+                if marker not in out or "TESTRULE" not in out or "## Teks posting" not in out:
+                    problems.append(f"{label} of template {t} lost its text or the hashtag block")
+        for t in ("edukasi", "gaming", "komedi-tv", "motivasi"):
+            if "podcast" in rubrics._read(rubrics._template_path(t)).lower():
+                problems.append(f"template {t} still speaks of podcast")
+        # --- the dialog rubric is the file as it was
+        if rubrics.load("dialog") != ("dialog", roundtrip.read_rubric(roundtrip.RUBRICS["dialog"]), None) \
+                or rubrics.load(None)[0] != "dialog" or rubrics.check(rubrics.load("dialog")[1]):
+            problems.append("the dialog rubric changed or does not pass its own check")
+        # --- a workspace rubric: made from a template, listed, chosen by the profile, used by the brief
+        made = rubrics.create("komedi-tv", "Komedi Uji")
+        if made != {"id": "komedi-uji", "name": "Komedi Uji"} or not (rubrics.workspace_dir() / "komedi-uji.md").is_file():
+            problems.append(f"create: {made}")
+        text = rubrics._read(rubrics.workspace_dir() / "komedi-uji.md")
+        if not text.startswith("# Rubrik: Komedi Uji") or rubrics.check(text):
+            problems.append("the copy should carry the new name and stay complete")
+        for bad in (("komedi-tv", "Komedi Uji"), ("komedi-tv", "Dialog"), ("nope", "x"), ("../x", "x"), ("komedi-tv", "!!!")):
+            try:
+                rubrics.create(*bad)
+                problems.append(f"create{bad} should have been refused")
+            except rubrics.RubricError:
+                pass
+        listing = rubrics.list_all()
+        if [r["id"] for r in listing["workspace"]] != ["komedi-uji"] or [r["id"] for r in listing["builtin"]] != ["dialog", "gameplay"]:
+            problems.append(f"listing: {listing}")
+        profiles.update("selftest", {"defaults": {"rubric": "komedi-uji"}})
+        if profiles.defaults().get("rubric") != "komedi-uji":
+            problems.append("the profile could not choose a workspace rubric")
+        profiles.update("selftest", {"defaults": {"rubric": "../evil"}})
+        if profiles.defaults().get("rubric") == "../evil":
+            problems.append("a rubric id with a path in it was stored")
+        profiles.update("selftest", {"defaults": {"rubric": "komedi-uji"}})
+        # the brief uses it: through the server (pasted brief and the API's cached block)
+        (paths.SOURCES / video).write_bytes(b"not a real video")
+        from .paths import GLOSSARY
+        from .transcribe import DEFAULT_LANGUAGE, DEFAULT_MODEL
+        transcript.save(Cache(paths.CACHE_DIR).transcript_path(paths.SOURCES / video, DEFAULT_MODEL, DEFAULT_LANGUAGE,
+                                                                GLOSSARY if GLOSSARY.is_file() else None))
+        from . import server as _server
+        marker = next(ln for ln in text.splitlines() if ln.startswith("### 1."))
+        sys1, _ = _server._claude_parts(video)(5)
+        sys2, _ = _server._claude_parts(video)(9)
+        if marker not in sys1 or sys1 != sys2:
+            problems.append("the Claude brief should use the chosen rubric, byte-identical from one call to the next")
+        dialog_sys, _ = _server._claude_parts(video, "dialog")(5)
+        if marker in dialog_sys or dialog_sys == sys1:
+            problems.append("an explicit rubric should override the profile's")
+
+        srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        port = srv.server_address[1]
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        quiet.__enter__()
+
+        def call(method, path, profile="selftest", body=None):
+            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=30)
+            headers = {"Host": f"127.0.0.1:{port}", "X-Klipian-Profile": profile}
+            data = None
+            if body is not None:
+                data = json.dumps(body).encode()
+                headers["Content-Type"] = "application/json"
+            conn.request(method, path, body=data, headers=headers)
+            r = conn.getresponse()
+            raw = r.read().decode("utf-8", "replace")
+            conn.close()
+            try:
+                return r.status, json.loads(raw)
+            except ValueError:
+                return r.status, raw
+
+        st, brief = call("GET", f"/api/brief?video={video}")
+        if st != 200 or marker not in brief:
+            problems.append(f"/api/brief with the profile's rubric: {st}")
+        st, brief = call("GET", f"/api/brief?video={video}&mode=dialog")
+        if st != 200 or marker in brief or "## Teks posting" not in brief:
+            problems.append("/api/brief?mode=dialog should override")
+        st, j = call("GET", "/api/rubrics")
+        if st != 200 or j["current"]["id"] != "komedi-uji" or j["current"]["note"] or len(j["templates"]) != 5:
+            problems.append(f"/api/rubrics: {st} {j}")
+        for bad in ("../../etc/passwd", "A%20B", "x" * 41, "a/b"):
+            st, j = call("GET", f"/api/brief?video={video}&mode={bad}")
+            if st != 400:
+                problems.append(f"mode {bad!r} should be refused: {st}")
+        for path, body in (("/api/rubrics/delete", {"id": "../x"}), ("/api/rubrics/delete", {"id": "dialog"}),
+                           ("/api/rubrics/open", {"id": "../x"}), ("/api/rubrics/create", {"template": "../x", "name": "q"})):
+            st, j = call("POST", path, body=body)
+            if st != 400 or j.get("ok") is not False:
+                problems.append(f"{path} {body} should be refused: {st}")
+        # --- open: the file in the workspace folder, or the folder
+        st, j = call("POST", "/api/rubrics/open", body={"id": "komedi-uji"})
+        st2, j2 = call("POST", "/api/rubrics/open", body={})
+        if st != 200 or st2 != 200 or [Path(o).name for o in opened] != ["komedi-uji.md", "rubrics"]:
+            problems.append(f"open: {st} {st2} {opened}")
+        # --- the Guest can choose too: it lists, creates and briefs
+        st, j = call("GET", "/api/rubrics", profile="_guest")
+        st2, j2 = call("POST", "/api/rubrics/create", profile="_guest", body={"template": "edukasi", "name": "Edu Tamu"})
+        if st != 200 or st2 != 200 or j2.get("id") != "edu-tamu":
+            problems.append(f"guest: {st} {st2} {j2}")
+        # --- a rubric that lost a section is refused, naming it; never sent out silently
+        path = rubrics.workspace_dir() / "komedi-uji.md"
+        path.write_bytes(path.read_bytes().replace(b"## Teks posting", b"## Teks"))
+        st, j = call("GET", f"/api/brief?video={video}")
+        if st != 400 or "Teks posting" not in j.get("error", ""):
+            problems.append(f"a rubric without 'Teks posting' must be refused with its name: {st} {j}")
+        try:
+            _server._claude_parts(video)
+            problems.append("the Claude brief must not be built from an incomplete rubric")
+        except rubrics.RubricError as exc:
+            if "Teks posting" not in str(exc):
+                problems.append(f"the message should name the section: {exc}")
+        st, j = call("GET", "/api/rubrics")
+        mine = {r["id"]: r for r in j["workspace"]}
+        if not any("Teks posting" in m for m in mine["komedi-uji"]["missing"]) or j["current"].get("id") is not None:
+            problems.append(f"the listing should show what is missing: {mine['komedi-uji']}")
+        # --- deleted: the profile falls back to dialog, with a note
+        st, j = call("POST", "/api/rubrics/delete", body={"id": "komedi-uji"})
+        if st != 200 or path.exists():
+            problems.append(f"delete: {st}")
+        st, j = call("GET", "/api/rubrics")
+        if j["current"]["id"] != "dialog" or "komedi-uji" not in (j["current"]["note"] or ""):
+            problems.append(f"a deleted rubric should fall back to dialog with a note: {j['current']}")
+        st, brief = call("GET", f"/api/brief?video={video}")
+        if st != 200 or "## Teks posting" not in brief:
+            problems.append("the brief should still be made (with dialog) after the rubric was deleted")
+        st, j = call("POST", "/api/rubrics/delete", body={"id": "komedi-uji"})
+        if st != 400:
+            problems.append("deleting what is gone should say so")
+    finally:
+        if srv:
+            quiet.__exit__(None, None, None)
+            srv.shutdown()
+        rubrics._open, recycle.to_recycle_bin = real_open, real_bin
+        (paths.SOURCES / video).unlink(missing_ok=True)
+        for f in list(rubrics.workspace_dir().glob("*.md")):
+            f.unlink(missing_ok=True)
+        profiles.update("selftest", {"defaults": {"rubric": ""}})
+    if problems:
+        return FAIL, "\n      ".join(problems[:10])
+    return PASS, "5 templates complete and in the brief, workspace rubric listed/chosen/used (cached block byte-stable), deleted falls back with a note, bad ids refused, a missing section refused by name, dialog unchanged, Guest allowed"
+
+
+CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl,
           "decode": check_decode, "render": check_render}
 
 

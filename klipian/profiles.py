@@ -24,7 +24,7 @@ import shutil
 import time
 from pathlib import Path
 
-from . import paths
+from . import paths, rubrics
 from .paths import DEFAULT_PROFILE, GUEST, valid_profile_id
 
 PROFILE_DIRS = ("sources", "projects", "out", "schedule", "assets", "secrets")
@@ -133,8 +133,8 @@ def _clean_defaults(d) -> dict:
     wm = re.sub(r"[{}\\\r\n]", " ", str(d.get("watermark") or "")).strip()[:40]
     if wm:
         out["watermark"] = wm
-    if d.get("rubric") in RUBRIC_CHOICES:
-        out["rubric"] = d["rubric"]
+    if d.get("rubric") in RUBRIC_CHOICES or rubrics.valid_id(d.get("rubric")):
+        out["rubric"] = d["rubric"]       # a workspace rubric too (rubrics.py); one that is gone falls back to dialog on use
     if d.get("hashtagPlacement") in ("title", "description", "both"):
         out["hashtagPlacement"] = d["hashtagPlacement"]
     if "addShorts" in d:

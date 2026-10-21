@@ -50,6 +50,7 @@ from .jobs import style_with_profile as _style_with_profile
 from .jobs import cancel_job as _cancel_job, start_project_render as _start_project_render
 from .jobs import estimate_seconds as _estimate_seconds, plan_project_render as _plan_project_render
 from . import claude_api as _claude
+from . import rubrics as _rubrics
 from .jobs import (ACTIVE_TRANSCRIBES, CANCELLED, JOBS, LOCK, MAX_JOBS, _clip_words,
                    _register_job, _run_diarize, _run_render, _run_transcribe,
                    _spans_from_clip)
@@ -269,14 +270,18 @@ def _import_reply(name: str, text: str) -> tuple[list, list]:
     return candidates, notes
 
 
-def _claude_parts(name: str):
+def _rubric_for(mode: str = ""):
+    """(id used, text, note) for this brief: the one asked for, else this profile's default."""
+    return _rubrics.load(mode or _profiles.defaults().get("rubric") or _rubrics.DEFAULT)
+
+
+def _claude_parts(name: str, mode: str = ""):
     """build_parts(count) for the Claude API: the brief of this video, split into the static system text and this
     episode's text (roundtrip.build_api_brief), from the same inputs as /api/brief."""
     transcript = _transcript_for(name)
     if transcript is None:
         raise ValueError("No transcript yet. Click Find clips on the Analyze screen to make one.")
-    mode = _profiles.defaults().get("rubric") or "dialog"
-    rubric = roundtrip.read_rubric(roundtrip.RUBRICS.get(mode, roundtrip.RUBRICS["dialog"]))
+    _, rubric, _ = _rubric_for(mode)
     cues_data = cues_mod.load(find_video(name), Cache(CACHE_DIR))
     credit = credits_mod.load().get(name)
     rule = _hashtags_mod.brief_rule(_profiles.hashtag_settings())
@@ -626,6 +631,41 @@ class Handler(BaseHTTPRequestHandler):
         q = parse_qs(urlparse(self.path).query)
         return self._send_json(_youtube.connect_state((q.get("id") or [""])[0]))
 
+    # ---- rubrics per niche (rubrics.py) ----
+
+    def _rubric_reply(self, fn):
+        try:
+            return self._send_json({"ok": True, **fn()})
+        except _rubrics.RubricError as exc:
+            return self._send_json({"ok": False, "error": str(exc)}, 400)
+
+    def _get_rubrics(self):
+        def listing():
+            q = parse_qs(urlparse(self.path).query)
+            data = _rubrics.list_all()
+            want = (q.get("mode") or [""])[0] or _profiles.defaults().get("rubric") or _rubrics.DEFAULT
+            try:
+                used, _, note = _rubrics.load(want)
+                data["current"] = {"wanted": want, "id": used, "note": note}
+            except _rubrics.RubricError as exc:
+                data["current"] = {"wanted": want, "id": None, "error": str(exc)}
+            return data
+        return self._rubric_reply(listing)
+
+    def _post_rubrics(self):
+        action = urlparse(self.path).path.rsplit("/", 1)[-1]
+        try:
+            req = self._read_json()
+        except Exception as exc:               # noqa: BLE001
+            return self._send_json({"error": str(exc)}, 400)
+        if action == "create":
+            return self._rubric_reply(lambda: _rubrics.create(req.get("template"), req.get("name")))
+        if action == "delete":
+            return self._rubric_reply(lambda: (_rubrics.delete(str(req.get("id") or "")), {})[1])
+        if action == "open":
+            return self._rubric_reply(lambda: (_rubrics.open_path(str(req["id"]) if req.get("id") else None), {})[1])
+        return self._send_json({"error": "unknown action"}, 404)
+
     # ---- Find clips with Claude (claude_api.py; the key never leaves the server) ----
 
     def _claude_reply(self, fn):
@@ -677,11 +717,12 @@ class Handler(BaseHTTPRequestHandler):
         name = str(req.get("video") or "")
         count = req.get("count")
         count = count if isinstance(count, int) and 1 <= count <= 40 else 12
+        mode = str(req.get("rubric") or "")
         if action == "plan":
-            return self._claude_reply(lambda: _claude.plan_find(_claude_parts(name), count))
+            return self._claude_reply(lambda: _claude.plan_find(_claude_parts(name, mode), count))
         if action == "find":
             def start():
-                parts = _claude_parts(name)
+                parts = _claude_parts(name, mode)
                 return {"id": _claude.start_find(parts, lambda text: _import_reply(name, text), video=name, count=count,
                                                  project=str(req.get("project") or "") or None)}
             return self._claude_reply(start)
@@ -1030,12 +1071,14 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"error": f"The transcript for {name} could not be read ({exc})"}, 500)
         if transcript is None:
             return self._send_json({"error": "No transcript yet. Click Find clips on the Analyze screen to make one."}, 404)
-        mode = (q.get("mode") or [""])[0] or _profiles.defaults().get("rubric") or "dialog"
-        rubric = roundtrip.RUBRICS.get(mode, roundtrip.RUBRICS["dialog"])
+        try:
+            _, rubric, _ = _rubric_for((q.get("mode") or [""])[0])
+        except _rubrics.RubricError as exc:
+            return self._send_json({"error": str(exc)}, 400)
         cues_data = cues_mod.load(find_video(name), Cache(CACHE_DIR))
         credit = credits_mod.load().get(name)
         return self._send_text(roundtrip.build_brief(
-            transcript, roundtrip.read_rubric(rubric), name, cues_data, credit,
+            transcript, rubric, name, cues_data, credit,
             _hashtags_mod.brief_rule(_profiles.hashtag_settings())),
             "text/markdown")
 
@@ -1127,6 +1170,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/thumb": _get_thumb,
         "/api/version": _get_version,
         "/api/profiles": _get_profiles,
+        "/api/rubrics": _get_rubrics,
         "/api/claude/status": _get_claude_status,
         "/api/claude/models": _get_claude_models,
         "/api/claude/usage": _get_claude_usage,
@@ -2042,6 +2086,9 @@ class Handler(BaseHTTPRequestHandler):
         "/api/render": _post_render,
         "/api/render/cancel": _post_render_cancel,
         "/api/render/plan": _post_render_plan,
+        "/api/rubrics/create": _post_rubrics,
+        "/api/rubrics/delete": _post_rubrics,
+        "/api/rubrics/open": _post_rubrics,
         "/api/claude/settings": _post_claude,
         "/api/claude/test": _post_claude,
         "/api/claude/plan": _post_claude,
