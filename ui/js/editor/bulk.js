@@ -75,7 +75,7 @@ function renderAllResults() {
   if (openName) openName.textContent = live ? `· ${live.title}` : "";
   $("#allResEmpty").hidden = rows.some((r) => r.moments);
   list.innerHTML = rows.map((r, i) => `
-    <div class="allres-row${r.live ? " active" : ""}${BULK_FRESH.has(r.id) ? " fresh" : ""}" data-id="${escapeHTML(r.id)}">
+    <div class="allres-row${r.live ? " active" : ""}${BULK_TICKED.has(r.id) ? " ticked" : ""}${BULK_FRESH.has(r.id) ? " fresh" : ""}" data-id="${escapeHTML(r.id)}">
       <input type="checkbox" data-bulk-tick aria-label="Select ${escapeHTML(r.title)}"${BULK_TICKED.has(r.id) ? " checked" : ""}${r.moments ? "" : " disabled"}
              ${r.moments ? "" : 'title="Nothing to render yet: this Result has no moments"'}>
       <span class="num">${i + 1}</span>
@@ -91,7 +91,7 @@ function renderAllResults() {
         </div>
       </div>
       <div class="allres-actions">
-        ${r.live ? '<span class="allres-open" title="This Result is open below">open</span>'
+        ${r.live ? '<span class="btn quiet allres-editing" title="This Result is open below in Open Result: moments" aria-current="true">Editing</span>'
           : '<button class="btn quiet" type="button" data-bulk-open>Open</button>'}
         <button class="btn quiet allres-x" type="button" data-bulk-delete title="Delete this Result" aria-label="Delete ${escapeHTML(r.title)}">✕</button>
       </div>

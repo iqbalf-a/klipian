@@ -2643,7 +2643,6 @@ h1, h2, h3 {
 .allres-meta .not-rendered { color: var(--text-faint); }
 .allres-actions { display: flex; align-items: center; gap: var(--s1, 4px); }
 .allres-actions .btn { padding: 3px 10px; font-size: var(--t-12, 12px); }
-.allres-open { font-size: 11px; color: var(--accent); padding: 0 8px; }
 .allres-x:hover { color: var(--danger); }
 .allres-head { flex-wrap: wrap; row-gap: var(--s2); }
 .allres-pick { margin-left: auto; display: flex; flex-wrap: wrap; gap: var(--s1, 4px); }
@@ -2660,7 +2659,13 @@ h1, h2, h3 {
 .bulk-plan-fmt { color: var(--text-muted); }
 dialog.confirm-dlg:has(.bulk-out) { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; }
 .allres-row:last-child { border-bottom: 0; }
-.allres-row.active { background: var(--accent-soft, var(--glass)); }
+/* Two different states: the OPEN Result (a thin bar and a faint glass fill, "Editing" in the action cell) and a
+   TICKED row (a faint accent tint): ticking is what changes how a row looks. */
+.allres-row.active { background: var(--glass); }
+.allres-row.ticked { background: color-mix(in oklab, var(--accent) 9%, transparent); }
+.allres-row.active.ticked { background: color-mix(in oklab, var(--accent) 9%, var(--glass)); }
+.allres-actions .allres-editing { pointer-events: none; cursor: default; color: var(--accent); border-color: color-mix(in oklab, var(--accent) 55%, transparent); background: transparent; }
+.allres-legend { margin: 0; padding: 0 var(--s3) var(--s2); color: var(--text-faint); font-size: 11.5px; }
 .allres-row input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; }
 .allres-name { text-align: left; background: transparent; border: 0; color: var(--text); font: inherit; font-weight: 600;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; padding: 0; }
@@ -2721,3 +2726,5 @@ dialog.confirm-dlg:has(.bulk-out-wrap) { width: min(780px, calc(100vw - 32px)); 
   .bulk-out-side { order: -1; position: static; align-items: center; }
   .bulk-out-stage { width: 150px; }
 }
+
+.allres-actions .btn:not(.allres-x) { min-width: 68px; text-align: center; }
