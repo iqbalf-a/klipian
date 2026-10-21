@@ -95,10 +95,10 @@ function renderAllResults() {
         </div>
       </div>
       <div class="allres-actions">
-        ${r.live ? '<span class="btn quiet allres-editing" title="This Result is open below in Open Result: moments" aria-current="true">Editing</span>'
-          : '<button class="btn quiet" type="button" data-bulk-open>Open</button>'}
-        <button class="btn quiet" type="button" data-bulk-post title="Write the post text with Claude (copy a brief, paste the reply)">Post text…</button>
-        <button class="btn quiet allres-x" type="button" data-bulk-delete title="Delete this Result" aria-label="Delete ${escapeHTML(r.title)}">✕</button>
+        ${r.live ? '<span class="btn sm allres-editing" title="This Result is open below in Open Result: moments" aria-current="true">Editing</span>'
+          : '<button class="btn sm" type="button" data-bulk-open>Open</button>'}
+        <button class="btn sm quiet" type="button" data-bulk-post title="Write the post text with Claude (copy a brief, paste the reply)">Post text…</button>
+        <button class="btn sm quiet allres-x" type="button" data-bulk-delete title="Delete this Result" aria-label="Delete ${escapeHTML(r.title)}">✕</button>
       </div>
     </div>`).join("");
   const n = BULK_TICKED.size;

@@ -90,8 +90,8 @@ function goneTagHTML(c) {
   const open = c.status === "Draft" || c.status === "Ready" || !c.status;
   return `<div class="ws-gone">
       <span class="ws-gone-tag" title="${open ? "The render file is no longer in out/: this clip may not be wanted any more." : "The render file is no longer in out/. Normal after posting: this row is the record of it."}">file deleted</span>
-      ${open ? `<button class="ws-mini" type="button" data-gone="discard">Discard</button>
-      <button class="ws-mini" type="button" data-gone="delete">Delete row</button>` : ""}
+      ${open ? `<button class="btn sm" type="button" data-gone="discard">Discard</button>
+      <button class="btn sm" type="button" data-gone="delete">Delete row</button>` : ""}
     </div>`;
 }
 
@@ -111,7 +111,7 @@ function draftRowHTML(d) {
       <td class="${td}"></td>
       <td class="${td}"><select class="ws-input ws-status" data-draft-field="status" data-v="${d.status}">${opt(STATUS, d.status)}</select></td>
       <td class="${td}"><input class="ws-input" type="text" data-draft-field="title" value="${escapeHTML(d.title)}" placeholder="New clip title / hook">
-        <div class="ws-fileline"><button class="ws-mini" type="button" data-draft-choose>Choose video…</button>
+        <div class="ws-fileline"><button class="btn sm" type="button" data-draft-choose>Choose video…</button>
           <span class="data" data-draft-file>${d.file ? escapeHTML(d.file) : "no video file (for a clip klipian did not render)"}</span></div></td>
       <td class="${td}"><select class="ws-input" data-draft-field="platform">${opt(PLATFORM, d.platform)}</select></td>
       <td class="${td}"><input class="ws-input" type="date" data-draft-field="date" value="${escapeHTML(d.date)}"></td>
@@ -119,8 +119,8 @@ function draftRowHTML(d) {
       <td class="${td}"><span class="data ws-created">not saved yet</span></td>
       <td class="${td}" colspan="2">
         <span class="ws-draft-actions">
-          <button class="rounded-s bg-accent text-[13px] font-semibold px-3 py-1.5 text-accent-text hover:brightness-110" type="button" data-draft-save>Save</button>
-          <button class="rounded-s px-2.5 py-1 text-[12px] border border-glass-border hover:bg-glass" type="button" data-draft-cancel>Cancel</button>
+          <button class="btn main" type="button" data-draft-save>Save</button>
+          <button class="btn" type="button" data-draft-cancel>Cancel</button>
         </span>
       </td>
     </tr>`;
@@ -164,7 +164,7 @@ function row(c) {
       <td class="${td}">${f("date", "date")}</td>
       <td class="${td}">${f("time", "time")}</td>
       <td class="${td}"><span class="data ws-created" title="${escapeHTML(timeAgo(c.createdAt || c.at))}">${fmtCreated(c.createdAt || c.at)}</span></td>
-      <td class="${td}"><button class="ws-detail" data-action="detail" type="button">Detail</button></td>
+      <td class="${td}"><button class="btn sm" data-action="detail" type="button">Detail</button></td>
       <td class="${td}"><button class="delete-btn" data-action="delete" type="button" title="Delete this clip">✕</button></td>
     </tr>`;
 }
@@ -858,7 +858,7 @@ function ytBulkDraw(plan) {
         <span class="yt-bulk-icon">✓</span><span class="yt-bulk-title" title="${t}">${t}</span>
         <span class="yt-bulk-msg"><span class="yt-bulk-saved">${escapeHTML(fmtWhen(r.date, r.time) || r.when)}</span>${inputs}</span></div>`;
     }
-    const detail = `<button class="ws-mini" type="button" data-ytdetail="${escapeHTML(r.id)}"${r.needsSchedule || /upload date|date and time/i.test(r.message || "") ? ' data-focus="date"' : ""}>Detail</button>`;
+    const detail = `<button class="btn sm" type="button" data-ytdetail="${escapeHTML(r.id)}"${r.needsSchedule || /upload date|date and time/i.test(r.message || "") ? ' data-focus="date"' : ""}>Detail</button>`;
     if (r.needsSchedule) {
       return `<div class="yt-bulk-row sched" data-kind="sched" data-state="failed" data-id="${escapeHTML(r.id)}" data-date="${escapeHTML(r.date || "")}" data-time="${escapeHTML(r.time || "")}">
         <span class="yt-bulk-icon">✕</span><span class="yt-bulk-title" title="${t}">${t}</span>
@@ -958,7 +958,7 @@ function ytBulkSync() {
     : "Nothing can be sent yet: fix the clips marked ✕ (each has a Detail button).";
   if (st.light !== "green" || st.client?.state === "invalid") {
     note.innerHTML = `${escapeHTML(st.client?.state === "invalid" ? "The client_secret.json is not valid." : "This profile is not connected to YouTube.")}
-      <button class="ws-mini" type="button" id="ytBulkSettings">Open profile settings</button>`;
+      <button class="btn sm" type="button" id="ytBulkSettings">Open profile settings</button>`;
   } else if (plan.running) {
     note.textContent = "A bulk upload is already running for this profile.";
   } else if (!ytBulk.confirmed) note.textContent = "";

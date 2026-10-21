@@ -51,10 +51,10 @@ function drawRender() {
       <span class="data">${r.mb} MB</span>
       <span class="data" title="${escapeHTML(timeAgo(r.created || r.at))}">${fmtCreated(r.created || r.at)}</span>
       ${r.scheduled === false && !IS_GUEST
-        ? `<button class="ws-mini ws-add-schedule" type="button" data-action="schedule" title="This file has no row in the upload schedule">Add to schedule</button>`
+        ? `<button class="btn sm ws-add-schedule" type="button" data-action="schedule" title="This file has no row in the upload schedule">Add to schedule</button>`
         : `<span></span>`}
-      <button class="rounded-s px-2.5 py-1 text-[12px] hover:bg-glass" data-action="play">Play</button>
-      <button class="rounded-s px-2.5 py-1 text-[12px] border border-glass-border hover:bg-glass" data-action="open">Open folder</button>
+      <button class="btn quiet" data-action="play">Play</button>
+      <button class="btn" data-action="open">Open folder</button>
     </div>`).join("");
 }
 

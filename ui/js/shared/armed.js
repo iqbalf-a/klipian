@@ -40,9 +40,9 @@ function confirmDialog({ title = "Are you sure?", message = "", warning = "", bo
     head.append(h, x);
     dlg.setAttribute("aria-labelledby", h.id);
     const actions = el("div", "confirm-actions");
-    const cancel = el("button", "confirm-cancel", cancelText);
+    const cancel = el("button", "btn confirm-cancel", cancelText);
     cancel.type = "button";
-    const ok = el("button", "confirm-ok", confirmText);
+    const ok = el("button", "btn main confirm-ok", confirmText);
     ok.type = "button";
     actions.append(cancel, ok);
     dlg.append(head);

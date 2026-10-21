@@ -253,31 +253,12 @@ h1, h2, h3 {
    /workspace too now, and that page can't reach this file. Everything
    below EXTENDS that base, and only exists in the editor. */
 
-/* One primary action per region, and it's accented. The rest are dark pills.
-   This rule is what makes the eye know where to go without reading. */
-.btn.main {
-  border-color: transparent;
-  /* Text color follows the accent, not hardcoded. Bright accents need dark
-     text, muted accents need light text -- hardcoding either one makes the
-     button unreadable the moment the accent changes. */
-  color: var(--accent-text);
-  background: var(--accent);
-  font-weight: 700;
-  box-shadow: 0 4px 18px -8px var(--accent-glow);
-}
-.btn.main:hover {
-  background: color-mix(in srgb, var(--accent) 88%, #fff);
-  box-shadow: 0 6px 22px -8px var(--accent-glow);
-}
-.btn.main:disabled { background: var(--glass-strong); color: var(--text-faint);
-                     box-shadow: none; cursor: not-allowed; }
+/* .btn, .btn.main, .btn.quiet, .btn.sm, .btn.danger and .btn.large: brand.css (one system for every page). */
 
 /* Icon inside a button (e.g. #aiFramingBtn) -- flex so it aligns neatly
    with the text, fill follows currentColor so it's automatically contrasty
    on any button background (accent yellow, grey, or disabled). */
-.btn:has(svg) { display: inline-flex; align-items: center; gap: 6px; }
 .icon-ai { flex: none; }
-.btn.main.large { padding: 10px 20px; font-size: var(--t-13); }
 
 .chip {
   font: inherit; font-size: var(--t-12); font-weight: 650;
@@ -1103,11 +1084,6 @@ h1, h2, h3 {
 /* Cover for a video that doesn't exist. An empty field, not an <img> that
    will certainly 404 -- a request that's guaranteed to fail doesn't need
    to be sent. */
-.btn.danger {
-  background: var(--danger); border-color: transparent;
-  color: oklch(0.98 0 0); font-weight: 700;
-}
-.btn.danger:hover { background: color-mix(in srgb, var(--danger) 84%, #fff); }
 
 /* Card is no longer a <button>, so focus needs to be indicated separately. */
 .project-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -1205,11 +1181,7 @@ h1, h2, h3 {
 
 .prepare-foot { display: flex; align-items: center; gap: var(--s4); margin-top: var(--s2); }
 .prepare-foot .data { color: var(--text-faint); }
-.btn.large { margin-left: auto; font-size: var(--t-13); padding: 11px 26px; }
-
-.btn:disabled { opacity: .4; cursor: not-allowed; }
-.btn.main:disabled:hover { background: var(--text); }
-.btn-home { padding: 6px 12px; }
+.btn.large { margin-left: auto; }
 
 /* The actual video inside the 9:16 frame. Its size is derived from the crop
    box so what's visible is exactly the cropped portion -- not the entire
@@ -1648,9 +1620,6 @@ h1, h2, h3 {
    renderResultSwitcher() in projects.js. .right is already pushed to the
    right of work-head (see its rule above). */
 .result-picker { display: flex; gap: var(--s2); align-items: center; }
-.result-picker .btn.quiet {
-  padding: 4px 9px; font-size: var(--t-13); line-height: 1;
-}
 /* A bare <select> without this shows the browser's default white -- only
    the wrapper box & button get themed, the select element itself was
    forgotten. Colors/border match .input (app.css:1134), not a new style. */
@@ -2299,38 +2268,6 @@ h1, h2, h3 {
 .work-head .btn.right { margin-left: auto; }
 
 
-/* Plain .btn buttons have no background or border, so inside panel headers
-   they read as regular text -- not something clickable. The main action
-   button in panel headers gets a border so it's visible. Same reasoning
-   applies to Save (.side-foot): it's .btn.quiet, which is background:none/
-   border-color:transparent by design (the quiet buttons scattered around
-   panel headers are meant to recede) -- but stacked full-width and alone
-   at the very bottom of the sidebar, "quiet" just read as unclickable
-   text, not a button that happens to be understated (ian). */
-.panel-head .btn:not(.main),
-.result-head .btn:not(.main),
-.pick-head .btn:not(.main),
-.work-head .btn:not(.main),
-.render-bar .btn:not(.main),
-.side-foot .btn:not(.main) {
-  border-color: var(--glass-border);
-  background: var(--glass);
-  color: var(--text-muted);
-}
-/* ...but an ARMED delete still has to look dangerous. The rule above is
-   three classes deep, so the plain .btn.danger (two) loses to it -- which
-   is why the armed Result "Delete?" button came out looking like every
-   other quiet header button. Re-stated here, after it, at matching depth. */
-.panel-head .btn.danger,
-.result-head .btn.danger,
-.pick-head .btn.danger,
-.work-head .btn.danger,
-.result-picker .btn.danger {
-  background: var(--danger);
-  border-color: transparent;
-  color: oklch(0.98 0 0);
-  font-weight: 700;
-}
 
 /* Framing canvas shows the ACTUAL video frame at the playback position.
    It used to show a static sample image, so you were framing a moment
@@ -2627,7 +2564,7 @@ h1, h2, h3 {
   color: var(--text-muted);
 }
 .framing-outside[hidden] { display: none; }
-.framing-outside .btn { margin-left: auto; font-size: var(--t-12); padding: 3px 10px; }
+.framing-outside .btn { margin-left: auto; }
 
 /* ── All Results (bulk.js): a tick box per Result, to render several at once ── */
 .allres-list { display: flex; flex-direction: column; }
@@ -2642,7 +2579,6 @@ h1, h2, h3 {
 .allres-meta .rendered { color: var(--ok, #3fb871); }
 .allres-meta .not-rendered { color: var(--text-faint); }
 .allres-actions { display: flex; align-items: center; gap: var(--s1, 4px); }
-.allres-actions .btn { padding: 3px 10px; font-size: var(--t-12, 12px); }
 .allres-x:hover { color: var(--danger); }
 .allres-head { flex-wrap: wrap; row-gap: var(--s2); }
 .allres-pick { margin-left: auto; display: flex; flex-wrap: wrap; gap: var(--s1, 4px); }

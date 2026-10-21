@@ -101,9 +101,9 @@ function creditFormHTML(s, i) {
       ${field("title", "Title", "Apa Kabar Syahrini")}
       ${field("url", "Link", "https://…")}
       <div class="actions">
-        <button class="rounded-s bg-accent text-[13px] font-semibold px-3 py-1.5 text-accent-text hover:brightness-110"
+        <button class="btn main"
                 type="submit">Save</button>
-        <button class="rounded-s px-2.5 py-1 text-[12px] border border-glass-border hover:bg-glass"
+        <button class="btn"
                 type="button" data-credit-cancel>Cancel</button>
         <span class="data" id="creditPreview" role="status">${escapeHTML(s.credit_line || "nothing entered yet")}</span>
       </div>

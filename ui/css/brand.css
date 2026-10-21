@@ -104,20 +104,54 @@
 
    Everything below reads from tokens.css, which both pages already load,
    so nothing here depends on app.css or on the Tailwind build. */
+/* ══════════════════════════ buttons: ONE system, every page ══════════════════════════
+   The reference is /workspace ("Open folder", "Detail", "+ New clip"): a button is a small box with a visible
+   border, the radius of the page's other boxes with the START corners tighter (.25rem: klipian's asymmetric corner),
+   12px text. Pills are for things that are NOT buttons (the Edit | Workspace | Guide switch, status chips, the profile
+   chip, choice chips).
+
+     .btn            secondary: 1px --glass-border at rest, transparent, 4px 10px, 12px/600 (28px tall)
+     .btn.main       primary: the accent fill, 5px 12px + the border = 6px 12px, 12.5px/700 (one per region)
+     .btn.sm         dense rows (the old .ws-mini): 2px 8px, 11px
+     .btn.quiet      borderless and text-like: icon-ish or tertiary actions only
+     .btn.danger     the secondary look in the danger colour
+     .btn.large      the ONE hero action of a page (Render): 8px 18px, 13px
+   disabled: opacity .4, not-allowed. */
 .btn {
-  font: inherit; font-size: var(--t-12); font-weight: 650;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  font: inherit; font-size: 12px; font-weight: 600; line-height: 18px; letter-spacing: 0;
   white-space: nowrap;
-  padding: 6px 13px;
-  border-radius: var(--r-pill);
-  border: 1px solid transparent;
-  background: none;
-  color: var(--text-muted);
+  padding: 4px 10px;
+  border-radius: var(--r-s);
+  border-start-start-radius: .25rem; border-end-start-radius: .25rem;
+  border: 1px solid var(--glass-border);
+  background: transparent;
+  color: var(--text);
   cursor: pointer;
-  transition: background var(--fast), border-color var(--fast), color var(--fast);
+  transition: background var(--fast), border-color var(--fast), color var(--fast), filter var(--fast);
 }
-.btn:hover { color: var(--text); background: var(--glass); border-color: var(--glass-border); }
+.btn:hover { background: var(--glass); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn:disabled:hover { background: transparent; }
+
+.btn.main {
+  padding: 5px 12px; font-size: 12.5px; font-weight: 700;
+  color: var(--accent-text); background: var(--accent); border-color: transparent;
+}
+.btn.main:hover { background: var(--accent); filter: brightness(1.1); }
+.btn.main:disabled { background: var(--glass-strong); color: var(--text-faint); opacity: .6; filter: none; }
+
+.btn.sm { padding: 2px 8px; font-size: 11px; line-height: 16px; color: var(--text-muted); }
+.btn.sm:hover { color: var(--text); }
+
 .btn.quiet { background: none; border-color: transparent; color: var(--text-faint); }
 .btn.quiet:hover { color: var(--text); background: var(--glass); }
+
+.btn.danger { color: var(--danger); border-color: color-mix(in oklab, var(--danger) 55%, transparent); }
+.btn.danger:hover { background: color-mix(in oklab, var(--danger) 14%, transparent); }
+
+.btn.large { padding: 8px 18px; font-size: 13px; font-weight: 700; }
 
 /* position is relative so the panel can be absolute against the BUTTON,
    not the whole topbar. */
