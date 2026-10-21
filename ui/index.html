@@ -555,17 +555,34 @@
         <!-- AI suggestions: minutes and titles only -->
         <div class="panel fit rec">
           <div class="panel-head">
-            <span class="step-no" aria-hidden="true">1</span><span class="eyebrow">Choose suggestions</span>
+            <span class="step-no" aria-hidden="true">1</span><span class="eyebrow">Choose moments</span>
             <span class="data" id="recNote" role="status">none yet</span>
             <!-- After an import replaced earlier suggestions: gives them back (roundtrip.js). -->
             <button class="btn quiet" id="recUndo" type="button" hidden>Undo import</button>
-            <button class="btn" id="recEachBtn" type="button" disabled
-                    title="Make a separate Result of each ticked suggestion (each keeps the open Result's output format), to render them together">As separate Results</button>
-            <button class="btn main" id="recAddBtn" disabled title="Put the ticked suggestions into the open Result, as one clip">Add to this Result</button>
           </div>
           <!-- Play button in each row runs #tlPreviewVideo in the Timeline
                panel above -- see its comment there. -->
           <div class="rec-list" id="recList"></div>
+
+          <!-- Two different ways out of the ticked suggestions (result.js): ONE video from them, or a video for EACH. -->
+          <p class="rec-ways-head">What should the ticked moments become?</p>
+          <div class="rec-ways" id="recWays">
+            <div class="rec-way" data-way="one">
+              <span class="rec-viz one" aria-hidden="true"><i></i><i></i><i></i></span>
+              <b>One video from these moments</b>
+              <span class="rec-way-line" id="recOneLine">Tick moments above</span>
+              <button class="btn main" id="recAddBtn" type="button" disabled
+                      title="Tick moments above first">Add to this Result</button>
+            </div>
+            <div class="rec-or" aria-hidden="true"><span>or</span></div>
+            <div class="rec-way" data-way="many">
+              <span class="rec-viz many" aria-hidden="true"><i></i><i></i><i></i></span>
+              <b>A separate video for each</b>
+              <span class="rec-way-line" id="recManyLine">Tick moments above</span>
+              <button class="btn main" id="recEachBtn" type="button" disabled
+                      title="Tick moments above first">Make separate Results</button>
+            </div>
+          </div>
         </div>
 
         <!-- Step 2 and 3: every Result of the project, the clips you will render (bulk.js) -->
@@ -580,7 +597,7 @@
               <button class="btn quiet" id="bulkSelectNone" type="button">None</button>
             </span>
           </div>
-          <p class="allres-empty" id="allResEmpty" hidden>No Results yet: tick AI suggestions above and press As separate Results.</p>
+          <p class="allres-empty" id="allResEmpty" hidden>No Results yet: tick moments above and choose "A separate video for each".</p>
           <div class="allres-list" id="allResList"></div>
           <div class="allres-bar">
             <span class="allres-bar-label">With the ticked Results:</span>

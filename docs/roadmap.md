@@ -2168,6 +2168,13 @@ sebelum render. "As separate Results" memakai format Result yang terbuka.
 Selftest renderreq: format yang diterapkan masuk ke request Result terpilih
 saja.
 
+Di bawah daftar saran ada dua pilihan yang jelas berbeda: **One video from
+these moments** (saran yang dicentang digabung ke Result yang terbuka: satu
+render, satu file; "N moments -> 1 video") atau **A separate video for each**
+(satu Result per saran; "N moments -> N videos"), dengan "or" di antaranya dan
+petunjuk visual kecil. Setelah yang kedua, Result baru dicentang dan disorot di
+langkah 2; setelah yang pertama, catatan menyebut Result tujuan.
+
 **P26 selesai di kode (2026-10-21):** template di `prompts/rubrik/templates/`
 (komedi-tv, edukasi, gaming, motivasi; struktur wajib sama dengan
 dialog-podcast, bobot per niche ada di teks rubrik). Rubrik buatan sendiri

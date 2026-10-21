@@ -19,6 +19,7 @@
    ========================================================================== */
 
 const BULK_TICKED = new Set();            // ids of the ticked Results
+const BULK_FRESH = new Set();             // Results just made from suggestions: lit for a few seconds
 
 const bulkFmtTime = (sec) => {
   const s = Math.max(0, Math.round(sec));
@@ -74,7 +75,7 @@ function renderAllResults() {
   if (openName) openName.textContent = live ? `· ${live.title}` : "";
   $("#allResEmpty").hidden = rows.some((r) => r.moments);
   list.innerHTML = rows.map((r, i) => `
-    <div class="allres-row${r.live ? " active" : ""}" data-id="${escapeHTML(r.id)}">
+    <div class="allres-row${r.live ? " active" : ""}${BULK_FRESH.has(r.id) ? " fresh" : ""}" data-id="${escapeHTML(r.id)}">
       <input type="checkbox" data-bulk-tick aria-label="Select ${escapeHTML(r.title)}"${BULK_TICKED.has(r.id) ? " checked" : ""}${r.moments ? "" : " disabled"}
              ${r.moments ? "" : 'title="Nothing to render yet: this Result has no moments"'}>
       <span class="num">${i + 1}</span>
@@ -179,6 +180,18 @@ async function deleteResultsAsked(ids) {
     showUndoToast(gone.length === 1 ? "Result deleted" : `${gone.length} Results deleted`, () => { restoreResults(gone); renderAllResults(); });
   }
   return true;
+}
+
+/* After "A separate video for each" (or "Add to this Result"): scroll to step 2 and light the Results involved.
+   The new ones are ticked too, so Output format… and Render selected are one click away. */
+let bulkFreshTimer = null;
+function bulkShowFresh(ids, { tick = true } = {}) {
+  BULK_FRESH.clear();
+  for (const id of ids) { BULK_FRESH.add(id); if (tick) BULK_TICKED.add(id); }
+  renderAllResults();
+  $(".panel.allres")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  clearTimeout(bulkFreshTimer);
+  bulkFreshTimer = setTimeout(() => { BULK_FRESH.clear(); renderAllResults(); }, 4000);
 }
 
 $("#jumpResults")?.addEventListener("click", () => {

@@ -240,7 +240,7 @@ function renderRecommendations() {
     list.innerHTML = `<p class="empty-message">No suggestions yet. Import Claude's JSON on the
       Analyze screen, or just select a range on the timeline.</p>`;
     if (note) note.textContent = "none yet";
-    const b = $("#recAddBtn"); if (b) b.disabled = true;
+    updateRecButton();
     return;
   }
 
@@ -681,10 +681,19 @@ function updateRecButton() {
   const b = $("#recAddBtn");
   if (!b) return;
   const n = document.querySelectorAll("#recList input:checked").length;
+  const moments = `${n} moment${n === 1 ? "" : "s"}`;
+  const none = "Tick moments above first";
   b.disabled = n === 0;
   b.textContent = n ? `Add ${n} to this Result` : "Add to this Result";
+  b.title = n ? "Merge the ticked moments into the open Result: one render gives one file" : none;
+  $("#recOneLine").textContent = n ? `${moments} → 1 video` : none;
   const each = $("#recEachBtn");
-  if (each) { each.disabled = n === 0; each.textContent = n > 1 ? `${n} as separate Results` : n === 1 ? "As its own Result" : "As separate Results"; }
+  if (each) {
+    each.disabled = n === 0;
+    each.textContent = n > 1 ? `Make ${n} separate Results` : n === 1 ? "Make its own Result" : "Make separate Results";
+    each.title = n ? "Each ticked moment becomes its own Result (it keeps the open Result's output format): Render selected then gives one file each" : none;
+    $("#recManyLine").textContent = n ? `${moments} → ${n} video${n === 1 ? "" : "s"}` : none;
+  }
 }
 
 /* ---------- events ---------- */
@@ -705,6 +714,7 @@ $("#recEachBtn")?.addEventListener("click", () => {
   const selected = [...document.querySelectorAll("#recList input:checked")];
   const candidates = DATA.candidates || [];
   let made = 0, skipped = 0;
+  const fresh = [];
   for (const c of selected) {
     const k = candidates[Number(c.dataset.rec)];
     c.checked = false;
@@ -714,11 +724,14 @@ $("#recEachBtn")?.addEventListener("click", () => {
     if (typeof carryPostFrom === "function") carryPostFrom([k]);
     if (typeof carryAngleFrom === "function") carryAngleFrom([k]);
     tagResultWithImport([k]);
+    fresh.push(activeResultId);
     made++;
   }
   updateRecButton();
-  $("#editNote").textContent = `${made} Result${made === 1 ? "" : "s"} made, one per suggestion`
-    + (skipped ? ` · ${skipped} skipped (invalid timing)` : "") + ". Tick them below to render them together.";
+  $("#editNote").textContent = `${made} Result${made === 1 ? "" : "s"} ready: set their output format, then Render selected.`
+    + (skipped ? ` (${skipped} skipped: invalid timing)` : "");
+  // the new Results are ticked and lit in step 2, so the next move is in front of the person
+  if (typeof bulkShowFresh === "function") bulkShowFresh(fresh);
 });
 
 $("#recAddBtn")?.addEventListener("click", () => {
@@ -749,7 +762,10 @@ $("#recAddBtn")?.addEventListener("click", () => {
   if (mergedCount) {
     parts.push(`${mergedCount} overlapping span${mergedCount > 1 ? "s" : ""} merged`);
   }
-  if (parts.length) $("#editNote").textContent = parts.join(" · ");
+  const openTitle = (typeof bulkRows === "function" ? bulkRows().find((r) => r.live)?.title : "") || "the open Result";
+  parts.unshift(`Added to ${openTitle}: render it from step 3 / the Render screen.`);
+  $("#editNote").textContent = parts.join(" · ");
+  if (typeof bulkShowFresh === "function") bulkShowFresh([activeResultId], { tick: false });
 });
 
 $("#resultList")?.addEventListener("click", (e) => {

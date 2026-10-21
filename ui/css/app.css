@@ -2681,3 +2681,26 @@ dialog.confirm-dlg:has(.bulk-out) { width: min(560px, calc(100vw - 32px)); max-h
 
 /* the last panel of the Clips screen keeps some air below it when scrolled to the end */
 .screen[data-screen="clips"] { padding-bottom: var(--s6, 24px); }
+
+/* Two ways out of the ticked suggestions (result.js): one video from them, or a video for each */
+.rec-ways-head { margin: var(--s3) var(--s3) 0; color: var(--text-muted); font-size: var(--t-12, 12px); }
+.rec-ways { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: var(--s3); padding: var(--s3); align-items: stretch; }
+.rec-way { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s2); padding: var(--s3); border: 1px solid var(--glass-border); border-radius: var(--r-s); }
+.rec-way .btn { margin-top: auto; }
+.rec-way-line { color: var(--text-muted); font-size: var(--t-12, 12px); font-variant-numeric: tabular-nums; }
+.rec-or { display: flex; align-items: center; }
+.rec-or span { color: var(--text-faint); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--r-pill); }
+.rec-viz { display: flex; width: 84px; flex: none; }
+.rec-viz i { display: block; background: var(--accent); }
+.rec-viz.one { height: 10px; border-radius: 3px; overflow: hidden; }
+.rec-viz.one i { flex: 1; }
+.rec-viz.one i + i { margin-left: 1px; opacity: .85; }
+.rec-viz.many { flex-direction: column; gap: 3px; height: 10px; justify-content: space-between; }
+.rec-viz.many i { height: 2px; width: 100%; border-radius: 1px; }
+@media (max-width: 760px) { .rec-ways { grid-template-columns: 1fr; } .rec-or { justify-content: center; } }
+.allres-row.fresh { background: var(--accent-soft, var(--glass)); box-shadow: inset 3px 0 0 var(--accent); }
+
+@media (max-width: 900px) {
+  .allres-row { grid-template-columns: 22px 26px minmax(0, 1fr); }
+  .allres-actions { grid-column: 3; }
+}
