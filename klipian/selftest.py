@@ -3873,7 +3873,23 @@ def check_guide() -> tuple[str, str]:
     return PASS, f"/guide and its stylesheet are served without a profile; the {len(linked)} anchors the interface links to and the table of contents all exist"
 
 
-CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl,
+def check_timefield() -> tuple[str, str]:
+    """The masked time field's pure functions (ui/js/editor/timefield.js), run by node on tests/timefield.test.js:
+    digits fill from the right, tenths, the shapes for a short and a long source, seconds and minutes above 59 refused,
+    empty and garbage, formatting and the round trip. Skipped (with a note) when node is not installed."""
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        return PASS, "skipped: node is not installed (tests/timefield.test.js not run)"
+    proc = subprocess.run([node, str(ROOT / "tests" / "timefield.test.js")], capture_output=True, text=True, encoding="utf-8",
+                          errors="replace", timeout=60)
+    if proc.returncode != 0:
+        return FAIL, (proc.stderr or proc.stdout).strip().splitlines()[-1][:300]
+    return PASS, proc.stdout.strip().splitlines()[-1]
+
+
+CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl,
           "decode": check_decode, "render": check_render}
 
 

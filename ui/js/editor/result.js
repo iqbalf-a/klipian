@@ -222,7 +222,7 @@ function recTimeField(i, field, value, label) {
   return `
     <span class="rec-time-field">
       <input type="text" class="rec-time-in" value="${value}"
-             data-idx="${i}" data-field="${field}" size="7" spellcheck="false" disabled
+             data-idx="${i}" data-field="${field}" size="7" maxlength="${typeof tfMaxLength === "function" ? tfMaxLength(tfLong()) : 9}" spellcheck="false" disabled
              inputmode="decimal" aria-label="${label}">
       <span class="rec-time-step">
         <button type="button" class="rec-step" data-idx="${i}" data-field="${field}"
@@ -554,6 +554,13 @@ $("#recList")?.addEventListener("click", (e) => {
       // hasn't changed (the change listener re-validates rather than
       // assuming a change occurred).
       inputs.forEach((inp) => inp.dispatchEvent(new Event("change", { bubbles: true })));
+      inputs.forEach((inp) => {                      // one that is still refused goes back to what it was
+        if (inp.getAttribute("aria-invalid") === "true") {
+          const kk = (DATA?.candidates || [])[Number(inp.dataset.idx)];
+          if (kk) inp.value = timeTenths(kk[inp.dataset.field]);
+          tfClear(inp);
+        }
+      });
       inputs.forEach((inp) => { inp.disabled = true; });
       steps.forEach((s) => { s.disabled = true; });
       edit.textContent = "✎";
@@ -587,27 +594,8 @@ $("#recList")?.addEventListener("click", (e) => {
   playRecPreview(Number(btn.dataset.play));
 });
 
-/* Only digits/colon are let through, plus editing & navigation keys --
-   typing a letter into a mm:ss field could never be saved anyway (see
-   commitRecTime/parseTime below); before this it just silently reverted
-   on blur with no explanation, which read as "the field is broken".
-   ArrowUp/ArrowDown nudge by 1 second, same step the ▲▼ buttons use --
-   the common correction here is a second or two, not a full retype. */
-$("#recList")?.addEventListener("keydown", (e) => {
-  const inp = e.target.closest(".rec-time-in");
-  if (!inp) return;
-  if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-    e.preventDefault();
-    const idx = Number(inp.dataset.idx);
-    const field = inp.dataset.field;
-    const k = (DATA?.candidates || [])[idx];
-    if (!k) return;
-    commitRecTime(idx, field, k[field] + (e.key === "ArrowUp" ? 1 : -1));
-    return;
-  }
-  if (e.ctrlKey || e.metaKey || e.key.length > 1) return;  // shortcuts, Backspace, Tab, arrows, etc.
-  if (!/[0-9:.]/.test(e.key)) e.preventDefault();
-});
+/* The keys (digits from the right, ArrowUp/Down 0.1 s or 1 s with Shift, Enter, Esc) and the mask live in
+   timefield.js; what is left here is committing the value on "change". The ▲▼ buttons step by 1 s. */
 
 /* Correcting a single recommendation's time. The `label` wraps both the
    checkbox AND these two columns -- clicking the text toggles the row
@@ -668,22 +656,24 @@ $("#recList")?.addEventListener("change", (e) => {
   const k = (DATA?.candidates || [])[idx];
   if (!k) return;
   const note = $("#recNote");
-  const parsed = parseTimeEx(inp.value);
-  // A rejected value used to snap back with NO message at all, which reads
-  // as "the field is broken" -- the same complaint that was already fixed
-  // for typed letters (see the comment above the keydown filter). The two
-  // reasons a value is rejected are different, so say which one it was.
-  if (parsed === null) {
-    inp.value = timeTenths(k[field]);
-    if (note) note.textContent = `couldn't read that time — use mm:ss or mm:ss.s, e.g. ${timeTenths(k[field])}`;
+  const parsed = tfParse(inp.value);
+  // A rejected value is shown, not undone: the field goes red and says why (Esc puts the old value back). The
+  // reasons differ (not a time, seconds or minutes past 59, before the start / after the end), so it says which.
+  if (!parsed.ok) {
+    tfInvalid(inp, parsed.error);
+    if (note) note.textContent = `${parsed.error} (the time stays ${tfFormat(k[field])} until you fix or press Esc)`;
     return;
   }
+  // Past the end of the video: the end of the video
+  const length = (typeof videoDuration === "function") ? videoDuration() : 0;
+  let clamped = false;
+  if (length && parsed.seconds > length) { parsed.seconds = length; parsed.exact = true; clamped = true; }
   // Left alone (the text is still what the field showed): nothing to commit, so a
   // blur or the Save button never re-snaps a time that was not touched.
   if (inp.value.trim() === timeTenths(k[field])) return;
   const done = commitRecTime(idx, field, parsed.seconds, parsed.exact);
   if (!done) {
-    inp.value = timeTenths(k[field]);
+    tfInvalid(inp, field === "startSec" ? "start must stay before the end" : "end must stay after the start");
     if (note) {
       note.textContent = field === "startSec"
         ? `start must stay before the end (${timeTenths(k.endSec)})`
@@ -691,7 +681,8 @@ $("#recList")?.addEventListener("change", (e) => {
     }
     return;
   }
-  if (note) note.textContent = timeSetNote(done.side, done.side, done.typed, done);
+  tfClear(inp);
+  if (note) note.textContent = (clamped ? "shortened to the end of the video · " : "") + timeSetNote(done.side, done.side, done.typed, done);
 });
 
 function updateRecButton() {

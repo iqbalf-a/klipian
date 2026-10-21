@@ -247,12 +247,16 @@ document.addEventListener("keydown", (e) => {
 /* ---------- typing mm:ss ---------- */
 
 function readTimeColumns() {
-  const pa = parseTimeEx($("#selStart").value);
-  const pb = parseTimeEx($("#selEnd").value);
-  if (pa === null || pb === null) {
-    $("#pickNote").textContent = "time format is mm:ss or mm:ss.s, e.g. 16:56 or 16:56.4";
-    return;
+  const ra = tfParse($("#selStart").value), rb = tfParse($("#selEnd").value);
+  for (const [r, el] of [[ra, $("#selStart")], [rb, $("#selEnd")]]) {
+    if (!r.ok) {
+      tfInvalid(el, r.error);
+      $("#pickNote").textContent = `${r.error}: type digits from the right (1100 = 11:00.0), seconds and minutes up to 59`;
+      return;
+    }
+    tfClear(el);
   }
+  const pa = ra, pb = rb;
   // A column that was NOT changed (its text still is what SELECTION shows) keeps
   // SELECTION's precise value, and is not snapped again. A changed one: a time with a
   // decimal point is exactly that; one without is snapped to a word (snapManual).
@@ -287,11 +291,9 @@ function readTimeColumns() {
   setSelection(a, b, false);       // already resolved above
 }
 
+/* Typing, Enter, Esc and the arrow keys are timefield.js; this reads the two fields when one changes. */
 ["#selStart", "#selEnd"].forEach((sel) => {
   $(sel)?.addEventListener("change", readTimeColumns);
-  $(sel)?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") { e.preventDefault(); e.target.blur(); }
-  });
 });
 
 /* ---------- add to result ---------- */

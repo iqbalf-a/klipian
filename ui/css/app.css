@@ -2769,3 +2769,7 @@ dialog.confirm-dlg:has(.bulk-out-wrap) { width: min(780px, calc(100vw - 32px)); 
 .result-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .result-meta { color: var(--text-faint); font-size: var(--t-12, 12px); font-variant-numeric: tabular-nums; display: flex; gap: 8px; white-space: nowrap; }
 .result-done { color: var(--ok, #3fb871); }
+
+/* a time field that was refused (timefield.js): red, with the reason in its tooltip and the note above */
+.rec-time-in.tf-bad, .time-input input.tf-bad { border-color: var(--danger); color: var(--danger); background: color-mix(in oklab, var(--danger) 10%, transparent); }
+.rec-time-in:disabled.tf-bad { border-color: var(--danger); }
