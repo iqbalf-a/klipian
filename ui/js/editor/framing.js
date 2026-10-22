@@ -1193,10 +1193,13 @@ function aiFramingPollPromise(id, onTick) {
     pollJob(`/api/diarize/${id}`, {
       interval: 700,
       onTick: (d) => {
-        if (typeof onTick === "function" && typeof d.percent === "number") onTick(d.percent);
+        if (typeof onTick !== "function") return;
+        if (d.state === "queued") onTick(0, d.queue?.text || "Waiting for its turn …");
+        else if (typeof d.percent === "number") onTick(d.percent, "");
       },
       onDone: (d) => {
-        if (d.state === "failed") reject(new Error(d.error || "Diarization failed."));
+        if (d.state === "cancelled") reject(new Error("Cancelled."));
+        else if (d.state === "failed") reject(new Error(d.error || "Diarization failed."));
         else resolve(d.turns || []);
       },
       onFail: () => reject(new Error("Lost contact with the server while diarizing. "
@@ -1279,7 +1282,14 @@ async function aiFramingStart() {
         : "AI Framing: listening for who's talking … (usually 25–35s per clip)");
       aiFramingOverlayProgress("diarize", i, spans.length,
         spans.length > 1 ? `Listening (span ${i + 1}/${spans.length})…` : "Listening for who's talking…");
-      const turns = await aiFramingDiarizeOneSpan(spans[i], (pct) => {
+      let waited = false;
+      const turns = await aiFramingDiarizeOneSpan(spans[i], (pct, wait) => {
+        // Another job (maybe in another tab or profile) has the AI turn: say so instead of sitting at 0%
+        if (wait) { waited = true; aiFramingStatus(`AI Framing: ${wait}`); aiFramingOverlayProgress("diarize", i, spans.length, wait); return; }
+        if (waited) {
+          waited = false;
+          aiFramingOverlayProgress("diarize", i, spans.length, spans.length > 1 ? `Listening (span ${i + 1}/${spans.length})…` : "Listening for who's talking…");
+        }
         // Real progress from pyannote's own hook, not a fixed animation --
         // see _diarize_hook() in server.py. `i + pct/100` blends "which
         // span" with "how far into that span", both against the same

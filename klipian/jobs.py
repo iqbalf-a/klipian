@@ -23,6 +23,7 @@ from .models import Transcript
 from . import compose as composer
 from . import render as engine
 from . import roundtrip
+from . import sched
 from .paths import CACHE_DIR, GLOSSARY, GUEST, OUT_ROOT, SOURCES, current_profile, find_video, safe_dirname
 from .projects import (_project_assets_dir, _project_file,
                        _project_out_dir, _read_project, read_render_records,
@@ -31,13 +32,46 @@ from .projects import (_project_assets_dir, _project_file,
 # Render jobs currently / already running
 JOBS: dict[str, dict] = {}
 LOCK = threading.Lock()
-# video -> running transcribe job id, so there aren't two jobs for the
-# same file: the first to finish deletes the temp wav the other is still using
+# file identity -> running transcribe job id (see transcribe_key), so there aren't two jobs for the
+# same file: the first to finish deletes the temp wav the other is still using. Keyed by what the
+# cache keys by (size + mtime), NOT by the bare name: two profiles can hold different videos
+# under one name, and identical (hardlinked) copies are one file.
 ACTIVE_TRANSCRIBES: dict[str, str] = {}
 MAX_JOBS = 100  # cap entries in JOBS to prevent memory leak
 # Render job ids marked for cancellation. _run_render checks via
 # cancel_check; render.py kills the running ffmpeg if listed.
 CANCELLED: set[str] = set()
+
+
+def transcribe_key(name: str) -> str:
+    """Which file a transcribe request is about: the cache's own fingerprint (size + mtime) of the profile's
+    source of that name. A name that is not there gets a key of its own (the job fails at once)."""
+    from .cache import fingerprint
+    video = find_video(name) if name else None
+    if video is None:
+        return f"missing:{current_profile()}:{name}"
+    try:
+        return "fp:" + fingerprint(video)
+    except OSError:
+        return f"missing:{current_profile()}:{name}"
+
+
+def _queue_updater(job_id: str):
+    """What a waiting job tells the scheduler to show: state "queued" with `queue` {text, position, waitingFor}
+    while it waits, back to "running" (no `queue`) once it has its slot."""
+    def update(info):
+        with LOCK:
+            t = JOBS.get(job_id)
+            if t is None:
+                return
+            if info:
+                t["state"] = "queued"
+                t["queue"] = info
+            else:
+                if t.get("state") == "queued":
+                    t["state"] = "running"
+                t.pop("queue", None)
+    return update
 
 
 def _register_job(job_id: str, entry: dict):
@@ -192,7 +226,22 @@ def _run_words(k: dict, run_video: str, default_video: str, fallback) -> list:
     return fallback()
 
 
-def _run_render(job_id: str, req: dict, into: Path | None = None, record: bool = True) -> None:
+def _run_render(job_id: str, req: dict, into: Path | None = None, record: bool = True, queue: bool = True) -> None:
+    """Render a request once it has a render slot (sched.py: shared by every tab and profile). `queue` False
+    is for a caller that already holds one (a batch takes a slot per item)."""
+    if not queue:
+        return _render_body(job_id, req, into, record)
+    with sched.slot(sched.GROUP_RENDER, "render", job_id, cancelled=lambda: job_id in CANCELLED,
+                    update=_queue_updater(job_id)) as ticket:
+        if ticket is None:                         # cancelled while it waited
+            with LOCK:
+                JOBS[job_id]["state"] = "cancelled"
+            CANCELLED.discard(job_id)
+            return
+        _render_body(job_id, req, into, record)
+
+
+def _render_body(job_id: str, req: dict, into: Path | None = None, record: bool = True) -> None:
     """Render a request. `into` sends the files to that folder instead of the
     project's own (a replay, the selftest); `record` is whether the finished
     render is remembered as the Result's last (see _record_render)."""
@@ -554,18 +603,34 @@ def _run_batch(batch_id: str, requests: list[dict]) -> None:
                 if stop_all or skip:
                     item["state"] = "cancelled"
                     continue
-                item["state"] = "running"
-                t["index"] = i
-                t["current"] = item["title"]
-            sub = f"{batch_id}-{i}"
-            started_at = time.time()
-            _register_job(sub, {"state": "running", "done": 0, "total": 1, "index": 0, "current": "",
-                                "result": [], "error": None})
-            with LOCK:
-                item["job"] = sub
-                if item["cancel"]:                   # cancelled while AI Framing ran
-                    CANCELLED.add(sub)
-            _run_render(sub, req)
+
+            def show_wait(info, item=item):
+                with LOCK:
+                    item["queue"] = info             # None once it has its slot
+
+            # A slot per ITEM (not for the whole batch), so another tab's render gets its turn between two clips
+            with sched.slot(sched.GROUP_RENDER, "render", f"{batch_id}-{i}",
+                            cancelled=lambda item=item: batch_id in CANCELLED or item["cancel"],
+                            update=show_wait) as ticket:
+                if ticket is None:
+                    with LOCK:
+                        item["state"] = "cancelled"
+                        item["queue"] = None
+                    continue
+                with LOCK:
+                    item["state"] = "running"
+                    item.pop("queue", None)
+                    t["index"] = i
+                    t["current"] = item["title"]
+                sub = f"{batch_id}-{i}"
+                started_at = time.time()
+                _register_job(sub, {"state": "running", "done": 0, "total": 1, "index": 0, "current": "",
+                                    "result": [], "error": None})
+                with LOCK:
+                    item["job"] = sub
+                    if item["cancel"]:                   # cancelled while AI Framing ran
+                        CANCELLED.add(sub)
+                _run_render(sub, req, queue=False)
             with LOCK:
                 sj = JOBS.pop(sub, None) or {}
                 item["job"] = None
@@ -604,9 +669,16 @@ def _run_batch(batch_id: str, requests: list[dict]) -> None:
 def cancel_job(job_id: str, item: int | None = None) -> bool:
     """Cancel a render job. For a batch: the whole batch (`item` None) or one clip of it (a queued one is
     skipped, the running one is stopped and the next one starts). True when something was cancelled."""
+    try:
+        return _cancel_job(job_id, item)
+    finally:
+        sched.poke()                               # a job waiting for a slot leaves the queue at once
+
+
+def _cancel_job(job_id: str, item: int | None) -> bool:
     with LOCK:
         t = JOBS.get(job_id)
-        if not t or t.get("state") != "running":
+        if not t or t.get("state") not in ("running", "queued"):
             return False
         if not t.get("batch"):
             CANCELLED.add(job_id)
@@ -807,7 +879,56 @@ def render_request(req: dict, into: Path) -> list[dict]:
         JOBS.pop(job_id, None)
 
 
+def _transcribe_needs_work(req: dict) -> bool:
+    """False when a transcribe request would only report what is cached (the cues and a transcript are there
+    and it is not forced): that takes no slot. Anything unclear counts as work."""
+    try:
+        from . import cues as cues_mod
+        from .transcribe import DEFAULT_LANGUAGE, DEFAULT_MODEL
+        if req.get("force"):
+            return True
+        video = find_video(req["video"])
+        if not video:
+            return False                           # it fails at once
+        cache = Cache(CACHE_DIR)
+        record = cues_mod.audio_record(video, cache)
+        if record is None or record["status"] != "ok":
+            return True
+        model, lang = req.get("model", DEFAULT_MODEL), req.get("lang", DEFAULT_LANGUAGE)
+        gloss_path = GLOSSARY if GLOSSARY.exists() else None
+        found = cache.find_transcript(video, model, lang, gloss_path)
+        return not (found is not None and (found == cache.transcript_path(video, model, lang, gloss_path) or (
+            model == DEFAULT_MODEL and lang == DEFAULT_LANGUAGE)))
+    except Exception:                              # noqa: BLE001
+        return True
+
+
 def _run_transcribe(job_id: str, req: dict) -> None:
+    """Transcribe once Whisper's turn comes (sched.py: one heavy AI job at a time on this computer, for all tabs
+    and profiles). A request that only reports the cache does not wait."""
+    t = JOBS[job_id]
+    try:
+        if not _transcribe_needs_work(req):
+            _transcribe_body(job_id, req)
+            return
+        with sched.slot(sched.GROUP_AI, "transcribe", job_id, cancelled=lambda: job_id in CANCELLED,
+                        update=_queue_updater(job_id)) as ticket:
+            if ticket is None:
+                with LOCK:
+                    t["state"] = "cancelled"
+                return
+            _transcribe_body(job_id, req)
+    finally:
+        CANCELLED.discard(job_id)
+        with LOCK:
+            # Only release the registration if it STILL belongs to this job (another job for the same
+            # file may have registered since; an unconditional pop would delete ITS registration).
+            key = t.get("key") or ""
+            if key and ACTIVE_TRANSCRIBES.get(key) == job_id:
+                ACTIVE_TRANSCRIBES.pop(key, None)
+
+
+def _transcribe_body(job_id: str, req: dict) -> None:
     """Real transcription with real progress.
 
     Previously the Analysis screen just animated a bar for 9 seconds. The
@@ -945,14 +1066,6 @@ def _run_transcribe(job_id: str, req: dict) -> None:
             t["state"] = "failed"
             t["error"] = str(exc)
     finally:
-        with LOCK:
-            # Only release the slot if it STILL belongs to this job. If not,
-            # another job for the same video has already registered and an
-            # unconditional pop would delete ITS registration -- opening a
-            # double-job race.
-            name = req.get("video", "")
-            if ACTIVE_TRANSCRIBES.get(name) == job_id:
-                ACTIVE_TRANSCRIBES.pop(name, None)
         try:
             for leftover in CACHE_DIR.glob(f"*.{job_id}.wav"):
                 leftover.unlink(missing_ok=True)       # temp wav is never left behind
@@ -996,6 +1109,30 @@ def _diarize_hook(job_id: str):
 
 
 def _run_diarize(job_id: str, req: dict) -> None:
+    """Diarize once the AI turn comes (sched.py); a clip whose turns are cached does not wait."""
+    t = JOBS[job_id]
+    try:
+        video = find_video(req.get("video", ""))
+        cached = bool(video) and not req.get("force") and \
+            Cache(CACHE_DIR).diarize_path(video, float(req.get("start", 0)), float(req.get("end", 0))).exists()
+    except Exception:                              # noqa: BLE001
+        cached = False
+    try:
+        if cached:
+            _diarize_body(job_id, req)
+            return
+        with sched.slot(sched.GROUP_AI, "diarize", job_id, cancelled=lambda: job_id in CANCELLED,
+                        update=_queue_updater(job_id)) as ticket:
+            if ticket is None:
+                with LOCK:
+                    t["state"] = "cancelled"
+                return
+            _diarize_body(job_id, req)
+    finally:
+        CANCELLED.discard(job_id)
+
+
+def _diarize_body(job_id: str, req: dict) -> None:
     """AI Framing: who speaks at what second, within ONE clip. Deliberately
     limited to the clip range (not the whole video) -- diarization is
     roughly 1:1 with audio duration on CPU, and clips are only 30-45

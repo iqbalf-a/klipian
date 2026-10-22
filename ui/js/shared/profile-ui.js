@@ -129,6 +129,13 @@
         <label class="check"><input type="checkbox" name="addShorts"${d.addShorts ? " checked" : ""}> Add #shorts to the title</label>
         ${canPreset ? `<p class="note">Caption look: ${d.captionPreset ? "a default is saved." : "none saved yet."}
           <button class="btn quiet" type="button" data-pm="preset">Use the current caption look as this profile's default</button></p>` : ""}
+        <section class="yt-box" aria-label="This computer">
+          <h3>This computer <small>(every profile and tab)</small></h3>
+          <label>Renders at the same time
+            <select id="machineRenders"><option value="1">1 (default)</option><option value="2">2</option></select></label>
+          <p class="note" id="machineMsg" role="status">Transcription and speaker analysis always run one at a time. Jobs wait their turn,
+            taking turns between profiles. Saved as soon as you change it.</p>
+        </section>
         <p class="note" id="profileSettingsNote" role="status"></p>
         <div class="row">
           <button class="btn quiet" type="submit" value="cancel">Close</button>
@@ -162,9 +169,28 @@
     dlg.addEventListener("close", () => dlg.remove());
     dlg.showModal();
     youTubeSection(dlg);
+    machineSection(dlg);
     rubricSection(dlg);
     if (!isGuest) claudeSection(dlg);
     return dlg;
+  }
+
+  /* ---- settings of this computer, not of the profile (workspace/machine.json) ---- */
+  async function machineSection(dlg) {
+    const sel = dlg.querySelector("#machineRenders"), msg = dlg.querySelector("#machineMsg");
+    try {
+      const j = await (await fetch("/api/profiles/machine")).json();
+      sel.value = String(j.renderJobs || 1);
+    } catch { msg.textContent = "Could not read this computer's settings."; }
+    sel.addEventListener("change", async () => {
+      try {
+        const r = await fetch("/api/profiles/machine", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ renderJobs: Number(sel.value) }) });
+        const j = await r.json();
+        if (j.error) throw new Error(j.error);
+        msg.textContent = `Saved: ${j.renderJobs} render${j.renderJobs === 1 ? "" : "s"} at a time.`;
+      } catch (err) { msg.textContent = `Not saved: ${err.message}`; }
+    });
   }
 
   /* ---- rubrics per niche (P26): built-in, templates, and the person's own in workspace/rubrics ---- */

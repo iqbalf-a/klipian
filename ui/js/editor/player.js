@@ -812,7 +812,7 @@ async function renderSavedResults(resultIds, { note = "" } = {}) {
       else if (it.state === "running") { r.pct = 0; r.busy = true; r.note = it.note || "rendering"; r.action = "Cancel"; r.act = "cancel"; }
       else if (it.state === "failed") { r.pct = 0; r.busy = false; r.note = `failed: ${it.error || ""}`.slice(0, 80); r.action = "Retry"; r.act = "retry"; }
       else if (it.state === "cancelled") { r.pct = 0; r.busy = false; r.note = "cancelled"; r.action = "Retry"; r.act = "retry"; }
-      else { r.pct = 0; r.busy = false; r.note = "queued"; r.action = "Cancel"; r.act = "cancel"; }
+      else { r.pct = 0; r.busy = false; r.note = it.queue?.text || "queued"; r.action = "Cancel"; r.act = "cancel"; }
     });
     drawQueue();
   };

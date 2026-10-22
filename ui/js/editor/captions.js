@@ -268,7 +268,7 @@ async function startAutoCaption(btn) {
   autoCaptionStop = pollJob(`/api/transcribe/${id}`, {
     interval: 900,
     onTick: (t) => {
-      if (note) note.textContent = `transcribing … ${t.percent || 0}%`;
+      if (note) note.textContent = t.state === "queued" ? (t.queue?.text || "waiting for its turn …") : `transcribing … ${t.percent || 0}%`;
     },
     onFail: () => {
       if (note) note.textContent = "Lost contact with the server. Run: python -m klipian serve";
@@ -277,6 +277,11 @@ async function startAutoCaption(btn) {
     onDone: async (t) => {
       if (t.state === "failed") {
         if (note) note.textContent = `Transcription failed: ${t.error}`;
+        if (btn) btn.disabled = false;
+        return;
+      }
+      if (t.state === "cancelled") {
+        if (note) note.textContent = "Cancelled.";
         if (btn) btn.disabled = false;
         return;
       }

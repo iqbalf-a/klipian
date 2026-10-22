@@ -707,7 +707,8 @@ function pollJob(url, { interval = 800, onTick, onDone, onFail, maxFailures = 5 
       return;
     }
     if (stopped) return;          // a callback may have stopped us meanwhile
-    if (job.state === "running") { if (onTick) onTick(job); return; }
+    // "queued": waiting for its turn on this computer (sched.py); the job's `queue.text` says for what
+    if (job.state === "running" || job.state === "queued") { if (onTick) onTick(job); return; }
     stop();
     if (onDone) onDone(job);
   }, interval);

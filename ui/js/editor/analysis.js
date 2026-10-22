@@ -51,7 +51,7 @@ async function startAnalysis({ force = false } = {}) {
     return;
   }
 
-  const start = performance.now();
+  let start = performance.now();
 
   /* Everything that is redrawn on every poll. Runs on the running ticks and
      once more at the end, so the final numbers match the last tick. */
@@ -61,6 +61,17 @@ async function startAnalysis({ force = false } = {}) {
     // 12 s for an episode) before the transcript is made or loaded.
     if (t.state === "running" && t.stage === "cues" && !t.percent) {
       $("#transcribeStats").innerHTML = "<span>listening for laughter, music, applause …</span>";
+      return;
+    }
+    if (t.state === "queued") {                    // another transcription (maybe another tab or profile) has Whisper's turn
+      start = performance.now();                    // the time spent waiting is not transcribing time
+      $("#transcribeBar").style.width = "0%";
+      $("#transcribeTitle").textContent = "Transcript";
+      $("#transcribeStats").innerHTML = `<span>${escapeHTML(t.queue?.text || "Waiting for its turn")}</span> `
+        + `<button type="button" class="btn sm quiet" id="transcribeQueueCancel">Cancel</button>`;
+      $("#transcribeQueueCancel").onclick = () => {
+        fetch("/api/render/cancel", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+      };
       return;
     }
     const remaining = t.percent > 2 ? elapsed * (100 - t.percent) / t.percent : 0;
@@ -112,6 +123,10 @@ async function startAnalysis({ force = false } = {}) {
       paint(t);
       if (t.state === "failed") {
         $("#transcribeStats").innerHTML = `<span>Failed: ${escapeHTML(t.error)}</span>`;
+        return;
+      }
+      if (t.state === "cancelled") {
+        $("#transcribeStats").innerHTML = "<span>Cancelled: it was still waiting for its turn</span>";
         return;
       }
       $("#transcribeStats").innerHTML = t.cached

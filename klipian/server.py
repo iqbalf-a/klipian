@@ -33,7 +33,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from .cache import Cache
+from .cache import Cache, fingerprint as _fingerprint
 from .models import Transcript
 from . import compose as composer
 from . import ffmpeg_tools
@@ -47,7 +47,8 @@ from .schedule import (CLIPS_LOCK, bulk_update as _bulk_update, set_schedules as
 from . import cues as cues_mod
 from . import roundtrip
 from .jobs import style_with_profile as _style_with_profile
-from .jobs import cancel_job as _cancel_job, start_project_render as _start_project_render
+from . import sched as _sched
+from .jobs import cancel_job as _cancel_job, start_project_render as _start_project_render, transcribe_key as _transcribe_key
 from .jobs import estimate_seconds as _estimate_seconds, plan_project_render as _plan_project_render
 from . import claude_api as _claude
 from . import rubrics as _rubrics
@@ -182,8 +183,10 @@ def _thumbnail(video: Path, seconds: float, crop: dict, width: int,
     # crop -- a stale thumbnail that looked like the drag hadn't worked.
     # In cache/, not out/: these are throwaway pictures, and out/ is for what
     # was rendered (History and /workspace both list it).
+    # The file's fingerprint (size + mtime) is part of the name: two profiles can hold DIFFERENT videos under
+    # one name, and the cache is shared by all of them.
     dest = CACHE_DIR / "thumbs" / safe_dirname(video.stem) / (
-        f"{int(seconds * 10)}-{int(crop['left'])}-{int(crop['top'])}"
+        f"{_fingerprint(video)[:10]}-{int(seconds * 10)}-{int(crop['left'])}-{int(crop['top'])}"
         f"-{int(crop['width'])}-{int(crop['height'])}-{width}"
         + ("" if picture == "9:16" else
            f"-{picture.replace(':', 'x')}-{background}-{int(position)}")
@@ -820,6 +823,20 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"error": f"could not do that: {exc}"}, 500)
         return self._send_json({"error": "unknown endpoint"}, 404)
 
+    def _get_machine(self):
+        """Settings of THIS COMPUTER (not of a profile): how many renders may run at once."""
+        return self._send_json({"renderJobs": _sched.render_limit(), "renderJobsMax": _sched.RENDER_JOBS_MAX})
+
+    def _post_machine(self):
+        try:
+            req = self._read_json()
+            return self._send_json({"ok": True, "renderJobs": _sched.set_render_limit(req.get("renderJobs")),
+                                    "renderJobsMax": _sched.RENDER_JOBS_MAX})
+        except ValueError as exc:
+            return self._send_json({"error": str(exc)}, 400)
+        except OSError as exc:
+            return self._send_json({"error": f"could not save: {exc}"}, 500)
+
     def _get_profiles(self):
         """The profiles to pick from, and the Guest. Names and colours only."""
         return self._send_json({"profile": _profiles.list_profiles(),
@@ -1271,6 +1288,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/thumb": _get_thumb,
         "/api/version": _get_version,
         "/api/profiles": _get_profiles,
+        "/api/profiles/machine": _get_machine,
         "/api/rubrics": _get_rubrics,
         "/api/claude/status": _get_claude_status,
         "/api/claude/models": _get_claude_models,
@@ -1913,9 +1931,10 @@ class Handler(BaseHTTPRequestHandler):
         # forever. Also taken under LOCK now, for the same reason the
         # JOBS lookup beside it is.
         with LOCK:
-            running = JOBS.get(job_id, {}).get("state") == "running"
+            running = JOBS.get(job_id, {}).get("state") in ("running", "queued")
             if running:
                 CANCELLED.add(job_id)
+        _sched.poke()                          # a job waiting for its turn leaves the queue now
         return self._send_json({"ok": running})
 
     def _post_preview(self):
@@ -2049,6 +2068,7 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as exc:               # noqa: BLE001
             return self._send_json({"error": str(exc)}, 400)
         name = req.get("video", "")
+        key = _transcribe_key(str(name))               # the FILE (size + mtime), not its name: see jobs.transcribe_key
         # Entire check-then-register in one lock so no two threads both
         # slip through and create duplicate jobs, and so the JOBS insert
         # doesn't race with the prune that iterates JOBS.
@@ -2058,12 +2078,12 @@ class Handler(BaseHTTPRequestHandler):
                        if v.get("state") in ("done", "failed")]
                 for k in old[:len(old) // 2]:
                     JOBS.pop(k, None)
-            previous = ACTIVE_TRANSCRIBES.get(name)
-            if previous and JOBS.get(previous, {}).get("state") == "running":
+            previous = ACTIVE_TRANSCRIBES.get(key)
+            if previous and JOBS.get(previous, {}).get("state") in ("running", "queued"):
                 return self._send_json({"id": previous, "already_running": True})
             job_id = uuid.uuid4().hex[:8]
-            ACTIVE_TRANSCRIBES[name] = job_id
-            JOBS[job_id] = {"state": "running", "stage": "start", "percent": 0,
+            ACTIVE_TRANSCRIBES[key] = job_id
+            JOBS[job_id] = {"state": "running", "key": key, "stage": "start", "percent": 0,
                             "position": 0, "duration": 0, "file": None,
                             "cached": False, "exact": False, "error": None}
         threading.Thread(target=contextvars.copy_context().run, args=(_run_transcribe, job_id, req),
@@ -2170,6 +2190,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/youtube/upload-cancel": _post_youtube,
         "/api/youtube/video-status": _post_youtube,
         "/api/youtube/disconnect": _post_youtube,
+        "/api/profiles/machine": _post_machine,
         "/api/profiles/create": _post_profiles,
         "/api/profiles/update": _post_profiles,
         "/api/profiles/delete": _post_profiles,

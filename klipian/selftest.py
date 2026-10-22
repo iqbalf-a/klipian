@@ -4253,7 +4253,259 @@ def check_resultpost() -> tuple[str, str]:
     return PASS, "the brief holds only the Result's words (corrections, clip times, two videos), cues inside it, credit context, the rubric's 3 sections, the hashtag rule; rubric sections refused by name; reply fills every field, slips repaired, missing keys named"
 
 
-CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl,
+# --------------------------------------------------------------------------
+# check: the shared queue for heavy jobs (sched.py), the file-keyed transcribe dedupe
+# --------------------------------------------------------------------------
+
+def check_sched() -> tuple[str, str]:
+    """One heavy AI job at a time across profiles, renders limited to the setting (1 or 2), round-robin between
+    profiles with a slot per batch ITEM, a waiting job can be cancelled, and a transcribe is shared by FILE
+    (same bytes: one job; same name but another file: two jobs). Work is faked."""
+    import os
+    import threading
+    from . import jobs, paths, profiles, sched
+    from .jobs import JOBS, LOCK
+
+    problems: list[str] = []
+    for pid, name in (("sa", "Alpha"), ("sb", "Beta")):
+        profiles.write_meta(pid, {"name": name, "color": "#123456"})
+        profiles.ensure_dirs(pid)
+
+    def in_profile(pid, fn, *a):
+        def run():
+            paths.set_profile(pid)
+            fn(*a)
+        th = threading.Thread(target=run, daemon=True)
+        th.start()
+        return th
+
+    def until(cond, secs=5.0):
+        end = time.time() + secs
+        while time.time() < end:
+            if cond():
+                return True
+            time.sleep(0.01)
+        return False
+
+    log: list[str] = []
+    live = {"n": 0, "max": 0}
+    lock = threading.Lock()
+
+    def work(group, kind, jid, hold, tag, cancelled=lambda: False, update=None):
+        with sched.slot(group, kind, jid, cancelled, update) as t:
+            if t is None:
+                with lock:
+                    log.append(f"{tag}:cancelled")
+                return
+            with lock:
+                live["n"] += 1
+                live["max"] = max(live["max"], live["n"])
+                log.append(tag)
+            hold.wait(5)
+            with lock:
+                live["n"] -= 1
+
+    saved_limit = sched.render_limit()
+    try:
+        # --- the setting: default 1, only 1 or 2, kept in a global file
+        sched.set_render_limit(1)
+        if sched.render_limit() != 1 or not (paths.workspace_dir() / "machine.json").is_file():
+            problems.append("the render limit should default to 1 and live in workspace/machine.json")
+        for bad in (0, 3, "x", None):
+            try:
+                sched.set_render_limit(bad)
+                problems.append(f"render limit {bad!r} should be refused")
+            except ValueError:
+                pass
+
+        # --- two transcribe-like jobs from two profiles run one after another; a third waits and is cancelled
+        h1, h2, h3 = threading.Event(), threading.Event(), threading.Event()
+        shown: dict[str, list] = {"b": [], "c": []}
+        cancel_c = threading.Event()
+        t1 = in_profile("sa", work, sched.GROUP_AI, "transcribe", "j1", h1, "T-A")
+        until(lambda: "T-A" in log)
+        t2 = in_profile("sb", work, sched.GROUP_AI, "transcribe", "j2", h2, "T-B", lambda: False, shown["b"].append)
+        until(lambda: shown["b"])
+        t3 = in_profile("sb", work, sched.GROUP_AI, "diarize", "j3", h3, "D-B", cancel_c.is_set, shown["c"].append)
+        until(lambda: shown["c"])
+        if not shown["b"] or "Alpha" not in shown["b"][-1]["text"] or shown["b"][-1]["position"] != 1 \
+                or "transcription" not in shown["b"][-1]["text"]:
+            problems.append(f"the waiting job should say it waits for Alpha's transcription at position 1: {shown['b'][-1:]}")
+        until(lambda: shown["c"] and shown["c"][-1] and shown["c"][-1]["position"] == 2)
+        if not shown["c"] or not shown["c"][-1] or shown["c"][-1]["position"] != 2:
+            problems.append(f"the third job should be at position 2: {shown['c'][-1:]}")
+        if log != ["T-A"]:
+            problems.append(f"only the first job may run: {log}")
+        cancel_c.set()
+        sched.poke()
+        until(lambda: "D-B:cancelled" in log)
+        if "D-B:cancelled" not in log or shown["c"][-1] is not None:
+            problems.append(f"a waiting job should leave the queue when cancelled (and its notice cleared): {log} {shown['c'][-1:]}")
+        h1.set()
+        until(lambda: "T-B" in log)
+        if "T-B" not in log or shown["b"][-1] is not None:
+            problems.append(f"the second profile's job should start after the first, and clear its waiting notice: {log}")
+        h2.set()
+        t1.join(5)
+        t2.join(5)
+        t3.join(5)
+        if live["max"] != 1:
+            problems.append(f"the AI group must never run two at once: max {live['max']}")
+
+        # --- renders: 1 at a time, then 2 when the setting is raised while jobs wait
+        log.clear()
+        live.update(n=0, max=0)
+        hs = [threading.Event() for _ in range(3)]
+        ths = [in_profile("sa", work, sched.GROUP_RENDER, "render", f"r{i}", hs[i], f"R{i}") for i in range(3)]
+        until(lambda: "R0" in log)
+        time.sleep(0.2)
+        if live["max"] != 1 or log != ["R0"]:
+            problems.append(f"renders must run one at a time by default: {log} max {live['max']}")
+        sched.set_render_limit(2)
+        until(lambda: len(log) == 2)
+        time.sleep(0.2)
+        if live["max"] != 2 or sorted(log) != ["R0", "R1"]:
+            problems.append(f"raising the limit to 2 should start exactly one more at once: {log} max {live['max']}")
+        for h in hs:
+            h.set()
+        for th in ths:
+            th.join(5)
+        sched.set_render_limit(1)
+
+        # --- round-robin: A's batch takes a slot per ITEM, B's two jobs wait together: A1, B1, A2, B2, A3, A4
+        log.clear()
+        gate = threading.Event()
+        a_started = threading.Event()
+
+        def batch_a():
+            for i in range(1, 5):
+                with sched.slot(sched.GROUP_RENDER, "render", f"A{i}"):
+                    log.append(f"A{i}")
+                    if i == 1:
+                        a_started.set()
+                        gate.wait(5)
+                    else:
+                        time.sleep(0.05)
+
+        def one_b(i):
+            with sched.slot(sched.GROUP_RENDER, "render", f"B{i}"):
+                log.append(f"B{i}")
+                time.sleep(0.05)
+
+        ta = in_profile("sa", batch_a)
+        a_started.wait(5)
+        tb1 = in_profile("sb", one_b, 1)
+        until(lambda: len(sched.snapshot()["render"]["waiting"]) == 1)
+        tb2 = in_profile("sb", one_b, 2)
+        until(lambda: len(sched.snapshot()["render"]["waiting"]) == 2)
+        gate.set()
+        for th in (ta, tb1, tb2):
+            th.join(5)
+        if log != ["A1", "B1", "A2", "B2", "A3", "A4"]:
+            problems.append(f"profiles should take turns (a batch must not starve the other profile): {log}")
+
+        # --- the real wrappers with faked work: batch items interleave with another profile's render, a waiting
+        # item shows why it waits and can be cancelled, a waiting transcribe is "queued" and can be cancelled
+        order: list[str] = []
+        real_body, real_tbody, real_need = jobs._render_body, jobs._transcribe_body, jobs._transcribe_needs_work
+        hold = threading.Event()
+
+        def fake_render(job_id, req, into=None, record=True):
+            order.append(job_id)
+            if req.get("hold"):
+                hold.wait(5)
+            else:
+                time.sleep(0.05)
+            with LOCK:
+                JOBS[job_id].update(state="done", result=[{"file": job_id + ".mp4", "duration": 1, "mb": 0.1}])
+
+        def fake_transcribe(job_id, req):
+            order.append(job_id)
+            hold.wait(5)
+            with LOCK:
+                JOBS[job_id]["state"] = "done"
+
+        jobs._render_body, jobs._transcribe_body, jobs._transcribe_needs_work = fake_render, fake_transcribe, lambda req: True
+        try:
+            items = [{"result": f"x{i}", "title": f"item {i}", "duration": 1, "layout": "9:16", "state": "queued",
+                      "error": None, "cancel": False} for i in range(4)]
+            jobs._register_job("bt", {"state": "running", "done": 0, "total": 4, "index": 0, "current": "", "result": [],
+                                      "error": None, "batch": True, "items": items, "refused": []})
+            reqs = [{"hold": i == 0} for i in range(4)]
+            tbatch = in_profile("sa", jobs._run_batch, "bt", reqs)
+            until(lambda: order == ["bt-0"])
+            jobs._register_job("rb", {"state": "running", "done": 0, "total": 1, "index": 0, "current": "", "result": [], "error": None})
+            trb = in_profile("sb", jobs._run_render, "rb", {"hold": False})
+            until(lambda: JOBS["rb"].get("state") == "queued")
+            with LOCK:
+                qtext = (JOBS["rb"].get("queue") or {}).get("text", "")
+            if "Alpha" not in qtext or "render" not in qtext:
+                problems.append(f"a waiting render should say what it waits for: {qtext!r}")
+            if not jobs.cancel_job("bt", 3):
+                problems.append("a not-yet-started batch item should be cancellable")
+            hold.set()
+            tbatch.join(10)
+            trb.join(10)
+            if order[:3] != ["bt-0", "rb", "bt-1"] or "bt-3" in order:
+                problems.append(f"the other profile's render should run between two items of the batch, and a cancelled item not at all: {order}")
+            if [x["state"] for x in items] != ["done", "done", "done", "cancelled"]:
+                problems.append(f"batch items: {[x['state'] for x in items]}")
+            if JOBS["rb"]["state"] != "done" or "queue" in JOBS["rb"]:
+                problems.append(f"a render that got its slot is done without a queue note: {JOBS['rb']}")
+
+            # transcribes: A holds Whisper, B's is queued (state + text), then cancelled while queued
+            order.clear()
+            hold.clear()
+            for jid in ("tr1", "tr2"):
+                jobs._register_job(jid, {"state": "running", "key": "k" + jid, "stage": "start", "percent": 0})
+            u1 = in_profile("sa", jobs._run_transcribe, "tr1", {"video": "none.mp4"})
+            until(lambda: order == ["tr1"])
+            u2 = in_profile("sb", jobs._run_transcribe, "tr2", {"video": "none.mp4"})
+            until(lambda: JOBS["tr2"].get("state") == "queued")
+            if "Alpha" not in (JOBS["tr2"].get("queue") or {}).get("text", ""):
+                problems.append(f"a queued transcribe should name the profile it waits for: {JOBS['tr2'].get('queue')}")
+            if not jobs.cancel_job("tr2"):
+                problems.append("cancel_job should accept a queued job")
+            u2.join(5)
+            if JOBS["tr2"]["state"] != "cancelled" or "tr2" in order or "tr2" in jobs.CANCELLED:
+                problems.append(f"a queued transcribe cancelled before it ran: {JOBS['tr2']} {order}")
+            hold.set()
+            u1.join(5)
+        finally:
+            jobs._render_body, jobs._transcribe_body, jobs._transcribe_needs_work = real_body, real_tbody, real_need
+            hold.set()
+
+        # --- the transcribe dedupe is by FILE: same name + other bytes = two keys; a hardlinked/identical copy = one
+        src_a, src_b = paths.profile_dir("sa") / "sources", paths.profile_dir("sb") / "sources"
+        src_a.mkdir(parents=True, exist_ok=True)
+        src_b.mkdir(parents=True, exist_ok=True)
+        (src_a / "episode.mp4").write_bytes(b"aaaa" * 100)
+        (src_b / "episode.mp4").write_bytes(b"bbbbbb" * 100)                    # same name, another video
+        (src_a / "twin.mp4").write_bytes(b"cccc" * 50)
+        try:
+            os.link(src_a / "twin.mp4", src_b / "twin.mp4")
+        except OSError:
+            shutil.copy2(src_a / "twin.mp4", src_b / "twin.mp4")
+        keys = {}
+        for pid in ("sa", "sb"):
+            paths.set_profile(pid)
+            keys[pid] = (jobs.transcribe_key("episode.mp4"), jobs.transcribe_key("twin.mp4"), jobs.transcribe_key("nope.mp4"))
+        if keys["sa"][0] == keys["sb"][0]:
+            problems.append("the same file NAME with different videos must not share a transcribe job")
+        if keys["sa"][1] != keys["sb"][1]:
+            problems.append("identical copies (same size + mtime) should share one transcribe job")
+        if keys["sa"][2] == keys["sb"][2]:
+            problems.append("a missing file must not share a key across profiles")
+    finally:
+        sched.set_render_limit(saved_limit)
+        paths.set_profile(None)
+
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "AI jobs one at a time across profiles, renders 1 then 2, round-robin per batch item, waiting jobs show why and cancel, transcribe shared by file not name"
+
+
+CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched,
           "decode": check_decode, "render": check_render}
 
 
