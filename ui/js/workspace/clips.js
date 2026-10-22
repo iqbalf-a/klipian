@@ -810,6 +810,7 @@ async function openYtBulk(ids, what) {
   ytBulkMode("plan");
   ytBulkGoState(false, 0, "Checking…");
   note.textContent = ""; list.innerHTML = "";
+  ytShowDetail("#ytBulkDetail", "", "");
   $("#ytBulkQuota").textContent = "Checking…";
   $("#ytAutofill").hidden = true;
   $("#ytAfMsg").textContent = "";
@@ -844,6 +845,15 @@ $("#ytModeBar")?.addEventListener("click", async (e) => {
   ytBulkGoState(false, 0, "Checking…");
   await ytBulkPlan();                                  // the server judges again, in the new mode
 });
+
+/* Under a message: what Google really said (one line) with "Copy details"; nothing when there is none. */
+function ytShowDetail(boxSel, detail, report) {
+  const box = $(boxSel);
+  if (!box) return;
+  box.replaceChildren();
+  box.hidden = !detail;
+  if (detail) box.append(makeDetailLine(detail, report));
+}
 
 /* Ask the server for the plan of the rows asked for. Returns it (or null when it cannot be read). */
 async function ytBulkFetch() {
@@ -973,8 +983,9 @@ function ytBulkSync() {
   ytBulk.sendable = sendable;
   if ($("#ytNowCount")) $("#ytNowCount").textContent = String(sendable);
   const sends = Math.min(sendable, plan.remaining);
-  $("#ytBulkQuota").textContent = `Today's quota: ${plan.usedToday} of ${plan.limit} uploads used · this run sends ${sends}`
-    + (sendable > plan.remaining ? ` · ${sendable - plan.remaining} will not fit today and stay as they are` : "");
+  $("#ytBulkQuota").textContent = `Today's quota: ${plan.usedToday} of ${plan.limit} uploads used · this channel: ${plan.last24h ?? 0} in the last 24 h · this run sends ${sends}`
+    + (sendable > plan.remaining ? ` · ${sendable - plan.remaining} will not fit today and stay as they are` : "")
+    + (plan.hint ? ` · ${plan.hint}` : "");
   const st = ytBulk.status || {}, note = $("#ytBulkNote");
   let why = "";
   if (plan.running) why = "A bulk upload is already running for this profile.";
@@ -1036,11 +1047,14 @@ async function ytBulkWatch() {
     $("#ytBulkQuota").textContent = `Today's quota: ${s.usedToday} of ${s.limit} uploads used`;
     if (s.state === "running") continue;
     note.textContent = s.note || (s.state === "cancelled" ? "Cancelled: the rest were not sent." : "Done.");
+    ytShowDetail("#ytBulkDetail", s.detail, s.report);
     ytBulkMode("ended");
     ytBulk.jobId = null;
     await loadClips();
     const done = (s.rows || []).filter((r) => r.state === "done").length;
-    showToast(`${done} clip${done === 1 ? "" : "s"} ${s.mode === "now" ? "published on" : "uploaded to"} YouTube`, { ms: 8000 });
+    showToast(`${done} clip${done === 1 ? "" : "s"} ${s.mode === "now" ? "published on" : "uploaded to"} YouTube`
+      + (s.state === "stopped" && s.note ? `. Stopped: ${s.note}` : ""),
+      { ms: s.detail ? 20000 : 8000, detail: s.detail ? { text: s.detail, report: s.report } : null });
     return;
   }
 }
@@ -1086,7 +1100,8 @@ $("#ytBulkGo")?.addEventListener("click", async (e) => {
     const j = await (await fetch("/api/youtube/bulk-start", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: ytBulk.ids, mode: ytBulk.publishMode }),
     })).json();
-    if (j.error) { note.textContent = j.error; go.disabled = false; return; }
+    if (j.error) { note.textContent = j.error; ytShowDetail("#ytBulkDetail", j.detail, j.report); go.disabled = false; return; }
+    ytShowDetail("#ytBulkDetail", "", "");
     ytBulk.jobId = j.id;
     go.hidden = true; ytBulkMode("running"); note.textContent = "Uploading one clip after another. You can close this window; it goes on.";
     ytBulkWatch();
@@ -1123,7 +1138,11 @@ $("#clipScheduleReady")?.addEventListener("click", () => {
 
 let ytUploading = null;                 // { jobId, rowId } while an upload runs
 
-function ytMsg(text) { const el = $("#ytUploadMsg"); if (el) el.textContent = text || ""; }
+function ytMsg(text, detail = "", report = "") {
+  const el = $("#ytUploadMsg");
+  if (el) el.textContent = text || "";
+  ytShowDetail("#ytUploadDetail", detail, report);
+}
 
 /* What the section offers for this row: Upload (when it can be), Check status (when it
    has a videoId), and why not otherwise. */
@@ -1176,7 +1195,9 @@ async function ytPoll(jobId, rowId) {
       else if (s.warning) clipNotice(`${c?.title || "Clip"}: ${s.warning}`);
     } else if (clipDialog.open && clipDialog.dataset.id === rowId) {
       cancel.hidden = true; bar.hidden = true; btn.disabled = false;
-      ytMsg(s.state === "cancelled" ? "Upload cancelled. Nothing was published." : (s.message || "The upload failed."));
+      ytMsg(s.state === "cancelled" ? "Upload cancelled. Nothing was published." : (s.message || "The upload failed."), s.detail, s.report);
+    } else if (s.state === "failed") {
+      showToast(`${c?.title || "Clip"}: ${s.message || "the upload failed."}`, { ms: 20000, detail: s.detail ? { text: s.detail, report: s.report } : null });
     }
     return;
   }
@@ -1203,7 +1224,7 @@ $("#ytUploadBtn")?.addEventListener("click", async (e) => {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ row: id, publishNow }),
     })).json();
-    if (j.error) { btn.disabled = false; ytMsg(j.error); return; }
+    if (j.error) { btn.disabled = false; ytMsg(j.error, j.detail, j.report); return; }
     ytUploading = { jobId: j.id, rowId: id };
     $("#ytCancelBtn").hidden = false; $("#ytProgress").hidden = false; $("#ytProgress").value = 0;
     ytMsg("Uploading… you can close this window; the upload goes on.");
@@ -1225,7 +1246,7 @@ $("#ytCheckBtn")?.addEventListener("click", async () => {
     const j = await (await fetch("/api/youtube/video-status", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ row: id }),
     })).json();
-    ytMsg(j.error || j.text);
+    ytMsg(j.error || j.text, j.detail, j.report);
     if (!j.error) { await loadClips(); }
   } catch (err) { ytMsg(`Could not check: ${err.message}`); }
 });

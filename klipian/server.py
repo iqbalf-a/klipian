@@ -611,7 +611,8 @@ class Handler(BaseHTTPRequestHandler):
         try:
             return self._send_json({"ok": True, **fn(*args)})
         except _youtube.YouTubeError as exc:
-            return self._send_json({"error": exc.message, "code": exc.code, "ok": False}, 400)
+            return self._send_json({"error": exc.message, "code": exc.code, "ok": False,
+                                    **{k: v for k, v in exc.extra.items() if k in ("detail", "report")}}, 400)
         except OSError as exc:
             return self._send_json({"error": f"could not do that: {exc}"}, 500)
 

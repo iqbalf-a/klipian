@@ -16,7 +16,10 @@ Rules this module keeps:
 
 from __future__ import annotations
 
+import contextvars
 import json
+import re
+import sys
 import threading
 import time
 import uuid
@@ -39,10 +42,11 @@ STATES = ("none", "ok", "expired", "different", "no_client", "not_test_user", "o
 class YouTubeError(Exception):
     """A failure with a state (see STATES) and a sentence for the person."""
 
-    def __init__(self, code: str, message: str):
+    def __init__(self, code: str, message: str, **extra):
         super().__init__(message)
         self.code = code
         self.message = message
+        self.extra = extra                             # detail, report, reason, status, at, projectId (see map_http_error)
 
 
 # --------------------------------------------------------------------------
@@ -231,7 +235,7 @@ class _Net:
                 if chunk is not None:
                     progress(chunk.progress())
         except HttpError as exc:
-            raise map_http_error(getattr(getattr(exc, "resp", None), "status", 0), _reason(exc)) from None
+            raise _http_error(exc) from None
         except OSError:
             raise YouTubeError("offline", "Lost the connection to Google. Nothing was published; try again.") from None
         progress(1.0)
@@ -251,7 +255,7 @@ class _Net:
             reply = build("youtube", "v3", credentials=creds, cache_discovery=False).videos().list(
                 part="status", id=video_id).execute()
         except HttpError as exc:
-            raise map_http_error(getattr(getattr(exc, "resp", None), "status", 0), _reason(exc)) from None
+            raise _http_error(exc) from None
         except OSError:
             raise YouTubeError("offline", "Could not reach Google.") from None
         items = reply.get("items") or []
@@ -276,7 +280,7 @@ class _Net:
             reply = build("youtube", "v3", credentials=creds, cache_discovery=False).videos().list(
                 part="status", id=",".join(video_ids), maxResults=50).execute()
         except HttpError as exc:
-            raise map_http_error(getattr(getattr(exc, "resp", None), "status", 0), _reason(exc)) from None
+            raise _http_error(exc) from None
         except OSError:
             raise YouTubeError("offline", "Could not reach Google.") from None
         out = {vid: {"gone": True} for vid in video_ids}
@@ -313,11 +317,145 @@ def _reason(exc) -> str:
         return ""
 
 
-def map_http_error(status: int, reason: str) -> YouTubeError:
-    """What a failed YouTube call means for the person."""
-    if reason in ("quotaExceeded", "dailyLimitExceeded", "uploadLimitExceeded", "rateLimitExceeded"):
-        return YouTubeError("quota", "YouTube's upload limit is used up for now (this project's daily quota, or "
-                            "the channel's own daily upload limit). Try again tomorrow.")
+def _api_message(exc) -> str:
+    """The first message of the error JSON Google answered with, or ""."""
+    try:
+        details = json.loads(exc.content.decode("utf-8", "replace"))
+        return str((details.get("error") or {}).get("message") or "")
+    except (ValueError, AttributeError, TypeError):
+        return ""
+
+
+_SECRET = re.compile(r"(?i)((?:authorization[\"']?\s*[:=]\s*[\"']?(?:bearer\s+)?)|(?:bearer\s+)|(?:(?:access_token|refresh_token|id_token|client_secret|api_key|key)[\"']?\s*[:=]\s*[\"']?))[^\s&'\",}]+")
+_TOKENISH = re.compile(r"(ya29\.|1//|GOCSPX-)[\w.\-]+")
+
+
+def _redact(text: str) -> str:
+    """No token, key or secret survives into a log, a report or an answer."""
+    return _TOKENISH.sub(r"\1…", _SECRET.sub(r"\1…", text))
+
+
+# The row or video a failed call was about, for the log (set by the upload loops; copied into job threads).
+_WHAT: contextvars.ContextVar[str] = contextvars.ContextVar("klipian_youtube_what", default="")
+
+
+def _now() -> "dt.datetime":
+    """Seam: the current moment, timezone-aware (tests replace it)."""
+    import datetime as dt
+    return dt.datetime.now(dt.timezone.utc)
+
+
+_LOCAL_TZ = None                                       # seam: None = this computer's own timezone
+
+
+def _pacific():
+    """America/Los_Angeles, from zoneinfo when the system has its database, else the US rules by hand."""
+    import datetime as dt
+    try:
+        from zoneinfo import ZoneInfo
+        return ZoneInfo("America/Los_Angeles")
+    except Exception:                                  # noqa: BLE001 (no tzdata on this Windows)
+        class _PT(dt.tzinfo):
+            def _dst(self, naive):
+                def nth_sunday(year, month, n):
+                    d = dt.datetime(year, month, 1)
+                    d += dt.timedelta(days=(6 - d.weekday()) % 7 + 7 * (n - 1))
+                    return d.replace(hour=2)
+                return nth_sunday(naive.year, 3, 2) <= naive < nth_sunday(naive.year, 11, 1)
+
+            def utcoffset(self, d):
+                return dt.timedelta(hours=-7 if self._dst(d.replace(tzinfo=None)) else -8)
+
+            def dst(self, d):
+                return dt.timedelta(hours=1 if self._dst(d.replace(tzinfo=None)) else 0)
+
+            def tzname(self, d):
+                return "PDT" if self._dst(d.replace(tzinfo=None)) else "PST"
+        return _PT()
+
+
+def _tz_label(local) -> str:
+    """WIB / WITA / WIT for Indonesia's offsets, otherwise UTC+h."""
+    off = local.utcoffset()
+    hours = off.total_seconds() / 3600 if off is not None else 0
+    names = {7.0: "WIB", 8.0: "WITA", 9.0: "WIT"}
+    if hours in names:
+        return names[hours]
+    sign = "+" if hours >= 0 else "-"
+    h = abs(hours)
+    return "UTC" + sign + (str(int(h)) if h == int(h) else f"{h:g}")
+
+
+def quota_reset(now=None) -> dict:
+    """When the project's daily quota resets (midnight Pacific time, DST included), in this computer's own
+    time: {at: aware datetime, time: "HH:MM", zone: "WIB", day: "today" | "tomorrow", text: "07:00 (WIB) tomorrow"}."""
+    import datetime as dt
+    now = now or _now()
+    pt = _pacific()
+    here = now.astimezone(pt)
+    nxt = dt.datetime.combine(here.date() + dt.timedelta(days=1), dt.time(0), tzinfo=pt)
+    local_tz = _LOCAL_TZ
+    at = nxt.astimezone(local_tz) if local_tz else nxt.astimezone()
+    today = now.astimezone(local_tz) if local_tz else now.astimezone()
+    day = "today" if at.date() == today.date() else "tomorrow"
+    hhmm, zone = at.strftime("%H:%M"), _tz_label(at)
+    return {"at": at, "time": hhmm, "zone": zone, "day": day, "text": f"{hhmm} ({zone}) {day}"}
+
+
+def _log_failure(code: str, report: str, detail: str = "") -> None:
+    """The real error, kept: on the server console and in this profile's youtube.log (never a token)."""
+    stamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[youtube] {stamp} {code}: {detail or (report.splitlines()[0] if report else '')}", file=sys.stderr, flush=True)
+    try:
+        log = Path(paths.profile_dir()) / "youtube.log"
+        old = log.read_text(encoding="utf-8")[-60000:] if log.is_file() else ""
+        log.write_text(old + f"{stamp} [{code}]\n{report}\n\n", encoding="utf-8")
+    except OSError:
+        pass
+
+
+def map_http_error(status: int, reason: str, message: str = "", what: str = "", raw: str = "") -> YouTubeError:
+    """What a failed YouTube call means for the person, keeping Google's own reason. Every error carries
+    `detail` (one line), `report` (up to 20 lines to copy) and is written to the console and youtube.log."""
+    err = _map_http_error(status, reason)
+    what = what or _WHAT.get()
+    info = client_info()
+    stamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    lines = [f"code: {err.code}", f"HTTP status: {status}", f"reason: {reason or '(none)'}",
+             f"message: {_redact(message)[:300] or '(none)'}", f"time: {stamp}", f"profile: {paths.current_profile()}",
+             f"project: {info.get('projectId') or '(unknown)'}"]
+    if what:
+        lines.append(f"about: {what}")
+    if raw:
+        lines += [ln.rstrip() for ln in _redact(raw).splitlines() if ln.strip()][:8]
+    report = "\n".join(lines[:20])[:4000]
+    detail = f"HTTP {status} {reason}".strip() + (f": {_redact(message)[:160]}" if message else "")
+    err.extra.update({"detail": detail, "report": report, "reason": reason, "status": status, "at": stamp,
+                      "projectId": info.get("projectId") or ""})
+    _log_failure(err.code, report, detail)
+    return err
+
+
+def _http_error(exc) -> YouTubeError:
+    """map_http_error for a googleapiclient HttpError."""
+    try:
+        raw = exc.content.decode("utf-8", "replace")
+    except (AttributeError, UnicodeError):
+        raw = ""
+    return map_http_error(getattr(getattr(exc, "resp", None), "status", 0), _reason(exc), _api_message(exc), raw=raw)
+
+
+def _map_http_error(status: int, reason: str) -> YouTubeError:
+    if reason == "uploadLimitExceeded":
+        return YouTubeError("channel_limit", "This channel has reached YouTube's daily upload limit. New or unverified "
+                            "channels have a lower limit: verify the channel at youtube.com/verify. It usually frees up "
+                            "about 24 hours after the first upload of the run.")
+    if reason in ("quotaExceeded", "dailyLimitExceeded"):
+        return YouTubeError("project_quota", "This Google Cloud project's daily YouTube quota is used up. It resets at "
+                            f"midnight Pacific time, which is {quota_reset()['text']}. (In Google Cloud Console it is the "
+                            "'Video Uploads per day' limit of the project.)")
+    if reason == "rateLimitExceeded":
+        return YouTubeError("rate_limit", "YouTube asked to slow down; klipian will wait and retry.")
     if status == 401 or reason in ("authError", "invalidCredentials"):
         return YouTubeError("expired", "Google no longer accepts this connection. Connect again in the profile settings.")
     if reason in ("youtubeSignupRequired", "channelNotFound"):
@@ -404,8 +542,8 @@ def check() -> dict:
         saved["token"] = _net.refresh(saved["token"])
         channel = _net.channels(saved["token"])
     except YouTubeError as exc:
-        if exc.code == "offline":                    # keep the last state; just say it could not be checked
-            return _public(saved.get("state") or "ok", exc.message, saved.get("channel"), saved.get("checkedAt")) | {"offline": True}
+        if exc.code in ("offline", "channel_limit", "project_quota", "rate_limit"):   # keep the last state; just say it could not be checked
+            return _public(saved.get("state") or "ok", exc.message, saved.get("channel"), saved.get("checkedAt")) | {"offline": True}                 | {k: v for k, v in exc.extra.items() if k in ("detail", "report")}
         return _remember(saved, exc.code, exc.message)
     known = saved.get("channel") or {}
     if known.get("id") and channel["id"] != known["id"]:
@@ -461,7 +599,7 @@ def start_connect() -> str:
             other = _other_profile_with(channel["id"])
             if other:
                 raise YouTubeError("different", f"Channel {channel['title']} is already used by the profile {other}.")
-            saved = {"token": token, "channel": channel}
+            saved = {"token": token, "channel": channel, "connectedAt": int(time.time())}
             result = _remember(saved, "ok", "")
             with _JOBS_LOCK:
                 _JOBS[jid] = {"state": "done", "status": result}
@@ -607,6 +745,28 @@ def _count_upload() -> None:
     f.write_text(json.dumps({"day": _quota_day(), "count": uploads_today() + 1}), encoding="utf-8")
 
 
+NEW_CHANNEL_SOFT_LIMIT = 6                              # uploads a day above which a NEW channel gets the soft hint
+NEW_CHANNEL_DAYS = 14
+
+
+def uploads_last_24h() -> int:
+    """How many of this profile's schedule rows klipian uploaded in the last 24 hours (their uploadedAt)."""
+    from . import schedule
+    since = time.time() - 24 * 3600
+    return sum(1 for r in schedule.load_clips() if (r.get("uploadedAt") or 0) >= since)
+
+
+def is_new_channel() -> bool:
+    """Connected less than about two weeks ago, or with few uploads so far: such channels often have a lower
+    daily upload limit. Only a soft hint; nothing is blocked."""
+    from . import schedule
+    saved = _load_token_file() or {}
+    at = saved.get("connectedAt")
+    if at and time.time() - at < NEW_CHANNEL_DAYS * 86400:
+        return True
+    return sum(1 for r in schedule.load_clips() if r.get("videoId")) < 10
+
+
 def _do_upload(row: dict, spec: dict, token: dict, progress, cancelled) -> dict:
     """Send one prepared row to YouTube and bring the schedule row up to date. Returns
     {videoId, url, status, warning}; raises YouTubeError (the row is then unchanged)."""
@@ -668,12 +828,14 @@ def start_upload(row_id: str, publish_now: bool = False) -> str:
         _UPLOADS[jid] = job
 
     def run() -> None:
+        _WHAT.set(f"upload of row {row_id}")
         try:
             done = _do_upload(row, spec, saved["token"], lambda p: job.__setitem__("progress", round(p, 3)),
                               lambda: job["cancel"])
             job.update({"state": "done", "progress": 1.0, **done})
         except YouTubeError as exc:
-            job.update({"state": "cancelled" if exc.code == "cancelled" else "failed", "code": exc.code, "message": exc.message})
+            job.update({"state": "cancelled" if exc.code == "cancelled" else "failed", "code": exc.code, "message": exc.message,
+                        **{k: v for k, v in exc.extra.items() if k in ("detail", "report")}})
         except Exception as exc:                       # noqa: BLE001
             job.update({"state": "failed", "code": "other", "message": f"The upload failed ({type(exc).__name__})."})
         finally:
@@ -693,6 +855,8 @@ _BULK_ACTIVE: set[str] = set()                         # profiles with a queue r
 
 
 BULK_MODES = ("schedule", "now")
+_RATE_PAUSES = (45, 60, 90)                             # seconds waited before each retry after "slow down"
+_sleep = time.sleep                                     # seam for the selftest
 
 
 def _bulk_mode(mode) -> str:
@@ -736,7 +900,13 @@ def bulk_plan(ids: list, mode: str = "schedule") -> dict:
             refused.append({"id": rid, "title": row.get("title") or "(untitled)", "message": exc.message, "code": exc.code,
                             "needsSchedule": needs, "date": row.get("date") or "", "time": row.get("time") or ""})
     used = uploads_today()
+    last24 = uploads_last_24h()
+    fresh = is_new_channel()
+    hint = ("New channels often hit a lower daily limit: more than about "
+            f"{NEW_CHANNEL_SOFT_LIMIT} a day may be refused (verify the channel at youtube.com/verify)."
+            if fresh and last24 + len(ok) > NEW_CHANNEL_SOFT_LIMIT else "")
     return {"mode": mode, "ok": ok, "refused": refused, "usedToday": used, "limit": UPLOAD_QUOTA_PER_DAY,
+            "last24h": last24, "newChannel": fresh, "hint": hint,
             "running": paths.current_profile() in _BULK_ACTIVE,
             "remaining": max(0, UPLOAD_QUOTA_PER_DAY - used),
             "overQuota": max(0, len(ok) - max(0, UPLOAD_QUOTA_PER_DAY - used))}
@@ -766,6 +936,11 @@ def start_bulk(ids: list, mode: str = "schedule") -> str:
     with _UPLOAD_LOCK:
         _BULKS[jid] = job
 
+    def wait_a_little(seconds: float) -> None:
+        end = time.time() + seconds
+        while time.time() < end and not job["cancel"]:
+            _sleep(min(1.0, max(0.0, end - time.time())))
+
     def run() -> None:
         try:
             for item in rows:
@@ -784,13 +959,30 @@ def start_bulk(ids: list, mode: str = "schedule") -> str:
                     row = schedule.get_row(item["id"])
                     spec = prepare(row, publish_now=now, bulk=True)  # again: the file or the time may have changed
                     item["state"] = "uploading"
-                    done = _do_upload(row, spec, saved["token"], lambda p, it=item: it.__setitem__("progress", round(p, 3)),
-                                      lambda: False)                  # cancel waits for the file being sent
+                    _WHAT.set(f"bulk upload of row {item['id']}")
+                    tries = 0
+                    while True:
+                        try:
+                            done = _do_upload(row, spec, saved["token"], lambda p, it=item: it.__setitem__("progress", round(p, 3)),
+                                              lambda: False)          # cancel waits for the file being sent
+                            break
+                        except YouTubeError as slow:
+                            # "Slow down": wait and send this file again a few times; only then give up.
+                            if slow.code != "rate_limit" or tries >= len(_RATE_PAUSES) or job["cancel"]:
+                                raise
+                            pause = _RATE_PAUSES[tries]
+                            tries += 1
+                            item["message"] = f"YouTube asked to slow down; waiting {pause} s, then trying again ({tries}/{len(_RATE_PAUSES)})."
+                            item["progress"] = 0.0
+                            wait_a_little(pause)
+                            item["message"] = ""
                     item.update({"state": "done", "progress": 1.0, "message": done["warning"], **{k: done[k] for k in ("videoId", "url")}})
                 except YouTubeError as exc:
-                    item.update({"state": "failed", "message": exc.message})
-                    if exc.code in ("quota", "expired", "offline", "none", "no_client"):
-                        job.update({"state": "stopped", "note": exc.message + " The rest are left as they were."})
+                    item.update({"state": "failed", "message": exc.message,
+                                 **{k: v for k, v in exc.extra.items() if k in ("detail", "report")}})
+                    if exc.code in ("channel_limit", "project_quota", "rate_limit", "quota", "expired", "offline", "none", "no_client"):
+                        job.update({"state": "stopped", "note": exc.message + " The rest are left as they were (not sent).",
+                                    "code": exc.code, **{k: v for k, v in exc.extra.items() if k in ("detail", "report")}})
                         return
                 except Exception as exc:                   # noqa: BLE001
                     item.update({"state": "failed", "message": f"The upload failed ({type(exc).__name__})."})
@@ -814,7 +1006,8 @@ def bulk_state(jid: str) -> dict:
         job = _BULKS.get(jid)
         if not job:
             return {"state": "missing"}
-        return {"state": job["state"], "mode": job.get("mode", "schedule"), "note": job["note"], "rows": [dict(r) for r in job["rows"]],
+        return {"state": job["state"], "mode": job.get("mode", "schedule"), "note": job["note"], "code": job.get("code", ""),
+                "detail": job.get("detail", ""), "report": job.get("report", ""), "rows": [dict(r) for r in job["rows"]],
                 "usedToday": uploads_today(), "limit": UPLOAD_QUOTA_PER_DAY}
 
 
@@ -888,6 +1081,7 @@ def video_status(row_id: str) -> dict:
     if row is None or not row.get("videoId"):
         raise YouTubeError("not_ready", "This clip has not been uploaded to YouTube.")
     saved = require_linked()
+    _WHAT.set(f"status check of video {row['videoId']} (row {row_id})")
     got = _net.video_status(saved["token"], row["videoId"])
     kind, text = read_status(got)
     _apply_status(row, kind, text)

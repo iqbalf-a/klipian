@@ -62,6 +62,7 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+import sys
 import tempfile
 import time
 from pathlib import Path
@@ -1564,7 +1565,11 @@ def check_upload() -> tuple[str, str]:
             FakeNet.upload_error = None
             if s["state"] != "failed" or s.get("code") != code or schedule.get_row(r).get("videoId"):
                 problems.append(f"{code}: {s}")
-        fails(youtube.map_http_error(403, "quotaExceeded"), "quota")
+            elif isinstance(error, youtube.YouTubeError) and error.extra.get("detail") and not (s.get("detail") and s.get("report")):
+                problems.append(f"{code}: the job should carry detail and report: {s}")
+        fails(youtube.map_http_error(403, "quotaExceeded"), "project_quota")
+        fails(youtube.map_http_error(403, "uploadLimitExceeded"), "channel_limit")
+        fails(youtube.map_http_error(429, "rateLimitExceeded"), "rate_limit")
         fails(youtube.YouTubeError("offline", "down"), "offline")
         fails(youtube.map_http_error(401, ""), "expired")
         if youtube.map_http_error(403, "forbidden").code != "forbidden" or youtube.map_http_error(400, "x").code != "bad_request":
@@ -1637,6 +1642,8 @@ def check_bulk() -> tuple[str, str]:
     class FakeNet:
         refresh_error = None
         fail_on = None                  # title that gets a quota error
+        fail_reason = "quotaExceeded"   # the Google reason that error carries
+        slow_down = {}                  # title -> how many more "rateLimitExceeded" answers it gets
         slow = False
         bodies: list = []               # every body sent, to see what was asked of YouTube
         public_now = False              # report a video without publishAt as public
@@ -1655,7 +1662,10 @@ def check_bulk() -> tuple[str, str]:
             order.append(title)
             cls.bodies.append(body)
             if title == cls.fail_on:
-                raise youtube.map_http_error(403, "quotaExceeded")
+                raise youtube.map_http_error(403, cls.fail_reason, "fake " + cls.fail_reason)
+            if cls.slow_down.get(title, 0) > 0:
+                cls.slow_down[title] -= 1
+                raise youtube.map_http_error(429, "rateLimitExceeded", "fake slow down")
             for i in range(1, 4):
                 progress(i / 3)
                 if cls.slow:
@@ -1883,6 +1893,138 @@ def check_bulk() -> tuple[str, str]:
         se = wait(je, youtube.bulk_state)
         if se["state"] != "stopped" or se["rows"][0]["state"] != "pending" or schedule.get_row(e1).get("videoId"):
             problems.append(f"the queue should stop at the local limit without sending: {se}")
+
+        # --- upload-limit errors: each Google reason keeps its own code and sentence, the raw error is logged
+        # (redacted) and handed back as detail / report, "slow down" is retried, the limits stop the queue cleanly
+        import types
+        from . import youtube as _yt
+
+        def google_error(status, reason, message):
+            body = json.dumps({"error": {"code": status, "message": message, "errors": [{"reason": reason, "domain": "youtube.video"}]}})
+            return types.SimpleNamespace(resp=types.SimpleNamespace(status=status), content=body.encode("utf-8"))
+
+        real_now, real_tz = _yt._now, _yt._LOCAL_TZ
+        _yt._LOCAL_TZ = dt.timezone(dt.timedelta(hours=7))
+        _yt._now = lambda: dt.datetime(2026, 10, 22, 2, 0, tzinfo=dt.timezone.utc)      # 19:00 Pacific (PDT), 09:00 WIB
+        try:
+            e_ch = _yt._http_error(google_error(403, "uploadLimitExceeded", "Bearer ya29.FAKE-SECRET-TOKEN exceeded the limit"))
+            e_pq = _yt._http_error(google_error(403, "quotaExceeded", "quota"))
+            e_dl = _yt._http_error(google_error(403, "dailyLimitExceeded", "daily"))
+            e_rl = _yt._http_error(google_error(429, "rateLimitExceeded", "slow"))
+        finally:
+            _yt._now, _yt._LOCAL_TZ = real_now, real_tz
+        if (e_ch.code, e_pq.code, e_dl.code, e_rl.code) != ("channel_limit", "project_quota", "project_quota", "rate_limit"):
+            problems.append(f"the reasons must map to channel_limit / project_quota / rate_limit: {[e.code for e in (e_ch, e_pq, e_dl, e_rl)]}")
+        if "daily upload limit" not in e_ch.message or "youtube.com/verify" not in e_ch.message or "24 hours" not in e_ch.message:
+            problems.append(f"the channel-limit sentence is wrong: {e_ch.message}")
+        if "midnight Pacific" not in e_pq.message or "14:00 (WIB) today" not in e_pq.message:
+            problems.append(f"the project-quota sentence should give the reset as 14:00 (WIB) today: {e_pq.message}")
+        if "slow down" not in e_rl.message or "retry" not in e_rl.message:
+            problems.append(f"the rate-limit sentence is wrong: {e_rl.message}")
+        if e_ch.extra.get("reason") != "uploadLimitExceeded" or e_ch.extra.get("status") != 403 or "uploadLimitExceeded" not in e_ch.extra.get("detail", ""):
+            problems.append(f"the Google reason / status must be kept in the detail: {e_ch.extra}")
+        rep = e_ch.extra.get("report", "")
+        if len(rep.splitlines()) > 20 or "ya29.FAKE-SECRET" in rep or "profile: bk1" not in rep or "project:" not in rep:
+            problems.append(f"the report must be at most 20 lines, redacted, with the profile and project: {rep!r}")
+        logf = paths.profile_dir() / "youtube.log"
+        log_text = logf.read_text(encoding="utf-8") if logf.is_file() else ""
+        if "uploadLimitExceeded" not in log_text or "ya29.FAKE-SECRET" in log_text or "Authorization" in log_text:
+            problems.append(f"youtube.log must hold the failure without any secret: {log_text[-300:]!r}")
+        if "FAKE-SECRET" in json.dumps(e_ch.extra):
+            problems.append("a token reached the error's details")
+
+        # the reset time across daylight saving (US: second Sunday of March to first Sunday of November), today vs tomorrow
+        def reset_text(iso, fallback=False):
+            _yt._LOCAL_TZ = dt.timezone(dt.timedelta(hours=7))
+            saved = sys.modules.get("zoneinfo", "absent")
+            if fallback:
+                sys.modules["zoneinfo"] = None             # import fails: the by-hand US rules take over
+            try:
+                return _yt.quota_reset(dt.datetime.fromisoformat(iso).replace(tzinfo=dt.timezone.utc))["text"]
+            finally:
+                _yt._LOCAL_TZ = real_tz
+                if fallback:
+                    if saved == "absent":
+                        sys.modules.pop("zoneinfo", None)
+                    else:
+                        sys.modules["zoneinfo"] = saved
+        for fallback in (False, True):
+            want = [("2026-10-22T02:00:00", "14:00 (WIB) today"), ("2026-10-22T08:00:00", "14:00 (WIB) tomorrow"),
+                    ("2026-01-15T02:00:00", "15:00 (WIB) today"), ("2026-03-08T06:00:00", "15:00 (WIB) today"),
+                    ("2026-03-08T12:00:00", "14:00 (WIB) tomorrow"), ("2026-11-01T06:00:00", "14:00 (WIB) today"),
+                    ("2026-11-01T12:00:00", "15:00 (WIB) tomorrow")]
+            for iso, text in want:
+                got = reset_text(iso, fallback)
+                if got != text:
+                    problems.append(f"quota reset at {iso} (fallback={fallback}): wanted {text}, got {got}")
+
+        # the plan: this channel's uploads in the last 24 h, and the soft hint for a NEW channel
+        FakeNet.fail_on = None
+        youtube._usage_file().write_text(json.dumps({"day": youtube._quota_day(), "count": 0}), encoding="utf-8")
+        for old in schedule.load_clips():                     # a clean slate: only the rows made below count
+            schedule.set_fields(old["id"], {"uploadedAt": 0, "videoId": ""})
+        h = [row(f"H {i}") for i in range(7)]
+        for rid in h[:2]:
+            schedule.set_fields(rid, {"uploadedAt": int(time.time()) - 3600, "videoId": "HV" + rid, "status": "Scheduled"})
+        schedule.set_fields(h[2], {"uploadedAt": int(time.time()) - 3 * 86400, "videoId": "HVold", "status": "Scheduled"})
+        ph = youtube.bulk_plan(h[3:])
+        if ph.get("last24h") != 2 or not ph.get("newChannel") or ph.get("hint"):
+            problems.append(f"24 h count / new channel / no hint below 6: {ph.get('last24h')} {ph.get('newChannel')} {ph.get('hint')!r}")
+        ph = youtube.bulk_plan(h[3:] + [row(f"H{i}b") for i in range(3)])
+        if "lower daily limit" not in ph.get("hint", "") or ph["remaining"] != 100:
+            problems.append(f"a new channel above about 6 a day should get the soft hint (and nothing blocked): {ph.get('hint')!r} {ph['remaining']}")
+        tokf = youtube._load_token_file()
+        youtube._write_token_file({**tokf, "connectedAt": int(time.time()) - 60 * 86400})
+        for rid in h[:3]:
+            schedule.set_fields(rid, {"videoId": "", "uploadedAt": 0, "status": "Ready"})
+        many = [row(f"M{i}") for i in range(10)]
+        for rid in many:
+            schedule.set_fields(rid, {"videoId": "MV" + rid})
+        ph = youtube.bulk_plan(h[:3])
+        if ph.get("newChannel") or ph.get("hint"):
+            problems.append(f"an old channel with many uploads is not new: {ph.get('newChannel')} {ph.get('hint')!r}")
+        youtube._write_token_file(tokf)
+
+        # the bulk run: each limit stops the queue cleanly (rest "not sent"), with detail and report
+        real_pauses, real_sleep = youtube._RATE_PAUSES, youtube._sleep
+        youtube._RATE_PAUSES, youtube._sleep = (0.05, 0.05, 0.05), lambda s: time.sleep(min(s, 0.01))
+        try:
+            for reason, code in (("uploadLimitExceeded", "channel_limit"), ("quotaExceeded", "project_quota")):
+                FakeNet.fail_reason = reason
+                x1, x2, x3 = row(f"L {reason} 1"), row(f"L {reason} 2"), row(f"L {reason} 3")
+                FakeNet.fail_on = f"L {reason} 2"
+                sx = wait(youtube.start_bulk([x1, x2, x3]), youtube.bulk_state)
+                FakeNet.fail_on = None
+                if sx["state"] != "stopped" or [r["state"] for r in sx["rows"]] != ["done", "failed", "pending"] or sx.get("code") != code:
+                    problems.append(f"{reason} should stop the queue cleanly with code {code}: {sx['state']} {sx.get('code')}")
+                if reason not in sx.get("detail", "") or not sx.get("report") or sx["rows"][2]["message"] != "not sent" \
+                        or schedule.get_row(x3).get("videoId"):
+                    problems.append(f"{reason}: detail / report / 'not sent' missing: {sx.get('detail')!r} {sx['rows'][2]}")
+            FakeNet.fail_reason = "quotaExceeded"
+            # "slow down" twice, then it works: the file is retried and the queue goes on
+            r1, r2 = row("R Uno"), row("R Dos")
+            FakeNet.slow_down = {"R Uno": 2}
+            sr = wait(youtube.start_bulk([r1, r2]), youtube.bulk_state)
+            if sr["state"] != "done" or [r["state"] for r in sr["rows"]] != ["done", "done"] or FakeNet.slow_down.get("R Uno") != 0:
+                problems.append(f"a rate limit that clears should be retried and the run completed: {sr['state']} {[r['state'] for r in sr['rows']]} {FakeNet.slow_down}")
+            # "slow down" forever: three retries, then the queue stops
+            s1, s2 = row("S Uno"), row("S Dos")
+            FakeNet.slow_down = {"S Uno": 99}
+            ss = wait(youtube.start_bulk([s1, s2]), youtube.bulk_state)
+            tried = 99 - FakeNet.slow_down["S Uno"]
+            if ss["state"] != "stopped" or ss.get("code") != "rate_limit" or tried != 4 or ss["rows"][1]["state"] != "pending" or schedule.get_row(s2).get("videoId"):
+                problems.append(f"a rate limit that stays should be tried 4 times (1 + 3 retries) and then stop the queue: {ss['state']} {ss.get('code')} tried={tried}")
+        finally:
+            youtube._RATE_PAUSES, youtube._sleep = real_pauses, real_sleep
+            FakeNet.slow_down = {}
+            FakeNet.fail_reason = "quotaExceeded"
+        # the server's answer carries the detail and report
+        from . import server as _srv
+        sent = {}
+        fake_self = types.SimpleNamespace(_send_json=lambda body, code=200: sent.update(body=body, code=code))
+        _srv.Handler._youtube_reply(fake_self, lambda: (_ for _ in ()).throw(e_ch))
+        if sent.get("code") != 400 or sent["body"].get("code") != "channel_limit" or not sent["body"].get("detail") or not sent["body"].get("report"):
+            problems.append(f"the API answer should carry code, detail and report: {sent}")
     except Exception as exc:                           # noqa: BLE001
         problems.append(f"raised {type(exc).__name__}: {exc}")
     finally:
@@ -3899,7 +4041,7 @@ def check_guide() -> tuple[str, str]:
     problems = []
     page = (ROOT / "ui" / "guide.html").read_text(encoding="utf-8")
     ids = set(re.findall(r'\bid="([^"]+)"', page))
-    for must in ("youtube", "youtube-status", "claude", "download", "profiles", "bulk", "youtube-client", "youtube-test-user",
+    for must in ("youtube", "youtube-status", "youtube-limits", "claude", "download", "profiles", "bulk", "youtube-client", "youtube-test-user",
                  "youtube-expired"):
         if must not in ids:
             problems.append(f"the guide lost its #{must} section")

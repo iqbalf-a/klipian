@@ -1281,10 +1281,14 @@ lagi di dokumen resmi sebelum mulai):
   - Search Queries per day = 100.
 
   Jadi upload massal dibatasi **100 video per hari per project**, jauh di
-  atas kebutuhan 1–3 Shorts per hari. Masih perlu dipastikan pada upload
-  uji pertama apakah `videos.insert` juga memakan unit Queries per day
-  (lihat angka Current usage). YouTube juga punya batas upload harian per
-  channel sendiri, di luar kuota API.
+  atas kebutuhan 1–3 Shorts per hari. **Terbukti (ian, project
+  `klipian-lucu`, 2026-10-22):** `videos.insert` TIDAK memakan unit Queries
+  per day. 12 upload plus cek status hanya memakai 15 dari 10.000 Queries
+  per day; upload hanya dihitung di **Video Uploads per day** (12/100),
+  dan percobaan yang ditolak ikut dihitung (12 = 10 selesai + 2 ditolak).
+  YouTube juga punya batas upload harian per channel sendiri
+  (`uploadLimitExceeded`), di luar kuota API: di project itu antrean
+  berhenti di video ke-11 oleh batas channel, bukan kuota project.
 - **Satu project Google Cloud untuk satu channel** (ian 2026-10-20 membuat
   project `klipian podcast`). Kuota tiap channel jadi terpisah. Untuk P21-C,
   `client_secret.json` disimpan **per profile** di

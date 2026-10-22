@@ -151,6 +151,10 @@ select.ws-input, .pager-size select, .ws-bulk select {
   cursor: pointer;
 }
 .toast-action:hover:not(:disabled) { background: var(--glass); }
+.toast-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+/* What Google really said, small and muted, with Copy details (toast, bulk dialog, Detail upload section). */
+.detail-line { font-size: 11px; color: var(--text-faint); word-break: break-word; }
+.detail-line .btn { font-size: 11px; padding: 1px 8px; margin-left: 4px; }
 .toast-x { color: var(--text-faint); background: transparent; border: 0; cursor: pointer; font-size: 14px; }
 
 /* The server is older than the page (js/shared/version.js). */

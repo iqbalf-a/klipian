@@ -79,7 +79,8 @@ function confirmDialog({ title = "Are you sure?", message = "", warning = "", bo
 
 let _toastTimer = null;
 
-function showToast(text, { ms = 8000, action = null, onAction = null } = {}) {
+/* `detail` ({ text, report }): a small muted line under the message with "Copy details" (what Google really said). */
+function showToast(text, { ms = 8000, action = null, onAction = null, detail = null } = {}) {
   document.getElementById("klipianToast")?.remove();
   clearTimeout(_toastTimer);
   const box = document.createElement("div");
@@ -88,7 +89,12 @@ function showToast(text, { ms = 8000, action = null, onAction = null } = {}) {
   box.setAttribute("role", "status");
   const span = document.createElement("span");
   span.textContent = text;
-  box.append(span);
+  if (detail?.text) {
+    const body = document.createElement("div");
+    body.className = "toast-body";
+    body.append(span, makeDetailLine(detail.text, detail.report));
+    box.append(body);
+  } else box.append(span);
   const close = () => { clearTimeout(_toastTimer); box.remove(); };
   if (action) {
     const b = document.createElement("button");
@@ -111,6 +117,25 @@ function showToast(text, { ms = 8000, action = null, onAction = null } = {}) {
   document.body.append(box);
   _toastTimer = setTimeout(close, ms);
   return box;
+}
+
+/* A one-line muted detail with a "Copy details" button that puts `report` on the clipboard. */
+function makeDetailLine(text, report) {
+  const line = document.createElement("small");
+  line.className = "detail-line";
+  const t = document.createElement("span");
+  t.textContent = text;
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "btn sm quiet";
+  b.textContent = "Copy details";
+  b.addEventListener("click", async () => {
+    const ok = typeof copyText === "function" ? await copyText(report || text) : false;
+    b.textContent = ok ? "Copied" : "Could not copy";
+    setTimeout(() => { b.textContent = "Copy details"; }, 1800);
+  });
+  line.append(t, " ", b);
+  return line;
 }
 
 const showUndoToast = (text, onUndo, opts = {}) =>

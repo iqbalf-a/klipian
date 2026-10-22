@@ -217,6 +217,7 @@
             <progress id="ytProgress" max="1" value="0" hidden></progress>
           </div>
           <p class="text-[12px] text-text-faint" id="ytUploadMsg" role="status"></p>
+          <div id="ytUploadDetail" hidden></div>
         </section>
         <label class="ws-field guest-hidden">Hashtags (kept on the clip; where they go on YouTube is the profile's setting)
           <input class="ws-input" type="text" id="detailHashtags" placeholder="#podcast #lucu"></label>
@@ -298,6 +299,7 @@
         </div>
         <div id="ytBulkList" class="yt-bulk-list"></div>
         <p class="text-[12px]" id="ytBulkNote" role="status"></p>
+        <div id="ytBulkDetail" hidden></div>
         <p class="text-[12px] text-danger" id="ytBulkWhy" role="status" hidden></p>
         <div class="flex gap-2 justify-end">
           <button class="btn" type="button" id="ytBulkCancel">Cancel</button>

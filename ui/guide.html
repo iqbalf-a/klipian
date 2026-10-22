@@ -55,7 +55,7 @@
           <li><a href="#youtube-testing">Status Testing dan audit</a></li>
         </ol>
       </li>
-      <li><a href="#youtube-status">Status dan arti warna</a></li>
+      <li><a href="#youtube-status">Status dan arti warna</a> (<a href="#youtube-limits">batas upload</a>)</li>
       <li><a href="#claude">Claude API: Find clips with Claude</a></li>
       <li><a href="#download">Unduh dari YouTube</a></li>
       <li><a href="#profiles">Profile dan Guest</a></li>
@@ -195,6 +195,29 @@
         <dt><span class="dot grey"></span> Paket YouTube belum terpasang</dt>
         <dd>Jalankan sekali: <code>.venv\Scripts\python.exe -m pip install -r requirements-youtube.txt</code></dd>
       </dl>
+
+      <h3 id="youtube-limits">Batas upload</h3>
+      <p>Ada dua batas yang berbeda, dan klipian menyebut yang mana yang kena (alasan asli dari Google ikut ditampilkan
+        kecil di bawah pesan, dengan <b>Copy details</b>; semuanya juga dicatat di <code>profiles/&lt;id&gt;/youtube.log</code>):</p>
+      <dl class="states">
+        <dt>Batas channel (<code>uploadLimitExceeded</code>)</dt>
+        <dd>Channel ini sudah mencapai batas upload hariannya. Channel baru atau yang belum terverifikasi punya batas yang
+          lebih rendah: verifikasi di <b>youtube.com/verify</b>. Biasanya longgar lagi sekitar 24 jam setelah upload pertama
+          dalam rangkaian itu. Antrean bulk berhenti rapi; sisanya tidak disentuh (“not sent”).</dd>
+        <dt>Kuota project (<code>quotaExceeded</code>)</dt>
+        <dd>Kuota harian project Google Cloud habis; yang dilihat adalah <b>Video Uploads per day</b> (100 per project;
+          percobaan yang ditolak ikut dihitung). Reset tiap <b>tengah malam waktu Pasifik</b>; klipian menyebut jam
+          itu di waktu komputermu (mis. 14:00 WIB saat musim panas AS, 15:00 WIB saat musim dingin).</dd>
+        <dt>“Slow down” (<code>rateLimitExceeded</code>)</dt>
+        <dd>YouTube minta pelan-pelan. Di upload bulk klipian menunggu 30–90 detik dan mengirim file itu lagi beberapa
+          kali; berhenti hanya kalau tetap ditolak.</dd>
+      </dl>
+      <p>Membedakannya di <b>Google Cloud Console</b> › <b>APIs &amp; Services</b> › <b>YouTube Data API v3</b> ›
+        <b>Quotas &amp; System Limits</b>: kalau <b>Video Uploads per day</b> sudah penuh (mis. 100/100), itu kuota project.
+        Kalau baris itu masih lega (mis. 12/100) tetapi upload ditolak, itu batas channel, yang tidak tampil di tabel itu.
+        <b>Queries per day</b> tidak ikut terpakai oleh upload (<code>videos.insert</code> hanya dihitung di Video Uploads per day;
+        12 upload plus cek status memakai 15 query), jadi baris itu hampir selalu lega. Di dialog upload bulk, baris kuota juga menunjukkan berapa video channel ini
+        diunggah dalam 24 jam terakhir; channel yang baru tersambung diberi petunjuk kalau satu hari melewati sekitar 6 video.</p>
     </section>
 
     <!-- ============================================================ C -->
