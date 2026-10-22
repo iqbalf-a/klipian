@@ -184,7 +184,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
 def compose(src: Path, dest: Path, *, width: int, height: int, duration: float,
             elements: list[dict], volumes: list[dict], quality: int,
-            has_audio: bool = True, cancel_check=None) -> None:
+            has_audio: bool = True, cancel_check=None, on_progress=None) -> None:
     """Lay `elements` and `volumes` over the finished clip `src`, writing
     `dest`. Both already cleaned (clean_elements / clean_volumes)."""
     ffmpeg = _require("ffmpeg")
@@ -262,7 +262,7 @@ def compose(src: Path, dest: Path, *, width: int, height: int, duration: float,
            "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "128k",
            "-movflags", "+faststart", str(dest)]
     try:
-        code, err = _run_ffmpeg(cmd, cancel_check, dest)
+        code, err = _run_ffmpeg(cmd, cancel_check, dest, on_progress)
         if code != 0:
             tail = (err or "").strip().splitlines()[-10:]
             raise RuntimeError("could not add the timeline elements:\n" + "\n".join(tail))

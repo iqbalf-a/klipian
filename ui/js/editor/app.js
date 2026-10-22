@@ -34,6 +34,7 @@ const DATA = {
 };
 
 let QUEUE = [];
+let RENDER_SUMMARY = "";                  // "Clip 2 of 5 · total ~3 min left" while a batch renders (player.js)
 
 /* Render queue is not a fixed list: it contains clips that are actually being rendered. */
 function buildQueue(list) {
@@ -549,11 +550,8 @@ function savedBackground(list) {
 /* One line saying what the picture is, for the queue and the summary:
    "9:16", or "3:4 · black · 30%". */
 function pictureSummary() {
-  const pic = optionOut("picture");
-  if (pic === "9:16") return "9:16";
-  return `${pic} · ${optionOut("background")} · ${optionOut("position")}%`;
+  return layoutLabel(optionOut("picture"), optionOut("background"), optionOut("position"));
 }
-
 
 /* ───────── the Output Format of Results that are NOT open (bulk.js) ─────────
    OPTIONS holds the open Result's choices; a saved Result has only its `output` array. These read and write
@@ -573,11 +571,7 @@ function normalizedOutput(saved) {
 
 /* A short line for a list: "9:16 · 1080p", "16:9 · blur bg · 1080p". */
 function describeOutput(saved) {
-  return withOutput(saved, () => {
-    const pic = optionOut("picture");
-    const bg = pic === "9:16" ? "" : ` · ${optionOut("background")} bg`;
-    return `${pic}${bg} · ${optionValue("resolution")}`;
-  });
+  return withOutput(saved, () => `${pictureSummary()} · ${optionValue("resolution")}`);
 }
 
 /* `draft` is an output array (outputState() shape). Every option not in `keep` (a Set of option ids) is written
@@ -741,7 +735,9 @@ function drawQueue() {
   const end = QUEUE.filter((r) => r.pct === 100).length;
   const queued = QUEUE.length - running - end;
   if (QUEUE.length) {
-    renderStatus(`${running} running · ${queued} queued · ${end} done`);
+    // "Clip 2 of 5 · total ~3 min left" while a batch runs (RENDER_SUMMARY is set by paintQueue, player.js)
+    const sum = typeof RENDER_SUMMARY !== "undefined" && RENDER_SUMMARY && running ? ` · ${RENDER_SUMMARY}` : "";
+    renderStatus(`${running} running · ${queued} queued · ${end} done${sum}`);
   }
 
   // "Cancel all" only makes sense while several clips are queued
@@ -754,8 +750,10 @@ function drawQueue() {
           <div class="title">${escapeHTML(r.name)}</div>
           <span class="meta">${r.layout}</span>
           <span class="meta">${r.clip ? r.clip.dur + "s" : r.dur}</span>
-          <span class="progress ${r.pct === 100 ? "done" : ""}${r.busy ? " working" : ""}"
-          ><i style="width:${r.busy ? 100 : r.pct}%"></i></span>
+          <span class="progress ${r.pct === 100 ? "done" : ""}${r.busy && !r.determinate ? " working" : ""}"
+                role="progressbar" aria-label="${escapeHTML(r.name)}" aria-valuemin="0" aria-valuemax="100"
+                ${r.busy && !r.determinate ? "" : `aria-valuenow="${r.pct}"`}
+          ><i style="width:${r.busy && !r.determinate ? 100 : r.pct}%"></i></span>
           <span class="meta">${r.note}</span>
           <button class="btn ${r.pct === 100 ? "main" : ""}"
                   data-action="${r.pct === 100 ? "open" : (r.act || "cancel")}"

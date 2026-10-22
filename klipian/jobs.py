@@ -24,6 +24,7 @@ from . import compose as composer
 from . import render as engine
 from . import roundtrip
 from . import sched
+from .progress import JobProgress, batch_eta
 from .paths import CACHE_DIR, GLOSSARY, GUEST, OUT_ROOT, SOURCES, current_profile, find_video, safe_dirname
 from .projects import (_project_assets_dir, _project_file,
                        _project_out_dir, _read_project, read_render_records,
@@ -41,6 +42,49 @@ MAX_JOBS = 100  # cap entries in JOBS to prevent memory leak
 # Render job ids marked for cancellation. _run_render checks via
 # cancel_check; render.py kills the running ffmpeg if listed.
 CANCELLED: set[str] = set()
+
+
+def layout_label(picture: str, background: str, position) -> str:
+    """What the picture looks like in the 9:16 frame, for the render rows and the plan: "9:16", or
+    "16:9 · blur bg · center". `position` is the picture's vertical place in the frame (0 top, 100 bottom).
+    The same words as layoutLabel() in ui/js/editor/app.js."""
+    if picture == "9:16":
+        return "9:16"
+    try:
+        pos = int(round(float(position)))
+    except (TypeError, ValueError):
+        pos = 50
+    where = "center" if pos == 50 else "top" if pos == 0 else "bottom" if pos == 100 else f"pos {pos}%"
+    return f"{picture} · {'black' if background == 'black' else 'blur'} bg · {where}"
+
+
+def _publish_progress(job_id: str, snap: dict) -> None:
+    """Write a progress snapshot ({percent, stage, eta}) into the job and, for an item of a batch, into the item and
+    the batch's total time left."""
+    eta = None if snap.get("eta") is None else int(round(snap["eta"]))
+    with LOCK:
+        t = JOBS.get(job_id)
+        if t is None:
+            return
+        t.update(percent=snap["percent"], stage=snap["stage"], eta=eta)
+        m = t.get("mirror")
+        if m:
+            b = JOBS.get(m["batch"])
+            if b is not None:
+                b["items"][m["index"]].update(percent=snap["percent"], stage=snap["stage"], eta=eta)
+                b["eta"] = _batch_total_eta(b)
+
+
+def _batch_total_eta(b: dict) -> int | None:
+    """Time left of the whole batch (call with LOCK held): the running clip's own estimate plus the queued clips'
+    lengths at the usual speed."""
+    items = b["items"]
+    running = next((x for x in items if x["state"] == "running"), None)
+    queued = [float(x["duration"]) for x in items if x["state"] == "queued" and not x.get("cancel")]
+    ratio = b.get("ratio")
+    left = float(running["duration"]) * (1 - (running.get("percent") or 0) / 100) if running else 0.0
+    total = batch_eta(running.get("eta") if running else None, left, queued, ratio)
+    return None if total is None else int(round(total))
 
 
 def transcribe_key(name: str) -> str:
@@ -285,6 +329,17 @@ def _render_body(job_id: str, req: dict, into: Path | None = None, record: bool 
         with LOCK:
             t["total"] = len(clips)
 
+        def span_seconds(raw_spans) -> float:
+            try:
+                return sum(max(0.0, float(p["end"]) - float(p["start"])) for p in raw_spans)
+            except (KeyError, TypeError, ValueError):
+                return 0.0
+
+        # Real progress: ffmpeg reports the output seconds it has written; progress.py turns them into a percent
+        # split by stage weight, and a time left from this profile's usual speed, then from the real pace.
+        prog = JobProgress([span_seconds(k.get("spans", [])) for k in clips], speed_ratio(),
+                           lambda snap: _publish_progress(job_id, snap))
+
         for i, k in enumerate(clips):
             if job_id in CANCELLED:
                 with LOCK:
@@ -303,6 +358,17 @@ def _render_body(job_id: str, req: dict, into: Path | None = None, record: bool 
             # spans sharing a video -- see engine.asset_runs -- because a single
             # moment doesn't jump source mid-span.
             runs = engine.asset_runs(spans_raw, req["video"])
+            # Is there a second pass (compose.py)? Worked out now, with the same cleaning it gets later, so the
+            # bar's weights are right from the start.
+            clip_seconds = span_seconds(spans_raw)
+            try:
+                has_pass2 = bool(composer.clean_elements(
+                    k.get("overlays"), clip_seconds,
+                    (_project_assets_dir(pdata.get("id")) if pdata else None) or (out_dir / ".no-assets"))
+                    or composer.clean_volumes(k.get("volumes"), clip_seconds))
+            except Exception:                              # noqa: BLE001 (only a prediction)
+                has_pass2 = bool(k.get("overlays") or k.get("volumes"))
+            prog.begin_clip(i, [span_seconds(rs) for _, rs in runs], has_pass2)
 
             crop = k.get("crop") or {}
             crop_box = engine.CropBox(
@@ -338,10 +404,11 @@ def _render_body(job_id: str, req: dict, into: Path | None = None, record: bool 
                                        **picture, out_width=out_width, quality=quality)
                 clip_words = _clip_words(k, words)
                 try:
+                    prog.advance()                         # preparing -> the encode
                     engine.render(video, job, dest, words=clip_words, style=style,
                                  src_width=info.width, src_height=info.height,
                                  has_audio=info.has_audio, verbose=False,
-                                 cancel_check=lambda: job_id in CANCELLED)
+                                 cancel_check=lambda: job_id in CANCELLED, on_progress=prog.tick)
                 except engine.RenderCancelled:
                     with LOCK:
                         t["state"] = "cancelled"
@@ -375,10 +442,12 @@ def _render_body(job_id: str, req: dict, into: Path | None = None, record: bool 
                                                    crop=crop_box, **picture,
                                                    out_width=out_width, quality=quality)
                         part_dest = tmp_dir / f"part{ridx}.mp4"
+                        prog.advance()                     # the next piece
                         engine.render(run_video, run_job, part_dest, words=run_words,
                                      style=style, src_width=run_info.width,
                                      src_height=run_info.height, has_audio=run_info.has_audio,
-                                     verbose=False, cancel_check=lambda: job_id in CANCELLED)
+                                     verbose=False, cancel_check=lambda: job_id in CANCELLED,
+                                     on_progress=prog.tick)
                         parts.append(part_dest)
                         duration += run_job.duration
                     if job_id in CANCELLED:
@@ -388,6 +457,7 @@ def _render_body(job_id: str, req: dict, into: Path | None = None, record: bool 
                     if len(parts) == 1:
                         parts[0].replace(dest)
                     else:
+                        prog.advance()                     # joining
                         engine.concat_renders(parts, dest, quality)
                 except engine.RenderCancelled:
                     with LOCK:
@@ -417,9 +487,11 @@ def _render_body(job_id: str, req: dict, into: Path | None = None, record: bool 
                 dest.replace(raw)
                 out_h = out_width * 16 // 9
                 try:
+                    prog.advance()                         # the second pass
                     composer.compose(raw, dest, width=out_width, height=out_h - (out_h & 1),
                                      duration=duration, elements=elements, volumes=volumes,
-                                     quality=quality, cancel_check=lambda: job_id in CANCELLED)
+                                     quality=quality, cancel_check=lambda: job_id in CANCELLED,
+                                     on_progress=prog.tick)
                 except engine.RenderCancelled:
                     raw.unlink(missing_ok=True)
                     with LOCK:
@@ -450,13 +522,14 @@ def _render_body(job_id: str, req: dict, into: Path | None = None, record: bool 
                     "duration": round(duration, 1),
                 })
                 t["done"] = i + 1
+            prog.finish_clip()
 
         if record and pdata:
             _record_render(job_id, req, pdata, out_dir)
             if current_profile() != GUEST:           # the Guest makes no schedule rows
                 _schedule_render(job_id, req, pdata)
         with LOCK:
-            t["state"] = "done"
+            t.update(state="done", percent=100, stage="", eta=None)
 
     except Exception as exc:                       # noqa: BLE001
         with LOCK:
@@ -520,7 +593,7 @@ def plan_project_render(pdata: dict, result_ids: list[str]) -> tuple[list[dict],
                             "message": f"{missing[0]} is not in this profile's sources."})
             continue
         duration = sum(s["end"] - s["start"] for s in clip["spans"])
-        layout = clip["picture"] if clip["picture"] == "9:16" else f"{clip['picture']} · {clip['background']} · {clip['position']}%"
+        layout = layout_label(clip["picture"], clip["background"], clip["position"])
         items.append({"result": rid, "title": clip["title"], "request": req, "duration": round(duration, 1),
                       "layout": layout})
     return items, refused
@@ -574,8 +647,8 @@ def _note_speed(seconds: float, duration: float) -> None:
         pass
 
 
-def estimate_seconds(durations: list[float]) -> tuple[int, str]:
-    """(seconds, how it was worked out): the median of the last renders' speed, else about 30 s a clip."""
+def speed_ratio() -> float | None:
+    """The usual wall seconds per second of output of this profile's renders (median of the last ten), or None."""
     ratios = []
     try:
         for x in json.loads(_speed_file().read_text(encoding="utf-8")):
@@ -585,7 +658,15 @@ def estimate_seconds(durations: list[float]) -> tuple[int, str]:
         ratios = []
     if ratios:
         ratios.sort()
-        return int(round(sum(durations) * ratios[len(ratios) // 2])), "from the last renders"
+        return ratios[len(ratios) // 2]
+    return None
+
+
+def estimate_seconds(durations: list[float]) -> tuple[int, str]:
+    """(seconds, how it was worked out): the median of the last renders' speed, else about 30 s a clip."""
+    ratio = speed_ratio()
+    if ratio is not None:
+        return int(round(sum(durations) * ratio)), "from the last renders"
     return 30 * len(durations), "a rough guess of 30 s a clip until a render has been timed"
 
 
@@ -594,6 +675,11 @@ def _run_batch(batch_id: str, requests: list[dict]) -> None:
     makes its schedule row and its History entry exactly as a single render does)."""
     t = JOBS[batch_id]
     items = t["items"]
+    with LOCK:
+        t["ratio"] = speed_ratio()
+        for x in items:                              # each queued clip's own estimate, from this profile's usual speed
+            x["est"] = int(round(float(x["duration"]) * t["ratio"])) if t["ratio"] else None
+        t["eta"] = _batch_total_eta(t)
     try:
         for i, req in enumerate(requests):
             item = items[i]
@@ -625,7 +711,7 @@ def _run_batch(batch_id: str, requests: list[dict]) -> None:
                 sub = f"{batch_id}-{i}"
                 started_at = time.time()
                 _register_job(sub, {"state": "running", "done": 0, "total": 1, "index": 0, "current": "",
-                                    "result": [], "error": None})
+                                    "result": [], "error": None, "mirror": {"batch": batch_id, "index": i}})
                 with LOCK:
                     item["job"] = sub
                     if item["cancel"]:                   # cancelled while AI Framing ran
@@ -635,6 +721,10 @@ def _run_batch(batch_id: str, requests: list[dict]) -> None:
                 sj = JOBS.pop(sub, None) or {}
                 item["job"] = None
                 item["state"] = {"done": "done", "cancelled": "cancelled"}.get(sj.get("state"), "failed")
+                if item["state"] == "done":
+                    item.update(percent=100, eta=None, stage="")
+                else:
+                    item.update(eta=None, stage="")
                 if item["state"] == "failed":
                     item["error"] = sj.get("error") or "the render failed"
                 if sj.get("result"):
@@ -646,7 +736,9 @@ def _run_batch(batch_id: str, requests: list[dict]) -> None:
                     if sj.get(key):
                         item[key] = sj[key]
                 t["done"] = sum(1 for x in items if x["state"] == "done")
+                t["eta"] = _batch_total_eta(t)
         with LOCK:
+            t["eta"] = None
             cancelled = batch_id in CANCELLED
             for x in items:
                 if x["state"] == "queued":

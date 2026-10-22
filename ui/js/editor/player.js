@@ -809,15 +809,27 @@ async function renderSavedResults(resultIds, { note = "" } = {}) {
       }
       // The server reports progress per CLIP, not within one, so `busy` drives an indeterminate bar
       // instead of inventing a number (r.pct used to be hardcoded to 55 and then snapped to 100).
-      else if (it.state === "running") { r.pct = 0; r.busy = true; r.note = it.note || "rendering"; r.action = "Cancel"; r.act = "cancel"; }
+      else if (it.state === "running") {
+        // Real progress from ffmpeg (percent, stage, eta): a determinate bar once it has begun, else the striped one
+        const known = typeof it.percent === "number" && it.percent > 0;
+        r.pct = known ? it.percent : 0; r.busy = true; r.determinate = known;
+        r.note = [known ? `${it.percent}%` : "starting…", fmtLeft(it.eta), it.stage].filter(Boolean).join(" · ") || it.note || "rendering";
+        r.action = "Cancel"; r.act = "cancel";
+      }
       else if (it.state === "failed") { r.pct = 0; r.busy = false; r.note = `failed: ${it.error || ""}`.slice(0, 80); r.action = "Retry"; r.act = "retry"; }
       else if (it.state === "cancelled") { r.pct = 0; r.busy = false; r.note = "cancelled"; r.action = "Retry"; r.act = "retry"; }
-      else { r.pct = 0; r.busy = false; r.note = it.queue?.text || "queued"; r.action = "Cancel"; r.act = "cancel"; }
+      else { r.pct = 0; r.busy = false; r.determinate = false; r.note = it.queue?.text || (fmtLeft(it.est) ? `queued · ${fmtLeft(it.est).replace(" left", "")}` : "queued"); r.action = "Cancel"; r.act = "cancel"; }
+      if (it.state !== "running") r.determinate = false;
     });
+    // The batch as a whole: "Clip 2 of 5 · total ~3 min left"
+    const many = (t.items || []).length > 1;
+    RENDER_SUMMARY = t.state === "running" || t.state === "queued"
+      ? [many ? `Clip ${(t.index || 0) + 1} of ${t.items.length}` : "", many && fmtLeft(t.eta) ? `total ${fmtLeft(t.eta)}` : fmtLeft(t.eta)].filter(Boolean).join(" · ")
+      : "";
     drawQueue();
   };
 
-  const finish = () => { renderStop = null; renderJobId = null; updateRenderButtons(); drawQueue(); };
+  const finish = () => { renderStop = null; renderJobId = null; RENDER_SUMMARY = ""; updateRenderButtons(); drawQueue(); };
 
   if (renderStop) renderStop();
   renderStop = pollJob(`/api/render/${reply.id}`, {

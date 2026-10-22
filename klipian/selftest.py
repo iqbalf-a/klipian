@@ -4603,7 +4603,203 @@ def check_fallback() -> tuple[str, str]:
     return PASS, "same name + other video refused (with the reason), touched and re-muxed copies and old duration-only transcripts accepted, nothing recorded refused"
 
 
-CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback,
+# --------------------------------------------------------------------------
+# check: render progress (percent, stage weights, ETA), the layout words
+# --------------------------------------------------------------------------
+
+def check_progress() -> tuple[str, str]:
+    """ffmpeg's -progress lines parsed, the percent split by stage weight and never above 99 before the end, throttled to
+    about 4 a second, the time left (initial estimate, real pace, smoothing, hidden under 3 s), the batch's total, a real
+    ffmpeg run reporting seconds (and the same bytes with the progress flags), cancel still killing it, and the layout
+    words the same in Python and JS."""
+    import hashlib
+    import shutil
+    import subprocess
+    from . import progress as pg
+    from . import jobs, render as engine
+    from .ffmpeg_tools import _require
+
+    problems: list[str] = []
+
+    # --- parsing: a recorded sample of `ffmpeg -progress pipe:1`
+    sample = """frame=48
+fps=95.2
+stream_0_0_q=-1.0
+bitrate=N/A
+total_size=N/A
+out_time_us=1900000
+out_time_ms=1900000
+out_time=00:00:01.900000
+dup_frames=0
+drop_frames=0
+speed=3.8x
+progress=continue
+frame=120
+out_time_us=4800000
+out_time=00:00:04.800000
+progress=continue
+out_time_us=N/A
+out_time=N/A
+progress=end
+"""
+    got = [pg.parse_progress_line(ln) for ln in sample.splitlines()]
+    secs = [g for g in got if g is not None]
+    if secs != [1.9, 1.9, 1.9, 4.8, 4.8]:
+        problems.append(f"progress lines should give 1.9 (x3 spellings) and 4.8 (x2): {secs}")
+    if pg.parse_progress_line("out_time=01:02:03.500000") != 3723.5 or pg.parse_progress_line("out_time_us=-9223372036854775807") is not None \
+            or pg.parse_progress_line("speed=2x") is not None:
+        problems.append("progress parsing: hours, negative and unrelated lines")
+
+    # --- the percent: weights, cap, stages, throttle (a fake clock)
+    def run(durations, runs, pass2, ticks_each=40, clip=0, step=0.05):
+        clock = {"t": 100.0}
+        seen: list[dict] = []
+        p = pg.JobProgress(durations, None, seen.append, clock=lambda: clock["t"])
+        for i in range(clip + 1):
+            p.begin_clip(i, runs if i == clip else [durations[i]], pass2 if i == clip else False)
+        return p, seen, clock
+
+    p, seen, clock = run([10.0], [10.0], True)
+    p.advance()                                           # the encode
+    marks = {}
+    for n in range(1, 41):
+        clock["t"] += 0.05
+        p.tick(10.0 * n / 40)
+    marks["encoded"] = p.snapshot()["percent"]
+    p.advance()                                           # the second pass
+    for n in range(1, 41):
+        clock["t"] += 0.05
+        p.tick(10.0 * n / 40)
+    marks["overlays"] = p.snapshot()["percent"]
+    p.finish_clip()
+    marks["finish"] = p.snapshot()
+    if marks["encoded"] != 60 or marks["overlays"] != 99 or marks["finish"]["percent"] != 99 or marks["finish"]["stage"] != "finishing…":
+        problems.append(f"with a second pass the encode is worth 60 % (2 + 98 x 0.6), the end holds 99 'finishing…': {marks}")
+    percents = [s["percent"] for s in seen]
+    if percents != sorted(percents) or max(percents) > 99:
+        problems.append(f"the percent must only rise and never pass 99: {percents[-5:]}")
+    if not 8 <= len(seen) <= 20:
+        problems.append(f"80 ticks over 4 s should be throttled to about 4 a second: {len(seen)} updates")
+    if "overlays…" not in {s["stage"] for s in seen} or "preparing…" not in {s["stage"] for s in seen}:
+        problems.append(f"the stages preparing… and overlays… should show: {sorted({s['stage'] for s in seen})}")
+
+    p, seen, clock = run([10.0], [10.0], False)
+    p.advance()
+    p.tick(10.0)
+    if p.snapshot()["percent"] != 99:
+        problems.append(f"without a second pass the full encode is 99, not 100: {p.snapshot()}")
+    p, seen, clock = run([10.0], [6.0, 4.0], False)
+    p.advance()
+    p.tick(6.0)
+    first = p.snapshot()["percent"]                       # 2 + (98 - 4) x 0.6 = 58.4
+    p.advance()
+    p.tick(4.0)
+    p.advance()                                           # joining
+    st = p.snapshot()
+    if first != 58 or st["stage"] != "joining…" or st["percent"] != 96:
+        problems.append(f"two pieces then the join (4): wanted 58 then 96 'joining…': {first} {st}")
+    # several clips are weighed by their length
+    p = pg.JobProgress([10.0, 30.0], None, lambda s: None)
+    p.begin_clip(0, [10.0], False)
+    p.advance()
+    p.tick(10.0)
+    p.finish_clip()
+    p.begin_clip(1, [30.0], False)
+    p.advance()
+    p.tick(15.0)
+    expect = int((10 + (2 + 98 * 0.5) / 100 * 30) / 40 * 100)
+    if p.snapshot()["percent"] != expect:
+        problems.append(f"two clips (10 s and 30 s), half way through the second: wanted {expect}, got {p.snapshot()['percent']}")
+
+    # --- the time left
+    e = pg.Eta(initial_total=40.0)
+    first_eta = e.update(0.0, 0.0)
+    early = e.update(1.0, 0.02)
+    if first_eta != 40.0 or not 38 < early <= 40:
+        problems.append(f"before ffmpeg says anything the time left is the profile's usual estimate: {first_eta} {early}")
+    for k in range(1, 60):                                 # a steady pace: 10 s elapsed at 50 % -> 10 s left
+        last = e.update(10.0, 0.5)
+    if last is None or abs(last - 10.0) > 0.6:
+        problems.append(f"the smoothed time left should settle on the real pace (10): {last}")
+    e = pg.Eta(None)
+    if e.update(1.0, 0.01) is not None:
+        problems.append("without history nothing is shown before 5 % or 3 s")
+    shown = e.update(3.5, 0.35)
+    if shown is None or abs(shown - 6.5) > 0.01:
+        problems.append(f"after 3 s the pace decides (3.5 s for 35 % -> 6.5 s left): {shown}")
+    e = pg.Eta(None)
+    e.update(10.0, 0.9)
+    if e.update(10.0, 0.9) is not None:                    # 1.1 s left
+        problems.append("under 3 s left is hidden")
+    # smoothing: one slow tick does not make the estimate jump
+    e = pg.Eta(None)
+    for k in range(20):
+        base = e.update(10.0, 0.5)
+    jumped = e.update(10.0, 0.25)                          # a stall: raw says 30 s
+    if base is None or jumped is None or jumped - base > 0.31 * (30 - 10) + 0.01:
+        problems.append(f"one odd tick must not make the estimate jump: {base} -> {jumped}")
+    # the batch's total
+    if pg.batch_eta(20.0, 5.0, [30.0, 30.0], 0.5) != 50.0 or pg.batch_eta(None, 10.0, [30.0], 2.0) != 80.0 \
+            or pg.batch_eta(None, 10.0, [30.0], None) is not None or pg.batch_eta(7.0, 5.0, [], None) != 7.0:
+        problems.append("batch total: the running clip's time left + the queued clips' length x the usual speed")
+    b = {"ratio": 2.0, "items": [{"state": "done", "duration": 10}, {"state": "running", "duration": 20, "percent": 50, "eta": 12},
+                                 {"state": "queued", "duration": 15}, {"state": "queued", "duration": 5, "cancel": True}]}
+    if jobs._batch_total_eta(b) != 42:                    # 12 (running) + 15 x 2 (the cancelled one does not count)
+        problems.append(f"the batch's total left should be 42: {jobs._batch_total_eta(b)}")
+
+    # --- a real ffmpeg: it reports seconds, the bytes are the same with the progress flags, cancel kills it
+    ffmpeg = _require("ffmpeg")
+    with tempfile.TemporaryDirectory() as tmp:
+        base_cmd = [ffmpeg, "-y", "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc=s=320x180:d=4:r=25",
+                    "-f", "lavfi", "-i", "sine=f=300:d=4", "-shortest", "-c:v", "libx264", "-crf", "30", "-preset", "veryfast",
+                    "-threads", "1", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "64k", "-movflags", "+faststart"]
+        plain, with_flags = Path(tmp) / "plain.mp4", Path(tmp) / "flags.mp4"
+        subprocess.run([*base_cmd, str(plain)], capture_output=True, check=True)
+        marks_seen: list[float] = []
+        code, err = engine._run_ffmpeg([*base_cmd, str(with_flags)], None, with_flags, marks_seen.append)
+        if code != 0 or hashlib.sha256(plain.read_bytes()).hexdigest() != hashlib.sha256(with_flags.read_bytes()).hexdigest():
+            problems.append(f"the progress flags must not change the encode: exit {code}, {err[-200:]}")
+        if not marks_seen or marks_seen != sorted(marks_seen) or not 3.5 <= marks_seen[-1] <= 4.2:
+            problems.append(f"ffmpeg's progress should report rising output seconds up to about 4: {marks_seen[-4:]}")
+        stopped = Path(tmp) / "stopped.mp4"
+        long_cmd = list(base_cmd)
+        long_cmd[long_cmd.index("testsrc=s=320x180:d=4:r=25")] = "testsrc=s=1280x720:d=600:r=25"
+        long_cmd[long_cmd.index("sine=f=300:d=4")] = "sine=f=300:d=600"
+        seen_one = {"n": 0}
+
+        def on(sec):
+            seen_one["n"] += 1
+
+        t0 = time.time()
+        try:
+            engine._run_ffmpeg([*long_cmd, str(stopped)], lambda: seen_one["n"] > 0, stopped, on)
+            problems.append("cancel should stop a running ffmpeg")
+        except engine.RenderCancelled:
+            if time.time() - t0 > 20 or stopped.exists():
+                problems.append("cancel should kill ffmpeg quickly and delete the partial file")
+
+    # --- the layout words: the same in Python and JS
+    cases = [("9:16", "blur", 50), ("16:9", "blur", 50), ("16:9", "blur", 0), ("3:4", "black", 100), ("16:9", "black", 30),
+             ("16:9", "blur", 29.6), ("3:4", "blur", 75)]
+    py = [jobs.layout_label(*c) for c in cases]
+    want = ["9:16", "16:9 · blur bg · center", "16:9 · blur bg · top", "3:4 · black bg · bottom", "16:9 · black bg · pos 30%",
+            "16:9 · blur bg · pos 30%", "3:4 · blur bg · pos 75%"]
+    if py != want:
+        problems.append(f"layout_label: {py}")
+    node = shutil.which("node")
+    if node:
+        js = subprocess.run([node, "-e", "const {layoutLabel}=require('./ui/js/editor/renderlabels.js');"
+                             f"console.log(JSON.stringify({json.dumps(cases)}.map(c=>layoutLabel(...c))))"],
+                            capture_output=True, text=True, encoding="utf-8", cwd=str(ROOT), timeout=60)
+        if js.returncode != 0 or json.loads(js.stdout) != py:
+            problems.append(f"the JS layoutLabel must say what the server says: {js.stdout.strip()[:200]} {js.stderr.strip()[:100]}")
+
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "progress lines parsed, 60/40 weights, 99 held until done, ~4 updates/s, ETA initial/real/smoothed/hidden, batch total, same bytes with the flags, cancel kills ffmpeg, layout words match in Python and JS"
+
+
+CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress,
           "decode": check_decode, "render": check_render}
 
 

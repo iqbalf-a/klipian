@@ -902,10 +902,11 @@ def render(source: Path, job: RenderJob, dest: Path,
            words: list[Word] | None = None, style: dict | None = None,
            src_width: int = 1920, src_height: int = 1080,
            has_audio: bool = True, verbose: bool = True,
-           cancel_check=None) -> Path:
+           cancel_check=None, on_progress=None) -> Path:
     """cancel_check: zero-argument callable that returns True if the render
     should be cancelled. Checked periodically while ffmpeg runs; if True,
-    the ffmpeg process is killed and RenderCancelled is raised."""
+    the ffmpeg process is killed and RenderCancelled is raised.
+    on_progress(output seconds written), when given, is called while ffmpeg encodes."""
     if not job.spans:
         raise RuntimeError("No spans to render.")
     if not has_audio:
@@ -943,7 +944,7 @@ def render(source: Path, job: RenderJob, dest: Path,
 
         def build_cmd(encoder: str) -> list[str]:
             return [
-                ffmpeg, "-y", "-hide_banner", "-loglevel", "error", "-stats",
+                ffmpeg, "-y", "-hide_banner", "-loglevel", "error",
                 "-i", str(source),
                 "-filter_complex", filt,
                 "-map", "[vout]", "-map", "[ac]",
@@ -968,7 +969,7 @@ def render(source: Path, job: RenderJob, dest: Path,
                 if i == 0:
                     print(f"  spans    : {len(job.spans)}  ·  duration {job.duration:.1f}s")
 
-            code, result_err = _run_ffmpeg(build_cmd(encoder), cancel_check, dest)
+            code, result_err = _run_ffmpeg(build_cmd(encoder), cancel_check, dest, on_progress)
             if code == 0:
                 return dest
             if i < len(encoder_order) - 1 and verbose:
@@ -989,26 +990,57 @@ def render(source: Path, job: RenderJob, dest: Path,
             cmd_path.unlink(missing_ok=True)
 
 
-def _run_ffmpeg(cmd: list[str], cancel_check, dest: Path) -> tuple[int, str]:
+def _run_ffmpeg(cmd: list[str], cancel_check, dest: Path, on_progress=None) -> tuple[int, str]:
     """Run ffmpeg with cancellation support. Return (returncode, stderr).
 
     Uses Popen + poll, not subprocess.run, so cancel_check can be
     checked periodically and ffmpeg killed mid-encode -- not just between
     clips. A 1-hour timeout is enforced. If cancelled, the partial output
-    file is deleted."""
+    file is deleted.
+
+    `-nostats -progress pipe:1` makes ffmpeg write what it has done to stdout
+    (progress.parse_progress_line); a thread reads it and calls
+    on_progress(output seconds done). These are reporting options only: the
+    encode is the same bytes. The stderr text is collected by a second thread
+    (it is what the error message is made of)."""
+    import threading
     import time as _time
+    from .progress import parse_progress_line
+    cmd = [cmd[0], "-nostats", "-progress", "pipe:1", *cmd[1:]]
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     mulai = _time.time()
+    err_parts: list[bytes] = []
+
+    def read_progress() -> None:
+        try:
+            for raw in proc.stdout:
+                sec = parse_progress_line(raw.decode("utf-8", "replace"))
+                if sec is not None and on_progress is not None:
+                    try:
+                        on_progress(sec)
+                    except Exception:                # noqa: BLE001 (a display problem never stops a render)
+                        pass
+        except (OSError, ValueError):
+            pass
+
+    def read_errors() -> None:
+        try:
+            err_parts.append(proc.stderr.read())
+        except (OSError, ValueError):
+            pass
+
+    readers = [threading.Thread(target=read_progress, daemon=True), threading.Thread(target=read_errors, daemon=True)]
+    for th in readers:
+        th.start()
 
     def _stop() -> None:
-        """Kill, reap, and CLOSE THE PIPES. Only the normal return path
-        goes through communicate(), which closes them itself -- the cancel
-        and timeout paths did kill()+wait() and then raised, leaking two
-        descriptors per abandoned render for the lifetime of the server
-        process (and the bare `except` below skipped wait() as well, leaving
-        a zombie until GC)."""
+        """Kill, reap, and CLOSE THE PIPES (leaked descriptors and a zombie
+        otherwise: the cancel and timeout paths used to kill() + wait() and
+        raise)."""
         proc.kill()
         proc.wait()
+        for th in readers:
+            th.join(2)
         for pipe in (proc.stdout, proc.stderr):
             if pipe is not None:
                 try:
@@ -1019,8 +1051,16 @@ def _run_ffmpeg(cmd: list[str], cancel_check, dest: Path) -> tuple[int, str]:
     try:
         while True:
             try:
-                _, err = proc.communicate(timeout=0.5)
-                stderr = err.decode("utf-8", "replace") if err else ""
+                proc.wait(timeout=0.25)
+                for th in readers:
+                    th.join(5)
+                for pipe in (proc.stdout, proc.stderr):
+                    if pipe is not None:
+                        try:
+                            pipe.close()
+                        except OSError:
+                            pass
+                stderr = b"".join(err_parts).decode("utf-8", "replace")
                 return proc.returncode, stderr
             except subprocess.TimeoutExpired:
                 pass                                # still running
