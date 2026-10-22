@@ -1513,6 +1513,16 @@ def check_upload() -> tuple[str, str]:
         if st["state"] != "done" or after.get("status") != "Scheduled" or after.get("videoId") != st.get("videoId") \
                 or "youtube.com/shorts/" not in (after.get("youtubeUrl") or "") or "YouTube" not in after.get("platform", ""):
             problems.append(f"a scheduled upload did not update its row: {st} {after}")
+        if after.get("platform") != "YouTube":            # a render row starts "YouTube + TikTok": a plan, not a fact
+            problems.append(f"an upload with no TikTok link should leave platform 'YouTube', got {after.get('platform')!r}")
+        rid_tt = row(title="Also On TikTok", tiktokUrl="https://www.tiktok.com/@x/video/1")
+        jid_tt = youtube.start_upload(rid_tt)
+        for _ in range(100):
+            if youtube.upload_state(jid_tt)["state"] in ("done", "failed", "cancelled"):
+                break
+            time.sleep(0.05)
+        if (schedule.get_row(rid_tt) or {}).get("platform") != "YouTube + TikTok":
+            problems.append("an upload of a row that has a TikTok link should leave platform 'YouTube + TikTok'")
         if body["status"]["privacyStatus"] != "private" or "publishAt" not in body["status"] \
                 or body["status"]["selfDeclaredMadeForKids"] is not False or body["snippet"]["tags"] != ["podcast", "lucu"]                 or body["snippet"]["title"] != "Scheduled Clip #podcast #lucu" or "#" in body["snippet"]["description"]:
             problems.append(f"the upload body is wrong (default: hashtags in the title, not the description): {body}")

@@ -789,9 +789,9 @@ def _do_upload(row: dict, spec: dict, token: dict, progress, cancelled) -> dict:
         pass                                           # the upload itself worked; Check status can look again
     fields = {"videoId": video_id, "youtubeUrl": f"https://youtube.com/shorts/{video_id}",
               "status": "Scheduled" if spec["publishAt"] else "Posted", "uploadedAt": int(time.time())}
-    plat = (row.get("platform") or "")
-    if "YouTube" not in plat:
-        fields["platform"] = "YouTube + TikTok" if plat == "TikTok" else "YouTube"
+    # What it is actually on: YouTube now, TikTok only when a TikTok link was already filled in
+    # (the "YouTube + TikTok" a render row starts with is a plan, not a fact; ian 2026-10-22).
+    fields["platform"] = "YouTube + TikTok" if str(row.get("tiktokUrl") or "").strip() else "YouTube"
     if not spec["publishAt"] and (spec.get("goLive") or not row.get("date")):
         import datetime as dt
         now = dt.datetime.now()
