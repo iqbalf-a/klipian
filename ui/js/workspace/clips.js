@@ -910,12 +910,11 @@ function ytBulkDraw(plan) {
 function ytBulkSlots(count) {
   const date = $("#ytAfDate").value, time = $("#ytAfTime").value;
   const every = Number($("#ytAfEvery").value), unit = $("#ytAfUnit").value;
-  const stepHours = unit === "day" ? every * 24 : every;
   if (!date || !time) return { error: "Pick a date and time." };
   if (!isFutureSlot(date, time)) return { error: "That time has passed: pick a time in the future." };
-  if (!Number.isFinite(every) || !Number.isInteger(every) || every < 0) return { error: "The gap must be a whole number, 0 or more." };
-  const start = new Date(`${date}T${time}`).getTime();
-  return { slots: Array.from({ length: count }, (_, i) => new Date(start + i * stepHours * 3600 * 1000)) };
+  const slots = gapSlotsMs(new Date(`${date}T${time}`).getTime(), every, unit, count);   // schedgap.js
+  if (!slots) return { error: "The gap must be a whole number, 0 or more." };
+  return { slots: slots.map((ms) => new Date(ms)) };
 }
 
 /* Bring every line of the list and the totals in line with the settings and the edits. Nothing is

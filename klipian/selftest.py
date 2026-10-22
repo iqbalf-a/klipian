@@ -4040,6 +4040,13 @@ def check_guide() -> tuple[str, str]:
 
     problems = []
     page = (ROOT / "ui" / "guide.html").read_text(encoding="utf-8")
+    ws = (ROOT / "ui" / "workspace.html").read_text(encoding="utf-8")
+    if not all(f'<option value="{u}"' in ws for u in ("minute", "hour", "day")) or 'value="day" selected' not in ws:
+        problems.append("the bulk upload gap needs minutes | hours | days, days the default")
+    if "Also change clips that already have a date and time" not in ws or "Off: only clips without a schedule" not in ws             or "reschedule rows that already" in ws:
+        problems.append("the bulk upload's checkbox label and tooltip are not the agreed words")
+    if "menit" not in page or "Also change clips that already have a date and time" not in page:
+        problems.append("the guide's #bulk part should mention minutes and the renamed option")
     ids = set(re.findall(r'\bid="([^"]+)"', page))
     for must in ("youtube", "youtube-status", "youtube-limits", "claude", "download", "profiles", "bulk", "youtube-client", "youtube-test-user",
                  "youtube-expired"):

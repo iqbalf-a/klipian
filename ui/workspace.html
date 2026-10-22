@@ -288,11 +288,11 @@
             <label class="ws-field"><span id="ytAfTimeLabel">Time</span> <input class="ws-input" type="time" id="ytAfTime" value="18:30"></label>
             <label class="ws-field" id="ytAfGap">Gap between clips
               <span class="yt-af-every"><input class="ws-input" type="number" id="ytAfEvery" min="0" step="1" value="0" aria-label="Gap between clips">
-                <select class="ws-input" id="ytAfUnit" aria-label="Gap unit"><option value="day" selected>days</option><option value="hour">hours</option></select></span></label>
+                <select class="ws-input" id="ytAfUnit" aria-label="Gap unit"><option value="minute">minutes</option><option value="hour">hours</option><option value="day" selected>days</option></select></span></label>
           </div>
           <p class="text-[12px]" id="ytAfPreview"></p>
           <p class="text-[12px] text-text-faint" id="ytAfSpread" hidden>Shorts usually do better spaced out; set a gap to spread them.</p>
-          <label class="yt-af-all"><input type="checkbox" id="ytAfAll"> also reschedule rows that already have a time</label>
+          <label class="yt-af-all" title="Off: only clips without a schedule (or with a past one) get a time; clips you already scheduled keep theirs. On: every selected clip is rescheduled from the Date/Time with this gap, replacing their times."><input type="checkbox" id="ytAfAll"> Also change clips that already have a date and time</label>
           <p class="text-[12px] text-text-faint">The clips without a date and time get one from these settings, in the order below
             (a gap of 0 gives them all the same time); change a row to override it. Nothing is saved until you press Upload.</p>
           <span class="text-[12px] text-danger" id="ytAfMsg" role="status"></span>
@@ -366,6 +366,7 @@
 <script src="/ui/js/shared/version.js?v=1790703163808"></script>
 <script src="/ui/js/shared/profile-ui.js?v=1790703163808"></script>
 <script src="/ui/js/workspace/helpers.js?v=1790703163808"></script>
+<script src="/ui/js/workspace/schedgap.js?v=1790703163808"></script>
 <script src="/ui/js/workspace/clips.js?v=1790703163808"></script>
 <script src="/ui/js/workspace/sources.js?v=1790703163808"></script>
 <script src="/ui/js/workspace/render.js?v=1790703163808"></script>
