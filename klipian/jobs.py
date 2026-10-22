@@ -989,7 +989,11 @@ def _transcribe_body(job_id: str, req: dict) -> None:
         # app's own model and language: asking for another one is asking for
         # a different transcript, so it always runs.
         if not req.get("force"):
-            found = cache.find_transcript(video, model, lang, gloss_path)
+            found, turned_down = cache.find_transcript_why(video, model, lang, gloss_path)
+            if found is None and turned_down:
+                with LOCK:
+                    t["note"] = ("An older transcript with this file name was not reused (" + turned_down[0]
+                                 + "): transcribing this file again.")
             if found is not None and (found == path or (
                     model == DEFAULT_MODEL and lang == DEFAULT_LANGUAGE)):
                 with LOCK:

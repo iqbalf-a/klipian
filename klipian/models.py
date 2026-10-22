@@ -123,6 +123,7 @@ class Transcript:
     language: str
     model: str
     segments: list[Segment] = field(default_factory=list)
+    source_size: int = 0            # bytes of the source file this was made from (0: an older transcript; see Cache.find_transcript)
     _words_cache: list[Word] | None = field(default=None, repr=False)
 
     @property
@@ -175,6 +176,7 @@ class Transcript:
             language=d["language"],
             model=d["model"],
             segments=segs,
+            source_size=int(d.get("source_size") or 0),
         )
 
     def save(self, path: Path) -> None:

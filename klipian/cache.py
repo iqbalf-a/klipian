@@ -9,7 +9,14 @@ again. With the cache, that cost is paid once per video.
 from __future__ import annotations
 
 import hashlib
+import json
+import sys
 from pathlib import Path
+
+# A fallback transcript (see Cache.find_transcript) is only reused for a file it plausibly belongs to: the same
+# size, or else the same length to within this many seconds.
+FALLBACK_DURATION_TOLERANCE = 0.5
+_REPORTED: set[tuple[str, str]] = set()                  # rejections already logged (once per transcript and file)
 
 
 def fingerprint(path: Path, extra: str = "") -> str:
@@ -85,8 +92,40 @@ class Cache:
         fp = fingerprint(video, extra=f"{round(start, 2)}|{round(end, 2)}")
         return self.root / f"{Path(video).stem}.{fp}.diarize.json"
 
+    def _fallback_fits(self, candidate: Path, video: Path) -> str:
+        """"" when this stored transcript plausibly belongs to `video`, else why not. A touched or re-saved copy
+        of the SAME video keeps its transcript (same size, or the same duration after a re-mux); another video
+        that merely has the same file name (two profiles) does not."""
+        try:
+            data = json.loads(candidate.read_text(encoding="utf-8"))
+            size, dur = int(data.get("source_size") or 0), float(data.get("duration") or 0)
+        except (OSError, ValueError, TypeError, AttributeError):
+            return "it cannot be read"
+        try:
+            have = Path(video).stat().st_size
+        except OSError:
+            return "the file is not there to compare with"
+        if size and size == have:
+            return ""
+        if not dur:
+            return "it records neither the size nor the duration of its source"
+        try:
+            from .ffmpeg_tools import probe
+            actual = probe(video).duration
+        except Exception:                                # noqa: BLE001 (no ffprobe, unreadable file)
+            return "the duration of the file could not be read"
+        if abs(actual - dur) <= FALLBACK_DURATION_TOLERANCE:
+            return ""
+        return f"duration {dur:.1f} vs {actual:.1f}"
+
     def find_transcript(self, video: Path, model: str | None = None,
                         language: str | None = None, glossary: Path | None = None) -> Path | None:
+        return self.find_transcript_why(video, model, language, glossary)[0]
+
+    def find_transcript_why(self, video: Path, model: str | None = None, language: str | None = None,
+                            glossary: Path | None = None) -> tuple[Path | None, list[str]]:
+        """find_transcript, plus why older transcripts of this name were NOT reused (empty when none was turned
+        down). The fallback rule is: the exact one, else the newest one of this name that fits THIS file."""
         """THE transcript for a video -- the one rule every reader uses
         (captions in a render, the brief, the editor, the CLI).
 
@@ -109,9 +148,19 @@ class Cache:
         except OSError:
             exact = None
         if exact is not None and exact.is_file():
-            return exact
+            return exact, []
         prefix = Path(video).stem + "."
         matches = sorted((p for p in self.root.glob("*.transcript.json")
                           if p.name.startswith(prefix)),
                          key=lambda p: p.stat().st_mtime, reverse=True)
-        return matches[0] if matches else None
+        rejected: list[str] = []
+        for p in matches:
+            why = self._fallback_fits(p, Path(video))
+            if not why:
+                return p, rejected
+            rejected.append(why)
+            mark = (p.name, str(video))
+            if mark not in _REPORTED:                    # old caches are never deleted; a rejection just means a fresh transcription
+                _REPORTED.add(mark)
+                print(f"[cache] fallback transcript for {Path(video).name} rejected: {why}", file=sys.stderr, flush=True)
+        return None, rejected

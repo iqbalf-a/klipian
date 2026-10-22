@@ -21,6 +21,7 @@ let analysisStop = null;
 async function startAnalysis({ force = false } = {}) {
   if (analysisStop) { analysisStop(); analysisStop = null; }
   hideTranscriptActions();
+  $("#transcribeNote")?.remove();
   $("#transcribePanel").hidden = false;
   $("#transcribeTitle").textContent = "Transcript";
   $("#transcribeLabel").textContent = "";
@@ -94,6 +95,14 @@ async function startAnalysis({ force = false } = {}) {
          `running ${timeRange(elapsed)}`,
          `~${timeRange(remaining)} left`]
     ).map((x) => `<span>${x}</span>`).join("");
+
+    if (t.note && !$("#transcribeNote")) {         // e.g. an older transcript of another file with this name was not reused
+      const n = document.createElement("p");
+      n.className = "step-note";
+      n.id = "transcribeNote";
+      n.textContent = t.note;
+      $("#transcribeStats").after(n);
+    }
 
     // Battery warning: the difference can be twofold, and the user deserves
     // to know before waiting -- not after.

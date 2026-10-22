@@ -4488,8 +4488,11 @@ def check_sched() -> tuple[str, str]:
             shutil.copy2(src_a / "twin.mp4", src_b / "twin.mp4")
         keys = {}
         for pid in ("sa", "sb"):
-            paths.set_profile(pid)
-            keys[pid] = (jobs.transcribe_key("episode.mp4"), jobs.transcribe_key("twin.mp4"), jobs.transcribe_key("nope.mp4"))
+            tok = paths.set_profile(pid)
+            try:
+                keys[pid] = (jobs.transcribe_key("episode.mp4"), jobs.transcribe_key("twin.mp4"), jobs.transcribe_key("nope.mp4"))
+            finally:
+                paths._profile.reset(tok)
         if keys["sa"][0] == keys["sb"][0]:
             problems.append("the same file NAME with different videos must not share a transcribe job")
         if keys["sa"][1] != keys["sb"][1]:
@@ -4498,14 +4501,109 @@ def check_sched() -> tuple[str, str]:
             problems.append("a missing file must not share a key across profiles")
     finally:
         sched.set_render_limit(saved_limit)
-        paths.set_profile(None)
 
     if problems:
         return FAIL, "\n      ".join(problems)
     return PASS, "AI jobs one at a time across profiles, renders 1 then 2, round-robin per batch item, waiting jobs show why and cancel, transcribe shared by file not name"
 
 
-CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched,
+# --------------------------------------------------------------------------
+# check: the transcript fallback (a transcript of another file with the same name is not reused)
+# --------------------------------------------------------------------------
+
+def check_fallback() -> tuple[str, str]:
+    """Cache.find_transcript falls back to the newest transcript of the same file NAME only when it plausibly
+    belongs to this file: same size, else the same duration (0.5 s); a transcript that records neither is
+    refused. Another video with the same name (two profiles), an old transcript of a different length and one
+    with no metadata give a fresh transcription; a touched copy and a re-muxed copy keep their transcript."""
+    import os
+    from .cache import Cache
+    from .ffmpeg_tools import _require, run
+    from .models import Transcript
+
+    problems: list[str] = []
+    ffmpeg = _require("ffmpeg")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        cache = Cache(root / "cache")
+
+        def make(folder: str, seconds: int, crf: str = "28") -> Path:
+            d = root / folder
+            d.mkdir(exist_ok=True)
+            out = d / "episode.mp4"
+            run([ffmpeg, "-y", "-loglevel", "error", "-f", "lavfi", "-i", f"testsrc=s=160x90:d={seconds}:r=10",
+                 "-f", "lavfi", "-i", f"sine=f=330:d={seconds}", "-shortest", "-pix_fmt", "yuv420p", "-crf", crf, str(out)],
+                desc="a test video", timeout=60)
+            return out
+
+        def store(name: str, duration: float, size: int) -> Path:
+            p = cache.root / f"episode.{name}.transcript.json"
+            Transcript(source="episode.mp4", duration=duration, language="id", model="m", segments=[],
+                       source_size=size).save(p)
+            return p
+
+        a = make("a", 3)
+        b = make("b", 7)
+        a_size, b_size = a.stat().st_size, b.stat().st_size
+        if a_size == b_size:
+            problems.append("test setup: the two videos should differ in size")
+        mine = store("mine", 3.0, a_size)
+
+        got, why = cache.find_transcript_why(a)
+        if got != mine:
+            problems.append(f"the same video (same size) should find its transcript: {got} {why}")
+        got, why = cache.find_transcript_why(b)
+        if got is not None or not why or "duration" not in why[0]:
+            problems.append(f"another video with the same name must not get it, and say why: {got} {why}")
+
+        touched = root / "touched"
+        touched.mkdir()
+        tcopy = touched / "episode.mp4"
+        shutil.copy2(a, tcopy)
+        os.utime(tcopy, (time.time() + 99, time.time() + 99))
+        if cache.find_transcript(tcopy) != mine:
+            problems.append("a touched copy (same size, new mtime) should keep the transcript")
+
+        remux = make("remux", 3, crf="40")                   # another size, the same length
+        if remux.stat().st_size == a_size:
+            problems.append("test setup: the re-encoded video should differ in size")
+        if cache.find_transcript(remux) != mine:
+            problems.append("a re-saved copy with another size but the same duration should keep the transcript")
+
+        # a transcript with no size (made before sizes were kept): the duration decides
+        mine.unlink()
+        old = store("old", 3.0, 0)
+        if cache.find_transcript(remux) != old:
+            problems.append("an older transcript without a size but with the right duration should be accepted")
+        if cache.find_transcript(b) is not None:
+            problems.append("an older transcript without a size and another duration must be refused")
+        # neither size nor duration: refused, with the reason
+        old.unlink()
+        bare = store("bare", 0.0, 0)
+        got, why = cache.find_transcript_why(a)
+        if got is not None or not why or "neither" not in why[0]:
+            problems.append(f"a transcript that records neither size nor duration must be refused: {got} {why}")
+        bare.unlink()
+        # the exact one always wins, and a missing file cannot be compared
+        from .paths import GLOSSARY
+        exact = cache.transcript_path(a, "mm", "id", GLOSSARY if GLOSSARY.is_file() else None)
+        Transcript(source="x", duration=99.0, language="id", model="mm", segments=[]).save(exact)
+        if cache.find_transcript(a, "mm", "id") != exact:
+            problems.append("the exact transcript must be used whatever it records")
+        store("again", 3.0, a_size)
+        if cache.find_transcript(root / "nowhere" / "episode.mp4") is not None:
+            problems.append("without the file there is nothing to compare: no fallback")
+        # new transcripts keep the size
+        t = Transcript(source="x", duration=1.0, language="id", model="m", segments=[], source_size=1234)
+        if Transcript.from_dict(t.to_dict()).source_size != 1234 or "source_size" not in t.to_dict():
+            problems.append("a transcript must keep the size of its source through save and load")
+
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "same name + other video refused (with the reason), touched and re-muxed copies and old duration-only transcripts accepted, nothing recorded refused"
+
+
+CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback,
           "decode": check_decode, "render": check_render}
 
 

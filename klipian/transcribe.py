@@ -182,10 +182,15 @@ def transcribe(
         speed = total / work if work else 0.0
         print(f"  process  : {fmt_duration(work)}  ({speed:.1f}x realtime)")
 
+    try:
+        size = Path(source_label).stat().st_size if source_label else 0     # which file this is, for Cache.find_transcript
+    except OSError:
+        size = 0
     return Transcript(
         source=source_label or str(audio),
         duration=total,
         language=info.language or language,
         model=model_size,
         segments=segments,
+        source_size=size,
     )
