@@ -867,6 +867,26 @@ async function renderSavedResults(resultIds, { note = "" } = {}) {
             : `${scheduled.length} in the upload schedule`}` : "")
           + (warnings.length ? ` · ${warnings[0]}` : "") + refusedNote,
         !!bad);
+      // ONE notice for the whole job (Render all / Render selected / one clip), from the tab that watched it: a chime,
+      // a toast, the tab title when hidden, and the status bar flashes. Stopped by the person: only the toast.
+      const stoppedByYou = cancelled.length && !done.length && !failed.length;
+      const parts = [`${done.length} clip${done.length === 1 ? "" : "s"}`];
+      if (failed.length) parts.push(`${failed.length} failed`);
+      if (cancelled.length) parts.push(`${cancelled.length} cancelled`);
+      const first = done.find((x) => x.output?.folder);
+      const onHistory = typeof activeScreen !== "undefined" && activeScreen === "history";
+      if (typeof notifyDone === "function") {
+        notifyDone({
+          key: `render:${reply.id}`, kind: bad || failed.length ? "failure" : "success", quiet: !!stoppedByYou,
+          title: bad ? "Render failed" : stoppedByYou ? "Render cancelled" : "Render finished",
+          body: bad ? (t.error || failed[0]?.error || "") : parts.join(" · "),
+          action: onHistory
+            ? (first ? { label: "Open folder", onClick: () => fetch("/api/open-folder", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ folder: first.output.folder }) }) } : null)
+            : { label: "Open History", onClick: () => toScreen("history") },
+        });
+      }
+      const bar = $("#renderStatus");
+      if (bar) { bar.classList.remove("flash"); void bar.offsetWidth; bar.classList.add("flash"); setTimeout(() => bar.classList.remove("flash"), 2400); }
     },
   });
 }

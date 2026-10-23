@@ -132,11 +132,16 @@ async function startAnalysis({ force = false } = {}) {
       paint(t);
       if (t.state === "failed") {
         $("#transcribeStats").innerHTML = `<span>Failed: ${escapeHTML(t.error)}</span>`;
+        if (typeof notifyDone === "function") notifyDone({ key: `tr:${id}`, kind: "failure", title: "Transcription failed", body: String(t.error || name) });
         return;
       }
       if (t.state === "cancelled") {
         $("#transcribeStats").innerHTML = "<span>Cancelled: it was still waiting for its turn</span>";
         return;
+      }
+      if (!t.cached && typeof notifyDone === "function") {
+        notifyDone({ key: `tr:${id}`, title: "Transcription finished", body: name,
+          action: { label: "Go to Clips", onClick: () => toScreen("clips") } });
       }
       $("#transcribeStats").innerHTML = t.cached
         ? "<span>ready</span><span>transcript loaded from cache</span>"

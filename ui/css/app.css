@@ -731,6 +731,17 @@ h1, h2, h3 {
   overflow-wrap: anywhere;
 }
 .render-status-text { margin: 0; flex: 1; min-width: 0; }
+/* The queue's bar lights up for a moment when the render ends (player.js). */
+.render-status.flash { animation: render-flash 2.4s ease-out; }
+@keyframes render-flash {
+  0%, 30% { box-shadow: 0 0 0 2px var(--accent); background: color-mix(in srgb, var(--accent) 16%, var(--glass)); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@media (prefers-reduced-motion: reduce) { .render-status.flash { animation: none; } }
+.notify-settings { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; padding-top: 8px; border-top: 1px solid var(--glass-border); }
+.notify-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.notify-row select { margin-left: auto; }
+.notify-note { margin: 0; font-size: 11px; color: var(--text-faint); }
 .render-status > .btn { flex: none; margin-left: auto; }
 .render-status.failed {
   border-color: color-mix(in srgb, var(--danger) 45%, transparent);

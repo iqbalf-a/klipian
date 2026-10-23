@@ -231,14 +231,16 @@ function _ytFollow(id, kind) {
       _ytShow({ card: !!_ytPreview, bar: true, busy: false });
       _ytq("[data-bar] i").style.width = "100%";
       _ytSay(`Added as ${s.name}.` + (s.creditWritten ? " The source credit is filled in." : ""));
-      if (!open) showToast?.(`Downloaded ${s.name}`);
+      if (typeof notifyDone === "function") notifyDone({ key: `dl:${id}`, title: "Download finished", body: s.name });
+      else if (!open) showToast?.(`Downloaded ${s.name}`);
       _ytOnAdded?.(s.name);
     } else if (s.state === "cancelled") {
       _ytShow({ card: !!_ytPreview, go: !!_ytPreview, busy: false });
       _ytSay("Cancelled. Nothing was kept.");
     } else {
       _ytShow({ card: !!_ytPreview, go: !!_ytPreview, busy: false });
-      if (!open) showToast?.(s.message || "The YouTube download failed");
+      if (typeof notifyDone === "function") notifyDone({ key: `dl:${id}`, kind: "failure", title: "Download failed", body: s.message || "" });
+      else if (!open) showToast?.(s.message || "The YouTube download failed");
       _ytProblem({ error: s.message, code: s.code, command: s.command, detail: s.detail, report: s.report });
     }
   };

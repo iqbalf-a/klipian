@@ -278,6 +278,7 @@ async function startAutoCaption(btn) {
       if (t.state === "failed") {
         if (note) note.textContent = `Transcription failed: ${t.error}`;
         if (btn) btn.disabled = false;
+        if (typeof notifyDone === "function") notifyDone({ key: `tr:${id}`, kind: "failure", title: "Transcription failed", body: String(t.error || video) });
         return;
       }
       if (t.state === "cancelled") {
@@ -285,6 +286,7 @@ async function startAutoCaption(btn) {
         if (btn) btn.disabled = false;
         return;
       }
+      if (!t.cached && typeof notifyDone === "function") notifyDone({ key: `tr:${id}`, title: "Transcription finished", body: video });
       // done: transcript is already in cache/, just load it client-side.
       if (typeof findTranscript === "function") {
         realTranscript = await findTranscript(video);

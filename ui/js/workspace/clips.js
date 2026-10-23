@@ -1038,6 +1038,7 @@ async function ytBulkSaveSchedule(items) {
    for the rest. */
 async function ytBulkWatch() {
   const list = $("#ytBulkList"), note = $("#ytBulkNote");
+  const watched = ytBulk.jobId;
   for (;;) {
     await new Promise((r) => setTimeout(r, 1000));
     let s;
@@ -1050,10 +1051,21 @@ async function ytBulkWatch() {
     ytBulkMode("ended");
     ytBulk.jobId = null;
     await loadClips();
-    const done = (s.rows || []).filter((r) => r.state === "done").length;
-    showToast(`${done} clip${done === 1 ? "" : "s"} ${s.mode === "now" ? "published on" : "uploaded to"} YouTube`
-      + (s.state === "stopped" && s.note ? `. Stopped: ${s.note}` : ""),
-      { ms: s.detail ? 20000 : 8000, detail: s.detail ? { text: s.detail, report: s.report } : null });
+    // ONE notice at the end of the queue (Schedule and Publish now alike): "5 sent · 1 failed · 2 not sent", with why it stopped.
+    const rows = s.rows || [];
+    const sent = rows.filter((r) => r.state === "done").length;
+    const failedRows = rows.filter((r) => r.state === "failed").length;
+    const notSent = rows.filter((r) => r.state === "pending" || r.state === "skipped").length;
+    const bits = [`${sent} ${s.mode === "now" ? "published" : "sent"}`];
+    if (failedRows) bits.push(`${failedRows} failed`);
+    if (notSent) bits.push(`${notSent} not sent`);
+    notifyDone({
+      key: `ytbulk:${watched}`,
+      title: s.state === "stopped" ? "Upload stopped" : s.state === "cancelled" ? "Upload cancelled" : "Upload finished",
+      body: bits.join(" · ") + (s.state === "stopped" && s.note ? `. ${s.note}` : ""),
+      kind: s.state === "stopped" || failedRows ? "failure" : "success", quiet: s.state === "cancelled", ms: s.detail ? 20000 : 12000,
+      detail: s.detail ? { text: s.detail, report: s.report } : null,
+    });
     return;
   }
 }
@@ -1186,17 +1198,21 @@ async function ytPoll(jobId, rowId) {
     await loadClips();
     const c = CLIPS.find((x) => x.id === rowId);
     if (s.state === "done") {
-      showToast(`Uploaded to YouTube: ${c?.title || "clip"}${s.warning ? " — see the note" : ""}`, { ms: 10000 });
+      notifyDone({ key: `ytup:${jobId}`, title: "Upload finished", body: `${c?.title || "clip"}${s.warning ? " — see the note" : ""}`, ms: 10000 });
       if (clipDialog.open && clipDialog.dataset.id === rowId) {
         await refreshYouTubeSection(c);
         ytMsg(`${s.status}: ${s.url}${s.warning ? " — " + s.warning : ""}`);
       }
       else if (s.warning) clipNotice(`${c?.title || "Clip"}: ${s.warning}`);
-    } else if (clipDialog.open && clipDialog.dataset.id === rowId) {
-      cancel.hidden = true; bar.hidden = true; btn.disabled = false;
-      ytMsg(s.state === "cancelled" ? "Upload cancelled. Nothing was published." : (s.message || "The upload failed."), s.detail, s.report);
-    } else if (s.state === "failed") {
-      showToast(`${c?.title || "Clip"}: ${s.message || "the upload failed."}`, { ms: 20000, detail: s.detail ? { text: s.detail, report: s.report } : null });
+    } else {
+      if (clipDialog.open && clipDialog.dataset.id === rowId) {
+        cancel.hidden = true; bar.hidden = true; btn.disabled = false;
+        ytMsg(s.state === "cancelled" ? "Upload cancelled. Nothing was published." : (s.message || "The upload failed."), s.detail, s.report);
+      }
+      if (s.state === "failed") {
+        notifyDone({ key: `ytup:${jobId}`, kind: "failure", title: "Upload failed", body: `${c?.title || "Clip"}: ${s.message || "the upload failed."}`,
+          ms: 20000, detail: s.detail ? { text: s.detail, report: s.report } : null });
+      }
     }
     return;
   }
