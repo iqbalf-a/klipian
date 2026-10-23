@@ -884,8 +884,6 @@
         <div class="work-head">
           <h1>Render history</h1>
           <span class="note" id="historyNote" role="status">loading …</span>
-          <button class="btn right" id="queueCancelAll" type="button" hidden>Cancel all</button>
-          <button class="btn right" id="historyReloadBtn">Reload</button>
         </div>
         <!-- Render outcomes go HERE, not into #historyNote. That span is
              .work-head .note -- nowrap + ellipsis, and it measures 0px wide
@@ -895,12 +893,21 @@
              was written after toScreen("history") had already kicked off an
              async loadHistory(), which then overwrote it. #historyNote is
              now loadHistory()'s alone; this box wraps and holds the rest. -->
-        <p class="render-status" id="renderStatus" role="status" hidden></p>
+        <!-- The queue's status bar: the counts and the time left on the left, the action on the queue (Cancel all, only
+             while 2 or more clips are unfinished) on the right. -->
+        <div class="render-status" id="renderStatus" hidden>
+          <p class="render-status-text" id="renderStatusText" role="status"></p>
+          <button class="btn danger sm" id="queueCancelAll" type="button" hidden>Cancel all</button>
+        </div>
         <!-- currently rendering, above finished files -->
         <div class="panel fit"><div class="list" id="queueList"></div></div>
       
 
         <div class="panel fit">
+          <div class="history-head">
+            <span class="eyebrow">Finished renders</span>
+            <button class="btn sm quiet" id="historyReloadBtn" type="button" title="Read the out/ folder again (it also refreshes when a render finishes and when you open this screen)">↻ Refresh</button>
+          </div>
           <div class="history-list" id="historyList"></div>
           <div id="historyPager" hidden></div>
         </div>

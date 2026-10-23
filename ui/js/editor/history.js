@@ -37,10 +37,12 @@ async function loadHistory() {
     const mine = HISTORY.filter(isThisProject);
     const mb = mine.reduce((t, r) => t + r.mb, 0);
     const others = HISTORY.length - mine.length;
-    note.textContent = (mine.length
+    // While a queue runs, "nothing rendered yet" would read oddly next to it: say what is rendering instead.
+    const busy = typeof QUEUE !== "undefined" ? QUEUE.filter((r) => r.pct !== 100 && !/cancel|lost|failed|needs/i.test(r.note || "")).length : 0;
+    const finished = mine.length
       ? `${mine.length} file${mine.length > 1 ? "s" : ""} in this project · ${mb.toFixed(1)} MB`
-      : "nothing rendered in this project yet")
-      + (others ? ` · ${others} in other projects` : "");
+      : (busy ? "nothing finished in this project yet" : "nothing rendered in this project yet");
+    note.textContent = (busy ? `${busy} rendering · ` : "") + finished + (others ? ` · ${others} in other projects` : "");
   }
   renderHistory();
 }

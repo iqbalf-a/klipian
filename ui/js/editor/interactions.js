@@ -306,8 +306,14 @@ $("#queueList")?.addEventListener("click", (e) => {
 });
 
 /* Cancel all: the clip that is rendering stops and nothing after it starts. */
-$("#queueCancelAll")?.addEventListener("click", () => {
+$("#queueCancelAll")?.addEventListener("click", async () => {
   if (typeof renderJobId === "undefined" || !renderJobId) return;
+  const open = QUEUE.filter((r) => r.pct !== 100 && !/cancel/i.test(r.note || "")).length;
+  const go = await confirmDialog({
+    title: `Cancel ${open} render${open === 1 ? "" : "s"}?`, tone: "danger", confirmText: "Cancel all", cancelText: "Keep rendering",
+    message: "The clip that is rendering now stops and the queued ones will not start. Files that are already finished are kept.",
+  });
+  if (!go || typeof renderJobId === "undefined" || !renderJobId) return;       // it may have finished while the dialog was open
   QUEUE.forEach((r) => { if (r.pct !== 100) r.note = "cancelling…"; });
   drawQueue();
   fetch("/api/render/cancel", {

@@ -720,6 +720,7 @@ h1, h2, h3 {
    has to show is an ffmpeg error, and those are long. */
 .render-status {
   flex: none;
+  display: flex; align-items: center; gap: var(--s4);
   margin: 0 0 var(--s3);
   padding: var(--s3) var(--s4);
   border-radius: var(--r-m);
@@ -729,6 +730,8 @@ h1, h2, h3 {
   font-size: 13px; line-height: 1.5;
   overflow-wrap: anywhere;
 }
+.render-status-text { margin: 0; flex: 1; min-width: 0; }
+.render-status > .btn { flex: none; margin-left: auto; }
 .render-status.failed {
   border-color: color-mix(in srgb, var(--danger) 45%, transparent);
   background: color-mix(in srgb, var(--danger) 12%, transparent);
@@ -912,10 +915,15 @@ h1, h2, h3 {
    panel's overflow:hidden edge, where it was invisible AND unclickable.
    This used to be an inline style on the element in drawQueue(). */
 .queue-row {
-  grid-template-columns: minmax(0, 1fr) auto auto auto auto auto;
+  /* Fixed tracks, so every row's columns line up whatever its text: title | picture | length | bar | state | action */
+  grid-template-columns: minmax(0, 1fr) 190px 52px 220px 170px 108px;
   gap: var(--s4);
+  align-items: center;
 }
 .queue-row .title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.queue-row .meta { text-align: right; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.queue-row .progress { width: 100%; }
+.queue-row > .btn { justify-self: end; }
 /* Below this the six columns simply do not fit: the progress bar alone is
    190px. Title on top, the rest underneath. */
 @media (max-width: 1100px) {
@@ -2250,9 +2258,11 @@ h1, h2, h3 {
 .history-list { padding: var(--s3) var(--s5) var(--s4); }
 /* The pager lines up with the rows above it instead of touching the panel's edge. */
 #historyPager.pager { padding: var(--s3) var(--s5) var(--s4); border-top: 1px solid var(--glass-border); }
+.history-head { display: flex; align-items: center; padding: var(--s3) var(--s5) 0; }
+.history-head .btn { margin-left: auto; }
 .history-row {
   display: grid;
-  grid-template-columns: 1fr auto auto auto auto auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 260px) 84px 92px 76px 112px;
   align-items: center; gap: var(--s3);
   padding: 10px var(--s3);
   border-radius: var(--r-s);
@@ -2263,8 +2273,9 @@ h1, h2, h3 {
   font-weight: 600; font-size: 14px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.history-video { color: var(--text-faint); }
-.history-mb, .history-when { color: var(--text-muted); }
+.history-video { color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-mb, .history-when { color: var(--text-muted); text-align: right; font-variant-numeric: tabular-nums; }
+.history-row > .btn { justify-self: end; }
 .work-head .btn.right { margin-left: auto; }
 
 

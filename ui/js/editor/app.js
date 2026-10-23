@@ -715,10 +715,10 @@ function pollJob(url, { interval = 800, onTick, onDone, onFail, maxFailures = 5 
    #renderStatus in index.html for the race and the clipping this fixes.
    `failed` switches it to the danger styling. */
 function renderStatus(text, failed) {
-  const el = $("#renderStatus");
-  if (!el) return;
-  if (!text) { el.hidden = true; el.textContent = ""; el.classList.remove("failed"); return; }
-  el.textContent = text;
+  const el = $("#renderStatus"), out = $("#renderStatusText");
+  if (!el || !out) return;
+  if (!text) { el.hidden = true; out.textContent = ""; el.classList.remove("failed"); return; }
+  out.textContent = text;
   el.classList.toggle("failed", !!failed);
   el.hidden = false;
 }
