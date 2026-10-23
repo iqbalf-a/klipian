@@ -118,8 +118,10 @@ h1, h2, h3 {
      downward from the topbar (into the .stage row area) gets painted over
      by .stage/.preview no matter how high the popover's own z-index is,
      because z-index is only compared WITHIN the same stacking context.
-     Lifting .topbar itself is what truly closes this gap. */
-  position: relative; z-index: 20;
+     Lifting .topbar itself is what truly closes this gap. It must also stay
+     ABOVE the sticky .work-head of each screen (z-index 30), or the "?" panel
+     and the profile menu get covered where they overlap that header. */
+  position: relative; z-index: 40;
 }
 /* Save + its status moved INTO the project (.side-foot, sidebar) -- see
    that rule further down. Save acts on ONE project; the topbar is
