@@ -44,7 +44,6 @@ _load_lock = threading.Lock()
 
 
 def _load_pipeline():
-    global _pipeline
     if _pipeline is not None:
         return _pipeline
 

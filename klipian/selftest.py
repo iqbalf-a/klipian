@@ -62,6 +62,7 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+import os
 import sys
 import tempfile
 import time
@@ -894,6 +895,57 @@ def _real_project_assets(pid: str) -> Path | None:
     return None
 
 
+def _pid_alive(pid: int) -> bool:
+    """Is a process with this id running? (os.kill(pid, 0) would TERMINATE it on Windows, so ask the system.)"""
+    if pid <= 0:
+        return False
+    if sys.platform == "win32":
+        import ctypes
+        kernel = ctypes.windll.kernel32
+        handle = kernel.OpenProcess(0x1000, False, pid)           # PROCESS_QUERY_LIMITED_INFORMATION
+        if not handle:
+            return False
+        try:
+            code = ctypes.c_ulong()
+            return bool(kernel.GetExitCodeProcess(handle, ctypes.byref(code))) and code.value == 259    # STILL_ACTIVE
+        finally:
+            kernel.CloseHandle(handle)
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
+STALE_SELFTEST_SECONDS = 3600
+
+
+def sweep_stale_scratch(real: Path, now: float | None = None) -> list[str]:
+    """Delete the scratch workspaces (.selftest-*) of runs that were killed: older than an hour AND not owned by a
+    running process (each live run keeps its pid in .selftest.pid). They hold only throw-away files: hardlinks and
+    copies of the fixtures' videos and what the checks rendered, so they are deleted, not sent to the Recycle Bin
+    (a hardlink removed here leaves the original alone). Returns the names removed."""
+    import time as _time
+    now = now or _time.time()
+    removed = []
+    for d in sorted(Path(real).glob(".selftest-*")):
+        try:
+            if not d.is_dir() or now - d.stat().st_mtime < STALE_SELFTEST_SECONDS:
+                continue
+            try:
+                pid = int((d / ".selftest.pid").read_text(encoding="utf-8").strip())
+            except (OSError, ValueError):
+                pid = 0
+            if pid and _pid_alive(pid):
+                continue
+            shutil.rmtree(d, ignore_errors=True)
+            if not d.exists():
+                removed.append(d.name)
+        except OSError:
+            continue
+    return removed
+
+
 @contextlib.contextmanager
 def scratch_workspace():
     """Run the checks in a throwaway workspace with one profile ("selftest"), never in
@@ -906,7 +958,11 @@ def scratch_workspace():
 
     real = paths.DEFAULT_WORKSPACE
     real.mkdir(parents=True, exist_ok=True)
+    gone = sweep_stale_scratch(real)
+    if gone:
+        print(f"  (removed {len(gone)} stale scratch folder{'s' if len(gone) != 1 else ''} of killed runs: {', '.join(gone)})")
     tmp = Path(tempfile.mkdtemp(prefix=".selftest-", dir=real))
+    (tmp / ".selftest.pid").write_text(str(os.getpid()), encoding="utf-8")        # this run is alive: do not sweep it
     paths.use_workspace(tmp)
     token = paths.set_profile("selftest")
     profiles.write_meta("selftest", {"name": "selftest", "color": "#888888"})
@@ -1115,7 +1171,6 @@ def check_profiles() -> tuple[str, str]:
             paths._profile.reset(tok)
 
         # --- a job keeps its profile when the tab switches
-        src = paths.DEFAULT_WORKSPACE
         have = (paths.profile_dir("selftest") / "sources")
         video = next((p.name for p in have.glob("*.mp4")), None) if have.is_dir() else None
         if video:
@@ -2150,7 +2205,6 @@ def check_ytdl() -> tuple[str, str]:
     import http.client
     import importlib.util
     import io
-    import os
     import threading
     from http.server import ThreadingHTTPServer
     from unittest import mock
@@ -3455,7 +3509,7 @@ def check_claude() -> tuple[str, str]:
     from datetime import datetime, timezone
     from http.server import ThreadingHTTPServer
     from types import SimpleNamespace as NS
-    from . import claude_api as ca, paths, profiles, roundtrip
+    from . import claude_api as ca, paths, profiles
     from .cache import Cache
     from .models import Transcript
     from .server import Handler
@@ -4126,7 +4180,6 @@ def check_resultpost() -> tuple[str, str]:
     credit context, the rubric's three sections and the hashtag rule; a rubric without a section is refused by name; a
     reply fills every field (tags normalised, note times in seconds), the .replace slip is repaired, a missing key is
     reported by name."""
-    import copy
     import re
     from . import roundtrip
 
@@ -4323,6 +4376,7 @@ def check_sched() -> tuple[str, str]:
                 live["n"] -= 1
 
     saved_limit = sched.render_limit()
+    sched.reset_for_tests()                               # nothing left by an earlier check
     try:
         # --- the setting: default 1, only 1 or 2, kept in a global file
         sched.set_render_limit(1)
@@ -4373,16 +4427,21 @@ def check_sched() -> tuple[str, str]:
         log.clear()
         live.update(n=0, max=0)
         hs = [threading.Event() for _ in range(3)]
-        ths = [in_profile("sa", work, sched.GROUP_RENDER, "render", f"r{i}", hs[i], f"R{i}") for i in range(3)]
+        # Started one at a time, each seen in the queue before the next starts: the order of arrival is then fixed
+        # (threads started together can reach the scheduler in either order, which is what once made this flaky).
+        ths = [in_profile("sa", work, sched.GROUP_RENDER, "render", "r0", hs[0], "R0")]
         until(lambda: "R0" in log)
+        for i in (1, 2):
+            ths.append(in_profile("sa", work, sched.GROUP_RENDER, "render", f"r{i}", hs[i], f"R{i}"))
+            until(lambda i=i: len(sched.snapshot()["render"]["waiting"]) == i)
         time.sleep(0.2)
         if live["max"] != 1 or log != ["R0"]:
             problems.append(f"renders must run one at a time by default: {log} max {live['max']}")
         sched.set_render_limit(2)
         until(lambda: len(log) == 2)
         time.sleep(0.2)
-        if live["max"] != 2 or sorted(log) != ["R0", "R1"]:
-            problems.append(f"raising the limit to 2 should start exactly one more at once: {log} max {live['max']}")
+        if live["max"] != 2 or log != ["R0", "R1"]:
+            problems.append(f"raising the limit to 2 should start exactly the next one in line: {log} max {live['max']}")
         for h in hs:
             h.set()
         for th in ths:
@@ -4816,8 +4875,85 @@ progress=end
     return PASS, "progress lines parsed, 60/40 weights, 99 held until done, ~4 updates/s, ETA initial/real/smoothed/hidden, batch total, same bytes with the flags, cancel kills ffmpeg, layout words match in Python and JS"
 
 
-CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress,
+# --------------------------------------------------------------------------
+# check: the selftest's own housekeeping (stale scratch folders)
+# --------------------------------------------------------------------------
+
+def check_scratch() -> tuple[str, str]:
+    """Scratch workspaces of killed runs are swept (older than an hour and not owned by a running process), a live
+    run's folder and a fresh one are not, and a hardlink inside one is removed without touching its original."""
+    import os
+    problems: list[str] = []
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        now = time.time()
+
+        def make(name: str, age_s: float, pid: int | None) -> Path:
+            d = root / name
+            d.mkdir()
+            (d / "x.txt").write_text("x", encoding="utf-8")
+            if pid is not None:
+                (d / ".selftest.pid").write_text(str(pid), encoding="utf-8")
+            os.utime(d, (now - age_s, now - age_s))
+            return d
+
+        original = root / "original.mp4"
+        original.write_bytes(b"video")
+        old_dead = make(".selftest-olddead", 7200, 4_000_000)           # no such process
+        old_nopid = make(".selftest-oldnopid", 7200, None)
+        old_live = make(".selftest-oldlive", 7200, os.getpid())         # this very process: alive
+        fresh = make(".selftest-fresh", 60, 4_000_000)
+        other = make("not-a-scratch", 7200, None)
+        try:
+            os.link(original, old_dead / "link.mp4")
+        except OSError:
+            shutil.copy2(original, old_dead / "link.mp4")
+            os.utime(old_dead, (now - 7200, now - 7200))
+        os.utime(old_dead, (now - 7200, now - 7200))
+        removed = sweep_stale_scratch(root, now)
+        if sorted(removed) != [".selftest-olddead", ".selftest-oldnopid"] or old_dead.exists() or old_nopid.exists():
+            problems.append(f"old folders of dead runs should be removed: {removed}")
+        if not old_live.exists() or not fresh.exists() or not other.exists():
+            problems.append("a live run's folder, a fresh one and any other folder must stay")
+        if original.read_bytes() != b"video":
+            problems.append("removing a hardlink must leave the original alone")
+        if not _pid_alive(os.getpid()) or _pid_alive(4_000_000) or _pid_alive(0):
+            problems.append("_pid_alive should know this process from a missing one")
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "stale .selftest-* folders swept (old and not alive), live and fresh ones kept, hardlinks harmless"
+
+
+CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch,
           "decode": check_decode, "render": check_render}
+
+
+def _global_state() -> dict:
+    """The shared state a check could leave behind: the profile and workspace in force, the scheduler's queues and
+    limit, the seams that tests replace (Google, the clock, render and transcribe bodies) and the job registries."""
+    from . import jobs, paths, sched, youtube
+    return {
+        "profile": paths.current_profile(),
+        "workspace": str(paths.workspace_dir()),
+        "sched": repr(sched.snapshot()),
+        "render limit": sched.render_limit(),
+        "youtube._net": id(youtube._net), "youtube._now": id(youtube._now), "youtube._sleep": id(youtube._sleep),
+        "youtube._LOCAL_TZ": repr(youtube._LOCAL_TZ), "youtube._RATE_PAUSES": repr(youtube._RATE_PAUSES),
+        "jobs._render_body": id(jobs._render_body), "jobs._transcribe_body": id(jobs._transcribe_body),
+        "jobs._transcribe_needs_work": id(jobs._transcribe_needs_work),
+        "jobs.ACTIVE_TRANSCRIBES": repr(sorted(jobs.ACTIVE_TRANSCRIBES.items())),
+        "jobs.CANCELLED": repr(sorted(jobs.CANCELLED)),
+    }
+
+
+def _restore_global_state(before: dict) -> None:
+    """After a leak was reported: put the scheduler back at least, so the next check starts clean."""
+    from . import sched
+    sched.reset_for_tests()
+    try:
+        sched.set_render_limit(before["render limit"])
+    except (ValueError, OSError):
+        pass
 
 
 def run(only: list[str] | None = None, write_expected: bool = False) -> int:
@@ -4827,11 +4963,19 @@ def run(only: list[str] | None = None, write_expected: bool = False) -> int:
     with scratch_workspace():
         for name in names:
             print(f"  {name:<8} ", end="", flush=True)
+            before = _global_state()
             try:
                 status, detail = (check_migrate(write_expected) if name == "migrate"
                                   else CHECKS[name]())
             except Exception as exc:               # noqa: BLE001
                 status, detail = FAIL, f"raised {type(exc).__name__}: {exc}"
+            # A check must leave the process's shared state as it found it, or the next check inherits it.
+            after = _global_state()
+            leaked = sorted(k for k in before if before[k] != after[k])
+            if leaked:
+                status = FAIL
+                detail += "\n      left global state changed: " + ", ".join(f"{k} ({before[k]!r} -> {after[k]!r})" for k in leaked)
+                _restore_global_state(before)
             print(f"{status}  {detail}")
             failed = failed or status == FAIL
     print()

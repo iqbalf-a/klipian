@@ -339,7 +339,7 @@ def _redact(text: str) -> str:
 _WHAT: contextvars.ContextVar[str] = contextvars.ContextVar("klipian_youtube_what", default="")
 
 
-def _now() -> "dt.datetime":
+def _now():
     """Seam: the current moment, timezone-aware (tests replace it)."""
     import datetime as dt
     return dt.datetime.now(dt.timezone.utc)
@@ -666,7 +666,6 @@ def _publish_at(row: dict, publish_now: bool, bulk: bool = False):
 def prepare(row: dict, publish_now: bool = False, probe_video: bool = True, bulk: bool = False) -> dict:
     """Everything an upload of this row needs, checked: {file, body, publishAt}. Raises
     YouTubeError("not_ready", ...) saying what is missing. Used by single and bulk upload."""
-    import re
     from . import schedule
     if row.get("videoId"):
         raise YouTubeError("already", f"This clip was already uploaded (video {row['videoId']}). Uploading it "

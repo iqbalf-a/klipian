@@ -61,7 +61,7 @@ from . import youtube as _youtube
 from . import ytdl as _ytdl
 from . import profiles as _profiles
 from . import buildid as _buildid  # noqa: F401  (STARTED is taken here, at start)
-from .paths import (ASSETS, CACHE_DIR, OUT_ROOT, ROOT, SOURCES, WORKSPACE, find_video,
+from .paths import (ASSETS, CACHE_DIR, OUT_ROOT, ROOT, SOURCES, find_video,
                     safe_dirname)
 from .projects import (PROJECTS, PROJECTS_LOCK, _all_projects,
                        _free_name, _migrate_project, _new_project_id, _primary_video,
@@ -1857,13 +1857,13 @@ class Handler(BaseHTTPRequestHandler):
         try:
             req = self._read_json()
             name = str(req.get("video") or "")
-            transcript = _transcript_for(name)
         except Exception as exc:               # noqa: BLE001
             return self._send_json({"error": str(exc)}, 400)
-        # No transcript is not an error here: the cut points just aren't snapped.
+        # No transcript is not an error here: the cut points just aren't snapped. _import_reply reads it (once); a
+        # transcript that cannot be read is answered the way it always was: a 400 with the message.
         try:
             candidates, notes = _import_reply(name, str(req.get("text") or ""))
-        except ValueError as exc:
+        except (ValueError, OSError, KeyError, TypeError) as exc:
             return self._send_json({"error": str(exc)}, 400)
         # `notes`: what was repaired in the JSON (a .replace(" ", "") or a trailing comma), to be said
         return self._send_json({"candidates": candidates, "notes": notes})
@@ -2237,7 +2237,6 @@ def _sweep_temp() -> int:
     by _run_transcribe. wavs from `klipian transcribe --keep-audio` use a
     16-hex fingerprint and are intentionally kept by the user, don't
     delete those."""
-    import re
     n = 0
     # Half-uploaded videos (Add video, interrupted by closing the server).
     for part in SOURCES.glob("*.part"):

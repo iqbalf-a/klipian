@@ -482,7 +482,7 @@ def cmd_cues(args: argparse.Namespace) -> int:
     lines = [f"# Cues to listen to: {video.name}", "",
              f"- sound cues: {status['audio']}; timing cues: {status['timing']}"
              + (f"; transcript: {tpath.name}" if tpath else "; no transcript (words column empty)"),
-             f"- selection: " + ", ".join(filter(None, [
+             "- selection: " + ", ".join(filter(None, [
                  f"kind {args.kind}" if args.kind else "", f"level {args.level}" if args.level else "",
                  f"near {', '.join(args.at)}" if at else f"top {args.top} of each kind"])),
              "", "| clip | kind | time | length | level | score | words around it |", "|---|---|---|---|---|---|---|"]

@@ -236,7 +236,7 @@ def place_source(tmp: Path, dest: Path) -> dict:
     root = paths.PROFILES_DIR
     same_file = None                                  # (profile id, the other file)
     if root.is_dir():
-        mine = tmp_hash = None
+        tmp_hash = None
         for other in sorted(root.iterdir()):
             folder = other / "sources"
             if other.name == paths.current_profile() or not folder.is_dir():

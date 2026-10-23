@@ -201,6 +201,19 @@ def slot(group: str, kind: str, job_id: str, cancelled: Callable[[], bool] = lam
             release(t)
 
 
+def reset_for_tests() -> None:
+    """Forget every running and waiting ticket and the turn history. Only the selftest calls this, so one check never
+    inherits what another left behind; a waiter that is still blocked in acquire() would simply be re-evaluated."""
+    global _tick, _seq
+    with _cv:
+        for g in _running:
+            _running[g].clear()
+            _waiting[g].clear()
+        _last_grant.clear()
+        _tick = _seq = 0
+        _cv.notify_all()
+
+
 def snapshot() -> dict:
     """What is running and waiting, for tests and the settings page."""
     with _cv:
