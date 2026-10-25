@@ -2316,13 +2316,16 @@ setelah beberapa putaran pilihan; masih rencana, belum dibangun).
 - **Logo:** pilihan A, yaitu gelembung klipian (siluet yang sama dengan klipian
   lucu dan podcast) dengan satu mata kaca pembesar. Lembar pilihan dan
   perbandingan ada di `workspace/channel-art/klipian-motion/`.
-- **Warna:** kuning klipian dan tinta gelap, dengan aksen biru langit dan
-  coral. **Huruf:** Outfit Bold dan DM Mono. **Bunyi khas:** "ting" kaca
+- **Warna:** hitam, kuning klipian dan abu-abu (keputusan ian 2026-10-25,
+  menggantikan aksen biru langit dan coral). Merah hanya untuk makna (luka,
+  bahaya), tidak untuk hiasan; maskot tidak punya varian biru atau ungu.
+  **Huruf:** Outfit Bold dan DM Mono. **Bunyi khas:** "ting" kaca
   pembesar saat "Intip yuk!", "pop" saat objek muncul, dan jingle penutup
   1 detik.
 - **Format tetap (30–45 detik):**
   - 0–3 dtk: hook berupa pertanyaan sehari-hari;
-  - 3–4 dtk: "Intip yuk!" (karakter mengintip, lensa membesar, "ting");
+  - 3–4 dtk: "Intip yuk!" (maskot muncul "pop", melar, lensa membesar,
+    "ting", lalu pindah ke pojok dan cerita mulai; ± 1,2 detik);
   - 4–35 dtk: penjelasan 2–3 langkah;
   - 35–42 dtk: tips;
   - 42–45 dtk: logo dan "klipian intip".
@@ -2332,16 +2335,27 @@ setelah beberapa putaran pilihan; masih rencana, belum dibangun).
   Rumah berdaya kecil (900/1.300 VA) melewati batas, lalu MCB turun untuk
   melindungi kabel. Tipsnya: nyalakan bergantian. Angka daya dicek dari
   sumber.
-- **Karakter:** maskot gelembung dengan mata lensa, tangan dan kaki
-  sederhana (nama kerja "Ntip").
-  - Satu kerangka tetap untuk Remotion: badan, mata, lensa, alis, mulut,
-    lengan atas dan bawah, tangan, kaki, dengan titik sendi tetap.
-  - Ekspresi: penasaran, kaget, paham, tertawa, berpikir.
-  - Pose: mengintip (khas "Intip yuk!"), menunjuk, berpikir, kaget, jempol.
-  - Kostum per topik di atas kerangka yang sama.
+- **Karakter: dua lapis** (keputusan ian 2026-10-25, seperti channel edukasi
+  yang maskotnya berbeda dari tokoh di videonya). Lembar acuan:
+  `workspace/channel-art/klipian-intip/maskot-dan-gaya.png`.
+  - **Maskot** = logo yang hidup, selalu sama: gelembung kuning dengan satu
+    mata kaca pembesar, **tanpa badan**. Gerak lewat lompat, miring, squash
+    dan stretch, kedip, serta lensa yang membesar; prop boleh melayang di
+    dekatnya. Ekspresi: penasaran, kaget, berpikir, paham, tertawa, aduh.
+    Muncul di pembuka "Intip yuk!", reaksi di pojok 1–2 kali per video
+    (maksimal ± 1 detik), penutup, ikon dan stiker.
+  - **Orang di dalam video** berganti sesuai cerita (pemuda, ibu, kakak
+    berhijab, bapak, anak, ...), tetapi gayanya tetap: satu kerangka
+    Remotion (kepala ± 1/3 tinggi, siku, lutut, 3 jari, titik sendi tetap),
+    mata titik biasa (kaca pembesar hanya milik maskot), baju abu-abu dengan
+    aksen kuning, celana hitam, tanpa garis tepi. Tokoh baru = ganti rambut,
+    kepala atau baju di atas kerangka yang sama.
+  - Usulan kepala tanpa gelembung (`karakter-pilihan-kepala.png`) dan versi
+    stickman/chibi berkepala gelembung tidak dipakai.
 - **Gaya animasi (style bible):**
   - potongan kertas ala stop-motion, 12 fps;
-  - tekstur kertas, garis tepi tebal, bayangan keras satu arah;
+  - tekstur kertas, bentuk datar tanpa garis tepi, bayangan keras satu
+    arah;
   - maksimal 3 transisi;
   - teks layar maksimal 6 kata per adegan.
 - **Persiapan channel:**
