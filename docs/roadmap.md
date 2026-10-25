@@ -2368,8 +2368,15 @@ setelah beberapa putaran pilihan; masih rencana, belum dibangun).
     (`karakter-pilihan-kepala.png`), dan stickman/chibi berkepala gelembung.
 - **Gaya animasi (style bible):**
   - potongan kertas ala stop-motion, 12 fps;
-  - tekstur kertas, bentuk datar tanpa garis tepi, bayangan keras satu
-    arah;
+  - **datar** (keputusan ian 2026-10-25, setelah membandingkan dengan
+    tekstur kertas + bayangan jatuh: `datar-vs-kertas.png`): tanpa tekstur
+    kertas, tanpa garis tepi, tanpa bayangan jatuh dari benda;
+  - **bayangan hanya untuk kedalaman**: lubang, ceruk, rongga, celah (lubang
+    stop kontak, ceruk tempat colokan masuk, rongga di potongan). Cahaya dari
+    kiri atas, jadi bayangannya sabit keras di tepi dalam kiri atas; warnanya
+    warna dasar yang digelapkan (bukan hitam), tanpa gradasi. Contoh:
+    `workspace/channel-art/klipian-intip/datar-dengan-kedalaman.png`. Di
+    Remotion menjadi satu komponen/aturan (`Hole`/`Recess`) di pustaka aset;
   - maksimal 3 transisi;
   - teks layar maksimal 6 kata per adegan.
 - **Bedah benda dengan "lensa intip"** (keputusan ian 2026-10-25). Ini ciri
