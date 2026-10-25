@@ -8,13 +8,17 @@ import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
 import { ThreeCanvas } from "@remotion/three";
 import * as THREE from "three";
 import { useThree } from "@react-three/fiber";
-import { BLACK, FONT_BOLD, FRAME, G1, G2, G3, G4, HOT1, HOT2, METAL, PLUG_FACE, RED, WALL, WHITE, YELLOW, YELLOW_D } from "./tokens.ts";
+import { BLACK, FONT_BOLD, FRAME, G1, G2, G3, G4, HOT1, HOT2, LAB, METAL, PLUG_FACE, RED, WHITE, YELLOW, YELLOW_D } from "./tokens.ts";
+import { Lab } from "./components/Backgrounds.tsx";
 import { easeInOut, springAt, clamp01 } from "./motion.ts";
 import { FPS } from "./timeline.ts";
 import { useFonts } from "./FunFact.tsx";
 
 export const DISSECT_SECONDS = 7.5;
-const FOV = 26, DIST = 33, ELEV = 17, TARGET = new THREE.Vector3(-0.2, 1.5, 1.3);
+const FOV = 26, ELEV = 17;
+const DIST_NEAR = 19, DIST_FAR = 38;               // assembled, the charger is about 65 % of the width; the camera pulls back as it comes apart
+const TARGET_NEAR = V0(0, 0, 0), TARGET_FAR = V0(-1.5, 0.9, 1.4);
+function V0(x: number, y: number, z: number) { return new THREE.Vector3(x, y, z); }
 
 /** Flat shading in three steps (a toon gradient), so it sits next to the 2D shapes. */
 function toonGradient(): THREE.DataTexture {
@@ -41,13 +45,13 @@ type Part = "front" | "back" | "pcb" | "trafo" | "cap1" | "cap2" | "chip";
 const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 const SPLIT_AT = 2.0, PARTS_AT = 3.0;
 const EXPLODE: Record<Part, { at: number; by: THREE.Vector3 }> = {
-  front: { at: SPLIT_AT, by: V(-0.4, 3.5, 2.4) },
-  back: { at: SPLIT_AT + 0.1, by: V(0, -0.3, -1.4) },
-  pcb: { at: PARTS_AT, by: V(0, 0, -0.1) },
-  trafo: { at: PARTS_AT + 0.15, by: V(-1.1, 0.6, 2.0) },
-  cap1: { at: PARTS_AT + 0.45, by: V(1.0, 1.1, 1.6) },
-  cap2: { at: PARTS_AT + 0.75, by: V(1.3, -0.4, 1.2) },
-  chip: { at: PARTS_AT + 1.05, by: V(-0.3, -1.2, 2.3) },
+  front: { at: SPLIT_AT, by: V(-1.8, 5.0, 3.0) },
+  back: { at: SPLIT_AT + 0.1, by: V(0.2, -2.2, -2.6) },
+  pcb: { at: PARTS_AT, by: V(0, 0.2, -0.4) },
+  trafo: { at: PARTS_AT + 0.15, by: V(-3.0, 1.8, 2.4) },
+  cap1: { at: PARTS_AT + 0.45, by: V(2.6, 3.0, 2.2) },
+  cap2: { at: PARTS_AT + 0.75, by: V(3.4, -1.0, 2.0) },
+  chip: { at: PARTS_AT + 1.05, by: V(-1.2, -3.0, 2.8) },
 };
 const HOME: Record<Part, THREE.Vector3> = {
   front: V(0, 0, 0.62), back: V(0, 0, -0.62), pcb: V(0, 0, 0), trafo: V(-0.55, 0.25, 0.46), cap1: V(0.75, 0.75, 0.5),
@@ -62,10 +66,14 @@ function spin(t: number): { yaw: number; scale: number; lift: number } {
   const p = springAt(t, 0.0, true);
   return { yaw: THREE.MathUtils.degToRad(-360 * (1 - p) - 12), scale: 0.15 + 0.85 * Math.min(1.04, p), lift: 0.12 * Math.sin(t * 1.6) };
 }
-function cameraAt(t: number): { pos: THREE.Vector3 } {
+/** The camera orbits about 48 degrees and pulls back (and its aim moves to the middle of the exploded parts) as they come apart. */
+function cameraAt(t: number): { pos: THREE.Vector3; target: THREE.Vector3 } {
   const az = THREE.MathUtils.degToRad(interpolate(t, [0, DISSECT_SECONDS], [-24, 24], { easing: easeInOut }));
   const el = THREE.MathUtils.degToRad(ELEV);
-  return { pos: TARGET.clone().add(V(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).multiplyScalar(DIST)) };
+  const e = easeInOut(clamp01((t - SPLIT_AT) / 3.4));
+  const dist = DIST_NEAR + (DIST_FAR - DIST_NEAR) * e;
+  const target = TARGET_NEAR.clone().lerp(TARGET_FAR, e);
+  return { target, pos: target.clone().add(V(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).multiplyScalar(dist)) };
 }
 const heatAt = (t: number): number => clamp01((t - 5.0) / 1.2);
 
@@ -150,26 +158,29 @@ const CurrentDots: React.FC<{ t: number }> = ({ t }) => {
 const Rig: React.FC<{ t: number }> = ({ t }) => {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
   useLayoutEffect(() => {
-    camera.position.copy(cameraAt(t).pos);
-    camera.lookAt(TARGET);
+    const c = cameraAt(t);
+    camera.position.copy(c.pos);
+    camera.lookAt(c.target);
     camera.updateProjectionMatrix();
   }, [camera, t]);
   return null;
 };
 
 // --- the 2D layer: labels that pop in, with a line to their part ------------------------------------------------------------------
-const LABELS: { part: Part; text: string; at: number; side: 1 | -1; dy: number; danger?: boolean }[] = [
-  { part: "front", text: "cangkang", at: 2.5, side: 1, dy: -70 },
-  { part: "pcb", text: "papan sirkuit", at: 3.5, side: -1, dy: 60 },
-  { part: "trafo", text: "trafo", at: 3.9, side: -1, dy: -40 },
-  { part: "cap1", text: "kapasitor", at: 4.2, side: 1, dy: -50 },
-  { part: "chip", text: "chip", at: 4.6, side: -1, dy: 50 },
-  { part: "chip", text: "titik panas", at: 5.8, side: 1, dy: 90, danger: true },
+const LABELS: { part: Part; text: string; at: number; danger?: boolean }[] = [
+  { part: "front", text: "cangkang", at: 2.5 },
+  { part: "pcb", text: "papan sirkuit", at: 3.5 },
+  { part: "trafo", text: "trafo", at: 3.9 },
+  { part: "cap1", text: "kapasitor", at: 4.2 },
+  { part: "cap2", text: "kapasitor", at: 4.4 },
+  { part: "chip", text: "chip", at: 4.6 },
+  { part: "chip", text: "titik panas", at: 5.8, danger: true },
 ];
 function project(part: Part, t: number): { x: number; y: number } {
   const cam = new THREE.PerspectiveCamera(FOV, FRAME.width / FRAME.height, 0.1, 100);
-  cam.position.copy(cameraAt(t).pos);
-  cam.lookAt(TARGET);
+  const c = cameraAt(t);
+  cam.position.copy(c.pos);
+  cam.lookAt(c.target);
   cam.updateMatrixWorld();
   cam.updateProjectionMatrix();
   const { yaw, scale, lift } = spin(t);
@@ -177,22 +188,42 @@ function project(part: Part, t: number): { x: number; y: number } {
   return { x: (v.x * 0.5 + 0.5) * FRAME.width, y: (-v.y * 0.5 + 0.5) * FRAME.height };
 }
 
+const PILL = { fs: 46, left: 50, right: 950, gap: 14 };
+
+/** Where each label's pill goes: beside its part (outward from the middle of the screen), then pushed apart wherever two pills would
+    touch, so no two ever overlap. */
+function layoutLabels(t: number): { label: (typeof LABELS)[number]; a: { x: number; y: number }; bx: number; by: number; w: number; h: number; p: number }[] {
+  const shown = LABELS.map((label) => ({ label, p: springAt(t, label.at) })).filter((l) => l.p > 0.01)
+    .map((l) => ({ ...l, a: project(l.label.part, t) })).sort((p, q) => p.a.y - q.a.y);
+  const h = PILL.fs * 1.55;
+  const placed: ReturnType<typeof layoutLabels> = [];
+  for (const l of shown) {
+    const w = l.label.text.length * PILL.fs * 0.52 + 56;
+    const dir = l.a.x < FRAME.width / 2 ? -1 : 1;
+    const bx = Math.max(PILL.left + w / 2, Math.min(PILL.right - w / 2, l.a.x + dir * (w / 2 + 70)));
+    let by = Math.max(150, Math.min(l.a.y, FRAME.height - 330));
+    for (let guard = 0; guard < 40; guard++) {
+      const hit = placed.find((q) => Math.abs(q.bx - bx) < (q.w + w) / 2 + PILL.gap && Math.abs(q.by - by) < h + PILL.gap);
+      if (!hit) break;
+      by = hit.by + h + PILL.gap;                                   // below the one in the way
+    }
+    placed.push({ ...l, w, h, bx, by });
+  }
+  return placed;
+}
+
 const Labels: React.FC<{ t: number }> = ({ t }) => (
   <svg width={FRAME.width} height={FRAME.height} viewBox={`0 0 ${FRAME.width} ${FRAME.height}`} style={{ position: "absolute", inset: 0 }}>
-    {LABELS.map((l, i) => {
-      const p = springAt(t, l.at);
-      if (p <= 0.01) return null;
-      const a = project(l.part, t);
-      const bx = Math.max(150, Math.min(FRAME.width - 150, a.x + l.side * 250)), by = a.y + l.dy;
-      const fs = 50, w = l.text.length * fs * 0.5 + 56, h = fs * 1.55;
-      const fill = l.danger ? RED : BLACK;
+    {layoutLabels(t).map(({ label: l, a, bx, by, w, h, p }, i) => {
+      const fill = l.danger ? RED : YELLOW;
+      const edgeX = a.x < bx ? bx - w / 2 : bx + w / 2;
       return (
         <g key={i} opacity={Math.min(1, p * 3)}>
-          <line x1={a.x} y1={a.y} x2={bx} y2={by} stroke={fill} strokeWidth={5} strokeLinecap="round" strokeDasharray={`${1000 * p} 1000`} />
+          <line x1={a.x} y1={a.y} x2={edgeX} y2={by} stroke={fill} strokeWidth={5} strokeLinecap="round" />
           <circle cx={a.x} cy={a.y} r={12 * p} fill={fill} />
           <g transform={`translate(${bx} ${by}) scale(${p})`}>
             <rect x={-w / 2} y={-h / 2} width={w} height={h} rx={h / 2} fill={fill} />
-            <text x={0} y={0} fontSize={fs} fill={l.danger ? WHITE : YELLOW} textAnchor="middle" dominantBaseline="central" style={{ fontFamily: `"${FONT_BOLD}", sans-serif`, fontWeight: 700 }}>{l.text}</text>
+            <text x={0} y={0} fontSize={PILL.fs} fill={l.danger ? WHITE : BLACK} textAnchor="middle" dominantBaseline="central" style={{ fontFamily: `"${FONT_BOLD}", sans-serif`, fontWeight: 700 }}>{l.text}</text>
           </g>
         </g>
       );
@@ -205,9 +236,10 @@ export const Dissect3D: React.FC = () => {
   const frame = useCurrentFrame();
   const t = frame / FPS;
   return (
-    <AbsoluteFill style={{ background: WALL }}>
+    <AbsoluteFill style={{ background: LAB.slate }}>
+      {/* the lab: the dark slate with its grid and warm glow, so the white housing never merges with the background */}
+      <svg width={FRAME.width} height={FRAME.height} viewBox={`0 0 ${FRAME.width} ${FRAME.height}`} style={{ position: "absolute", inset: 0 }}><Lab clock={t} /></svg>
       <ThreeCanvas flat width={FRAME.width} height={FRAME.height} camera={{ fov: FOV, near: 0.1, far: 100, position: cameraAt(0).pos.toArray() as [number, number, number] }}>
-        <color attach="background" args={[WALL]} />
         <ambientLight intensity={1.15} />
         <directionalLight position={[-6, 8, 6]} intensity={2.1} />
         <Rig t={t} />

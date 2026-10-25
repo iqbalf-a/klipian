@@ -117,7 +117,7 @@ export const PlugStack: React.FC = () => (
   <g transform="translate(-70 -236)">
     <Rect x0={34} y0={228} x1={106} y1={262} r={8} fill={WHITE} />
     {[0, 1, 2].map((k) => <Rect key={k} x0={40 + k * 22} y0={206} x1={56 + k * 22} y1={232} r={4} fill={G1} />)}
-    <Line a={[28, 200]} b={[112, 270]} w={6} stroke={RED} />
+    <Line a={[38, 210]} b={[102, 258]} w={6} stroke={RED} />      {/* corner to corner of the icon (34..106 x 206..262), not beyond it */}
   </g>
 );
 

@@ -14,7 +14,12 @@
       "narration": "Pernah cabut colokan, eh kok panas?",
       "text": "Colokan kok panas?",
       "scene": {
-        "bg": "room",
+        "bg": "brand",
+        "spot": {
+          "x": 420,
+          "y": 780,
+          "r": 470
+        },
         "items": [
           {
             "type": "banner",
@@ -26,16 +31,36 @@
           },
           {
             "type": "socket",
-            "x": 309,
-            "y": 810,
-            "s": 0.8,
+            "x": 400,
+            "y": 760,
+            "s": 1.45,
             "view": "outside",
             "variant": "plain",
-            "plug": {
-              "cableX": 463,
-              "cableY": 1689
-            },
             "waves": true,
+            "plug": {
+              "route": [
+                [
+                  400,
+                  872
+                ],
+                [
+                  400,
+                  1470
+                ],
+                [
+                  440,
+                  1555
+                ],
+                [
+                  560,
+                  1590
+                ],
+                [
+                  1180,
+                  1590
+                ]
+              ]
+            },
             "actions": [
               {
                 "at": 1.0,
@@ -45,9 +70,9 @@
           },
           {
             "type": "chibi",
-            "x": 756,
-            "y": 1767,
-            "u": 177,
+            "x": 730,
+            "y": 1625,
+            "u": 185,
             "role": "pemuda",
             "expr": "surprised",
             "pose": "idle",
@@ -58,6 +83,18 @@
                 "pose": "point"
               }
             ]
+          },
+          {
+            "type": "badge",
+            "text": "!",
+            "x": 800,
+            "y": 470,
+            "r": 52,
+            "color": "red",
+            "enter": {
+              "kind": "pop",
+              "delay": 0.9
+            }
           }
         ]
       },
@@ -79,7 +116,6 @@
             "w": 733,
             "expr": "laugh",
             "sparks": true,
-            "pop": true,
             "enter": {
               "kind": "pop",
               "delay": 0.05,
@@ -114,46 +150,72 @@
       "narration": "Di dalam stop kontak ada penjepit logam yang menggigit kaki colokan.",
       "text": "penjepit logam",
       "scene": {
-        "bg": "room",
+        "bg": "brand",
+        "spot": {
+          "x": 560,
+          "y": 1060,
+          "r": 470
+        },
         "items": [
           {
+            "type": "banner",
+            "text": "Intip bagian dalamnya",
+            "fs": 70,
+            "highlight": [
+              "dalamnya"
+            ]
+          },
+          {
             "type": "socket",
-            "x": 540,
-            "y": 579,
-            "s": 1.1,
+            "x": 560,
+            "y": 480,
+            "s": 0.8,
             "view": "outside",
             "variant": "plain",
             "plug": {
-              "cableX": 540,
-              "cableY": 1689
+              "route": [
+                [
+                  560,
+                  542
+                ],
+                [
+                  560,
+                  780
+                ]
+              ]
             }
           },
           {
             "type": "lens",
-            "x": 579,
-            "y": 1157,
+            "x": 560,
+            "y": 1060,
             "r": 355,
             "variant": "tight",
             "reveal": {
-              "from": 0.5,
+              "from": 0.6,
               "dur": 1.0
             }
           },
           {
             "type": "mascot",
-            "x": 887,
-            "y": 1751,
-            "w": 270,
+            "x": 200,
+            "y": 1470,
+            "w": 300,
             "expr": "curious",
+            "persist": true,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.5
+            },
             "actions": [
               {
                 "at": 1.9,
                 "kind": "look",
-                "x": 579,
-                "y": 1157
+                "x": 560,
+                "y": 1060
               },
               {
-                "at": 3.2,
+                "at": 3.3,
                 "kind": "expr",
                 "expr": "understand"
               }
@@ -162,16 +224,16 @@
           {
             "type": "label",
             "text": "penjepit logam",
-            "x": 386,
-            "y": 1728,
+            "x": 620,
+            "y": 1595,
             "fs": 62,
-            "enter": {
-              "kind": "fade-up",
-              "delay": 1.7
-            },
             "highlight": [
               "logam"
-            ]
+            ],
+            "enter": {
+              "kind": "fade-up",
+              "delay": 1.8
+            }
           }
         ]
       },
@@ -184,7 +246,7 @@
       "narration": "Kalau jepitannya rapat, sentuhannya luas. Listrik lewat dengan lega.",
       "text": "Jepit rapat = jalan lebar",
       "scene": {
-        "bg": "room",
+        "bg": "lab",
         "items": [
           {
             "type": "banner",
@@ -208,31 +270,80 @@
             "variant": "tight",
             "dots": true,
             "enter": {
-              "kind": "fade-up",
-              "delay": 0
+              "kind": "none"
             }
           },
           {
             "type": "label",
             "text": "rapat",
             "x": 733,
-            "y": 579,
+            "y": 560,
             "fs": 66,
-            "enter": {
-              "kind": "fade-up",
-              "delay": 2.2
-            },
             "highlight": [
               "rapat"
-            ]
+            ],
+            "enter": {
+              "kind": "fade-up",
+              "delay": 2.0
+            }
+          },
+          {
+            "type": "arrow",
+            "x": 733,
+            "y": 640,
+            "x2": 733,
+            "y2": 850,
+            "color": "white",
+            "w": 12,
+            "enter": {
+              "kind": "draw",
+              "delay": 2.3,
+              "dur": 0.6
+            }
+          },
+          {
+            "type": "label",
+            "text": "arus listrik",
+            "x": 540,
+            "y": 1260,
+            "fs": 62,
+            "highlight": [
+              "arus"
+            ],
+            "enter": {
+              "kind": "fade-up",
+              "delay": 3.2
+            }
+          },
+          {
+            "type": "arrow",
+            "x": 540,
+            "y": 1195,
+            "x2": 540,
+            "y2": 985,
+            "color": "white",
+            "w": 12,
+            "enter": {
+              "kind": "draw",
+              "delay": 3.5,
+              "dur": 0.6
+            }
           },
           {
             "type": "mascot",
-            "x": 270,
-            "y": 1689,
-            "w": 309,
+            "x": 200,
+            "y": 1470,
+            "w": 300,
             "expr": "understand",
+            "persist": true,
             "actions": [
+              {
+                "at": 0,
+                "kind": "look",
+                "x": 560,
+                "y": 1060,
+                "snap": true
+              },
               {
                 "at": 1.4,
                 "kind": "look",
@@ -247,14 +358,14 @@
       "transition": {
         "kind": "lens",
         "dur": 0.9,
-        "x": 582,
-        "y": 1173,
+        "x": 562,
+        "y": 1068,
         "r": 383
       },
       "camera": {
         "kind": "pan",
-        "dx": -83,
-        "dy": 250,
+        "dx": -195,
+        "dy": 145,
         "zoom": 1.08,
         "dur": 1.5
       }
@@ -266,7 +377,7 @@
       "narration": "Kalau penjepitnya kendur, sentuhannya tinggal sedikit. Listrik berdesakan di titik kecil itu, dan titik itu memanas.",
       "text": "Jepit kendur = jalan sempit",
       "scene": {
-        "bg": "room",
+        "bg": "lab",
         "items": [
           {
             "type": "banner",
@@ -289,13 +400,16 @@
             "view": "cutaway",
             "variant": "loose",
             "heat": 1,
-            "dots": true
+            "dots": true,
+            "enter": {
+              "kind": "none"
+            }
           },
           {
             "type": "label",
             "text": "titik panas",
             "x": 594,
-            "y": 1157,
+            "y": 1215,
             "fs": 66,
             "color": "red",
             "enter": {
@@ -310,12 +424,34 @@
             ]
           },
           {
+            "type": "arrow",
+            "x": 594,
+            "y": 1150,
+            "x2": 594,
+            "y2": 990,
+            "color": "red",
+            "w": 12,
+            "enter": {
+              "kind": "draw",
+              "delay": 2.8,
+              "dur": 0.6
+            }
+          },
+          {
             "type": "mascot",
-            "x": 270,
-            "y": 1689,
-            "w": 309,
-            "expr": "curious",
+            "x": 200,
+            "y": 1470,
+            "w": 300,
+            "expr": "understand",
+            "persist": true,
             "actions": [
+              {
+                "at": 0,
+                "kind": "look",
+                "x": 540,
+                "y": 926,
+                "snap": true
+              },
               {
                 "at": 1.0,
                 "kind": "look",
@@ -340,7 +476,12 @@
       "narration": "Lama-lama plastiknya bisa gosong, meleleh, bahkan memicu kebakaran.",
       "text": "Bisa gosong & terbakar",
       "scene": {
-        "bg": "room",
+        "bg": "brand",
+        "spot": {
+          "x": 540,
+          "y": 900,
+          "r": 470
+        },
         "items": [
           {
             "type": "banner",
@@ -354,8 +495,8 @@
           {
             "type": "socket",
             "x": 540,
-            "y": 887,
-            "s": 1.3,
+            "y": 930,
+            "s": 1.6,
             "view": "outside",
             "variant": "scorched",
             "smoke": true,
@@ -368,15 +509,38 @@
             ]
           },
           {
-            "type": "mascot",
-            "x": 825,
-            "y": 1689,
-            "w": 309,
-            "expr": "ouch",
+            "type": "badge",
+            "text": "!",
+            "x": 850,
+            "y": 600,
+            "r": 54,
+            "color": "red",
             "enter": {
               "kind": "pop",
-              "delay": 0.9
+              "delay": 1.0
             }
+          },
+          {
+            "type": "mascot",
+            "x": 200,
+            "y": 1470,
+            "w": 300,
+            "expr": "surprised",
+            "persist": true,
+            "actions": [
+              {
+                "at": 0,
+                "kind": "look",
+                "x": 540,
+                "y": 930,
+                "snap": true
+              },
+              {
+                "at": 0.7,
+                "kind": "expr",
+                "expr": "ouch"
+              }
+            ]
           }
         ]
       },
@@ -389,7 +553,12 @@
       "narration": "Colokan terasa panas? Cabut dulu, lalu ganti stop kontak yang kendur. Alat berdaya besar jangan ditumpuk di satu colokan.",
       "text": "2 tips: ganti, jangan tumpuk",
       "scene": {
-        "bg": "room",
+        "bg": "brand",
+        "spot": {
+          "x": 540,
+          "y": 1000,
+          "r": 470
+        },
         "items": [
           {
             "type": "banner",
@@ -401,39 +570,61 @@
           },
           {
             "type": "socket",
-            "x": 270,
-            "y": 579,
-            "s": 0.6,
+            "x": 300,
+            "y": 600,
+            "s": 0.8,
             "view": "outside",
             "variant": "plain",
             "enter": {
               "kind": "fade-up",
+              "delay": 0.7
+            }
+          },
+          {
+            "type": "badge",
+            "text": "1",
+            "x": 110,
+            "y": 440,
+            "r": 54,
+            "enter": {
+              "kind": "pop",
               "delay": 0.6
             }
           },
           {
             "type": "label",
-            "text": "1 · ganti yang",
-            "x": 463,
-            "y": 579,
-            "fs": 66,
+            "text": "ganti yang",
+            "x": 540,
+            "y": 585,
+            "fs": 62,
             "align": "start",
             "lines": [
               "kendur"
             ],
+            "highlight": [
+              "ganti"
+            ],
             "enter": {
               "kind": "fade-up",
               "delay": 0.9
-            },
-            "highlight": [
-              "ganti"
-            ]
+            }
           },
           {
             "type": "stack",
-            "x": 270,
-            "y": 910,
-            "s": 1,
+            "x": 300,
+            "y": 940,
+            "s": 1.3,
+            "enter": {
+              "kind": "pop",
+              "delay": 3.1
+            }
+          },
+          {
+            "type": "badge",
+            "text": "2",
+            "x": 110,
+            "y": 790,
+            "r": 54,
             "enter": {
               "kind": "pop",
               "delay": 3.0
@@ -441,28 +632,28 @@
           },
           {
             "type": "label",
-            "text": "2 · alat berdaya",
-            "x": 463,
-            "y": 910,
-            "fs": 66,
+            "text": "alat berdaya",
+            "x": 540,
+            "y": 905,
+            "fs": 62,
             "align": "start",
             "lines": [
               "besar jangan",
               "ditumpuk"
             ],
+            "highlight": [
+              "jangan"
+            ],
             "enter": {
               "kind": "fade-up",
               "delay": 3.3
-            },
-            "highlight": [
-              "jangan"
-            ]
+            }
           },
           {
             "type": "chibi",
-            "x": 540,
-            "y": 1805,
-            "u": 177,
+            "x": 790,
+            "y": 1625,
+            "u": 135,
             "role": "pemuda",
             "expr": "happy",
             "pose": "idle",
@@ -509,7 +700,10 @@
             "w": 656,
             "expr": "understand",
             "sparks": true,
-            "pop": true,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.1
+            },
             "actions": [
               {
                 "at": 1.6,

@@ -37,21 +37,23 @@ function Face({ w, expr, ink, lensFill, pupil, open }: { w: number; expr: Mascot
   const ex = -w * 0.18, ey = -h * 0.04;
   const lx = w * 0.14, ly = -h * 0.08, lr = w * 0.17;
   const big = expr === "surprised" || expr === "ouch";
+  const gx = (pupil[0] - pupilFor(expr)[0]) * w * 0.07, gy = (pupil[1] - pupilFor(expr)[1]) * w * 0.07;   // the dot eye's share of the gaze
   const hx = lx + lr * 0.7, hy = ly + lr * 0.7;
   const bx = ex, by = -h * 0.22;
   const mx = -w * 0.02, my = h * 0.22;
   return (
     <g>
       {/* the dot eye (it blinks) */}
+      {/* both eyes look the same way: the dot eye shifts with the lens pupil, and both blink together */}
       {expr === "laugh" || expr === "understand"
-        ? <Arc cx={ex} cy={ey + w * 0.02} rx={w * 0.06} ry={w * 0.05} a0={200} a1={340} w={w * 0.04} stroke={ink} />
+        ? <Arc cx={ex + gx} cy={ey + w * 0.02 + gy} rx={w * 0.06} ry={w * 0.05} a0={200} a1={340} w={w * 0.04} stroke={ink} />
         : big
-          ? <><Oval x={ex} y={ey} rx={w * 0.08} ry={w * 0.08 * open} fill={lensFill} /><Oval x={ex} y={ey} rx={w * 0.05} ry={w * 0.05 * open} fill={ink} /></>
-          : <Oval x={ex} y={ey} rx={w * 0.06} ry={w * 0.06 * open} fill={ink} />}
+          ? <><Oval x={ex + gx} y={ey + gy} rx={w * 0.08} ry={w * 0.08 * open} fill={lensFill} /><Oval x={ex + gx * 1.5} y={ey + gy * 1.5} rx={w * 0.05} ry={w * 0.05 * open} fill={ink} /></>
+          : <Oval x={ex + gx} y={ey + gy} rx={w * 0.06} ry={w * 0.06 * open} fill={ink} />}
       {/* the lens eye: white disc, black ring, pupil, glint, handle */}
       <Disc x={lx} y={ly} r={lr} fill={lensFill} />
       <Ring x={lx} y={ly} r={lr} w={w * 0.045} stroke={ink} />
-      <Disc x={lx + lr * pupil[0]} y={ly + lr * pupil[1]} r={w * (big ? 0.055 : 0.08)} fill={ink} />
+      <Oval x={lx + lr * pupil[0]} y={ly + lr * pupil[1]} rx={w * (big ? 0.055 : 0.08)} ry={w * (big ? 0.055 : 0.08) * (0.25 + 0.75 * open)} fill={ink} />
       <Disc x={lx + lr * 0.35} y={ly - lr * 0.3} r={w * 0.02} fill={lensFill} />
       <Line a={[hx, hy]} b={[hx + w * 0.1, hy + w * 0.1]} w={w * 0.05} stroke={ink} />
       {/* brow */}
@@ -82,9 +84,11 @@ export const Mascot: React.FC<{
   look?: { x: number; y: number; mix: number } | null; // the point the lens looks at (video coordinates) and how far it has turned
   bump?: number;                                       // a small swell right after the face changed
   phase?: number;                                      // desynchronises blink and drift between mascots
-}> = ({ x, y, w, expr, t, sparks, rot = 0, body = "yellow", squash = 0, look = null, bump = 0, phase = 0 }) => {
+  clock?: number;                                      // seconds of the whole video: the idles (hover, blink, drift) run on it, so a mascot that stays across beats does not restart
+}> = ({ x, y, w, expr, t, sparks, rot = 0, body = "yellow", squash = 0, look = null, bump = 0, phase = 0, clock }) => {
+  const c = clock ?? t;
   const rest = pupilFor(expr);
-  let pupil: [number, number] = [rest[0] + 0.07 * Math.sin(t * 0.9 + phase), rest[1] + 0.06 * Math.cos(t * 0.7 + phase)];   // it looks around a little
+  let pupil: [number, number] = [rest[0] + 0.07 * Math.sin(c * 0.9 + phase), rest[1] + 0.06 * Math.cos(c * 0.7 + phase)];   // it looks around a little
   if (look) {
     const [lx, ly] = lensCentre(w);
     const dx = look.x - (x + lx), dy = look.y - (y + ly), len = Math.hypot(dx, dy) || 1;
@@ -94,9 +98,9 @@ export const Mascot: React.FC<{
   const sparkColor = body === "yellow" ? YELLOW_D : YELLOW;
   const sparkPhase = (t * 1.6) % 1;                    // the sparks flash in and fade, once in a while
   return (
-    <g transform={`translate(${x} ${y + hover(t, w * 0.012)})`}>
-      <g transform={`rotate(${rot + 1.4 * Math.sin(t * 1.3 + phase)}) scale(${sx} ${sy})`}>
-        <MascotArt w={w} expr={expr} body={body} pupil={pupil} open={blinkAt(t, 3.4, phase)} />
+    <g transform={`translate(${x} ${y + hover(c, w * 0.012)})`}>
+      <g transform={`rotate(${rot + 1.4 * Math.sin(c * 1.3 + phase)}) scale(${sx} ${sy})`}>
+        <MascotArt w={w} expr={expr} body={body} pupil={pupil} open={blinkAt(c, 3.4, phase)} />
       </g>
       {sparks && [-60, -35, -10].map((a, i) => {
         const k = Math.max(0, Math.min(1, (sparkPhase - i * 0.08) * 2.2));

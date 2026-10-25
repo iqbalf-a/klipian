@@ -84,4 +84,34 @@ eq(isKeyword("panas?", ["panas"]), true, "a keyword matches without punctuation 
 eq(isKeyword("Lebar", ["lebar"]), true, "or case");
 eq(isKeyword("rapat", ["lebar"]), false, "other words stay");
 
+// --- P28-A3: what the colokan story does about the seven fixes ---
+const beatOf = (id: string) => story.beats.find((b) => b.id === id)!;
+const mascots = (id: string) => beatOf(id).scene.items.filter((i) => i.type === "mascot") as any[];
+// 3 the lens flash: the cutaway revealed through the lens is there from its first frame (no enter fade), inside the lab
+eq(beatOf("rapat").transition?.kind, "lens", "through the lens into the tight cutaway");
+eq(beatOf("rapat").scene.bg, "lab", "inside the lens is the lab");
+const cut = beatOf("rapat").scene.items.find((i) => i.type === "socket" && i.view === "cutaway")!;
+eq(enterOf(cut, 1).kind, "none", "the revealed cutaway does not fade in");
+// 4 the corner mascot stays: one place, no entrance after its first appearance
+const corner = ["lensa", "rapat", "kendur", "akibat"].map((id) => mascots(id).find((m) => m.persist));
+yes(corner.every(Boolean), "a persistent mascot in each of the four beats");
+eq(new Set(corner.map((m) => `${m.x},${m.y},${m.w}`)).size, 1, "in the same place every time");
+eq(enterOf(corner[0], 3).kind, "pop", "it pops on its first appearance");
+eq(corner.slice(1).map((m) => enterOf(m, 4).kind), ["none", "none", "none"], "and never again");
+// 5 the safe area (the Shorts interface covers the bottom 15 % and the right 12 %): faces, text and badges stay inside
+const unsafe: string[] = [];
+for (const b of story.beats) for (const it of b.scene.items) {
+  if (it.type === "mascot" && (it.x + it.w / 2 > 950 || it.y + it.w * 0.52 > 1632)) unsafe.push(`${b.id} mascot`);
+  if ((it.type === "label" || it.type === "pill" || it.type === "badge") && (it.x > 950 || it.y > 1632)) unsafe.push(`${b.id} ${it.type}`);
+  if (it.type === "chibi" && (it.x > 950 || it.y > 1632)) unsafe.push(`${b.id} chibi`);
+}
+eq(unsafe, [], "nothing key in the bottom 15 % or the right 12 %");
+// 1 the cable never runs on through the lens: in the lens beat it ends inside the lens circle
+const lensBeat = beatOf("lensa").scene.items;
+const lens = lensBeat.find((i) => i.type === "lens") as any, plugged = lensBeat.find((i) => i.type === "socket") as any;
+const end = plugged.plug.route[plugged.plug.route.length - 1];
+yes(Math.hypot(end[0] - lens.x, end[1] - lens.y) < lens.r, "the cable of the lens beat ends inside the lens, hidden by it");
+// the backgrounds of the beats: brand outside, lab inside, black for the sting and the outro
+eq(story.beats.map((b) => b.scene.bg), ["brand", "black", "brand", "lab", "lab", "brand", "brand", "black"], "brand for the story, lab inside the lens");
+
 console.log(`timeline: ${n} checks ok`);

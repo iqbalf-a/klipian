@@ -53,13 +53,15 @@ const Words: React.FC<{
 };
 
 /** The black bar with white text near the top of a scene (it slides in as an item; its words follow). */
-export const Banner: React.FC<{ text: string; fs?: number; y?: number; t: number; start: number; highlight?: readonly string[] }> =
-  ({ text, fs = 20 * K, y = 22 * K, t, start, highlight }) => {
+export const Banner: React.FC<{ text: string; fs?: number; y?: number; t: number; start: number; highlight?: readonly string[]; onDark?: boolean }> =
+  ({ text, fs = 20 * K, y = 22 * K, t, start, highlight, onDark }) => {
     const h = fs * 2.6;
+    // on the dark lab background a black bar would sink into it: the bar turns white and the text black
     return (
       <g>
-        <rect x={16 * K} y={y} width={FRAME.width - 32 * K} height={h} rx={10 * K} ry={10 * K} fill={BLACK} />
-        <Words text={text} x={FRAME.width / 2} y={y + h / 2} fs={fs} align="middle" fill={WHITE} keyFill={YELLOW} keywords={highlight} t={t} start={start + 0.12} />
+        <rect x={16 * K} y={y} width={FRAME.width - 32 * K} height={h} rx={10 * K} ry={10 * K} fill={onDark ? WHITE : BLACK} />
+        <Words text={text} x={FRAME.width / 2} y={y + h / 2} fs={fs} align="middle" fill={onDark ? BLACK : WHITE} keyFill={onDark ? YELLOW_D : YELLOW}
+          keywords={highlight} t={t} start={start + 0.12} />
       </g>
     );
   };
@@ -79,13 +81,20 @@ export const Pill: React.FC<{ text: string; x: number; y: number; fs: number; t:
 /** A short label (black, red for heat or danger, white on dark). Keywords turn dark yellow on light, yellow on dark. */
 export const Label: React.FC<{
   text: string; x: number; y: number; fs: number; color?: "black" | "red" | "white"; align?: "start" | "middle"; lines?: string[];
-  t: number; start: number; highlight?: readonly string[];
-}> = ({ text, x, y, fs, color = "black", align = "middle", lines = [], t, start, highlight }) => {
+  t: number; start: number; highlight?: readonly string[]; onDark?: boolean;
+}> = ({ text, x, y, fs, color = "black", align = "middle", lines = [], t, start, highlight, onDark }) => {
   const fill = color === "red" ? RED : color === "white" ? WHITE : BLACK;
   const keyFill = color === "white" ? YELLOW : YELLOW_D;
   let index = 0;
+  // on the dark lab background a dark or red label gets a light backing pill (never an outline)
+  const rows = [text, ...lines];
+  const wide = Math.max(...rows.map((r) => textWidth(r, fs)));
+  const padX = fs * 0.55, padY = fs * 0.32, hh = fs * 1.22 * rows.length + padY * 2 - fs * 0.22;
+  const bx = align === "middle" ? x - wide / 2 - padX : x - padX, by = y - fs * 0.61 - padY + fs * 0.22;
+  const backing = onDark && color !== "white" ? <rect x={bx} y={by} width={wide + padX * 2} height={hh} rx={Math.min(hh / 2, fs * 0.6)} fill={WHITE} opacity={Math.min(1, wordIn(t, start, 0) * 2)} /> : null;
   return (
     <g>
+      {backing}
       {[text, ...lines].map((ln, i) => {
         const first = index;
         index += ln.split(/\s+/).filter(Boolean).length;
@@ -94,5 +103,30 @@ export const Label: React.FC<{
     </g>
   );
 };
+
+/** An arrow from (x, y) to (x2, y2); `draw` (0..1) grows it from its tail. */
+export const Arrow: React.FC<{ x: number; y: number; x2: number; y2: number; color?: "black" | "red" | "yellow" | "white"; w?: number; draw: number }> =
+  ({ x, y, x2, y2, color = "black", w = 12, draw }) => {
+    const fill = color === "red" ? RED : color === "yellow" ? YELLOW : color === "white" ? WHITE : BLACK;
+    const ex = x + (x2 - x) * draw, ey = y + (y2 - y) * draw;
+    const a = Math.atan2(y2 - y, x2 - x), head = w * 3.2;
+    const back = (k: number): [number, number] => [ex - Math.cos(a) * head + Math.cos(a + k) * head * 0.55, ey - Math.sin(a) * head + Math.sin(a + k) * head * 0.55];
+    const [l, r] = [back(Math.PI / 2), back(-Math.PI / 2)];
+    const shaftEnd: [number, number] = [ex - Math.cos(a) * head * 0.6, ey - Math.sin(a) * head * 0.6];
+    return (
+      <g>
+        <line x1={x} y1={y} x2={shaftEnd[0]} y2={shaftEnd[1]} stroke={fill} strokeWidth={w} strokeLinecap="round" />
+        {draw > 0.05 && <polygon points={`${ex},${ey} ${l[0]},${l[1]} ${r[0]},${r[1]}`} fill={fill} />}
+      </g>
+    );
+  };
+
+/** A numbered (or "!") badge: a flat disc with one bold glyph. */
+export const Badge: React.FC<{ text: string; x: number; y: number; r?: number; color?: "yellow" | "red" | "white" }> = ({ text, x, y, r = 46, color = "yellow" }) => (
+  <g transform={`translate(${x} ${y})`}>
+    <circle cx={0} cy={0} r={r} fill={color === "red" ? RED : color === "white" ? WHITE : YELLOW} />
+    <text x={0} y={r * 0.04} fontSize={r * 1.15} fill={color === "red" ? WHITE : BLACK} textAnchor="middle" dominantBaseline="central" style={textStyle}>{text}</text>
+  </g>
+);
 
 export { springAt };

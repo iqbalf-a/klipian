@@ -7,13 +7,14 @@ import React from "react";
 import { BLACK, YELLOW_D } from "../tokens.ts";
 import { Line, Ring } from "./svg.tsx";
 import { Cutaway, SOCKET_BOX } from "./Socket.tsx";
+import { Lab } from "./Backgrounds.tsx";
 import { easeOutBack } from "../motion.ts";
 
 const SHEET_R = 92;
 
 export const LensReveal: React.FC<{
-  id?: string; x: number; y: number; r: number; variant: "tight" | "loose"; heat?: number; t: number; revealFrom?: number; revealDur?: number;
-}> = ({ x, y, r, variant, heat, t, revealFrom = 0.3, revealDur = 0.8 }) => {
+  id?: string; x: number; y: number; r: number; variant: "tight" | "loose"; heat?: number; t: number; revealFrom?: number; revealDur?: number; clock?: number;
+}> = ({ x, y, r, variant, heat, t, revealFrom = 0.3, revealDur = 0.8, clock }) => {
   const clip = `lens-clip-${React.useId().replace(/:/g, "")}`;     // unique: two scenes are on screen during a transition
   const q = r / SHEET_R;                                          // video units per sheet unit
   const p = Math.max(0, easeOutBack((t - revealFrom) / revealDur));
@@ -24,8 +25,11 @@ export const LensReveal: React.FC<{
     <g transform={`translate(${x} ${y})`}>
       <defs><clipPath id={clip}><circle cx={0} cy={0} r={now} /></clipPath></defs>
       <g clipPath={`url(#${clip})`}>
-        <g transform={`translate(${-30 * q} 0) scale(${q}) translate(${-SOCKET_BOX.w / 2} ${-SOCKET_BOX.h / 2})`}>
-          <Cutaway loose={variant === "loose"} heat={heat ?? 1} t={t} />
+        {/* inside the lens is the lab: its grid is the screen's, so it matches the next beat's lab behind the circle */}
+        <g transform={`translate(${-x} ${-y})`}><Lab clock={clock ?? t} /></g>
+        {/* the view is centred on the pin (box x = 172): the plug and its cable are out of view, nothing pokes through the rim */}
+        <g transform={`translate(${-52 * q} 0) scale(${q}) translate(${-SOCKET_BOX.w / 2} ${-SOCKET_BOX.h / 2})`}>
+          <Cutaway loose={variant === "loose"} heat={heat ?? 1} t={t} wall={false} />
         </g>
       </g>
       <Ring x={0} y={0} r={now} w={12 * q * p} stroke={BLACK} />

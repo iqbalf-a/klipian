@@ -3,7 +3,7 @@
    and poses of the catalogue, at most 6 words of screen text, every claim with a source. */
 import { z } from "zod";
 import {
-  BACKGROUNDS, BEAT_KINDS, CAMERA_KINDS, CHIBI_COSTUMES, CHIBI_EXPRESSIONS, CHIBI_POSES, CHIBI_ROLES, CUTAWAY_VARIANTS, DIRECTIONS,
+  ARROW_COLORS, BACKGROUNDS, BEAT_KINDS, CAMERA_KINDS, CHIBI_COSTUMES, CHIBI_EXPRESSIONS, CHIBI_POSES, CHIBI_ROLES, CUTAWAY_VARIANTS, DIRECTIONS,
   ENTER_KINDS, EXIT_KINDS, LABEL_COLORS, MASCOT_EXPRESSIONS, OUTSIDE_VARIANTS, SOCKET_VIEWS, TRANSITION_KINDS,
 } from "./catalog.ts";
 
@@ -30,7 +30,7 @@ const EXPRESSIONS = Array.from(new Set<string>([...MASCOT_EXPRESSIONS, ...CHIBI_
 export const Action = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("highlight"), at }).strict(),                                   // a pulse
   z.object({ kind: z.literal("shake"), at, danger: z.literal(true) }).strict(),              // only to say danger
-  z.object({ kind: z.literal("look"), at, x: num, y: num }).strict(),                        // the mascot's lens looks at a point
+  z.object({ kind: z.literal("look"), at, x: num, y: num, snap: z.boolean().optional() }).strict(),   // snap: already looking from the first frame                        // the mascot's lens looks at a point
   z.object({ kind: z.literal("pose"), at, pose: z.enum(CHIBI_POSES) }).strict(),            // the chibi's arms spring to a pose
   z.object({ kind: z.literal("expr"), at, expr: z.enum(EXPRESSIONS) }).strict(),            // another face
 ]);
@@ -41,6 +41,7 @@ const Mascot = z.object({
   type: z.literal("mascot"), ...pos, ...motion, w: num.min(20).max(1200),
   expr: z.enum(MASCOT_EXPRESSIONS), sparks: z.boolean().optional(), rot: num.min(-45).max(45).optional(),
   pop: z.boolean().optional(),                       // the "pop" entrance (squash, stretch, settle)
+  persist: z.boolean().optional(),                   // the same mascot as in the beat before: no entrance, its idles carry on from the video's own clock
   body: z.enum(["yellow", "black"]).optional(),
 }).strict();
 
@@ -56,7 +57,10 @@ const Socket = z.object({
   variant: z.enum([...OUTSIDE_VARIANTS, ...CUTAWAY_VARIANTS]),
   heat: num.min(0).max(1).optional(),                                    // cutaway: the glow at the contact
   dots: z.boolean().optional(),                                          // cutaway: the current's dots
-  plug: z.object({ cableX: num, cableY: num }).strict().optional(),     // outside: a plug in the socket, its cable going to here
+  // outside: a plug in the socket. Its cable goes to (cableX, cableY) in a straight line (the first stories), or follows `route`
+  // (points in video units, 2-6 of them: drop to the floor, run along it, leave the frame, or end behind an object)
+  plug: z.object({ cableX: num.optional(), cableY: num.optional(), route: z.array(z.tuple([num, num])).min(2).max(6).optional() }).strict()
+    .refine((p) => p.route !== undefined || (p.cableX !== undefined && p.cableY !== undefined), { message: "a plug needs a route or cableX and cableY" }).optional(),
   waves: z.boolean().optional(),                                         // outside: heat waves above
   smoke: z.boolean().optional(),                                         // outside: smoke above
 }).strict();
@@ -75,8 +79,13 @@ const Label = z.object({
   lines: z.array(screenText).max(4).optional(),                          // extra lines under the text
 }).strict();
 const Stack = z.object({ type: z.literal("stack"), ...pos, ...motion, s: num.min(0.1).max(4) }).strict();   // plugs piled on one socket, crossed out
+// Supporting elements that fill a screen without a new fact: an arrow from (x, y) to (x2, y2), a numbered badge.
+const Arrow = z.object({ type: z.literal("arrow"), ...pos, ...motion, x2: num.min(-400).max(1480), y2: num.min(-400).max(2320),
+  color: z.enum(ARROW_COLORS).optional(), w: num.min(4).max(40).optional() }).strict();
+const Badge = z.object({ type: z.literal("badge"), text: z.string().min(1).max(3), ...pos, ...motion, r: num.min(20).max(120).optional(),
+  color: z.enum(["yellow", "red", "white"]).optional() }).strict();
 
-export const Item = z.discriminatedUnion("type", [Mascot, Chibi, Socket, Lens, Banner, Pill, Label, Stack]);
+export const Item = z.discriminatedUnion("type", [Mascot, Chibi, Socket, Lens, Banner, Pill, Label, Stack, Arrow, Badge]);
 
 export const Beat = z.object({
   id: z.string().regex(/^[a-z0-9-]{1,24}$/),
@@ -84,7 +93,8 @@ export const Beat = z.object({
   dur: num.min(0.5).max(30),                                              // seconds
   narration: z.string().min(1).max(600),
   text: screenText,                                                       // the screen text of the beat
-  scene: z.object({ bg: z.enum(BACKGROUNDS), items: z.array(Item).max(12) }).strict(),
+  // bg: brand = story scenes (lens rings + a yellow spotlight; `spot` places it, default behind the middle), lab = inside the lens
+  scene: z.object({ bg: z.enum(BACKGROUNDS), spot: z.object({ x: num, y: num, r: num.min(100).max(900).optional() }).strict().optional(), items: z.array(Item).max(14) }).strict(),
   sfx: z.string().max(80),
   // the camera: push (a slow zoom 1.00 -> 1.08), pan (starts offset by dx, dy and settles) or still; default push
   camera: z.object({ kind: z.enum(CAMERA_KINDS), dx: num.min(-600).max(600).optional(), dy: num.min(-600).max(600).optional(), zoom: num.min(0.8).max(1.6).optional(), dur: num.min(0.2).max(10).optional() }).strict().optional(),

@@ -42,3 +42,17 @@ export const SHEET_TO_VIDEO = 1080 / 280;
 export const FONT_BOLD = "Outfit";
 export const FONT_MONO = "DM Mono";
 export const FRAME = { width: 1080, height: 1920, fps: 30 } as const;
+
+/** The two fuller backgrounds (P28-A3). "brand" for story scenes: the wall carries a faint field of lens rings and a big yellow
+    spotlight sits behind the main subject. "lab" for everything INSIDE the lens and for the 3D test: a dark slate "operating room"
+    with a grid and a warm glow, so current and heat light up and a white object never merges with it. */
+export const BRAND = {
+  ring: rgb([226, 224, 218]), spot: rgb([250, 232, 170]), spotInner: rgb([252, 238, 190]), floorEdge: rgb([200, 198, 192]),
+} as const;
+export const LAB = {
+  slate: rgb([70, 70, 72]), grid: rgb([84, 84, 86]), gridMajor: rgb([96, 96, 98]), glow: rgb([86, 82, 66]), glowInner: rgb([98, 92, 66]),
+} as const;
+/** Where the floor starts in the Room and brand scenes (the sheet's 90 units from the bottom). Key content stays above the
+    Shorts interface: out of the bottom 15 % (y > 1632) and the right 12 % (x > 950). */
+export const FLOOR_Y = 1920 - 90 * (1080 / 280);
+export const SAFE = { left: 60, right: 950, top: 120, bottom: 1632 } as const;

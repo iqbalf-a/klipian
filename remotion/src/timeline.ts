@@ -39,15 +39,15 @@ export function sequencePlan(story: StoryT): SequencePlan[] {
 
 export const totalFrames = (story: StoryT): number => story.beats.reduce((a, b) => a + framesOf(b.dur), 0);
 
-export type EnterPlan = { kind: "pop" | "slide" | "fade-up" | "draw"; dir: "left" | "right" | "up" | "down"; delay: number; dur: number };
+export type EnterPlan = { kind: "pop" | "slide" | "fade-up" | "draw" | "none"; dir: "left" | "right" | "up" | "down"; delay: number; dur: number };
 
 /** What an item does when it appears, with the story's own words winning over the defaults. */
 export function enterOf(item: ItemT, index: number): EnterPlan {
   const given = item.enter;
   const byType: Record<ItemT["type"], EnterPlan["kind"]> = {
-    mascot: "pop", chibi: "slide", socket: "fade-up", lens: "fade-up", banner: "slide", pill: "pop", label: "fade-up", stack: "pop",
+    mascot: "pop", chibi: "slide", socket: "fade-up", lens: "fade-up", banner: "slide", pill: "pop", label: "fade-up", stack: "pop", arrow: "draw", badge: "pop",
   };
-  const kind = given?.kind ?? (item.type === "socket" && item.view === "outside" && item.plug ? "draw" : byType[item.type]);
+  const kind = given?.kind ?? (item.type === "mascot" && item.persist ? "none" : item.type === "socket" && item.view === "outside" && item.plug ? "draw" : byType[item.type]);
   const dir = given?.dir ?? (item.type === "banner" ? "down" : item.type === "chibi" ? "up" : "right");
   const auto = Math.min(index, MAX_STAGGER_ITEMS) * STAGGER_S;
   return { kind, dir, delay: given?.delay ?? auto, dur: given?.dur ?? DEFAULT_ENTER_DUR };

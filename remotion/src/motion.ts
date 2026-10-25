@@ -27,6 +27,7 @@ const along = (dir: string, amount: number): [number, number] =>
 
 /** `dir` is the way the thing TRAVELS: "up" rises into place from below, "down" drops in from above. */
 export function enterFx(plan: EnterPlan, t: number): Fx {
+  if (plan.kind === "none") return NO_FX;
   const k = clamp01((t - plan.delay) / plan.dur);
   if (t < plan.delay) return { ...NO_FX, opacity: 0, scale: plan.kind === "pop" ? 0 : 1, draw: 0, ty: plan.kind === "fade-up" ? RISE : 0 };
   switch (plan.kind) {
@@ -63,11 +64,16 @@ export function emphasisFx(actions: readonly Action[] | undefined, t: number): {
   return { scale, tx };
 }
 
-/** The mascot's lens looks at a point from `at` on, easing there (returns the target and how far it has turned, 0..1). */
+/** The mascot looks at a point from `at` on. Between two looks the gaze glides from the first target to the second; the first
+    look turns from the idle drift (or is there at once with `snap`). Returns the target and how far it has turned (0..1). */
 export function lookAt(actions: readonly Action[] | undefined, t: number): { x: number; y: number; mix: number } | null {
-  let last: { x: number; y: number; at: number } | null = null;
-  for (const a of actions ?? []) if (a.kind === "look" && t >= a.at && (!last || a.at >= last.at)) last = { x: a.x, y: a.y, at: a.at };
-  return last ? { x: last.x, y: last.y, mix: springAt(t, last.at, true) } : null;
+  const looks = (actions ?? []).filter((a): a is Extract<Action, { kind: "look" }> => a.kind === "look" && t >= a.at).sort((p, q) => p.at - q.at);
+  const cur = looks[looks.length - 1];
+  if (!cur) return null;
+  const m = cur.snap ? 1 : springAt(t, cur.at, true);
+  const prev = looks[looks.length - 2];
+  if (!prev) return { x: cur.x, y: cur.y, mix: m };
+  return { x: prev.x + (cur.x - prev.x) * m, y: prev.y + (cur.y - prev.y) * m, mix: 1 };
 }
 
 /** The chibi's arms: the pose it was in, the pose it springs to, and how far along it is. */

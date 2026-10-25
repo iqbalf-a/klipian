@@ -76,7 +76,7 @@ s.beats[1].id = "hook";
 bad(s, "two beats with one id", /two beats are called/);
 
 s = clone();
-s.beats[2].scene.items[0].variant = "loose";
+s.beats[2].scene.items[1].variant = "loose";
 bad(s, "a socket variant its view does not have", /no "loose" variant/);
 
 s = clone();
@@ -140,5 +140,33 @@ s = clone(); s.beats[1].transition = { kind: "wipe", dur: 1.9 };
 bad(s, "a transition longer than the beats allow", /at most 80%/);
 s = clone(); s.beats[1].transition = { kind: "cut" }; s.beats[3].transition = { kind: "cut" }; s.beats[6].transition = { kind: "cut" }; s.beats[4].transition = { kind: "zoom" };
 ok(s, "cuts do not count as transitions");
+
+// --- P28-A3: backgrounds, routed cables, arrows and badges, persistent mascot, snapping looks ---
+for (const bg of ["room", "black", "brand", "lab"]) { s = clone(); s.beats[0].scene.bg = bg; ok(s, `the ${bg} background`); }
+s = clone(); s.beats[0].scene.spot = { x: 100, y: 200, r: 300 };
+ok(s, "a spotlight position");
+s = clone(); s.beats[0].scene.spot = { x: 100 };
+bad(s, "a spotlight without y", /spot/);
+const plugOf = (story: any) => story.beats[0].scene.items.find((i: any) => i.type === "socket");
+s = clone(); plugOf(s).plug = { route: [[1, 2]] };
+bad(s, "a cable route of one point", /plug/);
+s = clone(); plugOf(s).plug = {};
+bad(s, "a plug with neither a route nor cableX and cableY", /route or cableX/);
+s = clone(); plugOf(s).plug = { cableX: 10, cableY: 20 };
+ok(s, "the straight cable of the first stories");
+s = clone(); s.beats[0].scene.items.push({ type: "arrow", x: 10, y: 10, x2: 200, y2: 300, color: "white" });
+ok(s, "an arrow");
+s = clone(); s.beats[0].scene.items.push({ type: "arrow", x: 10, y: 10, x2: 200, y2: 300, color: "green" });
+bad(s, "an arrow of a colour outside the palette", /color/);
+s = clone(); s.beats[0].scene.items.push({ type: "badge", text: "2", x: 100, y: 100 });
+ok(s, "a badge");
+s = clone(); s.beats[0].scene.items.push({ type: "badge", text: "12345", x: 100, y: 100 });
+bad(s, "a badge with a long text", /text/);
+s = clone(); firstOf(s, "mascot").persist = true; firstOf(s, "mascot").enter = { kind: "none" };
+ok(s, "a persistent mascot");
+s = clone(); firstOf(s, "mascot").actions = [{ at: 0, kind: "look", x: 5, y: 6, snap: true }];
+ok(s, "a look that snaps");
+s = clone(); firstOf(s, "mascot").actions = [{ at: 0, kind: "look", x: 5, y: 6, snap: "yes" }];
+bad(s, "a snap that is not a boolean", /snap/);
 
 console.log(`schema: ${n} checks ok`);
