@@ -2222,7 +2222,8 @@ di klipian, jadi tidak perlu membangun ulang:
 - cek status otomatis (Tahap 2b);
 - profile per channel (P21).
 
-**Rancangan awal (bisa berubah):**
+**Rancangan awal (bisa berubah; bagian AI agent dan editor digantikan oleh
+"Penerapan di klipian" di bawah):**
 - **Jangan membangun editor dari nol.** Remotion Studio (editor lokal
   berbasis browser, dengan pratinjau, timeline, dan props) dipakai untuk edit
   manual. Klipian hanya mengelola project, membuka Studio, merender, lalu
@@ -2410,9 +2411,144 @@ setelah beberapa putaran pilihan; masih rencana, belum dibangun).
   - minggu 2: 3 video percobaan manual (Claude + Remotion);
   - minggu 3: putuskan otomasi di klipian (P28-A).
 
-**Tahapan usulan:** P28-A spike (render dan ukur, cek lisensi) → P28-B halaman
-`/remotion` (project, template, Studio, Render → Clips) → P28-C panel AI (diff,
-setuju, cek, pratinjau) → P28-D profile niche motion dan render massal.
+**Penerapan di klipian: alur dan endpoint** (keputusan ian 2026-10-25;
+menggantikan "panel AI dengan diff" di rancangan awal, dan menjawab
+pertanyaan terbuka 3 dan 4).
+- **Prinsip: AI mengisi data, bukan menulis kode.** Brief salin-tempel ke
+  Claude atau ChatGPT (tanpa token API, seperti brief klip). AI mengembalikan
+  JSON, lalu klipian merendernya dengan template Remotion yang tetap. Gaya
+  (maskot, chibi, palet, lensa intip, aturan bedah) dikunci di template, JSON
+  bisa divalidasi, dan teks bisa diedit langsung di klipian tanpa AI.
+- **Remotion, bukan HyperFrames.** Kita butuh pustaka komponen yang dipakai
+  ulang (Mascot, Chibi, LensReveal, Socket, Meter, ...), dan itu cocok sebagai
+  komponen React. Remotion juga punya Studio dan render dari Node (Node sudah
+  ada sejak P22).
+- **Alur:**
+  1. **Topik** di halaman `/remotion` (profile klipian intip).
+  2. **Brief 1, naskah dan fakta:** AI (sebaiknya dengan web search)
+     mengembalikan JSON narasi per beat (8 beat, ± 42 detik), teks layar,
+     daftar klaim dengan URL sumber, serta judul, deskripsi dan hashtag.
+  3. **Gerbang fakta (wajib):** setiap klaim dan sumbernya ditampilkan; ian
+     mencentang satu per satu. Tanpa itu tidak bisa lanjut. Centang disimpan
+     dengan tanggal.
+  4. **Brief 2, storyboard:** berisi naskah yang dikunci, daftar komponen yang
+     tersedia beserta state-nya, dan aturan bedah benda. AI mengembalikan JSON
+     adegan per beat: latar, tokoh (peran, ekspresi, pose, kostum), benda
+     (state, panas, arus), maskot (ekspresi, masuk "pop"), lensa (target dan
+     isi potongan), bunyi.
+  5. **Validasi:** komponen atau ekspresi yang tidak ada, durasi meleset, teks
+     layar lebih dari 6 kata, klaim tanpa sumber → klipian membuat pesan
+     perbaikan untuk ditempel balik ke AI.
+  6. **Pratinjau:** satu gambar diam per beat (renderStill), tampil seperti
+     lembar storyboard; teks bisa diedit langsung.
+  7. **Suara** (ian sedang riset opsinya): rekaman atau TTS per beat; durasi
+     suara menentukan panjang beat. Takarir dari teks narasi, waktunya
+     disejajarkan dengan faster-whisper yang sudah ada.
+  8. **Render** lewat antrean pekerjaan berat yang sudah ada (sched): MP4 9:16
+     1080×1920 30 fps, gerak stop-motion 12 fps dengan menahan frame. Hasilnya
+     menjadi baris Clips (`fileFolder` `motion`).
+  9. **Upload** lewat fitur single/bulk terjadwal yang sudah ada (P16).
+- **Benda baru = satu-satunya tempat AI menulis kode.** Kalau storyboard butuh
+  benda yang belum ada, klipian membuat **Brief 3, komponen**: satu file TSX,
+  hanya SVG, warna dari token palet, props `state` dan `t`, tanpa import selain
+  yang diizinkan. klipian menjalankan cek tipe dan aturan import, merender
+  gambar uji, lalu ian menyetujui atau menolak. Yang disetujui masuk pustaka
+  dan dipakai ulang tanpa AI.
+- **Susunan teknis:**
+  - **UI:** halaman `/remotion` di klipian (vanilla JS, gaya tombol
+    /workspace). Alur sehari-hari tidak perlu membuka UI Remotion.
+  - **Server klipian (Python, 5177):** endpoint `/api/motion/...`; proyek
+    video disimpan sebagai JSON di workspace profile
+    (`profiles/<id>/motion/<project>/`).
+  - **Proyek Remotion:** folder `remotion/` di repo (template dan pustaka
+    komponen). Tidak ada server Node yang menyala terus: Python menjalankan
+    `node remotion/render.mjs <job.json>`, yang mem-bundle sekali (di-cache
+    sampai komponen berubah), memanggil `renderStill` atau `renderMedia`, dan
+    mencetak progres sebagai baris JSON di stdout. Python membacanya untuk
+    persen, ETA dan Cancel, seperti render klip.
+  - **Remotion Studio opsional:** tombol "Buka di Studio" menjalankan Studio
+    di `127.0.0.1` (port lain, misalnya 3123) dengan props proyek itu, untuk
+    melihat gerak frame demi frame. Hanya untuk melihat; yang tersimpan tetap
+    JSON di klipian. Dimatikan dari klipian.
+- **Endpoint usulan:**
+
+  | Endpoint | Fungsi |
+  |---|---|
+  | `GET /api/motion/projects` | daftar video motion di profile |
+  | `POST /api/motion/create` | proyek baru dari topik |
+  | `GET /api/motion/brief?id=&step=1\|2\|3` | teks brief untuk ditempel ke AI |
+  | `POST /api/motion/paste` | tempel hasil AI; divalidasi, atau pesan perbaikan |
+  | `POST /api/motion/facts` | simpan centang gerbang fakta |
+  | `POST /api/motion/update` | edit teks narasi atau layar dari UI |
+  | `POST /api/motion/preview` | gambar diam per beat |
+  | `POST /api/motion/render` | render MP4 lewat antrean, hasil ke Clips |
+  | `GET /api/motion/status` | progres, ETA, error |
+  | `POST /api/motion/cancel` | batalkan render |
+  | `POST /api/motion/component` | uji komponen baru (cek tipe + gambar uji), setujui/tolak |
+  | `POST /api/motion/studio` | buka atau tutup Remotion Studio (opsional) |
+
+- **Keamanan:** Node hanya dijalankan klipian dengan argumen file job; Studio
+  hanya di localhost; kode komponen dari AI tidak dirender sebelum lolos cek
+  tipe dan aturan import, menghasilkan gambar uji, dan disetujui ian.
+
+**P28-A — spike (rencana kerja untuk sesi eksekusi).** Tujuan: membuktikan
+"JSON → template Remotion → MP4" dengan storyboard colokan panas, mengukur
+waktunya di mesin ian, dan mengecek lisensi. **Tanpa** perubahan server, UI,
+atau workspace klipian.
+1. **Proyek `remotion/`** di root repo: `package.json` dengan versi pasti
+   (remotion, @remotion/cli, @remotion/bundler, @remotion/renderer, react,
+   react-dom, typescript, zod). `.gitignore`: `remotion/node_modules/`,
+   `remotion/out/`, `remotion/.cache/`. Font Outfit dan DM Mono (OFL) ikut di
+   `remotion/public/fonts/` beserta lisensinya.
+2. **Token dan komponen** (meniru lembar acuan; sumber bentuknya di skrip
+   Python `workspace/channel-art/klipian-intip/`: `make_v2.py` untuk
+   gelembung dan wajah maskot, `chibi_people.py`, `make_mascot.py`,
+   `make_storyboard.py`, plus PNG-nya):
+   - `tokens.ts`: palet hitam/kuning/abu, merah hanya untuk makna, warna
+     panas, logam;
+   - `Mascot`: gelembung + satu mata lensa; 6 ekspresi; squash/stretch,
+     miring, kilau; masuk "pop";
+   - `Chibi`: minimal pemuda (rambut pendek) dengan ekspresi calm, happy,
+     surprised, ouch, pose idle, point, ouch, dan kostum helm;
+   - `LensReveal`: lingkaran clip-path yang bergerak, cincin hitam dan gagang
+     kuning; di dalam lingkaran tampil potongan, di luar tampak luar;
+   - `Socket`: tampak luar (polos, berasap/gosong) dan potongan (rapat,
+     kendur) dengan titik arus yang mengalir dan cahaya panas 0–1;
+   - `Banner`, `Pill`, `Label`, latar `Room` dan `Black`.
+3. **Komposisi `FunFact`** 1080×1920, 30 fps, durasi = jumlah durasi beat.
+   Stop-motion: waktu animasi dibulatkan ke langkah 12 fps, dengan goyangan
+   kecil acak tapi deterministik (seed dari id beat).
+4. **Skema storyboard (zod)** dan `stories/colokan-panas.json` berisi 8 beat
+   dari `storyboard-colokan-panas.png`, plus klaim dengan sumber dan teks
+   posting. Koordinat dalam satuan frame 1080×1920.
+5. **`render.mjs <job.json>`:** job berisi mode (`still` atau `video`), path
+   story, path keluaran, dan frame (untuk still). Bundle di-cache berdasarkan
+   hash isi `src/`. Progres sebagai baris JSON (`progress`, `done`, `error`).
+   Cancel lewat sinyal (cancelSignal Remotion) saat proses dihentikan.
+   Keluaran ke `remotion/out/`.
+6. **Pemeriksaan:** `npm run check` (tsc --noEmit) dan tes skema: story contoh
+   lolos; komponen, ekspresi atau pose yang tidak ada ditolak; teks layar
+   lebih dari 6 kata ditolak; klaim tanpa sumber ditolak. Selftest klipian
+   tetap lulus (tidak ada kode Python yang berubah).
+7. **Ukur dan laporkan:**
+   - waktu bundle pertama dan dari cache;
+   - waktu `renderStill` per beat;
+   - waktu render penuh ± 42 detik dan ukuran MP4, dengan concurrency default
+     dan 4/8;
+   - ukuran `node_modules` dan unduhan Chrome Headless Shell;
+   - ringkasan lisensi Remotion (remotion.dev/license) untuk pemakaian
+     perorangan ian.
+   Jangan mengukur saat ian sedang transkripsi atau render.
+8. **Hasil yang diserahkan ke ian:** MP4 colokan panas (tanpa suara), 8
+   gambar diam per beat, angka di atas, dan catatan apa yang sulit ditiru
+   dari lembar acuan.
+Belum termasuk (untuk P28-B ke atas): halaman `/remotion`, endpoint, brief,
+suara, takarir, Brief 3 komponen, render massal.
+
+**Tahapan usulan (diperbarui 2026-10-25):** P28-A spike (di atas) → P28-B
+halaman `/remotion` dan endpoint: Brief 1, gerbang fakta, Brief 2, validasi,
+pratinjau, render → Clips → P28-C suara dan takarir (setelah riset ian) →
+P28-D Brief 3 komponen baru dan render massal.
 
 ---
 
