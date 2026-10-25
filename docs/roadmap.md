@@ -2254,6 +2254,59 @@ di klipian, jadi tidak perlu membangun ulang:
 4. Panel AI di klipian, atau cukup Claude Code di luar.
 5. Profile, channel, dan rubrik ide konten untuk niche motion.
 
+**Format pertama: "fun fact" bergaya stop-motion** (ian 2026-10-25; masih
+rencana). Shorts edukasi singkat dengan pola "kenapa X terjadi?", dijelaskan
+dalam 30–45 detik. Animasinya patah-patah ala stop-motion, dibuat dengan
+Remotion (atau HyperFrames, perlu dicek dulu) + Claude.
+Contoh topik: kenapa colokan listrik bisa panas lalu MCB turun.
+- **Akurasi adalah modal utama channel fakta.** Contoh awal ian menyebut
+  "hanya 1 arus yang menyentuh, jadi panas". Itu keliru: kalau satu kaki tidak
+  menyentuh, rangkaian terputus. Penjelasan yang benar: kontak longgar membuat
+  hambatan di titik kontak naik, titik itu panas, isolasi bisa rusak atau
+  korsleting, lalu MCB turun; MCB juga turun karena beban berlebih. Karena itu
+  cek fakta adalah langkah WAJIB, bukan opsi.
+- **Tagline:** "Kok Bisa?" sudah dipakai channel edukasi animasi Indonesia yang
+  dikenal, jadi hindari. Usulan: "Oh, Gitu Toh!", "Ternyata Begini.",
+  "1 Menit Paham.", "Ilmu Receh, Paham Beneran.", "Bongkar Sebentar."
+  (cek ketersediaannya di YouTube). Profile dan channel sendiri (P21).
+- **Alur:**
+  1. **Ide → naskah** (Claude, lewat brief salin-tempel atau API P24): satu
+     pertanyaan, jawaban 30–45 detik dalam bahasa santai, hook di 3 detik
+     pertama, dan **daftar sumber** (tautan) untuk setiap klaim.
+  2. **Cek fakta** oleh ian: naskah dan sumber ditampilkan berdampingan.
+     Naskah belum boleh dirender sebelum ditandai "fakta dicek". Tanda ini
+     disimpan beserta tanggal dan sumbernya.
+  3. **Storyboard JSON**:
+     - adegan (durasi dan teks di layar);
+     - objek dari pustaka aset sederhana (colokan, stop kontak, percikan,
+       panah, label);
+     - gerak (masuk, goyang, meledak kecil);
+     - kalimat narasi per adegan.
+     Satu skema tetap, divalidasi seperti balasan brief (perbaikan JSON
+     f238480 berlaku).
+  4. **Template Remotion stop-motion:**
+     - gerak dibatasi 8–12 fps (frame ditahan 2–3 kali);
+     - tekstur kertas atau karton;
+     - sedikit goyangan acak tapi deterministik (seed per adegan);
+     - bayangan keras.
+     Claude MENGISI template dari storyboard, tidak menulis kode bebas (lihat
+     aturan keamanan di atas). Warna dan font dari profile.
+  5. **Suara:**
+     - rekaman suara ian (paling natural), dengan potongan per adegan dari
+       satu file;
+     - atau TTS bahasa Indonesia (pilihan nanti, dengan catatan lisensi dan
+       biaya).
+     Waktu adegan menyesuaikan durasi narasi.
+  6. **Caption:** mesin caption klipian ("As spoken", 4cde304) dari
+     transkripsi narasi.
+  7. **Render → Clips → upload:** baris Clips `fileFolder` `motion`, teks
+     posting dan hashtag (dengan sumber di deskripsi bila perlu), lalu upload
+     satu atau massal terjadwal (P16).
+- **Langkah pertama yang disarankan:** satu video percobaan topik colokan
+  (versi yang sudah dikoreksi), dibuat manual dengan Claude + Remotion di luar
+  klipian. Tujuannya menilai gaya, waktu produksi, dan respons penonton
+  sebelum membangun fiturnya.
+
 **Tahapan usulan:** P28-A spike (render dan ukur, cek lisensi) → P28-B halaman
 `/remotion` (project, template, Studio, Render → Clips) → P28-C panel AI (diff,
 setuju, cek, pratinjau) → P28-D profile niche motion dan render massal.
