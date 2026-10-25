@@ -13,3 +13,8 @@ workspace/*
 
 # hermes tmp
 .hermes-tmp*
+
+# P28-A spike: the Remotion project (remotion/): installed packages, renders and the bundle cache
+remotion/node_modules/
+remotion/out/
+remotion/.cache/

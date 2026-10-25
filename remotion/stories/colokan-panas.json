@@ -1,0 +1,166 @@
+{
+  "question": "Kenapa colokan bisa panas?",
+  "titles": [
+    "Kenapa colokan bisa panas?",
+    "Colokan panas? Ini yang terjadi di dalamnya",
+    "Intip dalam stop kontak: kenapa colokan memanas"
+  ],
+  "duration": 42,
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 3,
+      "narration": "Pernah cabut colokan, eh kok panas?",
+      "text": "Colokan kok panas?",
+      "scene": {
+        "bg": "room",
+        "items": [
+          { "type": "banner", "text": "Colokan kok panas?", "fs": 77 },
+          { "type": "socket", "x": 309, "y": 810, "s": 0.8, "view": "outside", "variant": "plain", "plug": { "cableX": 463, "cableY": 1689 }, "waves": true },
+          { "type": "chibi", "x": 756, "y": 1767, "u": 177, "role": "pemuda", "expr": "surprised", "pose": "point" }
+        ]
+      },
+      "sfx": "desis pelan"
+    },
+    {
+      "id": "intip",
+      "kind": "sting",
+      "dur": 1,
+      "narration": "Intip yuk!",
+      "text": "Intip yuk!",
+      "scene": {
+        "bg": "black",
+        "items": [
+          { "type": "mascot", "x": 540, "y": 849, "w": 733, "expr": "laugh", "sparks": true, "pop": true },
+          { "type": "pill", "text": "Intip yuk!", "x": 540, "y": 1427, "fs": 108 }
+        ]
+      },
+      "sfx": "pop + ting"
+    },
+    {
+      "id": "lensa",
+      "kind": "lens",
+      "dur": 5,
+      "narration": "Di dalam stop kontak ada penjepit logam yang menggigit kaki colokan.",
+      "text": "penjepit logam",
+      "scene": {
+        "bg": "room",
+        "items": [
+          { "type": "socket", "x": 540, "y": 579, "s": 1.1, "view": "outside", "variant": "plain", "plug": { "cableX": 540, "cableY": 1689 } },
+          { "type": "lens", "x": 579, "y": 1157, "r": 355, "variant": "tight", "reveal": { "from": 0.5, "dur": 1 } },
+          { "type": "mascot", "x": 887, "y": 1751, "w": 270, "expr": "curious" },
+          { "type": "label", "text": "penjepit logam", "x": 386, "y": 1728, "fs": 62 }
+        ]
+      },
+      "sfx": "wush (lensa)"
+    },
+    {
+      "id": "rapat",
+      "kind": "normal",
+      "dur": 7,
+      "narration": "Kalau jepitannya rapat, sentuhannya luas. Listrik lewat dengan lega.",
+      "text": "Jepit rapat = jalan lebar",
+      "scene": {
+        "bg": "room",
+        "items": [
+          { "type": "banner", "text": "Jepit rapat = jalan lebar", "fs": 69 },
+          { "type": "socket", "x": 540, "y": 926, "s": 1, "view": "cutaway", "variant": "tight", "dots": true },
+          { "type": "label", "text": "rapat", "x": 733, "y": 579, "fs": 66 },
+          { "type": "mascot", "x": 270, "y": 1689, "w": 309, "expr": "understand" }
+        ]
+      },
+      "sfx": "dengung halus"
+    },
+    {
+      "id": "kendur",
+      "kind": "loose",
+      "dur": 8,
+      "narration": "Kalau penjepitnya kendur, sentuhannya tinggal sedikit. Listrik berdesakan di titik kecil itu, dan titik itu memanas.",
+      "text": "Jepit kendur = jalan sempit",
+      "scene": {
+        "bg": "room",
+        "items": [
+          { "type": "banner", "text": "Jepit kendur = jalan sempit", "fs": 66 },
+          { "type": "socket", "x": 540, "y": 926, "s": 1, "view": "cutaway", "variant": "loose", "heat": 1, "dots": true },
+          { "type": "label", "text": "titik panas", "x": 594, "y": 1157, "fs": 66, "color": "red" },
+          { "type": "mascot", "x": 270, "y": 1689, "w": 309, "expr": "surprised" }
+        ]
+      },
+      "sfx": "desis naik"
+    },
+    {
+      "id": "akibat",
+      "kind": "result",
+      "dur": 6,
+      "narration": "Lama-lama plastiknya bisa gosong, meleleh, bahkan memicu kebakaran.",
+      "text": "Bisa gosong & terbakar",
+      "scene": {
+        "bg": "room",
+        "items": [
+          { "type": "banner", "text": "Bisa gosong & terbakar", "fs": 73 },
+          { "type": "socket", "x": 540, "y": 887, "s": 1.3, "view": "outside", "variant": "scorched", "smoke": true },
+          { "type": "mascot", "x": 825, "y": 1689, "w": 309, "expr": "ouch" }
+        ]
+      },
+      "sfx": "tss"
+    },
+    {
+      "id": "tips",
+      "kind": "tips",
+      "dur": 8,
+      "narration": "Colokan terasa panas? Cabut dulu, lalu ganti stop kontak yang kendur. Alat berdaya besar jangan ditumpuk di satu colokan.",
+      "text": "2 tips: ganti, jangan tumpuk",
+      "scene": {
+        "bg": "room",
+        "items": [
+          { "type": "banner", "text": "2 tips", "fs": 77 },
+          { "type": "socket", "x": 270, "y": 579, "s": 0.6, "view": "outside", "variant": "plain" },
+          { "type": "label", "text": "1 · ganti yang", "x": 463, "y": 579, "fs": 66, "align": "start", "lines": ["kendur"] },
+          { "type": "stack", "x": 270, "y": 910, "s": 1 },
+          { "type": "label", "text": "2 · alat berdaya", "x": 463, "y": 910, "fs": 66, "align": "start", "lines": ["besar jangan", "ditumpuk"] },
+          { "type": "chibi", "x": 540, "y": 1805, "u": 177, "role": "pemuda", "expr": "happy", "pose": "point", "costume": "helmet" }
+        ]
+      },
+      "sfx": "ding"
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "dur": 4,
+      "narration": "Intip yuk fakta lainnya!",
+      "text": "klipian intip",
+      "scene": {
+        "bg": "black",
+        "items": [
+          { "type": "mascot", "x": 540, "y": 771, "w": 656, "expr": "understand", "sparks": true, "pop": true },
+          { "type": "label", "text": "klipian intip", "x": 540, "y": 1273, "fs": 116, "color": "white" },
+          { "type": "pill", "text": "Intip yuk fakta lain →", "x": 540, "y": 1489, "fs": 69 }
+        ]
+      },
+      "sfx": "jingle 1 dtk"
+    }
+  ],
+  "claims": [
+    {
+      "text": "Colokan yang longgar di stop kontak (atau stop kontak yang aus) bisa memanas; colokan yang goyang atau mudah lepas adalah tanda sambungan longgar yang cenderung panas, dan stop kontaknya perlu diganti teknisi.",
+      "beats": ["rapat", "kendur", "tips"],
+      "sources": ["https://www.cpsc.gov/s3fs-public/518.pdf"]
+    },
+    {
+      "text": "Stop kontak atau pelat yang terasa panas, berubah warna, atau gosong menandakan panas berlebih di sambungan: berhenti memakainya dan minta teknisi memeriksa.",
+      "beats": ["hook", "akibat", "tips"],
+      "sources": ["https://www.cpsc.gov/s3fs-public/518.pdf"]
+    },
+    {
+      "text": "Menumpuk banyak alat berdaya besar pada satu stop kontak atau kabel ekstensi dapat membebani dan memanaskan kabel dan stop kontak, dan dapat memicu kebakaran.",
+      "beats": ["tips"],
+      "sources": ["https://www.esfi.org/extension-cord-safety-tips/"]
+    }
+  ],
+  "post": {
+    "description": "Kenapa colokan bisa panas? Intip bagian dalam stop kontak: penjepit yang kendur membuat sentuhannya kecil, listrik berdesakan, dan titik itu memanas. Colokan terasa panas? Cabut dulu dan ganti stop kontak yang kendur lewat teknisi.",
+    "hashtags": ["#faktaseru", "#listrik", "#colokan", "#intipyuk", "#shorts"]
+  },
+  "needs": []
+}

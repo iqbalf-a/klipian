@@ -1,0 +1,28 @@
+{
+  "name": "klipian-remotion",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "P28-A spike: a JSON storyboard -> a fixed Remotion template -> MP4 (no keys, the AI only fills JSON).",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "node tests/schema.test.ts",
+    "studio": "remotion studio src/index.ts",
+    "still": "node render.mjs",
+    "render": "node render.mjs"
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.538",
+    "@remotion/cli": "4.0.538",
+    "@remotion/renderer": "4.0.538",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "remotion": "4.0.538",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "typescript": "5.9.3"
+  }
+}
