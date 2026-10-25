@@ -3,24 +3,26 @@
    heat_waves(), glow() and cutaway() in make_storyboard.py. Colour code: yellow = current, red/orange = heat, grey =
    material, light grey = metal. Components draw around their own centre in the SHEET's units; the parent scales them. */
 import React from "react";
-import { BLACK, G1, G2, G3, G4, HOT1, HOT2, METAL, PLUG_FACE, RED, SMOKE, WALL, WHITE, YELLOW, YELLOW_D } from "../tokens.ts";
-import { Arc, Disc, Line, Rect } from "./svg.tsx";
+import { BLACK, CAVITY_SHADE, G1, G2, G3, G4, HOLE_SHADE, HOT1, HOT2, METAL, PLUG_FACE, RECESS_SHADE, RED, SMOKE, WALL, WHITE, YELLOW, YELLOW_D } from "../tokens.ts";
+import { Arc, Disc, Hole, Line, Rect } from "./svg.tsx";
 
 export const SOCKET_BOX = { w: 240, h: 160 };      // the cutaway's own box on the sheet
 
 export const SocketOutside: React.FC<{ scorched?: boolean }> = ({ scorched }) => (
   <g>
     <Rect x0={-60} y0={-60} x1={60} y1={60} r={16} fill={WHITE} />
-    <Disc x={0} y={0} r={44} fill={G4} />
+    <Hole x={0} y={0} r={44} fill={G4} shade={RECESS_SHADE} off={0.09} />
     {scorched && ([[-14, -6, 30, "rgb(120,104,92)"], [-18, 2, 20, G1], [12, 10, 14, "rgb(120,104,92)"]] as const).map(([dx, dy, r, c], i) =>
       <Disc key={i} x={dx} y={dy} r={r} fill={c} />)}
-    {[-16, 16].map((dx) => <Disc key={dx} x={dx} y={0} r={6} fill={G1} />)}
+    {[-16, 16].map((dx) => <Hole key={dx} x={dx} y={0} r={6.5} fill={PLUG_FACE} shade={HOLE_SHADE} off={0.35} />)}
   </g>
 );
 
-/** The plug pushed into the socket: body over the recess. (Its cable is drawn by the caller, in video coordinates.) */
+/** The plug pushed into the socket: body over the recess, with the recess's shade showing as a ring on its upper-left
+    where it goes in. (Its cable is drawn by the caller, in video coordinates.) */
 export const PlugIn: React.FC = () => (
   <g>
+    <Rect x0={-34} y0={-38} x1={28} y1={32} r={16} fill={RECESS_SHADE} />
     <Rect x0={-30} y0={-34} x1={30} y1={34} r={14} fill={G1} />
     <Rect x0={-12} y0={-20} x1={12} y1={20} r={6} fill={PLUG_FACE} />
   </g>
@@ -66,6 +68,8 @@ export const Cutaway: React.FC<{ loose?: boolean; heat?: number; dots?: boolean;
       {wall && <Rect x0={0} y0={0} x1={240} y1={160} fill={WALL} />}
       <Rect x0={110} y0={18} x1={240} y1={142} r={10} fill={G3} />               {/* the socket body (cut) */}
       <Rect x0={110} y0={56} x1={232} y1={104} fill={G2} />                       {/* the cavity */}
+      <Rect x0={110} y0={56} x1={232} y1={64} fill={CAVITY_SHADE} />              {/* its depth: shade on the top and back */}
+      <Rect x0={224} y0={56} x1={232} y1={104} fill={CAVITY_SHADE} />
       <Rect x0={4} y0={30} x1={78} y1={130} r={14} fill={G1} />                   {/* the plug body */}
       <Rect x0={78} y0={72} x1={196} y1={88} fill={WHITE} />                      {/* the pin */}
       <Rect x0={78} y0={86} x1={196} y1={88} fill={METAL} />

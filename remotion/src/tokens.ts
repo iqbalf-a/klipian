@@ -22,6 +22,12 @@ export const PLASTER = rgb([236, 214, 170]);
 export const PLUG_FACE = rgb([58, 58, 58]);
 export const BLUSH = rgb([225, 120, 120]);
 
+/** Depth only (ian 2026-10-25): the style is flat, and the one shadow is a hard crescent inside something that goes INTO
+    a surface (a hole, a recess, a cavity), light from the top-left. Its colour is the base colour darkened, never black. */
+export const RECESS_SHADE = rgb([167, 167, 166]);      // G4 x 0.72: the round recess of a socket, the ring around a plug
+export const HOLE_SHADE = rgb([26, 26, 26]);           // PLUG_FACE x 0.45: the two pin holes
+export const CAVITY_SHADE = rgb([64, 64, 64]);         // G2 x 0.62: the cavity in the cutaway
+
 export const WALL = rgb([238, 236, 230]);              // the Room background
 export const FLOOR = rgb([214, 212, 206]);
 export const SMOKE = G3;

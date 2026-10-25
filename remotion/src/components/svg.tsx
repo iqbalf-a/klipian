@@ -38,6 +38,20 @@ export const Arc: React.FC<{ cx: number; cy: number; rx: number; ry: number; a0:
 export const Chord: React.FC<{ cx: number; cy: number; rx: number; ry: number; a0: number; a1: number; fill: string }> =
   ({ cx, cy, rx, ry, a0, a1, fill }) => <path d={`${arcPoints(cx, cy, rx, ry, a0, a1)}Z`} fill={fill} />;
 
+/** A round opening with depth: the shade fills it, then the base is drawn shifted down-right and clipped to the opening,
+    which leaves a hard crescent on the upper-left inner edge (light from the top-left). `off` is a fraction of r. */
+export const Hole: React.FC<{ x: number; y: number; r: number; fill: string; shade: string; off?: number }> =
+  ({ x, y, r, fill, shade, off = 0.3 }) => {
+    const id = `hole${React.useId().replace(/:/g, "")}`;
+    return (
+      <g>
+        <clipPath id={id}><circle cx={x} cy={y} r={r} /></clipPath>
+        <circle cx={x} cy={y} r={r} fill={shade} />
+        <circle cx={x + r * off} cy={y + r * off} r={r} fill={fill} clipPath={`url(#${id})`} />
+      </g>
+    );
+  };
+
 export const Rect: React.FC<{ x0: number; y0: number; x1: number; y1: number; r?: number; fill: string }> =
   ({ x0, y0, x1, y1, r = 0, fill }) =>
     <rect x={Math.min(x0, x1)} y={Math.min(y0, y1)} width={Math.abs(x1 - x0)} height={Math.abs(y1 - y0)} rx={r} ry={r} fill={fill} />;
