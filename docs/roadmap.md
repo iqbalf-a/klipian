@@ -2371,6 +2371,28 @@ setelah beberapa putaran pilihan; masih rencana, belum dibangun).
     arah;
   - maksimal 3 transisi;
   - teks layar maksimal 6 kata per adegan.
+- **Bedah benda dengan "lensa intip"** (keputusan ian 2026-10-25). Ini ciri
+  khas channel: lensa maskot membuka lingkaran; di dalam lingkaran terlihat
+  potongan benda, di luar tetap tampak luar (di Remotion: lapisan SVG luar
+  dan dalam + clip-path lingkaran yang mengikuti lensa).
+  - Dipakai hanya kalau sebabnya tersembunyi di dalam benda. Kalau tidak
+    (mis. listrik jepret karena rice cooker + setrika), cukup meteran atau
+    diagram, tanpa bedah.
+  - Tingkat: 1 situasi (orang chibi) → 2 benda dari luar → 3 potongan dalam
+    → 4 partikel (hanya kalau perlu, mis. arus berdesakan).
+  - Maksimal satu kali masuk ke dalam per video, 3–5 bagian, label pendek,
+    dilihat dari samping, satu benda per adegan, datar tanpa garis tepi.
+  - Kode warna: kuning = arus listrik (titik mengalir), merah/oranye =
+    panas atau bahaya, abu-abu = bahan benda, abu muda = logam.
+  - Contoh lengkap: `workspace/channel-art/klipian-intip/storyboard-colokan-panas.png`
+    ("Kenapa colokan bisa panas?", 8 panel, ± 42 detik: hook, "Intip yuk!",
+    lensa intip, jepit rapat, jepit kendur dan titik panas, akibat, 2 tips,
+    penutup). Faktanya dicek ke sumber: kontak kendur menaikkan hambatan
+    kontak dan memanaskan titik itu, bisa melelehkan plastik dan memicu
+    kebakaran walau MCB tidak turun; colokan bertumpuk juga memanaskan
+    kabel dan stop kontak.
+  - Charger konslet: lebih sering di pangkal kabel atau karena air, bukan
+    di dalam kepala charger; dicek sebelum dijadikan naskah.
 - **Persiapan channel:**
   - akun dan channel sendiri;
   - **verifikasi di youtube.com/verify sejak awal** (pelajaran dari batas
