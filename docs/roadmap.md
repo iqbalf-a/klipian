@@ -2414,33 +2414,58 @@ setelah beberapa putaran pilihan; masih rencana, belum dibangun).
 **Penerapan di klipian: alur dan endpoint** (keputusan ian 2026-10-25;
 menggantikan "panel AI dengan diff" di rancangan awal, dan menjawab
 pertanyaan terbuka 3 dan 4).
-- **Prinsip: AI mengisi data, bukan menulis kode.** Brief salin-tempel ke
-  Claude atau ChatGPT (tanpa token API, seperti brief klip). AI mengembalikan
-  JSON, lalu klipian merendernya dengan template Remotion yang tetap. Gaya
-  (maskot, chibi, palet, lensa intip, aturan bedah) dikunci di template, JSON
-  bisa divalidasi, dan teks bisa diedit langsung di klipian tanpa AI.
+- **Prinsip 1: tanpa API key.** klipian sendiri hanya bekerja lokal (seperti
+  transcribe dengan faster-whisper). Semua analisis AI lewat **salin-tempel
+  brief** ke Claude atau ChatGPT. Claude API (P24) tidak dipakai di motion.
+  Suara juga begitu: rekaman, TTS lokal, atau file dari luar yang diimpor;
+  tidak ada key layanan suara di klipian.
+- **Prinsip 2: video konsisten lewat pustaka aset.** Maskot, tokoh chibi,
+  benda, latar, lensa intip, palet, font dan bunyi adalah aset tetap (komponen
+  Remotion). Katalog di brief dibuat **dari pustaka itu**, jadi AI hanya bisa
+  memilih yang benar-benar bisa dirender.
+- **Prinsip 3: AI mengisi data, bukan menulis kode.** AI mengembalikan JSON,
+  lalu klipian merendernya dengan template Remotion yang tetap. JSON bisa
+  divalidasi, dan teks bisa diedit langsung di klipian tanpa AI.
 - **Remotion, bukan HyperFrames.** Kita butuh pustaka komponen yang dipakai
   ulang (Mascot, Chibi, LensReveal, Socket, Meter, ...), dan itu cocok sebagai
   komponen React. Remotion juga punya Studio dan render dari Node (Node sudah
   ada sejak P22).
-- **Alur:**
-  1. **Topik** di halaman `/remotion` (profile klipian intip).
-  2. **Brief 1, naskah dan fakta:** AI (sebaiknya dengan web search)
-     mengembalikan JSON narasi per beat (8 beat, ± 42 detik), teks layar,
-     daftar klaim dengan URL sumber, serta judul, deskripsi dan hashtag.
-  3. **Gerbang fakta (wajib):** setiap klaim dan sumbernya ditampilkan; ian
-     mencentang satu per satu. Tanpa itu tidak bisa lanjut. Centang disimpan
-     dengan tanggal.
-  4. **Brief 2, storyboard:** berisi naskah yang dikunci, daftar komponen yang
-     tersedia beserta state-nya, dan aturan bedah benda. AI mengembalikan JSON
-     adegan per beat: latar, tokoh (peran, ekspresi, pose, kostum), benda
-     (state, panas, arus), maskot (ekspresi, masuk "pop"), lensa (target dan
-     isi potongan), bunyi.
-  5. **Validasi:** komponen atau ekspresi yang tidak ada, durasi meleset, teks
-     layar lebih dari 6 kata, klaim tanpa sumber → klipian membuat pesan
-     perbaikan untuk ditempel balik ke AI.
-  6. **Pratinjau:** satu gambar diam per beat (renderStill), tampil seperti
-     lembar storyboard; teks bisa diedit langsung.
+- **Alur: satu brief, satu jawaban** (usul ian 2026-10-25):
+  1. **Input** di halaman `/remotion` (profile klipian intip): topik, misalnya
+     "fakta seru tentang colokan listrik panas"; durasi 30 / 45 / 60 detik
+     (default 45; 60 untuk topik yang butuh 3 langkah penjelasan); catatan
+     opsional.
+  2. **klipian membuat satu brief** mandiri (Copy brief / Download file, sama
+     seperti brief klip). Isinya:
+     - tugas: ubah topik menjadi satu pertanyaan "kenapa…?";
+     - struktur menurut durasi: hook 0–3 detik, "Intip yuk!" ± 1 detik,
+       penjelasan, tips, penutup ± 4 detik (45 detik ≈ 8 beat, 60 detik ≈
+       10–12 beat);
+     - aturan channel: bahasa santai, teks layar maksimal 6 kata, satu kali
+       bedah benda lewat lensa intip (hanya kalau sebabnya di dalam benda),
+       kode warna, hindari kesehatan/keuangan, jangan mengajarkan hal
+       berbahaya;
+     - aturan fakta: setiap klaim wajib punya sumber (URL); kalau ragu,
+       jangan dipakai;
+     - katalog dari pustaka aset: tokoh (peran, ekspresi, pose, kostum),
+       ekspresi maskot, benda dan state-nya, latar, bunyi; hanya ini yang
+       boleh dipakai;
+     - aturan judul, deskripsi dan hashtag dari profile (sama dengan klip);
+     - format jawaban: skema JSON dan contoh singkat;
+     - benda yang belum ada tidak dikarang, tetapi ditulis di `needs`.
+  3. **AI** (sebaiknya dengan web search) mengembalikan **satu JSON**: 3 pilihan
+     judul, pertanyaan hook, beat (durasi, narasi, teks layar, adegan: latar,
+     tokoh, benda, maskot, lensa, bunyi), klaim dengan sumber dan beat yang
+     memakainya, deskripsi, hashtag, `needs`.
+  4. **Tempel ke klipian → validasi:** komponen/ekspresi/state yang tidak ada,
+     durasi meleset, teks layar lebih dari 6 kata, klaim tanpa sumber →
+     klipian membuat pesan perbaikan untuk ditempel balik ke AI.
+  5. **Pratinjau dan gerbang fakta (wajib):** gambar diam per beat
+     (renderStill), tampil seperti lembar storyboard; teks bisa diedit
+     langsung; setiap klaim dan sumbernya dicentang ian (disimpan dengan
+     tanggal); pilih judul. Tanpa centang semua klaim, tidak bisa render.
+  6. **Klaim ditolak:** klipian membuat **brief revisi** hanya untuk beat yang
+     memakai klaim itu, bukan mengulang semuanya.
   7. **Suara** (ian sedang riset opsinya): rekaman atau TTS per beat; durasi
      suara menentukan panjang beat. Takarir dari teks narasi, waktunya
      disejajarkan dengan faster-whisper yang sudah ada.
@@ -2448,12 +2473,12 @@ pertanyaan terbuka 3 dan 4).
      1080×1920 30 fps, gerak stop-motion 12 fps dengan menahan frame. Hasilnya
      menjadi baris Clips (`fileFolder` `motion`).
   9. **Upload** lewat fitur single/bulk terjadwal yang sudah ada (P16).
-- **Benda baru = satu-satunya tempat AI menulis kode.** Kalau storyboard butuh
-  benda yang belum ada, klipian membuat **Brief 3, komponen**: satu file TSX,
+- **Benda baru = satu-satunya tempat AI menulis kode.** Kalau jawaban AI
+  berisi `needs`, klipian membuat **brief komponen** (juga salin-tempel): satu file TSX,
   hanya SVG, warna dari token palet, props `state` dan `t`, tanpa import selain
   yang diizinkan. klipian menjalankan cek tipe dan aturan import, merender
   gambar uji, lalu ian menyetujui atau menolak. Yang disetujui masuk pustaka
-  dan dipakai ulang tanpa AI.
+  dan dipakai ulang tanpa AI; katalog di brief ikut bertambah.
 - **Susunan teknis:**
   - **UI:** halaman `/remotion` di klipian (vanilla JS, gaya tombol
     /workspace). Alur sehari-hari tidak perlu membuka UI Remotion.
@@ -2475,10 +2500,10 @@ pertanyaan terbuka 3 dan 4).
   | Endpoint | Fungsi |
   |---|---|
   | `GET /api/motion/projects` | daftar video motion di profile |
-  | `POST /api/motion/create` | proyek baru dari topik |
-  | `GET /api/motion/brief?id=&step=1\|2\|3` | teks brief untuk ditempel ke AI |
+  | `POST /api/motion/create` | proyek baru dari topik, durasi, catatan |
+  | `GET /api/motion/brief?id=&kind=main\|revise\|component` | teks brief untuk ditempel ke AI |
   | `POST /api/motion/paste` | tempel hasil AI; divalidasi, atau pesan perbaikan |
-  | `POST /api/motion/facts` | simpan centang gerbang fakta |
+  | `POST /api/motion/facts` | simpan centang gerbang fakta dan judul terpilih |
   | `POST /api/motion/update` | edit teks narasi atau layar dari UI |
   | `POST /api/motion/preview` | gambar diam per beat |
   | `POST /api/motion/render` | render MP4 lewat antrean, hasil ke Clips |
@@ -2543,12 +2568,13 @@ atau workspace klipian.
    gambar diam per beat, angka di atas, dan catatan apa yang sulit ditiru
    dari lembar acuan.
 Belum termasuk (untuk P28-B ke atas): halaman `/remotion`, endpoint, brief,
-suara, takarir, Brief 3 komponen, render massal.
+suara, takarir, brief komponen, render massal.
 
 **Tahapan usulan (diperbarui 2026-10-25):** P28-A spike (di atas) → P28-B
-halaman `/remotion` dan endpoint: Brief 1, gerbang fakta, Brief 2, validasi,
-pratinjau, render → Clips → P28-C suara dan takarir (setelah riset ian) →
-P28-D Brief 3 komponen baru dan render massal.
+halaman `/remotion` dan endpoint: input topik dan durasi, brief, tempel dan
+validasi, pratinjau dan gerbang fakta, brief revisi, render → Clips → P28-C
+suara dan takarir (setelah riset ian; tanpa key layanan suara) → P28-D brief
+komponen baru dan render massal.
 
 ---
 
