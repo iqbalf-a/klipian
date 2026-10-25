@@ -2344,14 +2344,23 @@ setelah beberapa putaran pilihan; masih rencana, belum dibangun).
     dekatnya. Ekspresi: penasaran, kaget, berpikir, paham, tertawa, aduh.
     Muncul di pembuka "Intip yuk!", reaksi di pojok 1–2 kali per video
     (maksimal ± 1 detik), penutup, ikon dan stiker.
-  - **Orang di dalam video** berganti sesuai cerita (pemuda, ibu, kakak
-    berhijab, bapak, anak, ...), tetapi gayanya tetap: satu kerangka
-    Remotion (kepala ± 1/3 tinggi, siku, lutut, 3 jari, titik sendi tetap),
-    mata titik biasa (kaca pembesar hanya milik maskot), baju abu-abu dengan
-    aksen kuning, celana hitam, tanpa garis tepi. Tokoh baru = ganti rambut,
-    kepala atau baju di atas kerangka yang sama.
-  - Usulan kepala tanpa gelembung (`karakter-pilihan-kepala.png`) dan versi
-    stickman/chibi berkepala gelembung tidak dipakai.
+  - **Orang di dalam video: chibi** (revisi ian 2026-10-25, acuan gaya
+    chibi kawaii; digambar sendiri, tidak menyalin gambar acuan). Peran
+    berganti sesuai cerita (pemuda, ibu, kakak berhijab, bapak, anak, adik,
+    ...), dasarnya tetap: kepala ± setengah tinggi badan, mata hitam besar
+    dengan 2 kilau, pipi merona, badan pendek membulat, tangan bulat dengan
+    jempol, kaki pendek, sepatu hitam, tanpa garis tepi. Kaca pembesar hanya
+    milik maskot.
+  - Yang diganti per peran hanya **warna, kostum, rambut dan prop** (contoh:
+    biasa, koki, teknisi listrik dengan helm, peneliti dengan jas lab).
+    Baju abu-abu/hitam dengan aksen kuning; kostum boleh putih atau kuning.
+  - Satu rig Remotion: kepala, rambut depan dan belakang, badan, 2 lengan,
+    2 kaki. Fakta tubuh tetap bisa diperagakan (tangan kena pisau: plester
+    dan tetes merah di tangan bulat).
+  - Gambar penghasil: `make_mascot.py` dan `chibi_people.py` di folder yang
+    sama.
+  - Tidak dipakai: orang bergaya stickman, kepala tanpa gelembung
+    (`karakter-pilihan-kepala.png`), dan stickman/chibi berkepala gelembung.
 - **Gaya animasi (style bible):**
   - potongan kertas ala stop-motion, 12 fps;
   - tekstur kertas, bentuk datar tanpa garis tepi, bayangan keras satu
