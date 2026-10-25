@@ -2255,10 +2255,11 @@ di klipian, jadi tidak perlu membangun ulang:
 4. Panel AI di klipian, atau cukup Claude Code di luar.
 5. Profile, channel, dan rubrik ide konten untuk niche motion.
 
-**Format pertama: "fun fact" bergaya stop-motion** (ian 2026-10-25; masih
-rencana). Shorts edukasi singkat dengan pola "kenapa X terjadi?", dijelaskan
-dalam 30–45 detik. Animasinya patah-patah ala stop-motion, dibuat dengan
-Remotion (atau HyperFrames, perlu dicek dulu) + Claude.
+**Format pertama: "fun fact"** (ian 2026-10-25; masih rencana). Shorts edukasi
+singkat dengan pola "kenapa X terjadi?", dijelaskan dalam 30–45 detik, dibuat
+dengan Remotion + Claude. Awalnya direncanakan bergaya stop-motion; setelah
+melihat hasil spike P28-A, ian menggantinya dengan **gerak halus** (lihat
+P28-A2).
 Contoh topik: kenapa colokan listrik bisa panas lalu MCB turun.
 - **Akurasi adalah modal utama channel fakta.** Contoh awal ian menyebut
   "hanya 1 arus yang menyentuh, jadi panas". Itu keliru: kalau satu kaki tidak
@@ -2285,11 +2286,9 @@ Contoh topik: kenapa colokan listrik bisa panas lalu MCB turun.
      - kalimat narasi per adegan.
      Satu skema tetap, divalidasi seperti balasan brief (perbaikan JSON
      f238480 berlaku).
-  4. **Template Remotion stop-motion:**
-     - gerak dibatasi 8–12 fps (frame ditahan 2–3 kali);
-     - tekstur kertas atau karton;
-     - sedikit goyangan acak tapi deterministik (seed per adegan);
-     - bayangan keras.
+  4. **Template Remotion** (diperbarui 2026-10-25: gerak halus, datar; lihat
+     style bible dan P28-A2; rencana awal stop-motion 8–12 fps, tekstur kertas
+     dan goyangan acak dibatalkan).
      Claude MENGISI template dari storyboard, tidak menulis kode bebas (lihat
      aturan keamanan di atas). Warna dan font dari profile.
   5. **Suara:**
@@ -2367,7 +2366,11 @@ setelah beberapa putaran pilihan; masih rencana, belum dibangun).
   - Tidak dipakai: orang bergaya stickman, kepala tanpa gelembung
     (`karakter-pilihan-kepala.png`), dan stickman/chibi berkepala gelembung.
 - **Gaya animasi (style bible):**
-  - potongan kertas ala stop-motion, 12 fps;
+  - **gerak halus 30 fps** (keputusan ian 2026-10-25, setelah video spike
+    P28-A terasa kaku, patah-patah dan semua objek bergetar): pegas dan
+    easing, bukan langkah 12 fps; getar hanya untuk makna (bahaya). Setiap
+    beat punya 2–4 momen gerak (masuk berurutan, gerak diam yang hidup,
+    kamera, transisi), lihat P28-A2;
   - **datar** (keputusan ian 2026-10-25, setelah membandingkan dengan
     tekstur kertas + bayangan jatuh: `datar-vs-kertas.png`): tanpa tekstur
     kertas, tanpa garis tepi, tanpa bayangan jatuh dari benda;
@@ -2477,7 +2480,7 @@ pertanyaan terbuka 3 dan 4).
      suara menentukan panjang beat. Takarir dari teks narasi, waktunya
      disejajarkan dengan faster-whisper yang sudah ada.
   8. **Render** lewat antrean pekerjaan berat yang sudah ada (sched): MP4 9:16
-     1080×1920 30 fps, gerak stop-motion 12 fps dengan menahan frame. Hasilnya
+     1080×1920 30 fps dengan gerak halus (P28-A2). Hasilnya
      menjadi baris Clips (`fileFolder` `motion`).
   9. **Upload** lewat fitur single/bulk terjadwal yang sudah ada (P16).
 - **Benda baru = satu-satunya tempat AI menulis kode.** Kalau jawaban AI
@@ -2549,7 +2552,8 @@ atau workspace klipian.
    - `Banner`, `Pill`, `Label`, latar `Room` dan `Black`.
 3. **Komposisi `FunFact`** 1080×1920, 30 fps, durasi = jumlah durasi beat.
    Stop-motion: waktu animasi dibulatkan ke langkah 12 fps, dengan goyangan
-   kecil acak tapi deterministik (seed dari id beat).
+   kecil acak tapi deterministik (seed dari id beat). *(Dibatalkan oleh
+   P28-A2: gerak halus.)*
 4. **Skema storyboard (zod)** dan `stories/colokan-panas.json` berisi 8 beat
    dari `storyboard-colokan-panas.png`, plus klaim dengan sumber dan teks
    posting. Koordinat dalam satuan frame 1080×1920.
@@ -2577,7 +2581,62 @@ atau workspace klipian.
 Belum termasuk (untuk P28-B ke atas): halaman `/remotion`, endpoint, brief,
 suara, takarir, brief komponen, render massal.
 
-**Tahapan usulan (diperbarui 2026-10-25):** P28-A spike (di atas) → P28-B
+**Hasil P28-A** (b60a44f, 2026-10-25; ditambah bayangan kedalaman 3609fde):
+JSON → template → MP4 terbukti. Video 42 detik dirender ± 60 detik
+(concurrency default paling cepat, hasil identik setiap render), gambar diam
+± 2,5 detik per beat, bundle pertama ± 15 detik lalu dari cache,
+`node_modules` ± 800 MB (termasuk Chrome render ± 280 MB). Lisensi Remotion
+gratis untuk perorangan, termasuk konten yang dimonetisasi. **Penilaian ian:**
+sangat kaku, patah-patah, semua objek bergetar, animasi terlalu sedikit;
+channel acuan membedah benda (misalnya kepala charger) secara 3D dengan gerak.
+
+**P28-A2 — spike gerak halus dan uji bedah 3D** (keputusan ian 2026-10-25;
+rencana kerja untuk sesi eksekusi). Batasan sama dengan P28-A: hanya
+`remotion/`, tanpa perubahan klipian, versi paket pasti, commit lokal.
+1. **Gerak halus untuk video colokan panas** (isi dan durasi 42 detik tetap):
+   - buang langkah 12 fps dan goyangan acak; waktu kontinu 30 fps, gerak
+     dengan `spring()` dan `interpolate` + easing;
+   - **pustaka gerak** (`motion.ts`), kosakata tetap yang dipilih AI lewat
+     JSON:
+     - masuk/keluar: `pop`, `slide` (arah), `fade-up`, `draw` (jalur kabel
+       dan arus, `@remotion/paths`), dengan jeda berurutan 3–5 frame
+       otomatis menurut urutan item;
+     - diam yang hidup: maskot melayang, berkedip, pupil lensa melirik ke
+       target; chibi bernapas, berkedip, pose lengan berpindah dengan pegas;
+       arus mengalir terus;
+     - penekanan: `highlight` (denyut), `shake` (hanya untuk bahaya);
+     - kamera per beat: `push` (zoom pelan 1.00 → 1.08), `pan`, `still`;
+     - transisi antar beat: `slide`, `wipe`, `zoom`, `cut`
+       (`@remotion/transitions`), dan **tembus lensa**: lingkaran lensa
+       membesar sampai memenuhi layar dan beat potongan berikutnya ada di
+       dalamnya;
+     - teks: kata muncul satu per satu, kata kunci menyala kuning
+       (`highlight` di JSON);
+     - motion blur tipis untuk gerak cepat (`@remotion/motion-blur`), kalau
+       biaya rendernya masuk akal;
+   - skema: per item `enter`, `exit`, `actions` (`[{at, kind, ...}]`), per beat
+     `camera` dan `transition`; semuanya opsional dengan bawaan yang tetap
+     bergerak, dan divalidasi dari kosakata di atas;
+   - `stories/colokan-panas.json` diisi dengan gerak itu, lalu dirender ulang.
+2. **Uji bedah 3D**, komposisi terpisah `Dissect3D` (6–8 detik, 1080×1920):
+   - `@remotion/three` (React Three Fiber + three, versi pasti dan cocok
+     dengan React 19);
+   - benda: **kepala charger** dari bentuk dasar di kode (cangkang, 2 kaki,
+     port USB; di dalam: papan PCB, trafo, kapasitor, chip);
+   - tampilan toon/datar dengan palet klipian intip, cahaya dari kiri atas,
+     latar `WALL`;
+   - gerak: benda masuk berputar dengan pegas, kamera mengitari ± 30°,
+     cangkang terbelah dan terangkat, bagian dalam memisah berurutan
+     (exploded view), label 2D muncul, titik arus kuning mengalir, satu
+     bagian menyala panas; fakta tidak diklaim (hanya uji visual);
+   - ukur: waktu render per detik video, pengaturan GL Chrome yang dipakai
+     di Windows, masalah yang ditemui.
+3. **Serahkan ke ian:** MP4 colokan versi halus, MP4 uji 3D, beberapa frame
+   pembanding (lama vs baru), angka render, dan penilaian: apakah bedah 3D
+   layak menjadi adegan "hero" per video (tokoh dan maskot tetap 2D).
+
+**Tahapan usulan (diperbarui 2026-10-25):** P28-A spike (di atas, selesai) →
+P28-A2 gerak halus dan uji bedah 3D → P28-B
 halaman `/remotion` dan endpoint: input topik dan durasi, brief, tempel dan
 validasi, pratinjau dan gerbang fakta, brief revisi, render → Clips → P28-C
 suara dan takarir (setelah riset ian; tanpa key layanan suara) → P28-D brief
