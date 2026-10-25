@@ -2374,6 +2374,19 @@ setelah beberapa putaran pilihan; masih rencana, belum dibangun).
   - **datar** (keputusan ian 2026-10-25, setelah membandingkan dengan
     tekstur kertas + bayangan jatuh: `datar-vs-kertas.png`): tanpa tekstur
     kertas, tanpa garis tepi, tanpa bayangan jatuh dari benda;
+  - **benda utama = 3D toon** (keputusan ian 2026-10-25, setelah A3: benda
+    2D terlalu datar dan sulit dikenali, sedangkan uji 3D charger "sudah
+    bagus"): stop kontak, colokan, charger dan potongannya dibuat sebagai aset
+    3D toon (`@remotion/three`, palet yang sama, cahaya kiri atas) dengan
+    bentuk yang mirip benda asli; tokoh chibi, maskot, teks, label, ikon dan
+    panah tetap 2D. Potongan dalam 3D memakai bidang potong. Kabel = kurva
+    halus (tanpa sudut runcing);
+  - **sound effect** (keputusan ian 2026-10-25): semua transisi, efek objek
+    dan efek maskot bersuara, kecuali voice over. Suara dibuat sendiri secara
+    lokal (sintesis) atau dari paket CC0, jadi bebas lisensi dan aman dari
+    Content ID; tanpa layanan atau API. Setiap kata gerak di JSON punya suara
+    bawaan, dengan jeda minimum per suara, level yang tidak ramai, dan ruang
+    untuk voice over nanti (efek dikecilkan saat ada suara narasi);
   - **latar** (keputusan ian 2026-10-25, setelah video A2 terasa sepi dengan
     dinding putih polos): adegan cerita memakai **B, pola lensa + sorot
     kuning**: dinding dengan pola cincin lensa samar dan lingkaran kuning besar
