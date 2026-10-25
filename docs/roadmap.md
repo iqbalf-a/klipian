@@ -2374,6 +2374,16 @@ setelah beberapa putaran pilihan; masih rencana, belum dibangun).
   - **datar** (keputusan ian 2026-10-25, setelah membandingkan dengan
     tekstur kertas + bayangan jatuh: `datar-vs-kertas.png`): tanpa tekstur
     kertas, tanpa garis tepi, tanpa bayangan jatuh dari benda;
+  - **latar** (keputusan ian 2026-10-25, setelah video A2 terasa sepi dengan
+    dinding putih polos): adegan cerita memakai **B, pola lensa + sorot
+    kuning**: dinding dengan pola cincin lensa samar dan lingkaran kuning besar
+    di belakang objek utama. Semua yang **di dalam lensa dan bedah 3D**
+    memakai **C, ruang bedah gelap**: abu tua dengan grid dan cahaya kuning di
+    tengah, supaya arus dan panas menyala dan benda putih terpisah dari latar.
+    "Tembus lensa" = pindah dari dunia terang ke ruang bedah gelap. Objek utama
+    ± 60–70% lebar layar, dengan elemen pendukung (panah, ikon, angka, label
+    penunjuk) supaya satu layar tidak sepi. Contoh:
+    `workspace/channel-art/klipian-intip/pilihan-latar.png`;
   - **bayangan hanya untuk kedalaman**: lubang, ceruk, rongga, celah (lubang
     stop kontak, ceruk tempat colokan masuk, rongga di potongan). Cahaya dari
     kiri atas, jadi bayangannya sabit keras di tepi dalam kiri atas; warnanya
