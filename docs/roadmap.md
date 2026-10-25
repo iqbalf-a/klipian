@@ -2351,6 +2351,10 @@ setelah beberapa putaran pilihan; masih rencana, belum dibangun).
     dengan 2 kilau, pipi merona, badan pendek membulat, tangan bulat dengan
     jempol, kaki pendek, sepatu hitam, tanpa garis tepi. Kaca pembesar hanya
     milik maskot.
+  - Tokoh berhijab mengikuti pendapat mayoritas di Indonesia (Syafi'i:
+    seluruh tubuh kecuali wajah dan telapak tangan). Kerudung menutup
+    rambut, telinga dan leher, dan terulur menutup dada (An-Nur 31). Lengan
+    panjang sampai pergelangan, rok panjang yang longgar sampai sepatu.
   - Yang diganti per peran hanya **warna, kostum, rambut dan prop** (contoh:
     biasa, koki, teknisi listrik dengan helm, peneliti dengan jas lab).
     Baju abu-abu/hitam dengan aksen kuning; kostum boleh putih atau kuning.
