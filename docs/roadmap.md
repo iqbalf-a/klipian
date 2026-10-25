@@ -2307,6 +2307,60 @@ Contoh topik: kenapa colokan listrik bisa panas lalu MCB turun.
   klipian. Tujuannya menilai gaya, waktu produksi, dan respons penonton
   sebelum membangun fiturnya.
 
+**Identitas channel motion: klipian intip** (keputusan ian 2026-10-25,
+setelah beberapa putaran pilihan; masih rencana, belum dibangun).
+- **Nama:** klipian intip.
+- **Tagline dan catchphrase:** **"Intip yuk!"** (sama). Pola "Kita ___!" sengaja
+  dihindari karena terlalu mirip channel lain ("Kita bedah!"). "Kok bisa?" juga
+  dihindari.
+- **Logo:** pilihan A, yaitu gelembung klipian (siluet yang sama dengan klipian
+  lucu dan podcast) dengan satu mata kaca pembesar. Lembar pilihan dan
+  perbandingan ada di `workspace/channel-art/klipian-motion/`.
+- **Warna:** kuning klipian dan tinta gelap, dengan aksen biru langit dan
+  coral. **Huruf:** Outfit Bold dan DM Mono. **Bunyi khas:** "ting" kaca
+  pembesar saat "Intip yuk!", "pop" saat objek muncul, dan jingle penutup
+  1 detik.
+- **Format tetap (30–45 detik):**
+  - 0–3 dtk: hook berupa pertanyaan sehari-hari;
+  - 3–4 dtk: "Intip yuk!" (karakter mengintip, lensa membesar, "ting");
+  - 4–35 dtk: penjelasan 2–3 langkah;
+  - 35–42 dtk: tips;
+  - 42–45 dtk: logo dan "klipian intip".
+- **Contoh topik pertama** (fakta sudah dikoreksi):
+  "Kenapa pas masak nasi sambil nyetrika, listrik langsung jepret? Intip yuk!"
+  Rice cooker dan setrika sama-sama memakai elemen pemanas berdaya besar.
+  Rumah berdaya kecil (900/1.300 VA) melewati batas, lalu MCB turun untuk
+  melindungi kabel. Tipsnya: nyalakan bergantian. Angka daya dicek dari
+  sumber.
+- **Karakter:** maskot gelembung dengan mata lensa, tangan dan kaki
+  sederhana (nama kerja "Ntip").
+  - Satu kerangka tetap untuk Remotion: badan, mata, lensa, alis, mulut,
+    lengan atas dan bawah, tangan, kaki, dengan titik sendi tetap.
+  - Ekspresi: penasaran, kaget, paham, tertawa, berpikir.
+  - Pose: mengintip (khas "Intip yuk!"), menunjuk, berpikir, kaget, jempol.
+  - Kostum per topik di atas kerangka yang sama.
+- **Gaya animasi (style bible):**
+  - potongan kertas ala stop-motion, 12 fps;
+  - tekstur kertas, garis tepi tebal, bayangan keras satu arah;
+  - maksimal 3 transisi;
+  - teks layar maksimal 6 kata per adegan.
+- **Persiapan channel:**
+  - akun dan channel sendiri;
+  - **verifikasi di youtube.com/verify sejak awal** (pelajaran dari batas
+    upload klipian lucu);
+  - Google Cloud project sendiri (Guide);
+  - profile klipian "klipian intip" dengan rubrik fun fact;
+  - channel art (`workspace/channel-art/klipian-intip/`);
+  - ritme awal 1–2 video per hari, dijadwalkan.
+- **Pilar konten:** listrik dan rumah, dapur, tubuh sehari-hari, benda
+  sekitar. Daftar 10 topik awal ada di percakapan 2026-10-25. Setiap topik
+  dicek faktanya, dan topik kesehatan/keuangan dihindari atau sangat
+  hati-hati.
+- **Tahapan:**
+  - minggu 1: identitas (logo, channel art, lembar karakter, style bible);
+  - minggu 2: 3 video percobaan manual (Claude + Remotion);
+  - minggu 3: putuskan otomasi di klipian (P28-A).
+
 **Tahapan usulan:** P28-A spike (render dan ukur, cek lisensi) → P28-B halaman
 `/remotion` (project, template, Studio, Render → Clips) → P28-C panel AI (diff,
 setuju, cek, pratinjau) → P28-D profile niche motion dan render massal.
