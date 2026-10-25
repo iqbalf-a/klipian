@@ -12,7 +12,7 @@ const blend = (rgbText: string, k: number): string => {
   return `rgb(${Math.round(r + (to[0] - r) * k)},${Math.round(g + (to[1] - g) * k)},${Math.round(b + (to[2] - b) * k)})`;
 };
 
-function Face({ u, expr, skin }: { u: number; expr: ChibiExpression; skin: string }) {
+function Face({ u, expr, skin, open }: { u: number; expr: ChibiExpression; skin: string; open: number }) {
   const ey = 0.14 * u;
   const eyes = [-1, 1].map((sgn) => {
     const x = sgn * 0.42 * u;
@@ -24,9 +24,11 @@ function Face({ u, expr, skin }: { u: number; expr: ChibiExpression; skin: strin
           <Line a={[x + 0.1 * u * sgn, ey]} b={[x - 0.12 * u * sgn, ey + 0.09 * u]} w={0.07 * u} stroke={BLACK} />
         </>}
         {(expr === "calm" || expr === "surprised") && <>
-          <Oval x={x} y={ey} rx={0.14 * u * (expr === "surprised" ? 1.15 : 1)} ry={0.17 * u * (expr === "surprised" ? 1.15 : 1)} fill={BLACK} />
-          <Disc x={x - 0.05 * u} y={ey - 0.07 * u} r={0.055 * u} fill={WHITE} />
-          <Disc x={x + 0.05 * u} y={ey + 0.06 * u} r={0.028 * u} fill={WHITE} />
+          <Oval x={x} y={ey} rx={0.14 * u * (expr === "surprised" ? 1.15 : 1)} ry={0.17 * u * (expr === "surprised" ? 1.15 : 1) * open} fill={BLACK} />
+          {open > 0.5 && <>
+            <Disc x={x - 0.05 * u} y={ey - 0.07 * u * open} r={0.055 * u} fill={WHITE} />
+            <Disc x={x + 0.05 * u} y={ey + 0.06 * u * open} r={0.028 * u} fill={WHITE} />
+          </>}
         </>}
         <Oval x={x + sgn * 0.16 * u} y={ey + 0.26 * u} rx={0.15 * u} ry={0.07 * u} fill={blend(skin, 0.35)} />
       </g>
@@ -75,11 +77,14 @@ const POSES: Record<ChibiPose, [number, number]> = {   // arm angles (left, righ
 };
 
 export const Chibi: React.FC<{
-  u: number; expr: ChibiExpression; pose: ChibiPose; costume?: "none" | "helmet"; shirt?: string; stripe?: string | null; skin?: string; t?: number;
-}> = ({ u, expr, pose, costume = "none", shirt = G1, stripe = YELLOW, skin = SKIN_A, t = 0 }) => {
+  u: number; expr: ChibiExpression; pose: ChibiPose; costume?: "none" | "helmet"; shirt?: string; stripe?: string | null; skin?: string;
+  poseTo?: ChibiPose; mix?: number;                  // the arms spring from `pose` to `poseTo`; mix 0..1 is how far
+  open?: number; breath?: number; bump?: number;     // eye openness (blink), breathing stretch, a swell after the face changed
+}> = ({ u, expr, pose, costume = "none", shirt = G1, stripe = YELLOW, skin = SKIN_A, poseTo, mix = 1, open = 1, breath = 1, bump = 0 }) => {
   const hip = -0.62 * u, top = hip - 0.95 * u;
-  const [al, ar] = POSES[pose];
-  const bob = 1 + 0.012 * Math.sin(t * 6);
+  const a0 = POSES[pose], a1 = POSES[poseTo ?? pose];
+  const [al, ar] = [a0[0] + (a1[0] - a0[0]) * mix, a0[1] + (a1[1] - a0[1]) * mix];
+  const bob = breath;
   const arms = ([["l", al, -1], ["r", ar, 1]] as const).map(([side, ang, sgn]) => {
     const sh: [number, number] = [sgn * 0.52 * u, top + 0.28 * u];
     const end = seg(sh, 0.62 * u, ang);
@@ -104,9 +109,9 @@ export const Chibi: React.FC<{
       {arms}
       <Rect x0={-0.62 * u} y0={top} x1={0.62 * u} y1={hip + 0.1 * u} r={0.34 * u} fill={shirt} />
       {stripe && <Rect x0={-0.62 * u} y0={top + 0.5 * u} x1={0.62 * u} y1={top + 0.62 * u} fill={stripe} />}
-      <g transform={`translate(${hc[0]} ${hc[1]})`}>
+      <g transform={`translate(${hc[0]} ${hc[1]}) scale(${1 + 0.06 * bump})`}>
         <Oval x={0} y={0} rx={1.05 * u} ry={0.93 * u} fill={skin} />
-        <Face u={u} expr={expr} skin={skin} />
+        <Face u={u} expr={expr} skin={skin} open={open} />
         <HairShortFront u={u} />
         {costume === "helmet" && <HelmetFront u={u} />}
       </g>

@@ -1,11 +1,12 @@
 /* The mascot: the klipian logo come alive. A yellow speech bubble with a dot eye and ONE magnifier eye, no body.
    A port of bubble() and face() in workspace/channel-art/klipian-intip/make_v2.py and mascot() / pill() in make_mascot.py.
-   Drawn around its own centre (0, 0); <Mascot> places, squashes, tilts and pops it. */
+   Drawn around its own centre (0, 0); <Mascot> places, squashes, tilts and brings it to life: it hovers, blinks, and the
+   pupil of its lens looks around (or at a point, when the story says so). */
 import React from "react";
 import { BLACK, WHITE, YELLOW, YELLOW_D } from "../tokens.ts";
 import type { MascotExpression } from "../catalog.ts";
-import { Arc, Disc, Line, Poly, Ring, seg } from "./svg.tsx";
-import { easeOutBack } from "../stopmotion.ts";
+import { Arc, Disc, Line, Oval, Poly, Ring, seg } from "./svg.tsx";
+import { blink as blinkAt, hover } from "../motion.ts";
 
 function Bubble({ w, body }: { w: number; body: string }) {
   const h = w * 0.8, x0 = -w / 2, y0 = -h / 2, tipR = w * 0.045;
@@ -24,27 +25,33 @@ function Bubble({ w, body }: { w: number; body: string }) {
   );
 }
 
-function Face({ w, expr, ink, lensFill }: { w: number; expr: MascotExpression; ink: string; lensFill: string }) {
+const PUPIL: Record<string, [number, number]> = { think: [-0.25, -0.35], surprised: [0, 0], ouch: [-0.3, 0.3] };
+const DEFAULT_PUPIL: [number, number] = [0.15, 0.1];
+/** Where the lens's pupil rests for an expression (fractions of the lens radius). */
+export const pupilFor = (expr: string): [number, number] => PUPIL[expr] ?? DEFAULT_PUPIL;
+/** The lens centre relative to the bubble's centre, for aiming the pupil at a point. */
+export const lensCentre = (w: number): [number, number] => [w * 0.14, -w * 0.8 * 0.08];
+
+function Face({ w, expr, ink, lensFill, pupil, open }: { w: number; expr: MascotExpression; ink: string; lensFill: string; pupil: [number, number]; open: number }) {
   const h = w * 0.8;
   const ex = -w * 0.18, ey = -h * 0.04;
   const lx = w * 0.14, ly = -h * 0.08, lr = w * 0.17;
-  const pupilAt = ({ think: [-0.25, -0.35], surprised: [0, 0], ouch: [-0.3, 0.3] } as Record<string, [number, number]>)[expr] ?? [0.15, 0.1];
   const big = expr === "surprised" || expr === "ouch";
   const hx = lx + lr * 0.7, hy = ly + lr * 0.7;
   const bx = ex, by = -h * 0.22;
   const mx = -w * 0.02, my = h * 0.22;
   return (
     <g>
-      {/* the dot eye */}
+      {/* the dot eye (it blinks) */}
       {expr === "laugh" || expr === "understand"
         ? <Arc cx={ex} cy={ey + w * 0.02} rx={w * 0.06} ry={w * 0.05} a0={200} a1={340} w={w * 0.04} stroke={ink} />
         : big
-          ? <><Disc x={ex} y={ey} r={w * 0.08} fill={lensFill} /><Disc x={ex} y={ey} r={w * 0.05} fill={ink} /></>
-          : <Disc x={ex} y={ey} r={w * 0.06} fill={ink} />}
+          ? <><Oval x={ex} y={ey} rx={w * 0.08} ry={w * 0.08 * open} fill={lensFill} /><Oval x={ex} y={ey} rx={w * 0.05} ry={w * 0.05 * open} fill={ink} /></>
+          : <Oval x={ex} y={ey} rx={w * 0.06} ry={w * 0.06 * open} fill={ink} />}
       {/* the lens eye: white disc, black ring, pupil, glint, handle */}
       <Disc x={lx} y={ly} r={lr} fill={lensFill} />
       <Ring x={lx} y={ly} r={lr} w={w * 0.045} stroke={ink} />
-      <Disc x={lx + lr * pupilAt[0]} y={ly + lr * pupilAt[1]} r={w * (big ? 0.055 : 0.08)} fill={ink} />
+      <Disc x={lx + lr * pupil[0]} y={ly + lr * pupil[1]} r={w * (big ? 0.055 : 0.08)} fill={ink} />
       <Disc x={lx + lr * 0.35} y={ly - lr * 0.3} r={w * 0.02} fill={lensFill} />
       <Line a={[hx, hy]} b={[hx + w * 0.1, hy + w * 0.1]} w={w * 0.05} stroke={ink} />
       {/* brow */}
@@ -61,34 +68,41 @@ function Face({ w, expr, ink, lensFill }: { w: number; expr: MascotExpression; i
   );
 }
 
-/** The bubble and its face, at the origin, width w. */
-export const MascotArt: React.FC<{ w: number; expr: MascotExpression; body?: "yellow" | "black" }> = ({ w, expr, body = "yellow" }) => {
-  const bodyColor = body === "black" ? BLACK : YELLOW;
-  const ink = body === "black" ? YELLOW : BLACK;
-  return <g><Bubble w={w} body={bodyColor} /><Face w={w} expr={expr} ink={ink} lensFill={WHITE} /></g>;
-};
-
-/** The squash and stretch of the "pop" entrance, by seconds into the beat (the sheet's sting: lens, pop!, stretch, settle). */
-export function popShape(t: number): { sx: number; sy: number; grow: number } {
-  if (t < 0.2) return { sx: 1.25, sy: 0.72, grow: easeOutBack(t / 0.2) };
-  if (t < 0.4) return { sx: 0.88, sy: 1.14, grow: 1 };
-  if (t < 0.6) return { sx: 1.06, sy: 0.96, grow: 1 };
-  return { sx: 1, sy: 1, grow: 1 };
-}
+/** The bubble and its face, at the origin, width w. `pupil` (fractions of the lens radius) and `open` (1 = eye open) bring it to life. */
+export const MascotArt: React.FC<{ w: number; expr: MascotExpression; body?: "yellow" | "black"; pupil?: [number, number]; open?: number }> =
+  ({ w, expr, body = "yellow", pupil, open = 1 }) => {
+    const bodyColor = body === "black" ? BLACK : YELLOW;
+    const ink = body === "black" ? YELLOW : BLACK;
+    return <g><Bubble w={w} body={bodyColor} /><Face w={w} expr={expr} ink={ink} lensFill={WHITE} pupil={pupil ?? pupilFor(expr)} open={open} /></g>;
+  };
 
 export const Mascot: React.FC<{
-  x: number; y: number; w: number; expr: MascotExpression; t: number; sparks?: boolean; rot?: number; pop?: boolean; body?: "yellow" | "black";
-}> = ({ x, y, w, expr, t, sparks, rot = 0, pop, body = "yellow" }) => {
-  const shape = pop ? popShape(t) : { sx: 1, sy: 1 + 0.018 * Math.sin(t * 5), grow: 1 };
+  x: number; y: number; w: number; expr: MascotExpression; t: number; sparks?: boolean; rot?: number; body?: "yellow" | "black";
+  squash?: number;                                     // 0..~0.3: the pop's squash and stretch, from the entrance spring
+  look?: { x: number; y: number; mix: number } | null; // the point the lens looks at (video coordinates) and how far it has turned
+  bump?: number;                                       // a small swell right after the face changed
+  phase?: number;                                      // desynchronises blink and drift between mascots
+}> = ({ x, y, w, expr, t, sparks, rot = 0, body = "yellow", squash = 0, look = null, bump = 0, phase = 0 }) => {
+  const rest = pupilFor(expr);
+  let pupil: [number, number] = [rest[0] + 0.07 * Math.sin(t * 0.9 + phase), rest[1] + 0.06 * Math.cos(t * 0.7 + phase)];   // it looks around a little
+  if (look) {
+    const [lx, ly] = lensCentre(w);
+    const dx = look.x - (x + lx), dy = look.y - (y + ly), len = Math.hypot(dx, dy) || 1;
+    pupil = [pupil[0] + ((dx / len) * 0.5 - pupil[0]) * look.mix, pupil[1] + ((dy / len) * 0.5 - pupil[1]) * look.mix];
+  }
+  const sx = (1 + squash) * (1 + 0.05 * bump), sy = (1 - squash) * (1 + 0.05 * bump);
   const sparkColor = body === "yellow" ? YELLOW_D : YELLOW;
+  const sparkPhase = (t * 1.6) % 1;                    // the sparks flash in and fade, once in a while
   return (
-    <g transform={`translate(${x} ${y})`}>
-      <g transform={`rotate(${rot}) scale(${shape.sx * shape.grow} ${shape.sy * shape.grow})`}>
-        <MascotArt w={w} expr={expr} body={body} />
+    <g transform={`translate(${x} ${y + hover(t, w * 0.012)})`}>
+      <g transform={`rotate(${rot + 1.4 * Math.sin(t * 1.3 + phase)}) scale(${sx} ${sy})`}>
+        <MascotArt w={w} expr={expr} body={body} pupil={pupil} open={blinkAt(t, 3.4, phase)} />
       </g>
-      {sparks && (t * 12) % 4 < 3 && [-60, -35, -10].map((a) => {
+      {sparks && [-60, -35, -10].map((a, i) => {
+        const k = Math.max(0, Math.min(1, (sparkPhase - i * 0.08) * 2.2));
+        const grow = Math.sin(Math.PI * Math.min(1, k));
         const p0: [number, number] = [w * 0.58 * Math.cos((a * Math.PI) / 180), -w * 0.1 + w * 0.5 * Math.sin((a * Math.PI) / 180)];
-        return <Line key={a} a={p0} b={seg(p0, w * 0.1, a)} w={w * 0.035} stroke={sparkColor} />;
+        return <Line key={a} a={seg(p0, w * 0.04 * (1 - grow), a)} b={seg(p0, w * (0.04 + 0.08 * grow), a)} w={w * 0.035 * Math.min(1, grow * 2)} stroke={sparkColor} />;
       })}
     </g>
   );

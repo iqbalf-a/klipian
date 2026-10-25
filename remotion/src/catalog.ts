@@ -17,3 +17,11 @@ export const ITEM_TYPES = ["mascot", "chibi", "socket", "lens", "banner", "pill"
 export type MascotExpression = (typeof MASCOT_EXPRESSIONS)[number];
 export type ChibiExpression = (typeof CHIBI_EXPRESSIONS)[number];
 export type ChibiPose = (typeof CHIBI_POSES)[number];
+
+/* The motion vocabulary (P28-A2): everything the story JSON may ask a thing to do. Fixed here, never written by the AI. */
+export const ENTER_KINDS = ["pop", "slide", "fade-up", "draw"] as const;     // draw: a wire's path draws itself (socket cable, cutaway wires)
+export const EXIT_KINDS = ["pop", "slide", "fade-up"] as const;
+export const DIRECTIONS = ["left", "right", "up", "down"] as const;
+export const ACTION_KINDS = ["highlight", "shake", "look", "pose", "expr"] as const;
+export const CAMERA_KINDS = ["push", "pan", "still"] as const;
+export const TRANSITION_KINDS = ["cut", "slide", "wipe", "zoom", "lens"] as const;

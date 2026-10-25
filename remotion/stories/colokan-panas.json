@@ -16,9 +16,49 @@
       "scene": {
         "bg": "room",
         "items": [
-          { "type": "banner", "text": "Colokan kok panas?", "fs": 77 },
-          { "type": "socket", "x": 309, "y": 810, "s": 0.8, "view": "outside", "variant": "plain", "plug": { "cableX": 463, "cableY": 1689 }, "waves": true },
-          { "type": "chibi", "x": 756, "y": 1767, "u": 177, "role": "pemuda", "expr": "surprised", "pose": "point" }
+          {
+            "type": "banner",
+            "text": "Colokan kok panas?",
+            "fs": 77,
+            "highlight": [
+              "panas"
+            ]
+          },
+          {
+            "type": "socket",
+            "x": 309,
+            "y": 810,
+            "s": 0.8,
+            "view": "outside",
+            "variant": "plain",
+            "plug": {
+              "cableX": 463,
+              "cableY": 1689
+            },
+            "waves": true,
+            "actions": [
+              {
+                "at": 1.0,
+                "kind": "highlight"
+              }
+            ]
+          },
+          {
+            "type": "chibi",
+            "x": 756,
+            "y": 1767,
+            "u": 177,
+            "role": "pemuda",
+            "expr": "surprised",
+            "pose": "idle",
+            "actions": [
+              {
+                "at": 1.3,
+                "kind": "pose",
+                "pose": "point"
+              }
+            ]
+          }
         ]
       },
       "sfx": "desis pelan"
@@ -32,11 +72,40 @@
       "scene": {
         "bg": "black",
         "items": [
-          { "type": "mascot", "x": 540, "y": 849, "w": 733, "expr": "laugh", "sparks": true, "pop": true },
-          { "type": "pill", "text": "Intip yuk!", "x": 540, "y": 1427, "fs": 108 }
+          {
+            "type": "mascot",
+            "x": 540,
+            "y": 849,
+            "w": 733,
+            "expr": "laugh",
+            "sparks": true,
+            "pop": true,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.05,
+              "dur": 0.6
+            }
+          },
+          {
+            "type": "pill",
+            "text": "Intip yuk!",
+            "x": 540,
+            "y": 1427,
+            "fs": 108,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.35
+            }
+          }
         ]
       },
-      "sfx": "pop + ting"
+      "sfx": "pop + ting",
+      "transition": {
+        "kind": "wipe",
+        "dur": 0.4,
+        "dir": "left"
+      },
+      "blur": true
     },
     {
       "id": "lensa",
@@ -47,10 +116,63 @@
       "scene": {
         "bg": "room",
         "items": [
-          { "type": "socket", "x": 540, "y": 579, "s": 1.1, "view": "outside", "variant": "plain", "plug": { "cableX": 540, "cableY": 1689 } },
-          { "type": "lens", "x": 579, "y": 1157, "r": 355, "variant": "tight", "reveal": { "from": 0.5, "dur": 1 } },
-          { "type": "mascot", "x": 887, "y": 1751, "w": 270, "expr": "curious" },
-          { "type": "label", "text": "penjepit logam", "x": 386, "y": 1728, "fs": 62 }
+          {
+            "type": "socket",
+            "x": 540,
+            "y": 579,
+            "s": 1.1,
+            "view": "outside",
+            "variant": "plain",
+            "plug": {
+              "cableX": 540,
+              "cableY": 1689
+            }
+          },
+          {
+            "type": "lens",
+            "x": 579,
+            "y": 1157,
+            "r": 355,
+            "variant": "tight",
+            "reveal": {
+              "from": 0.5,
+              "dur": 1.0
+            }
+          },
+          {
+            "type": "mascot",
+            "x": 887,
+            "y": 1751,
+            "w": 270,
+            "expr": "curious",
+            "actions": [
+              {
+                "at": 1.9,
+                "kind": "look",
+                "x": 579,
+                "y": 1157
+              },
+              {
+                "at": 3.2,
+                "kind": "expr",
+                "expr": "understand"
+              }
+            ]
+          },
+          {
+            "type": "label",
+            "text": "penjepit logam",
+            "x": 386,
+            "y": 1728,
+            "fs": 62,
+            "enter": {
+              "kind": "fade-up",
+              "delay": 1.7
+            },
+            "highlight": [
+              "logam"
+            ]
+          }
         ]
       },
       "sfx": "wush (lensa)"
@@ -64,13 +186,78 @@
       "scene": {
         "bg": "room",
         "items": [
-          { "type": "banner", "text": "Jepit rapat = jalan lebar", "fs": 69 },
-          { "type": "socket", "x": 540, "y": 926, "s": 1, "view": "cutaway", "variant": "tight", "dots": true },
-          { "type": "label", "text": "rapat", "x": 733, "y": 579, "fs": 66 },
-          { "type": "mascot", "x": 270, "y": 1689, "w": 309, "expr": "understand" }
+          {
+            "type": "banner",
+            "text": "Jepit rapat = jalan lebar",
+            "fs": 69,
+            "highlight": [
+              "lebar"
+            ],
+            "enter": {
+              "kind": "slide",
+              "dir": "down",
+              "delay": 0.5
+            }
+          },
+          {
+            "type": "socket",
+            "x": 540,
+            "y": 926,
+            "s": 1,
+            "view": "cutaway",
+            "variant": "tight",
+            "dots": true,
+            "enter": {
+              "kind": "fade-up",
+              "delay": 0
+            }
+          },
+          {
+            "type": "label",
+            "text": "rapat",
+            "x": 733,
+            "y": 579,
+            "fs": 66,
+            "enter": {
+              "kind": "fade-up",
+              "delay": 2.2
+            },
+            "highlight": [
+              "rapat"
+            ]
+          },
+          {
+            "type": "mascot",
+            "x": 270,
+            "y": 1689,
+            "w": 309,
+            "expr": "understand",
+            "actions": [
+              {
+                "at": 1.4,
+                "kind": "look",
+                "x": 540,
+                "y": 926
+              }
+            ]
+          }
         ]
       },
-      "sfx": "dengung halus"
+      "sfx": "dengung halus",
+      "transition": {
+        "kind": "lens",
+        "dur": 0.9,
+        "x": 582,
+        "y": 1173,
+        "r": 383
+      },
+      "camera": {
+        "kind": "pan",
+        "dx": -83,
+        "dy": 250,
+        "zoom": 1.08,
+        "dur": 1.5
+      }
     },
     {
       "id": "kendur",
@@ -81,10 +268,67 @@
       "scene": {
         "bg": "room",
         "items": [
-          { "type": "banner", "text": "Jepit kendur = jalan sempit", "fs": 66 },
-          { "type": "socket", "x": 540, "y": 926, "s": 1, "view": "cutaway", "variant": "loose", "heat": 1, "dots": true },
-          { "type": "label", "text": "titik panas", "x": 594, "y": 1157, "fs": 66, "color": "red" },
-          { "type": "mascot", "x": 270, "y": 1689, "w": 309, "expr": "surprised" }
+          {
+            "type": "banner",
+            "text": "Jepit kendur = jalan sempit",
+            "fs": 66,
+            "highlight": [
+              "sempit"
+            ],
+            "enter": {
+              "kind": "slide",
+              "dir": "down",
+              "delay": 0
+            }
+          },
+          {
+            "type": "socket",
+            "x": 540,
+            "y": 926,
+            "s": 1,
+            "view": "cutaway",
+            "variant": "loose",
+            "heat": 1,
+            "dots": true
+          },
+          {
+            "type": "label",
+            "text": "titik panas",
+            "x": 594,
+            "y": 1157,
+            "fs": 66,
+            "color": "red",
+            "enter": {
+              "kind": "fade-up",
+              "delay": 2.6
+            },
+            "actions": [
+              {
+                "at": 3.4,
+                "kind": "highlight"
+              }
+            ]
+          },
+          {
+            "type": "mascot",
+            "x": 270,
+            "y": 1689,
+            "w": 309,
+            "expr": "curious",
+            "actions": [
+              {
+                "at": 1.0,
+                "kind": "look",
+                "x": 594,
+                "y": 926
+              },
+              {
+                "at": 2.6,
+                "kind": "expr",
+                "expr": "surprised"
+              }
+            ]
+          }
         ]
       },
       "sfx": "desis naik"
@@ -98,9 +342,42 @@
       "scene": {
         "bg": "room",
         "items": [
-          { "type": "banner", "text": "Bisa gosong & terbakar", "fs": 73 },
-          { "type": "socket", "x": 540, "y": 887, "s": 1.3, "view": "outside", "variant": "scorched", "smoke": true },
-          { "type": "mascot", "x": 825, "y": 1689, "w": 309, "expr": "ouch" }
+          {
+            "type": "banner",
+            "text": "Bisa gosong & terbakar",
+            "fs": 73,
+            "highlight": [
+              "gosong",
+              "terbakar"
+            ]
+          },
+          {
+            "type": "socket",
+            "x": 540,
+            "y": 887,
+            "s": 1.3,
+            "view": "outside",
+            "variant": "scorched",
+            "smoke": true,
+            "actions": [
+              {
+                "at": 0.7,
+                "kind": "shake",
+                "danger": true
+              }
+            ]
+          },
+          {
+            "type": "mascot",
+            "x": 825,
+            "y": 1689,
+            "w": 309,
+            "expr": "ouch",
+            "enter": {
+              "kind": "pop",
+              "delay": 0.9
+            }
+          }
         ]
       },
       "sfx": "tss"
@@ -114,15 +391,107 @@
       "scene": {
         "bg": "room",
         "items": [
-          { "type": "banner", "text": "2 tips", "fs": 77 },
-          { "type": "socket", "x": 270, "y": 579, "s": 0.6, "view": "outside", "variant": "plain" },
-          { "type": "label", "text": "1 · ganti yang", "x": 463, "y": 579, "fs": 66, "align": "start", "lines": ["kendur"] },
-          { "type": "stack", "x": 270, "y": 910, "s": 1 },
-          { "type": "label", "text": "2 · alat berdaya", "x": 463, "y": 910, "fs": 66, "align": "start", "lines": ["besar jangan", "ditumpuk"] },
-          { "type": "chibi", "x": 540, "y": 1805, "u": 177, "role": "pemuda", "expr": "happy", "pose": "point", "costume": "helmet" }
+          {
+            "type": "banner",
+            "text": "2 tips",
+            "fs": 77,
+            "highlight": [
+              "tips"
+            ]
+          },
+          {
+            "type": "socket",
+            "x": 270,
+            "y": 579,
+            "s": 0.6,
+            "view": "outside",
+            "variant": "plain",
+            "enter": {
+              "kind": "fade-up",
+              "delay": 0.6
+            }
+          },
+          {
+            "type": "label",
+            "text": "1 · ganti yang",
+            "x": 463,
+            "y": 579,
+            "fs": 66,
+            "align": "start",
+            "lines": [
+              "kendur"
+            ],
+            "enter": {
+              "kind": "fade-up",
+              "delay": 0.9
+            },
+            "highlight": [
+              "ganti"
+            ]
+          },
+          {
+            "type": "stack",
+            "x": 270,
+            "y": 910,
+            "s": 1,
+            "enter": {
+              "kind": "pop",
+              "delay": 3.0
+            }
+          },
+          {
+            "type": "label",
+            "text": "2 · alat berdaya",
+            "x": 463,
+            "y": 910,
+            "fs": 66,
+            "align": "start",
+            "lines": [
+              "besar jangan",
+              "ditumpuk"
+            ],
+            "enter": {
+              "kind": "fade-up",
+              "delay": 3.3
+            },
+            "highlight": [
+              "jangan"
+            ]
+          },
+          {
+            "type": "chibi",
+            "x": 540,
+            "y": 1805,
+            "u": 177,
+            "role": "pemuda",
+            "expr": "happy",
+            "pose": "idle",
+            "costume": "helmet",
+            "actions": [
+              {
+                "at": 1.0,
+                "kind": "pose",
+                "pose": "point"
+              },
+              {
+                "at": 3.2,
+                "kind": "highlight"
+              },
+              {
+                "at": 5.8,
+                "kind": "pose",
+                "pose": "cheer"
+              }
+            ]
+          }
         ]
       },
-      "sfx": "ding"
+      "sfx": "ding",
+      "transition": {
+        "kind": "slide",
+        "dur": 0.5,
+        "dir": "right"
+      }
     },
     {
       "id": "outro",
@@ -133,9 +502,46 @@
       "scene": {
         "bg": "black",
         "items": [
-          { "type": "mascot", "x": 540, "y": 771, "w": 656, "expr": "understand", "sparks": true, "pop": true },
-          { "type": "label", "text": "klipian intip", "x": 540, "y": 1273, "fs": 116, "color": "white" },
-          { "type": "pill", "text": "Intip yuk fakta lain →", "x": 540, "y": 1489, "fs": 69 }
+          {
+            "type": "mascot",
+            "x": 540,
+            "y": 771,
+            "w": 656,
+            "expr": "understand",
+            "sparks": true,
+            "pop": true,
+            "actions": [
+              {
+                "at": 1.6,
+                "kind": "look",
+                "x": 540,
+                "y": 1489
+              }
+            ]
+          },
+          {
+            "type": "label",
+            "text": "klipian intip",
+            "x": 540,
+            "y": 1273,
+            "fs": 116,
+            "color": "white",
+            "enter": {
+              "kind": "fade-up",
+              "delay": 0.5
+            }
+          },
+          {
+            "type": "pill",
+            "text": "Intip yuk fakta lain →",
+            "x": 540,
+            "y": 1489,
+            "fs": 69,
+            "enter": {
+              "kind": "pop",
+              "delay": 1.1
+            }
+          }
         ]
       },
       "sfx": "jingle 1 dtk"
@@ -144,23 +550,45 @@
   "claims": [
     {
       "text": "Colokan yang longgar di stop kontak (atau stop kontak yang aus) bisa memanas; colokan yang goyang atau mudah lepas adalah tanda sambungan longgar yang cenderung panas, dan stop kontaknya perlu diganti teknisi.",
-      "beats": ["rapat", "kendur", "tips"],
-      "sources": ["https://www.cpsc.gov/s3fs-public/518.pdf"]
+      "beats": [
+        "rapat",
+        "kendur",
+        "tips"
+      ],
+      "sources": [
+        "https://www.cpsc.gov/s3fs-public/518.pdf"
+      ]
     },
     {
       "text": "Stop kontak atau pelat yang terasa panas, berubah warna, atau gosong menandakan panas berlebih di sambungan: berhenti memakainya dan minta teknisi memeriksa.",
-      "beats": ["hook", "akibat", "tips"],
-      "sources": ["https://www.cpsc.gov/s3fs-public/518.pdf"]
+      "beats": [
+        "hook",
+        "akibat",
+        "tips"
+      ],
+      "sources": [
+        "https://www.cpsc.gov/s3fs-public/518.pdf"
+      ]
     },
     {
       "text": "Menumpuk banyak alat berdaya besar pada satu stop kontak atau kabel ekstensi dapat membebani dan memanaskan kabel dan stop kontak, dan dapat memicu kebakaran.",
-      "beats": ["tips"],
-      "sources": ["https://www.esfi.org/extension-cord-safety-tips/"]
+      "beats": [
+        "tips"
+      ],
+      "sources": [
+        "https://www.esfi.org/extension-cord-safety-tips/"
+      ]
     }
   ],
   "post": {
     "description": "Kenapa colokan bisa panas? Intip bagian dalam stop kontak: penjepit yang kendur membuat sentuhannya kecil, listrik berdesakan, dan titik itu memanas. Colokan terasa panas? Cabut dulu dan ganti stop kontak yang kendur lewat teknisi.",
-    "hashtags": ["#faktaseru", "#listrik", "#colokan", "#intipyuk", "#shorts"]
+    "hashtags": [
+      "#faktaseru",
+      "#listrik",
+      "#colokan",
+      "#intipyuk",
+      "#shorts"
+    ]
   },
   "needs": []
 }

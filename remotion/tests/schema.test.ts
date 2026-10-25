@@ -91,4 +91,54 @@ s = clone();
 s.titles = ["satu", "dua"];
 bad(s, "fewer than 3 titles", /titles/);
 
+// --- motion (P28-A2): an old story with no motion words still passes (it moves by the defaults); the vocabulary is closed ---
+const stripMotion = (story: any) => {
+  for (const b of story.beats) {
+    delete b.camera; delete b.transition; delete b.blur;
+    for (const it of b.scene.items) { delete it.enter; delete it.exit; delete it.actions; delete it.highlight; }
+  }
+  return story;
+};
+ok(stripMotion(clone()), "a story with no motion words at all");
+
+const firstOf = (story: any, type: string): any => story.beats.flatMap((b: any) => b.scene.items).find((i: any) => i.type === type);
+s = clone(); firstOf(s, "mascot").enter = { kind: "teleport" };
+bad(s, "an unknown enter kind", /enter/);
+s = clone(); firstOf(s, "mascot").exit = { kind: "explode", at: 1 };
+bad(s, "an unknown exit kind", /exit/);
+s = clone(); firstOf(s, "mascot").actions = [{ at: 1, kind: "dance" }];
+bad(s, "an unknown action kind", /actions/);
+s = clone(); firstOf(s, "mascot").actions = [{ at: 1, kind: "shake" }];
+bad(s, "a shake that does not say it is danger", /actions/);
+s = clone(); firstOf(s, "mascot").actions = [{ at: 1, kind: "shake", danger: true }];
+ok(s, "a shake that says it is danger");
+s = clone(); firstOf(s, "mascot").actions = [{ at: 99, kind: "highlight" }];
+bad(s, "an action outside its beat", /outside the beat|at/);
+s = clone(); firstOf(s, "mascot").enter = { kind: "pop", delay: 99 };
+bad(s, "an enter delay outside its beat", /delay|outside the beat/);
+s = clone(); firstOf(s, "chibi").actions = [{ at: 1, kind: "look", x: 1, y: 1 }];
+bad(s, "a chibi that looks at a point (only the mascot does)", /only a mascot can look/);
+s = clone(); firstOf(s, "mascot").actions = [{ at: 1, kind: "pose", pose: "point" }];
+bad(s, "a mascot with a pose", /only a chibi has poses/);
+s = clone(); firstOf(s, "mascot").actions = [{ at: 1, kind: "expr", expr: "calm" }];
+bad(s, "a mascot with a chibi expression", /no "calm" expression/);
+s = clone(); firstOf(s, "mascot").exit = { kind: "fade-up", at: 1 }; firstOf(s, "mascot").enter = { kind: "pop", delay: 2 };
+bad(s, "an item that leaves before it enters", /leave before/);
+s = clone(); firstOf(s, "banner").highlight = "panas";
+bad(s, "highlight that is not a list", /highlight/);
+s = clone(); s.beats[0].camera = { kind: "orbit" };
+bad(s, "an unknown camera kind", /camera/);
+s = clone(); s.beats[1].transition = { kind: "spin" };
+bad(s, "an unknown transition kind", /transition/);
+s = clone(); s.beats[0].transition = { kind: "slide" };
+bad(s, "a transition into the first beat", /nothing to transition from/);
+s = clone(); s.beats[4].transition = { kind: "zoom" };
+bad(s, "more than 3 transitions", /at most 3 transitions/);
+s = clone(); s.beats[3].transition = { kind: "lens", x: 1, y: 1 };
+bad(s, "a lens transition without a radius", /needs x, y and r/);
+s = clone(); s.beats[1].transition = { kind: "wipe", dur: 1.9 };
+bad(s, "a transition longer than the beats allow", /at most 80%/);
+s = clone(); s.beats[1].transition = { kind: "cut" }; s.beats[3].transition = { kind: "cut" }; s.beats[6].transition = { kind: "cut" }; s.beats[4].transition = { kind: "zoom" };
+ok(s, "cuts do not count as transitions");
+
 console.log(`schema: ${n} checks ok`);

@@ -7,7 +7,8 @@
 //   {"type":"done","out":"<path>","bytes":..,"ms":..}
 //   {"type":"error","message":"...","cancelled":true|false}
 // Job: { "mode": "still" | "video", "story": "stories/x.json", "out": "name.mp4" (inside out/),
-//        "frame": 120 | "beat": "lensa" (+ "at": 0.85) for a still, "concurrency": 4 (optional) }
+//        "frame": 120 | "time": 4.5 (seconds) | "beat": "lensa" (+ "at": 0.85) for a still, "concurrency": 4 (optional),
+//        "composition": "FunFact" (default) | "Dissect3D" (no story), "gl": "angle" | "swangle" | "swiftshader" | "egl" | "vulkan" (optional) }
 // Cancel: SIGINT/SIGTERM/SIGBREAK, or a line "cancel" on stdin (Windows cannot deliver SIGTERM), is passed to Remotion's cancel signal.
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
@@ -103,23 +104,30 @@ async function main() {
   let job;
   try { job = JSON.parse(readFileSync(path.resolve(jobFile), "utf8")); } catch (e) { fail(`cannot read the job: ${e.message}`); }
   if (!["still", "video"].includes(job.mode)) fail('the job needs "mode": "still" or "video"');
-  let raw;
-  try { raw = JSON.parse(readFileSync(path.resolve(path.dirname(path.resolve(jobFile)), String(job.story)), "utf8")); }
-  catch { try { raw = JSON.parse(readFileSync(path.resolve(ROOT, String(job.story)), "utf8")); } catch (e) { fail(`cannot read the story: ${e.message}`); } }
-  const checked = validateStory(raw);
-  if (!checked.ok) fail("the story is not valid", { errors: checked.errors });
-  const story = checked.story;
+  const compId = job.composition ?? "FunFact";
+  let story = null;
+  if (compId === "FunFact") {
+    let raw;
+    try { raw = JSON.parse(readFileSync(path.resolve(path.dirname(path.resolve(jobFile)), String(job.story)), "utf8")); }
+    catch { try { raw = JSON.parse(readFileSync(path.resolve(ROOT, String(job.story)), "utf8")); } catch (e) { fail(`cannot read the story: ${e.message}`); } }
+    const checked = validateStory(raw);
+    if (!checked.ok) fail("the story is not valid", { errors: checked.errors });
+    story = checked.story;
+  }
+  const inputProps = story ? { story } : {};
+  const chromiumOptions = job.gl ? { gl: job.gl } : {};
   const t0 = Date.now();
 
   progress("browser", 0);
   await ensureBrowser({ onBrowserDownload: () => ({ onProgress: ({ percent }) => progress("browser", percent * 100) }) });
   const serveUrl = await getBundle();
   if (cancelled) fail("cancelled");
-  const composition = await selectComposition({ serveUrl, id: "FunFact", inputProps: { story }, logLevel: "error" });
+  const composition = await selectComposition({ serveUrl, id: compId, inputProps, chromiumOptions, logLevel: "error" });
 
   if (job.mode === "still") {
     let frame = job.frame;
-    if (frame === undefined && job.beat) {
+    if (frame === undefined && job.time !== undefined) frame = Math.round(job.time * FPS);
+    if (frame === undefined && job.beat && story) {
       let start = 0;
       for (const b of story.beats) {
         const len = Math.round(b.dur * FPS);
@@ -130,14 +138,14 @@ async function main() {
     }
     if (!Number.isInteger(frame) || frame < 0 || frame >= composition.durationInFrames) fail(`frame must be 0..${composition.durationInFrames - 1}`);
     const out = resolveOut(job, "png");
-    await renderStill({ composition, serveUrl, output: out, frame, inputProps: { story }, imageFormat: "png", cancelSignal, logLevel: "error" });
+    await renderStill({ composition, serveUrl, output: out, frame, inputProps, chromiumOptions, imageFormat: "png", cancelSignal, logLevel: "error" });
     emit({ type: "done", out, bytes: statSync(out).size, ms: Date.now() - t0, frame });
     return;
   }
 
   const out = resolveOut(job, "mp4");
   await renderMedia({
-    composition, serveUrl, outputLocation: out, codec: "h264", inputProps: { story },
+    composition, serveUrl, outputLocation: out, codec: "h264", inputProps, chromiumOptions,
     muted: true,                                           // the voice and the sounds come later (P28-C)
     concurrency: job.concurrency ?? null,
     cancelSignal, logLevel: "error",

@@ -6,23 +6,30 @@
   "description": "P28-A spike: a JSON storyboard -> a fixed Remotion template -> MP4 (no keys, the AI only fills JSON).",
   "scripts": {
     "check": "tsc --noEmit",
-    "test": "node tests/schema.test.ts",
+    "test": "node tests/schema.test.ts && node tests/timeline.test.ts",
     "studio": "remotion studio src/index.ts",
     "still": "node render.mjs",
     "render": "node render.mjs"
   },
   "dependencies": {
+    "@react-three/fiber": "9.8.2",
     "@remotion/bundler": "4.0.538",
     "@remotion/cli": "4.0.538",
+    "@remotion/motion-blur": "4.0.538",
+    "@remotion/paths": "4.0.538",
     "@remotion/renderer": "4.0.538",
+    "@remotion/three": "4.0.538",
+    "@remotion/transitions": "4.0.538",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "remotion": "4.0.538",
+    "three": "0.186.1",
     "zod": "3.25.76"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
     "@types/react": "19.3.0",
+    "@types/three": "0.186.0",
     "typescript": "5.9.3"
   }
 }

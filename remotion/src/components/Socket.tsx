@@ -28,9 +28,9 @@ export const PlugIn: React.FC = () => (
   </g>
 );
 
-/** Rising heat waves (red): three columns of small S-curves; the whole group bobs up and down a little from step to step. */
+/** Rising heat waves (red): three columns of small S-curves; the whole group sways up and down a little. */
 export const HeatWaves: React.FC<{ t: number; n?: number }> = ({ t, n = 3 }) => {
-  const bob = Math.round(Math.sin(t * 9) * 3);
+  const bob = Math.sin(t * 5.5) * 3.2;
   return (
     <g transform={`translate(0 ${bob})`}>
       {Array.from({ length: n }, (_, k) => {
@@ -59,7 +59,7 @@ const Glow: React.FC<{ x: number; y: number; r: number }> = ({ x, y, r }) => (
 );
 
 /** The inside, side view, one pin. Box 0..240 x 0..160 with its top-left at the origin of this group. */
-export const Cutaway: React.FC<{ loose?: boolean; heat?: number; dots?: boolean; t: number; wall?: boolean }> = ({ loose, heat = 1, dots = true, t, wall = true }) => {
+export const Cutaway: React.FC<{ loose?: boolean; heat?: number; dots?: boolean; t: number; wall?: boolean; draw?: number }> = ({ loose, heat = 1, dots = true, t, wall = true, draw = 1 }) => {
   const th = 7;
   const phase = (t * 48) % 110;
   const pulse = 1 + 0.07 * Math.sin(t * 15);
@@ -73,8 +73,8 @@ export const Cutaway: React.FC<{ loose?: boolean; heat?: number; dots?: boolean;
       <Rect x0={4} y0={30} x1={78} y1={130} r={14} fill={G1} />                   {/* the plug body */}
       <Rect x0={78} y0={72} x1={196} y1={88} fill={WHITE} />                      {/* the pin */}
       <Rect x0={78} y0={86} x1={196} y1={88} fill={METAL} />
-      <Line a={[4, 80]} b={[-14, 80]} w={10} stroke={G1} />                       {/* the plug's cable */}
-      <Line a={[214, 80]} b={[254, 80]} w={8} stroke={BLACK} />                   {/* the house wire */}
+      <Line a={[4, 80]} b={[4 - 18 * draw, 80]} w={10} stroke={G1} />                       {/* the plug's cable */}
+      <Line a={[214, 80]} b={[214 + 40 * draw, 80]} w={8} stroke={BLACK} />                   {/* the house wire */}
       {!loose ? (
         <>
           {[72 - th, 88].map((y0) => <Rect key={y0} x0={124} y0={y0} x1={214} y1={y0 + th} fill={METAL} />)}
