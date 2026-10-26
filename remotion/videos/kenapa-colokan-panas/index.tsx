@@ -68,6 +68,8 @@ const Picture: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ story: s,
   const bt = t - P.beat(beat.id).a;
   const outroFade = 1 - clamp01((t - m.outro + 0.05) / 0.45);
   const contactScreen = toScreen(lc, labPt(contactAt(st.loose)));
+  // round 2: while the plug heats in the socket (0-10 s) its glow breathes, so the first seconds move with meaning
+  const glow = st.outHeat * (t < m.inside ? 1 + 0.22 * Math.sin(t * 6.2) : 1);
   const plugTop = outPt([SOCKET_PTS.plugTop[0], SOCKET_PTS.plugTop[1] + st.gap, SOCKET_PTS.plugTop[2]]);
 
   const labelEls = (world: "out" | "lab") => P.labels.filter((l) => l.world === world && t >= l.from - 0.05 && t < l.to + 0.4).map((l) => {
@@ -86,8 +88,8 @@ const Picture: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ story: s,
       {P.outsideVisible(t) && <g>
         <g transform={layerTransform(oc, 0.3)}><g transform="translate(540 960) scale(1.15) translate(-540 -960)"><Brand clock={t} spot={{ x: 540, y: 900, r: 560 }} /></g></g>
         <g opacity={outroFade} transform={layerTransform(oc, 1)}>
-          <IsoWallSocket u={OUT.u} o={OUT.o} scorch={st.scorch} heat={st.outHeat * (1 - st.gap / 1.6)} t={t} />
-          <IsoPlug u={OUT.u} o={OUT.o} gap={st.gap} wobble={st.wobble} heat={st.outHeat} cableTo={CABLE_TO} />
+          <IsoWallSocket u={OUT.u} o={OUT.o} scorch={st.scorch} heat={glow * (1 - st.gap / 1.6)} t={t} />
+          <IsoPlug u={OUT.u} o={OUT.o} gap={st.gap} wobble={st.wobble} heat={glow} cableTo={CABLE_TO} />
           <HeatRise x={plugTop[0]} y={plugTop[1] - 10} k={st.outHeat * (1 - st.gap / 1.6) * (t < m.tips + 1.5 ? 1 : 0.4)} t={t} scale={0.8} />
           <SmokePuffs x={plugTop[0] + 20} y={plugTop[1] - 30} k={st.smoke} t={t} scale={0.75} />
           {st.fresh > 0 && st.fresh < 1 && (() => { const c = outPt(SOCKET_PTS.center); return <circle cx={c[0]} cy={c[1]} r={60 + 260 * st.fresh} fill="none" stroke={YELLOW} strokeWidth={14 * (1 - st.fresh)} />; })()}

@@ -106,4 +106,23 @@ for (const name of ["iso wall socket", "iso plug", "iso cutaway tight", "iso cut
 yes(conflicts([{ id: "a", role: "picture", box: { x0: 100, y0: 500, x1: 500, y1: 800 } }, { id: "b", role: "picture", box: { x0: 300, y0: 700, x1: 700, y1: 1000 } }]).some((c) => c.includes("overlaps")), "two overlapping pictures are a conflict");
 yes(conflicts([{ id: "a", role: "picture", box: { x0: 100, y0: 500, x1: 500, y1: 800 } }, { id: "b", role: "picture", box: { x0: 100, y0: 830, x1: 500, y1: 1000 } }]).length === 0, "pictures apart are fine");
 
+// --- round 2: at 38-41 s the pulled-out plug and its cable clear the captions, and the plate and its ring stay in frame, clear of the tip card
+{
+  const cap = captionBox();
+  const inCap = ([x, y]: [number, number], m = 0) => x > cap.x0 - m && x < cap.x1 + m && y > cap.y0 - m && y < cap.y1 + m;
+  const tipBottom = P.TIP.y + tipH(1);
+  for (const t of [38, 39, 40, 40.5, 41]) {
+    const cam = P.outCam(t), plug = P.plug(t, cam);
+    yes(!plug.body.some((q) => inCap([q[0], q[1]])), `the plug's body is clear of the captions at ${t} s`);
+    const cs = cableSamples(plug.cable.map((q) => [q[0], q[1]] as [number, number]), undefined, 6);
+    yes(!cs.some((q) => inCap([q[0], q[1]], 12)), `the plug's cable is clear of the captions at ${t} s`);
+    const C = toScreen(cam, isoAt([0, 0.3, 0.5], OUT.u, OUT.o)), r = 150 * cam.zoom;
+    yes(C[0] - r >= 0 && C[0] + r <= 1080 && C[1] + r <= 1920, `the plate's ring is inside the frame at ${t} s`);
+    yes(C[1] - r >= tipBottom + 10, `the plate's ring is clear of the tip card at ${t} s (ring top ${(C[1] - r).toFixed(0)}, card bottom ${tipBottom})`);
+    const plate = [[-1, 0.3, -0.5], [1, 0.3, -0.5], [-1, 0.3, 1.5], [1, 0.3, 1.5]].map((q) => toScreen(cam, isoAt(q as [number, number, number], OUT.u, OUT.o)));
+    const plateTop = Math.min(...plate.map((q) => q[1]));
+    yes(plateTop >= tipBottom + 10, `the plate is clear of the tip card at ${t} s (plate top ${plateTop.toFixed(0)}, card bottom ${tipBottom})`);
+  }
+}
+
 console.log(`colokan: ${n} checks ok`);

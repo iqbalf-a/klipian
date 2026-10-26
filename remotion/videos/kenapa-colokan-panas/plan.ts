@@ -19,6 +19,25 @@ export const contactAt = (loose: number): P3 => [1.2 - 0.2 * loose, 0.05, 0.18];
 /** The cable after the plug end: straight to the left (world (-1, +1, 0) is level on the screen), so it runs above the captions and off the frame. */
 export const CABLE_TO: P3[] = [[-0.9, 2.8, 0.5], [-2.6, 4.6, 0.4]];
 const out = (p: P3): P2 => isoAt(p, OUT.u, OUT.o);
+/** The plug's radius by height above its plate (IsoPlug in components/Iso.tsx, the same numbers): the body, then the thin strain relief. */
+const PLUG_PROFILE: [number, number, number][] = [[0, 1.03, 1.03], [0.14, 0.95, 0.86], [1.0, 0.86, 0.6], [1.14, 0.3, 0.18], [1.62, 0.3, 0.18]];
+const plugRadius = (dy: number): number => {
+  for (let i = 1; i < PLUG_PROFILE.length; i++) {
+    const [a, ra, rb] = PLUG_PROFILE[i - 1], b = PLUG_PROFILE[i][0];
+    if (dy <= b) return ra + (rb - ra) * ((dy - a) / (b - a));
+  }
+  return 0.18;
+};
+/** The screen points of the plug's body and cable end for a gap (the plug moves with its gap), and the cable's route on the screen. */
+export function plugScreen(gap: number, cam: Cam2): { body: P2[]; cable: P2[] } {
+  const y0 = 0.3 + gap, body: P2[] = [];
+  for (let dy = 0; dy <= 1.62; dy += 0.08) {
+    const r = plugRadius(dy);
+    for (let a = 0; a < 16; a++) { const th = (a / 16) * Math.PI * 2; body.push(toScreen(cam, out([r * Math.cos(th), y0 + dy, 0.5 + r * Math.sin(th)]))); }
+  }
+  const cable = [[0, y0 + 1.62, 0.5] as P3, ...CABLE_TO].map((p) => toScreen(cam, out(p)));
+  return { body, cable };
+}
 const lab = (p: P3): P2 => isoAt(p, LAB.u, LAB.o);
 
 const norm = (w: string) => w.toLowerCase().normalize("NFD").replace(/[^\p{L}\p{N}]/gu, "");
@@ -131,7 +150,7 @@ export function makePlan(story: StoryT) {
   const J = out(SOCKET_PTS.junction), C0 = out(SOCKET_PTS.center);
   const outKeys: Key2[] = [
     { t: 0, x: 520, y: 980, zoom: 0.8 },
-    { t: 1.1, x: C0[0] + 20, y: C0[1] + 40, zoom: 1.28 },
+    { t: 2.0, x: C0[0] + 20, y: C0[1] + 40, zoom: 1.28 },
     { t: m.sting, x: C0[0] + 10, y: C0[1] + 30, zoom: 1.36 },
     { t: m.stingEnd, x: C0[0], y: C0[1] + 20, zoom: 1.32 },
     { t: m.plugLabel + 0.4, x: C0[0] - 60, y: C0[1] + 50, zoom: 1.2 },
@@ -143,8 +162,10 @@ export function makePlan(story: StoryT) {
     { t: cardIn2 + 0.35, x: C0[0] + 20, y: C0[1] + 230, zoom: 1.05 },
     { t: cardOut2, x: C0[0] + 20, y: C0[1] + 230, zoom: 1.05 },
     { t: m.tips + 0.3, x: C0[0] - 100, y: C0[1] - 250, zoom: 1.0 },
-    { t: m.tip2, x: C0[0] - 90, y: C0[1] - 240, zoom: 1.32 },
-    { t: m.outro, x: C0[0] - 100, y: C0[1] - 250, zoom: 1.08 },
+    { t: m.tip2, x: C0[0], y: C0[1], zoom: 1.18 },
+    // round 2: from 38 s the tips settle at 1.1 so the pulled-out plug clears the captions and the plate and ring stay in frame
+    { t: 39.2, x: C0[0], y: C0[1], zoom: 1.0 },
+    { t: m.outro, x: C0[0], y: C0[1], zoom: 1.0 },
     { t: m.outro + 1.2, x: C0[0], y: C0[1] - 700, zoom: 0.75 },
   ];
   const outCam = (t: number): Cam2 => cam2At(outKeys, t);
@@ -196,7 +217,7 @@ export function makePlan(story: StoryT) {
     outHeat: t < m.inside ? 0.25 + 0.5 * sm(ramp(t, m.hookHeat, 1.6)) : t < m.tips ? 0.75 + 0.25 * sm(ramp(t, exitEnd, 1)) : 1 - sm(ramp(t, m.unplug + 0.2, 1.2)),
     scorch: t < m.exit ? 0 : t < m.replace ? sm(ramp(t, m.melt - 0.3, 1.0)) : 1 - sm(ramp(t, m.replace, 0.35)),
     // step 1: once unplugged the plug stays out (the socket is replaced, so the new plate must show: no plug in front of it)
-    gap: t < m.unplug ? 0 : 2.1 * sm(ramp(t, m.unplug, 0.3)),
+    gap: t < m.unplug ? 0 : 1.6 * sm(ramp(t, m.unplug, 0.3)),
     wobble: t > m.wobble && t < m.wobble + 1.5 ? Math.sin((t - m.wobble) * 15) * Math.sin(Math.PI * (t - m.wobble) / 1.5) : 0,
     smoke: t >= m.exit && t < m.tips + 0.4 ? sm(ramp(t, m.melt - 0.6, 0.6)) * (1 - sm(ramp(t, m.tips, 0.4))) : 0,
     loose: sm(ramp(t, m.loosen, 0.9)),
@@ -302,5 +323,5 @@ export function makePlan(story: StoryT) {
   };
   const problemsAt = (t: number, cardH: (q: string) => number, tipH: (i: number) => number) => conflicts(specsAt(t, cardH, tipH));
 
-  return { B, beat, total, w, m, exitEnd, cardIn1, cardOut1, cardIn2, cardOut2, outKeys, labKeys, outCam, labCam, lens, outsideVisible, labVisible, state, tops, labels, labelAt, LABEL_FS, cards, chips, tips, TIP, stingPill, outroLabel, outroPill, specsAt, problemsAt, loopWords: [fromStory(story, "panas"), fromStory(story, "hambatan")] as const, J };
+  return { B, beat, total, w, m, exitEnd, cardIn1, cardOut1, cardIn2, cardOut2, outKeys, labKeys, outCam, labCam, lens, outsideVisible, labVisible, state, tops, labels, labelAt, LABEL_FS, cards, chips, tips, TIP, stingPill, outroLabel, outroPill, specsAt, problemsAt, loopWords: [fromStory(story, "panas"), fromStory(story, "hambatan")] as const, J, plug: (t: number, cam: Cam2) => plugScreen(state(t).gap, cam) };
 }
