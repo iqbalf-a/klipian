@@ -49,7 +49,7 @@ export function sfx(story: StoryT): SfxEvent[] {
   P.tips.forEach((tp, i) => { add(tp.from, i ? "chime-bright" : "chime", `tip ${tp.n}`); add(tp.subAt, "tick", "the line under the tip"); });
   add(m.unplug, "click-crack", "the plug comes out");
   add(m.unplug + 0.12, "pop", "PLOK!");
-  add(m.tip2 + 0.3, "thump", "the plug goes back in", { vol: 0.7 });
+  add(m.replace - 0.2, "thump", "the new plate goes in", { vol: 0.7 });
   add(m.wobble, "rattle", "the plug wobbles");
   add(m.replace, "chime-bright", "a new socket plate");
 
@@ -57,5 +57,11 @@ export function sfx(story: StoryT): SfxEvent[] {
   add(m.outro + 0.2, "jingle-outro", "outro");
   add(m.outro + 0.6, "tick-soft", "klipian intip");
   add(m.outro + 1.1, "pop", "the last pill");
-  return ev.sort((a, b) => a.t - b.t);
+  // step 8: thin the pairs that landed within 0.3 s (the lesser sound of each pair goes; the mascot, the plug and the jingles stay)
+  const DROP: [SfxName, number][] = [
+    ["thump", 0.1], ["pop", 3.27], ["swish", 3.87], ["tick", 6.57], ["swish-soft", 10.07], ["swish-soft", 13.6], ["swish-soft", 20.27],
+    ["swish-soft", 24.07], ["swish-soft", 25.07], ["pop-soft", 25.3], ["tick-soft", 25.77], ["puff", 29.47], ["swish-soft", 31.87],
+    ["swish-soft", 32.03], ["pop", 34.67], ["tick", 39.67], ["boing", 41.17],
+  ];
+  return ev.filter((e) => !DROP.some(([name, t]) => e.name === name && Math.abs(e.t - t) < 0.02)).sort((a, b) => a.t - b.t);
 }

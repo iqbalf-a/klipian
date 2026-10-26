@@ -10,7 +10,10 @@ import { sfx } from "../videos/kenapa-colokan-panas/sfx.ts";
 import { validateStory } from "../src/schema.ts";
 import { FPS } from "../src/timeline.ts";
 import { block, cam2At, cylinder, extrudeXZ, iso, roundRectPts, toneOf, visible } from "../src/iso.ts";
-import { conflicts, textWidthEstimate } from "../src/layout.ts";
+import { conflicts, textWidthEstimate, captionBox } from "../src/layout.ts";
+import { cableSamples } from "../src/cable.ts";
+import { isoAt, toScreen } from "../src/iso.ts";
+import { CABLE_TO, OUT, quoteLines } from "../videos/kenapa-colokan-panas/plan.ts";
 import { ASSET_NAMES_FILE } from "./assetNames.ts";
 
 let n = 0;
@@ -34,10 +37,40 @@ yes(bad.length === 0, `no overlaps and all inside the safe area in any frame:\n$
 const hay = JSON.stringify(story).toLowerCase();
 const CHROME = ["dari luar", "di dalam", "di dalam · diperbesar", "akibatnya", "tips aman"];
 const shown = [...P.tops.map((x) => x.headline), ...P.labels.map((l) => l.text), ...P.tips.flatMap((tp) => [tp.title, tp.sub ?? ""]), ...P.cards.map((c) => c.quote), P.stingPill, P.outroLabel, P.outroPill ?? "", ...P.loopWords.map((x) => x ?? "")].filter(Boolean);
-for (const s of shown) yes(hay.includes(s.toLowerCase()), `"${s}" is in the story`);
+for (const s of shown) yes(hay.includes(s.replace(/…$/, "").toLowerCase()), `"${s}" is in the story`);
 for (const x of P.tops) yes(!x.kicker || CHROME.includes(x.kicker.toLowerCase()) || x.kicker === story.question.toUpperCase(), `kicker "${x.kicker}" is chrome or the story's question`);
 yes(P.cards.length === 2 && P.tips.length === 2 && P.labels.length >= 6, `cards ${P.cards.length}, tips ${P.tips.length}, labels ${P.labels.length}`);
 for (const c of P.cards) yes(story.claims[c.claim - 1].sources[0].includes(c.domain), `card ${c.claim}: the domain of its first source`);
+
+// --- source cards: at most two lines, and a part of the claim's own text
+for (const c of P.cards) {
+  yes(quoteLines(c.quote) <= 2, `card ${c.claim}: the quote is at most two lines (${quoteLines(c.quote)})`);
+  const words = c.quote.replace(/…$/, "").trim();
+  yes(story.claims[c.claim - 1].text.includes(words), `card ${c.claim}: the quote is the claim's own words`);
+}
+
+// --- source chips: 40 px mono, at most 880 px wide; the tip chips fit their card (at 28 px)
+for (const c of P.chips) yes([...`SUMBER  ${c.text}`].length * 40 * 0.6 + 44 <= 880, `chip "${c.text}" fits at 40 px`);
+for (const tp of P.tips) if (tp.chip) yes(80 + 140 + [...`SUMBER  ${tp.chip}`].length * 28 * 0.6 <= 940, `tip chip "${tp.chip}" fits the tip card at 28 px`);
+
+// --- the hook's cable never runs under the captions (it leaves level to the left, above them)
+{
+  const cap = captionBox(), u = 150;
+  const end: [number, number, number] = [0, 0.3 + 1.62, 0.5];                 // the plug's cable end at rest (IsoPlug, gap 0)
+  const cable = [end, ...CABLE_TO];
+  let worst = Infinity;
+  for (let f = 0; f < P.m.inside * FPS; f += 3) {
+    const t = f / FPS;
+    if (!P.outsideVisible(t)) continue;
+    const cam = P.outCam(t), pts = cableSamples(cable.map((p) => { const q = toScreen(cam, isoAt(p, OUT.u, OUT.o)); return [q[0], q[1]] as [number, number]; }), undefined, 6);
+    const margin = u * 0.16 * cam.zoom;
+    for (const [x, y] of pts) {
+      const inX = x > cap.x0 - margin && x < cap.x1 + margin, inY = y > cap.y0 - margin && y < cap.y1 + margin;
+      if (inX && inY) worst = Math.min(worst, t);
+    }
+  }
+  yes(worst === Infinity, `the cable never runs under the captions (first clash at ${worst}s)`);
+}
 
 // --- the cameras are smooth while their world is on screen; the moments are in order
 const jump = (cam: (t: number) => { x: number; y: number; zoom: number }, show: (t: number) => boolean) => {

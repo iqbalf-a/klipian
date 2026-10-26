@@ -16,6 +16,8 @@ export const LAB = { u: 200, o: [470, 1000] as P2 };
 export const SOCKET_PTS = { plate: [-0.95, 0.3, 1.45], grip: [0.55, 1.05, 1.25], collar: [0.95, 0.38, 0.75], junction: [0.98, 0.35, 0.7], plugTop: [0, 1.0, 1.45], center: [0, 0.3, 0.5] } as const satisfies Record<string, P3>;
 export const CUT_PTS = { leaf: [2.05, 0, 0.44], pin: [-0.3, 0, -0.17] } as const satisfies Record<string, P3>;
 export const contactAt = (loose: number): P3 => [1.2 - 0.2 * loose, 0.05, 0.18];
+/** The cable after the plug end: straight to the left (world (-1, +1, 0) is level on the screen), so it runs above the captions and off the frame. */
+export const CABLE_TO: P3[] = [[-0.9, 2.8, 0.5], [-2.6, 4.6, 0.4]];
 const out = (p: P3): P2 => isoAt(p, OUT.u, OUT.o);
 const lab = (p: P3): P2 => isoAt(p, LAB.u, LAB.o);
 
@@ -61,6 +63,31 @@ export function fromStory(story: StoryT, phrase: string): string | null {
   const hay = story.beats.flatMap((b) => [b.narration, b.text, ...b.scene.items.flatMap((i) => ("text" in i ? [i.text] : []))]).join(" ");
   const m = hay.match(new RegExp(phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
   return m ? m[0] : null;
+}
+
+/** A quote for a source card: a part of the claim's own text, at most two lines at the card's width (38 px, 770 px wide). Never typed here:
+    the words are the story's. Preference: the whole text if it fits; else the longest start that ends at a comma (the comma is dropped); else the
+    longest start that fits, with "…" to show it goes on. */
+export const QUOTE_FS = 38, QUOTE_W = 770;
+export const quoteLines = (text: string): number => {
+  let lines = 0, cur = "";
+  for (const w of text.split(/\s+/).filter(Boolean)) {
+    if (cur && textWidthEstimate(`${cur} ${w}`, QUOTE_FS) > QUOTE_W) { lines++; cur = w; } else cur = cur ? `${cur} ${w}` : w;
+  }
+  return lines + (cur ? 1 : 0);
+};
+export function quoteFor(text: string): string {
+  const words = text.trim().split(/\s+/);
+  if (quoteLines(text) <= 2) return text.trim();
+  let commaCut: string | null = null, prefix: string | null = null;
+  for (let k = words.length - 1; k >= 1; k--) {
+    const head = words.slice(0, k).join(" ");
+    if (quoteLines(head) > 2) continue;
+    if (/[,;]$/.test(words[k - 1]) && !commaCut) commaCut = head.replace(/[,;]$/, "");
+    if (!prefix) prefix = head;
+    if (commaCut && prefix) break;
+  }
+  return commaCut ? `${commaCut}…` : `${prefix ?? words[0]}…`;
 }
 
 const domain = (url: string) => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; } };
@@ -115,25 +142,27 @@ export function makePlan(story: StoryT) {
     { t: cardIn2 - 0.3, x: C0[0] + 10, y: C0[1] + 40, zoom: 1.25 },
     { t: cardIn2 + 0.35, x: C0[0] + 20, y: C0[1] + 230, zoom: 1.05 },
     { t: cardOut2, x: C0[0] + 20, y: C0[1] + 230, zoom: 1.05 },
-    { t: m.tips + 0.6, x: C0[0] + 10, y: C0[1] - 250, zoom: 1.0 },
-    { t: m.tip2, x: C0[0] + 30, y: C0[1] - 240, zoom: 1.04 },
-    { t: m.outro, x: C0[0] - 10, y: C0[1] - 250, zoom: 1.08 },
+    { t: m.tips + 0.3, x: C0[0] - 100, y: C0[1] - 250, zoom: 1.0 },
+    { t: m.tip2, x: C0[0] - 90, y: C0[1] - 240, zoom: 1.32 },
+    { t: m.outro, x: C0[0] - 100, y: C0[1] - 250, zoom: 1.08 },
     { t: m.outro + 1.2, x: C0[0], y: C0[1] - 700, zoom: 0.75 },
   ];
   const outCam = (t: number): Cam2 => cam2At(outKeys, t);
 
   const CT = lab(contactAt(0)), CL = lab(contactAt(1));
   const labKeys: Key2[] = [
-    { t: m.inside, x: CT[0], y: CT[1], zoom: 0.62 },
-    { t: m.inside + 0.7, x: CT[0] - 120, y: CT[1] - 40, zoom: 0.78 },
-    { t: m.macro, x: CT[0] - 60, y: CT[1] - 20, zoom: 0.86 },
+    // step 5: the first lab frames are already close (the cutaway reads without its label; it used to be small until about 10.7 s)
+    { t: m.inside, x: CT[0], y: CT[1], zoom: 0.95 },
+    { t: m.inside + 0.7, x: CT[0] - 120, y: CT[1] - 40, zoom: 1.05 },
+    { t: m.macro, x: CT[0] - 60, y: CT[1] - 20, zoom: 1.2 },
     { t: m.contactLabel + 0.1, x: CT[0], y: CT[1] + 50, zoom: 1.75 },
     { t: beat("kendur").a, x: CT[0] + 10, y: CT[1] + 50, zoom: 1.8 },
     { t: m.loosen + 0.2, x: CL[0], y: CL[1] + 70, zoom: 1.45 },
     { t: cardIn1 - 0.4, x: CL[0] - 10, y: CL[1] + 70, zoom: 1.4 },
+    // step 7: a slow push-in while the card is up and the contact heats (22-24 s was near still)
     { t: cardIn1 + 0.2, x: CL[0], y: CL[1] + 230, zoom: 1.3 },
-    { t: cardOut1, x: CL[0], y: CL[1] + 230, zoom: 1.3 },
-    { t: cardOut1 + 0.6, x: CL[0], y: CL[1] + 40, zoom: 1.35 },
+    { t: cardOut1, x: CL[0], y: CL[1] + 230, zoom: 1.5 },
+    { t: cardOut1 + 0.6, x: CL[0], y: CL[1] + 40, zoom: 1.5 },
     { t: m.exit, x: CL[0], y: CL[1] + 30, zoom: 1.2 },
     { t: exitEnd, x: CL[0], y: CL[1], zoom: 0.5 },
   ];
@@ -166,7 +195,8 @@ export function makePlan(story: StoryT) {
   const state = (t: number) => ({
     outHeat: t < m.inside ? 0.25 + 0.5 * sm(ramp(t, m.hookHeat, 1.6)) : t < m.tips ? 0.75 + 0.25 * sm(ramp(t, exitEnd, 1)) : 1 - sm(ramp(t, m.unplug + 0.2, 1.2)),
     scorch: t < m.exit ? 0 : t < m.replace ? sm(ramp(t, m.melt - 0.3, 1.0)) : 1 - sm(ramp(t, m.replace, 0.35)),
-    gap: t < m.unplug ? 0 : t < m.tip2 ? 1.6 * sm(ramp(t, m.unplug, 0.3)) : 1.6 * (1 - sm(ramp(t, m.tip2 + 0.15, 0.35))),
+    // step 1: once unplugged the plug stays out (the socket is replaced, so the new plate must show: no plug in front of it)
+    gap: t < m.unplug ? 0 : 2.1 * sm(ramp(t, m.unplug, 0.3)),
     wobble: t > m.wobble && t < m.wobble + 1.5 ? Math.sin((t - m.wobble) * 15) * Math.sin(Math.PI * (t - m.wobble) / 1.5) : 0,
     smoke: t >= m.exit && t < m.tips + 0.4 ? sm(ramp(t, m.melt - 0.6, 0.6)) * (1 - sm(ramp(t, m.tips, 0.4))) : 0,
     loose: sm(ramp(t, m.loosen, 0.9)),
@@ -211,15 +241,22 @@ export function makePlan(story: StoryT) {
     if (!src) return null;
     const c = story.claims[src.claim - 1];
     if (!c) return null;
-    return { claim: src.claim, quote: src.quote ?? c.text, org: src.org, date: src.date, domain: domain(c.sources[0]), from, to };
+    return { claim: src.claim, quote: src.quote ?? quoteFor(c.text), org: src.org, date: src.date, domain: domain(c.sources[0]), from, to };
   };
   const cards = [cardOf("kendur", cardIn1, cardOut1), cardOf("akhir", cardIn2, cardOut2)].filter((c): c is NonNullable<typeof c> => !!c);
   const chipFor = (claimIdx: number) => { const c = story.claims[claimIdx]; return c ? [...new Set(c.sources.map(domain))].join(" · ") : ""; };
   /** The claims of a beat that have no card in it: their domains as a chip. */
   const chipsOf = (id: string) => story.claims.map((c, i) => ({ c, i })).filter(({ c, i }) => c.beats.includes(id) && !cards.some((k) => k.claim === i + 1 && claimOf(id)?.claim === i + 1)).map(({ i }) => chipFor(i));
+  // the chip line is at most 880 px at 40 px mono: when a claim has more domains, the first ones that fit are shown (the story keeps them all)
+  const fitChip = (text: string): string => {
+    const fits = (t: string) => [...`SUMBER  ${t}`].length * 40 * 0.6 + 44 <= 880;
+    const parts = text.split(" · ");
+    for (let k = parts.length; k >= 1; k--) { const t = parts.slice(0, k).join(" · "); if (fits(t)) return t; }
+    return parts[0];
+  };
   const chips = [
-    ...(chipsOf("dalam")[0] ? [{ id: "chip-dalam", text: chipsOf("dalam")[0], onDark: true, from: m.macro + 0.4, to: beat("dalam").b - 0.2 }] : []),
-    ...(chipsOf("akhir").filter((x) => !cards.some((k) => chipFor(k.claim - 1) === x))[0] ? [{ id: "chip-akhir", text: chipsOf("akhir").filter((x) => !cards.some((k) => chipFor(k.claim - 1) === x))[0], onDark: true, from: m.loop + 0.6, to: m.exit - 0.1 }] : []),
+    ...(chipsOf("dalam")[0] ? [{ id: "chip-dalam", text: fitChip(chipsOf("dalam")[0]), onDark: true, from: m.macro + 0.4, to: beat("dalam").b - 0.2 }] : []),
+    ...(chipsOf("akhir").filter((x) => !cards.some((k) => chipFor(k.claim - 1) === x))[0] ? [{ id: "chip-akhir", text: fitChip(chipsOf("akhir").filter((x) => !cards.some((k) => chipFor(k.claim - 1) === x))[0]), onDark: true, from: m.loop + 0.6, to: m.exit - 0.1 }] : []),
   ];
 
   // the tips: label items in pairs (title, line under it), each with the claim that fits it best as its chip

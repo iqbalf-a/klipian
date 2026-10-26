@@ -4,6 +4,7 @@
    socket, and the tips on the same socket. Everything that happens and every word come from the checked story through plan.ts. */
 import React from "react";
 import { useCurrentFrame } from "remotion";
+import { CameraMotionBlur } from "@remotion/motion-blur";
 import {
   BLACK, Brand, CaptionLayer, FPS, FRAME, Lab, LayoutDebug, Mascot, Onomatopoeia, SourceCard, TopText, WALL, WHITE, YELLOW, YELLOW_D, easeInOut, springAt, useFonts, wrap,
   type StoryT,
@@ -12,14 +13,14 @@ import { HeatRise, IsoCutaway, IsoPlug, IsoWallSocket, Motes, SmokePuffs, Sparks
 import { LoopArrows, MacroFrame, NumberLabel, SourceChip, TipCard, monoWidth, tipCardHeight } from "../../src/components/Overlays.tsx";
 import { isoAt, layerTransform, toScreen } from "../../src/iso.ts";
 import { textWidthEstimate } from "../../src/layout.ts";
-import { LAB, OUT, SOCKET_PTS, contactAt, makePlan } from "./plan.ts";
+import { CABLE_TO, LAB, OUT, SOCKET_PTS, contactAt, makePlan } from "./plan.ts";
 import storyJson from "./story.json";
 
 export const story = storyJson as unknown as StoryT;
 
 const W = FRAME.width, H = FRAME.height;
 const CARD_W = 850;
-export const cardHeight = (quote: string): number => 150 + wrap(`“${quote}”`, 38, CARD_W - 80).length * 38 * 1.28;
+export const cardHeight = (quote: string): number => 150 + wrap(`“${quote}”`, 38, CARD_W - 80).length * 38 * 1.28;   // a quote is at most two lines (plan.ts quoteFor)
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
 const fade = (t: number, a: number, b: number, d = 0.3) => clamp01((t - a) / d) * (1 - clamp01((t - b) / d));
 
@@ -39,7 +40,19 @@ const LensRing: React.FC<{ x: number; y: number; r: number; t: number; tagFrom: 
   );
 };
 
+/** Motion blur only on the two fast moves (step 6): the dolly through the lens (9.05 s to the lab) and the exit back out of it (28.2 s, 0.9 s).
+    The blur costs render time, so it is off everywhere else. The picture reads its own frame (CameraMotionBlur samples it inside the picture). */
+const Blur: React.FC<{ on: boolean; children: React.ReactNode }> = ({ on, children }) =>
+  on ? <CameraMotionBlur shutterAngle={180} samples={5}>{children}</CameraMotionBlur> : <>{children}</>;
+
 export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ story: s, layoutDebug = false }) => {
+  const t = useCurrentFrame() / FPS;
+  const P = React.useMemo(() => makePlan(s), [s]);
+  const fast = (t >= P.m.through && t < P.m.inside + 0.05) || (t >= P.m.exit && t < P.m.exit + 0.9);
+  return <Blur on={fast}><Picture story={s} layoutDebug={layoutDebug} /></Blur>;
+};
+
+const Picture: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ story: s, layoutDebug = false }) => {
   useFonts();
   const frame = useCurrentFrame(), t = frame / FPS;
   const P = React.useMemo(() => makePlan(s), [s]);
@@ -74,10 +87,11 @@ export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ stor
         <g transform={layerTransform(oc, 0.3)}><g transform="translate(540 960) scale(1.15) translate(-540 -960)"><Brand clock={t} spot={{ x: 540, y: 900, r: 560 }} /></g></g>
         <g opacity={outroFade} transform={layerTransform(oc, 1)}>
           <IsoWallSocket u={OUT.u} o={OUT.o} scorch={st.scorch} heat={st.outHeat * (1 - st.gap / 1.6)} t={t} />
-          <IsoPlug u={OUT.u} o={OUT.o} gap={st.gap} wobble={st.wobble} heat={st.outHeat} />
+          <IsoPlug u={OUT.u} o={OUT.o} gap={st.gap} wobble={st.wobble} heat={st.outHeat} cableTo={CABLE_TO} />
           <HeatRise x={plugTop[0]} y={plugTop[1] - 10} k={st.outHeat * (1 - st.gap / 1.6) * (t < m.tips + 1.5 ? 1 : 0.4)} t={t} scale={0.8} />
           <SmokePuffs x={plugTop[0] + 20} y={plugTop[1] - 30} k={st.smoke} t={t} scale={0.75} />
           {st.fresh > 0 && st.fresh < 1 && (() => { const c = outPt(SOCKET_PTS.center); return <circle cx={c[0]} cy={c[1]} r={60 + 260 * st.fresh} fill="none" stroke={YELLOW} strokeWidth={14 * (1 - st.fresh)} />; })()}
+          {st.fresh > 0 && (() => { const c = outPt(SOCKET_PTS.center); return <circle cx={c[0]} cy={c[1]} r={150} fill="none" stroke={YELLOW} strokeWidth={20 * st.fresh} />; })()}
         </g>
         {oc.zoom < 2.2 && <g transform={layerTransform(oc, 1.35)}><Motes t={t} color={WHITE} opacity={0.5} /></g>}
         {labelEls("out")}
@@ -121,7 +135,7 @@ export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ stor
       })()}
       {t >= m.outro && (() => {
         const p = springAt(t, m.outro + 0.15), q = springAt(t, m.outro + 0.6, true), r = springAt(t, m.outro + 1.1);
-        return <g>
+        return <g transform={`translate(540 960) scale(${1 + 0.035 * Math.max(0, t - m.outro - 0.8)}) translate(-540 -960)`}>
           <g transform={`translate(540 820) scale(${Math.max(0, p)}) translate(-540 -820)`}><Mascot x={540} y={820} w={620} expr="understand" sparks t={t - m.outro} clock={t} look={{ x: 540, y: 1470, mix: clamp01((t - m.outro - 1.6) / 0.4) }} /></g>
           <text x={540} y={1300} fontSize={112} textAnchor="middle" fill={BLACK} opacity={q} transform={`translate(0 ${(1 - q) * 30})`} style={{ fontFamily: '"Outfit", sans-serif', fontWeight: 700 }}>{P.outroLabel}</text>
           {P.outroPill && <g transform={`translate(540 1470) scale(${Math.max(0, r)}) translate(-540 -1470)`}>

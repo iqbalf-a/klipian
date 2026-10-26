@@ -80,7 +80,7 @@ export const TipCard: React.FC<{ x: number; y: number; w?: number; n: number | s
         </text>
       ))}
       {subs.map((ln, i) => <text key={i} x={140} y={92 + lines.length * 66 + 4 + i * 50} fontSize={40} fill={G2} opacity={subP} style={bold}>{ln}</text>)}
-      {chip && <text x={140} y={h - 30} fontSize={22} fill={G2} opacity={subP} style={mono}>{chip}</text>}
+      {chip && <text x={140} y={h - 30} fontSize={28} fill={G2} opacity={subP} style={mono}>{chip}</text>}
     </g>
   );
 };
@@ -89,17 +89,19 @@ export const TipCard: React.FC<{ x: number; y: number; w?: number; n: number | s
 export const SourceChip: React.FC<{ x: number; y: number; text: string; t: number; start: number; end?: number; onDark?: boolean; align?: "start" | "middle" }> = ({ x, y, text, t, start, end, onDark, align = "start" }) => {
   const p = life(t, start, end);
   if (p <= 0.001) return null;
-  const label = "SUMBER", fs = 24, w = monoWidth(`${label}  ${text}`, fs) + 40, x0 = align === "middle" ? x - w / 2 : x;
+  // step 4 (P28-P pilot 1): 40 px, a phone-readable size next to the 46 px labels (a 540 px wide frame keeps it legible)
+  const label = "SUMBER", fs = CHIP_FS, w = monoWidth(`${label}  ${text}`, fs) + 44, x0 = align === "middle" ? x - w / 2 : x;
   return (
     <g opacity={clamp01(p * 2)} transform={`translate(${x0} ${y + (1 - p) * 10})`}>
-      <rect x={0} y={-24} width={w} height={48} rx={24} fill={onDark ? BLACK : WHITE} opacity={onDark ? 0.75 : 0.92} />
-      <text x={20} y={8} fontSize={fs} style={mono}><tspan fill={onDark ? YELLOW : YELLOW_D}>{label}</tspan><tspan fill={onDark ? WHITE : G2}>{`  ${text}`}</tspan></text>
+      <rect x={0} y={-34} width={w} height={68} rx={34} fill={onDark ? BLACK : WHITE} opacity={onDark ? 0.75 : 0.92} />
+      <text x={22} y={14} fontSize={fs} style={mono}><tspan fill={onDark ? YELLOW : YELLOW_D}>{label}</tspan><tspan fill={onDark ? WHITE : G2}>{`  ${text}`}</tspan></text>
     </g>
   );
 };
+export const CHIP_FS = 40;
 export const sourceChipSpec = (id: string, x: number, y: number, text: string): Spec => {
-  const w = monoWidth(`SUMBER  ${text}`, 24) + 40;
-  return { id, role: "text", box: { x0: x, y0: y - 24, x1: x + w, y1: y + 24 } };
+  const w = monoWidth(`SUMBER  ${text}`, CHIP_FS) + 44;
+  return { id, role: "text", box: { x0: x, y0: y - 34, x1: x + w, y1: y + 34 } };
 };
 
 /** Two causes that feed each other: a ring of two red arrows chasing round (cx, cy) and the two words on pills, each with an up arrow ("panas ↑").
