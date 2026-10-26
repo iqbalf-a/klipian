@@ -2742,6 +2742,19 @@ kualitas pada isi pustaka.
   (`remotion/videos/<slug>/`) selain template; render, gerbang fakta, Clips
   dan upload sama.
 
+**Tokoh dan maskot secukupnya** (ian 2026-10-26):
+- **Orang (chibi) tidak wajib.** Dipakai hanya kalau cerita memang butuh
+  manusia: ada orang yang melakukan sesuatu (mencabut colokan, memasak),
+  bagian tubuh (tangan kena pisau), atau reaksi orang yang jadi inti adegan.
+  Topik tentang benda (stop kontak, charger) cukup bendanya sendiri.
+- **Maskot jangan terlalu sering.** Wajib di pembuka "Intip yuk!" dan
+  penutup; di tengah paling banyak 1–2 reaksi singkat (± 1 detik) pada momen
+  penting (misalnya kaget saat titik panas muncul). Tidak ada maskot yang
+  diam di pojok sepanjang video (menggantikan aturan maskot `persist` di
+  pojok dari A3).
+- Layar yang lebih kosong diisi oleh benda utama yang besar, bagian-bagiannya,
+  label penunjuk, panah dan gerak, bukan oleh tokoh.
+
 **Batas mutu sebelum publish** (dinilai ian, untuk setiap video):
 1. setiap benda langsung dikenali tanpa membaca label;
 2. tidak ada yang saling menutup, semua di area aman;
