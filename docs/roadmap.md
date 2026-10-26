@@ -2765,6 +2765,40 @@ kualitas pada isi pustaka.
 7. hook 3 detik pertama memancing penasaran;
 8. ditonton ulang di HP tetap enak.
 
+**Pelajaran dari 2 video contoh** (ian 2026-10-26; video di `remotion/sample/`,
+di-gitignore, hanya untuk analisis): "Kita Bedah" (stop kontak 3D, 74 detik)
+dan "Trade By Data" (motion graphic data, 128 detik). Yang dipelajari adalah
+tekniknya, bukan tampilannya: Kita Bedah juga memakai krem/kuning/hitam dan
+kata "bedah", jadi pembeda kita (maskot lensa, "Intip yuk!", ruang bedah gelap)
+harus jelas.
+1. **Voice over adalah tulang punggung**: narasi hampir tanpa jeda (± 2,3–3,2
+   kata per detik), semua gerak mengikuti kalimat.
+2. **Gerak dari kamera, bukan ganti tata letak**: satu benda utama, kamera
+   terus bergerak (mendekat, berputar, menembus ke potongan, close-up makro
+   dengan tag "diperbesar"), motion blur saat cepat; tidak ada potongan adegan.
+3. **3D semi-realistis**: material yang tepat (plastik krem, kuningan, tembaga),
+   bevel, bayangan lembut; benda langsung dikenali.
+4. **Dua lapis teks**: di atas kicker kecil huruf mono + judul tebal 2–4 kata
+   yang berganti tiap kalimat; di bawah takarir kata demi kata, kata yang
+   diucapkan disorot kuning.
+5. **Kartu informasi dan sumber di layar**: harga, angka, grafik, hasil uji,
+   kutipan resmi dengan nama dan tanggal. Gerbang fakta kita bisa membuat
+   kartu sumber dari klaim yang dicentang.
+6. **Label pil dengan garis penunjuk**, tulisan onomatope ("PLOK!", "OFF"),
+   termometer, arus sebagai garis putus-putus kuning yang mengalir.
+7. **Suara**: efek hampir di setiap elemen (± 2,5 per detik di Trade By Data)
+   dan musik latar tipis ± 12 dB di bawah narasi.
+8. **Durasi** 74 dan 128 detik dengan narasi padat; untuk kita 45–75 detik.
+9. **Format kedua "fakta angka"** (gaya kartu, grafik, kalender, angka yang
+   menghitung naik di latar gelap) sangat cocok untuk komponen template.
+10. Tanpa orang dan tanpa maskot di tengah video (sesuai aturan ian).
+
+**Urutan baru** (ian 2026-10-26): **suara narasi (P28-C) dimajukan sebelum 3
+video uji coba**, karena tanpa narasi video tidak bisa dinilai layak.
+Langkah 1 P28-P ditambah: takarir karaoke, kartu sumber, label penunjuk,
+musik latar tipis, kamera, 3D semi-realistis. Opsi suara (rekaman ian atau TTS
+lokal) menunggu riset ian; jalurnya disiapkan dulu dengan rekaman/file.
+
 **P28-P — 3 video uji coba** (rencana 2026-10-26):
 - **Langkah 1 (sesi eksekusi):** pengatur tata letak, `remotion/DESIGN.md`,
   struktur `remotion/videos/<slug>/` (komposisi khusus yang memakai komponen
