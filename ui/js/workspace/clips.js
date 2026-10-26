@@ -139,10 +139,10 @@ function warnChipHTML(c) {
   return ` <span class="ws-warn" data-kind="${escapeHTML(c.ytWarning)}" title="${escapeHTML(c.ytWarningText || "")}">${escapeHTML(c.ytWarning)}</span>`;
 }
 
-/* A clip with a video of its own (chosen by hand, kept in out/manual/) shows its file name under the title. */
+/* A clip with a video of its own (chosen by hand, kept in out/manual/, or rendered on /remotion into out/motion/) shows its file name under the title. */
 function fileLineHTML(c) {
-  if (c.fileFolder !== "manual" || !c.file) return "";
-  return `<div class="ws-fileline"><span class="data" title="out/manual/${escapeHTML(c.file)}">${escapeHTML(c.file)}</span></div>`;
+  if ((c.fileFolder !== "manual" && c.fileFolder !== "motion") || !c.file) return "";
+  return `<div class="ws-fileline"><span class="data" title="out/${escapeHTML(c.fileFolder)}/${escapeHTML(c.file)}">${escapeHTML(c.file)}</span></div>`;
 }
 
 function row(c) {

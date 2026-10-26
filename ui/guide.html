@@ -61,6 +61,7 @@
       <li><a href="#profiles">Profile dan Guest</a></li>
       <li><a href="#bulk">Render massal</a></li>
       <li><a href="#post">Teks posting untuk satu klip</a></li>
+      <li><a href="#motion">Video motion (halaman Motion)</a></li>
     </ol>
   </nav>
 
@@ -362,6 +363,35 @@
 
     <footer class="guide-foot">Panduan ini ada di <code>ui/guide.html</code>. Keyboard: <kbd>,</kbd> <kbd>.</kbd> mundur/maju
       satu frame, <kbd>Shift</kbd> + itu lima frame, <kbd>Space</kbd> putar/jeda (di editor).</footer>
+    <!-- ============================================================ H -->
+    <section id="motion">
+      <h2>H. Video motion: dari topik ke Clips (tanpa API key)</h2>
+      <p>Halaman <b>Motion</b> (<code>/remotion</code>) membuat video animasi fakta seru (9:16, 30 fps, dengan sound effect) dari
+        satu topik. klipian bekerja di komputer ini; AI-nya lewat <b>salin-tempel</b> ke Claude atau ChatGPT, jadi tidak ada API key.
+        Butuh Node.js dan <code>npm install</code> di folder <code>remotion/</code> (sekali saja).</p>
+      <ol>
+        <li><b>Video baru</b>: tulis topik (mis. "fakta seru tentang colokan listrik panas"), pilih durasi 30, 45 atau 60 detik, catatan
+          opsional.</li>
+        <li><b>Salin brief</b> (atau Unduh) dan tempel ke Claude atau ChatGPT dengan pencarian web menyala. Brief berisi tugas, struktur
+          menurut durasi, aturan channel dan fakta, katalog benda yang bisa dirender, aturan judul dan hashtag profile, dan format jawaban.</li>
+        <li><b>Tempel jawabannya</b> (satu blok JSON) ke kotak <i>Jawaban AI</i>. Slip umum (koma di akhir, dan sebagainya) dibetulkan
+          sendiri. Kalau ada yang tidak sesuai katalog (benda atau ekspresi yang tidak ada, teks layar lebih dari 6 kata, durasi meleset,
+          klaim tanpa sumber), klipian membuat <b>pesan perbaikan</b>: <b>Salin pesan perbaikan</b>, tempel ke AI yang sama, lalu tempel
+          jawaban barunya.</li>
+        <li><b>Storyboard</b>: <b>Buat gambar storyboard</b> menampilkan satu gambar per beat. Narasi dan teks layar bisa diedit di sini
+          (<b>Simpan teks</b> memeriksanya lagi); tekan <b>Perbarui gambar</b> untuk melihat hasilnya.</li>
+        <li><b>Cek fakta (wajib)</b>: buka setiap sumber, lalu <b>Benar</b> atau <b>Tolak</b> (tanggalnya tersimpan). Klaim yang ditolak
+          membuat <b>brief revisi</b> hanya untuk beat yang memakainya; tempel jawabannya di kotak revisi.</li>
+        <li><b>Judul</b>: pilih satu dari tiga.</li>
+        <li><b>Render</b>: baru bisa kalau semua klaim dicek dan judul dipilih (server yang menolak, bukan hanya tombol). Render masuk
+          antrean berat yang sama dengan render klip, dengan progres, sisa waktu dan <b>Batal</b>. Hasilnya menjadi baris
+          <b>Clips</b> (folder <code>out/motion/</code>) dengan judul pilihan, deskripsi, hashtag, dan sumber klaim yang dicek, siap
+          dijadwalkan atau diunggah seperti klip lain.</li>
+      </ol>
+      <p class="note">Benda yang belum ada di pustaka tidak dikarang oleh AI: ia menuliskannya di <code>needs</code>, dan halaman
+        menampilkannya. Suara narasi dan takarir menyusul (P28-C).</p>
+    </section>
+
   </main>
 </div>
 
@@ -371,7 +401,7 @@
 (function () {
   const nav = document.getElementById("areaSwitch");
   if (window.GUIDE_HAS_PROFILE) {
-    nav.innerHTML = '<a href="/">Edit</a><a href="/workspace">Workspace</a><a href="/guide" aria-current="page">Guide</a>';
+    nav.innerHTML = '<a href="/">Edit</a><a href="/workspace">Workspace</a><a href="/remotion">Motion</a><a href="/guide" aria-current="page">Guide</a>';
   } else {
     nav.innerHTML = '<a href="/profiles?next=%2Fguide">Choose profile</a><a href="/guide" aria-current="page">Guide</a>';
     document.getElementById("profileChip").remove();

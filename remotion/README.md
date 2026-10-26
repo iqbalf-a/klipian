@@ -28,3 +28,15 @@ writes into `out/`, and stops on SIGINT/SIGTERM or a line `cancel` on stdin. Com
   an item's `"sfx"` (a name of the closed list `SFX`, or `"none"`) overrides its entrance sound. The WAVs are synthesised by
   `npm run sfx` (see `sfx/LICENSES.md`), mixed by `sfx/mix.mjs` (a cooldown per sound, at most 3 at once, a -6 dBFS soft limiter, a `duck`
   for a future voice-over). Next to each video it writes `<name>.sfx.wav` and `<name>.sfx.txt` (the event -> sound timeline).
+
+## Called by klipian (P28-B)
+
+klipian (`klipian/motion.py`, the /remotion page) never copies a rule: it runs three Node scripts from this folder.
+
+    node catalog-export.mjs      the catalogue as JSON: items and their fields (read off the zod schema by src/describe.ts), enums, limits,
+                                 the sentences of STORY_RULES, the sound names and a valid example story (stories/example.json); it goes into the brief
+    node validate.mjs story.json {"ok":true,...} or {"ok":false,"errors":[{"path":"beats.2.text","message":"..."}]}, from the schema in src/schema.ts
+    node render.mjs job.json     "mode": "stills" (one picture per beat into the folder "out"), "still" or "video"; "outRoot": an absolute folder to write into
+
+When the catalogue or a rule changes here (a new item type, a new enum word, a new check in `superRefine`), the brief follows by itself; a new
+check should also get a sentence in `STORY_RULES` (src/catalog.ts). `npm test` covers the scripts (tests/scripts.test.ts).

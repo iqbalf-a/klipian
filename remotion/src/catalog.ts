@@ -88,3 +88,17 @@ export const SFX_FOR = {
   beat: { sting: "jingle-sting", outro: "jingle-outro" },
   heat: "sizzle", current: "hum", smoke: "puff", alertBadge: "blip-alert",
 } as const;
+
+// ---------------------------------------------------------------- what the validator checks, in words (for the brief) -----------------------------
+/** The rules src/schema.ts enforces beyond the shape of the fields, as sentences. catalog-export.mjs prints them into the brief, so what the
+    AI is told is what the validator checks (keep this list in step with the superRefine in schema.ts). */
+export const STORY_RULES = [
+  "the beats' durations add up to `duration`, and every beat id is unique (lowercase letters, digits, hyphen)",
+  "screen text (`text`, banner/pill/label text, label lines) is at most 6 words",
+  "at most 3 transitions other than a cut; the first beat has no transition; a transition lasts at most 80% of the shorter of its two beats; a `lens` transition needs x, y and r",
+  "a socket's `variant` must belong to its `view`: outside has plain/scorched, cutaway has tight/loose",
+  "an action's time, an enter `delay` and an exit `at` must be inside the beat; an item cannot exit before it enters",
+  "`look` is only for the mascot, `pose` only for the chibi; `expr` only for the mascot or chibi and only with an expression they have",
+  "a label or arrow with `follow` names a socket or lens `id` of its own beat (not one drawn flat)",
+  "every claim names beats that exist and has at least one source URL",
+] as const;

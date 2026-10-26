@@ -117,7 +117,7 @@ export const Claim = z.object({
 export const Story = z.object({
   question: z.string().min(3).max(140),
   titles: z.tuple([z.string().min(1).max(100), z.string().min(1).max(100), z.string().min(1).max(100)]),
-  duration: num.min(5).max(120),
+  duration: num.min(1).max(120),
   beats: z.array(Beat).min(1).max(16),
   claims: z.array(Claim),
   post: z.object({ description: z.string().max(2000), hashtags: z.array(z.string().regex(/^#\S+$/)).max(10) }).strict(),

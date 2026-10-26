@@ -59,6 +59,7 @@ from . import hashtags as _hashtags_mod
 from . import paths as _paths
 from . import youtube as _youtube
 from . import ytdl as _ytdl
+from . import motion as _motion
 from . import profiles as _profiles
 from . import buildid as _buildid  # noqa: F401  (STARTED is taken here, at start)
 from .paths import (ASSETS, CACHE_DIR, OUT_ROOT, ROOT, SOURCES, find_video,
@@ -494,7 +495,7 @@ class Handler(BaseHTTPRequestHandler):
         _paths.set_profile(pid)
         if pid == _paths.GUEST:
             _profiles.ensure_dirs(pid)             # made on first use (and after "Clear guest data")
-        if pid == _paths.GUEST and (path.startswith("/api/workspace/clips") or path.startswith("/api/youtube")):
+        if pid == _paths.GUEST and (path.startswith("/api/workspace/clips") or path.startswith("/api/youtube") or path.startswith("/api/motion")):
             self._send_json({"error": "not available for the Guest profile"}, 403)
             return False
         return True
@@ -763,6 +764,87 @@ class Handler(BaseHTTPRequestHandler):
             return self._ytdl_reply(lambda: _ytdl.cancel(str(req.get("id") or "")))
         if action == "update":
             return self._ytdl_reply(lambda: {"id": _ytdl.start_update()})
+        return self._send_json({"error": "unknown action"}, 404)
+
+    # ---- Motion videos (/remotion, motion.py): a topic -> a brief -> the AI's JSON -> the fact gate -> an MP4 in Clips ----
+
+    def _motion_reply(self, fn):
+        try:
+            return self._send_json({"ok": True, **fn()})
+        except _motion.MotionError as exc:
+            status = 409 if exc.code in ("gate", "busy") else 404 if exc.code == "not_found" else 400
+            return self._send_json({"ok": False, "error": exc.message, "code": exc.code, **exc.extra}, status)
+        except OSError as exc:
+            return self._send_json({"ok": False, "error": f"could not do that: {exc}", "code": "other"}, 500)
+
+    def _get_motion_projects(self):
+        return self._motion_reply(lambda: {"projects": _motion.list_projects(), "status": _motion.status()})
+
+    def _get_motion_project(self):
+        q = parse_qs(urlparse(self.path).query)
+        return self._motion_reply(lambda: {"project": _motion.detail((q.get("id") or [""])[0])})
+
+    def _get_motion_status(self):
+        q = parse_qs(urlparse(self.path).query)
+        pid = (q.get("id") or [""])[0]
+        return self._motion_reply(lambda: {"job": _motion.job_state(pid), "status": _motion.status(), **({"project": _motion.summary(_motion.load(pid))} if pid else {})})
+
+    def _get_motion_brief(self):
+        q = parse_qs(urlparse(self.path).query)
+        pid, kind = (q.get("id") or [""])[0], (q.get("kind") or ["main"])[0]
+
+        def brief():
+            p = _motion.load(pid)
+            if kind == "revise":
+                beats = [b for b in (q.get("beats") or [""])[0].split(",") if b]
+                text = _motion.build_revise_brief(p, beats, (q.get("note") or [""])[0])
+            elif kind == "main":
+                text = _motion.build_brief(p)
+            else:
+                raise _motion.MotionError("kind", "kind is main or revise")
+            return {"brief": text, "file": f"{p['id']}-{'revisi' if kind == 'revise' else 'brief'}.md"}
+        return self._motion_reply(brief)
+
+    def _get_motion_still(self):
+        q = parse_qs(urlparse(self.path).query)
+        try:
+            f = _motion.still_file((q.get("id") or [""])[0], (q.get("beat") or [""])[0])
+        except _motion.MotionError:
+            f = None
+        if f is None:
+            return self._send_json({"error": "no such picture"}, 404)
+        return self._send_file(f, "image/png")
+
+    def _post_motion(self):
+        action = urlparse(self.path).path.rsplit("/", 1)[-1]
+        try:
+            req = self._read_json()
+        except Exception as exc:               # noqa: BLE001
+            return self._send_json({"error": str(exc)}, 400)
+        pid = str(req.get("id") or "")
+        if action == "create":
+            return self._motion_reply(lambda: {"project": _motion.summary(_motion.create(req.get("topic"), req.get("duration") or _motion.DEFAULT_DURATION, req.get("notes") or ""))})
+        if action == "paste":
+            return self._motion_reply(lambda: _motion.paste(pid, str(req.get("text") or ""), str(req.get("kind") or "main")))
+        if action == "facts":
+            return self._motion_reply(lambda: _motion.set_facts(pid, req))
+        if action == "update":
+            def upd():
+                out = {}
+                if isinstance(req.get("project"), dict):
+                    out["project"] = _motion.summary(_motion.update_project(pid, req["project"]))
+                if isinstance(req.get("edits"), dict):
+                    out.update(_motion.update(pid, req["edits"]))
+                return out
+            return self._motion_reply(upd)
+        if action == "preview":
+            return self._motion_reply(lambda: {"job": _motion.preview(pid)})
+        if action == "render":
+            return self._motion_reply(lambda: {"job": _motion.render(pid)})
+        if action == "cancel":
+            return self._motion_reply(lambda: {"job": _motion.cancel(pid)})
+        if action == "delete":
+            return self._motion_reply(lambda: (_motion.delete_project(pid), {})[1])
         return self._send_json({"error": "unknown action"}, 404)
 
     def _post_youtube(self):
@@ -1237,6 +1319,8 @@ class Handler(BaseHTTPRequestHandler):
             path = "/ui/workspace.html"
         if path.rstrip("/") == "/profiles":
             path = "/ui/profiles.html"
+        if path.rstrip("/") == "/remotion":
+            path = "/ui/remotion.html"
         if path.rstrip("/") == "/guide":
             path = "/ui/guide.html"             # static: no profile needed
         # /edit/<video> is the same editor page -- which project it opens is
@@ -1294,6 +1378,11 @@ class Handler(BaseHTTPRequestHandler):
         "/api/claude/models": _get_claude_models,
         "/api/claude/usage": _get_claude_usage,
         "/api/claude/job": _get_claude_job,
+        "/api/motion/projects": _get_motion_projects,
+        "/api/motion/project": _get_motion_project,
+        "/api/motion/status": _get_motion_status,
+        "/api/motion/brief": _get_motion_brief,
+        "/api/motion/still": _get_motion_still,
         "/api/ytdl/status": _get_ytdl_status,
         "/api/ytdl/state": _get_ytdl_state,
         "/api/youtube/status": _get_youtube_status,
@@ -2175,6 +2264,14 @@ class Handler(BaseHTTPRequestHandler):
     POST_ROUTES = {
         "/api/project": _post_project,
         "/api/project/restore": _post_project_restore,
+        "/api/motion/create": _post_motion,
+        "/api/motion/paste": _post_motion,
+        "/api/motion/facts": _post_motion,
+        "/api/motion/update": _post_motion,
+        "/api/motion/preview": _post_motion,
+        "/api/motion/render": _post_motion,
+        "/api/motion/cancel": _post_motion,
+        "/api/motion/delete": _post_motion,
         "/api/ytdl/preview": _post_ytdl,
         "/api/ytdl/start": _post_ytdl,
         "/api/ytdl/cancel": _post_ytdl,

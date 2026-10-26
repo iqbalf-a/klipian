@@ -30,7 +30,7 @@ GROUP_AI = "ai"
 GROUP_RENDER = "render"
 RENDER_JOBS_DEFAULT, RENDER_JOBS_MAX = 1, 2
 
-_KIND_LABEL = {"transcribe": "a transcription", "diarize": "a speaker analysis", "framing": "an AI Framing analysis",
+_KIND_LABEL = {"transcribe": "a transcription", "diarize": "a speaker analysis", "framing": "an AI Framing analysis", "motion": "a motion video",
                "render": "a render"}
 
 _cv = threading.Condition()

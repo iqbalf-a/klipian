@@ -4113,7 +4113,7 @@ def check_guide() -> tuple[str, str]:
         problems.append("the guide's #bulk part should mention minutes and the renamed option")
     ids = set(re.findall(r'\bid="([^"]+)"', page))
     for must in ("youtube", "youtube-status", "youtube-limits", "claude", "download", "profiles", "bulk", "youtube-client", "youtube-test-user",
-                 "youtube-expired"):
+                 "youtube-expired", "motion"):
         if must not in ids:
             problems.append(f"the guide lost its #{must} section")
     for anchor in re.findall(r'href="#([^"]+)"', page):
@@ -4924,8 +4924,364 @@ def check_scratch() -> tuple[str, str]:
     return PASS, "stale .selftest-* folders swept (old and not alive), live and fresh ones kept, hardlinks harmless"
 
 
+# --------------------------------------------------------------------------
+# check: motion (the /remotion page: motion.py, remotion/catalog-export.mjs and validate.mjs, render.mjs)
+# --------------------------------------------------------------------------
+
+def check_motion() -> tuple[str, str]:
+    """A motion video from topic to Clips row: the brief (built from the catalogue that remotion/ prints), the answer pasted back
+    (repaired, validated by the zod schema, a fix message for what is wrong), editing text, the fact gate the SERVER enforces,
+    the revision brief for rejected claims, the storyboard stills, a real render of a 2-second story through the scheduler,
+    Cancel (waiting and running), the Clips row (fileFolder motion) and its upload checks, and the Guest refused.
+    Needs Node and `npm install` in remotion/: without them this check is SKIPPED."""
+    import contextlib
+    import http.client
+    import io
+    import re
+    import threading
+    from http.server import ThreadingHTTPServer
+    from . import hashtags, motion, paths, profiles, sched, schedule, youtube
+    from .ffmpeg_tools import probe
+    from .server import Handler
+
+    ok, why = motion._node.ready()
+    if not ok:
+        return SKIP, why
+    problems: list[str] = []
+    tiny = json.loads((FIXTURES / "motion" / "tiny-story.json").read_text(encoding="utf-8"))
+    old_durations = motion.DURATIONS
+    motion.DURATIONS = (2,) + tuple(old_durations)                      # a 2-second video, only here: the real lengths are 30, 45 and 60
+    for pid in ("mo1", "mo2"):
+        profiles.write_meta(pid, {"name": pid, "color": "#336699", "defaults": {}})
+        profiles.ensure_dirs(pid)
+    tok = paths.set_profile("mo1")
+    srv = None
+    quiet = contextlib.redirect_stderr(io.StringIO())
+    try:
+        srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        port = srv.server_address[1]
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        quiet.__enter__()
+
+        def call(method, path, profile="mo1", body=None, raw=False):
+            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=120)
+            headers = {"Host": f"127.0.0.1:{port}", "X-Klipian-Profile": profile}
+            data = None
+            if body is not None:
+                data = json.dumps(body).encode()
+                headers["Content-Type"] = "application/json"
+            conn.request(method, path, body=data, headers=headers)
+            r = conn.getresponse()
+            content = r.read()
+            conn.close()
+            if raw:
+                return r.status, content
+            try:
+                return r.status, json.loads(content)
+            except ValueError:
+                return r.status, {}
+
+        def post(action, body, profile="mo1"):
+            return call("POST", f"/api/motion/{action}", profile, body)
+
+        def wait(pid, done=("done", "failed", "cancelled"), seconds=120):
+            end = time.time() + seconds
+            while time.time() < end:
+                st, j = call("GET", f"/api/motion/status?id={pid}")
+                if st == 200 and j["job"]["state"] in done:
+                    return j["job"]
+                time.sleep(0.3)
+            return {"state": "timeout"}
+
+        # --- status, the Guest, another profile
+        st, j = call("GET", "/api/motion/projects")
+        if st != 200 or not j["status"]["installed"] or j["projects"] != []:
+            problems.append(f"projects: {st} {str(j)[:120]}")
+        if call("GET", "/api/motion/projects", "_guest")[0] != 403:
+            problems.append("the Guest must be refused")
+
+        # --- create: refusals first
+        for body, what in (({"topic": "ab", "duration": 45}, "a topic that is too short"), ({"topic": "fakta seru tentang colokan", "duration": 50}, "a length that is not offered")):
+            st, j = post("create", body)
+            if st != 400 or j.get("ok") is not False:
+                problems.append(f"create should refuse {what}: {st}")
+        st, j = post("create", {"topic": "fakta seru tentang colokan listrik panas", "duration": 30, "notes": "fokus ke rumah biasa"})
+        p30 = j.get("project", {}).get("id")
+        st, j = post("create", {"topic": "contoh kecil untuk tes", "duration": 2})
+        tid = j.get("project", {}).get("id")
+        if not p30 or not tid:
+            return FAIL, f"create failed: {j}"
+        if call("GET", "/api/motion/projects", "mo2")[1]["projects"] != []:
+            problems.append("another profile must not see these videos")
+
+        # --- the brief: built from the catalogue, in one self-contained file
+        st, j = call("GET", f"/api/motion/brief?id={p30}&kind=main")
+        text = j.get("brief", "")
+        cat = motion._catalog()
+        if st != 200 or not text:
+            problems.append(f"brief: {st}")
+        for needle, what in (("fakta seru tentang colokan listrik panas", "the topic"), ("fokus ke rumah biasa", "the notes"), ("exactly 30 seconds", "the length"),
+                             ("kenapa", "the task"), ("source URL", "the fact rule"), ("`needs`", "needs"),
+                             (hashtags.brief_rule(profiles.hashtag_settings()), "the profile's hashtag rule"), ("at most 6 words", "the screen text rule"),
+                             ("at most once", "the one look inside"), ("hook", "the structure")):
+            if needle not in text:
+                problems.append(f"the brief lacks {what}")
+        for t in cat["items"]:
+            if f"**{t}**" not in text:
+                problems.append(f"the brief lacks the item type {t}")
+        for word in (cat["mascot"]["expressions"] + cat["characters"]["poses"] + cat["motion"]["transitions"] + cat["sfx"]["names"][:5]):
+            if word not in text:
+                problems.append(f"the brief lacks the catalogue word {word}")
+        for rule in cat["rules"]:
+            if rule not in text:
+                problems.append("the brief lacks a rule of the validator")
+                break
+        block = re.findall(r"```json\n(.*?)\n```", text, re.S)
+        if not block or not motion.validate_story(json.loads(block[-1])).get("ok"):
+            problems.append("the example story in the brief must itself be valid")
+        for d in (45, 60):
+            if f"exactly {d} seconds" not in motion.build_brief({**motion.load(p30), "duration": d}):
+                problems.append(f"the brief for {d} seconds")
+        if call("GET", f"/api/motion/brief?id={p30}&kind=revise")[0] != 400:
+            problems.append("a revision brief with nothing rejected is refused")
+        if call("GET", "/api/motion/brief?id=nope-1234&kind=main")[0] != 404:
+            problems.append("a missing video is a 404")
+
+        # --- the answer: not JSON, repaired, refused by the schema with a message to paste back
+        st, j = post("paste", {"id": tid, "text": "Maaf, saya tidak bisa membuat video itu."})
+        if j.get("ok") is not False or "No JSON block" not in j["errors"][0]["message"] or "klipian could not accept" not in j.get("fix", ""):
+            problems.append(f"an answer with no JSON: {str(j)[:150]}")
+        broken = json.dumps(tiny, ensure_ascii=False, indent=1)[:-2] + "\n}"
+        broken = broken.replace('"needs": []', '"needs": [],')                        # a trailing comma before the closing brace
+        st, j = post("paste", {"id": tid, "text": "Ini hasilnya:\n```json\n" + broken + "\n```\nSemoga membantu."})
+        if j.get("ok") is not True or not any("comma" in n for n in j.get("notes", [])):
+            problems.append(f"a trailing comma is repaired and said: {str(j)[:200]}")
+        st, j = call("GET", f"/api/motion/project?id={tid}")
+        d = j.get("project", {})
+        if not d.get("story") or len(d["facts"]) != 1 or d["facts"][0]["status"] != "pending" or d["status"] != "story":
+            problems.append(f"the saved story and its fact list: {str(d)[:200]}")
+
+        def bad(mutate, expect_path, expect_text, what, video=tid):
+            s = json.loads(json.dumps(tiny))
+            mutate(s)
+            st, j = post("paste", {"id": video, "text": json.dumps(s)})
+            hit = [e for e in j.get("errors", []) if expect_path in e["path"] and expect_text in e["message"]]
+            if j.get("ok") is not False or not hit:
+                problems.append(f"{what}: {str(j)[:200]}")
+                return
+            if f"`{hit[0]['path']}`" not in j["fix"] or hit[0]["message"] not in j["fix"]:
+                problems.append(f"{what}: the fix message must name the path and the problem")
+            raw = motion.validate_story(s)                                              # the answer is the schema's own, not rules copied into Python
+            if hit[0] not in raw.get("errors", []) and expect_path != "duration":
+                problems.append(f"{what}: the error is not what validate.mjs says")
+
+        bad(lambda s: s["beats"][0].update(text="satu dua tiga empat lima enam tujuh"), "beats.0.text", "6 words", "screen text over 6 words")
+        bad(lambda s: s["beats"][1]["scene"]["items"][0].update(expr="angry"), "expr", "", "an expression that does not exist")
+        bad(lambda s: s["claims"][0].update(sources=[]), "claims.0.sources", "", "a claim without a source")
+        bad(lambda s: s["beats"][0]["scene"]["items"].append({"type": "volcano", "x": 1, "y": 1}), "items.2", "", "an object that is not in the catalogue")
+        bad(lambda s: s.update(duration=9), "duration", "", "durations that do not add up")
+        bad(lambda s: s["beats"][0].update(dur=3) or s.update(duration=4), "duration", "2 seconds", "a story of the wrong length for this video")
+        st, j = post("paste", {"id": tid, "text": json.dumps({**tiny, "titles": ["a"]})})
+        if len(j.get("errors", [])) < 1:
+            problems.append("a story with one title is refused")
+        d = call("GET", f"/api/motion/project?id={tid}")[1]["project"]
+        if d["story"] != tiny or d["versions"] != 0:
+            problems.append("a refused answer must leave the saved story as it was")
+
+        # --- editing text, validated again
+        st, j = post("update", {"id": tid, "edits": {"beats": {"hook": {"narration": "Pernah cabut colokan, kok hangat?", "items": {"0": {"text": "Colokan kok hangat?"}}}}}})
+        if j.get("ok") is not True or j["story"]["beats"][0]["scene"]["items"][0]["text"] != "Colokan kok hangat?":
+            problems.append(f"an edit of the narration and a banner: {str(j)[:150]}")
+        d = call("GET", f"/api/motion/project?id={tid}")[1]["project"]
+        if d["versions"] != 1:
+            problems.append(f"an accepted edit keeps the version before it ({d['versions']})")
+        st, j = post("update", {"id": tid, "edits": {"beats": {"hook": {"items": {"0": {"text": "satu dua tiga empat lima enam tujuh"}}}}}})
+        if j.get("ok") is not False or not j.get("fix"):
+            problems.append(f"an edit over 6 words is refused with a fix message: {str(j)[:150]}")
+        if call("GET", f"/api/motion/project?id={tid}")[1]["project"]["story"]["beats"][0]["scene"]["items"][0]["text"] != "Colokan kok hangat?":
+            problems.append("a refused edit must not be saved")
+        st, j = post("update", {"id": tid, "edits": {"beats": {"nope": {"text": "x"}}}})
+        if st != 400:
+            problems.append("an edit of a beat that does not exist is refused")
+
+        # --- the fact gate is the SERVER's
+        st, j = post("render", {"id": tid})
+        if st != 409 or j.get("code") != "gate" or len(j.get("problems", [])) != 2:
+            problems.append(f"render must be refused with the claim and the title named: {st} {str(j)[:200]}")
+        if call("GET", f"/api/motion/status?id={tid}")[1]["job"]["state"] != "idle":
+            problems.append("a refused render must not start a job")
+        st, j = post("facts", {"id": tid, "claims": [{"index": 0, "status": "rejected", "note": "sumbernya tidak menyebut itu"}]})
+        if j.get("gate", [""])[0] != "Claim 1 was rejected: ask for a revision of its beats." or post("render", {"id": tid})[0] != 409:
+            problems.append(f"a rejected claim blocks the render: {str(j)[:150]}")
+        st, j = post("facts", {"id": tid, "title": "judul lain"})
+        if st != 400:
+            problems.append("a title that is not one of the three is refused")
+
+        # --- the revision brief: only the beats of the rejected claim, and what was wrong with it
+        st, j = call("GET", f"/api/motion/brief?id={tid}&kind=revise&note=" + "coba+sumber+lain")
+        rb = j.get("brief", "")
+        if st != 200 or "Colokan yang longgar bisa memanas." not in rb or "sumbernya tidak menyebut itu" not in rb or "coba sumber lain" not in rb:
+            problems.append("the revision brief names the rejected claim, why, and the note")
+        if '"id": "hook"' not in rb or '"id": "outro"' in rb:
+            problems.append("the revision brief holds only the beats that use the rejected claim")
+        if len(rb) >= len(motion.build_brief(motion.load(tid))):
+            problems.append("the revision brief should be shorter than the main one")
+        better = {"beats": [{**tiny["beats"][0], "narration": "Colokan longgar bisa memanas, jadi cek dulu."}],
+                  "claims": [{"text": "Sambungan yang longgar menaikkan hambatan dan panas.", "beats": ["hook"], "sources": ["https://www.cpsc.gov/s3fs-public/518.pdf"]}]}
+        st, j = post("paste", {"id": tid, "kind": "revise", "text": json.dumps(better)})
+        if j.get("ok") is not True or j["story"]["beats"][0]["narration"] != better["beats"][0]["narration"] or j["story"]["beats"][1] != tiny["beats"][1]:
+            problems.append(f"a revision replaces only its beats: {str(j)[:200]}")
+        d = call("GET", f"/api/motion/project?id={tid}")[1]["project"]
+        if [f["status"] for f in d["facts"]] != ["pending"] or d["facts"][0]["text"] != better["claims"][0]["text"]:
+            problems.append("a revised claim is pending again")
+        st, j = post("paste", {"id": tid, "kind": "revise", "text": json.dumps({"beats": [{**tiny["beats"][0], "id": "ghost"}]})})
+        if j.get("ok") is not False or "not a beat of this video" not in j["errors"][0]["message"]:
+            problems.append("a revision for a beat that does not exist is refused")
+
+        # --- the stills sheet (a light job in the render queue)
+        st, j = post("preview", {"id": tid})
+        if st != 200:
+            problems.append(f"preview: {st} {j}")
+        job = wait(tid)
+        d = call("GET", f"/api/motion/project?id={tid}")[1]["project"]
+        if job["state"] != "done" or sorted(d["stills"]["files"]) != ["hook", "outro"] or d["stills"]["stale"]:
+            problems.append(f"the stills: {job} {d['stills']}")
+        else:
+            st, png = call("GET", d["stills"]["files"]["hook"], raw=True)
+            if st != 200 or png[:8] != b"\x89PNG\r\n\x1a\n":
+                problems.append("a still is served as a PNG")
+        post("update", {"id": tid, "edits": {"beats": {"outro": {"text": "klipian intip!"}}}})
+        if not call("GET", f"/api/motion/project?id={tid}")[1]["project"]["stills"]["stale"]:
+            problems.append("an edit makes the stills stale")
+        if call("GET", "/api/motion/still?id=../x&beat=hook")[0] != 404:
+            problems.append("a still of a path is refused")
+
+        # --- check the claim and choose the title: the gate opens
+        post("facts", {"id": tid, "claims": [{"index": 0, "status": "checked"}], "title": tiny["titles"][1]})
+        d = call("GET", f"/api/motion/project?id={tid}")[1]["project"]
+        if d["gate"] != [] or d["status"] != "checked" or d["facts"][0]["date"] == "" or d["title"] != tiny["titles"][1]:
+            problems.append(f"the gate should be open: {d['gate']} {d['status']}")
+
+        # --- Cancel while it waits in the queue: nothing runs, nothing is made
+        rows_before = len(schedule.load_clips())
+        hold = sched.acquire(sched.GROUP_RENDER, "render", "selftest-hold")
+        try:
+            st, j = post("render", {"id": tid})
+            if st != 200 or j["job"]["state"] not in ("queued", "running"):
+                problems.append(f"render: {st} {str(j)[:120]}")
+            time.sleep(1.2)
+            if call("GET", f"/api/motion/status?id={tid}")[1]["job"]["state"] != "queued":
+                problems.append("a render waits while another heavy job holds the slot")
+            if post("render", {"id": tid})[0] != 409:
+                problems.append("a second render of the same video is refused while one is waiting")
+            post("cancel", {"id": tid})
+            job = wait(tid, seconds=15)
+            if job["state"] != "cancelled":
+                problems.append(f"cancel while waiting: {job}")
+        finally:
+            sched.release(hold)
+        if sched.snapshot()["render"]["waiting"]:
+            problems.append("a cancelled render must leave the queue")
+
+        # --- Cancel while it runs: the Node process is told on stdin and stops; no file, no row
+        for attempt in range(3):
+            post("render", {"id": tid})
+            end = time.time() + 30
+            while time.time() < end and call("GET", f"/api/motion/status?id={tid}")[1]["job"]["state"] != "running":
+                time.sleep(0.05)
+            post("cancel", {"id": tid})
+            job = wait(tid, seconds=60)
+            if job["state"] == "cancelled":
+                break
+        else:
+            problems.append(f"cancel while it runs: {job}")
+        if len(schedule.load_clips()) != rows_before or list(schedule.folder_dir("motion").glob("*.mp4")):
+            problems.append("a cancelled render must leave no Clips row and no file")
+        if motion._PROCS:
+            problems.append("the Node process of a cancelled render must be gone")
+
+        # --- the real render, in 2 seconds of video
+        t0 = time.time()
+        st, j = post("render", {"id": tid})
+        seen = set()
+        end = time.time() + 150
+        while time.time() < end:
+            j = call("GET", f"/api/motion/status?id={tid}")[1]["job"]
+            seen.add(j["state"])
+            if j["state"] in ("done", "failed", "cancelled"):
+                break
+            time.sleep(0.2)
+        took = time.time() - t0
+        if j["state"] != "done" or not j.get("rowId") or j.get("percent") != 100:
+            return FAIL, "\n      ".join(problems + [f"the render: {j}"])
+        row = schedule.get_row(j["rowId"])
+        f = schedule.row_file(row) if row else None
+        if not row or row.get("fileFolder") != "motion" or row["title"] != tiny["titles"][1] or row["status"] != "Draft":
+            problems.append(f"the Clips row: {row}")
+        elif not f or not f.is_file() or f.parent != schedule.folder_dir("motion") or f.name != row["file"]:
+            problems.append("the row's file is in out/motion/")
+        else:
+            if "Sumber:" not in row["description"]:
+                problems.append("the description names the sources")
+            if "#faktaseru" not in row["description"] or row.get("hashtags") != tiny["post"]["hashtags"] or row["description"] != row["tiktokCaption"]:
+                problems.append(f"the post text and hashtags: {row.get('hashtags')}")
+            if tiny["post"]["description"] not in row["description"] or better["claims"][0]["sources"][0] not in row["description"]:
+                problems.append("the description carries the post text and the checked claim's source")
+            info = probe(f)
+            if not (info.height > info.width) or abs(info.duration - 2.0) > 0.2 or (info.width, info.height) != (1080, 1920):
+                problems.append(f"the video is 1080x1920 and 2 s: {info.width}x{info.height} {info.duration}")
+            if not info.has_audio or info.acodec != "aac":
+                problems.append(f"the video has the sound effects as AAC: {info.has_audio} {info.acodec}")
+            try:
+                spec = youtube.prepare(row, publish_now=True)
+                if spec.get("title") is None:
+                    problems.append("the upload check")
+            except youtube.YouTubeError as exc:
+                problems.append(f"the upload checks accept a motion row: {exc}")
+        if schedule.with_missing_flags(schedule.load_clips())[0].get("fileMissing"):
+            problems.append("a motion row's file must not be flagged missing")
+        st, h = call("GET", "/api/history")
+        mine = [x for x in h.get("render", []) if x["video"] == "motion"]
+        if not mine or not mine[0]["scheduled"] or not mine[0]["url"].startswith("/workspace/out/motion/"):
+            problems.append(f"History lists the video as scheduled: {mine}")
+        st, body = call("GET", __import__("urllib.parse").parse.quote(mine[0]["url"], safe="/?=&") if mine else "/x", raw=True)
+        if st != 200 or body[4:8] != b"ftyp":
+            problems.append("the MP4 is served from /workspace/out/motion/")
+        d = call("GET", f"/api/motion/project?id={tid}")[1]["project"]
+        if d["status"] != "rendered" or d["render"]["rowId"] != j["rowId"]:
+            problems.append(f"the video remembers its render: {d['status']} {d['render']}")
+        if not {"queued", "running"} & seen:
+            problems.append("the page can watch the render")
+
+        # --- rendering again makes a second file and row (never overwriting the first), then delete the video: the Clips row stays
+        st, j = post("render", {"id": tid})
+        job = wait(tid)
+        d = call("GET", f"/api/motion/project?id={tid}")[1]["project"]
+        names = sorted(p.name for p in schedule.folder_dir("motion").glob("*.mp4"))
+        if job["state"] != "done" or len(names) != 2 or len(schedule.load_clips()) != 2:
+            problems.append(f"a second render keeps the first: {names} {job['state']}")
+        st, j = post("delete", {"id": tid})
+        if st != 200 or call("GET", f"/api/motion/project?id={tid}")[0] != 404 or len(schedule.load_clips()) != 2:
+            problems.append("deleting a video keeps its Clips rows")
+        st, j = post("delete", {"id": p30})
+        if st != 200:
+            problems.append(f"delete: {st}")
+        spent = f"{took:.0f} s"
+    finally:
+        quiet.__exit__(None, None, None)
+        if srv:
+            srv.shutdown()
+        motion.DURATIONS = old_durations
+        paths._profile.reset(tok)
+    if problems:
+        return FAIL, "\n      ".join(problems[:14])
+    return PASS, (f"brief from the catalogue, paste (repair, schema errors, fix message), edits, fact gate enforced by the server, revision brief, stills, "
+                  f"a real 2 s render in {spent} (Cancel waiting and running), Clips row in out/motion/ ready for upload, Guest refused")
+
+
+
 CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch,
-          "decode": check_decode, "render": check_render}
+          "motion": check_motion, "decode": check_decode, "render": check_render}
 
 
 def _global_state() -> dict:

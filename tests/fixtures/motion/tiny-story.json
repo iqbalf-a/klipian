@@ -1,0 +1,100 @@
+{
+  "question": "Kenapa colokan bisa panas?",
+  "titles": [
+    "Kenapa colokan bisa panas?",
+    "Colokan panas? Intip dalamnya",
+    "Intip stop kontak: kenapa memanas"
+  ],
+  "duration": 2,
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 1,
+      "narration": "Pernah cabut colokan, eh kok panas?",
+      "text": "Colokan kok panas?",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Colokan kok panas?",
+            "fs": 77,
+            "highlight": [
+              "panas"
+            ]
+          },
+          {
+            "type": "socket",
+            "x": 540,
+            "y": 900,
+            "s": 1.2,
+            "view": "outside",
+            "variant": "plain",
+            "heat": 0.5,
+            "waves": true
+          }
+        ]
+      },
+      "sfx": "desis pelan",
+      "camera": {
+        "kind": "still"
+      }
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "dur": 1,
+      "narration": "Intip yuk fakta lainnya!",
+      "text": "klipian intip",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "mascot",
+            "x": 540,
+            "y": 900,
+            "w": 520,
+            "expr": "laugh",
+            "pop": true
+          },
+          {
+            "type": "label",
+            "text": "klipian intip",
+            "x": 540,
+            "y": 1300,
+            "fs": 70,
+            "align": "middle",
+            "highlight": [
+              "intip"
+            ]
+          }
+        ]
+      },
+      "sfx": "jingle",
+      "camera": {
+        "kind": "still"
+      }
+    }
+  ],
+  "claims": [
+    {
+      "text": "Colokan yang longgar bisa memanas.",
+      "beats": [
+        "hook"
+      ],
+      "sources": [
+        "https://www.cpsc.gov/s3fs-public/518.pdf"
+      ]
+    }
+  ],
+  "post": {
+    "description": "Kenapa colokan bisa panas? Intip yuk!",
+    "hashtags": [
+      "#faktaseru",
+      "#colokan",
+      "#intipyuk"
+    ]
+  },
+  "needs": []
+}

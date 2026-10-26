@@ -94,7 +94,7 @@ def with_missing_flags(clips: list[dict]) -> list[dict]:
     for row in clips:
         row = dict(row)
         row.pop("fileMissing", None)
-        if row.get("file") and (row.get("projectId") or is_manual(row)) and row_file(row) is None:
+        if row.get("file") and (row.get("projectId") or is_folder_row(row)) and row_file(row) is None:
             row["fileMissing"] = True
         out.append(row)
     return out
@@ -136,8 +136,22 @@ def add_file_row(title: str, file_name: str, project_id: str | None,
 MANUAL = "manual"                   # out/manual/: video files that were not rendered by klipian
 
 
+MOTION = "motion"                   # out/motion/: videos rendered from the /remotion page (motion.py)
+FOLDER_ROWS = (MANUAL, MOTION)      # the rows whose `fileFolder` says where the file is (they have no render project)
+
+
 def manual_dir() -> Path:
     return Path(OUT_DIR) / MANUAL
+
+
+def folder_dir(name: str) -> Path:
+    """out/<name>/ of the current profile, for one of FOLDER_ROWS."""
+    return Path(OUT_DIR) / name
+
+
+def is_folder_row(row: dict) -> bool:
+    """A row whose file sits in out/manual/ (chosen by hand) or out/motion/ (rendered from /remotion) rather than in a render project's folder."""
+    return row.get("fileFolder") in FOLDER_ROWS and bool(row.get("file"))
 
 
 def is_manual(row: dict) -> bool:
@@ -146,16 +160,16 @@ def is_manual(row: dict) -> bool:
 
 
 def row_file(row: dict) -> Path | None:
-    """The video file of a row on disk: out/manual/<file> for a manual row, else the render file."""
-    if is_manual(row):
-        f = manual_dir() / Path(row["file"]).name
+    """The video file of a row on disk: out/manual/<file> or out/motion/<file> for those rows, else the render file."""
+    if is_folder_row(row):
+        f = folder_dir(row["fileFolder"]) / Path(row["file"]).name
         return f if f.is_file() else None
     return find_render_file(row.get("projectId"), row.get("file"))
 
 
 def row_file_created(row: dict) -> int | None:
     """When the row's file was made (None: no file, or it is gone)."""
-    if is_manual(row):
+    if is_folder_row(row):
         f = row_file(row)
         if f is None:
             return None

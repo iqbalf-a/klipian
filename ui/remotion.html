@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>klipian — motion</title>
+<link rel="stylesheet" href="/ui/css/fonts.css?v=1790703163808">
+<link rel="stylesheet" href="/ui/css/tokens.css?v=1790703163808">
+<link rel="stylesheet" href="/ui/css/brand.css?v=1790703163808">
+<link rel="stylesheet" href="/ui/css/workspace.css?v=1790703163808">
+<link rel="stylesheet" href="/ui/css/pager.css?v=1790703163808">
+<link rel="stylesheet" href="/ui/css/profiles.css?v=1790703163808">
+<link rel="stylesheet" href="/ui/css/remotion.css?v=1790703163808">
+</head>
+<body>
+
+<div class="flex flex-col min-h-screen">
+
+  <!-- The same topbar as /workspace: the area switch (Motion marked), the profile chip, theme, "?" and the clock. -->
+  <header class="flex items-center gap-4 h-[58px] px-5 shrink-0 bg-surface-1 border-b border-glass-border">
+    <a class="brand" href="/" title="Kembali ke editor">klipian</a>
+    <nav class="tabs area-switch" aria-label="Area">
+      <a href="/">Edit</a>
+      <a href="/workspace">Workspace</a>
+      <a href="/remotion" aria-current="page">Motion</a>
+      <a href="/guide#motion" title="Panduan terbuka di tab baru">Guide</a>
+    </nav>
+    <div id="profileChip"></div>
+    <button class="btn quiet" id="themeBtn" type="button" aria-live="polite"></button>
+    <div class="shortcut-help">
+      <button class="btn quiet" id="shortcutHelpBtn" type="button" title="Tentang halaman ini" aria-label="Tentang halaman ini" aria-expanded="false">?</button>
+      <div class="shortcut-panel" id="shortcutPanel" hidden role="tooltip">
+        <p><b>Alur</b> topik, brief, jawaban AI, cek fakta, render</p>
+        <p><b>Tanpa API key</b> brief ditempel sendiri ke Claude atau ChatGPT</p>
+        <p><b>Hasil</b> masuk ke Clips (folder motion), siap diunggah</p>
+        <p class="shortcut-guide"><a href="/guide#motion" target="_blank" rel="noopener">Panduan: video motion →</a></p>
+      </div>
+    </div>
+    <span id="topClock"></span>
+  </header>
+
+  <main class="flex-1 min-h-0 overflow-y-auto p-6 max-w-[1400px] w-full mx-auto">
+    <div class="rm-missing ws-panel" id="rmMissing" hidden></div>
+    <div class="rm-layout">
+
+      <!-- ═════════ the list of videos of this profile, and the form for a new one ═════════ -->
+      <aside class="ws-panel rm-side" id="rmSide" aria-label="Video motion">
+        <div class="flex items-center gap-3">
+          <h1 class="text-[20px] font-extrabold tracking-tight">Video motion</h1>
+          <button class="ml-auto btn main" id="rmNewBtn" type="button">Video baru</button>
+        </div>
+        <form class="rm-new" id="rmNew" hidden autocomplete="off">
+          <label class="ws-field">Topik
+            <input class="ws-input rm-boxed" id="rmTopic" type="text" maxlength="200" required placeholder="mis. fakta seru tentang colokan listrik panas">
+          </label>
+          <div class="ws-field" role="group" aria-label="Durasi">
+            Durasi
+            <div class="rm-seg" id="rmDur">
+              <button class="btn" type="button" data-d="30" aria-pressed="false">30 detik</button>
+              <button class="btn" type="button" data-d="45" aria-pressed="true">45 detik</button>
+              <button class="btn" type="button" data-d="60" aria-pressed="false">60 detik</button>
+            </div>
+            <span class="rm-hint">60 detik untuk topik yang butuh 3 langkah penjelasan.</span>
+          </div>
+          <label class="ws-field">Catatan untuk AI (opsional)
+            <textarea class="ws-input rm-boxed" id="rmNotes" rows="3" maxlength="2000" placeholder="mis. fokus ke stop kontak rumah biasa"></textarea>
+          </label>
+          <div class="flex items-center gap-2">
+            <button class="btn main" type="submit">Buat</button>
+            <button class="btn" type="button" id="rmNewCancel">Batal</button>
+            <span class="rm-err" id="rmNewErr" role="alert"></span>
+          </div>
+        </form>
+        <div id="rmList" class="rm-list" role="list"></div>
+      </aside>
+
+      <!-- ═════════ one video: the steps ═════════ -->
+      <section class="rm-main" id="rmMain" aria-live="polite"></section>
+    </div>
+  </main>
+</div>
+
+<script src="/ui/js/shared/profile.js?v=1790703163808"></script>
+<script src="/ui/js/shared/topbar.js?v=1790703163808"></script>
+<script src="/ui/js/shared/clipboard.js?v=1790703163808"></script>
+<script src="/ui/js/shared/armed.js?v=1790703163808"></script>
+<script src="/ui/js/shared/notify.js?v=1790703163808"></script>
+<script src="/ui/js/shared/version.js?v=1790703163808"></script>
+<script src="/ui/js/shared/profile-ui.js?v=1790703163808"></script>
+<script src="/ui/js/remotion/page.js?v=1790703163808"></script>
+</body>
+</html>

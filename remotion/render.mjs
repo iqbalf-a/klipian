@@ -8,6 +8,7 @@
 //   {"type":"error","message":"...","cancelled":true|false}
 // Job: { "mode": "still" | "video", "story": "stories/x.json", "out": "name.mp4" (inside out/),
 //        "frame": 120 | "time": 4.5 (seconds) | "beat": "lensa" (+ "at": 0.85) for a still, "concurrency": 4 (optional),
+//        "mode": "stills" renders one picture per beat into the folder "out" (<beat id>.png, "at": 0..1 of the beat); "outRoot": an absolute folder to write into instead of out/,
 //        "sound": false (optional: no sound effects; default true: they are mixed from the story and muxed in as AAC),
 //        "composition": "FunFact" (default) | "Dissect3D" (no story), "gl": "angle" | "swangle" | "swiftshader" | "egl" | "vulkan" (optional) }
 // Cancel: SIGINT/SIGTERM/SIGBREAK, or a line "cancel" on stdin (Windows cannot deliver SIGTERM), is passed to Remotion's cancel signal.
@@ -25,7 +26,7 @@ import { mixEvents } from "./sfx/mix.mjs";
 import { writeWav } from "./sfx/wav.mjs";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
-const OUT_DIR = path.join(ROOT, "out");
+let OUT_DIR = path.join(ROOT, "out");                     // a job may name another root ("outRoot": klipian keeps its renders in the profile's folder)
 const CACHE_DIR = path.join(ROOT, ".cache");
 const FPS = 30;
 
@@ -136,7 +137,8 @@ async function main() {
   if (!jobFile) fail("usage: node render.mjs <job.json>");
   let job;
   try { job = JSON.parse(readFileSync(path.resolve(jobFile), "utf8")); } catch (e) { fail(`cannot read the job: ${e.message}`); }
-  if (!["still", "video"].includes(job.mode)) fail('the job needs "mode": "still" or "video"');
+  if (!["still", "stills", "video"].includes(job.mode)) fail('the job needs "mode": "still", "stills" (one picture per beat) or "video"');
+  if (job.outRoot) OUT_DIR = path.resolve(String(job.outRoot));
   const compId = job.composition ?? "FunFact";
   let story = null;
   if (compId === "FunFact") {
@@ -157,6 +159,24 @@ async function main() {
   const serveUrl = await getBundle();
   if (cancelled) fail("cancelled");
   const composition = await selectComposition({ serveUrl, id: compId, inputProps, chromiumOptions, port, logLevel: "error" });
+
+  if (job.mode === "stills") {                             // one picture per beat of the story, into the folder `out` (named <beat id>.png)
+    if (!story) fail("stills need a story");
+    const dir = path.dirname(resolveOut({ out: path.join(String(job.out || "stills"), "x.png") }, "png"));
+    const outs = [];
+    let start = 0;
+    for (const [i, b] of story.beats.entries()) {
+      if (cancelled) fail("cancelled");
+      const len = Math.round(b.dur * FPS), frame = start + Math.min(len - 1, Math.round(len * (job.at ?? 0.85)));
+      start += len;
+      const file = path.join(dir, `${b.id}.png`);
+      await renderStill({ composition, serveUrl, output: file, frame, inputProps, chromiumOptions, port, imageFormat: "png", cancelSignal, logLevel: "error" });
+      outs.push(file);
+      progress("render", ((i + 1) / story.beats.length) * 100, { beat: b.id });
+    }
+    emit({ type: "done", out: dir, outs, ms: Date.now() - t0 });
+    return;
+  }
 
   if (job.mode === "still") {
     let frame = job.frame;
