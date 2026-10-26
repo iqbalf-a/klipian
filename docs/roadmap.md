@@ -2799,6 +2799,25 @@ Langkah 1 P28-P ditambah: takarir karaoke, kartu sumber, label penunjuk,
 musik latar tipis, kamera, 3D semi-realistis. Opsi suara (rekaman ian atau TTS
 lokal) menunggu riset ian; jalurnya disiapkan dulu dengan rekaman/file.
 
+**Gaya utama: 2.5D isometrik** (keputusan ian 2026-10-26, setelah 3D yang
+setara referensi ternyata butuh Blender dan modeling per benda):
+- Semua topik (proses, alam, benda, bedah) digambar sebagai **SVG 2.5D**: blok
+  isometrik dengan **3 nada** per benda (atas terang, kiri sedang, kanan gelap;
+  cahaya dari kiri atas), lapisan dengan parallax saat kamera bergeser, bentuk
+  berlapis (awan menggembung), partikel dan garis bergerak (uap, hujan, arus,
+  panas), potongan (cutaway) isometrik untuk melihat isi benda, label bernomor
+  dengan garis penunjuk, kicker + judul, takarir karaoke, kartu sumber.
+  Contoh: `workspace/channel-art/klipian-intip/hujan-25d.png`.
+- **3D (three.js atau Blender) hanya opsional** untuk satu adegan "hero" saat
+  benda harus diputar atau dibongkar. Bukan bawaan; aturan 3D toon/semi-
+  realistis di atas berlaku hanya untuk adegan itu.
+- **Warna makna untuk benda alam** boleh: biru = air, hijau = tanaman,
+  coklat = tanah, masing-masing dalam 3 nada. Identitas channel tetap hitam,
+  kuning, abu-abu; merah tetap hanya untuk panas/bahaya.
+- Alasan: paling konsisten (geometri dengan aturan nada yang sama, mudah
+  diulang oleh Claude), tanpa program tambahan, render cepat, jelas untuk
+  proses dan tetap dikenali untuk benda.
+
 **P28-P — 3 video uji coba** (rencana 2026-10-26):
 - **Langkah 1 (sesi eksekusi):** pengatur tata letak, `remotion/DESIGN.md`,
   struktur `remotion/videos/<slug>/` (komposisi khusus yang memakai komponen
