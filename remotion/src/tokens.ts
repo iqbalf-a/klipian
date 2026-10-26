@@ -56,3 +56,15 @@ export const LAB = {
     Shorts interface: out of the bottom 15 % (y > 1632) and the right 12 % (x > 950). */
 export const FLOOR_Y = 1920 - 90 * (1080 / 280);
 export const SAFE = { left: 60, right: 950, top: 120, bottom: 1632 } as const;
+
+/** The 2.5D isometric kit's tones (P28, 2026-10-26): three per material, [light = a face looking up, mid = looking lower-left, dark = looking lower-right],
+    light from the top-left (src/iso.ts). Brass is the one warm metal (the spring leaves of a socket): muted, so it never reads as the yellow of current. */
+export const ISO = {
+  plastic: [WHITE, G4, rgb([204, 204, 200])],
+  wall: [rgb([222, 220, 214]), rgb([202, 200, 194]), rgb([176, 174, 168])],
+  floor: [rgb([214, 212, 206]), rgb([192, 190, 184]), rgb([168, 166, 160])],
+  dark: [G2, PLUG_FACE, G1],
+  metal: [rgb([236, 236, 232]), METAL, rgb([146, 146, 142])],
+  brass: [rgb([228, 200, 128]), rgb([196, 160, 84]), rgb([148, 116, 54])],
+  labPlastic: [G4, rgb([196, 196, 192]), rgb([150, 150, 148])],
+} as const satisfies Record<string, readonly [string, string, string]>;

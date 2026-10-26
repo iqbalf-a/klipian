@@ -24,7 +24,7 @@ npm run studio                                # open the composition  video-kena
 That makes `videos/kenapa-hujan-turun/` with `index.tsx` (your scenes), `sfx.ts` (your sound effects), `story.json` (a copy of the checked story) and `meta.json`.
 It is registered in Root by its folder name. Then:
 
-1. Look at `npm run assets-sheet` (`out/assets-sheet.png`) and the `CardsDemo` / `RigDemo` compositions: **what exists comes first**.
+1. Look at `npm run assets-sheet` (`out/assets-sheet.png` and `out/assets-sheet-iso.png`, the 2.5D kit) and the `IsoDemo` / `CardsDemo` / `RigDemo` compositions: **what exists comes first**. The main style is 2.5D isometric (see "2.5D isometrik").
 2. Write the scene function in `index.tsx`: one drawing per beat, from `src/design/index.ts`. The beat gives you `beat.text`, `beat.headline`, `beat.kicker`, `beat.narration`, `beat.words`, `beat.dur`, `beat.scene.items`, and the story gives `claims` with sources.
 3. Check in Studio with `layoutDebug` on; fix what the layout manager reports. Run `npm run check && npm test`.
 4. In klipian (/remotion page) choose **Komposisi → your video**; stills, render, Clips and upload work as for the template. Render time matters: say it in your report.
@@ -68,7 +68,26 @@ long sleeves to the wrists, a loose long skirt to the shoes. What changes per ro
 
 **Empty space is filled by the hero object, its parts, pointer labels, arrows and motion, not by characters.**
 
-## 4. 3D objects (semi-realistic, P28-P)
+## 2.5D isometrik (the main style, ian 2026-10-26)
+
+Every topic is drawn as **2.5D isometric SVG**: no 3D engine, the same tone rule everywhere, quick to render. Reference mock: `workspace/channel-art/klipian-intip/hujan-25d.png`.
+Look at `out/assets-sheet-iso.png` (`npm run assets-sheet`) and the `IsoDemo` composition first; the pilot `videos/kenapa-colokan-panas/` uses all of it.
+
+- **Axes** (`src/iso.ts`): x runs to the screen's lower right, y to its lower left, z up; `u` px per world unit, `o` = the screen px of the world origin. `iso(p, u)` / `isoAt(p, u, o)` give a screen point.
+- **The tone rule**: three tones per material, light from the top-left: a face looking **up = light**, looking **lower-left (+y) = mid**, looking **lower-right (+x) = dark**. A face is seen when it looks towards (1, 1, 1).
+  The tone sets are `ISO` in `tokens.ts` (`plastic, wall, floor, dark, metal, brass, labPlastic`; nature topics may add blue water, green plants, brown soil, three tones each). Never pick a tone by hand.
+- **A block**: `<IsoBlock a={[x0,y0,z0]} b={[x1,y1,z1]} u o tones={ISO.wall} />` (right, left, top faces, back to front). Draw back to front: lower z first, then larger x, then larger y.
+- **Anything flat on a face** (a socket plate, a recess, a cut face's content): draw it in that plane's own 2D coordinates inside `<OnPlane y={y0} u o>` (the plane y = y0, coordinates (x, z), z up; `planeYZ` for an x-face). Keep text out of planes (it comes out flipped).
+- **An extruded outline**: `extrudeXZ(outline, y0, y1, u, o)` for a convex outline (`roundRectPts`, `circlePts`), `extrudeAnyXZ` for thin bent shapes (a spring leaf); draw with `<Polys polys tones />`.
+- **A round thing**: `cylinder(a, b, ra, rb, e1, e2, u, o)` (a plug, a pin, a cable end, a screw): tone bands along the body, then the cap that faces you.
+- **A hole or recess**: fill the hole's outline with the recess tone, then draw its floor (the same circle in a deeper plane) clipped to the hole: the wall shows as a crescent on the lower left.
+- **A cutaway**: cut along a vertical plane (y = 0, facing lower-left), hatch the cut faces (`<Hatch>` pattern over the block's mid face), cut the part above the cavity further back (a stepped cut) so what is inside is seen from above; the current runs as dashed paths on the cut plane (`smoothPath` + an animated `strokeDashoffset`), heat as a radial glow at the contact. See `IsoCutaway` (`loose` 0..1, `heat`, `current`).
+- **The 2D camera and parallax**: `cam2At(keys, t)` (keys `{ t, x, y, zoom }`, eased, zoom in log space) and `<g transform={layerTransform(cam, p)}>` per layer: `p = 1` the scene, `p ≈ 0.3` the background (it moves and grows less), `p > 1` a near layer (dust: `Motes`). `toScreen(cam, pt, p)` is where a world px point is now (labels follow parts with it).
+- **Through the lens**: the lab world is a second scene with its own camera, drawn clipped to a circle that grows from the part (the magnifier) until it covers the frame; on the way out the circle shrinks back to the part while the outside camera pulls back. Anchor the lab camera so the inside detail stays in the circle's middle.
+- **Particles and motion lines**: `HeatRise`, `SmokePuffs` (three greys), `Sparks`, `Motes`, the current's dashes. Labels: `NumberLabel` (number disc, white pill, leader line, `red` for heat, `ring` to circle the point).
+- 3D (section 4) is **optional**, for one hero shot where an object must turn or come apart; not the default.
+
+## 4. 3D objects (optional: one hero shot only; semi-realistic, P28-P)
 
 - The hero is a real 3D model (`src/three/`): `WallSocket3D`, `Plug3D` (+ `PlugHeat`), `Cutaway3D`, `Cable3D`, `Smoke3D`, and the charger in `Dissect3D`. The default **look is semi-realistic**: standard materials (matte plastic, brass-like metal, rubber), small bevels, a soft key light from the top-left plus a fill, soft self-shadows, a dim room environment so metal reflects something. `look="toon"` keeps the old flat shading.
 - **The palette stays the guide**: models use palette colours through `Mat` (the palette's `METAL` colour becomes metal). Do not introduce colours.
@@ -176,7 +195,7 @@ The story template applies the manager to every beat; custom scenes call `applyL
 
 The library grows: **every object or scene made for one video is saved as an asset**, so the next video is faster and the brief's catalogue grows.
 
-1. **Where the file goes**: a 2D component in `src/components/<Name>.tsx` (SVG, palette colours from `tokens.ts`, props `t` for time and a state prop such as `variant` or `heat`); a 3D model in `src/three/<Name>.tsx` (built from primitives, materials through `Mat`, no other colours); a card or text style in `src/components/Cards.tsx`.
+1. **Where the file goes**: a 2.5D isometric piece in `src/components/Iso.tsx` (geometry in `src/iso.ts`, tones from `ISO`, a tile on `AssetSheetIso`); a 2D component in `src/components/<Name>.tsx` (SVG, palette colours from `tokens.ts`, props `t` for time and a state prop such as `variant` or `heat`); a 3D model in `src/three/<Name>.tsx` (built from primitives, materials through `Mat`, no other colours); a card or text style in `src/components/Cards.tsx`.
 2. **Export it** from `src/design/index.ts` so scenes import it from one place.
 3. **A catalogue entry** so the klipian brief lists it next time: add the type to the story schema (`src/schema.ts`, a new item with its fields and a `.strict()` object, and the item in the `Item` union) and the enums to `src/catalog.ts` (names, states, expressions). `node catalog-export.mjs` then lists it for the brief **by itself** (the fields are read off the schema); add a sentence to `STORY_RULES` (`src/catalog.ts`) if the validator checks something about it, and an example item to `stories/example.json` if it is a main object. Render it in `FunFact.tsx` (`SceneItem` or an `Item3DLayer`) so a story can use it; give it a box in `itemBox` (`src/layout.ts`) so the layout manager keeps text off it.
 4. **A tile in the asset sheet**: `src/AssetSheet.tsx` (a `Tile` with its name; add the name to `ASSET_NAMES`); run `npm run assets-sheet` and look at `out/assets-sheet.png`.
@@ -184,6 +203,9 @@ The library grows: **every object or scene made for one video is saved as an ass
 6. **A sound** if it moves: map its enter/actions in `SFX_FOR` (or add a sound to `sfx/synth.mjs` and the `SFX` table, CC0 and listed in `sfx/LICENSES.md`).
 
 ## 12. Before you hand a video back
+
+`node scripts/frames.mjs video-<slug> <folder> 0.5 3.2 9.4 ...` renders any frames into `out/<folder>/` in one browser session: check the frames around every camera move and transition.
+A custom video may keep its timing in a pure `plan.ts` (when things happen, from the beats and the narration's word times; the cameras; the boxes of every frame), used by `index.tsx`, `sfx.ts` and a test that runs the layout manager's `conflicts()` frame by frame (see `tests/colokan.test.ts`). Its `sfx.ts` may export `music = { track, level }` (used when the story names no bed).
 
 - `npm run check && npm test` pass; `layoutDebug` shows no unsolved problem;
 - stills of every beat (klipian's storyboard sheet) look right; you checked frames around every transition;

@@ -13,6 +13,10 @@ import { useFonts } from "./FunFact.tsx";
 import { CHIBI_EXPRESSIONS, CHIBI_POSES, MASCOT_EXPRESSIONS } from "./catalog.ts";
 import { Host3D, Placed } from "./three/common.tsx";
 import { Cable3D, Cutaway3D, Plug3D, PlugHeat, Smoke3D, WallSocket3D } from "./three/Socket3D.tsx";
+import { HeatRise, IsoBlock, IsoCutaway, IsoPlug, IsoWallSocket, Polys, SmokePuffs, Sparks } from "./components/Iso.tsx";
+import { LoopArrows, MacroFrame, Magnifier, NumberLabel, SourceChip, TipCard } from "./components/Overlays.tsx";
+import { cylinder } from "./iso.ts";
+import { ISO, LAB } from "./tokens.ts";
 
 /** Every asset of the sheet by name, so a test (and a person) can see the list. Keep it in step with the tiles below. */
 export const ASSET_NAMES = [
@@ -22,6 +26,9 @@ export const ASSET_NAMES = [
   "banner", "pill", "label", "arrow", "badge",
   "socket plain", "socket scorched", "plug", "cutaway tight", "cutaway loose", "plug stack", "heat waves", "smoke",
   "3d socket", "3d plug (heating)", "3d plug out", "3d scorched + smoke", "3d cutaway tight", "3d cutaway loose", "3d cable",
+  // the 2.5D isometric kit and its overlays (the second sheet, AssetSheetIso: out/assets-sheet-iso.png)
+  "iso block", "iso cylinder", "iso wall socket", "iso plug", "iso plug out", "iso scorched + smoke", "iso cutaway tight", "iso cutaway loose",
+  "heat rise", "sparks", "number label", "tip card", "source chip", "loop arrows", "magnifier", "macro frame",
 ] as const;
 
 const mono = { fontFamily: `"${FONT_MONO}", monospace`, fontSize: 18, fill: WHITE } as const;
@@ -82,6 +89,35 @@ export const AssetSheet: React.FC = () => {
         {([[190, 1590, "3d socket"], [540, 1590, "3d plug (heating)"], [890, 1590, "3d plug out"], [190, 1830, "3d scorched + smoke"], [540, 1830, "3d cutaway tight"], [890, 1830, "3d cutaway loose"], [330, 1625, "3d cable"]] as const).map(([x, y, name]) => (
           <text key={name} x={x} y={y} textAnchor="middle" {...mono}>{name}</text>
         ))}
+      </svg>
+    </AbsoluteFill>
+  );
+};
+
+/** The second sheet: the 2.5D isometric kit (src/iso.ts, components/Iso.tsx) and the overlays of a camera-led explainer (components/Overlays.tsx). */
+export const AssetSheetIso: React.FC = () => {
+  useFonts();
+  const t = useCurrentFrame() / FPS + 1.2;
+  const cap = (x: number, y: number, name: string) => <text x={x} y={y} textAnchor="middle" {...mono}>{name}</text>;
+  // a tile: its plate, and what is drawn on it clipped to it
+  const tile = (x: number, y: number, w: number, h: number, dark: boolean, children: React.ReactNode) => (
+    <g><rect x={x} y={y} width={w} height={h} rx={10} fill={dark ? LAB.slate : WALL} /><svg x={x} y={y} width={w} height={h} viewBox={`${x} ${y} ${w} ${h}`} overflow="hidden">{children}</svg></g>
+  );
+  return (
+    <AbsoluteFill style={{ background: G1 }}>
+      <svg width={FRAME.width} height={FRAME.height} viewBox={`0 0 ${FRAME.width} ${FRAME.height}`} style={{ position: "absolute", inset: 0 }}>
+        <text x={40} y={56} fontSize={36} fill={WHITE} style={{ fontFamily: `"${FONT_BOLD}", sans-serif`, fontWeight: 700 }}>Pustaka 2.5D isometrik · klipian intip</text>
+        {tile(40, 90, 230, 230, false, <><IsoBlock a={[-0.8, -0.8, -0.5]} b={[0.8, 0.8, 0.5]} u={70} o={[155, 215]} tones={ISO.wall} /></>)}{cap(155, 344, "iso block")}
+        {tile(290, 90, 230, 230, false, <><Polys polys={cylinder([0, -0.9, 0], [0, 0.9, 0], 0.6, 0.6, [1, 0, 0], [0, 0, 1], 70, [405, 200])} tones={ISO.dark} /></>)}{cap(405, 344, "iso cylinder")}
+        {tile(540, 90, 500, 230, true, <><IsoCutaway u={58} o={[690, 205]} loose={0} t={t} /></>)}{cap(790, 344, "iso cutaway tight")}
+        {tile(40, 370, 330, 420, false, <><IsoWallSocket u={62} o={[205, 560]} heat={0.6} t={t} /><IsoPlug u={62} o={[205, 560]} heat={0.6} /><HeatRise x={205} y={470} k={0.8} t={t} scale={0.5} /></>)}{cap(205, 814, "iso wall socket")}{cap(205, 836, "iso plug · heat rise")}
+        {tile(375, 370, 330, 420, false, <><IsoWallSocket u={62} o={[540, 560]} /><IsoPlug u={62} o={[540, 560]} gap={1.6} /></>)}{cap(540, 814, "iso plug out")}
+        {tile(710, 370, 330, 420, false, <><IsoWallSocket u={62} o={[875, 560]} scorch={1} heat={1} t={t} /><IsoPlug u={62} o={[875, 560]} heat={1} /><SmokePuffs x={880} y={500} k={1} t={t} scale={0.45} /></>)}{cap(875, 814, "iso scorched + smoke")}
+        {tile(40, 870, 1000, 300, true, <><IsoCutaway u={78} o={[420, 1020]} loose={1} heat={1} t={t} /><Sparks x={505} y={1037} k={1} t={t} /></>)}{cap(540, 1194, "iso cutaway loose · sparks")}
+        {tile(40, 1230, 500, 300, false, <><NumberLabel text="penjepit" n={1} x={230} y={1290} ax={380} ay={1420} t={t} start={0} /><SourceChip x={70} y={1490} text="cpsc.gov · contoh.org" t={t} start={0} /></>)}{cap(290, 1554, "number label · source chip")}
+        {tile(560, 1230, 480, 300, true, <><LoopArrows cx={800} cy={1380} r={95} a="panas" b="hambatan" t={t} start={0} /></>)}{cap(800, 1554, "loop arrows")}
+        {tile(40, 1590, 500, 300, false, <><g transform="translate(40 1590) scale(0.55)"><TipCard x={30} y={30} w={850} n={1} title="Tip yang pendek" sub="baris di bawahnya" chip="SUMBER  contoh.org" t={t} start={0} /></g></>)}{cap(290, 1912, "tip card")}
+        {tile(560, 1590, 480, 300, false, <><Magnifier x={700} y={1730} r={90} t={t} start={0} /><MacroFrame box={{ x0: 830, y0: 1700, x1: 1020, y1: 1860 }} t={t} start={0} onDark={false} tag="ZOOM" /></>)}{cap(800, 1912, "magnifier · macro frame")}
       </svg>
     </AbsoluteFill>
   );

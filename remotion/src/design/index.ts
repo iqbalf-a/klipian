@@ -18,7 +18,10 @@ export { Room, Black, Banner, Pill, Label, Arrow, Badge, textWidth } from "../co
 // source and data cards, pointer labels, sounds written out
 export { SourceCard, SearchCard, NumberCard, BarChart, LineChart, CalendarCard, PointerLabel, Onomatopoeia, cardSpec, pointerBox, wrap } from "../components/Cards.tsx";
 // overlays of a camera-led explainer: the magnifier, the macro frame, tip cards, source chips, a loop of two causes
-export { Magnifier, MacroFrame, TipCard, tipCardHeight, tipCardSpec, SourceChip, sourceChipSpec, LoopArrows, loopSpec } from "../components/Overlays.tsx";
+export { Magnifier, MacroFrame, TipCard, tipCardHeight, tipCardSpec, SourceChip, sourceChipSpec, LoopArrows, loopSpec, NumberLabel, monoWidth } from "../components/Overlays.tsx";
+// the 2.5D isometric kit (the main style): geometry and the 2D camera (iso.ts), the pieces and the socket set (components/Iso.tsx)
+export { iso, isoAt, block, extrudeXZ, extrudeAnyXZ, cylinder, planeXZ, planeYZ, roundRectPts, circlePts, smoothPath, toneOf, visible, ptsAttr, cam2At, layerCam, layerTransform, toScreen, REST_CAM, type P2, type P3, type Poly, type Tones, type Cam2, type Key2 } from "../iso.ts";
+export { Polys, IsoBlock, OnPlane, Hatch, IsoWallSocket, IsoPlug, IsoCutaway, ISO_SOCKET_POINTS, ISO_CUT_POINTS, isoContactPoint, HeatRise, SmokePuffs, Sparks, Motes } from "../components/Iso.tsx";
 // karaoke captions and the top text
 export { CaptionLayer, TopText } from "../components/Captions.tsx";
 export { estimateWords, pagesOf, pageAt, activeWord, wordsOfBeat } from "../captions.ts";
