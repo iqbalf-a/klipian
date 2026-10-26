@@ -1,0 +1,236 @@
+{
+  "question": "Kenapa colokan bisa panas?",
+  "titles": [
+    "Kenapa colokan bisa panas?",
+    "Colokan panas? Ini yang terjadi di dalamnya",
+    "Intip dalam stop kontak: kenapa colokan memanas"
+  ],
+  "duration": 12,
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 3,
+      "narration": "Pernah cabut colokan, eh kok panas?",
+      "text": "Colokan kok panas?",
+      "scene": {
+        "bg": "brand",
+        "spot": {
+          "x": 420,
+          "y": 780,
+          "r": 470
+        },
+        "items": [
+          {
+            "type": "socket",
+            "x": 540,
+            "y": 760,
+            "s": 1.45,
+            "view": "outside",
+            "variant": "plain",
+            "waves": true,
+            "plug": {
+              "route": [
+                [
+                  540,
+                  872
+                ],
+                [
+                  540,
+                  1470
+                ],
+                [
+                  580,
+                  1555
+                ],
+                [
+                  700,
+                  1590
+                ],
+                [
+                  1180,
+                  1590
+                ]
+              ]
+            },
+            "actions": [
+              {
+                "at": 1.0,
+                "kind": "highlight"
+              }
+            ],
+            "heat": 0.5
+          },
+          {
+            "type": "badge",
+            "text": "!",
+            "x": 850,
+            "y": 470,
+            "r": 52,
+            "color": "red",
+            "enter": {
+              "kind": "pop",
+              "delay": 0.9
+            }
+          }
+        ]
+      },
+      "sfx": "desis pelan",
+      "kicker": "pin cuma nempel di",
+      "headline": "Colokan kok panas?"
+    },
+    {
+      "id": "lensa",
+      "kind": "lens",
+      "dur": 5,
+      "narration": "Di dalam stop kontak ada penjepit logam yang menggigit kaki colokan.",
+      "text": "penjepit logam",
+      "scene": {
+        "bg": "brand",
+        "spot": {
+          "x": 560,
+          "y": 1060,
+          "r": 470
+        },
+        "items": [
+          {
+            "type": "socket",
+            "x": 560,
+            "y": 480,
+            "s": 0.8,
+            "view": "outside",
+            "variant": "plain",
+            "plug": {
+              "route": [
+                [
+                  560,
+                  542
+                ],
+                [
+                  560,
+                  780
+                ]
+              ]
+            }
+          },
+          {
+            "type": "lens",
+            "x": 560,
+            "y": 1060,
+            "r": 355,
+            "variant": "tight",
+            "reveal": {
+              "from": 0.6,
+              "dur": 1.0
+            }
+          },
+          {
+            "type": "label",
+            "text": "penjepit logam",
+            "x": 620,
+            "y": 1595,
+            "fs": 62,
+            "highlight": [
+              "logam"
+            ],
+            "enter": {
+              "kind": "fade-up",
+              "delay": 1.8
+            }
+          }
+        ]
+      },
+      "sfx": "wush (lensa)",
+      "headline": "Di dalam stop kontak",
+      "kicker": "intip penjepit logam"
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "dur": 4,
+      "narration": "Intip yuk fakta lainnya!",
+      "text": "klipian intip",
+      "scene": {
+        "bg": "black",
+        "items": [
+          {
+            "type": "mascot",
+            "x": 540,
+            "y": 771,
+            "w": 656,
+            "expr": "understand",
+            "sparks": true,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.1
+            },
+            "actions": [
+              {
+                "at": 1.6,
+                "kind": "look",
+                "x": 540,
+                "y": 1489
+              }
+            ]
+          },
+          {
+            "type": "label",
+            "text": "klipian intip",
+            "x": 540,
+            "y": 1273,
+            "fs": 116,
+            "color": "white",
+            "enter": {
+              "kind": "fade-up",
+              "delay": 0.5
+            }
+          },
+          {
+            "type": "pill",
+            "text": "Intip yuk fakta lain →",
+            "x": 540,
+            "y": 1489,
+            "fs": 69,
+            "enter": {
+              "kind": "pop",
+              "delay": 1.1
+            }
+          }
+        ]
+      },
+      "sfx": "jingle 1 dtk"
+    }
+  ],
+  "claims": [
+    {
+      "text": "Colokan yang longgar di stop kontak (atau stop kontak yang aus) bisa memanas; colokan yang goyang atau mudah lepas adalah tanda sambungan longgar yang cenderung panas, dan stop kontaknya perlu diganti teknisi.",
+      "beats": [
+        "lensa"
+      ],
+      "sources": [
+        "https://www.cpsc.gov/s3fs-public/518.pdf"
+      ]
+    },
+    {
+      "text": "Stop kontak atau pelat yang terasa panas, berubah warna, atau gosong menandakan panas berlebih di sambungan: berhenti memakainya dan minta teknisi memeriksa.",
+      "beats": [
+        "hook"
+      ],
+      "sources": [
+        "https://www.cpsc.gov/s3fs-public/518.pdf"
+      ]
+    }
+  ],
+  "post": {
+    "description": "Kenapa colokan bisa panas? Intip bagian dalam stop kontak: penjepit yang kendur membuat sentuhannya kecil, listrik berdesakan, dan titik itu memanas. Colokan terasa panas? Cabut dulu dan ganti stop kontak yang kendur lewat teknisi.",
+    "hashtags": [
+      "#faktaseru",
+      "#listrik",
+      "#colokan",
+      "#intipyuk",
+      "#shorts"
+    ]
+  },
+  "needs": [],
+  "captions": true
+}

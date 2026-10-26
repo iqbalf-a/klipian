@@ -1,0 +1,190 @@
+# DESIGN.md — klipian intip: the design system every video session reads first
+
+You are making one Short for the channel **klipian intip** (fun facts, explained with a flat/semi-3D look). klipian has already written the story,
+fact-checked it and kept it as JSON. **Your job is the scenes**: draw each beat from the components below, keep the checked words as the words, make it
+look like the channel and pass the quality bar at the end. Read this whole file before you write a scene.
+
+Everything here is code in `remotion/`: `npm test` checks the rules that can be checked, `npm run assets-sheet` shows what exists,
+`npm run studio` is where ian reviews. Use the Remotion skills in `.claude/skills/` (start with `remotion-best-practices`) for Remotion itself.
+
+---------------------------------------------------------------------------------------------------------------------------------------
+
+## 0. How to start a new video (exact commands)
+
+klipian keeps each video as a project in `workspace/profiles/<profile>/motion/<project>/` (on the /remotion page: topic → brief → AI answer → fact gate). The checked
+story is `story.json` there (`story.voiced.json` when a narration was aligned: durations and word times follow the voice). The page shows the exact command.
+
+```bash
+cd remotion
+npm install                                   # once
+npm run new-video kenapa-hujan-turun "D:/github-repos/klipian/workspace/profiles/<profile>/motion/<project>/story.json"
+npm run studio                                # open the composition  video-kenapa-hujan-turun  (props panel: layoutDebug)
+```
+
+That makes `videos/kenapa-hujan-turun/` with `index.tsx` (your scenes), `sfx.ts` (your sound effects), `story.json` (a copy of the checked story) and `meta.json`.
+It is registered in Root by its folder name. Then:
+
+1. Look at `npm run assets-sheet` (`out/assets-sheet.png`) and the `CardsDemo` / `RigDemo` compositions: **what exists comes first**.
+2. Write the scene function in `index.tsx`: one drawing per beat, from `src/design/index.ts`. The beat gives you `beat.text`, `beat.headline`, `beat.kicker`, `beat.narration`, `beat.words`, `beat.dur`, `beat.scene.items`, and the story gives `claims` with sources.
+3. Check in Studio with `layoutDebug` on; fix what the layout manager reports. Run `npm run check && npm test`.
+4. In klipian (/remotion page) choose **Komposisi → your video**; stills, render, Clips and upload work as for the template. Render time matters: say it in your report.
+
+Never change the words of the story: if a sentence is wrong or too long, tell ian and change it in klipian (the fact gate must see it).
+
+---------------------------------------------------------------------------------------------------------------------------------------
+
+## 1. The frame, the palette, the meaning of colours
+
+- 1080 × 1920, 30 fps. Everything is positioned in video pixels (x right, y down). `import { FRAME, SAFE } from "../../src/design/index.ts"`.
+- **Safe area** (the Shorts interface covers the bottom 15 % and the right 12 %): `SAFE = { left: 60, right: 950, top: 120, bottom: 1632 }`. Text, the mascot, people and badges stay inside.
+- Palette (`src/tokens.ts`, never type a colour by hand): `BLACK` (20), `WHITE` (250), `YELLOW` (255,212,71), `YELLOW_D` (dark yellow), greys `G1…G4`, `RED`, `HOT1/HOT2` (heat), `METAL`.
+- **Meaning, always the same**: yellow = electric current (and the channel's accent); red/orange = heat or danger; grey = an object's material; light grey = metal. **Red is for meaning only, never decoration.**
+- Fonts: **Outfit Bold** for text, **DM Mono** for small labels (kickers, domains, units). No other fonts.
+- Flat style: no outlines, no drop shadows from objects, no paper texture. **Shadows only for depth**: holes, recesses, cavities, the plug in its socket (light from the top-left; the shadow is the base colour darkened, never black).
+
+## 2. Backgrounds
+
+| background | use it for |
+|---|---|
+| `Brand` (the lens-ring wall with a big yellow spot behind the main subject; `spot={{x,y,r}}`) | every story beat outside the lens, the hook included |
+| `Lab` (dark slate with a grid and a warm glow) | everything inside the lens and every cutaway or dissection, so current and heat light up and white things do not merge with it |
+| `Room` / `Black` | plain scenes (rarely) |
+
+"Through the lens" is a move from the light world to the dark lab. At most **one** look inside per video, and only when the cause is really inside an object.
+
+## 3. The mascot and people
+
+**The mascot** (the yellow bubble with one magnifying-glass eye, no body) is **rare** (ian, 2026-10-26):
+- required in the **"Intip yuk!" sting** and the **outro**; there it may be big, `pop`, and persistent across those two beats;
+- in between, at most **2 short reactions** (about 1 s each: an `enter` delay and an `exit`) at key moments;
+- **never parked in a corner for the whole video**. The validator refuses a third reaction, a reaction longer than 1.5 s and `persist` outside the sting and the outro;
+- expressions: `curious, surprised, think, understand, laugh, ouch`; the "ting" of the lens plays on "Intip yuk!".
+
+**People (chibi) are optional.** Use one only when the story needs a person: someone doing something, a body part, a person's reaction being the point. A topic about an
+object (a socket, a charger) shows just the object. Roles (so far `pemuda`), expressions `calm, happy, surprised, ouch`, poses `idle, point, ouch, wave, cheer`, costume `none|helmet`.
+The chibi look: head about half the body height, big black eyes with two highlights, blushing cheeks, short round body, round hands with thumbs, short legs, black shoes, no outline.
+**Hijab rule** (recorded decision): the hijabi character follows the majority view in Indonesia (Shafi'i): the whole body except face and palms; the scarf covers hair, ears and neck and falls over the chest;
+long sleeves to the wrists, a loose long skirt to the shoes. What changes per role is only colour, costume, hair and props.
+
+**Empty space is filled by the hero object, its parts, pointer labels, arrows and motion, not by characters.**
+
+## 4. 3D objects (semi-realistic, P28-P)
+
+- The hero is a real 3D model (`src/three/`): `WallSocket3D`, `Plug3D` (+ `PlugHeat`), `Cutaway3D`, `Cable3D`, `Smoke3D`, and the charger in `Dissect3D`. The default **look is semi-realistic**: standard materials (matte plastic, brass-like metal, rubber), small bevels, a soft key light from the top-left plus a fill, soft self-shadows, a dim room environment so metal reflects something. `look="toon"` keeps the old flat shading.
+- **The palette stays the guide**: models use palette colours through `Mat` (the palette's `METAL` colour becomes metal). Do not introduce colours.
+- Light from the **top-left**, always. **Depth rule for holes**: recesses, pin holes and cavities are real depth (a darker floor and a crescent of shade on the top-left inner edge), nothing else gets a shadow.
+- Build new models from primitives in the house style: rounded boxes (`roundedRect` + `extrude` with a small bevel), cylinders, spheres, tubes; ~2–10 parts; the main object is 60–70 % of the screen width; no photographic textures.
+- Units: models are in *object units* (a socket plate is 2.4 wide). `Placed` puts a model at a video pixel with a story scale `s`; `projectToScreen` gives the screen position of a part (`ANCHORS`) so labels follow it.
+- Colour code on a 3D object: yellow dots = current (always flowing), red/orange glow = heat at the contact, grey material, light grey metal.
+- Cost: semi-realistic is about **+25 % render time** over toon (colokan, 42 s: about 80 s → 100 s on ian's machine).
+
+## 5. Cables
+
+A cable is a **smooth curve**: `cablePath(route)` rounds every corner (a cubic bezier through the route points, a slight sag on long horizontals, round caps and joins, constant thickness). Never draw a polyline with sharp bends.
+2D: `<path d={cablePath(route)}>`, drawn with `evolvePath`. 3D: `Cable3D route=… radiusPx=…` (a tube along the same curve).
+
+## 6. Motion
+
+Every beat has **2–4 moments of movement**; no screen stands still for long. The fixed vocabulary (`src/motion.ts`, `src/timeline.ts`, `src/catalog.ts`):
+- enter `pop | slide | fade-up | draw | none` (items come in one after another, 4 frames apart by default), exit `pop | slide | fade-up`;
+- actions `highlight` (a pulse), `shake` (**danger only**), `look`, `pose`, `expr`; living idles (hover, blink, breathing, the current always flowing);
+- camera `push | pan | still`; transitions `cut | slide | wipe | zoom | lens`, **at most 3** non-cut transitions per video, the first beat has none, and "through the lens" for the one look inside;
+- springs and easing at 30 fps, never stepped; words appear one by one with the keyword in yellow.
+
+### Camera-led scenes (one continuous object)
+
+For a scene that is one object seen from a moving camera instead of separate layouts, use the **camera rig** (`src/three/rigMath.ts`, `Host3D rig={…}`):
+
+```tsx
+import { Host3D, objectScale, WallSocket3D, Plug3D, shots, viewAt } from "../../src/design/index.ts";
+
+const SHOTS = [
+  shots.hold(0, 1),
+  shots.push(1, 3, 0.55),                      // dolly in to 55 % of the distance
+  shots.orbit(3, 5, 38, 12),                   // swing round to the right and a little above
+  shots.dolly(5, 7, [0, -0.7, 1.2], 0.35),     // glide the target to the strain relief and close in
+  shots.macro(7, 8, [0, -0.85, 1.3]),          // a macro close-up
+];
+const Scene = ({ t }: SceneProps) => (
+  <Host3D rig={viewAt(SHOTS, t)}>
+    <group scale={objectScale(1.5)}><WallSocket3D /><Plug3D /></group>
+  </Host3D>
+);
+```
+
+`viewAt` has no jumps between shots (checked in `npm test`); `speedAt(SHOTS, t)` tells you when the camera is fast, then wrap the scene in `CameraMotionBlur` from `@remotion/motion-blur`.
+Pixel mapping (`Placed`) is only valid at the rest view; with a moving camera, place objects in world units. Labels that must follow a part: compute the screen point with the same view (see `projectToScreen`, which assumes the rest view: for a moving camera project with `cameraFromView`).
+Look at the `RigDemo` composition.
+
+## 7. Sound
+
+- **Every transition, object and mascot effect has a sound** (`src/catalog.ts` `SFX_FOR` maps motion words to the 25 self-made sounds in `sfx/wav/`); an item's `sfx` overrides its entrance sound (`"none"` silences it). A custom video writes `videos/<slug>/sfx.ts` (`export function sfx(story)` → `[{ t, name, vol, why }]`, `t` on a frame boundary): start from `storyEvents(story)` or write it against your scenes. Sound must **land on the frame of its picture** and must not be busy: at most 3 at once, a cooldown per sound.
+- **Voice**: klipian aligns the narration with faster-whisper; beats last as long as their narration (at least 1 s), `beat.words` holds the word times, `story.captions` is on. The voice is levelled to −3 dBFS; effects and the music bed **duck under it** (−9 dB / −4 dB).
+- **Music bed** (`story.music = { track: "bed-calm" | "bed-tech" | "none", level }`): a quiet loop about 12 dB under the voice (louder when there is no voice). The mix never goes past −0.7 dBFS.
+- Limits in the mixer: effects ceiling −6 dBFS, final ceiling 0.92, a soft limiter, no harsh top end (`npm test` checks).
+
+## 8. Layout: zones, safe area, the layout manager
+
+The scene is split in fixed zones (`ZONES`, `zonesFor` in `src/layout.ts`):
+
+```
+y  85..285     banner (or the top text layer: kicker + headline, y 86..330)
+y 300..1340    hero object: centre x 540, 60–70 % of the width (72 % with no character at the bottom)
+left/right     callouts: pointer labels, arrows, numbers, cards, around the hero
+y 1470..1600   caption layer (karaoke), inside the safe area
+bottom-left    the mascot, only in the sting/outro and its two reactions
+bottom corner  a chibi, only when the story needs a person
+```
+
+**Never write coordinates and hope.** Describe what is on the screen as boxes and let the manager push the texts apart:
+
+```tsx
+import { resolve, labelBox, pillBox, itemBox, cardSpec, pointerBox, ZONES } from "../../src/design/index.ts";
+
+const specs = [
+  { id: "hero", role: "hero", box: { x0: 190, y0: 520, x1: 890, y1: 1220 } },
+  { id: "label-1", role: "text", box: labelBox("rapat", 733, 560, 66) },
+  cardSpec("source", 60, 1250, 760, 300),
+];
+const { moved } = resolve(specs);            // moved.get("label-1") → { dx, dy, scale, wrap }
+```
+
+Rules it enforces: nothing overlaps (texts vs each other, the banner/top text, the caption layer, the mascot, a chibi, the core of the hero); texts stay inside the safe area; a text that already fits is **never moved**; a text moves the shortest way
+(a little shorter towards its side), may break into two lines or shrink to 70 % (never below 46 px) before it travels far; badges sit on their object (they may overlap the hero) but not on text; an arrow whose tail was on a moved text moves its tail with it.
+Text widths come from the real font (`src/fontMetrics.ts`, made by `node font-metrics.mjs`), so a test, the Studio and a render agree. **Turn `layoutDebug` on in Studio** to see every box, what moved and what could not be solved.
+The story template applies the manager to every beat; custom scenes call `applyLayout(items, fixedLayers(story, beat))` or `resolve(specs)` themselves.
+
+## 9. Text
+
+- **At most 6 words per piece of screen text** (the validator counts); readable in **1 second on a phone** (headline ≥ 64 px, labels ≥ 46 px, captions 56 px, contrast: dark on the light wall, white on the lab).
+- **Two text layers** (voiced videos): the **top text** (`beat.kicker` — a small mono kicker, e.g. "PIN CUMA NEMPEL DI" — over `beat.headline`, 2–4 bold words that change per sentence; it replaces the banner) and the **karaoke captions** at the bottom (1–2 lines in a dark rounded box, the word being spoken in yellow, from `beat.words`; an even estimate without a voice). Use `TopText` and `CaptionLayer`.
+- **Pointer labels** (`PointerLabel`): a small pill with a leader line to a point on the object (use `projectToScreen` for a 3D part); `magnify` rings the point with a lens. **Onomatopoeia** (`Onomatopoeia`: "PLOK!", "OFF") on a yellow burst, popping with a little overshoot.
+- **Source and data cards** (`SourceCard`, `SearchCard`, `NumberCard`, `BarChart`, `LineChart`, `CalendarCard`): show where a fact comes from and what a number is. Every checked claim may be shown as a source card (quote, organisation, date, domain); numbers come only from a source the story lists.
+
+## 10. The quality bar (ian checks every video against this before it is published)
+
+1. every object is recognisable at once, without reading its label;
+2. nothing overlaps, everything is inside the safe area;
+3. there is meaningful movement in every second, no long still screen;
+4. screen text is readable in 1 second at phone size;
+5. the sound is in sync with the movement and not busy;
+6. every claim has a source and was checked;
+7. the hook in the first 3 seconds makes people curious;
+8. it is still nice to watch the second time on a phone.
+
+## 11. How to add an asset
+
+The library grows: **every object or scene made for one video is saved as an asset**, so the next video is faster and the brief's catalogue grows.
+
+1. **Where the file goes**: a 2D component in `src/components/<Name>.tsx` (SVG, palette colours from `tokens.ts`, props `t` for time and a state prop such as `variant` or `heat`); a 3D model in `src/three/<Name>.tsx` (built from primitives, materials through `Mat`, no other colours); a card or text style in `src/components/Cards.tsx`.
+2. **Export it** from `src/design/index.ts` so scenes import it from one place.
+3. **A catalogue entry** so the klipian brief lists it next time: add the type to the story schema (`src/schema.ts`, a new item with its fields and a `.strict()` object, and the item in the `Item` union) and the enums to `src/catalog.ts` (names, states, expressions). `node catalog-export.mjs` then lists it for the brief **by itself** (the fields are read off the schema); add a sentence to `STORY_RULES` (`src/catalog.ts`) if the validator checks something about it, and an example item to `stories/example.json` if it is a main object. Render it in `FunFact.tsx` (`SceneItem` or an `Item3DLayer`) so a story can use it; give it a box in `itemBox` (`src/layout.ts`) so the layout manager keeps text off it.
+4. **A tile in the asset sheet**: `src/AssetSheet.tsx` (a `Tile` with its name; add the name to `ASSET_NAMES`); run `npm run assets-sheet` and look at `out/assets-sheet.png`.
+5. **Tests**: the schema test (a valid and an invalid use), the layout box, the asset-sheet name; `npm run check && npm test`.
+6. **A sound** if it moves: map its enter/actions in `SFX_FOR` (or add a sound to `sfx/synth.mjs` and the `SFX` table, CC0 and listed in `sfx/LICENSES.md`).
+
+## 12. Before you hand a video back
+
+- `npm run check && npm test` pass; `layoutDebug` shows no unsolved problem;
+- stills of every beat (klipian's storyboard sheet) look right; you checked frames around every transition;
+- the render time and any new asset are in your report to ian; nothing in `workspace/` was changed by hand.

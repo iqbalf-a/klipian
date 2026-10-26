@@ -10,8 +10,10 @@ import { validateStory } from "../src/schema.ts";
 import { dissectEvents, dissectSfx, planSfx, storyEvents, storySfx, type SfxEvent } from "../src/sfx.ts";
 import { FPS, totalFrames } from "../src/timeline.ts";
 import { DISSECT_SECONDS } from "../src/dissectTimeline.ts";
-import { mixEvents, sound } from "../sfx/mix.mjs";
-import { readWav } from "../sfx/wav.mjs";
+import { FINAL_CEILING, VOICE_PEAK, loadVoice, mixEvents, mixTrack, musicBed, sound, voiceSegments } from "../sfx/mix.mjs";
+import { readWav, writeWav } from "../sfx/wav.mjs";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
 
 let n = 0;
 const yes = (cond: boolean, what: string) => { n++; assert.ok(cond, what); };
@@ -156,5 +158,45 @@ yes(plain.channels[0].every((v, i) => v === none.channels[0][i]), "duck with no 
 const peakIn = (m: ReturnType<typeof mixEvents>, a: number, b: number) => Math.max(...m.channels[0].slice(Math.round(a * SR), Math.round(b * SR)).map(Math.abs));
 yes(peakIn(ducked, 2, 2.4) < 0.4 * peakIn(plain, 2, 2.4), "under a voice the effects go down (about -9 dB)");
 yes(peakIn(ducked, 0, 0.4) === peakIn(plain, 0, 0.4), "and elsewhere stay as they were");
+
+// --- the whole soundtrack: a voice, a music bed and the effects (P28-P) ---------------------------------------------------------------------------
+const maxAbs = (x: ArrayLike<number>): number => { let m = 0; for (let i = 0; i < x.length; i++) m = Math.max(m, Math.abs(x[i])); return m; };
+const dir = mkdtempSync(path.join(tmpdir(), "klipian-voice-"));
+const speech = new Float32Array(SR * 8);                                // a stand-in for a narration: two bursts of a tone (1-3 s and 4.5-6 s), pauses between
+for (let i = 0; i < speech.length; i++) { const t = i / SR; if ((t > 1 && t < 3) || (t > 4.5 && t < 6)) speech[i] = 0.4 * Math.sin(2 * Math.PI * 180 * t) * (0.6 + 0.4 * Math.sin(2 * Math.PI * 4 * t)); }
+writeWav(path.join(dir, "voice.wav"), [speech], SR);
+const voice = loadVoice(path.join(dir, "voice.wav"), 8);
+yes(Math.abs(maxAbs(voice) - VOICE_PEAK) < 1e-6, "the narration is levelled to its peak (-3 dBFS)");
+yes(loadVoice(path.join(dir, "voice.wav"), 5).length === 5 * SR, "and cut where the video ends");
+const segs = voiceSegments(voice);
+yes(segs.length === 2 && Math.abs(segs[0][0] - 1) < 0.1 && Math.abs(segs[0][1] - 3) < 0.15 && Math.abs(segs[1][0] - 4.5) < 0.1, `the speaking parts are found: ${JSON.stringify(segs.map((x) => x.map((v) => +v.toFixed(2))))}`);
+const hit = (t: number): SfxEvent => ({ t, name: "thump", vol: 1, why: "x" });
+const peakAt = (m: ReturnType<typeof mixTrack>, a: number, b: number) => maxAbs(m.channels[0].slice(Math.round(a * SR), Math.round(b * SR)));
+// a thump at 3.6 s sits in a pause of the voice (3-4.5 s), a thump at 5 s lands inside the second burst: the second is ducked, the first is not
+const alone = mixTrack([hit(3.6), hit(5)], 8, { voice: null }), spoken = mixTrack([hit(3.6), hit(5)], 8, { voice });
+const pauseHit = peakAt(spoken, 3.6, 4.0) / peakAt(alone, 3.6, 4.0);
+yes(pauseHit > 0.9 && pauseHit < 1.1, `an effect in a pause of the voice is not touched (${pauseHit.toFixed(2)})`);
+const duckedAlone = mixTrack([hit(5)], 8, { voice: null }), duckedSpoken = mixTrack([hit(5)], 8, { voice });
+const bare = mixTrack([], 8, { voice });
+const diff = maxAbs(duckedSpoken.channels[0].slice(Math.round(5.05 * SR), Math.round(5.45 * SR)).map((v, i) => v - bare.channels[0][Math.round(5.05 * SR) + i]));
+yes(diff < 0.55 * peakAt(duckedAlone, 5, 5.4), `an effect under the voice is about 9 dB lower (${diff.toFixed(3)} against ${peakAt(duckedAlone, 5, 5.4).toFixed(3)})`);
+yes(peakAt(mixTrack([hit(3.6), hit(5)], 8, { voice }), 0, 8) <= FINAL_CEILING + 1e-6, "voice and effects together stay under the final ceiling");
+// the bed: 12 dB under the voice, louder alone, and ducked a little more while the voice speaks
+for (const track of ["bed-calm", "bed-tech"] as const) {
+  const bed = musicBed(track);
+  yes(bed.length === 24 * SR, `${track}: a loop of 24 s`);
+  yes(Math.abs(bed[bed.length - 1] - bed[0]) < 0.05, `${track}: no click where it repeats`);
+  const rmsOf = (m: ReturnType<typeof mixTrack>, a: number, b: number) => { const x = m.channels[0].slice(Math.round(a * SR), Math.round(b * SR)); return Math.sqrt(x.reduce((q, v) => q + v * v, 0) / x.length); };
+  const bedAlone = mixTrack([], 8, { voice: null, music: { name: track } }), bedVoiced = mixTrack([], 8, { voice, music: { name: track } });
+  const voiceOnly = mixTrack([], 8, { voice });
+  const bedPart = rmsOf(bedAlone, 3.2, 4.2), underPart = rmsOf(bedVoiced, 6.5, 7.5);                   // 6.5-7.5: the voice is silent: only the bed
+  yes(bedPart > 2.2 * underPart, `${track}: louder alone than under a voice (${bedPart.toFixed(3)} vs ${underPart.toFixed(3)})`);
+  const db = 20 * Math.log10(rmsOf(voiceOnly, 1.2, 2.8) / rmsOf(mixTrack([], 8, { voice, music: { name: track } }), 6.5, 7.5));
+  yes(db > 10 && db < 40, `${track}: the bed sits ${db.toFixed(0)} dB under the narration (at least 10)`);
+  const full = mixTrack([hit(2), hit(7)], 8, { voice, music: { name: track, level: 1 } });
+  yes(full.peak <= FINAL_CEILING + 1e-6 && full.peak > 0.5, `${track}: the whole mix stays under ${FINAL_CEILING} (${full.peak.toFixed(2)})`);
+  yes(full.channels.every((c) => c.every(Number.isFinite)), `${track}: no NaN`);
+}
+yes(mixTrack([], 8, { voice, music: { name: "none" } }).peak <= VOICE_PEAK + 1e-3, "no bed: the voice alone, untouched");
 
 console.log(`sfx: ${n} checks ok`);

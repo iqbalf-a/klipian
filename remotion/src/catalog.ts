@@ -12,7 +12,7 @@ export const SOCKET_VIEWS = ["outside", "cutaway"] as const;
 export const OUTSIDE_VARIANTS = ["plain", "scorched"] as const;
 export const CUTAWAY_VARIANTS = ["tight", "loose"] as const;
 export const LABEL_COLORS = ["black", "red", "white"] as const;
-export const ITEM_TYPES = ["mascot", "chibi", "socket", "lens", "banner", "pill", "label", "stack", "arrow", "badge"] as const;
+export const ITEM_TYPES = ["mascot", "chibi", "socket", "lens", "banner", "pill", "label", "stack", "arrow", "badge", "source"] as const;
 export const ARROW_COLORS = ["black", "red", "yellow", "white"] as const;
 export const MODELS = ["toon3d", "flat"] as const;               // how a socket or a lens is drawn: a 3D toon model (default) or the flat 2D one
 /** Named points of the 3D models a label or an arrow can follow (see ANCHORS in three/Socket3D.tsx). */
@@ -81,6 +81,7 @@ export const SFX_FOR = {
     stack: { pop: "pop", slide: "swish-soft", "fade-up": "pop-soft", draw: "tick" },
     arrow: { pop: "tick", slide: "tick", "fade-up": "tick", draw: "tick" },
     badge: { pop: "tick", slide: "tick", "fade-up": "tick", draw: "tick" },                   // a "!" badge is an alert blip instead
+    source: { pop: "pop-soft", slide: "swish-soft", "fade-up": "pop-soft", draw: "pop-soft" },   // a source card: a soft pop
   },
   action: { highlight: "tick", shake: "rattle" },
   mascotExpr: { surprised: "huh", ouch: "slide-whistle-down", understand: "chime", laugh: "chime-bright" },   // the others are silent
@@ -102,3 +103,12 @@ export const STORY_RULES = [
   "a label or arrow with `follow` names a socket or lens `id` of its own beat (not one drawn flat)",
   "every claim names beats that exist and has at least one source URL",
 ] as const;
+
+// ---------------------------------------------------------------- music beds (P28-P) --------------------------------------------------------------
+/** The music beds (sfx/music/<name>.wav, made by sfx/music.mjs): loops that sit under the narration. `level` is the gain of the bed WITH a voice
+    (about 12 dB under it); `solo` the gain when there is no voice. A story picks one (or "none") and may scale it with `music.level`. */
+export const MUSIC = {
+  "bed-calm": { level: 0.06, solo: 0.18, dur: 24 },
+  "bed-tech": { level: 0.06, solo: 0.18, dur: 24 },
+} as const;
+export const MUSIC_NAMES = Object.keys(MUSIC) as [keyof typeof MUSIC, ...(keyof typeof MUSIC)[]];

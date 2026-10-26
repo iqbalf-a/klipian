@@ -314,7 +314,7 @@ def _source_duration(video: Path, cache: Cache) -> float | None:
 
 
 # POSTs whose body is a file, not JSON (see Handler._guard).
-RAW_UPLOADS = {"/api/video-upload", "/api/project-asset-upload", "/api/workspace/clips/file"}
+RAW_UPLOADS = {"/api/video-upload", "/api/project-asset-upload", "/api/workspace/clips/file", "/api/motion/voice-upload"}
 
 def _fill_candidate_cues(data: dict) -> None:
     """Give the suggestions a project already holds the `cues` they would have
@@ -815,6 +815,24 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"error": "no such picture"}, 404)
         return self._send_file(f, "image/png")
 
+    def _post_motion_voice_upload(self):
+        """The narration as a raw body: the video's id and the file name in the query (like the other uploads)."""
+        q = parse_qs(urlparse(self.path).query)
+        pid, name = (q.get("id") or [""])[0], Path((q.get("name") or ["narration.wav"])[0]).name
+        try:
+            n = int(self.headers.get("Content-Length", 0))
+        except ValueError:
+            n = 0
+        if n <= 0 or n > _motion.MAX_VOICE_BYTES:
+            return self._motion_reply(lambda: (_ for _ in ()).throw(_motion.MotionError("voice", "A narration must be 1 byte to 300 MB.")))
+        data = bytearray()
+        while len(data) < n:
+            chunk = self.rfile.read(min(1 << 20, n - len(data)))
+            if not chunk:
+                break
+            data += chunk
+        return self._motion_reply(lambda: {"voice": _motion.import_voice(pid, data=bytes(data), name=name)})
+
     def _post_motion(self):
         action = urlparse(self.path).path.rsplit("/", 1)[-1]
         try:
@@ -845,6 +863,14 @@ class Handler(BaseHTTPRequestHandler):
             return self._motion_reply(lambda: {"job": _motion.cancel(pid)})
         if action == "delete":
             return self._motion_reply(lambda: (_motion.delete_project(pid), {})[1])
+        if action == "voice":                                         # the narration, from a file on this computer
+            return self._motion_reply(lambda: {"voice": _motion.import_voice(pid, source=Path(str(req.get("path") or "").strip().strip('"')), name=str(req.get("name") or ""))})
+        if action == "voice-align":
+            return self._motion_reply(lambda: {"job": _motion.align_voice(pid)})
+        if action == "voice-clear":
+            return self._motion_reply(lambda: (_motion.clear_voice(pid), {})[1])
+        if action == "voice-tts":
+            return self._motion_reply(lambda: {"voice": _motion.make_voice_with_tts(pid)})
         return self._send_json({"error": "unknown action"}, 404)
 
     def _post_youtube(self):
@@ -2272,6 +2298,11 @@ class Handler(BaseHTTPRequestHandler):
         "/api/motion/render": _post_motion,
         "/api/motion/cancel": _post_motion,
         "/api/motion/delete": _post_motion,
+        "/api/motion/voice": _post_motion,
+        "/api/motion/voice-align": _post_motion,
+        "/api/motion/voice-clear": _post_motion,
+        "/api/motion/voice-tts": _post_motion,
+        "/api/motion/voice-upload": _post_motion_voice_upload,
         "/api/ytdl/preview": _post_ytdl,
         "/api/ytdl/start": _post_ytdl,
         "/api/ytdl/cancel": _post_ytdl,

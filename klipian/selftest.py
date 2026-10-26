@@ -5309,8 +5309,256 @@ def check_motion() -> tuple[str, str]:
 
 
 
+# --------------------------------------------------------------------------
+# check: voice (the narration of a motion video: import, word timings, a story that follows it, the voice in the render)
+# --------------------------------------------------------------------------
+
+def check_voice() -> tuple[str, str]:
+    """A narration file (a generated test tone, never a real voice) imported by path and by upload, refused when it is not audio or too short; its word
+    times matched to the story's narration (the recogniser is replaced by a fake that hears the words at known times, also failing, and hearing
+    something else); beats that last as long as their narration (with a minimum hold), the word times inside each beat; the total reported against the
+    plan; the voice in the rendered MP4 (a real 2-beat render); a changed story makes the alignment stale; the pluggable local TTS command; clear.
+    Needs Node and `npm install` in remotion/: without them this check is SKIPPED."""
+    import array
+    import contextlib
+    import http.client
+    import io
+    import sys
+    import threading
+    import wave
+    from http.server import ThreadingHTTPServer
+    from . import motion, motion_voice, paths, profiles
+    from .ffmpeg_tools import _require, probe, run
+    from .server import Handler
+
+    ok, why = motion._node.ready()
+    if not ok:
+        return SKIP, why
+    problems: list[str] = []
+    tiny = json.loads((FIXTURES / "motion" / "tiny-story.json").read_text(encoding="utf-8"))
+    old_durations, old_whisper = motion.DURATIONS, motion._whisper
+    motion.DURATIONS = (2,) + tuple(old_durations)
+    profiles.write_meta("vo1", {"name": "vo1", "color": "#336699", "defaults": {}})
+    profiles.ensure_dirs("vo1")
+    tok = paths.set_profile("vo1")
+    srv = None
+    quiet = contextlib.redirect_stderr(io.StringIO())
+    work = paths.workspace_dir() / "vo-src"
+    work.mkdir(parents=True, exist_ok=True)
+    try:
+        ff = _require("ffmpeg")
+        tone = work / "tone.wav"
+        run([ff, "-y", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=220:duration=6:sample_rate=22050", "-af", "volume=0.5", str(tone)], desc="a test tone", timeout=60)
+        short = work / "short.wav"
+        run([ff, "-y", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=220:duration=0.4", str(short)], desc="a short tone", timeout=60)
+        notes = work / "notes.txt"
+        notes.write_text("not audio", encoding="utf-8")
+
+        srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        port = srv.server_address[1]
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        quiet.__enter__()
+
+        def call(method, path, body=None, raw=None, profile="vo1"):
+            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=120)
+            headers = {"Host": f"127.0.0.1:{port}", "X-Klipian-Profile": profile}
+            data = None
+            if body is not None:
+                data = json.dumps(body).encode()
+                headers["Content-Type"] = "application/json"
+            elif raw is not None:
+                data, headers["Content-Type"] = raw, "application/octet-stream"
+            conn.request(method, path, body=data, headers=headers)
+            r = conn.getresponse()
+            content = r.read()
+            conn.close()
+            try:
+                return r.status, json.loads(content)
+            except ValueError:
+                return r.status, {}
+
+        post = lambda action, body: call("POST", f"/api/motion/{action}", body)          # noqa: E731
+
+        def wait(pid, seconds=180):
+            end = time.time() + seconds
+            while time.time() < end:
+                j = call("GET", f"/api/motion/status?id={pid}")[1].get("job", {})
+                if j.get("state") in ("done", "failed", "cancelled"):
+                    return j
+                time.sleep(0.3)
+            return {"state": "timeout"}
+
+        def detail(pid):
+            return call("GET", f"/api/motion/project?id={pid}")[1]["project"]
+
+        st, j = post("create", {"topic": "contoh suara untuk tes", "duration": 2})
+        pid = j["project"]["id"]
+        if post("paste", {"id": pid, "text": json.dumps(tiny)})[1].get("ok") is not True:
+            return FAIL, "the tiny story was not accepted"
+        post("facts", {"id": pid, "claims": [{"index": 0, "status": "checked"}], "title": tiny["titles"][0]})
+
+        # --- the import: refused (not audio, too short, not found), by path, by upload
+        if post("voice", {"id": pid, "path": str(notes)})[0] != 400:
+            problems.append("a text file is not a narration")
+        if post("voice", {"id": pid, "path": str(short)})[0] != 400:
+            problems.append("a narration under a second is refused")
+        if post("voice", {"id": pid, "path": str(work / "nope.wav")})[0] != 400:
+            problems.append("a file that is not there is refused")
+        if post("voice-align", {"id": pid})[0] != 400:
+            problems.append("alignment needs a narration first")
+        st, j = post("voice", {"id": pid, "path": str(tone)})
+        v = j.get("voice", {})
+        wav = motion.voice_dir(pid) / "narration.wav"
+        if st != 200 or abs(v.get("duration", 0) - 6.0) > 0.1 or not wav.is_file():
+            problems.append(f"import by path: {st} {str(j)[:120]}")
+        else:
+            info = probe(wav)
+            with wave.open(str(wav)) as w:
+                rate, ch = w.getframerate(), w.getnchannels()
+            if rate != 48000 or ch != 1:
+                problems.append(f"the narration is made 48 kHz mono for the render: {rate} Hz, {ch} channels")
+        st, j = call("POST", f"/api/motion/voice-upload?id={pid}&name=suara.wav", raw=tone.read_bytes())
+        if st != 200 or abs(j.get("voice", {}).get("duration", 0) - 6.0) > 0.1:
+            problems.append(f"import by upload: {st} {str(j)[:100]}")
+        if call("POST", f"/api/motion/voice-upload?id={pid}&name=x.txt", raw=b"hello")[0] != 400:
+            problems.append("an upload that is not audio is refused")
+        d = detail(pid)
+        if not d["voice"] or d["voice"]["aligned"] or d["voice"]["total"] != d["voice"]["duration"]:
+            problems.append(f"before the alignment: {d['voice']}")
+
+        # --- the alignment: the recogniser is replaced by one that hears the words at known times
+        hook_words, outro_words = tiny["beats"][0]["narration"].split(), tiny["beats"][1]["narration"].split()
+
+        class Hears:
+            def words(self, audio):
+                out = [{"text": w.strip(",.?!").lower(), "start": 0.2 + i * 0.4, "end": 0.2 + i * 0.4 + 0.35} for i, w in enumerate(hook_words)]
+                out += [{"text": w.strip(",.?!").lower(), "start": 3.4 + i * 0.5, "end": 3.4 + i * 0.5 + 0.45} for i, w in enumerate(outro_words)]
+                return out
+
+        motion._whisper = Hears()
+        st, j = post("voice-align", {"id": pid})
+        job = wait(pid)
+        d = detail(pid)
+        if st != 200 or job["state"] != "done" or not d["voice"]["aligned"] or d["voice"]["method"] != "whisper":
+            return FAIL, "\n      ".join(problems + [f"the alignment: {st} {job} {d['voice']}"])
+        timed = motion.render_story(pid)
+        hook, outro = timed["beats"]
+        if abs(hook["dur"] - 3.4) > 0.01 or abs(outro["dur"] - 2.6) > 0.01 or abs(timed["duration"] - 6.0) > 0.01:
+            problems.append(f"the beats follow the narration: {hook['dur']} + {outro['dur']} = {timed['duration']} (wanted 3.4 + 2.6)")
+        if timed.get("captions") is not True or len(hook["words"]) != len(hook_words) or abs(hook["words"][0]["a"] - 0.2) > 0.01 or abs(outro["words"][0]["a"]) > 0.01:
+            problems.append(f"the word times sit inside each beat: {hook['words'][:2]} {outro['words'][:1]}")
+        if any(w["b"] > b["dur"] + 0.05 or w["b"] < w["a"] for b in timed["beats"] for w in b["words"]):
+            problems.append("no word ends outside its beat")
+        if hook["words"][0]["w"] != hook_words[0]:
+            problems.append("the captions show the words as the story wrote them")
+        if d["voice"]["total"] != timed["duration"] or "6.0" not in d["voice"]["note"] or "2 s" not in d["voice"]["note"]:
+            problems.append(f"the total and how it compares with the plan are reported: {d['voice']}")
+        if motion.story_of(pid) != tiny:
+            problems.append("the story the AI wrote is never changed by the alignment")
+        if motion.story_file(pid).name != "story.voiced.json":
+            problems.append("the voiced story is what is drawn and rendered")
+        st, j = post("update", {"id": pid, "edits": {"beats": {"hook": {"narration": "Pernah cabut colokan, kok hangat?"}}}})
+        d = detail(pid)
+        if not d["voice"]["stale"] or d["voice"]["aligned"] or motion.story_file(pid).name != "story.json":
+            problems.append(f"an edited narration makes the alignment stale and the plain story is drawn again: {d['voice']}")
+        job = (post("voice-align", {"id": pid}), wait(pid))[1]
+        if job["state"] != "done" or not detail(pid)["voice"]["aligned"]:
+            problems.append(f"aligned again after the edit: {job}")
+
+        # --- the recogniser failing, and hearing something else: the estimate, said so
+        class Fails:
+            def words(self, audio):
+                raise RuntimeError("no model")
+
+        class Elsewhere:
+            def words(self, audio):
+                return [{"text": "lorem", "start": 0.5, "end": 0.9}, {"text": "ipsum", "start": 1.0, "end": 1.4}]
+
+        for fake, what in ((Fails(), "fails"), (Elsewhere(), "hears other words")):
+            motion._whisper = fake
+            job = (post("voice-align", {"id": pid}), wait(pid))[1]
+            d = detail(pid)
+            if job["state"] != "done" or d["voice"]["method"] != "estimate" or "diperkirakan" not in job.get("message", ""):
+                problems.append(f"the recogniser {what}: the estimate is used and said: {job} {d['voice']}")
+            elif abs(motion.render_story(pid)["duration"] - 6.0) > 0.05:
+                problems.append(f"the recogniser {what}: the estimate still follows the audio: {motion.render_story(pid)['duration']}")
+        motion._whisper = Hears()
+        post("update", {"id": pid, "edits": {"beats": {"hook": {"narration": tiny["beats"][0]["narration"]}}}})
+        job = (post("voice-align", {"id": pid}), wait(pid))[1]
+
+        # the pure part: a short narration keeps its beat at the minimum hold; a story the narration cannot fit is reported
+        al = motion_voice.align([{"id": "a", "narration": "satu dua"}, {"id": "b", "narration": "tiga"}], [{"text": "satu", "start": 0.1, "end": 0.3}, {"text": "dua", "start": 0.3, "end": 0.5}, {"text": "tiga", "start": 0.6, "end": 0.8}], 1.5)
+        short_story = motion_voice.timed_story({"beats": [{"id": "a", "dur": 5, "narration": "satu dua", "scene": {}}, {"id": "b", "dur": 5, "narration": "tiga", "scene": {}}], "duration": 10}, al, 1.5)
+        if short_story["beats"][0]["dur"] != motion_voice.MIN_HOLD or short_story["beats"][1]["dur"] < motion_voice.MIN_HOLD:
+            problems.append(f"a beat lasts at least the minimum hold: {[b['dur'] for b in short_story['beats']]}")
+
+        # --- the render has the voice in it (and the stills follow the voiced story)
+        stills_before = detail(pid)["stills"]
+        post("preview", {"id": pid})
+        job = wait(pid)
+        d = detail(pid)
+        if job["state"] != "done" or d["stills"]["stale"] or sorted(d["stills"]["files"]) != ["hook", "outro"]:
+            problems.append(f"the stills of the voiced story: {job}")
+        st, j = post("render", {"id": pid})
+        job = wait(pid)
+        if job["state"] != "done":
+            return FAIL, "\n      ".join(problems + [f"the voiced render: {job}"])
+        row = __import__("klipian.schedule", fromlist=["x"]).get_row(job["rowId"])
+        f = __import__("klipian.schedule", fromlist=["x"]).row_file(row)
+        info = probe(f)
+        if abs(info.duration - 6.0) > 0.25 or not info.has_audio:
+            problems.append(f"the video lasts as long as the narration and has sound: {info.duration} {info.has_audio}")
+        pcm = work / "out.wav"
+        run([ff, "-y", "-loglevel", "error", "-i", str(f), "-vn", "-ac", "1", "-ar", "8000", "-f", "wav", str(pcm)], desc="the sound of the render", timeout=60)
+        with wave.open(str(pcm)) as w:
+            samples = array.array("h", w.readframes(w.getnframes()))
+            rate = w.getframerate()
+        def rms(a, b):
+            part = samples[int(a * rate):int(b * rate)]
+            return (sum(x * x for x in part) / max(1, len(part))) ** 0.5 / 32768
+        if rms(0.5, 2.0) < 0.1 or rms(4.0, 5.5) < 0.1:
+            problems.append(f"the narration is in the soundtrack: {rms(0.5, 2.0):.3f} {rms(4.0, 5.5):.3f}")
+        if max(abs(x) for x in samples) / 32768 > 0.93:
+            problems.append("the mixed sound stays under the ceiling")
+
+        # --- the local TTS command: not set, then set (a command of ours that writes a tone), no cloud, no engine installed by klipian
+        st, j = post("voice-tts", {"id": pid})
+        if st != 400 or j.get("code") != "tts":
+            problems.append(f"without a TTS command the button says so: {st} {str(j)[:100]}")
+        script = work / "fake_tts.py"
+        script.write_text("import sys, wave, math, struct\ntext = open(sys.argv[1], encoding='utf-8').read()\nassert 'Pernah' in text\n"
+                          "w = wave.open(sys.argv[2], 'wb'); w.setnchannels(1); w.setsampwidth(2); w.setframerate(16000)\n"
+                          "w.writeframes(b''.join(struct.pack('<h', int(8000 * math.sin(i / 20))) for i in range(16000 * 4))); w.close()\n", encoding="utf-8")
+        (paths.workspace_dir() / "machine.json").write_text(json.dumps({"motionTts": f'"{sys.executable}" "{script}" "{{text}}" "{{out}}"'}), encoding="utf-8")
+        st, j = post("voice-tts", {"id": pid})
+        if st != 200 or abs(j.get("voice", {}).get("duration", 0) - 4.0) > 0.1 or j["voice"]["name"] != "tts.wav":
+            problems.append(f"the local TTS command makes the narration: {st} {str(j)[:140]}")
+        (paths.workspace_dir() / "machine.json").write_text(json.dumps({"motionTts": f'"{sys.executable}" -c "import sys; sys.exit(3)"'}), encoding="utf-8")
+        st, j = post("voice-tts", {"id": pid})
+        if st != 400 or "failed" not in j.get("error", ""):
+            problems.append(f"a TTS command that fails is reported: {st} {str(j)[:100]}")
+        (paths.workspace_dir() / "machine.json").unlink(missing_ok=True)
+
+        # --- clear: the plain story again
+        st, j = post("voice-clear", {"id": pid})
+        d = detail(pid)
+        if st != 200 or (d["voice"] or {}).get("aligned") or motion.story_file(pid).name != "story.json" or motion.voice_file(pid) is not None:
+            problems.append(f"clearing the voice: {st} {d['voice']}")
+    finally:
+        quiet.__exit__(None, None, None)
+        if srv:
+            srv.shutdown()
+        motion.DURATIONS, motion._whisper = old_durations, old_whisper
+        paths._profile.reset(tok)
+    if problems:
+        return FAIL, "\n      ".join(problems[:14])
+    return PASS, ("import by path and upload (refused: not audio, too short), word times matched (also failing / hearing other words: the estimate, said so), beats follow the "
+                  "narration with a minimum hold, stale after an edit, the voice in a real render, the local TTS hook, clear")
+
+
+
 CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch,
-          "motion": check_motion, "decode": check_decode, "render": check_render}
+          "motion": check_motion, "voice": check_voice, "decode": check_decode, "render": check_render}
 
 
 def _global_state() -> dict:

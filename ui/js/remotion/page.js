@@ -135,7 +135,7 @@ async function refresh(keepPaste = true) {
   const i = LIST.findIndex((p) => p.id === CUR.id);
   if (i >= 0) LIST[i] = { ...LIST[i], status: CUR.status, title: CUR.title, claims: CUR.claims, unchecked: CUR.unchecked, hasStory: CUR.hasStory, updated: CUR.updated };
   drawList();
-  drawComp(); drawStory(); drawFacts(); drawTitles(); drawRender(); drawNeeds();
+  drawComp(); drawVoice(); drawStory(); drawFacts(); drawTitles(); drawRender(); drawNeeds();
   byId("rmState").textContent = STATE_LABEL[CUR.status] || CUR.status;
   byId("rmState").dataset.s = CUR.status;
 }
@@ -182,11 +182,12 @@ function buildDetail() {
       <div id="rmNeeds"></div>
     </section>
 
+    <section class="ws-panel rm-step" id="stepVoice" hidden></section>
     <section class="ws-panel rm-step" id="stepStory" hidden></section>
     <section class="ws-panel rm-step" id="stepFacts" hidden></section>
     <section class="ws-panel rm-step" id="stepTitle" hidden></section>
     <section class="ws-panel rm-step" id="stepRender" hidden></section>`;
-  drawComp(); drawStory(); drawFacts(); drawTitles(); drawRender(); drawNeeds();
+  drawComp(); drawVoice(); drawStory(); drawFacts(); drawTitles(); drawRender(); drawNeeds();
 }
 
 byId("rmMain").addEventListener("click", async (e) => {
@@ -206,6 +207,10 @@ byId("rmMain").addEventListener("click", async (e) => {
     if (act === "render") return startRender();
     if (act === "cancel") return cancelJob();
     if (act === "copyCmd") return copyCmd(t);
+    if (act === "voicePath") return importVoicePath();
+    if (act === "voiceAlign") return alignVoice();
+    if (act === "voiceClear") return clearVoice();
+    if (act === "voiceTts") return ttsVoice();
     if (act === "copyFix") return copyFix(t);
     if (act === "copyRevise") return copyRevise(t);
     if (act === "downRevise") return downloadBrief("revise");
@@ -325,6 +330,67 @@ function drawNeeds() {
   const el = byId("rmNeeds");
   const needs = CUR.needs || [];
   el.innerHTML = needs.length ? `<div class="rm-needs"><b>Benda yang belum ada di pustaka (kata AI):</b><ul>${needs.map((n) => `<li>${esc(n)}</li>`).join("")}</ul><p class="rm-hint">Untuk sementara dipakai benda terdekat. Brief komponen baru menyusul.</p></div>` : "";
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------------
+// the voice: a recorded narration (or a local text-to-speech command's), matched to the words; the beats then last as long as it
+// ---------------------------------------------------------------------------------------------------------------------------------------
+
+function drawVoice() {
+  const sec = byId("stepVoice");
+  const d = CUR, v = d.voice;
+  sec.hidden = !d.story;
+  if (!d.story) return;
+  const job = d.job || {};
+  const busy = job.kind === "voice" && ["queued", "running"].includes(job.state);
+  const have = v && v.name;
+  sec.innerHTML = `
+    <header><span class="rm-n">2b</span><h2>Suara (narasi)</h2></header>
+    <p>Rekam sendiri atau pakai file dari luar (wav, mp3, m4a, ...). klipian mencocokkan kata dengan suaranya di komputer ini, lalu setiap beat sepanjang narasinya dan takarir menyala kata demi kata. Tanpa layanan suara: tidak ada key.</p>
+    ${have ? `<div class="rm-needs"><b>${esc(v.name)}</b> · ${v.duration} dtk · ${v.aligned ? `sudah dicocokkan (${esc(v.method === "whisper" ? "dari suara" : "perkiraan merata")}), video ${v.total} dtk` : v.stale ? "cerita berubah sejak dicocokkan: cocokkan lagi" : "belum dicocokkan"}${v.note ? `<br><span class="rm-hint">${esc(v.note)}</span>` : ""}</div>` : ""}
+    <div class="rm-actions">
+      <input class="ws-input rm-boxed rm-path" id="rmVoicePath" type="text" placeholder="Lokasi file suara, mis. D:\rekaman\narasi.wav" spellcheck="false">
+      <button class="btn" type="button" data-act="voicePath">Pakai file ini</button>
+      <label class="btn" for="rmVoiceFile">Pilih file…</label><input id="rmVoiceFile" type="file" accept="audio/*,video/mp4,video/webm" hidden>
+      ${v && v.tts ? `<button class="btn" type="button" data-act="voiceTts" ${busy ? "disabled" : ""}>Buat dengan TTS lokal</button>` : ""}
+    </div>
+    <div class="rm-actions">
+      <button class="btn main" type="button" data-act="voiceAlign" ${have && !busy ? "" : "disabled"}>${v && v.aligned ? "Cocokkan lagi" : "Cocokkan dengan narasi"}</button>
+      ${have ? `<button class="btn danger" type="button" data-act="voiceClear" ${busy ? "disabled" : ""}>Hapus suara</button>` : ""}
+      <span class="rm-hint" id="rmVoiceNote">${busy ? esc(job.message || "") : ""}</span>
+    </div>`;
+  byId("rmVoiceFile")?.addEventListener("change", uploadVoice);
+}
+
+async function importVoicePath() {
+  const path = byId("rmVoicePath").value.trim();
+  if (!path) return toast("Tulis lokasi file suaranya dulu.");
+  await call(`${API}/voice`, { id: CUR.id, path });
+  await refresh();
+}
+async function uploadVoice(e) {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = await fetch(`${API}/voice-upload?id=${encodeURIComponent(CUR.id)}&name=${encodeURIComponent(f.name)}`, { method: "POST", body: f });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || j.error) return toast(j.error || "Gagal mengunggah suara.");
+  await refresh();
+}
+async function ttsVoice() {
+  await call(`${API}/voice-tts`, { id: CUR.id });
+  await refresh();
+}
+async function alignVoice() {
+  const j = await call(`${API}/voice-align`, { id: CUR.id });
+  CUR.job = j.job;
+  drawVoice();
+  startPoll();
+}
+async function clearVoice() {
+  const ok = await confirmDialog({ title: "Hapus suara?", message: "Video kembali memakai durasi dari cerita.", confirmText: "Hapus", cancelText: "Batal" });
+  if (!ok) return;
+  await call(`${API}/voice-clear`, { id: CUR.id });
+  await refresh();
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------
@@ -561,6 +627,7 @@ async function tick() {
   CUR.job = j.job;
   if (["queued", "running"].includes(j.job.state)) {
     if (j.job.kind === "render") drawRender();
+    else if (j.job.kind === "voice") { const n = byId("rmVoiceNote"); if (n) n.textContent = `${j.job.message || ""} ${j.job.percent || 0}%`; }
     else { const n = byId("rmPreviewNote"); if (n) n.textContent = `${j.job.message || ""} ${j.job.percent || 0}%`; }
     return;
   }
@@ -574,6 +641,8 @@ async function tick() {
     notifyDone({ key, title: j.job.kind === "render" ? "Render gagal" : "Storyboard gagal", body: j.job.message || "", kind: "failure" });
   } else if (j.job.state === "cancelled") {
     notifyDone({ key, title: "Dibatalkan", kind: "failure", quiet: true });
+  } else if (j.job.kind === "voice" && j.job.state === "done") {
+    notifyDone({ key, title: "Narasi dicocokkan", body: j.job.note || "", kind: "success", quiet: true });
   } else if (j.job.kind === "preview" && j.job.state === "done") {
     notifyDone({ key, title: "Gambar storyboard siap", kind: "success", quiet: true });
   }

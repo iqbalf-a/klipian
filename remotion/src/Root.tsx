@@ -5,6 +5,8 @@ import { FPS, totalFrames } from "./timeline.ts";
 import { Dissect3D, DISSECT_SECONDS } from "./Dissect3D.tsx";
 import { Models3D } from "./Models3D.tsx";
 import { AssetSheet } from "./AssetSheet.tsx";
+import { CardsDemo } from "./CardsDemo.tsx";
+import { RigDemo, RIG_DEMO_SECONDS } from "./RigDemo.tsx";
 import { FRAME } from "./tokens.ts";
 import { validateStory, type StoryT } from "./schema.ts";
 import sample from "../stories/colokan-panas.json";
@@ -32,6 +34,8 @@ export const Root: React.FC = () => (
   <Composition id="Models3D" component={Models3D} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={90} />
   {/* every asset of the library on one sheet, with its name (npm run assets-sheet) */}
   <Composition id="AssetSheet" component={AssetSheet} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={30} />
+  <Composition id="RigDemo" component={RigDemo} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={RIG_DEMO_SECONDS * FPS} />
+  <Composition id="CardsDemo" component={CardsDemo} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={90} />
   {/* the custom videos (videos/<slug>/): each one reads its checked story and is registered by its folder name */}
   {VIDEOS.map((v) => (
     <Composition key={v.id} id={v.id} component={v.Video} width={FRAME.width} height={FRAME.height} fps={FRAME.fps} durationInFrames={totalFrames(v.story)}

@@ -14,6 +14,7 @@ import { easeInOut, springAt, clamp01 } from "./motion.ts";
 import { FPS } from "./timeline.ts";
 import { DISSECT_SECONDS, HEAT_FOR, HEAT_FROM, LABEL_AT, PART_AT, SPLIT_AT } from "./dissectTimeline.ts";
 import { useFonts } from "./FunFact.tsx";
+import { Lights, LookContext, Mat as SharedMat, Shadowing, type Look } from "./three/common.tsx";
 
 export { DISSECT_SECONDS };
 const FOV = 26, ELEV = 17;
@@ -78,8 +79,8 @@ function cameraAt(t: number): { pos: THREE.Vector3; target: THREE.Vector3 } {
 const heatAt = (t: number): number => clamp01((t - HEAT_FROM) / HEAT_FOR);
 
 // --- the pieces ---------------------------------------------------------------------------------------------------------------
-const Mat: React.FC<{ color: string; emissive?: string; gradient: THREE.DataTexture }> = ({ color, emissive, gradient }) =>
-  <meshToonMaterial color={color} gradientMap={gradient} emissive={emissive ?? "#000000"} />;
+// the surfaces are the shared ones (three/common.tsx): semi-realistic by default, the old flat shading with look="toon"
+const Mat: React.FC<{ color: string; emissive?: string; gradient?: THREE.DataTexture }> = ({ color, emissive }) => <SharedMat color={color} emissive={emissive} />;
 
 const Charger: React.FC<{ t: number }> = ({ t }) => {
   const gradient = useMemo(toonGradient, []);
@@ -231,7 +232,7 @@ const Labels: React.FC<{ t: number }> = ({ t }) => (
   </svg>
 );
 
-export const Dissect3D: React.FC = () => {
+export const Dissect3D: React.FC<{ look?: Look }> = ({ look = "realistic" }) => {
   useFonts();
   const frame = useCurrentFrame();
   const t = frame / FPS;
@@ -239,11 +240,12 @@ export const Dissect3D: React.FC = () => {
     <AbsoluteFill style={{ background: LAB.slate }}>
       {/* the lab: the dark slate with its grid and warm glow, so the white housing never merges with the background */}
       <svg width={FRAME.width} height={FRAME.height} viewBox={`0 0 ${FRAME.width} ${FRAME.height}`} style={{ position: "absolute", inset: 0 }}><Lab clock={t} /></svg>
-      <ThreeCanvas flat width={FRAME.width} height={FRAME.height} camera={{ fov: FOV, near: 0.1, far: 100, position: cameraAt(0).pos.toArray() as [number, number, number] }}>
-        <ambientLight intensity={1.15} />
-        <directionalLight position={[-6, 8, 6]} intensity={2.1} />
-        <Rig t={t} />
-        <Charger t={t} />
+      <ThreeCanvas flat shadows={look === "realistic" ? "soft" : false} width={FRAME.width} height={FRAME.height} camera={{ fov: FOV, near: 0.1, far: 100, position: cameraAt(0).pos.toArray() as [number, number, number] }}>
+        <LookContext.Provider value={look}>
+          <Lights />
+          <Rig t={t} />
+          <Shadowing><Charger t={t} /></Shadowing>
+        </LookContext.Provider>
       </ThreeCanvas>
       <Labels t={t} />
     </AbsoluteFill>

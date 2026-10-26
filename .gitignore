@@ -21,3 +21,6 @@ remotion/.cache/
 
 # reference videos from other channels: for analysis only, never committed
 remotion/sample/
+
+# the music beds are made by remotion/sfx/music.mjs on demand (sfx/mix.mjs runs it when one is missing)
+remotion/sfx/music/*.wav

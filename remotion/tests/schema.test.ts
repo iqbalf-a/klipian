@@ -186,4 +186,12 @@ bad(s, "a mascot parked in a corner", /not parked in a corner/);
 s = clone(); s.beats[7].scene.items.push({ type: "mascot", x: 200, y: 1470, w: 300, expr: "laugh", persist: true }); s.beats[1].scene.items.push({ type: "mascot", x: 300, y: 1470, w: 300, expr: "laugh", persist: true });
 ok(s, "any number of mascots in the sting and the outro, persistent or not");
 
+// --- a source card shows one of the story's claims ---
+s = clone(); s.beats[0].scene.items.push({ type: "source", x: 60, y: 1100, claim: 1, org: "Badan keselamatan konsumen", date: "2023" });
+ok(s, "a source card for claim 1");
+s = clone(); s.beats[0].scene.items.push({ type: "source", x: 60, y: 1100, claim: 9, org: "Badan" });
+bad(s, "a source card for a claim the story does not have", /shows claim 9, but the story has 3 claims/);
+s = clone(); s.beats[0].scene.items.push({ type: "source", x: 60, y: 1100, claim: 1 });
+bad(s, "a source card without an organisation", /org/);
+
 console.log(`schema: ${n} checks ok`);

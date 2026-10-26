@@ -9,6 +9,7 @@
 // Job: { "mode": "still" | "video", "story": "stories/x.json", "out": "name.mp4" (inside out/),
 //        "frame": 120 | "time": 4.5 (seconds) | "beat": "lensa" (+ "at": 0.85) for a still, "concurrency": 4 (optional),
 //        "mode": "stills" renders one picture per beat into the folder "out" (<beat id>.png, "at": 0..1 of the beat); "outRoot": an absolute folder to write into instead of out/,
+//        "voice": "<abs path of a 48 kHz WAV>" (the narration: mixed on top, effects and the story's music bed duck under it),
 //        "sound": false (optional: no sound effects; default true: they are mixed from the story and muxed in as AAC),
 //        "composition": "FunFact" (default) | "Dissect3D" (no story), "gl": "angle" | "swangle" | "swiftshader" | "egl" | "vulkan" (optional) }
 // Cancel: SIGINT/SIGTERM/SIGBREAK, or a line "cancel" on stdin (Windows cannot deliver SIGTERM), is passed to Remotion's cancel signal.
@@ -23,7 +24,7 @@ import { RenderInternals, ensureBrowser, makeCancelSignal, renderMedia, renderSt
 import { validateStory } from "./src/schema.ts";
 import { defaultBeatSfx, dissectSfx, formatTimeline, planSfx, storySfx } from "./src/sfx.ts";
 import { totalFrames } from "./src/timeline.ts";
-import { mixEvents } from "./sfx/mix.mjs";
+import { loadVoice, mixTrack } from "./sfx/mix.mjs";
 import { writeWav } from "./sfx/wav.mjs";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -125,9 +126,10 @@ async function soundPlan(compId, story) {
 }
 
 /** Mixes the planned sound effects into a stereo track, writes it (and the event table) beside the video, and muxes it in as AAC. */
-async function addSoundEffects(silent, out, plan, seconds) {
+async function addSoundEffects(silent, out, plan, seconds, extras = {}) {
   const t0 = Date.now();
-  const mixed = mixEvents(plan.events, seconds);
+  const voice = extras.voice ? loadVoice(extras.voice, seconds) : null;       // the narration (a 48 kHz WAV klipian made on import), music bed and effects go under it
+  const mixed = mixTrack(plan.events, seconds, { voice, music: extras.music ?? null });
   const wav = out.replace(/\.mp4$/, ".sfx.wav");
   writeWav(wav, mixed.channels, mixed.rate);
   writeFileSync(out.replace(/\.mp4$/, ".sfx.txt"), `${formatTimeline(plan)}
@@ -141,7 +143,7 @@ async function addSoundEffects(silent, out, plan, seconds) {
     p.on("close", (code) => (code === 0 ? resolve() : reject(new Error(`ffmpeg failed: ${err.trim().slice(-300)}`))));
   });
   unlinkSync(silent);
-  emit({ type: "audio", events: plan.events.length, dropped: plan.dropped.length, peak: +mixed.peak.toFixed(3), rms: +mixed.rms.toFixed(4), ms: Date.now() - t0 });
+  emit({ type: "audio", events: plan.events.length, dropped: plan.dropped.length, voice: !!voice, music: extras.music?.name ?? null, spoken: +mixed.segments.reduce((n, [a, b]) => n + (b - a), 0).toFixed(1), peak: +mixed.peak.toFixed(3), rms: +mixed.rms.toFixed(4), ms: Date.now() - t0 });
 }
 
 async function main() {
@@ -153,7 +155,7 @@ async function main() {
   if (job.outRoot) OUT_DIR = path.resolve(String(job.outRoot));
   const compId = job.composition ?? "FunFact";
   let story = null;
-  if (!["Dissect3D", "Models3D", "AssetSheet"].includes(compId)) {                    // FunFact and every custom video (video-<slug>) are made from a story
+  if (!["Dissect3D", "Models3D", "AssetSheet", "CardsDemo", "RigDemo"].includes(compId)) {                    // FunFact and every custom video (video-<slug>) are made from a story
     let raw;
     try { raw = JSON.parse(readFileSync(path.resolve(path.dirname(path.resolve(jobFile)), String(job.story)), "utf8")); }
     catch { try { raw = JSON.parse(readFileSync(path.resolve(ROOT, String(job.story)), "utf8")); } catch (e) { fail(`cannot read the story: ${e.message}`); } }
@@ -161,7 +163,7 @@ async function main() {
     if (!checked.ok) fail("the story is not valid", { errors: checked.errors });
     story = checked.story;
   }
-  const inputProps = story ? { story, ...(job.layout === false ? { layout: false } : {}), ...(job.layoutDebug ? { layoutDebug: true } : {}) } : {};
+  const inputProps = { ...(story ? { story, ...(job.layout === false ? { layout: false } : {}), ...(job.layoutDebug ? { layoutDebug: true } : {}) } : {}), ...(job.props ?? {}) };   // "props": any extra props of the composition (e.g. {"look":"toon"})
   const port = await freePort();                          // never the default 3000: another project (a Studio) may be on it
   const chromiumOptions = { gl: job.gl ?? "angle" };       // the 3D layers need a GL backend; angle is the one that works headless here
   const t0 = Date.now();
@@ -220,7 +222,7 @@ async function main() {
     onProgress: ({ progress: p, renderedFrames, encodedFrames }) => progress("render", p * 100, { renderedFrames, encodedFrames, total: composition.durationInFrames }),
   });
   progress("render", 100, { total: composition.durationInFrames });
-  if (withSound) await addSoundEffects(silent, out, await soundPlan(compId, story), composition.durationInFrames / composition.fps);
+  if (withSound) await addSoundEffects(silent, out, await soundPlan(compId, story), composition.durationInFrames / composition.fps, { voice: job.voice, music: story?.music && story.music.track !== "none" ? { name: story.music.track, level: story.music.level } : null });
   emit({ type: "done", out, bytes: statSync(out).size, ms: Date.now() - t0, frames: composition.durationInFrames });
 }
 

@@ -12,7 +12,7 @@ import { FALLBACK_WIDTH, WIDTHS } from "./fontMetrics.ts";
 
 export type Box = { x0: number; y0: number; x1: number; y1: number };
 /** What a thing is, for the layout: fixed things are obstacles, movable things are pushed. */
-export type Role = "banner" | "hero" | "mascot" | "chibi" | "text" | "badge";
+export type Role = "banner" | "hero" | "mascot" | "chibi" | "text" | "badge" | "caption";
 export type Side = "left" | "right" | "above" | "below";
 /** `pad` is the part of a text's box that is only its backing (it may leave the safe area, the letters may not). `anchor` is the point the box scales about (`wrapBox`: the box of a one-line text broken into two lines); (a label's x, y; a pill's centre); `minScale` below 1 lets a text shrink to fit (never below it). */
 export type Spec = { id: string; role: Role; box: Box; prefer?: Side; pin?: boolean; anchor?: { x: number; y: number }; minScale?: number; wrapBox?: Box; pad?: number };
@@ -36,6 +36,13 @@ export const ZONES = {
   safe: { x0: SAFE.left, y0: SAFE.top, x1: SAFE.right, y1: SAFE.bottom },
 } as const;
 export const bounds = (hasBanner = true): Box => ({ x0: SAFE.left, y0: hasBanner ? BANNER_BOTTOM + GAP : SAFE.top, x1: SAFE.right, y1: SAFE.bottom });
+
+/** The caption layer at the bottom (inside the safe area: x up to 950, y up to 1632) and the top text (kicker + headline): fixed zones the rest keeps clear of. */
+export const CAPTION = { fs: 56, maxTextWidth: 770, padX: 30, padY: 22, cx: (SAFE.left + SAFE.right) / 2, bottom: 1600 } as const;
+export const TOP_TEXT = { x: SAFE.left + 20, y: 96, fs: 76, kickerFs: 28, maxWidth: SAFE.right - SAFE.left - 40 } as const;
+/** The box of the caption layer (two lines at most) and of the top text (a kicker and two lines of headline). */
+export const captionBox = (): Box => ({ x0: CAPTION.cx - (CAPTION.maxTextWidth + 2 * CAPTION.padX) / 2, y0: CAPTION.bottom - (2 * CAPTION.fs * 1.22 + 2 * CAPTION.padY), x1: CAPTION.cx + (CAPTION.maxTextWidth + 2 * CAPTION.padX) / 2, y1: CAPTION.bottom });
+export const topTextBox = (): Box => ({ x0: SAFE.left, y0: TOP_TEXT.y - 10, x1: SAFE.right, y1: TOP_TEXT.y + 52 + TOP_TEXT.fs * 2.3 });
 
 // ---------------------------------------------------------------------------------------------------------------------------------------
 // boxes of things
@@ -100,6 +107,7 @@ export function itemBox(item: ItemT): { role: Role; box: Box } | null {
     case "pill": return { role: "text", box: pillBox(item.text, item.x, item.y, item.fs) };
     case "label": return { role: "text", box: labelBox(item.text, item.x, item.y, item.fs, item.align ?? "middle", item.lines ?? []) };
     case "badge": return { role: "badge", box: around(item.x, item.y, item.r ?? 46) };
+    case "source": return { role: "hero", box: { x0: item.x, y0: item.y, x1: item.x + (item.w ?? 760), y1: item.y + sourceCardHeight(item.quote ?? "", item.w ?? 760) } };
     default: return null;
   }
 }
@@ -131,8 +139,8 @@ const toward = (side: Side | undefined, dx: number, dy: number): boolean =>
 export function resolve(specs: readonly Spec[], opts: { hasBanner?: boolean } = {}): Report {
   const hasBanner = opts.hasBanner ?? specs.some((s) => s.role === "banner");
   const area0 = bounds(hasBanner);
-  const fixed = specs.filter((s) => s.role === "banner" || s.role === "hero" || s.role === "mascot" || s.role === "chibi" || s.pin);
-  const hardFor = (keep: number, badge = false) => fixed.filter((s) => !(badge && s.role === "hero")).map((s) => ({ id: s.id, box: grow(s.role === "hero" ? shrink(s.box, keep) : s.box, s.role === "banner" ? GAP : GAP / 2) }));
+  const fixed = specs.filter((s) => s.role === "banner" || s.role === "hero" || s.role === "mascot" || s.role === "chibi" || s.role === "caption" || s.pin);
+  const hardFor = (keep: number, badge = false) => fixed.filter((s) => !(badge && s.role === "hero")).map((s) => ({ id: s.id, box: grow(s.role === "hero" ? shrink(s.box, keep) : s.box, s.role === "banner" || s.role === "caption" ? GAP : GAP / 2) }));
   const placed: { id: string; box: Box }[] = [];
   const moved: Moves = new Map();
   const problems: string[] = [];
@@ -218,6 +226,13 @@ export function conflicts(specs: readonly Spec[]): string[] {
 // the story's items
 // ---------------------------------------------------------------------------------------------------------------------------------------
 
+/** The height of a source card: its quote wrapped at 38 px (the same rule as components/Cards.tsx). */
+export const sourceCardHeight = (quote: string, w = 760): number => {
+  let lines = 0, cur = "";
+  for (const word of `“${quote}”`.split(/\s+/)) { if (cur && textWidthEstimate(`${cur} ${word}`, 38) > w - 80) { lines += 1; cur = word; } else cur = cur ? `${cur} ${word}` : word; }
+  return 150 + (lines + (cur ? 1 : 0)) * 38 * 1.28;
+};
+
 export const itemId = (index: number, item: ItemT): string => `${index}:${item.type}`;
 
 /** The specs of a beat's items (by index), and for every arrow whose tail sits on a text the index of that text, so the tail goes along. */
@@ -238,8 +253,8 @@ export function specsOfItems(items: readonly ItemT[]): Spec[] {
 
 /** The items with their texts, pills and badges moved (and a text made a little smaller when it has to be) to where they do not overlap, and the
     tail of an arrow that was on a moved text moved with it. */
-export function applyLayout(items: readonly ItemT[]): { items: ItemT[]; report: Report } {
-  const specs = specsOfItems(items);
+export function applyLayout(items: readonly ItemT[], extra: readonly Spec[] = []): { items: ItemT[]; report: Report } {
+  const specs = [...specsOfItems(items), ...extra];
   const report = resolve(specs);
   const out = items.map((it) => ({ ...it })) as ItemT[];
   items.forEach((it, i) => {
@@ -263,8 +278,16 @@ export function applyLayout(items: readonly ItemT[]): { items: ItemT[]; report: 
 }
 
 /** A story with the layout of every beat applied (a beat's report is not kept: use applyLayout for the debug overlay). */
-export function layoutStory<S extends { beats: { scene: { items: ItemT[] } }[] }>(story: S): S {
-  return { ...story, beats: story.beats.map((b) => ({ ...b, scene: { ...b.scene, items: applyLayout(b.scene.items).items } })) };
+export function layoutStory<S extends { captions?: boolean; beats: { kicker?: string; headline?: string; scene: { items: ItemT[] } }[] }>(story: S): S {
+  return { ...story, beats: story.beats.map((b) => ({ ...b, scene: { ...b.scene, items: applyLayout(b.scene.items, fixedLayers(story, b)).items } })) };
+}
+
+/** The caption layer and the top text of a beat as fixed boxes, so what is drawn between them never overlaps them. */
+export function fixedLayers(story: { captions?: boolean }, beat: { kicker?: string; headline?: string }): Spec[] {
+  const out: Spec[] = [];
+  if (story.captions) out.push({ id: "caption", role: "caption", box: captionBox() });
+  if (beat.headline) out.push({ id: "top-text", role: "banner", box: topTextBox() });
+  return out;
 }
 
 /** The zones of a scene given what is in it (ian 2026-10-26: people and the mascot are optional): without a mascot or a chibi at the bottom, the hero

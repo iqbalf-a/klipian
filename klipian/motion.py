@@ -32,7 +32,7 @@ import time
 import uuid
 from pathlib import Path
 
-from . import hashtags as hashtags_mod, paths, profiles, roundtrip, sched, schedule
+from . import hashtags as hashtags_mod, motion_voice as voicelib, paths, profiles, roundtrip, sched, schedule
 from .progress import Eta
 
 REMOTION = paths.ROOT / "remotion"
@@ -267,7 +267,7 @@ def detail(pid: str) -> dict:
     facts = facts_of(pid) if story else []
     stills = _stills_state(pid, story)
     return {**summary(p), "notes": p.get("notes", ""), "needs": p.get("needs", []), "storyPath": str(project_dir(pid) / "story.json"), "compositions": compositions(), "story": story, "facts": facts,
-            "gate": gate(pid), "stills": stills, "render": p.get("render"), "job": job_state(pid),
+            "gate": gate(pid), "stills": stills, "render": p.get("render"), "job": job_state(pid), "voice": voice_info(pid),
             "versions": len(list((project_dir(pid) / "history").glob("story-*.json"))) if (project_dir(pid) / "history").is_dir() else 0}
 
 
@@ -430,6 +430,197 @@ def update(pid: str, edits: dict) -> dict:
 
 
 # --------------------------------------------------------------------------
+# the voice: a narration file per video (recorded, or made by a local TTS command), aligned to the words, and a story that follows it
+# --------------------------------------------------------------------------
+
+AUDIO_EXTS = {".wav", ".mp3", ".m4a", ".aac", ".ogg", ".opus", ".flac", ".mp4", ".webm", ".mkv"}
+MAX_VOICE_BYTES = 300 * 1024 * 1024
+
+
+class _Whisper:
+    """The one place that runs the recogniser (faster-whisper, local); the selftest replaces it with a fake. Returns [{text, start, end}] in order."""
+
+    def words(self, audio: Path) -> list[dict]:
+        from . import transcribe
+        t = transcribe.transcribe(audio, language="id", verbose=False)
+        return [{"text": w.text, "start": w.start, "end": w.end} for w in t.words]
+
+
+_whisper = _Whisper()
+
+
+def voice_dir(pid: str) -> Path:
+    return project_dir(pid) / "voice"
+
+
+def voice_file(pid: str) -> Path | None:
+    f = voice_dir(pid) / "narration.wav"
+    return f if f.is_file() else None
+
+
+def _voice_meta(pid: str) -> dict | None:
+    v = _read(voice_dir(pid) / "voice.json", None)
+    return v if isinstance(v, dict) else None
+
+
+def import_voice(pid: str, *, source: Path | None = None, data: bytes | None = None, name: str = "") -> dict:
+    """Takes the narration: a file on this computer (`source`) or uploaded bytes (`data`), keeps the original, and makes narration.wav (48 kHz mono)
+    next to it, which is what is rendered. A new voice clears the old alignment."""
+    from .ffmpeg_tools import _require, probe, run
+    p = load(pid)
+    name = Path(name or (source.name if source else "narration.wav")).name
+    ext = Path(name).suffix.lower()
+    if ext not in AUDIO_EXTS:
+        raise MotionError("voice", f"A narration is an audio file ({', '.join(sorted(AUDIO_EXTS))}), not {ext or 'a file without an extension'}.")
+    if source is not None:
+        if not source.is_file():
+            raise MotionError("voice", "That file was not found.")
+        if source.stat().st_size > MAX_VOICE_BYTES:
+            raise MotionError("voice", "That file is too big for a narration.")
+    elif not data:
+        raise MotionError("voice", "No file was sent.")
+    with _LOCK:
+        d = voice_dir(pid)
+        shutil.rmtree(d, ignore_errors=True)
+        d.mkdir(parents=True, exist_ok=True)
+        original = d / f"original{ext}"
+        if source is not None:
+            shutil.copyfile(source, original)
+        else:
+            original.write_bytes(data)
+        out = d / "narration.wav"
+        try:
+            run([_require("ffmpeg"), "-y", "-v", "error", "-i", str(original), "-vn", "-ac", "1", "-ar", "48000", "-c:a", "pcm_s16le", str(out)], desc="converting the narration", timeout=600)
+            seconds = probe(out).duration
+        except Exception as exc:                                  # noqa: BLE001
+            shutil.rmtree(d, ignore_errors=True)
+            raise MotionError("voice", f"That audio could not be read ({str(exc).strip().splitlines()[-1][:160] if str(exc).strip() else type(exc).__name__}).") from None
+        if seconds < 1.0 or seconds > 180:
+            shutil.rmtree(d, ignore_errors=True)
+            raise MotionError("voice", f"The narration is {seconds:.1f} seconds: it must be between 1 and 180.")
+        (project_dir(pid) / "story.voiced.json").unlink(missing_ok=True)
+        p["voice"] = {"name": name, "duration": round(seconds, 2), "at": int(time.time()), "aligned": False}
+        save(p)
+    return p["voice"]
+
+
+def clear_voice(pid: str) -> None:
+    with _LOCK:
+        p = load(pid)
+        shutil.rmtree(voice_dir(pid), ignore_errors=True)
+        (project_dir(pid) / "story.voiced.json").unlink(missing_ok=True)
+        p.pop("voice", None)
+        save(p)
+
+
+def tts_available() -> str:
+    return voicelib.tts_command(paths.workspace_dir() / "machine.json")
+
+
+def make_voice_with_tts(pid: str) -> dict:
+    """Runs the person's local text-to-speech command (machine.json "motionTts") on the story's narration and takes its WAV as the voice."""
+    cmd = tts_available()
+    if not cmd:
+        raise MotionError("tts", 'No text-to-speech command is set. Put one in workspace/machine.json as "motionTts", e.g. mytts --in "{text}" --out "{out}".')
+    story = story_of(pid)
+    if story is None:
+        raise MotionError("no_story", "There is no story yet.")
+    text = "\n\n".join(b["narration"] for b in story["beats"])
+    out = voice_dir(pid).parent / ".tts-out.wav"
+    out.unlink(missing_ok=True)
+    try:
+        voicelib.run_tts(cmd, text, out)
+    except (RuntimeError, OSError, subprocess.TimeoutExpired) as exc:
+        raise MotionError("tts", str(exc) if isinstance(exc, RuntimeError) else f"the text-to-speech command could not run ({exc})") from None
+    try:
+        return import_voice(pid, source=out, name="tts.wav")
+    finally:
+        out.unlink(missing_ok=True)
+
+
+def render_story(pid: str) -> dict | None:
+    """The story that is drawn and rendered: the voiced one (beats as long as their narration, with word times) when there is a voice that was aligned to
+    THIS story, else the story as the AI wrote it."""
+    story = story_of(pid)
+    if story is None:
+        return None
+    voiced = _read(project_dir(pid) / "story.voiced.json", None)
+    meta = _voice_meta(pid)
+    if isinstance(voiced, dict) and meta and meta.get("storyHash") == _story_hash(story) and voice_file(pid):
+        return voiced
+    return story
+
+
+def story_file(pid: str) -> Path:
+    story = story_of(pid)
+    voiced = project_dir(pid) / "story.voiced.json"
+    meta = _voice_meta(pid)
+    if story is not None and voiced.is_file() and meta and meta.get("storyHash") == _story_hash(story) and voice_file(pid):
+        return voiced
+    return project_dir(pid) / "story.json"
+
+
+def voice_info(pid: str) -> dict | None:
+    """What the page shows about the voice: the file, whether it is aligned to the current story, the total and how it compares with the video's length."""
+    p = load(pid)
+    v = p.get("voice")
+    if not v or not voice_file(pid):
+        return {"tts": bool(tts_available())} if story_of(pid) else None
+    story = story_of(pid)
+    meta = _voice_meta(pid) or {}
+    aligned = bool(story and meta.get("storyHash") == _story_hash(story) and (project_dir(pid) / "story.voiced.json").is_file())
+    timed = render_story(pid) if aligned else None
+    total = timed["duration"] if timed else v["duration"]
+    return {"name": v["name"], "duration": v["duration"], "aligned": aligned, "stale": bool(meta) and not aligned, "method": meta.get("method"), "ratio": meta.get("ratio"),
+            "total": total, "target": p["duration"], "tts": bool(tts_available()),
+            "note": (f"The narration makes the video {total:.1f} s; it was planned for {p['duration']} s." if abs(total - p["duration"]) > 0.5 else "")}
+
+
+def align_voice(pid: str) -> dict:
+    """The alignment as a job in the AI queue (the recogniser is heavy): word times -> story.voiced.json."""
+    if voice_file(pid) is None:
+        raise MotionError("voice", "Import the narration first.")
+    if story_of(pid) is None:
+        raise MotionError("no_story", "There is no story yet: paste the AI's answer first.")
+    return _start(pid, "voice", _run_voice)
+
+
+def _run_voice(pid: str, key, ev: threading.Event) -> None:
+    try:
+        story = story_of(pid)
+        audio = voice_file(pid)
+        total = float(load(pid)["voice"]["duration"])
+        with sched.slot(sched.GROUP_AI, "transcribe", f"motion-voice-{pid}", cancelled=ev.is_set, update=_waiting(key)) as ticket:
+            if ticket is None or ev.is_set():
+                return _finish(key, pid, state="cancelled", message="Dibatalkan.", percent=0)
+            _set(key, state="running", message="Mencocokkan kata dengan suara…", percent=20)
+            note = ""
+            try:
+                heard = _whisper.words(audio)
+                al = voicelib.align(story["beats"], heard, total)
+                if al["method"] == "estimate":
+                    note = f"Suara tidak cocok dengan naskah (hanya {int(al['ratio'] * 100)}% kata): waktu kata diperkirakan merata."
+            except Exception as exc:                                  # noqa: BLE001
+                al = voicelib.estimate(story["beats"], total)
+                note = f"Pengenal suara tidak bisa dipakai ({type(exc).__name__}): waktu kata diperkirakan merata."
+        timed = voicelib.timed_story(story, al, total)
+        v = validate_story(timed)
+        if not v.get("ok"):
+            msgs = "; ".join(f"{e['path']}: {e['message']}" for e in v.get("errors", [])[:3])
+            raise MotionError("voice", f"The story does not fit the narration: {msgs}")
+        _write(project_dir(pid) / "story.voiced.json", timed)
+        _write(voice_dir(pid) / "voice.json", {"storyHash": _story_hash(story), "method": al["method"], "ratio": al.get("ratio"), "total": total, "alignment": al, "at": int(time.time())})
+        p = load(pid)
+        p["voice"] = {**p["voice"], "aligned": True}
+        save(p)
+        _finish(key, pid, state="done", percent=100, message=note or f"Selesai: video {timed['duration']:.1f} detik mengikuti narasi.", note=note)
+    except MotionError as exc:
+        _finish(key, pid, state="failed", message=exc.message, code=exc.code)
+    except BaseException as exc:                              # noqa: BLE001
+        _finish(key, pid, state="failed", message=f"The alignment failed ({type(exc).__name__}: {exc}).", code="other")
+
+
+# --------------------------------------------------------------------------
 # facts, the title and the gate
 # --------------------------------------------------------------------------
 
@@ -584,6 +775,8 @@ COMPOSITION = """- Every beat has a `banner` at the top that carries the beat's 
 - The "Intip yuk!" beat: a big `mascot` in the middle (w about 560, expression curious, `pop`) and a `pill` that says "Intip yuk!". The outro has the mascot again.
 - **People are optional.** Put a person (`chibi`) in a beat only when the story needs one: someone doing something, a body part, or a person's reaction is the point. A topic about an object shows just the object.
 - **The mascot is rare:** the "Intip yuk!" beat and the outro, plus at most 2 short reactions (about 1 s each, with `enter` delay and `exit`) at key moments in between. Never park it in a corner for the whole video; `persist` is only for the sting and the outro.
+- **Source cards:** a `source` item shows one of your claims on the screen (its text or a short `quote`, the organisation, the date and the domain of its first source): place one for 2-3 seconds next to the object when the fact is stated, with `claim` = the claim's number (1 is the first). Use them sparingly: they are for the one or two facts that need to be seen.
+- **Two text layers** (optional, for a video with a narration): a `headline` of 2-4 bold words with a small `kicker` above it (it replaces the banner of that beat), and `"captions": true` on the story for the karaoke captions; klipian fills in the word times from the narration. `music` (`{"track": "bed-calm"}`) adds a quiet bed under the voice.
 - The look inside: first the outside of the object with the lens beside it (the `lens` item), then cutaway beats with `socket` view "cutaway" (about x 540, y 926, s 1). Give the cutaway an `id` and make labels and arrows `follow` its parts.
 - The example below shows real coordinates for all of this; use similar ones."""
 
@@ -771,6 +964,7 @@ def _story_hash(story) -> str:
 
 
 def _stills_state(pid: str, story) -> dict:
+    story = render_story(pid) if story is not None else None
     meta = _read(project_dir(pid) / "out" / "stills.json", None)
     if not story or not isinstance(meta, dict):
         return {"files": {}, "stale": bool(story)}
@@ -925,11 +1119,11 @@ def _finish(key, pid: str, **fields) -> None:
 
 def _run_preview(pid: str, key, ev: threading.Event) -> None:
     try:
-        story = story_of(pid)
+        story = render_story(pid)
         folder = project_dir(pid) / "out" / "stills"
         if folder.is_dir():
             shutil.rmtree(folder, ignore_errors=True)
-        job = {"mode": "stills", "story": str(project_dir(pid) / "story.json"), "out": "stills", "outRoot": str(project_dir(pid) / "out"), "at": STILL_AT, "composition": composition_id(load(pid))}
+        job = {"mode": "stills", "story": str(story_file(pid)), "out": "stills", "outRoot": str(project_dir(pid) / "out"), "at": STILL_AT, "composition": composition_id(load(pid))}
 
         def on_line(d):
             if d.get("type") == "progress" and d.get("stage") == "render":
@@ -986,11 +1180,13 @@ def _free_name(stem: str) -> str:
 def _run_render(pid: str, key, ev: threading.Event) -> None:
     try:
         p = load(pid)
-        story = story_of(pid)
+        story = render_story(pid)
         eta = Eta(RENDER_RATIO * float(story["duration"]))
         t0 = time.monotonic()
         work = f"{pid}.mp4"
-        job = {"mode": "video", "story": str(project_dir(pid) / "story.json"), "out": work, "outRoot": str(project_dir(pid) / "out"), "composition": composition_id(p)}
+        job = {"mode": "video", "story": str(story_file(pid)), "out": work, "outRoot": str(project_dir(pid) / "out"), "composition": composition_id(p)}
+        if voice_file(pid) and story_file(pid).name == "story.voiced.json":
+            job["voice"] = str(voice_file(pid))                      # the narration goes under the effects and the bed (render.mjs ducks them)
 
         def on_line(d):
             t = d.get("type")

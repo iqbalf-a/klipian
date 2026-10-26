@@ -3,7 +3,7 @@
    and poses of the catalogue, at most 6 words of screen text, every claim with a source. */
 import { z } from "zod";
 import {
-  ANCHOR_NAMES, ARROW_COLORS, BACKGROUNDS, BEAT_KINDS, CAMERA_KINDS, CHIBI_COSTUMES, CHIBI_EXPRESSIONS, CHIBI_POSES, CHIBI_ROLES, CUTAWAY_VARIANTS, DIRECTIONS,
+  ANCHOR_NAMES, MUSIC_NAMES, ARROW_COLORS, BACKGROUNDS, BEAT_KINDS, CAMERA_KINDS, CHIBI_COSTUMES, CHIBI_EXPRESSIONS, CHIBI_POSES, CHIBI_ROLES, CUTAWAY_VARIANTS, DIRECTIONS,
   ENTER_KINDS, EXIT_KINDS, LABEL_COLORS, MASCOT_EXPRESSIONS, MODELS, OUTSIDE_VARIANTS, SFX_NAMES, SOCKET_VIEWS, TRANSITION_KINDS,
 } from "./catalog.ts";
 
@@ -91,13 +91,24 @@ const Arrow = z.object({ type: z.literal("arrow"), ...pos, ...motion, follow, x2
 const Badge = z.object({ type: z.literal("badge"), text: z.string().min(1).max(3), ...pos, ...motion, r: num.min(20).max(120).optional(),
   color: z.enum(["yellow", "red", "white"]).optional() }).strict();
 
-export const Item = z.discriminatedUnion("type", [Mascot, Chibi, Socket, Lens, Banner, Pill, Label, Stack, Arrow, Badge]);
+// A source card (P28-P): one of the story's claims shown with where it comes from: the claim's text (or a shorter `quote`), the organisation, the date and the domain of its first source URL.
+const Source = z.object({ type: z.literal("source"), ...pos, ...motion, claim: z.number().int().min(1).max(40), org: z.string().min(1).max(50), date: z.string().max(20).optional(),
+  quote: z.string().min(3).max(160).optional(), w: num.min(400).max(960).optional() }).strict();
+
+export const Item = z.discriminatedUnion("type", [Mascot, Chibi, Socket, Lens, Banner, Pill, Label, Stack, Arrow, Badge, Source]);
+
+/** The words of a beat's narration with their times (seconds into the beat), from the voice track (klipian aligns it with faster-whisper): they drive the karaoke captions. */
+export const BeatWord = z.object({ w: z.string().min(1).max(60), a: num.min(0), b: num.min(0) }).strict();
 
 export const Beat = z.object({
   id: z.string().regex(/^[a-z0-9-]{1,24}$/),
   kind: z.enum(BEAT_KINDS),
   dur: num.min(0.5).max(30),                                              // seconds
   narration: z.string().min(1).max(600),
+  // the top text layer: a small mono kicker over a bold headline that changes per sentence (instead of a banner)
+  kicker: z.string().max(40).refine((t) => wordCount(t) <= 5, { message: "a kicker is at most 5 words" }).optional(),
+  headline: screenText.optional(),
+  words: z.array(BeatWord).max(250).optional(),
   text: screenText,                                                       // the screen text of the beat
   // bg: brand = story scenes (lens rings + a yellow spotlight; `spot` places it, default behind the middle), lab = inside the lens
   scene: z.object({ bg: z.enum(BACKGROUNDS), spot: z.object({ x: num, y: num, r: num.min(100).max(900).optional() }).strict().optional(), items: z.array(Item).max(14) }).strict(),
@@ -124,6 +135,8 @@ export const Story = z.object({
   claims: z.array(Claim),
   post: z.object({ description: z.string().max(2000), hashtags: z.array(z.string().regex(/^#\S+$/)).max(10) }).strict(),
   needs: z.array(z.string()),
+  captions: z.boolean().optional(),                                       // the karaoke caption layer at the bottom (the words come from `words`, else an even estimate)
+  music: z.object({ track: z.enum([...MUSIC_NAMES, "none"]), level: num.min(0).max(1.5).optional() }).strict().optional(),   // the bed under the voice; level scales it
 }).strict().superRefine((s, ctx) => {
   const ids = s.beats.map((b) => b.id);
   const dup = ids.find((id, i) => ids.indexOf(id) !== i);
@@ -144,6 +157,18 @@ export const Story = z.object({
     if (!target) ctx.addIssue({ code: "custom", message: `follows the item "${item.follow.item}", which this beat does not have (a socket or a lens with that id)`, path: ["beats", bi, "scene", "items", ii, "follow"] });
     else if ((target as { model?: string }).model === "flat") ctx.addIssue({ code: "custom", message: `"${item.follow.item}" is drawn flat: only 3D models have parts to follow`, path: ["beats", bi, "scene", "items", ii, "follow"] });
   }));
+  // a source card names a claim of the story
+  s.beats.forEach((b, bi) => b.scene.items.forEach((item, ii) => {
+    if (item.type === "source" && item.claim > s.claims.length) ctx.addIssue({ code: "custom", message: `a source card shows claim ${item.claim}, but the story has ${s.claims.length} claims`, path: ["beats", bi, "scene", "items", ii, "claim"] });
+  }));
+  // the top text layer replaces the banner; the word times lie inside the beat
+  s.beats.forEach((b, bi) => {
+    if ((b.kicker || b.headline) && b.scene.items.some((i) => i.type === "banner")) ctx.addIssue({ code: "custom", message: "a beat with a kicker or a headline has no banner: the top text layer takes its place", path: ["beats", bi, "scene", "items"] });
+    if (b.kicker && !b.headline) ctx.addIssue({ code: "custom", message: "a kicker goes over a headline: give the beat a headline too", path: ["beats", bi, "headline"] });
+    (b.words ?? []).forEach((w, wi) => {
+      if (w.b < w.a || w.b > b.dur + 0.05) ctx.addIssue({ code: "custom", message: `word ${wi + 1} ("${w.w}") must end after it starts and inside the beat (${b.dur} s)`, path: ["beats", bi, "words", wi] });
+    });
+  });
   // the mascot is rare (ian 2026-10-26): the sting and the outro, plus at most MAX_MASCOT_REACTIONS short reactions in the beats between; never parked in a corner
   let reactions = 0;
   s.beats.forEach((b, bi) => b.scene.items.forEach((item, ii) => {

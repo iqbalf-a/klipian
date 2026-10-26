@@ -15,6 +15,12 @@ export * from "../tokens.ts";
 export { Brand, Lab } from "../components/Backgrounds.tsx";
 export { Room, Black, Banner, Pill, Label, Arrow, Badge, textWidth } from "../components/UI.tsx";
 
+// source and data cards, pointer labels, sounds written out
+export { SourceCard, SearchCard, NumberCard, BarChart, LineChart, CalendarCard, PointerLabel, Onomatopoeia, cardSpec, pointerBox, wrap } from "../components/Cards.tsx";
+// karaoke captions and the top text
+export { CaptionLayer, TopText } from "../components/Captions.tsx";
+export { estimateWords, pagesOf, pageAt, activeWord, wordsOfBeat } from "../captions.ts";
+
 // characters
 export { Mascot } from "../components/Mascot.tsx";
 export { Chibi } from "../components/Chibi.tsx";
@@ -22,7 +28,8 @@ export { Chibi } from "../components/Chibi.tsx";
 // objects: flat 2D (components/Socket.tsx) and 3D toon (three/)
 export { Cutaway, HeatWaves, PlugIn, PlugStack, Smoke, SocketOutside, SOCKET_BOX } from "../components/Socket.tsx";
 export { LensReveal } from "../components/LensReveal.tsx";
-export { Host3D, Placed, projectToScreen } from "../three/common.tsx";
+export { Host3D, Placed, Shadowing, objectScale, projectToScreen, LookContext, DefaultLookContext, type Look } from "../three/common.tsx";
+export { shots, viewAt, speedAt, cameraFromView, REST_VIEW, type Shot, type View } from "../three/rigMath.ts";
 export { ANCHORS, Cable3D, Cutaway3D, Plug3D, PlugHeat, Smoke3D, WallSocket3D } from "../three/Socket3D.tsx";
 export { cablePath, cableSamples } from "../cable.ts";
 export { Ring, Line } from "../components/svg.tsx";

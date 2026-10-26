@@ -40,3 +40,11 @@ klipian (`klipian/motion.py`, the /remotion page) never copies a rule: it runs t
 
 When the catalogue or a rule changes here (a new item type, a new enum word, a new check in `superRefine`), the brief follows by itself; a new
 check should also get a sentence in `STORY_RULES` (src/catalog.ts). `npm test` covers the scripts (tests/scripts.test.ts).
+
+## Layout, custom videos, voice (P28-P step 1)
+
+- `src/layout.ts`: the layout manager (zones, boxes from real font metrics, the shortest way to a free place, wrap/shrink, arrow tails; `layoutDebug` overlay). FunFact applies it to every beat.
+- `DESIGN.md`: the guide every video session reads first (design system, rules, quality bar, how to add an asset, how to start a video).
+- `videos/<slug>/` (+ `npm run new-video <slug> [story.json]`, `templates/video/`): a custom composition `video-<slug>` made from `src/design/index.ts`, reading the checked story;
+  `render.mjs` takes `"composition"` (and `"props"`), a custom video's sound comes from its `sfx.ts`. `npm run assets-sheet` renders `out/assets-sheet.png`; `CardsDemo` and `RigDemo` show the cards and the camera rig.
+- Voice: a job field `"voice"` (48 kHz WAV) is mixed on top; the story's `music` bed and the effects duck under it (`sfx/mix.mjs mixTrack`); klipian (`klipian/motion_voice.py`) aligns the narration and writes `story.voiced.json`.

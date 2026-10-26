@@ -45,7 +45,7 @@ export type EnterPlan = { kind: "pop" | "slide" | "fade-up" | "draw" | "none"; d
 export function enterOf(item: ItemT, index: number): EnterPlan {
   const given = item.enter;
   const byType: Record<ItemT["type"], EnterPlan["kind"]> = {
-    mascot: "pop", chibi: "slide", socket: "fade-up", lens: "fade-up", banner: "slide", pill: "pop", label: "fade-up", stack: "pop", arrow: "draw", badge: "pop",
+    mascot: "pop", chibi: "slide", socket: "fade-up", lens: "fade-up", banner: "slide", pill: "pop", label: "fade-up", stack: "pop", arrow: "draw", badge: "pop", source: "pop",
   };
   const kind = given?.kind ?? (item.type === "mascot" && item.persist ? "none" : item.type === "socket" && item.view === "outside" && item.plug ? "draw" : byType[item.type]);
   const dir = given?.dir ?? (item.type === "banner" ? "down" : item.type === "chibi" ? "up" : "right");

@@ -21,12 +21,14 @@ import { Arrow, Badge, Banner, Black, Label, Pill, Room } from "./components/UI.
 import { Brand, Lab } from "./components/Backgrounds.tsx";
 import type { ChibiExpression, ChibiPose, MascotExpression } from "./catalog.ts";
 import { cablePath, type Pt } from "./cable.ts";
-import { Host3D, Placed, projectToScreen } from "./three/common.tsx";
+import { DefaultLookContext, Host3D, Placed, projectToScreen, type Look } from "./three/common.tsx";
 import { ANCHORS, CABLE_EXIT, Cable3D, Cutaway3D, Plug3D, PlugHeat, Smoke3D, WallSocket3D } from "./three/Socket3D.tsx";
 import { easeOutBack } from "./motion.ts";
 import { Ring, Line } from "./components/svg.tsx";
 import { BLACK, YELLOW_D } from "./tokens.ts";
-import { applyLayout, layoutStory } from "./layout.ts";
+import { applyLayout, fixedLayers, layoutStory } from "./layout.ts";
+import { CaptionLayer, TopText } from "./components/Captions.tsx";
+import { SourceCard } from "./components/Cards.tsx";
 import { LayoutDebug } from "./components/LayoutDebug.tsx";
 
 export { totalFrames } from "./timeline.ts";
@@ -150,7 +152,7 @@ const Item3DLayer: React.FC<{ item: ItemT; index: number; t: number; clock: numb
 };
 
 /** One 2D object of a scene, by its type, brought to life by the story's motion words (or the defaults). */
-const SceneItem: React.FC<{ item: ItemT; beat: BeatT; index: number; t: number; clock: number; lab: boolean }> = ({ item, beat, index, t, clock, lab }) => {
+const SceneItem: React.FC<{ item: ItemT; beat: BeatT; index: number; t: number; clock: number; lab: boolean; claims?: StoryT["claims"] }> = ({ item, beat, index, t, clock, lab, claims }) => {
   const off = (item.type === "label" || item.type === "arrow") ? followAt(beat.scene.items, item.follow, clock) : { x: 0, y: 0 };
   const plan = enterOf(item, index);
   const enter = enterFx(plan, t), exit = exitFx(item.exit, t), emph = emphasisFx(item.actions, t);
@@ -218,12 +220,18 @@ const SceneItem: React.FC<{ item: ItemT; beat: BeatT; index: number; t: number; 
       return wrap(<Arrow x={item.x + off.x} y={item.y + off.y} x2={item.x2 + off.x} y2={item.y2 + off.y} color={item.color} w={item.w} draw={draw} />);
     case "badge":
       return wrap(<Badge text={item.text} x={item.x} y={item.y} r={item.r} color={item.color} />);
+    case "source": {
+      const claim = claims?.[item.claim - 1];
+      let domain = "";
+      try { domain = new URL(claim?.sources[0] ?? "").hostname.replace(/^www\./, ""); } catch { domain = ""; }
+      return wrap(<SourceCard x={item.x} y={item.y} w={item.w} quote={item.quote ?? claim?.text ?? ""} org={item.org} domain={domain} date={item.date} t={t} start={textStart} />);
+    }
   }
 };
 
 const isPersistent = (item: ItemT): boolean => item.type === "mascot" && !!item.persist;
 
-const SceneSvg: React.FC<{ beat: BeatT; startFrame: number }> = ({ beat, startFrame }) => {
+const SceneSvg: React.FC<{ beat: BeatT; startFrame: number; captions?: boolean; claims?: StoryT["claims"] }> = ({ beat, startFrame, captions, claims }) => {
   const frame = useCurrentFrame();
   const t = frame / FPS;                                  // continuous time, seconds into the beat (it goes on during a transition)
   const clock = (startFrame + frame) / FPS;               // seconds of the video: backgrounds drift and idles run on it, so they carry across beats
@@ -238,23 +246,28 @@ const SceneSvg: React.FC<{ beat: BeatT; startFrame: number }> = ({ beat, startFr
         {svg("bg", bg === "room" ? <Room /> : bg === "brand" ? <Brand clock={clock} spot={beat.scene.spot} /> : lab ? <Lab clock={clock} /> : <Black />)}
         {beat.scene.items.map((item, i) => isPersistent(item) ? null : is3D(item)
           ? <Item3DLayer key={i} item={item} index={i} t={t} clock={clock} />
-          : svg(i, <SceneItem item={item} beat={beat} index={i} t={t} clock={clock} lab={lab} />))}
+          : svg(i, <SceneItem item={item} beat={beat} index={i} t={t} clock={clock} lab={lab} claims={claims} />))}
       </div>
       {/* a persistent mascot lives on the screen, not in the camera's world: it stays where it is from beat to beat (and through a
           transition), and only its face and gaze change */}
+      {/* the text layers of a voiced video sit on the screen too: the headline on top, the karaoke captions at the bottom */}
+      {(beat.headline || captions) && svg("layers", <>
+        {beat.headline && <TopText kicker={beat.kicker} headline={beat.headline} t={t} onDark={lab} />}
+        {captions && <CaptionLayer beat={beat} t={t} />}
+      </>)}
       {svg("persist", beat.scene.items.map((item, i) => isPersistent(item) ? <SceneItem key={i} item={item} beat={beat} index={i} t={t} clock={clock} lab={lab} /> : null))}
     </div>
   );
 };
 
-const BeatScene: React.FC<{ beat: BeatT; startFrame: number; debug?: boolean }> = ({ beat, startFrame, debug }) => {
-  const scene = beat.blur ? <CameraMotionBlur shutterAngle={180} samples={5}><SceneSvg beat={beat} startFrame={startFrame} /></CameraMotionBlur> : <SceneSvg beat={beat} startFrame={startFrame} />;
+const BeatScene: React.FC<{ beat: BeatT; startFrame: number; debug?: boolean; captions?: boolean; claims?: StoryT["claims"] }> = ({ beat, startFrame, debug, captions, claims }) => {
+  const scene = beat.blur ? <CameraMotionBlur shutterAngle={180} samples={5}><SceneSvg beat={beat} startFrame={startFrame} captions={captions} claims={claims} /></CameraMotionBlur> : <SceneSvg beat={beat} startFrame={startFrame} captions={captions} claims={claims} />;
   if (!debug) return scene;
-  return <div style={{ position: "relative", width: FRAME.width, height: FRAME.height }}>{scene}<LayoutDebug report={applyLayout(beat.scene.items).report} /></div>;
+  return <div style={{ position: "relative", width: FRAME.width, height: FRAME.height }}>{scene}<LayoutDebug report={applyLayout(beat.scene.items, fixedLayers({ captions }, beat)).report} /></div>;
 };
 
 /** `layout` (default on): the layout manager (layout.ts) moves texts, pills and badges off whatever they would cover. `layoutDebug` draws its boxes. */
-export const FunFact: React.FC<{ story: StoryT; layout?: boolean; layoutDebug?: boolean }> = ({ story: given, layout = true, layoutDebug = false }) => {
+export const FunFact: React.FC<{ story: StoryT; layout?: boolean; layoutDebug?: boolean; look?: Look }> = ({ story: given, layout = true, layoutDebug = false, look = "realistic" }) => {
   useFonts();
   const story = React.useMemo(() => (layout ? layoutStory(given) : given), [given, layout]);
   const plan = sequencePlan(story);
@@ -266,8 +279,8 @@ export const FunFact: React.FC<{ story: StoryT; layout?: boolean; layoutDebug?: 
     }
     children.push(
       <TransitionSeries.Sequence key={p.beat.id} durationInFrames={p.sequenceFrames}>
-        <BeatScene beat={p.beat} startFrame={p.from} debug={layoutDebug} />
+        <BeatScene beat={p.beat} startFrame={p.from} debug={layoutDebug} captions={story.captions} claims={story.claims} />
       </TransitionSeries.Sequence>);
   });
-  return <TransitionSeries>{children}</TransitionSeries>;
+  return <DefaultLookContext.Provider value={look}><TransitionSeries>{children}</TransitionSeries></DefaultLookContext.Provider>;
 };

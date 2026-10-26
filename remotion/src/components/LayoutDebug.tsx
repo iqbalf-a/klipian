@@ -4,7 +4,7 @@ import React from "react";
 import { FRAME } from "../tokens.ts";
 import { ZONES, bounds, type Report, type Role } from "../layout.ts";
 
-const COLOR: Record<Role, string> = { banner: "#3b82f6", hero: "#22c55e", mascot: "#eab308", chibi: "#f97316", text: "#ef4444", badge: "#a855f7" };
+const COLOR: Record<Role, string> = { banner: "#3b82f6", hero: "#22c55e", mascot: "#eab308", chibi: "#f97316", text: "#ef4444", badge: "#a855f7", caption: "#06b6d4" };
 
 export const LayoutDebug: React.FC<{ report: Report; hasBanner?: boolean }> = ({ report, hasBanner = true }) => {
   const b = bounds(hasBanner);
