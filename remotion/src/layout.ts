@@ -12,7 +12,8 @@ import { FALLBACK_WIDTH, WIDTHS } from "./fontMetrics.ts";
 
 export type Box = { x0: number; y0: number; x1: number; y1: number };
 /** What a thing is, for the layout: fixed things are obstacles, movable things are pushed. */
-export type Role = "banner" | "hero" | "mascot" | "chibi" | "text" | "badge" | "caption";
+/** "picture": a card, a tip card, a diagram, a second object: it is pushed like a text (never scaled or wrapped) and must not overlap another picture, the hero or a text. */
+export type Role = "banner" | "hero" | "mascot" | "chibi" | "text" | "badge" | "caption" | "picture";
 export type Side = "left" | "right" | "above" | "below";
 /** `pad` is the part of a text's box that is only its backing (it may leave the safe area, the letters may not). `anchor` is the point the box scales about (`wrapBox`: the box of a one-line text broken into two lines); (a label's x, y; a pill's centre); `minScale` below 1 lets a text shrink to fit (never below it). */
 export type Spec = { id: string; role: Role; box: Box; prefer?: Side; pin?: boolean; anchor?: { x: number; y: number }; minScale?: number; wrapBox?: Box; pad?: number };
@@ -211,9 +212,9 @@ export function conflicts(specs: readonly Spec[]): string[] {
   const out: string[] = [];
   const area0 = bounds(specs.some((s) => s.role === "banner"));
   specs.forEach((a, i) => {
-    if ((a.role === "text" || a.role === "badge") && !inside(a.pad ? { ...a.box, x0: a.box.x0 + a.pad, x1: a.box.x1 - a.pad } : a.box, area0)) out.push(`${a.id} is outside the safe area`);
+    if ((a.role === "text" || a.role === "badge" || a.role === "picture") && !inside(a.pad ? { ...a.box, x0: a.box.x0 + a.pad, x1: a.box.x1 - a.pad } : a.box, area0)) out.push(`${a.id} is outside the safe area`);
     specs.slice(i + 1).forEach((b) => {
-      const bothFixed = [a, b].every((s) => s.role !== "text" && s.role !== "badge");
+      const bothFixed = [a, b].every((s) => s.role !== "text" && s.role !== "badge" && s.role !== "picture");
       if (bothFixed || (a.role === "badge" && b.role === "hero") || (b.role === "badge" && a.role === "hero")) return;   // a badge sits on its object by design; two fixed things (a chibi beside a hero) are the scene's own business
       const ba = a.role === "hero" ? shrink(a.box, HERO_CORE) : a.box, bb = b.role === "hero" ? shrink(b.box, HERO_CORE) : b.box;
       if (overlap(ba, bb)) out.push(`${a.id} overlaps ${b.id}`);

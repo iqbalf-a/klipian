@@ -65,10 +65,10 @@ function filesUnder(dir) {
   return out;
 }
 
-/** A hash of everything the bundle is made of: src/, the fonts and the default story, and the pinned packages. */
+/** A hash of everything the bundle is made of: src/, the custom videos, the fonts and the default story, and the pinned packages. */
 function bundleHash() {
   const h = createHash("sha1");
-  for (const dir of ["src", "public", "stories"]) {
+  for (const dir of ["src", "videos", "public", "stories"]) {
     for (const f of filesUnder(path.join(ROOT, dir))) {
       h.update(path.relative(ROOT, f).replaceAll("\\", "/"));
       h.update(readFileSync(f));
@@ -119,10 +119,13 @@ const freePort = () => new Promise((resolve, reject) => {
 async function soundPlan(compId, story) {
   if (!story) return dissectSfx();
   if (compId === "FunFact") return storySfx(story);
-  const slug = compId.replace(/^video-/, "");
-  const file = path.join(ROOT, "videos", slug, "sfx.ts");
-  const events = existsSync(file) ? (await import(pathToFileURL(file).href)).sfx(story) : defaultBeatSfx(story);
-  return planSfx(events, totalFrames(story) / FPS);
+  const mod = await videoSfx(compId);
+  return planSfx(mod?.sfx ? mod.sfx(story) : defaultBeatSfx(story), totalFrames(story) / FPS);
+}
+/** A custom video's sfx.ts module, or null. It may also export `music` ({ track, level }): the bed used when the story names none. */
+async function videoSfx(compId) {
+  const file = path.join(ROOT, "videos", compId.replace(/^video-/, ""), "sfx.ts");
+  return compId.startsWith("video-") && existsSync(file) ? import(pathToFileURL(file).href) : null;
 }
 
 /** Mixes the planned sound effects into a stereo track, writes it (and the event table) beside the video, and muxes it in as AAC. */
@@ -222,7 +225,8 @@ async function main() {
     onProgress: ({ progress: p, renderedFrames, encodedFrames }) => progress("render", p * 100, { renderedFrames, encodedFrames, total: composition.durationInFrames }),
   });
   progress("render", 100, { total: composition.durationInFrames });
-  if (withSound) await addSoundEffects(silent, out, await soundPlan(compId, story), composition.durationInFrames / composition.fps, { voice: job.voice, music: story?.music && story.music.track !== "none" ? { name: story.music.track, level: story.music.level } : null });
+  const bed = story?.music ?? (await videoSfx(compId))?.music ?? null;     // the story's bed wins; else the video's own choice
+  if (withSound) await addSoundEffects(silent, out, await soundPlan(compId, story), composition.durationInFrames / composition.fps, { voice: job.voice, music: bed && bed.track !== "none" ? { name: bed.track, level: bed.level } : null });
   emit({ type: "done", out, bytes: statSync(out).size, ms: Date.now() - t0, frames: composition.durationInFrames });
 }
 

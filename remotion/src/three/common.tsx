@@ -48,11 +48,11 @@ export const LookContext = createContext<Look>("realistic");
 export const DefaultLookContext = createContext<Look>("realistic");
 
 /** A surface in a palette colour. Matte plastic by default; the palette's metal colour is brass-like metal; `rough` and `metal` override. */
-export const Mat: React.FC<{ color: string; emissive?: string; rough?: number; metal?: number }> = ({ color, emissive, rough, metal }) => {
+export const Mat: React.FC<{ color: string; emissive?: string; rough?: number; metal?: number; side?: THREE.Side }> = ({ color, emissive, rough, metal, side }) => {
   const look = useContext(LookContext);
-  if (look === "toon") return <meshToonMaterial color={color} gradientMap={toonGradient()} emissive={emissive ?? "#000000"} />;
+  if (look === "toon") return <meshToonMaterial color={color} gradientMap={toonGradient()} emissive={emissive ?? "#000000"} side={side ?? THREE.FrontSide} />;
   const isMetal = metal ?? (color === METAL ? 0.85 : 0);
-  return <meshStandardMaterial color={color} roughness={rough ?? (isMetal > 0.5 ? 0.34 : 0.62)} metalness={isMetal} emissive={emissive ?? "#000000"} envMapIntensity={isMetal > 0.5 ? 0.9 : 0.12} />;
+  return <meshStandardMaterial color={color} roughness={rough ?? (isMetal > 0.5 ? 0.34 : 0.62)} metalness={isMetal} emissive={emissive ?? "#000000"} envMapIntensity={isMetal > 0.5 ? 0.9 : 0.12} side={side ?? THREE.FrontSide} />;
 };
 
 /** A flat, unlit colour (glows, current dots). */
@@ -173,3 +173,5 @@ export function projectToScreen(x: number, y: number, s: number, clock: number, 
     .applyEuler(new THREE.Euler(o.pitch, o.yaw, 0)).multiplyScalar(objectScale(s)).add(new THREE.Vector3(wx, wy, 0)).project(projector);
   return { x: (v.x * 0.5 + 0.5) * FRAME.width, y: (-v.y * 0.5 + 0.5) * FRAME.height };
 }
+
+export { projectView, projectBox, corners } from "./project.ts";

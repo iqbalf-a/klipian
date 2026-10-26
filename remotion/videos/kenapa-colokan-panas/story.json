@@ -1,0 +1,759 @@
+{
+  "question": "Kenapa colokan bisa panas?",
+  "titles": [
+    "Kenapa colokan bisa panas?",
+    "Colokan panas? Ini yang terjadi di dalamnya",
+    "Intip dalam stop kontak: kenapa colokan memanas"
+  ],
+  "duration": 45,
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 3,
+      "narration": "Pernah pegang colokan, eh kok panas?",
+      "text": "Colokan kok panas?",
+      "scene": {
+        "bg": "brand",
+        "spot": {
+          "x": 540,
+          "y": 800,
+          "r": 520
+        },
+        "items": [
+          {
+            "type": "banner",
+            "text": "Colokan kok panas?",
+            "highlight": [
+              "panas"
+            ],
+            "fs": 77
+          },
+          {
+            "type": "socket",
+            "x": 540,
+            "y": 780,
+            "actions": [
+              {
+                "kind": "highlight",
+                "at": 1
+              }
+            ],
+            "s": 1.45,
+            "view": "outside",
+            "variant": "plain",
+            "heat": 0.5,
+            "plug": {
+              "route": [
+                [
+                  540,
+                  892
+                ],
+                [
+                  540,
+                  1470
+                ],
+                [
+                  580,
+                  1555
+                ],
+                [
+                  700,
+                  1590
+                ],
+                [
+                  1180,
+                  1590
+                ]
+              ]
+            },
+            "waves": true
+          },
+          {
+            "type": "badge",
+            "text": "!",
+            "x": 850,
+            "y": 480,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.9
+            },
+            "r": 52,
+            "color": "red"
+          }
+        ]
+      },
+      "sfx": "desis pelan, blip kecil"
+    },
+    {
+      "id": "sting",
+      "kind": "sting",
+      "dur": 1,
+      "narration": "Intip yuk!",
+      "text": "Intip yuk!",
+      "scene": {
+        "bg": "brand",
+        "spot": {
+          "x": 540,
+          "y": 800,
+          "r": 520
+        },
+        "items": [
+          {
+            "type": "mascot",
+            "x": 540,
+            "y": 800,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.05
+            },
+            "w": 560,
+            "expr": "curious",
+            "pop": true,
+            "persist": true
+          },
+          {
+            "type": "pill",
+            "text": "Intip yuk!",
+            "x": 540,
+            "y": 1300,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.3
+            },
+            "fs": 90
+          }
+        ]
+      },
+      "sfx": "jingle sting 1 dtk"
+    },
+    {
+      "id": "lensa",
+      "kind": "lens",
+      "dur": 6,
+      "narration": "Jawabannya ada di dalam stop kontak. Yuk kita zoom ke bagian penjepit logamnya.",
+      "text": "Intip bagian dalamnya",
+      "scene": {
+        "bg": "brand",
+        "spot": {
+          "x": 560,
+          "y": 1060,
+          "r": 470
+        },
+        "items": [
+          {
+            "type": "banner",
+            "text": "Intip bagian dalamnya",
+            "highlight": [
+              "dalamnya"
+            ],
+            "fs": 70
+          },
+          {
+            "type": "socket",
+            "x": 560,
+            "y": 480,
+            "s": 0.8,
+            "view": "outside",
+            "variant": "plain",
+            "plug": {
+              "route": [
+                [
+                  560,
+                  542
+                ],
+                [
+                  560,
+                  780
+                ]
+              ]
+            }
+          },
+          {
+            "type": "lens",
+            "x": 560,
+            "y": 1060,
+            "r": 355,
+            "variant": "tight",
+            "reveal": {
+              "from": 0.8,
+              "dur": 1
+            }
+          },
+          {
+            "type": "label",
+            "text": "penjepit logam",
+            "x": 560,
+            "y": 1560,
+            "enter": {
+              "kind": "fade-up",
+              "delay": 2
+            },
+            "highlight": [
+              "logam"
+            ],
+            "fs": 62
+          }
+        ]
+      },
+      "sfx": "whoosh lensa, glass ting",
+      "camera": {
+        "kind": "push",
+        "zoom": 1.1,
+        "dur": 5
+      }
+    },
+    {
+      "id": "dalam",
+      "kind": "normal",
+      "dur": 7,
+      "narration": "Di dalam, penjepit logam menggigit kaki colokan. Listrik mengalir lewat titik sentuh itu.",
+      "text": "Listrik lewat titik sentuh",
+      "scene": {
+        "bg": "lab",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Listrik lewat titik sentuh",
+            "highlight": [
+              "titik sentuh"
+            ],
+            "fs": 70
+          },
+          {
+            "type": "socket",
+            "x": 540,
+            "y": 926,
+            "s": 1,
+            "id": "dalam",
+            "view": "cutaway",
+            "variant": "tight",
+            "dots": true
+          },
+          {
+            "type": "label",
+            "text": "penjepit logam",
+            "x": 800,
+            "y": 560,
+            "enter": {
+              "kind": "fade-up",
+              "delay": 1
+            },
+            "follow": {
+              "item": "dalam",
+              "anchor": "clip"
+            },
+            "fs": 56,
+            "color": "white"
+          },
+          {
+            "type": "label",
+            "text": "kaki colokan",
+            "x": 280,
+            "y": 1330,
+            "enter": {
+              "kind": "fade-up",
+              "delay": 2
+            },
+            "follow": {
+              "item": "dalam",
+              "anchor": "pin"
+            },
+            "fs": 56,
+            "color": "white"
+          },
+          {
+            "type": "arrow",
+            "x": 540,
+            "y": 1250,
+            "enter": {
+              "kind": "draw",
+              "delay": 3
+            },
+            "follow": {
+              "item": "dalam",
+              "anchor": "contact"
+            },
+            "x2": 540,
+            "y2": 1050,
+            "color": "yellow",
+            "w": 14
+          },
+          {
+            "type": "badge",
+            "text": "1",
+            "x": 150,
+            "y": 420,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.5
+            },
+            "r": 50,
+            "color": "yellow"
+          }
+        ]
+      },
+      "sfx": "hum listrik pelan",
+      "camera": {
+        "kind": "push",
+        "zoom": 1.12,
+        "dur": 6
+      },
+      "transition": {
+        "kind": "lens",
+        "dur": 0.8,
+        "x": 560,
+        "y": 1060,
+        "r": 355
+      }
+    },
+    {
+      "id": "kendur",
+      "kind": "loose",
+      "dur": 8,
+      "narration": "Tapi kalau penjepitnya sudah kendur, sentuhannya jadi sempit. Listrik harus lewat jalan sempit itu, dan hambatannya mengubah listrik jadi panas.",
+      "text": "Kendur bikin hambatan, lalu panas",
+      "scene": {
+        "bg": "lab",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Kendur bikin hambatan, lalu panas",
+            "highlight": [
+              "kendur",
+              "panas"
+            ],
+            "fs": 66
+          },
+          {
+            "type": "socket",
+            "x": 540,
+            "y": 926,
+            "actions": [
+              {
+                "kind": "shake",
+                "at": 3,
+                "danger": true
+              }
+            ],
+            "s": 1,
+            "id": "dalam",
+            "view": "cutaway",
+            "variant": "loose",
+            "heat": 0.8,
+            "dots": true
+          },
+          {
+            "type": "label",
+            "text": "sentuhan sempit",
+            "x": 800,
+            "y": 560,
+            "enter": {
+              "kind": "fade-up",
+              "delay": 1
+            },
+            "follow": {
+              "item": "dalam",
+              "anchor": "contact"
+            },
+            "fs": 56,
+            "color": "red"
+          },
+          {
+            "type": "arrow",
+            "x": 540,
+            "y": 1250,
+            "enter": {
+              "kind": "draw",
+              "delay": 2
+            },
+            "follow": {
+              "item": "dalam",
+              "anchor": "contact"
+            },
+            "x2": 540,
+            "y2": 1050,
+            "color": "red",
+            "w": 14
+          },
+          {
+            "type": "badge",
+            "text": "2",
+            "x": 150,
+            "y": 420,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.5
+            },
+            "r": 50,
+            "color": "red"
+          },
+          {
+            "type": "source",
+            "x": 540,
+            "y": 1450,
+            "enter": {
+              "kind": "fade-up",
+              "delay": 4.5
+            },
+            "exit": {
+              "kind": "fade-up",
+              "at": 7
+            },
+            "claim": 3,
+            "org": "Hunker",
+            "w": 860
+          }
+        ]
+      },
+      "sfx": "sizzle pelan",
+      "camera": {
+        "kind": "push",
+        "zoom": 1.15,
+        "dur": 7
+      }
+    },
+    {
+      "id": "akhir",
+      "kind": "result",
+      "dur": 7,
+      "narration": "Makin panas, hambatannya makin besar, jadi makin panas lagi. Akhirnya colokan bisa meleleh dan berisiko kebakaran.",
+      "text": "Makin panas, bisa meleleh",
+      "scene": {
+        "bg": "brand",
+        "spot": {
+          "x": 540,
+          "y": 800,
+          "r": 520
+        },
+        "items": [
+          {
+            "type": "banner",
+            "text": "Makin panas, bisa meleleh",
+            "highlight": [
+              "meleleh"
+            ],
+            "fs": 72
+          },
+          {
+            "type": "socket",
+            "x": 540,
+            "y": 780,
+            "actions": [
+              {
+                "kind": "shake",
+                "at": 1.5,
+                "danger": true
+              }
+            ],
+            "s": 1.45,
+            "view": "outside",
+            "variant": "scorched",
+            "heat": 1,
+            "plug": {
+              "route": [
+                [
+                  540,
+                  892
+                ],
+                [
+                  540,
+                  1470
+                ],
+                [
+                  580,
+                  1555
+                ],
+                [
+                  700,
+                  1590
+                ],
+                [
+                  1180,
+                  1590
+                ]
+              ]
+            },
+            "smoke": true
+          },
+          {
+            "type": "badge",
+            "text": "!",
+            "x": 850,
+            "y": 480,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.8
+            },
+            "r": 52,
+            "color": "red"
+          },
+          {
+            "type": "source",
+            "x": 540,
+            "y": 1450,
+            "enter": {
+              "kind": "fade-up",
+              "delay": 3.5
+            },
+            "exit": {
+              "kind": "fade-up",
+              "at": 6.2
+            },
+            "claim": 1,
+            "org": "CPSC",
+            "date": "Jul 2008",
+            "w": 860
+          }
+        ]
+      },
+      "sfx": "sizzle, puff asap",
+      "transition": {
+        "kind": "wipe",
+        "dur": 0.6,
+        "dir": "left"
+      }
+    },
+    {
+      "id": "tips",
+      "kind": "tips",
+      "dur": 9,
+      "narration": "Dua tips aman. Satu, kalau colokan terasa panas, berhenti pakai dulu dan minta teknisi memeriksa. Dua, colokan yang goyang tanda stop kontaknya kendur, minta teknisi menggantinya.",
+      "text": "2 tips aman",
+      "scene": {
+        "bg": "brand",
+        "spot": {
+          "x": 540,
+          "y": 900,
+          "r": 560
+        },
+        "items": [
+          {
+            "type": "banner",
+            "text": "2 tips aman",
+            "highlight": [
+              "aman"
+            ],
+            "fs": 80
+          },
+          {
+            "type": "badge",
+            "text": "1",
+            "x": 150,
+            "y": 560,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.8
+            },
+            "r": 60,
+            "color": "yellow"
+          },
+          {
+            "type": "label",
+            "text": "Panas? Berhenti pakai",
+            "x": 560,
+            "y": 580,
+            "enter": {
+              "kind": "fade-up",
+              "delay": 1
+            },
+            "highlight": [
+              "Berhenti"
+            ],
+            "fs": 66
+          },
+          {
+            "type": "label",
+            "text": "Lalu panggil teknisi",
+            "x": 560,
+            "y": 700,
+            "enter": {
+              "kind": "fade-up",
+              "delay": 2
+            },
+            "fs": 56
+          },
+          {
+            "type": "badge",
+            "text": "2",
+            "x": 150,
+            "y": 1010,
+            "enter": {
+              "kind": "pop",
+              "delay": 4.8
+            },
+            "r": 60,
+            "color": "yellow"
+          },
+          {
+            "type": "label",
+            "text": "Colokan goyang?",
+            "x": 560,
+            "y": 1030,
+            "enter": {
+              "kind": "fade-up",
+              "delay": 5
+            },
+            "highlight": [
+              "goyang"
+            ],
+            "fs": 66
+          },
+          {
+            "type": "label",
+            "text": "Teknisi ganti stop kontak",
+            "x": 560,
+            "y": 1150,
+            "enter": {
+              "kind": "fade-up",
+              "delay": 6
+            },
+            "fs": 56
+          },
+          {
+            "type": "socket",
+            "x": 540,
+            "y": 1380,
+            "enter": {
+              "kind": "pop",
+              "delay": 6.5
+            },
+            "s": 0.7,
+            "view": "outside",
+            "variant": "plain"
+          }
+        ]
+      },
+      "sfx": "chime tiap tips",
+      "transition": {
+        "kind": "slide",
+        "dur": 0.5,
+        "dir": "left"
+      }
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "dur": 4,
+      "narration": "Intip yuk fakta lainnya!",
+      "text": "klipian intip",
+      "scene": {
+        "bg": "black",
+        "items": [
+          {
+            "type": "mascot",
+            "x": 540,
+            "y": 771,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.1
+            },
+            "actions": [
+              {
+                "kind": "look",
+                "at": 1.6,
+                "x": 540,
+                "y": 1489
+              }
+            ],
+            "w": 656,
+            "expr": "understand",
+            "sparks": true,
+            "persist": true
+          },
+          {
+            "type": "label",
+            "text": "klipian intip",
+            "x": 540,
+            "y": 1273,
+            "enter": {
+              "kind": "fade-up",
+              "delay": 0.5
+            },
+            "fs": 116,
+            "color": "white"
+          },
+          {
+            "type": "pill",
+            "text": "Intip yuk fakta lain →",
+            "x": 540,
+            "y": 1489,
+            "enter": {
+              "kind": "pop",
+              "delay": 1.1
+            },
+            "fs": 69
+          }
+        ]
+      },
+      "sfx": "jingle outro 1 dtk"
+    }
+  ],
+  "claims": [
+    {
+      "text": "Colokan yang tidak pas atau longgar di stop kontak bisa menyebabkan panas berlebih dan kebakaran.",
+      "beats": [
+        "kendur",
+        "akhir",
+        "tips"
+      ],
+      "sources": [
+        "https://www.cpsc.gov/s3fs-public/513.pdf",
+        "https://news.jacksonemc.com/safety-check"
+      ]
+    },
+    {
+      "text": "Stop kontak yang terasa hangat atau berubah warna bisa menandakan kondisi kelistrikan yang tidak aman; berhenti memakainya sampai diperiksa teknisi listrik.",
+      "beats": [
+        "hook",
+        "tips"
+      ],
+      "sources": [
+        "https://news.jacksonemc.com/safety-check",
+        "https://www.sandiego.gov/sites/default/files/legacy/fire/pdf/electricalsafety.pdf"
+      ]
+    },
+    {
+      "text": "Pada sambungan yang longgar, arus harus melewati titik berhambatan tinggi, dan hambatan itu mengubah energi listrik menjadi panas.",
+      "beats": [
+        "dalam",
+        "kendur"
+      ],
+      "sources": [
+        "https://www.hunker.com/12609342/why-do-appliance-plugs-get-hot",
+        "https://ajlongelectric.com/problems/hot-outlet"
+      ]
+    },
+    {
+      "text": "Pada sambungan yang longgar, panas membuat hambatan naik sehingga panas bertambah lagi, sampai colokan bisa mulai meleleh.",
+      "beats": [
+        "akhir"
+      ],
+      "sources": [
+        "https://toughleads.co.uk/pages/why-does-my-plug-get-warm"
+      ]
+    },
+    {
+      "text": "Stop kontak yang tidak menahan colokan dengan pas sebaiknya diganti.",
+      "beats": [
+        "tips"
+      ],
+      "sources": [
+        "https://news.jacksonemc.com/safety-check",
+        "https://www.cpsc.gov/s3fs-public/513.pdf"
+      ]
+    }
+  ],
+  "post": {
+    "description": "Kenapa colokan bisa panas? Intip bagian dalam stop kontak: penjepit logam yang kendur membuat sentuhannya sempit, listrik berdesakan, dan hambatannya berubah jadi panas. Kalau colokan terasa panas, berhenti pakai dulu dan minta teknisi memeriksa atau mengganti stop kontaknya.",
+    "hashtags": [
+      "#colokanpanas",
+      "#stopkontak",
+      "#listrik",
+      "#faktaseru",
+      "#intipyuk",
+      "#shorts"
+    ]
+  },
+  "needs": []
+}
