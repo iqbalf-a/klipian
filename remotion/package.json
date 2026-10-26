@@ -6,7 +6,8 @@
   "description": "P28-A spike: a JSON storyboard -> a fixed Remotion template -> MP4 (no keys, the AI only fills JSON).",
   "scripts": {
     "check": "tsc --noEmit",
-    "test": "node tests/schema.test.ts && node tests/timeline.test.ts",
+    "test": "node tests/schema.test.ts && node tests/timeline.test.ts && node tests/cable.test.ts && node tests/sfx.test.ts",
+    "sfx": "node sfx/synth.mjs",
     "studio": "remotion studio src/index.ts",
     "still": "node render.mjs",
     "render": "node render.mjs"

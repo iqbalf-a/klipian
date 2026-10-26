@@ -66,7 +66,8 @@
                 "at": 1.0,
                 "kind": "highlight"
               }
-            ]
+            ],
+            "heat": 0.5
           },
           {
             "type": "chibi",
@@ -271,7 +272,8 @@
             "dots": true,
             "enter": {
               "kind": "none"
-            }
+            },
+            "id": "cut"
           },
           {
             "type": "label",
@@ -285,6 +287,10 @@
             "enter": {
               "kind": "fade-up",
               "delay": 2.0
+            },
+            "follow": {
+              "item": "cut",
+              "anchor": "contact"
             }
           },
           {
@@ -299,6 +305,10 @@
               "kind": "draw",
               "delay": 2.3,
               "dur": 0.6
+            },
+            "follow": {
+              "item": "cut",
+              "anchor": "contact"
             }
           },
           {
@@ -313,6 +323,10 @@
             "enter": {
               "kind": "fade-up",
               "delay": 3.2
+            },
+            "follow": {
+              "item": "cut",
+              "anchor": "contact"
             }
           },
           {
@@ -327,6 +341,10 @@
               "kind": "draw",
               "delay": 3.5,
               "dur": 0.6
+            },
+            "follow": {
+              "item": "cut",
+              "anchor": "contact"
             }
           },
           {
@@ -403,7 +421,8 @@
             "dots": true,
             "enter": {
               "kind": "none"
-            }
+            },
+            "id": "cut"
           },
           {
             "type": "label",
@@ -421,7 +440,11 @@
                 "at": 3.4,
                 "kind": "highlight"
               }
-            ]
+            ],
+            "follow": {
+              "item": "cut",
+              "anchor": "contact"
+            }
           },
           {
             "type": "arrow",
@@ -435,6 +458,10 @@
               "kind": "draw",
               "delay": 2.8,
               "dur": 0.6
+            },
+            "follow": {
+              "item": "cut",
+              "anchor": "contact"
             }
           },
           {

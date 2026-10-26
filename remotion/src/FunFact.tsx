@@ -20,6 +20,12 @@ import { LensReveal } from "./components/LensReveal.tsx";
 import { Arrow, Badge, Banner, Black, Label, Pill, Room } from "./components/UI.tsx";
 import { Brand, Lab } from "./components/Backgrounds.tsx";
 import type { ChibiExpression, ChibiPose, MascotExpression } from "./catalog.ts";
+import { cablePath, type Pt } from "./cable.ts";
+import { Host3D, Placed, projectToScreen } from "./three/common.tsx";
+import { ANCHORS, CABLE_EXIT, Cable3D, Cutaway3D, Plug3D, PlugHeat, Smoke3D, WallSocket3D } from "./three/Socket3D.tsx";
+import { easeOutBack } from "./motion.ts";
+import { Ring, Line } from "./components/svg.tsx";
+import { BLACK, YELLOW_D } from "./tokens.ts";
 
 export { totalFrames } from "./timeline.ts";
 
@@ -46,13 +52,109 @@ function pivotOf(item: ItemT): [number, number] {
   return [item.x, item.y];
 }
 
-/** One object of a scene, by its type, brought to life by the story's motion words (or the defaults). */
-const SceneItem: React.FC<{ item: ItemT; beatId: string; index: number; t: number; clock: number; lab: boolean }> = ({ item, index, t, clock, lab }) => {
+const SHEET_LENS_R = 92;
+
+/** Is this item drawn as a 3D toon model (the default for sockets and lenses) rather than the flat 2D one? */
+export const is3D = (item: ItemT): boolean => (item.type === "socket" || item.type === "lens") && item.model !== "flat";
+
+/** The 3D placement of a socket or lens: where its centre is on the screen and its story scale. The lens shows the cutaway centred on
+    the pin (52 sheet units to the right of the box centre), at the lens's own scale. */
+function placement(item: ItemT): { x: number; y: number; s: number } | null {
+  if (item.type === "socket") return { x: item.x, y: item.y, s: item.s };
+  if (item.type === "lens") { const q = item.r / SHEET_LENS_R; return { x: item.x - 52 * q, y: item.y, s: q / K }; }
+  return null;
+}
+
+/** How far a part of a 3D item of the beat has moved from its resting pose (orbit off) on the screen: a label or arrow that follows it moves by that. */
+function followAt(items: readonly ItemT[], follow: { item: string; anchor: string } | undefined, clock: number): { x: number; y: number } {
+  if (!follow) return { x: 0, y: 0 };
+  const target = items.find((o) => (o.type === "socket" || o.type === "lens") && o.id === follow.item);
+  const at = target && placement(target);
+  if (!at) return { x: 0, y: 0 };
+  const part = ANCHORS[follow.anchor] ?? ANCHORS.center;
+  const now = projectToScreen(at.x, at.y, at.s, clock, part, 0), rest = projectToScreen(at.x, at.y, at.s, clock, part, 0, false, true);
+  return { x: now.x - rest.x, y: now.y - rest.y };
+}
+
+const layer: React.CSSProperties = { position: "absolute", left: 0, top: 0, width: FRAME.width, height: FRAME.height };
+
+/** A 3D item (a socket or a lens): its own transparent canvas between the 2D layers, with the same enter / exit / emphasis as a 2D item. */
+const Item3DLayer: React.FC<{ item: ItemT; index: number; t: number; clock: number }> = ({ item, index, t, clock }) => {
+  if (item.type !== "socket" && item.type !== "lens") return null;
   const plan = enterOf(item, index);
   const enter = enterFx(plan, t), exit = exitFx(item.exit, t), emph = emphasisFx(item.actions, t);
   const opacity = enter.opacity * exit.opacity, scale = enter.scale * exit.scale * emph.scale;
   if (opacity <= 0.002 || scale <= 0.001) return null;
-  const [px, py] = pivotOf(item);
+  const [px, py] = [item.x, item.y];
+  const draw = plan.kind === "draw" ? enter.draw : 1;
+  const style: React.CSSProperties = {
+    ...layer, opacity, transformOrigin: `${px}px ${py}px`,
+    transform: `translate(${enter.tx + exit.tx + emph.tx}px, ${enter.ty + exit.ty}px) scale(${scale})`,
+  };
+  const ramp = (item.heat ?? (item.type === "socket" && item.variant === "loose" ? 1 : 0)) * (0.3 + 0.7 * easeOut(clamp01((t - plan.delay) / 2.5)));
+
+  if (item.type === "lens") {
+    const q = item.r / SHEET_LENS_R;
+    const p = Math.max(0, easeOutBack((t - (item.reveal?.from ?? plan.delay)) / (item.reveal?.dur ?? 0.8)));
+    const now = item.r * p;
+    if (now < 1) return null;
+    const hh = 0.72 * now;
+    return (
+      <div style={style}>
+        <div style={{ ...layer, clipPath: `circle(${now}px at ${item.x}px ${item.y}px)` }}>
+          {/* inside the lens is the lab, and the cutaway is a 3D model cut lengthwise, centred on the pin */}
+          <svg width={FRAME.width} height={FRAME.height} style={layer}><Lab clock={clock} /></svg>
+          <Host3D><Placed x={item.x - 52 * q} y={item.y} s={q / K} clock={clock}><Cutaway3D loose={item.variant === "loose"} heat={item.heat ?? 1} t={t} /></Placed></Host3D>
+        </div>
+        <svg width={FRAME.width} height={FRAME.height} style={layer}>
+          <g transform={`translate(${item.x} ${item.y})`}>
+            <Ring x={0} y={0} r={now} w={12 * q * p} stroke={BLACK} />
+            <Line a={[hh, hh]} b={[hh + 46 * q * p, hh + 46 * q * p]} w={16 * q * p} stroke={YELLOW_D} />
+          </g>
+        </svg>
+      </div>
+    );
+  }
+
+  if (item.view === "cutaway") {
+    return (
+      <div style={style}>
+        <Host3D><Placed x={item.x} y={item.y} s={item.s} clock={clock}><Cutaway3D loose={item.variant === "loose"} heat={ramp} dots={item.dots ?? true} t={t} draw={draw} /></Placed></Host3D>
+      </div>
+    );
+  }
+  // the outside view: the wall socket, its plug, the cable (a tube along the same smooth curve as the 2D cable), heat and smoke
+  const k = K * item.s;
+  const tip: Pt = [item.x, item.y + (-CABLE_EXIT.y * 0.9) * (k / 0.02)];
+  const route: Pt[] | null = item.plug ? [tip, ...((item.plug.route ?? [[item.x, item.y], [item.plug.cableX ?? item.x, item.plug.cableY ?? item.y]]).slice(1) as Pt[])] : null;
+  return (
+    <div style={style}>
+      <Host3D>
+        <Placed x={item.x} y={item.y} s={item.s} clock={clock} phase={index}>
+          <WallSocket3D scorched={item.variant === "scorched"} />
+          {item.plug && <Plug3D />}
+          {item.plug && ramp > 0 && <PlugHeat heat={ramp} t={t} />}
+          {item.smoke && <group scale={1 / item.s}><Smoke3D t={t} /></group>}
+        </Placed>
+        {route && <Cable3D route={route} radiusPx={4.3 * k} draw={draw} />}
+      </Host3D>
+      {item.waves && (
+        <svg width={FRAME.width} height={FRAME.height} style={layer}>
+          <g transform={`translate(${item.x} ${item.y}) scale(${k})`}><g transform={`translate(0 ${-50 / item.s}) scale(${0.9 / item.s})`}><HeatWaves t={t} /></g></g>
+        </svg>
+      )}
+    </div>
+  );
+};
+
+/** One 2D object of a scene, by its type, brought to life by the story's motion words (or the defaults). */
+const SceneItem: React.FC<{ item: ItemT; beat: BeatT; index: number; t: number; clock: number; lab: boolean }> = ({ item, beat, index, t, clock, lab }) => {
+  const off = (item.type === "label" || item.type === "arrow") ? followAt(beat.scene.items, item.follow, clock) : { x: 0, y: 0 };
+  const plan = enterOf(item, index);
+  const enter = enterFx(plan, t), exit = exitFx(item.exit, t), emph = emphasisFx(item.actions, t);
+  const opacity = enter.opacity * exit.opacity, scale = enter.scale * exit.scale * emph.scale;
+  if (opacity <= 0.002 || scale <= 0.001) return null;
+  const [px, py] = (() => { const [a, b] = pivotOf(item); return [a + off.x, b + off.y] as [number, number]; })();
   const draw = plan.kind === "draw" ? enter.draw : 1;
   const textStart = plan.delay + (plan.kind === "slide" ? 0.1 : 0.05);
   const wrap = (children: React.ReactNode) => (
@@ -83,12 +185,12 @@ const SceneItem: React.FC<{ item: ItemT; beatId: string; index: number; t: numbe
           </g>);
       }
       // the cable follows its route (it drops to the floor, runs along it, leaves the frame or ends behind an object), or goes straight
-      const route = item.plug?.route ?? [[item.x, item.y + 20 * k], [item.plug?.cableX ?? item.x, item.plug?.cableY ?? item.y]];
-      const cablePath = item.plug ? `M ${route.map(([px, py]) => `${px} ${py}`).join(" L ")}` : "";
-      const cable = item.plug ? evolvePath(draw, cablePath) : null;
+      const route = (item.plug?.route ?? [[item.x, item.y + 20 * k], [item.plug?.cableX ?? item.x, item.plug?.cableY ?? item.y]]) as Pt[];
+      const d = item.plug ? cablePath(route) : "";                        // smooth: every corner rounded, a slight sag, round caps and joins
+      const cable = item.plug ? evolvePath(draw, d) : null;
       return wrap(
         <g>
-          {item.plug && cable && <path d={cablePath} fill="none" stroke={G1} strokeWidth={7 * k} strokeLinecap="round" strokeLinejoin="round"
+          {item.plug && cable && <path d={d} fill="none" stroke={G1} strokeWidth={7 * k} strokeLinecap="round" strokeLinejoin="round"
             strokeDasharray={cable.strokeDasharray} strokeDashoffset={cable.strokeDashoffset} />}
           <g transform={`translate(${item.x} ${item.y}) scale(${k})`}>
             <SocketOutside scorched={item.variant === "scorched"} />
@@ -108,10 +210,10 @@ const SceneItem: React.FC<{ item: ItemT; beatId: string; index: number; t: numbe
     case "pill":
       return wrap(<Pill text={item.text} x={item.x} y={item.y} fs={item.fs} t={t} start={textStart} highlight={item.highlight} />);
     case "label":
-      return wrap(<Label text={item.text} x={item.x} y={item.y} fs={item.fs} color={item.color} align={item.align} lines={item.lines}
+      return wrap(<Label text={item.text} x={item.x + off.x} y={item.y + off.y} fs={item.fs} color={item.color} align={item.align} lines={item.lines}
         t={t} start={textStart} highlight={item.highlight} onDark={lab} />);
     case "arrow":
-      return wrap(<Arrow x={item.x} y={item.y} x2={item.x2} y2={item.y2} color={item.color} w={item.w} draw={draw} />);
+      return wrap(<Arrow x={item.x + off.x} y={item.y + off.y} x2={item.x2 + off.x} y2={item.y2 + off.y} color={item.color} w={item.w} draw={draw} />);
     case "badge":
       return wrap(<Badge text={item.text} x={item.x} y={item.y} r={item.r} color={item.color} />);
   }
@@ -125,17 +227,21 @@ const SceneSvg: React.FC<{ beat: BeatT; startFrame: number }> = ({ beat, startFr
   const clock = (startFrame + frame) / FPS;               // seconds of the video: backgrounds drift and idles run on it, so they carry across beats
   const bg = beat.scene.bg;
   const cam = cameraAt(cameraOf(beat), t, beat.dur);
-  const cx = FRAME.width / 2, cy = FRAME.height / 2;
+  const lab = bg === "lab";
+  const svg = (key: React.Key, children: React.ReactNode) => <svg key={key} width={FRAME.width} height={FRAME.height} viewBox={`0 0 ${FRAME.width} ${FRAME.height}`} style={layer}>{children}</svg>;
   return (
-    <svg width={FRAME.width} height={FRAME.height} viewBox={`0 0 ${FRAME.width} ${FRAME.height}`} style={{ display: "block" }}>
-      <g transform={`translate(${cam.tx} ${cam.ty}) translate(${cx} ${cy}) scale(${cam.scale}) translate(${-cx} ${-cy})`}>
-        {bg === "room" ? <Room /> : bg === "brand" ? <Brand clock={clock} spot={beat.scene.spot} /> : bg === "lab" ? <Lab clock={clock} /> : <Black />}
-        {beat.scene.items.map((item, i) => isPersistent(item) ? null : <SceneItem key={i} item={item} beatId={beat.id} index={i} t={t} clock={clock} lab={bg === "lab"} />)}
-      </g>
+    <div style={{ position: "relative", width: FRAME.width, height: FRAME.height, overflow: "hidden" }}>
+      {/* the camera's world: the background, then every item as its own layer (a 2D svg, or a 3D toon canvas), in the story's order */}
+      <div style={{ ...layer, transformOrigin: `${FRAME.width / 2}px ${FRAME.height / 2}px`, transform: `translate(${cam.tx}px, ${cam.ty}px) scale(${cam.scale})` }}>
+        {svg("bg", bg === "room" ? <Room /> : bg === "brand" ? <Brand clock={clock} spot={beat.scene.spot} /> : lab ? <Lab clock={clock} /> : <Black />)}
+        {beat.scene.items.map((item, i) => isPersistent(item) ? null : is3D(item)
+          ? <Item3DLayer key={i} item={item} index={i} t={t} clock={clock} />
+          : svg(i, <SceneItem item={item} beat={beat} index={i} t={t} clock={clock} lab={lab} />))}
+      </div>
       {/* a persistent mascot lives on the screen, not in the camera's world: it stays where it is from beat to beat (and through a
           transition), and only its face and gaze change */}
-      {beat.scene.items.map((item, i) => isPersistent(item) ? <SceneItem key={i} item={item} beatId={beat.id} index={i} t={t} clock={clock} lab={bg === "lab"} /> : null)}
-    </svg>
+      {svg("persist", beat.scene.items.map((item, i) => isPersistent(item) ? <SceneItem key={i} item={item} beat={beat} index={i} t={t} clock={clock} lab={lab} /> : null))}
+    </div>
   );
 };
 

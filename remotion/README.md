@@ -13,3 +13,18 @@ never writes render code: it only fills the story JSON (`stories/colokan-panas.j
 `render.mjs` prints JSON lines (`progress`, `timing`, `done`, `error`), caches the bundle in `.cache/` by a hash of `src/`,
 writes into `out/`, and stops on SIGINT/SIGTERM or a line `cancel` on stdin. Components and colours: `src/components/`,
 `src/tokens.ts` (ported from `workspace/channel-art/klipian-intip/`). Motion: `src/motion.ts` (continuous 30 fps, springs and easing) and `src/timeline.ts`.
+
+## 3D objects, smooth cables, sound (P28-A4)
+
+- **3D toon assets** (`src/three/`): the wall socket, the plug, the cable and the cutaway (the lens shows it, lab background) are real 3D
+  models with the same toon look and top-left light as `Dissect3D`. A socket or lens item is 3D by default (`"model": "flat"` keeps the old
+  2D drawing). Each 3D item is its own transparent canvas between the 2D layers; the chibi, the mascot, banners, labels, arrows, badges and
+  backgrounds stay 2D. A label or arrow with `"follow": {"item": "<id>", "anchor": "contact"}` stays on that part as the object turns
+  (the item needs an `id`). `Models3D` is the asset sheet to look at the models.
+- **Cables** (`src/cable.ts`): a route is a polyline; every corner is rounded with a cubic curve and long horizontal stretches sag a little,
+  so there are no sharp bends. The 2D cable and the `draw` animation use that path; the 3D cable is a tube along the same curve.
+- **Sound effects** (`src/sfx.ts`, `sfx/`): the picture is rendered silent and `render.mjs` mixes the effects from the story and muxes
+  them in as AAC (`"sound": false` for a silent MP4). Which sound plays on which motion word is the table `SFX_FOR` in `src/catalog.ts`;
+  an item's `"sfx"` (a name of the closed list `SFX`, or `"none"`) overrides its entrance sound. The WAVs are synthesised by
+  `npm run sfx` (see `sfx/LICENSES.md`), mixed by `sfx/mix.mjs` (a cooldown per sound, at most 3 at once, a -6 dBFS soft limiter, a `duck`
+  for a future voice-over). Next to each video it writes `<name>.sfx.wav` and `<name>.sfx.txt` (the event -> sound timeline).

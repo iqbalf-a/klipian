@@ -3,8 +3,8 @@
    and poses of the catalogue, at most 6 words of screen text, every claim with a source. */
 import { z } from "zod";
 import {
-  ARROW_COLORS, BACKGROUNDS, BEAT_KINDS, CAMERA_KINDS, CHIBI_COSTUMES, CHIBI_EXPRESSIONS, CHIBI_POSES, CHIBI_ROLES, CUTAWAY_VARIANTS, DIRECTIONS,
-  ENTER_KINDS, EXIT_KINDS, LABEL_COLORS, MASCOT_EXPRESSIONS, OUTSIDE_VARIANTS, SOCKET_VIEWS, TRANSITION_KINDS,
+  ANCHOR_NAMES, ARROW_COLORS, BACKGROUNDS, BEAT_KINDS, CAMERA_KINDS, CHIBI_COSTUMES, CHIBI_EXPRESSIONS, CHIBI_POSES, CHIBI_ROLES, CUTAWAY_VARIANTS, DIRECTIONS,
+  ENTER_KINDS, EXIT_KINDS, LABEL_COLORS, MASCOT_EXPRESSIONS, MODELS, OUTSIDE_VARIANTS, SFX_NAMES, SOCKET_VIEWS, TRANSITION_KINDS,
 } from "./catalog.ts";
 
 export const MAX_SCREEN_WORDS = 6;
@@ -34,8 +34,12 @@ export const Action = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("pose"), at, pose: z.enum(CHIBI_POSES) }).strict(),            // the chibi's arms spring to a pose
   z.object({ kind: z.literal("expr"), at, expr: z.enum(EXPRESSIONS) }).strict(),            // another face
 ]);
-const motion = { enter: Enter.optional(), exit: Exit.optional(), actions: z.array(Action).max(8).optional() };
+// `sfx` changes the sound of the item's entrance (one name of the closed list), or silences it ("none")
+const motion = { enter: Enter.optional(), exit: Exit.optional(), actions: z.array(Action).max(8).optional(), sfx: z.enum([...SFX_NAMES, "none"]).optional() };
 const highlight = z.array(z.string().min(1).max(30)).max(6).optional();   // keywords of the text that turn yellow
+// a label or an arrow can follow a part of a 3D item of the same beat (it is placed as usual for the resting pose and then moves with that part as the object turns)
+const follow = z.object({ item: z.string().min(1).max(24), anchor: z.enum(ANCHOR_NAMES) }).strict().optional();
+const itemId = z.string().regex(/^[a-z0-9-]{1,24}$/).optional();
 
 const Mascot = z.object({
   type: z.literal("mascot"), ...pos, ...motion, w: num.min(20).max(1200),
@@ -52,7 +56,7 @@ const Chibi = z.object({
 }).strict();
 
 const Socket = z.object({
-  type: z.literal("socket"), ...pos, ...motion, s: num.min(0.1).max(4),            // s = 1 is the size on the reference sheet
+  type: z.literal("socket"), ...pos, ...motion, s: num.min(0.1).max(4), id: itemId, model: z.enum(MODELS).optional(),            // s = 1 is the size on the reference sheet
   view: z.enum(SOCKET_VIEWS),
   variant: z.enum([...OUTSIDE_VARIANTS, ...CUTAWAY_VARIANTS]),
   heat: num.min(0).max(1).optional(),                                    // cutaway: the glow at the contact
@@ -66,7 +70,7 @@ const Socket = z.object({
 }).strict();
 
 const Lens = z.object({
-  type: z.literal("lens"), ...pos, ...motion, r: num.min(30).max(700),             // the centre of the circle and its radius
+  type: z.literal("lens"), ...pos, ...motion, id: itemId, model: z.enum(MODELS).optional(), r: num.min(30).max(700),             // the centre of the circle and its radius
   variant: z.enum(CUTAWAY_VARIANTS), heat: num.min(0).max(1).optional(),
   reveal: z.object({ from: num.min(0), dur: num.min(0.1) }).strict().optional(),   // seconds into the beat: the circle opens
 }).strict();
@@ -74,13 +78,13 @@ const Lens = z.object({
 const Banner = z.object({ type: z.literal("banner"), text: screenText, ...motion, highlight, y: num.optional(), fs: num.min(20).max(160).optional() }).strict();
 const Pill = z.object({ type: z.literal("pill"), text: screenText, ...pos, ...motion, highlight, fs: num.min(20).max(200) }).strict();
 const Label = z.object({
-  type: z.literal("label"), text: screenText, ...pos, ...motion, highlight, fs: num.min(20).max(160),
+  type: z.literal("label"), text: screenText, ...pos, ...motion, highlight, follow, fs: num.min(20).max(160),
   color: z.enum(LABEL_COLORS).optional(), align: z.enum(["start", "middle"]).optional(),
   lines: z.array(screenText).max(4).optional(),                          // extra lines under the text
 }).strict();
 const Stack = z.object({ type: z.literal("stack"), ...pos, ...motion, s: num.min(0.1).max(4) }).strict();   // plugs piled on one socket, crossed out
 // Supporting elements that fill a screen without a new fact: an arrow from (x, y) to (x2, y2), a numbered badge.
-const Arrow = z.object({ type: z.literal("arrow"), ...pos, ...motion, x2: num.min(-400).max(1480), y2: num.min(-400).max(2320),
+const Arrow = z.object({ type: z.literal("arrow"), ...pos, ...motion, follow, x2: num.min(-400).max(1480), y2: num.min(-400).max(2320),
   color: z.enum(ARROW_COLORS).optional(), w: num.min(4).max(40).optional() }).strict();
 const Badge = z.object({ type: z.literal("badge"), text: z.string().min(1).max(3), ...pos, ...motion, r: num.min(20).max(120).optional(),
   color: z.enum(["yellow", "red", "white"]).optional() }).strict();
@@ -130,6 +134,13 @@ export const Story = z.object({
     if (!allowed.includes(item.variant)) {
       ctx.addIssue({ code: "custom", message: `the ${item.view} view of a socket has no "${item.variant}" variant`, path: ["beats", bi, "scene", "items", ii, "variant"] });
     }
+  }));
+  // a label or an arrow that follows a part names a 3D item (a socket or a lens with an id) of its own beat
+  s.beats.forEach((b, bi) => b.scene.items.forEach((item, ii) => {
+    if ((item.type !== "label" && item.type !== "arrow") || !item.follow) return;
+    const target = b.scene.items.find((o) => (o.type === "socket" || o.type === "lens") && o.id === item.follow!.item);
+    if (!target) ctx.addIssue({ code: "custom", message: `follows the item "${item.follow.item}", which this beat does not have (a socket or a lens with that id)`, path: ["beats", bi, "scene", "items", ii, "follow"] });
+    else if ((target as { model?: string }).model === "flat") ctx.addIssue({ code: "custom", message: `"${item.follow.item}" is drawn flat: only 3D models have parts to follow`, path: ["beats", bi, "scene", "items", ii, "follow"] });
   }));
   // motion: times inside the beat, actions only on the things they make sense for, at most 3 transitions, lens needs a circle
   let moving = 0;

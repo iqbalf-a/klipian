@@ -8,15 +8,21 @@
 //   {"type":"error","message":"...","cancelled":true|false}
 // Job: { "mode": "still" | "video", "story": "stories/x.json", "out": "name.mp4" (inside out/),
 //        "frame": 120 | "time": 4.5 (seconds) | "beat": "lensa" (+ "at": 0.85) for a still, "concurrency": 4 (optional),
+//        "sound": false (optional: no sound effects; default true: they are mixed from the story and muxed in as AAC),
 //        "composition": "FunFact" (default) | "Dissect3D" (no story), "gl": "angle" | "swangle" | "swiftshader" | "egl" | "vulkan" (optional) }
 // Cancel: SIGINT/SIGTERM/SIGBREAK, or a line "cancel" on stdin (Windows cannot deliver SIGTERM), is passed to Remotion's cancel signal.
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { createServer } from "node:net";
+import { spawn } from "node:child_process";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { bundle } from "@remotion/bundler";
-import { ensureBrowser, makeCancelSignal, renderMedia, renderStill, selectComposition } from "@remotion/renderer";
+import { RenderInternals, ensureBrowser, makeCancelSignal, renderMedia, renderStill, selectComposition } from "@remotion/renderer";
 import { validateStory } from "./src/schema.ts";
+import { dissectSfx, formatTimeline, storySfx } from "./src/sfx.ts";
+import { mixEvents } from "./sfx/mix.mjs";
+import { writeWav } from "./sfx/wav.mjs";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.join(ROOT, "out");
@@ -98,6 +104,33 @@ function resolveOut(job, ext) {
   return full;
 }
 
+/** A free TCP port for the render server (asked of the OS), so the render never fights a Studio for 3000. */
+const freePort = () => new Promise((resolve, reject) => {
+  const srv = createServer();
+  srv.once("error", reject);
+  srv.listen(0, "127.0.0.1", () => { const { port } = srv.address(); srv.close(() => resolve(port)); });
+});
+
+/** Mixes the planned sound effects into a stereo track, writes it (and the event table) beside the video, and muxes it in as AAC. */
+async function addSoundEffects(silent, out, plan, seconds) {
+  const t0 = Date.now();
+  const mixed = mixEvents(plan.events, seconds);
+  const wav = out.replace(/\.mp4$/, ".sfx.wav");
+  writeWav(wav, mixed.channels, mixed.rate);
+  writeFileSync(out.replace(/\.mp4$/, ".sfx.txt"), `${formatTimeline(plan)}
+`);
+  const ffmpeg = RenderInternals.getExecutablePath({ type: "ffmpeg", indent: false, logLevel: "error", binariesDirectory: null });
+  await new Promise((resolve, reject) => {
+    const p = spawn(ffmpeg, ["-y", "-v", "error", "-i", silent, "-i", wav, "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-t", String(seconds), out], { stdio: ["ignore", "ignore", "pipe"] });
+    let err = "";
+    p.stderr.on("data", (d) => { err += d; });
+    p.on("error", reject);
+    p.on("close", (code) => (code === 0 ? resolve() : reject(new Error(`ffmpeg failed: ${err.trim().slice(-300)}`))));
+  });
+  unlinkSync(silent);
+  emit({ type: "audio", events: plan.events.length, dropped: plan.dropped.length, peak: +mixed.peak.toFixed(3), rms: +mixed.rms.toFixed(4), ms: Date.now() - t0 });
+}
+
 async function main() {
   const jobFile = process.argv[2];
   if (!jobFile) fail("usage: node render.mjs <job.json>");
@@ -115,14 +148,15 @@ async function main() {
     story = checked.story;
   }
   const inputProps = story ? { story } : {};
-  const chromiumOptions = job.gl ? { gl: job.gl } : {};
+  const port = await freePort();                          // never the default 3000: another project (a Studio) may be on it
+  const chromiumOptions = { gl: job.gl ?? "angle" };       // the 3D layers need a GL backend; angle is the one that works headless here
   const t0 = Date.now();
 
   progress("browser", 0);
   await ensureBrowser({ onBrowserDownload: () => ({ onProgress: ({ percent }) => progress("browser", percent * 100) }) });
   const serveUrl = await getBundle();
   if (cancelled) fail("cancelled");
-  const composition = await selectComposition({ serveUrl, id: compId, inputProps, chromiumOptions, logLevel: "error" });
+  const composition = await selectComposition({ serveUrl, id: compId, inputProps, chromiumOptions, port, logLevel: "error" });
 
   if (job.mode === "still") {
     let frame = job.frame;
@@ -138,20 +172,23 @@ async function main() {
     }
     if (!Number.isInteger(frame) || frame < 0 || frame >= composition.durationInFrames) fail(`frame must be 0..${composition.durationInFrames - 1}`);
     const out = resolveOut(job, "png");
-    await renderStill({ composition, serveUrl, output: out, frame, inputProps, chromiumOptions, imageFormat: "png", cancelSignal, logLevel: "error" });
+    await renderStill({ composition, serveUrl, output: out, frame, inputProps, chromiumOptions, port, imageFormat: "png", cancelSignal, logLevel: "error" });
     emit({ type: "done", out, bytes: statSync(out).size, ms: Date.now() - t0, frame });
     return;
   }
 
   const out = resolveOut(job, "mp4");
+  const withSound = job.sound !== false;                   // the picture is rendered silent; the sound effects are mixed from the story and muxed in after
+  const silent = withSound ? out.replace(/\.mp4$/, ".silent.mp4") : out;
   await renderMedia({
-    composition, serveUrl, outputLocation: out, codec: "h264", inputProps, chromiumOptions,
-    muted: true,                                           // the voice and the sounds come later (P28-C)
+    composition, serveUrl, outputLocation: silent, codec: "h264", inputProps, chromiumOptions, port,
+    muted: true,                                           // the voice-over comes later (P28-C); the sound effects are added below
     concurrency: job.concurrency ?? null,
     cancelSignal, logLevel: "error",
     onProgress: ({ progress: p, renderedFrames, encodedFrames }) => progress("render", p * 100, { renderedFrames, encodedFrames, total: composition.durationInFrames }),
   });
   progress("render", 100, { total: composition.durationInFrames });
+  if (withSound) await addSoundEffects(silent, out, story ? storySfx(story) : dissectSfx(), composition.durationInFrames / composition.fps);
   emit({ type: "done", out, bytes: statSync(out).size, ms: Date.now() - t0, frames: composition.durationInFrames });
 }
 

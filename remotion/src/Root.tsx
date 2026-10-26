@@ -3,6 +3,7 @@ import { Composition } from "remotion";
 import { FunFact } from "./FunFact.tsx";
 import { FPS, totalFrames } from "./timeline.ts";
 import { Dissect3D, DISSECT_SECONDS } from "./Dissect3D.tsx";
+import { Models3D } from "./Models3D.tsx";
 import { FRAME } from "./tokens.ts";
 import { validateStory, type StoryT } from "./schema.ts";
 import sample from "../stories/colokan-panas.json";
@@ -25,5 +26,7 @@ export const Root: React.FC = () => (
   />
   {/* the 3D dissection test (P28-A2): a charger head, flat toon shading, no story */}
   <Composition id="Dissect3D" component={Dissect3D} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={Math.round(DISSECT_SECONDS * FPS)} />
+  {/* the 3D toon assets on one sheet, for looking at them (P28-A4) */}
+  <Composition id="Models3D" component={Models3D} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={90} />
   </>
 );

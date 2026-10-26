@@ -12,9 +12,10 @@ import { BLACK, FONT_BOLD, FRAME, G1, G2, G3, G4, HOT1, HOT2, LAB, METAL, PLUG_F
 import { Lab } from "./components/Backgrounds.tsx";
 import { easeInOut, springAt, clamp01 } from "./motion.ts";
 import { FPS } from "./timeline.ts";
+import { DISSECT_SECONDS, HEAT_FOR, HEAT_FROM, LABEL_AT, PART_AT, SPLIT_AT } from "./dissectTimeline.ts";
 import { useFonts } from "./FunFact.tsx";
 
-export const DISSECT_SECONDS = 7.5;
+export { DISSECT_SECONDS };
 const FOV = 26, ELEV = 17;
 const DIST_NEAR = 19, DIST_FAR = 38;               // assembled, the charger is about 65 % of the width; the camera pulls back as it comes apart
 const TARGET_NEAR = V0(0, 0, 0), TARGET_FAR = V0(-1.5, 0.9, 1.4);
@@ -43,15 +44,14 @@ function slab(w: number, h: number, d: number, r: number): THREE.BufferGeometry 
 // --- the timeline of the parts: how far each has moved (spring), offsets from the assembled place ---------------------------
 type Part = "front" | "back" | "pcb" | "trafo" | "cap1" | "cap2" | "chip";
 const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
-const SPLIT_AT = 2.0, PARTS_AT = 3.0;
 const EXPLODE: Record<Part, { at: number; by: THREE.Vector3 }> = {
   front: { at: SPLIT_AT, by: V(-1.8, 5.0, 3.0) },
   back: { at: SPLIT_AT + 0.1, by: V(0.2, -2.2, -2.6) },
-  pcb: { at: PARTS_AT, by: V(0, 0.2, -0.4) },
-  trafo: { at: PARTS_AT + 0.15, by: V(-3.0, 1.8, 2.4) },
-  cap1: { at: PARTS_AT + 0.45, by: V(2.6, 3.0, 2.2) },
-  cap2: { at: PARTS_AT + 0.75, by: V(3.4, -1.0, 2.0) },
-  chip: { at: PARTS_AT + 1.05, by: V(-1.2, -3.0, 2.8) },
+  pcb: { at: PART_AT.pcb, by: V(0, 0.2, -0.4) },
+  trafo: { at: PART_AT.trafo, by: V(-3.0, 1.8, 2.4) },
+  cap1: { at: PART_AT.cap1, by: V(2.6, 3.0, 2.2) },
+  cap2: { at: PART_AT.cap2, by: V(3.4, -1.0, 2.0) },
+  chip: { at: PART_AT.chip, by: V(-1.2, -3.0, 2.8) },
 };
 const HOME: Record<Part, THREE.Vector3> = {
   front: V(0, 0, 0.62), back: V(0, 0, -0.62), pcb: V(0, 0, 0), trafo: V(-0.55, 0.25, 0.46), cap1: V(0.75, 0.75, 0.5),
@@ -75,7 +75,7 @@ function cameraAt(t: number): { pos: THREE.Vector3; target: THREE.Vector3 } {
   const target = TARGET_NEAR.clone().lerp(TARGET_FAR, e);
   return { target, pos: target.clone().add(V(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).multiplyScalar(dist)) };
 }
-const heatAt = (t: number): number => clamp01((t - 5.0) / 1.2);
+const heatAt = (t: number): number => clamp01((t - HEAT_FROM) / HEAT_FOR);
 
 // --- the pieces ---------------------------------------------------------------------------------------------------------------
 const Mat: React.FC<{ color: string; emissive?: string; gradient: THREE.DataTexture }> = ({ color, emissive, gradient }) =>
@@ -168,13 +168,13 @@ const Rig: React.FC<{ t: number }> = ({ t }) => {
 
 // --- the 2D layer: labels that pop in, with a line to their part ------------------------------------------------------------------
 const LABELS: { part: Part; text: string; at: number; danger?: boolean }[] = [
-  { part: "front", text: "cangkang", at: 2.5 },
-  { part: "pcb", text: "papan sirkuit", at: 3.5 },
-  { part: "trafo", text: "trafo", at: 3.9 },
-  { part: "cap1", text: "kapasitor", at: 4.2 },
-  { part: "cap2", text: "kapasitor", at: 4.4 },
-  { part: "chip", text: "chip", at: 4.6 },
-  { part: "chip", text: "titik panas", at: 5.8, danger: true },
+  { part: "front", text: "cangkang", at: LABEL_AT[0] },
+  { part: "pcb", text: "papan sirkuit", at: LABEL_AT[1] },
+  { part: "trafo", text: "trafo", at: LABEL_AT[2] },
+  { part: "cap1", text: "kapasitor", at: LABEL_AT[3] },
+  { part: "cap2", text: "kapasitor", at: LABEL_AT[4] },
+  { part: "chip", text: "chip", at: LABEL_AT[5] },
+  { part: "chip", text: "titik panas", at: LABEL_AT[6], danger: true },
 ];
 function project(part: Part, t: number): { x: number; y: number } {
   const cam = new THREE.PerspectiveCamera(FOV, FRAME.width / FRAME.height, 0.1, 100);
