@@ -2711,6 +2711,64 @@ semuanya lokal.
 Belum termasuk: suara narasi dan takarir (P28-C), brief komponen baru,
 Studio, render massal (P28-D).
 
+**Evaluasi P28-B (ian 2026-10-26): belum layak publish.** Uji topik "kenapa
+hujan turun" menghasilkan slide teks: pustaka aset baru berisi benda listrik,
+jadi AI yang hanya boleh memakai katalog tidak punya awan, matahari atau laut;
+teks juga tertutup maskot dan chibi karena koordinat ditulis AI tanpa
+pengatur tata letak. Template data-saja menjaga konsistensi, tetapi membatasi
+kualitas pada isi pustaka.
+
+**Keputusan: produksi per video di Claude Code + pengatur tata letak** (ian
+2026-10-26, pilihan B + C).
+- **Alur baru:** klipian tetap membuat brief, menerima jawaban AI, menjalankan
+  gerbang fakta, merender, membuat baris Clips dan meng-upload (P28-B tetap
+  dipakai). Di antara gerbang fakta dan render ada **satu sesi Claude Code di
+  folder `remotion/`** (dengan skill Remotion) yang menulis adegan khusus untuk
+  video itu dari story yang sudah dicek, memakai design system channel. ian
+  meninjau dan merevisi lewat Remotion Studio. Tetap tanpa API key di klipian:
+  Claude Code berjalan terpisah dengan langganan ian.
+- **Design system** = komponen yang sudah ada (palet, maskot, chibi, latar
+  `brand`/`lab`, benda 3D toon, kabel, kosakata gerak, transisi, sound effect,
+  area aman) ditambah panduan tertulis `remotion/DESIGN.md` yang wajib dibaca
+  setiap sesi video.
+- **Pustaka tumbuh:** setiap benda atau adegan baru yang dibuat untuk satu
+  video disimpan sebagai aset di pustaka (dengan nama, state, contoh), jadi
+  video berikutnya lebih cepat dan katalog brief ikut bertambah.
+- **Pengatur tata letak otomatis (C):** zona tetap (banner atas, objek utama
+  tengah, keterangan samping, maskot kiri bawah), label dan teks didorong
+  supaya tidak saling menutup atau menutup objek, semua di area aman. Dipakai
+  oleh template data dan oleh adegan khusus.
+- **Video khusus di klipian:** proyek motion bisa menunjuk komposisi khusus
+  (`remotion/videos/<slug>/`) selain template; render, gerbang fakta, Clips
+  dan upload sama.
+
+**Batas mutu sebelum publish** (dinilai ian, untuk setiap video):
+1. setiap benda langsung dikenali tanpa membaca label;
+2. tidak ada yang saling menutup, semua di area aman;
+3. di setiap detik ada gerak yang bermakna, tidak ada layar diam yang lama;
+4. teks layar terbaca dalam 1 detik di ukuran HP;
+5. suara sinkron dengan gerak, tidak ramai;
+6. setiap klaim bersumber dan dicentang;
+7. hook 3 detik pertama memancing penasaran;
+8. ditonton ulang di HP tetap enak.
+
+**P28-P — 3 video uji coba** (rencana 2026-10-26):
+- **Langkah 1 (sesi eksekusi):** pengatur tata letak, `remotion/DESIGN.md`,
+  struktur `remotion/videos/<slug>/` (komposisi khusus yang memakai komponen
+  design system), dukungan komposisi khusus di `render.mjs` dan proyek
+  motion klipian, serta cara mendaftarkan aset baru ke pustaka dan katalog.
+- **Langkah 2 (sesi Claude Code "klipian motion" di folder `remotion/`):**
+  satu video demi satu, setiap video melewati batas mutu sebelum lanjut:
+  1. "Kenapa colokan bisa panas?" (dibuat ulang sampai layak, aset listrik
+     sudah ada);
+  2. "Kenapa hujan turun?" (aset alam baru: matahari, laut, uap, awan, tetes);
+  3. "Kenapa charger bisa panas?" (bedah 3D charger yang sudah ada).
+  Naskah dan fakta tiap video lewat brief klipian dan gerbang fakta seperti
+  biasa.
+- **Langkah 3:** ian menilai ketiganya. Kalau layak, lanjut publish dan
+  P28-C (suara). Kalau tidak, catat apa yang kurang sebelum membuat lebih
+  banyak.
+
 **Tahapan usulan (diperbarui 2026-10-25):** P28-A spike (di atas, selesai) →
 P28-A2 gerak halus dan uji bedah 3D → P28-B
 halaman `/remotion` dan endpoint: input topik dan durasi, brief, tempel dan
