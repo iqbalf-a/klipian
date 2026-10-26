@@ -2658,6 +2658,59 @@ rencana kerja untuk sesi eksekusi). Batasan sama dengan P28-A: hanya
    pembanding (lama vs baru), angka render, dan penilaian: apakah bedah 3D
    layak menjadi adegan "hero" per video (tokoh dan maskot tetap 2D).
 
+**Hasil P28-A2 sampai A4** (e8e6362, 3e58e62, 2e3a4ad, 123198b; sudah di-push
+2026-10-26): gerak halus dengan kosakata gerak tetap, latar `brand`/`lab`,
+benda utama 3D toon (stop kontak, colokan, potongan; uji bedah charger), kabel
+kurva halus, 25 sound effect buatan sendiri dengan mixer, dan skill resmi
+Remotion di `remotion/.claude/skills`. ian menilai hasil A4 oke.
+
+**P28-B — halaman `/remotion` di klipian** (rencana kerja untuk sesi
+eksekusi, 2026-10-26). Alur satu brief di atas menjadi fitur; tanpa API key,
+semuanya lokal.
+1. **Satu sumber kebenaran:** katalog dan skema tetap di `remotion/` (TS +
+   zod). Dua skrip Node kecil dipanggil Python: `catalog-export.mjs` (katalog
+   sebagai JSON untuk isi brief) dan `validate.mjs <story.json>` (hasil zod
+   sebagai JSON: ok, atau daftar kesalahan dengan path). Python tidak
+   menyalin aturan.
+2. **Modul `klipian/motion.py`** (meniru pola `ytdl.py`): proyek per profile di
+   `profiles/<id>/motion/<slug>/` berisi `project.json` (topik, durasi
+   30/45/60, catatan, status, judul terpilih), `story.json` (jawaban AI
+   terakhir yang lolos validasi, plus riwayat versi), `facts.json` (centang
+   per klaim dengan tanggal), dan `out/` (gambar diam, MP4).
+3. **Brief:** `build_brief(project)` membuat satu file mandiri (Copy brief /
+   Download, seperti brief klip): tugas, struktur menurut durasi, aturan
+   channel dan fakta, katalog dari `catalog-export`, aturan judul/hashtag dari
+   profile (`hashtags.brief_rule`), format jawaban dengan contoh, dan `needs`.
+   `build_revise_brief(project, beat_ids, note)` untuk klaim yang ditolak, dan
+   `build_fix_message(errors)` untuk JSON yang tidak lolos.
+4. **Endpoint** sesuai tabel di atas (`/api/motion/...`), kecuali `component`
+   dan `studio` (P28-D). Tempel jawaban: perbaiki JSON yang umum rusak
+   (perbaikan f238480), validasi lewat `validate.mjs`, simpan atau kembalikan
+   pesan perbaikan.
+5. **Pratinjau:** gambar diam per beat lewat `render.mjs` mode still, di
+   antrean berat (sched) sebagai pekerjaan ringan.
+6. **Gerbang fakta:** render ditolak server selama ada klaim yang belum
+   dicentang atau ditolak; judul harus dipilih.
+7. **Render:** `render.mjs` mode video lewat sched (grup render yang sama),
+   progres dari baris JSON stdout, Cancel dengan menulis `cancel` ke stdin,
+   ETA seperti render klip, dan bunyi selesai (notify.js). Hasilnya menjadi
+   baris Clips (`fileFolder` `motion`) dengan judul terpilih, deskripsi dan
+   hashtag dari story, siap upload single/bulk (P16).
+8. **UI `/remotion`** (vanilla JS, gaya tombol /workspace, topbar dan
+   profile yang sama): daftar proyek; form baru (topik, durasi, catatan);
+   Copy brief / Download; kotak tempel dengan hasil validasi dan Copy pesan
+   perbaikan; lembar storyboard (gambar diam per beat, narasi dan teks layar
+   bisa diedit lalu divalidasi ulang); daftar fakta (klaim, sumber sebagai
+   tautan, centang/tolak, brief revisi); pilih judul; Render dengan progres,
+   ETA, Cancel; tautan ke baris Clips. Pesan dan label dalam bahasa
+   Indonesia yang sama dengan halaman lain.
+9. **Tes:** selftest baru di salinan port 5178 dengan story kecil (2 beat,
+   ± 2 detik) supaya render nyata tetap cepat; brief, fix message, validasi,
+   gerbang fakta, Cancel, baris Clips; tidak menyentuh workspace ian;
+   selftest penuh harus lulus.
+Belum termasuk: suara narasi dan takarir (P28-C), brief komponen baru,
+Studio, render massal (P28-D).
+
 **Tahapan usulan (diperbarui 2026-10-25):** P28-A spike (di atas, selesai) →
 P28-A2 gerak halus dan uji bedah 3D → P28-B
 halaman `/remotion` dan endpoint: input topik dan durasi, brief, tempel dan
