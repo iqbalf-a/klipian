@@ -29,8 +29,9 @@ eq(plan.filter((_, i) => transitionInto(story, i).kind !== "cut").length, 3, "th
 
 // defaults: items enter in turn, 4 frames apart; the sting and the outro hold the camera still
 const items = story.beats[0].scene.items;
-near(enterOf(items[1], 1).delay, 4 / 30, 1e-9, "the second item waits 4 frames");
-near(enterOf(items[2], 2).delay, 8 / 30, 1e-9, "the third waits 8");
+const probe = { type: "label", text: "x", x: 1, y: 1, fs: 60 } as never;
+near(enterOf(probe, 1).delay, 4 / 30, 1e-9, "the second item waits 4 frames");
+near(enterOf(probe, 2).delay, 8 / 30, 1e-9, "the third waits 8");
 eq(enterOf(items[0], 0).kind, "slide", "a banner slides in by default");
 eq(enterOf(items[0], 0).dir, "down", "a banner drops in from above");
 eq(enterOf(items[1], 1).kind, "draw", "a socket with a cable draws it");
@@ -86,18 +87,18 @@ eq(isKeyword("rapat", ["lebar"]), false, "other words stay");
 
 // --- P28-A3: what the colokan story does about the seven fixes ---
 const beatOf = (id: string) => story.beats.find((b) => b.id === id)!;
-const mascots = (id: string) => beatOf(id).scene.items.filter((i) => i.type === "mascot") as any[];
 // 3 the lens flash: the cutaway revealed through the lens is there from its first frame (no enter fade), inside the lab
 eq(beatOf("rapat").transition?.kind, "lens", "through the lens into the tight cutaway");
 eq(beatOf("rapat").scene.bg, "lab", "inside the lens is the lab");
 const cut = beatOf("rapat").scene.items.find((i) => i.type === "socket" && i.view === "cutaway")!;
 eq(enterOf(cut, 1).kind, "none", "the revealed cutaway does not fade in");
-// 4 the corner mascot stays: one place, no entrance after its first appearance
-const corner = ["lensa", "rapat", "kendur", "akibat"].map((id) => mascots(id).find((m) => m.persist));
-yes(corner.every(Boolean), "a persistent mascot in each of the four beats");
-eq(new Set(corner.map((m) => `${m.x},${m.y},${m.w}`)).size, 1, "in the same place every time");
-eq(enterOf(corner[0], 3).kind, "pop", "it pops on its first appearance");
-eq(corner.slice(1).map((m) => enterOf(m, 4).kind), ["none", "none", "none"], "and never again");
+// 4 the mascot is rare: the sting and the outro, and two short reactions between (ian 2026-10-26); none is parked in a corner
+const between = story.beats.filter((b) => b.kind !== "sting" && b.kind !== "outro").flatMap((b) => b.scene.items.filter((i) => i.type === "mascot").map((m) => ({ b, m })));
+eq(between.length, 2, "two mascot reactions between the sting and the outro");
+yes(between.every(({ m }) => !(m as { persist?: boolean }).persist), "none of them is parked in the corner");
+yes(between.every(({ m }) => (m.exit?.at ?? 99) - (m.enter?.delay ?? 0) <= 1.5), "each lasts 1.5 s at most");
+eq(between.map(({ m }) => enterOf(m, 4).kind), ["pop", "pop"], "and pops in");
+yes(story.beats.every((b) => b.scene.items.every((i) => i.type !== "chibi")), "no person where the story needs none");
 // 5 the safe area (the Shorts interface covers the bottom 15 % and the right 12 %): faces, text and badges stay inside
 const unsafe: string[] = [];
 for (const b of story.beats) for (const it of b.scene.items) {

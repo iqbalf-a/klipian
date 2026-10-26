@@ -63,6 +63,13 @@ function itemEvents(item: ItemT, ii: number, beat: BeatT, b: number, add: Add): 
     if (name) add(at, name, `${label} enters (${plan.kind})`, item.type === "label" ? { vol: 0.9 } : {});
   }
 
+  // --- the face it comes with: a surprised or an ouch mascot says so (the mascot is rare now, so its first face is its reaction) ---------------------
+  if ((item.type === "mascot" || item.type === "chibi") && plan.kind !== "none") {
+    const table: Record<string, SfxName | undefined> = item.type === "mascot" ? SFX_FOR.mascotExpr : SFX_FOR.chibiExpr;
+    const face = table[item.expr];
+    if (face && !item.sfx) add(b + plan.delay + 0.15, face, `${item.type} looks ${item.expr} (${beat.id})`);
+  }
+
   // --- what an item keeps doing ---------------------------------------------------------------------------------------------------
   if (item.type === "socket") {
     const heat = item.heat ?? (item.variant === "loose" ? 1 : 0);
@@ -133,4 +140,16 @@ export function formatTimeline(plan: SfxPlan): string {
   const rows = plan.events.map((e) => `${e.t.toFixed(2).padStart(6)}s  f${String(Math.round(e.t * FPS)).padStart(4)}  ${e.name.padEnd(19)} ${e.dur ? `(${e.dur.toFixed(1)}s) `.padEnd(7) : "       "}${e.why}`);
   if (plan.dropped.length) rows.push("", ...plan.dropped.map((d) => `  dropped ${d.event.name} at ${d.event.t.toFixed(2)}s: ${d.because}`));
   return rows.join("\n");
+}
+
+/** The sound of a custom video that has no sfx.ts of its own: the jingles of the sting and the outro, and a whoosh or swish at each transition.
+    A video that wants more writes its own list (videos/<slug>/sfx.ts exports `sfx(story)`), by hand or from `storyEvents`. */
+export function defaultBeatSfx(story: StoryT): SfxEvent[] {
+  const ev: SfxEvent[] = [];
+  sequencePlan(story).forEach((sp, bi) => {
+    const beat = sp.beat, b = sp.from / FPS, tr = transitionInto(story, bi);
+    if (tr.kind !== "cut") ev.push({ t: q(b), name: tr.kind === "lens" ? "zoom-whoosh" : SFX_FOR.transition[tr.kind], vol: 1, why: `transition ${tr.kind} into ${beat.id}` });
+    if (beat.kind === "sting" || beat.kind === "outro") ev.push({ t: q(b + 0.1), name: SFX_FOR.beat[beat.kind], vol: 1, why: `${beat.kind} jingle (${beat.id})` });
+  });
+  return ev;
 }

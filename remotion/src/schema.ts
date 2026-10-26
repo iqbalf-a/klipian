@@ -8,6 +8,8 @@ import {
 } from "./catalog.ts";
 
 export const MAX_SCREEN_WORDS = 6;
+export const MAX_MASCOT_REACTIONS = 2;                                    // outside the sting and the outro
+export const MAX_MASCOT_REACTION_S = 1.5;                                 // how long such a reaction stays
 export const MAX_TRANSITIONS = 3;                                        // style bible
 export const wordCount = (text: string): number => text.trim().split(/\s+/).filter(Boolean).length;
 
@@ -141,6 +143,17 @@ export const Story = z.object({
     const target = b.scene.items.find((o) => (o.type === "socket" || o.type === "lens") && o.id === item.follow!.item);
     if (!target) ctx.addIssue({ code: "custom", message: `follows the item "${item.follow.item}", which this beat does not have (a socket or a lens with that id)`, path: ["beats", bi, "scene", "items", ii, "follow"] });
     else if ((target as { model?: string }).model === "flat") ctx.addIssue({ code: "custom", message: `"${item.follow.item}" is drawn flat: only 3D models have parts to follow`, path: ["beats", bi, "scene", "items", ii, "follow"] });
+  }));
+  // the mascot is rare (ian 2026-10-26): the sting and the outro, plus at most MAX_MASCOT_REACTIONS short reactions in the beats between; never parked in a corner
+  let reactions = 0;
+  s.beats.forEach((b, bi) => b.scene.items.forEach((item, ii) => {
+    if (item.type !== "mascot" || b.kind === "sting" || b.kind === "outro") return;
+    const where = ["beats", bi, "scene", "items", ii];
+    reactions += 1;
+    if (reactions > MAX_MASCOT_REACTIONS) ctx.addIssue({ code: "custom", message: `the mascot appears in a ${b.kind} beat: apart from the sting and the outro it may react at most ${MAX_MASCOT_REACTIONS} times in the whole video (this is reaction ${reactions}); show the object, its parts, labels and arrows instead`, path: where });
+    if (item.persist) ctx.addIssue({ code: "custom", message: "the mascot is not parked in a corner: persist is only for the sting and the outro", path: [...where, "persist"] });
+    const from = item.enter?.delay ?? 0, to = item.exit?.at ?? b.dur;
+    if (to - from > MAX_MASCOT_REACTION_S + 1e-9) ctx.addIssue({ code: "custom", message: `a mascot reaction in a ${b.kind} beat lasts at most ${MAX_MASCOT_REACTION_S} s (this one lasts ${(to - from).toFixed(1)} s): give it an enter delay and an exit (exit.at minus enter.delay)`, path: [...where, "exit"] });
   }));
   // motion: times inside the beat, actions only on the things they make sense for, at most 3 transitions, lens needs a circle
   let moving = 0;

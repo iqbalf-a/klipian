@@ -54,7 +54,7 @@ const mutate = (fn: (s: any) => void) => { const s = structuredClone(example); f
 const wordy = mutate((s) => { s.beats[0].text = "satu dua tiga empat lima enam tujuh"; });
 yes(wordy.json.ok === false && wordy.code === 0, "screen text over 6 words is refused (exit code 0: the answer is in the JSON)");
 yes(wordy.json.errors.some((e: any) => e.path === "beats.0.text" && /6 words/.test(e.message)), "with the path and the reason");
-const unknown = mutate((s) => { s.beats[1].scene.items.find((i: any) => i.type === "mascot").expr = "angry"; });
+const unknown = mutate((s) => { s.beats[2].scene.items.find((i: any) => i.type === "mascot").expr = "angry"; });
 yes(unknown.json.errors.some((e: any) => e.path.endsWith(".expr")), "an expression that does not exist is refused at its path");
 const noSource = mutate((s) => { s.claims[0].sources = []; });
 yes(noSource.json.errors.some((e: any) => e.path === "claims.0.sources"), "a claim without a source is refused");

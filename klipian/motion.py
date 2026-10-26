@@ -98,9 +98,31 @@ class _Node:
 _node = _Node()
 
 
+def _video_dirs() -> list[Path]:
+    root = REMOTION / "videos"
+    return sorted(d for d in root.iterdir() if d.is_dir() and (d / "index.tsx").is_file()) if root.is_dir() else []
+
+
+def compositions() -> list[dict]:
+    """The custom compositions of remotion/videos/<slug>/ that klipian offers (the ones whose meta.json does not hide them), each {slug, title}."""
+    out = []
+    for d in _video_dirs():
+        meta = _read(d / "meta.json", {})
+        meta = meta if isinstance(meta, dict) else {}
+        if not meta.get("hidden"):
+            out.append({"slug": d.name, "title": str(meta.get("title") or d.name), "description": str(meta.get("description") or "")})
+    return out
+
+
+def composition_id(p: dict) -> str:
+    """The Remotion composition a project renders with: the template (FunFact), or video-<slug> for a custom composition."""
+    slug = p.get("composition") or ""
+    return f"video-{slug}" if slug else "FunFact"
+
+
 def status() -> dict:
     ok, why = _node.ready()
-    return {"installed": ok, "message": why, "durations": list(DURATIONS), "defaultDuration": DEFAULT_DURATION}
+    return {"installed": ok, "message": why, "durations": list(DURATIONS), "defaultDuration": DEFAULT_DURATION, "compositions": compositions() if ok else []}
 
 
 # --------------------------------------------------------------------------
@@ -174,7 +196,7 @@ def create(topic: str, duration=DEFAULT_DURATION, notes: str = "") -> dict:
     pid = f"{_slug(topic)}-{uuid.uuid4().hex[:4]}"
     now = int(time.time())
     p = {"id": pid, "topic": topic, "duration": duration, "notes": str(notes or "").strip()[:2000], "status": "draft",
-         "title": "", "created": now, "updated": now, "needs": [], "render": None}
+         "title": "", "created": now, "updated": now, "needs": [], "render": None, "composition": ""}
     with _LOCK:
         project_dir(pid).mkdir(parents=True, exist_ok=True)
         save(p)
@@ -192,6 +214,11 @@ def update_project(pid: str, fields: dict) -> dict:
             p["topic"] = t[:200]
         if "notes" in fields:
             p["notes"] = str(fields["notes"] or "").strip()[:2000]
+        if "composition" in fields:
+            slug = str(fields["composition"] or "")
+            if slug and slug not in {d.name for d in _video_dirs()}:
+                raise MotionError("composition", f'There is no custom composition "{slug}" in remotion/videos/.')
+            p["composition"] = slug
         if "duration" in fields:
             try:
                 d = int(fields["duration"])
@@ -216,7 +243,7 @@ def delete_project(pid: str) -> None:
 def summary(p: dict) -> dict:
     story = story_of(p["id"])
     facts = facts_of(p["id"]) if story else []
-    return {"id": p["id"], "topic": p["topic"], "duration": p["duration"], "status": p.get("status", "draft"), "title": p.get("title", ""),
+    return {"id": p["id"], "topic": p["topic"], "duration": p["duration"], "status": p.get("status", "draft"), "title": p.get("title", ""), "composition": p.get("composition", ""),
             "updated": p.get("updated"), "created": p.get("created"), "hasStory": story is not None,
             "claims": len(facts), "unchecked": sum(1 for f in facts if f.get("status") != "checked"),
             "rowId": (p.get("render") or {}).get("rowId")}
@@ -239,7 +266,7 @@ def detail(pid: str) -> dict:
     story = story_of(pid)
     facts = facts_of(pid) if story else []
     stills = _stills_state(pid, story)
-    return {**summary(p), "notes": p.get("notes", ""), "needs": p.get("needs", []), "story": story, "facts": facts,
+    return {**summary(p), "notes": p.get("notes", ""), "needs": p.get("needs", []), "storyPath": str(project_dir(pid) / "story.json"), "compositions": compositions(), "story": story, "facts": facts,
             "gate": gate(pid), "stills": stills, "render": p.get("render"), "job": job_state(pid),
             "versions": len(list((project_dir(pid) / "history").glob("story-*.json"))) if (project_dir(pid) / "history").is_dir() else 0}
 
@@ -552,9 +579,11 @@ FACT_RULES = """- Every claim the video makes needs at least one source URL (a m
 
 
 COMPOSITION = """- Every beat has a `banner` at the top that carries the beat's screen text (the same words as the beat's `text`).
-- The main object is big: about 60-70% of the screen width, near the middle (x about 540), with supporting elements around it so the screen is not empty: arrows, short labels, numbered badges, the mascot in a corner.
+- The main object is big: about 60-70% of the screen width, near the middle (x about 540), with supporting elements around it so the screen is not empty: its parts, arrows, short labels, numbered badges and movement. Empty space is filled by the object and its parts, never by characters.
 - Backgrounds: `brand` for the story beats (including the hook); `lab` only for what is inside the lens and for cutaway beats.
-- The "Intip yuk!" beat: a big `mascot` in the middle (w about 560, expression curious, `pop`) and a `pill` that says "Intip yuk!". After that, a small mascot stays in the lower-left corner (x 200, y 1470, w 300, `persist` true) and only changes expression.
+- The "Intip yuk!" beat: a big `mascot` in the middle (w about 560, expression curious, `pop`) and a `pill` that says "Intip yuk!". The outro has the mascot again.
+- **People are optional.** Put a person (`chibi`) in a beat only when the story needs one: someone doing something, a body part, or a person's reaction is the point. A topic about an object shows just the object.
+- **The mascot is rare:** the "Intip yuk!" beat and the outro, plus at most 2 short reactions (about 1 s each, with `enter` delay and `exit`) at key moments in between. Never park it in a corner for the whole video; `persist` is only for the sting and the outro.
 - The look inside: first the outside of the object with the lens beside it (the `lens` item), then cutaway beats with `socket` view "cutaway" (about x 540, y 926, s 1). Give the cutaway an `id` and make labels and arrows `follow` its parts.
 - The example below shows real coordinates for all of this; use similar ones."""
 
@@ -747,7 +776,7 @@ def _stills_state(pid: str, story) -> dict:
         return {"files": {}, "stale": bool(story)}
     folder = project_dir(pid) / "out" / "stills"
     files = {b: f"/api/motion/still?id={pid}&beat={b}&v={meta.get('hash')}" for b in meta.get("beats", []) if (folder / f"{b}.png").is_file()}
-    return {"files": files, "stale": meta.get("hash") != _story_hash(story), "at": meta.get("at")}
+    return {"files": files, "stale": meta.get("hash") != _story_hash({"story": story, "composition": (_read(project_dir(pid) / "project.json", {}) or {}).get("composition", "")}), "at": meta.get("at")}
 
 
 def still_file(pid: str, beat: str) -> Path | None:
@@ -900,7 +929,7 @@ def _run_preview(pid: str, key, ev: threading.Event) -> None:
         folder = project_dir(pid) / "out" / "stills"
         if folder.is_dir():
             shutil.rmtree(folder, ignore_errors=True)
-        job = {"mode": "stills", "story": str(project_dir(pid) / "story.json"), "out": "stills", "outRoot": str(project_dir(pid) / "out"), "at": STILL_AT}
+        job = {"mode": "stills", "story": str(project_dir(pid) / "story.json"), "out": "stills", "outRoot": str(project_dir(pid) / "out"), "at": STILL_AT, "composition": composition_id(load(pid))}
 
         def on_line(d):
             if d.get("type") == "progress" and d.get("stage") == "render":
@@ -909,7 +938,7 @@ def _run_preview(pid: str, key, ev: threading.Event) -> None:
         done = _run_job(pid, key, ev, "Menggambar storyboard…", job, on_line)
         if done is None:
             return _finish(key, pid, state="cancelled", message="Dibatalkan.", percent=0)
-        _write(project_dir(pid) / "out" / "stills.json", {"hash": _story_hash(story), "beats": [b["id"] for b in story["beats"]], "at": int(time.time())})
+        _write(project_dir(pid) / "out" / "stills.json", {"hash": _story_hash({"story": story, "composition": load(pid).get("composition", "")}), "beats": [b["id"] for b in story["beats"]], "at": int(time.time())})
         _finish(key, pid, state="done", percent=100, message="Storyboard siap.", ms=done.get("ms"))
     except MotionError as exc:
         _finish(key, pid, state="failed", message=exc.message, code=exc.code)
@@ -961,7 +990,7 @@ def _run_render(pid: str, key, ev: threading.Event) -> None:
         eta = Eta(RENDER_RATIO * float(story["duration"]))
         t0 = time.monotonic()
         work = f"{pid}.mp4"
-        job = {"mode": "video", "story": str(project_dir(pid) / "story.json"), "out": work, "outRoot": str(project_dir(pid) / "out")}
+        job = {"mode": "video", "story": str(project_dir(pid) / "story.json"), "out": work, "outRoot": str(project_dir(pid) / "out"), "composition": composition_id(p)}
 
         def on_line(d):
             t = d.get("type")

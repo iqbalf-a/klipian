@@ -135,7 +135,7 @@ async function refresh(keepPaste = true) {
   const i = LIST.findIndex((p) => p.id === CUR.id);
   if (i >= 0) LIST[i] = { ...LIST[i], status: CUR.status, title: CUR.title, claims: CUR.claims, unchecked: CUR.unchecked, hasStory: CUR.hasStory, updated: CUR.updated };
   drawList();
-  drawStory(); drawFacts(); drawTitles(); drawRender(); drawNeeds();
+  drawComp(); drawStory(); drawFacts(); drawTitles(); drawRender(); drawNeeds();
   byId("rmState").textContent = STATE_LABEL[CUR.status] || CUR.status;
   byId("rmState").dataset.s = CUR.status;
 }
@@ -161,6 +161,8 @@ function buildDetail() {
       </div>
     </section>
 
+    <section class="ws-panel rm-step" id="stepComp"></section>
+
     <section class="ws-panel rm-step" id="stepBrief">
       <header><span class="rm-n">1</span><h2>Brief untuk AI</h2></header>
       <p>Satu file mandiri: tugas, struktur ${d.duration} detik, aturan channel dan fakta, katalog benda yang bisa dirender, serta format jawaban. Tempel ke Claude atau ChatGPT dan nyalakan pencarian web.</p>
@@ -184,7 +186,7 @@ function buildDetail() {
     <section class="ws-panel rm-step" id="stepFacts" hidden></section>
     <section class="ws-panel rm-step" id="stepTitle" hidden></section>
     <section class="ws-panel rm-step" id="stepRender" hidden></section>`;
-  drawStory(); drawFacts(); drawTitles(); drawRender(); drawNeeds();
+  drawComp(); drawStory(); drawFacts(); drawTitles(); drawRender(); drawNeeds();
 }
 
 byId("rmMain").addEventListener("click", async (e) => {
@@ -203,6 +205,7 @@ byId("rmMain").addEventListener("click", async (e) => {
     if (act === "title") return setTitle(t.dataset.t);
     if (act === "render") return startRender();
     if (act === "cancel") return cancelJob();
+    if (act === "copyCmd") return copyCmd(t);
     if (act === "copyFix") return copyFix(t);
     if (act === "copyRevise") return copyRevise(t);
     if (act === "downRevise") return downloadBrief("revise");
@@ -211,6 +214,45 @@ byId("rmMain").addEventListener("click", async (e) => {
 });
 
 const toast = (text) => (typeof showToast === "function" ? showToast(text, { ms: 6000 }) : alert(text));
+
+// ---------------------------------------------------------------------------------------------------------------------------------------
+// the composition: the template, or a video made for this story in a Claude Code session (remotion/videos/<slug>/)
+// ---------------------------------------------------------------------------------------------------------------------------------------
+
+function drawComp() {
+  const d = CUR;
+  const list = d.compositions || [];
+  const has = !d.composition || list.some((c) => c.slug === d.composition);
+  const sel = !!d.composition;
+  byId("stepComp").innerHTML = `
+    <header><h2>Komposisi</h2></header>
+    <div class="rm-actions">
+      <select class="ws-input rm-boxed rm-select" id="rmComp" aria-label="Komposisi">
+        <option value="">Template (dari cerita)</option>
+        ${list.map((c) => `<option value="${esc(c.slug)}" ${d.composition === c.slug ? "selected" : ""}>${esc(c.title)} · ${esc(c.slug)}</option>`).join("")}
+        ${has ? "" : `<option value="${esc(d.composition)}" selected>${esc(d.composition)}</option>`}
+      </select>
+      <span class="rm-hint">${sel ? "Dirender dengan adegan khusus; teks dan waktu tetap dari cerita yang sudah dicek." : "Template memakai benda dan adegan yang ada di pustaka."}</span>
+    </div>
+    <p>Video khusus dibuat di sesi Claude Code di folder <code>remotion/</code> (baca <code>DESIGN.md</code> dulu), dari cerita yang sudah dicek:</p>
+    <div class="rm-fix"><code id="rmCmd" class="rm-cmd">cd remotion
+npm run new-video nama-video "${esc(d.storyPath || "")}"
+npm run studio</code>
+      <div class="rm-actions"><button class="btn sm" type="button" data-act="copyCmd">Salin perintah</button><span class="rm-hint">Ganti <b>nama-video</b>; lalu pilih komposisinya di sini.</span></div></div>`;
+}
+
+byId("rmMain").addEventListener("change", async (e) => {
+  if (e.target.id !== "rmComp" || !CUR) return;
+  try {
+    await call(`${API}/update`, { id: CUR.id, project: { composition: e.target.value } });
+    await refresh();
+  } catch (ex) { toast(ex.message); await refresh(); }
+});
+
+async function copyCmd(btn) {
+  const text = byId("rmCmd").textContent;
+  (await copyText(text)) ? flashCopied(btn) : toast("Tidak bisa menyalin: pilih teksnya sendiri.");
+}
 
 // ---------------------------------------------------------------------------------------------------------------------------------------
 // 1 brief

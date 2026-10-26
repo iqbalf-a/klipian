@@ -26,6 +26,8 @@ import { ANCHORS, CABLE_EXIT, Cable3D, Cutaway3D, Plug3D, PlugHeat, Smoke3D, Wal
 import { easeOutBack } from "./motion.ts";
 import { Ring, Line } from "./components/svg.tsx";
 import { BLACK, YELLOW_D } from "./tokens.ts";
+import { applyLayout, layoutStory } from "./layout.ts";
+import { LayoutDebug } from "./components/LayoutDebug.tsx";
 
 export { totalFrames } from "./timeline.ts";
 
@@ -245,11 +247,16 @@ const SceneSvg: React.FC<{ beat: BeatT; startFrame: number }> = ({ beat, startFr
   );
 };
 
-const BeatScene: React.FC<{ beat: BeatT; startFrame: number }> = ({ beat, startFrame }) =>
-  beat.blur ? <CameraMotionBlur shutterAngle={180} samples={5}><SceneSvg beat={beat} startFrame={startFrame} /></CameraMotionBlur> : <SceneSvg beat={beat} startFrame={startFrame} />;
+const BeatScene: React.FC<{ beat: BeatT; startFrame: number; debug?: boolean }> = ({ beat, startFrame, debug }) => {
+  const scene = beat.blur ? <CameraMotionBlur shutterAngle={180} samples={5}><SceneSvg beat={beat} startFrame={startFrame} /></CameraMotionBlur> : <SceneSvg beat={beat} startFrame={startFrame} />;
+  if (!debug) return scene;
+  return <div style={{ position: "relative", width: FRAME.width, height: FRAME.height }}>{scene}<LayoutDebug report={applyLayout(beat.scene.items).report} /></div>;
+};
 
-export const FunFact: React.FC<{ story: StoryT }> = ({ story }) => {
+/** `layout` (default on): the layout manager (layout.ts) moves texts, pills and badges off whatever they would cover. `layoutDebug` draws its boxes. */
+export const FunFact: React.FC<{ story: StoryT; layout?: boolean; layoutDebug?: boolean }> = ({ story: given, layout = true, layoutDebug = false }) => {
   useFonts();
+  const story = React.useMemo(() => (layout ? layoutStory(given) : given), [given, layout]);
   const plan = sequencePlan(story);
   const children: React.ReactNode[] = [];
   plan.forEach((p, i) => {
@@ -259,7 +266,7 @@ export const FunFact: React.FC<{ story: StoryT }> = ({ story }) => {
     }
     children.push(
       <TransitionSeries.Sequence key={p.beat.id} durationInFrames={p.sequenceFrames}>
-        <BeatScene beat={p.beat} startFrame={p.from} />
+        <BeatScene beat={p.beat} startFrame={p.from} debug={layoutDebug} />
       </TransitionSeries.Sequence>);
   });
   return <TransitionSeries>{children}</TransitionSeries>;

@@ -95,12 +95,14 @@ bad(s, "fewer than 3 titles", /titles/);
 const stripMotion = (story: any) => {
   for (const b of story.beats) {
     delete b.camera; delete b.transition; delete b.blur;
-    for (const it of b.scene.items) { delete it.enter; delete it.exit; delete it.actions; delete it.highlight; }
+    for (const it of b.scene.items) { const reaction = it.type === "mascot" && b.kind !== "sting" && b.kind !== "outro"; if (!reaction) { delete it.enter; delete it.exit; } delete it.actions; delete it.highlight; }   // a mascot reaction keeps its exit: it must be short
   }
   return story;
 };
 ok(stripMotion(clone()), "a story with no motion words at all");
 
+const firstOfKind = (story: any, id: string): any => story.beats.find((b: any) => b.id === id);
+const yes0 = (cond: boolean, what: string) => { n++; assert.ok(cond, what); };
 const firstOf = (story: any, type: string): any => story.beats.flatMap((b: any) => b.scene.items).find((i: any) => i.type === type);
 s = clone(); firstOf(s, "mascot").enter = { kind: "teleport" };
 bad(s, "an unknown enter kind", /enter/);
@@ -116,7 +118,7 @@ s = clone(); firstOf(s, "mascot").actions = [{ at: 99, kind: "highlight" }];
 bad(s, "an action outside its beat", /outside the beat|at/);
 s = clone(); firstOf(s, "mascot").enter = { kind: "pop", delay: 99 };
 bad(s, "an enter delay outside its beat", /delay|outside the beat/);
-s = clone(); firstOf(s, "chibi").actions = [{ at: 1, kind: "look", x: 1, y: 1 }];
+s = clone(); s.beats[0].scene.items.push({ type: "chibi", x: 700, y: 1600, u: 150, role: "pemuda", expr: "calm", pose: "idle" }); firstOf(s, "chibi").actions = [{ at: 1, kind: "look", x: 1, y: 1 }];
 bad(s, "a chibi that looks at a point (only the mascot does)", /only a mascot can look/);
 s = clone(); firstOf(s, "mascot").actions = [{ at: 1, kind: "pose", pose: "point" }];
 bad(s, "a mascot with a pose", /only a chibi has poses/);
@@ -168,5 +170,20 @@ s = clone(); firstOf(s, "mascot").actions = [{ at: 0, kind: "look", x: 5, y: 6, 
 ok(s, "a look that snaps");
 s = clone(); firstOf(s, "mascot").actions = [{ at: 0, kind: "look", x: 5, y: 6, snap: "yes" }];
 bad(s, "a snap that is not a boolean", /snap/);
+
+// --- the mascot is rare (ian 2026-10-26): the sting and the outro, plus at most 2 short reactions in between ---
+const reaction = (delay: number, at: number) => ({ type: "mascot", x: 200, y: 1470, w: 300, expr: "surprised", pop: true, enter: { kind: "pop", delay }, exit: { kind: "pop", at } });
+const reactionsIn = (story: any) => story.beats.flatMap((b: any) => b.kind === "sting" || b.kind === "outro" ? [] : b.scene.items.filter((i: any) => i.type === "mascot"));
+yes0(reactionsIn(clone()).length === 2, "the colokan story has 2 short mascot reactions");
+s = clone(); s.beats[2].scene.items.push(reaction(0.5, 1.5));
+bad(s, "a third mascot reaction", /at most 2 times in the whole video \(this is reaction 3\)/);
+s = clone(); firstOfKind(s, "kendur").scene.items.find((i: any) => i.type === "mascot").exit.at = 5;
+bad(s, "a mascot reaction that stays 2.6 s", /lasts at most 1.5 s \(this one lasts 2.6 s\)/);
+s = clone(); delete firstOfKind(s, "kendur").scene.items.find((i: any) => i.type === "mascot").exit;
+bad(s, "a mascot that never leaves", /lasts at most 1.5 s/);
+s = clone(); firstOfKind(s, "kendur").scene.items.find((i: any) => i.type === "mascot").persist = true;
+bad(s, "a mascot parked in a corner", /not parked in a corner/);
+s = clone(); s.beats[7].scene.items.push({ type: "mascot", x: 200, y: 1470, w: 300, expr: "laugh", persist: true }); s.beats[1].scene.items.push({ type: "mascot", x: 300, y: 1470, w: 300, expr: "laugh", persist: true });
+ok(s, "any number of mascots in the sting and the outro, persistent or not");
 
 console.log(`schema: ${n} checks ok`);

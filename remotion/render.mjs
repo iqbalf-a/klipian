@@ -17,11 +17,12 @@ import { createServer } from "node:net";
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { bundle } from "@remotion/bundler";
 import { RenderInternals, ensureBrowser, makeCancelSignal, renderMedia, renderStill, selectComposition } from "@remotion/renderer";
 import { validateStory } from "./src/schema.ts";
-import { dissectSfx, formatTimeline, storySfx } from "./src/sfx.ts";
+import { defaultBeatSfx, dissectSfx, formatTimeline, planSfx, storySfx } from "./src/sfx.ts";
+import { totalFrames } from "./src/timeline.ts";
 import { mixEvents } from "./sfx/mix.mjs";
 import { writeWav } from "./sfx/wav.mjs";
 
@@ -112,6 +113,17 @@ const freePort = () => new Promise((resolve, reject) => {
   srv.listen(0, "127.0.0.1", () => { const { port } = srv.address(); srv.close(() => resolve(port)); });
 });
 
+/** The sound of a render: the template's from the story's motion words; a custom video's from its own videos/<slug>/sfx.ts (`export function sfx(story)`
+    returning [{ t, name, vol, why }]), else the jingles and transitions of its beats. Dissect3D has its own. */
+async function soundPlan(compId, story) {
+  if (!story) return dissectSfx();
+  if (compId === "FunFact") return storySfx(story);
+  const slug = compId.replace(/^video-/, "");
+  const file = path.join(ROOT, "videos", slug, "sfx.ts");
+  const events = existsSync(file) ? (await import(pathToFileURL(file).href)).sfx(story) : defaultBeatSfx(story);
+  return planSfx(events, totalFrames(story) / FPS);
+}
+
 /** Mixes the planned sound effects into a stereo track, writes it (and the event table) beside the video, and muxes it in as AAC. */
 async function addSoundEffects(silent, out, plan, seconds) {
   const t0 = Date.now();
@@ -141,7 +153,7 @@ async function main() {
   if (job.outRoot) OUT_DIR = path.resolve(String(job.outRoot));
   const compId = job.composition ?? "FunFact";
   let story = null;
-  if (compId === "FunFact") {
+  if (!["Dissect3D", "Models3D", "AssetSheet"].includes(compId)) {                    // FunFact and every custom video (video-<slug>) are made from a story
     let raw;
     try { raw = JSON.parse(readFileSync(path.resolve(path.dirname(path.resolve(jobFile)), String(job.story)), "utf8")); }
     catch { try { raw = JSON.parse(readFileSync(path.resolve(ROOT, String(job.story)), "utf8")); } catch (e) { fail(`cannot read the story: ${e.message}`); } }
@@ -149,7 +161,7 @@ async function main() {
     if (!checked.ok) fail("the story is not valid", { errors: checked.errors });
     story = checked.story;
   }
-  const inputProps = story ? { story } : {};
+  const inputProps = story ? { story, ...(job.layout === false ? { layout: false } : {}), ...(job.layoutDebug ? { layoutDebug: true } : {}) } : {};
   const port = await freePort();                          // never the default 3000: another project (a Studio) may be on it
   const chromiumOptions = { gl: job.gl ?? "angle" };       // the 3D layers need a GL backend; angle is the one that works headless here
   const t0 = Date.now();
@@ -208,7 +220,7 @@ async function main() {
     onProgress: ({ progress: p, renderedFrames, encodedFrames }) => progress("render", p * 100, { renderedFrames, encodedFrames, total: composition.durationInFrames }),
   });
   progress("render", 100, { total: composition.durationInFrames });
-  if (withSound) await addSoundEffects(silent, out, story ? storySfx(story) : dissectSfx(), composition.durationInFrames / composition.fps);
+  if (withSound) await addSoundEffects(silent, out, await soundPlan(compId, story), composition.durationInFrames / composition.fps);
   emit({ type: "done", out, bytes: statSync(out).size, ms: Date.now() - t0, frames: composition.durationInFrames });
 }
 

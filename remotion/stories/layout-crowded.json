@@ -1,0 +1,120 @@
+{
+  "question": "Kenapa hujan turun?",
+  "titles": [
+    "Kenapa hujan turun?",
+    "Dari mana air hujan datang?",
+    "Perjalanan setetes air hujan"
+  ],
+  "duration": 3,
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 3,
+      "narration": "Air di laut naik jadi uap, lalu jatuh lagi jadi hujan.",
+      "text": "Kenapa hujan turun?",
+      "sfx": "tes",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Kenapa hujan turun?",
+            "fs": 77,
+            "highlight": [
+              "hujan"
+            ]
+          },
+          {
+            "type": "socket",
+            "x": 540,
+            "y": 800,
+            "s": 1.3,
+            "view": "outside",
+            "variant": "plain"
+          },
+          {
+            "type": "chibi",
+            "x": 730,
+            "y": 1625,
+            "u": 185,
+            "role": "pemuda",
+            "expr": "surprised",
+            "pose": "point"
+          },
+          {
+            "type": "mascot",
+            "x": 200,
+            "y": 1470,
+            "w": 300,
+            "expr": "curious",
+            "pop": true,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.3
+            },
+            "exit": {
+              "kind": "pop",
+              "at": 1.5
+            }
+          },
+          {
+            "type": "label",
+            "text": "air jatuh",
+            "x": 700,
+            "y": 1380,
+            "fs": 66
+          },
+          {
+            "type": "label",
+            "text": "laut dan sungai",
+            "x": 230,
+            "y": 1470,
+            "fs": 60
+          },
+          {
+            "type": "label",
+            "text": "awan",
+            "x": 540,
+            "y": 790,
+            "fs": 70
+          },
+          {
+            "type": "pill",
+            "text": "Intip yuk!",
+            "x": 600,
+            "y": 300,
+            "fs": 70
+          },
+          {
+            "type": "arrow",
+            "x": 700,
+            "y": 1330,
+            "x2": 700,
+            "y2": 1000,
+            "w": 12
+          }
+        ]
+      }
+    }
+  ],
+  "claims": [
+    {
+      "text": "Air menguap dari laut dan sungai, naik, mengembun jadi awan, lalu jatuh sebagai hujan.",
+      "beats": [
+        "hook"
+      ],
+      "sources": [
+        "https://www.usgs.gov/water-science-school/science/water-cycle"
+      ]
+    }
+  ],
+  "post": {
+    "description": "Kenapa hujan turun? Intip yuk!",
+    "hashtags": [
+      "#faktaseru",
+      "#hujan"
+    ]
+  },
+  "needs": []
+}

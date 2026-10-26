@@ -5023,9 +5023,11 @@ def check_motion() -> tuple[str, str]:
         for needle, what in (("fakta seru tentang colokan listrik panas", "the topic"), ("fokus ke rumah biasa", "the notes"), ("exactly 30 seconds", "the length"),
                              ("kenapa", "the task"), ("source URL", "the fact rule"), ("`needs`", "needs"),
                              (hashtags.brief_rule(profiles.hashtag_settings()), "the profile's hashtag rule"), ("at most 6 words", "the screen text rule"),
-                             ("at most once", "the one look inside"), ("hook", "the structure")):
+                             ("at most once", "the one look inside"), ("hook", "the structure"), ("People are optional", "the rule on people"), ("The mascot is rare", "the rule on the mascot")):
             if needle not in text:
                 problems.append(f"the brief lacks {what}")
+        if "stays in the lower-left corner" in text or '"persist": true' in text.split("## Answer format")[-1]:
+            problems.append("the brief must not ask for a mascot parked in a corner")
         for t in cat["items"]:
             if f"**{t}**" not in text:
                 problems.append(f"the brief lacks the item type {t}")
@@ -5253,6 +5255,33 @@ def check_motion() -> tuple[str, str]:
         if not {"queued", "running"} & seen:
             problems.append("the page can watch the render")
 
+        # --- a custom composition (remotion/videos/<slug>/): hidden ones are not offered, a missing one is refused, and the stills and the render
+        # go the same way as the template's (project -> Node job -> file -> Clips row), reading the same checked story
+        st, j = call("GET", "/api/motion/projects")
+        offered = [c["slug"] for c in j["status"].get("compositions", [])]
+        if "selftest-tiny" in offered:
+            problems.append("a composition whose meta.json hides it is not offered in the list")
+        if motion.composition_id(motion.load(tid)) != "FunFact":
+            problems.append("a video renders with the template until a composition is chosen")
+        st, j = post("update", {"id": tid, "project": {"composition": "nope"}})
+        if st != 400 or j.get("code") != "composition":
+            problems.append(f"a composition that does not exist is refused: {st} {str(j)[:100]}")
+        st, j = post("update", {"id": tid, "project": {"composition": "selftest-tiny"}})
+        d = call("GET", f"/api/motion/project?id={tid}")[1]["project"]
+        if j.get("ok") is not True or d["composition"] != "selftest-tiny" or not d["stills"]["stale"] or not d["storyPath"].endswith("story.json"):
+            problems.append(f"choosing a composition: {str(j)[:120]} {d.get('composition')} stale={d['stills']['stale']}")
+        if motion.composition_id(motion.load(tid)) != "video-selftest-tiny":
+            problems.append("the project renders with video-<slug>")
+        post("preview", {"id": tid})
+        job = wait(tid)
+        d = call("GET", f"/api/motion/project?id={tid}")[1]["project"]
+        if job["state"] != "done" or sorted(d["stills"]["files"]) != ["hook", "outro"] or d["stills"]["stale"]:
+            problems.append(f"stills of a custom composition: {job} {d['stills']}")
+        else:
+            st, png = call("GET", d["stills"]["files"]["outro"], raw=True)
+            if st != 200 or png[1:4] != b"PNG":
+                problems.append("a still of a custom composition is a PNG")
+
         # --- rendering again makes a second file and row (never overwriting the first), then delete the video: the Clips row stays
         st, j = post("render", {"id": tid})
         job = wait(tid)
@@ -5276,7 +5305,7 @@ def check_motion() -> tuple[str, str]:
     if problems:
         return FAIL, "\n      ".join(problems[:14])
     return PASS, (f"brief from the catalogue, paste (repair, schema errors, fix message), edits, fact gate enforced by the server, revision brief, stills, "
-                  f"a real 2 s render in {spent} (Cancel waiting and running), Clips row in out/motion/ ready for upload, Guest refused")
+                  f"a real 2 s render in {spent} (Cancel waiting and running), Clips row in out/motion/ ready for upload, a custom composition (stills and render), Guest refused")
 
 
 

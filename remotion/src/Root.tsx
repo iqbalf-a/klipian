@@ -4,9 +4,11 @@ import { FunFact } from "./FunFact.tsx";
 import { FPS, totalFrames } from "./timeline.ts";
 import { Dissect3D, DISSECT_SECONDS } from "./Dissect3D.tsx";
 import { Models3D } from "./Models3D.tsx";
+import { AssetSheet } from "./AssetSheet.tsx";
 import { FRAME } from "./tokens.ts";
 import { validateStory, type StoryT } from "./schema.ts";
 import sample from "../stories/colokan-panas.json";
+import { VIDEOS } from "./videoRegistry.ts";
 
 const parsed = validateStory(sample);
 if (!parsed.ok) throw new Error("stories/colokan-panas.json is not a valid story:\n" + parsed.errors.join("\n"));
@@ -28,5 +30,12 @@ export const Root: React.FC = () => (
   <Composition id="Dissect3D" component={Dissect3D} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={Math.round(DISSECT_SECONDS * FPS)} />
   {/* the 3D toon assets on one sheet, for looking at them (P28-A4) */}
   <Composition id="Models3D" component={Models3D} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={90} />
+  {/* every asset of the library on one sheet, with its name (npm run assets-sheet) */}
+  <Composition id="AssetSheet" component={AssetSheet} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={30} />
+  {/* the custom videos (videos/<slug>/): each one reads its checked story and is registered by its folder name */}
+  {VIDEOS.map((v) => (
+    <Composition key={v.id} id={v.id} component={v.Video} width={FRAME.width} height={FRAME.height} fps={FRAME.fps} durationInFrames={totalFrames(v.story)}
+      defaultProps={{ story: v.story as StoryT }} calculateMetadata={({ props }) => ({ durationInFrames: Math.max(1, totalFrames(props.story)) })} />
+  ))}
   </>
 );
