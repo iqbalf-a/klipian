@@ -1,11 +1,12 @@
-// node scripts/styleCheck.mjs <slug>          (e.g. node scripts/styleCheck.mjs kenapa-colokan-panas)
+// node scripts/styleCheck.mjs <slug|folder>   (e.g. node scripts/styleCheck.mjs kenapa-colokan-panas)
 //
 // The Style Bible v1 checker (DESIGN.md section 0b). It checks by machine what can be read from a video's story, its source files and the
 // dictionary (src/dictionary.ts): the beat formula, the stings and reactions, the outro, the screen text, the sources, the stage, the marks a video
 // draws, the duration. What needs a render (the hero's share of the width, the loop's first and last frames, the detail budget) is listed as "render"
 // and checked by the tests or by scripts/detailBudget.mjs. The human checklist is printed at the end. Each line starts with PASS, FLAG (a rule the video
 // breaks: fix it or name the exception in the report), INFO, RENDER (needs a render) or HUMAN (ian's eye). Exit code 1 if anything is FLAG.
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DICTIONARY, markComponents } from "../src/dictionary.ts";
@@ -13,7 +14,7 @@ import { DICTIONARY, markComponents } from "../src/dictionary.ts";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const slug = process.argv[2];
 if (!slug) { console.error("usage: node scripts/styleCheck.mjs <slug>"); process.exit(2); }
-const dir = path.join(ROOT, "videos", slug);
+const dir = path.isAbsolute(slug) ? slug : path.join(ROOT, "videos", slug);
 const storyFile = path.join(dir, "story.json");
 if (!existsSync(storyFile)) { console.error(`no story at videos/${slug}/story.json`); process.exit(2); }
 const story = JSON.parse(readFileSync(storyFile, "utf8"));
@@ -50,14 +51,36 @@ add(stings <= 1 ? "PASS" : "FLAG", `at most one sting (${stings})`);
 const reactions = beats.filter((b) => !["sting", "outro"].includes(b.kind)).reduce((a, b) => a + itemsOf(b).filter((i) => i.type === "mascot").length, 0);
 add(reactions <= 2 ? "PASS" : "FLAG", `at most two mascot reactions between the sting and the outro (${reactions})`);
 
-// 5. the outro: no mascot and no text (the bible's rule); the loop-back has no voice
+// 5. the outro (B12: the loop-back, read from the plan): the loop-back. What the video DRAWS decides, not the story's outro items. A video declares the loop-back when its plan has a
+//    loopWeight: then the story's outro items are ignored, and the plan's timing says when the mascot is on screen and which texts reach into the outro.
 const outro = beats.at(-1) ?? {};
-const outroMascot = itemsOf(outro).some((i) => i.type === "mascot");
-const outroText = itemsOf(outro).filter((i) => ["label", "pill", "banner"].includes(i.type)).map((i) => i.text);
-add(!outroMascot ? "PASS" : "FLAG", `the outro has no mascot (${outroMascot ? "it has one: the bible's rule says none; see the report" : "none"})`);
-add(outroText.length === 0 ? "PASS" : "FLAG", `the outro has no text (${outroText.length ? `it has: ${outroText.join(" / ")}` : "none"})`);
-add(!outro.narration || outro.narration.trim() === "" ? "PASS" : "INFO", "the outro has no voice (the loop-back)");
-add("RENDER", "the first and last frames match (the loop test in tests/videos.test.ts or the loop check of the render)");
+const planFile = path.join(dir, "plan.ts");
+let P = null, planError = null;
+if (existsSync(planFile)) {
+  try { P = (await import(pathToFileURL(planFile).href)).makePlan(story); } catch (e) { planError = String(e.message ?? e).split("\n")[0]; }
+}
+const loopBack = !!P && typeof P.loopWeight === "function" && Number.isFinite(P.m?.outro);
+const drawnSources = readdirSync(dir).filter((f) => /\.(ts|tsx)$/.test(f)).map((f) => readFileSync(path.join(dir, f), "utf8")).join("\n");
+if (planError) add("FLAG", `the plan could not be read (${planError}): the outro is checked by the story only`);
+if (loopBack) {
+  add("INFO", "the video declares the loop-back (its plan has a loopWeight): the story's outro items are ignored, the video draws the loop-back");
+  const windows = [];
+  if (Number.isFinite(P.m.sting)) windows.push({ name: "sting", a: P.m.sting - 0.1, b: P.m.stingEnd + 0.15 });
+  if (Number.isFinite(P.m.react)) windows.push({ name: "reaction", a: P.m.react, b: P.m.react + 1.25 });
+  const late = windows.filter((w) => w.b > P.m.outro);
+  add(late.length === 0 ? "PASS" : "FLAG", `no mascot is drawn in the outro (${late.length ? `the ${late[0].name} runs into it at ${late[0].a.toFixed(1)} s` : `the mascot ends by ${Math.max(...windows.map((w) => w.b)).toFixed(1)} s, the outro starts at ${P.m.outro.toFixed(1)} s`})`);
+  const uses = (drawnSources.match(/<Mascot[\s/>]/g) ?? []).length;
+  add(uses <= windows.length ? "PASS" : "FLAG", `the code draws the mascot no more often than its planned windows (${uses} uses, ${windows.length} windows)`);
+  const texts = [...(P.labels ?? []).filter((l) => l.to > P.m.outro), ...(P.tops ?? []).filter((x) => x.b > P.m.outro)];
+  add(texts.length === 0 ? "PASS" : "FLAG", `no text is on screen in the outro (${texts.length} planned texts reach into it)`);
+} else {
+  const outroMascot = itemsOf(outro).some((i) => i.type === "mascot");
+  const outroText = itemsOf(outro).filter((i) => ["label", "pill", "banner"].includes(i.type)).map((i) => i.text);
+  add(!outroMascot ? "PASS" : "FLAG", `the outro has no mascot (${outroMascot ? "the story's outro has one, and the video declares no loop-back" : "none"})`);
+  add(outroText.length === 0 ? "PASS" : "FLAG", `the outro has no text (${outroText.length ? `the story's outro has: ${outroText.join(" / ")}` : "none"})`);
+}
+add(!outro.narration || outro.narration.trim() === "" ? "PASS" : "FLAG", `the outro has no voice (${outro.narration ? "its narration is not empty" : "empty: the loop-back"})`);
+add("RENDER", "the first and last frames match (the loop test in tests/colokan.test.ts, or the loop check of the render)");
 
 // 6. the screen text: at most six words on screen at once, each text from the story (the text of a beat or its labels)
 const screenTexts = beats.flatMap((b) => [b.text, ...itemsOf(b).filter((i) => ["banner", "label", "pill", "badge"].includes(i.type)).map((i) => i.text)]).filter(Boolean);

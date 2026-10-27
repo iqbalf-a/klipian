@@ -29,7 +29,7 @@ Contents: [the five locks](#the-five-locks) · [the rules](#the-rules-style-bibl
 
 - **B1 Stage.** One stage block per video (a slab with three tones and a flat darker base shadow) on the `brand` background. The camera is the kit's iso camera (`VIEW = [1,1,1]`, top light, +y mid, +x dark). The hero fills 60 to 70 % of the screen width at the main shot.
 - **B2 Lens.** The "Intip" move is always the same: the camera goes in, a circle grows from the part, the lab background (dark, grid) shows inside it, and on the way out the circle shrinks back to the part.
-- **B3 No parked people.** A stage has no people and no mascot parked in a corner. The mascot is for the sting and the outro, plus at most two short reactions (B11).
+- **B3 No parked people.** A stage has no people and no mascot parked in a corner. The mascot is for the sting, plus at most two short reactions (B11); the outro has none (B12).
 - **B4 Dictionary.** Every mark is a row in `src/dictionary.ts` with its recipe and its component. A video may not invent a private mark for a thing that has a row. A row marked "to build" is a spec only: it is not drawn until it has a component and a tile.
 - **B5 One hero.** One hero asset per video, at the detail budget (B6). At most two supporting assets, simple and flat. At most three new assets per video, and the report says which assets were reused.
 - **B6 Detail budget.** The hero (and each hero of a nature video) reaches 80 % of the colokan socket + plug's **shapes and parts** (`node scripts/detailBudget.mjs`). Tone regions and quantised colours are informative only: a three-tone material cannot have more than three tones.
@@ -37,8 +37,8 @@ Contents: [the five locks](#the-five-locks) · [the rules](#the-rules-style-bibl
 - **B8 Kinds of fact.** Only the explain beats change: an object opens up (the lens); a process follows the flow around the stage (the camera follows the particles); a cause is a chain of cause and effect arrows; a myth check ends with a verdict stamp.
 - **B9 Verdict stamp.** A pill on the stage: FAKTA is black on yellow, MITOS is white on black, SEBAGIAN is grey. No new colour. The stamp component is to build (no row is drawn yet).
 - **B10 Text and sources.** At most six words on screen at a time, all from the story. Every claim has at least one source; every source card shows one of the story's claims.
-- **B11 Mascot.** At most one sting and at most two reactions between the sting and the outro, each short. None in the outro (see the exception note below).
-- **B12 Outro.** The loop-back: no voice, and the first and last frames match (the loop test). **Exception to settle:** pilot 1's outro has a mascot and a sign-off text (`klipian intip`, `Intip yuk fakta lain →`). The checker flags both; ian decides whether the outro may carry the sign-off.
+- **B11 Mascot.** At most one sting and at most two reactions between the sting and the outro, each short. None in the outro (B12).
+- **B12 Outro (the loop-back).** The outro has no voice, no mascot and no text. The first and last frames match (the loop test). The checker reads what the video draws: the plan's timing (no mascot window reaches the outro, no text reaches into it) and the number of `<Mascot` uses in the code.
 - **B13 Motion and sound.** A sound on every movement, at most three at once. Highlights live on their object and have a meaning. Cables and strokes are never rigid; parts that go into holes are clipped; joints are smooth; in-between states are checked as strips.
 - **B14 Revisions.** Every revision adds its rule to this section or to the section it touches (the motion rule of `DESIGN.md` § 6 and the nature rules of § "Nature kit").
 

@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { DICTIONARY, markComponents } from "../src/dictionary.ts";
 
 let n = 0;
@@ -64,6 +65,28 @@ for (const r of DICTIONARY.filter((k) => k.status === "drawn")) {
   const res = spawnSync(process.execPath, [path.join(ROOT, "scripts", "styleCheck.mjs"), "kenapa-colokan-panas"], { encoding: "utf8" });
   yes(res.stdout.includes("styleCheck: videos/kenapa-colokan-panas") && res.stdout.includes("summary:") && res.stdout.includes("human checklist"), "the checker runs on pilot 1 and prints the summary and the checklist");
   yes(res.status === 0 || res.status === 1, "the checker exits 0 or 1 (1 when it flags something), not an error");
+}
+
+// --- the outro is read from what the video draws (B12): pilot 1's outro has no mascot and no text; a fake video that draws a Mascot in its outro must FLAG
+{
+  const pilot = spawnSync(process.execPath, [path.join(ROOT, "scripts", "styleCheck.mjs"), "kenapa-colokan-panas"], { encoding: "utf8" });
+  yes(pilot.stdout.includes("PASS   no mascot is drawn in the outro"), "pilot 1: no mascot is drawn in its outro (the plan's timing)");
+  yes(pilot.stdout.includes("PASS   no text is on screen in the outro"), "pilot 1: no text is on screen in its outro");
+  yes(pilot.stdout.includes("INFO   the video declares the loop-back"), "pilot 1 declares the loop-back (its plan has a loopWeight)");
+  const fixture = path.join(ROOT, "out", "style-fixture", "outro-mascot");
+  mkdirSync(fixture, { recursive: true });
+  writeFileSync(path.join(fixture, "story.json"), readFileSync(path.join(ROOT, "videos", "kenapa-colokan-panas", "story.json"), "utf8"));
+  // the fake plan: the reaction runs in the outro (from 43 s, the outro starts at 41 s), and the video code draws the mascot for it
+  writeFileSync(path.join(fixture, "plan.ts"), `export function makePlan(story: { beats: { id: string; kind: string; dur: number }[] }) {
+  const total = story.beats.reduce((a, b) => a + b.dur, 0);
+  const m = { sting: 3, stingEnd: 4, react: 43, outro: 41, end: total };
+  return { m, total, loopWeight: (t: number) => Math.min(1, Math.max(0, t - m.outro)), tops: [], labels: [] };
+}
+`);
+  writeFileSync(path.join(fixture, "index.tsx"), "export const Fake = () => <g><Mascot x={1} y={1} /><Mascot x={2} y={2} /></g>;\n");
+  const fake = spawnSync(process.execPath, [path.join(ROOT, "scripts", "styleCheck.mjs"), fixture], { encoding: "utf8" });
+  yes(fake.stdout.includes("FLAG   no mascot is drawn in the outro"), "a fake video that draws a Mascot in its outro FLAGs the outro");
+  yes(fake.status === 1, "the checker exits 1 when a flag is raised");
 }
 
 console.log(`style: ${n} checks ok`);
