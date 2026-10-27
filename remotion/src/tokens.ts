@@ -67,4 +67,12 @@ export const ISO = {
   metal: [rgb([236, 236, 232]), METAL, rgb([146, 146, 142])],
   brass: [rgb([228, 200, 128]), rgb([196, 160, 84]), rgb([148, 116, 54])],
   labPlastic: [G4, rgb([196, 196, 192]), rgb([150, 150, 148])],
+  // the nature kit (pilot 2): meaning colours, used only by the nature assets (src/components/IsoNature.tsx); numbers from make_hujan25d.py
+  water: [rgb([120, 182, 226]), rgb([78, 146, 204]), rgb([52, 112, 170])],
+  soil: [rgb([206, 196, 170]), rgb([176, 164, 136]), rgb([140, 128, 104])],
+  grass: [rgb([152, 190, 120]), rgb([120, 160, 94]), rgb([86, 124, 66])],
+  leaf: [rgb([120, 160, 94]), rgb([86, 124, 66]), rgb([60, 96, 50])],
+  cloudWhite: [WHITE, rgb([226, 224, 218]), rgb([200, 198, 192])],
+  cloudGrey: [rgb([190, 190, 190]), rgb([150, 150, 150]), rgb([110, 110, 110])],
+  sun: [rgb([255, 226, 120]), rgb([255, 212, 71]), rgb([214, 168, 20])],
 } as const satisfies Record<string, readonly [string, string, string]>;

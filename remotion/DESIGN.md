@@ -105,6 +105,18 @@ Look at `out/assets-sheet-iso.png` (`npm run assets-sheet`) and the `IsoDemo` co
 - **4. A cable reads as a part with volume**: a tube with a base, a body narrowed toward the lit side, a light stripe on the lit side and a rim light on the shaded edge; a boot that tapers from the back cap to the cable's diameter with flex grooves; a cable a third of the back cap's diameter.
 
 
+## Nature kit (pilot 2, phase 1: the water cycle in the 2.5D style)
+
+The nature parts are in `src/components/IsoNature.tsx`; their geometry (pure, tested) in `src/natureGeometry.ts`; the demo in `src/NatureDemo.tsx`; the asset sheet in `src/NatureSheet.tsx`. Reference: `workspace/channel-art/klipian-intip/hujan-25d.png` (read only).
+
+- **Meaning colours** (the only ones besides the brand and the yellow of the sun, the current and the highlights): **blue = water** (`ISO.water`), **green = plants** (`ISO.grass` top, `ISO.leaf` trees), **brown = soil** (`ISO.soil`), **white and grey = cloud** (`ISO.cloudWhite`, `ISO.cloudGrey`), **yellow = sun** (`ISO.sun`). Each has three tones: light on top, mid on the lower left, dark on the lower right. The nature tones are used only by the nature parts (a test checks it).
+- **Depth order** (back to front, the table in the header of `IsoNature.tsx` and `DEPTH_ORDER`): sea; ripples and splash on the sea's top face; vapour; land; trees and runoff on the land's top face; sun; rain; droplets; cloud. The demo draws in that order and a test reads its source.
+- **Clipped parts stay inside their face**: a ripple, a splash ring, a runoff stream or a tree base is clipped to the face it lies on (a test checks the geometry). Nothing is drawn over what hides it.
+- **Vapour starts inside the water** (below the sea's top face) and fades out toward the cloud. **Rain starts behind the cloud's lower edge** (drawn before the cloud, so the cloud hides its start). **Splash rings lie on the sea's top face**, not in the air.
+- **Loops**: every moving part is periodic in its phase (0..1 over the loop), so the loop's last frame equals its first. A state (the cloud's `dark` 0..1, `grow`) is a plain number the plan drives.
+- **Sounds**: `rain-patter`, `drip` and `bubble-rise` (synthesised in `sfx/synth.mjs`, CC0, in `sfx/LICENSES.md` and the `SFX` table). The rain sound is low-passed like the other sounds (at most 12 % above 9 kHz).
+- Check the **in-between states** (the cloud at dark 0 to 1, the rain's start, the vapour entering the cloud, the splash rings) with strips and 3x crops at the edges before a video uses a part (`out/nature/`).
+
 ## 4. 3D objects (optional: one hero shot only; semi-realistic, P28-P)
 
 - The hero is a real 3D model (`src/three/`): `WallSocket3D`, `Plug3D` (+ `PlugHeat`), `Cutaway3D`, `Cable3D`, `Smoke3D`, and the charger in `Dissect3D`. The default **look is semi-realistic**: standard materials (matte plastic, brass-like metal, rubber), small bevels, a soft key light from the top-left plus a fill, soft self-shadows, a dim room environment so metal reflects something. `look="toon"` keeps the old flat shading.

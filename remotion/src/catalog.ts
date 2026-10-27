@@ -60,8 +60,14 @@ export const SFX = {
   "click-crack":      { vol: 0.52, cooldown: 0.08, dur: 0.22 },
   "jingle-sting":     { vol: 0.42, cooldown: 1.00, dur: 1.30 },
   "jingle-outro":     { vol: 0.42, cooldown: 1.00, dur: 2.20 },
+  // pilot 2 (nature): synthesised in sfx/synth.mjs, CC0
+  "rain-patter":      { vol: 0.35, cooldown: 0.80, dur: 0.90 },
+  "drip":             { vol: 0.40, cooldown: 0.25, dur: 0.35 },
+  "bubble-rise":      { vol: 0.35, cooldown: 0.60, dur: 0.90 },
 } as const satisfies Record<string, { vol: number; cooldown: number; dur: number; loop?: boolean; bed?: boolean }>;
 export type SfxName = keyof typeof SFX;
+/** The nature assets of pilot 2 (src/components/IsoNature.tsx, NatureDemo, NatureSheet); the rest of the catalog is the same. */
+export const NATURE_ASSETS = ["sea", "land", "tree", "sun", "cloud", "rain", "vapour", "droplets", "splash", "runoff"] as const;
 export const SFX_NAMES = Object.keys(SFX) as [SfxName, ...SfxName[]];
 export const MAX_SIMULTANEOUS_SFX = 3;               // at most this many one-shots sound at once (a loop is a bed, it does not count)
 export const SFX_MASTER_CEILING = 0.5;               // the mix never goes above -6 dBFS: the rest is headroom for a voice-over bus (P28-C)

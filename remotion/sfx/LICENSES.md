@@ -32,5 +32,8 @@ original work.
 | `click-crack.wav` | a plastic click and crack (the shell splits) | synth.mjs, CC0 |
 | `jingle-sting.wav` | a four-note plucked motif (the sting) | synth.mjs, CC0 (an original motif) |
 | `jingle-outro.wav` | a five-note motif ending in a C major chord (the outro) | synth.mjs, CC0 (an original motif) |
+| `rain-patter.wav` | soft rain on a surface: filtered noise bursts (pilot 2, nature) | synth.mjs, CC0 |
+| `drip.wav` | a water drip: a falling sine with a fast decay (pilot 2, nature) | synth.mjs, CC0 |
+| `bubble-rise.wav` | a bubble rising: a gliding sine under a soft envelope (pilot 2, nature) | synth.mjs, CC0 |
 
 No voice is synthesised or sampled anywhere: the voice-over is a separate task (P28-C).

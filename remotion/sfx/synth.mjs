@@ -122,6 +122,10 @@ const recipes = {
     [523, 659, 784, 1047].forEach((f) => { s += 0.7 * pluck(t, 1.0, f, 2.2); });
     return s;
   }),
+  // pilot 2 (nature): soft rain on a surface, a water drip, a bubble rising (synthesised here, CC0)
+  "rain-patter": () => { const lp = lowpass2(4500), bp = bandpass(noiseOf(3), () => 2400, 1.4); return make(0.9, (t) => lp(bp(t)) * (0.35 + 0.65 * Math.abs(Math.sin(TAU * 7 * t + 1.3))) * Math.min(1, t / 0.02)); },
+  "drip": () => { const o = osc((t) => 1100 - 700 * Math.min(1, t / 0.12)); return make(0.35, (t) => o(t) * Math.exp(-t * 16) * Math.min(1, t / 0.002)); },
+  "bubble-rise": () => { const o = osc((t) => 260 + 520 * Math.min(1, t / 0.6)); return make(0.9, (t) => o(t) * Math.sin(Math.PI * Math.min(1, t / 0.9)) * 0.9); },
 };
 
 mkdirSync(OUT, { recursive: true });
