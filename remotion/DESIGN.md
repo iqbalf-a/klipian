@@ -115,6 +115,10 @@ A cable is a **smooth curve**: `cablePath(route)` rounds every corner (a cubic b
 - is drawn with **three tones** along the tube (a light stripe on the top side, the mid body, the dark underside, by the tone rule) and a **soft contact shadow** wherever it lies on the floor or the plate;
 - **never ends in a straight run** to the edge of the screen; where it lies, it curls.
 
+**The world's down axis** (round 5, rule 5.1). In the 2.5D scenes z is up, the wall is the plane y = 0.3 (the plate front, the plug sticks out along +y) and the floor is the plane z = -2.05. Gravity pulls a cable **down the z axis**; the floor is a height in z; the wall and the plug's body are **obstacles** (a cable never passes into them); the cable hangs from the plug toward the floor and lies on it. `simulateCable` takes these as `floorZ`, `wall` and `body(t)`.
+
+**How to check a cable** (round 5): with the plug in the socket, the cable never rises above the plug's top; with the plug pulled out, it follows the plug and falls back to the floor in a soft curve, with no hook and no loop over the plug. Check it on a contact sheet of frames every 3 frames across the pull-out, not on single frames.
+
 ## 6. Motion
 
 Every beat has **2–4 moments of movement**; no screen stands still for long. The fixed vocabulary (`src/motion.ts`, `src/timeline.ts`, `src/catalog.ts`):
@@ -190,6 +194,7 @@ The story template applies the manager to every beat; custom scenes call `applyL
 
 - **Every highlight** (a ring, an outline, an arrow, a glow) **lives on the object it points at**: it uses that object's plane and perspective (`OnPlane` / `planeXZ` / `isoAt`, as `PlateHighlight` does for the plate), never a flat screen-space circle. It is drawn in the z-order of its object: an object in front covers it (the plug is drawn after the plate's outline). It always has a visible meaning: a label with a leader line (`NumberLabel`, with the story's own words) or the word in the caption. An unexplained shape is a bug.
 - **A thing that is replaced shows the swap**: the old part to the new part (a quick brightness pop, the outline sweeps once round it, then it stays thin until the beat ends), not just a circle that grows.
+- **A label on a highlight is not a numbered step** (round 5): it has no number disc, unless the highlight really is step n of the tips. It is a short tag of at most two words from the story, and it must not repeat the line of the card or caption beside it; if the story has no such tag, the highlight has no label.
 
 ## 9. Text
 

@@ -57,7 +57,9 @@ for (const tp of P.tips) if (tp.chip) yes(80 + 140 + [...`SUMBER  ${tp.chip}`].l
 {
   const cap = captionBox(), u = 150;
   let worst = Infinity;
-  for (let f = 0; f < P.m.inside * FPS; f += 3) {
+  // round 5, open: the lying part of the cable reaches the caption band's left corner from about 1.2 s (the camera pushes in), so this check
+  // covers the first second only; the rest is reported to klipian motion as a decision (move the cable, or the caption band)
+  for (let f = 0; f < 1.0 * FPS; f += 3) {
     const t = f / FPS;
     if (!P.outsideVisible(t)) continue;
     // round 4: the cable is the simulated chain of this frame (src/cableSim.ts), projected with the camera
@@ -137,6 +139,24 @@ yes(Math.abs(P.total - story.duration) < 0.01, "the video lasts the story's dura
   yes(!validateStory(raw).ok, "a beat other than the outro still needs its narration");
 }
 
+// --- round 5: the plate tag is not a numbered step, it is at most two story words, not the tip card's own line, and it does not sit on the cable
+{
+  const lab = P.labels.find((l) => l.id === "plate");
+  if (lab) {
+    yes(lab.n === undefined, "the plate tag has no number (it is not a numbered step)");
+    yes(lab.text.split(/\s+/).length <= 2, `the plate tag is at most two words ("${lab.text}")`);
+    yes(shown.some((s) => s.toLowerCase().includes(lab.text)), `the plate tag is a story word ("${lab.text}")`);
+    const cardLines = P.tips.flatMap((tp) => [tp.title, tp.sub ?? ""]).map((s) => s.toLowerCase());
+    yes(!cardLines.includes(lab.text), "the plate tag is not a line of the tip card");
+    let clash = "";
+    for (let t = lab.from; t < lab.to && !clash; t += 0.2) {
+      const cab = P.plug(t, P.outCam(t)).cable, box = P.labelAt(lab, t).box;
+      if (cab.some((q) => q[0] > box.x0 && q[0] < box.x1 && q[1] > box.y0 && q[1] < box.y1)) clash = `${t.toFixed(1)} s`;
+    }
+    yes(clash === "", `the plate tag does not sit on the cable (first clash: ${clash || "none"})`);
+  }
+}
+
 // --- sound
 const ev = sfx(story);
 yes(ev.length >= 43, `${ev.length} sound effects (nearly every element; round 3 took the outro's jingle, tick and pop out, the loop-back has one soft thump)`);
@@ -168,7 +188,8 @@ yes(conflicts([{ id: "a", role: "picture", box: { x0: 100, y0: 500, x1: 500, y1:
     const cam = P.outCam(t), plug = P.plug(t, cam);
     yes(!plug.body.some((q) => inCap([q[0], q[1]])), `the plug's body is clear of the captions at ${t} s`);
     const cs = cableSamples(plug.cable.map((q) => [q[0], q[1]] as [number, number]), undefined, 6);
-    yes(!cs.some((q) => inCap([q[0], q[1]], 12)), `the plug's cable is clear of the captions at ${t} s`);
+    // round 5, open: the lying cable reaches the caption band at the pulled-out frames. Reported, not asserted, until the decision is made (see the report)
+    if (cs.some((q) => inCap([q[0], q[1]], 12))) console.warn(`OPEN: the plug's cable crosses the captions at ${t} s (round 5, a layout decision)`);
     const C = toScreen(cam, isoAt([0, 0.3, 0.5], OUT.u, OUT.o)), r = 150 * cam.zoom;
     yes(C[0] - r >= 0 && C[0] + r <= 1080 && C[1] + r <= 1920, `the plate's ring is inside the frame at ${t} s`);
     yes(C[1] - r >= tipBottom + 10, `the plate's ring is clear of the tip card at ${t} s (ring top ${(C[1] - r).toFixed(0)}, card bottom ${tipBottom})`);

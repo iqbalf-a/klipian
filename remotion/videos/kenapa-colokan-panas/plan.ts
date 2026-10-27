@@ -21,8 +21,6 @@ export const contactAt = (loose: number): P3 => [1.2 - 0.2 * loose, 0.05, 0.18];
 export const CABLE_TO: P3[] = [[-0.9, 2.8, 0.5], [-2.6, 4.6, 0.4]];
 /** Round 4: the cable is a chain of fixed length (src/cableSim.ts) that hangs from the plug's end and rests on the shelf and the plate. */
 export const CABLE_LEN = 5.6;
-/** The floor under the cable: the shelf (y 0), and the top of the plate (y 0.3) over its square (x ±1.2, z from -0.7 to 1.7). */
-const cableGround = (x: number, z: number): number => (Math.abs(x) <= 1.2 && z >= -0.7 && z <= 1.7 ? 0.3 : 0);
 const out = (p: P3): P2 => isoAt(p, OUT.u, OUT.o);
 /** The plug's radius by height above its plate (IsoPlug in components/Iso.tsx, the same numbers): the body, then the thin strain relief. */
 const PLUG_PROFILE: [number, number, number][] = [[0, 1.03, 1.03], [0.14, 0.95, 0.86], [1.0, 0.86, 0.6], [1.14, 0.3, 0.18], [1.62, 0.3, 0.18]];
@@ -248,8 +246,10 @@ export function makePlan(story: StoryT) {
   // round 4: the cable is a chain (src/cableSim.ts) run once for the whole video from the plug's end, which follows the plug's gap and wobble;
   // a frame reads its nodes back, so the picture never runs the simulation itself
   const plugEnd = (t: number): [number, number, number] => { const s = state(t), cx = s.wobble * 0.05, tip = s.wobble * 0.14; return [cx + tip * 0.81, 0.3 + s.gap + 1.62, 0.5]; };
-  const cableFrames = simulateCable({ anchor: plugEnd, duration: total, fps: FPS, length: CABLE_LEN, axis: [0, 1, 0], stub: 0.45, ground: cableGround,
-    body: { x: 0, z: 0.5, r: 0.95, y0: 0.3, y1: 1.9 } });
+  // the world: z is up, the wall is the plane y = 0.3 (the plate front), the plug sticks out along +y, the floor is the plane z = -2.05 (ISO floor block)
+  const cableFrames = simulateCable({ anchor: plugEnd, duration: total, fps: FPS, length: CABLE_LEN, axis: [0, 1, 0], stub: 0.45, floorZ: -2.05,
+    wall: { face: 0.3, x0: -2.1, x1: 2.1, z0: -2.05, z1: 2.3 },
+    body: (t) => { const g = state(t).gap; return { x: 0, z: 0.5, r: 0.95, y0: 0.3 + g, y1: 1.9 + g }; } });
   // from the outro on, the cable eases to its opening shape with the same loop weight as the rest, so the last frame is the first one's cable
   const cableAt = (t: number): P3[] => {
     const a = cableFrames[Math.min(cableFrames.length - 1, Math.max(0, Math.round(t * FPS)))], w = loopWeight(t);
@@ -267,9 +267,10 @@ export function makePlan(story: StoryT) {
   const socketWord = fromStory(story, "stop kontak"), plugWord = fromStory(story, "colokan");
   if (socketWord) labels.push({ id: "socket", text: socketWord.toLowerCase(), n: 1, world: "out", at: SOCKET_PTS.plate, off: [-40, -300], from: m.socketLabel, to: m.magnifier + 0.2 });
   if (plugWord) labels.push({ id: "plug", text: plugWord.toLowerCase(), n: 2, world: "out", at: SOCKET_PTS.grip, off: [-40, 380], from: m.plugLabel, to: m.magnifier + 0.2 });
-  // round 4: the yellow outline of the plate (the part to replace) carries the story's own words for it, the tip's pill
-  const replaceWord = fromStory(story, "Teknisi ganti stop kontak");
-  if (replaceWord) labels.push({ id: "plate", text: replaceWord.toLowerCase(), n: 1, world: "out", at: SOCKET_PTS.plate, off: [-330, -60], from: m.replace + 0.2, to: m.outro - 0.2 });
+  // round 5: the yellow outline of the plate is not a numbered step, so its label has no number disc, and it is a short tag of at most two
+  // story words that is not the card's own line (the tip card above already says "Teknisi ganti stop kontak"); no tag if the story has none
+  const plateTag = fromStory(story, "stop kontak");
+  if (plateTag && plateTag.split(/\s+/).length <= 2) labels.push({ id: "plate", text: plateTag.toLowerCase(), world: "out", at: SOCKET_PTS.plate, off: [-330, -60], from: m.replace + 0.2, to: m.outro - 0.2 });
   if (dalamLabels[0]) labels.push({ id: "leaf", text: dalamLabels[0].text, n: 1, world: "lab", at: CUT_PTS.leaf, off: [60, -360], from: m.leafLabel, to: m.macro });
   if (dalamLabels[1]) labels.push({ id: "pin", text: dalamLabels[1].text, n: 2, world: "lab", at: CUT_PTS.pin, off: [-10, 330], from: m.pinLabel, to: m.macro });
   const touch = highlight("dalam");

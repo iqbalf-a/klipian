@@ -111,10 +111,13 @@ export const PlateHighlight: React.FC<{ u: number; o: P2; k: number; sweep: numb
 
 /** A cable from simulated nodes (src/cableSim.ts): a smooth curve through the nodes, three tones along it (a light stripe on the top side, the mid body,
     the dark underside), and a soft contact shadow wherever it lies on the floor or the plate. */
+/** The floor the cables lie on: the plane z = CABLE_FLOOR_Z (the floor block of IsoWallSocket is its top). */
+export const CABLE_FLOOR_Z = -2.05;
 const CableLine: React.FC<{ nodes: readonly P3[]; u: number; o: P2 }> = ({ nodes, u, o }) => {
   const sp = nodes.map((p) => isoAt(p, u, o) as P2), d = smoothPath(sp, 0.5);
   return <g>
-    {nodes.map((p, i) => (p[1] < 0.36 ? <ellipse key={i} cx={sp[i][0]} cy={sp[i][1] + u * 0.03} rx={u * 0.2} ry={u * 0.07} fill={BLACK} opacity={0.2} /> : null))}
+    {/* a soft shadow on the floor under each node that is near it (the floor is the plane z = CABLE_FLOOR_Z: round 5) */}
+    {nodes.map((p, i) => (p[2] < CABLE_FLOOR_Z + 0.12 ? <ellipse key={i} cx={isoAt([p[0], p[1], CABLE_FLOOR_Z], u, o)[0]} cy={isoAt([p[0], p[1], CABLE_FLOOR_Z], u, o)[1]} rx={u * 0.2} ry={u * 0.07} fill={BLACK} opacity={0.2} /> : null))}
     <path d={d} fill="none" stroke={ISO.dark[2]} strokeWidth={u * 0.25} strokeLinecap="round" strokeLinejoin="round" />
     <path d={d} fill="none" stroke={ISO.dark[1]} strokeWidth={u * 0.15} strokeLinecap="round" strokeLinejoin="round" transform={`translate(${-u * 0.012} ${-u * 0.02})`} />
     <path d={d} fill="none" stroke={ISO.dark[0]} strokeWidth={u * 0.035} strokeLinecap="round" strokeLinejoin="round" transform={`translate(${-u * 0.04} ${-u * 0.05})`} opacity={0.85} />
