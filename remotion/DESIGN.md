@@ -55,10 +55,17 @@ Never change the words of the story: if a sentence is wrong or too long, tell ia
 ## 3. The mascot and people
 
 **The mascot** (the yellow bubble with one magnifying-glass eye, no body) is **rare** (ian, 2026-10-26):
-- required in the **"Intip yuk!" sting** and the **outro**; there it may be big, `pop`, and persistent across those two beats;
+- the **"Intip yuk!" sting** is a **small pop**, about 200–240 px wide (the video has no full-screen veil there: the plug, the heat and the camera keep moving behind it), with the pill beside it, in the top band clear of the socket;
+- the **outro is a loop-back with no mascot, no label and no pill** (ian, 2026-10-27: the mascot is not in the ending any more);
 - in between, at most **2 short reactions** (about 1 s each: an `enter` delay and an `exit`) at key moments;
-- **never parked in a corner for the whole video**. The validator refuses a third reaction, a reaction longer than 1.5 s and `persist` outside the sting and the outro;
+- **never parked in a corner for the whole video**. The validator refuses a third reaction, a reaction longer than 1.5 s and `persist` outside the sting and the outro (the outro's mascot in the story is for ian to drop, round 3);
 - expressions: `curious, surprised, think, understand, laugh, ouch`; the "ting" of the lens plays on "Intip yuk!".
+
+**How to make a seamless loop ending** (the outro beat of a video that loops, kenapa-colokan-panas, round 3):
+- the state at the last frame equals the state at the first one: the camera is back on the opening shot, the plug is back in (no gap, no heat, no scorch, no ring), and no text or label is on the screen. `plan.ts` makes this a state blend from the outro on (`state(t)` eases each object to its `core(0)` value), and `tests/colokan.test.ts` checks both ends;
+- anything that moves by itself (the glow breathing, the heat rise, the motes, the brand rings) must come back to its opening value or be periodic in the video length; the camera eases home by the last frame;
+- no fade-out of the music at the end (the bed runs on so the seam does not dip to silence); one soft sound (`thump`) as the plug goes back in, nothing else;
+- the outro beat may have an empty narration (the storyboard may drop its line); the validator allows that only for the outro.
 
 **People (chibi) are optional.** Use one only when the story needs a person: someone doing something, a body part, a person's reaction being the point. A topic about an
 object (a socket, a charger) shows just the object. Roles (so far `pemuda`), expressions `calm, happy, surprised, ouch`, poses `idle, point, ouch, wave, cheer`, costume `none|helmet`.
@@ -151,7 +158,7 @@ y  85..285     banner (or the top text layer: kicker + headline, y 86..330)
 y 300..1340    hero object: centre x 540, 60–70 % of the width (72 % with no character at the bottom)
 left/right     callouts: pointer labels, arrows, numbers, cards, around the hero
 y 1470..1600   caption layer (karaoke), inside the safe area
-bottom-left    the mascot, only in the sting/outro and its two reactions
+bottom-left    the mascot, only in the sting (a small pop in the top band) and its two reactions; the outro has none
 bottom corner  a chibi, only when the story needs a person
 ```
 

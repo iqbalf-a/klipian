@@ -104,7 +104,7 @@ export const Beat = z.object({
   id: z.string().regex(/^[a-z0-9-]{1,24}$/),
   kind: z.enum(BEAT_KINDS),
   dur: num.min(0.5).max(30),                                              // seconds
-  narration: z.string().min(1).max(600),
+  narration: z.string().max(600),                                         // may be empty on the outro (the loop-back has no voice); Story checks the rest
   // the top text layer: a small mono kicker over a bold headline that changes per sentence (instead of a banner)
   kicker: z.string().max(40).refine((t) => wordCount(t) <= 5, { message: "a kicker is at most 5 words" }).optional(),
   headline: screenText.optional(),
@@ -141,6 +141,7 @@ export const Story = z.object({
   const ids = s.beats.map((b) => b.id);
   const dup = ids.find((id, i) => ids.indexOf(id) !== i);
   if (dup) ctx.addIssue({ code: "custom", message: `two beats are called "${dup}"`, path: ["beats"] });
+  s.beats.forEach((b, bi) => { if (b.kind !== "outro" && b.narration.trim() === "") ctx.addIssue({ code: "custom", message: `beat "${b.id}" needs a narration (only the outro may be empty)`, path: ["beats", bi, "narration"] }); });
   const total = s.beats.reduce((a, b) => a + b.dur, 0);
   if (Math.abs(total - s.duration) > 0.01) ctx.addIssue({ code: "custom", message: `the beats last ${total} s but duration says ${s.duration}`, path: ["duration"] });
   s.beats.forEach((b, bi) => b.scene.items.forEach((item, ii) => {

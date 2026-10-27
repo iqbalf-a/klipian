@@ -36,7 +36,7 @@ yes(bad.length === 0, `no overlaps and all inside the safe area in any frame:\n$
 // --- every word on the screen comes from the story
 const hay = JSON.stringify(story).toLowerCase();
 const CHROME = ["dari luar", "di dalam", "di dalam · diperbesar", "akibatnya", "tips aman"];
-const shown = [...P.tops.map((x) => x.headline), ...P.labels.map((l) => l.text), ...P.tips.flatMap((tp) => [tp.title, tp.sub ?? ""]), ...P.cards.map((c) => c.quote), P.stingPill, P.outroLabel, P.outroPill ?? "", ...P.loopWords.map((x) => x ?? "")].filter(Boolean);
+const shown = [...P.tops.map((x) => x.headline), ...P.labels.map((l) => l.text), ...P.tips.flatMap((tp) => [tp.title, tp.sub ?? ""]), ...P.cards.map((c) => c.quote), P.stingPill, ...P.loopWords.map((x) => x ?? "")].filter(Boolean);
 for (const s of shown) yes(hay.includes(s.replace(/…$/, "").toLowerCase()), `"${s}" is in the story`);
 for (const x of P.tops) yes(!x.kicker || CHROME.includes(x.kicker.toLowerCase()) || x.kicker === story.question.toUpperCase(), `kicker "${x.kicker}" is chrome or the story's question`);
 yes(P.cards.length === 2 && P.tips.length === 2 && P.labels.length >= 6, `cards ${P.cards.length}, tips ${P.tips.length}, labels ${P.labels.length}`);
@@ -84,9 +84,63 @@ const order = [P.m.hookLabel, P.m.sting, P.m.magnifier, P.m.through, P.m.inside,
 yes(order.every((x, i) => i === 0 || x > order[i - 1]), "the moments come in story order");
 yes(Math.abs(P.total - story.duration) < 0.01, "the video lasts the story's duration");
 
+// --- round 3: the small sting (no veil; its mascot and pill clear of the plug, its cable and the top text)
+{
+  const S = P.STING;
+  const mBox = { x0: S.mx - S.mw / 2, y0: S.my - S.mw * 0.6, x1: S.mx + S.mw / 2, y1: S.my + S.mw * 0.6 };
+  const pBox = { x0: S.px - S.pillW / 2, y0: S.py - 46, x1: S.px + S.pillW / 2, y1: S.py + 46 };
+  yes(S.mw <= 0.25 * 1080, `the sting's mascot is small (${S.mw} px wide, at most a quarter of the frame)`);
+  const inBox = (p: readonly number[], b: { x0: number; y0: number; x1: number; y1: number }) => p[0] > b.x0 && p[0] < b.x1 && p[1] > b.y0 && p[1] < b.y1;
+  let touched = "";
+  for (let t = P.m.sting; t < P.m.stingEnd && !touched; t += 0.1) {
+    const { body, cable } = P.plug(t, P.outCam(t));
+    const pts = [...body, ...cableSamples(cable.map((p) => [p[0], p[1]] as [number, number]), undefined, 6)];
+    if (pts.some((p) => inBox(p, mBox) || inBox(p, pBox))) touched = `${t.toFixed(1)}s`;
+  }
+  yes(touched === "", `the sting's mascot and pill stay clear of the plug and its cable (first touch: ${touched || "none"})`);
+  const stingText = P.specsAt(P.m.sting + 0.5, cardH, tipH).filter((s) => s.role === "banner" || s.role === "caption");
+  yes(stingText.length === 0, "no top text and no caption during the sting (the picture keeps moving behind the small mascot)");
+}
+
+// --- round 3: the outro is a loop-back: no mascot, label, pill or caption; the state and the camera at the last frame are those of the first
+{
+  const last = P.total - 1 / FPS, a = P.state(0), b = P.state(last);
+  for (let t = P.m.outro; t < P.total; t += 0.1) {
+    const words = P.specsAt(t, cardH, tipH).filter((s) => s.role === "text" || s.role === "caption" || s.role === "banner");
+    if (words.length) { yes(false, `the outro shows no text (${t.toFixed(1)}s: ${words.map((s) => s.id).join(", ")})`); break; }
+  }
+  yes(P.tops.every((x) => x.b <= P.m.outro) && P.labels.every((l) => l.to <= P.m.outro), "the outro draws no top text and no label");
+  const close = (x: number, y: number) => Math.abs(x - y) < 0.02;
+  yes(close(b.gap, a.gap) && close(b.outHeat, a.outHeat) && close(b.scorch, a.scorch) && close(b.smoke, a.smoke) && close(b.fresh, a.fresh) && close(b.wobble, a.wobble),
+    `the last frame's object state is the first frame's (gap ${b.gap.toFixed(3)} vs ${a.gap.toFixed(3)}, heat ${b.outHeat.toFixed(3)} vs ${a.outHeat.toFixed(3)}, ring ${b.fresh.toFixed(3)} vs ${a.fresh.toFixed(3)})`);
+  const e = P.state(P.total);
+  yes(e.gap === a.gap && e.outHeat === a.outHeat && e.scorch === a.scorch && e.smoke === a.smoke && e.fresh === a.fresh && e.wobble === a.wobble, "at the end of the video the state equals the state at 0 exactly");
+  const c0 = P.outCam(0), cL = P.outCam(last), cE = P.outCam(P.total);
+  yes(Math.abs(c0.x - cL.x) < 3 && Math.abs(c0.y - cL.y) < 3 && Math.abs(c0.zoom - cL.zoom) < 0.01, `the camera at the last frame is the opening shot (${cL.x.toFixed(1)}, ${cL.y.toFixed(1)}, ${cL.zoom.toFixed(3)})`);
+  yes(Math.abs(cE.x - c0.x) < 1e-6 && Math.abs(cE.y - c0.y) < 1e-6 && Math.abs(cE.zoom - c0.zoom) < 1e-6, "the camera at the end of the video is the opening shot");
+  // the plug is back in before the last second: no gap, no ring, in the last 1 s the state does not move
+  yes(P.state(P.total - 1).gap === 0 && P.state(P.total - 1).fresh === 0, "the plug is back in and the ring is gone for the last second");
+}
+
+// --- round 3: an outro with no narration (ian removes its line) validates, plans and sounds the same; other beats still need theirs
+{
+  const raw = JSON.parse(readFileSync(path.join(ROOT, "videos", "kenapa-colokan-panas", "story.json"), "utf8"));
+  raw.beats.find((b: { kind: string }) => b.kind === "outro").narration = "";
+  const v2 = validateStory(raw);
+  yes(v2.ok, `an outro with an empty narration validates${v2.ok ? "" : `: ${v2.errors.join("; ")}`}`);
+  if (v2.ok) {
+    const P2 = makePlan(v2.story);
+    yes(P2.total === P.total && P2.m.outro === P.m.outro, "the outro keeps its timing without its narration");
+    for (let t = P2.m.outro; t < P2.total; t += 0.5) if (P2.problemsAt(t, cardH, tipH).length) { yes(false, `no-narration outro overlaps at ${t}s`); break; }
+    yes(!sfx(v2.story).some((x) => x.name === "jingle-outro" || (x.t >= P2.m.outro && x.name === "boing")), "the loop-back has no jingle and no mascot sound");
+  }
+  raw.beats[0].narration = "";
+  yes(!validateStory(raw).ok, "a beat other than the outro still needs its narration");
+}
+
 // --- sound
 const ev = sfx(story);
-yes(ev.length >= 45, `${ev.length} sound effects (nearly every element)`);
+yes(ev.length >= 43, `${ev.length} sound effects (nearly every element; round 3 took the outro's jingle, tick and pop out, the loop-back has one soft thump)`);
 yes(ev.every((e) => Math.abs(e.t * FPS - Math.round(e.t * FPS)) < 1e-6 && e.t < P.total), "every sound on a frame, inside the video");
 
 // --- the 2.5D kit: tones and visibility, projections, the camera

@@ -12,7 +12,6 @@ import {
 import { HeatRise, IsoCutaway, IsoPlug, IsoWallSocket, Motes, SmokePuffs, Sparks } from "../../src/components/Iso.tsx";
 import { LoopArrows, MacroFrame, NumberLabel, SourceChip, TipCard, monoWidth, tipCardHeight } from "../../src/components/Overlays.tsx";
 import { isoAt, layerTransform, toScreen } from "../../src/iso.ts";
-import { textWidthEstimate } from "../../src/layout.ts";
 import { CABLE_TO, LAB, OUT, SOCKET_PTS, contactAt, makePlan } from "./plan.ts";
 import storyJson from "./story.json";
 
@@ -22,7 +21,6 @@ const W = FRAME.width, H = FRAME.height;
 const CARD_W = 850;
 export const cardHeight = (quote: string): number => 150 + wrap(`“${quote}”`, 38, CARD_W - 80).length * 38 * 1.28;   // a quote is at most two lines (plan.ts quoteFor)
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
-const fade = (t: number, a: number, b: number, d = 0.3) => clamp01((t - a) / d) * (1 - clamp01((t - b) / d));
 
 /** The lens ring over the lab circle (a black ring, the dark-yellow handle, the DIPERBESAR tag while it is small). */
 const LensRing: React.FC<{ x: number; y: number; r: number; t: number; tagFrom: number }> = ({ x, y, r, t, tagFrom }) => {
@@ -58,6 +56,8 @@ const Picture: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ story: s,
   const P = React.useMemo(() => makePlan(s), [s]);
   const { m } = P;
   const st = P.state(t), oc = P.outCam(t), lc = P.labCam(t), L = P.lens(t);
+  // round 3, the loop: the background and the heat wisps crossfade to their t = 0 pose as the loop comes home (lw 0 → 1), so the last frame is the first
+  const lw = P.loopWeight(t), st0 = P.state(0);
   const clipId = "colokan-lens";
   const outPt = (p: readonly [number, number, number]) => isoAt(p, OUT.u, OUT.o);
   const labPt = (p: readonly [number, number, number]) => isoAt(p, LAB.u, LAB.o);
@@ -66,7 +66,6 @@ const Picture: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ story: s,
   const top = P.tops.find((x) => t >= x.a && t < x.b);
   const beat = s.beats.find((b) => t >= P.beat(b.id).a && t < P.beat(b.id).b) ?? s.beats[s.beats.length - 1];
   const bt = t - P.beat(beat.id).a;
-  const outroFade = 1 - clamp01((t - m.outro + 0.05) / 0.45);
   const contactScreen = toScreen(lc, labPt(contactAt(st.loose)));
   // round 2: while the plug heats in the socket (0-10 s) its glow breathes, so the first seconds move with meaning
   const glow = st.outHeat * (t < m.inside ? 1 + 0.22 * Math.sin(t * 6.2) : 1);
@@ -86,16 +85,24 @@ const Picture: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ story: s,
 
       {/* ---------------- outside: the brand wall (far layer), the socket in its chunk of wall, heat and smoke, labels */}
       {P.outsideVisible(t) && <g>
-        <g transform={layerTransform(oc, 0.3)}><g transform="translate(540 960) scale(1.15) translate(-540 -960)"><Brand clock={t} spot={{ x: 540, y: 900, r: 560 }} /></g></g>
-        <g opacity={outroFade} transform={layerTransform(oc, 1)}>
-          <IsoWallSocket u={OUT.u} o={OUT.o} scorch={st.scorch} heat={glow * (1 - st.gap / 1.6)} t={t} />
+        <g transform={layerTransform(oc, 0.3)}><g transform="translate(540 960) scale(1.15) translate(-540 -960)">
+          <g opacity={1 - lw}><Brand clock={t} spot={{ x: 540, y: 900, r: 560 }} /></g>
+          {lw > 0 && <g opacity={lw}><Brand clock={0} spot={{ x: 540, y: 900, r: 560 }} /></g>}
+        </g></g>
+        <g transform={layerTransform(oc, 1)}>
+          {/* its heat pulse settles as the loop comes home: the clock slows to a stop, so the pulse is at its t = 0 value at the end */}
+          <IsoWallSocket u={OUT.u} o={OUT.o} scorch={st.scorch} heat={glow * (1 - st.gap / 1.6)} t={t * (1 - lw)} />
           <IsoPlug u={OUT.u} o={OUT.o} gap={st.gap} wobble={st.wobble} heat={glow} cableTo={CABLE_TO} />
-          <HeatRise x={plugTop[0]} y={plugTop[1] - 10} k={st.outHeat * (1 - st.gap / 1.6) * (t < m.tips + 1.5 ? 1 : 0.4)} t={t} scale={0.8} />
+          <g opacity={1 - lw}><HeatRise x={plugTop[0]} y={plugTop[1] - 10} k={st.outHeat * (1 - st.gap / 1.6) * (t < m.tips + 1.5 ? 1 : 0.4)} t={t} scale={0.8} /></g>
+          {lw > 0 && <g opacity={lw}><HeatRise x={plugTop[0]} y={plugTop[1] - 10} k={st0.outHeat * (1 - st0.gap / 1.6)} t={0} scale={0.8} /></g>}
           <SmokePuffs x={plugTop[0] + 20} y={plugTop[1] - 30} k={st.smoke} t={t} scale={0.75} />
           {st.fresh > 0 && st.fresh < 1 && (() => { const c = outPt(SOCKET_PTS.center); return <circle cx={c[0]} cy={c[1]} r={60 + 260 * st.fresh} fill="none" stroke={YELLOW} strokeWidth={14 * (1 - st.fresh)} />; })()}
           {st.fresh > 0 && (() => { const c = outPt(SOCKET_PTS.center); return <circle cx={c[0]} cy={c[1]} r={150} fill="none" stroke={YELLOW} strokeWidth={20 * st.fresh} />; })()}
         </g>
-        {oc.zoom < 2.2 && <g transform={layerTransform(oc, 1.35)}><Motes t={t} color={WHITE} opacity={0.5} /></g>}
+        {oc.zoom < 2.2 && <g transform={layerTransform(oc, 1.35)}>
+          <g opacity={1 - lw}><Motes t={t} color={WHITE} opacity={0.5} /></g>
+          {lw > 0 && <g opacity={lw}><Motes t={0} color={WHITE} opacity={0.5} /></g>}
+        </g>}
         {labelEls("out")}
         {P.cards.filter((c) => c.from > m.exit).map((c) => <g key={c.claim} opacity={1 - clamp01((t - c.to) / 0.3)}>{t >= c.from && t < c.to + 0.3 && <SourceCard x={90} y={1405 - cardHeight(c.quote)} w={CARD_W} quote={c.quote} org={c.org} domain={c.domain} date={c.date} t={t} start={c.from} />}</g>)}
         {P.tips.map((tp, i) => <TipCard key={i} x={P.TIP.x} y={P.TIP.y} w={P.TIP.w} n={tp.n} title={tp.title} sub={tp.sub} chip={tp.chip ? `SUMBER  ${tp.chip}` : undefined} keyword={tp.keyword} t={t} start={tp.from} subAt={tp.subAt} end={tp.to} />)}
@@ -119,32 +126,20 @@ const Picture: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ story: s,
       {L && t < m.inside + 0.1 && <LensRing x={L.x} y={L.y} r={L.r} t={t} tagFrom={m.magnifier} />}
       {L && t >= m.exit && <circle cx={L.x} cy={L.y} r={Math.max(0.1, L.r)} fill="none" stroke={BLACK} strokeWidth={14} />}
 
-      {/* ---------------- the mascot: the "Intip yuk!" sting, one short reaction, the outro */}
+      {/* ---------------- the mascot: the small "Intip yuk!" sting (no veil: the world keeps moving behind it), one short reaction */}
       {t >= m.sting - 0.1 && t < m.stingEnd + 0.15 && (() => {
-        const veil = fade(t, m.sting - 0.1, m.stingEnd - 0.15, 0.15), p = springAt(t, m.sting), out2 = 1 - easeInOut(clamp01((t - m.stingEnd + 0.18) / 0.25));
+        const S = P.STING, p = springAt(t, m.sting), out2 = 1 - easeInOut(clamp01((t - m.stingEnd + 0.18) / 0.25));
         return <g>
-          <rect width={W} height={H} fill={WALL} opacity={0.82 * veil} />
-          <g transform={`translate(540 860) scale(${Math.max(0, p) * out2}) translate(-540 -860)`}><Mascot x={540} y={860} w={600} expr="curious" t={t - m.sting} clock={t} squash={0.18 * (1 - p)} /></g>
-          <g transform={`translate(540 1330) scale(${Math.max(0, springAt(t, m.sting + 0.25)) * out2}) translate(-540 -1330)`}>
-            <rect x={540 - (textWidthEstimate(P.stingPill, 96) + 116) / 2} y={1330 - 75} width={textWidthEstimate(P.stingPill, 96) + 116} height={150} rx={75} fill={YELLOW} />
-            <text x={540} y={1330 + 34} fontSize={96} textAnchor="middle" fill={BLACK} style={{ fontFamily: '"Outfit", sans-serif', fontWeight: 700 }}>{P.stingPill}</text>
+          <g transform={`translate(${S.mx} ${S.my}) scale(${Math.max(0, p) * out2}) translate(${-S.mx} ${-S.my})`}><Mascot x={S.mx} y={S.my} w={S.mw} expr="curious" t={t - m.sting} clock={t} squash={0.18 * (1 - p)} /></g>
+          <g transform={`translate(${S.px} ${S.py}) scale(${Math.max(0, springAt(t, m.sting + 0.25)) * out2}) translate(${-S.px} ${-S.py})`}>
+            <rect x={S.px - S.pillW / 2} y={S.py - 46} width={S.pillW} height={92} rx={46} fill={YELLOW} />
+            <text x={S.px} y={S.py + 18} fontSize={S.fs} textAnchor="middle" fill={BLACK} style={{ fontFamily: '"Outfit", sans-serif', fontWeight: 700 }}>{P.stingPill}</text>
           </g>
         </g>;
       })()}
       {t >= m.react && t < m.react + 1.25 && (() => {
         const p = springAt(t, m.react) * (1 - easeInOut(clamp01((t - m.react - 0.95) / 0.25)));
         return <g transform={`translate(840 1240) scale(${Math.max(0, p)}) translate(-840 -1240)`}><Mascot x={840} y={1240} w={230} expr="surprised" t={t - m.react} clock={t} /></g>;
-      })()}
-      {t >= m.outro && (() => {
-        const p = springAt(t, m.outro + 0.15), q = springAt(t, m.outro + 0.6, true), r = springAt(t, m.outro + 1.1);
-        return <g transform={`translate(540 960) scale(${1 + 0.035 * Math.max(0, t - m.outro - 0.8)}) translate(-540 -960)`}>
-          <g transform={`translate(540 820) scale(${Math.max(0, p)}) translate(-540 -820)`}><Mascot x={540} y={820} w={620} expr="understand" sparks t={t - m.outro} clock={t} look={{ x: 540, y: 1470, mix: clamp01((t - m.outro - 1.6) / 0.4) }} /></g>
-          <text x={540} y={1300} fontSize={112} textAnchor="middle" fill={BLACK} opacity={q} transform={`translate(0 ${(1 - q) * 30})`} style={{ fontFamily: '"Outfit", sans-serif', fontWeight: 700 }}>{P.outroLabel}</text>
-          {P.outroPill && <g transform={`translate(540 1470) scale(${Math.max(0, r)}) translate(-540 -1470)`}>
-            <rect x={540 - (textWidthEstimate(P.outroPill, 64) + 80) / 2} y={1470 - 50} width={textWidthEstimate(P.outroPill, 64) + 80} height={100} rx={50} fill={YELLOW} />
-            <text x={540} y={1470 + 23} fontSize={64} textAnchor="middle" fill={BLACK} style={{ fontFamily: '"Outfit", sans-serif', fontWeight: 700 }}>{P.outroPill}</text>
-          </g>}
-        </g>;
       })()}
 
       {/* ---------------- the two text layers (in the lab a dark band behind the top text keeps white words readable over light parts) */}

@@ -166,7 +166,9 @@ export function makePlan(story: StoryT) {
     // round 2: from 38 s the tips settle at 1.1 so the pulled-out plug clears the captions and the plate and ring stay in frame
     { t: 39.2, x: C0[0], y: C0[1], zoom: 1.0 },
     { t: m.outro, x: C0[0], y: C0[1], zoom: 1.0 },
-    { t: m.outro + 1.2, x: C0[0], y: C0[1] - 700, zoom: 0.75 },
+    // round 3: the outro is a loop-back; the camera eases home to the opening shot and holds there for the last 0.2 s,
+    // so the last frame is exactly the first one's camera
+    { t: total - 0.2, x: 520, y: 980, zoom: 0.8 },
   ];
   const outCam = (t: number): Cam2 => cam2At(outKeys, t);
 
@@ -213,7 +215,7 @@ export function makePlan(story: StoryT) {
   // ---------------------------------------------------------------- the states of the objects
   const ramp = (t: number, a: number, d: number) => Math.max(0, Math.min(1, (t - a) / d));
   const sm = (k: number) => k * k * (3 - 2 * k);
-  const state = (t: number) => ({
+  const core = (t: number) => ({
     outHeat: t < m.inside ? 0.25 + 0.5 * sm(ramp(t, m.hookHeat, 1.6)) : t < m.tips ? 0.75 + 0.25 * sm(ramp(t, exitEnd, 1)) : 1 - sm(ramp(t, m.unplug + 0.2, 1.2)),
     scorch: t < m.exit ? 0 : t < m.replace ? sm(ramp(t, m.melt - 0.3, 1.0)) : 1 - sm(ramp(t, m.replace, 0.35)),
     // step 1: once unplugged the plug stays out (the socket is replaced, so the new plate must show: no plug in front of it)
@@ -225,6 +227,18 @@ export function makePlan(story: StoryT) {
     current: 1,
     fresh: t >= m.replace ? ramp(t, m.replace, 0.5) : 0,
   });
+  // round 3, the loop: from the outro on, the plug goes back in and every object eases to its opening value (the t = 0 state),
+  // so the state at the last frame is the state at the first one (tests/colokan.test.ts checks both ends)
+  const LOOP_EASE = Math.min(1.6, total - m.outro);
+  /** 0 until the outro, then 0 → 1 as the loop comes home (the picture crossfades its background and the wisps to their t = 0 pose by the same weight). */
+  const loopWeight = (t: number) => sm(ramp(t, m.outro, LOOP_EASE));
+  const state = (t: number) => {
+    const s = core(t), w = loopWeight(t);
+    if (w === 0) return s;
+    const h = core(0), mix = (a: number, b: number) => a + (b - a) * w;
+    return { ...s, outHeat: mix(s.outHeat, h.outHeat), scorch: mix(s.scorch, h.scorch), gap: mix(s.gap, h.gap), wobble: mix(s.wobble, h.wobble),
+      smoke: mix(s.smoke, h.smoke), loose: mix(s.loose, h.loose), labHeat: mix(s.labHeat, h.labHeat), fresh: mix(s.fresh, h.fresh) };
+  };
 
   // ---------------------------------------------------------------- texts, labels, cards
   const tops: Top[] = story.beats.flatMap((b) => topTexts(story, b, beat(b.id).a));
@@ -296,8 +310,12 @@ export function makePlan(story: StoryT) {
 
   // the sting and the outro: the story's own pill and label texts
   const stingPill = items("sting").flatMap((i) => (i.type === "pill" ? [i.text] : []))[0] ?? beat("sting").beat.text;
-  const outroLabel = items("outro").flatMap((i) => (i.type === "label" ? [i.text] : []))[0] ?? beat("outro").beat.text;
-  const outroPill = items("outro").flatMap((i) => (i.type === "pill" ? [i.text] : []))[0] ?? null;
+  // round 3: the outro draws no text (it is the loop-back). The sting is a small row in the top band, which is clear while the
+  // socket and plug fill the middle (the hero box tops out at about y 552): the mascot, then the pill, centred on x 540
+  const pillW = textWidthEstimate(stingPill, 52) + 60, rowW = 200 + 24 + pillW, rowX = 540 - rowW / 2;
+  const STING = { mx: rowX + 100, my: 400, mw: 200, px: rowX + 200 + 24 + pillW / 2, py: 400, fs: 52, pillW };
+  const stingPillBox = { x0: STING.px - pillW / 2, y0: STING.py - 46, x1: STING.px + pillW / 2, y1: STING.py + 46 };
+  const stingMascotBox = { x0: STING.mx - STING.mw / 2, y0: STING.my - STING.mw * 0.6, x1: STING.mx + STING.mw / 2, y1: STING.my + STING.mw * 0.6 };
 
   /** What is on the screen at `t` as boxes for the layout manager (src/layout.ts): the hero (the socket's plate and plug, or the cutaway's contact
       region), labels (text), cards, tip cards and the loop (pictures), the top text and the captions. `conflicts(specs)` must be empty. */
@@ -307,7 +325,7 @@ export function makePlan(story: StoryT) {
     const captioned = story.beats.some((b) => b.kind !== "sting" && b.kind !== "outro" && t >= beat(b.id).a && t < beat(b.id).b);
     if (captioned) specs.push({ id: "caption", role: "caption", box: captionBox() });
     const inLab = t >= m.inside && t < m.exit;
-    if (!inLab && t < m.outro && (t < m.sting || t >= m.stingEnd)) {
+    if (!inLab && t < m.outro) {
       const c = outCam(t), pts = [[-1.2, 0.3, 1.7], [1.2, 0.3, 1.7], [-1.2, 0.3, -0.7], [1.2, 0.3, -0.7], [0, 1.9, 0.5]].map((p) => toScreen(c, out(p as unknown as P3)));
       specs.push({ id: "hero", role: "hero", box: { x0: Math.min(...pts.map((p) => p[0])), y0: Math.min(...pts.map((p) => p[1])), x1: Math.max(...pts.map((p) => p[0])), y1: Math.max(...pts.map((p) => p[1])) } });
     }
@@ -317,11 +335,12 @@ export function makePlan(story: StoryT) {
       specs.push({ id: "contact", role: "hero", box: { x0: cc[0] - r, y0: cc[1] - r, x1: cc[0] + r, y1: cc[1] + r } });
     }
     for (const l of labels) if (t >= l.from + 0.1 && t < l.to) specs.push({ id: `label:${l.id}`, role: "text", box: labelAt(l, t).box });
+    if (t >= m.sting && t < m.stingEnd) specs.push({ id: "sting:mascot", role: "picture", box: stingMascotBox }, { id: "sting:pill", role: "text", box: stingPillBox });
     for (const cd of cards) if (t >= cd.from + 0.2 && t < cd.to) { const h = cardH(cd.quote); specs.push({ id: `card:${cd.claim}`, role: "picture", box: { x0: 90, y0: 1405 - h, x1: 940, y1: 1405 } }); }
     tips.forEach((tp, i) => { if (t >= tp.from + 0.2 && t < tp.to) specs.push({ id: `tip:${i}`, role: "picture", box: { x0: TIP.x, y0: TIP.y, x1: TIP.x + TIP.w, y1: TIP.y + tipH(i) } }); });
     return specs;
   };
   const problemsAt = (t: number, cardH: (q: string) => number, tipH: (i: number) => number) => conflicts(specsAt(t, cardH, tipH));
 
-  return { B, beat, total, w, m, exitEnd, cardIn1, cardOut1, cardIn2, cardOut2, outKeys, labKeys, outCam, labCam, lens, outsideVisible, labVisible, state, tops, labels, labelAt, LABEL_FS, cards, chips, tips, TIP, stingPill, outroLabel, outroPill, specsAt, problemsAt, loopWords: [fromStory(story, "panas"), fromStory(story, "hambatan")] as const, J, plug: (t: number, cam: Cam2) => plugScreen(state(t).gap, cam) };
+  return { B, beat, total, w, m, exitEnd, cardIn1, cardOut1, cardIn2, cardOut2, outKeys, labKeys, outCam, labCam, lens, outsideVisible, labVisible, state, tops, labels, labelAt, LABEL_FS, cards, chips, tips, TIP, stingPill, STING, loopWeight, specsAt, problemsAt, loopWords: [fromStory(story, "panas"), fromStory(story, "hambatan")] as const, J, plug: (t: number, cam: Cam2) => plugScreen(state(t).gap, cam) };
 }
