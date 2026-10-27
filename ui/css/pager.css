@@ -83,6 +83,10 @@
   font-size: 12.5px;
 }
 main.bulk-open { padding-bottom: 96px; }
+/* View + Detail side by side in a row; the View player sized to the video (Shorts are tall). */
+.ws-row-btns { display: inline-flex; gap: 6px; }
+.ws-video-dialog { width: auto; max-width: min(92vw, 720px); }
+.ws-video-dialog video { display: block; max-height: 78vh; max-width: 100%; margin: 0 auto; border-radius: var(--r-s); background: #000; }
 .ws-bulk[hidden] { display: none; }
 .ws-bulk-count { font-weight: 700; color: var(--text); }
 .ws-bulk-group { display: inline-flex; align-items: center; gap: 8px; }

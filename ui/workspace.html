@@ -241,6 +241,16 @@
     </dialog>
 
     <!-- Mark as Posted: when it went live. Esc and a click outside cancel; nothing changes until the button. -->
+    <!-- "View" on a clip row: its video, played here (clips.js openVideo). -->
+    <dialog class="ws-dialog ws-video-dialog" id="clipVideoDialog" aria-labelledby="clipVideoTitle">
+      <form method="dialog" class="flex flex-col gap-3">
+        <div class="flex items-start gap-3">
+          <h2 class="text-[15px] font-extrabold leading-tight" id="clipVideoTitle">Video</h2>
+          <button class="ml-auto ws-close" type="submit" value="close" title="Close">✕</button>
+        </div>
+        <video id="clipVideoPlayer" controls playsinline preload="metadata"></video>
+      </form>
+    </dialog>
     <dialog class="ws-dialog" id="markPostedDialog" aria-labelledby="markPostedTitle">
       <form method="dialog" class="flex flex-col gap-4" id="markPostedForm">
         <div class="flex items-start gap-3">

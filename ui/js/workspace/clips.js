@@ -164,7 +164,7 @@ function row(c) {
       <td class="${td}">${f("date", "date")}</td>
       <td class="${td}">${f("time", "time")}</td>
       <td class="${td}"><span class="data ws-created" title="${escapeHTML(timeAgo(c.createdAt || c.at))}">${fmtCreated(c.createdAt || c.at)}</span></td>
-      <td class="${td}"><button class="btn sm" data-action="detail" type="button">Detail</button></td>
+      <td class="${td}"><span class="ws-row-btns">${c.fileUrl ? `<button class="btn sm" data-action="view" type="button" title="Play this clip's video">View</button>` : ""}<button class="btn sm" data-action="detail" type="button">Detail</button></span></td>
       <td class="${td}"><button class="delete-btn" data-action="delete" type="button" title="Delete this clip">✕</button></td>
     </tr>`;
 }
@@ -282,7 +282,30 @@ $("#clipBody")?.addEventListener("click", async (e) => {
   }
 }, true);
 
+/* "View": the clip's video in a player dialog (only rows whose file is on disk have the button). */
+const videoDialog = $("#clipVideoDialog");
+function openVideo(id) {
+  const c = CLIPS.find((x) => x.id === id);
+  if (!c?.fileUrl || !videoDialog) return;
+  $("#clipVideoTitle").textContent = c.title || c.file || "Video";
+  const v = $("#clipVideoPlayer");
+  v.src = c.fileUrl;
+  videoDialog.showModal();
+  v.play().catch(() => {});                   // autoplay may be refused; the controls are there
+}
+videoDialog?.addEventListener("close", () => {
+  const v = $("#clipVideoPlayer");
+  v.pause();
+  v.removeAttribute("src");                   // stop downloading when closed
+  v.load();
+});
+
 $("#clipBody")?.addEventListener("click", async (e) => {
+  const view = e.target.closest('[data-action="view"]');
+  if (view) {
+    openVideo(view.closest("tr[data-id]")?.dataset.id);
+    return;
+  }
   const detail = e.target.closest('[data-action="detail"]');
   if (detail) {
     openDetail(detail.closest("tr[data-id]")?.dataset.id);

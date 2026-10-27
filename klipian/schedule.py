@@ -86,16 +86,33 @@ def file_exists(project_id: str | None, file_name: str | None) -> bool:
     return file_created(project_id, file_name) is not None
 
 
+def file_url(f: Path) -> str | None:
+    """The address the dashboard plays a file in the profile's out/ from (the server's /workspace/out/ route, as History uses)."""
+    from urllib.parse import quote
+    from .paths import current_profile
+    try:
+        rel = f.resolve().relative_to(Path(OUT_DIR).resolve())
+    except (OSError, ValueError):
+        return None
+    return "/workspace/out/" + "/".join(quote(p) for p in rel.parts) + f"?profile={quote(current_profile())}"
+
+
 def with_missing_flags(clips: list[dict]) -> list[dict]:
     """The rows for the dashboard, each with `fileMissing: true` when its render file
-    is no longer in the project's folder in out/. Derived every time and NEVER
-    written to clips.json. A row with no file or no project has nothing to compare."""
+    is no longer in the project's folder in out/, or `fileUrl` (to play it) when it is.
+    Derived every time and NEVER written to clips.json. A row with no file or no project
+    has nothing to compare."""
     out = []
     for row in clips:
         row = dict(row)
         row.pop("fileMissing", None)
-        if row.get("file") and (row.get("projectId") or is_folder_row(row)) and row_file(row) is None:
-            row["fileMissing"] = True
+        row.pop("fileUrl", None)
+        if row.get("file") and (row.get("projectId") or is_folder_row(row)):
+            f = row_file(row)
+            if f is None:
+                row["fileMissing"] = True
+            elif url := file_url(f):
+                row["fileUrl"] = url
         out.append(row)
     return out
 

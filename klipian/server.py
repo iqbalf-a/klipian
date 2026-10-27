@@ -1950,6 +1950,7 @@ class Handler(BaseHTTPRequestHandler):
                 req["id"] = cid
                 req["at"] = int(time.time())
                 req.pop("fileMissing", None)       # derived on every read, never stored
+                req.pop("fileUrl", None)
 
                 for i, c in enumerate(clips):
                     if c.get("id") == cid:
