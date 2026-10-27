@@ -7,6 +7,7 @@ import React from "react";
 import { BLACK, CAVITY_SHADE, HOLE_SHADE, HOT1, HOT2, ISO, RED, YELLOW } from "../tokens.ts";
 import { block, circlePts, cylinder, extrudeAnyXZ, extrudeXZ, isoAt, planeXZ, ptsAttr, roundRectPts, smoothPath, toneOf, visible, type P2, type P3, type Poly, type Tones } from "../iso.ts";
 import { cablePath } from "../cable.ts";
+import { BOOT_END, BOOT_START_R, CABLE_R, HOLE_R, PIN_X, PLATE_FRONT, RECESS_FLOOR, RECESS_R, SOCKET_Z, holeOutline, pinPieces } from "../socket.ts";
 
 const mix = (a: string, b: string, k: number): string => {
   const pa = a.match(/\d+/g)!.map(Number), pb = b.match(/\d+/g)!.map(Number), q = Math.max(0, Math.min(1, k));
@@ -32,7 +33,7 @@ export const Hatch: React.FC<{ id: string; color?: string }> = ({ id, color = BL
 );
 
 // ------------------------------------------------------------------------------------------------------------------------------------- socket on a wall
-export const SOCKET_Z = 0.5, PLATE_FRONT = 0.3, RECESS_FLOOR = -0.05, RECESS_R = 0.86, PIN_X = 0.4;
+
 /** Named world points of the wall socket and plug (plug at gap 0). */
 export const ISO_SOCKET_POINTS = {
   plate: [-0.95, PLATE_FRONT, SOCKET_Z + 0.95], screw: [0, PLATE_FRONT, SOCKET_Z + 1.03], recess: [0, RECESS_FLOOR, SOCKET_Z], wall: [-1.5, 0, 1.9],
@@ -75,7 +76,7 @@ export const IsoWallSocket: React.FC<{ u: number; o: P2; scorch?: number; heat?:
         {wall.map((w, i) => <polygon key={i} points={ptsAttr(w.pts)} fill={ISO.plastic[w.tone]} stroke={ISO.plastic[w.tone]} strokeWidth={0.6} strokeLinejoin="round" />)}
         <OnPlane y={RECESS_FLOOR} u={u} o={o}>
           <circle cx={0} cy={SOCKET_Z} r={RECESS_R} fill={ISO.plastic[1]} />
-          {[-PIN_X, PIN_X].map((x) => <g key={x}><circle cx={x} cy={SOCKET_Z} r={0.2} fill={ISO.plastic[0]} /><circle cx={x} cy={SOCKET_Z} r={0.14} fill={HOLE_SHADE} /></g>)}
+          {[-PIN_X, PIN_X].map((x) => <g key={x}><circle cx={x} cy={SOCKET_Z} r={0.2} fill={ISO.plastic[0]} /><circle cx={x} cy={SOCKET_Z} r={HOLE_R} fill={HOLE_SHADE} /></g>)}
           <circle cx={0} cy={SOCKET_Z} r={0.1} fill={ISO.metal[1]} />
           <line x1={-0.07} y1={SOCKET_Z - 0.03} x2={0.07} y2={SOCKET_Z + 0.03} stroke={ISO.metal[2]} strokeWidth={0.03} />
           {scorch > 0 && [-PIN_X, PIN_X].map((x) => <circle key={x} cx={x} cy={SOCKET_Z} r={0.6} fill={`url(#sc${id})`} opacity={scorch} />)}
@@ -109,35 +110,48 @@ export const PlateHighlight: React.FC<{ u: number; o: P2; k: number; sweep: numb
   </OnPlane>;
 };
 
-/** A cable from simulated nodes (src/cableSim.ts): a smooth curve through the nodes, three tones along it (a light stripe on the top side, the mid body,
-    the dark underside), and a soft contact shadow wherever it lies on the floor or the plate. */
 /** The floor the cables lie on: the plane z = CABLE_FLOOR_Z (the floor block of IsoWallSocket is its top). */
 export const CABLE_FLOOR_Z = -2.05;
+/** A cable from simulated nodes (src/cableSim.ts) as a tube (round 6): a dark base, a mid body narrowed toward the lit side, a light stripe on the lit
+    side and a rim light on the shaded edge, one diameter (CABLE_R). The stroke starts a little inside the boot (`lead`), so the boot and its collar
+    hide the joint. A soft contact shadow wherever it lies on the floor. */
 const CableLine: React.FC<{ nodes: readonly P3[]; u: number; o: P2 }> = ({ nodes, u, o }) => {
-  const sp = nodes.map((p) => isoAt(p, u, o) as P2), d = smoothPath(sp, 0.5);
+  const lead: P3 = [nodes[0][0], nodes[0][1] - 0.25, nodes[0][2]];
+  const sp = [lead, ...nodes].map((p) => isoAt(p, u, o) as P2), d = smoothPath(sp, 0.5), W = 2 * CABLE_R * u;
   return <g>
-    {/* a soft shadow on the floor under each node that is near it (the floor is the plane z = CABLE_FLOOR_Z: round 5) */}
     {nodes.map((p, i) => (p[2] < CABLE_FLOOR_Z + 0.12 ? <ellipse key={i} cx={isoAt([p[0], p[1], CABLE_FLOOR_Z], u, o)[0]} cy={isoAt([p[0], p[1], CABLE_FLOOR_Z], u, o)[1]} rx={u * 0.2} ry={u * 0.07} fill={BLACK} opacity={0.2} /> : null))}
-    <path d={d} fill="none" stroke={ISO.dark[2]} strokeWidth={u * 0.25} strokeLinecap="round" strokeLinejoin="round" />
-    <path d={d} fill="none" stroke={ISO.dark[1]} strokeWidth={u * 0.15} strokeLinecap="round" strokeLinejoin="round" transform={`translate(${-u * 0.012} ${-u * 0.02})`} />
-    <path d={d} fill="none" stroke={ISO.dark[0]} strokeWidth={u * 0.035} strokeLinecap="round" strokeLinejoin="round" transform={`translate(${-u * 0.04} ${-u * 0.05})`} opacity={0.85} />
+    <path d={d} fill="none" stroke={ISO.dark[2]} strokeWidth={W} strokeLinecap="round" strokeLinejoin="round" />
+    <path d={d} fill="none" stroke={ISO.dark[1]} strokeWidth={W * 0.8} strokeLinecap="round" strokeLinejoin="round" transform={`translate(${-u * 0.012} ${-u * 0.02})`} />
+    <path d={d} fill="none" stroke={ISO.dark[0]} strokeWidth={W * 0.22} strokeLinecap="round" strokeLinejoin="round" transform={`translate(${-W * 0.22} ${-W * 0.26})`} opacity={0.85} />
+    <path d={d} fill="none" stroke={ISO.plastic[0]} strokeWidth={W * 0.08} strokeLinecap="round" strokeLinejoin="round" transform={`translate(${W * 0.36} ${W * 0.36})`} opacity={0.35} />
   </g>;
 };
 
-/** The round plug in the socket: collar, a ribbed grip, the back cap, the strain relief with grooves, and the cable as a smooth curve to the floor and
-    away. `gap` pulls it out (world units, the pins show), `wobble` (-1..1) rocks it, `heat` warms it. */
+/** The round plug in the socket (round 6): the two pins (each in two pieces: the part in the air, and the part in the hole, clipped to the opening and
+    stopped at the floor), the body, the back cap, the cable (drawn over the body, its start hidden by the boot), the boot (a tapering strain relief
+    from the back cap to the cable's diameter, three flex grooves) and a collar over the joint. `gap` pulls it out (world units), `wobble` (-1..1)
+    rocks it, `heat` warms it. */
 export const IsoPlug: React.FC<{ u: number; o: P2; gap?: number; wobble?: number; heat?: number; cable?: boolean; cableTo?: readonly P3[]; cableNodes?: readonly P3[] }> = ({ u, o, gap = 0, wobble = 0, heat = 0, cable = true, cableTo, cableNodes }) => {
+  const hid = React.useId().replace(/:/g, "");
   const y0 = PLATE_FRONT + gap, cx = wobble * 0.05, tip = wobble * 0.14;
   const E1: P3 = [1, 0, 0], E2: P3 = [0, 0, 1];
   const at = (dy: number, k = 1): P3 => [cx + tip * k * (dy / 2), y0 + dy, SOCKET_Z];
   const dark = heat > 0 ? ([mix(ISO.dark[0], HOT2, heat * 0.09), mix(ISO.dark[1], HOT2, heat * 0.07), mix(ISO.dark[2], HOT2, heat * 0.05)] as const) : ISO.dark;
-  const end = at(1.62);
+  const end = at(BOOT_END);
   const route: P3[] = cableTo ? [end, ...cableTo] : [end, [end[0], end[1] + 0.55, end[2] - 0.15], [0.15, 2.45, -1.2], [0.3, 2.35, -2.05], [1.6, 2.3, -2.05], [3.2, 2.3, -2.05]];
   const screen = route.map((p) => isoAt(p, u, o) as [number, number]);
   const ribs = [0.95, 1.35, 1.75, 2.15, 2.55].map((th) => [Math.cos(th), Math.sin(th)] as const);
+  const pins = pinPieces(gap, wobble);
+  const hole = holeOutline().map(([x, z]) => isoAt([x, PLATE_FRONT, z], u, o));
+  const grooves = [1.4, 1.66, 1.92];
+  const bootR = (dy: number) => BOOT_START_R + (CABLE_R - BOOT_START_R) * Math.max(0, Math.min(1, (dy - 1.14) / (BOOT_END - 1.14)));
   return (
     <g>
-      {gap > 0.05 && [-PIN_X, PIN_X].map((x) => <Polys key={x} polys={cylinder([x + cx, y0 - 0.74, SOCKET_Z], [x + cx, y0, SOCKET_Z], 0.1, 0.1, E1, E2, u, o, 24)} tones={ISO.metal} />)}
+      <defs><clipPath id={`ph${hid}`}><polygon points={ptsAttr(hole)} /></clipPath></defs>
+      {pins.map((p) => <g key={p.x}>
+        <g clipPath={`url(#ph${hid})`}><Polys polys={cylinder([p.x, p.inside.y0, p.z], [p.x, p.inside.y1, p.z], p.r, p.r, E1, E2, u, o, 24)} tones={ISO.metal} /></g>
+        {p.outside.y1 - p.outside.y0 > 0.001 && <Polys polys={cylinder([p.x, p.outside.y0, p.z], [p.x, p.outside.y1, p.z], p.r, p.r, E1, E2, u, o, 24)} tones={ISO.metal} />}
+      </g>)}
       <Polys polys={cylinder(at(0), at(0.14), 1.03, 1.03, E1, E2, u, o)} tones={dark} />
       <Polys polys={cylinder(at(0.14), at(1.0), 0.95, 0.86, E1, E2, u, o)} tones={dark} />
       {ribs.map(([c, s], i) => {
@@ -145,13 +159,14 @@ export const IsoPlug: React.FC<{ u: number; o: P2; gap?: number; wobble?: number
         return <line key={i} x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke={ISO.dark[1]} strokeWidth={u * 0.05} strokeLinecap="round" />;
       })}
       <Polys polys={cylinder(at(1.0), at(1.16), 0.86, 0.6, E1, E2, u, o)} tones={dark} />
-      <Polys polys={cylinder(at(1.14), at(1.62), 0.3, 0.18, E1, E2, u, o, 32)} tones={ISO.dark} />
-      {[1.28, 1.4, 1.52].map((dy, i) => { const c = isoAt(at(dy), u, o); return <ellipse key={i} cx={c[0]} cy={c[1]} rx={(0.29 - i * 0.04) * u * 0.87} ry={(0.29 - i * 0.04) * u} fill="none" stroke={ISO.dark[0]} strokeWidth={u * 0.025} opacity={0.6} transform={`rotate(-30 ${c[0]} ${c[1]})`} />; })}
       {cable && cableNodes && <CableLine nodes={cableNodes} u={u} o={o} />}
       {cable && !cableNodes && <>
         <path d={cablePath(screen)} fill="none" stroke={ISO.dark[2]} strokeWidth={u * 0.28} strokeLinecap="round" strokeLinejoin="round" />
         <path d={cablePath(screen.map(([x, y]) => [x - u * 0.03, y - u * 0.05] as [number, number]))} fill="none" stroke={ISO.dark[0]} strokeWidth={u * 0.07} strokeLinecap="round" opacity={0.8} />
       </>}
+      <Polys polys={cylinder(at(1.14), at(BOOT_END), BOOT_START_R, CABLE_R, E1, E2, u, o, 32)} tones={ISO.dark} />
+      {grooves.map((dy, i) => { const c = isoAt(at(dy), u, o), r = bootR(dy); return <ellipse key={i} cx={c[0]} cy={c[1]} rx={r * u * 0.87} ry={r * u} fill="none" stroke={ISO.dark[0]} strokeWidth={u * 0.025} opacity={0.6} transform={`rotate(-30 ${c[0]} ${c[1]})`} />; })}
+      <Polys polys={cylinder(at(BOOT_END - 0.04), at(BOOT_END + 0.03), CABLE_R + 0.03, CABLE_R + 0.03, E1, E2, u, o, 32)} tones={ISO.dark} />
     </g>
   );
 };

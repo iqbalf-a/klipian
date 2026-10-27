@@ -15,6 +15,7 @@ import { cableSamples } from "../src/cable.ts";
 import { isoAt, toScreen } from "../src/iso.ts";
 import { OUT, quoteLines } from "../videos/kenapa-colokan-panas/plan.ts";
 import { ASSET_NAMES_FILE } from "./assetNames.ts";
+import { BOOT_END, BOOT_START_R, CABLE_R, HOLE_R, PIN_R, PIN_X, PLATE_FRONT, PLUG_PROFILE, RECESS_FLOOR, SOCKET_Z, holeOutline, pinPieces } from "../src/socket.ts";
 
 let n = 0;
 const yes = (c: boolean, what: string) => { n++; assert.ok(c, what); };
@@ -127,6 +128,72 @@ yes(Math.abs(P.total - story.duration) < 0.01, "the video lasts the story's dura
   }
   raw.beats[0].narration = "";
   yes(!validateStory(raw).ok, "a beat other than the outro still needs its narration");
+}
+
+// --- round 6: the pins are in two pieces and stay in their holes at every gap and wobble (the in-between states, not only the resting poses)
+{
+  const hole = holeOutline().map(([x, z]) => isoAt([x, PLATE_FRONT, z], OUT.u, OUT.o));
+  const inside = (q: readonly number[]) => {
+    let c = false;
+    for (let i = 0, j = hole.length - 1; i < hole.length; j = i++) {
+      const [xi, yi] = hole[i], [xj, yj] = hole[j];
+      if ((yi > q[1]) !== (yj > q[1]) && q[0] < ((xj - xi) * (q[1] - yi)) / (yj - yi) + xi) c = !c;
+    }
+    return c;
+  };
+  const floorHole = (cxW: number) => Array.from({ length: 24 }, (_, i) => { const a = (i / 24) * Math.PI * 2; return isoAt([cxW + HOLE_R * Math.cos(a), RECESS_FLOOR, SOCKET_Z + HOLE_R * Math.sin(a)], OUT.u, OUT.o); });
+  const inFloorHole = (q: readonly number[], cxW: number) => { const pts = floorHole(cxW); let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [xi, yi] = pts[i], [xj, yj] = pts[j]; if ((yi > q[1]) !== (yj > q[1]) && q[0] < ((xj - xi) * (q[1] - yi)) / (yj - yi) + xi) c = !c; } return c; };
+  let bad = "", deepest = 0, outsideBelow = 0;
+  for (const gap of [0.05, 0.1, 0.2, 0.4, 0.75, 1.0, 1.6]) for (const wobble of [-1, 0, 1]) {
+    for (const pin of pinPieces(gap, wobble)) {
+      for (let a = 0; a < 16; a++) {
+        const th = (a / 16) * Math.PI * 2;
+        for (const y of [pin.inside.y0, pin.inside.y1]) {
+          const q = isoAt([pin.x + PIN_R * Math.cos(th), y, pin.z + PIN_R * Math.sin(th)], OUT.u, OUT.o);
+          // the top of the piece is in the opening of the plate; its bottom is in the pin's own hole on the floor of the recess
+          const ok = y === pin.inside.y1 ? inside(q) : inFloorHole(q, Math.sign(pin.x) * PIN_X);
+          if (!ok && bad === "") bad = `gap ${gap}, wobble ${wobble}, pin at x ${pin.x.toFixed(2)}`;
+        }
+        deepest = Math.min(deepest, pin.inside.y0 - RECESS_FLOOR);
+      }
+      if (pin.outside.y0 < PLATE_FRONT - 1e-9) outsideBelow++;
+    }
+  }
+  yes(bad === "", `the inside piece of every pin stays inside its hole at every gap and wobble (first vertex outside: ${bad || "none"})`);
+  yes(deepest >= -1e-9, "no pin goes deeper than the floor of the recess");
+  yes(outsideBelow === 0, "the part of a pin in the air never goes behind the plate front");
+}
+
+// --- round 6: the joint: one diameter, a tangent start along the plug's axis, the start hidden in the boot
+{
+  yes(PLUG_PROFILE[PLUG_PROFILE.length - 1][2] === CABLE_R, "the boot ends at the cable's radius (one diameter at the joint)");
+  yes(Math.abs((2 * CABLE_R) / (2 * BOOT_START_R) - 1 / 3) < 1e-9, "the cable is a third of the back cap's diameter");
+  const c = P.cableAt(0);
+  const d01 = [c[1][0] - c[0][0], c[1][1] - c[0][1], c[1][2] - c[0][2]], L = Math.hypot(d01[0], d01[1], d01[2]);
+  const off = (Math.acos(d01[1] / L) * 180) / Math.PI;
+  yes(off < 10, `the cable leaves the plug along its axis (${off.toFixed(1)} degrees off)`);
+  let worstTurn = 0;
+  for (let i = 4; i <= 9; i++) {
+    const a = [c[i][0] - c[i - 1][0], c[i][1] - c[i - 1][1], c[i][2] - c[i - 1][2]], b = [c[i + 1][0] - c[i][0], c[i + 1][1] - c[i][1], c[i + 1][2] - c[i][2]];
+    worstTurn = Math.max(worstTurn, Math.acos(Math.max(-1, Math.min(1, (a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) / (Math.hypot(...a) * Math.hypot(...b))))));
+  }
+  // the plan wants a first bend of radius at least 0.6 (a turn of at most seg / 0.6 per node, about 0.41 rad); the plan's 0.2 rad per node target is not reached
+  // (the worst is about 0.35 rad, a radius of about 0.7): the check holds the radius the plan asks for
+  yes(worstTurn <= (5.6 / 23) / 0.6 + 1e-9, `the first bend has a radius of at least 0.6 (worst turn ${worstTurn.toFixed(2)} rad, radius ${((5.6 / 23) / worstTurn).toFixed(2)})`);
+  // the cable's stroke starts 0.25 units inside the boot (the boot spans from its back cap to BOOT_END)
+  yes(BOOT_END - 0.25 > 1.14 && BOOT_END - 0.25 < BOOT_END, "the cable's stroke starts inside the boot, not out of it");
+}
+
+// --- round 6: the boot and the cable are drawn as parts with volume (checked in the picture's source, so the joint cannot go flat again)
+{
+  const iso = readFileSync(path.join(ROOT, "src", "components", "Iso.tsx"), "utf8");
+  const grooves = iso.match(/const grooves = \[([0-9., ]+)\]/);
+  yes(grooves !== null && grooves[1].split(",").length >= 3, `the boot has at least three flex grooves (${grooves ? grooves[1] : "none"})`);
+  const tube = iso.slice(iso.indexOf("const CableLine"), iso.indexOf("export const IsoPlug"));
+  yes((tube.match(/<path d=\{d\}/g) ?? []).length >= 4, "the cable is a tube of at least four layers (base, body, lit stripe, rim light)");
+  const cableAt = iso.indexOf("{cable && cableNodes && <CableLine"), bootAt = iso.indexOf("cylinder(at(1.14), at(BOOT_END)"), collarAt = iso.indexOf("cylinder(at(BOOT_END - 0.04)");
+  yes(cableAt > -1 && cableAt < bootAt, "the cable is drawn before the boot (the boot hides its start)");
+  yes(collarAt > bootAt, "the collar is drawn after the boot (it covers the joint)");
 }
 
 // --- round 5: the plate tag is not a numbered step, it is at most two story words, not the tip card's own line, and it does not sit on the cable

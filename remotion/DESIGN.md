@@ -94,6 +94,17 @@ Look at `out/assets-sheet-iso.png` (`npm run assets-sheet`) and the `IsoDemo` co
 - **Particles and motion lines**: `HeatRise`, `SmokePuffs` (three greys), `Sparks`, `Motes`, the current's dashes. Labels: `NumberLabel` (number disc, white pill, leader line, `red` for heat, `ring` to circle the point).
 - 3D (section 4) is **optional**, for one hero shot where an object must turn or come apart; not the default.
 
+### Depth order, holes and joints (round 6, section E of the plan)
+
+**Standing rule (ian, 2026-10-28): every revision of a motion video adds its rule here.** Each round's report lists the rules it added, or says why none applies.
+
+- **0. Depth order (occlusion).** An object that is behind another object, or behind a surface (a pin in a hole, a cable behind the plate or the caption box, a part inside a body, a thing behind the wall), is hidden by it: draw it before the nearer object, or clip it to the opening it is seen through. Never draw a hidden part over the thing that hides it. For every pair of objects that touch or overlap, write down which one is in front, and check it in the transition frames, not only in the resting pose.
+- **1. A part that goes into a hole is drawn in two pieces**: the part in the air as normal, the part behind the face clipped to the hole and stopped at the floor of the hole. Nothing hidden behind a surface is drawn over that surface. (`src/socket.ts` `pinPieces`; the plug's pins in `IsoPlug`.)
+- **2. Check every in-between state**, not only the resting poses: any moving part (a plug going in or out, a lid, a spring) gets a strip of intermediate values (gap 0, 0.05, 0.1, 0.2, 0.4, 0.75, 1.6 for the plug) and a contact sheet of the real frames around its move.
+- **3. A joint has one diameter, one tangent and no visible cap**: where a cable, pipe or strap leaves a part, the stroke starts inside the part, a collar hides the joint, the diameters match (the boot ends at the cable's radius) and the first bend is gentle (a radius of at least 0.6 units; the chain turns at most seg / 0.6 per node there, `tests/colokan.test.ts`).
+- **4. A cable reads as a part with volume**: a tube with a base, a body narrowed toward the lit side, a light stripe on the lit side and a rim light on the shaded edge; a boot that tapers from the back cap to the cable's diameter with flex grooves; a cable a third of the back cap's diameter.
+
+
 ## 4. 3D objects (optional: one hero shot only; semi-realistic, P28-P)
 
 - The hero is a real 3D model (`src/three/`): `WallSocket3D`, `Plug3D` (+ `PlugHeat`), `Cutaway3D`, `Cable3D`, `Smoke3D`, and the charger in `Dissect3D`. The default **look is semi-realistic**: standard materials (matte plastic, brass-like metal, rubber), small bevels, a soft key light from the top-left plus a fill, soft self-shadows, a dim room environment so metal reflects something. `look="toon"` keeps the old flat shading.
@@ -207,7 +218,7 @@ The story template applies the manager to every beat; custom scenes call `applyL
 
 ## 10. The quality bar (ian checks every video against this before it is published)
 
-1. every object is recognisable at once, without reading its label, and every part of it is drawn correctly at the camera angle (no hidden holes, no floating pieces);
+1. every object is recognisable at once, without reading its label, and every part of it is drawn correctly at the camera angle (no hidden holes, no floating pieces, parts that go into holes stay inside them while they move, joints are smooth);
 2. nothing overlaps, everything is inside the safe area;
 3. there is meaningful movement in every second, no long still screen;
 4. screen text is readable in 1 second at phone size;
@@ -236,4 +247,5 @@ A custom video may keep its timing in a pure `plan.ts` (when things happen, from
 - `npm run check && npm test` pass; `layoutDebug` shows no unsolved problem;
 - stills of every beat (klipian's storyboard sheet) look right; you checked frames around every transition;
 - highlights have a meaning and the right z-order; cables follow the plug; recesses show all their holes (round 4, rule 8);
+- parts that go into holes stay inside them while they move; joints are smooth; the in-between states were checked as a strip and a contact sheet (round 6, rules 0 to 4);
 - the render time and any new asset are in your report to ian; nothing in `workspace/` was changed by hand.

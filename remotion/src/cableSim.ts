@@ -40,7 +40,11 @@ export type CableSimOpts = {
 const SINK = 0.001;                    // how far a free node sinks (down the z axis) per relaxation pass (world units): the method's gravity
 const PASSES = 320;                    // relaxation passes per frame
 const MAX_BEND = 0.5;                  // the largest turn at one node (rad): the smallest bend radius is about seg / MAX_BEND
-const FIRST_BEND = (2 * Math.PI) / 3;  // the most the first free link may turn from the plug's axis (rad): it may droop down, up to 120 degrees
+const FIRST_BEND = 0.2;                // the most the first free link may turn from the plug's axis (rad): the joint is tangent to the boot (round 6)
+const NEAR_BEND = 0.2;                 // the turn per node for the first six free nodes after the stub (rad): the first bend is gentle, radius seg / NEAR_BEND
+const sub3 = (a: V3, b: V3): V3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const dot3 = (a: V3, b: V3): number => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const unitOf = (a: V3): V3 => { const L = Math.hypot(a[0], a[1], a[2]) || 1e-9; return [a[0] / L, a[1] / L, a[2] / L]; };
 const RADIUS = 0.04;                   // a node's half thickness
 
 /** The nodes of the cable at every frame: frame f is at time f / fps. Deterministic: the same inputs give the same frames. */
@@ -54,7 +58,6 @@ export function simulateCable(o: CableSimOpts): V3[][] {
   const pos: V3[] = Array.from({ length: N }, (_, i) => (i <= stub
     ? pinned(i, anchor0)
     : [anchor0[0] + 0.3 * Math.sin((i - stub) * 0.9) - 0.12 * (i - stub), anchor0[1] - 0.3, anchor0[2] + axis[2] * seg * stub - seg * (i - stub)] as V3));
-  const maxD = (seg / 2) * Math.tan(MAX_BEND / 2);     // a node's deviation from the middle of its neighbours that a MAX_BEND turn allows
 
   const relax = (t: number, a: V3) => {
     pos[0] = [...a] as V3;
@@ -83,22 +86,22 @@ export function simulateCable(o: CableSimOpts): V3[][] {
         if (w > 0) pos[i] = [pos[i][0] + d[0] * c * w, pos[i][1] + d[1] * c * w, pos[i][2] + d[2] * c * w];
         pos[i + 1] = [pos[i + 1][0] - d[0] * c * e, pos[i + 1][1] - d[1] * c * e, pos[i + 1][2] - d[2] * c * e];
       }
+      // the joint, walked outward from the stub: each of the first six links turns at most NEAR_BEND from the one before (the first from the plug's
+      // axis, by FIRST_BEND), by moving the next node only: a tangent-continuous start and a gentle first bend, never a fold
+      for (let i = stub; i < N - 1; i++) {
+        const from: V3 = i === stub ? axis : unitOf(sub3(pos[i], pos[i - 1]));
+        const v = unitOf(sub3(pos[i + 1], pos[i])), c = dot3(from, v), lim = i === stub ? FIRST_BEND : i < stub + 6 ? NEAR_BEND : MAX_BEND;
+        if (c < Math.cos(lim)) {
+          const perp = unitOf([v[0] - c * from[0], v[1] - c * from[1], v[2] - c * from[2]]), cs = Math.cos(lim), sn = Math.sin(lim);
+          pos[i + 1] = [0, 1, 2].map((k) => pos[i][k] + (from[k] * cs + perp[k] * sn) * seg) as V3;
+        }
+      }
       // the bend limit: a free node stays within the deviation a MAX_BEND turn allows from the middle of its neighbours
       for (let i = stub + 1; i < N - 1; i++) {
         const p = pos[i], m: V3 = [(pos[i - 1][0] + pos[i + 1][0]) / 2, (pos[i - 1][1] + pos[i + 1][1]) / 2, (pos[i - 1][2] + pos[i + 1][2]) / 2];
         const d: V3 = [p[0] - m[0], p[1] - m[1], p[2] - m[2]], D = Math.hypot(d[0], d[1], d[2]);
-        if (D > maxD) pos[i] = [m[0] + d[0] * (maxD / D), m[1] + d[1] * (maxD / D), m[2] + d[2] * (maxD / D)];
-      }
-      // last of all: the first free link leaves the stub within FIRST_BEND of the plug's axis (it may droop, up to that angle)
-      {
-        const s0 = pos[stub], d: V3 = [pos[stub + 1][0] - s0[0], pos[stub + 1][1] - s0[1], pos[stub + 1][2] - s0[2]];
-        const D = Math.hypot(d[0], d[1], d[2]) || 1e-9, u: V3 = [d[0] / D, d[1] / D, d[2] / D];
-        const c = u[0] * axis[0] + u[1] * axis[1] + u[2] * axis[2];
-        if (c < Math.cos(FIRST_BEND)) {
-          const perp: V3 = [u[0] - c * axis[0], u[1] - c * axis[1], u[2] - c * axis[2]], P = Math.hypot(perp[0], perp[1], perp[2]) || 1e-9;
-          const cs = Math.cos(FIRST_BEND), sn = Math.sin(FIRST_BEND);
-          pos[stub + 1] = [0, 1, 2].map((k) => s0[k] + (axis[k] * cs + (perp[k] / P) * sn) * seg) as V3;
-        }
+        const maxDi = (seg / 2) * Math.tan((i <= stub + 6 ? NEAR_BEND : MAX_BEND) / 2);
+        if (D > maxDi) pos[i] = [m[0] + d[0] * (maxDi / D), m[1] + d[1] * (maxDi / D), m[2] + d[2] * (maxDi / D)];
       }
     }
     // the obstacles hold for the frame as it is returned: the floor, the wall and the body are applied once more after the last pass
