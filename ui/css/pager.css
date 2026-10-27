@@ -60,8 +60,16 @@
 .sort-head:hover { color: var(--text); }
 .sort-head .sort-arrow { color: var(--accent); font-size: 9px; }
 
-/* Dashboard Clips: the tick column and the bulk-action bar (clips.js). */
+/* Dashboard Clips: the tick column and the bulk-action bar (clips.js). The bar floats over the bottom of the
+   window instead of sitting above the table: ticking the first row used to push the whole table down under
+   the pointer. Its section gets `bulk-open` (bottom padding) so the last rows can still scroll clear of it. */
 .ws-bulk {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  width: min(1100px, calc(100vw - 32px));
+  z-index: 35;                                   /* under the topbar (40) and dialogs */
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -69,9 +77,11 @@
   padding: 10px 12px;
   border: 1px solid var(--accent);
   border-radius: var(--r-s);
-  background: var(--accent-soft, var(--glass));
+  background: var(--bg-1);
+  box-shadow: var(--shadow-panel), 0 0 0 1px var(--glass-border);
   font-size: 12.5px;
 }
+.bulk-open { padding-bottom: 96px; }
 .ws-bulk[hidden] { display: none; }
 .ws-bulk-count { font-weight: 700; color: var(--text); }
 .ws-bulk-group { display: inline-flex; align-items: center; gap: 8px; }

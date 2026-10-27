@@ -486,6 +486,7 @@ function updateBulkBar() {
   if (!bar) return;
   const wasHidden = bar.hidden;
   bar.hidden = SELECTED.size === 0;
+  bar.parentElement?.classList.toggle("bulk-open", !bar.hidden);   // room under the table for the floating bar
   $("#bulkCount").textContent = `${SELECTED.size} selected`;
   if (wasHidden && !bar.hidden) bulkNote("");
   const boxes = [...document.querySelectorAll("#clipBody [data-select]")];
