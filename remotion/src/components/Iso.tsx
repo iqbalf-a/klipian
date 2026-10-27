@@ -4,8 +4,8 @@
    or loose, the hot contact, the current as flowing yellow dashes). Every piece takes `u` (px per world unit) and `o` (the screen px of the world origin).
    Their named points (ISO_SOCKET_POINTS, ISO_CUT_POINTS) give the world point of a part, for labels: isoAt(point, u, o) then the camera's toScreen. */
 import React from "react";
-import { BLACK, CAVITY_SHADE, HOLE_SHADE, HOT1, HOT2, ISO, RECESS_SHADE, RED, YELLOW } from "../tokens.ts";
-import { block, circlePts, cylinder, extrudeAnyXZ, extrudeXZ, isoAt, planeXZ, ptsAttr, roundRectPts, smoothPath, type P2, type P3, type Poly, type Tones } from "../iso.ts";
+import { BLACK, CAVITY_SHADE, HOLE_SHADE, HOT1, HOT2, ISO, RED, YELLOW } from "../tokens.ts";
+import { block, circlePts, cylinder, extrudeAnyXZ, extrudeXZ, isoAt, planeXZ, ptsAttr, roundRectPts, smoothPath, toneOf, visible, type P2, type P3, type Poly, type Tones } from "../iso.ts";
 import { cablePath } from "../cable.ts";
 
 const mix = (a: string, b: string, k: number): string => {
@@ -32,7 +32,7 @@ export const Hatch: React.FC<{ id: string; color?: string }> = ({ id, color = BL
 );
 
 // ------------------------------------------------------------------------------------------------------------------------------------- socket on a wall
-const SOCKET_Z = 0.5, PLATE_FRONT = 0.3, RECESS_FLOOR = -0.2, RECESS_R = 0.86, PIN_X = 0.4;
+export const SOCKET_Z = 0.5, PLATE_FRONT = 0.3, RECESS_FLOOR = -0.05, RECESS_R = 0.86, PIN_X = 0.4;
 /** Named world points of the wall socket and plug (plug at gap 0). */
 export const ISO_SOCKET_POINTS = {
   plate: [-0.95, PLATE_FRONT, SOCKET_Z + 0.95], screw: [0, PLATE_FRONT, SOCKET_Z + 1.03], recess: [0, RECESS_FLOOR, SOCKET_Z], wall: [-1.5, 0, 1.9],
@@ -41,35 +41,50 @@ export const ISO_SOCKET_POINTS = {
 } as const satisfies Record<string, P3>;
 
 /** A chunk of wall standing on a piece of floor, the socket on its face. `scorch` 0..1 browns the plate round the recess; `heat` 0..1 glows round the plug's
-    collar; `fresh` (0..1) is a new plate popping in over a scorched one. Draw the plug (IsoPlug) after it. */
+    collar. Round 4: the recess is shallow (its floor at the plate's back, so every hole and clip is in view at the camera angle), its wall is a ring of
+    faces graded by the tone rule (the faces that look at the viewer only), the holes have a lighter rim, and the scorch is a soft gradient. Draw the plug (IsoPlug) after it. */
 export const IsoWallSocket: React.FC<{ u: number; o: P2; scorch?: number; heat?: number; t?: number; plug?: boolean }> = ({ u, o, scorch = 0, heat = 0, t = 0, plug = true }) => {
   const id = React.useId().replace(/:/g, "");
   const hole = circlePts(0, SOCKET_Z, RECESS_R).map(([x, z]) => isoAt([x, PLATE_FRONT, z], u, o));
   const pulse = 1 + 0.05 * Math.sin(t * 9);
+  // the recess wall: one face per slice of the ring, from the plate's lip down to the floor; its normal points into the recess, so the faces
+  // that look at the viewer are the far side of the hole, each graded by its own direction
+  const N = 48, wall: { pts: P2[]; tone: 0 | 1 | 2 }[] = [];
+  for (let i = 0; i < N; i++) {
+    const a0 = (i / N) * Math.PI * 2, a1 = ((i + 1) / N) * Math.PI * 2, am = (a0 + a1) / 2;
+    const n: P3 = [-Math.cos(am), 0, -Math.sin(am)];
+    if (!visible(n)) continue;
+    const q = (a: number, y: number): P3 => [RECESS_R * Math.cos(a), y, SOCKET_Z + RECESS_R * Math.sin(a)];
+    wall.push({ pts: [q(a0, PLATE_FRONT), q(a1, PLATE_FRONT), q(a1, RECESS_FLOOR), q(a0, RECESS_FLOOR)].map((p) => isoAt(p, u, o) as P2), tone: toneOf(n) });
+  }
   return (
     <g>
-      <defs><clipPath id={`rc${id}`}><polygon points={ptsAttr(hole)} /></clipPath></defs>
+      <defs>
+        <clipPath id={`rc${id}`}><polygon points={ptsAttr(hole)} /></clipPath>
+        <radialGradient id={`sc${id}`}><stop offset="0%" stopColor="rgb(70,62,56)" stopOpacity={0.7} /><stop offset="100%" stopColor="rgb(70,62,56)" stopOpacity={0} /></radialGradient>
+      </defs>
       <IsoBlock a={[-2.1, -0.5, -2.35]} b={[2.1, 2.7, -2.05]} u={u} o={o} tones={ISO.floor} />
       <IsoBlock a={[-2.1, -0.55, -2.05]} b={[2.1, 0, 2.3]} u={u} o={o} tones={ISO.wall} />
       <Polys polys={extrudeXZ(roundRectPts(0, SOCKET_Z, 2.4, 2.4, 0.36), 0, PLATE_FRONT, u, o)} tones={ISO.plastic} />
-      {scorch > 0 && <OnPlane y={PLATE_FRONT} u={u} o={o}><circle cx={0.08} cy={SOCKET_Z - 0.05} r={1.12} fill="rgb(120,104,92)" opacity={0.5 * scorch} /><circle cx={0.25} cy={SOCKET_Z - 0.25} r={1.02} fill="rgb(70,62,56)" opacity={0.45 * scorch} /></OnPlane>}
+      {scorch > 0 && <OnPlane y={PLATE_FRONT} u={u} o={o}><circle cx={0} cy={SOCKET_Z} r={1.5} fill={`url(#sc${id})`} opacity={scorch} /></OnPlane>}
       {heat > 0.01 && <OnPlane y={PLATE_FRONT} u={u} o={o}>
         <circle cx={0} cy={SOCKET_Z} r={(1.12 + 0.4 * heat) * pulse} fill={HOT1} opacity={0.7 * heat} />
         <circle cx={0} cy={SOCKET_Z} r={(1.02 + 0.2 * heat) * pulse} fill={HOT2} opacity={0.8 * heat} />
       </OnPlane>}
-      {/* the recess: its wall fills the hole, its floor (deeper) is seen through the hole, so the wall shows as a crescent on the lower left */}
-      <polygon points={ptsAttr(hole)} fill={RECESS_SHADE} />
       <g clipPath={`url(#rc${id})`}>
+        {wall.map((w, i) => <polygon key={i} points={ptsAttr(w.pts)} fill={ISO.plastic[w.tone]} stroke={ISO.plastic[w.tone]} strokeWidth={0.6} strokeLinejoin="round" />)}
         <OnPlane y={RECESS_FLOOR} u={u} o={o}>
           <circle cx={0} cy={SOCKET_Z} r={RECESS_R} fill={ISO.plastic[1]} />
-          {[-PIN_X, PIN_X].map((x) => <g key={x}><circle cx={x} cy={SOCKET_Z} r={0.19} fill={ISO.plastic[2]} /><circle cx={x} cy={SOCKET_Z} r={0.14} fill={HOLE_SHADE} /></g>)}
+          {[-PIN_X, PIN_X].map((x) => <g key={x}><circle cx={x} cy={SOCKET_Z} r={0.2} fill={ISO.plastic[0]} /><circle cx={x} cy={SOCKET_Z} r={0.14} fill={HOLE_SHADE} /></g>)}
           <circle cx={0} cy={SOCKET_Z} r={0.1} fill={ISO.metal[1]} />
           <line x1={-0.07} y1={SOCKET_Z - 0.03} x2={0.07} y2={SOCKET_Z + 0.03} stroke={ISO.metal[2]} strokeWidth={0.03} />
-          {scorch > 0 && <><circle cx={-PIN_X} cy={SOCKET_Z} r={0.32} fill="rgb(52,46,42)" opacity={0.7 * scorch} /><circle cx={PIN_X} cy={SOCKET_Z} r={0.28} fill="rgb(52,46,42)" opacity={0.7 * scorch} /></>}
+          {scorch > 0 && [-PIN_X, PIN_X].map((x) => <circle key={x} cx={x} cy={SOCKET_Z} r={0.6} fill={`url(#sc${id})`} opacity={scorch} />)}
         </OnPlane>
-        {/* the earth clips, bent tabs in the recess wall at the top and the bottom */}
-        {[1, -1].map((s) => <IsoBlock key={s} a={[-0.18, RECESS_FLOOR + 0.05, SOCKET_Z + s * 0.8 - 0.05]} b={[0.18, PLATE_FRONT, SOCKET_Z + s * 0.8 + 0.05]} u={u} o={o} tones={ISO.metal} />)}
+        {/* the earth clips: two small metal tabs on the recess wall, above and below the centre, clipped by the hole's outline */}
+        {[1, -1].map((s) => <IsoBlock key={s} a={[-0.22, RECESS_FLOOR, SOCKET_Z + s * 0.72 - 0.06]} b={[0.22, PLATE_FRONT - 0.02, SOCKET_Z + s * 0.72 + 0.06]} u={u} o={o} tones={ISO.metal} />)}
       </g>
+      {/* the lip of the hole: a light rim on the plate */}
+      <OnPlane y={PLATE_FRONT} u={u} o={o}><circle cx={0} cy={SOCKET_Z} r={RECESS_R} fill="none" stroke={ISO.plastic[0]} strokeWidth={0.05} opacity={0.9} /></OnPlane>
       {/* the plate screws */}
       {[1.03, -1.03].map((dz) => <g key={dz}>
         <Polys polys={cylinder([0, PLATE_FRONT, SOCKET_Z + dz], [0, PLATE_FRONT + 0.05, SOCKET_Z + dz], 0.1, 0.1, [1, 0, 0], [0, 0, 1], u, o, 24)} tones={ISO.metal} />
@@ -80,9 +95,35 @@ export const IsoWallSocket: React.FC<{ u: number; o: P2; scorch?: number; heat?:
   );
 };
 
+/** A yellow outline of the plate on its own plane (round 4): it sweeps once round the plate when the new plate goes in, then stays thin while `k` (0..1)
+    holds. Draw it after the socket and BEFORE the plug, so the plug covers it where they overlap. `flash` (0..1) briefly brightens the plate. */
+export const PlateHighlight: React.FC<{ u: number; o: P2; k: number; sweep: number; flash?: number }> = ({ u, o, k, sweep, flash = 0 }) => {
+  if (k <= 0.01 && flash <= 0.01) return null;
+  const d = "M " + roundRectPts(0, SOCKET_Z, 2.4, 2.4, 0.36).map(([x, z]) => `${x} ${z}`).join(" L ") + " Z";
+  return <OnPlane y={PLATE_FRONT} u={u} o={o}>
+    {flash > 0.01 && <path d={d} fill={ISO.plastic[0]} opacity={flash} />}
+    {k > 0.01 && <>
+      <path d={d} fill="none" stroke={YELLOW} strokeWidth={0.16} strokeLinejoin="round" opacity={0.35 * k} />
+      <path d={d} fill="none" stroke={YELLOW} strokeWidth={0.07} strokeLinejoin="round" pathLength={100} strokeDasharray="100 100" strokeDashoffset={100 * (1 - sweep)} opacity={k} />
+    </>}
+  </OnPlane>;
+};
+
+/** A cable from simulated nodes (src/cableSim.ts): a smooth curve through the nodes, three tones along it (a light stripe on the top side, the mid body,
+    the dark underside), and a soft contact shadow wherever it lies on the floor or the plate. */
+const CableLine: React.FC<{ nodes: readonly P3[]; u: number; o: P2 }> = ({ nodes, u, o }) => {
+  const sp = nodes.map((p) => isoAt(p, u, o) as P2), d = smoothPath(sp, 0.5);
+  return <g>
+    {nodes.map((p, i) => (p[1] < 0.36 ? <ellipse key={i} cx={sp[i][0]} cy={sp[i][1] + u * 0.03} rx={u * 0.2} ry={u * 0.07} fill={BLACK} opacity={0.2} /> : null))}
+    <path d={d} fill="none" stroke={ISO.dark[2]} strokeWidth={u * 0.25} strokeLinecap="round" strokeLinejoin="round" />
+    <path d={d} fill="none" stroke={ISO.dark[1]} strokeWidth={u * 0.15} strokeLinecap="round" strokeLinejoin="round" transform={`translate(${-u * 0.012} ${-u * 0.02})`} />
+    <path d={d} fill="none" stroke={ISO.dark[0]} strokeWidth={u * 0.035} strokeLinecap="round" strokeLinejoin="round" transform={`translate(${-u * 0.04} ${-u * 0.05})`} opacity={0.85} />
+  </g>;
+};
+
 /** The round plug in the socket: collar, a ribbed grip, the back cap, the strain relief with grooves, and the cable as a smooth curve to the floor and
     away. `gap` pulls it out (world units, the pins show), `wobble` (-1..1) rocks it, `heat` warms it. */
-export const IsoPlug: React.FC<{ u: number; o: P2; gap?: number; wobble?: number; heat?: number; cable?: boolean; cableTo?: readonly P3[] }> = ({ u, o, gap = 0, wobble = 0, heat = 0, cable = true, cableTo }) => {
+export const IsoPlug: React.FC<{ u: number; o: P2; gap?: number; wobble?: number; heat?: number; cable?: boolean; cableTo?: readonly P3[]; cableNodes?: readonly P3[] }> = ({ u, o, gap = 0, wobble = 0, heat = 0, cable = true, cableTo, cableNodes }) => {
   const y0 = PLATE_FRONT + gap, cx = wobble * 0.05, tip = wobble * 0.14;
   const E1: P3 = [1, 0, 0], E2: P3 = [0, 0, 1];
   const at = (dy: number, k = 1): P3 => [cx + tip * k * (dy / 2), y0 + dy, SOCKET_Z];
@@ -103,7 +144,8 @@ export const IsoPlug: React.FC<{ u: number; o: P2; gap?: number; wobble?: number
       <Polys polys={cylinder(at(1.0), at(1.16), 0.86, 0.6, E1, E2, u, o)} tones={dark} />
       <Polys polys={cylinder(at(1.14), at(1.62), 0.3, 0.18, E1, E2, u, o, 32)} tones={ISO.dark} />
       {[1.28, 1.4, 1.52].map((dy, i) => { const c = isoAt(at(dy), u, o); return <ellipse key={i} cx={c[0]} cy={c[1]} rx={(0.29 - i * 0.04) * u * 0.87} ry={(0.29 - i * 0.04) * u} fill="none" stroke={ISO.dark[0]} strokeWidth={u * 0.025} opacity={0.6} transform={`rotate(-30 ${c[0]} ${c[1]})`} />; })}
-      {cable && <>
+      {cable && cableNodes && <CableLine nodes={cableNodes} u={u} o={o} />}
+      {cable && !cableNodes && <>
         <path d={cablePath(screen)} fill="none" stroke={ISO.dark[2]} strokeWidth={u * 0.28} strokeLinecap="round" strokeLinejoin="round" />
         <path d={cablePath(screen.map(([x, y]) => [x - u * 0.03, y - u * 0.05] as [number, number]))} fill="none" stroke={ISO.dark[0]} strokeWidth={u * 0.07} strokeLinecap="round" opacity={0.8} />
       </>}

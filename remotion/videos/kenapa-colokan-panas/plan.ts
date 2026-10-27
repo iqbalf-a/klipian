@@ -8,6 +8,7 @@ import { wordsOfBeat, type CWord } from "../../src/captions.ts";
 import { cam2At, isoAt, toScreen, type Cam2, type Key2, type P2, type P3 } from "../../src/iso.ts";
 import { captionBox, conflicts, textWidthEstimate, topTextBox, type Box, type Spec } from "../../src/layout.ts";
 import { SAFE } from "../../src/tokens.ts";
+import { simulateCable } from "../../src/cableSim.ts";
 
 // the two worlds, in world px at rest (camera focus 540, 960, zoom 1)
 export const OUT = { u: 150, o: [540, 900] as P2 };
@@ -18,6 +19,10 @@ export const CUT_PTS = { leaf: [2.05, 0, 0.44], pin: [-0.3, 0, -0.17] } as const
 export const contactAt = (loose: number): P3 => [1.2 - 0.2 * loose, 0.05, 0.18];
 /** The cable after the plug end: straight to the left (world (-1, +1, 0) is level on the screen), so it runs above the captions and off the frame. */
 export const CABLE_TO: P3[] = [[-0.9, 2.8, 0.5], [-2.6, 4.6, 0.4]];
+/** Round 4: the cable is a chain of fixed length (src/cableSim.ts) that hangs from the plug's end and rests on the shelf and the plate. */
+export const CABLE_LEN = 5.6;
+/** The floor under the cable: the shelf (y 0), and the top of the plate (y 0.3) over its square (x ±1.2, z from -0.7 to 1.7). */
+const cableGround = (x: number, z: number): number => (Math.abs(x) <= 1.2 && z >= -0.7 && z <= 1.7 ? 0.3 : 0);
 const out = (p: P3): P2 => isoAt(p, OUT.u, OUT.o);
 /** The plug's radius by height above its plate (IsoPlug in components/Iso.tsx, the same numbers): the body, then the thin strain relief. */
 const PLUG_PROFILE: [number, number, number][] = [[0, 1.03, 1.03], [0.14, 0.95, 0.86], [1.0, 0.86, 0.6], [1.14, 0.3, 0.18], [1.62, 0.3, 0.18]];
@@ -29,13 +34,13 @@ const plugRadius = (dy: number): number => {
   return 0.18;
 };
 /** The screen points of the plug's body and cable end for a gap (the plug moves with its gap), and the cable's route on the screen. */
-export function plugScreen(gap: number, cam: Cam2): { body: P2[]; cable: P2[] } {
+export function plugScreen(gap: number, cam: Cam2, cableNodes: readonly P3[] = [[0, 0.3 + gap + 1.62, 0.5], ...CABLE_TO]): { body: P2[]; cable: P2[] } {
   const y0 = 0.3 + gap, body: P2[] = [];
   for (let dy = 0; dy <= 1.62; dy += 0.08) {
     const r = plugRadius(dy);
     for (let a = 0; a < 16; a++) { const th = (a / 16) * Math.PI * 2; body.push(toScreen(cam, out([r * Math.cos(th), y0 + dy, 0.5 + r * Math.sin(th)]))); }
   }
-  const cable = [[0, y0 + 1.62, 0.5] as P3, ...CABLE_TO].map((p) => toScreen(cam, out(p)));
+  const cable = cableNodes.map((p) => toScreen(cam, out(p)));
   return { body, cable };
 }
 const lab = (p: P3): P2 => isoAt(p, LAB.u, LAB.o);
@@ -240,6 +245,18 @@ export function makePlan(story: StoryT) {
       smoke: mix(s.smoke, h.smoke), loose: mix(s.loose, h.loose), labHeat: mix(s.labHeat, h.labHeat), fresh: mix(s.fresh, h.fresh) };
   };
 
+  // round 4: the cable is a chain (src/cableSim.ts) run once for the whole video from the plug's end, which follows the plug's gap and wobble;
+  // a frame reads its nodes back, so the picture never runs the simulation itself
+  const plugEnd = (t: number): [number, number, number] => { const s = state(t), cx = s.wobble * 0.05, tip = s.wobble * 0.14; return [cx + tip * 0.81, 0.3 + s.gap + 1.62, 0.5]; };
+  const cableFrames = simulateCable({ anchor: plugEnd, duration: total, fps: FPS, length: CABLE_LEN, axis: [0, 1, 0], stub: 0.45, ground: cableGround,
+    body: { x: 0, z: 0.5, r: 0.95, y0: 0.3, y1: 1.9 } });
+  // from the outro on, the cable eases to its opening shape with the same loop weight as the rest, so the last frame is the first one's cable
+  const cableAt = (t: number): P3[] => {
+    const a = cableFrames[Math.min(cableFrames.length - 1, Math.max(0, Math.round(t * FPS)))], w = loopWeight(t);
+    if (w <= 0) return a;
+    return a.map((p, i) => [0, 1, 2].map((k) => p[k] + (cableFrames[0][i][k] - p[k]) * w) as [number, number, number]);
+  };
+
   // ---------------------------------------------------------------- texts, labels, cards
   const tops: Top[] = story.beats.flatMap((b) => topTexts(story, b, beat(b.id).a));
   const dalamLabels = labelsOf("dalam"), kendurLabels = labelsOf("kendur");
@@ -250,6 +267,9 @@ export function makePlan(story: StoryT) {
   const socketWord = fromStory(story, "stop kontak"), plugWord = fromStory(story, "colokan");
   if (socketWord) labels.push({ id: "socket", text: socketWord.toLowerCase(), n: 1, world: "out", at: SOCKET_PTS.plate, off: [-40, -300], from: m.socketLabel, to: m.magnifier + 0.2 });
   if (plugWord) labels.push({ id: "plug", text: plugWord.toLowerCase(), n: 2, world: "out", at: SOCKET_PTS.grip, off: [-40, 380], from: m.plugLabel, to: m.magnifier + 0.2 });
+  // round 4: the yellow outline of the plate (the part to replace) carries the story's own words for it, the tip's pill
+  const replaceWord = fromStory(story, "Teknisi ganti stop kontak");
+  if (replaceWord) labels.push({ id: "plate", text: replaceWord.toLowerCase(), n: 1, world: "out", at: SOCKET_PTS.plate, off: [-330, -60], from: m.replace + 0.2, to: m.outro - 0.2 });
   if (dalamLabels[0]) labels.push({ id: "leaf", text: dalamLabels[0].text, n: 1, world: "lab", at: CUT_PTS.leaf, off: [60, -360], from: m.leafLabel, to: m.macro });
   if (dalamLabels[1]) labels.push({ id: "pin", text: dalamLabels[1].text, n: 2, world: "lab", at: CUT_PTS.pin, off: [-10, 330], from: m.pinLabel, to: m.macro });
   const touch = highlight("dalam");
@@ -342,5 +362,5 @@ export function makePlan(story: StoryT) {
   };
   const problemsAt = (t: number, cardH: (q: string) => number, tipH: (i: number) => number) => conflicts(specsAt(t, cardH, tipH));
 
-  return { B, beat, total, w, m, exitEnd, cardIn1, cardOut1, cardIn2, cardOut2, outKeys, labKeys, outCam, labCam, lens, outsideVisible, labVisible, state, tops, labels, labelAt, LABEL_FS, cards, chips, tips, TIP, stingPill, STING, loopWeight, specsAt, problemsAt, loopWords: [fromStory(story, "panas"), fromStory(story, "hambatan")] as const, J, plug: (t: number, cam: Cam2) => plugScreen(state(t).gap, cam) };
+  return { B, beat, total, w, m, exitEnd, cardIn1, cardOut1, cardIn2, cardOut2, outKeys, labKeys, outCam, labCam, lens, outsideVisible, labVisible, state, tops, labels, labelAt, LABEL_FS, cards, chips, tips, TIP, stingPill, STING, loopWeight, specsAt, problemsAt, loopWords: [fromStory(story, "panas"), fromStory(story, "hambatan")] as const, J, plug: (t: number, cam: Cam2) => plugScreen(state(t).gap, cam, cableAt(t)), cableAt };
 }

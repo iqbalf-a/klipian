@@ -13,7 +13,7 @@ import { block, cam2At, cylinder, extrudeXZ, iso, roundRectPts, toneOf, visible 
 import { conflicts, textWidthEstimate, captionBox } from "../src/layout.ts";
 import { cableSamples } from "../src/cable.ts";
 import { isoAt, toScreen } from "../src/iso.ts";
-import { CABLE_TO, OUT, quoteLines } from "../videos/kenapa-colokan-panas/plan.ts";
+import { OUT, quoteLines } from "../videos/kenapa-colokan-panas/plan.ts";
 import { ASSET_NAMES_FILE } from "./assetNames.ts";
 
 let n = 0;
@@ -56,13 +56,12 @@ for (const tp of P.tips) if (tp.chip) yes(80 + 140 + [...`SUMBER  ${tp.chip}`].l
 // --- the hook's cable never runs under the captions (it leaves level to the left, above them)
 {
   const cap = captionBox(), u = 150;
-  const end: [number, number, number] = [0, 0.3 + 1.62, 0.5];                 // the plug's cable end at rest (IsoPlug, gap 0)
-  const cable = [end, ...CABLE_TO];
   let worst = Infinity;
   for (let f = 0; f < P.m.inside * FPS; f += 3) {
     const t = f / FPS;
     if (!P.outsideVisible(t)) continue;
-    const cam = P.outCam(t), pts = cableSamples(cable.map((p) => { const q = toScreen(cam, isoAt(p, OUT.u, OUT.o)); return [q[0], q[1]] as [number, number]; }), undefined, 6);
+    // round 4: the cable is the simulated chain of this frame (src/cableSim.ts), projected with the camera
+    const cam = P.outCam(t), pts = cableSamples(P.cableAt(t).map((p) => { const q = toScreen(cam, isoAt(p, OUT.u, OUT.o)); return [q[0], q[1]] as [number, number]; }), undefined, 6);
     const margin = u * 0.16 * cam.zoom;
     for (const [x, y] of pts) {
       const inX = x > cap.x0 - margin && x < cap.x1 + margin, inY = y > cap.y0 - margin && y < cap.y1 + margin;

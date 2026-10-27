@@ -9,10 +9,10 @@ import {
   BLACK, Brand, CaptionLayer, FPS, FRAME, Lab, LayoutDebug, Mascot, Onomatopoeia, SourceCard, TopText, WALL, WHITE, YELLOW, YELLOW_D, easeInOut, springAt, useFonts, wrap,
   type StoryT,
 } from "../../src/design/index.ts";
-import { HeatRise, IsoCutaway, IsoPlug, IsoWallSocket, Motes, SmokePuffs, Sparks } from "../../src/components/Iso.tsx";
+import { HeatRise, IsoCutaway, IsoPlug, IsoWallSocket, Motes, PlateHighlight, SmokePuffs, Sparks } from "../../src/components/Iso.tsx";
 import { LoopArrows, MacroFrame, NumberLabel, SourceChip, TipCard, monoWidth, tipCardHeight } from "../../src/components/Overlays.tsx";
 import { isoAt, layerTransform, toScreen } from "../../src/iso.ts";
-import { CABLE_TO, LAB, OUT, SOCKET_PTS, contactAt, makePlan } from "./plan.ts";
+import { LAB, OUT, SOCKET_PTS, contactAt, makePlan } from "./plan.ts";
 import storyJson from "./story.json";
 
 export const story = storyJson as unknown as StoryT;
@@ -92,12 +92,12 @@ const Picture: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ story: s,
         <g transform={layerTransform(oc, 1)}>
           {/* its heat pulse settles as the loop comes home: the clock slows to a stop, so the pulse is at its t = 0 value at the end */}
           <IsoWallSocket u={OUT.u} o={OUT.o} scorch={st.scorch} heat={glow * (1 - st.gap / 1.6)} t={t * (1 - lw)} />
-          <IsoPlug u={OUT.u} o={OUT.o} gap={st.gap} wobble={st.wobble} heat={glow} cableTo={CABLE_TO} />
+          {/* round 4: the yellow outline of the plate, on its own plane, drawn before the plug so the plug covers it */}
+          <PlateHighlight u={OUT.u} o={OUT.o} k={st.fresh} sweep={clamp01((t - m.replace) / 0.6)} flash={t >= m.replace && t < m.replace + 0.4 ? 0.6 * (1 - (t - m.replace) / 0.4) : 0} />
+          <IsoPlug u={OUT.u} o={OUT.o} gap={st.gap} wobble={st.wobble} heat={glow} cableNodes={P.cableAt(t)} />
           <g opacity={1 - lw}><HeatRise x={plugTop[0]} y={plugTop[1] - 10} k={st.outHeat * (1 - st.gap / 1.6) * (t < m.tips + 1.5 ? 1 : 0.4)} t={t} scale={0.8} /></g>
           {lw > 0 && <g opacity={lw}><HeatRise x={plugTop[0]} y={plugTop[1] - 10} k={st0.outHeat * (1 - st0.gap / 1.6)} t={0} scale={0.8} /></g>}
           <SmokePuffs x={plugTop[0] + 20} y={plugTop[1] - 30} k={st.smoke} t={t} scale={0.75} />
-          {st.fresh > 0 && st.fresh < 1 && (() => { const c = outPt(SOCKET_PTS.center); return <circle cx={c[0]} cy={c[1]} r={60 + 260 * st.fresh} fill="none" stroke={YELLOW} strokeWidth={14 * (1 - st.fresh)} />; })()}
-          {st.fresh > 0 && (() => { const c = outPt(SOCKET_PTS.center); return <circle cx={c[0]} cy={c[1]} r={150} fill="none" stroke={YELLOW} strokeWidth={20 * st.fresh} />; })()}
         </g>
         {oc.zoom < 2.2 && <g transform={layerTransform(oc, 1.35)}>
           <g opacity={1 - lw}><Motes t={t} color={WHITE} opacity={0.5} /></g>

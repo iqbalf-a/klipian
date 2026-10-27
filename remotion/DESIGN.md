@@ -87,7 +87,7 @@ Look at `out/assets-sheet-iso.png` (`npm run assets-sheet`) and the `IsoDemo` co
 - **Anything flat on a face** (a socket plate, a recess, a cut face's content): draw it in that plane's own 2D coordinates inside `<OnPlane y={y0} u o>` (the plane y = y0, coordinates (x, z), z up; `planeYZ` for an x-face). Keep text out of planes (it comes out flipped).
 - **An extruded outline**: `extrudeXZ(outline, y0, y1, u, o)` for a convex outline (`roundRectPts`, `circlePts`), `extrudeAnyXZ` for thin bent shapes (a spring leaf); draw with `<Polys polys tones />`.
 - **A round thing**: `cylinder(a, b, ra, rb, e1, e2, u, o)` (a plug, a pin, a cable end, a screw): tone bands along the body, then the cap that faces you.
-- **A hole or recess**: fill the hole's outline with the recess tone, then draw its floor (the same circle in a deeper plane) clipped to the hole: the wall shows as a crescent on the lower left.
+- **A hole or recess** (round 4, rule 3): the recess is **shallow** (its floor sits within about a third of the radius of the plate, so every hole and clip inside it is visible at the video's camera angle); its inner wall is a ring of faces **graded by the tone rule** (each face takes the tone of the way it looks, the far side of the hole is the one seen); the holes are darker than the floor with a **lighter rim**; the floor is one tone darker than the plate. `IsoWallSocket` is the model.
 - **A cutaway**: cut along a vertical plane (y = 0, facing lower-left), hatch the cut faces (`<Hatch>` pattern over the block's mid face), cut the part above the cavity further back (a stepped cut) so what is inside is seen from above; the current runs as dashed paths on the cut plane (`smoothPath` + an animated `strokeDashoffset`), heat as a radial glow at the contact. See `IsoCutaway` (`loose` 0..1, `heat`, `current`).
 - **The 2D camera and parallax**: `cam2At(keys, t)` (keys `{ t, x, y, zoom }`, eased, zoom in log space) and `<g transform={layerTransform(cam, p)}>` per layer: `p = 1` the scene, `p ≈ 0.3` the background (it moves and grows less), `p > 1` a near layer (dust: `Motes`). `toScreen(cam, pt, p)` is where a world px point is now (labels follow parts with it).
 - **Through the lens**: the lab world is a second scene with its own camera, drawn clipped to a circle that grows from the part (the magnifier) until it covers the frame; on the way out the circle shrinks back to the part while the outside camera pulls back. Anchor the lab camera so the inside detail stays in the circle's middle.
@@ -108,6 +108,12 @@ Look at `out/assets-sheet-iso.png` (`npm run assets-sheet`) and the `IsoDemo` co
 
 A cable is a **smooth curve**: `cablePath(route)` rounds every corner (a cubic bezier through the route points, a slight sag on long horizontals, round caps and joins, constant thickness). Never draw a polyline with sharp bends.
 2D: `<path d={cablePath(route)}>`, drawn with `evolvePath`. 3D: `Cable3D route=… radiusPx=…` (a tube along the same curve).
+
+**Cables are never rigid** (round 4, rule 2). A cable that hangs from a plug or lies on a floor:
+- has a **fixed length with slack** (longer than the straight distance between its ends), and is **simulated or solved deterministically per frame** (`src/cableSim.ts`: a chain of nodes, the same on every render), never a fixed polyline;
+- **follows the plug** when it moves (it drags, swings and settles with a little delay) and **leaves the plug along its axis** for about the strain relief, then bends smoothly (minimum bend radius about 0.45 world units, never a hook);
+- is drawn with **three tones** along the tube (a light stripe on the top side, the mid body, the dark underside, by the tone rule) and a **soft contact shadow** wherever it lies on the floor or the plate;
+- **never ends in a straight run** to the edge of the screen; where it lies, it curls.
 
 ## 6. Motion
 
@@ -180,6 +186,11 @@ Rules it enforces: nothing overlaps (texts vs each other, the banner/top text, t
 Text widths come from the real font (`src/fontMetrics.ts`, made by `node font-metrics.mjs`), so a test, the Studio and a render agree. **Turn `layoutDebug` on in Studio** to see every box, what moved and what could not be solved.
 The story template applies the manager to every beat; custom scenes call `applyLayout(items, fixedLayers(story, beat))` or `resolve(specs)` themselves.
 
+### Highlights and replacements (round 4, rules 4 and 5)
+
+- **Every highlight** (a ring, an outline, an arrow, a glow) **lives on the object it points at**: it uses that object's plane and perspective (`OnPlane` / `planeXZ` / `isoAt`, as `PlateHighlight` does for the plate), never a flat screen-space circle. It is drawn in the z-order of its object: an object in front covers it (the plug is drawn after the plate's outline). It always has a visible meaning: a label with a leader line (`NumberLabel`, with the story's own words) or the word in the caption. An unexplained shape is a bug.
+- **A thing that is replaced shows the swap**: the old part to the new part (a quick brightness pop, the outline sweeps once round it, then it stays thin until the beat ends), not just a circle that grows.
+
 ## 9. Text
 
 - **At most 6 words per piece of screen text** (the validator counts); readable in **1 second on a phone** (headline ≥ 64 px, labels ≥ 46 px, captions 56 px, contrast: dark on the light wall, white on the lab).
@@ -189,7 +200,7 @@ The story template applies the manager to every beat; custom scenes call `applyL
 
 ## 10. The quality bar (ian checks every video against this before it is published)
 
-1. every object is recognisable at once, without reading its label;
+1. every object is recognisable at once, without reading its label, and every part of it is drawn correctly at the camera angle (no hidden holes, no floating pieces);
 2. nothing overlaps, everything is inside the safe area;
 3. there is meaningful movement in every second, no long still screen;
 4. screen text is readable in 1 second at phone size;
@@ -197,6 +208,7 @@ The story template applies the manager to every beat; custom scenes call `applyL
 6. every claim has a source and was checked;
 7. the hook in the first 3 seconds makes people curious;
 8. it is still nice to watch the second time on a phone.
+9. every close-up is reviewed at 1:1 and at 3x (a crop of the object), and the object is on its own on the asset sheet: a close-up that "looks like a bug" fails the bar even when the layout test is green (round 4, rule 6).
 
 ## 11. How to add an asset
 
@@ -216,4 +228,5 @@ A custom video may keep its timing in a pure `plan.ts` (when things happen, from
 
 - `npm run check && npm test` pass; `layoutDebug` shows no unsolved problem;
 - stills of every beat (klipian's storyboard sheet) look right; you checked frames around every transition;
+- highlights have a meaning and the right z-order; cables follow the plug; recesses show all their holes (round 4, rule 8);
 - the render time and any new asset are in your report to ian; nothing in `workspace/` was changed by hand.
