@@ -158,7 +158,7 @@ async function main() {
   if (job.outRoot) OUT_DIR = path.resolve(String(job.outRoot));
   const compId = job.composition ?? "FunFact";
   let story = null;
-  if (!["Dissect3D", "Models3D", "AssetSheet", "AssetSheetIso", "CardsDemo", "RigDemo", "IsoDemo"].includes(compId)) {                    // FunFact and every custom video (video-<slug>) are made from a story
+  if (!["Dissect3D", "Models3D", "AssetSheet", "AssetSheetIso", "CardsDemo", "RigDemo", "IsoDemo", "IsoThreeDemo"].includes(compId)) {                    // FunFact and every custom video (video-<slug>) are made from a story
     let raw;
     try { raw = JSON.parse(readFileSync(path.resolve(path.dirname(path.resolve(jobFile)), String(job.story)), "utf8")); }
     catch { try { raw = JSON.parse(readFileSync(path.resolve(ROOT, String(job.story)), "utf8")); } catch (e) { fail(`cannot read the story: ${e.message}`); } }
