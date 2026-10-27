@@ -75,4 +75,7 @@ export const ISO = {
   cloudWhite: [WHITE, rgb([222, 220, 214]), rgb([192, 190, 184])],
   cloudGrey: [rgb([190, 190, 190]), rgb([150, 150, 150]), rgb([110, 110, 110])],
   sun: [rgb([255, 226, 120]), rgb([255, 212, 71]), rgb([214, 168, 20])],
+  // phase 1c: the strata of the land (sand, clay) and its stones, used only by the nature assets
+  sand: [rgb([226, 210, 160]), rgb([196, 176, 124]), rgb([160, 140, 96])],
+  stone: [rgb([176, 176, 170]), rgb([138, 138, 132]), rgb([98, 98, 94])],
 } as const satisfies Record<string, readonly [string, string, string]>;

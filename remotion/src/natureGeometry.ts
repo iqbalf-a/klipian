@@ -78,10 +78,18 @@ export const BELLY: { s: number; z: number; rs: number; rz: number }[] = [
 ];
 
 /** A cloud's puffs and bellies in the world, centred at (cx, cy) with its height z = cz and a size `grow`; `phase` breathes the puffs (periodic). */
-export function cloudParts(cx: number, cy: number, cz: number, grow = 1, phase = 0): { puffs: { x: number; y: number; z: number; r: number }[]; belly: { x: number; y: number; z: number; rs: number; rz: number }[] } {
+export function cloudParts(cx: number, cy: number, cz: number, grow = 1, phase = 0): {
+  puffs: { x: number; y: number; z: number; r: number }[];
+  back: { x: number; y: number; z: number; r: number }[];
+  wisps: { x: number; y: number; z: number; r: number }[];
+  belly: { x: number; y: number; z: number; rs: number; rz: number }[];
+} {
   const breathe = 1 + 0.02 * Math.sin(TAU * phase);
+  const at = (p: { s: number; z: number; r: number }) => ({ x: cx + p.s * grow, y: cy - p.s * grow, z: cz + p.z * grow, r: p.r * grow * breathe });
   return {
-    puffs: CLOUD_PUFFS.map((p) => ({ x: cx + p.s * grow, y: cy - p.s * grow, z: cz + p.z * grow, r: p.r * grow * breathe })),
+    puffs: CLOUD_PUFFS.map(at),
+    back: BACK_PUFFS.map(at),
+    wisps: WISPS.map(at),
     belly: BELLY.map((b) => ({ x: cx + b.s * grow, y: cy - b.s * grow, z: cz + b.z * grow, rs: b.rs * grow, rz: b.rz * grow })),
   };
 }
@@ -127,10 +135,54 @@ export function vapourWisps(k: number, phase: number): P3[][] {
 /** Vapour's fade along a wisp (f 0 at the water, 1 at the cloud). */
 export const vapourOpacity = (f: number, k: number): number => k * (1 - smooth(ramp(f, 0.5, 1)));
 
-/** Trees on the land's top face: foot position (x, y) and height. Drawn back to front (the order below: by x + y). */
-export const TREES: { x: number; y: number; h: number }[] = [
-  { x: 1.6, y: -0.05, h: 0.7 }, { x: 2.0, y: 0.55, h: 0.85 }, { x: 2.25, y: -0.05, h: 0.6 }, { x: 1.5, y: 0.6, h: 0.75 },
-].sort((a, b) => a.x + a.y - (b.x + b.y));
+/** Trees on the land's top face: foot position (x, y), height, and kind (a pine of three tiers, or a round tree of three lobes). Drawn back to front
+    (the order below: by x + y). */
+export type TreeKind = "pine" | "round";
+export const TREES: { x: number; y: number; h: number; kind: TreeKind }[] = [
+  { x: 1.6, y: -0.05, h: 0.7, kind: "pine" }, { x: 2.0, y: 0.55, h: 0.85, kind: "round" }, { x: 2.25, y: -0.05, h: 0.6, kind: "pine" }, { x: 1.5, y: 0.6, h: 0.75, kind: "round" },
+].sort((a, b) => a.x + a.y - (b.x + b.y)) as { x: number; y: number; h: number; kind: TreeKind }[];
+
+/** The land's details (phase 1c), all on its top face or its sides: a hill step behind the trees, two rocks, two bushes, three white flowers, two puddles
+    that grow after rain. Each is kept clear of the runoff and of the trees' feet (tests). */
+export const HILL = { a: [2.3, -0.55, LAND_TOP] as P3, b: [2.7, -0.33, LAND_TOP + 0.3] as P3 };
+export const ROCKS: { x: number; y: number; s: number; h: number }[] = [{ x: 2.5, y: 1.0, s: 0.12, h: 0.14 }, { x: 1.85, y: 0.95, s: 0.09, h: 0.1 }];
+export const BUSHES: { x: number; y: number; r: number }[] = [{ x: 1.6, y: -0.45, r: 0.12 }, { x: 2.6, y: 0.4, r: 0.13 }];
+export const FLOWERS: P2[] = [[2.1, 1.0], [1.9, 0.25], [1.35, -0.5]];
+export const PUDDLES: { x: number; y: number; r: number }[] = [{ x: 1.75, y: -0.35, r: 0.11 }, { x: 2.45, y: 0.75, r: 0.1 }];
+/** The land's strata: the layer boundaries (z) on the land's sides: topsoil, sand (clay), stone. */
+export const STRATA_Z = [LAND.b[2], LAND.b[2] - 0.22, LAND.b[2] - 0.5, LAND.a[2]] as const;
+
+/** Tree shadows on the grass: a flat ring at the foot, shifted away from the light (the light comes from the upper left). */
+export const TREE_SHADOW = { dx: -0.12, dy: -0.12, r: 0.24 };
+/** The cloud's shadow on the sea's top face (the grey cloud's), drawn on the water: its centre and radius in world units. */
+export const CLOUD_SHADOW = { x: CLOUD_GREY.cx - 0.5, y: CLOUD_GREY.cy - 0.5, r: 0.55 };
+
+/** The sea's crests: two staggered rows of arcs, each with a small foam cap on top; their radii breathe with `phase` (periodic). */
+export function crests(phase: number): { pts: P2[]; cap: P2[] }[] {
+  const rows: [number, number[]][] = [[-0.55, [-1.7, -1.3, -0.9, -0.5, -0.1, 0.3, 0.6]], [0.35, [-1.45, -1.05, -0.65, -0.25, 0.15, 0.5]]];
+  const out: { pts: P2[]; cap: P2[] }[] = [];
+  let i = 0;
+  for (const [y, xs] of rows) {
+    for (const x of xs) {
+      const r = (0.17 + 0.05 * ((i % 3) / 2)) * (1 + 0.1 * Math.sin(TAU * phase + i));
+      const pts: P2[] = [], cap: P2[] = [];
+      for (let k = 0; k <= 12; k++) { const a = 0.5 + (k / 12) * 2.1; pts.push([x + r * Math.cos(a), y + r * Math.sin(a)]); }
+      for (let k = 0; k <= 4; k++) { const a = 0.9 + (k / 4) * 1.2; cap.push([x + 0.55 * r * Math.cos(a), y + 0.55 * r * Math.sin(a) + 0.02]); }
+      out.push({ pts, cap });
+      i++;
+    }
+  }
+  return out;
+}
+/** The sea's glints: small diamonds on the water that twinkle (their brightness is periodic in `phase`). */
+export const GLINTS: P2[] = [[-1.2, -1.0], [-0.2, 0.2], [0.5, -0.9], [-1.6, 0.1]];
+
+/** The cloud's back puffs: drawn first, one tone darker than the front puffs, so the cloud has depth. */
+export const BACK_PUFFS: { s: number; z: number; r: number }[] = [
+  { s: -0.5, z: 0.3, r: 0.36 }, { s: -0.1, z: 0.55, r: 0.4 }, { s: 0.35, z: 0.42, r: 0.38 }, { s: 0.65, z: 0.18, r: 0.3 },
+];
+/** The cloud's two wisps at its ends (small puffs at the belly's level). */
+export const WISPS: { s: number; z: number; r: number }[] = [{ s: -0.95, z: -0.06, r: 0.14 }, { s: 0.9, z: -0.02, r: 0.12 }];
 
 /** The runoff: a thin stream beside the trees (at least 0.3 from each foot), from the back of the land's top to its edge nearest the sea, then a
     short fall into the sea. Two parts: `onLandPath` on the land's top face, `fall` from the land's edge (LAND_TOP) down to the sea (SEA_TOP). */
@@ -146,7 +198,7 @@ export function mixRgb(a: string, b: string, k: number): string {
 }
 
 /** The depth-order table, in draw order (runoff before the trees, so the trees cover the stream where they touch). */
-export const DEPTH_ORDER = ["sea", "ripples", "vapour", "land", "runoff", "trees", "sun", "rain", "droplets", "cloud"] as const;
+export const DEPTH_ORDER = ["sea", "ripples", "vapour", "land", "hill", "puddles", "shadows", "runoff", "bushes", "rocks", "trees", "sun", "rain", "droplets", "cloud"] as const;
 
 /** The screen points (video px, at the scale u and origin o) of a list of world points. */
 export const screenOf = (pts: readonly P3[], u: number, o: P2): P2[] => pts.map((p) => isoAt(p, u, o) as P2);
@@ -164,7 +216,7 @@ export function assetPoints(name: string, u: number, o: P2): P2[] {
     const parts = cloudParts(c.cx, c.cy, c.cz, c.grow);
     return screenOf([...parts.puffs.flatMap((p) => [[p.x - p.r, p.y, p.z - p.r], [p.x + p.r, p.y, p.z + p.r], [p.x, p.y - p.r, p.z]] as P3[]), ...parts.belly.flatMap((b) => [[b.x - b.rs, b.y, b.z - b.rz], [b.x + b.rs, b.y, b.z + b.rz]] as P3[])], u, o);
   };
-  const treePts = (): P2[] => TREES.flatMap((t) => screenOf([[t.x, t.y, LAND_TOP], [t.x, t.y, LAND_TOP + t.h]], u, o).concat(screenOf([[t.x - TREE_R, t.y, LAND_TOP], [t.x + TREE_R, t.y, LAND_TOP]], u, o)));
+  const treePts = (list: typeof TREES = TREES): P2[] => list.flatMap((t) => screenOf([[t.x, t.y, LAND_TOP], [t.x, t.y, LAND_TOP + t.h]], u, o).concat(screenOf([[t.x - TREE_R, t.y, LAND_TOP], [t.x + TREE_R, t.y, LAND_TOP]], u, o)));
   switch (name) {
     case "sea": return screenOf(blockCorners(SEA), u, o);
     case "land": return [...screenOf(blockCorners(LAND), u, o), ...treePts()];
@@ -174,10 +226,15 @@ export function assetPoints(name: string, u: number, o: P2): P2[] {
     case "cloud-grey": return cloudPts({ cx: CLOUD_GREY.cx, cy: CLOUD_GREY.cy, cz: CLOUD_GREY.cz, grow: CLOUD_GREY.grow });
     case "clouds": return [...cloudPts({ cx: CLOUD_WHITE.cx, cy: CLOUD_WHITE.cy, cz: CLOUD_WHITE.cz, grow: CLOUD_WHITE.grow }), ...cloudPts({ cx: CLOUD_GREY.cx, cy: CLOUD_GREY.cy, cz: CLOUD_GREY.cz, grow: CLOUD_GREY.grow })];
     case "rain": return screenOf(rainStreaks(0).flatMap((s) => [s.a, s.b]), u, o);
-    case "vapour": return screenOf(vapourWisps(1, 0).flat(), u, o);
+    case "vapour": return [...screenOf(vapourWisps(1, 0).flat(), u, o), ...screenOf(Array.from({ length: 18 }, (_, i) => { const f = (i % 9) / 8, j = Math.floor(i / 9); return [-0.5 + 1.1 * f, -0.9 + 0.4 * j, SEA_TOP + 0.1 + 0.06 * j] as P3; }), u, o)];
     case "droplets": return screenOf([[-0.9, 0.2, 2.1], [-0.4, -0.2, 2.0], [0.2, 0.3, 2.05], [0.7, -0.1, 2.15]], u, o);
     case "splash": return [...screenOf(seaTopCorners(), u, o), ...screenOf(Array.from({ length: 24 }, (_, i) => { const a = (i / 24) * TAU; return [-0.2 + 0.5 * Math.cos(a), -0.3 + 0.5 * Math.sin(a), SEA_TOP] as P3; }), u, o)];
     case "runoff": return [...screenOf(blockCorners(LAND).slice(0, 4).map((p) => [p[0], p[1], LAND_TOP] as P3), u, o), ...screenOf([...RUNOFF.onLandPath.map(([x, y]) => [x, y, LAND_TOP] as P3), ...RUNOFF.fall], u, o)];
+    case "pine": return treePts(TREES.filter((t) => t.kind === "pine").slice(0, 1));
+    case "round": return treePts(TREES.filter((t) => t.kind === "round").slice(0, 1));
+    case "hill": return screenOf(blockCorners(HILL), u, o);
+    case "shadow": return screenOf(Array.from({ length: 24 }, (_, i) => { const a = (i / 24) * TAU; return [CLOUD_SHADOW.x + CLOUD_SHADOW.r * Math.cos(a), CLOUD_SHADOW.y + CLOUD_SHADOW.r * Math.sin(a), SEA_TOP] as P3; }), u, o);
+    case "puddle": return screenOf(PUDDLES.flatMap((p) => Array.from({ length: 12 }, (_, i) => { const a = (i / 12) * TAU; return [p.x + p.r * Math.cos(a), p.y + p.r * Math.sin(a), LAND_TOP] as P3; })), u, o);
     case "scene": return [...screenOf(blockCorners(SEA), u, o), ...screenOf(blockCorners(LAND), u, o), ...sunRing(o[0] - 300, o[1] - 800, SUN_R * 0.25), ...cloudPts({ cx: CLOUD_WHITE.cx, cy: CLOUD_WHITE.cy, cz: CLOUD_WHITE.cz, grow: CLOUD_WHITE.grow }), ...cloudPts({ cx: CLOUD_GREY.cx, cy: CLOUD_GREY.cy, cz: CLOUD_GREY.cz, grow: CLOUD_GREY.grow })];
     default: return [];
   }
@@ -186,6 +243,8 @@ export function assetPoints(name: string, u: number, o: P2): P2[] {
 /** The nature asset sheet (NatureSheet.tsx): the tiles in a grid of 360 px columns and 380 px rows, each tile fitted by its bounding box (drawn at
     u = 100 about the origin) to 80 % of its drawing area, centred, and the bottom LABEL_H px kept for the label. */
 export const SHEET = { colW: 360, rowH: 380, top: 20, labelH: 70, fill: 0.8, u: 100 };
+/** The sheet's height: its seven rows (the sheet is taller than one video frame). */
+export const SHEET_HEIGHT = SHEET.top + 7 * SHEET.rowH;
 export const SHEET_TILES: { name: string; col: number; row: number; span: number; label: string }[] = [
   { name: "sea", col: 0, row: 0, span: 1, label: "sea" },
   { name: "land", col: 1, row: 0, span: 1, label: "land" },
@@ -200,6 +259,11 @@ export const SHEET_TILES: { name: string; col: number; row: number; span: number
   { name: "splash", col: 2, row: 3, span: 1, label: "splash" },
   { name: "runoff", col: 0, row: 4, span: 1, label: "runoff" },
   { name: "scene", col: 1, row: 4, span: 2, label: "the whole scene" },
+  { name: "pine", col: 0, row: 5, span: 1, label: "pine tree" },
+  { name: "round", col: 1, row: 5, span: 1, label: "round tree" },
+  { name: "hill", col: 2, row: 5, span: 1, label: "hill step" },
+  { name: "shadow", col: 0, row: 6, span: 1, label: "cloud shadow" },
+  { name: "puddle", col: 1, row: 6, span: 1, label: "puddles" },
 ];
 /** The layout of one tile: its box, the drawing area, the bounding box of its drawing (at SHEET.u about the origin), and the transform that puts the
     drawing in its area: translate(tx, ty) scale(s) translate(-bcx, -bcy). */

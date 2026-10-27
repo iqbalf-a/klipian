@@ -11,6 +11,7 @@ import { isoAt } from "../src/iso.ts";
 import {
   BELLY, CLOUD_BOTTOM, CLOUD_GREY, CLOUD_PUFFS, CLOUD_WHITE, CLOUD_Z, DEPTH_ORDER, LAND, LAND_TOP, MARGIN, RUNOFF, SEA, SEA_TOP, SHEET, SHEET_TILES, TREE_R,
   TREES, boundsOf, cloudParts, mixRgb, onLandTop, onSeaTop, rainStreaks, ripples, sheetTile, sheetTileBox, splashRings, vapourWisps, assetPoints,
+  BUSHES, CLOUD_SHADOW, FLOWERS, GLINTS, HILL, PUDDLES, ROCKS, STRATA_Z, crests, TREE_SHADOW,
 } from "../src/natureGeometry.ts";
 import { SFX } from "../src/catalog.ts";
 
@@ -44,9 +45,10 @@ for (const k of NATURE) yes(ISO[k].length === 3 && new Set(ISO[k]).size === 3, `
   const sea = at("IsoSea"), vap = at("IsoVapour"), land = at("IsoLand"), run = at("IsoRunoff"), trees = at("IsoTrees"), sun = at("IsoSun");
   const whiteCloud = at("IsoCloud"), rain = at("IsoRain"), drop = at("IsoDroplets");
   const greyCloud = demo.lastIndexOf("<IsoCloud ");
-  const seq = [sea, vap, land, run, trees, sun, whiteCloud, rain, drop, greyCloud];
+  const hill = at("IsoHill"), puddles = at("IsoPuddles"), shadows = at("IsoTreeShadows"), bushes = at("IsoBushes"), rocks = at("IsoRocks");
+  const seq = [sea, vap, land, hill, puddles, shadows, run, bushes, rocks, trees, sun, whiteCloud, rain, drop, greyCloud];
   yes(seq.every((i) => i > -1), "every part of the depth order is drawn by the demo");
-  yes(seq.every((v, i) => i === 0 || v > seq[i - 1]), "the demo draws the parts in the depth order (sea, vapour, land, runoff, trees, sun, white cloud, rain, droplets, grey cloud)");
+  yes(seq.every((v, i) => i === 0 || v > seq[i - 1]), "the demo draws the parts in the depth order (sea, vapour, land, hill, puddles, tree shadows, runoff, bushes, rocks, trees, sun, white cloud, rain, droplets, grey cloud)");
   yes(new Set(DEPTH_ORDER).size === DEPTH_ORDER.length, "every part is in the depth order once");
   const ord = DEPTH_ORDER as readonly string[];
   yes(ord.indexOf("runoff") < ord.indexOf("trees"), "the runoff is drawn before the trees (the trees cover the stream where they touch)");
@@ -166,6 +168,28 @@ for (const k of NATURE) yes(ISO[k].length === 3 && new Set(ISO[k]).size === 3, `
   }
   yes(SHEET_TILES.some((t) => t.name === "trees") && SHEET_TILES.some((t) => t.name === "droplets") && SHEET_TILES.some((t) => t.name === "splash") && SHEET_TILES.some((t) => t.name === "runoff") && SHEET_TILES.some((t) => t.name === "scene") && SHEET_TILES.some((t) => t.name === "clouds"), "the sheet has tiles for trees, droplets, splash, runoff, the whole scene and both clouds");
   yes(assetPoints("cloud-grey", SHEET.u, [0, 0]).length > 0 && assetPoints("unknown", 1, [0, 0]).length === 0, "every sheet tile has its points");
+}
+
+// --- phase 1c: the detail parts. Every new part is on its face (the land's top or the sea's), clear of the runoff and of the trees, and the tiles fit
+{
+  const clearOf = (x: number, y: number, r: number) => RUNOFF.onLandPath.every(([px, py]) => Math.hypot(x - px, y - py) >= r + 0.1) && TREES.every((t) => Math.hypot(x - t.x, y - t.y) >= TREE_R + r);
+  yes(ROCKS.every((k) => onLandTop(k.x, k.y, k.s) && clearOf(k.x, k.y, k.s)), "the rocks stand on the land's top, clear of the stream and the trees");
+  yes(BUSHES.every((b) => onLandTop(b.x, b.y, b.r) && clearOf(b.x, b.y, b.r)), "the bushes stand on the land's top, clear of the stream and the trees");
+  yes(FLOWERS.every(([x, y]) => onLandTop(x, y, 0.05) && clearOf(x, y, 0.05)), "the flowers stand on the land's top, clear of the stream and the trees");
+  yes(PUDDLES.every((p) => onLandTop(p.x, p.y, p.r) && clearOf(p.x, p.y, p.r)), "the puddles lie on the land's top, clear of the stream and the trees");
+  yes(HILL.a[0] >= LAND.a[0] && HILL.b[0] <= LAND.b[0] && HILL.a[1] >= LAND.a[1] && HILL.b[1] <= LAND.b[1] && HILL.b[2] > LAND_TOP, "the hill step is a raised block on the land");
+  yes(TREES.every((t) => t.y - TREE_R > HILL.b[1] || t.y + TREE_R < HILL.a[1] || t.x + TREE_R < HILL.a[0] || t.x - TREE_R > HILL.b[0]), "no tree stands on the hill step");
+  yes(TREES.some((t) => t.kind === "pine") && TREES.some((t) => t.kind === "round"), "both kinds of tree: pines and round trees");
+  yes(STRATA_Z.length === 4 && STRATA_Z.every((z, i) => i === 0 || z < STRATA_Z[i - 1]), "the land has three strata (topsoil, sand, stone) from the top down");
+  yes(CLOUD_SHADOW.x - CLOUD_SHADOW.r > SEA.a[0] && CLOUD_SHADOW.x + CLOUD_SHADOW.r < SEA.b[0] && CLOUD_SHADOW.y - CLOUD_SHADOW.r > SEA.a[1] && CLOUD_SHADOW.y + CLOUD_SHADOW.r < SEA.b[1], "the cloud's shadow lies on the sea's top face");
+  yes(TREES.every((t) => onLandTop(t.x + TREE_SHADOW.dx, t.y + TREE_SHADOW.dy, 0)), "each tree's shadow falls on the grass");
+  yes(crests(0).length >= 10 && GLINTS.every(([x, y]) => onSeaTop(x, y, 0.1)), "the sea has two rows of crests and glints on its top");
+  yes(crests(0.3).every((c) => c.pts.every(([x, y]) => onSeaTop(x, y, 0))), "every crest stays on the sea's top face");
+  const flatNums = (v: unknown): number[] => (JSON.stringify(v).match(/-?d+(.d+)?(e-?d+)?/g) ?? []).map(Number);
+  yes(flatNums(crests(0)).every((v, i) => Math.abs(v - flatNums(crests(1))[i]) < 1e-9), "the crests are periodic in the phase");
+  const detail = read("src", "components", "IsoNature.tsx");
+  yes(!/Gradient|filter=/.test(detail), "the nature parts use flat tones only (no gradients, no filters)");
+  yes(detail.includes("arcD(c, r * 0.8"), "the cloud's billows are crescent-shaded (a rim arc on a dark base)");
 }
 
 // --- the new sounds: in the table, in the licence list, and their files exist
