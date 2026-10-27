@@ -115,6 +115,8 @@ A cable is a **smooth curve**: `cablePath(route)` rounds every corner (a cubic b
 - is drawn with **three tones** along the tube (a light stripe on the top side, the mid body, the dark underside, by the tone rule) and a **soft contact shadow** wherever it lies on the floor or the plate;
 - **never ends in a straight run** to the edge of the screen; where it lies, it curls.
 
+**A cable or a background object may pass behind the caption box; it never covers the text** (ian, round 5): the caption box is opaque, and the caption layer is drawn after the picture.
+
 **The world's down axis** (round 5, rule 5.1). In the 2.5D scenes z is up, the wall is the plane y = 0.3 (the plate front, the plug sticks out along +y) and the floor is the plane z = -2.05. Gravity pulls a cable **down the z axis**; the floor is a height in z; the wall and the plug's body are **obstacles** (a cable never passes into them); the cable hangs from the plug toward the floor and lies on it. `simulateCable` takes these as `floorZ`, `wall` and `body(t)`.
 
 **How to check a cable** (round 5): with the plug in the socket, the cable never rises above the plug's top; with the plug pulled out, it follows the plug and falls back to the floor in a soft curve, with no hook and no loop over the plug. Check it on a contact sheet of frames every 3 frames across the pull-out, not on single frames.

@@ -53,24 +53,14 @@ for (const c of P.cards) {
 for (const c of P.chips) yes([...`SUMBER  ${c.text}`].length * 40 * 0.6 + 44 <= 880, `chip "${c.text}" fits at 40 px`);
 for (const tp of P.tips) if (tp.chip) yes(80 + 140 + [...`SUMBER  ${tp.chip}`].length * 28 * 0.6 <= 940, `tip chip "${tp.chip}" fits the tip card at 28 px`);
 
-// --- the hook's cable never runs under the captions (it leaves level to the left, above them)
+// --- the cable and the captions (ian, round 5): the cable MAY pass behind the caption box (the box is opaque, the text stays readable), but it is
+// never in front of the captions: the cable is drawn before the caption layer, and the box is opaque enough to hide what is behind it
 {
-  const cap = captionBox(), u = 150;
-  let worst = Infinity;
-  // round 5, open: the lying part of the cable reaches the caption band's left corner from about 1.2 s (the camera pushes in), so this check
-  // covers the first second only; the rest is reported to klipian motion as a decision (move the cable, or the caption band)
-  for (let f = 0; f < 1.0 * FPS; f += 3) {
-    const t = f / FPS;
-    if (!P.outsideVisible(t)) continue;
-    // round 4: the cable is the simulated chain of this frame (src/cableSim.ts), projected with the camera
-    const cam = P.outCam(t), pts = cableSamples(P.cableAt(t).map((p) => { const q = toScreen(cam, isoAt(p, OUT.u, OUT.o)); return [q[0], q[1]] as [number, number]; }), undefined, 6);
-    const margin = u * 0.16 * cam.zoom;
-    for (const [x, y] of pts) {
-      const inX = x > cap.x0 - margin && x < cap.x1 + margin, inY = y > cap.y0 - margin && y < cap.y1 + margin;
-      if (inX && inY) worst = Math.min(worst, t);
-    }
-  }
-  yes(worst === Infinity, `the cable never runs under the captions (first clash at ${worst}s)`);
+  const index = readFileSync(path.join(ROOT, "videos", "kenapa-colokan-panas", "index.tsx"), "utf8");
+  yes(index.indexOf("<IsoPlug") > -1 && index.indexOf("<IsoPlug") < index.indexOf("<CaptionLayer"), "the cable is drawn before the captions (it can pass behind the caption box, never in front of it)");
+  const caps = readFileSync(path.join(ROOT, "src", "components", "Captions.tsx"), "utf8");
+  const box = caps.match(/fill=\{BLACK\} opacity=\{([0-9.]+)\}/);
+  yes(box !== null && Number(box[1]) >= 0.85, `the caption box is opaque enough to hide what passes behind it (opacity ${box?.[1]})`);
 }
 
 // --- the cameras are smooth while their world is on screen; the moments are in order
@@ -187,9 +177,7 @@ yes(conflicts([{ id: "a", role: "picture", box: { x0: 100, y0: 500, x1: 500, y1:
   for (const t of [38, 39, 40, 40.5, 41]) {
     const cam = P.outCam(t), plug = P.plug(t, cam);
     yes(!plug.body.some((q) => inCap([q[0], q[1]])), `the plug's body is clear of the captions at ${t} s`);
-    const cs = cableSamples(plug.cable.map((q) => [q[0], q[1]] as [number, number]), undefined, 6);
-    // round 5, open: the lying cable reaches the caption band at the pulled-out frames. Reported, not asserted, until the decision is made (see the report)
-    if (cs.some((q) => inCap([q[0], q[1]], 12))) console.warn(`OPEN: the plug's cable crosses the captions at ${t} s (round 5, a layout decision)`);
+    // round 5 (ian): the cable may pass behind the caption box; it is drawn before the captions (see the rule above), so it never covers the text
     const C = toScreen(cam, isoAt([0, 0.3, 0.5], OUT.u, OUT.o)), r = 150 * cam.zoom;
     yes(C[0] - r >= 0 && C[0] + r <= 1080 && C[1] + r <= 1920, `the plate's ring is inside the frame at ${t} s`);
     yes(C[1] - r >= tipBottom + 10, `the plate's ring is clear of the tip card at ${t} s (ring top ${(C[1] - r).toFixed(0)}, card bottom ${tipBottom})`);
