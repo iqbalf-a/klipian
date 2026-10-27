@@ -6,8 +6,8 @@ import React from "react";
 import { AbsoluteFill, useCurrentFrame } from "remotion";
 import { FPS, FRAME } from "./design/index.ts";
 import { ISO } from "./tokens.ts";
-import { IsoDroplets, IsoCloud, IsoLand, IsoRain, IsoRunoff, IsoSea, IsoSun, IsoVapour } from "./components/IsoNature.tsx";
-import { ramp, smooth } from "./natureGeometry.ts";
+import { IsoCloud, IsoDroplets, IsoLand, IsoRain, IsoRunoff, IsoSea, IsoSun, IsoTrees, IsoVapour } from "./components/IsoNature.tsx";
+import { CLOUD_GREY, CLOUD_WHITE, RUNOFF, ramp, smooth } from "./natureGeometry.ts";
 
 export const NATURE_DEMO_SECONDS = 7;
 const U = 150, O: [number, number] = [600, 1250];
@@ -34,15 +34,17 @@ export const NatureDemo: React.FC<{ t?: number; dark?: number; grow?: number; ra
     <AbsoluteFill style={{ background: ISO.wall[0] }}>
       <svg width={FRAME.width} height={FRAME.height} style={{ position: "absolute", inset: 0 }}>
         <circle cx={540} cy={1000} r={520} fill="rgb(250,236,186)" />
-        {/* the depth order of natureGeometry.ts DEPTH_ORDER: sea (with ripples and splash), vapour, land (with trees and runoff), sun, rain, droplets, cloud */}
-        <IsoSea u={U} o={O} phase={s.phase} splash={s.splash} />
+        {/* the depth order of natureGeometry.ts DEPTH_ORDER (the white cloud sits in the sky before the rain; the grey cloud is last) */}
+        <IsoSea u={U} o={O} phase={s.phase} splash={s.splash} splashAt={RUNOFF.fall[1].slice(0, 2) as [number, number]} />
         <IsoVapour u={U} o={O} k={s.vapour} phase={s.phase} />
         <IsoLand u={U} o={O} />
         <IsoRunoff u={U} o={O} k={s.rain} />
+        <IsoTrees u={U} o={O} />
         <IsoSun cx={200} cy={520} r={70} phase={s.phase} />
+        <IsoCloud u={U} o={O} cx={CLOUD_WHITE.cx} cy={CLOUD_WHITE.cy} cz={CLOUD_WHITE.cz} dark={0} grow={CLOUD_WHITE.grow} phase={s.phase} />
         <IsoRain u={U} o={O} k={s.rain} phase={s.phase} />
         <IsoDroplets u={U} o={O} k={s.vapour} />
-        <IsoCloud u={U} o={O} dark={s.dark} grow={s.grow} phase={s.phase} />
+        <IsoCloud u={U} o={O} cx={CLOUD_GREY.cx} cy={CLOUD_GREY.cy} cz={CLOUD_GREY.cz} dark={s.dark} grow={s.grow * CLOUD_GREY.grow} phase={s.phase} />
       </svg>
     </AbsoluteFill>
   );

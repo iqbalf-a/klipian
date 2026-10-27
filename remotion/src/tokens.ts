@@ -71,8 +71,8 @@ export const ISO = {
   water: [rgb([120, 182, 226]), rgb([78, 146, 204]), rgb([52, 112, 170])],
   soil: [rgb([206, 196, 170]), rgb([176, 164, 136]), rgb([140, 128, 104])],
   grass: [rgb([152, 190, 120]), rgb([120, 160, 94]), rgb([86, 124, 66])],
-  leaf: [rgb([120, 160, 94]), rgb([86, 124, 66]), rgb([60, 96, 50])],
-  cloudWhite: [WHITE, rgb([226, 224, 218]), rgb([200, 198, 192])],
+  leaf: [rgb([168, 204, 132]), rgb([128, 170, 98]), rgb([92, 134, 70])],
+  cloudWhite: [WHITE, rgb([222, 220, 214]), rgb([192, 190, 184])],
   cloudGrey: [rgb([190, 190, 190]), rgb([150, 150, 150]), rgb([110, 110, 110])],
   sun: [rgb([255, 226, 120]), rgb([255, 212, 71]), rgb([214, 168, 20])],
 } as const satisfies Record<string, readonly [string, string, string]>;
