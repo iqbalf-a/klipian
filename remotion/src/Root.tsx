@@ -11,6 +11,7 @@ import { IsoDemo, ISO_DEMO_SECONDS } from "./IsoDemo.tsx";
 import { IsoThreeDemo, ISO_THREE_SECONDS } from "./IsoThreeDemo.tsx";
 import { NatureDemo, NATURE_DEMO_SECONDS } from "./NatureDemo.tsx";
 import { NatureSheet } from "./NatureSheet.tsx";
+import { MarkSheet } from "./MarkSheet.tsx";
 import { SHEET_HEIGHT } from "./natureGeometry.ts";
 import { FRAME } from "./tokens.ts";
 import { validateStory, type StoryT } from "./schema.ts";
@@ -42,6 +43,7 @@ export const Root: React.FC = () => (
   <Composition id="AssetSheetIso" component={AssetSheetIso} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={30} />
   <Composition id="RigDemo" component={RigDemo} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={RIG_DEMO_SECONDS * FPS} />
   <Composition id="IsoDemo" component={IsoDemo} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={ISO_DEMO_SECONDS * FPS} />
+  <Composition id="MarkSheet" component={MarkSheet} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={1} />
   <Composition id="NatureSheet" component={NatureSheet} width={FRAME.width} height={SHEET_HEIGHT} fps={FPS} durationInFrames={1} />
   <Composition id="NatureDemo" component={NatureDemo} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={NATURE_DEMO_SECONDS * FPS} />
   <Composition id="IsoThreeDemo" component={IsoThreeDemo} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={ISO_THREE_SECONDS * FPS} />

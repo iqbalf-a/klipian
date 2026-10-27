@@ -1,5 +1,7 @@
 # DESIGN.md — klipian intip: the design system every video session reads first
 
+Contents: [0b. The klipian intip formula (Style Bible v1)](#0b-the-klipian-intip-formula-style-bible-v1) · [0. How to start](#0-how-to-start-a-new-video-exact-commands) · [12. Before you hand a video back](#12-before-you-hand-a-video-back)
+
 You are making one Short for the channel **klipian intip** (fun facts, explained with a flat/semi-3D look). klipian has already written the story,
 fact-checked it and kept it as JSON. **Your job is the scenes**: draw each beat from the components below, keep the checked words as the words, make it
 look like the channel and pass the quality bar at the end. Read this whole file before you write a scene.
@@ -8,6 +10,67 @@ Everything here is code in `remotion/`: `npm test` checks the rules that can be 
 `npm run studio` is where ian reviews. Use the Remotion skills in `.claude/skills/` (start with `remotion-best-practices`) for Remotion itself.
 
 ---------------------------------------------------------------------------------------------------------------------------------------
+
+## 0b. The klipian intip formula (Style Bible v1)
+
+The one system behind every video, whatever the fact: an object opened up (the colokan), a process (rain), a cause, or a myth check. Written as rules that `scripts/styleCheck.mjs` and the tests can check. The other sections keep their detail; this section says what every video has in common.
+
+Contents: [the five locks](#the-five-locks) · [the rules](#the-rules-style-bible-v1) · [the visual dictionary](#the-visual-dictionary) · [the beat formula](#the-beat-formula) · [the detail budget](#the-detail-budget) · [the checker and the checklist](#the-checker-and-the-checklist)
+
+### The five locks
+
+1. **Diorama stage.** One isometric slab on the brand background with its yellow spot, the iso camera of the kit, the lens move always the same.
+2. **Visual dictionary.** One mark per physical thing, in `src/dictionary.ts`. Every new thing gets its row first.
+3. **One hero asset per video** at the detail budget, at most two simple supporting assets, at most three new assets.
+4. **One beat formula** for every kind of fact, with a verdict stamp for a myth check.
+5. **The rules in one checklist**, printed by `scripts/styleCheck.mjs`.
+
+### The rules (Style Bible v1)
+
+- **B1 Stage.** One stage block per video (a slab with three tones and a flat darker base shadow) on the `brand` background. The camera is the kit's iso camera (`VIEW = [1,1,1]`, top light, +y mid, +x dark). The hero fills 60 to 70 % of the screen width at the main shot.
+- **B2 Lens.** The "Intip" move is always the same: the camera goes in, a circle grows from the part, the lab background (dark, grid) shows inside it, and on the way out the circle shrinks back to the part.
+- **B3 No parked people.** A stage has no people and no mascot parked in a corner. The mascot is for the sting and the outro, plus at most two short reactions (B11).
+- **B4 Dictionary.** Every mark is a row in `src/dictionary.ts` with its recipe and its component. A video may not invent a private mark for a thing that has a row. A row marked "to build" is a spec only: it is not drawn until it has a component and a tile.
+- **B5 One hero.** One hero asset per video, at the detail budget (B6). At most two supporting assets, simple and flat. At most three new assets per video, and the report says which assets were reused.
+- **B6 Detail budget.** The hero (and each hero of a nature video) reaches 80 % of the colokan socket + plug's **shapes and parts** (`node scripts/detailBudget.mjs`). Tone regions and quantised colours are informative only: a three-tone material cannot have more than three tones.
+- **B7 Beat formula.** `hook` (an everyday question, 3 s) → `sting` (a small mascot, 1 s) → explain (two or three beats, each one claim) → look closer (the lens or a macro, or a zoom to the key part) → `result` (what it causes, with its source card) → a tip or a verdict → `outro` (the loop-back). Durations are 30, 45 or 60 s and the beats add up to them exactly.
+- **B8 Kinds of fact.** Only the explain beats change: an object opens up (the lens); a process follows the flow around the stage (the camera follows the particles); a cause is a chain of cause and effect arrows; a myth check ends with a verdict stamp.
+- **B9 Verdict stamp.** A pill on the stage: FAKTA is black on yellow, MITOS is white on black, SEBAGIAN is grey. No new colour. The stamp component is to build (no row is drawn yet).
+- **B10 Text and sources.** At most six words on screen at a time, all from the story. Every claim has at least one source; every source card shows one of the story's claims.
+- **B11 Mascot.** At most one sting and at most two reactions between the sting and the outro, each short. None in the outro (see the exception note below).
+- **B12 Outro.** The loop-back: no voice, and the first and last frames match (the loop test). **Exception to settle:** pilot 1's outro has a mascot and a sign-off text (`klipian intip`, `Intip yuk fakta lain →`). The checker flags both; ian decides whether the outro may carry the sign-off.
+- **B13 Motion and sound.** A sound on every movement, at most three at once. Highlights live on their object and have a meaning. Cables and strokes are never rigid; parts that go into holes are clipped; joints are smooth; in-between states are checked as strips.
+- **B14 Revisions.** Every revision adds its rule to this section or to the section it touches (the motion rule of `DESIGN.md` § 6 and the nature rules of § "Nature kit").
+
+### The visual dictionary
+
+The table is `src/dictionary.ts` (the code is the source of truth; `tests/style.test.ts` checks it). Drawn rows have a tile on the mark sheet (`src/MarkSheet.tsx`):
+
+| thing | mark | status |
+| --- | --- | --- |
+| electric current | yellow dashes flowing along the path (cutaway) | drawn: `IsoCutaway` |
+| heat | red and orange wavy lines rising, with a warm glow ring | drawn: `HeatRise` |
+| danger / hot spot | red core with a pulsing ring (danger only) | drawn: `IsoWallSocket` |
+| water (liquid) | blue layers and streaks, three tones | drawn: `IsoSea`, `IsoRain` |
+| vapour / steam | pale blue curving wisps with small bubbles, rising | drawn: `IsoVapour`, `SmokePuffs` |
+| light / radiation | yellow rays around a disc | drawn: `IsoSun` |
+| spark / electric arc | short yellow and hot-orange flecks | drawn: `Sparks` |
+| force or flow direction | black arrow with a round tail (round tail to add) | drawn: `Arrow` |
+| air / wind | white curving streaks | to build |
+| sound / vibration | thin concentric arcs | to build |
+| cold / ice | pale cyan crystals, blue-white glow (tones to define) | to build |
+
+### The beat formula
+
+`hook` → `sting` → explain (2 to 3 beats) → look closer → `result` → tip or verdict → `outro`. The kinds exist in the schema (`hook`, `sting`, `lens`, `normal`, `loose`, `result`, `tips`, `outro`). Per kind of fact, see B8.
+
+### The detail budget
+
+`node scripts/detailBudget.mjs` measures the colokan socket + plug (the bar: 119 shapes, 35 parts) and the hero candidates from the sheets, then prints whether each reaches 80 % of the shapes **and** the parts (95 shapes and 28 parts for the bar). Tone regions and quantised colours are printed as information. The nature tiles are read from `out/nature3/sheet.png`.
+
+### The checker and the checklist
+
+`node scripts/styleCheck.mjs <slug>` (for example `kenapa-colokan-panas`) checks what a story and its files can show: the duration and the beat formula, the sting and the reactions, the outro (B12), the words on screen, the sources, the stage, the marks a video draws (against the dictionary), the number of new assets (a human count), the verdict stamp of a myth check. It marks what needs a render as RENDER, and prints the human checklist at the end. It exits with 1 when anything is FLAG. Before you hand a video back, run it, and the flags are either fixed or named in your report.
 
 ## 0. How to start a new video (exact commands)
 
@@ -255,6 +318,9 @@ The library grows: **every object or scene made for one video is saved as an ass
 6. **A sound** if it moves: map its enter/actions in `SFX_FOR` (or add a sound to `sfx/synth.mjs` and the `SFX` table, CC0 and listed in `sfx/LICENSES.md`).
 
 ## 12. Before you hand a video back
+
+First run `node scripts/styleCheck.mjs <slug>` and read the rules of section 0b (The klipian intip formula, Style Bible v1): its flags are fixed or named here, and its human checklist is part of this list.
+
 
 `node scripts/frames.mjs video-<slug> <folder> 0.5 3.2 9.4 ...` renders any frames into `out/<folder>/` in one browser session: check the frames around every camera move and transition.
 A custom video may keep its timing in a pure `plan.ts` (when things happen, from the beats and the narration's word times; the cameras; the boxes of every frame), used by `index.tsx`, `sfx.ts` and a test that runs the layout manager's `conflicts()` frame by frame (see `tests/colokan.test.ts`). Its `sfx.ts` may export `music = { track, level }` (used when the story names no bed).

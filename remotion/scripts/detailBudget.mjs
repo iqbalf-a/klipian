@@ -1,11 +1,14 @@
 // node scripts/detailBudget.mjs
 //
-// The detail budget of the nature kit (phase 1c): for each object, three numbers, the same way for the colokan (the bar) and the nature assets:
-//   shapes        the drawn SVG elements (polygon, polyline, path, circle, ellipse, line, rect, text), not counting clip paths
-//   toneRegions   the distinct fill or stroke colours of those elements (the tones of the parts)
-//   quantColours  the colours, each channel rounded to 8 levels, that cover at least 0.5 % of the object's own pixels in its rendered tile
-// The markup comes from scripts/detailEntry.tsx (bundled with esbuild into out/detail/); the pixels come from the tile PNGs (ffmpeg crops).
-// Writes out/detail/budget.json and prints the table. The nature tiles must be rendered first (NatureSheet, NatureDemo).
+// The detail budget of a hero asset (Style Bible v1, DESIGN.md section 0b, lock 3). The bar is the colokan socket + plug (the first video's hero).
+// Each object is measured with two counts that the bar uses, and two that only inform:
+//   shapes  the drawn SVG elements (polygon, polyline, path, circle, ellipse, line, rect, text), not counting clip paths        (bar)
+//   parts   the groups that make the object (each <g>: a part with its own tones, rims or layers)                           (bar)
+//   tones   the distinct fill or stroke colours (informational only: a three-tone material cannot have more than three tones)
+//   colours the colours, each channel rounded to 8 levels, that cover at least 0.5 % of the object's own pixels (informational)
+// An object passes when it reaches 80 % of the colokan's shapes AND 80 % of its parts. The markup comes from scripts/detailEntry.tsx (bundled with
+// esbuild into out/detail/); the pixels come from the tile PNGs (ffmpeg crops). Writes out/detail/budget.json and prints the table. The nature tiles
+// must be rendered first (NatureSheet: out/nature3/sheet.png).
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -43,7 +46,8 @@ export function countMarkup(markup) {
       if (m && m[1] !== "none") colours.add(m[1]);
     }
   }
-  return { shapes, toneRegions: colours.size };
+  const parts = (drawn.match(/<g[\s>]/g) ?? []).length;
+  return { shapes, parts, tones: colours.size };
 }
 
 // the pixels of a tile, as rgb bytes (ffmpeg crops the PNG)
@@ -70,13 +74,24 @@ export function quantColours(buf) {
   return { quantColours: kept, objectPx, plate };
 }
 
+const KEEP = new Set(["nature sea", "nature land", "nature trees", "nature pine tree", "nature round tree", "nature cloud white", "nature cloud grey"]);
 const rows = [];
 for (const o of OBJECTS) {
+  if (o.name !== "colokan socket + plug" && !KEEP.has(o.name)) continue;
   const markup = countMarkup(o.markup);
   const buf = tilePixels(o.png, o.box);
   const px = buf ? quantColours(buf) : { quantColours: null, objectPx: null, plate: null };
-  rows.push({ name: o.name, ...markup, ...px });
+  rows.push({ name: o.name, ...markup, colours: px.quantColours });
 }
-writeFileSync(path.join(OUT, "budget.json"), JSON.stringify(rows, null, 2));
-console.log("object".padEnd(30), "shapes", "tones", "colours", "object px");
-for (const r of rows) console.log(r.name.padEnd(30), String(r.shapes).padStart(6), String(r.toneRegions).padStart(5), String(r.quantColours ?? "-").padStart(7), String(r.objectPx ?? "-").padStart(10));
+const bar = rows.find((r) => r.name === "colokan socket + plug");
+for (const r of rows) {
+  r.shapesOk = r.shapes >= 0.8 * bar.shapes;
+  r.partsOk = r.parts >= 0.8 * bar.parts;
+  r.passes = r.shapesOk && r.partsOk;
+}
+writeFileSync(path.join(OUT, "budget.json"), JSON.stringify({ bar: { shapes: bar.shapes, parts: bar.parts }, rows }, null, 2));
+console.log("object".padEnd(24), "shapes", "parts", "pass", "  (tones, colours: info)");
+for (const r of rows) {
+  console.log(r.name.padEnd(24), String(r.shapes).padStart(6), String(r.parts).padStart(5), (r.passes ? "yes" : "no").padStart(4), `  (${r.tones}, ${r.colours ?? "-"})`);
+}
+console.log(`bar: 80% of colokan = ${(0.8 * bar.shapes).toFixed(0)} shapes and ${(0.8 * bar.parts).toFixed(0)} parts`);
