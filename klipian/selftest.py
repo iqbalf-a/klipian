@@ -5797,7 +5797,7 @@ def check_motionopts() -> tuple[str, str]:
         problems.append("loop is yes or no")
     except motion.MotionError:
         pass
-    if motion.normalize_options(None) != motion.DEFAULT_OPTIONS or motion.DEFAULT_OPTIONS["loop"] is not True or motion.DEFAULT_OPTIONS["sting"] is not True:
+    if {**motion.normalize_options(None), "music": "sunny"} != motion.DEFAULT_OPTIONS or motion.DEFAULT_OPTIONS["loop"] is not True or motion.DEFAULT_OPTIONS["sting"] is not True:
         problems.append("the defaults are loop on and the sting on")
     if motion.option_warnings(motion.DEFAULT_OPTIONS):
         problems.append("the defaults give no warning")
@@ -6390,14 +6390,16 @@ def check_music() -> tuple[str, str]:
     for track in motion.MUSIC_TRACKS.values():
         if track != "none" and f'"{track}"' not in catalog:
             problems.append(f"the track {track} is in the catalogue")
-    if motion.DEFAULT_OPTIONS["music"] != "calm":
-        problems.append("the default for a new video is still the legacy calm bed, until ian picks the new one")
+    if motion.DEFAULT_OPTIONS["music"] != "sunny" or motion.normalize_options({})["music"] != "calm":
+        problems.append("a new video gets sunny (ian's pick), and a project saved without a music choice keeps calm")
+    if motion.create("tes bed default", 30, "")["options"]["music"] != "sunny":
+        problems.append("a video made now gets the sunny bed")
     for key, label in motion.MUSIC_LABELS.items():
         if not _re.search(rf'<option value="{key}"( selected)?>{_re.escape(label)}</option>', html):
             problems.append(f"the dialog offers {label!r}")
     if problems:
         return FAIL, "\n      ".join(problems)
-    return PASS, "the page's music labels are the server's, the legacy beds keep their tracks, and the default stays the legacy calm bed until ian picks"
+    return PASS, "the page's music labels are the server's, the legacy beds keep their tracks, sunny is the default for new videos, and an old project keeps calm"
 
 
 CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch,

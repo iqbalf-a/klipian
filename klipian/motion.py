@@ -361,7 +361,7 @@ def create(topic: str, duration=DEFAULT_DURATION, notes: str = "", options: dict
     pid = f"{_slug(topic)}-{uuid.uuid4().hex[:4]}"
     now = int(time.time())
     p = {"id": pid, "topic": topic, "duration": duration, "notes": str(notes or "").strip()[:2000], "status": "draft",
-         "title": "", "created": now, "updated": now, "needs": [], "render": None, "composition": "", "options": normalize_options(options)}
+         "title": "", "created": now, "updated": now, "needs": [], "render": None, "composition": "", "options": normalize_options({"music": DEFAULT_OPTIONS["music"], **(options or {})})}
     with _LOCK:
         project_dir(pid).mkdir(parents=True, exist_ok=True)
         save(p)
@@ -1207,6 +1207,7 @@ def _example_text(cat: dict) -> str:
 VOICE_TARGETS = {"voicestudio": "VoiceStudio", "elevenlabs": "ElevenLabs", "googleai": "Google AI Studio"}
 MUSIC_TRACKS = {"sunny": "bed-sunny", "bounce": "bed-bounce", "glow": "bed-glow", "curious": "bed-curious", "calm": "bed-calm", "tech": "bed-tech", "none": "none"}
 # the labels the page shows (Indonesian). The two beds that exist are the legacy ones (PLAN-VARIETY stage 1): their tracks never change.
+LEGACY_MUSIC = "calm"           # the bed of every video made before the choice of PLAN-VARIETY (ian picked sunny on 2026-10-28 for new videos only)
 MUSIC_LABELS = {"sunny": "Ceria", "bounce": "Pantul", "glow": "Hangat", "curious": "Penasaran", "calm": "Tenang (lama)", "tech": "Teknologi (lama)", "none": "Tanpa musik"}
 # when each bed fits (PLAN-VARIETY): the brief tells the AI which one to choose for which kind of fact
 MUSIC_USE = {
@@ -1223,7 +1224,7 @@ VS_GENDERS = ("female", "male")
 VS_AGES = ("child", "teenager", "young adult", "middle-aged", "elderly")
 VS_PITCH = "moderate pitch"          # the VoiceStudio pitch the export always writes (the pitch is not a choice in the panel)
 VS_TAGS_MAX = 2                      # the optional [laughter] at most twice in a video
-DEFAULT_OPTIONS = {"loop": True, "sting": True, "voiceTargets": list(VOICE_TARGETS), "voiceTargetFirst": "voicestudio", "music": "calm", "kind": "otomatis",
+DEFAULT_OPTIONS = {"loop": True, "sting": True, "voiceTargets": list(VOICE_TARGETS), "voiceTargetFirst": "voicestudio", "music": "sunny", "kind": "otomatis",
                    "vsGender": "female", "vsAge": "young adult", "vsTags": False}
 
 
@@ -1258,6 +1259,8 @@ def normalize_options(raw) -> dict:
         out["voiceTargetFirst"] = raw["voiceTargetFirst"]
     if out["voiceTargetFirst"] not in out["voiceTargets"]:
         out["voiceTargetFirst"] = out["voiceTargets"][0]
+    if "music" not in raw:
+        out["music"] = LEGACY_MUSIC                              # a project saved before the choice keeps its bed: calm
     for key, choices in (("music", MUSIC_TRACKS), ("kind", KINDS)):
         if key in raw:
             if raw[key] not in choices:
