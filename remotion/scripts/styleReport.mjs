@@ -7,7 +7,7 @@
 // pass at 30 dB or more), the hero's share of the width where the plan declares it (HERO_BOX_AT), and the detail budget table of scripts/detailBudget.mjs.
 // Frames come from scripts/frames.mjs (one browser session); ffmpeg makes the sheets and the numbers.
 import { execFileSync, spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -138,6 +138,24 @@ if (BESIDE) {
 // the report: one file for ian
 const relOut = (p) => path.relative(ROOT, p).replaceAll("\\", "/");
 const passLoop = psnr !== null && psnr >= PSNR_PASS;
+// B21 (the variety rule, PLAN-VARIETY stage 4): the music bed, the theme and the stage shape of the last five videos (by their story.json), and a flag
+// (not a failure: ian decides) when a video repeats the bed AND the theme of the one before it
+const recent = readdirSync(path.join(ROOT, "videos"))
+  .filter((d) => existsSync(path.join(ROOT, "videos", d, "story.json")))
+  .map((d) => {
+    const file = path.join(ROOT, "videos", d, "story.json");
+    const s = JSON.parse(readFileSync(file, "utf8"));
+    return { slug: d, at: statSync(file).mtimeMs, bed: s.music?.track ?? "none", theme: s.theme ?? "cream", stage: s.stage ?? "slab" };
+  })
+  .sort((a, b) => b.at - a.at)
+  .slice(0, 5);
+const varietyFlags = recent.slice(1).flatMap((v, i) => {
+  const before = recent[i];
+  return v.bed === before.bed && v.theme === before.theme ? [`${before.slug} and ${v.slug} share the bed ${v.bed} and the theme ${v.theme}`] : [];
+});
+const varietyTable = ["| video | bed | theme | stage |", "| --- | --- | --- | --- |", ...recent.map((v) => `| ${v.slug} | ${v.bed} | ${v.theme} | ${v.stage} |`)].join("\n");
+const varietyText = varietyFlags.length ? `FLAG (B21, ian decides): ${varietyFlags.join("; ")}` : "PASS (B21): the last videos do not repeat both the bed and the theme of the one before";
+
 const md = `# Style report: ${slug}
 
 Made by \`scripts/styleReport.mjs\` (DESIGN.md section 0b). Every line is a machine measure or the checker's own line; the human checklist is at the end.
@@ -173,6 +191,12 @@ ${check.trim()}
 
 ![every beat](${relOut(contact)})
 ${besideFile ? `\n## Beside the reference (pilot 1's golden frames above this video)\n\n![beside the reference](${relOut(besideFile)})\n` : ""}
+## The variety of the last five videos (B21)
+
+${varietyText}
+
+${varietyTable}
+
 ## Rule log rows for this report
 
 Add a row to the rule log in DESIGN.md (section 0b) for every rule this report exposed, and name the revision that changed it.
