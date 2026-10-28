@@ -3,9 +3,11 @@
    stills into out/stages/ with scripts/frames.mjs. It draws nothing a video uses. */
 import React from "react";
 import { Polys } from "./components/Iso.tsx";
+import { Brand, ThemeCtx } from "./components/Backgrounds.tsx";
+import type { StoryT } from "./schema.ts";
 import { block, type P2, type Poly } from "./iso.ts";
 import { FRAME, ISO, WALL } from "./tokens.ts";
-import { STAGE_SHAPES, stageGeometry } from "./stageShapes.ts";
+import { STAGE_SHAPES, heroScale, stageGeometry } from "./stageShapes.ts";
 
 const COLS = 2, TILE_W = FRAME.width / COLS, TILE_H = 640, U = 100;
 const CENTER: P2 = [540, 1180];                       // where stageGeometry puts the centre of a stage (the frame's middle, the video's floor line)
@@ -38,3 +40,22 @@ export const StageDemo: React.FC = () => (
     })}
   </svg>
 );
+
+/** The hero fixture (PLAN-VARIETY stage 3, round two): one story's stage drawn on the channel's background at the hero rule's scale (the stage with the hero
+    on it fills 60 to 70 % of the width), with the story's theme. A composition ("HeroStageFixture") for stills: the story is its input. */
+export const HeroStageFixture: React.FC<{ story: StoryT }> = ({ story }) => {
+  const shape = story.stage ?? "slab";
+  const u = heroScale(shape);
+  const g = stageGeometry(shape, u, "center");
+  const obj: Poly[] = block([-0.35, 0.1, g.top], [0.35, 0.6, g.top + 0.7], u, [540, 1180]);
+  return (
+    <ThemeCtx.Provider value={story.theme ?? "cream"}>
+      <svg width={FRAME.width} height={FRAME.height} viewBox={`0 0 ${FRAME.width} ${FRAME.height}`}>
+        <Brand clock={0} />
+        {g.shadow && <polygon points={g.shadow.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ")} fill="rgba(60,60,60,0.18)" />}
+        <Polys polys={g.polys} tones={ISO.floor} />
+        <Polys polys={obj} tones={ISO.plastic} />
+      </svg>
+    </ThemeCtx.Provider>
+  );
+};

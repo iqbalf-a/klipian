@@ -221,4 +221,17 @@ for (const r of DICTIONARY.filter((k) => k.status === "drawn")) {
   yes(round.top < 0.2 && island.top > 0.5, "a flat plate is thin, a floating island stands high");
 }
 
+// --- the stage-aware hero (PLAN-VARIETY stage 3, round two): the stage with the hero on it fills 60 to 70 % of the frame's width at the scale
+// heroScale gives, for every shape (slab included), and that hero stays inside the frame
+{
+  const S = await import("../src/stageShapes.ts");
+  for (const shape of S.STAGE_SHAPES) {
+    const u = S.heroScale(shape);
+    const share = S.heroWidth(shape, u) / 1080;
+    yes(share >= 0.6 && share <= 0.7, `the hero on the ${shape} stage fills ${(share * 100).toFixed(1)} % of the width (60 to 70 asked)`);
+    const g = S.stageGeometry(shape, u, "center");
+    yes(g.box[0] >= 0 && g.box[2] <= 1080, `the ${shape} stage at the hero scale fits the frame's width`);
+  }
+}
+
 console.log(`style: ${n} checks ok`);

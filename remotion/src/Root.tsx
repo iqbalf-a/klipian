@@ -10,7 +10,8 @@ import { RigDemo, RIG_DEMO_SECONDS } from "./RigDemo.tsx";
 import { IsoDemo, ISO_DEMO_SECONDS } from "./IsoDemo.tsx";
 import { IsoThreeDemo, ISO_THREE_SECONDS } from "./IsoThreeDemo.tsx";
 import { NatureDemo, NATURE_DEMO_SECONDS } from "./NatureDemo.tsx";
-import { StageDemo } from "./StageDemo.tsx";
+import { StageDemo, HeroStageFixture } from "./StageDemo.tsx";
+import templateStory from "../templates/video/story.json";
 import { ThemeCtx } from "./components/Backgrounds.tsx";
 import { NatureSheet } from "./NatureSheet.tsx";
 import { MarkSheet } from "./MarkSheet.tsx";
@@ -55,6 +56,7 @@ export const Root: React.FC = () => (
   <Composition id="IsoDemo" component={IsoDemo} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={ISO_DEMO_SECONDS * FPS} />
   <Composition id="MarkSheet" component={MarkSheet} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={1} />
   <Composition id="NatureSheet" component={NatureSheet} width={FRAME.width} height={SHEET_HEIGHT} fps={FPS} durationInFrames={1} />
+  <Composition id="HeroStageFixture" component={HeroStageFixture} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={30} defaultProps={{ story: templateStory as unknown as StoryT }} />
   <Composition id="StageDemo" component={StageDemo} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={30} />
   <Composition id="NatureDemo" component={NatureDemo} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={NATURE_DEMO_SECONDS * FPS} />
   <Composition id="IsoThreeDemo" component={IsoThreeDemo} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={ISO_THREE_SECONDS * FPS} />

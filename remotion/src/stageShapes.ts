@@ -79,3 +79,17 @@ export function stageGeometry(shape: StageShape, u = 100, placement: StagePlacem
   const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
   return { polys, shadow, box: [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)], top, center };
 }
+
+/** The hero rule (DESIGN.md section 0b, B1): the stage with the hero object standing on it fills 60 to 70 % of the frame's width at the main shot. The
+    hero is the stage plus a small block on its top. `heroWidth` is that width in px at a scale `u`; `heroScale` is the scale that makes it `frac` of the
+    frame, so a non-slab stage is drawn at the size the hero rule asks for. */
+const HERO_BLOCK: [[number, number, number], [number, number, number]] = [[-0.35, 0.1, 0], [0.35, 0.6, 0.7]];
+export function heroWidth(shape: StageShape, u = 100): number {
+  const g = stageGeometry(shape, u, "center");
+  const obj = block([HERO_BLOCK[0][0], HERO_BLOCK[0][1], g.top], [HERO_BLOCK[1][0], HERO_BLOCK[1][1], g.top + HERO_BLOCK[1][2]], u, [540, 1180]);
+  const xs = [...g.polys.flatMap((p) => p.pts), ...obj.flatMap((p) => p.pts)].map((p) => p[0]);
+  return Math.max(...xs) - Math.min(...xs);
+}
+export function heroScale(shape: StageShape, frac = 0.65, frameWidth = 1080): number {
+  return (100 * frac * frameWidth) / heroWidth(shape, 100);
+}
