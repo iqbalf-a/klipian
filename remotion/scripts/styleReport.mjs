@@ -142,6 +142,8 @@ const md = `# Style report: ${slug}
 
 Made by \`scripts/styleReport.mjs\` (DESIGN.md section 0b). Every line is a machine measure or the checker's own line; the human checklist is at the end.
 
+Background theme: \`${story.theme ?? "cream"}\` · stage shape: \`${story.stage ?? "slab"}\` (PLAN-VARIETY stages 2 and 3).
+
 ## The loop (must 2): the first and the last frame
 
 | measure | value | pass |

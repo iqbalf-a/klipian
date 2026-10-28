@@ -184,4 +184,22 @@ for (const r of DICTIONARY.filter((k) => k.status === "drawn")) {
   yes(!themed("night").ok, "a theme that is not listed is refused");
 }
 
+// --- the stage shapes (PLAN-VARIETY stage 3): five shapes, three placements; each draws, each fits the frame at the kit's scale, the placements move a
+// shape by exactly their offset, and the schema accepts only the listed shapes (a missing one is the slab, the default)
+{
+  const S = await import("../src/stageShapes.ts");
+  for (const shape of S.STAGE_SHAPES) {
+    const g = S.stageGeometry(shape, 100, "center");
+    yes(g.polys.length > 0 && g.box.every((v) => Number.isFinite(v)), `the stage ${shape} draws its faces`);
+    const [x0, , x1] = g.box;
+    yes(x0 >= 0 && x1 <= 1080, `the stage ${shape} fits the width of the frame at the kit's scale (${Math.round(x0)} to ${Math.round(x1)})`);
+    yes(S.stageNote(shape).length > 10, `the stage ${shape} says when to use it`);
+  }
+  const c = S.stageGeometry("slab", 100, "center").box, l = S.stageGeometry("slab", 100, "left").box, r = S.stageGeometry("slab", 100, "right").box;
+  yes(Math.abs(c[0] - l[0] - 230) < 0.01 && Math.abs(r[0] - c[0] - 230) < 0.01, "the left and right placements move the stage by 230 px");
+  const withStage = (stage: unknown) => validateStory({ ...JSON.parse(readFileSync(path.join(ROOT, "templates", "video", "story.json"), "utf8")), stage, bible: undefined });
+  yes(withStage(undefined).ok && withStage("strip").ok && withStage("island").ok, "a story with a listed stage (or none) is valid");
+  yes(!withStage("cube").ok, "a stage that is not listed is refused");
+}
+
 console.log(`style: ${n} checks ok`);
