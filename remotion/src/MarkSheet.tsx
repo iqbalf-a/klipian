@@ -6,13 +6,14 @@ import { FRAME } from "./design/index.ts";
 import { ISO } from "./tokens.ts";
 import { DICTIONARY } from "./dictionary.ts";
 import { HeatRise, IsoCutaway, IsoWallSocket, Sparks } from "./components/Iso.tsx";
-import { IsoRain, IsoSun, IsoVapour } from "./components/IsoNature.tsx";
+import { IsoDrop, IsoRain, IsoSun, IsoVapour } from "./components/IsoNature.tsx";
+import { IsoPlane, IsoSeed } from "./components/IsoSeeding.tsx";
 import { IsoBed, IsoPhone, SleepyEyes } from "./components/IsoBedroom.tsx";
 import { Arrow } from "./components/UI.tsx";
 
 const COLS = 3, W = 360, H = 380, TOP = 40;
 /** The short label of each drawn mark on its tile (the dictionary's `thing` is the full name in the spec rows). */
-const LABEL: Record<string, string> = { current: "current", heat: "heat", danger: "danger", water: "water", vapour: "vapour", light: "light", spark: "spark", force: "force arrow", bed: "bed", phone: "phone", eyes: "sleepy eyes" };
+const LABEL: Record<string, string> = { current: "current", heat: "heat", danger: "danger", water: "water", vapour: "vapour", light: "light", spark: "spark", force: "force arrow", seed: "seed grains", aircraft: "aircraft", bed: "bed", phone: "phone", eyes: "sleepy eyes" };
 /** A spec row's line: the thing and its recipe, cut to fit the sheet. */
 const specLine = (thing: string, mark: string): string => `${thing}: ${mark}`.slice(0, 56) + (`${thing}: ${mark}`.length > 56 ? "..." : "");
 const T = 1.2;   // the time at which the animated marks are drawn (a still)
@@ -23,11 +24,13 @@ const drawMark = (id: string): React.ReactNode => {
     case "current": return <g transform="translate(-40 60) scale(0.62)"><IsoCutaway u={58} o={[330, 300]} loose={0} t={T} /></g>;
     case "heat": return <HeatRise x={180} y={250} k={1} t={T} scale={1.1} />;
     case "danger": return <IsoWallSocket u={70} o={[180, 290]} heat={1} t={T} />;
-    case "water": return <IsoRain u={150} o={[160, 330]} k={1} phase={0} />;
+    case "water": return <g><IsoRain u={150} o={[160, 330]} k={1} phase={0} /><IsoDrop cx={270} cy={110} r={30} /></g>;
     case "vapour": return <IsoVapour u={150} o={[160, 330]} k={1} phase={0.2} />;
     case "light": return <IsoSun cx={180} cy={190} r={60} phase={0} />;
     case "spark": return <Sparks x={180} y={220} k={1} t={T} scale={1} />;
     case "force": return <Arrow x={60} y={250} x2={300} y2={160} color="black" w={12} draw={1} />;
+    case "seed": return <g><IsoSeed kind="salt" x={110} y={200} s={46} /><IsoSeed kind="agi" x={250} y={200} s={62} t={T} /></g>;
+    case "aircraft": return <IsoPlane x={180} y={200} w={250} phase={0} />;
     case "bed": return <IsoBed u={60} o={[130, 190]} />;
     case "phone": return <IsoPhone u={90} o={[110, 130]} on={1} t={T} />;
     case "eyes": return <SleepyEyes cx={180} cy={200} w={290} open={0.4} />;

@@ -364,3 +364,18 @@ export const IsoRunoff: React.FC<{ u: number; o: P2; k: number }> = ({ u, o, k }
     </g>
   );
 };
+
+/** A water drop about (cx, cy), radius r px: a dark base set to the lower right, the mid body up and left, a light cap and a white glint (the cloud billow's
+    crescent shading in the water tones). `stretch` (0..1) draws it falling: taller than wide, a small tail above it. Flat tones only. */
+export const IsoDrop: React.FC<{ cx: number; cy: number; r: number; stretch?: number }> = ({ cx, cy, r, stretch = 0 }) => {
+  const sy = 1 + 0.35 * stretch, sx = 1 - 0.12 * stretch;
+  return (
+    <g transform={`translate(${cx} ${cy}) scale(${sx} ${sy})`}>
+      {stretch > 0 && <path d={`M ${-r * 0.78} ${-r * 0.3} Q ${-r * 0.2} ${-r * 0.85} 0 ${-r * (1.1 + 0.9 * stretch)} Q ${r * 0.2} ${-r * 0.85} ${r * 0.78} ${-r * 0.3} Z`} fill={ISO.water[1]} />}
+      <circle cx={r * 0.1} cy={r * 0.12} r={r} fill={ISO.water[2]} />
+      <circle cx={-r * 0.03} cy={-r * 0.03} r={r * 0.9} fill={ISO.water[1]} />
+      <circle cx={-r * 0.28} cy={-r * 0.3} r={r * 0.42} fill={ISO.water[0]} />
+      <circle cx={-r * 0.42} cy={-r * 0.46} r={r * 0.1} fill={WHITE_RIPPLE} />
+    </g>
+  );
+};

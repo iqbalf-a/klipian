@@ -131,6 +131,7 @@ Every report adds its rows (B14). The date is the day ian asked; a row without a
 | music beds | four cheerful beds (sunny the default, bounce, glow, curious), measured against bed-calm | ian (2026-10-28) | stage 1 |
 | themes | cream, sky, mint, peach; one per video, in the story (night waits for a light label colour) | ian (2026-10-28) | stage 2 |
 | stage shapes | slab, round, strip, steps, island; three placements | ian (2026-10-28) | stage 3 |
+| seeding set | the aircraft and the seed grains are dictionary marks (`aircraft`, `seed`: `src/components/IsoSeeding.tsx`, neutral tones only, never the nature tones); the growing drop is a water mark (`IsoDrop`). A story label that only names the object (the placeholder `AWAN`) is not pointer text once the object is drawn. The lens inside a cloud shows the claim as small objects: salt draws vapour, silver iodide is an ice-like crystal, the drop grows heavy and falls | hujan buatan video | 2026-10-28 | this video |
 
 Pilots 1 and 2 are the first checked against these rows: pilot 1 passes every must except the outro's voice (its story still has narration in the outro, ian's edit); pilot 2's nature kit is not in a video yet, and its checks run on its own tests.
 

@@ -1,0 +1,877 @@
+{
+ "bible": 1,
+ "question": "Benarkah manusia bisa memesan hujan?",
+ "titles": [
+  "Hujan buatan: benarkah hujan bisa dipesan?",
+  "Cara kerja hujan buatan, diintip langkah demi langkah",
+  "Hujan buatan itu nyata? Ini yang terjadi di awan"
+ ],
+ "duration": 45,
+ "beats": [
+  {
+   "id": "hook",
+   "kind": "hook",
+   "dur": 3,
+   "narration": "Benarkah manusia bisa memesan hujan?",
+   "text": "Hujan bisa dipesan?",
+   "scene": {
+    "bg": "brand",
+    "spot": {
+     "x": 540,
+     "y": 860,
+     "r": 470
+    },
+    "items": [
+     {
+      "type": "banner",
+      "text": "Hujan bisa dipesan?",
+      "fs": 77,
+      "highlight": [
+       "dipesan"
+      ]
+     },
+     {
+      "type": "banner",
+      "text": "AWAN",
+      "fs": 160,
+      "actions": [
+       {
+        "kind": "highlight",
+        "at": 1
+       }
+      ],
+      "y": 860
+     },
+     {
+      "type": "badge",
+      "text": "?",
+      "x": 840,
+      "y": 600,
+      "r": 70,
+      "enter": {
+       "kind": "pop",
+       "delay": 0.6
+      },
+      "color": "yellow"
+     },
+     {
+      "type": "arrow",
+      "x": 540,
+      "y": 1010,
+      "x2": 540,
+      "y2": 1130,
+      "color": "black",
+      "w": 12,
+      "enter": {
+       "kind": "draw",
+       "delay": 0.9,
+       "dur": 0.5
+      }
+     },
+     {
+      "type": "banner",
+      "text": "hujan turun?",
+      "fs": 84,
+      "sfx": "rain-patter",
+      "y": 1230,
+      "enter": {
+       "kind": "fade-up",
+       "delay": 1.3
+      }
+     }
+    ]
+   },
+   "sfx": "rintik hujan pelan"
+  },
+  {
+   "id": "intip",
+   "kind": "sting",
+   "dur": 1,
+   "narration": "Intip yuk!",
+   "text": "Intip yuk!",
+   "scene": {
+    "bg": "brand",
+    "spot": {
+     "x": 540,
+     "y": 860,
+     "r": 470
+    },
+    "items": [
+     {
+      "type": "banner",
+      "text": "AWAN",
+      "fs": 160,
+      "y": 860,
+      "enter": {
+       "kind": "none"
+      }
+     },
+     {
+      "type": "arrow",
+      "x": 540,
+      "y": 1010,
+      "x2": 540,
+      "y2": 1130,
+      "color": "black",
+      "w": 12,
+      "enter": {
+       "kind": "none"
+      }
+     },
+     {
+      "type": "banner",
+      "text": "hujan turun?",
+      "fs": 84,
+      "y": 1230,
+      "enter": {
+       "kind": "none"
+      }
+     },
+     {
+      "type": "mascot",
+      "x": 540,
+      "y": 1420,
+      "w": 220,
+      "expr": "curious",
+      "pop": true,
+      "enter": {
+       "kind": "pop",
+       "delay": 0.05,
+       "dur": 0.5
+      }
+     },
+     {
+      "type": "pill",
+      "text": "Intip yuk!",
+      "x": 540,
+      "y": 1540,
+      "fs": 76,
+      "enter": {
+       "kind": "pop",
+       "delay": 0.3
+      }
+     }
+    ]
+   },
+   "sfx": "pop + ting",
+   "transition": {
+    "kind": "wipe",
+    "dur": 0.4,
+    "dir": "left"
+   },
+   "blur": true
+  },
+  {
+   "id": "kirim",
+   "kind": "normal",
+   "dur": 6,
+   "narration": "Pertama, bahan semai disebar ke dalam awan yang cocok, dari pesawat atau generator di tanah.",
+   "text": "Disebar ke awan",
+   "scene": {
+    "bg": "brand",
+    "spot": {
+     "x": 540,
+     "y": 900,
+     "r": 470
+    },
+    "items": [
+     {
+      "type": "banner",
+      "text": "Disebar ke awan",
+      "fs": 77,
+      "highlight": [
+       "awan"
+      ]
+     },
+     {
+      "type": "badge",
+      "text": "1",
+      "x": 110,
+      "y": 440,
+      "r": 54,
+      "enter": {
+       "kind": "pop",
+       "delay": 0.4
+      }
+     },
+     {
+      "type": "label",
+      "text": "bahan semai",
+      "x": 540,
+      "y": 560,
+      "fs": 70,
+      "enter": {
+       "kind": "fade-up",
+       "delay": 0.6
+      },
+      "highlight": [
+       "semai"
+      ]
+     },
+     {
+      "type": "arrow",
+      "x": 540,
+      "y": 630,
+      "x2": 540,
+      "y2": 770,
+      "color": "black",
+      "w": 12,
+      "enter": {
+       "kind": "draw",
+       "delay": 1.1,
+       "dur": 0.5
+      }
+     },
+     {
+      "type": "label",
+      "text": "AWAN",
+      "x": 540,
+      "y": 940,
+      "fs": 160,
+      "enter": {
+       "kind": "pop",
+       "delay": 0.2
+      }
+     },
+     {
+      "type": "arrow",
+      "x": 540,
+      "y": 1270,
+      "x2": 540,
+      "y2": 1130,
+      "color": "black",
+      "w": 12,
+      "enter": {
+       "kind": "draw",
+       "delay": 2.6,
+       "dur": 0.5
+      }
+     },
+     {
+      "type": "label",
+      "text": "dari pesawat atau tanah",
+      "x": 540,
+      "y": 1380,
+      "fs": 62,
+      "sfx": "whoosh",
+      "enter": {
+       "kind": "fade-up",
+       "delay": 2.2
+      },
+      "highlight": [
+       "pesawat",
+       "tanah"
+      ]
+     }
+    ]
+   },
+   "sfx": "whoosh pelan",
+   "camera": {
+    "kind": "push",
+    "zoom": 1.06,
+    "dur": 5
+   }
+  },
+  {
+   "id": "inti",
+   "kind": "normal",
+   "dur": 7,
+   "narration": "Bahannya bisa serbuk garam yang menarik uap air. Atau perak iodida, kristal yang bentuknya mirip es.",
+   "text": "Butir kecil jadi inti",
+   "scene": {
+    "bg": "brand",
+    "spot": {
+     "x": 540,
+     "y": 800,
+     "r": 470
+    },
+    "items": [
+     {
+      "type": "banner",
+      "text": "Butir kecil jadi inti",
+      "fs": 70,
+      "highlight": [
+       "inti"
+      ]
+     },
+     {
+      "type": "badge",
+      "text": "2",
+      "x": 110,
+      "y": 440,
+      "r": 54,
+      "enter": {
+       "kind": "pop",
+       "delay": 0.4
+      }
+     },
+     {
+      "type": "label",
+      "text": "AWAN",
+      "x": 540,
+      "y": 740,
+      "fs": 150,
+      "enter": {
+       "kind": "none"
+      }
+     },
+     {
+      "type": "arrow",
+      "x": 310,
+      "y": 1060,
+      "x2": 440,
+      "y2": 860,
+      "color": "black",
+      "w": 12,
+      "enter": {
+       "kind": "draw",
+       "delay": 0.9,
+       "dur": 0.5
+      }
+     },
+     {
+      "type": "label",
+      "text": "garam",
+      "x": 310,
+      "y": 1150,
+      "fs": 72,
+      "enter": {
+       "kind": "fade-up",
+       "delay": 0.7
+      },
+      "highlight": [
+       "garam"
+      ]
+     },
+     {
+      "type": "label",
+      "text": "tarik uap air",
+      "x": 310,
+      "y": 1250,
+      "fs": 46,
+      "enter": {
+       "kind": "fade-up",
+       "delay": 1.8
+      }
+     },
+     {
+      "type": "arrow",
+      "x": 730,
+      "y": 1060,
+      "x2": 640,
+      "y2": 860,
+      "color": "black",
+      "w": 12,
+      "enter": {
+       "kind": "draw",
+       "delay": 3.6,
+       "dur": 0.5
+      }
+     },
+     {
+      "type": "label",
+      "text": "perak iodida",
+      "x": 730,
+      "y": 1150,
+      "fs": 60,
+      "enter": {
+       "kind": "fade-up",
+       "delay": 3.4
+      },
+      "highlight": [
+       "iodida"
+      ]
+     },
+     {
+      "type": "label",
+      "text": "kristal mirip es",
+      "x": 730,
+      "y": 1250,
+      "fs": 46,
+      "enter": {
+       "kind": "fade-up",
+       "delay": 4.4
+      }
+     }
+    ]
+   },
+   "sfx": "tik tik halus",
+   "camera": {
+    "kind": "pan",
+    "dx": 40,
+    "dy": 0,
+    "zoom": 1.05,
+    "dur": 2.5
+   }
+  },
+  {
+   "id": "tumbuh",
+   "kind": "loose",
+   "dur": 8,
+   "narration": "Butir itu jadi tempat uap air menempel. Menurut teori, tetes makin besar, sampai cukup berat untuk jatuh jadi hujan.",
+   "text": "Tetes makin besar",
+   "scene": {
+    "bg": "brand",
+    "spot": {
+     "x": 540,
+     "y": 900,
+     "r": 470
+    },
+    "items": [
+     {
+      "type": "banner",
+      "text": "Tetes makin besar",
+      "fs": 73,
+      "highlight": [
+       "besar"
+      ]
+     },
+     {
+      "type": "badge",
+      "text": "3",
+      "x": 110,
+      "y": 440,
+      "r": 54,
+      "enter": {
+       "kind": "pop",
+       "delay": 0.4
+      }
+     },
+     {
+      "type": "label",
+      "text": "AWAN",
+      "x": 540,
+      "y": 700,
+      "fs": 150,
+      "enter": {
+       "kind": "none"
+      }
+     },
+     {
+      "type": "label",
+      "text": "tetes kecil",
+      "x": 540,
+      "y": 960,
+      "fs": 62,
+      "enter": {
+       "kind": "fade-up",
+       "delay": 0.8
+      }
+     },
+     {
+      "type": "arrow",
+      "x": 540,
+      "y": 1010,
+      "x2": 540,
+      "y2": 1120,
+      "color": "black",
+      "w": 12,
+      "enter": {
+       "kind": "draw",
+       "delay": 2,
+       "dur": 0.5
+      }
+     },
+     {
+      "type": "label",
+      "text": "tetes besar",
+      "x": 540,
+      "y": 1210,
+      "fs": 88,
+      "sfx": "bubble-rise",
+      "enter": {
+       "kind": "pop",
+       "delay": 2.6
+      },
+      "highlight": [
+       "besar"
+      ]
+     },
+     {
+      "type": "arrow",
+      "x": 540,
+      "y": 1280,
+      "x2": 540,
+      "y2": 1390,
+      "color": "black",
+      "w": 12,
+      "enter": {
+       "kind": "draw",
+       "delay": 4.4,
+       "dur": 0.5
+      }
+     },
+     {
+      "type": "label",
+      "text": "jatuh jadi hujan",
+      "x": 540,
+      "y": 1480,
+      "fs": 72,
+      "sfx": "rain-patter",
+      "enter": {
+       "kind": "fade-up",
+       "delay": 5
+      },
+      "highlight": [
+       "hujan"
+      ]
+     }
+    ]
+   },
+   "sfx": "gelembung naik, lalu rintik",
+   "camera": {
+    "kind": "push",
+    "zoom": 1.06,
+    "dur": 7
+   }
+  },
+  {
+   "id": "hasil",
+   "kind": "result",
+   "dur": 7,
+   "narration": "Di studi model, garam memancing hujan dari awan pelit. Tapi bukan tombol hujan: ilmuwan masih berdebat soal hasilnya.",
+   "text": "SEBAGIAN: hasil diperdebatkan",
+   "scene": {
+    "bg": "brand",
+    "spot": {
+     "x": 540,
+     "y": 800,
+     "r": 470
+    },
+    "items": [
+     {
+      "type": "banner",
+      "text": "SEBAGIAN: hasil diperdebatkan",
+      "fs": 62,
+      "highlight": [
+       "SEBAGIAN:"
+      ]
+     },
+     {
+      "type": "label",
+      "text": "AWAN",
+      "x": 540,
+      "y": 740,
+      "fs": 150,
+      "enter": {
+       "kind": "none"
+      }
+     },
+     {
+      "type": "label",
+      "text": "bisa membantu awan",
+      "x": 540,
+      "y": 1020,
+      "fs": 62,
+      "enter": {
+       "kind": "fade-up",
+       "delay": 0.8
+      },
+      "highlight": [
+       "membantu"
+      ]
+     },
+     {
+      "type": "label",
+      "text": "bukan tombol hujan",
+      "x": 540,
+      "y": 1180,
+      "fs": 72,
+      "actions": [
+       {
+        "kind": "highlight",
+        "at": 3.4
+       }
+      ],
+      "enter": {
+       "kind": "pop",
+       "delay": 2.6
+      },
+      "highlight": [
+       "bukan"
+      ]
+     },
+     {
+      "type": "label",
+      "text": "ilmuwan masih berdebat",
+      "x": 540,
+      "y": 1340,
+      "fs": 58,
+      "enter": {
+       "kind": "fade-up",
+       "delay": 4.4
+      }
+     },
+     {
+      "type": "mascot",
+      "x": 200,
+      "y": 1470,
+      "w": 300,
+      "expr": "think",
+      "pop": true,
+      "enter": {
+       "kind": "pop",
+       "delay": 4.2
+      },
+      "exit": {
+       "kind": "pop",
+       "at": 5.4
+      }
+     }
+    ]
+   },
+   "sfx": "ting lalu hum ragu",
+   "transition": {
+    "kind": "slide",
+    "dur": 0.5,
+    "dir": "right"
+   }
+  },
+  {
+   "id": "tips",
+   "kind": "tips",
+   "dur": 9,
+   "narration": "Dua tips. Satu, cek prakiraan cuaca resmi. Dua, hati-hati sama klaim hujan pasti turun sesuai pesanan.",
+   "text": "2 tips: cek, waspada",
+   "scene": {
+    "bg": "brand",
+    "spot": {
+     "x": 540,
+     "y": 950,
+     "r": 470
+    },
+    "items": [
+     {
+      "type": "banner",
+      "text": "2 tips: cek, waspada",
+      "fs": 70,
+      "highlight": [
+       "tips:"
+      ]
+     },
+     {
+      "type": "badge",
+      "text": "1",
+      "x": 110,
+      "y": 500,
+      "r": 54,
+      "enter": {
+       "kind": "pop",
+       "delay": 0.6
+      }
+     },
+     {
+      "type": "label",
+      "text": "cek prakiraan",
+      "x": 200,
+      "y": 500,
+      "fs": 62,
+      "align": "start",
+      "lines": [
+       "cuaca resmi"
+      ],
+      "enter": {
+       "kind": "fade-up",
+       "delay": 0.9
+      },
+      "highlight": [
+       "cek"
+      ]
+     },
+     {
+      "type": "label",
+      "text": "AWAN",
+      "x": 540,
+      "y": 950,
+      "fs": 130,
+      "enter": {
+       "kind": "none"
+      }
+     },
+     {
+      "type": "badge",
+      "text": "2",
+      "x": 110,
+      "y": 1340,
+      "r": 54,
+      "enter": {
+       "kind": "pop",
+       "delay": 4
+      }
+     },
+     {
+      "type": "label",
+      "text": "hati-hati klaim",
+      "x": 200,
+      "y": 1340,
+      "fs": 62,
+      "align": "start",
+      "lines": [
+       "hujan pasti turun"
+      ],
+      "enter": {
+       "kind": "fade-up",
+       "delay": 4.3
+      },
+      "highlight": [
+       "hati-hati"
+      ]
+     }
+    ]
+   },
+   "sfx": "ding",
+   "transition": {
+    "kind": "wipe",
+    "dur": 0.4,
+    "dir": "left"
+   }
+  },
+  {
+   "id": "outro",
+   "kind": "outro",
+   "dur": 4,
+   "narration": "",
+   "text": "Hujan bisa dipesan?",
+   "scene": {
+    "bg": "brand",
+    "spot": {
+     "x": 540,
+     "y": 860,
+     "r": 470
+    },
+    "items": [
+     {
+      "type": "banner",
+      "text": "Hujan bisa dipesan?",
+      "fs": 77,
+      "highlight": [
+       "dipesan"
+      ]
+     },
+     {
+      "type": "banner",
+      "text": "AWAN",
+      "fs": 160,
+      "y": 860,
+      "enter": {
+       "kind": "none"
+      }
+     },
+     {
+      "type": "badge",
+      "text": "?",
+      "x": 840,
+      "y": 600,
+      "r": 70,
+      "enter": {
+       "kind": "none"
+      },
+      "color": "yellow"
+     },
+     {
+      "type": "arrow",
+      "x": 540,
+      "y": 1010,
+      "x2": 540,
+      "y2": 1130,
+      "color": "black",
+      "w": 12,
+      "enter": {
+       "kind": "none"
+      }
+     },
+     {
+      "type": "banner",
+      "text": "hujan turun?",
+      "fs": 84,
+      "y": 1230,
+      "enter": {
+       "kind": "none"
+      }
+     }
+    ]
+   },
+   "sfx": "jingle outro lembut"
+  }
+ ],
+ "claims": [
+  {
+   "text": "Bahan semai disebarkan ke dalam awan yang sesuai, dari pesawat atau dari generator di tanah.",
+   "beats": [
+    "kirim"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Cloud_seeding"
+   ]
+  },
+  {
+   "text": "Garam bersifat higroskopis, artinya menarik uap air; bubuk garam NaCl dipakai sebagai bahan semai di Indonesia.",
+   "beats": [
+    "inti"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Cloud_seeding",
+    "https://teknologi.bisnis.com/read/20211121/84/1468572/begini-cara-kerja-tabur-garam-dalam-memodifikasi-cuaca-dan-cegah-hujan"
+   ]
+  },
+  {
+   "text": "Perak iodida punya struktur kristal yang mirip es, sehingga dipakai sebagai inti pembentuk es di awan yang mengandung air super dingin.",
+   "beats": [
+    "inti"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Cloud_seeding"
+   ]
+  },
+  {
+   "text": "Menurut teori, tetes air di dalam awan bergabung dan tumbuh makin besar sampai cukup berat untuk jatuh sebagai hujan.",
+   "beats": [
+    "tumbuh"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Cloud_seeding",
+    "https://teknologi.bisnis.com/read/20211121/84/1468572/begini-cara-kerja-tabur-garam-dalam-memodifikasi-cuaca-dan-cegah-hujan"
+   ]
+  },
+  {
+   "text": "Dalam studi model, bubuk garam dapat meningkatkan presipitasi dari awan konvektif.",
+   "beats": [
+    "hasil"
+   ],
+   "sources": [
+    "https://ejournal.brin.go.id/JSTMC/article/view/17096"
+   ]
+  },
+  {
+   "text": "Seberapa efektif penyemaian awan masih diperdebatkan, dengan hasil studi yang beragam.",
+   "beats": [
+    "hasil"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Cloud_seeding",
+    "https://www.cr2.cl/eng/?p=20500"
+   ]
+  }
+ ],
+ "post": {
+  "description": "Benarkah hujan bisa dipesan? Di video ini kita intip cara kerja hujan buatan: bahan semai seperti garam atau perak iodida disebar ke awan, menjadi inti tempat uap air menempel, lalu tetesnya tumbuh dan jatuh sebagai hujan. Hasilnya bisa membantu, tapi bukan tombol hujan, dan ilmuwan masih berdebat soal seberapa besar efeknya.",
+  "hashtags": [
+   "#hujanbuatan",
+   "#modifikasicuaca",
+   "#cuaca",
+   "#semaiawan",
+   "#intipyuk",
+   "#shorts"
+  ]
+ },
+ "needs": [
+  "awan sebagai objek utama (sekarang diwakili tulisan AWAN)",
+  "pesawat atau generator penyebar bahan semai",
+  "butir garam dan kristal perak iodida",
+  "tetes hujan yang membesar dan jatuh",
+  "stempel vonis MITOS / FAKTA / SEBAGIAN (sekarang hanya teks)"
+ ],
+ "music": {
+  "track": "bed-calm"
+ }
+}
