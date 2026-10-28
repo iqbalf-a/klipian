@@ -221,6 +221,7 @@ byId("rmMain").addEventListener("click", async (e) => {
     if (act === "copyClaudeCmd") return copyClaudeCmd();
     if (act === "narrationLoad") return loadNarration();
     if (act === "narrationCopy") return copyNarration();
+    if (act === "narrationPart") return copyNarrationPart(t.dataset.part);
     if (act === "narrationDown") return downloadNarration();
     if (act === "copyFix") return copyFix(t);
     if (act === "copyRevise") return copyRevise(t);
@@ -426,20 +427,51 @@ function drawVoice() {
 }
 
 // the narration text for a voice app: the words the person will have voiced (from the story), per target
-let NARR = null;                // the last export loaded for this video: { target, text, label, status, style, total, parts }
+let NARR = null;                // the last export loaded for this video: { target, text, label, status, style, styleLong, script, total, parts }
+let NARR_PICK = null;           // the target the person picked in the select (kept through a redraw; cleared with the text when it changes)
 function narrationHTML(d) {
-  const target = (d.options && d.options.voiceTarget) || "voicestudio";
-  const sel = `<select class="ws-input rm-boxed" id="rmNarrTarget">${[["voicestudio", "VoiceStudio"], ["elevenlabs", "ElevenLabs"], ["googleai", "Google AI Studio"]].map(([v, l]) => `<option value="${v}" ${v === target ? "selected" : ""}>${l}</option>`).join("")}</select>`;
   const shown = NARR && NARR.forId === d.id ? NARR : null;
+  const target = narrationTarget(d, shown, NARR_PICK);
+  const labels = [["voicestudio", "VoiceStudio"], ["elevenlabs", "ElevenLabs"], ["googleai", "Google AI Studio"]];
+  const sel = `<select class="ws-input rm-boxed" id="rmNarrTarget">${labels.map(([v, l]) => `<option value="${v}" ${v === target ? "selected" : ""}>${l}</option>`).join("")}</select>`;
   return `<div class="rm-needs"><b>Naskah untuk aplikasi suara</b> (ketik atau tempel di aplikasi kamu; klipian tidak memanggil layanan suara)
-    <div class="rm-actions">${sel}<button class="btn" type="button" data-act="narrationLoad">Muat naskah</button><button class="btn" type="button" data-act="narrationCopy" ${shown ? "" : "disabled"}>Salin</button><button class="btn" type="button" data-act="narrationDown" ${shown ? "" : "disabled"}>Unduh .txt</button></div>
-    ${shown ? `<p class="rm-hint">${esc(shown.status)}${shown.style ? ` · ${esc(shown.style)}` : ""}</p><textarea class="ws-input rm-boxed" readonly rows="10" id="rmNarrText">${esc(shown.text)}</textarea><p class="rm-hint">Baris "Bagian N" adalah penanda untuk kamu: hapus sebelum dibacakan.</p>` : `<p class="rm-hint">Pilih aplikasi, lalu muat naskah.</p>`}
+    <div class="rm-actions">${sel}<button class="btn" type="button" data-act="narrationLoad">Muat naskah</button><button class="btn" type="button" data-act="narrationCopy" ${shown ? "" : "disabled"}>Salin semua</button><button class="btn" type="button" data-act="narrationDown" ${shown ? "" : "disabled"}>Unduh .txt</button></div>
+    ${shown ? narrationBody(shown) : `<p class="rm-hint">Pilih aplikasi, lalu muat naskah.</p>`}
   </div>`;
 }
+
+// the text of an export: one box for VoiceStudio and ElevenLabs; three blocks, each with its own copy button, for Google AI Studio
+function narrationBody(shown) {
+  if (shown.target !== "googleai") {
+    return `<p class="rm-hint">${esc(shown.status)}</p><textarea class="ws-input rm-boxed" readonly rows="10" id="rmNarrText">${esc(shown.text)}</textarea><p class="rm-hint">Baris "Bagian N" adalah penanda untuk kamu: hapus sebelum dibacakan.</p>`;
+  }
+  const block = (key, title, rows) => `<div class="rm-needs"><b>${title}</b> <button class="btn sm" type="button" data-act="narrationPart" data-part="${key}">Salin</button><textarea class="ws-input rm-boxed" readonly rows="${rows}">${esc(shown[key] || "")}</textarea></div>`;
+  return `<p class="rm-hint">${esc(shown.status)}</p>
+    ${block("script", "1 Naskah + ekspresi", 10)}
+    ${block("style", "2 Deskripsi (gaya, bahasa Inggris)", 3)}
+    <details class="rm-needs"><summary><b>3 Deskripsi lengkap (versi lama, opsional)</b></summary>${block("styleLong", "Versi lama", 4)}</details>
+    <p class="rm-hint">Tag memakai tanda &lt;...&gt; dan bahasa Inggris, sesuai dokumen Google (diperiksa 28 Okt 2026). Bahasa Indonesia didukung di Gemini 3.8 TTS. Belum diverifikasi: bahasa kolom gaya, dan apakah halaman AI Studio memakai kolom yang sama. Coba dulu tanpa gaya.</p>`;
+}
+
+// a change of the select clears the text shown (it belonged to another target), and the select keeps the new choice
+document.addEventListener("change", (e) => {
+  if (e.target.id !== "rmNarrTarget" || !CUR) return;
+  const next = narrationAfterChange(e.target.value);
+  NARR_PICK = next.picked;
+  NARR = next.shown;
+  drawVoice();
+});
+
+async function copyNarrationPart(key) {
+  if (!NARR || NARR[key] == null) return toast("Muat naskah dulu.");
+  (await copyText(NARR[key])) ? toast("Disalin.") : toast("Tidak bisa menyalin: pilih teksnya sendiri.");
+}
+
 async function loadNarration() {
   const target = byId("rmNarrTarget").value;
   const j = await call(`${API}/narration?id=${encodeURIComponent(CUR.id)}&target=${encodeURIComponent(target)}`);
   NARR = { ...j, forId: CUR.id };
+  NARR_PICK = target;
   drawVoice();
 }
 async function copyNarration() {

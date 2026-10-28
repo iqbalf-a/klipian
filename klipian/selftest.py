@@ -5841,7 +5841,7 @@ def check_motionopts() -> tuple[str, str]:
         problems.append(f"the fix message carries the options: {fix[-160:]}")
 
     # the narration text: the parts, the headers, the markup per app
-    beats = [{"id": "hook", "narration": "Pernah cabut colokan. Eh kok panas? Yuk cek sekarang."}, {"id": "tips", "narration": "Jangan dipakai dulu. Minta teknisi periksa."}]
+    beats = [{"id": "hook", "kind": "hook", "narration": "Pernah cabut colokan. Eh kok panas? Yuk cek sekarang."}, {"id": "tips", "kind": "tips", "narration": "Jangan dipakai dulu. Minta teknisi periksa."}]
     story = {"beats": beats}
     vs = motion.narration_export(story, "voicestudio")
     if "<" in vs["text"] or "[" in vs["text"] or "Bagian 1 (sekitar" not in vs["text"]:
@@ -5850,10 +5850,10 @@ def check_motionopts() -> tuple[str, str]:
     if "<" in el["text"] or "[" in el["text"] or "belum diverifikasi" not in el["status"]:
         problems.append("the ElevenLabs text has no tags, and says the pause tags are not verified")
     gg = motion.narration_export(story, "googleai")
-    if gg["text"].count("<short pause>") != 1 or "<long pause>" in gg["text"]:
-        problems.append(f"the Google text has <short pause> between beats only, never <long pause>: {gg['text'].count('<short pause>')}")
-    if not gg["style"] or "bukan di teks" not in gg["style"]:
-        problems.append("the Google style is a line for the person, not text")
+    if gg["script"].count("<long pause>") != 1 or "<short pause>" in gg["script"]:
+        problems.append(f"the Google script has one long pause before the last tips: {gg['script']!r}")
+    if not gg["style"] or "tips" not in gg["style"]:
+        problems.append("the Google style is the short English line, with the tips named")
     # the split: long narrations become parts of about 10 to 15 s, cut at sentence ends
     long_story = {"beats": [{"id": f"b{i}", "narration": " ".join(["kata"] * 6) + "." } for i in range(14)]}
     parts = motion.narration_parts(long_story)
@@ -6011,8 +6011,69 @@ def check_skill() -> tuple[str, str]:
 
 
 
+# check: the Google AI Studio export (PLAN-VOICE-GOOGLE): the script with expression tags from the verified list, placed by rule (one per beat, six in
+# all, <whispers> before "Intip yuk!", <chuckle> before a turning sentence, <long pause> before the last tips, never after the last sentence), the short
+# English style (no age, gender, names or accent; no tips sentence without tips), the long style labelled optional, the round trip (the tags strip to the
+# story's narration, and the matching ignores them), and VoiceStudio and ElevenLabs unchanged (compared with their snapshots). No service, no workspace.
+def check_voicegoogle() -> tuple[str, str]:
+    import re as _re
+    from . import motion, motion_voice
+    problems: list[str] = []
+    fx = FIXTURES / "motion"
+    story = json.loads((fx / "narration-story.json").read_text(encoding="utf-8"))
+    g = motion.narration_export(story, "googleai")
+    for key in ("script", "style", "styleLong", "tags", "text"):
+        if not g.get(key):
+            problems.append(f"the Google export has {key}")
+    tags_in_script = _re.findall(r"<([^<>]+)>", g["script"])
+    unknown = [t for t in tags_in_script if t not in motion_voice.EXPRESSION_TAGS]
+    if unknown:
+        problems.append(f"every tag is on the verified list: {unknown}")
+    if any(t in ("boing", "applause", "thud", "sound effect") for t in tags_in_script):
+        problems.append("no sound-effect tag")
+    expressions = [t for t in tags_in_script if "pause" not in t]
+    if len(expressions) > 6:
+        problems.append(f"at most six expressions in all: {len(expressions)}")
+    per_beat: dict[str, int] = {}
+    for t in g["tags"]:
+        if "pause" not in t["tag"]:
+            per_beat[t["beat"]] = per_beat.get(t["beat"], 0) + 1
+    if any(v > 1 for v in per_beat.values()):
+        problems.append(f"at most one expression per beat: {per_beat}")
+    if "<whispers> Intip yuk!" not in g["script"]:
+        problems.append('the sting has <whispers> before "Intip yuk!"')
+    if "<long pause> Jangan" not in g["script"]:
+        problems.append("a long pause before the last tips")
+    if g["script"].rstrip().endswith(">"):
+        problems.append("no tag after the last sentence")
+    narration = " ".join(b["narration"] for b in story["beats"] if b["narration"].strip())
+    if motion_voice.strip_tags(g["script"]) != motion_voice.strip_tags(narration):
+        problems.append("the tags strip back to the story's narration")
+    if [w for _r, w in motion_voice.tokens(g["script"])] != [w for _r, w in motion_voice.tokens(narration)]:
+        problems.append("the matching ignores the tags: the words are the same")
+    for word in ("tahun", "laki", "perempuan", "gender", "age", "accent", "aksen", "male", "female", "years old"):
+        if _re.search(rf"\b{_re.escape(word)}\b", g["style"] + " " + g["styleLong"], _re.I):
+            problems.append(f"the style has no {word!r}")
+    if "tips" not in g["style"] or "tips" not in g["styleLong"]:
+        problems.append("a story with tips names the tips in the style")
+    no_tips = {"beats": [b for b in story["beats"] if b["kind"] != "tips"]}
+    if "tips" in motion.narration_export(no_tips, "googleai")["style"]:
+        problems.append("a story without tips has no tips sentence")
+    if "tips" in motion.narration_export({"beats": [{"id": "a", "kind": "hook", "narration": "Kenapa ini?"}]}, "googleai")["style"]:
+        problems.append("a short story has no tips sentence")
+    # VoiceStudio and ElevenLabs: unchanged
+    for target in ("voicestudio", "elevenlabs"):
+        want = (fx / f"narration-{target}.txt").read_text(encoding="utf-8")
+        if motion.narration_export(story, target)["text"] != want:
+            problems.append(f"the {target} export is unchanged")
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "the Google script with the verified tags placed by rule (one per beat, six in all, <whispers>, <chuckle>, <long pause>), the short English style, the round trip, and the VoiceStudio and ElevenLabs exports unchanged"
+
+
+
 CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch,
-          "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voice": check_voice, "decode": check_decode, "render": check_render}
+          "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voicegoogle": check_voicegoogle, "voice": check_voice, "decode": check_decode, "render": check_render}
 
 
 def _global_state() -> dict:

@@ -1,0 +1,40 @@
+{
+ "beats": [
+  {
+   "id": "hook",
+   "kind": "hook",
+   "dur": 3,
+   "narration": "Kenapa colokan bisa panas? Pernah pegang colokan, eh kok panas?"
+  },
+  {
+   "id": "sting",
+   "kind": "sting",
+   "dur": 1,
+   "narration": "Intip yuk!"
+  },
+  {
+   "id": "lensa",
+   "kind": "lens",
+   "dur": 7,
+   "narration": "Di dalam stop kontak ada penjepit logam. Penjepit itu menggigit kaki colokan."
+  },
+  {
+   "id": "akhir",
+   "kind": "result",
+   "dur": 7,
+   "narration": "Tapi kalau penjepitnya kendur, sentuhannya jadi sempit. Listrik harus lewat jalan sempit itu."
+  },
+  {
+   "id": "tips",
+   "kind": "tips",
+   "dur": 8,
+   "narration": "Jangan pakai dulu. Minta teknisi memeriksa."
+  },
+  {
+   "id": "outro",
+   "kind": "outro",
+   "dur": 3,
+   "narration": ""
+  }
+ ]
+}

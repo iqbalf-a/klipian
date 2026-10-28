@@ -26,10 +26,24 @@ LEAD = 0.0                   # the narration starts where the video starts
 MATCH_MIN = 0.5              # below this share of matched words the alignment is not trusted: the estimate is used
 
 
+# The expression and pause tags of the Google AI Studio script (the Gemini TTS docs, checked 2026-10-28): only these, in English, in angle brackets.
+# A tag is never a sound effect. They exist in the export only; the story has none, and the matching ignores them.
+EXPRESSION_TAGS = frozenset({"argh", "breath", "heavy breath", "exhales", "cackle", "cheer", "chuckle", "chuckles", "cough", "cry", "gasp", "giggle",
+                             "groan", "growl", "grunt", "grr", "hiss", "laugh", "laughter", "moan", "pant", "pff", "phew", "scream", "shout", "shriek",
+                             "sigh", "sighs", "sneeze", "snicker", "snort", "sob", "throat-clearing", "tsk", "whimper", "whispers", "whispering", "yawn",
+                             "short pause", "long pause"})
+_TAG_RE = re.compile("<(" + "|".join(re.escape(t) for t in sorted(EXPRESSION_TAGS, key=len, reverse=True)) + ")>")
+
+
+def strip_tags(text: str) -> str:
+    """The text without the expression and pause tags, with its spaces made single."""
+    return re.sub(r"\s+", " ", _TAG_RE.sub(" ", str(text or ""))).strip()
+
+
 def tokens(text: str) -> list[tuple[str, str]]:
-    """The words of a text as (as written, normalised): the first goes on the screen, the second is what is matched."""
+    """The words of a text as (as written, normalised): the first goes on the screen, the second is what is matched. Tags are not words."""
     out = []
-    for raw in str(text or "").split():
+    for raw in strip_tags(text).split():
         norm = re.sub(r"[^\w]+", "", raw.lower(), flags=re.UNICODE)
         out.append((raw, norm))
     return out

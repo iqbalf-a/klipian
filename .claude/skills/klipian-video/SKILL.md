@@ -29,6 +29,14 @@ You are the local Claude Code of this computer. The person copied or saved a bri
    ```
 
    `<target>` is `voicestudio`, `elevenlabs` or `googleai`. Paste the output in your answer. Tell the person the status line that the export names, and that the "Bagian N" lines are for them: remove them before the voice reads.
+
+   **For `googleai`** the output has three blocks: `NASKAH + EKSPRESI` (the script with expression tags), `DESKRIPSI (gaya, bahasa Inggris)` (the short style, for the style field), and `DESKRIPSI LENGKAP` (the older long style, optional). Keep these rules when you answer about them:
+   - Tags are in angle brackets, in English, only from the verified list in `klipian/motion_voice.py` (`EXPRESSION_TAGS`). Never a sound-effect tag.
+   - Expression tags: at most one per beat and six in all. `<whispers>` before "Intip yuk!". `<chuckle>` before a sentence that turns the fact ("Tapi", "Namun", "Padahal"). Pauses: `<short pause>` between beats, `<long pause>` before the last tips.
+   - The tags are only in this export. Never put them in the story JSON.
+   - Say that the style is a short English description and that the language of the style field and whether AI Studio uses the same field are not verified.
+
+   **Tell the person** the same text is in the panel: `/remotion`, panel "3 Suara", choose "Google AI Studio", press "Muat naskah". Its three blocks each have a copy button, so they do not depend on the terminal copy.
 8. **Tell the person the next steps for `/remotion`**, in plain words: make the voice outside klipian; choose the video folder `remotion/videos/<slug>` (Jenis video: Khusus) and show its full path; choose the audio file or files; press Cocokkan; look at the preview; then Render.
 
 ## Your answer

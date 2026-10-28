@@ -1202,39 +1202,99 @@ def narration_parts(story: dict) -> list[dict]:
     return out
 
 
+def _google_style(story: dict) -> str:
+    """The short style description, English, built from the beats the story has (no age, gender, names or accent: the docs ask for a concise style)."""
+    kinds = {b["kind"] for b in story["beats"] if (b.get("narration") or "").strip()}
+    parts = ["friendly, curious and upbeat"]
+    if "hook" in kinds:
+        parts.append("playful on the hook")
+    if "sting" in kinds:
+        parts.append("a little hushed on 'Intip yuk!'")
+    if kinds & {"lens", "normal", "loose"}:
+        parts.append("calm and neutral on the facts")
+    if "result" in kinds:
+        parts.append("clear on the result")
+    if "tips" in kinds:
+        parts.append("warm and slightly cautious on the tips")
+    return "; ".join(parts) + "; medium pace, short natural pauses at sentence ends."
+
+
+def _google_script(story: dict, parts: list[dict]) -> tuple[str, list[dict]]:
+    """The script with the expression tags, placed by rule (no AI call): a short pause between beats, a long pause before the last tips beat, and at
+    most one expression per beat and GOOGLE_EXPRESSIONS_MAX in all: <whispers> before "Intip yuk!", <chuckle> before a sentence that turns the fact
+    ("Tapi", "Namun", "Padahal") in a result beat. Tags are never inside a word or after the last sentence. Returns (script, tags used)."""
+    kind_of_beat = {b["id"]: b["kind"] for b in story["beats"]}
+    tips = [b["id"] for b in story["beats"] if b["kind"] == "tips" and (b.get("narration") or "").strip()]
+    last_tips = tips[-1] if tips else None
+    tags: list[dict] = []
+    used_beats: set[str] = set()
+    expressions = 0
+    pieces_per_part: list[str] = []
+    prev: dict | None = None
+    for part in parts:
+        out = ""
+        for u in part["units"]:
+            kind = kind_of_beat[u["beat"]]
+            text = u["text"]
+            if prev is not None and prev["beat"] != u["beat"]:
+                if u["beat"] == last_tips and kind == "tips":
+                    out += " <long pause> "
+                    tags.append({"tag": "long pause", "beat": u["beat"], "at": "sebelum tips terakhir"})
+                else:
+                    out += " <short pause> "
+                    tags.append({"tag": "short pause", "beat": u["beat"], "at": "antar beat"})
+            elif out:
+                out += " "
+            if u["beat"] not in used_beats and expressions < GOOGLE_EXPRESSIONS_MAX:
+                if kind == "sting" and re.match(r"intip yuk", text, re.I):
+                    text = f"<whispers> {text}"
+                elif kind == "result" and re.match(r"(tapi|namun|padahal)\b", text, re.I):
+                    text = f"<chuckle> {text}"
+                if text.startswith("<whispers>") or text.startswith("<chuckle>"):
+                    used_beats.add(u["beat"])
+                    expressions += 1
+                    tags.append({"tag": text.split(">")[0][1:], "beat": u["beat"], "at": "awal kalimat"})
+            out += text
+            prev = u
+        pieces_per_part.append(re.sub(r"\s+", " ", out).strip())
+    return "\n\n".join(pieces_per_part), tags
+
+
+GOOGLE_EXPRESSIONS_MAX = 6
+
+
 def narration_export(story: dict, target: str) -> dict:
-    """The narration text for one voice app. VoiceStudio: plain text with a header line per part (the header is for the person: remove it before
-    the voice reads). ElevenLabs: plain text with its punctuation; the pause tags of Eleven v3 are not verified, so none are written. Google AI Studio:
-    "<short pause>" (verified in the Gemini TTS docs) between two beats of a part; "<long pause>" is not verified, so it is not written. The style
-    of the Google voice is an API setting, so it is given as a line for the person to paste, not as text of the narration."""
+    """The narration text for one voice app. VoiceStudio: plain text with a header line per part (the header is for the person: remove it before the
+    voice reads). ElevenLabs: plain text with its punctuation; the Eleven v3 pause tags are not verified, so none are written. Google AI Studio (the
+    Gemini TTS docs, checked 2026-10-28): the script with expression tags from the verified list (English, in angle brackets) and the short English
+    style description, plus the long style of the older AI Studio format, labelled as optional. The tags exist only in this export: the story has none."""
     if target not in VOICE_TARGETS:
         raise MotionError("voice", f"the voice target is one of: {', '.join(VOICE_TARGETS)}.")
     parts = narration_parts(story)
-    lines = []
     total_low = round(sum(p["low"] for p in parts), 1)
     total_high = round(sum(p["high"] for p in parts), 1)
-    status = {"voicestudio": "teks biasa: tanpa tag", "elevenlabs": "teks biasa dengan tanda baca; tag jeda Eleven v3 belum diverifikasi, tidak dipakai",
-              "googleai": "<short pause> terverifikasi di dokumen Gemini TTS; <long pause> belum diverifikasi, tidak dipakai"}[target]
-    style = None
+    head = f"Total sekitar {total_low:.0f} sampai {total_high:.0f} detik, {len(parts)} bagian. Target: {VOICE_TARGETS[target]}."
+    base = {"target": target, "label": VOICE_TARGETS[target], "total": {"low": total_low, "high": total_high},
+            "parts": [{k: v for k, v in p.items() if k != "units"} for p in parts]}
     if target == "googleai":
-        style = "Gaya (isi di AI Studio sebagai gaya, bukan di teks): ceria dan ramah, tempo sedang, jelas (ubah jika perlu)."
+        script, tags = _google_script(story, parts)
+        style = _google_style(story)
+        style_long = "Indonesian short-video science explainer. " + style[0].upper() + style[1:]
+        text = (f"{head}\n\nNASKAH + EKSPRESI\n{script}\n\nDESKRIPSI (gaya, bahasa Inggris)\n{style}\n\n"
+                f"DESKRIPSI LENGKAP (versi lama, opsional: bisa menggeser suara; coba yang singkat dulu)\n{style_long}\n\n"
+                "Catatan: tag memakai <...> dan bahasa Inggris, sesuai dokumen Google (diperiksa 28 Okt 2026). Belum diverifikasi: bahasa kolom gaya dan apakah halaman AI Studio memakai kolom yang sama.\n")
+        return {**base, "status": "tag jeda dan ekspresi dari daftar resmi; bahasa kolom gaya belum diverifikasi", "style": style, "styleLong": style_long,
+                "script": script, "tags": tags, "text": text}
+    lines = []
     for p in parts:
         mid = round((p["low"] + p["high"]) / 2)
         lines.append(f"Bagian {p['no']} (sekitar {mid} detik)")
-        if target == "googleai":
-            chunks = []
-            for i, u in enumerate(p["units"]):
-                if i and p["units"][i - 1]["beat"] != u["beat"]:
-                    chunks.append("<short pause>")
-                chunks.append(u["text"])
-            lines.append(" ".join(chunks))
-        else:
-            lines.append(p["text"])
+        lines.append(p["text"])
         lines.append("")
     body = "\n".join(lines).strip() + "\n"
-    head = f"Total sekitar {total_low:.0f} sampai {total_high:.0f} detik, {len(parts)} bagian. Target: {VOICE_TARGETS[target]}."
-    return {"target": target, "label": VOICE_TARGETS[target], "status": status, "style": style, "total": {"low": total_low, "high": total_high},
-            "parts": [{k: v for k, v in p.items() if k != "units"} for p in parts], "text": head + "\n\n" + body}
+    status = {"voicestudio": "teks biasa: tanpa tag",
+              "elevenlabs": "teks biasa dengan tanda baca; tag jeda Eleven v3 belum diverifikasi, tidak dipakai"}[target]
+    return {**base, "status": status, "style": None, "styleLong": None, "script": None, "tags": [], "text": head + "\n\n" + body}
 
 
 def build_brief(p: dict) -> str:
