@@ -1120,24 +1120,50 @@ def _example_text(cat: dict) -> str:
 VOICE_TARGETS = {"voicestudio": "VoiceStudio", "elevenlabs": "ElevenLabs", "googleai": "Google AI Studio"}
 MUSIC_TRACKS = {"calm": "bed-calm", "tech": "bed-tech", "none": "none"}
 KINDS = {"otomatis": "Otomatis (template, paling cepat)", "khusus": "Khusus (video buatan sesi Claude Code, tampilan terbaik)"}
-DEFAULT_OPTIONS = {"loop": True, "sting": True, "voiceTarget": "voicestudio", "music": "calm", "kind": "otomatis"}
+DEFAULT_OPTIONS = {"loop": True, "sting": True, "voiceTargets": list(VOICE_TARGETS), "voiceTargetFirst": "voicestudio", "music": "calm", "kind": "otomatis"}
 
 
 def normalize_options(raw) -> dict:
-    """The options with the defaults filled in. A value that is not one of the choices is refused with the choices listed."""
+    """The options with the defaults filled in. The voice apps are a list of the apps checked (all three by default; an empty list is refused). The
+    old single choice ("voiceTarget") is read as: all three apps, with that one first; it is never written again. A value that is not a choice is
+    refused with the choices listed."""
     raw = raw if isinstance(raw, dict) else {}
     out = dict(DEFAULT_OPTIONS)
+    out["voiceTargets"] = list(VOICE_TARGETS)
+    out["voiceTargetFirst"] = DEFAULT_OPTIONS["voiceTargetFirst"]
     for key in ("loop", "sting"):
         if key in raw:
             if not isinstance(raw[key], bool):
                 raise MotionError("options", f"{key} is yes or no.")
             out[key] = raw[key]
-    for key, choices in (("voiceTarget", VOICE_TARGETS), ("music", MUSIC_TRACKS), ("kind", KINDS)):
+    if "voiceTarget" in raw and "voiceTargets" not in raw:               # the old single choice: all three, that one first
+        if raw["voiceTarget"] not in VOICE_TARGETS:
+            raise MotionError("options", f"voiceTarget is one of: {', '.join(VOICE_TARGETS)}.")
+        out["voiceTargetFirst"] = raw["voiceTarget"]
+    if "voiceTargets" in raw:
+        targets = raw["voiceTargets"]
+        if not isinstance(targets, list) or any(t not in VOICE_TARGETS for t in targets):
+            raise MotionError("options", f"voiceTargets is a list of the apps: {', '.join(VOICE_TARGETS)}.")
+        chosen = [t for t in VOICE_TARGETS if t in targets]              # in the order of the apps
+        if not chosen:
+            raise MotionError("options", "pilih minimal satu aplikasi suara.")
+        out["voiceTargets"] = chosen
+    if "voiceTargetFirst" in raw:
+        if raw["voiceTargetFirst"] not in VOICE_TARGETS:
+            raise MotionError("options", f"voiceTargetFirst is one of: {', '.join(VOICE_TARGETS)}.")
+        out["voiceTargetFirst"] = raw["voiceTargetFirst"]
+    if out["voiceTargetFirst"] not in out["voiceTargets"]:
+        out["voiceTargetFirst"] = out["voiceTargets"][0]
+    for key, choices in (("music", MUSIC_TRACKS), ("kind", KINDS)):
         if key in raw:
             if raw[key] not in choices:
                 raise MotionError("options", f"{key} is one of: {', '.join(choices)}.")
             out[key] = raw[key]
     return out
+
+
+def voice_apps_text(targets: list[str]) -> str:
+    return ", ".join(VOICE_TARGETS[t] for t in targets)
 
 
 def options_of(p: dict) -> dict:
@@ -1159,7 +1185,7 @@ def _options_text(opts: dict) -> str:
     lines = [f"- Loop: {'yes' if opts['loop'] else 'no'} (the ending returns to the scene of the first beat)",
              f"- Intip yuk!: {'yes' if opts['sting'] else 'no'} (the small sting right after the hook)",
              f"- Music: {music}",
-             f"- Target voice app: {VOICE_TARGETS[opts['voiceTarget']]} (klipian writes the narration text for it; the voice is made outside klipian)",
+             f"- Target voice apps: {voice_apps_text(opts['voiceTargets'])} (klipian writes the narration text in each app's own format; the voices are made outside klipian)",
              f"- Kind: {KINDS[opts['kind']]}"]
     warn = option_warnings(opts)
     if warn:
@@ -1413,7 +1439,7 @@ Some claims were **rejected**. Please revise **only the beats listed below**; ev
   make the beat about something that is certain.
 - Keep each beat's `id` and `dur` the same (the video must keep its {p['duration']} seconds), and the same channel rules and catalogue as before.
 - Keep the two musts: the "Intip yuk!" sting right after the hook, and the loop-back ending (no mascot, label, pill or voice in the outro).
-- Keep the options of this video: loop {'yes' if options_of(p)['loop'] else 'no'}, Intip yuk! {'yes' if options_of(p)['sting'] else 'no'}, music {MUSIC_TRACKS[options_of(p)['music']]}.
+- Keep the options of this video: loop {'yes' if options_of(p)['loop'] else 'no'}, Intip yuk! {'yes' if options_of(p)['sting'] else 'no'}, music {MUSIC_TRACKS[options_of(p)['music']]}, voice apps {voice_apps_text(options_of(p)['voiceTargets'])}.
 - Give the **complete list of claims** again in `claims` (the checked ones unchanged, the revised ones with sources), with the beats that use them.
 
 ## Reply format
@@ -1440,7 +1466,7 @@ def build_fix_message(errors: list[dict], kind: str = "main", options: dict | No
     keep = ""
     if options is not None:                                  # the options stay as the person chose them
         keep = (f"\n\nThe options of this video stay as they are: loop {'yes' if options['loop'] else 'no'}, Intip yuk! {'yes' if options['sting'] else 'no'}, "
-                f"music {MUSIC_TRACKS[options['music']]}.")
+                f"music {MUSIC_TRACKS[options['music']]}, voice apps {voice_apps_text(options['voiceTargets'])}.")
     return ("klipian could not accept your answer. These are the problems, with where each one is:\n\n"
             + "\n".join(lines)
             + f"\n\nPlease fix them and reply with {what} again: a single JSON block, plain JSON only (no code, comments or trailing commas), "

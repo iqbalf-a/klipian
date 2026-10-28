@@ -5815,14 +5815,14 @@ def check_motionopts() -> tuple[str, str]:
         for d in (30, 45, 60):
             for loop in (True, False):
                 for sting in (True, False):
-                    for target in motion.VOICE_TARGETS:
+                    for target in (["voicestudio"], ["elevenlabs", "googleai"], list(motion.VOICE_TARGETS)):
                         for music in motion.MUSIC_TRACKS:
                             for kind in motion.KINDS:
-                                opts = {"loop": loop, "sting": sting, "voiceTarget": target, "music": music, "kind": kind}
+                                opts = {"loop": loop, "sting": sting, "voiceTargets": target, "music": music, "kind": kind}
                                 text = motion.build_brief({"topic": "Kenapa colokan panas", "duration": d, "notes": "", "options": opts})
                                 count += 1
                                 want = [f"- Loop: {'yes' if loop else 'no'}", f"- Intip yuk!: {'yes' if sting else 'no'}", f"- Music: ",
-                                        f"- Target voice app: {motion.VOICE_TARGETS[target]}", f"- Kind: {motion.KINDS[kind]}", "## Pilihan video"]
+                                        f"- Target voice apps: {motion.voice_apps_text(target)}", f"- Kind: {motion.KINDS[kind]}", "## Pilihan video"]
                                 if any(w not in text for w in want):
                                     problems.append(f"the {d} s brief for {opts} lacks {[w for w in want if w not in text]}")
                                     break
@@ -5877,6 +5877,24 @@ def check_motionopts() -> tuple[str, str]:
     except motion.MotionError:
         pass
 
+    # the voice apps: all three by default, an empty list refused, the old single choice migrated (all three, that one first)
+    if motion.DEFAULT_OPTIONS["voiceTargets"] != list(motion.VOICE_TARGETS) or motion.normalize_options({})["voiceTargets"] != list(motion.VOICE_TARGETS):
+        problems.append("all three voice apps are checked by default")
+    try:
+        motion.normalize_options({"voiceTargets": []})
+        problems.append("an empty list of voice apps is refused")
+    except motion.MotionError as exc:
+        if "minimal satu" not in exc.message:
+            problems.append(f"the refusal says to choose one app: {exc.message}")
+    old_style = motion.normalize_options({"voiceTarget": "elevenlabs"})
+    if old_style["voiceTargets"] != list(motion.VOICE_TARGETS) or old_style["voiceTargetFirst"] != "elevenlabs" or "voiceTarget" in old_style:
+        problems.append(f"the old single choice migrates to all three apps with that one first: {old_style}")
+    if motion.normalize_options({"voiceTargets": ["googleai", "voicestudio"]})["voiceTargets"] != ["voicestudio", "googleai"]:
+        problems.append("the apps keep their order")
+    for one in (["voicestudio"], ["voicestudio", "elevenlabs"], list(motion.VOICE_TARGETS)):
+        brief = motion.build_brief({"topic": "Kenapa colokan panas", "duration": 30, "notes": "", "options": {"voiceTargets": one}})
+        if f"- Target voice apps: {motion.voice_apps_text(one)} (" not in brief:
+            problems.append(f"the brief lists {one}")
     # the options of a project: chosen at creation, changed with the warnings
     p = motion.create("contoh pilihan video", 30, "", {"loop": False, "music": "tech"})
     if motion.options_of(p)["loop"] is not False or motion.options_of(p)["music"] != "tech" or motion.options_of(p)["sting"] is not True:

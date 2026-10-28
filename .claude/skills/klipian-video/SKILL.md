@@ -22,7 +22,7 @@ You are the local Claude Code of this computer. The person copied or saved a bri
 4. **Validate**: `node remotion/validate.mjs remotion/stories/<slug>.json`. A `warnings` list is advice; fix every error and run it again until it says `"ok":true`.
 5. **Build the video folder**: `cd remotion` then `npm run new-video <slug> stories/<slug>.json`. Then edit `videos/<slug>/index.tsx` and `plan.ts` to draw the beats with the kit (DESIGN.md first; reuse the dictionary marks, at most three new assets).
 6. **Check**: from `remotion`, `npm run style-check -- <slug>` must print no FAIL. Its FLAG and RENDER lines are read in your report. Then `npm run style-report -- <slug>` writes `out/<slug>/style-report.md`.
-7. **Print the narration text** for the person's voice app (the one the options name), from the repository root:
+7. **Print the narration text for every voice app checked in the brief** (`Target voice apps:` in the options; all three by default). Each app has its own format, so run the command once per app, from the repository root:
 
    ```bash
    python -c "import json,sys; sys.path.insert(0,'.'); from klipian import motion; print(motion.narration_export(json.load(open(sys.argv[1],encoding='utf-8')), sys.argv[2])['text'])" remotion/stories/<slug>.json <target>

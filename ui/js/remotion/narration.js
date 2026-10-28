@@ -1,16 +1,21 @@
-/* The narration panel's pure parts (no DOM): which voice target the select shows, and what a change of the select does to the text shown.
+/* The voice apps of a video, as pure rules (no DOM): which apps are checked, their order in the panel, and which export a block shows.
    Used by ui/js/remotion/page.js and tested by node tests/narration.test.js. */
 
-// the target the select shows: the one the person just picked, else the target of the export shown for this video, else the project's option
-function narrationTarget(d, shown, picked) {
-  if (picked) return picked;
-  if (shown && shown.forId === d.id && shown.target) return shown.target;
-  return (d.options && d.options.voiceTarget) || "voicestudio";
+// the apps, in the order of the panel (VoiceStudio, ElevenLabs, Google AI Studio)
+const VOICE_APP_ORDER = ["voicestudio", "elevenlabs", "googleai"];
+const VOICE_APP_LABELS = { voicestudio: "VoiceStudio", elevenlabs: "ElevenLabs", googleai: "Google AI Studio" };
+
+// the checked apps in the panel's order: the one the project opens first comes first, the rest keep their order
+function voiceAppsInOrder(options) {
+  const checked = (options && options.voiceTargets) || VOICE_APP_ORDER;
+  const list = VOICE_APP_ORDER.filter((k) => checked.includes(k));
+  const first = options && options.voiceTargetFirst;
+  return list.includes(first) ? [first, ...list.filter((k) => k !== first)] : list;
 }
 
-// a change of the select clears the text shown: the text and the label never disagree
-function narrationAfterChange(picked) {
-  return { picked, shown: null };
+// the export a block shows: only the one loaded for this video and this app, never another app's text
+function narrationShown(state, forId, key) {
+  return state && state.forId === forId && state.exports && state.exports[key] ? state.exports[key] : null;
 }
 
-if (typeof module !== "undefined" && module.exports) module.exports = { narrationTarget, narrationAfterChange };
+if (typeof module !== "undefined" && module.exports) module.exports = { VOICE_APP_ORDER, VOICE_APP_LABELS, voiceAppsInOrder, narrationShown };

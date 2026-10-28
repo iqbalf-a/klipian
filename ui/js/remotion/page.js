@@ -220,9 +220,11 @@ byId("rmMain").addEventListener("click", async (e) => {
     if (act === "nextStep") return doNext(CUR.next && CUR.next.action);
     if (act === "copyClaudeCmd") return copyClaudeCmd();
     if (act === "narrationLoad") return loadNarration();
-    if (act === "narrationCopy") return copyNarration();
-    if (act === "narrationPart") return copyNarrationPart(t.dataset.part);
-    if (act === "narrationDown") return downloadNarration();
+    if (act === "narrationOpenAll") return document.querySelectorAll("details.narr-block").forEach((x) => (x.open = true));
+    if (act === "narrationDownAll") return downloadNarrationAll();
+    if (act === "narrationCopy") return copyNarration(t.dataset.target);
+    if (act === "narrationPart") return copyNarrationPart(t.dataset.target, t.dataset.part);
+    if (act === "narrationDown") return downloadNarration(t.dataset.target);
     if (act === "copyFix") return copyFix(t);
     if (act === "copyRevise") return copyRevise(t);
     if (act === "downRevise") return downloadBrief("revise");
@@ -426,26 +428,34 @@ function drawVoice() {
   byId("rmVoiceFile")?.addEventListener("change", uploadVoice);
 }
 
-// the narration text for a voice app: the words the person will have voiced (from the story), per target
-let NARR = null;                // the last export loaded for this video: { target, text, label, status, style, styleLong, script, total, parts }
-let NARR_PICK = null;           // the target the person picked in the select (kept through a redraw; cleared with the text when it changes)
+// the narration text for each checked voice app (PLAN-VOICE-TARGETS): one block per app, the one the project opens first first; each block has
+// its own copy and download. Google AI Studio's block keeps its three parts: the script, the short style, and the long style (optional).
+let NARR = null;                // { forId, exports: { <app>: export } } from the last "Muat naskah"
 function narrationHTML(d) {
-  const shown = NARR && NARR.forId === d.id ? NARR : null;
-  const target = narrationTarget(d, shown, NARR_PICK);
-  const labels = [["voicestudio", "VoiceStudio"], ["elevenlabs", "ElevenLabs"], ["googleai", "Google AI Studio"]];
-  const sel = `<select class="ws-input rm-boxed" id="rmNarrTarget">${labels.map(([v, l]) => `<option value="${v}" ${v === target ? "selected" : ""}>${l}</option>`).join("")}</select>`;
+  const apps = voiceAppsInOrder(d.options);
+  const blocks = apps.map((key, i) => narrationBlock(d, key, narrationShown(NARR, d.id, key), i === 0)).join("");
+  const loaded = !!(NARR && NARR.forId === d.id);
   return `<div class="rm-needs"><b>Naskah untuk aplikasi suara</b> (ketik atau tempel di aplikasi kamu; klipian tidak memanggil layanan suara)
-    <div class="rm-actions">${sel}<button class="btn" type="button" data-act="narrationLoad">Muat naskah</button><button class="btn" type="button" data-act="narrationCopy" ${shown ? "" : "disabled"}>Salin semua</button><button class="btn" type="button" data-act="narrationDown" ${shown ? "" : "disabled"}>Unduh .txt</button></div>
-    ${shown ? narrationBody(shown) : `<p class="rm-hint">Pilih aplikasi, lalu muat naskah.</p>`}
-  </div>`;
+    <div class="rm-actions"><button class="btn" type="button" data-act="narrationLoad">Muat naskah</button>
+      <button class="btn" type="button" data-act="narrationOpenAll">Buka semua</button>
+      <button class="btn" type="button" data-act="narrationDownAll" ${loaded ? "" : "disabled"}>Unduh semua</button></div>
+    ${blocks}</div>`;
 }
 
-// the text of an export: one box for VoiceStudio and ElevenLabs; three blocks, each with its own copy button, for Google AI Studio
-function narrationBody(shown) {
+function narrationBlock(d, key, ex, open) {
+  const head = ex ? `${esc(ex.status)} · ${ex.total.low}–${ex.total.high} dtk` : "belum dimuat";
+  const body = ex ? narrationBody(key, ex) : `<p class="rm-hint">Tekan Muat naskah.</p>`;
+  return `<details class="rm-needs narr-block" data-app="${key}" ${open ? "open" : ""}><summary><b>${esc(VOICE_APP_LABELS[key])}</b> <span class="rm-hint">${head}</span></summary>
+    <div class="rm-actions"><button class="btn sm" type="button" data-act="narrationCopy" data-target="${key}" ${ex ? "" : "disabled"}>Salin semua</button><button class="btn sm" type="button" data-act="narrationDown" data-target="${key}" ${ex ? "" : "disabled"}>Unduh .txt</button></div>
+    ${body}</details>`;
+}
+
+// the text of one app's export: one box, or for Google AI Studio three blocks with their own copy buttons
+function narrationBody(key, shown) {
   if (shown.target !== "googleai") {
-    return `<p class="rm-hint">${esc(shown.status)}</p><textarea class="ws-input rm-boxed" readonly rows="10" id="rmNarrText">${esc(shown.text)}</textarea><p class="rm-hint">Baris "Bagian N" adalah penanda untuk kamu: hapus sebelum dibacakan.</p>`;
+    return `<p class="rm-hint">${esc(shown.status)}</p><textarea class="ws-input rm-boxed" readonly rows="10">${esc(shown.text)}</textarea><p class="rm-hint">Baris "Bagian N" adalah penanda untuk kamu: hapus sebelum dibacakan.</p>`;
   }
-  const block = (key, title, rows) => `<div class="rm-needs"><b>${title}</b> <button class="btn sm" type="button" data-act="narrationPart" data-part="${key}">Salin</button><textarea class="ws-input rm-boxed" readonly rows="${rows}">${esc(shown[key] || "")}</textarea></div>`;
+  const block = (part, title, rows) => `<div class="rm-needs"><b>${title}</b> <button class="btn sm" type="button" data-act="narrationPart" data-target="${key}" data-part="${part}">Salin</button><textarea class="ws-input rm-boxed" readonly rows="${rows}">${esc(shown[part] || "")}</textarea></div>`;
   return `<p class="rm-hint">${esc(shown.status)}</p>
     ${block("script", "1 Naskah + ekspresi", 10)}
     ${block("style", "2 Deskripsi (gaya, bahasa Inggris)", 3)}
@@ -453,35 +463,54 @@ function narrationBody(shown) {
     <p class="rm-hint">Tag memakai tanda &lt;...&gt; dan bahasa Inggris, sesuai dokumen Google (diperiksa 28 Okt 2026). Bahasa Indonesia didukung di Gemini 3.8 TTS. Belum diverifikasi: bahasa kolom gaya, dan apakah halaman AI Studio memakai kolom yang sama. Coba dulu tanpa gaya.</p>`;
 }
 
-// a change of the select clears the text shown (it belonged to another target), and the select keeps the new choice
+// at least one app stays checked: unchecking the last one is undone, with the reason
 document.addEventListener("change", (e) => {
-  if (e.target.id !== "rmNarrTarget" || !CUR) return;
-  const next = narrationAfterChange(e.target.value);
-  NARR_PICK = next.picked;
-  NARR = next.shown;
-  drawVoice();
+  if (!e.target.matches || !e.target.matches("[data-opt-app]")) return;
+  const group = e.target.closest("fieldset");
+  if (group && !group.querySelector("[data-opt-app]:checked")) {
+    e.target.checked = true;
+    toast("Pilih minimal satu aplikasi suara.");
+  }
 });
 
-async function copyNarrationPart(key) {
-  if (!NARR || NARR[key] == null) return toast("Muat naskah dulu.");
-  (await copyText(NARR[key])) ? toast("Disalin.") : toast("Tidak bisa menyalin: pilih teksnya sendiri.");
-}
-
 async function loadNarration() {
-  const target = byId("rmNarrTarget").value;
-  const j = await call(`${API}/narration?id=${encodeURIComponent(CUR.id)}&target=${encodeURIComponent(target)}`);
-  NARR = { ...j, forId: CUR.id };
-  NARR_PICK = target;
+  const apps = voiceAppsInOrder(CUR.options);
+  const pairs = await Promise.all(apps.map(async (key) => [key, { ...(await call(`${API}/narration?id=${encodeURIComponent(CUR.id)}&target=${key}`)), forId: CUR.id }]));
+  NARR = { forId: CUR.id, exports: Object.fromEntries(pairs) };
   drawVoice();
 }
-async function copyNarration() {
-  (await copyText(NARR.text)) ? toast("Naskah disalin.") : toast("Tidak bisa menyalin: pilih teksnya sendiri.");
+
+async function copyNarration(key) {
+  const ex = narrationShown(NARR, CUR.id, key);
+  if (!ex) return toast("Muat naskah dulu.");
+  (await copyText(ex.text)) ? toast("Naskah disalin.") : toast("Tidak bisa menyalin: pilih teksnya sendiri.");
 }
-function downloadNarration() {
-  const url = URL.createObjectURL(new Blob([NARR.text], { type: "text/plain;charset=utf-8" }));
-  const a = Object.assign(document.createElement("a"), { href: url, download: `${CUR.id}-naskah-${NARR.target}.txt` });
+
+async function copyNarrationPart(key, part) {
+  const ex = narrationShown(NARR, CUR.id, key);
+  if (!ex || ex[part] == null) return toast("Muat naskah dulu.");
+  (await copyText(ex[part])) ? toast("Disalin.") : toast("Tidak bisa menyalin: pilih teksnya sendiri.");
+}
+
+function saveNarrationFile(name, text) {
+  const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+  const a = Object.assign(document.createElement("a"), { href: url, download: name });
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function downloadNarration(key) {
+  const ex = narrationShown(NARR, CUR.id, key);
+  if (!ex) return toast("Muat naskah dulu.");
+  saveNarrationFile(`${CUR.id}-naskah-${key}.txt`, ex.text);
+}
+
+// all loaded apps in one file, each under its own heading
+function downloadNarrationAll() {
+  const apps = voiceAppsInOrder(CUR.options).filter((k) => narrationShown(NARR, CUR.id, k));
+  if (!apps.length) return toast("Muat naskah dulu.");
+  const text = apps.map((k) => `===== ${VOICE_APP_LABELS[k]} =====\n\n${narrationShown(NARR, CUR.id, k).text}`).join("\n\n");
+  saveNarrationFile(`${CUR.id}-naskah-semua.txt`, text);
 }
 
 let PART_TO_REPLACE = null;     // the number of the part the next path replaces (set by "Ganti bagian")
@@ -583,8 +612,20 @@ function textItems(beat) {
 function readOptions(root) {
   const o = {};
   root.querySelectorAll("[data-opt]").forEach((x) => { o[x.dataset.opt] = x.type === "checkbox" ? x.checked : x.value; });
+  const apps = [...root.querySelectorAll("[data-opt-app]:checked")].map((x) => x.dataset.optApp);
+  if (!apps.length) throw new Error("Pilih minimal satu aplikasi suara.");
+  o.voiceTargets = apps;
   return o;
 }
+function appBoxesHTML(opts) {
+  const checked = (opts && opts.voiceTargets) || VOICE_APP_ORDER;
+  const hint = { voicestudio: "jeda dan tag [laughter]/[sigh]", elevenlabs: "tag ekspresi dan jeda", googleai: "tag ekspresi dan deskripsi gaya" };
+  return `<fieldset class="rm-opts" role="group" aria-label="Aplikasi suara">
+    <legend>Aplikasi suara (centang yang dipakai; naskahnya dibuat untuk tiap aplikasi)</legend>
+    ${VOICE_APP_ORDER.map((k) => `<label class="rm-check"><input type="checkbox" data-opt-app="${k}" ${checked.includes(k) ? "checked" : ""}> ${VOICE_APP_LABELS[k]}: ${hint[k]}</label>`).join("")}
+  </fieldset>`;
+}
+
 function optionsHTML(opts, prefix) {
   const sel = (key, list) => `<select class="ws-input rm-boxed" data-opt="${key}">${list.map(([v, l]) => `<option value="${v}" ${opts[key] === v ? "selected" : ""}>${l}</option>`).join("")}</select>`;
   return `<fieldset class="rm-opts" id="${prefix}">
@@ -592,7 +633,7 @@ function optionsHTML(opts, prefix) {
     <label class="rm-check"><input type="checkbox" data-opt="loop" ${opts.loop ? "checked" : ""}> Loop (akhir kembali ke adegan awal)</label>
     <label class="rm-check"><input type="checkbox" data-opt="sting" ${opts.sting ? "checked" : ""}> "Intip yuk!" setelah hook</label>
     <label class="ws-field">Musik ${sel("music", [["calm", "Tenang"], ["tech", "Teknologi"], ["none", "Tanpa musik"]])}</label>
-    <label class="ws-field">Aplikasi suara ${sel("voiceTarget", [["voicestudio", "VoiceStudio"], ["elevenlabs", "ElevenLabs"], ["googleai", "Google AI Studio"]])}</label>
+    ${appBoxesHTML(opts)}
     <div class="rm-actions"><button class="btn" type="button" data-act="saveOptions">Simpan pilihan</button><span class="rm-hint">Brief berikutnya memakai pilihan ini.</span></div>
   </fieldset>`;
 }

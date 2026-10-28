@@ -69,9 +69,12 @@
             <label class="ws-field">Musik
               <select class="ws-input rm-boxed" data-opt="music"><option value="calm">Tenang</option><option value="tech">Teknologi</option><option value="none">Tanpa musik</option></select>
             </label>
-            <label class="ws-field">Aplikasi suara
-              <select class="ws-input rm-boxed" data-opt="voiceTarget"><option value="voicestudio">VoiceStudio</option><option value="elevenlabs">ElevenLabs</option><option value="googleai">Google AI Studio</option></select>
-            </label>
+            <fieldset class="rm-opts" role="group" aria-label="Aplikasi suara">
+              <legend>Aplikasi suara (centang yang dipakai; naskahnya dibuat untuk tiap aplikasi)</legend>
+              <label class="rm-check"><input type="checkbox" data-opt-app="voicestudio" checked> VoiceStudio: jeda dan tag [laughter]/[sigh]</label>
+              <label class="rm-check"><input type="checkbox" data-opt-app="elevenlabs" checked> ElevenLabs: tag ekspresi dan jeda</label>
+              <label class="rm-check"><input type="checkbox" data-opt-app="googleai" checked> Google AI Studio: tag ekspresi dan deskripsi gaya</label>
+            </fieldset>
             <label class="ws-field">Jenis video
               <select class="ws-input rm-boxed" data-opt="kind"><option value="otomatis">Otomatis: template klipian, paling cepat</option><option value="khusus">Khusus: video buatan sesi Claude Code, tampilan terbaik</option></select>
             </label>
