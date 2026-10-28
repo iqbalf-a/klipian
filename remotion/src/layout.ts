@@ -39,7 +39,7 @@ export const ZONES = {
 export const bounds = (hasBanner = true): Box => ({ x0: SAFE.left, y0: hasBanner ? BANNER_BOTTOM + GAP : SAFE.top, x1: SAFE.right, y1: SAFE.bottom });
 
 /** The caption layer at the bottom (inside the safe area: x up to 950, y up to 1632) and the top text (kicker + headline): fixed zones the rest keeps clear of. */
-export const CAPTION = { fs: 56, maxTextWidth: 770, padX: 30, padY: 22, cx: (SAFE.left + SAFE.right) / 2, bottom: 1600 } as const;
+export const CAPTION = { fs: 56, maxTextWidth: 770, padX: 30, padY: 22, cx: (SAFE.left + SAFE.right) / 2, bottom: 1620 } as const;   // 12 px above the Shorts interface (SAFE.bottom 1632)
 export const TOP_TEXT = { x: SAFE.left + 20, y: 96, fs: 76, kickerFs: 28, maxWidth: SAFE.right - SAFE.left - 40 } as const;
 /** The box of the caption layer (two lines at most) and of the top text (a kicker and two lines of headline). */
 export const captionBox = (): Box => ({ x0: CAPTION.cx - (CAPTION.maxTextWidth + 2 * CAPTION.padX) / 2, y0: CAPTION.bottom - (2 * CAPTION.fs * 1.22 + 2 * CAPTION.padY), x1: CAPTION.cx + (CAPTION.maxTextWidth + 2 * CAPTION.padX) / 2, y1: CAPTION.bottom });

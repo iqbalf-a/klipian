@@ -47,6 +47,7 @@ Contents: [the five locks](#the-five-locks) · [the rules](#the-rules-style-bibl
 - **B19 Voice export.** Each voice app's export uses only the tags of that app's verified list, in that app's own syntax: Google AI Studio `<...>` (English), VoiceStudio `[pause ...]` and the optional `[laughter]`/`[sigh]`, ElevenLabs `[...]` and `...`. The tags are in the export only, never in the story; matching strips them. A tag not on the list is not written.
 - **B20 Khusus: the story comes from the chosen folder, never automatically.** For the kind Khusus the story is taken only when the person presses "Ambil cerita dari folder" for the folder they chose: that button reads that folder's `story.json` alone, checks it like a pasted answer, and keeps it only when it is valid. Nothing is read in the background, no folder is written, and Claude Code never writes to `workspace/`.
 - **B21 Variety.** The music bed, the theme and the stage shape of a video are chosen by its kind of fact, and not repeated from the video before. `scripts/styleReport.mjs` lists the last five videos and flags a video that repeats both the bed and the theme of the one before it: a flag, not a failure (ian decides).
+- **B22 Bottom.** The caption sits as low as the safe area allows: `CAPTION.bottom` is 1620 (src/layout.ts), 12 px above the Shorts interface (`SAFE.bottom` 1632). Nothing but the Shorts interface may be below y 1632. The scene is kept clear of the caption box by the layout manager.
 - **B16 Musts.** Every video has three musts, decided by ian on 2026-10-28: (1) the small "Intip yuk!" sting right after the hook; (2) the loop-back ending (no mascot, label, pill or voice in the outro; the first and last frames match); (3) a consistent object style and animation (see "The three musts" below). Everything else in this section is a default that a topic may adapt. `styleCheck` FAILs when a must is broken.
 
 ### The visual dictionary
@@ -127,6 +128,7 @@ Every report adds its rows (B14). The date is the day ian asked; a row without a
 | B16 | the three musts: the "Intip yuk!" sting, the loop, the object style and animation | ian | 2026-10-28 | round 2 |
 | the registry | the motion language (src/motionLanguage.ts) and the colour rule | ian | 2026-10-28 | round 2 |
 | B21 variety | the bed, the theme and the stage of the last five videos; a repeat of bed and theme is a flag | ian (two renders, 2026-10-28) | stage 4 |
+| B22 bottom | the caption as low as the safe area allows (1620); nothing but the Shorts interface below y 1632 | klipian motion plan (PLAN-LAYOUT-BOTTOM, approved by ian 2026-10-28) | stage 1 |
 | B15 amendment | the music beds are an open set; the sound effects and their mix stay locked | ian (2026-10-28) | stage 4 |
 | music beds | four cheerful beds (sunny the default, bounce, glow, curious), measured against bed-calm | ian (2026-10-28) | stage 1 |
 | themes | cream, sky, mint, peach; one per video, in the story (night waits for a light label colour) | ian (2026-10-28) | stage 2 |
