@@ -39,6 +39,7 @@ REMOTION = paths.ROOT / "remotion"
 DURATIONS = (30, 45, 60)
 DEFAULT_DURATION = 45
 RENDER_RATIO = 1.7              # seconds of rendering per second of video on a usual machine, for the first ETA (measured: 1.6)
+PREVIEW_RATIO = 0.4             # the half-size draft takes about this share of the final render's time (to be measured on the first real run)
 STILL_AT = 0.85                 # the sheet shows each beat 85 % of the way through it, where its things have arrived
 HISTORY_KEEP = 20
 _ID = re.compile(r"^[a-z0-9][a-z0-9-]{2,62}$")
@@ -268,6 +269,7 @@ def detail(pid: str) -> dict:
     stills = _stills_state(pid, story)
     return {**summary(p), "notes": p.get("notes", ""), "needs": p.get("needs", []), "warnings": (validate_story(story).get("warnings", []) if story else []), "storyPath": str(project_dir(pid) / "story.json"), "compositions": compositions(), "story": story, "facts": facts,
             "gate": gate(pid), "stills": stills, "render": p.get("render"), "job": job_state(pid), "voice": voice_info(pid),
+            "preview": _preview_state(pid, story),
             "versions": len(list((project_dir(pid) / "history").glob("story-*.json"))) if (project_dir(pid) / "history").is_dir() else 0}
 
 
@@ -504,6 +506,195 @@ def import_voice(pid: str, *, source: Path | None = None, data: bytes | None = N
     return p["voice"]
 
 
+# several narration files (PLAN-ALUR-V2 phase 1): each part is kept as an original (voice/originals/NNN__name) and as a processed part
+# (voice/parts/part-NNN.wav); narration.wav is the join of the parts with a silence between them. Replacing one part rebuilds the join from the
+# originals and clears the alignment.
+PART_LOUD_SPREAD_DB = 6.0     # parts further apart than this in loudness are evened out to the middle part's level (the page says so)
+PART_GAIN_MAX_DB = 12.0       # no part is moved by more than this
+
+
+def _mean_db(ff: str, wav: Path) -> float | None:
+    proc = subprocess.run([ff, "-hide_banner", "-nostats", "-i", str(wav), "-af", "volumedetect", "-f", "null", "-"],
+                          capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300)
+    m = re.search(r"mean_volume:\s*(-?[\d.]+)\s*dB", proc.stderr or "")
+    return float(m.group(1)) if m else None
+
+
+def _concat_line(path: Path) -> str:
+    text = str(path).replace("\\", "/").replace("'", "'\\''")
+    return f"file '{text}'\n"
+
+
+def _build_voice(pid: str, originals: list[tuple[int, str, Path]], gap: float, notes: list[str]) -> dict:
+    """The originals in order -> processed parts (48 kHz mono, evened out in loudness when they differ) -> narration.wav, joined with `gap` seconds
+    of silence. Returns {"parts", "duration", "gap"}. Must be called with _LOCK held."""
+    from .ffmpeg_tools import _require, probe, run
+    ff = _require("ffmpeg")
+    parts_dir = voice_dir(pid) / "parts"
+    shutil.rmtree(parts_dir, ignore_errors=True)
+    parts_dir.mkdir(parents=True, exist_ok=True)
+    raw = []
+    for no, name, src in originals:
+        out = parts_dir / f"part-{no:03d}.raw.wav"
+        run([ff, "-y", "-v", "error", "-i", str(src), "-vn", "-ac", "1", "-ar", "48000", "-c:a", "pcm_s16le", str(out)], desc=f"converting part {no}", timeout=600)
+        raw.append((no, name, out))
+    levels = {no: _mean_db(ff, f) for no, _name, f in raw}
+    known = [v for v in levels.values() if v is not None]
+    gains = {no: 0.0 for no, _name, _f in raw}
+    if len(known) > 1 and max(known) - min(known) > PART_LOUD_SPREAD_DB:
+        target = sorted(known)[len(known) // 2]
+        for no, v in levels.items():
+            if v is not None:
+                gains[no] = max(-PART_GAIN_MAX_DB, min(PART_GAIN_MAX_DB, target - v))
+        notes.append(f"the parts differed in loudness by {max(known) - min(known):.0f} dB: evened out to the middle part's level (at most {PART_GAIN_MAX_DB:.0f} dB each)")
+    parts = []
+    for no, name, f in raw:
+        out = parts_dir / f"part-{no:03d}.wav"
+        if gains[no]:
+            run([ff, "-y", "-v", "error", "-i", str(f), "-af", f"volume={gains[no]:.2f}dB", "-c:a", "pcm_s16le", str(out)], desc=f"evening out part {no}", timeout=600)
+        else:
+            shutil.copyfile(f, out)
+        seconds = probe(out).duration
+        if seconds < voicelib.PART_MIN or seconds > voicelib.PART_MAX:
+            raise MotionError("voice", f"{name} is {seconds:.1f} seconds: a part lasts from {voicelib.PART_MIN} to {voicelib.PART_MAX:.0f} s.")
+        parts.append({"no": no, "name": name, "file": out, "duration": round(seconds, 2)})
+    entries: list[Path] = []
+    rows: list[dict] = []
+    silence = parts_dir / "silence.wav"
+    joined = gap > 0 and len(parts) > 1
+    if joined:
+        run([ff, "-y", "-v", "error", "-f", "lavfi", "-i", "anullsrc=r=48000:cl=mono", "-t", f"{gap:.3f}", "-c:a", "pcm_s16le", str(silence)], desc="the silence between parts", timeout=120)
+    offset = 0.0
+    for i, part in enumerate(parts):
+        entries.append(part["file"])
+        rows.append({"no": part["no"], "name": part["name"], "duration": part["duration"], "offset": round(offset, 2)})
+        offset += part["duration"]
+        if joined and i < len(parts) - 1:
+            entries.append(silence)
+            offset += gap
+    join = parts_dir / "join.txt"
+    join.write_text("".join(_concat_line(e) for e in entries), encoding="utf-8")
+    out = voice_dir(pid) / "narration.wav"
+    run([ff, "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", str(join), "-ac", "1", "-ar", "48000", "-c:a", "pcm_s16le", str(out)], desc="joining the parts", timeout=900)
+    total = probe(out).duration
+    if total < 1.0 or total > 180:
+        raise MotionError("voice", f"The narration is {total:.1f} seconds: it must be between 1 and 180.")
+    return {"parts": rows, "duration": round(total, 2), "gap": gap}
+
+
+def _check_audio(source: Path) -> None:
+    if source.suffix.lower() not in AUDIO_EXTS:
+        raise MotionError("voice", f"A narration is an audio file ({', '.join(sorted(AUDIO_EXTS))}), not {source.suffix.lower() or 'a file without an extension'}.")
+    if not source.is_file():
+        raise MotionError("voice", f"{source.name} was not found.")
+    if source.stat().st_size > MAX_VOICE_BYTES:
+        raise MotionError("voice", f"{source.name} is too big for a narration.")
+
+
+def import_voice_parts(pid: str, sources: list[Path], gap: float = voicelib.GAP) -> dict:
+    """Several narration files of one video: their order is the number at the end of each name (natural), checked by voicelib.series. One file is
+    the same as import_voice. The warnings (a missing number, another prefix, the loudness) are kept in the voice's notes."""
+    if not sources:
+        raise MotionError("voice", "Choose the narration files first.")
+    if len(sources) == 1:
+        return import_voice(pid, source=sources[0])
+    for s in sources:
+        _check_audio(s)
+    sv = voicelib.series([s.name for s in sources])
+    if not sv["ok"]:
+        raise MotionError("voice", " ".join(sv["errors"]))
+    gap = min(1.0, max(0.0, float(gap)))
+    notes = list(sv["warnings"])
+    with _LOCK:
+        p = load(pid)
+        d = voice_dir(pid)
+        shutil.rmtree(d, ignore_errors=True)
+        (d / "originals").mkdir(parents=True, exist_ok=True)
+        originals = []
+        for no, idx in enumerate(sv["order"], 1):
+            src = sources[idx]
+            dst = d / "originals" / f"{no:03d}__{src.name}"
+            shutil.copyfile(src, dst)
+            originals.append((no, src.name, dst))
+        try:
+            built = _build_voice(pid, originals, gap, notes)
+        except MotionError:
+            shutil.rmtree(d, ignore_errors=True)
+            raise
+        except Exception as exc:                                  # noqa: BLE001
+            shutil.rmtree(d, ignore_errors=True)
+            raise MotionError("voice", f"The narration parts could not be joined ({type(exc).__name__}).") from None
+        (project_dir(pid) / "story.voiced.json").unlink(missing_ok=True)
+        p["voice"] = {"name": f"{len(sources)} files", "duration": built["duration"], "at": int(time.time()), "aligned": False,
+                      "parts": built["parts"], "gap": built["gap"], "notes": notes}
+        save(p)
+    return p["voice"]
+
+
+def replace_voice_part(pid: str, no: int, source: Path) -> dict:
+    """Replaces one part (its number in the series) with another file: the others are kept, the join is made again, the alignment is cleared."""
+    _check_audio(source)
+    with _LOCK:
+        p = load(pid)
+        v = p.get("voice") or {}
+        parts = v.get("parts") or []
+        if not parts:
+            raise MotionError("voice", "This narration is one file: import the parts (several files) to replace one of them.")
+        if not 1 <= no <= len(parts):
+            raise MotionError("voice", f"There is no part {no}: the narration has {len(parts)}.")
+        d = voice_dir(pid)
+        for old in (d / "originals").glob(f"{no:03d}__*"):
+            old.unlink()
+        dst = d / "originals" / f"{no:03d}__{source.name}"
+        shutil.copyfile(source, dst)
+        originals = []
+        for k, part in enumerate(parts, 1):
+            if k == no:
+                originals.append((k, source.name, dst))
+            else:
+                originals.append((k, part["name"], d / "originals" / f"{k:03d}__{part['name']}"))
+        notes = [n for n in v.get("notes", []) if not n.startswith("the parts differed")]
+        built = _build_voice(pid, originals, float(v.get("gap", voicelib.GAP)), notes)
+        (d / "voice.json").unlink(missing_ok=True)
+        (project_dir(pid) / "story.voiced.json").unlink(missing_ok=True)
+        p["voice"] = {**v, "duration": built["duration"], "parts": built["parts"], "aligned": False, "notes": notes, "lengthChoice": None}
+        save(p)
+    return p["voice"]
+
+
+def choose_length(pid: str, choice: str) -> dict:
+    """The two choices when the aligned length is off by more than the policy (15 %): "continue" renders the video at the narration's length; "edit"
+    is the narration text (the page sends the person there, nothing is stored)."""
+    if choice not in ("continue", "edit"):
+        raise MotionError("voice", "The choice is continue or edit.")
+    with _LOCK:
+        p = load(pid)
+        if not p.get("voice"):
+            raise MotionError("voice", "There is no narration.")
+        p["voice"]["lengthChoice"] = "continue" if choice == "continue" else None
+        save(p)
+    return p["voice"]
+
+
+def subtitles_file(pid: str, fmt: str) -> Path | None:
+    if fmt not in ("srt", "vtt"):
+        return None
+    f = voice_dir(pid) / f"captions.{fmt}"
+    return f if f.is_file() else None
+
+
+def preview_file(pid: str) -> Path | None:
+    f = project_dir(pid) / "out" / "preview.mp4"
+    return f if f.is_file() else None
+
+
+def preview_video(pid: str) -> dict:
+    """The whole video at half size (540 by 960), with the narration, the sound effects and the bed, as a draft. The final render is unchanged."""
+    if story_of(pid) is None:
+        raise MotionError("no_story", "There is no story yet: paste the AI's answer first.")
+    return _start(pid, "preview-video", _run_preview_video)
+
+
 def clear_voice(pid: str) -> None:
     with _LOCK:
         p = load(pid)
@@ -571,9 +762,14 @@ def voice_info(pid: str) -> dict | None:
     aligned = bool(story and meta.get("storyHash") == _story_hash(story) and (project_dir(pid) / "story.voiced.json").is_file())
     timed = render_story(pid) if aligned else None
     total = timed["duration"] if timed else v["duration"]
+    table = meta.get("table") if aligned else None
     return {"name": v["name"], "duration": v["duration"], "aligned": aligned, "stale": bool(meta) and not aligned, "method": meta.get("method"), "ratio": meta.get("ratio"),
             "total": total, "target": p["duration"], "tts": bool(tts_available()),
-            "note": (f"The narration makes the video {total:.1f} s; it was planned for {p['duration']} s." if abs(total - p["duration"]) > 0.5 else "")}
+            "note": (f"The narration makes the video {total:.1f} s; it was planned for {p['duration']} s." if abs(total - p["duration"]) > 0.5 else ""),
+            "parts": v.get("parts") or [], "gap": v.get("gap", voicelib.GAP), "notes": v.get("notes") or [],
+            "table": table, "unmatched": (meta.get("unmatched") or []) if aligned else [],
+            "lengthOk": table["lengthOk"] if table else True, "lengthChoice": v.get("lengthChoice"),
+            "captions": bool(aligned and (voice_dir(pid) / "captions.srt").is_file())}
 
 
 def align_voice(pid: str) -> dict:
@@ -608,12 +804,19 @@ def _run_voice(pid: str, key, ev: threading.Event) -> None:
         if not v.get("ok"):
             msgs = "; ".join(f"{e['path']}: {e['message']}" for e in v.get("errors", [])[:3])
             raise MotionError("voice", f"The story does not fit the narration: {msgs}")
+        table = voicelib.match_table(story["beats"], timed, float(story["duration"]))
         _write(project_dir(pid) / "story.voiced.json", timed)
-        _write(voice_dir(pid) / "voice.json", {"storyHash": _story_hash(story), "method": al["method"], "ratio": al.get("ratio"), "total": total, "alignment": al, "at": int(time.time())})
+        _write(voice_dir(pid) / "voice.json", {"storyHash": _story_hash(story), "method": al["method"], "ratio": al.get("ratio"), "total": total, "alignment": al,
+                                               "table": table, "unmatched": al.get("unmatched", []), "at": int(time.time())})
+        (voice_dir(pid) / "captions.srt").write_text(voicelib.srt(timed), encoding="utf-8")
+        (voice_dir(pid) / "captions.vtt").write_text(voicelib.vtt(timed), encoding="utf-8")
         p = load(pid)
-        p["voice"] = {**p["voice"], "aligned": True}
+        p["voice"] = {**p["voice"], "aligned": True, "lengthChoice": None}
         save(p)
-        _finish(key, pid, state="done", percent=100, message=note or f"Selesai: video {timed['duration']:.1f} detik mengikuti narasi.", note=note)
+        msg = note or f"Selesai: video {timed['duration']:.1f} detik mengikuti narasi."
+        if not table["lengthOk"]:
+            msg += f" Panjang {table['total']:.1f} detik beda {table['percent']:+.0f}% dari {table['target']:.0f} detik: pilih lanjut atau ubah naskah."
+        _finish(key, pid, state="done", percent=100, message=msg, note=note)
     except MotionError as exc:
         _finish(key, pid, state="failed", message=exc.message, code=exc.code)
     except BaseException as exc:                              # noqa: BLE001
@@ -964,6 +1167,14 @@ def _set(key, **fields) -> None:
             _JOBS[key].update(fields)
 
 
+def _preview_state(pid: str, story) -> dict | None:
+    pv = load(pid).get("preview")
+    if not isinstance(pv, dict) or not preview_file(pid):
+        return None
+    current = render_story(pid) if story is not None else None
+    return {**pv, "url": f"/api/motion/preview-file?id={pid}&v={pv.get('storyHash')}", "stale": bool(current) and pv.get("storyHash") != _story_hash(current)}
+
+
 def _story_hash(story) -> str:
     return hashlib.sha1(json.dumps(story, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()[:12]
 
@@ -1012,6 +1223,9 @@ def preview(pid: str) -> dict:
 def render(pid: str) -> dict:
     """The MP4, through the same queue as clip renders. Refused while the fact gate is not passed."""
     problems = gate(pid)
+    v = voice_info(pid) or {}
+    if v.get("aligned") and not v.get("lengthOk") and v.get("lengthChoice") != "continue":
+        problems = problems + [f"The narration makes the video {v['total']:.1f} s, {v['table']['percent']:+.0f}% from the {v['target']} s chosen: edit the narration, or choose to continue at its length."]
     if problems:
         raise MotionError("gate", "Not yet: " + " ".join(problems), problems=problems)
     return _start(pid, "render", _run_render)
@@ -1143,6 +1357,43 @@ def _run_preview(pid: str, key, ev: threading.Event) -> None:
         _finish(key, pid, state="failed", message=exc.message, code=exc.code)
     except BaseException as exc:                              # noqa: BLE001
         _finish(key, pid, state="failed", message=f"The storyboard failed ({type(exc).__name__}).", code="other")
+
+
+def _run_preview_video(pid: str, key, ev: threading.Event) -> None:
+    try:
+        p = load(pid)
+        story = render_story(pid)
+        eta = Eta(RENDER_RATIO * float(story["duration"]) * PREVIEW_RATIO)
+        t0 = time.monotonic()
+        job = {"mode": "video", "story": str(story_file(pid)), "out": "preview.mp4", "outRoot": str(project_dir(pid) / "out"), "composition": composition_id(p), "preview": True}
+        if voice_file(pid) and story_file(pid).name == "story.voiced.json":
+            job["voice"] = str(voice_file(pid))
+
+        def on_line(d):
+            t = d.get("type")
+            if t == "progress" and d.get("stage") == "render":
+                frac = min(0.97, float(d.get("pct") or 0) / 100 * 0.96 + 0.01)
+                _set(key, percent=int(frac * 100), eta=_round(eta.update(time.monotonic() - t0, frac)), stage="rendering", message="Membuat pratinjau…")
+            elif t == "progress" and d.get("stage") == "browser":
+                _set(key, stage="preparing", message="Menyiapkan…")
+            elif t == "audio":
+                _set(key, percent=99, stage="sound", eta=None, message="Menambah suara…")
+
+        done = _run_job(pid, key, ev, "Membuat pratinjau…", job, on_line)
+        if done is None:
+            return _finish(key, pid, state="cancelled", message="Dibatalkan.", percent=0, eta=None)
+        made = Path(done.get("out") or (project_dir(pid) / "out" / "preview.mp4"))
+        if not made.is_file():
+            raise MotionError("render", "The preview finished but the file is missing.")
+        seconds = round(time.monotonic() - t0, 1)
+        p = load(pid)
+        p["preview"] = {"file": "preview.mp4", "at": int(time.time()), "seconds": seconds, "duration": story["duration"], "storyHash": _story_hash(story)}
+        save(p)
+        _finish(key, pid, state="done", percent=100, eta=None, stage="", message=f"Pratinjau siap ({seconds:.0f} detik).", seconds=seconds)
+    except MotionError as exc:
+        _finish(key, pid, state="failed", message=exc.message, code=exc.code, eta=None)
+    except BaseException as exc:                              # noqa: BLE001
+        _finish(key, pid, state="failed", message=f"The preview failed ({type(exc).__name__}).", code="other", eta=None)
 
 
 def _post_of(p: dict, story: dict) -> dict:

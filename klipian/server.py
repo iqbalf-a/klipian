@@ -805,6 +805,24 @@ class Handler(BaseHTTPRequestHandler):
             return {"brief": text, "file": f"{p['id']}-{'revisi' if kind == 'revise' else 'brief'}.md"}
         return self._motion_reply(brief)
 
+    def _get_motion_subtitles(self):
+        q = parse_qs(urlparse(self.path).query)
+        f = _motion.subtitles_file((q.get("id") or [""])[0], (q.get("format") or [""])[0])
+        if f is None:
+            return self._send_json({"error": "no subtitles yet: match the narration first"}, 404)
+        fmt = (q.get("format") or ["srt"])[0]
+        return self._send_file(f, "text/vtt; charset=utf-8" if fmt == "vtt" else "application/x-subrip; charset=utf-8")
+
+    def _get_motion_preview_file(self):
+        q = parse_qs(urlparse(self.path).query)
+        try:
+            f = _motion.preview_file((q.get("id") or [""])[0])
+        except _motion.MotionError:
+            f = None
+        if f is None:
+            return self._send_json({"error": "no preview yet"}, 404)
+        return self._send_file(f, "video/mp4")
+
     def _get_motion_still(self):
         q = parse_qs(urlparse(self.path).query)
         try:
@@ -871,6 +889,15 @@ class Handler(BaseHTTPRequestHandler):
             return self._motion_reply(lambda: (_motion.clear_voice(pid), {})[1])
         if action == "voice-tts":
             return self._motion_reply(lambda: {"voice": _motion.make_voice_with_tts(pid)})
+        if action == "voice-parts":                                   # several narration files, by their paths on this computer (ordered by their numbers)
+            paths_list = [Path(str(x).strip().strip('"')) for x in (req.get("paths") or []) if str(x).strip()]
+            return self._motion_reply(lambda: {"voice": _motion.import_voice_parts(pid, paths_list, float(req.get("gap") if req.get("gap") is not None else _motion.voicelib.GAP))})
+        if action == "voice-part":                                    # one part of the series replaced by another file
+            return self._motion_reply(lambda: {"voice": _motion.replace_voice_part(pid, int(req.get("no") or 0), Path(str(req.get("path") or "").strip().strip('"')))})
+        if action == "voice-length":                                  # the length choice: continue at the narration's length, or edit the text
+            return self._motion_reply(lambda: {"voice": _motion.choose_length(pid, str(req.get("choice") or ""))})
+        if action == "preview-video":
+            return self._motion_reply(lambda: {"job": _motion.preview_video(pid)})
         return self._send_json({"error": "unknown action"}, 404)
 
     def _post_youtube(self):
@@ -1409,6 +1436,8 @@ class Handler(BaseHTTPRequestHandler):
         "/api/motion/status": _get_motion_status,
         "/api/motion/brief": _get_motion_brief,
         "/api/motion/still": _get_motion_still,
+        "/api/motion/subtitles": _get_motion_subtitles,
+        "/api/motion/preview-file": _get_motion_preview_file,
         "/api/ytdl/status": _get_ytdl_status,
         "/api/ytdl/state": _get_ytdl_state,
         "/api/youtube/status": _get_youtube_status,
@@ -2303,6 +2332,10 @@ class Handler(BaseHTTPRequestHandler):
         "/api/motion/voice-align": _post_motion,
         "/api/motion/voice-clear": _post_motion,
         "/api/motion/voice-tts": _post_motion,
+        "/api/motion/voice-parts": _post_motion,
+        "/api/motion/voice-part": _post_motion,
+        "/api/motion/voice-length": _post_motion,
+        "/api/motion/preview-video": _post_motion,
         "/api/motion/voice-upload": _post_motion_voice_upload,
         "/api/ytdl/preview": _post_ytdl,
         "/api/ytdl/start": _post_ytdl,

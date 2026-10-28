@@ -5499,6 +5499,11 @@ def check_voice() -> tuple[str, str]:
         d = detail(pid)
         if job["state"] != "done" or d["stills"]["stale"] or sorted(d["stills"]["files"]) != ["hook", "outro"]:
             problems.append(f"the stills of the voiced story: {job}")
+        # the narration (6 s) is far from the story's 2 s: the render waits for the person's choice (the 15 % policy), then follows the voice
+        st_r, j_r = post("render", {"id": pid})
+        if st_r != 409 or "continue" not in str(j_r.get("error", "")):
+            problems.append(f"a render beyond the length policy waits for the choice: {st_r} {str(j_r)[:120]}")
+        post("voice-length", {"id": pid, "choice": "continue"})
         st, j = post("render", {"id": pid})
         job = wait(pid)
         if job["state"] != "done":
@@ -5592,8 +5597,189 @@ def check_motion_brief() -> tuple[str, str]:
     return PASS, "the brief for 30, 45 and 60 s carries the hook, the small sting, the loop-back outro, one hero and the kinds of fact; no old wording"
 
 
+# check: several narration files (PLAN-ALUR-V2 phase 1): the order by number (2 before 10), a gap in the series and another prefix as warnings,
+# a name with no number refused; the join is as long as the parts and the gaps, with silence between them; one part replaced without the others; the
+# match table (a beat off by more than 20 % or 1.5 s is flagged; a length beyond 15 % needs a choice); the unmatched words; the subtitles (srt, vtt);
+# the half-size draft preview. Tones only, never a voice. The recogniser is a fake that hears the words at known times.
+def check_voiceparts() -> tuple[str, str]:
+    import array
+    import wave
+    from . import motion, motion_voice, paths, profiles
+    from .ffmpeg_tools import _require, probe, run
+
+    ok, why = motion._node.ready()
+    if not ok:
+        return SKIP, why
+    problems: list[str] = []
+    tiny = json.loads((FIXTURES / "motion" / "tiny-story.json").read_text(encoding="utf-8"))
+    old_durations, old_whisper = motion.DURATIONS, motion._whisper
+    motion.DURATIONS = (2,) + tuple(old_durations)
+    profiles.write_meta("vp1", {"name": "vp1", "color": "#336699", "defaults": {}})
+    profiles.ensure_dirs("vp1")
+    tok = paths.set_profile("vp1")                                   # a scratch profile in the selftest's workspace, never the real one
+    work = paths.workspace_dir() / "vp-src"
+    work.mkdir(parents=True, exist_ok=True)
+    try:
+        ff = _require("ffmpeg")
+
+        def tone(name: str, seconds: float, hz: int, volume: float = 0.5) -> Path:
+            f = work / name
+            run([ff, "-y", "-loglevel", "error", "-f", "lavfi", "-i", f"sine=frequency={hz}:duration={seconds}:sample_rate=22050",
+                 "-af", f"volume={volume}", str(f)], desc="a test tone", timeout=60)
+            return f
+
+        # --- the order and the warnings, without audio
+        order = motion_voice.series(["colokan_10.wav", "colokan_2.wav", "colokan_1.wav"])
+        names = [["colokan_10.wav", "colokan_2.wav", "colokan_1.wav"][i] for i in order["order"]]
+        if names != ["colokan_1.wav", "colokan_2.wav", "colokan_10.wav"]:
+            problems.append(f"the parts are ordered by their number, 2 before 10: {names}")
+        if not any("no part 3" in w for w in order["warnings"]):
+            problems.append(f"a gap in the series is a warning: {order['warnings']}")
+        if not any("prefix" in w for w in motion_voice.series(["a_1.wav", "b_2.wav"])["warnings"]):
+            problems.append("another prefix is a warning")
+        if motion_voice.series(["colokan_x.wav", "colokan_1.wav"])["ok"]:
+            problems.append("a part with no number is refused")
+        if motion_voice.series(["c_1.wav", "c_01.wav"])["ok"]:
+            problems.append("two parts with the same number are refused")
+
+        # --- the import: three parts, one quiet (the loudness is evened out and said so)
+        p1 = tone("colokan_1.wav", 2.0, 220)
+        p2 = tone("colokan_2.wav", 1.5, 330)
+        p10 = tone("colokan_10.wav", 1.0, 440, volume=0.05)
+        pid = motion.create("contoh bagian suara", 2)["id"]
+        motion.paste(pid, json.dumps(tiny))
+        v = motion.import_voice_parts(pid, [p10, p2, p1])
+        parts = v.get("parts") or []
+        if [x["name"] for x in parts] != ["colokan_1.wav", "colokan_2.wav", "colokan_10.wav"]:
+            problems.append(f"the import orders the parts by their number: {[x['name'] for x in parts]}")
+        expect = 2.0 + 1.5 + 1.0 + 2 * motion_voice.GAP
+        if abs(v.get("duration", 0) - expect) > 0.06:
+            problems.append(f"the joined narration lasts the parts and the two gaps: {v.get('duration')} vs {expect:.2f}")
+        if len(parts) == 3 and abs(parts[1]["offset"] - (2.0 + motion_voice.GAP)) > 0.03:
+            problems.append(f"part 2 starts after part 1 and the gap: {parts[1]['offset']}")
+        if not any("evened out" in n for n in v.get("notes", [])):
+            problems.append(f"a part much quieter than the others is evened out and said so: {v.get('notes')}")
+        if not any("no part 3" in n for n in v.get("notes", [])):
+            problems.append(f"the gap in the series is kept in the notes: {v.get('notes')}")
+        wav = motion.voice_dir(pid) / "narration.wav"
+        with wave.open(str(wav)) as w:
+            rate, ch, frames = w.getframerate(), w.getnchannels(), w.getnframes()
+            raw = w.readframes(frames)
+        if rate != 48000 or ch != 1:
+            problems.append(f"the joined narration is 48 kHz mono: {rate} Hz, {ch} channels")
+        samples = array.array("h", raw)
+        quiet = samples[int(48000 * 2.05):int(48000 * 2.2)]
+        if quiet and max(abs(s) for s in quiet) > 300:
+            problems.append("the silence between parts 1 and 2 is silent")
+
+        # --- one part replaced: the others kept, the join made again, the alignment cleared
+        p2b = tone("replacement.wav", 3.0, 550)
+        v2 = motion.replace_voice_part(pid, 2, p2b)
+        if abs(v2["parts"][1]["duration"] - 3.0) > 0.03 or abs(v2["duration"] - (2.0 + 3.0 + 1.0 + 2 * motion_voice.GAP)) > 0.06:
+            problems.append(f"replacing part 2 rebuilds the join: {v2['parts'][1]['duration']} s, total {v2['duration']} s")
+        if v2["parts"][0]["name"] != "colokan_1.wav" or v2["parts"][2]["name"] != "colokan_10.wav":
+            problems.append("the other parts keep their names")
+        if motion.voice_info(pid)["aligned"]:
+            problems.append("a replaced part clears the alignment")
+        try:
+            motion.replace_voice_part(pid, 9, p2b)
+            problems.append("a part number that is not there is refused")
+        except motion.MotionError:
+            pass
+
+        # --- a joined narration with no gap, and the refusals
+        v3 = motion.import_voice_parts(pid, [p1, p2], gap=0.0)
+        if abs(v3["duration"] - 3.5) > 0.03:
+            problems.append(f"a gap of 0 joins the parts end to end: {v3['duration']}")
+        bad = tone("colokan_x.wav", 1.0, 220)
+        try:
+            motion.import_voice_parts(pid, [bad, p1])
+            problems.append("a part with no number is refused on import")
+        except motion.MotionError as exc:
+            if "number" not in exc.message:
+                problems.append(f"the refusal says what to change: {exc.message}")
+
+        # --- the match: the recogniser hears the words of the hook and the outro, but not one of the hook's
+        motion.import_voice_parts(pid, [p1, p2, p10], gap=motion_voice.GAP)
+        hook_words, outro_words = tiny["beats"][0]["narration"].split(), tiny["beats"][1]["narration"].split()
+        dropped = hook_words[1]
+
+        class Hears:
+            def words(self, audio):
+                heard = [w for w in hook_words if w != dropped]
+                out = [{"text": w.strip(",.?!").lower(), "start": 0.2 + i * 0.4, "end": 0.2 + i * 0.4 + 0.35} for i, w in enumerate(heard)]
+                out += [{"text": w.strip(",.?!").lower(), "start": 3.4 + i * 0.5, "end": 3.4 + i * 0.5 + 0.45} for i, w in enumerate(outro_words)]
+                return out
+
+        motion._whisper = Hears()
+        motion.align_voice(pid)
+        end = time.time() + 180
+        while time.time() < end and motion.job_state(pid).get("state") not in ("done", "failed", "cancelled"):
+            time.sleep(0.3)
+        if motion.job_state(pid).get("state") != "done":
+            problems.append(f"the match finished: {motion.job_state(pid)}")
+        info = motion.voice_info(pid)
+        table = info.get("table") or {}
+        if len(table.get("beats", [])) != len(tiny["beats"]):
+            problems.append("the match table has a row per beat")
+        if not any(b["warn"] for b in table.get("beats", [])):
+            problems.append("a beat off by more than 20 % or 1.5 s is flagged")
+        if table.get("lengthOk") is not False or info.get("lengthOk") is not False:
+            problems.append(f"a length beyond 15 % of the chosen one is not accepted: {table.get('percent')}")
+        if [u["w"] for u in info.get("unmatched", [])] != [dropped.strip(",.?!").lower()]:
+            problems.append(f"the words the recogniser could not match are shown: {info.get('unmatched')}")
+        try:
+            motion.render(pid)
+            problems.append("a render beyond the length policy is refused until the person chooses")
+        except motion.MotionError as exc:
+            if exc.code != "gate" or "continue" not in exc.message:
+                problems.append(f"the render refusal says the choice: {exc.code} {exc.message[:120]}")
+        motion.choose_length(pid, "continue")
+        if motion.voice_info(pid)["lengthChoice"] != "continue":
+            problems.append("the choice to continue is kept")
+        srt_text = motion_voice.srt(motion.render_story(pid))
+        if "-->" not in srt_text:
+            problems.append("the srt has cues")
+        if hook_words[0].strip(",.?!") not in srt_text:
+            problems.append("the srt holds the words of the narration")
+        vtt_text = motion_voice.vtt(motion.render_story(pid))
+        if not vtt_text.startswith("WEBVTT") or "." not in vtt_text.split("-->")[0]:
+            problems.append("the vtt starts with WEBVTT and uses dots in the times")
+        if motion.subtitles_file(pid, "srt") is None or motion.subtitles_file(pid, "vtt") is None:
+            problems.append("the subtitle files are written next to the narration")
+        # the cues: at most two lines of 42 characters
+        for c in motion_voice.cues(motion.render_story(pid)):
+            if len(c["lines"]) > 2 or any(len(ln) > 42 for ln in c["lines"]):
+                problems.append(f"a cue is at most two lines of 42 characters: {c['lines']}")
+                break
+
+        # --- the half-size draft: the whole video with the narration, rendered
+        motion.preview_video(pid)
+        end = time.time() + 300
+        while time.time() < end and motion.job_state(pid).get("state") not in ("done", "failed", "cancelled"):
+            time.sleep(0.5)
+        pv = motion.preview_file(pid)
+        if motion.job_state(pid).get("state") != "done" or pv is None:
+            problems.append(f"the draft preview is made: {motion.job_state(pid)}")
+        else:
+            mi = probe(pv)
+            if (mi.width, mi.height) != (540, 960):
+                problems.append(f"the draft is half size, 540 by 960: {mi.width} by {mi.height}")
+            if not mi.has_audio:
+                problems.append("the draft has the sound")
+    finally:
+        motion._whisper = old_whisper
+        motion.DURATIONS = old_durations
+        paths._profile.reset(tok)
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, ("several parts ordered by number (2 before 10), gaps and another prefix as warnings, a bad name refused, the join with silence, one part replaced, "
+                  "the match table and its length policy, the unmatched words, srt and vtt, the half-size draft with sound")
+
+
+
 CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch,
-          "motion": check_motion, "motionbrief": check_motion_brief, "voice": check_voice, "decode": check_decode, "render": check_render}
+          "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "voice": check_voice, "decode": check_decode, "render": check_render}
 
 
 def _global_state() -> dict:

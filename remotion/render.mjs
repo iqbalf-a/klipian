@@ -11,6 +11,7 @@
 //        "mode": "stills" renders one picture per beat into the folder "out" (<beat id>.png, "at": 0..1 of the beat); "outRoot": an absolute folder to write into instead of out/,
 //        "voice": "<abs path of a 48 kHz WAV>" (the narration: mixed on top, effects and the story's music bed duck under it),
 //        "sound": false (optional: no sound effects; default true: they are mixed from the story and muxed in as AAC),
+//        "preview": true (optional: a draft of the video, half size and a faster encode; the same timing, sound included),
 //        "composition": "FunFact" (default) | "Dissect3D" (no story), "gl": "angle" | "swangle" | "swiftshader" | "egl" | "vulkan" (optional) }
 // Cancel: SIGINT/SIGTERM/SIGBREAK, or a line "cancel" on stdin (Windows cannot deliver SIGTERM), is passed to Remotion's cancel signal.
 import { createHash } from "node:crypto";
@@ -221,6 +222,7 @@ async function main() {
     composition, serveUrl, outputLocation: silent, codec: "h264", inputProps, chromiumOptions, port,
     muted: true,                                           // the voice-over comes later (P28-C); the sound effects are added below
     concurrency: job.concurrency ?? null,
+    ...(job.preview ? { scale: 0.5, crf: 30, x264Preset: "veryfast" } : {}),   // a draft: half size (540 by 960), a faster encode; the same frames and timing
     cancelSignal, logLevel: "error",
     onProgress: ({ progress: p, renderedFrames, encodedFrames }) => progress("render", p * 100, { renderedFrames, encodedFrames, total: composition.durationInFrames }),
   });

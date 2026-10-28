@@ -69,7 +69,9 @@ def align(beats: list[dict], heard: list[dict], total: float) -> dict:
     if not flat or ratio < MATCH_MIN:
         out = estimate(beats, total)
         out["ratio"] = round(ratio, 2)
+        out["unmatched"] = []                                  # the estimate does not use what was heard: nothing to show
         return out
+    unmatched = [{"beat": beats[flat[i][0]]["id"], "w": flat[i][1]} for i, t in enumerate(times) if t is None]
     # the words that were not heard: spread between the neighbours that were
     i = 0
     while i < len(times):
@@ -94,7 +96,9 @@ def align(beats: list[dict], heard: list[dict], total: float) -> dict:
         b = max(b, a + 0.02)
         fixed.append((a, b))
         prev = b
-    return _collect(beats, flat, fixed, "whisper", ratio)
+    out = _collect(beats, flat, fixed, "whisper", ratio)
+    out["unmatched"] = unmatched
+    return out
 
 
 def _collect(beats, flat, times, method: str, ratio: float) -> dict:
@@ -138,6 +142,115 @@ def timed_story(story: dict, alignment: dict, total: float, min_hold: float = MI
     s["duration"] = round(sum(b["dur"] for b in beats), 3)
     s["captions"] = True
     return s
+
+
+# --------------------------------------------------------------------------
+# several narration files: their order and what is wrong with the series (no files here: the names only)
+# --------------------------------------------------------------------------
+
+PART_RE = re.compile(r"^(?P<prefix>.*?)[ _-]*(?P<num>\d+)$")
+GAP = 0.25                   # seconds of silence between two parts (a setting of 0 to 1 s)
+PART_MIN, PART_MAX = 0.3, 180.0
+
+
+def series(names: list[str]) -> dict:
+    """The order of the parts: by the number at the end of each name (natural: 2 before 10), not by the name. {"ok", "order" (indexes into names),
+    "warnings", "errors"}. A name with no number is an error when there are several parts; a missing number or a different prefix is a warning."""
+    out: dict = {"ok": True, "order": list(range(len(names))), "warnings": [], "errors": []}
+    if len(names) <= 1:
+        return out
+    rows = []
+    for i, name in enumerate(names):
+        m = PART_RE.match(Path(name).stem)
+        if not m:
+            out["errors"].append(f"{name}: a part needs a number at the end of its name, like colokan_1.wav")
+            continue
+        rows.append((int(m.group("num")), m.group("prefix").rstrip(" _-"), i))
+    if out["errors"]:
+        out["ok"] = False
+        return out
+    rows.sort()
+    nums = [r[0] for r in rows]
+    if len(set(nums)) != len(nums):
+        out["errors"].append(f"two parts have the same number: {', '.join(str(n) for n in sorted({n for n in nums if nums.count(n) > 1}))}")
+        out["ok"] = False
+        return out
+    prefixes = sorted({r[1] for r in rows})
+    if len(prefixes) > 1:
+        out["warnings"].append(f"the names do not share one prefix: {', '.join(repr(p) for p in prefixes)}")
+    missing = [n for n in range(nums[0], nums[-1] + 1) if n not in nums]
+    if missing:
+        out["warnings"].append(f"the series has no part {', '.join(str(n) for n in missing)}")
+    out["order"] = [r[2] for r in rows]
+    return out
+
+
+# --------------------------------------------------------------------------
+# the match table and the subtitles (from the aligned, timed story)
+# --------------------------------------------------------------------------
+
+BEAT_WARN_PCT = 0.20         # a beat off by more than this share of its planned length is flagged
+BEAT_WARN_S = 1.5            # or by more than this many seconds
+LENGTH_MAX_PCT = 0.15        # the video follows the voice when its length is within this share of the chosen length
+
+
+def match_table(planned: list[dict], timed: dict, target: float) -> dict:
+    """Per beat: the planned length (the story as written), the real length (the aligned story), the difference and a warning; the new total and
+    whether the length policy holds (within LENGTH_MAX_PCT of the chosen length)."""
+    rows = []
+    for plan_beat, real in zip(planned, timed["beats"]):
+        expected, got = float(plan_beat["dur"]), float(real["dur"])
+        delta = round(got - expected, 2)
+        warn = abs(delta) > BEAT_WARN_S or (expected > 0 and abs(delta) > BEAT_WARN_PCT * expected)
+        rows.append({"id": real["id"], "expected": round(expected, 2), "real": round(got, 2), "delta": delta, "warn": warn})
+    total = round(float(timed["duration"]), 2)
+    pct = round((total - target) / target * 100, 1) if target else 0.0
+    return {"beats": rows, "total": total, "target": target, "percent": pct, "lengthOk": abs(total - target) <= LENGTH_MAX_PCT * target + 1e-9}
+
+
+def _stamp(sec: float, sep: str) -> str:
+    ms = int(round(max(0.0, sec) * 1000))
+    h, ms = divmod(ms, 3600_000)
+    m, ms = divmod(ms, 60_000)
+    s, ms = divmod(ms, 1000)
+    return f"{h:02d}:{m:02d}:{s:02d}{sep}{ms:03d}"
+
+
+LINE_MAX = 42                # characters a line may hold
+LINES_PER_CUE = 2
+
+
+def cues(story: dict) -> list[dict]:
+    """One cue per caption: up to two lines of LINE_MAX characters, from the word times of the timed story (each beat's words are relative to its
+    start). {"start", "end", "lines"} in seconds of the video. A cue never crosses a beat."""
+    out: list[dict] = []
+    cursor = 0.0
+    for beat in story["beats"]:
+        lines: list[list[str]] = []
+        start = end = None
+        for w in beat.get("words") or []:
+            a, b = cursor + float(w["a"]), cursor + float(w["b"])
+            if not lines or len(" ".join(lines[-1] + [w["w"]])) > LINE_MAX:
+                if len(lines) == LINES_PER_CUE:                 # a cue is full: close it, start the next
+                    out.append({"start": start, "end": end, "lines": [" ".join(ln) for ln in lines]})
+                    lines, start = [], None
+                lines.append([])
+            if start is None:
+                start = a
+            lines[-1].append(w["w"])
+            end = b
+        if lines and start is not None:
+            out.append({"start": start, "end": end, "lines": [" ".join(ln) for ln in lines if ln]})
+        cursor += float(beat["dur"])
+    return out
+
+
+def srt(story: dict) -> str:
+    return "".join(f"{i}\n{_stamp(c['start'], ',')} --> {_stamp(c['end'], ',')}\n" + "\n".join(c["lines"]) + "\n\n" for i, c in enumerate(cues(story), 1))
+
+
+def vtt(story: dict) -> str:
+    return "WEBVTT\n\n" + "".join(f"{_stamp(c['start'], '.')} --> {_stamp(c['end'], '.')}\n" + "\n".join(c["lines"]) + "\n\n" for c in cues(story))
 
 
 # --------------------------------------------------------------------------

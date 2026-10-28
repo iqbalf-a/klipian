@@ -144,6 +144,16 @@ for (const { f, src } of sourceFiles) {
 add(literals.length === 0 ? "PASS" : "FAIL", `must 3 (a): every colour comes from the tokens (${literals.length ? `literal colours: ${literals.join("; ")}` : `none${exceptions.length ? `, except ${exceptions.length} registered exception(s)` : ""}`})`);
 if (exceptions.length) add("INFO", `registered colour exceptions: ${exceptions.map((e) => `${e.match}: ${e.reason}`).join(" | ")}`);
 
+// B17 (the text style is locked, DESIGN.md section 0b): the fonts are the tokens' (Outfit bold for the text, DM Mono for the labels); a literal font
+// name is a FAIL unless it is one of the registered exceptions. The captions use the same tokens (src/components/Captions.tsx).
+const fontLits = [];
+for (const { f, src } of sourceFiles) {
+  let rest = src;
+  for (const ex of exceptions) rest = rest.split(ex.match).join("");
+  if (/fontFamily:\s*['"`][^'"`]+['"`]/.test(rest)) fontLits.push(f);
+}
+add(fontLits.length === 0 ? "PASS" : "FAIL", `B17: every font is the locked text style's (${fontLits.length ? `literal font names in ${fontLits.join(", ")}` : "the tokens' fonts, or the registered exceptions only"})`);
+
 const planSrc = existsSync(planFile) ? readFileSync(planFile, "utf8") : "";
 const planExceptions = [...planSrc.matchAll(/motion-exception:\s*([^\n*]+)/g)].map((m) => m[1].trim());
 const motionBreaks = [];                                          // the range breaks; a plan's written exception makes them INFO

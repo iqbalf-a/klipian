@@ -43,4 +43,9 @@ export const BLUR_TRANSITIONS = ["lens", "slide", "wipe", "zoom"] as const;
 export const STYLE_EXCEPTIONS: readonly { video: string; match: string; reason: string }[] = [
   { video: "kenapa-colokan-panas", match: "rgb(52,52,54)", reason: "the dark scrim of the lab over the cutaway (one fixed grey; move it to tokens.ts in a later round)" },
   { video: "kenapa-colokan-panas", match: "linearGradient", reason: "the same scrim as a gradient (fades the lab into the stage); a gradient is an exception of the lab only" },
+  { video: "kenapa-colokan-panas", match: "\"DM Mono\", monospace", reason: "the DM Mono label font (B17) written out where the token FONT_MONO is not imported yet; move it to tokens in a later round" },
+  { video: "kenapa-colokan-panas", match: "\"Outfit\", sans-serif", reason: "the Outfit bold font (B17) written out where the token FONT_BOLD is not imported yet; move it to tokens in a later round" },
 ];
+
+/** B17 (the text style is locked): the fonts of a video are the tokens' fonts (FONT_BOLD, FONT_MONO); a literal font name is a FAIL unless registered above. */
+export const FONTS = { bold: "Outfit", mono: "DM Mono" } as const;

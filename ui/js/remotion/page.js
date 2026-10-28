@@ -211,6 +211,9 @@ byId("rmMain").addEventListener("click", async (e) => {
     if (act === "voiceAlign") return alignVoice();
     if (act === "voiceClear") return clearVoice();
     if (act === "voiceTts") return ttsVoice();
+    if (act === "voicePart") return pickPart(t.dataset.no);
+    if (act === "voiceLength") return chooseLength(t.dataset.choice);
+    if (act === "previewVideo") return startPreviewVideo();
     if (act === "copyFix") return copyFix(t);
     if (act === "copyRevise") return copyRevise(t);
     if (act === "downRevise") return downloadBrief("revise");
@@ -348,26 +351,73 @@ function drawVoice() {
   const have = v && v.name;
   sec.innerHTML = `
     <header><span class="rm-n">2b</span><h2>Suara (narasi)</h2></header>
-    <p>Rekam sendiri atau pakai file dari luar (wav, mp3, m4a, ...). klipian mencocokkan kata dengan suaranya di komputer ini, lalu setiap beat sepanjang narasinya dan takarir menyala kata demi kata. Tanpa layanan suara: tidak ada key.</p>
+    <p>Rekam sendiri atau pakai file dari luar (wav, mp3, m4a, ...). Satu file, atau beberapa file dengan nomor di akhir namanya (mis. colokan_1.wav, colokan_2.wav): urutannya dari nomor, bukan dari nama. klipian mencocokkan kata dengan suaranya di komputer ini. Tanpa layanan suara: tidak ada key.</p>
     ${have ? `<div class="rm-needs"><b>${esc(v.name)}</b> · ${v.duration} dtk · ${v.aligned ? `sudah dicocokkan (${esc(v.method === "whisper" ? "dari suara" : "perkiraan merata")}), video ${v.total} dtk` : v.stale ? "cerita berubah sejak dicocokkan: cocokkan lagi" : "belum dicocokkan"}${v.note ? `<br><span class="rm-hint">${esc(v.note)}</span>` : ""}</div>` : ""}
+    ${voicePartsHTML(v || {})}
     <div class="rm-actions">
-      <input class="ws-input rm-boxed rm-path" id="rmVoicePath" type="text" placeholder="Lokasi file suara, mis. D:\rekaman\narasi.wav" spellcheck="false">
-      <button class="btn" type="button" data-act="voicePath">Pakai file ini</button>
+      <textarea class="ws-input rm-boxed rm-path" id="rmVoicePath" rows="2" placeholder="Lokasi file suara, satu per baris, mis. D:\\rekaman\\colokan_1.wav" spellcheck="false"></textarea>
+      <label class="rm-hint">Jeda antar bagian (detik) <input class="ws-input rm-boxed" id="rmVoiceGap" type="number" min="0" max="1" step="0.05" value="0.25" style="width:72px"></label>
+    </div>
+    <div class="rm-actions">
+      <button class="btn" type="button" data-act="voicePath">${PART_TO_REPLACE ? `Ganti bagian ${PART_TO_REPLACE}` : "Pakai file ini"}</button>
       <label class="btn" for="rmVoiceFile">Pilih file…</label><input id="rmVoiceFile" type="file" accept="audio/*,video/mp4,video/webm" hidden>
       ${v && v.tts ? `<button class="btn" type="button" data-act="voiceTts" ${busy ? "disabled" : ""}>Buat dengan TTS lokal</button>` : ""}
     </div>
     <div class="rm-actions">
       <button class="btn main" type="button" data-act="voiceAlign" ${have && !busy ? "" : "disabled"}>${v && v.aligned ? "Cocokkan lagi" : "Cocokkan dengan narasi"}</button>
       ${have ? `<button class="btn danger" type="button" data-act="voiceClear" ${busy ? "disabled" : ""}>Hapus suara</button>` : ""}
+      ${v && v.captions ? `<a class="btn sm" href="${API}/subtitles?id=${encodeURIComponent(d.id)}&format=srt" download>Unduh .srt</a><a class="btn sm" href="${API}/subtitles?id=${encodeURIComponent(d.id)}&format=vtt" download>Unduh .vtt</a>` : ""}
       <span class="rm-hint" id="rmVoiceNote">${busy ? esc(job.message || "") : ""}</span>
-    </div>`;
+    </div>
+    ${v && v.aligned ? voiceTableHTML(v) : ""}`;
   byId("rmVoiceFile")?.addEventListener("change", uploadVoice);
 }
 
+let PART_TO_REPLACE = null;     // the number of the part the next path replaces (set by "Ganti bagian")
+
+function voicePartsHTML(v) {
+  if (!v.parts || !v.parts.length) return "";
+  const notes = (v.notes || []).map((n) => `<p class="rm-hint">${esc(n)}</p>`).join("");
+  return `<div class="rm-needs"><b>Bagian (${v.parts.length}), urut dari nomornya:</b><ul>${v.parts.map((x) => `<li>${esc(x.name)} · ${x.duration} dtk, mulai ${x.offset} dtk <button class="btn sm" type="button" data-act="voicePart" data-no="${x.no}">Ganti bagian ini</button></li>`).join("")}</ul>${notes}</div>`;
+}
+
+function voiceTableHTML(v) {
+  const t = v.table;
+  if (!t) return "";
+  const rows = t.beats.map((b) => `<tr data-warn="${b.warn}"><td><code>${esc(b.id)}</code></td><td>${b.expected.toFixed(1)}</td><td>${b.real.toFixed(1)}</td><td>${b.delta >= 0 ? "+" : ""}${b.delta.toFixed(1)}</td><td>${b.warn ? "periksa" : "sesuai"}</td></tr>`).join("");
+  const pct = `${t.percent >= 0 ? "+" : ""}${t.percent.toFixed(0)}%`;
+  const policy = t.lengthOk
+    ? `Panjang video ${t.total.toFixed(1)} dtk (${pct} dari ${t.target} dtk): masih dalam batas 15%.`
+    : `Panjang video ${t.total.toFixed(1)} dtk (${pct} dari ${t.target} dtk): di luar batas 15%. Pilih salah satu sebelum merender:`;
+  const choice = t.lengthOk ? "" : `<div class="rm-actions"><button class="btn" type="button" data-act="voiceLength" data-choice="edit">Ubah teks narasi</button><button class="btn main" type="button" data-act="voiceLength" data-choice="continue" ${v.lengthChoice === "continue" ? "disabled" : ""}>${v.lengthChoice === "continue" ? "Dipilih: lanjut" : "Lanjut dengan panjang ini"}</button></div>`;
+  const unmatched = (v.unmatched || []).length ? `<div class="rm-needs"><b>Kata yang tidak dikenali (periksa naskahnya):</b> ${v.unmatched.map((u) => `<code>${esc(u.w)}</code> (${esc(u.beat)})`).join(", ")}</div>` : "";
+  return `<div class="rm-needs"><b>Pencocokan per beat</b><table class="rm-table"><thead><tr><th>beat</th><th>rencana dtk</th><th>nyata dtk</th><th>selisih</th><th></th></tr></thead><tbody>${rows}</tbody></table><p>${esc(policy)}</p>${choice}</div>${unmatched}`;
+}
+
 async function importVoicePath() {
-  const path = byId("rmVoicePath").value.trim();
-  if (!path) return toast("Tulis lokasi file suaranya dulu.");
-  await call(`${API}/voice`, { id: CUR.id, path });
+  const lines = byId("rmVoicePath").value.split(/\r?\n/).map((x) => x.trim().replace(/^"|"$/g, "")).filter(Boolean);
+  if (!lines.length) return toast("Tulis lokasi file suaranya dulu.");
+  if (PART_TO_REPLACE) {
+    const no = PART_TO_REPLACE;
+    PART_TO_REPLACE = null;
+    await call(`${API}/voice-part`, { id: CUR.id, no, path: lines[0] });
+  } else if (lines.length > 1) {
+    const gap = Number(byId("rmVoiceGap")?.value ?? 0.25);
+    await call(`${API}/voice-parts`, { id: CUR.id, paths: lines, gap });
+  } else {
+    await call(`${API}/voice`, { id: CUR.id, path: lines[0] });
+  }
+  await refresh();
+}
+function pickPart(no) {
+  PART_TO_REPLACE = Number(no);
+  byId("rmVoicePath").focus();
+  toast(`Tulis lokasi file pengganti untuk bagian ${no}, lalu tekan Ganti bagian ${no}.`);
+  drawVoice();
+}
+async function chooseLength(choice) {
+  if (choice === "edit") return toast("Ubah teks narasi di langkah 3, lalu cocokkan lagi.");
+  await call(`${API}/voice-length`, { id: CUR.id, choice });
   await refresh();
 }
 async function uploadVoice(e) {
@@ -388,6 +438,21 @@ async function alignVoice() {
   drawVoice();
   startPoll();
 }
+async function startPreviewVideo() {
+  const j = await call(`${API}/preview-video`, { id: CUR.id });
+  CUR.job = j.job;
+  drawRender();
+  startPoll();
+}
+function previewVideoHTML(d) {
+  const pv = d.preview, job = d.job || {};
+  const busy = job.kind === "preview-video" && ["queued", "running"].includes(job.state);
+  return `<div class="rm-needs"><b>Pratinjau video</b> (setengah ukuran, dengan narasi, efek suara, dan musik)
+    <div class="rm-actions"><button class="btn" type="button" data-act="previewVideo" ${busy || !d.story ? "disabled" : ""}>${pv ? "Buat pratinjau lagi" : "Buat pratinjau"}</button><span class="rm-hint" id="rmPreviewVideoNote">${busy ? esc(job.message || "") : ""}</span></div>
+    ${pv && !busy ? `<video controls playsinline style="width:100%;max-width:360px;border-radius:8px;margin-top:6px" src="${pv.url}"></video><p class="rm-hint">${pv.stale ? "Cerita atau suara berubah sejak pratinjau ini: buat lagi." : `Dibuat dalam ${pv.seconds} dtk.`}</p>` : ""}
+  </div>`;
+}
+
 async function clearVoice() {
   const ok = await confirmDialog({ title: "Hapus suara?", message: "Video kembali memakai durasi dari cerita.", confirmText: "Hapus", cancelText: "Batal" });
   if (!ok) return;
@@ -575,6 +640,7 @@ function drawRender() {
       <button class="btn main large" type="button" data-act="render" ${gate.length || busy ? "disabled" : ""}>${r ? "Render lagi" : "Render"}</button>
       <span class="rm-hint">MP4 9:16 1080×1920, 30 fps, dengan sound effect.</span>
     </div>
+    ${previewVideoHTML(d)}
     ${jobHTML(job, "render")}
     ${r ? `<div class="rm-needs">Hasil terakhir: <b>${esc(r.file)}</b> (${r.seconds} dtk render). <a href="/workspace" style="color:var(--accent)">Buka di Clips</a> untuk jadwal dan unggah.</div>` : ""}`;
   // the preview's progress sits in the storyboard step
@@ -630,6 +696,7 @@ async function tick() {
   if (["queued", "running"].includes(j.job.state)) {
     if (j.job.kind === "render") drawRender();
     else if (j.job.kind === "voice") { const n = byId("rmVoiceNote"); if (n) n.textContent = `${j.job.message || ""} ${j.job.percent || 0}%`; }
+    else if (j.job.kind === "preview-video") { const n = byId("rmPreviewVideoNote"); if (n) n.textContent = `${j.job.message || ""} ${j.job.percent || 0}%`; }
     else { const n = byId("rmPreviewNote"); if (n) n.textContent = `${j.job.message || ""} ${j.job.percent || 0}%`; }
     return;
   }
@@ -645,6 +712,8 @@ async function tick() {
     notifyDone({ key, title: "Dibatalkan", kind: "failure", quiet: true });
   } else if (j.job.kind === "voice" && j.job.state === "done") {
     notifyDone({ key, title: "Narasi dicocokkan", body: j.job.note || "", kind: "success", quiet: true });
+  } else if (j.job.kind === "preview-video" && j.job.state === "done") {
+    notifyDone({ key, title: "Pratinjau video siap", body: j.job.message || "", kind: "success", quiet: true });
   } else if (j.job.kind === "preview" && j.job.state === "done") {
     notifyDone({ key, title: "Gambar storyboard siap", kind: "success", quiet: true });
   }
