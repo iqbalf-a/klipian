@@ -1629,14 +1629,16 @@ def build_brief(p: dict) -> str:
     rule = hashtags_mod.brief_rule(profiles.hashtag_settings())
     rules = "\n".join(f"{i}. {r}" for i, r in enumerate(HARD_RULES, 1))
     checklist = "\n".join(f"{i}. {item}" for i, item in enumerate(CHECKLIST, 1))
-    mode = ("**Mode.** If you can read and write files and run commands in the repository `D:\\github-repos\\klipian`, do Part A and, for Kind Khusus, "
-            "Part B. If you can only chat, do Part A and print the JSON in your reply.")
+    intro_tail = ("The video is made from one JSON story (Part A) and, for Kind Khusus, a folder of code (Part B)." if kind == "custom"
+                  else "The video is made from one JSON story (Part A).")
+    mode = ("**Mode.** If you can read and write files and run commands in the repository `D:\\github-repos\\klipian`, do Part A"
+            + (" and Part B" if kind == "custom" else "") + ". If you can only chat, do Part A and print the JSON in your reply.")
     music = ", ".join(f"`{t}`" for t in MUSIC_TRACKS.values())
     return f"""# klipian intip: one short vertical explainer video (about {d} seconds)
 
 ## Read this first
 
-You are an AI. You make one short vertical animated explainer for the channel klipian intip, from the topic below. The video is made from one JSON story (Part A); for Kind Khusus it is also a folder of code (Part B).
+You are an AI. You make one short vertical animated explainer for the channel klipian intip, from the topic below. {intro_tail}
 
 {mode}
 
@@ -1645,7 +1647,7 @@ You are an AI. You make one short vertical animated explainer for the channel kl
 **Hard rules (never break these):**
 {rules}
 
-**Definition of done:** the story JSON, checked (agent mode: validated; chat mode: checked against the checklist), and for Kind Khusus Part B. **Stop rule:** if a step fails, report the failure and stop; never claim success you did not see.
+**Definition of done:** the story JSON, checked (agent mode: validated; chat mode: checked against the checklist){', and for Kind Khusus Part B' if kind == 'custom' else ''}. **Stop rule:** if a step fails, report the failure and stop; never claim success you did not see.
 
 {_options_text(opts)}
 
