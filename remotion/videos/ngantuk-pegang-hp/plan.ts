@@ -12,9 +12,11 @@ import { SAFE } from "../../src/tokens.ts";
 import { PHONE } from "../../src/bedroomGeometry.ts";
 
 // the stage in world px at rest (camera focus 540, 960, zoom 1): the bed is 650 px wide (60 to 70 % of the frame), the eyes above it, the thought bubble at the eyes' upper right
-export const OUT = { u: 150, o: [475, 960] as P2 };
-export const EYES = { cx: 540, cy: 640, w: 520 };
-export const BUBBLE = { cx: 800, cy: 430, r: 92 };
+// opt-in (PLAN-LAYOUT-BOTTOM): the stage, the eyes and the bubble move down together by stageDrop px (the bed's base stays above the Shorts edge, 1632)
+export const stageDrop = 20;
+export const OUT = { u: 150, o: [475, 960 + stageDrop] as P2 };
+export const EYES = { cx: 540, cy: 640 + stageDrop, w: 520 };
+export const BUBBLE = { cx: 800, cy: 430 + stageDrop, r: 92 };
 export const PHONE_PT: P2 = isoAt([PHONE.c[0], PHONE.c[1], PHONE.c[2] + PHONE.h], OUT.u, OUT.o) as P2;
 export const BED_BOX: Box = (() => {
   const pts = ([[-0.1, -0.1, -0.35], [3.1, -0.1, -0.35], [-0.1, 2.1, -0.35], [3.1, 2.1, -0.35], [0, 0, 0.5], [3, 0, 0.5], [0.15, 0.3, 0.82]] as [number, number, number][]).map((p) => isoAt(p, OUT.u, OUT.o));
