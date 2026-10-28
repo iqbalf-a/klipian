@@ -10,6 +10,7 @@ import { RigDemo, RIG_DEMO_SECONDS } from "./RigDemo.tsx";
 import { IsoDemo, ISO_DEMO_SECONDS } from "./IsoDemo.tsx";
 import { IsoThreeDemo, ISO_THREE_SECONDS } from "./IsoThreeDemo.tsx";
 import { NatureDemo, NATURE_DEMO_SECONDS } from "./NatureDemo.tsx";
+import { ThemeCtx } from "./components/Backgrounds.tsx";
 import { NatureSheet } from "./NatureSheet.tsx";
 import { MarkSheet } from "./MarkSheet.tsx";
 import { SHEET_HEIGHT } from "./natureGeometry.ts";
@@ -20,6 +21,14 @@ import { VIDEOS } from "./videoRegistry.ts";
 
 const parsed = validateStory(sample);
 if (!parsed.ok) throw new Error("stories/colokan-panas.json is not a valid story:\n" + parsed.errors.join("\n"));
+
+/** A custom video inside its story's background theme (PLAN-VARIETY stage 2): the story's `theme`, cream when it has none. The video itself is unchanged. */
+const themed: Record<string, React.ComponentType<{ story: StoryT; layoutDebug?: boolean }>> = Object.fromEntries(VIDEOS.map((v) => {
+  const Themed: React.FC<{ story: StoryT; layoutDebug?: boolean }> = (props) => (
+    <ThemeCtx.Provider value={props.story.theme ?? "cream"}><v.Video {...props} /></ThemeCtx.Provider>
+  );
+  return [v.id, Themed];
+}));
 
 export const Root: React.FC = () => (
   <>
@@ -50,7 +59,7 @@ export const Root: React.FC = () => (
   <Composition id="CardsDemo" component={CardsDemo} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={90} />
   {/* the custom videos (videos/<slug>/): each one reads its checked story and is registered by its folder name */}
   {VIDEOS.map((v) => (
-    <Composition key={v.id} id={v.id} component={v.Video} width={FRAME.width} height={FRAME.height} fps={FRAME.fps} durationInFrames={totalFrames(v.story)}
+    <Composition key={v.id} id={v.id} component={themed[v.id]} width={FRAME.width} height={FRAME.height} fps={FRAME.fps} durationInFrames={totalFrames(v.story)}
       defaultProps={{ story: v.story as StoryT }} calculateMetadata={({ props }) => ({ durationInFrames: Math.max(1, totalFrames(props.story)) })} />
   ))}
   </>

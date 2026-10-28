@@ -2,6 +2,7 @@
    Coordinates are in 1080 x 1920 video units. The rules of the channel are enforced here: only components, expressions
    and poses of the catalogue, at most 6 words of screen text, every claim with a source. */
 import { z } from "zod";
+import { THEME_NAMES } from "./tokens.ts";
 import {
   ANCHOR_NAMES, MUSIC_NAMES, ARROW_COLORS, BACKGROUNDS, BEAT_KINDS, CAMERA_KINDS, CHIBI_COSTUMES, CHIBI_EXPRESSIONS, CHIBI_POSES, CHIBI_ROLES, CUTAWAY_VARIANTS, DIRECTIONS,
   ENTER_KINDS, EXIT_KINDS, LABEL_COLORS, MASCOT_EXPRESSIONS, MODELS, OUTSIDE_VARIANTS, SFX_NAMES, SOCKET_VIEWS, TRANSITION_KINDS,
@@ -168,6 +169,7 @@ export const Story = z.object({
   claims: z.array(Claim),
   post: z.object({ description: z.string().max(2000), hashtags: z.array(z.string().regex(/^#\S+$/)).max(10) }).strict(),
   needs: z.array(z.string()),
+  theme: z.enum(THEME_NAMES).optional(),                                 // the background theme of the whole video (missing = cream; PLAN-VARIETY stage 2)
   captions: z.boolean().optional(),                                       // the karaoke caption layer at the bottom (the words come from `words`, else an even estimate)
   music: z.object({ track: z.enum([...MUSIC_NAMES, "none"]), level: num.min(0).max(1.5).optional() }).strict().optional(),   // the bed under the voice; level scales it
 }).strict().superRefine((s, ctx) => {

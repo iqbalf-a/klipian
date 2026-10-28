@@ -162,4 +162,26 @@ for (const r of DICTIONARY.filter((k) => k.status === "drawn")) {
   yes(MUSIC["bed-calm"].dur === 24 && MUSIC["bed-tech"].dur === 24, "the legacy beds keep their 24 s loop");
 }
 
+// --- the background themes (PLAN-VARIETY stage 2): cream is today's look, every theme keeps the black labels readable (WCAG contrast of 4.5 or more on
+// the wall, the spot and the floor), and the story's theme is checked by the schema (a theme that is not listed is refused)
+{
+  const T = await import("../src/tokens.ts");
+  const lum = (c: string) => {
+    const [r, g, b] = (c.match(/\d+/g) ?? ["0", "0", "0"]).map((x) => Number(x) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const contrast = (a: string, b: string) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+  yes(T.THEMES.cream.wall === T.WALL && T.THEMES.cream.floor === T.FLOOR && T.THEMES.cream.spot === T.BRAND.spot && T.THEMES.cream.pattern === "dots", "cream is the channel's look so far (its tokens are today's constants)");
+  for (const name of T.THEME_NAMES) {
+    const th = T.THEMES[name];
+    for (const [what, c] of [["wall", th.wall], ["spot", th.spot], ["floor", th.floor]] as const) {
+      yes(contrast(T.BLACK, c) >= 4.5, `the theme ${name}: the black labels read on its ${what} (${contrast(T.BLACK, c).toFixed(1)}:1, 4.5 asked)`);
+    }
+    yes(["dots", "grid", "stripes"].includes(th.pattern), `the theme ${name} has a listed pattern`);
+  }
+  const themed = (theme: unknown) => validateStory({ ...JSON.parse(readFileSync(path.join(ROOT, "templates", "video", "story.json"), "utf8")), theme, bible: undefined });
+  yes(themed(undefined).ok && themed("sky").ok && themed("mint").ok, "a story with a listed theme (or none) is valid");
+  yes(!themed("night").ok, "a theme that is not listed is refused");
+}
+
 console.log(`style: ${n} checks ok`);

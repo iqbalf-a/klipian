@@ -2,6 +2,7 @@
    ones used, and it draws each beat with the scene function you give it. Beats overlap by their transitions exactly as in the template
    (the story's `transition` words: slide, wipe, zoom, through the lens), so the video lasts the sum of the beats. */
 import React from "react";
+import { ThemeCtx } from "../components/Backgrounds.tsx";
 import { useCurrentFrame } from "remotion";
 import { linearTiming, TransitionSeries } from "@remotion/transitions";
 import type { BeatT, StoryT } from "../schema.ts";
@@ -38,5 +39,5 @@ export const StoryVideo: React.FC<{ story: StoryT; scene: Scene; layoutDebug?: b
         <BeatFrame beat={p.beat} index={i} start={p.from} story={story} scene={scene} debug={layoutDebug} />
       </TransitionSeries.Sequence>);
   });
-  return <TransitionSeries>{children}</TransitionSeries>;
+  return <ThemeCtx.Provider value={story.theme ?? "cream"}><TransitionSeries>{children}</TransitionSeries></ThemeCtx.Provider>;
 };

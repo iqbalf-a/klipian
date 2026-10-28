@@ -52,6 +52,19 @@ export const BRAND = {
 export const LAB = {
   slate: rgb([70, 70, 72]), grid: rgb([84, 84, 86]), gridMajor: rgb([96, 96, 98]), glow: rgb([86, 82, 66]), glowInner: rgb([98, 92, 66]),
 } as const;
+/** The background themes (PLAN-VARIETY stage 2): one per video, the story's `theme` (missing = cream). Each is tokens only: the wall, the floor, the
+    ring pattern, the spot and its inner light, the floor edge, and the pattern (dots, grid or stripes). The lens `lab` stays dark in every theme.
+    cream is the channel's look so far (its values are the constants above). `night` is not in this stage: the labels are black text, which a dark
+    wall cannot carry; it waits for a light label colour. Contrast is checked in tests/style.test.ts. */
+export const THEMES = {
+  cream: { wall: WALL, floor: FLOOR, ring: BRAND.ring, spot: BRAND.spot, spotInner: BRAND.spotInner, floorEdge: BRAND.floorEdge, pattern: "dots" },
+  sky: { wall: rgb([222, 236, 248]), floor: rgb([204, 218, 232]), ring: rgb([196, 214, 232]), spot: rgb([250, 236, 180]), spotInner: rgb([252, 242, 206]), floorEdge: rgb([172, 192, 212]), pattern: "grid" },
+  mint: { wall: rgb([226, 242, 230]), floor: rgb([206, 222, 210]), ring: rgb([196, 222, 204]), spot: rgb([250, 236, 176]), spotInner: rgb([252, 242, 200]), floorEdge: rgb([172, 200, 180]), pattern: "stripes" },
+  peach: { wall: rgb([250, 232, 220]), floor: rgb([228, 212, 200]), ring: rgb([240, 216, 200]), spot: rgb([252, 230, 160]), spotInner: rgb([254, 240, 196]), floorEdge: rgb([214, 186, 170]), pattern: "dots" },
+} as const;
+export type ThemeName = keyof typeof THEMES;
+export const THEME_NAMES = Object.keys(THEMES) as [ThemeName, ...ThemeName[]];
+
 /** Where the floor starts in the Room and brand scenes (the sheet's 90 units from the bottom). Key content stays above the
     Shorts interface: out of the bottom 15 % (y > 1632) and the right 12 % (x > 950). */
 export const FLOOR_Y = 1920 - 90 * (1080 / 280);

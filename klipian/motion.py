@@ -1173,7 +1173,8 @@ CHANNEL_RULES = """- Language: casual Indonesian that is easy to follow, as if t
 - Format: an everyday hook of about 3 seconds that makes people curious (a question such as "Kenapa ...?" or "Benarkah ...?", a surprising statement or a myth; it does not have to start with "kenapa"), then the "Intip yuk!" sting, the explanation in 2-3 steps, tips, and a loop-back ending.
 - Two musts in every video: the small "Intip yuk!" sting right after the hook, and the loop (the ending returns to the scene of the first beat). Everything else in the format is a default a topic may adapt.
 - No health or finance topics (if the topic is one, say so in `needs` and give the safest everyday framing, or none). Never teach anything dangerous: no instructions to open, modify or bypass mains electrical equipment, and tips are always "stop using it / unplug it / ask a technician".
-- One idea per beat; every beat's narration should make sense heard alone."""
+- One idea per beat; every beat's narration should make sense heard alone.
+- Background theme (one for the whole video, in the story's `theme`): `cream` (the default: most videos), `sky` (a light blue: a gadget, electricity, a process), `mint` (a light green: nature, plants, water), `peach` (a warm light: food, the home, everyday objects). Two videos in a row should not share one."""
 
 FACT_RULES = """- Every claim the video makes needs at least one source URL (a manufacturer, a safety agency, a standard, a university or a reputable reference). Search the web; do not rely on memory.
 - If you are not sure about something, **leave it out**. A smaller true video is better than a bigger doubtful one.
@@ -1604,7 +1605,7 @@ the video explains; no hashtags in it) and the hashtags in `post.hashtags`. klip
 Reply with **a single JSON block**, no explanation outside it. Plain JSON only: no code, expressions, comments, trailing commas or
 variables; every value is finished text or a number. The block is one story with these fields:
 
-- `bible`: 1 (this story follows the channel's musts, so klipian checks them strictly); `music`: `{{"track": "bed-sunny" | "bed-bounce" | "bed-glow" | "bed-curious" | "bed-calm" | "bed-tech" | "none"}}`: the track of the options, or the one that fits the fact (cheerful beds for most videos); `question`: the hook (a question or a surprising statement, about 3 seconds); `titles`: exactly 3; `duration`: {d}; `beats`: the beats; `claims`: the claims with `text`, `beats` (ids) and `sources` (URLs);
+- `bible`: 1 (this story follows the channel's musts, so klipian checks them strictly); `theme`: one of cream, sky, mint, peach (optional, see the channel rules); `music`: `{{"track": "bed-sunny" | "bed-bounce" | "bed-glow" | "bed-curious" | "bed-calm" | "bed-tech" | "none"}}`: the track of the options, or the one that fits the fact (cheerful beds for most videos); `question`: the hook (a question or a surprising statement, about 3 seconds); `titles`: exactly 3; `duration`: {d}; `beats`: the beats; `claims`: the claims with `text`, `beats` (ids) and `sources` (URLs);
   `post`: `description` and `hashtags`; `needs`: a list of objects or effects the story would need that the catalogue does not have (empty when there are none).
 - each beat: `id` (lowercase, hyphens), `kind`, `dur`, `narration`, `text` (the screen text of the beat, at most 6 words), `scene` (`bg`, `items`), `sfx` (a short note on the sound for a human), and optionally `camera` and `transition`.
 
