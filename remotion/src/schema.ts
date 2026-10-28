@@ -127,7 +127,40 @@ export const Claim = z.object({
   sources: z.array(url).min(1),
 }).strict();
 
+/** The Style Bible's warnings (DESIGN.md section 0b): not blocking, so an older story still validates, and shown in the Storyboard. A story with
+ *  `bible: 1` turns each one into an error (Story below). The "Intip yuk!" sting and the loop-back outro are the two musts (B16). */
+export const BIBLE_STING_MAX_W = 260;
+export const bibleWarnings = (s: { beats: z.infer<typeof Beat>[] }): { path: (string | number)[]; message: string }[] => {
+  const out: { path: (string | number)[]; message: string }[] = [];
+  const first = s.beats[0], second = s.beats[1], last = s.beats[s.beats.length - 1];
+  if (!first || first.kind !== "hook") out.push({ path: ["beats"], message: "the first beat should be the hook (kind hook): an everyday question, a surprising statement or a myth" });
+  if (!second || second.kind !== "sting" || !/intip yuk/i.test(second.text)) {
+    out.push({ path: ["beats"], message: 'the video needs the small "Intip yuk!" sting right after the hook: the second beat, kind sting, with the text "Intip yuk!" (B16 must 1)' });
+  }
+  if (!last || last.kind !== "outro") out.push({ path: ["beats"], message: "the video needs a loop-back outro as its last beat (B16 must 2)" });
+  s.beats.forEach((b, bi) => b.scene.items.forEach((item, ii) => {
+    if (item.type === "mascot" && b.kind === "sting" && item.w > BIBLE_STING_MAX_W) {
+      out.push({ path: ["beats", bi, "scene", "items", ii, "w"], message: `the sting's mascot is about 220 px wide (B3, B11): this one is ${item.w}, make it smaller` });
+    }
+  }));
+  if (last && last.kind === "outro") {
+    const loud = last.scene.items.filter((i) => i.type === "mascot" || i.type === "label" || i.type === "pill");
+    const li = s.beats.length - 1;
+    if (loud.length > 0) out.push({ path: ["beats", li, "scene", "items"], message: "the outro is a loop-back: no mascot, label or pill in it (B12)" });
+    if (last.narration.trim() !== "") out.push({ path: ["beats", li, "narration"], message: "the outro is a loop-back: its narration must be empty (no voice, B12)" });
+  }
+  if (s.beats.filter((b) => b.kind === "lens").length > 1) out.push({ path: ["beats"], message: "more than one lens beat: the look inside happens at most once per video (B8)" });
+  s.beats.forEach((b, bi) => {
+    if (b.kind !== "result") return;
+    b.scene.items.forEach((item, ii) => {
+      if (item.type === "source") out.push({ path: ["beats", bi, "scene", "items", ii], message: "a source card in a result beat: put it in an explain beat next to the object (B10)" });
+    });
+  });
+  return out;
+};
+
 export const Story = z.object({
+  bible: z.literal(1).optional(),                                         // the Style Bible marker: its warnings become errors (bibleWarnings)
   question: z.string().min(3).max(140),
   titles: z.tuple([z.string().min(1).max(100), z.string().min(1).max(100), z.string().min(1).max(100)]),
   duration: num.min(1).max(120),
@@ -220,6 +253,8 @@ export const Story = z.object({
   s.claims.forEach((c, i) => c.beats.forEach((id) => {
     if (!ids.includes(id)) ctx.addIssue({ code: "custom", message: `claim ${i + 1} names the unknown beat "${id}"`, path: ["claims", i, "beats"] });
   }));
+  // the Style Bible: a story that says `bible: 1` (the new brief asks for it) must keep every rule; any other story gets them as warnings only (validate.mjs)
+  if (s.bible === 1) for (const w of bibleWarnings(s)) ctx.addIssue({ code: "custom", message: w.message, path: w.path });
 });
 
 export type StoryT = z.infer<typeof Story>;

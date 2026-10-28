@@ -1,6 +1,6 @@
 # DESIGN.md — klipian intip: the design system every video session reads first
 
-Contents: [0b. The klipian intip formula (Style Bible v1)](#0b-the-klipian-intip-formula-style-bible-v1) · [0. How to start](#0-how-to-start-a-new-video-exact-commands) · [12. Before you hand a video back](#12-before-you-hand-a-video-back)
+Contents: [0b. The klipian intip formula (Style Bible v1)](#0b-the-klipian-intip-formula-style-bible-v1) · [the three musts (B16)](#the-three-musts-b16) · [the motion language](#the-motion-language) · [the rule log](#the-rule-log) · [0. How to start](#0-how-to-start-a-new-video-exact-commands) · [12. Before you hand a video back](#12-before-you-hand-a-video-back)
 
 You are making one Short for the channel **klipian intip** (fun facts, explained with a flat/semi-3D look). klipian has already written the story,
 fact-checked it and kept it as JSON. **Your job is the scenes**: draw each beat from the components below, keep the checked words as the words, make it
@@ -33,14 +33,16 @@ Contents: [the five locks](#the-five-locks) · [the rules](#the-rules-style-bibl
 - **B4 Dictionary.** Every mark is a row in `src/dictionary.ts` with its recipe and its component. A video may not invent a private mark for a thing that has a row. A row marked "to build" is a spec only: it is not drawn until it has a component and a tile.
 - **B5 One hero.** One hero asset per video, at the detail budget (B6). At most two supporting assets, simple and flat. At most three new assets per video, and the report says which assets were reused.
 - **B6 Detail budget.** The hero (and each hero of a nature video) reaches 80 % of the colokan socket + plug's **shapes and parts** (`node scripts/detailBudget.mjs`). Tone regions and quantised colours are informative only: a three-tone material cannot have more than three tones.
-- **B7 Beat formula.** `hook` (an everyday question, 3 s) → `sting` (a small mascot, 1 s) → explain (two or three beats, each one claim) → look closer (the lens or a macro, or a zoom to the key part) → `result` (what it causes, with its source card) → a tip or a verdict → `outro` (the loop-back). Durations are 30, 45 or 60 s and the beats add up to them exactly.
+- **B7 Beat formula.** `hook` (an everyday hook, about 3 s: a question, a surprising statement or a myth; it does not have to start with "kenapa") → `sting` (a small mascot and the pill "Intip yuk!", about 1 s, no veil) → explain (two or three beats, each one claim) → look closer (the lens or a macro, or a zoom to the key part) → `result` (what it causes, with its source card) → a tip or a verdict → `outro` (the loop-back). Durations are 30, 45 or 60 s and the beats add up to them exactly.
 - **B8 Kinds of fact.** Only the explain beats change: an object opens up (the lens); a process follows the flow around the stage (the camera follows the particles); a cause is a chain of cause and effect arrows; a myth check ends with a verdict stamp.
 - **B9 Verdict stamp.** A pill on the stage: FAKTA is black on yellow, MITOS is white on black, SEBAGIAN is grey. No new colour. The stamp component is to build (no row is drawn yet).
 - **B10 Text and sources.** At most six words on screen at a time, all from the story. Every claim has at least one source; every source card shows one of the story's claims.
 - **B11 Mascot.** At most one sting and at most two reactions between the sting and the outro, each short. None in the outro (B12).
-- **B12 Outro (the loop-back).** The outro has no voice, no mascot and no text. The first and last frames match (the loop test). The checker reads what the video draws: the plan's timing (no mascot window reaches the outro, no text reaches into it) and the number of `<Mascot` uses in the code.
+- **B12 Outro (the loop-back).** The outro has no voice, no mascot and no text (narration empty, the first and last frames match: the loop test). Decided by ian (2026-10-28): the sign-off (`klipian intip`, `Intip yuk fakta lain →`) and the voice of pilot 1's outro go; a video whose plan declares a loop-back (`loopWeight`) is checked by what it draws, and `styleCheck` FAILs when the story's outro still has a voice (must 2 of B16).
 - **B13 Motion and sound.** A sound on every movement, at most three at once. Highlights live on their object and have a meaning. Cables and strokes are never rigid; parts that go into holes are clipped; joints are smooth; in-between states are checked as strips.
 - **B14 Revisions.** Every revision adds its rule to this section or to the section it touches (the motion rule of `DESIGN.md` § 6 and the nature rules of § "Nature kit").
+- **B15 Sound (approved, locked).** Ian, 2026-10-28: "the sound effects and all the sounds are perfect". The reference is pilot 1's sound set and mix: the synthesised sounds (`sfx/synth.mjs`, `sfx/music.mjs`, listed in `sfx/LICENSES.md`), the `SFX` and `MUSIC` levels in `src/catalog.ts`, the placement (a sound on the frame of its picture, at most three at once, a cooldown per sound) and the density (about 44 events in 45 s). Existing sounds and levels change only when ian asks. A new sound is made the same way and judged against the pilot 1 mix. `styleCheck` FAILs when a sound file or level of the approved set changed (a hash of the set is recorded in `scripts/soundHash.json`).
+- **B16 Musts.** Every video has three musts, decided by ian on 2026-10-28: (1) the small "Intip yuk!" sting right after the hook; (2) the loop-back ending (no mascot, label, pill or voice in the outro; the first and last frames match); (3) a consistent object style and animation (see "The three musts" below). Everything else in this section is a default that a topic may adapt. `styleCheck` FAILs when a must is broken.
 
 ### The visual dictionary
 
@@ -71,6 +73,56 @@ The table is `src/dictionary.ts` (the code is the source of truth; `tests/style.
 ### The checker and the checklist
 
 `node scripts/styleCheck.mjs <slug>` (for example `kenapa-colokan-panas`) checks what a story and its files can show: the duration and the beat formula, the sting and the reactions, the outro (B12), the words on screen, the sources, the stage, the marks a video draws (against the dictionary), the number of new assets (a human count), the verdict stamp of a myth check. It marks what needs a render as RENDER, and prints the human checklist at the end. It exits with 1 when anything is FLAG. Before you hand a video back, run it, and the flags are either fixed or named in your report.
+
+### The three musts (B16)
+
+The musts are checked by machine and FAIL the video. They are the only rules the checker never reports as a flag.
+
+1. **The "Intip yuk!" sting.** The second beat is `sting` and its text is "Intip yuk!" (`styleCheck`: must 1).
+2. **The loop.** The last beat is the outro, with an empty narration and, when the plan declares a loop-back, no mascot, label or pill in it (`styleCheck`: must 2; the first and last frames match by `tests/colokan.test.ts`).
+3. **Consistent object style and animation.** (a) Every colour comes from `src/tokens.ts`: no literal colour and no gradient, except the entries of `STYLE_EXCEPTIONS` in `src/motionLanguage.ts`, each with its reason. (b) Easings and springs are the registry's (below). (c) The camera pushes and pans, the lens and the wipes and slides are inside their ranges. (d) The motion blur is only on a lens, slide, wipe, zoom or a pan. A video may leave a range only with a comment `motion-exception: <reason>` in its `plan.ts` and ian's OK; the checker then reports it as INFO. Not checked by machine yet: the tone rule (a part's tone comes from its face direction) and the outlines (strokes only on the allow-listed marks); the human checklist covers them.
+
+### The motion language
+
+`src/motionLanguage.ts` is the registry, measured from pilot 1 (its `plan.ts`, `index.tsx`, `src/motion.ts`, and its story's cameras and transitions). `styleCheck` reads it.
+
+| what | the registry | pilot 1 measured |
+| --- | --- | --- |
+| easings | `easeOut`, `easeInOut`, `easeOutBack` (src/motion.ts), the push `Easing.inOut(Easing.quad)` | the same four |
+| springs | default: damping 12, stiffness 150, mass 0.8; soft (arms, faces): damping 20, stiffness 120, mass 0.9 | the same two |
+| an object enters | 0.25 to 0.6 s | springs settle inside it |
+| a label or pill comes in | 0.2 to 0.4 s | about 0.3 s |
+| camera push over a beat | 4 to 8 s, zoom at most 0.05 per second | 5 to 7 s, zoom 0.02 per second |
+| camera pan | 0.8 to 2.5 s, at most 800 px per second | no pan in pilot 1 |
+| lens transition (the dive) | 0.7 to 1.0 s | 0.8 s |
+| wipe or slide | 0.4 to 1.0 s | 0.5 and 0.6 s |
+| ambient motions | hover period 1.82 s, breathe 2.5 s, blink 3.4 s (src/motion.ts) | the same |
+| motion blur | only on a lens, slide, wipe, zoom or pan | none so far |
+
+The plan's first draft gave a camera push 0.8 to 2.5 s; pilot 1's pushes last 5 to 7 s, so the registry takes the measured range.
+
+### The rule log
+
+Every report adds its rows (B14). The date is the day ian asked; a row without a date was asked before the log existed.
+
+| rule | what it says | asked by | when | revision |
+| --- | --- | --- | --- | --- |
+| B1, B2 | one stage, the lens move | ian (pilot 1) | pilot 1 | 2ef1683 |
+| B3, B11 | the mascot is rare: a small sting, at most two reactions, none in the outro | ian | 2026-10-26 | the brief (motion.py) |
+| B6 | detail budget: 80 % of the colokan's shapes and parts | ian | 2026-10-28 | 2ef1683 (nature kit, pilot 2) |
+| cables | cables and strokes are never rigid (B13) | ian (pilot 1) | pilot 1 | pilot 1 |
+| highlights | a highlight lives on its object and has a meaning (round 4, rules 4 and 5) | ian | round 4 | section 8 |
+| recesses | a recess shows all its holes (round 4, rule 8) | ian | round 4 | section 8 |
+| depth order, holes, joints | the depth order of the kit, pins in holes are clipped, joints are smooth (round 6) | ian 2026-10-26 | round 6 | section 2.5D |
+| in-between states | checked as strips (B13) | ian (pilot 1) | pilot 1 | pilot 1 |
+| nature kit | the clearOf rule, periodic crests, no gradient or filter in IsoNature (phases 1b and 1c, pilot 2) | ian | pilot 2 (on origin/main, paused) | nature kit |
+| B1 to B14 | the Style Bible v1 | ian | 2026-10-28 | 2ef1683, 110319f |
+| B7, B12 | the free hook (not "kenapa"); the loop-back outro with no voice, mascot or text | ian | 2026-10-28 | round 2 |
+| B15 | the sound set and its mix are approved and locked | ian | 2026-10-28 | round 2 |
+| B16 | the three musts: the "Intip yuk!" sting, the loop, the object style and animation | ian | 2026-10-28 | round 2 |
+| the registry | the motion language (src/motionLanguage.ts) and the colour rule | ian | 2026-10-28 | round 2 |
+
+Pilots 1 and 2 are the first checked against these rows: pilot 1 passes every must except the outro's voice (its story still has narration in the outro, ian's edit); pilot 2's nature kit is not in a video yet, and its checks run on its own tests.
 
 ## 0. How to start a new video (exact commands)
 

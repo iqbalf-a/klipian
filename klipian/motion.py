@@ -266,7 +266,7 @@ def detail(pid: str) -> dict:
     story = story_of(pid)
     facts = facts_of(pid) if story else []
     stills = _stills_state(pid, story)
-    return {**summary(p), "notes": p.get("notes", ""), "needs": p.get("needs", []), "storyPath": str(project_dir(pid) / "story.json"), "compositions": compositions(), "story": story, "facts": facts,
+    return {**summary(p), "notes": p.get("notes", ""), "needs": p.get("needs", []), "warnings": (validate_story(story).get("warnings", []) if story else []), "storyPath": str(project_dir(pid) / "story.json"), "compositions": compositions(), "story": story, "facts": facts,
             "gate": gate(pid), "stills": stills, "render": p.get("render"), "job": job_state(pid), "voice": voice_info(pid),
             "versions": len(list((project_dir(pid) / "history").glob("story-*.json"))) if (project_dir(pid) / "history").is_dir() else 0}
 
@@ -689,14 +689,14 @@ def gate(pid: str) -> list[str]:
 # What a video of each length is made of: (beat kind, seconds, what happens). The sum is the length. This is the channel's format
 # (hook, "Intip yuk!", explanation, tips, outro), not a rule of the schema: the AI may adapt it as long as the total is exact.
 STRUCTURE = {
-    30: [("hook", 3, "an everyday question"), ("sting", 1, '"Intip yuk!"'), ("lens or normal", 7, "step 1 of the cause (look inside through the lens only if the cause is inside the object)"),
-         ("normal", 7, "step 2"), ("tips", 8, "what to do"), ("outro", 4, "logo and \"klipian intip\"")],
-    45: [("hook", 3, "an everyday question"), ("sting", 1, '"Intip yuk!"'), ("lens or normal", 6, "step 1 (the cutaway through the lens, if the cause is inside)"),
+    30: [("hook", 3, "an everyday hook: a question, a surprising statement or a myth"), ("sting", 1, 'a small mascot and the pill "Intip yuk!"'), ("lens or normal", 7, "step 1 of the cause (look inside through the lens only if the cause is inside the object)"),
+         ("normal", 7, "step 2"), ("tips", 8, "what to do"), ("outro", 4, "loop-back: no mascot, no label, no voice; the scene of the first beat again")],
+    45: [("hook", 3, "an everyday hook: a question, a surprising statement or a myth"), ("sting", 1, 'a small mascot and the pill "Intip yuk!"'), ("lens or normal", 6, "step 1 (the cutaway through the lens, if the cause is inside)"),
          ("normal", 7, "step 2"), ("loose / normal", 8, "step 3, or the bad case"), ("result", 7, "what happens in the end"), ("tips", 9, "2 tips"),
-         ("outro", 4, "logo and \"klipian intip\"")],
-    60: [("hook", 3, "an everyday question"), ("sting", 1, '"Intip yuk!"'), ("lens or normal", 6, "step 1"), ("normal", 8, "step 2"), ("normal", 8, "step 3"),
+         ("outro", 4, "loop-back: no mascot, no label, no voice; the scene of the first beat again")],
+    60: [("hook", 3, "an everyday hook: a question, a surprising statement or a myth"), ("sting", 1, 'a small mascot and the pill "Intip yuk!"'), ("lens or normal", 6, "step 1"), ("normal", 8, "step 2"), ("normal", 8, "step 3"),
          ("loose / normal", 8, "step 4, or the bad case"), ("result", 7, "what happens in the end"), ("normal", 6, "a fact that surprises"), ("tips", 9, "2-3 tips"),
-         ("outro", 4, "logo and \"klipian intip\"")],
+         ("outro", 4, "loop-back: no mascot, no label, no voice; the scene of the first beat again")],
 }
 
 
@@ -758,7 +758,8 @@ CHANNEL_RULES = """- Language: casual Indonesian that is easy to follow, as if t
 - Screen text: at most 6 words per piece (the validator counts). The screen shows the key point, the narration says the rest.
 - The "look inside" (the cutaway through the magnifying lens) happens **at most once** per video and only when the cause is really inside an object. If it is not (for example a circuit breaker that trips because two heaters run together), use a meter or a diagram instead, no cutaway.
 - Colour code: yellow = electric current, red/orange = heat or danger, grey = the object's material, light grey = metal. Red only for meaning, never decoration.
-- Format: a hook that is an everyday question, then "Intip yuk!" (the mascot pops up), the explanation in 2-3 steps, tips, and a short outro with the logo.
+- Format: an everyday hook of about 3 seconds that makes people curious (a question such as "Kenapa ...?" or "Benarkah ...?", a surprising statement or a myth; it does not have to start with "kenapa"), then the "Intip yuk!" sting, the explanation in 2-3 steps, tips, and a loop-back ending.
+- Two musts in every video: the small "Intip yuk!" sting right after the hook, and the loop (the ending returns to the scene of the first beat). Everything else in the format is a default a topic may adapt.
 - No health or finance topics (if the topic is one, say so in `needs` and give the safest everyday framing, or none). Never teach anything dangerous: no instructions to open, modify or bypass mains electrical equipment, and tips are always "stop using it / unplug it / ask a technician".
 - One idea per beat; every beat's narration should make sense heard alone."""
 
@@ -772,9 +773,12 @@ FACT_RULES = """- Every claim the video makes needs at least one source URL (a m
 COMPOSITION = """- Every beat has a `banner` at the top that carries the beat's screen text (the same words as the beat's `text`).
 - The main object is big: about 60-70% of the screen width, near the middle (x about 540), with supporting elements around it so the screen is not empty: its parts, arrows, short labels, numbered badges and movement. Empty space is filled by the object and its parts, never by characters.
 - Backgrounds: `brand` for the story beats (including the hook); `lab` only for what is inside the lens and for cutaway beats.
-- The "Intip yuk!" beat: a big `mascot` in the middle (w about 560, expression curious, `pop`) and a `pill` that says "Intip yuk!". The outro has the mascot again.
+- The "Intip yuk!" beat: a small `mascot` (w about 220, expression curious, `pop`) and a small `pill` that says "Intip yuk!" in the caption zone, with no veil; the picture behind it keeps moving.
+- **One hero:** choose one main object or scene for the whole video; the other things on screen are simple supporting elements.
+- **Kinds of fact:** an object is opened up (the lens); a process follows its flow around the scene; a cause is a chain of cause-and-effect arrows; a myth check ends with the verdict in the text of the `result` or `tips` beat: `MITOS`, `FAKTA` or `SEBAGIAN` (the verdict stamp is not drawn yet, so it is text only).
 - **People are optional.** Put a person (`chibi`) in a beat only when the story needs one: someone doing something, a body part, or a person's reaction is the point. A topic about an object shows just the object.
-- **The mascot is rare:** the "Intip yuk!" beat and the outro, plus at most 2 short reactions (about 1 s each, with `enter` delay and `exit`) at key moments in between. Never park it in a corner for the whole video; `persist` is only for the sting and the outro.
+- **The mascot is rare:** the "Intip yuk!" beat, plus at most 2 short reactions (about 1 s each, with `enter` delay and `exit`) at key moments in between. **The outro has no mascot.** Never park it in a corner for the whole video; `persist` is only for the sting.
+- **The outro is a loop-back:** no mascot, no label, no pill, no voice (its narration is empty), 2 to 4 seconds; its scene is the same as the first beat's scene, so the video loops.
 - **Source cards:** a `source` item shows one of your claims on the screen (its text or a short `quote`, the organisation, the date and the domain of its first source): place one for 2-3 seconds next to the object when the fact is stated, with `claim` = the claim's number (1 is the first). Use them sparingly: they are for the one or two facts that need to be seen.
 - **Two text layers** (optional, for a video with a narration): a `headline` of 2-4 bold words with a small `kicker` above it (it replaces the banner of that beat), and `"captions": true` on the story for the karaoke captions; klipian fills in the word times from the narration. `music` (`{"track": "bed-calm"}`) adds a quiet bed under the voice.
 - The look inside: first the outside of the object with the lens beside it (the `lens` item), then cutaway beats with `socket` view "cutaway" (about x 540, y 926, s 1). Give the cutaway an `id` and make labels and arrows `follow` its parts.
@@ -802,7 +806,7 @@ using only the catalogue below.
 
 ## Your task
 
-1. Turn the topic into **one everyday question** that starts with "kenapa..." (why...). That is the hook.
+1. Turn the topic into **one everyday hook** of about 3 seconds that makes people curious: a question (for example "Kenapa ...?" or "Benarkah ...?"), a surprising statement or a myth. It does not have to start with "kenapa". The "Intip yuk!" sting comes right after it, and the video ends with a loop.
 2. Find out the facts with a web search and write the explanation as beats (a narration line and a short screen text for each).
 3. Choose what is on screen in every beat, from the catalogue.
 4. Give 3 title options, a description and hashtags for the post.
@@ -840,7 +844,7 @@ the video explains; no hashtags in it) and the hashtags in `post.hashtags`. klip
 Reply with **a single JSON block**, no explanation outside it. Plain JSON only: no code, expressions, comments, trailing commas or
 variables; every value is finished text or a number. The block is one story with these fields:
 
-- `question`: the "kenapa..." question; `titles`: exactly 3; `duration`: {d}; `beats`: the beats; `claims`: the claims with `text`, `beats` (ids) and `sources` (URLs);
+- `bible`: 1 (this story follows the channel's musts, so klipian checks them strictly); `question`: the hook (a question or a surprising statement, about 3 seconds); `titles`: exactly 3; `duration`: {d}; `beats`: the beats; `claims`: the claims with `text`, `beats` (ids) and `sources` (URLs);
   `post`: `description` and `hashtags`; `needs`: a list of objects or effects the story would need that the catalogue does not have (empty when there are none).
 - each beat: `id` (lowercase, hyphens), `kind`, `dur`, `narration`, `text` (the screen text of the beat, at most 6 words), `scene` (`bg`, `items`), `sfx` (a short note on the sound for a human), and optionally `camera` and `transition`.
 
@@ -898,6 +902,7 @@ Some claims were **rejected**. Please revise **only the beats listed below**; ev
 - Search the web again. Replace what was rejected with something you can back with a source URL; if you cannot, **leave it out** and
   make the beat about something that is certain.
 - Keep each beat's `id` and `dur` the same (the video must keep its {p['duration']} seconds), and the same channel rules and catalogue as before.
+- Keep the two musts: the "Intip yuk!" sting right after the hook, and the loop-back ending (no mascot, label, pill or voice in the outro).
 - Give the **complete list of claims** again in `claims` (the checked ones unchanged, the revised ones with sources), with the beats that use them.
 
 ## Reply format

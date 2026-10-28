@@ -329,7 +329,9 @@ async function copyFix(btn) {
 function drawNeeds() {
   const el = byId("rmNeeds");
   const needs = CUR.needs || [];
-  el.innerHTML = needs.length ? `<div class="rm-needs"><b>Benda yang belum ada di pustaka (kata AI):</b><ul>${needs.map((n) => `<li>${esc(n)}</li>`).join("")}</ul><p class="rm-hint">Untuk sementara dipakai benda terdekat. Brief komponen baru menyusul.</p></div>` : "";
+  const warns = CUR.warnings || [];
+  const warnHTML = warns.length ? `<div class="rm-needs"><b>Peringatan buku gaya (belum menghalangi):</b>${errorsHTML(warns)}</div>` : "";
+  el.innerHTML = (needs.length ? `<div class="rm-needs"><b>Benda yang belum ada di pustaka (kata AI):</b><ul>${needs.map((n) => `<li>${esc(n)}</li>`).join("")}</ul><p class="rm-hint">Untuk sementara dipakai benda terdekat. Brief komponen baru menyusul.</p></div>` : "") + warnHTML;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------

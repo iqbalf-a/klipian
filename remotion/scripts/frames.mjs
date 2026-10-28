@@ -17,6 +17,6 @@ mkdirSync(outDir, { recursive: true });
 for (const s of times) {
   const frame = Math.min(composition.durationInFrames - 1, Math.round(Number(s) * composition.fps));
   const output = path.join(outDir, `t-${Number(s).toFixed(2)}.png`);
-  await renderStill({ composition, serveUrl, output, frame, chromiumOptions, imageFormat: "png", logLevel: "error" });
+  await renderStill({ composition, serveUrl, output, frame, chromiumOptions, imageFormat: "png", logLevel: "error", timeoutInMilliseconds: 120000 });  // fonts can take longer than the default 30 s on a busy machine
   console.log(output);
 }

@@ -86,6 +86,46 @@
       "sfx": "desis pelan"
     },
     {
+      "id": "sting",
+      "kind": "sting",
+      "dur": 1,
+      "narration": "Intip yuk!",
+      "text": "Intip yuk!",
+      "scene": {
+        "bg": "brand",
+        "spot": {
+          "x": 540,
+          "y": 960,
+          "r": 470
+        },
+        "items": [
+          {
+            "type": "mascot",
+            "x": 540,
+            "y": 720,
+            "w": 220,
+            "expr": "curious",
+            "enter": {
+              "kind": "pop",
+              "delay": 0.0
+            }
+          },
+          {
+            "type": "pill",
+            "text": "Intip yuk!",
+            "x": 540,
+            "y": 1489,
+            "fs": 56,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.2
+            }
+          }
+        ]
+      },
+      "sfx": "pop"
+    },
+    {
       "id": "lensa",
       "kind": "lens",
       "dur": 5,
@@ -159,58 +199,19 @@
     {
       "id": "outro",
       "kind": "outro",
-      "dur": 4,
-      "narration": "Intip yuk fakta lainnya!",
-      "text": "klipian intip",
+      "dur": 3,
+      "narration": "",
+      "text": "",
       "scene": {
-        "bg": "black",
-        "items": [
-          {
-            "type": "mascot",
-            "x": 540,
-            "y": 771,
-            "w": 656,
-            "expr": "understand",
-            "sparks": true,
-            "enter": {
-              "kind": "pop",
-              "delay": 0.1
-            },
-            "actions": [
-              {
-                "at": 1.6,
-                "kind": "look",
-                "x": 540,
-                "y": 1489
-              }
-            ]
-          },
-          {
-            "type": "label",
-            "text": "klipian intip",
-            "x": 540,
-            "y": 1273,
-            "fs": 116,
-            "color": "white",
-            "enter": {
-              "kind": "fade-up",
-              "delay": 0.5
-            }
-          },
-          {
-            "type": "pill",
-            "text": "Intip yuk fakta lain →",
-            "x": 540,
-            "y": 1489,
-            "fs": 69,
-            "enter": {
-              "kind": "pop",
-              "delay": 1.1
-            }
-          }
-        ]
+        "bg": "brand",
+        "spot": {
+          "x": 420,
+          "y": 780,
+          "r": 470
+        },
+        "items": []
       },
-      "sfx": "jingle 1 dtk"
+      "sfx": "none"
     }
   ],
   "claims": [
@@ -243,5 +244,6 @@
       "#shorts"
     ]
   },
-  "needs": []
+  "needs": [],
+  "bible": 1
 }

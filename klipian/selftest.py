@@ -5557,8 +5557,43 @@ def check_voice() -> tuple[str, str]:
 
 
 
+# check: the motion brief carries the Style Bible's musts (remotion/DESIGN.md section 0b, B16): the free hook, the small "Intip yuk!"
+# sting, the loop-back outro with no mascot, and no old wording. Builds the brief only: no AI call, no workspace read.
+def check_motion_brief() -> tuple[str, str]:
+    from . import motion, profiles
+    ok, why = motion._node.ready()
+    if not ok:
+        return SKIP, why
+    problems: list[str] = []
+    must = ["an everyday hook", "does not have to start with", "small `mascot`", "small `pill`", "Intip yuk!", "loop-back",
+            "**The outro has no mascot.**", "**One hero:**", "**Kinds of fact:**"]
+    stale = ["The outro has the mascot again", "a short outro with the logo", "logo and", "starts with \"kenapa", "a big `mascot`",
+             "an everyday question", "a short outro with the logo"]
+    real_settings = profiles.hashtag_settings
+    profiles.hashtag_settings = lambda: {"placement": "title", "shorts": True, "titleTags": 3}   # a fixed setting, never the workspace's
+    try:
+        for d in (30, 45, 60):
+            text = motion.build_brief({"topic": "Kenapa colokan panas", "duration": d, "notes": ""})
+            for want in must:
+                if want not in text:
+                    problems.append(f"the {d} s brief lost {want!r}")
+            for old in stale:
+                if old in text:
+                    problems.append(f"the {d} s brief still says {old!r}")
+            total = sum(r[1] for r in motion.STRUCTURE[d])
+            if total != d:
+                problems.append(f"the {d} s structure adds up to {total}, not {d}")
+            if motion.STRUCTURE[d][-1][0] != "outro" or "loop-back" not in motion.STRUCTURE[d][-1][2]:
+                problems.append(f"the {d} s structure does not end with a loop-back outro")
+    finally:
+        profiles.hashtag_settings = real_settings
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "the brief for 30, 45 and 60 s carries the hook, the small sting, the loop-back outro, one hero and the kinds of fact; no old wording"
+
+
 CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch,
-          "motion": check_motion, "voice": check_voice, "decode": check_decode, "render": check_render}
+          "motion": check_motion, "motionbrief": check_motion_brief, "voice": check_voice, "decode": check_decode, "render": check_render}
 
 
 def _global_state() -> dict:
