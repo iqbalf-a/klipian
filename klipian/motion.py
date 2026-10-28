@@ -99,8 +99,15 @@ class _Node:
 _node = _Node()
 
 
+VIDEOS_ROOT: Path | None = None      # the folder of the custom videos (the tests point it at a copy; never the person's own folder)
+
+
+def videos_root() -> Path:
+    return VIDEOS_ROOT or (REMOTION / "videos")
+
+
 def _video_dirs() -> list[Path]:
-    root = REMOTION / "videos"
+    root = videos_root()
     return sorted(d for d in root.iterdir() if d.is_dir() and (d / "index.tsx").is_file()) if root.is_dir() else []
 
 
@@ -134,9 +141,88 @@ def composition_id(p: dict) -> str:
 # the next step and the stage chips (PLAN-REMOTION-PAGE A): pure functions of the facts of a video, so the page and the tests agree
 # --------------------------------------------------------------------------
 
+FOLDER_SLUG = re.compile(r"[a-z0-9][a-z0-9-]{1,38}")
+
+
+def folder_story_path(slug: str) -> Path:
+    """The story.json of a video folder the person chose, and nothing else of it: a direct child of remotion/videos/, no "..", no symlink out."""
+    if not isinstance(slug, str) or not FOLDER_SLUG.fullmatch(slug):
+        raise MotionError("folder", "Pilih folder video dari daftar.")
+    root = videos_root()
+    folder = root / slug
+    if folder.is_symlink() or not folder.is_dir():
+        raise MotionError("folder", f"Folder {slug} tidak ada di remotion/videos/.")
+    if folder.resolve().parent != root.resolve():
+        raise MotionError("folder", "Folder itu bukan anak langsung dari remotion/videos/.")
+    story = folder / "story.json"
+    if story.is_symlink() or not story.is_file():
+        raise MotionError("folder", f"Folder {slug} belum punya story.json.")
+    if story.resolve().parent != folder.resolve():
+        raise MotionError("folder", "story.json itu berada di luar folder.")
+    return story
+
+
+def _file_hash(path: Path) -> str:
+    return hashlib.sha1(path.read_bytes()).hexdigest()[:12]
+
+
+def folder_state(pid: str) -> dict | None:
+    """The chosen folder of a Khusus video: its full path and the state (belum dipilih, cerita belum diambil, cerita diambil, folder berubah).
+    None for a template video. Reads the folder's story.json only, and only to compare it with the story taken."""
+    p = load(pid)
+    if kind_of(p) != "custom":
+        return None
+    slug = p.get("composition") or ""
+    if not slug:
+        return {"slug": "", "path": "", "state": "belum dipilih"}
+    path = str(videos_root() / slug)
+    try:
+        current = _file_hash(folder_story_path(slug))
+    except MotionError:
+        return {"slug": slug, "path": path, "state": "folder tidak lengkap"}
+    take = p.get("folderTake") or {}
+    if take.get("slug") != slug:
+        state = "cerita belum diambil"
+    else:
+        state = "cerita diambil" if take.get("hash") == current else "folder berubah"
+    return {"slug": slug, "path": path, "state": state}
+
+
+def take_folder(pid: str, slug: str) -> dict:
+    """"Ambil cerita dari folder": the story.json of the chosen folder, checked like a pasted answer (the same errors and the same fix message) and
+    kept as the project's story when it is valid. A rejected story is not kept. Never writes into the folder."""
+    story_file = folder_story_path(slug)
+    try:
+        story = json.loads(story_file.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        raise MotionError("folder", "story.json di folder itu tidak bisa dibaca sebagai JSON.") from None
+    with _LOCK:
+        p = load(pid)
+        v = validate_story(story)
+        errors = list(v.get("errors", [])) if not v.get("ok") else []
+        errors += _check_for(p, story) if isinstance(story, dict) else []
+        if errors:
+            return {"ok": False, "errors": errors, "fix": build_fix_message(errors, "main", options_of(p))}
+        _accept(pid, story)
+        p = load(pid)
+        p["composition"] = slug
+        p["options"] = {**options_of(p), "kind": "khusus"}
+        p["folderTake"] = {"slug": slug, "hash": _file_hash(story_file), "at": int(time.time())}
+        save(p)
+    return {"ok": True, "folder": folder_state(pid), "story": story}
+
+
 def next_step(f: dict) -> dict:
     """The one thing to do now. `f` holds: story, pending, rejected, title, custom, composition, slug, voice, aligned, render ("none" | "current" |
     "stale"), gate (the reasons a render is blocked), briefed, storyPath. Returns {"key", "text", "action", "command"?}."""
+    if f.get("custom"):                                                 # Khusus: the story comes from the chosen folder, never pasted
+        state = f.get("folder")
+        if state in (None, "belum dipilih"):
+            return {"key": "folder", "text": "Salin perintah ke Claude Code, lalu pilih folder hasilnya", "action": "copy"}
+        if state in ("cerita belum diambil", "folder tidak lengkap") or not f.get("story"):
+            return {"key": "take", "text": "Ambil cerita dari folder", "action": "take"}
+        if state == "folder berubah":
+            return {"key": "retake", "text": "Ambil ulang cerita (folder berubah)", "action": "take"}
     if not f.get("story"):
         if not f.get("briefed"):
             return {"key": "brief", "text": "Salin brief ke Claude Code", "action": "brief"}
@@ -147,10 +233,6 @@ def next_step(f: dict) -> dict:
         return {"key": "facts", "text": f"Centang {f['pending']} klaim lagi", "action": "facts"}
     if not f.get("title"):
         return {"key": "title", "text": "Pilih judul", "action": "title"}
-    if f.get("custom") and not f.get("composition"):
-        slug = f.get("slug") or "<slug>"
-        return {"key": "custom", "text": "Buat video khusus di sesi Claude Code", "action": "custom",
-                "command": f'npm run new-video {slug} "{f.get("storyPath", "")}"'}
     if f.get("voice") and not f.get("aligned"):
         return {"key": "align", "text": "Cocokkan narasi", "action": "align"}
     if f.get("gate"):
@@ -172,6 +254,9 @@ def stage_chips(f: dict) -> list[dict]:
     else:
         chips.append({"key": "klaim", "label": "Klaim", "state": "selesai"})
     chips.append({"key": "judul", "label": "Judul", "state": "selesai" if f.get("title") else "menunggu"})
+    if f.get("folder") == "folder berubah":                              # the folder's story changed: what was built on it is stale
+        for chip in chips[:3]:
+            chip["state"] = "usang"
     if not f.get("voice"):
         chips.append({"key": "suara", "label": "Suara", "state": "tidak ada"})
     elif f.get("aligned"):
@@ -364,7 +449,9 @@ def detail(pid: str) -> dict:
     gate_problems = gate(pid)
     pending = sum(1 for x in facts if x.get("status") not in ("checked", "rejected"))
     rejected = sum(1 for x in facts if x.get("status") == "rejected")
+    folder = folder_state(pid)
     f = {"story": story is not None, "pending": pending, "rejected": rejected, "title": bool(p.get("title")), "custom": kind_of(p) == "custom",
+         "folder": folder["state"] if folder else None,
          "composition": bool(p.get("composition")), "slug": _slug(p.get("topic", ""))[:39], "voice": bool(voice and voice.get("name")),
          "aligned": bool(voice and voice.get("aligned")), "voiceStale": bool(voice and voice.get("stale")),
          "render": "none" if not render_now else "current" if render_now["current"] else "stale", "gate": gate_problems,
@@ -372,7 +459,7 @@ def detail(pid: str) -> dict:
          "stills": "none" if not stills.get("files") else "stale" if stills.get("stale") else "ok",
          "preview": "none" if not preview else "stale" if preview.get("stale") else "current"}
     return {**summary(p), "options": options_of(p), "optionWarnings": option_warnings(options_of(p)), "notes": p.get("notes", ""), "needs": p.get("needs", []), "warnings": (validate_story(story).get("warnings", []) if story else []), "storyPath": str(project_dir(pid) / "story.json"), "compositions": compositions(), "story": story, "facts": facts,
-            "kind": kind_of(p), "gate": gate_problems, "stills": stills, "render": render_now, "job": job_state(pid), "voice": voice,
+            "kind": kind_of(p), "folder": folder, "gate": gate_problems, "stills": stills, "render": render_now, "job": job_state(pid), "voice": voice,
             "preview": preview, "next": next_step(f), "stages": stage_chips(f),
             "versions": len(list((project_dir(pid) / "history").glob("story-*.json"))) if (project_dir(pid) / "history").is_dir() else 0}
 

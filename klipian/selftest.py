@@ -5925,7 +5925,7 @@ def check_motionstate() -> tuple[str, str]:
         ({**base, "rejected": 2}, "fix"),
         ({**base, "pending": 3}, "facts"),
         ({**base, "title": False}, "title"),
-        ({**base, "custom": True}, "custom"),
+        ({**base, "custom": True, "folder": None}, "folder"),
         ({**base, "voice": True}, "align"),
         ({**base, "gate": ["klaim belum dicek"]}, "blocked"),
         ({**base, "render": "current"}, "clips"),
@@ -5936,11 +5936,10 @@ def check_motionstate() -> tuple[str, str]:
         got = motion.next_step(facts)
         if got["key"] != want:
             problems.append(f"the next step for {want} is {want}: {got}")
-    custom = motion.next_step({**base, "custom": True, "slug": "kenapa-hujan"})
-    if "npm run new-video kenapa-hujan" not in custom.get("command", ""):
-        problems.append(f"the custom step gives the command: {custom}")
-    if motion.next_step({**base, "custom": True, "composition": True})["key"] != "render":
-        problems.append("a custom video with its folder goes on to the render")
+    if motion.next_step({**base, "custom": True, "folder": "cerita diambil"})["key"] != "render":
+        problems.append("a Khusus video whose story is taken goes on to the render")
+    if motion.next_step({**base, "custom": True, "folder": "folder berubah"})["key"] != "retake":
+        problems.append("a changed folder asks to take the story again")
 
     chips = {c["key"]: c["state"] for c in motion.stage_chips({**base, "pending": 1, "voice": True, "aligned": True, "stills": "stale", "render": "stale"})}
     if chips.get("klaim") != "perlu" or chips.get("suara") != "selesai" or chips.get("gambar") != "usang" or chips.get("render") != "usang":
@@ -6210,8 +6209,129 @@ def check_elevenlabs() -> tuple[str, str]:
 
 
 
+# check: the Khusus panel's story (PLAN-KHUSUS-PAGE): the story taken from the folder the person chose (valid: kept; rejected: the problems and the fix,
+# nothing kept), the folder changed (the state, the next step, the chips), the path safety (a direct child of videos/, no "..", no symlink out, a
+# story.json that is there and readable), and the only file read is story.json. The videos folder is a copy in a temporary folder, never the person's.
+def check_khusus() -> tuple[str, str]:
+    import os, shutil, subprocess, tempfile
+    from . import motion, paths, profiles
+    ok, why = motion._node.ready()
+    if not ok:
+        return SKIP, why
+    problems: list[str] = []
+    good = json.loads((Path(__file__).resolve().parents[1] / "remotion" / "templates" / "video" / "story.json").read_text(encoding="utf-8"))
+    bad = dict(good, duration=99)
+    tmp = Path(tempfile.mkdtemp(prefix="klipian-khusus-"))
+    root = tmp / "videos"
+    root.mkdir()
+    outside = tmp / "luar"
+    outside.mkdir()
+    (outside / "story.json").write_text(json.dumps(good), encoding="utf-8")
+
+    def make(slug, story_text=None):
+        d = root / slug
+        d.mkdir()
+        (d / "index.tsx").write_text("export const Video = () => null;\n", encoding="utf-8")
+        if story_text is not None:
+            (d / "story.json").write_text(story_text, encoding="utf-8")
+        return d
+
+    make("khusus-satu", json.dumps(good))
+    make("khusus-rusak", json.dumps(bad))
+    make("tanpa-cerita")
+    make("json-rusak", "{ bukan json")
+    old_root, old_dur = motion.VIDEOS_ROOT, motion.DURATIONS
+    motion.VIDEOS_ROOT = root
+    motion.DURATIONS = (12,) + tuple(old_dur)
+    profiles.write_meta("kh1", {"name": "kh1", "color": "#336699", "defaults": {}})
+    profiles.ensure_dirs("kh1")
+    tok = paths.set_profile("kh1")
+    try:
+        pid = motion.create("contoh folder khusus", 12, "", {"kind": "khusus"})["id"]
+        # nothing chosen yet: the command, then the folder
+        if motion.folder_state(pid)["state"] != "belum dipilih" or motion.detail(pid)["next"]["key"] != "folder":
+            problems.append("a Khusus video with no folder asks for the command and the folder")
+        # a folder is chosen: the story is not taken yet
+        motion.update_project(pid, {"composition": "khusus-satu"})
+        if motion.folder_state(pid)["state"] != "cerita belum diambil" or motion.detail(pid)["next"]["key"] != "take":
+            problems.append("a chosen folder whose story is not taken asks to take it")
+        # the valid story is taken and kept
+        res = motion.take_folder(pid, "khusus-satu")
+        if not res.get("ok") or motion.story_of(pid) is None or motion.story_of(pid)["duration"] != 12:
+            problems.append(f"the valid story is taken and kept: {str(res)[:160]}")
+        if motion.folder_state(pid)["state"] != "cerita diambil":
+            problems.append("after the take the folder's state is 'cerita diambil'")
+        if motion.folder_state(pid)["path"] != str(root / "khusus-satu"):
+            problems.append("the folder is shown with its full path")
+        kept = motion.story_of(pid)
+        # a rejected story: the problems and the fix come back, nothing is kept
+        motion.update_project(pid, {"composition": "khusus-rusak"})
+        res = motion.take_folder(pid, "khusus-rusak")
+        if res.get("ok") is not False or not res.get("errors") or "Please fix" not in res.get("fix", ""):
+            problems.append(f"a rejected story comes back with its problems and a fix message: {str(res)[:160]}")
+        if motion.story_of(pid) != kept:
+            problems.append("a rejected story is not kept (the story is unchanged)")
+        # a story that is not JSON
+        motion.update_project(pid, {"composition": "json-rusak"})
+        try:
+            motion.take_folder(pid, "json-rusak")
+            problems.append("a story.json that is not JSON is refused")
+        except motion.MotionError as exc:
+            if exc.code != "folder":
+                problems.append(f"a story.json that is not JSON gives a folder error: {exc.code}")
+        # the folder changed after the take: the state, the next step and the chips
+        motion.update_project(pid, {"composition": "khusus-satu"})
+        motion.take_folder(pid, "khusus-satu")
+        (root / "khusus-satu" / "story.json").write_text(json.dumps(dict(good, question="Kenapa hujan turun?")), encoding="utf-8")
+        if motion.folder_state(pid)["state"] != "folder berubah":
+            problems.append("a changed story.json makes the folder 'folder berubah'")
+        d = motion.detail(pid)
+        if d["next"]["key"] != "retake":
+            problems.append(f"a changed folder asks to take the story again: {d['next']}")
+        if [c["state"] for c in d["stages"][:3]] != ["usang", "usang", "usang"]:
+            problems.append(f"a changed folder makes the story, claims and title stale: {d['stages']}")
+        # the path safety: only a direct child of videos/
+        for bad_slug in ("../luar", "khusus-satu/../..", "a/b", "", "Khusus", "tidak-ada"):
+            try:
+                motion.take_folder(pid, bad_slug)
+                problems.append(f"the folder {bad_slug!r} is refused")
+            except motion.MotionError:
+                pass
+        try:
+            motion.take_folder(pid, "tanpa-cerita")
+            problems.append("a folder with no story.json is refused")
+        except motion.MotionError:
+            pass
+        linked = False
+        try:
+            os.symlink(str(outside), str(root / "tautan"), target_is_directory=True)
+            linked = True
+        except OSError:
+            r = subprocess.run(["cmd", "/c", "mklink", "/J", str(root / "tautan"), str(outside)], capture_output=True)
+            linked = r.returncode == 0
+        if linked:
+            try:
+                motion.take_folder(pid, "tautan")
+                problems.append("a link out of videos/ is refused")
+            except motion.MotionError:
+                pass
+        # Otomatis is not touched: a template video still asks for the brief
+        t = motion.create("contoh templat", 12, "")
+        if motion.detail(t["id"])["next"]["key"] != "brief" or motion.folder_state(t["id"]) is not None:
+            problems.append("a template video still asks for the brief, with no folder")
+    finally:
+        paths._profile.reset(tok)
+        motion.VIDEOS_ROOT, motion.DURATIONS = old_root, old_dur
+        shutil.rmtree(tmp, ignore_errors=True)
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, ("the story taken from the chosen folder (valid kept, rejected not kept with the problems and the fix), a changed story.json shown as 'folder berubah' "
+                  "with the stale chips, the path refused for '..', a non-child, a missing or unreadable story.json, and a link out (where the system allows), and Otomatis unchanged")
+
+
+
 CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch,
-          "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voicegoogle": check_voicegoogle, "voicestudio": check_voicestudio, "elevenlabs": check_elevenlabs, "voice": check_voice, "decode": check_decode, "render": check_render}
+          "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voicegoogle": check_voicegoogle, "voicestudio": check_voicestudio, "elevenlabs": check_elevenlabs, "khusus": check_khusus, "voice": check_voice, "decode": check_decode, "render": check_render}
 
 
 def _global_state() -> dict:

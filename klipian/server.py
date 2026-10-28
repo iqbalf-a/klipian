@@ -903,6 +903,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._motion_reply(lambda: {"voice": _motion.replace_voice_part(pid, int(req.get("no") or 0), Path(str(req.get("path") or "").strip().strip('"')))})
         if action == "voice-length":                                  # the length choice: continue at the narration's length, or edit the text
             return self._motion_reply(lambda: {"voice": _motion.choose_length(pid, str(req.get("choice") or ""))})
+        if action == "take-folder":                                    # Khusus: the story.json of the folder the person chose (the only file read)
+            return self._motion_reply(lambda: _motion.take_folder(pid, str(req.get("slug") or "")))
         if action == "preview-video":
             return self._motion_reply(lambda: {"job": _motion.preview_video(pid)})
         return self._send_json({"error": "unknown action"}, 404)
@@ -2345,6 +2347,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/motion/voice-length": _post_motion,
         "/api/motion/preview-video": _post_motion,
         "/api/motion/options": _post_motion,
+        "/api/motion/take-folder": _post_motion,
         "/api/motion/voice-upload": _post_motion_voice_upload,
         "/api/ytdl/preview": _post_ytdl,
         "/api/ytdl/start": _post_ytdl,

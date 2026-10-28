@@ -135,7 +135,7 @@ async function refresh(keepPaste = true) {
   const i = LIST.findIndex((p) => p.id === CUR.id);
   if (i >= 0) LIST[i] = { ...LIST[i], status: CUR.status, title: CUR.title, claims: CUR.claims, unchecked: CUR.unchecked, hasStory: CUR.hasStory, updated: CUR.updated };
   drawList();
-  drawNext(); drawComp(); drawVoice(); drawStory(); drawFacts(); drawTitles(); drawRender(); drawNeeds();
+  drawNext(); drawComp(); drawFolder(); drawVoice(); drawStory(); drawFacts(); drawTitles(); drawRender(); drawNeeds();
   byId("rmState").textContent = STATE_LABEL[CUR.status] || CUR.status;
   byId("rmState").dataset.s = CUR.status;
 }
@@ -164,8 +164,10 @@ function buildDetail() {
     <section class="ws-panel rm-step" id="stepNext"></section>
     <section class="ws-panel rm-step" id="stepComp"></section>
 
+    <section class="ws-panel rm-step" id="stepFolder" hidden></section>
+
     <section class="ws-panel rm-step" id="stepBrief">
-      <header><span class="rm-n">1</span><h2>Brief untuk Claude Code</h2></header>
+      <header><span class="rm-n" id="numBrief">1</span><h2>Brief untuk Claude Code</h2></header>
       <p>Satu file mandiri: tugas, struktur ${d.duration} detik, aturan channel dan fakta, katalog benda yang bisa dirender, serta format jawaban. Tempel ke Claude Code di komputer ini; ia mencari web sendiri. Tanpa API key.</p>
       <div class="rm-actions">
         <button class="btn main" id="rmCopyBrief" type="button">Salin brief</button>
@@ -176,7 +178,7 @@ function buildDetail() {
     </section>
 
     <section class="ws-panel rm-step" id="stepPaste">
-      <header><span class="rm-n">2</span><h2>Jawaban dari Claude Code</h2></header>
+      <header><span class="rm-n" id="numPaste">2</span><h2>Jawaban dari Claude Code</h2></header>
       <p>Tempel seluruh jawaban (satu blok JSON). Slip umum dibetulkan sendiri; kalau ada yang salah, klipian membuat pesan perbaikan untuk ditempel balik ke AI.</p>
       <textarea class="ws-input rm-boxed rm-paste" id="rmPaste" placeholder='{ "question": "Kenapa ...?", "titles": [...], "beats": [...] }' spellcheck="false"></textarea>
       <div class="rm-actions"><button class="btn main" id="rmPasteBtn" type="button">Periksa dan simpan</button></div>
@@ -189,7 +191,7 @@ function buildDetail() {
     <section class="ws-panel rm-step" id="stepFacts" hidden></section>
     <section class="ws-panel rm-step" id="stepTitle" hidden></section>
     <section class="ws-panel rm-step" id="stepRender" hidden></section>`;
-  drawNext(); drawComp(); drawVoice(); drawStory(); drawFacts(); drawTitles(); drawRender(); drawNeeds();
+  drawNext(); drawComp(); drawFolder(); drawVoice(); drawStory(); drawFacts(); drawTitles(); drawRender(); drawNeeds();
 }
 
 byId("rmMain").addEventListener("click", async (e) => {
@@ -219,6 +221,8 @@ byId("rmMain").addEventListener("click", async (e) => {
     if (act === "saveOptions") return saveOptions();
     if (act === "nextStep") return doNext(CUR.next && CUR.next.action);
     if (act === "copyClaudeCmd") return copyClaudeCmd();
+    if (act === "takeFolder") return takeFolder();
+    if (act === "copyFolderPath") return copyFolderPath();
     if (act === "narrationLoad") return loadNarration();
     if (act === "narrationOpenAll") return document.querySelectorAll("details.narr-block").forEach((x) => (x.open = true));
     if (act === "narrationDownAll") return downloadNarrationAll();
@@ -239,7 +243,7 @@ const toast = (text) => (typeof showToast === "function" ? showToast(text, { ms:
 // ---------------------------------------------------------------------------------------------------------------------------------------
 
 function drawComp() {
-  const d = CUR, custom = (d.kind || "template") === "custom", list = d.compositions || [];
+  const d = CUR, custom = (d.kind || "template") === "custom";
   byId("stepComp").innerHTML = `
     <header><h2>Jenis video</h2></header>
     <div class="rm-actions">
@@ -248,17 +252,71 @@ function drawComp() {
         <option value="khusus" ${custom ? "selected" : ""}>Khusus: video buatan sesi Claude Code, tampilan terbaik</option>
       </select>
     </div>
-    ${custom ? `
-      <div class="rm-actions">
-        <select class="ws-input rm-boxed rm-select" id="rmComp" aria-label="Folder video khusus">
-          <option value="">Belum dipilih</option>
-          ${list.map((c) => `<option value="${esc(c.slug)}" ${d.composition === c.slug ? "selected" : ""}>${esc(c.title)} · remotion/videos/${esc(c.slug)}</option>`).join("")}
-        </select>
-        <span class="rm-hint">${d.composition ? `Folder: <code>${esc(d.composition)}</code>` : "Pilih folder video yang sudah dibuat."}</span>
-      </div>
-      ${d.composition ? "" : `<div class="rm-fix"><code id="rmCmd" class="rm-cmd">npm run new-video nama-video "${esc(d.storyPath || "")}"</code>
-        <div class="rm-actions"><button class="btn sm" type="button" data-act="copyCmd">Salin perintah</button><span class="rm-hint">Jalankan di sesi Claude Code, di folder <code>remotion/</code>. Ganti <b>nama-video</b>, lalu pilih folder di sini.</span></div></div>`}`
-      : `<p class="rm-hint">Template memakai benda dan adegan yang ada di pustaka.</p>`}`;
+    <p class="rm-hint">${custom ? "Khusus: cerita dan folder video diambil dari Claude Code (panel 1)." : "Otomatis: brief dan jawaban (panel 1 dan 2), lalu template klipian."}</p>`;
+}
+
+// the folder panel of Khusus: the one command for Claude Code, the folder it made (full path, chip), and the one read: "Ambil cerita dari folder"
+function panelNum(key) {
+  return panelNumOf(CUR && CUR.kind === "custom" ? "custom" : "template", key);
+}
+
+function drawFolder() {
+  byId("numBrief").textContent = panelNum("brief");
+  byId("numPaste").textContent = panelNum("paste");
+  const sec = byId("stepFolder");
+  const d = CUR;
+  const custom = !!d && d.kind === "custom";
+  sec.hidden = !custom;
+  byId("stepBrief").hidden = custom;
+  byId("stepPaste").hidden = custom;
+  if (!custom) return;
+  const f = d.folder || { slug: "", path: "", state: "belum dipilih" };
+  const picked = f.slug || "";
+  const taken = f.state === "cerita diambil";
+  sec.innerHTML = `
+    <header><span class="rm-n">${panelNum("folder")}</span><h2>Video dari Claude Code</h2></header>
+    <p>Tempel perintah ini di Claude Code yang dibuka di folder klipian. Ia menulis cerita dan membuat folder videonya.</p>
+    <div class="rm-actions"><button class="btn main" type="button" data-act="copyClaudeCmd">Salin perintah untuk Claude Code</button></div>
+    <details class="rm-needs"><summary><b>Brief lengkap</b> (jarang dipakai)</summary>
+      <div class="rm-actions"><button class="btn" type="button" data-act="rmCopyBrief">Salin brief</button><button class="btn" type="button" data-act="rmDownBrief">Unduh brief</button></div>
+    </details>
+    <h3>Folder hasil</h3>
+    <div class="rm-actions">
+      <select class="ws-input rm-boxed rm-select" id="rmComp" aria-label="Folder hasil">
+        <option value="">Belum dipilih</option>
+        ${(d.compositions || []).map((c) => `<option value="${esc(c.slug)}" ${picked === c.slug ? "selected" : ""}>${esc(c.title)} · ${esc(c.slug)}</option>`).join("")}
+      </select>
+      <span class="rm-chip" data-state="${esc(folderChip(f.state))}">${esc(folderChip(f.state))}</span>
+    </div>
+    <div class="rm-fix"><code class="rm-cmd">${esc(f.path || "(belum ada folder)")}</code>${f.path ? ` <button class="btn sm" type="button" data-act="copyFolderPath">Salin path</button>` : ""}</div>
+    <div class="rm-actions"><button class="btn main" type="button" data-act="takeFolder" ${picked ? "" : "disabled"}>${taken ? "Ambil ulang cerita" : "Ambil cerita dari folder"}</button></div>
+    <div class="rm-result" id="rmTakeResult"></div>`;
+}
+
+async function takeFolder() {
+  if (!CUR || !CUR.folder || !CUR.folder.slug) return toast("Pilih folder hasil dulu.");
+  const out = byId("rmTakeResult");
+  let j;
+  try {
+    j = await call(`${API}/take-folder`, { id: CUR.id, slug: CUR.folder.slug });
+  } catch (ex) {
+    if (out) out.textContent = ex.message;
+    return;
+  }
+  if (j.ok === false) {
+    out.innerHTML = `<b>Cerita belum disimpan</b> (${j.errors.length} masalah)${errorsHTML(j.errors)}
+      <div class="rm-fix"><div class="rm-actions"><button class="btn main" type="button" data-act="copyFix">Salin pesan perbaikan</button><span class="rm-hint">Perbaiki story.json di folder itu (lewat Claude Code), lalu ambil lagi.</span></div>
+      <textarea class="ws-input rm-boxed" readonly>${esc(j.fix)}</textarea></div>`;
+    out.querySelector("[data-act=copyFix]")._fix = j.fix;
+    return;
+  }
+  toast("Cerita diambil dari folder.");
+  await refresh();
+}
+
+async function copyFolderPath() {
+  if (!CUR || !CUR.folder || !CUR.folder.path) return;
+  (await copyText(CUR.folder.path)) ? toast("Path disalin.") : toast("Tidak bisa menyalin: pilih teksnya sendiri.");
 }
 
 document.addEventListener("change", async (e) => {
@@ -278,7 +336,7 @@ function drawNext() {
   if (!d) return;
   const n = d.next || {};
   const chips = (d.stages || []).map((c) => `<span class="rm-chip" data-state="${esc(c.state)}">${esc(c.label)}: ${esc(c.state)}</span>`).join("");
-  const label = { brief: "Salin brief", paste: "Tempel jawaban", facts: "Buka cek fakta", title: "Pilih judul", custom: "Salin perintah", align: "Cocokkan", render: "Render", clips: "Buka di Clips" }[n.action];
+  const label = { brief: "Salin brief", paste: "Tempel jawaban", copy: "Salin perintah", take: "Ambil cerita", facts: "Buka cek fakta", title: "Pilih judul", align: "Cocokkan", render: "Render", clips: "Buka di Clips" }[n.action];
   const btn = label ? `<button class="btn main" type="button" data-act="nextStep">${label}</button>` : "";
   sec.innerHTML = `
     <div class="rm-next"><b>Langkah berikutnya:</b> ${esc(n.text || "")}</div>
@@ -295,7 +353,8 @@ async function doNext(action) {
   if (action === "align") return alignVoice();
   if (action === "render") return startRender();
   if (action === "clips") return (location.href = "/workspace");
-  if (action === "custom") return (await copyText(CUR.next.command)) ? toast("Perintah disalin.") : toast("Tidak bisa menyalin.");
+  if (action === "copy") return copyClaudeCmd();
+  if (action === "take") return takeFolder();
 }
 
 async function copyClaudeCmd() {
@@ -385,6 +444,7 @@ async function copyFix(btn) {
 
 function drawNeeds() {
   const el = byId("rmNeeds");
+  if (CUR && CUR.kind === "custom") return (el.innerHTML = "");
   const needs = CUR.needs || [];
   const warns = CUR.warnings || [];
   const warnHTML = warns.length ? `<div class="rm-needs"><b>Peringatan buku gaya (belum menghalangi):</b>${errorsHTML(warns)}</div>` : "";
@@ -404,7 +464,7 @@ function drawVoice() {
   const busy = job.kind === "voice" && ["queued", "running"].includes(job.state);
   const have = v && v.name;
   sec.innerHTML = `
-    <header><span class="rm-n">3</span><h2>Suara (opsional)</h2></header>
+    <header><span class="rm-n">${panelNum("voice")}</span><h2>Suara (opsional)</h2></header>
     <p>Rekam sendiri atau pakai file dari luar (wav, mp3, m4a, ...). Satu file, atau beberapa file dengan nomor di akhir namanya (mis. colokan_1.wav, colokan_2.wav): urutannya dari nomor, bukan dari nama. klipian mencocokkan kata dengan suaranya di komputer ini. Tanpa layanan suara: tidak ada key.</p>
     ${have ? `<div class="rm-needs"><b>${esc(v.name)}</b> · ${v.duration} dtk · ${v.aligned ? `sudah dicocokkan (${esc(v.method === "whisper" ? "dari suara" : "perkiraan merata")}), video ${v.total} dtk` : v.stale ? "cerita berubah sejak dicocokkan: cocokkan lagi" : "belum dicocokkan"}${v.note ? `<br><span class="rm-hint">${esc(v.note)}</span>` : ""}</div>` : ""}
     ${voicePartsHTML(v || {})}
@@ -687,7 +747,7 @@ function drawStory() {
   const stills = d.stills || { files: {}, stale: true };
   const have = Object.keys(stills.files).length > 0;
   sec.innerHTML = `
-    <header><span class="rm-n">4</span><h2>Storyboard</h2></header>
+    <header><span class="rm-n">${panelNum("story")}</span><h2>Storyboard</h2></header>
     <p>${d.story.beats.length} beat, ${d.story.duration} detik. Pertanyaan: <b style="color:var(--text)">${esc(d.story.question)}</b></p>
     ${optionsHTML(d.options || {}, "rmOptsProject")}
     ${(d.optionWarnings || []).map((w) => `<div class="rm-warn">${esc(w)}</div>`).join("")}
@@ -756,7 +816,7 @@ function drawFacts() {
   const facts = d.facts || [];
   const rej = facts.some((f) => f.status === "rejected");
   sec.innerHTML = `
-    <header><span class="rm-n">5</span><h2>Cek fakta</h2></header>
+    <header><span class="rm-n">${panelNum("facts")}</span><h2>Cek fakta</h2></header>
     <p>Buka setiap sumber, pastikan klaimnya benar. Render baru bisa setelah semua klaim dicentang.</p>
     ${facts.length ? "" : `<p class="rm-hint">Cerita ini tidak punya klaim.</p>`}
     <div class="rm-claims">${facts.map((f, i) => `
@@ -812,7 +872,7 @@ function drawTitles() {
   sec.hidden = !d.story;
   if (!d.story) return;
   sec.innerHTML = `
-    <header><span class="rm-n">6</span><h2>Judul</h2></header>
+    <header><span class="rm-n">${panelNum("title")}</span><h2>Judul</h2></header>
     <p>Pilih satu. Ini jadi judul di Clips dan di YouTube.</p>
     <div class="rm-titles">${d.story.titles.map((t) => `<button class="btn" type="button" data-act="title" data-t="${esc(t)}" aria-pressed="${d.title === t}">${esc(t)}<small>${t.length}</small></button>`).join("")}</div>`;
 }
@@ -846,7 +906,7 @@ function drawRender() {
   const gate = d.gate || [];
   const r = d.render;
   sec.innerHTML = `
-    <header><span class="rm-n">7</span><h2>Render</h2></header>
+    <header><span class="rm-n">${panelNum("render")}</span><h2>Render</h2></header>
     <p class="rm-hint">Akan dirender dengan: ${d.kind === "custom" && d.composition ? `video khusus <b>${esc(d.composition)}</b>` : d.kind === "custom" ? "video khusus (folder belum dipilih)" : "template klipian"}.</p>
     <div class="rm-gate" data-ok="${gate.length === 0}">${gate.length ? `<b>Belum bisa dirender:</b><ul>${gate.map((g) => `<li>${esc(g)}</li>`).join("")}</ul>` : "Siap dirender: semua klaim dicek dan judul dipilih."}</div>
     <div class="rm-actions">

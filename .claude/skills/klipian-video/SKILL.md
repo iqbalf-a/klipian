@@ -41,7 +41,7 @@ You are the local Claude Code of this computer. The person copied or saved a bri
    **For `elevenlabs`** the script is one request with no part headers. Beats are joined with `...` (a final full stop becomes `...`), with one `[pause]` before the last tips. Tags are from ElevenLabs' voice list only: `[whispers]` before "Intip yuk!", `[curious]` at the start of a question hook, nothing else by default. At most one tag per beat and six in all. Never a sound-effect tag, never `<break>`. The model and the settings are a note for the person, not text.
 
    **Tell the person** the same text is in the panel: `/remotion`, panel "3 Suara", choose "Google AI Studio", press "Muat naskah". Its three blocks each have a copy button, so they do not depend on the terminal copy.
-8. **Tell the person the next steps for `/remotion`**, in plain words: make the voice outside klipian; choose the video folder `remotion/videos/<slug>` (Jenis video: Khusus) and show its full path; choose the audio file or files; press Cocokkan; look at the preview; then Render.
+8. **Tell the person the next steps for `/remotion`**, in plain words: in the panel "Video dari Claude Code", choose the folder `remotion/videos/<slug>` and show its full path; press **Ambil cerita dari folder**. They do not need to paste the JSON: klipian reads only that folder's `story.json`, and only when they press the button. Then make the voice outside klipian; choose the audio file or files; press Cocokkan; look at the preview; then Render. As a fallback, keep printing the story JSON in your answer, so the person can paste it if the button is not possible.
 
 ## Your answer
 
