@@ -13,6 +13,7 @@ import { NatureDemo, NATURE_DEMO_SECONDS } from "./NatureDemo.tsx";
 import { StageDemo, HeroStageFixture } from "./StageDemo.tsx";
 import templateStory from "../templates/video/story.json";
 import { ThemeCtx } from "./components/Backgrounds.tsx";
+import { CaptionStyleCtx } from "./components/Captions.tsx";
 import { NatureSheet } from "./NatureSheet.tsx";
 import { MarkSheet } from "./MarkSheet.tsx";
 import { SHEET_HEIGHT } from "./natureGeometry.ts";
@@ -27,7 +28,7 @@ if (!parsed.ok) throw new Error("stories/colokan-panas.json is not a valid story
 /** A custom video inside its story's background theme (PLAN-VARIETY stage 2): the story's `theme`, cream when it has none. The video itself is unchanged. */
 const themed: Record<string, React.ComponentType<{ story: StoryT; layoutDebug?: boolean }>> = Object.fromEntries(VIDEOS.map((v) => {
   const Themed: React.FC<{ story: StoryT; layoutDebug?: boolean }> = (props) => (
-    <ThemeCtx.Provider value={props.story.theme ?? "cream"}><v.Video {...props} /></ThemeCtx.Provider>
+    <ThemeCtx.Provider value={props.story.theme ?? "cream"}><CaptionStyleCtx.Provider value={props.story.captionStyle ?? "classic"}><v.Video {...props} /></CaptionStyleCtx.Provider></ThemeCtx.Provider>
   );
   return [v.id, Themed];
 }));

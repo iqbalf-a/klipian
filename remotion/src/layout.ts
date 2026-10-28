@@ -7,7 +7,7 @@
    so a scene somebody laid out by hand stays as it is.
    Pure: no React, no DOM (the text width is an estimate, the same in a test and in a render), so `npm test` can check it. */
 import type { ItemT } from "./schema.ts";
-import { FRAME, SAFE, SHEET_TO_VIDEO as K } from "./tokens.ts";
+import { CAPTION_STYLE_NAMES, FRAME, SAFE, SHEET_TO_VIDEO as K } from "./tokens.ts";
 import { FALLBACK_WIDTH, WIDTHS } from "./fontMetrics.ts";
 
 export type Box = { x0: number; y0: number; x1: number; y1: number };
@@ -38,11 +38,23 @@ export const ZONES = {
 } as const;
 export const bounds = (hasBanner = true): Box => ({ x0: SAFE.left, y0: hasBanner ? BANNER_BOTTOM + GAP : SAFE.top, x1: SAFE.right, y1: SAFE.bottom });
 
-/** The caption layer at the bottom (inside the safe area: x up to 950, y up to 1632) and the top text (kicker + headline): fixed zones the rest keeps clear of. */
-export const CAPTION = { fs: 56, maxTextWidth: 770, padX: 30, padY: 22, cx: (SAFE.left + SAFE.right) / 2, bottom: 1620 } as const;   // 12 px above the Shorts interface (SAFE.bottom 1632)
+export type CaptionStyle = (typeof CAPTION_STYLE_NAMES)[number];
+/** The caption layer at the bottom (inside the safe area: x up to 950, y up to 1632) and the top text (kicker + headline): fixed zones the rest keeps clear of.
+    The three looks (PLAN-CAPTION-OPTIONS): `classic` is today's caption (two lines), `wide` one line across the safe width (a shorter box), `punch` short
+    and big (at most three words a page). Each one's box bottom is 1620 (12 px above the Shorts interface, SAFE.bottom 1632). */
+export const CAPTION_VARIANTS = {
+  classic: { fs: 56, maxTextWidth: 770, maxLines: 2, maxWords: Infinity, padX: 30, padY: 22, cx: (SAFE.left + SAFE.right) / 2, bottom: 1620 },
+  wide: { fs: 46, maxTextWidth: 830, maxLines: 1, maxWords: Infinity, padX: 30, padY: 22, cx: (SAFE.left + SAFE.right) / 2, bottom: 1620 },
+  punch: { fs: 76, maxTextWidth: 700, maxLines: 1, maxWords: 3, padX: 30, padY: 22, cx: (SAFE.left + SAFE.right) / 2, bottom: 1620 },
+} as const;
+export const CAPTION = CAPTION_VARIANTS.classic;
+export const captionVariant = (style?: CaptionStyle) => CAPTION_VARIANTS[style ?? "classic"];
 export const TOP_TEXT = { x: SAFE.left + 20, y: 96, fs: 76, kickerFs: 28, maxWidth: SAFE.right - SAFE.left - 40 } as const;
-/** The box of the caption layer (two lines at most) and of the top text (a kicker and two lines of headline). */
-export const captionBox = (): Box => ({ x0: CAPTION.cx - (CAPTION.maxTextWidth + 2 * CAPTION.padX) / 2, y0: CAPTION.bottom - (2 * CAPTION.fs * 1.22 + 2 * CAPTION.padY), x1: CAPTION.cx + (CAPTION.maxTextWidth + 2 * CAPTION.padX) / 2, y1: CAPTION.bottom });
+/** The box of the caption layer of a look: the tallest box it can produce (its maximum lines), so the scene keeps clear of any page. The top text is below. */
+export const captionBox = (style?: CaptionStyle): Box => {
+  const v = captionVariant(style);
+  return { x0: v.cx - (v.maxTextWidth + 2 * v.padX) / 2, y0: v.bottom - (v.maxLines * v.fs * 1.22 + 2 * v.padY), x1: v.cx + (v.maxTextWidth + 2 * v.padX) / 2, y1: v.bottom };
+};
 export const topTextBox = (): Box => ({ x0: SAFE.left, y0: TOP_TEXT.y - 10, x1: SAFE.right, y1: TOP_TEXT.y + 52 + TOP_TEXT.fs * 2.3 });
 
 // ---------------------------------------------------------------------------------------------------------------------------------------
@@ -284,9 +296,9 @@ export function layoutStory<S extends { captions?: boolean; beats: { kicker?: st
 }
 
 /** The caption layer and the top text of a beat as fixed boxes, so what is drawn between them never overlaps them. */
-export function fixedLayers(story: { captions?: boolean }, beat: { kicker?: string; headline?: string }): Spec[] {
+export function fixedLayers(story: { captions?: boolean; captionStyle?: CaptionStyle }, beat: { kicker?: string; headline?: string }): Spec[] {
   const out: Spec[] = [];
-  if (story.captions) out.push({ id: "caption", role: "caption", box: captionBox() });
+  if (story.captions) out.push({ id: "caption", role: "caption", box: captionBox(story.captionStyle) });
   if (beat.headline) out.push({ id: "top-text", role: "banner", box: topTextBox() });
   return out;
 }

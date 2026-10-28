@@ -4,29 +4,32 @@
 import React from "react";
 import { BLACK, FONT_BOLD, FONT_MONO, WHITE, YELLOW, YELLOW_D } from "../tokens.ts";
 import { activeWord, pageAt, pagesOf, wordsOfBeat } from "../captions.ts";
-import { CAPTION, TOP_TEXT, textWidthEstimate } from "../layout.ts";
+import { TOP_TEXT, captionVariant, textWidthEstimate, type CaptionStyle } from "../layout.ts";
 import { springAt } from "../motion.ts";
 
 const bold = { fontFamily: `"${FONT_BOLD}", sans-serif`, fontWeight: 700 } as const;
+/** The caption look of the story (PLAN-CAPTION-OPTIONS): provided by the video's story; classic when there is none. The text style does not change with it (B17). */
+export const CaptionStyleCtx = React.createContext<CaptionStyle>("classic");
 
 export const CaptionLayer: React.FC<{ beat: { narration: string; dur: number; words?: readonly { w: string; a: number; b: number }[] }; t: number }> = ({ beat, t }) => {
-  const pages = React.useMemo(() => pagesOf(wordsOfBeat(beat), CAPTION.fs, CAPTION.maxTextWidth), [beat]);
+  const v = captionVariant(React.useContext(CaptionStyleCtx));              // read every render: the hooks keep their order
+  const pages = React.useMemo(() => pagesOf(wordsOfBeat(beat), v.fs, v.maxTextWidth, v.maxLines, v.maxWords), [beat, v]);
   const page = pageAt(pages, t);
   if (!page) return null;
-  const act = activeWord(page, t), space = textWidthEstimate(" ", CAPTION.fs);
-  const widths = page.lines.map((line) => line.reduce((n, i, k) => n + textWidthEstimate(page.words[i].w, CAPTION.fs) + (k ? space : 0), 0));
-  const boxW = Math.max(...widths) + CAPTION.padX * 2, boxH = page.lines.length * CAPTION.fs * 1.22 + CAPTION.padY * 2 - CAPTION.fs * 0.1;
-  const pop = springAt(t, page.a - 0.05, true), cx = CAPTION.cx;
-  const y0 = CAPTION.bottom - boxH;
+  const act = activeWord(page, t), space = textWidthEstimate(" ", v.fs);
+  const widths = page.lines.map((line) => line.reduce((n, i, k) => n + textWidthEstimate(page.words[i].w, v.fs) + (k ? space : 0), 0));
+  const boxW = Math.max(...widths) + v.padX * 2, boxH = page.lines.length * v.fs * 1.22 + v.padY * 2 - v.fs * 0.1;
+  const pop = springAt(t, page.a - 0.05, true), cx = v.cx;
+  const y0 = v.bottom - boxH;
   return (
     <g opacity={Math.min(1, pop * 2)} transform={`translate(0 ${(1 - pop) * 14})`}>
-      <rect x={cx - boxW / 2} y={y0} width={boxW} height={boxH} rx={CAPTION.fs * 0.5} fill={BLACK} opacity={0.88} />
+      <rect x={cx - boxW / 2} y={y0} width={boxW} height={boxH} rx={v.fs * 0.5} fill={BLACK} opacity={0.88} />
       {page.lines.map((line, li) => {
         let x = cx - widths[li] / 2;
         return line.map((wi, k) => {
-          const w = page.words[wi], wd = textWidthEstimate(w.w, CAPTION.fs), here = x;
+          const w = page.words[wi], wd = textWidthEstimate(w.w, v.fs), here = x;
           x += wd + space;
-          return <text key={`${li}-${k}`} x={here} y={y0 + CAPTION.padY + CAPTION.fs * 0.95 + li * CAPTION.fs * 1.22} fontSize={CAPTION.fs} fill={wi === act ? YELLOW : WHITE} opacity={wi > act ? 0.78 : 1} style={bold}>{w.w}</text>;
+          return <text key={`${li}-${k}`} x={here} y={y0 + v.padY + v.fs * 0.95 + li * v.fs * 1.22} fontSize={v.fs} fill={wi === act ? YELLOW : WHITE} opacity={wi > act ? 0.78 : 1} style={bold}>{w.w}</text>;
         });
       })}
     </g>

@@ -18,12 +18,13 @@ export function estimateWords(narration: string, dur: number, lead = 0.2, tail =
 export const wordsOfBeat = (beat: { narration: string; dur: number; words?: readonly CWord[] }): CWord[] => (beat.words?.length ? [...beat.words] : estimateWords(beat.narration, beat.dur));
 
 /** Pages of at most `maxLines` lines of at most `maxWidth` pixels (at font size `fs`): the page shows while its words are spoken. */
-export function pagesOf(words: readonly CWord[], fs = 56, maxWidth = 760, maxLines = 2): Page[] {
+export function pagesOf(words: readonly CWord[], fs = 56, maxWidth = 760, maxLines = 2, maxWords = Infinity): Page[] {
   const pages: Page[] = [];
   let cur: CWord[] = [], lines: number[][] = [[]], width = 0;
   const space = textWidthEstimate(" ", fs);
   const flush = () => { if (cur.length) pages.push({ words: cur, lines, a: cur[0].a, b: cur[cur.length - 1].b }); cur = []; lines = [[]]; width = 0; };
   for (const w of words) {
+    if (cur.length >= maxWords) flush();                         // a look with a word limit (punch: three words a page)
     const wd = textWidthEstimate(w.w, fs);
     if (lines[lines.length - 1].length && width + space + wd > maxWidth) {
       if (lines.length >= maxLines) flush(); else { lines.push([]); width = 0; }

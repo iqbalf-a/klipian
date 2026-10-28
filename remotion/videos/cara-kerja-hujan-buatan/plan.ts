@@ -206,7 +206,7 @@ export function makePlan(story: StoryT) {
     const p = typeof l.at === "function" ? l.at(t) : l.at;
     const a = l.world === "out" ? toScreen(outCam(t), p) : p;
     const wTxt = textWidthEstimate(l.text, LABEL_FS), wPill = wTxt + LABEL_FS * 1.1 + (l.n !== undefined ? LABEL_FS * 1.5 + 8 : 0), h = LABEL_FS * 1.5;
-    const top = topTextBox().y1 + 20 + h / 2, bottom = captionBox().y0 - 20 - h / 2;
+    const top = topTextBox().y1 + 20 + h / 2, bottom = captionBox(story.captionStyle).y0 - 20 - h / 2;
     const x = Math.max(SAFE.left + wPill / 2, Math.min(SAFE.right - wPill / 2, a[0] + l.off[0])), y = Math.max(top, Math.min(bottom, a[1] + l.off[1]));
     return { x, y, ax: a[0], ay: a[1], w: wPill, h, box: { x0: x - wPill / 2, y0: y - h / 2, x1: x + wPill / 2, y1: y + h / 2 } as Box };
   };
@@ -249,7 +249,7 @@ export function makePlan(story: StoryT) {
   const specsAt = (t: number, tipH: (i: number) => number): Spec[] => {
     const specs: Spec[] = [];
     if (tops.some((x) => t >= x.a && t < x.b)) specs.push({ id: "top-text", role: "banner", box: topTextBox() });
-    if (story.beats.some((b) => b.kind !== "sting" && b.kind !== "outro" && t >= beat(b.id).a && t < beat(b.id).b)) specs.push({ id: "caption", role: "caption", box: captionBox() });
+    if (story.beats.some((b) => b.kind !== "sting" && b.kind !== "outro" && t >= beat(b.id).a && t < beat(b.id).b)) specs.push({ id: "caption", role: "caption", box: captionBox(story.captionStyle) });
     if (!insideLens(t) && t < m.outro) {
       const c = outCam(t), cb = cloudBox(), a = toScreen(c, [cb.x0, cb.y0]), b = toScreen(c, [cb.x1, cb.y1]);
       specs.push({ id: "hero", role: "hero", box: { x0: a[0], y0: a[1], x1: b[0], y1: b[1] } });

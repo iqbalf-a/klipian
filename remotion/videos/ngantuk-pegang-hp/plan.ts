@@ -142,7 +142,7 @@ export function makePlan(story: StoryT) {
   const labelAt = (l: Lab, t: number) => {
     const a = toScreen(outCam(t), l.at);
     const wPill = textWidthEstimate(l.text, LABEL_FS) + LABEL_FS * 1.1, h = LABEL_FS * 1.5;
-    const top = topTextBox().y1 + 20 + h / 2, bottom = captionBox().y0 - 20 - h / 2;
+    const top = topTextBox().y1 + 20 + h / 2, bottom = captionBox(story.captionStyle).y0 - 20 - h / 2;
     const x = Math.max(SAFE.left + wPill / 2, Math.min(SAFE.right - wPill / 2, a[0] + l.off[0])), y = Math.max(top, Math.min(bottom, a[1] + l.off[1]));
     return { x, y, ax: a[0], ay: a[1], w: wPill, h, box: { x0: x - wPill / 2, y0: y - h / 2, x1: x + wPill / 2, y1: y + h / 2 } as Box };
   };
@@ -175,7 +175,7 @@ export function makePlan(story: StoryT) {
   const specsAt = (t: number, tipH: (i: number) => number): Spec[] => {
     const specs: Spec[] = [];
     if (tops.some((x) => t >= x.a && t < x.b)) specs.push({ id: "top-text", role: "banner", box: topTextBox() });
-    if (story.beats.some((b) => b.kind !== "sting" && b.kind !== "outro" && t >= beat(b.id).a && t < beat(b.id).b)) specs.push({ id: "caption", role: "caption", box: captionBox() });
+    if (story.beats.some((b) => b.kind !== "sting" && b.kind !== "outro" && t >= beat(b.id).a && t < beat(b.id).b)) specs.push({ id: "caption", role: "caption", box: captionBox(story.captionStyle) });
     if (t < m.outro) {
       // the phone is the key of the picture (the bed is only its stage, so a label may lie over the blanket); the eyes and the bubble are pictures labels keep clear of
       const c = outCam(t), z = c.zoom, st = state(t), box = (cx: number, cy: number, hw: number, hh: number): Box => { const a = toScreen(c, [cx - hw, cy - hh]), b = toScreen(c, [cx + hw, cy + hh]); return { x0: a[0], y0: a[1], x1: b[0], y1: b[1] }; };

@@ -64,6 +64,8 @@ export const THEMES = {
 } as const;
 export type ThemeName = keyof typeof THEMES;
 export const THEME_NAMES = Object.keys(THEMES) as [ThemeName, ...ThemeName[]];
+/** The caption looks (PLAN-CAPTION-OPTIONS, B23): `classic` is the channel's caption and the default; the text style is locked in all three. */
+export const CAPTION_STYLE_NAMES = ["classic", "wide", "punch"] as const;
 
 /** Where the floor starts in the Room and brand scenes (the sheet's 90 units from the bottom). Key content stays above the
     Shorts interface: out of the bottom 15 % (y > 1632) and the right 12 % (x > 950). */

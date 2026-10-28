@@ -3,6 +3,7 @@
    (the story's `transition` words: slide, wipe, zoom, through the lens), so the video lasts the sum of the beats. */
 import React from "react";
 import { ThemeCtx } from "../components/Backgrounds.tsx";
+import { CaptionStyleCtx } from "../components/Captions.tsx";
 import { useCurrentFrame } from "remotion";
 import { linearTiming, TransitionSeries } from "@remotion/transitions";
 import type { BeatT, StoryT } from "../schema.ts";
@@ -39,5 +40,9 @@ export const StoryVideo: React.FC<{ story: StoryT; scene: Scene; layoutDebug?: b
         <BeatFrame beat={p.beat} index={i} start={p.from} story={story} scene={scene} debug={layoutDebug} />
       </TransitionSeries.Sequence>);
   });
-  return <ThemeCtx.Provider value={story.theme ?? "cream"}><TransitionSeries>{children}</TransitionSeries></ThemeCtx.Provider>;
+  return (
+    <ThemeCtx.Provider value={story.theme ?? "cream"}>
+      <CaptionStyleCtx.Provider value={story.captionStyle ?? "classic"}><TransitionSeries>{children}</TransitionSeries></CaptionStyleCtx.Provider>
+    </ThemeCtx.Provider>
+  );
 };
