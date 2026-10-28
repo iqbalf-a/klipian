@@ -116,5 +116,10 @@ export const STORY_RULES = [
 export const MUSIC = {
   "bed-calm": { level: 0.06, solo: 0.18, dur: 24 },
   "bed-tech": { level: 0.06, solo: 0.18, dur: 24 },
+  // the cheerful beds (PLAN-VARIETY stage 1): the levels are judged by ian's ears against the pilot 1 mix; `dur` is the loop's length in seconds
+  "bed-sunny": { level: 0.06, solo: 0.18, dur: 16 },
+  "bed-bounce": { level: 0.06, solo: 0.18, dur: 24 },
+  "bed-glow": { level: 0.05, solo: 0.15, dur: 24 },   // a little lower: its bells sit in the voice band
+  "bed-curious": { level: 0.06, solo: 0.18, dur: 24 },
 } as const;
 export const MUSIC_NAMES = Object.keys(MUSIC) as [keyof typeof MUSIC, ...(keyof typeof MUSIC)[]];

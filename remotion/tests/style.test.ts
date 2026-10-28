@@ -148,4 +148,18 @@ for (const r of DICTIONARY.filter((k) => k.status === "drawn")) {
   yes(existsSync(path.join(ROOT, "scripts", "styleReport.mjs")) && existsSync(path.join(ROOT, "templates", "video", "plan.ts")) && existsSync(path.join(ROOT, "templates", "video-test.tpl")), "the report, the plan skeleton and the test skeleton are in place");
 }
 
+// --- the music beds (PLAN-VARIETY stage 1): every catalogue bed has its loop, its length is `dur`, and the legacy beds are the approved ones
+{
+  const { MUSIC } = await import("../src/catalog.ts");
+  const { readFileSync: rf } = await import("node:fs");
+  for (const [name, m] of Object.entries(MUSIC)) {
+    const wav = path.join(ROOT, "sfx", "music", `${name}.wav`);
+    yes(existsSync(wav), `the bed ${name} has its loop file`);
+    const buf = rf(wav);
+    const seconds = (buf.length - 44) / 2 / 48000;                    // a 16-bit mono wav at 48 kHz
+    yes(Math.abs(seconds - m.dur) < 0.01, `the bed ${name} loops ${m.dur} s (the file is ${seconds.toFixed(2)} s)`);
+  }
+  yes(MUSIC["bed-calm"].dur === 24 && MUSIC["bed-tech"].dur === 24, "the legacy beds keep their 24 s loop");
+}
+
 console.log(`style: ${n} checks ok`);

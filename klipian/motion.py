@@ -1205,9 +1205,19 @@ def _example_text(cat: dict) -> str:
 # and turning one off gives a warning (the channel asks for them). The voice target only chooses the text format of the narration (the voice is made
 # outside klipian, by the person's own voice app); the music is the story's bed.
 VOICE_TARGETS = {"voicestudio": "VoiceStudio", "elevenlabs": "ElevenLabs", "googleai": "Google AI Studio"}
-MUSIC_TRACKS = {"calm": "bed-calm", "tech": "bed-tech", "none": "none"}
+MUSIC_TRACKS = {"sunny": "bed-sunny", "bounce": "bed-bounce", "glow": "bed-glow", "curious": "bed-curious", "calm": "bed-calm", "tech": "bed-tech", "none": "none"}
 # the labels the page shows (Indonesian). The two beds that exist are the legacy ones (PLAN-VARIETY stage 1): their tracks never change.
-MUSIC_LABELS = {"calm": "Tenang (lama)", "tech": "Teknologi (lama)", "none": "Tanpa musik"}
+MUSIC_LABELS = {"sunny": "Ceria", "bounce": "Pantul", "glow": "Hangat", "curious": "Penasaran", "calm": "Tenang (lama)", "tech": "Teknologi (lama)", "none": "Tanpa musik"}
+# when each bed fits (PLAN-VARIETY): the brief tells the AI which one to choose for which kind of fact
+MUSIC_USE = {
+    "sunny": "cheerful and major (about 120 BPM, a marimba-like melody): a cause or an object that works",
+    "bounce": "bouncy and playful (about 120 BPM, staccato bass, light claps): a process or a gadget",
+    "glow": "warm and friendly (about 100 BPM, pads and a bell arpeggio): everyday objects at home",
+    "curious": "playful and a little mysterious (about 100 BPM, a Dorian feel): a myth check or a how-does-it-work",
+    "calm": "calm and slow (the legacy bed, kept for old videos)",
+    "tech": "a quiet pattern (the legacy bed, kept for old videos)",
+    "none": "no music",
+}
 KINDS = {"otomatis": "Otomatis (template, paling cepat)", "khusus": "Khusus (video buatan sesi Claude Code, tampilan terbaik)"}
 VS_GENDERS = ("female", "male")
 VS_AGES = ("child", "teenager", "young adult", "middle-aged", "elderly")
@@ -1287,7 +1297,7 @@ def option_warnings(opts: dict) -> list[str]:
 
 
 def _options_text(opts: dict) -> str:
-    music = {"calm": "a calm bed (story music track bed-calm)", "tech": "a tech bed (story music track bed-tech)", "none": "no music (story music track none)"}[opts["music"]]
+    music = f"{MUSIC_USE[opts['music']]} (story music track {MUSIC_TRACKS[opts['music']]})"
     lines = [f"- Loop: {'yes' if opts['loop'] else 'no'} (the ending returns to the scene of the first beat)",
              f"- Intip yuk!: {'yes' if opts['sting'] else 'no'} (the small sting right after the hook)",
              f"- Music: {music}",
@@ -1591,7 +1601,7 @@ the video explains; no hashtags in it) and the hashtags in `post.hashtags`. klip
 Reply with **a single JSON block**, no explanation outside it. Plain JSON only: no code, expressions, comments, trailing commas or
 variables; every value is finished text or a number. The block is one story with these fields:
 
-- `bible`: 1 (this story follows the channel's musts, so klipian checks them strictly); `music`: `{{"track": "bed-calm" | "bed-tech" | "none"}}` as the options say; `question`: the hook (a question or a surprising statement, about 3 seconds); `titles`: exactly 3; `duration`: {d}; `beats`: the beats; `claims`: the claims with `text`, `beats` (ids) and `sources` (URLs);
+- `bible`: 1 (this story follows the channel's musts, so klipian checks them strictly); `music`: `{{"track": "bed-sunny" | "bed-bounce" | "bed-glow" | "bed-curious" | "bed-calm" | "bed-tech" | "none"}}`: the track of the options, or the one that fits the fact (cheerful beds for most videos); `question`: the hook (a question or a surprising statement, about 3 seconds); `titles`: exactly 3; `duration`: {d}; `beats`: the beats; `claims`: the claims with `text`, `beats` (ids) and `sources` (URLs);
   `post`: `description` and `hashtags`; `needs`: a list of objects or effects the story would need that the catalogue does not have (empty when there are none).
 - each beat: `id` (lowercase, hyphens), `kind`, `dur`, `narration`, `text` (the screen text of the beat, at most 6 words), `scene` (`bg`, `items`), `sfx` (a short note on the sound for a human), and optionally `camera` and `transition`.
 

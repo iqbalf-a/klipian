@@ -5830,8 +5830,9 @@ def check_motionopts() -> tuple[str, str]:
                                     problems.append(f"the {d} s brief for {opts} has no warning")
                                 if "`music`" not in text:
                                     problems.append("the answer format asks for the music track")
-        if count != 216:
-            problems.append(f"216 combinations were checked: {count}")
+        expected = 3 * 2 * 2 * 3 * len(motion.MUSIC_TRACKS) * len(motion.KINDS)
+        if count != expected:
+            problems.append(f"{expected} combinations were checked: {count}")
     finally:
         motion._catalog, profiles.hashtag_settings = old_catalog, old_settings
 
@@ -5906,7 +5907,7 @@ def check_motionopts() -> tuple[str, str]:
         problems.append("changing one option keeps the others")
     if problems:
         return FAIL, "\n      ".join(problems)
-    return PASS, ("the choices and the refusals, the warnings for loop and the sting, the brief for 216 combinations, the fix message with the options, "
+    return PASS, ("the choices and the refusals, the warnings for loop and the sting, the brief for every combination of length, loop, sting, apps, music and kind, the fix message with the options, "
                   "the narration parts (about 10 to 15 s, sentence ends) and the text for each voice app (no tags for VoiceStudio and ElevenLabs, <short pause> for Google)")
 
 
@@ -6385,10 +6386,14 @@ def check_music() -> tuple[str, str]:
         problems.append("every track has a label")
     if motion.MUSIC_TRACKS.get("calm") != "bed-calm" or motion.MUSIC_TRACKS.get("tech") != "bed-tech":
         problems.append("the legacy beds keep their tracks (bed-calm, bed-tech)")
+    catalog = (root / "remotion" / "src" / "catalog.ts").read_text(encoding="utf-8")
+    for track in motion.MUSIC_TRACKS.values():
+        if track != "none" and f'"{track}"' not in catalog:
+            problems.append(f"the track {track} is in the catalogue")
     if motion.DEFAULT_OPTIONS["music"] != "calm":
         problems.append("the default for a new video is still the legacy calm bed, until ian picks the new one")
     for key, label in motion.MUSIC_LABELS.items():
-        if f'<option value="{key}">{label}</option>' not in html:
+        if not _re.search(rf'<option value="{key}"( selected)?>{_re.escape(label)}</option>', html):
             problems.append(f"the dialog offers {label!r}")
     if problems:
         return FAIL, "\n      ".join(problems)

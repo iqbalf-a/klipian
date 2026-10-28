@@ -1,5 +1,41 @@
 {
-  "hash": "bc5c98346c7b99b141e11d7b26e1e583d3d15ca9f39228e6ced79f5e905f3905",
+  "hash": "84b43276ef7311282d22d2e733c9c644db2ef2bdb44c5564a21812c48d122518",
+  "legacyHash": "bc5c98346c7b99b141e11d7b26e1e583d3d15ca9f39228e6ced79f5e905f3905",
+  "approved": {
+    "sfx/wav/blip-alert.wav": "17159c76622a40e2a1df0dfc23d7e738b30251ae7115f23bc0a44634d822e13e",
+    "sfx/wav/boing.wav": "e05754698deb558f6125b31cab1ecec0e5bd867f579f513edf70c9168f9f1de7",
+    "sfx/wav/bubble-rise.wav": "06a595eedb7ed64c3f93cee192ad3370bbbce993730595109568e79fa08ea862",
+    "sfx/wav/chime-bright.wav": "efab0f5476cc00e1fa88f48b5a673e058f6a152157ccc83ac0fbf58ad13a535d",
+    "sfx/wav/chime.wav": "23f8c277db715ccc7fe2de46f2370d769f6dcae5f9ea7662d5d19f1c48214400",
+    "sfx/wav/click-crack.wav": "44f90e690ff765769b2c5ba380c78eb46a484f93cdfe17bc886fc2e96efefb9d",
+    "sfx/wav/drip.wav": "d29e829585bb96fa2a97edd9abca1b064840500c6c57af5e6739a67921e0d87c",
+    "sfx/wav/glass-ting.wav": "bd5065dc81d8f23b5e0bf37d68afc4b463f61e654f540c544dfc0ab5d4fe5c7e",
+    "sfx/wav/huh.wav": "120dc5839f02eca58a7d02fdd2680e30bbcb05aed63312644ac9e4153aeaa392",
+    "sfx/wav/hum.wav": "0abe2c069195ffbc716466ee5a1bb62f5afb719a0f32e54738a7395cd2bce067",
+    "sfx/wav/jingle-outro.wav": "0c2b72e7b41b931ef72f5d34fca2d57d2eed20bfe7d46614eb41afac7a473d3f",
+    "sfx/wav/jingle-sting.wav": "d093d646076160114c3debf601ac8bb34189b9879e3fdfb7e06c96239ce69b51",
+    "sfx/wav/pop-soft.wav": "44936ee147c59a433aaa75276a44d8eb6554f7d5d7b2abda0ce3cc4b283c3c65",
+    "sfx/wav/pop.wav": "145bc4a43d88f03a3c582cc56910b071f72fb9e79e38c75944ca66354fdb3cb8",
+    "sfx/wav/puff.wav": "1a5bf97bb3af529c31a432781e14dd92a4e1dd39e830adde3f95a022f65610ce",
+    "sfx/wav/rain-patter.wav": "b6eb749e0a6b8bfea9d53d32bbe0c331da1405fa5befb62f2896e841f73fb381",
+    "sfx/wav/rattle.wav": "f1c32a537fd7843cdbdc6f144b5058a5cad3b4635c0c1befd7afb61573badb25",
+    "sfx/wav/sizzle.wav": "8db5273c7b378f8d200d50f4034bf07d3b53d8aed85aae6c44a636a188861bb7",
+    "sfx/wav/slide-whistle-down.wav": "bbb5e4156aa978464576ccb95e49b9c09eee4a9b12cd784fc875dea34555b727",
+    "sfx/wav/squeak.wav": "3a16a633b7a879ce880726c0d89020ea77d9500386da031be5d47c68cb5ad72d",
+    "sfx/wav/swish-soft.wav": "ae465050f8efffded9e6eb78a768d966c84816c27e226346fe08f09589b07992",
+    "sfx/wav/swish.wav": "24619d857beb29fde87df403169231b7754425727fd82a74f9cc8efb411bc50d",
+    "sfx/wav/thump.wav": "7e82b391ae27230e3f6e0b9bfe5620c60c47e1a69509afc92c28608a0dd5cd59",
+    "sfx/wav/tick-soft.wav": "125404b65cb5ef872f4eb26e386d1eb63645bddfc4b40f7f16453f5b5eaa91f5",
+    "sfx/wav/tick.wav": "b277d146a46e486f974f3a7c2c830b1c4579522c6f46b215d6f3f2fddc63d1e4",
+    "sfx/wav/whoosh.wav": "60bdd5e35a72899477feb9a3eb2e097ffac75c9977ee03b3794824f12995b718",
+    "sfx/wav/zip.wav": "67895507b977617696316cfd285508e60ff4f2934869235eae123b66ac73fb93",
+    "sfx/wav/zoom-whoosh.wav": "c12477c89fea17814b72ea545912695fd7942cf8fe9549245d584715ba81d80e",
+    "sfx/music/bed-calm.wav": "3b47525f879db8b704ae0232592693c03bd74d19a3e1f35dd5df7ce0efd7a429",
+    "sfx/music/bed-tech.wav": "0b9738f80ea171b53485cfe374f8fac229d58bb208fbd70431af2b3c3887e9c2",
+    "src/catalog.ts SFX": "f46f301773463d32cfbff83108cce77cb88ebd28469d8b2270375b32d1c640fb",
+    "src/catalog.ts MUSIC bed-calm": "1eb05c39053d6844e91d7856ea126cceca33cfad7f27bb8765cf6b76cec5a443",
+    "src/catalog.ts MUSIC bed-tech": "52331db375d5a8dff1fb6399f5b786849eda1c5380446e92487463532f17f873"
+  },
   "covers": [
     "sfx/wav/blip-alert.wav",
     "sfx/wav/boing.wav",
@@ -32,7 +68,8 @@
     "sfx/music/bed-calm.wav",
     "sfx/music/bed-tech.wav",
     "src/catalog.ts SFX",
-    "src/catalog.ts MUSIC"
+    "src/catalog.ts MUSIC bed-calm",
+    "src/catalog.ts MUSIC bed-tech"
   ],
-  "note": "the approved sound set of pilot 1 (ian, 2026-10-28)"
+  "note": "the approved sound set of pilot 1 (ian, 2026-10-28), one entry per approved sound; the open beds are not approved yet"
 }
