@@ -1,7 +1,13 @@
 Total sekitar 14 sampai 19 detik, 2 bagian. Target: VoiceStudio.
 
+NASKAH (tempel di VoiceStudio; baris "Bagian N" adalah penanda, hapus sebelum dibacakan)
 Bagian 1 (sekitar 14 detik)
-Kenapa colokan bisa panas? Pernah pegang colokan, eh kok panas? Intip yuk! Di dalam stop kontak ada penjepit logam. Penjepit itu menggigit kaki colokan. Tapi kalau penjepitnya kendur, sentuhannya jadi sempit. Listrik harus lewat jalan sempit itu.
+Kenapa colokan bisa panas? Pernah pegang colokan, eh kok panas? [pause 500ms] Intip yuk! [pause 500ms] Di dalam stop kontak ada penjepit logam. Penjepit itu menggigit kaki colokan. [pause 500ms] Tapi kalau penjepitnya kendur, sentuhannya jadi sempit. Listrik harus lewat jalan sempit itu.
 
 Bagian 2 (sekitar 2 detik)
-Jangan pakai dulu. Minta teknisi memeriksa.
+[pause 1s] Jangan pakai dulu. Minta teknisi memeriksa.
+
+DESKRIPSI SUARA (kolom deskripsi, satu nilai tiap kategori)
+female, young adult, moderate pitch
+
+Catatan: tag memakai kurung siku dan hanya dari daftar VoiceStudio (diperiksa 28 Okt 2026). Nada paling ditentukan oleh klip suara referensi. Belum terbukti untuk bahasa Indonesia: kolom deskripsi dan tag selain [laughter] dan [sigh]. Coba dulu tanpa tag.

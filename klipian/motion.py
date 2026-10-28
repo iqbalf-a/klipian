@@ -791,11 +791,11 @@ def choose_length(pid: str, choice: str) -> dict:
 
 
 def narration_for(pid: str, target: str) -> dict:
-    """The narration text for a voice app, from the current story (the words the person will have voiced)."""
+    """The narration text for a voice app, from the current story (the words the person will have voiced) and the video's options."""
     story = story_of(pid)
     if story is None:
         raise MotionError("no_story", "There is no story yet: paste the AI's answer first.")
-    return narration_export(story, target)
+    return narration_export(story, target, options_of(load(pid)))
 
 
 def subtitles_file(pid: str, fmt: str) -> Path | None:
@@ -1120,7 +1120,12 @@ def _example_text(cat: dict) -> str:
 VOICE_TARGETS = {"voicestudio": "VoiceStudio", "elevenlabs": "ElevenLabs", "googleai": "Google AI Studio"}
 MUSIC_TRACKS = {"calm": "bed-calm", "tech": "bed-tech", "none": "none"}
 KINDS = {"otomatis": "Otomatis (template, paling cepat)", "khusus": "Khusus (video buatan sesi Claude Code, tampilan terbaik)"}
-DEFAULT_OPTIONS = {"loop": True, "sting": True, "voiceTargets": list(VOICE_TARGETS), "voiceTargetFirst": "voicestudio", "music": "calm", "kind": "otomatis"}
+VS_GENDERS = ("female", "male")
+VS_AGES = ("child", "teenager", "young adult", "middle-aged", "elderly")
+VS_PITCH = "moderate pitch"          # the VoiceStudio pitch the export always writes (the pitch is not a choice in the panel)
+VS_TAGS_MAX = 2                      # the optional [laughter] at most twice in a video
+DEFAULT_OPTIONS = {"loop": True, "sting": True, "voiceTargets": list(VOICE_TARGETS), "voiceTargetFirst": "voicestudio", "music": "calm", "kind": "otomatis",
+                   "vsGender": "female", "vsAge": "young adult", "vsTags": False}
 
 
 def normalize_options(raw) -> dict:
@@ -1159,6 +1164,18 @@ def normalize_options(raw) -> dict:
             if raw[key] not in choices:
                 raise MotionError("options", f"{key} is one of: {', '.join(choices)}.")
             out[key] = raw[key]
+    if "vsGender" in raw:
+        if raw["vsGender"] not in VS_GENDERS:
+            raise MotionError("options", f"vsGender is one of: {', '.join(VS_GENDERS)}.")
+        out["vsGender"] = raw["vsGender"]
+    if "vsAge" in raw:
+        if raw["vsAge"] not in VS_AGES:
+            raise MotionError("options", f"vsAge is one of: {', '.join(VS_AGES)}.")
+        out["vsAge"] = raw["vsAge"]
+    if "vsTags" in raw:
+        if not isinstance(raw["vsTags"], bool):
+            raise MotionError("options", "vsTags is yes or no.")
+        out["vsTags"] = raw["vsTags"]
     return out
 
 
@@ -1289,7 +1306,45 @@ def _google_script(story: dict, parts: list[dict]) -> tuple[str, list[dict]]:
 GOOGLE_EXPRESSIONS_MAX = 6
 
 
-def narration_export(story: dict, target: str) -> dict:
+def _voicestudio(story: dict, parts: list[dict], options: dict) -> dict:
+    """VoiceStudio (PLAN-VOICE-VOICESTUDIO, docs read 2026-10-28): [pause 500ms] between two beats, [pause 1s] once before the last tips, the optional
+    [laughter] (only when the person checks it, at most VS_TAGS_MAX, before a turning sentence of a result beat), and the voice description: one value
+    per category (gender, age, pitch). The header lines "Bagian N" are markers for the person; the matching strips them."""
+    kind_of_beat = {b["id"]: b.get("kind") for b in story["beats"]}
+    tips = [b["id"] for b in story["beats"] if b.get("kind") == "tips" and (b.get("narration") or "").strip()]
+    last_tips = tips[-1] if tips else None
+    tags: list[dict] = []
+    tagged = 0
+    blocks = []
+    prev = None
+    for part in parts:
+        out = ""
+        for u in part["units"]:
+            kind = kind_of_beat[u["beat"]]
+            text = u["text"]
+            if prev is not None and prev["beat"] != u["beat"]:
+                if u["beat"] == last_tips and kind == "tips":
+                    out += " [pause 1s] "
+                    tags.append({"tag": "pause 1s", "beat": u["beat"], "at": "sebelum tips terakhir"})
+                else:
+                    out += " [pause 500ms] "
+                    tags.append({"tag": "pause 500ms", "beat": u["beat"], "at": "antar beat"})
+            elif out:
+                out += " "
+            if options.get("vsTags") and kind == "result" and tagged < VS_TAGS_MAX and re.match(r"(tapi|namun|padahal)\b", text, re.I):
+                text = f"[laughter] {text}"
+                tagged += 1
+                tags.append({"tag": "laughter", "beat": u["beat"], "at": "awal kalimat"})
+            out += text
+            prev = u
+        mid = round((part["low"] + part["high"]) / 2)
+        blocks.append(f"Bagian {part['no']} (sekitar {mid} detik)\n" + re.sub(r"\s+", " ", out).strip())
+    script = "\n\n".join(blocks)
+    style = f"{options.get('vsGender', 'female')}, {options.get('vsAge', 'young adult')}, {VS_PITCH}"
+    return {"script": script, "style": style, "tags": tags}
+
+
+def narration_export(story: dict, target: str, options: dict | None = None) -> dict:
     """The narration text for one voice app. VoiceStudio: plain text with a header line per part (the header is for the person: remove it before the
     voice reads). ElevenLabs: plain text with its punctuation; the Eleven v3 pause tags are not verified, so none are written. Google AI Studio (the
     Gemini TTS docs, checked 2026-10-28): the script with expression tags from the verified list (English, in angle brackets) and the short English
@@ -1302,6 +1357,14 @@ def narration_export(story: dict, target: str) -> dict:
     head = f"Total sekitar {total_low:.0f} sampai {total_high:.0f} detik, {len(parts)} bagian. Target: {VOICE_TARGETS[target]}."
     base = {"target": target, "label": VOICE_TARGETS[target], "total": {"low": total_low, "high": total_high},
             "parts": [{k: v for k, v in p.items() if k != "units"} for p in parts]}
+    if target == "voicestudio":
+        vs = _voicestudio(story, parts, normalize_options(options or {}))
+        text = (f"{head}\n\nNASKAH (tempel di VoiceStudio; baris \"Bagian N\" adalah penanda, hapus sebelum dibacakan)\n{vs['script']}\n\n"
+                f"DESKRIPSI SUARA (kolom deskripsi, satu nilai tiap kategori)\n{vs['style']}\n\n"
+                "Catatan: tag memakai kurung siku dan hanya dari daftar VoiceStudio (diperiksa 28 Okt 2026). Nada paling ditentukan oleh klip suara referensi. "
+                "Belum terbukti untuk bahasa Indonesia: kolom deskripsi dan tag selain [laughter] dan [sigh]. Coba dulu tanpa tag.\n")
+        return {**base, "status": "tag [pause ...] dari daftar VoiceStudio; [laughter] hanya jika dicentang; belum terbukti untuk bahasa Indonesia",
+                "style": vs["style"], "styleLong": None, "script": vs["script"], "tags": vs["tags"], "text": text}
     if target == "googleai":
         script, tags = _google_script(story, parts)
         style = _google_style(story)

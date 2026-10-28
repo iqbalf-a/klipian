@@ -442,10 +442,23 @@ function narrationHTML(d) {
     ${blocks}</div>`;
 }
 
+// VoiceStudio's choices: the voice's gender and age (the description), and the optional [laughter]; each change saves the option and makes the text again
+function vsControlsHTML(d) {
+  const o = d.options || {};
+  const ages = [["child", "anak"], ["teenager", "remaja"], ["young adult", "dewasa muda"], ["middle-aged", "paruh baya"], ["elderly", "lansia"]];
+  return `<div class="rm-actions">
+    <label class="ws-field">Suara ${`<select class="ws-input rm-boxed" data-vs="vsGender"><option value="female" ${o.vsGender !== "male" ? "selected" : ""}>perempuan</option><option value="male" ${o.vsGender === "male" ? "selected" : ""}>laki-laki</option></select>`}</label>
+    <label class="ws-field">Umur ${`<select class="ws-input rm-boxed" data-vs="vsAge">${ages.map(([v, l]) => `<option value="${v}" ${(o.vsAge || "young adult") === v ? "selected" : ""}>${l}</option>`).join("")}</select>`}</label>
+    <label class="rm-check"><input type="checkbox" data-vs="vsTags" ${o.vsTags ? "checked" : ""}> tambah [laughter] (opsional, paling banyak dua)</label>
+  </div>`;
+}
+
 function narrationBlock(d, key, ex, open) {
   const head = ex ? `${esc(ex.status)} · ${ex.total.low}–${ex.total.high} dtk` : "belum dimuat";
   const body = ex ? narrationBody(key, ex) : `<p class="rm-hint">Tekan Muat naskah.</p>`;
+  const controls = key === "voicestudio" ? vsControlsHTML(d) : "";
   return `<details class="rm-needs narr-block" data-app="${key}" ${open ? "open" : ""}><summary><b>${esc(VOICE_APP_LABELS[key])}</b> <span class="rm-hint">${head}</span></summary>
+    ${controls}
     <div class="rm-actions"><button class="btn sm" type="button" data-act="narrationCopy" data-target="${key}" ${ex ? "" : "disabled"}>Salin semua</button><button class="btn sm" type="button" data-act="narrationDown" data-target="${key}" ${ex ? "" : "disabled"}>Unduh .txt</button></div>
     ${body}</details>`;
 }
@@ -462,6 +475,16 @@ function narrationBody(key, shown) {
     <details class="rm-needs"><summary><b>3 Deskripsi lengkap (versi lama, opsional)</b></summary>${block("styleLong", "Versi lama", 4)}</details>
     <p class="rm-hint">Tag memakai tanda &lt;...&gt; dan bahasa Inggris, sesuai dokumen Google (diperiksa 28 Okt 2026). Bahasa Indonesia didukung di Gemini 3.8 TTS. Belum diverifikasi: bahasa kolom gaya, dan apakah halaman AI Studio memakai kolom yang sama. Coba dulu tanpa gaya.</p>`;
 }
+
+// VoiceStudio's choices are saved as options, and the text is made again with them
+document.addEventListener("change", async (e) => {
+  if (!e.target.matches || !e.target.matches("[data-vs]") || !CUR) return;
+  const key = e.target.dataset.vs;
+  const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+  await call(`${API}/options`, { id: CUR.id, options: { [key]: value } });
+  await refresh();
+  if (NARR && NARR.forId === CUR.id) await loadNarration();
+});
 
 // at least one app stays checked: unchecking the last one is undone, with the reason
 document.addEventListener("change", (e) => {

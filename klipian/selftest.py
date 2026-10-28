@@ -5844,7 +5844,7 @@ def check_motionopts() -> tuple[str, str]:
     beats = [{"id": "hook", "kind": "hook", "narration": "Pernah cabut colokan. Eh kok panas? Yuk cek sekarang."}, {"id": "tips", "kind": "tips", "narration": "Jangan dipakai dulu. Minta teknisi periksa."}]
     story = {"beats": beats}
     vs = motion.narration_export(story, "voicestudio")
-    if "<" in vs["text"] or "[" in vs["text"] or "Bagian 1 (sekitar" not in vs["text"]:
+    if "<" in vs["text"] or "[pause" not in vs["text"] or "Bagian 1 (sekitar" not in vs["text"]:
         problems.append("the VoiceStudio text is plain, with a header per part")
     el = motion.narration_export(story, "elevenlabs")
     if "<" in el["text"] or "[" in el["text"] or "belum diverifikasi" not in el["status"]:
@@ -6080,18 +6080,84 @@ def check_voicegoogle() -> tuple[str, str]:
     if "tips" in motion.narration_export({"beats": [{"id": "a", "kind": "hook", "narration": "Kenapa ini?"}]}, "googleai")["style"]:
         problems.append("a short story has no tips sentence")
     # VoiceStudio and ElevenLabs: unchanged
-    for target in ("voicestudio", "elevenlabs"):
+    for target in ("elevenlabs",):
         want = (fx / f"narration-{target}.txt").read_text(encoding="utf-8")
         if motion.narration_export(story, target)["text"] != want:
             problems.append(f"the {target} export is unchanged")
     if problems:
         return FAIL, "\n      ".join(problems)
-    return PASS, "the Google script with the verified tags placed by rule (one per beat, six in all, <whispers>, <chuckle>, <long pause>), the short English style, the round trip, and the VoiceStudio and ElevenLabs exports unchanged"
+    return PASS, "the Google script with the verified tags placed by rule (one per beat, six in all, <whispers>, <chuckle>, <long pause>), the short English style, the round trip, and the ElevenLabs export unchanged"
+
+
+
+# check: the VoiceStudio export (PLAN-VOICE-VOICESTUDIO): the square-bracket tags only from VoiceStudio's list ([pause ...], and [laughter] or [sigh] when
+# the person checks it, at most two), the pauses ([pause 500ms] between beats, [pause 1s] once before the last tips), the voice description (one value per
+# category: gender, age, pitch), the options refused when not a value, the round trip (the stripped script is the story's narration) and the ElevenLabs
+# snapshot unchanged. No service, no workspace.
+def check_voicestudio() -> tuple[str, str]:
+    import re as _re
+    from . import motion, motion_voice
+    problems: list[str] = []
+    fx = FIXTURES / "motion"
+    story = json.loads((fx / "narration-story.json").read_text(encoding="utf-8"))
+    vs = motion.narration_export(story, "voicestudio")
+    if vs["script"] is None or "<" in vs["script"] or "<" in vs["text"]:
+        problems.append("VoiceStudio uses no angle-bracket tags")
+    square = set(_re.findall(r"\[([^\[\]]+)\]", vs["script"]))
+    allowed = _re.compile(r"^(pause(?: \d+(?:ms|s))?|laughter|sigh)$")
+    if any(not allowed.match(t) for t in square):
+        problems.append(f"every tag is on VoiceStudio's list: {sorted(square)}")
+    if "[laughter]" in vs["script"] or "[sigh]" in vs["script"]:
+        problems.append("the optional tags are off by default")
+    if vs["script"].count("[pause 500ms]") != 3 or vs["script"].count("[pause 1s]") != 1:
+        problems.append(f"pauses: [pause 500ms] between beats (3) and [pause 1s] before the last tips (1): {vs['script'].count('[pause 500ms]')}, {vs['script'].count('[pause 1s]')}")
+    if "[pause 1s] Jangan" not in vs["script"]:
+        problems.append("the long pause is before the last tips")
+    # the optional tags: checked, at most two, before a turning sentence of a result beat
+    on = motion.narration_export(story, "voicestudio", {"vsTags": True})
+    laughs = on["script"].count("[laughter]")
+    if laughs != 1 or "[laughter] Tapi" not in on["script"]:
+        problems.append(f"checked: one [laughter] before the turning sentence: {laughs}")
+    long_story = {"beats": [{"id": f"r{i}", "kind": "result", "narration": "Tapi ini. Namun itu. Padahal begitu."} for i in range(4)]}
+    if motion.narration_export(long_story, "voicestudio", {"vsTags": True})["script"].count("[laughter]") > motion.VS_TAGS_MAX:
+        problems.append("at most two [laughter] in a video")
+    # the voice description: one valid value per category, the default female, young adult, moderate pitch
+    if vs["style"] != "female, young adult, moderate pitch":
+        problems.append(f"the default description: {vs['style']}")
+    gender, age, pitch = [x.strip() for x in vs["style"].split(",")]
+    if gender not in motion.VS_GENDERS or age not in motion.VS_AGES or pitch != "moderate pitch":
+        problems.append(f"the description has valid values only: {vs['style']}")
+    male = motion.narration_export(story, "voicestudio", {"vsGender": "male", "vsAge": "elderly"})
+    if male["style"] != "male, elderly, moderate pitch":
+        problems.append(f"the panel's choices reach the description: {male['style']}")
+    for bad in ({"vsGender": "whisper"}, {"vsAge": "baby"}, {"vsTags": "ya"}):
+        try:
+            motion.normalize_options(bad)
+            problems.append(f"an option that is not a value is refused: {bad}")
+        except motion.MotionError:
+            pass
+    # the round trip: the stripped script is the story's narration, and the matching ignores the tags and the markers
+    narration = " ".join(b["narration"] for b in story["beats"] if b["narration"].strip())
+    for export in (vs, on):
+        if motion_voice.strip_tags(export["script"]) != motion_voice.strip_tags(narration):
+            problems.append("the stripped VoiceStudio script is the story's narration")
+            break
+    if [w for _r, w in motion_voice.tokens(vs["script"])] != [w for _r, w in motion_voice.tokens(narration)]:
+        problems.append("the matching ignores the VoiceStudio tags and markers")
+    if "Catatan" not in vs["text"] or "belum terbukti" not in vs["status"]:
+        problems.append("the VoiceStudio note says what is not proven")
+    # ElevenLabs is unchanged by this round
+    want = (fx / "narration-elevenlabs.txt").read_text(encoding="utf-8")
+    if motion.narration_export(story, "elevenlabs")["text"] != want:
+        problems.append("the ElevenLabs export is unchanged")
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "the VoiceStudio script with [pause ...] only by default, the optional [laughter] (at most two, checked only), the description with one valid value per category, the option refusals, the round trip, and ElevenLabs unchanged"
 
 
 
 CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch,
-          "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voicegoogle": check_voicegoogle, "voice": check_voice, "decode": check_decode, "render": check_render}
+          "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voicegoogle": check_voicegoogle, "voicestudio": check_voicestudio, "voice": check_voice, "decode": check_decode, "render": check_render}
 
 
 def _global_state() -> dict:

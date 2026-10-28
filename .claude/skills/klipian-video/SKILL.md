@@ -36,6 +36,8 @@ You are the local Claude Code of this computer. The person copied or saved a bri
    - The tags are only in this export. Never put them in the story JSON.
    - Say that the style is a short English description and that the language of the style field and whether AI Studio uses the same field are not verified.
 
+   **For `voicestudio`** the script uses only `[pause 500ms]` between beats and `[pause 1s]` before the last tips. `[laughter]` appears only when the person has checked it in the panel (at most two). The description is one value per category: gender (female or male), age (child, teenager, young adult, middle-aged or elderly), and pitch (moderate pitch). The panel's VoiceStudio block has the controls for these.
+
    **Tell the person** the same text is in the panel: `/remotion`, panel "3 Suara", choose "Google AI Studio", press "Muat naskah". Its three blocks each have a copy button, so they do not depend on the terminal copy.
 8. **Tell the person the next steps for `/remotion`**, in plain words: make the voice outside klipian; choose the video folder `remotion/videos/<slug>` (Jenis video: Khusus) and show its full path; choose the audio file or files; press Cocokkan; look at the preview; then Render.
 
