@@ -47,14 +47,15 @@ yes(JSON.stringify(cat).length < 40000, `the catalogue stays small enough for a 
 // --- validate.mjs ---------------------------------------------------------------------------------------------------------------------------
 const example = cat.example;
 const ok = validate(example);
-yes(ok.code === 0 && ok.json.ok === true && ok.json.beats.length === 3 && ok.json.duration === 12, "the example story is valid");
-yes(validate(JSON.parse(readFileSync(path.join(ROOT, "stories", "colokan-panas.json"), "utf8"))).json.ok === true, "so is the colokan story");
+yes(ok.code === 0 && ok.json.ok === true && ok.json.beats.length === 6 && ok.json.duration === 30 && (ok.json.warnings ?? []).length === 0, "the example story (30 s) is valid, with no warnings");
+const colokan = JSON.parse(readFileSync(path.join(ROOT, "stories", "colokan-panas.json"), "utf8"));
+yes(validate(colokan).json.ok === true, "so is the colokan story");
 
 const mutate = (fn: (s: any) => void) => { const s = structuredClone(example); fn(s); return validate(s); };
 const wordy = mutate((s) => { s.beats[0].text = "satu dua tiga empat lima enam tujuh"; });
 yes(wordy.json.ok === false && wordy.code === 0, "screen text over 6 words is refused (exit code 0: the answer is in the JSON)");
 yes(wordy.json.errors.some((e: any) => e.path === "beats.0.text" && /6 words/.test(e.message)), "with the path and the reason");
-const unknown = mutate((s) => { s.beats[2].scene.items.find((i: any) => i.type === "mascot").expr = "angry"; });
+const unknown = mutate((s) => { s.beats[1].scene.items.find((i: any) => i.type === "mascot").expr = "angry"; });
 yes(unknown.json.errors.some((e: any) => e.path.endsWith(".expr")), "an expression that does not exist is refused at its path");
 const noSource = mutate((s) => { s.claims[0].sources = []; });
 yes(noSource.json.errors.some((e: any) => e.path === "claims.0.sources"), "a claim without a source is refused");
@@ -62,7 +63,7 @@ const wrongTotal = mutate((s) => { s.duration = 99; });
 yes(wrongTotal.json.errors.some((e: any) => e.path === "duration"), "durations that do not add up are refused");
 const ghost = mutate((s) => { s.claims[0].beats = ["nowhere"]; });
 yes(ghost.json.errors.some((e: any) => /unknown beat/.test(e.message)), "a claim for a beat that does not exist is refused");
-const badSocket = mutate((s) => { const k = s.beats[0].scene.items.find((i: any) => i.type === "socket"); k.view = "cutaway"; k.variant = "scorched"; });
+const badSocket = validate((() => { const s = structuredClone(colokan); const k = s.beats[0].scene.items.find((i: any) => i.type === "socket"); k.view = "cutaway"; k.variant = "scorched"; return s; })());
 yes(badSocket.json.errors.some((e: any) => /variant/.test(e.message)), "a variant of the other view is refused");
 const two = mutate((s) => { s.beats[0].text = "a b c d e f g"; s.claims[0].sources = []; });
 yes(two.json.errors.length >= 2, "every error is listed, not only the first");

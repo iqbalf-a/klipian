@@ -6402,7 +6402,44 @@ def check_music() -> tuple[str, str]:
     return PASS, "the page's music labels are the server's, the legacy beds keep their tracks, sunny is the default for new videos, and an old project keeps calm"
 
 
-CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch,
+def check_briefagents() -> tuple[str, str]:
+    """The brief for any AI (PLAN-BRIEF-AGENTS): both examples are real stories that validate with no warnings, the lists come from the catalogue,
+    Part B is only for Khusus, and the answer format keeps the heading the skill reads. The sizes are recorded in the detail, not capped."""
+    from . import motion
+    problems: list[str] = []
+    cat = motion._catalog()
+    for key in ("example", "exampleHabit"):
+        res = motion.validate_story(cat[key])
+        if res.get("ok") is not True:
+            problems.append(f"{key} does not validate: {res.get('errors')}")
+        elif res.get("warnings"):
+            problems.append(f"{key} has warnings: {res['warnings']}")
+    kinds = cat["enums"]["beatKinds"]
+    if set(cat["beatKindMeaning"]) != set(kinds):
+        problems.append("beatKindMeaning does not cover every beat kind")
+    sizes = []
+    for d in (30, 45, 60):
+        for opts, khusus in (({}, False), ({"kind": "khusus"}, True)):
+            text = motion.build_brief({"topic": "Kenapa colokan panas", "duration": d, "notes": "", "options": opts})
+            if ("## Part B" in text) != khusus:
+                problems.append(f"the {d} s brief {'lacks' if khusus else 'has'} Part B for kind {'khusus' if khusus else 'otomatis'}")
+            for kind in kinds:
+                if f"`{kind}`" not in text:
+                    problems.append(f"the {d} s brief does not list the beat kind {kind}")
+            for track in motion.MUSIC_TRACKS.values():
+                if track != "none" and f"`{track}`" not in text:
+                    problems.append(f"the {d} s brief does not list the track {track}")
+            if "## Answer format" not in text or "node remotion/validate.mjs" not in text:
+                problems.append(f"the {d} s brief lost its answer format or the validate command")
+            if d == 45:
+                sizes.append(f"{'khusus' if khusus else 'otomatis'} {len(text)}")
+    if problems:
+        return FAIL, "\\n      ".join(problems)
+    return PASS, ("both examples validate with no warnings, the beat kinds and tracks come from the catalogue, Part B only for Khusus; "
+                  f"brief size at 45 s: {', '.join(sizes)} characters")
+
+
+CHECKS = {"briefagents": check_briefagents, "migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch,
           "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voicegoogle": check_voicegoogle, "voicestudio": check_voicestudio, "elevenlabs": check_elevenlabs, "khusus": check_khusus, "briefbuttons": check_briefbuttons, "music": check_music, "voice": check_voice, "decode": check_decode, "render": check_render}
 
 

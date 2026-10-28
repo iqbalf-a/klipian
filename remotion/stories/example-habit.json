@@ -1,0 +1,193 @@
+{
+  "bible": 1,
+  "question": "Kenapa tombol tunda bikin kita makin capek?",
+  "titles": [
+    "Kenapa tombol tunda bikin makin capek?",
+    "Tunda alarm: kenapa bangun malah lelah",
+    "Tombol tunda dan siklus tidur"
+  ],
+  "duration": 30,
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 3,
+      "narration": "Kenapa tombol tunda bikin kita makin capek?",
+      "text": "Tunda, makin capek?",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Tunda, makin capek?",
+            "fs": 72
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "sting",
+      "kind": "sting",
+      "dur": 1,
+      "narration": "Intip yuk!",
+      "text": "Intip yuk!",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "mascot",
+            "x": 540,
+            "y": 720,
+            "w": 220,
+            "expr": "curious",
+            "enter": {
+              "kind": "pop",
+              "delay": 0.0
+            }
+          },
+          {
+            "type": "pill",
+            "text": "Intip yuk!",
+            "x": 540,
+            "y": 1489,
+            "fs": 56,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.2
+            }
+          }
+        ]
+      },
+      "sfx": "pop"
+    },
+    {
+      "id": "bangun",
+      "kind": "normal",
+      "dur": 7,
+      "narration": "Setiap kali alarm berbunyi, kita menekan tunda dan tidur lagi sebentar.",
+      "text": "Tekan tunda, tidur lagi",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Tekan tunda, tidur lagi",
+            "fs": 66
+          },
+          {
+            "type": "badge",
+            "text": "1",
+            "x": 300,
+            "y": 900,
+            "r": 52
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "siklus",
+      "kind": "normal",
+      "dur": 6,
+      "narration": "Tidur singkat itu memotong siklus tidur, jadi otak belum benar-benar bangun.",
+      "text": "Siklus tidur terpotong",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Siklus tidur terpotong",
+            "fs": 62
+          },
+          {
+            "type": "label",
+            "text": "belum benar-benar bangun",
+            "x": 540,
+            "y": 1380,
+            "fs": 56,
+            "color": "black"
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "akhir",
+      "kind": "result",
+      "dur": 7,
+      "narration": "Hasilnya, kita bangun dengan kepala berat dan merasa lebih lelah daripada sebelumnya.",
+      "text": "Bangun malah lebih lelah",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Bangun malah lebih lelah",
+            "fs": 62
+          },
+          {
+            "type": "arrow",
+            "x": 300,
+            "y": 1000,
+            "x2": 700,
+            "y2": 1000
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "tips",
+      "kind": "tips",
+      "dur": 3,
+      "narration": "Coba bangun di jam yang sama setiap hari, dan cahaya pagi bisa membantu.",
+      "text": "Bangun di jam yang sama",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Bangun di jam yang sama",
+            "fs": 62
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "dur": 3,
+      "narration": "",
+      "text": "",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    }
+  ],
+  "claims": [
+    {
+      "text": "Tidur singkat yang terputus-putus dapat membuat orang bangun dengan rasa berat dan lelah.",
+      "beats": [
+        "siklus",
+        "akhir"
+      ],
+      "sources": [
+        "https://www.cdc.gov/sleep/"
+      ]
+    }
+  ],
+  "post": {
+    "description": "Kenapa tombol tunda bikin kita makin capek? Intip siklus tidur yang terpotong.",
+    "hashtags": [
+      "#faktaseru",
+      "#tidur",
+      "#intipyuk",
+      "#shorts"
+    ]
+  },
+  "needs": []
+}

@@ -41,6 +41,18 @@ export function catalog() {
     },
     sfx: { names: C.SFX_NAMES, none: "none", note: "every motion word already has a default sound; an item's `sfx` is only for overriding the sound of its entrance" },
     example: JSON.parse(readFileSync(path.join(ROOT, "stories", "example.json"), "utf8")),
+    exampleHabit: JSON.parse(readFileSync(path.join(ROOT, "stories", "example-habit.json"), "utf8")),
+    // what each beat kind means, in plain words (the brief reads this table; a test checks that every kind of the schema has a line)
+    beatKindMeaning: {
+      hook: "an everyday hook: a question, a surprising statement or a myth, about 3 seconds, no mascot",
+      sting: "the small 'Intip yuk!' beat: the narration is exactly 'Intip yuk!', a small mascot and the pill",
+      lens: "a look inside a physical object: only when the cause is inside it; for a habit, a body, a process or an idea use normal",
+      normal: "one step of the explanation: the default kind",
+      loose: "the bad case of an object whose variant is loose; for any other topic use normal",
+      result: "what the fact causes, with its source",
+      tips: "two or three tips; 'stop using it, ask a technician' only where it fits the topic",
+      outro: "the loop-back: an empty narration, no mascot, no label, no pill, the scene of the first beat",
+    },
   };
 }
 
