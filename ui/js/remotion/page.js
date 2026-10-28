@@ -465,6 +465,14 @@ function narrationBlock(d, key, ex, open) {
 
 // the text of one app's export: one box, or for Google AI Studio three blocks with their own copy buttons
 function narrationBody(key, shown) {
+  if (shown.target === "elevenlabs") {
+    const part = (name, title, rows, value) => `<div class="rm-needs"><b>${title}</b> <button class="btn sm" type="button" data-act="narrationPart" data-target="${key}" data-part="${name}">Salin</button><textarea class="ws-input rm-boxed" readonly rows="${rows}">${esc(value || "")}</textarea></div>`;
+    return `<p class="rm-hint">${esc(shown.status)}</p>
+      ${part("script", "1 Naskah (satu permintaan, tag dan jeda)", 10, shown.script)}
+      ${part("settings", "2 Pengaturan di ElevenLabs (bukan teks)", 3, `${shown.settings}
+${shown.model}`)}
+      <p class="rm-hint">Tag memakai kurung siku dari daftar resmi ElevenLabs. Belum diverifikasi: tag pada teks Indonesia, dan dukungan tag di Multilingual v2 dan Flash v2.5. Uji dulu tanpa tag.</p>`;
+  }
   if (shown.target !== "googleai") {
     return `<p class="rm-hint">${esc(shown.status)}</p><textarea class="ws-input rm-boxed" readonly rows="10">${esc(shown.text)}</textarea><p class="rm-hint">Baris "Bagian N" adalah penanda untuk kamu: hapus sebelum dibacakan.</p>`;
   }

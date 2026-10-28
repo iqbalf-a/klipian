@@ -1,7 +1,10 @@
 Total sekitar 14 sampai 19 detik, 2 bagian. Target: ElevenLabs.
 
-Bagian 1 (sekitar 14 detik)
-Kenapa colokan bisa panas? Pernah pegang colokan, eh kok panas? Intip yuk! Di dalam stop kontak ada penjepit logam. Penjepit itu menggigit kaki colokan. Tapi kalau penjepitnya kendur, sentuhannya jadi sempit. Listrik harus lewat jalan sempit itu.
+NASKAH (satu permintaan; jeda dengan ... dan [pause])
+[curious] Kenapa colokan bisa panas? Pernah pegang colokan, eh kok panas? [whispers] Intip yuk! Di dalam stop kontak ada penjepit logam. Penjepit itu menggigit kaki colokan... Tapi kalau penjepitnya kendur, sentuhannya jadi sempit. Listrik harus lewat jalan sempit itu... [pause] Jangan pakai dulu. Minta teknisi memeriksa.
 
-Bagian 2 (sekitar 2 detik)
-Jangan pakai dulu. Minta teknisi memeriksa.
+PENGATURAN (di ElevenLabs, bukan teks)
+Stability: rendah ke sedang (lebih ekspresif); Similarity: sedang. Speed dan Style tidak ada di v4. Uji dulu tanpa tag.
+Model: Eleven v4 (Eleven v3 jika v4 tidak ada).
+
+Catatan: tag memakai kurung siku dari daftar resmi ElevenLabs (diperiksa 28 Okt 2026), bahasa Inggris. Jeda dibuat dengan ... dan [pause] karena <break> tidak didukung di Eleven v4 dan v3. Belum diverifikasi: tag pada teks Indonesia, dan dukungan tag di Multilingual v2 dan Flash v2.5.

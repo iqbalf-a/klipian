@@ -1344,6 +1344,54 @@ def _voicestudio(story: dict, parts: list[dict], options: dict) -> dict:
     return {"script": script, "style": style, "tags": tags}
 
 
+# ElevenLabs (PLAN-VOICE-ELEVENLABS, docs read 2026-10-28): the voice-related tags of the official list, the pauses with "..." and [pause] (never
+# <break>, which v4 and v3 do not support), and the model and the settings as a note, not as text.
+EL_EXPRESSIONS = ("whispers", "curious", "laughs", "sighs", "excited", "exhales")   # the ones the export may use (the official voice list)
+EL_EXPRESSIONS_MAX = 6
+
+
+def _elevenlabs(story: dict, parts: list[dict]) -> dict:
+    """One request: the whole narration (no part headers). "..." ends a sentence before a beat changes (a final "." becomes "..."), [pause] once
+    before the last tips, [whispers] before "Intip yuk!", [curious] at the start of a hook that is a question. At most one tag per beat and six in all."""
+    kind_of_beat = {b["id"]: b.get("kind") for b in story["beats"]}
+    tips = [b["id"] for b in story["beats"] if b.get("kind") == "tips" and (b.get("narration") or "").strip()]
+    last_tips = tips[-1] if tips else None
+    units = [u for part in parts for u in part["units"]]
+    tags: list[dict] = []
+    used: set[str] = set()
+    expressions = 0
+    out = ""
+    prev = None
+    for u in units:
+        kind = kind_of_beat[u["beat"]]
+        text = u["text"]
+        if prev is not None and prev["beat"] != u["beat"]:
+            if out.endswith("."):                                   # the sentence before a beat ends in an ellipsis
+                out = out[:-1] + "..."
+            if u["beat"] == last_tips and kind == "tips":
+                out += " [pause] "
+                tags.append({"tag": "pause", "beat": u["beat"], "at": "sebelum tips terakhir"})
+            else:
+                out += " "
+        elif out:
+            out += " "
+        if u["beat"] not in used and expressions < EL_EXPRESSIONS_MAX:
+            tag = None
+            if kind == "sting" and re.match(r"intip yuk", text, re.I):
+                tag = "whispers"
+            elif kind == "hook" and text.rstrip().endswith("?") and prev is None:
+                tag = "curious"
+            if tag:
+                text = f"[{tag}] {text}"
+                used.add(u["beat"])
+                expressions += 1
+                tags.append({"tag": tag, "beat": u["beat"], "at": "awal kalimat"})
+        out += text
+        prev = u
+    script = re.sub(r"\s+", " ", out).strip()
+    return {"script": script, "tags": tags}
+
+
 def narration_export(story: dict, target: str, options: dict | None = None) -> dict:
     """The narration text for one voice app. VoiceStudio: plain text with a header line per part (the header is for the person: remove it before the
     voice reads). ElevenLabs: plain text with its punctuation; the Eleven v3 pause tags are not verified, so none are written. Google AI Studio (the
@@ -1357,6 +1405,17 @@ def narration_export(story: dict, target: str, options: dict | None = None) -> d
     head = f"Total sekitar {total_low:.0f} sampai {total_high:.0f} detik, {len(parts)} bagian. Target: {VOICE_TARGETS[target]}."
     base = {"target": target, "label": VOICE_TARGETS[target], "total": {"low": total_low, "high": total_high},
             "parts": [{k: v for k, v in p.items() if k != "units"} for p in parts]}
+    if target == "elevenlabs":
+        el = _elevenlabs(story, parts)
+        settings = ("Stability: rendah ke sedang (lebih ekspresif); Similarity: sedang. Speed dan Style tidak ada di v4. Uji dulu tanpa tag.")
+        model = "Model: Eleven v4 (Eleven v3 jika v4 tidak ada)."
+        text = (f"{head}\n\nNASKAH (satu permintaan; jeda dengan ... dan [pause])\n{el['script']}\n\n"
+                f"PENGATURAN (di ElevenLabs, bukan teks)\n{settings}\n{model}\n\n"
+                "Catatan: tag memakai kurung siku dari daftar resmi ElevenLabs (diperiksa 28 Okt 2026), bahasa Inggris. "
+                "Jeda dibuat dengan ... dan [pause] karena <break> tidak didukung di Eleven v4 dan v3. "
+                "Belum diverifikasi: tag pada teks Indonesia, dan dukungan tag di Multilingual v2 dan Flash v2.5.\n")
+        return {**base, "status": "tag dari daftar resmi ElevenLabs; jeda dengan ... dan [pause]; belum diverifikasi untuk teks Indonesia",
+                "style": None, "styleLong": None, "script": el["script"], "settings": settings, "model": model, "tags": el["tags"], "text": text}
     if target == "voicestudio":
         vs = _voicestudio(story, parts, normalize_options(options or {}))
         text = (f"{head}\n\nNASKAH (tempel di VoiceStudio; baris \"Bagian N\" adalah penanda, hapus sebelum dibacakan)\n{vs['script']}\n\n"
@@ -1383,7 +1442,7 @@ def narration_export(story: dict, target: str, options: dict | None = None) -> d
     body = "\n".join(lines).strip() + "\n"
     status = {"voicestudio": "teks biasa: tanpa tag",
               "elevenlabs": "teks biasa dengan tanda baca; tag jeda Eleven v3 belum diverifikasi, tidak dipakai"}[target]
-    return {**base, "status": status, "style": None, "styleLong": None, "script": None, "tags": [], "text": head + "\n\n" + body}
+    return {**base, "status": status, "style": None, "styleLong": None, "script": None, "settings": None, "model": None, "tags": [], "text": head + "\n\n" + body}
 
 
 def build_brief(p: dict) -> str:

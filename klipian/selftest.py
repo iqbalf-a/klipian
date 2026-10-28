@@ -5847,7 +5847,7 @@ def check_motionopts() -> tuple[str, str]:
     if "<" in vs["text"] or "[pause" not in vs["text"] or "Bagian 1 (sekitar" not in vs["text"]:
         problems.append("the VoiceStudio text is plain, with a header per part")
     el = motion.narration_export(story, "elevenlabs")
-    if "<" in el["text"] or "[" in el["text"] or "belum diverifikasi" not in el["status"]:
+    if "<break" in el["script"] or "belum diverifikasi" not in el["status"]:
         problems.append("the ElevenLabs text has no tags, and says the pause tags are not verified")
     gg = motion.narration_export(story, "googleai")
     if gg["script"].count("<long pause>") != 1 or "<short pause>" in gg["script"]:
@@ -6086,7 +6086,7 @@ def check_voicegoogle() -> tuple[str, str]:
             problems.append(f"the {target} export is unchanged")
     if problems:
         return FAIL, "\n      ".join(problems)
-    return PASS, "the Google script with the verified tags placed by rule (one per beat, six in all, <whispers>, <chuckle>, <long pause>), the short English style, the round trip, and the ElevenLabs export unchanged"
+    return PASS, "the Google script with the verified tags placed by rule (one per beat, six in all, <whispers>, <chuckle>, <long pause>), the short English style, the round trip, and the ElevenLabs export matches its snapshot"
 
 
 
@@ -6146,18 +6146,72 @@ def check_voicestudio() -> tuple[str, str]:
         problems.append("the matching ignores the VoiceStudio tags and markers")
     if "Catatan" not in vs["text"] or "belum terbukti" not in vs["status"]:
         problems.append("the VoiceStudio note says what is not proven")
-    # ElevenLabs is unchanged by this round
-    want = (fx / "narration-elevenlabs.txt").read_text(encoding="utf-8")
-    if motion.narration_export(story, "elevenlabs")["text"] != want:
-        problems.append("the ElevenLabs export is unchanged")
     if problems:
         return FAIL, "\n      ".join(problems)
-    return PASS, "the VoiceStudio script with [pause ...] only by default, the optional [laughter] (at most two, checked only), the description with one valid value per category, the option refusals, the round trip, and ElevenLabs unchanged"
+    return PASS, "the VoiceStudio script with [pause ...] only by default, the optional [laughter] (at most two, checked only), the description with one valid value per category, the option refusals, and the round trip"
+
+
+
+# check: the ElevenLabs export (PLAN-VOICE-ELEVENLABS): the square-bracket tags only from the official voice list (plus [pause]), never a sound-effect or
+# experimental tag; no <break> in the script; "..." between beats and one [pause] before the last tips; [whispers] before "Intip yuk!" and [curious]
+# at a question hook; at most one tag per beat and six in all; one request (no part headers); the model and the settings as a note; the round trip
+# (the stripped script is the story's narration). No service, no workspace.
+def check_elevenlabs() -> tuple[str, str]:
+    import re as _re
+    from . import motion, motion_voice
+    problems: list[str] = []
+    fx = FIXTURES / "motion"
+    story = json.loads((fx / "narration-story.json").read_text(encoding="utf-8"))
+    el = motion.narration_export(story, "elevenlabs")
+    script = el["script"]
+    tags = _re.findall(r"\[([^\[\]]+)\]", script)
+    official = {"laughs", "laughs harder", "starts laughing", "wheezing", "whispers", "sighs", "exhales", "sarcastic", "curious", "excited", "crying",
+                "snorts", "mischievously", "pause"}
+    if any(t not in official for t in tags):
+        problems.append(f"every tag is on the official voice list: {tags}")
+    if any(w in t for t in tags for w in ("gunshot", "applause", "clapping", "explosion", "swallow", "gulp", "fart", "woo", "sings", "accent")):
+        problems.append("no sound-effect or experimental tag")
+    if "<break" in script or "<" in script:
+        problems.append("no <break> and no angle brackets in the script")
+    if "Bagian" in script:
+        problems.append("the script is one request, with no part headers")
+    expressions = [t for t in tags if t != "pause"]
+    if len(expressions) > 6:
+        problems.append(f"at most six expression tags: {len(expressions)}")
+    per_beat: dict[str, int] = {}
+    for t in el["tags"]:
+        if t["tag"] != "pause":
+            per_beat[t["beat"]] = per_beat.get(t["beat"], 0) + 1
+    if any(v > 1 for v in per_beat.values()):
+        problems.append(f"at most one tag per beat: {per_beat}")
+    if "[whispers] Intip yuk!" not in script:
+        problems.append('the sting has [whispers] before "Intip yuk!"')
+    if not script.startswith("[curious] Kenapa"):
+        problems.append("a question hook starts with [curious]")
+    if script.count("...") < 1:
+        problems.append("the beats are joined with ...")
+    if script.count("[pause]") != 1 or "[pause] Jangan" not in script:
+        problems.append("one [pause] before the last tips")
+    if motion_voice.tokens(script) and [w for _r, w in motion_voice.tokens(script)] != [w for _r, w in motion_voice.tokens(" ".join(b["narration"] for b in story["beats"] if b["narration"].strip()))]:
+        problems.append("the matching ignores the tags, the ellipses and the pause")
+    narration = " ".join(b["narration"] for b in story["beats"] if b["narration"].strip())
+    if motion_voice.strip_tags(script) != motion_voice.strip_tags(narration):
+        problems.append("the stripped ElevenLabs script is the story's narration")
+    if el.get("style") is not None or not el.get("settings") or "Stability" not in el["settings"] or "Eleven v4" not in el["model"]:
+        problems.append("the model and the settings are a note, not a style field")
+    if "belum diverifikasi" not in el["status"] or "Belum diverifikasi" not in el["text"]:
+        problems.append("the note says what is not verified")
+    want = (fx / "narration-elevenlabs.txt").read_text(encoding="utf-8")
+    if el["text"] != want:
+        problems.append("the ElevenLabs export matches its snapshot")
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "the ElevenLabs script with the official voice tags only (no sound effects), ... between beats and one [pause] before the last tips, [whispers] on the sting, [curious] on a question hook, one tag per beat and six in all, one request, the model and settings as a note, and the round trip"
 
 
 
 CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch,
-          "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voicegoogle": check_voicegoogle, "voicestudio": check_voicestudio, "voice": check_voice, "decode": check_decode, "render": check_render}
+          "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voicegoogle": check_voicegoogle, "voicestudio": check_voicestudio, "elevenlabs": check_elevenlabs, "voice": check_voice, "decode": check_decode, "render": check_render}
 
 
 def _global_state() -> dict:

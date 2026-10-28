@@ -36,7 +36,8 @@ _TAG_RE = re.compile("<(" + "|".join(re.escape(t) for t in sorted(EXPRESSION_TAG
 
 
 # the square-bracket tags (VoiceStudio: the pauses, the optional [laughter] and [sigh]) and the "Bagian N" marker lines of the exports
-_SQUARE_RE = re.compile(r"\[(?:pause(?: \d+(?:ms|s))?|laughter|sigh)\]")
+_SQUARE_RE = re.compile(r"\[(?:pause(?: \d+(?:ms|s))?|laughter|sigh|laughs(?: harder)?|starts laughing|wheezing|whispers|sighs|exhales|sarcastic|curious|excited|crying|snorts|mischievously)\]")
+_ELLIPSIS_RE = re.compile(r"\.\.\.(?=\s|$)")         # an ellipsis that ends a sentence goes back to its full stop
 _MARKER_RE = re.compile(r"(?m)^Bagian \d+ \(sekitar \d+ detik\)\s*$")
 
 
@@ -45,6 +46,7 @@ def strip_tags(text: str) -> str:
     t = _TAG_RE.sub(" ", str(text or ""))
     t = _SQUARE_RE.sub(" ", t)
     t = _MARKER_RE.sub(" ", t)
+    t = _ELLIPSIS_RE.sub(".", t)
     return re.sub(r"\s+", " ", t).strip()
 
 
