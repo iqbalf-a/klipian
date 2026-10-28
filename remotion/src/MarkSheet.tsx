@@ -6,14 +6,15 @@ import { FRAME } from "./design/index.ts";
 import { ISO } from "./tokens.ts";
 import { DICTIONARY } from "./dictionary.ts";
 import { HeatRise, IsoCutaway, IsoWallSocket, Sparks } from "./components/Iso.tsx";
-import { IsoDrop, IsoRain, IsoSun, IsoVapour } from "./components/IsoNature.tsx";
+import { IsoCloud, IsoDrop, IsoRain, IsoSun, IsoTrees, IsoVapour } from "./components/IsoNature.tsx";
+import { CLOUD_GREY, TREES } from "./natureGeometry.ts";
 import { IsoPlane, IsoSeed } from "./components/IsoSeeding.tsx";
 import { IsoBed, IsoPhone, SleepyEyes } from "./components/IsoBedroom.tsx";
 import { Arrow } from "./components/UI.tsx";
 
 const COLS = 3, W = 360, H = 380, TOP = 40;
 /** The short label of each drawn mark on its tile (the dictionary's `thing` is the full name in the spec rows). */
-const LABEL: Record<string, string> = { current: "current", heat: "heat", danger: "danger", water: "water", vapour: "vapour", light: "light", spark: "spark", force: "force arrow", seed: "seed grains", aircraft: "aircraft", bed: "bed", phone: "phone", eyes: "sleepy eyes" };
+const LABEL: Record<string, string> = { current: "current", cloud: "cloud", tree: "tree", heat: "heat", danger: "danger", water: "water", vapour: "vapour", light: "light", spark: "spark", force: "force arrow", seed: "seed grains", aircraft: "aircraft", bed: "bed", phone: "phone", eyes: "sleepy eyes" };
 /** A spec row's line: the thing and its recipe, cut to fit the sheet. */
 const specLine = (thing: string, mark: string): string => `${thing}: ${mark}`.slice(0, 56) + (`${thing}: ${mark}`.length > 56 ? "..." : "");
 const T = 1.2;   // the time at which the animated marks are drawn (a still)
@@ -31,6 +32,8 @@ const drawMark = (id: string): React.ReactNode => {
     case "force": return <Arrow x={60} y={250} x2={300} y2={160} color="black" w={12} draw={1} />;
     case "seed": return <g><IsoSeed kind="salt" x={110} y={200} s={46} /><IsoSeed kind="agi" x={250} y={200} s={62} t={T} /></g>;
     case "aircraft": return <IsoPlane x={180} y={200} w={250} phase={0} />;
+    case "cloud": return <g><g transform="translate(-74 0)"><IsoCloud u={62} o={[174, 370]} cx={CLOUD_GREY.cx} cy={CLOUD_GREY.cy} cz={CLOUD_GREY.cz} dark={0} /></g><g transform="translate(40 0)"><IsoCloud u={62} o={[174, 370]} cx={CLOUD_GREY.cx} cy={CLOUD_GREY.cy} cz={CLOUD_GREY.cz} dark={1} /></g></g>;
+    case "tree": return <IsoTrees u={130} o={[70, 140]} list={[TREES.find((t) => t.kind === "pine")!, TREES.find((t) => t.kind === "round")!]} />;
     case "bed": return <IsoBed u={60} o={[130, 190]} />;
     case "phone": return <IsoPhone u={90} o={[110, 130]} on={1} t={T} />;
     case "eyes": return <SleepyEyes cx={180} cy={200} w={290} open={0.4} />;
