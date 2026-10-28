@@ -713,7 +713,7 @@ function optionsHTML(opts, prefix) {
     <legend>Pilihan video</legend>
     <label class="rm-check"><input type="checkbox" data-opt="loop" ${opts.loop ? "checked" : ""}> Loop (akhir kembali ke adegan awal)</label>
     <label class="rm-check"><input type="checkbox" data-opt="sting" ${opts.sting ? "checked" : ""}> "Intip yuk!" setelah hook</label>
-    <label class="ws-field">Musik ${sel("music", [["calm", "Tenang"], ["tech", "Teknologi"], ["none", "Tanpa musik"]])}</label>
+    <label class="ws-field">Musik ${sel("music", Object.entries(MUSIC_LABELS))}</label>
     ${appBoxesHTML(opts)}
     <div class="rm-actions"><button class="btn" type="button" data-act="saveOptions">Simpan pilihan</button><span class="rm-hint">Brief berikutnya memakai pilihan ini.</span></div>
   </fieldset>`;

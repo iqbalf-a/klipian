@@ -6369,8 +6369,34 @@ def check_briefbuttons() -> tuple[str, str]:
 
 
 
+# check: the music choices (PLAN-VARIETY stage 1, the part of klipian/motion.py and the page): the labels the page shows are the server's, the legacy beds keep
+# their tracks, and the default for a new video is still the legacy calm bed until ian picks the new one by ear. Reads the files only.
+def check_music() -> tuple[str, str]:
+    import re as _re
+    from . import motion
+    root = Path(__file__).resolve().parents[1]
+    js = (root / "ui" / "js" / "remotion" / "music.js").read_text(encoding="utf-8")
+    html = (root / "ui" / "remotion.html").read_text(encoding="utf-8")
+    problems: list[str] = []
+    page_labels = dict(_re.findall(r'(\w+): "([^"]+)"', js))
+    if page_labels != motion.MUSIC_LABELS:
+        problems.append(f"the page labels are the server's: {page_labels} vs {motion.MUSIC_LABELS}")
+    if set(motion.MUSIC_TRACKS) != set(motion.MUSIC_LABELS):
+        problems.append("every track has a label")
+    if motion.MUSIC_TRACKS.get("calm") != "bed-calm" or motion.MUSIC_TRACKS.get("tech") != "bed-tech":
+        problems.append("the legacy beds keep their tracks (bed-calm, bed-tech)")
+    if motion.DEFAULT_OPTIONS["music"] != "calm":
+        problems.append("the default for a new video is still the legacy calm bed, until ian picks the new one")
+    for key, label in motion.MUSIC_LABELS.items():
+        if f'<option value="{key}">{label}</option>' not in html:
+            problems.append(f"the dialog offers {label!r}")
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "the page's music labels are the server's, the legacy beds keep their tracks, and the default stays the legacy calm bed until ian picks"
+
+
 CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch,
-          "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voicegoogle": check_voicegoogle, "voicestudio": check_voicestudio, "elevenlabs": check_elevenlabs, "khusus": check_khusus, "briefbuttons": check_briefbuttons, "voice": check_voice, "decode": check_decode, "render": check_render}
+          "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voicegoogle": check_voicegoogle, "voicestudio": check_voicestudio, "elevenlabs": check_elevenlabs, "khusus": check_khusus, "briefbuttons": check_briefbuttons, "music": check_music, "voice": check_voice, "decode": check_decode, "render": check_render}
 
 
 def _global_state() -> dict:

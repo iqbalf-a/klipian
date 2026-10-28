@@ -1206,6 +1206,8 @@ def _example_text(cat: dict) -> str:
 # outside klipian, by the person's own voice app); the music is the story's bed.
 VOICE_TARGETS = {"voicestudio": "VoiceStudio", "elevenlabs": "ElevenLabs", "googleai": "Google AI Studio"}
 MUSIC_TRACKS = {"calm": "bed-calm", "tech": "bed-tech", "none": "none"}
+# the labels the page shows (Indonesian). The two beds that exist are the legacy ones (PLAN-VARIETY stage 1): their tracks never change.
+MUSIC_LABELS = {"calm": "Tenang (lama)", "tech": "Teknologi (lama)", "none": "Tanpa musik"}
 KINDS = {"otomatis": "Otomatis (template, paling cepat)", "khusus": "Khusus (video buatan sesi Claude Code, tampilan terbaik)"}
 VS_GENDERS = ("female", "male")
 VS_AGES = ("child", "teenager", "young adult", "middle-aged", "elderly")
