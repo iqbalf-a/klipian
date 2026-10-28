@@ -6,7 +6,7 @@
   "description": "P28-A spike: a JSON storyboard -> a fixed Remotion template -> MP4 (no keys, the AI only fills JSON).",
   "scripts": {
     "check": "tsc --noEmit",
-    "test": "node tests/schema.test.ts && node tests/timeline.test.ts && node tests/cable.test.ts && node tests/sfx.test.ts && node tests/scripts.test.ts && node tests/layout.test.ts && node tests/videos.test.ts && node tests/captions.test.ts && node tests/rig.test.ts && node tests/design.test.ts && node tests/colokan.test.ts && node tests/cableSim.test.ts && node tests/isoThree.test.ts && node tests/nature.test.ts && node tests/style.test.ts",
+    "test": "node tests/schema.test.ts && node tests/timeline.test.ts && node tests/cable.test.ts && node tests/sfx.test.ts && node tests/scripts.test.ts && node tests/layout.test.ts && node tests/videos.test.ts && node tests/captions.test.ts && node tests/rig.test.ts && node tests/design.test.ts && node tests/colokan.test.ts && node tests/cableSim.test.ts && node tests/isoThree.test.ts && node tests/nature.test.ts && node tests/style.test.ts && node tests/ngantuk-pegang-hp.test.ts",
     "sfx": "node sfx/synth.mjs && node sfx/music.mjs",
     "new-video": "node scripts/new-video.mjs",
     "style-report": "node scripts/styleReport.mjs",

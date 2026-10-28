@@ -103,7 +103,7 @@ add(cards.every((c) => Number.isInteger(c.claim) && c.claim >= 1 && c.claim <= c
 const hookBg = beats[0]?.scene?.bg;
 add(hookBg === "brand" ? "PASS" : "FLAG", `the stage: the hook is on the brand background (it is "${hookBg}")`);
 const sources = readdirSync(dir).filter((f) => /\.(ts|tsx)$/.test(f)).map((f) => readFileSync(path.join(dir, f), "utf8")).join("\n");
-const isoParts = /Iso(WallSocket|Cutaway|Block|Plug|Sea|Land|Trees|Cloud)/.test(sources);
+const isoParts = /Iso(WallSocket|Cutaway|Block|Plug|Sea|Land|Trees|Cloud|Bed)/.test(sources);
 add(isoParts ? "PASS" : "FLAG", "the video draws its object in the isometric kit (a stage block)");
 add("RENDER", "the hero is 60 to 70 % of the screen width at the main shot (measure it on the still)");
 
