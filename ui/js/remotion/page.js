@@ -168,11 +168,11 @@ function buildDetail() {
 
     <section class="ws-panel rm-step" id="stepBrief">
       <header><span class="rm-n" id="numBrief">1</span><h2>Brief untuk Claude Code</h2></header>
-      <p>Satu file mandiri: tugas, struktur ${d.duration} detik, aturan channel dan fakta, katalog benda yang bisa dirender, serta format jawaban. Tempel ke Claude Code di komputer ini; ia mencari web sendiri. Tanpa API key.</p>
+      <p>Satu file mandiri: tugas, struktur ${d.duration} detik, aturan channel dan fakta, katalog benda yang bisa dirender, serta format jawaban.</p>
+      <p class="rm-hint">Tempel brief ke Claude Code yang dibuka di folder klipian (atau unduh lalu berikan path berkasnya). Ia mencari web sendiri. Tanpa API key.</p>
       <div class="rm-actions">
-        <button class="btn main" id="rmCopyBrief" type="button">Salin brief</button>
-        <button class="btn" id="rmDownBrief" type="button">Unduh brief</button>
-        <button class="btn" type="button" data-act="copyClaudeCmd">Salin perintah untuk Claude Code</button>
+        <button class="btn main" id="rmCopyBrief" data-act="rmCopyBrief" type="button">Salin brief</button>
+        <button class="btn" id="rmDownBrief" data-act="rmDownBrief" type="button">Unduh brief</button>
         <span class="rm-err" id="rmBriefErr" role="alert"></span>
       </div>
     </section>
@@ -220,7 +220,6 @@ byId("rmMain").addEventListener("click", async (e) => {
     if (act === "previewVideo") return startPreviewVideo();
     if (act === "saveOptions") return saveOptions();
     if (act === "nextStep") return doNext(CUR.next && CUR.next.action);
-    if (act === "copyClaudeCmd") return copyClaudeCmd();
     if (act === "takeFolder") return takeFolder();
     if (act === "copyFolderPath") return copyFolderPath();
     if (act === "narrationLoad") return loadNarration();
@@ -275,11 +274,8 @@ function drawFolder() {
   const taken = f.state === "cerita diambil";
   sec.innerHTML = `
     <header><span class="rm-n">${panelNum("folder")}</span><h2>Video dari Claude Code</h2></header>
-    <p>Tempel perintah ini di Claude Code yang dibuka di folder klipian. Ia menulis cerita dan membuat folder videonya.</p>
-    <div class="rm-actions"><button class="btn main" type="button" data-act="copyClaudeCmd">Salin perintah untuk Claude Code</button></div>
-    <details class="rm-needs"><summary><b>Brief lengkap</b> (jarang dipakai)</summary>
-      <div class="rm-actions"><button class="btn" type="button" data-act="rmCopyBrief">Salin brief</button><button class="btn" type="button" data-act="rmDownBrief">Unduh brief</button></div>
-    </details>
+    <p>Tempel brief ke Claude Code yang dibuka di folder klipian. Ia menulis cerita dan membuat folder videonya.</p>
+    <div class="rm-actions"><button class="btn main" type="button" data-act="rmCopyBrief">Salin brief</button><button class="btn" type="button" data-act="rmDownBrief">Unduh brief</button></div>
     <h3>Folder hasil</h3>
     <div class="rm-actions">
       <select class="ws-input rm-boxed rm-select" id="rmComp" aria-label="Folder hasil">
@@ -346,20 +342,14 @@ function drawNext() {
 }
 
 async function doNext(action) {
-  if (action === "brief") return byId("rmCopyBrief").click();
+  if (action === "brief") return document.querySelector('[data-act="rmCopyBrief"]')?.click();
   if (action === "paste") return byId("rmPaste")?.focus();
   if (action === "facts") return byId("stepFacts").scrollIntoView({ behavior: "smooth" });
   if (action === "title") return byId("stepTitle").scrollIntoView({ behavior: "smooth" });
   if (action === "align") return alignVoice();
   if (action === "render") return startRender();
   if (action === "clips") return (location.href = "/workspace");
-  if (action === "copy") return copyClaudeCmd();
   if (action === "take") return takeFolder();
-}
-
-async function copyClaudeCmd() {
-  const text = `Baca file brief yang kamu unduh (${CUR.id}-brief.md) dan kerjakan tugasnya. Periksa jawaban dengan \`node remotion/validate.mjs <jawaban.json>\` sebelum kamu kirim.`;
-  (await copyText(text)) ? toast("Perintah untuk Claude Code disalin.") : toast("Tidak bisa menyalin: pilih teksnya sendiri.");
 }
 
 byId("rmMain").addEventListener("change", async (e) => {

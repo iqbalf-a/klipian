@@ -218,7 +218,7 @@ def next_step(f: dict) -> dict:
     if f.get("custom"):                                                 # Khusus: the story comes from the chosen folder, never pasted
         state = f.get("folder")
         if state in (None, "belum dipilih"):
-            return {"key": "folder", "text": "Salin perintah ke Claude Code, lalu pilih folder hasilnya", "action": "copy"}
+            return {"key": "folder", "text": "Salin brief ke Claude Code, lalu pilih folder hasilnya", "action": "brief"}
         if state in ("cerita belum diambil", "folder tidak lengkap") or not f.get("story"):
             return {"key": "take", "text": "Ambil cerita dari folder", "action": "take"}
         if state == "folder berubah":

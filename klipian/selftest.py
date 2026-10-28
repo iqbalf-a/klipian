@@ -6330,8 +6330,47 @@ def check_khusus() -> tuple[str, str]:
 
 
 
+# check: the brief buttons (PLAN-BRIEF-BUTTONS): the command button and its sentence are gone from the page and the skill; both panels (Otomatis brief,
+# Khusus folder) show "Salin brief" and "Unduh brief"; the Khusus next step without a folder asks for the brief (the brief action, not a command); the
+# skill starts from a pasted brief or a given path and never assumes a saved file. Reads the files only.
+def check_briefbuttons() -> tuple[str, str]:
+    from . import motion
+    root = Path(__file__).resolve().parents[1]
+    page = (root / "ui" / "js" / "remotion" / "page.js").read_text(encoding="utf-8")
+    html = (root / "ui" / "remotion.html").read_text(encoding="utf-8")
+    skill = (root / ".claude" / "skills" / "klipian-video" / "SKILL.md").read_text(encoding="utf-8")
+    problems: list[str] = []
+    for gone in ("copyClaudeCmd", "Salin perintah untuk Claude Code", "Baca file brief yang kamu unduh", "Salin perintah ke Claude Code"):
+        if gone in page or gone in html or gone in skill:
+            problems.append(f"{gone!r} is gone from the page and the skill")
+    if page.count('data-act="rmCopyBrief"') < 2 or page.count('data-act="rmDownBrief"') < 2:
+        problems.append("both panels (Otomatis brief and Khusus folder) show Salin brief and Unduh brief")
+    if "Tempel brief ke Claude Code yang dibuka di folder klipian" not in page:
+        problems.append("the Otomatis brief panel has its line above the buttons")
+    if "Tempel brief ke Claude Code yang dibuka di folder klipian. Ia menulis cerita" not in page:
+        problems.append("the Khusus folder panel has its note")
+    if "[data-act=\"rmCopyBrief\"]" not in page:
+        problems.append("the next step's brief action clicks the brief button")
+    base = {"story": False, "pending": 0, "rejected": 0, "title": False, "custom": True, "composition": False, "slug": "x", "voice": False,
+            "aligned": False, "voiceStale": False, "render": "none", "gate": [], "briefed": False, "storyPath": "s.json", "stills": "none",
+            "preview": "none", "folder": "belum dipilih"}
+    step = motion.next_step(base)
+    if step["action"] != "brief" or step["text"] != "Salin brief ke Claude Code, lalu pilih folder hasilnya":
+        problems.append(f"Khusus without a folder: the brief action and its text: {step}")
+    if "command" in step or step["action"] == "copy":
+        problems.append("the next step carries no command")
+    if "pasted into this session" not in skill and "pastes it here" not in skill:
+        problems.append("the skill starts from a pasted brief")
+    if "ask for its path" not in skill:
+        problems.append("the skill asks for a path when only a name is given")
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "the command button and its sentence are gone from the page and the skill; both panels show Salin brief and Unduh brief; the Khusus next step without a folder asks for the brief; the skill starts from a pasted brief or a path"
+
+
+
 CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch,
-          "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voicegoogle": check_voicegoogle, "voicestudio": check_voicestudio, "elevenlabs": check_elevenlabs, "khusus": check_khusus, "voice": check_voice, "decode": check_decode, "render": check_render}
+          "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voicegoogle": check_voicegoogle, "voicestudio": check_voicestudio, "elevenlabs": check_elevenlabs, "khusus": check_khusus, "briefbuttons": check_briefbuttons, "voice": check_voice, "decode": check_decode, "render": check_render}
 
 
 def _global_state() -> dict:

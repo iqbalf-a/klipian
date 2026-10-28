@@ -1,11 +1,11 @@
 ---
 name: klipian-video
-description: Make a klipian intip video from the brief the person saved in /remotion (their brief file, for example <id>-brief.md). Use when the person asks to build a klipian video, or pastes a klipian brief. Writes the story JSON, the custom video folder under remotion/videos, and prints the narration text for their voice app. Never writes to workspace/, never needs an API key, never calls a voice or other service.
+description: Make a klipian intip video from the klipian brief the person pastes into this session, or from a brief file whose path they give. Use when the person asks to build a klipian video, or pastes a klipian brief. Writes the story JSON, the custom video folder under remotion/videos, and prints the narration text for their voice app. Never writes to workspace/, never needs an API key, never calls a voice or other service.
 ---
 
 # klipian-video: from the brief to a custom video folder
 
-You are the local Claude Code of this computer. The person copied or saved a brief from the `/remotion` page and asks you to make the video. Work from the repository root, `D:\github-repos\klipian`.
+You are the local Claude Code of this computer. The person copied a brief from the `/remotion` page and pastes it here, or gives you the path of a downloaded brief file, and asks you to make the video. klipian does not keep a brief file on disk: never assume one is saved. Work from the repository root, `D:\github-repos\klipian`.
 
 ## Rules (hold for every step)
 
@@ -16,7 +16,7 @@ You are the local Claude Code of this computer. The person copied or saved a bri
 
 ## Steps
 
-1. **Read the brief file** the person names. Find its sections: the task, `## Pilihan video` (the options), the structure for the length, the channel and fact rules, the catalogue, and `## Answer format`.
+1. **Get the brief.** Use the text the person pasted into this session. If they give a path, read that file. If they give only a name such as `<id>-brief.md`, ask for its path before you go on; do not search for it. Find its sections: the task, `## Pilihan video` (the options), the structure for the length, the channel and fact rules, the catalogue, and `## Answer format`.
 2. **Research** the topic with web search. Write the claims with their sources.
 3. **Write the story JSON** to `remotion/stories/<slug>.json`, in the answer format of the brief. Include `"bible": 1`, `"music"` as the options say, and the beats (hook, sting, explain, result, tips, outro) that add up to the length exactly.
 4. **Validate**: `node remotion/validate.mjs remotion/stories/<slug>.json`. A `warnings` list is advice; fix every error and run it again until it says `"ok":true`.
