@@ -1122,7 +1122,13 @@ def _items_text(cat: dict) -> str:
     return "\n".join(rows) + f"\n\nEvery item also takes (all optional): {motion}"
 
 
-def _catalog_text(cat: dict) -> str:
+def _stand_in(kind: str) -> str:
+    if kind == "custom":
+        return " Do not use a catalogue object as a stand-in."
+    return " Do not use `socket` unless the topic is an electrical socket or plug. For any other topic use stack, label, arrow, badge, banner or source."
+
+
+def _catalog_text(cat: dict, kind: str = "template") -> str:
     e, ch, lim, mo = cat["enums"], cat["characters"], cat["limits"], cat["motion"]
     fmt = cat["format"]
     sa = lim["safeArea"]
@@ -1131,7 +1137,7 @@ def _catalog_text(cat: dict) -> str:
     return f"""## Catalogue: the only things a video can contain
 
 Use only what is listed here. If the story needs an object that is not in this catalogue, **do not invent it**: write what
-is missing in `needs` and use the closest listed thing meanwhile.
+is missing in `needs`.{_stand_in(kind)}
 
 **Canvas:** {fmt['width']} x {fmt['height']} px, {fmt['fps']} fps, {fmt['unit']}. Keep text, the mascot and people inside x {sa['left']}..{sa['right']},
 y {sa['top']}..{sa['bottom']} ({sa['note']}).
@@ -1191,7 +1197,7 @@ MUSIC_USE = {
     "tech": "a quiet pattern (the legacy bed, kept for old videos)",
     "none": "no music",
 }
-KINDS = {"otomatis": "Otomatis (template, paling cepat)", "khusus": "Khusus (video buatan sesi Claude Code, tampilan terbaik)"}
+KINDS = {"otomatis": "Otomatis (template, paling cepat)", "khusus": "Khusus (video buatan agen, tampilan terbaik)"}
 VS_GENDERS = ("female", "male")
 VS_AGES = ("child", "teenager", "young adult", "middle-aged", "elderly")
 VS_PITCH = "moderate pitch"          # the VoiceStudio pitch the export always writes (the pitch is not a choice in the panel)
@@ -1535,41 +1541,33 @@ HARD_RULES = [
 ]
 
 CHECKLIST = [
-    "The beats add up to the duration.",
-    "The first beat is `hook` with no transition; the last is `outro`.",
-    'Beat 2 is `sting` with the narration exactly "Intip yuk!".',
-    "The outro has an empty narration and no mascot, label or pill; its scene repeats the first beat's scene.",
-    "Every screen text (banner, pill, label, label line) is at most 6 words.",
     "Every beat except the outro has a `banner` equal to its `text`.",
     "At most 3 transitions that are not a cut.",
     "Every claim lists existing beat ids and has at least one URL you opened.",
-    "`bible` is 1.",
     "`music.track` is one of the tracks listed under Answer.",
     "Exactly 3 titles, each at most 100 characters; the hashtags follow the profile's rule.",
-    "No `socket` unless the topic is an electrical socket or plug.",
     "At most one `lens` beat.",
     "The JSON is plain: no comments, no trailing commas, no code.",
 ]
 
 CHANNEL_RULES = """- Language: casual Indonesian, easy to follow, as if talking to a friend. The narration is what a person says aloud; the screen text is short and carries the key point.
 - Hook: an everyday hook of about 3 seconds: a question, a surprising statement or a myth. It does not have to start with "kenapa".
-- Colour: red only for danger or heat, never decoration; yellow is the channel's accent, for highlights and numbered badges. If the topic is electrical: yellow = electric current, red or orange = heat, grey = the object's material, light grey = metal.
-- Safety: no health or finance topics (if the topic is one, say so in `needs` and give the safest everyday framing, or none). Never teach anything dangerous. If the topic is electrical: no instructions to open, modify or bypass mains equipment; the tips are "stop using it, unplug it, ask a technician".
 - The look inside (`lens`): only when the cause is inside a physical object, and at most once per video. For a habit, a body, a process or an idea use a flow, a diagram or labels.
+- Colour: red only for danger or heat, never decoration; yellow is the accent. For an electrical topic: yellow = current, red or orange = heat, grey = the object's material, light grey = metal.
+- Safety: no health or finance topics (say so in `needs`). Never teach anything dangerous. For an electrical topic: no instructions to open, modify or bypass mains equipment; the tips are "stop using it, unplug it, ask a technician".
 - One idea per beat; every narration makes sense heard alone.
-- Background theme (one for the whole video, in the story's `theme`): `cream` (the default: most videos), `sky` (a light blue: a gadget, electricity, a process), `mint` (a light green: nature, plants, water), `peach` (a warm light: food, the home, everyday objects). Two videos in a row should not share one.
-- Stage shape (the block the hero stands on; `stage`, optional, default `slab`): `slab` (the usual block), `round` (a round object: a bulb, a cup, a ball), `strip` (a flow or a process along it), `steps` (a sequence: cause, then effect, then result), `island` (an idea or a gadget that stands alone). Two videos in a row should not share a stage."""
+- Theme (one for the whole video, the story's `theme`): `cream` (the default), `sky` (a gadget, electricity, a process), `mint` (nature, plants, water), `peach` (food, the home). Do not repeat the theme of the video before.
+- Stage (the story's `stage`, default `slab`): `slab` (the usual block), `round` (a round object), `strip` (a flow along it), `steps` (cause, effect, result), `island` (an idea or gadget that stands alone). Do not repeat the stage of the video before."""
 
 COMPOSITION = """- Every beat has a `banner` at the top with the beat's screen text (the same words as its `text`).
-- Backgrounds: `brand` for the story beats (the hook too); `lab` only for what is inside the lens and for cutaway beats.
-- **One hero:** choose one main object or scene for the whole video; the other things on screen are simple supporting elements.
-- The hero is big: about 60 to 70 % of the screen width, near the middle (x about 540). Supporting elements (its parts, arrows, short labels, numbered badges) fill the rest; empty space is filled by the object, never by people.
-- **Kinds of fact:** an object is opened up (the lens); a process follows its flow around the scene; a cause is a chain of cause-and-effect arrows; a myth check ends with the verdict in the text of the `result` or `tips` beat: `MITOS`, `FAKTA` or `SEBAGIAN` (the verdict stamp is not drawn yet, so it is text only).
-- **People are optional:** a person (`chibi`) only when the point of the beat is a person (someone doing something, a body part, a reaction). A topic about an object shows just the object.
-- **The mascot is rare:** the sting has a small `mascot` (w about 220, expression curious, `pop`) and a small `pill` "Intip yuk!" in the caption zone, with no veil; plus at most two short reactions in between. **The outro has no mascot.**
-- The look inside: first the outside of the object with the lens beside it (the `lens` item), then cutaway beats with `socket` view "cutaway" (about x 540, y 926, s 1). Give the cutaway an `id` and make labels and arrows `follow` its parts.
-- Source cards (`source`): show one claim with its source for 2 to 3 seconds, next to the object, only for the one or two facts that need to be seen.
-- Optional: a `headline` (2 to 4 bold words with a small `kicker`), `"captions": true`, and `music` (`{"track": ...}`)."""
+- Backgrounds: `brand` for the story beats (the hook too); `lab` only inside the lens and in cutaway beats.
+- **One hero:** one main object for the whole video, big (about 60 to 70 % of the width, x about 540). The other things are simple supporting elements: parts, arrows, short labels, numbered badges. Empty space is filled by the object, never by people.
+- **Kinds of fact:** an object is opened up (the lens); a process follows its flow; a cause is a chain of arrows; a myth check ends with `MITOS`, `FAKTA` or `SEBAGIAN` in the text of the `result` or `tips` beat (the verdict stamp is not drawn yet).
+- **People are optional:** a person (`chibi`) only when a person is the point of the beat. A topic about an object shows just the object.
+- **The mascot is rare:** the sting has a small `mascot` (w about 220, expression curious, `pop`) and a small `pill` "Intip yuk!" in the caption zone, with no veil; plus at most two short reactions. **The outro has no mascot.**
+- The look inside: the outside of the object with the `lens` item first, then cutaway beats with `socket` view "cutaway" (about x 540, y 926, s 1). Give the cutaway an `id` and make labels and arrows `follow` its parts.
+- **Source cards** (`source`): one claim with its source for 2 to 3 seconds, only for a fact that needs to be seen.
+- Optional: a `headline` (2 to 4 bold words, with a small `kicker`), `"captions": true`, and `music` (`{"track": ...}`)."""
 
 
 def _beat_kinds_text(cat: dict) -> str:
@@ -1599,20 +1597,22 @@ def _examples_text(cat: dict, d: int) -> str:
 PART_B = """## Part B: the video folder (only for Kind Khusus)
 
 Do these steps in order, from the repository root `D:\\github-repos\\klipian`. Stop and report if a step fails.
-1. Read `remotion/DESIGN.md` section 0b (the style bible) before you draw anything.
-2. `cd remotion`, then `npm run new-video <slug> stories/<slug>.json`. Expected: a folder `remotion/videos/<slug>` with `index.tsx`, `plan.ts`, `sfx.ts`, `meta.json` and `story.json`.
-3. Edit `videos/<slug>/index.tsx` and `plan.ts`: draw each beat with the kit (one hero; reuse before you draw; at most three new assets). Use the story's `theme`, `stage` and `music`.
-4. `npm run style-check -- <slug>`. Expected: no FAIL line. Report the FLAG, RENDER and HUMAN lines.
-5. `npm run style-report -- <slug>`. Expected: `out/<slug>/style-report.md`. Do not render the video and do not push anything.
-6. Narration texts: for each target voice app in the options, run from the repository root and paste the output:
+1. Read, in this order, before you draw anything: `remotion/DESIGN.md` section 0b and every rule B1 up to the last one; `remotion/src/dictionary.ts` (the marks you may use); the isometric kit `remotion/src/components/Iso*.tsx`. List them with `ls remotion/src/components/Iso*.tsx`.
+2. Look at the two reference videos: `ls remotion/videos/kenapa-colokan-panas remotion/videos/ngantuk-pegang-hp`. Each has `index.tsx`, `plan.ts`, `sfx.ts` and `meta.json`.
+3. `cd remotion`, then `npm run new-video <slug> stories/<slug>.json`. Expected: the folder `remotion/videos/<slug>` with `index.tsx`, `plan.ts`, `sfx.ts`, `meta.json` and `story.json`. Copy the structure of the reference that is closer to your scene (a stage with a hero, or a bed scene) into it.
+4. Edit `videos/<slug>/index.tsx` and `plan.ts`: draw each beat with the kit (one hero; reuse before you draw; at most three new assets). Use the story's `theme`, `stage` and `music`.
+5. `npm run style-check -- <slug>`. Expected: no FAIL line. Report the FLAG, RENDER and HUMAN lines.
+6. `npm run style-report -- <slug>`. Expected: `out/<slug>/style-report.md`. Do not render the video and do not push anything.
+7. Narration texts: for each target voice app in the options, run from the repository root and paste the output:
    `python -c "import json,sys; sys.path.insert(0,'.'); from klipian import motion; print(motion.narration_export(json.load(open(sys.argv[1],encoding='utf-8')), sys.argv[2])['text'])" remotion/stories/<slug>.json <target>`
    where `<target>` is `voicestudio`, `elevenlabs` or `googleai`.
-7. For the person, in plain words: open `/remotion`, choose the folder `D:\\github-repos\\klipian\\remotion\\videos\\<slug>` and press "Ambil cerita dari folder"; make the voice in your own voice app; choose the audio file; press Cocokkan; look at the preview; then Render.
+8. For the person, in plain words: open `/remotion`, choose the folder `D:\\github-repos\\klipian\\remotion\\videos\\<slug>` and press "Ambil cerita dari folder"; make the voice in your own voice app; choose the audio file; press Cocokkan; look at the preview; then Render.
 """
 
 
 def _report_text() -> str:
-    return """## Report (agent mode: fill every line, with pasted evidence)
+    return """
+## Report (agent mode: fill every line, with pasted evidence)
 - Story file: the path you saved.
 - Validator output: the whole output of `node remotion/validate.mjs`, and any warning left, with why.
 - Folder: the full path. Style check: the summary line. Narration texts: pasted.
@@ -1631,8 +1631,8 @@ def build_brief(p: dict) -> str:
     checklist = "\n".join(f"{i}. {item}" for i, item in enumerate(CHECKLIST, 1))
     intro_tail = ("The video is made from one JSON story (Part A) and, for Kind Khusus, a folder of code (Part B)." if kind == "custom"
                   else "The video is made from one JSON story (Part A).")
-    mode = ("**Mode.** If you can read and write files and run commands in the repository `D:\\github-repos\\klipian`, do Part A"
-            + (" and Part B" if kind == "custom" else "") + ". If you can only chat, do Part A and print the JSON in your reply.")
+    mode = ("**Mode.** With file access to the repository `D:\\github-repos\\klipian`, do Part A"
+            + (" and Part B" if kind == "custom" else "") + ". In chat only, do Part A and print the JSON in your reply.")
     music = ", ".join(f"`{t}`" for t in MUSIC_TRACKS.values())
     return f"""# klipian intip: one short vertical explainer video (about {d} seconds)
 
@@ -1647,7 +1647,7 @@ You are an AI. You make one short vertical animated explainer for the channel kl
 **Hard rules (never break these):**
 {rules}
 
-**Definition of done:** the story JSON, checked (agent mode: validated; chat mode: checked against the checklist){', and for Kind Khusus Part B' if kind == 'custom' else ''}. **Stop rule:** if a step fails, report the failure and stop; never claim success you did not see.
+**Definition of done:** the story JSON, checked (agent mode: validated; chat mode: checked against the checklist){', and for Kind Khusus Part B' if kind == 'custom' else ''}. **Stop rule:** if a step fails, report it and stop; claim only what you saw.
 
 {_options_text(opts)}
 
@@ -1655,19 +1655,18 @@ You are an AI. You make one short vertical animated explainer for the channel kl
 
 ## Part A: the story
 
-1. Find the hook: an everyday hook of about 3 seconds: a question, a surprising statement or a myth.
+1. Find the hook: an everyday hook of about 3 seconds (see the channel rules).
 2. Research the facts with web search. Open each source yourself; every claim needs a URL.
-3. Write the beats (see the beat kinds). The sting comes right after the hook. The explanation is two or three beats, one claim each.
+3. Write the beats (see the beat kinds): the sting right after the hook, then two or three beats, one claim each.
 4. Choose each beat's scene as the kind above says.
-5. Give three titles, a description and hashtags.
-6. Choose `music`, and the optional `theme` and `stage` (see the channel rules).
-7. Check the story against the checklist below, then answer as the mode says.
+5. Give three titles, a description, hashtags, `music`, and the optional `theme` and `stage`.
+6. Check the story against the checklist, then answer as the mode says.
 
 ## Structure for {d} seconds
 
 {_structure_text(d)}
 
-Adapt the kinds and seconds to the topic if you need to, but the beats must add up to exactly {d} seconds. Give each beat 2 to 4 moments of movement.
+Adapt the kinds and seconds to the topic if needed, but the beats must add up to exactly {d} seconds; each beat has 2 to 4 moments of movement.
 
 ## Beat kinds
 
@@ -1689,7 +1688,7 @@ Adapt the kinds and seconds to the topic if you need to, but the beats must add 
 
 {FACT_RULES}
 
-{_catalog_text(cat)}
+{_catalog_text(cat, kind_of(p))}
 ## Title, description and hashtags
 
 Give three title options in `titles` (each at most 100 characters). Put the post description in `post.description` (no hashtags in it, no URLs; klipian adds the source links itself) and the hashtags in `post.hashtags`. **Hashtags for this profile:** {rule}
@@ -1698,7 +1697,7 @@ Give three title options in `titles` (each at most 100 characters). Put the post
 
 Music tracks: {music}.
 
-Fields of the story: `question` (the hook), `titles` (exactly 3), `duration` ({d}), `beats`, `claims` (`text`, `beats` as ids, `sources` as URLs), `post` (`description`, `hashtags`), `needs` (what the story needs that the catalogue does not have; empty if none), `bible` (1), `music` (`{{"track": ...}}`), and the optional `theme` (cream, sky, mint or peach) and `stage` (slab, round, strip, steps or island). Each beat: `id` (lowercase, hyphens), `kind`, `dur`, `narration`, `text` (at most 6 words), `scene` (`bg`, `items`), `sfx` (a short note for a human), and optionally `camera` and `transition`.
+Fields: `question`, `titles` (exactly 3), `duration` ({d}), `beats`, `claims`, `post`, `needs`, `bible` (1), `music` (`{{"track": ...}}`), and the optional `theme` and `stage`. Beat fields: `id`, `kind`, `dur`, `narration`, `text` (at most 6 words), `scene` (`bg`, `items`), `sfx`, and optionally `camera` and `transition`. The examples below show the shape.
 
 **Chat mode:** reply with one fenced `json` block and nothing else.
 **Agent mode:** save the same JSON to `remotion/stories/<slug>.json` (the slug is the topic in lowercase with hyphens; save nowhere else). Run `node remotion/validate.mjs remotion/stories/<slug>.json` from the repository root and fix every error until it prints `"ok":true`. Then print the JSON in a fenced `json` block in your reply too.
@@ -1770,7 +1769,7 @@ Reply with **a single JSON block** and nothing else, plain JSON only:
 }}
 ```
 
-{_catalog_text(cat)}"""
+{_catalog_text(cat, kind_of(p))}"""
 
 
 def build_fix_message(errors: list[dict], kind: str = "main", options: dict | None = None) -> str:

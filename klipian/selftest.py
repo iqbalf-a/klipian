@@ -6417,6 +6417,22 @@ def check_briefagents() -> tuple[str, str]:
     kinds = cat["enums"]["beatKinds"]
     if set(cat["beatKindMeaning"]) != set(kinds):
         problems.append("beatKindMeaning does not cover every beat kind")
+    for opts, label in (({}, "otomatis"), ({"kind": "khusus"}, "khusus")):
+        text = motion.build_brief({"topic": "Kenapa colokan panas", "duration": 45, "notes": "", "options": opts})
+        if "closest listed" in text:
+            problems.append(f"the {label} catalogue still tells the AI to use the closest listed thing")
+        if "Claude Code" in text:
+            problems.append(f"the {label} brief names Claude Code: Part A must be free of product names")
+    if "Do not use `socket` unless" not in motion.build_brief({"topic": "x", "duration": 45, "notes": "", "options": {}}):
+        problems.append("the Otomatis catalogue says when a socket may be used")
+    if "Do not use a catalogue object as a stand-in." not in motion.build_brief({"topic": "x", "duration": 45, "notes": "", "options": {"kind": "khusus"}}):
+        problems.append("the Khusus catalogue says not to use a catalogue object as a stand-in")
+    if "agen" not in motion.KINDS["khusus"] or "Claude" in motion.KINDS["khusus"]:
+        problems.append("the Khusus option names the agent, not the product")
+    khusus_text = motion.build_brief({"topic": "x", "duration": 45, "notes": "", "options": {"kind": "khusus"}})
+    for want in ("remotion/src/dictionary.ts", "remotion/src/components/Iso*.tsx", "remotion/videos/kenapa-colokan-panas", "remotion/videos/ngantuk-pegang-hp"):
+        if want not in khusus_text:
+            problems.append(f"Part B does not name {want}")
     sizes = []
     for d in (30, 45, 60):
         for opts, khusus in (({}, False), ({"kind": "khusus"}, True)):
