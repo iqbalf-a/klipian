@@ -813,6 +813,10 @@ class Handler(BaseHTTPRequestHandler):
         fmt = (q.get("format") or ["srt"])[0]
         return self._send_file(f, "text/vtt; charset=utf-8" if fmt == "vtt" else "application/x-subrip; charset=utf-8")
 
+    def _get_motion_narration(self):
+        q = parse_qs(urlparse(self.path).query)
+        return self._motion_reply(lambda: _motion.narration_for(((q.get("id") or [""])[0]), ((q.get("target") or ["voicestudio"])[0])))
+
     def _get_motion_preview_file(self):
         q = parse_qs(urlparse(self.path).query)
         try:
@@ -859,7 +863,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"error": str(exc)}, 400)
         pid = str(req.get("id") or "")
         if action == "create":
-            return self._motion_reply(lambda: {"project": _motion.summary(_motion.create(req.get("topic"), req.get("duration") or _motion.DEFAULT_DURATION, req.get("notes") or ""))})
+            return self._motion_reply(lambda: {"project": _motion.summary(_motion.create(req.get("topic"), req.get("duration") or _motion.DEFAULT_DURATION, req.get("notes") or "", req.get("options")))})
+        if action == "options":                                       # loop, the sting, the voice target, the music, the kind
+            return self._motion_reply(lambda: _motion.set_options(pid, req.get("options") or {}))
         if action == "paste":
             return self._motion_reply(lambda: _motion.paste(pid, str(req.get("text") or ""), str(req.get("kind") or "main")))
         if action == "facts":
@@ -1438,6 +1444,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/motion/still": _get_motion_still,
         "/api/motion/subtitles": _get_motion_subtitles,
         "/api/motion/preview-file": _get_motion_preview_file,
+        "/api/motion/narration": _get_motion_narration,
         "/api/ytdl/status": _get_ytdl_status,
         "/api/ytdl/state": _get_ytdl_state,
         "/api/youtube/status": _get_youtube_status,
@@ -2336,6 +2343,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/motion/voice-part": _post_motion,
         "/api/motion/voice-length": _post_motion,
         "/api/motion/preview-video": _post_motion,
+        "/api/motion/options": _post_motion,
         "/api/motion/voice-upload": _post_motion_voice_upload,
         "/api/ytdl/preview": _post_ytdl,
         "/api/ytdl/start": _post_ytdl,

@@ -5778,8 +5778,123 @@ def check_voiceparts() -> tuple[str, str]:
 
 
 
+# check: the options of a video (PLAN-ALUR-V2 phase 2): the choices and their refusals, the warnings for loop and the sting, the brief for every
+# combination of length, loop, sting, voice target, music and kind (the catalogue is read once), the fix message and the options, and the narration
+# text for each voice app (the parts, the headers, the markup each one takes). No AI call, no service call, no workspace read.
+def check_motionopts() -> tuple[str, str]:
+    from . import motion, profiles
+    ok, why = motion._node.ready()
+    if not ok:
+        return SKIP, why
+    problems: list[str] = []
+    try:
+        motion.normalize_options({"voiceTarget": "suara"})
+        problems.append("a voice target that is not listed is refused")
+    except motion.MotionError:
+        pass
+    try:
+        motion.normalize_options({"loop": "ya"})
+        problems.append("loop is yes or no")
+    except motion.MotionError:
+        pass
+    if motion.normalize_options(None) != motion.DEFAULT_OPTIONS or motion.DEFAULT_OPTIONS["loop"] is not True or motion.DEFAULT_OPTIONS["sting"] is not True:
+        problems.append("the defaults are loop on and the sting on")
+    if motion.option_warnings(motion.DEFAULT_OPTIONS):
+        problems.append("the defaults give no warning")
+    off = motion.option_warnings({**motion.DEFAULT_OPTIONS, "loop": False, "sting": False})
+    if len(off) != 2 or "loop" not in off[0] or "Intip yuk" not in off[1]:
+        problems.append(f"turning the musts off warns about each: {off}")
+
+    # the brief for every combination (the catalogue is read once, the hashtag rule is fixed)
+    cat = motion._catalog()
+    old_catalog, old_settings = motion._catalog, profiles.hashtag_settings
+    motion._catalog = lambda: cat
+    profiles.hashtag_settings = lambda: {"placement": "title", "shorts": True, "titleTags": 3}
+    try:
+        count = 0
+        for d in (30, 45, 60):
+            for loop in (True, False):
+                for sting in (True, False):
+                    for target in motion.VOICE_TARGETS:
+                        for music in motion.MUSIC_TRACKS:
+                            for kind in motion.KINDS:
+                                opts = {"loop": loop, "sting": sting, "voiceTarget": target, "music": music, "kind": kind}
+                                text = motion.build_brief({"topic": "Kenapa colokan panas", "duration": d, "notes": "", "options": opts})
+                                count += 1
+                                want = [f"- Loop: {'yes' if loop else 'no'}", f"- Intip yuk!: {'yes' if sting else 'no'}", f"- Music: ",
+                                        f"- Target voice app: {motion.VOICE_TARGETS[target]}", f"- Kind: {motion.KINDS[kind]}", "## Pilihan video"]
+                                if any(w not in text for w in want):
+                                    problems.append(f"the {d} s brief for {opts} lacks {[w for w in want if w not in text]}")
+                                    break
+                                if (not loop or not sting) and "Warning:" not in text:
+                                    problems.append(f"the {d} s brief for {opts} has no warning")
+                                if "`music`" not in text:
+                                    problems.append("the answer format asks for the music track")
+        if count != 216:
+            problems.append(f"216 combinations were checked: {count}")
+    finally:
+        motion._catalog, profiles.hashtag_settings = old_catalog, old_settings
+
+    # the fix message keeps the options
+    fix = motion.build_fix_message([{"path": "beats.0", "message": "x"}], "main", {**motion.DEFAULT_OPTIONS, "loop": False})
+    if "loop no" not in fix or "Intip yuk! yes" not in fix:
+        problems.append(f"the fix message carries the options: {fix[-160:]}")
+
+    # the narration text: the parts, the headers, the markup per app
+    beats = [{"id": "hook", "narration": "Pernah cabut colokan. Eh kok panas? Yuk cek sekarang."}, {"id": "tips", "narration": "Jangan dipakai dulu. Minta teknisi periksa."}]
+    story = {"beats": beats}
+    vs = motion.narration_export(story, "voicestudio")
+    if "<" in vs["text"] or "[" in vs["text"] or "Bagian 1 (sekitar" not in vs["text"]:
+        problems.append("the VoiceStudio text is plain, with a header per part")
+    el = motion.narration_export(story, "elevenlabs")
+    if "<" in el["text"] or "[" in el["text"] or "belum diverifikasi" not in el["status"]:
+        problems.append("the ElevenLabs text has no tags, and says the pause tags are not verified")
+    gg = motion.narration_export(story, "googleai")
+    if gg["text"].count("<short pause>") != 1 or "<long pause>" in gg["text"]:
+        problems.append(f"the Google text has <short pause> between beats only, never <long pause>: {gg['text'].count('<short pause>')}")
+    if not gg["style"] or "bukan di teks" not in gg["style"]:
+        problems.append("the Google style is a line for the person, not text")
+    # the split: long narrations become parts of about 10 to 15 s, cut at sentence ends
+    long_story = {"beats": [{"id": f"b{i}", "narration": " ".join(["kata"] * 6) + "." } for i in range(14)]}
+    parts = motion.narration_parts(long_story)
+    if len(parts) < 2:
+        problems.append("a long narration is split into parts")
+    for p in parts[:-1]:
+        mid = (p["low"] + p["high"]) / 2
+        if not 9 <= mid <= 16:
+            problems.append(f"a part is about 10 to 15 s: {mid:.1f} s for {p['words']} words")
+            break
+    if any(p["low"] > p["high"] for p in parts):
+        problems.append("a part's time is a range, low to high")
+    total = motion.narration_export(long_story, "voicestudio")["total"]
+    if abs(total["low"] - sum(p["low"] for p in parts)) > 0.1:
+        problems.append("the total is the parts' sum")
+    if not motion.narration_export(long_story, "voicestudio")["text"].startswith("Total sekitar"):
+        problems.append("the export starts with the total")
+    try:
+        motion.narration_export(story, "suara")
+        problems.append("a target that is not listed is refused")
+    except motion.MotionError:
+        pass
+
+    # the options of a project: chosen at creation, changed with the warnings
+    p = motion.create("contoh pilihan video", 30, "", {"loop": False, "music": "tech"})
+    if motion.options_of(p)["loop"] is not False or motion.options_of(p)["music"] != "tech" or motion.options_of(p)["sting"] is not True:
+        problems.append(f"the options are kept on the project: {motion.options_of(p)}")
+    changed = motion.set_options(p["id"], {"sting": False})
+    if motion.options_of(motion.load(p["id"]))["sting"] is not False or len(changed["warnings"]) != 2:
+        problems.append(f"the options change and warn: {changed}")
+    if motion.options_of(motion.load(p["id"]))["music"] != "tech":
+        problems.append("changing one option keeps the others")
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, ("the choices and the refusals, the warnings for loop and the sting, the brief for 216 combinations, the fix message with the options, "
+                  "the narration parts (about 10 to 15 s, sentence ends) and the text for each voice app (no tags for VoiceStudio and ElevenLabs, <short pause> for Google)")
+
+
+
 CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch,
-          "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "voice": check_voice, "decode": check_decode, "render": check_render}
+          "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "voice": check_voice, "decode": check_decode, "render": check_render}
 
 
 def _global_state() -> dict:

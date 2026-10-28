@@ -182,7 +182,7 @@ def facts_of(pid: str) -> list[dict]:
     return f.get("claims", []) if isinstance(f, dict) else []
 
 
-def create(topic: str, duration=DEFAULT_DURATION, notes: str = "") -> dict:
+def create(topic: str, duration=DEFAULT_DURATION, notes: str = "", options: dict | None = None) -> dict:
     topic = " ".join(str(topic or "").split())
     if len(topic) < 3:
         raise MotionError("topic", "Write the topic first, for example: fakta seru tentang colokan listrik panas.")
@@ -197,11 +197,21 @@ def create(topic: str, duration=DEFAULT_DURATION, notes: str = "") -> dict:
     pid = f"{_slug(topic)}-{uuid.uuid4().hex[:4]}"
     now = int(time.time())
     p = {"id": pid, "topic": topic, "duration": duration, "notes": str(notes or "").strip()[:2000], "status": "draft",
-         "title": "", "created": now, "updated": now, "needs": [], "render": None, "composition": ""}
+         "title": "", "created": now, "updated": now, "needs": [], "render": None, "composition": "", "options": normalize_options(options)}
     with _LOCK:
         project_dir(pid).mkdir(parents=True, exist_ok=True)
         save(p)
     return p
+
+
+def set_options(pid: str, raw: dict) -> dict:
+    """The options of a video (loop, the sting, the voice target, the music, the kind): the ones given change, the rest stay. The warnings say what
+    the channel asks for; the brief and the fix message carry the options from now on."""
+    with _LOCK:
+        p = load(pid)
+        p["options"] = normalize_options({**options_of(p), **(raw if isinstance(raw, dict) else {})})
+        save(p)
+    return {"options": p["options"], "warnings": option_warnings(p["options"])}
 
 
 def update_project(pid: str, fields: dict) -> dict:
@@ -267,7 +277,7 @@ def detail(pid: str) -> dict:
     story = story_of(pid)
     facts = facts_of(pid) if story else []
     stills = _stills_state(pid, story)
-    return {**summary(p), "notes": p.get("notes", ""), "needs": p.get("needs", []), "warnings": (validate_story(story).get("warnings", []) if story else []), "storyPath": str(project_dir(pid) / "story.json"), "compositions": compositions(), "story": story, "facts": facts,
+    return {**summary(p), "options": options_of(p), "optionWarnings": option_warnings(options_of(p)), "notes": p.get("notes", ""), "needs": p.get("needs", []), "warnings": (validate_story(story).get("warnings", []) if story else []), "storyPath": str(project_dir(pid) / "story.json"), "compositions": compositions(), "story": story, "facts": facts,
             "gate": gate(pid), "stills": stills, "render": p.get("render"), "job": job_state(pid), "voice": voice_info(pid),
             "preview": _preview_state(pid, story),
             "versions": len(list((project_dir(pid) / "history").glob("story-*.json"))) if (project_dir(pid) / "history").is_dir() else 0}
@@ -346,17 +356,17 @@ def paste(pid: str, text: str, kind: str = "main", beats=None) -> dict:
             data = roundtrip.extract_json(str(text or ""), notes)
         except ValueError as exc:
             errors = [{"path": "", "message": str(exc)}]
-            return {"ok": False, "errors": errors, "fix": build_fix_message(errors, kind)}
+            return {"ok": False, "errors": errors, "fix": build_fix_message(errors, kind, options_of(p))}
         story = data
         if kind == "revise":
             story = _merge_revision(pid, data)
             if isinstance(story, list):                         # errors
-                return {"ok": False, "errors": story, "fix": build_fix_message(story, kind)}
+                return {"ok": False, "errors": story, "fix": build_fix_message(story, kind, options_of(p))}
         v = validate_story(story)
         errors = list(v.get("errors", [])) if not v.get("ok") else []
         errors += _check_for(p, story) if isinstance(story, dict) else []
         if errors:
-            return {"ok": False, "errors": errors, "fix": build_fix_message(errors, kind)}
+            return {"ok": False, "errors": errors, "fix": build_fix_message(errors, kind, options_of(p))}
         _accept(pid, story)
         return {"ok": True, "notes": notes, "story": story, "needs": story.get("needs", [])}
 
@@ -424,7 +434,7 @@ def update(pid: str, edits: dict) -> dict:
         errors = list(v.get("errors", [])) if not v.get("ok") else []
         errors += _check_for(p, new)
         if errors:
-            return {"ok": False, "errors": errors, "fix": build_fix_message(errors, "main")}
+            return {"ok": False, "errors": errors, "fix": build_fix_message(errors, "main", options_of(load(pid)))}
         if new == story:
             return {"ok": True, "story": story, "changed": False}
         _accept(pid, new)
@@ -674,6 +684,14 @@ def choose_length(pid: str, choice: str) -> dict:
         p["voice"]["lengthChoice"] = "continue" if choice == "continue" else None
         save(p)
     return p["voice"]
+
+
+def narration_for(pid: str, target: str) -> dict:
+    """The narration text for a voice app, from the current story (the words the person will have voiced)."""
+    story = story_of(pid)
+    if story is None:
+        raise MotionError("no_story", "There is no story yet: paste the AI's answer first.")
+    return narration_export(story, target)
 
 
 def subtitles_file(pid: str, fmt: str) -> Path | None:
@@ -992,6 +1010,129 @@ def _example_text(cat: dict) -> str:
     return json.dumps(cat["example"], ensure_ascii=False, indent=1)
 
 
+# the options of a video (PLAN-ALUR-V2 phase 2): what the person chooses before the brief. loop and the sting are musts of the channel: they default on,
+# and turning one off gives a warning (the channel asks for them). The voice target only chooses the text format of the narration (the voice is made
+# outside klipian, by the person's own voice app); the music is the story's bed.
+VOICE_TARGETS = {"voicestudio": "VoiceStudio", "elevenlabs": "ElevenLabs", "googleai": "Google AI Studio"}
+MUSIC_TRACKS = {"calm": "bed-calm", "tech": "bed-tech", "none": "none"}
+KINDS = {"otomatis": "Template otomatis", "khusus": "Khusus (folder video sendiri)"}
+DEFAULT_OPTIONS = {"loop": True, "sting": True, "voiceTarget": "voicestudio", "music": "calm", "kind": "otomatis"}
+
+
+def normalize_options(raw) -> dict:
+    """The options with the defaults filled in. A value that is not one of the choices is refused with the choices listed."""
+    raw = raw if isinstance(raw, dict) else {}
+    out = dict(DEFAULT_OPTIONS)
+    for key in ("loop", "sting"):
+        if key in raw:
+            if not isinstance(raw[key], bool):
+                raise MotionError("options", f"{key} is yes or no.")
+            out[key] = raw[key]
+    for key, choices in (("voiceTarget", VOICE_TARGETS), ("music", MUSIC_TRACKS), ("kind", KINDS)):
+        if key in raw:
+            if raw[key] not in choices:
+                raise MotionError("options", f"{key} is one of: {', '.join(choices)}.")
+            out[key] = raw[key]
+    return out
+
+
+def options_of(p: dict) -> dict:
+    return normalize_options(p.get("options") or {})
+
+
+def option_warnings(opts: dict) -> list[str]:
+    """What the channel asks for and what a choice takes away. A warning, not a refusal: the person may decide, and the brief says so."""
+    out = []
+    if not opts["loop"]:
+        out.append("saluran ini mewajibkan loop: akhir video kembali ke adegan awal. Video tanpa loop hanya dengan persetujuan ian.")
+    if not opts["sting"]:
+        out.append('saluran ini mewajibkan "Intip yuk!" tepat setelah hook. Video tanpa sting hanya dengan persetujuan ian.')
+    return out
+
+
+def _options_text(opts: dict) -> str:
+    music = {"calm": "a calm bed (story music track bed-calm)", "tech": "a tech bed (story music track bed-tech)", "none": "no music (story music track none)"}[opts["music"]]
+    lines = [f"- Loop: {'yes' if opts['loop'] else 'no'} (the ending returns to the scene of the first beat)",
+             f"- Intip yuk!: {'yes' if opts['sting'] else 'no'} (the small sting right after the hook)",
+             f"- Music: {music}",
+             f"- Target voice app: {VOICE_TARGETS[opts['voiceTarget']]} (klipian writes the narration text for it; the voice is made outside klipian)",
+             f"- Kind: {KINDS[opts['kind']]}"]
+    warn = option_warnings(opts)
+    if warn:
+        lines.append("- Warning: " + " ".join(warn))
+    return "## Pilihan video\n\n" + "\n".join(lines)
+
+
+def _sentences(text: str) -> list[str]:
+    return [s for s in re.split(r"(?<=[.!?])\s+", str(text or "").strip()) if s]
+
+
+# words a second (the planner's range, 2.3 to 3.2): the estimate of a part's length is a range, never a single number
+WPS_LOW, WPS_HIGH = 2.3, 3.2
+PART_SECONDS = 12.0              # a part is about this long (suggested breaks at sentence ends, 10 to 15 s)
+
+
+def narration_parts(story: dict) -> list[dict]:
+    """The narration split into parts at sentence ends, each about PART_SECONDS long. Each part: {"no", "text", "words", "low", "high", "beats"} with
+    the estimated seconds as a range. A beat boundary is kept as a boundary in the parts' text (for the markup that uses it)."""
+    units = []
+    for beat in story["beats"]:
+        for sent in _sentences(beat.get("narration", "")):
+            units.append({"beat": beat["id"], "text": sent, "words": len(sent.split())})
+    parts: list[dict] = []
+    cur: list[dict] = []
+    seconds = 0.0
+    for u in units:
+        cur.append(u)
+        seconds += u["words"] / ((WPS_LOW + WPS_HIGH) / 2)
+        if seconds >= PART_SECONDS:
+            parts.append(cur)
+            cur, seconds = [], 0.0
+    if cur:
+        parts.append(cur)
+    out = []
+    for n, units_in in enumerate(parts, 1):
+        words = sum(u["words"] for u in units_in)
+        out.append({"no": n, "words": words, "low": round(words / WPS_HIGH, 1), "high": round(words / WPS_LOW, 1),
+                    "units": units_in, "text": " ".join(u["text"] for u in units_in)})
+    return out
+
+
+def narration_export(story: dict, target: str) -> dict:
+    """The narration text for one voice app. VoiceStudio: plain text with a header line per part (the header is for the person: remove it before
+    the voice reads). ElevenLabs: plain text with its punctuation; the pause tags of Eleven v3 are not verified, so none are written. Google AI Studio:
+    "<short pause>" (verified in the Gemini TTS docs) between two beats of a part; "<long pause>" is not verified, so it is not written. The style
+    of the Google voice is an API setting, so it is given as a line for the person to paste, not as text of the narration."""
+    if target not in VOICE_TARGETS:
+        raise MotionError("voice", f"the voice target is one of: {', '.join(VOICE_TARGETS)}.")
+    parts = narration_parts(story)
+    lines = []
+    total_low = round(sum(p["low"] for p in parts), 1)
+    total_high = round(sum(p["high"] for p in parts), 1)
+    status = {"voicestudio": "teks biasa: tanpa tag", "elevenlabs": "teks biasa dengan tanda baca; tag jeda Eleven v3 belum diverifikasi, tidak dipakai",
+              "googleai": "<short pause> terverifikasi di dokumen Gemini TTS; <long pause> belum diverifikasi, tidak dipakai"}[target]
+    style = None
+    if target == "googleai":
+        style = "Gaya (isi di AI Studio sebagai gaya, bukan di teks): ceria dan ramah, tempo sedang, jelas (ubah jika perlu)."
+    for p in parts:
+        mid = round((p["low"] + p["high"]) / 2)
+        lines.append(f"Bagian {p['no']} (sekitar {mid} detik)")
+        if target == "googleai":
+            chunks = []
+            for i, u in enumerate(p["units"]):
+                if i and p["units"][i - 1]["beat"] != u["beat"]:
+                    chunks.append("<short pause>")
+                chunks.append(u["text"])
+            lines.append(" ".join(chunks))
+        else:
+            lines.append(p["text"])
+        lines.append("")
+    body = "\n".join(lines).strip() + "\n"
+    head = f"Total sekitar {total_low:.0f} sampai {total_high:.0f} detik, {len(parts)} bagian. Target: {VOICE_TARGETS[target]}."
+    return {"target": target, "label": VOICE_TARGETS[target], "status": status, "style": style, "total": {"low": total_low, "high": total_high},
+            "parts": [{k: v for k, v in p.items() if k != "units"} for p in parts], "text": head + "\n\n" + body}
+
+
 def build_brief(p: dict) -> str:
     """The one self-contained file you give to an AI: task, structure for the length, channel and fact rules, the catalogue,
     this profile's title and hashtag rules, the answer format with an example, and `needs`."""
@@ -1006,6 +1147,8 @@ Hello. You will plan one short vertical animated explainer video (a YouTube Shor
 using only the catalogue below.
 
 **Topic:** {p['topic']}{notes}
+
+{_options_text(options_of(p))}
 
 ## Your task
 
@@ -1047,7 +1190,7 @@ the video explains; no hashtags in it) and the hashtags in `post.hashtags`. klip
 Reply with **a single JSON block**, no explanation outside it. Plain JSON only: no code, expressions, comments, trailing commas or
 variables; every value is finished text or a number. The block is one story with these fields:
 
-- `bible`: 1 (this story follows the channel's musts, so klipian checks them strictly); `question`: the hook (a question or a surprising statement, about 3 seconds); `titles`: exactly 3; `duration`: {d}; `beats`: the beats; `claims`: the claims with `text`, `beats` (ids) and `sources` (URLs);
+- `bible`: 1 (this story follows the channel's musts, so klipian checks them strictly); `music`: `{{"track": "bed-calm" | "bed-tech" | "none"}}` as the options say; `question`: the hook (a question or a surprising statement, about 3 seconds); `titles`: exactly 3; `duration`: {d}; `beats`: the beats; `claims`: the claims with `text`, `beats` (ids) and `sources` (URLs);
   `post`: `description` and `hashtags`; `needs`: a list of objects or effects the story would need that the catalogue does not have (empty when there are none).
 - each beat: `id` (lowercase, hyphens), `kind`, `dur`, `narration`, `text` (the screen text of the beat, at most 6 words), `scene` (`bg`, `items`), `sfx` (a short note on the sound for a human), and optionally `camera` and `transition`.
 
@@ -1106,6 +1249,7 @@ Some claims were **rejected**. Please revise **only the beats listed below**; ev
   make the beat about something that is certain.
 - Keep each beat's `id` and `dur` the same (the video must keep its {p['duration']} seconds), and the same channel rules and catalogue as before.
 - Keep the two musts: the "Intip yuk!" sting right after the hook, and the loop-back ending (no mascot, label, pill or voice in the outro).
+- Keep the options of this video: loop {'yes' if options_of(p)['loop'] else 'no'}, Intip yuk! {'yes' if options_of(p)['sting'] else 'no'}, music {MUSIC_TRACKS[options_of(p)['music']]}.
 - Give the **complete list of claims** again in `claims` (the checked ones unchanged, the revised ones with sources), with the beats that use them.
 
 ## Reply format
@@ -1122,17 +1266,21 @@ Reply with **a single JSON block** and nothing else, plain JSON only:
 {_catalog_text(cat)}"""
 
 
-def build_fix_message(errors: list[dict], kind: str = "main") -> str:
+def build_fix_message(errors: list[dict], kind: str = "main", options: dict | None = None) -> str:
     """What to paste back to the AI when its answer was not accepted: every problem with where it is."""
     lines = []
     for e in errors:
         where = f"`{e['path']}`: " if e.get("path") else ""
         lines.append(f"- {where}{e['message']}")
     what = ("only the replaced beats and the full claims list, as before" if kind == "revise" else "the whole JSON story")
+    keep = ""
+    if options is not None:                                  # the options stay as the person chose them
+        keep = (f"\n\nThe options of this video stay as they are: loop {'yes' if options['loop'] else 'no'}, Intip yuk! {'yes' if options['sting'] else 'no'}, "
+                f"music {MUSIC_TRACKS[options['music']]}.")
     return ("klipian could not accept your answer. These are the problems, with where each one is:\n\n"
             + "\n".join(lines)
             + f"\n\nPlease fix them and reply with {what} again: a single JSON block, plain JSON only (no code, comments or trailing commas), "
-              "and nothing outside the block. Change only what is needed; keep everything else exactly as it was.")
+              "and nothing outside the block. Change only what is needed; keep everything else exactly as it was." + keep)
 
 
 # --------------------------------------------------------------------------

@@ -89,7 +89,7 @@ byId("rmNew").addEventListener("submit", async (e) => {
   const err = byId("rmNewErr");
   err.textContent = "";
   try {
-    const j = await call(`${API}/create`, { topic: byId("rmTopic").value, duration: newDuration, notes: byId("rmNotes").value });
+    const j = await call(`${API}/create`, { topic: byId("rmTopic").value, duration: newDuration, notes: byId("rmNotes").value, options: readOptions(byId("rmOptsNew")) });
     byId("rmNew").hidden = true;
     byId("rmTopic").value = ""; byId("rmNotes").value = "";
     await loadList(j.project.id);
@@ -214,6 +214,10 @@ byId("rmMain").addEventListener("click", async (e) => {
     if (act === "voicePart") return pickPart(t.dataset.no);
     if (act === "voiceLength") return chooseLength(t.dataset.choice);
     if (act === "previewVideo") return startPreviewVideo();
+    if (act === "saveOptions") return saveOptions();
+    if (act === "narrationLoad") return loadNarration();
+    if (act === "narrationCopy") return copyNarration();
+    if (act === "narrationDown") return downloadNarration();
     if (act === "copyFix") return copyFix(t);
     if (act === "copyRevise") return copyRevise(t);
     if (act === "downRevise") return downloadBrief("revise");
@@ -369,8 +373,36 @@ function drawVoice() {
       ${v && v.captions ? `<a class="btn sm" href="${API}/subtitles?id=${encodeURIComponent(d.id)}&format=srt" download>Unduh .srt</a><a class="btn sm" href="${API}/subtitles?id=${encodeURIComponent(d.id)}&format=vtt" download>Unduh .vtt</a>` : ""}
       <span class="rm-hint" id="rmVoiceNote">${busy ? esc(job.message || "") : ""}</span>
     </div>
-    ${v && v.aligned ? voiceTableHTML(v) : ""}`;
+    ${v && v.aligned ? voiceTableHTML(v) : ""}
+    ${narrationHTML(d)}`;
   byId("rmVoiceFile")?.addEventListener("change", uploadVoice);
+}
+
+// the narration text for a voice app: the words the person will have voiced (from the story), per target
+let NARR = null;                // the last export loaded for this video: { target, text, label, status, style, total, parts }
+function narrationHTML(d) {
+  const target = (d.options && d.options.voiceTarget) || "voicestudio";
+  const sel = `<select class="ws-input rm-boxed" id="rmNarrTarget">${[["voicestudio", "VoiceStudio"], ["elevenlabs", "ElevenLabs"], ["googleai", "Google AI Studio"]].map(([v, l]) => `<option value="${v}" ${v === target ? "selected" : ""}>${l}</option>`).join("")}</select>`;
+  const shown = NARR && NARR.forId === d.id ? NARR : null;
+  return `<div class="rm-needs"><b>Naskah untuk aplikasi suara</b> (ketik atau tempel di aplikasi kamu; klipian tidak memanggil layanan suara)
+    <div class="rm-actions">${sel}<button class="btn" type="button" data-act="narrationLoad">Muat naskah</button><button class="btn" type="button" data-act="narrationCopy" ${shown ? "" : "disabled"}>Salin</button><button class="btn" type="button" data-act="narrationDown" ${shown ? "" : "disabled"}>Unduh .txt</button></div>
+    ${shown ? `<p class="rm-hint">${esc(shown.status)}${shown.style ? ` · ${esc(shown.style)}` : ""}</p><textarea class="ws-input rm-boxed" readonly rows="10" id="rmNarrText">${esc(shown.text)}</textarea><p class="rm-hint">Baris "Bagian N" adalah penanda untuk kamu: hapus sebelum dibacakan.</p>` : `<p class="rm-hint">Pilih aplikasi, lalu muat naskah.</p>`}
+  </div>`;
+}
+async function loadNarration() {
+  const target = byId("rmNarrTarget").value;
+  const j = await call(`${API}/narration?id=${encodeURIComponent(CUR.id)}&target=${encodeURIComponent(target)}`);
+  NARR = { ...j, forId: CUR.id };
+  drawVoice();
+}
+async function copyNarration() {
+  (await copyText(NARR.text)) ? toast("Naskah disalin.") : toast("Tidak bisa menyalin: pilih teksnya sendiri.");
+}
+function downloadNarration() {
+  const url = URL.createObjectURL(new Blob([NARR.text], { type: "text/plain;charset=utf-8" }));
+  const a = Object.assign(document.createElement("a"), { href: url, download: `${CUR.id}-naskah-${NARR.target}.txt` });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 let PART_TO_REPLACE = null;     // the number of the part the next path replaces (set by "Ganti bagian")
@@ -468,6 +500,32 @@ function textItems(beat) {
   return beat.scene.items.map((it, i) => ({ it, i })).filter(({ it }) => typeof it.text === "string");
 }
 
+// the options of a video: the same controls in the creation dialog and in the story step
+function readOptions(root) {
+  const o = {};
+  root.querySelectorAll("[data-opt]").forEach((x) => { o[x.dataset.opt] = x.type === "checkbox" ? x.checked : x.value; });
+  return o;
+}
+function optionsHTML(opts, prefix) {
+  const sel = (key, list) => `<select class="ws-input rm-boxed" data-opt="${key}">${list.map(([v, l]) => `<option value="${v}" ${opts[key] === v ? "selected" : ""}>${l}</option>`).join("")}</select>`;
+  return `<fieldset class="rm-opts" id="${prefix}">
+    <legend>Pilihan video</legend>
+    <label class="rm-check"><input type="checkbox" data-opt="loop" ${opts.loop ? "checked" : ""}> Loop (akhir kembali ke adegan awal)</label>
+    <label class="rm-check"><input type="checkbox" data-opt="sting" ${opts.sting ? "checked" : ""}> "Intip yuk!" setelah hook</label>
+    <label class="ws-field">Musik ${sel("music", [["calm", "Tenang"], ["tech", "Teknologi"], ["none", "Tanpa musik"]])}</label>
+    <label class="ws-field">Aplikasi suara ${sel("voiceTarget", [["voicestudio", "VoiceStudio"], ["elevenlabs", "ElevenLabs"], ["googleai", "Google AI Studio"]])}</label>
+    <div class="rm-actions"><button class="btn" type="button" data-act="saveOptions">Simpan pilihan</button><span class="rm-hint">Brief berikutnya memakai pilihan ini.</span></div>
+  </fieldset>`;
+}
+async function saveOptions() {
+  const box = byId("rmOptsProject");
+  const j = await call(`${API}/options`, { id: CUR.id, options: readOptions(box) });
+  CUR.options = j.options;
+  CUR.optionWarnings = j.warnings;
+  drawStory();
+  toast("Pilihan disimpan.");
+}
+
 function drawStory() {
   const sec = byId("stepStory");
   const d = CUR;
@@ -480,6 +538,8 @@ function drawStory() {
   sec.innerHTML = `
     <header><span class="rm-n">3</span><h2>Storyboard</h2></header>
     <p>${d.story.beats.length} beat, ${d.story.duration} detik. Pertanyaan: <b style="color:var(--text)">${esc(d.story.question)}</b></p>
+    ${optionsHTML(d.options || {}, "rmOptsProject")}
+    ${(d.optionWarnings || []).map((w) => `<div class="rm-warn">${esc(w)}</div>`).join("")}
     <div class="rm-actions">
       <button class="btn ${have ? "" : "main"}" data-act="preview" type="button" ${busy ? "disabled" : ""}>${have ? "Perbarui gambar" : "Buat gambar storyboard"}</button>
       <button class="btn main" data-act="saveEdits" type="button">Simpan teks</button>

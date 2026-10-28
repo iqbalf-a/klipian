@@ -62,6 +62,20 @@
             </div>
             <span class="rm-hint">60 detik untuk topik yang butuh 3 langkah penjelasan.</span>
           </div>
+          <fieldset class="rm-opts" id="rmOptsNew">
+            <legend>Pilihan video</legend>
+            <label class="rm-check"><input type="checkbox" data-opt="loop" checked> Loop (akhir kembali ke adegan awal)</label>
+            <label class="rm-check"><input type="checkbox" data-opt="sting" checked> "Intip yuk!" setelah hook</label>
+            <label class="ws-field">Musik
+              <select class="ws-input rm-boxed" data-opt="music"><option value="calm">Tenang</option><option value="tech">Teknologi</option><option value="none">Tanpa musik</option></select>
+            </label>
+            <label class="ws-field">Aplikasi suara
+              <select class="ws-input rm-boxed" data-opt="voiceTarget"><option value="voicestudio">VoiceStudio</option><option value="elevenlabs">ElevenLabs</option><option value="googleai">Google AI Studio</option></select>
+            </label>
+            <label class="ws-field">Jenis video
+              <select class="ws-input rm-boxed" data-opt="kind"><option value="otomatis">Template otomatis</option><option value="khusus">Khusus (folder video sendiri)</option></select>
+            </label>
+          </fieldset>
           <label class="ws-field">Catatan untuk AI (opsional)
             <textarea class="ws-input rm-boxed" id="rmNotes" rows="3" maxlength="2000" placeholder="mis. fokus ke stop kontak rumah biasa"></textarea>
           </label>
