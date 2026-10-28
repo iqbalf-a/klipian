@@ -802,6 +802,7 @@ class Handler(BaseHTTPRequestHandler):
                 text = _motion.build_brief(p)
             else:
                 raise _motion.MotionError("kind", "kind is main or revise")
+            _motion.note_brief(p['id']) if kind == 'main' else None
             return {"brief": text, "file": f"{p['id']}-{'revisi' if kind == 'revise' else 'brief'}.md"}
         return self._motion_reply(brief)
 

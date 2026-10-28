@@ -103,3 +103,11 @@ label.btn { display: inline-flex; align-items: center; cursor: pointer; }
 .rm-opts legend { font-size: 12.5px; padding: 0 4px; }
 .rm-check { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .rm-warn { font-size: 12.5px; padding: 8px 10px; border: 1px solid var(--glass-border); border-radius: var(--r-s); }
+
+/* the next step and the stage chips (PLAN-REMOTION-PAGE A): compact, bordered, no pill shapes */
+.rm-next { font-size: 14px; }
+.rm-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.rm-chip { font-size: 12px; padding: 2px 8px; border: 1px solid var(--glass-border); border-radius: var(--r-s); }
+.rm-chip[data-state="selesai"] { border-color: var(--accent); }
+.rm-chip[data-state="usang"], .rm-chip[data-state="perlu"] { border-style: dashed; }
+.rm-chip[data-state="tidak ada"] { opacity: 0.6; }

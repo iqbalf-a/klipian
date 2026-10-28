@@ -115,10 +115,89 @@ def compositions() -> list[dict]:
     return out
 
 
+def kind_of(p: dict) -> str:
+    """"custom" (a video made for this story in a Claude Code session) or "template" (klipian's template). The choice is the option "kind"
+    ("khusus" or "otomatis"). A project saved before the choice existed: custom when it has a composition, else template."""
+    raw = (p.get("options") or {}).get("kind")
+    if raw:
+        return "custom" if raw == "khusus" else "template"
+    return "custom" if p.get("composition") else "template"
+
+
 def composition_id(p: dict) -> str:
-    """The Remotion composition a project renders with: the template (FunFact), or video-<slug> for a custom composition."""
+    """The Remotion composition a project renders with: the template (FunFact), or video-<slug> for a custom composition (only when the kind is custom)."""
     slug = p.get("composition") or ""
-    return f"video-{slug}" if slug else "FunFact"
+    return f"video-{slug}" if slug and kind_of(p) == "custom" else "FunFact"
+
+
+# --------------------------------------------------------------------------
+# the next step and the stage chips (PLAN-REMOTION-PAGE A): pure functions of the facts of a video, so the page and the tests agree
+# --------------------------------------------------------------------------
+
+def next_step(f: dict) -> dict:
+    """The one thing to do now. `f` holds: story, pending, rejected, title, custom, composition, slug, voice, aligned, render ("none" | "current" |
+    "stale"), gate (the reasons a render is blocked), briefed, storyPath. Returns {"key", "text", "action", "command"?}."""
+    if not f.get("story"):
+        if not f.get("briefed"):
+            return {"key": "brief", "text": "Salin brief ke Claude Code", "action": "brief"}
+        return {"key": "paste", "text": "Tempel jawaban dari Claude Code", "action": "paste"}
+    if f.get("rejected"):
+        return {"key": "fix", "text": f"Perbaiki {f['rejected']} klaim yang ditolak", "action": "facts"}
+    if f.get("pending"):
+        return {"key": "facts", "text": f"Centang {f['pending']} klaim lagi", "action": "facts"}
+    if not f.get("title"):
+        return {"key": "title", "text": "Pilih judul", "action": "title"}
+    if f.get("custom") and not f.get("composition"):
+        slug = f.get("slug") or "<slug>"
+        return {"key": "custom", "text": "Buat video khusus di sesi Claude Code", "action": "custom",
+                "command": f'npm run new-video {slug} "{f.get("storyPath", "")}"'}
+    if f.get("voice") and not f.get("aligned"):
+        return {"key": "align", "text": "Cocokkan narasi", "action": "align"}
+    if f.get("gate"):
+        return {"key": "blocked", "text": f"Belum bisa dirender: {f['gate'][0]}", "action": "none"}
+    if f.get("render") == "current":
+        return {"key": "clips", "text": "Buka di Clips", "action": "clips"}
+    if f.get("render") == "stale":
+        return {"key": "render", "text": "Render ulang (ada yang berubah)", "action": "render"}
+    return {"key": "render", "text": "Render", "action": "render"}
+
+
+def stage_chips(f: dict) -> list[dict]:
+    """The stage chips in order: Cerita, Klaim, Judul, Suara, Gambar, Pratinjau, Render. A state is selesai, menunggu, usang, perlu or tidak ada."""
+    chips = [{"key": "cerita", "label": "Cerita", "state": "selesai" if f.get("story") else "menunggu"}]
+    if not f.get("story"):
+        chips.append({"key": "klaim", "label": "Klaim", "state": "menunggu"})
+    elif f.get("rejected") or f.get("pending"):
+        chips.append({"key": "klaim", "label": "Klaim", "state": "perlu"})
+    else:
+        chips.append({"key": "klaim", "label": "Klaim", "state": "selesai"})
+    chips.append({"key": "judul", "label": "Judul", "state": "selesai" if f.get("title") else "menunggu"})
+    if not f.get("voice"):
+        chips.append({"key": "suara", "label": "Suara", "state": "tidak ada"})
+    elif f.get("aligned"):
+        chips.append({"key": "suara", "label": "Suara", "state": "usang" if f.get("voiceStale") else "selesai"})
+    else:
+        chips.append({"key": "suara", "label": "Suara", "state": "menunggu"})
+    chips.append({"key": "gambar", "label": "Gambar", "state": {"ok": "selesai", "stale": "usang"}.get(f.get("stills"), "menunggu")})
+    chips.append({"key": "pratinjau", "label": "Pratinjau", "state": {"current": "selesai", "stale": "usang"}.get(f.get("preview"), "menunggu")})
+    chips.append({"key": "render", "label": "Render", "state": {"current": "selesai", "stale": "usang"}.get(f.get("render"), "menunggu")})
+    return chips
+
+
+def _render_now(p: dict, story) -> dict | None:
+    """The last render with its state: current, or stale with the reasons (the story or the voice changed, the kind or the composition changed).
+    A render saved before the kind was recorded is compared on the story only."""
+    r = p.get("render")
+    if not isinstance(r, dict):
+        return None
+    reasons = []
+    if story is not None and r.get("storyHash") != _story_hash(story):
+        reasons.append("cerita atau suara berubah")
+    if r.get("kind") is not None and r.get("kind") != kind_of(p):
+        reasons.append("jenis video berubah")
+    if r.get("kind") is not None and r.get("composition") is not None and r.get("composition") != (p.get("composition") or ""):
+        reasons.append("video khusus berbeda")
+    return {**r, "current": not reasons, "reasons": reasons}
 
 
 def status() -> dict:
@@ -230,6 +309,8 @@ def update_project(pid: str, fields: dict) -> dict:
             if slug and slug not in {d.name for d in _video_dirs()}:
                 raise MotionError("composition", f'There is no custom composition "{slug}" in remotion/videos/.')
             p["composition"] = slug
+            if slug:                                              # choosing a video folder means the custom kind
+                p["options"] = {**options_of(p), "kind": "khusus"}
         if "duration" in fields:
             try:
                 d = int(fields["duration"])
@@ -272,15 +353,38 @@ def list_projects() -> list[dict]:
 
 
 def detail(pid: str) -> dict:
-    """Everything the page needs about one video."""
+    """Everything the page needs about one video, and the next step and the stage chips (from the same facts)."""
     p = load(pid)
     story = story_of(pid)
     facts = facts_of(pid) if story else []
     stills = _stills_state(pid, story)
+    voice = voice_info(pid)
+    preview = _preview_state(pid, story)
+    render_now = _render_now(p, render_story(pid) if story is not None else None)
+    gate_problems = gate(pid)
+    pending = sum(1 for x in facts if x.get("status") not in ("checked", "rejected"))
+    rejected = sum(1 for x in facts if x.get("status") == "rejected")
+    f = {"story": story is not None, "pending": pending, "rejected": rejected, "title": bool(p.get("title")), "custom": kind_of(p) == "custom",
+         "composition": bool(p.get("composition")), "slug": _slug(p.get("topic", ""))[:39], "voice": bool(voice and voice.get("name")),
+         "aligned": bool(voice and voice.get("aligned")), "voiceStale": bool(voice and voice.get("stale")),
+         "render": "none" if not render_now else "current" if render_now["current"] else "stale", "gate": gate_problems,
+         "briefed": bool(p.get("briefAt")), "storyPath": str(project_dir(pid) / "story.json"),
+         "stills": "none" if not stills.get("files") else "stale" if stills.get("stale") else "ok",
+         "preview": "none" if not preview else "stale" if preview.get("stale") else "current"}
     return {**summary(p), "options": options_of(p), "optionWarnings": option_warnings(options_of(p)), "notes": p.get("notes", ""), "needs": p.get("needs", []), "warnings": (validate_story(story).get("warnings", []) if story else []), "storyPath": str(project_dir(pid) / "story.json"), "compositions": compositions(), "story": story, "facts": facts,
-            "gate": gate(pid), "stills": stills, "render": p.get("render"), "job": job_state(pid), "voice": voice_info(pid),
-            "preview": _preview_state(pid, story),
+            "kind": kind_of(p), "gate": gate_problems, "stills": stills, "render": render_now, "job": job_state(pid), "voice": voice,
+            "preview": preview, "next": next_step(f), "stages": stage_chips(f),
             "versions": len(list((project_dir(pid) / "history").glob("story-*.json"))) if (project_dir(pid) / "history").is_dir() else 0}
+
+
+def note_brief(pid: str) -> None:
+    """The brief was copied for the local Claude Code: the next step moves on to pasting the answer."""
+    with _LOCK:
+        p = load(pid)
+        p["briefAt"] = int(time.time())
+        save(p)
+
+
 
 
 # --------------------------------------------------------------------------
@@ -1015,7 +1119,7 @@ def _example_text(cat: dict) -> str:
 # outside klipian, by the person's own voice app); the music is the story's bed.
 VOICE_TARGETS = {"voicestudio": "VoiceStudio", "elevenlabs": "ElevenLabs", "googleai": "Google AI Studio"}
 MUSIC_TRACKS = {"calm": "bed-calm", "tech": "bed-tech", "none": "none"}
-KINDS = {"otomatis": "Template otomatis", "khusus": "Khusus (folder video sendiri)"}
+KINDS = {"otomatis": "Otomatis (template, paling cepat)", "khusus": "Khusus (video buatan sesi Claude Code, tampilan terbaik)"}
 DEFAULT_OPTIONS = {"loop": True, "sting": True, "voiceTarget": "voicestudio", "music": "calm", "kind": "otomatis"}
 
 
@@ -1615,7 +1719,7 @@ def _run_render(pid: str, key, ev: threading.Event) -> None:
             row_id, _created = _add_clip_row(p, story, name)
             p = load(pid)
             p["status"] = "rendered"
-            p["render"] = {"file": name, "rowId": row_id, "at": int(time.time()), "seconds": round(time.monotonic() - t0, 1),
+            p["render"] = {"kind": kind_of(p), "composition": p.get("composition") or "", "file": name, "rowId": row_id, "at": int(time.time()), "seconds": round(time.monotonic() - t0, 1),
                            "duration": story["duration"], "storyHash": _story_hash(story)}
             save(p)
         _finish(key, pid, state="done", percent=100, eta=None, stage="", message="Selesai: videonya ada di Clips.", rowId=row_id, file=name,

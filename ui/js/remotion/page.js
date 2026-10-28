@@ -135,7 +135,7 @@ async function refresh(keepPaste = true) {
   const i = LIST.findIndex((p) => p.id === CUR.id);
   if (i >= 0) LIST[i] = { ...LIST[i], status: CUR.status, title: CUR.title, claims: CUR.claims, unchecked: CUR.unchecked, hasStory: CUR.hasStory, updated: CUR.updated };
   drawList();
-  drawComp(); drawVoice(); drawStory(); drawFacts(); drawTitles(); drawRender(); drawNeeds();
+  drawNext(); drawComp(); drawVoice(); drawStory(); drawFacts(); drawTitles(); drawRender(); drawNeeds();
   byId("rmState").textContent = STATE_LABEL[CUR.status] || CUR.status;
   byId("rmState").dataset.s = CUR.status;
 }
@@ -161,20 +161,22 @@ function buildDetail() {
       </div>
     </section>
 
+    <section class="ws-panel rm-step" id="stepNext"></section>
     <section class="ws-panel rm-step" id="stepComp"></section>
 
     <section class="ws-panel rm-step" id="stepBrief">
-      <header><span class="rm-n">1</span><h2>Brief untuk AI</h2></header>
-      <p>Satu file mandiri: tugas, struktur ${d.duration} detik, aturan channel dan fakta, katalog benda yang bisa dirender, serta format jawaban. Tempel ke Claude atau ChatGPT dan nyalakan pencarian web.</p>
+      <header><span class="rm-n">1</span><h2>Brief untuk Claude Code</h2></header>
+      <p>Satu file mandiri: tugas, struktur ${d.duration} detik, aturan channel dan fakta, katalog benda yang bisa dirender, serta format jawaban. Tempel ke Claude Code di komputer ini; ia mencari web sendiri. Tanpa API key.</p>
       <div class="rm-actions">
         <button class="btn main" id="rmCopyBrief" type="button">Salin brief</button>
         <button class="btn" id="rmDownBrief" type="button">Unduh brief</button>
+        <button class="btn" type="button" data-act="copyClaudeCmd">Salin perintah untuk Claude Code</button>
         <span class="rm-err" id="rmBriefErr" role="alert"></span>
       </div>
     </section>
 
     <section class="ws-panel rm-step" id="stepPaste">
-      <header><span class="rm-n">2</span><h2>Jawaban AI</h2></header>
+      <header><span class="rm-n">2</span><h2>Jawaban dari Claude Code</h2></header>
       <p>Tempel seluruh jawaban (satu blok JSON). Slip umum dibetulkan sendiri; kalau ada yang salah, klipian membuat pesan perbaikan untuk ditempel balik ke AI.</p>
       <textarea class="ws-input rm-boxed rm-paste" id="rmPaste" placeholder='{ "question": "Kenapa ...?", "titles": [...], "beats": [...] }' spellcheck="false"></textarea>
       <div class="rm-actions"><button class="btn main" id="rmPasteBtn" type="button">Periksa dan simpan</button></div>
@@ -187,7 +189,7 @@ function buildDetail() {
     <section class="ws-panel rm-step" id="stepFacts" hidden></section>
     <section class="ws-panel rm-step" id="stepTitle" hidden></section>
     <section class="ws-panel rm-step" id="stepRender" hidden></section>`;
-  drawComp(); drawVoice(); drawStory(); drawFacts(); drawTitles(); drawRender(); drawNeeds();
+  drawNext(); drawComp(); drawVoice(); drawStory(); drawFacts(); drawTitles(); drawRender(); drawNeeds();
 }
 
 byId("rmMain").addEventListener("click", async (e) => {
@@ -215,6 +217,8 @@ byId("rmMain").addEventListener("click", async (e) => {
     if (act === "voiceLength") return chooseLength(t.dataset.choice);
     if (act === "previewVideo") return startPreviewVideo();
     if (act === "saveOptions") return saveOptions();
+    if (act === "nextStep") return doNext(CUR.next && CUR.next.action);
+    if (act === "copyClaudeCmd") return copyClaudeCmd();
     if (act === "narrationLoad") return loadNarration();
     if (act === "narrationCopy") return copyNarration();
     if (act === "narrationDown") return downloadNarration();
@@ -232,25 +236,68 @@ const toast = (text) => (typeof showToast === "function" ? showToast(text, { ms:
 // ---------------------------------------------------------------------------------------------------------------------------------------
 
 function drawComp() {
-  const d = CUR;
-  const list = d.compositions || [];
-  const has = !d.composition || list.some((c) => c.slug === d.composition);
-  const sel = !!d.composition;
+  const d = CUR, custom = (d.kind || "template") === "custom", list = d.compositions || [];
   byId("stepComp").innerHTML = `
-    <header><h2>Komposisi</h2></header>
+    <header><h2>Jenis video</h2></header>
     <div class="rm-actions">
-      <select class="ws-input rm-boxed rm-select" id="rmComp" aria-label="Komposisi">
-        <option value="">Template (dari cerita)</option>
-        ${list.map((c) => `<option value="${esc(c.slug)}" ${d.composition === c.slug ? "selected" : ""}>${esc(c.title)} · ${esc(c.slug)}</option>`).join("")}
-        ${has ? "" : `<option value="${esc(d.composition)}" selected>${esc(d.composition)}</option>`}
+      <select class="ws-input rm-boxed rm-select" id="rmKind" aria-label="Jenis video">
+        <option value="otomatis" ${custom ? "" : "selected"}>Otomatis: template klipian, paling cepat dan sederhana</option>
+        <option value="khusus" ${custom ? "selected" : ""}>Khusus: video buatan sesi Claude Code, tampilan terbaik</option>
       </select>
-      <span class="rm-hint">${sel ? "Dirender dengan adegan khusus; teks dan waktu tetap dari cerita yang sudah dicek." : "Template memakai benda dan adegan yang ada di pustaka."}</span>
     </div>
-    <p>Video khusus dibuat di sesi Claude Code di folder <code>remotion/</code> (baca <code>DESIGN.md</code> dulu), dari cerita yang sudah dicek:</p>
-    <div class="rm-fix"><code id="rmCmd" class="rm-cmd">cd remotion
-npm run new-video nama-video "${esc(d.storyPath || "")}"
-npm run studio</code>
-      <div class="rm-actions"><button class="btn sm" type="button" data-act="copyCmd">Salin perintah</button><span class="rm-hint">Ganti <b>nama-video</b>; lalu pilih komposisinya di sini.</span></div></div>`;
+    ${custom ? `
+      <div class="rm-actions">
+        <select class="ws-input rm-boxed rm-select" id="rmComp" aria-label="Folder video khusus">
+          <option value="">Belum dipilih</option>
+          ${list.map((c) => `<option value="${esc(c.slug)}" ${d.composition === c.slug ? "selected" : ""}>${esc(c.title)} · remotion/videos/${esc(c.slug)}</option>`).join("")}
+        </select>
+        <span class="rm-hint">${d.composition ? `Folder: <code>${esc(d.composition)}</code>` : "Pilih folder video yang sudah dibuat."}</span>
+      </div>
+      ${d.composition ? "" : `<div class="rm-fix"><code id="rmCmd" class="rm-cmd">npm run new-video nama-video "${esc(d.storyPath || "")}"</code>
+        <div class="rm-actions"><button class="btn sm" type="button" data-act="copyCmd">Salin perintah</button><span class="rm-hint">Jalankan di sesi Claude Code, di folder <code>remotion/</code>. Ganti <b>nama-video</b>, lalu pilih folder di sini.</span></div></div>`}`
+      : `<p class="rm-hint">Template memakai benda dan adegan yang ada di pustaka.</p>`}`;
+}
+
+document.addEventListener("change", async (e) => {
+  if (e.target.id !== "rmKind" || !CUR) return;
+  const next = e.target.value === "khusus" ? "Khusus (video buatan sesi Claude Code)" : "Otomatis (template klipian)";
+  const ok = await confirmDialog({ title: "Ganti jenis video?", message: `Render berikutnya memakai ${next}. Hasil render yang lama tetap ada di Clips.`, confirmText: "Ganti", cancelText: "Batal" });
+  if (!ok) return refresh();
+  await call(`${API}/options`, { id: CUR.id, options: { kind: e.target.value } });
+  await refresh();
+});
+
+// the next step: one sentence and one button, from the server's next_step (the same rules as the tests)
+function drawNext() {
+  const sec = byId("stepNext");
+  const d = CUR;
+  sec.hidden = !d;
+  if (!d) return;
+  const n = d.next || {};
+  const chips = (d.stages || []).map((c) => `<span class="rm-chip" data-state="${esc(c.state)}">${esc(c.label)}: ${esc(c.state)}</span>`).join("");
+  const label = { brief: "Salin brief", paste: "Tempel jawaban", facts: "Buka cek fakta", title: "Pilih judul", custom: "Salin perintah", align: "Cocokkan", render: "Render", clips: "Buka di Clips" }[n.action];
+  const btn = label ? `<button class="btn main" type="button" data-act="nextStep">${label}</button>` : "";
+  sec.innerHTML = `
+    <div class="rm-next"><b>Langkah berikutnya:</b> ${esc(n.text || "")}</div>
+    <div class="rm-actions">${btn}</div>
+    ${n.command ? `<div class="rm-fix"><code class="rm-cmd">${esc(n.command)}</code></div>` : ""}
+    <div class="rm-chips">${chips}</div>`;
+}
+
+async function doNext(action) {
+  if (action === "brief") return byId("rmCopyBrief").click();
+  if (action === "paste") return byId("rmPaste")?.focus();
+  if (action === "facts") return byId("stepFacts").scrollIntoView({ behavior: "smooth" });
+  if (action === "title") return byId("stepTitle").scrollIntoView({ behavior: "smooth" });
+  if (action === "align") return alignVoice();
+  if (action === "render") return startRender();
+  if (action === "clips") return (location.href = "/workspace");
+  if (action === "custom") return (await copyText(CUR.next.command)) ? toast("Perintah disalin.") : toast("Tidak bisa menyalin.");
+}
+
+async function copyClaudeCmd() {
+  const text = `Baca file brief yang kamu unduh (${CUR.id}-brief.md) dan kerjakan tugasnya. Periksa jawaban dengan \`node remotion/validate.mjs <jawaban.json>\` sebelum kamu kirim.`;
+  (await copyText(text)) ? toast("Perintah untuk Claude Code disalin.") : toast("Tidak bisa menyalin: pilih teksnya sendiri.");
 }
 
 byId("rmMain").addEventListener("change", async (e) => {
@@ -354,7 +401,7 @@ function drawVoice() {
   const busy = job.kind === "voice" && ["queued", "running"].includes(job.state);
   const have = v && v.name;
   sec.innerHTML = `
-    <header><span class="rm-n">2b</span><h2>Suara (narasi)</h2></header>
+    <header><span class="rm-n">3</span><h2>Suara (opsional)</h2></header>
     <p>Rekam sendiri atau pakai file dari luar (wav, mp3, m4a, ...). Satu file, atau beberapa file dengan nomor di akhir namanya (mis. colokan_1.wav, colokan_2.wav): urutannya dari nomor, bukan dari nama. klipian mencocokkan kata dengan suaranya di komputer ini. Tanpa layanan suara: tidak ada key.</p>
     ${have ? `<div class="rm-needs"><b>${esc(v.name)}</b> · ${v.duration} dtk · ${v.aligned ? `sudah dicocokkan (${esc(v.method === "whisper" ? "dari suara" : "perkiraan merata")}), video ${v.total} dtk` : v.stale ? "cerita berubah sejak dicocokkan: cocokkan lagi" : "belum dicocokkan"}${v.note ? `<br><span class="rm-hint">${esc(v.note)}</span>` : ""}</div>` : ""}
     ${voicePartsHTML(v || {})}
@@ -536,10 +583,11 @@ function drawStory() {
   const stills = d.stills || { files: {}, stale: true };
   const have = Object.keys(stills.files).length > 0;
   sec.innerHTML = `
-    <header><span class="rm-n">3</span><h2>Storyboard</h2></header>
+    <header><span class="rm-n">4</span><h2>Storyboard</h2></header>
     <p>${d.story.beats.length} beat, ${d.story.duration} detik. Pertanyaan: <b style="color:var(--text)">${esc(d.story.question)}</b></p>
     ${optionsHTML(d.options || {}, "rmOptsProject")}
     ${(d.optionWarnings || []).map((w) => `<div class="rm-warn">${esc(w)}</div>`).join("")}
+    ${(d.warnings || []).length ? `<div class="rm-needs"><b>Saran Buku Gaya (bukan penghalang):</b><ul>${d.warnings.map((w) => `<li>${esc(w.message)}</li>`).join("")}</ul></div>` : ""}
     <div class="rm-actions">
       <button class="btn ${have ? "" : "main"}" data-act="preview" type="button" ${busy ? "disabled" : ""}>${have ? "Perbarui gambar" : "Buat gambar storyboard"}</button>
       <button class="btn main" data-act="saveEdits" type="button">Simpan teks</button>
@@ -604,7 +652,7 @@ function drawFacts() {
   const facts = d.facts || [];
   const rej = facts.some((f) => f.status === "rejected");
   sec.innerHTML = `
-    <header><span class="rm-n">4</span><h2>Cek fakta</h2></header>
+    <header><span class="rm-n">5</span><h2>Cek fakta</h2></header>
     <p>Buka setiap sumber, pastikan klaimnya benar. Render baru bisa setelah semua klaim dicentang.</p>
     ${facts.length ? "" : `<p class="rm-hint">Cerita ini tidak punya klaim.</p>`}
     <div class="rm-claims">${facts.map((f, i) => `
@@ -660,7 +708,7 @@ function drawTitles() {
   sec.hidden = !d.story;
   if (!d.story) return;
   sec.innerHTML = `
-    <header><span class="rm-n">5</span><h2>Judul</h2></header>
+    <header><span class="rm-n">6</span><h2>Judul</h2></header>
     <p>Pilih satu. Ini jadi judul di Clips dan di YouTube.</p>
     <div class="rm-titles">${d.story.titles.map((t) => `<button class="btn" type="button" data-act="title" data-t="${esc(t)}" aria-pressed="${d.title === t}">${esc(t)}<small>${t.length}</small></button>`).join("")}</div>`;
 }
@@ -694,7 +742,8 @@ function drawRender() {
   const gate = d.gate || [];
   const r = d.render;
   sec.innerHTML = `
-    <header><span class="rm-n">6</span><h2>Render</h2></header>
+    <header><span class="rm-n">7</span><h2>Render</h2></header>
+    <p class="rm-hint">Akan dirender dengan: ${d.kind === "custom" && d.composition ? `video khusus <b>${esc(d.composition)}</b>` : d.kind === "custom" ? "video khusus (folder belum dipilih)" : "template klipian"}.</p>
     <div class="rm-gate" data-ok="${gate.length === 0}">${gate.length ? `<b>Belum bisa dirender:</b><ul>${gate.map((g) => `<li>${esc(g)}</li>`).join("")}</ul>` : "Siap dirender: semua klaim dicek dan judul dipilih."}</div>
     <div class="rm-actions">
       <button class="btn main large" type="button" data-act="render" ${gate.length || busy ? "disabled" : ""}>${r ? "Render lagi" : "Render"}</button>
@@ -702,7 +751,7 @@ function drawRender() {
     </div>
     ${previewVideoHTML(d)}
     ${jobHTML(job, "render")}
-    ${r ? `<div class="rm-needs">Hasil terakhir: <b>${esc(r.file)}</b> (${r.seconds} dtk render). <a href="/workspace" style="color:var(--accent)">Buka di Clips</a> untuk jadwal dan unggah.</div>` : ""}`;
+    ${r ? `<div class="rm-needs">${r.current ? "Hasil terbaru" : `Hasil terakhir, <b>usang</b>: ${esc((r.reasons || []).join(", "))}`}: <b>${esc(r.file)}</b> (${r.seconds} dtk render, ${r.kind === "custom" ? "video khusus" : "template"}). <a href="/workspace" style="color:var(--accent)">Buka di Clips</a> untuk jadwal dan unggah.</div>` : ""}`;
   // the preview's progress sits in the storyboard step
   const note = byId("rmPreviewNote");
   if (note && job.kind === "preview" && busy) note.textContent = `${job.message || ""} ${job.percent || 0}%`;

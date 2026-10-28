@@ -5893,8 +5893,84 @@ def check_motionopts() -> tuple[str, str]:
 
 
 
+# check: the page's state (PLAN-REMOTION-PAGE, phase 3): the next step for every state, the stage chips, the kind of a video (migrated from the
+# composition), the render that is current or stale with its reasons, the brief copied, and detail() of a fresh video. Pure functions and a scratch
+# project only: no node, no service call, no workspace of the person.
+def check_motionstate() -> tuple[str, str]:
+    from . import motion
+    problems: list[str] = []
+    base = {"story": True, "pending": 0, "rejected": 0, "title": True, "custom": False, "composition": False, "slug": "x", "voice": False,
+            "aligned": False, "voiceStale": False, "render": "none", "gate": [], "briefed": True, "storyPath": "s.json", "stills": "none", "preview": "none"}
+    cases = [
+        ({**base, "story": False, "briefed": False}, "brief"),
+        ({**base, "story": False, "briefed": True}, "paste"),
+        ({**base, "rejected": 2}, "fix"),
+        ({**base, "pending": 3}, "facts"),
+        ({**base, "title": False}, "title"),
+        ({**base, "custom": True}, "custom"),
+        ({**base, "voice": True}, "align"),
+        ({**base, "gate": ["klaim belum dicek"]}, "blocked"),
+        ({**base, "render": "current"}, "clips"),
+        ({**base, "render": "stale"}, "render"),
+        (base, "render"),
+    ]
+    for facts, want in cases:
+        got = motion.next_step(facts)
+        if got["key"] != want:
+            problems.append(f"the next step for {want} is {want}: {got}")
+    custom = motion.next_step({**base, "custom": True, "slug": "kenapa-hujan"})
+    if "npm run new-video kenapa-hujan" not in custom.get("command", ""):
+        problems.append(f"the custom step gives the command: {custom}")
+    if motion.next_step({**base, "custom": True, "composition": True})["key"] != "render":
+        problems.append("a custom video with its folder goes on to the render")
+
+    chips = {c["key"]: c["state"] for c in motion.stage_chips({**base, "pending": 1, "voice": True, "aligned": True, "stills": "stale", "render": "stale"})}
+    if chips.get("klaim") != "perlu" or chips.get("suara") != "selesai" or chips.get("gambar") != "usang" or chips.get("render") != "usang":
+        problems.append(f"the stage chips show the state: {chips}")
+    if {c["key"]: c["state"] for c in motion.stage_chips({**base, "story": False, "title": False})}.get("suara") != "tidak ada":
+        problems.append("a video with no narration shows the narration as not there")
+
+    # the kind: the choice, and a project saved before it (composition set means custom)
+    if motion.kind_of({"composition": "x", "options": {"kind": "otomatis"}}) != "template":
+        problems.append("an otomatis video is a template, even with an old composition")
+    if motion.kind_of({"composition": "x"}) != "custom" or motion.kind_of({}) != "template":
+        problems.append("an old project with a composition is custom, one without is a template")
+    if motion.kind_of({"composition": "x", "options": {"kind": "khusus"}}) != "custom":
+        problems.append("a khusus video is custom")
+    if motion.composition_id({"composition": "x", "options": {"kind": "otomatis"}}) != "FunFact" or motion.composition_id({"composition": "x", "options": {"kind": "khusus"}}) != "video-x":
+        problems.append("the template renders FunFact, the custom video its folder")
+
+    # the render: current, or stale with the reasons; an old record (no kind) is compared on the story only
+    story = {"beats": [{"id": "a", "dur": 1, "narration": "satu"}], "duration": 1}
+    h = motion._story_hash(story)
+    cur = motion._render_now({"render": {"storyHash": h, "kind": "template", "composition": "", "file": "a.mp4"}, "options": {"kind": "otomatis"}}, story)
+    if not cur["current"]:
+        problems.append("a render of the same story and kind is current")
+    stale = motion._render_now({"render": {"storyHash": h, "kind": "template", "composition": "", "file": "a.mp4"}, "options": {"kind": "khusus"}, "composition": "x"}, story)
+    if stale["current"] or "jenis video berubah" not in stale["reasons"]:
+        problems.append(f"a render of another kind is stale: {stale}")
+    changed = motion._render_now({"render": {"storyHash": "lain"}}, story)
+    if changed["current"] or "cerita atau suara berubah" not in changed["reasons"]:
+        problems.append("a changed story makes the render stale")
+    if motion._render_now({"render": {"storyHash": h}}, story)["current"] is not True:
+        problems.append("an old record with the same story is current")
+
+    # a fresh video: its detail has the next step and the chips; the brief copied moves on to paste
+    p = motion.create("kenapa tes rincian", 30, "")
+    d = motion.detail(p["id"])
+    if d["next"]["key"] != "brief" or len(d["stages"]) != 7 or d["kind"] != "template":
+        problems.append(f"a fresh video: {d['next']} {[c['key'] for c in d['stages']]}")
+    motion.note_brief(p["id"])
+    if motion.detail(p["id"])["next"]["key"] != "paste":
+        problems.append("after the brief is copied the next step is to paste")
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "the next step for every state, the stage chips, the kind of a video (migrated), the render current or stale with its reasons, and the detail of a new video"
+
+
+
 CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch,
-          "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "voice": check_voice, "decode": check_decode, "render": check_render}
+          "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "motionstate": check_motionstate, "voice": check_voice, "decode": check_decode, "render": check_render}
 
 
 def _global_state() -> dict:
