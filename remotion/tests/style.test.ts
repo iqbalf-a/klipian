@@ -202,4 +202,23 @@ for (const r of DICTIONARY.filter((k) => k.status === "drawn")) {
   yes(!withStage("cube").ok, "a stage that is not listed is refused");
 }
 
+// --- the stage shapes, round two (PLAN-VARIETY stage 3, fix): a flat shape lies in the plane x-y, so it is wider than it is tall on the kit's
+// projection; an island's shadow is centred on its footprint centre (the floor point under the board)
+{
+  const S = await import("../src/stageShapes.ts");
+  for (const shape of ["round", "strip", "island"] as const) {
+    const [x0, y0, x1, y1] = S.stageGeometry(shape, 100, "center").box;
+    yes(x1 - x0 > (y1 - y0) * 1.2, `the flat stage ${shape} is wider than it is tall (${Math.round(x1 - x0)} by ${Math.round(y1 - y0)} px)`);
+  }
+  const island = S.stageGeometry("island", 100, "center");
+  const sh = island.shadow!;
+  const sx = sh.map((p) => p[0]), sy = sh.map((p) => p[1]);
+  const cx = (Math.min(...sx) + Math.max(...sx)) / 2, cy = (Math.min(...sy) + Math.max(...sy)) / 2;
+  yes(Math.abs(cx - island.center[0]) < 1 && Math.abs(cy - island.center[1]) < 1, `the island's shadow is centred on its footprint (${cx.toFixed(1)}, ${cy.toFixed(1)} against ${island.center[0].toFixed(1)}, ${island.center[1].toFixed(1)})`);
+  const round = S.stageGeometry("round", 100, "center");
+  const ringXs = round.polys.flatMap((p) => p.pts).map((p) => p[0]);
+  yes(Math.abs((Math.min(...ringXs) + Math.max(...ringXs)) / 2 - round.center[0]) < 1, "the round plate is centred on its footprint centre");
+  yes(round.top < 0.2 && island.top > 0.5, "a flat plate is thin, a floating island stands high");
+}
+
 console.log(`style: ${n} checks ok`);
