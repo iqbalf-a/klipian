@@ -5969,8 +5969,50 @@ def check_motionstate() -> tuple[str, str]:
 
 
 
+# check: the project skill for the local Claude Code (PLAN-ALUR-V2 phase 4): the file exists with its frontmatter, every npm script and file it names
+# exists, its rules hold (no workspace write, no key, no service call), and the brief sections it reads are the brief's own. Reads only.
+def check_skill() -> tuple[str, str]:
+    import re
+    from . import motion
+    root = Path(__file__).resolve().parents[1]
+    skill = root / ".claude" / "skills" / "klipian-video" / "SKILL.md"
+    if not skill.is_file():
+        return FAIL, f"{skill} is missing"
+    text = skill.read_text(encoding="utf-8")
+    problems: list[str] = []
+    head = re.match(r"^---\n(.*?)\n---\n", text, re.S)
+    if not head or "name: klipian-video" not in head.group(1) or "description:" not in head.group(1):
+        problems.append("the skill has its frontmatter (name, description)")
+    pkg = json.loads((root / "remotion" / "package.json").read_text(encoding="utf-8"))["scripts"]
+    for script in re.findall(r"npm run ([a-z-]+)", text):
+        if script not in pkg:
+            problems.append(f"npm run {script} does not exist in remotion/package.json")
+    for rel in ("remotion/validate.mjs", "remotion/scripts/styleCheck.mjs", "remotion/scripts/styleReport.mjs"):
+        if not (root / rel).is_file():
+            problems.append(f"{rel} exists")
+    for needle in ("Never write to `workspace/`", "No API key", "never calls a voice or other service", "Never read or print secrets"):
+        if needle.lower() not in text.lower():
+            problems.append(f"the skill keeps the rule: {needle}")
+    if "api key" in text.lower() and "no api key" not in text.lower() and "never needs an api key" not in text.lower():
+        problems.append("the skill asks for no API key")
+    # the sections it reads are the brief's own sections
+    brief = motion.build_brief({"topic": "Kenapa colokan panas", "duration": 45, "notes": "", "options": {}})
+    for section in ("## Pilihan video", "## Structure for", "## Channel rules", "## Catalogue", "## Answer format"):
+        if section not in brief:
+            problems.append(f"the brief still has {section!r}, which the skill reads")
+    for word in ("Pilihan video", "Answer format"):
+        if word not in text:
+            problems.append(f"the skill names the brief section {word!r}")
+    if "narration_export" not in text or "googleai" not in text:
+        problems.append("the skill prints the narration text for the voice app")
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "the klipian-video skill has its frontmatter, names only commands that exist, keeps its rules, and reads the brief's own sections"
+
+
+
 CHECKS = {"migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch,
-          "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "motionstate": check_motionstate, "voice": check_voice, "decode": check_decode, "render": check_render}
+          "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voice": check_voice, "decode": check_decode, "render": check_render}
 
 
 def _global_state() -> dict:
