@@ -215,6 +215,7 @@ MISTAKES = [
     "`node remotion/validate.mjs` run from inside `remotion` (it runs from the repository root).",
     "Writing \"it passed\" without the command's output. Paste the output, or say you did not run it.",
     "Rendering the whole video, editing `package.json`, or pushing anything: none of these is asked.",
+    "Importing a component from a file path (`../../src/components/IsoNature.ts`, wrong extension) instead of `../../src/design/index.ts`: tsc passes it, the render fails with \"Can't resolve\". Import components only from the design index.",
     "Writing a file that is not in section 2 (at the repository root: `story-output.json`, `narration-output.txt`...), leaving `npm run check` with errors (unused imports), or importing `src/design/index.ts` from `sfx.ts` or `plan.ts`.",
     "Listing an object in `needs` (a cloud, salt grains, an aircraft...) that the library already has: search `remotion/out/assets-sheet*.png`, `remotion/src/dictionary.ts` and `remotion/src/components/Iso*.tsx` first.",
 ]
@@ -287,15 +288,15 @@ Expected: a line `made videos/{slug} and tests/{slug}.test.ts`, then the folder 
 
 {STEP_MARK}4: draw the beats
 Do: read `remotion/DESIGN.md` (section 0b and every rule B1 up to the last one), `remotion/src/dictionary.ts` and the kit `remotion/src/components/Iso*.tsx` first. The two finished videos to copy the structure from are `remotion/videos/kenapa-colokan-panas` and `remotion/videos/ngantuk-pegang-hp`. Edit `remotion/videos/{slug}/index.tsx` and `plan.ts`: one hero object, reuse before you draw, at most three new assets, the story's `theme`, `stage` and `music`. Rule B25 of DESIGN.md: something moves about every second (the assets of `remotion/src/components/IsoLife.tsx` and `remotion/src/alive.ts` move a little all the time), something new comes about every 3 to 4 seconds, and each explain beat has its own picture (an object on its own in a circle that opens, a camera that goes elsewhere), not one stage for the whole video.
-Keep `sfx.ts` and `plan.ts` importing only plain `.ts` modules (`../../src/sfx.ts`, `../../src/schema.ts`, `../../src/layout.ts`...), never `../../src/design/index.ts`: render.mjs loads them in plain Node and the render fails with "Unknown file extension .tsx" (rule B26). Only `index.tsx` may import the design index.
+Keep `sfx.ts` and `plan.ts` importing only plain `.ts` modules (`../../src/sfx.ts`, `../../src/schema.ts`, `../../src/layout.ts`...), never `../../src/design/index.ts`: render.mjs loads them in plain Node and the render fails with "Unknown file extension .tsx" (rule B26). Only `index.tsx` may import the design index, and in `index.tsx` import components ONLY from `../../src/design/index.ts` (it exports the isometric kit, the nature kit, the seeding set, the bedroom set and the alive set): never from a file path such as `../../src/components/IsoNature.ts` (the real file is `.tsx`: `npm run check` accepts a wrong extension, the render does not find the file).
 **Before you say an object is missing (`needs`):** look in the library first: `remotion/src/dictionary.ts`, the sheets `remotion/out/assets-sheet*.png` (`npm run assets-sheet` makes them), `node remotion/catalog-export.mjs`, and the components `remotion/src/components/Iso*.tsx` (the nature kit has a cloud, the sea, rain, trees, the sun; IsoSeeding has a plane and grains; IsoLife has a lamp, kettle, fan, clock, cup, battery, heart, brain). List in `needs` only what you searched for and did not find.
 Expected: both files exist and are edited (step 5 checks that they compile).
 
 {STEP_MARK}5: type check and style check
 Run, from `remotion`: `npm run check`
 Expected: the only output is the line `> tsc --noEmit` and nothing after it (no `error TS` line). Fix every error (an unused import or variable is an error) and run it again until it is clean.
-Run, from `remotion`: `npm run style-check -- {slug}`
-Expected: no output line starts with `FAIL`. Copy the `summary:` line and every `FLAG` line into your report.
+Run, from `remotion`: `npm run style-check -- {slug}` (it also checks that every relative import points at a file that exists with exactly that path and extension)
+Expected: no output line starts with `FAIL`. A line `<file> tidak ada; maksudnya <other file>?` is a wrong import: fix it, run it again. Copy the `summary:` line and every `FLAG` line into your report.
 
 {STEP_MARK}6: one still picture
 Create the folder `remotion/out/{slug}` if it does not exist, then write the file `remotion/out/{slug}/job.json` with this content: `{{"mode":"still","story":"stories/{slug}.json","composition":"video-{slug}","beat":"hook","out":"{slug}/hook.png"}}`

@@ -23,7 +23,11 @@ export { Magnifier, MacroFrame, TipCard, tipCardHeight, tipCardSpec, SourceChip,
 export { iso, isoAt, block, extrudeXZ, extrudeAnyXZ, cylinder, planeXZ, planeYZ, roundRectPts, circlePts, smoothPath, toneOf, visible, ptsAttr, cam2At, layerCam, layerTransform, toScreen, REST_CAM, type P2, type P3, type Poly, type Tones, type Cam2, type Key2 } from "../iso.ts";
 export { Polys, IsoBlock, OnPlane, Hatch, IsoWallSocket, IsoPlug, IsoCutaway, ISO_SOCKET_POINTS, ISO_CUT_POINTS, isoContactPoint, HeatRise, SmokePuffs, Sparks, Motes } from "../components/Iso.tsx";
 // the alive set: household, electric and body things that move a little all the time (components/IsoLife.tsx), and the small motions they use (alive.ts)
-export { IsoLamp, IsoKettle, IsoFan, IsoAir, IsoClock, IsoCup, IsoBattery, IsoHeart, IsoBrain, aliveOpen, floatY } from "../components/IsoLife.tsx";
+export * from "../components/IsoLife.tsx";
+// the nature kit (sea, land, trees, cloud, sun, rain...), the seeding set (plane, grains) and the bedroom set (bed, phone, eyes): one place to import components from
+export * from "../components/IsoNature.tsx";
+export * from "../components/IsoSeeding.tsx";
+export * from "../components/IsoBedroom.tsx";
 export { breatheScale, swayDeg, bobPx, driftPx, pulse01, heartBeat, spinDeg, tickDeg, flicker, riseAt, blinkClosed } from "../alive.ts";
 // karaoke captions and the top text
 export { CaptionLayer, TopText } from "../components/Captions.tsx";

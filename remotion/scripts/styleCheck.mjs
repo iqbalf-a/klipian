@@ -12,6 +12,7 @@ import { pathToFileURL } from "node:url";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DICTIONARY, markComponents } from "../src/dictionary.ts";
+import { checkImports } from "./importCheck.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const slug = process.argv[2];
@@ -206,6 +207,10 @@ else add("FAIL", `must 3 (c, d): the motion is outside the ranges: ${motionBreak
 const nodeLoaded = ["sfx.ts", "plan.ts"].filter((f) => existsSync(path.join(dir, f)));
 const badImports = nodeLoaded.filter((f) => /^\s*(import|export)\b[^;]*\bfrom\s+["\'][^"\']*design\/index(\.ts)?["\']/m.test(readFileSync(path.join(dir, f), "utf8")));
 add(badImports.length === 0 ? "PASS" : "FAIL", `render: sfx.ts and plan.ts import only plain .ts modules (${badImports.length ? `${badImports.join(", ")} import src/design/index.ts, which re-exports .tsx: import from src/sfx.ts, src/schema.ts, src/layout.ts... instead` : "none imports src/design/index.ts"})`);
+
+// 13c. every relative import of the video points at a file that exists with exactly that path and extension (tsc lets a wrong extension pass; the render bundler does not)
+const importProblems = checkImports(dir);
+add(importProblems.length === 0 ? "PASS" : "FAIL", `render: every relative import points at a file that exists, spelled exactly (${importProblems.length ? importProblems.join("; ") : "all found"})`);
 
 // 14. the approved sound set (B15): the sound files and the SFX and MUSIC levels are the ones ian approved (scripts/soundHash.json). Changed = FAIL.
 const { soundSet } = await import("./soundHash.mjs");

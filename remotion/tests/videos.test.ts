@@ -8,6 +8,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { newVideo, SLUG } from "../scripts/new-video.mjs";
+// @ts-expect-error plain JS
+import { checkImports } from "../scripts/importCheck.mjs";
 import { validateStory } from "../src/schema.ts";
 
 let n = 0;
@@ -68,6 +70,20 @@ yes(existsSync(path.join(ROOT, "videos", "selftest-tiny", "sfx.ts")), "the selft
   const run = (dir: string) => spawnSync(process.execPath, [path.join(ROOT, "scripts", "styleCheck.mjs"), dir], { encoding: "utf8" }).stdout;
   yes(/^FAIL\s+render: sfx\.ts and plan.ts import only plain/m.test(run(bad)), "styleCheck FAILs an sfx.ts that imports src/design/index.ts");
   yes(/^PASS\s+render: sfx\.ts and plan.ts import only plain/m.test(run(path.join(ROOT, "videos", "ngantuk-pegang-hp"))), "and passes a video that imports only plain .ts modules");
+}
+
+// every relative import of every video points at a file that exists with exactly that path and extension (tsc passes "IsoNature.ts" for IsoNature.tsx; the render bundler does not)
+for (const slug of readdirSync(path.join(ROOT, "videos"))) yes(checkImports(path.join(ROOT, "videos", slug)).length === 0, `videos/${slug}: every relative import resolves to a file spelled exactly`);
+{
+  const wrong = path.join(root, "videos", "wrong-import");
+  cpSync(path.join(ROOT, "videos", "selftest-tiny"), wrong, { recursive: true });
+  writeFileSync(path.join(wrong, "extra.ts"), 'import { Polys } from "../../src/components/Iso.ts";\nimport x from "./story.json";\nexport const y = [Polys, x];\n');
+  const bad = checkImports(wrong);
+  yes(bad.length === 1 && /Iso\.ts tidak ada; maksudnya Iso\.tsx\?/.test(bad[0]), `a wrong extension is named with a hint (${bad[0]})`);
+  writeFileSync(path.join(wrong, "extra.ts"), 'import { Polys } from "../../src/components/Nope.tsx";\nexport const y = Polys;\n');
+  yes(checkImports(wrong).length === 1, "a file that does not exist is reported");
+  const run = spawnSync(process.execPath, [path.join(ROOT, "scripts", "styleCheck.mjs"), wrong], { encoding: "utf8" }).stdout;
+  yes(/^FAIL\s+render: every relative import/m.test(run), "styleCheck FAILs it");
 }
 
 console.log(`videos: ${n} checks ok`);

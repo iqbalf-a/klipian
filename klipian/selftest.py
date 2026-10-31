@@ -6581,6 +6581,8 @@ def parse_brief_checklist(text: str, slug: str) -> list[str]:
             problems.append("the files section says which files may be written and no others")
         if f"npm run style-check -- {slug}" not in text[at[2]:at[3]] or "error TS" not in text[at[2]:at[3]]:
             problems.append("step 5 runs npm run check (expected: no error TS line) and the style check")
+        if "ONLY from `../../src/design/index.ts`" not in text[at[2]:at[3]] or "tidak ada" not in text[at[2]:at[3]]:
+            problems.append("step 4 says to import components only from the design index, and step 5 names the wrong-import line")
         if "design/index.ts" not in text[at[2]:at[3]] or "assets-sheet" not in text[at[2]:at[3]]:
             problems.append("step 4 says sfx.ts and plan.ts never import the design index, and to search the library before `needs`")
         if "FALLBACK: story only, no video folder" not in text[at[3]:at[4]]:
