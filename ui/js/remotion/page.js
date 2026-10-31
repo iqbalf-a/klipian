@@ -1,22 +1,30 @@
 /* klipian — the /remotion page: a fun-fact motion video from a typed topic, with no API key (klipian/motion.py)
    ==========================================================================
-   The flow, top to bottom for the chosen video:
-     1 Brief         one file to copy into Claude or ChatGPT (with web search)
-     2 Jawaban AI    paste the JSON back: repaired when it is a common slip, validated, or a message to paste back to the AI
-     3 Storyboard    one picture per beat; narration and screen text can be edited here, then they are validated again
-     4 Fakta         every claim and its sources, checked or rejected by a person; a rejected claim makes a revision brief
-     5 Judul         one of the three titles
-     6 Render        refused by the server until 3 and 5 are done; progress, time left and Cancel; the result is a row in Clips
-   Nothing here knows a rule of the story: validation answers come from the server (which asks remotion/validate.mjs).
+   The flow, top to bottom for the chosen video (Khusus, the main flow; ui/js/remotion/steps.js has the order and the one-line summaries):
+     1 Video baru           the topic, the length and the options (loop, "Intip yuk!", music, voice apps) are chosen in the form on the left
+     2 Brief                one file to copy into Claude Code; "Ubah pilihan" changes the options and the brief follows
+     3 Ambil cerita         the story.json of the folder Claude Code made; the storyboard (texts and timing) is read and edited here
+     4 Cek fakta + judul    every claim and its sources, checked or rejected by a person; one title
+     5 Naskah suara         the text for each voice app, used BEFORE the voice is made
+     6 Impor suara          the voice file, matched to the words; the match table
+     7 Pratinjau            a half-size draft with sound
+     8 Render               refused by the server until the claims, the title, the folder and the voice agree; progress, time left and Cancel
+   Steps are folded: only the active one is open (the server's next step), a finished one shows a summary line. Otomatis (hidden under "Pengaturan lanjutan")
+   has the AI's pasted answer in place of the folder.
+   Nothing here knows a rule of the story or of the status: the next step, the chips, the render block and the lengths come from the server's detail.
    ========================================================================== */
 
 const API = "/api/motion";
-const STATE_LABEL = { draft: "Baru", story: "Ada cerita", checked: "Fakta dicek", rendered: "Sudah dirender" };
 let LIST = [];
 let STATUS = { installed: true };
 let CUR = null;                 // the chosen video's detail (from /api/motion/project)
 let POLL = null;
 let newDuration = 45;
+let OPEN = null;                // the id of the step that is open (one at a time)
+let LAST_ACTIVE = null;         // the active step at the last draw: when it changes, the open step follows it
+let NARR = null;                // { forId, exports: { <app>: export } }: the voice texts, loaded when the script step opens
+let NARR_APP = null;            // the app whose text the script step shows
+let PART_TO_REPLACE = null;     // the number of the part the next path replaces (set by "Ganti bagian")
 const briefCache = new Map();   // `${id}:main` -> text (fetched ahead, so the Copy click can write to the clipboard at once)
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -33,7 +41,7 @@ async function call(path, body) {
   return j;
 }
 const fmtEta = (s) => (s == null ? "" : `sisa ± ${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`);
-const fmtDate = (t) => (t ? new Date(t * 1000).toLocaleDateString("id-ID", { day: "numeric", month: "short" }) : "");
+const toast = (text) => (typeof showToast === "function" ? showToast(text, { ms: 6000 }) : alert(text));
 
 // ---------------------------------------------------------------------------------------------------------------------------------------
 // the list and the new-video form
@@ -63,7 +71,7 @@ function drawList() {
   list.innerHTML = LIST.map((p) => `
     <button class="rm-item" type="button" role="listitem" data-id="${esc(p.id)}" aria-current="${CUR?.id === p.id}">
       <b>${esc(p.title || p.topic)}</b>
-      <span class="rm-meta"><span class="rm-state" data-s="${esc(p.status)}">${esc(STATE_LABEL[p.status] || p.status)}</span><span>${p.duration} detik</span><span>${fmtDate(p.updated)}</span>${p.hasStory && p.unchecked ? `<span>${p.unchecked} klaim belum dicek</span>` : ""}</span>
+      <span class="rm-meta"><span class="rm-chip" data-state="${esc((p.chip || {}).state || "")}">${esc((p.chip || {}).label || "")}</span><span>${esc(lengthText({ planned: p.seconds ?? p.duration, voiced: p.voiced ? p.seconds : null }))}</span><span>${esc(dateText(p.updated))}</span>${p.hasStory && p.unchecked ? `<span>${p.unchecked} klaim belum dicek</span>` : ""}</span>
     </button>`).join("");
 }
 
@@ -97,26 +105,27 @@ byId("rmNew").addEventListener("submit", async (e) => {
 });
 
 // ---------------------------------------------------------------------------------------------------------------------------------------
-// one video
+// one video: the head, the next step, and the steps
 // ---------------------------------------------------------------------------------------------------------------------------------------
 
 function drawIntro() {
   byId("rmMain").innerHTML = `
-    <section class="ws-panel rm-step">
-      <header><h2>Dari topik ke video</h2></header>
-      <ol style="padding-left:18px;list-style:decimal;display:flex;flex-direction:column;gap:6px">
-        <li>Buat video baru: tulis topik, pilih durasi.</li>
-        <li>Salin brief, tempel ke Claude atau ChatGPT (pakai pencarian web), lalu tempel jawabannya (satu JSON) ke sini.</li>
-        <li>Lihat storyboard, edit teksnya kalau perlu, dan cek setiap klaim beserta sumbernya.</li>
-        <li>Pilih judul, lalu Render. Hasilnya masuk ke Clips, siap diunggah.</li>
+    <section class="ws-panel rm-step rm-welcome">
+      <h2>Dari topik ke video</h2>
+      <ol>
+        <li>Buat video baru: tulis topik, pilih durasi dan pilihan videonya (loop, "Intip yuk!", musik, aplikasi suara).</li>
+        <li>Salin brief ke Claude Code yang dibuka di folder klipian. Ia mencari web, menulis cerita, dan membuat folder videonya.</li>
+        <li>Pilih folder hasilnya dan ambil ceritanya, cek setiap klaim beserta sumbernya, lalu pilih judul.</li>
+        <li>Buat naskah untuk aplikasi suara, impor suaranya dan cocokkan, lihat pratinjau, lalu Render. Hasilnya masuk ke Clips, siap diunggah.</li>
       </ol>
-      <p>Tanpa API key: klipian bekerja di komputer ini, dan AI-nya lewat salin-tempel.</p>
+      <p class="rm-hint">Tanpa API key: klipian bekerja di komputer ini, dan AI-nya adalah Claude Code di komputer ini.</p>
     </section>`;
 }
 
 async function choose(id) {
   location.hash = id;
   stopPoll();
+  NARR = null; NARR_APP = null;
   try {
     CUR = (await call(`${API}/project?id=${encodeURIComponent(id)}`)).project;
   } catch (e) {
@@ -125,73 +134,102 @@ async function choose(id) {
     return;
   }
   drawList();
+  OPEN = LAST_ACTIVE = activeStepFor(CUR);
   buildDetail();
   prefetchBrief();
   if (["queued", "running"].includes(CUR.job?.state)) startPoll();
 }
 
-async function refresh(keepPaste = true) {
+async function refresh() {
   CUR = (await call(`${API}/project?id=${encodeURIComponent(CUR.id)}`)).project;
   const i = LIST.findIndex((p) => p.id === CUR.id);
-  if (i >= 0) LIST[i] = { ...LIST[i], status: CUR.status, title: CUR.title, claims: CUR.claims, unchecked: CUR.unchecked, hasStory: CUR.hasStory, updated: CUR.updated };
+  if (i >= 0) {
+    const { id, topic, duration, seconds, voiced, status, title, chip, claims, unchecked, hasStory, updated, composition } = CUR;
+    LIST[i] = { ...LIST[i], id, topic, duration, seconds, voiced, status, title, chip, claims, unchecked, hasStory, updated, composition };
+  }
+  const active = activeStepFor(CUR);
+  if (active !== LAST_ACTIVE) { OPEN = LAST_ACTIVE = active; }     // the open step follows the work
   drawList();
-  drawNext(); drawComp(); drawFolder(); drawVoice(); drawStory(); drawFacts(); drawTitles(); drawRender(); drawNeeds();
-  byId("rmState").textContent = STATE_LABEL[CUR.status] || CUR.status;
-  byId("rmState").dataset.s = CUR.status;
+  drawAll();
 }
 
 async function prefetchBrief() {
   const id = CUR?.id;
   try {
-    const j = await call(`${API}/brief?id=${encodeURIComponent(id)}&kind=main`);
-    briefCache.set(`${id}:main`, j);
+    briefCache.set(`${id}:main`, await call(`${API}/brief?id=${encodeURIComponent(id)}&kind=main&peek=1`));
   } catch (e) { briefCache.delete(`${id}:main`); }
 }
 
 function buildDetail() {
-  const d = CUR;
   byId("rmMain").innerHTML = `
-    <section class="ws-panel rm-step">
-      <div class="rm-title">
-        <div style="min-width:0">
-          <h1>${esc(d.topic)}</h1>
-          <div class="rm-meta"><span class="rm-state" id="rmState" data-s="${esc(d.status)}">${esc(STATE_LABEL[d.status] || d.status)}</span><span>${d.duration} detik</span>${d.notes ? `<span title="${esc(d.notes)}">ada catatan</span>` : ""}</div>
-        </div>
-        <button class="btn danger ml-auto" id="rmDelete" type="button">Hapus video</button>
+    <section class="ws-panel rm-head" id="rmHead"></section>
+    <section class="ws-panel rm-nextbar" id="stepNext"></section>
+    <div class="rm-steps" id="rmSteps"></div>`;
+  drawAll();
+}
+
+function drawAll() {
+  drawHead();
+  drawNext();
+  drawSteps();
+}
+
+// the head: the chosen title (the topic until there is one), the status chip and the length (the voiced one when there is a voice)
+function drawHead() {
+  const d = CUR;
+  const chip = d.chip || {};
+  byId("rmHead").innerHTML = `
+    <div class="rm-title">
+      <div style="min-width:0">
+        <h1>${esc(d.displayTitle || d.title || d.topic)}</h1>
+        <div class="rm-meta"><span class="rm-chip" data-state="${esc(chip.state || "")}">${esc(chip.label || "")}</span><span>${esc(lengthText(d.length))}</span><span>${d.kind === "custom" ? "Khusus" : "Otomatis"}</span>${d.notes ? `<span title="${esc(d.notes)}">ada catatan</span>` : ""}</div>
       </div>
-    </section>
+    </div>`;
+}
 
-    <section class="ws-panel rm-step" id="stepNext"></section>
-    <section class="ws-panel rm-step" id="stepComp"></section>
+// the next step: the sentence from the server and a link to the step (the actions themselves live in their steps, once)
+function drawNext() {
+  const d = CUR;
+  const n = d.next || {};
+  const active = activeStepFor(d);
+  const chips = (d.stages || []).map((c) => `<span class="rm-chip" data-state="${esc(c.state)}">${esc(c.label)}: ${esc(c.state)}</span>`).join("");
+  byId("stepNext").innerHTML = `
+    <div class="rm-next"><b>Langkah berikutnya:</b> ${esc(n.text || "")}</div>
+    <div class="rm-actions"><button class="btn" type="button" data-act="openStep" data-step="${esc(active)}">Buka langkah ${stepNum(d.kind, active)}</button></div>
+    <div class="rm-chips">${chips}</div>`;
+}
 
-    <section class="ws-panel rm-step" id="stepFolder" hidden></section>
+const STEP_BODY = { new: bodyNew, brief: bodyBrief, story: bodyStory, answer: bodyAnswer, facts: bodyFacts, script: bodyScript, voice: bodyVoice, preview: bodyPreview, render: bodyRender };
 
-    <section class="ws-panel rm-step" id="stepBrief">
-      <header><span class="rm-n" id="numBrief">1</span><h2>Brief untuk Claude Code</h2></header>
-      <p>Satu file mandiri: tugas, struktur ${d.duration} detik, aturan channel dan fakta, katalog benda yang bisa dirender, serta format jawaban.</p>
-      <p class="rm-hint">Tempel brief ke Claude Code yang dibuka di folder klipian (atau unduh lalu berikan path berkasnya). Ia mencari web sendiri. Tanpa API key.</p>
-      <div class="rm-actions">
-        <button class="btn main" id="rmCopyBrief" data-act="rmCopyBrief" type="button">Salin brief</button>
-        <button class="btn" id="rmDownBrief" data-act="rmDownBrief" type="button">Unduh brief</button>
-        <span class="rm-err" id="rmBriefErr" role="alert"></span>
-      </div>
-    </section>
+function drawSteps() {
+  const d = CUR;
+  byId("rmSteps").innerHTML = stepsFor(d.kind).map((s) => {
+    const open = OPEN === s.id;
+    const state = stepState(s.id, d);
+    return `
+      <section class="ws-panel rm-step" id="step-${s.id}" data-step="${s.id}" data-open="${open}" data-state="${esc(state)}">
+        <button class="rm-acc" type="button" data-act="toggleStep" data-step="${s.id}" aria-expanded="${open}" aria-controls="body-${s.id}">
+          <span class="rm-n">${s.num}</span><span class="rm-acc-title">${esc(s.title)}</span>
+          <span class="rm-chip" data-state="${esc(state)}">${esc(state)}</span>
+          <span class="rm-acc-sum">${esc(stepSummary(s.id, d))}</span>
+        </button>
+        <div class="rm-body" id="body-${s.id}" ${open ? "" : "hidden"}>${open ? STEP_BODY[s.id](d) : ""}</div>
+      </section>`;
+  }).join("");
+  afterOpen();
+}
 
-    <section class="ws-panel rm-step" id="stepPaste">
-      <header><span class="rm-n" id="numPaste">2</span><h2>Jawaban dari Claude Code</h2></header>
-      <p>Tempel seluruh jawaban (satu blok JSON). Slip umum dibetulkan sendiri; kalau ada yang salah, klipian membuat pesan perbaikan untuk ditempel balik ke AI.</p>
-      <textarea class="ws-input rm-boxed rm-paste" id="rmPaste" placeholder='{ "question": "Kenapa ...?", "titles": [...], "beats": [...] }' spellcheck="false"></textarea>
-      <div class="rm-actions"><button class="btn main" id="rmPasteBtn" type="button">Periksa dan simpan</button></div>
-      <div class="rm-result" id="rmPasteResult"></div>
-      <div id="rmNeeds"></div>
-    </section>
+// what a step needs once its body is in the page
+function afterOpen() {
+  if (OPEN === "script") ensureNarration();
+  const box = byId("body-story") || byId("body-answer");
+  if (box) box.querySelectorAll("[data-f],[data-item]").forEach((x) => { x.dataset.was = x.value; });
+}
 
-    <section class="ws-panel rm-step" id="stepVoice" hidden></section>
-    <section class="ws-panel rm-step" id="stepStory" hidden></section>
-    <section class="ws-panel rm-step" id="stepFacts" hidden></section>
-    <section class="ws-panel rm-step" id="stepTitle" hidden></section>
-    <section class="ws-panel rm-step" id="stepRender" hidden></section>`;
-  drawNext(); drawComp(); drawFolder(); drawVoice(); drawStory(); drawFacts(); drawTitles(); drawRender(); drawNeeds();
+function openStep(id, scroll) {
+  OPEN = id;
+  drawSteps();
+  if (scroll) byId(`step-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 byId("rmMain").addEventListener("click", async (e) => {
@@ -200,6 +238,8 @@ byId("rmMain").addEventListener("click", async (e) => {
   const act = t.dataset.act || t.id;
   if (!CUR) return;
   try {
+    if (act === "toggleStep") return openStep(OPEN === t.dataset.step ? null : t.dataset.step, false);
+    if (act === "openStep") return openStep(t.dataset.step, true);
     if (act === "rmCopyBrief") return copyBrief(t);
     if (act === "rmDownBrief") return downloadBrief("main");
     if (act === "rmPasteBtn") return pasteAnswer("main");
@@ -207,10 +247,10 @@ byId("rmMain").addEventListener("click", async (e) => {
     if (act === "preview") return startPreview();
     if (act === "saveEdits") return saveEdits();
     if (act === "claim") return setClaim(Number(t.dataset.i), t.dataset.s);
+    if (act === "allRight") return allRight();
     if (act === "title") return setTitle(t.dataset.t);
     if (act === "render") return startRender();
     if (act === "cancel") return cancelJob();
-    if (act === "copyCmd") return copyCmd(t);
     if (act === "voicePath") return importVoicePath();
     if (act === "voiceAlign") return alignVoice();
     if (act === "voiceClear") return clearVoice();
@@ -219,15 +259,11 @@ byId("rmMain").addEventListener("click", async (e) => {
     if (act === "voiceLength") return chooseLength(t.dataset.choice);
     if (act === "previewVideo") return startPreviewVideo();
     if (act === "saveOptions") return saveOptions();
-    if (act === "nextStep") return doNext(CUR.next && CUR.next.action);
     if (act === "takeFolder") return takeFolder();
     if (act === "copyFolderPath") return copyFolderPath();
-    if (act === "narrationLoad") return loadNarration();
-    if (act === "narrationOpenAll") return document.querySelectorAll("details.narr-block").forEach((x) => (x.open = true));
-    if (act === "narrationDownAll") return downloadNarrationAll();
-    if (act === "narrationCopy") return copyNarration(t.dataset.target);
-    if (act === "narrationPart") return copyNarrationPart(t.dataset.target, t.dataset.part);
-    if (act === "narrationDown") return downloadNarration(t.dataset.target);
+    if (act === "narrationApp") { NARR_APP = t.dataset.app; return drawSteps(); }
+    if (act === "narrationCopy") return copyNarration(t.dataset.app, t.dataset.part);
+    if (act === "narrationDown") return downloadNarration(t.dataset.app, t.dataset.part);
     if (act === "copyFix") return copyFix(t);
     if (act === "copyRevise") return copyRevise(t);
     if (act === "downRevise") return downloadBrief("revise");
@@ -235,48 +271,150 @@ byId("rmMain").addEventListener("click", async (e) => {
   } catch (ex) { toast(ex.message); }
 });
 
-const toast = (text) => (typeof showToast === "function" ? showToast(text, { ms: 6000 }) : alert(text));
-
 // ---------------------------------------------------------------------------------------------------------------------------------------
-// the composition: the template, or a video made for this story in a Claude Code session (remotion/videos/<slug>/)
+// 1 video baru
 // ---------------------------------------------------------------------------------------------------------------------------------------
 
-function drawComp() {
-  const d = CUR, custom = (d.kind || "template") === "custom";
-  byId("stepComp").innerHTML = `
-    <header><h2>Jenis video</h2></header>
-    <div class="rm-actions">
-      <select class="ws-input rm-boxed rm-select" id="rmKind" aria-label="Jenis video">
-        <option value="otomatis" ${custom ? "" : "selected"}>Otomatis: template klipian, paling cepat dan sederhana</option>
-        <option value="khusus" ${custom ? "selected" : ""}>Khusus: video buatan sesi Claude Code, tampilan terbaik</option>
-      </select>
+function bodyNew(d) {
+  const custom = d.kind === "custom";
+  return `
+    <dl class="rm-kv">
+      <dt>Topik</dt><dd>${esc(d.topic)}</dd>
+      <dt>Durasi</dt><dd>${d.duration} detik direncanakan${d.length && d.length.voiced != null ? `, ${esc(lengthText(d.length))}` : ""}</dd>
+      ${d.notes ? `<dt>Catatan</dt><dd>${esc(d.notes)}</dd>` : ""}
+      <dt>Pilihan</dt><dd>${esc(optionsSummary(d.options))}</dd>
+    </dl>
+    <p class="rm-hint">Pilihan video (loop, "Intip yuk!", musik, aplikasi suara) diubah di langkah 2, Brief.</p>
+    <div class="rm-actions"><button class="btn danger" id="rmDelete" type="button">Hapus video</button></div>
+    <details class="rm-adv">
+      <summary>Pengaturan lanjutan</summary>
+      <label class="ws-field">Jenis video
+        <select class="ws-input rm-boxed rm-select" id="rmKind" aria-label="Jenis video">
+          <option value="khusus" ${custom ? "selected" : ""}>Khusus: video buatan Claude Code, tampilan terbaik</option>
+          <option value="otomatis" ${custom ? "" : "selected"}>Otomatis: template klipian, draf cepat</option>
+        </select>
+      </label>
+      <p class="rm-hint">${custom ? "Khusus: cerita dan folder video diambil dari Claude Code (langkah 3)." : "Otomatis: jawaban AI ditempel (langkah 3), lalu dirender dengan template klipian."}</p>
+    </details>`;
+}
+
+document.addEventListener("change", async (e) => {
+  if (e.target.id !== "rmKind" || !CUR) return;
+  const next = e.target.value === "khusus" ? "Khusus (video buatan Claude Code)" : "Otomatis (template klipian)";
+  const ok = await confirmDialog({ title: "Ganti jenis video?", message: `Render berikutnya memakai ${next}. Hasil render yang lama tetap ada di Clips.`, confirmText: "Ganti", cancelText: "Batal" });
+  if (!ok) return refresh();
+  await call(`${API}/options`, { id: CUR.id, options: { kind: e.target.value } });
+  await refresh();
+});
+
+// ---------------------------------------------------------------------------------------------------------------------------------------
+// 2 brief and the options of the video
+// ---------------------------------------------------------------------------------------------------------------------------------------
+
+// the options of a video: the same controls in the form of a new video and under "Ubah pilihan" in the brief step; they shape the brief
+function readOptions(root) {
+  const o = {};
+  root.querySelectorAll("[data-opt]").forEach((x) => { o[x.dataset.opt] = x.type === "checkbox" ? x.checked : x.value; });
+  const apps = [...root.querySelectorAll("[data-opt-app]:checked")].map((x) => x.dataset.optApp);
+  if (!apps.length) throw new Error("Pilih minimal satu aplikasi suara.");
+  o.voiceTargets = apps;
+  return o;
+}
+
+function optionsHTML(opts, id) {
+  const sel = (key, list) => `<select class="ws-input rm-boxed" data-opt="${key}">${list.map(([v, l]) => `<option value="${v}" ${opts[key] === v ? "selected" : ""}>${l}</option>`).join("")}</select>`;
+  const checked = opts.voiceTargets || VOICE_APP_ORDER;
+  return `<div class="rm-group" id="${id}">
+    <label class="rm-check"><input type="checkbox" data-opt="loop" ${opts.loop ? "checked" : ""}> Loop (akhir kembali ke adegan awal)</label>
+    <label class="rm-check"><input type="checkbox" data-opt="sting" ${opts.sting ? "checked" : ""}> "Intip yuk!" setelah hook</label>
+    <label class="ws-field">Musik ${sel("music", Object.entries(MUSIC_LABELS))}</label>
+    <div class="rm-subgroup" role="group" aria-label="Aplikasi suara">
+      <span class="rm-sublabel">Aplikasi suara (centang yang dipakai; naskahnya dibuat untuk tiap aplikasi)</span>
+      ${VOICE_APP_ORDER.map((k) => `<label class="rm-check"><input type="checkbox" data-opt-app="${k}" ${checked.includes(k) ? "checked" : ""}> ${VOICE_APP_LABELS[k]}</label>`).join("")}
     </div>
-    <p class="rm-hint">${custom ? "Khusus: cerita dan folder video diambil dari Claude Code (panel 1)." : "Otomatis: brief dan jawaban (panel 1 dan 2), lalu template klipian."}</p>`;
+  </div>`;
 }
 
-// the folder panel of Khusus: the one command for Claude Code, the folder it made (full path, chip), and the one read: "Ambil cerita dari folder"
-function panelNum(key) {
-  return panelNumOf(CUR && CUR.kind === "custom" ? "custom" : "template", key);
+// at least one app stays checked: unchecking the last one is undone, with the reason
+document.addEventListener("change", (e) => {
+  if (!e.target.matches || !e.target.matches("[data-opt-app]")) return;
+  const group = e.target.closest(".rm-subgroup");
+  if (group && !group.querySelector("[data-opt-app]:checked")) {
+    e.target.checked = true;
+    toast("Pilih minimal satu aplikasi suara.");
+  }
+});
+
+function bodyBrief(d) {
+  return `
+    <p>Satu file mandiri: tugas, struktur ${d.duration} detik, aturan channel dan fakta, katalog benda yang bisa dirender, serta format jawaban.</p>
+    <p class="rm-hint">Tempel brief ke Claude Code yang dibuka di folder klipian (atau unduh lalu berikan path berkasnya). Ia mencari web sendiri. Tanpa API key.</p>
+    <div class="rm-actions">
+      <button class="btn main" id="rmCopyBrief" data-act="rmCopyBrief" type="button">Salin brief</button>
+      <button class="btn" id="rmDownBrief" data-act="rmDownBrief" type="button">Unduh brief</button>
+      <span class="rm-err" id="rmBriefErr" role="alert"></span>
+    </div>
+    <details class="rm-adv">
+      <summary>Ubah pilihan video</summary>
+      ${optionsHTML(d.options || {}, "rmOptsProject")}
+      <div class="rm-actions"><button class="btn" type="button" data-act="saveOptions">Simpan pilihan</button><span class="rm-hint">Brief berikutnya memakai pilihan ini; salin brief lagi setelah mengubahnya.</span></div>
+    </details>
+    ${(d.optionWarnings || []).map((w) => `<div class="rm-warn">${esc(w)}</div>`).join("")}`;
 }
 
-function drawFolder() {
-  byId("numBrief").textContent = panelNum("brief");
-  byId("numPaste").textContent = panelNum("paste");
-  const sec = byId("stepFolder");
-  const d = CUR;
-  const custom = !!d && d.kind === "custom";
-  sec.hidden = !custom;
-  byId("stepBrief").hidden = custom;
-  byId("stepPaste").hidden = custom;
-  if (!custom) return;
+async function saveOptions() {
+  const j = await call(`${API}/options`, { id: CUR.id, options: readOptions(byId("rmOptsProject")) });
+  briefCache.delete(`${CUR.id}:main`);
+  CUR.options = j.options;
+  CUR.optionWarnings = j.warnings;
+  NARR = null;                                                  // the voice apps may have changed
+  await refresh();
+  prefetchBrief();
+  toast("Pilihan disimpan. Brief sudah diperbarui: salin lagi.");
+}
+
+async function copyBrief(btn) {
+  const cached = briefCache.get(`${CUR.id}:main`);
+  if (cached) {                                                   // fetched ahead: the clipboard is written within the click
+    const ok = await copyText(cached.brief);
+    if (ok) { afterBriefCopied(btn); return; }
+    return toast("Tidak bisa menyalin. Pakai Unduh brief.");
+  }
+  const j = await call(`${API}/brief?id=${encodeURIComponent(CUR.id)}&kind=main&peek=1`);
+  briefCache.set(`${CUR.id}:main`, j);
+  (await copyText(j.brief)) ? afterBriefCopied(btn) : toast("Tidak bisa menyalin. Pakai Unduh brief.");
+}
+
+// the brief was really copied: the server notes it, and the page moves on to the next step
+async function afterBriefCopied(btn) {
+  flashCopied(btn);
+  await call(`${API}/briefed`, { id: CUR.id });
+  await refresh();
+}
+
+async function downloadBrief(kind) {
+  const beats = kind === "revise" ? rejectedBeats().join(",") : "";
+  const note = kind === "revise" ? (byId("rmReviseNote")?.value || "") : "";
+  const j = await call(`${API}/brief?id=${encodeURIComponent(CUR.id)}&kind=${kind}&beats=${encodeURIComponent(beats)}&note=${encodeURIComponent(note)}`);
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([j.brief], { type: "text/markdown" }));
+  a.download = j.file;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  if (kind === "main") await refresh();                      // the server noted the download as a copy
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------------
+// 3 the story: the folder Claude Code made (Khusus) or the AI's pasted answer (Otomatis), and the storyboard
+// ---------------------------------------------------------------------------------------------------------------------------------------
+
+function bodyStory(d) {
   const f = d.folder || { slug: "", path: "", state: "belum dipilih" };
   const picked = f.slug || "";
   const taken = f.state === "cerita diambil";
-  sec.innerHTML = `
-    <header><span class="rm-n">${panelNum("folder")}</span><h2>Video dari Claude Code</h2></header>
-    <p>Tempel brief ke Claude Code yang dibuka di folder klipian. Ia menulis cerita dan membuat folder videonya.</p>
-    <div class="rm-actions"><button class="btn main" type="button" data-act="rmCopyBrief">Salin brief</button><button class="btn" type="button" data-act="rmDownBrief">Unduh brief</button></div>
-    <h3>Folder hasil</h3>
+  return `
+    <p>Claude Code menulis cerita dan membuat folder videonya. Pilih folder hasilnya, lalu ambil ceritanya.</p>
+    <h3 class="rm-sub-h">Folder hasil</h3>
     <div class="rm-actions">
       <select class="ws-input rm-boxed rm-select" id="rmComp" aria-label="Folder hasil">
         <option value="">Belum dipilih</option>
@@ -284,9 +422,27 @@ function drawFolder() {
       </select>
       <span class="rm-chip" data-state="${esc(folderChip(f.state))}">${esc(folderChip(f.state))}</span>
     </div>
-    <div class="rm-fix"><code class="rm-cmd">${esc(f.path || "(belum ada folder)")}</code>${f.path ? ` <button class="btn sm" type="button" data-act="copyFolderPath">Salin path</button>` : ""}</div>
+    <div class="rm-pathrow"><code class="rm-cmd">${esc(f.path || "(belum ada folder)")}</code>${f.path ? `<button class="btn sm" type="button" data-act="copyFolderPath">Salin path</button>` : ""}</div>
     <div class="rm-actions"><button class="btn main" type="button" data-act="takeFolder" ${picked ? "" : "disabled"}>${taken ? "Ambil ulang cerita" : "Ambil cerita dari folder"}</button></div>
-    <div class="rm-result" id="rmTakeResult"></div>`;
+    <div class="rm-result" id="rmTakeResult"></div>
+    ${d.story ? storyboardHTML(d) : ""}`;
+}
+
+function bodyAnswer(d) {
+  return `
+    <p>Tempel seluruh jawaban AI (satu blok JSON). Slip umum dibetulkan sendiri; kalau ada yang salah, klipian membuat pesan perbaikan untuk ditempel balik ke AI.</p>
+    <textarea class="ws-input rm-boxed rm-paste" id="rmPaste" placeholder='{ "question": "Kenapa ...?", "titles": [...], "beats": [...] }' spellcheck="false"></textarea>
+    <div class="rm-actions"><button class="btn main" id="rmPasteBtn" type="button">Periksa dan simpan</button></div>
+    <div class="rm-result" id="rmPasteResult"></div>
+    ${needsHTML(d)}
+    ${d.story ? storyboardHTML(d) : ""}`;
+}
+
+function needsHTML(d) {
+  const needs = d.needs || [];
+  const warns = d.warnings || [];
+  const warnHTML = warns.length ? `<div class="rm-note"><b>Saran buku gaya (belum menghalangi):</b>${errorsHTML(warns)}</div>` : "";
+  return (needs.length ? `<div class="rm-note"><b>Benda yang belum ada di pustaka (kata AI):</b><ul>${needs.map((n) => `<li>${esc(n)}</li>`).join("")}</ul><p class="rm-hint">Untuk sementara dipakai benda terdekat.</p></div>` : "") + warnHTML;
 }
 
 async function takeFolder() {
@@ -296,12 +452,12 @@ async function takeFolder() {
   try {
     j = await call(`${API}/take-folder`, { id: CUR.id, slug: CUR.folder.slug });
   } catch (ex) {
-    if (out) out.textContent = ex.message;
-    return;
+    if (ex.data && ex.data.errors) j = ex.data;
+    else { if (out) out.textContent = ex.message; return; }
   }
   if (j.ok === false) {
     out.innerHTML = `<b>Cerita belum disimpan</b> (${j.errors.length} masalah)${errorsHTML(j.errors)}
-      <div class="rm-fix"><div class="rm-actions"><button class="btn main" type="button" data-act="copyFix">Salin pesan perbaikan</button><span class="rm-hint">Perbaiki story.json di folder itu (lewat Claude Code), lalu ambil lagi.</span></div>
+      <div class="rm-fix"><div class="rm-actions"><button class="btn" type="button" data-act="copyFix">Salin pesan perbaikan</button><span class="rm-hint">Perbaiki story.json di folder itu (lewat Claude Code), lalu ambil lagi.</span></div>
       <textarea class="ws-input rm-boxed" readonly>${esc(j.fix)}</textarea></div>`;
     out.querySelector("[data-act=copyFix]")._fix = j.fix;
     return;
@@ -315,43 +471,6 @@ async function copyFolderPath() {
   (await copyText(CUR.folder.path)) ? toast("Path disalin.") : toast("Tidak bisa menyalin: pilih teksnya sendiri.");
 }
 
-document.addEventListener("change", async (e) => {
-  if (e.target.id !== "rmKind" || !CUR) return;
-  const next = e.target.value === "khusus" ? "Khusus (video buatan sesi Claude Code)" : "Otomatis (template klipian)";
-  const ok = await confirmDialog({ title: "Ganti jenis video?", message: `Render berikutnya memakai ${next}. Hasil render yang lama tetap ada di Clips.`, confirmText: "Ganti", cancelText: "Batal" });
-  if (!ok) return refresh();
-  await call(`${API}/options`, { id: CUR.id, options: { kind: e.target.value } });
-  await refresh();
-});
-
-// the next step: one sentence and one button, from the server's next_step (the same rules as the tests)
-function drawNext() {
-  const sec = byId("stepNext");
-  const d = CUR;
-  sec.hidden = !d;
-  if (!d) return;
-  const n = d.next || {};
-  const chips = (d.stages || []).map((c) => `<span class="rm-chip" data-state="${esc(c.state)}">${esc(c.label)}: ${esc(c.state)}</span>`).join("");
-  const label = { brief: "Salin brief", paste: "Tempel jawaban", copy: "Salin perintah", take: "Ambil cerita", facts: "Buka cek fakta", title: "Pilih judul", align: "Cocokkan", render: "Render", clips: "Buka di Clips" }[n.action];
-  const btn = label ? `<button class="btn main" type="button" data-act="nextStep">${label}</button>` : "";
-  sec.innerHTML = `
-    <div class="rm-next"><b>Langkah berikutnya:</b> ${esc(n.text || "")}</div>
-    <div class="rm-actions">${btn}</div>
-    ${n.command ? `<div class="rm-fix"><code class="rm-cmd">${esc(n.command)}</code></div>` : ""}
-    <div class="rm-chips">${chips}</div>`;
-}
-
-async function doNext(action) {
-  if (action === "brief") return document.querySelector('[data-act="rmCopyBrief"]')?.click();
-  if (action === "paste") return byId("rmPaste")?.focus();
-  if (action === "facts") return byId("stepFacts").scrollIntoView({ behavior: "smooth" });
-  if (action === "title") return byId("stepTitle").scrollIntoView({ behavior: "smooth" });
-  if (action === "align") return alignVoice();
-  if (action === "render") return startRender();
-  if (action === "clips") return (location.href = "/workspace");
-  if (action === "take") return takeFolder();
-}
-
 byId("rmMain").addEventListener("change", async (e) => {
   if (e.target.id !== "rmComp" || !CUR) return;
   try {
@@ -359,41 +478,6 @@ byId("rmMain").addEventListener("change", async (e) => {
     await refresh();
   } catch (ex) { toast(ex.message); await refresh(); }
 });
-
-async function copyCmd(btn) {
-  const text = byId("rmCmd").textContent;
-  (await copyText(text)) ? flashCopied(btn) : toast("Tidak bisa menyalin: pilih teksnya sendiri.");
-}
-
-// ---------------------------------------------------------------------------------------------------------------------------------------
-// 1 brief
-// ---------------------------------------------------------------------------------------------------------------------------------------
-
-async function copyBrief(btn) {
-  const cached = briefCache.get(`${CUR.id}:main`);
-  if (cached) {                                                   // fetched ahead: the clipboard is written within the click
-    const ok = await copyText(cached.brief);
-    return ok ? flashCopied(btn) : toast("Tidak bisa menyalin. Pakai Unduh brief.");
-  }
-  const j = await call(`${API}/brief?id=${encodeURIComponent(CUR.id)}&kind=main`);
-  briefCache.set(`${CUR.id}:main`, j);
-  (await copyText(j.brief)) ? flashCopied(btn) : toast("Tidak bisa menyalin. Pakai Unduh brief.");
-}
-
-async function downloadBrief(kind) {
-  const beats = kind === "revise" ? rejectedBeats().join(",") : "";
-  const note = kind === "revise" ? (byId("rmReviseNote")?.value || "") : "";
-  const j = await call(`${API}/brief?id=${encodeURIComponent(CUR.id)}&kind=${kind}&beats=${encodeURIComponent(beats)}&note=${encodeURIComponent(note)}`);
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([j.brief], { type: "text/markdown" }));
-  a.download = j.file;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-}
-
-// ---------------------------------------------------------------------------------------------------------------------------------------
-// 2 the answer
-// ---------------------------------------------------------------------------------------------------------------------------------------
 
 function errorsHTML(errors) {
   return `<ul>${errors.map((x) => `<li>${x.path ? `<code>${esc(x.path)}</code>: ` : ""}${esc(x.message)}</li>`).join("")}</ul>`;
@@ -415,16 +499,17 @@ async function pasteAnswer(kind) {
   if (j.ok === false || j.errors) {
     out.dataset.ok = "false";
     out.innerHTML = `<b>Belum bisa dipakai</b> (${j.errors.length} masalah)${errorsHTML(j.errors)}
-      <div class="rm-fix"><div class="rm-actions"><button class="btn main" type="button" data-act="copyFix">Salin pesan perbaikan</button><span class="rm-hint">Tempel ke AI yang sama, lalu tempel jawaban barunya di sini.</span></div>
+      <div class="rm-fix"><div class="rm-actions"><button class="btn" type="button" data-act="copyFix">Salin pesan perbaikan</button><span class="rm-hint">Tempel ke AI yang sama, lalu tempel jawaban barunya di sini.</span></div>
       <textarea class="ws-input rm-boxed" readonly>${esc(j.fix)}</textarea></div>`;
     out.querySelector("[data-act=copyFix]")._fix = j.fix;
     return;
   }
-  out.dataset.ok = "true";
-  const notes = (j.notes || []).map((n) => `<li style="color:var(--text-muted)">Dibetulkan otomatis: ${esc(n)}</li>`).join("");
-  out.innerHTML = `<b>Tersimpan.</b> Cerita lolos pemeriksaan.${notes ? `<ul style="color:inherit">${notes}</ul>` : ""}`;
+  const notes = (j.notes || []).map((n) => `<li>Dibetulkan otomatis: ${esc(n)}</li>`).join("");
+  toast("Cerita tersimpan.");
   box.value = "";
   await refresh();
+  const o = byId(kind === "revise" ? "rmReviseResult" : "rmPasteResult");
+  if (o && notes) { o.dataset.ok = "true"; o.innerHTML = `<ul>${notes}</ul>`; }
 }
 
 async function copyFix(btn) {
@@ -432,187 +517,293 @@ async function copyFix(btn) {
   (await copyText(text)) ? flashCopied(btn) : toast("Tidak bisa menyalin: pilih teksnya sendiri.");
 }
 
-function drawNeeds() {
-  const el = byId("rmNeeds");
-  if (CUR && CUR.kind === "custom") return (el.innerHTML = "");
-  const needs = CUR.needs || [];
-  const warns = CUR.warnings || [];
-  const warnHTML = warns.length ? `<div class="rm-needs"><b>Peringatan buku gaya (belum menghalangi):</b>${errorsHTML(warns)}</div>` : "";
-  el.innerHTML = (needs.length ? `<div class="rm-needs"><b>Benda yang belum ada di pustaka (kata AI):</b><ul>${needs.map((n) => `<li>${esc(n)}</li>`).join("")}</ul><p class="rm-hint">Untuk sementara dipakai benda terdekat. Brief komponen baru menyusul.</p></div>` : "") + warnHTML;
-}
-
-// ---------------------------------------------------------------------------------------------------------------------------------------
-// the voice: a recorded narration (or a local text-to-speech command's), matched to the words; the beats then last as long as it
-// ---------------------------------------------------------------------------------------------------------------------------------------
-
-function drawVoice() {
-  const sec = byId("stepVoice");
-  const d = CUR, v = d.voice;
-  sec.hidden = !d.story;
-  if (!d.story) return;
+// the storyboard: one card per beat, its picture, and the texts that can be edited (the narration and the text on the screen). Khusus draws its own scenes, so the
+// items of a scene are not shown for it; Otomatis shows the texts of the items, except a banner that holds the same words as the screen text (shown once).
+function storyboardHTML(d) {
   const job = d.job || {};
-  const busy = job.kind === "voice" && ["queued", "running"].includes(job.state);
-  const have = v && v.name;
-  sec.innerHTML = `
-    <header><span class="rm-n">${panelNum("voice")}</span><h2>Suara (opsional)</h2></header>
-    <p>Rekam sendiri atau pakai file dari luar (wav, mp3, m4a, ...). Satu file, atau beberapa file dengan nomor di akhir namanya (mis. colokan_1.wav, colokan_2.wav): urutannya dari nomor, bukan dari nama. klipian mencocokkan kata dengan suaranya di komputer ini. Tanpa layanan suara: tidak ada key.</p>
-    ${have ? `<div class="rm-needs"><b>${esc(v.name)}</b> · ${v.duration} dtk · ${v.aligned ? `sudah dicocokkan (${esc(v.method === "whisper" ? "dari suara" : "perkiraan merata")}), video ${v.total} dtk` : v.stale ? "cerita berubah sejak dicocokkan: cocokkan lagi" : "belum dicocokkan"}${v.note ? `<br><span class="rm-hint">${esc(v.note)}</span>` : ""}</div>` : ""}
-    ${voicePartsHTML(v || {})}
+  const busy = job.kind === "preview" && ["queued", "running"].includes(job.state);
+  const stills = d.stills || { files: {}, stale: true };
+  const have = Object.keys(stills.files).length > 0;
+  const custom = d.kind === "custom";
+  const real = {};
+  if (d.voice && d.voice.aligned && d.voice.table) d.voice.table.beats.forEach((b) => { real[b.id] = b.real; });
+  return `
+    <h3 class="rm-sub-h">Storyboard</h3>
+    <p>${d.story.beats.length} beat, ${esc(lengthText(d.length))}. Pertanyaan: <b class="rm-q">${esc(d.story.question)}</b></p>
+    ${(d.warnings || []).length ? `<div class="rm-note"><b>Saran buku gaya (bukan penghalang):</b><ul>${d.warnings.map((w) => `<li>${esc(w.message)}</li>`).join("")}</ul></div>` : ""}
     <div class="rm-actions">
-      <textarea class="ws-input rm-boxed rm-path" id="rmVoicePath" rows="2" placeholder="Lokasi file suara, satu per baris, mis. D:\\rekaman\\colokan_1.wav" spellcheck="false"></textarea>
-      <label class="rm-hint">Jeda antar bagian (detik) <input class="ws-input rm-boxed" id="rmVoiceGap" type="number" min="0" max="1" step="0.05" value="0.25" style="width:72px"></label>
+      <button class="btn" data-act="saveEdits" type="button">Simpan teks</button>
+      <button class="btn" data-act="preview" type="button" ${busy ? "disabled" : ""}>${have ? "Perbarui gambar" : "Buat gambar storyboard"}</button>
+      <span class="rm-hint" id="rmPreviewNote">${busy ? esc(job.message || "") : have && stills.stale ? "Teks atau cerita berubah sejak gambar dibuat." : ""}</span>
     </div>
-    <div class="rm-actions">
-      <button class="btn" type="button" data-act="voicePath">${PART_TO_REPLACE ? `Ganti bagian ${PART_TO_REPLACE}` : "Pakai file ini"}</button>
-      <label class="btn" for="rmVoiceFile">Pilih file…</label><input id="rmVoiceFile" type="file" accept="audio/*,video/mp4,video/webm" hidden>
-      ${v && v.tts ? `<button class="btn" type="button" data-act="voiceTts" ${busy ? "disabled" : ""}>Buat dengan TTS lokal</button>` : ""}
-    </div>
-    <div class="rm-actions">
-      <button class="btn main" type="button" data-act="voiceAlign" ${have && !busy ? "" : "disabled"}>${v && v.aligned ? "Cocokkan lagi" : "Cocokkan dengan narasi"}</button>
-      ${have ? `<button class="btn danger" type="button" data-act="voiceClear" ${busy ? "disabled" : ""}>Hapus suara</button>` : ""}
-      ${v && v.captions ? `<a class="btn sm" href="${API}/subtitles?id=${encodeURIComponent(d.id)}&format=srt" download>Unduh .srt</a><a class="btn sm" href="${API}/subtitles?id=${encodeURIComponent(d.id)}&format=vtt" download>Unduh .vtt</a>` : ""}
-      <span class="rm-hint" id="rmVoiceNote">${busy ? esc(job.message || "") : ""}</span>
-    </div>
-    ${v && v.aligned ? voiceTableHTML(v) : ""}
-    ${narrationHTML(d)}`;
-  byId("rmVoiceFile")?.addEventListener("change", uploadVoice);
+    <div class="rm-result" id="rmEditResult"></div>
+    <div class="rm-sheet">${d.story.beats.map((b, n) => `
+      <article class="rm-beat" data-beat="${esc(b.id)}" data-stale="${stills.stale}">
+        <h4>${n + 1} · ${esc(kindLabel(b.kind))} <span>${fmtSeconds(b.dur)} dtk${real[b.id] != null ? ` (suara ${fmtSeconds(real[b.id])})` : ""} · ${esc(b.id)}</span></h4>
+        <div class="rm-pic">${stills.files[b.id] ? `<img alt="Beat ${esc(b.id)}" src="${esc(profileUrl(stills.files[b.id]))}">` : "belum ada gambar"}</div>
+        <label>Narasi<textarea class="ws-input" data-f="narration" rows="3">${esc(b.narration)}</textarea></label>
+        <label>Teks layar<input class="ws-input" type="text" data-f="text" value="${esc(b.text)}"></label>
+        ${custom ? "" : textItems(b).map(({ it, i }) => `<label>${esc(itemLabel(it.type))}<input class="ws-input" type="text" data-item="${i}" value="${esc(it.text)}"></label>`).join("")}
+      </article>`).join("")}</div>`;
 }
 
-// the narration text for each checked voice app (PLAN-VOICE-TARGETS): one block per app, the one the project opens first first; each block has
-// its own copy and download. Google AI Studio's block keeps its three parts: the script, the short style, and the long style (optional).
-let NARR = null;                // { forId, exports: { <app>: export } } from the last "Muat naskah"
-function narrationHTML(d) {
-  const apps = voiceAppsInOrder(d.options);
-  const blocks = apps.map((key, i) => narrationBlock(d, key, narrationShown(NARR, d.id, key), i === 0)).join("");
-  const loaded = !!(NARR && NARR.forId === d.id);
-  return `<div class="rm-needs"><b>Naskah untuk aplikasi suara</b> (ketik atau tempel di aplikasi kamu; klipian tidak memanggil layanan suara)
-    <div class="rm-actions"><button class="btn" type="button" data-act="narrationLoad">Muat naskah</button>
-      <button class="btn" type="button" data-act="narrationOpenAll">Buka semua</button>
-      <button class="btn" type="button" data-act="narrationDownAll" ${loaded ? "" : "disabled"}>Unduh semua</button></div>
-    ${blocks}</div>`;
+function textItems(beat) {
+  return beat.scene.items.map((it, i) => ({ it, i })).filter(({ it }) => typeof it.text === "string" && !(it.type === "banner" && it.text === beat.text));
 }
 
-// VoiceStudio's choices: the voice's gender and age (the description), and the optional [laughter]; each change saves the option and makes the text again
-function vsControlsHTML(d) {
-  const o = d.options || {};
-  const ages = [["child", "anak"], ["teenager", "remaja"], ["young adult", "dewasa muda"], ["middle-aged", "paruh baya"], ["elderly", "lansia"]];
-  return `<div class="rm-actions">
-    <label class="ws-field">Suara ${`<select class="ws-input rm-boxed" data-vs="vsGender"><option value="female" ${o.vsGender !== "male" ? "selected" : ""}>perempuan</option><option value="male" ${o.vsGender === "male" ? "selected" : ""}>laki-laki</option></select>`}</label>
-    <label class="ws-field">Umur ${`<select class="ws-input rm-boxed" data-vs="vsAge">${ages.map(([v, l]) => `<option value="${v}" ${(o.vsAge || "young adult") === v ? "selected" : ""}>${l}</option>`).join("")}</select>`}</label>
-    <label class="rm-check"><input type="checkbox" data-vs="vsTags" ${o.vsTags ? "checked" : ""}> tambah [laughter] (opsional, paling banyak dua)</label>
-  </div>`;
-}
-
-function narrationBlock(d, key, ex, open) {
-  const head = ex ? `${esc(ex.status)} · ${ex.total.low}–${ex.total.high} dtk` : "belum dimuat";
-  const body = ex ? narrationBody(key, ex) : `<p class="rm-hint">Tekan Muat naskah.</p>`;
-  const controls = key === "voicestudio" ? vsControlsHTML(d) : "";
-  return `<details class="rm-needs narr-block" data-app="${key}" ${open ? "open" : ""}><summary><b>${esc(VOICE_APP_LABELS[key])}</b> <span class="rm-hint">${head}</span></summary>
-    ${controls}
-    <div class="rm-actions"><button class="btn sm" type="button" data-act="narrationCopy" data-target="${key}" ${ex ? "" : "disabled"}>Salin semua</button><button class="btn sm" type="button" data-act="narrationDown" data-target="${key}" ${ex ? "" : "disabled"}>Unduh .txt</button></div>
-    ${body}</details>`;
-}
-
-// the text of one app's export: one box, or for Google AI Studio three blocks with their own copy buttons
-function narrationBody(key, shown) {
-  if (shown.target === "elevenlabs") {
-    const part = (name, title, rows, value) => `<div class="rm-needs"><b>${title}</b> <button class="btn sm" type="button" data-act="narrationPart" data-target="${key}" data-part="${name}">Salin</button><textarea class="ws-input rm-boxed" readonly rows="${rows}">${esc(value || "")}</textarea></div>`;
-    return `<p class="rm-hint">${esc(shown.status)}</p>
-      ${part("script", "1 Naskah (satu permintaan, tag dan jeda)", 10, shown.script)}
-      ${part("settings", "2 Pengaturan di ElevenLabs (bukan teks)", 3, `${shown.settings}
-${shown.model}`)}
-      <p class="rm-hint">Tag memakai kurung siku dari daftar resmi ElevenLabs. Belum diverifikasi: tag pada teks Indonesia, dan dukungan tag di Multilingual v2 dan Flash v2.5. Uji dulu tanpa tag.</p>`;
+async function saveEdits() {
+  const out = byId("rmEditResult");
+  const beats = {};
+  document.querySelectorAll("#body-story .rm-beat, #body-answer .rm-beat").forEach((card) => {
+    const e = {};
+    card.querySelectorAll("[data-f]").forEach((x) => { if (x.value !== x.dataset.was) e[x.dataset.f] = x.value; });
+    card.querySelectorAll("[data-item]").forEach((x) => { if (x.value !== x.dataset.was) (e.items ||= {})[x.dataset.item] = { text: x.value }; });
+    if (e.text !== undefined) {                                   // the banner that held the same words follows the screen text (it is shown once)
+      const beat = CUR.story.beats.find((b) => b.id === card.dataset.beat);
+      beat.scene.items.forEach((it, i) => { if (it.type === "banner" && it.text === beat.text) (e.items ||= {})[i] = { text: e.text }; });
+    }
+    if (Object.keys(e).length) beats[card.dataset.beat] = e;
+  });
+  if (!Object.keys(beats).length) { out.dataset.ok = ""; out.textContent = "Tidak ada yang berubah."; return; }
+  out.dataset.ok = ""; out.textContent = "Memeriksa…";
+  try {
+    const j = await call(`${API}/update`, { id: CUR.id, edits: { beats } });
+    if (j.ok === false) throw Object.assign(new Error(""), { data: j });
+    await refresh();
+    const o = byId("rmEditResult");
+    if (o) { o.dataset.ok = "true"; o.textContent = "Tersimpan. Perbarui gambar untuk melihat hasilnya."; }
+  } catch (ex) {
+    const j = ex.data;
+    if (j && j.errors) {
+      out.dataset.ok = "false";
+      out.innerHTML = `<b>Tidak disimpan</b>${errorsHTML(j.errors)}`;
+    } else out.textContent = ex.message;
   }
-  if (shown.target !== "googleai") {
-    return `<p class="rm-hint">${esc(shown.status)}</p><textarea class="ws-input rm-boxed" readonly rows="10">${esc(shown.text)}</textarea><p class="rm-hint">Baris "Bagian N" adalah penanda untuk kamu: hapus sebelum dibacakan.</p>`;
-  }
-  const block = (part, title, rows) => `<div class="rm-needs"><b>${title}</b> <button class="btn sm" type="button" data-act="narrationPart" data-target="${key}" data-part="${part}">Salin</button><textarea class="ws-input rm-boxed" readonly rows="${rows}">${esc(shown[part] || "")}</textarea></div>`;
-  return `<p class="rm-hint">${esc(shown.status)}</p>
-    ${block("script", "1 Naskah + ekspresi", 10)}
-    ${block("style", "2 Deskripsi (gaya, bahasa Inggris)", 3)}
-    <details class="rm-needs"><summary><b>3 Deskripsi lengkap (versi lama, opsional)</b></summary>${block("styleLong", "Versi lama", 4)}</details>
-    <p class="rm-hint">Tag memakai tanda &lt;...&gt; dan bahasa Inggris, sesuai dokumen Google (diperiksa 28 Okt 2026). Bahasa Indonesia didukung di Gemini 3.8 TTS. Belum diverifikasi: bahasa kolom gaya, dan apakah halaman AI Studio memakai kolom yang sama. Coba dulu tanpa gaya.</p>`;
 }
 
-// VoiceStudio's choices are saved as options, and the text is made again with them
-document.addEventListener("change", async (e) => {
-  if (!e.target.matches || !e.target.matches("[data-vs]") || !CUR) return;
-  const key = e.target.dataset.vs;
-  const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
-  await call(`${API}/options`, { id: CUR.id, options: { [key]: value } });
+async function startPreview() {
+  const j = await call(`${API}/preview`, { id: CUR.id });
+  CUR.job = j.job;
+  drawSteps();
+  startPoll();
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------------
+// 4 facts and the title
+// ---------------------------------------------------------------------------------------------------------------------------------------
+
+const rejectedBeats = () => [...new Set((CUR.facts || []).filter((f) => f.status === "rejected").flatMap((f) => f.beats))];
+
+function bodyFacts(d) {
+  if (!d.story) return `<p class="rm-hint">Ambil ceritanya dulu (langkah 3).</p>`;
+  const facts = d.facts || [];
+  const rej = facts.some((f) => f.status === "rejected");
+  const pending = facts.filter((f) => f.status !== "checked" && f.status !== "rejected").length;
+  return `
+    <p>Buka setiap sumber, pastikan klaimnya benar. Render baru bisa setelah semua klaim dicentang dan satu judul dipilih.</p>
+    ${facts.length ? "" : `<p class="rm-hint">Cerita ini tidak punya klaim.</p>`}
+    ${pending ? `<div class="rm-actions"><button class="btn ${rej ? "" : "main"}" type="button" data-act="allRight">Benar semua</button><span class="rm-hint">Menandai ${pending} klaim yang menunggu sebagai benar, dengan tanggal hari ini.</span></div>` : ""}
+    <div class="rm-claims">${facts.map((f, i) => `
+      <div class="rm-claim" data-s="${esc(f.status)}">
+        <div class="rm-text">${i + 1}. ${esc(f.text)}</div>
+        <div class="rm-src">${f.sources.map((u) => `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(u)}</a>`).join("")}</div>
+        <div class="rm-row">Dipakai di: ${f.beats.map((b) => `<span class="rm-tag">${esc(b)}</span>`).join("")}${f.date ? `<span>· ${esc(f.status === "checked" ? "dicek" : "ditolak")} ${esc(f.date)}</span>` : ""}</div>
+        <div class="rm-actions">
+          <button class="btn sm" type="button" data-act="claim" data-i="${i}" data-s="checked" aria-pressed="${f.status === "checked"}">Benar</button>
+          <button class="btn sm danger" type="button" data-act="claim" data-i="${i}" data-s="rejected" aria-pressed="${f.status === "rejected"}">Tolak</button>
+          ${f.status !== "pending" ? `<button class="btn sm quiet" type="button" data-act="claim" data-i="${i}" data-s="pending">Batalkan</button>` : ""}
+          ${f.status === "rejected" ? `<input class="ws-input" type="text" data-note="${i}" maxlength="500" placeholder="Kenapa ditolak? (untuk AI)" value="${esc(f.note || "")}">` : ""}
+        </div>
+      </div>`).join("")}</div>
+    <h3 class="rm-sub-h">Judul</h3>
+    <p>Pilih satu. Ini jadi judul di Clips dan di YouTube.</p>
+    <div class="rm-titles">${d.story.titles.map((t) => `<button class="btn" type="button" data-act="title" data-t="${esc(t)}" aria-pressed="${d.title === t}">${esc(t)}<small>${t.length}</small></button>`).join("")}</div>
+    ${rej ? `
+    <h3 class="rm-sub-h">Revisi untuk klaim yang ditolak</h3>
+    <p>Hanya beat yang memakai klaim itu (${rejectedBeats().map(esc).join(", ")}) yang dikirim ke AI, bukan seluruh video.</p>
+    <label class="ws-field">Catatan tambahan (opsional)<input class="ws-input rm-boxed" id="rmReviseNote" type="text" maxlength="400"></label>
+    <div class="rm-actions"><button class="btn main" data-act="copyRevise" type="button">Salin brief revisi</button><button class="btn" data-act="downRevise" type="button">Unduh</button></div>
+    <textarea class="ws-input rm-boxed rm-paste" id="rmPasteRevise" placeholder="Tempel jawaban revisi dari AI (JSON dengan beats dan claims)" spellcheck="false"></textarea>
+    <div class="rm-actions"><button class="btn" data-act="pasteRevise" type="button">Periksa dan simpan revisi</button></div>
+    <div class="rm-result" id="rmReviseResult"></div>` : ""}`;
+}
+
+byId("rmMain").addEventListener("change", async (e) => {
+  const n = e.target.closest("[data-note]");
+  if (!n || !CUR) return;
+  try { await call(`${API}/facts`, { id: CUR.id, claims: [{ index: Number(n.dataset.note), note: n.value }] }); } catch (ex) { toast(ex.message); }
+});
+
+async function setClaim(index, status) {
+  const j = await call(`${API}/facts`, { id: CUR.id, claims: [{ index, status }] });
+  CUR.facts = j.facts;
   await refresh();
-  if (NARR && NARR.forId === CUR.id) await loadNarration();
-});
+}
 
-// at least one app stays checked: unchecking the last one is undone, with the reason
-document.addEventListener("change", (e) => {
-  if (!e.target.matches || !e.target.matches("[data-opt-app]")) return;
-  const group = e.target.closest("fieldset");
-  if (group && !group.querySelector("[data-opt-app]:checked")) {
-    e.target.checked = true;
-    toast("Pilih minimal satu aplikasi suara.");
-  }
-});
+// "Benar semua": asks once (the person opened the sources), then every claim that waits is checked with today's date; a rejected claim stays
+async function allRight() {
+  const ok = await confirmDialog({ title: "Benar semua?", message: "Sudah buka sumbernya?", confirmText: "Sudah, benar semua", cancelText: "Belum", tone: "primary" });
+  if (!ok) return;
+  const j = await call(`${API}/facts`, { id: CUR.id, all: "checked" });
+  CUR.facts = j.facts;
+  await refresh();
+  toast(j.skipped ? `Klaim ditandai benar. ${j.skipped} klaim yang ditolak tidak diubah.` : "Semua klaim ditandai benar.");
+}
 
-async function loadNarration() {
+async function copyRevise(btn) {
+  const beats = rejectedBeats().join(",");
+  const note = byId("rmReviseNote").value;
+  const j = await call(`${API}/brief?id=${encodeURIComponent(CUR.id)}&kind=revise&beats=${encodeURIComponent(beats)}&note=${encodeURIComponent(note)}`);
+  (await copyText(j.brief)) ? flashCopied(btn) : toast("Tidak bisa menyalin. Pakai Unduh.");
+}
+
+async function setTitle(t) {
+  await call(`${API}/facts`, { id: CUR.id, title: t });
+  await refresh();
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------------
+// 5 the script for the voice app (used before the voice is made)
+// ---------------------------------------------------------------------------------------------------------------------------------------
+
+// the texts are loaded when the step opens: nothing is opened for the person, and the first checked app is the one shown
+async function ensureNarration() {
+  if (!CUR || !CUR.story) return;
+  if (NARR && NARR.forId === CUR.id) return;
+  const id = CUR.id;
   const apps = voiceAppsInOrder(CUR.options);
-  const pairs = await Promise.all(apps.map(async (key) => [key, { ...(await call(`${API}/narration?id=${encodeURIComponent(CUR.id)}&target=${key}`)), forId: CUR.id }]));
-  NARR = { forId: CUR.id, exports: Object.fromEntries(pairs) };
-  drawVoice();
+  try {
+    const pairs = await Promise.all(apps.map(async (key) => [key, { ...(await call(`${API}/narration?id=${encodeURIComponent(id)}&target=${key}`)), forId: id }]));
+    if (!CUR || CUR.id !== id) return;
+    NARR = { forId: id, exports: Object.fromEntries(pairs) };
+  } catch (ex) { return toast(ex.message); }
+  if (OPEN === "script") drawSteps();
 }
 
-async function copyNarration(key) {
+function bodyScript(d) {
+  if (!d.story) return `<p class="rm-hint">Ambil ceritanya dulu (langkah 3).</p>`;
+  const apps = voiceAppsInOrder(d.options);
+  if (!NARR_APP || !apps.includes(NARR_APP)) NARR_APP = apps[0];
+  const ex = narrationShown(NARR, d.id, NARR_APP);
+  return `
+    <p>Salin naskahnya ke aplikasi suara kamu, lalu buat suaranya di sana (klipian tidak memanggil layanan suara). Aplikasi yang dipakai diubah di langkah 2, Brief.</p>
+    <div class="rm-tabs" role="tablist" aria-label="Aplikasi suara">${apps.map((k) => `<button class="btn" type="button" role="tab" data-act="narrationApp" data-app="${k}" aria-selected="${k === NARR_APP}" aria-pressed="${k === NARR_APP}">${esc(VOICE_APP_LABELS[k])}</button>`).join("")}</div>
+    ${ex ? scriptPanel(NARR_APP, ex) : `<p class="rm-hint">Memuat naskah…</p>`}`;
+}
+
+// one app's texts: only what the app should read is in the boxes (a copy button for each); the counts, the settings and the notes are written beside them
+function scriptPanel(key, ex) {
+  const box = (title, text, rows, attrs, hint) => `<div class="rm-textbox"><div class="rm-boxhead"><b>${title}</b>${attrs ? `<span class="rm-boxbtns">${attrs}</span>` : ""}</div>${hint ? `<p class="rm-hint">${hint}</p>` : ""}<textarea class="ws-input rm-boxed" readonly rows="${rows}">${esc(text || "")}</textarea></div>`;
+  const copyBtn = (part, label, primary) => `<button class="btn ${primary ? "main" : "sm"}" type="button" data-act="narrationCopy" data-app="${key}"${part ? ` data-part="${part}"` : ""}>${label}</button>`;
+  const downBtn = (part, label) => `<button class="btn sm" type="button" data-act="narrationDown" data-app="${key}"${part ? ` data-part="${part}"` : ""}>${label}</button>`;
+  let html = `<p class="rm-hint">${esc(ex.status)}. ${esc(String(ex.info || "").split("\n")[0])}</p>`;
+  if (key === "voicestudio") {
+    html += `<div class="rm-actions">${copyBtn("", "Salin semua", true)}${downBtn("", "Unduh semua .txt")}</div>`;
+    const parts = ex.parts || [];
+    html += parts.length > 1
+      ? `<p class="rm-hint">Teks panjang bisa dipecah: tiap bagian teks polos dan bisa disalin atau diunduh sendiri (_1.txt, _2.txt, ...).</p>` +
+        parts.map((p) => box(`Bagian ${p.no} <span class="rm-hint">sekitar ${Math.round((p.low + p.high) / 2)} detik</span>`, p.text, 4, copyBtn(String(p.no), "Salin") + downBtn(String(p.no), `Unduh _${p.no}.txt`))).join("")
+      : "";
+    html += box("Naskah (teks polos)", ex.text, 10, "", "VoiceStudio membaca semua karakter: tidak ada judul, jeda, atau tag di dalamnya.");
+    return html;
+  }
+  if (key === "elevenlabs") {
+    html += `<div class="rm-actions">${copyBtn("", "Salin naskah", true)}${downBtn("", "Unduh .txt")}</div>`;
+    html += box("Naskah (satu permintaan; tag dan jeda dari daftar resmi)", ex.text, 10);
+    html += box("Pengaturan di ElevenLabs (bukan teks untuk dibacakan)", `${ex.settings}\n${ex.model}`, 3, `<button class="btn sm" type="button" data-act="narrationCopy" data-app="${key}" data-part="settings">Salin</button>`);
+    html += `<p class="rm-hint">Tag memakai kurung siku dari daftar resmi ElevenLabs. Belum diverifikasi: tag pada teks Indonesia, dan dukungan tag di Multilingual v2 dan Flash v2.5. Uji dulu tanpa tag.</p>`;
+    return html;
+  }
+  html += `<div class="rm-actions">${copyBtn("", "Salin naskah", true)}${downBtn("", "Unduh .txt")}</div>`;
+  html += box("Naskah dan ekspresi", ex.text, 10);
+  html += box("Deskripsi gaya (bahasa Inggris, bukan teks untuk dibacakan)", ex.style, 3, `<button class="btn sm" type="button" data-act="narrationCopy" data-app="${key}" data-part="style">Salin</button>`);
+  html += `<details class="rm-adv"><summary>Deskripsi lengkap (versi lama, opsional)</summary>${box("Versi lama", ex.styleLong, 4, `<button class="btn sm" type="button" data-act="narrationCopy" data-app="${key}" data-part="styleLong">Salin</button>`)}</details>`;
+  html += `<p class="rm-hint">Tag memakai tanda &lt;...&gt; dan bahasa Inggris, sesuai dokumen Google (diperiksa 28 Okt 2026). Bahasa Indonesia didukung di Gemini 3.8 TTS. Belum diverifikasi: bahasa kolom gaya, dan apakah halaman AI Studio memakai kolom yang sama. Coba dulu tanpa gaya.</p>`;
+  return html;
+}
+
+// the text to copy or download: a part of VoiceStudio's, a named field (the settings, the style), or the whole text
+function narrationText(ex, part) {
+  if (!part) return narrationCopyText(ex);
+  if (/^\d+$/.test(part)) { const p = (ex.parts || []).find((x) => String(x.no) === part); return p ? p.text : ""; }
+  if (part === "settings") return `${ex.settings}\n${ex.model}`;
+  return String(ex[part] || "");
+}
+
+async function copyNarration(key, part) {
   const ex = narrationShown(NARR, CUR.id, key);
-  if (!ex) return toast("Muat naskah dulu.");
-  (await copyText(ex.text)) ? toast("Naskah disalin.") : toast("Tidak bisa menyalin: pilih teksnya sendiri.");
+  if (!ex) return toast("Naskah belum dimuat.");
+  (await copyText(narrationText(ex, part))) ? toast("Disalin.") : toast("Tidak bisa menyalin: pilih teksnya sendiri.");
 }
 
-async function copyNarrationPart(key, part) {
-  const ex = narrationShown(NARR, CUR.id, key);
-  if (!ex || ex[part] == null) return toast("Muat naskah dulu.");
-  (await copyText(ex[part])) ? toast("Disalin.") : toast("Tidak bisa menyalin: pilih teksnya sendiri.");
-}
-
-function saveNarrationFile(name, text) {
+function saveTextFile(name, text) {
   const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
   const a = Object.assign(document.createElement("a"), { href: url, download: name });
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function downloadNarration(key) {
+function downloadNarration(key, part) {
   const ex = narrationShown(NARR, CUR.id, key);
-  if (!ex) return toast("Muat naskah dulu.");
-  saveNarrationFile(`${CUR.id}-naskah-${key}.txt`, ex.text);
+  if (!ex) return toast("Naskah belum dimuat.");
+  saveTextFile(narrationFile(CUR.id, key, /^\d+$/.test(part || "") ? part : null), narrationText(ex, part));
 }
 
-// all loaded apps in one file, each under its own heading
-function downloadNarrationAll() {
-  const apps = voiceAppsInOrder(CUR.options).filter((k) => narrationShown(NARR, CUR.id, k));
-  if (!apps.length) return toast("Muat naskah dulu.");
-  const text = apps.map((k) => `===== ${VOICE_APP_LABELS[k]} =====\n\n${narrationShown(NARR, CUR.id, k).text}`).join("\n\n");
-  saveNarrationFile(`${CUR.id}-naskah-semua.txt`, text);
+// ---------------------------------------------------------------------------------------------------------------------------------------
+// 6 the voice: a recorded narration (or a local text-to-speech command's), matched to the words; the beats then last as long as it
+// ---------------------------------------------------------------------------------------------------------------------------------------
+
+function bodyVoice(d) {
+  if (!d.story) return `<p class="rm-hint">Ambil ceritanya dulu (langkah 3).</p>`;
+  const v = d.voice;
+  const job = d.job || {};
+  const busy = job.kind === "voice" && ["queued", "running"].includes(job.state);
+  const have = v && v.name;
+  return `
+    <p>Rekam sendiri atau pakai file dari luar (wav, mp3, m4a, ...). Satu file, atau beberapa file dengan nomor di akhir namanya (mis. colokan_1.wav, colokan_2.wav): urutannya dari nomor, bukan dari nama. klipian mencocokkan kata dengan suaranya di komputer ini. Tanpa layanan suara: tidak ada key.</p>
+    ${have ? `<div class="rm-note"><b>${esc(v.name)}</b> · ${fmtSeconds(v.duration)} detik · ${v.aligned ? `sudah dicocokkan (${esc(v.method === "whisper" ? "dari suara" : "perkiraan merata")}), video ${fmtSeconds(v.total)} detik` : v.stale ? "cerita berubah sejak dicocokkan: cocokkan lagi" : "belum dicocokkan"}${v.note ? `<br><span class="rm-hint">${esc(v.note)}</span>` : ""}</div>` : ""}
+    ${voicePartsHTML(v || {})}
+    <div class="rm-actions">
+      <textarea class="ws-input rm-boxed rm-path" id="rmVoicePath" rows="2" placeholder="Lokasi file suara, satu per baris, mis. D:\\rekaman\\colokan_1.wav" spellcheck="false"></textarea>
+      <label class="rm-hint">Jeda antar bagian (detik) <input class="ws-input rm-boxed" id="rmVoiceGap" type="number" min="0" max="1" step="0.05" value="0.25" style="width:72px"></label>
+    </div>
+    <div class="rm-actions">
+      <button class="btn ${have ? "" : "main"}" type="button" data-act="voicePath">${PART_TO_REPLACE ? `Ganti bagian ${PART_TO_REPLACE}` : "Pakai file ini"}</button>
+      <label class="btn" for="rmVoiceFile">Pilih file…</label><input id="rmVoiceFile" type="file" accept="audio/*,video/mp4,video/webm" hidden>
+      ${v && v.tts ? `<button class="btn" type="button" data-act="voiceTts" ${busy ? "disabled" : ""}>Buat dengan TTS lokal</button>` : ""}
+    </div>
+    <div class="rm-actions">
+      <button class="btn ${have && !(v && v.aligned) ? "main" : ""}" type="button" data-act="voiceAlign" ${have && !busy ? "" : "disabled"}>${v && v.aligned ? "Cocokkan lagi" : "Cocokkan dengan narasi"}</button>
+      ${have ? `<button class="btn danger" type="button" data-act="voiceClear" ${busy ? "disabled" : ""}>Hapus suara</button>` : ""}
+      ${v && v.captions ? `<a class="btn sm" href="${API}/subtitles?id=${encodeURIComponent(d.id)}&format=srt" download>Unduh .srt</a><a class="btn sm" href="${API}/subtitles?id=${encodeURIComponent(d.id)}&format=vtt" download>Unduh .vtt</a>` : ""}
+      <span class="rm-hint" id="rmVoiceNote">${busy ? esc(job.message || "") : ""}</span>
+    </div>
+    ${v && v.aligned ? voiceTableHTML(v) : ""}`;
 }
 
-let PART_TO_REPLACE = null;     // the number of the part the next path replaces (set by "Ganti bagian")
+document.addEventListener("change", (e) => { if (e.target.id === "rmVoiceFile") uploadVoice(e); });
 
 function voicePartsHTML(v) {
   if (!v.parts || !v.parts.length) return "";
   const notes = (v.notes || []).map((n) => `<p class="rm-hint">${esc(n)}</p>`).join("");
-  return `<div class="rm-needs"><b>Bagian (${v.parts.length}), urut dari nomornya:</b><ul>${v.parts.map((x) => `<li>${esc(x.name)} · ${x.duration} dtk, mulai ${x.offset} dtk <button class="btn sm" type="button" data-act="voicePart" data-no="${x.no}">Ganti bagian ini</button></li>`).join("")}</ul>${notes}</div>`;
+  return `<div class="rm-note"><b>Bagian (${v.parts.length}), urut dari nomornya:</b><ul>${v.parts.map((x) => `<li>${esc(x.name)} · ${fmtSeconds(x.duration)} detik, mulai ${fmtSeconds(x.offset)} detik <button class="btn sm" type="button" data-act="voicePart" data-no="${x.no}">Ganti bagian ini</button></li>`).join("")}</ul>${notes}</div>`;
 }
 
+// the match table: one row a beat, the numbers aligned to the right under their headings
 function voiceTableHTML(v) {
   const t = v.table;
   if (!t) return "";
-  const rows = t.beats.map((b) => `<tr data-warn="${b.warn}"><td><code>${esc(b.id)}</code></td><td>${b.expected.toFixed(1)}</td><td>${b.real.toFixed(1)}</td><td>${b.delta >= 0 ? "+" : ""}${b.delta.toFixed(1)}</td><td>${b.warn ? "periksa" : "sesuai"}</td></tr>`).join("");
+  const num = (x) => fmtSeconds(Number(x).toFixed(1));
+  const rows = t.beats.map((b) => `<tr data-warn="${b.warn}"><td><code>${esc(b.id)}</code></td><td class="num">${num(b.expected)}</td><td class="num">${num(b.real)}</td><td class="num">${b.delta >= 0 ? "+" : "-"}${num(Math.abs(b.delta))}</td><td>${b.warn ? "periksa" : "sesuai"}</td></tr>`).join("");
   const pct = `${t.percent >= 0 ? "+" : ""}${t.percent.toFixed(0)}%`;
   const policy = t.lengthOk
-    ? `Panjang video ${t.total.toFixed(1)} dtk (${pct} dari ${t.target} dtk): masih dalam batas 15%.`
-    : `Panjang video ${t.total.toFixed(1)} dtk (${pct} dari ${t.target} dtk): di luar batas 15%. Pilih salah satu sebelum merender:`;
-  const choice = t.lengthOk ? "" : `<div class="rm-actions"><button class="btn" type="button" data-act="voiceLength" data-choice="edit">Ubah teks narasi</button><button class="btn main" type="button" data-act="voiceLength" data-choice="continue" ${v.lengthChoice === "continue" ? "disabled" : ""}>${v.lengthChoice === "continue" ? "Dipilih: lanjut" : "Lanjut dengan panjang ini"}</button></div>`;
-  const unmatched = (v.unmatched || []).length ? `<div class="rm-needs"><b>Kata yang tidak dikenali (periksa naskahnya):</b> ${v.unmatched.map((u) => `<code>${esc(u.w)}</code> (${esc(u.beat)})`).join(", ")}</div>` : "";
-  return `<div class="rm-needs"><b>Pencocokan per beat</b><table class="rm-table"><thead><tr><th>beat</th><th>rencana dtk</th><th>nyata dtk</th><th>selisih</th><th></th></tr></thead><tbody>${rows}</tbody></table><p>${esc(policy)}</p>${choice}</div>${unmatched}`;
+    ? `Panjang video ${num(t.total)} detik (${pct} dari ${num(t.target)} detik): masih dalam batas 15%.`
+    : `Panjang video ${num(t.total)} detik (${pct} dari ${num(t.target)} detik): di luar batas 15%. Pilih salah satu sebelum merender:`;
+  const choice = t.lengthOk ? "" : `<div class="rm-actions"><button class="btn" type="button" data-act="voiceLength" data-choice="edit">Ubah teks narasi</button><button class="btn" type="button" data-act="voiceLength" data-choice="continue" ${v.lengthChoice === "continue" ? "disabled" : ""}>${v.lengthChoice === "continue" ? "Dipilih: lanjut" : "Lanjut dengan panjang ini"}</button></div>`;
+  const unmatched = (v.unmatched || []).length ? `<div class="rm-note"><b>Kata yang tidak dikenali (periksa naskahnya):</b> ${v.unmatched.map((u) => `<code>${esc(u.w)}</code> (${esc(u.beat)})`).join(", ")}</div>` : "";
+  return `<h3 class="rm-sub-h">Pencocokan per beat</h3>
+    <table class="rm-table"><thead><tr><th>Beat</th><th class="num">Rencana (dtk)</th><th class="num">Nyata (dtk)</th><th class="num">Selisih</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>
+    <p>${esc(policy)}</p>${choice}${unmatched}`;
 }
 
 async function importVoicePath() {
@@ -632,9 +823,9 @@ async function importVoicePath() {
 }
 function pickPart(no) {
   PART_TO_REPLACE = Number(no);
-  byId("rmVoicePath").focus();
+  drawSteps();
+  byId("rmVoicePath")?.focus();
   toast(`Tulis lokasi file pengganti untuk bagian ${no}, lalu tekan Ganti bagian ${no}.`);
-  drawVoice();
 }
 async function chooseLength(choice) {
   if (choice === "edit") return toast("Ubah teks narasi di langkah 3, lalu cocokkan lagi.");
@@ -656,24 +847,9 @@ async function ttsVoice() {
 async function alignVoice() {
   const j = await call(`${API}/voice-align`, { id: CUR.id });
   CUR.job = j.job;
-  drawVoice();
+  drawSteps();
   startPoll();
 }
-async function startPreviewVideo() {
-  const j = await call(`${API}/preview-video`, { id: CUR.id });
-  CUR.job = j.job;
-  drawRender();
-  startPoll();
-}
-function previewVideoHTML(d) {
-  const pv = d.preview, job = d.job || {};
-  const busy = job.kind === "preview-video" && ["queued", "running"].includes(job.state);
-  return `<div class="rm-needs"><b>Pratinjau video</b> (setengah ukuran, dengan narasi, efek suara, dan musik)
-    <div class="rm-actions"><button class="btn" type="button" data-act="previewVideo" ${busy || !d.story ? "disabled" : ""}>${pv ? "Buat pratinjau lagi" : "Buat pratinjau"}</button><span class="rm-hint" id="rmPreviewVideoNote">${busy ? esc(job.message || "") : ""}</span></div>
-    ${pv && !busy ? `<video controls playsinline style="width:100%;max-width:360px;border-radius:8px;margin-top:6px" src="${pv.url}"></video><p class="rm-hint">${pv.stale ? "Cerita atau suara berubah sejak pratinjau ini: buat lagi." : `Dibuat dalam ${pv.seconds} dtk.`}</p>` : ""}
-  </div>`;
-}
-
 async function clearVoice() {
   const ok = await confirmDialog({ title: "Hapus suara?", message: "Video kembali memakai durasi dari cerita.", confirmText: "Hapus", cancelText: "Batal" });
   if (!ok) return;
@@ -682,198 +858,28 @@ async function clearVoice() {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------
-// 3 storyboard (pictures, editable text)
+// 7 the preview video
 // ---------------------------------------------------------------------------------------------------------------------------------------
 
-function textItems(beat) {
-  return beat.scene.items.map((it, i) => ({ it, i })).filter(({ it }) => typeof it.text === "string");
+function bodyPreview(d) {
+  if (!d.story) return `<p class="rm-hint">Ambil ceritanya dulu (langkah 3).</p>`;
+  const pv = d.preview, job = d.job || {};
+  const busy = job.kind === "preview-video" && ["queued", "running"].includes(job.state);
+  return `
+    <p>Draf video setengah ukuran, dengan narasi, efek suara, dan musik. Lihat dulu sebelum render final.</p>
+    <div class="rm-actions"><button class="btn ${pv ? "" : "main"}" type="button" data-act="previewVideo" ${busy ? "disabled" : ""}>${pv ? "Buat pratinjau lagi" : "Buat pratinjau"}</button><span class="rm-hint" id="rmPreviewVideoNote">${busy ? esc(job.message || "") : ""}</span></div>
+    ${pv && !busy ? `<video class="rm-video" controls playsinline src="${pv.url}"></video><p class="rm-hint">${pv.stale ? "Cerita atau suara berubah sejak pratinjau ini: buat lagi." : `Dibuat dalam ${pv.seconds} detik.`}</p>` : ""}`;
 }
 
-// the options of a video: the same controls in the creation dialog and in the story step
-function readOptions(root) {
-  const o = {};
-  root.querySelectorAll("[data-opt]").forEach((x) => { o[x.dataset.opt] = x.type === "checkbox" ? x.checked : x.value; });
-  const apps = [...root.querySelectorAll("[data-opt-app]:checked")].map((x) => x.dataset.optApp);
-  if (!apps.length) throw new Error("Pilih minimal satu aplikasi suara.");
-  o.voiceTargets = apps;
-  return o;
-}
-function appBoxesHTML(opts) {
-  const checked = (opts && opts.voiceTargets) || VOICE_APP_ORDER;
-  const hint = { voicestudio: "jeda dan tag [laughter]/[sigh]", elevenlabs: "tag ekspresi dan jeda", googleai: "tag ekspresi dan deskripsi gaya" };
-  return `<fieldset class="rm-opts" role="group" aria-label="Aplikasi suara">
-    <legend>Aplikasi suara (centang yang dipakai; naskahnya dibuat untuk tiap aplikasi)</legend>
-    ${VOICE_APP_ORDER.map((k) => `<label class="rm-check"><input type="checkbox" data-opt-app="${k}" ${checked.includes(k) ? "checked" : ""}> ${VOICE_APP_LABELS[k]}: ${hint[k]}</label>`).join("")}
-  </fieldset>`;
-}
-
-function optionsHTML(opts, prefix) {
-  const sel = (key, list) => `<select class="ws-input rm-boxed" data-opt="${key}">${list.map(([v, l]) => `<option value="${v}" ${opts[key] === v ? "selected" : ""}>${l}</option>`).join("")}</select>`;
-  return `<fieldset class="rm-opts" id="${prefix}">
-    <legend>Pilihan video</legend>
-    <label class="rm-check"><input type="checkbox" data-opt="loop" ${opts.loop ? "checked" : ""}> Loop (akhir kembali ke adegan awal)</label>
-    <label class="rm-check"><input type="checkbox" data-opt="sting" ${opts.sting ? "checked" : ""}> "Intip yuk!" setelah hook</label>
-    <label class="ws-field">Musik ${sel("music", Object.entries(MUSIC_LABELS))}</label>
-    ${appBoxesHTML(opts)}
-    <div class="rm-actions"><button class="btn" type="button" data-act="saveOptions">Simpan pilihan</button><span class="rm-hint">Brief berikutnya memakai pilihan ini.</span></div>
-  </fieldset>`;
-}
-async function saveOptions() {
-  const box = byId("rmOptsProject");
-  const j = await call(`${API}/options`, { id: CUR.id, options: readOptions(box) });
-  CUR.options = j.options;
-  CUR.optionWarnings = j.warnings;
-  drawStory();
-  toast("Pilihan disimpan.");
-}
-
-function drawStory() {
-  const sec = byId("stepStory");
-  const d = CUR;
-  sec.hidden = !d.story;
-  if (!d.story) return;
-  const job = d.job || {};
-  const busy = job.kind === "preview" && ["queued", "running"].includes(job.state);
-  const stills = d.stills || { files: {}, stale: true };
-  const have = Object.keys(stills.files).length > 0;
-  sec.innerHTML = `
-    <header><span class="rm-n">${panelNum("story")}</span><h2>Storyboard</h2></header>
-    <p>${d.story.beats.length} beat, ${d.story.duration} detik. Pertanyaan: <b style="color:var(--text)">${esc(d.story.question)}</b></p>
-    ${optionsHTML(d.options || {}, "rmOptsProject")}
-    ${(d.optionWarnings || []).map((w) => `<div class="rm-warn">${esc(w)}</div>`).join("")}
-    ${(d.warnings || []).length ? `<div class="rm-needs"><b>Saran Buku Gaya (bukan penghalang):</b><ul>${d.warnings.map((w) => `<li>${esc(w.message)}</li>`).join("")}</ul></div>` : ""}
-    <div class="rm-actions">
-      <button class="btn ${have ? "" : "main"}" data-act="preview" type="button" ${busy ? "disabled" : ""}>${have ? "Perbarui gambar" : "Buat gambar storyboard"}</button>
-      <button class="btn main" data-act="saveEdits" type="button">Simpan teks</button>
-      <span class="rm-hint" id="rmPreviewNote">${busy ? esc(job.message || "") : have && stills.stale ? "Teks atau cerita berubah sejak gambar dibuat." : ""}</span>
-    </div>
-    <div class="rm-result" id="rmEditResult"></div>
-    <div class="rm-sheet">${d.story.beats.map((b, n) => `
-      <article class="rm-beat" data-beat="${esc(b.id)}" data-stale="${stills.stale}">
-        <h3>${n + 1} · ${esc(b.kind)} <span>${b.dur} dtk · ${esc(b.id)}</span></h3>
-        <div class="rm-pic">${stills.files[b.id] ? `<img alt="Beat ${esc(b.id)}" src="${esc(profileUrl(stills.files[b.id]))}">` : "belum ada gambar"}</div>
-        <label>Narasi<textarea class="ws-input" data-f="narration" rows="3">${esc(b.narration)}</textarea></label>
-        <label>Teks layar<input class="ws-input" type="text" data-f="text" value="${esc(b.text)}"></label>
-        ${textItems(b).map(({ it, i }) => `<label>${esc(it.type)}<input class="ws-input" type="text" data-item="${i}" value="${esc(it.text)}"></label>`).join("")}
-      </article>`).join("")}</div>`;
-  sec.querySelectorAll("[data-f],[data-item]").forEach((x) => { x.dataset.was = x.value; });
-}
-
-async function saveEdits() {
-  const out = byId("rmEditResult");
-  const beats = {};
-  document.querySelectorAll("#stepStory .rm-beat").forEach((card) => {
-    const e = {};
-    card.querySelectorAll("[data-f]").forEach((x) => { if (x.value !== x.dataset.was) e[x.dataset.f] = x.value; });
-    card.querySelectorAll("[data-item]").forEach((x) => { if (x.value !== x.dataset.was) (e.items ||= {})[x.dataset.item] = { text: x.value }; });
-    if (Object.keys(e).length) beats[card.dataset.beat] = e;
-  });
-  if (!Object.keys(beats).length) { out.dataset.ok = ""; out.textContent = "Tidak ada yang berubah."; return; }
-  out.dataset.ok = ""; out.textContent = "Memeriksa…";
-  try {
-    const j = await call(`${API}/update`, { id: CUR.id, edits: { beats } });
-    if (j.ok === false) throw Object.assign(new Error(""), { data: j });
-    await refresh();
-    const o = byId("rmEditResult");
-    o.dataset.ok = "true"; o.textContent = "Tersimpan. Perbarui gambar untuk melihat hasilnya.";
-  } catch (ex) {
-    const j = ex.data;
-    if (j && j.errors) {
-      out.dataset.ok = "false";
-      out.innerHTML = `<b>Tidak disimpan</b>${errorsHTML(j.errors)}`;
-    } else out.textContent = ex.message;
-  }
-}
-
-async function startPreview() {
-  const j = await call(`${API}/preview`, { id: CUR.id });
+async function startPreviewVideo() {
+  const j = await call(`${API}/preview-video`, { id: CUR.id });
   CUR.job = j.job;
-  drawStory();
+  drawSteps();
   startPoll();
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------
-// 4 facts
-// ---------------------------------------------------------------------------------------------------------------------------------------
-
-const rejectedBeats = () => [...new Set((CUR.facts || []).filter((f) => f.status === "rejected").flatMap((f) => f.beats))];
-
-function drawFacts() {
-  const sec = byId("stepFacts");
-  const d = CUR;
-  sec.hidden = !d.story;
-  if (!d.story) return;
-  const facts = d.facts || [];
-  const rej = facts.some((f) => f.status === "rejected");
-  sec.innerHTML = `
-    <header><span class="rm-n">${panelNum("facts")}</span><h2>Cek fakta</h2></header>
-    <p>Buka setiap sumber, pastikan klaimnya benar. Render baru bisa setelah semua klaim dicentang.</p>
-    ${facts.length ? "" : `<p class="rm-hint">Cerita ini tidak punya klaim.</p>`}
-    <div class="rm-claims">${facts.map((f, i) => `
-      <div class="rm-claim" data-s="${esc(f.status)}">
-        <div class="rm-text">${i + 1}. ${esc(f.text)}</div>
-        <div class="rm-src">${f.sources.map((u) => `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(u)}</a>`).join("")}</div>
-        <div class="rm-row">Dipakai di: ${f.beats.map((b) => `<span class="rm-tag">${esc(b)}</span>`).join("")}${f.date ? `<span>· ${esc(f.status === "checked" ? "dicek" : "ditolak")} ${esc(f.date)}</span>` : ""}</div>
-        <div class="rm-actions">
-          <button class="btn sm" type="button" data-act="claim" data-i="${i}" data-s="checked" aria-pressed="${f.status === "checked"}">Benar</button>
-          <button class="btn sm danger" type="button" data-act="claim" data-i="${i}" data-s="rejected" aria-pressed="${f.status === "rejected"}">Tolak</button>
-          ${f.status !== "pending" ? `<button class="btn sm quiet" type="button" data-act="claim" data-i="${i}" data-s="pending">Batalkan</button>` : ""}
-          ${f.status === "rejected" ? `<input class="ws-input" type="text" data-note="${i}" maxlength="500" placeholder="Kenapa ditolak? (untuk AI)" value="${esc(f.note || "")}">` : ""}
-        </div>
-      </div>`).join("")}</div>
-    ${rej ? `
-    <div class="rm-fix" id="rmRevise">
-      <b style="font-size:13px">Revisi untuk klaim yang ditolak</b>
-      <p>Hanya beat yang memakai klaim itu (${rejectedBeats().map(esc).join(", ")}) yang dikirim ke AI, bukan seluruh video.</p>
-      <label class="ws-field">Catatan tambahan (opsional)<input class="ws-input rm-boxed" id="rmReviseNote" type="text" maxlength="400"></label>
-      <div class="rm-actions"><button class="btn main" data-act="copyRevise" type="button">Salin brief revisi</button><button class="btn" data-act="downRevise" type="button">Unduh</button></div>
-      <textarea class="ws-input rm-boxed rm-paste" id="rmPasteRevise" placeholder="Tempel jawaban revisi dari AI (JSON dengan beats dan claims)" spellcheck="false"></textarea>
-      <div class="rm-actions"><button class="btn main" data-act="pasteRevise" type="button">Periksa dan simpan revisi</button></div>
-      <div class="rm-result" id="rmReviseResult"></div>
-    </div>` : ""}`;
-}
-
-byId("rmMain").addEventListener("change", async (e) => {
-  const n = e.target.closest("[data-note]");
-  if (!n || !CUR) return;
-  try { await call(`${API}/facts`, { id: CUR.id, claims: [{ index: Number(n.dataset.note), note: n.value }] }); } catch (ex) { toast(ex.message); }
-});
-
-async function setClaim(index, status) {
-  const j = await call(`${API}/facts`, { id: CUR.id, claims: [{ index, status }] });
-  CUR.facts = j.facts;
-  await refresh();
-}
-
-async function copyRevise(btn) {
-  const beats = rejectedBeats().join(",");
-  const note = byId("rmReviseNote").value;
-  const j = await call(`${API}/brief?id=${encodeURIComponent(CUR.id)}&kind=revise&beats=${encodeURIComponent(beats)}&note=${encodeURIComponent(note)}`);
-  (await copyText(j.brief)) ? flashCopied(btn) : toast("Tidak bisa menyalin. Pakai Unduh.");
-}
-
-// ---------------------------------------------------------------------------------------------------------------------------------------
-// 5 title
-// ---------------------------------------------------------------------------------------------------------------------------------------
-
-function drawTitles() {
-  const sec = byId("stepTitle");
-  const d = CUR;
-  sec.hidden = !d.story;
-  if (!d.story) return;
-  sec.innerHTML = `
-    <header><span class="rm-n">${panelNum("title")}</span><h2>Judul</h2></header>
-    <p>Pilih satu. Ini jadi judul di Clips dan di YouTube.</p>
-    <div class="rm-titles">${d.story.titles.map((t) => `<button class="btn" type="button" data-act="title" data-t="${esc(t)}" aria-pressed="${d.title === t}">${esc(t)}<small>${t.length}</small></button>`).join("")}</div>`;
-}
-
-async function setTitle(t) {
-  await call(`${API}/facts`, { id: CUR.id, title: t });
-  await refresh();
-}
-
-// ---------------------------------------------------------------------------------------------------------------------------------------
-// 6 render
+// 8 render
 // ---------------------------------------------------------------------------------------------------------------------------------------
 
 function jobHTML(job, kind) {
@@ -886,36 +892,29 @@ function jobHTML(job, kind) {
     </div>`;
 }
 
-function drawRender() {
-  const sec = byId("stepRender");
-  const d = CUR;
-  sec.hidden = !d.story;
-  if (!d.story) return;
+// the render block is the server's (the same facts as the next step): the page only shows it
+function bodyRender(d) {
+  if (!d.story) return `<p class="rm-hint">Ambil ceritanya dulu (langkah 3).</p>`;
   const job = d.job || {};
   const busy = ["queued", "running"].includes(job.state);
-  const gate = d.gate || [];
+  const rb = d.renderBlock || { state: "belum", can: false, text: "", reasons: [] };
   const r = d.render;
-  sec.innerHTML = `
-    <header><span class="rm-n">${panelNum("render")}</span><h2>Render</h2></header>
-    <p class="rm-hint">Akan dirender dengan: ${d.kind === "custom" && d.composition ? `video khusus <b>${esc(d.composition)}</b>` : d.kind === "custom" ? "video khusus (folder belum dipilih)" : "template klipian"}.</p>
-    <div class="rm-gate" data-ok="${gate.length === 0}">${gate.length ? `<b>Belum bisa dirender:</b><ul>${gate.map((g) => `<li>${esc(g)}</li>`).join("")}</ul>` : "Siap dirender: semua klaim dicek dan judul dipilih."}</div>
+  return `
+    <p class="rm-hint">Akan dirender dengan: ${d.kind === "custom" && d.composition ? `video khusus <b>${esc(d.composition)}</b>` : d.kind === "custom" ? "video khusus (folder belum dipilih)" : "template klipian"}. Panjang video: ${esc(lengthText(d.length))}.</p>
+    <div class="rm-gate" data-state="${esc(rb.state)}">${rb.reasons.length && !rb.can ? `<b>${esc(rb.text)}</b><ul>${rb.reasons.map((g) => `<li>${esc(g)}</li>`).join("")}</ul>` : esc(rb.text)}</div>
     <div class="rm-actions">
-      <button class="btn main large" type="button" data-act="render" ${gate.length || busy ? "disabled" : ""}>${r ? "Render lagi" : "Render"}</button>
+      <button class="btn ${rb.state === "selesai" ? "" : "main"} large" type="button" data-act="render" ${!rb.can || busy ? "disabled" : ""}>${r ? (rb.state === "usang" ? "Render ulang" : "Render lagi") : "Render"}</button>
       <span class="rm-hint">MP4 9:16 1080×1920, 30 fps, dengan sound effect.</span>
     </div>
-    ${previewVideoHTML(d)}
     ${jobHTML(job, "render")}
-    ${r ? `<div class="rm-needs">${r.current ? "Hasil terbaru" : `Hasil terakhir, <b>usang</b>: ${esc((r.reasons || []).join(", "))}`}: <b>${esc(r.file)}</b> (${r.seconds} dtk render, ${r.kind === "custom" ? "video khusus" : "template"}). <a href="/workspace" style="color:var(--accent)">Buka di Clips</a> untuk jadwal dan unggah.</div>` : ""}`;
-  // the preview's progress sits in the storyboard step
-  const note = byId("rmPreviewNote");
-  if (note && job.kind === "preview" && busy) note.textContent = `${job.message || ""} ${job.percent || 0}%`;
+    ${r ? `<div class="rm-note">${r.current ? "Hasil terbaru" : "Hasil terakhir"}: <b>${esc(r.file)}</b> (${r.seconds} detik render, ${r.kind === "custom" ? "video khusus" : "template"}). <a class="rm-link" href="/workspace">Buka di Clips</a> untuk jadwal dan unggah.</div>` : ""}`;
 }
 
 async function startRender() {
   try {
     const j = await call(`${API}/render`, { id: CUR.id });
     CUR.job = j.job;
-    drawRender();
+    drawSteps();
     startPoll();
   } catch (ex) {
     if (ex.data?.problems) { await refresh(); toast(ex.message); } else throw ex;
@@ -925,7 +924,7 @@ async function startRender() {
 async function cancelJob() {
   const j = await call(`${API}/cancel`, { id: CUR.id });
   CUR.job = j.job;
-  drawRender();
+  drawSteps();
 }
 
 async function deleteVideo() {
@@ -957,7 +956,7 @@ async function tick() {
   const was = CUR.job || {};
   CUR.job = j.job;
   if (["queued", "running"].includes(j.job.state)) {
-    if (j.job.kind === "render") drawRender();
+    if (j.job.kind === "render") { if (OPEN === "render") drawSteps(); }
     else if (j.job.kind === "voice") { const n = byId("rmVoiceNote"); if (n) n.textContent = `${j.job.message || ""} ${j.job.percent || 0}%`; }
     else if (j.job.kind === "preview-video") { const n = byId("rmPreviewVideoNote"); if (n) n.textContent = `${j.job.message || ""} ${j.job.percent || 0}%`; }
     else { const n = byId("rmPreviewNote"); if (n) n.textContent = `${j.job.message || ""} ${j.job.percent || 0}%`; }

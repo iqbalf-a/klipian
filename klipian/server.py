@@ -792,6 +792,7 @@ class Handler(BaseHTTPRequestHandler):
     def _get_motion_brief(self):
         q = parse_qs(urlparse(self.path).query)
         pid, kind = (q.get("id") or [""])[0], (q.get("kind") or ["main"])[0]
+        peek = bool((q.get("peek") or [""])[0])           # the page fetches the brief ahead (so the Copy click is instant): that is not the brief being copied
 
         def brief():
             p = _motion.load(pid)
@@ -801,8 +802,8 @@ class Handler(BaseHTTPRequestHandler):
             elif kind == "main":
                 text = _motion.build_brief(p)
             else:
-                raise _motion.MotionError("kind", "kind is main or revise")
-            _motion.note_brief(p['id']) if kind == 'main' else None
+                raise _motion.MotionError("kind", "kind: main atau revise")
+            _motion.note_brief(p['id']) if kind == 'main' and not peek else None
             return {"brief": text, "file": f"{p['id']}-{'revisi' if kind == 'revise' else 'brief'}.md"}
         return self._motion_reply(brief)
 
@@ -847,7 +848,7 @@ class Handler(BaseHTTPRequestHandler):
         except ValueError:
             n = 0
         if n <= 0 or n > _motion.MAX_VOICE_BYTES:
-            return self._motion_reply(lambda: (_ for _ in ()).throw(_motion.MotionError("voice", "A narration must be 1 byte to 300 MB.")))
+            return self._motion_reply(lambda: (_ for _ in ()).throw(_motion.MotionError("voice", "Narasi harus 1 byte sampai 300 MB.")))
         data = bytearray()
         while len(data) < n:
             chunk = self.rfile.read(min(1 << 20, n - len(data)))
@@ -865,6 +866,8 @@ class Handler(BaseHTTPRequestHandler):
         pid = str(req.get("id") or "")
         if action == "create":
             return self._motion_reply(lambda: {"project": _motion.summary(_motion.create(req.get("topic"), req.get("duration") or _motion.DEFAULT_DURATION, req.get("notes") or "", req.get("options")))})
+        if action == "briefed":                                       # the person copied or downloaded the brief: the next step moves on
+            return self._motion_reply(lambda: (_motion.note_brief(pid), {})[1])
         if action == "options":                                       # loop, the sting, the voice target, the music, the kind
             return self._motion_reply(lambda: _motion.set_options(pid, req.get("options") or {}))
         if action == "paste":
@@ -2347,6 +2350,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/motion/voice-length": _post_motion,
         "/api/motion/preview-video": _post_motion,
         "/api/motion/options": _post_motion,
+        "/api/motion/briefed": _post_motion,
         "/api/motion/take-folder": _post_motion,
         "/api/motion/voice-upload": _post_motion_voice_upload,
         "/api/ytdl/preview": _post_ytdl,

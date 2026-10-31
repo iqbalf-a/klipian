@@ -367,37 +367,42 @@
     <section id="motion">
       <h2>H. Video motion: dari topik ke Clips (tanpa API key)</h2>
       <p>Halaman <b>Motion</b> (<code>/remotion</code>) membuat video animasi fakta seru (9:16, 30 fps, dengan sound effect) dari
-        satu topik. klipian bekerja di komputer ini; AI-nya lewat <b>salin-tempel</b> ke Claude atau ChatGPT, jadi tidak ada API key.
+        satu topik. klipian bekerja di komputer ini; AI-nya adalah <b>Claude Code</b> di komputer ini, jadi tidak ada API key.
         Butuh Node.js dan <code>npm install</code> di folder <code>remotion/</code> (sekali saja).</p>
+      <p>Halaman ini punya delapan langkah. Langkah dilipat: hanya langkah yang sedang dikerjakan yang terbuka, langkah yang selesai
+        menampilkan ringkasan satu baris. <b>Langkah berikutnya</b> di atas selalu menyebut satu hal yang harus dilakukan, dan
+        tombolnya membuka langkah itu.</p>
       <ol>
-        <li><b>Video baru</b>: tulis topik (mis. "fakta seru tentang colokan listrik panas"), pilih durasi 30, 45 atau 60 detik, catatan
-          opsional.</li>
-        <li><b>Salin brief</b> (atau Unduh) dan tempel ke Claude atau ChatGPT dengan pencarian web menyala. Brief berisi tugas, struktur
-          menurut durasi, aturan channel dan fakta, katalog benda yang bisa dirender, aturan judul dan hashtag profile, dan format jawaban.</li>
-        <li><b>Tempel jawabannya</b> (satu blok JSON) ke kotak <i>Jawaban AI</i>. Slip umum (koma di akhir, dan sebagainya) dibetulkan
-          sendiri. Kalau ada yang tidak sesuai katalog (benda atau ekspresi yang tidak ada, teks layar lebih dari 6 kata, durasi meleset,
-          klaim tanpa sumber), klipian membuat <b>pesan perbaikan</b>: <b>Salin pesan perbaikan</b>, tempel ke AI yang sama, lalu tempel
-          jawaban barunya.</li>
-        <li><b>Storyboard</b>: <b>Buat gambar storyboard</b> menampilkan satu gambar per beat. Narasi dan teks layar bisa diedit di sini
-          (<b>Simpan teks</b> memeriksanya lagi); tekan <b>Perbarui gambar</b> untuk melihat hasilnya.</li>
-        <li><b>Cek fakta (wajib)</b>: buka setiap sumber, lalu <b>Benar</b> atau <b>Tolak</b> (tanggalnya tersimpan). Klaim yang ditolak
-          membuat <b>brief revisi</b> hanya untuk beat yang memakainya; tempel jawabannya di kotak revisi.</li>
-        <li><b>Judul</b>: pilih satu dari tiga.</li>
-        <li><b>Render</b>: baru bisa kalau semua klaim dicek dan judul dipilih (server yang menolak, bukan hanya tombol). Render masuk
-          antrean berat yang sama dengan render klip, dengan progres, sisa waktu dan <b>Batal</b>. Hasilnya menjadi baris
-          <b>Clips</b> (folder <code>out/motion/</code>) dengan judul pilihan, deskripsi, hashtag, dan sumber klaim yang dicek, siap
-          dijadwalkan atau diunggah seperti klip lain.</li>
+        <li><b>Video baru</b>: tulis topik (mis. "fakta seru tentang colokan listrik panas"), pilih durasi 30, 45 atau 60 detik, dan
+          <b>pilihan video</b>: loop, "Intip yuk!", musik, dan aplikasi suara yang kamu pakai. Pilihan ini membentuk brief.</li>
+        <li><b>Brief</b>: <b>Salin brief</b> (atau Unduh) dan tempel ke Claude Code yang dibuka di folder klipian. Ia mencari web, menulis
+          cerita, dan membuat folder videonya di <code>remotion/videos/</code>. <b>Ubah pilihan video</b> mengubah pilihan tadi dan brief ikut berubah.</li>
+        <li><b>Ambil cerita dari folder</b>: pilih folder hasilnya lalu <b>Ambil cerita dari folder</b>. Ceritanya diperiksa seperti jawaban AI;
+          kalau ada yang salah, klipian membuat <b>pesan perbaikan</b> untuk ditempel ke Claude Code. Storyboard (narasi, teks layar, waktu tiap beat)
+          ada di langkah ini: edit teksnya, <b>Simpan teks</b>, lalu <b>Buat gambar storyboard</b> kalau mau lihat gambarnya. Kalau
+          <code>story.json</code> di folder berubah, halaman meminta cerita diambil ulang dan render tidak ditawarkan sebelum itu.</li>
+        <li><b>Cek fakta dan judul</b> (wajib): buka setiap sumber, lalu <b>Benar</b> atau <b>Tolak</b> (tanggalnya tersimpan), atau
+          <b>Benar semua</b> setelah kamu membuka semua sumbernya (klipian bertanya sekali: "Sudah buka sumbernya?"). Klaim yang ditolak
+          membuat <b>brief revisi</b> hanya untuk beat yang memakainya. Lalu pilih satu dari tiga judul.</li>
+        <li><b>Naskah suara</b>: teks untuk aplikasi suara yang kamu pilih, dipakai <i>sebelum</i> suaranya dibuat. <b>VoiceStudio</b> membaca setiap karakter yang
+          ditempel, jadi teksnya polos: hanya kalimat narasi, tanpa judul bagian, jeda, atau tag. Teks panjang dipecah jadi bagian polos
+          yang bisa disalin atau diunduh satu per satu (<code>_1.txt</code>, <code>_2.txt</code>). ElevenLabs dan Google AI Studio memakai tag
+          dari daftar resmi masing-masing; pengaturan dan catatannya ada di samping kotak teks, tidak di dalamnya.</li>
+        <li><b>Impor suara dan cocokkan</b>: pakai rekamanmu sendiri (tulis lokasi file, atau pilih file) atau, kalau kamu sudah memasang mesin
+          text-to-speech lokal, <b>Buat dengan TTS lokal</b> (perintahnya di <code>workspace/machine.json</code> sebagai <code>motionTts</code>, mis.
+          <code>mytts --in "{text}" --out "{out}"</code>). <b>Cocokkan dengan narasi</b> memakai faster-whisper di komputer ini: setiap kata dapat
+          waktunya, setiap beat sepanjang narasinya, takarir menyala kata demi kata, dan sound effect serta musik latar mengecil saat ada suara.
+          Panjang video yang ditampilkan di mana-mana adalah panjang bersuara, bukan rencana awal.</li>
+        <li><b>Pratinjau</b>: draf setengah ukuran dengan suara, efek, dan musik.</li>
+        <li><b>Render</b>: baru bisa kalau semua klaim dicek, judul dipilih, cerita di folder sama dengan yang diambil, dan suara (kalau ada) sudah
+          dicocokkan (server yang menolak, bukan hanya tombol). Render masuk antrean berat yang sama dengan render klip, dengan progres, sisa waktu
+          dan <b>Batal</b>. Hasilnya menjadi baris <b>Clips</b> (folder <code>out/motion/</code>) dengan judul pilihan, deskripsi, hashtag, dan sumber
+          klaim yang dicek, siap dijadwalkan atau diunggah seperti klip lain.</li>
       </ol>
-      <p><b>Suara (narasi).</b> Di langkah <i>Suara</i>, pakai rekamanmu sendiri (tulis lokasi file, atau pilih file) atau, kalau kamu sudah memasang mesin
-        text-to-speech lokal, tombol <b>Buat dengan TTS lokal</b> (perintahnya ditulis di <code>workspace/machine.json</code> sebagai <code>motionTts</code>, mis.
-        <code>mytts --in "{text}" --out "{out}"</code>; klipian tidak memasang mesin suara dan tidak memakai layanan suara berbayar). <b>Cocokkan dengan narasi</b>
-        memakai faster-whisper di komputer ini: setiap kata dapat waktunya, setiap beat sepanjang narasinya (minimal 1 detik), takarir menyala kata demi kata,
-        dan sound effect serta musik latar mengecil saat ada suara. Kalau suara tidak cocok dengan naskah, waktu kata diperkirakan merata dan halaman bilang begitu.</p>
-      <p><b>Komposisi khusus.</b> Template dari cerita tidak selalu cukup (mis. topik di luar listrik). Video khusus dibuat di sesi Claude Code di folder
-        <code>remotion/</code> (baca <code>remotion/DESIGN.md</code>, lalu <code>npm run new-video nama "lokasi\story.json"</code>); pilih komposisinya di bagian
-        <i>Komposisi</i>. Gerbang fakta, gambar, render, Clips, dan unggah sama.</p>
-      <p class="note">Benda yang belum ada di pustaka tidak dikarang oleh AI: ia menuliskannya di <code>needs</code>, dan halaman
-        menampilkannya. Suara narasi dan takarir menyusul (P28-C).</p>
+      <p><b>Jenis video.</b> Alur utama adalah <i>Khusus</i>: video dibuat di sesi Claude Code (baca <code>remotion/DESIGN.md</code>). Jenis
+        <i>Otomatis</i> (template klipian dari jawaban AI yang ditempel) disembunyikan di <b>Pengaturan lanjutan</b> dan tetap berjalan untuk
+        video lama.</p>
+      <p class="note">Benda yang belum ada di pustaka tidak dikarang oleh AI: ia menuliskannya di <code>needs</code>.</p>
     </section>
 
   </main>

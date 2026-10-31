@@ -19,3 +19,15 @@ function narrationShown(state, forId, key) {
 }
 
 if (typeof module !== "undefined" && module.exports) module.exports = { VOICE_APP_ORDER, VOICE_APP_LABELS, voiceAppsInOrder, narrationShown };
+
+// the file name of a text the person downloads: the whole text, or one plain part of VoiceStudio's (colokan-naskah-voicestudio_1.txt, _2.txt, ...)
+function narrationFile(id, key, part) {
+  return part == null ? `${id}-naskah-${key}.txt` : `${id}-naskah-${key}_${part}.txt`;
+}
+
+// what the person copies into the app: the text of the export and nothing else (the counts, the settings and the notes are in `info`, shown beside it)
+function narrationCopyText(ex) {
+  return ex ? String(ex.text || "") : "";
+}
+
+if (typeof module !== "undefined" && module.exports) Object.assign(module.exports, { narrationFile, narrationCopyText });

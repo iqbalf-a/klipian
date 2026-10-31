@@ -1,7 +1,7 @@
 """Motion videos (P28-B): a fun-fact video from a typed topic, with no API key.
 
 The flow is one brief and one answer (docs/roadmap.md, P28):
-  topic + length  ->  build_brief()  ->  you paste it into Claude or ChatGPT  ->  paste() the JSON back
+  topic + length  ->  build_brief()  ->  you copy it into Claude Code  ->  take_folder() the story it made (or paste() the JSON, for Otomatis)
   ->  stills per beat, the fact gate (every claim and its sources checked by a person), a title
   ->  render()  ->  an MP4 and a row in Clips (fileFolder "motion"), ready for the upload of P16.
 
@@ -64,9 +64,9 @@ class _Node:
 
     def ready(self) -> tuple[bool, str]:
         if not self.exe():
-            return False, "Node.js was not found. klipian needs it to build the video (https://nodejs.org)."
+            return False, "Node.js tidak ditemukan. klipian memerlukannya untuk membuat video (https://nodejs.org)."
         if not (REMOTION / "node_modules" / "remotion").is_dir():
-            return False, f'The video project is not installed: run "npm install" in {REMOTION}.'
+            return False, f'Proyek video belum terpasang: jalankan "npm install" di {REMOTION}.'
         return True, ""
 
     def json(self, script: str, *args: str, timeout: int = 60) -> dict:
@@ -77,12 +77,12 @@ class _Node:
             proc = subprocess.run([self.exe(), str(REMOTION / script), *args], cwd=str(REMOTION), capture_output=True,
                                   text=True, encoding="utf-8", errors="replace", timeout=timeout)
         except subprocess.TimeoutExpired:
-            raise MotionError("node", f"{script} took too long.") from None
+            raise MotionError("node", f"{script} terlalu lama.") from None
         try:
             return json.loads(proc.stdout)
         except ValueError:
-            tail = (proc.stderr or proc.stdout or "").strip().splitlines()[-1:] or ["no output"]
-            raise MotionError("node", f"{script} failed: {tail[0][:300]}") from None
+            tail = (proc.stderr or proc.stdout or "").strip().splitlines()[-1:] or ["tidak ada keluaran"]
+            raise MotionError("node", f"{script} gagal: {tail[0][:300]}") from None
 
     def popen(self, job_file: Path, log: Path) -> subprocess.Popen:
         """render.mjs with a job file. Its stdout is read line by line (JSON); a line "cancel" on its stdin stops it
@@ -265,7 +265,10 @@ def stage_chips(f: dict) -> list[dict]:
         chips.append({"key": "suara", "label": "Suara", "state": "menunggu"})
     chips.append({"key": "gambar", "label": "Gambar", "state": {"ok": "selesai", "stale": "usang"}.get(f.get("stills"), "menunggu")})
     chips.append({"key": "pratinjau", "label": "Pratinjau", "state": {"current": "selesai", "stale": "usang"}.get(f.get("preview"), "menunggu")})
-    chips.append({"key": "render", "label": "Render", "state": {"current": "selesai", "stale": "usang"}.get(f.get("render"), "menunggu")})
+    render_state = {"current": "selesai", "stale": "usang"}.get(f.get("render"), "menunggu")
+    if f.get("gate") and f.get("render") in ("current", "stale"):    # the last render cannot stand while a render is blocked (a changed folder, a claim, the voice)
+        render_state = "usang"
+    chips.append({"key": "render", "label": "Render", "state": render_state})
     return chips
 
 
@@ -300,7 +303,7 @@ def motion_dir() -> Path:
 
 def project_dir(pid: str) -> Path:
     if not _ID.match(str(pid or "")):
-        raise MotionError("not_found", "That video does not exist.")
+        raise MotionError("not_found", "Video itu tidak ada.")
     return motion_dir() / pid
 
 
@@ -326,7 +329,7 @@ def _slug(text: str) -> str:
 def load(pid: str) -> dict:
     p = _read(project_dir(pid) / "project.json", None)
     if not isinstance(p, dict):
-        raise MotionError("not_found", "That video does not exist.")
+        raise MotionError("not_found", "Video itu tidak ada.")
     return p
 
 
@@ -349,15 +352,15 @@ def facts_of(pid: str) -> list[dict]:
 def create(topic: str, duration=DEFAULT_DURATION, notes: str = "", options: dict | None = None) -> dict:
     topic = " ".join(str(topic or "").split())
     if len(topic) < 3:
-        raise MotionError("topic", "Write the topic first, for example: fakta seru tentang colokan listrik panas.")
+        raise MotionError("topic", "Tulis topiknya dulu, misalnya: fakta seru tentang colokan listrik panas.")
     if len(topic) > 200:
-        raise MotionError("topic", "The topic is too long: at most 200 characters.")
+        raise MotionError("topic", "Topiknya terlalu panjang: paling banyak 200 karakter.")
     try:
         duration = int(duration)
     except (TypeError, ValueError):
         duration = 0
     if duration not in DURATIONS:
-        raise MotionError("duration", f"The length must be one of {', '.join(map(str, DURATIONS))} seconds.")
+        raise MotionError("duration", f"Durasi harus salah satu dari {', '.join(map(str, DURATIONS))} detik.")
     pid = f"{_slug(topic)}-{uuid.uuid4().hex[:4]}"
     now = int(time.time())
     p = {"id": pid, "topic": topic, "duration": duration, "notes": str(notes or "").strip()[:2000], "status": "draft",
@@ -385,14 +388,14 @@ def update_project(pid: str, fields: dict) -> dict:
         if "topic" in fields:
             t = " ".join(str(fields["topic"] or "").split())
             if len(t) < 3:
-                raise MotionError("topic", "Write the topic first.")
+                raise MotionError("topic", "Tulis topiknya dulu.")
             p["topic"] = t[:200]
         if "notes" in fields:
             p["notes"] = str(fields["notes"] or "").strip()[:2000]
         if "composition" in fields:
             slug = str(fields["composition"] or "")
             if slug and slug not in {d.name for d in _video_dirs()}:
-                raise MotionError("composition", f'There is no custom composition "{slug}" in remotion/videos/.')
+                raise MotionError("composition", f'Tidak ada folder video "{slug}" di remotion/videos/.')
             p["composition"] = slug
             if slug:                                              # choosing a video folder means the custom kind
                 p["options"] = {**options_of(p), "kind": "khusus"}
@@ -402,9 +405,9 @@ def update_project(pid: str, fields: dict) -> dict:
             except (TypeError, ValueError):
                 d = 0
             if d not in DURATIONS:
-                raise MotionError("duration", f"The length must be one of {', '.join(map(str, DURATIONS))} seconds.")
+                raise MotionError("duration", f"Durasi harus salah satu dari {', '.join(map(str, DURATIONS))} detik.")
             if story_of(pid) is not None and d != p["duration"]:
-                raise MotionError("duration", "The length cannot change once there is a story: make a new video.")
+                raise MotionError("duration", "Durasi tidak bisa diubah setelah ada cerita: buat video baru.")
             p["duration"] = d
         return save(p)
 
@@ -412,16 +415,82 @@ def update_project(pid: str, fields: dict) -> dict:
 def delete_project(pid: str) -> None:
     d = project_dir(pid)
     if is_busy(pid):
-        raise MotionError("busy", "This video is being rendered: cancel it first.")
+        raise MotionError("busy", "Video ini sedang dirender: batalkan dulu.")
     if d.is_dir():
         shutil.rmtree(d, ignore_errors=True)
 
 
+def _gather(pid: str, p: dict, deep: bool = True) -> dict:
+    """Everything the status rules read, gathered once from disk: the next step, the stage chips, the render block and the chip of the list all come
+    from this, so they cannot disagree. `deep` also reads the storyboard pictures and the preview (the list does not need them)."""
+    story = story_of(pid)
+    facts = facts_of(pid) if story else []
+    voice = voice_info(pid)
+    folder = folder_state(pid)
+    stills = _stills_state(pid, story) if deep else {}
+    preview = _preview_state(pid, story) if deep else None
+    render_now = _render_now(p, render_story(pid) if story is not None else None)
+    problems = render_problems(pid)
+    f = {"story": story is not None, "pending": sum(1 for x in facts if x.get("status") not in ("checked", "rejected")),
+         "rejected": sum(1 for x in facts if x.get("status") == "rejected"), "title": bool(p.get("title")), "custom": kind_of(p) == "custom",
+         "folder": folder["state"] if folder else None, "composition": bool(p.get("composition")), "slug": _slug(p.get("topic", ""))[:39],
+         "voice": bool(voice and voice.get("name")), "aligned": bool(voice and voice.get("aligned")), "voiceStale": bool(voice and voice.get("stale")),
+         "render": "none" if not render_now else "current" if render_now["current"] else "stale", "gate": problems,
+         "briefed": bool(p.get("briefAt")), "storyPath": str(project_dir(pid) / "story.json"),
+         "stills": "none" if not stills.get("files") else "stale" if stills.get("stale") else "ok",
+         "preview": "none" if not preview else "stale" if preview.get("stale") else "current"}
+    return {"story": story, "facts": facts, "voice": voice, "folder": folder, "stills": stills, "preview": preview, "render_now": render_now, "problems": problems, "f": f,
+            "status": project_status(f, render_now, voice, story, p)}
+
+
+# the chip of the list for each next step, and for the render when nothing else is waiting
+CHIP_BY_NEXT = {"folder": ("Baru", "baru"), "brief": ("Baru", "baru"), "paste": ("Menunggu jawaban", "menunggu"), "take": ("Ambil cerita", "perlu"),
+                "retake": ("Ambil ulang cerita", "usang"), "fix": ("Klaim ditolak", "perlu"), "facts": ("Menunggu klaim", "menunggu"),
+                "title": ("Pilih judul", "menunggu"), "align": ("Cocokkan suara", "menunggu"), "blocked": ("Belum siap", "menunggu")}
+
+
+def render_block(f: dict, render_now: dict | None) -> dict:
+    """The render of the page, from the same facts as the next step: {"state": belum | menunggu | siap | selesai | usang, "can": may render now, "text", "reasons"}.
+    A changed folder, an unmatched voice and the claims and title all block it (`f["gate"]`), so a render is never offered while the next step says otherwise."""
+    if not f.get("story"):
+        return {"state": "belum", "can": False, "text": "Belum ada cerita.", "reasons": f.get("gate") or []}
+    if f.get("gate"):
+        return {"state": "menunggu", "can": False, "text": "Belum bisa dirender.", "reasons": list(f["gate"])}
+    if f.get("render") == "current":
+        return {"state": "selesai", "can": True, "text": "Sudah dirender. Hasilnya masih sesuai cerita dan suara.", "reasons": []}
+    if f.get("render") == "stale":
+        return {"state": "usang", "can": True, "text": "Render yang lama usang: " + ", ".join((render_now or {}).get("reasons") or []) + ".", "reasons": (render_now or {}).get("reasons") or []}
+    return {"state": "siap", "can": True, "text": "Siap dirender: semua klaim dicek dan judul dipilih.", "reasons": []}
+
+
+def list_chip(f: dict, nxt: dict, render: dict) -> dict:
+    key = nxt.get("key")
+    if key == "folder" and f.get("briefed"):
+        return {"key": key, "label": "Menunggu folder", "state": "menunggu"}
+    if key in CHIP_BY_NEXT:
+        label, state = CHIP_BY_NEXT[key]
+        return {"key": key, "label": label, "state": state}
+    return {"key": render["state"], "label": {"selesai": "Sudah dirender", "usang": "Render usang", "siap": "Siap render"}.get(render["state"], "Siap render"), "state": render["state"]}
+
+
+def project_status(f: dict, render_now: dict | None, voice: dict | None, story: dict | None, p: dict) -> dict:
+    """The one status of a video: the next step, the stage chips, the render block, the chip of the list and the length to show (the voiced length when
+    there is a voice that was matched, else the planned one). A pure function of the facts `f`, so the tests can name every state."""
+    nxt = next_step(f)
+    render = render_block(f, render_now)
+    voiced = voice["total"] if voice and voice.get("aligned") else None
+    planned = story["duration"] if story else p["duration"]
+    return {"next": nxt, "stages": stage_chips(f), "render": render, "chip": list_chip(f, nxt, render),
+            "length": {"planned": planned, "voiced": voiced, "seconds": voiced if voiced is not None else planned}}
+
+
 def summary(p: dict) -> dict:
-    story = story_of(p["id"])
-    facts = facts_of(p["id"]) if story else []
-    return {"id": p["id"], "topic": p["topic"], "duration": p["duration"], "status": p.get("status", "draft"), "title": p.get("title", ""), "composition": p.get("composition", ""),
-            "updated": p.get("updated"), "created": p.get("created"), "hasStory": story is not None,
+    g = _gather(p["id"], p, deep=False)
+    facts = g["facts"]
+    length = g["status"]["length"]
+    return {"id": p["id"], "topic": p["topic"], "duration": p["duration"], "seconds": length["seconds"], "voiced": length["voiced"] is not None,
+            "status": p.get("status", "draft"), "title": p.get("title", ""), "chip": g["status"]["chip"], "composition": p.get("composition", ""),
+            "updated": p.get("updated"), "created": p.get("created"), "hasStory": g["story"] is not None,
             "claims": len(facts), "unchecked": sum(1 for f in facts if f.get("status") != "checked"),
             "rowId": (p.get("render") or {}).get("rowId")}
 
@@ -438,29 +507,15 @@ def list_projects() -> list[dict]:
 
 
 def detail(pid: str) -> dict:
-    """Everything the page needs about one video, and the next step and the stage chips (from the same facts)."""
+    """Everything the page needs about one video; the status (next step, chips, render block, list chip, length) comes from `_gather`, the one place."""
     p = load(pid)
-    story = story_of(pid)
-    facts = facts_of(pid) if story else []
-    stills = _stills_state(pid, story)
-    voice = voice_info(pid)
-    preview = _preview_state(pid, story)
-    render_now = _render_now(p, render_story(pid) if story is not None else None)
-    gate_problems = gate(pid)
-    pending = sum(1 for x in facts if x.get("status") not in ("checked", "rejected"))
-    rejected = sum(1 for x in facts if x.get("status") == "rejected")
-    folder = folder_state(pid)
-    f = {"story": story is not None, "pending": pending, "rejected": rejected, "title": bool(p.get("title")), "custom": kind_of(p) == "custom",
-         "folder": folder["state"] if folder else None,
-         "composition": bool(p.get("composition")), "slug": _slug(p.get("topic", ""))[:39], "voice": bool(voice and voice.get("name")),
-         "aligned": bool(voice and voice.get("aligned")), "voiceStale": bool(voice and voice.get("stale")),
-         "render": "none" if not render_now else "current" if render_now["current"] else "stale", "gate": gate_problems,
-         "briefed": bool(p.get("briefAt")), "storyPath": str(project_dir(pid) / "story.json"),
-         "stills": "none" if not stills.get("files") else "stale" if stills.get("stale") else "ok",
-         "preview": "none" if not preview else "stale" if preview.get("stale") else "current"}
-    return {**summary(p), "options": options_of(p), "optionWarnings": option_warnings(options_of(p)), "notes": p.get("notes", ""), "needs": p.get("needs", []), "warnings": (validate_story(story).get("warnings", []) if story else []), "storyPath": str(project_dir(pid) / "story.json"), "compositions": compositions(), "story": story, "facts": facts,
-            "kind": kind_of(p), "folder": folder, "gate": gate_problems, "stills": stills, "render": render_now, "job": job_state(pid), "voice": voice,
-            "preview": preview, "next": next_step(f), "stages": stage_chips(f),
+    g = _gather(pid, p)
+    story, facts, voice, st = g["story"], g["facts"], g["voice"], g["status"]
+    return {**summary(p), "displayTitle": p.get("title") or p["topic"], "options": options_of(p), "optionWarnings": option_warnings(options_of(p)), "notes": p.get("notes", ""),
+            "needs": p.get("needs", []), "warnings": (validate_story(story).get("warnings", []) if story else []), "storyPath": str(project_dir(pid) / "story.json"),
+            "compositions": compositions(), "story": story, "facts": facts, "kind": kind_of(p), "folder": g["folder"], "gate": g["problems"], "stills": g["stills"],
+            "render": g["render_now"], "job": job_state(pid), "voice": voice, "preview": g["preview"], "next": st["next"], "stages": st["stages"], "renderBlock": st["render"],
+            "length": st["length"], "briefAt": p.get("briefAt"),
             "versions": len(list((project_dir(pid) / "history").glob("story-*.json"))) if (project_dir(pid) / "history").is_dir() else 0}
 
 
@@ -592,7 +647,7 @@ def _edit(story: dict, edits: dict) -> dict:
     for bid, e in (edits.get("beats") or {}).items():
         beat = next((b for b in s["beats"] if b["id"] == bid), None)
         if beat is None:
-            raise MotionError("beat", f'There is no beat "{bid}".')
+            raise MotionError("beat", f'Tidak ada beat "{bid}".')
         for key in ("narration", "text"):
             if key in e:
                 beat[key] = str(e[key])
@@ -600,11 +655,11 @@ def _edit(story: dict, edits: dict) -> dict:
             try:
                 item = beat["scene"]["items"][int(idx)]
             except (ValueError, IndexError):
-                raise MotionError("item", f"Beat {bid} has no item {idx}.") from None
+                raise MotionError("item", f"Beat {bid} tidak punya benda nomor {idx}.") from None
             for key in ("text", "lines"):
                 if key in fields:
                     if key == "text" and "text" not in item:
-                        raise MotionError("item", f"A {item.get('type')} has no text.")
+                        raise MotionError("item", f"Benda {item.get('type')} tidak punya teks.")
                     item[key] = fields[key]
     if isinstance(edits.get("question"), str):
         s["question"] = edits["question"]
@@ -619,7 +674,7 @@ def update(pid: str, edits: dict) -> dict:
         p = load(pid)
         story = story_of(pid)
         if story is None:
-            raise MotionError("no_story", "There is no story yet.")
+            raise MotionError("no_story", "Belum ada cerita.")
         new = _edit(story, edits if isinstance(edits, dict) else {})
         v = validate_story(new)
         errors = list(v.get("errors", [])) if not v.get("ok") else []
@@ -674,14 +729,14 @@ def import_voice(pid: str, *, source: Path | None = None, data: bytes | None = N
     name = Path(name or (source.name if source else "narration.wav")).name
     ext = Path(name).suffix.lower()
     if ext not in AUDIO_EXTS:
-        raise MotionError("voice", f"A narration is an audio file ({', '.join(sorted(AUDIO_EXTS))}), not {ext or 'a file without an extension'}.")
+        raise MotionError("voice", f"Narasi harus berkas audio ({', '.join(sorted(AUDIO_EXTS))}), bukan {ext or 'berkas tanpa ekstensi'}.")
     if source is not None:
         if not source.is_file():
-            raise MotionError("voice", "That file was not found.")
+            raise MotionError("voice", "Berkas itu tidak ditemukan.")
         if source.stat().st_size > MAX_VOICE_BYTES:
-            raise MotionError("voice", "That file is too big for a narration.")
+            raise MotionError("voice", "Berkas itu terlalu besar untuk narasi.")
     elif not data:
-        raise MotionError("voice", "No file was sent.")
+        raise MotionError("voice", "Tidak ada berkas yang dikirim.")
     with _LOCK:
         d = voice_dir(pid)
         shutil.rmtree(d, ignore_errors=True)
@@ -697,10 +752,10 @@ def import_voice(pid: str, *, source: Path | None = None, data: bytes | None = N
             seconds = probe(out).duration
         except Exception as exc:                                  # noqa: BLE001
             shutil.rmtree(d, ignore_errors=True)
-            raise MotionError("voice", f"That audio could not be read ({str(exc).strip().splitlines()[-1][:160] if str(exc).strip() else type(exc).__name__}).") from None
+            raise MotionError("voice", f"Audio itu tidak bisa dibaca ({str(exc).strip().splitlines()[-1][:160] if str(exc).strip() else type(exc).__name__}).") from None
         if seconds < 1.0 or seconds > 180:
             shutil.rmtree(d, ignore_errors=True)
-            raise MotionError("voice", f"The narration is {seconds:.1f} seconds: it must be between 1 and 180.")
+            raise MotionError("voice", f"Narasi berdurasi {seconds:.1f} detik: harus antara 1 dan 180 detik.")
         (project_dir(pid) / "story.voiced.json").unlink(missing_ok=True)
         p["voice"] = {"name": name, "duration": round(seconds, 2), "at": int(time.time()), "aligned": False}
         save(p)
@@ -757,7 +812,7 @@ def _build_voice(pid: str, originals: list[tuple[int, str, Path]], gap: float, n
             shutil.copyfile(f, out)
         seconds = probe(out).duration
         if seconds < voicelib.PART_MIN or seconds > voicelib.PART_MAX:
-            raise MotionError("voice", f"{name} is {seconds:.1f} seconds: a part lasts from {voicelib.PART_MIN} to {voicelib.PART_MAX:.0f} s.")
+            raise MotionError("voice", f"{name} berdurasi {seconds:.1f} detik: satu bagian harus {voicelib.PART_MIN} sampai {voicelib.PART_MAX:.0f} detik.")
         parts.append({"no": no, "name": name, "file": out, "duration": round(seconds, 2)})
     entries: list[Path] = []
     rows: list[dict] = []
@@ -779,24 +834,24 @@ def _build_voice(pid: str, originals: list[tuple[int, str, Path]], gap: float, n
     run([ff, "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", str(join), "-ac", "1", "-ar", "48000", "-c:a", "pcm_s16le", str(out)], desc="joining the parts", timeout=900)
     total = probe(out).duration
     if total < 1.0 or total > 180:
-        raise MotionError("voice", f"The narration is {total:.1f} seconds: it must be between 1 and 180.")
+        raise MotionError("voice", f"Narasi berdurasi {total:.1f} detik: harus antara 1 dan 180 detik.")
     return {"parts": rows, "duration": round(total, 2), "gap": gap}
 
 
 def _check_audio(source: Path) -> None:
     if source.suffix.lower() not in AUDIO_EXTS:
-        raise MotionError("voice", f"A narration is an audio file ({', '.join(sorted(AUDIO_EXTS))}), not {source.suffix.lower() or 'a file without an extension'}.")
+        raise MotionError("voice", f"Narasi harus berkas audio ({', '.join(sorted(AUDIO_EXTS))}), bukan {source.suffix.lower() or 'berkas tanpa ekstensi'}.")
     if not source.is_file():
-        raise MotionError("voice", f"{source.name} was not found.")
+        raise MotionError("voice", f"{source.name} tidak ditemukan.")
     if source.stat().st_size > MAX_VOICE_BYTES:
-        raise MotionError("voice", f"{source.name} is too big for a narration.")
+        raise MotionError("voice", f"{source.name} terlalu besar untuk narasi.")
 
 
 def import_voice_parts(pid: str, sources: list[Path], gap: float = voicelib.GAP) -> dict:
     """Several narration files of one video: their order is the number at the end of each name (natural), checked by voicelib.series. One file is
     the same as import_voice. The warnings (a missing number, another prefix, the loudness) are kept in the voice's notes."""
     if not sources:
-        raise MotionError("voice", "Choose the narration files first.")
+        raise MotionError("voice", "Pilih berkas narasinya dulu.")
     if len(sources) == 1:
         return import_voice(pid, source=sources[0])
     for s in sources:
@@ -824,7 +879,7 @@ def import_voice_parts(pid: str, sources: list[Path], gap: float = voicelib.GAP)
             raise
         except Exception as exc:                                  # noqa: BLE001
             shutil.rmtree(d, ignore_errors=True)
-            raise MotionError("voice", f"The narration parts could not be joined ({type(exc).__name__}).") from None
+            raise MotionError("voice", f"Bagian narasi tidak bisa digabung ({type(exc).__name__}).") from None
         (project_dir(pid) / "story.voiced.json").unlink(missing_ok=True)
         p["voice"] = {"name": f"{len(sources)} files", "duration": built["duration"], "at": int(time.time()), "aligned": False,
                       "parts": built["parts"], "gap": built["gap"], "notes": notes}
@@ -840,9 +895,9 @@ def replace_voice_part(pid: str, no: int, source: Path) -> dict:
         v = p.get("voice") or {}
         parts = v.get("parts") or []
         if not parts:
-            raise MotionError("voice", "This narration is one file: import the parts (several files) to replace one of them.")
+            raise MotionError("voice", "Narasi ini satu berkas: impor bagian-bagiannya (beberapa berkas) untuk mengganti salah satu.")
         if not 1 <= no <= len(parts):
-            raise MotionError("voice", f"There is no part {no}: the narration has {len(parts)}.")
+            raise MotionError("voice", f"Tidak ada bagian {no}: narasi punya {len(parts)} bagian.")
         d = voice_dir(pid)
         for old in (d / "originals").glob(f"{no:03d}__*"):
             old.unlink()
@@ -867,11 +922,11 @@ def choose_length(pid: str, choice: str) -> dict:
     """The two choices when the aligned length is off by more than the policy (15 %): "continue" renders the video at the narration's length; "edit"
     is the narration text (the page sends the person there, nothing is stored)."""
     if choice not in ("continue", "edit"):
-        raise MotionError("voice", "The choice is continue or edit.")
+        raise MotionError("voice", "Pilihannya lanjut atau ubah.")
     with _LOCK:
         p = load(pid)
         if not p.get("voice"):
-            raise MotionError("voice", "There is no narration.")
+            raise MotionError("voice", "Belum ada narasi.")
         p["voice"]["lengthChoice"] = "continue" if choice == "continue" else None
         save(p)
     return p["voice"]
@@ -881,7 +936,7 @@ def narration_for(pid: str, target: str) -> dict:
     """The narration text for a voice app, from the current story (the words the person will have voiced) and the video's options."""
     story = story_of(pid)
     if story is None:
-        raise MotionError("no_story", "There is no story yet: paste the AI's answer first.")
+        raise MotionError("no_story", "Belum ada cerita: ambil ceritanya dulu.")
     return narration_export(story, target, options_of(load(pid)))
 
 
@@ -900,7 +955,7 @@ def preview_file(pid: str) -> Path | None:
 def preview_video(pid: str) -> dict:
     """The whole video at half size (540 by 960), with the narration, the sound effects and the bed, as a draft. The final render is unchanged."""
     if story_of(pid) is None:
-        raise MotionError("no_story", "There is no story yet: paste the AI's answer first.")
+        raise MotionError("no_story", "Belum ada cerita: ambil ceritanya dulu.")
     return _start(pid, "preview-video", _run_preview_video)
 
 
@@ -921,17 +976,17 @@ def make_voice_with_tts(pid: str) -> dict:
     """Runs the person's local text-to-speech command (machine.json "motionTts") on the story's narration and takes its WAV as the voice."""
     cmd = tts_available()
     if not cmd:
-        raise MotionError("tts", 'No text-to-speech command is set. Put one in workspace/machine.json as "motionTts", e.g. mytts --in "{text}" --out "{out}".')
+        raise MotionError("tts", 'Perintah suara (TTS) belum diatur. Isi "motionTts" di workspace/machine.json, mis. mytts --in "{text}" --out "{out}".')
     story = story_of(pid)
     if story is None:
-        raise MotionError("no_story", "There is no story yet.")
+        raise MotionError("no_story", "Belum ada cerita.")
     text = "\n\n".join(b["narration"] for b in story["beats"])
     out = voice_dir(pid).parent / ".tts-out.wav"
     out.unlink(missing_ok=True)
     try:
         voicelib.run_tts(cmd, text, out)
     except (RuntimeError, OSError, subprocess.TimeoutExpired) as exc:
-        raise MotionError("tts", str(exc) if isinstance(exc, RuntimeError) else f"the text-to-speech command could not run ({exc})") from None
+        raise MotionError("tts", str(exc) if isinstance(exc, RuntimeError) else f"perintah suara (TTS) tidak bisa dijalankan ({exc})") from None
     try:
         return import_voice(pid, source=out, name="tts.wav")
     finally:
@@ -974,7 +1029,7 @@ def voice_info(pid: str) -> dict | None:
     table = meta.get("table") if aligned else None
     return {"name": v["name"], "duration": v["duration"], "aligned": aligned, "stale": bool(meta) and not aligned, "method": meta.get("method"), "ratio": meta.get("ratio"),
             "total": total, "target": p["duration"], "tts": bool(tts_available()),
-            "note": (f"The narration makes the video {total:.1f} s; it was planned for {p['duration']} s." if abs(total - p["duration"]) > 0.5 else ""),
+            "note": (f"Narasinya membuat video {total:.1f} detik; rencana awalnya {p['duration']} detik.".replace(".", ",", 1) if abs(total - p["duration"]) > 0.5 else ""),
             "parts": v.get("parts") or [], "gap": v.get("gap", voicelib.GAP), "notes": v.get("notes") or [],
             "table": table, "unmatched": (meta.get("unmatched") or []) if aligned else [],
             "lengthOk": table["lengthOk"] if table else True, "lengthChoice": v.get("lengthChoice"),
@@ -984,9 +1039,9 @@ def voice_info(pid: str) -> dict | None:
 def align_voice(pid: str) -> dict:
     """The alignment as a job in the AI queue (the recogniser is heavy): word times -> story.voiced.json."""
     if voice_file(pid) is None:
-        raise MotionError("voice", "Import the narration first.")
+        raise MotionError("voice", "Impor narasinya dulu.")
     if story_of(pid) is None:
-        raise MotionError("no_story", "There is no story yet: paste the AI's answer first.")
+        raise MotionError("no_story", "Belum ada cerita: ambil ceritanya dulu.")
     return _start(pid, "voice", _run_voice)
 
 
@@ -1012,7 +1067,7 @@ def _run_voice(pid: str, key, ev: threading.Event) -> None:
         v = validate_story(timed)
         if not v.get("ok"):
             msgs = "; ".join(f"{e['path']}: {e['message']}" for e in v.get("errors", [])[:3])
-            raise MotionError("voice", f"The story does not fit the narration: {msgs}")
+            raise MotionError("voice", f"Cerita tidak cocok dengan narasi: {msgs}")
         table = voicelib.match_table(story["beats"], timed, float(story["duration"]))
         _write(project_dir(pid) / "story.voiced.json", timed)
         _write(voice_dir(pid) / "voice.json", {"storyHash": _story_hash(story), "method": al["method"], "ratio": al.get("ratio"), "total": total, "alignment": al,
@@ -1029,7 +1084,7 @@ def _run_voice(pid: str, key, ev: threading.Event) -> None:
     except MotionError as exc:
         _finish(key, pid, state="failed", message=exc.message, code=exc.code)
     except BaseException as exc:                              # noqa: BLE001
-        _finish(key, pid, state="failed", message=f"The alignment failed ({type(exc).__name__}: {exc}).", code="other")
+        _finish(key, pid, state="failed", message=f"Pencocokan gagal ({type(exc).__name__}: {exc}).", code="other")
 
 
 # --------------------------------------------------------------------------
@@ -1042,17 +1097,24 @@ def set_facts(pid: str, req: dict) -> dict:
         p = load(pid)
         story = story_of(pid)
         if story is None:
-            raise MotionError("no_story", "There is no story yet.")
+            raise MotionError("no_story", "Belum ada cerita.")
         facts = facts_of(pid)
         today = datetime.date.today().isoformat()
+        skipped = 0
+        if req.get("all") == "checked":                     # "Benar semua": every claim that waits is checked today; a rejected one stays (it needs a revision)
+            for f in facts:
+                if f.get("status") == "rejected":
+                    skipped += 1
+                elif f.get("status") != "checked":
+                    f["status"], f["date"] = "checked", today
         for c in req.get("claims") or []:
             try:
                 f = facts[int(c["index"])]
             except (KeyError, ValueError, IndexError, TypeError):
-                raise MotionError("claim", "That claim does not exist.") from None
+                raise MotionError("claim", "Klaim itu tidak ada.") from None
             st = c.get("status", f.get("status"))
             if st not in ("checked", "rejected", "pending"):
-                raise MotionError("claim", 'A claim is "checked", "rejected" or "pending".')
+                raise MotionError("claim", 'Status klaim: "checked", "rejected" atau "pending".')
             if st != f.get("status"):
                 f["status"], f["date"] = st, (today if st != "pending" else "")
             if "note" in c:
@@ -1061,7 +1123,7 @@ def set_facts(pid: str, req: dict) -> dict:
         if "title" in req:
             t = " ".join(str(req["title"] or "").split())
             if t and t not in story["titles"]:
-                raise MotionError("title", "Choose one of the three titles.")
+                raise MotionError("title", "Pilih salah satu dari tiga judul.")
             p["title"] = t
         save(p)                                             # the gate reads the title from disk
         if p["status"] in ("story", "checked") and not gate(pid):
@@ -1069,28 +1131,48 @@ def set_facts(pid: str, req: dict) -> dict:
         elif p["status"] == "checked":
             p["status"] = "story"
         save(p)
-        return {"facts": facts, "title": p["title"], "gate": gate(pid)}
+        return {"facts": facts, "title": p["title"], "gate": render_problems(pid), "skipped": skipped}
 
 
 def gate(pid: str) -> list[str]:
-    """What stops a render, as sentences (empty: it may render). The server enforces this, not only the page."""
+    """What stops a render because of the facts, as sentences (empty: the claims and the title are done)."""
     story = story_of(pid)
     if story is None:
-        return ["There is no story yet: paste the AI's answer first."]
+        return ["Belum ada cerita: ambil ceritanya dulu."]
     out = []
     facts = facts_of(pid)
     for i, f in enumerate(facts, 1):
         if f.get("status") == "rejected":
-            out.append(f"Claim {i} was rejected: ask for a revision of its beats.")
+            out.append(f"Klaim {i} ditolak: minta revisi beat yang memakainya.")
         elif f.get("status") != "checked":
-            out.append(f"Claim {i} is not checked yet.")
+            out.append(f"Klaim {i} belum dicek.")
     p = load(pid)
     if not p.get("title"):
-        out.append("Choose a title.")
+        out.append("Pilih judul.")
     else:
         warn = hashtags_mod.title_warning(p["title"], (story.get("post") or {}).get("hashtags"), profiles.hashtag_settings())
         if warn:
             out.append(warn)
+    return out
+
+
+def render_problems(pid: str) -> list[str]:
+    """What stops a render, as sentences (empty: it may render): the claims and the title (`gate`), a changed folder, and a voice that is not matched to the
+    story. The server enforces this, not only the page; the page's render block, the next step and the chips all read it."""
+    out = gate(pid)
+    if story_of(pid) is None:
+        return out
+    folder = folder_state(pid)
+    if folder:                                                       # Khusus: the story must be the one taken from the folder that renders
+        why = {"belum dipilih": "Pilih folder hasil dari Claude Code dulu.", "cerita belum diambil": "Cerita belum diambil dari folder: ambil ceritanya dulu.",
+               "folder berubah": "Cerita di folder berubah: ambil ulang cerita dulu.", "folder tidak lengkap": "Folder videonya belum lengkap (story.json tidak ada): lengkapi dulu."}.get(folder["state"])
+        if why:
+            out.append(why)
+    v = voice_info(pid)
+    if v and v.get("name") and not v.get("aligned"):
+        out.append("Cerita berubah sejak suara dicocokkan: cocokkan lagi." if v.get("stale") else "Suara belum dicocokkan dengan narasi: cocokkan dulu.")
+    elif v and v.get("aligned") and not v.get("lengthOk") and v.get("lengthChoice") != "continue":
+        out.append(f"Narasi membuat video {v['total']:.1f} detik, {v['table']['percent']:+.0f}% dari {v['target']} detik yang dipilih: ubah teks narasi, atau pilih lanjut dengan panjang ini.".replace(".", ",", 1))
     return out
 
 
@@ -1198,12 +1280,7 @@ MUSIC_USE = {
     "none": "no music",
 }
 KINDS = {"otomatis": "Otomatis (template, paling cepat)", "khusus": "Khusus (video buatan agen, tampilan terbaik)"}
-VS_GENDERS = ("female", "male")
-VS_AGES = ("child", "teenager", "young adult", "middle-aged", "elderly")
-VS_PITCH = "moderate pitch"          # the VoiceStudio pitch the export always writes (the pitch is not a choice in the panel)
-VS_TAGS_MAX = 2                      # the optional [laughter] at most twice in a video
-DEFAULT_OPTIONS = {"loop": True, "sting": True, "voiceTargets": list(VOICE_TARGETS), "voiceTargetFirst": "voicestudio", "music": "sunny", "kind": "otomatis",
-                   "vsGender": "female", "vsAge": "young adult", "vsTags": False}
+DEFAULT_OPTIONS = {"loop": True, "sting": True, "voiceTargets": list(VOICE_TARGETS), "voiceTargetFirst": "voicestudio", "music": "sunny", "kind": "khusus"}
 
 
 def normalize_options(raw) -> dict:
@@ -1217,23 +1294,23 @@ def normalize_options(raw) -> dict:
     for key in ("loop", "sting"):
         if key in raw:
             if not isinstance(raw[key], bool):
-                raise MotionError("options", f"{key} is yes or no.")
+                raise MotionError("options", f"{key}: pilih ya atau tidak.")
             out[key] = raw[key]
     if "voiceTarget" in raw and "voiceTargets" not in raw:               # the old single choice: all three, that one first
         if raw["voiceTarget"] not in VOICE_TARGETS:
-            raise MotionError("options", f"voiceTarget is one of: {', '.join(VOICE_TARGETS)}.")
+            raise MotionError("options", f"voiceTarget: pilih salah satu dari {', '.join(VOICE_TARGETS)}.")
         out["voiceTargetFirst"] = raw["voiceTarget"]
     if "voiceTargets" in raw:
         targets = raw["voiceTargets"]
         if not isinstance(targets, list) or any(t not in VOICE_TARGETS for t in targets):
-            raise MotionError("options", f"voiceTargets is a list of the apps: {', '.join(VOICE_TARGETS)}.")
+            raise MotionError("options", f"voiceTargets: daftar aplikasi dari {', '.join(VOICE_TARGETS)}.")
         chosen = [t for t in VOICE_TARGETS if t in targets]              # in the order of the apps
         if not chosen:
             raise MotionError("options", "pilih minimal satu aplikasi suara.")
         out["voiceTargets"] = chosen
     if "voiceTargetFirst" in raw:
         if raw["voiceTargetFirst"] not in VOICE_TARGETS:
-            raise MotionError("options", f"voiceTargetFirst is one of: {', '.join(VOICE_TARGETS)}.")
+            raise MotionError("options", f"voiceTargetFirst: pilih salah satu dari {', '.join(VOICE_TARGETS)}.")
         out["voiceTargetFirst"] = raw["voiceTargetFirst"]
     if out["voiceTargetFirst"] not in out["voiceTargets"]:
         out["voiceTargetFirst"] = out["voiceTargets"][0]
@@ -1242,20 +1319,8 @@ def normalize_options(raw) -> dict:
     for key, choices in (("music", MUSIC_TRACKS), ("kind", KINDS)):
         if key in raw:
             if raw[key] not in choices:
-                raise MotionError("options", f"{key} is one of: {', '.join(choices)}.")
+                raise MotionError("options", f"{key}: pilih salah satu dari {', '.join(choices)}.")
             out[key] = raw[key]
-    if "vsGender" in raw:
-        if raw["vsGender"] not in VS_GENDERS:
-            raise MotionError("options", f"vsGender is one of: {', '.join(VS_GENDERS)}.")
-        out["vsGender"] = raw["vsGender"]
-    if "vsAge" in raw:
-        if raw["vsAge"] not in VS_AGES:
-            raise MotionError("options", f"vsAge is one of: {', '.join(VS_AGES)}.")
-        out["vsAge"] = raw["vsAge"]
-    if "vsTags" in raw:
-        if not isinstance(raw["vsTags"], bool):
-            raise MotionError("options", "vsTags is yes or no.")
-        out["vsTags"] = raw["vsTags"]
     return out
 
 
@@ -1264,7 +1329,12 @@ def voice_apps_text(targets: list[str]) -> str:
 
 
 def options_of(p: dict) -> dict:
-    return normalize_options(p.get("options") or {})
+    """The options of a project. A project saved before the kind was a choice keeps its kind: Khusus when it has a composition, else the template."""
+    raw = p.get("options") or {}
+    opts = normalize_options(raw)
+    if "kind" not in raw:
+        opts["kind"] = "khusus" if p.get("composition") else "otomatis"
+    return opts
 
 
 def option_warnings(opts: dict) -> list[str]:
@@ -1386,42 +1456,16 @@ def _google_script(story: dict, parts: list[dict]) -> tuple[str, list[dict]]:
 GOOGLE_EXPRESSIONS_MAX = 6
 
 
-def _voicestudio(story: dict, parts: list[dict], options: dict) -> dict:
-    """VoiceStudio (PLAN-VOICE-VOICESTUDIO, docs read 2026-10-28): [pause 500ms] between two beats, [pause 1s] once before the last tips, the optional
-    [laughter] (only when the person checks it, at most VS_TAGS_MAX, before a turning sentence of a result beat), and the voice description: one value
-    per category (gender, age, pitch). The header lines "Bagian N" are markers for the person; the matching strips them."""
-    kind_of_beat = {b["id"]: b.get("kind") for b in story["beats"]}
-    tips = [b["id"] for b in story["beats"] if b.get("kind") == "tips" and (b.get("narration") or "").strip()]
-    last_tips = tips[-1] if tips else None
-    tags: list[dict] = []
-    tagged = 0
-    blocks = []
-    prev = None
-    for part in parts:
-        out = ""
-        for u in part["units"]:
-            kind = kind_of_beat[u["beat"]]
-            text = u["text"]
-            if prev is not None and prev["beat"] != u["beat"]:
-                if u["beat"] == last_tips and kind == "tips":
-                    out += " [pause 1s] "
-                    tags.append({"tag": "pause 1s", "beat": u["beat"], "at": "sebelum tips terakhir"})
-                else:
-                    out += " [pause 500ms] "
-                    tags.append({"tag": "pause 500ms", "beat": u["beat"], "at": "antar beat"})
-            elif out:
-                out += " "
-            if options.get("vsTags") and kind == "result" and tagged < VS_TAGS_MAX and re.match(r"(tapi|namun|padahal)\b", text, re.I):
-                text = f"[laughter] {text}"
-                tagged += 1
-                tags.append({"tag": "laughter", "beat": u["beat"], "at": "awal kalimat"})
-            out += text
-            prev = u
-        mid = round((part["low"] + part["high"]) / 2)
-        blocks.append(f"Bagian {part['no']} (sekitar {mid} detik)\n" + re.sub(r"\s+", " ", out).strip())
-    script = "\n\n".join(blocks)
-    style = f"{options.get('vsGender', 'female')}, {options.get('vsAge', 'young adult')}, {VS_PITCH}"
-    return {"script": script, "style": style, "tags": tags}
+def _plain(units: list[dict]) -> str:
+    """Pure narration: the sentences of a part, a space inside a beat and a new line between two beats. VoiceStudio reads every character aloud, so nothing else
+    is in it: no header, no count, no pause, no tag."""
+    out, prev = "", None
+    for u in units:
+        if prev is not None:
+            out += "\n" if u["beat"] != prev else " "
+        out += u["text"]
+        prev = u["beat"]
+    return out
 
 
 # ElevenLabs (PLAN-VOICE-ELEVENLABS, docs read 2026-10-28): the voice-related tags of the official list, the pauses with "..." and [pause] (never
@@ -1473,12 +1517,13 @@ def _elevenlabs(story: dict, parts: list[dict]) -> dict:
 
 
 def narration_export(story: dict, target: str, options: dict | None = None) -> dict:
-    """The narration text for one voice app. VoiceStudio: plain text with a header line per part (the header is for the person: remove it before the
-    voice reads). ElevenLabs: plain text with its punctuation; the Eleven v3 pause tags are not verified, so none are written. Google AI Studio (the
-    Gemini TTS docs, checked 2026-10-28): the script with expression tags from the verified list (English, in angle brackets) and the short English
-    style description, plus the long style of the older AI Studio format, labelled as optional. The tags exist only in this export: the story has none."""
+    """The narration text for one voice app. `text` is exactly what the person copies into the app: nothing in it is read aloud except the narration
+    and the tags that app documents (the counts, the settings and the notes are in `info`, shown beside the text, never inside it). VoiceStudio: plain
+    narration only, in parts of about 12 s that can be copied one by one. ElevenLabs: the script with the tags of the official voice list. Google AI
+    Studio (the Gemini TTS docs, checked 2026-10-28): the script with expression tags from the verified list, and the style description as separate
+    fields. The tags exist only in this export: the story has none."""
     if target not in VOICE_TARGETS:
-        raise MotionError("voice", f"the voice target is one of: {', '.join(VOICE_TARGETS)}.")
+        raise MotionError("voice", f"Aplikasi suara: pilih salah satu dari {', '.join(VOICE_TARGETS)}.")
     parts = narration_parts(story)
     total_low = round(sum(p["low"] for p in parts), 1)
     total_high = round(sum(p["high"] for p in parts), 1)
@@ -1487,42 +1532,28 @@ def narration_export(story: dict, target: str, options: dict | None = None) -> d
             "parts": [{k: v for k, v in p.items() if k != "units"} for p in parts]}
     if target == "elevenlabs":
         el = _elevenlabs(story, parts)
-        settings = ("Stability: rendah ke sedang (lebih ekspresif); Similarity: sedang. Speed dan Style tidak ada di v4. Uji dulu tanpa tag.")
+        settings = "Stability: rendah ke sedang (lebih ekspresif); Similarity: sedang. Speed dan Style tidak ada di v4. Uji dulu tanpa tag."
         model = "Model: Eleven v4 (Eleven v3 jika v4 tidak ada)."
-        text = (f"{head}\n\nNASKAH (satu permintaan; jeda dengan ... dan [pause])\n{el['script']}\n\n"
-                f"PENGATURAN (di ElevenLabs, bukan teks)\n{settings}\n{model}\n\n"
+        info = (f"{head}\n\nPENGATURAN (di ElevenLabs, bukan teks)\n{settings}\n{model}\n\n"
                 "Catatan: tag memakai kurung siku dari daftar resmi ElevenLabs (diperiksa 28 Okt 2026), bahasa Inggris. "
                 "Jeda dibuat dengan ... dan [pause] karena <break> tidak didukung di Eleven v4 dan v3. "
-                "Belum diverifikasi: tag pada teks Indonesia, dan dukungan tag di Multilingual v2 dan Flash v2.5.\n")
+                "Belum diverifikasi: tag pada teks Indonesia, dan dukungan tag di Multilingual v2 dan Flash v2.5.")
         return {**base, "status": "tag dari daftar resmi ElevenLabs; jeda dengan ... dan [pause]; belum diverifikasi untuk teks Indonesia",
-                "style": None, "styleLong": None, "script": el["script"], "settings": settings, "model": model, "tags": el["tags"], "text": text}
+                "style": None, "styleLong": None, "script": el["script"], "settings": settings, "model": model, "tags": el["tags"], "text": el["script"], "info": info}
     if target == "voicestudio":
-        vs = _voicestudio(story, parts, normalize_options(options or {}))
-        text = (f"{head}\n\nNASKAH (tempel di VoiceStudio; baris \"Bagian N\" adalah penanda, hapus sebelum dibacakan)\n{vs['script']}\n\n"
-                f"DESKRIPSI SUARA (kolom deskripsi, satu nilai tiap kategori)\n{vs['style']}\n\n"
-                "Catatan: tag memakai kurung siku dan hanya dari daftar VoiceStudio (diperiksa 28 Okt 2026). Nada paling ditentukan oleh klip suara referensi. "
-                "Belum terbukti untuk bahasa Indonesia: kolom deskripsi dan tag selain [laughter] dan [sigh]. Coba dulu tanpa tag.\n")
-        return {**base, "status": "tag [pause ...] dari daftar VoiceStudio; [laughter] hanya jika dicentang; belum terbukti untuk bahasa Indonesia",
-                "style": vs["style"], "styleLong": None, "script": vs["script"], "tags": vs["tags"], "text": text}
-    if target == "googleai":
-        script, tags = _google_script(story, parts)
-        style = _google_style(story)
-        style_long = "Indonesian short-video science explainer. " + style[0].upper() + style[1:]
-        text = (f"{head}\n\nNASKAH + EKSPRESI\n{script}\n\nDESKRIPSI (gaya, bahasa Inggris)\n{style}\n\n"
-                f"DESKRIPSI LENGKAP (versi lama, opsional: bisa menggeser suara; coba yang singkat dulu)\n{style_long}\n\n"
-                "Catatan: tag memakai <...> dan bahasa Inggris, sesuai dokumen Google (diperiksa 28 Okt 2026). Belum diverifikasi: bahasa kolom gaya dan apakah halaman AI Studio memakai kolom yang sama.\n")
-        return {**base, "status": "tag jeda dan ekspresi dari daftar resmi; bahasa kolom gaya belum diverifikasi", "style": style, "styleLong": style_long,
-                "script": script, "tags": tags, "text": text}
-    lines = []
-    for p in parts:
-        mid = round((p["low"] + p["high"]) / 2)
-        lines.append(f"Bagian {p['no']} (sekitar {mid} detik)")
-        lines.append(p["text"])
-        lines.append("")
-    body = "\n".join(lines).strip() + "\n"
-    status = {"voicestudio": "teks biasa: tanpa tag",
-              "elevenlabs": "teks biasa dengan tanda baca; tag jeda Eleven v3 belum diverifikasi, tidak dipakai"}[target]
-    return {**base, "status": status, "style": None, "styleLong": None, "script": None, "settings": None, "model": None, "tags": [], "text": head + "\n\n" + body}
+        plain = [_plain(p["units"]) for p in parts]
+        base["parts"] = [{**bp, "text": txt} for bp, txt in zip(base["parts"], plain)]
+        text = "\n".join(plain)
+        info = f"{head} VoiceStudio membaca semua karakter yang ditempel: teks ini polos, hanya kalimat narasinya, tanpa penanda atau tag. Tiap bagian bisa disalin sendiri."
+        return {**base, "status": "teks polos: hanya kalimat narasinya", "style": None, "styleLong": None, "script": text, "tags": [], "text": text, "info": info}
+    script, tags = _google_script(story, parts)
+    style = _google_style(story)
+    style_long = "Indonesian short-video science explainer. " + style[0].upper() + style[1:]
+    info = (f"{head}\n\nDESKRIPSI (gaya, bahasa Inggris)\n{style}\n\n"
+            f"DESKRIPSI LENGKAP (versi lama, opsional: bisa menggeser suara; coba yang singkat dulu)\n{style_long}\n\n"
+            "Catatan: tag memakai <...> dan bahasa Inggris, sesuai dokumen Google (diperiksa 28 Okt 2026). Belum diverifikasi: bahasa kolom gaya dan apakah halaman AI Studio memakai kolom yang sama.")
+    return {**base, "status": "tag jeda dan ekspresi dari daftar resmi; bahasa kolom gaya belum diverifikasi", "style": style, "styleLong": style_long,
+            "script": script, "tags": tags, "text": script, "info": info}
 
 
 # The agent-neutral brief (PLAN-BRIEF-AGENTS): any AI can follow it, in chat or as an agent. The hard rules come first, the checklist is testable,
@@ -1715,7 +1746,7 @@ def build_revise_brief(p: dict, beat_ids: list[str], note: str = "") -> str:
     """For rejected claims: only the beats that use them go back to the AI, with what was rejected and why."""
     story = story_of(p["id"])
     if story is None:
-        raise MotionError("no_story", "There is no story to revise yet.")
+        raise MotionError("no_story", "Belum ada cerita untuk direvisi.")
     known = [b["id"] for b in story["beats"]]
     beat_ids = [b for b in dict.fromkeys(beat_ids or []) if b in known]
     facts = facts_of(p["id"])
@@ -1723,7 +1754,7 @@ def build_revise_brief(p: dict, beat_ids: list[str], note: str = "") -> str:
     if not beat_ids:                                        # by default: the beats that use a rejected claim
         beat_ids = [b for b in known if any(b in f["beats"] for _, f in rejected)]
     if not beat_ids:
-        raise MotionError("nothing", "Reject a claim first (or choose the beats to revise).")
+        raise MotionError("nothing", "Tolak satu klaim dulu (atau pilih beat yang direvisi).")
     cat = _catalog()
     parts = [b for b in story["beats"] if b["id"] in beat_ids]
     bad = "\n".join(f"- Claim {i}: {f['text']}\n  Sources given: {', '.join(f['sources'])}" + (f"\n  Why it was rejected: {f['note']}" if f.get("note") else "") for i, f in rejected) \
@@ -1858,7 +1889,7 @@ def _start(pid: str, kind: str, runner) -> dict:
     with _JLOCK:
         j = _JOBS.get(key)
         if j and j.get("state") in ("queued", "running"):
-            raise MotionError("busy", "This video already has a job running." + (" Cancel it first." if j.get("kind") == "render" else ""))
+            raise MotionError("busy", "Video ini masih menjalankan satu pekerjaan." + (" Batalkan dulu." if j.get("kind") == "render" else ""))
         ev = threading.Event()
         _JOBS[key] = {"state": "queued", "kind": kind, "percent": 0, "eta": None, "stage": "", "message": "Menunggu…", "profile": key[0],
                       "id": pid, "started": int(time.time())}
@@ -1870,18 +1901,15 @@ def _start(pid: str, kind: str, runner) -> dict:
 def preview(pid: str) -> dict:
     """One still per beat (a storyboard sheet), as a light job in the render queue."""
     if story_of(pid) is None:
-        raise MotionError("no_story", "There is no story yet: paste the AI's answer first.")
+        raise MotionError("no_story", "Belum ada cerita: ambil ceritanya dulu.")
     return _start(pid, "preview", _run_preview)
 
 
 def render(pid: str) -> dict:
     """The MP4, through the same queue as clip renders. Refused while the fact gate is not passed."""
-    problems = gate(pid)
-    v = voice_info(pid) or {}
-    if v.get("aligned") and not v.get("lengthOk") and v.get("lengthChoice") != "continue":
-        problems = problems + [f"The narration makes the video {v['total']:.1f} s, {v['table']['percent']:+.0f}% from the {v['target']} s chosen: edit the narration, or choose to continue at its length."]
+    problems = render_problems(pid)
     if problems:
-        raise MotionError("gate", "Not yet: " + " ".join(problems), problems=problems)
+        raise MotionError("gate", "Belum bisa dirender: " + " ".join(problems), problems=problems)
     return _start(pid, "render", _run_render)
 
 
@@ -1980,7 +2008,7 @@ def _run_job(pid: str, key, ev: threading.Event, kind_label: str, job: dict, on_
                 tail = log.read_text(encoding="utf-8", errors="replace").strip().splitlines()[-1][:300]
             except (OSError, IndexError):
                 pass
-            raise MotionError("render", err["message"] or tail or f"the render stopped (exit code {proc.returncode})")
+            raise MotionError("render", err["message"] or tail or f"render berhenti (kode keluar {proc.returncode})")
         return final
 
 
@@ -2010,7 +2038,7 @@ def _run_preview(pid: str, key, ev: threading.Event) -> None:
     except MotionError as exc:
         _finish(key, pid, state="failed", message=exc.message, code=exc.code)
     except BaseException as exc:                              # noqa: BLE001
-        _finish(key, pid, state="failed", message=f"The storyboard failed ({type(exc).__name__}).", code="other")
+        _finish(key, pid, state="failed", message=f"Storyboard gagal ({type(exc).__name__}).", code="other")
 
 
 def _run_preview_video(pid: str, key, ev: threading.Event) -> None:
@@ -2038,7 +2066,7 @@ def _run_preview_video(pid: str, key, ev: threading.Event) -> None:
             return _finish(key, pid, state="cancelled", message="Dibatalkan.", percent=0, eta=None)
         made = Path(done.get("out") or (project_dir(pid) / "out" / "preview.mp4"))
         if not made.is_file():
-            raise MotionError("render", "The preview finished but the file is missing.")
+            raise MotionError("render", "Pratinjau selesai tetapi berkasnya tidak ada.")
         seconds = round(time.monotonic() - t0, 1)
         p = load(pid)
         p["preview"] = {"file": "preview.mp4", "at": int(time.time()), "seconds": seconds, "duration": story["duration"], "storyHash": _story_hash(story)}
@@ -2047,7 +2075,7 @@ def _run_preview_video(pid: str, key, ev: threading.Event) -> None:
     except MotionError as exc:
         _finish(key, pid, state="failed", message=exc.message, code=exc.code, eta=None)
     except BaseException as exc:                              # noqa: BLE001
-        _finish(key, pid, state="failed", message=f"The preview failed ({type(exc).__name__}).", code="other", eta=None)
+        _finish(key, pid, state="failed", message=f"Pratinjau gagal ({type(exc).__name__}).", code="other", eta=None)
 
 
 def _post_of(p: dict, story: dict) -> dict:
@@ -2113,7 +2141,7 @@ def _run_render(pid: str, key, ev: threading.Event) -> None:
             return _finish(key, pid, state="cancelled", message="Dibatalkan.", percent=0, eta=None)
         made = Path(done.get("out") or (project_dir(pid) / "out" / work))
         if not made.is_file():
-            raise MotionError("render", "The render finished but the video file is missing.")
+            raise MotionError("render", "Render selesai tetapi berkas videonya tidak ada.")
         with _LOCK:
             name = _free_name(paths.safe_name(p["title"])[:120] or pid)
             dest = schedule.folder_dir(MOTION_FOLDER) / name
@@ -2129,7 +2157,7 @@ def _run_render(pid: str, key, ev: threading.Event) -> None:
     except MotionError as exc:
         _finish(key, pid, state="failed", message=exc.message, code=exc.code, eta=None)
     except BaseException as exc:                              # noqa: BLE001
-        _finish(key, pid, state="failed", message=f"The render failed ({type(exc).__name__}: {exc}).", code="other", eta=None)
+        _finish(key, pid, state="failed", message=f"Render gagal ({type(exc).__name__}: {exc}).", code="other", eta=None)
 
 
 def _round(x):
