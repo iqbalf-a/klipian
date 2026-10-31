@@ -6643,6 +6643,29 @@ CHECKS = {"briefagents": check_briefagents, "briefsteps": check_briefsteps, "mig
           "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voicegoogle": check_voicegoogle, "voicestudio": check_voicestudio, "elevenlabs": check_elevenlabs, "khusus": check_khusus, "briefbuttons": check_briefbuttons, "music": check_music, "voice": check_voice, "decode": check_decode, "render": check_render}
 
 
+def _guarded(name: str, fn):
+    """A check writes projects, profiles and renders: called by hand (`selftest.CHECKS["motion"]()`) outside `run`, it would write into the REAL workspace (two profiles, mo1 and
+    mo2, and their test projects once landed in a person's workspace that way). It refuses unless a scratch workspace is in force."""
+    def checked(*a, **kw):
+        from . import paths
+        if paths._workspace_override is None:
+            raise RuntimeError(f"the check {name!r} must run through selftest.run([{name!r}]) or `python -m klipian selftest --only {name}`: called by hand it would write into the real workspace")
+        return fn(*a, **kw)
+    checked.__name__ = getattr(fn, "__name__", name)
+    checked.__doc__ = getattr(fn, "__doc__", None)
+    return checked
+
+
+CHECKS = {_name: _guarded(_name, _fn) for _name, _fn in CHECKS.items()}
+
+
+def _real_profiles() -> list[str]:
+    """What the real workspace holds in profiles/ (names, with the time each folder was last changed): a run must leave it as it found it."""
+    from . import paths
+    root = paths.DEFAULT_WORKSPACE / "profiles"
+    return sorted(f"{d.name}@{int(d.stat().st_mtime)}" for d in root.iterdir()) if root.is_dir() else []
+
+
 def _global_state() -> dict:
     """The shared state a check could leave behind: the profile and workspace in force, the scheduler's queues and
     limit, the seams that tests replace (Google, the clock, render and transcribe bodies) and the job registries."""
@@ -6674,6 +6697,7 @@ def _restore_global_state(before: dict) -> None:
 def run(only: list[str] | None = None, write_expected: bool = False) -> int:
     names = only or list(CHECKS)
     failed = False
+    before_profiles = _real_profiles()
     print()
     with scratch_workspace():
         for name in names:
@@ -6693,6 +6717,12 @@ def run(only: list[str] | None = None, write_expected: bool = False) -> int:
                 _restore_global_state(before)
             print(f"{status}  {detail}")
             failed = failed or status == FAIL
+    after_profiles = _real_profiles()
+    if after_profiles != before_profiles:
+        # the scratch workspace sits inside workspace/ but not in profiles/: a change here is a leak into the real profiles
+        changed = sorted(set(after_profiles) ^ set(before_profiles))
+        print(f"  profiles FAIL  the real workspace's profiles/ changed during the run: {', '.join(changed)}")
+        failed = True
     print()
     print("selftest FAILED" if failed else "selftest ok")
     print()
