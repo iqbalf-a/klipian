@@ -116,6 +116,12 @@ const domain = (url: string) => { try { return new URL(url).hostname.replace(/^w
 
 export type Plan = ReturnType<typeof makePlan>;
 
+/** PLAN-SAFE-AREA-2: the caption gave back about 130 px (it ends at 1720), so the outside view is placed lower on the screen by stageDrop px: each key's focus moves up by
+    stageDrop / zoom, so the shift on the screen is the same at every zoom. The macro-lens keys (zoom above 2) stay: the view is locked on the junction there. The first and
+    the last key get the same shift, so the loop-back still ends on the opening shot. */
+export const stageDrop = 80;
+const dropped = (keys: Key2[]): Key2[] => keys.map((k) => (k.zoom > 2 ? k : { ...k, y: k.y - stageDrop / k.zoom }));
+
 export function makePlan(story: StoryT) {
   const seq = sequencePlan(story);
   const B: Record<string, { a: number; b: number; beat: BeatT; index: number }> = {};
@@ -151,7 +157,7 @@ export function makePlan(story: StoryT) {
 
   // ---------------------------------------------------------------- the cameras
   const J = out(SOCKET_PTS.junction), C0 = out(SOCKET_PTS.center);
-  const outKeys: Key2[] = [
+  const outKeys: Key2[] = dropped([
     { t: 0, x: 520, y: 980, zoom: 0.8 },
     { t: 2.0, x: C0[0] + 20, y: C0[1] + 40, zoom: 1.28 },
     { t: m.sting, x: C0[0] + 10, y: C0[1] + 30, zoom: 1.36 },
@@ -172,7 +178,7 @@ export function makePlan(story: StoryT) {
     // round 3: the outro is a loop-back; the camera eases home to the opening shot and holds there for the last 0.2 s,
     // so the last frame is exactly the first one's camera
     { t: total - 0.2, x: 520, y: 980, zoom: 0.8 },
-  ];
+  ]);
   const outCam = (t: number): Cam2 => cam2At(outKeys, t);
 
   const CT = lab(contactAt(0)), CL = lab(contactAt(1));

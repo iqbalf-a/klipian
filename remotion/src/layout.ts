@@ -25,7 +25,7 @@ export const MIN_FS = 46;                                // a text is never made
 export const GAP = 14;                                   // the least air between two boxes
 export const HERO_CORE = 0.7;                            // the hero's core: never covered, whatever it costs
 export const HERO_KEEP = 0.9;                            // the hero's key area: its box shrunk to this share (text may touch the rim, not the middle)
-export const BANNER_BOTTOM = BANNER_TOP + 20 * K * 2.6;  // where a default banner ends (it starts at the safe top: y 170 + 200)
+export const BANNER_BOTTOM = BANNER_TOP + 20 * K * 2.6;  // where a default banner ends (it starts at BANNER_TOP: y 170 + 200)
 
 /** The zones, in video pixels. `bounds` is where text may be: inside the safe area, below the banner. */
 export const ZONES = {
@@ -41,7 +41,7 @@ export const bounds = (hasBanner = true): Box => ({ x0: SAFE.left, y0: hasBanner
 export type CaptionStyle = (typeof CAPTION_STYLE_NAMES)[number];
 /** The caption layer at the bottom (inside the safe area: SAFE, the YouTube profile) and the top text (kicker + headline): fixed zones the rest keeps clear of.
     The three looks (PLAN-CAPTION-OPTIONS): `classic` is today's caption (two lines), `wide` one line across the safe width (a shorter box), `punch` short
-    and big (at most three words a page). Each one's box bottom is 1590 (10 px above SAFE.bottom 1600, the YouTube estimate) and its box ends at x 920 at the
+    and big (at most three words a page). Each one's box bottom is 1720 (10 px above SAFE.bottom 1730, the YouTube calibration) and its box ends at x 930 at the
     most; with a story's `platforms` the bottom follows the strictest listed profile (see captionVariant). */
 export const CAPTION_VARIANTS = {
   classic: { fs: 56, maxTextWidth: 770, maxLines: 2, maxWords: Infinity, padX: 30, padY: 22, cx: (SAFE.left + SAFE.right) / 2, bottom: SAFE.bottom - 10 },
@@ -55,7 +55,7 @@ export const captionVariant = (style?: CaptionStyle, platforms?: readonly Platfo
   const bottom = Math.min(v.bottom, safeFor(platforms).bottom - 10);
   return bottom === v.bottom ? v : { ...v, bottom };
 };
-export const TOP_TEXT = { x: SAFE.left + 20, y: SAFE.top, fs: 76, kickerFs: 28, maxWidth: SAFE.right - SAFE.left - 40 } as const;
+export const TOP_TEXT = { x: SAFE.left + 20, y: BANNER_TOP, fs: 76, kickerFs: 28, maxWidth: SAFE.right - SAFE.left - 40 } as const;
 /** The box of the caption layer of a look: the tallest box it can produce (its maximum lines), so the scene keeps clear of any page. The top text is below. */
 export const captionBox = (style?: CaptionStyle, platforms?: readonly PlatformName[]): Box => {
   const v = captionVariant(style, platforms);

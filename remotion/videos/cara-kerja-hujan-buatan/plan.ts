@@ -12,7 +12,9 @@ import { SAFE } from "../../src/tokens.ts";
 import { CLOUD_GREY, LAND_TOP, SEA_TOP, cloudParts } from "../../src/natureGeometry.ts";
 
 // the stage in world px at rest (camera focus 590, 960, zoom 1): the nature kit's sea and land, placed so the cloud is 62 % of the frame wide
-export const OUT = { u: 160, o: [485, 1044] as P2 };
+// PLAN-SAFE-AREA-2: the caption gave back about 130 px (it ends at 1720), so the stage moves down by stageDrop px to fill the frame between the top text and the caption
+export const stageDrop = 100;
+export const OUT = { u: 160, o: [485, 1044 + stageDrop] as P2 };
 export const CLOUD = { cx: CLOUD_GREY.cx, cy: CLOUD_GREY.cy, cz: CLOUD_GREY.cz, grow: 1.25 };
 const out = (p: P3): P2 => isoAt(p, OUT.u, OUT.o);
 export const CLOUD_PT = out([CLOUD.cx, CLOUD.cy, CLOUD.cz]);              // the cloud's centre
@@ -219,6 +221,8 @@ export function makePlan(story: StoryT) {
     return parts[0];
   };
   const claimsOf = (id: string) => story.claims.map((c, i) => ({ c, i })).filter(({ c }) => c.beats.includes(id)).map(({ i }) => fitChip(chipFor(i)));
+  // the source chip stands just above the caption box (y 1385 for the classic caption of YouTube at its old place; it follows the caption now, PLAN-SAFE-AREA-2)
+  const chipY = Math.round(captionBox(story.captionStyle, story.platforms).y0) - 54;
   const chips = [
     { id: "chip-kirim", text: claimsOf("kirim")[0], onDark: false, from: beat("kirim").a + 1.2, to: m.magnifier },
     { id: "chip-inti", text: claimsOf("inti")[0], onDark: true, from: m.inside + 1.0, to: beat("inti").b - 0.2 },
@@ -262,7 +266,7 @@ export function makePlan(story: StoryT) {
   const problemsAt = (t: number, tipH: (i: number) => number) => conflicts(specsAt(t, tipH));
 
   return {
-    B, beat, total, w, m, outKeys, outCam, lens, insideLens, outsideVisible, state, phase, tops, labels, labelAt, LABEL_FS, chips, tips, TIP, steps, stingPill, STING, STAMP, REACT, verdictWord,
+    chipY, B, beat, total, w, m, outKeys, outCam, lens, insideLens, outsideVisible, state, phase, tops, labels, labelAt, LABEL_FS, chips, tips, TIP, steps, stingPill, STING, STAMP, REACT, verdictWord,
     loopWeight, specsAt, problemsAt, planeAt, grains, LAB, DOTS, dotAt, saltPos, dropAt, RACK,
   };
 }

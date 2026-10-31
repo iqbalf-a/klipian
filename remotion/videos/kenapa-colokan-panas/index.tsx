@@ -121,7 +121,7 @@ const Picture: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ story: s,
         {inLab && <MacroFrame box={{ x0: contactScreen[0] - 330, y0: contactScreen[1] - 300, x1: contactScreen[0] + 330, y1: contactScreen[1] + 300 }} t={t} start={m.contactLabel - 0.5} end={P.beat("kendur").a + 1.2} />}
         {inLab && P.loopWords[0] && P.loopWords[1] && <LoopArrows cx={contactScreen[0]} cy={contactScreen[1]} r={250} a={P.loopWords[0].toLowerCase()} b={P.loopWords[1].toLowerCase()} t={t} start={m.loop} end={m.exit - 0.35} />}
         {inLab && P.cards.filter((c) => c.from < m.exit).map((c) => <g key={c.claim} opacity={1 - clamp01((t - c.to) / 0.3)}>{t >= c.from && t < c.to + 0.3 && <SourceCard x={90} y={P.cardBottom - cardHeight(c.quote)} w={CARD_W} quote={c.quote} org={c.org} domain={c.domain} date={c.date} t={t} start={c.from} />}</g>)}
-        {inLab && P.chips.map((c) => <SourceChip key={c.id} x={90} y={1385} text={c.text} t={t} start={c.from} end={c.to} onDark />)}
+        {inLab && P.chips.map((c) => <SourceChip key={c.id} x={90} y={P.cardBottom - 20} text={c.text} t={t} start={c.from} end={c.to} onDark />)}
       </g>}
       {L && t < m.inside + 0.1 && <LensRing x={L.x} y={L.y} r={L.r} t={t} tagFrom={m.magnifier} />}
       {L && t >= m.exit && <circle cx={L.x} cy={L.y} r={Math.max(0.1, L.r)} fill="none" stroke={BLACK} strokeWidth={14} />}

@@ -12,9 +12,9 @@ import { SAFE } from "../../src/tokens.ts";
 import { PHONE } from "../../src/bedroomGeometry.ts";
 
 // the stage in world px at rest (camera focus 540, 960, zoom 1): the bed is 650 px wide (60 to 70 % of the frame), the eyes above it, the thought bubble at the eyes' upper right
-// PLAN-SAFE-AREA (B24): the top text starts at y 170 and the bed's base must stay inside SAFE.bottom (1600), so the stage no longer drops (stageDrop 0, it was 20 under
-// PLAN-LAYOUT-BOTTOM) and the eyes and the bubble sit lower, below the top text; the bubble is pulled in from the right band (x 920)
-export const stageDrop = 0;
+// PLAN-SAFE-AREA-2 (B24): the caption ends at 1720 now, so the stage, the eyes and the bubble move down together by stageDrop px (50: the bed's base stays above the YouTube bottom, 1730,
+// and everything stays below the top text, which ends at y 397). Under PLAN-SAFE-AREA the drop was 0 and the eyes and the bubble sat lower than before (cy 680, 480), the bubble pulled in from the right band.
+export const stageDrop = 50;
 export const OUT = { u: 150, o: [475, 960 + stageDrop] as P2 };
 export const EYES = { cx: 540, cy: 680, w: 520 };
 export const BUBBLE = { cx: 780, cy: 480, r: 92 };
@@ -150,6 +150,8 @@ export function makePlan(story: StoryT) {
 
   const chipFor = (idx: number) => { const c = story.claims[idx]; return c ? [...new Set(c.sources.map(domain))].join(" · ") : ""; };
   const claimsOf = (id: string) => story.claims.map((c, i) => ({ c, i })).filter(({ c }) => c.beats.includes(id)).map(({ i }) => chipFor(i));
+  // the source chip stands just above the caption box (y 1385 for the classic caption of YouTube at its old place; it follows the caption now, PLAN-SAFE-AREA-2)
+  const chipY = Math.round(captionBox(story.captionStyle, story.platforms).y0) - 54;
   const chips = [
     { id: "chip-baring", text: claimsOf("baring")[0], from: beat("baring").a + 1.6, to: beat("baring").b - 0.1 },
     { id: "chip-layar", text: claimsOf("layar")[0], from: m.scroll + 0.3, to: beat("layar").b - 0.1 },
@@ -193,7 +195,7 @@ export function makePlan(story: StoryT) {
   const problemsAt = (t: number, tipH: (i: number) => number) => conflicts(specsAt(t, tipH));
 
   return {
-    B, beat, total, w, m, outKeys, outCam, state, zMarks, tops, labels, labelAt, LABEL_FS, chips, tips, TIP, steps, STEP_AT, stingPill, STING, REACT,
+    chipY, B, beat, total, w, m, outKeys, outCam, state, zMarks, tops, labels, labelAt, LABEL_FS, chips, tips, TIP, steps, STEP_AT, stingPill, STING, REACT,
     loopWeight, specsAt, problemsAt,
   };
 }

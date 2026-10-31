@@ -70,17 +70,21 @@ export const CAPTION_STYLE_NAMES = ["classic", "wide", "punch"] as const;
 /** Where the floor starts in the Room and brand scenes (the sheet's 90 units from the bottom). */
 export const FLOOR_Y = 1920 - 90 * (1080 / 280);
 
-/** The platform safe areas (PLAN-SAFE-AREA, B24), in video px: the part of the 1080 x 1920 frame each app leaves free of its own interface (top icons, the
-    title and the buttons at the bottom, the action column on the right). ESTIMATES, NOT OFFICIAL: none of the three platforms publishes pixel margins for
-    organic posts; these are read from third-party measurements (read 2026-10-31) and are to be recalibrated from screenshots of out/safe/calibration.mp4
-    played in each app.
-    - youtube (the priority; the working area SAFE): kreatli.com/guides/youtube-shorts-safe-zone, shortsafezone.com ("observed approximations, not an
-      official specification"), creamate.ai, postplanify.com.
-    - tiktok (checked, not obeyed): imagevideofit.com/guides/tiktok-safe-zone, kreateflo.com, yosefk.me/blog/tiktok-safe-zone.
-    - instagram, organic Reels (checked): zeely.ai, houseofmarketers.com, kreatli.com/guides/instagram-reels-safe-zone. The Reels ads split (top 14 %,
-      bottom 35 %, sides 6 %) is SAFE_INSTAGRAM_ADS and is not used. */
+/** The platform safe areas (PLAN-SAFE-AREA and PLAN-SAFE-AREA-2, B24), in video px: the part of the 1080 x 1920 frame each app leaves free of its own interface
+    (top icons, the title and the buttons at the bottom, the action column on the right).
+    - youtube (the priority; the working area SAFE): CALIBRATED on ian's phone on 2026-10-31, ONE DEVICE (a tall phone, about 20:9), from a screenshot of
+      out/safe/calibration.mp4 played as a Short (kept as docs/safe/youtube-2026-10-31.jpg). On that phone the top of the video is clear (the app's bar is
+      outside it), the title is drawn below the video, only the channel row covers the video from about y 1830, and the action buttons cover about x 955 and
+      right from about y 1050. The profile keeps a margin: top 120, bottom 1730, right 930. On a shorter phone (16:9, 18:9) YouTube usually lays the title
+      and the description OVER the bottom of the video: the caption bottom 1720 takes that risk, knowingly (ian's choice). Recalibrate when the app changes.
+      The earlier web estimates (top 170, bottom 1600, right 920; kreatli.com/guides/youtube-shorts-safe-zone, shortsafezone.com "observed approximations, not
+      an official specification", creamate.ai, postplanify.com) are replaced by the calibration.
+    - tiktok (checked, not obeyed): ESTIMATE, NOT OFFICIAL (third-party measurements read 2026-10-31: imagevideofit.com/guides/tiktok-safe-zone,
+      kreateflo.com, yosefk.me/blog/tiktok-safe-zone), until ian calibrates it with the same clip.
+    - instagram, organic Reels (checked): ESTIMATE, NOT OFFICIAL (zeely.ai, houseofmarketers.com, kreatli.com/guides/instagram-reels-safe-zone, read
+      2026-10-31). The Reels ads split (top 14 %, bottom 35 %, sides 6 %) is SAFE_INSTAGRAM_ADS and is not used. */
 export const SAFE_PLATFORMS = {
-  youtube: { top: 170, bottom: 1600, left: 60, right: 920 },
+  youtube: { top: 120, bottom: 1730, left: 60, right: 930 },
   tiktok: { top: 140, bottom: 1600, left: 60, right: 930 },
   instagram: { top: 220, bottom: 1500, left: 65, right: 1015 },
 } as const;
@@ -97,8 +101,8 @@ export const safeFor = (platforms: readonly PlatformName[] = ["youtube"]) => {
     left: Math.max(...list.map((p) => SAFE_PLATFORMS[p].left)), right: Math.min(...list.map((p) => SAFE_PLATFORMS[p].right)),
   };
 };
-/** The top of the banner and of the top text: the banner starts at the safe top (the default banner was at y 85, inside the top icons). */
-export const BANNER_TOP = SAFE.top;
+/** The top of the banner and of the top text: y 170, below the safe top (120) on purpose: it looks good there and keeps a margin for other phones (the banner was at y 85). */
+export const BANNER_TOP = 170;
 
 /** The 2.5D isometric kit's tones (P28, 2026-10-26): three per material, [light = a face looking up, mid = looking lower-left, dark = looking lower-right],
     light from the top-left (src/iso.ts). Brass is the one warm metal (the spring leaves of a socket): muted, so it never reads as the yellow of current. */

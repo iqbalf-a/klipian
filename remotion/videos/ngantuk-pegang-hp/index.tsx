@@ -110,7 +110,7 @@ const Picture: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ story: s,
         {t < m.sting && <Mark text="?" x={hookQ[0] + 30} y={hookQ[1] + 10} fs={92} p={springAt(t, m.hookQ, false) * (1 - easeInOut(clamp01((t - (m.sting - 0.3)) / 0.3)))} />}
         {P.steps.map((sd) => sd.n && <StepDisc key={sd.id} n={sd.n} x={P.STEP_AT[0]} y={P.STEP_AT[1]} t={t} from={sd.from} to={sd.to} />)}
         {labelEls}
-        {P.chips.map((c) => (t >= c.from && t < c.to + 0.4) ? <SourceChip key={c.id} x={90} y={1385} text={c.text} t={t} start={c.from} end={c.to} /> : null)}
+        {P.chips.map((c) => (t >= c.from && t < c.to + 0.4) ? <SourceChip key={c.id} x={90} y={P.chipY} text={c.text} t={t} start={c.from} end={c.to} /> : null)}
         {P.tips.map((tp, i) => <TipCard key={i} x={P.TIP.x} y={P.TIP.y} w={P.TIP.w} n={tp.n} title={tp.title} sub={tp.sub} keyword={tp.keyword} t={t} start={tp.from} subAt={tp.subAt} end={tp.to} />)}
 
         {/* ---------------- the mascot: the small "Intip yuk!" sting (no veil: the world keeps moving behind it) and one short reaction */}
