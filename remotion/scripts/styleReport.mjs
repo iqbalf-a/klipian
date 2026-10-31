@@ -11,6 +11,7 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameS
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { keyBoxes, reportLines, safeReport } from "./safeCheck.mjs";
+import { findVideo, measure } from "./motionDensity.mjs";
 import { validateStory } from "../src/schema.ts";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -166,6 +167,19 @@ try {
   safeText = reportLines(safeReport(await keyBoxes(slug, { ...checked.story, captions: true }))).join("\n");
 } catch (e) { safeText = `not measured (${e.message})`; }
 
+// B25 (motion density): measured on a rendered draft when there is one (out/<slug>/*.mp4 or out/density/<slug>*.mp4); a flag, never a failure
+let densityText;
+try {
+  const file = findVideo(slug);
+  if (!file) densityText = `not measured: no draft video for ${slug}. Render one (a job with "preview": true, "sound": false, "out": "density/${slug}-draft.mp4") and run this report again, or run "npm run motion-density -- ${slug}".`;
+  else {
+    const d = measure(file);
+    densityText = [`${path.relative(ROOT, file)} (${d.seconds.toFixed(1)} s)`,
+      `${d.still.len <= d.limits.aliveMax + 1e-9 ? "PASS" : "FLAG"} something moves about every second: the longest still stretch is ${d.still.len.toFixed(2)} s at ${d.still.at.toFixed(1)} s (at most ${d.limits.aliveMax} s)`,
+      `${d.newGap.len <= d.limits.newMax + 1e-9 ? "PASS" : "FLAG"} something new every 3 to 4 seconds: the longest gap is ${d.newGap.len.toFixed(2)} s from ${d.newGap.at.toFixed(1)} s (at most ${d.limits.newMax} s); ${d.events} new things`].join("\n");
+  }
+} catch (e) { densityText = `not measured (${e.message})`; }
+
 const md = `# Style report: ${slug}
 
 Made by \`scripts/styleReport.mjs\` (DESIGN.md section 0b). Every line is a machine measure or the checker's own line; the human checklist is at the end.
@@ -213,6 +227,14 @@ The bands are estimates, not official (src/tokens.ts: SAFE_PLATFORMS). YouTube S
 
 \`\`\`
 ${safeText}
+\`\`\`
+
+## Motion density (B25)
+
+Something moves about every second and something new every 3 to 4 seconds, read from the picture of a rendered draft (the captions and the top text left out). A flag is not a failure: ian decides.
+
+\`\`\`
+${densityText}
 \`\`\`
 
 ## Rule log rows for this report

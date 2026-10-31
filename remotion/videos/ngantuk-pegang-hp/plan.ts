@@ -2,12 +2,15 @@
    "Intip yuk!" sting right after it, the explain beats, the result, the tips and the loop-back outro. Everything is read from the beats and the words of the narration, so
    the picture follows the voice once klipian imports one. Colours come from src/tokens.ts; easings and springs from src/motionLanguage.ts (must 3 of B16).
    One continuous take on a bed: a lit phone and a pair of eyes (lids droop while the phone is in hand, open wide when it is put down), a thought bubble that fills up with
-   what the screen brings, the phone sent to another room (tip 1), and the loop-back to the opening shot. No health claims: it explains an everyday feeling. */
+   what the screen brings, the phone sent to another room (tip 1), and the loop-back to the opening shot. No health claims: it explains an everyday feeling.
+   P28-R phase 5 (B25): the stage is no longer the only picture. The beats that explain cut in to an INSERT: one object on its own in a circle that opens from where the story is
+   (a clock that runs through the night, the phone's feed with its notifications, a busy brain, a heart that feels, a lamp that stays on, the clock again for tip 2), so each beat has
+   its own picture and something new comes about every 3 to 4 seconds; the labels of those moments stand on the insert. */
 import type { BeatT, StoryT } from "../../src/schema.ts";
 import { FPS, sequencePlan } from "../../src/timeline.ts";
 import { wordsOfBeat } from "../../src/captions.ts";
 import { cam2At, isoAt, toScreen, type Cam2, type Key2, type P2 } from "../../src/iso.ts";
-import { captionBox, conflicts, textWidthEstimate, topTextBox, type Box, type Spec } from "../../src/layout.ts";
+import { captionBox, chipFit, conflicts, textWidthEstimate, topTextBox, type Box, type Spec } from "../../src/layout.ts";
 import { SAFE } from "../../src/tokens.ts";
 import { PHONE } from "../../src/bedroomGeometry.ts";
 
@@ -81,6 +84,37 @@ export function makePlan(story: StoryT) {
   ];
   const outCam = (t: number): Cam2 => cam2At(outKeys, t);
 
+  // ---------------------------------------------------------------- the inserts (B25)
+  type InsertKind = "clock" | "phone" | "brain" | "heart" | "lamp" | "stare" | "held";
+  type Insert = { id: string; kind: InsertKind; from: number; to: number; origin: P2 };
+  const inserts: Insert[] = [
+    { id: "clock-late", kind: "clock", from: m.tired - 0.2, to: beat("baring").b - 0.3, origin: [EYES.cx, EYES.cy] },
+    { id: "phone-feed", kind: "phone", from: m.scroll - 0.05, to: m.busy - 0.15, origin: PHONE_PT },
+    { id: "brain-busy", kind: "brain", from: m.busy - 0.15, to: beat("layar").b - 0.3, origin: [BUBBLE.cx, BUBBLE.cy] },
+    { id: "heart-feel", kind: "heart", from: m.upset - 0.1, to: m.carried - 0.1, origin: [BUBBLE.cx, BUBBLE.cy] },
+    { id: "eyes-stare", kind: "stare", from: m.stare - 0.1, to: beat("isi").b - 0.35, origin: [EYES.cx, EYES.cy] },
+    { id: "eyes-held", kind: "held", from: m.held - 0.05, to: m.lit - 0.3, origin: PHONE_PT },
+    { id: "lamp-lit", kind: "lamp", from: m.lit - 0.1, to: m.awake - 0.15, origin: [BUBBLE.cx, BUBBLE.cy] },
+    { id: "clock-stop", kind: "clock", from: m.tip2 + 0.1, to: beat("tips").b - 0.35, origin: [EYES.cx, EYES.cy] },
+  ];
+  /** How open an insert's circle is at `t` (0 closed, 1 open): it opens in 0.5 s and closes in 0.4 s. */
+  const OPEN_IN = 0.5, OPEN_OUT = 0.4;
+  const insertOpen = (ins: Insert, t: number) => sm(Math.min(ramp(t, ins.from, OPEN_IN), ramp(ins.to - t, 0, OPEN_OUT) ));
+  /** The insert that is open enough to cover the stage at `t`, if any. */
+  const insertAt = (t: number): Insert | null => inserts.find((x) => t >= x.from && t < x.to && insertOpen(x, t) > 0) ?? null;
+  const HERO: P2 = [540, 1010];                       // the screen point an insert's object stands on: under the top text, above the captions
+  /** The box of an insert's object (screen px) for the layout manager: labels keep clear of it. */
+  const HERO_BOXES: Record<InsertKind, Box> = {
+    clock: { x0: 270, y0: 780, x1: 820, y1: 1290 }, phone: { x0: 210, y0: 850, x1: 870, y1: 1230 }, brain: { x0: 250, y0: 840, x1: 830, y1: 1180 }, heart: { x0: 270, y0: 840, x1: 810, y1: 1190 },
+    lamp: { x0: 330, y0: 760, x1: 750, y1: 1290 }, stare: { x0: 220, y0: 890, x1: 860, y1: 1100 }, held: { x0: 220, y0: 880, x1: 860, y1: 1380 },
+  };
+  /** The notifications that fly in during the phone's feed: where (screen px), when they come, which dot colour. */
+  const feed = inserts.find((x) => x.id === "phone-feed")!;
+  const toasts = [
+    { id: "t1", x: 300, y: 800, from: feed.from + 0.55, to: feed.to, dot: 0 }, { id: "t2", x: 790, y: 900, from: feed.from + 1.05, to: feed.to, dot: 1 },
+    { id: "t3", x: 330, y: 1260, from: feed.from + 1.5, to: feed.to, dot: 2 },
+  ];
+
   // ---------------------------------------------------------------- the states
   /** The state before the loop blend: how lit the phone is, how far the lids are up, where the eyes look, the bubble, the phone's trip to another room. */
   const core = (t: number) => {
@@ -117,23 +151,26 @@ export function makePlan(story: StoryT) {
     return { a: beat(b.id).a, b: beat(b.id).b, kicker, headline: b.headline ?? b.text };
   });
   const LABEL_FS = 46;
-  type Lab = { id: string; text: string; n?: number | string; world: "out"; at: P2; off: P2; from: number; to: number };
+  type Lab = { id: string; text: string; n?: number | string; world: "out"; at: P2; off: P2; from: number; to: number; ins?: string };
   const labels: Lab[] = [];
   const L = (id: string, text: string | null | undefined, rest: Omit<Lab, "id" | "text" | "world">) => { if (text) labels.push({ id, text, world: "out", ...rest }); };
   const hookLabel = items("hook").flatMap((i) => (i.type === "banner" ? [i.text] : [])).at(-1);
   const EY: P2 = [EYES.cx, EYES.cy], BU: P2 = [BUBBLE.cx, BUBBLE.cy], PH = PHONE_PT;
   L("hook", hookLabel, { at: [PH[0] - 20, PH[1] + 20], off: [-190, 170], from: m.hookDim, to: beat("hook").b });
   const ba = labelsOf("baring"), la = labelsOf("layar"), isi = labelsOf("isi"), ha = labelsOf("hasil");
-  L("lie", ba[0]?.text, { at: [PH[0] - 150, PH[1] + 40], off: [-100, 230], from: m.lieLabel, to: m.tired });
-  L("tired", ba[1]?.text, { at: [EY[0] - 120, EY[1] - 40], off: [-150, -210], from: m.tired, to: beat("baring").b - 0.1 });
-  L("scroll", la[0]?.text, { at: [PH[0], PH[1]], off: [-290, 180], from: m.scroll, to: m.notif });
-  L("notif", la[1]?.text, { at: [BU[0] - 20, BU[1] - 10], off: [-410, -10], from: m.notif, to: m.busy });
-  L("brain", la[2]?.text, { at: [BU[0] - 40, BU[1] + 30], off: [-370, -20], from: m.busy, to: beat("layar").b - 0.1 });
-  L("upset", isi[0]?.text, { at: [BU[0] - 40, BU[1]], off: [-400, -30], from: m.upset, to: m.carried });
+  const lab = (id: string) => inserts.find((x) => x.id === id)!;
+  /** A label that stands on an insert: its anchor is a screen point of the object, it shows only while the insert is open (a little after it opens, a little before it closes). */
+  const LI = (id: string, insertId: string, text: string | null | undefined, scr: P2, off: P2, from: number, to: number) => { const i = lab(insertId); L(id, text, { at: scr, off, from: Math.max(from, i.from + 0.4), to: Math.min(to, i.to - OPEN_OUT - 0.2), ins: insertId }); };
+  L("lie", ba[0]?.text, { at: [PH[0] - 150, PH[1] + 40], off: [-100, 230], from: m.lieLabel, to: lab("clock-late").from });
+  LI("tired", "clock-late", ba[1]?.text, [520, 930], [-170, -230], m.tired, beat("baring").b - 0.1);
+  LI("scroll", "phone-feed", la[0]?.text, [560, 1040], [-200, -300], m.scroll, m.notif);
+  LI("notif", "phone-feed", la[1]?.text, [790, 900], [-60, -250], m.notif, m.busy);
+  LI("brain", "brain-busy", la[2]?.text, [560, 930], [-180, -250], m.busy, beat("layar").b - 0.1);
+  LI("upset", "heart-feel", isi[0]?.text, [540, 1000], [-150, -280], m.upset, m.carried);
   L("carried", isi[1]?.text, { at: [BU[0] - 40, BU[1] + 20], off: [-370, -30], from: m.carried, to: m.stare });
-  L("stare", isi[2]?.text, { at: [EY[0] + 80, EY[1] + 40], off: [-40, 215], from: m.stare, to: beat("isi").b - 0.1 });
-  L("held", ha[0]?.text, { at: [PH[0] - 10, PH[1] - 10], off: [-240, -150], from: m.held, to: m.lit });
-  L("lit", ha[1]?.text, { at: [BU[0] - 40, BU[1] + 10], off: [-390, -20], from: m.lit, to: m.awake });
+  LI("stare", "eyes-stare", isi[2]?.text, [600, 930], [-150, 260], m.stare, beat("isi").b - 0.1);
+  LI("held", "eyes-held", ha[0]?.text, [560, 1090], [-120, -380], m.held, m.lit);
+  LI("lit", "lamp-lit", ha[1]?.text, [540, 900], [-160, -230], m.lit, m.awake);
   L("awake", ha[2]?.text, { at: [EY[0] + 40, EY[1] + 30], off: [-30, 210], from: m.awake, to: beat("hasil").b - 1.0 });
   const stepBadges = (id: string) => items(id).flatMap((i) => (i.type === "badge" ? [i.text] : []))[0];
   const steps = ["baring", "layar", "isi"].map((id) => ({ id, n: stepBadges(id), from: beat(id).a + 0.4, to: beat(id).b - 0.1 }));
@@ -141,9 +178,9 @@ export function makePlan(story: StoryT) {
 
   /** Where a label's pill is at `t` (its centre), where its leader ends, its box; clamped inside the safe area, below the top text, above the captions. */
   const labelAt = (l: Lab, t: number) => {
-    const a = toScreen(outCam(t), l.at);
+    const a = l.ins ? l.at : toScreen(outCam(t), l.at);
     const wPill = textWidthEstimate(l.text, LABEL_FS) + LABEL_FS * 1.1, h = LABEL_FS * 1.5;
-    const top = topTextBox().y1 + 20 + h / 2, bottom = captionBox(story.captionStyle, story.platforms).y0 - 20 - h / 2;
+    const top = topTextBox().y1 + 20 + h / 2, bottom = chipTopAt(t) - 20 - h / 2;
     const x = Math.max(SAFE.left + wPill / 2, Math.min(SAFE.right - wPill / 2, a[0] + l.off[0])), y = Math.max(top, Math.min(bottom, a[1] + l.off[1]));
     return { x, y, ax: a[0], ay: a[1], w: wPill, h, box: { x0: x - wPill / 2, y0: y - h / 2, x1: x + wPill / 2, y1: y + h / 2 } as Box };
   };
@@ -151,19 +188,25 @@ export function makePlan(story: StoryT) {
   const chipFor = (idx: number) => { const c = story.claims[idx]; return c ? [...new Set(c.sources.map(domain))].join(" · ") : ""; };
   const claimsOf = (id: string) => story.claims.map((c, i) => ({ c, i })).filter(({ c }) => c.beats.includes(id)).map(({ i }) => chipFor(i));
   // the source chip stands just above the caption box (y 1385 for the classic caption of YouTube at its old place; it follows the caption now, PLAN-SAFE-AREA-2)
-  const chipY = Math.round(captionBox(story.captionStyle, story.platforms).y0) - 54;
+  const chipY = Math.round(captionBox(story.captionStyle, story.platforms).y0) - 82;          // 44 px text on a 76 px pill: the pill's bottom is 44 px above the caption
+  const CHIP_X = 80, CHIP_W = (text: string) => chipFit(text, CHIP_X).w;
   const chips = [
     { id: "chip-baring", text: claimsOf("baring")[0], from: beat("baring").a + 1.6, to: beat("baring").b - 0.1 },
     { id: "chip-layar", text: claimsOf("layar")[0], from: m.scroll + 0.3, to: beat("layar").b - 0.1 },
     { id: "chip-isi", text: claimsOf("isi")[0], from: m.carried + 0.3, to: beat("isi").b - 0.1 },
-  ].filter((c): c is typeof c & { text: string } => !!c.text);
+  ].filter((c): c is typeof c & { text: string } => !!c.text)
+    // a cross-post mode lifts the caption (its box starts above y 1500) and the chip would stand over the phone: there the chips are left out (the sources stay in the description)
+    .filter(() => captionBox(story.captionStyle, story.platforms).y0 >= 1500);
+  /** The top of the source chip when one is on the screen at `t` (a label keeps above it), else the caption's top. */
+  const chipTopAt = (t: number) => (chips.some((c) => t >= c.from && t < c.to + 0.2) ? chipY - 38 : captionBox(story.captionStyle, story.platforms).y0);
 
   const tipLabels = labelsOf("tips");
   const tipBadges = items("tips").flatMap((i) => (i.type === "badge" ? [i.text] : []));
   const tips = [0, 1].flatMap((q) => {
     const title = tipLabels[q];
     if (!title) return [];
-    return [{ n: tipBadges[q] ?? String(q + 1), title: title.text, sub: title.lines?.[0], keyword: title.highlight?.[0], from: q ? m.tip2 : m.tip1, subAt: (q ? m.tip2 : m.tip1) + 0.9, to: q ? beat("tips").b - 0.1 : m.tip2 - 0.25 }];
+        // one tip is one phrase: the story splits it over the label's lines ("simpan hp di" / "ruangan lain"), and the card shows it whole (a phrase cut over a title and a grey sub line read as cut off)
+    return [{ n: tipBadges[q] ?? String(q + 1), title: [title.text, ...(title.lines ?? [])].join(" "), sub: undefined as string | undefined, keyword: title.highlight?.[0], from: q ? m.tip2 : m.tip1, subAt: (q ? m.tip2 : m.tip1) + 0.9, to: q ? beat("tips").b - 0.1 : m.tip2 - 0.25 }];
   });
   const TIP = { x: 80, y: 412, w: 840 };                 // inside SAFE (x 60..920) and below the top text (it ends at y 397; PLAN-SAFE-AREA, B24)
 
@@ -179,14 +222,17 @@ export function makePlan(story: StoryT) {
     const specs: Spec[] = [];
     if (tops.some((x) => t >= x.a && t < x.b)) specs.push({ id: "top-text", role: "banner", box: topTextBox() });
     if (story.beats.some((b) => b.kind !== "sting" && b.kind !== "outro" && t >= beat(b.id).a && t < beat(b.id).b)) specs.push({ id: "caption", role: "caption", box: captionBox(story.captionStyle, story.platforms) });
-    if (t < m.outro) {
+    const cover = insertAt(t);
+    if (cover && insertOpen(cover, t) > 0.6) specs.push({ id: `insert:${cover.id}`, role: "hero", box: HERO_BOXES[cover.kind] });
+    if (t < m.outro && !(cover && insertOpen(cover, t) > 0.6)) {
       // the phone is the key of the picture (the bed is only its stage, so a label may lie over the blanket); the eyes and the bubble are pictures labels keep clear of
       const c = outCam(t), z = c.zoom, st = state(t), box = (cx: number, cy: number, hw: number, hh: number): Box => { const a = toScreen(c, [cx - hw, cy - hh]), b = toScreen(c, [cx + hw, cy + hh]); return { x0: a[0], y0: a[1], x1: b[0], y1: b[1] }; };
       void z;
-      if (st.away < 0.5) specs.push({ id: "hero", role: "hero", box: box(PHONE_PT[0], PHONE_PT[1] - 10, 120, 100) });
+      if (st.away < 0.5) specs.push({ id: "hero", role: "hero", box: box(PHONE_PT[0], PHONE_PT[1] - 10, 120, 84) });
       specs.push({ id: "eyes", role: "picture", box: box(EYES.cx, EYES.cy, EYES.w / 2, 148) });
       if (st.bubble > 0.4) specs.push({ id: "bubble", role: "picture", box: box(BUBBLE.cx - 7, BUBBLE.cy - 20, 123, 70) });
     }
+    for (const c of chips) if (t >= c.from + 0.2 && t < c.to) specs.push({ id: `chip:${c.id}`, role: "text", box: { x0: CHIP_X, y0: chipY - 38, x1: CHIP_X + CHIP_W(c.text), y1: chipY + 38 } });
     for (const l of labels) if (t >= l.from + 0.1 && t < l.to) specs.push({ id: `label:${l.id}`, role: "text", box: labelAt(l, t).box });
     if (t >= m.sting && t < m.stingEnd) specs.push({ id: "sting:mascot", role: "picture", box: stingMascotBox }, { id: "sting:pill", role: "text", box: stingPillBox });
     tips.forEach((tp, i) => { if (t >= tp.from + 0.2 && t < tp.to) specs.push({ id: `tip:${i}`, role: "picture", box: { x0: TIP.x, y0: TIP.y, x1: TIP.x + TIP.w, y1: TIP.y + tipH(i) } }); });
@@ -196,6 +242,6 @@ export function makePlan(story: StoryT) {
 
   return {
     chipY, B, beat, total, w, m, outKeys, outCam, state, zMarks, tops, labels, labelAt, LABEL_FS, chips, tips, TIP, steps, STEP_AT, stingPill, STING, REACT,
-    loopWeight, specsAt, problemsAt,
+    loopWeight, specsAt, problemsAt, inserts, insertAt, insertOpen, HERO, HERO_BOXES, toasts, CHIP_W, chipTopAt, CHIP_X,
   };
 }

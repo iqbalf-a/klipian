@@ -41,6 +41,10 @@ export function sfx(story: StoryT): SfxEvent[] {
   P.tips.forEach((tp, i) => { add(tp.from, i ? "chime-bright" : "chime", `tip ${tp.n}`); add(tp.subAt, "tick", "the line under the tip"); });
   add(m.away, "whoosh", "the phone goes to another room", { vol: 0.6 });
 
+  // B25: each insert's circle opens with a soft swish, and the notifications that fly in beside the phone each blip
+  P.inserts.forEach((x) => add(x.from + 0.05, "swish-soft", `the picture cuts in: ${x.id}`, { vol: 0.6 }));
+  P.toasts.slice(1).forEach((tt, i) => add(tt.from + 0.05, "blip-alert", `a notification ${i + 2}`, { vol: 0.45 }));
+
   // the loop-back has no jingle and no mascot sound: the bed runs on so the seam does not dip to silence
   P.labels.forEach((l) => add(l.from + 0.05, "tick", `label ${l.text}`, { vol: 0.8 }));
   P.steps.forEach((sd) => add(sd.from, "tick-soft", `step ${sd.n}`, { vol: 0.8 }));

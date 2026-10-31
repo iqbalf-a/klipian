@@ -25,6 +25,7 @@
    the loop) or of its own state (0..1), so the loop's last frame equals its first. */
 import React from "react";
 import { ISO } from "../tokens.ts";
+import { swayDeg } from "../alive.ts";
 import { block, isoAt, ptsAttr, smoothPath, type P2, type P3 } from "../iso.ts";
 import {
   BUSHES, CLOUD_SHADOW, FLOWERS, GLINTS, HILL, LAND, LAND_TOP, PUDDLES, ROCKS, RUNOFF, SEA, SEA_TOP, STRATA_Z, TREE_R, TREE_SHADOW, TREES,
@@ -183,7 +184,9 @@ export const IsoTreeShadows: React.FC<{ u: number; o: P2 }> = ({ u, o }) => (
 
 /** The trees: pines (three tiers, each a cone split down its axis by the light, with a shaded band under it) and round trees (three lobes on a trunk).
     Back to front. */
-export const IsoTrees: React.FC<{ u: number; o: P2; list?: typeof TREES }> = ({ u, o, list = TREES }) => (
+/** `time` (seconds) makes the trees alive (B25): each crown sways a degree or two about its trunk's foot (the trees take turns: half of them sway the other way, and the
+    periods differ), and every sway is 0 at t = 0, so a loop that starts at 0 has no jump; `swayAmp` (0..1) turns it down (the loop-back's last frames). Without `time` they are still. */
+export const IsoTrees: React.FC<{ u: number; o: P2; list?: typeof TREES; time?: number; swayAmp?: number }> = ({ u, o, list = TREES, time, swayAmp = 1 }) => (
   <g>
     {list.map((t, i) => {
       if (t.kind === "round") {
@@ -191,7 +194,7 @@ export const IsoTrees: React.FC<{ u: number; o: P2; list?: typeof TREES }> = ({ 
         const crown = onFace(t.x, t.y, LAND_TOP + 0.62 * t.h, u, o), rr = u * 0.42 * t.h;
         const lobes: [number, number, number][] = [[0, 0, 1], [-0.55, 0.25, 0.78], [0.5, 0.3, 0.8]];
         return (
-          <g key={i}>
+          <g key={i} transform={time === undefined ? undefined : `rotate(${swayDeg(time, (i % 2) * 0.5, 1.4 * swayAmp, 3.2 + 0.45 * (i % 3))} ${trunkBot[0]} ${trunkBot[1]})`}>
             <polygon points={ptsAttr([[trunkBot[0] - tw, trunkBot[1]], [trunkBot[0] + tw, trunkBot[1]], [trunkTop[0] + tw, trunkTop[1]], [trunkTop[0] - tw, trunkTop[1]]])} fill={ISO.soil[1]} />
             {lobes.map(([dx, dy, k], j) => {
               const cx = crown[0] + dx * rr, cy = crown[1] + dy * rr * 0.6, r = rr * k;
@@ -213,7 +216,7 @@ export const IsoTrees: React.FC<{ u: number; o: P2; list?: typeof TREES }> = ({ 
       });
       const shade = mixRgb(ISO.leaf[2], "rgb(40,60,40)", 0.4);
       return (
-        <g key={i}>
+        <g key={i} transform={time === undefined ? undefined : `rotate(${swayDeg(time, (i % 2) * 0.5, 1.4 * swayAmp, 3.2 + 0.45 * (i % 3))} ${foot0[0]} ${foot0[1]})`}>
           <polygon points={ptsAttr([[foot0[0] - tw, foot0[1]], [foot0[0] + tw, foot0[1]], [foot0[0] + tw, foot0[1] - t.h * u * 0.22], [foot0[0] - tw, foot0[1] - t.h * u * 0.22]])} fill={ISO.soil[1]} />
           {tiers.map((ti, j) => {
             const foot = onFace(t.x, t.y, ti.z, u, o), apex = onFace(t.x, t.y, ti.apexZ, u, o);

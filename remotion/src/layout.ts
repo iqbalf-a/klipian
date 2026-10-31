@@ -78,6 +78,13 @@ const area = (a: Box, b: Box): number => Math.max(0, Math.min(a.x1, b.x1) - Math
 const inside = (a: Box, w: Box): boolean => a.x0 >= w.x0 && a.x1 <= w.x1 && a.y0 >= w.y0 && a.y1 <= w.y1;
 const shift = (b: Box, dx: number, dy: number): Box => ({ x0: b.x0 + dx, y0: b.y0 + dy, x1: b.x1 + dx, y1: b.y1 + dy });
 
+/** The size of a source chip ("SUMBER  <domains>", DM Mono, 0.6 em a glyph): the biggest font up to 44 px (and down to 30 px) that keeps the chip, from its left edge `x`,
+    inside the safe area's right edge; its width. A long domain gets a smaller chip, never one that runs off the screen. */
+export const chipFit = (text: string, x: number, maxRight: number = SAFE.right): { fs: number; w: number } => {
+  const n = [...`SUMBER  ${text}`].length, fs = Math.max(30, Math.min(44, Math.floor((maxRight - x - 44) / (0.6 * n))));
+  return { fs, w: n * fs * 0.6 + 44 };
+};
+
 /** The width of a text in the channel font (Outfit Bold): the real advance width of every character, read from the font file (fontMetrics.ts,
     made by font-metrics.mjs), so a layout is the same in a test, in the Studio and in a render. No kerning, which is under 2 %. */
 export const textWidthEstimate = (text: string, fs: number): number => [...text].reduce((w, c) => w + (WIDTHS[c] ?? FALLBACK_WIDTH), 0) * fs;

@@ -103,13 +103,13 @@ add(cards.every((c) => Number.isInteger(c.claim) && c.claim >= 1 && c.claim <= c
 const hookBg = beats[0]?.scene?.bg;
 add(hookBg === "brand" ? "PASS" : "FLAG", `the stage: the hook is on the brand background (it is "${hookBg}")`);
 const sources = readdirSync(dir).filter((f) => /\.(ts|tsx)$/.test(f)).map((f) => readFileSync(path.join(dir, f), "utf8")).join("\n");
-const isoParts = /Iso(WallSocket|Cutaway|Block|Plug|Sea|Land|Trees|Cloud|Bed)/.test(sources);
+const isoParts = /Iso(WallSocket|Cutaway|Block|Plug|Sea|Land|Trees|Cloud|Bed|Lamp|Kettle|Fan|Clock|Cup|Battery|Heart|Brain)/.test(sources);
 add(isoParts ? "PASS" : "FLAG", "the video draws its object in the isometric kit (a stage block)");
 add("RENDER", "the hero is 60 to 70 % of the screen width at the main shot (measure it on the still)");
 
 // 9. the marks: the components this video draws that are marks must be in the dictionary; a private mark is a FLAG
 const registered = new Set(markComponents());
-const markLike = ["HeatRise", "SmokePuffs", "Sparks", "IsoVapour", "IsoSun", "IsoSea", "IsoRain", "IsoDroplets", "Arrow", "IsoCutaway", "IsoWallSocket", "IsoSplash", "IsoRunoff"];
+const markLike = ["HeatRise", "SmokePuffs", "Sparks", "IsoVapour", "IsoSun", "IsoSea", "IsoRain", "IsoDroplets", "Arrow", "IsoCutaway", "IsoWallSocket", "IsoSplash", "IsoRunoff", "IsoAir", "IsoLamp", "IsoKettle", "IsoFan", "IsoClock", "IsoCup", "IsoBattery", "IsoHeart", "IsoBrain"];
 const used = markLike.filter((n) => new RegExp(`<${n}[\\s/>]`).test(sources));
 const unregistered = used.filter((n) => !registered.has(n));
 add(unregistered.length === 0 ? "PASS" : "FLAG", `every mark the video draws is in the dictionary (${used.length} used${unregistered.length ? `; missing rows: ${unregistered.join(", ")}` : ""})`);
@@ -126,6 +126,7 @@ add(myth ? (hasVerdict ? "PASS" : "FLAG") : "INFO", myth ? "the myth check ends 
 
 // 12. the detail budget: the hero reaches 80 % of the colokan's shapes and parts (scripts/detailBudget.mjs writes out/detail/budget.json)
 add("RENDER", "the hero reaches 80 % of the colokan's shapes and parts (run scripts/detailBudget.mjs; the table is in the report)");
+add("RENDER", "the motion density (B25): something moves about every second and something new every 3 to 4 seconds (render a draft, then npm run motion-density -- <slug>; the longest still stretch and the longest gap are in the report)");
 
 // 13. must 3 (B16): the object style and the animation are consistent. (a) the colours come from the tokens (no literal colour, no gradient, except
 //     the registered exceptions in src/motionLanguage.ts); (b) the easings and springs are the registry's; (c) the camera and the transitions are in the

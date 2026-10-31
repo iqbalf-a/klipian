@@ -6,10 +6,10 @@ import React from "react";
 import { useCurrentFrame } from "remotion";
 import { CameraMotionBlur } from "@remotion/motion-blur";
 import {
-  BLACK, Brand, CaptionLayer, FONT_BOLD, FPS, FRAME, G3, Lab, LayoutDebug, Mascot, TopText, WALL, YELLOW, easeInOut, springAt, useFonts, layerTransform, toScreen,
+  BLACK, Brand, CaptionLayer, FONT_BOLD, FPS, FRAME, G3, Lab, bobPx, driftPx, LayoutDebug, Mascot, TopText, WALL, YELLOW, easeInOut, springAt, useFonts, layerTransform, toScreen,
   type StoryT,
 } from "../../src/design/index.ts";
-import { IsoBushes, IsoCloud, IsoDrop, IsoHill, IsoLand, IsoPuddles, IsoRain, IsoRocks, IsoRunoff, IsoSea, IsoTreeShadows, IsoTrees } from "../../src/components/IsoNature.tsx";
+import { IsoBushes, IsoCloud, IsoDrop, IsoHill, IsoLand, IsoPuddles, IsoRain, IsoRocks, IsoRunoff, IsoSea, IsoSun, IsoTreeShadows, IsoTrees } from "../../src/components/IsoNature.tsx";
 import { IsoPlane, IsoSeed } from "../../src/components/IsoSeeding.tsx";
 import { Magnifier, NumberLabel, SourceChip, TipCard, tipCardHeight } from "../../src/components/Overlays.tsx";
 import { CLOUD, CLOUD_PT, OUT, makePlan } from "./plan.ts";
@@ -74,6 +74,8 @@ const Picture: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ story: s,
   const stage = { u: OUT.u, o: OUT.o };
   const planeP = P.planeAt(t), grains = P.grains(t);
   const rainPhase = (t * 1.3) % 1;
+  const sunK = P.tips[0] ? springAt(t, P.tips[0].from) * (1 - easeInOut(clamp01((t - P.tips[0].to) / 0.4))) : 0;
+  const glassK = P.tips[1] ? springAt(t, P.tips[1].from) * (1 - easeInOut(clamp01((t - (m.outro - 0.5)) / 0.4))) : 0;
 
   const grainEls = (front: boolean) => grains.filter((g) => g.front === front).map((g, i) => <g key={`${front}${i}`} opacity={g.a}><IsoSeed kind={g.kind} x={g.x} y={g.y} s={g.s} t={t} /></g>);
 
@@ -128,14 +130,20 @@ const Picture: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ story: s,
             <IsoRunoff {...stage} k={st.rain} />
             <IsoBushes {...stage} />
             <IsoRocks {...stage} />
-            <IsoTrees {...stage} />
+            <IsoTrees {...stage} time={t} swayAmp={1 - lw} />
             {grainEls(false)}
+            {/* tip 1 (the forecast): the sun comes out behind the cloud, its rays turning a little (the alive sun); it goes when tip 2 begins */}
+            {sunK > 0.01 && <g transform={`translate(${CLOUD_PT[0] - 175} ${CLOUD_PT[1] - 120}) scale(${sunK}) translate(${-(CLOUD_PT[0] - 175)} ${-(CLOUD_PT[1] - 120)})`}><IsoSun cx={CLOUD_PT[0] - 175} cy={CLOUD_PT[1] - 120} r={72} phase={t * 0.4} /></g>}
             <IsoRain {...stage} k={st.rain} phase={rainPhase} />
-            <IsoCloud {...stage} cx={CLOUD.cx} cy={CLOUD.cy} cz={CLOUD.cz} dark={st.dark} grow={CLOUD.grow} phase={ph} />
+            {/* the cloud drifts and bobs a little all the time (alive); the loop-back brings it home (the amplitude goes to 0 with the loop weight) */}
+            <g transform={`translate(${driftPx(t) * (1 - lw)} ${bobPx(t, 0, 5) * (1 - lw)})`}><IsoCloud {...stage} cx={CLOUD.cx} cy={CLOUD.cy} cz={CLOUD.cz} dark={st.dark} grow={CLOUD.grow} phase={ph} /></g>
             {planeP && <IsoPlane x={planeP.x} y={planeP.y} w={planeP.w} phase={t} />}
             {grainEls(true)}
           </g>
         </g>}
+
+        {/* ---------------- tip 2 (be careful with claims): a magnifier hovers over the cloud */}
+        {outside && glassK > 0.01 && <g transform={`translate(${lensC[0]} ${lensC[1] + bobPx(t, 0.2, 8)}) scale(${glassK}) translate(${-lensC[0]} ${-lensC[1]})`}><Magnifier x={lensC[0]} y={lensC[1]} r={150} t={t} start={0} grow={0} tag="" /></g>}
 
         {/* ---------------- the magnifier over the cloud, and the lab inside it */}
         {lens.show && <Magnifier x={lensC[0]} y={lensC[1]} r={lens.r} t={t} start={m.magnifier} grow={lens.grow} tag={t >= m.exit ? "" : "DIPERBESAR"}>{labScene}</Magnifier>}
@@ -146,7 +154,7 @@ const Picture: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ story: s,
         {P.steps.map((sd) => sd.n && <StepDisc key={sd.id} n={sd.n} t={t} from={sd.from} to={sd.to} />)}
         {outside && labelEls("out")}
         {inLab && labelEls("lab")}
-        {P.chips.map((c) => ((c.onDark ? inLab : outside) && t >= c.from && t < c.to + 0.4) ? <SourceChip key={c.id} x={90} y={P.chipY} text={c.text} t={t} start={c.from} end={c.to} onDark={c.onDark} /> : null)}
+        {P.chips.map((c) => ((c.onDark ? inLab : outside) && t >= c.from && t < c.to + 0.4) ? <SourceChip key={c.id} x={P.CHIP_X} y={P.chipY} text={c.text} t={t} start={c.from} end={c.to} onDark={c.onDark} /> : null)}
         {P.tips.map((tp, i) => <TipCard key={i} x={P.TIP.x} y={P.TIP.y} w={P.TIP.w} n={tp.n} title={tp.title} sub={tp.sub} keyword={tp.keyword} t={t} start={tp.from} subAt={tp.subAt} end={tp.to} />)}
 
         {/* ---------------- the mascot: the small "Intip yuk!" sting (no veil: the world keeps moving behind it) and one short reaction */}

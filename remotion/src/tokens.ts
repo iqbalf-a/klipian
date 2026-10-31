@@ -31,6 +31,10 @@ export const CAVITY_SHADE = rgb([64, 64, 64]);         // G2 x 0.62: the cavity 
 export const WALL = rgb([238, 236, 230]);              // the Room background
 export const FLOOR = rgb([214, 212, 206]);
 export const SMOKE = G3;
+/** The alive set's own colours (src/components/IsoLife.tsx): the steam of a hot drink or a kettle, and a cup of coffee (dark and light). Not the nature tones. */
+export const STEAM = rgb([182, 212, 236]);
+export const COFFEE = rgb([104, 80, 60]);
+export const COFFEE_LIGHT = rgb([160, 128, 98]);
 
 /** Meaning, in one place: yellow = current, red/orange = heat or danger, grey = the object's material, light grey = metal. */
 export const MEANING = { current: YELLOW_D, heat: RED, material: G3, metal: METAL } as const;
@@ -125,4 +129,7 @@ export const ISO = {
   // phase 1c: the strata of the land (sand, clay) and its stones, used only by the nature assets
   sand: [rgb([226, 210, 160]), rgb([196, 176, 124]), rgb([160, 140, 96])],
   stone: [rgb([176, 176, 170]), rgb([138, 138, 132]), rgb([98, 98, 94])],
+  // the body kit (P28-R phase 5, src/components/IsoLife.tsx): the organs, used only by the body assets (a heart, a brain); a soft red and a soft pink, not the red of danger
+  organ: [rgb([240, 150, 150]), rgb([214, 104, 104]), rgb([168, 72, 72])],
+  brain: [rgb([246, 200, 196]), rgb([232, 160, 158]), rgb([196, 120, 120])],
 } as const satisfies Record<string, readonly [string, string, string]>;

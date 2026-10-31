@@ -7,14 +7,16 @@ import { BLACK, BLUSH, G3, G4, ISO, SKIN_A, SKIN_B, WHITE } from "../tokens.ts";
 import { block, isoAt, ptsAttr, type P2, type P3 } from "../iso.ts";
 import { Polys } from "./Iso.tsx";
 import { BED, PHONE } from "../bedroomGeometry.ts";
+import { blinkClosed, breatheScale, pulse01 } from "../alive.ts";
 
 /** The bed: the frame, the mattress, the pillow at the back and the blanket over the front half. World units (x lower right, y lower left, z up), `u` px per unit. */
-export const IsoBed: React.FC<{ u: number; o: P2 }> = ({ u, o }) => (
+/** `t` (seconds) makes it alive: the blanket rises and falls a little with the sleeper's breath (B25). Without `t` it is still. */
+export const IsoBed: React.FC<{ u: number; o: P2; t?: number }> = ({ u, o, t }) => (
   <g>
     <Polys polys={block([-0.1, -0.1, -0.35], [3.1, 2.1, 0], u, o)} tones={ISO.brass} />
     <Polys polys={block(BED.a, BED.b, u, o)} tones={ISO.plastic} />
     <Polys polys={block([0.15, 0.3, 0.5], [0.95, 1.7, 0.82], u, o)} tones={ISO.wall} />
-    <Polys polys={block([1.1, 0, 0.5], [3, 2, BED.top], u, o)} tones={ISO.labPlastic} />
+    <Polys polys={block([1.1, 0, 0.5], [3, 2, BED.top + (t === undefined ? 0 : 0.5 * (breatheScale(t, 0, 0.04) - 1))], u, o)} tones={ISO.labPlastic} />
   </g>
 );
 
@@ -32,7 +34,7 @@ export const IsoPhone: React.FC<{ u: number; o: P2; on: number; t: number; lift?
   });
   return (
     <g>
-      {on > 0.01 && <ellipse cx={centre[0]} cy={centre[1] - u * 0.1} rx={u * 1.15} ry={u * 0.7} fill={WHITE} opacity={0.3 * on} />}
+      {on > 0.01 && <ellipse cx={centre[0]} cy={centre[1] - u * 0.1} rx={u * 1.15 * (1 + 0.03 * pulse01(t, 0, 2.2))} ry={u * 0.7 * (1 + 0.03 * pulse01(t, 0, 2.2))} fill={WHITE} opacity={0.3 * on} />}
       <Polys polys={block([cx - hx, cy - hy, z0], [cx + hx, cy + hy, z1], u, o)} tones={ISO.dark} />
       <defs><clipPath id={`ph${id}`}><polygon points={ptsAttr(pts)} /></clipPath></defs>
       <polygon points={ptsAttr(pts)} fill={on > 0.5 ? WHITE : ISO.dark[2]} />
@@ -48,8 +50,11 @@ export const IsoPhone: React.FC<{ u: number; o: P2; on: number; t: number; lift?
 
 /** A pair of eyes on a skin strip, centred (cx, cy), the strip `w` wide. `open` 0..1 is how far the lids are up (1 wide awake, 0 shut), `look` -1..1 turns the
     pupils up (-1) or down (1), `brow` 0..1 lifts the brows. */
-export const SleepyEyes: React.FC<{ cx: number; cy: number; w: number; open: number; look?: number; brow?: number }> = ({ cx, cy, w, open, look = 0.3, brow = 0.3 }) => {
+export const SleepyEyes: React.FC<{ cx: number; cy: number; w: number; open: number; look?: number; brow?: number; t?: number }> = ({ cx, cy, w, open: openIn, look: lookIn = 0.3, brow = 0.3, t }) => {
   const id = React.useId().replace(/:/g, "");
+  // `t` (seconds) makes them alive (B25): awake eyes blink now and then, and the gaze drifts a little. Without `t` they are still.
+  const open = t !== undefined && openIn > 0.7 ? openIn * (1 - 0.92 * blinkClosed(t)) : openIn;
+  const look = t !== undefined ? lookIn + 0.06 * Math.sin(t * 0.9) : lookIn;
   const R = w * 0.19, ry = R * 0.8, cover = (1 - Math.max(0, Math.min(1, open))) * 2 * ry;
   return (
     <g>

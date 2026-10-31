@@ -4,12 +4,13 @@
 import React from "react";
 import { useCurrentFrame } from "remotion";
 import {
-  BLACK, Brand, CaptionLayer, FONT_BOLD, FPS, FRAME, G3, G4, LayoutDebug, Mascot, RED, TopText, WALL, WHITE, YELLOW, easeInOut, layerTransform, springAt, toScreen, useFonts,
+  BLACK, Brand, CaptionLayer, FONT_BOLD, FPS, FRAME, G2, G3, G4, IsoBrain, IsoClock, IsoHeart, IsoLamp, LayoutDebug, Mascot, RED, TopText, WALL, WHITE, YELLOW, bobPx, easeInOut, iso, layerTransform, riseAt, springAt, toScreen, useFonts,
   type StoryT,
 } from "../../src/design/index.ts";
 import { IsoBed, IsoPhone, SleepyEyes } from "../../src/components/IsoBedroom.tsx";
 import { NumberLabel, SourceChip, TipCard, tipCardHeight } from "../../src/components/Overlays.tsx";
-import { BUBBLE, EYES, OUT, PHONE_PT, makePlan } from "./plan.ts";
+import { PHONE } from "../../src/bedroomGeometry.ts";
+import { BUBBLE, EYES, OUT, PHONE_PT, makePlan, type Plan } from "./plan.ts";
 import storyJson from "./story.json";
 
 export const story = storyJson as unknown as StoryT;
@@ -53,11 +54,79 @@ const Thought: React.FC<{ k: number; busy: number; t: number; notif: number }> =
       <circle cx={cx - 72} cy={cy + 38} r={r * 0.62} fill={WHITE} />
       <circle cx={cx + 66} cy={cy + 46} r={r * 0.54} fill={WHITE} />
       <circle cx={cx} cy={cy} r={r} fill={WHITE} />
-      {[0, 1, 2].map((i) => {
-        const j = busy * (0.5 + 0.5 * Math.sin(t * (6 + i * 1.7) + i * 2)), len = 80 + 70 * (0.35 + 0.65 * ((i * 0.37 + 0.2 * j) % 1));
-        return <rect key={i} x={cx - 62} y={cy - 36 + i * 30} width={len} height={16} rx={8} fill={i === 1 ? G3 : G4} />;
-      })}
+      <IsoBrain u={46} o={[cx, cy + 4]} t={t} busy={Math.max(0.15, busy)} />
       {notif > 0.01 && <circle cx={cx + 74} cy={cy - 66} r={18 * notif} fill={RED} />}
+    </g>
+  );
+};
+
+/** A notification that flies in beside the phone: a white card with a coloured dot and two grey lines; it pops in at `from` and bobs a little. */
+const Toast: React.FC<{ x: number; y: number; t: number; from: number; dot: number; i: number }> = ({ x, y, t, from, dot, i }) => {
+  const p = springAt(t, from, false);
+  if (p <= 0.001) return null;
+  const dots = [YELLOW, G3, RED];
+  return (
+    <g transform={`translate(${x} ${y + bobPx(t, i * 0.31, 6)}) scale(${Math.max(0, p)})`}>
+      <rect x={-165} y={-50} width={330} height={100} rx={26} fill={WHITE} />
+      <circle cx={-118} cy={0} r={26} fill={dots[dot % 3]} />
+      <rect x={-72} y={-24} width={190} height={17} rx={8} fill={G2} opacity={0.8} />
+      <rect x={-72} y={6} width={130 - 14 * dot} height={15} rx={7} fill={G4} />
+    </g>
+  );
+};
+
+/** What each insert shows: the object, big, alive, at the hero point (the plan's HERO), with the things that make it a story (the notifications, the signals running in, the emotions). */
+const InsertObject: React.FC<{ P: Plan; kind: string; t: number; from: number; k: number }> = ({ P, kind, t, from, k }) => {
+  const [hx, hy] = P.HERO, bt = t - from, pop = Math.max(0.001, springAt(t, from + 0.22, false)), at = (pt: [number, number, number], u: number): [number, number] => { const c = iso(pt, u); return [hx - c[0], hy - c[1]]; };
+  const wrap = (children: React.ReactNode) => <g transform={`translate(${hx} ${hy}) scale(${pop}) translate(${-hx} ${-hy})`}>{children}</g>;
+  if (kind === "clock") return wrap(<IsoClock u={265} o={at([0, 0.25, 0.95], 265)} t={t} time={22 * 3600 + 50 * 60} speed={from < 20 ? 240 : 900} ring={0} />);
+  if (kind === "phone") {
+    const u = 330;
+    return <g>{wrap(<IsoPhone u={u} o={at([PHONE.c[0], PHONE.c[1], PHONE.c[2] + PHONE.h], u)} on={1} t={t * 2.2} />)}{P.toasts.map((ts, i) => <Toast key={ts.id} x={ts.x} y={ts.y} t={t} from={ts.from} dot={ts.dot} i={i} />)}</g>;
+  }
+  if (kind === "brain") {
+    const signals = [0, 1, 2, 3, 4].map((i) => {
+      const a = (i / 5) * Math.PI * 2 + 0.6, r0 = 560, q = riseAt(t, i * 0.2, 1.4), r = r0 * (1 - q) + 140 * q, x = hx + Math.cos(a) * r, y = hy + Math.sin(a) * r * 0.8;
+      return <rect key={i} x={x - 22} y={y - 16} width={44} height={32} rx={9} fill={i % 2 ? WHITE : YELLOW} opacity={Math.sin(Math.PI * q)} transform={`rotate(${bt * 40 + i * 30} ${x} ${y})`} />;
+    });
+    return <g>{wrap(<IsoBrain u={235} o={[hx, hy]} t={t} busy={1} />)}{signals}</g>;
+  }
+  if (kind === "heart") {
+    const mark = (x: number, y: number, ph: number, text: string, fill: string) => <g transform={`translate(${x} ${y + bobPx(t, ph, 10)})`}><circle r={46} fill={fill} /><text y={2} fontSize={60} fill={BLACK} textAnchor="middle" dominantBaseline="central" style={bold}>{text}</text></g>;
+    return <g>{wrap(<IsoHeart u={215} o={[hx, hy]} t={t} bpm={100} />)}{springAt(t, from + 0.6) > 0.01 && mark(hx - 300, hy - 150, 0.1, "!", YELLOW)}{springAt(t, from + 0.9) > 0.01 && mark(hx + 300, hy - 60, 0.5, "?", G4)}</g>;
+  }
+  if (kind === "stare") {
+    // wide awake in the dark: big eyes looking up at the ceiling, question marks bobbing around them
+    const q = (qx: number, qy: number, ph: number, p: number) => springAt(t, from + p) > 0.01 && <text key={ph} x={qx} y={qy + bobPx(t, ph, 9)} fontSize={74} fill={BLACK} opacity={0.55} textAnchor="middle" style={bold}>?</text>;
+    return <g>{wrap(<SleepyEyes cx={hx} cy={hy - 20} w={640} open={1} look={-0.8} brow={1} t={t} />)}{q(hx - 330, hy - 190, 0.1, 0.5)}{q(hx + 340, hy - 120, 0.5, 0.9)}{q(hx - 250, hy + 190, 0.8, 1.3)}</g>;
+  }
+  if (kind === "held") {
+    // the lids try to close and the lit screen pulls them up again: a nod, the beam from the phone below
+    const open = 0.52 + 0.2 * Math.sin(bt * 2.1), lit = 0.7 + 0.3 * Math.sin(bt * 3);
+    return <g>
+      <polygon points={`${hx - 90},${hy + 330} ${hx + 90},${hy + 330} ${hx + 250},${hy + 60} ${hx - 250},${hy + 60}`} fill={WHITE} opacity={0.4 * lit} />
+      {wrap(<SleepyEyes cx={hx} cy={hy - 20} w={640} open={open} look={0.5} brow={0.3} t={t} />)}
+      <g transform={`translate(${hx} ${hy + 340})`}><rect x={-110} y={-26} width={220} height={52} rx={14} fill={G2} /><rect x={-98} y={-17} width={196} height={34} rx={8} fill={WHITE} opacity={lit} /></g>
+    </g>;
+  }
+  return wrap(<IsoLamp u={235} o={at([0, 0, 1.1], 235)} t={t} on={1} />);                  // lamp
+};
+
+/** The insert's circle: it opens from where the story is (the plan's origin) over the stage; inside it is the brand background with a spot behind the object. */
+const InsertLayer: React.FC<{ P: Plan; t: number }> = ({ P, t }) => {
+  const ins = P.inserts.find((x) => t >= x.from && t < x.to);
+  if (!ins) return null;
+  const k = P.insertOpen(ins, t);
+  if (k <= 0.001) return null;
+  const id = `ins-${ins.id}`;
+  return (
+    <g>
+      <defs><clipPath id={id}><circle cx={ins.origin[0]} cy={ins.origin[1]} r={1700 * k} /></clipPath></defs>
+      <g clipPath={`url(#${id})`}>
+        <rect width={W} height={H} fill={WALL} />
+        <Brand clock={t} spot={{ x: P.HERO[0], y: P.HERO[1], r: 470 }} />
+        <InsertObject P={P} kind={ins.kind} t={t} from={ins.from} k={k} />
+      </g>
     </g>
   );
 };
@@ -95,10 +164,10 @@ const Picture: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ story: s,
           {lw > 0 && <g opacity={lw}><Brand clock={0} spot={{ x: 540, y: 900, r: 560 }} /></g>}
         </g></g>
         <g transform={layerTransform(oc, 1)}>
-          <IsoBed {...stage} />
+          <IsoBed {...stage} t={t} />
           {st.on * (1 - away) > 0.02 && <polygon points={beam.map((p) => p.join(",")).join(" ")} fill={WHITE} opacity={0.2 * st.on * (1 - away)} />}
           <g transform={phoneTrans}><IsoPhone {...stage} on={st.on} t={t} lift={0.35 * away} /></g>
-          <SleepyEyes cx={EYES.cx} cy={EYES.cy} w={EYES.w} open={st.open} look={st.look} brow={st.brow} />
+          <SleepyEyes cx={EYES.cx} cy={EYES.cy} w={EYES.w} open={st.open} look={st.look} brow={st.brow} t={t} />
           {z > 0.02 && [0, 1, 2].map((i) => {
             const k = (((t * 0.4 + i / 3) % 1) + 1) % 1;
             return <text key={i} x={EYES.cx - EYES.w / 2 - 6 - i * 30 - 30 * k} y={EYES.cy - 120 - 90 * k - i * 12} fontSize={50 - i * 8} fill={BLACK} opacity={0.55 * z * Math.min(1, k * 4, (1 - k) * 2.5)} style={bold}>Z</text>;
@@ -106,11 +175,14 @@ const Picture: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ story: s,
           <Thought k={st.bubble} busy={st.busy} t={t} notif={notif} />
         </g>
 
+        {/* ---------------- the insert (B25): one object on its own, in a circle that opens from where the story is */}
+        <InsertLayer P={P} t={t} />
+
         {/* ---------------- the question mark, the step, the labels, the chips, the tips */}
         {t < m.sting && <Mark text="?" x={hookQ[0] + 30} y={hookQ[1] + 10} fs={92} p={springAt(t, m.hookQ, false) * (1 - easeInOut(clamp01((t - (m.sting - 0.3)) / 0.3)))} />}
         {P.steps.map((sd) => sd.n && <StepDisc key={sd.id} n={sd.n} x={P.STEP_AT[0]} y={P.STEP_AT[1]} t={t} from={sd.from} to={sd.to} />)}
         {labelEls}
-        {P.chips.map((c) => (t >= c.from && t < c.to + 0.4) ? <SourceChip key={c.id} x={90} y={P.chipY} text={c.text} t={t} start={c.from} end={c.to} /> : null)}
+        {P.chips.map((c) => (t >= c.from && t < c.to + 0.4) ? <SourceChip key={c.id} x={P.CHIP_X} y={P.chipY} text={c.text} t={t} start={c.from} end={c.to} /> : null)}
         {P.tips.map((tp, i) => <TipCard key={i} x={P.TIP.x} y={P.TIP.y} w={P.TIP.w} n={tp.n} title={tp.title} sub={tp.sub} keyword={tp.keyword} t={t} start={tp.from} subAt={tp.subAt} end={tp.to} />)}
 
         {/* ---------------- the mascot: the small "Intip yuk!" sting (no veil: the world keeps moving behind it) and one short reaction */}

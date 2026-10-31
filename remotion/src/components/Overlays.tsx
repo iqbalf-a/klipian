@@ -4,7 +4,7 @@
 import React from "react";
 import { BLACK, FONT_BOLD, FONT_MONO, G2, RED, WHITE, YELLOW, YELLOW_D } from "../tokens.ts";
 import { clamp01, easeInOut, easeOut, springAt } from "../motion.ts";
-import { textWidthEstimate, type Spec } from "../layout.ts";
+import { chipFit, textWidthEstimate, type Spec } from "../layout.ts";
 import { wrap } from "./Cards.tsx";
 
 const bold = { fontFamily: `"${FONT_BOLD}", sans-serif`, fontWeight: 700 } as const;
@@ -90,18 +90,18 @@ export const SourceChip: React.FC<{ x: number; y: number; text: string; t: numbe
   const p = life(t, start, end);
   if (p <= 0.001) return null;
   // step 4 (P28-P pilot 1): 40 px, a phone-readable size next to the 46 px labels (a 540 px wide frame keeps it legible)
-  const label = "SUMBER", fs = CHIP_FS, w = monoWidth(`${label}  ${text}`, fs) + 44, x0 = align === "middle" ? x - w / 2 : x;
+  const label = "SUMBER", { fs, w } = chipFit(text, align === "middle" ? 60 : x), x0 = align === "middle" ? x - w / 2 : x;
   return (
     <g opacity={clamp01(p * 2)} transform={`translate(${x0} ${y + (1 - p) * 10})`}>
-      <rect x={0} y={-34} width={w} height={68} rx={34} fill={onDark ? BLACK : WHITE} opacity={onDark ? 0.75 : 0.92} />
+      <rect x={0} y={-38} width={w} height={76} rx={38} fill={onDark ? BLACK : WHITE} opacity={onDark ? 0.75 : 0.92} />
       <text x={22} y={14} fontSize={fs} style={mono}><tspan fill={onDark ? YELLOW : YELLOW_D}>{label}</tspan><tspan fill={onDark ? WHITE : G2}>{`  ${text}`}</tspan></text>
     </g>
   );
 };
-export const CHIP_FS = 40;
+export const CHIP_FS = 44;
 export const sourceChipSpec = (id: string, x: number, y: number, text: string): Spec => {
-  const w = monoWidth(`SUMBER  ${text}`, CHIP_FS) + 44;
-  return { id, role: "text", box: { x0: x, y0: y - 34, x1: x + w, y1: y + 34 } };
+  const { w } = chipFit(text, x);
+  return { id, role: "text", box: { x0: x, y0: y - 38, x1: x + w, y1: y + 38 } };
 };
 
 /** Two causes that feed each other: a ring of two red arrows chasing round (cx, cy) and the two words on pills, each with an up arrow ("panas ↑").

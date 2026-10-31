@@ -1,7 +1,9 @@
 /* __TITLE__ — the timing of this video (pure: no React here). The formula is DESIGN.md section 0b: the hook, the "Intip yuk!" sting right after it,
    the explain beats, the result, the tip and the loop-back outro. Read the beats from the story; do not hard-code the durations.
    Colours come from src/tokens.ts; easings and springs from src/motionLanguage.ts (must 3 of B16). Add `motion-exception: <reason>` here
-   only with ian's OK, when a move must leave the registry's ranges. */
+   only with ian's OK, when a move must leave the registry's ranges.
+   B25 (motion density): something moves about every second and something new comes every 3 to 4 seconds; plan an INSERT (an object on its own) for each explain beat
+   instead of one stage for the whole video, and use the alive assets (src/components/IsoLife.tsx, src/alive.ts). `npm run motion-density -- <slug>` measures a draft. */
 import type { StoryT } from "../../src/schema.ts";
 
 export function makePlan(story: StoryT) {

@@ -282,7 +282,7 @@ Run: `cd remotion` then `npm run new-video {slug} stories/{slug}.json`
 Expected: a line `made videos/{slug} and tests/{slug}.test.ts`, then the folder `remotion/videos/{slug}/` holds `index.tsx`, `plan.ts`, `sfx.ts`, `meta.json` and `story.json`.
 
 {STEP_MARK}4: draw the beats
-Do: read `remotion/DESIGN.md` (section 0b and every rule B1 up to the last one), `remotion/src/dictionary.ts` and the kit `remotion/src/components/Iso*.tsx` first. The two finished videos to copy the structure from are `remotion/videos/kenapa-colokan-panas` and `remotion/videos/ngantuk-pegang-hp`. Edit `remotion/videos/{slug}/index.tsx` and `plan.ts`: one hero object, reuse before you draw, at most three new assets, the story's `theme`, `stage` and `music`.
+Do: read `remotion/DESIGN.md` (section 0b and every rule B1 up to the last one), `remotion/src/dictionary.ts` and the kit `remotion/src/components/Iso*.tsx` first. The two finished videos to copy the structure from are `remotion/videos/kenapa-colokan-panas` and `remotion/videos/ngantuk-pegang-hp`. Edit `remotion/videos/{slug}/index.tsx` and `plan.ts`: one hero object, reuse before you draw, at most three new assets, the story's `theme`, `stage` and `music`. Rule B25 of DESIGN.md: something moves about every second (the assets of `remotion/src/components/IsoLife.tsx` and `remotion/src/alive.ts` move a little all the time), something new comes about every 3 to 4 seconds, and each explain beat has its own picture (an object on its own in a circle that opens, a camera that goes elsewhere), not one stage for the whole video.
 Expected: both files compile (step 5 shows it).
 
 {STEP_MARK}5: style check

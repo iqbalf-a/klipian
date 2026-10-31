@@ -41,7 +41,7 @@ for (let f = 0; f < P.total * FPS; f += 3) { const t = f / FPS, pr = P.problemsA
 yes(bad.length === 0, `no overlap or safe-area problem on any third frame (${bad.slice(0, 4).join(" | ")})`);
 
 // the words on the screen are the story's (bar the channel's chrome); the story's AWAN placeholder is not drawn as text any more
-const hay = story.beats.flatMap((b) => [b.narration, b.text, ...b.scene.items.flatMap((i) => ("text" in i ? [i.text] : []))]).join(" ").toLowerCase();
+const hay = story.beats.flatMap((b) => [b.narration, b.text, ...b.scene.items.flatMap((i) => ("text" in i ? [i.text, [i.text, ...(("lines" in i && i.lines) || [])].join(" ")] : []))]).join(" ").toLowerCase();       // a label's text and its text with its lines (one phrase)
 yes(P.labels.every((l) => hay.includes(l.text.toLowerCase())), "every label's text is a text of the story");
 yes(P.labels.every((l) => l.text !== "AWAN"), "no label says AWAN: the cloud is drawn");
 yes(P.tips.length === 2 && P.tips.every((tp) => hay.includes(tp.title.toLowerCase())), "the two tip cards carry the story's tip texts");

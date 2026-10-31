@@ -20,7 +20,8 @@ klipian (`klipian/motion.py`) never copies a rule from here: it runs the Node sc
     npm run style-report -- <slug>   stills, the loop check, the variety and the safe-area flags in out/<slug>/style-report.md
     npm run safe-check -- <slug>     what falls inside the YouTube, TikTok and Instagram covered bands (a flag, never a failure)
     npm run calibration              renders out/safe/calibration.mp4 (a grid to play in each app and screenshot)
-    npm run assets-sheet             out/assets-sheet.png: the asset library on one sheet
+    npm run assets-sheet             out/assets-sheet*.png: the asset library on three sheets (2D and 3D, the 2.5D kit, the alive set)
+    npm run motion-density -- <slug|file.mp4>   how often something moves and something new comes, from the picture of a rendered draft (B25)
     npm run sfx                      synthesises the sound effects and the music beds (sfx/LICENSES.md)
     npm run clean-cache              keeps the newest render bundle in .cache/ and removes the rest (a render keeps the newest two by itself)
     npm run studio                   Remotion Studio, to look at the motion frame by frame

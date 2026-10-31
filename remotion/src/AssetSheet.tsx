@@ -16,6 +16,7 @@ import { Cable3D, Cutaway3D, Plug3D, PlugHeat, Smoke3D, WallSocket3D } from "./t
 import { HeatRise, IsoBlock, IsoCutaway, IsoPlug, IsoWallSocket, Polys, SmokePuffs, Sparks } from "./components/Iso.tsx";
 import { LoopArrows, MacroFrame, Magnifier, NumberLabel, SourceChip, TipCard } from "./components/Overlays.tsx";
 import { cylinder } from "./iso.ts";
+import { IsoAir, IsoBattery, IsoBrain, IsoClock, IsoCup, IsoFan, IsoHeart, IsoKettle, IsoLamp } from "./components/IsoLife.tsx";
 import { ISO, LAB } from "./tokens.ts";
 
 /** Every asset of the sheet by name, so a test (and a person) can see the list. Keep it in step with the tiles below. */
@@ -29,6 +30,8 @@ export const ASSET_NAMES = [
   // the 2.5D isometric kit and its overlays (the second sheet, AssetSheetIso: out/assets-sheet-iso.png)
   "iso block", "iso cylinder", "iso wall socket", "iso plug", "iso plug out", "iso scorched + smoke", "iso cutaway tight", "iso cutaway loose",
   "heat rise", "sparks", "number label", "tip card", "source chip", "loop arrows", "magnifier", "macro frame",
+  // the alive set (the third sheet, AssetSheetLife: out/assets-sheet-life.png): household, electric and body things that move a little all the time
+  "life lamp", "life kettle", "life fan + air", "life clock", "life cup", "life battery", "life heart", "life brain", "life brain busy",
 ] as const;
 
 const mono = { fontFamily: `"${FONT_MONO}", monospace`, fontSize: 18, fill: WHITE } as const;
@@ -118,6 +121,41 @@ export const AssetSheetIso: React.FC = () => {
         {tile(560, 1230, 480, 300, true, <><LoopArrows cx={800} cy={1380} r={95} a="panas" b="hambatan" t={t} start={0} /></>)}{cap(800, 1554, "loop arrows")}
         {tile(40, 1590, 500, 300, false, <><g transform="translate(40 1590) scale(0.55)"><TipCard x={30} y={30} w={850} n={1} title="Tip yang pendek" sub="baris di bawahnya" chip="SUMBER  contoh.org" t={t} start={0} /></g></>)}{cap(290, 1912, "tip card")}
         {tile(560, 1590, 480, 300, false, <><Magnifier x={700} y={1730} r={90} t={t} start={0} /><MacroFrame box={{ x0: 830, y0: 1700, x1: 1020, y1: 1860 }} t={t} start={0} onDark={false} tag="ZOOM" /></>)}{cap(800, 1912, "magnifier · macro frame")}
+      </svg>
+    </AbsoluteFill>
+  );
+};
+
+/** The third sheet: the alive set (src/components/IsoLife.tsx), one tile each at two moments (t and t + 0.5 s, the same asset twice so the motion shows), with its name. */
+export const AssetSheetLife: React.FC = () => {
+  useFonts();
+  const t = useCurrentFrame() / FPS + 1.2;
+  const W = 330, H = 400;
+  const items: [string, (o: [number, number], t: number) => React.ReactNode][] = [
+    ["life lamp", (o, tt) => <IsoLamp u={85} o={o} t={tt} />],
+    ["life kettle", (o, tt) => <IsoKettle u={92} o={o} t={tt} boil={0.8} />],
+    ["life fan + air", (o, tt) => <g><IsoFan u={78} o={[o[0] - 30, o[1]]} t={tt} /><IsoAir x={o[0] + 30} y={o[1] - 140} len={120} t={tt} /></g>],
+    ["life clock", (o, tt) => <IsoClock u={92} o={o} t={tt} ring={tt % 4 > 2.4 ? 1 : 0} />],
+    ["life cup", (o, tt) => <IsoCup u={110} o={o} t={tt} />],
+    ["life battery", (o, tt) => <IsoBattery u={82} o={o} t={tt} level={0.5} />],
+    ["life heart", (o, tt) => <IsoHeart u={100} o={[o[0], o[1] - 20]} t={tt} />],
+    ["life brain", (o, tt) => <IsoBrain u={100} o={[o[0], o[1] - 20]} t={tt} busy={0.2} />],
+    ["life brain busy", (o, tt) => <IsoBrain u={100} o={[o[0], o[1] - 20]} t={tt} busy={1} />],
+  ];
+  return (
+    <AbsoluteFill style={{ background: G1 }}>
+      <svg width={FRAME.width} height={FRAME.height} viewBox={`0 0 ${FRAME.width} ${FRAME.height}`} style={{ position: "absolute", inset: 0 }}>
+        <text x={40} y={56} fontSize={36} fill={WHITE} style={{ fontFamily: `"${FONT_BOLD}", sans-serif`, fontWeight: 700 }}>Pustaka hidup · rumah tangga, listrik, tubuh</text>
+        {items.map(([name, draw], i) => {
+          const x = 40 + (i % 3) * (W + 15), y = 90 + Math.floor(i / 3) * (H + 70);
+          return (
+            <g key={name}>
+              <rect x={x} y={y} width={W} height={H} rx={10} fill={WALL} />
+              <svg x={x} y={y} width={W} height={H} viewBox={`${x} ${y} ${W} ${H}`} overflow="hidden">{draw([x + W / 2, y + H * 0.72], t)}</svg>
+              <text x={x + W / 2} y={y + H + 26} textAnchor="middle" {...mono}>{name}</text>
+            </g>
+          );
+        })}
       </svg>
     </AbsoluteFill>
   );

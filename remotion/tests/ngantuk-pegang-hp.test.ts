@@ -10,7 +10,7 @@ import { sfx } from "../videos/ngantuk-pegang-hp/sfx.ts";
 import { validateStory } from "../src/schema.ts";
 import { FPS } from "../src/timeline.ts";
 import { MAX_SIMULTANEOUS_SFX, SFX } from "../src/catalog.ts";
-import { textWidthEstimate } from "../src/layout.ts";
+import { captionBox, textWidthEstimate } from "../src/layout.ts";
 
 let n = 0;
 const yes = (c: boolean, what: string) => { n++; assert.ok(c, what); };
@@ -41,7 +41,7 @@ for (let f = 0; f < P.total * FPS; f += 3) { const t = f / FPS, pr = P.problemsA
 yes(bad.length === 0, `no overlap or safe-area problem on any third frame (${bad.slice(0, 4).join(" | ")})`);
 
 // the words on the screen are the story's (bar the channel's chrome); the story's HP placeholder is not drawn as text, the object is drawn
-const hay = story.beats.flatMap((b) => [b.narration, b.text, ...b.scene.items.flatMap((i) => ("text" in i ? [i.text] : []))]).join(" ").toLowerCase();
+const hay = story.beats.flatMap((b) => [b.narration, b.text, ...b.scene.items.flatMap((i) => ("text" in i ? [i.text, [i.text, ...(("lines" in i && i.lines) || [])].join(" ")] : []))]).join(" ").toLowerCase();       // a label's text and its text with its lines (one phrase)
 yes(P.labels.length >= 10 && P.labels.every((l) => hay.includes(l.text.toLowerCase())), "every label's text is a text of the story");
 yes(P.labels.every((l) => l.text !== "HP"), "no label says HP: the phone is drawn");
 yes(P.tips.length === 2 && P.tips.every((tp) => hay.includes(tp.title.toLowerCase())), "the two tip cards carry the story's tip texts");
@@ -65,8 +65,17 @@ yes(P.state(P.m.putDown + 1).open > 0.95 && P.state(P.m.putDown - 0.2).open < 0.
 yes(P.state(P.m.putDown + 1).on < 0.2 && P.state(P.beat("layar").a + 2).on > 0.95, "the screen is lit while it is in hand and dark once it is put down");
 yes(P.state(P.m.away + 2).away > 0.95 && P.state(P.m.tip2 - 0.1).bubble > 0.5, "the phone has left by tip 2 and the bubble is still there");
 
+// the inserts (B25): every explain beat and the tips have an object on its own, none reaches into the outro or the sting, none overlaps another, a label on an insert is inside it
+for (const id of ["baring", "layar", "isi", "hasil", "tips"]) yes(P.inserts.some((x) => x.from >= P.beat(id).a - 0.01 && x.to <= P.beat(id).b + 0.01), `the beat "${id}" has its own picture (an insert)`);
+yes(P.inserts.every((x) => x.to <= P.m.outro && x.from >= P.m.stingEnd && x.to - x.from >= 1.5), "every insert lasts at least 1.5 s and stays between the sting and the outro");
+yes(P.inserts.every((x, i) => i === 0 || x.from >= P.inserts[i - 1].to - 0.01), "the inserts do not overlap each other");
+yes(P.labels.filter((l) => l.ins).every((l) => { const i = P.inserts.find((x) => x.id === l.ins)!; return l.from >= i.from && l.to <= i.to; }), "a label on an insert shows only while that insert is open");
+yes(P.insertOpen(P.inserts[0], P.inserts[0].from) === 0 && P.insertOpen(P.inserts[0], P.inserts[0].from + 1) === 1, "an insert's circle is closed when it starts and open a second later");
+yes(P.chipY === Math.round(captionBox(story.captionStyle, story.platforms).y0) - 82, "the source chip stands 44 px above the caption (it is no longer stuck to it)");
+yes(P.tips.every((tp) => tp.sub === undefined && tp.title.split(" ").length >= 4), "a tip is one phrase on its card (no sub line that makes the title look cut off)");
+
 // depth order (read from the picture's source): the bed, the beam, the phone, the eyes, then the bubble
-const src = readFileSync(path.join(dir, "index.tsx"), "utf8");
+const src = readFileSync(path.join(dir, "index.tsx"), "utf8").split("const Picture:")[1];          // the picture's own source (the insert layer's pieces come before it)
 const at = (needle: string) => src.indexOf(needle);
 yes(at("<IsoBed") < at("<polygon points={beam") && at("<polygon points={beam") < at("<IsoPhone") && at("<IsoPhone") < at("<SleepyEyes") && at("<SleepyEyes") < at("<Thought"), "depth order: bed, light beam, phone, eyes, thought bubble");
 

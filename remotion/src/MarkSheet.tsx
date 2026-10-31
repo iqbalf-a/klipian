@@ -11,10 +11,11 @@ import { CLOUD_GREY, TREES } from "./natureGeometry.ts";
 import { IsoPlane, IsoSeed } from "./components/IsoSeeding.tsx";
 import { IsoBed, IsoPhone, SleepyEyes } from "./components/IsoBedroom.tsx";
 import { Arrow } from "./components/UI.tsx";
+import { IsoAir, IsoBattery, IsoBrain, IsoClock, IsoCup, IsoFan, IsoHeart, IsoKettle, IsoLamp } from "./components/IsoLife.tsx";
 
 const COLS = 3, W = 360, H = 380, TOP = 40;
 /** The short label of each drawn mark on its tile (the dictionary's `thing` is the full name in the spec rows). */
-const LABEL: Record<string, string> = { current: "current", cloud: "cloud", tree: "tree", heat: "heat", danger: "danger", water: "water", vapour: "vapour", light: "light", spark: "spark", force: "force arrow", seed: "seed grains", aircraft: "aircraft", bed: "bed", phone: "phone", eyes: "sleepy eyes" };
+const LABEL: Record<string, string> = { current: "current", cloud: "cloud", tree: "tree", heat: "heat", danger: "danger", water: "water", vapour: "vapour", light: "light", spark: "spark", force: "force arrow", seed: "seed grains", aircraft: "aircraft", bed: "bed", phone: "phone", eyes: "sleepy eyes", air: "air", lamp: "lamp", kettle: "kettle", fan: "fan", clock: "clock", cup: "cup", battery: "battery", heart: "heart", brain: "brain" };
 /** A spec row's line: the thing and its recipe, cut to fit the sheet. */
 const specLine = (thing: string, mark: string): string => `${thing}: ${mark}`.slice(0, 56) + (`${thing}: ${mark}`.length > 56 ? "..." : "");
 const T = 1.2;   // the time at which the animated marks are drawn (a still)
@@ -37,6 +38,15 @@ const drawMark = (id: string): React.ReactNode => {
     case "bed": return <IsoBed u={60} o={[130, 190]} />;
     case "phone": return <IsoPhone u={90} o={[110, 130]} on={1} t={T} />;
     case "eyes": return <SleepyEyes cx={180} cy={200} w={290} open={0.4} />;
+    case "air": return <IsoAir x={70} y={170} len={200} t={T} />;
+    case "lamp": return <IsoLamp u={80} o={[180, 330]} t={T} />;
+    case "kettle": return <IsoKettle u={88} o={[180, 330]} t={T} boil={0.8} />;
+    case "fan": return <IsoFan u={74} o={[150, 330]} t={T} />;
+    case "clock": return <IsoClock u={88} o={[180, 320]} t={T} />;
+    case "cup": return <IsoCup u={104} o={[180, 310]} t={T} />;
+    case "battery": return <IsoBattery u={80} o={[190, 270]} t={T} />;
+    case "heart": return <IsoHeart u={90} o={[180, 220]} t={T} />;
+    case "brain": return <IsoBrain u={86} o={[180, 220]} t={T} busy={0.8} />;
     default: return null;
   }
 };

@@ -7,7 +7,7 @@ import type { BeatT, StoryT } from "../../src/schema.ts";
 import { FPS, sequencePlan } from "../../src/timeline.ts";
 import { wordsOfBeat } from "../../src/captions.ts";
 import { cam2At, isoAt, toScreen, type Cam2, type Key2, type P2, type P3 } from "../../src/iso.ts";
-import { captionBox, conflicts, textWidthEstimate, topTextBox, type Box, type Spec } from "../../src/layout.ts";
+import { captionBox, conflicts, textWidthEstimate, topTextBox, type Box, type Spec, chipFit } from "../../src/layout.ts";
 import { SAFE } from "../../src/tokens.ts";
 import { CLOUD_GREY, LAND_TOP, SEA_TOP, cloudParts } from "../../src/natureGeometry.ts";
 
@@ -90,6 +90,10 @@ export function makePlan(story: StoryT) {
     { t: m.exitEnd + 0.7, x: 590, y: 980, zoom: 1.04 },             // pulled back out to the rain
     { t: m.verdict + 4, x: 590, y: 980, zoom: 1.08 },
     { t: m.tipsCam, x: 590, y: 790, zoom: 0.74 },                   // the stage drops to make room for the tip cards
+    { t: m.tip1 + 1.2, x: 540, y: 740, zoom: 0.84 },                // tip 1: a slow push towards the cloud (the sun comes out)
+    { t: m.tip2 - 0.4, x: 540, y: 740, zoom: 0.84 },
+    { t: m.tip2 + 1.4, x: 640, y: 830, zoom: 0.72 },                // tip 2: the camera goes to the other side (the magnifier over the cloud)
+    { t: m.outro - 0.6, x: 640, y: 830, zoom: 0.72 },
     { t: m.outro, x: 590, y: 790, zoom: 0.74 },
     { t: total - 0.2, x: 590, y: 1010, zoom: 0.94 },                // home: the last frame's camera is the first one's
   ];
@@ -208,21 +212,22 @@ export function makePlan(story: StoryT) {
     const p = typeof l.at === "function" ? l.at(t) : l.at;
     const a = l.world === "out" ? toScreen(outCam(t), p) : p;
     const wTxt = textWidthEstimate(l.text, LABEL_FS), wPill = wTxt + LABEL_FS * 1.1 + (l.n !== undefined ? LABEL_FS * 1.5 + 8 : 0), h = LABEL_FS * 1.5;
-    const top = topTextBox().y1 + 20 + h / 2, bottom = captionBox(story.captionStyle, story.platforms).y0 - 20 - h / 2;
+    const top = topTextBox().y1 + 20 + h / 2, bottom = chipTopAt(t) - 20 - h / 2;
     const x = Math.max(SAFE.left + wPill / 2, Math.min(SAFE.right - wPill / 2, a[0] + l.off[0])), y = Math.max(top, Math.min(bottom, a[1] + l.off[1]));
     return { x, y, ax: a[0], ay: a[1], w: wPill, h, box: { x0: x - wPill / 2, y0: y - h / 2, x1: x + wPill / 2, y1: y + h / 2 } as Box };
   };
 
+  const CHIP_X = 80;
   const chipFor = (idx: number) => { const c = story.claims[idx]; return c ? [...new Set(c.sources.map(domain))].join(" · ") : ""; };
   const fitChip = (text: string): string => {
-    const fits = (s: string) => [...`SUMBER  ${s}`].length * 40 * 0.6 + 44 <= 880;
+    const fits = (s: string) => chipFit(s, CHIP_X).fs >= 38;          // the chip may shrink to 38 px to fit the safe area; below that a domain is dropped
     const parts = text.split(" · ");
     for (let q = parts.length; q >= 1; q--) { const s = parts.slice(0, q).join(" · "); if (fits(s)) return s; }
     return parts[0];
   };
   const claimsOf = (id: string) => story.claims.map((c, i) => ({ c, i })).filter(({ c }) => c.beats.includes(id)).map(({ i }) => fitChip(chipFor(i)));
   // the source chip stands just above the caption box (y 1385 for the classic caption of YouTube at its old place; it follows the caption now, PLAN-SAFE-AREA-2)
-  const chipY = Math.round(captionBox(story.captionStyle, story.platforms).y0) - 54;
+  const chipY = Math.round(captionBox(story.captionStyle, story.platforms).y0) - 82;          // a 76 px pill whose bottom is 44 px above the caption
   const chips = [
     { id: "chip-kirim", text: claimsOf("kirim")[0], onDark: false, from: beat("kirim").a + 1.2, to: m.magnifier },
     { id: "chip-inti", text: claimsOf("inti")[0], onDark: true, from: m.inside + 1.0, to: beat("inti").b - 0.2 },
@@ -230,13 +235,16 @@ export function makePlan(story: StoryT) {
     { id: "chip-hasil", text: claimsOf("hasil")[0], onDark: false, from: m.helps + 0.3, to: m.notButton },
     { id: "chip-hasil2", text: claimsOf("hasil")[1], onDark: false, from: m.notButton + 0.4, to: beat("hasil").b - 0.1 },
   ].filter((c): c is typeof c & { text: string } => !!c.text);
+  /** The top of the source chip when one is on the screen at `t` (a label keeps above it), else the caption's top. */
+  const chipTopAt = (t: number) => (chips.some((c) => !c.onDark && t >= c.from && t < c.to + 0.2) ? chipY - 38 : captionBox(story.captionStyle, story.platforms).y0);
 
   const tipLabels = labelsOf("tips");
   const tipBadges = items("tips").flatMap((i) => (i.type === "badge" ? [i.text] : []));
   const tips = [0, 1].flatMap((q) => {
     const title = tipLabels[q];
     if (!title) return [];
-    return [{ n: tipBadges[q] ?? String(q + 1), title: title.text, sub: title.lines?.[0], keyword: title.highlight?.[0], from: q ? m.tip2 : m.tip1, subAt: (q ? m.tip2 : m.tip1) + 0.9, to: q ? beat("tips").b - 0.1 : m.tip2 - 0.25 }];
+        // one tip is one phrase: the story splits it over the label's lines ("cek prakiraan" / "cuaca resmi"), and the card shows it whole
+    return [{ n: tipBadges[q] ?? String(q + 1), title: [title.text, ...(title.lines ?? [])].join(" "), sub: undefined as string | undefined, keyword: title.highlight?.[0], from: q ? m.tip2 : m.tip1, subAt: (q ? m.tip2 : m.tip1) + 0.9, to: q ? beat("tips").b - 0.1 : m.tip2 - 0.25 }];
   });
   const TIP = { x: 80, y: 412, w: 840 };                 // inside SAFE (x 60..920) and below the top text (it ends at y 397; PLAN-SAFE-AREA, B24)
 
@@ -266,7 +274,7 @@ export function makePlan(story: StoryT) {
   const problemsAt = (t: number, tipH: (i: number) => number) => conflicts(specsAt(t, tipH));
 
   return {
-    chipY, B, beat, total, w, m, outKeys, outCam, lens, insideLens, outsideVisible, state, phase, tops, labels, labelAt, LABEL_FS, chips, tips, TIP, steps, stingPill, STING, STAMP, REACT, verdictWord,
+    chipY, CHIP_X, B, beat, total, w, m, outKeys, outCam, lens, insideLens, outsideVisible, state, phase, tops, labels, labelAt, LABEL_FS, chips, tips, TIP, steps, stingPill, STING, STAMP, REACT, verdictWord,
     loopWeight, specsAt, problemsAt, planeAt, grains, LAB, DOTS, dotAt, saltPos, dropAt, RACK,
   };
 }

@@ -36,6 +36,30 @@ export const CAMERA_MAX = { zoomPerSecond: 0.05, panPxPerSecond: 800 } as const;
 // the ambient motions: their periods in seconds, from src/motion.ts (hover, breathe, blink). A video uses these constants, not its own.
 export const AMBIENT = { hoverPeriod: 1 / 0.55, breathePeriod: 1 / 0.4, blinkPeriod: 3.4 } as const;
 
+// the small continuous motion of an "alive" asset (P28-R phase 5, DESIGN.md B25, src/alive.ts): the sizes and periods every asset uses. A figure that is too big is
+// a distraction (an asset that dances), one that is too small is not seen at the phone's size; these are the measured middle (a 1080 px frame, an asset 300 to 650 px).
+export const ALIVE = {
+  breatheAmp: 0.02,                   // a body breathes +/- 2 % of its size
+  swayDeg: 2, swayPeriod: 3.2,        // a leaf or a lamp sways +/- 2 degrees over 3.2 s
+  bobPx: 6,                           // a floating thing bobs +/- 6 px
+  driftPx: 14, driftPeriod: 9,        // a cloud drifts +/- 14 px over 9 s
+  pulsePeriod: 2.4,                   // a glow breathes over 2.4 s
+  heartBpm: 72, fanRps: 2.2,
+  flickerAmp: 0.04,                   // a light flickers +/- 4 %
+  risePeriod: 2.6,                    // a wisp of steam lives 2.6 s
+} as const;
+
+// the motion density (B25): something moves about every second, and something new (an element comes in, the camera moves to another place, the scene changes)
+// every 3 to 4 seconds. scripts/motionDensity.mjs measures it on the picture of a rendered video (the frame difference at 4 samples a second).
+export const DENSITY = {
+  sampleFps: 4,                        // the samples a second the measure takes
+  aliveMax: 1.25,                      // seconds: the longest stretch in which nothing in the picture moves
+  newMax: 4,                           // seconds: the longest stretch without something new (a bigger change of the picture)
+  region: [0.21, 0.76],                // the rows (shares of the height) the measure reads: below the top text, above the captions and the source chips
+  moveEps: 0.12,                       // the mean difference (0..255, on a 54 x 96 grey picture) above which a sample counts as moving
+  newEps: 12,                          // the mean difference from the last new thing above which the picture is something new (a camera move, another scene)
+} as const;
+
 // the motion blur is for the fast moves only: a beat may set `blur` when it has a transition other than a cut or a pan camera
 export const BLUR_TRANSITIONS = ["lens", "slide", "wipe", "zoom"] as const;
 

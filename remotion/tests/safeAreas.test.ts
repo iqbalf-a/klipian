@@ -95,7 +95,7 @@ yes(ngantukPlan.stageDrop === 50 && rainPlan.stageDrop === 100 && colokanPlan.st
 for (const [slug, make] of [["ngantuk-pegang-hp", makeNgantuk], ["cara-kerja-hujan-buatan", makeRain]] as const) {
   const story = { ...stories[slug], captions: true };
   const P: any = (make as any)(story), Pi: any = (make as any)({ ...story, platforms: ["youtube", "instagram"] });
-  yes(P.chipY === Math.round(captionBox().y0) - 54 && P.chipY > 1400 && P.chipY + 54 <= SAFE.bottom, `${slug}: the source chip stands above the caption box (y ${P.chipY})`);
+  yes(P.chipY === Math.round(captionBox().y0) - 82 && P.chipY > 1400 && P.chipY + 38 <= SAFE.bottom, `${slug}: the source chip (a 76 px pill) stands 44 px above the caption box (y ${P.chipY}; B25: it is no longer stuck to the caption)`);
   yes(Pi.chipY < P.chipY, `${slug}: and moves up with the caption in the cross-post mode (${Pi.chipY})`);
 }
 {
