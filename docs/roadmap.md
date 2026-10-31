@@ -2842,6 +2842,40 @@ validasi, pratinjau dan gerbang fakta, brief revisi, render → Clips → P28-C
 suara dan takarir (setelah riset ian; tanpa key layanan suara) → P28-D brief
 komponen baru dan render massal.
 
+**P28-R — audit dan perbaikan /remotion** (audit sesi Plan 2026-10-31, keputusan
+ian 2026-10-31). Laporan lengkap: `workspace/notes/audit-remotion-2026-10-31.md`.
+Sesi motion terpisah dihapus; semua rencana motion sekarang di sesi Plan, dan
+28 file PLAN lama di `remotion/` diganti satu indeks `remotion/docs/PLANS.md`.
+Dikerjakan Eksekusi bertahap, satu laporan per fase:
+1. **Alur dan halaman:**
+   - jenis "Otomatis" disembunyikan di pengaturan lanjutan, alur utama hanya Khusus;
+   - urutan langkah: Video baru (topik, durasi, opsi) → Brief → Ambil cerita dari
+     folder → Cek fakta + judul → Naskah suara → Impor suara + cocokkan →
+     Pratinjau → Render;
+   - satu sumber status untuk langkah berikutnya, chip dan Render (tidak boleh
+     saling bertentangan); durasi bersuara ditampilkan;
+   - kontrol ganda dihapus; bahasa Indonesia penuh;
+   - UI: langkah dilipat (hanya yang aktif terbuka), kotak bersarang maksimal 1
+     tingkat, jarak 16–20 px, satu tombol utama per langkah, tabel pencocokan rapi;
+   - tombol **"Benar semua"** di Cek fakta (ian);
+   - "Muat naskah" tidak lagi selalu membuka VoiceStudio;
+   - **VoiceStudio = teks polos saja** (tanpa judul bagian, tanpa "Bagian N",
+     tanpa tag jeda), karena aplikasinya membaca semua teks.
+2. **Rapikan:** README `remotion/` ditulis ulang; `npm run clean-cache`
+   (menyimpan bundle terbaru) dan pembersihan otomatis setelah render;
+   `motion.py` (2.136 baris) dan `page.js` dipecah tanpa mengubah perilaku.
+3. **Brief untuk agent lain** (termasuk model gratis, opsional tapi sejelas
+   mungkin): aturan wajib bernomor di awal, file dan path keluaran yang pasti,
+   checklist langkah dengan perintah dan hasil yang diharapkan, contoh minimal,
+   dan jalur cadangan untuk agent yang tidak bisa menjalankan perintah (cukup
+   story JSON + naskah).
+4. **Musik:** bed baru ceria (± 110–125 BPM, mayor) dan teknologi (synth, arpeggio,
+   beat ringan), dipilih per topik di brief, default ceria. Sound effect tidak
+   diubah (sudah disetujui).
+5. **Aset 2.5D lebih menarik:** pustaka umum (rumah tangga, listrik, tubuh, alam)
+   lebih detail dan hidup (gerak kecil terus-menerus), variasi adegan per beat,
+   aturan kepadatan gerak; lalu 3 video dirender ulang sebagai uji.
+
 ---
 
 ## 3. Diparkir, sengaja tidak dikerjakan
