@@ -2,7 +2,7 @@
    video units; the sheet's 280-unit panel is 1080 wide, so a 20-unit banner text on the sheet is fs = 77 here.
    Text appears word by word (each word springs up), and the keywords the story names turn yellow. */
 import React from "react";
-import { BLACK, FLOOR, FONT_BOLD, FRAME, RED, SHEET_TO_VIDEO as K, WALL, WHITE, YELLOW, YELLOW_D } from "../tokens.ts";
+import { BANNER_TOP, BLACK, FLOOR, FONT_BOLD, FRAME, RED, SHEET_TO_VIDEO as K, WALL, WHITE, YELLOW, YELLOW_D } from "../tokens.ts";
 import { isKeyword, springAt, wordIn } from "../motion.ts";
 
 export const Room: React.FC = () => (
@@ -54,7 +54,7 @@ const Words: React.FC<{
 
 /** The black bar with white text near the top of a scene (it slides in as an item; its words follow). */
 export const Banner: React.FC<{ text: string; fs?: number; y?: number; t: number; start: number; highlight?: readonly string[]; onDark?: boolean }> =
-  ({ text, fs = 20 * K, y = 22 * K, t, start, highlight, onDark }) => {
+  ({ text, fs = 20 * K, y = BANNER_TOP, t, start, highlight, onDark }) => {
     const h = fs * 2.6;
     // on the dark lab background a black bar would sink into it: the bar turns white and the text black
     return (

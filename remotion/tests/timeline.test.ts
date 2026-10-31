@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { validateStory } from "../src/schema.ts";
+import { SAFE } from "../src/tokens.ts";
 import { cameraOf, enterOf, framesOf, sequencePlan, totalFrames, transitionInto } from "../src/timeline.ts";
 import { blink, cameraAt, easeInOut, emphasisFx, enterFx, exitFx, exprAt, isKeyword, lookAt, poseAt, springAt } from "../src/motion.ts";
 
@@ -99,12 +100,12 @@ yes(between.every(({ m }) => !(m as { persist?: boolean }).persist), "none of th
 yes(between.every(({ m }) => (m.exit?.at ?? 99) - (m.enter?.delay ?? 0) <= 1.5), "each lasts 1.5 s at most");
 eq(between.map(({ m }) => enterOf(m, 4).kind), ["pop", "pop"], "and pops in");
 yes(story.beats.every((b) => b.scene.items.every((i) => i.type !== "chibi")), "no person where the story needs none");
-// 5 the safe area (the Shorts interface covers the bottom 15 % and the right 12 %): faces, text and badges stay inside
+// 5 the safe area (SAFE, the YouTube profile of B24): faces, text and badges stay inside
 const unsafe: string[] = [];
 for (const b of story.beats) for (const it of b.scene.items) {
-  if (it.type === "mascot" && (it.x + it.w / 2 > 950 || it.y + it.w * 0.52 > 1632)) unsafe.push(`${b.id} mascot`);
-  if ((it.type === "label" || it.type === "pill" || it.type === "badge") && (it.x > 950 || it.y > 1632)) unsafe.push(`${b.id} ${it.type}`);
-  if (it.type === "chibi" && (it.x > 950 || it.y > 1632)) unsafe.push(`${b.id} chibi`);
+  if (it.type === "mascot" && (it.x + it.w / 2 > SAFE.right || it.y + it.w * 0.52 > SAFE.bottom)) unsafe.push(`${b.id} mascot`);
+  if ((it.type === "label" || it.type === "pill" || it.type === "badge") && (it.x > SAFE.right || it.y > SAFE.bottom)) unsafe.push(`${b.id} ${it.type}`);
+  if (it.type === "chibi" && (it.x > SAFE.right || it.y > SAFE.bottom)) unsafe.push(`${b.id} chibi`);
 }
 eq(unsafe, [], "nothing key in the bottom 15 % or the right 12 %");
 // 1 the cable never runs on through the lens: in the lens beat it ends inside the lens circle

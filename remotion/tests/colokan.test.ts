@@ -24,9 +24,9 @@ const v = validateStory(JSON.parse(readFileSync(path.join(ROOT, "videos", "kenap
 if (!v.ok) throw new Error(v.errors.join("\n"));
 const story = v.story, P = makePlan(story);
 
-// the same heights the picture uses (index.tsx: SourceCard at 850 wide, TipCard)
+// the same heights the picture uses (index.tsx: SourceCard at 830 wide, TipCard)
 const wrapN = (text: string, fs: number, width: number) => { let lines = 0, cur = ""; for (const w of text.split(/\s+/)) { if (cur && textWidthEstimate(`${cur} ${w}`, fs) > width) { lines++; cur = w; } else cur = cur ? `${cur} ${w}` : w; } return lines + (cur ? 1 : 0); };
-const cardH = (q: string) => 150 + wrapN(`“${q}”`, 38, 770) * 38 * 1.28;
+const cardH = (q: string) => 150 + wrapN(`“${q}”`, 38, 750) * 38 * 1.28;
 const tipH = (i: number) => { const tp = P.tips[i]; return 48 + wrapN(tp.title, 58, P.TIP.w - 170) * 66 + (tp.sub ? wrapN(tp.sub, 40, P.TIP.w - 170) * 50 + 8 : 0) + (tp.chip ? 46 : 0) + 30; };
 
 // --- layout, frame by frame

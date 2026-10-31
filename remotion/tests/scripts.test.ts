@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ITEM_TYPES, MASCOT_EXPRESSIONS, SFX_NAMES } from "../src/catalog.ts";
+import { SAFE } from "../src/tokens.ts";
 import { Item } from "../src/schema.ts";
 import { catalog } from "../catalog-export.mjs";
 
@@ -35,7 +36,7 @@ yes(Object.keys(cat.items).length === (Item as any)._def.options.length, "and th
 yes(cat.items.socket.view.includes('"cutaway"') && cat.items.socket.variant.includes('"loose"'), "a socket's views and variants are read from the schema");
 yes(JSON.stringify(cat.mascot.expressions) === JSON.stringify(MASCOT_EXPRESSIONS), "the mascot's expressions");
 yes(JSON.stringify(cat.sfx.names) === JSON.stringify(SFX_NAMES), "the sound names");
-yes(cat.limits.maxScreenWords === 6 && cat.limits.maxTransitions === 3 && cat.limits.safeArea.bottom === 1632, "the limits of the channel");
+yes(cat.limits.maxScreenWords === 6 && cat.limits.maxTransitions === 3 && cat.limits.safeArea.bottom === SAFE.bottom && cat.limits.safeArea.right === SAFE.right, "the limits of the channel");
 yes(cat.format.width === 1080 && cat.format.height === 1920 && cat.format.fps === 30, "the format");
 yes(cat.rules.length >= 6 && cat.rules.every((r: string) => r.length > 10), "the rules are sentences");
 yes(Object.keys(cat.motionFields).join() === "enter?,exit?,actions?,sfx?", "the motion fields every item has are said once");

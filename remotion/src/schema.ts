@@ -2,7 +2,7 @@
    Coordinates are in 1080 x 1920 video units. The rules of the channel are enforced here: only components, expressions
    and poses of the catalogue, at most 6 words of screen text, every claim with a source. */
 import { z } from "zod";
-import { CAPTION_STYLE_NAMES, THEME_NAMES } from "./tokens.ts";
+import { CAPTION_STYLE_NAMES, PLATFORM_NAMES, THEME_NAMES } from "./tokens.ts";
 import { STAGE_SHAPES } from "./stageShapes.ts";
 import {
   ANCHOR_NAMES, MUSIC_NAMES, ARROW_COLORS, BACKGROUNDS, BEAT_KINDS, CAMERA_KINDS, CHIBI_COSTUMES, CHIBI_EXPRESSIONS, CHIBI_POSES, CHIBI_ROLES, CUTAWAY_VARIANTS, DIRECTIONS,
@@ -173,6 +173,7 @@ export const Story = z.object({
   stage: z.enum(STAGE_SHAPES).optional(),                              // the stage shape the hero stands on (missing = slab; PLAN-VARIETY stage 3)
   theme: z.enum(THEME_NAMES).optional(),                                 // the background theme of the whole video (missing = cream; PLAN-VARIETY stage 2)
   captions: z.boolean().optional(),                                       // the karaoke caption layer at the bottom (the words come from `words`, else an even estimate)
+  platforms: z.array(z.enum(PLATFORM_NAMES)).min(1).optional(),            // where the video is posted (missing = youtube): with several, the layout obeys the strictest safe area (PLAN-SAFE-AREA, B24)
   captionStyle: z.enum(CAPTION_STYLE_NAMES).optional(),                   // the caption look: classic (missing = classic), wide or punch (PLAN-CAPTION-OPTIONS, B23)
   music: z.object({ track: z.enum([...MUSIC_NAMES, "none"]), level: num.min(0).max(1.5).optional() }).strict().optional(),   // the bed under the voice; level scales it
 }).strict().superRefine((s, ctx) => {

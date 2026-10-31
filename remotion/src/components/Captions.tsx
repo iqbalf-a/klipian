@@ -5,14 +5,18 @@ import React from "react";
 import { BLACK, FONT_BOLD, FONT_MONO, WHITE, YELLOW, YELLOW_D } from "../tokens.ts";
 import { activeWord, pageAt, pagesOf, wordsOfBeat } from "../captions.ts";
 import { TOP_TEXT, captionVariant, textWidthEstimate, type CaptionStyle } from "../layout.ts";
+import type { PlatformName } from "../tokens.ts";
 import { springAt } from "../motion.ts";
 
 const bold = { fontFamily: `"${FONT_BOLD}", sans-serif`, fontWeight: 700 } as const;
 /** The caption look of the story (PLAN-CAPTION-OPTIONS): provided by the video's story; classic when there is none. The text style does not change with it (B17). */
 export const CaptionStyleCtx = React.createContext<CaptionStyle>("classic");
+/** The platforms the story is posted to (youtube when it says none): with several, the caption ends above the strictest bottom (B24). */
+export const PlatformsCtx = React.createContext<readonly PlatformName[]>(["youtube"]);
 
 export const CaptionLayer: React.FC<{ beat: { narration: string; dur: number; words?: readonly { w: string; a: number; b: number }[] }; t: number }> = ({ beat, t }) => {
-  const v = captionVariant(React.useContext(CaptionStyleCtx));              // read every render: the hooks keep their order
+  const style = React.useContext(CaptionStyleCtx), platforms = React.useContext(PlatformsCtx);   // read every render: the hooks keep their order
+  const v = captionVariant(style, platforms);
   const pages = React.useMemo(() => pagesOf(wordsOfBeat(beat), v.fs, v.maxTextWidth, v.maxLines, v.maxWords), [beat, v]);
   const page = pageAt(pages, t);
   if (!page) return null;

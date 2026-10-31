@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { activeWord, estimateWords, pageAt, pagesOf, wordsOfBeat } from "../src/captions.ts";
 import { captionBox, conflicts, fixedLayers, layoutStory, textWidthEstimate, topTextBox } from "../src/layout.ts";
 import { validateStory } from "../src/schema.ts";
+import { SAFE } from "../src/tokens.ts";
 
 let n = 0;
 const yes = (cond: boolean, what: string) => { n++; assert.ok(cond, what); };
@@ -41,8 +42,8 @@ for (const b of laid.beats) {
   yes(layers.some((l) => l.role === "caption"), `${b.id}: the caption box is a fixed zone`);
 }
 const cb = captionBox(), tb = topTextBox();
-yes(cb.x1 <= 950 + 1 && cb.y1 <= 1632 && cb.x0 >= 60 - 1, "the caption box is inside the safe area");
-yes(tb.x1 <= 950 && tb.y1 < 330 && tb.y0 >= 80, "so is the top text");
+yes(cb.x1 <= SAFE.right + 1 && cb.y1 <= SAFE.bottom && cb.x0 >= SAFE.left - 1, "the caption box is inside the safe area");
+yes(tb.x1 <= SAFE.right && tb.y1 < 420 && tb.y0 >= SAFE.top - 10, "so is the top text (it starts at the safe top)");
 yes(conflicts([{ id: "caption", role: "caption", box: cb }, { id: "t", role: "text", box: { x0: 300, y0: 1500, x1: 600, y1: 1560 } }]).length === 1, "a text on the caption box is a conflict");
 
 // a beat with a headline has no banner; a kicker needs a headline; word times stay inside the beat

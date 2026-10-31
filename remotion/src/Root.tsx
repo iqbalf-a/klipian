@@ -13,9 +13,10 @@ import { NatureDemo, NATURE_DEMO_SECONDS } from "./NatureDemo.tsx";
 import { StageDemo, HeroStageFixture } from "./StageDemo.tsx";
 import templateStory from "../templates/video/story.json";
 import { ThemeCtx } from "./components/Backgrounds.tsx";
-import { CaptionStyleCtx } from "./components/Captions.tsx";
+import { CaptionStyleCtx, PlatformsCtx } from "./components/Captions.tsx";
 import { NatureSheet } from "./NatureSheet.tsx";
 import { MarkSheet } from "./MarkSheet.tsx";
+import { Calibration } from "./Calibration.tsx";
 import { SHEET_HEIGHT } from "./natureGeometry.ts";
 import { FRAME } from "./tokens.ts";
 import { validateStory, type StoryT } from "./schema.ts";
@@ -28,7 +29,7 @@ if (!parsed.ok) throw new Error("stories/colokan-panas.json is not a valid story
 /** A custom video inside its story's background theme (PLAN-VARIETY stage 2): the story's `theme`, cream when it has none. The video itself is unchanged. */
 const themed: Record<string, React.ComponentType<{ story: StoryT; layoutDebug?: boolean }>> = Object.fromEntries(VIDEOS.map((v) => {
   const Themed: React.FC<{ story: StoryT; layoutDebug?: boolean }> = (props) => (
-    <ThemeCtx.Provider value={props.story.theme ?? "cream"}><CaptionStyleCtx.Provider value={props.story.captionStyle ?? "classic"}><v.Video {...props} /></CaptionStyleCtx.Provider></ThemeCtx.Provider>
+    <ThemeCtx.Provider value={props.story.theme ?? "cream"}><CaptionStyleCtx.Provider value={props.story.captionStyle ?? "classic"}><PlatformsCtx.Provider value={props.story.platforms ?? ["youtube"]}><v.Video {...props} /></PlatformsCtx.Provider></CaptionStyleCtx.Provider></ThemeCtx.Provider>
   );
   return [v.id, Themed];
 }));
@@ -58,6 +59,7 @@ export const Root: React.FC = () => (
   <Composition id="MarkSheet" component={MarkSheet} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={1} />
   <Composition id="NatureSheet" component={NatureSheet} width={FRAME.width} height={SHEET_HEIGHT} fps={FPS} durationInFrames={1} />
   <Composition id="HeroStageFixture" component={HeroStageFixture} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={30} defaultProps={{ story: templateStory as unknown as StoryT }} />
+  <Composition id="Calibration" component={Calibration} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={6 * FPS} />
   <Composition id="StageDemo" component={StageDemo} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={30} />
   <Composition id="NatureDemo" component={NatureDemo} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={NATURE_DEMO_SECONDS * FPS} />
   <Composition id="IsoThreeDemo" component={IsoThreeDemo} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={ISO_THREE_SECONDS * FPS} />

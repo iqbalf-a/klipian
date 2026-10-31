@@ -185,7 +185,7 @@
             "type": "label",
             "text": "penjepit logam",
             "x": 620,
-            "y": 1595,
+            "y": 1555,
             "fs": 62,
             "highlight": [
               "logam"
@@ -403,7 +403,7 @@
           {
             "type": "mascot",
             "x": 200,
-            "y": 1470,
+            "y": 1440,
             "w": 300,
             "expr": "surprised",
             "pop": true,
@@ -474,7 +474,7 @@
           {
             "type": "mascot",
             "x": 200,
-            "y": 1470,
+            "y": 1440,
             "w": 300,
             "expr": "ouch",
             "pop": true,

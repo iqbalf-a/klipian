@@ -7,7 +7,7 @@
    so a scene somebody laid out by hand stays as it is.
    Pure: no React, no DOM (the text width is an estimate, the same in a test and in a render), so `npm test` can check it. */
 import type { ItemT } from "./schema.ts";
-import { CAPTION_STYLE_NAMES, FRAME, SAFE, SHEET_TO_VIDEO as K } from "./tokens.ts";
+import { BANNER_TOP, CAPTION_STYLE_NAMES, FRAME, SAFE, SHEET_TO_VIDEO as K, safeFor, type PlatformName } from "./tokens.ts";
 import { FALLBACK_WIDTH, WIDTHS } from "./fontMetrics.ts";
 
 export type Box = { x0: number; y0: number; x1: number; y1: number };
@@ -25,37 +25,43 @@ export const MIN_FS = 46;                                // a text is never made
 export const GAP = 14;                                   // the least air between two boxes
 export const HERO_CORE = 0.7;                            // the hero's core: never covered, whatever it costs
 export const HERO_KEEP = 0.9;                            // the hero's key area: its box shrunk to this share (text may touch the rim, not the middle)
-export const BANNER_BOTTOM = 22 * K + 20 * K * 2.6;      // where a default banner ends (y 85 + 200)
+export const BANNER_BOTTOM = BANNER_TOP + 20 * K * 2.6;  // where a default banner ends (it starts at the safe top: y 170 + 200)
 
 /** The zones, in video pixels. `bounds` is where text may be: inside the safe area, below the banner. */
 export const ZONES = {
-  banner: { x0: 16 * K, y0: 22 * K, x1: FRAME.width - 16 * K, y1: BANNER_BOTTOM },
+  banner: { x0: 16 * K, y0: BANNER_TOP, x1: FRAME.width - 16 * K, y1: BANNER_BOTTOM },
   hero: { cx: FRAME.width / 2, cy: 930, width: 0.65 * FRAME.width },       // the middle of the screen: 60-70 % of the width
   calloutLeft: { x0: SAFE.left, x1: 300 }, calloutRight: { x0: 780, x1: SAFE.right },
-  mascot: { x: 200, y: 1470, w: 300 },                                     // the persistent mascot, bottom-left
-  chibiRight: { x: 790, y: 1625 }, chibiLeft: { x: 290, y: 1625 },
+  mascot: { x: 200, y: 1440, w: 300 },                                     // the persistent mascot, bottom-left
+  chibiRight: { x: 790, y: SAFE.bottom - 5 }, chibiLeft: { x: 290, y: SAFE.bottom - 5 },
   safe: { x0: SAFE.left, y0: SAFE.top, x1: SAFE.right, y1: SAFE.bottom },
 } as const;
 export const bounds = (hasBanner = true): Box => ({ x0: SAFE.left, y0: hasBanner ? BANNER_BOTTOM + GAP : SAFE.top, x1: SAFE.right, y1: SAFE.bottom });
 
 export type CaptionStyle = (typeof CAPTION_STYLE_NAMES)[number];
-/** The caption layer at the bottom (inside the safe area: x up to 950, y up to 1632) and the top text (kicker + headline): fixed zones the rest keeps clear of.
+/** The caption layer at the bottom (inside the safe area: SAFE, the YouTube profile) and the top text (kicker + headline): fixed zones the rest keeps clear of.
     The three looks (PLAN-CAPTION-OPTIONS): `classic` is today's caption (two lines), `wide` one line across the safe width (a shorter box), `punch` short
-    and big (at most three words a page). Each one's box bottom is 1620 (12 px above the Shorts interface, SAFE.bottom 1632). */
+    and big (at most three words a page). Each one's box bottom is 1590 (10 px above SAFE.bottom 1600, the YouTube estimate) and its box ends at x 920 at the
+    most; with a story's `platforms` the bottom follows the strictest listed profile (see captionVariant). */
 export const CAPTION_VARIANTS = {
-  classic: { fs: 56, maxTextWidth: 770, maxLines: 2, maxWords: Infinity, padX: 30, padY: 22, cx: (SAFE.left + SAFE.right) / 2, bottom: 1620 },
-  wide: { fs: 46, maxTextWidth: 830, maxLines: 1, maxWords: Infinity, padX: 30, padY: 22, cx: (SAFE.left + SAFE.right) / 2, bottom: 1620 },
-  punch: { fs: 76, maxTextWidth: 700, maxLines: 1, maxWords: 3, padX: 30, padY: 22, cx: (SAFE.left + SAFE.right) / 2, bottom: 1620 },
+  classic: { fs: 56, maxTextWidth: 770, maxLines: 2, maxWords: Infinity, padX: 30, padY: 22, cx: (SAFE.left + SAFE.right) / 2, bottom: SAFE.bottom - 10 },
+  wide: { fs: 46, maxTextWidth: 800, maxLines: 1, maxWords: Infinity, padX: 30, padY: 22, cx: (SAFE.left + SAFE.right) / 2, bottom: SAFE.bottom - 10 },
+  punch: { fs: 76, maxTextWidth: 700, maxLines: 1, maxWords: 3, padX: 30, padY: 22, cx: (SAFE.left + SAFE.right) / 2, bottom: SAFE.bottom - 10 },
 } as const;
 export const CAPTION = CAPTION_VARIANTS.classic;
-export const captionVariant = (style?: CaptionStyle) => CAPTION_VARIANTS[style ?? "classic"];
-export const TOP_TEXT = { x: SAFE.left + 20, y: 96, fs: 76, kickerFs: 28, maxWidth: SAFE.right - SAFE.left - 40 } as const;
+/** The look's numbers; with a story's `platforms` (the cross-post mode) the bottom follows the strictest listed profile (10 px above its bottom). */
+export const captionVariant = (style?: CaptionStyle, platforms?: readonly PlatformName[]) => {
+  const v = CAPTION_VARIANTS[style ?? "classic"];
+  const bottom = Math.min(v.bottom, safeFor(platforms).bottom - 10);
+  return bottom === v.bottom ? v : { ...v, bottom };
+};
+export const TOP_TEXT = { x: SAFE.left + 20, y: SAFE.top, fs: 76, kickerFs: 28, maxWidth: SAFE.right - SAFE.left - 40 } as const;
 /** The box of the caption layer of a look: the tallest box it can produce (its maximum lines), so the scene keeps clear of any page. The top text is below. */
-export const captionBox = (style?: CaptionStyle): Box => {
-  const v = captionVariant(style);
+export const captionBox = (style?: CaptionStyle, platforms?: readonly PlatformName[]): Box => {
+  const v = captionVariant(style, platforms);
   return { x0: v.cx - (v.maxTextWidth + 2 * v.padX) / 2, y0: v.bottom - (v.maxLines * v.fs * 1.22 + 2 * v.padY), x1: v.cx + (v.maxTextWidth + 2 * v.padX) / 2, y1: v.bottom };
 };
-export const topTextBox = (): Box => ({ x0: SAFE.left, y0: TOP_TEXT.y - 10, x1: SAFE.right, y1: TOP_TEXT.y + 52 + TOP_TEXT.fs * 2.3 });
+export const topTextBox = (): Box => ({ x0: SAFE.left, y0: TOP_TEXT.y, x1: SAFE.right, y1: TOP_TEXT.y + 52 + TOP_TEXT.fs * 2.3 });
 
 // ---------------------------------------------------------------------------------------------------------------------------------------
 // boxes of things
@@ -296,9 +302,9 @@ export function layoutStory<S extends { captions?: boolean; beats: { kicker?: st
 }
 
 /** The caption layer and the top text of a beat as fixed boxes, so what is drawn between them never overlaps them. */
-export function fixedLayers(story: { captions?: boolean; captionStyle?: CaptionStyle }, beat: { kicker?: string; headline?: string }): Spec[] {
+export function fixedLayers(story: { captions?: boolean; captionStyle?: CaptionStyle; platforms?: readonly PlatformName[] }, beat: { kicker?: string; headline?: string }): Spec[] {
   const out: Spec[] = [];
-  if (story.captions) out.push({ id: "caption", role: "caption", box: captionBox(story.captionStyle) });
+  if (story.captions) out.push({ id: "caption", role: "caption", box: captionBox(story.captionStyle, story.platforms) });
   if (beat.headline) out.push({ id: "top-text", role: "banner", box: topTextBox() });
   return out;
 }

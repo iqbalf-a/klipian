@@ -6433,6 +6433,11 @@ def check_briefagents() -> tuple[str, str]:
     for want in ("remotion/src/dictionary.ts", "remotion/src/components/Iso*.tsx", "remotion/videos/kenapa-colokan-panas", "remotion/videos/ngantuk-pegang-hp"):
         if want not in khusus_text:
             problems.append(f"Part B does not name {want}")
+    for opts, label in (({}, "otomatis"), ({"kind": "khusus"}, "khusus")):
+        text = motion.build_brief({"topic": "Kenapa colokan panas", "duration": 45, "notes": "", "options": opts})
+        for hidden in ("`captionStyle?`", "`platforms?`"):
+            if hidden in text:
+                problems.append(f"the {label} brief offers the field {hidden}: it is ian's choice (the caption look, the platforms), not the AI's")
     sizes = []
     for d in (30, 45, 60):
         for opts, khusus in (({}, False), ({"kind": "khusus"}, True)):

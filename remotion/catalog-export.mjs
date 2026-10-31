@@ -13,6 +13,10 @@ import { FRAME, SAFE } from "./src/tokens.ts";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 
+// story fields the validator accepts but the brief does not offer: they are ian's choices (the caption look, the platforms it is posted to), not the AI's
+const HIDDEN_STORY_FIELDS = ["captionStyle", "platforms"];
+const without = (fields, hidden) => Object.fromEntries(Object.entries(fields).filter(([k]) => !hidden.includes(k.replace(/\?$/, ""))));
+
 export function catalog() {
   const refs = new Map([[Item, "item"], [Beat, "beat"]]);              // so a beat inside the story, or an item inside a beat, is a name and not the whole shape again
   const items = unionFields(Item, refs);
@@ -23,10 +27,10 @@ export function catalog() {
     format: { width: FRAME.width, height: FRAME.height, fps: FPS, unit: "video pixels; x to the right, y down; (0,0) is the top-left corner" },
     limits: {
       maxScreenWords: MAX_SCREEN_WORDS, maxTransitions: MAX_TRANSITIONS, maxNonCutTransitions: MAX_NON_CUT_TRANSITIONS,
-      safeArea: { ...SAFE, note: "keep text, mascot and chibi inside it: the Shorts interface covers the bottom 15% (y > 1632) and the right 12% (x > 950)" },
+      safeArea: { ...SAFE, note: "keep text, mascot and chibi inside it (the YouTube Shorts interface covers the rest; an estimate)" },
       beats: { min: 1, max: 16 }, itemsPerBeat: { max: 14 }, narrationMaxChars: 600, beatSeconds: { min: 0.5, max: 30 },
     },
-    story: { fields: fieldsOf(Story, refs), beat: fieldsOf(Beat, refs), claim: fieldsOf(Claim, refs) },
+    story: { fields: without(fieldsOf(Story, refs), HIDDEN_STORY_FIELDS), beat: fieldsOf(Beat, refs), claim: fieldsOf(Claim, refs) },
     items, motionFields,
     rules: C.STORY_RULES,
     enums: {

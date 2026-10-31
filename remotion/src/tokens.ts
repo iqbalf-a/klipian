@@ -67,10 +67,38 @@ export const THEME_NAMES = Object.keys(THEMES) as [ThemeName, ...ThemeName[]];
 /** The caption looks (PLAN-CAPTION-OPTIONS, B23): `classic` is the channel's caption and the default; the text style is locked in all three. */
 export const CAPTION_STYLE_NAMES = ["classic", "wide", "punch"] as const;
 
-/** Where the floor starts in the Room and brand scenes (the sheet's 90 units from the bottom). Key content stays above the
-    Shorts interface: out of the bottom 15 % (y > 1632) and the right 12 % (x > 950). */
+/** Where the floor starts in the Room and brand scenes (the sheet's 90 units from the bottom). */
 export const FLOOR_Y = 1920 - 90 * (1080 / 280);
-export const SAFE = { left: 60, right: 950, top: 120, bottom: 1632 } as const;
+
+/** The platform safe areas (PLAN-SAFE-AREA, B24), in video px: the part of the 1080 x 1920 frame each app leaves free of its own interface (top icons, the
+    title and the buttons at the bottom, the action column on the right). ESTIMATES, NOT OFFICIAL: none of the three platforms publishes pixel margins for
+    organic posts; these are read from third-party measurements (read 2026-10-31) and are to be recalibrated from screenshots of out/safe/calibration.mp4
+    played in each app.
+    - youtube (the priority; the working area SAFE): kreatli.com/guides/youtube-shorts-safe-zone, shortsafezone.com ("observed approximations, not an
+      official specification"), creamate.ai, postplanify.com.
+    - tiktok (checked, not obeyed): imagevideofit.com/guides/tiktok-safe-zone, kreateflo.com, yosefk.me/blog/tiktok-safe-zone.
+    - instagram, organic Reels (checked): zeely.ai, houseofmarketers.com, kreatli.com/guides/instagram-reels-safe-zone. The Reels ads split (top 14 %,
+      bottom 35 %, sides 6 %) is SAFE_INSTAGRAM_ADS and is not used. */
+export const SAFE_PLATFORMS = {
+  youtube: { top: 170, bottom: 1600, left: 60, right: 920 },
+  tiktok: { top: 140, bottom: 1600, left: 60, right: 930 },
+  instagram: { top: 220, bottom: 1500, left: 65, right: 1015 },
+} as const;
+export const SAFE_INSTAGRAM_ADS = { top: 270, bottom: 1250, left: 65, right: 1015 } as const;
+export const PLATFORM_NAMES = ["youtube", "tiktok", "instagram"] as const;
+export type PlatformName = (typeof PLATFORM_NAMES)[number];
+/** The working safe area: the YouTube profile. Text, the mascot, people, labels, badges, source cards and the caption are kept inside it. */
+export const SAFE = SAFE_PLATFORMS.youtube;
+/** The strictest of the listed platforms (the cross-post mode of a story's `platforms`): the largest top and left, the smallest bottom and right. */
+export const safeFor = (platforms: readonly PlatformName[] = ["youtube"]) => {
+  const list = platforms.length ? platforms : (["youtube"] as const);
+  return {
+    top: Math.max(...list.map((p) => SAFE_PLATFORMS[p].top)), bottom: Math.min(...list.map((p) => SAFE_PLATFORMS[p].bottom)),
+    left: Math.max(...list.map((p) => SAFE_PLATFORMS[p].left)), right: Math.min(...list.map((p) => SAFE_PLATFORMS[p].right)),
+  };
+};
+/** The top of the banner and of the top text: the banner starts at the safe top (the default banner was at y 85, inside the top icons). */
+export const BANNER_TOP = SAFE.top;
 
 /** The 2.5D isometric kit's tones (P28, 2026-10-26): three per material, [light = a face looking up, mid = looking lower-left, dark = looking lower-right],
     light from the top-left (src/iso.ts). Brass is the one warm metal (the spring leaves of a socket): muted, so it never reads as the yellow of current. */

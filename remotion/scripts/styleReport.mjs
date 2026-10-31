@@ -10,6 +10,8 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { keyBoxes, reportLines, safeReport } from "./safeCheck.mjs";
+import { validateStory } from "../src/schema.ts";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
@@ -156,6 +158,14 @@ const varietyFlags = recent.slice(1).flatMap((v, i) => {
 const varietyTable = ["| video | bed | theme | stage |", "| --- | --- | --- | --- |", ...recent.map((v) => `| ${v.slug} | ${v.bed} | ${v.theme} | ${v.stage} |`)].join("\n");
 const varietyText = varietyFlags.length ? `FLAG (B21, ian decides): ${varietyFlags.join("; ")}` : "PASS (B21): the last videos do not repeat both the bed and the theme of the one before";
 
+// B24 (platform safe areas, PLAN-SAFE-AREA): what the video puts inside each platform's covered bands (YouTube is obeyed, TikTok and Instagram are checked); a flag, never a failure
+let safeText;
+try {
+  const checked = validateStory(JSON.parse(readFileSync(path.join(ROOT, "videos", slug, "story.json"), "utf8")));
+  if (!checked.ok) throw new Error("the story is not valid");
+  safeText = reportLines(safeReport(await keyBoxes(slug, { ...checked.story, captions: true }))).join("\n");
+} catch (e) { safeText = `not measured (${e.message})`; }
+
 const md = `# Style report: ${slug}
 
 Made by \`scripts/styleReport.mjs\` (DESIGN.md section 0b). Every line is a machine measure or the checker's own line; the human checklist is at the end.
@@ -196,6 +206,14 @@ ${besideFile ? `\n## Beside the reference (pilot 1's golden frames above this vi
 ${varietyText}
 
 ${varietyTable}
+
+## Platform safe areas (B24)
+
+The bands are estimates, not official (src/tokens.ts: SAFE_PLATFORMS). YouTube Shorts is obeyed by the layout; TikTok and Instagram are only checked (\`npm run safe-check -- <slug>\` prints the same list).
+
+\`\`\`
+${safeText}
+\`\`\`
 
 ## Rule log rows for this report
 

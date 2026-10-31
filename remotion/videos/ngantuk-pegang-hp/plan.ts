@@ -12,11 +12,12 @@ import { SAFE } from "../../src/tokens.ts";
 import { PHONE } from "../../src/bedroomGeometry.ts";
 
 // the stage in world px at rest (camera focus 540, 960, zoom 1): the bed is 650 px wide (60 to 70 % of the frame), the eyes above it, the thought bubble at the eyes' upper right
-// opt-in (PLAN-LAYOUT-BOTTOM): the stage, the eyes and the bubble move down together by stageDrop px (the bed's base stays above the Shorts edge, 1632)
-export const stageDrop = 20;
+// PLAN-SAFE-AREA (B24): the top text starts at y 170 and the bed's base must stay inside SAFE.bottom (1600), so the stage no longer drops (stageDrop 0, it was 20 under
+// PLAN-LAYOUT-BOTTOM) and the eyes and the bubble sit lower, below the top text; the bubble is pulled in from the right band (x 920)
+export const stageDrop = 0;
 export const OUT = { u: 150, o: [475, 960 + stageDrop] as P2 };
-export const EYES = { cx: 540, cy: 640 + stageDrop, w: 520 };
-export const BUBBLE = { cx: 800, cy: 430 + stageDrop, r: 92 };
+export const EYES = { cx: 540, cy: 680, w: 520 };
+export const BUBBLE = { cx: 780, cy: 480, r: 92 };
 export const PHONE_PT: P2 = isoAt([PHONE.c[0], PHONE.c[1], PHONE.c[2] + PHONE.h], OUT.u, OUT.o) as P2;
 export const BED_BOX: Box = (() => {
   const pts = ([[-0.1, -0.1, -0.35], [3.1, -0.1, -0.35], [-0.1, 2.1, -0.35], [3.1, 2.1, -0.35], [0, 0, 0.5], [3, 0, 0.5], [0.15, 0.3, 0.82]] as [number, number, number][]).map((p) => isoAt(p, OUT.u, OUT.o));
@@ -142,7 +143,7 @@ export function makePlan(story: StoryT) {
   const labelAt = (l: Lab, t: number) => {
     const a = toScreen(outCam(t), l.at);
     const wPill = textWidthEstimate(l.text, LABEL_FS) + LABEL_FS * 1.1, h = LABEL_FS * 1.5;
-    const top = topTextBox().y1 + 20 + h / 2, bottom = captionBox(story.captionStyle).y0 - 20 - h / 2;
+    const top = topTextBox().y1 + 20 + h / 2, bottom = captionBox(story.captionStyle, story.platforms).y0 - 20 - h / 2;
     const x = Math.max(SAFE.left + wPill / 2, Math.min(SAFE.right - wPill / 2, a[0] + l.off[0])), y = Math.max(top, Math.min(bottom, a[1] + l.off[1]));
     return { x, y, ax: a[0], ay: a[1], w: wPill, h, box: { x0: x - wPill / 2, y0: y - h / 2, x1: x + wPill / 2, y1: y + h / 2 } as Box };
   };
@@ -162,7 +163,7 @@ export function makePlan(story: StoryT) {
     if (!title) return [];
     return [{ n: tipBadges[q] ?? String(q + 1), title: title.text, sub: title.lines?.[0], keyword: title.highlight?.[0], from: q ? m.tip2 : m.tip1, subAt: (q ? m.tip2 : m.tip1) + 0.9, to: q ? beat("tips").b - 0.1 : m.tip2 - 0.25 }];
   });
-  const TIP = { x: 80, y: 360, w: 860 };
+  const TIP = { x: 80, y: 412, w: 840 };                 // inside SAFE (x 60..920) and below the top text (it ends at y 397; PLAN-SAFE-AREA, B24)
 
   const stingPill = items("intip").flatMap((i) => (i.type === "pill" ? [i.text] : []))[0] ?? beat("intip").beat.text;
   const pillW = textWidthEstimate(stingPill, 52) + 60, rowW = 200 + 24 + pillW, rowX = 540 - rowW / 2;
@@ -175,7 +176,7 @@ export function makePlan(story: StoryT) {
   const specsAt = (t: number, tipH: (i: number) => number): Spec[] => {
     const specs: Spec[] = [];
     if (tops.some((x) => t >= x.a && t < x.b)) specs.push({ id: "top-text", role: "banner", box: topTextBox() });
-    if (story.beats.some((b) => b.kind !== "sting" && b.kind !== "outro" && t >= beat(b.id).a && t < beat(b.id).b)) specs.push({ id: "caption", role: "caption", box: captionBox(story.captionStyle) });
+    if (story.beats.some((b) => b.kind !== "sting" && b.kind !== "outro" && t >= beat(b.id).a && t < beat(b.id).b)) specs.push({ id: "caption", role: "caption", box: captionBox(story.captionStyle, story.platforms) });
     if (t < m.outro) {
       // the phone is the key of the picture (the bed is only its stage, so a label may lie over the blanket); the eyes and the bubble are pictures labels keep clear of
       const c = outCam(t), z = c.zoom, st = state(t), box = (cx: number, cy: number, hw: number, hh: number): Box => { const a = toScreen(c, [cx - hw, cy - hh]), b = toScreen(c, [cx + hw, cy + hh]); return { x0: a[0], y0: a[1], x1: b[0], y1: b[1] }; };

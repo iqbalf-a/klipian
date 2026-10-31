@@ -7,6 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { applyLayout, zonesFor, bounds, conflicts, itemBox, labelBox, resolve, specsOfItems, textWidthEstimate, wrapText, type Spec } from "../src/layout.ts";
 import { validateStory, type ItemT } from "../src/schema.ts";
+import { SAFE } from "../src/tokens.ts";
 
 let n = 0;
 const yes = (cond: boolean, what: string) => { n++; assert.ok(cond, what); };
@@ -105,7 +106,7 @@ yes(itemBox({ type: "arrow", x: 1, y: 1, x2: 2, y2: 2 } as ItemT) === null, "an 
 // the mascot and the chibi are optional: without them the hero is bigger and lower, and the callouts use the whole height
 const withKids = zonesFor({ mascot: true, chibi: true }), alone = zonesFor();
 yes(alone.hero.x1 - alone.hero.x0 > withKids.hero.x1 - withKids.hero.x0 && alone.hero.y1 > withKids.hero.y1, "without a mascot or a chibi the hero is bigger and lower");
-yes(alone.calloutLeft.y1 > withKids.calloutLeft.y1 && alone.calloutLeft.y1 === 1632, "and the callouts reach down to the safe area");
+yes(alone.calloutLeft.y1 > withKids.calloutLeft.y1 && alone.calloutLeft.y1 === SAFE.bottom, "and the callouts reach down to the safe area");
 yes(alone.hero.x1 - alone.hero.x0 <= 0.75 * 1080 && withKids.hero.x1 - withKids.hero.x0 >= 0.6 * 1080, "the hero stays at 60-75 % of the width");
 
 console.log(`layout: ${n} checks ok`);

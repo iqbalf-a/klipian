@@ -87,10 +87,10 @@ export function fromStory(story: StoryT, phrase: string): string | null {
   return m ? m[0] : null;
 }
 
-/** A quote for a source card: a part of the claim's own text, at most two lines at the card's width (38 px, 770 px wide). Never typed here:
+/** A quote for a source card: a part of the claim's own text, at most two lines at the card's width (38 px, 750 px wide). Never typed here:
     the words are the story's. Preference: the whole text if it fits; else the longest start that ends at a comma (the comma is dropped); else the
     longest start that fits, with "…" to show it goes on. */
-export const QUOTE_FS = 38, QUOTE_W = 770;
+export const QUOTE_FS = 38, QUOTE_W = 750;
 export const quoteLines = (text: string): number => {
   let lines = 0, cur = "";
   for (const w of text.split(/\s+/).filter(Boolean)) {
@@ -270,7 +270,7 @@ export function makePlan(story: StoryT) {
   // round 5: the yellow outline of the plate is not a numbered step, so its label has no number disc, and it is a short tag of at most two
   // story words that is not the card's own line (the tip card above already says "Teknisi ganti stop kontak"); no tag if the story has none
   const plateTag = fromStory(story, "stop kontak");
-  if (plateTag && plateTag.split(/\s+/).length <= 2) labels.push({ id: "plate", text: plateTag.toLowerCase(), world: "out", at: SOCKET_PTS.plate, off: [-330, -60], from: m.replace + 0.2, to: m.outro - 0.2 });
+  if (plateTag && plateTag.split(/\s+/).length <= 2) labels.push({ id: "plate", text: plateTag.toLowerCase(), world: "out", at: SOCKET_PTS.plate, off: [-330, -60], from: m.replace + 0.2, to: m.outro - 0.7 });   // ends before the second tip card (it starts at y 412 now, PLAN-SAFE-AREA)
   if (dalamLabels[0]) labels.push({ id: "leaf", text: dalamLabels[0].text, n: 1, world: "lab", at: CUT_PTS.leaf, off: [60, -360], from: m.leafLabel, to: m.macro });
   if (dalamLabels[1]) labels.push({ id: "pin", text: dalamLabels[1].text, n: 2, world: "lab", at: CUT_PTS.pin, off: [-10, 330], from: m.pinLabel, to: m.macro });
   const touch = highlight("dalam");
@@ -286,7 +286,7 @@ export function makePlan(story: StoryT) {
     const p = typeof l.at === "function" ? l.at(t) : l.at;
     const a = toScreen(cam, l.world === "out" ? out(p) : lab(p));
     const wTxt = textWidthEstimate(l.text, LABEL_FS), wPill = wTxt + LABEL_FS * 1.1 + (l.n ? LABEL_FS * 1.5 + 8 : 0), h = LABEL_FS * 1.5;
-    const top = topTextBox().y1 + 20 + h / 2, bottom = captionBox(story.captionStyle).y0 - 20 - h / 2;
+    const top = topTextBox().y1 + 20 + h / 2, bottom = captionBox(story.captionStyle, story.platforms).y0 - 20 - h / 2;
     const x = Math.max(SAFE.left + wPill / 2, Math.min(SAFE.right - wPill / 2, a[0] + l.off[0])), y = Math.max(top, Math.min(bottom, a[1] + l.off[1]));
     return { x, y, ax: a[0], ay: a[1], w: wPill, h, box: { x0: x - wPill / 2, y0: y - h / 2, x1: x + wPill / 2, y1: y + h / 2 } as Box };
   };
@@ -299,6 +299,8 @@ export function makePlan(story: StoryT) {
     if (!c) return null;
     return { claim: src.claim, quote: src.quote ?? quoteFor(c.text), org: src.org, date: src.date, domain: domain(c.sources[0]), from, to };
   };
+  // the source cards stand just above the caption box (1405 for the classic caption of YouTube; higher when the story is cross-posted to a stricter platform)
+  const cardBottom = Math.round(captionBox(story.captionStyle, story.platforms).y0) - 4;
   const cards = [cardOf("kendur", cardIn1, cardOut1), cardOf("akhir", cardIn2, cardOut2)].filter((c): c is NonNullable<typeof c> => !!c);
   const chipFor = (claimIdx: number) => { const c = story.claims[claimIdx]; return c ? [...new Set(c.sources.map(domain))].join(" · ") : ""; };
   /** The claims of a beat that have no card in it: their domains as a chip. */
@@ -327,7 +329,7 @@ export function makePlan(story: StoryT) {
     const badge = items("tips").flatMap((i) => (i.type === "badge" ? [i.text] : []))[k] ?? String(k + 1);
     return [{ n: badge, title: title.text, sub: sub?.text, keyword: title.highlight?.[0], chip: best ? chipFor(best.i) : undefined, from: k ? m.tip2 : m.tip1, subAt: k ? m.tech2 : m.tech1, to: k ? beat("tips").b - 0.1 : m.tip2 - 0.25 }];
   });
-  const TIP = { x: 80, y: 360, w: 860 };
+  const TIP = { x: 80, y: 412, w: 840 };                 // inside SAFE (x 60..920) and below the top text (it ends at y 397; PLAN-SAFE-AREA, B24)
 
   // the sting and the outro: the story's own pill and label texts
   const stingPill = items("sting").flatMap((i) => (i.type === "pill" ? [i.text] : []))[0] ?? beat("sting").beat.text;
@@ -344,7 +346,7 @@ export function makePlan(story: StoryT) {
     const specs: Spec[] = [];
     if (tops.some((x) => t >= x.a && t < x.b)) specs.push({ id: "top-text", role: "banner", box: topTextBox() });
     const captioned = story.beats.some((b) => b.kind !== "sting" && b.kind !== "outro" && t >= beat(b.id).a && t < beat(b.id).b);
-    if (captioned) specs.push({ id: "caption", role: "caption", box: captionBox(story.captionStyle) });
+    if (captioned) specs.push({ id: "caption", role: "caption", box: captionBox(story.captionStyle, story.platforms) });
     const inLab = t >= m.inside && t < m.exit;
     if (!inLab && t < m.outro) {
       const c = outCam(t), pts = [[-1.2, 0.3, 1.7], [1.2, 0.3, 1.7], [-1.2, 0.3, -0.7], [1.2, 0.3, -0.7], [0, 1.9, 0.5]].map((p) => toScreen(c, out(p as unknown as P3)));
@@ -357,11 +359,11 @@ export function makePlan(story: StoryT) {
     }
     for (const l of labels) if (t >= l.from + 0.1 && t < l.to) specs.push({ id: `label:${l.id}`, role: "text", box: labelAt(l, t).box });
     if (t >= m.sting && t < m.stingEnd) specs.push({ id: "sting:mascot", role: "picture", box: stingMascotBox }, { id: "sting:pill", role: "text", box: stingPillBox });
-    for (const cd of cards) if (t >= cd.from + 0.2 && t < cd.to) { const h = cardH(cd.quote); specs.push({ id: `card:${cd.claim}`, role: "picture", box: { x0: 90, y0: 1405 - h, x1: 940, y1: 1405 } }); }
+    for (const cd of cards) if (t >= cd.from + 0.2 && t < cd.to) { const h = cardH(cd.quote); specs.push({ id: `card:${cd.claim}`, role: "picture", box: { x0: 90, y0: cardBottom - h, x1: 920, y1: cardBottom } }); }
     tips.forEach((tp, i) => { if (t >= tp.from + 0.2 && t < tp.to) specs.push({ id: `tip:${i}`, role: "picture", box: { x0: TIP.x, y0: TIP.y, x1: TIP.x + TIP.w, y1: TIP.y + tipH(i) } }); });
     return specs;
   };
   const problemsAt = (t: number, cardH: (q: string) => number, tipH: (i: number) => number) => conflicts(specsAt(t, cardH, tipH));
 
-  return { B, beat, total, w, m, exitEnd, cardIn1, cardOut1, cardIn2, cardOut2, outKeys, labKeys, outCam, labCam, lens, outsideVisible, labVisible, state, tops, labels, labelAt, LABEL_FS, cards, chips, tips, TIP, stingPill, STING, loopWeight, specsAt, problemsAt, loopWords: [fromStory(story, "panas"), fromStory(story, "hambatan")] as const, J, plug: (t: number, cam: Cam2) => plugScreen(state(t).gap, cam, cableAt(t)), cableAt };
+  return { cardBottom, B, beat, total, w, m, exitEnd, cardIn1, cardOut1, cardIn2, cardOut2, outKeys, labKeys, outCam, labCam, lens, outsideVisible, labVisible, state, tops, labels, labelAt, LABEL_FS, cards, chips, tips, TIP, stingPill, STING, loopWeight, specsAt, problemsAt, loopWords: [fromStory(story, "panas"), fromStory(story, "hambatan")] as const, J, plug: (t: number, cam: Cam2) => plugScreen(state(t).gap, cam, cableAt(t)), cableAt };
 }
