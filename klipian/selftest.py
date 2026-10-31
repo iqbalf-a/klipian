@@ -6565,7 +6565,7 @@ def parse_brief_checklist(text: str, slug: str) -> list[str]:
         if found != list(range(1, 9)):
             problems.append(f"the steps are numbered 1 to 8 (found {found})")
         wanted = {2: f"node remotion/validate.mjs remotion/stories/{slug}.json", 3: f"npm run new-video {slug} stories/{slug}.json",
-                  5: f"npm run style-check -- {slug}", 6: f"node render.mjs out/{slug}/job.json", 7: "narration_export"}
+                  5: f"npm run check", 6: f"node render.mjs out/{slug}/job.json", 7: "narration_export"}
         for n, body in zip(found, steps[2::2]):
             if "Expected:" not in body:
                 problems.append(f"step {n} has no 'Expected:' line")
@@ -6574,9 +6574,15 @@ def parse_brief_checklist(text: str, slug: str) -> list[str]:
             if n in wanted and n != 7 and "Run" not in body:
                 problems.append(f"step {n} has no 'Run' line")
         produce = text[at[1]:at[2]]
-        for path in (f"remotion/stories/{slug}.json", f"remotion/videos/{slug}/", f"remotion/out/{slug}/hook.png"):
+        for path in (f"remotion/stories/{slug}.json", f"remotion/videos/{slug}/", f"remotion/out/{slug}/hook.png", f"remotion/tests/{slug}.test.ts"):
             if path not in produce:
                 problems.append(f"the files section names {path}")
+        if "The files you may write are exactly these and no others" not in produce:
+            problems.append("the files section says which files may be written and no others")
+        if f"npm run style-check -- {slug}" not in text[at[2]:at[3]] or "error TS" not in text[at[2]:at[3]]:
+            problems.append("step 5 runs npm run check (expected: no error TS line) and the style check")
+        if "design/index.ts" not in text[at[2]:at[3]] or "assets-sheet" not in text[at[2]:at[3]]:
+            problems.append("step 4 says sfx.ts and plan.ts never import the design index, and to search the library before `needs`")
         if "FALLBACK: story only, no video folder" not in text[at[3]:at[4]]:
             problems.append("the fallback names its first line")
         if len(re.findall(r"^\d+\. ", text[at[4]:at[5]], re.M)) < 8:

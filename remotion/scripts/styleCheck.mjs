@@ -201,6 +201,12 @@ if (motionBreaks.length === 0) add("PASS", "must 3 (c, d): the camera, the trans
 else if (planExceptions.length) add("INFO", `must 3 (c, d): the motion breaks are written as plan exceptions (${planExceptions.join(" | ")}): ${motionBreaks.join("; ")}`);
 else add("FAIL", `must 3 (c, d): the motion is outside the ranges: ${motionBreaks.join("; ")}`);
 
+// 13b. the files render.mjs loads in plain Node (sfx.ts, plan.ts) import only plain .ts modules: src/design/index.ts re-exports .tsx components, and Node cannot read a .tsx
+//      ("Unknown file extension .tsx"): the video would not render. A FAIL, since it stops the render.
+const nodeLoaded = ["sfx.ts", "plan.ts"].filter((f) => existsSync(path.join(dir, f)));
+const badImports = nodeLoaded.filter((f) => /^\s*(import|export)\b[^;]*\bfrom\s+["\'][^"\']*design\/index(\.ts)?["\']/m.test(readFileSync(path.join(dir, f), "utf8")));
+add(badImports.length === 0 ? "PASS" : "FAIL", `render: sfx.ts and plan.ts import only plain .ts modules (${badImports.length ? `${badImports.join(", ")} import src/design/index.ts, which re-exports .tsx: import from src/sfx.ts, src/schema.ts, src/layout.ts... instead` : "none imports src/design/index.ts"})`);
+
 // 14. the approved sound set (B15): the sound files and the SFX and MUSIC levels are the ones ian approved (scripts/soundHash.json). Changed = FAIL.
 const { soundSet } = await import("./soundHash.mjs");
 const soundRecord = path.join(ROOT, "scripts", "soundHash.json");

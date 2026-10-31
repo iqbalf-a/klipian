@@ -3,9 +3,10 @@
    video folder has what the registry needs. */
 import assert from "node:assert/strict";
 import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { newVideo, SLUG } from "../scripts/new-video.mjs";
 import { validateStory } from "../src/schema.ts";
 
@@ -44,5 +45,29 @@ yes(JSON.parse(readFileSync(path.join(withStory, "story.json"), "utf8")).questio
 writeFileSync(story, JSON.stringify({ nope: 1 }));
 throws(() => newVideo("cerita-rusak", story, root), /not valid/, "a story that is not valid is refused");
 yes(!existsSync(path.join(root, "videos", "cerita-rusak")), "and no folder is left behind");
+
+// the files render.mjs loads in plain Node (sfx.ts, plan.ts) must load without the .tsx loader: a video scaffolded from the template, and every video of the repository, import
+// only plain .ts modules (a regression: the template's sfx.ts once imported src/design/index.ts and every new video failed with "Unknown file extension .tsx")
+cpSync(path.join(ROOT, "src"), path.join(root, "src"), { recursive: true });
+const loaded = await import(pathToFileURL(path.join(made, "sfx.ts")).href);
+const tplStory = validateStory(JSON.parse(readFileSync(path.join(ROOT, "templates", "video", "story.json"), "utf8")));
+yes(tplStory.ok && typeof loaded.sfx === "function" && Array.isArray(loaded.sfx(tplStory.ok ? tplStory.story : (undefined as never))), "a scaffolded video's sfx.ts loads in plain Node and returns the events");
+const loadedPlan = await import(pathToFileURL(path.join(made, "plan.ts")).href);
+yes(tplStory.ok && typeof loadedPlan.makePlan === "function" && Number.isFinite(loadedPlan.makePlan(tplStory.ok ? tplStory.story : (undefined as never)).total), "a scaffolded video's plan.ts loads in plain Node");
+for (const slug of readdirSync(path.join(ROOT, "videos"))) for (const f of ["sfx.ts", "plan.ts"]) {
+  const file = path.join(ROOT, "videos", slug, f);
+  if (existsSync(file)) yes(!/^\s*(import|export)\b[^;]*\bfrom\s+["\'][^"\']*design\/index(\.ts)?["\']/m.test(readFileSync(file, "utf8")), `videos/${slug}/${f} imports no src/design/index.ts`);
+}
+yes(existsSync(path.join(ROOT, "videos", "selftest-tiny", "sfx.ts")), "the selftest video has an sfx.ts (the klipian selftest renders a custom video with one)");
+
+// styleCheck FAILs a video whose sfx.ts imports src/design/index.ts (it would not render), and passes one that does not
+{
+  const bad = path.join(root, "bad-video");
+  cpSync(path.join(ROOT, "videos", "ngantuk-pegang-hp"), bad, { recursive: true });
+  writeFileSync(path.join(bad, "sfx.ts"), 'import { defaultBeatSfx } from "../../src/design/index.ts";\nexport const sfx = (s: never) => defaultBeatSfx(s);\n');
+  const run = (dir: string) => spawnSync(process.execPath, [path.join(ROOT, "scripts", "styleCheck.mjs"), dir], { encoding: "utf8" }).stdout;
+  yes(/^FAIL\s+render: sfx\.ts and plan.ts import only plain/m.test(run(bad)), "styleCheck FAILs an sfx.ts that imports src/design/index.ts");
+  yes(/^PASS\s+render: sfx\.ts and plan.ts import only plain/m.test(run(path.join(ROOT, "videos", "ngantuk-pegang-hp"))), "and passes a video that imports only plain .ts modules");
+}
 
 console.log(`videos: ${n} checks ok`);
