@@ -160,6 +160,22 @@ for (const r of DICTIONARY.filter((k) => k.status === "drawn")) {
     yes(Math.abs(seconds - m.dur) < 0.01, `the bed ${name} loops ${m.dur} s (the file is ${seconds.toFixed(2)} s)`);
   }
   yes(MUSIC["bed-calm"].dur === 24 && MUSIC["bed-tech"].dur === 24, "the legacy beds keep their 24 s loop");
+  // the technology beds (P28-R phase 4): no seam (the last sample continues into the first, the step there is no bigger than the loop's own biggest step), and a
+  // peak under 0.95 (the beds are normalised); both names are in the catalogue next to the cheerful beds
+  for (const name of ["bed-circuit", "bed-neon"] as const) {
+    yes(name in MUSIC, `${name} is a catalogue bed`);
+    const buf = rf(path.join(ROOT, "sfx", "music", `${name}.wav`));
+    let first = 0, last = 0, maxStep = 0, peak = 0, prev = 0;
+    for (let i = 44; i < buf.length; i += 2) {
+      const v = buf.readInt16LE(i) / 32768;
+      if (i === 44) first = v;
+      last = v; peak = Math.max(peak, Math.abs(v));
+      if (i > 44) maxStep = Math.max(maxStep, Math.abs(v - prev));
+      prev = v;
+    }
+    yes(Math.abs(first - last) <= maxStep, `the bed ${name} has no seam (${Math.abs(first - last).toFixed(4)} <= ${maxStep.toFixed(4)})`);
+    yes(peak < 0.95, `the bed ${name} is normalised (peak ${peak.toFixed(3)})`);
+  }
 }
 
 // --- the background themes (PLAN-VARIETY stage 2): cream is today's look, every theme keeps the black labels readable (WCAG contrast of 4.5 or more on

@@ -121,5 +121,8 @@ export const MUSIC = {
   "bed-bounce": { level: 0.06, solo: 0.18, dur: 24 },
   "bed-glow": { level: 0.05, solo: 0.15, dur: 24 },   // a little lower: its bells sit in the voice band
   "bed-curious": { level: 0.06, solo: 0.18, dur: 24 },
+  // the technology beds (P28-R phase 4): synth arpeggios over a light electronic beat; the levels keep their voice band (1 to 4 kHz) within about 2.5 dB of bed-calm's, measured in out/music/measure.md
+  "bed-circuit": { level: 0.075, solo: 0.22, dur: 16 },
+  "bed-neon": { level: 0.065, solo: 0.19, dur: 17.07 },
 } as const;
 export const MUSIC_NAMES = Object.keys(MUSIC) as [keyof typeof MUSIC, ...(keyof typeof MUSIC)[]];

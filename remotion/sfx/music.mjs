@@ -124,6 +124,86 @@ const makers = {
   },
 };
 
+// --- the technology beds (P28-R phase 4): a synth voice (a few harmonics of a saw or a square, a fast attack and a decay), a soft kick, a hat, a clap and an echo
+// that wraps around the loop, so the synth arpeggios and the light electronic beat have no seam either.
+/** A synth tone at `start`: `harmonics` partials (a saw: 1/k; a square: the odd ones), an instant attack and an exponential `decay`, wrapping past the end. */
+function synth(buf, start, midi, dur, amp, { decay = 9, harmonics = 8, square = false, release = 0.03 } = {}) {
+  const n = buf.length, f = hz(midi), total = dur + release, first = Math.round(start * SR);
+  const ks = [];
+  for (let k = 1; k <= harmonics && f * k < 9000; k += square ? 2 : 1) ks.push(k);
+  for (let i = 0; i < total * SR; i++) {
+    const t = i / SR;
+    let v = 0;
+    for (const k of ks) v += Math.sin(TAU * f * k * t) / k;
+    const env = Math.exp(-t * decay) * Math.min(1, t / 0.004) * (t < dur ? 1 : Math.max(0, 1 - (t - dur) / release));
+    buf[(first + i) % n] += v * env * amp;
+  }
+}
+/** A soft kick: a sine that falls from about 135 Hz to 45 Hz, a short decay. */
+function kick(buf, start, amp) {
+  const n = buf.length, first = Math.round(start * SR), len = Math.round(0.3 * SR);
+  let phase = 0;
+  for (let i = 0; i < len; i++) {
+    const t = i / SR;
+    phase += (TAU * (45 + 90 * Math.exp(-t * 30))) / SR;
+    buf[(first + i) % n] += Math.sin(phase) * Math.exp(-t * 13) * Math.min(1, t / 0.002) * amp;
+  }
+}
+/** An echo that wraps around the loop: `taps` repeats `delay` seconds apart, each `feedback` times the one before, mixed at `mix`. */
+function echo(buf, delay, feedback, mix, taps = 3) {
+  const n = buf.length, d = Math.round(delay * SR), src = Float32Array.from(buf);
+  for (let k = 1; k <= taps; k++) {
+    const g = mix * Math.pow(feedback, k - 1);
+    for (let i = 0; i < n; i++) buf[i] += src[(((i - k * d) % n) + n) % n] * g;
+  }
+  return buf;
+}
+/** A pump: the layer ducks on every beat and comes back (a sidechain feel), `depth` 0..1. */
+function pump(buf, beatSec, depth) {
+  const b = Math.round(beatSec * SR);
+  for (let i = 0; i < buf.length; i++) buf[i] *= 1 - depth * Math.exp(-((i % b) / SR) * 9);
+  return buf;
+}
+const mixInto = (dst, src, gain = 1) => { for (let i = 0; i < dst.length; i++) dst[i] += src[i] * gain; };
+
+const techMakers = {
+  "bed-circuit": () => {                              // A E F#m D at 120 BPM: a saw arpeggio in sixteenths with an echo, a light kick and off-beat hats, for gadgets and electricity
+    const bpm = 120, beat = 60 / bpm, bar = 4 * beat, six = beat / 4, bars = 8, len = bars * bar, buf = new Float32Array(Math.round(len * SR));
+    const chords = [[57, 61, 64], [52, 56, 59], [54, 57, 61], [50, 54, 57]], rand = rng(31);
+    const lead = new Float32Array(buf.length);
+    for (let b = 0; b < bars; b++) {
+      const chord = chords[b % 4], at = b * bar, arp = [chord[0], chord[1], chord[2], chord[1]];
+      for (let k = 0; k < 16; k++) synth(lead, at + k * six, arp[k % 4] + 12 + (k % 8 >= 4 ? 12 : 0), six * 0.9, 0.06, { decay: 14, harmonics: 3 });
+      for (let k = 0; k < 8; k++) synth(buf, at + k * (beat / 2), chord[0] - 24, beat / 2 * 0.8, 0.2, { decay: 7, harmonics: 4 });
+      for (let k = 0; k < 4; k++) kick(buf, at + k * beat, 0.2);
+      for (let k = 0; k < 4; k++) burst(buf, at + k * beat + beat / 2, 0.035, 0.05, rand, 120);
+      burst(buf, at + 3 * beat, 0.07, 0.05, rand, 40);                    // a soft snap before the next bar
+    }
+    echo(lead, 0.75 * beat, 0.5, 0.45);
+    mixInto(buf, lead);
+    return lowpass(buf, 2600);
+  },
+  "bed-neon": () => {                                 // F C Dm Bb at 112.5 BPM: a pumping saw pad, a bright square pluck in eighths with an echo, a light four-on-the-floor kick
+    const bpm = 112.5, beat = 60 / bpm, bar = 4 * beat, eighth = beat / 2, bars = 8, len = bars * bar, buf = new Float32Array(Math.round(len * SR));
+    const chords = [[53, 57, 60, 64], [48, 52, 55, 59], [50, 53, 57, 60], [46, 50, 53, 57]], rand = rng(47);
+    const pad = new Float32Array(buf.length), lead = new Float32Array(buf.length);
+    for (let b = 0; b < bars; b++) {
+      const chord = chords[b % 4], at = b * bar;
+      chord.forEach((m, k) => synth(pad, at + k * 0.01, m, bar - 0.05, 0.06, { decay: 0.4, harmonics: 6, release: 0.2 }));
+      [0, 2, 1, 3, 2, 1, 3, 2].forEach((idx, k) => synth(lead, at + k * eighth, chord[idx] + 12, eighth * 0.85, 0.09, { decay: 12, harmonics: 7, square: true }));
+      for (let k = 0; k < 4; k++) kick(buf, at + k * beat, 0.17);
+      [1, 3].forEach((k) => burst(buf, at + k * beat, 0.08, 0.07, rand, 32));
+      for (let k = 0; k < 8; k++) burst(buf, at + k * eighth + eighth / 2, 0.02, 0.025, rand, 160);
+      synth(buf, at, chord[0] - 24, beat * 1.5, 0.13, { decay: 3, harmonics: 3 });
+    }
+    pump(pad, beat, 0.6);
+    echo(lead, 0.75 * beat, 0.45, 0.4);
+    mixInto(buf, pad); mixInto(buf, lead);
+    return lowpass(buf, 2600);
+  },
+};
+Object.assign(makers, techMakers);
+
 mkdirSync(OUT, { recursive: true });
 // --preview: the same beds into out/music/ for ian to listen to: the loop as it is, and a 30 s version that plays the loop again and again across the seam
 const PREVIEW = process.argv.includes("--preview") ? path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "out", "music") : null;

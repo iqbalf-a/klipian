@@ -23,6 +23,8 @@ BEDS = {  # the design facts of each bed (sfx/music.mjs)
     "bed-bounce": ("120", "G D Em C, major"),
     "bed-glow": ("100", "D A Bm G, major"),
     "bed-curious": ("100", "Dm C Bb Am, Dorian (a major sixth on the minor chord)"),
+    "bed-circuit": ("120", "A E F#m D, major, synth arpeggio"),
+    "bed-neon": ("112.5", "F C Dm Bb, major, pumping pad"),
 }
 
 
@@ -86,7 +88,7 @@ def main():
         band = voice_band_db(x, rate, level)
         if name == "bed-calm":
             calm_band = band
-        rows.append({"bed": name, "bpm": int(bpm), "design": design, "seconds": round(len(x) / rate, 2),
+        rows.append({"bed": name, "bpm": float(bpm) if "." in bpm else int(bpm), "design": design, "seconds": round(len(x) / rate, 2),
                      "onsets_per_s": round(onset_rate(x, rate), 2), "centroid_hz": round(centroid(x, rate)),
                      "lufs": loudness(path), "voice_band_db": round(band, 2)})
     for r in rows:

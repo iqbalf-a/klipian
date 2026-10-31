@@ -6455,6 +6455,23 @@ def check_music() -> tuple[str, str]:
         problems.append("a new video gets sunny (ian's pick), and a project saved without a music choice keeps calm")
     if motion.create("tes bed default", 30, "")["options"]["music"] != "sunny":
         problems.append("a video made now gets the sunny bed")
+    # the technology beds (P28-R phase 4): their tracks, a topic about a gadget or electricity suggests one of them, any other topic the cheerful default, and an explicit choice wins
+    if motion.MUSIC_TRACKS.get("circuit") != "bed-circuit" or motion.MUSIC_TRACKS.get("neon") != "bed-neon":
+        problems.append("the technology beds have their tracks (bed-circuit, bed-neon)")
+    for topic in ("Kenapa colokan listrik bisa panas", "Bagaimana wifi bekerja", "Kenapa baterai hp cepat habis"):
+        if motion.suggest_music(topic) not in ("circuit", "neon"):
+            problems.append(f"{topic!r} gets a technology bed, not {motion.suggest_music(topic)}")
+    for topic in ("Kenapa hujan turun", "Kenapa kita selalu bilang 5 menit lagi"):
+        if motion.suggest_music(topic) != "sunny":
+            problems.append(f"{topic!r} gets the cheerful default, not {motion.suggest_music(topic)}")
+    if motion.suggest_music("Bagaimana wifi bekerja") != motion.suggest_music("Bagaimana wifi bekerja"):
+        problems.append("the same topic always gets the same bed")
+    if motion.create("Bagaimana wifi bekerja", 30, "", {"music": "auto"})["options"]["music"] not in ("circuit", "neon"):
+        problems.append("music 'auto' on a technology topic gives a technology bed")
+    if motion.create("Bagaimana wifi bekerja", 30, "", {"music": "glow"})["options"]["music"] != "glow":
+        problems.append("an explicit music choice is kept")
+    if 'value="auto" selected>Otomatis (sesuai topik)' not in html:
+        problems.append("the new-video dialog starts on 'Otomatis (sesuai topik)'")
     for key, label in motion.MUSIC_LABELS.items():
         if not _re.search(rf'<option value="{key}"( selected)?>{_re.escape(label)}</option>', html):
             problems.append(f"the dialog offers {label!r}")

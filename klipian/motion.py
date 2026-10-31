@@ -365,7 +365,7 @@ def create(topic: str, duration=DEFAULT_DURATION, notes: str = "", options: dict
     pid = f"{_slug(topic)}-{uuid.uuid4().hex[:4]}"
     now = int(time.time())
     p = {"id": pid, "topic": topic, "duration": duration, "notes": str(notes or "").strip()[:2000], "status": "draft",
-         "title": "", "created": now, "updated": now, "needs": [], "render": None, "composition": "", "options": normalize_options({"music": DEFAULT_OPTIONS["music"], **(options or {})})}
+         "title": "", "created": now, "updated": now, "needs": [], "render": None, "composition": "", "options": normalize_options({**(options or {}), "music": suggest_music(topic) if (options or {}).get("music") in (None, "auto") else options["music"]})}
     with _LOCK:
         project_dir(pid).mkdir(parents=True, exist_ok=True)
         save(p)
@@ -1183,22 +1183,39 @@ def _catalog() -> dict:
 # and turning one off gives a warning (the channel asks for them). The voice target only chooses the text format of the narration (the voice is made
 # outside klipian, by the person's own voice app); the music is the story's bed.
 VOICE_TARGETS = {"voicestudio": "VoiceStudio", "elevenlabs": "ElevenLabs", "googleai": "Google AI Studio"}
-MUSIC_TRACKS = {"sunny": "bed-sunny", "bounce": "bed-bounce", "glow": "bed-glow", "curious": "bed-curious", "calm": "bed-calm", "tech": "bed-tech", "none": "none"}
+MUSIC_TRACKS = {"sunny": "bed-sunny", "bounce": "bed-bounce", "glow": "bed-glow", "curious": "bed-curious", "circuit": "bed-circuit", "neon": "bed-neon", "calm": "bed-calm", "tech": "bed-tech", "none": "none"}
 # the labels the page shows (Indonesian). The two beds that exist are the legacy ones (PLAN-VARIETY stage 1): their tracks never change.
 LEGACY_MUSIC = "calm"           # the bed of every video made before the choice of PLAN-VARIETY (ian picked sunny on 2026-10-28 for new videos only)
-MUSIC_LABELS = {"sunny": "Ceria", "bounce": "Pantul", "glow": "Hangat", "curious": "Penasaran", "calm": "Tenang (lama)", "tech": "Teknologi (lama)", "none": "Tanpa musik"}
+MUSIC_LABELS = {"sunny": "Ceria", "bounce": "Pantul", "glow": "Hangat", "curious": "Penasaran", "circuit": "Teknologi (sirkuit)", "neon": "Teknologi (neon)", "calm": "Tenang (lama)", "tech": "Teknologi (lama)", "none": "Tanpa musik"}
 # when each bed fits (PLAN-VARIETY): the brief tells the AI which one to choose for which kind of fact
 MUSIC_USE = {
     "sunny": "cheerful and major (about 120 BPM, a marimba-like melody): a cause or an object that works",
     "bounce": "bouncy and playful (about 120 BPM, staccato bass, light claps): a process or a gadget",
     "glow": "warm and friendly (about 100 BPM, pads and a bell arpeggio): everyday objects at home",
     "curious": "playful and a little mysterious (about 100 BPM, a Dorian feel): a myth check or a how-does-it-work",
+    "circuit": "technology: a synth arpeggio over a light electronic beat (about 120 BPM): a gadget, electricity, a phone, a machine",
+    "neon": "technology: a pumping synth pad and a bright pluck over a light beat (about 112 BPM): the internet, a device, a process of a machine",
     "calm": "calm and slow (the legacy bed, kept for old videos)",
     "tech": "a quiet pattern (the legacy bed, kept for old videos)",
     "none": "no music",
 }
 KINDS = {"otomatis": "Otomatis (template, paling cepat)", "khusus": "Khusus (video buatan agen, tampilan terbaik)"}
 DEFAULT_OPTIONS = {"loop": True, "sting": True, "voiceTargets": list(VOICE_TARGETS), "voiceTargetFirst": "voicestudio", "music": "sunny", "kind": "khusus"}
+
+
+# the words that make a topic a technology topic (PLAN P28-R phase 4): its default bed is a technology bed, any other topic gets the cheerful one
+TECH_WORDS = ("listrik", "colokan", "stopkontak", "kabel", "charger", "cas", "baterai", "hp", "ponsel", "handphone", "smartphone", "layar", "wifi", "wi-fi", "sinyal",
+              "internet", "komputer", "laptop", "chip", "prosesor", "robot", "mesin", "teknologi", "ai", "gadget", "aplikasi", "bluetooth", "satelit", "gps", "led", "magnet",
+              "elektronik", "mobil listrik", "motor listrik", "pengisi daya", "daya")
+
+
+def suggest_music(topic: str) -> str:
+    """The bed a new video gets when the person leaves the music on "sesuai topik": a technology bed (circuit or neon, by the topic's letters, so the same
+    topic always gets the same one) for a technology topic, else the cheerful default."""
+    words = " " + re.sub(r"[^a-z0-9-]+", " ", str(topic or "").lower()) + " "
+    if any(f" {w} " in words for w in TECH_WORDS):
+        return "circuit" if sum(map(ord, words)) % 2 == 0 else "neon"
+    return DEFAULT_OPTIONS["music"]
 
 
 def normalize_options(raw) -> dict:
@@ -1236,6 +1253,9 @@ def normalize_options(raw) -> dict:
         out["music"] = LEGACY_MUSIC                              # a project saved before the choice keeps its bed: calm
     for key, choices in (("music", MUSIC_TRACKS), ("kind", KINDS)):
         if key in raw:
+            if key == "music" and raw[key] == "auto":                     # "sesuai topik" is resolved when the video is made (create); here it is the default
+                out[key] = DEFAULT_OPTIONS["music"]
+                continue
             if raw[key] not in choices:
                 raise MotionError("options", f"{key}: pilih salah satu dari {', '.join(choices)}.")
             out[key] = raw[key]
