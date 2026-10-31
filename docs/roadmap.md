@@ -2876,6 +2876,30 @@ Dikerjakan Eksekusi bertahap, satu laporan per fase:
    lebih detail dan hidup (gerak kecil terus-menerus), variasi adegan per beat,
    aturan kepadatan gerak; lalu 3 video dirender ulang sebagai uji.
 
+**P28-T — uji TTS lokal bahasa Indonesia** (rencana sesi Plan 2026-10-31, belum
+dikerjakan). Tujuan: narasi dibuat di komputer ian tanpa layanan dan tanpa key,
+lewat jalur `motionTts` yang sudah ada (`workspace/machine.json`, perintah dengan
+`{text}` dan `{out}`). Generate gambar, video, atau 3D tidak dipakai (gaya 2.5D
+harus konsisten; model video butuh GPU besar).
+1. **Daftar pendek dan cek lisensi dulu** (gerbang: channel dimonetisasi, jadi
+   lisensi non-komersial gugur): kandidat seperti MMS-TTS Indonesia, XTTS-v2,
+   Piper, F5-TTS/model multibahasa lain yang mendukung bahasa Indonesia. Untuk
+   setiap kandidat catat: lisensi model dan kode (bersumber), dukungan bahasa
+   Indonesia, ukuran unduhan, dan apakah jalan di CPU.
+2. **Uji di laptop ian** (Core Ultra 185H, tanpa GPU NVIDIA), di folder terpisah
+   di luar repo dan venv terpisah supaya klipian tidak terganggu: 3 naskah
+   contoh dari video yang ada (± 45 detik), diukur waktu buat per detik audio
+   dan pemakaian RAM.
+3. **Penilaian ian** lewat telinga: sampel berlabel acak (A/B/C) dibandingkan
+   dengan rekaman yang sudah dipakai, nilai 1–5 untuk kejelasan, kewajaran,
+   pelafalan kata Indonesia dan istilah (angka, singkatan).
+4. **Kalau ada yang lolos:** satu skrip pembungkus kecil (teks → WAV 48 kHz)
+   dipasang di `motionTts`, tombol "Buat di sini" di langkah suara jadi aktif,
+   pencocokan kata tetap lewat faster-whisper, dan selftest memakai pembungkus
+   palsu (tanpa model sungguhan).
+5. **Kalau tidak ada yang lolos:** tetap pakai aplikasi suara di luar
+   (VoiceStudio/ElevenLabs/Google) dengan ekspor naskah yang sudah ada.
+
 ---
 
 ## 3. Diparkir, sengaja tidak dikerjakan
