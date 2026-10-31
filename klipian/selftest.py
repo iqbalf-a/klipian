@@ -6380,7 +6380,7 @@ def check_khusus() -> tuple[str, str]:
 def check_briefbuttons() -> tuple[str, str]:
     from . import motion
     root = Path(__file__).resolve().parents[1]
-    page = (root / "ui" / "js" / "remotion" / "page.js").read_text(encoding="utf-8")
+    page = "\n".join(f.read_text(encoding="utf-8") for f in sorted((root / "ui" / "js" / "remotion").glob("page*.js")))
     html = (root / "ui" / "remotion.html").read_text(encoding="utf-8")
     skill = (root / ".claude" / "skills" / "klipian-video" / "SKILL.md").read_text(encoding="utf-8")
     problems: list[str] = []

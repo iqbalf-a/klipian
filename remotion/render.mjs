@@ -27,6 +27,7 @@ import { defaultBeatSfx, dissectSfx, formatTimeline, planSfx, storySfx } from ".
 import { totalFrames } from "./src/timeline.ts";
 import { loadVoice, mixTrack } from "./sfx/mix.mjs";
 import { writeWav } from "./sfx/wav.mjs";
+import { pruneBundles, touchBundle } from "./scripts/cleanCache.mjs";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 let OUT_DIR = path.join(ROOT, "out");                     // a job may name another root ("outRoot": klipian keeps its renders in the profile's folder)
@@ -79,10 +80,14 @@ function bundleHash() {
   return h.digest("hex").slice(0, 12);
 }
 
+/** After a render: the cache keeps the newest two bundles (the one just used and the one before it); older ones are removed (npm run clean-cache keeps one). */
+const pruneOld = () => { try { pruneBundles(CACHE_DIR, 2); } catch { /* a cache is best effort */ } };
+
 async function getBundle() {
   const dir = path.join(CACHE_DIR, `bundle-${bundleHash()}`);
   const t0 = Date.now();
   if (existsSync(path.join(dir, "index.html"))) {
+    touchBundle(dir);                                       // the bundle in use is the newest one: pruning keeps it
     emit({ type: "timing", stage: "bundle", ms: Date.now() - t0, cached: true });
     return dir;
   }
@@ -93,6 +98,7 @@ async function getBundle() {
     publicDir: path.join(ROOT, "public"),
     onProgress: (pct) => progress("bundle", pct),
   });
+  touchBundle(dir);
   emit({ type: "timing", stage: "bundle", ms: Date.now() - t0, cached: false });
   return dir;
 }
@@ -192,6 +198,7 @@ async function main() {
       outs.push(file);
       progress("render", ((i + 1) / story.beats.length) * 100, { beat: b.id });
     }
+    pruneOld();
     emit({ type: "done", out: dir, outs, ms: Date.now() - t0 });
     return;
   }
@@ -211,7 +218,8 @@ async function main() {
     if (!Number.isInteger(frame) || frame < 0 || frame >= composition.durationInFrames) fail(`frame must be 0..${composition.durationInFrames - 1}`);
     const out = resolveOut(job, "png");
     await renderStill({ composition, serveUrl, output: out, frame, inputProps, chromiumOptions, port, imageFormat: "png", cancelSignal, logLevel: "error" });
-    emit({ type: "done", out, bytes: statSync(out).size, ms: Date.now() - t0, frame });
+    pruneOld();
+  emit({ type: "done", out, bytes: statSync(out).size, ms: Date.now() - t0, frame });
     return;
   }
 
@@ -229,6 +237,7 @@ async function main() {
   progress("render", 100, { total: composition.durationInFrames });
   const bed = story?.music ?? (await videoSfx(compId))?.music ?? null;     // the story's bed wins; else the video's own choice
   if (withSound) await addSoundEffects(silent, out, await soundPlan(compId, story), composition.durationInFrames / composition.fps, { voice: job.voice, music: bed && bed.track !== "none" ? { name: bed.track, level: bed.level } : null });
+  pruneOld();
   emit({ type: "done", out, bytes: statSync(out).size, ms: Date.now() - t0, frames: composition.durationInFrames });
 }
 
