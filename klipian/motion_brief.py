@@ -183,75 +183,137 @@ def _examples_text(cat: dict, d: int) -> str:
             f"Example 2, a habit (no object, no socket, no lens):\n```json\n{compact(cat['exampleHabit'])}\n```")
 
 
-PART_B = """## Part B: the video folder (only for Kind Khusus)
-
-Do these steps in order, from the repository root `D:\\github-repos\\klipian`. Stop and report if a step fails.
-1. Read, in this order, before you draw anything: `remotion/DESIGN.md` section 0b and every rule B1 up to the last one; `remotion/src/dictionary.ts` (the marks you may use); the isometric kit `remotion/src/components/Iso*.tsx`. List them with `ls remotion/src/components/Iso*.tsx`.
-2. Look at the two reference videos: `ls remotion/videos/kenapa-colokan-panas remotion/videos/ngantuk-pegang-hp`. Each has `index.tsx`, `plan.ts`, `sfx.ts` and `meta.json`.
-3. `cd remotion`, then `npm run new-video <slug> stories/<slug>.json`. Expected: the folder `remotion/videos/<slug>` with `index.tsx`, `plan.ts`, `sfx.ts`, `meta.json` and `story.json`. Copy the structure of the reference that is closer to your scene (a stage with a hero, or a bed scene) into it.
-4. Edit `videos/<slug>/index.tsx` and `plan.ts`: draw each beat with the kit (one hero; reuse before you draw; at most three new assets). Use the story's `theme`, `stage` and `music`.
-5. `npm run style-check -- <slug>`. Expected: no FAIL line. Report the FLAG, RENDER and HUMAN lines.
-6. `npm run style-report -- <slug>`. Expected: `out/<slug>/style-report.md`. Do not render the video and do not push anything.
-7. Narration texts: for each target voice app in the options, run from the repository root and paste the output:
-   `python -c "import json,sys; sys.path.insert(0,'.'); from klipian import motion; print(motion.narration_export(json.load(open(sys.argv[1],encoding='utf-8')), sys.argv[2])['text'])" remotion/stories/<slug>.json <target>`
-   where `<target>` is `voicestudio`, `elevenlabs` or `googleai`.
-8. For the person, in plain words: open `/remotion`, choose the folder `D:\\github-repos\\klipian\\remotion\\videos\\<slug>` and press "Ambil cerita dari folder"; make the voice in your own voice app; choose the audio file; press Cocokkan; look at the preview; then Render.
-"""
+STEP_MARK = "### Step "
 
 
-def _report_text() -> str:
-    return """
-## Report (agent mode: fill every line, with pasted evidence)
-- Story file: the path you saved.
-- Validator output: the whole output of `node remotion/validate.mjs`, and any warning left, with why.
-- Folder: the full path. Style check: the summary line. Narration texts: pasted.
-- Not done or not checked: list it."""
+def video_slug(topic: str) -> str:
+    """The folder name the brief tells the agent to use: lowercase letters, digits and hyphens, at most 30 characters (new-video accepts 2 to 39), and one
+    that no video folder, story file or test of remotion/ uses yet (a number is added when the name is taken)."""
+    base = _m._slug(topic)[:30].strip("-")
+    base = base if len(base) >= 2 else "video-baru"
+    root = _m.videos_root().parent
+
+    def taken(name: str) -> bool:
+        return (root / "videos" / name).exists() or (root / "stories" / f"{name}.json").exists() or (root / "tests" / f"{name}.test.ts").exists()
+    name, n = base, 1
+    while taken(name):
+        n += 1
+        name = f"{base[:30 - len(str(n)) - 1].strip('-')}-{n}"
+    return name
 
 
-def build_brief(p: dict) -> str:
-    """The brief: read this first, the options, the story (Part A), and for Khusus the video folder (Part B). Any agent can follow it."""
-    cat = _m._catalog()
-    d = p["duration"]
-    opts = _m.options_of(p)
-    kind = "custom" if _m.kind_of(p) == "custom" else "template"
-    notes = f"\n\n**Notes from the person making the video:** {p['notes']}" if p.get("notes") else ""
+# What goes wrong most often when an agent follows the brief (each line is one mistake and its cure).
+MISTAKES = [
+    "The beats' `dur` do not add up to the duration: add them up before you save, and fix the last explain beat, not the hook.",
+    'The sting\'s narration is not exactly "Intip yuk!", or the outro has narration, a mascot, a label or a pill.',
+    "A screen text (`banner`, `text`, `label`, `pill`) has more than 6 words.",
+    "A claim without a source URL, or a URL you did not open. Leave the claim out instead.",
+    'The story lacks `"bible": 1`, or has comments, trailing commas or code in the JSON.',
+    "The story is saved somewhere else than `remotion/stories/<slug>.json` (never in `workspace/`), or the folder's `story.json` was edited without the same change in `remotion/stories/<slug>.json`: keep the two identical.",
+    "`npm run new-video` run from the repository root (it must run inside `remotion`, and the story path is `stories/<slug>.json`, not `remotion/stories/...`).",
+    "`node remotion/validate.mjs` run from inside `remotion` (it runs from the repository root).",
+    "Writing \"it passed\" without the command's output. Paste the output, or say you did not run it.",
+    "Rendering the whole video, editing `package.json`, or pushing anything: none of these is asked.",
+]
+
+FALLBACK = """## If you cannot run commands or save files (fallback)
+
+Some assistants only chat. If you cannot run a command or write a file, do **only** this, and do not pretend to do more:
+1. The first line of your reply is exactly: `FALLBACK: story only, no video folder`
+2. Then one fenced `json` block with the story (the Answer format below).
+3. Then one fenced `text` block with the narration: each beat's narration on its own line, plain words only, no tags, no headings, no timings.
+4. Do not say that a folder, a validation or a style check exists. Say what you could not do.
+The person pastes the story into klipian's `/remotion` page (step 3, "Agen tidak bisa menjalankan perintah?"). klipian then shows "Video belum dibuat" until the folder is made in a session that can run commands."""
+
+# The smallest custom video: the scene of a video is only this much code. `StoryVideo` plays the story, `Scene` draws one beat.
+MINIMAL_VIDEO = """```tsx
+// remotion/videos/<slug>/index.tsx: the smallest working video (npm run new-video writes a longer one; start from that file)
+import React from "react";
+import { Banner, Brand, Label, StoryVideo, type SceneProps, type StoryT } from "../../src/design/index.ts";
+import storyJson from "./story.json";
+
+export const story = storyJson as unknown as StoryT;
+
+const Scene = ({ beat, t, clock }: SceneProps) => (
+  <svg width={1080} height={1920} viewBox="0 0 1080 1920">
+    <Brand clock={clock} />
+    <Banner text={beat.text} t={t} start={0} />
+    <Label text={beat.id} x={540} y={1400} fs={64} t={t} start={0.3} />
+  </svg>
+);
+
+export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = (p) => <StoryVideo story={p.story} scene={Scene} layoutDebug={p.layoutDebug} />;
+```
+This one draws no object, so it only proves the wiring. A real video draws the hero object and its parts in `Scene` from the kit (`remotion/src/components/Iso*.tsx`, the marks of `remotion/src/dictionary.ts`)."""
+
+
+def _numbered(items: list[str]) -> str:
+    return "\n".join(f"{i}. {item}" for i, item in enumerate(items, 1))
+
+
+def _produce_text(slug: str) -> str:
+    return f"""## 2. What you must produce (exact files)
+
+| What | Exact path (from the repository root `D:\\github-repos\\klipian`) |
+| --- | --- |
+| The story | `remotion/stories/{slug}.json` |
+| The video folder | `remotion/videos/{slug}/` with `index.tsx`, `plan.ts`, `sfx.ts`, `meta.json`, `story.json` |
+| The style report | `remotion/out/{slug}/style-report.md` |
+| One still picture | `remotion/out/{slug}/hook.png` |
+| The narration text | printed in your reply, one block per target voice app |
+
+Nothing else: no other files, nothing in `workspace/`, no full render, no push. (`{slug}` is a suggested name; keep the same name everywhere.)"""
+
+
+def _steps_text(slug: str, opts: dict) -> str:
+    targets = ", ".join(f"`{t}`" for t in opts["voiceTargets"]) or "`voicestudio`"
+    return f"""## 3. Steps (do them in order; run each command, compare with Expected, stop and report if it fails)
+
+{STEP_MARK}1: write the story
+Do: research the topic with web search and open every source. Write the story as the Answer format below says. Save it as `remotion/stories/{slug}.json`.
+Expected: the file exists and is plain JSON.
+
+{STEP_MARK}2: validate the story
+Run, from the repository root: `node remotion/validate.mjs remotion/stories/{slug}.json`
+Expected: the output contains `"ok":true`. If it says `"ok":false`, fix every item of `errors`, save, run it again. A `warnings` list is advice.
+
+{STEP_MARK}3: make the video folder
+Run: `cd remotion` then `npm run new-video {slug} stories/{slug}.json`
+Expected: a line `made videos/{slug} and tests/{slug}.test.ts`, then the folder `remotion/videos/{slug}/` holds `index.tsx`, `plan.ts`, `sfx.ts`, `meta.json` and `story.json`.
+
+{STEP_MARK}4: draw the beats
+Do: read `remotion/DESIGN.md` (section 0b and every rule B1 up to the last one), `remotion/src/dictionary.ts` and the kit `remotion/src/components/Iso*.tsx` first. The two finished videos to copy the structure from are `remotion/videos/kenapa-colokan-panas` and `remotion/videos/ngantuk-pegang-hp`. Edit `remotion/videos/{slug}/index.tsx` and `plan.ts`: one hero object, reuse before you draw, at most three new assets, the story's `theme`, `stage` and `music`.
+Expected: both files compile (step 5 shows it).
+
+{STEP_MARK}5: style check
+Run, from `remotion`: `npm run style-check -- {slug}`
+Expected: no output line starts with `FAIL`. Copy the `summary:` line and every `FLAG` line into your report.
+
+{STEP_MARK}6: one still picture
+Create the folder `remotion/out/{slug}` if it does not exist, then write the file `remotion/out/{slug}/job.json` with this content: `{{"mode":"still","story":"stories/{slug}.json","composition":"video-{slug}","beat":"hook","out":"{slug}/hook.png"}}`
+Run, from `remotion`: `node render.mjs out/{slug}/job.json`
+Expected: the last output line is `{{"type":"done", ...}}` and `remotion/out/{slug}/hook.png` exists. Look at it; fix what is wrong and render it again. Then run `npm run style-report -- {slug}`; expected: `remotion/out/{slug}/style-report.md`. Do not render the full video.
+
+{STEP_MARK}7: narration text
+Target voice apps: {targets}. For each one run, from the repository root (`<target>` is `voicestudio`, `elevenlabs` or `googleai`):
+`python -c "import json,sys; sys.path.insert(0,'.'); from klipian import motion; print(motion.narration_export(json.load(open(sys.argv[1],encoding='utf-8')), sys.argv[2])['text'])" remotion/stories/{slug}.json <target>`
+Expected: the text to copy into that app. Paste it in your reply as it is, one block per app.
+
+{STEP_MARK}8: tell the person
+In plain words: open `/remotion`, choose the folder `D:\\github-repos\\klipian\\remotion\\videos\\{slug}`, press "Ambil cerita dari folder", make the voice in their own voice app, choose the audio file, press Cocokkan, look at the preview, then Render.
+Expected: your reply ends with these instructions."""
+
+
+def _reference(cat: dict, p: dict, d: int, kind: str) -> str:
+    """The long part both briefs share: the structure, the beat kinds, the rules, the checklist, the catalogue and the answer format."""
     rule = hashtags_mod.brief_rule(profiles.hashtag_settings())
-    rules = "\n".join(f"{i}. {r}" for i, r in enumerate(HARD_RULES, 1))
-    checklist = "\n".join(f"{i}. {item}" for i, item in enumerate(CHECKLIST, 1))
-    intro_tail = ("The video is made from one JSON story (Part A) and, for Kind Khusus, a folder of code (Part B)." if kind == "custom"
-                  else "The video is made from one JSON story (Part A).")
-    mode = ("**Mode.** With file access to the repository `D:\\github-repos\\klipian`, do Part A"
-            + (" and Part B" if kind == "custom" else "") + ". In chat only, do Part A and print the JSON in your reply.")
     music = ", ".join(f"`{t}`" for t in _m.MUSIC_TRACKS.values())
-    return f"""# klipian intip: one short vertical explainer video (about {d} seconds)
-
-## Read this first
-
-You are an AI. You make one short vertical animated explainer for the channel klipian intip, from the topic below. {intro_tail}
-
-{mode}
-
-**Topic:** {p['topic']}{notes}
-
-**Hard rules (never break these):**
-{rules}
-
-**Definition of done:** the story JSON, checked (agent mode: validated; chat mode: checked against the checklist){', and for Kind Khusus Part B' if kind == 'custom' else ''}. **Stop rule:** if a step fails, report it and stop; claim only what you saw.
-
-{_options_text(opts)}
-
-{_kind_text(kind)}
-
-## Part A: the story
-
-1. Find the hook: an everyday hook of about 3 seconds (see the channel rules).
-2. Research the facts with web search. Open each source yourself; every claim needs a URL.
-3. Write the beats (see the beat kinds): the sting right after the hook, then two or three beats, one claim each.
-4. Choose each beat's scene as the kind above says.
-5. Give three titles, a description, hashtags, `music`, and the optional `theme` and `stage`.
-6. Check the story against the checklist, then answer as the mode says.
-
-## Structure for {d} seconds
+    checklist = _numbered(CHECKLIST)
+    slug = video_slug(p["topic"])
+    save = (f"**Agent mode:** save the same JSON to `remotion/stories/{slug}.json` (save nowhere else). Run `node remotion/validate.mjs remotion/stories/{slug}.json` from the repository root and fix every error until it prints `\"ok\":true`. Then print the JSON in a fenced `json` block in your reply too."
+            if kind == "custom" else
+            "**Agent mode:** save the same JSON to `remotion/stories/<slug>.json` (the slug is the topic in lowercase with hyphens; save nowhere else). Run `node remotion/validate.mjs remotion/stories/<slug>.json` from the repository root and fix every error until it prints `\"ok\":true`. Then print the JSON in a fenced `json` block in your reply too.")
+    return f"""## Structure for {d} seconds
 
 {_structure_text(d)}
 
@@ -289,13 +351,99 @@ Music tracks: {music}.
 Fields: `question`, `titles` (exactly 3), `duration` ({d}), `beats`, `claims`, `post`, `needs`, `bible` (1), `music` (`{{"track": ...}}`), and the optional `theme` and `stage`. Beat fields: `id`, `kind`, `dur`, `narration`, `text` (at most 6 words), `scene` (`bg`, `items`), `sfx`, and optionally `camera` and `transition`. The examples below show the shape.
 
 **Chat mode:** reply with one fenced `json` block and nothing else.
-**Agent mode:** save the same JSON to `remotion/stories/<slug>.json` (the slug is the topic in lowercase with hyphens; save nowhere else). Run `node remotion/validate.mjs remotion/stories/<slug>.json` from the repository root and fix every error until it prints `"ok":true`. Then print the JSON in a fenced `json` block in your reply too.
+{save}
 Plain JSON only: no code, comments or trailing commas.
 
 {_examples_text(cat, d)}
+"""
 
-{PART_B if kind == 'custom' else ''}{_report_text() if kind == 'custom' else ''}
 
+def _report_text() -> str:
+    return """
+## Report (agent mode: fill every line, with pasted evidence)
+- Story file: the path you saved.
+- Validator output: the whole output of `node remotion/validate.mjs`, and any warning left, with why.
+- Folder: the full path. Style check: the summary line and the FLAG lines. The still picture: its path. Narration texts: pasted.
+- Not done or not checked: list it."""
+
+
+def build_brief(p: dict) -> str:
+    """The brief any agent can follow. Kind Khusus: the hard rules first (numbered), the exact files, the steps with each command and its expected result, the
+    fallback for an assistant that cannot run commands, the common mistakes, then the options and the reference. Kind Otomatis: the story only (chat or file)."""
+    cat = _m._catalog()
+    d = p["duration"]
+    opts = _m.options_of(p)
+    kind = "custom" if _m.kind_of(p) == "custom" else "template"
+    notes = f"\n\n**Notes from the person making the video:** {p['notes']}" if p.get("notes") else ""
+    rules = _numbered(HARD_RULES)
+    if kind == "custom":
+        slug = video_slug(p["topic"])
+        mistakes = _numbered(MISTAKES)
+        return f"""# klipian intip: one short vertical explainer video (about {d} seconds)
+
+You are an AI that makes one short vertical animated explainer for the channel klipian intip. **Topic:** {p['topic']}{notes}
+
+Work in this order: 1 the rules, 2 the files you must produce, 3 the steps, then the fallback, the common mistakes, the options and the reference. With file access and a shell in the repository `D:\\github-repos\\klipian`, do all the steps. Without them, use the fallback.
+
+## 1. Hard rules (never break these)
+
+{rules}
+
+**Stop rule:** if a step fails, report it and stop; claim only what you saw.
+
+{_produce_text(slug)}
+
+{_steps_text(slug, opts)}
+
+{FALLBACK}
+
+## Common mistakes (check before you answer)
+
+{mistakes}
+
+{_options_text(opts)}
+
+{_kind_text(kind)}
+
+# Reference (the details the steps above point to)
+
+{_reference(cat, p, d, kind)}
+## The smallest custom video file
+
+{MINIMAL_VIDEO}
+{_report_text()}
+
+If something is unclear, choose the safest option, write the choice in `needs` or in your report, and continue.
+"""
+    return f"""# klipian intip: one short vertical explainer video (about {d} seconds)
+
+## Read this first
+
+You are an AI. You make one short vertical animated explainer for the channel klipian intip, from the topic below. The video is made from one JSON story.
+
+**Mode.** With file access to the repository `D:\\github-repos\\klipian`, do the story and save it as the Answer format says. In chat only, print the JSON in your reply.
+
+**Topic:** {p['topic']}{notes}
+
+**Hard rules (never break these):**
+{rules}
+
+**Definition of done:** the story JSON, checked (agent mode: validated; chat mode: checked against the checklist). **Stop rule:** if a step fails, report it and stop; claim only what you saw.
+
+{_options_text(opts)}
+
+{_kind_text(kind)}
+
+## The story
+
+1. Find the hook: an everyday hook of about 3 seconds (see the channel rules).
+2. Research the facts with web search. Open each source yourself; every claim needs a URL.
+3. Write the beats (see the beat kinds): the sting right after the hook, then two or three beats, one claim each.
+4. Choose each beat's scene as the kind above says.
+5. Give three titles, a description, hashtags, `music`, and the optional `theme` and `stage`.
+6. Check the story against the checklist, then answer as the mode says.
+
+{_reference(cat, p, d, kind)}
 If something is unclear, choose the safest option, write the choice in `needs` or in your report, and continue.
 """
 

@@ -74,9 +74,10 @@
 .rm-kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 16px; margin: 0; }
 .rm-kv dt { font-size: 12px; color: var(--text-faint); }
 .rm-kv dd { overflow-wrap: anywhere; }
-.rm-adv { display: flex; flex-direction: column; gap: 12px; }
+.rm-adv, .rm-fallback { display: flex; flex-direction: column; gap: 12px; }
+.rm-fallback > summary,
 .rm-adv > summary { cursor: pointer; font-size: 12.5px; font-weight: 600; color: var(--text-muted); }
-.rm-adv[open] > summary { margin-bottom: 4px; }
+.rm-adv[open] > summary, .rm-fallback[open] > summary { margin-bottom: 4px; }
 .rm-select { max-width: 380px; cursor: pointer; }
 
 /* the results, notes and blocks inside a step (one level) */

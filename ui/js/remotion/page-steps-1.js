@@ -155,7 +155,19 @@ function bodyStory(d) {
     <div class="rm-pathrow"><code class="rm-cmd">${esc(f.path || "(belum ada folder)")}</code>${f.path ? `<button class="btn sm" type="button" data-act="copyFolderPath">Salin path</button>` : ""}</div>
     <div class="rm-actions"><button class="btn main" type="button" data-act="takeFolder" ${picked ? "" : "disabled"}>${taken ? "Ambil ulang cerita" : "Ambil cerita dari folder"}</button></div>
     <div class="rm-result" id="rmTakeResult"></div>
+    ${taken ? "" : fallbackHTML(d)}
     ${d.story ? storyboardHTML(d) : ""}`;
+}
+
+// the fallback of the brief: an assistant that cannot run commands answers with the story only; it is pasted here, and the video stays "belum dibuat" until a session that can run commands makes the folder
+function fallbackHTML(d) {
+  return `<details class="rm-fallback" ${d.story && !(d.folder && d.folder.slug) ? "open" : ""}>
+      <summary>Agen tidak bisa menjalankan perintah?</summary>
+      <p class="rm-hint">Tempel jawabannya di sini (baris pertama <code>FALLBACK: story only, no video folder</code> dan blok JSON ceritanya). Ceritanya disimpan, tetapi video belum dibuat: buka brief yang sama di sesi Claude Code yang bisa menjalankan perintah, lalu pilih folder hasilnya.</p>
+      <textarea class="ws-input rm-boxed rm-paste" id="rmPaste" placeholder='{ "question": "Kenapa ...?", "titles": [...], "beats": [...] }' spellcheck="false"></textarea>
+      <div class="rm-actions"><button class="btn" id="rmPasteBtn" type="button">Periksa dan simpan</button></div>
+      <div class="rm-result" id="rmPasteResult"></div>
+    </details>`;
 }
 
 function bodyAnswer(d) {

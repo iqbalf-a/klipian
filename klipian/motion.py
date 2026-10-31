@@ -217,6 +217,8 @@ def next_step(f: dict) -> dict:
     if f.get("custom"):                                                 # Khusus: the story comes from the chosen folder, never pasted
         state = f.get("folder")
         if state in (None, "belum dipilih"):
+            if f.get("story"):                                          # the story was pasted by an agent that could not make the folder (the fallback)
+                return {"key": "folder", "text": "Video belum dibuat: buka brief di sesi Claude Code yang bisa menjalankan perintah, lalu pilih folder hasilnya", "action": "brief"}
             return {"key": "folder", "text": "Salin brief ke Claude Code, lalu pilih folder hasilnya", "action": "brief"}
         if state in ("cerita belum diambil", "folder tidak lengkap") or not f.get("story"):
             return {"key": "take", "text": "Ambil cerita dari folder", "action": "take"}
@@ -1161,7 +1163,7 @@ def render_problems(pid: str) -> list[str]:
         return out
     folder = folder_state(pid)
     if folder:                                                       # Khusus: the story must be the one taken from the folder that renders
-        why = {"belum dipilih": "Pilih folder hasil dari Claude Code dulu.", "cerita belum diambil": "Cerita belum diambil dari folder: ambil ceritanya dulu.",
+        why = {"belum dipilih": "Video belum dibuat: buka brief di sesi Claude Code yang bisa menjalankan perintah, lalu pilih folder hasilnya.", "cerita belum diambil": "Cerita belum diambil dari folder: ambil ceritanya dulu.",
                "folder berubah": "Cerita di folder berubah: ambil ulang cerita dulu.", "folder tidak lengkap": "Folder videonya belum lengkap (story.json tidak ada): lengkapi dulu."}.get(folder["state"])
         if why:
             out.append(why)
@@ -1613,7 +1615,7 @@ def _round(x):
 # --------------------------------------------------------------------------
 from .motion_brief import (  # noqa: E402,F401
     CHANNEL_RULES, CHECKLIST, COMPOSITION, FACT_RULES,
-    HARD_RULES, PART_B, STRUCTURE, _beat_kinds_text,
+    HARD_RULES, MISTAKES, FALLBACK, STRUCTURE, video_slug, _beat_kinds_text,
     _catalog_text, _examples_text, _items_text, _kind_text,
     _options_text, _report_text, _stand_in, _structure_text,
     build_brief, build_fix_message, build_revise_brief,

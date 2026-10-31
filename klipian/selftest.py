@@ -6493,7 +6493,7 @@ def check_briefagents() -> tuple[str, str]:
     khusus_text = motion.build_brief({"topic": "x", "duration": 45, "notes": "", "options": {"kind": "khusus"}})
     for want in ("remotion/src/dictionary.ts", "remotion/src/components/Iso*.tsx", "remotion/videos/kenapa-colokan-panas", "remotion/videos/ngantuk-pegang-hp"):
         if want not in khusus_text:
-            problems.append(f"Part B does not name {want}")
+            problems.append(f"the Khusus steps do not name {want}")
     for opts, label in (({}, "otomatis"), ({"kind": "khusus"}, "khusus")):
         text = motion.build_brief({"topic": "Kenapa colokan panas", "duration": 45, "notes": "", "options": opts})
         for hidden in ("`captionStyle?`", "`platforms?`"):
@@ -6503,8 +6503,8 @@ def check_briefagents() -> tuple[str, str]:
     for d in (30, 45, 60):
         for opts, khusus in (({}, False), ({"kind": "khusus"}, True)):
             text = motion.build_brief({"topic": "Kenapa colokan panas", "duration": d, "notes": "", "options": opts})
-            if ("## Part B" in text) != khusus:
-                problems.append(f"the {d} s brief {'lacks' if khusus else 'has'} Part B for kind {'khusus' if khusus else 'otomatis'}")
+            if ("### Step 1:" in text) != khusus:
+                problems.append(f"the {d} s brief {'lacks' if khusus else 'has'} the numbered steps for kind {'khusus' if khusus else 'otomatis'}")
             for kind in kinds:
                 if f"`{kind}`" not in text:
                     problems.append(f"the {d} s brief does not list the beat kind {kind}")
@@ -6517,11 +6517,104 @@ def check_briefagents() -> tuple[str, str]:
                 sizes.append(f"{'khusus' if khusus else 'otomatis'} {len(text)}")
     if problems:
         return FAIL, "\\n      ".join(problems)
-    return PASS, ("both examples validate with no warnings, the beat kinds and tracks come from the catalogue, Part B only for Khusus; "
+    return PASS, ("both examples validate with no warnings, the beat kinds and tracks come from the catalogue, the steps only for Khusus; "
                   f"brief size at 45 s: {', '.join(sizes)} characters")
 
 
-CHECKS = {"briefagents": check_briefagents, "migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch,
+# The strict checklist a Khusus brief must pass (P28-R phase 3): an agent that is weak at following instructions needs the rules first, exact paths,
+# and every step with a command and an expected result. `parse_brief_checklist` reads the brief as text and returns the problems; no step may be missing.
+BRIEF_ORDER = ["## 1. Hard rules", "## 2. What you must produce", "## 3. Steps", "## If you cannot run commands", "## Common mistakes", "## Pilihan video", "# Reference"]
+
+
+def parse_brief_checklist(text: str, slug: str) -> list[str]:
+    import re
+    problems: list[str] = []
+    at = [text.find(h) for h in BRIEF_ORDER]
+    for h, i in zip(BRIEF_ORDER, at):
+        if i < 0:
+            problems.append(f"the section {h!r} is missing")
+    if all(i >= 0 for i in at) and at != sorted(at):
+        problems.append(f"the sections are not in this order: {BRIEF_ORDER}")
+    if all(i >= 0 for i in at):
+        before_rules = text[:at[0]]
+        if before_rules.count("\n## ") or len(before_rules) > 700:
+            problems.append("the hard rules come first: only a short opening may stand before them")
+        rules = text[at[0]:at[1]]
+        numbers = [int(n) for n in re.findall(r"^(\d+)\. ", rules, re.M)]
+        if numbers != list(range(1, len(numbers) + 1)) or len(numbers) < 8:
+            problems.append(f"the hard rules are a numbered list 1..n (found {numbers})")
+        steps = re.split(r"^### Step (\d+): ", text[at[2]:at[3]], flags=re.M)
+        found = [int(n) for n in steps[1::2]]
+        if found != list(range(1, 9)):
+            problems.append(f"the steps are numbered 1 to 8 (found {found})")
+        wanted = {2: f"node remotion/validate.mjs remotion/stories/{slug}.json", 3: f"npm run new-video {slug} stories/{slug}.json",
+                  5: f"npm run style-check -- {slug}", 6: f"node render.mjs out/{slug}/job.json", 7: "narration_export"}
+        for n, body in zip(found, steps[2::2]):
+            if "Expected:" not in body:
+                problems.append(f"step {n} has no 'Expected:' line")
+            if n in wanted and wanted[n] not in body:
+                problems.append(f"step {n} has the exact command {wanted[n]!r}")
+            if n in wanted and n != 7 and "Run" not in body:
+                problems.append(f"step {n} has no 'Run' line")
+        produce = text[at[1]:at[2]]
+        for path in (f"remotion/stories/{slug}.json", f"remotion/videos/{slug}/", f"remotion/out/{slug}/hook.png"):
+            if path not in produce:
+                problems.append(f"the files section names {path}")
+        if "FALLBACK: story only, no video folder" not in text[at[3]:at[4]]:
+            problems.append("the fallback names its first line")
+        if len(re.findall(r"^\d+\. ", text[at[4]:at[5]], re.M)) < 8:
+            problems.append("the common mistakes list has at least 8 items")
+    return problems
+
+
+def check_briefsteps() -> tuple[str, str]:
+    """The Khusus brief passes the strict checklist at every length and with every voice-app choice, with the names of the folders that exist avoided; the fallback
+    works end to end (a story pasted without a folder: saved, 'Video belum dibuat', the render refused with that reason); the size is capped."""
+    from . import motion
+    problems: list[str] = []
+    sizes = []
+    for d in (30, 45, 60):
+        for targets in (["voicestudio"], ["voicestudio", "elevenlabs", "googleai"]):
+            p = {"topic": "Kenapa kopi bikin melek", "duration": d, "notes": "", "options": {"kind": "khusus", "voiceTargets": targets}}
+            text = motion.build_brief(p)
+            slug = motion.video_slug(p["topic"])
+            problems += [f"{d} s {len(targets)} apps: {x}" for x in parse_brief_checklist(text, slug)]
+            if len(text) > 40000:
+                problems.append(f"the {d} s brief is {len(text)} characters: keep it under 40000 so a small model can hold it")
+            for t in targets:
+                if f"`{t}`" not in text:
+                    problems.append(f"the brief names the voice app {t}")
+            if d == 45 and len(targets) == 3:
+                sizes.append(len(text))
+    if motion.video_slug("Kenapa colokan panas") == "kenapa-colokan-panas":
+        problems.append("a topic whose folder already exists gets a new name")
+    # the fallback end to end: the story alone, no folder
+    old_durations = motion.DURATIONS
+    motion.DURATIONS = (2,) + tuple(old_durations)                        # the tiny fixture story lasts 2 seconds
+    try:
+        p = motion.create("Kenapa kopi bikin melek", 2, "", {"kind": "khusus"})
+        story = json.loads((FIXTURES / "motion" / "tiny-story.json").read_text(encoding="utf-8"))
+        r = motion.paste(p["id"], "FALLBACK: story only, no video folder\n```json\n" + json.dumps(story) + "\n```\n```text\nhalo\n```", "main")
+    finally:
+        motion.DURATIONS = old_durations
+    d = motion.detail(p["id"])
+    if not d.get("story"):
+        problems.append(f"the fallback answer is not accepted: {r.get('errors')}")
+    else:
+        if d["next"]["key"] != "folder" or "Video belum dibuat" not in d["next"]["text"]:
+            problems.append(f"after the fallback the next step says the video is not made: {d['next']}")
+        reasons = " ".join(motion.render_problems(p["id"]))
+        if "Video belum dibuat" not in reasons:
+            problems.append(f"the render is refused with 'Video belum dibuat': {reasons!r}")
+        if d["renderBlock"]["state"] == "siap":
+            problems.append("the render block must not be ready")
+    motion.delete_project(p["id"])
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, (f"the Khusus brief passes the strict checklist (rules first, 8 steps with Run and Expected, fallback, mistakes) at 30/45/60 s with 1 or 3 voice apps; "
+                  f"size at 45 s {sizes[0]} characters (cap 40000); the fallback story is saved and the video stays 'belum dibuat'")
+
+CHECKS = {"briefagents": check_briefagents, "briefsteps": check_briefsteps, "migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch,
           "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voicegoogle": check_voicegoogle, "voicestudio": check_voicestudio, "elevenlabs": check_elevenlabs, "khusus": check_khusus, "briefbuttons": check_briefbuttons, "music": check_music, "voice": check_voice, "decode": check_decode, "render": check_render}
 
 
