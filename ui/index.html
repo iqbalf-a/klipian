@@ -606,12 +606,16 @@
           <p class="allres-empty" id="allResEmpty" hidden>No Results yet: tick moments above and choose "A separate video for each".</p>
           <div class="allres-list" id="allResList"></div>
           <div class="allres-bar">
-            <span class="allres-bar-label">With the ticked Results:</span>
-            <button class="btn" id="bulkPostBtn" type="button" disabled>Write post text…</button>
-            <button class="btn" id="bulkOutputBtn" type="button" disabled>Output format…</button>
-            <button class="btn danger" id="bulkDeleteBtn" type="button" disabled>Delete selected</button>
-            <span class="step-no" aria-hidden="true">3</span>
-            <button class="btn main" id="bulkRenderBtn" type="button" disabled>Render selected</button>
+            <div class="allres-group">
+              <span class="allres-bar-label">With the ticked Results:</span>
+              <button class="btn" id="bulkPostBtn" type="button" disabled>Write post text…</button>
+              <button class="btn" id="bulkOutputBtn" type="button" disabled>Output format…</button>
+              <button class="btn danger" id="bulkDeleteBtn" type="button" disabled>Delete selected</button>
+            </div>
+            <div class="allres-group allres-render">
+              <span class="step-no" aria-hidden="true">3</span><span class="eyebrow">Render</span>
+              <button class="btn main" id="bulkRenderBtn" type="button" disabled>Render selected</button>
+            </div>
           </div>
         </div>
 

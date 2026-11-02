@@ -2603,8 +2603,12 @@ h1, h2, h3 {
 .allres-pick { margin-left: auto; display: flex; flex-wrap: wrap; gap: var(--s1, 4px); }
 .allres-empty { margin: 0; padding: var(--s3) var(--s4); color: var(--text-muted); }
 .allres-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); padding: var(--s3); border-top: 1px solid var(--border); }
-.allres-bar-label { color: var(--text-muted); font-size: var(--t-12, 12px); margin-right: auto; }
-.allres-bar .step-no { margin-left: var(--s3); }
+.allres-bar { justify-content: space-between; }
+.allres-group { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
+.allres-bar-label { color: var(--text-muted); font-size: var(--t-12, 12px); margin-right: var(--s2); }
+/* Render is step 3, set apart like steps 1 and 2 (number + eyebrow); on a narrow screen it drops to its own row. */
+.allres-render { padding-left: var(--s3); border-left: 1px solid var(--glass-border); }
+@media (max-width: 640px) { .allres-render { padding-left: 0; border-left: 0; width: 100%; } }
 .step-no { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font-size: 11px; font-weight: 700;
   background: var(--accent); color: var(--accent-text, #111); flex: none; }
 .bulk-out { margin-top: 8px; display: flex; flex-direction: column; }
