@@ -2589,7 +2589,7 @@ h1, h2, h3 {
 .allres-list { display: flex; flex-direction: column; }
 .allres-row {
   display: grid; grid-template-columns: 22px 26px minmax(0, 1fr) auto; gap: var(--s3);
-  align-items: center; padding: var(--s2) var(--s3); border-bottom: 1px solid var(--border);
+  align-items: center; padding: var(--s2) var(--s3); border-bottom: 1px solid var(--glass-border);
 }
 .allres-row.active { box-shadow: inset 3px 0 0 var(--accent); }
 .allres-main { min-width: 0; display: flex; flex-wrap: wrap; align-items: center; column-gap: var(--s2); row-gap: 2px; }
@@ -2602,7 +2602,7 @@ h1, h2, h3 {
 .allres-head { flex-wrap: wrap; row-gap: var(--s2); }
 .allres-pick { margin-left: auto; display: flex; flex-wrap: wrap; gap: var(--s1, 4px); }
 .allres-empty { margin: 0; padding: var(--s3) var(--s4); color: var(--text-muted); }
-.allres-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); padding: var(--s3); border-top: 1px solid var(--border); }
+.allres-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); padding: var(--s3); border-top: 1px solid var(--glass-border); }
 .allres-bar { justify-content: space-between; }
 .allres-group { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
 .allres-bar-label { color: var(--text-muted); font-size: var(--t-12, 12px); margin-right: var(--s2); }
@@ -2656,7 +2656,7 @@ dialog.confirm-dlg:has(.bulk-out) { width: min(560px, calc(100vw - 32px)); max-h
 .rec-way .btn { margin-top: auto; }
 .rec-way-line { color: var(--text-muted); font-size: var(--t-12, 12px); font-variant-numeric: tabular-nums; }
 .rec-or { display: flex; align-items: center; }
-.rec-or span { color: var(--text-faint); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--r-pill); }
+.rec-or span { color: var(--text-faint); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; padding: 4px 8px; border: 1px solid var(--glass-border); border-radius: var(--r-pill); }
 .rec-viz { display: flex; width: 84px; flex: none; }
 .rec-viz i { display: block; background: var(--accent); }
 .rec-viz.one { height: 10px; border-radius: 3px; overflow: hidden; }
