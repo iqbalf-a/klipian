@@ -4932,6 +4932,34 @@ progress=end
 # check: the selftest's own housekeeping (stale scratch folders)
 # --------------------------------------------------------------------------
 
+def check_facelock() -> tuple[str, str]:
+    """The face detector is one native object shared by every request thread: several threads calling
+    facebox._detect_faces at once (AI Framing asks the server for several speakers at a time) must not corrupt it.
+    Run in a child process so a native crash fails this check instead of killing the selftest."""
+    import subprocess
+    import sys
+    code = (
+        "import threading, numpy as np\n"
+        "from klipian import facebox as fb\n"
+        "rng = np.random.default_rng(1)\n"
+        "img = rng.integers(0, 255, (360, 640, 3), dtype=np.uint8)\n"
+        "errs = []\n"
+        "def work(k):\n"
+        "    try:\n"
+        "        for i in range(40):\n"
+        "            fb._detect_faces(img[:, : 640 - (k * 37 + i * 5) % 200], 600, min_frac=0.03)\n"
+        "    except Exception as exc:\n"
+        "        errs.append(repr(exc))\n"
+        "ts = [threading.Thread(target=work, args=(k,)) for k in range(6)]\n"
+        "[t.start() for t in ts]; [t.join() for t in ts]\n"
+        "print('ERR' if errs else 'OK', errs[:1])\n")
+    proc = subprocess.run([sys.executable, "-X", "faulthandler", "-c", code], capture_output=True, text=True, timeout=300,
+                          cwd=str(Path(__file__).resolve().parent.parent))
+    if proc.returncode != 0 or not proc.stdout.startswith("OK"):
+        return FAIL, f"6 threads in _detect_faces: exit {proc.returncode}: {(proc.stdout + proc.stderr)[-300:]}"
+    return PASS, "6 threads x 40 calls of _detect_faces at different sizes, no error and no crash"
+
+
 def check_shotframe() -> tuple[str, str]:
     """Shot framing's pure parts (facebox._choose_box, _merge_faces, _shot_bounds, _same_box): where the box goes
     for 0, 1, close and far faces, never outside the frame, short shots joined, near-equal boxes joined."""
@@ -6833,7 +6861,7 @@ def check_briefsteps() -> tuple[str, str]:
     return PASS, (f"the Khusus brief passes the strict checklist (rules first, 8 steps with Run and Expected, fallback, mistakes) at 30/45/60 s with 1 or 3 voice apps; "
                   f"size at 45 s {sizes[0]} characters (cap 40000); the fallback story is saved and the video stays 'belum dibuat'")
 
-CHECKS = {"briefagents": check_briefagents, "briefsteps": check_briefsteps, "migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch, "labelbox": check_labelbox, "shotframe": check_shotframe,
+CHECKS = {"briefagents": check_briefagents, "briefsteps": check_briefsteps, "migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch, "labelbox": check_labelbox, "shotframe": check_shotframe, "facelock": check_facelock,
           "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voicegoogle": check_voicegoogle, "voicestudio": check_voicestudio, "elevenlabs": check_elevenlabs, "khusus": check_khusus, "briefbuttons": check_briefbuttons, "music": check_music, "voice": check_voice, "decode": check_decode, "render": check_render}
 
 

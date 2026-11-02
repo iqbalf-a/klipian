@@ -64,6 +64,7 @@ mouth-motion selection below are the next layers of defense.
 from __future__ import annotations
 
 import tempfile
+import threading
 from pathlib import Path
 
 _YUNET_MODEL = Path(__file__).resolve().parent.parent / "assets" / "models" / "face_detection_yunet_2023mar.onnx"
@@ -71,6 +72,11 @@ _SFACE_MODEL = Path(__file__).resolve().parent.parent / "assets" / "models" / "f
 
 _face_detector = None
 _face_recognizer = None
+# One lock per model: the detector and the recognizer are single native objects shared by every request thread
+# (ThreadingHTTPServer), and two threads in setInputSize()/detect() at once corrupt them -- "Unknown C++ exception",
+# or the whole process gone without a traceback.
+_DETECTOR_LOCK = threading.RLock()
+_RECOGNIZER_LOCK = threading.RLock()
 
 
 def _load_face_detector():
@@ -78,12 +84,12 @@ def _load_face_detector():
     DIFFERENT image size -- callers (_detect_faces) do that per region,
     the (320, 320) here is just a required construction-time placeholder."""
     global _face_detector
-    if _face_detector is not None:
-        return _face_detector
-    import cv2
-    _face_detector = cv2.FaceDetectorYN.create(
-        str(_YUNET_MODEL), "", (320, 320),
-        score_threshold=0.6, nms_threshold=0.3, top_k=5000)
+    with _DETECTOR_LOCK:
+        if _face_detector is None:
+            import cv2
+            _face_detector = cv2.FaceDetectorYN.create(
+                str(_YUNET_MODEL), "", (320, 320),
+                score_threshold=0.6, nms_threshold=0.3, top_k=5000)
     return _face_detector
 
 
@@ -94,10 +100,10 @@ def _load_face_recognizer():
     No setInputSize() equivalent needed -- alignCrop() takes the raw
     detection size as-is."""
     global _face_recognizer
-    if _face_recognizer is not None:
-        return _face_recognizer
-    import cv2
-    _face_recognizer = cv2.FaceRecognizerSF.create(str(_SFACE_MODEL), "")
+    with _RECOGNIZER_LOCK:
+        if _face_recognizer is None:
+            import cv2
+            _face_recognizer = cv2.FaceRecognizerSF.create(str(_SFACE_MODEL), "")
     return _face_recognizer
 
 
@@ -122,8 +128,9 @@ def _detect_faces(region_bgr, rw: float, min_frac: float = 0.15) -> list[dict]:
     if w <= 0 or h <= 0:
         return []
     detector = _load_face_detector()
-    detector.setInputSize((w, h))
-    _, raw = detector.detect(region_bgr)
+    with _DETECTOR_LOCK:
+        detector.setInputSize((w, h))
+        _, raw = detector.detect(region_bgr)
     if raw is None:
         return []
 
@@ -153,8 +160,16 @@ def _face_embedding(region_bgr, face: dict):
     so the eyes/mouth land on fixed reference points), which is why SFace
     is paired with YuNet upstream in the first place."""
     recognizer = _load_face_recognizer()
-    aligned = recognizer.alignCrop(region_bgr, face["raw"])
-    return recognizer.feature(aligned)
+    with _RECOGNIZER_LOCK:
+        aligned = recognizer.alignCrop(region_bgr, face["raw"])
+        return recognizer.feature(aligned)
+
+
+def _face_similarity(a, b) -> float:
+    """SFace cosine similarity of two embeddings (>= _SFACE_SAME_PERSON_COSINE is the same person)."""
+    import cv2
+    with _RECOGNIZER_LOCK:
+        return _load_face_recognizer().match(a, b, cv2.FaceRecognizerSF_FR_COSINE)
 
 
 # opencv_zoo's own documented threshold (sface.py in the model's reference
@@ -268,12 +283,9 @@ def _pick_active_face(faces: list[dict], grays: list,
 
     if chosen is None and region_bgr is not None and locked_embedding is not None:
         import cv2
-        recognizer = _load_face_recognizer()
         scored_id = [(f, _face_embedding(region_bgr, f)) for f in faces]
-        best_f, best_emb = max(
-            scored_id,
-            key=lambda t: recognizer.match(locked_embedding, t[1], cv2.FaceRecognizerSF_FR_COSINE))
-        best_sim = recognizer.match(locked_embedding, best_emb, cv2.FaceRecognizerSF_FR_COSINE)
+        best_f, best_emb = max(scored_id, key=lambda t: _face_similarity(locked_embedding, t[1]))
+        best_sim = _face_similarity(locked_embedding, best_emb)
         if best_sim >= _SFACE_SAME_PERSON_COSINE:
             chosen, chosen_embedding = best_f, best_emb
 

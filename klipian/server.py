@@ -17,6 +17,7 @@ the network.
 
 from __future__ import annotations
 
+import faulthandler
 import contextvars
 import importlib
 import json
@@ -2476,6 +2477,8 @@ def _sweep_temp() -> int:
 
 
 def serve(port: int = 5177) -> int:
+    # a crash inside native code (OpenCV, torch) leaves a trace in the log instead of the process just vanishing
+    faulthandler.enable()
     _load_dotenv()
     leftover = _sweep_temp()
     # The workspace as it was before profiles becomes the profile "podcast" (once;
