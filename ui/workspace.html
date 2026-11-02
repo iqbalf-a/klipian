@@ -34,6 +34,7 @@
     <nav class="tabs area-switch" aria-label="Area">
       <a href="/">Edit</a>
       <a href="/workspace" aria-current="page">Workspace</a>
+      <a href="/sources">Sources</a>
       <a href="/remotion">Motion</a>
       <a href="/guide" title="The guide opens in a new tab">Guide</a>
     </nav>
@@ -57,7 +58,6 @@
               aria-expanded="false">?</button>
       <div class="shortcut-panel" id="shortcutPanel" hidden role="tooltip">
         <p><b>Clips</b> upload schedule, edited in place</p>
-        <p><b>Sources</b> your raw videos, in this profile's sources folder (Open folder)</p>
         <p><b>Rendered output</b> files the editor has rendered</p>
         <p><b>Assets</b> your own logos and banners</p>
         <p class="shortcut-guide"><a href="/guide" target="_blank" rel="noopener">Guide: setup, downloads, bulk render →</a></p>
@@ -319,23 +319,6 @@
       </div>
     </dialog>
 
-    <!-- ══════════════════ SOURCES — the profile's sources/ ══════════════════
-         The raw videos every project is cut from (input, between the
-         schedule and the output): size, length, transcript, and which
-         projects use each. /api/workspace/sources. -->
-    <section class="ws-panel" id="panelSources">
-      <div class="flex items-center gap-3">
-        <h1 class="text-[20px] font-extrabold tracking-tight">Sources</h1>
-        <span class="text-text-faint text-[13px]" id="sourceNote" role="status">loading…</span>
-        <button class="ml-auto btn"
-                id="sourceYtBtn" type="button" title="Download a video from a YouTube link into this profile's sources">+ From YouTube</button>
-        <button class="btn"
-                id="sourceOpenBtn" type="button">Open folder</button>
-      </div>
-      <div id="sourceList"></div>
-      <div id="sourcePager" hidden></div>
-    </section>
-
     <!-- ══════════════════ RENDERED OUTPUT — out/ contents as-is ══════════════════
          Same data source as /api/history (used by the History screen in the
          editor) -- just displayed again here, no new endpoint, so there's
@@ -380,7 +363,6 @@
 <script src="/ui/js/workspace/helpers.js?v=1790703163808"></script>
 <script src="/ui/js/workspace/schedgap.js?v=1790703163808"></script>
 <script src="/ui/js/workspace/clips.js?v=1790703163808"></script>
-<script src="/ui/js/workspace/sources.js?v=1790703163808"></script>
 <script src="/ui/js/workspace/render.js?v=1790703163808"></script>
 <script src="/ui/js/workspace/assets.js?v=1790703163808"></script>
 </body>

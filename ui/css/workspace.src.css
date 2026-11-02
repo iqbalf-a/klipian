@@ -109,8 +109,15 @@
 
   /* Sources rows: name, size, length, added, transcript, used by. A header
      row (.head) names the columns, since six of them are not self-evident. */
+  .ws-row.sources.gone { opacity: .7; }
+  .ws-row.sources.gone .name { white-space: normal; }
+  @media (max-width: 900px) {
+    .ws-row.sources { grid-template-columns: 1fr 1fr; }
+    .ws-row.sources .name { grid-column: 1 / -1; }
+    .ws-row.sources.head { display: none; }
+  }
   .ws-row.sources {
-    grid-template-columns: minmax(0, 1fr) 76px 64px 64px 112px minmax(0, 160px) minmax(0, 180px);
+    grid-template-columns: minmax(0, 1fr) 76px 64px 64px 112px minmax(0, 160px) minmax(0, 180px) 112px;
   }
   .ws-row.sources .used { @apply truncate text-[12px]; }
   .ws-row.sources .used[data-none="true"] { @apply text-text-faint; }

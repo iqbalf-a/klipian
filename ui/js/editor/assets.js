@@ -422,15 +422,15 @@ async function renderAssets() {
           <path d="M17 10 L21 7 L21 17 L17 14"/></svg>
       </span>
       <span class="asset-name" title="${escapeHTML(a.file)}">${escapeHTML(a.file)}</span>
-      <span class="data asset-meta">${missing ? "not in sources/"
+      <span class="data asset-meta">${missing ? 'deleted · <a href="/sources">download again</a>'
         : `${hasTranscript(a.file) ? "transcribed" : "not transcribed"} · ${uses} span${uses === 1 ? "" : "s"} used`}</span>
       ${active ? '<span class="asset-active">on screen</span>'
         : `<button class="btn quiet" type="button" data-asset-open="${a.id}"${missing ? " disabled" : ""}>Open</button>`}
       <button class="btn quiet" type="button" data-asset-remove="${a.id}"
               title="${uses ? "Remove from this project — its spans in the Results go with it" : "Remove from this project (the file stays in sources/)"}">Remove</button>
       <span class="data asset-credit">${credits[a.file]?.line
-        ? `${escapeHTML(credits[a.file].line)} · <a href="/workspace#panelSources" target="_blank" rel="noopener">edit</a>`
-        : `No source credit yet · <a href="/workspace#panelSources" target="_blank" rel="noopener">add one</a>`}</span>
+        ? `${escapeHTML(credits[a.file].line)} · <a href="/sources" target="_blank" rel="noopener">edit</a>`
+        : `No source credit yet · <a href="/sources" target="_blank" rel="noopener">add one</a>`}</span>
     </div>`;
   }).join("") : `<p class="empty-message">No video yet. Add one below.</p>`;
 

@@ -58,6 +58,7 @@ from .jobs import (ACTIVE_TRANSCRIBES, CANCELLED, JOBS, LOCK, MAX_JOBS, _clip_wo
 from . import hashtags as _hashtags_mod
 from . import paths as _paths
 from . import youtube as _youtube
+from . import recycle
 from . import ytdl as _ytdl
 from . import motion as _motion
 from . import profiles as _profiles
@@ -759,7 +760,8 @@ class Handler(BaseHTTPRequestHandler):
         if action == "preview":
             return self._ytdl_reply(lambda: _ytdl.preview(str(req.get("url") or ""), req.get("quality") or 1080))
         if action == "start":
-            return self._ytdl_reply(lambda: _ytdl.start(str(req.get("url") or ""), req.get("quality") or 1080))
+            return self._ytdl_reply(lambda: _ytdl.start(str(req.get("url") or ""), req.get("quality") or 1080,
+                                                        str(req["name"]) if req.get("name") else None))
         if action == "cancel":
             return self._ytdl_reply(lambda: _ytdl.cancel(str(req.get("id") or "")))
         if action == "update":
@@ -1117,9 +1119,11 @@ class Handler(BaseHTTPRequestHandler):
             for n in names:
                 used.setdefault(n, []).append({"id": f.stem, "name": data.get("name") or f.stem})
         item = []
+        here = set()
         for f in sorted(folder.iterdir(), key=lambda p: p.name.lower()):
             if not f.is_file() or f.suffix.lower() not in VIDEO_EXT:
                 continue
+            here.add(f.name)
             st = f.stat()
             item.append({
                 "name": f.name,
@@ -1133,7 +1137,39 @@ class Handler(BaseHTTPRequestHandler):
                 "credit": credit.get(f.name) or {},
                 "credit_line": credits_mod.line(credit.get(f.name)),
             })
+        # Deleted from this page (kept in deleted.json) or just missing but still used by a project:
+        # the project keeps its data, the row says the video is gone.
+        gone = {n: e for n, e in credits_mod.deleted_load(folder).items() if n not in here}
+        for n in used:
+            if n not in here and n not in gone and Path(n).suffix.lower() in VIDEO_EXT:
+                gone[n] = {}
+        for n, e in sorted(gone.items(), key=lambda kv: kv[0].lower()):
+            c = {k: v for k, v in e.items() if k != "deleted"}
+            item.append({"name": n, "deleted": True, "deleted_at": e.get("deleted") or None,
+                         "bytes": None, "duration": None, "at": None, "transcribed": False,
+                         "used_by": sorted(used.get(n, []), key=lambda u: u["name"].lower()),
+                         "credit": c, "credit_line": credits_mod.line(c),
+                         "can_redownload": bool(c.get("videoId"))})
         return self._send_json({"source": item, "folder": str(folder)})
+
+    def _post_workspace_sources_delete(self):
+        """Delete one source video: its credit is written to deleted.json FIRST (credits.save forgets
+        a file that is gone), then the file goes to the Recycle Bin. Projects are not touched."""
+        try:
+            req = self._read_json()
+        except Exception as exc:               # noqa: BLE001
+            return self._send_json({"error": str(exc)}, 400)
+        name = str(req.get("file") or "")
+        path = find_video(name)
+        if Path(name).suffix.lower() not in VIDEO_EXT or path is None or not path.is_file():
+            return self._send_json({"error": f"{name or 'that video'} is not in this profile's sources"}, 400)
+        try:
+            credits_mod.mark_deleted(name)
+            recycle.to_recycle_bin(path)
+        except OSError as exc:
+            credits_mod.unmark_deleted(name)
+            return self._send_json({"error": f"could not delete it ({exc})"}, 500)
+        return self._send_json({"ok": True})
 
     def _get_credits(self):
         """Every video's credit and the line built from it (credits.py), for the
@@ -1382,6 +1418,8 @@ class Handler(BaseHTTPRequestHandler):
             path = "/ui/index.html"
         if path.rstrip("/") == "/workspace":
             path = "/ui/workspace.html"
+        if path.rstrip("/") == "/sources":
+            path = "/ui/sources.html"
         if path.rstrip("/") == "/profiles":
             path = "/ui/profiles.html"
         if path.rstrip("/") == "/remotion":
@@ -2403,6 +2441,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/diarize": _post_diarize,
         "/api/open-folder": _post_open_folder,
         "/api/credit": _post_credit,
+        "/api/workspace/sources/delete": _post_workspace_sources_delete,
     }
 
 

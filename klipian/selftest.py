@@ -2642,6 +2642,59 @@ def check_ytdl() -> tuple[str, str]:
                     problems.append("the real network layer should report yt-dlp missing when it is not installed")
         ytdl._net = Fake
 
+        # --- Sources page: delete keeps the credit, Download again returns the same name
+        with as_profile("yta"):
+            from . import recycle
+            name = "Raditya Dika - Apa Kabar Syahrini.mp4"
+            real_bin = recycle.to_recycle_bin
+            recycle.to_recycle_bin = lambda p: Path(p).unlink()       # no Recycle Bin from the selftest
+            h = Handler.__new__(Handler)
+            sent = []
+            h._send_json = lambda obj, status=200: sent.append((status, obj))
+            def delete(file):
+                h._read_json = lambda: {"file": file}
+                sent.clear()
+                h._post_workspace_sources_delete()
+                return sent[-1]
+            def rows():
+                sent.clear()
+                h._get_workspace_sources()
+                return {r["name"]: r for r in sent[-1][1]["source"]}
+            try:
+                for bad in ("../x.mp4", "a/b.mp4", "notes.txt", "missing.mp4"):
+                    if delete(bad)[0] != 400:
+                        problems.append(f"deleting {bad!r} should be refused with 400")
+                if delete(name) != (200, {"ok": True}) or (paths.SOURCES / name).exists():
+                    problems.append("Delete did not remove the file")
+                gone = credits.deleted_load().get(name) or {}
+                if gone.get("videoId") != A or gone.get("deleted") != time.strftime("%Y-%m-%d"):
+                    problems.append(f"the credit was not kept in deleted.json before the file went: {gone}")
+                r = rows().get(name) or {}
+                if not (r.get("deleted") and r.get("can_redownload") and r.get("bytes") is None
+                        and r.get("credit", {}).get("videoId") == A):
+                    problems.append(f"the deleted source is not marked in the list: {r}")
+                credits.save("hand.mp4", {"platform": "TikTok", "creator": "Mine"})      # drops the credit of gone files
+                if name not in credits.deleted_load():
+                    problems.append("saving another credit removed the deleted entry")
+                if code_of(ytdl.start, f"https://youtu.be/{B}", 1080, name) != "other":
+                    problems.append("Download again with another video's link should be refused")
+                if code_of(ytdl.start, URL_A, 1080, "never-deleted.mp4") != "other":
+                    problems.append("Download again of a name that was never deleted should be refused")
+                s4 = wait(ytdl.start(URL_A, 1080, name)["id"])
+                c = credits.load().get(name) or {}
+                if (s4.get("name") != name or not (paths.SOURCES / name).is_file()
+                        or c.get("videoId") != A or name in credits.deleted_load()
+                        or rows().get(name, {}).get("deleted")):
+                    problems.append(f"Download again did not bring {name} back with its credit: {s4} {c}")
+                (paths.SOURCES / name).unlink()
+                credits.mark_deleted(name)
+                (paths.SOURCES / name).write_bytes(b"back")
+                if rows().get(name, {}).get("deleted"):
+                    problems.append("a deleted entry whose file is back is still shown as deleted")
+                credits.unmark_deleted(name)
+            finally:
+                recycle.to_recycle_bin = real_bin
+
         # --- over HTTP (the Guest is allowed)
         srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
         port = srv.server_address[1]

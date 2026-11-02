@@ -414,7 +414,7 @@
 (function () {
   const nav = document.getElementById("areaSwitch");
   if (window.GUIDE_HAS_PROFILE) {
-    nav.innerHTML = '<a href="/">Edit</a><a href="/workspace">Workspace</a><a href="/remotion">Motion</a><a href="/guide" aria-current="page">Guide</a>';
+    nav.innerHTML = '<a href="/">Edit</a><a href="/workspace">Workspace</a><a href="/sources">Sources</a><a href="/remotion">Motion</a><a href="/guide" aria-current="page">Guide</a>';
   } else {
     nav.innerHTML = '<a href="/profiles?next=%2Fguide">Choose profile</a><a href="/guide" aria-current="page">Guide</a>';
     document.getElementById("profileChip").remove();

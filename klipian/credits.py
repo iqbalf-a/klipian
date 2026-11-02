@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from pathlib import Path
 
 from .paths import SOURCES
@@ -90,6 +91,46 @@ def save(name: str, entry, folder: Path | None = None) -> dict[str, dict]:
     else:
         dest.unlink(missing_ok=True)
     return credits
+
+
+def deleted_file(folder: Path | None = None) -> Path:
+    return (folder or SOURCES) / "deleted.json"
+
+
+def deleted_load(folder: Path | None = None) -> dict[str, dict]:
+    """{file name: its credit + "deleted": date} for source videos deleted from the Sources page.
+    Kept apart from credits.json because save() drops the credit of a file that is gone."""
+    try:
+        data = json.loads(deleted_file(folder).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    return {n: {**clean(e), "deleted": str((e or {}).get("deleted") or "")[:10]}
+            for n, e in data.items() if isinstance(n, str) and isinstance(e, dict)}
+
+
+def _deleted_write(data: dict, folder: Path | None) -> None:
+    dest = deleted_file(folder)
+    if data:
+        tmp = dest.with_suffix(".tmp")
+        tmp.write_text(json.dumps(data, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        os.replace(tmp, dest)
+    else:
+        dest.unlink(missing_ok=True)
+
+
+def mark_deleted(name: str, folder: Path | None = None) -> None:
+    """Remember a video's credit and that it was deleted. Call this BEFORE the file goes."""
+    data = deleted_load(folder)
+    data[name] = {**(load(folder).get(name) or {}), "deleted": time.strftime("%Y-%m-%d")}
+    _deleted_write(data, folder)
+
+
+def unmark_deleted(name: str, folder: Path | None = None) -> None:
+    data = deleted_load(folder)
+    if data.pop(name, None) is not None:
+        _deleted_write(data, folder)
 
 
 def line(credit: dict | None) -> str:

@@ -473,13 +473,21 @@ def _put_credit(name: str, entry: dict) -> bool:
         return True
 
 
-def _from_other(other: tuple[str, str]) -> tuple[str, str | None]:
-    """Link (or copy) the other profile's file here and copy its credit."""
-    pid, name = other
-    src = paths.profile_dir(pid) / "sources" / name
-    theirs = credits.load(paths.profile_dir(pid) / "sources").get(name) or {}
+def _restore(name: str) -> None:
+    """A deleted source is back under its old name: its credit returns and it is no longer marked deleted."""
+    credit = credits.deleted_load().get(name) or {}
+    if credit:
+        _put_credit(name, credit)
+    credits.unmark_deleted(name)
+
+
+def _from_other(other: tuple[str, str], name: str | None = None) -> tuple[str, str | None]:
+    """Link (or copy) the other profile's file here and copy its credit. With `name`, to exactly that name."""
+    pid, name_in = other
+    src = paths.profile_dir(pid) / "sources" / name_in
+    theirs = credits.load(paths.profile_dir(pid) / "sources").get(name_in) or {}
     with _LOCK:
-        dest_name = free_name(Path(name).stem, lambda n: False)
+        dest_name = name or free_name(Path(name_in).stem, lambda n: False)
         dest = Path(paths.SOURCES) / dest_name
         Path(paths.SOURCES).mkdir(parents=True, exist_ok=True)
         try:
@@ -487,23 +495,30 @@ def _from_other(other: tuple[str, str]) -> tuple[str, str | None]:
         except OSError:
             shutil.copy2(src, dest)
         credits.save(dest_name, theirs)
+    if name:
+        credits.unmark_deleted(name)
     return dest_name, pid
 
 
-def start(url: str, quality=1080) -> dict:
+def start(url: str, quality=1080, name: str | None = None) -> dict:
     """Begin the download. Returns {"id": job id}, or {"id": None, "name": file} when this
-    profile already has the video (nothing to do) -- a copy from another profile is made at once."""
+    profile already has the video (nothing to do) -- a copy from another profile is made at once.
+    `name` (Download again) saves to exactly that name, which must be a deleted source of this video."""
     vid = video_id(url)
+    if name is not None:
+        gone = credits.deleted_load().get(name)
+        if not gone or gone.get("videoId") != vid or (Path(paths.SOURCES) / name).exists():
+            raise YtError("other", f"{name} is not a deleted source of this video.")
     st = status()
     if not st["installed"]:
         raise YtError("missing", "yt-dlp is not installed.", command=st["command"])
-    existing = find_in_profile(vid)
+    existing = None if name else find_in_profile(vid)
     if existing:
         return {"id": None, "name": existing, "existed": True}
     other = find_in_other_profile(vid)
     if other:
-        name, pid = _from_other(other)
-        return {"id": None, "name": name, "existed": False, "copiedFrom": pid}
+        got, pid = _from_other(other, name)
+        return {"id": None, "name": got, "existed": False, "copiedFrom": pid}
     if not st["ffmpeg"]:
         raise YtError("no_ffmpeg", "ffmpeg was not found. klipian needs it to join the video and sound.")
     quality = _quality(quality)
@@ -521,12 +536,12 @@ def start(url: str, quality=1080) -> dict:
                       "videoId": vid, "temp": str(temp), "title": None}
         _CANCEL[jid] = ev
         _ACTIVE[(prof, vid)] = jid
-    threading.Thread(target=contextvars.copy_context().run, args=(_run, jid, vid, temp, ev, quality),
+    threading.Thread(target=contextvars.copy_context().run, args=(_run, jid, vid, temp, ev, quality, name),
                      daemon=True).start()
     return {"id": jid, "name": None, "existed": False}
 
 
-def _run(jid: str, vid: str, temp: Path, ev: threading.Event, quality: int = 1080) -> None:
+def _run(jid: str, vid: str, temp: Path, ev: threading.Event, quality: int = 1080, keep: str | None = None) -> None:
     prof = paths.current_profile()
     cancel_exc = _net.cancelled_exception()
     seen: list[str] = []
@@ -572,10 +587,12 @@ def _run(jid: str, vid: str, temp: Path, ev: threading.Event, quality: int = 108
             raise YtError("other", "The download finished but no video file came out.")
         stem = file_stem(info.get("channel") or info.get("uploader") or "", info.get("title") or "")
         with _LOCK:
-            name = free_name(stem, lambda n: (credits.load().get(n) or {}).get("videoId") == vid)
+            name = keep or free_name(stem, lambda n: (credits.load().get(n) or {}).get("videoId") == vid)
             dest = Path(paths.SOURCES) / name
             if not dest.exists():
                 os.replace(made[0], dest)
+        if keep:
+            _restore(keep)                    # the old credit comes back first; _put_credit never overwrites it
         wrote = _put_credit(name, _credit_for(info, vid))
         _set(jid, state="done", percent=100, name=name, creditWritten=wrote, message="Done.",
              speed=None, eta=None)
