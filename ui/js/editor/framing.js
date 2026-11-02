@@ -664,6 +664,11 @@ $("#framingOutsideRemove")?.addEventListener("click", async () => {
    split; in single format it is hidden via data-format on the canvas. */
 function drawBox(format, crops) {
   canvasFormat = format === "split" ? "split" : "single";
+  const shotBtn = $("#shotFramingBtn");
+  if (shotBtn) {
+    shotBtn.disabled = canvasFormat === "split";
+    shotBtn.title = canvasFormat === "split" ? "Shot framing frames one box; switch the frame to Single first" : SHOT_FRAMING_TITLE;
+  }
   const canvas = document.querySelector(".canvas");
   if (canvas) canvas.dataset.format = canvasFormat;
   // Preview is told too: the bottom slot only exists in split.
@@ -1336,10 +1341,11 @@ function aiFramingFailed(message) {
 function aiFramingOutputSize() {
   const box = canvasFormat === "single" ? boxOnCanvas() : null;
   const w = box?.[0];
-  return {
-    width: (w && Number.isFinite(w.width)) ? w.width : initialCrop().width,
-    height: (w && Number.isFinite(w.height)) ? w.height : initialCrop().height,
-  };
+  // A box left over from another Picture (9:16's 31.6% wide while the Picture is 3:4) is the wrong shape: the
+  // size is only kept when its height is what this Picture's ratio gives for its width.
+  const fits = w && Number.isFinite(w.width) && Number.isFinite(w.height)
+    && Math.abs(w.height - w.width * sourceRatio() * ratioFor("single")) < 1.5;
+  return fits ? { width: w.width, height: w.height } : { width: initialCrop().width, height: initialCrop().height };
 }
 
 /* Automatically finds the position of ONE speaker from their first
@@ -1631,6 +1637,67 @@ async function aiFramingApply(turns, positions, cuts, owner = activeResultId) {
     + "Review and adjust if needed.");
   aiFramingOverlayDone();
 }
+
+/* Shot framing: one box per camera shot, on the faces in it (facebox.frame_shots) -- no speech analysis, so it is
+   fast and suits multi-camera TV and 3:4. Writes points of the same shape AI Framing writes. Resolves
+   {ok, setup, note} like aiFramingForResult; the status goes to the same yellow box. */
+const SHOT_FRAMING_TITLE = "One frame per camera shot, on the faces in it. Fast; best for TV shows and 3:4";
+async function shotFramingForResult(id = activeResultId) {
+  if (id !== activeResultId && typeof switchResult === "function") {
+    switchResult(id);
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  const spans = activeClip?.spans;
+  if (!spans?.length) { aiFramingStatus("Select or add a clip to Result first."); return { ok: false, setup: false, note: "no moments" }; }
+  const owner = activeResultId;
+  const btn = $("#shotFramingBtn");
+  if (btn) btn.disabled = true;
+  const size = aiFramingOutputSize();
+  const points = [];
+  aiFramingStatus("Shot framing: looking at the camera shots …");
+  try {
+    for (const span of spans) {
+      const rr = realRange(span.start, span.end);
+      const r = await fetch("/api/shotframe", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ video: rr.video, start: rr.start, end: rr.end, size }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.points) throw new Error(d.error || `HTTP ${r.status}`);
+      for (const pt of d.points) points.push({ at: pt.at + rr.offset, crop: pt.crop });
+    }
+  } catch (err) {
+    if (btn) btn.disabled = canvasFormat === "split";
+    const setup = /module|import|no such file|onnx|cv2|opencv/i.test(err.message);
+    aiFramingStatus(`Shot framing failed: ${err.message}`
+      + (setup ? " — this looks like a setup problem: run `pip install -r requirements-ai-framing.txt`." : ""));
+    return { ok: false, setup, note: err.message.slice(0, 80) };
+  }
+  if (btn) btn.disabled = canvasFormat === "split";
+  if (aiFramingStale(owner)) {
+    aiFramingStatus("Shot framing was for another Result, which you switched away from while it ran. Run it again here.");
+    return { ok: false, setup: false, note: "switched Result" };
+  }
+  for (const point of points) {
+    const existing = FRAMING.find((f) => Math.abs(f.at - point.at) < 0.35);
+    if (existing) {                                            // as aiFramingApply: a point aimed at a face is not a placeholder
+      delete existing.tracking;
+      delete existing.auto;
+      existing.format = "single";
+      existing.crops = [point.crop];
+    } else {
+      FRAMING.push({ id: `f${++framingSeq}`, at: point.at, format: "single", crops: [point.crop] });
+    }
+  }
+  FRAMING.sort((a, b) => a.at - b.at);
+  ensureStartPoint();
+  renderFraming();
+  if (typeof saveProject === "function") saveProject();
+  aiFramingStatus(`Shot framing: ${points.length} shot${points.length === 1 ? "" : "s"} framed. Review and adjust if needed.`);
+  return { ok: true, setup: false, note: `${points.length} shots` };
+}
+
+$("#shotFramingBtn")?.addEventListener("click", () => shotFramingForResult());
 
 $("#aiFramingBtn")?.addEventListener("click", aiFramingStart);
 

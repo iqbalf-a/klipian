@@ -101,7 +101,7 @@ def _load_face_recognizer():
     return _face_recognizer
 
 
-def _detect_faces(region_bgr, rw: float) -> list[dict]:
+def _detect_faces(region_bgr, rw: float, min_frac: float = 0.15) -> list[dict]:
     """All faces INSIDE `region_bgr` (BGR color image -- YuNet needs color,
     unlike the Haar cascades this replaced) -> list of
     {cx, bbox:(x,y,w,h), mouth:(x,y,w,h), score, raw} in REGION coordinates.
@@ -130,7 +130,7 @@ def _detect_faces(region_bgr, rw: float) -> list[dict]:
     faces = []
     for row in raw:
         fw = float(row[2])
-        if fw < rw * 0.15:
+        if fw < rw * min_frac:
             continue
         x, y = int(round(float(row[0]))), int(round(float(row[1])))
         fw, fh = int(round(fw)), int(round(float(row[3])))
@@ -746,3 +746,181 @@ def locate_speaker(video: Path, start: float, end: float,
     cx_med = sorted(c[0] for c in kandidat)[len(kandidat) // 2]
     cy_med = sorted(c[1] for c in kandidat)[len(kandidat) // 2]
     return _place_box(cx_med, cy_med, cw, ch, W, H)
+
+
+# ══════════════════════════════ shot framing ══════════════════════════════
+# One box per camera shot, on the faces in it -- no speech, no diarization. For multi-camera TV where people
+# move between shots and the 3:4 box only has to hold the main faces.
+
+SHOT_MIN = 0.6          # a shot shorter than this (flicker, transition) joins its neighbour
+SHOT_SAMPLES = 4        # frames looked at per shot, at most
+SHOT_MERGE_PCT = 3.0    # consecutive boxes this close (percent of the frame) are one point
+SHOT_CUT_THRESHOLD = 0.35  # scenecut score that counts as a camera change here
+_SHOT_FRAME_W = 1600    # detection runs on frames this wide at most: faces in a wide TV shot are ~4% of it
+SHOT_MIN_FACE = 0.025   # smallest face, as a share of the frame width
+
+
+def _merge_faces(samples: list[list[dict]]) -> list[dict]:
+    """Faces of several frames of one shot -> {cx, cy, w} per PERSON: faces with near centres are one person
+    (median position and size); a face seen in fewer than half the frames is dropped."""
+    people: list[list[dict]] = []
+    for faces in samples:
+        for f in faces:
+            for group in people:
+                g = group[0]
+                if abs(f["cx"] - g["cx"]) < max(f["w"], g["w"]) * 0.6 and abs(f["cy"] - g["cy"]) < max(f["w"], g["w"]) * 0.8:
+                    group.append(f)
+                    break
+            else:
+                people.append([f])
+    med = lambda v: sorted(v)[len(v) // 2]
+    return [{k: med([f[k] for f in g]) for k in ("cx", "cy", "w")}
+            for g in people if len(g) * 2 >= len(samples)]
+
+
+def _group_span(faces: list[dict], cw: float) -> tuple[list[dict], float, float]:
+    """The main faces (width >= half the largest) and the left/right edge of them, padded 4% of the box width."""
+    biggest = max(f["w"] for f in faces)
+    main = [f for f in faces if f["w"] >= biggest * 0.5]
+    pad = cw * 0.04
+    return (main, min(f["cx"] - f["w"] / 2 for f in main) - pad,
+            max(f["cx"] + f["w"] / 2 for f in main) + pad)
+
+
+def _fits(faces: list[dict], W: int, crop_size: dict) -> bool:
+    """Whether all the main faces of a shot fit side by side in the box."""
+    if not faces:
+        return True
+    _, left, right = _group_span(faces, max(1.0, crop_size.get("width", 26) / 100 * W))
+    return right - left <= max(1.0, crop_size.get("width", 26) / 100 * W)
+
+
+def _choose_box(faces: list[dict], W: int, H: int, crop_size: dict) -> dict:
+    """The crop box (percent of the frame, the size of `crop_size`) for the faces {cx, cy, w[, talk]} (pixels) of a
+    shot: centred on the main faces when they fit side by side. When they do not, on the speaker: the face whose
+    mouth moved clearly most (`talk`, the same clear-winner rule as _pick_active_face), else the largest face (the
+    nearer to the centre only when two are as large). No faces: the centre of the frame."""
+    cw = max(1.0, crop_size.get("width", 26) / 100 * W)
+    ch = max(1.0, crop_size.get("height", 84) / 100 * H)
+    if not faces:
+        return _place_box(W / 2, H / 2, cw, ch, W, H)
+    main, left, right = _group_span(faces, cw)
+    if right - left <= cw:
+        cx, cy = (left + right) / 2, sum(f["cy"] for f in main) / len(main)
+    else:
+        pick = None
+        talking = sorted((f for f in faces if "talk" in f), key=lambda f: -f["talk"])
+        if len(talking) > 1 and talking[0]["talk"] > 1.0:
+            rest = sum(f["talk"] for f in talking[1:]) / (len(talking) - 1)
+            if talking[0]["talk"] > rest * 2.0:
+                pick = talking[0]
+        if pick is None:
+            ranked = sorted(faces, key=lambda f: -f["w"])
+            pick = ranked[0]
+            if len(ranked) > 1 and ranked[1]["w"] >= pick["w"] * 0.85:
+                pick = min(ranked[:2], key=lambda f: abs(f["cx"] - W / 2))
+        cx, cy = pick["cx"], pick["cy"]
+    # the face sits about a third from the top of the box
+    return _place_box(cx, cy + 0.15 * ch, cw, ch, W, H)
+
+
+def _shot_bounds(cuts: list[float], start: float, end: float) -> list[tuple[float, float]]:
+    """[(shot start, shot end)] from the cut times; a shot under SHOT_MIN joins the one before it (the first, the one after)."""
+    edges = [start] + sorted(c for c in cuts if start < c < end) + [end]
+    shots = [[a, b] for a, b in zip(edges, edges[1:])]
+    out: list[list[float]] = []
+    for sh in shots:
+        if out and (sh[1] - sh[0] < SHOT_MIN):
+            out[-1][1] = sh[1]
+        else:
+            out.append(sh)
+    if len(out) > 1 and out[0][1] - out[0][0] < SHOT_MIN:
+        out[1][0] = out[0][0]
+        out.pop(0)
+    return [(a, b) for a, b in out]
+
+
+def _same_box(a: dict, b: dict) -> bool:
+    return abs(a["left"] - b["left"]) < SHOT_MERGE_PCT and abs(a["top"] - b["top"]) < SHOT_MERGE_PCT
+
+
+def _shot_grab(video: Path, t: float, tmp: str, tag: str, frames: int = 1) -> list:
+    """`frames` BGR frames from second t on (10 fps apart when more than one), at most _SHOT_FRAME_W wide."""
+    import cv2
+
+    from .ffmpeg_tools import _require, run
+
+    pattern = str(Path(tmp) / f"{tag}_%02d.jpg")
+    cmd = [_require("ffmpeg"), "-y", "-loglevel", "error", "-ss", f"{t:.3f}", "-i", str(video)]
+    if frames > 1:
+        cmd += ["-t", f"{frames / 10 + 0.05:.2f}", "-vf", f"fps=10,scale=min({_SHOT_FRAME_W}\\,iw):-2"]
+    else:
+        cmd += ["-frames:v", "1", "-vf", f"scale=min({_SHOT_FRAME_W}\\,iw):-2"]
+    run(cmd + [pattern], desc="grabbing a frame of the shot")
+    return [im for im in (cv2.imread(str(p)) for p in sorted(Path(tmp).glob(f"{tag}_*.jpg"))) if im is not None][:frames]
+
+
+def _shot_faces(img) -> list[dict]:
+    """The faces {cx, cy, w, mouth} of a frame (pixels of the frame), 3% edge margin, small faces included."""
+    H, W = img.shape[:2]
+    sx, sy = int(W * 0.03), int(H * 0.03)
+    out = []
+    for fc in _detect_faces(img[sy:H - sy, sx:W - sx], W, min_frac=SHOT_MIN_FACE):
+        if fc["score"] < 0.7:
+            continue
+        x, y, w, h = fc["bbox"]
+        mx, my, mw, mh = fc["mouth"]
+        out.append({"cx": x + sx + w / 2, "cy": y + sy + h / 2, "w": w, "mouth": (mx + sx, my + sy, mw, mh)})
+    return out
+
+
+def _shot_talk(video: Path, a: float, b: float, people: list[dict], tmp: str, tag: str) -> None:
+    """Sets `talk` on each person of a shot: the mouth motion between two frames 0.1 s apart, averaged over three
+    moments of the shot (the same score _pick_active_face uses)."""
+    import cv2
+
+    total = [0.0] * len(people)
+    pairs = 0
+    for i in range(3):
+        frames = _shot_grab(video, a + (b - a) * (i + 1) / 4, tmp, f"{tag}m{i}", frames=2)
+        if len(frames) < 2:
+            continue
+        g0, g1 = (cv2.cvtColor(f, cv2.COLOR_BGR2GRAY) for f in frames)
+        pairs += 1
+        for fc in _shot_faces(frames[0]):
+            k = min(range(len(people)), key=lambda j: abs(people[j]["cx"] - fc["cx"]))
+            if abs(people[k]["cx"] - fc["cx"]) < max(people[k]["w"], fc["w"]):
+                total[k] += _mouth_motion(g1, g0, fc["mouth"])
+    if pairs:
+        for p, t in zip(people, total):
+            p["talk"] = t / pairs
+
+
+def frame_shots(video: Path, start: float, end: float, crop_size: dict) -> list[dict]:
+    """[{at, crop}] (the endpoint wraps it as {"points": [...]}): one point per camera shot of [start, end) (real
+    seconds), on the faces in it -- or on the one speaking when they do not all fit in the box."""
+    from .scenecut import detect_cuts
+
+    # a lower threshold than AI Framing's 0.6: fast TV editing (sitcom, game show) has cuts the podcast one misses
+    shots = _shot_bounds(detect_cuts(video, start, end, SHOT_CUT_THRESHOLD), start, end)
+    points: list[dict] = []
+    with tempfile.TemporaryDirectory(prefix="klipian-shots-") as tmp:
+        for n, (a, b) in enumerate(shots):
+            samples: list[list[dict]] = []
+            W = H = 0
+            k = min(SHOT_SAMPLES, max(1, int((b - a) / 0.5)))
+            for i in range(k):
+                got = _shot_grab(video, a + (b - a) * (i + 0.5) / k, tmp, f"s{n}_{i}")
+                if got:
+                    H, W = got[0].shape[:2]
+                    samples.append(_shot_faces(got[0]))
+            if not W:
+                continue
+            people = _merge_faces(samples)
+            if not _fits(people, W, crop_size):
+                _shot_talk(video, a, b, people, tmp, f"s{n}")
+            crop = _choose_box(people, W, H, crop_size)
+            if points and _same_box(points[-1]["crop"], crop):
+                continue
+            points.append({"at": round(a, 3), "crop": crop})
+    return points

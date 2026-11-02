@@ -116,6 +116,7 @@ RANGE_ENDPOINTS = {
                            "no speaker detected"),
     "/api/headtrack":     ("facebox", "track_head", "crop", "keyframes",
                            "not enough tracking data"),
+    "/api/shotframe":     ("facebox", "frame_shots", "size", "points", None),
     "/api/scenecut":      ("scenecut", "detect_cuts", None, "cuts", None),
 }
 

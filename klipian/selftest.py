@@ -4932,6 +4932,74 @@ progress=end
 # check: the selftest's own housekeeping (stale scratch folders)
 # --------------------------------------------------------------------------
 
+def check_shotframe() -> tuple[str, str]:
+    """Shot framing's pure parts (facebox._choose_box, _merge_faces, _shot_bounds, _same_box): where the box goes
+    for 0, 1, close and far faces, never outside the frame, short shots joined, near-equal boxes joined."""
+    from . import facebox as fb
+
+    problems = []
+    W, H = 1920, 1080
+    size = {"width": 42.19, "height": 100}                       # 3:4 out of 16:9
+    cw = size["width"] / 100 * W
+
+    def box(faces):
+        return fb._choose_box(faces, W, H, size)
+
+    def centre(b):
+        return (b["left"] + b["width"] / 2) / 100 * W
+
+    if abs(centre(box([])) - W / 2) > 2:
+        problems.append("no faces: the box should be at the centre")
+    pair = [{"cx": 800, "cy": 400, "w": 120}, {"cx": 1000, "cy": 420, "w": 110}]
+    if abs(centre(box(pair)) - 900) > 3:
+        problems.append(f"two close faces: should be centred on the group, got {centre(box(pair)):.0f}")
+    far = [{"cx": 300, "cy": 400, "w": 160}, {"cx": 1600, "cy": 400, "w": 90}]
+    if abs(centre(box(far)) - 300 - 0) > 3 and box(far)["left"] != 0:
+        problems.append(f"two far faces: should follow the largest, got {box(far)}")
+    tie = [{"cx": 300, "cy": 400, "w": 100}, {"cx": 1000, "cy": 400, "w": 100}]
+    if abs(centre(box(tie)) - 1000) > 3:
+        problems.append("two equal far faces: should take the one nearer the centre")
+    small = [{"cx": 900, "cy": 400, "w": 120}, {"cx": 1850, "cy": 400, "w": 40}]
+    if abs(centre(box(small)) - 900) > 3:
+        problems.append("a small face far away should not pull the box")
+    # faces that do not fit side by side: the one whose mouth moves clearly, else the largest
+    wide = [{"cx": 400, "cy": 400, "w": 90}, {"cx": 1500, "cy": 400, "w": 120}]
+    if abs(centre(box([{**wide[0], "talk": 9.0}, {**wide[1], "talk": 1.5}])) - 400) > 8:
+        problems.append("faces that do not fit: the clear mouth-motion winner should be chosen")
+    if abs(centre(box([{**wide[0], "talk": 1.4}, {**wide[1], "talk": 1.2}])) - 1500) > 3:
+        problems.append("no clear mouth winner: the largest face should be chosen")
+    if abs(centre(box([{**wide[0], "talk": 0.2}, {**wide[1], "talk": 0.1}])) - 1500) > 3:
+        problems.append("a mouth score under 1.0 is no winner: the largest face should be chosen")
+    if fb._fits(wide, W, size) or not fb._fits(pair, W, size):
+        problems.append("_fits: far apart faces do not fit, close ones do")
+    for x in (0, 10, 960, 1910, 1920):
+        b = box([{"cx": x, "cy": 5, "w": 100}])
+        if b["left"] < 0 or b["top"] < 0 or b["left"] + b["width"] > 100.01 or b["top"] + b["height"] > 100.01:
+            problems.append(f"face at x={x}: the box left the frame: {b}")
+
+    if fb._shot_bounds([5, 5.2, 9], 0, 12) != [(0, 5.2), (5.2, 9), (9, 12)]:
+        problems.append(f"a 0.2 s shot should join the one before: {fb._shot_bounds([5, 5.2, 9], 0, 12)}")
+    if fb._shot_bounds([0.3], 0, 4) != [(0, 4)]:
+        problems.append("a short first shot should join the next")
+    if fb._shot_bounds([], 2, 8) != [(2, 8)]:
+        problems.append("no cuts: one shot")
+    if not fb._same_box({"left": 10, "top": 0}, {"left": 12, "top": 0}) or fb._same_box({"left": 10, "top": 0}, {"left": 20, "top": 0}):
+        problems.append("_same_box should join boxes under 3 % apart only")
+
+    seen = [[{"cx": 500, "cy": 300, "w": 80}], [{"cx": 506, "cy": 302, "w": 84}, {"cx": 1500, "cy": 300, "w": 80}],
+            [{"cx": 494, "cy": 298, "w": 82}], [{"cx": 500, "cy": 300, "w": 80}]]
+    people = fb._merge_faces(seen)
+    if len(people) != 1 or abs(people[0]["cx"] - 500) > 8:
+        problems.append(f"_merge_faces: one steady face and one seen once should leave one person, got {people}")
+
+    import inspect
+    if inspect.signature(fb._detect_faces).parameters["min_frac"].default != 0.15:
+        problems.append("_detect_faces must keep its 0.15 default")
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "box at the centre / on the group / on the largest, never outside the frame, short shots and near boxes joined, faces merged across frames"
+
+
 def check_labelbox() -> tuple[str, str]:
     """Boxed Timeline labels (compose.build_label_ass): one rounded box round the wrapped text, always inside the
     frame whatever x and y are, the light and dark styles, the libass fallback without Pillow, and labels without
@@ -6765,7 +6833,7 @@ def check_briefsteps() -> tuple[str, str]:
     return PASS, (f"the Khusus brief passes the strict checklist (rules first, 8 steps with Run and Expected, fallback, mistakes) at 30/45/60 s with 1 or 3 voice apps; "
                   f"size at 45 s {sizes[0]} characters (cap 40000); the fallback story is saved and the video stays 'belum dibuat'")
 
-CHECKS = {"briefagents": check_briefagents, "briefsteps": check_briefsteps, "migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch, "labelbox": check_labelbox,
+CHECKS = {"briefagents": check_briefagents, "briefsteps": check_briefsteps, "migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch, "labelbox": check_labelbox, "shotframe": check_shotframe,
           "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voicegoogle": check_voicegoogle, "voicestudio": check_voicestudio, "elevenlabs": check_elevenlabs, "khusus": check_khusus, "briefbuttons": check_briefbuttons, "music": check_music, "voice": check_voice, "decode": check_decode, "render": check_render}
 
 
