@@ -34,9 +34,9 @@ out = withAngleIntro([other], "x", 30, 4, id);
 eq([out[0], out.length], [other, 2], "another label stays, the intro is added beside it");
 
 // the box style: a new label is black on white by default, white on black when asked
-eq([out[1].boxStyle, out[1].color], ["light", "#111111"], "a new intro is black on white");
-const darkOne = withAngleIntro([], "x", 30, 4, id, "dark")[0];
-eq([darkOne.boxStyle, darkOne.color], ["dark", "#FFFFFF"], "a new intro in white on black");
+eq([out[1].boxStyle, out[1].color], ["dark", "#FFFFFF"], "a new intro is white on black");
+const lightOne = withAngleIntro([], "x", 30, 4, id, "light")[0];
+eq([lightOne.boxStyle, lightOne.color], ["light", "#111111"], "a new intro in black on white when asked");
 
 // changing the style touches only the labels of the panel (origin angle-*): colour and style change, place and text do not
 const note = { id: "o4", kind: "text", text: "catatan", start: 3, end: 5, x: 15, y: 28, size: 56, color: "#FFFFFF", box: true, origin: "angle-note-1" };

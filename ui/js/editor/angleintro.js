@@ -13,10 +13,10 @@ const ANGLE_NOTE_SECONDS = 2;          // and each note (angle.noteSeconds)
 const ANGLE_INTRO_SIZE = 72;
 const ANGLE_NOTE_SIZE = 56;
 
-/* The two box styles of a label: the box and its text colour go together. "light" (black on white) is the default for
-   new labels; a boxed label with no boxStyle (made before) reads as "dark" (white on black). */
+/* The two box styles of a label: the box and its text colour go together. "dark" (white on black) is the default for
+   new labels and what a boxed label with no boxStyle reads as; "light" is black on white. */
 const BOX_LOOKS = { light: { boxStyle: "light", color: "#111111" }, dark: { boxStyle: "dark", color: "#FFFFFF" } };
-const ANGLE_BOX_DEFAULT = "light";
+const ANGLE_BOX_DEFAULT = "dark";
 
 /* `overlays` with the box style `style` on every label the Intro & notes panel made (origin "angle-*"), colour included;
    other labels are not touched. */
@@ -37,7 +37,7 @@ function withAngleIntro(overlays, intro, total, seconds, nextId, boxStyle = ANGL
       : { ...o, text, end: round2(Math.min(total, (o.start || 0) + seconds)) }));
   }
   const base = typeof OVERLAY_DEFAULTS !== "undefined" ? OVERLAY_DEFAULTS.text : {};
-  return [...overlays, { id: nextId(), kind: "text", ...base, ...(BOX_LOOKS[boxStyle] || BOX_LOOKS.light), text, box: true, start: 0,
+  return [...overlays, { id: nextId(), kind: "text", ...base, ...(BOX_LOOKS[boxStyle] || BOX_LOOKS[ANGLE_BOX_DEFAULT]), text, box: true, start: 0,
     end: round2(Math.min(total, seconds)), x: 50, y: 16, size: ANGLE_INTRO_SIZE, origin: "angle-intro" }];
 }
 

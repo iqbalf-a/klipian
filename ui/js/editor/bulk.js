@@ -345,7 +345,7 @@ async function bulkOutputDialog(ids) {
   introSec.style.width = "5em";
   introLabel.append(introCheck, document.createTextNode(" Put each Result's intro (Intro & notes) on the video · "), introSec, document.createTextNode(" s"));
   // the box style: black text on white, or white on black; starts from the sample Result's own
-  let boxPick = slotOf(sampleId)?.angle?.boxStyle === "dark" ? "dark" : ANGLE_BOX_DEFAULT;
+  let boxPick = slotOf(sampleId)?.angle?.boxStyle === "light" ? "light" : ANGLE_BOX_DEFAULT;
   const boxRow = Object.assign(document.createElement("span"), { className: "choices" });
   const boxBtns = [["light", "Black on white"], ["dark", "White on black"]].map(([v, label]) => {
     const b = Object.assign(document.createElement("button"), { className: "chip", type: "button", textContent: label });

@@ -27,10 +27,10 @@ function angleSeconds(id, fallback) {
   const v = parseFloat($(id)?.value);
   return Number.isFinite(v) ? Math.min(10, Math.max(1, v)) : fallback;
 }
-/* The box style of the labels this panel makes: "light" (black text on white, the default) or "dark". */
+/* The box style of the labels this panel makes: "dark" (white text on black, the default) or "light". */
 let angleBox = ANGLE_BOX_DEFAULT;
 function setAngleBox(style) {
-  angleBox = style === "dark" ? "dark" : "light";
+  angleBox = style === "light" ? "light" : ANGLE_BOX_DEFAULT;
   document.querySelectorAll("[data-angle-box]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.angleBox === angleBox)));
 }
 const introSeconds = () => angleSeconds("#angleIntroSec", ANGLE_INTRO_SECONDS);
