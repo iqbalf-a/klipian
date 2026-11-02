@@ -4990,14 +4990,7 @@ def check_shotframe() -> tuple[str, str]:
     small = [{"cx": 900, "cy": 400, "w": 120}, {"cx": 1850, "cy": 400, "w": 40}]
     if abs(centre(box(small)) - 900) > 3:
         problems.append("a small face far away should not pull the box")
-    # faces that do not fit side by side: the one whose mouth moves clearly, else the largest
     wide = [{"cx": 400, "cy": 400, "w": 90}, {"cx": 1500, "cy": 400, "w": 120}]
-    if abs(centre(box([{**wide[0], "talk": 9.0}, {**wide[1], "talk": 1.5}])) - 400) > 8:
-        problems.append("faces that do not fit: the clear mouth-motion winner should be chosen")
-    if abs(centre(box([{**wide[0], "talk": 1.4}, {**wide[1], "talk": 1.2}])) - 1500) > 3:
-        problems.append("no clear mouth winner: the largest face should be chosen")
-    if abs(centre(box([{**wide[0], "talk": 0.2}, {**wide[1], "talk": 0.1}])) - 1500) > 3:
-        problems.append("a mouth score under 1.0 is no winner: the largest face should be chosen")
     if fb._fits(wide, W, size) or not fb._fits(pair, W, size):
         problems.append("_fits: far apart faces do not fit, close ones do")
     for x in (0, 10, 960, 1910, 1920):
@@ -5029,15 +5022,25 @@ def check_shotframe() -> tuple[str, str]:
     c, why = fb._decide(three, W, H, size, "A", known, None, True, embed, sim)
     if why != "speaker-face" or abs(centre(c) - 1500) > 12:
         problems.append(f"_decide: a wide shot of three should be centred on the recognised speaker, got {why} {centre(c):.0f}")
-    r = [{**three[0], "talk": 9.0}, {**three[1], "talk": 1.0}, {**three[2], "talk": 1.0}]
+    r = [{**three[0], "av": 0.7}, {**three[1], "av": 0.1}, {**three[2], "av": 0.0}]
     emb.update({id(r[0]): [1.0, 0.0, 0.0], id(r[1]): [0.0, 1.0, 0.0], id(r[2]): [0.0, 0.0, 1.0]})
-    wk: dict = {}
-    c, why = fb._decide(r, W, H, size, "B", {}, None, True, embed, sim, wk)
-    if why != "speaker-mouth" or abs(centre(c) - 400) > 12 or "B" not in wk:
-        problems.append(f"_decide: a clear mouth winner is the speaker and is remembered, got {why} {wk.keys()}")
-    c, why = fb._decide(r, W, H, size, "A", {"A": [[-1.0, -1.0, -1.0]]}, None, True, embed, sim, wk)
-    if why == "speaker-mouth":
-        problems.append("_decide: a speaker whose face is known and is out of view must not take a mouth winner")
+    kn2: dict = {}
+    c, why = fb._decide(r, W, H, size, "B", kn2, None, True, embed, sim)
+    if why != "av-sync" or abs(centre(c) - 400) > 12 or "B" not in kn2:
+        problems.append(f"_decide: a clear av-sync winner is the speaker and is remembered, got {why} {kn2.keys()}")
+    r2 = [{**three[0], "av": 0.7}, {**three[1], "av": 0.1}, {**three[2], "av": 0.0}]
+    emb.update({id(r2[0]): [1.0, 0.0, 0.0], id(r2[1]): [0.0, 1.0, 0.0], id(r2[2]): [0.0, 0.0, 1.0]})
+    c, why = fb._decide(r2, W, H, size, "A", {"A": [[0.0, 0.0, 1.0]]}, None, True, embed, sim)
+    if why != "av-sync" or abs(centre(c) - 400) > 12 or not r2[0].get("conflict"):
+        problems.append(f"_decide: av-sync wins over the recognised face and notes the conflict, got {why}")
+    unclear = [{**three[0], "av": 0.3}, {**three[1], "av": 0.25}, {**three[2], "av": 0.0}]
+    emb.update({id(unclear[0]): [1.0, 0.0, 0.0], id(unclear[1]): [0.0, 1.0, 0.0], id(unclear[2]): [0.0, 0.0, 1.0]})
+    c, why = fb._decide(unclear, W, H, size, "A", {"A": [[0.0, 0.0, 1.0]]}, None, True, embed, sim)
+    if why != "speaker-face" or abs(centre(c) - 1500) > 12:
+        problems.append(f"_decide: no clear av-sync winner falls to the recognised face, got {why}")
+    weak = [{**three[0], "av": 0.2}, {**three[1], "av": 0.0}]
+    if fb._av_winner(weak) is not None:
+        problems.append("_av_winner: a score under 0.25 is no winner")
     c, why = fb._decide(three, W, H, size, "C", {}, None, True, embed, sim)
     if why != "largest":
         problems.append(f"_decide: no clue about the speaker is the largest face, got {why}")
@@ -5068,6 +5071,37 @@ def check_shotframe() -> tuple[str, str]:
     segs = fb._segments([], [{"start": 0, "end": 10, "speaker": "A"}, {"start": 10, "end": 30, "speaker": "B"}], 0, 30)
     if [(a, b, s) for a, b, s in segs] != [(0, 10, "A"), (10, 30, "B")]:
         problems.append(f"_segments: a change of speaker is a boundary, got {segs}")
+
+    # movement matched to the sound (synthetic arrays)
+    import numpy as np
+    rng = np.random.default_rng(3)
+    n = 60
+    env = np.abs(np.sin(np.arange(n) / 4.0)) + 0.05
+    follows = env * 3 + rng.normal(0, 0.2, n)                   # moves with the sound
+    random = rng.normal(0, 1, n) + 2.0                           # moves, but not with it
+    glob = np.full(n, 1.0)
+    sc = fb._av_core([follows, random], [follows, random], glob, env)
+    if not sc or sc[0] < 0.25 or sc[0] - sc[1] < 0.1:
+        problems.append(f"_av_core: the face moving with the sound should win clearly, got {sc}")
+    g2 = glob.copy()
+    g2[10:20] = 40.0                                             # a camera move: those steps are dropped
+    spoiled = follows.copy()
+    spoiled[10:20] = 200.0
+    sc2 = fb._av_core([spoiled, random], [spoiled, random], g2, env)
+    if not sc2 or sc2[0] < 0.25:
+        problems.append(f"_av_core: steps with big global movement should be left out, got {sc2}")
+    if fb._av_core([follows], [follows], glob, np.zeros(n)) is not None or fb._av_core([follows[:5]], [follows[:5]], glob[:5], env[:5]) is not None:
+        problems.append("_av_core: silence or too little data is no score")
+    two = [{"cx": 400, "cy": 300, "w": 100}, {"cx": 700, "cy": 300, "w": 100}]
+    win = fb._body_windows(two, 1920, 1080)
+    if win[0][2] > 550 or win[1][0] < 550 or win[0][1] < 300:
+        problems.append(f"_body_windows: a window must stop at the middle between faces and start below the face, got {win}")
+    same = lambda a, b: 1.0 if a == b else 0.0
+    items = [(0, "A"), (1, "A"), (2, "B"), (3, "B"), (4, "C")]
+    if fb._count_people(items, same) != 2:
+        problems.append("_count_people: someone seen in one segment only is not counted")
+    if fb._count_people(items + [(5, "C")], same) != 3:
+        problems.append("_count_people: three people seen in two segments each")
 
     import inspect
     if inspect.signature(fb._detect_faces).parameters["min_frac"].default != 0.15:

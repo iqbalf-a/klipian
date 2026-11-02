@@ -79,7 +79,7 @@ class Cache:
         fp = fingerprint(video)
         return self.root / f"{Path(video).stem}.{fp}.cues.json"
 
-    def diarize_path(self, video: Path, start: float, end: float) -> Path:
+    def diarize_path(self, video: Path, start: float, end: float, min_speakers: int | None = None) -> Path:
         """AI Framing speaker turns for one [start, end) span -- range goes
         into the fingerprint (rounded to 10ms, plenty for a cache key) so
         each span of a multi-span Result gets its own entry, and a slightly
@@ -89,7 +89,8 @@ class Cache:
         most expensive AI Framing stage (usually 25-35s), and re-running
         AI Framing on a clip that hasn't changed (adjusting output size,
         retrying after a failed locate step) shouldn't pay that again."""
-        fp = fingerprint(video, extra=f"{round(start, 2)}|{round(end, 2)}")
+        extra = f"{round(start, 2)}|{round(end, 2)}" + (f"|min{int(min_speakers)}" if min_speakers else "")
+        fp = fingerprint(video, extra=extra)
         return self.root / f"{Path(video).stem}.{fp}.diarize.json"
 
     def _fallback_fits(self, candidate: Path, video: Path) -> str:

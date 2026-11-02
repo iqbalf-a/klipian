@@ -786,7 +786,7 @@ def _merge_faces(samples: list[list[dict]]) -> list[dict]:
             else:
                 people.append([f])
     med = lambda v: sorted(v)[len(v) // 2]
-    return [{**{k: med([f[k] for f in g]) for k in ("cx", "cy", "w")}, "region": g[0].get("region"), "raw": g[0].get("raw")}
+    return [{**{k: med([f[k] for f in g]) for k in ("cx", "cy", "w")}, "mouth": g[0].get("mouth"), "region": g[0].get("region"), "raw": g[0].get("raw")}
             for g in people if len(g) * 2 >= len(samples)]
 
 
@@ -807,17 +807,6 @@ def _fits(faces: list[dict], W: int, crop_size: dict) -> bool:
     return right - left <= max(1.0, crop_size.get("width", 26) / 100 * W)
 
 
-def _talk_winner(people: list[dict]):
-    """The person whose mouth moved clearly most (`talk`): above 1.0 and twice the average of the others, the same
-    clear-winner rule as _pick_active_face. None when nobody stands out."""
-    talking = sorted((f for f in people if "talk" in f), key=lambda f: -f["talk"])
-    if len(talking) > 1 and talking[0]["talk"] > 1.0:
-        rest = sum(f["talk"] for f in talking[1:]) / (len(talking) - 1)
-        if talking[0]["talk"] > rest * 2.0:
-            return talking[0]
-    return None
-
-
 def _largest(people: list[dict], W: int) -> dict:
     """The largest face; the one nearer the centre only when the two largest are as large."""
     ranked = sorted(people, key=lambda f: -f["w"])
@@ -827,9 +816,9 @@ def _largest(people: list[dict], W: int) -> dict:
 
 
 def _choose_box(faces: list[dict], W: int, H: int, crop_size: dict) -> dict:
-    """The crop box (percent of the frame, the size of `crop_size`) for the faces {cx, cy, w[, talk]} (pixels) of a
-    shot: centred on the main faces when they fit side by side. When they do not, on the speaker: the face whose
-    mouth moved clearly most (`talk`), else the largest face (the nearer to the centre only when two are as large).
+    """The crop box (percent of the frame, the size of `crop_size`) for the faces {cx, cy, w} (pixels) of a
+    shot: centred on the main faces when they fit side by side, else on the largest face (the nearer to the centre
+    only when two are as large).
     No faces: the centre of the frame."""
     cw = max(1.0, crop_size.get("width", 26) / 100 * W)
     ch = max(1.0, crop_size.get("height", 84) / 100 * H)
@@ -839,7 +828,7 @@ def _choose_box(faces: list[dict], W: int, H: int, crop_size: dict) -> dict:
     if right - left <= cw:
         cx, cy = (left + right) / 2, sum(f["cy"] for f in main) / len(main)
     else:
-        pick = _talk_winner(faces) or _largest(faces, W)
+        pick = _largest(faces, W)
         cx, cy = pick["cx"], pick["cy"]
     # the face sits about a third from the top of the box
     return _place_box(cx, cy + 0.15 * ch, cw, ch, W, H)
@@ -866,38 +855,200 @@ def _learn_faces(evidence: dict, similar) -> dict:
     return known
 
 
+PEOPLE_MIN_W = 0.06     # a face narrower than this share of the frame is too poor to tell people apart
+AV_FPS = 8              # frames per second looked at to match movement with speech
+AV_WINDOW = 12.0        # at most this many seconds of a long segment, from its middle
+AV_MIN_SCORE = 0.25     # a clear winner scores at least this ...
+AV_MIN_MARGIN = 0.10    # ... and this much more than the runner-up
+
+
+def _av_winner(people: list[dict]):
+    """The person whose movement follows the speech clearly (`av`, see _av_core): at least AV_MIN_SCORE and
+    AV_MIN_MARGIN ahead of the next one. None when nobody stands out."""
+    scored = sorted((f for f in people if f.get("av") is not None), key=lambda f: -f["av"])
+    if not scored or scored[0]["av"] < AV_MIN_SCORE:
+        return None
+    if len(scored) > 1 and scored[0]["av"] - scored[1]["av"] < AV_MIN_MARGIN:
+        return None
+    return scored[0]
+
+
+def _body_windows(people: list[dict], W: int, H: int) -> list[tuple[int, int, int, int]]:
+    """(x0, y0, x1, y1) of each person's body and hands: below the face, two face widths to each side and three
+    face heights down, clipped to the frame and to the middle between the neighbouring faces so a person's
+    window never takes in the next person's movement."""
+    order = sorted(range(len(people)), key=lambda i: people[i]["cx"])
+    out: list = [None] * len(people)
+    for pos, i in enumerate(order):
+        p = people[i]
+        fw = p["w"]
+        fh = fw * 1.25
+        x0, x1 = p["cx"] - 2 * fw, p["cx"] + 2 * fw
+        if pos > 0:
+            x0 = max(x0, (people[order[pos - 1]]["cx"] + p["cx"]) / 2)
+        if pos < len(order) - 1:
+            x1 = min(x1, (people[order[pos + 1]]["cx"] + p["cx"]) / 2)
+        y0 = p["cy"] + fh / 2
+        out[i] = (int(max(0, x0)), int(max(0, min(H - 1, y0))), int(min(W, x1)), int(min(H, y0 + 3 * fh)))
+    return out
+
+
+def _av_core(mouth, body, glob, env) -> list[float] | None:
+    """How well each face's movement follows the speech. `mouth` and `body` are (faces, steps) arrays of movement
+    per time step, `glob` the movement of the whole frame per step (camera moves, zooms, transitions), `env` the
+    loudness per step. Steps with big global movement are left out and the rest is taken off the body movement.
+    Per face: z-scored mouth and body movement are averaged into `act`; the score is half the best Pearson
+    correlation of `act` with `env` (act lagging the sound by 0 to 2 steps) plus a quarter of how much more `act`
+    is up when the sound is loud than when it is quiet. None when there is too little to go on."""
+    import numpy as np
+
+    mouth, body = np.asarray(mouth, float), np.asarray(body, float)
+    glob, env = np.asarray(glob, float), np.asarray(env, float)
+    n = env.size
+    keep = glob <= np.median(glob) * 4 + 2.0
+    if n < 12 or keep.sum() < 10 or float(env.std()) < 1e-6:
+        return None
+    body = np.maximum(body - glob, 0.0)
+
+    def z(v):
+        sd = v[keep].std()
+        return (v - v[keep].mean()) / sd if sd > 1e-9 else np.zeros_like(v)
+
+    scores = []
+    for m, b in zip(mouth, body):
+        act = 0.5 * z(m) + 0.5 * z(b)
+        best = -1.0
+        for lag in range(3):
+            a, e, k = act[lag:], env[:n - lag], keep[lag:] & keep[:n - lag]
+            if k.sum() < 8 or a[k].std() < 1e-9 or e[k].std() < 1e-9:
+                continue
+            best = max(best, float(np.corrcoef(a[k], e[k])[0, 1]))
+        loud = (env > np.median(env)) & keep
+        quiet = (env <= np.median(env)) & keep
+        diff = float(act[loud].mean() - act[quiet].mean()) if loud.any() and quiet.any() else 0.0
+        scores.append(0.5 * max(best, -1.0) + 0.25 * diff)
+    return scores
+
+
+def _grab_seq(video: Path, t0: float, dur: float, tmp: str, tag: str, fps: int) -> list:
+    """The frames of [t0, t0 + dur) at `fps`, gray, at most _SHOT_FRAME_W wide (the size faces were found at)."""
+    import cv2
+
+    from .ffmpeg_tools import _require, run
+
+    run([_require("ffmpeg"), "-y", "-loglevel", "error", "-ss", f"{t0:.3f}", "-i", str(video), "-t", f"{dur:.3f}",
+         "-vf", f"fps={fps},scale=min({_SHOT_FRAME_W}\\,iw):-2", str(Path(tmp) / f"{tag}_%03d.jpg")],
+        desc="grabbing frames to match movement with speech")
+    return [cv2.imread(str(p), cv2.IMREAD_GRAYSCALE) for p in sorted(Path(tmp).glob(f"{tag}_*.jpg"))]
+
+
+def _audio_env(video: Path, t0: float, dur: float, steps: int, fps: int, tmp: str, tag: str):
+    """Loudness (RMS) at the time of each of `steps` video steps (step i at t0 + (i + 1) / fps), or None."""
+    import numpy as np
+    import soundfile as sf
+
+    from .ffmpeg_tools import _require, run
+
+    wav = Path(tmp) / f"{tag}.wav"
+    run([_require("ffmpeg"), "-y", "-loglevel", "error", "-ss", f"{t0:.3f}", "-t", f"{dur + 0.2:.3f}", "-i", str(video),
+         "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", str(wav)], desc="extracting the audio of a segment")
+    data, sr = sf.read(str(wav), dtype="float32")
+    if data.ndim > 1:
+        data = data[:, 0]
+    half = int(sr / fps / 2)
+    out = []
+    for i in range(steps):
+        c = int((i + 1) / fps * sr)
+        w = data[max(0, c - half):c + half]
+        out.append(float(np.sqrt(np.mean(w * w))) if w.size else 0.0)
+    return np.asarray(out)
+
+
+def _av_scores(video: Path, a: float, b: float, people: list[dict], W: int, H: int, tmp: str, tag: str) -> None:
+    """Sets `av` on each person of a segment: how well their mouth and body movement follow the sound (_av_core)."""
+    import cv2
+    import numpy as np
+
+    dur = min(b - a, AV_WINDOW)
+    t0 = a + (b - a - dur) / 2
+    frames = [f for f in _grab_seq(video, t0, dur, tmp, tag, AV_FPS) if f is not None]
+    if len(frames) < 13:
+        return
+    h, w = frames[0].shape[:2]
+    sx, sy = w / W, h / H
+    scaled = [{**p, "cx": p["cx"] * sx, "cy": p["cy"] * sy, "w": p["w"] * sx} for p in people]
+    bodies = _body_windows(scaled, w, h)
+    mouths = []
+    for p in people:
+        mx, my, mw, mh = p.get("mouth") or (int(p["cx"] - p["w"] / 4), int(p["cy"] + p["w"] / 4), int(p["w"] / 2), int(p["w"] / 4))
+        mouths.append((max(0, int(mx * sx)), max(0, int(my * sy)), max(8, int(mw * sx)), max(8, int(mh * sy))))
+    small = [cv2.resize(f, (w // 4, h // 4)).astype(np.float32) for f in frames]
+    mouth = [[] for _ in people]
+    body = [[] for _ in people]
+    glob = []
+    for i in range(1, len(frames)):
+        glob.append(float(np.median(np.abs(small[i] - small[i - 1]))))
+        diff = cv2.absdiff(frames[i], frames[i - 1]).astype(np.float32)
+        for k in range(len(people)):
+            mouth[k].append(_mouth_motion(frames[i], frames[i - 1], mouths[k]))
+            x0, y0, x1, y1 = bodies[k]
+            body[k].append(float(diff[y0:y1, x0:x1].mean()) if y1 > y0 and x1 > x0 else 0.0)
+    env = _audio_env(video, t0, dur, len(glob), AV_FPS, tmp, tag)
+    scores = _av_core(mouth, body, glob, env)
+    if scores:
+        for p, s in zip(people, scores):
+            p["av"] = s
+
+
+def _count_people(items: list[tuple[int, object]], similar, min_segments: int = 2) -> int:
+    """How many different people the faces are: `items` are (segment, embedding) of the faces seen alone on
+    screen; faces at or above the same-person similarity are one person, and a person who shows up in fewer than
+    `min_segments` segments (someone passing by) is not counted."""
+    people: list[list[tuple[int, object]]] = []
+    for seg, emb in items:
+        for group in people:
+            if seg not in {s for s, _ in group} and any(similar(emb, e) >= _SFACE_SAME_PERSON_COSINE for _, e in group):
+                group.append((seg, emb))
+                break
+        else:
+            people.append([(seg, emb)])
+    return sum(1 for g in people if len({s for s, _ in g}) >= min_segments)
+
+
 def _decide(people: list[dict], W: int, H: int, size: dict, speaker, known: dict, prev: dict | None,
             new_shot: bool = True, embed=None, similar=None, weak: dict | None = None) -> tuple[dict, str]:
     """The box and why for one segment: (crop, why). The box is always centred on ONE face, the person speaking;
-    the others may be cut. `people` are its faces {cx, cy, w[, talk]}; `speaker` is who speaks in it (diarization,
-    or None); `known` {speaker: [embedding]} is what the first pass learned, `weak` the faces the mouth pointed at
-    for speakers the first pass never saw alone (a mouth winner is noisy: a speaker whose face is known does not
-    take it, or a listener fidgeting while the speaker is off screen would become the speaker); `prev` is the
-    previous box and `new_shot` whether a camera cut starts this segment. why, in order of trust: speaker-face (the
-    face recognised as this speaker's) | speaker-mouth (the mouth moves clearly) | single (the only face) |
-    largest | kept (previous box: the speaker is not in view and the camera did not cut) | center (nothing at all)."""
+    the others may be cut. `people` are its faces {cx, cy, w[, av]}; `speaker` is who speaks in it (diarization,
+    or None); `known` {speaker: [embedding]} is what the first pass learned (a clear av-sync winner adds to it for a
+    speaker the first pass never saw), `prev` is the previous box and
+    `new_shot` whether a camera cut starts this segment. why, in order of trust: av-sync (movement follows the
+    sound clearly: wins over the recognised face when they disagree) | speaker-face (the face recognised as this
+    speaker's) | single (the only face) | largest | kept (previous box: the speaker is not in view and the camera
+    did not cut) | center (nothing at all)."""
     if not people:
         return (prev, "kept") if prev else (_choose_box([], W, H, size), "center")
     pick = why = None
-    weak = weak if weak is not None else {}
-    faces = known.get(speaker, []) + weak.get(speaker, [])
+    winner = _av_winner(people)
+    faces = known.get(speaker, [])
+    face_pick = None
     if faces and embed and similar:
         best = max(people, key=lambda p: max(similar(e, embed(p)) for e in faces))
         if max(similar(e, embed(best)) for e in faces) >= _SFACE_SAME_PERSON_COSINE:
-            pick, why = best, "speaker-face"
-    if pick is None and speaker not in known:
-        pick = _talk_winner(people)
-        if pick is not None:
-            why = "speaker-mouth"
-            if speaker is not None and embed:
-                weak.setdefault(speaker, []).append(embed(pick))
+            face_pick = best
+    if winner is not None:
+        pick, why = winner, "av-sync"
+        if speaker is not None and speaker not in known and embed:
+            known[speaker] = [embed(winner)]                      # clear, so it counts as evidence
+        if face_pick is not None and face_pick is not winner:
+            winner["conflict"] = True                             # the movement wins over the recognised face
+    elif face_pick is not None:
+        pick, why = face_pick, "speaker-face"
     if pick is None and speaker in known and prev is not None and not new_shot:
-        return prev, "kept"                                           # the speaker is out of view: same shot, same box
+        return prev, "kept"                                       # the speaker is out of view: same shot, same box
     if pick is None:
         main = _main_faces(people)
         pick, why = (main[0], "single") if len(main) == 1 else (_largest(people, W), "largest")
-    crop = _choose_box([pick], W, H, size)                            # centred on the one face
-    return crop, why
+    return _choose_box([pick], W, H, size), why                   # centred on the one face
 
 
 def _shot_bounds(cuts: list[float], start: float, end: float) -> list[tuple[float, float]]:
@@ -954,32 +1105,6 @@ def _shot_faces(img) -> list[dict]:
     return out
 
 
-def _shot_talk(video: Path, a: float, b: float, people: list[dict], tmp: str, tag: str, cuts: list[float] | None = None) -> None:
-    """Sets `talk` on each person of a segment: the mouth motion between two frames 0.1 s apart, averaged over three
-    moments of it (the same score _pick_active_face uses). A moment within 0.4 s of a camera cut is left out: a
-    transition or a graphic effect reads as moving mouths."""
-    import cv2
-
-    total = [0.0] * len(people)
-    pairs = 0
-    for i in range(3):
-        t = a + (b - a) * (i + 1) / 4
-        if any(c - 0.5 <= t <= c + 0.4 for c in (cuts or [])):
-            continue
-        frames = _shot_grab(video, t, tmp, f"{tag}m{i}", frames=2)
-        if len(frames) < 2:
-            continue
-        g0, g1 = (cv2.cvtColor(f, cv2.COLOR_BGR2GRAY) for f in frames)
-        pairs += 1
-        for fc in _shot_faces(frames[0]):
-            k = min(range(len(people)), key=lambda j: abs(people[j]["cx"] - fc["cx"]))
-            if abs(people[k]["cx"] - fc["cx"]) < max(people[k]["w"], fc["w"]):
-                total[k] += _mouth_motion(g1, g0, fc["mouth"])
-    if pairs:
-        for p, t in zip(people, total):
-            p["talk"] = t / pairs
-
-
 def _segments(cuts: list[float], turns: list[dict], start: float, end: float) -> list[tuple[float, float, object]]:
     """[(start, end, speaker)]: the span cut at every camera change and every change of speaker. The audio is often
     a little behind the picture, so a speaker's turn that starts within 2 s after a cut starts at that cut. The
@@ -1007,21 +1132,84 @@ def _alone_in_turn(a: float, b: float, speaker, turns: list[dict]) -> bool:
     return mine >= (b - a) * 0.9
 
 
-def frame_segments(video: Path, start: float, end: float, size: dict, turns: list[dict] | None = None) -> list[dict]:
-    """[{at, crop, why}] (real seconds): one box per segment of [start, end) -- cut at every camera change and every
-    change of speaker -- centred on the face of the person speaking (see _decide). Two passes: the first learns each
-    speaker's face from the segments with one face in one speaker's turn; the second boxes every segment. Without
-    turns it is one box per camera shot, on the largest or the only face."""
+def _frame_pass(video: Path, start: float, end: float, size: dict, turns: list[dict], cuts: list[float], recognizer: bool,
+                embed, tmp: str, tag: str):
+    """One look at the span with these speaker turns: (points, evidence for the people count, speakers seen).
+    Every segment's faces are found (and, where several are main faces, matched to the sound), then the first pass
+    learns each speaker's face and the second boxes every segment."""
+    segs = _segments(cuts, turns, start, end)
+    seen = []                                              # per segment: (a, b, speaker, people, W, H)
+    for n, (a, b, speaker) in enumerate(segs):
+        samples: list[list[dict]] = []
+        W = H = 0
+        k = min(SHOT_SAMPLES, max(1, int((b - a) / 0.5)))
+        for i in range(k):
+            got = _shot_grab(video, a + (b - a) * (i + 0.5) / k, tmp, f"{tag}s{n}_{i}")
+            if got:
+                H, W = got[0].shape[:2]
+                samples.append(_shot_faces(got[0]))
+        if not W:
+            continue
+        people = _merge_faces(samples)
+        if len(_main_faces(people)) > 1:
+            _av_scores(video, a, b, people, W, H, tmp, f"{tag}v{n}")
+        seen.append((a, b, speaker, people, W, H))
+
+    # pass 1: a lone face in one speaker's turn is that speaker's face
+    known: dict = {}
+    alone: list = []                                       # (segment, embedding) of every lone face, whoever speaks
+    if recognizer:
+        evidence: dict = {}
+        for n, (a, b, speaker, people, W, H) in enumerate(seen):
+            main = _main_faces(people)
+            for f in main:                                 # identities for the people count: every sizeable face
+                if f["w"] >= PEOPLE_MIN_W * W:
+                    alone.append((n, embed(f)))
+            if len(main) != 1:
+                continue
+            if _alone_in_turn(a, b, speaker, turns):
+                evidence.setdefault(speaker, []).append(embed(main[0]))
+        known = _learn_faces(evidence, _face_similarity)
+
+    # pass 2: the box of every segment
+    points: list[dict] = []
+    prev = None
+    weak: dict = {}
+    for a, b, speaker, people, W, H in seen:
+        new_shot = prev is None or any(abs(a - c) < 0.1 for c in cuts)
+        crop, why = _decide(people, W, H, size, speaker, known, prev, new_shot, embed if recognizer else None,
+                            _face_similarity, weak)
+        prev = crop
+        if points and _same_box(points[-1]["crop"], crop):
+            continue
+        point = {"at": round(a, 3), "crop": crop, "why": why}
+        scored = sorted((p["av"] for p in people if p.get("av") is not None), reverse=True)[:2]
+        if scored:
+            point["av"] = [round(s, 2) for s in scored]
+        if any(p.get("conflict") for p in people):
+            point["conflict"] = True
+        points.append(point)
+    return points, alone, len({t["speaker"] for t in turns})
+
+
+def frame_segments(video: Path, start: float, end: float, size: dict, turns: list[dict] | None = None,
+                   rediarize=None) -> tuple[list[dict], dict]:
+    """([{at, crop, why}], info) (real seconds): one box per segment of [start, end) -- cut at every camera change
+    and every change of speaker -- centred on the face of the person speaking (see _decide). Two passes: the first
+    learns each speaker's face from the segments with one face in one speaker's turn; the second boxes every
+    segment, matching movement with the sound where several faces are in view. When more different faces were
+    seen alone on screen than the diarization found speakers, `rediarize(n)` (if given) splits the speech again
+    into n speakers and the span is looked at once more. Without turns it is one box per camera shot.
+    info: {people, speakers, resplit}."""
     from .scenecut import detect_cuts
 
     turns = turns or []
     # a lower threshold than the podcast one (0.6): fast TV editing has cuts that one misses
     cuts = detect_cuts(video, start, end, SHOT_CUT_THRESHOLD)
-    segs = _segments(cuts, turns, start, end)
     recognizer = True
     try:
         _load_face_recognizer()
-    except Exception:                                      # noqa: BLE001  no SFace: mouth motion and size only
+    except Exception:                                      # noqa: BLE001  no SFace: movement and size only
         recognizer = False
 
     def embed(p):
@@ -1029,43 +1217,17 @@ def frame_segments(video: Path, start: float, end: float, size: dict, turns: lis
             p["emb"] = _face_embedding(p["region"], p)
         return p["emb"]
 
-    seen = []                                              # per segment: (a, b, speaker, people, W, H)
+    info = {"people": 0, "speakers": len({t["speaker"] for t in turns}), "resplit": False}
     with tempfile.TemporaryDirectory(prefix="klipian-segments-") as tmp:
-        for n, (a, b, speaker) in enumerate(segs):
-            samples: list[list[dict]] = []
-            W = H = 0
-            k = min(SHOT_SAMPLES, max(1, int((b - a) / 0.5)))
-            for i in range(k):
-                got = _shot_grab(video, a + (b - a) * (i + 0.5) / k, tmp, f"s{n}_{i}")
-                if got:
-                    H, W = got[0].shape[:2]
-                    samples.append(_shot_faces(got[0]))
-            if not W:
-                continue
-            people = _merge_faces(samples)
-            if len(people) > 1:
-                _shot_talk(video, a, b, people, tmp, f"s{n}", cuts)
-            seen.append((a, b, speaker, people, W, H))
-
-        # pass 1: a lone face in one speaker's turn is that speaker's face
-        known: dict = {}
-        if recognizer:
-            evidence: dict = {}
-            for a, b, speaker, people, W, H in seen:
-                if len(_main_faces(people)) == 1 and _alone_in_turn(a, b, speaker, turns):
-                    evidence.setdefault(speaker, []).append(embed(_main_faces(people)[0]))
-            known = _learn_faces(evidence, _face_similarity)
-
-        # pass 2: the box of every segment
-        points: list[dict] = []
-        prev = None
-        weak: dict = {}
-        for a, b, speaker, people, W, H in seen:
-            new_shot = prev is None or any(abs(a - c) < 0.1 for c in cuts)
-            crop, why = _decide(people, W, H, size, speaker, known, prev, new_shot, embed if recognizer else None,
-                                _face_similarity, weak)
-            prev = crop
-            if points and _same_box(points[-1]["crop"], crop):
-                continue
-            points.append({"at": round(a, 3), "crop": crop, "why": why})
-    return points
+        points, alone, speakers = _frame_pass(video, start, end, size, turns, cuts, recognizer, embed, tmp, "a")
+        n = _count_people(alone, _face_similarity) if recognizer else 0
+        info["people"] = n
+        if rediarize and turns and n > speakers:
+            try:
+                new_turns = rediarize(n)
+            except Exception:                              # noqa: BLE001  keep what there is
+                new_turns = None
+            if new_turns:
+                points, alone, speakers = _frame_pass(video, start, end, size, new_turns, cuts, recognizer, embed, tmp, "b")
+                info.update(resplit=True, speakers=speakers)
+    return points, info

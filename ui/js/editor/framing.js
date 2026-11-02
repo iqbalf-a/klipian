@@ -1316,8 +1316,9 @@ function aiFramingOutputSize() {
 async function aiFramingFrameSpans(spans, spanTurns, owner) {
   const size = aiFramingOutputSize();
   const points = [];
-  aiFramingStatus("AI Framing: framing each shot …");
-  aiFramingOverlayProgress("apply", 0, spans.length, "Framing each shot…");
+  aiFramingStatus("AI Framing: matching movement to speech … (a minute or so per clip)");
+  aiFramingOverlayProgress("apply", 0, spans.length, "Matching movement to speech…");
+  let resplit = "";
   try {
     for (let i = 0; i < spans.length; i++) {
       const rr = realRange(spans[i].start, spans[i].end);
@@ -1329,6 +1330,7 @@ async function aiFramingFrameSpans(spans, spanTurns, owner) {
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.points) throw new Error(d.error || `HTTP ${r.status}`);
       for (const pt of d.points) points.push({ at: pt.at + rr.offset, crop: pt.crop, why: pt.why });
+      if (d.info?.resplit) resplit = `found ${d.info.people} people on camera; speech re-split into ${d.info.speakers} speakers. `;
       aiFramingOverlayProgress("apply", i + 1, spans.length);
     }
   } catch (err) {
@@ -1363,10 +1365,10 @@ async function aiFramingFrameSpans(spans, spanTurns, owner) {
   renderFraming();
   if (typeof saveProject === "function") saveProject();
   const count = (w) => points.filter((p) => p.why === w).length;
-  const parts = [[count("speaker-face"), "on the speaker's face"], [count("speaker-mouth"), "by mouth movement"],
+  const parts = [[count("av-sync"), "by movement matching speech"], [count("speaker-face"), "on the speaker's face"],
     [count("single"), "on the only face"], [count("largest"), "on the largest face"], [count("kept"), "kept"],
     [count("center"), "centred"]].filter(([n]) => n).map(([n, t]) => `${n} ${t}`);
-  aiFramingStatus(`AI Framing: ${points.length} framing point${points.length === 1 ? "" : "s"} (${parts.join(", ")}). `
+  aiFramingStatus(`AI Framing: ${resplit}${points.length} framing point${points.length === 1 ? "" : "s"} (${parts.join(", ")}). `
     + "Review and adjust if needed.");
   aiFramingOverlayDone();
 }

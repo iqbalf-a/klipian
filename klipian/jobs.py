@@ -1228,6 +1228,17 @@ def _run_diarize(job_id: str, req: dict) -> None:
         CANCELLED.discard(job_id)
 
 
+def rediarize(video: Path, start: float, end: float, min_speakers: int) -> list[dict]:
+    """The speaker turns of a span with at least `min_speakers` voices (cached apart from the plain ones)."""
+    path = Cache(CACHE_DIR).diarize_path(video, start, end, min_speakers)
+    if path.exists():
+        return json.loads(path.read_text(encoding="utf-8"))
+    from .diarize import diarize_segment
+    turns = diarize_segment(video, start, end, min_speakers=min_speakers)
+    path.write_text(json.dumps(turns), encoding="utf-8")
+    return turns
+
+
 def _diarize_body(job_id: str, req: dict) -> None:
     """AI Framing: who speaks at what second, within ONE clip. Deliberately
     limited to the clip range (not the whole video) -- diarization is

@@ -2386,10 +2386,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"error": "invalid range"}, 400)
         try:
             from . import facebox
-            points = facebox.frame_segments(video, start, end, req.get("size") or {}, turns)
+            from .jobs import rediarize
+            points, info = facebox.frame_segments(video, start, end, req.get("size") or {}, turns,
+                                                  lambda n: rediarize(video, start, end, n))
         except Exception as exc:               # noqa: BLE001
             return self._send_json({"error": str(exc)}, 500)
-        return self._send_json({"points": points})
+        return self._send_json({"points": points, "info": info})
 
     POST_ROUTES = {
         "/api/aiframe": _post_aiframe,
