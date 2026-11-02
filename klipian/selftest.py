@@ -5020,6 +5020,43 @@ def check_shotframe() -> tuple[str, str]:
     if len(people) != 1 or abs(people[0]["cx"] - 500) > 8:
         problems.append(f"_merge_faces: one steady face and one seen once should leave one person, got {people}")
 
+    # the decision per segment (AI Framing): group, mouth, remembered face, largest, kept, empty chair
+    mem: dict = {}
+    emb = {id(wide[0]): [1.0, 0.0], id(wide[1]): [0.0, 1.0]}
+    embed = lambda p: emb[id(p)]
+    sim = lambda a, b: a[0] * b[0] + a[1] * b[1]
+    first = {"center": 0}
+    c, why = fb._decide(pair, W, H, size, "A", mem, None, embed, sim)
+    if why != "group" or abs(centre(c) - 900) > 3:
+        problems.append(f"_decide: faces that fit should be one group, got {why}")
+    talk = [{**wide[0], "talk": 9.0}, {**wide[1], "talk": 1.5}]
+    emb.update({id(talk[0]): [1.0, 0.0], id(talk[1]): [0.0, 1.0]})
+    c, why = fb._decide(talk, W, H, size, "A", mem, None, embed, sim)
+    if why != "speaker-mouth" or mem.get("A") != [1.0, 0.0]:
+        problems.append(f"_decide: a clear mouth winner should be chosen and remembered, got {why} {mem}")
+    quiet = [{**wide[0]}, {**wide[1]}]
+    emb.update({id(quiet[0]): [1.0, 0.0], id(quiet[1]): [0.0, 1.0]})
+    c, why = fb._decide(quiet, W, H, size, "A", mem, None, embed, sim)
+    if why != "speaker-face" or centre(c) > 600:
+        problems.append(f"_decide: no mouth winner should fall to the face remembered for the speaker, got {why}")
+    c, why = fb._decide(quiet, W, H, size, "B", mem, None, embed, sim)
+    if why != "largest":
+        problems.append(f"_decide: an unknown speaker should fall to the largest face, got {why}")
+    prev = box([{"cx": 300, "cy": 400, "w": 100}])
+    c, why = fb._decide([], W, H, size, "A", mem, prev, embed, sim)
+    if why != "kept" or c != prev:
+        problems.append("_decide: no faces should keep the previous box")
+    if fb._decide([], W, H, size, "A", mem, None, embed, sim)[1] != "center":
+        problems.append("_decide: no faces and no previous box is the centre")
+    if not fb._has_whole_face(box(pair), pair, W) or fb._has_whole_face({"left": 80, "width": 10}, pair, W):
+        problems.append("_has_whole_face: the box must hold a whole face")
+    segs = fb._segments([20.0], [{"start": 0, "end": 21.5, "speaker": "A"}, {"start": 21.5, "end": 40, "speaker": "B"}], 0, 40)
+    if [(a, b, s) for a, b, s in segs] != [(0, 20.0, "A"), (20.0, 40, "B")]:
+        problems.append(f"_segments: a turn starting within 2 s after a cut starts at the cut, got {segs}")
+    segs = fb._segments([], [{"start": 0, "end": 10, "speaker": "A"}, {"start": 10, "end": 30, "speaker": "B"}], 0, 30)
+    if [(a, b, s) for a, b, s in segs] != [(0, 10, "A"), (10, 30, "B")]:
+        problems.append(f"_segments: a change of speaker is a boundary, got {segs}")
+
     import inspect
     if inspect.signature(fb._detect_faces).parameters["min_frac"].default != 0.15:
         problems.append("_detect_faces must keep its 0.15 default")

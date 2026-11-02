@@ -664,11 +664,6 @@ $("#framingOutsideRemove")?.addEventListener("click", async () => {
    split; in single format it is hidden via data-format on the canvas. */
 function drawBox(format, crops) {
   canvasFormat = format === "split" ? "split" : "single";
-  const shotBtn = $("#shotFramingBtn");
-  if (shotBtn) {
-    shotBtn.disabled = canvasFormat === "split";
-    shotBtn.title = canvasFormat === "split" ? "Shot framing frames one box; switch the frame to Single first" : SHOT_FRAMING_TITLE;
-  }
   const canvas = document.querySelector(".canvas");
   if (canvas) canvas.dataset.format = canvasFormat;
   // Preview is told too: the bottom slot only exists in split.
@@ -1083,7 +1078,7 @@ $("#framingList")?.addEventListener("click", (e) => {
    -- diarization doesn't see that at all, it only hears audio. A SEPARATE
    signal handles that: klipian/scenecut.py detects hard visual cuts via
    ffmpeg's built-in scene filter, used to split one speaker turn into
-   several tracking points (see aiFramingApply) so each real cut gets its
+   several tracking points (see aiFramingFrameSpans) so each real cut gets its
    own framing point, instead of just the point at the start of the turn
    gradually drifting off as the shot changes. */
 
@@ -1118,7 +1113,7 @@ function aiFramingBtnText(text) {
    number could jump BACKWARD exactly when that total changes. With fixed
    weights, each stage only fills its own share, so the bar always moves
    forward. */
-const AI_FRAMING_WEIGHT = { diarize: 40, scenecut: 10, locate: 30, apply: 20 };
+const AI_FRAMING_WEIGHT = { diarize: 60, scenecut: 0, locate: 0, apply: 40 };
 const AI_FRAMING_OFFSET = {
   diarize: 0,
   scenecut: AI_FRAMING_WEIGHT.diarize,
@@ -1150,7 +1145,7 @@ async function aiFramingForResult(id) {
   aiFramingStart();
   await finished;
   const text = $("#aiFramingStatusText")?.textContent || "";
-  const failed = /^AI Framing failed|couldn't confidently|another Result|no speech detected/i.test(text);
+  const failed = /^AI Framing failed|no frames could be read|another Result/i.test(text);
   return { ok: !failed, setup: /requirements-ai-framing|setup problem/i.test(text), note: text.replace(/^AI Framing:?\s*/i, "").slice(0, 80) };
 }
 
@@ -1213,22 +1208,6 @@ function aiFramingPollPromise(id, onTick) {
   });
 }
 
-/* Hard visual cuts within one span -- an ADDITIONAL signal, not required.
-   Fails silently (old ffmpeg build without the scene filter, or whatever
-   else) by returning an empty array instead of throwing -- AI Framing that
-   already succeeded from diarization must not fail just because this
-   extra piece stumbled. */
-function aiFramingScenecutOneSpan(span) {
-  const rr = realRange(span.start, span.end);
-  return fetch("/api/scenecut", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ video: rr.video, start: rr.start, end: rr.end }),
-  })
-    .then((r) => r.json())
-    .then((d) => (d.cuts || []).map((c) => c + rr.offset))
-    .catch(() => []);
-}
-
 /* AI Framing takes tens of seconds, and the person can switch to another Result
    (or open another project) meanwhile. What it finds belongs to the Result it
    was started on: when it finishes anywhere else, it is dropped -- applying it to
@@ -1265,21 +1244,11 @@ async function aiFramingStart() {
   if (btn) { btn.disabled = true; aiFramingBtnText("Analyzing …"); }
   aiFramingOverlayStart();
 
-  // Scenecut has no dependency on diarize's output (only needs span
-  // start/end) and isn't behind the diarize pipeline's lock on the server
-  // -- fired here, running alongside the diarize loop below, instead of
-  // waiting for that loop to finish first like it used to. A per-span
-  // failure silently becomes an empty array (see aiFramingScenecutOneSpan),
-  // so this promise itself never rejects -- diarize's error handling below
-  // doesn't need to account for it.
-  const scenecutPromise = Promise.all(spans.map((s) => aiFramingScenecutOneSpan(s)))
-    .then((perSpan) => perSpan.flat());
-
   // Sequential, NOT parallel: all spans share the same single diarization
   // model on the server (one instance loaded once, reused so it doesn't
   // wait ten-plus seconds reloading every time) -- two simultaneous
   // requests to the same model risk contention/garbled results.
-  const allTurns = [];
+  const spanTurns = [];
   try {
     for (let i = 0; i < spans.length; i++) {
       aiFramingStatus(spans.length > 1
@@ -1302,27 +1271,17 @@ async function aiFramingStart() {
         // the plain `i`/`i + 1` writes around this call.
         aiFramingOverlayProgress("diarize", i + pct / 100, spans.length);
       });
-      allTurns.push(...turns);
+      spanTurns.push(turns);
       aiFramingOverlayProgress("diarize", i + 1, spans.length);
     }
   } catch (err) {
-    aiFramingFailed(err.message);
-    return;
+    // no diarization (the optional packages, no HF token, no speech): still frame shot by shot
+    if (aiFramingStale(owner)) { aiFramingAbandon(); return; }
+    spanTurns.length = 0;
+    aiFramingStatus(`AI Framing: could not tell who is talking (${err.message}); framing shot by shot.`);
   }
   if (aiFramingStale(owner)) { aiFramingAbandon(); return; }
-
-  // scenecutPromise has been running since before the diarize loop above
-  // started (see the comment there) -- usually already resolved by now,
-  // so this rarely actually waits.
-  aiFramingStatus(spans.length > 1
-    ? "AI Framing: checking for shot changes …"
-    : "AI Framing: checking for shot changes … (usually a few seconds)");
-  aiFramingOverlayProgress("scenecut", 0, 1, "Checking for shot changes…");
-  const allCuts = await scenecutPromise;
-  aiFramingOverlayProgress("scenecut", 1, 1);
-
-  if (aiFramingStale(owner)) { aiFramingAbandon(); return; }
-  aiFramingFindAllPositions(allTurns, allCuts, owner);
+  await aiFramingFrameSpans(spans, spanTurns, owner);
 }
 
 function aiFramingFailed(message) {
@@ -1348,339 +1307,49 @@ function aiFramingOutputSize() {
   return fits ? { width: w.width, height: w.height } : { width: initialCrop().width, height: initialCrop().height };
 }
 
-/* Automatically finds the position of ONE speaker from their first
-   turn -- see locate_speaker() in klipian/facebox.py. Fails (no face
-   passes the clear mouth-motion requirement) -> null; that speaker is
-   skipped just like the old manual "Skip this speaker", instead of
-   dropping AI Framing entirely. */
-function aiFramingFindSpeaker(turn, size) {
-  return fetch("/api/speakerlocate", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: (() => { const rr = realRange(turn.start, turn.end);
-      return JSON.stringify({ video: rr.video, start: rr.start, end: rr.end, size }); })(),
-  })
-    .then(async (r) => {
-      const d = await r.json().catch(() => ({}));
-      if (d.crop) return { crop: d.crop };
-      // 404 "no speaker detected" means the ALGORITHM was unsure -- expected,
-      // and correctly handled by skipping that speaker. Anything else is a
-      // real fault: a missing assets/models/*.onnx, opencv not installed
-      // (requirements-ai-framing.txt is a separate optional install, so this
-      // is the LIKELY case, not an edge case), or ffmpeg failing. All of
-      // those used to be collapsed into null and reported as "no clear
-      // mouth-motion winner — try again", which is a specific, wrong
-      // diagnosis with no path to the actual cause.
-      return { error: d.error || `server replied ${r.status}`, hard: r.status !== 404 };
-    })
-    .catch((err) => ({ error: err?.message || "no connection to klipian serve", hard: true }));
-}
-
-async function aiFramingFindAllPositions(turns, cuts, owner = activeResultId) {
-  const btn = $("#aiFramingBtn");
-
-  if (!turns.length) {
-    if (btn) { btn.disabled = false; aiFramingBtnText("AI Framing"); }
-    aiFramingStatus("AI Framing: no speech detected in this clip.");
-    aiFramingOverlayDone();
-    return;
-  }
-
-  // Each speaker's FIRST turn -- their position only needs to be found
-  // once per person, not for every turn they speak.
-  const firstTurn = new Map();
-  for (const t of turns) if (!firstTurn.has(t.speaker)) firstTurn.set(t.speaker, t);
-  const speakerList = [...firstTurn.entries()].sort((a, b) => a[1].start - b[1].start);
-
-  const size = aiFramingOutputSize();
-  aiFramingStatus(speakerList.length > 1
-    ? `AI Framing: locating ${speakerList.length} speakers …`
-    : "AI Framing: locating the speaker …");
-  aiFramingOverlayProgress("locate", 0, speakerList.length,
-    speakerList.length > 1 ? `Locating ${speakerList.length} speakers…` : "Locating the speaker…");
-
-  // Parallel -- each search is independent (different video ranges), and
-  // waiting one by one for many speakers could take needlessly long.
-  // Progress still follows each search as it FINISHES (not only after
-  // everything is done at once) -- each .then() here just rides along
-  // the actual search, it does NOT change the result or Promise.all's order.
-  let locateDone = 0;
-  const results = await Promise.all(
-    speakerList.map(([, turn]) => aiFramingFindSpeaker(turn, size).then((r) => {
-      locateDone++;
-      aiFramingOverlayProgress("locate", locateDone, speakerList.length);
-      return r;
-    })));
-
-  if (aiFramingStale(owner)) { aiFramingAbandon(); return; }
-  const positions = {};
-  const faults = [];
-  speakerList.forEach(([speaker], i) => {
-    const r = results[i];
-    if (r?.crop) positions[speaker] = r.crop;
-    else if (r?.hard) faults.push(r.error);
-  });
-
-  if (btn) { btn.disabled = false; aiFramingBtnText("AI Framing"); }
-
-  if (!Object.keys(positions).length) {
-    if (faults.length) {
-      // Report what actually went wrong, not a guess about the algorithm.
-      // The dependency hint is added on the errors that look like a missing
-      // import or file, since AI Framing's requirements install separately.
-      const first = faults[0];
-      const looksLikeSetup = /module|import|no such file|onnx|cv2|opencv|torch/i.test(first);
-      aiFramingStatus(`AI Framing failed: ${first}`
-        + (looksLikeSetup
-            ? " — this looks like a setup problem, not a detection one: "
-              + "run `pip install -r requirements-ai-framing.txt`."
-            : ""));
-    } else {
-      aiFramingStatus("AI Framing: couldn't confidently locate any speaker's face "
-        + "(no clear mouth-motion winner) — try again, or set the frame manually.");
-    }
-    aiFramingOverlayDone();
-    return;
-  }
-  // Some speakers located, some genuinely broken -- say so rather than
-  // silently framing a subset and calling it a success.
-  if (faults.length) {
-    aiFramingStatus(`AI Framing: ${faults.length} speaker`
-      + `${faults.length === 1 ? "" : "s"} could not be located (${faults[0]}) — `
-      + "continuing with the rest.");
-  }
-
-  aiFramingApply(turns, positions, cuts, owner);
-}
-
-/* The box tested here is ROUGH, just a person's general position (marked
-   manually once at the reference Split point) -- being slightly off from
-   the actual face is expected. Without correction, the points AI Framing
-   produces would just copy that rough coordinate verbatim across the
-   ENTIRE segment, and if the initial placement is a bit off, the result
-   can end up highlighting an empty chair -- exactly the complaint this is
-   meant to fix. So the [start, end) segment already split by
-   aiFramingApply (per speaker turn, or smaller still if there's a visual
-   cut inside it) is tracked via real face detection (klipian/facebox.py)
-   to FIND the correct position -- track_crops() deliberately returns ONE
-   point per call (the median position across many samples), not splitting
-   further on its own based on face movement: the reason for a NEW point
-   is already decided here (turn/cut), not by a sitting person's normal
-   movement. Fails/video not ready yet -> falls back to a single rough-box
-   point.
-
-   Returns { points, fallback }: `fallback` is true when the rough box was
-   used because tracking did NOT run, so the caller can say so instead of
-   reporting "tracking each speaker's face" for a run where every single
-   tracking call failed. */
-async function aiFramingTrackFace(start, end, rough) {
-  const rescue = { points: [{ at: start, crop: rough }], fallback: true };
-  try {
-    const rr = realRange(start, end);
-    const r = await fetch("/api/facetrack", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ video: rr.video, start: rr.start, end: rr.end, crop: rough }),
-    });
-    const d = await r.json().catch(() => ({}));
-    if (d.points && d.points.length) {
-      return { points: d.points.map((pt) => ({ ...pt, at: pt.at + rr.offset })), fallback: false };
-    }
-    return rescue;
-  } catch {
-    return rescue;
-  }
-}
-
-async function aiFramingApply(turns, positions, cuts, owner = activeResultId) {
-  const cutList = (cuts || []).slice().sort((a, b) => a - b);
-
-  // Plan the list first, then run face tracking IN PARALLEL for all
-  // turns -- if sequential, a clip with many speaker turns (e.g. 15
-  // points) could take ten-plus seconds just waiting one by one.
-  // The source video often changes shot BEFORE diarization is confident a
-  // new speaker turn has officially started (the new person is visible
-  // briefly before actually speaking) -- t.start coming from audio ends up
-  // LATE compared to the video's own cut. Without this correction, the
-  // rendered result appears to change frame TWICE: once from the actual
-  // video cut, once more (late) when our framing finally catches up at
-  // t.start (a real report from ian). 2 seconds was chosen as the
-  // tolerance window -- enough for normal audio/visual offset, not so
-  // much that it bleeds into an unrelated PREVIOUS turn.
-  const START_TOLERANCE = 2;
-
-  // Turns that actually need a point (known speaker & new compared to the
-  // previous turn) -- collected BEFORE the cut logic so "previous turn"
-  // below always means a turn that was ACTUALLY USED, not a raw turn that
-  // may have been skipped.
-  const selectedTurns = [];
-  let previousSpeaker = null;
-  for (const t of turns) {
-    const rough = positions[t.speaker];
-    if (!rough) continue;                          // a skipped speaker
-    if (t.speaker === previousSpeaker) continue; // same speaker, no new point needed
-    previousSpeaker = t.speaker;
-    selectedTurns.push({ turn: t, rough });
-  }
-
-  // Stage 1 -- CLAIM: each turn may take ONE cut within the tolerance
-  // window before its t.start as its real start. Processed first, separate
-  // from the PREVIOUS-turn splitting stage below -- so a cut that actually
-  // marks a change of PERSON doesn't get "eaten" as a splitter in the
-  // MIDDLE of the old person's turn (a rough/wrong box if that happens).
-  const claimedCuts = new Set();
-  const turnStarts = selectedTurns.map(({ turn: t }) => {
-    const candidate = cutList.find((c) => !claimedCuts.has(c)
-      && c >= t.start - START_TOLERANCE && c <= t.start);
-    if (candidate !== undefined) claimedCuts.add(candidate);
-    return candidate !== undefined ? candidate : t.start;
-  });
-
-  // Stage 2 -- SPLIT: the source video itself can change shot IN THE
-  // MIDDLE of one speaker turn (zoom out to a close-up, cut to another
-  // person's reaction) even though the mic is still the same person --
-  // diarization doesn't see that at all. A cut that falls within this
-  // turn's range (and hasn't ALREADY been claimed by the next turn in
-  // stage 1) splits it into several tracking points, so each real cut gets
-  // its own framing point, instead of just the point at the start of the
-  // turn gradually drifting off as the shot changes. This turn's end is
-  // clamped to the NEXT turn's actual start (if earlier than its own
-  // t.end) -- without this, a next turn that "steals back" time via a
-  // Stage 1 claim would overlap with this turn's tail.
-  const plan = [];
-  let cutsUsed = 0;
-  selectedTurns.forEach(({ turn: t, rough }, i) => {
-    const actualStart = turnStarts[i];
-    const actualEnd = (i + 1 < turnStarts.length)
-      ? Math.min(t.end, turnStarts[i + 1]) : t.end;
-    const cutsInTurn = cutList.filter((c) => !claimedCuts.has(c)
-      && c > actualStart && c < actualEnd);
-    let cursor = actualStart;
-    for (const boundary of [...cutsInTurn, actualEnd]) {
-      plan.push({ at: cursor, end: boundary, rough });
-      cursor = boundary;
-    }
-    cutsUsed += cutsInTurn.length + (actualStart !== t.start ? 1 : 0);
-  });
-
-  if (!plan.length) {
-    // Not a failure -- there's simply no turn that needs a box switch
-    // (e.g. only one speaker throughout the clip). This used to be
-    // reported as "0 points added", which looked like an error when
-    // that's genuinely correct.
-    aiFramingStatus("AI Framing: no switching needed for this clip.");
-    aiFramingOverlayDone();
-    return;
-  }
-
-  aiFramingStatus(
-    `AI Framing: tracking ${plan.length} segment${plan.length === 1 ? "" : "s"} onto each face …`);
-  aiFramingOverlayProgress("apply", 0, plan.length,
-    `Tracking ${plan.length} segment${plan.length === 1 ? "" : "s"}…`);
-  let applyDone = 0;
-  const resultsPerTurn = await Promise.all(
-    plan.map((r) => aiFramingTrackFace(r.at, r.end, r.rough).then((result) => {
-      applyDone++;
-      aiFramingOverlayProgress("apply", applyDone, plan.length);
-      return result;
-    })));
-
-  if (aiFramingStale(owner)) { aiFramingAbandon(); return; }
-  let added = 0;
-  let replaced = 0;
-  let untracked = 0;
-  for (const turnResult of resultsPerTurn) {
-    if (turnResult.fallback) untracked++;
-    for (const point of turnResult.points) {
-      const crop = { ...point.crop };
-      const existing = FRAMING.find((f) => Math.abs(f.at - point.at) < 0.35);
-      if (existing) {
-        // Same two cleanups the manual Lock path does (see #lockFraming):
-        //   - `tracking` describes a path relative to the box that was just
-        //     replaced, so leaving it would drag the freshly located face
-        //     back to the OLD x position on every keyframe.
-        //   - `auto` marks the untouched placeholder point that setClip()
-        //     is allowed to relocate to the clip start. A point AI Framing
-        //     deliberately aimed at a face must not move on its own.
-        delete existing.tracking;
-        delete existing.auto;
-        existing.format = "single";
-        existing.crops = [crop];
-        replaced++;
-      } else {
-        FRAMING.push({ id: `f${++framingSeq}`, at: point.at, format: "single", crops: [crop] });
-        added++;
-      }
-    }
-  }
-  FRAMING.sort((a, b) => a.at - b.at);
-  renderFraming();
-  if (typeof saveProject === "function") saveProject();
-
-  // Count BOTH new and overwritten points. Counting only `added` reported
-  // "0 framing points added" on a perfectly successful run whose points all
-  // happened to land on existing ones -- which reads as a total failure.
-  const set = added + replaced;
-  const tracked = plan.length - untracked;
-  aiFramingStatus(
-    `AI Framing: ${set} framing point${set === 1 ? "" : "s"} set`
-    + (replaced ? ` (${added} new, ${replaced} updated)` : "")
-    + ` across ${plan.length} segment${plan.length === 1 ? "" : "s"}`
-    // Don't claim face tracking ran when it didn't: on a fallback the point
-    // is just the rough located box copied across the segment.
-    + (untracked === 0
-        ? ", tracking each speaker's face"
-        : tracked === 0
-          ? " — face tracking did not run, so each point uses the rough located box"
-          : `, ${tracked} of them face-tracked (${untracked} fell back to the rough box)`)
-    + (cutsUsed
-        ? ` (${cutsUsed} shot change${cutsUsed === 1 ? "" : "s"} detected mid-turn). `
-        : ". ")
-    + "Review and adjust if needed.");
-  aiFramingOverlayDone();
-}
-
-/* Shot framing: one box per camera shot, on the faces in it (facebox.frame_shots) -- no speech analysis, so it is
-   fast and suits multi-camera TV and 3:4. Writes points of the same shape AI Framing writes. Resolves
-   {ok, setup, note} like aiFramingForResult; the status goes to the same yellow box. */
-const SHOT_FRAMING_TITLE = "One frame per camera shot, on the faces in it. Fast; best for TV shows and 3:4";
-async function shotFramingForResult(id = activeResultId) {
-  if (id !== activeResultId && typeof switchResult === "function") {
-    switchResult(id);
-    await new Promise((r) => setTimeout(r, 300));
-  }
-  const spans = activeClip?.spans;
-  if (!spans?.length) { aiFramingStatus("Select or add a clip to Result first."); return { ok: false, setup: false, note: "no moments" }; }
-  const owner = activeResultId;
-  const btn = $("#shotFramingBtn");
-  if (btn) btn.disabled = true;
+/* The boxes themselves. The server (facebox.frame_segments) cuts each span at every camera change and every change
+   of speaker, finds the faces in each piece and puts the box on the person who should be in the frame: the whole
+   group when it fits, else the one speaking (mouth movement, then the face remembered for that speaker, then the
+   largest). One request per span, one after another -- the face models are shared by every request. `spanTurns[i]`
+   are the speaker turns of span i on the virtual timeline; no turns at all frames shot by shot. Writes the same
+   points the manual Lock does. */
+async function aiFramingFrameSpans(spans, spanTurns, owner) {
   const size = aiFramingOutputSize();
   const points = [];
-  aiFramingStatus("Shot framing: looking at the camera shots …");
+  aiFramingStatus("AI Framing: framing each shot …");
+  aiFramingOverlayProgress("apply", 0, spans.length, "Framing each shot…");
   try {
-    for (const span of spans) {
-      const rr = realRange(span.start, span.end);
-      const r = await fetch("/api/shotframe", {
+    for (let i = 0; i < spans.length; i++) {
+      const rr = realRange(spans[i].start, spans[i].end);
+      const turns = (spanTurns[i] || []).map((t) => ({ ...t, start: t.start - rr.offset, end: t.end - rr.offset }));
+      const r = await fetch("/api/aiframe", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ video: rr.video, start: rr.start, end: rr.end, size }),
+        body: JSON.stringify({ video: rr.video, start: rr.start, end: rr.end, size, turns }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.points) throw new Error(d.error || `HTTP ${r.status}`);
-      for (const pt of d.points) points.push({ at: pt.at + rr.offset, crop: pt.crop });
+      for (const pt of d.points) points.push({ at: pt.at + rr.offset, crop: pt.crop, why: pt.why });
+      aiFramingOverlayProgress("apply", i + 1, spans.length);
     }
   } catch (err) {
-    if (btn) btn.disabled = canvasFormat === "split";
-    const setup = /module|import|no such file|onnx|cv2|opencv/i.test(err.message);
-    aiFramingStatus(`Shot framing failed: ${err.message}`
-      + (setup ? " — this looks like a setup problem: run `pip install -r requirements-ai-framing.txt`." : ""));
-    return { ok: false, setup, note: err.message.slice(0, 80) };
+    const setup = /module|import|no such file|onnx|cv2|opencv|torch/i.test(err.message);
+    aiFramingFailed(err.message + (setup
+      ? " — this looks like a setup problem, not a detection one: run `pip install -r requirements-ai-framing.txt`." : ""));
+    return;
   }
-  if (btn) btn.disabled = canvasFormat === "split";
-  if (aiFramingStale(owner)) {
-    aiFramingStatus("Shot framing was for another Result, which you switched away from while it ran. Run it again here.");
-    return { ok: false, setup: false, note: "switched Result" };
+  if (aiFramingStale(owner)) { aiFramingAbandon(); return; }
+  const btn = $("#aiFramingBtn");
+  if (btn) { btn.disabled = false; aiFramingBtnText("AI Framing"); }
+  if (!points.length) {
+    aiFramingStatus("AI Framing: no frames could be read from this clip.");
+    aiFramingOverlayDone();
+    return;
   }
   for (const point of points) {
     const existing = FRAMING.find((f) => Math.abs(f.at - point.at) < 0.35);
-    if (existing) {                                            // as aiFramingApply: a point aimed at a face is not a placeholder
+    if (existing) {
+      // as the manual Lock: `tracking` belonged to the replaced box, and `auto` marks the untouched placeholder
+      // that setClip() may move; a point aimed at a face must not move on its own
       delete existing.tracking;
       delete existing.auto;
       existing.format = "single";
@@ -1693,11 +1362,14 @@ async function shotFramingForResult(id = activeResultId) {
   ensureStartPoint();
   renderFraming();
   if (typeof saveProject === "function") saveProject();
-  aiFramingStatus(`Shot framing: ${points.length} shot${points.length === 1 ? "" : "s"} framed. Review and adjust if needed.`);
-  return { ok: true, setup: false, note: `${points.length} shots` };
+  const count = (w) => points.filter((p) => p.why === w).length;
+  const parts = [[count("speaker-mouth") + count("speaker-face"), "on the speaker"], [count("group"), "on the group"],
+    [count("largest"), "on the largest face"], [count("kept"), "kept"], [count("center"), "centred"]]
+    .filter(([n]) => n).map(([n, t]) => `${n} ${t}`);
+  aiFramingStatus(`AI Framing: ${points.length} framing point${points.length === 1 ? "" : "s"} (${parts.join(", ")}). `
+    + "Review and adjust if needed.");
+  aiFramingOverlayDone();
 }
-
-$("#shotFramingBtn")?.addEventListener("click", () => shotFramingForResult());
 
 $("#aiFramingBtn")?.addEventListener("click", aiFramingStart);
 

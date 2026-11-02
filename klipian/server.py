@@ -117,7 +117,6 @@ RANGE_ENDPOINTS = {
                            "no speaker detected"),
     "/api/headtrack":     ("facebox", "track_head", "crop", "keyframes",
                            "not enough tracking data"),
-    "/api/shotframe":     ("facebox", "frame_shots", "size", "points", None),
     "/api/scenecut":      ("scenecut", "detect_cuts", None, "cuts", None),
 }
 
@@ -2370,7 +2369,30 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"error": empty_msg}, 404)
         return self._send_json({out_key: result})
 
+    def _post_aiframe(self):
+        """AI Framing's boxes for one span: {video, start, end, size, turns: [{start, end, speaker}]} -> {points:
+        [{at, crop, why}]}. One request at a time per span (the client waits for each), see facebox.frame_segments."""
+        try:
+            req = self._read_json()
+            video = find_video(req.get("video", ""))
+            if not video:
+                return self._send_json({"error": "video not found"}, 404)
+            start, end = float(req.get("start", 0)), float(req.get("end", 0))
+            turns = [{"start": float(t["start"]), "end": float(t["end"]), "speaker": t.get("speaker")}
+                     for t in (req.get("turns") or [])]
+        except Exception as exc:               # noqa: BLE001
+            return self._send_json({"error": str(exc)}, 400)
+        if end <= start:
+            return self._send_json({"error": "invalid range"}, 400)
+        try:
+            from . import facebox
+            points = facebox.frame_segments(video, start, end, req.get("size") or {}, turns)
+        except Exception as exc:               # noqa: BLE001
+            return self._send_json({"error": str(exc)}, 500)
+        return self._send_json({"points": points})
+
     POST_ROUTES = {
+        "/api/aiframe": _post_aiframe,
         "/api/project": _post_project,
         "/api/project/restore": _post_project_restore,
         "/api/motion/create": _post_motion,

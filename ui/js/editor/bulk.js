@@ -442,28 +442,27 @@ $("#bulkOutputBtn")?.addEventListener("click", async () => {
   if (BULK_TICKED.size) { await bulkOutputDialog([...BULK_TICKED]); renderAllResults(); }
 });
 
-/* AI Framing (or Shot framing, mode "shot") for the Results that have no framing of their own, one after another, on the Framing screen. A
+/* AI Framing for the Results that have no framing of their own, one after another, on the Framing screen. A
    setup problem (the optional packages are missing) stops it for the rest, which are rendered with the default
    framing. Returns a sentence for the status line. */
-async function bulkAiFraming(ids, mode = "ai") {
+async function bulkAiFraming(ids) {
   const rows = bulkRows().filter((r) => ids.includes(r.id) && !r.framed);
   if (!rows.length) return "";
   const original = activeResultId;
   toScreen("framing");
-  const name = mode === "shot" ? "Shot framing" : "AI Framing";
   let done = 0, notes = [], setup = false;
   for (const r of rows) {
-    renderStatus(`${name} ${done + 1} of ${rows.length}: ${r.title}…`);
-    const res = await (mode === "shot" ? shotFramingForResult(r.id) : aiFramingForResult(r.id));
+    renderStatus(`AI Framing ${done + 1} of ${rows.length}: ${r.title}…`);
+    const res = await aiFramingForResult(r.id);
     if (res.ok) done++;
     else notes.push(`${r.title}: ${res.note}`);
     if (res.setup) { setup = true; break; }
   }
   if (typeof writeProjectNow === "function") await writeProjectNow();
   if (original !== activeResultId && typeof switchResult === "function") switchResult(original);
-  if (setup) return `${name} is not available here (run \`pip install -r requirements-ai-framing.txt\`): `
+  if (setup) return `AI Framing is not available here (run \`pip install -r requirements-ai-framing.txt\`): `
     + (done ? `it ran on ${done}, the rest were` : "the clips were") + " rendered with the default framing";
-  return `${name} ran on ${done} of ${rows.length}` + (notes.length ? ` (${notes[0]})` : "");
+  return `AI Framing ran on ${done} of ${rows.length}` + (notes.length ? ` (${notes[0]})` : "");
 }
 
 /* The body of the plan dialog: what will be rendered (each clip with its format), what cannot be, the estimate,
@@ -510,32 +509,23 @@ function bulkPlanBody(plan, eligible) {
     }
     box.append(bad);
   }
-  // the framing for clips that have none: shot framing is the default when every clip is 3:4
+  // on by default when every clip is 3:4 (the box has to follow the people there); off otherwise
   const all34 = plan.items.length > 0 && plan.items.every((it) => rows.find((r) => r.id === it.result)?.picture === "3:4");
-  const modes = [["none", "None", "the default framing"],
-    ["shot", "Shot framing", "fast, one frame per shot on the faces in it"],
-    ["ai", "AI Framing (speakers)", "follows who is speaking; slower, best for podcasts"]];
-  box.dataset.framing = eligible && all34 ? "shot" : "none";
-  const fr = document.createElement("div");
-  fr.className = "bulk-plan-ai";
-  const head = Object.assign(document.createElement("div"), { className: "bulk-plan-ai-head", textContent: "Framing for clips without framing" });
-  const choices = Object.assign(document.createElement("span"), { className: "choices" });
-  const sub = Object.assign(document.createElement("span"), { className: "bulk-plan-sub" });
-  const draw = () => {
-    for (const b of choices.children) b.setAttribute("aria-pressed", String(b.dataset.mode === box.dataset.framing));
-    sub.textContent = eligible
-      ? `${eligible} of these clip${eligible === 1 ? " has" : "s have"} no framing yet · ${modes.find((m) => m[0] === box.dataset.framing)[2]}`
-      : "Every clip here already has its framing.";
-  };
-  for (const [v, text] of modes) {
-    const b = Object.assign(document.createElement("button"), { className: "chip", type: "button", textContent: text, disabled: !eligible });
-    b.dataset.mode = v;
-    b.addEventListener("click", () => { box.dataset.framing = v; draw(); });
-    choices.append(b);
-  }
-  fr.append(head, choices, sub);
-  draw();
-  box.append(fr);
+  const label = document.createElement("label");
+  label.className = "bulk-plan-ai";
+  const check = document.createElement("input");
+  check.type = "checkbox";
+  check.id = "bulkPlanAi";
+  check.checked = !!eligible && all34;
+  label.append(check, document.createTextNode(" Run AI Framing first for clips without framing"));
+  const sub = document.createElement("span");
+  sub.className = "bulk-plan-sub";
+  sub.textContent = eligible
+    ? `${eligible} of these clip${eligible === 1 ? " has" : "s have"} no framing yet: AI Framing puts the box on the person speaking, or on the whole group when they fit (slower${all34 ? "; on by default for 3:4" : "; off by default"}).`
+    : "Every clip here already has its framing.";
+  label.append(document.createElement("br"), sub);
+  check.disabled = !eligible;
+  box.append(label);
   return box;
 }
 
@@ -582,9 +572,9 @@ $("#bulkRenderBtn")?.addEventListener("click", async () => {
         continue;
       }
       if (!go) return;
-      const mode = body.dataset.framing;
+      const withAi = !!body.querySelector("#bulkPlanAi")?.checked;
       const okIds = plan.items.map((i) => i.result);
-      const aiNote = mode === "ai" ? await bulkAiFraming(okIds) : mode === "shot" ? await bulkAiFraming(okIds, "shot") : "";
+      const aiNote = withAi ? await bulkAiFraming(okIds) : "";
       await renderSavedResults(okIds, { note: aiNote });
       return;
     }
