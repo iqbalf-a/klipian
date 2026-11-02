@@ -332,7 +332,8 @@ function setPostFieldsOf(id, f) {
   else delete slot.post;
   const a = f.angle;
   if (a && (a.take || a.intro || (a.notes || []).length)) slot.angle = { take: a.take || "", intro: a.intro || "", notes: a.notes || [],
-    ...(a.introSeconds ? { introSeconds: a.introSeconds } : {}), ...(a.noteSeconds ? { noteSeconds: a.noteSeconds } : {}) };
+    ...(a.introSeconds ? { introSeconds: a.introSeconds } : {}), ...(a.noteSeconds ? { noteSeconds: a.noteSeconds } : {}),
+    ...(a.boxStyle ? { boxStyle: a.boxStyle } : {}) };
   else delete slot.angle;
 }
 

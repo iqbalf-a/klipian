@@ -112,7 +112,11 @@ const libraryOf = (kind) => ASSETS.filter((a) => a.kind === kind);
 // LABEL_EM (em per unit of ASS font size) is defined in interactions.js, with
 // pxFromOut: the watermark uses it too.
 const LABEL_LINE = 1410 / 1000;         // line height, in em: exactly N after LABEL_EM
-const LABEL_PAD = 18;                   // LabelBox: padding on every side, in 1080x1920 units
+// A boxed label is one rounded box round the whole text (compose.py: LABEL_BOX_*, the same numbers), in 1080x1920 units.
+const LABEL_BOX_PAD_X = 28, LABEL_BOX_PAD_Y = 16, LABEL_BOX_RADIUS = 24;
+const LABEL_MARGIN = 40;                // the frame's side margin for labels
+const LABEL_MIN_TEXT = 0.4;             // the narrowest text column, as a share of the frame width
+const BOX_BACKGROUND = { dark: "rgba(0,0,0,.7)", light: "rgba(255,255,255,.9)" };
 const LABEL_OUTLINE = 5;                // Label: outline each side, same units
 
 let _overlayKey = "";
@@ -135,31 +139,29 @@ function drawOverlays(out) {
       // size is px in the 1080x1920 frame, scaled to this panel.
       const u = (n) => (typeof pxFromOut === "function" ? pxFromOut(n, h) : n / 4);
       const text = escapeHTML(e.text).replace(/\n/g, "<br>");
-      // A boxed label draws a box behind EACH LINE, as libass does (so a second,
-      // shorter line has a shorter box, and the boxes of two lines overlap by the
-      // padding), and all the boxes go UNDER all the text. So there are two
-      // identical layers stacked in one grid cell: the boxes (an inline span
-      // whose background and padding repeat on every line, invisible text) and
-      // the text above them (app.css .ov-box / .ov-fg). Same width, same
-      // wrapping, so the lines of both fall in the same places.
       const look = e.box ? "" : `-webkit-text-stroke:${u(LABEL_OUTLINE * 2)}px #000;`;
-      // The text layer carries the SAME horizontal padding as the box layer
-      // (invisible there), so both measure the same width and break at the same
-      // places -- at the edge of the wrap width a layer that was a padding
-      // narrower broke a line earlier or later than the other, and the text came
-      // out of its box. The wrap width is the render's (the frame less its 40-unit
-      // margins) for the text itself, so the container allows the padding on top.
-      const pad = u(LABEL_PAD);
-      const inner = e.box
-        ? `<div class="ov-box"><span style="padding:${pad}px">${text}</span></div>`
-          + `<div class="ov-fg" style="padding:0 ${pad}px">${text}</div>`
-        : text;
-      const cap = e.box ? `max-width:calc(92.6% + ${2 * pad}px);` : "";
-      return `<div class="ov-text${e.box ? " box" : ""}" style="${pos};${cap}font-size:${u(e.size * LABEL_EM)}px;`
-        + `line-height:${LABEL_LINE};${look}color:${escapeHTML(e.color)}">${inner}</div>`;
+      let place = pos, cap = "", boxCss = "";
+      if (e.box) {
+        // One box round the text, never outside the frame: the text column is what is left of the nearer side, and a
+        // label too near an edge for the narrowest column is moved inward (the render does the same, compose.py).
+        const W = 1080;
+        const near = (LABEL_MIN_TEXT * W + 2 * (LABEL_MARGIN + LABEL_BOX_PAD_X)) / 2;
+        const x = Math.min(Math.max(W * e.x / 100, near), W - near);
+        place = `left:${x / W * 100}%;top:${e.y}%`;
+        cap = `max-width:${u(2 * Math.min(x, W - x) - 2 * LABEL_MARGIN)}px;box-sizing:border-box;`;
+        boxCss = `padding:${u(LABEL_BOX_PAD_Y)}px ${u(LABEL_BOX_PAD_X)}px;border-radius:${u(LABEL_BOX_RADIUS)}px;`
+          + `background:${BOX_BACKGROUND[e.boxStyle === "light" ? "light" : "dark"]};`;
+      }
+      return `<div class="ov-text${e.box ? " box" : ""}" data-y="${e.y}" style="${place};${cap}${boxCss}font-size:${u(e.size * LABEL_EM)}px;`
+        + `line-height:${LABEL_LINE};${look}color:${escapeHTML(e.color)}">${text}</div>`;
     }
     return `<img class="ov-image" alt="" src="${assetFileUrl(e.file)}" style="${pos};width:${e.size}%">`;
   }).join("");
+  // A box is never cut off at the top or bottom either: its centre is kept half its height inside the frame.
+  layer.querySelectorAll(".ov-text.box").forEach((el) => {
+    const half = el.offsetHeight / 2;
+    el.style.top = `${Math.min(Math.max(Number(el.dataset.y) / 100 * h, half), h - half)}px`;
+  });
 }
 
 /* ---------- preview: sounds ----------
@@ -354,7 +356,9 @@ function renderInspector() {
       <div class="tlx-field"><span>Colour</span><span class="tlx-colors">${TEXT_COLORS.map((c) =>
         `<button type="button" class="tlx-color${c.toUpperCase() === String(e.color).toUpperCase() ? " on" : ""}"
                  data-color="${c}" style="background:${c}" aria-label="Colour ${c}"></button>`).join("")}</span></div>
-      <label class="tlx-check"><input type="checkbox" data-key="box"${e.box ? " checked" : ""}> Dark box behind the text</label>`;
+      <div class="tlx-field"><span>Box</span><span class="choices" role="group" aria-label="Box behind the text">${
+        [["none", "None"], ["light", "Black on white"], ["dark", "White on black"]].map(([v, label]) =>
+          `<button type="button" class="chip" data-box="${v}" aria-pressed="${String((e.box ? (e.boxStyle === "light" ? "light" : "dark") : "none") === v)}">${label}</button>`).join("")}</span></div>`;
   } else {
     const lib = libraryOf(e.kind);
     body = `
@@ -578,7 +582,6 @@ $("#tlxInspector")?.addEventListener("input", (ev) => {
   const e = OVERLAYS.find((x) => x.id === tlxSel.id);
   if (!e) return;
   if (key === "text") e.text = el.value;
-  else if (key === "box") e.box = el.checked;
   else if (key === "file") e.file = el.value;
   else if (key === "volume") e.volume = Number(el.value) / 100;
   else if (key === "start" || key === "end") {
@@ -602,6 +605,18 @@ $("#tlxInspector")?.addEventListener("input", (ev) => {
 const renderTimelineLanesOnly = () => renderLanes();
 
 $("#tlxInspector")?.addEventListener("click", (ev) => {
+  const boxBtn = ev.target.closest("[data-box]");
+  if (boxBtn && tlxSel?.type === "el") {
+    const e = OVERLAYS.find((x) => x.id === tlxSel.id);
+    if (e) {
+      // None, or a box with its matching text colour (angleintro.js BOX_LOOKS)
+      const v = boxBtn.dataset.box;
+      e.box = v !== "none";
+      if (e.box) Object.assign(e, BOX_LOOKS[v]);
+      commitOverlays();
+    }
+    return;
+  }
   const color = ev.target.closest("[data-color]");
   if (color && tlxSel?.type === "el") {
     const e = OVERLAYS.find((x) => x.id === tlxSel.id);

@@ -582,20 +582,23 @@ function mergeOutput(saved, draft, keep) {
 }
 
 /* Write a format into saved Results (the open one included), save, and redraw whatever shows it. */
-function applyOutputToResults(ids, draft, keep, introSec = 0) {
+function applyOutputToResults(ids, draft, keep, intro = null) {
   snapshotActiveResult();
   let introAdded = 0;
   for (const id of ids) {
     const slot = SAVED_RESULTS.find((r) => r.id === id);
     if (!slot) continue;
     slot.output = mergeOutput(slot.output, draft, keep);
-    // `introSec` > 0: this Result's own intro (slot.angle.intro) goes on its video for that long.
-    const intro = String(slot.angle?.intro || "").trim();
+    // `intro` = { seconds, boxStyle }: this Result's own intro (slot.angle.intro) goes on its video for that long, and
+    // its Intro & notes labels take the box style.
+    const text = String(slot.angle?.intro || "").trim();
     const total = (slot.segments || slot.result || []).reduce((t, s) => t + (s.end - s.start), 0);
-    if (introSec > 0 && intro && total > 0) {
+    if (intro && text && total > 0) {
       let seq = Math.max(0, ...(slot.overlays || []).map((o) => parseInt(String(o.id).slice(1), 10) || 0));
-      slot.overlays = withAngleIntro(slot.overlays || [], intro, total, introSec, () => `o${++seq}`);
-      if (introSec === ANGLE_INTRO_SECONDS) delete slot.angle.introSeconds; else slot.angle.introSeconds = introSec;
+      slot.overlays = withAngleBoxStyle(withAngleIntro(slot.overlays || [], text, total, intro.seconds, () => `o${++seq}`, intro.boxStyle),
+        intro.boxStyle);
+      if (intro.seconds === ANGLE_INTRO_SECONDS) delete slot.angle.introSeconds; else slot.angle.introSeconds = intro.seconds;
+      if (intro.boxStyle === ANGLE_BOX_DEFAULT) delete slot.angle.boxStyle; else slot.angle.boxStyle = intro.boxStyle;
       introAdded++;
     }
   }

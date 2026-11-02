@@ -236,8 +236,10 @@ _FONT_FILES = {
     "arial": ("arial.ttf", "arialbd.ttf"),
     "impact": ("impact.ttf", "impact.ttf"),      # Impact ships one weight
     "verdana": ("verdana.ttf", "verdanab.ttf"),
+    "mona sans extrabold": ("MonaSans-ExtraBold.ttf", "MonaSans-ExtraBold.ttf"),   # the Timeline labels' face (compose.py)
 }
 _FONT_DIRS = [
+    FONTS_DIR,
     Path("C:/Windows/Fonts"),
     Path("/usr/share/fonts"), Path("/usr/local/share/fonts"),
     Path.home() / ".fonts", Path("/Library/Fonts"), Path.home() / "Library/Fonts",

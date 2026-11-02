@@ -4932,6 +4932,79 @@ progress=end
 # check: the selftest's own housekeeping (stale scratch folders)
 # --------------------------------------------------------------------------
 
+def check_labelbox() -> tuple[str, str]:
+    """Boxed Timeline labels (compose.build_label_ass): one rounded box round the wrapped text, always inside the
+    frame whatever x and y are, the light and dark styles, the libass fallback without Pillow, and labels without
+    a box written exactly as before."""
+    import re
+    from . import compose, render
+
+    problems = []
+    W, H = compose.REF_W, compose.REF_H
+
+    def label(**kw):
+        base = {"kind": "text", "start": 0, "end": 3, "text": "Satu", "x": 50, "y": 20, "size": 72, "box": True}
+        return compose.clean_elements([{**base, **kw}], 10, Path("."))
+
+    def boxes(ass):
+        """The (x0, y0, x1, y1) of each drawn box: the extremes of every number of its \\p1 path."""
+        out = []
+        for m in re.finditer(r"\\p1\}([^{]+)", ass):
+            n = [int(v) for v in re.findall(r"-?\d+", m.group(1))]
+            xs, ys = n[0::2], n[1::2]
+            out.append((min(xs), min(ys), max(xs), max(ys)))
+        return out
+
+    twelve = " ".join(["kata"] * 12)
+    cases = [("12 words at x=50", dict(text=twelve, x=50)), ("x=10", dict(text=twelve, x=10)),
+             ("x=90", dict(text=twelve, x=90)), ("y=2", dict(text=twelve, y=2)), ("y=98", dict(text=twelve, y=98)),
+             ("one very long word", dict(text="Supercalifragilisticexpialidocious" * 2, x=90, y=90))]
+    for what, kw in cases:
+        try:
+            found = boxes(compose.build_label_ass(label(**kw)))
+        except Exception as exc:                                   # noqa: BLE001
+            problems.append(f"{what}: raised {exc!r}")
+            continue
+        if len(found) != 1 or not all(0 <= x0 and x1 <= W and 0 <= y0 and y1 <= H for x0, y0, x1, y1 in found):
+            problems.append(f"{what}: the box is not one box inside the frame: {found}")
+    if compose.build_label_ass(label(text=twelve, x=50)).count("\\N") < 1:
+        problems.append("12 words at size 72 should wrap onto several lines")
+
+    # the two styles, an old label without one, and a made-up value
+    def box_colour(**kw):
+        m = re.search(r"\\1c&H(\w+)&\\1a&H(\w+)&\\p1", compose.build_label_ass(label(**kw)))
+        return m.groups() if m else None
+    if box_colour(boxStyle="light", color="#111111") != ("FFFFFF", "1A"):
+        problems.append("boxStyle light should draw a white box")
+    if box_colour() != ("000000", "4C") or box_colour(boxStyle="pink") != ("000000", "4C"):
+        problems.append("a label without boxStyle, or with a made-up one, should stay the dark box")
+    if "&H00111111&" not in compose.build_label_ass(label(boxStyle="light", color="#111111")):
+        problems.append("the light box should carry its dark text colour")
+
+    # without Pillow or the font: libass's own box, with margins that keep it inside the frame
+    real = render._measure
+    render._measure = lambda *a, **k: None
+    try:
+        for x in (10, 50, 90):
+            ass = compose.build_label_ass(label(text=twelve, x=x))
+            m = re.search(r"LabelBox,,(\d+),(\d+),0,,\{\\an5\\pos\((\d+),", ass)
+            if not m or int(m.group(1)) + int(m.group(2)) > W - compose.LABEL_MIN_TEXT * W:
+                problems.append(f"fallback at x={x}: margins {m and m.groups()}")
+        if "LabelBoxLight" not in compose.build_label_ass(label(boxStyle="light")):
+            problems.append("the fallback ignored the light style")
+    finally:
+        render._measure = real
+
+    # a label without a box: the same line as before, and none of the new styles
+    plain = compose.build_label_ass(label(box=False, x=30, y=40, color="#FFD600"))
+    want = "Dialogue: 2,0:00:00.00,0:00:03.00,Label,,0,0,0,,{\\an5\\pos(324,768)\\fs72\\c&H0000D6FF&}Satu"
+    if want not in plain or "LabelBack" in plain or "LabelBoxLight" in plain:
+        problems.append(f"a label without a box changed: {plain.splitlines()[-1]}")
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "one rounded box inside the frame at x 10/50/90, y 2/98 and a very long word, light/dark/made-up styles, libass fallback margins, plain labels unchanged"
+
+
 def check_scratch() -> tuple[str, str]:
     """Scratch workspaces of killed runs are swept (older than an hour and not owned by a running process), a live
     run's folder and a fresh one are not, and a hardlink inside one is removed without touching its original."""
@@ -6692,7 +6765,7 @@ def check_briefsteps() -> tuple[str, str]:
     return PASS, (f"the Khusus brief passes the strict checklist (rules first, 8 steps with Run and Expected, fallback, mistakes) at 30/45/60 s with 1 or 3 voice apps; "
                   f"size at 45 s {sizes[0]} characters (cap 40000); the fallback story is saved and the video stays 'belum dibuat'")
 
-CHECKS = {"briefagents": check_briefagents, "briefsteps": check_briefsteps, "migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch,
+CHECKS = {"briefagents": check_briefagents, "briefsteps": check_briefsteps, "migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch, "labelbox": check_labelbox,
           "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voicegoogle": check_voicegoogle, "voicestudio": check_voicestudio, "elevenlabs": check_elevenlabs, "khusus": check_khusus, "briefbuttons": check_briefbuttons, "music": check_music, "voice": check_voice, "decode": check_decode, "render": check_render}
 
 

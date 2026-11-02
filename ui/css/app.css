@@ -409,8 +409,8 @@ h1, h2, h3 {
 /* Timeline labels and stickers (compose.js). Mirrors klipian/compose.py:
    the label is Mona Sans ExtraBold with a 5-unit black outline (at size
    72 that's .07em each side -- a stroke is centred, hence .14em), centred
-   on its point (\an5\pos there, translate -50% -50% here). The box is the
-   LabelBox style: 70% black, 18 units of padding. */
+   on its point (\an5\pos there, translate -50% -50% here). The box is one rounded
+   block, black on white or white on black (boxStyle). */
 .overlay-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .ov-text {
   position: absolute; transform: translate(-50%, -50%);
@@ -424,13 +424,8 @@ h1, h2, h3 {
   width: max-content; max-width: 92.6%; white-space: normal; text-wrap: balance;
   paint-order: stroke fill;
 }
-.ov-text.box { -webkit-text-stroke: 0; display: grid; }
-.ov-text.box > * { grid-area: 1 / 1; min-width: 0; }
-.ov-text .ov-box { color: transparent; }
-.ov-text .ov-box > span {
-  background: rgba(0, 0, 0, .7);
-  -webkit-box-decoration-break: clone; box-decoration-break: clone;
-}
+/* A boxed label is one rounded box: padding, radius, colour and max-width come inline (compose.js drawOverlays). */
+.ov-text.box { -webkit-text-stroke: 0; overflow-wrap: anywhere; }
 .ov-image { position: absolute; transform: translate(-50%, -50%); height: auto; }
 
 /* AI Framing overlay -- covers the entire preview panel while the server

@@ -27,6 +27,12 @@ function angleSeconds(id, fallback) {
   const v = parseFloat($(id)?.value);
   return Number.isFinite(v) ? Math.min(10, Math.max(1, v)) : fallback;
 }
+/* The box style of the labels this panel makes: "light" (black text on white, the default) or "dark". */
+let angleBox = ANGLE_BOX_DEFAULT;
+function setAngleBox(style) {
+  angleBox = style === "dark" ? "dark" : "light";
+  document.querySelectorAll("[data-angle-box]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.angleBox === angleBox)));
+}
 const introSeconds = () => angleSeconds("#angleIntroSec", ANGLE_INTRO_SECONDS);
 const noteSeconds = () => angleSeconds("#angleNoteSec", ANGLE_NOTE_SECONDS);
 
@@ -49,6 +55,7 @@ function currentAngle() {
   // The seconds are written only when they differ from the defaults (old projects have neither).
   if (introSeconds() !== ANGLE_INTRO_SECONDS) angle.introSeconds = introSeconds();
   if (noteSeconds() !== ANGLE_NOTE_SECONDS) angle.noteSeconds = noteSeconds();
+  if (angleBox !== ANGLE_BOX_DEFAULT) angle.boxStyle = angleBox;
   return angle;
 }
 
@@ -71,6 +78,7 @@ function setAngleFields(angle) {
   if ($("#angleIntro")) $("#angleIntro").value = a.intro || "";
   if ($("#angleIntroSec")) $("#angleIntroSec").value = a.introSeconds || ANGLE_INTRO_SECONDS;
   if ($("#angleNoteSec")) $("#angleNoteSec").value = a.noteSeconds || ANGLE_NOTE_SECONDS;
+  setAngleBox(a.boxStyle);
   for (let i = 0; i < ANGLE_NOTE_ROWS; i++) {
     const n = (a.notes || [])[i];
     if ($(`#angleNoteAt${i}`)) $(`#angleNoteAt${i}`).value = n ? n.at : "";
@@ -174,12 +182,12 @@ function addAngleLabel(part) {
   const { text, at } = anglePart(part);
   if (!text) return;
   if (part === "intro") {
-    OVERLAYS = withAngleIntro(OVERLAYS, text, total, introSeconds(), () => `o${++overlaySeq}`);
+    OVERLAYS = withAngleIntro(OVERLAYS, text, total, introSeconds(), () => `o${++overlaySeq}`, angleBox);
   } else {
     const start = Math.max(0, Math.min(at, Math.max(0, total - 0.5)));
     OVERLAYS.push({ id: `o${++overlaySeq}`, kind: "text", ...OVERLAY_DEFAULTS.text, text, box: true,
       start: round2(start), end: round2(Math.min(total, start + noteSeconds())), x: 50, y: 28,
-      size: ANGLE_NOTE_SIZE, origin: originOf(part) });
+      size: ANGLE_NOTE_SIZE, ...BOX_LOOKS[angleBox], origin: originOf(part) });
   }
   commitOverlays();
   angleStatus(part === "intro" ? "Intro is on the video." : `Note ${part + 1} is on the video.`);
@@ -226,6 +234,15 @@ $("#angleRefill")?.addEventListener("click", (e) => {
     if (changed) commitOverlays(); else renderAngleStates();
     if (typeof saveProject === "function") saveProject();
   });
+});
+
+// The box choice: the labels already on the video change look (their text, place and size stay).
+document.querySelector("#angleBoxRow")?.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-angle-box]");
+  if (!b) return;
+  setAngleBox(b.dataset.angleBox);
+  OVERLAYS = withAngleBoxStyle(OVERLAYS, angleBox);
+  commitOverlays();
 });
 
 // The seconds inputs: how long the labels already on the video stay, and the length of the next one added.

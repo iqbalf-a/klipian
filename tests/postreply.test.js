@@ -46,4 +46,7 @@ p = postReplyPlan({ title: "", post: null, angle: { take: "", intro: "lama", not
 eq([p.next.angle.introSeconds, p.next.angle.noteSeconds], [4, 3], "seconds kept after the merge");
 eq("introSeconds" in postReplyPlan({ title: "", post: null, angle: null }, reply).next.angle, false, "no seconds when the Result had none");
 
+p = postReplyPlan({ title: "", post: null, angle: { take: "", intro: "lama", notes: [], boxStyle: "dark" } }, reply);
+eq(p.next.angle.boxStyle, "dark", "box style kept after the merge");
+
 console.log(`postreply: ${n} checks ok`);

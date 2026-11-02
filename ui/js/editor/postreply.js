@@ -42,6 +42,7 @@ function postReplyPlan(current, reply) {
         // how long the intro and notes show: the Result's own setting, a reply never brings it
         ...(cur.angle.introSeconds ? { introSeconds: cur.angle.introSeconds } : {}),
         ...(cur.angle.noteSeconds ? { noteSeconds: cur.angle.noteSeconds } : {}),
+        ...(cur.angle.boxStyle ? { boxStyle: cur.angle.boxStyle } : {}),
       },
     },
   };

@@ -340,9 +340,19 @@ async function bulkOutputDialog(ids) {
     value: slotOf(sampleId)?.angle?.introSeconds || ANGLE_INTRO_SECONDS, disabled: true, className: "ws-input", ariaLabel: "Intro seconds" });
   introSec.style.width = "5em";
   introLabel.append(introCheck, document.createTextNode(" Put each Result's intro (Intro & notes) on the video · "), introSec, document.createTextNode(" s"));
+  // the box style: black text on white, or white on black; starts from the sample Result's own
+  let boxPick = slotOf(sampleId)?.angle?.boxStyle === "dark" ? "dark" : ANGLE_BOX_DEFAULT;
+  const boxRow = Object.assign(document.createElement("span"), { className: "choices" });
+  const boxBtns = [["light", "Black on white"], ["dark", "White on black"]].map(([v, label]) => {
+    const b = Object.assign(document.createElement("button"), { className: "chip", type: "button", textContent: label });
+    b.addEventListener("click", () => { boxPick = v; drawIntro(); });
+    boxRow.append(b);
+    return [v, b];
+  });
   const introHint = Object.assign(document.createElement("span"), { className: "hint" });
   const drawIntro = () => {
     introSec.disabled = !introCheck.checked;
+    for (const [v, b] of boxBtns) { b.setAttribute("aria-pressed", String(v === boxPick)); b.disabled = !introCheck.checked; }
     const mine = String(slotOf(sampleId)?.angle?.intro || "").trim();
     introHint.textContent = withIntro.length
       ? `Uses the intro each Result got from the brief import · ${withIntro.length} of ${ids.length} ticked Results have one`
@@ -350,7 +360,7 @@ async function bulkOutputDialog(ids) {
       : "None of the ticked Results has an intro from the brief";
   };
   introCheck.addEventListener("change", drawIntro);
-  introBox.append(Object.assign(document.createElement("span"), { className: "eyebrow", textContent: "Intro text" }), introLabel, introHint);
+  introBox.append(Object.assign(document.createElement("span"), { className: "eyebrow", textContent: "Intro text" }), introLabel, boxRow, introHint);
   body.append(introBox);
   drawIntro();
   afterDraw = () => { drawStage(); drawIntro(); };
@@ -396,7 +406,7 @@ async function bulkOutputDialog(ids) {
   for (const v of [vTop, vBg]) { v.pause(); v.removeAttribute("src"); v.load(); }       // the sample's own decoders go
   if (!ok) return false;
   const seconds = Math.min(10, Math.max(1, Number(introSec.value) || ANGLE_INTRO_SECONDS));
-  const added = applyOutputToResults(ids, draft, keep, introCheck.checked ? seconds : 0);
+  const added = applyOutputToResults(ids, draft, keep, introCheck.checked ? { seconds, boxStyle: boxPick } : null);
   const note = $("#editNote");
   if (note) note.textContent = `Output format applied to ${ids.length} Result${ids.length === 1 ? "" : "s"}`
     + (keep.size ? ` (kept each one's own ${[...keep].join(", ")})` : "")

@@ -31,6 +31,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from . import render as _render
 from .ffmpeg_tools import _require
 from .render import (FONTS_DIR, REF_H, REF_W, RenderCancelled, _ass_escape,
                      _ass_time, _escape_filter_path, _run_ffmpeg)
@@ -42,6 +43,15 @@ SOUND_EXT = {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac"}
 # libass finds in FONTS_DIR -- one face on both sides, so the preview is
 # the render.
 LABEL_FONT = "Mona Sans ExtraBold"
+
+# A boxed label is ONE rounded box round the whole text block (not a box per line), in 1080x1920 units. The
+# preview uses the same numbers (ui/js/editor/compose.js: LABEL_BOX_*), and neither side lets the box leave the frame.
+LABEL_BOX_PAD_X, LABEL_BOX_PAD_Y, LABEL_BOX_RADIUS = 28, 16, 24
+LABEL_MARGIN = 40                  # the frame's side margin for labels
+LABEL_MIN_TEXT = 0.4               # the narrowest text column, as a share of the frame width
+LABEL_EM = 1000 / 1410             # em per unit of ASS font size (libass counts the whole line: ascent + descent)
+# boxStyle -> the box colour as &HAABBGGRR (the alpha byte is transparency: 4C = 70% black, 1A = 90% white)
+BOX_COLOURS = {"dark": "&H4C000000", "light": "&H1AFFFFFF"}
 
 
 def to_stereo(channels: int) -> str:
@@ -114,7 +124,9 @@ def clean_elements(raw, duration: float, assets_dir: Path) -> list[dict]:
             if not text:
                 continue
             el.update(text=text[:300], size=_num(e.get("size"), 72, 12, 400),
-                      color=str(e.get("color") or "#FFFFFF"), box=bool(e.get("box")))
+                      color=str(e.get("color") or "#FFFFFF"), box=bool(e.get("box")),
+                      # an old boxed label has no boxStyle and stays dark
+                      boxStyle="light" if e.get("boxStyle") == "light" else "dark")
         elif kind in ("image", "sound"):
             name = Path(str(e.get("file") or "")).name
             f = assets_dir / name
@@ -151,9 +163,77 @@ def clean_volumes(raw, duration: float) -> list[dict]:
     return out
 
 
+def _wrap_label(text: str, max_w: float, width_of) -> list[str]:
+    """`text` broken into lines no wider than `max_w`, balanced: the narrowest width that still gives the
+    same number of lines as the greedy fill. Typed line breaks are kept."""
+    def fill(words, limit):
+        lines, cur = [], ""
+        for w in words:
+            trial = f"{cur} {w}" if cur else w
+            if cur and width_of(trial) > limit:
+                lines.append(cur)
+                cur = w
+            else:
+                cur = trial
+        return lines + [cur]
+    out = []
+    for para in text.replace("\r\n", "\n").split("\n"):
+        words = para.split()
+        if not words:
+            out.append("")
+            continue
+        count = len(fill(words, max_w))
+        lo, hi = max(width_of(w) for w in words), max_w
+        while hi - lo > 2:
+            mid = (lo + hi) / 2
+            if len(fill(words, mid)) == count:
+                hi = mid
+            else:
+                lo = mid
+        out.extend(fill(words, hi))
+    return out
+
+
+def _label_box_layout(t: dict):
+    """Where a boxed label goes so that it stays inside the frame: (x, y, size, lines, box width, box height), or
+    None when the text cannot be measured (no Pillow or font: build_label_ass then uses libass's own box)."""
+    W, H = REF_W, REF_H
+    # The text column at this x is what is left of the nearer side, less the frame margin and the padding; a label
+    # too near an edge for even the narrowest column is moved inward.
+    room = 2 * LABEL_MARGIN + 2 * LABEL_BOX_PAD_X
+    near = (LABEL_MIN_TEXT * W + room) / 2
+    x = min(max(W * t["x"] / 100, near), W - near)
+    max_w = 2 * min(x, W - x) - room
+    size = float(t["size"])
+    meas = _render._measure(LABEL_FONT, size * LABEL_EM)
+    if meas is None:
+        return None
+    # The longest word has to fit: otherwise the type is made smaller.
+    widest = max((meas[0](w) for w in t["text"].split()), default=0)
+    if widest > max_w:
+        size = size * max_w / widest
+        meas = _render._measure(LABEL_FONT, size * LABEL_EM)
+        if meas is None:
+            return None
+    lines = _wrap_label(t["text"], max_w, meas[0])
+    box_w = max(meas[0](line) for line in lines) + 2 * LABEL_BOX_PAD_X
+    box_h = len(lines) * size + 2 * LABEL_BOX_PAD_Y
+    y = min(max(H * t["y"] / 100, box_h / 2), H - box_h / 2)
+    return x, y, size, lines, box_w, box_h
+
+
 def build_label_ass(texts: list[dict]) -> str:
     """Labels as one ASS file. \\an5\\pos puts each label's CENTRE on its
-    point, the same anchor the preview uses (translate -50% -50%)."""
+    point, the same anchor the preview uses (translate -50% -50%).
+
+    A boxed label is drawn by us: one rounded box (\\p1, layer 1) under the text (layer 2), which we wrap
+    ourselves so the box is exactly as big as the text. Without Pillow or the font it falls back to libass's
+    BorderStyle 3 box, with margins worked out from x so it still stays inside the frame."""
+    extra = ""
+    if any(t["box"] for t in texts):
+        extra = (f"Style: LabelBoxLight,{LABEL_FONT},72,&H00FFFFFF,{BOX_COLOURS['light']},&H00000000,0,3,18,0,5,40,40,0,1\n"
+                 f"Style: LabelText,{LABEL_FONT},72,&H00FFFFFF,&H00000000,&H00000000,0,1,0,0,5,0,0,0,1\n"
+                 "Style: LabelBack,Arial,20,&H00FFFFFF,&H00000000,&H00000000,0,1,0,0,7,0,0,0,1\n")
     header = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: {REF_W}
@@ -165,7 +245,7 @@ ScaledBorderAndShadow: yes
 Format: Name, Fontname, Fontsize, PrimaryColour, OutlineColour, BackColour, Bold, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Label,{LABEL_FONT},72,&H00FFFFFF,&H00000000,&H00000000,0,1,5,0,5,40,40,0,1
 Style: LabelBox,{LABEL_FONT},72,&H00FFFFFF,&H4C000000,&H00000000,0,3,18,0,5,40,40,0,1
-
+{extra}
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
@@ -174,11 +254,33 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         x = int(REF_W * t["x"] / 100)
         y = int(REF_H * t["y"] / 100)
         style = "LabelBox" if t["box"] else "Label"
+        span = f"{_ass_time(t['start'])},{_ass_time(t['end'])}"
+        colour = _ass_colour(t["color"])
+        light = t.get("boxStyle") == "light"
+        layout = _label_box_layout(t) if t["box"] else None
+        if layout:
+            bx, by, size, wrapped, bw, bh = layout
+            x0, y0 = round(bx - bw / 2), round(by - bh / 2)
+            box_c = BOX_COLOURS["light" if light else "dark"]
+            shape = _render._rounded_rect(x0, y0, x0 + round(bw), y0 + round(bh), LABEL_BOX_RADIUS)
+            lines.append(f"Dialogue: 1,{span},LabelBack,,0,0,0,,"
+                         f"{{\\an7\\pos(0,0)\\1c&H{box_c[4:]}&\\1a&H{box_c[2:4]}&\\p1}}{shape}{{\\p0}}")
+            body = r"\N".join(_ass_escape(line) for line in wrapped)
+            lines.append(f"Dialogue: 2,{span},LabelText,,0,0,0,,"
+                         f"{{\\an5\\q2\\pos({round(bx)},{round(by)})\\fs{int(size)}\\c{colour}&}}{body}")
+            continue
+        margins = "0,0,0"
+        if t["box"]:
+            # libass's own box: margins per label so the wrap stays inside the frame whatever x is
+            floor = LABEL_MIN_TEXT * REF_W + 2 * LABEL_MARGIN
+            x = round(min(max(x, floor / 2), REF_W - floor / 2))
+            half = min(x, REF_W - x) - LABEL_MARGIN
+            margins = f"{x - half},{REF_W - x - half},0"
+            style = "LabelBoxLight" if light else "LabelBox"
         # Line breaks typed in the UI become ASS hard breaks.
         body = _ass_escape(t["text"]).replace("\r\n", "\n").replace("\n", r"\N")
-        tags = f"{{\\an5\\pos({x},{y})\\fs{int(t['size'])}\\c{_ass_colour(t['color'])}&}}"
-        lines.append(f"Dialogue: 2,{_ass_time(t['start'])},{_ass_time(t['end'])},"
-                     f"{style},,0,0,0,,{tags}{body}")
+        tags = f"{{\\an5\\pos({x},{y})\\fs{int(t['size'])}\\c{colour}&}}"
+        lines.append(f"Dialogue: 2,{span},{style},,{margins},,{tags}{body}")
     return header + "\n".join(lines) + "\n"
 
 
