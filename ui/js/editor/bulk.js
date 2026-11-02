@@ -329,6 +329,32 @@ async function bulkOutputDialog(ids) {
   };
   afterDraw = drawStage;
 
+  /* ---- the intro: each Result's own intro (from the brief import, Intro & notes panel) put on its video ---- */
+  const withIntro = ids.filter((id) => String(slotOf(id)?.angle?.intro || "").trim());
+  const introBox = document.createElement("div");
+  introBox.className = "option-row";
+  const introLabel = document.createElement("label");
+  introLabel.className = "bulk-out-keep";
+  const introCheck = Object.assign(document.createElement("input"), { type: "checkbox", disabled: !withIntro.length });
+  const introSec = Object.assign(document.createElement("input"), { type: "number", min: 1, max: 10, step: 0.5,
+    value: slotOf(sampleId)?.angle?.introSeconds || ANGLE_INTRO_SECONDS, disabled: true, className: "ws-input", ariaLabel: "Intro seconds" });
+  introSec.style.width = "5em";
+  introLabel.append(introCheck, document.createTextNode(" Put each Result's intro (Intro & notes) on the video · "), introSec, document.createTextNode(" s"));
+  const introHint = Object.assign(document.createElement("span"), { className: "hint" });
+  const drawIntro = () => {
+    introSec.disabled = !introCheck.checked;
+    const mine = String(slotOf(sampleId)?.angle?.intro || "").trim();
+    introHint.textContent = withIntro.length
+      ? `Uses the intro each Result got from the brief import · ${withIntro.length} of ${ids.length} ticked Results have one`
+        + (mine ? ` · "${mine.length > 60 ? mine.slice(0, 57) + "…" : mine}"` : "")
+      : "None of the ticked Results has an intro from the brief";
+  };
+  introCheck.addEventListener("change", drawIntro);
+  introBox.append(Object.assign(document.createElement("span"), { className: "eyebrow", textContent: "Intro text" }), introLabel, introHint);
+  body.append(introBox);
+  drawIntro();
+  afterDraw = () => { drawStage(); drawIntro(); };
+
   const loadSample = (id) => {
     sampleId = id;
     const slot = slotOf(id);
@@ -353,7 +379,7 @@ async function bulkOutputDialog(ids) {
     }
     drawStage();
   };
-  sel.addEventListener("change", () => loadSample(sel.value));
+  sel.addEventListener("change", () => { loadSample(sel.value); drawIntro(); });
 
   const wrap = document.createElement("div");
   wrap.className = "bulk-out-wrap";
@@ -369,10 +395,12 @@ async function bulkOutputDialog(ids) {
   afterDraw = () => {};
   for (const v of [vTop, vBg]) { v.pause(); v.removeAttribute("src"); v.load(); }       // the sample's own decoders go
   if (!ok) return false;
-  applyOutputToResults(ids, draft, keep);
+  const seconds = Math.min(10, Math.max(1, Number(introSec.value) || ANGLE_INTRO_SECONDS));
+  const added = applyOutputToResults(ids, draft, keep, introCheck.checked ? seconds : 0);
   const note = $("#editNote");
   if (note) note.textContent = `Output format applied to ${ids.length} Result${ids.length === 1 ? "" : "s"}`
-    + (keep.size ? ` (kept each one's own ${[...keep].join(", ")})` : "") + ".";
+    + (keep.size ? ` (kept each one's own ${[...keep].join(", ")})` : "")
+    + (added ? ` · intro added to ${added}` : "") + ".";
   return true;
 }
 

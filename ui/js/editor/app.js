@@ -582,20 +582,33 @@ function mergeOutput(saved, draft, keep) {
 }
 
 /* Write a format into saved Results (the open one included), save, and redraw whatever shows it. */
-function applyOutputToResults(ids, draft, keep) {
+function applyOutputToResults(ids, draft, keep, introSec = 0) {
   snapshotActiveResult();
+  let introAdded = 0;
   for (const id of ids) {
     const slot = SAVED_RESULTS.find((r) => r.id === id);
-    if (slot) slot.output = mergeOutput(slot.output, draft, keep);
+    if (!slot) continue;
+    slot.output = mergeOutput(slot.output, draft, keep);
+    // `introSec` > 0: this Result's own intro (slot.angle.intro) goes on its video for that long.
+    const intro = String(slot.angle?.intro || "").trim();
+    const total = (slot.segments || slot.result || []).reduce((t, s) => t + (s.end - s.start), 0);
+    if (introSec > 0 && intro && total > 0) {
+      let seq = Math.max(0, ...(slot.overlays || []).map((o) => parseInt(String(o.id).slice(1), 10) || 0));
+      slot.overlays = withAngleIntro(slot.overlays || [], intro, total, introSec, () => `o${++seq}`);
+      if (introSec === ANGLE_INTRO_SECONDS) delete slot.angle.introSeconds; else slot.angle.introSeconds = introSec;
+      introAdded++;
+    }
   }
   const open = SAVED_RESULTS.find((r) => r.id === activeResultId);
   if (open && ids.includes(open.id)) {
     applyOutput(open.output);
+    if (introAdded) { setOverlays(open.overlays); setAngleFields(open.angle); }   // the Timeline and the panel show it
     renderPrepare();
     optionsChanged();
   }
   renderResultSwitcher();
   saveProject();
+  return introAdded;
 }
 
 function renderPrepare() {

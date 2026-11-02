@@ -18,13 +18,13 @@ eq(p.next, { title: "Rugi Karena Timing", post: reply.post, angle: reply.angle }
 
 // the fields that already have text are named
 p = postReplyPlan({ title: "Klip lama", post: { title: "", caption: "Ada isinya", hashtags: [] }, angle: { take: "", intro: "Intro lama", notes: [] } }, reply);
-eq(p.conflicts, ["Result title", "Caption", "Angle: intro"], "only what has text is a conflict");
+eq(p.conflicts, ["Result title", "Caption", "Intro & notes: intro"], "only what has text is a conflict");
 eq(p.next.post.caption, "Satu keputusan. Kamu pernah?", "the reply replaces the caption");
 eq(p.next.angle.intro, "Satu keputusan ini", "the reply replaces the intro");
 
 // everything written: all seven are named, in the order of the panels
 p = postReplyPlan({ title: "t", post: { title: "a", caption: "b", hashtags: ["#c"] }, angle: { take: "d", intro: "e", notes: [{ at: 1, text: "f" }] } }, reply);
-eq(p.conflicts, ["Result title", "Post title", "Caption", "Hashtags", "Angle: take", "Angle: intro", "Angle: notes"], "all seven");
+eq(p.conflicts, ["Result title", "Post title", "Caption", "Hashtags", "Intro & notes: take", "Intro & notes: intro", "Intro & notes: notes"], "all seven");
 
 // a reply without notes keeps the notes already there, and is not a conflict for them
 const noNotes = { ...reply, angle: { take: "k", intro: "i", notes: [] } };
@@ -40,5 +40,10 @@ eq(p.conflicts, [], "blank fields are empty");
 p = postReplyPlan({ title: "Punyaku", post: null, angle: null }, { ...reply, title: "" });
 eq(p.next.title, "Punyaku", "no title in the reply keeps the title");
 eq(p.conflicts, [], "and is no conflict");
+
+// how long the intro and notes show stays with the Result after a reply is merged (and is not invented when absent)
+p = postReplyPlan({ title: "", post: null, angle: { take: "", intro: "lama", notes: [], introSeconds: 4, noteSeconds: 3 } }, reply);
+eq([p.next.angle.introSeconds, p.next.angle.noteSeconds], [4, 3], "seconds kept after the merge");
+eq("introSeconds" in postReplyPlan({ title: "", post: null, angle: null }, reply).next.angle, false, "no seconds when the Result had none");
 
 console.log(`postreply: ${n} checks ok`);

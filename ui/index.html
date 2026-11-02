@@ -995,12 +995,12 @@
           </div>
         </div>
 
-        <!-- Angle: a point of view on the clip, to make it your own (angle.js).
+        <!-- Intro & notes (the code says "angle"): a point of view on the clip, to make it your own (angle.js).
              Claude suggests, the person edits; nothing reaches the video until
              Add intro / Add notes, and those are ordinary Timeline labels. -->
         <div class="panel fit post-text" id="anglePanel">
           <div class="post-head">
-            <h2>Angle <button class="btn quiet refill-btn" type="button" id="angleRefill"
+            <h2>Intro &amp; notes <button class="btn quiet refill-btn" type="button" id="angleRefill"
               title="Fill from the suggestion this Result was made from">Refill from suggestion</button></h2>
             <p class="step-note">Draft ideas. Only the intro and notes go into the video, and only when you add them.</p>
           </div>
@@ -1018,6 +1018,12 @@
               <span class="angle-act" data-angle-act="intro"></span>
             </span>
           </label>
+          <div class="post-field">
+            <span style="display:flex;gap:16px;flex-wrap:wrap">
+              <label class="data">Intro shows for <input id="angleIntroSec" type="number" min="1" max="10" step="0.5" value="2.5" style="width:4.5em"> s</label>
+              <label class="data">Each note shows for <input id="angleNoteSec" type="number" min="1" max="10" step="0.5" value="2" style="width:4.5em"> s</label>
+            </span>
+          </div>
           <div class="post-field">
             <span class="post-label">Notes, comments over the clip
               <span class="data">time in seconds from the start</span></span>
@@ -1237,6 +1243,7 @@
 <script src="/ui/js/editor/result.js?v=1790703163808"></script>
 <script src="/ui/js/editor/postreply.js?v=1790703163808"></script>
 <script src="/ui/js/editor/post.js?v=1790703163808"></script>
+<script src="/ui/js/editor/angleintro.js?v=1790703163808"></script>
 <script src="/ui/js/editor/angle.js?v=1790703163808"></script>
 <script src="/ui/js/editor/compose.js?v=1790703163808"></script>
 <script src="/ui/js/editor/projects.js?v=1790703163808"></script>

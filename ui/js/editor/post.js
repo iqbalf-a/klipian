@@ -331,7 +331,8 @@ function setPostFieldsOf(id, f) {
   if (p && (p.title || p.caption || (p.hashtags || []).length)) slot.post = { title: p.title || "", caption: p.caption || "", hashtags: p.hashtags || [] };
   else delete slot.post;
   const a = f.angle;
-  if (a && (a.take || a.intro || (a.notes || []).length)) slot.angle = { take: a.take || "", intro: a.intro || "", notes: a.notes || [] };
+  if (a && (a.take || a.intro || (a.notes || []).length)) slot.angle = { take: a.take || "", intro: a.intro || "", notes: a.notes || [],
+    ...(a.introSeconds ? { introSeconds: a.introSeconds } : {}), ...(a.noteSeconds ? { noteSeconds: a.noteSeconds } : {}) };
   else delete slot.angle;
 }
 

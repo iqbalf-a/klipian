@@ -8,7 +8,7 @@
 
 const POST_REPLY_LABELS = {
   title: "Result title", postTitle: "Post title", caption: "Caption", hashtags: "Hashtags",
-  take: "Angle: take", intro: "Angle: intro", notes: "Angle: notes",
+  take: "Intro & notes: take", intro: "Intro & notes: intro", notes: "Intro & notes: notes",
 };
 
 /* `current`: { title, post: {title, caption, hashtags[]} | null, angle: {take, intro, notes[]} | null }, what the fields
@@ -39,6 +39,9 @@ function postReplyPlan(current, reply) {
         take: has(reply.angle?.take) ? reply.angle.take : (cur.angle.take || ""),
         intro: has(reply.angle?.intro) ? reply.angle.intro : (cur.angle.intro || ""),
         notes,
+        // how long the intro and notes show: the Result's own setting, a reply never brings it
+        ...(cur.angle.introSeconds ? { introSeconds: cur.angle.introSeconds } : {}),
+        ...(cur.angle.noteSeconds ? { noteSeconds: cur.angle.noteSeconds } : {}),
       },
     },
   };

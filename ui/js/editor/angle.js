@@ -20,14 +20,15 @@
 
 const ANGLE_INTRO_WORDS = 12;
 const ANGLE_NOTE_ROWS = 3;
-const ANGLE_INTRO_SECONDS = 2.5;       // how long the intro label stays
-const ANGLE_NOTE_SECONDS = 2;          // and each note
-// Label sizes in the 1080x1920 frame. The render sets a label smaller than the
-// preview draws the same size (libass counts the whole line height, the preview
-// the em), so these are picked by how the RENDER reads on a phone: the intro as
-// large as a default label, notes a step down.
-const ANGLE_INTRO_SIZE = 72;
-const ANGLE_NOTE_SIZE = 56;
+// The seconds the intro and each note stay, and the label sizes: angleintro.js.
+
+/* The seconds in the panel's two inputs (1 to 10), or the default. */
+function angleSeconds(id, fallback) {
+  const v = parseFloat($(id)?.value);
+  return Number.isFinite(v) ? Math.min(10, Math.max(1, v)) : fallback;
+}
+const introSeconds = () => angleSeconds("#angleIntroSec", ANGLE_INTRO_SECONDS);
+const noteSeconds = () => angleSeconds("#angleNoteSec", ANGLE_NOTE_SECONDS);
 
 const wordCount = (s) => (String(s || "").trim().match(/\S+/g) || []).length;
 
@@ -43,7 +44,12 @@ function currentAngle() {
     notes.push({ at: Number.isFinite(at) ? Math.max(0, Math.round(at * 100) / 100) : 0, text });
   }
   notes.sort((a, b) => a.at - b.at);
-  return (take || intro || notes.length) ? { take, intro, notes } : null;
+  if (!(take || intro || notes.length)) return null;
+  const angle = { take, intro, notes };
+  // The seconds are written only when they differ from the defaults (old projects have neither).
+  if (introSeconds() !== ANGLE_INTRO_SECONDS) angle.introSeconds = introSeconds();
+  if (noteSeconds() !== ANGLE_NOTE_SECONDS) angle.noteSeconds = noteSeconds();
+  return angle;
 }
 
 function updateAngleCount() {
@@ -63,6 +69,8 @@ function setAngleFields(angle) {
   const a = angle || {};
   if ($("#angleTake")) $("#angleTake").value = a.take || "";
   if ($("#angleIntro")) $("#angleIntro").value = a.intro || "";
+  if ($("#angleIntroSec")) $("#angleIntroSec").value = a.introSeconds || ANGLE_INTRO_SECONDS;
+  if ($("#angleNoteSec")) $("#angleNoteSec").value = a.noteSeconds || ANGLE_NOTE_SECONDS;
   for (let i = 0; i < ANGLE_NOTE_ROWS; i++) {
     const n = (a.notes || [])[i];
     if ($(`#angleNoteAt${i}`)) $(`#angleNoteAt${i}`).value = n ? n.at : "";
@@ -140,19 +148,22 @@ function renderAngleStates() {
   }
 }
 
-/* The part's text and time, written into its label (not its place, size or colour). */
-function syncAngleLabel(part) {
+/* The part's text and time, written into its label (not its place, size or colour). With `duration`, also how long
+   it stays (the seconds inputs changed); otherwise a length trimmed on the Timeline is left alone. */
+function syncAngleLabel(part, duration = false) {
   const label = angleLabel(part);
   if (!label) return false;
   const { text, at } = anglePart(part);
   if (!text) return false;                       // an emptied field leaves the label as it is
   label.text = text;
+  const total = tlxTotal();
   if (part !== "intro") {
-    const total = tlxTotal();
     const start = Math.max(0, Math.min(at, Math.max(0, total - 0.5)));
-    const length = label.end - label.start;
+    const length = duration ? noteSeconds() : label.end - label.start;
     label.start = round2(start);
     label.end = round2(Math.min(total || start + length, start + length));
+  } else if (duration) {
+    label.end = round2(Math.min(total || label.start + introSeconds(), label.start + introSeconds()));
   }
   return true;
 }
@@ -163,13 +174,11 @@ function addAngleLabel(part) {
   const { text, at } = anglePart(part);
   if (!text) return;
   if (part === "intro") {
-    OVERLAYS.push({ id: `o${++overlaySeq}`, kind: "text", ...OVERLAY_DEFAULTS.text, text, box: true,
-      start: 0, end: round2(Math.min(total, ANGLE_INTRO_SECONDS)), x: 50, y: 16, size: ANGLE_INTRO_SIZE,
-      origin: originOf("intro") });
+    OVERLAYS = withAngleIntro(OVERLAYS, text, total, introSeconds(), () => `o${++overlaySeq}`);
   } else {
     const start = Math.max(0, Math.min(at, Math.max(0, total - 0.5)));
     OVERLAYS.push({ id: `o${++overlaySeq}`, kind: "text", ...OVERLAY_DEFAULTS.text, text, box: true,
-      start: round2(start), end: round2(Math.min(total, start + ANGLE_NOTE_SECONDS)), x: 50, y: 28,
+      start: round2(start), end: round2(Math.min(total, start + noteSeconds())), x: 50, y: 28,
       size: ANGLE_NOTE_SIZE, origin: originOf(part) });
   }
   commitOverlays();
@@ -216,6 +225,15 @@ $("#angleRefill")?.addEventListener("click", (e) => {
     const changed = ANGLE_PARTS.some((part) => syncAngleLabel(part));
     if (changed) commitOverlays(); else renderAngleStates();
     if (typeof saveProject === "function") saveProject();
+  });
+});
+
+// The seconds inputs: how long the labels already on the video stay, and the length of the next one added.
+[["#angleIntroSec", "intro"], ["#angleNoteSec", null]].forEach(([sel, only]) => {
+  $(sel)?.addEventListener("input", () => {
+    const changed = ANGLE_PARTS.filter((part) => (only ? part === "intro" : part !== "intro"))
+      .map((part) => syncAngleLabel(part, true)).some(Boolean);
+    if (changed) commitOverlays(); else if (typeof saveProject === "function") saveProject();
   });
 });
 
