@@ -132,32 +132,36 @@ function drawOverlays(out) {
   const key = `${h}|` + visible.map((e) => JSON.stringify(e)).join("|");
   if (key === _overlayKey) return;
   _overlayKey = key;
-  layer.innerHTML = visible.map((e) => {
-    const pos = `left:${e.x}%;top:${e.y}%`;
-    if (e.kind === "text") {
-      // Same reference as the captions (pxFromOut, interactions.js): a
-      // size is px in the 1080x1920 frame, scaled to this panel.
-      const u = (n) => (typeof pxFromOut === "function" ? pxFromOut(n, h) : n / 4);
-      const text = escapeHTML(e.text).replace(/\n/g, "<br>");
-      const look = e.box ? "" : `-webkit-text-stroke:${u(LABEL_OUTLINE * 2)}px #000;`;
-      let place = pos, cap = "", boxCss = "";
-      if (e.box) {
-        // One box round the text, never outside the frame: the text column is what is left of the nearer side, and a
-        // label too near an edge for the narrowest column is moved inward (the render does the same, compose.py).
-        const W = 1080;
-        const near = (LABEL_MIN_TEXT * W + 2 * (LABEL_MARGIN + LABEL_BOX_PAD_X)) / 2;
-        const x = Math.min(Math.max(W * e.x / 100, near), W - near);
-        place = `left:${x / W * 100}%;top:${e.y}%`;
-        cap = `max-width:${u(2 * Math.min(x, W - x) - 2 * LABEL_MARGIN)}px;box-sizing:border-box;`;
-        boxCss = `padding:${u(LABEL_BOX_PAD_Y)}px ${u(LABEL_BOX_PAD_X)}px;border-radius:${u(LABEL_BOX_RADIUS)}px;`
-          + `background:${BOX_BACKGROUND[e.boxStyle === "light" ? "light" : "dark"]};`;
-      }
-      return `<div class="ov-text${e.box ? " box" : ""}" data-y="${e.y}" style="${place};${cap}${boxCss}font-size:${u(e.size * LABEL_EM)}px;`
-        + `line-height:${LABEL_LINE};${look}color:${escapeHTML(e.color)}">${text}</div>`;
-    }
-    return `<img class="ov-image" alt="" src="${assetFileUrl(e.file)}" style="${pos};width:${e.size}%">`;
-  }).join("");
-  // A box is never cut off at the top or bottom either: its centre is kept half its height inside the frame.
+  layer.innerHTML = visible.map((e) => (e.kind === "text" ? overlayTextHTML(e, h)
+    : `<img class="ov-image" alt="" src="${assetFileUrl(e.file)}" style="left:${e.x}%;top:${e.y}%;width:${e.size}%">`)).join("");
+  fitOverlayBoxes(layer, h);
+}
+
+/* One text label as HTML, for a frame `h` px tall: the Timeline preview (drawOverlays) and the sample frame of the
+   bulk Output format dialog (bulk.js) both draw it, so there is one way a label looks. */
+function overlayTextHTML(e, h) {
+  // Same reference as the captions (pxFromOut, interactions.js): a size is px in the 1080x1920 frame, scaled to this panel.
+  const u = (n) => (typeof pxFromOut === "function" ? pxFromOut(n, h) : n / 4);
+  const text = escapeHTML(e.text).replace(/\n/g, "<br>");
+  const look = e.box ? "" : `-webkit-text-stroke:${u(LABEL_OUTLINE * 2)}px #000;`;
+  let place = `left:${e.x}%;top:${e.y}%`, cap = "", boxCss = "";
+  if (e.box) {
+    // One box round the text, never outside the frame: the text column is what is left of the nearer side, and a
+    // label too near an edge for the narrowest column is moved inward (the render does the same, compose.py).
+    const W = 1080;
+    const near = (LABEL_MIN_TEXT * W + 2 * (LABEL_MARGIN + LABEL_BOX_PAD_X)) / 2;
+    const x = Math.min(Math.max(W * e.x / 100, near), W - near);
+    place = `left:${x / W * 100}%;top:${e.y}%`;
+    cap = `max-width:${u(2 * Math.min(x, W - x) - 2 * LABEL_MARGIN)}px;box-sizing:border-box;`;
+    boxCss = `padding:${u(LABEL_BOX_PAD_Y)}px ${u(LABEL_BOX_PAD_X)}px;border-radius:${u(LABEL_BOX_RADIUS)}px;`
+      + `background:${BOX_BACKGROUND[e.boxStyle === "light" ? "light" : "dark"]};`;
+  }
+  return `<div class="ov-text${e.box ? " box" : ""}" data-y="${e.y}" style="${place};${cap}${boxCss}font-size:${u(e.size * LABEL_EM)}px;`
+    + `line-height:${LABEL_LINE};${look}color:${escapeHTML(e.color)}">${text}</div>`;
+}
+
+/* A box is never cut off at the top or bottom either: its centre is kept half its height inside the frame. */
+function fitOverlayBoxes(layer, h) {
   layer.querySelectorAll(".ov-text.box").forEach((el) => {
     const half = el.offsetHeight / 2;
     el.style.top = `${Math.min(Math.max(Number(el.dataset.y) / 100 * h, half), h - half)}px`;

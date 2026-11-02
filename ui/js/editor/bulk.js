@@ -292,6 +292,7 @@ async function bulkOutputDialog(ids) {
       <div class="frame916" data-video="true" data-format="single" data-safe="off" data-picture="9:16" data-bg="black">
         <div class="bgfill" aria-hidden="true"><div class="bgbox"><video class="video916" muted playsinline preload="auto"></video></div></div>
         <div class="half top"><video class="video916" muted playsinline preload="auto"></video></div>
+        <div class="overlay-layer" data-intro-layer aria-hidden="true"></div>
         <p class="bulk-out-msg" role="status">Loading frame…</p>
       </div>
     </div>
@@ -332,12 +333,15 @@ async function bulkOutputDialog(ids) {
   /* ---- the intro: each Result's own intro (from the brief import, Intro & notes panel) put on its video ---- */
   const withIntro = ids.filter((id) => String(slotOf(id)?.angle?.intro || "").trim());
   const introBox = document.createElement("div");
-  introBox.className = "option-row";
+  introBox.className = "bulk-out-intro";
   const introLabel = document.createElement("label");
   introLabel.className = "bulk-out-keep";
   const introCheck = Object.assign(document.createElement("input"), { type: "checkbox", disabled: !withIntro.length });
   const introSec = Object.assign(document.createElement("input"), { type: "number", min: 1, max: 10, step: 0.5,
-    value: slotOf(sampleId)?.angle?.introSeconds || ANGLE_INTRO_SECONDS, disabled: true, className: "ws-input", ariaLabel: "Intro seconds" });
+    value: slotOf(sampleId)?.angle?.introSeconds || ANGLE_INTRO_SECONDS, disabled: !withIntro.length, className: "ws-input", ariaLabel: "Intro seconds" });
+  // choosing a style or the seconds means the intro is wanted: the box ticks itself
+  const wantIntro = () => { if (withIntro.length) introCheck.checked = true; };
+  introSec.addEventListener("input", () => { wantIntro(); drawIntro(); });
   introSec.style.width = "5em";
   introLabel.append(introCheck, document.createTextNode(" Put each Result's intro (Intro & notes) on the video · "), introSec, document.createTextNode(" s"));
   // the box style: black text on white, or white on black; starts from the sample Result's own
@@ -345,19 +349,34 @@ async function bulkOutputDialog(ids) {
   const boxRow = Object.assign(document.createElement("span"), { className: "choices" });
   const boxBtns = [["light", "Black on white"], ["dark", "White on black"]].map(([v, label]) => {
     const b = Object.assign(document.createElement("button"), { className: "chip", type: "button", textContent: label });
-    b.addEventListener("click", () => { boxPick = v; drawIntro(); });
+    b.addEventListener("click", () => { boxPick = v; wantIntro(); drawIntro(); });
     boxRow.append(b);
     return [v, b];
   });
   const introHint = Object.assign(document.createElement("span"), { className: "hint" });
   const drawIntro = () => {
-    introSec.disabled = !introCheck.checked;
-    for (const [v, b] of boxBtns) { b.setAttribute("aria-pressed", String(v === boxPick)); b.disabled = !introCheck.checked; }
+    for (const [v, b] of boxBtns) { b.setAttribute("aria-pressed", String(v === boxPick)); b.disabled = !withIntro.length; }
     const mine = String(slotOf(sampleId)?.angle?.intro || "").trim();
     introHint.textContent = withIntro.length
       ? `Uses the intro each Result got from the brief import · ${withIntro.length} of ${ids.length} ticked Results have one`
         + (mine ? ` · "${mine.length > 60 ? mine.slice(0, 57) + "…" : mine}"` : "")
       : "None of the ticked Results has an intro from the brief";
+    drawIntroPreview(mine);
+  };
+  // The sample frame shows the intro the way Apply would write it (withAngleIntro: an existing label keeps its place and size).
+  const introNote = Object.assign(document.createElement("p"), { className: "bulk-out-spec data" });
+  side.append(introNote);
+  const introLayer = stage.querySelector("[data-intro-layer]");
+  const drawIntroPreview = (mine) => {
+    introLayer.innerHTML = "";
+    introNote.textContent = mine ? "" : "this Result has no intro";
+    if (!introCheck.checked || !mine) return;
+    const slot = slotOf(sampleId);
+    const total = (slot.segments || slot.result || []).reduce((t, s) => t + (s.end - s.start), 0);
+    const shown = withAngleBoxStyle(withAngleIntro(slot.overlays || [], mine, total || 1, Number(introSec.value) || ANGLE_INTRO_SECONDS,
+      () => "o0", boxPick), boxPick).find((o) => o.origin === "angle-intro");
+    const h = stage.getBoundingClientRect().height;
+    if (shown && h) { introLayer.innerHTML = overlayTextHTML(shown, h); fitOverlayBoxes(introLayer, h); }
   };
   introCheck.addEventListener("change", drawIntro);
   introBox.append(Object.assign(document.createElement("span"), { className: "eyebrow", textContent: "Intro text" }), introLabel, boxRow, introHint);

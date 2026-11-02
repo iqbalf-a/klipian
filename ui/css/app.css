@@ -2610,6 +2610,9 @@ h1, h2, h3 {
 .bulk-out { margin-top: 8px; display: flex; flex-direction: column; }
 .bulk-out .option-row { padding: var(--s2) 0; }
 .bulk-out .option-row.kept .choices, .bulk-out .option-row.kept .range-line { opacity: .45; }
+.bulk-out-intro { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: var(--s2) 0; }
+.bulk-out-intro .hint { font-size: var(--t-12); color: var(--text-faint); max-width: 62ch; }
+.bulk-out-intro .choices { display: flex; gap: var(--s2); flex-wrap: wrap; }
 .bulk-out-keep { font-size: 11.5px; color: var(--text-muted); cursor: pointer; }
 .bulk-plan-fmt { color: var(--text-muted); }
 dialog.confirm-dlg:has(.bulk-out) { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; }
