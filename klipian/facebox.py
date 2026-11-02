@@ -855,20 +855,23 @@ def _learn_faces(evidence: dict, similar) -> dict:
     return known
 
 
+PEOPLE_CLOSE_W = 0.10   # a face this wide is a close-up: one segment is enough to count that person
 PEOPLE_MIN_W = 0.06     # a face narrower than this share of the frame is too poor to tell people apart
 AV_FPS = 8              # frames per second looked at to match movement with speech
 AV_WINDOW = 12.0        # at most this many seconds of a long segment, from its middle
 AV_MIN_SCORE = 0.25     # a clear winner scores at least this ...
 AV_MIN_MARGIN = 0.10    # ... and this much more than the runner-up
+AV_OVERRIDE_SCORE = 0.5     # to beat the face recognised as the speaker's, movement must score at least this ...
+AV_OVERRIDE_MARGIN = 0.25   # ... and this much more than the runner-up
 
 
-def _av_winner(people: list[dict]):
+def _av_winner(people: list[dict], min_score: float = AV_MIN_SCORE, min_margin: float = AV_MIN_MARGIN):
     """The person whose movement follows the speech clearly (`av`, see _av_core): at least AV_MIN_SCORE and
     AV_MIN_MARGIN ahead of the next one. None when nobody stands out."""
     scored = sorted((f for f in people if f.get("av") is not None), key=lambda f: -f["av"])
-    if not scored or scored[0]["av"] < AV_MIN_SCORE:
+    if not scored or scored[0]["av"] < min_score:
         return None
-    if len(scored) > 1 and scored[0]["av"] - scored[1]["av"] < AV_MIN_MARGIN:
+    if len(scored) > 1 and scored[0]["av"] - scored[1]["av"] < min_margin:
         return None
     return scored[0]
 
@@ -1000,19 +1003,21 @@ def _av_scores(video: Path, a: float, b: float, people: list[dict], W: int, H: i
             p["av"] = s
 
 
-def _count_people(items: list[tuple[int, object]], similar, min_segments: int = 2) -> int:
-    """How many different people the faces are: `items` are (segment, embedding) of the faces seen alone on
-    screen; faces at or above the same-person similarity are one person, and a person who shows up in fewer than
-    `min_segments` segments (someone passing by) is not counted."""
-    people: list[list[tuple[int, object]]] = []
-    for seg, emb in items:
+def _count_people(items: list[tuple], similar, min_segments: int = 2) -> int:
+    """How many different people the faces are: `items` are (segment, embedding[, close]) of the faces on screen;
+    faces at or above the same-person similarity are one person (two faces of one segment never are). A person
+    counts when seen in `min_segments` segments, or once in a close-up (`close`: a face wide enough to be sure);
+    someone small who passes by once is not counted."""
+    people: list[list[tuple]] = []
+    for seg, emb, *rest in items:
+        item = (seg, emb, bool(rest and rest[0]))
         for group in people:
-            if seg not in {s for s, _ in group} and any(similar(emb, e) >= _SFACE_SAME_PERSON_COSINE for _, e in group):
-                group.append((seg, emb))
+            if seg not in {g[0] for g in group} and any(similar(emb, g[1]) >= _SFACE_SAME_PERSON_COSINE for g in group):
+                group.append(item)
                 break
         else:
-            people.append([(seg, emb)])
-    return sum(1 for g in people if len({s for s, _ in g}) >= min_segments)
+            people.append([item])
+    return sum(1 for g in people if len({x[0] for x in g}) >= min_segments or any(x[2] for x in g))
 
 
 def _decide(people: list[dict], W: int, H: int, size: dict, speaker, known: dict, prev: dict | None,
@@ -1022,7 +1027,7 @@ def _decide(people: list[dict], W: int, H: int, size: dict, speaker, known: dict
     or None); `known` {speaker: [embedding]} is what the first pass learned (a clear av-sync winner adds to it for a
     speaker the first pass never saw), `prev` is the previous box and
     `new_shot` whether a camera cut starts this segment. why, in order of trust: av-sync (movement follows the
-    sound clearly: wins over the recognised face when they disagree) | speaker-face (the face recognised as this
+    sound clearly: it beats the recognised face only at AV_OVERRIDE_SCORE / AV_OVERRIDE_MARGIN, the conflict is noted) | speaker-face (the face recognised as this
     speaker's) | single (the only face) | largest | kept (previous box: the speaker is not in view and the camera
     did not cut) | center (nothing at all)."""
     if not people:
@@ -1035,12 +1040,13 @@ def _decide(people: list[dict], W: int, H: int, size: dict, speaker, known: dict
         best = max(people, key=lambda p: max(similar(e, embed(p)) for e in faces))
         if max(similar(e, embed(best)) for e in faces) >= _SFACE_SAME_PERSON_COSINE:
             face_pick = best
+    if winner is not None and face_pick is not None and winner is not face_pick:
+        winner["conflict"] = True                                 # movement and the recognised face disagree
+        winner = _av_winner(people, AV_OVERRIDE_SCORE, AV_OVERRIDE_MARGIN)   # movement must then be very clear
     if winner is not None:
         pick, why = winner, "av-sync"
         if speaker is not None and speaker not in known and embed:
             known[speaker] = [embed(winner)]                      # clear, so it counts as evidence
-        if face_pick is not None and face_pick is not winner:
-            winner["conflict"] = True                             # the movement wins over the recognised face
     elif face_pick is not None:
         pick, why = face_pick, "speaker-face"
     if pick is None and speaker in known and prev is not None and not new_shot:
@@ -1157,14 +1163,14 @@ def _frame_pass(video: Path, start: float, end: float, size: dict, turns: list[d
 
     # pass 1: a lone face in one speaker's turn is that speaker's face
     known: dict = {}
-    alone: list = []                                       # (segment, embedding) of every lone face, whoever speaks
+    alone: list = []                                       # (segment, embedding, close-up) of every sizeable face
     if recognizer:
         evidence: dict = {}
         for n, (a, b, speaker, people, W, H) in enumerate(seen):
             main = _main_faces(people)
             for f in main:                                 # identities for the people count: every sizeable face
                 if f["w"] >= PEOPLE_MIN_W * W:
-                    alone.append((n, embed(f)))
+                    alone.append((n, embed(f), f["w"] >= PEOPLE_CLOSE_W * W))
             if len(main) != 1:
                 continue
             if _alone_in_turn(a, b, speaker, turns):

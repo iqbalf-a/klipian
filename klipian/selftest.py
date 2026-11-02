@@ -5033,6 +5033,16 @@ def check_shotframe() -> tuple[str, str]:
     c, why = fb._decide(r2, W, H, size, "A", {"A": [[0.0, 0.0, 1.0]]}, None, True, embed, sim)
     if why != "av-sync" or abs(centre(c) - 400) > 12 or not r2[0].get("conflict"):
         problems.append(f"_decide: av-sync wins over the recognised face and notes the conflict, got {why}")
+    mid = [{**three[0], "av": 0.42}, {**three[1], "av": 0.13}, {**three[2], "av": 0.0}]
+    emb.update({id(mid[0]): [1.0, 0.0, 0.0], id(mid[1]): [0.0, 1.0, 0.0], id(mid[2]): [0.0, 0.0, 1.0]})
+    c, why = fb._decide(mid, W, H, size, "A", {"A": [[0.0, 0.0, 1.0]]}, None, True, embed, sim)
+    if why != "speaker-face" or abs(centre(c) - 1500) > 12 or not mid[0].get("conflict"):
+        problems.append(f"_decide: a clear but not very clear av-sync winner loses to the recognised face, conflict noted, got {why}")
+    two_av = [{**three[0], "av": 0.42}, {**three[1], "av": 0.13}]
+    emb.update({id(two_av[0]): [1.0, 0.0, 0.0], id(two_av[1]): [0.0, 1.0, 0.0]})
+    c, why = fb._decide(two_av, W, H, size, "A", {}, None, True, embed, sim)
+    if why != "av-sync":
+        problems.append(f"_decide: without a recognised face the plain rule (0.25 / 0.10) holds, got {why}")
     unclear = [{**three[0], "av": 0.3}, {**three[1], "av": 0.25}, {**three[2], "av": 0.0}]
     emb.update({id(unclear[0]): [1.0, 0.0, 0.0], id(unclear[1]): [0.0, 1.0, 0.0], id(unclear[2]): [0.0, 0.0, 1.0]})
     c, why = fb._decide(unclear, W, H, size, "A", {"A": [[0.0, 0.0, 1.0]]}, None, True, embed, sim)
@@ -5100,6 +5110,8 @@ def check_shotframe() -> tuple[str, str]:
     items = [(0, "A"), (1, "A"), (2, "B"), (3, "B"), (4, "C")]
     if fb._count_people(items, same) != 2:
         problems.append("_count_people: someone seen in one segment only is not counted")
+    if fb._count_people(items[:4] + [(4, "C", True)], same) != 3:
+        problems.append("_count_people: a close-up identity counts after one segment")
     if fb._count_people(items + [(5, "C")], same) != 3:
         problems.append("_count_people: three people seen in two segments each")
 
