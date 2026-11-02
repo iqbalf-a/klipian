@@ -1308,9 +1308,9 @@ function aiFramingOutputSize() {
 }
 
 /* The boxes themselves. The server (facebox.frame_segments) cuts each span at every camera change and every change
-   of speaker, finds the faces in each piece and puts the box on the person who should be in the frame: the whole
-   group when it fits, else the one speaking (mouth movement, then the face remembered for that speaker, then the
-   largest). One request per span, one after another -- the face models are shared by every request. `spanTurns[i]`
+   of speaker, finds the faces in each piece and puts the box on the person speaking, centred on their face (the
+   others may be cut): the face recognised as that speaker's from where they are alone on screen, then mouth
+   movement, then the only or the largest face. One request per span, one after another -- the face models are shared by every request. `spanTurns[i]`
    are the speaker turns of span i on the virtual timeline; no turns at all frames shot by shot. Writes the same
    points the manual Lock does. */
 async function aiFramingFrameSpans(spans, spanTurns, owner) {
@@ -1363,9 +1363,9 @@ async function aiFramingFrameSpans(spans, spanTurns, owner) {
   renderFraming();
   if (typeof saveProject === "function") saveProject();
   const count = (w) => points.filter((p) => p.why === w).length;
-  const parts = [[count("speaker-mouth") + count("speaker-face"), "on the speaker"], [count("group"), "on the group"],
-    [count("largest"), "on the largest face"], [count("kept"), "kept"], [count("center"), "centred"]]
-    .filter(([n]) => n).map(([n, t]) => `${n} ${t}`);
+  const parts = [[count("speaker-face"), "on the speaker's face"], [count("speaker-mouth"), "by mouth movement"],
+    [count("single"), "on the only face"], [count("largest"), "on the largest face"], [count("kept"), "kept"],
+    [count("center"), "centred"]].filter(([n]) => n).map(([n, t]) => `${n} ${t}`);
   aiFramingStatus(`AI Framing: ${points.length} framing point${points.length === 1 ? "" : "s"} (${parts.join(", ")}). `
     + "Review and adjust if needed.");
   aiFramingOverlayDone();

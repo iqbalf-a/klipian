@@ -521,7 +521,7 @@ function bulkPlanBody(plan, eligible) {
   const sub = document.createElement("span");
   sub.className = "bulk-plan-sub";
   sub.textContent = eligible
-    ? `${eligible} of these clip${eligible === 1 ? " has" : "s have"} no framing yet: AI Framing puts the box on the person speaking, or on the whole group when they fit (slower${all34 ? "; on by default for 3:4" : "; off by default"}).`
+    ? `${eligible} of these clip${eligible === 1 ? " has" : "s have"} no framing yet: AI Framing puts the box on the face of whoever is speaking (slower${all34 ? "; on by default for 3:4" : "; off by default"}).`
     : "Every clip here already has its framing.";
   label.append(document.createElement("br"), sub);
   check.disabled = !eligible;
