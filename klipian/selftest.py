@@ -6124,6 +6124,11 @@ def check_motion_brief() -> tuple[str, str]:
         for want in ("about 60 seconds", "Intip yuk!", "loop-back", "elevenlabs", "googleai", "voicestudio"):
             if want not in cli:
                 problems.append(f"the brief CLI's default brief lost {want!r}")
+        skill = (Path(__file__).resolve().parent.parent / ".claude" / "skills" / "create" / "SKILL.md")
+        text = skill.read_text(encoding="utf-8") if skill.exists() else ""
+        for want in ("name: create", "cloud/stok-video", "git pull --rebase origin cloud/stok-video", "git push origin cloud/stok-video", "up to 3 tries", "motion_brief_cli", "Never push `main`, never force-push"):
+            if want not in text:
+                problems.append(f"the /create skill lost {want!r}")
     finally:
         profiles.hashtag_settings = real_settings
     if problems:
