@@ -1,0 +1,105 @@
+```json
+{
+ "source": "x.mp4",
+ "clips": [
+  {
+   "start": "4:45",
+   "end": "5:05",
+   "title": "Momen 1",
+   "hook": "kutipan 1",
+   "scores": {
+    "hook": 9,
+    "complete": 8,
+    "payoff": 8,
+    "emotion": 7,
+    "duration": 8
+   },
+   "reason": "alasan 1"
+  },
+  {
+   "start": "57:42",
+   "end": "58:17",
+   "title": "Momen 2",
+   "hook": "kutipan 2",
+   "scores": {
+    "hook": 8,
+    "complete": 8,
+    "payoff": 8,
+    "emotion": 7,
+    "duration": 8
+   },
+   "reason": "alasan 2"
+  },
+  {
+   "start": "17:45",
+   "end": "23:09",
+   "title": "Momen 3",
+   "hook": "kutipan 3",
+   "scores": {
+    "hook": 7,
+    "complete": 8,
+    "payoff": 8,
+    "emotion": 7,
+    "duration": 8
+   },
+   "reason": "alasan 3"
+  },
+  {
+   "start": "6:17",
+   "end": "7:11",
+   "title": "Momen 4",
+   "hook": "kutipan 4",
+   "scores": {
+    "hook": 6,
+    "complete": 8,
+    "payoff": 8,
+    "emotion": 7,
+    "duration": 8
+   },
+   "reason": "alasan 4"
+  },
+  {
+   "start": "29:33",
+   "end": "30:35",
+   "title": "Momen 5",
+   "hook": "kutipan 5",
+   "scores": {
+    "hook": 5,
+    "complete": 8,
+    "payoff": 8,
+    "emotion": 7,
+    "duration": 8
+   },
+   "reason": "alasan 5"
+  },
+  {
+   "start": "16:12",
+   "end": "16:56",
+   "title": "Momen 6",
+   "hook": "kutipan 6",
+   "scores": {
+    "hook": 4,
+    "complete": 8,
+    "payoff": 8,
+    "emotion": 7,
+    "duration": 8
+   },
+   "reason": "alasan 6"
+  },
+  {
+   "start": "56:39",
+   "end": "57:25",
+   "title": "Momen 7",
+   "hook": "kutipan 7",
+   "scores": {
+    "hook": 3,
+    "complete": 8,
+    "payoff": 8,
+    "emotion": 7,
+    "duration": 8
+   },
+   "reason": "alasan 7"
+  }
+ ]
+}
+```

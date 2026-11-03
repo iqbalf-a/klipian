@@ -33,7 +33,7 @@ function updateTopbarFile(name, durationSeconds) {
 }
 
 /* The Analyze screen's source panel: which of the project's videos is on
-   screen, and whether "Find clips" has anything to work on. Kept under its
+   screen, and whether "Transcribe" has anything to work on. Kept under its
    old name -- every "the video changed" path already calls it. */
 function drawSource(error, extraNote) {
   const button = $("#run");
@@ -50,6 +50,7 @@ function drawSource(error, extraNote) {
       ? [chosenSource.name, Number.isFinite(dur) ? fmtDuration(dur) : "", extraNote || ""].filter(Boolean).join(" · ")
       : "");
   }
+  if (typeof loadGemini === "function") loadGemini(chosenSource?.name || "");   // Ask Gemini does not wait for a transcript
   if (typeof renderAnalyzeSources === "function") renderAnalyzeSources();
 }
 

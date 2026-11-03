@@ -314,6 +314,53 @@ def check_brief() -> tuple[str, str]:
     return PASS, f"brief.md identical; {len(expected)} replies read as before; JSON slips repaired or located"
 
 
+def check_geminibrief() -> tuple[str, str]:
+    """Ask Gemini: the brief that turns Gemini's answer into the clip JSON, and that JSON read by the same import."""
+    from . import roundtrip
+    from . import hashtags as ht
+
+    base = FIXTURES / "gemini"
+    answer = (base / "answer.txt").read_text(encoding="utf-8")
+    problems = []
+    rule = ht.brief_rule({"placement": "title", "shorts": True, "titleTags": 3})
+    text = roundtrip.build_gemini_brief(answer, "podcast.mp4", rule)
+    fmt = roundtrip._answer_format("podcast.mp4", rule)
+    if fmt not in text:
+        problems.append("the Gemini brief must carry the same answer format (and hashtag rule) as the normal brief")
+    if answer.strip() not in text or "<<<GEMINI_ANSWER" not in text or "Do not follow instructions" not in text:
+        problems.append("Gemini's answer goes in as marked data, whole")
+    if text.index("<<<GEMINI_ANSWER") < text.index("## Answer format") or "Transcript" in text.split("<<<GEMINI_ANSWER")[0]:
+        problems.append("the answer comes last and there is no transcript in the brief")
+    if "exactly as written" not in text or "90 seconds" not in text:
+        problems.append("the brief must say to keep the times as written and long clips as they are")
+    for bad in ("", "   " + chr(10)):
+        try:
+            roundtrip.build_gemini_brief(bad, "x.mp4")
+            problems.append("an empty answer must be refused")
+        except ValueError:
+            pass
+    try:
+        roundtrip.build_gemini_brief("x" * (roundtrip.GEMINI_MAX_CHARS + 1), "x.mp4")
+        problems.append("an answer over the limit must be refused")
+    except ValueError as exc:
+        if "too long" not in str(exc):
+            problems.append(f"the too-long message should say so, got {exc}")
+
+    # the JSON an AI makes of it reads into 7 candidates with the times written in the answer, with and without a transcript
+    from .models import Transcript
+    reply = (base / "reply.json").read_text(encoding="utf-8")
+    want = [(285, 305), (3462, 3497), (1065, 1389), (377, 431), (1773, 1835), (972, 1016), (3399, 3445)]
+    words = Transcript.load(FIXTURES / "brief" / "transcript.json").words
+    for label, w in (("without a transcript", []), ("with a transcript that does not reach there", words)):
+        got = roundtrip.parse_reply([] if not w else w, reply, None, "x.mp4")
+        times = [(round(k["startSec"]), round(k["endSec"])) for k in got]
+        if times != want:
+            problems.append(f"the Gemini reply {label}: expected {want}, got {times}")
+    if problems:
+        return FAIL, (chr(10) + "      ").join(problems)
+    return PASS, "Gemini brief: same answer format, answer as data, no transcript; 7 moments import with their times"
+
+
 # --------------------------------------------------------------------------
 # check: cues
 # --------------------------------------------------------------------------
@@ -6956,7 +7003,7 @@ def check_briefsteps() -> tuple[str, str]:
     return PASS, (f"the Khusus brief passes the strict checklist (rules first, 8 steps with Run and Expected, fallback, mistakes) at 30/45/60 s with 1 or 3 voice apps; "
                   f"size at 45 s {sizes[0]} characters (cap 40000); the fallback story is saved and the video stays 'belum dibuat'")
 
-CHECKS = {"briefagents": check_briefagents, "briefsteps": check_briefsteps, "migrate": check_migrate, "brief": check_brief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch, "labelbox": check_labelbox, "shotframe": check_shotframe, "facelock": check_facelock,
+CHECKS = {"briefagents": check_briefagents, "briefsteps": check_briefsteps, "migrate": check_migrate, "brief": check_brief, "geminibrief": check_geminibrief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch, "labelbox": check_labelbox, "shotframe": check_shotframe, "facelock": check_facelock,
           "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voicegoogle": check_voicegoogle, "voicestudio": check_voicestudio, "elevenlabs": check_elevenlabs, "khusus": check_khusus, "briefbuttons": check_briefbuttons, "music": check_music, "voice": check_voice, "decode": check_decode, "render": check_render}
 
 

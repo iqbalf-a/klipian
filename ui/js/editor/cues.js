@@ -53,7 +53,7 @@ const cueLabel = (def, n) => (n === 1 ? def.one : def.label);
 
 /* "found" | "none" | "notrun" | "failed", and the words for it. The one place
    that decides what a signal's status is: the chips, the legend and the
-   "Hooks Find clips listens for" list all read it. */
+   "Hooks klipian listens for" list all read it. */
 function cueState(def) {
   const s = CUES.status || {};
   const n = (CUES.counts || {})[def.kind] || 0;
@@ -75,7 +75,7 @@ function cueChipHTML(def, { info = true } = {}) {
   </span>`;
 }
 
-/* The chips in "Export for Claude": what went into the brief. Only once there
+/* The chips in "Export for Claude or other AI": what went into the brief. Only once there
    is a transcript to build it from; before that the panel is dimmed, and
    counts on it would promise a file that can't be downloaded yet. */
 function drawCueChips() {
@@ -89,7 +89,7 @@ function drawCueChips() {
   drawHooksList();
 }
 
-/* "Hooks Find clips listens for", above the Find clips button: every signal
+/* "Hooks klipian listens for", above the Transcribe button: every signal
    it looks for, always shown, with its own status (a count, none found, not
    run yet, waiting for the transcript, failed). */
 function drawHooksList() {

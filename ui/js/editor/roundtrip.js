@@ -187,6 +187,8 @@ async function prepareExport(videoName) {
   const panel = $("#exportPanel"), note = $("#exportNote");
   const buttons = [$("#copyBrief"), $("#downloadBrief"), $("#findWithClaude")];
   note.textContent = "searching for transcript ...";
+  loadGemini(videoName);
+  $("#importPanel").dataset.ready = "true";        // B and the import do not wait for the transcript
   const previous = realTranscript;
   invalidateBrief();
   realTranscript = await findTranscript(videoName);
@@ -195,7 +197,7 @@ async function prepareExport(videoName) {
   if (!realTranscript) {
     panel.dataset.ready = "false";
     buttons.forEach((b) => { b.disabled = true; });
-    note.textContent = "No transcript yet. Click Find clips to make one.";
+    note.textContent = "No transcript yet. Click Transcribe to make one.";
     return;
   }
   panel.dataset.ready = "true";
@@ -205,8 +207,7 @@ async function prepareExport(videoName) {
   drawRubricPick();
   note.textContent =
     `${realTranscript.words.length.toLocaleString("en")} words · ${fmtStamp(realTranscript.duration)} · drop the file into Claude to find clips`;
-  $("#importPanel").dataset.ready = "true";
-
+  
   // If the user already added manual clips BEFORE this transcript arrived
   // (e.g. transcription was still running when "Create manual clip" was pressed),
   // the captions are empty because kataResult() has nothing to map yet -- and
@@ -280,6 +281,83 @@ $("#downloadBrief")?.addEventListener("click", async () => {
   $("#exportNote").textContent =
     `File downloaded · ${(text.length / 1024).toFixed(0)} KB · ~${Math.round(text.length / 3.5).toLocaleString("en")} tokens`;
 });
+
+/* ---------- Ask Gemini: YouTube's "Ask about this video" finds the moments, any AI turns the answer into JSON ----------
+   Needs no transcript. The answer pasted here is kept per video (gemini.js); the brief for the AI is built by the
+   server (/api/geminibrief) and its reply goes into the same Import as the one for Claude. */
+
+let geminiFor = null;            // the video whose saved answer is in the box
+
+function loadGemini(videoName) {
+  const box = $("#geminiAnswer");
+  if (!box || geminiFor === videoName) return;
+  geminiFor = videoName;
+  box.value = videoName ? loadGeminiText(localStorage, PROFILE, videoName) : "";
+  geminiButtons();
+  $("#geminiNote").textContent = "";
+}
+
+function geminiButtons() {
+  const has = !!$("#geminiAnswer").value.trim();
+  $("#copyGeminiBrief").disabled = !has;
+  $("#downloadGeminiBrief").disabled = !has;
+}
+
+async function buildGeminiBrief(name, text) {
+  const res = await fetch("/api/geminibrief", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ video: name, text }),
+  });
+  const d = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(d.error || "Could not build the brief.");
+  return d.text;
+}
+
+function flashLabel(btn, label) {
+  const keep = btn.dataset.label || btn.textContent;
+  btn.dataset.label = keep;
+  btn.textContent = label;
+  clearTimeout(btn._copiedTimer);
+  btn._copiedTimer = setTimeout(() => { btn.textContent = keep; }, 2000);
+}
+
+$("#copyGeminiPrompt")?.addEventListener("click", async (e) => {
+  const note = $("#geminiNote");
+  if (!(await copyText(GEMINI_PROMPT))) { note.textContent = "Could not copy: the browser refused."; return; }
+  note.textContent = "Copied · paste it into 'Ask about this video' on YouTube";
+  flashLabel(e.currentTarget, "Copied");
+});
+
+$("#geminiAnswer")?.addEventListener("input", (e) => {
+  saveGeminiText(localStorage, PROFILE, chosenSource?.name || "", e.target.value);
+  geminiButtons();
+});
+
+$("#copyGeminiBrief")?.addEventListener("click", async (e) => {
+  const note = $("#geminiNote");
+  let text;
+  try {
+    text = await buildGeminiBrief(chosenSource?.name || "video.mp4", $("#geminiAnswer").value);
+    if (!(await copyText(text))) throw new Error("the browser refused to copy");
+  } catch (err) { note.textContent = err.message; return; }
+  note.textContent = `Copied · ${(text.length / 1024).toFixed(0)} KB · paste it into Claude or another AI`;
+  flashLabel(e.currentTarget, "Copied");
+});
+
+$("#downloadGeminiBrief")?.addEventListener("click", async () => {
+  const note = $("#geminiNote");
+  const name = chosenSource?.name || "video.mp4";
+  let text;
+  try { text = await buildGeminiBrief(name, $("#geminiAnswer").value); } catch (err) { note.textContent = err.message; return; }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type: "text/markdown" }));
+  a.download = `brief-gemini-${name.replace(/\.[^.]+$/, "")}.md`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  note.textContent = `File downloaded · ${(text.length / 1024).toFixed(0)} KB`;
+});
+
+const NO_TRANSCRIPT_NOTE = "Cut points are not snapped to words until the transcript is ready.";
 
 /* ---------- Find clips with Claude (P24): the server holds the key, makes the call and imports the reply ---------- */
 
@@ -426,7 +504,7 @@ $("#pasteJSON")?.addEventListener("input", (e) => {
   // The button sits below a tall box; after pasting, bring it into view.
   if (e.target.value.trim()) $("#importBtn").scrollIntoView({ block: "nearest" });
   $("#importNote").dataset.error = "false";
-  $("#importNote").textContent = "";
+  $("#importNote").textContent = e.target.value.trim() && !realTranscript ? NO_TRANSCRIPT_NOTE : "";
 });
 
 /* Importing a reply REPLACES the suggestions that are there. Two clicks when
@@ -460,6 +538,7 @@ $("#importBtn")?.addEventListener("click", async () => {
     note.textContent = `${candidates.length} suggestion${candidates.length === 1 ? "" : "s"} imported`
       + (have ? ` (replaced ${have})` : "")
       + (lastImportNotes.length ? `. Fixed in the reply: ${lastImportNotes.join("; ")}.` : "");
+      + (realTranscript ? "" : ` ${NO_TRANSCRIPT_NOTE}`);
     if (typeof renderRecommendations === "function") renderRecommendations();
     if (typeof saveProject === "function") saveProject();
     toScreen("clips");          // recommendations are not the final destination, result is

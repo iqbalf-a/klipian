@@ -345,10 +345,10 @@
             <button class="btn" id="linkFetchBtn" type="button" disabled>Download</button>
           </div>
           <p class="data link-note">Downloading from a link isn't available yet.</p>
-          <!-- What Find clips listens for besides the words (cues.js): always
+          <!-- What klipian listens for besides the words (cues.js): always
                there, with each signal's own status. -->
           <section class="hooks" aria-labelledby="hooksTitle">
-            <h3 class="eyebrow" id="hooksTitle">Hooks Find clips listens for</h3>
+            <h3 class="eyebrow" id="hooksTitle">Hooks klipian listens for</h3>
             <ul class="hooks-list" id="hooksList"></ul>
             <p class="step-note hooks-rule">A hook's time is not where a clip starts. Each one is a reaction or a point inside a
               moment; a clip starts where its topic begins, and the brief tells the AI so.</p>
@@ -356,11 +356,11 @@
           </section>
           <!-- Hidden until there's a video: before that it means nothing. -->
           <div class="prepare-foot" id="prepareFoot" hidden>
-            <button class="btn main large" id="run">Find clips</button>
+            <button class="btn main large" id="run">Transcribe</button>
           </div>
         </div>
 
-        <!-- Only once Find clips has been pressed for this video (analysis.js):
+        <!-- Only once Transcribe has been pressed for this video (analysis.js):
              before that nothing is running, and an empty progress bar with
              "you can leave this running" under it is a lie. The model and the
              thread count come from the server's own job. -->
@@ -375,7 +375,7 @@
           <p id="transcribeLeave" hidden style="margin:var(--s4) 0 0;color:var(--text-muted);font-size:13px">
             You can leave this running. The result is saved automatically.
           </p>
-          <!-- Once a transcript exists for the video. Find clips uses it as it
+          <!-- Once a transcript exists for the video. The brief uses it as it
                is; this is the way to make a new one (it takes about as long as
                the first did, and the old one stays in use until the new one is
                done). Two clicks, like Remove on the Assets screen. -->
@@ -391,7 +391,7 @@
             <span class="num">&rarr;</span>
             <div>
               <h2>Or cut it yourself</h2>
-              <p class="step-note">Skip steps 2 and 3. Open the Clips screen, select a
+              <p class="step-note">Skip A, B and the import. Open the Clips screen, select a
               range on the timeline, then add it to Result.</p>
             </div>
             <button class="btn" id="manualClip">Open Clips</button>
@@ -401,9 +401,9 @@
         <!-- Step 2: export file to drop into Claude web -->
         <div class="panel fit step" id="exportPanel" data-ready="false">
           <div class="step-head">
-            <span class="num">2</span>
+            <span class="num">A</span>
             <div>
-              <h2>Export for Claude</h2>
+              <h2>Export for Claude or other AI</h2>
               <p class="step-note" id="exportNote">waiting for the transcript</p>
             </div>
             <!-- Same file either way (buildBrief): Copy puts it on the clipboard
@@ -427,13 +427,36 @@
                aria-label="Audio and timing cues in the file for Claude"></div>
         </div>
 
-        <!-- Step 3: import Claude's reply -->
-        <div class="panel fit step" id="importPanel" data-ready="false">
+        <!-- B: YouTube's "Ask about this video" (Gemini) finds the moments; any AI then turns its answer into the JSON.
+             Does not wait for the transcript (roundtrip.js, "Ask Gemini"). -->
+        <div class="panel fit step" id="geminiPanel" data-ready="true">
           <div class="step-head">
-            <span class="num">3</span>
+            <span class="num">B</span>
             <div>
-              <h2>Import Claude's reply</h2>
-              <p class="step-note">paste the JSON reply, or drag a .json file here</p>
+              <h2>Ask Gemini</h2>
+              <p class="step-note">For YouTube videos with "Ask about this video". Ask, paste the answer here, then let any AI turn it into JSON.</p>
+            </div>
+            <div class="step-actions">
+              <button class="btn main" id="copyGeminiPrompt" type="button">Copy brief for Ask Gemini</button>
+            </div>
+          </div>
+          <label class="gemini-label" for="geminiAnswer">Paste Gemini's answer</label>
+          <textarea class="paste" id="geminiAnswer" spellcheck="false" aria-label="Gemini's answer"
+            placeholder="1. Topic (4:45 - 5:05): &quot;the first sentence spoken&quot; Why it is interesting."></textarea>
+          <div class="step-foot">
+            <span class="data" id="geminiNote" role="status"></span>
+            <button class="btn" id="downloadGeminiBrief" type="button" disabled>Download file</button>
+            <button class="btn main" id="copyGeminiBrief" type="button" disabled>Copy brief for AI</button>
+          </div>
+        </div>
+
+        <!-- Import: the reply of A or B -->
+        <div class="panel fit step" id="importPanel" data-ready="true">
+          <div class="step-head">
+            <span class="num">&darr;</span>
+            <div>
+              <h2>Import the AI's reply</h2>
+              <p class="step-note">after A or B: paste the JSON reply, or drag a .json file here</p>
             </div>
           </div>
           <textarea class="paste" id="pasteJSON" spellcheck="false"
@@ -1244,6 +1267,7 @@
 <script src="/ui/js/editor/framing.js?v=1790703163808"></script>
 <script src="/ui/js/editor/analysis.js?v=1790703163808"></script>
 <script src="/ui/js/editor/player.js?v=1790703163808"></script>
+<script src="/ui/js/editor/gemini.js?v=1790703163808"></script>
 <script src="/ui/js/editor/roundtrip.js?v=1790703163808"></script>
 <script src="/ui/js/editor/cues.js?v=1790703163808"></script>
 <script src="/ui/js/editor/history.js?v=1790703163808"></script>

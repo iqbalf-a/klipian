@@ -286,7 +286,7 @@ def _claude_parts(name: str, mode: str = ""):
     episode's text (roundtrip.build_api_brief), from the same inputs as /api/brief."""
     transcript = _transcript_for(name)
     if transcript is None:
-        raise ValueError("No transcript yet. Click Find clips on the Analyze screen to make one.")
+        raise ValueError("No transcript yet. Click Transcribe on the Prepare screen to make one.")
     _, rubric, _ = _rubric_for(mode)
     cues_data = cues_mod.load(find_video(name), Cache(CACHE_DIR))
     credit = credits_mod.load().get(name)
@@ -1272,7 +1272,7 @@ class Handler(BaseHTTPRequestHandler):
         except (OSError, ValueError, KeyError) as exc:
             return self._send_json({"error": f"The transcript for {name} could not be read ({exc})"}, 500)
         if transcript is None:
-            return self._send_json({"error": "No transcript yet. Click Find clips on the Analyze screen to make one."}, 404)
+            return self._send_json({"error": "No transcript yet. Click Transcribe on the Prepare screen to make one."}, 404)
         try:
             _, rubric, _ = _rubric_for((q.get("mode") or [""])[0])
         except _rubrics.RubricError as exc:
@@ -1283,6 +1283,18 @@ class Handler(BaseHTTPRequestHandler):
             transcript, rubric, name, cues_data, credit,
             _hashtags_mod.brief_rule(_profiles.hashtag_settings())),
             "text/markdown")
+
+    def _post_geminibrief(self):
+        """The brief for turning Gemini's answer (YouTube "Ask about this video") into the clip JSON -- see
+        roundtrip.build_gemini_brief. Needs no transcript."""
+        try:
+            req = self._read_json()
+            name = str(req.get("video") or "")
+            text = roundtrip.build_gemini_brief(str(req.get("text") or ""), name or "video.mp4",
+                                                _hashtags_mod.brief_rule(_profiles.hashtag_settings()))
+        except Exception as exc:               # noqa: BLE001
+            return self._send_json({"error": str(exc)}, 400)
+        return self._send_json({"text": text})
 
     # ---- post text for ONE Result through Claude chat (no API key): the brief and the reply ----
 
@@ -2449,6 +2461,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/workspace/clips/restore": _post_workspace_clips_restore,
         "/api/workspace/clips/from-render": _post_workspace_clips_from_render,
         "/api/import": _post_import,
+        "/api/geminibrief": _post_geminibrief,
         "/api/render": _post_render,
         "/api/render/cancel": _post_render_cancel,
         "/api/render/plan": _post_render_plan,
