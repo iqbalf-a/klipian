@@ -6092,9 +6092,10 @@ def check_motion_brief() -> tuple[str, str]:
     problems: list[str] = []
     must = ["an everyday hook", "does not have to start with", "small `mascot`", "small `pill`", "Intip yuk!", "loop-back",
             "**The outro has no mascot.**", "**One hero:**", "**Kinds of fact:**",
-            "Build a set, not a specimen", "Animation recipe", "open on a wide shot of the set", "one scale per set", "hero in the centre third"]
+            "Build a set, not a specimen", "Animation recipe", "open on a wide shot of the set", "one scale per set", "hero in the centre third",
+            "The iso kit is mandatory", "never a flat side-view SVG", "IsoWallSocket", "The text format is the channel", "`TopText`", "`CaptionLayer`", "no big black banner box"]
     stale = ["The outro has the mascot again", "a short outro with the logo", "logo and", "starts with \"kenapa", "a big `mascot`",
-             "an everyday question", "a short outro with the logo"]
+             "an everyday question", "a short outro with the logo", "Every beat has a `banner`", "<Banner text"]
     real_settings = profiles.hashtag_settings
     profiles.hashtag_settings = lambda: {"placement": "title", "shorts": True, "titleTags": 3}   # a fixed setting, never the workspace's
     try:
@@ -6107,7 +6108,7 @@ def check_motion_brief() -> tuple[str, str]:
                 if old in text:
                     problems.append(f"the {d} s brief still says {old!r}")
             khusus = motion.build_brief({"topic": "Kenapa colokan panas", "duration": d, "notes": "", "options": {"kind": "khusus"}})
-            for want in ("Animation recipe", "wide shot", "the root of your checkout", "remotion/videos/cara-kerja-hujan-buatan", "wide.png", "beats.json", "Build a set, not a specimen"):
+            for want in ("Animation recipe", "wide shot", "the root of your checkout", "remotion/videos/cara-kerja-hujan-buatan", "wide.png", "beats.json", "Build a set, not a specimen", "npm run fill -- ", "over 35 %", "establishing push"):
                 if want not in khusus:
                     problems.append(f"the {d} s Khusus brief lost {want!r}")
             for old in ("on its own in a circle", "ngantuk-pegang-hp"):
@@ -6118,6 +6119,11 @@ def check_motion_brief() -> tuple[str, str]:
                 problems.append(f"the {d} s structure adds up to {total}, not {d}")
             if motion.STRUCTURE[d][-1][0] != "outro" or "loop-back" not in motion.STRUCTURE[d][-1][2]:
                 problems.append(f"the {d} s structure does not end with a loop-back outro")
+        from . import motion_brief_cli
+        cli = motion_brief_cli.brief_for("Kenapa colokan panas")      # what /create prints: the channel defaults, nothing written to the workspace
+        for want in ("about 60 seconds", "Intip yuk!", "loop-back", "elevenlabs", "googleai", "voicestudio"):
+            if want not in cli:
+                problems.append(f"the brief CLI's default brief lost {want!r}")
     finally:
         profiles.hashtag_settings = real_settings
     if problems:

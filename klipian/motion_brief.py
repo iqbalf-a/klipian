@@ -125,6 +125,8 @@ HARD_RULES = [
     'The story has `"bible": 1`.',
     "The hero is the topic's object. Use `socket` only when the topic is an electrical socket or plug.",
     "Build a set, not a specimen: read `remotion/DESIGN.md` B27 and the Animation recipe first; open on a wide shot of the set, one scale per set, no overlap, hero in the centre third.",
+    "**The iso kit is mandatory.** Every set and every hero is drawn in the kit's 2.5D iso camera (`remotion/src/iso.ts`: `iso`, `isoAt`, `block`, VIEW [1,1,1], the three-tone rule, light from the top left) and reuses the components of `remotion/src/design/index.ts`. A new asset is built as an iso kit piece (its faces come from `iso.ts`), never a flat side-view SVG. Examples to copy: `kenapa-colokan-panas` (IsoWallSocket, IsoRoomWall) and `cara-kerja-hujan-buatan` (the nature kit, IsoNature). The style check FAILs a video that draws no iso geometry.",
+    "**The text format is the channel's:** a kicker (DM Mono) and a headline (Outfit) at the top with `TopText`, a bottom caption with `CaptionLayer` (the spoken word yellow, `\"captions\": true`), and no big black banner box at the top. The style check FAILs a video without `TopText` or `CaptionLayer`, or one that draws `<Banner`.",
     "No health or finance topics. Never teach anything dangerous.",
     "Never write to `workspace/`, never read or print secrets or API keys.",
     "Never say a check passed unless you ran it and pasted its output.",
@@ -132,7 +134,7 @@ HARD_RULES = [
 ]
 
 CHECKLIST = [
-    "Every beat except the outro has a `banner` equal to its `text`.",
+    "Every beat except the sting and the outro has a top text (kicker + headline from the beat's `text`) and a bottom caption; no banner box.",
     "At most 3 transitions that are not a cut.",
     "Every claim lists existing beat ids and has at least one URL you opened.",
     "`music.track` is one of the tracks listed under Answer.",
@@ -150,7 +152,7 @@ CHANNEL_RULES = """- Language: casual Indonesian, easy to follow, as if talking 
 - Theme (one for the whole video, the story's `theme`): `cream` (the default), `sky` (a gadget, electricity, a process), `mint` (nature, plants, water), `peach` (food, the home). Do not repeat the theme of the video before.
 - Stage (the story's `stage`, default `slab`): `slab` (the usual block), `round` (a round object), `strip` (a flow along it), `steps` (cause, effect, result), `island` (an idea or gadget that stands alone). Do not repeat the stage of the video before."""
 
-COMPOSITION = """- Every beat has a `banner` at the top with the beat's screen text (the same words as its `text`).
+COMPOSITION = """- Every beat except the sting and the outro shows the top text (a kicker and a headline from the beat's `text`, drawn with `TopText`) and the bottom caption (`CaptionLayer`, the spoken word yellow). No black banner box.
 - Backgrounds: the set fills the frame (the ground and what stands on it run past the edges); `brand` (the brand background and its yellow spot) shows only in the sky or far back, behind the set, never behind the top text; `lab` only inside the lens and in cutaway beats.
 - **The hero stands in its set (B27):** the hook opens on a wide shot of the set (hero in the centre third, inside SAFE), then the establishing push to the main shot where the hero is 60 to 70 % of the width. 2 to 4 kinds of dressing at real scale (B27.7), cut by the frame, never shrunk to fit; no overlap (B27.9); the empty background is at most 35 % of the picture.
 - **One hero:** one main object for the whole video, big (about 60 to 70 % of the width at the main shot, x about 540). The other things are simple supporting elements: parts, arrows, short labels, numbered badges. Empty space is filled by the object, never by people.
@@ -235,7 +237,7 @@ The person pastes the story into klipian's `/remotion` page (step 3, "Agen tidak
 MINIMAL_VIDEO = """```tsx
 // remotion/videos/<slug>/index.tsx: the smallest working video (npm run new-video writes a longer one; start from that file)
 import React from "react";
-import { Banner, Brand, Label, StoryVideo, type SceneProps, type StoryT } from "../../src/design/index.ts";
+import { Brand, CaptionLayer, Label, StoryVideo, TopText, type SceneProps, type StoryT } from "../../src/design/index.ts";
 import storyJson from "./story.json";
 
 export const story = storyJson as unknown as StoryT;
@@ -243,7 +245,8 @@ export const story = storyJson as unknown as StoryT;
 const Scene = ({ beat, t, clock }: SceneProps) => (
   <svg width={1080} height={1920} viewBox="0 0 1080 1920">
     <Brand clock={clock} />
-    <Banner text={beat.text} t={t} start={0} />
+    <TopText kicker="INTIP" headline={beat.text} t={t} />
+    <CaptionLayer beat={beat} t={t} />
     <Label text={beat.id} x={540} y={1400} fs={64} t={t} start={0.3} />
   </svg>
 );
@@ -307,7 +310,7 @@ Expected: no output line starts with `FAIL`. A line `<file> tidak ada; maksudnya
 Create the folder `remotion/out/{slug}` if it does not exist, then write the file `remotion/out/{slug}/job.json` with this content: `{{"mode":"still","story":"stories/{slug}.json","composition":"video-{slug}","beat":"hook","out":"{slug}/hook.png"}}`
 Run, from `remotion`: `node render.mjs out/{slug}/job.json`
 Expected: the last output line is `{{"type":"done", ...}}` and `remotion/out/{slug}/hook.png` exists.
-Then render the rest of the stills with the same pattern. One picture per beat (the middle of each beat): write `remotion/out/{slug}/beats.json` with `{{"mode":"stills","story":"stories/{slug}.json","composition":"video-{slug}","out":"{slug}/beats","at":0.5}}` and run `node render.mjs out/{slug}/beats.json` (it writes `remotion/out/{slug}/beats/<beat id>.png`). One picture of the wide shot: write `remotion/out/{slug}/wide.json` with `{{"mode":"still","story":"stories/{slug}.json","composition":"video-{slug}","time":0.5,"out":"{slug}/wide.png"}}` and run `node render.mjs out/{slug}/wide.json` (t 0.5 is the hook's wide shot). Look at every picture against B27: the set fills the frame, real scale, no overlap, nothing yellow behind the top text, the hero in the centre third in the wide shot. Fix what is wrong and render again. Then run `npm run style-report -- {slug}`; expected: `remotion/out/{slug}/style-report.md`. Do not render the full video.
+Then render the rest of the stills with the same pattern. One picture per beat (the middle of each beat): write `remotion/out/{slug}/beats.json` with `{{"mode":"stills","story":"stories/{slug}.json","composition":"video-{slug}","out":"{slug}/beats","at":0.5}}` and run `node render.mjs out/{slug}/beats.json` (it writes `remotion/out/{slug}/beats/<beat id>.png`). One picture of the wide shot: write `remotion/out/{slug}/wide.json` with `{{"mode":"still","story":"stories/{slug}.json","composition":"video-{slug}","time":0.5,"out":"{slug}/wide.png"}}` and run `node render.mjs out/{slug}/wide.json` (t 0.5 is the hook's wide shot). Look at every picture against B27 (and the iso kit: every shape is drawn from `iso.ts`; and the text: top kicker + headline, bottom caption, no banner box): the set fills the frame, real scale, no overlap, nothing yellow behind the top text, the hero in the centre third in the wide shot. Measure the fill: `npm run fill -- {slug}` reads a rendered video, so when step 8 gave you a draft video run it and list every beat over 35 % empty brand background in your report; without a video, judge each still by eye against the same 35 % and say so. The establishing push (the wide shot to the main shot) must be in `plan.ts` as the first beat's camera keys, not only in the picture. Fix what is wrong and render again. Then run `npm run style-report -- {slug}`; expected: `remotion/out/{slug}/style-report.md`. Do not render the full video.
 
 {STEP_MARK}7: narration text
 Target voice apps: {targets}. For each one run, from the repository root (`<target>` is `voicestudio`, `elevenlabs` or `googleai`):

@@ -124,6 +124,25 @@ for (const r of DICTIONARY.filter((k) => k.status === "drawn")) {
   yes(LANG.STYLE_EXCEPTIONS.every((e) => e.reason.length > 20), "every colour exception has its reason");
 }
 
+// must 3 (e) and (f) (the iso kit and the channel's text format are mandatory): the references pass, a flat banner video fails, a TopText-only or iso-less fixture fails
+{
+  const run = (s: string) => spawnSync(process.execPath, [path.join(ROOT, "scripts", "styleCheck.mjs"), s], { encoding: "utf8" }).stdout;
+  for (const v of ["kenapa-colokan-panas", "cara-kerja-hujan-buatan"]) {
+    const out = run(v);
+    yes(out.includes("PASS   must 3 (e)") && out.includes("PASS   must 3 (f)"), `${v} passes must 3 (e) the iso kit and (f) the text format`);
+  }
+  const flat = run("gurita-punya-tiga-jantung");
+  yes(flat.includes("FAIL   must 3 (e)") && flat.includes("FAIL   must 3 (f)") && flat.includes("<Banner>"), "the flat banner video fails must 3 (e) and (f)");
+  const fixture = path.join(ROOT, "out", "style-fixture", "flat-svg");
+  mkdirSync(fixture, { recursive: true });
+  writeFileSync(path.join(fixture, "story.json"), readFileSync(path.join(ROOT, "videos", "kenapa-colokan-panas", "story.json"), "utf8"));
+  writeFileSync(path.join(fixture, "index.tsx"), "export const Fake = () => <g><TopText /><CaptionLayer /><IsoHeart /></g>;\n");
+  const one = run(fixture);
+  yes(one.includes("FAIL   must 3 (e)") && one.includes("PASS   must 3 (f)"), "one Iso* component and no iso.ts geometry fails (e); TopText + CaptionLayer passes (f)");
+  writeFileSync(path.join(fixture, "index.tsx"), "import { block } from \"../../src/iso.ts\";\nexport const Fake = () => <g><TopText /><CaptionLayer />{block([0,0,0],[1,1,1],10)}</g>;\n");
+  yes(run(fixture).includes("PASS   must 3 (e)"), "iso.ts geometry calls pass (e)");
+}
+
 // the approved sound set (B15): the record matches the set; the checker reports it
 {
   const record = JSON.parse(readFileSync(path.join(ROOT, "scripts", "soundHash.json"), "utf8"));

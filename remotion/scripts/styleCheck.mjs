@@ -154,6 +154,18 @@ for (const { f, src } of sourceFiles) {
   for (const ex of exceptions) rest = rest.split(ex.match).join("");
   if (/fontFamily:\s*['"`][^'"`]+['"`]/.test(rest)) fontLits.push(f);
 }
+// must 3 (e): the iso kit is mandatory (B27): the set and the hero are drawn in the kit's 2.5D iso camera, with src/design components and src/iso.ts geometry,
+// never a flat side-view SVG. Fewer than two distinct Iso* components and no iso.ts geometry call means the video draws none.
+const allSrc = sourceFiles.map((x) => x.src).join("\n");
+const isoKit = [...new Set(allSrc.match(/<Iso[A-Z]\w*/g) ?? [])];
+const isoCalls = /\b(block|extrudeXZ|extrudeAnyXZ|cylinder|planeXZ|planeYZ)\s*\(/.test(allSrc) && /from\s+"[^"]*iso\.ts"/.test(allSrc);
+const isoOk = isoKit.length >= 2 || isoCalls;
+add(isoOk ? "PASS" : "FAIL", `must 3 (e): the set and the hero are drawn in the iso kit (${isoOk ? `${isoKit.length} Iso* component(s)${isoCalls ? ", iso.ts geometry" : ""}` : `${isoKit.length} Iso* component(s) and no iso.ts geometry: a flat side view is not the kit; build the asset from src/iso.ts block/extrude/cylinder and reuse src/design components`})`);
+
+// must 3 (f): the channel's text format: kicker + headline at the top (TopText), the bottom caption with the spoken word yellow (CaptionLayer), no black top banner box.
+const textMiss = [!/\bTopText\b/.test(allSrc) && "TopText (kicker + headline)", !/\bCaptionLayer\b/.test(allSrc) && "CaptionLayer (bottom caption, spoken word yellow)", /<Banner\b/.test(allSrc) && "a <Banner> box at the top"].filter(Boolean);
+add(textMiss.length === 0 ? "PASS" : "FAIL", `must 3 (f): the channel's text format (${textMiss.length ? `missing or wrong: ${textMiss.join("; ")}` : "TopText + CaptionLayer, no banner box"})`);
+
 add(fontLits.length === 0 ? "PASS" : "FAIL", `B17: every font is the locked text style's (${fontLits.length ? `literal font names in ${fontLits.join(", ")}` : "the tokens' fonts, or the registered exceptions only"})`);
 
 const planSrc = existsSync(planFile) ? readFileSync(planFile, "utf8") : "";
