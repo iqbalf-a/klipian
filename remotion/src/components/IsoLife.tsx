@@ -7,7 +7,7 @@
    origin) and `t` (seconds), and is a pure function of them: a frame always looks the same. The motions come from src/alive.ts (the sizes are the registry's). */
 import React from "react";
 import { BLACK, COFFEE, COFFEE_LIGHT, G1, G3, ISO, RED, STEAM, WHITE, YELLOW, YELLOW_D } from "../tokens.ts";
-import { block, circlePts, cylinder, extrudeXZ, isoAt, planeYZ, ptsAttr, smoothPath, type P2, type P3 } from "../iso.ts";
+import { block, circlePts, cylinder, extrudeXZ, isoAt, planeYZ, ptsAttr, smoothPath, type P2, type P3, type Tones } from "../iso.ts";
 import { OnPlane, Polys } from "./Iso.tsx";
 import { blinkClosed, bobPx, breatheScale, flicker, heartBeat, pulse01, riseAt, spinDeg, swayDeg, tickDeg } from "../alive.ts";
 
@@ -36,7 +36,7 @@ const Steam: React.FC<{ x: number; y: number; h: number; t: number; n?: number; 
 
 /** A desk lamp: a round base with a metal ring, a pole, a brass shade with a dark rim and the bulb under it. `on` (0..1) is how lit it is: a glow and a cone of light
     that breathe and flicker a little; the shade sways on its pole. The light is yellow (the light mark's tone), the cone is pale. */
-export const IsoLamp: React.FC<{ u: number; o: P2; t?: number; on?: number }> = ({ u, o, t = 0, on = 1 }) => {
+export const IsoLamp: React.FC<{ u: number; o: P2; t?: number; on?: number; shade?: Tones }> = ({ u, o, t = 0, on = 1, shade = ISO.brass }) => {
   const f = flicker(t, 0.1), glow = on * (0.2 + 0.1 * pulse01(t)) * f;
   const top = at([0, 0, 1.52], u, o), bulb = at([0, 0, 1.46], u, o), floorL = at([-1.15, 0.3, 0], u, o), floorR = at([1.15, 0.3, 0], u, o);
   return (
@@ -45,13 +45,13 @@ export const IsoLamp: React.FC<{ u: number; o: P2; t?: number; on?: number }> = 
       <Polys polys={post(0, 0, 0, 0.14, 0.62, 0.55, u, o)} tones={ISO.dark} />
       <Polys polys={post(0, 0, 0.14, 0.2, 0.22, 0.2, u, o)} tones={ISO.metal} />
       <Polys polys={post(0, 0, 0.2, 1.55, 0.07, 0.07, u, o)} tones={ISO.metal} />
-      <circle cx={at([0.42, 0.42, 0.14], u, o)[0]} cy={at([0.42, 0.42, 0.14], u, o)[1]} r={u * 0.045} fill={YELLOW_D} />
+      <circle cx={at([0.42, 0.42, 0.14], u, o)[0]} cy={at([0.42, 0.42, 0.14], u, o)[1]} r={u * 0.045} fill={on > 0.01 ? YELLOW_D : ISO.metal[2]} />
       <g transform={`rotate(${swayDeg(t, 0, 1.2)} ${top[0]} ${top[1]})`}>
         {on > 0.01 && <ellipse cx={bulb[0]} cy={bulb[1] + u * 0.1} rx={u * 1.05} ry={u * 0.6} fill={YELLOW} opacity={glow} />}
         <ellipse cx={bulb[0]} cy={bulb[1] + u * 0.04} rx={u * 0.3} ry={u * 0.17} fill={on > 0.5 ? WHITE : ISO.plastic[2]} />
-        <Polys polys={post(0, 0, 1.5, 2.05, 0.66, 0.26, u, o)} tones={ISO.brass} />
+        <Polys polys={post(0, 0, 1.5, 2.05, 0.66, 0.26, u, o)} tones={shade} />
         <Polys polys={band(post(0, 0, 1.5, 1.6, 0.665, 0.64, u, o))} tones={ISO.dark} />
-        <ellipse cx={at([0, 0, 2.05], u, o)[0]} cy={at([0, 0, 2.05], u, o)[1]} rx={u * 0.07} ry={u * 0.04} fill={ISO.brass[0]} />
+        <ellipse cx={at([0, 0, 2.05], u, o)[0]} cy={at([0, 0, 2.05], u, o)[1]} rx={u * 0.07} ry={u * 0.04} fill={shade[0]} />
       </g>
     </g>
   );

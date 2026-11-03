@@ -6,11 +6,22 @@ import { LAMP_OWN_H, PLATE_UNITS, REAL_SIZE_CM, ROOM, unitsOf } from "../src/roo
 
 let n = 0;
 const near = (drawn: number, cm: number, what: string) => { n++; const got = drawn / PLATE_UNITS, want = cm / REAL_SIZE_CM.socketPlate; assert.ok(Math.abs(got / want - 1) <= 0.15, `${what}: ${got.toFixed(2)} plates, the table says ${want.toFixed(2)}`); };
+// B27.8: the wide establishing shot of the hook (and the loop-back) holds the whole set: the plan's WIDE camera is shared by the first and the last key
+const plan = readFileSync(new URL("../videos/kenapa-colokan-panas/plan.ts", import.meta.url), "utf8");
+n++; assert.ok(/\{ t: 0, \.\.\.WIDE \}/.test(plan) && /\{ t: total - 0\.2, \.\.\.WIDE \}/.test(plan), "the camera starts and ends on the same wide shot");
+n++; assert.ok(/motion-exception:/.test(plan), "the wide push says why it leaves the push range");
 const w = ROOM.window;
 near(w.z1 - w.z0, REAL_SIZE_CM.window.h, "the window's height");
 near(w.x1 - w.x0, REAL_SIZE_CM.window.w, "the window's width");
 near(ROOM.casing, REAL_SIZE_CM.windowCasing, "the window casing");
 near(ROOM.deskThick, REAL_SIZE_CM.deskThickness, "the desk top's thickness");
+near(ROOM.desk.x1 - ROOM.desk.x0, REAL_SIZE_CM.deskWidth, "the desk's width");
+near(ROOM.desk.y1 - ROOM.desk.y0, REAL_SIZE_CM.deskDepth, "the desk's depth");
+near(ROOM.deskZ - ROOM.floorZ, REAL_SIZE_CM.deskHeight, "the desk's height");
+near(ROOM.desk.leg, REAL_SIZE_CM.deskLeg, "the desk's leg");
+near(ROOM.book.d, REAL_SIZE_CM.book.d, "a book's depth");
+near(ROOM.book.w, REAL_SIZE_CM.book.w, "a book's width");
+near(ROOM.book.h, REAL_SIZE_CM.book.h, "a book's thickness");
 near(0.5 - ROOM.deskZ, REAL_SIZE_CM.socketAboveDesk, "the socket's height above the desk");
 near(w.z0 - ROOM.deskZ, REAL_SIZE_CM.windowSillAboveDesk, "the window sill above the desk");
 // the lamp: IsoLamp is LAMP_OWN_H units tall at scale 1; the scene draws it at lamp.h / LAMP_OWN_H times the world scale

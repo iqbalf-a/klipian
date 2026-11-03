@@ -11,6 +11,7 @@ import {
 } from "../../src/design/index.ts";
 import { HeatRise, IsoCutaway, IsoPlug, IsoWallSocket, Motes, PlateHighlight, SmokePuffs, Sparks } from "../../src/components/Iso.tsx";
 import { IsoLamp } from "../../src/components/IsoLife.tsx";
+import { ISO } from "../../src/tokens.ts";
 import { IsoRoomWall } from "../../src/components/IsoRoom.tsx";
 import { LAMP_OWN_H, ROOM } from "../../src/roomScale.ts";
 import { LoopArrows, MacroFrame, NumberLabel, SourceChip, TipCard, monoWidth, tipCardHeight } from "../../src/components/Overlays.tsx";
@@ -98,6 +99,7 @@ const Picture: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ story: s,
         <g transform={layerTransform(oc, 1)}>
           {/* B27: the room (a wall with a window, skirting, floor) bleeds past the frame; the side table with the lamp is its dressing */}
           <IsoRoomWall u={OUT.u} o={OUT.o} />
+          <IsoLamp u={OUT.u * ROOM.lamp.h / LAMP_OWN_H} o={outPt([ROOM.lamp.at[0], ROOM.lamp.at[1], ROOM.deskZ])} t={t * (1 - lw)} on={0} shade={ISO.metal} />
           {/* its heat pulse settles as the loop comes home: the clock slows to a stop, so the pulse is at its t = 0 value at the end */}
           <IsoWallSocket u={OUT.u} o={OUT.o} blocks={false} scorch={st.scorch} heat={glow * (1 - st.gap / 1.6)} t={t * (1 - lw)} />
           {/* round 4: the yellow outline of the plate, on its own plane, drawn before the plug so the plug covers it */}
@@ -108,7 +110,6 @@ const Picture: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ story: s,
           <SmokePuffs x={plugTop[0] + 20} y={plugTop[1] - 30} k={st.smoke} t={t} scale={0.75} />
         </g>
         {oc.zoom < 2.2 && <g transform={layerTransform(oc, 1.35)}>
-          <IsoLamp u={OUT.u * ROOM.lamp.h / LAMP_OWN_H} o={outPt([ROOM.lamp.at[0], ROOM.lamp.at[1], ROOM.deskZ])} t={t * (1 - lw)} on={0} />
           <g opacity={1 - lw}><Motes t={t} color={WHITE} opacity={0.5} /></g>
           {lw > 0 && <g opacity={lw}><Motes t={0} color={WHITE} opacity={0.5} /></g>}
         </g>}
