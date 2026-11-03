@@ -5,6 +5,7 @@
 import type { BeatT, StoryT } from "../../src/schema.ts";
 import { FPS, sequencePlan } from "../../src/timeline.ts";
 import { wordsOfBeat, type CWord } from "../../src/captions.ts";
+import { ROOM } from "../../src/roomScale.ts";
 import { cam2At, isoAt, toScreen, type Cam2, type Key2, type P2, type P3 } from "../../src/iso.ts";
 import { captionBox, conflicts, textWidthEstimate, topTextBox, type Box, type Spec } from "../../src/layout.ts";
 import { SAFE } from "../../src/tokens.ts";
@@ -21,7 +22,7 @@ export const contactAt = (loose: number): P3 => [1.2 - 0.2 * loose, 0.05, 0.18];
 /** The cable after the plug end: straight to the left (world (-1, +1, 0) is level on the screen), so it runs above the captions and off the frame. */
 export const CABLE_TO: P3[] = [[-0.9, 2.8, 0.5], [-2.6, 4.6, 0.4]];
 /** Round 4: the cable is a chain of fixed length (src/cableSim.ts) that hangs from the plug's end and rests on the shelf and the plate. */
-export const CABLE_LEN = 5.6;
+export const CABLE_LEN = 11;   // B27.7: the cable falls from a socket 25 cm above the desk (about 7 units) and still has slack to lie on it
 const out = (p: P3): P2 => isoAt(p, OUT.u, OUT.o);
 /** The plug's radius by height above its plate (IsoPlug in components/Iso.tsx, the same numbers): the body, then the thin strain relief. */
 const plugRadius = (dy: number): number => {
@@ -252,9 +253,9 @@ export function makePlan(story: StoryT) {
   // round 4: the cable is a chain (src/cableSim.ts) run once for the whole video from the plug's end, which follows the plug's gap and wobble;
   // a frame reads its nodes back, so the picture never runs the simulation itself
   const plugEnd = (t: number): [number, number, number] => { const s = state(t), cx = s.wobble * 0.05, tip = s.wobble * 0.14; return [cx + tip * (BOOT_END / 2), 0.3 + s.gap + BOOT_END, 0.5]; };
-  // the world: z is up, the wall is the plane y = 0.3 (the plate front), the plug sticks out along +y, the floor is the plane z = -2.05 (ISO floor block)
-  const cableFrames = simulateCable({ anchor: plugEnd, duration: total, fps: FPS, length: CABLE_LEN, axis: [0, 1, 0], stub: 0.9, floorZ: -2.05,
-    wall: { face: 0.3, x0: -2.1, x1: 2.1, z0: -2.05, z1: 2.3 },
+  // the world: z is up, the wall is the plane y = 0.3 (the plate front), the plug sticks out along +y, the floor is the desk top, the plane z = ROOM.deskZ (src/roomScale.ts)
+  const cableFrames = simulateCable({ anchor: plugEnd, duration: total, fps: FPS, length: CABLE_LEN, axis: [0, 1, 0], stub: 0.9, nodes: 32, floorZ: ROOM.deskZ,
+    wall: { face: 0.3, x0: -40, x1: 40, z0: ROOM.deskZ, z1: 60 },
     body: (t) => { const g = state(t).gap; return { x: 0, z: 0.5, r: 0.95, y0: 0.3 + g, y1: 1.9 + g }; } });
   // from the outro on, the cable eases to its opening shape with the same loop weight as the rest, so the last frame is the first one's cable
   const cableAt = (t: number): P3[] => {

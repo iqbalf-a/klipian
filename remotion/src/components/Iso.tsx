@@ -41,10 +41,10 @@ export const ISO_SOCKET_POINTS = {
   junction: [0.98, PLATE_FRONT + 0.05, SOCKET_Z + 0.2], plugTop: [0, PLATE_FRONT + 0.7, SOCKET_Z + 0.95],
 } as const satisfies Record<string, P3>;
 
-/** A chunk of wall standing on a piece of floor, the socket on its face. `scorch` 0..1 browns the plate round the recess; `heat` 0..1 glows round the plug's
+/** A chunk of wall standing on a piece of floor, the socket on its face (`blocks` false: no chunk, the plate sits on a room wall of its own, IsoRoom.tsx). `scorch` 0..1 browns the plate round the recess; `heat` 0..1 glows round the plug's
     collar. Round 4: the recess is shallow (its floor at the plate's back, so every hole and clip is in view at the camera angle), its wall is a ring of
     faces graded by the tone rule (the faces that look at the viewer only), the holes have a lighter rim, and the scorch is a soft gradient. Draw the plug (IsoPlug) after it. */
-export const IsoWallSocket: React.FC<{ u: number; o: P2; scorch?: number; heat?: number; t?: number; plug?: boolean }> = ({ u, o, scorch = 0, heat = 0, t = 0, plug = true }) => {
+export const IsoWallSocket: React.FC<{ u: number; o: P2; scorch?: number; heat?: number; t?: number; plug?: boolean; blocks?: boolean }> = ({ u, o, scorch = 0, heat = 0, t = 0, plug = true, blocks = true }) => {
   const id = React.useId().replace(/:/g, "");
   const hole = circlePts(0, SOCKET_Z, RECESS_R).map(([x, z]) => isoAt([x, PLATE_FRONT, z], u, o));
   const pulse = 1 + 0.05 * Math.sin(t * 9);
@@ -64,8 +64,10 @@ export const IsoWallSocket: React.FC<{ u: number; o: P2; scorch?: number; heat?:
         <clipPath id={`rc${id}`}><polygon points={ptsAttr(hole)} /></clipPath>
         <radialGradient id={`sc${id}`}><stop offset="0%" stopColor="rgb(70,62,56)" stopOpacity={0.7} /><stop offset="100%" stopColor="rgb(70,62,56)" stopOpacity={0} /></radialGradient>
       </defs>
-      <IsoBlock a={[-2.1, -0.5, -2.35]} b={[2.1, 2.7, -2.05]} u={u} o={o} tones={ISO.floor} />
-      <IsoBlock a={[-2.1, -0.55, -2.05]} b={[2.1, 0, 2.3]} u={u} o={o} tones={ISO.wall} />
+      {blocks && <>
+        <IsoBlock a={[-2.1, -0.5, -2.35]} b={[2.1, 2.7, -2.05]} u={u} o={o} tones={ISO.floor} />
+        <IsoBlock a={[-2.1, -0.55, -2.05]} b={[2.1, 0, 2.3]} u={u} o={o} tones={ISO.wall} />
+      </>}
       <Polys polys={extrudeXZ(roundRectPts(0, SOCKET_Z, 2.4, 2.4, 0.36), 0, PLATE_FRONT, u, o)} tones={ISO.plastic} />
       {scorch > 0 && <OnPlane y={PLATE_FRONT} u={u} o={o}><circle cx={0} cy={SOCKET_Z} r={1.5} fill={`url(#sc${id})`} opacity={scorch} /></OnPlane>}
       {heat > 0.01 && <OnPlane y={PLATE_FRONT} u={u} o={o}>
@@ -115,11 +117,11 @@ export const CABLE_FLOOR_Z = -2.05;
 /** A cable from simulated nodes (src/cableSim.ts) as a tube (round 6): a dark base, a mid body narrowed toward the lit side, a light stripe on the lit
     side and a rim light on the shaded edge, one diameter (CABLE_R). The stroke starts a little inside the boot (`lead`), so the boot and its collar
     hide the joint. A soft contact shadow wherever it lies on the floor. */
-const CableLine: React.FC<{ nodes: readonly P3[]; u: number; o: P2 }> = ({ nodes, u, o }) => {
+const CableLine: React.FC<{ nodes: readonly P3[]; u: number; o: P2; floorZ?: number }> = ({ nodes, u, o, floorZ = CABLE_FLOOR_Z }) => {
   const lead: P3 = [nodes[0][0], nodes[0][1] - 0.25, nodes[0][2]];
   const sp = [lead, ...nodes].map((p) => isoAt(p, u, o) as P2), d = smoothPath(sp, 0.5), W = 2 * CABLE_R * u;
   return <g>
-    {nodes.map((p, i) => (p[2] < CABLE_FLOOR_Z + 0.12 ? <ellipse key={i} cx={isoAt([p[0], p[1], CABLE_FLOOR_Z], u, o)[0]} cy={isoAt([p[0], p[1], CABLE_FLOOR_Z], u, o)[1]} rx={u * 0.2} ry={u * 0.07} fill={BLACK} opacity={0.2} /> : null))}
+    {nodes.map((p, i) => (p[2] < floorZ + 0.12 ? <ellipse key={i} cx={isoAt([p[0], p[1], floorZ], u, o)[0]} cy={isoAt([p[0], p[1], floorZ], u, o)[1]} rx={u * 0.2} ry={u * 0.07} fill={BLACK} opacity={0.2} /> : null))}
     <path d={d} fill="none" stroke={ISO.dark[2]} strokeWidth={W} strokeLinecap="round" strokeLinejoin="round" />
     <path d={d} fill="none" stroke={ISO.dark[1]} strokeWidth={W * 0.8} strokeLinecap="round" strokeLinejoin="round" transform={`translate(${-u * 0.012} ${-u * 0.02})`} />
     <path d={d} fill="none" stroke={ISO.dark[0]} strokeWidth={W * 0.22} strokeLinecap="round" strokeLinejoin="round" transform={`translate(${-W * 0.22} ${-W * 0.26})`} opacity={0.85} />
@@ -131,7 +133,7 @@ const CableLine: React.FC<{ nodes: readonly P3[]; u: number; o: P2 }> = ({ nodes
     stopped at the floor), the body, the back cap, the cable (drawn over the body, its start hidden by the boot), the boot (a tapering strain relief
     from the back cap to the cable's diameter, three flex grooves) and a collar over the joint. `gap` pulls it out (world units), `wobble` (-1..1)
     rocks it, `heat` warms it. */
-export const IsoPlug: React.FC<{ u: number; o: P2; gap?: number; wobble?: number; heat?: number; cable?: boolean; cableTo?: readonly P3[]; cableNodes?: readonly P3[] }> = ({ u, o, gap = 0, wobble = 0, heat = 0, cable = true, cableTo, cableNodes }) => {
+export const IsoPlug: React.FC<{ u: number; o: P2; gap?: number; wobble?: number; heat?: number; cable?: boolean; cableTo?: readonly P3[]; cableNodes?: readonly P3[]; floorZ?: number }> = ({ u, o, gap = 0, wobble = 0, heat = 0, cable = true, cableTo, cableNodes, floorZ }) => {
   const hid = React.useId().replace(/:/g, "");
   const y0 = PLATE_FRONT + gap, cx = wobble * 0.05, tip = wobble * 0.14;
   const E1: P3 = [1, 0, 0], E2: P3 = [0, 0, 1];
@@ -159,7 +161,7 @@ export const IsoPlug: React.FC<{ u: number; o: P2; gap?: number; wobble?: number
         return <line key={i} x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke={ISO.dark[1]} strokeWidth={u * 0.05} strokeLinecap="round" />;
       })}
       <Polys polys={cylinder(at(1.0), at(1.16), 0.86, 0.6, E1, E2, u, o)} tones={dark} />
-      {cable && cableNodes && <CableLine nodes={cableNodes} u={u} o={o} />}
+      {cable && cableNodes && <CableLine nodes={cableNodes} u={u} o={o} floorZ={floorZ} />}
       {cable && !cableNodes && <>
         <path d={cablePath(screen)} fill="none" stroke={ISO.dark[2]} strokeWidth={u * 0.28} strokeLinecap="round" strokeLinejoin="round" />
         <path d={cablePath(screen.map(([x, y]) => [x - u * 0.03, y - u * 0.05] as [number, number]))} fill="none" stroke={ISO.dark[0]} strokeWidth={u * 0.07} strokeLinecap="round" opacity={0.8} />

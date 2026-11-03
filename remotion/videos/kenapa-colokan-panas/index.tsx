@@ -10,6 +10,9 @@ import {
   type StoryT,
 } from "../../src/design/index.ts";
 import { HeatRise, IsoCutaway, IsoPlug, IsoWallSocket, Motes, PlateHighlight, SmokePuffs, Sparks } from "../../src/components/Iso.tsx";
+import { IsoLamp } from "../../src/components/IsoLife.tsx";
+import { IsoRoomWall } from "../../src/components/IsoRoom.tsx";
+import { LAMP_OWN_H, ROOM } from "../../src/roomScale.ts";
 import { LoopArrows, MacroFrame, NumberLabel, SourceChip, TipCard, monoWidth, tipCardHeight } from "../../src/components/Overlays.tsx";
 import { isoAt, layerTransform, toScreen } from "../../src/iso.ts";
 import { LAB, OUT, SOCKET_PTS, contactAt, makePlan } from "./plan.ts";
@@ -42,6 +45,9 @@ const LensRing: React.FC<{ x: number; y: number; r: number; t: number; tagFrom: 
     The blur costs render time, so it is off everywhere else. The picture reads its own frame (CameraMotionBlur samples it inside the picture). */
 const Blur: React.FC<{ on: boolean; children: React.ReactNode }> = ({ on, children }) =>
   on ? <CameraMotionBlur shutterAngle={180} samples={5}>{children}</CameraMotionBlur> : <>{children}</>;
+
+/** B27: the far layer is the sky behind the window: the brand background with its yellow spot as the sun, placed in the window's hole. */
+const WINDOW_SPOT = { x: 40, y: 620, r: 260 };
 
 export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ story: s, layoutDebug = false }) => {
   const t = useCurrentFrame() / FPS;
@@ -86,20 +92,23 @@ const Picture: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ story: s,
       {/* ---------------- outside: the brand wall (far layer), the socket in its chunk of wall, heat and smoke, labels */}
       {P.outsideVisible(t) && <g>
         <g transform={layerTransform(oc, 0.3)}><g transform="translate(540 960) scale(1.15) translate(-540 -960)">
-          <g opacity={1 - lw}><Brand clock={t} spot={{ x: 540, y: 900, r: 560 }} /></g>
-          {lw > 0 && <g opacity={lw}><Brand clock={0} spot={{ x: 540, y: 900, r: 560 }} /></g>}
+          <g opacity={1 - lw}><Brand clock={t} spot={WINDOW_SPOT} /></g>
+          {lw > 0 && <g opacity={lw}><Brand clock={0} spot={WINDOW_SPOT} /></g>}
         </g></g>
         <g transform={layerTransform(oc, 1)}>
+          {/* B27: the room (a wall with a window, skirting, floor) bleeds past the frame; the side table with the lamp is its dressing */}
+          <IsoRoomWall u={OUT.u} o={OUT.o} />
           {/* its heat pulse settles as the loop comes home: the clock slows to a stop, so the pulse is at its t = 0 value at the end */}
-          <IsoWallSocket u={OUT.u} o={OUT.o} scorch={st.scorch} heat={glow * (1 - st.gap / 1.6)} t={t * (1 - lw)} />
+          <IsoWallSocket u={OUT.u} o={OUT.o} blocks={false} scorch={st.scorch} heat={glow * (1 - st.gap / 1.6)} t={t * (1 - lw)} />
           {/* round 4: the yellow outline of the plate, on its own plane, drawn before the plug so the plug covers it */}
           <PlateHighlight u={OUT.u} o={OUT.o} k={st.fresh} sweep={clamp01((t - m.replace) / 0.6)} flash={t >= m.replace && t < m.replace + 0.4 ? 0.6 * (1 - (t - m.replace) / 0.4) : 0} />
-          <IsoPlug u={OUT.u} o={OUT.o} gap={st.gap} wobble={st.wobble} heat={glow} cableNodes={P.cableAt(t)} />
+          <IsoPlug u={OUT.u} o={OUT.o} floorZ={ROOM.deskZ} gap={st.gap} wobble={st.wobble} heat={glow} cableNodes={P.cableAt(t)} />
           <g opacity={1 - lw}><HeatRise x={plugTop[0]} y={plugTop[1] - 10} k={st.outHeat * (1 - st.gap / 1.6) * (t < m.tips + 1.5 ? 1 : 0.4)} t={t} scale={0.8} /></g>
           {lw > 0 && <g opacity={lw}><HeatRise x={plugTop[0]} y={plugTop[1] - 10} k={st0.outHeat * (1 - st0.gap / 1.6)} t={0} scale={0.8} /></g>}
           <SmokePuffs x={plugTop[0] + 20} y={plugTop[1] - 30} k={st.smoke} t={t} scale={0.75} />
         </g>
         {oc.zoom < 2.2 && <g transform={layerTransform(oc, 1.35)}>
+          <IsoLamp u={OUT.u * ROOM.lamp.h / LAMP_OWN_H} o={outPt([ROOM.lamp.at[0], ROOM.lamp.at[1], ROOM.deskZ])} t={t * (1 - lw)} on={0} />
           <g opacity={1 - lw}><Motes t={t} color={WHITE} opacity={0.5} /></g>
           {lw > 0 && <g opacity={lw}><Motes t={0} color={WHITE} opacity={0.5} /></g>}
         </g>}
