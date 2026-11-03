@@ -96,6 +96,7 @@ def transcribe(
     source_label: str | None = None,
     verbose: bool = True,
     on_segment: "Callable[[float, float], None] | None" = None,
+    ranges: "list[list[float]] | None" = None,
 ) -> Transcript:
     """Transcribe audio file into Transcript object.
 
@@ -103,7 +104,12 @@ def transcribe(
     in seconds. It exists so the HTTP server can report real progress to
     the browser without re-implementing this whole function: `verbose`
     writes a progress bar to stderr, which is right for the CLI and no use
-    at all to a web UI."""
+    at all to a web UI.
+
+    `ranges` ([[start, end]] seconds): transcribe only these parts. Word times stay in the time of the whole
+    audio. Each range is run on its own slice of the audio, in one model load, with the VAD filter on:
+    faster-whisper's own `clip_timestamps` switches the VAD filter off, and the VAD is what keeps it from
+    inventing words in silence. `on_segment` then reports the position within the sum of the ranges."""
 
     WhisperModel = _load_backend()
     glossary = glossary or Glossary()
@@ -130,8 +136,7 @@ def transcribe(
         print(f"  load     : {fmt_duration(time.time() - load_started)}")
 
     work_started = time.time()
-    segments_iter, info = model.transcribe(
-        str(audio),
+    opts = dict(
         language=language,
         beam_size=beam_size,
         word_timestamps=True,
@@ -143,17 +148,43 @@ def transcribe(
         initial_prompt=glossary.initial_prompt(language),
         hotwords=glossary.hotwords(),
     )
+    if ranges is None:
+        pieces = [(str(audio), 0.0, None)]
+        segments_iter, info = model.transcribe(str(audio), **opts)
+        total = info.duration or 0.0
+        language_found = info.language
+    else:
+        from faster_whisper.audio import decode_audio
 
-    total = info.duration or 0.0
-    progress = _Progress(total, enabled=verbose)
+        samples = decode_audio(str(audio), sampling_rate=16000)
+        whole = len(samples) / 16000
+        pieces = [(samples[int(a * 16000):int(b * 16000)], a, b - a) for a, b in ranges if b > a]
+        total = sum(p[2] for p in pieces)
+        language_found = language
+    progress = _Progress(total if ranges is not None else (total or 0.0), enabled=verbose)
+
+    def decoded():
+        """(segment, offset, seconds of the ranges done before this piece) for every decoded segment."""
+        nonlocal language_found
+        if ranges is None:
+            for seg in segments_iter:
+                yield seg, 0.0, 0.0
+            return
+        done = 0.0
+        for samples_piece, a, length in pieces:
+            it, info_piece = model.transcribe(samples_piece, **opts)
+            language_found = info_piece.language or language_found
+            for seg in it:
+                yield seg, a, done
+            done += length
 
     segments: list[Segment] = []
-    for seg in segments_iter:
+    for seg, off, done in decoded():
         words = [
             Word(
                 text=glossary.apply(w.word),
-                start=round(w.start, 3),
-                end=round(w.end, 3),
+                start=round(w.start + off, 3),
+                end=round(w.end + off, 3),
                 prob=round(getattr(w, "probability", 1.0), 3),
             )
             for w in (seg.words or [])
@@ -167,14 +198,15 @@ def transcribe(
         segments.append(
             Segment(
                 text=seg_text,
-                start=round(seg.start, 3),
-                end=round(seg.end, 3),
+                start=round(seg.start + off, 3),
+                end=round(seg.end + off, 3),
                 words=words,
             )
         )
-        progress.update(seg.end)
+        position = seg.end if ranges is None else done + seg.end
+        progress.update(position)
         if on_segment:
-            on_segment(seg.end, total)
+            on_segment(position, total)
     progress.done()
 
     if verbose:
@@ -188,9 +220,10 @@ def transcribe(
         size = 0
     return Transcript(
         source=source_label or str(audio),
-        duration=total,
-        language=info.language or language,
+        duration=total if ranges is None else whole,
+        language=language_found or language,
         model=model_size,
         segments=segments,
         source_size=size,
+        ranges=[[float(a), float(b)] for a, b in ranges] if ranges is not None else None,
     )

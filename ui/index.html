@@ -465,6 +465,11 @@
             <span class="data" id="importNote"></span>
             <button class="btn main" id="importBtn" disabled>Cut into clips</button>
           </div>
+          <!-- After an import, while the video has no transcript of the whole video: transcribe only the clips (roundtrip.js). -->
+          <div class="step-foot" id="clipsTranscribeRow" hidden>
+            <span class="data" id="clipsTranscribeNote"></span>
+            <button class="btn" id="transcribeClips" type="button"></button>
+          </div>
         </div>
 
         <div class="error" id="error" hidden></div>
@@ -581,12 +586,16 @@
         </div>
 
         <!-- AI suggestions: minutes and titles only -->
+        <!-- A Result with a part nobody transcribed has no captions there (roundtrip.js, checkResultRanges). -->
+        <div class="range-warn" hidden><span class="data"></span><button class="btn" type="button"></button></div>
+
         <div class="panel fit rec">
           <div class="panel-head">
             <span class="step-no" aria-hidden="true">1</span><span class="eyebrow">Choose moments</span>
             <span class="data" id="recNote" role="status">none yet</span>
             <!-- After an import replaced earlier suggestions: gives them back (roundtrip.js). -->
             <button class="btn quiet" id="recUndo" type="button" hidden>Undo import</button>
+            <button class="btn" id="recTranscribe" type="button" hidden></button>
           </div>
           <!-- Play button in each row runs #tlPreviewVideo in the Timeline
                panel above -- see its comment there. -->
@@ -960,6 +969,7 @@
             <button class="btn quiet" type="button" data-result-action="delete" title="Delete this Result">×</button>
           </div>
         </div>
+        <div class="range-warn" hidden><span class="data"></span><button class="btn" type="button"></button></div>
 
         <!-- The LENGTH readout: how long this Result runs and whether that
              lands in the sweet spot. Written by renderPreview() in app.js. -->

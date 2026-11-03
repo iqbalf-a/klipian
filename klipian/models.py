@@ -39,6 +39,36 @@ LOW_CONF = 0.5      # confidence threshold
 MIN_LEN_SUSPECT = 5   # short words are too often uncertain to be a signal
 
 
+def merge_ranges(ranges, gap: float = 0.0) -> list[list[float]]:
+    """[[start, end]] sorted, with ranges that overlap or lie closer than `gap` seconds joined."""
+    out: list[list[float]] = []
+    for a, b in sorted([float(x), float(y)] for x, y in ranges if y > x):
+        if out and a - out[-1][1] <= gap:
+            out[-1][1] = max(out[-1][1], b)
+        else:
+            out.append([a, b])
+    return out
+
+
+def subtract_ranges(wanted, covered) -> list[list[float]]:
+    """The parts of `wanted` ([[start, end]]) that `covered` does not cover."""
+    out = []
+    cov = merge_ranges(covered or [])
+    for a, b in merge_ranges(wanted):
+        at = a
+        for c, d in cov:
+            if d <= at or c >= b:
+                continue
+            if c > at:
+                out.append([at, c])
+            at = max(at, d)
+            if at >= b:
+                break
+        if at < b:
+            out.append([at, b])
+    return out
+
+
 @dataclass
 class Word:
     """A single word with timestamp. Foundation for karaoke captions and
@@ -124,6 +154,7 @@ class Transcript:
     model: str
     segments: list[Segment] = field(default_factory=list)
     source_size: int = 0            # bytes of the source file this was made from (0: an older transcript; see Cache.find_transcript)
+    ranges: list[list[float]] | None = None    # [start, end] seconds that were transcribed; None: the whole video (an older transcript too)
     _words_cache: list[Word] | None = field(default=None, repr=False)
 
     @property
@@ -146,6 +177,26 @@ class Transcript:
         """Words worth checking by a human -- potential glossary entries."""
         return [w for w in self.words if w.suspect]
 
+    @property
+    def partial(self) -> bool:
+        return self.ranges is not None
+
+    def uncovered(self, start: float, end: float) -> list[list[float]]:
+        """The parts of [start, end] this transcript has no words for ([] for a whole transcript)."""
+        return subtract_ranges([[start, end]], self.ranges) if self.ranges is not None else []
+
+    def merged_with(self, new: "Transcript") -> "Transcript":
+        """This partial transcript plus `new` (transcribed over ranges this one did not cover): segments in time
+        order, ranges joined. Whatever `new` has inside a range this one already covers is dropped, so nothing
+        is there twice."""
+        have = self.ranges or []
+        fresh = [g for g in new.segments if not any(a < g.end and g.start < b for a, b in have)]
+        out = Transcript(source=new.source, duration=new.duration or self.duration, language=new.language,
+                         model=new.model, segments=sorted(self.segments + fresh, key=lambda g: g.start),
+                         source_size=new.source_size or self.source_size,
+                         ranges=merge_ranges(have + (new.ranges or [])))
+        return out
+
     def words_between(self, start: float, end: float) -> list[Word]:
         """Words that fall within a given time range."""
         return [w for w in self.words if w.start >= start and w.end <= end]
@@ -157,6 +208,8 @@ class Transcript:
         # was accessed before save(), all words would be stored twice.
         d = asdict(self)
         d.pop("_words_cache", None)
+        if d.get("ranges") is None:
+            d.pop("ranges", None)           # a whole transcript is written as it always was
         return d
 
     @classmethod
@@ -177,6 +230,7 @@ class Transcript:
             model=d["model"],
             segments=segs,
             source_size=int(d.get("source_size") or 0),
+            ranges=[[float(a), float(b)] for a, b in d["ranges"]] if d.get("ranges") is not None else None,
         )
 
     def save(self, path: Path) -> None:

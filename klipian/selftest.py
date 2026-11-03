@@ -361,6 +361,95 @@ def check_geminibrief() -> tuple[str, str]:
     return PASS, "Gemini brief: same answer format, answer as data, no transcript; 7 moments import with their times"
 
 
+def check_ranges() -> tuple[str, str]:
+    """Transcribing only some ranges: the range arithmetic, a partial transcript added to and replaced, and a real
+    transcription of two ranges of a synthetic spoken file (skipped where Windows speech or the small model is missing)."""
+    import tempfile
+    from .models import Segment, Transcript, Word, merge_ranges, subtract_ranges
+
+    nl = chr(10) + "      "
+    problems = []
+    if merge_ranges([[5, 10], [0, 3], [9, 12], [20, 20]]) != [[0.0, 3.0], [5.0, 12.0]]:
+        problems.append("merge_ranges: sorted, overlaps joined, empty ones dropped")
+    if merge_ranges([[0, 3], [5, 8]], gap=5) != [[0.0, 8.0]]:
+        problems.append("merge_ranges: closer than the gap joins")
+    if subtract_ranges([[0, 100]], [[10, 20], [50, 60]]) != [[0, 10], [20, 50], [60, 100]]:
+        problems.append("subtract_ranges: the uncovered parts")
+    if subtract_ranges([[10, 20]], [[0, 100]]) != [] or subtract_ranges([[10, 20]], None) != [[10, 20]]:
+        problems.append("subtract_ranges: all covered / nothing covered")
+
+    def seg(a, b, text):
+        return Segment(text, a, b, [Word(text, a, b)])
+
+    old = Transcript("v.mp4", 600.0, "id", "m", [seg(10, 20, "a"), seg(30, 40, "b")], ranges=[[0.0, 50.0]])
+    new = Transcript("v.mp4", 600.0, "id", "m", [seg(100, 110, "c"), seg(45, 48, "dup")], ranges=[[90.0, 120.0]])
+    both = old.merged_with(new)
+    if [g.text for g in both.segments] != ["a", "b", "c"] or both.ranges != [[0.0, 50.0], [90.0, 120.0]]:
+        problems.append(f"merged_with: segments in order, nothing twice, ranges joined: {[g.text for g in both.segments]} {both.ranges}")
+    if old.uncovered(40, 95) != [[50, 95]] or both.uncovered(95, 100) != []:
+        problems.append("uncovered: the part of a span the transcript has no words for")
+    whole = Transcript("v.mp4", 600.0, "id", "m", [seg(0, 5, "x")])
+    if whole.partial or whole.uncovered(0, 600) != [] or "ranges" in whole.to_dict():
+        problems.append("a whole transcript has no ranges, covers everything and is written as before")
+    d = whole.to_dict()
+    d.pop("ranges", None)
+    if Transcript.from_dict(d).ranges is not None:
+        problems.append("a transcript written before ranges existed reads as the whole video")
+
+    def verdict(extra=""):
+        if problems:
+            return FAIL, nl.join(problems)
+        return PASS, "ranges merged and subtracted; partial transcripts added to and read back" + extra
+
+    with tempfile.TemporaryDirectory(prefix="klipian-ranges-") as tmp:
+        f = Path(tmp) / "p.transcript.json"
+        both.save(f)
+        if Transcript.load(f).ranges != [[0.0, 50.0], [90.0, 120.0]]:
+            problems.append("ranges are saved and read back")
+
+        # real: phrases spoken at 2 s, 32 s and 62 s; only the ranges around the first and the last are transcribed
+        import shutil
+        import subprocess
+        import sys
+        from .ffmpeg_tools import _require
+        model_dir = Path.home() / ".cache" / "huggingface" / "hub" / "models--Systran--faster-whisper-small"
+        if sys.platform != "win32" or not shutil.which("powershell") or not model_dir.is_dir():
+            return verdict("; no real transcription here (Windows speech or the small model is missing)")
+        tts = []
+        for i, line in enumerate(("Hello everyone, this is the first part of the test.",
+                                  "Now we talk about something else entirely.",
+                                  "And this is the last part of the recording.")):
+            wav = Path(tmp) / f"s{i}.wav"
+            ps = ("Add-Type -AssemblyName System.Speech; $s=New-Object System.Speech.Synthesis.SpeechSynthesizer; "
+                  f"$s.SetOutputToWaveFile('{wav}'); $s.Speak('{line}'); $s.Dispose()")
+            subprocess.run(["powershell", "-NoProfile", "-Command", ps], capture_output=True, timeout=60)
+            tts.append(wav)
+        if not all(w.is_file() for w in tts):
+            return verdict("; Windows speech could not make the test audio")
+        mix = Path(tmp) / "mix.wav"
+        subprocess.run([_require("ffmpeg"), "-y", "-loglevel", "error", "-f", "lavfi", "-t", "75", "-i", "anullsrc=r=16000:cl=mono",
+                        *sum((["-i", str(w)] for w in tts), []),
+                        "-filter_complex", "[1]aresample=16000,adelay=2000|2000[a];[2]aresample=16000,adelay=32000|32000[b];"
+                        "[3]aresample=16000,adelay=62000|62000[c];[0][a][b][c]amix=inputs=4:normalize=0[o]",
+                        "-map", "[o]", "-ac", "1", str(mix)], check=True, timeout=120)
+        from .transcribe import transcribe
+        done = []
+        got = transcribe(mix, model_size="small", language="en", threads=4, verbose=False,
+                         ranges=[[0, 20], [55, 75]], on_segment=lambda pos, total: done.append((pos, total)))
+        words = [(w.text.strip().lower(), w.start) for w in got.words]
+        inside = all(any(a <= t <= b for a, b in ((0, 20), (55, 75))) for _, t in words)
+        said = " ".join(w for w, _ in words)
+        if got.ranges != [[0.0, 20.0], [55.0, 75.0]] or abs(got.duration - 75) > 1:
+            problems.append(f"real transcription: ranges {got.ranges}, duration {got.duration}")
+        if not words or not inside:
+            problems.append(f"real transcription: every word must lie inside a range, in the time of the whole file: {words[:6]}")
+        if "first" not in said or "last" not in said or "else" in said:
+            problems.append(f"real transcription: the first and last phrase only, got {said!r}")
+        if not done or done[-1][1] != 40.0 or max(p for p, _ in done) > 40.0:
+            problems.append(f"real transcription: progress counts the 40 s of the ranges, got {done[-1:]}")
+    return verdict("; two ranges of a spoken file transcribed at their own times")
+
+
 # --------------------------------------------------------------------------
 # check: cues
 # --------------------------------------------------------------------------
@@ -4126,6 +4215,22 @@ def check_rubrics() -> tuple[str, str]:
         st, brief = call("GET", f"/api/brief?video={video}&mode=dialog")
         if st != 200 or marker in brief or "## Teks posting" not in brief:
             problems.append("/api/brief?mode=dialog should override")
+        # a transcript of only some ranges is no ground for the brief of path A (nor for Find clips with Claude)
+        tpath = Cache(paths.CACHE_DIR).transcript_path(paths.SOURCES / video, DEFAULT_MODEL, DEFAULT_LANGUAGE,
+                                                       GLOSSARY if GLOSSARY.is_file() else None)
+        transcript.ranges = [[0.0, 3.0]]
+        transcript.save(tpath)
+        st, j = call("GET", f"/api/brief?video={video}")
+        if st != 409 or "covers only the imported clips" not in j.get("error", ""):
+            problems.append(f"/api/brief with a partial transcript should say so (409): {st} {j}")
+        try:
+            _server._claude_parts(video)
+            problems.append("Find clips with Claude must refuse a partial transcript")
+        except ValueError as exc:
+            if "covers only the imported clips" not in str(exc):
+                problems.append(f"Find clips with Claude on a partial transcript: {exc}")
+        transcript.ranges = None
+        transcript.save(tpath)
         st, j = call("GET", "/api/rubrics")
         if st != 200 or j["current"]["id"] != "komedi-uji" or j["current"]["note"] or len(j["templates"]) != 5:
             problems.append(f"/api/rubrics: {st} {j}")
@@ -7003,7 +7108,7 @@ def check_briefsteps() -> tuple[str, str]:
     return PASS, (f"the Khusus brief passes the strict checklist (rules first, 8 steps with Run and Expected, fallback, mistakes) at 30/45/60 s with 1 or 3 voice apps; "
                   f"size at 45 s {sizes[0]} characters (cap 40000); the fallback story is saved and the video stays 'belum dibuat'")
 
-CHECKS = {"briefagents": check_briefagents, "briefsteps": check_briefsteps, "migrate": check_migrate, "brief": check_brief, "geminibrief": check_geminibrief, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch, "labelbox": check_labelbox, "shotframe": check_shotframe, "facelock": check_facelock,
+CHECKS = {"briefagents": check_briefagents, "briefsteps": check_briefsteps, "migrate": check_migrate, "brief": check_brief, "geminibrief": check_geminibrief, "ranges": check_ranges, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch, "labelbox": check_labelbox, "shotframe": check_shotframe, "facelock": check_facelock,
           "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voicegoogle": check_voicegoogle, "voicestudio": check_voicestudio, "elevenlabs": check_elevenlabs, "khusus": check_khusus, "briefbuttons": check_briefbuttons, "music": check_music, "voice": check_voice, "decode": check_decode, "render": check_render}
 
 

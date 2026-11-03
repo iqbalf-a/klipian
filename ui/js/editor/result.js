@@ -146,6 +146,7 @@ function fitTimeFields(durationSeconds) {
 
 function renderResult() {
   fitTimeFields();
+  if (typeof checkResultRanges === "function") checkResultRanges();
   if (typeof saveProject === "function") saveProject();
   if (typeof renderAllResults === "function") renderAllResults();
   const list = $("#resultList");

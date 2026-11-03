@@ -281,12 +281,17 @@ def _rubric_for(mode: str = ""):
     return _rubrics.load(mode or _profiles.defaults().get("rubric") or _rubrics.DEFAULT)
 
 
+PARTIAL_TRANSCRIPT = "The transcript covers only the imported clips. Transcribe the whole video to use this."
+
+
 def _claude_parts(name: str, mode: str = ""):
     """build_parts(count) for the Claude API: the brief of this video, split into the static system text and this
     episode's text (roundtrip.build_api_brief), from the same inputs as /api/brief."""
     transcript = _transcript_for(name)
     if transcript is None:
         raise ValueError("No transcript yet. Click Transcribe on the Prepare screen to make one.")
+    if transcript.partial:
+        raise ValueError(PARTIAL_TRANSCRIPT)
     _, rubric, _ = _rubric_for(mode)
     cues_data = cues_mod.load(find_video(name), Cache(CACHE_DIR))
     credit = credits_mod.load().get(name)
@@ -1273,6 +1278,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"error": f"The transcript for {name} could not be read ({exc})"}, 500)
         if transcript is None:
             return self._send_json({"error": "No transcript yet. Click Transcribe on the Prepare screen to make one."}, 404)
+        if transcript.partial:
+            return self._send_json({"error": PARTIAL_TRANSCRIPT}, 409)
         try:
             _, rubric, _ = _rubric_for((q.get("mode") or [""])[0])
         except _rubrics.RubricError as exc:
@@ -2277,7 +2284,7 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as exc:               # noqa: BLE001
             return self._send_json({"error": str(exc)}, 400)
         name = req.get("video", "")
-        key = _transcribe_key(str(name))               # the FILE (size + mtime), not its name: see jobs.transcribe_key
+        key = _transcribe_key(str(name), bool(req.get("ranges")))               # the FILE (size + mtime), not its name: see jobs.transcribe_key
         # Entire check-then-register in one lock so no two threads both
         # slip through and create duplicate jobs, and so the JOBS insert
         # doesn't race with the prune that iterates JOBS.

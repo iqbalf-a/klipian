@@ -18,7 +18,7 @@ let analysisStop = null;
 /* `force`: transcribe even though a transcript already exists (the
    "Transcribe again" button). Without it the server uses the transcript it
    has -- see _run_transcribe. */
-async function startAnalysis({ force = false } = {}) {
+async function startAnalysis({ force = false, ranges = null } = {}) {
   if (analysisStop) { analysisStop(); analysisStop = null; }
   hideTranscriptActions();
   $("#transcribeNote")?.remove();
@@ -41,7 +41,7 @@ async function startAnalysis({ force = false } = {}) {
   try {
     const reply = await fetch("/api/transcribe", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(force ? { video: name, force: true } : { video: name }),
+      body: JSON.stringify(ranges ? { video: name, ranges } : force ? { video: name, force: true } : { video: name }),
     }).then((r) => r.json());
     if (reply.error) throw new Error(reply.error);
     id = reply.id;
@@ -82,7 +82,7 @@ async function startAnalysis({ force = false } = {}) {
     // server uses, not a fixed string. Cached means nothing runs at all.
     const running = t.state === "running" && !t.cached && t.stage !== "cues";
     $("#transcribeTitle").textContent = t.state === "failed" ? "Transcript"
-      : running ? "Transcribing" : "Transcript";
+      : running ? (ranges ? "Transcribing the clips" : "Transcribing") : "Transcript";
     $("#transcribeLabel").textContent = t.model && !t.cached
       ? `${t.model} · CPU ${t.threads} threads` : "";
     $("#transcribeLeave").hidden = !(t.state === "running" && !t.cached && t.stage === "transcribe");
@@ -91,7 +91,7 @@ async function startAnalysis({ force = false } = {}) {
     $("#transcribeStats").innerHTML = (t.cached
       ? ["from cache", "transcript already exists, not repeated"]
       : [`${t.percent || 0}%`,
-         `${timeRange(t.position || 0)} of ${timeRange(t.duration || 0)}`,
+         `${timeRange(t.position || 0)} of ${timeRange(t.span || t.duration || 0)}`,
          `running ${timeRange(elapsed)}`,
          `~${timeRange(remaining)} left`]
     ).map((x) => `<span>${x}</span>`).join("");
@@ -145,10 +145,11 @@ async function startAnalysis({ force = false } = {}) {
       }
       $("#transcribeStats").innerHTML = t.cached
         ? "<span>ready</span><span>transcript loaded from cache</span>"
-        : `<span>done</span><span>${timeRange(t.duration)} transcribed</span>`;
+        : `<span>done</span><span>${timeRange(t.span || t.duration)} transcribed</span>`;
       // The source list's "not transcribed" is now stale (assets.js caches
       // the transcript listing).
       if (typeof renderAnalyzeSources === "function") { _transcriptList = null; renderAnalyzeSources(); }
+      if (ranges && typeof snapImportedAfterTranscript !== "undefined") snapImportedAfterTranscript = true;
       if (typeof prepareExport === "function") prepareExport(name);
       showTranscriptActions(t);
     },

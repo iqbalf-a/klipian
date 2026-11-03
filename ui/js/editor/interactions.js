@@ -50,6 +50,7 @@ function drawSource(error, extraNote) {
       ? [chosenSource.name, Number.isFinite(dur) ? fmtDuration(dur) : "", extraNote || ""].filter(Boolean).join(" · ")
       : "");
   }
+  if (typeof refreshTranscriptState === "function") refreshTranscriptState();
   if (typeof loadGemini === "function") loadGemini(chosenSource?.name || "");   // Ask Gemini does not wait for a transcript
   if (typeof renderAnalyzeSources === "function") renderAnalyzeSources();
 }

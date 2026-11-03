@@ -1248,6 +1248,7 @@ async function enterProject(d, gen) {
     const tr = await findTranscript(video);
     if (gen !== _openProjectGen) return false;   // superseded by another open
     realTranscript = tr;
+    if (typeof refreshTranscriptState === "function") refreshTranscriptState();
     if (typeof updateTopbarFile === "function") {
       updateTopbarFile(video, tr?.duration);
     }

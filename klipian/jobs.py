@@ -87,15 +87,16 @@ def _batch_total_eta(b: dict) -> int | None:
     return None if total is None else int(round(total))
 
 
-def transcribe_key(name: str) -> str:
+def transcribe_key(name: str, partial: bool = False) -> str:
     """Which file a transcribe request is about: the cache's own fingerprint (size + mtime) of the profile's
-    source of that name. A name that is not there gets a key of its own (the job fails at once)."""
+    source of that name. A name that is not there gets a key of its own (the job fails at once). A request for
+    only some ranges of the video is a different job from the whole video (`partial`)."""
     from .cache import fingerprint
     video = find_video(name) if name else None
     if video is None:
         return f"missing:{current_profile()}:{name}"
     try:
-        return "fp:" + fingerprint(video)
+        return "fp:" + fingerprint(video) + ("|ranges" if partial else "")
     except OSError:
         return f"missing:{current_profile()}:{name}"
 
@@ -976,6 +977,7 @@ def _transcribe_needs_work(req: dict) -> bool:
     and it is not forced): that takes no slot. Anything unclear counts as work."""
     try:
         from . import cues as cues_mod
+        from .models import Transcript, subtract_ranges
         from .transcribe import DEFAULT_LANGUAGE, DEFAULT_MODEL
         if req.get("force"):
             return True
@@ -989,7 +991,16 @@ def _transcribe_needs_work(req: dict) -> bool:
         model, lang = req.get("model", DEFAULT_MODEL), req.get("lang", DEFAULT_LANGUAGE)
         gloss_path = GLOSSARY if GLOSSARY.exists() else None
         found = cache.find_transcript(video, model, lang, gloss_path)
-        return not (found is not None and (found == cache.transcript_path(video, model, lang, gloss_path) or (
+        if found is not None and req.get("ranges"):
+            have = Transcript.load(found)
+            if have.partial and subtract_ranges(req["ranges"], have.ranges):
+                return True                        # a part of the wanted ranges is not transcribed yet
+            found_ok = True
+        elif found is not None:
+            found_ok = not Transcript.load(found).partial      # a partial transcript does not stand for the whole video
+        else:
+            found_ok = False
+        return not (found_ok and (found == cache.transcript_path(video, model, lang, gloss_path) or (
             model == DEFAULT_MODEL and lang == DEFAULT_LANGUAGE)))
     except Exception:                              # noqa: BLE001
         return True
@@ -1080,6 +1091,14 @@ def _transcribe_body(job_id: str, req: dict) -> None:
         # "Transcribe again" button. The newest-fallback is only for the
         # app's own model and language: asking for another one is asking for
         # a different transcript, so it always runs.
+        from .models import Transcript, merge_ranges, subtract_ranges
+        wanted = None                       # [[start, end]] when only some parts of the video are asked for
+        if req.get("ranges"):
+            wanted = merge_ranges([[max(0.0, float(a)), min(float(info.duration), float(b))] for a, b in req["ranges"]])
+            if not wanted:
+                raise ValueError("No range to transcribe.")
+        existing = None                     # the partial transcript the new ranges are added to
+        todo = wanted
         if not req.get("force"):
             found, turned_down = cache.find_transcript_why(video, model, lang, gloss_path)
             if found is None and turned_down:
@@ -1088,12 +1107,18 @@ def _transcribe_body(job_id: str, req: dict) -> None:
                                  + "): transcribing this file again.")
             if found is not None and (found == path or (
                     model == DEFAULT_MODEL and lang == DEFAULT_LANGUAGE)):
-                with LOCK:
-                    t["state"] = "done"
-                    t["cached"] = True
-                    t["exact"] = found == path
-                    t["file"] = found.name
-                return
+                have = Transcript.load(found)
+                if wanted is not None and have.partial:
+                    todo = subtract_ranges(wanted, have.ranges)
+                    existing = have
+                # a whole transcript has everything; a partial one only stands for a request for ranges it covers
+                if not have.partial or (wanted is not None and not todo):
+                    with LOCK:
+                        t["state"] = "done"
+                        t["cached"] = True
+                        t["exact"] = found == path
+                        t["file"] = found.name
+                    return
 
         with LOCK:
             t["stage"] = "audio"
@@ -1108,6 +1133,7 @@ def _transcribe_body(job_id: str, req: dict) -> None:
 
         with LOCK:
             t["stage"] = "transcribe"
+            t["span"] = sum(b - a for a, b in todo) if todo else info.duration
 
         # This used to be a second, inline implementation of transcribe():
         # it built its own WhisperModel and its own Segment/Word objects,
@@ -1128,6 +1154,7 @@ def _transcribe_body(job_id: str, req: dict) -> None:
         def _tick(position: float, total: float) -> None:
             with LOCK:
                 t["position"] = position
+                t["span"] = total                    # seconds being transcribed: the video, or the sum of the ranges
                 t["percent"] = min(100, round(position / total * 100)) if total else 0
 
         # cpu_threads is passed explicitly on purpose. faster-whisper's
@@ -1143,7 +1170,10 @@ def _transcribe_body(job_id: str, req: dict) -> None:
             source_label=str(video),
             verbose=False,          # stderr progress is for the CLI
             on_segment=_tick,
+            ranges=todo,
         )
+        if existing is not None:
+            result = existing.merged_with(result)      # added to what was there: ranges joined, segments in order
         # faster-whisper occasionally reports duration 0 for a stream it
         # can't measure; ffprobe's number is the reliable fallback. The old
         # inline copy did this as `meta.duration or info.duration`.

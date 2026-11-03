@@ -1281,6 +1281,10 @@ h1, h2, h3 {
 .step-foot .data { color: var(--text-faint); }
 .step-foot .btn { margin-left: auto; }
 .step-foot .btn + .btn { margin-left: 0; }
+.range-warn { display: flex; align-items: center; gap: var(--s3); padding: var(--s3) var(--s4); border: 1px solid var(--glass-border); border-radius: var(--r-m); }
+.range-warn[hidden] { display: none; }
+.range-warn .data { color: var(--text-muted); }
+.range-warn .btn { margin-left: auto; flex: none; }
 .gemini-label { font-size: var(--t-12); color: var(--text-faint); margin-bottom: calc(var(--s2) * -1); }
 .step-foot .data[data-error="true"] { color: var(--danger); }
 

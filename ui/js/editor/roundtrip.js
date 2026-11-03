@@ -171,6 +171,7 @@ function applyCandidates(candidates) {
   // it fed was removed with the candidate board.
 
   renderList(); renderPreview();
+  if (typeof refreshTranscriptState === "function") refreshTranscriptState();
   // Suggestions are in the ACTIVE video's own seconds, while the preview
   // runs on the virtual timeline (assets.js) -- the same thing only for the
   // first video. For any other, leave the preview on the Result.
@@ -203,17 +204,27 @@ async function prepareExport(videoName) {
   panel.dataset.ready = "true";
   if (typeof drawCueChips === "function") drawCueChips();
   buttons.forEach((b) => { b.disabled = false; });
-  refreshBrief();
+  if (!realTranscript.ranges) refreshBrief();           // path A needs the whole transcript (refreshTranscriptState)
   drawRubricPick();
   note.textContent =
     `${realTranscript.words.length.toLocaleString("en")} words · ${fmtStamp(realTranscript.duration)} · drop the file into Claude to find clips`;
-  
+
+  if (snapImportedAfterTranscript) {
+    snapImportedAfterTranscript = false;
+    const moved = await snapImported();
+    $("#importNote").dataset.error = "false";
+    $("#importNote").textContent = moved
+      ? `${moved} imported clip${moved === 1 ? "" : "s"} snapped to words now that the transcript is there.`
+      : "The transcript is there; no imported clip needed snapping.";
+  }
+  refreshTranscriptState();
+
   // If the user already added manual clips BEFORE this transcript arrived
   // (e.g. transcription was still running when "Create manual clip" was pressed),
   // the captions are empty because kataResult() has nothing to map yet -- and
   // nothing triggers a redraw once the transcript finally becomes available.
   // An explicit redraw here closes that gap.
-  if (!previous && typeof RESULT !== "undefined" && RESULT.length) {
+  if ((!previous || previous.ranges) && typeof RESULT !== "undefined" && RESULT.length) {
     if (typeof drawCaption === "function") drawCaption();
     if (typeof renderCaptions === "function") renderCaptions();
   }
@@ -358,6 +369,119 @@ $("#downloadGeminiBrief")?.addEventListener("click", async () => {
 });
 
 const NO_TRANSCRIPT_NOTE = "Cut points are not snapped to words until the transcript is ready.";
+
+/* ---------- transcribe only the imported clips (the Ask Gemini path), and what a partial transcript means ----------
+   A partial transcript has `ranges` ([[start, end]] seconds): words exist only there. Transcribe (the whole video) and
+   path A work from a whole one; Captions and Render need words only inside their Result. */
+
+let snapImportedAfterTranscript = false;       // set by startAnalysis when a ranges job finished
+let lastImport = null;                          // { id, text, orig: [[startSec, endSec]] } of the last import, to snap it afterwards
+
+const PARTIAL_NOTE = "The transcript covers only the imported clips. Transcribe the whole video to use this.";
+
+function videoDuration() {
+  return Number.isFinite(chosenSource?.duration) ? chosenSource.duration : realTranscript?.duration;
+}
+
+/* The parts of the video the imported clips still need transcribed (none once a whole transcript exists). */
+function wantedRanges() {
+  if (!chosenSource || (realTranscript && !realTranscript.ranges)) return [];
+  const spans = (DATA?.candidates || []).filter((k) => Number.isFinite(k.startSec) && Number.isFinite(k.endSec))
+    .map((k) => [k.startSec, k.endSec]);
+  if (!realTranscript?.ranges) return clipRanges(spans, videoDuration());
+  // a partial transcript: only what the clips themselves still lack (a sliver of padding is not worth a run)
+  return clipRanges(subtractRanges(spans, realTranscript.ranges).filter(([a, b]) => b - a >= 1), videoDuration());
+}
+
+function drawTranscribeClips() {
+  const row = $("#clipsTranscribeRow"), rec = $("#recTranscribe");
+  if (!row || !rec) return;
+  const wanted = wantedRanges();
+  const n = (DATA?.candidates || []).length;
+  const show = n > 0 && wanted.length > 0;
+  row.hidden = !show;
+  rec.hidden = !show;
+  if (!show) return;
+  const mins = Math.max(1, Math.ceil(rangesSeconds(wanted) / 60));
+  const note = `about ${mins} min of audio instead of the whole video`;
+  const label = `Transcribe these ${n} clip${n === 1 ? "" : "s"}`;
+  $("#transcribeClips").textContent = label;
+  rec.textContent = label;
+  rec.title = note;
+  $("#clipsTranscribeNote").textContent = note;
+}
+
+function transcribeRanges(ranges) {
+  if (!ranges.length) return;
+  if (typeof toStage === "function") toStage("work");
+  toScreen("analysis");
+  startAnalysis({ ranges });
+}
+
+$("#transcribeClips")?.addEventListener("click", () => transcribeRanges(wantedRanges()));
+$("#recTranscribe")?.addEventListener("click", () => transcribeRanges(wantedRanges()));
+
+/* A Result with a part outside the transcribed ranges has no captions there: said on Clips and Render, with the
+   button that transcribes that part. Rendering is never blocked by it. */
+function checkResultRanges() {
+  const bars = document.querySelectorAll(".range-warn");
+  if (!bars.length) return;
+  let missing = [];
+  if (realTranscript?.ranges && typeof RESULT !== "undefined" && !(typeof activeAssetOffset === "function" && activeAssetOffset())) {
+    missing = subtractRanges(RESULT.map((r) => [r.start, r.end]), realTranscript.ranges).filter(([a, b]) => b - a >= 1);
+  }
+  for (const bar of bars) {
+    bar.hidden = !missing.length;
+    if (!missing.length) continue;
+    const parts = missing.slice(0, 3).map(([a, b]) => `${fmtStamp(a)}–${fmtStamp(b)}`).join(", ");
+    bar.querySelector(".data").textContent = `no captions for ${parts}${missing.length > 3 ? ` and ${missing.length - 3} more` : ""}: not transcribed`;
+    bar.querySelector("button").textContent = missing.length > 1 ? "Transcribe these parts" : "Transcribe this part";
+    bar.querySelector("button").onclick = () => transcribeRanges(clipRanges(missing, videoDuration()));
+  }
+}
+
+/* A partial transcript makes path A wait for the whole one; everything that shows the state is redrawn here. */
+function refreshTranscriptState() {
+  if (realTranscript?.ranges) {
+    const panel = $("#exportPanel");
+    if (panel) {
+      panel.dataset.ready = "false";
+      [$("#copyBrief"), $("#downloadBrief"), $("#findWithClaude")].forEach((b) => { if (b) b.disabled = true; });
+      $("#exportNote").textContent = PARTIAL_NOTE;
+    }
+    const note = $("#transcriptNote");
+    if (note) {
+      const covered = rangesSeconds(realTranscript.ranges);
+      const n = realTranscript.ranges.length;
+      note.textContent = `Transcript: ${n} clip range${n === 1 ? "" : "s"}, ${fmtStamp(covered)} of ${fmtStamp(realTranscript.duration)}`;
+      note.hidden = false;
+    }
+  }
+  drawTranscribeClips();
+  checkResultRanges();
+}
+
+/* After the clips' transcript is there: the imported suggestions the person has not changed are cut again from the
+   same reply, now with the words to snap to. Returns how many moved. */
+async function snapImported() {
+  if (!lastImport || !realTranscript) return 0;
+  let fresh;
+  try {
+    fresh = await importJSON(lastImport.text);
+  } catch { return 0; }
+  let moved = 0;
+  (DATA.candidates || []).forEach((k, i) => {
+    const was = lastImport.orig[i], f = fresh[i];
+    if (!was || !f || k.importId !== lastImport.id) return;
+    if (k.startSec !== was[0] || k.endSec !== was[1]) return;          // changed by hand: left alone
+    if (f.startSec === k.startSec && f.endSec === k.endSec) return;
+    DATA.candidates[i] = { ...f, importId: lastImport.id };
+    moved++;
+  });
+  lastImport = { ...lastImport, orig: DATA.candidates.map((k) => [k.startSec, k.endSec]) };
+  if (moved) { renderList(); if (typeof renderRecommendations === "function") renderRecommendations(); if (typeof saveProject === "function") saveProject(); }
+  return moved;
+}
 
 /* ---------- Find clips with Claude (P24): the server holds the key, makes the call and imports the reply ---------- */
 
@@ -532,6 +656,7 @@ $("#importBtn")?.addEventListener("click", async () => {
   disarmImport();
   try {
     const candidates = await importJSON($("#pasteJSON").value);
+    lastImport = { id: candidates[0]?.importId, text: $("#pasteJSON").value, orig: candidates.map((k) => [k.startSec, k.endSec]) };
     replacedSuggestions = have ? { video: chosenSource?.name || "", list: DATA.candidates } : null;
     applyCandidates(candidates);
     note.dataset.error = "false";
