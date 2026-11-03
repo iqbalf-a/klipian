@@ -9,7 +9,7 @@ import { ROOM } from "../../src/roomScale.ts";
 import { cam2At, isoAt, toScreen, type Cam2, type Key2, type P2, type P3 } from "../../src/iso.ts";
 import { captionBox, conflicts, textWidthEstimate, topTextBox, type Box, type Spec } from "../../src/layout.ts";
 import { SAFE } from "../../src/tokens.ts";
-import { simulateCable } from "../../src/cableSim.ts";
+import { simulateCable, type V3 } from "../../src/cableSim.ts";
 import { BOOT_END, PLUG_PROFILE } from "../../src/socket.ts";
 
 // the two worlds, in world px at rest (camera focus 540, 960, zoom 1)
@@ -22,7 +22,7 @@ export const contactAt = (loose: number): P3 => [1.2 - 0.2 * loose, 0.05, 0.18];
 /** The cable after the plug end: straight to the left (world (-1, +1, 0) is level on the screen), so it runs above the captions and off the frame. */
 export const CABLE_TO: P3[] = [[-0.9, 2.8, 0.5], [-2.6, 4.6, 0.4]];
 /** Round 4: the cable is a chain of fixed length (src/cableSim.ts) that hangs from the plug's end and rests on the shelf and the plate. */
-export const CABLE_LEN = 11;   // B27.7: the cable falls from a socket 25 cm above the desk (about 7 units) and still has slack to lie on it
+export const CABLE_LEN = 12.5;   // B27.7/B27.9: the cable falls from a socket 30 cm above the table (about 8.5 units) and runs on to the lamp, with some slack
 const out = (p: P3): P2 => isoAt(p, OUT.u, OUT.o);
 /** The plug's radius by height above its plate (IsoPlug in components/Iso.tsx, the same numbers): the body, then the thin strain relief. */
 const plugRadius = (dy: number): number => {
@@ -157,11 +157,11 @@ export function makePlan(story: StoryT) {
   const cardIn2 = m.melt + 0.4, cardOut2 = beat("akhir").b - 0.15;
 
   // ---------------------------------------------------------------- the cameras
-  const WIDE = { x: -400, y: 70, zoom: 0.2 };
+  const WIDE = { x: -630, y: 1950, zoom: 0.32 };
   const J = out(SOCKET_PTS.junction), C0 = out(SOCKET_PTS.center);
   const outKeys: Key2[] = dropped([
     // B27.8: the hook opens on a wide establishing shot of the whole set (wall, window, desk, lamp, socket) and holds 1.5 s, then pushes to the main shot.
-    // motion-exception: the establishing shot is a push from zoom 0.2 to 1.28 in 1.3 s, faster than a beat's push (4-8 s); it is the one wide shot of the video and the loop-back eases home to it
+    // motion-exception: the establishing shot is a push from zoom 0.32 to 1.28 in 1.3 s, faster than a beat's push (4-8 s); it is the one wide shot of the video and the loop-back eases home to it
     { t: 0, ...WIDE },
     { t: 1.5, ...WIDE },
     { t: 2.8, x: C0[0] + 20, y: C0[1] + 40, zoom: 1.28 },
@@ -258,7 +258,7 @@ export function makePlan(story: StoryT) {
   // a frame reads its nodes back, so the picture never runs the simulation itself
   const plugEnd = (t: number): [number, number, number] => { const s = state(t), cx = s.wobble * 0.05, tip = s.wobble * 0.14; return [cx + tip * (BOOT_END / 2), 0.3 + s.gap + BOOT_END, 0.5]; };
   // the world: z is up, the wall is the plane y = 0.3 (the plate front), the plug sticks out along +y, the floor is the desk top, the plane z = ROOM.deskZ (src/roomScale.ts)
-  const cableFrames = simulateCable({ anchor: plugEnd, duration: total, fps: FPS, length: CABLE_LEN, axis: [0, 1, 0], stub: 0.9, nodes: 32, floorZ: ROOM.deskZ,
+  const cableFrames = simulateCable({ anchor: plugEnd, duration: total, fps: FPS, length: CABLE_LEN, axis: [0, 1, 0], stub: 0.9, nodes: 32, floorZ: ROOM.deskZ, end: [...ROOM.lampCord] as V3, boxes: ROOM.obstacles.map((b) => ({ a: [...b.a] as V3, b: [...b.b] as V3 })),
     wall: { face: 0.3, x0: -40, x1: 40, z0: ROOM.deskZ, z1: 60 },
     body: (t) => { const g = state(t).gap; return { x: 0, z: 0.5, r: 0.95, y0: 0.3 + g, y1: 1.9 + g }; } });
   // from the outro on, the cable eases to its opening shape with the same loop weight as the rest, so the last frame is the first one's cable

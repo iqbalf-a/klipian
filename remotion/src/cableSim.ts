@@ -33,6 +33,10 @@ export type CableSimOpts = {
   floorZ: number;
   /** The wall: the plane y = face, over the footprint [x0, x1] x [z0, z1]; the cable stays in front of it (y >= face). */
   wall?: { face: number; x0: number; x1: number; z0: number; z1: number };
+  /** The free end is fixed here (a plugged-in appliance's cord): the chain runs from the plug's end to this point and lies slack between. */
+  end?: V3;
+  /** Solid boxes the cable must not enter (B27.9): a node inside one is pushed out through the nearest side, never through the bottom. */
+  boxes?: { a: V3; b: V3 }[];
   /** Seconds the chain settles before t = 0 (default 3). */
   settle?: number;
 };
@@ -45,7 +49,16 @@ const NEAR_BEND = 0.2;                 // the turn per node for the first six fr
 const sub3 = (a: V3, b: V3): V3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const dot3 = (a: V3, b: V3): number => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const unitOf = (a: V3): V3 => { const L = Math.hypot(a[0], a[1], a[2]) || 1e-9; return [a[0] / L, a[1] / L, a[2] / L]; };
-const RADIUS = 0.04;                   // a node's half thickness
+const RADIUS = 0.04;
+const pushOutOfBoxes = (p: V3, boxes: { a: V3; b: V3 }[] | undefined): V3 => {
+  for (const { a, b } of boxes ?? []) {
+    if (p[0] <= a[0] - RADIUS || p[0] >= b[0] + RADIUS || p[1] <= a[1] - RADIUS || p[1] >= b[1] + RADIUS || p[2] <= a[2] || p[2] >= b[2] + RADIUS) continue;
+    const d = [p[0] - (a[0] - RADIUS), b[0] + RADIUS - p[0], p[1] - (a[1] - RADIUS), b[1] + RADIUS - p[1], b[2] + RADIUS - p[2]], k = d.indexOf(Math.min(...d));
+    const q: V3 = [...p]; if (k === 0) q[0] = a[0] - RADIUS; else if (k === 1) q[0] = b[0] + RADIUS; else if (k === 2) q[1] = a[1] - RADIUS; else if (k === 3) q[1] = b[1] + RADIUS; else q[2] = b[2] + RADIUS;
+    return q;
+  }
+  return p;
+};                   // a node's half thickness
 
 /** The nodes of the cable at every frame: frame f is at time f / fps. Deterministic: the same inputs give the same frames. */
 export function simulateCable(o: CableSimOpts): V3[][] {
@@ -75,7 +88,7 @@ export function simulateCable(o: CableSimOpts): V3[][] {
           const dx = x - body.x, dz = z - body.z, r = Math.hypot(dx, dz) || 1e-9;
           if (r < body.r) { x = body.x + (dx / r) * body.r; z = body.z + (dz / r) * body.r; }
         }
-        pos[i] = [x, y, z];
+        pos[i] = pushOutOfBoxes([x, y, z], o.boxes);
       }
       // the lengths: each link is brought back to `seg`; a pinned end does not move, and the first free node is moved only by the stub's cone below
       for (let i = 0; i < N - 1; i++) {
@@ -86,6 +99,7 @@ export function simulateCable(o: CableSimOpts): V3[][] {
         if (w > 0) pos[i] = [pos[i][0] + d[0] * c * w, pos[i][1] + d[1] * c * w, pos[i][2] + d[2] * c * w];
         pos[i + 1] = [pos[i + 1][0] - d[0] * c * e, pos[i + 1][1] - d[1] * c * e, pos[i + 1][2] - d[2] * c * e];
       }
+      if (o.end) pos[N - 1] = [...o.end];
       // the joint, walked outward from the stub: each of the first six links turns at most NEAR_BEND from the one before (the first from the plug's
       // axis, by FIRST_BEND), by moving the next node only: a tangent-continuous start and a gentle first bend, never a fold
       for (let i = stub; i < N - 1; i++) {
@@ -113,7 +127,7 @@ export function simulateCable(o: CableSimOpts): V3[][] {
         const dx = x - body.x, dz = z - body.z, r = Math.hypot(dx, dz) || 1e-9;
         if (r < body.r) { x = body.x + (dx / r) * body.r; z = body.z + (dz / r) * body.r; }
       }
-      pos[i] = [x, y, z];
+      pos[i] = pushOutOfBoxes([x, y, z], o.boxes);
     }
   };
 

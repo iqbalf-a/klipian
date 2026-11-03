@@ -20,7 +20,7 @@ if (!v.ok) throw new Error(v.errors.join("\n"));
 const P = makePlan(v.story);
 const chain = (t: number): V3[] => P.cableAt(t).map((p) => [p[0], p[1], p[2]] as V3);
 
-const N = 32, LENGTH = CABLE_LEN, SEG = LENGTH / (N - 1), RADIUS = 0.04, FLOOR_Z = ROOM.deskZ, MAX_BEND = 0.5;   // B27.7: the floor is the desk top, 25 cm under the socket
+const N = 32, LENGTH = CABLE_LEN, SEG = LENGTH / (N - 1), RADIUS = 0.04, FLOOR_Z = ROOM.deskZ, MAX_BEND = 0.5;   // B27.7: the floor is the desk top, 30 cm under the socket
 const dist = (a: V3, b: V3) => Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
 /** The turn at each interior node, in radians (0 = straight on). */
 const turns = (c: V3[]) => c.slice(1, -1).map((p, k) => {
@@ -42,7 +42,7 @@ const frameIdx = Array.from({ length: Math.round(P.total * FPS) }, (_, f) => f);
   yes(finite, "every node of the cable is a finite point in every frame");
   // the plan asks for links within 1 %. Round 6 traded some of it for the gentle joint (a turn of at most 0.2 rad per node after the stub); the worst link
   // is about 15 % off while the plug moves. The bound is the one the chain reaches, to catch regressions; the report says so.
-  // B27.7: the cable now falls 7 units to the desk (32 nodes, 11 long), and the worst link while the plug is pulled out is about 18 % off: the bound is 20 %.
+  // B27.7: the cable now falls 7 units to the desk (32 nodes, 12.5 long, its end fixed at the lamp), and the worst link while the plug is pulled out is about 18 % off: the bound is 20 %.
   yes(linkErr < 0.2, `the links keep their length (worst link ${(linkErr * 100).toFixed(1)} % off; the plan asks for 1 %, the bound is 20 %)`);
 }
 
