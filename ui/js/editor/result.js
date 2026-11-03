@@ -676,10 +676,39 @@ $("#recList")?.addEventListener("change", (e) => {
   if (note) note.textContent = (clamped ? "shortened to the end of the video · " : "") + timeSetNote(done.side, done.side, done.typed, done);
 });
 
+/* Delete selected: two clicks (the first asks, as Remove does on Assets); only the ticked suggestions leave the list. */
+let recDeleteTimer = null;
+
+function disarmRecDelete() {
+  clearTimeout(recDeleteTimer);
+  const d = $("#recDelete");
+  if (d) { d.textContent = "Delete selected"; d.classList.remove("danger"); }
+}
+
+$("#recDelete")?.addEventListener("click", () => {
+  const ticked = [...document.querySelectorAll("#recList input[data-rec]:checked")].map((c) => Number(c.dataset.rec));
+  const d = $("#recDelete");
+  if (!ticked.length) return;
+  if (!d.classList.contains("danger")) {
+    d.textContent = `Delete ${ticked.length} moment${ticked.length === 1 ? "" : "s"}?`;
+    d.classList.add("danger");
+    recDeleteTimer = setTimeout(disarmRecDelete, 4000);
+    return;
+  }
+  disarmRecDelete();
+  applyCandidates(withoutMoments(DATA.candidates || [], ticked));
+  renderRecommendations();
+  if ($("#recNote")) $("#recNote").textContent = `${ticked.length} deleted · ${(DATA.candidates || []).length} left`;
+  if (typeof saveProject === "function") saveProject();
+});
+
 function updateRecButton() {
   const b = $("#recAddBtn");
   if (!b) return;
   const n = document.querySelectorAll("#recList input:checked").length;
+  const del = $("#recDelete");
+  if (del) { disarmRecDelete(); del.disabled = n === 0; del.title = n ? "Remove the ticked suggestions from this list (Results already made from them stay)" : "Tick moments below first"; }
+  if (typeof drawTranscribeClips === "function") drawTranscribeClips();
   const moments = `${n} moment${n === 1 ? "" : "s"}`;
   const none = "Tick moments above first";
   b.disabled = n === 0;

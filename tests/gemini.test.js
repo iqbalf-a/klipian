@@ -1,6 +1,6 @@
 /* Ask Gemini's prompt and the per-video answer (ui/js/editor/gemini.js): node tests/gemini.test.js */
 const assert = require("assert");
-const { GEMINI_PROMPT, geminiKey, loadGeminiText, saveGeminiText, mergeRanges, subtractRanges, clipRanges, rangesSeconds } = require("../ui/js/editor/gemini.js");
+const { GEMINI_PROMPT, geminiKey, loadGeminiText, saveGeminiText, mergeRanges, subtractRanges, clipRanges, rangesSeconds, momentSpans, withoutMoments } = require("../ui/js/editor/gemini.js");
 
 let n = 0;
 const eq = (got, want, what) => { n++; assert.deepStrictEqual(got, want, `${what}: got ${JSON.stringify(got)}, wanted ${JSON.stringify(want)}`); };
@@ -40,5 +40,17 @@ eq(mergeRanges([[5, 10], [0, 3], [9, 12]]), [[0, 3], [5, 12]], "merge sorts and 
 eq(subtractRanges([[0, 100]], [[10, 20], [50, 60]]), [[0, 10], [20, 50], [60, 100]], "uncovered parts");
 eq(subtractRanges([[10, 20]], [[0, 100]]), [], "fully covered");
 eq(subtractRanges([[10, 20]], null), [[10, 20]], "nothing covered");
+
+// Choose moments: the ticked ones only
+const cand = [{ startSec: 100, endSec: 120 }, { startSec: 300, endSec: 330 }, { startSec: 500, endSec: 540 }, { startSec: NaN, endSec: 1 }];
+eq(momentSpans(cand, [2, 0]), [[100, 120], [500, 540]], "ticked spans, in video order");
+eq(momentSpans(cand, [1, 1, 9, 3]), [[300, 330]], "a repeated index counts once; unknown and invalid ones are dropped");
+eq(momentSpans(cand, []), [], "nothing ticked");
+eq(clipRanges(momentSpans(cand, [0, 2]), 600), [[80, 140], [480, 560]], "ranges of the ticked moments only");
+eq(subtractRanges(momentSpans(cand, [0, 1]), [[0, 200]]), [[300, 330]], "a ticked moment already covered needs nothing");
+eq(withoutMoments(cand, [0, 2]).length, 2, "two ticked moments leave two");
+eq(withoutMoments(cand, [0, 2])[0], cand[1], "the others keep their order");
+eq(withoutMoments(cand, []).length, 4, "nothing ticked removes nothing");
+eq(cand.length, 4, "the list itself is not changed");
 
 console.log(`gemini: ${n} checks ok`);

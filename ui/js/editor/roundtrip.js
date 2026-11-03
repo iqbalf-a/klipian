@@ -383,15 +383,18 @@ function videoDuration() {
   return Number.isFinite(chosenSource?.duration) ? chosenSource.duration : realTranscript?.duration;
 }
 
-/* The parts of the video the imported clips still need transcribed (none once a whole transcript exists). */
-function wantedRanges() {
+/* The parts of the video the imported clips (or only the `ticked` ones of Choose moments) still need transcribed
+   (none once a whole transcript exists). */
+function wantedRanges(ticked) {
   if (!chosenSource || (realTranscript && !realTranscript.ranges)) return [];
-  const spans = (DATA?.candidates || []).filter((k) => Number.isFinite(k.startSec) && Number.isFinite(k.endSec))
-    .map((k) => [k.startSec, k.endSec]);
+  const cands = DATA?.candidates || [];
+  const spans = momentSpans(cands, ticked || cands.map((_, i) => i));
   if (!realTranscript?.ranges) return clipRanges(spans, videoDuration());
   // a partial transcript: only what the clips themselves still lack (a sliver of padding is not worth a run)
   return clipRanges(subtractRanges(spans, realTranscript.ranges).filter(([a, b]) => b - a >= 1), videoDuration());
 }
+
+const tickedMoments = () => [...document.querySelectorAll("#recList input[data-rec]:checked")].map((c) => Number(c.dataset.rec));
 
 function drawTranscribeClips() {
   const row = $("#clipsTranscribeRow"), rec = $("#recTranscribe");
@@ -400,15 +403,22 @@ function drawTranscribeClips() {
   const n = (DATA?.candidates || []).length;
   const show = n > 0 && wanted.length > 0;
   row.hidden = !show;
-  rec.hidden = !show;
-  if (!show) return;
-  const mins = Math.max(1, Math.ceil(rangesSeconds(wanted) / 60));
-  const note = `about ${mins} min of audio instead of the whole video`;
-  const label = `Transcribe these ${n} clip${n === 1 ? "" : "s"}`;
-  $("#transcribeClips").textContent = label;
-  rec.textContent = label;
-  rec.title = note;
-  $("#clipsTranscribeNote").textContent = note;
+  rec.hidden = !(n > 0 && chosenSource && !(realTranscript && !realTranscript.ranges));   // Choose moments: until a whole transcript exists
+  if (show) {
+    const mins = Math.max(1, Math.ceil(rangesSeconds(wanted) / 60));
+    const label = `Transcribe these ${n} clip${n === 1 ? "" : "s"}`;
+    $("#transcribeClips").textContent = label;
+    $("#clipsTranscribeNote").textContent = `about ${mins} min of audio instead of the whole video`;
+  }
+  if (rec.hidden) return;
+  // Choose moments: only the ticked moments
+  const ticked = tickedMoments();
+  const own = wantedRanges(ticked);
+  rec.textContent = ticked.length ? `Transcribe selected (${ticked.length})` : "Transcribe selected";
+  rec.disabled = !own.length;
+  rec.title = !ticked.length ? "Tick moments below first"
+    : !own.length ? "Already transcribed"
+    : `about ${Math.max(1, Math.ceil(rangesSeconds(own) / 60))} min of audio instead of the whole video`;
 }
 
 function transcribeRanges(ranges) {
@@ -419,7 +429,8 @@ function transcribeRanges(ranges) {
 }
 
 $("#transcribeClips")?.addEventListener("click", () => transcribeRanges(wantedRanges()));
-$("#recTranscribe")?.addEventListener("click", () => transcribeRanges(wantedRanges()));
+$("#recTranscribe")?.addEventListener("click", () => transcribeRanges(wantedRanges(tickedMoments())));
+$("#recList")?.addEventListener("change", drawTranscribeClips);
 
 /* A Result with a part outside the transcribed ranges has no captions there: said on Clips and Render, with the
    button that transcribes that part. Rendering is never blocked by it. */

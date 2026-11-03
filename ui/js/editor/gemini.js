@@ -59,4 +59,16 @@ function clipRanges(spans, duration) {
 
 const rangesSeconds = (ranges) => ranges.reduce((n, [a, b]) => n + (b - a), 0);
 
-if (typeof module !== "undefined" && module.exports) module.exports = { GEMINI_PROMPT, geminiKey, loadGeminiText, saveGeminiText, mergeRanges, subtractRanges, clipRanges, rangesSeconds };
+/* The ticked moments of Choose moments (`ticked`: indexes into `candidates`): their [start, end] spans, and the list
+   without them. Indexes that match nothing are ignored. */
+function momentSpans(candidates, ticked) {
+  return [...new Set(ticked)].sort((a, b) => a - b).map((i) => candidates[i])
+    .filter((k) => k && Number.isFinite(k.startSec) && Number.isFinite(k.endSec)).map((k) => [k.startSec, k.endSec]);
+}
+
+function withoutMoments(candidates, ticked) {
+  const gone = new Set(ticked);
+  return candidates.filter((_, i) => !gone.has(i));
+}
+
+if (typeof module !== "undefined" && module.exports) module.exports = { GEMINI_PROMPT, geminiKey, loadGeminiText, saveGeminiText, mergeRanges, subtractRanges, clipRanges, rangesSeconds, momentSpans, withoutMoments };
