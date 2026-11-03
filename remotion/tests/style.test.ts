@@ -57,7 +57,7 @@ for (const r of DICTIONARY.filter((k) => k.status === "drawn")) {
   yes(design.includes("## 0b. The klipian intip formula (Style Bible v1)"), "DESIGN.md has the section 0b (the Style Bible v1)");
   yes(design.indexOf("## 0b.") < design.indexOf("## 0. How to start"), "section 0b comes before section 0 (the other sections refer to it)");
   yes(/Contents: \[0b\./.test(design), "DESIGN.md's contents line names section 0b");
-  for (const lock of ["Diorama stage", "Visual dictionary", "One hero asset", "One beat formula", "checklist"]) yes(design.includes(lock), `section 0b has the lock "${lock}"`);
+  for (const lock of ["Diorama set", "Visual dictionary", "One hero asset", "One beat formula", "checklist"]) yes(design.includes(lock), `section 0b has the lock "${lock}"`);
   yes(/B1[0-9]?\s/.test(design) && design.includes("B6 Detail budget"), "section 0b lists the numbered rules, the detail budget among them");
   const handover = design.slice(design.indexOf("## 12. Before you hand a video back"));
   yes(handover.includes("scripts/styleCheck.mjs") && handover.includes("0b"), "the handover section points to the checker and to section 0b");
@@ -119,6 +119,7 @@ for (const r of DICTIONARY.filter((k) => k.status === "drawn")) {
   yes(motion.includes("damping: 12, stiffness: 150, mass: 0.8") && motion.includes("damping: 20, stiffness: 120, mass: 0.9"), "the registry's springs are the springs of src/motion.ts");
   yes(motion.includes("Easing.out(Easing.cubic)") && motion.includes("Easing.inOut(Easing.cubic)") && motion.includes("Easing.out(Easing.back(1.4))") && motion.includes("Easing.inOut(Easing.quad)"), "the registry's easings are the easings of src/motion.ts");
   yes(Object.keys(LANG.EASINGS).length === 4 && Object.keys(LANG.SPRINGS).length === 2, "the registry lists four easings and two springs");
+  yes(LANG.RANGES.establishingPush[0] === 1 && LANG.RANGES.establishingPush[1] === 1.5 && LANG.ESTABLISHING.zoomFrom < 0.5 && LANG.ESTABLISHING.zoomTo > 1.2, "the registry has the establishing push (1.0 to 1.5 s, zoom about 0.45 to about 1.25)");
   yes(LANG.RANGES.cameraPush[0] <= 5 && LANG.RANGES.cameraPush[1] >= 7, "the push range covers pilot 1's pushes (5 to 7 s)");
   yes(LANG.STYLE_EXCEPTIONS.every((e) => e.reason.length > 20), "every colour exception has its reason");
 }

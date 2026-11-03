@@ -14,6 +14,7 @@ You are the local Claude Code of this computer. The person copied a brief from t
 - Never write to `workspace/`. Never read or print secrets (`client_secret*.json`, tokens, keys).
 - No API key, no service call. Web search for facts is yours to do; no voice service, no upload.
 - The channel's musts (DESIGN.md section 0b, B16): the small "Intip yuk!" sting right after the hook, the loop-back ending (no mascot, label, pill or voice in the outro), and a consistent object style and animation. The brief's options (loop, sting, music, voice target, kind) stay as the brief says.
+- Build a set, not a specimen: read `remotion/DESIGN.md` B27 and the Animation recipe first; open on a wide shot of the set, one scale per set, no overlap, hero in the centre third.
 - Give each fact a source URL, as the brief asks. Leave out what you cannot check.
 - Never say a command passed without its output.
 

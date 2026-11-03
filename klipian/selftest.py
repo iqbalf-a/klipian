@@ -6091,7 +6091,8 @@ def check_motion_brief() -> tuple[str, str]:
         return SKIP, why
     problems: list[str] = []
     must = ["an everyday hook", "does not have to start with", "small `mascot`", "small `pill`", "Intip yuk!", "loop-back",
-            "**The outro has no mascot.**", "**One hero:**", "**Kinds of fact:**"]
+            "**The outro has no mascot.**", "**One hero:**", "**Kinds of fact:**",
+            "Build a set, not a specimen", "Animation recipe", "open on a wide shot of the set", "one scale per set", "hero in the centre third"]
     stale = ["The outro has the mascot again", "a short outro with the logo", "logo and", "starts with \"kenapa", "a big `mascot`",
              "an everyday question", "a short outro with the logo"]
     real_settings = profiles.hashtag_settings
@@ -6114,7 +6115,7 @@ def check_motion_brief() -> tuple[str, str]:
         profiles.hashtag_settings = real_settings
     if problems:
         return FAIL, "\n      ".join(problems)
-    return PASS, "the brief for 30, 45 and 60 s carries the hook, the small sting, the loop-back outro, one hero and the kinds of fact; no old wording"
+    return PASS, "the brief for 30, 45 and 60 s carries the hook, the small sting, the loop-back outro, one hero, the kinds of fact and the set rule (B27, the wide shot, one scale, the centre third); no old wording"
 
 
 # check: several narration files (PLAN-ALUR-V2 phase 1): the order by number (2 before 10), a gap in the series and another prefix as warnings,
@@ -6567,7 +6568,7 @@ def check_skill() -> tuple[str, str]:
     for rel in ("remotion/validate.mjs", "remotion/scripts/styleCheck.mjs", "remotion/scripts/styleReport.mjs"):
         if not (root / rel).is_file():
             problems.append(f"{rel} exists")
-    for needle in ("Never write to `workspace/`", "No API key", "never calls a voice or other service", "Never read or print secrets"):
+    for needle in ("Never write to `workspace/`", "No API key", "never calls a voice or other service", "Never read or print secrets", "Build a set, not a specimen"):
         if needle.lower() not in text.lower():
             problems.append(f"the skill keeps the rule: {needle}")
     if "api key" in text.lower() and "no api key" not in text.lower() and "never needs an api key" not in text.lower():

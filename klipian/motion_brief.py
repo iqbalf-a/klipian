@@ -124,6 +124,7 @@ HARD_RULES = [
     "Every claim has at least one source URL that you opened yourself.",
     'The story has `"bible": 1`.',
     "The hero is the topic's object. Use `socket` only when the topic is an electrical socket or plug.",
+    "Build a set, not a specimen: read `remotion/DESIGN.md` B27 and the Animation recipe first; open on a wide shot of the set, one scale per set, no overlap, hero in the centre third.",
     "No health or finance topics. Never teach anything dangerous.",
     "Never write to `workspace/`, never read or print secrets or API keys.",
     "Never say a check passed unless you ran it and pasted its output.",

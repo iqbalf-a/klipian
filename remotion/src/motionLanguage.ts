@@ -26,9 +26,13 @@ export const RANGES = {
   labelIn: [0.2, 0.4],                // a label or a pill comes in
   cameraPush: [4, 8],                 // a push over the beat: pilot 1's pushes last 5 to 7 s
   cameraPan: [0.8, 2.5],              // a pan that settles (the plan's range; pilot 1 has none)
+  establishingPush: [1.0, 1.5],       // the hook's wide shot to the main shot (B27.8): zoom about 0.45 to about 1.25, Easing.inOut(Easing.quad); colokan 1.3 s, hujan 1.2 s
   lensDive: [0.7, 1.0],               // the lens transition in or out: pilot 1 has 0.8 s
   wipeSlide: [0.4, 1.0],              // a wipe or a slide between beats: pilot 1 has 0.5 and 0.6 s
 } as const;
+
+// the establishing push's zoom, from and to (about): the wide shot of the set, then the main shot
+export const ESTABLISHING = { zoomFrom: 0.45, zoomTo: 1.25 } as const;
 
 // the camera's top speeds: a zoom per second and a pan in px per second (pilot 1's fastest move is the lens dive, the pushes are far below both)
 export const CAMERA_MAX = { zoomPerSecond: 0.05, panPxPerSecond: 800 } as const;
