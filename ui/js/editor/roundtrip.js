@@ -673,7 +673,7 @@ $("#importBtn")?.addEventListener("click", async () => {
     note.dataset.error = "false";
     note.textContent = `${candidates.length} suggestion${candidates.length === 1 ? "" : "s"} imported`
       + (have ? ` (replaced ${have})` : "")
-      + (lastImportNotes.length ? `. Fixed in the reply: ${lastImportNotes.join("; ")}.` : "");
+      + (lastImportNotes.length ? `. Fixed in the reply: ${lastImportNotes.join("; ")}.` : "")
       + (realTranscript ? "" : ` ${NO_TRANSCRIPT_NOTE}`);
     if (typeof renderRecommendations === "function") renderRecommendations();
     if (typeof saveProject === "function") saveProject();
