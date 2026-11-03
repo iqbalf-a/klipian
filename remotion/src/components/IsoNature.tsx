@@ -21,6 +21,9 @@
     13. rain                                                                              drawn BEFORE the grey cloud: it starts behind the cloud's lower edge
     14. droplets                                                                          behind the grey cloud
     15. clouds (white, then grey: back puffs, belly, puffs, wisps; `dark` sets the tone, `grow` the size)
+   THE WIDE DIORAMA (rain video, B27): `IsoSea` and `IsoLand` take `wide` (their blocks go on past every frame edge); `IsoHills` (stepped hills) and `IsoFields` (crop plots with
+   rows) stand on the land after the hill step and before the puddles; the trees, bushes and rocks take longer lists (natureGeometry.ts TREES_WIDE, BUSHES_WIDE, ROCKS_WIDE);
+   `IsoFarHills` and a `haze`d `IsoCloud` are far-layer pieces (parallax 0.3 and 0.6), drawn before the sea. The footprints of everything on the land are tested not to intersect.
    Clipped parts: a part that goes onto a face is clipped to that face's outline (`clipPath`). Every moving part is a function of `phase` (0..1 over
    the loop) or of its own state (0..1), so the loop's last frame equals its first. */
 import React from "react";
@@ -28,8 +31,8 @@ import { ISO } from "../tokens.ts";
 import { swayDeg } from "../alive.ts";
 import { block, isoAt, ptsAttr, smoothPath, type P2, type P3 } from "../iso.ts";
 import {
-  BUSHES, CLOUD_SHADOW, FLOWERS, GLINTS, HILL, LAND, LAND_TOP, PUDDLES, ROCKS, RUNOFF, SEA, SEA_TOP, STRATA_Z, TREE_R, TREE_SHADOW, TREES,
-  cloudParts, crests, mixRgb, ripples, rainStreaks, seaTopCorners, splashRings, vapourOpacity, vapourWisps,
+  BUSHES, CLOUD_SHADOW, FIELDS, FLOWERS, GLINTS, GLINTS_WIDE, HILL, HILLS_WIDE, LAND, LAND_TOP, PUDDLES, ROCKS, RUNOFF, SEA, SEA_TOP, STRATA_Z, TREE_R, TREE_SHADOW, TREES, WORLD,
+  type Field, type HillBlock, cloudParts, crests, crestsWide, landTufts, mixRgb, ripples, rainStreaks, seaTopCorners, splashRings, vapourOpacity, vapourWisps,
 } from "../natureGeometry.ts";
 
 const WHITE_RIPPLE = "rgb(250,250,248)";
@@ -53,10 +56,11 @@ const arcD = (c: P2, r: number, a0: number, a1: number): string => {
 
 /** The sea: the side faces in three layers (surface, mid, deep) and a thin lighter lip on the top edge; the top face in a shallow band, a deep patch and
     a deepest core, the cloud's shadow (`shadow` 0..1), the two rows of crests with their foam, a foam lip, glints; then the splash rings (clipped). */
-export const IsoSea: React.FC<{ u: number; o: P2; phase?: number; splash?: number; splashAt?: [number, number]; shadow?: number }> = ({ u, o, phase = 0, splash = 0, splashAt, shadow = 0 }) => {
+export const IsoSea: React.FC<{ u: number; o: P2; phase?: number; splash?: number; splashAt?: [number, number]; shadow?: number; wide?: boolean }> = ({ u, o, phase = 0, splash = 0, splashAt, shadow = 0, wide = false }) => {
   const id = React.useId().replace(/:/g, "");
-  const top = seaTopCorners().map(([x, y, z]) => onFace(x, y, z, u, o));
-  const [x0, y0] = SEA.a, [x1, y1] = SEA.b, zt = SEA_TOP, zb = SEA.a[2];
+  const box = wide ? WORLD.sea : SEA;      // wide: the diorama's sea, which goes on past every frame edge (B27.1)
+  const top = (wide ? [[box.a[0], box.a[1], SEA_TOP], [box.b[0], box.a[1], SEA_TOP], [box.b[0], box.b[1], SEA_TOP], [box.a[0], box.b[1], SEA_TOP]] as P3[] : seaTopCorners()).map(([x, y, z]) => onFace(x, y, z, u, o));
+  const [x0, y0] = box.a, [x1, y1] = box.b, zt = SEA_TOP, zb = SEA.a[2];
   const z1 = zt - 0.12, zm = (z1 + zb) / 2;
   const band: [number, number][] = [[z1, zt], [zm, z1], [zb, zm]];
   const xFaceColours = [ISO.water[2], DEEP, DEEPER], yFaceColours = [ISO.water[1], ISO.water[2], DEEP];
@@ -74,7 +78,7 @@ export const IsoSea: React.FC<{ u: number; o: P2; phase?: number; splash?: numbe
       <polygon points={ptsAttr(flat([[x0 + 0.9, y0 + 0.8], [x1 - 0.8, y0 + 0.8], [x1 - 0.8, y1 - 0.7], [x0 + 0.9, y1 - 0.7]], zt, u, o))} fill={ISO.water[2]} />
       {shadow > 0 && <polygon points={ptsAttr(flat(ring(CLOUD_SHADOW.x, CLOUD_SHADOW.y, CLOUD_SHADOW.r), zt, u, o))} fill={shadowTone} />}
       <g clipPath={`url(#sea${id})`}>
-        {crests(phase).map((c, i) => (
+        {(wide ? crestsWide(phase) : crests(phase)).map((c, i) => (
           <g key={`c${i}`}>
             <path d={smoothPath(c.pts.map(([x, y]) => onFace(x, y, zt, u, o)), 0.5)} fill="none" stroke={WHITE_RIPPLE} strokeWidth={u * 0.035} strokeLinecap="round" />
             <path d={smoothPath(c.cap.map(([x, y]) => onFace(x, y, zt, u, o)), 0.5)} fill="none" stroke={WHITE_RIPPLE} strokeWidth={u * 0.03} strokeLinecap="round" opacity={0.9} />
@@ -82,7 +86,7 @@ export const IsoSea: React.FC<{ u: number; o: P2; phase?: number; splash?: numbe
         ))}
         {ripples(phase).map((r, i) => <path key={`r${i}`} d={smoothPath(r.pts.map(([x, y]) => onFace(x, y, zt, u, o)), 0.5)} fill="none" stroke={WHITE_RIPPLE} strokeWidth={u * 0.02} strokeLinecap="round" opacity={0.6} />)}
         <polygon points={ptsAttr(top)} fill="none" stroke={WHITE_RIPPLE} strokeWidth={u * 0.03} opacity={0.85} strokeLinejoin="round" />
-        {GLINTS.map(([x, y], i) => {
+        {(wide ? GLINTS_WIDE : GLINTS).map(([x, y], i) => {
           const d = 0.06, o2 = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(2 * Math.PI * phase + i * 1.7));
           return <polygon key={`g${i}`} points={ptsAttr(flat([[x, y - d], [x + d, y], [x, y + d], [x - d, y]], zt, u, o))} fill={WHITE_RIPPLE} opacity={o2} />;
         })}
@@ -134,21 +138,22 @@ export const IsoVapour: React.FC<{ u: number; o: P2; k: number; phase?: number }
 
 /** The land block: the sides in strata (topsoil, sand, stone, each in the soil, sand or stone tones of its face), the grass top (a little darker when
     wet), its lighter patches and small tufts. */
-export const IsoLand: React.FC<{ u: number; o: P2; wet?: number }> = ({ u, o, wet = 0 }) => {
+export const IsoLand: React.FC<{ u: number; o: P2; wet?: number; wide?: boolean; box?: { a: readonly number[]; b: readonly number[] } }> = ({ u, o, wet = 0, wide = false, box: given }) => {
+  const LB = given ?? (wide ? WORLD.land : LAND);      // wide: the diorama's land (B27.1); box: a small slab for a sheet tile
   const grass = ISO.grass.map((c) => (wet > 0 ? mixRgb(c, "rgb(96,118,88)", 0.25 * wet) : c));
   const patch = mixRgb(grass[0], ISO.cloudWhite[0], 0.35);
-  const topCorners = flat([[LAND.a[0], LAND.a[1]], [LAND.b[0], LAND.a[1]], [LAND.b[0], LAND.b[1]], [LAND.a[0], LAND.b[1]]], LAND_TOP, u, o);
+  const topCorners = flat([[LB.a[0], LB.a[1]], [LB.b[0], LB.a[1]], [LB.b[0], LB.b[1]], [LB.a[0], LB.b[1]]], LAND_TOP, u, o);
   const strata = [0, 1, 2];
   const sandRow = [ISO.soil[2], ISO.sand[2], ISO.stone[2]], sandCol = [ISO.soil[1], ISO.sand[1], ISO.stone[1]];
   const patches: [number, number][][] = [[[1.2, -0.25], [1.38, -0.3], [1.34, -0.14], [1.16, -0.1]], [[2.3, 0.7], [2.5, 0.66], [2.48, 0.8], [2.28, 0.85]], [[1.1, 0.7], [1.22, 0.66], [1.2, 0.8], [1.08, 0.82]]];
   const tufts: [number, number][] = [[1.25, 0.1], [1.9, -0.3], [2.5, 0.5], [1.7, 0.85], [2.2, 0.85], [1.4, -0.45]];
   return (
     <g>
-      {strata.map((i) => <polygon key={`x${i}`} points={ptsAttr(sideX(LAND.b[0], LAND.a[1], LAND.b[1], STRATA_Z[i + 1], STRATA_Z[i], u, o))} fill={sandRow[i]} stroke={sandRow[i]} strokeWidth={0.6} />)}
-      {strata.map((i) => <polygon key={`y${i}`} points={ptsAttr(sideY(LAND.b[1], LAND.a[0], LAND.b[0], STRATA_Z[i + 1], STRATA_Z[i], u, o))} fill={sandCol[i]} stroke={sandCol[i]} strokeWidth={0.6} />)}
+      {strata.map((i) => <polygon key={`x${i}`} points={ptsAttr(sideX(LB.b[0], LB.a[1], LB.b[1], STRATA_Z[i + 1], STRATA_Z[i], u, o))} fill={sandRow[i]} stroke={sandRow[i]} strokeWidth={0.6} />)}
+      {strata.map((i) => <polygon key={`y${i}`} points={ptsAttr(sideY(LB.b[1], LB.a[0], LB.b[0], STRATA_Z[i + 1], STRATA_Z[i], u, o))} fill={sandCol[i]} stroke={sandCol[i]} strokeWidth={0.6} />)}
       <polygon points={ptsAttr(topCorners)} fill={grass[0]} stroke={grass[1]} strokeWidth={0.8} strokeLinejoin="round" />
-      {patches.map((p, i) => <polygon key={`p${i}`} points={ptsAttr(flat(p, LAND_TOP, u, o))} fill={patch} />)}
-      {tufts.map(([x, y], i) => <polygon key={`t${i}`} points={ptsAttr([onFace(x - 0.04, y, LAND_TOP, u, o), onFace(x, y + 0.07, LAND_TOP, u, o), onFace(x + 0.04, y, LAND_TOP, u, o)])} fill={grass[2]} />)}
+      {!given && patches.map((p, i) => <polygon key={`p${i}`} points={ptsAttr(flat(p, LAND_TOP, u, o))} fill={patch} />)}
+      {(wide ? [...tufts, ...landTufts()] : given ? [] : tufts).map(([x, y], i) => <polygon key={`t${i}`} points={ptsAttr([onFace(x - 0.04, y, LAND_TOP, u, o), onFace(x, y + 0.07, LAND_TOP, u, o), onFace(x + 0.04, y, LAND_TOP, u, o)])} fill={grass[2]} />)}
     </g>
   );
 };
@@ -176,9 +181,9 @@ export const IsoPuddles: React.FC<{ u: number; o: P2; wet: number }> = ({ u, o, 
 );
 
 /** The tree shadows: a flat ring on the grass at each foot, shifted away from the light (drawn before the trees). */
-export const IsoTreeShadows: React.FC<{ u: number; o: P2 }> = ({ u, o }) => (
+export const IsoTreeShadows: React.FC<{ u: number; o: P2; list?: typeof TREES }> = ({ u, o, list = TREES }) => (
   <g>
-    {TREES.map((t, i) => <polygon key={i} points={ptsAttr(flat(ring(t.x + TREE_SHADOW.dx, t.y + TREE_SHADOW.dy, TREE_SHADOW.r), LAND_TOP, u, o))} fill={ISO.grass[2]} />)}
+    {list.map((t, i) => <polygon key={i} points={ptsAttr(flat(ring(t.x + TREE_SHADOW.dx, t.y + TREE_SHADOW.dy, TREE_SHADOW.r), LAND_TOP, u, o))} fill={ISO.grass[2]} />)}
   </g>
 );
 
@@ -238,9 +243,9 @@ export const IsoTrees: React.FC<{ u: number; o: P2; list?: typeof TREES; time?: 
 );
 
 /** The bushes and the flowers: each bush three lobes (light, mid, dark) with a shadow; each flower five white petals and a soil-toned centre. */
-export const IsoBushes: React.FC<{ u: number; o: P2 }> = ({ u, o }) => (
+export const IsoBushes: React.FC<{ u: number; o: P2; bushes?: typeof BUSHES; flowers?: typeof FLOWERS }> = ({ u, o, bushes = BUSHES, flowers = FLOWERS }) => (
   <g>
-    {BUSHES.map((b, i) => {
+    {bushes.map((b, i) => {
       const c = onFace(b.x, b.y, LAND_TOP + b.r * 0.9, u, o), r = u * b.r;
       return (
         <g key={`b${i}`}>
@@ -251,7 +256,7 @@ export const IsoBushes: React.FC<{ u: number; o: P2 }> = ({ u, o }) => (
         </g>
       );
     })}
-    {FLOWERS.map(([x, y], i) => {
+    {flowers.map(([x, y], i) => {
       const c = onFace(x, y, LAND_TOP, u, o), r = u * 0.02;
       return (
         <g key={`f${i}`}>
@@ -264,13 +269,65 @@ export const IsoBushes: React.FC<{ u: number; o: P2 }> = ({ u, o }) => (
 );
 
 /** The rocks: small blocks of stone on the grass (three faces in the stone tones). */
-export const IsoRocks: React.FC<{ u: number; o: P2 }> = ({ u, o }) => (
+export const IsoRocks: React.FC<{ u: number; o: P2; list?: typeof ROCKS }> = ({ u, o, list = ROCKS }) => (
   <g>
-    {ROCKS.map((r, i) => block([r.x - r.s, r.y - r.s, LAND_TOP] as P3, [r.x + r.s, r.y + r.s, LAND_TOP + r.h] as P3, u, o).map((p, j) => (
+    {list.map((r, i) => block([r.x - r.s, r.y - r.s, LAND_TOP] as P3, [r.x + r.s, r.y + r.s, LAND_TOP + r.h] as P3, u, o).map((p, j) => (
       <polygon key={`${i}-${j}`} points={ptsAttr(p.pts)} fill={ISO.stone[p.tone]} stroke={ISO.stone[p.tone]} strokeWidth={0.6} strokeLinejoin="round" />
     )))}
   </g>
 );
+
+/** The stepped hills of the wide diorama: each a stack of blocks, a step smaller each time, in the hill step's tones (grass top, soil sides). Back to front. */
+export const IsoHills: React.FC<{ u: number; o: P2; list?: HillBlock[][] }> = ({ u, o, list = HILLS_WIDE }) => (
+  <g>
+    {list.map((h, i) => (
+      <g key={i}>
+        {h.map((b, k) => block(b.a as P3, b.b as P3, u, o).map((p, j) => (
+          <polygon key={`${k}-${j}`} points={ptsAttr(p.pts)} fill={p.tone === 0 ? ISO.grass[0] : k === 0 ? ISO.soil[p.tone] : ISO.grass[p.tone]} stroke={p.tone === 0 ? ISO.grass[1] : k === 0 ? ISO.soil[p.tone] : ISO.grass[p.tone]} strokeWidth={0.8} strokeLinejoin="round" />
+        )))}
+      </g>
+    ))}
+  </g>
+);
+
+/** The crop fields: a flat plot of soil on the grass with rows of green plants (`rows`, along x or y); the soil is a little darker when wet. */
+export const IsoFields: React.FC<{ u: number; o: P2; list?: Field[]; wet?: number }> = ({ u, o, list = FIELDS, wet = 0 }) => {
+  const soil = mixRgb(ISO.soil[0], ISO.soil[2], 0.35 * Math.max(0, Math.min(1, wet)));
+  return (
+    <g>
+      {list.map((f, i) => {
+        const [x0, y0] = f.a, [x1, y1] = f.b, n = f.rows;
+        return (
+          <g key={i}>
+            <polygon points={ptsAttr(flat([[x0, y0], [x1, y0], [x1, y1], [x0, y1]], LAND_TOP, u, o))} fill={soil} stroke={ISO.soil[1]} strokeWidth={0.8} strokeLinejoin="round" />
+            {Array.from({ length: n }, (_, k) => {
+              const t0 = (k + 0.3) / n, t1 = (k + 0.7) / n;
+              const poly: [number, number][] = f.dir === "x"
+                ? [[x0 + 0.12, y0 + (y1 - y0) * t0], [x1 - 0.12, y0 + (y1 - y0) * t0], [x1 - 0.12, y0 + (y1 - y0) * t1], [x0 + 0.12, y0 + (y1 - y0) * t1]]
+                : [[x0 + (x1 - x0) * t0, y0 + 0.12], [x0 + (x1 - x0) * t1, y0 + 0.12], [x0 + (x1 - x0) * t1, y1 - 0.12], [x0 + (x1 - x0) * t0, y1 - 0.12]];
+              return <polygon key={k} points={ptsAttr(flat(poly, LAND_TOP, u, o))} fill={k % 2 ? ISO.leaf[1] : ISO.leaf[0]} />;
+            })}
+          </g>
+        );
+      })}
+    </g>
+  );
+};
+
+/** Far hills: two flat ridges in layer px, the back one paler, each a smooth skyline over a flat base (`base`), tinted towards the sky by `haze` (0..1). A far-layer piece
+    (B27.2: parallax about 0.3): it has no light and shade of its own, so depth comes from the haze. `crest` is the skyline's height, `x0`..`x1` its extent. */
+export const IsoFarHills: React.FC<{ x0: number; x1: number; crest: number; base: number; haze?: number }> = ({ x0, x1, crest, base, haze = 0.55 }) => {
+  const ridge = (shift: number, amp: number, k: number) => {
+    const n = 14, pts: P2[] = Array.from({ length: n + 1 }, (_, i) => { const f = i / n; return [x0 + (x1 - x0) * f, crest + shift - amp * (0.55 + 0.45 * Math.sin(f * 17 + k) * Math.sin(f * 5 + k * 2))] as P2; });
+    return smoothPath(pts, 0.5) + ` L ${x1} ${base} L ${x0} ${base} Z`;
+  };
+  return (
+    <g>
+      <path d={ridge(-30, 70, 1)} fill={mixRgb(ISO.grass[0], ISO.wall[0], Math.min(1, haze + 0.2))} />
+      <path d={ridge(10, 60, 4)} fill={mixRgb(ISO.grass[1], ISO.wall[0], haze)} />
+    </g>
+  );
+};
 
 /** The sun: a disc in the sun tones (light, then a darker lower-right crescent) with alternating long and short rays (round caps) that pulse
     slowly with `phase` (periodic). */
@@ -290,8 +347,9 @@ export const IsoSun: React.FC<{ cx: number; cy: number; r: number; phase?: numbe
 /** A cloud: its back puffs (one tone darker), the flat underside (the belly ellipses and a darker band under them), the front puffs as crescent-shaded
     volumes (a dark base, a mid body set up and left so the dark shows as a crescent at the lower right, a light cap at the upper left, a rim on the
     light side, a fold), and two wisps at its ends. The tones are cloudWhite (dark 0) to cloudGrey (dark 1). `grow` scales it; `phase` breathes it. */
-export const IsoCloud: React.FC<{ u: number; o: P2; cx: number; cy: number; cz: number; dark?: number; grow?: number; phase?: number }> = ({ u, o, cx, cy, cz, dark = 0, grow = 1, phase = 0 }) => {
-  const tone = (t: 0 | 1 | 2) => mixRgb(ISO.cloudWhite[t], ISO.cloudGrey[t], dark);
+export const IsoCloud: React.FC<{ u: number; o: P2; cx: number; cy: number; cz: number; dark?: number; grow?: number; phase?: number; haze?: number }> = ({ u, o, cx, cy, cz, dark = 0, grow = 1, phase = 0, haze = 0 }) => {
+  // haze (0..1): a far cloud, paler (its tones mixed towards the sky) so it sits back in the picture
+  const tone = (t: 0 | 1 | 2) => mixRgb(mixRgb(ISO.cloudWhite[t], ISO.cloudGrey[t], dark), ISO.wall[0], haze);
   const back = mixRgb(tone(2), "rgb(120,120,120)", 0.3), backBody = mixRgb(tone(2), tone(1), 0.5);
   const parts = cloudParts(cx, cy, cz, grow, phase);
   const project = (p: { x: number; y: number; z: number }) => isoAt([p.x, p.y, p.z] as P3, u, o) as P2;

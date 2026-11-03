@@ -1,7 +1,7 @@
 /* The drawing of each nature asset on its own (the sheet's tiles and the detail budget read it): the same parts as the demo, at the sheet's scale. */
 import React from "react";
-import { IsoBushes, IsoCloud, IsoCloudShadow, IsoDroplets, IsoHill, IsoLand, IsoPuddles, IsoRain, IsoRocks, IsoRunoff, IsoSea, IsoSplash, IsoSun, IsoTreeShadows, IsoTrees, IsoVapour } from "./components/IsoNature.tsx";
-import { CLOUD_GREY, CLOUD_WHITE, TREES } from "./natureGeometry.ts";
+import { IsoBushes, IsoCloud, IsoCloudShadow, IsoDroplets, IsoFarHills, IsoFields, IsoHill, IsoHills, IsoLand, IsoPuddles, IsoRain, IsoRocks, IsoRunoff, IsoSea, IsoSplash, IsoSun, IsoTreeShadows, IsoTrees, IsoVapour } from "./components/IsoNature.tsx";
+import { CLOUD_GREY, CLOUD_WHITE, FIELDS, FIELD_SLAB, HILLS_SLAB, SHEET_FAR_HILLS, SHEET_HILLS, TREES } from "./natureGeometry.ts";
 
 export const drawAsset = (name: string, u: number, o: [number, number]): React.ReactNode => {
   switch (name) {
@@ -33,6 +33,10 @@ export const drawAsset = (name: string, u: number, o: [number, number]): React.R
     case "droplets": return <IsoDroplets u={u} o={o} k={1} />;
     case "splash": return <IsoSplash u={u} o={o} k={0.5} at={[-0.2, -0.3]} />;
     case "runoff": return <><IsoLand u={u} o={o} /><IsoRunoff u={u} o={o} k={1} /></>;
+    case "field": return <><IsoLand u={u} o={o} box={FIELD_SLAB} /><IsoFields u={u} o={o} list={[FIELDS[0]]} /></>;
+    case "hills": return <><IsoLand u={u} o={o} box={HILLS_SLAB} /><IsoHills u={u} o={o} list={SHEET_HILLS} /></>;
+    case "far-cloud": return <IsoCloud u={u} o={o} cx={0} cy={0} cz={0} dark={0} grow={1} haze={0.55} />;
+    case "far-hills": return <IsoFarHills {...SHEET_FAR_HILLS} />;
     case "scene": return <>
       <IsoSea u={u} o={o} splash={0} shadow={1} />
       <IsoVapour u={u} o={o} k={1} />

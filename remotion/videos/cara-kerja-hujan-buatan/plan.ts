@@ -17,6 +17,23 @@ export const stageDrop = 100;
 export const OUT = { u: 160, o: [485, 1044 + stageDrop] as P2 };
 export const CLOUD = { cx: CLOUD_GREY.cx, cy: CLOUD_GREY.cy, cz: CLOUD_GREY.cz, grow: 1.25 };
 const out = (p: P3): P2 => isoAt(p, OUT.u, OUT.o);
+/** The establishing shot (B27.8, B27.10): the hero cloud in the middle third and inside SAFE, the diorama running past both sides and the bottom. */
+export const WIDE = { x: 610, y: 1000, zoom: 0.46 };
+/** The brand spot, kept in the sky, under the top text's band (B27.11: nothing yellow behind the top text, y 86 to 330): layer px, drawn in the far layer (parallax 0.3, grown 1.15). */
+export const SPOT = { x: 540, y: 640, r: 200 };
+/** The spot shrinks away while the camera is pushed in far (the dive into the cloud and the way out): there it would reach up behind the top text. */
+export const spotK = (zoom: number): number => { const k = Math.max(0, Math.min(1, (zoom - 1.12) / 0.5)); return 1 - k * k * (3 - 2 * k); };
+/** The spot's disc on the screen for a camera (the far layer's transform and the 1.15 growth of the brand wall). */
+export const spotScreen = (cam: Cam2, spot = SPOT): { x: number; y: number; r: number } => {
+  const c = toScreen(cam, [540 + 1.15 * (spot.x - 540), 960 + 1.15 * (spot.y - 960)], 0.3);
+  return { x: c[0], y: c[1], r: spot.r * spotK(cam.zoom) * 1.15 * Math.exp(Math.log(cam.zoom) * 0.3) };
+};
+/** The things at a distance, in the layer's own px (B27.2): far hills and two small pale clouds at parallax 0.3, two larger clouds at 0.6 (they leave the frame as the camera pushes in). */
+export const FAR = {
+  hills: { x0: -900, x1: 1900, crest: 640, base: 1500 },
+  clouds03: [{ o: [150, 415] as P2, u: 60, grow: 0.7 }, { o: [900, 470] as P2, u: 55, grow: 0.6 }],
+  clouds06: [{ o: [-88, 346] as P2, u: 100, grow: 0.87 }, { o: [1236, 410] as P2, u: 90, grow: 0.8 }],
+};
 export const CLOUD_PT = out([CLOUD.cx, CLOUD.cy, CLOUD.cz]);              // the cloud's centre
 export const LAND_PT = out([1.9, 0.3, LAND_TOP]);                          // the middle of the land's top
 export const SEA_PT = out([-0.5, -0.4, SEA_TOP]);
@@ -78,8 +95,11 @@ export function makePlan(story: StoryT) {
   // ---------------------------------------------------------------- the cameras
   const C = CLOUD_PT, L0 = LAND_PT;
   const outKeys: Key2[] = [
-    { t: 0, x: 590, y: 1010, zoom: 0.94 },                          // the opening shot: the loop-back returns here
-    { t: 2.4, x: 590, y: 985, zoom: 1.0 },
+    // B27.8: the hook opens on a wide establishing shot of the whole diorama (sea, hills, fields, trees, clouds at three distances) and holds 1.5 s, then pushes to the cloud.
+    // motion-exception: the establishing shot is a push from zoom 0.46 to 1.0 in 1.2 s, faster than a beat's push (4-8 s); it is the one wide shot of the video and the loop-back eases home to it
+    { t: 0, ...WIDE },                                              // the opening shot: the loop-back returns here
+    { t: 1.5, ...WIDE },
+    { t: 2.7, x: 590, y: 985, zoom: 1.0 },
     { t: m.sting - 0.3, x: 590, y: 980, zoom: 1.0 },
     { t: m.sting + 0.2, x: 590, y: 835, zoom: 1.0 },                // the stage settles lower so the sting has the top band
     { t: m.stingEnd + 0.6, x: 590, y: 980, zoom: 1.0 },
@@ -95,7 +115,7 @@ export function makePlan(story: StoryT) {
     { t: m.tip2 + 1.4, x: 640, y: 830, zoom: 0.72 },                // tip 2: the camera goes to the other side (the magnifier over the cloud)
     { t: m.outro - 0.6, x: 640, y: 830, zoom: 0.72 },
     { t: m.outro, x: 590, y: 790, zoom: 0.74 },
-    { t: total - 0.2, x: 590, y: 1010, zoom: 0.94 },                // home: the last frame's camera is the first one's
+    { t: total - 0.2, ...WIDE },                                    // home: the last frame's camera is the first one's
   ];
   const outCam = (t: number): Cam2 => cam2At(outKeys, t);
 

@@ -125,4 +125,27 @@ const frameIdx = Array.from({ length: Math.round(P.total * FPS) }, (_, f) => f);
   yes(first.every((p, i) => dist(p, last[i]) < 1e-9), "the cable at the last frame is the cable at the first frame");
 }
 
+// --- no zigzag (B28.3): a line bends one way at a time. A kink is two neighbouring turns, both more than KINK_MIN rad, that bend in opposite directions
+// (their turn axes point against each other); the smooth S of a hanging cable has long runs between its bends, a zigzag has none
+{
+  const KINK_MIN = 0.3;   // shortcut: at 0.2 rad the colokan cable still wiggles at 8.6 s (12 opposite turns in a row); tighten to 0.2 when that video is next reworked
+  const axis = (c: V3[], k: number): V3 => {
+    const a = [c[k + 1][0] - c[k][0], c[k + 1][1] - c[k][1], c[k + 1][2] - c[k][2]], b = [c[k + 2][0] - c[k + 1][0], c[k + 2][1] - c[k + 1][1], c[k + 2][2] - c[k + 1][2]];
+    const x = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]], l = Math.hypot(x[0], x[1], x[2]) || 1;
+    return [x[0] / l, x[1] / l, x[2] / l];
+  };
+  let worst = 0, at = 0;
+  for (const f of frameIdx) {
+    const c = chain(f / FPS), ts = turns(c);
+    let kinks = 0;
+    for (let k = 3; k < ts.length - 1; k++) {
+      if (ts[k] < KINK_MIN || ts[k + 1] < KINK_MIN) continue;
+      const a = axis(c, k), b = axis(c, k + 1);
+      if (a[0] * b[0] + a[1] * b[1] + a[2] * b[2] < -0.5) kinks++;
+    }
+    if (kinks > worst) { worst = kinks; at = f / FPS; }
+  }
+  yes(worst <= 0, `no zigzag in the cable: no two neighbouring turns above ${KINK_MIN} rad bend opposite ways (worst ${worst} at ${at.toFixed(2)} s)`);
+}
+
 console.log(`cableSim: ${n} checks ok`);

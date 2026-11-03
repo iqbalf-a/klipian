@@ -200,6 +200,91 @@ export function mixRgb(a: string, b: string, k: number): string {
 /** The depth-order table, in draw order (runoff before the trees, so the trees cover the stream where they touch). */
 export const DEPTH_ORDER = ["sea", "ripples", "vapour", "land", "hill", "puddles", "shadows", "runoff", "bushes", "rocks", "trees", "sun", "rain", "droplets", "cloud"] as const;
 
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------
+// The wide diorama (B27 "Set, not specimen", hujan buatan): the stage's sea and land go on past every frame edge, with stepped hills at the back, three crop
+// fields, rows of trees, bushes and rocks. All of it is on the land's top face (x from 1.0 to 20, y from -4 to 20) or on the sea's; the stage's own pieces above
+// (TREES, HILL, BUSHES, ROCKS, PUDDLES, RUNOFF) stay where they are, so the sheet's tiles and the hero cluster do not change. One unit is about 20 m here
+// (a pine 0.75 units is 15 m): NATURE_SIZE_M in src/roomScale.ts is the table the sizes below are tested against.
+export const WORLD = {
+  sea: { a: [-5, -4, SEA.a[2]] as P3, b: [SEA.b[0], 20, SEA.b[2]] as P3 },
+  land: { a: [LAND.a[0], -4, LAND.a[2]] as P3, b: [20, 20, LAND.b[2]] as P3 },
+};
+/** Whether a ground point can be on the screen in any shot of the video (the widest shot is zoom 0.46): the points outside it are not drawn. */
+export const inView = (x: number, y: number): boolean => x - y >= -8.4 && x - y <= 10.2 && x + y <= 15;
+const hash = (i: number, k = 0): number => { const v = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453; return v - Math.floor(v); };
+
+/** A stepped hill: blocks one on the other, each a step smaller (`inset` on every side), `tiers` the heights from the bottom. */
+export type HillBlock = { a: P3; b: P3 };
+const terraced = (x0: number, y0: number, x1: number, y1: number, tiers: number[], inset: number): HillBlock[] => {
+  let z = LAND_TOP;
+  return tiers.map((h, i) => { const a: P3 = [x0 + i * inset, y0 + i * inset, z], b: P3 = [x1 - i * inset, y1 - i * inset, z + h]; z += h; return { a, b }; });
+};
+export const HILLS_WIDE: HillBlock[][] = [
+  terraced(3.1, -3.9, 7.3, -2.0, [0.8, 0.7, 0.5], 0.55),
+  terraced(8.4, -3.9, 12.4, -2.3, [0.9, 0.7, 0.4], 0.7),
+  terraced(1.2, -3.9, 2.8, -2.7, [0.9, 0.7, 0.4], 0.3),
+];
+/** A crop field: a flat plot on the grass with rows (the rows run along x or y), `dir`. */
+export type Field = { a: P2; b: P2; dir: "x" | "y"; rows: number };
+export const FIELDS: Field[] = [
+  { a: [3.4, -1.0], b: [7.0, 1.1], dir: "x", rows: 6 },
+  { a: [7.6, -1.0], b: [11.6, 1.1], dir: "x", rows: 6 },
+  { a: [3.4, 1.8], b: [7.4, 4.4], dir: "y", rows: 7 },
+];
+type Tree = (typeof TREES)[number];
+const treeAt = (x: number, y: number, i: number): Tree => ({ x, y, h: 0.6 + 0.25 * hash(i), kind: hash(i, 1) > 0.5 ? "pine" : "round" });
+/** The windbreak between the hills and the first fields, and a grove in front of the right field. Back to front (x + y). */
+export const TREES_WIDE: Tree[] = [
+  ...Array.from({ length: 9 }, (_, i) => treeAt(3.6 + i * 0.9, -1.6, i)),
+  ...Array.from({ length: 5 }, (_, i) => Array.from({ length: 3 }, (_, j) => treeAt(8.6 + i * 0.85 + (j % 2) * 0.4, 2.8 + j * 0.85, 20 + i * 3 + j))).flat(),
+].sort((a, b) => a.x + a.y - (b.x + b.y));
+export const BUSHES_WIDE: { x: number; y: number; r: number }[] = [{ x: 7.3, y: -0.1, r: 0.11 }, { x: 7.3, y: 0.7, r: 0.1 }, { x: 7.7, y: 3.2, r: 0.12 }, { x: 3.1, y: 3.2, r: 0.11 }, { x: 12.3, y: 1.4, r: 0.12 }];
+export const ROCKS_WIDE: { x: number; y: number; s: number; h: number }[] = [{ x: 2.95, y: -2.9, s: 0.09, h: 0.1 }, { x: 12.0, y: 1.6, s: 0.1, h: 0.12 }, { x: 7.9, y: 2.4, s: 0.1, h: 0.1 }];
+/** Every footprint on the land's top (a box in x and y, the kind and the height it rises): the stage's pieces and the diorama's. B27.9 tests that none intersect. */
+export type Footprint = { kind: string; x0: number; y0: number; x1: number; y1: number; h: number };
+export function footprints(): Footprint[] {
+  const out: Footprint[] = [];
+  const tree = (t: Tree, kind: string) => out.push({ kind, x0: t.x - TREE_R, y0: t.y - TREE_R, x1: t.x + TREE_R, y1: t.y + TREE_R, h: t.h });
+  TREES.forEach((t) => tree(t, "tree")); TREES_WIDE.forEach((t) => tree(t, "tree"));
+  [...BUSHES, ...BUSHES_WIDE].forEach((b) => out.push({ kind: "bush", x0: b.x - 1.5 * b.r, y0: b.y - 1.5 * b.r, x1: b.x + 1.5 * b.r, y1: b.y + 1.5 * b.r, h: 1.6 * b.r }));
+  [...ROCKS, ...ROCKS_WIDE].forEach((r) => out.push({ kind: "rock", x0: r.x - r.s, y0: r.y - r.s, x1: r.x + r.s, y1: r.y + r.s, h: r.h }));
+  out.push({ kind: "hillstep", x0: HILL.a[0], y0: HILL.a[1], x1: HILL.b[0], y1: HILL.b[1], h: HILL.b[2] - HILL.a[2] });
+  for (const h of HILLS_WIDE) out.push({ kind: "hill", x0: h[0].a[0], y0: h[0].a[1], x1: h[0].b[0], y1: h[0].b[1], h: h[h.length - 1].b[2] - LAND_TOP });
+  FIELDS.forEach((f) => out.push({ kind: "field", x0: f.a[0], y0: f.a[1], x1: f.b[0], y1: f.b[1], h: 0 }));
+  PUDDLES.forEach((p) => out.push({ kind: "puddle", x0: p.x - p.r, y0: p.y - p.r, x1: p.x + p.r, y1: p.y + p.r, h: 0 }));
+  return out;
+}
+/** Small grass tufts spread over the land's visible top, kept off every footprint (and off the runoff's channel). */
+export function landTufts(): P2[] {
+  const fp = footprints(), out: P2[] = [];
+  for (let i = 0; i < 160; i++) {
+    const x = 1.2 + 11.6 * hash(i, 3), y = -3.8 + 16.6 * hash(i, 4);
+    if (!inView(x, y) || fp.some((f) => x > f.x0 - 0.15 && x < f.x1 + 0.15 && y > f.y0 - 0.15 && y < f.y1 + 0.15)) continue;
+    if (RUNOFF.onLandPath.some(([rx, ry]) => Math.hypot(x - rx, y - ry) < 0.25)) continue;
+    out.push([x, y]);
+  }
+  return out;
+}
+/** The wide sea's crests and glints: rows of arcs over the visible water, staggered, each with its foam cap; periodic in `phase`. */
+export function crestsWide(phase: number): { pts: P2[]; cap: P2[] }[] {
+  const out: { pts: P2[]; cap: P2[] }[] = [];
+  let i = 0;
+  for (let row = 0; row < 20; row++) {
+    const y = -3.6 + row * 0.9;
+    for (let c = 0; c < 18; c++) {
+      const x = -4.7 + c * 0.45 + (row % 2) * 0.22;
+      if (x > 0.45 || y > 12.6 || !inView(x, y)) continue;
+      const jx = x + 0.1 * (hash(i, 5) - 0.5), r = (0.17 + 0.05 * ((i % 3) / 2)) * (1 + 0.1 * Math.sin(TAU * phase + i));
+      const pts: P2[] = [], cap: P2[] = [];
+      for (let k = 0; k <= 12; k++) { const a = 0.5 + (k / 12) * 2.1; pts.push([jx + r * Math.cos(a), y + r * Math.sin(a)]); }
+      for (let k = 0; k <= 4; k++) { const a = 0.9 + (k / 4) * 1.2; cap.push([jx + 0.55 * r * Math.cos(a), y + 0.55 * r * Math.sin(a) + 0.02]); }
+      out.push({ pts, cap }); i++;
+    }
+  }
+  return out;
+}
+export const GLINTS_WIDE: P2[] = Array.from({ length: 40 }, (_, i) => [-4.9 + 5.3 * hash(i, 7), -3.8 + 16.8 * hash(i, 8)] as P2).filter(([x, y]) => inView(x, y));
+
 /** The screen points (video px, at the scale u and origin o) of a list of world points. */
 export const screenOf = (pts: readonly P3[], u: number, o: P2): P2[] => pts.map((p) => isoAt(p, u, o) as P2);
 /** The bounding box of a list of screen points. */
@@ -235,6 +320,10 @@ export function assetPoints(name: string, u: number, o: P2): P2[] {
     case "hill": return screenOf(blockCorners(HILL), u, o);
     case "shadow": return screenOf(Array.from({ length: 24 }, (_, i) => { const a = (i / 24) * TAU; return [CLOUD_SHADOW.x + CLOUD_SHADOW.r * Math.cos(a), CLOUD_SHADOW.y + CLOUD_SHADOW.r * Math.sin(a), SEA_TOP] as P3; }), u, o);
     case "puddle": return screenOf(PUDDLES.flatMap((p) => Array.from({ length: 12 }, (_, i) => { const a = (i / 12) * TAU; return [p.x + p.r * Math.cos(a), p.y + p.r * Math.sin(a), LAND_TOP] as P3; })), u, o);
+    case "field": return screenOf(blockCorners(FIELD_SLAB), u, o);
+    case "hills": return [...screenOf(blockCorners(HILLS_SLAB), u, o), ...screenOf([[HILLS_SLAB.a[0], HILLS_SLAB.a[1], LAND_TOP + 2.2], [HILLS_SLAB.b[0], HILLS_SLAB.b[1], LAND_TOP + 2.2]], u, o)];
+    case "far-cloud": return cloudPts({ cx: 0, cy: 0, cz: 0, grow: 1 });
+    case "far-hills": return [[SHEET_FAR_HILLS.x0, SHEET_FAR_HILLS.crest - 130], [SHEET_FAR_HILLS.x1, SHEET_FAR_HILLS.crest - 130], [SHEET_FAR_HILLS.x1, SHEET_FAR_HILLS.base], [SHEET_FAR_HILLS.x0, SHEET_FAR_HILLS.base]] as P2[];
     case "scene": return [...screenOf(blockCorners(SEA), u, o), ...screenOf(blockCorners(LAND), u, o), ...sunRing(o[0] - 300, o[1] - 800, SUN_R * 0.25), ...cloudPts({ cx: CLOUD_WHITE.cx, cy: CLOUD_WHITE.cy, cz: CLOUD_WHITE.cz, grow: CLOUD_WHITE.grow }), ...cloudPts({ cx: CLOUD_GREY.cx, cy: CLOUD_GREY.cy, cz: CLOUD_GREY.cz, grow: CLOUD_GREY.grow })];
     default: return [];
   }
@@ -243,8 +332,8 @@ export function assetPoints(name: string, u: number, o: P2): P2[] {
 /** The nature asset sheet (NatureSheet.tsx): the tiles in a grid of 360 px columns and 380 px rows, each tile fitted by its bounding box (drawn at
     u = 100 about the origin) to 80 % of its drawing area, centred, and the bottom LABEL_H px kept for the label. */
 export const SHEET = { colW: 360, rowH: 380, top: 20, labelH: 70, fill: 0.8, u: 100 };
-/** The sheet's height: its seven rows (the sheet is taller than one video frame). */
-export const SHEET_HEIGHT = SHEET.top + 7 * SHEET.rowH;
+/** The sheet's height: its nine rows (the sheet is taller than one video frame). */
+export const SHEET_HEIGHT = SHEET.top + 9 * SHEET.rowH;
 export const SHEET_TILES: { name: string; col: number; row: number; span: number; label: string }[] = [
   { name: "sea", col: 0, row: 0, span: 1, label: "sea" },
   { name: "land", col: 1, row: 0, span: 1, label: "land" },
@@ -264,7 +353,16 @@ export const SHEET_TILES: { name: string; col: number; row: number; span: number
   { name: "hill", col: 2, row: 5, span: 1, label: "hill step" },
   { name: "shadow", col: 0, row: 6, span: 1, label: "cloud shadow" },
   { name: "puddle", col: 1, row: 6, span: 1, label: "puddles" },
+  { name: "field", col: 0, row: 7, span: 1, label: "crop field" },
+  { name: "hills", col: 1, row: 7, span: 2, label: "terraced hills" },
+  { name: "far-cloud", col: 0, row: 8, span: 1, label: "far cloud (paler)" },
+  { name: "far-hills", col: 1, row: 8, span: 2, label: "far hills (flat, paler)" },
 ];
+/** The slab a field tile and a hills tile stand on (a small land block round the piece). */
+export const FIELD_SLAB = { a: [FIELDS[0].a[0] - 0.5, FIELDS[0].a[1] - 0.5, LAND.a[2]] as P3, b: [FIELDS[0].b[0] + 0.5, FIELDS[0].b[1] + 0.5, LAND.b[2]] as P3 };
+export const HILLS_SLAB = { a: [0.8, -4.4, LAND.a[2]] as P3, b: [7.8, -1.6, LAND.b[2]] as P3 };
+export const SHEET_HILLS = [HILLS_WIDE[0], HILLS_WIDE[2]];
+export const SHEET_FAR_HILLS = { x0: -300, x1: 300, crest: 0, base: 140 };
 /** The layout of one tile: its box, the drawing area, the bounding box of its drawing (at SHEET.u about the origin), and the transform that puts the
     drawing in its area: translate(tx, ty) scale(s) translate(-bcx, -bcy). */
 export function sheetTile(name: string): { x: number; y: number; w: number; h: number; area: { x0: number; y0: number; x1: number; y1: number }; bbox: { x0: number; y0: number; x1: number; y1: number }; s: number; tx: number; ty: number; bcx: number; bcy: number; label: { x: number; y: number } } {

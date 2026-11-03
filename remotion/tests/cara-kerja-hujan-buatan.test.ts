@@ -67,7 +67,7 @@ yes(P.m.react >= P.m.sting + 1 && P.m.react + 1.25 < P.m.outro, "the one reactio
 // depth order: the grains from the ground go behind the cloud, the aircraft and its grains in front (read from the picture's source)
 const src = readFileSync(path.join(dir, "index.tsx"), "utf8");
 const at = (needle: string) => src.indexOf(needle);
-yes(at("<IsoSea") < at("<IsoLand") && at("<IsoLand") < at("<IsoTrees") && at("<IsoTrees") < at("grainEls(false)") && at("grainEls(false)") < at("<IsoRain") && at("<IsoRain") < at("<IsoCloud") && at("<IsoCloud") < at("<IsoPlane") && at("<IsoPlane") < at("grainEls(true)"),
+yes(at("<IsoSea") < at("<IsoLand") && at("<IsoLand") < at("<IsoTrees") && at("<IsoTrees") < at("grainEls(false)") && at("grainEls(false)") < at("<IsoRain") && at("<IsoRain") < at("<IsoCloud {...stage}") && at("<IsoCloud {...stage}") < at("<IsoPlane") && at("<IsoPlane") < at("grainEls(true)"),
   "depth order: sea, land, trees, grains behind the cloud, rain, cloud, aircraft, grains in front");
 yes(P.grains(P.m.plane + 1.7).some((g) => g.front) && P.grains(P.m.ground + 1.2).some((g) => !g.front), "the aircraft's grains are in front, the ground's behind the cloud");
 

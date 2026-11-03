@@ -9,10 +9,12 @@ import {
   BLACK, Brand, CaptionLayer, FONT_BOLD, FPS, FRAME, G3, Lab, bobPx, driftPx, LayoutDebug, Mascot, TopText, WALL, YELLOW, easeInOut, springAt, useFonts, layerTransform, toScreen,
   type StoryT,
 } from "../../src/design/index.ts";
-import { IsoBushes, IsoCloud, IsoDrop, IsoHill, IsoLand, IsoPuddles, IsoRain, IsoRocks, IsoRunoff, IsoSea, IsoSun, IsoTreeShadows, IsoTrees } from "../../src/components/IsoNature.tsx";
+import { IsoBushes, IsoCloud, IsoDrop, IsoFarHills, IsoFields, IsoHill, IsoHills, IsoLand, IsoPuddles, IsoRain, IsoRocks, IsoRunoff, IsoSea, IsoSun, IsoTreeShadows, IsoTrees } from "../../src/components/IsoNature.tsx";
+import { Motes } from "../../src/components/Iso.tsx";
+import { BUSHES, BUSHES_WIDE, ROCKS, ROCKS_WIDE, TREES, TREES_WIDE } from "../../src/natureGeometry.ts";
 import { IsoPlane, IsoSeed } from "../../src/components/IsoSeeding.tsx";
 import { Magnifier, NumberLabel, SourceChip, TipCard, tipCardHeight } from "../../src/components/Overlays.tsx";
-import { CLOUD, CLOUD_PT, OUT, makePlan } from "./plan.ts";
+import { CLOUD, CLOUD_PT, FAR, OUT, SPOT, makePlan, spotK } from "./plan.ts";
 import storyJson from "./story.json";
 
 export const story = storyJson as unknown as StoryT;
@@ -20,6 +22,9 @@ export const story = storyJson as unknown as StoryT;
 const W = FRAME.width, H = FRAME.height;
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
 const SPLASH_AT: [number, number] = [0.55, -0.3];
+// the stage's own pieces and the diorama's, in one list each (the trees sorted back to front)
+const ALL_TREES = [...TREES, ...TREES_WIDE].sort((a, b) => a.x + a.y - (b.x + b.y));
+const ALL_BUSHES = [...BUSHES, ...BUSHES_WIDE], ALL_ROCKS = [...ROCKS, ...ROCKS_WIDE];
 const bold = { fontFamily: `"${FONT_BOLD}", sans-serif`, fontWeight: 700 } as const;
 
 /** Motion blur only on the two fast moves: the dive into the cloud and the way out of it (the blur costs render time, so it is off everywhere else). */
@@ -117,20 +122,27 @@ const Picture: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ story: s,
         {/* ---------------- outside: the brand wall (far layer), the stage, the aircraft and the grains */}
         {outside && <g>
           <g transform={layerTransform(oc, 0.3)}><g transform="translate(540 960) scale(1.15) translate(-540 -960)">
-            <g opacity={1 - lw}><Brand clock={t} spot={{ x: 540, y: 900, r: 560 }} /></g>
-            {lw > 0 && <g opacity={lw}><Brand clock={0} spot={{ x: 540, y: 900, r: 560 }} /></g>}
-          </g></g>
+            <g opacity={1 - lw}><Brand clock={t} spot={{ ...SPOT, r: SPOT.r * spotK(oc.zoom) }} /></g>
+            {lw > 0 && <g opacity={lw}><Brand clock={0} spot={{ ...SPOT, r: SPOT.r * spotK(oc.zoom) }} /></g>}
+          </g>
+            {/* far (B27.2): hills and two small pale clouds at parallax 0.3 */}
+            <IsoFarHills {...FAR.hills} />
+            {FAR.clouds03.map((c, i) => <IsoCloud key={i} u={c.u} o={c.o} cx={0} cy={0} cz={0} grow={c.grow} haze={0.55} phase={ph + i * 0.3} />)}
+          </g>
+          <g transform={layerTransform(oc, 0.6)}>{FAR.clouds06.map((c, i) => <IsoCloud key={i} u={c.u} o={c.o} cx={0} cy={0} cz={0} grow={c.grow} haze={0.3} phase={ph + i * 0.5} />)}</g>
           <g transform={layerTransform(oc, 1)}>
             {/* the depth order of the nature kit (natureGeometry.ts DEPTH_ORDER): sea, land and its things, the grains behind the cloud, the rain, the cloud, then the aircraft in front */}
-            <IsoSea {...stage} phase={ph} splash={st.splash} splashAt={SPLASH_AT} shadow={st.dark} />
-            <IsoLand {...stage} wet={st.wet} />
+            <IsoSea {...stage} wide phase={ph} splash={st.splash} splashAt={SPLASH_AT} shadow={st.dark} />
+            <IsoLand {...stage} wide wet={st.wet} />
             <IsoHill {...stage} />
+            <IsoHills {...stage} />
+            <IsoFields {...stage} wet={st.wet} />
             <IsoPuddles {...stage} wet={st.wet} />
-            <IsoTreeShadows {...stage} />
+            <IsoTreeShadows {...stage} list={ALL_TREES} />
             <IsoRunoff {...stage} k={st.rain} />
-            <IsoBushes {...stage} />
-            <IsoRocks {...stage} />
-            <IsoTrees {...stage} time={t} swayAmp={1 - lw} />
+            <IsoBushes {...stage} bushes={ALL_BUSHES} />
+            <IsoRocks {...stage} list={ALL_ROCKS} />
+            <IsoTrees {...stage} list={ALL_TREES} time={t} swayAmp={1 - lw} />
             {grainEls(false)}
             {/* tip 1 (the forecast): the sun comes out behind the cloud, its rays turning a little (the alive sun); it goes when tip 2 begins */}
             {sunK > 0.01 && <g transform={`translate(${CLOUD_PT[0] - 175} ${CLOUD_PT[1] - 120}) scale(${sunK}) translate(${-(CLOUD_PT[0] - 175)} ${-(CLOUD_PT[1] - 120)})`}><IsoSun cx={CLOUD_PT[0] - 175} cy={CLOUD_PT[1] - 120} r={72} phase={t * 0.4} /></g>}
@@ -141,6 +153,9 @@ const Picture: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ story: s,
             {grainEls(true)}
           </g>
         </g>}
+
+        {/* near (B27.2): loose dust that touches nothing */}
+        {outside && <g transform={layerTransform(oc, 1.35)}><Motes t={t} n={10} opacity={0.2} /></g>}
 
         {/* ---------------- tip 2 (be careful with claims): a magnifier hovers over the cloud */}
         {outside && glassK > 0.01 && <g transform={`translate(${lensC[0]} ${lensC[1] + bobPx(t, 0.2, 8)}) scale(${glassK}) translate(${-lensC[0]} ${-lensC[1]})`}><Magnifier x={lensC[0]} y={lensC[1]} r={150} t={t} start={0} grow={0} tag="" /></g>}

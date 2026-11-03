@@ -51,3 +51,12 @@ export const ROOM = {
 } as const;
 /** The IsoLamp's own height in its own units (its pole and shade run 0 to 2.05). */
 export const LAMP_OWN_H = 2.05;
+
+/** The nature diorama's one scale (B27.7, hujan buatan): one world unit of the nature kit is NATURE_UNIT_M metres, so a 0.75 unit pine is 15 m. Real sizes in metres as
+    [min, max] of what the thing really is; `tests/diorama.test.ts` holds every drawn piece inside its range. The sky things are exaggerated on purpose (a rain cloud is
+    kilometres wide, a seeding plane about 12 m): their drawn size is listed with the factor, they are not tested against the real size. */
+export const NATURE_UNIT_M = 20;
+export const NATURE_SIZE_M = {
+  tree: [10, 20], bushClump: [4, 8], rock: [3, 5], fieldLong: [68, 92], hillHeight: [34, 46], hillStep: [4, 8],
+} as const;
+export const NATURE_EXAGGERATED = { cloud: { realM: 3000, drawnM: 90 }, plane: { realM: 12, drawnM: 30 } } as const;
