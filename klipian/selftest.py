@@ -5152,6 +5152,10 @@ def check_shotframe() -> tuple[str, str]:
 
     if fb._shot_bounds([5, 5.2, 9], 0, 12) != [(0, 5.2), (5.2, 9), (9, 12)]:
         problems.append(f"a 0.2 s shot should join the one before: {fb._shot_bounds([5, 5.2, 9], 0, 12)}")
+    if fb._shot_bounds([5, 5.4, 9], 0, 12, [5, 5.4]) != [(0, 5), (5, 5.4), (5.4, 9), (9, 12)]:
+        problems.append(f"a 0.4 s shot with a camera cut on both sides keeps its own segment: {fb._shot_bounds([5, 5.4, 9], 0, 12, [5, 5.4])}")
+    if fb._shot_bounds([5, 5.4, 9], 0, 12, [5]) != [(0, 5.4), (5.4, 9), (9, 12)]:
+        problems.append("a short segment with a cut on one side only still joins the one before it")
     if fb._shot_bounds([0.3], 0, 4) != [(0, 4)]:
         problems.append("a short first shot should join the next")
     if fb._shot_bounds([], 2, 8) != [(2, 8)]:
@@ -5225,6 +5229,17 @@ def check_shotframe() -> tuple[str, str]:
         problems.append(f"_learn_faces: B claims A's face with less evidence and loses it, got {sorted(kn)}")
     if len(fb._main_faces(three + [{"cx": 5, "cy": 5, "w": 20}])) != 3:
         problems.append("_main_faces: a small far face is not a main face")
+    # a wide TV shot: five people in front, an audience a row up behind them (smaller, much higher in the frame)
+    front5 = [{"cx": 300 + 250 * i, "cy": 600 + 20 * (i % 2), "w": 70} for i in range(5)]
+    crowd = [{"cx": 100 + 90 * i, "cy": 300, "w": 40} for i in range(20)]
+    got = fb._main_faces(front5 + crowd)
+    if sorted(f["cx"] for f in got) != sorted(f["cx"] for f in front5):
+        problems.append(f"_main_faces: the audience behind the front row is dropped, got {len(got)} faces")
+    if len(fb._main_faces([{"cx": 50 * i, "cy": 500, "w": 60} for i in range(12)])) != fb.MAX_MAIN_FACES:
+        problems.append("_main_faces: the count of people is capped")
+    near = [{"cx": 100, "cy": 500, "w": 80}, {"cx": 400, "cy": 440, "w": 60}]        # taller person, same row
+    if len(fb._main_faces(near)) != 2:
+        problems.append("_main_faces: someone a little higher in the same row stays")
     if not fb._alone_in_turn(0, 10, "A", [{"start": 0, "end": 10.5, "speaker": "A"}]) or fb._alone_in_turn(0, 10, "A", [{"start": 0, "end": 6, "speaker": "A"}, {"start": 6, "end": 10, "speaker": "B"}]):
         problems.append("_alone_in_turn: the segment must lie in one speaker's turn")
     segs = fb._segments([20.0], [{"start": 0, "end": 21.5, "speaker": "A"}, {"start": 21.5, "end": 40, "speaker": "B"}], 0, 40)
@@ -5254,6 +5269,19 @@ def check_shotframe() -> tuple[str, str]:
         problems.append(f"_av_core: steps with big global movement should be left out, got {sc2}")
     if fb._av_core([follows], [follows], glob, np.zeros(n)) is not None or fb._av_core([follows[:5]], [follows[:5]], glob[:5], env[:5]) is not None:
         problems.append("_av_core: silence or too little data is no score")
+    box = {"left": 20.0, "top": 0.0, "width": 40.0, "height": 100.0}
+    if not fb._face_in_box({"cx": 800, "cy": 400, "w": 100}, box, 1920, 1080) or fb._face_in_box({"cx": 1140, "cy": 400, "w": 100}, box, 1920, 1080):
+        problems.append("_face_in_box: a speaker whole in the box keeps it, one half out of it does not")
+    # small faces (the mouth cannot be read): the body decides, and its window reaches further down
+    mouth_only = follows * 0 + rng.normal(0, 1, n)
+    sc3 = fb._av_core([mouth_only, random], [follows, random], glob, env, [fb.AV_MOUTH_SMALL, fb.AV_MOUTH_SMALL])
+    sc4 = fb._av_core([mouth_only, random], [follows, random], glob, env, [0.5, 0.5])
+    if not sc3 or not sc4 or sc3[0] - sc3[1] <= sc4[0] - sc4[1]:
+        problems.append(f"_av_core: with a small face the body should weigh more, got {sc3} vs {sc4}")
+    tall = fb._body_windows([{"cx": 400, "cy": 300, "w": 60}], 1920, 1080)[0]
+    short = fb._body_windows([{"cx": 400, "cy": 300, "w": 150}], 1920, 1080)[0]
+    if (tall[3] - tall[1]) / 60 <= (short[3] - short[1]) / 150:
+        problems.append("_body_windows: a small face's body window is taller in face heights (people stand full length)")
     two = [{"cx": 400, "cy": 300, "w": 100}, {"cx": 700, "cy": 300, "w": 100}]
     win = fb._body_windows(two, 1920, 1080)
     if win[0][2] > 550 or win[1][0] < 550 or win[0][1] < 300:
