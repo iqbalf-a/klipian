@@ -5199,6 +5199,16 @@ def check_shotframe() -> tuple[str, str]:
     c, why = fb._decide(two_av, W, H, size, "A", {}, None, True, embed, sim)
     if why != "av-sync":
         problems.append(f"_decide: without a recognised face the plain rule (0.25 / 0.10) holds, got {why}")
+    # a clear av-sync win teaches the speaker's face only over enough seconds (a laughing listener follows the words too)
+    kn_short, kn_long = {}, {}
+    fb._decide(two_av, W, H, size, "A", kn_short, None, True, embed, sim, None, None, 2.0)
+    fb._decide(two_av, W, H, size, "A", kn_long, None, True, embed, sim, None, None, 5.0)
+    if kn_short or "A" not in kn_long:
+        problems.append(f"_decide: an av-sync win teaches a face only in a segment of {fb.AV_LEARN_MIN} s or more, got {kn_short} / {list(kn_long)}")
+    # pass 1: a face that does not move with the sound (a reaction shot) is no evidence
+    quiet, talking = {"av": 0.04}, {"av": 0.6}
+    if fb._speaking(None, 0, 3, quiet, 1920, 1080, "", "") or not fb._speaking(None, 0, 3, talking, 1920, 1080, "", ""):
+        problems.append("_speaking: the face must move with the sound to be pass-1 evidence")
     unclear = [{**three[0], "av": 0.3}, {**three[1], "av": 0.25}, {**three[2], "av": 0.0}]
     emb.update({id(unclear[0]): [1.0, 0.0, 0.0], id(unclear[1]): [0.0, 1.0, 0.0], id(unclear[2]): [0.0, 0.0, 1.0]})
     c, why = fb._decide(unclear, W, H, size, "A", {"A": [[0.0, 0.0, 1.0]]}, None, True, embed, sim)

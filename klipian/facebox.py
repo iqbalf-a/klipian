@@ -868,6 +868,8 @@ PEOPLE_CLOSE_W = 0.10   # a face this wide is a close-up: one segment is enough 
 PEOPLE_MIN_W = 0.06     # a face narrower than this share of the frame is too poor to tell people apart
 AV_SMALL_FACE = 0.05    # a face narrower than this share of the frame: the mouth cannot be read, the body counts more
 AV_MOUTH_SMALL = 0.2    # weight of the mouth in `act` for such a face (0.5 for a sizeable one)
+AV_LEARN_MIN = 3.0      # an av-sync win in a segment shorter than this is no evidence of a speaker's face (a listener's
+                        # reaction to the words follows the sound too, and 2 s of it is all there is to tell them apart)
 AV_FPS = 8              # frames per second looked at to match movement with speech
 AV_WINDOW = 12.0        # at most this many seconds of a long segment, from its middle
 AV_MIN_SCORE = 0.25     # a clear winner scores at least this ...
@@ -1017,6 +1019,15 @@ def _av_scores(video: Path, a: float, b: float, people: list[dict], W: int, H: i
             p["av"] = s
 
 
+def _speaking(video: Path, a: float, b: float, face: dict, W: int, H: int, tmp: str, tag: str) -> bool:
+    """Whether the one face of a segment moves with the sound (av at least AV_MIN_SCORE): a shot of someone laughing,
+    listening or nodding in the turn of another speaker is not evidence of whose face that speaker has. A segment
+    too short to tell is no evidence either: no face is better than a wrong one."""
+    if face.get("av") is None:
+        _av_scores(video, a, b, [face], W, H, tmp, tag)
+    return face.get("av") is not None and face["av"] >= AV_MIN_SCORE
+
+
 def _count_people(items: list[tuple], similar, min_segments: int = 2) -> int:
     """How many different people the faces are: `items` are (segment, embedding[, close]) of the faces on screen;
     faces at or above the same-person similarity are one person (two faces of one segment never are). A person
@@ -1036,7 +1047,7 @@ def _count_people(items: list[tuple], similar, min_segments: int = 2) -> int:
 
 def _decide(people: list[dict], W: int, H: int, size: dict, speaker, known: dict, prev: dict | None,
             new_shot: bool = True, embed=None, similar=None, weak: dict | None = None,
-            picked: dict | None = None) -> tuple[dict, str]:
+            picked: dict | None = None, seconds: float = 99.0) -> tuple[dict, str]:
     """The box and why for one segment: (crop, why). The box is always centred on ONE face, the person speaking;
     the others may be cut. `people` are its faces {cx, cy, w[, av]}; `speaker` is who speaks in it (diarization,
     or None); `known` {speaker: [embedding]} is what the first pass learned (a clear av-sync winner adds to it for a
@@ -1061,7 +1072,7 @@ def _decide(people: list[dict], W: int, H: int, size: dict, speaker, known: dict
         winner = _av_winner(people, AV_OVERRIDE_SCORE, AV_OVERRIDE_MARGIN)   # movement must then be very clear
     if winner is not None:
         pick, why = winner, "av-sync"
-        if speaker is not None and speaker not in known and embed:
+        if speaker is not None and speaker not in known and embed and seconds >= AV_LEARN_MIN:
             known[speaker] = [embed(winner)]                      # clear, so it counts as evidence
     elif face_pick is not None:
         pick, why = face_pick, "speaker-face"
@@ -1205,7 +1216,7 @@ def _frame_pass(video: Path, start: float, end: float, size: dict, turns: list[d
                     alone.append((n, embed(f), f["w"] >= PEOPLE_CLOSE_W * W))
             if len(main) != 1:
                 continue
-            if _alone_in_turn(a, b, speaker, turns):
+            if _alone_in_turn(a, b, speaker, turns) and _speaking(video, a, b, main[0], W, H, tmp, f"{tag}e{n}"):
                 evidence.setdefault(speaker, []).append(embed(main[0]))
         known = _learn_faces(evidence, _face_similarity)
 
@@ -1217,7 +1228,7 @@ def _frame_pass(video: Path, start: float, end: float, size: dict, turns: list[d
         new_shot = prev is None or any(abs(a - c) < 0.1 for c in cuts)
         picked: dict = {}
         crop, why = _decide(people, W, H, size, speaker, known, prev, new_shot, embed if recognizer else None,
-                            _face_similarity, weak, picked)
+                            _face_similarity, weak, picked, b - a)
         if prev is not None and not new_shot and picked.get("face") is not None and _face_in_box(picked["face"], prev, W, H):
             crop = prev                                    # same shot, and the speaker is already whole in the box
         prev = crop
