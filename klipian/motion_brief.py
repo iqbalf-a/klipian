@@ -75,7 +75,7 @@ y {sa['top']}..{sa['bottom']} ({sa['note']}).
 
 **Characters:** one person (`chibi`): roles {', '.join(ch['roles'])}; expressions {', '.join(ch['expressions'])}; poses {', '.join(ch['poses'])}; costumes {', '.join(ch['costumes'])}.
 **The mascot** (the yellow bubble with the magnifying glass, no body): expressions {', '.join(cat['mascot']['expressions'])}.
-**Backgrounds:** {', '.join(e['backgrounds'])} (`brand` = story scenes with a yellow spotlight; `lab` = the dark room inside the lens and for cutaways; `room`, `black` = plain).
+**Backgrounds:** {', '.join(e['backgrounds'])} (`brand` = the sky and the far back behind the set, with its yellow spot, never behind the top text; `lab` = the dark room inside the lens and for cutaways; `room`, `black` = plain).
 **Beat kinds:** {', '.join(e['beatKinds'])}.
 **Sockets:** views {', '.join(e['socketViews'])}; outside variants {', '.join(e['outsideVariants'])}; cutaway variants {', '.join(e['cutawayVariants'])}; `heat` 0..1 glows red at the contact; `plug.route` is a list of 2-6 [x, y] points the cable follows (it is drawn as a smooth curve).
 **Parts a label or arrow can follow** (`follow`): {', '.join(e['anchors'])}. Label colours: {', '.join(e['labelColors'])}; arrow colours: {', '.join(e['arrowColors'])}.
@@ -143,7 +143,7 @@ CHECKLIST = [
 
 CHANNEL_RULES = """- Language: casual Indonesian, easy to follow, as if talking to a friend. The narration is what a person says aloud; the screen text is short and carries the key point.
 - Hook: an everyday hook of about 3 seconds: a question, a surprising statement or a myth. It does not have to start with "kenapa".
-- The look inside (`lens`): only when the cause is inside a physical object, and at most once per video. For a habit, a body, a process or an idea use a flow, a diagram or labels.
+- The look inside (`lens`, B27.6): only when the narration itself looks inside a part or names something too small to see (a body included), and at most once per video. Every other beat is a camera move inside the set (a push, or a pan to another place in it), never a lens by habit.
 - Colour: red only for danger or heat, never decoration; yellow is the accent. For an electrical topic: yellow = current, red or orange = heat, grey = the object's material, light grey = metal.
 - Safety: no health or finance topics (say so in `needs`). Never teach anything dangerous. For an electrical topic: no instructions to open, modify or bypass mains equipment; the tips are "stop using it, unplug it, ask a technician".
 - One idea per beat; every narration makes sense heard alone.
@@ -151,9 +151,10 @@ CHANNEL_RULES = """- Language: casual Indonesian, easy to follow, as if talking 
 - Stage (the story's `stage`, default `slab`): `slab` (the usual block), `round` (a round object), `strip` (a flow along it), `steps` (cause, effect, result), `island` (an idea or gadget that stands alone). Do not repeat the stage of the video before."""
 
 COMPOSITION = """- Every beat has a `banner` at the top with the beat's screen text (the same words as its `text`).
-- Backgrounds: `brand` for the story beats (the hook too); `lab` only inside the lens and in cutaway beats.
-- **One hero:** one main object for the whole video, big (about 60 to 70 % of the width, x about 540). The other things are simple supporting elements: parts, arrows, short labels, numbered badges. Empty space is filled by the object, never by people.
-- **Kinds of fact:** an object is opened up (the lens); a process follows its flow; a cause is a chain of arrows; a myth check ends with `MITOS`, `FAKTA` or `SEBAGIAN` in the text of the `result` or `tips` beat (the verdict stamp is not drawn yet).
+- Backgrounds: the set fills the frame (the ground and what stands on it run past the edges); `brand` (the brand background and its yellow spot) shows only in the sky or far back, behind the set, never behind the top text; `lab` only inside the lens and in cutaway beats.
+- **The hero stands in its set (B27):** the hook opens on a wide shot of the set (hero in the centre third, inside SAFE), then the establishing push to the main shot where the hero is 60 to 70 % of the width. 2 to 4 kinds of dressing at real scale (B27.7), cut by the frame, never shrunk to fit; no overlap (B27.9); the empty background is at most 35 % of the picture.
+- **One hero:** one main object for the whole video, big (about 60 to 70 % of the width at the main shot, x about 540). The other things are simple supporting elements: parts, arrows, short labels, numbered badges. Empty space is filled by the object, never by people.
+- **Kinds of fact:** an object is opened up (the lens, only if the narration goes inside); a process follows its flow; a cause is a chain of arrows; a myth check ends with `MITOS`, `FAKTA` or `SEBAGIAN` in the text of the `result` or `tips` beat (the verdict stamp is not drawn yet).
 - **People are optional:** a person (`chibi`) only when a person is the point of the beat. A topic about an object shows just the object.
 - **The mascot is rare:** the sting has a small `mascot` (w about 220, expression curious, `pop`) and a small `pill` "Intip yuk!" in the caption zone, with no veil; plus at most two short reactions. **The outro has no mascot.**
 - The look inside: the outside of the object with the `lens` item first, then cutaway beats with `socket` view "cutaway" (about x 540, y 926, s 1). Give the cutaway an `id` and make labels and arrows `follow` its parts.
@@ -256,16 +257,19 @@ def _numbered(items: list[str]) -> str:
     return "\n".join(f"{i}. {item}" for i, item in enumerate(items, 1))
 
 
+REPO_ROOT = "the repository root (on ian's PC `D:\\github-repos\\klipian`; elsewhere the root of your checkout)"
+
+
 def _produce_text(slug: str) -> str:
     return f"""## 2. What you must produce (exact files)
 
-| What | Exact path (from the repository root `D:\\github-repos\\klipian`) |
+| What | Exact path (from {REPO_ROOT}) |
 | --- | --- |
 | The story | `remotion/stories/{slug}.json` |
 | The video folder | `remotion/videos/{slug}/` with `index.tsx`, `plan.ts`, `sfx.ts`, `meta.json`, `story.json` |
 | The style report | `remotion/out/{slug}/style-report.md` |
 | The test of the video | `remotion/tests/{slug}.test.ts` (made by `npm run new-video`; leave it as it is) |
-| One still picture | `remotion/out/{slug}/hook.png` |
+| The still pictures | `remotion/out/{slug}/hook.png`, `remotion/out/{slug}/wide.png` and one per beat in `remotion/out/{slug}/beats/` |
 | The narration text | printed in your reply, one block per target voice app |
 
 **The files you may write are exactly these and no others:** `remotion/videos/{slug}/`, `remotion/stories/{slug}.json`, `remotion/tests/{slug}.test.ts` (made by the command in step 3) and `remotion/out/{slug}/`. Never a note, an output, a log or a scratch file at the repository root or anywhere else (no `story-output.json`, no `narration-output.txt`: the narration goes in your reply). Nothing in `workspace/`, no full render, no push. (`{slug}` is a suggested name; keep the same name everywhere.)"""
@@ -288,7 +292,7 @@ Run: `cd remotion` then `npm run new-video {slug} stories/{slug}.json`
 Expected: a line `made videos/{slug} and tests/{slug}.test.ts`, then the folder `remotion/videos/{slug}/` holds `index.tsx`, `plan.ts`, `sfx.ts`, `meta.json` and `story.json`.
 
 {STEP_MARK}4: draw the beats
-Do: read `remotion/DESIGN.md` (section 0b and every rule B1 up to the last one), `remotion/src/dictionary.ts` and the kit `remotion/src/components/Iso*.tsx` first. The two finished videos to copy the structure from are `remotion/videos/kenapa-colokan-panas` and `remotion/videos/ngantuk-pegang-hp`. Edit `remotion/videos/{slug}/index.tsx` and `plan.ts`: one hero object, reuse before you draw, at most three new assets, the story's `theme`, `stage` and `music`. Rule B25 of DESIGN.md: something moves about every second (the assets of `remotion/src/components/IsoLife.tsx` and `remotion/src/alive.ts` move a little all the time), something new comes about every 3 to 4 seconds, and each explain beat has its own picture (an object on its own in a circle that opens, a camera that goes elsewhere), not one stage for the whole video.
+Do: read `remotion/DESIGN.md` (section 0b and every rule B1 up to the last one), `remotion/src/dictionary.ts` and the kit `remotion/src/components/Iso*.tsx` first. Read the "Animation recipe" section of `remotion/DESIGN.md` (what moves, when, how, per beat). The two finished videos to copy the structure from are `remotion/videos/kenapa-colokan-panas` and `remotion/videos/cara-kerja-hujan-buatan`. Edit `remotion/videos/{slug}/index.tsx` and `plan.ts`: one hero object, reuse before you draw, at most three new assets, the story's `theme`, `stage` and `music`. Rule B25 of DESIGN.md: something moves about every second (the assets of `remotion/src/components/IsoLife.tsx` and `remotion/src/alive.ts` move a little all the time), something new comes about every 3 to 4 seconds, and each explain beat is a camera move inside the set (a push, or a pan to another place in it), as the Animation recipe says, not one framing for the whole video; the lens only when the narration goes inside (B27.6), at most one.
 Keep `sfx.ts` and `plan.ts` importing only plain `.ts` modules (`../../src/sfx.ts`, `../../src/schema.ts`, `../../src/layout.ts`...), never `../../src/design/index.ts`: render.mjs loads them in plain Node and the render fails with "Unknown file extension .tsx" (rule B26). Only `index.tsx` may import the design index, and in `index.tsx` import components ONLY from `../../src/design/index.ts` (it exports the isometric kit, the nature kit, the seeding set, the bedroom set and the alive set): never from a file path such as `../../src/components/IsoNature.ts` (the real file is `.tsx`: `npm run check` accepts a wrong extension, the render does not find the file).
 **Before you say an object is missing (`needs`):** look in the library first: `remotion/src/dictionary.ts`, the sheets `remotion/out/assets-sheet*.png` (`npm run assets-sheet` makes them), `node remotion/catalog-export.mjs`, and the components `remotion/src/components/Iso*.tsx` (the nature kit has a cloud, the sea, rain, trees, the sun; IsoSeeding has a plane and grains; IsoLife has a lamp, kettle, fan, clock, cup, battery, heart, brain). List in `needs` only what you searched for and did not find.
 Expected: both files exist and are edited (step 5 checks that they compile).
@@ -302,7 +306,8 @@ Expected: no output line starts with `FAIL`. A line `<file> tidak ada; maksudnya
 {STEP_MARK}6: one still picture
 Create the folder `remotion/out/{slug}` if it does not exist, then write the file `remotion/out/{slug}/job.json` with this content: `{{"mode":"still","story":"stories/{slug}.json","composition":"video-{slug}","beat":"hook","out":"{slug}/hook.png"}}`
 Run, from `remotion`: `node render.mjs out/{slug}/job.json`
-Expected: the last output line is `{{"type":"done", ...}}` and `remotion/out/{slug}/hook.png` exists. Look at it; fix what is wrong and render it again. Then run `npm run style-report -- {slug}`; expected: `remotion/out/{slug}/style-report.md`. Do not render the full video.
+Expected: the last output line is `{{"type":"done", ...}}` and `remotion/out/{slug}/hook.png` exists.
+Then render the rest of the stills with the same pattern. One picture per beat (the middle of each beat): write `remotion/out/{slug}/beats.json` with `{{"mode":"stills","story":"stories/{slug}.json","composition":"video-{slug}","out":"{slug}/beats","at":0.5}}` and run `node render.mjs out/{slug}/beats.json` (it writes `remotion/out/{slug}/beats/<beat id>.png`). One picture of the wide shot: write `remotion/out/{slug}/wide.json` with `{{"mode":"still","story":"stories/{slug}.json","composition":"video-{slug}","time":0.5,"out":"{slug}/wide.png"}}` and run `node render.mjs out/{slug}/wide.json` (t 0.5 is the hook's wide shot). Look at every picture against B27: the set fills the frame, real scale, no overlap, nothing yellow behind the top text, the hero in the centre third in the wide shot. Fix what is wrong and render again. Then run `npm run style-report -- {slug}`; expected: `remotion/out/{slug}/style-report.md`. Do not render the full video.
 
 {STEP_MARK}7: narration text
 Target voice apps: {targets}. For each one run, from the repository root (`<target>` is `voicestudio`, `elevenlabs` or `googleai`):
@@ -310,7 +315,7 @@ Target voice apps: {targets}. For each one run, from the repository root (`<targ
 Expected: the text to copy into that app. Paste it in your reply as it is, one block per app.
 
 {STEP_MARK}8: tell the person
-In plain words: open `/remotion`, choose the folder `D:\\github-repos\\klipian\\remotion\\videos\\{slug}`, press "Ambil cerita dari folder", make the voice in their own voice app, choose the audio file, press Cocokkan, look at the preview, then Render.
+In plain words: open `/remotion`, choose the folder `remotion/videos/{slug}` of the repository (on ian's PC `D:\\github-repos\\klipian\\remotion\\videos\\{slug}`), press "Ambil cerita dari folder", make the voice in their own voice app, choose the audio file, press Cocokkan, look at the preview, then Render.
 Expected: your reply ends with these instructions."""
 
 
@@ -393,7 +398,7 @@ def build_brief(p: dict) -> str:
 
 You are an AI that makes one short vertical animated explainer for the channel klipian intip. **Topic:** {p['topic']}{notes}
 
-Work in this order: 1 the rules, 2 the files you must produce, 3 the steps, then the fallback, the common mistakes, the options and the reference. With file access and a shell in the repository `D:\\github-repos\\klipian`, do all the steps. Without them, use the fallback.
+Work in this order: 1 the rules, 2 the files you must produce, 3 the steps, then the fallback, the common mistakes, the options and the reference. With file access and a shell in the repository ({REPO_ROOT}), do all the steps. Without them, use the fallback.
 
 ## 1. Hard rules (never break these)
 
@@ -431,7 +436,7 @@ If something is unclear, choose the safest option, write the choice in `needs` o
 
 You are an AI. You make one short vertical animated explainer for the channel klipian intip, from the topic below. The video is made from one JSON story.
 
-**Mode.** With file access to the repository `D:\\github-repos\\klipian`, do the story and save it as the Answer format says. In chat only, print the JSON in your reply.
+**Mode.** With file access to the repository ({REPO_ROOT}), do the story and save it as the Answer format says. In chat only, print the JSON in your reply.
 
 **Topic:** {p['topic']}{notes}
 

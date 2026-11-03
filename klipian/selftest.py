@@ -6106,6 +6106,13 @@ def check_motion_brief() -> tuple[str, str]:
             for old in stale:
                 if old in text:
                     problems.append(f"the {d} s brief still says {old!r}")
+            khusus = motion.build_brief({"topic": "Kenapa colokan panas", "duration": d, "notes": "", "options": {"kind": "khusus"}})
+            for want in ("Animation recipe", "wide shot", "the root of your checkout", "remotion/videos/cara-kerja-hujan-buatan", "wide.png", "beats.json", "Build a set, not a specimen"):
+                if want not in khusus:
+                    problems.append(f"the {d} s Khusus brief lost {want!r}")
+            for old in ("on its own in a circle", "ngantuk-pegang-hp"):
+                if old in khusus or old in text:
+                    problems.append(f"the {d} s brief still says {old!r}")
             total = sum(r[1] for r in motion.STRUCTURE[d])
             if total != d:
                 problems.append(f"the {d} s structure adds up to {total}, not {d}")
@@ -7016,7 +7023,7 @@ def check_briefagents() -> tuple[str, str]:
     if "agen" not in motion.KINDS["khusus"] or "Claude" in motion.KINDS["khusus"]:
         problems.append("the Khusus option names the agent, not the product")
     khusus_text = motion.build_brief({"topic": "x", "duration": 45, "notes": "", "options": {"kind": "khusus"}})
-    for want in ("remotion/src/dictionary.ts", "remotion/src/components/Iso*.tsx", "remotion/videos/kenapa-colokan-panas", "remotion/videos/ngantuk-pegang-hp"):
+    for want in ("remotion/src/dictionary.ts", "remotion/src/components/Iso*.tsx", "remotion/videos/kenapa-colokan-panas", "remotion/videos/cara-kerja-hujan-buatan"):
         if want not in khusus_text:
             problems.append(f"the Khusus steps do not name {want}")
     for opts, label in (({}, "otomatis"), ({"kind": "khusus"}, "khusus")):
