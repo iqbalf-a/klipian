@@ -48,7 +48,7 @@ const Blur: React.FC<{ on: boolean; children: React.ReactNode }> = ({ on, childr
   on ? <CameraMotionBlur shutterAngle={180} samples={5}>{children}</CameraMotionBlur> : <>{children}</>;
 
 /** B27: the far layer is the sky behind the window: the brand background with its yellow spot as the sun, placed in the window's hole. */
-const WINDOW_SPOT = { x: 40, y: 620, r: 260 };
+const WINDOW_SPOT = ROOM.sun;
 
 export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ story: s, layoutDebug = false }) => {
   const t = useCurrentFrame() / FPS;

@@ -157,11 +157,11 @@ export function makePlan(story: StoryT) {
   const cardIn2 = m.melt + 0.4, cardOut2 = beat("akhir").b - 0.15;
 
   // ---------------------------------------------------------------- the cameras
-  const WIDE = { x: -630, y: 1950, zoom: 0.32 };
+  const WIDE = { x: -381, y: 1704, zoom: 0.46 };
   const J = out(SOCKET_PTS.junction), C0 = out(SOCKET_PTS.center);
   const outKeys: Key2[] = dropped([
     // B27.8: the hook opens on a wide establishing shot of the whole set (wall, window, desk, lamp, socket) and holds 1.5 s, then pushes to the main shot.
-    // motion-exception: the establishing shot is a push from zoom 0.32 to 1.28 in 1.3 s, faster than a beat's push (4-8 s); it is the one wide shot of the video and the loop-back eases home to it
+    // motion-exception: the establishing shot is a push from zoom 0.46 to 1.28 in 1.3 s, faster than a beat's push (4-8 s); it is the one wide shot of the video and the loop-back eases home to it
     { t: 0, ...WIDE },
     { t: 1.5, ...WIDE },
     { t: 2.8, x: C0[0] + 20, y: C0[1] + 40, zoom: 1.28 },

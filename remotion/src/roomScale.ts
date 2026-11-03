@@ -43,6 +43,8 @@ export const ROOM = {
   lamp: { h: lampH, at: lampAt, baseR: LAMP_BASE_R * lampScale },
   /** Where the lamp's cord comes out of its base: on the side that faces the viewer and the plug (+x of the base), at the table top. */
   lampCord: [lampAt[0] + LAMP_BASE_R * lampScale + 0.05, lampAt[1], deskZ + 0.05] as const,
+  /** The sun behind the window glass, in the brand far layer's own coordinates (index.tsx draws the spot there). It stays clear of the lamp's shade in every frame (a yellow light behind it would make the lamp look lit; yellow is current). */
+  sun: { x: -84, y: 219, r: 165 },
   boxes: BOXES,
   /** The boxes the cable must not pass through (the wall and the plug's body are in the sim already; the floor is the table top). */
   obstacles: BOXES.filter((b) => b.name.startsWith("lamp")),
