@@ -4,7 +4,7 @@
 import type { StoryT } from "../../src/schema.ts";
 import { FPS, sequencePlan } from "../../src/timeline.ts";
 import { cam2At, isoAt, type Cam2, type Key2, type P2, type P3 } from "../../src/iso.ts";
-import { CLOUD_GREY, LAND_TOP } from "../../src/natureGeometry.ts";
+import { CLOUD_GREY } from "../../src/natureGeometry.ts";
 
 export const stageDrop = 100;
 export const OUT = { u: 160, o: [485, 1044 + stageDrop] as P2 };
@@ -20,7 +20,8 @@ export const FAR = {
   clouds06: [{ o: [-88, 346] as P2, u: 100, grow: 0.87 }, { o: [1236, 410] as P2, u: 90, grow: 0.8 }],
 };
 export const CLOUD_PT = out([CLOUD.cx, CLOUD.cy, CLOUD.cz]);
-export const LAND_PT = out([1.9, 0.3, LAND_TOP]);
+export const PLATFORM = 0.12;
+export const LAND_PT = out([2.0, 0.85, PLATFORM]);
 
 const ramp = (t: number, a: number, d: number) => Math.max(0, Math.min(1, (t - a) / d));
 const sm = (k: number) => k * k * (3 - 2 * k);

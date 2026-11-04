@@ -8,10 +8,9 @@ import {
   BLACK, Brand, CaptionLayer, FONT_BOLD, FPS, FRAME, ISO, WALL, WHITE, YELLOW, Mascot, TopText, bobPx, driftPx, easeInOut, springAt, useFonts, layerTransform, IsoBlock,
   type StoryT,
 } from "../../src/design/index.ts";
-import { IsoBushes, IsoCloud, IsoDrop, IsoFarHills, IsoFields, IsoHill, IsoHills, IsoLand, IsoRocks, IsoSea, IsoTreeShadows, IsoTrees } from "../../src/components/IsoNature.tsx";
+import { IsoCloud, IsoFarHills } from "../../src/components/IsoNature.tsx";
 import { Motes } from "../../src/components/Iso.tsx";
-import { BUSHES, BUSHES_WIDE, ROCKS, ROCKS_WIDE, TREES, TREES_WIDE } from "../../src/natureGeometry.ts";
-import type { P3 } from "../../src/iso.ts";
+import { isoAt, type P3 } from "../../src/iso.ts";
 import { CLOUD, CLOUD_PT, FAR, OUT, SPOT, makePlan, spotK } from "./plan.ts";
 import storyJson from "./story.json";
 
@@ -19,10 +18,32 @@ export const story = storyJson as unknown as StoryT;
 
 const W = FRAME.width, H = FRAME.height;
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
-const ALL_TREES = [...TREES, ...TREES_WIDE].sort((a, b) => a.x + a.y - (b.x + b.y));
-const ALL_BUSHES = [...BUSHES, ...BUSHES_WIDE], ALL_ROCKS = [...ROCKS, ...ROCKS_WIDE];
 const bold = { fontFamily: `"${FONT_BOLD}", sans-serif`, fontWeight: 700 } as const;
-const LAND_Z = 0.2;                                                    // LAND_TOP in natureGeometry.ts
+const LAND_Z = 0.12;                                                   // the top of the weighing platform (plan.ts PLATFORM)
+
+/** A new kit piece: a drop of water, drawn on its own (a teardrop of three flat tones, a small highlight), not the nature kit's IsoDrop. */
+const Dewdrop: React.FC<{ cx: number; cy: number; r: number }> = ({ cx, cy, r }) => (
+  <g transform={`translate(${cx} ${cy}) scale(${r})`}>
+    <path d="M0 -1.7 C0.35 -0.9 1 -0.4 1 0.3 A1 1 0 0 1 -1 0.3 C-1 -0.4 -0.35 -0.9 0 -1.7 Z" fill={ISO.water[2]} />
+    <path d="M0 -1.7 C-0.35 -0.9 -1 -0.4 -1 0.3 A1 1 0 0 0 0.1 1.3 C-0.4 0.6 -0.5 -0.5 0 -1.7 Z" fill={ISO.water[1]} />
+    <ellipse cx={-0.38} cy={0.25} rx={0.18} ry={0.3} fill={WHITE} opacity={0.85} />
+  </g>
+);
+
+/** A new kit piece: the ground slab of the set (neutral floor tones, it runs past the frame) and the weighing platform the elephants stand on (metal tones). */
+const GroundSet: React.FC<{ u: number; o: readonly [number, number] }> = ({ u, o }) => (
+  <g>
+    <IsoBlock a={[-1.6, -1.2, -1.2]} b={[14, 14, 0]} u={u} o={o} tones={ISO.floor} />
+    {Array.from({ length: 15 }, (_, i) => {
+      const lines: [P3, P3][] = [[[-1.6 + i, -1.2, 0], [-1.6 + i, 14, 0]], [[-1.6, -1.2 + i, 0], [14, -1.2 + i, 0]]];
+      return lines.map(([a, b], k) => { const p = isoAt(a, u, o), q = isoAt(b, u, o); return <line key={`${i}${k}`} x1={p[0]} y1={p[1]} x2={q[0]} y2={q[1]} stroke={ISO.floor[2]} strokeWidth={3} opacity={0.5} />; });
+    })}
+    <IsoBlock a={[0.85, 0.2, 0]} b={[3.1, 1.5, LAND_Z]} u={u} o={o} tones={ISO.metal} />
+    {[0, 1, 2, 3, 4].map((i) => <IsoBlock key={i} a={[0.85 + i * 0.45, 0.2, LAND_Z]} b={[0.85 + i * 0.45 + 0.04, 1.5, LAND_Z + 0.02]} u={u} o={o} tones={ISO.dark} />)}
+    <IsoBlock a={[3.4, 0.5, 0]} b={[3.9, 1.0, 0.9]} u={u} o={o} tones={ISO.plastic} />
+    <IsoBlock a={[3.45, 0.55, 0.9]} b={[3.85, 0.95, 1.0]} u={u} o={o} tones={ISO.dark} />
+  </g>
+);
 
 /** A small iso elephant (a new kit piece: blocks from iso.ts, the stone tones, facing +x). Its foot is at (x, y, LAND_Z). */
 const IsoElephant: React.FC<{ x: number; y: number; u: number; o: readonly [number, number]; k: number }> = ({ x, y, u, o, k }) => {
@@ -81,15 +102,7 @@ const Picture: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ story: s 
           </g>
           <g transform={layerTransform(oc, 0.6)}>{FAR.clouds06.map((c, i) => <IsoCloud key={i} u={c.u} o={c.o} cx={0} cy={0} cz={0} grow={c.grow} haze={0.3} phase={ph + i * 0.5} />)}</g>
           <g transform={layerTransform(oc, 1)}>
-            <IsoSea {...stage} wide phase={ph} />
-            <IsoLand {...stage} wide />
-            <IsoHill {...stage} />
-            <IsoHills {...stage} />
-            <IsoFields {...stage} />
-            <IsoTreeShadows {...stage} list={ALL_TREES} />
-            <IsoBushes {...stage} bushes={ALL_BUSHES} />
-            <IsoRocks {...stage} list={ALL_ROCKS} />
-            <IsoTrees {...stage} list={ALL_TREES} time={t} swayAmp={1 - lw} />
+            <GroundSet u={OUT.u} o={OUT.o} />
             {/* the elephants: the weight, in a row on the land (new kit piece, exaggerated against the cloud like the aircraft of the seeding set) */}
             {ele.map((e) => <g key={e.i} opacity={P.eleFade(t)}><IsoElephant x={e.x} y={e.y} u={OUT.u} o={OUT.o} k={clamp01((t - (m.eleFrom + e.i * 0.6)) / 0.4)} /></g>)}
             {/* air rising under the cloud (white streaks, B27: air is a white curving streak) */}
@@ -99,7 +112,7 @@ const Picture: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ story: s 
             })}</g>}
             <g transform={`translate(${driftPx(t) * (1 - lw)} ${bobPx(t, 0, 5) * (1 - lw)})`}>
               <IsoCloud {...stage} cx={CLOUD.cx} cy={CLOUD.cy} cz={CLOUD.cz} grow={CLOUD.grow} phase={ph} />
-              {droplets.map((d, i) => d.a > 0.01 && <g key={i} opacity={d.a}><IsoDrop cx={d.x} cy={d.y} r={d.r} /></g>)}
+              {droplets.map((d, i) => d.a > 0.01 && <g key={i} opacity={d.a}><Dewdrop cx={d.x} cy={d.y} r={d.r} /></g>)}
             </g>
             {/* the ruler across the cloud's width */}
             {rk > 0.01 && <g opacity={rk} stroke={BLACK} strokeWidth={9} strokeLinecap="round">
