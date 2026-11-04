@@ -36,7 +36,7 @@ Body and money topics are fine as explanations (why we hiccup, why banknotes do 
 
 ## 3. Build
 
-Follow the printed brief, steps 1 to 8, as written (`npm ci` in `remotion` first when `remotion/node_modules` is missing). If Chrome or the render cannot run, say so and continue without the stills. Its "no push" line is overridden by step 4 below, and its step 7 (paste the narration) and step 8 (the page steps) output is overridden by step 5: -create skips both; everything else stands (never write to `workspace/`, never claim a check you did not run).
+Follow the printed brief, steps 1 to 8, as written. Write `sfx.ts` by hand: a sound on every object entering, camera move, label or card, state change and alive action that matters, on the frame of its picture, density about 1 event a second (~55 to 60 for 60 s), only names from the locked SFX set in `remotion/src/catalog.ts`, kenapa-colokan-panas/sfx.ts as the example. Run `npm ci` in `remotion` first when `remotion/node_modules` is missing. If Chrome or the render cannot run, say so and continue without the stills. Its "no push" line is overridden by step 4 below, and its step 7 (paste the narration) and step 8 (the page steps) output is overridden by step 5: -create skips both; everything else stands (never write to `workspace/`, never claim a check you did not run).
 
 ## 4. Commit and push (cloud rules)
 

@@ -231,6 +231,24 @@ const approved = existsSync(soundRecord) ? JSON.parse(readFileSync(soundRecord, 
 const nowSound = soundSet().hash;
 add(approved === nowSound ? "PASS" : "FAIL", `B15: the approved sound set is unchanged (${approved === nowSound ? "it matches the record" : approved ? "it differs from the record: ian must approve it, then node scripts/soundHash.mjs --record": "no record yet"})`);
 
+// B13/B15: the per-object sound is mandatory for a custom video: sfx.ts written by hand against the scenes, about one event a second (pilot 1: 44 in 45 s). A sfx.ts that
+// is only the default, or under 0.7 events per second, is a FLAG; a sound name outside the locked set is a FAIL.
+const sfxFile = path.join(dir, "sfx.ts");
+if (existsSync(sfxFile)) {
+  const sfxSrc = readFileSync(sfxFile, "utf8");
+  const total = beats.reduce((a, b) => a + (b.dur ?? 0), 0);
+  let events = null;
+  try { events = (await import(pathToFileURL(sfxFile).href)).sfx(story); } catch (e) { add("FAIL", `B13: sfx.ts does not run (${String(e.message).slice(0, 100)})`); }
+  if (events) {
+    const { SFX_NAMES } = await import("../src/catalog.ts");
+    const unknown = [...new Set(events.map((e) => e.name).filter((n) => !SFX_NAMES.includes(n)))];
+    add(unknown.length === 0 ? "PASS" : "FAIL", `B15: every sound is from the locked set (${unknown.length ? `not in src/catalog.ts SFX: ${unknown.join(", ")}` : `${events.length} events`})`);
+    const onlyDefault = /return\s+(defaultBeatSfx|storyEvents)\(story\)\s*;?\s*\}/.test(sfxSrc);
+    const perSec = events.length / Math.max(1, total);
+    add(onlyDefault || perSec < 0.7 ? "FLAG" : "PASS", `B13: a sound on every object, written by hand in sfx.ts (${events.length} events in ${total} s = ${perSec.toFixed(2)} a second${onlyDefault ? "; sfx.ts only returns the default" : ""}; pilot 1 has about 1 a second, at least 0.7)`);
+  }
+}
+
 // the report
 const pad = (s) => s.padEnd(6);
 console.log(`styleCheck: videos/${slug} (Style Bible v1)`);

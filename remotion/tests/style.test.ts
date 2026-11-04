@@ -143,6 +143,18 @@ for (const r of DICTIONARY.filter((k) => k.status === "drawn")) {
   yes(run(fixture).includes("PASS   must 3 (e)"), "iso.ts geometry calls pass (e)");
 }
 
+// B13/B15 the per-object sound: pilot 1 passes, the default-only sfx.ts flags, a sound outside the locked set fails
+{
+  const run = (s: string) => spawnSync(process.execPath, [path.join(ROOT, "scripts", "styleCheck.mjs"), s], { encoding: "utf8" }).stdout;
+  yes(run("kenapa-colokan-panas").includes("PASS   B13: a sound on every object"), "pilot 1's sfx.ts passes the per-object sound density");
+  yes(run("gurita-punya-tiga-jantung").includes("FLAG   B13: a sound on every object") , "a default-only sfx.ts is flagged");
+  const fixture = path.join(ROOT, "out", "style-fixture", "flat-svg");
+  mkdirSync(fixture, { recursive: true });
+  writeFileSync(path.join(fixture, "sfx.ts"), "export function sfx() { return [{ t: 0, name: \"no-such-sound\", vol: 1, why: \"x\" }]; }\n");
+  const out = run(fixture);
+  yes(out.includes("FAIL   B15: every sound is from the locked set") && out.includes("no-such-sound") && out.includes("FLAG   B13"), "an unknown sound name fails and few events flag");
+}
+
 // the approved sound set (B15): the record matches the set; the checker reports it
 {
   const record = JSON.parse(readFileSync(path.join(ROOT, "scripts", "soundHash.json"), "utf8"));
