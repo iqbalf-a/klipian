@@ -6134,6 +6134,13 @@ def check_motion_brief() -> tuple[str, str]:
         for want in ("name: create", "# -create <topic>", "cloud/stok-video", "git pull --rebase origin cloud/stok-video", "git push origin cloud/stok-video", "up to 3 tries", "motion_brief_cli", "Never push `main`, never force-push", "obat cegukan paling ampuh", "at most 6 short lines", "pakai ulang", "Write `sfx.ts` by hand", "about 1 event a second", "Do NOT print the narration", "checkout lama, buka sesi cloud baru", "Work quietly"):
             if want not in text:
                 problems.append(f"the /create skill lost {want!r}")
+        cc = Path(__file__).resolve().parent.parent / ".claude" / "skills" / "create-cloud" / "SKILL.md"
+        cct = cc.read_text(encoding="utf-8") if cc.exists() else ""
+        if ".claude/skills/create-cloud/SKILL.md" not in cmt or "-create-cloud" not in cmt:
+            problems.append("the root CLAUDE.md lost the -create-cloud command")
+        for want in ("name: create-cloud", '# -create-cloud "<topic>"', "git checkout -q --detach origin/main", "GIT_INDEX_FILE", "set.json", "never create a branch such as `work/create`", "satu topik satu sesi", "Never push `main`, never force-push", "main belum punya aturan set"):
+            if want.replace("checkout lama", "main belum punya aturan set") not in cct:
+                problems.append(f"the -create-cloud skill lost {want!r}")
     finally:
         profiles.hashtag_settings = real_settings
     if problems:

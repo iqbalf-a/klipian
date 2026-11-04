@@ -60,11 +60,11 @@ for (const slug of readdirSync(path.join(ROOT, "videos"))) {
 }
 
 // the rules are written where the sessions read them
-const design = read("DESIGN.md"), brief = readFileSync(path.join(ROOT, "..", "klipian", "motion_brief.py"), "utf8"), skill = readFileSync(path.join(ROOT, "..", ".claude", "skills", "create", "SKILL.md"), "utf8");
+const design = read("DESIGN.md"), brief = readFileSync(path.join(ROOT, "..", "klipian", "motion_brief.py"), "utf8"), skill = readFileSync(path.join(ROOT, "..", ".claude", "skills", "create-cloud", "SKILL.md"), "utf8");
 yes(/15\. \*\*Own set per video\*\*/.test(design) && /16\. \*\*A shape with a real form/.test(design), "DESIGN.md has B27.15 and B27.16");
 yes(design.includes("src/sets.ts"), "DESIGN.md points to src/sets.ts");
 yes(brief.includes("remotion/src/sets.ts") && brief.includes("set.json") && brief.includes("B27.16"), "the brief's hard rules name sets.ts and B27.16");
-yes(skill.includes("origin/main") && skill.includes("GIT_INDEX_FILE") && skill.includes("set.json"), "the create skill builds on main, pushes only the video's files to the stock branch and names set.json");
+yes(skill.includes("origin/main") && skill.includes("GIT_INDEX_FILE") && skill.includes("set.json"), "the create-cloud skill builds on main, pushes only the video's files to the stock branch and names set.json");
 yes(/id: "rainbow"/.test(read("src", "dictionary.ts")), "the dictionary has a rainbow row (a ring, not a half-arc)");
 
 console.log(`sets.test: ${n} checks passed`);
