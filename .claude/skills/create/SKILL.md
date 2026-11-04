@@ -1,6 +1,6 @@
 ---
 name: create
-description: Runs for a message starting with `-create`. Make one klipian intip video from a topic in a cloud session, e.g. `-create gurita punya tiga jantung`. Builds the brief itself, follows its steps, and pushes only the video's files to the branch cloud/stok-video.
+description: Runs for a message starting with `-create`. Make one klipian intip video from a topic in a cloud session, e.g. `-create gurita punya tiga jantung`. Builds the brief itself, follows its steps, and builds on main's latest rules and pushes only the video's files to the branch cloud/stok-video.
 ---
 
 # -create <topic>
@@ -13,18 +13,23 @@ Work quietly: no progress narration between steps; only the final answer.
 
 Run `git log -1 --oneline origin/main` and `test -f .claude/skills/create/SKILL.md`; `klipian/motion_brief_cli.py` must exist too. If any of that fails, stop and answer only: "checkout lama, buka sesi cloud baru".
 
-## 1. Branch (always the same one), always on top of the latest `main`
+## 1. Work on main's rules; the stock branch only holds videos
 
-The stock branch is only a pile of finished videos. The rules, the brief and the checker must always be `main`'s, so refresh the branch with `main` before anything else:
+`cloud/stok-video` is a shelf of finished videos and nothing else: never put rules, design or code on it. The rules, the brief and the checker are always `main`'s, so work on a throw-away branch from `main` and look at the stock videos from there:
 
 ```bash
 git fetch origin
-git checkout -B cloud/stok-video origin/cloud/stok-video 2>/dev/null || git checkout -B cloud/stok-video origin/main
-git merge --no-edit origin/main || { git merge --abort; echo "merge conflict"; }
-grep -q "B27.16" remotion/DESIGN.md && test -f remotion/src/sets.ts
+git checkout -B work/create origin/main
+for d in $(git ls-tree -d --name-only origin/cloud/stok-video remotion/videos/); do
+  s=${d##*/}; git cat-file -e "origin/main:$d" 2>/dev/null && continue        # a video that main has already stays main's
+  git checkout origin/cloud/stok-video -- "$d" 2>/dev/null
+  git checkout origin/cloud/stok-video -- "remotion/stories/$s.json" "remotion/tests/$s.test.ts" 2>/dev/null
+done
+git reset -q                                                                  # the stock videos stay in the working tree, not staged
+grep -q "B27.16" remotion/DESIGN.md && test -f remotion/src/sets.ts && test -f remotion/scripts/setOwners.mjs
 ```
 
-The first form is used when `origin/cloud/stok-video` exists, otherwise the branch starts from `origin/main`. If the merge conflicts, or the last line fails (the branch still lacks the set rules), stop and answer only: "stok-video belum bisa digabung dengan main, ian perlu merge dulu". Never work on `main`.
+The stock videos are copied in so that the brief's slug is free (it checks the folders) and so that every `videos/*/set.json` shows which set kinds are taken. If the last line fails (main does not have the set rules yet), stop and answer only: "main belum punya aturan set, update main dulu". Never work on `main` or on `cloud/stok-video` directly.
 
 ## 2. The brief
 
@@ -40,23 +45,29 @@ Body and money topics are fine as explanations (why we hiccup, why banknotes do 
 
 ## 3. Build
 
-Follow the printed brief, steps 1 to 8, as written. Write `sfx.ts` by hand: a sound on every object entering, camera move, label or card, state change and alive action that matters, on the frame of its picture, density about 1 event a second (~55 to 60 for 60 s), only names from the locked SFX set in `remotion/src/catalog.ts`, kenapa-colokan-panas/sfx.ts as the example. Before you design anything read `remotion/src/sets.ts` (the taken sets and the free kinds) and DESIGN.md B27.15 and B27.16: **the background is never another video's**, so the nature diorama of sea, land, hills and fields is not available, whatever the topic's weather; pick the free kind where the topic really happens, build it, and register it as a row in `sets.ts` with the slug as owner (add `remotion/src/sets.ts` to the files you commit). Check from a source what real shape the hero has and draw that form (a rainbow is a ring cut by the horizon, not a half-arc). Run `npm ci` in `remotion` first when `remotion/node_modules` is missing. If Chrome or the render cannot run, say so and continue without the stills. Its "no push" line is overridden by step 4 below, and its step 7 (paste the narration) and step 8 (the page steps) output is overridden by step 5: -create skips both; everything else stands (never write to `workspace/`, never claim a check you did not run).
+Follow the printed brief, steps 1 to 8, as written. Write `sfx.ts` by hand: a sound on every object entering, camera move, label or card, state change and alive action that matters, on the frame of its picture, density about 1 event a second (~55 to 60 for 60 s), only names from the locked SFX set in `remotion/src/catalog.ts`, kenapa-colokan-panas/sfx.ts as the example. Before you design anything read `remotion/src/sets.ts` (the taken sets and the free kinds) and DESIGN.md B27.15 and B27.16: **the background is never another video's**, so the nature diorama of sea, land, hills and fields is not available, whatever the topic's weather; pick the free kind where the topic really happens (a kind that some `videos/*/set.json` names is taken), build it, and declare it in `remotion/videos/<slug>/set.json` (`{"kind": "<id>"}`, or a new kind with `name` and `fits`). Never edit `src/sets.ts` or any other shared file: the push below carries only the video's own files. Check from a source what real shape the hero has and draw that form (a rainbow is a ring cut by the horizon, not a half-arc). Run `npm ci` in `remotion` first when `remotion/node_modules` is missing. If Chrome or the render cannot run, say so and continue without the stills. Its "no push" line is overridden by step 4 below, and its step 7 (paste the narration) and step 8 (the page steps) output is overridden by step 5: -create skips both; everything else stands (never write to `workspace/`, never claim a check you did not run).
 
 ## 4. Commit and push (cloud rules)
 
-1. `git add` only the video's own files: `remotion/stories/<slug>.json`, `remotion/videos/<slug>/`, `remotion/tests/<slug>.test.ts`, and `remotion/src/sets.ts` (your registered set row, and any new component file under `remotion/src/components/` you made for it). Never `remotion/out/`, never `workspace/`, nothing else.
-2. One commit, message `Video: <title>`.
-3. Push, up to 3 tries, because other sessions push to the same branch in parallel (their files never overlap):
-   ```bash
-   git pull --rebase origin cloud/stok-video && git push origin cloud/stok-video
-   ```
-   If the remote branch does not exist yet, `git push -u origin cloud/stok-video` creates it. Never push `main`, never force-push, never open a PR.
+Only the video's own files go to `cloud/stok-video`: `remotion/stories/<slug>.json`, `remotion/videos/<slug>/` (it includes `set.json`), `remotion/tests/<slug>.test.ts`. Never `remotion/out/`, never `workspace/`, nothing else, and never a change to a file that `main` has. The commit is built on top of the stock branch without switching branches, so nothing else can slip in:
+
+```bash
+F="remotion/stories/<slug>.json remotion/videos/<slug> remotion/tests/<slug>.test.ts"
+for i in 1 2 3; do
+  git fetch origin cloud/stok-video
+  export GIT_INDEX_FILE=$(mktemp -u) && git read-tree origin/cloud/stok-video && git add $F
+  C=$(git commit-tree "$(git write-tree)" -p origin/cloud/stok-video -m "Video: <title>") && unset GIT_INDEX_FILE
+  git push origin "$C:refs/heads/cloud/stok-video" && break
+done
+```
+
+One commit, message `Video: <title>`. Up to 3 tries, because other sessions push to the same branch in parallel (their files never overlap); a rejected push is retried on the fresh branch tip. If the remote branch does not exist yet, the same push creates it. Never push `main`, never force-push, never open a PR. The hash to report is `$C`.
 
 ## 5. Answer
 
 Answer in Indonesian, at most 6 short lines, nothing else:
 1. `slug`
-2. branch + hash
+2. `cloud/stok-video` + hash
 3. the style-check summary line
 4. each FAIL/FLAG line (or "tanpa FAIL/FLAG"), the pieces as "baru: ... / pakai ulang: ...", and "set: <id>, bentuk dicek: ..."
 5. at most 2 one-line points ian must decide

@@ -12,7 +12,8 @@ import { pathToFileURL } from "node:url";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DICTIONARY, markComponents } from "../src/dictionary.ts";
-import { borrowedSets, freeSets, ownSet } from "../src/sets.ts";
+import { borrowedSets, declaredKind, freeSets } from "../src/sets.ts";
+import { loadSetOwners } from "./setOwners.mjs";
 import { checkImports } from "./importCheck.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -121,11 +122,18 @@ add("INFO", `marks in the video: ${used.map((n) => { const row = DICTIONARY.find
 // 10. the new assets: at most three (a human count; the registry is the library)
 add("HUMAN", "at most three new loose supporting pieces (the hero and its own set are not counted, B27.15); say which pieces are new and which were reused");
 
-// 10b. the set (B27.15): the video stands in its OWN set. A registered set belongs to the video that owns it (src/sets.ts); drawing another video's set is a FAIL,
-//      and a video that has not registered its own set is a FLAG (the next video must be able to see that this background is taken).
-const borrowed = borrowedSets(sources, slug);
-add(borrowed.length === 0 ? "PASS" : "FAIL", `B27.15: the set is the video's own (${borrowed.length ? borrowed.map(({ set, found }) => `it draws "${set.id}", the set of ${set.owner} (${found.join(", ")}). Design a new set around this hero: free kinds are ${freeSets().map((k) => k.id).join(", ")}; see src/sets.ts`).join("; ") : "no other video's set is drawn"})`);
-if (!/^selftest/.test(slug)) add(ownSet(slug) ? "PASS" : "FLAG", `B27.15: the video's set is registered in src/sets.ts (${ownSet(slug) ? `"${ownSet(slug).id}"` : `add a row with owner "${slug}": id, name, what it fits, the components that draw it; pick a free kind (${freeSets().map((k) => k.id).join(", ")}) or add a new one`})`);
+// 10b. the set (B27.15): the video stands in its OWN set, declared in videos/<slug>/set.json. Drawing the set of another video, or naming a kind that another video
+//      already declared, is a FAIL; a video without a set.json is a FLAG (the next video must be able to see that this background is taken).
+const SO = loadSetOwners(path.join(ROOT, "videos"));
+const freeIds = freeSets(SO.owners, SO.kinds).map((k) => k.id).join(", ");
+const borrowed = borrowedSets(sources, slug, SO.owners, SO.kinds);
+add(borrowed.length === 0 ? "PASS" : "FAIL", `B27.15: the set is the video's own (${borrowed.length ? borrowed.map(({ set, found, owner }) => `it draws "${set.id}", the set of ${owner} (${found.join(", ")}). Design a new set around this hero: free kinds are ${freeIds}; see src/sets.ts`).join("; ") : "no other video's set is drawn"})`);
+if (!/^selftest/.test(slug)) {
+  const mine = declaredKind(slug, SO.owners);
+  const bad = SO.problems.filter((x) => x.startsWith(`${slug}/`));
+  if (!mine.kind) add("FLAG", `B27.15: the video declares its set (${bad.length ? bad.join("; ") : `add videos/${slug}/set.json: {"kind": "<id>"} with a free kind (${freeIds}), or a new kind with "name" and "fits"`})`);
+  else add(mine.sharedWith.length === 0 ? "PASS" : "FAIL", `B27.15: the video's set kind "${mine.kind}" is used once (${mine.sharedWith.length ? `${mine.sharedWith.join(", ")} already stands in it; pick a free kind: ${freeIds}` : "no other video declares it"})`);
+}
 
 // 11. the myth check: a verdict stamp (only for a "Benarkah ...?" or "Mitos" question)
 const myth = /^(benarkah|mitos)/i.test(story.question ?? "");
