@@ -1,0 +1,244 @@
+{
+ "bible": 1,
+ "question": "Kenapa langit berwarna biru?",
+ "titles": [
+  "Kenapa langit berwarna biru?",
+  "Langit biru bukan cat! Ini yang terjadi pada cahaya",
+  "Intip cahaya matahari di dalam udara"
+ ],
+ "duration": 60,
+ "theme": "sky",
+ "stage": "island",
+ "captions": true,
+ "music": {
+  "track": "bed-curious"
+ },
+ "beats": [
+  {
+   "id": "hook",
+   "kind": "hook",
+   "dur": 3,
+   "narration": "Kenapa langit berwarna biru?",
+   "text": "Langit kok biru?",
+   "kicker": "KENAPA YA?",
+   "headline": "Langit kok biru?",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "intip",
+   "kind": "sting",
+   "dur": 1,
+   "narration": "Intip yuk!",
+   "text": "Intip yuk!",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "mascot",
+      "x": 540,
+      "y": 720,
+      "w": 220,
+      "expr": "curious",
+      "pop": true,
+      "enter": {
+       "kind": "pop",
+       "delay": 0
+      }
+     },
+     {
+      "type": "pill",
+      "text": "Intip yuk!",
+      "x": 540,
+      "y": 1489,
+      "fs": 56,
+      "enter": {
+       "kind": "pop",
+       "delay": 0.2
+      }
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "cahaya",
+   "kind": "normal",
+   "dur": 7,
+   "narration": "Cahaya matahari kelihatan putih, padahal isinya campuran semua warna pelangi.",
+   "text": "Putih itu semua warna",
+   "kicker": "CAHAYA",
+   "headline": "Putih itu semua warna",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "udara",
+   "kind": "normal",
+   "dur": 8,
+   "narration": "Begitu masuk ke atmosfer, cahaya menabrak gas-gas di udara, lalu terhambur ke segala arah.",
+   "text": "Menabrak gas di udara",
+   "kicker": "UDARA",
+   "headline": "Menabrak gas di udara",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "biru",
+   "kind": "normal",
+   "dur": 8,
+   "narration": "Cahaya biru gelombangnya pendek, jadi dihamburkan jauh lebih kuat daripada cahaya merah.",
+   "text": "Biru paling terhambur",
+   "kicker": "BIRU",
+   "headline": "Biru paling terhambur",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "mata",
+   "kind": "normal",
+   "dur": 8,
+   "narration": "Akibatnya, cahaya biru sampai ke mata kita dari seluruh penjuru langit.",
+   "text": "Biru dari segala arah",
+   "kicker": "MATA",
+   "headline": "Biru dari segala arah",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "ungu",
+   "kind": "result",
+   "dur": 8,
+   "narration": "Cahaya ungu juga ikut terhambur, tapi mata kita melihat campurannya seperti biru keputihan.",
+   "text": "Ungu ikut, tampak biru",
+   "kicker": "UNGU?",
+   "headline": "Ungu ikut, tampak biru",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "senja",
+   "kind": "result",
+   "dur": 9,
+   "narration": "Waktu senja, cahaya menempuh udara yang lebih panjang. Birunya habis terhambur di jalan, sisanya merah dan jingga.",
+   "text": "Senja: tersisa merah",
+   "kicker": "SENJA",
+   "headline": "Senja: tersisa merah",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "hasil",
+   "kind": "result",
+   "dur": 4,
+   "narration": "Jadi langit biru karena udara menghamburkan cahaya biru.",
+   "text": "Udara hamburkan biru",
+   "kicker": "JADI",
+   "headline": "Udara hamburkan biru",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "outro",
+   "kind": "outro",
+   "dur": 4,
+   "narration": "",
+   "text": "",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  }
+ ],
+ "claims": [
+  {
+   "text": "Cahaya Matahari tampak putih, tetapi sebenarnya tersusun dari semua warna pelangi.",
+   "beats": [
+    "cahaya"
+   ],
+   "sources": [
+    "https://spaceplace.nasa.gov/blue-sky/en/"
+   ]
+  },
+  {
+   "text": "Cahaya Matahari yang sampai ke atmosfer Bumi dihamburkan ke segala arah oleh gas dan partikel di udara.",
+   "beats": [
+    "udara"
+   ],
+   "sources": [
+    "https://spaceplace.nasa.gov/blue-sky/en/",
+    "https://en.wikipedia.org/wiki/Rayleigh_scattering"
+   ]
+  },
+  {
+   "text": "Cahaya biru dihamburkan lebih kuat daripada warna lain karena gelombangnya lebih pendek; hamburan Rayleigh jauh lebih kuat untuk biru daripada merah.",
+   "beats": [
+    "biru",
+    "mata",
+    "hasil"
+   ],
+   "sources": [
+    "https://spaceplace.nasa.gov/blue-sky/en/",
+    "https://en.wikipedia.org/wiki/Rayleigh_scattering"
+   ]
+  },
+  {
+   "text": "Cahaya biru dan ungu yang terhambur datang dari seluruh langit, dan mata manusia menanggapi campuran itu seperti campuran biru dan putih.",
+   "beats": [
+    "mata",
+    "ungu"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Rayleigh_scattering"
+   ]
+  },
+  {
+   "text": "Saat matahari terbit dan terbenam, jalur cahaya di atmosfer lebih panjang, sehingga biru dan hijau hampir hilang dan tersisa warna oranye dan merah.",
+   "beats": [
+    "senja"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Sunset",
+    "https://en.wikipedia.org/wiki/Rayleigh_scattering"
+   ]
+  }
+ ],
+ "post": {
+  "description": "Kenapa langit berwarna biru? Intip apa yang terjadi pada cahaya matahari saat menabrak udara: biru dihamburkan paling kuat ke segala arah, dan di senja sisanya merah.",
+  "hashtags": [
+   "#langitbiru",
+   "#faktaseru",
+   "#sains",
+   "#intipyuk",
+   "#shorts"
+  ]
+ },
+ "needs": [
+  "Kolom udara kaca dengan matahari, prisma, molekul gas, dan mata digambar dengan kit iso (blok) di set baru air-column; tidak ada di kamus."
+ ]
+}
