@@ -1638,7 +1638,7 @@ from .motion_brief import (  # noqa: E402,F401
     HARD_RULES, MISTAKES, FALLBACK, STRUCTURE, video_slug, _beat_kinds_text,
     _catalog_text, _examples_text, _items_text, _kind_text,
     _options_text, _report_text, _stand_in, _structure_text,
-    build_brief, build_fix_message, build_revise_brief,
+    build_brief, build_fix_message, build_revise_brief, short_command,
 )
 from .motion_voice_export import (  # noqa: E402,F401
     EL_EXPRESSIONS, EL_EXPRESSIONS_MAX, GOOGLE_EXPRESSIONS_MAX, PART_SECONDS,

@@ -43,6 +43,7 @@ async function prefetchBrief() {
   const id = CUR?.id;
   try {
     briefCache.set(`${id}:main`, await call(`${API}/brief?id=${encodeURIComponent(id)}&kind=main&peek=1`));
+    if (CUR?.id === id) drawShort();
   } catch (e) { briefCache.delete(`${id}:main`); }
 }
 
@@ -126,6 +127,7 @@ byId("rmMain").addEventListener("click", async (e) => {
     if (act === "toggleStep") return openStep(OPEN === t.dataset.step ? null : t.dataset.step, false);
     if (act === "openStep") return openStep(t.dataset.step, true);
     if (act === "rmCopyBrief") return copyBrief(t);
+    if (act === "rmCopyShort") return copyShort(t);
     if (act === "rmDownBrief") return downloadBrief("main");
     if (act === "rmPasteBtn") return pasteAnswer("main");
     if (act === "rmDelete") return deleteVideo();

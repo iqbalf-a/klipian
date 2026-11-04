@@ -6134,6 +6134,22 @@ def check_motion_brief() -> tuple[str, str]:
         for want in ("about 60 seconds", "Intip yuk!", "loop-back", "elevenlabs", "googleai", "voicestudio"):
             if want not in cli:
                 problems.append(f"the brief CLI's default brief lost {want!r}")
+        opt = motion_brief_cli.brief_for("Kenapa colokan panas", duration=45, loop=False)       # the -create tokens: 45 and noloop
+        if "about 45 seconds" not in opt or "Loop: no" not in opt:
+            problems.append("brief_for(duration=45, loop=False) puts 'about 45 seconds' and 'Loop: no' in the brief")
+        for bad in ({"voice": ["nope"]}, {"music": "nope"}, {"duration": 50}):
+            try:
+                motion_brief_cli.brief_for("Kenapa colokan panas", **bad)
+                problems.append(f"the brief CLI refuses {bad}")
+            except motion.MotionError:
+                pass
+        short = motion.short_command({"topic": "Kenapa colokan panas", "duration": 45, "notes": "", "options": {"music": motion.DEFAULT_OPTIONS["music"]}})
+        if short != '-create 45 "Kenapa colokan panas"':
+            problems.append(f"the short command of a default 45 s project is -create 45 \"<topic>\", not {short!r}")
+        short = motion.short_command({"topic": "Kenapa \"colokan\" panas", "duration": 30, "notes": "fokus ke a", "look": "iso", "options": {"loop": False, "music": "neon", "voiceTargets": ["googleai"]}})
+        for want in ("-create 2.5d 30", "noloop", "musik=neon", "suara=googleai", 'catatan="fokus ke a"', "Kenapa 'colokan' panas"):
+            if want not in short:
+                problems.append(f"the short command lost {want!r}: {short!r}")
         skill = (Path(__file__).resolve().parent.parent / ".claude" / "skills" / "create" / "SKILL.md")
         text = skill.read_text(encoding="utf-8") if skill.exists() else ""
         cm = Path(__file__).resolve().parent.parent / "CLAUDE.md"
@@ -6141,7 +6157,7 @@ def check_motion_brief() -> tuple[str, str]:
         for want in ("-create", ".claude/skills/create/SKILL.md", "-create 2d", "-create teks"):
             if want not in cmt:
                 problems.append(f"the root CLAUDE.md lost {want!r}")
-        for want in ("name: create", "# -create <topic>", "git checkout -q --detach origin/main", "git push origin HEAD:main", "up to 3 tries", "motion_brief_cli", "Never force-push", "set.json", "obat cegukan paling ampuh", "at most 6 short lines", "pakai ulang", "Write `sfx.ts` by hand", "about 1 event a second", "Do NOT print the narration", "main belum punya aturan set", "Work quietly", "--look text", "gaya: iso/2d/teks"):
+        for want in ("name: create", "# -create [options] <topic>", "git worktree add --detach", "never check out, switch branches, stash or reset in ian's checkout", "git checkout -q --detach origin/main", "git push origin HEAD:main", "up to 3 tries", "motion_brief_cli", "Never force-push", "set.json", "obat cegukan paling ampuh", "at most 6 short lines", "pakai ulang", "Write `sfx.ts` by hand", "about 1 event a second", "Do NOT print the narration", "main belum punya aturan set", "Work quietly", "--look text", "gaya: iso/2d/teks"):
             if want not in text:
                 problems.append(f"the /create skill lost {want!r}")
         cc = Path(__file__).resolve().parent.parent / ".claude" / "skills" / "create-cloud" / "SKILL.md"

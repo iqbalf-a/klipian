@@ -557,3 +557,33 @@ def build_fix_message(errors: list[dict], kind: str = "main", options: dict | No
             + "\n".join(lines)
             + f"\n\nPlease fix them and reply with {what} again: a single JSON block, plain JSON only (no code, comments or trailing commas), "
               "and nothing outside the block. Change only what is needed; keep everything else exactly as it was." + keep)
+
+
+# --------------------------------------------------------------------------
+# the short command (-create) the page offers next to the full brief
+# --------------------------------------------------------------------------
+
+LOOK_TOKEN = {"iso": "2.5d", "2d": "2d", "text": "teks"}
+
+
+def short_command(p: dict) -> str:
+    """The `-create` command for a project (.claude/skills/create/SKILL.md): the duration always, every other token only when it differs from the
+    defaults (loop and sting on, all three voice apps, the default music, no notes, the look left to the agent). A `"` inside the topic or the notes becomes `'`."""
+    opts = _m.options_of(p)
+    quote = lambda s: '"' + " ".join(str(s).replace('"', "'").split()) + '"'
+    parts = ["-create"]
+    if p.get("look") in LOOK_TOKEN:
+        parts.append(LOOK_TOKEN[p["look"]])
+    parts.append(str(p["duration"]))
+    if not opts["loop"]:
+        parts.append("noloop")
+    if not opts["sting"]:
+        parts.append("nointip")
+    if opts["voiceTargets"] != list(_m.VOICE_TARGETS):
+        parts.append("suara=" + ",".join(opts["voiceTargets"]))
+    if opts["music"] != _m.DEFAULT_OPTIONS["music"]:
+        parts.append("musik=" + opts["music"])
+    if p.get("notes"):
+        parts.append("catatan=" + quote(p["notes"]))
+    parts.append(quote(p["topic"]))
+    return " ".join(parts)

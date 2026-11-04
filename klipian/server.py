@@ -812,7 +812,11 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 raise _motion.MotionError("kind", "kind: main atau revise")
             _motion.note_brief(p['id']) if kind == 'main' and not peek else None
-            return {"brief": text, "file": f"{p['id']}-{'revisi' if kind == 'revise' else 'brief'}.md"}
+            reply = {"brief": text, "file": f"{p['id']}-{'revisi' if kind == 'revise' else 'brief'}.md"}
+            if kind == "main":                                # the short -create command, and whether this checkout has the skill that runs it
+                reply["short"] = _motion.short_command(p)
+                reply["createSkill"] = (Path(__file__).resolve().parent.parent / ".claude" / "skills" / "create" / "SKILL.md").is_file()
+            return reply
         return self._motion_reply(brief)
 
     def _get_motion_subtitles(self):

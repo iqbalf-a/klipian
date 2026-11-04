@@ -1,4 +1,4 @@
-A message that starts with `-create <topic>` (not `-create-cloud`) means: make one klipian intip video for that topic by following `.claude/skills/create/SKILL.md` exactly (the topic is the rest of the message); the video is saved on `main`. Ask nothing.
+A message that starts with `-create <topic>` (not `-create-cloud`) means: make one klipian intip video for that topic by following `.claude/skills/create/SKILL.md` exactly (the topic is the rest of the message); the video is saved on `main`. `-create` also takes options before the topic (`-create [2.5d|2d|teks] [30|45|60] [noloop] [nointip] [suara=...] [musik=...] [catatan="..."] "<topic>"`, the /remotion step 2 button copies one), and it runs in ian's own checkout too: there it works in a git worktree of `origin/main` and never touches ian's checkout. Ask nothing.
 
 A message that starts with `-create-cloud "<topic>"` is a different command from `-create`: make one klipian intip video for that topic by following `.claude/skills/create-cloud/SKILL.md` exactly. It reads the rules and the design from `origin/main` and saves only the video's files to `cloud/stok-video`. Ask nothing.
 

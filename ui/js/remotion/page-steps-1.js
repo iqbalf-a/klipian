@@ -80,16 +80,37 @@ function bodyBrief(d) {
     <p>Satu file mandiri: tugas, struktur ${d.duration} detik, aturan channel dan fakta, katalog benda yang bisa dirender, serta format jawaban.</p>
     <p class="rm-hint">Tempel brief ke Claude Code yang dibuka di folder klipian (atau unduh lalu berikan path berkasnya). Ia mencari web sendiri. Tanpa API key.</p>
     <div class="rm-actions">
-      <button class="btn main" id="rmCopyBrief" data-act="rmCopyBrief" type="button">Salin brief</button>
+      <button class="btn main" id="rmCopyBrief" data-act="rmCopyBrief" type="button">Salin brief lengkap</button>
       <button class="btn" id="rmDownBrief" data-act="rmDownBrief" type="button">Unduh brief</button>
       <span class="rm-err" id="rmBriefErr" role="alert"></span>
     </div>
+    <div class="rm-short" id="rmShort">${shortHTML(briefCache.get(`${d.id}:main`))}</div>
+    <p class="rm-hint">Brief lengkap: tempel ke AI mana pun. Perintah -create: tempel ke Claude Code (lokal di folder klipian, atau sesi cloud); ia membuat videonya dan menyimpannya di main. Lalu git pull dan lanjut ke langkah 3.</p>
     <details class="rm-adv">
       <summary>Ubah pilihan video</summary>
       ${optionsHTML(d.options || {}, "rmOptsProject")}
       <div class="rm-actions"><button class="btn" type="button" data-act="saveOptions">Simpan pilihan</button><span class="rm-hint">Brief berikutnya memakai pilihan ini; salin brief lagi setelah mengubahnya.</span></div>
     </details>
     ${(d.optionWarnings || []).map((w) => `<div class="rm-warn">${esc(w)}</div>`).join("")}`;
+}
+
+// the short -create command: shown before it is copied; disabled when this checkout has no skill that runs it
+function shortHTML(c) {
+  const ok = !c || c.createSkill !== false;          // not fetched yet (or the fetch failed): the click fetches it
+  if (!c || !c.short) return `<div class="rm-actions"><button class="btn" id="rmCopyShort" data-act="rmCopyShort" type="button">Salin perintah -create</button></div>`;
+  return `<div class="rm-actions"><button class="btn" id="rmCopyShort" data-act="rmCopyShort" type="button"${ok ? "" : " disabled"}>Salin perintah -create</button>${ok ? "" : `<span class="rm-hint">Perlu skill -create (.claude/skills/create) di folder klipian.</span>`}</div>
+    <code class="rm-cmd">${esc(c.short)}</code>`;
+}
+function drawShort() {
+  const box = byId("rmShort");
+  if (box && CUR) box.innerHTML = shortHTML(briefCache.get(`${CUR.id}:main`));
+}
+
+async function copyShort(btn) {
+  let c = briefCache.get(`${CUR.id}:main`);
+  if (!c) { c = await call(`${API}/brief?id=${encodeURIComponent(CUR.id)}&kind=main&peek=1`); briefCache.set(`${CUR.id}:main`, c); }
+  if (c.createSkill === false) return toast("Perlu skill -create (.claude/skills/create) di folder klipian.");
+  (await copyText(c.short)) ? afterBriefCopied(btn) : toast("Tidak bisa menyalin perintahnya.");
 }
 
 async function saveOptions() {
