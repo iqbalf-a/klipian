@@ -1,7 +1,7 @@
 /* Kenapa suara kita terdengar beda di rekaman? — one home-studio set (set kind "home-studio"): a back wall with acoustic foam panels, a desk, a standing
-   microphone and a small recorder, and one hero: a head in profile (an extruded outline from the iso kit). Real shapes checked (Wikipedia, "Sound",
+   microphone and a small recorder, and one hero: the two ways a voice reaches the ear, drawn as a small set on the desk (a voice source, a bone bar and an ear, from the iso kit). Real shapes checked (Wikipedia, "Sound",
    "Bone conduction"): sound is a longitudinal pressure wave, so it leaves the mouth as arcs that spread out in every direction, not as a straight beam;
-   the skull carries low frequencies better than air does; a microphone takes only the air path. One continuous camera (plan.ts CAM); the first frame is
+   the bone carries low frequencies better than air does; a microphone takes only the air path. One continuous camera (plan.ts CAM); the first frame is
    the last (the loop): every moving thing has a period that divides 60 s. */
 import React from "react";
 import {
@@ -22,15 +22,12 @@ const bold = { fontFamily: '"Outfit", sans-serif', fontWeight: 700 } as const;
 const polys = (ps: Poly[], tones: readonly string[], stroke = G1, sw = 2.5, op = 1) => ps.map((p, i) => <polygon key={i} points={ptsAttr(p.pts)} fill={tones[p.tone]} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" opacity={op} />);
 const blk = (a: P3, b: P3) => block(a, b, U, O);
 
-const SKIN = [SKIN_A, mixRgb(SKIN_A, SKIN_B, 0.5), SKIN_B], HAIR = [G2, G1, G1], SHIRT = ISO.labPlastic, BONE = WHITE;
+const SKIN = [SKIN_A, mixRgb(SKIN_A, SKIN_B, 0.5), SKIN_B], SHIRT = ISO.labPlastic;
 const FOAM = [G4, G3, mixRgb(G3, G2, 0.5)];
-const CZ = 4.5;                                                       // the head's centre height (the torso ends at 2.7, the neck at 3.4)
-/** The head in profile, facing +x (units; x forward, z up from the centre): back of the head, crown, forehead, nose, lips, chin, jaw. */
-const HEAD_REL: P2[] = [[-1.1, 0.1], [-1.0, 0.8], [-0.5, 1.2], [0.2, 1.27], [0.8, 1.0], [1.05, 0.5], [1.2, 0.1], [1.38, -0.15], [1.12, -0.3], [1.14, -0.5], [1.1, -0.66], [1.0, -0.8], [0.98, -1.1], [0.6, -1.25], [0, -1.1], [-0.5, -0.8], [-0.95, -0.4]];
-const HEAD: P2[] = HEAD_REL.map(([x, z]) => [x, CZ + z]);
-const HAIR_PTS: P2[] = [[-1.12, CZ + 0.1], [-1.02, CZ + 0.85], [-0.5, CZ + 1.28], [0.2, CZ + 1.34], [0.85, CZ + 1.04], [0.97, CZ + 0.72], [0.4, CZ + 0.78], [-0.2, CZ + 0.55], [-0.7, CZ + 0.2]];
-const EAR = { x: -0.1, z: CZ - 0.1 }, MOUTH = { x: 1.1, z: CZ - 0.58 }, MIC = { x: 3.4, z: 4.0 };
-const FACE_Y = 0.58;                                                  // the side of the head that looks at the camera
+/** The ear: an outline in (x, z) that stands on a small pedestal and is extruded in y; it faces the camera's side (+y). */
+const EAR_OUT: P2[] = [[-0.8, 2.6], [-0.75, 3.2], [-0.35, 3.6], [0.1, 3.45], [0.25, 2.95], [0.05, 2.35], [-0.2, 1.95], [-0.55, 2.0], [-0.8, 2.3]];
+const EAR = { x: -0.3, y: 2.66, z: 2.8 }, MOUTH = { x: 0.08, z: 1.95 }, MIC = { x: 3.0, z: 2.8 };
+const FACE_Y = 0.58;
 const S = (x: number, z: number, y = FACE_Y): P2 => P([x, y, z]);
 
 /** A point at fraction f (0 to 1) along a polyline of screen points, and the unit normal there. */
@@ -49,9 +46,10 @@ const wavy = (pts: readonly P2[], amp: number, len: number, ph: number, k = 1): 
   return out.length > 1 ? smoothPath(out) : "";
 };
 
-const AIR_PATH: P2[] = [[1.28, 3.92], [0.85, 3.78], [0.4, 3.92], [0.08, 4.22], [-0.1, 4.4]].map(([x, z]) => P([x, 0.78, z]));
-const BONE_PATH: P2[] = [[0.38, 3.05], [0.3, 3.55], [0.08, 4.0], [-0.08, 4.4]].map(([x, z]) => S(x, z, 0.6));
-const PLAY_PATH: P2[] = ([[5.0, 0.8, 2.1], [3.4, 1.0, 3.0], [1.9, 0.92, 3.7], [1.28, 0.78, 3.92], [0.85, 0.78, 3.78], [0.4, 0.78, 3.92], [0.08, 0.78, 4.22], [-0.1, 0.62, 4.4]] as P3[]).map(P);
+const P3s = (pts: P3[]): P2[] => pts.map(P);
+const AIR_PATH: P2[] = P3s([[0.08, 0, 1.95], [0.45, 0.7, 2.6], [0.5, 1.5, 3.1], [0.2, 2.2, 3.35], [-0.1, 2.62, 3.0]]);
+const BONE_PATH: P2[] = P3s([[-0.6, 0.1, 1.95], [-0.65, 0.5, 1.95], [-0.65, 1.9, 1.95], [-0.45, 2.3, 2.2], [-0.35, 2.62, 2.6]]);
+const PLAY_PATH: P2[] = P3s([[5.0, 0.8, 2.1], [3.4, 1.8, 2.9], [1.6, 2.7, 3.2], [0.2, 2.75, 3.1], [-0.05, 2.7, 2.95]]);
 
 const Dots: React.FC<{ path: readonly P2[]; c: number; k: number; color: string; n?: number; speed?: number; r?: number }> = ({ path, c, k, color, n = 5, speed = 0.4, r = 11 }) => {
   if (k <= 0.02) return null;
@@ -96,26 +94,22 @@ const Foam: React.FC = () => {
   return <g>{cells}</g>;
 };
 
-/** The head: an extruded profile (skin), the hair on top, the ear and the mouth on the side face, the neck, and the shoulders. */
-const Person: React.FC<{ c: number; skull: number; ear: number }> = ({ c, skull, ear }) => {
+/** The voice and its two ways to the ear: a voice source (the vocal folds) with lips that open and close, a bar of bone along the desk, and an ear on a pedestal. */
+const Voice: React.FC<{ c: number; bone: number; ear: number }> = ({ c, bone, ear }) => {
   const open = 0.5 + 0.5 * Math.sin((c / 0.75) * Math.PI * 2);      // period 0.75 s: 80 times in 60 s
-  const neck = cylinder([0.02, 0, 2.7], [0.02, 0, 3.55], 0.4, 0.4, [1, 0, 0], [0, 1, 0], U, O, 32);
-  const ep = circlePts(0, 0, 1, 20).map(([x, z]) => S(EAR.x + x * 0.2, EAR.z + z * 0.3));
-  const mouth = circlePts(0, 0, 1, 14).map(([x, z]) => S(MOUTH.x + x * 0.1, MOUTH.z + z * (0.05 + 0.1 * open)));
-  const sk = HEAD.map(([x, z]) => S(0.02 + (x - 0.02) * 0.84, CZ + 0.05 + (z - CZ - 0.05) * 0.84, 0.6));
-  const earPulse = 1 + 0.25 * ear * Math.sin(c * 9);
+  const e = P([EAR.x, EAR.y, EAR.z]), pulse = 1 + 0.2 * ear * Math.sin(c * 9);
+  const curve = smoothPath(P3s([[-0.55, 2.68, 3.2], [-0.25, 2.68, 3.35], [0.0, 2.68, 3.1], [-0.05, 2.68, 2.7], [-0.3, 2.68, 2.5]]));
   return (
     <g>
-      {polys(blk([-2.1, -1.3, 0], [0.25, 1.3, 2.7]), SHIRT, G1, 2.5)}
-      {polys(neck, SKIN, G1, 2.5)}
-      {polys(extrudeAnyXZ(HEAD, -0.55, 0.55, U, O), SKIN, G1, 2.5)}
-      {polys(extrudeAnyXZ(HAIR_PTS, -0.6, 0.6, U, O), HAIR, G1, 2.5)}
-      <polygon points={ptsAttr(mouth)} fill={G1} />
-      <g transform={`translate(${S(EAR.x, EAR.z)[0]} ${S(EAR.x, EAR.z)[1]}) scale(${earPulse}) translate(${-S(EAR.x, EAR.z)[0]} ${-S(EAR.x, EAR.z)[1]})`}>
-        <polygon points={ptsAttr(ep)} fill={SKIN[1]} stroke={G1} strokeWidth={3} />
-        <path d={smoothPath(circlePts(0, 0, 1, 12).slice(2, 9).map(([x, z]) => S(EAR.x + x * 0.09, EAR.z + z * 0.16)))} fill="none" stroke={G1} strokeWidth={3} />
+      {polys(blk([-0.9, -0.4, 1.6], [-0.1, 0.4, 2.3]), SKIN, G1, 2.5)}
+      {polys(blk([-0.1, -0.3, 1.8], [0.06, 0.3, 1.9 + 0.2 * open]), [YELLOW, YELLOW_D, mixRgb(YELLOW_D, BLACK, 0.3)], G1, 2.5)}
+      {polys(blk([-0.9, 0.4, 1.6], [-0.4, 2.0, 1.85]), [WHITE, G4, G3], G1, 2.5)}
+      {bone > 0.02 && <g opacity={bone}>{polys(blk([-0.9, 0.4, 1.6], [-0.4, 2.0, 1.85]), [YELLOW, YELLOW, YELLOW], YELLOW_D, 6, 0.35)}</g>}
+      {polys(blk([-0.9, 2.0, 1.6], [0.3, 2.6, 1.9]), SHIRT, G1, 2.5)}
+      <g transform={`translate(${e[0]} ${e[1]}) scale(${pulse}) translate(${-e[0]} ${-e[1]})`}>
+        {polys(extrudeAnyXZ(EAR_OUT, 2.5, 2.66, U, O), SKIN, G1, 2.5)}
+        <path d={curve} fill="none" stroke={G1} strokeWidth={4} strokeLinecap="round" />
       </g>
-      {skull > 0.02 && <g opacity={skull}><polygon points={ptsAttr(sk)} fill={BONE} fillOpacity={0.4} stroke={BONE} strokeWidth={9} strokeLinejoin="round" /><polygon points={ptsAttr(sk)} fill="none" stroke={G1} strokeWidth={3} strokeLinejoin="round" opacity={0.7} /></g>}
     </g>
   );
 };
@@ -123,14 +117,14 @@ const Person: React.FC<{ c: number; skull: number; ear: number }> = ({ c, skull,
 /** The standing microphone: a round base, a thin stand and a capsule with a grille ring. */
 const Mic: React.FC = () => {
   const base = cylinder([MIC.x, 0, 1.6], [MIC.x, 0, 1.72], 0.55, 0.55, [1, 0, 0], [0, 1, 0], U, O, 32);
-  const pole = cylinder([MIC.x, 0, 1.7], [MIC.x, 0, 3.5], 0.08, 0.08, [1, 0, 0], [0, 1, 0], U, O, 16);
-  const cap = cylinder([MIC.x, 0, 3.45], [MIC.x, 0, 4.6], 0.36, 0.36, [1, 0, 0], [0, 1, 0], U, O, 32);
-  const top = circlePts(0, 0, 0.36, 32).map(([x, y]) => P([MIC.x + x, y, 4.6]));
+  const pole = cylinder([MIC.x, 0, 1.7], [MIC.x, 0, 2.3], 0.08, 0.08, [1, 0, 0], [0, 1, 0], U, O, 16);
+  const cap = cylinder([MIC.x, 0, 2.25], [MIC.x, 0, 3.4], 0.36, 0.36, [1, 0, 0], [0, 1, 0], U, O, 32);
+  const top = circlePts(0, 0, 0.36, 32).map(([x, y]) => P([MIC.x + x, y, 3.4]));
   return (
     <g>
       {polys(base, ISO.dark, G1, 2.5)}{polys(pole, ISO.metal, G1, 2.5)}{polys(cap, ISO.dark, G1, 2.5)}
       <polygon points={ptsAttr(top)} fill={ISO.dark[0]} stroke={G1} strokeWidth={3} />
-      {[3.75, 4.05, 4.35].map((z) => { const ring = circlePts(0, 0, 0.37, 32).map(([x, y]) => P([MIC.x + x, y, z])); return <polygon key={z} points={ptsAttr(ring)} fill="none" stroke={G3} strokeWidth={3} opacity={0.55} />; })}
+      {[2.5, 2.8, 3.1].map((z) => { const ring = circlePts(0, 0, 0.37, 32).map(([x, y]) => P([MIC.x + x, y, z])); return <polygon key={z} points={ptsAttr(ring)} fill="none" stroke={G3} strokeWidth={3} opacity={0.55} />; })}
     </g>
   );
 };
@@ -189,20 +183,20 @@ const Scene = ({ beat, t, clock }: SceneProps) => {
   const earK = Math.max(on(c, T.lblEar, T.panMouth - 0.2), on(c, T.play, T.panPoster - 0.4));
   const cutK = clamp01((c - T.cut) / 0.5);
   const tip = (a: number, b: number) => on(c, a, b);
-  const earP = S(EAR.x, EAR.z), mouthP = S(MOUTH.x, MOUTH.z), micP = P([MIC.x, 0, 4.0]), recP = P([5.1, 0, 2.1]);
+  const earP = P([EAR.x, EAR.y, EAR.z]), mouthP = P([MOUTH.x, 0, MOUTH.z]), micP = P([MIC.x, 0, MIC.z]), recP = P([5.1, 0, 2.1]);
   return (
     <svg width={1080} height={1920} viewBox="0 0 1080 1920">
       <g transform={layerTransform(cam, 1)}>
         <Floor />
         <Foam />
         <Poster c={c} />
-        <Person c={c} skull={skull} ear={earK} />
-        {polys(blk([0.7, -2.4, 0], [6.9, 2.4, 1.6]), [mixRgb(ISO.soil[0], WHITE, 0.45), mixRgb(ISO.soil[1], WHITE, 0.45), mixRgb(ISO.soil[2], WHITE, 0.35)], G1, 2.5)}
+        {polys(blk([-1.6, -2.4, 0], [6.9, 3.4, 1.6]), [mixRgb(ISO.soil[0], WHITE, 0.45), mixRgb(ISO.soil[1], WHITE, 0.45), mixRgb(ISO.soil[2], WHITE, 0.35)], G1, 2.5)}
+        <Voice c={c} bone={Math.max(bone, skull)} ear={earK} />
         <MouthArcs c={c} k={0.9} strong={strong} />
         <Mic />
         <Recorder c={c} rec={rec} />
         <g transform={`translate(0 ${-2 * Math.sin((c / 5) * Math.PI * 2)})`}><IsoCup u={80} o={P([5.2, -1.7, 1.6])} t={c} /></g>
-        {/* the two ways to the ear: along the cheek through the air (grey), through the skull (yellow) */}
+        {/* the two ways to the ear: along the cheek through the air (grey), through the bone (yellow) */}
         <Trail path={AIR_PATH} k={air * (1 - 0.5 * cutK * 0) * (isOutro ? 0 : 1)} color={G4} w={7} dash="14 18" off={-c * 60} />
         <Dots path={AIR_PATH} c={c} k={air * (isOutro ? 0 : 1)} color={WHITE} n={4} speed={0.5} r={11} />
         <Trail path={BONE_PATH} k={bone * (1 - 0.7 * on(c, T.cut, T.panPoster)) * (isOutro ? 0 : 1)} color={YELLOW} w={10} />
@@ -216,7 +210,7 @@ const Scene = ({ beat, t, clock }: SceneProps) => {
         {/* labels: a world anchor, a screen offset, constant size on the screen */}
         {(() => {
           const z = cam.zoom, mk = (text: string, at: P2, dx: number, dy: number, a: number, b: number, hl?: string[], to?: P2, fs = 46) => <Tag key={text + a} text={text} at={at} dx={dx} dy={dy} z={z} c={c} a={a} b={b} hl={hl} to={to} fs={fs} />;
-          const airM = along(AIR_PATH, 0.45).p, boneM = along(BONE_PATH, 0.5).p, skullP = S(-0.75, CZ + 0.45, 0.6), posterP = P([-0.9, -2.8, 7.6]);
+          const airM = along(AIR_PATH, 0.45).p, boneM = along(BONE_PATH, 0.5).p, skullP = P([-0.65, 1.2, 1.9]), posterP = P([-0.9, -2.8, 7.6]);
           return <>
             {mk("jalur udara", airM, 150, 300, T.lblAir, T.panMouth - 0.3, ["udara"], airM)}
             {mk("jalur tulang", boneM, -80, 250, T.lblBone, T.panMouth - 0.3, ["tulang"], boneM)}
@@ -224,10 +218,10 @@ const Scene = ({ beat, t, clock }: SceneProps) => {
             {mk("gelombang suara", mouthP, 250, -230, T.lblWave, T.lblViaAir - 0.2, ["suara"], undefined, 44)}
             {mk("lewat udara", airM, 60, 300, T.lblViaAir, T.lblOthers - 0.2, ["udara"], along(AIR_PATH, 0.3).p)}
             {mk("orang lain: jalur ini", airM, 60, 300, T.lblOthers, T.panHead - 0.3, ["orang"], along(AIR_PATH, 0.3).p, 44)}
-            {mk("tengkorak", skullP, 100, -330, T.lblSkull, T.lblLow - 0.2, undefined, skullP)}
+            {mk("tulang kepala", skullP, 100, -330, T.lblSkull, T.lblLow - 0.2, undefined, skullP)}
             {mk("nada rendah lebih kuat", earP, 0, 380, T.lblLow, T.lblHeavy - 0.2, ["rendah"], undefined, 42)}
             {mk("suara terasa lebih berat", earP, 0, 380, T.lblHeavy, T.panMic - 0.3, ["berat"], undefined, 42)}
-            {mk("mikrofon", micP, -200, -260, T.lblMic, T.panMid - 0.3, undefined, [micP[0] - 36, micP[1] - 28])}
+            {mk("mikrofon", micP, -200, -260, T.lblMic, T.panMid - 0.3, undefined, [micP[0] - 36, micP[1] - 10])}
             {mk("merekam", recP, -150, -120, T.lblRec, T.cut, undefined, recP)}
             {mk("tulang tidak ikut", micP, -60, 330, T.lblNoBone, T.panMid - 0.3, ["tulang"], undefined, 44)}
             {mk("cuma jalur udara", earP, 250, 420, T.lblAirOnly, T.lblThin - 0.2, ["udara"], undefined, 44)}

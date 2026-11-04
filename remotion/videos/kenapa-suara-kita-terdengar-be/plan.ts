@@ -24,16 +24,16 @@ export const T = {
 } as const;
 
 /** The camera: first and last key are the same wide shot, so the video loops. */
-const W = { x: 650, y: 830, zoom: 0.8 };
+const W = { x: 560, y: 950, zoom: 0.85 };
 export const CAM: Key2[] = [
-  { t: 0, ...W }, { t: 1.4, ...W }, { t: 2.9, x: 690, y: 840, zoom: 1.28 },
-  { t: 11.6, x: 690, y: 840, zoom: 1.36 },
-  { t: 13.2, x: 700, y: 860, zoom: 1.5 }, { t: 19.6, x: 700, y: 860, zoom: 1.58 },
-  { t: 21.3, x: 545, y: 730, zoom: 1.72 }, { t: 27.6, x: 545, y: 730, zoom: 1.8 },
-  { t: 29.3, x: 820, y: 880, zoom: 1.45 }, { t: 34.6, x: 820, y: 880, zoom: 1.52 },
-  { t: 36.3, x: 700, y: 830, zoom: 1.25 }, { t: 41.6, x: 700, y: 830, zoom: 1.3 },
+  { t: 0, ...W }, { t: 1.4, ...W }, { t: 2.9, x: 560, y: 965, zoom: 1.28 },
+  { t: 11.6, x: 560, y: 965, zoom: 1.36 },
+  { t: 13.2, x: 610, y: 950, zoom: 1.5 }, { t: 19.6, x: 610, y: 950, zoom: 1.58 },
+  { t: 21.3, x: 400, y: 975, zoom: 1.7 }, { t: 27.6, x: 400, y: 975, zoom: 1.8 },
+  { t: 29.3, x: 780, y: 990, zoom: 1.45 }, { t: 34.6, x: 780, y: 990, zoom: 1.52 },
+  { t: 36.3, x: 560, y: 975, zoom: 1.25 }, { t: 41.6, x: 560, y: 975, zoom: 1.3 },
   { t: 43.3, x: 700, y: 560, zoom: 1.1 }, { t: 47.6, x: 700, y: 560, zoom: 1.14 },
-  { t: 49.3, x: 690, y: 850, zoom: 1.2 }, { t: 56.8, x: 690, y: 850, zoom: 1.26 },
+  { t: 49.3, x: 560, y: 965, zoom: 1.2 }, { t: 56.8, x: 560, y: 965, zoom: 1.26 },
   { t: 59.4, ...W }, { t: 60, ...W },
 ];
 
@@ -51,5 +51,5 @@ export function makePlan(story: StoryT) {
   };
 }
 
-/** The hero's box at time t, in the 1080 px frame: the head and the microphone (about 65 % of the width in the main shot, small in the wide shot). */
+/** The hero's box at time t, in the 1080 px frame: the voice, the ear and the microphone (about 65 % of the width in the main shot, small in the wide shot). */
 export const HERO_BOX_AT = (t: number) => (t < 1.4 ? { x: 540, y: 960, w: 380, h: 260 } : { x: 540, y: 960, w: 700, h: 520 });
