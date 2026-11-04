@@ -379,9 +379,7 @@ let lastImport = null;                          // { id, text, orig: [[startSec,
 
 const PARTIAL_NOTE = "The transcript covers only the imported clips. Transcribe the whole video to use this.";
 
-function videoDuration() {
-  return Number.isFinite(chosenSource?.duration) ? chosenSource.duration : realTranscript?.duration;
-}
+// videoDuration() lives in timeline.js: a second top-level declaration here made timeline.js fail to load at all.
 
 /* The parts of the video the imported clips (or only the `ticked` ones of Choose moments) still need transcribed
    (none once a whole transcript exists). */
