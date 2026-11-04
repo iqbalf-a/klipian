@@ -1,0 +1,276 @@
+{
+  "bible": 1,
+  "question": "Kenapa teko listrik paling berisik sebelum mendidih?",
+  "titles": [
+    "Teko listrik paling berisik sebelum mendidih",
+    "Kenapa teko listrik berisik sebelum air mendidih?",
+    "Intip teko listrik: gelembung yang runtuh"
+  ],
+  "duration": 60,
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 3,
+      "narration": "Kenapa teko listrik justru paling berisik sebelum mendidih?",
+      "text": "Berisik sebelum mendidih?",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Berisik sebelum mendidih?",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "sting",
+      "kind": "sting",
+      "dur": 1,
+      "narration": "Intip yuk!",
+      "text": "Intip yuk!",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "mascot",
+            "x": 540,
+            "y": 720,
+            "enter": {
+              "kind": "pop",
+              "delay": 0
+            },
+            "w": 220,
+            "expr": "curious",
+            "pop": true
+          },
+          {
+            "type": "pill",
+            "text": "Intip yuk!",
+            "x": 540,
+            "y": 1489,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.2
+            },
+            "fs": 56
+          }
+        ]
+      },
+      "sfx": "pop"
+    },
+    {
+      "id": "dasar",
+      "kind": "normal",
+      "dur": 6,
+      "narration": "Pemanas listrik ada di dasar teko. Permukaan dasar itu lebih panas daripada air di atasnya.",
+      "text": "Dasar lebih panas dari air",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Dasar lebih panas dari air",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "gelembung",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Di permukaan yang panas itu muncul gelembung uap kecil. Mereka membesar, lalu lepas dari dasar.",
+      "text": "Gelembung uap kecil muncul",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Gelembung uap kecil muncul",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "runtuh",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Gelembung naik ke air yang masih lebih dingin, lalu runtuh. Runtuhnya gelembung itulah sumber bunyinya.",
+      "text": "Naik ke air dingin, runtuh",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Naik ke air dingin, runtuh",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "kejut",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Gelembung uap yang runtuh bisa memicu gelombang kejut kecil. Itu yang kita dengar sebagai bunyi teko.",
+      "text": "Runtuh jadi gelombang kejut",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Runtuh jadi gelombang kejut",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "hasil",
+      "kind": "result",
+      "dur": 7,
+      "narration": "Jadi bunyi ini muncul selagi air memanas, sebelum seluruh air mencapai titik didih.",
+      "text": "Bunyi muncul sebelum mendidih",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Bunyi muncul sebelum mendidih",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "fakta",
+      "kind": "normal",
+      "dur": 6,
+      "narration": "Teko listrik modern mati sendiri begitu air mendidih. Pemanasnya biasanya dua sampai tiga kilowatt.",
+      "text": "Mati sendiri saat mendidih",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Mati sendiri saat mendidih",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "tips",
+      "kind": "tips",
+      "dur": 9,
+      "narration": "Bunyi desis saat memanas itu wajar. Tapi kalau teko berbau gosong atau kabelnya panas, cabut dan tanya teknisi.",
+      "text": "Aneh? Cabut, tanya teknisi",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Aneh? Cabut, tanya teknisi",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "dur": 4,
+      "narration": "",
+      "text": "",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    }
+  ],
+  "claims": [
+    {
+      "text": "Teko listrik punya elemen pemanas di dalamnya; pada didih nukleat gelembung uap terbentuk di permukaan yang dipanaskan, yang lebih panas daripada air di sekitarnya.",
+      "beats": [
+        "dasar",
+        "gelembung"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Nucleate_boiling",
+        "https://en.wikipedia.org/wiki/Kettle"
+      ]
+    },
+    {
+      "text": "Gelembung uap tumbuh sampai ukuran kritis, lepas dari permukaan panas, lalu runtuh di air yang tidak sepanas permukaan itu.",
+      "beats": [
+        "gelembung",
+        "runtuh"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Nucleate_boiling"
+      ]
+    },
+    {
+      "text": "Runtuhnya gelembung inilah yang membuat bunyi teko saat memanas, sebelum suhu didih seluruh air tercapai; didih nukleat umum pada teko listrik.",
+      "beats": [
+        "runtuh",
+        "hasil",
+        "tips"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Nucleate_boiling"
+      ]
+    },
+    {
+      "text": "Gelembung uap yang runtuh bisa menghasilkan gelombang kejut.",
+      "beats": [
+        "kejut"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Cavitation"
+      ]
+    },
+    {
+      "text": "Teko listrik modern mati sendiri begitu air mencapai titik didih, dan elemen pemanasnya biasanya berdaya 2 sampai 3 kilowatt.",
+      "beats": [
+        "fakta"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Kettle"
+      ]
+    }
+  ],
+  "post": {
+    "description": "Teko listrik paling berisik justru sebelum mendidih. Intip gelembung uap yang terbentuk di dasar lalu runtuh di air yang lebih dingin.",
+    "hashtags": [
+      "#tekolistrik",
+      "#faktaseru",
+      "#sains",
+      "#intipyuk",
+      "#shorts"
+    ]
+  },
+  "needs": [
+    "teko listrik iso dengan jendela air dan gelembung (aset baru, dibuat dari iso.ts)",
+    "dinding dapur dan meja dapur iso (set baru)"
+  ],
+  "stage": "island",
+  "theme": "sky",
+  "captions": true,
+  "music": {
+    "track": "bed-circuit"
+  }
+}
