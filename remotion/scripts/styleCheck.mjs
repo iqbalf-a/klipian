@@ -12,6 +12,7 @@ import { pathToFileURL } from "node:url";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DICTIONARY, markComponents } from "../src/dictionary.ts";
+import { borrowedSets, freeSets, ownSet } from "../src/sets.ts";
 import { checkImports } from "./importCheck.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -119,6 +120,12 @@ add("INFO", `marks in the video: ${used.map((n) => { const row = DICTIONARY.find
 
 // 10. the new assets: at most three (a human count; the registry is the library)
 add("HUMAN", "at most three new loose supporting pieces (the hero and its own set are not counted, B27.15); say which pieces are new and which were reused");
+
+// 10b. the set (B27.15): the video stands in its OWN set. A registered set belongs to the video that owns it (src/sets.ts); drawing another video's set is a FAIL,
+//      and a video that has not registered its own set is a FLAG (the next video must be able to see that this background is taken).
+const borrowed = borrowedSets(sources, slug);
+add(borrowed.length === 0 ? "PASS" : "FAIL", `B27.15: the set is the video's own (${borrowed.length ? borrowed.map(({ set, found }) => `it draws "${set.id}", the set of ${set.owner} (${found.join(", ")}). Design a new set around this hero: free kinds are ${freeSets().map((k) => k.id).join(", ")}; see src/sets.ts`).join("; ") : "no other video's set is drawn"})`);
+if (!/^selftest/.test(slug)) add(ownSet(slug) ? "PASS" : "FLAG", `B27.15: the video's set is registered in src/sets.ts (${ownSet(slug) ? `"${ownSet(slug).id}"` : `add a row with owner "${slug}": id, name, what it fits, the components that draw it; pick a free kind (${freeSets().map((k) => k.id).join(", ")}) or add a new one`})`);
 
 // 11. the myth check: a verdict stamp (only for a "Benarkah ...?" or "Mitos" question)
 const myth = /^(benarkah|mitos)/i.test(story.question ?? "");
@@ -257,6 +264,8 @@ const count = (l) => out.filter((r) => r.level === l).length;
 console.log(`\nsummary: ${count("PASS")} pass, ${count("FAIL")} fail, ${count("FLAG")} flag, ${count("INFO")} info, ${count("RENDER")} need a render, ${count("HUMAN")} for a human`);
 console.log(`\nhuman checklist (ian's quality bar, DESIGN.md section 10, and the bible's locks):
   [ ] one stage block on the brand background, the iso camera, the lens move the same way as in pilot 1
+  [ ] its own set (src/sets.ts): not the sea, land and hills of another video; the set is registered with this video as owner
+  [ ] a shape that really has a form is drawn in that form (B27.16: a rainbow is a full circle, cut by the horizon)
   [ ] one hero asset at the detail budget; supporting assets simple and flat; at most three new assets
   [ ] every mark drawn with its dictionary recipe; no private mark
   [ ] tone rule, flat tones, meaning colours; the nature colours only for nature
