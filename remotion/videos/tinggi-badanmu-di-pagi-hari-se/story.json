@@ -1,0 +1,270 @@
+{
+  "bible": 1,
+  "question": "Kenapa tinggi badan di pagi hari sekitar 1 cm lebih tinggi daripada malam hari?",
+  "titles": [
+    "Tinggi badanmu pagi hari lebih tinggi 1 cm, kok bisa?",
+    "Kenapa kita lebih tinggi di pagi hari?",
+    "Intip tulang belakang: tinggi pagi vs malam"
+  ],
+  "duration": 60,
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 5,
+      "narration": "Tinggi badanmu di pagi hari sekitar satu sentimeter lebih tinggi daripada malam hari.",
+      "text": "Pagi lebih tinggi?",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Pagi lebih tinggi?",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "sting",
+      "kind": "sting",
+      "dur": 1,
+      "narration": "Intip yuk!",
+      "text": "Intip yuk!",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "mascot",
+            "x": 540,
+            "y": 720,
+            "enter": {
+              "kind": "pop",
+              "delay": 0
+            },
+            "w": 220,
+            "expr": "curious"
+          },
+          {
+            "type": "pill",
+            "text": "Intip yuk!",
+            "x": 540,
+            "y": 1489,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.2
+            },
+            "fs": 56
+          }
+        ]
+      },
+      "sfx": "pop"
+    },
+    {
+      "id": "tulang",
+      "kind": "normal",
+      "dur": 6,
+      "narration": "Tulang belakangmu tersusun dari ruas-ruas tulang. Di antara dua ruas ada bantalan lunak bernama cakram.",
+      "text": "Ruas tulang, bantalan",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Ruas tulang, bantalan",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "air",
+      "kind": "normal",
+      "dur": 7,
+      "narration": "Cakram itu berisi banyak air, fungsinya seperti peredam kejut. Jadi ruas tulang tidak saling beradu.",
+      "text": "Bantalan berisi air",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Bantalan berisi air",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "siang",
+      "kind": "normal",
+      "dur": 9,
+      "narration": "Seharian kamu berdiri dan duduk, jadi berat badan terus menekan cakram. Sebagian air pelan-pelan terperas keluar.",
+      "text": "Siang: air terperas",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Siang: air terperas",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "malam",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Saat berbaring tidur, tekanannya hilang. Cakram menyerap air lagi dan mengembang kembali.",
+      "text": "Malam: bantalan terisi",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Malam: bantalan terisi",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "hasil",
+      "kind": "result",
+      "dur": 8,
+      "narration": "Tiap cakram menipis sedikit di siang hari. Dijumlahkan, tinggimu turun sekitar satu sentimeter.",
+      "text": "Total turun 1 cm",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Total turun 1 cm",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "fakta",
+      "kind": "result",
+      "dur": 7,
+      "narration": "Fakta serunya, perubahan harian ini bisa sampai hampir dua sentimeter, sekitar satu persen tinggi badan.",
+      "text": "Bisa hampir 2 cm",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Bisa hampir 2 cm",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "tips",
+      "kind": "tips",
+      "dur": 6,
+      "narration": "Mau mengukur tinggi badan? Ukur di pagi hari, supaya hasilnya selalu sebanding.",
+      "text": "Ukur tinggi di pagi hari",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Ukur tinggi di pagi hari",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "dur": 3,
+      "narration": "",
+      "text": "Pagi lebih tinggi?",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Pagi lebih tinggi?",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    }
+  ],
+  "claims": [
+    {
+      "text": "Di antara ruas tulang belakang ada cakram (inti cakram) yang menyimpan air dan berfungsi sebagai peredam kejut.",
+      "beats": [
+        "tulang",
+        "air"
+      ],
+      "sources": [
+        "https://pmc.ncbi.nlm.nih.gov/articles/PMC7462995/"
+      ]
+    },
+    {
+      "text": "Saat tubuh beristirahat di malam hari cakram menyerap air; setelah berdiri, berat badan menekan cakram dan air keluar lagi.",
+      "beats": [
+        "siang",
+        "malam"
+      ],
+      "sources": [
+        "https://eorthopod.com/?p=55232",
+        "https://pmc.ncbi.nlm.nih.gov/articles/PMC7462995/"
+      ]
+    },
+    {
+      "text": "Perubahan harian pada cakram dapat mengurangi tinggi tulang belakang hingga hampir 2 cm atau sekitar 1% tinggi badan sepanjang hari, lalu pulih pada malam hari.",
+      "beats": [
+        "hasil",
+        "fakta"
+      ],
+      "sources": [
+        "https://pmc.ncbi.nlm.nih.gov/articles/PMC7462995/"
+      ]
+    },
+    {
+      "text": "Sebuah studi pada 100 anak menemukan penurunan tinggi rata-rata 1,54 cm dari bangun tidur pagi hingga pukul 4 sampai 5 sore pada hari yang sama.",
+      "beats": [
+        "hook",
+        "hasil"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Human_height"
+      ]
+    }
+  ],
+  "post": {
+    "description": "Tinggi badanmu di pagi hari sekitar 1 cm lebih tinggi daripada malam hari. Intip cakram di tulang belakang: siang hari airnya terperas, malam hari terisi lagi.",
+    "hashtags": [
+      "#tinggibadan",
+      "#tulangbelakang",
+      "#faktaseru",
+      "#intipyuk",
+      "#shorts"
+    ]
+  },
+  "needs": [],
+  "stage": "steps",
+  "theme": "sky",
+  "look": "2d",
+  "captions": true,
+  "music": {
+    "track": "bed-curious"
+  }
+}
