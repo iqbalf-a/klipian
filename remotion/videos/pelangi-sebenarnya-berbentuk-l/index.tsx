@@ -9,11 +9,11 @@ import {
   FONT_BOLD, ptsAttr, TipCard, NumberLabel, tipCardHeight,
   type StoryT,
 } from "../../src/design/index.ts";
-import { IsoBushes, IsoCloud, IsoDrop, IsoFarHills, IsoFields, IsoHill, IsoHills, IsoLand, IsoPuddles, IsoRain, IsoRocks, IsoSea, IsoSun, IsoTreeShadows, IsoTrees } from "../../src/components/IsoNature.tsx";
+import { IsoBushes, IsoCloud, IsoFarHills, IsoFields, IsoHill, IsoHills, IsoLand, IsoRocks, IsoSun, IsoTreeShadows, IsoTrees } from "../../src/components/IsoNature.tsx";
 import { IsoPlane } from "../../src/components/IsoSeeding.tsx";
 import { Motes } from "../../src/components/Iso.tsx";
 import { BUSHES, BUSHES_WIDE, ROCKS, ROCKS_WIDE, TREES, TREES_WIDE, CLOUD_GREY, mixRgb } from "../../src/natureGeometry.ts";
-import { FAR, OUT, RING, RING_SCREEN, SPOT, SUN_AT, TIP, HORIZON_DIR, makePlan, ringPoint } from "./plan.ts";
+import { FAR, OUT, RING, world, RING_SCREEN, SPOT, SUN_AT, TIP, HORIZON_DIR, makePlan, ringPoint } from "./plan.ts";
 import storyJson from "./story.json";
 
 export const story = storyJson as unknown as StoryT;
@@ -66,6 +66,25 @@ const Ray: React.FC<{ a: readonly [number, number]; b: readonly [number, number]
   return <line x1={a[0]} y1={a[1]} x2={ex} y2={ey} stroke={YELLOW_D} strokeWidth={9} strokeLinecap="round" strokeDasharray="26 22" strokeDashoffset={-((t * 90) % 48)} opacity={0.9} />;
 };
 
+
+/** A drop of water, drawn by this video: a round belly and a pointed top, two tones (light left, mid right), `s` times a 12 px drop. */
+const Teardrop: React.FC<{ x: number; y: number; s: number }> = ({ x, y, s }) => {
+  const r = 7 * s, tip = 20 * s;
+  const d = `M ${x} ${y - tip} C ${x + r * 0.4} ${y - r * 1.6} ${x + r} ${y - r * 0.9} ${x + r} ${y} A ${r} ${r} 0 0 1 ${x - r} ${y} C ${x - r} ${y - r * 0.9} ${x - r * 0.4} ${y - r * 1.6} ${x} ${y - tip} Z`;
+  return <g><path d={d} fill={ISO.water[1]} /><path d={`M ${x} ${y - tip} C ${x - r * 0.4} ${y - r * 1.6} ${x - r} ${y - r * 0.9} ${x - r} ${y} A ${r} ${r} 0 0 0 ${x} ${y + r} Z`} fill={ISO.water[0]} opacity={0.9} /></g>;
+};
+
+/** The shower under the cloud: rows of drops in the ring's plane that fall and wrap (period 1.2 s, which divides 60 s), so the loop-back matches the first frame. */
+const Shower: React.FC<{ t: number }> = ({ t }) => {
+  const k = (t % 1.2) / 1.2, out: React.ReactNode[] = [];
+  for (let col = 0; col < 9; col++) for (let row = 0; row < 4; row++) {
+    const x = -0.9 + col * 0.34 + (row % 2) * 0.17, z0 = RING.z + 3.0 - ((row + k) % 4) * 0.72;
+    const p = world([x, RING.y + 0.05, z0]);
+    out.push(<Teardrop key={`${col}-${row}`} x={p[0]} y={p[1]} s={0.9} />);
+  }
+  return <g opacity={0.85}>{out}</g>;
+};
+
 const Stamp: React.FC<{ text: string; x: number; y: number; fs: number; p: number }> = ({ text, x, y, fs, p }) => {
   if (p <= 0.001) return null;
   const w = text.length * fs * 0.62 + fs * 1.3, h = fs * 1.5;
@@ -88,7 +107,6 @@ export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ stor
   const top = P.tops.find((x) => t >= x.a && t < x.b);
   const sc = (p: readonly [number, number]) => toScreen(oc, [p[0], p[1]]);
   const phase = (t % 12) / 12;
-  const rainPhase = (t * 1.3) % 1;
   const drop = st.drop;
   const pulse = 0.5 + 0.5 * Math.sin(t * 2 * Math.PI / 3);                      // the ring glows a little all the time (period 3 s divides 60)
   const sunBright = 1 + 0.04 * Math.sin(t * 2 * Math.PI / 4);
@@ -129,12 +147,10 @@ export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ stor
 
           {/* the ground sinks as the aircraft climbs: sea, land, hills, fields */}
           <g transform={`translate(0 ${drop})`}>
-            <IsoSea {...stage} wide phase={phase} />
-            <IsoLand {...stage} wide wet={1} />
+            <IsoLand {...stage} wide />
             <IsoHill {...stage} />
             <IsoHills {...stage} />
-            <IsoFields {...stage} wet={1} />
-            <IsoPuddles {...stage} wet={1} />
+            <IsoFields {...stage} />
           </g>
 
           {/* the hero: the rainbow ring, clipped by the horizon (the ground hides its lower half) */}
@@ -148,11 +164,11 @@ export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ stor
           </g>
 
           {/* the rain and the cloud (alive: the cloud drifts and bobs a little all the time) */}
-          <IsoRain {...stage} k={st.rain} phase={rainPhase} />
+          <Shower t={t} />
           <g transform={`translate(${driftPx(t) * (1 - lw)} ${bobPx(t, 0, 5) * (1 - lw)})`}><IsoCloud {...stage} cx={CLOUD_GREY.cx} cy={CLOUD_GREY.cy} cz={CLOUD_GREY.cz} grow={1.05} phase={phase} /></g>
 
           {/* the light: dashed rays from the sun into the drops, a glint in each drop */}
-          {dropPts.map((d, i) => <g key={i}><Ray a={SUN_AT} b={d} t={t} k={rayK(i)} />{rayK(i) > 0.95 && <IsoDrop cx={d[0]} cy={d[1]} r={11 + 3 * Math.sin(t * 6 + i)} />}</g>)}
+          {dropPts.map((d, i) => <g key={i}><Ray a={SUN_AT} b={d} t={t} k={rayK(i)} />{rayK(i) > 0.95 && <Teardrop x={d[0]} y={d[1]} s={1.5 + 0.3 * Math.sin(t * 6 + i)} />}</g>)}
 
           {/* the marker opposite the sun: the ring's centre (the antisolar point) with a dashed line from the sun, and the 42 degree radius */}
           {st.centre > 0.01 && <g opacity={st.centre}>
@@ -171,7 +187,7 @@ export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ stor
           })()}
 
           {/* the FAKTA stamp inside the ring */}
-          <Stamp text="FAKTA" x={world(stampAt)[0]} y={world(stampAt)[1] - 330} fs={64} p={st.stamp * springAt(t, m.verdict, false)} />
+          <Stamp text="FAKTA" x={stampAt[0]} y={stampAt[1] - 330} fs={64} p={st.stamp * springAt(t, m.verdict, false)} />
         </g>
 
         {/* near (B27.2): loose dust that touches nothing */}
@@ -210,4 +226,3 @@ export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ stor
   );
 };
 
-function world(p: readonly [number, number]): [number, number] { return [p[0], p[1]]; }
