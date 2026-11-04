@@ -155,6 +155,24 @@ for (const r of DICTIONARY.filter((k) => k.status === "drawn")) {
   yes(out.includes("FAIL   B15: every sound is from the locked set") && out.includes("no-such-sound") && out.includes("FLAG   B13"), "an unknown sound name fails and few events flag");
 }
 
+// B28 the looks: iso is the default; "2d" fails when it uses iso helpers; "text" needs none
+{
+  const run = (s: string) => spawnSync(process.execPath, [path.join(ROOT, "scripts", "styleCheck.mjs"), s], { encoding: "utf8" }).stdout;
+  const make = (name: string, look: string, tsx: string) => {
+    const f = path.join(ROOT, "out", "style-fixture", name);
+    mkdirSync(f, { recursive: true });
+    writeFileSync(path.join(f, "story.json"), JSON.stringify({ ...JSON.parse(readFileSync(path.join(ROOT, "videos", "kenapa-colokan-panas", "story.json"), "utf8")), look }));
+    writeFileSync(path.join(f, "index.tsx"), tsx);
+    return f;
+  };
+  const flat = "export const Fake = () => <g><TopText /><CaptionLayer /></g>;\n";
+  yes(run(make("look-2d", "2d", flat)).includes("PASS   must 3 (e): look \"2d\""), "a flat 2d video without iso helpers passes (e)");
+  yes(run(make("look-2d-iso", "2d", "export const Fake = () => <g><TopText /><CaptionLayer /><IsoLamp /><IsoSea /></g>;\n")).includes("FAIL   must 3 (e): look \"2d\""), "a 2d video that uses iso components fails (e)");
+  const t = run(make("look-text", "text", flat));
+  yes(t.includes("INFO   must 3 (e): look \"text\"") && !t.includes("FAIL   must 3 (e)"), "a text video needs no iso geometry (e is INFO)");
+  yes(!validateStory({ ...JSON.parse(readFileSync(path.join(ROOT, "videos", "kenapa-colokan-panas", "story.json"), "utf8")), look: "3d" }).ok, "a look outside iso, 2d, text is refused by the schema");
+}
+
 // the approved sound set (B15): the record matches the set; the checker reports it
 {
   const record = JSON.parse(readFileSync(path.join(ROOT, "scripts", "soundHash.json"), "utf8"));

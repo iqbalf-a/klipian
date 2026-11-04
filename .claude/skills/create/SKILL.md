@@ -30,6 +30,12 @@ From the repository root (no `workspace/` is needed; the profile settings fall b
 python3 -m klipian.motion_brief_cli "<topic>"   # `python` if python3 is missing
 ```
 
+The look (B28) is chosen by you from the topic, as the brief says (iso, else 2d, else text). Only when the message is `-create 2d <topic>` or `-create teks <topic>` (the first word after `-create`), force it: drop that word from the topic and add `--look 2d` or `--look text` before the topic:
+
+```bash
+python3 -m klipian.motion_brief_cli --look text "<topic>"
+```
+
 It prints the Khusus brief with the defaults: custom video, 60 s, loop yes, the "Intip yuk!" sting yes, the voice apps elevenlabs + googleai + voicestudio, the default music. The slug in it is checked against the folders of this stock branch, so it is free.
 
 Body and money topics are fine as explanations (why we hiccup, why banknotes do not tear). If the topic asks for medical advice, a diagnosis, a cure, a dose or a treatment, for investment or financial advice (e.g. "obat cegukan paling ampuh", "saham yang pasti naik"), or for anything dangerous: stop, write nothing, say why.
@@ -51,7 +57,7 @@ Follow the printed brief, steps 1 to 8, as written. Write `sfx.ts` by hand: a so
 ## 5. Answer
 
 Answer in Indonesian, at most 6 short lines, nothing else:
-1. `slug`
+1. `slug` and "gaya: iso/2d/teks, karena ..."
 2. branch + hash
 3. the style-check summary line
 4. each FAIL/FLAG line (or "tanpa FAIL/FLAG"), and the pieces as "baru: ... / pakai ulang: ..."

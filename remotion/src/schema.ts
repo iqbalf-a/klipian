@@ -172,6 +172,7 @@ export const Story = z.object({
   needs: z.array(z.string()),
   stage: z.enum(STAGE_SHAPES).optional(),                              // the stage shape the hero stands on (missing = slab; PLAN-VARIETY stage 3)
   theme: z.enum(THEME_NAMES).optional(),                                 // the background theme of the whole video (missing = cream; PLAN-VARIETY stage 2)
+  look: z.enum(["iso", "2d", "text"]).optional(),                        // the look of the video: iso (missing = the 2.5D iso kit, B27), 2d (flat drawing) or text (kinetic numbers and words); the agent picks it from the topic (B28)
   captions: z.boolean().optional(),                                       // the karaoke caption layer at the bottom (the words come from `words`, else an even estimate)
   platforms: z.array(z.enum(PLATFORM_NAMES)).min(1).optional(),            // where the video is posted (missing = youtube): with several, the layout obeys the strictest safe area (PLAN-SAFE-AREA, B24)
   captionStyle: z.enum(CAPTION_STYLE_NAMES).optional(),                   // the caption look: classic (missing = classic), wide or punch (PLAN-CAPTION-OPTIONS, B23)

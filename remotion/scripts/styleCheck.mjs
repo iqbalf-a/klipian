@@ -104,8 +104,9 @@ add(cards.every((c) => Number.isInteger(c.claim) && c.claim >= 1 && c.claim <= c
 const hookBg = beats[0]?.scene?.bg;
 add(hookBg === "brand" ? "PASS" : "FLAG", `the stage: the hook is on the brand background (it is "${hookBg}")`);
 const sources = readdirSync(dir).filter((f) => /\.(ts|tsx)$/.test(f)).map((f) => readFileSync(path.join(dir, f), "utf8")).join("\n");
+const look = story.look ?? "iso";                                  // B28: iso (the kit), 2d (flat drawing) or text (kinetic numbers and words)
 const isoParts = /Iso(WallSocket|Cutaway|Block|Plug|Sea|Land|Trees|Cloud|Bed|Lamp|Kettle|Fan|Clock|Cup|Battery|Heart|Brain)/.test(sources);
-add(isoParts ? "PASS" : "FLAG", "the video draws its object in the isometric kit (a stage block)");
+add(look !== "iso" ? "INFO" : isoParts ? "PASS" : "FLAG", look !== "iso" ? `look "${look}": no isometric stage block needed (B28)` : "the video draws its object in the isometric kit (a stage block)");
 add("RENDER", "the hero is 60 to 70 % of the screen width at the main shot (measure it on the still)");
 
 // 9. the marks: the components this video draws that are marks must be in the dictionary; a private mark is a FLAG
@@ -160,7 +161,9 @@ const allSrc = sourceFiles.map((x) => x.src).join("\n");
 const isoKit = [...new Set(allSrc.match(/<Iso[A-Z]\w*/g) ?? [])];
 const isoCalls = /\b(block|extrudeXZ|extrudeAnyXZ|cylinder|planeXZ|planeYZ)\s*\(/.test(allSrc) && /from\s+"[^"]*iso\.ts"/.test(allSrc);
 const isoOk = isoKit.length >= 2 || isoCalls;
-add(isoOk ? "PASS" : "FAIL", `must 3 (e): the set and the hero are drawn in the iso kit (${isoOk ? `${isoKit.length} Iso* component(s)${isoCalls ? ", iso.ts geometry" : ""}` : `${isoKit.length} Iso* component(s) and no iso.ts geometry: a flat side view is not the kit; build the asset from src/iso.ts block/extrude/cylinder and reuse src/design components`})`);
+if (look === "2d") add(isoKit.length === 0 && !isoCalls ? "PASS" : "FAIL", `must 3 (e): look "2d" is a flat drawing, no iso projection (${isoKit.length || isoCalls ? `iso helpers used: ${isoKit.join(", ")}${isoCalls ? " iso.ts geometry" : ""}` : "no iso helpers"})`);
+else if (look === "text") add("INFO", 'must 3 (e): look "text": kinetic numbers and words in boxes, no iso geometry needed');
+else add(isoOk ? "PASS" : "FAIL", `must 3 (e): the set and the hero are drawn in the iso kit (${isoOk ? `${isoKit.length} Iso* component(s)${isoCalls ? ", iso.ts geometry" : ""}` : `${isoKit.length} Iso* component(s) and no iso.ts geometry: a flat side view is not the kit; build the asset from src/iso.ts block/extrude/cylinder and reuse src/design components`})`);
 
 // must 3 (f): the channel's text format: kicker + headline at the top (TopText), the bottom caption with the spoken word yellow (CaptionLayer), no black top banner box.
 const textMiss = [!/\bTopText\b/.test(allSrc) && "TopText (kicker + headline)", !/\bCaptionLayer\b/.test(allSrc) && "CaptionLayer (bottom caption, spoken word yellow)", /<Banner\b/.test(allSrc) && "a <Banner> box at the top"].filter(Boolean);

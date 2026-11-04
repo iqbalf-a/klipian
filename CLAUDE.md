@@ -1,1 +1,1 @@
-A message that starts with `-create <topic>` means: make one klipian intip video for that topic by following `.claude/skills/create/SKILL.md` exactly (the topic is the rest of the message). Ask nothing.
+A message that starts with `-create <topic>` means: make one klipian intip video for that topic by following `.claude/skills/create/SKILL.md` exactly (the topic is the rest of the message). Ask nothing. The agent chooses the look from the topic; the optional words `-create 2d <topic>` and `-create teks <topic>` force the 2d or the text look.

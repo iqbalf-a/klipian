@@ -6092,8 +6092,8 @@ def check_motion_brief() -> tuple[str, str]:
     problems: list[str] = []
     must = ["an everyday hook", "does not have to start with", "small `mascot`", "small `pill`", "Intip yuk!", "loop-back",
             "**The outro has no mascot.**", "**One hero:**", "**Kinds of fact:**",
-            "Build a set, not a specimen", "Animation recipe", "open on a wide shot of the set", "one scale per set", "hero in the centre third",
-            "Explaining how the body or money works is allowed", "never investment or financial advice", "Own set per video", "The iso kit is mandatory", "never a flat side-view SVG", "IsoWallSocket", "The text format is the channel", "`TopText`", "`CaptionLayer`", "no big black banner box"]
+            "build a set, not a specimen", "Animation recipe", "open on a wide shot of the set", "one scale per set", "hero in the centre third",
+            "Explaining how the body or money works is allowed", "never investment or financial advice", "Own set per video", "drawn in the kit's 2.5D iso camera", "never a flat side-view SVG", "IsoWallSocket", "The text format is the channel", "`TopText`", "`CaptionLayer`", "no big black banner box"]
     stale = ["The outro has the mascot again", "a short outro with the logo", "logo and", "starts with \"kenapa", "a big `mascot`",
              "an everyday question", "a short outro with the logo", "Every beat has a `banner`", "<Banner text", "No health or finance topics"]
     real_settings = profiles.hashtag_settings
@@ -6108,7 +6108,7 @@ def check_motion_brief() -> tuple[str, str]:
                 if old in text:
                     problems.append(f"the {d} s brief still says {old!r}")
             khusus = motion.build_brief({"topic": "Kenapa colokan panas", "duration": d, "notes": "", "options": {"kind": "khusus"}})
-            for want in ("Animation recipe", "wide shot", "the root of your checkout", "remotion/videos/cara-kerja-hujan-buatan", "wide.png", "beats.json", "Build a set, not a specimen", "npm run fill -- ", "over 35 %", "establishing push", "copy their structure and style, not their set", "sfx.ts by hand", "About 1 event a second"):
+            for want in ("Animation recipe", "wide shot", "the root of your checkout", "remotion/videos/cara-kerja-hujan-buatan", "wide.png", "beats.json", "build a set, not a specimen", "npm run fill -- ", "over 35 %", "establishing push", "copy their structure and style, not their set", "sfx.ts by hand", "About 1 event a second"):
                 if want not in khusus:
                     problems.append(f"the {d} s Khusus brief lost {want!r}")
             for old in ("on its own in a circle", "ngantuk-pegang-hp"):
@@ -6121,6 +6121,16 @@ def check_motion_brief() -> tuple[str, str]:
                 problems.append(f"the {d} s structure does not end with a loop-back outro")
         from . import motion_brief_cli
         cli = motion_brief_cli.brief_for("Kenapa colokan panas")      # what /create prints: the channel defaults, nothing written to the workspace
+        for look, mark in (("iso", "**Look iso (B28):**"), ("2d", "**Look 2d (B28):**"), ("text", "**Look text (B28):**")):
+            one = motion_brief_cli.brief_for("Kenapa colokan panas", look)      # a chosen look keeps only its own rules
+            others = [m for m in ("**Look iso (B28):**", "**Look 2d (B28):**", "**Look text (B28):**") if m != mark]
+            if mark not in one or any(o in one for o in others) or "Choose the look" in one:
+                problems.append(f"the brief for look {look} does not hold only that look's rules")
+        for want in ("Choose the look", "1. `iso` when", "2. `2d` when", "3. `text` when", "gaya: iso/2d/teks, karena"):
+            if want not in cli:
+                problems.append(f"the brief that lets the agent choose lost {want!r}")
+        if any(len(motion_brief_cli.brief_for("Kenapa colokan panas", lk)) >= 40000 for lk in (None, "iso", "2d", "text")):
+            problems.append("a brief for a look is 40000 characters or more")
         for want in ("about 60 seconds", "Intip yuk!", "loop-back", "elevenlabs", "googleai", "voicestudio"):
             if want not in cli:
                 problems.append(f"the brief CLI's default brief lost {want!r}")
@@ -6128,10 +6138,10 @@ def check_motion_brief() -> tuple[str, str]:
         text = skill.read_text(encoding="utf-8") if skill.exists() else ""
         cm = Path(__file__).resolve().parent.parent / "CLAUDE.md"
         cmt = cm.read_text(encoding="utf-8") if cm.exists() else ""
-        for want in ("-create", ".claude/skills/create/SKILL.md"):
+        for want in ("-create", ".claude/skills/create/SKILL.md", "-create 2d", "-create teks"):
             if want not in cmt:
                 problems.append(f"the root CLAUDE.md lost {want!r}")
-        for want in ("name: create", "# -create <topic>", "cloud/stok-video", "git pull --rebase origin cloud/stok-video", "git push origin cloud/stok-video", "up to 3 tries", "motion_brief_cli", "Never push `main`, never force-push", "obat cegukan paling ampuh", "at most 6 short lines", "pakai ulang", "Write `sfx.ts` by hand", "about 1 event a second", "Do NOT print the narration", "checkout lama, buka sesi cloud baru", "Work quietly"):
+        for want in ("name: create", "# -create <topic>", "cloud/stok-video", "git pull --rebase origin cloud/stok-video", "git push origin cloud/stok-video", "up to 3 tries", "motion_brief_cli", "Never push `main`, never force-push", "obat cegukan paling ampuh", "at most 6 short lines", "pakai ulang", "Write `sfx.ts` by hand", "--look text", "gaya: iso/2d/teks", "about 1 event a second", "Do NOT print the narration", "checkout lama, buka sesi cloud baru", "Work quietly"):
             if want not in text:
                 problems.append(f"the /create skill lost {want!r}")
     finally:
@@ -6591,7 +6601,7 @@ def check_skill() -> tuple[str, str]:
     for rel in ("remotion/validate.mjs", "remotion/scripts/styleCheck.mjs", "remotion/scripts/styleReport.mjs"):
         if not (root / rel).is_file():
             problems.append(f"{rel} exists")
-    for needle in ("Never write to `workspace/`", "No API key", "never calls a voice or other service", "Never read or print secrets", "Build a set, not a specimen"):
+    for needle in ("Never write to `workspace/`", "No API key", "never calls a voice or other service", "Never read or print secrets", "build a set, not a specimen"):
         if needle.lower() not in text.lower():
             problems.append(f"the skill keeps the rule: {needle}")
     if "api key" in text.lower() and "no api key" not in text.lower() and "never needs an api key" not in text.lower():

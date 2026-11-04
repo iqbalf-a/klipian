@@ -116,6 +116,24 @@ def _options_text(opts: dict) -> str:
 
 # The agent-neutral brief (PLAN-BRIEF-AGENTS): any AI can follow it, in chat or as an agent. The hard rules come first, the checklist is testable,
 # the lists come from the catalogue (cat), and the examples are real stories that pass the validator.
+LOOK_MARK = "{LOOK}"            # replaced in build_brief by the look rules (the chosen look, or the choice)
+LOOKS = ("iso", "2d", "text")
+LOOK_RULES = {
+    "iso": "**Look iso (B28):** build a set, not a specimen: read `remotion/DESIGN.md` B27 and the Animation recipe first; open on a wide shot of the set, one scale per set, no overlap, hero in the centre third, then the establishing push to the main shot (hero 60 to 70 % of the width); 2 to 4 kinds of dressing at real scale, cut by the frame; the empty background at most 35 %. Every set and hero is drawn in the kit's 2.5D iso camera (`remotion/src/iso.ts`: `iso`, `isoAt`, `block`, VIEW [1,1,1], the three-tone rule, light from the top left) and reuses `remotion/src/design/index.ts`; a new asset is an iso kit piece (faces from `iso.ts`), never a flat side-view SVG. Copy from `kenapa-colokan-panas` (IsoWallSocket, IsoRoomWall) and `cara-kerja-hujan-buatan` (the nature kit). The style check FAILs a video that draws no iso geometry.",
+    "2d": "**Look 2d (B28):** a flat 2D drawing (front or side view, no iso projection, no `iso.ts` helpers for the hero), palette tokens, two tones per part (base and shade), no outlines except the allow-listed marks, the same light direction. The B27 set rules still apply in 2D (own set, bleed, fill at most 35 %, one scale, no overlap, a camera move per beat). The style check FAILs iso helpers used for the hero.",
+    "text": "**Look text (B28):** no objects: kinetic numbers and words in rounded cards like the caption (a counter that rolls, a number that grows, comparison bars, cards that stack or flip, a timeline). Outfit and DM Mono only (B17), palette tokens, the frame filled by type and boxes (empty at most 35 %), a camera move or a new card about every 3 to 4 s (B25). No set rules.",
+}
+LOOK_CHOICE = (
+    "**Choose the look (B28)** from the topic, in this order, and write it as `\"look\"` in the story. 1. `iso` when the topic has a physical thing or place that can be drawn as an iso set (a socket, a room, the rain). 2. `2d` when it can be drawn but not sensibly in iso (a flat diagram, a map, a side-view process). 3. `text` when there is nothing to draw (a statistic, a probability, a date, a comparison of sizes). Say why in your answer: \"gaya: iso/2d/teks, karena ...\". "
+    "Every look keeps the channel locks. The rules per look: "
+    + " ".join(LOOK_RULES[k] for k in LOOKS))
+
+
+def look_text(look: str | None) -> str:
+    """The look rules of the brief: the person's chosen look alone, or the choice with the rules of all three (the agent picks after reading)."""
+    return LOOK_RULES[look] + " (The look was chosen for you; write it as `\"look\"` in the story.)" if look in LOOKS else LOOK_CHOICE
+
+
 HARD_RULES = [
     "The beats' seconds add up to exactly the duration.",
     'The first beat is `hook`; the second is `sting` with the narration exactly "Intip yuk!"; the last is `outro`.',
@@ -124,10 +142,9 @@ HARD_RULES = [
     "Every claim has at least one source URL that you opened yourself.",
     'The story has `"bible": 1`.',
     "The hero is the topic's object. Use `socket` only when the topic is an electrical socket or plug.",
+    LOOK_MARK,
     "**Own set per video (B27.15):** design a new set around the hero and what explains the topic. Never reuse another video's scene or set composition as a background, the far layer included. A single piece may be reused only when it is the same thing and fits the story (a cloud in a lightning video), adapted in size, colour or state; never bend the topic around an existing asset or use a merely similar one (a kettle as a pot).",
     "**The sound is written by hand:** write `sfx.ts` against the scenes (see `remotion/videos/kenapa-colokan-panas/sfx.ts`): a sound on every object entering, camera move, label or card and state change, on the frame of its picture, at most 3 at once. About 1 event a second (60 s: 55 to 60; 45 s: 44; 30 s: 30). Only names from the locked set in `remotion/src/catalog.ts` (B15). The style check FLAGs the default or under 0.7 a second, and FAILs an unknown name.",
-    "Build a set, not a specimen: read `remotion/DESIGN.md` B27 and the Animation recipe first; open on a wide shot of the set, one scale per set, no overlap, hero in the centre third.",
-    "**The iso kit is mandatory.** Every set and every hero is drawn in the kit's 2.5D iso camera (`remotion/src/iso.ts`: `iso`, `isoAt`, `block`, VIEW [1,1,1], the three-tone rule, light from the top left) and reuses the components of `remotion/src/design/index.ts`. A new asset is built as an iso kit piece (its faces come from `iso.ts`), never a flat side-view SVG. Examples to copy: `kenapa-colokan-panas` (IsoWallSocket, IsoRoomWall) and `cara-kerja-hujan-buatan` (the nature kit, IsoNature). The style check FAILs a video that draws no iso geometry.",
     "**The text format is the channel's:** a kicker (DM Mono) and a headline (Outfit) at the top with `TopText`, a bottom caption with `CaptionLayer` (the spoken word yellow, `\"captions\": true`), and no big black banner box at the top. The style check FAILs a video without `TopText` or `CaptionLayer`, or one that draws `<Banner`.",
     "Explaining how the body or money works is allowed (why we hiccup, why banknotes do not tear). Never give medical advice, a diagnosis, a cure, a dose or a treatment, and never investment or financial advice (what to buy, what will rise). Never teach anything dangerous.",
     "Never write to `workspace/`, never read or print secrets or API keys.",
@@ -155,11 +172,10 @@ CHANNEL_RULES = """- Language: casual Indonesian, easy to follow, as if talking 
 - Stage (the story's `stage`, default `slab`): `slab` (the usual block), `round` (a round object), `strip` (a flow along it), `steps` (cause, effect, result), `island` (an idea or gadget that stands alone). Do not repeat the stage of the video before."""
 
 COMPOSITION = """- Every beat except the sting and the outro shows the top text (a kicker and a headline from the beat's `text`, drawn with `TopText`) and the bottom caption (`CaptionLayer`, the spoken word yellow). No black banner box.
-- Backgrounds: the set fills the frame (the ground and what stands on it run past the edges); `brand` (the brand background and its yellow spot) shows only in the sky or far back, behind the set, never behind the top text; `lab` only inside the lens and in cutaway beats.
-- **The hero stands in its set (B27):** the hook opens on a wide shot of the set (hero in the centre third, inside SAFE), then the establishing push to the main shot where the hero is 60 to 70 % of the width. 2 to 4 kinds of dressing at real scale (B27.7), cut by the frame, never shrunk to fit; no overlap (B27.9); the empty background is at most 35 % of the picture.
+- Backgrounds: the set fills the frame; `brand` shows only in the sky or far back, never behind the top text; `lab` only inside the lens and in cutaway beats.
 - **One hero:** one main object for the whole video, big (about 60 to 70 % of the width at the main shot, x about 540). The other things are simple supporting elements: parts, arrows, short labels, numbered badges. Empty space is filled by the object, never by people.
 - **Kinds of fact:** an object is opened up (the lens, only if the narration goes inside); a process follows its flow; a cause is a chain of arrows; a myth check ends with `MITOS`, `FAKTA` or `SEBAGIAN` in the text of the `result` or `tips` beat (the verdict stamp is not drawn yet).
-- **People are optional:** a person (`chibi`) only when a person is the point of the beat. A topic about an object shows just the object.
+- **People are optional:** a `chibi` only when a person is the point.
 - **The mascot is rare:** the sting has a small `mascot` (w about 220, expression curious, `pop`) and a small `pill` "Intip yuk!" in the caption zone, with no veil; plus at most two short reactions. **The outro has no mascot.**
 - The look inside: the outside of the object with the `lens` item first, then cutaway beats with `socket` view "cutaway" (about x 540, y 926, s 1). Give the cutaway an `id` and make labels and arrows `follow` its parts.
 - **Source cards** (`source`): one claim with its source for 2 to 3 seconds, only for a fact that needs to be seen.
@@ -211,19 +227,15 @@ def video_slug(topic: str) -> str:
 
 # What goes wrong most often when an agent follows the brief (each line is one mistake and its cure).
 MISTAKES = [
-    "The beats' `dur` do not add up to the duration: add them up before you save, and fix the last explain beat, not the hook.",
+    "A claim without a source URL, or a URL you did not open.",
+    "The beats' `dur` do not add up to the duration.",
     'The sting\'s narration is not exactly "Intip yuk!", or the outro has narration, a mascot, a label or a pill.',
-    "A screen text (`banner`, `text`, `label`, `pill`) has more than 6 words.",
-    "A claim without a source URL, or a URL you did not open. Leave the claim out instead.",
     'The story lacks `"bible": 1`, or has comments, trailing commas or code in the JSON.',
     "The story is saved somewhere else than `remotion/stories/<slug>.json` (never in `workspace/`), or the folder's `story.json` was edited without the same change in `remotion/stories/<slug>.json`: keep the two identical.",
     "`npm run new-video` run from the repository root (it must run inside `remotion`, and the story path is `stories/<slug>.json`, not `remotion/stories/...`).",
     "`node remotion/validate.mjs` run from inside `remotion` (it runs from the repository root).",
     "Writing \"it passed\" without the command's output. Paste the output, or say you did not run it.",
     "Rendering the whole video, editing `package.json`, or pushing anything: none of these is asked.",
-    "Importing a component from a file path (`../../src/components/IsoNature.ts`, wrong extension) instead of `../../src/design/index.ts`: tsc passes it, the render fails with \"Can't resolve\". Import components only from the design index.",
-    "Writing a file that is not in section 2 (at the repository root: `story-output.json`, `narration-output.txt`...), leaving `npm run check` with errors (unused imports), or importing `src/design/index.ts` from `sfx.ts` or `plan.ts`.",
-    "Listing an object in `needs` (a cloud, salt grains, an aircraft...) that the library already has: search `remotion/out/assets-sheet*.png`, `remotion/src/dictionary.ts` and `remotion/src/components/Iso*.tsx` first.",
 ]
 
 FALLBACK = """## If you cannot run commands or save files (fallback)
@@ -297,8 +309,8 @@ Run: `cd remotion` then `npm run new-video {slug} stories/{slug}.json`
 Expected: a line `made videos/{slug} and tests/{slug}.test.ts`, then the folder `remotion/videos/{slug}/` holds `index.tsx`, `plan.ts`, `sfx.ts`, `meta.json` and `story.json`.
 
 {STEP_MARK}4: draw the beats
-Do: read `remotion/DESIGN.md` (section 0b and every rule B1 up to the last one), `remotion/src/dictionary.ts` and the kit `remotion/src/components/Iso*.tsx` first. Read the "Animation recipe" section of `remotion/DESIGN.md` (what moves, when, how, per beat). The two finished videos to copy the structure from (copy their structure and style, not their set) are `remotion/videos/kenapa-colokan-panas` and `remotion/videos/cara-kerja-hujan-buatan`. Edit `remotion/videos/{slug}/index.tsx`, `plan.ts` and `sfx.ts` (sfx.ts by hand, with the density of the hard rule on sound): one hero object in its own new set (Own set per video, B27.15), at most three new loose supporting pieces, the story's `theme`, `stage` and `music`. Rule B25 of DESIGN.md: something moves about every second (the assets of `remotion/src/components/IsoLife.tsx` and `remotion/src/alive.ts` move a little all the time), something new comes about every 3 to 4 seconds, and each explain beat is a camera move inside the set (a push, or a pan to another place in it), as the Animation recipe says, not one framing for the whole video; the lens only when the narration goes inside (B27.6), at most one.
-Keep `sfx.ts` and `plan.ts` importing only plain `.ts` modules (`../../src/sfx.ts`, `../../src/schema.ts`, `../../src/layout.ts`...), never `../../src/design/index.ts`: render.mjs loads them in plain Node and the render fails with "Unknown file extension .tsx" (rule B26). Only `index.tsx` may import the design index, and in `index.tsx` import components ONLY from `../../src/design/index.ts` (it exports the isometric kit, the nature kit, the seeding set, the bedroom set and the alive set): never from a file path such as `../../src/components/IsoNature.ts` (the real file is `.tsx`: `npm run check` accepts a wrong extension, the render does not find the file).
+Do: read `remotion/DESIGN.md` (section 0b and every rule B1 up to the last one), `remotion/src/dictionary.ts` and the kit `remotion/src/components/Iso*.tsx` first. Read the "Animation recipe" section of `remotion/DESIGN.md` (what moves, when, how, per beat). The two finished videos to copy the structure from (copy their structure and style, not their set) are `remotion/videos/kenapa-colokan-panas` and `remotion/videos/cara-kerja-hujan-buatan`. Edit `remotion/videos/{slug}/index.tsx`, `plan.ts` and `sfx.ts` (sfx.ts by hand, with the density of the hard rule on sound): one hero object in its own new set (Own set per video, B27.15), at most three new loose supporting pieces, the story's `theme`, `stage` and `music`. Rule B25 of DESIGN.md: something moves about every second (`IsoLife.tsx` and `alive.ts` move a little all the time), something new comes about every 3 to 4 seconds, and each explain beat is a camera move inside the set (a push, or a pan to another place in it), as the Animation recipe says, not one framing for the whole video; the lens only when the narration goes inside (B27.6), at most one.
+Keep `sfx.ts` and `plan.ts` importing only plain `.ts` modules (`../../src/sfx.ts`, `../../src/schema.ts`, `../../src/layout.ts`...), never `../../src/design/index.ts`: render.mjs loads them in plain Node (rule B26). Only `index.tsx` may import the design index, and in `index.tsx` import components ONLY from `../../src/design/index.ts` (it exports the isometric kit, the nature kit, the seeding set, the bedroom set and the alive set): never from a file path such as `../../src/components/IsoNature.ts` (a wrong extension passes `npm run check`, the render fails).
 **Before you say an object is missing (`needs`):** search the library for the same thing (a piece, never a whole scene or set): `remotion/src/dictionary.ts`, the sheets `remotion/out/assets-sheet*.png` (`npm run assets-sheet` makes them), `node remotion/catalog-export.mjs`, and the components `remotion/src/components/Iso*.tsx` (the nature kit has a cloud, the sea, rain, trees, the sun; IsoSeeding has a plane and grains; IsoLife has a lamp, kettle, fan, clock, cup, battery, heart, brain). List in `needs` only what you searched for and did not find.
 Expected: both files exist and are edited (step 5 checks that they compile).
 
@@ -395,7 +407,8 @@ def build_brief(p: dict) -> str:
     opts = _m.options_of(p)
     kind = "custom" if _m.kind_of(p) == "custom" else "template"
     notes = f"\n\n**Notes from the person making the video:** {p['notes']}" if p.get("notes") else ""
-    rules = _numbered(HARD_RULES)
+    look = p.get("look") if p.get("look") in LOOKS else None
+    rules = _numbered(HARD_RULES).replace(LOOK_MARK, look_text(look))
     if kind == "custom":
         slug = video_slug(p["topic"])
         mistakes = _numbered(MISTAKES)
