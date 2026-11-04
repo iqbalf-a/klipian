@@ -11,7 +11,7 @@ import { ASSET_NAMES_FILE } from "./assetNames.ts";
 let n = 0;
 const yes = (c: boolean, what: string) => { n++; assert.ok(c, what); };
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
-const guide = readFileSync(path.join(ROOT, "DESIGN.md"), "utf8");
+const guide = readFileSync(path.join(ROOT, "DESIGN.md"), "utf8") + "\n" + readFileSync(path.join(ROOT, "DESIGN-iso.md"), "utf8");   // the guide is DESIGN.md plus the iso-only sections that moved to DESIGN-iso.md
 
 for (const h of ["How to start a new video", "palette", "Backgrounds", "The mascot and people", "3D objects", "Cables", "Motion", "Camera-led scenes", "Sound", "Layout", "Text", "quality bar", "How to add an asset"])
   yes(guide.toLowerCase().includes(h.toLowerCase()), `DESIGN.md has "${h}"`);

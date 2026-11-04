@@ -202,7 +202,8 @@ for (const r of DICTIONARY.filter((k) => k.status === "drawn")) {
 // the rule log, the bible's musts and the motion language are in DESIGN.md; the report and the scaffold are in the package
 {
   const design = read("DESIGN.md");
-  for (const h of ["### The three musts (B16)", "### The motion language", "### The rule log", "B15 Sound", "B16 Musts"]) yes(design.includes(h), `DESIGN.md has "${h}"`);
+  for (const h of ["### The three musts (B16)", "### The motion language", "B15 Sound", "B16 Musts"]) yes(design.includes(h), `DESIGN.md has "${h}"`);
+  yes(read("docs", "RULE-LOG.md").includes("### The rule log") && design.includes("docs/RULE-LOG.md"), "the rule log is in docs/RULE-LOG.md and DESIGN.md points to it");
   const pkg = JSON.parse(read("package.json"));
   yes(typeof pkg.scripts["style-report"] === "string" && typeof pkg.scripts["style-check"] === "string", "npm run style-report and style-check exist");
   yes(existsSync(path.join(ROOT, "scripts", "styleReport.mjs")) && existsSync(path.join(ROOT, "templates", "video", "plan.ts")) && existsSync(path.join(ROOT, "templates", "video-test.tpl")), "the report, the plan skeleton and the test skeleton are in place");

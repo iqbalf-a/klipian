@@ -6126,6 +6126,10 @@ def check_motion_brief() -> tuple[str, str]:
             others = [m for m in ("**Look iso (B28):**", "**Look 2d (B28):**", "**Look text (B28):**") if m != mark]
             if mark not in one or any(o in one for o in others) or "Choose the look" in one:
                 problems.append(f"the brief for look {look} does not hold only that look's rules")
+        for look in ("iso", "2d", "text"):                                           # what to read per look: the iso-only sections and the rule log are in their own files
+            one = motion_brief_cli.brief_for("Kenapa colokan panas", look)
+            if ("Also read `remotion/DESIGN-iso.md`" in one) != (look == "iso") or ("do not read `remotion/DESIGN-iso.md`" in one) != (look != "iso") or "RULE-LOG.md" not in one:
+                problems.append(f"the {look} brief tells the wrong files to read (DESIGN-iso.md only for iso, never RULE-LOG.md)")
         for want in ("Choose the look", "1. `iso` when", "2. `2d` when", "3. `text` when", "gaya: iso/2d/teks, karena"):
             if want not in cli:
                 problems.append(f"the brief that lets the agent choose lost {want!r}")

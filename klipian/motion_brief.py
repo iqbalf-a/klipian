@@ -117,9 +117,10 @@ def _options_text(opts: dict) -> str:
 # The agent-neutral brief (PLAN-BRIEF-AGENTS): any AI can follow it, in chat or as an agent. The hard rules come first, the checklist is testable,
 # the lists come from the catalogue (cat), and the examples are real stories that pass the validator.
 LOOK_MARK = "{LOOK}"            # replaced in build_brief by the look rules (the chosen look, or the choice)
+READ_MARK = "[[READ]]"          # replaced in build_brief by what to read per look (the design files)
 LOOKS = ("iso", "2d", "text")
 LOOK_RULES = {
-    "iso": "**Look iso (B28):** build a set, not a specimen: read `remotion/DESIGN.md` B27 and the Animation recipe first; open on a wide shot of the set, one scale per set, no overlap, hero in the centre third, then the establishing push to the main shot (hero 60 to 70 % of the width); 2 to 4 kinds of dressing at real scale, cut by the frame; the empty background at most 35 %. Every set and hero is drawn in the kit's 2.5D iso camera (`remotion/src/iso.ts`, VIEW [1,1,1], three tones, light from the top left) and reuses `remotion/src/design/index.ts`; a new asset is an iso kit piece (faces from `iso.ts`), never a flat side-view SVG. Copy from `kenapa-colokan-panas` (IsoWallSocket, IsoRoomWall). The style check FAILs a video with no iso geometry.",
+    "iso": "**Look iso (B28):** build a set, not a specimen: read `remotion/DESIGN.md` B27 and the Animation recipe first, then `remotion/DESIGN-iso.md` (the iso kit, depth order, nature kit, 3D objects, cables); open on a wide shot of the set, one scale per set, no overlap, hero in the centre third, then the establishing push to the main shot (hero 60 to 70 % of the width); 2 to 4 kinds of dressing at real scale, cut by the frame; the empty background at most 35 %. Every set and hero is drawn in the kit's 2.5D iso camera (`remotion/src/iso.ts`, VIEW [1,1,1], three tones, light from the top left) and reuses `remotion/src/design/index.ts`; a new asset is an iso kit piece (faces from `iso.ts`), never a flat side-view SVG. Copy from `kenapa-colokan-panas` (IsoWallSocket, IsoRoomWall). The style check FAILs a video with no iso geometry.",
     "2d": "**Look 2d (B28):** a flat 2D drawing (front or side view, no iso projection, no `iso.ts` helpers for the hero), palette tokens, two tones per part (base and shade), no outlines except the allow-listed marks, the same light direction. The B27 set rules still apply in 2D (own set, bleed, fill at most 35 %, one scale, no overlap, a camera move per beat). The style check FAILs iso helpers used for the hero.",
     "text": "**Look text (B28):** no objects: kinetic numbers and words in rounded cards like the caption (a counter that rolls, a number that grows, comparison bars, cards that stack or flip, a timeline). Outfit and DM Mono only (B17), palette tokens, the frame filled by type and boxes (empty at most 35 %), a camera move or a new card about every 3 to 4 s (B25). No set rules.",
 }
@@ -127,6 +128,15 @@ LOOK_CHOICE = (
     "**Choose the look (B28)** from the topic, in this order, and write it as `\"look\"` in the story. 1. `iso` when the topic has a physical thing or place that can be drawn as an iso set (a socket, a room, the rain). 2. `2d` when it can be drawn but not sensibly in iso (a flat diagram, a map, a side-view process). 3. `text` when there is nothing to draw (a statistic, a probability, a date, a comparison of sizes). Say why in your answer: \"gaya: iso/2d/teks, karena ...\". "
     "Every look keeps the channel locks. The rules per look: "
     + " ".join(LOOK_RULES[k] for k in LOOKS))
+
+
+def read_text(look: str | None) -> str:
+    """What the step 4 reading line adds per look: the iso-only sections and the rule log are in their own files, so a 2d or text video never reads them."""
+    if look == "iso":
+        return " Also read `remotion/DESIGN-iso.md` (the 2.5D iso look: kit, depth order, nature kit, 3D objects, cables). Do not read `remotion/docs/RULE-LOG.md` (history, not needed)."
+    if look in LOOKS:
+        return " `remotion/DESIGN.md` is all there is to read for this look: do not read `remotion/DESIGN-iso.md` or `remotion/docs/RULE-LOG.md`."
+    return " Read `remotion/DESIGN.md` first, choose the look, then read `remotion/DESIGN-iso.md` only if it is iso; never read `remotion/docs/RULE-LOG.md`."
 
 
 def look_text(look: str | None) -> str:
@@ -309,7 +319,7 @@ Run: `cd remotion` then `npm run new-video {slug} stories/{slug}.json`
 Expected: a line `made videos/{slug} and tests/{slug}.test.ts`, then the folder `remotion/videos/{slug}/` holds `index.tsx`, `plan.ts`, `sfx.ts`, `meta.json` and `story.json`.
 
 {STEP_MARK}4: draw the beats
-Do: read `remotion/DESIGN.md` (section 0b and every rule B1 up to the last one), `remotion/src/dictionary.ts` and the kit `remotion/src/components/Iso*.tsx` first. Read the "Animation recipe" section of `remotion/DESIGN.md` (what moves, when, how, per beat). The two finished videos to copy the structure from (copy their structure and style, not their set) are `remotion/videos/kenapa-colokan-panas` and `remotion/videos/cara-kerja-hujan-buatan`. Edit `remotion/videos/{slug}/index.tsx`, `plan.ts` and `sfx.ts` (sfx.ts by hand, with the density of the hard rule on sound): one hero object in its own new set (Own set per video, B27.15), at most three new loose supporting pieces, the story's `theme`, `stage` and `music`. Rule B25 of DESIGN.md: something moves about every second (`IsoLife.tsx` and `alive.ts` move a little all the time), something new comes about every 3 to 4 seconds, and each explain beat is a camera move inside the set (a push, or a pan to another place in it), as the Animation recipe says, not one framing for the whole video; the lens only when the narration goes inside (B27.6), at most one.
+Do: read `remotion/DESIGN.md` (section 0b and every rule B1 up to the last one), `remotion/src/dictionary.ts` and the kit `remotion/src/components/Iso*.tsx` first.{READ_MARK} Read the "Animation recipe" section of `remotion/DESIGN.md` (what moves, when, how, per beat). The two finished videos to copy the structure from (copy their structure and style, not their set) are `remotion/videos/kenapa-colokan-panas` and `remotion/videos/cara-kerja-hujan-buatan`. Edit `remotion/videos/{slug}/index.tsx`, `plan.ts` and `sfx.ts` (sfx.ts by hand, with the density of the hard rule on sound): one hero object in its own new set (Own set per video, B27.15), at most three new loose supporting pieces, the story's `theme`, `stage` and `music`. Rule B25 of DESIGN.md: something moves about every second (`IsoLife.tsx` and `alive.ts` move a little all the time), something new comes about every 3 to 4 seconds, and each explain beat is a camera move inside the set (a push, or a pan to another place in it), as the Animation recipe says, not one framing for the whole video; the lens only when the narration goes inside (B27.6), at most one.
 Keep `sfx.ts` and `plan.ts` importing only plain `.ts` modules (`../../src/sfx.ts`, `../../src/schema.ts`, `../../src/layout.ts`...), never `../../src/design/index.ts`: render.mjs loads them in plain Node (rule B26). Only `index.tsx` may import the design index, and in `index.tsx` import components ONLY from `../../src/design/index.ts`: never from a file path such as `../../src/components/IsoNature.ts` (a wrong extension passes `npm run check`, the render fails).
 **Before you say an object is missing (`needs`):** search the library for the same single piece (never a whole scene or set): `remotion/src/dictionary.ts`, `remotion/out/assets-sheet*.png` (`npm run assets-sheet`), `node remotion/catalog-export.mjs`, `remotion/src/components/Iso*.tsx`. List in `needs` only what you searched for and did not find.
 Expected: both files exist and are edited (step 5 checks that they compile).
@@ -426,7 +436,7 @@ Work in this order: 1 the rules, 2 the files you must produce, 3 the steps, then
 
 {_produce_text(slug)}
 
-{_steps_text(slug, opts)}
+{_steps_text(slug, opts).replace(READ_MARK, read_text(look))}
 
 {FALLBACK}
 

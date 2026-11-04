@@ -32,7 +32,7 @@ klipian (`klipian/motion.py`) never copies a rule from here: it runs the Node sc
 
 | what | where |
 | --- | --- |
-| the rules (style bible, the musts, the rule log B1 to the latest, safe areas, caption looks) | **`DESIGN.md`**: the one source; read it before drawing anything |
+| the rules (style bible, the musts, B1 to the latest, safe areas, caption looks) | **`DESIGN.md`**: the one source; read it before drawing anything. The iso-only reference (2.5D kit, depth order, nature kit, 3D objects, cables) is **`DESIGN-iso.md`** (look iso only); the history of who asked for each rule is **`docs/RULE-LOG.md`** (not needed to build a video) |
 | the story schema and its rules | `src/schema.ts` (zod), `src/catalog.ts` (the closed lists, the rule sentences) |
 | the layout manager, the safe area, the caption looks | `src/layout.ts`, `src/tokens.ts` (`SAFE`, `SAFE_PLATFORMS`, `CAPTION_VARIANTS`) |
 | the isometric kit, the dictionary of marks, the stage shapes, the themes | `src/iso.ts`, `src/components/Iso*.tsx`, `src/dictionary.ts`, `src/stageShapes.ts`, `src/tokens.ts` |
