@@ -118,7 +118,7 @@ const drawnMarks = DICTIONARY.filter((r) => r.status === "drawn").map((r) => r.i
 add("INFO", `marks in the video: ${used.map((n) => { const row = DICTIONARY.find((r) => r.components.some((c) => c.name === n)); return row ? `${row.id} (${n})` : `${n} (no row)`; }).join(", ") || "none"}; dictionary drawn rows: ${drawnMarks.join(", ")}`);
 
 // 10. the new assets: at most three (a human count; the registry is the library)
-add("HUMAN", "at most three new assets for this video (one hero, two supporting); say which were reused");
+add("HUMAN", "at most three new loose supporting pieces (the hero and its own set are not counted, B27.15); say which pieces are new and which were reused");
 
 // 11. the myth check: a verdict stamp (only for a "Benarkah ...?" or "Mitos" question)
 const myth = /^(benarkah|mitos)/i.test(story.question ?? "");

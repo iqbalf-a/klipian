@@ -54,7 +54,7 @@ Answer in Indonesian, at most 6 short lines, nothing else:
 1. `slug`
 2. branch + hash
 3. the style-check summary line
-4. each FAIL/FLAG line (or "tanpa FAIL/FLAG")
+4. each FAIL/FLAG line (or "tanpa FAIL/FLAG"), and the pieces as "baru: ... / pakai ulang: ..."
 5. at most 2 one-line points ian must decide
 6. "merge cloud/stok-video di PC ian"
 

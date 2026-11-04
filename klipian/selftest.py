@@ -6093,7 +6093,7 @@ def check_motion_brief() -> tuple[str, str]:
     must = ["an everyday hook", "does not have to start with", "small `mascot`", "small `pill`", "Intip yuk!", "loop-back",
             "**The outro has no mascot.**", "**One hero:**", "**Kinds of fact:**",
             "Build a set, not a specimen", "Animation recipe", "open on a wide shot of the set", "one scale per set", "hero in the centre third",
-            "Explaining how the body or money works is allowed", "never investment or financial advice", "The iso kit is mandatory", "never a flat side-view SVG", "IsoWallSocket", "The text format is the channel", "`TopText`", "`CaptionLayer`", "no big black banner box"]
+            "Explaining how the body or money works is allowed", "never investment or financial advice", "Own set per video", "The iso kit is mandatory", "never a flat side-view SVG", "IsoWallSocket", "The text format is the channel", "`TopText`", "`CaptionLayer`", "no big black banner box"]
     stale = ["The outro has the mascot again", "a short outro with the logo", "logo and", "starts with \"kenapa", "a big `mascot`",
              "an everyday question", "a short outro with the logo", "Every beat has a `banner`", "<Banner text", "No health or finance topics"]
     real_settings = profiles.hashtag_settings
@@ -6108,7 +6108,7 @@ def check_motion_brief() -> tuple[str, str]:
                 if old in text:
                     problems.append(f"the {d} s brief still says {old!r}")
             khusus = motion.build_brief({"topic": "Kenapa colokan panas", "duration": d, "notes": "", "options": {"kind": "khusus"}})
-            for want in ("Animation recipe", "wide shot", "the root of your checkout", "remotion/videos/cara-kerja-hujan-buatan", "wide.png", "beats.json", "Build a set, not a specimen", "npm run fill -- ", "over 35 %", "establishing push"):
+            for want in ("Animation recipe", "wide shot", "the root of your checkout", "remotion/videos/cara-kerja-hujan-buatan", "wide.png", "beats.json", "Build a set, not a specimen", "npm run fill -- ", "over 35 %", "establishing push", "copy their structure and style, not their set"):
                 if want not in khusus:
                     problems.append(f"the {d} s Khusus brief lost {want!r}")
             for old in ("on its own in a circle", "ngantuk-pegang-hp"):
@@ -6131,7 +6131,7 @@ def check_motion_brief() -> tuple[str, str]:
         for want in ("-create", ".claude/skills/create/SKILL.md"):
             if want not in cmt:
                 problems.append(f"the root CLAUDE.md lost {want!r}")
-        for want in ("name: create", "# -create <topic>", "cloud/stok-video", "git pull --rebase origin cloud/stok-video", "git push origin cloud/stok-video", "up to 3 tries", "motion_brief_cli", "Never push `main`, never force-push", "obat cegukan paling ampuh", "at most 6 short lines", "Do NOT print the narration", "checkout lama, buka sesi cloud baru", "Work quietly"):
+        for want in ("name: create", "# -create <topic>", "cloud/stok-video", "git pull --rebase origin cloud/stok-video", "git push origin cloud/stok-video", "up to 3 tries", "motion_brief_cli", "Never push `main`, never force-push", "obat cegukan paling ampuh", "at most 6 short lines", "pakai ulang", "Do NOT print the narration", "checkout lama, buka sesi cloud baru", "Work quietly"):
             if want not in text:
                 problems.append(f"the /create skill lost {want!r}")
     finally:
