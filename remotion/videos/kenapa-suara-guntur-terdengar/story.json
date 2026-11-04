@@ -1,0 +1,263 @@
+{
+ "bible": 1,
+ "question": "Kenapa suara guntur terdengar lebih lambat dari kilat?",
+ "titles": [
+  "Kenapa guntur terdengar lebih lambat dari kilat?",
+  "Kilat dulu, guntur belakangan: ini alasannya",
+  "Hitung detiknya, tahu jarak badainya"
+ ],
+ "duration": 60,
+ "theme": "sky",
+ "stage": "steps",
+ "captions": true,
+ "music": {
+  "track": "bed-curious"
+ },
+ "beats": [
+  {
+   "id": "hook",
+   "kind": "hook",
+   "dur": 3,
+   "narration": "Kenapa guntur datang telat setelah kilat?",
+   "text": "Kilat dulu, guntur telat",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Kilat dulu, guntur telat",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "sting",
+   "kind": "sting",
+   "dur": 1,
+   "narration": "Intip yuk!",
+   "text": "Intip yuk!",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "mascot",
+      "x": 540,
+      "y": 720,
+      "w": 220,
+      "expr": "curious",
+      "pop": true,
+      "enter": {
+       "kind": "pop",
+       "delay": 0
+      }
+     },
+     {
+      "type": "pill",
+      "text": "Intip yuk!",
+      "x": 540,
+      "y": 1489,
+      "fs": 56,
+      "enter": {
+       "kind": "pop",
+       "delay": 0.2
+      }
+     }
+    ]
+   },
+   "sfx": "pop"
+  },
+  {
+   "id": "lahir",
+   "kind": "normal",
+   "dur": 7,
+   "narration": "Kilat dan guntur lahir bersamaan, di tempat yang sama, jauh di dalam awan badai.",
+   "text": "Lahir bersamaan",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Lahir bersamaan",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "cahaya",
+   "kind": "normal",
+   "dur": 8,
+   "narration": "Cahaya kilat melesat sekitar tiga ratus ribu kilometer per detik. Sampai ke matamu nyaris seketika.",
+   "text": "Cahaya sampai seketika",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Cahaya sampai seketika",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "suara",
+   "kind": "normal",
+   "dur": 8,
+   "narration": "Suara jauh lebih lambat, sekitar tiga detik untuk setiap kilometer.",
+   "text": "Suara: 3 detik per km",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Suara: 3 detik per km",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "contoh",
+   "kind": "normal",
+   "dur": 8,
+   "narration": "Badai sejauh tiga kilometer? Kilatnya langsung kelihatan, tapi gunturnya baru terdengar sekitar sembilan detik kemudian.",
+   "text": "3 km, 9 detik",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "3 km, 9 detik",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "jeda",
+   "kind": "result",
+   "dur": 7,
+   "narration": "Makin jauh badainya, makin lebar jeda antara kilat dan guntur.",
+   "text": "Makin jauh, makin telat",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Makin jauh, makin telat",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "lipat",
+   "kind": "result",
+   "dur": 6,
+   "narration": "Cahaya itu ratusan ribu kali lebih cepat dari suara.",
+   "text": "Cahaya jauh lebih cepat",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Cahaya jauh lebih cepat",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "hitung",
+   "kind": "tips",
+   "dur": 9,
+   "narration": "Mau tahu jaraknya? Begitu kilat terlihat, hitung detik sampai guntur berbunyi, lalu bagi tiga. Hasilnya kira-kira jarak badai dalam kilometer.",
+   "text": "Hitung detik, bagi tiga",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Hitung detik, bagi tiga",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "outro",
+   "kind": "outro",
+   "dur": 3,
+   "narration": "",
+   "text": "",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  }
+ ],
+ "claims": [
+  {
+   "text": "Guntur adalah suara yang ditimbulkan oleh kilat.",
+   "beats": [
+    "lahir"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Thunder"
+   ]
+  },
+  {
+   "text": "Kecepatan cahaya di ruang hampa tepat 299.792.458 meter per detik, sekitar 300 ribu kilometer per detik.",
+   "beats": [
+    "cahaya",
+    "lipat"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Speed_of_light"
+   ]
+  },
+  {
+   "text": "Kecepatan suara di udara kering kira-kira 343 meter per detik pada 20 derajat Celsius, atau sekitar tiga detik per kilometer.",
+   "beats": [
+    "suara",
+    "contoh",
+    "lipat"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Thunder"
+   ]
+  },
+  {
+   "text": "Kilat terlihat sebelum guntur terdengar karena cahaya jauh lebih cepat daripada suara; jaraknya diperkirakan dengan membagi detik yang dihitung dengan tiga (kilometer).",
+   "beats": [
+    "jeda",
+    "hitung"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Thunder"
+   ]
+  }
+ ],
+ "post": {
+  "description": "Kenapa guntur terdengar setelah kilat? Karena cahaya jauh lebih cepat dari suara. Hitung detiknya, bagi tiga, dan kamu tahu kira-kira jarak badainya.",
+  "hashtags": [
+   "#guntur",
+   "#kilat",
+   "#faktaseru",
+   "#intipyuk",
+   "#shorts"
+  ]
+ },
+ "needs": []
+}
