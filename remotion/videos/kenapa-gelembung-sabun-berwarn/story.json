@@ -1,0 +1,260 @@
+{
+  "bible": 1,
+  "question": "Kenapa gelembung sabun berwarna-warni?",
+  "titles": [
+    "Kenapa gelembung sabun berwarna-warni?",
+    "Air sabun bening, kok gelembungnya pelangi?",
+    "Intip rahasia warna di lapisan gelembung sabun"
+  ],
+  "duration": 60,
+  "look": "iso",
+  "theme": "mint",
+  "stage": "island",
+  "captions": true,
+  "music": {
+    "track": "bed-curious"
+  },
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 3,
+      "kicker": "KENAPA YA?",
+      "headline": "Sabun bening, gelembung warna-warni?",
+      "narration": "Air sabunnya bening, kok gelembungnya warna-warni?",
+      "text": "Sabun bening, gelembung warna-warni?",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "intip",
+      "kind": "sting",
+      "dur": 1,
+      "narration": "Intip yuk!",
+      "text": "Intip yuk!",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "mascot",
+            "x": 540,
+            "y": 720,
+            "w": 220,
+            "expr": "curious",
+            "pop": true,
+            "enter": {
+              "kind": "pop",
+              "delay": 0
+            }
+          },
+          {
+            "type": "pill",
+            "text": "Intip yuk!",
+            "x": 540,
+            "y": 1489,
+            "fs": 56,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.2
+            }
+          }
+        ]
+      },
+      "sfx": "pop"
+    },
+    {
+      "id": "lapis",
+      "kind": "normal",
+      "dur": 6,
+      "kicker": "KULIT GELEMBUNG",
+      "headline": "Setipis gelombang cahaya",
+      "narration": "Kulit gelembung itu cuma lapisan air sabun yang tipis banget, setipis gelombang cahaya.",
+      "text": "Setipis gelombang cahaya",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "pantul",
+      "kind": "lens",
+      "dur": 8,
+      "kicker": "DI DALAM LAPISAN",
+      "headline": "Cahaya memantul dua kali",
+      "narration": "Di dalam lapisan itu, cahaya memantul dua kali: dari permukaan luar, dan dari permukaan dalam.",
+      "text": "Cahaya memantul dua kali",
+      "scene": {
+        "bg": "lab",
+        "items": []
+      },
+      "sfx": "none",
+      "transition": {
+        "kind": "lens",
+        "dur": 0.8,
+        "x": 540,
+        "y": 900,
+        "r": 420
+      }
+    },
+    {
+      "id": "tabrak",
+      "kind": "normal",
+      "dur": 8,
+      "kicker": "DUA PANTULAN",
+      "headline": "Ada yang menguat, ada yang hilang",
+      "narration": "Dua pantulan itu bertemu. Ada warna yang saling menguatkan, ada warna yang saling menghapus.",
+      "text": "Warna menguat, warna terhapus",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "tebal",
+      "kind": "normal",
+      "dur": 7,
+      "kicker": "TEBAL TIPIS",
+      "headline": "Beda tebal, beda warna",
+      "narration": "Warna yang menang tergantung tebal lapisannya. Beda tebal, beda warna, kayak peta kontur.",
+      "text": "Beda tebal, beda warna",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "turun",
+      "kind": "result",
+      "dur": 8,
+      "kicker": "LAMA-LAMA",
+      "headline": "Atas menipis, lalu pecah",
+      "narration": "Air sabunnya pelan-pelan turun karena gravitasi, dan juga menguap. Bagian atas makin tipis, muncul bintik hitam, lalu pecah.",
+      "text": "Atas menipis, lalu pecah",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "pewarna",
+      "kind": "result",
+      "dur": 6,
+      "kicker": "FAKTA SERU",
+      "headline": "Dikasih pewarna? Tetap bening",
+      "narration": "Uniknya, air sabun dikasih pewarna biasa pun gelembungnya tetap bening. Warnanya dari cahaya, bukan dari sabun.",
+      "text": "Pewarna? Gelembung tetap bening",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "tips",
+      "kind": "tips",
+      "dur": 9,
+      "kicker": "BIAR AWET",
+      "headline": "Gliserin dan udara lembap",
+      "narration": "Mau gelembung lebih awet? Campur sedikit gliserin supaya airnya lambat turun, dan tiup di udara yang lembap supaya lambat menguap.",
+      "text": "Gliserin dan udara lembap",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "dur": 4,
+      "narration": "",
+      "text": "",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    }
+  ],
+  "claims": [
+    {
+      "text": "Lapisan sabun pada gelembung kira-kira setipis panjang gelombang cahaya tampak, sehingga terjadi interferensi optik yang menghasilkan warna berkilau.",
+      "beats": [
+        "lapis"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Soap_bubble"
+      ]
+    },
+    {
+      "text": "Warna gelembung sabun berasal dari interferensi cahaya yang dipantulkan oleh permukaan depan dan belakang lapisan sabun yang tipis.",
+      "beats": [
+        "pantul",
+        "tabrak"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Soap_bubble",
+        "https://en.wikipedia.org/wiki/Thin-film_interference"
+      ]
+    },
+    {
+      "text": "Tergantung tebal lapisannya, warna yang berbeda saling menguatkan atau saling melemahkan; tiap warna menandai tebal lapisan yang berbeda, seperti peta kontur.",
+      "beats": [
+        "tabrak",
+        "tebal"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Soap_bubble",
+        "https://en.wikipedia.org/wiki/Soap_film"
+      ]
+    },
+    {
+      "text": "Air di lapisan sabun turun ke bawah karena gravitasi dan juga menguap; bagian atas menipis, muncul bintik hitam yang lebih tipis dari 100 nm, lalu lapisan pecah.",
+      "beats": [
+        "turun"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Soap_film",
+        "https://en.wikipedia.org/wiki/Soap_bubble"
+      ]
+    },
+    {
+      "text": "Menambahkan pewarna biasa ke larutan gelembung tidak menghasilkan gelembung berwarna; gelembungnya tetap tidak berwarna.",
+      "beats": [
+        "pewarna"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Soap_bubble"
+      ]
+    },
+    {
+      "text": "Turunnya air di lapisan bisa diperlambat dengan gliserol, dan penguapannya diperlambat dengan meniup gelembung di udara lembap.",
+      "beats": [
+        "tips"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Soap_bubble"
+      ]
+    }
+  ],
+  "post": {
+    "description": "Kenapa gelembung sabun berwarna-warni padahal air sabunnya bening? Intip lapisan tipisnya: cahaya memantul dua kali, warnanya saling menguatkan atau menghapus, dan warnanya bergeser saat lapisan menipis.",
+    "hashtags": [
+      "#gelembungsabun",
+      "#sains",
+      "#faktaseru",
+      "#intipyuk",
+      "#shorts"
+    ]
+  },
+  "needs": [
+    "Gelembung sabun (bola dengan pita warna), lapisan potong-lintang di lensa, dan set kamar mandi (dinding ubin, bibir bak mandi, tatakan sabun, wadah tiupan) digambar dengan kit iso (blok, silinder) di indeks video; tidak ada di kamus."
+  ]
+}
