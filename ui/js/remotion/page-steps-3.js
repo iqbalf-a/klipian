@@ -78,5 +78,4 @@ async function deleteVideo() {
   CUR = null;
   history.replaceState(null, "", location.pathname);
   await loadList();
-  drawIntro();
 }

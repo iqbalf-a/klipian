@@ -44,56 +44,67 @@
     <div class="rm-missing ws-panel" id="rmMissing" hidden></div>
     <div class="rm-layout">
 
-      <!-- ═════════ the list of videos of this profile, and the form for a new one ═════════ -->
-      <aside class="ws-panel rm-side" id="rmSide" aria-label="Video motion">
-        <div class="flex items-center gap-3">
-          <h1 class="text-[20px] font-extrabold tracking-tight">Video motion</h1>
-          <button class="ml-auto btn main" id="rmNewBtn" type="button">Video baru</button>
-        </div>
-        <form class="rm-new" id="rmNew" hidden autocomplete="off">
-          <label class="ws-field">Topik
-            <input class="ws-input rm-boxed" id="rmTopic" type="text" maxlength="200" required placeholder="mis. fakta seru tentang colokan listrik panas">
-          </label>
-          <div class="ws-field" role="group" aria-label="Durasi">
-            Durasi
-            <div class="rm-seg" id="rmDur">
-              <button class="btn" type="button" data-d="30" aria-pressed="false">30 detik</button>
-              <button class="btn" type="button" data-d="45" aria-pressed="true">45 detik</button>
-              <button class="btn" type="button" data-d="60" aria-pressed="false">60 detik</button>
-            </div>
-            <span class="rm-hint">60 detik untuk topik yang butuh 3 langkah penjelasan.</span>
-          </div>
-          <div class="rm-group" id="rmOptsNew">
-            <span class="rm-grouplabel">Pilihan video</span>
-            <label class="rm-check"><input type="checkbox" data-opt="loop" checked> Loop (akhir kembali ke adegan awal)</label>
-            <label class="rm-check"><input type="checkbox" data-opt="sting" checked> "Intip yuk!" setelah hook</label>
-            <label class="ws-field">Musik
-              <select class="ws-input rm-boxed" data-opt="music"><option value="auto" selected>Otomatis (sesuai topik)</option><option value="sunny">Ceria</option><option value="bounce">Pantul</option><option value="glow">Hangat</option><option value="curious">Penasaran</option><option value="circuit">Teknologi (sirkuit)</option><option value="neon">Teknologi (neon)</option><option value="calm">Tenang (lama)</option><option value="tech">Teknologi (lama)</option><option value="none">Tanpa musik</option></select>
+      <!-- ═════════ home: the form for a new topic and the table of the topics already made ═════════ -->
+      <section class="rm-home" id="rmHome" aria-label="Video motion">
+        <h1 class="rm-h1">Video motion</h1>
+        <form class="ws-panel rm-new" id="rmNew" autocomplete="off">
+          <h2 class="rm-h2">Topik baru</h2>
+          <div class="rm-row">
+            <label class="ws-field rm-grow">Topik
+              <input class="ws-input rm-boxed" id="rmTopic" type="text" maxlength="200" required placeholder="mis. fakta seru tentang colokan listrik panas">
             </label>
-            <div class="rm-subgroup" role="group" aria-label="Aplikasi suara">
-              <span class="rm-sublabel">Aplikasi suara (centang yang dipakai; naskahnya dibuat untuk tiap aplikasi)</span>
-              <label class="rm-check"><input type="checkbox" data-opt-app="voicestudio" checked> VoiceStudio</label>
-              <label class="rm-check"><input type="checkbox" data-opt-app="elevenlabs" checked> ElevenLabs</label>
-              <label class="rm-check"><input type="checkbox" data-opt-app="googleai" checked> Google AI Studio</label>
+            <div class="ws-field" role="group" aria-label="Durasi">
+              Durasi
+              <div class="rm-seg" id="rmDur">
+                <button class="btn" type="button" data-d="30" aria-pressed="false">30 detik</button>
+                <button class="btn" type="button" data-d="45" aria-pressed="true">45 detik</button>
+                <button class="btn" type="button" data-d="60" aria-pressed="false">60 detik</button>
+              </div>
+            </div>
+          </div>
+          <span class="rm-hint">60 detik untuk topik yang butuh 3 langkah penjelasan.</span>
+          <div class="rm-group" id="rmOptsNew">
+            <div class="rm-row rm-row-opts">
+              <label class="ws-field">Musik
+                <select class="ws-input rm-boxed" data-opt="music"><option value="auto" selected>Otomatis (sesuai topik)</option><option value="sunny">Ceria</option><option value="bounce">Pantul</option><option value="glow">Hangat</option><option value="curious">Penasaran</option><option value="circuit">Teknologi (sirkuit)</option><option value="neon">Teknologi (neon)</option><option value="calm">Tenang (lama)</option><option value="tech">Teknologi (lama)</option><option value="none">Tanpa musik</option></select>
+              </label>
+              <label class="rm-check"><input type="checkbox" data-opt="loop" checked> Loop (akhir kembali ke adegan awal)</label>
+              <label class="rm-check"><input type="checkbox" data-opt="sting" checked> "Intip yuk!" setelah hook</label>
             </div>
             <details class="rm-adv">
-              <summary>Pengaturan lanjutan</summary>
+              <summary>Pilihan lain (aplikasi suara, catatan, jenis video)</summary>
+              <div class="rm-subgroup" role="group" aria-label="Aplikasi suara">
+                <span class="rm-sublabel">Aplikasi suara (centang yang dipakai; naskahnya dibuat untuk tiap aplikasi)</span>
+                <label class="rm-check"><input type="checkbox" data-opt-app="voicestudio" checked> VoiceStudio</label>
+                <label class="rm-check"><input type="checkbox" data-opt-app="elevenlabs" checked> ElevenLabs</label>
+                <label class="rm-check"><input type="checkbox" data-opt-app="googleai" checked> Google AI Studio</label>
+              </div>
+              <label class="ws-field">Catatan untuk AI (opsional)
+                <textarea class="ws-input rm-boxed" id="rmNotes" rows="3" maxlength="2000" placeholder="mis. fokus ke stop kontak rumah biasa"></textarea>
+              </label>
               <label class="ws-field">Jenis video
                 <select class="ws-input rm-boxed" data-opt="kind"><option value="khusus" selected>Khusus: video buatan Claude Code, tampilan terbaik</option><option value="otomatis">Otomatis: template klipian, draf cepat</option></select>
               </label>
             </details>
           </div>
-          <label class="ws-field">Catatan untuk AI (opsional)
-            <textarea class="ws-input rm-boxed" id="rmNotes" rows="3" maxlength="2000" placeholder="mis. fokus ke stop kontak rumah biasa"></textarea>
-          </label>
           <div class="flex items-center gap-2">
             <button class="btn main" type="submit">Buat</button>
-            <button class="btn" type="button" id="rmNewCancel">Batal</button>
             <span class="rm-err" id="rmNewErr" role="alert"></span>
           </div>
         </form>
+        <details class="rm-how">
+          <summary>Cara kerja</summary>
+          <ol>
+            <li>Tulis topik, pilih durasi dan pilihan videonya (loop, "Intip yuk!", musik, aplikasi suara).</li>
+            <li>Salin brief ke Claude Code yang dibuka di folder klipian. Ia mencari web, menulis cerita, dan membuat folder videonya.</li>
+            <li>Pilih folder hasilnya dan ambil ceritanya, cek setiap klaim beserta sumbernya, lalu pilih judul.</li>
+            <li>Buat naskah untuk aplikasi suara, impor suaranya dan cocokkan, lihat pratinjau, lalu Render. Hasilnya masuk ke Clips, siap diunggah.</li>
+          </ol>
+          <p class="rm-hint">Tanpa API key: klipian bekerja di komputer ini, dan AI-nya adalah Claude Code di komputer ini.</p>
+        </details>
+        <div class="rm-listhead"><h2 class="rm-h2" id="rmListHead">Topik yang sudah dibuat</h2></div>
         <div id="rmList" class="rm-list" role="list"></div>
-      </aside>
+      </section>
 
       <!-- ═════════ one video: the steps ═════════ -->
       <section class="rm-main" id="rmMain" aria-live="polite"></section>

@@ -1,7 +1,7 @@
 /* klipian — the /remotion page: a fun-fact motion video from a typed topic, with no API key (klipian/motion.py)
    ==========================================================================
    The flow, top to bottom for the chosen video (Khusus, the main flow; ui/js/remotion/steps.js has the order and the one-line summaries):
-     1 Video baru           the topic, the length and the options (loop, "Intip yuk!", music, voice apps) are chosen in the form on the left
+     1 Video baru           the topic, the length and the options (loop, "Intip yuk!", music, voice apps) are chosen in the form on the home page
      2 Brief                one file to copy into Claude Code; "Ubah pilihan" changes the options and the brief follows
      3 Ambil cerita         the story.json of the folder Claude Code made; the storyboard (texts and timing) is read and edited here
      4 Cek fakta + judul    every claim and its sources, checked or rejected by a person; one title
@@ -9,7 +9,7 @@
      6 Impor suara          the voice file, matched to the words; the match table
      7 Pratinjau            a half-size draft with sound
      8 Render               refused by the server until the claims, the title, the folder and the voice agree; progress, time left and Cancel
-   Steps are folded: only the active one is open (the server's next step), a finished one shows a summary line. Otomatis (hidden under "Pengaturan lanjutan")
+   Steps are folded: only the active one is open (the server's next step), a finished one shows a summary line. Otomatis (under "Pilihan lain")
    has the AI's pasted answer in place of the folder.
    This file holds the step table and the job poll; page-core.js (loads first) holds the shared state and helpers; the rest is split by part: page-list.js, page-detail.js, page-steps-1.js (steps 1-3),
    page-steps-2.js (4-6), page-steps-3.js (7-8). It loads last (remotion.html) and starts the page.

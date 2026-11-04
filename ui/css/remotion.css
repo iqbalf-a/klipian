@@ -2,16 +2,24 @@
    no pill buttons, choices that are separate and show clearly which one is on.
    Spacing rule: 20 px between the steps, 16 px between the blocks of a step and 16 px padding inside a box; a box holds blocks but never another box
    (the claims, the beats and the notes are the one level inside a step); no browser-default fieldset lines. */
-.rm-layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 20px; align-items: start; }
-@media (max-width: 900px) { .rm-layout { grid-template-columns: 1fr; } }
-.rm-side { position: sticky; top: 0; display: flex; flex-direction: column; gap: 16px; padding: 16px; }
+.rm-layout { display: flex; flex-direction: column; gap: 20px; }
+.rm-home { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.rm-h1 { font-size: 20px; font-weight: 800; letter-spacing: -.02em; margin: 0; }
+.rm-h2 { font-size: 14px; font-weight: 800; margin: 0; }
 .rm-main { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 .rm-steps { display: flex; flex-direction: column; gap: 20px; }
 .rm-missing { margin-bottom: 16px; border: 1px solid var(--danger); }
 .rm-missing p { margin: 0; font-size: 13px; }
 
 /* the form of a new video */
-.rm-new { display: flex; flex-direction: column; gap: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--glass-border); }
+.rm-new { display: flex; flex-direction: column; gap: 16px; padding: 16px; }
+.rm-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; }
+.rm-row .rm-grow { flex: 1 1 280px; min-width: 0; }
+.rm-row-opts { align-items: center; }
+.rm-row-opts .ws-field { min-width: 220px; }
+.rm-how { font-size: 12.5px; color: var(--text-muted); }
+.rm-how > summary { cursor: pointer; font-weight: 600; }
+.rm-how ol { padding-left: 20px; list-style: decimal; display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
 .rm-boxed { border-color: var(--glass-border); background-color: var(--bg-1); }
 .rm-seg { display: flex; gap: 8px; }
 .rm-seg .btn[aria-pressed=true] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
@@ -26,12 +34,14 @@
 
 /* the list */
 .rm-list { display: flex; flex-direction: column; gap: 8px; }
-.rm-item { display: flex; flex-direction: column; gap: 6px; text-align: left; width: 100%; padding: 10px 12px; border: 1px solid var(--glass-border);
+.rm-item { display: grid; grid-template-columns: minmax(0, 1fr) 130px 90px 90px 150px; gap: 12px; align-items: center; text-align: left; width: 100%; padding: 10px 12px; border: 1px solid var(--glass-border);
   border-radius: var(--r-s); background: transparent; color: var(--text); cursor: pointer; }
 .rm-item:hover { background: var(--glass); }
 .rm-item[aria-current=true] { border-color: var(--accent); background: var(--accent-soft); }
 .rm-item b { font-size: 13px; line-height: 1.3; overflow-wrap: anywhere; }
-.rm-item .rm-meta { font-size: 11.5px; color: var(--text-faint); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.rm-item > span { font-size: 11.5px; color: var(--text-faint); }
+.rm-item > .rm-chip { justify-self: start; }
+@media (max-width: 700px) { .rm-item { grid-template-columns: auto auto minmax(0, 1fr); } .rm-item b { grid-column: 1 / -1; } }
 .rm-empty { font-size: 13px; color: var(--text-faint); padding: 12px 2px; }
 
 /* chips: the state of a video, of a step, of the folder (compact, bordered, no pill shape) */
@@ -66,9 +76,6 @@
 .rm-step p, .rm-step li, .rm-step dd { font-size: 13px; line-height: 1.5; color: var(--text-muted); margin: 0; }
 .rm-step code { font-family: var(--font-data); font-size: 11.5px; }
 .rm-sub-h { font-size: 13.5px; font-weight: 800; margin: 8px 0 0; color: var(--text); }
-.rm-welcome { padding: 20px; gap: 12px; }
-.rm-welcome h2 { font-size: 16px; font-weight: 800; margin: 0; }
-.rm-welcome ol { padding-left: 20px; list-style: decimal; display: flex; flex-direction: column; gap: 8px; margin: 0; }
 
 .rm-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
 .rm-kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 16px; margin: 0; }

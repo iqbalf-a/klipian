@@ -5,22 +5,11 @@
 // one video: the head, the next step, and the steps
 // ---------------------------------------------------------------------------------------------------------------------------------------
 
-function drawIntro() {
-  byId("rmMain").innerHTML = `
-    <section class="ws-panel rm-step rm-welcome">
-      <h2>Dari topik ke video</h2>
-      <ol>
-        <li>Buat video baru: tulis topik, pilih durasi dan pilihan videonya (loop, "Intip yuk!", musik, aplikasi suara).</li>
-        <li>Salin brief ke Claude Code yang dibuka di folder klipian. Ia mencari web, menulis cerita, dan membuat folder videonya.</li>
-        <li>Pilih folder hasilnya dan ambil ceritanya, cek setiap klaim beserta sumbernya, lalu pilih judul.</li>
-        <li>Buat naskah untuk aplikasi suara, impor suaranya dan cocokkan, lihat pratinjau, lalu Render. Hasilnya masuk ke Clips, siap diunggah.</li>
-      </ol>
-      <p class="rm-hint">Tanpa API key: klipian bekerja di komputer ini, dan AI-nya adalah Claude Code di komputer ini.</p>
-    </section>`;
-}
-
 async function choose(id) {
+  WANT = id;
   location.hash = id;
+  byId("rmHome").hidden = true;
+  byId("rmMain").hidden = false;
   stopPoll();
   NARR = null; NARR_APP = null;
   try {
@@ -76,6 +65,7 @@ function drawHead() {
   const d = CUR;
   const chip = d.chip || {};
   byId("rmHead").innerHTML = `
+    <div><button class="btn quiet" id="rmBack" type="button">← Semua topik</button></div>
     <div class="rm-title">
       <div style="min-width:0">
         <h1>${esc(d.displayTitle || d.title || d.topic)}</h1>
@@ -164,4 +154,11 @@ byId("rmMain").addEventListener("click", async (e) => {
     if (act === "downRevise") return downloadBrief("revise");
     if (act === "pasteRevise") return pasteAnswer("revise");
   } catch (ex) { toast(ex.message); }
+});
+
+// "← Semua topik": back to the home page. The browser Back button does the same through the hashchange in page-list.js.
+byId("rmMain").addEventListener("click", (e) => {
+  if (!e.target.closest("#rmBack")) return;
+  history.replaceState(null, "", location.pathname);
+  showHome();
 });
