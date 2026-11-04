@@ -52,7 +52,7 @@ yes(freeSets({ "sky-horizon": ["a"] }, SETS).every((k) => k.id !== "sky-horizon"
 }
 
 // made before B27.15; styleCheck FLAGs them, it does not FAIL them. Any new video without set.json must still fail.
-const BEFORE_B27_15 = ["baterai-hp-cepat-habis-saat-di", "bohlam-pijar-lebih-banyak-meng", "fakta-seru-tentang-cegukan", "gurita-punya-tiga-jantung-2", "kipas-angin-tidak-mendinginkan", "magnet-menempel-di-kulkas-tanp", "teko-listrik-paling-berisik-se"];
+const BEFORE_B27_15 = ["baterai-hp-cepat-habis-saat-di", "bohlam-pijar-lebih-banyak-meng", "fakta-seru-tentang-cegukan", "kipas-angin-tidak-mendinginkan", "magnet-menempel-di-kulkas-tanp", "teko-listrik-paling-berisik-se"];
 
 // every existing video draws only its own set and declares its set
 for (const slug of readdirSync(path.join(ROOT, "videos"))) {

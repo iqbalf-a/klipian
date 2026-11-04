@@ -131,7 +131,11 @@ for (const r of DICTIONARY.filter((k) => k.status === "drawn")) {
     const out = run(v);
     yes(out.includes("PASS   must 3 (e)") && out.includes("PASS   must 3 (f)"), `${v} passes must 3 (e) the iso kit and (f) the text format`);
   }
-  const flat = run("gurita-punya-tiga-jantung");
+  const flatDir = path.join(ROOT, "out", "style-fixture", "flat-banner");
+  mkdirSync(flatDir, { recursive: true });
+  writeFileSync(path.join(flatDir, "story.json"), readFileSync(path.join(ROOT, "videos", "kenapa-colokan-panas", "story.json"), "utf8"));
+  writeFileSync(path.join(flatDir, "index.tsx"), "export const Fake = () => <g><Banner /></g>;\n");
+  const flat = run(flatDir);
   yes(flat.includes("FAIL   must 3 (e)") && flat.includes("FAIL   must 3 (f)") && flat.includes("<Banner>"), "the flat banner video fails must 3 (e) and (f)");
   const fixture = path.join(ROOT, "out", "style-fixture", "flat-svg");
   mkdirSync(fixture, { recursive: true });
@@ -147,7 +151,7 @@ for (const r of DICTIONARY.filter((k) => k.status === "drawn")) {
 {
   const run = (s: string) => spawnSync(process.execPath, [path.join(ROOT, "scripts", "styleCheck.mjs"), s], { encoding: "utf8" }).stdout;
   yes(run("kenapa-colokan-panas").includes("PASS   B13: a sound on every object"), "pilot 1's sfx.ts passes the per-object sound density");
-  yes(run("gurita-punya-tiga-jantung").includes("FLAG   B13: a sound on every object") , "a default-only sfx.ts is flagged");
+  yes(run("gurita-punya-tiga-jantung-2").includes("FLAG   B13: a sound on every object") , "a default-only sfx.ts is flagged");
   const fixture = path.join(ROOT, "out", "style-fixture", "flat-svg");
   mkdirSync(fixture, { recursive: true });
   writeFileSync(path.join(fixture, "sfx.ts"), "export function sfx() { return [{ t: 0, name: \"no-such-sound\", vol: 1, why: \"x\" }]; }\n");
