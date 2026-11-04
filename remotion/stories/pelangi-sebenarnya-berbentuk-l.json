@@ -1,0 +1,270 @@
+{
+ "bible": 1,
+ "question": "Pelangi sebenarnya berbentuk lingkaran?",
+ "titles": [
+  "Pelangi sebenarnya berbentuk lingkaran",
+  "Pelangi itu bukan setengah lingkaran, ini buktinya",
+  "Kenapa pelangi kelihatan cuma setengah?"
+ ],
+ "duration": 60,
+ "beats": [
+  {
+   "id": "hook",
+   "kind": "hook",
+   "dur": 3,
+   "narration": "Pelangi itu setengah lingkaran? Sebenarnya bukan.",
+   "text": "Pelangi bukan setengah lingkaran",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Pelangi bukan setengah lingkaran",
+      "fs": 64
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "sting",
+   "kind": "sting",
+   "dur": 1,
+   "narration": "Intip yuk!",
+   "text": "Intip yuk!",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "mascot",
+      "x": 540,
+      "y": 720,
+      "enter": {
+       "kind": "pop",
+       "delay": 0
+      },
+      "w": 220,
+      "expr": "curious",
+      "pop": true
+     },
+     {
+      "type": "pill",
+      "text": "Intip yuk!",
+      "x": 540,
+      "y": 1489,
+      "enter": {
+       "kind": "pop",
+       "delay": 0.2
+      },
+      "fs": 56
+     }
+    ]
+   },
+   "sfx": "pop"
+  },
+  {
+   "id": "tetes",
+   "kind": "normal",
+   "dur": 10,
+   "narration": "Sinar matahari masuk ke tetes air, memantul di dalamnya, lalu keluar lagi. Cahaya paling terang keluar di sudut sekitar empat puluh dua derajat, merah di sisi luar, ungu di sisi dalam.",
+   "text": "Memantul di tetes air",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Memantul di tetes air",
+      "fs": 64
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "cincin",
+   "kind": "normal",
+   "dur": 10,
+   "narration": "Sudut itu diukur dari titik tepat di seberang matahari, yaitu bayangan kepalamu. Ke arah mana pun kamu menoleh sudutnya sama, jadi bentuknya cincin penuh, bukan busur.",
+   "text": "Cincin penuh, bukan busur",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Cincin penuh, bukan busur",
+      "fs": 64
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "cakrawala",
+   "kind": "normal",
+   "dur": 9,
+   "narration": "Dari tanah, separuh lebih cincin itu ada di bawah cakrawala. Makanya yang kelihatan cuma lengkungan atasnya.",
+   "text": "Cakrawala memotong cincinnya",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Cakrawala memotong cincinnya",
+      "fs": 64
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "pesawat",
+   "kind": "normal",
+   "dur": 6,
+   "narration": "Dari pesawat, kalau ada cukup kabut atau hujan, cincinnya bisa terlihat utuh.",
+   "text": "Dari pesawat: cincin utuh",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Dari pesawat: cincin utuh",
+      "fs": 64
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "glory",
+   "kind": "result",
+   "dur": 9,
+   "narration": "Tapi jangan tertukar dengan glory: lingkaran yang jauh lebih kecil, cuma sekitar lima sampai dua puluh derajat.",
+   "text": "Jangan tertukar dengan glory",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Jangan tertukar dengan glory",
+      "fs": 64
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "tips",
+   "kind": "tips",
+   "dur": 8,
+   "narration": "Mau cari pelangi? Bawa matahari ke punggungmu, lalu lihat ke arah sebaliknya. Pelangi selalu muncul di seberang matahari.",
+   "text": "Punggung ke matahari",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Punggung ke matahari",
+      "fs": 64
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "outro",
+   "kind": "outro",
+   "dur": 4,
+   "narration": "",
+   "text": "",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  }
+ ],
+ "claims": [
+  {
+   "text": "Pelangi terjadi karena cahaya dibiaskan masuk ke tetes air, dipantulkan di sisi dalamnya, lalu dibiaskan keluar; pada pelangi utama merahnya di sisi luar dan ungunya di sisi dalam.",
+   "beats": [
+    "tetes"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Rainbow"
+   ]
+  },
+  {
+   "text": "Cahaya yang keluar dari tetes air paling kuat pada sudut sekitar 40 sampai 42 derajat dari garis antara kepala pengamat dan bayangannya, titik di seberang matahari.",
+   "beats": [
+    "tetes",
+    "cincin"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Rainbow"
+   ]
+  },
+  {
+   "text": "Pusat lengkung pelangi selalu ada pada garis dari matahari ke mata pengamat, dan bayangan kepala fotografer menandai pusat lingkaran pelangi.",
+   "beats": [
+    "cincin",
+    "tips"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Rainbow"
+   ]
+  },
+  {
+   "text": "Dari tanah, setengah atau lebih dari lingkaran pelangi ada di bawah cakrawala, kecuali pengamat cukup tinggi, misalnya di pesawat.",
+   "beats": [
+    "cakrawala"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Rainbow"
+   ]
+  },
+  {
+   "text": "Dari pesawat, kalau ada cukup kabut, pelangi bisa terlihat sebagai lingkaran penuh.",
+   "beats": [
+    "pesawat"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Rainbow"
+   ]
+  },
+  {
+   "text": "Glory bisa tertukar dengan pelangi lingkaran penuh, tetapi glory biasanya jauh lebih kecil, hanya sekitar 5 sampai 20 derajat.",
+   "beats": [
+    "glory"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Rainbow"
+   ]
+  },
+  {
+   "text": "Pelangi akibat sinar matahari selalu muncul di bagian langit yang tepat berlawanan dengan matahari.",
+   "beats": [
+    "tips"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Rainbow"
+   ]
+  }
+ ],
+ "post": {
+  "description": "Pelangi sebenarnya cincin penuh. Dari tanah, cakrawala menutupi separuh lebih bawahnya, jadi kita cuma lihat busur. Dari pesawat, cincinnya bisa terlihat utuh.",
+  "hashtags": [
+   "#pelangi",
+   "#sains",
+   "#fakta",
+   "#intipyuk",
+   "#shorts"
+  ]
+ },
+ "needs": [],
+ "stage": "island",
+ "theme": "sky",
+ "captions": true,
+ "music": {
+  "track": "bed-glow"
+ }
+}
