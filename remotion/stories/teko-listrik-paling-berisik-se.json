@@ -71,33 +71,15 @@
   {
    "id": "dasar",
    "kind": "normal",
-   "dur": 6,
-   "narration": "Pemanas listrik ada di dasar teko. Permukaan dasar itu lebih panas daripada air di atasnya.",
-   "text": "Dasar lebih panas dari air",
+   "dur": 14,
+   "narration": "Pemanas listrik ada di dasar teko. Permukaan dasar itu lebih panas daripada air di atasnya. Di permukaan yang panas itu muncul gelembung uap kecil. Mereka membesar, lalu lepas dari dasar.",
+   "text": "Dasar panas, gelembung muncul",
    "scene": {
     "bg": "brand",
     "items": [
      {
       "type": "banner",
-      "text": "Dasar lebih panas dari air",
-      "fs": 66
-     }
-    ]
-   },
-   "sfx": "none"
-  },
-  {
-   "id": "gelembung",
-   "kind": "normal",
-   "dur": 8,
-   "narration": "Di permukaan yang panas itu muncul gelembung uap kecil. Mereka membesar, lalu lepas dari dasar.",
-   "text": "Gelembung uap kecil muncul",
-   "scene": {
-    "bg": "brand",
-    "items": [
-     {
-      "type": "banner",
-      "text": "Gelembung uap kecil muncul",
+      "text": "Dasar panas, gelembung muncul",
       "fs": 66
      }
     ]
@@ -211,8 +193,7 @@
   {
    "text": "Teko listrik punya elemen pemanas di dalamnya; pada didih nukleat gelembung uap terbentuk di permukaan yang dipanaskan, yang lebih panas daripada air di sekitarnya.",
    "beats": [
-    "dasar",
-    "gelembung"
+    "dasar"
    ],
    "sources": [
     "https://en.wikipedia.org/wiki/Nucleate_boiling",
@@ -222,7 +203,7 @@
   {
    "text": "Gelembung uap tumbuh sampai ukuran kritis, lepas dari permukaan panas, lalu runtuh di air yang tidak sepanas permukaan itu.",
    "beats": [
-    "gelembung",
+    "dasar",
     "runtuh"
    ],
    "sources": [

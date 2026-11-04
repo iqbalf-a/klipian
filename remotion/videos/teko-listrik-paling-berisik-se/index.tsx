@@ -249,7 +249,7 @@ const Picture: React.FC<SceneProps> = ({ beat, t, clock, story: s }) => {
         {/* labels on their parts (screen px through the camera, beat-local time) */}
         {L("dasar") && bt > 1.2 && bt < 5.6 && <NumberLabel text="pemanas" x={250} y={winAt(0.5, 0.03)[1] + 110} ax={winAt(0.15, 0.03)[0]} ay={winAt(0.15, 0.03)[1]} fs={46} t={t} start={1.3} end={5.5} />}
         {L("dasar") && bt > 3.0 && bt < 6.0 && <NumberLabel text="lebih panas" red x={250} y={winAt(0.2, 0.2)[1] - 60} ax={winAt(0.12, 0.2)[0]} ay={winAt(0.12, 0.2)[1]} fs={46} t={t} start={3.1} end={5.9} />}
-        {L("gelembung") && bt > 0.8 && bt < 7.6 && <NumberLabel text="gelembung uap" x={265} y={winAt(0.1, 0.45)[1] - 70} ax={winAt(0.1, 0.12)[0]} ay={winAt(0.1, 0.12)[1]} fs={44} t={t} start={0.9} end={7.5} />}
+        {L("dasar") && bt > 6.8 && bt < 13.6 && <NumberLabel text="gelembung uap" x={265} y={winAt(0.1, 0.45)[1] - 70} ax={winAt(0.1, 0.12)[0]} ay={winAt(0.1, 0.12)[1]} fs={44} t={t} start={6.9} end={13.5} />}
         {L("runtuh") && bt > 0.6 && bt < 7.6 && <NumberLabel text="air lebih dingin" x={265} y={winAt(0.1, 0.8)[1] - 40} ax={winAt(0.1, 0.8)[0]} ay={winAt(0.1, 0.8)[1]} fs={44} t={t} start={0.7} end={7.5} />}
         {L("kejut") && bt > 2.0 && bt < 7.6 && <NumberLabel text="gelombang kejut" x={265} y={winAt(0.2, 0.75)[1] - 130} ax={winAt(0.1, 0.62)[0]} ay={winAt(0.1, 0.62)[1]} fs={44} t={t} start={2.1} end={7.5} />}
         {L("hasil") && bt > 1.6 && bt < 6.6 && <NumberLabel text="berisik" x={270} y={meterLabel[1] + 20} ax={meterLabel[0]} ay={meterLabel[2]} fs={46} t={t} start={1.7} end={6.5} />}
@@ -261,7 +261,7 @@ const Picture: React.FC<SceneProps> = ({ beat, t, clock, story: s }) => {
         {/* the TIK of a collapse, and the sources */}
         {L("runtuh") && bt > 3.2 && bt < 4.6 && <Onomatopoeia text="TIK!" x={winAt(0.85, 0.65)[0] + 120} y={winAt(0.85, 0.65)[1]} fs={64} rot={-9} t={t} start={3.3} />}
         {L("runtuh") && bt > 5.2 && bt < 6.5 && <Onomatopoeia text="TIK!" x={winAt(0.1, 0.6)[0] - 120} y={winAt(0.1, 0.6)[1]} fs={64} rot={8} t={t} start={5.3} />}
-        {L("gelembung") && bt > 5.4 && bt < 7.8 && <SourceChip x={90} y={1500} text="Wikipedia: didih nukleat" t={t} start={5.5} end={7.6} />}
+        {L("dasar") && bt > 11.4 && bt < 13.8 && <SourceChip x={90} y={1500} text="Wikipedia: didih nukleat" t={t} start={11.5} end={13.6} />}
         {L("kejut") && bt > 5.0 && bt < 7.8 && <SourceChip x={90} y={1500} text="Wikipedia: kavitasi" t={t} start={5.1} end={7.7} />}
         {L("fakta") && bt > 3.8 && bt < 5.9 && <SourceChip x={90} y={1500} text="Wikipedia: kettle" t={t} start={3.9} end={5.8} />}
 

@@ -36,12 +36,11 @@ export function sfx(story: StoryT): SfxEvent[] {
   add(S.dasar + 1.4, "hum", "the element is on", { dur: m.off - S.dasar, vol: 0.5 });
 
   // gelembung: bubbles are born on the element, grow and let go
-  b("gelembung", 0.05, "swish-soft", "headline: gelembung", { vol: 0.7 });
-  b("gelembung", 0.9, "tick", "label gelembung uap");
-  [0.6, 2.1, 3.6, 5.1, 6.6].forEach((d, i) => b("gelembung", d, "bubble-rise", `a bubble grows on the element (${i + 1})`, { vol: 0.7 }));
+    b("dasar", 6.9, "tick", "label gelembung uap");
+  [0.6, 2.1, 3.6, 5.1, 6.6].forEach((d, i) => b("dasar", 6 + d, "bubble-rise", `a bubble grows on the element (${i + 1})`, { vol: 0.7 }));
   add(m.detach, "pop-soft", "a bubble lets go of the element");
-  b("gelembung", 5.5, "tick-soft", "source chip: didih nukleat");
-  b("gelembung", 7.2, "pop-soft", "the last bubble lets go", { vol: 0.8 });
+  b("dasar", 11.5, "tick-soft", "source chip: didih nukleat");
+  b("dasar", 13.2, "pop-soft", "the last bubble lets go", { vol: 0.8 });
 
   // runtuh: the camera pans up, the bubbles rise into cooler water and collapse (TIK)
   b("runtuh", 0.05, "swish-soft", "headline: runtuh", { vol: 0.7 });

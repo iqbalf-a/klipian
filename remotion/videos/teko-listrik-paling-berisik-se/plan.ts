@@ -35,19 +35,19 @@ export function keyed(t: number, keys: readonly (readonly [number, number])[]): 
   return keys[keys.length - 1][1];
 }
 
-// the camera: the world px point at the middle of the screen, and a zoom. The beats start at 0, 3, 4, 10, 18, 26, 34, 41, 47, 56.
+// the camera: the world px point at the middle of the screen, and a zoom. The beats start at 0, 3, 4, 18, 26, 34, 41, 47, 56.
 const K = (t: number, x: number, y: number, zoom: number): Key2 => ({ t, x, y, zoom });
 export const CAM_KEYS: Key2[] = [
   K(0, 540, 1100, 0.5), K(1.5, 540, 1100, 0.5),         // the wide shot of the set, 1.5 s: the kettle in the middle third
   K(2.9, 540, 1150, 1.1),                               // the establishing push: the kettle is about 60 % of the width
   K(4, 540, 1160, 1.12),                                // sting: the world keeps moving
-  K(9.6, 540, 1250, 1.3),                               // dasar: down to the element at the bottom of the window (the lid stays under the top text)
-  K(10.4, 540, 1250, 1.3),
-  K(17.6, 540, 1255, 1.35),                             // gelembung: a slow push while the bubbles grow and let go
-  K(19.6, 540, 1255, 1.35),                             // runtuh: a pan up the window, the bubbles rise into cooler water
-  K(25.6, 540, 1250, 1.4),
-  K(27.4, 548, 1080, 1.8),                              // kejut: the macro on a collapsing bubble near the top
-  K(33.6, 548, 1070, 1.9),
+  K(9.6, 540, 1283, 1.17),                               // dasar: down to the element at the bottom of the window (the lid stays under the top text)
+  K(10.4, 540, 1283, 1.17),
+  K(17.6, 540, 1283, 1.19),                             // gelembung: a slow push while the bubbles grow and let go
+  K(19.6, 540, 1283, 1.17),                             // runtuh: a pan up the window, the bubbles rise into cooler water
+  K(25.6, 540, 1283, 1.18),
+  K(27.4, 548, 1150, 1.17),                              // kejut: the macro on a collapsing bubble near the top
+  K(33.6, 548, 1150, 1.18),
   K(36.4, 250, 930, 0.8),                              // hasil: back out to the whole kettle, the heat meter on the wall at the left
   K(40.4, 260, 935, 0.8),
   K(42.4, 640, 1240, 1.15),                              // fakta: a pan to the handle and the power lamp
@@ -86,7 +86,7 @@ export function stateAt(t: number) {
 
 /** The kicker of the top text per beat kind (the headline is the beat's own text). */
 const KICKER: Record<string, string> = { hook: "TEKO LISTRIK", normal: "DI DALAM TEKO", result: "HASILNYA", tips: "TIPS" };
-const KICKER_BY_ID: Record<string, string> = { dasar: "PEMANAS", gelembung: "GELEMBUNG", runtuh: "RUNTUH", kejut: "BUNYI", hasil: "URUTANNYA", fakta: "TEKO MODERN" };
+const KICKER_BY_ID: Record<string, string> = { dasar: "PEMANAS", runtuh: "RUNTUH", kejut: "BUNYI", hasil: "URUTANNYA", fakta: "TEKO MODERN" };
 
 export function makePlan(story: StoryT) {
   const starts = story.beats.map((_, i) => story.beats.slice(0, i).reduce((a, b) => a + b.dur, 0));
@@ -96,7 +96,7 @@ export function makePlan(story: StoryT) {
   const at = (id: string) => starts[story.beats.findIndex((b) => b.id === id)] ?? 0;
   const m = {
     sting, stingEnd: sting + (story.beats[1]?.dur ?? 1), react: NaN, outro, end: total,
-    element: at("dasar") + 1.4, hotLayer: at("dasar") + 3.2, born: at("gelembung") + 0.6, detach: at("gelembung") + 3.5, rise: at("runtuh") + 0.4, pop: at("runtuh") + 3.2,
+    element: at("dasar") + 1.4, hotLayer: at("dasar") + 3.2, born: at("dasar") + 6.6, detach: at("dasar") + 9.5, rise: at("runtuh") + 0.4, pop: at("runtuh") + 3.2,
     shock: at("kejut") + 1.6, arcs: at("kejut") + 4.2, meter: at("hasil") + 0.8, boilMark: at("hasil") + 5.2, off: at("fakta") + 3.2, kw: at("fakta") + 0.8, tip: at("tips") + 0.6,
   };
   // the top text of every beat except the sting and the outro: the kicker and the headline (the beat's text)
