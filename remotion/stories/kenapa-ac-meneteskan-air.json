@@ -1,0 +1,24 @@
+{"bible":1,"look":"iso","theme":"peach","stage":"strip","captions":true,"music":{"track":"bed-bounce"},
+"question":"Kenapa AC meneteskan air?",
+"titles":["Kenapa AC meneteskan air?","Air dari selang AC itu asalnya dari mana?","Intip dalam AC: dari udara jadi tetesan air"],
+"duration":60,
+"beats":[
+{"id":"hook","kind":"hook","dur":3,"narration":"Selang AC kok netes air terus? Airnya dari mana?","text":"AC kok netes air?","scene":{"bg":"brand","items":[]},"sfx":"none"},
+{"id":"sting","kind":"sting","dur":1,"narration":"Intip yuk!","text":"Intip yuk!","scene":{"bg":"brand","items":[{"type":"mascot","x":400,"y":440,"w":200,"expr":"curious","enter":{"kind":"pop","delay":0}},{"type":"pill","text":"Intip yuk!","x":700,"y":440,"fs":52,"enter":{"kind":"pop","delay":0.2}}]},"sfx":"pop"},
+{"id":"udara","kind":"normal","dur":7,"narration":"AC menyedot udara kamar yang hangat, dan udara itu selalu membawa uap air yang tak terlihat.","text":"Udara kamar membawa uap","scene":{"bg":"brand","items":[]},"sfx":"none"},
+{"id":"dingin","kind":"normal","dur":8,"narration":"Di dalam AC, udara itu melewati pipa bersirip yang sangat dingin, namanya evaporator.","text":"Lewat evaporator yang dingin","scene":{"bg":"brand","items":[]},"sfx":"none"},
+{"id":"embun","kind":"normal","dur":8,"narration":"Sirip evaporator lebih dingin dari titik embun udara, jadi uap airnya mengembun menjadi tetes air.","text":"Uap air jadi embun","scene":{"bg":"brand","items":[]},"sfx":"none"},
+{"id":"selang","kind":"normal","dur":8,"narration":"Tetesan itu jatuh ke bak penampung, lalu mengalir lewat selang pembuangan ke luar rumah.","text":"Ditampung, dibuang lewat selang","scene":{"bg":"brand","items":[]},"sfx":"none"},
+{"id":"hasil","kind":"result","dur":7,"narration":"Jadi air yang menetes di luar itu wajar. Itu air dari udara kamarmu, dan udaranya jadi lebih kering.","text":"Netes di luar: wajar","scene":{"bg":"brand","items":[]},"sfx":"none"},
+{"id":"bocor","kind":"normal","dur":7,"narration":"Tapi kalau air menetes di dalam kamar, bisa jadi bak atau salurannya tersumbat kotoran.","text":"Netes di dalam? Tersumbat","scene":{"bg":"brand","items":[]},"sfx":"none"},
+{"id":"tips","kind":"tips","dur":7,"narration":"Rawat AC secara berkala, dan kalau tetap bocor ke dalam, panggil teknisi AC.","text":"Rawat rutin, panggil teknisi","scene":{"bg":"brand","items":[]},"sfx":"none"},
+{"id":"outro","kind":"outro","dur":4,"narration":"","text":"","scene":{"bg":"brand","items":[]},"sfx":"none"}
+],
+"claims":[
+{"text":"AC biasa sekaligus mengeringkan udara: udara melewati koil evaporator yang dingin, dan air yang mengembun di sana dialirkan keluar.","beats":["udara","dingin","hasil"],"sources":["https://en.wikipedia.org/wiki/Dehumidifier","https://en.wikipedia.org/wiki/Air_conditioning"]},
+{"text":"Air mengembun di koil evaporator bila permukaannya jauh lebih dingin dari titik embun udara di sekitarnya.","beats":["embun"],"sources":["https://en.wikipedia.org/wiki/Air_conditioning","https://en.wikipedia.org/wiki/Dew_point"]},
+{"text":"Air embun dari AC dikumpulkan dan dibuang ke luar rumah lewat pipa atau selang pembuangan (condensate drain line).","beats":["selang","hasil"],"sources":["https://en.wikipedia.org/wiki/Condensate_pump","https://en.wikipedia.org/wiki/Dehumidifier"]},
+{"text":"Bak penampung air embun perlu dibersihkan sesekali agar kotoran tidak menyumbat saluran, karena sumbatan bisa membuat air bocor dan meluap.","beats":["bocor","tips"],"sources":["https://en.wikipedia.org/wiki/Dehumidifier"]}
+],
+"post":{"description":"Kenapa AC meneteskan air? Intip ke dalam AC: uap air di udara kamar mengembun di pipa evaporator yang dingin, ditampung, lalu dibuang lewat selang ke luar. Kalau netes di dalam kamar, salurannya mungkin tersumbat: panggil teknisi.","hashtags":["#ac","#faktaseru","#intipyuk","#shorts"]},
+"needs":[]}
