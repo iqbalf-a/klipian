@@ -1,0 +1,262 @@
+{
+ "bible": 1,
+ "question": "Kenapa suara kita terdengar beda di rekaman?",
+ "titles": [
+  "Kenapa suara kita terdengar beda di rekaman?",
+  "Suaramu di rekaman beda? Ini rahasia tulang kepala",
+  "Dua jalur suara: kenapa rekamanmu terasa asing"
+ ],
+ "duration": 60,
+ "beats": [
+  {
+   "id": "hook",
+   "kind": "hook",
+   "dur": 3,
+   "narration": "Kenapa suaramu terdengar aneh di rekaman?",
+   "text": "Suaraku kok beda?",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Suaraku kok beda?",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "sting",
+   "kind": "sting",
+   "dur": 1,
+   "narration": "Intip yuk!",
+   "text": "Intip yuk!",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "mascot",
+      "x": 540,
+      "y": 720,
+      "w": 220,
+      "expr": "curious",
+      "pop": true,
+      "enter": {
+       "kind": "pop",
+       "delay": 0
+      }
+     },
+     {
+      "type": "pill",
+      "text": "Intip yuk!",
+      "x": 540,
+      "y": 1489,
+      "fs": 56,
+      "enter": {
+       "kind": "pop",
+       "delay": 0.2
+      }
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "jalur",
+   "kind": "normal",
+   "dur": 8,
+   "narration": "Saat kamu bicara, suaramu sampai ke telingamu lewat dua jalan sekaligus.",
+   "text": "Dua jalur suara",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Dua jalur suara",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "udara",
+   "kind": "normal",
+   "dur": 8,
+   "narration": "Jalan pertama lewat udara. Gelombang suara keluar dari mulut dan masuk ke telinga, seperti yang didengar orang lain.",
+   "text": "Jalur pertama: udara",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Jalur pertama: udara",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "tulang",
+   "kind": "normal",
+   "dur": 8,
+   "narration": "Jalan kedua lewat tulang kepala. Tulang menghantar nada rendah lebih baik daripada udara, jadi suaramu terasa lebih berat.",
+   "text": "Jalur kedua: tulang",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Jalur kedua: tulang",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "mic",
+   "kind": "normal",
+   "dur": 7,
+   "narration": "Mikrofon cuma menangkap jalan udara. Getaran tulang kepalamu tidak ikut terekam.",
+   "text": "Mikrofon cuma dengar udara",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Mikrofon cuma dengar udara",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "hasil",
+   "kind": "result",
+   "dur": 7,
+   "narration": "Makanya rekaman sering terdengar lebih tinggi dari yang kamu kira. Itu suaramu di telinga orang lain.",
+   "text": "Itu suaramu di telinga orang",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Itu suaramu di telinga orang",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "fakta",
+   "kind": "result",
+   "dur": 6,
+   "narration": "Pada studi tahun 1967, cuma 38 persen orang mengenali rekaman suaranya sendiri dalam lima detik.",
+   "text": "Cuma 38% mengenali",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Cuma 38% mengenali",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "tips",
+   "kind": "tips",
+   "dur": 9,
+   "narration": "Kalau kaget, itu wajar. Otakmu berharap suara yang ada tulangnya. Rekamannya bukan rusak, itu suara versi udara.",
+   "text": "Wajar kalau kaget",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Wajar kalau kaget",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "outro",
+   "kind": "outro",
+   "dur": 3,
+   "narration": "",
+   "text": "",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  }
+ ],
+ "claims": [
+  {
+   "text": "Tulang tengkorak menghantar frekuensi rendah lebih baik daripada udara, jadi orang merasa suaranya sendiri lebih rendah dan penuh daripada yang didengar orang lain.",
+   "beats": [
+    "jalur",
+    "udara",
+    "tulang"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Bone_conduction"
+   ]
+  },
+  {
+   "text": "Mikrofon hanya menangkap suara lewat udara, tanpa getaran tengkorak, sehingga rekaman suara sendiri sering terdengar lebih tinggi dari yang diharapkan.",
+   "beats": [
+    "mic",
+    "hasil"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Bone_conduction"
+   ]
+  },
+  {
+   "text": "Persepsi suara sendiri berbeda saat didengar langsung dan lewat rekaman; ketidakcocokan dengan harapan itulah yang membuat orang kecewa.",
+   "beats": [
+    "tips"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Voice_confrontation"
+   ]
+  },
+  {
+   "text": "Dalam studi tahun 1967, hanya 38% orang bisa mengenali rekaman suaranya sendiri dalam 5 detik.",
+   "beats": [
+    "fakta"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Voice_confrontation"
+   ]
+  }
+ ],
+ "post": {
+  "description": "Kenapa suaramu terdengar beda di rekaman? Suara sampai ke telinga lewat udara dan lewat tulang kepala, tapi mikrofon cuma menangkap jalur udara.",
+  "hashtags": [
+   "#suaraku",
+   "#rekaman",
+   "#faktaseru",
+   "#intipyuk",
+   "#shorts"
+  ]
+ },
+ "needs": [],
+ "theme": "sky",
+ "stage": "island",
+ "captions": true,
+ "music": {
+  "track": "bed-curious"
+ }
+}
