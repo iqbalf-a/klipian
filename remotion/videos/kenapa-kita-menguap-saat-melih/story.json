@@ -1,0 +1,227 @@
+{
+  "bible": 1,
+  "question": "Kenapa kita menguap saat melihat orang menguap?",
+  "titles": [
+    "Kenapa kita menguap saat lihat orang menguap?",
+    "Menguap itu menular: ini yang kita tahu",
+    "Kenapa menguap bisa menular?"
+  ],
+  "duration": 60,
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 3,
+      "narration": "Kenapa kita ikut menguap, kalau lihat orang lain menguap?",
+      "kicker": "MENGUAP",
+      "headline": "Menguap itu menular?",
+      "text": "Menguap itu menular?",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "sting",
+      "kind": "sting",
+      "dur": 1,
+      "narration": "Intip yuk!",
+      "text": "Intip yuk!",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "mascot",
+            "x": 540,
+            "y": 720,
+            "enter": {
+              "kind": "pop",
+              "delay": 0
+            },
+            "w": 220,
+            "expr": "curious",
+            "pop": true
+          },
+          {
+            "type": "pill",
+            "text": "Intip yuk!",
+            "x": 540,
+            "y": 1489,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.2
+            },
+            "fs": 56
+          }
+        ]
+      },
+      "sfx": "pop"
+    },
+    {
+      "id": "tular",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Menguap memang menular. Sekitar separuh orang dewasa ikut menguap setelah melihat orang lain menguap.",
+      "kicker": "SEBERAPA SERING",
+      "headline": "Separuh orang tertular",
+      "text": "Separuh orang tertular",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "indera",
+      "kind": "normal",
+      "dur": 7,
+      "narration": "Bahkan mendengar suara menguap, atau cuma membaca tentangnya, bisa memicunya.",
+      "kicker": "BUKAN CUMA LIHAT",
+      "headline": "Dengar, baca, menguap",
+      "text": "Dengar, baca, menguap",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "dekat",
+      "kind": "normal",
+      "dur": 10,
+      "narration": "Makin dekat hubungan kalian, makin gampang menular. Paling kuat antar keluarga, lalu teman, kenalan, dan orang asing.",
+      "kicker": "SIAPA YANG TERTULAR",
+      "headline": "Makin dekat, makin menular",
+      "text": "Makin dekat, makin menular",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "anak",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Anak kecil biasanya belum tertular. Rata-rata baru mulai sekitar umur empat tahun.",
+      "kicker": "UMUR",
+      "headline": "Baru tertular umur 4",
+      "text": "Baru tertular umur 4",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "teori",
+      "kind": "result",
+      "dur": 10,
+      "narration": "Salah satu dugaan, ini terkait empati. Tapi belum terbukti, dan para peneliti masih berdebat soal sebabnya.",
+      "kicker": "PENYEBAB",
+      "headline": "Empati? Belum terbukti",
+      "text": "Empati? Belum terbukti",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "akhir",
+      "kind": "tips",
+      "dur": 9,
+      "narration": "Jadi kalau kamu ikut menguap sekarang, itu hal yang wajar. Menguap memang menular.",
+      "kicker": "KESIMPULAN",
+      "headline": "Menguap itu menular",
+      "text": "Menguap itu menular",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "dur": 4,
+      "narration": "",
+      "text": "",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    }
+  ],
+  "claims": [
+    {
+      "text": "Sekitar separuh orang dewasa menguap setelah melihat orang lain menguap (angka bervariasi sekitar 40 sampai 60 persen menurut kondisi percobaan).",
+      "beats": [
+        "hook",
+        "tular"
+      ],
+      "sources": [
+        "https://www.eurekalert.org/news-releases/541114",
+        "https://www.psychologytoday.com/us/blog/the-athletes-way/201403/why-is-yawning-so-contagious"
+      ]
+    },
+    {
+      "text": "Menguap bisa menular lewat suara, atau bahkan membaca tentang orang menguap, bukan hanya lewat penglihatan.",
+      "beats": [
+        "indera"
+      ],
+      "sources": [
+        "https://acibademinternational.com/blog/are-yawns-really-contagious-what-mirror-neurons-have-to-do-with-it/"
+      ]
+    },
+    {
+      "text": "Penularan menguap paling kuat antar kerabat, lalu teman, kenalan, dan orang asing; kedekatan sosial adalah prediktor terkuatnya.",
+      "beats": [
+        "dekat"
+      ],
+      "sources": [
+        "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3233580/",
+        "https://www.livescience.com/17365-yawns-contagious-friends.html"
+      ]
+    },
+    {
+      "text": "Kebanyakan anak baru menunjukkan menguap menular sekitar umur 4 tahun.",
+      "beats": [
+        "anak"
+      ],
+      "sources": [
+        "https://www.biospace.com/children-under-four-and-children-with-autism-don-t-yawn-contagiously"
+      ]
+    },
+    {
+      "text": "Hubungan antara menguap menular dan empati masih diperdebatkan dan belum terbukti pasti.",
+      "beats": [
+        "teori",
+        "akhir"
+      ],
+      "sources": [
+        "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3233580/",
+        "https://www.frontiersin.org/articles/10.3389/fpsyg.2020.00442/text"
+      ]
+    }
+  ],
+  "post": {
+    "description": "Kenapa menguap bisa menular? Separuh orang dewasa ikut menguap, makin dekat makin menular, dan penyebabnya masih diperdebatkan.",
+    "hashtags": [
+      "#menguap",
+      "#faktaseru",
+      "#intipyuk",
+      "#shorts"
+    ]
+  },
+  "needs": [],
+  "stage": "steps",
+  "theme": "mint",
+  "look": "text",
+  "captions": true,
+  "music": {
+    "track": "bed-curious"
+  }
+}
