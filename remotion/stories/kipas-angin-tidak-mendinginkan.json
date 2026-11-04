@@ -1,0 +1,240 @@
+{
+ "bible": 1,
+ "question": "Kenapa kipas angin tidak mendinginkan udara?",
+ "titles": [
+  "Kipas angin tidak mendinginkan udara",
+  "Kipas angin dinginkan kulit, bukan udara",
+  "Intip kipas angin: kenapa kulit terasa dingin"
+ ],
+ "duration": 60,
+ "theme": "mint",
+ "stage": "strip",
+ "captions": true,
+ "music": {
+  "track": "bed-neon"
+ },
+ "beats": [
+  {
+   "id": "hook",
+   "kind": "hook",
+   "dur": 3,
+   "narration": "Benarkah kipas angin bikin udara jadi lebih dingin?",
+   "text": "Kipas bikin udara dingin?",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Kipas bikin udara dingin?",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "sting",
+   "kind": "sting",
+   "dur": 1,
+   "narration": "Intip yuk!",
+   "text": "Intip yuk!",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "mascot",
+      "x": 540,
+      "y": 720,
+      "w": 220,
+      "expr": "curious",
+      "pop": true,
+      "enter": {
+       "kind": "pop",
+       "delay": 0
+      }
+     },
+     {
+      "type": "pill",
+      "text": "Intip yuk!",
+      "x": 540,
+      "y": 1489,
+      "fs": 56,
+      "enter": {
+       "kind": "pop",
+       "delay": 0.2
+      }
+     }
+    ]
+   },
+   "sfx": "pop"
+  },
+  {
+   "id": "udara",
+   "kind": "normal",
+   "dur": 9,
+   "narration": "Kipas angin hanya menggerakkan udara. Suhu udaranya sendiri tidak ikut turun, beda dengan AC.",
+   "text": "Udara tidak ikut dingin",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Udara tidak ikut dingin",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "badan",
+   "kind": "normal",
+   "dur": 15,
+   "narration": "Yang terasa dingin itu badan kita. Angin membantu keringat di kulit menguap lebih cepat, dan penguapan itu mendinginkan tubuh. Angin juga ikut membawa panas dari kulit ke udara sekitar.",
+   "text": "Keringat menguap, badan dingin",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Keringat menguap, badan dingin",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "motor",
+   "kind": "normal",
+   "dur": 9,
+   "narration": "Malah, motor kipas membuang sedikit panas ke ruangan, jadi udaranya bisa sedikit lebih hangat.",
+   "text": "Motor malah beri panas",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Motor malah beri panas",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "hasil",
+   "kind": "result",
+   "dur": 8,
+   "narration": "Jadi kipas mendinginkan orang, bukan udara. Rasa sejuknya datang dari kulit kita sendiri.",
+   "text": "Kipas dinginkan orang",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Kipas dinginkan orang",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "tips",
+   "kind": "tips",
+   "dur": 11,
+   "narration": "Karena kipas mendinginkan orang, matikan saat tidak ada yang di ruangan. Kalau kipas berbunyi aneh atau berbau gosong, cabut dan tanya teknisi.",
+   "text": "Kosong? Matikan kipasnya",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Kosong? Matikan kipasnya",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "outro",
+   "kind": "outro",
+   "dur": 4,
+   "narration": "",
+   "text": "",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  }
+ ],
+ "claims": [
+  {
+   "text": "Kipas tidak menurunkan suhu udara maupun kelembapan relatif, tidak seperti AC.",
+   "beats": [
+    "udara",
+    "hasil"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Ceiling_fan",
+    "https://en.wikipedia.org/wiki/Fan_(machine)"
+   ]
+  },
+  {
+   "text": "Kipas menimbulkan efek dingin dengan membantu keringat menguap dan menambah pertukaran panas lewat konveksi.",
+   "beats": [
+    "badan"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Ceiling_fan",
+    "https://en.wikipedia.org/wiki/Fan_(machine)"
+   ]
+  },
+  {
+   "text": "Penguapan keringat dari permukaan kulit mendinginkan tubuh.",
+   "beats": [
+    "badan"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Perspiration"
+   ]
+  },
+  {
+   "text": "Kipas menambah sedikit panas ke ruangan, terutama dari panas buangan motor dan sebagian dari gesekan.",
+   "beats": [
+    "motor"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Ceiling_fan"
+   ]
+  },
+  {
+   "text": "Kipas efektif mendinginkan orang, tetapi tidak mendinginkan udara.",
+   "beats": [
+    "hasil",
+    "tips"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Fan_(machine)"
+   ]
+  }
+ ],
+ "post": {
+  "description": "Kipas angin tidak mendinginkan udara. Intip kenapa kulit tetap terasa dingin: keringat menguap lebih cepat dan panas kulit terbawa angin.",
+  "hashtags": [
+   "#kipasangin",
+   "#faktaseru",
+   "#sains",
+   "#intipyuk",
+   "#shorts"
+  ]
+ },
+ "needs": [
+  "termometer iso berdiri (aset baru, dibuat dari iso.ts)",
+  "lempeng kulit dengan tetes keringat dan uap (aset baru)",
+  "udara mengalir lurus searah sumbu x iso (garis angin iso)"
+ ]
+}

@@ -1,0 +1,298 @@
+{
+ "bible": 1,
+ "question": "Kenapa magnet menempel di kulkas tanpa lem?",
+ "titles": [
+  "Magnet nempel di kulkas tanpa lem, kok bisa?",
+  "Rahasia magnet kulkas: bukan lem, tapi domain",
+  "Intip kenapa magnet menempel di kulkas"
+ ],
+ "duration": 60,
+ "theme": "peach",
+ "stage": "slab",
+ "captions": true,
+ "music": {
+  "track": "bed-bounce"
+ },
+ "beats": [
+  {
+   "id": "hook",
+   "kind": "hook",
+   "dur": 3,
+   "narration": "Magnet nempel di kulkas, tanpa lem. Kok bisa?",
+   "text": "Nempel tanpa lem?",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none",
+   "kicker": "MAGNET KULKAS",
+   "headline": "Nempel tanpa lem?"
+  },
+  {
+   "id": "sting",
+   "kind": "sting",
+   "dur": 1,
+   "narration": "Intip yuk!",
+   "text": "Intip yuk!",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "mascot",
+      "x": 540,
+      "y": 720,
+      "w": 220,
+      "expr": "curious",
+      "pop": true,
+      "enter": {
+       "kind": "pop",
+       "delay": 0
+      }
+     },
+     {
+      "type": "pill",
+      "text": "Intip yuk!",
+      "x": 540,
+      "y": 1489,
+      "fs": 56,
+      "enter": {
+       "kind": "pop",
+       "delay": 0.2
+      }
+     }
+    ]
+   },
+   "sfx": "pop"
+  },
+  {
+   "id": "logam",
+   "kind": "normal",
+   "dur": 7,
+   "narration": "Magnet hanya menarik logam tertentu, yaitu besi, nikel, dan kobalt. Logam seperti ini disebut feromagnetik.",
+   "text": "Besi, nikel, kobalt",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "label",
+      "text": "feromagnetik",
+      "x": 540,
+      "y": 1500,
+      "fs": 50,
+      "color": "black"
+     }
+    ]
+   },
+   "sfx": "none",
+   "kicker": "LOGAM YANG DITARIK",
+   "headline": "Besi, nikel, kobalt"
+  },
+  {
+   "id": "domain",
+   "kind": "normal",
+   "dur": 9,
+   "narration": "Di dalam besi ada daerah-daerah kecil bernama domain. Tiap domain seperti magnet mungil, dan sebelum ada magnet, arahnya acak.",
+   "text": "Domain mungil, arah acak",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "label",
+      "text": "domain acak",
+      "x": 540,
+      "y": 1500,
+      "fs": 50,
+      "color": "black"
+     }
+    ]
+   },
+   "sfx": "none",
+   "kicker": "DI DALAM BESI · DIPERBESAR",
+   "headline": "Domain mungil, arah acak"
+  },
+  {
+   "id": "sejajar",
+   "kind": "normal",
+   "dur": 8,
+   "narration": "Saat magnet mendekat, medannya meluruskan domain-domain itu. Pintu pun ikut tertarik ke magnet.",
+   "text": "Domain jadi sejajar",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "label",
+      "text": "domain sejajar",
+      "x": 540,
+      "y": 1500,
+      "fs": 50,
+      "color": "black"
+     },
+     {
+      "type": "source",
+      "x": 540,
+      "y": 1200,
+      "claim": 2,
+      "org": "OpenStax"
+     }
+    ]
+   },
+   "sfx": "none",
+   "kicker": "SAAT MAGNET MENDEKAT",
+   "headline": "Domain jadi sejajar"
+  },
+  {
+   "id": "hasil",
+   "kind": "result",
+   "dur": 7,
+   "narration": "Tarikan itulah yang menahan magnet di pintu kulkas. Tidak perlu lem sama sekali.",
+   "text": "Tarikan, bukan lem",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none",
+   "kicker": "HASILNYA",
+   "headline": "Tarikan, bukan lem"
+  },
+  {
+   "id": "alum",
+   "kind": "normal",
+   "dur": 6,
+   "narration": "Aluminium lain cerita. Tarikannya ratusan ribu kali lebih lemah, jadi magnet tidak menempel.",
+   "text": "Aluminium: nyaris tak ditarik",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "label",
+      "text": "sangat lemah",
+      "x": 540,
+      "y": 1500,
+      "fs": 50,
+      "color": "black"
+     }
+    ]
+   },
+   "sfx": "none",
+   "kicker": "BEDA CERITA",
+   "headline": "Aluminium: nyaris tak ditarik"
+  },
+  {
+   "id": "lentur",
+   "kind": "result",
+   "dur": 6,
+   "narration": "Magnet kulkas yang lentur dibuat dari bubuk ferit yang dicampur pengikat plastik.",
+   "text": "Bubuk ferit plus plastik",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "label",
+      "text": "ferit",
+      "x": 540,
+      "y": 1500,
+      "fs": 50,
+      "color": "black"
+     }
+    ]
+   },
+   "sfx": "none",
+   "kicker": "MAGNET LENTUR",
+   "headline": "Bubuk ferit plus plastik"
+  },
+  {
+   "id": "tips",
+   "kind": "tips",
+   "dur": 9,
+   "narration": "Coba sendiri. Dekatkan magnet ke benda besi, lalu ke wadah aluminium. Yang besi menempel, yang aluminium tidak.",
+   "text": "Besi nempel, aluminium tidak",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "badge",
+      "text": "1",
+      "x": 300,
+      "y": 900,
+      "r": 52
+     },
+     {
+      "type": "badge",
+      "text": "2",
+      "x": 780,
+      "y": 900,
+      "r": 52
+     }
+    ]
+   },
+   "sfx": "none",
+   "kicker": "COBA SENDIRI",
+   "headline": "Besi nempel, aluminium tidak"
+  },
+  {
+   "id": "outro",
+   "kind": "outro",
+   "dur": 4,
+   "narration": "",
+   "text": "",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  }
+ ],
+ "claims": [
+  {
+   "text": "Besi, nikel, dan kobalt adalah bahan feromagnetik yang ditarik kuat oleh magnet.",
+   "beats": [
+    "hook",
+    "logam"
+   ],
+   "sources": [
+    "https://openstax.org/books/college-physics-2e/pages/22-2-ferromagnets-and-electromagnets",
+    "https://en.wikipedia.org/wiki/Magnet"
+   ]
+  },
+  {
+   "text": "Domain dalam benda feromagnetik yang belum termagnetisasi berarah acak; medan magnet luar meluruskannya sehingga benda tertarik ke magnet.",
+   "beats": [
+    "domain",
+    "sejajar",
+    "hasil"
+   ],
+   "sources": [
+    "https://openstax.org/books/college-physics-2e/pages/22-2-ferromagnets-and-electromagnets"
+   ]
+  },
+  {
+   "text": "Aluminium hanya ditarik magnet secara sangat lemah, ratusan ribu kali lebih lemah daripada bahan feromagnetik.",
+   "beats": [
+    "alum",
+    "tips"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Magnet"
+   ]
+  },
+  {
+   "text": "Magnet kulkas lentur dibuat dari senyawa ferit (barium ferit) yang dicampur pengikat plastik.",
+   "beats": [
+    "lentur"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Refrigerator_magnet"
+   ]
+  }
+ ],
+ "post": {
+  "description": "Kenapa magnet menempel di kulkas tanpa lem? Intip domain-domain kecil di dalam besi yang meluruskan diri saat magnet mendekat.",
+  "hashtags": [
+   "#magnet",
+   "#fisika",
+   "#intipyuk",
+   "#shorts"
+  ]
+ },
+ "needs": []
+}

@@ -1,0 +1,226 @@
+{
+  "bible": 1,
+  "question": "Benarkah kita menghabiskan 26 tahun hidup untuk tidur?",
+  "titles": [
+    "Kamu habiskan sekitar 26 tahun hidup untuk tidur",
+    "26 tahun tidur: ini hitungannya",
+    "Sepertiga hidupmu dihabiskan untuk tidur"
+  ],
+  "duration": 60,
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 3,
+      "narration": "Kamu menghabiskan sekitar dua puluh enam tahun hidup untuk tidur.",
+      "kicker": "FAKTA TIDUR",
+      "headline": "26 tahun untuk tidur?",
+      "text": "26 tahun untuk tidur?",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "sting",
+      "kind": "sting",
+      "dur": 1,
+      "narration": "Intip yuk!",
+      "text": "Intip yuk!",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "mascot",
+            "x": 540,
+            "y": 720,
+            "enter": {
+              "kind": "pop",
+              "delay": 0
+            },
+            "w": 220,
+            "expr": "curious",
+            "pop": true
+          },
+          {
+            "type": "pill",
+            "text": "Intip yuk!",
+            "x": 540,
+            "y": 1489,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.2
+            },
+            "fs": 56
+          }
+        ]
+      },
+      "sfx": "pop"
+    },
+    {
+      "id": "rentang",
+      "kind": "normal",
+      "dur": 6,
+      "narration": "Orang dewasa biasanya butuh tidur tujuh sampai sembilan jam semalam.",
+      "kicker": "SEMALAM",
+      "headline": "7 sampai 9 jam",
+      "text": "7 sampai 9 jam",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "sepertiga",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Ambil delapan jam. Delapan dari dua puluh empat jam itu sepertiga hari, jadi sepertiga umur juga.",
+      "kicker": "HITUNGANNYA",
+      "headline": "8 jam = 1/3 hari",
+      "text": "8 jam = 1/3 hari",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "umur",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Misalnya kamu hidup tujuh puluh delapan tahun. Sepertiganya itu dua puluh enam tahun.",
+      "kicker": "UMUR 78 TAHUN",
+      "headline": "78 tahun ÷ 3 = 26",
+      "text": "78 tahun ÷ 3 = 26",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "setahun",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Dalam setahun, delapan jam semalam itu sekitar dua ribu sembilan ratus dua puluh jam. Lebih dari seratus dua puluh hari penuh.",
+      "kicker": "SETAHUN",
+      "headline": "2.920 jam, 120 hari",
+      "text": "2.920 jam, 120 hari",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "rentang-umur",
+      "kind": "result",
+      "dur": 7,
+      "narration": "Kalau tidurmu tujuh jam, totalnya sekitar dua puluh tiga tahun. Sembilan jam, sekitar dua puluh sembilan tahun.",
+      "kicker": "TOTAL SEUMUR HIDUP",
+      "headline": "7 jam 23, 9 jam 29",
+      "text": "7 jam 23, 9 jam 29",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "otak",
+      "kind": "result",
+      "dur": 8,
+      "narration": "Tapi tidur bukan waktu kosong. Saat tidur, otak membuang sisa metabolisme lebih cepat daripada saat terjaga.",
+      "kicker": "SAAT TIDUR",
+      "headline": "Otak bersih-bersih",
+      "text": "Otak bersih-bersih",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "akhir",
+      "kind": "tips",
+      "dur": 7,
+      "narration": "Jadi dua puluh enam tahun itu bukan waktu yang hilang. Itu bagian dari hidupmu yang bekerja diam-diam.",
+      "kicker": "KESIMPULAN",
+      "headline": "Bukan waktu hilang",
+      "text": "Bukan waktu hilang",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "dur": 4,
+      "narration": "",
+      "text": "",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    }
+  ],
+  "claims": [
+    {
+      "text": "Orang dewasa (18 sampai 64 tahun) direkomendasikan tidur 7 sampai 9 jam per malam.",
+      "beats": [
+        "rentang",
+        "rentang-umur"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Sleep"
+      ]
+    },
+    {
+      "text": "Tidur 8 jam sehari adalah sepertiga hari; untuk umur 78 tahun itu 26 tahun, sekitar 2.920 jam atau 120 hari per tahun, dan 7 jam atau 9 jam memberi sekitar 23 atau 29 tahun (hitungan sederhana dari rekomendasi tidur dan umur, bukan angka pengukuran).",
+      "beats": [
+        "hook",
+        "sepertiga",
+        "umur",
+        "setahun",
+        "rentang-umur",
+        "akhir"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Sleep",
+        "https://en.wikipedia.org/wiki/Life_expectancy"
+      ]
+    },
+    {
+      "text": "Otak yang tidur membuang sisa metabolisme lebih cepat daripada saat terjaga, lewat aliran cairan serebrospinal (sistem glimfatik).",
+      "beats": [
+        "otak",
+        "akhir"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Sleep"
+      ]
+    }
+  ],
+  "post": {
+    "description": "Sepertiga hari untuk tidur berarti sekitar sepertiga umur. Intip hitungan 26 tahun tidur, dari 7, 8 dan 9 jam semalam.",
+    "hashtags": [
+      "#tidur",
+      "#faktaseru",
+      "#intipyuk",
+      "#shorts"
+    ]
+  },
+  "needs": [],
+  "stage": "steps",
+  "theme": "sky",
+  "look": "text",
+  "captions": true,
+  "music": {
+    "track": "bed-calm"
+  }
+}

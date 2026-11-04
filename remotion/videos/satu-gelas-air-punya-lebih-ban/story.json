@@ -1,0 +1,226 @@
+{
+ "bible": 1,
+ "look": "2d",
+ "question": "Mana lebih banyak: molekul di satu gelas air atau gelas air di seluruh lautan?",
+ "titles": [
+  "Satu gelas air punya lebih banyak molekul daripada gelas di lautan",
+  "Gelas vs lautan: mana lebih banyak, molekul atau gelas?",
+  "Intip angka raksasa: molekul dalam segelas air"
+ ],
+ "duration": 60,
+ "theme": "sky",
+ "stage": "island",
+ "captions": true,
+ "music": {
+  "track": "bed-curious"
+ },
+ "beats": [
+  {
+   "id": "hook",
+   "kind": "hook",
+   "dur": 3,
+   "narration": "Satu gelas air punya lebih banyak molekul daripada gelas air di seluruh lautan.",
+   "text": "Gelas lawan lautan",
+   "kicker": "GELAS VS LAUTAN",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none",
+   "headline": "Gelas lawan lautan"
+  },
+  {
+   "id": "sting",
+   "kind": "sting",
+   "dur": 1,
+   "narration": "Intip yuk!",
+   "text": "Intip yuk!",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "mascot",
+      "x": 540,
+      "y": 720,
+      "w": 220,
+      "expr": "curious",
+      "pop": true
+     },
+     {
+      "type": "pill",
+      "text": "Intip yuk!",
+      "x": 540,
+      "y": 1489,
+      "fs": 56
+     }
+    ]
+   },
+   "sfx": "pop"
+  },
+  {
+   "id": "gelas",
+   "kind": "normal",
+   "dur": 7,
+   "narration": "Mulai dari segelas air, sekitar dua ratus lima puluh mililiter. Beratnya kira-kira dua ratus lima puluh gram.",
+   "text": "Segelas air, 250 ml",
+   "kicker": "SATU GELAS",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none",
+   "headline": "Segelas air, 250 ml"
+  },
+  {
+   "id": "molekul",
+   "kind": "normal",
+   "dur": 8,
+   "narration": "Delapan belas gram air berisi sekitar enam kali sepuluh pangkat dua puluh tiga molekul. Segelas punya sekitar delapan koma empat kali sepuluh pangkat dua puluh empat.",
+   "text": "±8 × 10²⁴ molekul",
+   "kicker": "ISI GELAS",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none",
+   "headline": "±8 × 10²⁴ molekul"
+  },
+  {
+   "id": "lautan",
+   "kind": "normal",
+   "dur": 8,
+   "narration": "Sekarang lautan. Volumenya sekitar satu koma tiga tujuh miliar kilometer kubik. Kalau diisi gelas, jumlahnya sekitar lima kali sepuluh pangkat dua puluh satu.",
+   "text": "±5 × 10²¹ gelas",
+   "kicker": "ISI LAUTAN",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none",
+   "headline": "±5 × 10²¹ gelas"
+  },
+  {
+   "id": "banding",
+   "kind": "normal",
+   "dur": 8,
+   "narration": "Dua puluh empat lawan dua puluh satu. Molekul di satu gelas sekitar seribu lima ratus kali lebih banyak dari jumlah gelas di lautan.",
+   "text": "Molekul menang ±1.500×",
+   "kicker": "BANDINGKAN",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none",
+   "headline": "Molekul menang ±1.500×"
+  },
+  {
+   "id": "hasil",
+   "kind": "result",
+   "dur": 7,
+   "narration": "Jadi benar: satu gelas air punya lebih banyak molekul daripada jumlah gelas di seluruh lautan.",
+   "text": "FAKTA: benar",
+   "kicker": "HASILNYA",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none",
+   "headline": "FAKTA: benar"
+  },
+  {
+   "id": "sendok",
+   "kind": "result",
+   "dur": 6,
+   "narration": "Bahkan satu sendok teh air, lima mililiter, sudah berisi sekitar satu koma tujuh kali sepuluh pangkat dua puluh tiga molekul.",
+   "text": "Sendok teh: ±1,7 × 10²³",
+   "kicker": "SENDOK TEH",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none",
+   "headline": "Sendok teh: ±1,7 × 10²³"
+  },
+  {
+   "id": "tips",
+   "kind": "tips",
+   "dur": 8,
+   "narration": "Ingat dua hal. Molekul itu kecil sekali, jadi jumlahnya raksasa. Dan angka pangkat dua puluh empat jauh lebih besar dari pangkat dua puluh satu.",
+   "text": "Ingat dua hal",
+   "kicker": "DUA HAL",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none",
+   "headline": "Ingat dua hal"
+  },
+  {
+   "id": "outro",
+   "kind": "outro",
+   "dur": 4,
+   "narration": "",
+   "text": "",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  }
+ ],
+ "claims": [
+  {
+   "text": "Satu mol zat berisi 6,02214076 × 10^23 partikel (konstanta Avogadro).",
+   "beats": [
+    "molekul",
+    "sendok"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Avogadro_constant"
+   ]
+  },
+  {
+   "text": "Massa molar air adalah sekitar 18,015 gram per mol.",
+   "beats": [
+    "molekul",
+    "sendok"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Water"
+   ]
+  },
+  {
+   "text": "Volume air di lautan sekitar 1,37 miliar kilometer kubik.",
+   "beats": [
+    "lautan"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Ocean"
+   ]
+  },
+  {
+   "text": "Segelas air 250 ml (massa jenis sekitar 1 g/ml) berisi sekitar 8,4 × 10^24 molekul, sedangkan lautan setara sekitar 5,5 × 10^21 gelas; selisihnya sekitar 1.500 kali (hitungan dari tiga klaim di atas).",
+   "beats": [
+    "molekul",
+    "lautan",
+    "banding",
+    "hasil"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Avogadro_constant",
+    "https://en.wikipedia.org/wiki/Water",
+    "https://en.wikipedia.org/wiki/Ocean"
+   ]
+  }
+ ],
+ "post": {
+  "description": "Satu gelas air punya lebih banyak molekul daripada jumlah gelas air di seluruh lautan. Intip hitungannya dari konstanta Avogadro dan volume lautan.",
+  "hashtags": [
+   "#molekul",
+   "#faktaseru",
+   "#sains",
+   "#intipyuk"
+  ]
+ },
+ "needs": []
+}

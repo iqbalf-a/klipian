@@ -1,0 +1,224 @@
+{
+  "bible": 1,
+  "question": "Benarkah kita hanya memakai 10 persen otak?",
+  "titles": [
+    "Benarkah kita cuma pakai 10 persen otak?",
+    "Mitos 10 persen otak: ini kata hasil scan",
+    "Intip hasil pemindaian otak: berapa persen yang dipakai?"
+  ],
+  "duration": 60,
+  "theme": "cream",
+  "stage": "round",
+  "captions": true,
+  "music": {
+    "track": "bed-glow"
+  },
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 3,
+      "narration": "Katanya kita cuma pakai sepuluh persen otak. Benar nggak?",
+      "text": "Cuma pakai 10 persen?",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "sting",
+      "kind": "sting",
+      "dur": 1,
+      "narration": "Intip yuk!",
+      "text": "Intip yuk!",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "mascot",
+            "x": 540,
+            "y": 720,
+            "w": 220,
+            "expr": "curious",
+            "enter": {
+              "kind": "pop",
+              "delay": 0
+            }
+          },
+          {
+            "type": "pill",
+            "text": "Intip yuk!",
+            "x": 540,
+            "y": 1489,
+            "fs": 56,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.2
+            }
+          }
+        ]
+      },
+      "sfx": "pop"
+    },
+    {
+      "id": "pindai",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Coba kita intip pakai pemindai otak. Alat ini merekam bagian otak mana yang sedang aktif.",
+      "text": "Intip pakai pemindai otak",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none",
+      "camera": {
+        "kind": "pan",
+        "dx": -400,
+        "dur": 1.5
+      }
+    },
+    {
+      "id": "aktif",
+      "kind": "normal",
+      "dur": 10,
+      "narration": "Hasilnya, semua bagian otak kebagian kerja. Ada yang untuk melihat, mendengar, berpikir, sampai menjaga keseimbangan. Bahkan saat tidur pun, semuanya tetap ada aktivitasnya.",
+      "text": "Semua bagian ikut kerja",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "energi",
+      "kind": "normal",
+      "dur": 9,
+      "narration": "Otak cuma sekitar dua persen berat badan, tapi memakai sampai dua puluh persen energi tubuh. Terlalu boros kalau sembilan puluh persennya nganggur.",
+      "text": "2% berat, 20% energi",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "cedera",
+      "kind": "result",
+      "dur": 9,
+      "narration": "Satu lagi: hampir tidak ada bagian otak yang bisa cedera tanpa ada kemampuan yang hilang. Jadi sepuluh persen itu mitos.",
+      "text": "Sepuluh persen itu MITOS",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "asal",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Angka sepuluh persen itu populer dari pengantar sebuah buku tahun 1936, yang memelintir ucapan seorang psikolog.",
+      "text": "Kutipan yang dipelintir",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "tips",
+      "kind": "tips",
+      "dur": 8,
+      "narration": "Jadi ingat ya: kita memakai hampir seluruh otak, cuma tidak semuanya sekaligus, tapi bergantian.",
+      "text": "Dipakai semua, bergantian",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "dur": 4,
+      "narration": "",
+      "text": "",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    }
+  ],
+  "claims": [
+    {
+      "text": "Pemindaian otak menunjukkan bahwa apa pun yang dilakukan seseorang, semua area otak selalu aktif; tidak ada bagian yang sama sekali tidak bekerja.",
+      "beats": [
+        "pindai",
+        "aktif",
+        "tips"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Ten-percent-of-the-brain_myth"
+      ]
+    },
+    {
+      "text": "Bahkan saat tidur, semua bagian otak menunjukkan tingkat aktivitas tertentu.",
+      "beats": [
+        "aktif"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Ten-percent-of-the-brain_myth"
+      ]
+    },
+    {
+      "text": "Lobus oksipital untuk penglihatan, lobus temporal berperan dalam pendengaran, lobus frontal untuk fungsi eksekutif seperti perencanaan dan penalaran, lobus parietal memuat korteks somatosensori, dan otak kecil berperan dalam koordinasi gerak dan keseimbangan.",
+      "beats": [
+        "aktif"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Human_brain"
+      ]
+    },
+    {
+      "text": "Hampir tidak ada area otak yang bisa rusak tanpa hilangnya kemampuan.",
+      "beats": [
+        "cedera"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Ten-percent-of-the-brain_myth"
+      ]
+    },
+    {
+      "text": "Otak hanya sekitar 2 persen berat tubuh, tetapi memakai sampai 20 persen energi tubuh.",
+      "beats": [
+        "energi"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Human_brain",
+        "https://en.wikipedia.org/wiki/Ten-percent-of-the-brain_myth"
+      ]
+    },
+    {
+      "text": "Pada 1936 Lowell Thomas mempopulerkan angka itu dalam kata pengantar buku Dale Carnegie, dengan mengutip William James secara keliru soal sepuluh persen kemampuan mental.",
+      "beats": [
+        "asal"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Ten-percent-of-the-brain_myth"
+      ]
+    }
+  ],
+  "post": {
+    "description": "Benarkah kita cuma pakai 10 persen otak? Intip hasil pemindaian otak: semua bagian ikut kerja, bergantian, bahkan saat tidur. Otak juga boros energi, dan hampir tiap bagian punya tugas. Angka 10 persen ternyata dari kutipan yang dipelintir.",
+    "hashtags": [
+      "#mitosotak",
+      "#otak",
+      "#faktaseru",
+      "#intipyuk",
+      "#shorts"
+    ]
+  },
+  "needs": []
+}

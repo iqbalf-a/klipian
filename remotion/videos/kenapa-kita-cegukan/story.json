@@ -1,0 +1,260 @@
+{
+  "bible": 1,
+  "question": "Kenapa kita cegukan?",
+  "titles": [
+    "Kenapa kita cegukan? Ini yang terjadi di dadamu",
+    "Cegukan: diafragma mengejang, pita suara menutup",
+    "Hik! Intip kenapa kita tiba-tiba cegukan"
+  ],
+  "duration": 60,
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 3,
+      "narration": "Kenapa kita tiba-tiba cegukan?",
+      "text": "Tiba-tiba cegukan?",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Tiba-tiba cegukan?",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "sting",
+      "kind": "sting",
+      "dur": 1,
+      "narration": "Intip yuk!",
+      "text": "Intip yuk!",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "mascot",
+            "x": 540,
+            "y": 720,
+            "enter": {
+              "kind": "pop",
+              "delay": 0
+            },
+            "w": 220,
+            "expr": "curious"
+          },
+          {
+            "type": "pill",
+            "text": "Intip yuk!",
+            "x": 540,
+            "y": 1489,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.2
+            },
+            "fs": 56
+          }
+        ]
+      },
+      "sfx": "pop"
+    },
+    {
+      "id": "diafragma",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Di bawah paru-paru ada otot berbentuk kubah bernama diafragma. Otot ini memisahkan dada dari perut.",
+      "text": "Diafragma, otot kubah",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Diafragma, otot kubah",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "saraf",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Kalau saraf yang mengatur diafragma terganggu, yaitu saraf frenikus dan saraf vagus, diafragma tiba-tiba mengejang.",
+      "text": "Saraf terganggu, mengejang",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Saraf terganggu, mengejang",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "hik",
+      "kind": "normal",
+      "dur": 9,
+      "narration": "Diafragma turun mendadak dan udara tersedot masuk. Lalu celah di antara pita suara menutup. Itulah bunyi hik.",
+      "text": "Pita suara menutup: hik",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Pita suara menutup: hik",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "pemicu",
+      "kind": "normal",
+      "dur": 9,
+      "narration": "Pemicunya sering biasa saja: makan terlalu cepat, minum minuman bersoda, atau menelan banyak udara.",
+      "text": "Makan cepat, minuman soda",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Makan cepat, minuman soda",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "akhir",
+      "kind": "result",
+      "dur": 8,
+      "narration": "Jadi cegukan adalah refleks. Diafragma mengejang, lalu celah pita suara menutup.",
+      "text": "Cegukan itu refleks",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Cegukan itu refleks",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "fakta",
+      "kind": "result",
+      "dur": 10,
+      "narration": "Fakta serunya, setelah diafragma berkontraksi, celah pita suara menutup hanya dalam sekitar tiga puluh lima milidetik. Cepat sekali.",
+      "text": "Hanya 35 milidetik",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Hanya 35 milidetik",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "dur": 4,
+      "narration": "",
+      "text": "",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Tiba-tiba cegukan?",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    }
+  ],
+  "claims": [
+    {
+      "text": "Diafragma adalah otot tipis berbentuk kubah yang memisahkan dada dari perut.",
+      "beats": [
+        "diafragma"
+      ],
+      "sources": [
+        "https://my.clevelandclinic.org/health/symptoms/17672-hiccups"
+      ]
+    },
+    {
+      "text": "Cegukan terjadi ketika sesuatu mengiritasi saraf yang membuat diafragma berkontraksi, termasuk saraf vagus dan saraf frenikus.",
+      "beats": [
+        "saraf",
+        "akhir"
+      ],
+      "sources": [
+        "https://my.clevelandclinic.org/health/symptoms/17672-hiccups"
+      ]
+    },
+    {
+      "text": "Saat cegukan, diafragma tertarik turun mendadak sehingga udara terhirup cepat, lalu glotis (celah di antara pita suara) menutup mendadak dan membuat bunyi hik.",
+      "beats": [
+        "hik",
+        "akhir"
+      ],
+      "sources": [
+        "https://my.clevelandclinic.org/health/symptoms/17672-hiccups",
+        "https://en.wikipedia.org/wiki/Hiccup"
+      ]
+    },
+    {
+      "text": "Pemicu cegukan sesaat antara lain makan terlalu banyak atau terlalu cepat, minuman berkarbonasi, dan menelan banyak udara.",
+      "beats": [
+        "pemicu"
+      ],
+      "sources": [
+        "https://my.clevelandclinic.org/health/symptoms/17672-hiccups",
+        "https://en.wikipedia.org/wiki/Hiccup"
+      ]
+    },
+    {
+      "text": "Setelah diafragma berkontraksi, glotis menutup dalam sekitar 35 milidetik, dan itu menghasilkan bunyi hik.",
+      "beats": [
+        "fakta"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Hiccup"
+      ]
+    }
+  ],
+  "post": {
+    "description": "Kenapa kita cegukan? Intip dada kita: diafragma mengejang, lalu celah pita suara menutup dan terdengar hik.",
+    "hashtags": [
+      "#cegukan",
+      "#tubuhmanusia",
+      "#faktaseru",
+      "#intipyuk",
+      "#shorts"
+    ]
+  },
+  "needs": [],
+  "stage": "round",
+  "theme": "peach",
+  "look": "2d",
+  "captions": true,
+  "music": {
+    "track": "bed-glow"
+  }
+}

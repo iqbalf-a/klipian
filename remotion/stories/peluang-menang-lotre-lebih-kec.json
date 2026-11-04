@@ -1,0 +1,238 @@
+{
+  "bible": 1,
+  "look": "text",
+  "captions": true,
+  "theme": "cream",
+  "stage": "steps",
+  "music": {
+    "track": "bed-curious"
+  },
+  "question": "Mana lebih mungkin: menang lotre atau tersambar petir?",
+  "titles": [
+    "Menang lotre atau tersambar petir: mana lebih mungkin?",
+    "Jackpot lotre lebih sulit dari tersambar petir? Ini angkanya",
+    "Lotre vs petir: bandingkan peluangnya"
+  ],
+  "duration": 60,
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 3,
+      "narration": "Mana lebih mungkin: menang lotre atau tersambar petir?",
+      "text": "Lotre atau petir?",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "sting",
+      "kind": "sting",
+      "dur": 1,
+      "narration": "Intip yuk!",
+      "text": "Intip yuk!",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "mascot",
+            "x": 540,
+            "y": 720,
+            "w": 220,
+            "expr": "curious",
+            "pop": true
+          },
+          {
+            "type": "pill",
+            "text": "Intip yuk!",
+            "x": 540,
+            "y": 1489,
+            "fs": 56,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.2
+            }
+          }
+        ]
+      },
+      "sfx": "pop"
+    },
+    {
+      "id": "jackpot",
+      "kind": "normal",
+      "dur": 7,
+      "narration": "Ambil contoh Powerball di Amerika. Peluang menang jackpot-nya satu banding dua ratus sembilan puluh dua juta.",
+      "kicker": "Powerball",
+      "headline": "Jackpot: 1 banding 292 juta",
+      "text": "Jackpot: 1 banding 292 juta",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "petir",
+      "kind": "normal",
+      "dur": 7,
+      "narration": "Sekarang petir. Peluang tersambar seumur hidup, untuk umur delapan puluh tahun, sekitar satu banding lima belas ribu tiga ratus.",
+      "kicker": "Petir",
+      "headline": "Seumur hidup: 1 banding 15.300",
+      "text": "Seumur hidup: 1 banding 15.300",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "banding",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Kalau disejajarkan, jackpot itu sekitar sembilan belas ribu kali lebih sulit daripada tersambar petir seumur hidup.",
+      "kicker": "Sejajarkan",
+      "headline": "Sekitar 19 ribu kali",
+      "text": "Sekitar 19 ribu kali",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "setahun",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Hitungan per tahun makin jelas. Tersambar petir satu banding satu koma dua juta, jackpot masih sekitar dua ratus tiga puluh sembilan kali lebih sulit.",
+      "kicker": "Per tahun",
+      "headline": "Setahun: 1 banding 1,2 juta",
+      "text": "Setahun: 1 banding 1,2 juta",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "fakta",
+      "kind": "result",
+      "dur": 7,
+      "narration": "Jadi kalimat itu fakta: peluang menang jackpot lotre memang lebih kecil dari tersambar petir.",
+      "kicker": "Verdict",
+      "headline": "FAKTA",
+      "text": "FAKTA",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "hadiah",
+      "kind": "result",
+      "dur": 6,
+      "narration": "Tapi menang hadiah apa pun di Powerball, yang kecil juga, peluangnya satu banding dua puluh empat koma delapan tujuh.",
+      "kicker": "Tapi",
+      "headline": "Hadiah apa pun: 1 banding 24,87",
+      "text": "Hadiah apa pun: 1 banding 24,87",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "tips",
+      "kind": "tips",
+      "dur": 9,
+      "narration": "Biar angka raksasa terasa nyata, baca sebagai satu banding sekian, lalu bandingkan dengan kejadian yang kamu kenal. Dan cek angka resmi di situs penyelenggara.",
+      "kicker": "Tips",
+      "headline": "Baca angkanya dengan benar",
+      "text": "Baca angkanya dengan benar",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "dur": 4,
+      "narration": "",
+      "text": "",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    }
+  ],
+  "claims": [
+    {
+      "text": "Peluang memenangkan jackpot Powerball adalah 1 banding 292.201.338.",
+      "beats": [
+        "jackpot",
+        "banding",
+        "setahun"
+      ],
+      "sources": [
+        "https://www.powerball.com/powerball-prize-chart"
+      ]
+    },
+    {
+      "text": "Peluang menang hadiah apa pun di Powerball adalah 1 banding 24,87 untuk satu permainan 2 dolar.",
+      "beats": [
+        "hadiah"
+      ],
+      "sources": [
+        "https://www.powerball.com/powerball-prize-chart"
+      ]
+    },
+    {
+      "text": "Peluang tersambar petir seumur hidup (perkiraan umur 80 tahun) adalah sekitar 1 banding 15.300.",
+      "beats": [
+        "petir",
+        "banding"
+      ],
+      "sources": [
+        "https://www.weather.gov/safety/lightning-odds"
+      ]
+    },
+    {
+      "text": "Peluang tersambar petir dalam satu tahun adalah sekitar 1 banding 1.222.000.",
+      "beats": [
+        "setahun"
+      ],
+      "sources": [
+        "https://www.weather.gov/safety/lightning-odds"
+      ]
+    },
+    {
+      "text": "Dibagi langsung, 292.201.338 dibanding 15.300 kira-kira 19 ribu, dan 292.201.338 dibanding 1.222.000 kira-kira 239; jadi jackpot Powerball lebih sulit dari tersambar petir.",
+      "beats": [
+        "banding",
+        "setahun",
+        "fakta"
+      ],
+      "sources": [
+        "https://www.powerball.com/powerball-prize-chart",
+        "https://www.weather.gov/safety/lightning-odds"
+      ]
+    }
+  ],
+  "post": {
+    "description": "Lebih mungkin menang jackpot lotre atau tersambar petir? Kita bandingkan angka resmi Powerball dan National Weather Service.",
+    "hashtags": [
+      "#lotre",
+      "#petir",
+      "#peluang",
+      "#faktaseru",
+      "#intipyuk",
+      "#shorts"
+    ]
+  },
+  "needs": []
+}

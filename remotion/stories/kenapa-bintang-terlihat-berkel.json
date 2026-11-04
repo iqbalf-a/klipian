@@ -1,0 +1,33 @@
+{
+  "bible": 1,
+  "question": "Kenapa bintang terlihat berkelip?",
+  "titles": ["Kenapa bintang terlihat berkelip?", "Bintang kedip-kedip? Ternyata udara Bumi pelakunya", "Intip cahaya bintang: kenapa berkelip tapi planet tidak"],
+  "duration": 60,
+  "look": "iso",
+  "theme": "sky",
+  "stage": "island",
+  "captions": true,
+  "music": {"track": "bed-calm", "level": 0.8},
+  "beats": [
+    {"id": "hook", "kind": "hook", "dur": 3, "narration": "Kenapa bintang kelihatan kedip-kedip?", "text": "Bintang kok kedip-kedip?", "scene": {"bg": "brand", "items": [{"type": "banner", "text": "Bintang kok kedip-kedip?", "fs": 66}]}, "sfx": "none"},
+    {"id": "sting", "kind": "sting", "dur": 1, "narration": "Intip yuk!", "text": "Intip yuk!", "scene": {"bg": "brand", "items": [{"type": "mascot", "x": 540, "y": 720, "w": 220, "expr": "curious", "enter": {"kind": "pop", "delay": 0}}, {"type": "pill", "text": "Intip yuk!", "x": 540, "y": 1489, "fs": 56, "enter": {"kind": "pop", "delay": 0.2}}]}, "sfx": "pop"},
+    {"id": "jauh", "kind": "normal", "dur": 6, "narration": "Bintang itu jauh banget, jadi dari Bumi cuma kelihatan sebagai satu titik cahaya.", "text": "Bintang cuma titik cahaya", "scene": {"bg": "brand", "items": [{"type": "banner", "text": "Bintang cuma titik cahaya", "fs": 62}]}, "sfx": "none"},
+    {"id": "udara", "kind": "normal", "dur": 8, "narration": "Sebelum sampai ke mata, cahayanya harus menembus lapisan udara yang terus bergolak, ada yang hangat, ada yang dingin.", "text": "Menembus udara yang bergolak", "scene": {"bg": "brand", "items": [{"type": "banner", "text": "Menembus udara yang bergolak", "fs": 60}]}, "sfx": "none"},
+    {"id": "belok", "kind": "normal", "dur": 8, "narration": "Tiap gumpalan udara punya kerapatan beda, jadi cahayanya dibelokkan sedikit, kayak lewat lensa yang goyang.", "text": "Udara membelokkan cahaya", "scene": {"bg": "brand", "items": [{"type": "banner", "text": "Udara membelokkan cahaya", "fs": 62}]}, "sfx": "none"},
+    {"id": "kedip", "kind": "normal", "dur": 8, "narration": "Akibatnya, cahaya yang masuk ke mata berubah-ubah. Sekejap terang, sekejap redup, kadang warnanya ikut berganti.", "text": "Terang, redup, terang lagi", "scene": {"bg": "brand", "items": [{"type": "banner", "text": "Terang, redup, terang lagi", "fs": 62}]}, "sfx": "none"},
+    {"id": "planet", "kind": "result", "dur": 7, "narration": "Planet beda. Ia kelihatan sebagai cakram kecil, jadi goyangannya saling menutupi dan cahayanya lebih tenang.", "text": "Planet lebih tenang", "scene": {"bg": "brand", "items": [{"type": "banner", "text": "Planet lebih tenang", "fs": 66}]}, "sfx": "none"},
+    {"id": "ufuk", "kind": "normal", "dur": 6, "narration": "Bintang dekat ufuk paling heboh berkelip, karena cahayanya lewat udara jauh lebih tebal.", "text": "Dekat ufuk, makin berkelip", "scene": {"bg": "brand", "items": [{"type": "banner", "text": "Dekat ufuk, makin berkelip", "fs": 62}]}, "sfx": "none"},
+    {"id": "tips", "kind": "tips", "dur": 9, "narration": "Mau cek sendiri? Titik yang tenang biasanya planet. Bintang tinggi di atas kepala lebih jarang berkelip. Dan teleskop Hubble di luar angkasa melihat bintang tanpa kelip.", "text": "Yang berkelip itu udaranya", "scene": {"bg": "brand", "items": [{"type": "banner", "text": "Yang berkelip itu udaranya", "fs": 62}]}, "sfx": "none"},
+    {"id": "outro", "kind": "outro", "dur": 4, "narration": "", "text": "", "scene": {"bg": "brand", "items": []}, "sfx": "none"}
+  ],
+  "claims": [
+    {"text": "Berkelip (scintillation) adalah perubahan terang, warna, atau posisi benda bercahaya yang jauh karena cahayanya lewat lapisan atmosfer yang bergolak.", "beats": ["hook", "udara", "kedip"], "sources": ["https://en.wikipedia.org/wiki/Twinkling"]},
+    {"text": "Bintang sangat jauh sehingga tampak sebagai titik cahaya, yang mudah diganggu turbulensi atmosfer; turbulensi itu bekerja seperti lensa dan prisma yang membelokkan arah cahaya.", "beats": ["jauh", "belok"], "sources": ["https://en.wikipedia.org/wiki/Twinkling"]},
+    {"text": "Lapisan udara dengan suhu dan kecepatan angin berbeda membuat kerapatan udara berubah-ubah dan membiaskan cahaya bintang.", "beats": ["udara", "belok"], "sources": ["https://en.wikipedia.org/wiki/Astronomical_seeing", "https://en.wikipedia.org/wiki/Twinkling"]},
+    {"text": "Planet tampak punya diameter, sehingga simpangan cahayanya saling merata dan biasanya tidak berkelip secara nyata.", "beats": ["planet", "tips"], "sources": ["https://en.wikipedia.org/wiki/Twinkling"]},
+    {"text": "Kelip jauh lebih kuat di dekat ufuk daripada di atas kepala, karena cahayanya menempuh jalur atmosfer yang lebih panjang.", "beats": ["ufuk", "tips"], "sources": ["https://en.wikipedia.org/wiki/Twinkling"]},
+    {"text": "Teleskop Hubble mengorbit di luar atmosfer, jadi tidak terganggu turbulensi udara yang membuat bintang berkelip.", "beats": ["tips"], "sources": ["https://en.wikipedia.org/wiki/Hubble_Space_Telescope"]}
+  ],
+  "post": {"description": "Kenapa bintang terlihat berkelip? Intip perjalanan cahaya bintang menembus udara Bumi yang bergolak, kenapa planet lebih tenang, dan kenapa bintang dekat ufuk paling heboh berkelip.", "hashtags": ["#bintang", "#astronomi", "#faktaseru", "#sains", "#intipyuk", "#shorts"]},
+  "needs": []
+}

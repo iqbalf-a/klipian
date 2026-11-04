@@ -1,0 +1,37 @@
+{
+ "bible": 1,
+ "look": "2d",
+ "question": "Sudah berapa kali Pluto mengelilingi Matahari sejak ditemukan?",
+ "titles": [
+  "Pluto belum sekali pun mengelilingi Matahari sejak ditemukan",
+  "Setahun di Pluto: 248 tahun Bumi, belum genap sejak 1930",
+  "Intip orbit Pluto: kapan putaran pertamanya selesai?"
+ ],
+ "duration": 60,
+ "theme": "mint",
+ "stage": "island",
+ "captions": true,
+ "music": { "track": "bed-glow" },
+ "beats": [
+  { "id": "hook", "kind": "hook", "dur": 3, "narration": "Pluto belum sekali pun mengelilingi Matahari sejak ditemukan.", "text": "Belum satu putaran pun", "kicker": "ORBIT PLUTO", "headline": "Belum satu putaran pun", "scene": { "bg": "brand", "items": [] }, "sfx": "none" },
+  { "id": "sting", "kind": "sting", "dur": 1, "narration": "Intip yuk!", "text": "Intip yuk!", "scene": { "bg": "brand", "items": [ { "type": "mascot", "x": 540, "y": 720, "w": 220, "expr": "curious", "pop": true }, { "type": "pill", "text": "Intip yuk!", "x": 540, "y": 1489, "fs": 56 } ] }, "sfx": "pop" },
+  { "id": "temu", "kind": "normal", "dur": 8, "narration": "Pluto ditemukan Clyde Tombaugh pada delapan belas Februari seribu sembilan ratus tiga puluh, di Observatorium Lowell.", "text": "Ditemukan tahun 1930", "kicker": "TITIK AWAL", "headline": "Ditemukan tahun 1930", "scene": { "bg": "brand", "items": [] }, "sfx": "none" },
+  { "id": "tahun", "kind": "normal", "dur": 9, "narration": "Satu putaran penuh mengelilingi Matahari butuh sekitar dua ratus empat puluh delapan tahun Bumi. Itulah satu tahun di Pluto.", "text": "Satu tahun: 248 tahun Bumi", "kicker": "SATU PUTARAN", "headline": "Satu tahun: 248 tahun Bumi", "scene": { "bg": "brand", "items": [] }, "sfx": "none" },
+  { "id": "jalan", "kind": "normal", "dur": 9, "narration": "Sejak 1930, baru lewat sekitar sembilan puluh enam tahun. Itu belum separuh dari waktu satu putaran.", "text": "Baru 96 tahun berjalan", "kicker": "SEJAK 1930", "headline": "Baru 96 tahun berjalan", "scene": { "bg": "brand", "items": [] }, "sfx": "none" },
+  { "id": "hasil", "kind": "result", "dur": 8, "narration": "Pluto baru akan kembali ke titik penemuannya pada tahun dua ribu seratus tujuh puluh delapan.", "text": "Kembali ke titik awal: 2178", "kicker": "PUTARAN PERTAMA", "headline": "Kembali ke titik awal: 2178", "scene": { "bg": "brand", "items": [] }, "sfx": "none" },
+  { "id": "neptunus", "kind": "normal", "dur": 8, "narration": "Orbitnya lonjong, dan sesekali masuk ke dalam orbit Neptunus. Tapi mereka terkunci dalam irama yang menjaga jarak keduanya.", "text": "Lonjong, tapi aman", "kicker": "ORBIT LONJONG", "headline": "Lonjong, tapi aman", "scene": { "bg": "brand", "items": [] }, "sfx": "none" },
+  { "id": "tips", "kind": "tips", "dur": 10, "narration": "Jadi ingat dua hal. Satu tahun Pluto sekitar dua ratus empat puluh delapan tahun Bumi. Dan putaran pertamanya sejak ditemukan baru selesai tahun dua ribu seratus tujuh puluh delapan.", "text": "FAKTA: belum genap setahun", "kicker": "FAKTA", "headline": "FAKTA: belum genap setahun", "scene": { "bg": "brand", "items": [] }, "sfx": "none" },
+  { "id": "outro", "kind": "outro", "dur": 4, "narration": "", "text": "", "scene": { "bg": "brand", "items": [] }, "sfx": "none" }
+ ],
+ "claims": [
+  { "text": "Pluto ditemukan Clyde Tombaugh di Observatorium Lowell pada 18 Februari 1930.", "beats": ["temu"], "sources": ["https://en.wikipedia.org/wiki/Pluto", "https://www.livescience.com/33390-pluto-first-complete-orbit.html"] },
+  { "text": "Satu tahun Pluto setara sekitar 247,94 tahun Bumi (periode sideris).", "beats": ["tahun", "tips"], "sources": ["https://en.wikipedia.org/wiki/Pluto", "https://www.livescience.com/33390-pluto-first-complete-orbit.html"] },
+  { "text": "Pluto belum menyelesaikan satu orbit sejak penemuannya; putaran pertama itu baru selesai pada tahun 2178, sehingga sampai 2026 baru sekitar 96 tahun (kurang dari separuh periode) yang berlalu.", "beats": ["jalan", "hasil", "tips", "hook"], "sources": ["https://en.wikipedia.org/wiki/Pluto", "https://www.livescience.com/33390-pluto-first-complete-orbit.html"] },
+  { "text": "Orbit Pluto yang lonjong kadang membawanya lebih dekat ke Matahari daripada Neptunus, tetapi resonansi 3:2 dengan Neptunus mencegah tabrakan.", "beats": ["neptunus"], "sources": ["https://en.wikipedia.org/wiki/Pluto", "https://www.livescience.com/33390-pluto-first-complete-orbit.html"] }
+ ],
+ "post": {
+  "description": "Pluto belum sekali pun menyelesaikan satu putaran mengelilingi Matahari sejak ditemukan tahun 1930. Satu tahunnya sekitar 248 tahun Bumi, dan putaran pertama baru selesai tahun 2178.",
+  "hashtags": ["#pluto", "#faktaseru", "#luarangkasa", "#intipyuk"]
+ },
+ "needs": []
+}

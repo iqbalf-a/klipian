@@ -1,0 +1,281 @@
+{
+  "bible": 1,
+  "question": "Kenapa jarum kompas selalu menunjuk utara?",
+  "titles": [
+    "Kenapa jarum kompas selalu menunjuk utara?",
+    "Jarum kompas: magnet kecil di medan Bumi",
+    "Rahasia jarum kompas dan magnet raksasa Bumi"
+  ],
+  "duration": 60,
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 3,
+      "narration": "Kenapa jarum kompas selalu menunjuk utara?",
+      "text": "Kompas: kenapa utara?",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Kompas: kenapa utara?",
+            "fs": 72
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "sting",
+      "kind": "sting",
+      "dur": 1,
+      "narration": "Intip yuk!",
+      "text": "Intip yuk!",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "mascot",
+            "x": 540,
+            "y": 720,
+            "enter": {
+              "kind": "pop",
+              "delay": 0
+            },
+            "w": 220,
+            "expr": "curious",
+            "pop": true
+          },
+          {
+            "type": "pill",
+            "text": "Intip yuk!",
+            "x": 540,
+            "y": 1489,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.2
+            },
+            "fs": 56
+          }
+        ]
+      },
+      "sfx": "pop"
+    },
+    {
+      "id": "jarum",
+      "kind": "normal",
+      "dur": 6,
+      "narration": "Jarum kompas itu magnet kecil. Dia dipasang di poros, jadi bebas berputar ke arah mana saja.",
+      "text": "Jarum itu magnet kecil",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Jarum itu magnet kecil",
+            "fs": 64
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "bumi",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Bumi sendiri seperti magnet raksasa. Medannya dibuat oleh besi dan nikel cair yang mengalir di inti luar Bumi.",
+      "text": "Bumi: magnet raksasa",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Bumi: magnet raksasa",
+            "fs": 64
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "garis",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Medan itu membentang seperti garis-garis lengkung dari kutub ke kutub. Jarum yang bebas berputar akan ikut sejajar dengan garis itu.",
+      "text": "Jarum sejajar garis medan",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Jarum sejajar garis medan",
+            "fs": 64
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "kutub",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Ujung utara jarum tertarik ke kutub magnet di utara. Kutub itu sebenarnya kutub selatan magnet Bumi, karena kutub berbeda saling tarik.",
+      "text": "Beda kutub saling tarik",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Beda kutub saling tarik",
+            "fs": 64
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "hasil",
+      "kind": "result",
+      "dur": 7,
+      "narration": "Jadi jarum tidak sedang mencari utara. Dia cuma mengikuti medan Bumi, dan arah medan itu kira-kira menuju utara.",
+      "text": "Ikut medan, bukan utara",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Ikut medan, bukan utara",
+            "fs": 64
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "fakta",
+      "kind": "normal",
+      "dur": 6,
+      "narration": "Tapi utara magnet tidak persis sama dengan utara sejati. Selisihnya beda di tiap tempat dan berubah seiring waktu.",
+      "text": "Utara magnet bukan utara sejati",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Utara magnet bukan utara sejati",
+            "fs": 64
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "tips",
+      "kind": "tips",
+      "dur": 9,
+      "narration": "Jauhkan kompas dari magnet dan besi besar, supaya jarumnya tidak melenceng. Dan dekat kutub Bumi, jarumnya malah miring dan bingung.",
+      "text": "Jauhkan dari magnet",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Jauhkan dari magnet",
+            "fs": 64
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "dur": 4,
+      "narration": "",
+      "text": "",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    }
+  ],
+  "claims": [
+    {
+      "text": "Kompas magnetik punya jarum bermagnet yang berputar bebas dan menyejajarkan diri dengan komponen horizontal medan magnet Bumi.",
+      "beats": [
+        "jarum",
+        "garis"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Compass"
+      ]
+    },
+    {
+      "text": "Medan magnet Bumi dibangkitkan oleh arus listrik dari aliran konveksi campuran besi dan nikel cair di inti luar Bumi.",
+      "beats": [
+        "bumi"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Earth%27s_magnetic_field"
+      ]
+    },
+    {
+      "text": "Medan magnet Bumi dapat didekati sebagai magnet batang raksasa yang miring sekitar 11 derajat dari sumbu putar Bumi.",
+      "beats": [
+        "bumi",
+        "garis"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Earth%27s_magnetic_field"
+      ]
+    },
+    {
+      "text": "Medan magnet menarik ujung utara jarum kira-kira ke kutub magnet utara Bumi, dan kutub geomagnetik utara sebenarnya adalah kutub selatan magnet Bumi.",
+      "beats": [
+        "kutub",
+        "hasil"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Compass",
+        "https://en.wikipedia.org/wiki/Earth%27s_magnetic_field"
+      ]
+    },
+    {
+      "text": "Deklinasi adalah sudut antara utara magnet dan utara sejati; nilainya berbeda dari tempat ke tempat dan berubah menurut waktu.",
+      "beats": [
+        "fakta"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Magnetic_declination"
+      ]
+    },
+    {
+      "text": "Kompas dipengaruhi medan lain selain medan Bumi, dan dekat kutub jarumnya mulai miring serta bisa tidak menunjukkan arah.",
+      "beats": [
+        "tips"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Compass"
+      ]
+    }
+  ],
+  "post": {
+    "description": "Jarum kompas tidak mencari utara. Dia magnet kecil yang ikut garis medan magnet Bumi. Intip kenapa kutub magnet di utara sebenarnya kutub selatan.",
+    "hashtags": [
+      "#kompas",
+      "#magnet",
+      "#sains",
+      "#intipyuk",
+      "#shorts"
+    ]
+  },
+  "needs": [],
+  "stage": "steps",
+  "theme": "peach",
+  "captions": true,
+  "music": {
+    "track": "bed-curious"
+  }
+}

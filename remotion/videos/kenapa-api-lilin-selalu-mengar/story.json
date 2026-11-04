@@ -1,0 +1,284 @@
+{
+  "bible": 1,
+  "question": "Kenapa api lilin selalu mengarah ke atas?",
+  "titles": [
+    "Kenapa api lilin selalu mengarah ke atas?",
+    "Api lilin selalu ke atas: ini peran udara panas",
+    "Intip api lilin: kenapa bentuknya meruncing ke atas"
+  ],
+  "duration": 60,
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 3,
+      "narration": "Kenapa api lilin selalu mengarah ke atas?",
+      "text": "Api kok selalu ke atas?",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Api kok selalu ke atas?",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "sting",
+      "kind": "sting",
+      "dur": 1,
+      "narration": "Intip yuk!",
+      "text": "Intip yuk!",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "mascot",
+            "x": 540,
+            "y": 720,
+            "enter": {
+              "kind": "pop",
+              "delay": 0
+            },
+            "w": 220,
+            "expr": "curious"
+          },
+          {
+            "type": "pill",
+            "text": "Intip yuk!",
+            "x": 540,
+            "y": 1489,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.2
+            },
+            "fs": 56
+          }
+        ]
+      },
+      "sfx": "pop"
+    },
+    {
+      "id": "sumbu",
+      "kind": "normal",
+      "dur": 7,
+      "narration": "Panas api melelehkan lilin. Lelehannya naik lewat sumbu, menguap, lalu uap itulah yang terbakar.",
+      "text": "Lilin cair naik lewat sumbu",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Lilin cair naik lewat sumbu",
+            "fs": 60
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "panas",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Pembakaran itu menghasilkan gas yang sangat panas. Gas panas mengembang, jadi lebih ringan dari udara di sekitarnya.",
+      "text": "Gas panas lebih ringan",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Gas panas lebih ringan",
+            "fs": 62
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "naik",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Gravitasi menarik udara dingin yang lebih berat ke bawah, sehingga gas panas terdorong naik. Inilah konveksi.",
+      "text": "Udara panas naik",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Udara panas naik",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "oksigen",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Udara segar penuh oksigen terus masuk dari bawah dan samping, menggantikan gas yang naik. Api pun ditarik memanjang ke atas.",
+      "text": "Oksigen masuk dari bawah",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Oksigen masuk dari bawah",
+            "fs": 60
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "kuning",
+      "kind": "result",
+      "dur": 7,
+      "narration": "Aliran naik itu membawa jelaga panas ke atas. Jelaga yang berpijar bikin api kuning dan meruncing.",
+      "text": "Jelaga berpijar, api meruncing",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Jelaga berpijar, api meruncing",
+            "fs": 58
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "angkasa",
+      "kind": "normal",
+      "dur": 7,
+      "narration": "Di stasiun luar angkasa tidak ada konveksi. Api lilin jadi bulat dan kebiruan!",
+      "text": "Tanpa gravitasi, api bulat",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Tanpa gravitasi, api bulat",
+            "fs": 60
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "tips",
+      "kind": "tips",
+      "dur": 7,
+      "narration": "Ingat rumusnya: udara panas naik, udara dingin turun. Gravitasi yang bikin api lilin selalu menunjuk ke atas.",
+      "text": "Panas naik, dingin turun",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Panas naik, dingin turun",
+            "fs": 60
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "dur": 4,
+      "narration": "",
+      "text": "",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    }
+  ],
+  "claims": [
+    {
+      "text": "Panas api melelehkan lilin; lilin cair naik lewat sumbu dengan aksi kapiler, menguap, lalu uapnya terbakar dengan oksigen.",
+      "beats": [
+        "sumbu"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Candle",
+        "https://en.wikipedia.org/wiki/Candle_wick"
+      ]
+    },
+    {
+      "text": "Gas yang dipanaskan mengembang dan menjadi kurang rapat, sehingga lebih ringan dari udara dingin di sekitarnya dan naik.",
+      "beats": [
+        "panas",
+        "naik",
+        "tips"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Convection"
+      ]
+    },
+    {
+      "text": "Penggerak konveksi alami adalah gravitasi: udara dingin yang lebih rapat turun dan udara hangat naik; tanpa gravitasi tidak ada konveksi.",
+      "beats": [
+        "naik",
+        "angkasa",
+        "tips"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Convection"
+      ]
+    },
+    {
+      "text": "Pada api, gas buang yang naik digantikan udara segar yang kaya oksigen.",
+      "beats": [
+        "oksigen"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Convection"
+      ]
+    },
+    {
+      "text": "Warna kuning api lilin berasal dari partikel jelaga panas yang berpijar; dalam gravitasi normal konveksi membawa jelaga naik ke puncak api.",
+      "beats": [
+        "kuning"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Candle",
+        "https://en.wikipedia.org/wiki/Flame"
+      ]
+    },
+    {
+      "text": "Dalam gayaberat mikro konveksi alami tidak terjadi, sehingga api menjadi bulat dan cenderung lebih biru.",
+      "beats": [
+        "angkasa"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Flame"
+      ]
+    }
+  ],
+  "post": {
+    "description": "Kenapa api lilin selalu mengarah ke atas? Intip peran udara panas, gravitasi, dan oksigen yang membentuk api lilin. Di luar angkasa, api lilin malah jadi bulat!",
+    "hashtags": [
+      "#apililin",
+      "#konveksi",
+      "#faktaseru",
+      "#sains",
+      "#intipyuk",
+      "#shorts"
+    ]
+  },
+  "needs": [],
+  "stage": "round",
+  "theme": "cream",
+  "captions": true,
+  "music": {
+    "track": "bed-glow",
+    "level": 0.8
+  }
+}

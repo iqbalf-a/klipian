@@ -1,0 +1,216 @@
+{
+ "bible": 1,
+ "question": "Kenapa jari keriput kalau lama di air?",
+ "titles": [
+  "Kenapa jari keriput kalau lama di air?",
+  "Jari keriput di air: bukan cuma bengkak",
+  "Jari kerut di air: ternyata kerjaan saraf"
+ ],
+ "duration": 60,
+ "beats": [
+  {
+   "id": "hook",
+   "kind": "hook",
+   "dur": 3,
+   "narration": "Kenapa jari jadi keriput kalau kelamaan di air?",
+   "text": "Jari keriput, kenapa?",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "sting",
+   "kind": "sting",
+   "dur": 1,
+   "narration": "Intip yuk!",
+   "text": "Intip yuk!",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "mascot",
+      "x": 540,
+      "y": 720,
+      "w": 220,
+      "expr": "curious",
+      "pop": true,
+      "enter": {
+       "kind": "pop",
+       "delay": 0
+      }
+     },
+     {
+      "type": "pill",
+      "text": "Intip yuk!",
+      "x": 540,
+      "y": 1489,
+      "fs": 56,
+      "enter": {
+       "kind": "pop",
+       "delay": 0.2
+      }
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "dulu",
+   "kind": "normal",
+   "dur": 7,
+   "narration": "Dulu orang mengira kulit jari menyerap air, lalu mengembang dan terpaksa berkerut.",
+   "text": "Dulu: kulit menyerap air",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "saraf",
+   "kind": "normal",
+   "dur": 9,
+   "narration": "Tapi tahun seribu sembilan ratus tiga puluh lima, peneliti melihat pasien dengan saraf tangan rusak. Jarinya tidak keriput. Jadi saraf ikut berperan.",
+   "text": "Ternyata saraf ikut main",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "darah",
+   "kind": "normal",
+   "dur": 9,
+   "narration": "Penelitian yang lebih baru mengaitkan keriput dengan pembuluh darah yang menyempit. Cairan di bawah kulit berkurang, kulit jadi kendur, lalu berkerut.",
+   "text": "Pembuluh menyempit, kulit kerut",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "guna",
+   "kind": "result",
+   "dur": 9,
+   "narration": "Mungkin keriput ini ada gunanya, seperti alur ban. Satu studi tahun dua ribu dua puluh satu menemukan, gaya genggam pada benda basah turun sekitar dua puluh persen.",
+   "text": "Alur ban untuk jari",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "ujung",
+   "kind": "normal",
+   "dur": 8,
+   "narration": "Ujung jari dan jari kaki biasanya paling dulu keriput. Kulitnya punya lapisan keratin yang tebal, dan tidak ada rambut yang mengeluarkan minyak pelindung.",
+   "text": "Ujung jari paling duluan",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "debat",
+   "kind": "result",
+   "dur": 10,
+   "narration": "Tapi para ilmuwan belum sepakat. Studi tahun dua ribu empat belas tidak menemukan genggaman yang lebih baik. Jadi gunanya masih diperdebatkan.",
+   "text": "Gunanya masih diperdebatkan",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "outro",
+   "kind": "outro",
+   "dur": 4,
+   "narration": "",
+   "text": "",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  }
+ ],
+ "claims": [
+  {
+   "text": "Sebelum studi tahun 1935, penjelasan umumnya adalah kulit menyerap air, mengembang, lalu berkerut.",
+   "beats": [
+    "dulu"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Wrinkle"
+   ]
+  },
+  {
+   "text": "Pada studi 1935, kulit yang dipersarafi saraf median yang lumpuh tidak berkerut di air, sehingga saraf berperan penting.",
+   "beats": [
+    "saraf"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Wrinkle"
+   ]
+  },
+  {
+   "text": "Penelitian terbaru mengaitkan keriput di air dengan penyempitan pembuluh darah (vasokonstriksi), yang mengurangi cairan di bawah kulit dan menurunkan tegangan kulit.",
+   "beats": [
+    "darah"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Wrinkle"
+   ]
+  },
+  {
+   "text": "Studi 2021 menemukan keriput menurunkan gaya yang dibutuhkan untuk menggenggam benda basah sebesar 20%, mendukung hipotesis traksi.",
+   "beats": [
+    "guna"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Wrinkle"
+   ]
+  },
+  {
+   "text": "Ujung jari tangan dan kaki biasanya keriput lebih dulu karena lapisan keratin lebih tebal dan tidak ada rambut yang mengeluarkan sebum.",
+   "beats": [
+    "ujung"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Wrinkle"
+   ]
+  },
+  {
+   "text": "Studi 2014 gagal mereproduksi peningkatan penanganan benda basah dengan ujung jari keriput, sehingga manfaatnya masih diperdebatkan.",
+   "beats": [
+    "debat"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Wrinkle"
+   ]
+  }
+ ],
+ "post": {
+  "description": "Kenapa jari keriput kalau lama di air? Dulu dikira kulit bengkak menyerap air, ternyata saraf dan pembuluh darah ikut bekerja. Gunanya masih diperdebatkan.",
+  "hashtags": [
+   "#jarikeriput",
+   "#faktaseru",
+   "#tubuhmanusia",
+   "#intipyuk"
+  ]
+ },
+ "needs": [],
+ "theme": "peach",
+ "stage": "island",
+ "captions": true,
+ "music": {
+  "track": "bed-curious"
+ }
+}

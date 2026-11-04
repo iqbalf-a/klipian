@@ -1,0 +1,244 @@
+{
+  "bible": 1,
+  "question": "Apa petir memang lebih panas dari permukaan matahari?",
+  "titles": [
+    "Petir lebih panas dari permukaan matahari?",
+    "Kok bisa petir lima kali lebih panas dari matahari?",
+    "Intip petir: sepanas apa sih udaranya?"
+  ],
+  "duration": 60,
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 3,
+      "narration": "Petir lebih panas dari permukaan matahari. Benarkah?",
+      "text": "Petir vs matahari?",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Petir vs matahari?",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "sting",
+      "kind": "sting",
+      "dur": 1,
+      "narration": "Intip yuk!",
+      "text": "Intip yuk!",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "mascot",
+            "x": 540,
+            "y": 720,
+            "enter": {
+              "kind": "pop",
+              "delay": 0
+            },
+            "w": 220,
+            "expr": "curious",
+            "pop": true
+          },
+          {
+            "type": "pill",
+            "text": "Intip yuk!",
+            "x": 540,
+            "y": 1489,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.2
+            },
+            "fs": 56
+          }
+        ]
+      },
+      "sfx": "pop"
+    },
+    {
+      "id": "arus",
+      "kind": "normal",
+      "dur": 9,
+      "narration": "Saat petir menyambar, arus listrik raksasa melesat lewat udara, dan udara di jalurnya langsung berpijar biru-putih.",
+      "text": "Arus melesat lewat udara",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Arus melesat lewat udara",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "panas",
+      "kind": "normal",
+      "dur": 9,
+      "narration": "Dalam sekejap, udara di jalur itu terpanggang sampai sekitar tiga puluh ribu derajat Celsius.",
+      "text": "Sekitar 30.000 °C",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Sekitar 30.000 °C",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "matahari",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Sekarang bandingkan dengan permukaan matahari, yang suhunya sekitar lima ribu lima ratus derajat Celsius.",
+      "text": "Matahari: sekitar 5.500 °C",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Matahari: sekitar 5.500 °C",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "banding",
+      "kind": "result",
+      "dur": 9,
+      "narration": "Jadi udara di jalur petir sekitar lima kali lebih panas dari permukaan matahari.",
+      "text": "Sekitar 5× lebih panas",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Sekitar 5× lebih panas",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "dentum",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Udara yang tiba-tiba panas itu memuai keras, dan ledakan udaranya kita dengar sebagai guntur.",
+      "text": "Udara memuai jadi guntur",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Udara memuai jadi guntur",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "singkat",
+      "kind": "tips",
+      "dur": 9,
+      "narration": "Tapi panas ekstrem itu cuma sekejap. Lepasan arusnya hanya beberapa puluh mikrodetik, lalu jalurnya mendingin.",
+      "text": "Panasnya cuma sekejap",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Panasnya cuma sekejap",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "dur": 4,
+      "narration": "",
+      "text": "",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    }
+  ],
+  "claims": [
+    {
+      "text": "Udara di sekitar kilat petir dengan cepat memanas hingga sekitar 30.000 °C, dan inti plasma pada sengatan balik bisa melebihi 27.800 °C dan memancarkan warna biru-putih terang.",
+      "beats": [
+        "arus",
+        "panas",
+        "banding"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Lightning"
+      ]
+    },
+    {
+      "text": "Di fotosfer, permukaan matahari, suhunya sekitar 5.700 K; suhu efektif matahari saat ini 5.772 K, sekitar 5.500 °C.",
+      "beats": [
+        "matahari",
+        "banding"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Sun"
+      ]
+    },
+    {
+      "text": "Molekul udara yang tiba-tiba memanas mengalami kenaikan tekanan dan memuai keluar, membentuk gelombang kejut yang terdengar sebagai guntur.",
+      "beats": [
+        "dentum"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Lightning"
+      ]
+    },
+    {
+      "text": "Pelepasan muatan terjadi dalam beberapa puluh mikrodetik, dan setelah arus berhenti, jalur petir mendingin dan menghilang dalam puluhan hingga ratusan milidetik.",
+      "beats": [
+        "singkat"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Lightning"
+      ]
+    }
+  ],
+  "post": {
+    "description": "Petir kira-kira lima kali lebih panas dari permukaan matahari, tapi cuma sekejap. Intip kenapa udara di jalur petir bisa sepanas itu dan dari mana gunturnya.",
+    "hashtags": [
+      "#petir",
+      "#fakta",
+      "#sains",
+      "#intipyuk",
+      "#shorts"
+    ]
+  },
+  "needs": [],
+  "stage": "steps",
+  "theme": "cream",
+  "captions": true,
+  "music": {
+    "track": "bed-neon"
+  }
+}

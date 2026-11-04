@@ -1,0 +1,242 @@
+{
+ "bible": 1,
+ "question": "Kenapa laut berwarna biru?",
+ "titles": [
+  "Kenapa laut berwarna biru?",
+  "Laut biru bukan karena langit? Ini penyebabnya",
+  "Intip cahaya di dalam air laut"
+ ],
+ "duration": 60,
+ "theme": "mint",
+ "stage": "slab",
+ "captions": true,
+ "music": {
+  "track": "bed-glow"
+ },
+ "beats": [
+  {
+   "id": "hook",
+   "kind": "hook",
+   "dur": 3,
+   "narration": "Kenapa laut berwarna biru?",
+   "text": "Laut kok biru?",
+   "kicker": "KENAPA YA?",
+   "headline": "Laut kok biru?",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "intip",
+   "kind": "sting",
+   "dur": 1,
+   "narration": "Intip yuk!",
+   "text": "Intip yuk!",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "mascot",
+      "x": 540,
+      "y": 720,
+      "w": 220,
+      "expr": "curious",
+      "pop": true,
+      "enter": {
+       "kind": "pop",
+       "delay": 0
+      }
+     },
+     {
+      "type": "pill",
+      "text": "Intip yuk!",
+      "x": 540,
+      "y": 1489,
+      "fs": 56,
+      "enter": {
+       "kind": "pop",
+       "delay": 0.2
+      }
+     }
+    ]
+   },
+   "sfx": "pop"
+  },
+  {
+   "id": "cahaya",
+   "kind": "normal",
+   "dur": 7,
+   "narration": "Cahaya matahari kelihatan putih, tapi isinya campuran banyak warna. Semuanya masuk ke dalam air.",
+   "text": "Cahaya putih, banyak warna",
+   "kicker": "CAHAYA MASUK",
+   "headline": "Campuran banyak warna",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "serap",
+   "kind": "normal",
+   "dur": 8,
+   "narration": "Air paling mudah menyerap warna merah. Makin dalam cahaya masuk, makin habis merahnya.",
+   "text": "Merah diserap duluan",
+   "kicker": "DISERAP",
+   "headline": "Merah habis duluan",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "sebar",
+   "kind": "normal",
+   "dur": 8,
+   "narration": "Sisa cahaya biru bertahan lebih dalam. Molekul air dan partikel kecil juga menghamburkan biru ke segala arah.",
+   "text": "Biru dihamburkan",
+   "kicker": "DIHAMBURKAN",
+   "headline": "Biru menyebar",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "hasil",
+   "kind": "result",
+   "dur": 8,
+   "narration": "Biru yang terpantul balik itulah yang sampai ke mata kita. Jadi laut tampak biru.",
+   "text": "Biru sampai ke mata",
+   "kicker": "JADI",
+   "headline": "Biru sampai ke mata",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "langit",
+   "kind": "result",
+   "dur": 7,
+   "narration": "Biru laut muncul dari serapan dan hamburan cahaya di dalam air, tidak cuma pantulan langit.",
+   "text": "Bukan cuma pantulan langit",
+   "kicker": "BUKAN SEKADAR",
+   "headline": "Bukan cuma pantulan",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "dalam",
+   "kind": "result",
+   "dur": 8,
+   "narration": "Merah biasanya sudah hilang sebelum 50 meter. Sementara biru bisa menembus sampai sekitar 200 meter.",
+   "text": "Merah 50 m, biru 200 m",
+   "kicker": "KEDALAMAN",
+   "headline": "Biru menembus lebih dalam",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "pantai",
+   "kind": "normal",
+   "dur": 6,
+   "narration": "Dekat pantai, lumpur dan partikel bisa mengubah warnanya jadi hijau atau warna lain.",
+   "text": "Dekat pantai bisa hijau",
+   "kicker": "DEKAT PANTAI",
+   "headline": "Bisa hijau, bisa cokelat",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "outro",
+   "kind": "outro",
+   "dur": 4,
+   "narration": "",
+   "text": "",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  }
+ ],
+ "claims": [
+  {
+   "text": "Laut berwarna biru karena air menyerap warna di bagian merah dari spektrum cahaya; seperti filter, ini menyisakan warna biru untuk kita lihat.",
+   "beats": [
+    "cahaya",
+    "serap",
+    "hasil"
+   ],
+   "sources": [
+    "https://oceanservice.noaa.gov/facts/oceanblue.html"
+   ]
+  },
+  {
+   "text": "Air lebih mudah menyerap cahaya merah, sehingga cahaya biru yang tersisa dipantulkan kembali keluar dari air.",
+   "beats": [
+    "serap",
+    "hasil"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Ocean_color"
+   ]
+  },
+  {
+   "text": "Molekul air dan partikel yang sangat kecil di laut menghamburkan cahaya biru lebih banyak daripada warna lain, bahkan di laut yang sangat jernih.",
+   "beats": [
+    "sebar",
+    "langit"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Ocean_color"
+   ]
+  },
+  {
+   "text": "Cahaya merah biasanya tidak menembus lebih dalam dari sekitar 50 meter, sedangkan cahaya biru bisa menembus sampai sekitar 200 meter.",
+   "beats": [
+    "dalam"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Ocean_color"
+   ]
+  },
+  {
+   "text": "Laut bisa tampak hijau, merah, atau warna lain ketika cahaya memantul dari sedimen dan partikel yang mengambang di air.",
+   "beats": [
+    "pantai"
+   ],
+   "sources": [
+    "https://oceanservice.noaa.gov/facts/oceanblue.html"
+   ]
+  }
+ ],
+ "post": {
+  "description": "Kenapa laut berwarna biru? Intip apa yang terjadi pada cahaya matahari di dalam air: merah diserap lebih dulu, biru bertahan dan dihamburkan kembali ke mata kita.",
+  "hashtags": [
+   "#laut",
+   "#faktaseru",
+   "#sains",
+   "#intipyuk",
+   "#shorts"
+  ]
+ },
+ "needs": [
+  "Tangki air kaca dan sinar lampu digambar dengan kit iso (blok) di set lab-bench; tidak ada di kamus."
+ ]
+}
