@@ -1,0 +1,1 @@
+A message that starts with `-create <topic>` means: make one klipian intip video for that topic by following `.claude/skills/create/SKILL.md` exactly (the topic is the rest of the message). Ask nothing.

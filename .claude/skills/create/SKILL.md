@@ -1,9 +1,9 @@
 ---
 name: create
-description: Make one klipian intip video from a topic in a cloud session, e.g. `/create gurita punya tiga jantung`. Builds the brief itself, follows its steps, and pushes only the video's files to the branch cloud/stok-video.
+description: Runs for a message starting with `-create`. Make one klipian intip video from a topic in a cloud session, e.g. `-create gurita punya tiga jantung`. Builds the brief itself, follows its steps, and pushes only the video's files to the branch cloud/stok-video.
 ---
 
-# /create <topic>
+# -create <topic>
 
 The topic is the argument. One video per run. Nothing is asked of the person.
 
@@ -36,7 +36,7 @@ Body and money topics are fine as explanations (why we hiccup, why banknotes do 
 
 ## 3. Build
 
-Follow the printed brief, steps 1 to 8, as written (`npm ci` in `remotion` first when `remotion/node_modules` is missing). If Chrome or the render cannot run, say so and continue without the stills. Its "no push" line is overridden by step 4 below, and its step 7 (paste the narration) and step 8 (the page steps) output is overridden by step 5: /create skips both; everything else stands (never write to `workspace/`, never claim a check you did not run).
+Follow the printed brief, steps 1 to 8, as written (`npm ci` in `remotion` first when `remotion/node_modules` is missing). If Chrome or the render cannot run, say so and continue without the stills. Its "no push" line is overridden by step 4 below, and its step 7 (paste the narration) and step 8 (the page steps) output is overridden by step 5: -create skips both; everything else stands (never write to `workspace/`, never claim a check you did not run).
 
 ## 4. Commit and push (cloud rules)
 
