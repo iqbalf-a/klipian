@@ -1,0 +1,460 @@
+{
+  "bible": 1,
+  "question": "Apa yang sebenarnya terjadi saat kamu cegukan?",
+  "titles": [
+    "Fakta seru tentang cegukan yang jarang diketahui",
+    "Cegukan: kenapa tubuhmu tiba-tiba 'hik'?",
+    "Intip fakta seru tentang cegukan"
+  ],
+  "duration": 45,
+  "theme": "peach",
+  "stage": "slab",
+  "music": { "track": "bed-sunny" },
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 3,
+      "narration": "Cegukan itu sepele, tapi ternyata punya fakta sains yang bikin melongo!",
+      "text": "Cegukan: fakta sains melongo!",
+      "scene": {
+        "bg": "brand",
+        "spot": { "x": 540, "y": 900, "r": 460 },
+        "items": [
+          {
+            "type": "banner",
+            "text": "Cegukan: fakta sains melongo!",
+            "fs": 72,
+            "highlight": ["melongo!"]
+          },
+          {
+            "type": "label",
+            "text": "hik!",
+            "x": 540,
+            "y": 880,
+            "fs": 160,
+            "enter": { "kind": "pop", "delay": 0.3 }
+          },
+          {
+            "type": "badge",
+            "text": "?",
+            "x": 820,
+            "y": 640,
+            "r": 70,
+            "color": "yellow",
+            "enter": { "kind": "pop", "delay": 0.8 }
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "sting",
+      "kind": "sting",
+      "dur": 1,
+      "narration": "Intip yuk!",
+      "text": "Intip yuk!",
+      "scene": {
+        "bg": "brand",
+        "spot": { "x": 540, "y": 900, "r": 460 },
+        "items": [
+          {
+            "type": "label",
+            "text": "hik!",
+            "x": 540,
+            "y": 880,
+            "fs": 160,
+            "enter": { "kind": "none" }
+          },
+          {
+            "type": "mascot",
+            "x": 540,
+            "y": 1420,
+            "w": 220,
+            "expr": "curious",
+            "pop": true,
+            "enter": { "kind": "pop", "delay": 0.05, "dur": 0.5 }
+          },
+          {
+            "type": "pill",
+            "text": "Intip yuk!",
+            "x": 540,
+            "y": 1545,
+            "fs": 72,
+            "enter": { "kind": "pop", "delay": 0.3 }
+          }
+        ]
+      },
+      "sfx": "pop",
+      "transition": { "kind": "wipe", "dur": 0.4, "dir": "left" }
+    },
+    {
+      "id": "diafragma",
+      "kind": "normal",
+      "dur": 6,
+      "narration": "Cegukan terjadi saat otot diafragma tiba-tiba berkontraksi. Diafragma adalah otot besar di bawah paru-parumu.",
+      "text": "Diafragma tiba-tiba berkontraksi",
+      "scene": {
+        "bg": "brand",
+        "spot": { "x": 540, "y": 940, "r": 460 },
+        "items": [
+          {
+            "type": "banner",
+            "text": "Diafragma tiba-tiba berkontraksi",
+            "fs": 64,
+            "highlight": ["berkontraksi"]
+          },
+          {
+            "type": "badge",
+            "text": "1",
+            "x": 110,
+            "y": 460,
+            "r": 54,
+            "enter": { "kind": "pop", "delay": 0.4 }
+          },
+          {
+            "type": "label",
+            "text": "paru-paru",
+            "x": 540,
+            "y": 660,
+            "fs": 62,
+            "enter": { "kind": "fade-up", "delay": 0.6 },
+            "highlight": ["paru-paru"]
+          },
+          {
+            "type": "arrow",
+            "x": 540,
+            "y": 730,
+            "x2": 540,
+            "y2": 840,
+            "color": "black",
+            "w": 12,
+            "enter": { "kind": "draw", "delay": 1.1, "dur": 0.5 }
+          },
+          {
+            "type": "label",
+            "text": "diafragma",
+            "x": 540,
+            "y": 940,
+            "fs": 80,
+            "enter": { "kind": "pop", "delay": 1.5 },
+            "highlight": ["diafragma"]
+          },
+          {
+            "type": "label",
+            "text": "kontraksi mendadak",
+            "x": 540,
+            "y": 1140,
+            "fs": 58,
+            "enter": { "kind": "fade-up", "delay": 2.8 }
+          }
+        ]
+      },
+      "sfx": "none",
+      "camera": { "kind": "push", "zoom": 1.05, "dur": 5 }
+    },
+    {
+      "id": "bunyi",
+      "kind": "normal",
+      "dur": 7,
+      "narration": "Udara terhisap cepat, lalu katup suara menutup tiba-tiba. Benturan itulah yang menciptakan bunyi hik!",
+      "text": "Katup suara menutup: bunyi hik!",
+      "scene": {
+        "bg": "brand",
+        "spot": { "x": 540, "y": 900, "r": 460 },
+        "items": [
+          {
+            "type": "banner",
+            "text": "Katup suara menutup: bunyi hik!",
+            "fs": 64,
+            "highlight": ["hik!"]
+          },
+          {
+            "type": "badge",
+            "text": "2",
+            "x": 110,
+            "y": 460,
+            "r": 54,
+            "enter": { "kind": "pop", "delay": 0.4 }
+          },
+          {
+            "type": "label",
+            "text": "udara masuk cepat",
+            "x": 540,
+            "y": 680,
+            "fs": 58,
+            "enter": { "kind": "fade-up", "delay": 0.7 }
+          },
+          {
+            "type": "arrow",
+            "x": 540,
+            "y": 760,
+            "x2": 540,
+            "y2": 900,
+            "color": "black",
+            "w": 12,
+            "enter": { "kind": "draw", "delay": 1.3, "dur": 0.5 }
+          },
+          {
+            "type": "label",
+            "text": "katup suara menutup",
+            "x": 540,
+            "y": 1000,
+            "fs": 60,
+            "enter": { "kind": "fade-up", "delay": 1.8 },
+            "highlight": ["katup"]
+          },
+          {
+            "type": "label",
+            "text": "hik!",
+            "x": 540,
+            "y": 1240,
+            "fs": 130,
+            "enter": { "kind": "pop", "delay": 3.2 },
+            "highlight": ["hik!"]
+          }
+        ]
+      },
+      "sfx": "pop",
+      "camera": { "kind": "pan", "dx": 30, "dy": 0, "zoom": 1.04, "dur": 2.5 }
+    },
+    {
+      "id": "janin",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Yang mengejutkan, janin sudah bisa cegukan sejak usia sembilan minggu dalam kandungan. Ini cara latihan diafragma sebelum lahir.",
+      "text": "Janin cegukan sejak 9 minggu",
+      "scene": {
+        "bg": "brand",
+        "spot": { "x": 540, "y": 900, "r": 460 },
+        "items": [
+          {
+            "type": "banner",
+            "text": "Janin cegukan sejak 9 minggu",
+            "fs": 66,
+            "highlight": ["9 minggu"]
+          },
+          {
+            "type": "badge",
+            "text": "3",
+            "x": 110,
+            "y": 460,
+            "r": 54,
+            "enter": { "kind": "pop", "delay": 0.4 }
+          },
+          {
+            "type": "label",
+            "text": "dalam kandungan",
+            "x": 540,
+            "y": 680,
+            "fs": 64,
+            "enter": { "kind": "fade-up", "delay": 0.7 }
+          },
+          {
+            "type": "label",
+            "text": "9 minggu",
+            "x": 540,
+            "y": 900,
+            "fs": 140,
+            "enter": { "kind": "pop", "delay": 1.2 },
+            "highlight": ["9 minggu"]
+          },
+          {
+            "type": "arrow",
+            "x": 540,
+            "y": 1020,
+            "x2": 540,
+            "y2": 1130,
+            "color": "black",
+            "w": 12,
+            "enter": { "kind": "draw", "delay": 2.6, "dur": 0.5 }
+          },
+          {
+            "type": "label",
+            "text": "latihan diafragma",
+            "x": 540,
+            "y": 1230,
+            "fs": 62,
+            "enter": { "kind": "fade-up", "delay": 3.5 },
+            "highlight": ["latihan"]
+          },
+          {
+            "type": "source",
+            "x": 80,
+            "y": 1390,
+            "claim": 2,
+            "org": "National Institutes of Health",
+            "date": "2023",
+            "w": 860
+          }
+        ]
+      },
+      "sfx": "none",
+      "camera": { "kind": "push", "zoom": 1.06, "dur": 7 },
+      "transition": { "kind": "wipe", "dur": 0.5, "dir": "up" }
+    },
+    {
+      "id": "rekor",
+      "kind": "result",
+      "dur": 7,
+      "narration": "Rekor terlama cegukan dipegang Charles Osborne dari Amerika: ia cegukan nonstop selama 68 tahun dari 1922 sampai 1990!",
+      "text": "Rekor cegukan: 68 tahun nonstop!",
+      "scene": {
+        "bg": "brand",
+        "spot": { "x": 540, "y": 860, "r": 460 },
+        "items": [
+          {
+            "type": "banner",
+            "text": "Rekor cegukan: 68 tahun nonstop!",
+            "fs": 62,
+            "highlight": ["68 tahun"]
+          },
+          {
+            "type": "label",
+            "text": "68 tahun",
+            "x": 540,
+            "y": 780,
+            "fs": 140,
+            "enter": { "kind": "pop", "delay": 0.5 },
+            "highlight": ["68 tahun"]
+          },
+          {
+            "type": "label",
+            "text": "1922 – 1990",
+            "x": 540,
+            "y": 1010,
+            "fs": 66,
+            "enter": { "kind": "fade-up", "delay": 1.6 }
+          },
+          {
+            "type": "label",
+            "text": "Charles Osborne, AS",
+            "x": 540,
+            "y": 1180,
+            "fs": 54,
+            "enter": { "kind": "fade-up", "delay": 2.8 }
+          }
+        ]
+      },
+      "sfx": "chime",
+      "camera": { "kind": "push", "zoom": 1.04, "dur": 6 }
+    },
+    {
+      "id": "tips",
+      "kind": "tips",
+      "dur": 9,
+      "narration": "Dua cara menghentikan cegukan. Satu, tahan napas beberapa detik untuk menaikkan kadar karbon dioksida. Dua, minum air perlahan-lahan.",
+      "text": "2 cara hentikan cegukan",
+      "scene": {
+        "bg": "brand",
+        "spot": { "x": 540, "y": 920, "r": 460 },
+        "items": [
+          {
+            "type": "banner",
+            "text": "2 cara hentikan cegukan",
+            "fs": 70,
+            "highlight": ["cara"]
+          },
+          {
+            "type": "badge",
+            "text": "1",
+            "x": 110,
+            "y": 520,
+            "r": 54,
+            "enter": { "kind": "pop", "delay": 0.6 }
+          },
+          {
+            "type": "label",
+            "text": "tahan napas sejenak",
+            "x": 200,
+            "y": 520,
+            "fs": 58,
+            "align": "start",
+            "lines": ["naikkan CO2"],
+            "enter": { "kind": "fade-up", "delay": 0.9 },
+            "highlight": ["tahan"]
+          },
+          {
+            "type": "badge",
+            "text": "2",
+            "x": 110,
+            "y": 1340,
+            "r": 54,
+            "enter": { "kind": "pop", "delay": 4.2 }
+          },
+          {
+            "type": "label",
+            "text": "minum air perlahan",
+            "x": 200,
+            "y": 1340,
+            "fs": 58,
+            "align": "start",
+            "enter": { "kind": "fade-up", "delay": 4.5 },
+            "highlight": ["minum"]
+          }
+        ]
+      },
+      "sfx": "chime",
+      "transition": { "kind": "slide", "dur": 0.5, "dir": "right" }
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "dur": 4,
+      "narration": "",
+      "text": "Cegukan: fakta sains melongo!",
+      "scene": {
+        "bg": "brand",
+        "spot": { "x": 540, "y": 900, "r": 460 },
+        "items": [
+          {
+            "type": "banner",
+            "text": "Cegukan: fakta sains melongo!",
+            "fs": 72,
+            "highlight": ["melongo!"]
+          },
+          {
+            "type": "banner",
+            "text": "hik!",
+            "fs": 160,
+            "y": 880,
+            "enter": { "kind": "none" }
+          },
+          {
+            "type": "badge",
+            "text": "?",
+            "x": 820,
+            "y": 640,
+            "r": 70,
+            "color": "yellow",
+            "enter": { "kind": "none" }
+          }
+        ]
+      },
+      "sfx": "none"
+    }
+  ],
+  "claims": [
+    {
+      "text": "Cegukan adalah kontraksi tiba-tiba dan tidak disengaja dari otot diafragma, diikuti oleh penutupan mendadak pita suara yang menghasilkan bunyi khas.",
+      "beats": ["diafragma", "bunyi"],
+      "sources": ["https://en.wikipedia.org/wiki/Hiccup"]
+    },
+    {
+      "text": "Janin manusia dapat mengalami cegukan mulai dari usia 9 minggu dalam kandungan; cegukan ini diyakini sebagai latihan otot pernapasan sebelum lahir.",
+      "beats": ["janin"],
+      "sources": ["https://pubmed.ncbi.nlm.nih.gov/7673562/"]
+    },
+    {
+      "text": "Charles Osborne dari Amerika Serikat memegang rekor dunia cegukan terlama: ia cegukan selama 68 tahun tanpa henti, dari 1922 hingga 1990.",
+      "beats": ["rekor"],
+      "sources": ["https://www.guinnessworldrecords.com/world-records/longest-attack-of-hiccups"]
+    }
+  ],
+  "post": {
+    "description": "Cegukan ternyata punya fakta sains yang mengejutkan! Mulai dari cara kerja diafragma, fakta janin yang sudah bisa cegukan sejak 9 minggu dalam kandungan, hingga rekor dunia cegukan 68 tahun nonstop. Intip semuanya di sini.",
+    "hashtags": ["#faktacegukan", "#faktaseru", "#sains", "#intipyuk", "#shorts"]
+  },
+  "needs": ["diafragma: otot diafragma manusia belum ada di dictionary; video ini menggunakan label teks sebagai gantinya"],
+  "captions": true
+}
