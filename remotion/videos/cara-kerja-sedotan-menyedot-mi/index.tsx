@@ -1,11 +1,11 @@
 /* Cara kerja sedotan menyedot minuman — a custom video, look 2d (B28): a flat side view, no iso projection. One continuous take at a cafe table
-   (a new set kind "drink-table-side", set.json): the hero is a glass of drink with a straw and a person's mouth on it; the dressing is a window, a napkin
+   (a new set kind "drink-table-side", set.json): the hero is a glass of drink with a straw and a cartoon blob's mouth on it; the dressing is a window, a napkin
    holder, a plant and a plate. Shapes checked (Wikipedia: Drinking straw, Suction, Atmospheric pressure): the straw is a thin straight tube and the drink is
    pushed up it by the air pressing on the surface (not pulled); the real water limit is about 10.3 m, drawn as a very tall tube with a break mark.
    Two tones per part (base and shade), light from the top left, no outlines. The camera and every time come from plan.ts. */
 import React from "react";
 import {
-  Arrow, BLACK, BLUSH, CaptionLayer, G1, G2, G3, G4, ISO, Label, Mascot, Motes, Pill, SKIN_A, SKIN_B, THEMES, TipCard, TopText, WHITE,
+  Arrow, BLACK, BLUSH, CaptionLayer, G1, G2, G3, G4, ISO, Label, Mascot, Motes, Pill, SKIN_B, THEMES, TipCard, TopText, WHITE,
   StoryVideo, blinkClosed, bobPx, easeInOut, easeOut, layerTransform, pulse01, riseAt, springAt, swayDeg, toScreen,
   type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
@@ -91,29 +91,38 @@ const Dressing: React.FC<{ clock: number }> = ({ clock }) => {
   );
 };
 
-/** The person, a side profile facing left, behind the table. The head is cut by the top of the frame (it is about 29 cm tall). */
+/** The drinker: a round cartoon blob (a parody, not a real person) facing left, behind the table. Big head, one big eye, a leaf sprout on top, a round body. */
 const Person: React.FC<{ clock: number; suck: number }> = ({ clock, suck }) => {
   const blink = blinkClosed(clock, 3.6, 0.2);
-  const face: [number, number][] = [[780, -500], [765, -100], [750, 90], [742, 250], [748, 350], [728, 410], [722, 460], [706, 520], [664, 585], [692, 618], [676, 640], [680, 700], [694, 730], [680, 780], [708, 850], [800, 880], [860, 1000], [930, 1500], [1700, 1500], [1700, -500]];
+  const sway = swayDeg(clock, 0.3, 6, 3.4);
+  const HC = { x: 1010, y: 640, r: 340 };                       // the head: its left edge is where the straw goes in
   return (
     <g>
-      {/* the body behind the table: a shirt in two tones */}
-      <polygon points={pts([[860, 1000], [1700, 1000], [1700, TABLE_Y], [930, TABLE_Y]])} fill={ISO.water[1]} />
-      <polygon points={pts([[1260, 1000], [1700, 1000], [1700, TABLE_Y], [1330, TABLE_Y]])} fill={ISO.water[2]} />
-      <polygon points={pts(face)} fill={SKIN_A} />
-      <polygon points={pts([[800, 880], [860, 1000], [930, 1500], [1000, 1500], [960, 1000], [900, 860]])} fill={SKIN_B} />
-      {/* the hair: dark, from the hairline over the back of the head */}
-      <polygon points={pts([[765, -500], [1700, -500], [1700, 560], [1160, 470], [1060, 270], [900, 170], [770, 130], [750, 90], [765, -100]])} fill={WOOD[2]} />
-      <polygon points={pts([[1160, 470], [1060, 270], [900, 170], [1000, 160], [1130, 300], [1220, 460]])} fill={WOOD[1]} opacity={0.6} />
-      {/* the ear */}
-      <ellipse cx={1010} cy={560} rx={34} ry={62} fill={SKIN_B} />
-      <ellipse cx={1006} cy={560} rx={18} ry={38} fill={BLUSH} opacity={0.5} />
-      {/* the cheek: it hollows while the mouth sucks */}
-      <ellipse cx={840} cy={706} rx={14 + 52 * suck} ry={20 + 70 * suck} fill={SKIN_B} opacity={0.15 + 0.6 * suck} />
-      {/* the eye and the brow */}
-      <ellipse cx={742} cy={480} rx={11} ry={Math.max(1.5, 13 * (1 - blink))} fill={G1} />
-      <path d="M 716 440 Q 746 424 780 438" fill="none" stroke={G1} strokeWidth={9} strokeLinecap="round" />
-      <ellipse cx={780} cy={600} rx={30} ry={18} fill={BLUSH} opacity={0.4} />
+      <defs><clipPath id="blobBody"><rect x={300} y={-200} width={2200} height={TABLE_Y + 200} /></clipPath></defs>
+      {/* the body: a big round belly behind the table, two tones */}
+      <g clipPath="url(#blobBody)">
+        <circle cx={1120} cy={1420} r={520} fill={ISO.water[1]} />
+        <path d="M 1340 940 A 520 520 0 0 1 1640 1420 A 520 520 0 0 1 1120 1940 A 640 640 0 0 0 1340 940 Z" fill={ISO.water[2]} opacity={0.7} />
+        <ellipse cx={1010} cy={1180} rx={190} ry={70} fill={ISO.water[0]} opacity={0.5} />
+      </g>
+      {/* the sprout on top: three leaves that sway */}
+      <g transform={`translate(1010 305) rotate(${sway})`}>
+        <path d="M 0 0 C -50 -40 -70 -110 -40 -170 C 0 -120 10 -60 0 0 Z" fill={LEAF[1]} />
+        <path d="M 0 0 C 40 -60 80 -90 110 -150 C 50 -140 10 -70 0 0 Z" fill={LEAF[0]} />
+        <path d="M 0 0 C 8 -70 24 -130 14 -200 C -14 -140 -16 -70 0 0 Z" fill={LEAF[2]} />
+      </g>
+      {/* the head: a circle in two tones (a crescent of shade on the right and under) */}
+      <circle cx={HC.x} cy={HC.y} r={HC.r} fill={ISO.water[0]} />
+      <path d={`M ${HC.x + 150} ${HC.y - 300} A ${HC.r} ${HC.r} 0 0 1 ${HC.x + 60} ${HC.y + 335} A ${HC.r + 40} ${HC.r + 60} 0 0 0 ${HC.x + 150} ${HC.y - 300} Z`} fill={ISO.water[1]} opacity={0.85} />
+      {/* the big eye looks down at the glass; a thick brow above it */}
+      <ellipse cx={830} cy={520} rx={78} ry={Math.max(4, 84 * (1 - blink))} fill={WHITE} />
+      <ellipse cx={806} cy={548} rx={34} ry={Math.max(3, 38 * (1 - blink))} fill={G1} />
+      <circle cx={796} cy={534} r={10} fill={WHITE} opacity={1 - blink} />
+      <path d="M 750 425 Q 830 380 910 430" fill="none" stroke={G1} strokeWidth={16} strokeLinecap="round" />
+      {/* the cheek: a round blush that dents in while the mouth sucks */}
+      <circle cx={880} cy={738} r={62 - 14 * suck} fill={BLUSH} opacity={0.75 - 0.3 * suck} />
+      <ellipse cx={880} cy={738} rx={18 + 56 * suck} ry={26 + 70 * suck} fill={ISO.water[2]} opacity={0.65 * suck} />
+      <path d="M 840 690 Q 800 720 840 770" fill="none" stroke={ISO.water[2]} strokeWidth={8} strokeLinecap="round" opacity={suck} />
     </g>
   );
 };
@@ -121,8 +130,8 @@ const Person: React.FC<{ clock: number; suck: number }> = ({ clock, suck }) => {
 /** The lips over the straw's tip: the straw enters between them. */
 const Lips: React.FC<{ suck: number }> = ({ suck }) => (
   <g>
-    <rect x={MOUTH.x - 18 - 4 * suck} y={MOUTH.y - 22} width={34} height={20} rx={10} fill={BLUSH} />
-    <rect x={MOUTH.x - 18 - 4 * suck} y={MOUTH.y + 2} width={34} height={22} rx={11} fill={SKIN_B} />
+    <ellipse cx={MOUTH.x + 6 - 4 * suck} cy={MOUTH.y} rx={26 - 3 * suck} ry={34 - 4 * suck} fill={BLUSH} />
+    <ellipse cx={MOUTH.x + 12 - 4 * suck} cy={MOUTH.y + 10} rx={12} ry={16} fill={SKIN_B} opacity={0.55} />
   </g>
 );
 

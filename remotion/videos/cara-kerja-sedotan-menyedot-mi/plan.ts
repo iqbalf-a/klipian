@@ -1,8 +1,8 @@
 /* Cara kerja sedotan menyedot minuman — the timing and the camera of this video (pure: no React here). A flat 2D drawing (look 2d, B28) in its own set,
-   a cafe table seen from the side (set.json, kind "drink-table-side"): a glass of drink with a straw, a person's mouth on the straw, and a window, a napkin
+   a cafe table seen from the side (set.json, kind "drink-table-side"): a glass of drink with a straw, a round cartoon blob's mouth on the straw (a parody, not a real person), and a window, a napkin
    holder, a plant and a plate as dressing. One continuous take: the camera pushes and pans across the drawing, every beat is a move.
    Scale (B27.7, 35 px = 1 cm): the glass 14 cm tall and 8.5 cm wide at the rim, the straw 23 cm, the napkin holder 7 cm, the pot 5 cm, the plate 17 cm wide,
-   a cookie 7 cm, the head about 29 cm tall (cut by the frame); the window is a corner of its casing, cut by the frame.
+   a cookie 7 cm, the blob's head about 24 cm across, as a cartoon (not a real person's size); the window is a corner of its casing, cut by the frame.
    Shapes checked (Wikipedia: Drinking straw, Suction, Atmospheric pressure): a straw is a thin straight tube; the liquid is pushed up by the air pressure on its surface
    when the pressure in the mouth is lowered (not pulled); water can rise at most about 10.3 m by suction at standard pressure (a column drawn as a very tall tube, with a break mark). */
 import type { StoryT } from "../../src/schema.ts";
