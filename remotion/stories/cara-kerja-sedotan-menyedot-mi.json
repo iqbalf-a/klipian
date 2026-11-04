@@ -1,0 +1,211 @@
+{
+  "bible": 1,
+  "question": "Sedotan itu benar-benar menyedot minuman?",
+  "titles": [
+    "Sedotan benar-benar menyedot minuman?",
+    "Rahasia sedotan: minuman didorong, bukan disedot",
+    "Intip cara kerja sedotan menyedot minuman"
+  ],
+  "duration": 60,
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 3,
+      "narration": "Sedotan itu benar-benar menyedot minuman?",
+      "kicker": "BENARKAH?",
+      "headline": "Sedotan menyedot minuman?",
+      "text": "Sedotan menyedot minuman?",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "intip",
+      "kind": "sting",
+      "dur": 1,
+      "narration": "Intip yuk!",
+      "text": "Intip yuk!",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "mascot",
+            "x": 540,
+            "y": 720,
+            "enter": {
+              "kind": "pop",
+              "delay": 0
+            },
+            "w": 220,
+            "expr": "curious",
+            "pop": true
+          },
+          {
+            "type": "pill",
+            "text": "Intip yuk!",
+            "x": 540,
+            "y": 1489,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.2
+            },
+            "fs": 56
+          }
+        ]
+      },
+      "sfx": "pop"
+    },
+    {
+      "id": "mulut",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Saat kamu menyedot, mulutmu membuat ruang jadi lebih lega. Tekanan udara di dalam sedotan pun turun.",
+      "kicker": "LANGKAH 1",
+      "headline": "Tekanan di sedotan turun",
+      "text": "Tekanan di sedotan turun",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "udara",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Di luar sedotan, udara di sekitar kita menekan permukaan minuman di dalam gelas.",
+      "kicker": "LANGKAH 2",
+      "headline": "Udara menekan minuman",
+      "text": "Udara menekan minuman",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "dorong",
+      "kind": "normal",
+      "dur": 9,
+      "narration": "Tekanan di gelas lebih besar daripada di dalam sedotan. Selisih itu mendorong minuman naik sampai ke mulutmu.",
+      "kicker": "LANGKAH 3",
+      "headline": "Selisih tekanan mendorong",
+      "text": "Selisih tekanan mendorong",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "batas",
+      "kind": "normal",
+      "dur": 9,
+      "narration": "Dorongan udara ada batasnya. Di permukaan laut, air paling tinggi hanya bisa naik sekitar sepuluh koma tiga meter.",
+      "kicker": "ADA BATASNYA",
+      "headline": "Air naik sekitar 10 meter",
+      "text": "Air naik sekitar 10 meter",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "hasil",
+      "kind": "result",
+      "dur": 9,
+      "narration": "Jadi sedotan sebenarnya tidak menarik minuman. Minuman itu didorong oleh udara di sekitarnya, bukan ditarik mulutmu.",
+      "kicker": "JADI",
+      "headline": "Didorong, bukan ditarik",
+      "text": "Didorong, bukan ditarik",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "tips",
+      "kind": "tips",
+      "dur": 9,
+      "narration": "Ingat dua hal. Mulutmu menurunkan tekanan di sedotan. Udara di luar yang mendorong minuman naik.",
+      "kicker": "INGAT",
+      "headline": "Mulut turunkan, udara dorong",
+      "text": "Mulut turunkan, udara dorong",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "dur": 4,
+      "narration": "",
+      "text": "",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    }
+  ],
+  "claims": [
+    {
+      "text": "Saat tekanan di dalam mulut diturunkan, tekanan udara di sekitar memaksa cairan naik melalui sedotan ke mulut.",
+      "beats": [
+        "mulut",
+        "udara",
+        "dorong"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Drinking_straw"
+      ]
+    },
+    {
+      "text": "Secara fisika benda tidak ditarik tetapi didorong: udara bertekanan lebih tinggi mendorong cairan ke daerah bertekanan lebih rendah, seperti pada sedotan.",
+      "beats": [
+        "dorong",
+        "hasil",
+        "tips"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Suction"
+      ]
+    },
+    {
+      "text": "Pada tekanan atmosfer standar, tinggi maksimum air yang bisa dinaikkan dengan hisapan sekitar 10,3 meter.",
+      "beats": [
+        "batas"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Atmospheric_pressure"
+      ]
+    }
+  ],
+  "post": {
+    "description": "Sedotan sebenarnya tidak menarik minuman. Saat kamu menyedot, tekanan di dalam sedotan turun dan udara di luar mendorong minuman naik ke mulutmu. Dorongan itu ada batasnya: air paling tinggi naik sekitar 10,3 meter.",
+    "hashtags": [
+      "#sedotan",
+      "#sains",
+      "#faktaseru",
+      "#intipyuk",
+      "#shorts"
+    ]
+  },
+  "needs": [
+    "Gelas, sedotan, mulut dari samping, panah tekanan dan skala meter digambar 2D datar di indeks video; tidak ada di kamus."
+  ],
+  "stage": "steps",
+  "theme": "peach",
+  "look": "2d",
+  "captions": true,
+  "music": {
+    "track": "bed-bounce"
+  }
+}
