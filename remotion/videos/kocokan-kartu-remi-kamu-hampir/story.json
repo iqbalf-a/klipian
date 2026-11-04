@@ -1,0 +1,265 @@
+{
+ "bible": 1,
+ "question": "Apa kocokan kartu remimu pernah ada sebelumnya?",
+ "titles": [
+  "Kocokan kartu remimu hampir pasti belum pernah ada",
+  "52 kartu, 8,07 × 10^67 susunan: kocokanmu unik?",
+  "Intip kenapa kocokan kartu hampir selalu baru"
+ ],
+ "duration": 60,
+ "beats": [
+  {
+   "id": "hook",
+   "kind": "hook",
+   "dur": 3,
+   "narration": "Kocokan kartumu hampir pasti belum pernah ada.",
+   "text": "Kocokanmu belum pernah ada",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Kocokanmu belum pernah ada",
+      "fs": 62
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "sting",
+   "kind": "sting",
+   "dur": 1,
+   "narration": "Intip yuk!",
+   "text": "Intip yuk!",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "mascot",
+      "x": 540,
+      "y": 720,
+      "enter": {
+       "kind": "pop",
+       "delay": 0
+      },
+      "w": 220,
+      "expr": "curious"
+     },
+     {
+      "type": "pill",
+      "text": "Intip yuk!",
+      "x": 540,
+      "y": 1489,
+      "enter": {
+       "kind": "pop",
+       "delay": 0.2
+      },
+      "fs": 56
+     }
+    ]
+   },
+   "sfx": "pop"
+  },
+  {
+   "id": "deck",
+   "kind": "normal",
+   "dur": 6,
+   "narration": "Satu set kartu remi isinya lima puluh dua kartu: empat jenis, masing-masing tiga belas.",
+   "text": "4 jenis × 13 = 52",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "4 jenis × 13 = 52",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "pilih",
+   "kind": "normal",
+   "dur": 8,
+   "narration": "Kartu pertama ada lima puluh dua pilihan, kedua lima puluh satu, lalu lima puluh, terus berkurang sampai satu.",
+   "text": "Pilihan makin sedikit",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Pilihan makin sedikit",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "angka",
+   "kind": "normal",
+   "dur": 8,
+   "narration": "Semua pilihan itu dikalikan, hasilnya sekitar delapan koma nol tujuh kali sepuluh pangkat enam puluh tujuh susunan.",
+   "text": "Susunannya sangat banyak",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Susunannya sangat banyak",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "acak",
+   "kind": "normal",
+   "dur": 8,
+   "narration": "Kocokan riffle membagi tumpukan jadi dua, lalu menyelipkannya. Sekitar tujuh kali kocok, urutannya sudah benar-benar acak.",
+   "text": "Kocok sekitar tujuh kali",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Kocok sekitar tujuh kali",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "hasil",
+   "kind": "result",
+   "dur": 7,
+   "narration": "Karena susunannya sebanyak itu, hampir mustahil ada dua kocokan acak yang urutannya sama.",
+   "text": "Dua kocokan sama? Hampir mustahil",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Dua kocokan sama? Hampir mustahil",
+      "fs": 60
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "fakta",
+   "kind": "result",
+   "dur": 6,
+   "narration": "Jadi kalau kamu mengocok sampai acak, urutannya hampir pasti belum pernah ada.",
+   "text": "Urutanmu hampir pasti baru",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Urutanmu hampir pasti baru",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "tips",
+   "kind": "tips",
+   "dur": 9,
+   "narration": "Mau kocokan yang benar-benar acak? Kocok sekitar tujuh kali. Kalau kurang dari lima, kartunya belum acak.",
+   "text": "Kocok tujuh kali",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Kocok tujuh kali",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "outro",
+   "kind": "outro",
+   "dur": 4,
+   "narration": "",
+   "text": "",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  }
+ ],
+ "claims": [
+  {
+   "text": "Kartu remi standar berisi 52 kartu: 13 peringkat di tiap jenis (empat jenis).",
+   "beats": [
+    "deck",
+    "pilih"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Playing_card"
+   ]
+  },
+  {
+   "text": "Ada 52! susunan mungkin dari 52 kartu, sekitar 8,0658 × 10^67.",
+   "beats": [
+    "pilih",
+    "angka"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Shuffling",
+    "https://en.wikipedia.org/wiki/Factorial"
+   ]
+  },
+  {
+   "text": "Riffle shuffle membagi dek jadi dua lalu menyelipkannya; Bayer & Diaconis (1992) menyimpulkan dek baru benar-benar acak setelah tujuh kali dan belum mulai acak sebelum lima kali.",
+   "beats": [
+    "acak",
+    "tips"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Shuffling"
+   ]
+  },
+  {
+   "text": "Karena jumlah susunannya sangat besar, sangat kecil kemungkinan dua dek yang benar-benar teracak sama persis.",
+   "beats": [
+    "hook",
+    "hasil",
+    "fakta"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Shuffling"
+   ]
+  }
+ ],
+ "post": {
+  "description": "Satu set kartu remi punya sekitar 8,07 × 10^67 susunan. Intip kenapa kocokan acakmu hampir pasti belum pernah ada sebelumnya.",
+  "hashtags": [
+   "#kartuRemi",
+   "#matematika",
+   "#faktaseru",
+   "#intipyuk",
+   "#shorts"
+  ]
+ },
+ "needs": [],
+ "stage": "island",
+ "theme": "peach",
+ "look": "2d",
+ "captions": true,
+ "music": {
+  "track": "bed-bounce"
+ }
+}
