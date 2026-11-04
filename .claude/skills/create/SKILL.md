@@ -41,13 +41,13 @@ grep -q "B27.16" remotion/DESIGN.md && test -f remotion/src/sets.ts
 
 ```bash
 git fetch origin
-WT="$(mktemp -d)/klipian-create-<slug>"     # <slug> from the brief; a temp folder outside the checkout
+WT="$(mktemp -d)/klipian-create"            # a temp folder outside the checkout (the slug is not known yet)
 git worktree add --detach "$WT" origin/main
 cd "$WT" && grep -q "B27.16" remotion/DESIGN.md && test -f remotion/src/sets.ts
 cd remotion && npm ci                       # node_modules is not shared with ian's checkout
 ```
 
-When the run ends, also when a step failed, leave the worktree and remove it: `git worktree remove --force "$WT"` (from ian's checkout; the commit is already on `main`, or stays reported as it is).
+Remove the worktree ONLY after a successful push (step 4): `git worktree remove --force "$WT"`, from ian's checkout. On any failure (a step, or the push refused three times) keep it: its detached HEAD holds the only reference to the video commit and the half-done work. Then answer with its path, in line 5 of the answer: "worktree tersimpan di <path>; hapus dengan git worktree remove --force <path> setelah dicek".
 
 If the `grep` line fails, stop and answer only: "main belum punya aturan set, update main dulu". Never create a branch such as `work/create`.
 
