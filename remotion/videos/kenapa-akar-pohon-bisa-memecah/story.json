@@ -1,0 +1,270 @@
+{
+  "bible": 1,
+  "question": "Kenapa akar pohon bisa memecahkan aspal?",
+  "titles": [
+    "Kenapa akar pohon bisa memecahkan aspal?",
+    "Akar pohon vs aspal: siapa yang menang?",
+    "Intip di bawah jalan: akar yang menebal"
+  ],
+  "duration": 60,
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 3,
+      "narration": "Akar pohon bisa memecahkan aspal. Kok bisa?",
+      "text": "Akar pecahkan aspal?",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Akar pecahkan aspal?",
+            "fs": 72
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "sting",
+      "kind": "sting",
+      "dur": 1,
+      "narration": "Intip yuk!",
+      "text": "Intip yuk!",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "mascot",
+            "x": 540,
+            "y": 720,
+            "enter": {
+              "kind": "pop",
+              "delay": 0
+            },
+            "w": 220,
+            "expr": "curious",
+            "pop": true
+          },
+          {
+            "type": "pill",
+            "text": "Intip yuk!",
+            "x": 540,
+            "y": 1489,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.2
+            },
+            "fs": 56
+          }
+        ]
+      },
+      "sfx": "pop"
+    },
+    {
+      "id": "cari",
+      "kind": "normal",
+      "dur": 7,
+      "narration": "Akar tumbuh ke arah air dan oksigen di dalam tanah. Ia terus mencari, termasuk ke bawah jalan.",
+      "text": "Akar mencari air",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Akar mencari air",
+            "fs": 70
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "ujung",
+      "kind": "normal",
+      "dur": 7,
+      "narration": "Ujung akar muda memanjang pelan-pelan. Ia menyelip lewat celah kecil di bawah lapisan jalan.",
+      "text": "Ujung akar memanjang",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Ujung akar memanjang",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "tebal",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Lalu akar menebal. Setiap musim tumbuh, lapisan kayu baru ditambahkan, jadi akar makin gemuk.",
+      "text": "Akar makin gemuk",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Akar makin gemuk",
+            "fs": 70
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "dorong",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Akar yang gemuk itu tidak punya tempat lagi, jadi ia mendorong ke atas. Lama-lama jalan terangkat dan retak.",
+      "text": "Mendorong jalan ke atas",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Mendorong jalan ke atas",
+            "fs": 62
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "hasil",
+      "kind": "result",
+      "dur": 7,
+      "narration": "Jadi akar tidak menembus aspal. Ia menebal sedikit demi sedikit, dan menang karena sabar.",
+      "text": "Menebal, bukan menembus",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Menebal, bukan menembus",
+            "fs": 62
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "fakta",
+      "kind": "normal",
+      "dur": 6,
+      "narration": "Batang dan akar yang menebal bahkan bisa menelan benda keras, seperti tiang logam.",
+      "text": "Tiang logam pun ditelan",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Tiang logam pun ditelan",
+            "fs": 62
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "tips",
+      "kind": "tips",
+      "dur": 9,
+      "narration": "Kalau jalan di depan rumahmu terangkat, hati-hati melangkah. Dan laporkan ke pengelola jalan.",
+      "text": "Jalan terangkat? Lapor",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Jalan terangkat? Lapor",
+            "fs": 62
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "dur": 4,
+      "narration": "",
+      "text": "",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    }
+  ],
+  "claims": [
+    {
+      "text": "Akar dipengaruhi oleh air dan oksigen di tanah dalam menentukan arsitektur pertumbuhannya.",
+      "beats": [
+        "cari"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Root"
+      ]
+    },
+    {
+      "text": "Pertumbuhan primer terjadi di ujung akar dan batang sehingga memanjang.",
+      "beats": [
+        "ujung"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Secondary_growth"
+      ]
+    },
+    {
+      "text": "Pertumbuhan sekunder menebalkan batang dan akar lewat sel baru di kambium, kayu baru tiap musim tumbuh.",
+      "beats": [
+        "tebal"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Secondary_growth"
+      ]
+    },
+    {
+      "text": "Seiring waktu akar dapat meretakkan fondasi, memutus pipa air, dan mengangkat trotoar.",
+      "beats": [
+        "dorong",
+        "hasil"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Root"
+      ]
+    },
+    {
+      "text": "Rintangan seperti tiang logam dapat ditelan oleh batang yang menebal.",
+      "beats": [
+        "fakta"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Secondary_growth"
+      ]
+    }
+  ],
+  "post": {
+    "description": "Kenapa akar pohon bisa memecahkan aspal? Intip di bawah jalan: akar bukan menembus, tapi menebal pelan-pelan dan mendorong.",
+    "hashtags": [
+      "#akarpohon",
+      "#aspal",
+      "#faktaseru",
+      "#intipyuk",
+      "#shorts"
+    ]
+  },
+  "needs": [],
+  "stage": "slab",
+  "theme": "mint",
+  "captions": true,
+  "music": {
+    "track": "bed-curious",
+    "level": 0.8
+  }
+}
