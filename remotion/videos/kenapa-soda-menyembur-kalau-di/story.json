@@ -1,0 +1,270 @@
+{
+  "bible": 1,
+  "question": "Kenapa soda menyembur kalau dikocok lalu dibuka?",
+  "titles": [
+    "Kenapa soda menyembur kalau dikocok lalu dibuka?",
+    "Soda dikocok lalu dibuka: ini yang terjadi di dalam botol",
+    "Gelembung kecil bikin soda menyembur"
+  ],
+  "duration": 60,
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 3,
+      "narration": "Kenapa soda menyembur kalau dikocok lalu dibuka?",
+      "text": "Soda dikocok lalu menyembur?",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Soda dikocok lalu menyembur?",
+            "fs": 72
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "sting",
+      "kind": "sting",
+      "dur": 1,
+      "narration": "Intip yuk!",
+      "text": "Intip yuk!",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "mascot",
+            "x": 540,
+            "y": 720,
+            "enter": {
+              "kind": "pop",
+              "delay": 0
+            },
+            "w": 220,
+            "expr": "curious"
+          },
+          {
+            "type": "pill",
+            "text": "Intip yuk!",
+            "x": 540,
+            "y": 1489,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.2
+            },
+            "fs": 56
+          }
+        ]
+      },
+      "sfx": "pop"
+    },
+    {
+      "id": "tekanan",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Minuman soda dibuat dengan menyuntik gas karbon dioksida yang dingin dan bertekanan tinggi. Di dalam botol tertutup, gasnya terlarut dan tertahan.",
+      "text": "Gas terlarut, tertahan tutup",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Gas terlarut, tertahan tutup",
+            "fs": 62
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "kocok",
+      "kind": "normal",
+      "dur": 10,
+      "narration": "Waktu dikocok, gelombang tekanan di dalam cairan membentuk gelembung-gelembung kecil yang melayang. Gas karbon dioksida paling mudah keluar dari titik awal kecil, seperti debu atau bagian kasar.",
+      "text": "Kocok bikin gelembung kecil",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Kocok bikin gelembung kecil",
+            "fs": 62
+          },
+          {
+            "type": "source",
+            "x": 540,
+            "y": 1400,
+            "claim": 3,
+            "org": "Live Science",
+            "w": 700
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "buka",
+      "kind": "normal",
+      "dur": 11,
+      "narration": "Begitu tutup dibuka, tekanan turun mendadak. Gelembung yang sudah melayang itu memicu lebih banyak gelembung, dan minuman pun tumpah lebih banyak.",
+      "text": "Tutup dibuka, tekanan anjlok",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Tutup dibuka, tekanan anjlok",
+            "fs": 62
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "hasil",
+      "kind": "result",
+      "dur": 9,
+      "narration": "Hasilnya, busa menyembur keluar. Tapi kalau botol didiamkan beberapa menit sampai puluhan menit, gelembungnya larut lagi, seakan botol lupa pernah dikocok.",
+      "text": "Didiamkan, gelembung larut lagi",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Didiamkan, gelembung larut lagi",
+            "fs": 58
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "tepuk",
+      "kind": "normal",
+      "dur": 6,
+      "narration": "Menepuk kaleng belum terbukti manjur. Satu studi menguji seribu tiga puluh satu kaleng bir dan tidak menemukan bedanya.",
+      "text": "Tepuk kaleng? Belum terbukti",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Tepuk kaleng? Belum terbukti",
+            "fs": 58
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "tips",
+      "kind": "tips",
+      "dur": 8,
+      "narration": "Jadi, diamkan dulu botolnya beberapa menit sebelum dibuka. Dan arahkan tutupnya menjauh dari wajah.",
+      "text": "Diamkan dulu, buka menjauh",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Diamkan dulu, buka menjauh",
+            "fs": 62
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "dur": 4,
+      "narration": "",
+      "text": "",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    }
+  ],
+  "claims": [
+    {
+      "text": "Minuman berkarbonasi dibuat dengan menyuntikkan karbon dioksida ke dalam cairan pada tekanan tinggi dan suhu dingin.",
+      "beats": [
+        "tekanan"
+      ],
+      "sources": [
+        "https://www.livescience.com/physics-mathematics/does-tapping-on-a-soda-can-really-stop-it-from-exploding"
+      ]
+    },
+    {
+      "text": "Sebelum dibuka, gas di atas minuman soda hampir murni karbon dioksida pada tekanan di atas tekanan udara; setelah dibuka tekanannya turun dan karbon dioksida terlarut keluar sebagai gelembung.",
+      "beats": [
+        "tekanan",
+        "buka"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Henry%27s_law"
+      ]
+    },
+    {
+      "text": "Mengocok menimbulkan gelombang tekanan yang membentuk gelembung kecil di dalam cairan; gelembung itu larut lagi setelah menit sampai puluhan menit.",
+      "beats": [
+        "kocok",
+        "hasil"
+      ],
+      "sources": [
+        "https://www.livescience.com/physics-mathematics/does-tapping-on-a-soda-can-really-stop-it-from-exploding"
+      ]
+    },
+    {
+      "text": "Gelembung karbon dioksida dapat membesar dari titik nukleasi, yaitu cacat kecil seperti debu atau bagian kasar.",
+      "beats": [
+        "kocok"
+      ],
+      "sources": [
+        "https://www.livescience.com/physics-mathematics/does-tapping-on-a-soda-can-really-stop-it-from-exploding",
+        "https://en.wikipedia.org/wiki/Nucleation"
+      ]
+    },
+    {
+      "text": "Jika kaleng dibuka saat gelembung masih melayang di cairan, penurunan tekanan mendadak memicu lebih banyak gelembung dan lebih banyak minuman tumpah.",
+      "beats": [
+        "buka",
+        "hasil"
+      ],
+      "sources": [
+        "https://www.livescience.com/physics-mathematics/does-tapping-on-a-soda-can-really-stop-it-from-exploding"
+      ]
+    },
+    {
+      "text": "Sebuah studi pra-cetak 2019 pada 1.031 kaleng bir tidak menemukan perbedaan bermakna dalam bir yang hilang antara kaleng yang ditepuk dan yang tidak.",
+      "beats": [
+        "tepuk"
+      ],
+      "sources": [
+        "https://www.livescience.com/physics-mathematics/does-tapping-on-a-soda-can-really-stop-it-from-exploding"
+      ]
+    }
+  ],
+  "post": {
+    "description": "Kenapa soda menyembur kalau dikocok lalu dibuka? Intip gelembung kecil dan tekanan di dalam botol.",
+    "hashtags": [
+      "#soda",
+      "#sains",
+      "#faktaseru",
+      "#intipyuk",
+      "#shorts"
+    ]
+  },
+  "needs": [],
+  "stage": "slab",
+  "theme": "sky",
+  "captions": true,
+  "music": {
+    "track": "bed-bounce"
+  }
+}
