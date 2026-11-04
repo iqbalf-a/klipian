@@ -45,8 +45,8 @@ const winBand = (b0: number, b1: number, u: number, o: P2, n = 8): string => {
   return pts(out);
 };
 
-/** The bubbles: twelve, each with its own column, size, period (2, 2.5 or 3 s: they divide 60 s, so the loop-back matches) and phase. */
-const BUB = Array.from({ length: 12 }, (_, i) => ({ a: 0.1 + ((i * 0.618) % 1) * 0.8, ph: (i * 0.37) % 1, per: [3, 2.5, 2, 3, 2.5, 2, 3, 2.5, 3, 2, 2.5, 3][i], r: 0.1 + (0.07 * ((i * 3) % 4)) / 3 }));
+/** The bubbles: eight, each in its own column (spaced so two never overlap: neighbours are a golden-ratio phase apart, all with the same 3 s period that divides 60 s, so the loop-back matches). */
+const BUB = Array.from({ length: 8 }, (_, i) => { const c = (i * 3) % 8; return { a: 0.14 + (0.72 * c) / 7, ph: (c * 0.382) % 1, per: 3, r: 0.06 + (0.025 * ((c * 3) % 4)) / 3 }; });
 const ELEMENT_B = 0.075;       // the element's top, as a share of the window's height
 
 type Bubble = { a: number; b: number; r: number; op: number; ring: number; ringOp: number };
@@ -92,7 +92,7 @@ const Kettle: React.FC<{ u: number; o: P2; clock: number; st: ReturnType<typeof 
           <polygon points={wb(0, ELEMENT_B)} fill={ISO.dark[1]} />
           <polygon points={wb(0, ELEMENT_B)} fill={RED} opacity={0.85 * st.heat} />
           <polygon points={wb(ELEMENT_B - 0.012, ELEMENT_B + 0.012)} fill={HOT1} opacity={st.heat} />
-          {Array.from({ length: 12 }, (_, i) => {
+          {Array.from({ length: BUB.length }, (_, i) => {
             const bb = bubbleAt(i, clock, st.bubbles, st.reach, st.burst);
             if (!bb) return null;
             const c = winPt(bb.a, bb.b, u, o), r = bb.r * u, ringR = bb.ring * u;
@@ -111,13 +111,13 @@ const Kettle: React.FC<{ u: number; o: P2; clock: number; st: ReturnType<typeof 
         <polyline points={pts([winPt(0.1, 0.18, u, o), winPt(0.1, 0.78, u, o)])} fill="none" stroke={WHITE} strokeWidth={u * 0.035} strokeLinecap="round" opacity={0.55} />
       </g>
       {/* the handle (a D on the lower-right side) and its power lamp */}
-      <Polys polys={block([1.15, -0.16, 3.15], [1.95, 0.16, 3.4], u, o)} tones={ISO.dark} />
-      <Polys polys={block([1.12, -0.16, 0.95], [1.95, 0.16, 1.2], u, o)} tones={ISO.dark} />
+      <Polys polys={block([radiusAt(3.15), -0.16, 3.15], [1.95, 0.16, 3.4], u, o)} tones={ISO.dark} />
+      <Polys polys={block([radiusAt(0.95), -0.16, 0.95], [1.95, 0.16, 1.2], u, o)} tones={ISO.dark} />
       <Polys polys={block([1.78, -0.16, 0.95], [2.0, 0.16, 3.4], u, o)} tones={ISO.dark} />
       <circle cx={lampAt[0]} cy={lampAt[1]} r={u * 0.085} fill={lampOn ? YELLOW : G2} />
       {lampOn && <circle cx={lampAt[0]} cy={lampAt[1]} r={u * (0.15 + 0.03 * Math.sin((TAU * clock) / 3))} fill="none" stroke={YELLOW} strokeWidth={u * 0.025} opacity={0.6 * st.lamp} />}
       {/* the spout and the lid with its knob */}
-      <Polys polys={cylinder([0, 1.0, 3.2], [0, 1.8, 3.62], 0.32, 0.2, AX, e2, u, o)} tones={ISO.labPlastic} />
+      <Polys polys={cylinder([0, radiusAt(3.2), 3.2], [0, 1.8, 3.62], 0.32, 0.2, AX, e2, u, o)} tones={ISO.labPlastic} />
       <Polys polys={post(0, 0, KETTLE.z1, KETTLE.lidZ, KETTLE.rTop - 0.06, KETTLE.rTop - 0.34, u, o)} tones={ISO.plastic} />
       <Polys polys={post(0, 0, KETTLE.lidZ, KETTLE.lidZ + 0.2, 0.2, 0.16, u, o)} tones={ISO.dark} />
     </g>
@@ -161,7 +161,7 @@ const SoundArcs: React.FC<{ cx: number; cy: number; u: number; k: number; clock:
 };
 
 // ------------------------------------------------------------------------------------------------------ the heat meter on the wall (new asset 3)
-const METER = { n: 8, x0: -7.4, cell: 0.38, gap: 0.06, z0: 0.6 } as const;
+const METER = { n: 8, x0: -8.0, cell: 0.38, gap: 0.06, z0: 0.6 } as const;
 const meterX = (i: number) => METER.x0 + i * (METER.cell + METER.gap);
 const HeatMeter: React.FC<{ u: number; o: P2; show: number; fill: number; clock: number }> = ({ u, o, show, fill, clock }) => {
   if (show < 0.02) return null;
@@ -196,11 +196,11 @@ const Canisters: React.FC<{ u: number; o: P2 }> = ({ u, o }) => (
   </g>
 );
 
-const WALL_SOCKET = { x: -8.6, z: 0.85 } as const;
+const WALL_SOCKET = { x: -9.9, z: 0.85 } as const;
 /** A wall socket low on the wall and the kettle's cord that lies along the counter to it (a smooth curve, never a zigzag). */
 const SocketAndCord: React.FC<{ u: number; o: P2 }> = ({ u, o }) => {
   const P = (x: number, y: number, z: number) => isoAt([x, y, z], u, o) as P2;
-  const cord = smoothPath([P(-1.5, -0.4, 0.14), P(-3.5, -1.0, 0.07), P(-6.0, -1.7, 0.07), P(-8.2, -2.05, 0.3), P(-8.6, -2.1, WALL_SOCKET.z + 0.08)], 0.5);
+  const cord = smoothPath([P(-1.78, -0.45, 0.14), P(-4.0, -1.0, 0.07), P(-7.0, -1.7, 0.07), P(-9.5, -2.0, 0.3), P(-9.9, -2.0, WALL_SOCKET.z - 0.02)], 0.5);
   return (
     <g>
       <Polys polys={block([WALL_SOCKET.x - 0.45, WALL_Y, WALL_SOCKET.z - 0.1], [WALL_SOCKET.x + 0.45, WALL_Y + 0.14, WALL_SOCKET.z + 0.9], u, o)} tones={ISO.plastic} />

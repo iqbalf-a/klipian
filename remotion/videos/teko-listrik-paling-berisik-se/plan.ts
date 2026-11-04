@@ -41,15 +41,15 @@ export const CAM_KEYS: Key2[] = [
   K(0, 540, 1100, 0.5), K(1.5, 540, 1100, 0.5),         // the wide shot of the set, 1.5 s: the kettle in the middle third
   K(2.9, 540, 1150, 1.1),                               // the establishing push: the kettle is about 60 % of the width
   K(4, 540, 1160, 1.12),                                // sting: the world keeps moving
-  K(9.6, 540, 1400, 1.4),                               // dasar: down to the element at the bottom of the window (the lid stays under the top text)
-  K(10.4, 540, 1400, 1.4),
-  K(17.6, 540, 1385, 1.5),                             // gelembung: a slow push while the bubbles grow and let go
-  K(19.6, 540, 1290, 1.42),                             // runtuh: a pan up the window, the bubbles rise into cooler water
-  K(25.6, 540, 1270, 1.5),
+  K(9.6, 540, 1250, 1.3),                               // dasar: down to the element at the bottom of the window (the lid stays under the top text)
+  K(10.4, 540, 1250, 1.3),
+  K(17.6, 540, 1255, 1.35),                             // gelembung: a slow push while the bubbles grow and let go
+  K(19.6, 540, 1255, 1.35),                             // runtuh: a pan up the window, the bubbles rise into cooler water
+  K(25.6, 540, 1250, 1.4),
   K(27.4, 548, 1080, 1.8),                              // kejut: the macro on a collapsing bubble near the top
   K(33.6, 548, 1070, 1.9),
-  K(36.4, 250, 940, 0.85),                              // hasil: back out to the whole kettle, the heat meter on the wall at the left
-  K(40.4, 260, 950, 0.85),
+  K(36.4, 250, 930, 0.8),                              // hasil: back out to the whole kettle, the heat meter on the wall at the left
+  K(40.4, 260, 935, 0.8),
   K(42.4, 640, 1240, 1.15),                              // fakta: a pan to the handle and the power lamp
   K(46.4, 640, 1235, 1.2),
   K(48.4, 560, 1150, 0.95),                             // tips: the whole kettle again
