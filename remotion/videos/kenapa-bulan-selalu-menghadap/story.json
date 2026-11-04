@@ -1,0 +1,251 @@
+{
+  "bible": 1,
+  "question": "Kenapa bulan selalu menghadap kita dengan sisi yang sama?",
+  "titles": [
+    "Kenapa bulan selalu menghadap kita dengan sisi yang sama?",
+    "Bulan terkunci: kenapa sisinya tak pernah berganti",
+    "Intip bulan: rahasia wajah yang sama setiap malam"
+  ],
+  "duration": 60,
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 3,
+      "narration": "Kenapa bulan selalu menghadap kita dengan sisi yang sama?",
+      "text": "Bulan kok sama terus?",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Bulan kok sama terus?",
+            "fs": 72
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "sting",
+      "kind": "sting",
+      "dur": 1,
+      "narration": "Intip yuk!",
+      "text": "Intip yuk!",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "mascot",
+            "x": 540,
+            "y": 720,
+            "enter": {
+              "kind": "pop",
+              "delay": 0
+            },
+            "w": 220,
+            "expr": "curious"
+          },
+          {
+            "type": "pill",
+            "text": "Intip yuk!",
+            "x": 540,
+            "y": 1489,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.2
+            },
+            "fs": 56
+          }
+        ]
+      },
+      "sfx": "pop"
+    },
+    {
+      "id": "keliling",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Bulan mengitari Bumi. Satu kali keliling butuh sekitar dua puluh tujuh hari.",
+      "text": "Satu keliling: 27 hari",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Satu keliling: 27 hari",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "putar",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Tapi bulan juga berputar pada porosnya sendiri. Dan satu putaran itu juga butuh sekitar dua puluh tujuh hari.",
+      "text": "Berputar juga: 27 hari",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Berputar juga: 27 hari",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "sama",
+      "kind": "normal",
+      "dur": 14,
+      "narration": "Waktunya sama persis. Setiap kali bulan bergeser sedikit, ia memutar badan sama banyak, jadi satu sisi terus menatap Bumi. Kalau bulan tidak berputar, kita akan melihat semua sisinya bergantian.",
+      "text": "Waktu sama, sisi sama",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Waktu sama, sisi sama",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "kunci",
+      "kind": "result",
+      "dur": 9,
+      "narration": "Ini bukan kebetulan. Gravitasi Bumi menarik tonjolan di bulan, dan selama jutaan tahun putaran bulan diperlambat sampai terkunci.",
+      "text": "Dikunci gravitasi Bumi",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Dikunci gravitasi Bumi",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "jauh",
+      "kind": "normal",
+      "dur": 7,
+      "narration": "Karena terkunci, sisi jauh bulan baru terfoto tahun 1959, oleh wahana Luna 3.",
+      "text": "Sisi jauh: foto 1959",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Sisi jauh: foto 1959",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "tips",
+      "kind": "tips",
+      "dur": 6,
+      "narration": "Cek bulan malam ini: bercak gelapnya sama. Goyangan kecil bikin kita lihat sekitar 59 persen.",
+      "text": "Cek bercak gelap bulan",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Cek bercak gelap bulan",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "dur": 4,
+      "narration": "",
+      "text": "",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    }
+  ],
+  "claims": [
+    {
+      "text": "Bulan berputar pada porosnya selama waktu yang sama dengan waktunya mengitari Bumi (rotasi sinkron), sehingga sisi yang sama selalu menghadap Bumi.",
+      "beats": [
+        "putar",
+        "sama"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Tidal_locking"
+      ]
+    },
+    {
+      "text": "Periode orbit bulan mengitari Bumi sekitar 27,3 hari.",
+      "beats": [
+        "keliling",
+        "putar"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Tidal_locking"
+      ]
+    },
+    {
+      "text": "Tarikan gravitasi Bumi membuat tonjolan pasang pada bulan, dan torsinya selama jutaan tahun memperlambat putaran bulan sampai terkunci.",
+      "beats": [
+        "kunci"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Tidal_locking"
+      ]
+    },
+    {
+      "text": "Sebagian besar sisi jauh bulan baru terlihat pada 1959, dari foto wahana Luna 3 Uni Soviet.",
+      "beats": [
+        "jauh"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Tidal_locking"
+      ]
+    },
+    {
+      "text": "Karena librasi, sekitar 59 persen permukaan bulan bisa terlihat dari Bumi lewat pengamatan berulang.",
+      "beats": [
+        "tips"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Tidal_locking"
+      ]
+    }
+  ],
+  "post": {
+    "description": "Kenapa bulan selalu menghadap kita dengan sisi yang sama? Putaran bulan sama lamanya dengan waktu mengitari Bumi, dan gravitasi Bumi yang mengunci putarannya.",
+    "hashtags": [
+      "#bulan",
+      "#faktaseru",
+      "#antariksa",
+      "#intipyuk",
+      "#shorts"
+    ]
+  },
+  "needs": [],
+  "stage": "round",
+  "theme": "sky",
+  "captions": true,
+  "music": {
+    "track": "bed-curious"
+  }
+}
