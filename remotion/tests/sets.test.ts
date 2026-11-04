@@ -1,7 +1,7 @@
 /* The set registry (src/sets.ts, DESIGN.md B27.15 and B27.16): `node tests/sets.test.ts`. Every row is complete; an owner is a real video; the signature
    components exist; a video that draws another video's set is caught, its own set is not; the rules are written where the sessions read them. */
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -51,11 +51,17 @@ yes(freeSets({ "sky-horizon": ["a"] }, SETS).every((k) => k.id !== "sky-horizon"
   rmSync(tmp, { recursive: true });
 }
 
+// made before B27.15; styleCheck FLAGs them, it does not FAIL them. Any new video without set.json must still fail.
+const BEFORE_B27_15 = ["baterai-hp-cepat-habis-saat-di", "bohlam-pijar-lebih-banyak-meng", "fakta-seru-tentang-cegukan", "gurita-punya-tiga-jantung-2", "kipas-angin-tidak-mendinginkan", "magnet-menempel-di-kulkas-tanp", "teko-listrik-paling-berisik-se"];
+
 // every existing video draws only its own set and declares its set
 for (const slug of readdirSync(path.join(ROOT, "videos"))) {
   if (/^selftest/.test(slug)) continue;
   const src = readdirSync(path.join(ROOT, "videos", slug)).filter((f) => /\.tsx?$/.test(f)).map((f) => read("videos", slug, f)).join("\n");
   yes(borrowedSets(src, slug, owners, kinds).length === 0, `${slug} draws no other video's set`);
+  const story = path.join(ROOT, "videos", slug, "story.json");
+  const text = existsSync(story) && JSON.parse(readFileSync(story, "utf8")).look === "text"; // text look needs no set.json (as styleCheck)
+  if (text || BEFORE_B27_15.includes(slug)) continue;
   yes(declaredKind(slug, owners).kind !== null, `${slug} declares its set in videos/${slug}/set.json`);
 }
 
