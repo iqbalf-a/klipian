@@ -61,6 +61,8 @@ export const DICTIONARY: readonly MarkRow[] = [
     components: [{ name: "IsoHeart", file: "src/components/IsoLife.tsx" }], status: "drawn" },
   { id: "brain", thing: "a brain (thinking, a busy mind)", mark: "a pink relief brain with folds and a short stem on a pale yellow glow; it breathes, and yellow signals run along the folds faster when it is busy",
     components: [{ name: "IsoBrain", file: "src/components/IsoLife.tsx" }], status: "drawn" },
+  { id: "rainbow", thing: "a rainbow", mark: "a RING (not a half-arc) about 42 degrees around the point opposite the sun: seven soft bands, red outside, violet inside, a paler sky inside the ring; from the ground the horizon hides the lower part, from a plane it is a full circle (B27.16). Spec only: the pelangi video builds it first, then this row gets its component",
+    components: [], status: "to build" },
   { id: "sound", thing: "sound and vibration", mark: "thin concentric arcs (not drawn yet: spec only)", components: [], status: "to build" },
   { id: "cold", thing: "cold and ice", mark: "pale cyan crystals and a blue-white glow (the exact tones are to define first)", components: [], status: "to build" },
 ];

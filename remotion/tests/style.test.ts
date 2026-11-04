@@ -173,6 +173,12 @@ for (const r of DICTIONARY.filter((k) => k.status === "drawn")) {
   yes(!validateStory({ ...JSON.parse(readFileSync(path.join(ROOT, "videos", "kenapa-colokan-panas", "story.json"), "utf8")), look: "3d" }).ok, "a look outside iso, 2d, text is refused by the schema");
 }
 
+// B28 + B27.15: a text video needs no set.json (no FLAG for a missing one)
+{
+  const out = spawnSync(process.execPath, [path.join(ROOT, "scripts", "styleCheck.mjs"), path.join(ROOT, "out", "style-fixture", "look-text")], { encoding: "utf8" }).stdout;
+  yes(out.includes("INFO   B27.15: look text has no set") && !out.includes("FLAG   B27.15"), "a text video is not flagged for a missing set.json");
+}
+
 // the approved sound set (B15): the record matches the set; the checker reports it
 {
   const record = JSON.parse(readFileSync(path.join(ROOT, "scripts", "soundHash.json"), "utf8"));
