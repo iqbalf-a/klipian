@@ -6093,9 +6093,9 @@ def check_motion_brief() -> tuple[str, str]:
     must = ["an everyday hook", "does not have to start with", "small `mascot`", "small `pill`", "Intip yuk!", "loop-back",
             "**The outro has no mascot.**", "**One hero:**", "**Kinds of fact:**",
             "Build a set, not a specimen", "Animation recipe", "open on a wide shot of the set", "one scale per set", "hero in the centre third",
-            "The iso kit is mandatory", "never a flat side-view SVG", "IsoWallSocket", "The text format is the channel", "`TopText`", "`CaptionLayer`", "no big black banner box"]
+            "Explaining how the body or money works is allowed", "never investment or financial advice", "The iso kit is mandatory", "never a flat side-view SVG", "IsoWallSocket", "The text format is the channel", "`TopText`", "`CaptionLayer`", "no big black banner box"]
     stale = ["The outro has the mascot again", "a short outro with the logo", "logo and", "starts with \"kenapa", "a big `mascot`",
-             "an everyday question", "a short outro with the logo", "Every beat has a `banner`", "<Banner text"]
+             "an everyday question", "a short outro with the logo", "Every beat has a `banner`", "<Banner text", "No health or finance topics"]
     real_settings = profiles.hashtag_settings
     profiles.hashtag_settings = lambda: {"placement": "title", "shorts": True, "titleTags": 3}   # a fixed setting, never the workspace's
     try:
@@ -6126,7 +6126,7 @@ def check_motion_brief() -> tuple[str, str]:
                 problems.append(f"the brief CLI's default brief lost {want!r}")
         skill = (Path(__file__).resolve().parent.parent / ".claude" / "skills" / "create" / "SKILL.md")
         text = skill.read_text(encoding="utf-8") if skill.exists() else ""
-        for want in ("name: create", "cloud/stok-video", "git pull --rebase origin cloud/stok-video", "git push origin cloud/stok-video", "up to 3 tries", "motion_brief_cli", "Never push `main`, never force-push"):
+        for want in ("name: create", "cloud/stok-video", "git pull --rebase origin cloud/stok-video", "git push origin cloud/stok-video", "up to 3 tries", "motion_brief_cli", "Never push `main`, never force-push", "obat cegukan paling ampuh", "at most 6 short lines", "Do NOT print the narration", "checkout lama, buka sesi cloud baru", "Work quietly"):
             if want not in text:
                 problems.append(f"the /create skill lost {want!r}")
     finally:
