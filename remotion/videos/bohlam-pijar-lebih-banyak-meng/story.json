@@ -1,0 +1,282 @@
+{
+  "bible": 1,
+  "question": "Bohlam pijar lebih banyak menghasilkan panas daripada cahaya?",
+  "titles": [
+    "Bohlam pijar: lampu atau pemanas?",
+    "Kenapa bohlam pijar lebih banyak panas daripada cahaya",
+    "Intip bohlam pijar: cahayanya cuma sisa panas"
+  ],
+  "duration": 60,
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 3,
+      "narration": "Bohlam pijar itu sebenarnya lampu, atau pemanas?",
+      "text": "Lampu atau pemanas?",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Lampu atau pemanas?",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "sting",
+      "kind": "sting",
+      "dur": 1,
+      "narration": "Intip yuk!",
+      "text": "Intip yuk!",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "mascot",
+            "x": 540,
+            "y": 720,
+            "enter": {
+              "kind": "pop",
+              "delay": 0
+            },
+            "w": 220,
+            "expr": "curious",
+            "pop": true
+          },
+          {
+            "type": "pill",
+            "text": "Intip yuk!",
+            "x": 540,
+            "y": 1489,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.2
+            },
+            "fs": 56
+          }
+        ]
+      },
+      "sfx": "pop"
+    },
+    {
+      "id": "listrik",
+      "kind": "normal",
+      "dur": 7,
+      "narration": "Di dalam bohlam ada kawat tipis bernama filamen. Listrik yang lewat membuat filamen itu panas sampai berpijar.",
+      "text": "Listrik memanaskan filamen",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Listrik memanaskan filamen",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "pijar",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Jadi cahaya bohlam pijar lahir dari panas. Kawat itu dipanaskan terus sampai menyala terang.",
+      "text": "Cahaya lahir dari panas",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Cahaya lahir dari panas",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "panas",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Masalahnya, kurang dari lima persen energinya jadi cahaya yang terlihat. Sisanya lepas sebagai panas.",
+      "text": "Cahaya kurang dari 5%",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Cahaya kurang dari 5%",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "infra",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Sebagian besar panas itu berupa sinar inframerah yang tidak terlihat mata. Karena itu, bohlam bahkan dipakai sebagai lampu penghangat.",
+      "text": "Inframerah: tak terlihat",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Inframerah: tak terlihat",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "hasil",
+      "kind": "result",
+      "dur": 7,
+      "narration": "Bohlam pijar cuma dapat sekitar tiga belas sampai enam belas lumen per watt. Lampu LED putih bisa sekitar seratus.",
+      "text": "Bohlam 13–16, LED 100",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Bohlam 13–16, LED 100",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "ac",
+      "kind": "normal",
+      "dur": 6,
+      "narration": "Di ruangan ber-AC, panas bohlam malah menambah beban AC.",
+      "text": "Beban AC bertambah",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Beban AC bertambah",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "tips",
+      "kind": "tips",
+      "dur": 8,
+      "narration": "Mau lebih hemat listrik? Lampu LED lebih efisien. Dan jangan pegang bohlam yang baru dimatikan, masih panas.",
+      "text": "Pilih LED, jangan pegang",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Pilih LED, jangan pegang",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "dur": 4,
+      "narration": "",
+      "text": "",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    }
+  ],
+  "claims": [
+    {
+      "text": "Bohlam pijar menghasilkan cahaya dengan memanaskan filamen (pemanasan Joule) sampai berpijar.",
+      "beats": [
+        "listrik",
+        "pijar"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Incandescent_light_bulb"
+      ]
+    },
+    {
+      "text": "Kurang dari 5% energi yang dipakai bohlam pijar berubah jadi cahaya tampak; sisanya dilepas sebagai panas.",
+      "beats": [
+        "panas"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Incandescent_light_bulb"
+      ]
+    },
+    {
+      "text": "Sebagian besar sisa energinya dipancarkan sebagai radiasi inframerah yang tidak terlihat, dan inframerah itu dipakai pada lampu penghangat.",
+      "beats": [
+        "infra"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Incandescent_light_bulb"
+      ]
+    },
+    {
+      "text": "Efikasi bohlam pijar sekitar 16 lm/W (120 V) atau 13 lm/W (230 V), dibanding sekitar 100 lm/W untuk lampu LED putih.",
+      "beats": [
+        "hasil",
+        "tips"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Incandescent_light_bulb"
+      ]
+    },
+    {
+      "text": "Di gedung ber-AC, panas bohlam pijar menambah beban sistem AC.",
+      "beats": [
+        "ac"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Incandescent_light_bulb"
+      ]
+    },
+    {
+      "text": "Citra termal sebuah bohlam pijar menunjukkan suhu sekitar 22 sampai 175 °C.",
+      "beats": [
+        "tips"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Incandescent_light_bulb"
+      ]
+    }
+  ],
+  "post": {
+    "description": "Bohlam pijar lebih banyak jadi panas daripada cahaya. Intip kenapa filamen yang berpijar membuang kurang dari 5% energinya sebagai cahaya.",
+    "hashtags": [
+      "#bohlam",
+      "#faktaseru",
+      "#sains",
+      "#intipyuk",
+      "#shorts"
+    ]
+  },
+  "needs": [
+    "bohlam kaca dengan filamen (aset baru, dibuat dari iso.ts)",
+    "batang energi 20 kotak (aset baru)"
+  ],
+  "stage": "slab",
+  "theme": "peach",
+  "captions": true,
+  "music": {
+    "track": "bed-glow"
+  }
+}
