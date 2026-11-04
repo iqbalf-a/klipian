@@ -1,0 +1,262 @@
+{
+  "bible": 1,
+  "question": "Kenapa balon helium naik ke atas?",
+  "titles": [
+    "Kenapa balon helium naik ke atas?",
+    "Balon helium naik: udara yang mendorongnya",
+    "Intip rahasia balon helium yang melayang"
+  ],
+  "duration": 60,
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 3,
+      "narration": "Kenapa balon helium naik ke atas?",
+      "text": "Balon kok naik?",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Balon kok naik?",
+            "fs": 72
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "sting",
+      "kind": "sting",
+      "dur": 1,
+      "narration": "Intip yuk!",
+      "text": "Intip yuk!",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "mascot",
+            "x": 540,
+            "y": 720,
+            "enter": {
+              "kind": "pop",
+              "delay": 0
+            },
+            "w": 220,
+            "expr": "curious"
+          },
+          {
+            "type": "pill",
+            "text": "Intip yuk!",
+            "x": 540,
+            "y": 1489,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.2
+            },
+            "fs": 56
+          }
+        ]
+      },
+      "sfx": "pop"
+    },
+    {
+      "id": "udara",
+      "kind": "normal",
+      "dur": 7,
+      "narration": "Udara di sekitar kita ternyata punya berat, dan menekan ke segala arah.",
+      "text": "Udara punya berat",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Udara punya berat",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "ringan",
+      "kind": "normal",
+      "dur": 7,
+      "narration": "Helium jauh lebih ringan dari udara. Seukuran sama, helium kalah berat.",
+      "text": "Helium lebih ringan",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Helium lebih ringan",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "dorong",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Udara di sekeliling balon mendorongnya ke atas, sebesar berat udara yang tergeser.",
+      "text": "Udara mendorong ke atas",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Udara mendorong ke atas",
+            "fs": 62
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "naik",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Dorongan itu lebih besar dari berat balon dan heliumnya. Jadi, balon pun naik.",
+      "text": "Dorongan menang",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Dorongan menang",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "inti",
+      "kind": "result",
+      "dur": 7,
+      "narration": "Intinya, balon plus helium lebih ringan daripada udara yang digesernya.",
+      "text": "Lebih ringan dari udara",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Lebih ringan dari udara",
+            "fs": 62
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "batas",
+      "kind": "normal",
+      "dur": 6,
+      "narration": "Balon tidak naik selamanya. Ia berhenti saat beratnya sama dengan udara yang digeser.",
+      "text": "Berhenti saat seimbang",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Berhenti saat seimbang",
+            "fs": 62
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "tips",
+      "kind": "tips",
+      "dur": 9,
+      "narration": "Ingat aturannya: lebih ringan dari udara, naik. Lebih berat, jatuh. Makanya balon berisi napas tidak naik.",
+      "text": "Ringan naik, berat jatuh",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Ringan naik, berat jatuh",
+            "fs": 60
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "dur": 4,
+      "narration": "",
+      "text": "",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    }
+  ],
+  "claims": [
+    {
+      "text": "Benda yang tercelup dalam fluida, termasuk udara, didorong ke atas dengan gaya sebesar berat fluida yang digesernya; fluida punya berat.",
+      "beats": [
+        "udara",
+        "dorong",
+        "naik"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Buoyancy"
+      ]
+    },
+    {
+      "text": "Helium lebih ringan dari udara sehingga dipakai untuk mengisi balon dan kapal udara; kerapatannya sekitar 0,18 gram per liter.",
+      "beats": [
+        "ringan"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Helium"
+      ]
+    },
+    {
+      "text": "Benda yang kerapatannya lebih kecil dari fluidanya mengapung; balon naik karena lebih ringan dari udara yang digesernya.",
+      "beats": [
+        "inti",
+        "tips"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Buoyancy"
+      ]
+    },
+    {
+      "text": "Balon yang naik berhenti saat beratnya sama dengan udara yang digesernya, dan cenderung mengembang saat tekanan udara turun.",
+      "beats": [
+        "batas"
+      ],
+      "sources": [
+        "https://en.wikipedia.org/wiki/Buoyancy"
+      ]
+    }
+  ],
+  "post": {
+    "description": "Kenapa balon helium naik ke atas? Intip dorongan udara yang mengangkatnya.",
+    "hashtags": [
+      "#balonhelium",
+      "#faktaseru",
+      "#sains",
+      "#intipyuk",
+      "#shorts"
+    ]
+  },
+  "needs": [],
+  "stage": "slab",
+  "theme": "peach",
+  "captions": true,
+  "music": {
+    "track": "bed-sunny",
+    "level": 0.8
+  }
+}
