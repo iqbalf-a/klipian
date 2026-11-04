@@ -1200,7 +1200,9 @@ MUSIC_USE = {
     "none": "no music",
 }
 KINDS = {"otomatis": "Otomatis (template, paling cepat)", "khusus": "Khusus (video buatan agen, tampilan terbaik)"}
-DEFAULT_OPTIONS = {"loop": True, "sting": True, "voiceTargets": list(VOICE_TARGETS), "voiceTargetFirst": "voicestudio", "music": "sunny", "kind": "khusus"}
+# the look of a Khusus video (B28): "auto" leaves the choice to the agent, which picks from the topic; the others force it (the story's `look`)
+LOOK_CHOICES = {"auto": "Otomatis (dipilih sesuai topik)", "iso": "2.5D isometrik", "2d": "2D", "text": "Teks"}
+DEFAULT_OPTIONS = {"loop": True, "sting": True, "voiceTargets": list(VOICE_TARGETS), "voiceTargetFirst": "voicestudio", "music": "sunny", "kind": "khusus", "look": "auto"}
 
 
 # the words that make a topic a technology topic (PLAN P28-R phase 4): its default bed is a technology bed, any other topic gets the cheerful one
@@ -1251,7 +1253,7 @@ def normalize_options(raw) -> dict:
         out["voiceTargetFirst"] = out["voiceTargets"][0]
     if "music" not in raw:
         out["music"] = LEGACY_MUSIC                              # a project saved before the choice keeps its bed: calm
-    for key, choices in (("music", MUSIC_TRACKS), ("kind", KINDS)):
+    for key, choices in (("music", MUSIC_TRACKS), ("kind", KINDS), ("look", LOOK_CHOICES)):
         if key in raw:
             if key == "music" and raw[key] == "auto":                     # "sesuai topik" is resolved when the video is made (create); here it is the default
                 out[key] = DEFAULT_OPTIONS["music"]

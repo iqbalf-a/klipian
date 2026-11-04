@@ -78,11 +78,15 @@ const itemLabel = (t) => ITEM_LABEL[t] || t;
 // the summary of a step, one line, from the detail
 // ---------------------------------------------------------------------------------------------------------------------------------------
 
+// the look of a Khusus video (B28): auto leaves the choice to Claude Code; the others force it
+const LOOK_LABELS = [["auto", "Otomatis (dipilih sesuai topik)"], ["iso", "2.5D isometrik"], ["2d", "2D"], ["text", "Teks"]];
+
 function optionsSummary(o) {
   if (!o) return "";
   const music = (typeof MUSIC_LABELS !== "undefined" && MUSIC_LABELS[o.music]) || o.music;
   const apps = (o.voiceTargets || []).length;
-  return [o.loop ? "loop" : "tanpa loop", o.sting ? '"Intip yuk!"' : 'tanpa "Intip yuk!"', `musik ${music}`, `${apps} aplikasi suara`].join(", ");
+  const look = o.look && o.look !== "auto" ? (LOOK_LABELS.find(([v]) => v === o.look) || [])[1] : "";
+  return [...(look ? [`gaya ${look}`] : []), o.loop ? "loop" : "tanpa loop", o.sting ? '"Intip yuk!"' : 'tanpa "Intip yuk!"', `musik ${music}`, `${apps} aplikasi suara`].join(", ");
 }
 
 function stepSummary(id, d) {

@@ -417,7 +417,7 @@ def build_brief(p: dict) -> str:
     opts = _m.options_of(p)
     kind = "custom" if _m.kind_of(p) == "custom" else "template"
     notes = f"\n\n**Notes from the person making the video:** {p['notes']}" if p.get("notes") else ""
-    look = p.get("look") if p.get("look") in LOOKS else None
+    look = opts["look"] if opts["look"] in LOOKS else (p.get("look") if p.get("look") in LOOKS else None)     # the option; a top-level look (the brief CLI) is the fallback; auto = the agent chooses
     rules = _numbered(HARD_RULES).replace(LOOK_MARK, look_text(look))
     if kind == "custom":
         slug = video_slug(p["topic"])
@@ -582,8 +582,9 @@ def short_command(p: dict) -> str:
     opts = _m.options_of(p)
     quote = lambda s: '"' + " ".join(str(s).replace('"', "'").split()) + '"'
     parts = ["-create"]
-    if p.get("look") in LOOK_TOKEN:
-        parts.append(LOOK_TOKEN[p["look"]])
+    look = opts["look"] if opts["look"] in LOOK_TOKEN else p.get("look")
+    if look in LOOK_TOKEN:
+        parts.append(LOOK_TOKEN[look])
     parts.append(str(p["duration"]))
     if not opts["loop"]:
         parts.append("noloop")

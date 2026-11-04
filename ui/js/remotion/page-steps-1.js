@@ -57,6 +57,8 @@ function optionsHTML(opts, id) {
   return `<div class="rm-group" id="${id}">
     <label class="rm-check"><input type="checkbox" data-opt="loop" ${opts.loop ? "checked" : ""}> Loop (akhir kembali ke adegan awal)</label>
     <label class="rm-check"><input type="checkbox" data-opt="sting" ${opts.sting ? "checked" : ""}> "Intip yuk!" setelah hook</label>
+    <label class="ws-field">Gaya video ${sel("look", LOOK_LABELS)}</label>
+    <span class="rm-hint">Otomatis: Claude Code memilih gaya yang paling cocok dengan topik (B28).</span>
     <label class="ws-field">Musik ${sel("music", Object.entries(MUSIC_LABELS))}</label>
     <div class="rm-subgroup" role="group" aria-label="Aplikasi suara">
       <span class="rm-sublabel">Aplikasi suara (centang yang dipakai; naskahnya dibuat untuk tiap aplikasi)</span>

@@ -6147,6 +6147,24 @@ def check_motion_brief() -> tuple[str, str]:
                 problems.append(f"the brief CLI refuses {bad}")
             except motion.MotionError:
                 pass
+        if motion.normalize_options({})["look"] != "auto" or motion.options_of({"topic": "x", "duration": 45, "options": {"music": "sunny"}})["look"] != "auto":
+            problems.append("the look option is auto by default, also for an old project without it")
+        try:
+            motion.normalize_options({"look": "3d"})
+            problems.append("a wrong look is refused")
+        except motion.MotionError as exc:
+            if "auto, iso, 2d, text" not in str(exc):
+                problems.append(f"the wrong-look message lists the choices: {exc}")
+        base = {"topic": "Kenapa colokan panas", "duration": 45, "notes": ""}
+        forced = motion.build_brief({**base, "options": {"kind": "khusus", "music": "sunny", "look": "2d"}})
+        if "**Look 2d (B28):**" not in forced or "**Look iso (B28):**" in forced or "**Look text (B28):**" in forced or "Choose the look" in forced:
+            problems.append("a project with look 2d gets only the 2d look rules")
+        if "-create 2d 45" not in motion.short_command({**base, "options": {"music": "sunny", "look": "2d"}}):
+            problems.append("the short command of a look 2d project has the 2d token")
+        auto = motion.build_brief({**base, "options": {"kind": "khusus", "music": "sunny", "look": "auto"}})
+        if "Choose the look" not in auto or any(t in motion.short_command({**base, "options": {"music": "sunny", "look": "auto"}}) for t in ("2.5d", " 2d ", "teks")):
+            problems.append("look auto leaves the choice to the agent: the choose text and no look token")
+        motion.build_brief({**base, "options": {"kind": "otomatis", "music": "sunny", "look": "iso"}})      # the template kind ignores the look: no error
         short = motion.short_command({"topic": "Kenapa colokan panas", "duration": 45, "notes": "", "options": {"music": motion.DEFAULT_OPTIONS["music"]}})
         if short != '-create 45 "Kenapa colokan panas"':
             problems.append(f"the short command of a default 45 s project is -create 45 \"<topic>\", not {short!r}")
