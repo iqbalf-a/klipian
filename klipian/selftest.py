@@ -6131,7 +6131,7 @@ def check_motion_brief() -> tuple[str, str]:
         for want in ("-create", ".claude/skills/create/SKILL.md"):
             if want not in cmt:
                 problems.append(f"the root CLAUDE.md lost {want!r}")
-        for want in ("name: create", "# -create <topic>", "cloud/stok-video", "git pull --rebase origin cloud/stok-video", "git push origin cloud/stok-video", "up to 3 tries", "motion_brief_cli", "Never push `main`, never force-push", "obat cegukan paling ampuh", "at most 6 short lines", "pakai ulang", "Write `sfx.ts` by hand", "about 1 event a second", "Do NOT print the narration", "checkout lama, buka sesi cloud baru", "Work quietly"):
+        for want in ("name: create", "# -create <topic>", "git checkout -q --detach origin/main", "git push origin HEAD:main", "up to 3 tries", "motion_brief_cli", "Never force-push", "set.json", "obat cegukan paling ampuh", "at most 6 short lines", "pakai ulang", "Write `sfx.ts` by hand", "about 1 event a second", "Do NOT print the narration", "main belum punya aturan set", "Work quietly"):
             if want not in text:
                 problems.append(f"the /create skill lost {want!r}")
         cc = Path(__file__).resolve().parent.parent / ".claude" / "skills" / "create-cloud" / "SKILL.md"
