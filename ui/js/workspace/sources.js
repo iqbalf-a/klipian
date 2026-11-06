@@ -18,7 +18,7 @@ function formatBytes(n) {
 }
 
 function formatLength(sec) {
-  if (sec == null) return "—";
+  if (sec == null) return "";
   const s = Math.round(sec);
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
   const pad = (x) => String(x).padStart(2, "0");
@@ -28,6 +28,7 @@ function formatLength(sec) {
 let SOURCES_FOLDER = "";
 let SOURCE_ROWS = [];             // what the table shows, for the credit form
 let creditOpen = "";              // the video whose credit form is open
+const selected = new Set();       // names of the live videos ticked for Delete selected
 const sourcePager = createPager({ key: "sources", mount: $("#sourcePager"), onChange: () => drawSources() });
 
 async function loadSources() {
@@ -39,6 +40,8 @@ async function loadSources() {
     source = d.source || [];
     SOURCE_ROWS = source;
     SOURCES_FOLDER = d.folder || "";
+    const liveNames = new Set(source.filter((s) => !s.deleted).map((s) => s.name));
+    for (const n of selected) if (!liveNames.has(n)) selected.delete(n);
     const open = $("#sourceOpenBtn");
     if (open) open.title = SOURCES_FOLDER;          // where the files really are, whatever the profile
   } catch {
@@ -49,6 +52,7 @@ async function loadSources() {
   }
   if (!source.length) {
     sourcePager.slice([]);
+    drawSelection();
     note.textContent = "this profile's sources folder is empty";
     list.innerHTML = `<p class="empty">No videos yet. Add one with <b>Add video…</b> on the
       Assets screen of a project, or copy the file into this profile's sources folder (<b>Open folder</b>).</p>`;
@@ -67,9 +71,12 @@ async function loadSources() {
 function drawSources() {
   const list = $("#sourceList");
   const first = SOURCE_ROWS.length ? SOURCE_ROWS.indexOf(sourcePager.slice(SOURCE_ROWS)[0]) : 0;
+  const pageLive = sourcePager.slice(SOURCE_ROWS).filter((s) => !s.deleted);
+  const allTicked = pageLive.length > 0 && pageLive.every((s) => selected.has(s.name));
   list.innerHTML = `
     <div class="ws-row sources head">
-      <span>Video</span><span>Size</span><span>Length</span><span>Added</span><span>Transcript</span><span>Used by</span><span>Credit</span><span></span>
+      <span class="pick"><input type="checkbox" data-select-page title="Select every video on this page"
+        ${allTicked ? "checked" : ""} ${pageLive.length ? "" : "disabled"} aria-label="Select every video on this page"></span><span>Video</span><span>Size</span><span>Length</span><span>Added</span><span>Transcript</span><span>Used by</span><span>Credit</span><span></span>
     </div>` + sourcePager.slice(SOURCE_ROWS).map((s, k) => {
       const i = first + k;
       const used = s.used_by.map((u) => u.name).join(", ");
@@ -77,17 +84,20 @@ function drawSources() {
       const who = [c.platform, c.creator].filter(Boolean).join(" · ") || (c.title ? `"${c.title}"` : "");
       if (s.deleted) return `
     <div class="ws-row sources gone">
+      <span class="pick"></span>
       <span class="name" title="${escapeHTML(s.name)}">${escapeHTML(s.name)} <span class="data">deleted${s.deleted_at ? " " + escapeHTML(s.deleted_at) : ""}</span></span>
-      <span class="data">—</span><span class="data">—</span><span class="data">—</span><span class="data"></span>
+      <span class="data"></span><span class="data"></span><span class="data"></span><span class="data"></span>
       <span class="used" data-none="${used ? "false" : "true"}" title="${escapeHTML(used)}">${used ? escapeHTML(used) : "not used"}</span>
       <span class="data" style="white-space:normal" title="${escapeHTML(s.credit_line || "")}">${escapeHTML(who)}${s.can_redownload ? ""
-        : `${who ? " · " : ""}no link — add the file again with this name`}</span>
+        : `${who ? " · " : ""}no link: add the file again with this name`}</span>
       ${s.can_redownload
-        ? `<button class="btn" type="button" data-again="${i}" title="Download this video again under the same name">Download again</button>`
+        ? `<button class="btn sm" type="button" data-again="${i}" title="Download this video again under the same name">Download again</button>`
         : "<span></span>"}
     </div>`;
       return `
     <div class="ws-row sources">
+      <span class="pick"><input type="checkbox" data-select="${i}"
+        ${selected.has(s.name) ? "checked" : ""} aria-label="Select ${escapeHTML(s.name)}"></span>
       <span class="name" title="${escapeHTML(s.name)}">${escapeHTML(s.name)}</span>
       <span class="data">${formatBytes(s.bytes)}</span>
       <span class="data">${formatLength(s.duration)}</span>
@@ -96,9 +106,17 @@ function drawSources() {
       <span class="used" data-none="${used ? "false" : "true"}" title="${escapeHTML(used)}">${used ? escapeHTML(used) : "not used"}</span>
       <button class="credit-btn" type="button" data-credit="${i}" data-set="${who ? "true" : "false"}"
               title="${escapeHTML(s.credit_line || "Where this video came from")}">${who ? escapeHTML(who) : "+ credit"}</button>
-      <button class="btn" type="button" data-delete="${i}" title="Move this file to the Recycle Bin">Delete</button>
+      <button class="btn sm" type="button" data-delete="${i}" title="Move this file to the Recycle Bin">Delete</button>
     </div>${creditOpen === s.name ? creditFormHTML(s, i) : ""}`;
     }).join("");
+  drawSelection();
+}
+
+function drawSelection() {
+  const b = $("#sourceDeleteSelBtn");
+  if (!b) return;
+  b.hidden = !selected.size;
+  b.textContent = `Delete selected (${selected.size})`;
 }
 
 /* The credit of a source video: where it came from, kept in
@@ -126,6 +144,24 @@ function creditFormHTML(s, i) {
       </div>
     </form>`;
 }
+
+$("#sourceList")?.addEventListener("change", (e) => {
+  const one = e.target.closest("[data-select]");
+  if (one) {
+    const s = SOURCE_ROWS[Number(one.dataset.select)];
+    if (one.checked) selected.add(s.name); else selected.delete(s.name);
+    drawSources();
+    return;
+  }
+  const page = e.target.closest("[data-select-page]");
+  if (page) {
+    for (const s of sourcePager.slice(SOURCE_ROWS)) {
+      if (s.deleted) continue;
+      if (page.checked) selected.add(s.name); else selected.delete(s.name);
+    }
+    drawSources();
+  }
+});
 
 $("#sourceList")?.addEventListener("click", (e) => {
   const del = e.target.closest("[data-delete]");
@@ -185,6 +221,38 @@ async function deleteSource(s) {
   }
   loadSources();
 }
+
+/* Delete selected: one confirm, then the same endpoint once per file, in turn. */
+async function deleteSelected() {
+  const rows = SOURCE_ROWS.filter((s) => !s.deleted && selected.has(s.name));
+  if (!rows.length) return;
+  const used = rows.filter((s) => s.used_by.length).map((s) => s.name);
+  const ok = await confirmDialog({
+    title: `Delete ${rows.length} video${rows.length === 1 ? "" : "s"}?`,
+    message: `${rows.map((s) => s.name).join(", ")} go to the Recycle Bin (you can restore them there).`
+      + (used.length ? ` Projects that use them keep their data; the videos show as deleted there.` : ""),
+    warning: used.length ? `A project uses ${used.length === rows.length ? "every one of them" : `${used.length} of them`}.` : "",
+    tone: used.length ? "strong" : "danger",
+  });
+  if (!ok) return;
+  const failed = [];
+  for (const s of rows) {
+    try {
+      const r = await fetch("/api/workspace/sources/delete", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ file: s.name }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "could not delete");
+      selected.delete(s.name);
+    } catch (err) {
+      failed.push(`${s.name}: ${err.message || "could not delete"}`);
+    }
+  }
+  showToast(failed.length ? `Not deleted: ${failed.join("; ")}` : `Moved ${rows.length} to the Recycle Bin.`);
+  loadSources();
+}
+
+$("#sourceDeleteSelBtn")?.addEventListener("click", deleteSelected);
 
 /* Download again: the same YouTube video, saved under the same name so projects find it. */
 async function downloadAgain(s, btn) {

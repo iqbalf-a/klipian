@@ -111,13 +111,19 @@
      row (.head) names the columns, since six of them are not self-evident. */
   .ws-row.sources.gone { opacity: .7; }
   .ws-row.sources.gone .name { white-space: normal; }
+  /* The tick box has its own first column (centred on the row, 16px, like the Clips table), never inside the name. */
+  .ws-row.sources .pick { @apply flex items-center justify-center; }
+  .ws-row.sources .pick input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); cursor: pointer; }
   @media (max-width: 900px) {
-    .ws-row.sources { grid-template-columns: 1fr 1fr; }
-    .ws-row.sources .name { grid-column: 1 / -1; }
+    .ws-row.sources { grid-template-columns: 1fr 1fr; position: relative; }
+    .ws-row.sources .name { grid-column: 1 / -1; padding-left: 24px; }
+    .ws-row.sources .pick { position: absolute; left: 12px; top: 9px; }
     .ws-row.sources.head { display: none; }
   }
-  .ws-row.sources {
-    grid-template-columns: minmax(180px, 2fr) 76px 64px 64px 112px minmax(0, 1fr) minmax(0, 1fr) 112px;
+  @media (min-width: 901px) {
+    .ws-row.sources {
+      grid-template-columns: 24px minmax(180px, 2fr) 76px 64px 64px 112px minmax(0, 1fr) minmax(0, 1fr) 112px;
+    }
   }
   .ws-row.sources .used { @apply truncate text-[12px]; }
   .ws-row.sources .used[data-none="true"] { @apply text-text-faint; }

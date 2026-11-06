@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>klipian — sources</title>
+<title>klipian: sources</title>
 <!-- Fonts ship with the repo (assets/fonts/, SIL OFL) instead of coming
      from the Google Fonts CDN -- see ui/css/fonts.css for why. Loaded
      BEFORE the other stylesheets so the faces are declared by the time
@@ -53,7 +53,7 @@
               aria-expanded="false">?</button>
       <div class="shortcut-panel" id="shortcutPanel" hidden role="tooltip">
         <p><b>Sources</b> your raw videos, in this profile's sources folder (Open folder)</p>
-        <p><b>Delete</b> moves the file to the Recycle Bin; projects keep their data and show it as deleted</p>
+        <p><b>Delete</b> (or tick several and <b>Delete selected</b>) moves the file to the Recycle Bin; projects keep their data and show it as deleted</p>
         <p><b>Download again</b> brings a deleted YouTube video back under the same name</p>
         <p class="shortcut-guide"><a href="/guide" target="_blank" rel="noopener">Guide: setup, downloads, bulk render →</a></p>
       </div>
@@ -69,10 +69,12 @@
          schedule and the output): size, length, transcript, and which
          projects use each. /api/workspace/sources. -->
     <section class="ws-panel" id="panelSources">
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-3" style="flex-wrap:wrap; row-gap:8px">
         <h1 class="text-[20px] font-extrabold tracking-tight">Sources</h1>
         <span class="text-text-faint text-[13px]" id="sourceNote" role="status">loading…</span>
-        <button class="ml-auto btn"
+        <button class="ml-auto btn" id="sourceDeleteSelBtn" type="button" hidden
+                title="Move the selected files to the Recycle Bin">Delete selected</button>
+        <button class="btn"
                 id="sourceYtBtn" type="button" title="Download a video from a YouTube link into this profile's sources">+ From YouTube</button>
         <button class="btn"
                 id="sourceOpenBtn" type="button">Open folder</button>

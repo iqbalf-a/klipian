@@ -300,5 +300,5 @@ dialog.confirm-dlg:has(.bulk-plan) { width: min(560px, calc(100vw - 32px)); }
 /* Sources rows keep a readable name column; narrower windows scroll inside the list, not the page. */
 @media (min-width: 901px) {
   #sourceList { overflow-x: auto; }
-  .ws-row.sources { min-width: 780px; }
+  .ws-row.sources { min-width: 810px; }
 }
