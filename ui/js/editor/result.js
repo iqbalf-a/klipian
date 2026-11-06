@@ -785,7 +785,7 @@ $("#recAddBtn")?.addEventListener("click", () => {
   // three and seeing one row appear reads as two of them being dropped.
   const parts = [];
   if (rejectedCount) {
-    parts.push(`${rejectedCount} suggestion${rejectedCount > 1 ? "s" : ""} skipped — invalid timing`);
+    parts.push(`${rejectedCount} suggestion${rejectedCount > 1 ? "s" : ""} skipped: invalid timing`);
   }
   if (mergedCount) {
     parts.push(`${mergedCount} overlapping span${mergedCount > 1 ? "s" : ""} merged`);

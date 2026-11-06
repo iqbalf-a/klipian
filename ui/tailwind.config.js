@@ -38,8 +38,8 @@ module.exports = {
         // accent changes.
         "accent-text": "var(--accent-text)",
         danger: "var(--danger)",
-        "status-scheduled": "oklch(0.75 0.14 230)",
-        "status-posted": "oklch(0.75 0.16 145)",
+        "status-scheduled": "var(--status-scheduled)",
+        "status-posted": "var(--status-posted)",
       },
       // Point at the tokens, don't restate the family names. These used to
       // spell out "Mona Sans" and "Martian Mono" literally, so when the UI

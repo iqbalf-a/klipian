@@ -31,20 +31,6 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Ambient light: two large, very blurred blobs, one following the accent color.
-   This is what gives the dark background a sense of depth instead of a flat plane. */
-body::before {
-  content: "";
-  position: fixed; inset: -20% -10% auto -10%;
-  height: 70vh;
-  background:
-    radial-gradient(46% 60% at 22% 0%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 70%),
-    radial-gradient(50% 62% at 82% 6%, color-mix(in srgb, var(--ink) 4.5%, transparent), transparent 72%);
-  filter: blur(48px);
-  pointer-events: none;
-  z-index: 0;
-  transition: background var(--medium);
-}
 
 /* Two rows only: topbar then stage. There used to be a third row for the
    "Source" strip that marked candidates along the video -- that strip was
@@ -100,7 +86,7 @@ h1, h2, h3 {
   /* .13em -> .14em: these were also narrowed to 88% width, which Geist
      can't do. Slightly wider tracking keeps them reading as labels rather
      than shrunken body text, which is the job the narrowing was doing. */
-  letter-spacing: .14em; text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--text-faint);
 }
 
@@ -110,6 +96,7 @@ h1, h2, h3 {
   display: flex; align-items: center; gap: var(--s5);
   padding: 0 var(--s5);
   background: color-mix(in srgb, var(--bg-1) 72%, transparent);
+  /* Glass is kept on the topbar and the sticky .work-head only (content scrolls under them); every other surface is solid. */
   backdrop-filter: blur(20px) saturate(150%);
   border-bottom: 1px solid var(--glass-border);
   /* position+z-index are REQUIRED here, not just on .shortcut-panel itself:
@@ -226,18 +213,15 @@ h1, h2, h3 {
 
 .panel {
   position: relative;
-  background: color-mix(in srgb, var(--bg-2) 82%, transparent);
-  backdrop-filter: blur(18px);
+  background: var(--bg-2);
   border: 1px solid var(--glass-border);
   border-radius: var(--r-l);
-  box-shadow: var(--shadow-panel);
   overflow: hidden;
 }
 .panel.fit { flex: none; }
 .panel.body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .card.picked {
   border-color: color-mix(in srgb, var(--accent) 48%, transparent);
-  box-shadow: var(--shadow-card), 0 0 26px -14px var(--accent-glow);
 }
 .card.rejected { opacity: .38; }
 
@@ -294,8 +278,7 @@ h1, h2, h3 {
 .preview {
   border: 1px solid var(--glass-border);   /* was border-left -- see .side */
   border-radius: var(--r-l);
-  background: color-mix(in srgb, var(--bg-1) 55%, transparent);
-  backdrop-filter: blur(18px);
+  background: var(--bg-1);
   padding: var(--s5) var(--s4);
   display: flex; flex-direction: column; gap: var(--s3);
   min-height: 0;
@@ -309,7 +292,7 @@ h1, h2, h3 {
 }
 .preview-head {
   display: flex; justify-content: space-between; align-items: center;
-  font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  font-size: 11px; font-weight: 600;
   color: var(--text-faint);
 }
 .preview-head .res { font-family: var(--font-data); letter-spacing: 0; text-transform: none; }
@@ -329,7 +312,7 @@ h1, h2, h3 {
   content: attr(data-tag);
   position: absolute; top: 7px; left: 7px;
   font-family: var(--font-data); font-size: 9px;
-  color: #fff; background: rgba(0,0,0,.6); backdrop-filter: blur(8px);
+  color: #fff; background: rgba(0,0,0,.72);
   padding: 3px 7px; border-radius: var(--r-pill);
   opacity: 0; transition: opacity var(--fast);
 }
@@ -438,7 +421,6 @@ h1, h2, h3 {
   gap: var(--s3);
   padding: var(--s5);
   background: rgba(8, 9, 10, 0.82);
-  backdrop-filter: blur(2px);
   text-align: center;
 }
 .ai-framing-spin {
@@ -1122,7 +1104,8 @@ h1, h2, h3 {
 @keyframes card-loading { to { background-position: -150% 0; } }
 
 .project-thumb.empty, .project-thumb.failed {
-  display: block;
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--t-12); color: var(--text-faint);
   background: repeating-linear-gradient(45deg,
     var(--bg-2) 0 8px, var(--bg-1) 8px 16px);
 }
@@ -1315,8 +1298,7 @@ h1, h2, h3 {
   position: relative;
   border: 1px solid var(--glass-border);
   border-radius: var(--r-l);
-  background: color-mix(in srgb, var(--bg-1) 55%, transparent);
-  backdrop-filter: blur(18px);
+  background: var(--bg-1);
   padding: var(--s4) var(--s3);
   overflow-y: auto;
 }
@@ -1697,7 +1679,7 @@ h1, h2, h3 {
 .asset-row.missing .asset-meta { color: var(--danger); }
 .asset-row.active .asset-kind { color: var(--accent); }
 .asset-active {
-  font-size: 9px; letter-spacing: .04em; text-transform: uppercase;
+  font-size: 10px;
   padding: 3px 8px; border-radius: var(--r-pill);
   background: var(--accent); color: oklch(0.145 0.010 258);
 }
@@ -1980,8 +1962,7 @@ h1, h2, h3 {
 .result-row + .result-row { border-top: 1px solid var(--glass-border); }
 .result-row:hover { background: var(--glass); }
 .source-badge {
-  font-size: 9px;
-  letter-spacing: .04em; text-transform: uppercase;
+  font-size: 10px;
   padding: 2px 6px; border-radius: var(--r-pill);
   border: 1px solid var(--glass-border);
   color: var(--text-faint);
@@ -2350,9 +2331,11 @@ h1, h2, h3 {
 .word-input {
   font: inherit; font-size: 13px;
   border: 0; outline: none; padding: 0;
+  border-bottom: 1px solid transparent;
   background: none; color: var(--text);
   min-width: 3ch;
 }
+.word-input:focus-visible { border-bottom-color: var(--accent); }
 
 /* ═══════════════════════════════════════════════ timeline (compose.js)
    Stacked lanes over one shared time axis: clips on top, then text, image
@@ -2662,7 +2645,7 @@ dialog.confirm-dlg:has(.bulk-out) { width: min(560px, calc(100vw - 32px)); max-h
 .rec-way .btn { margin-top: auto; }
 .rec-way-line { color: var(--text-muted); font-size: var(--t-12, 12px); font-variant-numeric: tabular-nums; }
 .rec-or { display: flex; align-items: center; }
-.rec-or span { color: var(--text-faint); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; padding: 4px 8px; border: 1px solid var(--glass-border); border-radius: var(--r-pill); }
+.rec-or span { color: var(--text-faint); font-size: 11px; padding: 4px 8px; border: 1px solid var(--glass-border); border-radius: var(--r-pill); }
 .rec-viz { display: flex; width: 84px; flex: none; }
 .rec-viz i { display: block; background: var(--accent); }
 .rec-viz.one { height: 10px; border-radius: 3px; overflow: hidden; }
@@ -2779,3 +2762,7 @@ dialog.confirm-dlg:has(.post-reply-text) { width: min(640px, calc(100vw - 32px))
 
 /* compact in the suggestion rows */
 .rec-time-in { font-size: 12px; height: 22px; padding: 0 5px; width: calc(var(--tw, 7) * 1ch + 12px); }
+
+@media (max-width: 720px) {
+  .app { grid-template-rows: auto 1fr; grid-template-columns: minmax(0, 1fr); }
+}

@@ -479,7 +479,7 @@ function bulkPlanBody(plan, eligible) {
   for (const it of plan.items) {
     const li = document.createElement("li");
     const fmt = rows.find((r) => r.id === it.result)?.format || it.layout;
-    li.textContent = `${it.title} — ${Math.round(it.duration)}s · ${fmt}`;
+    li.textContent = `${it.title}: ${Math.round(it.duration)}s · ${fmt}`;
     ul.append(li);
   }
   box.append(ul);
@@ -504,7 +504,7 @@ function bulkPlanBody(plan, eligible) {
     bad.className = "bulk-plan-list bad";
     for (const r of plan.refused) {
       const li = document.createElement("li");
-      li.textContent = `${r.title} — ${r.message}`;
+      li.textContent = `${r.title}: ${r.message}`;
       bad.append(li);
     }
     box.append(bad);

@@ -615,7 +615,7 @@ function renderFraming() {
         ${thumbUrl ? `<img class="fr-thumb" src="${thumbUrl}" alt="" loading="lazy">`
                     : `<span class="fr-thumb fr-thumb-empty"></span>`}
         ${f.tracking ? `<span class="fr-track-badge" title="Head tracking on">●</span>` : ""}
-        <span class="fr-time">${out !== null ? preciseTime(out) : "—"}</span>
+        <span class="fr-time">${out !== null ? preciseTime(out) : ""}</span>
         ${f.auto && isStartPoint(f) && isDefaultCrop(f)
           ? `<span class="fr-default">centered (default)</span>` : ""}
         <span class="fr-time-src">src ${preciseTime(toReal(f.at).t)}</span>
@@ -836,7 +836,7 @@ async function trackHeadForPoint(point) {
     const d = await r.json();
     if (!d.keyframes) {
       $("#reframeNote").textContent =
-        `head tracking: ${d.error || "not enough tracking data"} — point stays static.`;
+        `head tracking: ${d.error || "not enough tracking data"}: point stays static.`;
       return;
     }
     point.tracking = { keyframes: d.keyframes };
@@ -844,7 +844,7 @@ async function trackHeadForPoint(point) {
     if (typeof saveProject === "function") saveProject();
     $("#reframeNote").textContent = `head tracking on for point ${preciseTime(point.at)}`;
   } catch {
-    $("#reframeNote").textContent = "head tracking failed — point stays static.";
+    $("#reframeNote").textContent = "head tracking failed: point stays static.";
   } finally {
     if (btn) { btn.disabled = false; }
     $("#headTrackOverlay")?.setAttribute("hidden", "");
@@ -1336,7 +1336,7 @@ async function aiFramingFrameSpans(spans, spanTurns, owner) {
   } catch (err) {
     const setup = /module|import|no such file|onnx|cv2|opencv|torch/i.test(err.message);
     aiFramingFailed(err.message + (setup
-      ? " — this looks like a setup problem, not a detection one: run `pip install -r requirements-ai-framing.txt`." : ""));
+      ? ": this looks like a setup problem, not a detection one: run `pip install -r requirements-ai-framing.txt`." : ""));
     return;
   }
   if (aiFramingStale(owner)) { aiFramingAbandon(); return; }

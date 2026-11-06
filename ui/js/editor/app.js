@@ -391,7 +391,7 @@ function snapManual(time, side) {
    it was taken exactly. `typed` is what they entered, `res` what snapManual gave. */
 function timeSetNote(label, side, typed, res) {
   if (res.word && Math.abs(res.time - typed) > 0.001) {
-    return `${label} moved to ${timeTenths(res.time)} — the ${side === "start" ? "start" : "end"} of "${res.word}", `
+    return `${label} moved to ${timeTenths(res.time)}: the ${side === "start" ? "start" : "end"} of "${res.word}", `
       + `so no word is cut. Type ${timeTenths(typed)} for exactly ${timeRange(typed)}.`;
   }
   return `${label} set to exactly ${timeTenths(res.time)}`;
@@ -439,10 +439,10 @@ const OPTIONS = [
   // 2K and 4K are APPENDED, never inserted: see above.
   { id: "resolution", label: "Resolution", choices: ["720p", "1080p", "2K", "4K"],
     out: [720, 1080, 1440, 2160], active: 1, def: 1,
-    hint: ["720×1280 — smaller file, faster render.",
-           "1080×1920 — full size for TikTok, Reels and Shorts.",
-           "1440×2560 — beyond what the platforms show; only worth it if the source is larger.",
-           "2160×3840 — upscaled unless the source really is 4K, and much slower to render."] },
+    hint: ["720×1280: smaller file, faster render.",
+           "1080×1920: full size for TikTok, Reels and Shorts.",
+           "1440×2560: beyond what the platforms show; only worth it if the source is larger.",
+           "2160×3840: upscaled unless the source really is 4K, and much slower to render."] },
   // The render used to hardcode -crf 21. Lower is better quality and a
   // bigger file; these three sit either side of that old value, so
   // "Balanced" reproduces exactly what every earlier render produced.

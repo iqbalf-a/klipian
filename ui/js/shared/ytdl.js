@@ -178,7 +178,7 @@ async function _ytCheck() {
   _ytq("[data-card]").replaceChildren(card);
   const go = _ytq("[data-go]");
   if (d.inProfile) {
-    _ytSay(`Already in this profile's sources as ${d.inProfile} — nothing to download.`);
+    _ytSay(`Already in this profile's sources as ${d.inProfile}: nothing to download.`);
     go.textContent = "Use it";
   } else if (d.inOtherProfile) {
     _ytSay(`The profile "${d.inOtherProfile}" already has this video: it is linked here instead of downloaded again.`);

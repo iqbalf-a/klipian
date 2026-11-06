@@ -28,7 +28,7 @@
   /* Panel card -- used 4x (Clips, Sources, Rendered output, Assets), unified here
      instead of repeated as a long utility list in each section. */
   .ws-panel {
-    @apply bg-surface-2 rounded-m p-5 flex flex-col gap-4 shadow-card;
+    @apply bg-surface-2 rounded-m p-5 flex flex-col gap-4;
   }
 
   /* Table input: no border until touched -- a table that's always bordered
@@ -117,12 +117,12 @@
     .ws-row.sources.head { display: none; }
   }
   .ws-row.sources {
-    grid-template-columns: minmax(0, 1fr) 76px 64px 64px 112px minmax(0, 160px) minmax(0, 180px) 112px;
+    grid-template-columns: minmax(180px, 2fr) 76px 64px 64px 112px minmax(0, 1fr) minmax(0, 1fr) 112px;
   }
   .ws-row.sources .used { @apply truncate text-[12px]; }
   .ws-row.sources .used[data-none="true"] { @apply text-text-faint; }
   .ws-row.head {
-    @apply text-[10px] font-bold uppercase tracking-wider text-text-faint py-1.5;
+    @apply text-[11px] font-semibold text-text-faint py-1.5;
   }
   .ws-row .done { @apply text-accent; }
   /* The credit of a source video: one cell that opens its form. */

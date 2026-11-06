@@ -65,6 +65,10 @@
 
   --danger: oklch(0.660 0.190 25);
 
+  /* status text: per theme, so Posted/Scheduled keep 4.5:1 on a white panel */
+  --status-scheduled: oklch(0.75 0.14 230);
+  --status-posted:    oklch(0.75 0.16 145);
+
   /* ---- ink & scrim ----
      --ink is the high-contrast fill: progress bars, the scrub handle, the
      meter tick. It was hardcoded white in a dozen places, which is fine
@@ -105,6 +109,8 @@
     --accent-glow: oklch(0.550 0.145 75 / .30);
     --accent-text: oklch(0.995 0 0);
     --danger: oklch(0.545 0.205 25);
+    --status-scheduled: oklch(0.50 0.13 230);
+    --status-posted:    oklch(0.50 0.13 145);
     --ink:   oklch(0.250 0.010 258);
     --scrim: oklch(0 0 0);
   }
@@ -148,6 +154,8 @@
   --accent-text: oklch(0.995 0 0);          /* was near-black on yellow */
 
   --danger: oklch(0.545 0.205 25);
+  --status-scheduled: oklch(0.50 0.13 230);
+  --status-posted:    oklch(0.50 0.13 145);
 
   --ink:   oklch(0.250 0.010 258);
   --scrim: oklch(0 0 0);

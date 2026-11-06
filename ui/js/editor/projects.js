@@ -147,7 +147,7 @@ function updateSaveStatus() {
   // Three states, not two: saved, waiting to save, and FAILED to save.
   // The last one used to be invisible -- it looked exactly like "saved".
   if (saveError) {
-    el.textContent = `Not saved — ${saveError}`;
+    el.textContent = `Not saved: ${saveError}`;
     el.classList.add("save-failed");
   } else {
     el.textContent = savePending ? "Unsaved changes…" : "";
@@ -916,7 +916,7 @@ document.querySelectorAll(".new-project-btn").forEach((b) =>
    it: when a project was STARTED is a fixed fact worth reading exactly. */
 function createdLabel(seconds) {
   const d = new Date((Number(seconds) || 0) * 1000);
-  if (!seconds || Number.isNaN(d.getTime())) return "—";
+  if (!seconds || Number.isNaN(d.getTime())) return "";
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
@@ -984,7 +984,7 @@ async function renderProjects() {
          role="button" tabindex="0"${missing ? ' aria-disabled="true"' : ""}>
       ${missing || empty
         ? '<span class="project-thumb empty"></span>'
-        : `<img class="project-thumb loading" alt="" loading="lazy" src="${coverUrl(p)}">`}
+        : `<img class="project-thumb loading" alt="" width="90" height="160" loading="lazy" src="${coverUrl(p)}">`}
       ${i === lastIdx ? '<span class="last-opened">last opened</span>' : ""}
       <span class="project-name" title="${escapeHTML(name)}">${escapeHTML(name)}</span>
       <span class="data project-meta">${missing
@@ -1005,7 +1005,15 @@ async function renderProjects() {
   // The first thumbnail of a project is made by ffmpeg on the first request
   // (seconds); until it arrives the card shows a shimmer instead of black.
   container.querySelectorAll("img.project-thumb.loading").forEach((img) => {
-    const settle = (ok) => { img.classList.remove("loading"); if (!ok) img.classList.add("failed"); };
+    const settle = (ok) => {
+      img.classList.remove("loading");
+      if (ok) return;
+      // A broken <img> shows the browser's broken-image icon: swap it for the empty look with a short note.
+      const ph = document.createElement("span");
+      ph.className = "project-thumb empty";
+      ph.textContent = "No preview";
+      img.replaceWith(ph);
+    };
     if (img.complete) settle(img.naturalWidth > 0);
     else {
       img.addEventListener("load", () => settle(true), { once: true });

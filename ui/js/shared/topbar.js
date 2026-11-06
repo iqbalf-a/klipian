@@ -38,8 +38,8 @@ function applyTheme(mode) {
   // as a lie when the answer is "whatever the system says".
   btn.textContent = effective === "light" ? "☀" : "☾";
   btn.title = mode === "auto"
-    ? `Theme: follows your system (currently ${effective}) — click to lock it`
-    : `Theme: ${mode} — click for ${THEMES[(THEMES.indexOf(mode) + 1) % THEMES.length]}`;
+    ? `Theme: follows your system (currently ${effective}): click to lock it`
+    : `Theme: ${mode}: click for ${THEMES[(THEMES.indexOf(mode) + 1) % THEMES.length]}`;
   btn.setAttribute("aria-label", btn.title);
   btn.dataset.mode = mode;
 }

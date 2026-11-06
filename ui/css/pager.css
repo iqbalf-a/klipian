@@ -100,7 +100,7 @@ main.bulk-open { padding-bottom: 96px; }
    selects with the same padding on both sides and the arrow in a fixed place. */
 #clipTable td, #clipTable th { vertical-align: middle; }
 #clipTable td:first-child, #clipTable th:first-child { padding-left: 8px; padding-right: 8px; text-align: center; }
-#clipTable td:nth-child(3) { min-width: 150px; }
+#clipTable td:nth-child(3) { min-width: 180px; }
 #clipTable .ws-status { min-width: 124px; }   /* the longest status, "Scheduled", plus the arrow */
 #clipTable input[type="checkbox"], .ws-bulk input[type="checkbox"] {
   width: 16px; height: 16px; margin: 0; vertical-align: middle;
@@ -221,8 +221,7 @@ button.bg-accent:disabled, .ws-accent-btn:disabled, button.bg-accent:disabled:ho
   border-radius: 999px;
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: .03em;
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--danger);
   border: 1px solid var(--danger);
   cursor: help;
@@ -297,3 +296,9 @@ dialog.confirm-dlg::backdrop { background: rgba(0, 0, 0, .6); }
   background: color-mix(in oklab, var(--accent) 12%, transparent); }
 .confirm-msg { white-space: pre-line; }
 dialog.confirm-dlg:has(.bulk-plan) { width: min(560px, calc(100vw - 32px)); }
+
+/* Sources rows keep a readable name column; narrower windows scroll inside the list, not the page. */
+@media (min-width: 901px) {
+  #sourceList { overflow-x: auto; }
+  .ws-row.sources { min-width: 780px; }
+}

@@ -111,7 +111,7 @@ async function startAnalysis({ force = false, ranges = null } = {}) {
       const p = document.createElement("p");
       p.className = "step-note";
       p.style.color = "var(--danger)";
-      p.textContent = "Laptop is running on battery — transcription can be twice " +
+      p.textContent = "Laptop is running on battery: transcription can be twice " +
                       "as slow. Plug in the charger to speed it up.";
       $("#transcribeStats").after(p);
     }

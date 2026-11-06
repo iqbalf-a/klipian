@@ -227,7 +227,7 @@ async function saveClip(clip) {
     return j.id;
   } catch (err) {
     console.error("failed to save clip:", err);
-    clipError(`Not saved — ${err.message || "no connection to klipian serve"}. `
+    clipError(`Not saved: ${err.message || "no connection to klipian serve"}. `
       + "The value on screen is not on disk.");
     return null;
   }
@@ -271,8 +271,8 @@ $("#clipBody")?.addEventListener("click", async (e) => {
   const gtitle = (CLIPS.find((x) => x.id === tr.dataset.id)?.title || "").trim() || "(untitled)";
   const discard = gone.dataset.gone === "discard";
   if (!(await confirmDialog(discard
-    ? { title: "Discard this clip?", message: `${gtitle} — its video file is gone. It is marked Discarded and stays in the table.`, confirmText: "Discard" }
-    : { title: "Delete this clip?", message: `${gtitle} — its video file is gone.` }))) return;
+    ? { title: "Discard this clip?", message: `${gtitle}: its video file is gone. It is marked Discarded and stays in the table.`, confirmText: "Discard" }
+    : { title: "Delete this clip?", message: `${gtitle}: its video file is gone.` }))) return;
   if (discard) {
     const clip = collectRow(tr);
     clip.status = "Discarded";
@@ -347,7 +347,7 @@ async function deleteClips(ids, { empty = false } = {}) {
     deleted = j.deleted || [];
   } catch (err) {
     console.error("failed to delete clips:", err);
-    clipError(`Not deleted — ${err.message || "no connection to klipian serve"}. `
+    clipError(`Not deleted: ${err.message || "no connection to klipian serve"}. `
       + "The clips are still on disk.");
     return;
   }
@@ -368,7 +368,7 @@ async function deleteClips(ids, { empty = false } = {}) {
       await loadClips();
       clipNotice(`${(j.restored || []).length} clip${(j.restored || []).length === 1 ? "" : "s"} restored`);
     } catch (err) {
-      clipError(`Could not undo — ${err.message || "no connection to klipian serve"}.`);
+      clipError(`Could not undo: ${err.message || "no connection to klipian serve"}.`);
     }
   });
 }
@@ -407,7 +407,7 @@ async function saveDraft() {
     clipError("");
   } catch (err) {
     console.error("failed to create new clip:", err);
-    clipError(`Could not create the clip — ${err.message || "no connection to klipian serve"}. The draft is still here.`);
+    clipError(`Could not create the clip: ${err.message || "no connection to klipian serve"}. The draft is still here.`);
   }
 }
 
@@ -476,7 +476,7 @@ $("#clipFileInput")?.addEventListener("change", async (e) => {
       detailPending = { fileFolder: "manual", title: d.title };
       const existing = CLIPS.find((c) => c.id === clipDialog.dataset.id);
       if (existing && !String(existing.title || "").trim()) $("#clipDetailTitle").textContent = d.title;
-      detailNote(`${d.file}${d.existed ? " (the same video was already there)" : ""} — press Save to keep it.`);
+      detailNote(`${d.file}${d.existed ? " (the same video was already there)" : ""}: press Save to keep it.`);
     }
   } catch (err) {
     say(err.message, true);
@@ -574,7 +574,7 @@ async function bulkApply(body, done) {
     clipNotice(done(j));
   } catch (err) {
     console.error("bulk action failed:", err);
-    clipError(`Not saved — ${err.message || "no connection to klipian serve"}. Nothing was changed.`);
+    clipError(`Not saved: ${err.message || "no connection to klipian serve"}. Nothing was changed.`);
   }
 }
 
@@ -1048,7 +1048,7 @@ async function ytBulkSaveSchedule(items) {
     })).json();
     if (j.error || !j.ok) throw new Error(j.error || "not saved");
   } catch (err) {
-    $("#ytBulkNote").textContent = `Not saved — ${err.message}.`;
+    $("#ytBulkNote").textContent = `Not saved: ${err.message}.`;
     return false;
   }
   await loadClips();
@@ -1222,10 +1222,10 @@ async function ytPoll(jobId, rowId) {
     await loadClips();
     const c = CLIPS.find((x) => x.id === rowId);
     if (s.state === "done") {
-      notifyDone({ key: `ytup:${jobId}`, title: "Upload finished", body: `${c?.title || "clip"}${s.warning ? " — see the note" : ""}`, ms: 10000 });
+      notifyDone({ key: `ytup:${jobId}`, title: "Upload finished", body: `${c?.title || "clip"}${s.warning ? ": see the note" : ""}`, ms: 10000 });
       if (clipDialog.open && clipDialog.dataset.id === rowId) {
         await refreshYouTubeSection(c);
-        ytMsg(`${s.status}: ${s.url}${s.warning ? " — " + s.warning : ""}`);
+        ytMsg(`${s.status}: ${s.url}${s.warning ? ": " + s.warning : ""}`);
       }
       else if (s.warning) clipNotice(`${c?.title || "Clip"}: ${s.warning}`);
     } else {

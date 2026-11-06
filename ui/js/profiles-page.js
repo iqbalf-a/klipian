@@ -20,6 +20,8 @@ function enter(id) {
   location.href = NEXT;
 }
 
+/* Avatar letter: the word after "klipian" (klipian podcast -> P), so profiles do not all read "K". */
+const profileInitial = (name) => { const w = String(name || "").trim().split(/\s+/); return ((w[0].toLowerCase() === "klipian" && w[1] ? w[1] : w[0]) || "?").slice(0, 1).toUpperCase(); };
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
 async function api(path, body) {
@@ -44,7 +46,7 @@ async function draw() {
   grid.innerHTML = data.profile.map((p) => `
     <div class="picker-card${p.id === LAST ? " last" : ""}" role="listitem" data-id="${esc(p.id)}" style="--pc:${esc(p.color)}">
       <button class="picker-enter" type="button" data-enter="${esc(p.id)}" aria-label="Masuk sebagai ${esc(p.name)}">
-        <span class="picker-swatch" aria-hidden="true">${esc(p.name.slice(0, 1).toUpperCase())}</span>
+        <span class="picker-swatch" aria-hidden="true">${esc(profileInitial(p.name))}</span>
         <span class="picker-name">${esc(p.name)}</span>
       </button>
       <span class="picker-tools">

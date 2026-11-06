@@ -202,8 +202,20 @@
 }
 
 /* the guide link and a small heading inside the "?" panel */
-.shortcut-panel .shortcut-sub { font-weight: 700; color: var(--text-faint); text-transform: uppercase; letter-spacing: .1em; font-size: 10px; }
+.shortcut-panel .shortcut-sub { font-weight: 700; color: var(--text-faint); font-size: 11px; }
 .shortcut-panel .shortcut-guide { margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--glass-border); }
 .shortcut-panel .shortcut-guide a { color: var(--accent); text-decoration: none; font-weight: 600; }
 .shortcut-panel .shortcut-guide a:hover { text-decoration: underline; }
 .shortcut-panel .work-only[hidden] { display: none; }
+
+/* Narrow screens: the topbar wraps instead of pushing the page wider than the window.
+   The area switch drops to its own row under the brand; the page itself never scrolls sideways. */
+@media (max-width: 720px) {
+  header:has(> .area-switch), .topbar {
+    flex-wrap: wrap; height: auto; min-height: 58px; padding-top: 8px; padding-bottom: 8px; gap: 8px;
+  }
+  header:has(> .area-switch) > .area-switch, .topbar > .area-switch {
+    order: 10; flex: 1 1 100%; margin-left: 0; overflow-x: auto; justify-content: flex-start;
+  }
+  .area-switch a { white-space: nowrap; }
+}

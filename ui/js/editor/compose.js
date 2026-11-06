@@ -338,7 +338,7 @@ function renderInspector() {
       <div class="tlx-actions">
         <button class="btn quiet" type="button" data-act="earlier"${i === 0 ? " disabled" : ""}>◀ Earlier</button>
         <button class="btn quiet" type="button" data-act="later"${i === RESULT.length - 1 ? " disabled" : ""}>Later ▶</button>
-        <button class="btn quiet" type="button" data-act="sound-here" title="A sound starting where this clip starts — a transition sting">+ Sound at start</button>
+        <button class="btn quiet" type="button" data-act="sound-here" title="A sound starting where this clip starts: a transition sting">+ Sound at start</button>
         <button class="btn quiet" type="button" data-act="sort">Source order</button>
       </div>`;
     return;
@@ -410,7 +410,7 @@ async function addElement(kind) {
   if (kind !== "text") {
     const lib = libraryOf(kind);
     if (!lib.length) {
-      if (note) note.textContent = `no ${kind === "image" ? "images" : "sounds"} in this project yet — add some on the Assets screen`;
+      if (note) note.textContent = `no ${kind === "image" ? "images" : "sounds"} in this project yet: add some on the Assets screen`;
       return;
     }
     e.file = lib[0].file;
@@ -440,7 +440,7 @@ async function addCreditLabel() {
     if (short && !labels.includes(short)) labels.push(short);
   }
   if (!labels.length) {
-    if (note) note.textContent = "no credit entered for this video yet — add one in Sources on the /workspace dashboard";
+    if (note) note.textContent = "no credit entered for this video yet: add one in Sources on the /workspace dashboard";
     return;
   }
   const e = { id: `o${++overlaySeq}`, kind: "text", ...OVERLAY_DEFAULTS.text,

@@ -325,7 +325,7 @@ async function addVideoFromDisk(file) {
     let renamedFrom = null, creditFrom = null;
     if (name) {
       bar.style.width = "100%";
-      say(`${name} is already in this profile's sources — using that copy.`);
+      say(`${name} is already in this profile's sources: using that copy.`);
     } else {
       if (file.size + 1024 ** 3 > chk.free) {
         throw new Error(`Not enough disk space: ${mb(file.size)} needed, ${mb(chk.free)} free.`);
@@ -427,7 +427,7 @@ async function renderAssets() {
       ${active ? '<span class="asset-active">on screen</span>'
         : `<button class="btn quiet" type="button" data-asset-open="${a.id}"${missing ? " disabled" : ""}>Open</button>`}
       <button class="btn quiet" type="button" data-asset-remove="${a.id}"
-              title="${uses ? "Remove from this project — its spans in the Results go with it" : "Remove from this project (the file stays in sources/)"}">Remove</button>
+              title="${uses ? "Remove from this project: its spans in the Results go with it" : "Remove from this project (the file stays in sources/)"}">Remove</button>
       <span class="data asset-credit">${credits[a.file]?.line
         ? `${escapeHTML(credits[a.file].line)} · <a href="/sources" target="_blank" rel="noopener">edit</a>`
         : `No source credit yet · <a href="/sources" target="_blank" rel="noopener">add one</a>`}</span>
@@ -486,7 +486,7 @@ async function renderMediaAssets() {
   if (!list) return;
   const note = $("#assetMediaNote");
   if (!activeProjectId) {
-    list.innerHTML = `<p class="empty-message">Add a video first — images and sounds are kept in the project's own folder.</p>`;
+    list.innerHTML = `<p class="empty-message">Add a video first: images and sounds are kept in the project's own folder.</p>`;
     if (shared) shared.innerHTML = "";
     if (note) note.textContent = "";
     return;
@@ -512,7 +512,7 @@ async function renderMediaAssets() {
       <span class="data asset-meta">${a.kind} · ${uses} use${uses === 1 ? "" : "s"}</span>
       <span></span>
       <button class="btn quiet" type="button" data-asset-remove="${a.id}"
-              title="${uses ? "Remove from this project — its Timeline elements go with it" : "Take it off this list"} (the file stays in the project's folder)">Remove</button>
+              title="${uses ? "Remove from this project: its Timeline elements go with it" : "Take it off this list"} (the file stays in the project's folder)">Remove</button>
     </div>`;
   }).concat((own || []).filter((f) => !listed.has(f.name)).map((f) => `
     <div class="asset-row">
