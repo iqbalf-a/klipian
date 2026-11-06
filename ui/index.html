@@ -461,14 +461,14 @@
           </div>
           <textarea class="paste" id="pasteJSON" spellcheck="false"
             placeholder='{ "clips": [ ... ] } : the ```json code fence and an intro sentence are fine to include'></textarea>
-          <div class="step-foot">
-            <span class="data" id="importNote"></span>
-            <button class="btn main" id="importBtn" disabled>Cut into clips</button>
-          </div>
-          <!-- After an import, while the video has no transcript of the whole video: transcribe only the clips (roundtrip.js). -->
-          <div class="step-foot" id="clipsTranscribeRow" hidden>
-            <span class="data" id="clipsTranscribeNote"></span>
-            <button class="btn" id="transcribeClips" type="button"></button>
+          <!-- One footer: the note reads as one sentence; while the video has no transcript of the whole video,
+               "Transcribe these N clips" is the main button and "Cut into clips" a plain one (roundtrip.js drawTranscribeClips). -->
+          <div class="step-foot import-foot">
+            <span class="import-note"><span class="data" id="importNote"></span> <span class="data" id="clipsTranscribeNote" hidden></span></span>
+            <span class="step-foot-btns">
+              <button class="btn" id="transcribeClips" type="button" hidden></button>
+              <button class="btn main" id="importBtn" disabled>Cut into clips</button>
+            </span>
           </div>
         </div>
 

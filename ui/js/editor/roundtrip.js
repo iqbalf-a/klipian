@@ -394,6 +394,7 @@ function restoreImportPanel(id) {
   if (note) { note.dataset.error = s.noteError; note.textContent = s.note; }
   lastImport = s.lastImport;
   lastImportNotes = s.lastImportNotes;
+  if (typeof drawTranscribeClips === "function") drawTranscribeClips();
 }
 
 const PARTIAL_NOTE = "The transcript covers only the imported clips. Transcribe the whole video to use this.";
@@ -414,18 +415,22 @@ function wantedRanges(ticked) {
 const tickedMoments = () => [...document.querySelectorAll("#recList input[data-rec]:checked")].map((c) => Number(c.dataset.rec));
 
 function drawTranscribeClips() {
-  const row = $("#clipsTranscribeRow"), rec = $("#recTranscribe");
-  if (!row || !rec) return;
+  const tbtn = $("#transcribeClips"), tnote = $("#clipsTranscribeNote"), rec = $("#recTranscribe");
+  if (!tbtn || !rec) return;
   const wanted = wantedRanges();
   const n = (DATA?.candidates || []).length;
   const show = n > 0 && wanted.length > 0;
-  row.hidden = !show;
+  tbtn.hidden = !show;
+  tnote.hidden = !show;
+  // The next real step is transcribing the clips: that button is the main one, "Cut into clips" (a re-import) steps back.
+  tbtn.classList.toggle("main", show);
+  $("#importBtn")?.classList.toggle("main", !show);
   rec.hidden = !(n > 0 && chosenSource && !(realTranscript && !realTranscript.ranges));   // Choose moments: until a whole transcript exists
   if (show) {
     const mins = Math.max(1, Math.ceil(rangesSeconds(wanted) / 60));
     const label = `Transcribe these ${n} clip${n === 1 ? "" : "s"}`;
-    $("#transcribeClips").textContent = label;
-    $("#clipsTranscribeNote").textContent = `about ${mins} min of audio instead of the whole video`;
+    tbtn.textContent = label;
+    tnote.textContent = `Cut points snap to words once the clips are transcribed (about ${mins} min of audio).`;
   }
   if (rec.hidden) return;
   // Choose moments: only the ticked moments
@@ -675,7 +680,7 @@ $("#pasteJSON")?.addEventListener("input", (e) => {
   // The button sits below a tall box; after pasting, bring it into view.
   if (e.target.value.trim()) $("#importBtn").scrollIntoView({ block: "nearest" });
   $("#importNote").dataset.error = "false";
-  $("#importNote").textContent = e.target.value.trim() && !realTranscript ? NO_TRANSCRIPT_NOTE : "";
+  $("#importNote").textContent = e.target.value.trim() && !realTranscript && $("#clipsTranscribeNote")?.hidden !== false ? NO_TRANSCRIPT_NOTE : "";
 });
 
 /* Importing a reply REPLACES the suggestions that are there. Two clicks when
@@ -706,11 +711,12 @@ $("#importBtn")?.addEventListener("click", async () => {
     lastImport = { id: candidates[0]?.importId, text: $("#pasteJSON").value, orig: candidates.map((k) => [k.startSec, k.endSec]) };
     replacedSuggestions = have ? { video: chosenSource?.name || "", list: DATA.candidates } : null;
     applyCandidates(candidates);
+    drawTranscribeClips();      // decides whether the transcribe button and its sentence are on
     note.dataset.error = "false";
     note.textContent = `${candidates.length} suggestion${candidates.length === 1 ? "" : "s"} imported`
       + (have ? ` (replaced ${have})` : "")
-      + (lastImportNotes.length ? `. Fixed in the reply: ${lastImportNotes.join("; ")}.` : "")
-      + (realTranscript ? "" : ` ${NO_TRANSCRIPT_NOTE}`);
+      + (lastImportNotes.length ? `. Fixed in the reply: ${lastImportNotes.join("; ")}.` : ".")
+      + (realTranscript || !$("#clipsTranscribeNote").hidden ? "" : ` ${NO_TRANSCRIPT_NOTE}`);
     if (typeof renderRecommendations === "function") renderRecommendations();
     if (typeof saveProject === "function") saveProject();
     toScreen("clips");          // recommendations are not the final destination, result is
