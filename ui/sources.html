@@ -72,12 +72,14 @@
       <div class="flex items-center gap-3" style="flex-wrap:wrap; row-gap:8px">
         <h1 class="text-[20px] font-extrabold tracking-tight">Sources</h1>
         <span class="text-text-faint text-[13px]" id="sourceNote" role="status">loading…</span>
-        <button class="ml-auto btn" id="sourceDeleteSelBtn" type="button" hidden
-                title="Move the selected files to the Recycle Bin">Delete selected</button>
-        <button class="btn"
-                id="sourceYtBtn" type="button" title="Download a video from a YouTube link into this profile's sources">+ From YouTube</button>
-        <button class="btn"
-                id="sourceOpenBtn" type="button">Open folder</button>
+        <div class="ml-auto flex items-center gap-3" style="flex-wrap:wrap; row-gap:8px">
+          <button class="btn" id="sourceDeleteSelBtn" type="button" hidden
+                  title="Move the selected files to the Recycle Bin">Delete selected</button>
+          <button class="btn"
+                  id="sourceYtBtn" type="button" title="Download a video from a YouTube link into this profile's sources">+ From YouTube</button>
+          <button class="btn"
+                  id="sourceOpenBtn" type="button">Open folder</button>
+        </div>
       </div>
       <div id="sourceList"></div>
       <div id="sourcePager" hidden></div>
