@@ -219,3 +219,8 @@
   }
   .area-switch a { white-space: nowrap; }
 }
+
+/* Every page: one visible focus ring, and a pointer on everything that can be clicked. */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:not(:disabled), select:not(:disabled), summary, label[for], input[type="checkbox"]:not(:disabled),
+input[type="radio"]:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: pointer; }

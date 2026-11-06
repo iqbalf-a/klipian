@@ -148,19 +148,21 @@ function fileLineHTML(c) {
 function row(c) {
   const opt = (list, cur) => list.map((v) =>
     `<option value="${v}" ${v === cur ? "selected" : ""}>${v}</option>`).join("");
+  const who = escapeHTML(c.title || "untitled clip");
+  const LABEL = { title: "Title", date: "Upload date", time: "Upload time" };
   const f = (name, type = "text") =>
-    `<input class="ws-input" type="${type}" data-field="${name}" value="${escapeHTML(c[name] || "")}">`;
+    `<input class="ws-input" type="${type}" data-field="${name}" aria-label="${LABEL[name]}: ${who}" value="${escapeHTML(c[name] || "")}">`;
   const td = "px-2 py-1 border-b border-glass-border";    // centred by pager.css
   return `
     <tr class="hover:bg-glass" data-id="${c.id}"${SELECTED.has(c.id) ? " data-selected" : ""}>
-      <td class="${td}"><input type="checkbox" data-select aria-label="Select this clip"${SELECTED.has(c.id) ? " checked" : ""}></td>
+      <td class="${td}"><input type="checkbox" data-select aria-label="Select clip: ${who}"${SELECTED.has(c.id) ? " checked" : ""}></td>
       <td class="${td}">
-        <select class="ws-input ws-status" data-field="status" data-v="${c.status || "Draft"}">
+        <select class="ws-input ws-status" data-field="status" aria-label="Status: ${who}" data-v="${c.status || "Draft"}">
           ${opt(STATUS, c.status || "Draft")}
         </select>${warnChipHTML(c)}
       </td>
       <td class="${td}">${f("title")}${goneTagHTML(c)}${fileLineHTML(c)}</td>
-      <td class="${td}"><select class="ws-input" data-field="platform">${opt(PLATFORM, c.platform || "YouTube + TikTok")}</select></td>
+      <td class="${td}"><select class="ws-input" data-field="platform" aria-label="Platform: ${who}">${opt(PLATFORM, c.platform || "YouTube + TikTok")}</select></td>
       <td class="${td}">${f("date", "date")}</td>
       <td class="${td}">${f("time", "time")}</td>
       <td class="${td}"><span class="data ws-created" title="${escapeHTML(timeAgo(c.createdAt || c.at))}">${fmtCreated(c.createdAt || c.at)}</span></td>

@@ -97,16 +97,16 @@
     --border-bright: oklch(0 0 0 / .200);
     --text:       oklch(0.240 0.012 258);
     --text-muted: oklch(0.450 0.016 258);
-    --text-faint: oklch(0.545 0.016 258);
+    --text-faint: oklch(0.480 0.016 258);
     /* L 0.550, computed rather than eyeballed. At the 0.620 this started
      at, the accent reaches only 3.72:1 as text on a white panel -- passes
      for large text, fails for everything else, and it is used as a text
      colour 22 times. 0.550 gives 4.95 on a panel, 4.56 on a card, and
      4.88 for --accent-text on top of it: all three clear WCAG AA at once,
      because darkening the fill helps both directions together. */
-  --accent:      oklch(0.550 0.145 75);
-    --accent-soft: oklch(0.550 0.145 75 / .14);
-    --accent-glow: oklch(0.550 0.145 75 / .30);
+  --accent:      oklch(0.480 0.145 75);
+    --accent-soft: oklch(0.480 0.145 75 / .14);
+    --accent-glow: oklch(0.480 0.145 75 / .30);
     --accent-text: oklch(0.995 0 0);
     --danger: oklch(0.545 0.205 25);
     --status-scheduled: oklch(0.50 0.13 230);
@@ -146,11 +146,11 @@
 
   --text:       oklch(0.240 0.012 258);
   --text-muted: oklch(0.450 0.016 258);
-  --text-faint: oklch(0.545 0.016 258);
+  --text-faint: oklch(0.480 0.016 258);
 
-  --accent:      oklch(0.550 0.145 75);
-  --accent-soft: oklch(0.550 0.145 75 / .14);
-  --accent-glow: oklch(0.550 0.145 75 / .30);
+  --accent:      oklch(0.480 0.145 75);
+  --accent-soft: oklch(0.480 0.145 75 / .14);
+  --accent-glow: oklch(0.480 0.145 75 / .30);
   --accent-text: oklch(0.995 0 0);          /* was near-black on yellow */
 
   --danger: oklch(0.545 0.205 25);
