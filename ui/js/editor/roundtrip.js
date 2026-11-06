@@ -377,6 +377,25 @@ const NO_TRANSCRIPT_NOTE = "Cut points are not snapped to words until the transc
 let snapImportedAfterTranscript = false;       // set by startAnalysis when a ranges job finished
 let lastImport = null;                          // { id, text, orig: [[startSec, endSec]] } of the last import, to snap it afterwards
 
+/* The import panel (box, note, Import button) and what the last import left behind belong to the active video:
+   assets.js calls these when the active video changes (importstore.js keeps them per video id). */
+function parkImportPanel(id) {
+  const box = $("#pasteJSON"), note = $("#importNote");
+  if (!box || !id) return;
+  parkImport(ASSET_IMPORTS, id, { text: box.value, note: note?.textContent || "", noteError: note?.dataset.error || "false", lastImport, lastImportNotes });
+}
+function restoreImportPanel(id) {
+  const box = $("#pasteJSON"), note = $("#importNote");
+  if (!box) return;
+  const s = takeImport(ASSET_IMPORTS, id);
+  box.value = s.text;
+  $("#importBtn").disabled = !s.text.trim();
+  disarmImport();
+  if (note) { note.dataset.error = s.noteError; note.textContent = s.note; }
+  lastImport = s.lastImport;
+  lastImportNotes = s.lastImportNotes;
+}
+
 const PARTIAL_NOTE = "The transcript covers only the imported clips. Transcribe the whole video to use this.";
 
 // videoDuration() lives in timeline.js: a second top-level declaration here made timeline.js fail to load at all.
@@ -555,6 +574,7 @@ function claudeProblem(note, err) {
 $("#findWithClaude")?.addEventListener("click", async () => {
   const btn = $("#findWithClaude"), note = $("#exportNote");
   const name = chosenSource?.name || "";
+  const assetId = activeAssetId;          // the video this run is for, whichever one is on screen when it finishes
   if (claudeRun) {
     btn.disabled = true;
     try { await claudeApi("/api/claude/cancel", { id: claudeRun.id }); } catch { /* the poll shows the result */ }
@@ -603,18 +623,36 @@ $("#findWithClaude")?.addEventListener("click", async () => {
   btn.textContent = "Find clips with Claude";
   btn.disabled = false;
   if (s.state === "cancelled") { note.textContent = s.message; return; }
+  const here = assetId === activeAssetId;
   if (s.state !== "done") {
     claudeProblem(note, { message: s.message || "Claude could not find clips.", code: s.code, command: s.command });
-    if (s.reply) {
+    if (s.reply && here) {
       $("#pasteJSON").value = s.reply;           // kept so it can be fixed by hand and imported
       $("#importBtn").disabled = false;
       note.append(" The reply is in the box below.");
+    } else if (s.reply && assetById(assetId)) {
+      // The user moved to another video: the reply waits in that video's own box.
+      patchImport(ASSET_IMPORTS, assetId, { text: s.reply });
+      note.append(` The reply is kept in the box of ${name}.`);
     }
     return;
   }
   const candidates = s.candidates || [];
   const importId = Date.now().toString(36);
   for (const k of candidates) k.importId = importId;
+  if (!here) {
+    // Another video is on screen now: the suggestions go to the video they were made for, and the screen stays put.
+    if (!assetById(assetId)) { note.textContent = `Done for ${name}, but that video is no longer in this project.`; return; }
+    ASSET_CANDIDATES[assetId] = candidates;
+    patchImport(ASSET_IMPORTS, assetId, { lastImportNotes: s.notes || [] });
+    const u = s.usage || {};
+    DATA.claudeUsage = [...(DATA.claudeUsage || []), { at: Date.now(), model: s.model, input: u.input, output: u.output,
+      cacheRead: u.cacheRead, cacheWrite: u.cacheWrite, cost: u.cost, seconds: u.seconds }];
+    note.dataset.error = "false";
+    note.textContent = `Done for ${name}. Pick it to see the suggestions.`;
+    if (typeof saveProject === "function") saveProject();
+    return;
+  }
   replacedSuggestions = have ? { video: name, list: DATA.candidates } : null;
   lastImportNotes = s.notes || [];
   applyCandidates(candidates);

@@ -48,6 +48,7 @@ function nextAssetNum() {
    "the video on screen" without knowing assets exist. */
 const ASSET_TRANSCRIPTS = {};
 let ASSET_CANDIDATES = {};
+let ASSET_IMPORTS = {};         // per video: the Analyze "Import the AI's reply" panel (importstore.js)
 
 const assetNum = (id) => { const n = parseInt(String(id || "").slice(1), 10); return n > 0 ? n : 1; };
 const assetOffset = (id) => (assetNum(id) - 1) * ASSET_STRIDE;
@@ -216,6 +217,7 @@ async function setActiveAsset(id) {
   // Park the outgoing video's transcript and suggestions...
   ASSET_TRANSCRIPTS[activeAssetId] = realTranscript;
   ASSET_CANDIDATES[activeAssetId] = (typeof DATA !== "undefined" ? DATA.candidates : []) || [];
+  if (typeof parkImportPanel === "function") parkImportPanel(activeAssetId);
   activeAssetId = id;
   if (chosenSource?.url?.startsWith("blob:")) URL.revokeObjectURL(chosenSource.url);
   chosenSource = { kind: "file", name: a.file, url: profileUrl(`/workspace/sources/${encodeURIComponent(a.file)}`) };
@@ -223,6 +225,7 @@ async function setActiveAsset(id) {
   realTranscript = ASSET_TRANSCRIPTS[id] ?? (await findTranscript(a.file).catch(() => null));
   ASSET_TRANSCRIPTS[id] = realTranscript;
   if (typeof DATA !== "undefined") DATA.candidates = ASSET_CANDIDATES[id] || [];
+  if (typeof restoreImportPanel === "function") restoreImportPanel(id);
   if (typeof updateTopbarFile === "function") updateTopbarFile(a.file, realTranscript?.duration);
   await ensureSourceDuration();
   if (typeof clearSelection === "function") clearSelection();
@@ -252,6 +255,8 @@ function setAssets(list, activeId, seq) {
   activeAssetId = assetById(activeId)?.kind === "video" ? activeId : first;
   for (const k of Object.keys(ASSET_TRANSCRIPTS)) delete ASSET_TRANSCRIPTS[k];
   ASSET_CANDIDATES = {};
+  ASSET_IMPORTS = {};
+  if (typeof restoreImportPanel === "function") restoreImportPanel(activeAssetId);
   _shiftedWords.clear();
   // A dropped file is loaded into the preview (prepareVideo) BEFORE the
   // project is looked up, so the element was tagged with the previous
@@ -741,6 +746,7 @@ function removeAsset(id) {
   ASSETS = ASSETS.filter((x) => x.id !== id);
   delete ASSET_TRANSCRIPTS[id];
   delete ASSET_CANDIDATES[id];
+  delete ASSET_IMPORTS[id];
   _shiftedWords.delete(id);
   if (typeof RESULT !== "undefined" && RESULT.some((r) => assetIdAt(r.start) === id)) {
     RESULT = RESULT.filter((r) => assetIdAt(r.start) !== id);
