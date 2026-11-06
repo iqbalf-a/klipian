@@ -3,7 +3,7 @@
 
 /* Tested by a person: Gemini refuses a question that names clips, TikTok/Shorts, viral or editing, and answers this one.
    Do not reword it. */
-const GEMINI_PROMPT = "Apa saja 8 bagian paling menarik dari video ini? Cari momen ketika pembicara menyampaikan pendapat yang tegas atau kontroversial, cerita lucu, fakta mengejutkan, pengakuan pribadi, atau tips praktis. Untuk tiap bagian, sebutkan waktu mulai dan selesai, kutip kalimat pertama yang diucapkan, dan jelaskan dalam satu kalimat kenapa bagian itu menarik. Urutkan dari yang paling menarik.";
+const GEMINI_PROMPT = "Apa saja 4 bagian paling menarik dari video ini? Tiap bagian berdurasi minimal 30 detik dan maksimal 90 detik. Pastikan tiap bagian membahas satu topik yang utuh dan tidak terpotong; kalau harus dipotong, mulai tepat di awal kalimat dan selesai tepat di akhir kalimat. Cari momen ketika pembicara menyampaikan pendapat yang tegas atau kontroversial, cerita lucu, fakta mengejutkan, pengakuan pribadi, atau tips praktis. Untuk tiap bagian, sebutkan waktu mulai dan selesai, kutip kalimat pertama yang diucapkan, dan jelaskan dalam satu kalimat kenapa bagian itu menarik. Urutkan dari yang paling menarik.";
 
 const geminiKey = (profile, video) => `klipian:gemini:${profile}:${video}`;
 

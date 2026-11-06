@@ -7,9 +7,11 @@ const eq = (got, want, what) => { n++; assert.deepStrictEqual(got, want, `${what
 const store = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k), m }; };
 
 // the prompt that was tried out stays word for word, and names nothing Gemini refuses
-eq(GEMINI_PROMPT.startsWith("Apa saja 8 bagian paling menarik dari video ini?"), true, "prompt start");
+eq(GEMINI_PROMPT.startsWith("Apa saja 4 bagian paling menarik dari video ini?"), true, "prompt start");
 eq(GEMINI_PROMPT.endsWith("Urutkan dari yang paling menarik."), true, "prompt end");
 eq(/klip|clip|tiktok|shorts|viral|edit/i.test(GEMINI_PROMPT), false, "no word Gemini refuses");
+eq(GEMINI_PROMPT.includes("minimal 30 detik dan maksimal 90 detik"), true, "prompt length range");
+eq(GEMINI_PROMPT.includes("satu topik yang utuh"), true, "prompt one topic");
 
 // kept per profile and per video
 const s = store();

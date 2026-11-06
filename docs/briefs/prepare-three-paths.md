@@ -46,7 +46,7 @@ Video tetap diunduh utuh dan **tetap ditranskripsi** (subtitle butuh transkrip).
 Gemini **menolak** prompt yang menyebut klip, TikTok/Shorts, viral, atau mengedit. Prompt ini lolos:
 
 ```text
-Apa saja 8 bagian paling menarik dari video ini? Cari momen ketika pembicara menyampaikan pendapat yang tegas atau kontroversial, cerita lucu, fakta mengejutkan, pengakuan pribadi, atau tips praktis. Untuk tiap bagian, sebutkan waktu mulai dan selesai, kutip kalimat pertama yang diucapkan, dan jelaskan dalam satu kalimat kenapa bagian itu menarik. Urutkan dari yang paling menarik.
+Apa saja 4 bagian paling menarik dari video ini? Tiap bagian berdurasi minimal 30 detik dan maksimal 90 detik. Pastikan tiap bagian membahas satu topik yang utuh dan tidak terpotong; kalau harus dipotong, mulai tepat di awal kalimat dan selesai tepat di akhir kalimat. Cari momen ketika pembicara menyampaikan pendapat yang tegas atau kontroversial, cerita lucu, fakta mengejutkan, pengakuan pribadi, atau tips praktis. Untuk tiap bagian, sebutkan waktu mulai dan selesai, kutip kalimat pertama yang diucapkan, dan jelaskan dalam satu kalimat kenapa bagian itu menarik. Urutkan dari yang paling menarik.
 ```
 
 ## Server: brief "rapikan jawaban Gemini jadi JSON"
