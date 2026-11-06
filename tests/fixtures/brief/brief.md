@@ -8,6 +8,11 @@ worth turning into short vertical videos.
 The times you give don't need to be precise. Approximate min:sec is fine;
 klipian will snap the cut points to the nearest word boundary.
 
+Each clip holds **one topic, whole**: it starts where that topic begins and ends once its point
+is made. Never start or end a clip in the middle of a sentence or a thought, and never run two topics into
+one clip. If a topic is too long and has to be shortened, cut it at the end of a sentence, at a place where
+the part you keep still makes sense on its own.
+
 ---
 
 ## Evaluation rubric
