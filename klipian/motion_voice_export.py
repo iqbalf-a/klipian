@@ -60,7 +60,7 @@ def _google_style(story: dict) -> str:
     if "hook" in kinds:
         parts.append("playful on the hook")
     if "sting" in kinds:
-        parts.append("a little hushed on 'Intip yuk!'")
+        parts.append("bright and direct on 'Intip yuk!'")
     if kinds & {"lens", "normal", "loose"}:
         parts.append("calm and neutral on the facts")
     if "result" in kinds:
@@ -72,8 +72,8 @@ def _google_style(story: dict) -> str:
 
 def _google_script(story: dict, parts: list[dict]) -> tuple[str, list[dict]]:
     """The script with the expression tags, placed by rule (no AI call): a short pause between beats, a long pause before the last tips beat, and at
-    most one expression per beat and GOOGLE_EXPRESSIONS_MAX in all: <whispers> before "Intip yuk!", <chuckle> before a sentence that turns the fact
-    ("Tapi", "Namun", "Padahal") in a result beat. Tags are never inside a word or after the last sentence. Returns (script, tags used)."""
+    most one expression per beat and GOOGLE_EXPRESSIONS_MAX in all: <chuckle> before a sentence that turns the fact ("Tapi", "Namun", "Padahal")
+    in a result beat. "Intip yuk!" gets no tag at all (B29: a whisper tag was read aloud as "sstt!"). Tags are never inside a word or after the last sentence. Returns (script, tags used)."""
     kind_of_beat = {b["id"]: b["kind"] for b in story["beats"]}
     tips = [b["id"] for b in story["beats"] if b["kind"] == "tips" and (b.get("narration") or "").strip()]
     last_tips = tips[-1] if tips else None
@@ -97,11 +97,9 @@ def _google_script(story: dict, parts: list[dict]) -> tuple[str, list[dict]]:
             elif out:
                 out += " "
             if u["beat"] not in used_beats and expressions < GOOGLE_EXPRESSIONS_MAX:
-                if kind == "sting" and re.match(r"intip yuk", text, re.I):
-                    text = f"<whispers> {text}"
-                elif kind == "result" and re.match(r"(tapi|namun|padahal)\b", text, re.I):
+                if kind == "result" and re.match(r"(tapi|namun|padahal)\b", text, re.I):
                     text = f"<chuckle> {text}"
-                if text.startswith("<whispers>") or text.startswith("<chuckle>"):
+                if text.startswith("<chuckle>"):
                     used_beats.add(u["beat"])
                     expressions += 1
                     tags.append({"tag": text.split(">")[0][1:], "beat": u["beat"], "at": "awal kalimat"})
@@ -128,13 +126,13 @@ def _plain(units: list[dict]) -> str:
 
 # ElevenLabs (PLAN-VOICE-ELEVENLABS, docs read 2026-10-28): the voice-related tags of the official list, the pauses with "..." and [pause] (never
 # <break>, which v4 and v3 do not support), and the model and the settings as a note, not as text.
-EL_EXPRESSIONS = ("whispers", "curious", "laughs", "sighs", "excited", "exhales")   # the ones the export may use (the official voice list)
+EL_EXPRESSIONS = ("curious", "laughs", "sighs", "excited", "exhales")   # the ones the export may use (the official voice list)
 EL_EXPRESSIONS_MAX = 6
 
 
 def _elevenlabs(story: dict, parts: list[dict]) -> dict:
     """One request: the whole narration (no part headers). "..." ends a sentence before a beat changes (a final "." becomes "..."), [pause] once
-    before the last tips, [whispers] before "Intip yuk!", [curious] at the start of a hook that is a question. At most one tag per beat and six in all."""
+    before the last tips, [curious] at the start of a hook that is a question. "Intip yuk!" gets no tag (B29). At most one tag per beat and six in all."""
     kind_of_beat = {b["id"]: b.get("kind") for b in story["beats"]}
     tips = [b["id"] for b in story["beats"] if b.get("kind") == "tips" and (b.get("narration") or "").strip()]
     last_tips = tips[-1] if tips else None
@@ -159,9 +157,7 @@ def _elevenlabs(story: dict, parts: list[dict]) -> dict:
             out += " "
         if u["beat"] not in used and expressions < EL_EXPRESSIONS_MAX:
             tag = None
-            if kind == "sting" and re.match(r"intip yuk", text, re.I):
-                tag = "whispers"
-            elif kind == "hook" and text.rstrip().endswith("?") and prev is None:
+            if kind == "hook" and text.rstrip().endswith("?") and prev is None:
                 tag = "curious"
             if tag:
                 text = f"[{tag}] {text}"

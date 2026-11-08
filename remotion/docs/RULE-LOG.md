@@ -8,6 +8,7 @@ Every report adds its rows (B14). The date is the day ian asked; a row without a
 
 | rule | what it says | asked by | when | revision |
 | --- | --- | --- | --- | --- |
+| B29 | the sting "Intip yuk!" is read plainly: no whisper tag before it in the narration export, the Google style is bright and direct | ian | 2026-11-08 | the narration export (motion_voice_export.py) |
 | B1, B2 | one stage, the lens move | ian (pilot 1) | pilot 1 | 2ef1683 |
 | B3, B11 | the mascot is rare: a small sting, at most two reactions, none in the outro | ian | 2026-10-26 | the brief (motion.py) |
 | B6 | detail budget: 80 % of the colokan's shapes and parts | ian | 2026-10-28 | 2ef1683 (nature kit, pilot 2) |

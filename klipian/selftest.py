@@ -6668,7 +6668,7 @@ def check_skill() -> tuple[str, str]:
 
 
 # check: the Google AI Studio export (PLAN-VOICE-GOOGLE): the script with expression tags from the verified list, placed by rule (one per beat, six in
-# all, <whispers> before "Intip yuk!", <chuckle> before a turning sentence, <long pause> before the last tips, never after the last sentence), the short
+# all, no tag before "Intip yuk!", <chuckle> before a turning sentence, <long pause> before the last tips, never after the last sentence), the short
 # English style (no age, gender, names or accent; no tips sentence without tips), the long style labelled optional, the round trip (the tags strip to the
 # story's narration, and the matching ignores them), and VoiceStudio and ElevenLabs unchanged (compared with their snapshots). No service, no workspace.
 def check_voicegoogle() -> tuple[str, str]:
@@ -6696,8 +6696,10 @@ def check_voicegoogle() -> tuple[str, str]:
             per_beat[t["beat"]] = per_beat.get(t["beat"], 0) + 1
     if any(v > 1 for v in per_beat.values()):
         problems.append(f"at most one expression per beat: {per_beat}")
-    if "<whispers> Intip yuk!" not in g["script"]:
-        problems.append('the sting has <whispers> before "Intip yuk!"')
+    if "Intip yuk!" not in g["script"] or _re.search(r"<(?!(?:short|long) pause>)[^<>]+>\s*Intip yuk!", g["script"]) or "whisper" in g["script"]:
+        problems.append('"Intip yuk!" is read plainly: no expression tag right before it (a pause may be), no whispers anywhere')
+    if "hushed" in g["style"] or "bright and direct on 'Intip yuk!'" not in g["style"]:
+        problems.append("the Google style says bright and direct on the sting, never hushed")
     if "<long pause> Jangan" not in g["script"]:
         problems.append("a long pause before the last tips")
     if g["script"].rstrip().endswith(">"):
@@ -6726,7 +6728,7 @@ def check_voicegoogle() -> tuple[str, str]:
             problems.append(f"the {target} export is unchanged")
     if problems:
         return FAIL, "\n      ".join(problems)
-    return PASS, "the Google script with the verified tags placed by rule (one per beat, six in all, <whispers>, <chuckle>, <long pause>), the short English style, the round trip, and the ElevenLabs export matches its snapshot"
+    return PASS, "the Google script with the verified tags placed by rule (one per beat, six in all, no tag on the sting, <chuckle>, <long pause>), the short English style, the round trip, and the ElevenLabs export matches its snapshot"
 
 
 
@@ -6782,7 +6784,7 @@ def check_voicestudio() -> tuple[str, str]:
 
 
 # check: the ElevenLabs export (PLAN-VOICE-ELEVENLABS): the square-bracket tags only from the official voice list (plus [pause]), never a sound-effect or
-# experimental tag; no <break> in the script; "..." between beats and one [pause] before the last tips; [whispers] before "Intip yuk!" and [curious]
+# experimental tag; no <break> in the script; "..." between beats and one [pause] before the last tips; no tag before "Intip yuk!" and [curious]
 # at a question hook; at most one tag per beat and six in all; one request (no part headers); the model and the settings as a note; the round trip
 # (the stripped script is the story's narration). No service, no workspace.
 def check_elevenlabs() -> tuple[str, str]:
@@ -6813,8 +6815,8 @@ def check_elevenlabs() -> tuple[str, str]:
             per_beat[t["beat"]] = per_beat.get(t["beat"], 0) + 1
     if any(v > 1 for v in per_beat.values()):
         problems.append(f"at most one tag per beat: {per_beat}")
-    if "[whispers] Intip yuk!" not in script:
-        problems.append('the sting has [whispers] before "Intip yuk!"')
+    if "Intip yuk!" not in script or _re.search(r"\[(?!pause\])[^\[\]]+\]\s*Intip yuk!", script) or "whisper" in script:
+        problems.append('"Intip yuk!" is read plainly: no expression tag right before it (a pause may be), no whispers anywhere')
     if not script.startswith("[curious] Kenapa"):
         problems.append("a question hook starts with [curious]")
     if script.count("...") < 1:
@@ -6835,7 +6837,7 @@ def check_elevenlabs() -> tuple[str, str]:
         problems.append("the ElevenLabs copied text is the script, and matches its snapshot")
     if problems:
         return FAIL, "\n      ".join(problems)
-    return PASS, "the ElevenLabs script with the official voice tags only (no sound effects), ... between beats and one [pause] before the last tips, [whispers] on the sting, [curious] on a question hook, one tag per beat and six in all, one request, the model and settings as a note, and the round trip"
+    return PASS, "the ElevenLabs script with the official voice tags only (no sound effects), ... between beats and one [pause] before the last tips, no tag on the sting, [curious] on a question hook, one tag per beat and six in all, one request, the model and settings as a note, and the round trip"
 
 
 
