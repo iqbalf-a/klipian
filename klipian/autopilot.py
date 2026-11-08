@@ -608,6 +608,32 @@ def merge_touching(cands: list[dict], max_sec: float | None = None, gap: float =
     return result, notes
 
 
+def cap_length(cands: list[dict], ends: list[float], max_sec: float | None = None) -> tuple[list[dict], list[str]]:
+    """No clip longer than `max_sec` (roundtrip.CLIP_MAX_SEC): a longer one ends at the last sentence end (`ends`, the
+    transcript's segment ends) that is at most start + max_sec; without one, exactly there. Nobody shortens a clip
+    by hand in Autopilot, whatever the AI wrote. The end quote goes; spans and cues are cut at the new end.
+    Returns (clips in the same order, a note per cut clip)."""
+    from . import roundtrip as rt
+    cap = rt.CLIP_MAX_SEC if max_sec is None else max_sec
+    out, notes = [], []
+    for c in cands:
+        if c["endSec"] - c["startSec"] <= cap + 1e-6:
+            out.append(c)
+            continue
+        limit = c["startSec"] + cap
+        fits = [e for e in ends if c["startSec"] < e <= limit]
+        end = max(fits) if fits else limit
+        cut = dict(c, endSec=end, out=rt.fmt_stamp(end), dur=round(end - c["startSec"]))
+        cut.pop("endQuote", None)
+        cut["spans"] = [{"start": s["start"], "end": min(s["end"], end)} for s in c.get("spans") or [] if s["start"] < end] or [{"start": c["startSec"], "end": end}]
+        if "cues" in c:
+            cut["cues"] = [dict(q, end=min(q["end"], end)) for q in c["cues"] if q["start"] < end]
+        out.append(cut)
+        notes.append(f"Clip \"{c.get('title', '')}\" was {rt.fmt_stamp(c['endSec'] - c['startSec'])}, cut to {rt.fmt_stamp(end - c['startSec'])}"
+                     + (" at the end of a sentence." if fits else " (no sentence end fits)."))
+    return out, notes
+
+
 def _step_clips(rid, run, deps):
     most = run["template"]["maxClips"]
     if run.get("candidates") is not None:
@@ -623,7 +649,8 @@ def _step_clips(rid, run, deps):
         found, notes, usage = deps.ask_gemini(run["file"], most, run["project"], _progress(rid))
         update_run(rid, ai_usage=usage)
     found, merge_notes = merge_touching(list(found))
-    found, notes = found[:most], list(notes or []) + merge_notes
+    found, cap_notes = cap_length(found, deps.sentence_ends(run["file"]))
+    found, notes = found[:most], list(notes or []) + merge_notes + cap_notes
     if not found:
         update_run(rid, candidates=[])
         raise _Finished("No topic in this video was worth a clip.")
@@ -650,9 +677,10 @@ def _step_framing(rid, run, deps):
         return {}
     report, notes = _progress(rid), []
     for i, r in enumerate(run["results"]):
-        report(100 * i / len(run["results"]), f"AI Framing {i + 1} of {len(run['results'])}")
+        n = len(run["results"])
+        report(100 * i / n, f"AI Framing {i + 1} of {n}")
         try:
-            deps.ai_framing(run["project"], r["id"])
+            deps.ai_framing(run["project"], r["id"], lambda f, text, i=i: report(100 * (i + f) / n, f"AI Framing {i + 1} of {n} · {text}"))
         except _Cancelled:
             raise
         except Exception as exc:                            # noqa: BLE001  (a clip without it is rendered with the default framing)

@@ -135,6 +135,11 @@ class RealDeps:
         return roundtrip.build_brief(transcript, rubric, name, cues_data, credits.load().get(name),
                                      hashtags.brief_rule(srv._profiles.hashtag_settings()), at_most=most)
 
+    def sentence_ends(self, name: str) -> list[float]:
+        """The end of every sentence (segment) of the video's transcript: where a too long clip may be cut."""
+        t = _server()._transcript_for(name)
+        return sorted(s.end for s in (t.segments if t else []))
+
     def candidates_from_reply(self, name: str, text: str):
         return _server()._import_reply(name, text)
 
@@ -185,8 +190,9 @@ class RealDeps:
         return found, notes, {k: out[k] for k in ("model", "input", "output", "at")}
 
     # ---- framing, render, upload ----
-    def ai_framing(self, project_id: str, result_id: str) -> None:
-        """Boxes on the speaker, as the Framing screen's AI Framing button writes them (framing.js aiFramingStart)."""
+    def ai_framing(self, project_id: str, result_id: str, report=None) -> None:
+        """Boxes on the speaker, as the Framing screen's AI Framing button writes them (framing.js aiFramingStart).
+        `report(fraction of this clip, text)` is called about every 5 s while it works; it may raise to stop (Cancel)."""
         from . import facebox, jobs
         from .ffmpeg_tools import probe
         pdata = self.read_project(project_id)
@@ -196,7 +202,16 @@ class RealDeps:
         files = {a["id"]: a["file"] for a in pdata.get("assets") or [] if a.get("file")}
         picture = renderreq.output_options(res.get("output"))["picture"]
         points = []
-        for seg in res.get("segments") or []:
+        segs = res.get("segments") or []
+        last = [0.0]
+
+        def say(part: float, share: float, text: str) -> None:
+            """part: 0..1 inside this segment's `share` of the clip. At most one report every 5 s."""
+            if report and time.monotonic() - last[0] >= 5:
+                last[0] = time.monotonic()
+                report(min(1.0, (done + part * share) / len(segs)), text)
+
+        for done, seg in enumerate(segs):
             name = files.get(seg.get("asset") or "a1")
             video = _server().find_video(name or "")
             if not video:
@@ -207,9 +222,14 @@ class RealDeps:
             size = {"width": box["width"], "height": box["height"]}
             job_id = uuid.uuid4().hex[:8]
             jobs._register_job(job_id, {"state": "running", "turns": [], "error": None, "percent": 0, "stage": "start", "cached": False})
-            jobs._run_diarize(job_id, {"video": name, "start": start, "end": end})
+            worker = threading.Thread(target=contextvars.copy_context().run, args=(jobs._run_diarize, job_id, {"video": name, "start": start, "end": end}), daemon=True)
+            worker.start()
+            while worker.is_alive():                    # the speaker model reports its percent in JOBS
+                worker.join(1)
+                say((jobs.JOBS.get(job_id) or {}).get("percent", 0) / 100, 0.4, "finding speakers")
             turns = (jobs.JOBS.get(job_id) or {}).get("turns") or []        # no turns (no model, no speech): shot by shot
-            found, _ = facebox.frame_segments(video, start, end, size, turns, lambda n, v=video, s=start, e=end: jobs.rediarize(v, s, e, n))
+            found, _ = facebox.frame_segments(video, start, end, size, turns, lambda n, v=video, s=start, e=end: jobs.rediarize(v, s, e, n),
+                                              progress=lambda f: say(0.4 + 0.55 * f, 1, "following faces"))
             points += [{"asset": seg.get("asset") or "a1", **p} for p in found]
         if not points:
             raise RunError("no frames could be read")

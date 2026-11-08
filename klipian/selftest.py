@@ -709,18 +709,32 @@ def check_autopilotrun() -> tuple[str, str]:
         def candidates_from_reply(self, name, text):
             if text == "bad":
                 raise ValueError("That is not JSON")
-            return cands(self.n), ["a note"]
+            return self._cands(), ["a note"]
+
+        def _cands(self):
+            found = cands(self.n)
+            if getattr(self, "long", False) and found:                 # the AI ignored the length limit: 5:35
+                found[0]["endSec"] = found[0]["startSec"] + 335
+            return found
+
+        def sentence_ends(self, name):
+            return [100.0 + 50 * k for k in range(1, 12)]
 
         def ask_claude(self, name, most, project, report):
             self._go("ask")
-            return cands(self.n), []
+            return self._cands(), []
 
         def ask_gemini(self, name, most, project, report):
             self._go("ask")
-            return cands(self.n), [], {"model": "gemini-x", "input": 31000, "output": 4000, "at": 1700000000}
+            return self._cands(), [], {"model": "gemini-x", "input": 31000, "output": 4000, "at": 1700000000}
 
-        def ai_framing(self, pid, rid):
+        def ai_framing(self, pid, rid, report=None):
             self._go("framing")
+            if report:
+                for f in (0.2, 0.6, 0.9):                     # progress inside one clip
+                    report(f, "following faces")
+                    if getattr(self, "cancel_in_clip", None):
+                        ap.cancel(self.cancel_in_clip)
             if rid == "res2":
                 raise RuntimeError("no frames")
 
@@ -921,6 +935,48 @@ def check_autopilotrun() -> tuple[str, str]:
         after = {r["id"]: r["state"] for r in ap.load_runs()}
         if not after or any(s in ("done", "cancelled") for s in after.values()) or keep_failed not in after                 or removed != len(before) - len(after) or any(before[i] != s for i, s in after.items()):
             problems.append(f"Clear finished removes only done and cancelled: {before} -> {after}")
+
+        # no clip longer than 180 s, whatever the AI wrote; progress inside one clip of AI Framing; Cancel in the middle of it
+        short, long_ = cands(1)[0], dict(cands(1)[0], endSec=435.0, endQuote="x", spans=[{"start": 100.0, "end": 435.0}], cues=[{"start": 120.0, "end": 400.0}])
+        got, notes = ap.cap_length([short, long_], [150.0, 250.0, 280.0, 300.0, 435.0])
+        if got[0] is not short or got[1]["endSec"] != 280.0 or got[1]["dur"] != 180 or "endQuote" in got[1] or got[1]["spans"] != [{"start": 100.0, "end": 280.0}]                 or got[1]["cues"] != [{"start": 120.0, "end": 280.0}] or len(notes) != 1 or "5:35" not in notes[0] or "3:00" not in notes[0]:
+            problems.append(f"cap_length: {got[1]['endSec']} {got[1].get('dur')} {notes}")
+        got, notes = ap.cap_length([long_], [])
+        if got[0]["endSec"] != 280.0 or "no sentence end" not in notes[0]:
+            problems.append(f"cap_length without sentence ends: {notes}")
+        for mode in ("manual", "claude", "gemini"):
+            d = Fake(n=2)
+            d.long = True
+            run = run_one(d, ai=mode)
+            if mode == "manual":
+                ap.reply(run["id"], "{}", d)
+                ap.wait_idle(30)
+                run = ap.get_run(run["id"])
+            lens = [round(c["endSec"] - c["startSec"]) for c in run["candidates"]]
+            if run["state"] != "done" or max(lens) > 180 or lens[0] != 150 or not any("cut to" in n for n in ap.run_notes(run)):
+                problems.append(f"{mode}: no clip over 180 s: {run['state']} {lens} {ap.run_notes(run)}")
+        d = Fake(n=1)
+        seen = []
+        orig = ap._progress
+
+        def spy(rid):
+            inner = orig(rid)
+            return lambda p=None, t="": (seen.append((p, t)), inner(p, t))[1]
+        ap._progress = spy
+        try:
+            run = run_one(d, ai="claude")
+            if run["state"] != "done" or sum("following faces" in t for _, t in seen) != 3 or not any(t.startswith("AI Framing 1 of 1 · ") for _, t in seen):
+                problems.append(f"progress inside a clip: {run['state']} {seen[-5:]}")
+            d = Fake(n=2)
+            d.cancel_in_clip = "?"
+            made = ap.start_runs(["https://www.youtube.com/watch?v=GGGGGGGGGGG"], d)
+            d.cancel_in_clip = made[0]["id"]
+            ap.wait_idle(30)
+            run = ap.get_run(made[0]["id"])
+        finally:
+            ap._progress = orig
+        if run["state"] != "cancelled" or run.get("stoppedAt") != "framing" or d.calls.count("framing") != 1 or "render" in d.calls:
+            problems.append(f"Cancel in the middle of a clip stops the step: {run['state']} {run.get('stoppedAt')} {d.calls}")
 
         # Run again: from Choosing clips with another AI; the old Results stay, the new ones come after them
         d = Fake(n=2)

@@ -1181,13 +1181,15 @@ def _alone_in_turn(a: float, b: float, speaker, turns: list[dict]) -> bool:
 
 
 def _frame_pass(video: Path, start: float, end: float, size: dict, turns: list[dict], cuts: list[float], recognizer: bool,
-                embed, tmp: str, tag: str):
+                embed, tmp: str, tag: str, progress=None):
     """One look at the span with these speaker turns: (points, evidence for the people count, speakers seen).
     Every segment's faces are found (and, where several are main faces, matched to the sound), then the first pass
     learns each speaker's face and the second boxes every segment."""
     segs = _segments(cuts, turns, start, end)
     seen = []                                              # per segment: (a, b, speaker, people, W, H)
     for n, (a, b, speaker) in enumerate(segs):
+        if progress:
+            progress(n / len(segs))                        # the caller may raise here to stop (Autopilot's Cancel)
         samples: list[list[dict]] = []
         W = H = 0
         k = min(SHOT_SAMPLES, max(1, int((b - a) / 0.5)))
@@ -1245,14 +1247,15 @@ def _frame_pass(video: Path, start: float, end: float, size: dict, turns: list[d
 
 
 def frame_segments(video: Path, start: float, end: float, size: dict, turns: list[dict] | None = None,
-                   rediarize=None) -> tuple[list[dict], dict]:
+                   rediarize=None, progress=None) -> tuple[list[dict], dict]:
     """([{at, crop, why}], info) (real seconds): one box per segment of [start, end) -- cut at every camera change
     and every change of speaker -- centred on the face of the person speaking (see _decide). Two passes: the first
     learns each speaker's face from the segments with one face in one speaker's turn; the second boxes every
     segment, matching movement with the sound where several faces are in view. When more different faces were
     seen alone on screen than the diarization found speakers, `rediarize(n)` (if given) splits the speech again
     into n speakers and the span is looked at once more. Without turns it is one box per camera shot.
-    info: {people, speakers, resplit}."""
+    info: {people, speakers, resplit}. `progress(fraction)` (optional) is called as each segment is looked at, with
+    0..1 of the first look (the heavy part); an exception it raises ends the call."""
     from .scenecut import detect_cuts_exact
 
     turns = turns or []
@@ -1272,7 +1275,7 @@ def frame_segments(video: Path, start: float, end: float, size: dict, turns: lis
 
     info = {"people": 0, "speakers": len({t["speaker"] for t in turns}), "resplit": False}
     with tempfile.TemporaryDirectory(prefix="klipian-segments-") as tmp:
-        points, alone, speakers = _frame_pass(video, start, end, size, turns, cuts, recognizer, embed, tmp, "a")
+        points, alone, speakers = _frame_pass(video, start, end, size, turns, cuts, recognizer, embed, tmp, "a", progress)
         n = min(_count_people(alone, _face_similarity), MAX_MAIN_FACES) if recognizer else 0   # a crowd is no 20 speakers
         info["people"] = n
         if rediarize and turns and n > speakers:
