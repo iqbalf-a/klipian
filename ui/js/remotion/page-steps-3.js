@@ -12,7 +12,7 @@ function bodyPreview(d) {
   return `
     <p>Draf video setengah ukuran, dengan narasi, efek suara, dan musik. Lihat dulu sebelum render final.</p>
     <div class="rm-actions"><button class="btn ${pv ? "" : "main"}" type="button" data-act="previewVideo" ${busy ? "disabled" : ""}>${pv ? "Buat pratinjau lagi" : "Buat pratinjau"}</button><span class="rm-hint" id="rmPreviewVideoNote">${busy ? esc(job.message || "") : ""}</span></div>
-    ${pv && !busy ? `<video class="rm-video" controls playsinline src="${pv.url}"></video><p class="rm-hint">${pv.stale ? "Cerita atau suara berubah sejak pratinjau ini: buat lagi." : `Dibuat dalam ${pv.seconds} detik.`}</p>` : ""}`;
+    ${pv && !busy ? `<video class="rm-video" controls playsinline src="${esc(profileUrl(pv.url))}"></video><p class="rm-hint">${pv.stale ? "Cerita atau suara berubah sejak pratinjau ini: buat lagi." : `Dibuat dalam ${pv.seconds} detik.`}</p>` : ""}`;
 }
 
 async function startPreviewVideo() {

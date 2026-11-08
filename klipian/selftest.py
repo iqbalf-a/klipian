@@ -7337,6 +7337,8 @@ def check_voiceparts() -> tuple[str, str]:
             problems.append("the vtt starts with WEBVTT and uses dots in the times")
         if motion.subtitles_file(pid, "srt") is None or motion.subtitles_file(pid, "vtt") is None:
             problems.append("the subtitle files are written next to the narration")
+        if motion.voice_file(pid) is None or not motion.detail(pid)["voice"].get("at"):
+            problems.append("the voice file can be served and its detail carries a time to bust the player's cache")
         # the cues: at most two lines of 42 characters
         for c in motion_voice.cues(motion.render_story(pid)):
             if len(c["lines"]) > 2 or any(len(ln) > 42 for ln in c["lines"]):

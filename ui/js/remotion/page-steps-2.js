@@ -99,9 +99,18 @@ function bodyScript(d) {
   if (!NARR_APP || !apps.includes(NARR_APP)) NARR_APP = apps[0];
   const ex = narrationShown(NARR, d.id, NARR_APP);
   return `
+    ${narrationPreview(d)}
     <p>Salin naskahnya ke aplikasi suara kamu, lalu buat suaranya di sana (klipian tidak memanggil layanan suara). Aplikasi yang dipakai diubah di langkah 2, Brief.</p>
     <div class="rm-tabs" role="tablist" aria-label="Aplikasi suara">${apps.map((k) => `<button class="btn" type="button" role="tab" data-act="narrationApp" data-app="${k}" aria-selected="${k === NARR_APP}" aria-pressed="${k === NARR_APP}">${esc(VOICE_APP_LABELS[k])}</button>`).join("")}</div>
     ${ex ? scriptPanel(NARR_APP, ex) : `<p class="rm-hint">Memuat naskah…</p>`}`;
+}
+
+// the narration per beat as plain text with its planned seconds, read-only, so it can be read through before going to the voice
+function narrationPreview(d) {
+  const { rows, total } = narrationRows(d.story);
+  const planned = d.duration;
+  return `<div class="rm-narr"><div class="rm-boxhead"><b>Narasi per beat</b><span class="rm-hint">${rows.length} beat bernarasi, total ${fmtSeconds(total)} dtk${planned != null && Math.abs(total - planned) > 1.5 ? ` (video ini ${planned} dtk)` : ""}</span></div>
+    <ol>${rows.map((r) => `<li><span class="rm-hint">${esc(r.id)} · ${fmtSeconds(r.dur)} dtk</span> ${esc(r.text)}</li>`).join("")}</ol></div>`;
 }
 
 // one app's texts: only what the app should read is in the boxes (a copy button for each); the counts, the settings and the notes are written beside them
@@ -174,6 +183,8 @@ function bodyVoice(d) {
   const have = v && v.name;
   return `
     <p>Rekam sendiri atau pakai file dari luar (wav, mp3, m4a, ...). Satu file, atau beberapa file dengan nomor di akhir namanya (mis. colokan_1.wav, colokan_2.wav): urutannya dari nomor, bukan dari nama. klipian mencocokkan kata dengan suaranya di komputer ini. Tanpa layanan suara: tidak ada key.</p>
+    ${narrationPreview(d)}
+    ${have ? `<audio class="rm-audio" controls preload="metadata" src="${esc(profileUrl(`${API}/voice-file?id=${encodeURIComponent(d.id)}&v=${v.at || 0}`))}"></audio>` : ""}
     ${have ? `<div class="rm-note"><b>${esc(v.name)}</b> · ${fmtSeconds(v.duration)} detik · ${v.aligned ? `sudah dicocokkan (${esc(v.method === "whisper" ? "dari suara" : "perkiraan merata")}), video ${fmtSeconds(v.total)} detik` : v.stale ? "cerita berubah sejak dicocokkan: cocokkan lagi" : "belum dicocokkan"}${v.note ? `<br><span class="rm-hint">${esc(v.note)}</span>` : ""}</div>` : ""}
     ${voicePartsHTML(v || {})}
     <div class="rm-actions">
@@ -188,7 +199,7 @@ function bodyVoice(d) {
     <div class="rm-actions">
       <button class="btn ${have && !(v && v.aligned) ? "main" : ""}" type="button" data-act="voiceAlign" ${have && !busy ? "" : "disabled"}>${v && v.aligned ? "Cocokkan lagi" : "Cocokkan dengan narasi"}</button>
       ${have ? `<button class="btn danger" type="button" data-act="voiceClear" ${busy ? "disabled" : ""}>Hapus suara</button>` : ""}
-      ${v && v.captions ? `<a class="btn sm" href="${API}/subtitles?id=${encodeURIComponent(d.id)}&format=srt" download>Unduh .srt</a><a class="btn sm" href="${API}/subtitles?id=${encodeURIComponent(d.id)}&format=vtt" download>Unduh .vtt</a>` : ""}
+      ${v && v.captions ? `<a class="btn sm" href="${esc(profileUrl(`${API}/subtitles?id=${encodeURIComponent(d.id)}&format=srt`))}" download>Unduh .srt</a><a class="btn sm" href="${esc(profileUrl(`${API}/subtitles?id=${encodeURIComponent(d.id)}&format=vtt`))}" download>Unduh .vtt</a>` : ""}
       <span class="rm-hint" id="rmVoiceNote">${busy ? esc(job.message || "") : ""}</span>
     </div>
     ${v && v.aligned ? voiceTableHTML(v) : ""}`;

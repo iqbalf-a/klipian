@@ -24,3 +24,11 @@ eq(narrationShown(state, "v2", "googleai"), null, "an export of another video is
 eq(narrationShown(null, "v1", "googleai"), null, "nothing loaded yet");
 
 console.log(`narration: ${n} checks ok`);
+
+{
+  const { narrationRows } = require("../ui/js/remotion/narration.js");
+  const r = narrationRows({ beats: [{ id: "a", dur: 3, narration: " Halo " }, { id: "b", dur: 1, narration: "" }, { id: "c", dur: 5, narration: "Dunia" }] });
+  assert.deepStrictEqual(r, { rows: [{ id: "a", dur: 3, text: "Halo" }, { id: "c", dur: 5, text: "Dunia" }], total: 9 });
+  assert.deepStrictEqual(narrationRows(null), { rows: [], total: 0 });
+  console.log("narrationRows: ok");
+}

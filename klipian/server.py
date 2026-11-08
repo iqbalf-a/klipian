@@ -853,6 +853,16 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"error": "no preview yet"}, 404)
         return self._send_file(f, "video/mp4")
 
+    def _get_motion_voice_file(self):
+        q = parse_qs(urlparse(self.path).query)
+        try:
+            f = _motion.voice_file((q.get("id") or [""])[0])
+        except _motion.MotionError:
+            f = None
+        if f is None:
+            return self._send_json({"error": "no voice yet"}, 404)
+        return self._send_file(f, "audio/wav")
+
     def _get_motion_still(self):
         q = parse_qs(urlparse(self.path).query)
         try:
@@ -1653,6 +1663,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/motion/subtitles": _get_motion_subtitles,
         "/api/motion/preview-file": _get_motion_preview_file,
         "/api/motion/narration": _get_motion_narration,
+        "/api/motion/voice-file": _get_motion_voice_file,
         "/api/ytdl/status": _get_ytdl_status,
         "/api/ytdl/state": _get_ytdl_state,
         "/api/youtube/status": _get_youtube_status,

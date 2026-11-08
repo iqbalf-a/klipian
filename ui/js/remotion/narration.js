@@ -31,3 +31,15 @@ function narrationCopyText(ex) {
 }
 
 if (typeof module !== "undefined" && module.exports) Object.assign(module.exports, { narrationFile, narrationCopyText });
+
+// the narration of the story as the person will have it voiced: one row per beat that has words (a beat without narration, like the outro, is skipped), the
+// seconds each beat is planned for, and the total of ALL beats (the video's length, silent beats included)
+function narrationRows(story) {
+  const beats = (story && story.beats) || [];
+  return {
+    rows: beats.filter((b) => String(b.narration || "").trim()).map((b) => ({ id: b.id, dur: b.dur, text: String(b.narration).trim() })),
+    total: beats.reduce((s, b) => s + (Number(b.dur) || 0), 0),
+  };
+}
+
+if (typeof module !== "undefined" && module.exports) Object.assign(module.exports, { narrationRows });

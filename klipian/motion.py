@@ -1026,7 +1026,7 @@ def voice_info(pid: str) -> dict | None:
     timed = render_story(pid) if aligned else None
     total = timed["duration"] if timed else v["duration"]
     table = meta.get("table") if aligned else None
-    return {"name": v["name"], "duration": v["duration"], "aligned": aligned, "stale": bool(meta) and not aligned, "method": meta.get("method"), "ratio": meta.get("ratio"),
+    return {"name": v["name"], "duration": v["duration"], "at": v.get("at"), "aligned": aligned, "stale": bool(meta) and not aligned, "method": meta.get("method"), "ratio": meta.get("ratio"),
             "total": total, "target": p["duration"], "tts": bool(tts_available()),
             "note": (f"Narasinya membuat video {total:.1f} detik; rencana awalnya {p['duration']} detik.".replace(".", ",", 1) if abs(total - p["duration"]) > 0.5 else ""),
             "parts": v.get("parts") or [], "gap": v.get("gap", voicelib.GAP), "notes": v.get("notes") or [],
