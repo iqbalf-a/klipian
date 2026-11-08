@@ -504,6 +504,304 @@ def check_autopilot() -> tuple[str, str]:
     return PASS, "slots: Start + N days, even split; templates; the Admin has no folders and cannot change; Gemini key stays on the server"
 
 
+def check_autopilotresult() -> tuple[str, str]:
+    """A Result built on the server from a clip candidate (autopilot.build_result) is the Result the editor builds for
+    it: the same fields, the output format of the template, the intro label of withAngleIntro (tests/autoresult.test.js
+    checks the label against the editor's own code), and the render request made from it has the template's picture."""
+    import copy
+    import json as _json
+    from . import autopilot as ap, renderreq
+
+    problems = []
+    fx = _json.loads((ROOT / "tests" / "fixtures" / "autopilot-result.json").read_text(encoding="utf-8"))
+    cand, want = fx["candidate"], fx["expected"]
+    tpl = ap.get_template("default")
+    got = ap.build_result(cand, tpl, "res1")
+    if got != want:
+        problems.append(f"the Default template's Result differs from the editor's:\n        got    {got}\n        wanted {want}")
+
+    def variant(**fmt):
+        t = copy.deepcopy(tpl)
+        t["format"].update(fmt)
+        return ap.build_result(cand, t, "res1")
+
+    r = variant(angleIntro=False)
+    if "overlays" in r or r["angle"] != want["angle"]:
+        problems.append("angle intro off: no label, the angle is kept")
+    r = variant(introStyle="light", introSeconds=4.0)
+    lab = (r.get("overlays") or [{}])[0]
+    if (lab.get("color"), lab.get("boxStyle"), lab.get("end")) != ("#111111", "light", 4.0) \
+            or r["angle"].get("introSeconds") != 4.0 or r["angle"].get("boxStyle") != "light":
+        problems.append(f"a light intro of 4 s: {lab} {r['angle']}")
+    r = variant(picture="9:16")
+    if r["output"] != [0, 1, 1, None, 50]:
+        problems.append(f"9:16 has no background chosen: {r['output']}")
+    r = variant(picture="16:9", background="black")
+    if r["output"] != [1, 1, 1, 1, 50]:
+        problems.append(f"16:9 black: {r['output']}")
+    bare = ap.build_result({"title": "T", "startSec": 1, "endSec": 20}, tpl, "res2")
+    if any(k in bare for k in ("post", "angle", "overlays")):
+        problems.append("a candidate with no post or angle makes none")
+    for bad in ({"title": "x", "startSec": 5, "endSec": 5.2}, {"title": "x"}):
+        try:
+            ap.build_result(bad, tpl, "res3")
+            problems.append(f"{bad} should be refused")
+        except ValueError:
+            pass
+
+    # the render request made from it: the template's picture, blur, the intro label, the words of the clip
+    project = {"id": "0123456789ab", "assets": [{"id": "a1", "kind": "video", "file": "talk.mp4"}], "results": [got]}
+    words = [{"text": f"w{i}", "start": 120.0 + i, "end": 120.9 + i} for i in range(60)]
+    req = renderreq.build_request(project, "res1", words_of=lambda f: words, size_of=lambda f: (1920, 1080))
+    k = req["clips"][0]
+    if (k["picture"], k["background"], k["position"]) != ("3:4", "blur", 50):
+        problems.append(f"the request's picture: {k['picture']} {k['background']} {k['position']}")
+    if [o["origin"] for o in k.get("overlays") or []] != ["angle-intro"] or k["post"]["title"] != "Judul":
+        problems.append("the request carries the intro label and the post text")
+    if not k["spans"] or abs(k["spans"][0]["start"] - 120.5) > 1e-6:
+        problems.append(f"the request's span: {k['spans']}")
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "the server's Result = the editor's (fields, output, intro label) and renders with the template's picture"
+
+
+def check_autopilotrun() -> tuple[str, str]:
+    """An Autopilot run end to end with fakes for ytdl, transcribe, the AI, framing, render and the YouTube upload:
+    the steps in order, the template copied at Start, at most N clips, 0 clips, a failure and its Retry (nothing before
+    the failed step is done twice), Manual mode and its reply, auto upload off, cancel, and the schedule."""
+    import json as _json
+    from datetime import date, timedelta
+    from . import autopilot as ap, paths, profiles, schedule
+
+    problems = []
+    PID = "aprun"
+    profiles.write_meta(PID, {"name": PID, "color": "#123456"})
+    profiles.ensure_dirs(PID)
+    token = paths.set_profile(PID)
+
+    def cands(n):
+        return [{"title": f"Klip {i}", "startSec": 100.0 * i, "endSec": 100.0 * i + 40, "post": {"title": f"Judul {i}", "caption": "c", "hashtags": ["#x"]},
+                 "angle": {"take": "t", "intro": f"Intro {i}", "notes": []}} for i in range(1, n + 1)]
+
+    class Fake:
+        count = 0
+
+        def __init__(self, n=3, fail=None):
+            self.calls, self.n, self.fail, self.projects = [], n, dict(fail or {}), {}
+            self.uploaded = {}
+            Fake.count += 1
+            self.pid = f"{Fake.count:012x}"                      # a project of its own: its rows are its own
+
+        def _go(self, name):
+            self.calls.append(name)
+            if self.fail.get(name):
+                self.fail[name] -= 1
+                raise ap.RunError(f"{name} broke")
+
+        def video_id(self, url):
+            if "v=" not in url:
+                raise ap.RunError("not a YouTube video link")
+            return url.split("v=")[1][:11]
+
+        def preview(self, url, quality):
+            return {"title": "Talk", "duration": 3000}
+
+        def download(self, url, quality, report):
+            self._go("download")
+            report(50, "half")
+            return "talk.mp4"
+
+        def transcribe(self, name, report):
+            self._go("transcribe")
+
+        def make_project(self, name, title, url):
+            self._go("project")
+            self.projects[self.pid] = {"id": self.pid, "assets": [{"id": "a1", "kind": "video", "file": name}], "results": []}
+            return self.pid
+
+        def read_project(self, pid):
+            return _json.loads(_json.dumps(self.projects[pid]))
+
+        def write_project(self, pid, data):
+            self.projects[pid] = data
+
+        def brief(self, name, most):
+            self._go("brief")
+            return f"BRIEF at most {most}"
+
+        def candidates_from_reply(self, name, text):
+            if text == "bad":
+                raise ValueError("That is not JSON")
+            return cands(self.n), ["a note"]
+
+        def ask_claude(self, name, most, project, report):
+            self._go("ask")
+            return cands(self.n), []
+
+        def ai_framing(self, pid, rid):
+            self._go("framing")
+            if rid == "res2":
+                raise RuntimeError("no frames")
+
+        def render(self, pid, ids, report):
+            self._go("render")
+            for rid in ids:
+                title = next(r for r in self.projects[pid]["results"] if r["id"] == rid)["segments"][0]["title"]
+                schedule.upsert_render(project_id=pid, result_id=rid, title=title, file_name=f"{rid}.mp4",
+                                       post=None, credit_lines="")
+
+        def upload(self, rows, report):
+            self.calls.append("upload")
+            bad = rows[1:] if self.fail.get("upload") else []      # the first call sends one clip and stops
+            self.fail["upload"] = 0
+            for r in rows:
+                if r not in bad:
+                    self.uploaded[r] = True
+                    schedule.set_fields(r, {"videoId": "vid" + r, "status": "Scheduled"})
+            return [("Klip", "quota") for _ in bad]
+
+        def youtube_checks(self):
+            return [{"key": "client", "ok": True, "label": "YouTube client", "detail": "", "fix": ""}]
+
+        def ai_check(self, mode):
+            return {"key": "ai", "ok": True, "label": mode, "detail": "", "fix": ""}
+
+    def run_one(deps, ai="claude", settings=None):
+        profiles.update(PID, {"ai": ai})
+        if settings is not None:
+            ap.save_template("default", settings)
+        made = ap.start_runs([f"https://www.youtube.com/watch?v=AAAAAAAAAA{len(ap.load_runs()) % 10}"], deps)
+        ap.wait_idle(30)
+        return ap.get_run(made[0]["id"])
+
+    try:
+        tomorrow = (date.today() + timedelta(days=1)).isoformat()
+        # a full run
+        d = Fake(n=3)
+        run = run_one(d)
+        order = [c for c in d.calls if c in ("download", "transcribe", "project", "ask", "framing", "render", "upload")]
+        if run["state"] != "done" or order != ["download", "transcribe", "project", "ask", "framing", "framing", "framing", "render", "upload"]:
+            problems.append(f"a full run: {run['state']} {run.get('error')} {order}")
+        pdata = d.projects[d.pid]
+        if [r["id"] for r in pdata["results"]] != ["res1", "res2", "res3"] or pdata["results"][0]["output"][0] != 2:
+            problems.append("the project holds the 3 Results in the template's format")
+        rows = [schedule.get_row(i) for i in run["rows"].values()]
+        slots = sorted((r["date"], r["time"]) for r in rows)
+        if {s[0] for s in slots} != {tomorrow} or sorted(t for _, t in slots) != ["11:00", "11:00", "18:00"] and sorted(t for _, t in slots) != ["11:00", "18:00", "18:00"]:
+            problems.append(f"3 clips go out tomorrow, split over the two hours: {slots}")
+        if any(r["status"] != "Scheduled" for r in rows) or run["done"] != list(ap.STEPS):
+            problems.append(f"the rows are Scheduled after the upload: {[r['status'] for r in rows]} {run['done']}")
+        if "res2" not in _json.dumps(run.get("framingNotes", "")) and not run.get("framingNotes"):
+            problems.append("a clip whose AI Framing failed is noted, not fatal")
+        if run["template"]["framing"] is not True or ap.public_run(run).get("template") != {"name": "Default"}:
+            problems.append("the template is copied into the run")
+
+        # at most N clips; the template is copied at Start (an edit later changes the next run only)
+        d = Fake(n=6)
+        run = run_one(d, settings={"maxClips": 2, "framing": False})
+        if len(run["results"]) != 2 or "framing" in d.calls:
+            problems.append(f"at most 2 clips and no framing: {len(run.get('results', []))} {d.calls}")
+        ap.save_template("default", {"maxClips": 5})
+        if run["template"]["maxClips"] != 2:
+            problems.append("a run keeps the template it started with")
+        ap.reset_template("default")
+
+        # 0 clips: done, with a note, nothing made after it
+        d = Fake(n=0)
+        run = run_one(d)
+        if run["state"] != "done" or "worth a clip" not in run["note"] or "render" in d.calls or d.projects[d.pid]["results"]:
+            problems.append(f"0 clips: {run['state']} {run['note']!r} {d.calls}")
+
+        # a failure at the render, then Retry: nothing before it runs again
+        d = Fake(n=2, fail={"render": 1})
+        run = run_one(d)
+        if run["state"] != "failed" or run["step"] != "render" or "render broke" not in run["error"]:
+            problems.append(f"a failed render: {run['state']} {run['step']} {run['error']}")
+        ap.retry(run["id"], d)
+        ap.wait_idle(30)
+        run = ap.get_run(run["id"])
+        if run["state"] != "done" or [d.calls.count(c) for c in ("download", "transcribe", "project", "ask", "render")] != [1, 1, 1, 1, 2]:
+            problems.append(f"Retry goes on from the render: {run['state']} {d.calls}")
+
+        # a failure at the download: the first step is retried and the rest follow
+        d = Fake(n=1, fail={"download": 1})
+        run = run_one(d)
+        ap.retry(run["id"], d)
+        ap.wait_idle(30)
+        if ap.get_run(run["id"])["state"] != "done" or d.calls.count("download") != 2:
+            problems.append("Retry of a failed download")
+
+        # an upload that fails for one clip: the run fails at the schedule, Retry uploads only the rest
+        d = Fake(n=2, fail={"upload": 1})
+        run = run_one(d)
+        if run["state"] != "failed" or run["step"] != "schedule" or "Klip" not in run["error"]:
+            problems.append(f"a partly failed upload: {run['state']} {run['step']} {run['error']}")
+        slots_before = run["slots"]
+        ap.retry(run["id"], d)
+        ap.wait_idle(30)
+        run = ap.get_run(run["id"])
+        if run["state"] != "done" or run["slots"] != slots_before:
+            problems.append("Retry of the upload keeps the slots and finishes")
+
+        # Manual mode: waits with a brief; a reply that cannot be read is refused; a good one goes on
+        d = Fake(n=2)
+        run = run_one(d, ai="manual")
+        if run["state"] != "waiting" or run["brief"] != "BRIEF at most 4" or "ask" in d.calls or "render" in d.calls:
+            problems.append(f"Manual mode waits for the reply: {run['state']} {run.get('brief')!r}")
+        try:
+            ap.reply(run["id"], "bad", d)
+            problems.append("an unreadable reply should be refused")
+        except ap.RunError:
+            pass
+        ap.reply(run["id"], "{}", d)
+        ap.wait_idle(30)
+        run = ap.get_run(run["id"])
+        if run["state"] != "done" or len(run["results"]) != 2 or run["brief"]:
+            problems.append(f"Manual reply goes on: {run['state']} {run.get('error')}")
+
+        # auto upload off: stops at Ready
+        d = Fake(n=2)
+        run = run_one(d, settings={"schedule": {"autoUpload": False}})
+        rows = [schedule.get_row(i) for i in run["rows"].values()]
+        if run["state"] != "done" or "upload" in d.calls or {r["status"] for r in rows} != {"Ready"} or not all(r["date"] for r in rows):
+            problems.append(f"auto upload off stops at Ready with dates: {run['state']} {[r['status'] for r in rows]}")
+        ap.reset_template("default")
+
+        # a link that is not a video link, a link already in progress, cancel
+        try:
+            ap.start_runs(["https://example.com/x"], Fake())
+            problems.append("a link that is not a YouTube video should be refused")
+        except ap.RunError:
+            pass
+        d = Fake(n=2)
+        profiles.update(PID, {"ai": "manual"})
+        made = ap.start_runs(["https://www.youtube.com/watch?v=BBBBBBBBBBB"], d)
+        ap.wait_idle(30)
+        again = ap.start_runs(["https://www.youtube.com/watch?v=BBBBBBBBBBB"], d)
+        if again:
+            problems.append("a link whose run is not over is not queued twice")
+        ap.cancel(made[0]["id"])
+        if ap.get_run(made[0]["id"])["state"] != "cancelled":
+            problems.append("Cancel of a waiting run")
+        ap.retry(made[0]["id"], d)
+        ap.wait_idle(30)
+        if ap.get_run(made[0]["id"])["state"] != "waiting":
+            problems.append("a cancelled run can be retried")
+
+        # Check: the links and what the run needs
+        res = ap.check(["https://www.youtube.com/watch?v=CCCCCCCCCCC", "nope"], Fake())
+        keys = [(i["key"], i["ok"]) for i in res["items"]]
+        if res["ok"] or keys[0] != ("link", True) or keys[1] != ("link", False) or ("client", True) not in keys or ("ai", True) not in keys:
+            problems.append(f"Check lists the links and the needs: {keys}")
+        if not ap.check(["https://www.youtube.com/watch?v=CCCCCCCCCCC"], Fake())["ok"]:
+            problems.append("Check is green when everything is there")
+    finally:
+        paths._profile.reset(token)
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "a run: steps in order, template copied, at most N, 0 clips, Retry resumes, Manual reply, auto upload off, cancel, Check"
+
+
 def check_settle() -> tuple[str, str]:
     """Where a clip ends: settle_end (the end moves on to the end of its sentence or of the quoted last sentence, never
     back by more than SNAP_MAX, never past the longest clip), the endQuote field through the Gemini brief and the import."""
@@ -7564,7 +7862,7 @@ def check_briefsteps() -> tuple[str, str]:
     return PASS, (f"the Khusus brief passes the strict checklist (rules first, 8 steps with Run and Expected, fallback, mistakes) at 30/45/60 s with 1 or 3 voice apps; "
                   f"size at 45 s {sizes[0]} characters (cap 40000); the fallback story is saved and the video stays 'belum dibuat'")
 
-CHECKS = {"autopilot": check_autopilot, "settle": check_settle, "briefagents": check_briefagents, "briefsteps": check_briefsteps, "migrate": check_migrate, "brief": check_brief, "geminibrief": check_geminibrief, "ranges": check_ranges, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch, "labelbox": check_labelbox, "shotframe": check_shotframe, "facelock": check_facelock,
+CHECKS = {"autopilot": check_autopilot, "autopilotresult": check_autopilotresult, "autopilotrun": check_autopilotrun, "settle": check_settle, "briefagents": check_briefagents, "briefsteps": check_briefsteps, "migrate": check_migrate, "brief": check_brief, "geminibrief": check_geminibrief, "ranges": check_ranges, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch, "labelbox": check_labelbox, "shotframe": check_shotframe, "facelock": check_facelock,
           "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voicegoogle": check_voicegoogle, "voicestudio": check_voicestudio, "elevenlabs": check_elevenlabs, "khusus": check_khusus, "briefbuttons": check_briefbuttons, "music": check_music, "voice": check_voice, "decode": check_decode, "render": check_render}
 
 

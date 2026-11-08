@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>klipian: autopilot</title>
+<link rel="stylesheet" href="/ui/css/fonts.css">
+<link rel="stylesheet" href="/ui/css/tokens.css">
+<link rel="stylesheet" href="/ui/css/brand.css">
+<link rel="stylesheet" href="/ui/css/workspace.css">
+<link rel="stylesheet" href="/ui/css/pager.css">
+<link rel="stylesheet" href="/ui/css/profiles.css">
+<link rel="stylesheet" href="/ui/css/autopilot.css">
+</head>
+<body>
+<div class="flex flex-col min-h-screen">
+  <header class="flex items-center gap-4 h-[58px] px-5 shrink-0 bg-surface-1 border-b border-glass-border">
+    <a class="brand" href="/" title="Back to editor">klipian</a>
+    <nav class="tabs area-switch" aria-label="Area">
+      <a href="/">Edit</a>
+      <a href="/workspace">Workspace</a>
+      <a href="/sources">Sources</a>
+      <a href="/remotion">Motion</a>
+      <a href="/autopilot" aria-current="page">Autopilot</a>
+      <a href="/guide" title="The guide opens in a new tab">Guide</a>
+    </nav>
+    <div id="profileChip"></div>
+    <button class="btn quiet" id="themeBtn" type="button" aria-live="polite"></button>
+    <span id="topClock"></span>
+  </header>
+
+  <main class="ap">
+    <h1 class="ap-h1">Autopilot</h1>
+    <p class="ap-note">Paste a YouTube link. klipian downloads it, picks the best clips, renders them and schedules the upload for the day the template says.</p>
+
+    <section class="ws-panel ap-card" aria-labelledby="apSet">
+      <h2 id="apSet" class="ap-h2">This profile</h2>
+      <div class="ap-row"><label for="apAi">AI picks the clips</label>
+        <select id="apAi">
+          <option value="manual">Manual: I paste the AI's reply</option>
+          <option value="claude">Claude API</option>
+          <option value="gemini" disabled>Gemini API (next step)</option>
+        </select></div>
+      <div class="ap-row"><label for="apTpl">Template</label><select id="apTpl"></select>
+        <span class="ap-note" id="apTplNote"></span></div>
+    </section>
+
+    <section class="ws-panel ap-card" aria-labelledby="apNew">
+      <h2 id="apNew" class="ap-h2">New run</h2>
+      <textarea id="apUrls" rows="3" spellcheck="false" placeholder="https://www.youtube.com/watch?v=…   (one link per line)" aria-label="YouTube links"></textarea>
+      <div class="ap-row">
+        <button class="btn" id="apCheck" type="button">Check</button>
+        <button class="btn main" id="apStart" type="button" disabled title="Check first: Start is enabled when everything is green">Start Autopilot</button>
+        <span class="ap-note" id="apMsg" role="status"></span>
+      </div>
+      <ul class="ap-checks" id="apChecks" aria-live="polite"></ul>
+    </section>
+
+    <section aria-labelledby="apRuns">
+      <h2 id="apRuns" class="ap-h2">Runs</h2>
+      <div id="apRunList"><p class="ap-note">No run yet.</p></div>
+    </section>
+  </main>
+</div>
+<script src="/ui/js/shared/profile.js"></script>
+<script src="/ui/js/shared/topbar.js"></script>
+<script src="/ui/js/shared/clipboard.js"></script>
+<script src="/ui/js/shared/armed.js"></script>
+<script src="/ui/js/shared/profile-ui.js"></script>
+<script src="/ui/js/autopilot-page.js"></script>
+</body>
+</html>

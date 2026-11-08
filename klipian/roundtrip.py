@@ -242,6 +242,13 @@ the clip there (the `end` time still has to be close, within 30 seconds)."""
 GEMINI_MAX_CHARS = 50_000
 
 
+def at_most_rule(n: int) -> str:
+    """Autopilot: how many clips to pick. The editor's own briefs ask for about so many; a run asks for the best few."""
+    return (f"Pick at most {max(1, int(n))} clips: the ones most likely to take off. Fewer is fine when the video does not hold "
+            "that many whole topics worth posting; never pad the list with weak or partial topics. "
+            "An empty list is a good answer when nothing is worth a clip.")
+
+
 def build_gemini_brief(gemini_text: str, name: str, hashtag_rule: str = "") -> str:
     """The short brief for turning the answer of YouTube's "Ask about this video" (Gemini) into the clip JSON.
     No transcript: the moments, with their times and opening quotes, are all in `gemini_text`, which goes in as data.
@@ -279,7 +286,7 @@ GEMINI_ANSWER>>>
 
 def build_brief(transcript: Transcript, rubric: str, name: str,
                 cues_data: dict | None = None, credit: dict | None = None,
-                hashtag_rule: str = "") -> str:
+                hashtag_rule: str = "", at_most: int | None = None) -> str:
     """A single self-contained file: task, rubric, transcript, and expected
     answer format. The user just drops it in and says "do it" -- no
     additional explanation needed.
@@ -308,7 +315,7 @@ def build_brief(transcript: Transcript, rubric: str, name: str,
     return f"""# Find clips — {name}
 
 Hello. Please read the transcript at the bottom of this file and pick moments
-worth turning into short vertical videos.
+worth turning into short vertical videos.{(chr(10) + chr(10) + at_most_rule(at_most)) if at_most else ""}
 
 **Source duration:** {fmt_stamp(transcript.duration)} · **{len(transcript.words)} words**{source_block}
 
@@ -334,7 +341,8 @@ worth turning into short vertical videos.
 
 
 def build_api_brief(transcript: Transcript, rubric: str, name: str, cues_data: dict | None = None,
-                    credit: dict | None = None, hashtag_rule: str = "", count: int = 12) -> tuple[str, str]:
+                    credit: dict | None = None, hashtag_rule: str = "", count: int = 12,
+                    at_most: bool = False) -> tuple[str, str]:
     """The same brief, split for the Claude API (P24): (system, user).
 
     `system` is everything that does not change from one episode to the next -- the task, the
@@ -372,7 +380,7 @@ Your whole reply is that one JSON object, nothing before or after it.
     ) if source else ""
     user = f"""# Find clips — {name}
 
-Look for about {max(1, int(count))} moments (fewer if the episode does not have that many good ones).
+{at_most_rule(count) if at_most else f"Look for about {max(1, int(count))} moments (fewer if the episode does not have that many good ones)."}
 
 **Source duration:** {fmt_stamp(transcript.duration)} · **{len(transcript.words)} words**{source_block}
 {_cues_block(cues_data)}

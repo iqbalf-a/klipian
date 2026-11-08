@@ -53,6 +53,7 @@ from .jobs import cancel_job as _cancel_job, start_project_render as _start_proj
 from .jobs import estimate_seconds as _estimate_seconds, plan_project_render as _plan_project_render
 from . import claude_api as _claude
 from . import autopilot as _autopilot
+from . import autopilot_deps as _autopilot_deps
 from . import gemini_api as _gemini
 from . import rubrics as _rubrics
 from .jobs import (ACTIVE_TRANSCRIBES, CANCELLED, JOBS, LOCK, MAX_JOBS, _clip_words,
@@ -287,7 +288,7 @@ def _rubric_for(mode: str = ""):
 PARTIAL_TRANSCRIPT = "The transcript covers only the imported clips. Transcribe the whole video to use this."
 
 
-def _claude_parts(name: str, mode: str = ""):
+def _claude_parts(name: str, mode: str = "", at_most: bool = False):
     """build_parts(count) for the Claude API: the brief of this video, split into the static system text and this
     episode's text (roundtrip.build_api_brief), from the same inputs as /api/brief."""
     transcript = _transcript_for(name)
@@ -299,7 +300,7 @@ def _claude_parts(name: str, mode: str = ""):
     cues_data = cues_mod.load(find_video(name), Cache(CACHE_DIR))
     credit = credits_mod.load().get(name)
     rule = _hashtags_mod.brief_rule(_profiles.hashtag_settings())
-    return lambda count: roundtrip.build_api_brief(transcript, rubric, name, cues_data, credit, rule, count)
+    return lambda count: roundtrip.build_api_brief(transcript, rubric, name, cues_data, credit, rule, count, at_most=at_most)
 
 
 def _source_duration(video: Path, cache: Cache) -> float | None:
@@ -511,7 +512,8 @@ class Handler(BaseHTTPRequestHandler):
             return False
         if pid == _paths.GUEST:
             _profiles.ensure_dirs(pid)             # made on first use (and after "Clear guest data")
-        if pid == _paths.GUEST and (path.startswith("/api/workspace/clips") or path.startswith("/api/youtube") or path.startswith("/api/motion")):
+        if pid == _paths.GUEST and (path.startswith("/api/workspace/clips") or path.startswith("/api/youtube") or path.startswith("/api/motion")
+                                      or path.startswith("/api/autopilot")):
             self._send_json({"error": "not available for the Guest profile"}, 403)
             return False
         return True
@@ -1005,6 +1007,60 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"error": str(exc)}, 400)
         except OSError as exc:
             return self._send_json({"error": f"could not save: {exc}"}, 500)
+
+    # ---- Autopilot (autopilot.py; the page is /autopilot) ----
+
+    def _autopilot_reply(self, fn):
+        try:
+            return self._send_json({"ok": True, **fn()})
+        except _autopilot.RunError as exc:
+            return self._send_json({"ok": False, "error": str(exc)}, 400)
+        except (ValueError, OSError) as exc:
+            return self._send_json({"ok": False, "error": str(exc)}, 400)
+
+    def _get_autopilot_state(self):
+        def state():
+            claude = _claude.status()
+            return {"settings": _autopilot.profile_settings(),
+                    "templates": [{"id": t["id"], "name": t["name"], "summary": _autopilot.summary(t)} for t in _autopilot.list_templates()],
+                    "ai": {"claudeReady": bool(claude["sdk"] and claude["hasKey"]), "geminiKey": _gemini.status()["hasKey"]},
+                    "runs": [_autopilot.public_run(r) for r in reversed(_autopilot.load_runs())],
+                    "labels": _autopilot.STEP_LABELS, "steps": list(_autopilot.STEPS)}
+        return self._autopilot_reply(state)
+
+    def _get_autopilot_brief(self):
+        rid = (parse_qs(urlparse(self.path).query).get("id") or [""])[0]
+        run = _autopilot.get_run(rid)
+        if not run or not run.get("brief"):
+            return self._send_json({"error": "This run has no brief to copy."}, 404)
+        return self._send_text(run["brief"], "text/markdown")
+
+    def _post_autopilot(self):
+        action = urlparse(self.path).path.rsplit("/", 1)[-1]
+        try:
+            req = self._read_json()
+        except Exception as exc:               # noqa: BLE001
+            return self._send_json({"error": str(exc)}, 400)
+        deps = _autopilot_deps.RealDeps()
+        urls = [str(u).strip() for u in (req.get("urls") or []) if str(u).strip()]
+        if action == "settings":
+            def save():
+                fields = {k: req[k] for k in ("ai", "template") if k in req}
+                _profiles.update(_paths.current_profile(), fields)
+                return {"settings": _autopilot.profile_settings()}
+            return self._autopilot_reply(save)
+        if action == "check":
+            return self._autopilot_reply(lambda: _autopilot.check(urls, deps))
+        if action == "start":
+            return self._autopilot_reply(lambda: {"runs": _autopilot.start_runs(urls, deps)})
+        rid = str(req.get("id") or "")
+        if action == "retry":
+            return self._autopilot_reply(lambda: {"run": _autopilot.retry(rid, deps)})
+        if action == "cancel":
+            return self._autopilot_reply(lambda: {"run": _autopilot.cancel(rid)})
+        if action == "reply":
+            return self._autopilot_reply(lambda: {"run": _autopilot.reply(rid, str(req.get("text") or ""), deps)})
+        return self._send_json({"error": "unknown action"}, 404)
 
     # ---- Admin settings (the Admin profile only: _set_profile refuses everyone else) ----
 
@@ -1514,6 +1570,8 @@ class Handler(BaseHTTPRequestHandler):
             path = "/ui/profiles.html"
         if path.rstrip("/") == "/admin":
             path = "/ui/admin.html"
+        if path.rstrip("/") == "/autopilot":
+            path = "/ui/autopilot.html"
         if path.rstrip("/") == "/remotion":
             path = "/ui/remotion.html"
         if path.rstrip("/") == "/guide":
@@ -1569,6 +1627,8 @@ class Handler(BaseHTTPRequestHandler):
         "/api/profiles": _get_profiles,
         "/api/profiles/machine": _get_machine,
         "/api/rubrics": _get_rubrics,
+        "/api/autopilot/state": _get_autopilot_state,
+        "/api/autopilot/brief": _get_autopilot_brief,
         "/api/admin/settings": _get_admin_settings,
         "/api/admin/gemini/models": _get_admin_models,
         "/api/claude/status": _get_claude_status,
@@ -2554,6 +2614,12 @@ class Handler(BaseHTTPRequestHandler):
         "/api/admin/settings": _post_admin,
         "/api/admin/gemini/test": _post_admin,
         "/api/admin/template": _post_admin,
+        "/api/autopilot/settings": _post_autopilot,
+        "/api/autopilot/check": _post_autopilot,
+        "/api/autopilot/start": _post_autopilot,
+        "/api/autopilot/retry": _post_autopilot,
+        "/api/autopilot/cancel": _post_autopilot,
+        "/api/autopilot/reply": _post_autopilot,
         "/api/claude/settings": _post_claude,
         "/api/claude/test": _post_claude,
         "/api/claude/plan": _post_claude,
@@ -2607,6 +2673,7 @@ def serve(port: int = 5177) -> int:
     # so no job is running.
     _profiles.migrate_legacy(log=lambda m: print(f"  {m}"))
     _profiles.ensure_dirs(_paths.GUEST)
+    _autopilot.resume_all(_autopilot_deps.RealDeps)       # runs that were going when the server stopped go on
     srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     print("")
     print(f"  klipian  ->  http://127.0.0.1:{port}")

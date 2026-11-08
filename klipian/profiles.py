@@ -60,7 +60,8 @@ def write_meta(pid: str, meta: dict) -> None:
     _write_json(_meta_file(pid), {"name": str(meta.get("name") or pid),
                                   "color": str(meta.get("color") or DEFAULT_COLORS[0]),
                                   "defaults": meta.get("defaults") if isinstance(meta.get("defaults"), dict) else {},
-                                  "autopilotTemplate": str(meta.get("template") or "default")})
+                                  "autopilotTemplate": str(meta.get("template") or "default"),
+                                  "autopilotAi": str(meta.get("ai") or "manual")})
 
 
 def ensure_dirs(pid: str) -> Path:
@@ -88,7 +89,8 @@ def read_meta(pid: str) -> dict | None:
         return None
     return {"id": pid, "name": str(data.get("name") or pid), "color": str(data.get("color") or DEFAULT_COLORS[0]),
             "guest": False, "defaults": data.get("defaults") if isinstance(data.get("defaults"), dict) else {},
-            "template": str(data.get("autopilotTemplate") or "default")}      # its Autopilot template (autopilot.py)
+            "template": str(data.get("autopilotTemplate") or "default"),      # its Autopilot template (autopilot.py)
+            "ai": str(data.get("autopilotAi") or "manual")}                   # and who picks the clips: manual | claude | gemini
 
 
 def exists(pid) -> bool:
@@ -209,6 +211,11 @@ def update(pid: str, fields: dict) -> dict:
         if not autopilot.template_exists(fields["template"]):
             raise ProfileError("that Autopilot template does not exist")
         meta["template"] = fields["template"]
+    if "ai" in fields:
+        from . import autopilot
+        if fields["ai"] not in autopilot.AI_MODES:
+            raise ProfileError("the AI is manual, claude or gemini")
+        meta["ai"] = fields["ai"]
     if "defaults" in fields:
         merged = {**meta.get("defaults", {}), **(fields["defaults"] if isinstance(fields["defaults"], dict) else {})}
         meta["defaults"] = _clean_defaults({k: v for k, v in merged.items() if v not in ("", None)})
