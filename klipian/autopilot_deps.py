@@ -160,6 +160,30 @@ class RealDeps:
             raise RunError(box.get("message") or "Claude did not answer.")
         return box.get("candidates") or [], box.get("notes") or []
 
+    def ask_gemini(self, name: str, most: int, project: str, report):
+        srv = _server()
+        try:
+            system, user = srv._claude_parts(name, "", at_most=True)(most)
+        except ValueError as exc:
+            raise RunError(str(exc)) from None
+
+        def pause(seconds):
+            end = time.time() + seconds
+            while time.time() < end:
+                report(None, f"Gemini is busy: waiting {int(end - time.time())} s")
+                time.sleep(1)
+
+        report(None, "Asking Gemini")
+        try:
+            out = gemini_api.find_clips(system, user, pause=pause)
+        except gemini_api.GeminiError as exc:
+            raise RunError(exc.message) from None
+        try:
+            found, notes = srv._import_reply(name, out["text"])
+        except ValueError as exc:
+            raise RunError(f"Gemini's answer could not be used: {exc}") from None
+        return found, notes, {k: out[k] for k in ("model", "input", "output", "at")}
+
     # ---- framing, render, upload ----
     def ai_framing(self, project_id: str, result_id: str) -> None:
         """Boxes on the speaker, as the Framing screen's AI Framing button writes them (framing.js aiFramingStart)."""
@@ -269,6 +293,13 @@ class RealDeps:
                     "detail": "Key set" if ok else ("The Anthropic SDK is not installed." if not st["sdk"] else "No Claude API key."),
                     "fix": "" if ok else "Add the key in the Find clips settings of the editor (Prepare screen), or choose Manual."}
         st = gemini_api.status()
-        return {"key": "ai", "ok": False, "label": "AI: Gemini API",
-                "detail": "Gemini runs come in the next step." + ("" if st["hasKey"] else " The Admin profile has no Gemini key yet."),
-                "fix": "Choose Claude API or Manual for now."}
+        label = "AI: Gemini API"
+        if not st["sdk"]:
+            return {"key": "ai", "ok": False, "label": label, "detail": "The Google SDK is not installed.", "fix": st["command"], "link": ""}
+        if not st["hasKey"]:
+            return {"key": "ai", "ok": False, "label": label, "detail": "Gemini API is not set up yet.",
+                    "fix": "Open the Admin profile and add the Gemini key.", "link": "/admin"}
+        if not st["model"]:
+            return {"key": "ai", "ok": False, "label": label, "detail": "No model is chosen.",
+                    "fix": "Choose a model in Admin.", "link": "/admin"}
+        return {"key": "ai", "ok": True, "label": label, "detail": st["model"], "fix": ""}

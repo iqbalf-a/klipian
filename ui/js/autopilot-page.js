@@ -35,6 +35,8 @@ function drawRuns() {
     const label = STATE.labels[r.step] || "";
     const bar = r.state === "running" ? `<div class="ap-bar" role="progressbar" aria-valuenow="${r.progress}" aria-valuemin="0" aria-valuemax="100"><i style="width:${r.progress}%"></i></div>` : "";
     const steps = STATE.steps.map((k) => (r.done.includes(k) ? `<s>✓ ${esc(STATE.labels[k])}</s>` : k === r.step && r.state !== "done" ? `<b>${esc(STATE.labels[k])}</b>` : `<span>${esc(STATE.labels[k])}</span>`)).join("");
+    const u = r.ai_usage;
+    const usage = u ? `<p class="ap-note">Gemini · ${esc(u.model)} · ${(u.input / 1000).toFixed(u.input < 10000 ? 1 : 0)}k in / ${(u.output / 1000).toFixed(u.output < 10000 ? 1 : 0)}k out · ${esc(new Date(u.at * 1000).toLocaleString())}</p>` : "";
     const clips = (r.results || []).length
       ? `<ul class="ap-clips">${r.results.map((c) => `<li>${esc(c.title)}${whenText(c) ? ` · ${esc(whenText(c))}` : ""}</li>`).join("")}</ul>` : "";
     const stateText = r.state === "running" ? `${label}${r.progress ? ` ${r.progress}%` : ""}` : r.state === "waiting" ? "Waiting for the AI's reply" : r.state;
@@ -58,7 +60,7 @@ function drawRuns() {
       ${r.error ? `<p class="ap-error">${esc(r.error)}</p>` : ""}
       ${r.note ? `<p class="ap-note">${esc(r.note)}</p>` : ""}
       ${(r.framingNotes || []).length ? `<p class="ap-note">AI Framing skipped: ${esc(r.framingNotes.join("; "))}</p>` : ""}
-      ${clips}${reply}
+      ${usage}${clips}${reply}
       <div class="ap-actions">${actions}</div>
     </article>`;
   }).join("");
@@ -74,7 +76,7 @@ async function refresh() {
 
 function drawChecks(res) {
   $("#apChecks").innerHTML = res.items.map((i) => `<li class="ap-check" data-ok="${i.ok}"><span class="ap-tick" aria-hidden="true">${i.ok ? "✓" : "✗"}</span>
-    <span>${esc(i.label)}${i.detail ? ` · ${esc(i.detail)}` : ""}</span>${i.fix ? `<span class="ap-sub">${esc(i.fix)}</span>` : ""}</li>`).join("");
+    <span>${esc(i.label)}${i.detail ? ` · ${esc(i.detail)}` : ""}</span>${i.fix ? `<span class="ap-sub">${esc(i.fix)}${i.link ? ` <a href="${esc(i.link)}">Open</a>` : ""}</span>` : ""}</li>`).join("");
 }
 
 function setStart(ok) { $("#apStart").disabled = !ok; }

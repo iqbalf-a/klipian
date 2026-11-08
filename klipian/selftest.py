@@ -496,9 +496,76 @@ def check_autopilot() -> tuple[str, str]:
     gm.save_settings(api_key="AIzaOTHER00009999")
     if gm.status()["lastError"]:
         problems.append("a new key clears the last error")
+    # --- Gemini finds clips (fake client)
+    from types import SimpleNamespace as NS
+
+    class Gen:
+        def __init__(self, *steps):
+            self.steps, self.configs = list(steps), []
+            self.models = self
+
+        def generate_content(self, model, contents, config):
+            self.configs.append(config)
+            step = self.steps.pop(0)
+            if isinstance(step, BaseException):
+                raise step
+            return step
+
+    def reply(text='{"clips": []}', finish="STOP", block=None, tin=31000, tout=4000):
+        return NS(text=text, candidates=[NS(finish_reason=NS(name=finish))], prompt_feedback=NS(block_reason=NS(name=block)) if block else None,
+                  usage_metadata=NS(prompt_token_count=tin, candidates_token_count=tout))
+
+    def find(*steps):
+        slept, g = [], Gen(*steps)
+        try:
+            return gm.find_clips("SYS", "USER", client=g, pause=slept.append), g, slept
+        except gm.GeminiError as err:
+            return err, g, slept
+
+    gm.save_settings(api_key="AIzaFINDER12345678")
+    r, g, _ = find(reply())
+    if not isinstance(r, dict) or r["input"] != 31000 or r["output"] != 4000 or r["model"] != "gemini-9" or not r["at"]:
+        problems.append(f"Gemini find: a valid answer returns the text, the model and the tokens: {r}")
+    elif g.configs[0].get("system_instruction") != "SYS" or "response_json_schema" not in g.configs[0]:
+        problems.append("Gemini find: the system text and the reply schema are sent")
+    r, g, _ = find(Boom(400, "response_json_schema is not supported by this model"), reply())
+    if not isinstance(r, dict) or len(g.configs) != 2 or "response_json_schema" in g.configs[1]:
+        problems.append(f"Gemini find: a model that refuses the schema is asked again for plain JSON: {r}")
+    r, _, _ = find(Boom(400, "API key not valid. Please pass a valid API key."))
+    if getattr(r, "code", "") != "bad_key" or "check the key in Admin" not in r.message or gm.status()["lastError"] != r.message:
+        problems.append(f"Gemini find: a bad key says so: {r}")
+    r, g, slept = find(Boom(429, "RESOURCE_EXHAUSTED. Please retry in 3.5s."), reply())
+    if not isinstance(r, dict) or slept != [4.5]:
+        problems.append(f"Gemini find: a 429 waits for the delay Google gives and succeeds: {r} {slept}")
+    r, g, slept = find(Boom(429, "quota"), Boom(429, "quota"))
+    if getattr(r, "code", "") != "quota" or "try again later" not in r.message or slept != [60.0] or len(g.configs) != 2:
+        problems.append(f"Gemini find: a second 429 fails, after one wait of 60 s: {r} {slept}")
+    if gm._retry_delay(Boom(429, "x 'retryDelay': '34s' y")) != 35.0:
+        problems.append("Gemini find: retryDelay '34s' is read")
+    for what, step, want in (("cut", reply(finish="MAX_TOKENS"), "cut"), ("block", reply(text="", block="PROHIBITED_CONTENT"), "blocked"),
+                             ("safety", reply(text="", finish="SAFETY"), "blocked"), ("empty", reply(text=""), "empty")):
+        r, _, _ = find(step)
+        if getattr(r, "code", "") != want:
+            problems.append(f"Gemini find: {what} -> {getattr(r, 'code', r)}")
+    gm.save_settings(model="")
+    r, _, _ = find(reply())
+    if getattr(r, "code", "") != "no_model" or "Admin" not in r.message:
+        problems.append(f"Gemini find: no model chosen: {r}")
     gm.save_settings(remove_key=True)
     if gm.status()["hasKey"] or _json.loads(gm._file().read_text(encoding="utf-8")).get("apiKey"):
         problems.append("Remove key removes the key")
+    from .autopilot_deps import RealDeps
+    chk = RealDeps().ai_check("gemini")
+    if chk["ok"] or chk.get("link") != "/admin" or "Admin" not in chk["fix"]:
+        problems.append(f"Check says Gemini is not set up and links to /admin: {chk}")
+    gm.save_settings(api_key="AIzaFINDER12345678")
+    chk = RealDeps().ai_check("gemini")
+    if chk["ok"] or "model" not in chk["detail"].lower():
+        problems.append(f"Check asks for a model when none is chosen: {chk}")
+    gm.save_settings(model="gemini-9")
+    if not RealDeps().ai_check("gemini")["ok"]:
+        problems.append("Check is green with key and model")
+    gm.save_settings(remove_key=True, model="")
     if problems:
         return FAIL, "\n      ".join(problems)
     return PASS, "slots: Start + N days, even split; templates; the Admin has no folders and cannot change; Gemini key stays on the server"
@@ -638,6 +705,10 @@ def check_autopilotrun() -> tuple[str, str]:
             self._go("ask")
             return cands(self.n), []
 
+        def ask_gemini(self, name, most, project, report):
+            self._go("ask")
+            return cands(self.n), [], {"model": "gemini-x", "input": 31000, "output": 4000, "at": 1700000000}
+
         def ai_framing(self, pid, rid):
             self._go("framing")
             if rid == "res2":
@@ -695,6 +766,18 @@ def check_autopilotrun() -> tuple[str, str]:
             problems.append("a clip whose AI Framing failed is noted, not fatal")
         if run["template"]["framing"] is not True or ap.public_run(run).get("template") != {"name": "Default"}:
             problems.append("the template is copied into the run")
+
+        # Gemini mode: the same steps, the usage is kept on the run; a failure is a Retry
+        d = Fake(n=2, fail={"ask": 1})
+        run = run_one(d, ai="gemini")
+        if run["state"] != "failed" or "ask broke" not in run["error"] or run["step"] != "clips":
+            problems.append(f"Gemini failure stops at clips: {run['state']} {run.get('error')}")
+        ap.retry(run["id"], d)
+        ap.wait_idle(30)
+        run = ap.get_run(run["id"])
+        if run["state"] != "done" or run.get("ai_usage", {}).get("model") != "gemini-x" or ap.public_run(run)["ai_usage"]["input"] != 31000:
+            problems.append(f"a Gemini run after Retry: {run['state']} {run.get('ai_usage')}")
+        profiles.update(PID, {"ai": "claude"})
 
         # at most N clips; the template is copied at Start (an edit later changes the next run only)
         d = Fake(n=6)

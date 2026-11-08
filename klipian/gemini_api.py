@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import time
 from pathlib import Path
 
 from . import paths
@@ -134,6 +136,71 @@ def list_models(client=None) -> list[dict]:
             out.append({"id": mid, "name": getattr(m, "display_name", "") or mid})
     out.sort(key=lambda m: m["id"], reverse=True)
     return out
+
+
+def _retry_delay(exc: BaseException) -> float:
+    """Seconds Google asks to wait after a 429 ("Please retry in 34.5s" or retryDelay '34s'); 60 when it says nothing."""
+    text = str(getattr(exc, "message", "") or exc)
+    m = re.search(r"retry(?:Delay)?(?:\W{1,6}|\s+in\s+)(\d+(?:\.\d+)?)s", text, re.I)
+    return min(float(m.group(1)) + 1, 180.0) if m else 60.0
+
+
+_BLOCKED = {"SAFETY", "PROHIBITED_CONTENT", "BLOCKLIST", "SPII", "RECITATION", "IMAGE_SAFETY"}
+
+
+def _enum_name(x) -> str:
+    return str(getattr(x, "name", None) or x or "").rsplit(".", 1)[-1].upper()
+
+
+def find_clips(system: str, user: str, *, client=None, pause=time.sleep) -> dict:
+    """Ask the chosen model for the clips (Autopilot, Gemini mode): JSON by the reply schema, or plain JSON when the model
+    does not take the schema. A 429 waits for the delay Google gives (`pause(seconds)`) and tries once more. Returns
+    {text, model, input, output, at}; raises GeminiError (the last error is kept for the Admin page)."""
+    model = load_settings().get("model") or ""
+    if not model:
+        raise GeminiError("no_model", "No Gemini model is chosen: choose a model in Admin.")
+    client = client or _client()
+    from .claude_api import REPLY_SCHEMA
+    structured, waited = True, False
+    while True:
+        config = {"system_instruction": system}
+        if structured:
+            config.update(response_mime_type="application/json", response_json_schema=REPLY_SCHEMA)
+        try:
+            resp = client.models.generate_content(model=model, contents=user, config=config)
+            break
+        except Exception as exc:                                  # noqa: BLE001
+            err = map_error(exc)
+            low = str(getattr(exc, "message", "") or exc).lower()
+            if structured and getattr(exc, "code", None) == 400 and any(k in low for k in ("schema", "mime", "response_json", "json mode", "format")):
+                structured = False                                # the model does not take the schema: plain JSON
+                continue
+            if err.code == "quota":
+                if not waited:
+                    waited = True
+                    pause(_retry_delay(exc))
+                    continue
+                err = GeminiError("quota", "Gemini quota used up, try again later.")
+            elif err.code == "bad_key":
+                err = GeminiError("bad_key", "Google does not accept the Gemini key: check the key in Admin.")
+            elif err.code == "model":
+                err = GeminiError("model", f"{model} is not available to this account: choose another model in Admin.")
+            set_last_error(err.message)
+            raise err from None
+    block = _enum_name(getattr(getattr(resp, "prompt_feedback", None), "block_reason", None))
+    cands = getattr(resp, "candidates", None) or []
+    reason = _enum_name(getattr(cands[0], "finish_reason", None)) if cands else ""
+    if block or reason in _BLOCKED:
+        raise GeminiError("blocked", f"Gemini blocked this request ({block or reason}): try another video or Retry.")
+    text = getattr(resp, "text", None) or ""
+    if reason == "MAX_TOKENS":
+        raise GeminiError("cut", "Gemini's answer was cut short (it ran out of room): Retry, or choose a model with a longer answer in Admin.")
+    if not text.strip():
+        raise GeminiError("empty", f"Gemini gave no answer{f' ({reason})' if reason and reason != 'STOP' else ''}: Retry.")
+    use = getattr(resp, "usage_metadata", None)
+    set_last_error("")
+    return {"text": text, "model": model, "at": int(time.time()),
+            "input": int(getattr(use, "prompt_token_count", 0) or 0), "output": int(getattr(use, "candidates_token_count", 0) or 0)}
 
 
 def test_key(client=None) -> dict:

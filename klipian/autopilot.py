@@ -552,7 +552,8 @@ def _step_clips(rid, run, deps):
     elif run["ai"] == "claude":
         found, notes = deps.ask_claude(run["file"], most, run["project"], _progress(rid))
     else:
-        raise RunError("Gemini API runs come in the next step: choose Claude API or Manual for this profile.")
+        found, notes, usage = deps.ask_gemini(run["file"], most, run["project"], _progress(rid))
+        update_run(rid, ai_usage=usage)
     found = list(found)[:most]
     if not found:
         update_run(rid, candidates=[])
