@@ -1023,7 +1023,8 @@ class Handler(BaseHTTPRequestHandler):
             claude = _claude.status()
             return {"settings": _autopilot.profile_settings(),
                     "templates": [{"id": t["id"], "name": t["name"], "summary": _autopilot.summary(t)} for t in _autopilot.list_templates()],
-                    "ai": {"claudeReady": bool(claude["sdk"] and claude["hasKey"]), "geminiKey": _gemini.status()["hasKey"]},
+                    "ai": {"claudeReady": bool(claude["sdk"] and claude["hasKey"]), "geminiKey": _gemini.status()["hasKey"],
+                           "geminiModel": _gemini.status()["model"]},
                     "runs": [_autopilot.public_run(r) for r in reversed(_autopilot.load_runs())],
                     "labels": _autopilot.STEP_LABELS, "steps": list(_autopilot.STEPS)}
         return self._autopilot_reply(state)

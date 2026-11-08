@@ -885,6 +885,61 @@ def check_autopilotrun() -> tuple[str, str]:
     return PASS, "a run: steps in order, template copied, at most N, 0 clips, Retry resumes, Manual reply, auto upload off, cancel, Check"
 
 
+def check_adminmodel() -> tuple[str, str]:
+    """A normal profile reads the Gemini model NAME from the Autopilot state (and Check), never the key or its hint;
+    the Admin API is the Admin's only."""
+    import contextlib
+    import http.client
+    import io
+    import threading
+    from http.server import ThreadingHTTPServer
+    from . import gemini_api as gm, paths, profiles
+    from .autopilot_deps import RealDeps
+    from .server import Handler
+
+    problems = []
+    SECRET = "AIzaTESTSECRET-0123456789"
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    port = srv.server_address[1]
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    quiet = contextlib.redirect_stderr(io.StringIO())
+    quiet.__enter__()
+
+    def call(path, profile="selftest"):
+        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=30)
+        conn.request("GET", path, headers={"Host": f"127.0.0.1:{port}", "X-Klipian-Profile": profile})
+        r = conn.getresponse()
+        raw = r.read().decode("utf-8", "replace")
+        conn.close()
+        return r.status, raw
+
+    try:
+        profiles.write_meta("selftest", {"name": "selftest", "color": "#123456"})
+        gm.save_settings(api_key=SECRET, model="gemini-test-1")
+        st, raw = call("/api/autopilot/state")
+        j = json.loads(raw) if st == 200 else {}
+        if st != 200 or j.get("ai", {}).get("geminiModel") != "gemini-test-1":
+            problems.append(f"the Autopilot state names the model: {st} {raw[:200]}")
+        if SECRET in raw or "AIza" in raw or gm.status()["keyHint"] in raw:
+            problems.append("the Autopilot state must not carry the key or its hint")
+        item = RealDeps().ai_check("gemini")
+        if "gemini-test-1" not in item["detail"] or SECRET in json.dumps(item):
+            problems.append(f"Check names the model, not the key: {item}")
+        gm.save_settings(model="")
+        st, raw = call("/api/autopilot/state")
+        if json.loads(raw)["ai"]["geminiModel"] != "":
+            problems.append("no model chosen: the name is empty")
+        if call("/api/admin/settings")[0] != 403:
+            problems.append("a normal profile must not read the Admin settings")
+    finally:
+        quiet.__exit__(None, None, None)
+        srv.shutdown()
+        gm.save_settings(remove_key=True, model="")
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "a normal profile gets the Gemini model name (state and Check), never the key or its hint; /api/admin is the Admin's only"
+
+
 def check_settle() -> tuple[str, str]:
     """Where a clip ends: settle_end (the end moves on to the end of its sentence or of the quoted last sentence, never
     back by more than SNAP_MAX, never past the longest clip), the endQuote field through the Gemini brief and the import."""
@@ -7950,7 +8005,7 @@ def check_briefsteps() -> tuple[str, str]:
     return PASS, (f"the Khusus brief passes the strict checklist (rules first, 8 steps with Run and Expected, fallback, mistakes) at 30/45/60 s with 1 or 3 voice apps; "
                   f"size at 45 s {sizes[0]} characters (cap 40000); the fallback story is saved and the video stays 'belum dibuat'")
 
-CHECKS = {"autopilot": check_autopilot, "autopilotresult": check_autopilotresult, "autopilotrun": check_autopilotrun, "settle": check_settle, "briefagents": check_briefagents, "briefsteps": check_briefsteps, "migrate": check_migrate, "brief": check_brief, "geminibrief": check_geminibrief, "ranges": check_ranges, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch, "labelbox": check_labelbox, "shotframe": check_shotframe, "facelock": check_facelock,
+CHECKS = {"adminmodel": check_adminmodel, "autopilot": check_autopilot, "autopilotresult": check_autopilotresult, "autopilotrun": check_autopilotrun, "settle": check_settle, "briefagents": check_briefagents, "briefsteps": check_briefsteps, "migrate": check_migrate, "brief": check_brief, "geminibrief": check_geminibrief, "ranges": check_ranges, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch, "labelbox": check_labelbox, "shotframe": check_shotframe, "facelock": check_facelock,
           "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voicegoogle": check_voicegoogle, "voicestudio": check_voicestudio, "elevenlabs": check_elevenlabs, "khusus": check_khusus, "briefbuttons": check_briefbuttons, "music": check_music, "voice": check_voice, "decode": check_decode, "render": check_render}
 
 

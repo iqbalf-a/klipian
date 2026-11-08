@@ -17,6 +17,9 @@ const say = (t) => { $("#apMsg").textContent = t || ""; };
 function drawSettings() {
   const s = STATE.settings;
   $("#apAi").value = s.ai;
+  const model = $("#apModel");
+  model.hidden = s.ai !== "gemini";
+  model.innerHTML = STATE.ai.geminiModel ? `Model: ${esc(STATE.ai.geminiModel)} (<a href="/admin">set in Admin</a>)` : `<a href="/admin">No model chosen in Admin</a>`;
   $("#apTpl").innerHTML = STATE.templates.map((t) => `<option value="${esc(t.id)}"${t.id === s.template ? " selected" : ""}>${esc(t.name)}</option>`).join("");
   $("#apTplNote").textContent = (STATE.templates.find((t) => t.id === s.template) || {}).summary || "";
 }
