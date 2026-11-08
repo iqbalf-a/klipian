@@ -21,7 +21,7 @@ yes(estimateWords("", 3).length === 0, "no narration, no words");
 
 const pages = pagesOf(est, 56, 770);
 yes(pages.length >= 2 && pages.every((p) => p.lines.length <= 2), `the words come in pages of two lines at most (${pages.length} pages)`);
-yes(pages.every((p) => p.lines.every((ln) => ln.reduce((w, i) => w + textWidthEstimate(p.words[i].w, 56) + 15, 0) <= 770 + 60)), "no line is wider than the caption box");
+yes(pages.every((p) => p.lines.every((ln) => ln.reduce((w, i) => w + textWidthEstimate(p.words[i].w, 56) + 15, 0) <= 720 + 60)), "no line is wider than the caption box");
 yes(pages.flatMap((p) => p.words).map((w) => w.w).join(" ") === text, "no word is lost or reordered");
 yes(pageAt(pages, 0.0) === null || pageAt(pages, 0.0) === pages[0], "before the first word nothing (or the first page) shows");
 const mid = pages[1].a + 0.05;

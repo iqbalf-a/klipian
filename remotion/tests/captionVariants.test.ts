@@ -8,7 +8,7 @@ import { makePlan as makeNgantuk } from "../videos/ngantuk-pegang-hp/plan.ts";
 import { makePlan as makeRain } from "../videos/cara-kerja-hujan-buatan/plan.ts";
 import { makePlan as makeColokan } from "../videos/kenapa-colokan-panas/plan.ts";
 import { validateStory } from "../src/schema.ts";
-import { CAPTION_STYLE_NAMES, SAFE } from "../src/tokens.ts";
+import { CAPTION_STYLE_NAMES, FRAME, SAFE } from "../src/tokens.ts";
 import { CAPTION, CAPTION_VARIANTS, captionBox, captionVariant, textWidthEstimate, type CaptionStyle } from "../src/layout.ts";
 import { pagesOf, wordsOfBeat } from "../src/captions.ts";
 import { FPS } from "../src/timeline.ts";
@@ -20,15 +20,15 @@ const STYLES = CAPTION_STYLE_NAMES as readonly CaptionStyle[];
 
 // --- classic is today's caption, exactly -----------------------------------------------------------------------------------------------------
 const c = CAPTION_VARIANTS.classic;
-yes(c.fs === 56 && c.maxTextWidth === 770 && c.maxLines === 2 && c.maxWords === Infinity && c.padX === 30 && c.padY === 22 && c.cx === (SAFE.left + SAFE.right) / 2 && c.bottom === SAFE.bottom - 10,
-  "classic is the channel's caption: fs 56, 770 px, two lines, centred in the safe area, the bottom 10 px above SAFE.bottom (B24)");
+yes(c.fs === 56 && c.maxTextWidth === 720 && c.maxLines === 2 && c.maxWords === Infinity && c.padX === 30 && c.padY === 22 && c.cx === FRAME.width / 2 && c.bottom === SAFE.bottom - 10,
+  "classic is the channel's caption: fs 56, 720 px, two lines, centred on the frame (x 540), the bottom 10 px above SAFE.bottom (B24)");
 yes(CAPTION === CAPTION_VARIANTS.classic && captionVariant().fs === 56 && captionVariant(undefined).maxLines === 2, "a missing style is classic");
 const cb = captionBox("classic");
-yes(cb.x0 === c.cx - 415 && cb.x1 === c.cx + 415 && cb.y1 === SAFE.bottom - 10 && Math.abs(cb.y0 - (cb.y1 - (2 * 56 * 1.22 + 44))) < 1e-9 && cb.x0 >= SAFE.left && cb.x1 <= SAFE.right, `classic's box: x ${cb.x0}..${cb.x1}, the top ${cb.y0.toFixed(2)} for two lines`);
+yes(cb.x0 === c.cx - 390 && cb.x1 === c.cx + 390 && cb.y1 === SAFE.bottom - 10 && Math.abs(cb.y0 - (cb.y1 - (2 * 56 * 1.22 + 44))) < 1e-9 && cb.x0 >= SAFE.left && cb.x1 <= SAFE.right, `classic's box: x ${cb.x0}..${cb.x1}, the top ${cb.y0.toFixed(2)} for two lines`);
 yes(JSON.stringify(captionBox()) === JSON.stringify(cb), "the box with no style is the classic box");
 
 // --- the three looks: the numbers the plan gives -----------------------------------------------------------------------------------------------
-yes(CAPTION_VARIANTS.wide.fs === 46 && CAPTION_VARIANTS.wide.maxTextWidth === 800 && CAPTION_VARIANTS.wide.maxLines === 1, "wide: fs 46, 800 px (its box ends at x 920), one line");
+yes(CAPTION_VARIANTS.wide.fs === 46 && CAPTION_VARIANTS.wide.maxTextWidth === 720 && CAPTION_VARIANTS.wide.maxLines === 1, "wide: fs 46, 720 px (its box ends at x 930), one line");
 yes(CAPTION_VARIANTS.punch.fs === 76 && CAPTION_VARIANTS.punch.maxTextWidth === 700 && CAPTION_VARIANTS.punch.maxWords === 3, "punch: fs 76, 700 px, three words a page");
 for (const s of STYLES) yes(CAPTION_VARIANTS[s].bottom === SAFE.bottom - 10, `${s}: the box bottom is ${SAFE.bottom - 10} (10 px above the YouTube bottom estimate ${SAFE.bottom})`);
 yes(captionBox("wide").y1 - captionBox("wide").y0 < cb.y1 - cb.y0, "wide's box is shorter than classic's (one line)");

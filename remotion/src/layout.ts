@@ -41,12 +41,12 @@ export const bounds = (hasBanner = true): Box => ({ x0: SAFE.left, y0: hasBanner
 export type CaptionStyle = (typeof CAPTION_STYLE_NAMES)[number];
 /** The caption layer at the bottom (inside the safe area: SAFE, the YouTube profile) and the top text (kicker + headline): fixed zones the rest keeps clear of.
     The three looks (PLAN-CAPTION-OPTIONS): `classic` is today's caption (two lines), `wide` one line across the safe width (a shorter box), `punch` short
-    and big (at most three words a page). Each one's box bottom is 1720 (10 px above SAFE.bottom 1730, the YouTube calibration) and its box ends at x 930 at the
+    and big (at most three words a page). Each one's box bottom is 1720 (10 px above SAFE.bottom 1730, the YouTube calibration) centred on the frame (x 540, not on the safe area) and its box ends at x 930 at the
     most; with a story's `platforms` the bottom follows the strictest listed profile (see captionVariant). */
 export const CAPTION_VARIANTS = {
-  classic: { fs: 56, maxTextWidth: 770, maxLines: 2, maxWords: Infinity, padX: 30, padY: 22, cx: (SAFE.left + SAFE.right) / 2, bottom: SAFE.bottom - 10 },
-  wide: { fs: 46, maxTextWidth: 800, maxLines: 1, maxWords: Infinity, padX: 30, padY: 22, cx: (SAFE.left + SAFE.right) / 2, bottom: SAFE.bottom - 10 },
-  punch: { fs: 76, maxTextWidth: 700, maxLines: 1, maxWords: 3, padX: 30, padY: 22, cx: (SAFE.left + SAFE.right) / 2, bottom: SAFE.bottom - 10 },
+  classic: { fs: 56, maxTextWidth: 720, maxLines: 2, maxWords: Infinity, padX: 30, padY: 22, cx: FRAME.width / 2, bottom: SAFE.bottom - 10 },
+  wide: { fs: 46, maxTextWidth: 720, maxLines: 1, maxWords: Infinity, padX: 30, padY: 22, cx: FRAME.width / 2, bottom: SAFE.bottom - 10 },
+  punch: { fs: 76, maxTextWidth: 700, maxLines: 1, maxWords: 3, padX: 30, padY: 22, cx: FRAME.width / 2, bottom: SAFE.bottom - 10 },
 } as const;
 export const CAPTION = CAPTION_VARIANTS.classic;
 /** The look's numbers; with a story's `platforms` (the cross-post mode) the bottom follows the strictest listed profile (10 px above its bottom). */
