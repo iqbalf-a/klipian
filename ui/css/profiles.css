@@ -63,13 +63,14 @@
 .profile-menu button:hover { background: var(--glass); }
 
 .profile-settings {
-  width: min(94vw, 880px); max-width: none; max-height: min(86vh, 720px); min-height: min(86vh, 460px); padding: 0; overflow: hidden;
+  width: min(94vw, 880px); max-width: none; height: min(86vh, 600px); max-height: none; padding: 0; overflow: hidden;
   border: 1px solid var(--glass-border); border-radius: var(--r-m, 12px); background: var(--bg-2); color: var(--text);
 }
 .profile-settings[open] { display: flex; }
 .profile-settings::backdrop { background: rgba(0, 0, 0, .6); }
 .profile-settings form { display: flex; flex-direction: column; gap: 14px; }
-/* header and footer stay in view; the tabs are on the left; only the body scrolls */
+/* header and footer stay in view; the tabs are on the left; only the body scrolls. The dialog has a FIXED width and
+   height (never fit to a tab's content), so it does not jump when the tab changes: a short tab leaves empty space, a long one scrolls. */
 .profile-settings .ps-form { flex: 1; min-width: 0; min-height: 0; gap: 0; }
 .profile-settings .ps-head { margin: 0; padding: 16px 20px; border-bottom: 1px solid var(--glass-border); }
 .ps-main { flex: 1; min-height: 0; display: flex; }
@@ -90,7 +91,7 @@
 .ps-hint { font-size: 11.5px; color: var(--text-faint); }
 .ps-foot .row { flex: none; }
 @media (max-width: 640px) {
-  .profile-settings { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); min-height: calc(100dvh - 16px); }
+  .profile-settings { width: calc(100vw - 16px); height: calc(100dvh - 16px); }
   .ps-main { flex-direction: column; }
   .ps-tabs { width: auto; flex-direction: row; border-right: 0; border-bottom: 1px solid var(--glass-border); overflow: auto hidden; padding: 10px 12px; }
   .ps-tab[aria-selected="true"] { box-shadow: inset 0 -3px 0 var(--accent); }
