@@ -28,6 +28,24 @@ function whenText(r) {
   return r.date ? `${r.date} ${r.time}` : "";
 }
 
+/* One row of a run's step list: the name, then what that step is doing. */
+function stepRow(r, k) {
+  const name = esc(STATE.labels[k]);
+  const here = k === r.step && r.state !== "done";
+  let cls = "", cell = "";
+  if (r.done.includes(k)) { cls = "done"; cell = "done"; }
+  else if (here && r.state === "running") {
+    cls = "running";
+    cell = r.progress > 0
+      ? `<span class="ap-bar" role="progressbar" aria-label="${name}" aria-valuenow="${r.progress}" aria-valuemin="0" aria-valuemax="100"><i style="width:${r.progress}%"></i></span><span class="ap-pct">${r.progress}%</span>${r.detail ? `<span class="ap-detail faint">${esc(r.detail)}</span>` : ""}`
+      : `<span class="ap-detail">${esc(r.detail || "Working…")}</span>`;
+  } else if (here && r.state === "waiting") { cls = "waiting"; cell = "Waiting for the AI's reply"; }
+  else if (here && r.state === "failed") { cls = "failed"; cell = "failed"; }
+  else if (here && r.state === "cancelled") { cls = "cancelled"; cell = "cancelled"; }
+  else if (here && r.state === "queued") { cls = "queued"; cell = "queued"; }
+  return `<li class="ap-step ${cls}"><span class="ap-step-name">${name}</span><span class="ap-step-state">${cell}</span></li>`;
+}
+
 function drawRuns() {
   const list = $("#apRunList");
   if (!STATE.runs.length) { list.innerHTML = '<p class="ap-note">No run yet.</p>'; return; }
@@ -36,13 +54,12 @@ function drawRuns() {
   list.querySelectorAll("textarea[data-reply]").forEach((t) => { typed[t.dataset.reply] = t.value; });
   list.innerHTML = STATE.runs.map((r) => {
     const label = STATE.labels[r.step] || "";
-    const bar = r.state === "running" ? `<div class="ap-bar" role="progressbar" aria-valuenow="${r.progress}" aria-valuemin="0" aria-valuemax="100"><i style="width:${r.progress}%"></i></div>` : "";
-    const steps = STATE.steps.map((k) => (r.done.includes(k) ? `<s>✓ ${esc(STATE.labels[k])}</s>` : k === r.step && r.state !== "done" ? `<b>${esc(STATE.labels[k])}</b>` : `<span>${esc(STATE.labels[k])}</span>`)).join("");
+    const steps = `<ol class="ap-steps">${STATE.steps.map((k) => stepRow(r, k)).join("")}</ol>`;
     const u = r.ai_usage;
     const usage = u ? `<p class="ap-note">Gemini · ${esc(u.model)} · ${(u.input / 1000).toFixed(u.input < 10000 ? 1 : 0)}k in / ${(u.output / 1000).toFixed(u.output < 10000 ? 1 : 0)}k out · ${esc(new Date(u.at * 1000).toLocaleString())}</p>` : "";
     const clips = (r.results || []).length
       ? `<ul class="ap-clips">${r.results.map((c) => `<li>${esc(c.title)}${whenText(c) ? ` · ${esc(whenText(c))}` : ""}</li>`).join("")}</ul>` : "";
-    const stateText = r.state === "running" ? `${label}${r.progress ? ` ${r.progress}%` : ""}` : r.state === "waiting" ? "Waiting for the AI's reply" : r.state;
+    const stateText = r.state === "running" ? label : r.state === "waiting" ? "Waiting for the AI's reply" : r.state;
     const reply = r.state === "waiting" ? `
       <div class="ap-reply">
         <div class="ap-actions"><button class="btn" type="button" data-copy-brief="${esc(r.id)}">Copy brief</button>
@@ -57,9 +74,7 @@ function drawRuns() {
     ].join("");
     return `<article class="ws-panel ap-run" data-run="${esc(r.id)}">
       <div class="ap-run-top"><span class="ap-run-title">${esc(r.title || r.url)}</span><span class="ap-chip" data-state="${esc(r.state)}">${esc(stateText)}</span></div>
-      ${bar}
-      <div class="ap-steps">${steps}</div>
-      ${r.detail && r.state === "running" ? `<p class="ap-note">${esc(r.detail)}</p>` : ""}
+      ${steps}
       ${r.error ? `<p class="ap-error">${esc(r.error)}</p>` : ""}
       ${r.note ? `<p class="ap-note">${esc(r.note)}</p>` : ""}
       ${(r.framingNotes || []).length ? `<p class="ap-note">AI Framing skipped: ${esc(r.framingNotes.join("; "))}</p>` : ""}

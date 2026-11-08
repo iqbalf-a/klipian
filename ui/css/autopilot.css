@@ -26,13 +26,24 @@
 .ap-chip[data-state="done"] { color: var(--ok, #4cc38a); border-color: currentColor; }
 .ap-chip[data-state="failed"] { color: var(--danger, #e5484d); border-color: currentColor; }
 .ap-chip[data-state="waiting"] { color: var(--accent); border-color: currentColor; }
-.ap-bar { height: 5px; border-radius: 3px; background: var(--glass-strong, var(--glass)); overflow: hidden; }
+.ap-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
+.ap-step { display: flex; align-items: center; gap: 10px; min-height: 20px; }
+.ap-step-name { flex: none; width: 118px; color: var(--text-faint); }
+.ap-step-state { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; color: var(--text-muted); }
+.ap-step.done .ap-step-name { color: var(--text-muted); }
+.ap-step.done .ap-step-state { color: var(--ok, #4cc38a); }
+.ap-step.done .ap-step-state::before { content: "✓"; margin-right: 4px; }
+.ap-step.running .ap-step-name, .ap-step.waiting .ap-step-name, .ap-step.failed .ap-step-name { color: var(--text); font-weight: 700; }
+.ap-step.waiting .ap-step-state { color: var(--accent); }
+.ap-step.failed .ap-step-state { color: var(--danger, #e5484d); font-weight: 700; }
+.ap-detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ap-detail.faint { flex: 0 1 auto; min-width: 0; color: var(--text-faint); }
+.ap-bar { flex: 1; min-width: 40px; max-width: 360px; height: 6px; border-radius: 3px; background: var(--glass-strong, var(--glass)); overflow: hidden; }
 .ap-bar > i { display: block; height: 100%; background: var(--accent); }
-.ap-steps { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11.5px; color: var(--text-faint); }
-.ap-steps b { color: var(--text); font-weight: 700; }
-.ap-steps s { text-decoration: none; color: var(--ok, #4cc38a); }
+.ap-pct { flex: none; width: 3.2em; text-align: right; font-variant-numeric: tabular-nums; color: var(--text); }
 .ap-error { margin: 0; font-size: 12.5px; color: var(--danger, #e5484d); overflow-wrap: anywhere; }
 .ap-clips { margin: 0; padding-left: 18px; font-size: 12.5px; color: var(--text-muted); }
 .ap-reply textarea { min-height: 90px; }
 .ap-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 @media (max-width: 560px) { .ap-row > label { width: 100%; } .ap { padding: 16px 12px 40px; } }
+@media (max-width: 480px) { .ap-detail.faint { display: none; } .ap-bar { min-width: 80px; } }
