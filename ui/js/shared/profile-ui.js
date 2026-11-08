@@ -58,7 +58,9 @@
     document.getElementById("profileChipBtn")?.setAttribute("aria-expanded", "false");
   }
 
-  function openSettings() {
+  let lastTab = "general";
+
+  function openSettings(tab) {
     closeMenu();
     let dlg = document.getElementById("profileSettings");
     dlg?.remove();
@@ -67,13 +69,22 @@
     dlg.className = "profile-settings";
     const d = meta?.defaults || {};
     const canPreset = typeof captionState === "function";
+    const tabs = [["general", "General"], ["clips", "Clips & posts"], ["youtube", "YouTube"], ...(isGuest ? [] : [["claude", "Claude API"]]), ["computer", "This computer"]];
+    const first = tabs.some(([k]) => k === (tab || lastTab)) ? (tab || lastTab) : "general";
+    const panel = (key, html) => `<div class="ps-panel" role="tabpanel" id="pstp-${key}" aria-labelledby="pst-${key}" tabindex="-1"${key === first ? "" : " hidden"}>
+${html}      </div>`;
     dlg.innerHTML = `
-      <form method="dialog" id="profileSettingsForm">
-        <h2>Profile settings</h2>
-        <label>Name <input type="text" name="name" maxlength="40" value="${esc(meta?.name || "")}"></label>
+      <form method="dialog" id="profileSettingsForm" class="ps-form">
+        <h2 class="ps-head" id="profileSettingsTitle">Profile settings</h2>
+        <div class="ps-main">
+          <div class="ps-tabs" role="tablist" aria-label="Settings" aria-orientation="vertical">${tabs.map(([k, name]) =>
+            `<button type="button" class="ps-tab" role="tab" id="pst-${k}" data-tab="${k}" aria-controls="pstp-${k}" aria-selected="${k === first}" tabindex="${k === first ? 0 : -1}">${name}</button>`).join("")}</div>
+          <div class="ps-body">
+            ${panel("general", `        <label>Name <input type="text" name="name" maxlength="40" value="${esc(meta?.name || "")}"></label>
         <label>Colour <input type="color" name="color" value="${esc(meta?.color || "#e8b923")}"></label>
         <label>Watermark text <input type="text" name="watermark" maxlength="40" value="${esc(d.watermark || "")}" placeholder="klipian"></label>
-        <section class="yt-box" id="rubricBox" aria-label="Rubric">
+`)}
+            ${panel("clips", `        <section class="yt-box" id="rubricBox" aria-label="Rubric">
           <label>Default rubric (Find clips, Copy brief)
             <select name="rubric" id="rubricSel">
               <option value="dialog"${d.rubric && d.rubric !== "dialog" ? "" : " selected"}>Dialog / podcast</option>
@@ -93,28 +104,6 @@
           </div>
           <p class="note" id="rubricMsg" role="status"></p>
         </section>
-        <section class="yt-box" id="ytBox" aria-label="YouTube account">
-          <h3>YouTube account</h3>
-          <div class="yt-row" id="ytClientRow"><span class="yt-badge" data-light="grey">Client</span><span class="yt-row-text" id="ytClientText">Checking…</span></div>
-          <div class="yt-row" id="ytAccountRow"><span class="yt-badge" data-light="grey">Account</span><span class="yt-row-text" id="ytLine">Checking…</span></div>
-          <div class="row yt-actions" id="ytActions"></div>
-          <input type="file" id="ytFile" accept=".json,application/json" hidden>
-          <p class="note" id="ytMsg" role="status"></p>
-        </section>
-        ${isGuest ? "" : `<section class="yt-box" id="claudeBox" aria-label="Anthropic API">
-          <h3>Anthropic API <small>(Find clips with Claude)</small></h3>
-          <p class="note" id="claudeState">Checking…</p>
-          <label>API key <input type="password" id="claudeKey" autocomplete="off" spellcheck="false" placeholder="sk-ant-…"></label>
-          <div class="row yt-actions">
-            <button class="btn quiet" type="button" data-cl="save">Save key</button>
-            <button class="btn quiet" type="button" data-cl="test">Test</button>
-            <button class="btn quiet" type="button" data-cl="remove">Remove key</button>
-          </div>
-          <label>Model <select id="claudeModel"><option value="">Newest Opus of this account (default)</option></select></label>
-          <label>Effort <select id="claudeEffort"></select></label>
-          <p class="note" id="claudeMsg" role="status"></p>
-          <div id="claudeUsage"></div>
-        </section>`}
         <label>Hashtag placement (YouTube)
           <select name="hashtagPlacement">
             <option value="title"${d.hashtagPlacement === "description" || d.hashtagPlacement === "both" ? "" : " selected"}>In the title</option>
@@ -129,20 +118,99 @@
         <label class="check"><input type="checkbox" name="addShorts"${d.addShorts ? " checked" : ""}> Add #shorts to the title</label>
         ${canPreset ? `<p class="note">Caption look: ${d.captionPreset ? "a default is saved." : "none saved yet."}
           <button class="btn quiet" type="button" data-pm="preset">Use the current caption look as this profile's default</button></p>` : ""}
-        <section class="yt-box" aria-label="This computer">
+`)}
+            ${panel("youtube", `        <section class="yt-box" id="ytBox" aria-label="YouTube account">
+          <h3>YouTube account</h3>
+          <div class="yt-row" id="ytClientRow"><span class="yt-badge" data-light="grey">Client</span><span class="yt-row-text" id="ytClientText">Checking…</span></div>
+          <div class="yt-row" id="ytAccountRow"><span class="yt-badge" data-light="grey">Account</span><span class="yt-row-text" id="ytLine">Checking…</span></div>
+          <div class="row yt-actions" id="ytActions"></div>
+          <input type="file" id="ytFile" accept=".json,application/json" hidden>
+          <p class="note" id="ytMsg" role="status"></p>
+        </section>
+`)}
+            ${isGuest ? "" : panel("claude", `        ${isGuest ? "" : `<section class="yt-box" id="claudeBox" aria-label="Anthropic API">
+          <h3>Anthropic API <small>(Find clips with Claude)</small></h3>
+          <p class="note" id="claudeState">Checking…</p>
+          <label>API key <input type="password" id="claudeKey" autocomplete="off" spellcheck="false" placeholder="sk-ant-…"></label>
+          <div class="row yt-actions">
+            <button class="btn quiet" type="button" data-cl="save">Save key</button>
+            <button class="btn quiet" type="button" data-cl="test">Test</button>
+            <button class="btn quiet" type="button" data-cl="remove">Remove key</button>
+          </div>
+          <label>Model <select id="claudeModel"><option value="">Newest Opus of this account (default)</option></select></label>
+          <label>Effort <select id="claudeEffort"></select></label>
+          <p class="note" id="claudeMsg" role="status"></p>
+          <div id="claudeUsage"></div>
+        </section>`}
+`)}
+            ${panel("computer", `        <section class="yt-box" aria-label="This computer">
           <h3>This computer <small>(every profile and tab)</small></h3>
           <label>Renders at the same time
             <select id="machineRenders"><option value="1">1 (default)</option><option value="2">2</option></select></label>
           <p class="note" id="machineMsg" role="status">Transcription and speaker analysis always run one at a time. Jobs wait their turn,
             taking turns between profiles. Saved as soon as you change it.</p>
         </section>
-        <p class="note" id="profileSettingsNote" role="status"></p>
-        <div class="row">
-          <button class="btn quiet" type="submit" value="cancel">Close</button>
-          <button class="btn main" type="submit" value="save">Save</button>
+`)}
+          </div>
+        </div>
+        <div class="ps-foot">
+          <div class="ps-foot-text">
+            <p class="note" id="profileSettingsNote" role="status"></p>
+            <p class="note ps-hint">Name, colour, watermark, rubric and hashtags are kept with Save. YouTube, Claude and This computer save at once.</p>
+          </div>
+          <div class="row">
+            <button class="btn quiet" type="submit" value="cancel">Close</button>
+            <button class="btn main" type="submit" value="save">Save</button>
+          </div>
         </div>
       </form>`;
+    dlg.setAttribute("aria-labelledby", "profileSettingsTitle");
     document.body.append(dlg);
+    lastTab = first;
+    const showTab = (key, focus) => {
+      for (const b of dlg.querySelectorAll(".ps-tab")) {
+        const on = b.dataset.tab === key;
+        b.setAttribute("aria-selected", String(on));
+        b.tabIndex = on ? 0 : -1;
+        if (on && focus) b.focus();
+      }
+      for (const p of dlg.querySelectorAll(".ps-panel")) p.hidden = p.id !== `pstp-${key}`;
+      lastTab = key;
+      dlg.querySelector(".ps-body").scrollTop = 0;
+    };
+    const tablist = dlg.querySelector(".ps-tabs");
+    tablist.addEventListener("click", (e) => { const b = e.target.closest(".ps-tab"); if (b) showTab(b.dataset.tab, false); });
+    tablist.addEventListener("keydown", (e) => {
+      const all = [...tablist.querySelectorAll(".ps-tab")];
+      const at = all.indexOf(document.activeElement);
+      const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key];
+      let to = -1;
+      if (step && at >= 0) to = (at + step + all.length) % all.length;
+      else if (e.key === "Home") to = 0;
+      else if (e.key === "End") to = all.length - 1;
+      if (to < 0) return;
+      e.preventDefault();
+      showTab(all[to].dataset.tab, true);
+    });
+    // closing: Close and Save are the buttons; the backdrop and Esc ask first when a field was changed
+    const formState = () => JSON.stringify([...new FormData(dlg.querySelector("form"))]);
+    let saved = formState(), asking = false;
+    const tryClose = async () => {
+      if (asking) return;
+      if (formState() !== saved) {
+        asking = true;
+        const ok = typeof confirmDialog === "function"
+          ? await confirmDialog({ title: "Discard the changes?", message: "You changed this profile's settings and did not save them.", confirmText: "Discard", cancelText: "Keep editing", tone: "primary" })
+          : window.confirm("Discard the changes you have not saved?");
+        asking = false;
+        if (!ok) return;
+      }
+      dlg.close();
+    };
+    let downOnBackdrop = false;
+    dlg.addEventListener("pointerdown", (e) => { downOnBackdrop = e.target === dlg; });
+    dlg.addEventListener("click", (e) => { if (e.target === dlg && downOnBackdrop) tryClose(); downOnBackdrop = false; });
+    dlg.addEventListener("cancel", (e) => { e.preventDefault(); tryClose(); });
     dlg.addEventListener("submit", async (e) => {
       if (e.submitter?.value !== "save") return;
       const f = Object.fromEntries(new FormData(dlg.querySelector("form")));
@@ -170,8 +238,8 @@
     dlg.showModal();
     youTubeSection(dlg);
     machineSection(dlg);
-    rubricSection(dlg);
     if (!isGuest) claudeSection(dlg);
+    rubricSection(dlg).finally(() => { saved = formState(); });      // the rubric list fills the select: that is not a change
     return dlg;
   }
 
@@ -323,9 +391,7 @@
 
   /* Other scripts (the bulk upload dialog) can open the settings at the YouTube section. */
   window.openProfileSettings = (opts = {}) => {
-    const dlg = openSettings();
-    if (opts.section) dlg?.querySelector(`#${opts.section}`)?.scrollIntoView({ block: "center" });
-    return dlg;
+    return openSettings({ rubricBox: "clips", ytBox: "youtube", claudeBox: "claude" }[opts.section]);
   };
 
   /* ---- the YouTube account (P21-C): what the token is, never the token itself ---- */
