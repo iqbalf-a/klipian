@@ -52,6 +52,8 @@ from . import sched as _sched
 from .jobs import cancel_job as _cancel_job, start_project_render as _start_project_render, transcribe_key as _transcribe_key
 from .jobs import estimate_seconds as _estimate_seconds, plan_project_render as _plan_project_render
 from . import claude_api as _claude
+from . import autopilot as _autopilot
+from . import gemini_api as _gemini
 from . import rubrics as _rubrics
 from .jobs import (ACTIVE_TRANSCRIBES, CANCELLED, JOBS, LOCK, MAX_JOBS, _clip_words,
                    _register_job, _run_diarize, _run_render, _run_transcribe,
@@ -501,6 +503,12 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json({"error": "that profile does not exist: reload the page", "needProfile": True}, 404)
             return False
         _paths.set_profile(pid)
+        if pid == _paths.ADMIN and not path.startswith("/api/admin"):
+            self._send_json({"error": "the Admin profile only has settings"}, 403)
+            return False
+        if pid != _paths.ADMIN and path.startswith("/api/admin"):
+            self._send_json({"error": "only the Admin profile can do this"}, 403)
+            return False
         if pid == _paths.GUEST:
             _profiles.ensure_dirs(pid)             # made on first use (and after "Clear guest data")
         if pid == _paths.GUEST and (path.startswith("/api/workspace/clips") or path.startswith("/api/youtube") or path.startswith("/api/motion")):
@@ -998,10 +1006,66 @@ class Handler(BaseHTTPRequestHandler):
         except OSError as exc:
             return self._send_json({"error": f"could not save: {exc}"}, 500)
 
+    # ---- Admin settings (the Admin profile only: _set_profile refuses everyone else) ----
+
+    def _admin_state(self):
+        return {"ok": True, "templates": _autopilot.list_templates(), "gemini": _gemini.status(),
+                "options": {"pictures": _autopilot.PICTURES, "backgrounds": _autopilot.BACKGROUNDS,
+                            "introStyles": _autopilot.INTRO_STYLES, "qualities": _autopilot.QUALITIES}}
+
+    def _gemini_reply(self, fn):
+        try:
+            return self._send_json({"ok": True, **fn()})
+        except _gemini.GeminiError as exc:
+            return self._send_json({"ok": False, "error": exc.message, "code": exc.code, **_gemini.status()}, 400)
+
+    def _get_admin_settings(self):
+        return self._send_json(self._admin_state())
+
+    def _get_admin_models(self):
+        return self._gemini_reply(lambda: {"models": _gemini.list_models()})
+
+    def _post_admin(self):
+        action = urlparse(self.path).path.rsplit("/", 1)[-1]
+        try:
+            req = self._read_json()
+        except Exception as exc:               # noqa: BLE001
+            return self._send_json({"error": str(exc)}, 400)
+        if action == "test":
+            return self._gemini_reply(lambda: {**_gemini.test_key(), "gemini": _gemini.status()})
+        try:
+            tid = str(req.get("template") or "")
+            if action == "template":                         # create | duplicate | save | reset | delete
+                what = req.get("action")
+                if what == "create":
+                    _autopilot.create_template(str(req.get("name") or ""))
+                elif what == "duplicate":
+                    _autopilot.create_template(str(req.get("name") or ""), copy_of=tid)
+                elif what == "save":
+                    _autopilot.save_template(tid, req.get("values") if isinstance(req.get("values"), dict) else {})
+                elif what == "reset":
+                    _autopilot.reset_template(tid)
+                elif what == "delete":
+                    _autopilot.delete_template(tid)
+                else:
+                    return self._send_json({"error": "unknown template action"}, 400)
+                return self._send_json(self._admin_state())
+            g = req.get("gemini") if isinstance(req.get("gemini"), dict) else {}
+            if g:
+                _gemini.save_settings(api_key=g.get("apiKey") if isinstance(g.get("apiKey"), str) else None,
+                                      remove_key=g.get("removeKey") is True,
+                                      model=g.get("model") if isinstance(g.get("model"), str) else None)
+        except (ValueError, _profiles.ProfileError) as exc:
+            return self._send_json({"error": str(exc)}, 400)
+        except OSError as exc:
+            return self._send_json({"error": f"could not save: {exc}"}, 500)
+        return self._send_json(self._admin_state())
+
     def _get_profiles(self):
         """The profiles to pick from, and the Guest. Names and colours only."""
         return self._send_json({"profile": _profiles.list_profiles(),
-                                "guest": _profiles.read_meta(_paths.GUEST)})
+                                "guest": _profiles.read_meta(_paths.GUEST),
+                                "admin": _profiles.read_meta(_paths.ADMIN)})
 
     def _get_history(self):
         # History is read from the out/ folder contents, not session
@@ -1448,6 +1512,8 @@ class Handler(BaseHTTPRequestHandler):
             path = "/ui/sources.html"
         if path.rstrip("/") == "/profiles":
             path = "/ui/profiles.html"
+        if path.rstrip("/") == "/admin":
+            path = "/ui/admin.html"
         if path.rstrip("/") == "/remotion":
             path = "/ui/remotion.html"
         if path.rstrip("/") == "/guide":
@@ -1503,6 +1569,8 @@ class Handler(BaseHTTPRequestHandler):
         "/api/profiles": _get_profiles,
         "/api/profiles/machine": _get_machine,
         "/api/rubrics": _get_rubrics,
+        "/api/admin/settings": _get_admin_settings,
+        "/api/admin/gemini/models": _get_admin_models,
         "/api/claude/status": _get_claude_status,
         "/api/claude/models": _get_claude_models,
         "/api/claude/usage": _get_claude_usage,
@@ -2483,6 +2551,9 @@ class Handler(BaseHTTPRequestHandler):
         "/api/rubrics/create": _post_rubrics,
         "/api/rubrics/delete": _post_rubrics,
         "/api/rubrics/open": _post_rubrics,
+        "/api/admin/settings": _post_admin,
+        "/api/admin/gemini/test": _post_admin,
+        "/api/admin/template": _post_admin,
         "/api/claude/settings": _post_claude,
         "/api/claude/test": _post_claude,
         "/api/claude/plan": _post_claude,

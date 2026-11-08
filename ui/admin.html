@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>klipian: admin settings</title>
+<link rel="stylesheet" href="/ui/css/fonts.css">
+<link rel="stylesheet" href="/ui/css/tokens.css">
+<link rel="stylesheet" href="/ui/css/brand.css">
+<link rel="stylesheet" href="/ui/css/admin.css">
+</head>
+<body class="admin-body">
+  <header class="admin-top">
+    <h1>klipian <span>Admin settings</span></h1>
+    <span class="admin-top-right">
+      <a class="btn" href="/profiles">Switch profile</a>
+      <button class="btn quiet" id="themeBtn" type="button" aria-live="polite"></button>
+    </span>
+  </header>
+  <main class="admin">
+    <p class="admin-note">Settings for every profile. The Admin has no videos, projects or schedule of its own. klipian runs on this computer, so there is no password.</p>
+    <p class="admin-msg" id="msg" role="status"></p>
+
+    <section class="admin-card" aria-labelledby="hGem">
+      <h2 id="hGem">Gemini API</h2>
+      <p class="admin-note">The Gemini Plus subscription is not the API. Make a key in Google AI Studio (aistudio.google.com). The key stays on this computer and is never shown again in full.</p>
+      <div class="admin-row"><label for="gKey">API key</label>
+        <input id="gKey" type="password" autocomplete="off" spellcheck="false" placeholder="Paste a key to save it">
+        <button class="btn" id="gSave" type="button">Save key</button>
+        <button class="btn" id="gRemove" type="button">Remove key</button></div>
+      <p class="admin-note" id="gState"></p>
+      <div class="admin-row"><label for="gModel">Model</label>
+        <select id="gModel"></select>
+        <button class="btn" id="gTest" type="button">Test key</button></div>
+      <p class="admin-note" id="gResult" role="status"></p>
+      <p class="admin-error" id="gError"></p>
+    </section>
+
+    <section class="admin-card" aria-labelledby="hTpl">
+      <h2 id="hTpl">Autopilot templates</h2>
+      <p class="admin-note">A template is a set of Autopilot settings. Each profile picks one; a run copies it when it starts, so a change applies to the next run.</p>
+      <div class="admin-row"><label for="tSel">Template</label><select id="tSel"></select>
+        <button class="btn" id="tReset" type="button">Reset to defaults</button>
+        <button class="btn danger" id="tDelete" type="button">Delete</button></div>
+      <div class="admin-row"><label for="tNew">New or copy</label><input id="tNew" type="text" maxlength="40" placeholder="Name of the new template">
+        <button class="btn" id="tCreate" type="button">New</button>
+        <button class="btn" id="tDup" type="button">Duplicate selected</button></div>
+      <p class="admin-error" id="tError" role="alert"></p>
+    </section>
+
+    <section class="admin-card" aria-labelledby="hFmt">
+      <h2 id="hFmt">Format</h2>
+      <div class="admin-row"><label for="tName">Name</label><input id="tName" type="text" maxlength="40"></div>
+      <div class="admin-row"><label for="fPicture">Picture</label><select id="fPicture"></select></div>
+      <div class="admin-row"><label for="fBg">Background</label><select id="fBg"></select></div>
+      <div class="admin-row"><label for="fFraming">AI Framing</label><input id="fFraming" type="checkbox"> <span class="admin-note">puts the box on whoever is speaking</span></div>
+      <div class="admin-row"><label for="fIntro">Angle intro</label><input id="fIntro" type="checkbox"> <span class="admin-note">text at the start of every clip</span></div>
+      <div class="admin-row"><label for="fIntroStyle">Intro style</label><select id="fIntroStyle"></select>
+        <label class="admin-inline" for="fIntroSec">for</label><input id="fIntroSec" type="number" min="0.5" max="10" step="0.5"> <span class="admin-note">seconds (dark: white text on black)</span></div>
+      <div class="admin-row"><label>Caption style</label><span class="admin-note">klipian's own caption look</span></div>
+      <div class="admin-row"><label for="fMax">Most clips per run</label><input id="fMax" type="number" min="1" max="10" step="1"> <span class="admin-note">fewer when the video holds fewer whole topics</span></div>
+      <div class="admin-row"><label for="fQuality">Download quality</label><select id="fQuality"></select></div>
+    </section>
+
+    <section class="admin-card" aria-labelledby="hSch">
+      <h2 id="hSch">Schedule</h2>
+      <p class="admin-note">Every clip of a run goes out on one day, split evenly over these times.</p>
+      <div class="admin-row"><label for="fDays">Air date</label><span>Start +</span><input id="fDays" type="number" min="0" max="30" step="1"> <span class="admin-note">days (1: the day after the run was started)</span></div>
+      <div class="admin-row" id="hours"></div>
+      <div class="admin-row"><label for="hNew">Add a time</label><input id="hNew" type="time" value="12:00"><button class="btn" id="hAdd" type="button">Add</button></div>
+      <div class="admin-row"><label for="fUpload">Upload automatically</label><input id="fUpload" type="checkbox"> <span class="admin-note">off: clips stop at Ready</span></div>
+    </section>
+  </main>
+<script src="/ui/js/shared/profile.js"></script>
+<script src="/ui/js/shared/armed.js"></script>
+<script src="/ui/js/shared/topbar.js"></script>
+<script src="/ui/js/admin-page.js"></script>
+</body>
+</html>

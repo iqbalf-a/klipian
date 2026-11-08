@@ -73,6 +73,7 @@ CACHE_DIR = _Dyn(lambda: workspace_dir() / "cache")          # shared by every p
 PROFILES_DIR = _Dyn(lambda: workspace_dir() / "profiles")
 
 GUEST = "_guest"
+ADMIN = "_admin"                    # the settings every profile shares; no work folders of its own
 DEFAULT_PROFILE = "podcast"
 _PROFILE_ID = re.compile(r"[a-z0-9][a-z0-9_-]{0,39}")
 
@@ -80,7 +81,7 @@ _profile: contextvars.ContextVar = contextvars.ContextVar("klipian_profile", def
 
 
 def valid_profile_id(pid) -> bool:
-    return isinstance(pid, str) and (pid == GUEST or bool(_PROFILE_ID.fullmatch(pid)))
+    return isinstance(pid, str) and (pid in (GUEST, ADMIN) or bool(_PROFILE_ID.fullmatch(pid)))
 
 
 def set_profile(pid: str | None):

@@ -17,7 +17,7 @@ function enter(id) {
     sessionStorage.setItem("klipian:profile", id);
     localStorage.setItem("klipian:last-profile", id);
   } catch { /* no storage: the pages fall back to the picker */ }
-  location.href = NEXT;
+  location.href = id === "_admin" ? "/admin" : NEXT;
 }
 
 /* Avatar letter: the word after "klipian" (klipian podcast -> P), so profiles do not all read "K". */
@@ -60,6 +60,7 @@ async function draw() {
   $("#pickerGuest").innerHTML = `
     <button class="btn picker-guest-btn" type="button" data-enter="_guest">Masuk sebagai Guest</button>
     <span class="picker-guest-note">Edit dan render saja: tanpa jadwal Clips, teks posting, atau akun YouTube.</span>
+    <button class="btn" type="button" data-enter="_admin" title="Gemini key, Autopilot format and schedule">Admin settings</button>
     <button class="btn quiet" type="button" id="clearGuest" title="Pindahkan semua yang dibuat Guest ke Recycle Bin">Clear guest data</button>`;
 }
 

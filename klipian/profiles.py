@@ -25,7 +25,7 @@ import time
 from pathlib import Path
 
 from . import paths, rubrics
-from .paths import DEFAULT_PROFILE, GUEST, valid_profile_id
+from .paths import ADMIN, DEFAULT_PROFILE, GUEST, valid_profile_id
 
 PROFILE_DIRS = ("sources", "projects", "out", "schedule", "assets", "secrets")
 GUEST_DIRS = ("sources", "projects", "out", "assets")          # no schedule/, no secrets/
@@ -53,18 +53,21 @@ def _write_json(path: Path, data: dict) -> None:
 
 
 def write_meta(pid: str, meta: dict) -> None:
-    """Write profile.json (name, colour, defaults); the Guest has none."""
-    if pid == GUEST:
+    """Write profile.json (name, colour, defaults); the Guest and the Admin have none."""
+    if pid in (GUEST, ADMIN):
         return
     paths.profile_dir(pid).mkdir(parents=True, exist_ok=True)
     _write_json(_meta_file(pid), {"name": str(meta.get("name") or pid),
                                   "color": str(meta.get("color") or DEFAULT_COLORS[0]),
-                                  "defaults": meta.get("defaults") if isinstance(meta.get("defaults"), dict) else {}})
+                                  "defaults": meta.get("defaults") if isinstance(meta.get("defaults"), dict) else {},
+                                  "autopilotTemplate": str(meta.get("template") or "default")})
 
 
 def ensure_dirs(pid: str) -> Path:
     """Make a profile's folders (the Guest has no schedule/ and no secrets/)."""
     base = paths.profile_dir(pid)
+    if pid == ADMIN:                                          # settings only: no folders at all
+        return base
     for name in (GUEST_DIRS if pid == GUEST else PROFILE_DIRS):
         (base / name).mkdir(parents=True, exist_ok=True)
     return base
@@ -74,6 +77,8 @@ def read_meta(pid: str) -> dict | None:
     """What profile.json says, or None when the profile does not exist."""
     if pid == GUEST:
         return {"id": GUEST, "name": "Guest", "color": "#8b8f98", "guest": True, "defaults": {}}
+    if pid == ADMIN:
+        return {"id": ADMIN, "name": "Admin", "color": "#c9ccd3", "guest": False, "admin": True, "defaults": {}}
     f = _meta_file(pid)
     try:
         data = json.loads(f.read_text(encoding="utf-8"))
@@ -82,13 +87,14 @@ def read_meta(pid: str) -> dict | None:
     if not isinstance(data, dict):
         return None
     return {"id": pid, "name": str(data.get("name") or pid), "color": str(data.get("color") or DEFAULT_COLORS[0]),
-            "guest": False, "defaults": data.get("defaults") if isinstance(data.get("defaults"), dict) else {}}
+            "guest": False, "defaults": data.get("defaults") if isinstance(data.get("defaults"), dict) else {},
+            "template": str(data.get("autopilotTemplate") or "default")}      # its Autopilot template (autopilot.py)
 
 
 def exists(pid) -> bool:
     if not valid_profile_id(pid):
         return False
-    return True if pid == GUEST else read_meta(pid) is not None          # the Guest is always there
+    return True if pid in (GUEST, ADMIN) else read_meta(pid) is not None          # these two are always there
 
 
 def list_profiles() -> list[dict]:
@@ -97,7 +103,7 @@ def list_profiles() -> list[dict]:
     out = []
     if root.is_dir():
         for d in sorted(root.iterdir()):
-            if d.is_dir() and d.name != GUEST and valid_profile_id(d.name):
+            if d.is_dir() and d.name not in (GUEST, ADMIN) and valid_profile_id(d.name):
                 meta = read_meta(d.name)
                 if meta:
                     out.append(meta)
@@ -166,19 +172,19 @@ def _free_id(name: str) -> str:
     if not _PROFILE_ID_OK(base):
         base = "p-" + base
     pid, n = base, 2
-    while (paths.PROFILES_DIR / pid).exists() or pid == GUEST:
+    while (paths.PROFILES_DIR / pid).exists() or pid in (GUEST, ADMIN):
         pid = f"{base}-{n}"
         n += 1
     return pid
 
 
 def _PROFILE_ID_OK(pid: str) -> bool:
-    return valid_profile_id(pid) and pid != GUEST
+    return valid_profile_id(pid) and pid not in (GUEST, ADMIN)
 
 
 def create(name, color=None) -> dict:
     name = _clean_name(name)
-    if any(p["name"].lower() == name.lower() for p in list_profiles()):
+    if any(p["name"].lower() == name.lower() for p in list_profiles()) or name.lower() == "admin":
         raise ProfileError(f"there is a profile called {name} already")
     color = _clean_color(color) if color else DEFAULT_COLORS[len(list_profiles()) % len(DEFAULT_COLORS)]
     pid = _free_id(name)
@@ -189,7 +195,7 @@ def create(name, color=None) -> dict:
 
 def update(pid: str, fields: dict) -> dict:
     meta = read_meta(pid)
-    if pid == GUEST or meta is None:
+    if pid in (GUEST, ADMIN) or meta is None:
         raise ProfileError("that profile cannot be changed")
     if "name" in fields:
         name = _clean_name(fields["name"])
@@ -198,6 +204,11 @@ def update(pid: str, fields: dict) -> dict:
         meta["name"] = name
     if "color" in fields:
         meta["color"] = _clean_color(fields["color"])
+    if "template" in fields:
+        from . import autopilot
+        if not autopilot.template_exists(fields["template"]):
+            raise ProfileError("that Autopilot template does not exist")
+        meta["template"] = fields["template"]
     if "defaults" in fields:
         merged = {**meta.get("defaults", {}), **(fields["defaults"] if isinstance(fields["defaults"], dict) else {})}
         meta["defaults"] = _clean_defaults({k: v for k, v in merged.items() if v not in ("", None)})
@@ -208,7 +219,7 @@ def update(pid: str, fields: dict) -> dict:
 def delete(pid: str) -> None:
     """Send a profile's whole folder to the Recycle Bin (the Guest cannot be deleted)."""
     from .recycle import to_recycle_bin
-    if pid == GUEST or not exists(pid):
+    if pid in (GUEST, ADMIN) or not exists(pid):
         raise ProfileError("that profile cannot be deleted")
     to_recycle_bin(paths.profile_dir(pid))
 

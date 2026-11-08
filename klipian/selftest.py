@@ -314,6 +314,196 @@ def check_brief() -> tuple[str, str]:
     return PASS, f"brief.md identical; {len(expected)} replies read as before; JSON slips repaired or located"
 
 
+def check_autopilot() -> tuple[str, str]:
+    """Autopilot phase 1: the run's schedule slots (the day after the start, split evenly over the Admin hours),
+    the shared settings, the Admin profile (no work folders, cannot be changed or deleted) and the Gemini key
+    handling (a fake client: no network; the key never leaves the server)."""
+    import json as _json
+    import random
+    from datetime import date
+    from . import autopilot as ap, gemini_api as gm, paths, profiles
+
+    problems = []
+
+    # --- slots
+    hours = ["11:00", "18:00"]
+    for start, day in ((date(2026, 11, 8), "2026-11-09"), (date(2026, 11, 30), "2026-12-01"), (date(2026, 12, 31), "2027-01-01"),
+                       (date(2028, 2, 28), "2028-02-29"), (date(2026, 2, 28), "2026-03-01")):
+        got = ap.run_slots(start, hours, 5, rng=random.Random(1))
+        if {d for d, _ in got} != {day}:
+            problems.append(f"a run started {start} goes out on {day}: {got}")
+    for hs in (hours, ["09:00", "13:00", "20:30"], ["12:00"]):
+        for n in range(0, 14):
+            for seed in range(4):
+                got = ap.run_slots(date(2026, 11, 8), hs, n, rng=random.Random(seed))
+                per = [sum(1 for _, h in got if h == x) for x in hs]
+                if len(got) != n or (per and max(per) - min(per) > 1) or not {h for _, h in got} <= set(hs):
+                    problems.append(f"{n} clips over {hs}: {per}")
+    if [x[1] for x in ap.run_slots(date(2026, 11, 8), hours, 8, rng=random.Random(3))].count("11:00") != 4:
+        problems.append("8 clips over two hours are 4 and 4")
+    firsts = {tuple(ap.run_slots(date(2026, 11, 8), hours, 3, rng=random.Random(s))) for s in range(30)}
+    if len(firsts) < 2 or {sum(1 for _, h in f if h == "11:00") for f in firsts} != {1, 2}:
+        problems.append("3 clips: 2 and 1, the extra at a random hour, in a random order")
+    got = ap.assign_slots(["a", "b", "c"], date(2026, 11, 8), hours, rng=random.Random(5))
+    if sorted(g["id"] for g in got) != ["a", "b", "c"] or ap.run_slots(date(2026, 11, 8), [], 3) != []:
+        problems.append(f"every clip gets a slot: {got}")
+
+    # --- the air date is Start + N days
+    for start, n, day in ((date(2026, 11, 8), 0, "2026-11-08"), (date(2026, 11, 8), 2, "2026-11-10"), (date(2026, 12, 31), 2, "2027-01-02"),
+                          (date(2026, 11, 8), 1, "2026-11-09")):
+        got = ap.run_slots(start, hours, 4, n, rng=random.Random(2))
+        if {d for d, _ in got} != {day}:
+            problems.append(f"start {start} + {n} days is {day}: {got}")
+
+    # --- a slot that has passed moves to the next hour; past the last hour, to the first hour of the next day
+    from datetime import datetime
+    s0 = date(2026, 11, 8)
+    for now, days, want in ((datetime(2026, 11, 8, 12, 0), 0, {("2026-11-08", "18:00")}),
+                            (datetime(2026, 11, 8, 19, 0), 0, {("2026-11-09", "11:00")}),
+                            (datetime(2026, 11, 8, 8, 0), 0, {("2026-11-08", "11:00"), ("2026-11-08", "18:00")}),
+                            (datetime(2026, 11, 8, 19, 0), 1, {("2026-11-09", "11:00"), ("2026-11-09", "18:00")}),
+                            (datetime(2026, 12, 31, 19, 0), 0, {("2027-01-01", "11:00")})):
+        st = date(2026, 12, 31) if now.year == 2026 and now.month == 12 else s0
+        got = ap.run_slots(st, hours, 8, days, now, rng=random.Random(4))
+        if len(got) != 8 or set(got) != want:
+            problems.append(f"now {now}, N = {days}: {sorted(set(got))}, wanted {sorted(want)}")
+    got = ap.run_slots(s0, ["09:00", "12:00", "18:00"], 6, 0, datetime(2026, 11, 8, 13, 0), rng=random.Random(1))
+    if set(got) != {("2026-11-08", "18:00")}:
+        problems.append(f"several passed hours go on to the first one still to come: {got}")
+    if ap.run_slots(s0, hours, 5, 0, None, rng=random.Random(1)) != ap.run_slots(s0, hours, 5, 0, datetime(2026, 11, 8, 0, 0), rng=random.Random(1)):
+        problems.append("a day that has not started is not changed by now")
+
+    # --- templates
+    d = ap.get_template("default")
+    want = {"picture": "3:4", "background": "blur", "angleIntro": True, "introStyle": "dark", "introSeconds": 2.5}
+    if any(d["format"][k] != v for k, v in want.items()) or d["schedule"] != {"hours": ["11:00", "18:00"], "days": 1, "autoUpload": True} \
+            or d["quality"] != 1080 or d["framing"] is not True or d["maxClips"] != 4 or d["name"] != "Default":
+        problems.append(f"the Default template: {d}")
+    if [t["id"] for t in ap.list_templates()] != ["default"]:
+        problems.append("a fresh workspace has only the Default template")
+    saved = ap.save_template("default", {"schedule": {"hours": ["7:05", "18:00", "18:00"], "days": 2}, "format": {"picture": "9:16"}, "name": "X"})
+    if saved["schedule"]["hours"] != ["07:05", "18:00"] or saved["schedule"]["days"] != 2 or saved["format"]["picture"] != "9:16" \
+            or saved["format"]["background"] != "blur" or saved["name"] != "Default":
+        problems.append(f"a change keeps the rest, tidies the hours, and the Default keeps its name: {saved}")
+    if ap.get_template("default") != {k: v for k, v in saved.items() if k != "id"}:
+        problems.append("the template is read back as saved")
+    for bad in ({"format": {"picture": "1:1"}}, {"schedule": {"hours": []}}, {"schedule": {"hours": ["25:00"]}}, {"quality": 999},
+                {"maxClips": 0}, {"maxClips": 11}, {"maxClips": "4"}, {"schedule": {"days": -1}}, {"schedule": {"days": 1.5}}, {"format": {"introSeconds": 99}}):
+        try:
+            ap.save_template("default", bad)
+            problems.append(f"{bad} should be refused")
+        except ValueError:
+            pass
+    if ap.get_template("default")["schedule"]["days"] != 2:
+        problems.append("a refused change must not change the template")
+    r = ap.reset_template("default")
+    if r["schedule"]["days"] != 1 or ap.get_template("default")["format"]["picture"] != "3:4":
+        problems.append("Reset to defaults")
+    lucu = ap.create_template("Lucu")
+    ap.save_template(lucu["id"], {"schedule": {"hours": ["09:00"]}})
+    cp = ap.create_template("Lucu 2", copy_of=lucu["id"])
+    if cp["schedule"]["hours"] != ["09:00"] or cp["id"] == lucu["id"] or ap.get_template(cp["id"])["name"] != "Lucu 2":
+        problems.append(f"Duplicate copies the values under a new name: {cp}")
+    for what, fn in (("a name used twice", lambda: ap.create_template("lucu")), ("a rename to a used name", lambda: ap.save_template(cp["id"], {"name": "LUCU"})),
+                     ("a delete of the Default", lambda: ap.delete_template("default")), ("a reset of another", lambda: ap.reset_template(cp["id"]))):
+        try:
+            fn()
+            problems.append(f"{what} should be refused")
+        except ValueError:
+            pass
+    if ap.save_template(cp["id"], {"name": "Lucu dua"})["name"] != "Lucu dua":
+        problems.append("a template can be renamed")
+    # a profile picks a template (default: Default); deleting it sends the profile back
+    profiles.write_meta("tplp", {"name": "tplp", "color": "#123456"})
+    profiles.ensure_dirs("tplp")
+    if profiles.read_meta("tplp")["template"] != "default" or ap.profile_template("tplp")["name"] != "Default":
+        problems.append("a profile starts on the Default template")
+    profiles.update("tplp", {"template": lucu["id"]})
+    if ap.profile_template("tplp")["schedule"]["hours"] != ["09:00"] or profiles.read_meta("tplp")["name"] != "tplp":
+        problems.append("the profile uses its template and keeps its name")
+    try:
+        profiles.update("tplp", {"template": "nope"})
+        problems.append("a template that does not exist should be refused")
+    except profiles.ProfileError:
+        pass
+    if ap.delete_template(lucu["id"]) != ["tplp"] or profiles.read_meta("tplp")["template"] != "default":
+        problems.append("deleting a template sends its profiles back to the Default")
+    if ap.get_template("gone")["name"] != "Default":
+        problems.append("an unknown template reads as the Default")
+
+    # --- the Admin profile
+    meta = profiles.read_meta(paths.ADMIN)
+    if not meta or meta["id"] != "_admin" or not meta.get("admin") or not profiles.exists(paths.ADMIN):
+        problems.append(f"the Admin is always there: {meta}")
+    if paths.ADMIN in [p["id"] for p in profiles.list_profiles()]:
+        problems.append("the Admin is not one of the profiles to pick from")
+    base = profiles.ensure_dirs(paths.ADMIN)
+    if base.exists() and any(base.iterdir()):
+        problems.append("the Admin has no work folders")
+    for what, fn in (("deleted", lambda: profiles.delete(paths.ADMIN)), ("renamed", lambda: profiles.update(paths.ADMIN, {"name": "X"})),
+                     ("created", lambda: profiles.create("Admin"))):
+        try:
+            fn()
+            problems.append(f"the Admin cannot be {what}")
+        except profiles.ProfileError:
+            pass
+    profiles.write_meta(paths.ADMIN, {"name": "X"})
+    if (paths.profile_dir(paths.ADMIN) / "profile.json").exists():
+        problems.append("the Admin has no profile.json")
+
+    # --- Gemini (fake client)
+    class M:
+        def __init__(self, name, actions=("generateContent",)):
+            self.name, self.display_name, self.supported_actions = name, name, list(actions)
+
+    class Boom(Exception):
+        def __init__(self, code, message):
+            super().__init__(message)
+            self.code, self.message = code, message
+
+    class Fake:
+        def __init__(self, models=None, err=None):
+            self._models, self._err = models, err
+            self.models = self
+
+        def list(self):
+            if self._err:
+                raise self._err
+            return iter(self._models)
+
+    ok = Fake([M("models/gemini-2.5-flash"), M("models/gemini-2.5-pro"), M("models/embedding-001"), M("models/gemini-embed", ["embedContent"])])
+    ids = [m["id"] for m in gm.list_models(ok)]
+    if ids != ["gemini-2.5-pro", "gemini-2.5-flash"]:
+        problems.append(f"only Gemini models that write text, from the account's list: {ids}")
+    gm.save_settings(api_key="AIzaSECRET12345678", model="gemini-2.5-flash")
+    st = gm.status()
+    if "AIzaSECRET12345678" in _json.dumps(st) or st["keyHint"] != "…5678" or not st["hasKey"]:
+        problems.append(f"the status never carries the key: {st}")
+    r = gm.test_key(ok)
+    if "works" not in r["note"] or gm.status()["lastError"]:
+        problems.append(f"a good key: {r['note']}")
+    gm.save_settings(model="gemini-9")
+    if "choose another model" not in gm.test_key(ok)["note"]:
+        problems.append("a model that is not on the list is said so")
+    for code, text, want_code in ((400, "API key not valid. Please pass a valid API key.", "bad_key"), (403, "denied", "bad_key"),
+                                  (429, "RESOURCE_EXHAUSTED", "quota"), (500, "boom", "failed")):
+        try:
+            gm.test_key(Fake(err=Boom(code, text)))
+            problems.append(f"{code} should be an error")
+        except gm.GeminiError as err:
+            if err.code != want_code or gm.status()["lastError"] != err.message:
+                problems.append(f"{code} -> {err.code} (wanted {want_code}), last error {gm.status()['lastError']!r}")
+    gm.save_settings(api_key="AIzaOTHER00009999")
+    if gm.status()["lastError"]:
+        problems.append("a new key clears the last error")
+    gm.save_settings(remove_key=True)
+    if gm.status()["hasKey"] or _json.loads(gm._file().read_text(encoding="utf-8")).get("apiKey"):
+        problems.append("Remove key removes the key")
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "slots: Start + N days, even split; templates; the Admin has no folders and cannot change; Gemini key stays on the server"
+
+
 def check_settle() -> tuple[str, str]:
     """Where a clip ends: settle_end (the end moves on to the end of its sentence or of the quoted last sentence, never
     back by more than SNAP_MAX, never past the longest clip), the endQuote field through the Gemini brief and the import."""
@@ -7374,7 +7564,7 @@ def check_briefsteps() -> tuple[str, str]:
     return PASS, (f"the Khusus brief passes the strict checklist (rules first, 8 steps with Run and Expected, fallback, mistakes) at 30/45/60 s with 1 or 3 voice apps; "
                   f"size at 45 s {sizes[0]} characters (cap 40000); the fallback story is saved and the video stays 'belum dibuat'")
 
-CHECKS = {"settle": check_settle, "briefagents": check_briefagents, "briefsteps": check_briefsteps, "migrate": check_migrate, "brief": check_brief, "geminibrief": check_geminibrief, "ranges": check_ranges, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch, "labelbox": check_labelbox, "shotframe": check_shotframe, "facelock": check_facelock,
+CHECKS = {"autopilot": check_autopilot, "settle": check_settle, "briefagents": check_briefagents, "briefsteps": check_briefsteps, "migrate": check_migrate, "brief": check_brief, "geminibrief": check_geminibrief, "ranges": check_ranges, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch, "labelbox": check_labelbox, "shotframe": check_shotframe, "facelock": check_facelock,
           "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voicegoogle": check_voicegoogle, "voicestudio": check_voicestudio, "elevenlabs": check_elevenlabs, "khusus": check_khusus, "briefbuttons": check_briefbuttons, "music": check_music, "voice": check_voice, "decode": check_decode, "render": check_render}
 
 

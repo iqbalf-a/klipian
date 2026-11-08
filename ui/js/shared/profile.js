@@ -35,6 +35,8 @@ const PROFILE = (() => {
 
 document.documentElement.dataset.guest = PROFILE === "_guest" ? "true" : "false";
 const IS_GUEST = PROFILE === "_guest";
+// The Admin has settings only (/admin): every other page leads there. The guide stays readable.
+if (PROFILE === "_admin" && !["/admin", "/guide", "/profiles"].some((p) => location.pathname.startsWith(p))) location.replace("/admin");
 
 const profileKey = (key) => `p:${PROFILE}:${key}`;
 
