@@ -179,8 +179,9 @@ $("#sourceList")?.addEventListener("change", (e) => {
   }
   const page = e.target.closest("[data-select-page]");
   if (page) {
-    for (const s of sourcePager.slice(SOURCE_ROWS)) {
-      if (s.deleted) continue;
+    // The boxes on screen (deleted rows have none): what search, sort and page show, not the whole list.
+    for (const box of document.querySelectorAll("#sourceList [data-select]")) {
+      const s = SOURCE_ROWS[Number(box.dataset.select)];
       if (page.checked) selected.add(s.name); else selected.delete(s.name);
     }
     drawSources();
