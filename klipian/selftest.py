@@ -532,11 +532,15 @@ def check_autopilot() -> tuple[str, str]:
     if not isinstance(r, dict) or len(g.configs) != 2 or "response_json_schema" in g.configs[1]:
         problems.append(f"Gemini find: a model that refuses the schema is asked again for plain JSON: {r}")
     r, g, _ = find(reply())
-    if g.configs[0].get("thinking_config") != {"thinking_level": "HIGH"}:
-        problems.append("Gemini find: the highest thinking level is asked for")
-    r, g, _ = find(Boom(400, "Thinking level is not supported by this model"), reply())
-    if not isinstance(r, dict) or len(g.configs) != 2 or "thinking_config" in g.configs[1] or "response_json_schema" not in g.configs[1]:
-        problems.append(f"Gemini find: a model without a thinking level is asked again without it (the schema stays): {r}")
+    if g.configs[0].get("http_options") != {"timeout": 300000} or "thinking_config" in g.configs[0]:
+        problems.append(f"Gemini find: a 300 s request timeout and the model's own thinking: {g.configs[0]}")
+
+    class SlowTimeout(Exception):
+        pass
+    SlowTimeout.__name__ = "ReadTimeout"
+    r, g, slept = find(SlowTimeout("The read operation timed out"))
+    if getattr(r, "code", "") != "timeout" or "5 minutes" not in r.message or slept or len(g.configs) != 1:
+        problems.append(f"Gemini find: a request that times out fails with the reason, no wait and no second try: {r}")
     r, _, _ = find(Boom(400, "API key not valid. Please pass a valid API key."))
     if getattr(r, "code", "") != "bad_key" or "check the key in Admin" not in r.message or gm.status()["lastError"] != r.message:
         problems.append(f"Gemini find: a bad key says so: {r}")
@@ -741,7 +745,7 @@ def check_autopilotrun() -> tuple[str, str]:
             return [{"key": "client", "ok": True, "label": "YouTube client", "detail": "", "fix": ""}]
 
         def ai_check(self, mode):
-            return {"key": "ai", "ok": True, "label": mode, "detail": "", "fix": ""}
+            return {"key": "ai", "ok": mode not in getattr(self, "blocked", ()), "label": mode, "detail": "no key", "fix": "Add it"}
 
     def run_one(deps, ai="claude", settings=None):
         profiles.update(PID, {"ai": ai})
@@ -798,8 +802,8 @@ def check_autopilotrun() -> tuple[str, str]:
         # 0 clips: done, with a note, nothing made after it
         d = Fake(n=0)
         run = run_one(d)
-        if run["state"] != "done" or "worth a clip" not in run["note"] or "render" in d.calls or d.projects[d.pid]["results"]:
-            problems.append(f"0 clips: {run['state']} {run['note']!r} {d.calls}")
+        if run["state"] != "done" or "worth a clip" not in " ".join(run["notes"]) or "render" in d.calls or d.projects[d.pid]["results"]:
+            problems.append(f"0 clips: {run['state']} {run['notes']!r} {d.calls}")
 
         # a failure at the render, then Retry: nothing before it runs again
         d = Fake(n=2, fail={"render": 1})
@@ -870,12 +874,107 @@ def check_autopilotrun() -> tuple[str, str]:
         if again:
             problems.append("a link whose run is not over is not queued twice")
         ap.cancel(made[0]["id"])
-        if ap.get_run(made[0]["id"])["state"] != "cancelled":
-            problems.append("Cancel of a waiting run")
+        if ap.get_run(made[0]["id"])["state"] != "cancelled" or ap.get_run(made[0]["id"]).get("stoppedAt") != "clips":
+            problems.append(f"Cancel of a waiting run marks the step it waited at: {ap.get_run(made[0]['id']).get('stoppedAt')!r}")
         ap.retry(made[0]["id"], d)
         ap.wait_idle(30)
         if ap.get_run(made[0]["id"])["state"] != "waiting":
             problems.append("a cancelled run can be retried")
+
+        # the run list: updatedAt, stoppedAt, notes whole, stalled, Clear finished
+        d = Fake(n=2, fail={"render": 1})
+        run = run_one(d)
+        if run["state"] != "failed" or run.get("stoppedAt") != "render" or not run.get("updatedAt"):
+            problems.append(f"a failure inside a step marks it: {run.get('stoppedAt')!r} {run.get('updatedAt')}")
+        ap.retry(run["id"], d)
+        ap.wait_idle(30)
+        run = ap.get_run(run["id"])
+        if run["state"] != "done" or run.get("stoppedAt"):
+            problems.append(f"Retry clears stoppedAt: {run['state']} {run.get('stoppedAt')!r}")
+        d = Fake(n=1)
+        run = run_one(d, ai="manual")
+        ap.update_run(run["id"], state="queued", step="clips", done=["download", "transcribe", "project"])
+        ap.update_run(run["id"], state="running")                # the worker of this profile is gone: nobody is working on it
+        pub = ap.public_run(ap.get_run(run["id"]))
+        if not pub["stalled"] or ap.public_run({**ap.get_run(run["id"]), "state": "waiting"})["stalled"]:
+            problems.append("a running run without a worker is stalled, a waiting one is not")
+        ap.cancel(run["id"])
+        run = ap.get_run(run["id"])
+        if run["state"] != "cancelled" or run.get("stoppedAt") != "clips":
+            problems.append(f"Cancel of a stalled run: {run['state']} {run.get('stoppedAt')!r}")
+        ap.update_run(run["id"], state="running")
+        ap.retry(run["id"], d)                                  # Retry of a stalled run is allowed
+        ap.wait_idle(30)
+        if ap.get_run(run["id"])["state"] == "running":
+            problems.append("a stalled run can be resumed")
+        old = {"id": "x", "note": "old text"}
+        if ap.run_notes(old) != ["old text"] or ap.public_run(old)["notes"] != ["old text"] or "note" in ap.public_run(old):
+            problems.append("an old run with one string note is still readable")
+        if len(ap._with_notes({}, ["n%d" % i for i in range(40)])) != 20 or len(ap._with_notes({}, ["x" * 999])[0]) != 300:
+            problems.append("notes are kept up to 20 x 300 chars")
+        ap.update_run(run["id"], state="failed")
+        keep_failed = ap.start_runs(["https://www.youtube.com/watch?v=FFFFFFFFFFF"], Fake(n=1))[0]["id"]
+        ap.wait_idle(30)
+        ap.update_run(keep_failed, state="failed")
+        before = {r["id"]: r["state"] for r in ap.load_runs()}
+        removed = ap.clear_finished()
+        after = {r["id"]: r["state"] for r in ap.load_runs()}
+        if not after or any(s in ("done", "cancelled") for s in after.values()) or keep_failed not in after                 or removed != len(before) - len(after) or any(before[i] != s for i, s in after.items()):
+            problems.append(f"Clear finished removes only done and cancelled: {before} -> {after}")
+
+        # Run again: from Choosing clips with another AI; the old Results stay, the new ones come after them
+        d = Fake(n=2)
+        run = run_one(d, ai="gemini")
+        old_rows, old_slots = dict(run["rows"]), dict(run["slots"])
+        if run["state"] != "done":
+            problems.append(f"a Gemini run to run again: {run['state']}")
+        d.blocked = {"gemini"}
+        for bad, why in ((("clips", "gemini"), "Gemini without a key"), (("nope", "manual"), "a step that is not offered")):
+            try:
+                ap.rerun(run["id"], bad[0], bad[1], d)
+                problems.append(f"Run again refused: {why}")
+            except ap.RunError:
+                pass
+        d.blocked = set()
+        ap.rerun(run["id"], "clips", "manual", d)
+        ap.wait_idle(30)
+        again = ap.get_run(run["id"])
+        if again["state"] != "waiting" or again["ai"] != "manual" or not again["brief"] or again["results"] or again["slots"] or again["done"] != ["download", "transcribe", "project"]:
+            problems.append(f"Run again from Choosing clips waits for the manual reply: {again['state']} {again['done']}")
+        if again["previousResults"] != ["res1", "res2"] or len(d.projects[d.pid]["results"]) != 2 or d.calls.count("render") != 1:
+            problems.append(f"the old Results stay and are not rendered again: {again.get('previousResults')} {d.calls}")
+        if len(again["history"]) != 1 or again["history"][0]["ai"] != ["gemini", "manual"] or again["history"][0]["clips"] != 2:
+            problems.append(f"history of a run again: {again.get('history')}")
+        try:
+            ap.rerun(run["id"], "clips", "manual", d)
+            problems.append("a run that is waiting cannot be run again")
+        except ap.RunError:
+            pass
+        ap.reply(run["id"], "{}", d)
+        ap.wait_idle(30)
+        again = ap.get_run(run["id"])
+        ids = [r["id"] for r in d.projects[d.pid]["results"]]
+        if again["state"] != "done" or ids != ["res1", "res2", "res3", "res4"] or [r["id"] for r in again["results"]] != ["res3", "res4"]:
+            problems.append(f"new Results next to the old ones: {again['state']} {ids}")
+        if set(again["rows"]) != {"res3", "res4"} or set(again["rows"].values()) & set(old_rows.values()) or set(again["slots"]) & set(old_slots):
+            problems.append(f"only the new Results were rendered and scheduled: {again['rows']} {again['slots']}")
+        # from Render: the same Results again, no new choice of clips
+        asked = d.calls.count("ask")
+        ap.rerun(run["id"], "render", "", d)
+        ap.wait_idle(30)
+        third = ap.get_run(run["id"])
+        if third["state"] != "done" or d.calls.count("ask") != asked or third["ai"] != "manual" or len(third["history"]) != 2 or len(third["results"]) != 2:
+            problems.append(f"Run again from Render: {third['state']} {third.get('error')}")
+        # a run with no clips cannot start from Render; an old run without the new fields is still readable
+        d = Fake(n=1)
+        run = run_one(d, ai="manual")
+        try:
+            ap.rerun(run["id"], "render", "", d)
+            problems.append("Run again from Render needs clips")
+        except ap.RunError:
+            pass
+        if ap.public_run({"id": "x", "state": "done", "done": []}).get("history") is not None and ap.public_run({"id": "x", "state": "done", "done": []})["history"]:
+            problems.append("an old run has no history")
 
         # Check: the links and what the run needs
         res = ap.check(["https://www.youtube.com/watch?v=CCCCCCCCCCC", "nope"], Fake())

@@ -45,5 +45,24 @@
 .ap-clips { margin: 0; padding-left: 18px; font-size: 12.5px; color: var(--text-muted); }
 .ap-reply textarea { min-height: 90px; }
 .ap-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ap-chip[data-state="cancelled"], .ap-chip[data-state="stalled"] { color: var(--warn, #e5a000); border-color: currentColor; }
+.ap-step.cancelled .ap-step-name { color: var(--text); font-weight: 700; }
+.ap-step.cancelled .ap-step-state { color: var(--warn, #e5a000); font-weight: 700; }
+.ap-step.skipped .ap-step-state, .ap-step.skipped .ap-step-name { color: var(--text-faint); }
+.ap-stale { flex: none; color: var(--warn, #e5a000); font-weight: 700; }
+.ap-summary { margin: 0; font-size: 13px; color: var(--text-muted); overflow-wrap: anywhere; }
+.ap-summary[data-kind="failed"] { color: var(--danger, #e5484d); }
+.ap-summary[data-kind="cancelled"] { color: var(--warn, #e5a000); }
+.ap-collapsed { gap: 6px; }
+.ap-detail-box { display: flex; flex-direction: column; gap: 8px; }
+.ap-detail-box[hidden] { display: none; }
+.ap-bar-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.ap-bar-row:empty { display: none; }
+.ap-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.ap-filter[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+.ap-count { color: var(--text-faint); font-variant-numeric: tabular-nums; margin-left: 2px; }
+.ap-rerun { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+.ap-rerun .ap-row > label { width: 50px; flex: none; color: var(--text-muted); font-size: 13px; }
+.ap-rerun select { font: inherit; font-size: 13px; color: var(--text); background: var(--bg-0, var(--bg-1)); border: 1px solid var(--glass-border); border-radius: 6px; padding: 6px 8px; min-width: 0; max-width: 100%; }
 @media (max-width: 560px) { .ap-row > label { width: 100%; } .ap { padding: 16px 12px 40px; } }
 @media (max-width: 480px) { .ap-detail.faint { display: none; } .ap-bar { min-width: 80px; } }

@@ -1029,6 +1029,10 @@ class Handler(BaseHTTPRequestHandler):
                     "labels": _autopilot.STEP_LABELS, "steps": list(_autopilot.STEPS)}
         return self._autopilot_reply(state)
 
+    def _get_autopilot_rerun_info(self):
+        rid = (parse_qs(urlparse(self.path).query).get("id") or [""])[0]
+        return self._autopilot_reply(lambda: _autopilot.rerun_info(rid, _autopilot_deps.RealDeps()))
+
     def _get_autopilot_brief(self):
         rid = (parse_qs(urlparse(self.path).query).get("id") or [""])[0]
         run = _autopilot.get_run(rid)
@@ -1059,6 +1063,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._autopilot_reply(lambda: {"run": _autopilot.retry(rid, deps)})
         if action == "cancel":
             return self._autopilot_reply(lambda: {"run": _autopilot.cancel(rid)})
+        if action == "rerun":
+            return self._autopilot_reply(lambda: {"run": _autopilot.rerun(rid, str(req.get("from") or ""), str(req.get("ai") or ""), deps)})
+        if action == "clear":
+            return self._autopilot_reply(lambda: {"removed": _autopilot.clear_finished()})
         if action == "reply":
             return self._autopilot_reply(lambda: {"run": _autopilot.reply(rid, str(req.get("text") or ""), deps)})
         return self._send_json({"error": "unknown action"}, 404)
@@ -1630,6 +1638,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/rubrics": _get_rubrics,
         "/api/autopilot/state": _get_autopilot_state,
         "/api/autopilot/brief": _get_autopilot_brief,
+        "/api/autopilot/rerun-info": _get_autopilot_rerun_info,
         "/api/admin/settings": _get_admin_settings,
         "/api/admin/gemini/models": _get_admin_models,
         "/api/claude/status": _get_claude_status,
@@ -2620,6 +2629,8 @@ class Handler(BaseHTTPRequestHandler):
         "/api/autopilot/start": _post_autopilot,
         "/api/autopilot/retry": _post_autopilot,
         "/api/autopilot/cancel": _post_autopilot,
+        "/api/autopilot/clear": _post_autopilot,
+        "/api/autopilot/rerun": _post_autopilot,
         "/api/autopilot/reply": _post_autopilot,
         "/api/claude/settings": _post_claude,
         "/api/claude/test": _post_claude,

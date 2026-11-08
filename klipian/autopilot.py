@@ -404,15 +404,46 @@ def update_run(rid: str, **fields) -> dict | None:
         if run is None:
             return None
         run.update(fields)
+        run["updatedAt"] = int(time.time())
         _save_runs(runs)
         return dict(run)
 
 
+MAX_NOTES, NOTE_CHARS = 20, 300
+
+
+def run_notes(run: dict) -> list[str]:
+    """The notes of a run, whole: a list (an older run kept one string in `note`)."""
+    if isinstance(run.get("notes"), list):
+        return [str(n) for n in run["notes"]]
+    return [run["note"]] if run.get("note") else []
+
+
+def _with_notes(run: dict, new: list[str], keep: bool = True) -> list[str]:
+    old = run_notes(run) if keep else []
+    out = old + [n for n in (str(x).strip() for x in new) if n and n not in old]
+    return [n[:NOTE_CHARS] for n in out][:MAX_NOTES]
+
+
+def first_undone(run: dict) -> str:
+    return next((s for s in STEPS if s not in (run.get("done") or [])), "")
+
+
+def is_stalled(run: dict) -> bool:
+    """A run that says it is going (running or queued) while no worker of this profile is alive in this process."""
+    if run.get("state") not in ("running", "queued"):
+        return False
+    t = _WORKERS.get(paths.current_profile())
+    return t is None or not t.is_alive()
+
+
 def public_run(run: dict) -> dict:
     """What the page gets: no template copy, no candidates (long), no reply text."""
-    out = {k: v for k, v in run.items() if k not in ("template", "candidates", "reply", "brief")}
+    out = {k: v for k, v in run.items() if k not in ("template", "candidates", "reply", "brief", "note")}
     out["hasBrief"] = bool(run.get("brief"))
     out["template"] = {"name": (run.get("template") or {}).get("name", "")}
+    out["notes"] = run_notes(run)
+    out["stalled"] = is_stalled(run)
     return out
 
 
@@ -439,7 +470,7 @@ def start_runs(urls: list[str], deps, now: datetime | None = None) -> list[dict]
                 continue
             busy.add(vid)
             run = {"id": uuid.uuid4().hex[:8], "url": str(url).strip(), "videoId": vid, "title": "", "state": "queued", "step": "",
-                   "progress": 0, "detail": "", "error": "", "note": "", "done": [], "ai": prof["ai"], "template": template,
+                   "progress": 0, "detail": "", "error": "", "notes": [], "done": [], "ai": prof["ai"], "template": template,
                    "startedAt": now.isoformat(timespec="seconds"), "createdAt": int(time.time()), "profile": paths.current_profile()}
             runs.append(run)
             made.append(run)
@@ -479,7 +510,8 @@ def _work(deps) -> None:
         try:
             _execute(run["id"], deps)
         except Exception as exc:                            # noqa: BLE001  (a bug must end this run, never the worker)
-            update_run(run["id"], state="failed", error=f"Unexpected problem: {type(exc).__name__}: {exc}")
+            now = get_run(run["id"]) or {}
+            update_run(run["id"], state="failed", stoppedAt=now.get("step") or first_undone(now), error=f"Unexpected problem: {type(exc).__name__}: {exc}")
 
 
 def _execute(rid: str, deps) -> None:
@@ -489,7 +521,7 @@ def _execute(rid: str, deps) -> None:
             continue
         if rid in _CANCEL:
             _CANCEL.discard(rid)
-            update_run(rid, state="cancelled", detail="")
+            update_run(rid, state="cancelled", detail="", step=step, stoppedAt=step)     # stopped between two steps: this one did not start
             return
         update_run(rid, step=step, progress=0, detail="")
         try:
@@ -498,14 +530,14 @@ def _execute(rid: str, deps) -> None:
             update_run(rid, state="waiting", detail="Waiting for the AI's reply")
             return
         except _Finished as done:
-            update_run(rid, state="done", step="", progress=100, detail="", note=str(done), done=list(STEPS))
+            update_run(rid, state="done", step="", progress=100, detail="", notes=_with_notes(run, [str(done)]), done=list(STEPS))
             return
         except _Cancelled:
             _CANCEL.discard(rid)
-            update_run(rid, state="cancelled", detail="")
+            update_run(rid, state="cancelled", detail="", stoppedAt=step)
             return
         except (RunError, ValueError, OSError) as exc:
-            update_run(rid, state="failed", error=str(exc) or type(exc).__name__)
+            update_run(rid, state="failed", stoppedAt=step, error=str(exc) or type(exc).__name__)
             return
         update_run(rid, done=run["done"] + [step], progress=100, **fields)
     update_run(rid, state="done", step="", detail="", progress=100)
@@ -595,13 +627,16 @@ def _step_clips(rid, run, deps):
     if not found:
         update_run(rid, candidates=[])
         raise _Finished("No topic in this video was worth a clip.")
-    return {"candidates": found, "note": " ".join(notes or [])[:300], "brief": "", "reply": ""}
+    return {"candidates": found, "notes": _with_notes(run, notes, keep=False), "brief": "", "reply": ""}
 
 
 def _step_results(rid, run, deps):
     pdata = deps.read_project(run["project"])
-    results = [build_result(c, run["template"], f"res{i}") for i, c in enumerate(run["candidates"], 1)]
-    pdata["results"], pdata["activeResult"] = results, results[0]["id"]
+    # a run that was run again keeps the Results it made before (they may be scheduled): the new ones come after them
+    keep = list(pdata.get("results") or []) if run.get("previousResults") else []
+    top = max([int(m.group(1)) for r in keep if (m := re.fullmatch(r"res(\d+)", str(r.get("id"))))] + [0])
+    results = [build_result(c, run["template"], f"res{top + i}") for i, c in enumerate(run["candidates"], 1)]
+    pdata["results"], pdata["activeResult"] = keep + results, results[0]["id"]
     pdata["candidates"] = run["candidates"]
     if run["template"]["format"]["captionStyle"]:
         pdata["caption"] = run["template"]["format"]["captionStyle"]
@@ -655,7 +690,7 @@ def _step_schedule(rid, run, deps):
         update_run(rid, slots=slots)
     update_run(rid, results=[{**r, **slots.get(run["rows"][r["id"]], {})} for r in run["results"]])
     if not tpl["schedule"]["autoUpload"]:
-        return {"note": ((run.get("note") or "") + " Auto upload is off: the clips wait at Ready in Clips.").strip()}
+        return {"notes": _with_notes(run, ["Auto upload is off: the clips wait at Ready in Clips."])}
     pending = [i for i in rows if not (schedule.get_row(i) or {}).get("videoId")]
     if pending:
         failed = deps.upload(pending, _progress(rid))
@@ -686,10 +721,10 @@ def reply(rid: str, text: str, deps) -> dict:
 
 def retry(rid: str, deps) -> dict:
     run = get_run(rid)
-    if run is None or run["state"] not in ("failed", "cancelled"):
-        raise RunError("Only a failed or cancelled run can be retried.")
+    if run is None or not (run["state"] in ("failed", "cancelled") or is_stalled(run)):
+        raise RunError("Only a failed, cancelled or stalled run can be retried.")
     _CANCEL.discard(rid)
-    update_run(rid, state="queued", error="")
+    update_run(rid, state="queued", error="", stoppedAt="")
     kick(deps)
     return public_run(get_run(rid))
 
@@ -698,12 +733,97 @@ def cancel(rid: str) -> dict:
     run = get_run(rid)
     if run is None:
         raise RunError("That run does not exist.")
-    if run["state"] == "running":
+    if is_stalled(run):                                     # nobody is working on it: there is nothing to stop, only to mark
+        update_run(rid, state="cancelled", detail="", stoppedAt=run.get("step") or first_undone(run))
+    elif run["state"] == "running":
         _CANCEL.add(rid)                                    # the step in progress stops at its next report
         update_run(rid, detail="Cancelling…")
     elif run["state"] in ("queued", "waiting"):
-        update_run(rid, state="cancelled", detail="")
+        update_run(rid, state="cancelled", detail="", stoppedAt=first_undone(run))
     return public_run(get_run(rid))
+
+
+RERUN_FROM = ("clips", "framing", "render", "schedule")
+# what each step made, and every later step with it: a run again from a step empties these
+_RERUN_CLEARS = {
+    "clips": {"candidates": None, "brief": "", "reply": "", "ai_usage": None, "notes": [], "results": [], "framingNotes": [], "rows": {}, "slots": {}},
+    "framing": {"framingNotes": [], "rows": {}, "slots": {}},
+    "render": {"rows": {}, "slots": {}},
+    "schedule": {"slots": {}},
+}
+
+
+def uploaded_clips(run: dict) -> list[dict]:
+    """The clips of a run that are on YouTube already: [{title, date, time}] (a run again leaves them there)."""
+    from . import schedule
+    out = []
+    for r in run.get("results") or []:
+        row_id = (run.get("rows") or {}).get(r["id"])
+        row = schedule.get_row(row_id) if row_id else None
+        if row and row.get("videoId"):
+            out.append({"title": r.get("title", ""), "date": row.get("date", ""), "time": row.get("time", "")})
+    return out
+
+
+def rerun_info(rid: str, deps) -> dict:
+    """What the Run again dialog needs: which AI modes are ready (with the reason), and the clips already on YouTube."""
+    run = get_run(rid)
+    if run is None:
+        raise RunError("That run does not exist.")
+    ai = {m: {k: c.get(k, "") for k in ("ok", "detail", "fix", "link")} for m in AI_MODES for c in [deps.ai_check(m)]}
+    return {"ai": ai, "current": run["ai"], "uploaded": uploaded_clips(run), "canRerun": not isOpen(run),
+            "hasResults": "results" in run.get("done", []) and bool(run.get("results"))}
+
+
+def isOpen(run: dict) -> bool:
+    return run.get("state") in ("queued", "running", "waiting") and not is_stalled(run)
+
+
+def rerun(rid: str, from_step: str, ai: str, deps, now: datetime | None = None) -> dict:
+    """Run a run that is not going again from `from_step`, with `ai` for the clip choice. The Results made before stay
+    in the project and on YouTube; new ones are added next to them, and the new slots count from now."""
+    now = now or datetime.now()
+    run = get_run(rid)
+    if run is None:
+        raise RunError("That run does not exist.")
+    if isOpen(run):
+        raise RunError("This run is still going: Cancel it first.")
+    if from_step not in RERUN_FROM:
+        raise RunError("Run again from Choosing clips, AI Framing, Render or Schedule.")
+    ai = ai or run["ai"]
+    if ai not in AI_MODES:
+        raise RunError("Choose Manual, Claude API or Gemini API.")
+    if from_step != "clips" and not ("results" in run.get("done", []) and run.get("results")):
+        raise RunError("This run has no clips yet: run it again from Choosing clips.")
+    if from_step == "clips" and not run.get("project") and "project" in run.get("done", []):
+        raise RunError("This run has no project.")
+    need = deps.ai_check(ai)
+    if from_step == "clips" and not need["ok"]:
+        raise RunError(f"{need['label']}: {need['detail']} {need.get('fix', '')}".strip())
+    cut = STEPS.index(from_step)
+    fields = dict(_RERUN_CLEARS[from_step])
+    if from_step == "clips":
+        fields["ai"] = ai
+        fields["previousResults"] = list(run.get("previousResults") or []) + [r["id"] for r in run.get("results") or []]
+    fields.update(
+        done=[s for s in run.get("done", []) if STEPS.index(s) < cut], state="queued", error="", stoppedAt="", step="", progress=0, detail="",
+        startedAt=now.isoformat(timespec="seconds"),
+        history=list(run.get("history") or []) + [{"at": now.isoformat(timespec="seconds"), "fromStep": from_step, "ai": [run["ai"], fields.get("ai", run["ai"])],
+                                                    "clips": len(run.get("results") or [])}])
+    _CANCEL.discard(rid)
+    update_run(rid, **fields)
+    kick(deps)
+    return public_run(get_run(rid))
+
+
+def clear_finished() -> int:
+    """Take the finished runs (done and cancelled) off the list. Only runs.json: the projects, renders and schedule stay."""
+    with _LOCK:
+        runs = load_runs()
+        keep = [r for r in runs if r.get("state") not in ("done", "cancelled")]
+        if len(keep) != len(runs):
+            _save_runs(keep)
+        return len(runs) - len(keep)
 
 
 def resume_all(make_deps) -> None:
