@@ -3,12 +3,13 @@
 
 /* Tested by a person: Gemini refuses a question that names clips, TikTok/Shorts, viral or editing, and answers this one.
    Do not reword it. */
-// The longest a clip may be, in seconds (roundtrip.py CLIP_MAX_SEC): the question below says it and settleEnd caps at it.
-const CLIP_MAX_SEC = 90;
+// The longest a clip may be, in seconds (roundtrip.py CLIP_MAX_SEC, with CLIP_MIN_SEC 45 and CLIP_IDEAL 60-120): the
+// question below says it and settleEnd caps at it. Change the places named at roundtrip.py CLIP_MIN_SEC together.
+const CLIP_MAX_SEC = 180;
 
 // NOTE for ian: this wording is NEW (it also asks for the LAST sentence and says when the end time is). Try it once on
 // YouTube's "Ask about this video"; if Gemini refuses or ignores it, go back to the old text in git (before 2026-11-08).
-const GEMINI_PROMPT = `Apa saja 4 bagian paling menarik dari video ini? Tiap bagian berdurasi minimal 30 detik dan maksimal ${CLIP_MAX_SEC} detik. Pastikan tiap bagian membahas satu topik yang utuh dan tidak terpotong; kalau harus dipotong, mulai tepat di awal kalimat dan selesai tepat di akhir kalimat. Cari momen ketika pembicara menyampaikan pendapat yang tegas atau kontroversial, cerita lucu, fakta mengejutkan, pengakuan pribadi, atau tips praktis. Untuk tiap bagian, sebutkan waktu mulai dan selesai, kutip kalimat pertama dan kalimat terakhir yang diucapkan, dan jelaskan dalam satu kalimat kenapa bagian itu menarik. Waktu selesai adalah saat kalimat terakhir topik itu selesai diucapkan; kalau kalimat berikutnya masih membahas hal yang sama, ikutkan. Urutkan dari yang paling menarik.`;
+const GEMINI_PROMPT = `Apa saja 4 bagian paling menarik dari video ini? Tiap bagian berdurasi sekitar 60 sampai 120 detik (paling lama ${CLIP_MAX_SEC} detik) dan menceritakan satu cerita utuh dari awal sampai akhir. Pastikan tiap bagian membahas satu topik yang utuh dan tidak terpotong; kalau harus dipotong, mulai tepat di awal kalimat dan selesai tepat di akhir kalimat. Cari momen ketika pembicara menyampaikan pendapat yang tegas atau kontroversial, cerita lucu, fakta mengejutkan, pengakuan pribadi, atau tips praktis. Untuk tiap bagian, sebutkan waktu mulai dan selesai, kutip kalimat pertama dan kalimat terakhir yang diucapkan, dan jelaskan dalam satu kalimat kenapa bagian itu menarik. Waktu selesai adalah saat kalimat terakhir topik itu selesai diucapkan; kalau kalimat berikutnya masih membahas hal yang sama, ikutkan. Urutkan dari yang paling menarik.`;
 
 const geminiKey = (profile, video) => `klipian:gemini:${profile}:${video}`;
 

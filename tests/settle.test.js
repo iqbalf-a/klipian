@@ -33,8 +33,8 @@ eq(settleEnd(words, null, 0, 14.4, "").end, 14, "without segments: the word snap
 eq(settleEnd([], [], 0, 14.4, ""), { end: 14.4, why: "" }, "without words or segments: untouched");
 
 // the question names the longest clip from the one constant, and still names nothing Gemini refuses
-eq(CLIP_MAX_SEC, 90, "the longest clip");
-eq(GEMINI_PROMPT.includes(`maksimal ${CLIP_MAX_SEC} detik`), true, "the prompt says the longest clip");
+eq(CLIP_MAX_SEC, 180, "the longest clip");
+eq(GEMINI_PROMPT.includes(`paling lama ${CLIP_MAX_SEC} detik`), true, "the prompt says the longest clip");
 eq(GEMINI_PROMPT.includes("kalimat pertama dan kalimat terakhir"), true, "the prompt asks for the last sentence too");
 eq(GEMINI_PROMPT.includes("kalau kalimat berikutnya masih membahas hal yang sama, ikutkan"), true, "the prompt says to include a continuing sentence");
 

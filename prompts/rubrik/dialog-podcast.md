@@ -98,11 +98,13 @@ bermanfaatnya.
 
 ### 5. Durasi — muat tanpa dipaksa?
 
-Pita ideal **30–45 detik**. Boleh 20–60 detik dengan skor menurun bertahap.
+Pita ideal **60–120 detik**: satu cerita atau topik utuh dari pembukaan
+sampai payoff. Boleh 45–60 dan 120–180 detik dengan skor menurun bertahap.
+Di bawah 45 detik hanya kalau topiknya memang selesai di situ (skor rendah
+kalau klipnya pendek karena dipotong). Tidak pernah lebih dari 180 detik.
 
-Di atas 75 detik hanya lolos kalau payoff-nya sangat kuat. Jangan memotong
-gagasan supaya masuk pita — lebih baik skor durasinya rendah tapi klipnya
-utuh, daripada dipenggal dan kehilangan maknanya.
+Jangan memotong gagasan supaya masuk pita — lebih baik skor durasinya rendah
+tapi klipnya utuh, daripada dipenggal dan kehilangan maknanya.
 
 **Skor total** = rata-rata kelima kriteria.
 

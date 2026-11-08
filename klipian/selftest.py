@@ -531,6 +531,12 @@ def check_autopilot() -> tuple[str, str]:
     r, g, _ = find(Boom(400, "response_json_schema is not supported by this model"), reply())
     if not isinstance(r, dict) or len(g.configs) != 2 or "response_json_schema" in g.configs[1]:
         problems.append(f"Gemini find: a model that refuses the schema is asked again for plain JSON: {r}")
+    r, g, _ = find(reply())
+    if g.configs[0].get("thinking_config") != {"thinking_level": "HIGH"}:
+        problems.append("Gemini find: the highest thinking level is asked for")
+    r, g, _ = find(Boom(400, "Thinking level is not supported by this model"), reply())
+    if not isinstance(r, dict) or len(g.configs) != 2 or "thinking_config" in g.configs[1] or "response_json_schema" not in g.configs[1]:
+        problems.append(f"Gemini find: a model without a thinking level is asked again without it (the schema stays): {r}")
     r, _, _ = find(Boom(400, "API key not valid. Please pass a valid API key."))
     if getattr(r, "code", "") != "bad_key" or "check the key in Admin" not in r.message or gm.status()["lastError"] != r.message:
         problems.append(f"Gemini find: a bad key says so: {r}")
@@ -940,6 +946,58 @@ def check_adminmodel() -> tuple[str, str]:
     return PASS, "a normal profile gets the Gemini model name (state and Check), never the key or its hint; /api/admin is the Admin's only"
 
 
+def check_cliplength() -> tuple[str, str]:
+    """One clip length for every profile: ideal 60-120 s, at most 180, under 45 only when the topic ends there. The brief
+    (both forms) says it and no longer says 90, the built-in rubrics show the same band, and Autopilot merges the
+    neighbouring clips of one story (when the whole fits) and notes the short ones."""
+    import re
+    from . import autopilot as ap, roundtrip as rt, rubrics
+    from .models import Transcript
+
+    problems = []
+    if (rt.CLIP_MIN_SEC, rt.CLIP_IDEAL, rt.CLIP_MAX_SEC) != (45, (60, 120), 180):
+        problems.append(f"the constants: {rt.CLIP_MIN_SEC} {rt.CLIP_IDEAL} {rt.CLIP_MAX_SEC}")
+    transcript = Transcript.load(FIXTURES / "brief" / "transcript.json")
+    rubric = rubrics.load("dialog")[1]
+    api_sys, _ = rt.build_api_brief(transcript, rubric, "x.mp4", None, None, "", 5)
+    for label, out in (("brief", rt.build_brief(transcript, rubric, "x.mp4", None, None, "")), ("api brief", api_sys)):
+        for want in ("Aim for 60 to 120 seconds; never more than 180", "A clip under 45 seconds is right only when",
+                     "split the whole transcript into its topics", "Two neighbouring moments of the same story become one clip",
+                     "The duration band here replaces any duration band in the rubric", "at most 180 seconds"):
+            if want not in out:
+                problems.append(f"the {label} lacks: {want}")
+        if re.search(r"90 seconds|at most 90", out):
+            problems.append(f"the {label} still says 90")
+    for rid in ("dialog", "lucu"):
+        text = rubrics.load(rid)[1]
+        if "60–120 detik" not in text or "30–45 detik" in text or "15–40 detik" in text:
+            problems.append(f"the {rid} rubric shows the new band")
+    if "at most 180" not in rt.build_gemini_brief("00:10 - 03:00 a moment", "x.mp4") and "longer than 180 seconds" not in rt.build_gemini_brief("00:10 - 03:00 a moment", "x.mp4"):
+        problems.append("the Gemini brief uses the new maximum")
+
+    def clip(a, b, **kw):
+        return {"title": f"t{a}", "startSec": float(a), "endSec": float(b), "dur": round(b - a), "out": rt.fmt_stamp(b), **kw}
+
+    got, notes = ap.merge_touching([clip(0, 60, endQuote="first"), clip(60, 130, endQuote="last")])
+    if len(got) != 1 or got[0]["startSec"] != 0 or got[0]["endSec"] != 130 or got[0]["title"] != "t0" or got[0]["endQuote"] != "last"             or got[0]["dur"] != 130 or got[0]["spans"] != [{"start": 0.0, "end": 130.0}] or "merged" not in " ".join(notes):
+        problems.append(f"two touching clips become one: {got} {notes}")
+    got, _ = ap.merge_touching([clip(0, 100), clip(101, 190)])
+    if len(got) != 2:
+        problems.append("a union over 180 s stays two clips")
+    got, _ = ap.merge_touching([clip(0, 60), clip(90, 150)])
+    if len(got) != 2:
+        problems.append("clips 30 s apart stay two")
+    got, notes = ap.merge_touching([clip(500, 560), clip(0, 40), clip(300, 330)])
+    if [c["startSec"] for c in got] != [500, 0, 300] or "2 clips are under 45 s" not in " ".join(notes):
+        problems.append(f"the AI's order is kept and short clips are noted: {[c['startSec'] for c in got]} {notes}")
+    got, _ = ap.merge_touching([clip(0, 50), clip(40, 100), clip(98, 170)])
+    if len(got) != 1 or got[0]["endSec"] != 170:
+        problems.append(f"overlapping and touching clips chain into one: {got}")
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "60-120 s ideal / 180 max in both briefs and the built-in rubrics, no 90; touching clips merge only when the whole fits; short ones are noted"
+
+
 def check_settle() -> tuple[str, str]:
     """Where a clip ends: settle_end (the end moves on to the end of its sentence or of the quoted last sentence, never
     back by more than SNAP_MAX, never past the longest clip), the endQuote field through the Gemini brief and the import."""
@@ -1001,7 +1059,7 @@ def check_settle() -> tuple[str, str]:
 
     # the quote travels: Gemini brief -> reply -> candidate; an old reply without it still reads
     brief = rt.build_gemini_brief("1. A (0:10 - 0:14): \"w1_0\"", "x.mp4")
-    if "endQuote" not in brief or "90 seconds" not in brief:
+    if "endQuote" not in brief or "180 seconds" not in brief:
         problems.append("the Gemini brief should ask for endQuote and name the longest clip")
     # path A (transcript in the brief): the strict end rule and a required endQuote, in the pasted brief and the API's
     from .models import Transcript as _T
@@ -1051,7 +1109,7 @@ def check_geminibrief() -> tuple[str, str]:
         problems.append("Gemini's answer goes in as marked data, whole")
     if text.index("<<<GEMINI_ANSWER") < text.index("## Answer format") or "Transcript" in text.split("<<<GEMINI_ANSWER")[0]:
         problems.append("the answer comes last and there is no transcript in the brief")
-    if "exactly as written" not in text or "90 seconds" not in text:
+    if "exactly as written" not in text or "180 seconds" not in text:
         problems.append("the brief must say to keep the times as written and long clips as they are")
     for bad in ("", "   " + chr(10)):
         try:
@@ -8005,7 +8063,7 @@ def check_briefsteps() -> tuple[str, str]:
     return PASS, (f"the Khusus brief passes the strict checklist (rules first, 8 steps with Run and Expected, fallback, mistakes) at 30/45/60 s with 1 or 3 voice apps; "
                   f"size at 45 s {sizes[0]} characters (cap 40000); the fallback story is saved and the video stays 'belum dibuat'")
 
-CHECKS = {"adminmodel": check_adminmodel, "autopilot": check_autopilot, "autopilotresult": check_autopilotresult, "autopilotrun": check_autopilotrun, "settle": check_settle, "briefagents": check_briefagents, "briefsteps": check_briefsteps, "migrate": check_migrate, "brief": check_brief, "geminibrief": check_geminibrief, "ranges": check_ranges, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch, "labelbox": check_labelbox, "shotframe": check_shotframe, "facelock": check_facelock,
+CHECKS = {"cliplength": check_cliplength, "adminmodel": check_adminmodel, "autopilot": check_autopilot, "autopilotresult": check_autopilotresult, "autopilotrun": check_autopilotrun, "settle": check_settle, "briefagents": check_briefagents, "briefsteps": check_briefsteps, "migrate": check_migrate, "brief": check_brief, "geminibrief": check_geminibrief, "ranges": check_ranges, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch, "labelbox": check_labelbox, "shotframe": check_shotframe, "facelock": check_facelock,
           "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voicegoogle": check_voicegoogle, "voicestudio": check_voicestudio, "elevenlabs": check_elevenlabs, "khusus": check_khusus, "briefbuttons": check_briefbuttons, "music": check_music, "voice": check_voice, "decode": check_decode, "render": check_render}
 
 

@@ -161,9 +161,11 @@ def find_clips(system: str, user: str, *, client=None, pause=time.sleep) -> dict
         raise GeminiError("no_model", "No Gemini model is chosen: choose a model in Admin.")
     client = client or _client()
     from .claude_api import REPLY_SCHEMA
-    structured, waited = True, False
+    structured, waited, think = True, False, True
     while True:
         config = {"system_instruction": system}
+        if think:                                     # the highest thinking level (google-genai 3.x ThinkingConfig.thinking_level)
+            config["thinking_config"] = {"thinking_level": "HIGH"}
         if structured:
             config.update(response_mime_type="application/json", response_json_schema=REPLY_SCHEMA)
         try:
@@ -172,6 +174,9 @@ def find_clips(system: str, user: str, *, client=None, pause=time.sleep) -> dict
         except Exception as exc:                                  # noqa: BLE001
             err = map_error(exc)
             low = str(getattr(exc, "message", "") or exc).lower()
+            if think and getattr(exc, "code", None) == 400 and "think" in low:
+                think = False                                     # this model has no thinking level: asked again without it
+                continue
             if structured and getattr(exc, "code", None) == 400 and any(k in low for k in ("schema", "mime", "response_json", "json mode", "format")):
                 structured = False                                # the model does not take the schema: plain JSON
                 continue

@@ -91,9 +91,11 @@ sendiri. Informasi datar tanpa reaksi apa pun dapat nilai rendah.
 
 ### 5. Durasi — muat tanpa dipaksa?
 
-Pita ideal **15–40 detik**. Boleh sampai 55 detik kalau pancingannya memang
-panjang dan tawanya terus naik. Di atas 60 detik hanya lolos kalau punchline-nya
-sangat kuat. Jangan memenggal pancingan supaya muat.
+Pita ideal **60–120 detik**: satu cerita atau bit utuh dari pancingan sampai
+tawanya selesai. Boleh 45–60 dan 120–180 detik dengan skor menurun bertahap.
+Di bawah 45 detik hanya kalau leluconnya memang selesai di situ (skor rendah
+kalau klipnya pendek karena dipotong). Tidak pernah lebih dari 180 detik.
+Jangan memenggal pancingan supaya muat.
 
 **Skor total** = rata-rata tertimbang: (hook + utuh + 2 × payoff + 2 × emosi +
 durasi) / 7. Punchline dan tawa dihitung dua kali karena itulah isi klip

@@ -851,7 +851,7 @@ function drawCaptionOptions() {
 }
 
 /* Pleasant clip length to watch: one whole idea, not a cut-off sentence. */
-const RIBBON_DURATION = { ideal: [30, 45], scale: 75, hint: "sweet spot 30–45s" };
+const RIBBON_DURATION = { ideal: [60, 120], scale: 180, hint: "sweet spot 60–120s" };   // roundtrip.py CLIP_IDEAL / CLIP_MAX_SEC
 
 function renderPreview() {
   const d = DATA;

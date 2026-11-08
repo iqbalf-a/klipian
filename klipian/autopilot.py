@@ -540,6 +540,42 @@ def _step_project(rid, run, deps):
     return {"project": deps.make_project(run["file"], run["title"], run["url"])}
 
 
+def merge_touching(cands: list[dict], max_sec: float | None = None, gap: float = 2.0) -> tuple[list[dict], list[str]]:
+    """One story that the AI cut in two (neighbouring clips, less than `gap` s apart or overlapping) becomes one clip when
+    the whole is at most `max_sec` (roundtrip.CLIP_MAX_SEC). The first clip keeps its title, hook, post and scores; the end,
+    the end quote and the cues come from the last. Returns (clips in the AI's order, notes: merges and clips under CLIP_MIN_SEC)."""
+    from . import roundtrip as rt
+    cap = rt.CLIP_MAX_SEC if max_sec is None else max_sec
+    order = sorted(range(len(cands)), key=lambda i: cands[i]["startSec"])
+    out: list[tuple[int, dict]] = []
+    merged = 0
+    for i in order:
+        c = cands[i]
+        if out:
+            at, last = out[-1]
+            if c["startSec"] - last["endSec"] < gap and max(c["endSec"], last["endSec"]) - last["startSec"] <= cap:
+                end = max(c["endSec"], last["endSec"])
+                nxt = dict(last, endSec=end, out=rt.fmt_stamp(end), dur=round(end - last["startSec"]), spans=[{"start": last["startSec"], "end": end}])
+                if c["endSec"] >= last["endSec"]:
+                    nxt.pop("endQuote", None)
+                    if c.get("endQuote"):
+                        nxt["endQuote"] = c["endQuote"]
+                if "cues" in last or "cues" in c:
+                    nxt["cues"] = (last.get("cues") or []) + (c.get("cues") or [])
+                out[-1] = (min(at, i), nxt)
+                merged += 1
+                continue
+        out.append((i, c))
+    notes = []
+    if merged:
+        notes.append(f"{merged} neighbouring clip{'s' if merged != 1 else ''} of one story {'were' if merged != 1 else 'was'} merged.")
+    result = [c for _, c in sorted(out, key=lambda x: x[0])]
+    short = sum(1 for c in result if c["endSec"] - c["startSec"] < rt.CLIP_MIN_SEC)
+    if short:
+        notes.append(f"{short} clip{'s are' if short != 1 else ' is'} under {rt.CLIP_MIN_SEC} s.")
+    return result, notes
+
+
 def _step_clips(rid, run, deps):
     most = run["template"]["maxClips"]
     if run.get("candidates") is not None:
@@ -554,7 +590,8 @@ def _step_clips(rid, run, deps):
     else:
         found, notes, usage = deps.ask_gemini(run["file"], most, run["project"], _progress(rid))
         update_run(rid, ai_usage=usage)
-    found = list(found)[:most]
+    found, merge_notes = merge_touching(list(found))
+    found, notes = found[:most], list(notes or []) + merge_notes
     if not found:
         update_run(rid, candidates=[])
         raise _Finished("No topic in this video was worth a clip.")

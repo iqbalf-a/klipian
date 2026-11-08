@@ -218,20 +218,38 @@ rubric above does not ask for it.
 """
 
 
-# The longest a clip may be, in seconds: the brief says it, settle_end() caps at it, and the Ask Gemini
-# question (ui/js/editor/gemini.js CLIP_MAX_SEC) says it too. Change all three together.
-CLIP_MAX_SEC = 90
+# How long a clip is, in seconds, for every profile and every path (one decision, not a template setting): ideal
+# 60-120, at most 180, under 45 only when the topic itself ends there. Said in three places that must agree: the brief
+# (_ONE_TOPIC below), settle_end() (caps at CLIP_MAX_SEC) and the Ask Gemini question (ui/js/editor/gemini.js
+# CLIP_MAX_SEC); the built-in rubrics (prompts/rubrik/dialog-podcast.md, templates/komedi-tv.md) and the editor's
+# length ribbon (ui/js/editor/app.js RIBBON_DURATION) show the same band. Autopilot's merge uses all three numbers.
+CLIP_MIN_SEC = 45
+CLIP_IDEAL = (60, 120)
+CLIP_MAX_SEC = 180
 
 _ONE_TOPIC = f"""Each clip holds **one topic, whole**: it starts where that topic begins and ends once its point
 is made. Never start or end a clip in the middle of a sentence or a thought, and never run two topics into
 one clip. If a topic is too long and has to be shortened, cut it at the end of a sentence, at a place where
 the part you keep still makes sense on its own.
 
+A clip tells one story or one topic from its setup to its payoff: the question or situation, what happens, and
+how it ends or what it means. Aim for {CLIP_IDEAL[0]} to {CLIP_IDEAL[1]} seconds; never more than {CLIP_MAX_SEC}.
+A clip under {CLIP_MIN_SEC} seconds is right only when the topic itself is that short; a clip that is short
+because it stops early is wrong.
+
+Before you choose, split the whole transcript into its topics or story parts, each with where it starts and ends.
+Then pick whole topics from that list. Do not pick a piece from the middle of a topic.
+
+Two neighbouring moments of the same story become one clip, not two. Clips must not touch or overlap unless they
+are clearly different topics.
+
 End a clip only after the last sentence of its topic is finished. Before you write `end`, read the next two or
 three lines of the transcript: if they still continue the same point (an answer, a punchline, a conclusion, a
 reaction to it), the clip is not finished yet. A few seconds too late is better than cutting the topic short.
 A clip is at most {CLIP_MAX_SEC} seconds; a longer topic ends at the end of a sentence where its point is already
-made. A clip that stops before its topic is done gets a low `complete` score."""
+made. A clip that stops before its topic is done gets a low `complete` score.
+
+The duration band here replaces any duration band in the rubric."""
 
 
 # Path A (the transcript is in the brief): `start` may be approximate, `end` is found again from `endQuote`.

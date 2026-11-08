@@ -14,11 +14,24 @@ is made. Never start or end a clip in the middle of a sentence or a thought, and
 one clip. If a topic is too long and has to be shortened, cut it at the end of a sentence, at a place where
 the part you keep still makes sense on its own.
 
+A clip tells one story or one topic from its setup to its payoff: the question or situation, what happens, and
+how it ends or what it means. Aim for 60 to 120 seconds; never more than 180.
+A clip under 45 seconds is right only when the topic itself is that short; a clip that is short
+because it stops early is wrong.
+
+Before you choose, split the whole transcript into its topics or story parts, each with where it starts and ends.
+Then pick whole topics from that list. Do not pick a piece from the middle of a topic.
+
+Two neighbouring moments of the same story become one clip, not two. Clips must not touch or overlap unless they
+are clearly different topics.
+
 End a clip only after the last sentence of its topic is finished. Before you write `end`, read the next two or
 three lines of the transcript: if they still continue the same point (an answer, a punchline, a conclusion, a
 reaction to it), the clip is not finished yet. A few seconds too late is better than cutting the topic short.
-A clip is at most 90 seconds; a longer topic ends at the end of a sentence where its point is already
+A clip is at most 180 seconds; a longer topic ends at the end of a sentence where its point is already
 made. A clip that stops before its topic is done gets a low `complete` score.
+
+The duration band here replaces any duration band in the rubric.
 
 ---
 
