@@ -145,7 +145,7 @@ def _retry_delay(exc: BaseException) -> float:
     return min(float(m.group(1)) + 1, 180.0) if m else 60.0
 
 
-TIMEOUT_SEC = 300                                 # one request; a run must never wait on Gemini for ever
+TIMEOUT_SEC = 600                                 # one request; a run must never wait on Gemini for ever
 
 _BLOCKED = {"SAFETY", "PROHIBITED_CONTENT", "BLOCKLIST", "SPII", "RECITATION", "IMAGE_SAFETY"}
 
@@ -175,7 +175,7 @@ def find_clips(system: str, user: str, *, client=None, pause=time.sleep) -> dict
             err = map_error(exc)
             low = str(getattr(exc, "message", "") or exc).lower()
             if "timeout" in type(exc).__name__.lower() or "timed out" in low:
-                err = GeminiError("timeout", "Gemini did not answer within 5 minutes: Retry.")
+                err = GeminiError("timeout", f"Gemini did not answer within {TIMEOUT_SEC // 60} minutes: Retry.")
                 set_last_error(err.message)
                 raise err from None
             if structured and getattr(exc, "code", None) == 400 and any(k in low for k in ("schema", "mime", "response_json", "json mode", "format")):

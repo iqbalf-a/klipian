@@ -532,14 +532,14 @@ def check_autopilot() -> tuple[str, str]:
     if not isinstance(r, dict) or len(g.configs) != 2 or "response_json_schema" in g.configs[1]:
         problems.append(f"Gemini find: a model that refuses the schema is asked again for plain JSON: {r}")
     r, g, _ = find(reply())
-    if g.configs[0].get("http_options") != {"timeout": 300000} or "thinking_config" in g.configs[0]:
+    if g.configs[0].get("http_options") != {"timeout": gm.TIMEOUT_SEC * 1000} or "thinking_config" in g.configs[0]:
         problems.append(f"Gemini find: a 300 s request timeout and the model's own thinking: {g.configs[0]}")
 
     class SlowTimeout(Exception):
         pass
     SlowTimeout.__name__ = "ReadTimeout"
     r, g, slept = find(SlowTimeout("The read operation timed out"))
-    if getattr(r, "code", "") != "timeout" or "5 minutes" not in r.message or slept or len(g.configs) != 1:
+    if getattr(r, "code", "") != "timeout" or f"{gm.TIMEOUT_SEC // 60} minutes" not in r.message or slept or len(g.configs) != 1:
         problems.append(f"Gemini find: a request that times out fails with the reason, no wait and no second try: {r}")
     r, _, _ = find(Boom(400, "API key not valid. Please pass a valid API key."))
     if getattr(r, "code", "") != "bad_key" or "check the key in Admin" not in r.message or gm.status()["lastError"] != r.message:
