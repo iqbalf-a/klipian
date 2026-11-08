@@ -314,6 +314,100 @@ def check_brief() -> tuple[str, str]:
     return PASS, f"brief.md identical; {len(expected)} replies read as before; JSON slips repaired or located"
 
 
+def check_settle() -> tuple[str, str]:
+    """Where a clip ends: settle_end (the end moves on to the end of its sentence or of the quoted last sentence, never
+    back by more than SNAP_MAX, never past the longest clip), the endQuote field through the Gemini brief and the import."""
+    import json as _json
+    from . import roundtrip as rt
+    from .models import Segment, Word
+
+    problems = []
+
+    def sentences(n, gap=0.5):
+        """n sentences of 9 one-second words: sentence i is [10 i, 10 i + 9], words "w<i>_<k>"."""
+        segs = []
+        for i in range(n):
+            ws = [Word(f"w{i}_{k}.", 10 * i + k, 10 * i + k + 1) for k in range(9)]
+            segs.append(Segment(" ".join(w.text for w in ws), 10 * i, 10 * i + 9, ws))
+        return [w for s in segs for w in s.words], segs
+
+    words, segs = sentences(12)
+
+    def at(end, quote="", start=0.0, **kw):
+        return rt.settle_end(words, segs, start, end, quote, **kw)
+
+    e, why = at(14.0)
+    if e != 19.0 or "extended 0:14 → 0:19" not in why:
+        problems.append(f"an end in the middle of a sentence moves to the end of that sentence: {e} {why!r}")
+    e, why = at(14.0, "w2_0 w2_1 w2_2 w2_3 w2_4 w2_5 w2_6 w2_7 w2_8")
+    if e != 29.0 or "quoted" not in why:
+        problems.append(f"an endQuote found 15 s further on extends the end to its last word: {e} {why!r}")
+    e, why = at(14.0, "zzz w2_1 w2_2 w2_3 w2_4 w2_5 w2_6 w2_7 w2_8")
+    if e != 29.0:
+        problems.append(f"a quote with 8 of 9 words in place (70 % or more) is found: {e}")
+    e, why = at(14.0, "nothing like it at all")
+    if e != 19.0:
+        problems.append(f"an endQuote that is not found falls back to the end of the sentence: {e}")
+    e, why = at(14.0, "w9_0 w9_1 w9_2 w9_3 w9_4 w9_5 w9_6 w9_7 w9_8")
+    if e != 19.0:
+        problems.append(f"an endQuote more than 30 s away is not looked for: {e}")
+    e, why = at(19.2)
+    if e != 19.0 or why:
+        problems.append(f"an end 0.2 s into the gap goes back to the sentence end without a fuss: {e} {why!r}")
+    gap_segs = [Segment("a", 0, 9.5), Segment("b", 13, 22)]
+    e, why = rt.settle_end([], gap_segs, 0, 12.5, "")
+    if e != 12.5 or why:
+        problems.append(f"an end that would have to go back by more than SNAP_MAX stays: {e} {why!r}")
+    e, why = rt.settle_end([], gap_segs, 0, 11.0, "")
+    if e != 9.5:
+        problems.append(f"an end in a gap goes to the end of the sentence before (within SNAP_MAX): {e}")
+    e, why = rt.settle_end(words, segs, 0, 80.5, "", max_sec=85)
+    if e != 79.0 or "within 85" not in why:
+        problems.append(f"an extension past the longest clip stops at the last sentence end that fits: {e} {why!r}")
+    e, why = rt.settle_end(words, segs, 0, 50.0, "", max_sec=30)
+    if e != rt.snap_to_word(words, 50.0, "end"):
+        problems.append(f"a clip that is already longer than the maximum is not shortened by more than SNAP_MAX: {e}")
+    e, why = rt.settle_end(words, None, 0, 14.4, "")
+    if e != rt.snap_to_word(words, 14.4, "end") or why:
+        problems.append("without segments the end is the plain word snap")
+    if rt.settle_end([], [], 0, 14.4, "") != (14.4, ""):
+        problems.append("without words or segments the end is untouched")
+
+    # the quote travels: Gemini brief -> reply -> candidate; an old reply without it still reads
+    brief = rt.build_gemini_brief("1. A (0:10 - 0:14): \"w1_0\"", "x.mp4")
+    if "endQuote" not in brief or "90 seconds" not in brief:
+        problems.append("the Gemini brief should ask for endQuote and name the longest clip")
+    # path A (transcript in the brief): the strict end rule and a required endQuote, in the pasted brief and the API's
+    from .models import Transcript as _T
+    tr = _T(source="x.mp4", duration=60.0, language="id", model="m", segments=segs[:3])
+    a_brief = rt.build_brief(tr, "## Tugas\n\n### 1. x\n\n## Teks posting\n", "x.mp4")
+    a_sys, _ = rt.build_api_brief(tr, "## Tugas\n\n### 1. x\n\n## Teks posting\n", "x.mp4", None, None, "", 5)
+    for label, out in (("path A brief", a_brief), ("API brief", a_sys)):
+        for need in ("read the next two or\nthree lines", "too late is better than cutting the topic short",
+                     f"at most {rt.CLIP_MAX_SEC} seconds", '"endQuote": "the last sentence', "low `complete` score"):
+            if need not in out.replace("\r\n", "\n"):
+                problems.append(f"the {label} lacks: {need!r}")
+        if "don't need to be precise" in out:
+            problems.append(f"the {label} still says the times need not be precise")
+    from . import claude_api as _ca
+    item = _ca.REPLY_SCHEMA["properties"]["clips"]["items"]
+    if "endQuote" not in item["properties"] or "endQuote" not in item["required"]:
+        problems.append("the API reply schema must carry a required endQuote")
+    reply = _json.dumps({"clips": [{"start": "0:10", "end": "0:14", "title": "T", "endQuote": "w1_0 w1_1 w1_2 w1_3 w1_4 w1_5 w1_6 w1_7 w1_8"},
+                                   {"start": "0:30", "end": "0:34", "title": "Old"}]})
+    cands, notes = rt.parse_reply_notes(words, reply, None, None, segments=segs)
+    if cands[0]["endSec"] != 19.0 or cands[0].get("endQuote", "").split()[0] != "w1_0" or not any("extended" in n for n in notes):
+        problems.append(f"the quoted clip should end at 19 s with its endQuote kept and a note: {cands[0]['endSec']} {notes}")
+    if cands[1]["endSec"] != 39.0 or "endQuote" in cands[1]:
+        problems.append(f"a clip without endQuote still reads and ends at its sentence end: {cands[1]}")
+    plain, _ = rt.parse_reply_notes(words, reply, None, None)
+    if plain[1]["endSec"] != rt.snap_to_word(words, 34.0, "end"):
+        problems.append("without segments the import snaps the end to a word as before")
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "the end moves on to the sentence end or the quoted last sentence, never back more than SNAP_MAX, capped at the longest clip; endQuote travels through the brief and the import"
+
+
 def check_geminibrief() -> tuple[str, str]:
     """Ask Gemini: the brief that turns Gemini's answer into the clip JSON, and that JSON read by the same import."""
     from . import roundtrip
@@ -7280,7 +7374,7 @@ def check_briefsteps() -> tuple[str, str]:
     return PASS, (f"the Khusus brief passes the strict checklist (rules first, 8 steps with Run and Expected, fallback, mistakes) at 30/45/60 s with 1 or 3 voice apps; "
                   f"size at 45 s {sizes[0]} characters (cap 40000); the fallback story is saved and the video stays 'belum dibuat'")
 
-CHECKS = {"briefagents": check_briefagents, "briefsteps": check_briefsteps, "migrate": check_migrate, "brief": check_brief, "geminibrief": check_geminibrief, "ranges": check_ranges, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch, "labelbox": check_labelbox, "shotframe": check_shotframe, "facelock": check_facelock,
+CHECKS = {"settle": check_settle, "briefagents": check_briefagents, "briefsteps": check_briefsteps, "migrate": check_migrate, "brief": check_brief, "geminibrief": check_geminibrief, "ranges": check_ranges, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch, "labelbox": check_labelbox, "shotframe": check_shotframe, "facelock": check_facelock,
           "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voicegoogle": check_voicegoogle, "voicestudio": check_voicestudio, "elevenlabs": check_elevenlabs, "khusus": check_khusus, "briefbuttons": check_briefbuttons, "music": check_music, "voice": check_voice, "decode": check_decode, "render": check_render}
 
 

@@ -12,12 +12,12 @@
    ========================================================================== */
 
 // the range helpers of gemini.js: globals in the page, a require in node
-const ytGem = (typeof module !== "undefined" && module.exports) ? require("./gemini.js") : { clipRanges, rangesSeconds, momentSpans };
+const ytGem = (typeof module !== "undefined" && module.exports) ? require("./gemini.js") : { clipRanges, rangesSeconds, momentSpans, RANGE_PAD_AFTER_PARTS, settleEnd };
 
 /* What to download for these candidates (YouTube seconds): each span padded, clamped to 0..duration, merged. */
 function partRanges(candidates, duration) {
   const spans = ytGem.momentSpans(candidates, candidates.map((_, i) => i));
-  return ytGem.clipRanges(spans, duration);
+  return ytGem.clipRanges(spans, duration, ytGem.RANGE_PAD_AFTER_PARTS);      // the end may move on to the end of its topic
 }
 
 /* Each candidate put onto the part that holds it. `parts` = [{ asset, a, b }] in YouTube seconds. A candidate
@@ -263,6 +263,7 @@ if (typeof document !== "undefined") (function () {
     const todo = y.parts.filter((p) => !p.transcribed);
     bar.hidden = false;
     let n = 0;
+    const settled = [];
     for (const p of todo) {
       n++;
       const label = `Transcribing ${n} of ${todo.length}`;
@@ -279,27 +280,37 @@ if (typeof document !== "undefined") (function () {
       const tr = await findTranscript(p.file);
       ASSET_TRANSCRIPTS[p.asset] = tr;
       if (p.asset === activeAssetId) realTranscript = tr;
-      snapPart(p, tr);
+      settled.push(...snapPart(p, tr));
       p.transcribed = true;
       save();
     }
-    say(note, "Done. Open Analyze → Choose moments / Clips: use “Select all from this brief”, then Render selected.");
+    say(note, `${settled.length ? `Ends settled: ${settled.join("; ")}. ` : ""}Done. Open Analyze → Choose moments / Clips: use “Select all from this brief”, then Render selected.`);
   }
 
   /* Move a part's clips to the nearest word boundary (the same limit as snapToWord, roundtrip.js). */
   function snapPart(p, tr) {
     const words = tr?.segments ? tr.segments.flatMap((s) => s.words || []) : (tr?.words || []);
-    if (!words.length) return;
+    if (!words.length) return [];
     const near = (time, side) => {
       const c = words.map((w) => (side === "start" ? w.start : w.end));
       const best = c.reduce((a, b) => (Math.abs(b - time) < Math.abs(a - time) ? b : a));
       return Math.abs(best - time) <= SNAP_MAX ? best : time;
     };
-    const fix = (k) => (k.asset === p.asset ? { ...k, startSec: near(k.startSec, "start"), endSec: near(k.endSec, "end") } : k);
+    const segs = tr.segments || [];
+    const notes = [];
+    const fix = (k) => {
+      if (k.asset !== p.asset) return k;
+      const startSec = near(k.startSec, "start");
+      const { end, why } = ytGem.settleEnd(words, segs, startSec, k.endSec, k.endQuote || "");
+      if (why) notes.push(`“${k.title}”: ${why}`);
+      if (end >= (tr.duration || Infinity) - 0.5) notes.push(`“${k.title}”: ends at the end of the downloaded part`);
+      return { ...k, startSec, endSec: end };
+    };
     if (activeAssetId === p.asset) DATA.candidates = (DATA.candidates || []).map(fix);
     else if (ASSET_CANDIDATES[p.asset]) ASSET_CANDIDATES[p.asset] = ASSET_CANDIDATES[p.asset].map(fix);
     if (typeof renderList === "function") renderList();
     if (typeof renderRecommendations === "function") renderRecommendations();
+    return notes;
   }
 
   draw();

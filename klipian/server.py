@@ -262,7 +262,8 @@ def _import_reply(name: str, text: str) -> tuple[list, list]:
     transcript = _transcript_for(name)
     candidates, notes = roundtrip.parse_reply_notes(
         transcript.words if transcript else [], text,
-        cues_mod.load(find_video(name), Cache(CACHE_DIR))["cues"], name or None)
+        cues_mod.load(find_video(name), Cache(CACHE_DIR))["cues"], name or None,
+        segments=transcript.segments if transcript else None)
     # The final YouTube title is composed here, by this profile's rule, from title and hashtags
     # (what Claude wrote in youtubeTitle is not used): one that would not fit 100 characters
     # is flagged, so the person sees it before rendering.

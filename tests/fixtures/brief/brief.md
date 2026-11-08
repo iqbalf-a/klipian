@@ -5,13 +5,20 @@ worth turning into short vertical videos.
 
 **Source duration:** 42:03 · **167 words**
 
-The times you give don't need to be precise. Approximate min:sec is fine;
-klipian will snap the cut points to the nearest word boundary.
+`start` may be approximate min:sec: klipian snaps it to the nearest word. `end` is found from `endQuote`:
+copy the last sentence of the clip exactly as it is in the transcript, and klipian matches it to the words and ends
+the clip there (the `end` time still has to be close, within 30 seconds).
 
 Each clip holds **one topic, whole**: it starts where that topic begins and ends once its point
 is made. Never start or end a clip in the middle of a sentence or a thought, and never run two topics into
 one clip. If a topic is too long and has to be shortened, cut it at the end of a sentence, at a place where
 the part you keep still makes sense on its own.
+
+End a clip only after the last sentence of its topic is finished. Before you write `end`, read the next two or
+three lines of the transcript: if they still continue the same point (an answer, a punchline, a conclusion, a
+reaction to it), the clip is not finished yet. A few seconds too late is better than cutting the topic short.
+A clip is at most 90 seconds; a longer topic ends at the end of a sentence where its point is already
+made. A clip that stops before its topic is done gets a low `complete` score.
 
 ---
 
@@ -167,6 +174,7 @@ or comments; every value is finished text or a number.
       "end": "1:07",
       "title": "Lose 300M Because of Timing",
       "hook": "exact quote from transcript",
+      "endQuote": "the last sentence of the clip, copied exactly from the transcript",
       "scores": { "hook": 9, "complete": 8, "payoff": 9, "emotion": 8, "duration": 9 },
       "reason": "one or two sentences for a human to read",
       "post": {

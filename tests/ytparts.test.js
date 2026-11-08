@@ -7,16 +7,16 @@ const eq = (got, want, what) => { n++; assert.deepStrictEqual(got, want, `${what
 const K = (title, startSec, endSec, more = {}) => ({ title, startSec, endSec, importId: "x", ...more });
 
 // ranges: 20 s of padding both sides, clamped to 0..duration, ranges closer than 5 s joined
-eq(partRanges([K("a", 100, 160)], 3600), [[80, 180]], "one clip is padded by 20 s each side");
-eq(partRanges([K("a", 5, 60)], 3600), [[0, 80]], "the start is clamped to 0");
+eq(partRanges([K("a", 100, 160)], 3600), [[80, 195]], "one clip is padded by 20 s before and 35 s after");
+eq(partRanges([K("a", 5, 60)], 3600), [[0, 95]], "the start is clamped to 0");
 eq(partRanges([K("a", 3550, 3590)], 3600), [[3530, 3600]], "the end is clamped to the duration");
-eq(partRanges([K("a", 100, 160), K("b", 190, 250)], 3600), [[80, 270]], "padded clips that overlap are one range");
-eq(partRanges([K("a", 100, 160), K("b", 203, 260)], 3600), [[80, 280]], "padded ranges 3 s apart are one");
-eq(partRanges([K("a", 100, 160), K("b", 206, 260)], 3600), [[80, 180], [186, 280]], "padded ranges 6 s apart stay two");
-eq(partRanges([K("a", 100, 160), K("b", 400, 460)], 3600), [[80, 180], [380, 480]], "far clips stay two ranges");
-eq(partRanges([K("b", 400, 460), K("a", 100, 160)], 3600), [[80, 180], [380, 480]], "the order of the clips does not matter");
+eq(partRanges([K("a", 100, 160), K("b", 190, 250)], 3600), [[80, 285]], "padded clips that overlap are one range");
+eq(partRanges([K("a", 100, 160), K("b", 218, 260)], 3600), [[80, 295]], "padded ranges 3 s apart are one");
+eq(partRanges([K("a", 100, 160), K("b", 221, 260)], 3600), [[80, 195], [201, 295]], "padded ranges 6 s apart stay two");
+eq(partRanges([K("a", 100, 160), K("b", 400, 460)], 3600), [[80, 195], [380, 495]], "far clips stay two ranges");
+eq(partRanges([K("b", 400, 460), K("a", 100, 160)], 3600), [[80, 195], [380, 495]], "the order of the clips does not matter");
 eq(partRanges([], 3600), [], "no clips, nothing to download");
-eq(partRanges([K("a", 100, 160)], NaN), [[80, 180]], "an unknown duration clamps nothing");
+eq(partRanges([K("a", 100, 160)], NaN), [[80, 195]], "an unknown duration clamps nothing");
 
 // mapping YouTube seconds onto a part: t_file = t_youtube - a (a = the REAL start, which may differ from the requested one)
 const parts = [{ asset: "a1", a: 80, b: 180 }, { asset: "a2", a: 380, b: 480 }];
