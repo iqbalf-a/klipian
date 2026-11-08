@@ -29,6 +29,19 @@ let SOURCES_FOLDER = "";
 let SOURCE_ROWS = [];             // what the table shows, for the credit form
 let creditOpen = "";              // the video whose credit form is open
 const selected = new Set();       // names of the live videos ticked for Delete selected
+const sourceSort = createSort("sources", "at");
+const sourceSearch = createSearch($("#sourceSearch"), () => { sourcePager.first(); drawSources(); });
+const creditWho = (s) => {
+  const c = s.credit || {};
+  return [c.platform, c.creator].filter(Boolean).join(" · ") || (c.title ? `"${c.title}"` : "");
+};
+const SOURCE_GETTERS = {
+  name: (s) => s.name, size: (s) => s.bytes, length: (s) => s.duration, at: (s) => s.at,
+  transcribed: (s) => !!s.transcribed, used: (s) => s.used_by.length, credit: (s) => creditWho(s),
+};
+const SOURCE_FIELDS = ["name", (s) => s.used_by.map((u) => u.name).join(" "),
+  (s) => [s.credit?.platform, s.credit?.creator, s.credit?.title].join(" ")];
+let sourceSummary = "";
 const sourcePager = createPager({ key: "sources", mount: $("#sourcePager"), onChange: () => drawSources() });
 
 async function loadSources() {
@@ -61,8 +74,9 @@ async function loadSources() {
   const live = source.filter((s) => !s.deleted);
   const gone = source.length - live.length;
   const total = live.reduce((t, s) => t + s.bytes, 0);
-  note.textContent = `${live.length} video${live.length === 1 ? "" : "s"} in this profile's sources · ${formatBytes(total)}`
+  sourceSummary = `${live.length} video${live.length === 1 ? "" : "s"} in this profile's sources · ${formatBytes(total)}`
     + (gone ? ` · ${gone} deleted` : "");
+  note.textContent = sourceSummary;
   drawSources();
 }
 
@@ -70,18 +84,28 @@ async function loadSources() {
    WHOLE list, so it still finds its video on page 2. */
 function drawSources() {
   const list = $("#sourceList");
-  const first = SOURCE_ROWS.length ? SOURCE_ROWS.indexOf(sourcePager.slice(SOURCE_ROWS)[0]) : 0;
-  const pageLive = sourcePager.slice(SOURCE_ROWS).filter((s) => !s.deleted);
+  const q = sourceSearch.q();
+  const shown = sourceSort.apply(SOURCE_ROWS.filter((s) => matchesQuery(s, SOURCE_FIELDS, q)), SOURCE_GETTERS);
+  const note = $("#sourceNote");
+  if (note && SOURCE_ROWS.length) note.textContent = q ? `${shown.length} of ${SOURCE_ROWS.length} match` : sourceSummary;
+  if (q && !shown.length) {
+    sourcePager.slice([]);
+    list.innerHTML = `<p class="empty">No video matches “${escapeHTML(q)}”. <button class="btn sm" type="button" data-clear-search>Clear search</button></p>`;
+    drawSelection();
+    return;
+  }
+  const page = sourcePager.slice(shown);
+  const pageLive = page.filter((s) => !s.deleted);
   const allTicked = pageLive.length > 0 && pageLive.every((s) => selected.has(s.name));
   list.innerHTML = `
     <div class="ws-row sources head">
       <span class="pick"><input type="checkbox" data-select-page title="Select every video on this page"
-        ${allTicked ? "checked" : ""} ${pageLive.length ? "" : "disabled"} aria-label="Select every video on this page"></span><span>Video</span><span>Size</span><span>Length</span><span>Added</span><span>Transcript</span><span>Used by</span><span>Credit</span><span></span>
-    </div>` + sourcePager.slice(SOURCE_ROWS).map((s, k) => {
-      const i = first + k;
+        ${allTicked ? "checked" : ""} ${pageLive.length ? "" : "disabled"} aria-label="Select every video on this page"></span>${[["name", "Video"], ["size", "Size"], ["length", "Length"], ["at", "Added"],
+        ["transcribed", "Transcript"], ["used", "Used by"], ["credit", "Credit"]].map(([col, label]) => `<span>${sourceSort.headHTML(col, label)}</span>`).join("")}<span></span>
+    </div>` + page.map((s) => {
+      const i = SOURCE_ROWS.indexOf(s);       // the index into the WHOLE list, whatever the search and sort show
       const used = s.used_by.map((u) => u.name).join(", ");
-      const c = s.credit || {};
-      const who = [c.platform, c.creator].filter(Boolean).join(" · ") || (c.title ? `"${c.title}"` : "");
+      const who = creditWho(s);
       if (s.deleted) return `
     <div class="ws-row sources gone">
       <span class="pick"></span>
@@ -164,6 +188,9 @@ $("#sourceList")?.addEventListener("change", (e) => {
 });
 
 $("#sourceList")?.addEventListener("click", (e) => {
+  const sortBtn = e.target.closest("[data-sort]");
+  if (sortBtn) { sourceSort.toggle(sortBtn.dataset.sort); sourcePager.first(); drawSources(); return; }
+  if (e.target.closest("[data-clear-search]")) { sourceSearch.clear(); sourcePager.first(); drawSources(); return; }
   const del = e.target.closest("[data-delete]");
   if (del) { deleteSource(SOURCE_ROWS[Number(del.dataset.delete)]); return; }
   const again = e.target.closest("[data-again]");

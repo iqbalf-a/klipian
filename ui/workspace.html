@@ -74,9 +74,11 @@
          1 clip), but stored in clips.json via /api/workspace/clips so it can
          be edited directly from here instead of opening a separate Excel. -->
     <section class="ws-panel" id="panelClips">
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-3" style="flex-wrap:wrap; row-gap:8px">
         <h1 class="text-[20px] font-extrabold tracking-tight">Clips</h1>
         <span class="text-text-faint text-[13px]" id="clipSummary" role="status">loading…</span>
+        <input type="search" class="ws-input ws-search" id="clipSearch" placeholder="Search…" aria-label="Search clips" autocomplete="off">
+        <span class="text-text-faint text-[13px]" id="clipMatch" role="status" hidden></span>
         <!-- Rows whose render file is no longer in out/ (shown only when there are some);
              a click shows just those. -->
         <button class="btn sm ws-gone-count" id="clipGone" type="button" hidden></button>
@@ -128,16 +130,16 @@
               <th class="sticky top-0 z-10 bg-surface-2 border-b border-glass-border" style="width:36px">
                 <input type="checkbox" id="clipSelectAll" aria-label="Select all clips on this page"></th>
               <th class="sticky top-0 z-10 bg-surface-2 text-left text-[11px] font-semibold text-text-faint px-3 py-2 border-b border-glass-border"
-                  style="width:110px">Status</th>
-              <th class="sticky top-0 z-10 bg-surface-2 text-left text-[11px] font-semibold text-text-faint px-3 py-2 border-b border-glass-border">Title / hook</th>
+                  style="width:110px" data-col="status" data-label="Status"></th>
+              <th class="sticky top-0 z-10 bg-surface-2 text-left text-[11px] font-semibold text-text-faint px-3 py-2 border-b border-glass-border" data-col="title" data-label="Title / hook"></th>
               <th class="sticky top-0 z-10 bg-surface-2 text-left text-[11px] font-semibold text-text-faint px-3 py-2 border-b border-glass-border"
-                  style="width:150px">Platform</th>
+                  style="width:150px" data-col="platform" data-label="Platform"></th>
               <th class="sticky top-0 z-10 bg-surface-2 text-left text-[11px] font-semibold text-text-faint px-3 py-2 border-b border-glass-border"
-                  style="width:130px">Upload date</th>
+                  style="width:130px" data-col="date" data-label="Upload date"></th>
               <th class="sticky top-0 z-10 bg-surface-2 text-left text-[11px] font-semibold text-text-faint px-3 py-2 border-b border-glass-border"
                   style="width:90px">Time</th>
               <th class="sticky top-0 z-10 bg-surface-2 text-left text-[11px] font-semibold text-text-faint px-3 py-2 border-b border-glass-border"
-                  style="width:120px" id="clipCreatedHead"></th>
+                  style="width:120px" data-col="created" data-label="Created"></th>
               <th class="sticky top-0 z-10 bg-surface-2 border-b border-glass-border" style="width:80px"></th>
               <th class="sticky top-0 z-10 bg-surface-2 border-b border-glass-border" style="width:36px"></th>
             </tr>
@@ -318,9 +320,10 @@
          editor) -- just displayed again here, no new endpoint, so there's
          no second definition of "what's been rendered". -->
     <section class="ws-panel" id="panelRender">
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-3" style="flex-wrap:wrap; row-gap:8px">
         <h1 class="text-[20px] font-extrabold tracking-tight">Rendered output</h1>
         <span class="text-text-faint text-[13px]" id="renderNote">loading…</span>
+        <input type="search" class="ws-input ws-search" id="renderSearch" placeholder="Search…" aria-label="Search rendered files" autocomplete="off">
       </div>
       <div id="renderList"></div>
       <div id="renderPager" hidden></div>

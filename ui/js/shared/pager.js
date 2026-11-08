@@ -94,37 +94,96 @@ function createPager({ key, mount, onChange }) {
       return items.slice(page * size, page * size + size);
     },
     first() { page = 0; },                      // e.g. a new row is added at the top
+    goTo(index) { page = Math.floor(Math.max(0, index) / size); },   // the page holding row `index` of the list given to slice()
     last() { page = Infinity; },                // ... or at the bottom (clamped by slice)
   };
 }
 
-/* ---------- sorting a table by its Created time ----------
-   const sort = createSort("clips");            // "desc" (newest first) unless chosen
-   sort.apply(rows, (r) => r.createdAt);        // a sorted COPY; ties keep their order
-   sort.toggle();                               // flips and remembers (localStorage, try/catch)
-   sort.headHTML("Created");                    // the heading's button, arrow included
-   Sorting happens BEFORE paging: slice() the sorted copy. */
-function createSort(key) {
+/* ---------- sorting a table by a column, and searching its rows ----------
+   const sort = createSort("clips", "created");   // { col, dir }, remembered as "col:dir" (an old "asc"/"desc" is `created`)
+   const rows = sort.apply(list, { title: (r) => r.title, created: (r) => r.createdAt });   // a sorted COPY
+   sort.toggle("title");                          // same column: flips; another column: starts at its natural direction
+   sort.headHTML("title", "Title / hook");        // the heading's button, arrow on the active column only
+   sort.ariaSort("title");                        // "ascending" | "descending" | "none", for the <th>
+   Order is filter -> sort -> pager.slice(). Numbers compare as numbers, text with localeCompare (numeric, so
+   "clip 2" < "clip 10"); an empty value is ALWAYS last, in both directions; ties keep their order. */
+
+// A new column starts "asc" (A to Z), except these, where the biggest or newest first is what a person wants.
+const SORT_DESC_FIRST = new Set(["created", "at", "size", "length", "date", "used"]);
+const sortStart = (col) => (SORT_DESC_FIRST.has(col) ? "desc" : "asc");
+
+function parseSort(raw, defaultCol) {
+  if (raw === "asc" || raw === "desc") return { col: "created", dir: raw };       // the old, Created-only choice
+  const [col, dir] = String(raw || "").split(":");
+  if (col && (dir === "asc" || dir === "desc")) return { col, dir };
+  return { col: defaultCol, dir: sortStart(defaultCol) };
+}
+
+const sortEmpty = (v) => v === "" || v == null || (typeof v === "number" && Number.isNaN(v));
+
+function sortRows(rows, getters, col, dir) {
+  const get = getters[col] || getters[Object.keys(getters)[0]];
+  const sign = dir === "desc" ? -1 : 1;
+  return rows.map((r, i) => {
+    let v = get(r);
+    if (typeof v === "boolean") v = Number(v);
+    return { r, i, v };
+  }).sort((a, b) => {
+    const ea = sortEmpty(a.v), eb = sortEmpty(b.v);
+    if (ea || eb) return ea === eb ? a.i - b.i : ea ? 1 : -1;
+    const c = typeof a.v === "number" && typeof b.v === "number"
+      ? a.v - b.v
+      : String(a.v).localeCompare(String(b.v), undefined, { numeric: true, sensitivity: "base" });
+    return sign * c || a.i - b.i;
+  }).map((x) => x.r);
+}
+
+function createSort(key, defaultCol = "created") {
   const K = `klipian.sort.${key}`;
-  let dir = "desc";
-  try { if (localStorage.getItem(K) === "asc") dir = "asc"; } catch { /* default */ }
+  let state = { col: defaultCol, dir: sortStart(defaultCol) };
+  try { state = parseSort(localStorage.getItem(K), defaultCol); } catch { /* default */ }
   return {
-    dir: () => dir,
-    toggle() {
-      dir = dir === "desc" ? "asc" : "desc";
-      try { localStorage.setItem(K, dir); } catch { /* not remembered */ }
+    col: () => state.col,
+    dir: () => state.dir,
+    toggle(col) {
+      state = col === state.col ? { col, dir: state.dir === "desc" ? "asc" : "desc" } : { col, dir: sortStart(col) };
+      try { localStorage.setItem(K, `${state.col}:${state.dir}`); } catch { /* not remembered */ }
     },
-    apply(rows, time) {
-      const sign = dir === "desc" ? -1 : 1;
-      return rows.map((r, i) => ({ r, i, t: Number(time(r)) || 0 }))
-        .sort((a, b) => sign * (a.t - b.t) || a.i - b.i)
-        .map((x) => x.r);
-    },
-    headHTML(label) {
-      return `<button class="sort-head" type="button" data-sort-created
-        title="${dir === "desc" ? "Newest first: click for oldest first" : "Oldest first: click for newest first"}"
-        aria-label="Sort by ${label}, ${dir === "desc" ? "newest" : "oldest"} first">${label}
-        <span class="sort-arrow" aria-hidden="true">${dir === "desc" ? "▼" : "▲"}</span></button>`;
+    apply: (rows, getters) => sortRows(rows, getters, state.col, state.dir),
+    ariaSort: (col) => (col !== state.col ? "none" : state.dir === "desc" ? "descending" : "ascending"),
+    headHTML(col, label) {
+      const on = col === state.col;
+      const word = state.dir === "desc" ? "descending" : "ascending";
+      return `<button class="sort-head" type="button" data-sort="${col}"
+        title="${on ? `Sorted ${word}: click to flip` : `Sort by ${label}`}"
+        aria-label="Sort by ${label}${on ? `, ${word}` : ""}">${label}${on
+          ? ` <span class="sort-arrow" aria-hidden="true">${state.dir === "desc" ? "▼" : "▲"}</span>` : ""}</button>`;
     },
   };
 }
+
+/* Every word of `q` (split on spaces) must appear, in any case, in the joined `fields` of the row.
+   A field is a key of the row or a function of it; an empty query lets everything through. */
+function matchesQuery(row, fields, q) {
+  const words = String(q || "").toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return true;
+  const hay = fields.map((f) => {
+    const v = typeof f === "function" ? f(row) : row[f];
+    return v == null ? "" : String(v);
+  }).join("\n").toLowerCase();
+  return words.every((w) => hay.includes(w));
+}
+
+/* The small search box of a panel: onChange runs after every keystroke, Esc empties it. Not remembered. */
+function createSearch(input, onChange) {
+  input?.addEventListener("input", () => onChange());
+  input?.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && input.value) { input.value = ""; onChange(); }
+  });
+  return {
+    q: () => (input?.value || "").trim(),
+    clear() { if (input) input.value = ""; },
+  };
+}
+
+if (typeof module !== "undefined" && module.exports) module.exports = { createSort, parseSort, sortRows, matchesQuery };

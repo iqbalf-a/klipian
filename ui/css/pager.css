@@ -302,3 +302,7 @@ dialog.confirm-dlg:has(.bulk-plan) { width: min(560px, calc(100vw - 32px)); }
   #sourceList { overflow-x: auto; }
   .ws-row.sources { min-width: 810px; }
 }
+
+/* The small search box in a panel title (js/shared/pager.js, createSearch): a bordered field like the buttons, on its own row on a phone. */
+.ws-search { width: 200px; max-width: 100%; height: 30px; box-sizing: border-box; border: 1px solid var(--border-bright); }
+@media (max-width: 600px) { .ws-search { flex: 1 1 100%; width: 100%; } }

@@ -23,7 +23,20 @@ const DETAIL_FIELDS = ["episode", "file", "description", "tiktokCaption",
   "youtubeUrl", "tiktokUrl", "notes", "date", "time"];
 
 let CLIPS = [];
-const clipSort = createSort("clips");
+const clipSort = createSort("clips", "created");
+const clipSearch = createSearch($("#clipSearch"), () => { clipPager.first(); drawClips(); });
+const CLIP_GETTERS = {
+  status: (c) => c.status || "Draft", title: (c) => c.title, platform: (c) => c.platform,
+  date: (c) => (c.date ? `${c.date} ${c.time || ""}`.trim() : ""),       // no date: last, in both directions
+  created: (c) => c.createdAt || c.at,
+};
+const CLIP_FIELDS = ["title", "status", "platform", "episode", "file", "description", "tiktokCaption", "notes", "date"];
+/* What the table shows, before paging: the "deleted files" filter AND the search, then the sort. */
+function visibleClips() {
+  const q = clipSearch.q();
+  const list = (showGoneOnly ? CLIPS.filter((c) => c.fileMissing) : CLIPS).filter((c) => matchesQuery(c, CLIP_FIELDS, q));
+  return clipSort.apply(list, CLIP_GETTERS);
+}
 let DRAFT = null;                    // the "+ New clip" row being filled in: local until Save
 let showGoneOnly = false;            // the "N with deleted files" filter
 const SELECTED = new Set();          // ids of the ticked rows: they stay across pages and sorting
@@ -174,8 +187,10 @@ function row(c) {
 function drawClips() {
   const body = $("#clipBody");
   if (!body) return;
-  const head = $("#clipCreatedHead");
-  if (head) head.innerHTML = clipSort.headHTML("Created");
+  document.querySelectorAll("#clipTable th[data-col]").forEach((th) => {
+    th.innerHTML = clipSort.headHTML(th.dataset.col, th.dataset.label);
+    th.setAttribute("aria-sort", clipSort.ariaSort(th.dataset.col));
+  });
   updateGoneCount();
   updateReadyButton();
   syncDraftFromDom();
@@ -190,8 +205,17 @@ function drawClips() {
     </td></tr>`);
     return;
   }
-  body.innerHTML = draftHTML + clipPager.slice(clipSort.apply(showGoneOnly ? CLIPS.filter((c) => c.fileMissing) : CLIPS,
-      (c) => c.createdAt || c.at)).map(row).join("");
+  const shown = visibleClips();
+  const q = clipSearch.q();
+  const match = $("#clipMatch");
+  if (match) { match.hidden = !q; match.textContent = `${shown.length} of ${CLIPS.length} match`; }
+  if (q && !shown.length) {
+    clipPager.slice([]);
+    body.innerHTML = draftHTML + `<tr><td colspan="9" class="empty">No clip matches “${escapeHTML(q)}”.
+      <button class="btn sm" type="button" data-clear-search>Clear search</button></td></tr>`;
+    return;
+  }
+  body.innerHTML = draftHTML + clipPager.slice(shown).map(row).join("");
 }
 
 /* Table rows only have inputs for INLINE_FIELDS -- detail fields (still
@@ -235,9 +259,17 @@ async function saveClip(clip) {
   }
 }
 
-$("#clipCreatedHead")?.addEventListener("click", (e) => {
-  if (!e.target.closest("[data-sort-created]")) return;
-  clipSort.toggle();
+$("#clipTable thead")?.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-sort]");
+  if (!b) return;
+  clipSort.toggle(b.dataset.sort);
+  clipPager.first();
+  drawClips();
+});
+
+$("#clipBody")?.addEventListener("click", (e) => {
+  if (!e.target.closest("[data-clear-search]")) return;
+  clipSearch.clear();
   clipPager.first();
   drawClips();
 });
@@ -402,8 +434,10 @@ async function saveDraft() {
     if (j.error) throw new Error(j.error);
     CLIPS.unshift({ ...body, id: j.id, createdAt: j.createdAt });
     DRAFT = null;
-    // The new row is the newest: first when newest comes first, else last.
-    if (clipSort.dir() === "desc") clipPager.first(); else clipPager.last();
+    // Open the page that holds the new row, whatever the sort: a search or filter that hides it is dropped first.
+    const fresh = CLIPS[0];
+    if (!visibleClips().includes(fresh)) { clipSearch.clear(); showGoneOnly = false; }
+    clipPager.goTo(visibleClips().indexOf(fresh));
     summarizeClips();
     drawClips();
     clipError("");

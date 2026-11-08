@@ -8,7 +8,11 @@
    ========================================================================== */
 
 let RENDER = [];
-const renderSort = createSort("render");
+const renderSort = createSort("render", "created");
+const renderSearch = createSearch($("#renderSearch"), () => { renderPager.first(); drawRender(); });
+const RENDER_GETTERS = { file: (r) => r.file, size: (r) => r.mb, created: (r) => r.created || r.at };
+const RENDER_FIELDS = ["file", "video"];
+let renderSummary = "";
 const renderPager = createPager({ key: "render", mount: $("#renderPager"), onChange: () => drawRender() });
 
 async function loadRender() {
@@ -25,10 +29,11 @@ async function loadRender() {
   if (note) {
     const mb = RENDER.reduce((t, r) => t + r.mb, 0);
     const loose = IS_GUEST ? 0 : RENDER.filter((r) => r.scheduled === false).length;
-    note.textContent = RENDER.length
+    renderSummary = RENDER.length
       ? `${RENDER.length} file${RENDER.length > 1 ? "s" : ""} · ${mb.toFixed(1)} MB`
         + (loose ? ` · ${loose} not in the schedule` : "")
       : "nothing rendered yet";
+    note.textContent = renderSummary;
   }
   drawRender();
 }
@@ -41,10 +46,19 @@ function drawRender() {
     list.innerHTML = `<p class="empty">Nothing in the out/ folder yet.</p>`;
     return;
   }
-  const page = renderPager.slice(renderSort.apply(RENDER, (r) => r.created || r.at));
+  const q = renderSearch.q();
+  const shown = renderSort.apply(RENDER.filter((r) => matchesQuery(r, RENDER_FIELDS, q)), RENDER_GETTERS);
+  const note = $("#renderNote");
+  if (note) note.textContent = q ? `${shown.length} of ${RENDER.length} match` : renderSummary;
+  if (q && !shown.length) {
+    renderPager.slice([]);
+    list.innerHTML = `<p class="empty">No file matches “${escapeHTML(q)}”. <button class="btn sm" type="button" data-clear-search>Clear search</button></p>`;
+    return;
+  }
+  const page = renderPager.slice(shown);
   list.innerHTML = `
     <div class="ws-row head">
-      <span>File</span><span>Size</span><span>${renderSort.headHTML("Created")}</span><span></span><span></span><span></span>
+      <span>${renderSort.headHTML("file", "File")}</span><span>${renderSort.headHTML("size", "Size")}</span><span>${renderSort.headHTML("created", "Created")}</span><span></span><span></span><span></span>
     </div>` + page.map((r) => `
     <div class="ws-row render" data-i="${RENDER.indexOf(r)}">
       <span class="name" title="${escapeHTML(r.file)}">${escapeHTML(r.file)} <span class="data">(${r.video === "manual" ? "Manual, chosen by hand" : escapeHTML(r.video)})</span></span>
@@ -59,12 +73,9 @@ function drawRender() {
 }
 
 $("#renderList")?.addEventListener("click", async (e) => {
-  if (e.target.closest("[data-sort-created]")) {
-    renderSort.toggle();
-    renderPager.first();
-    drawRender();
-    return;
-  }
+  const sortBtn = e.target.closest("[data-sort]");
+  if (sortBtn) { renderSort.toggle(sortBtn.dataset.sort); renderPager.first(); drawRender(); return; }
+  if (e.target.closest("[data-clear-search]")) { renderSearch.clear(); renderPager.first(); drawRender(); return; }
   const b = e.target.closest("[data-action]");
   if (!b) return;
   const row = b.closest("[data-i]");
