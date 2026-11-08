@@ -2470,7 +2470,19 @@ h1, h2, h3 {
 
 /* Add video (Assets): the button sits at the right of the panel head, the
    progress row below it while a file is being copied into sources/. */
-.panel-head .add-video-btn { margin-left: auto; }
+/* The three add buttons are one group, pushed right, even gaps; on a phone they wrap onto the next line. */
+.panel-head .add-video-actions { margin-left: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--s2); }
+.yt-clips { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s1); }
+.yt-clips:empty { display: none; }
+.yt-clips li { display: flex; gap: var(--s3); align-items: baseline; }
+.yt-clips .data { color: var(--text-faint); }
+#ytPanel .progress { width: 100%; height: 6px; }
+#ytNote[data-error="true"] { color: var(--danger); }
+#ytPanel[hidden] { display: none; }
+#ytPanel > * { min-width: 0; max-width: 100%; }
+#ytPanel .step-note, #ytPanel .data, #ytPanel h2 { overflow-wrap: anywhere; }
+#ytPanel .step-head { flex-wrap: wrap; }
+#ytPanel .step-actions { flex-wrap: wrap; }
 .upload-row { padding: 0 var(--s5) var(--s3); display: grid; gap: var(--s2); }
 .upload-row .progress { width: 100%; height: 6px; }
 .upload-line { display: flex; align-items: center; gap: var(--s3); }

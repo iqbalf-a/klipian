@@ -2374,6 +2374,7 @@ def check_ytdl() -> tuple[str, str]:
 
         js = {"runtime": "node", "path": "node", "ejs": True}
         qualities: list = []
+        sections: list = []
 
         @classmethod
         def js_state(cls):
@@ -2390,8 +2391,9 @@ def check_ytdl() -> tuple[str, str]:
             return dict(cls.infos[url.split("v=")[-1]])
 
         @classmethod
-        def download(cls, url, folder, hook, ffmpeg_dir, quality=1080):
+        def download(cls, url, folder, hook, ffmpeg_dir, quality=1080, section=None):
             cls.calls["download"] += 1
+            cls.sections.append(section)
             (folder / "video.f137.mp4.part").write_bytes(b"partial")
             step = {"status": "downloading", "filename": "video.f137.mp4", "downloaded_bytes": 50,
                     "total_bytes": 100, "speed": 1e6, "eta": 3, "info_dict": {"requested_formats": [1, 2]}}
@@ -2551,6 +2553,57 @@ def check_ytdl() -> tuple[str, str]:
                 problems.append("_put_credit reported writing over an existing credit")
             if (credits.load().get("hand.mp4") or {}).get("creator") != "Mine":
                 problems.append("an existing credit was overwritten")
+
+            # --- parts only: a section is a file of its own, named with its range, never "the video already here"
+            if ytdl.section_label((750.2, 850.9)) != "12m30s-14m11s" or ytdl.section_label((3725, 7300)) != "1h02m05s-2h01m40s":
+                problems.append("the range in a part's file name is not 12m30s-14m11s (start down, end up) / 1h02m05s-2h01m40s")
+            n = Fake.calls["download"]
+            Fake.sections.clear()
+            for bad in ((5, 5), (9, 2), ("x", 3), (-1, 4)):
+                if code_of(ytdl.start, URL_A, 1080, None, bad) != "other":
+                    problems.append(f"a bad section {bad} should be refused")
+            if Fake.calls["download"] != n:
+                problems.append("a refused section started a download")
+            part_names = []
+            for sec in ((750.2, 850.9), (1000, 1100)):
+                with mock.patch("klipian.ffmpeg_tools._require", lambda b: b), \
+                        mock.patch("klipian.ffmpeg_tools.run", lambda *a, **k: type("R", (), {"stdout": "0.04\n"})()):
+                    sp = wait(ytdl.start(URL_A, 1080, None, sec)["id"])
+                if sp.get("state") != "done":
+                    problems.append(f"the part {sec} did not finish: {sp}")
+                    continue
+                part_names.append(sp["name"])
+            if Fake.sections != [(750.2, 850.9), (1000.0, 1100.0)]:
+                problems.append(f"download_ranges did not get the two sections: {Fake.sections}")
+            if part_names != ["Raditya Dika - Apa Kabar Syahrini [12m30s-14m11s].mp4",
+                              "Raditya Dika - Apa Kabar Syahrini [16m40s-18m20s].mp4"]:
+                problems.append(f"the part files are not named by their range: {part_names}")
+            if len(part_names) == 2 and not all((paths.SOURCES / p).is_file() for p in part_names):
+                problems.append("a part file is missing")
+            pc = credits.load().get(part_names[0]) or {} if part_names else {}
+            if pc.get("section") != [750.24, 850.9] or pc.get("videoId") != A or pc.get("creator") != "Raditya Dika":
+                problems.append(f"the part's credit should be the video's, plus the REAL section (start measured: 750.2 + 0.04): {pc}")
+            if ytdl.find_in_profile(A) != name:
+                problems.append("a part-only file was taken for the whole video")
+            if not credits.line(pc).startswith("Sumber: YouTube Raditya Dika"):
+                problems.append("the part's credit line is not the original video's")
+            if part_names:
+                credits.save(part_names[0], {"platform": "YouTube", "creator": "Raditya", "title": "T", "url": URL_A})
+                if (credits.load().get(part_names[0]) or {}).get("section") != [750.24, 850.9]:
+                    problems.append("saving the four credit fields forgot the section")
+                # Download again: the file is deleted, then comes back as the same part under the same name
+                credits.mark_deleted(part_names[0])
+                (paths.SOURCES / part_names[0]).unlink()
+                Fake.sections.clear()
+                again2 = wait(ytdl.start(URL_A, 1080, part_names[0], tuple(pc["section"]))["id"])
+                if again2.get("state") != "done" or again2.get("name") != part_names[0] or Fake.sections != [(750.24, 850.9)]:
+                    problems.append(f"Download again did not fetch the same section under the same name: {again2} {Fake.sections}")
+                if (credits.load().get(part_names[0]) or {}).get("section") != [750.24, 850.9]:
+                    problems.append("Download again lost the section")
+
+            from . import projects as _projects
+            if _projects._migrate_project({"youtube": {"title": "A talk"}})[0].get("name") != "A talk":
+                problems.append("a project with a YouTube link and no video is not named after the video")
 
             # the credit line with its link, in the description, in every hashtag placement
             post = {"caption": "Cuplikan lucu.", "hashtags": ["#raditya", "#komedi", "#podcast"]}

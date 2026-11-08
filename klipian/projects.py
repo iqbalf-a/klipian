@@ -115,7 +115,8 @@ def _migrate_project(data: dict) -> tuple[dict, bool]:
         changed = True
     if not data.get("name"):
         # What the home card showed before projects had names of their own.
-        data["name"] = Path(_primary_video(data)).stem or "Untitled"
+        data["name"] = (Path(_primary_video(data)).stem or str((data.get("youtube") or {}).get("title") or "").strip()[:80]
+                        or "Untitled")
         changed = True
     if not data.get("outSlug"):
         # Fixed from here on -- see _project_out_dir(). Taken from the name

@@ -411,8 +411,10 @@ async function renderAssets() {
   try { credits = (await (await fetch("/api/credits")).json()).credit || {}; } catch { /* no backend */ }
 
   const vids = videoAssets();
+  const yt = (typeof YT !== "undefined" && YT) ? YT : null;          // a project started from a YouTube link (ytparts.js)
   if (note) note.textContent = vids.length
     ? `${vids.length} video${vids.length === 1 ? "" : "s"} in this project`
+    : yt ? `YouTube: ${yt.title || yt.videoId} · ${yt.duration ? fmtStamp(yt.duration) : "?"} · not downloaded`
     : "no video yet";
 
   list.innerHTML = vids.length ? vids.map((a) => {
@@ -437,7 +439,8 @@ async function renderAssets() {
         ? `${escapeHTML(credits[a.file].line)} · <a href="/sources" target="_blank" rel="noopener">edit</a>`
         : `No source credit yet · <a href="/sources" target="_blank" rel="noopener">add one</a>`}</span>
     </div>`;
-  }).join("") : `<p class="empty-message">No video yet. Add one below.</p>`;
+  }).join("") : `<p class="empty-message">${yt ? "Nothing downloaded yet: Ask Gemini below, import the clips, then download only those parts."
+    : "No video yet. Add one below."}</p>`;
 
   if (addList) {
     if (_sampleList === null) {

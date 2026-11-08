@@ -119,6 +119,8 @@ function projectState() {
     // (see snapshotActiveResult). Projects written before this still have
     // one, and applyProject() reads it to seed Results that lack theirs.
     screen: (typeof activeScreen !== "undefined") ? activeScreen : "clips",
+    // A project started from a YouTube link, parts only (ytparts.js): the video, the answers, the clips and the parts got so far.
+    youtube: (typeof ytSaveState === "function") ? ytSaveState() : undefined,
   };
 }
 
@@ -170,7 +172,7 @@ async function writeProjectNow() {
   // A project exists once it has an id, video or not -- all of its videos
   // can be removed (ian) and it still has to save. Before its first save,
   // the first video is what starts it.
-  if (!primaryVideo && !activeProjectId) return;
+  if (!primaryVideo && !activeProjectId && !(typeof YT !== "undefined" && YT)) return;
   if (!activeProjectId && creatingProject) await creatingProject;
   if (!activeProjectId) {
     const run = writeProjectOnce(true);
@@ -259,7 +261,7 @@ async function writeProjectOnce(isNew) {
    that's what the "close/reload page" warning below reads so that
    changes still waiting for the delay are not mistaken for safely saved. */
 function saveProject() {
-  if (!primaryVideo && !activeProjectId) return;   // see writeProjectNow()
+  if (!primaryVideo && !activeProjectId && !(typeof YT !== "undefined" && YT)) return;   // see writeProjectNow()
   // Nothing to write when the project is what the server already has. This is
   // what lets every screen redraw itself (they all call this through
   // renderResult and friends) without each visit being a save that bumps `at`
@@ -756,6 +758,7 @@ function applyProject(d, preferFile) {
     const byFile = preferFile && list.find((a) => a.file === preferFile);
     setAssets(list, byFile ? byFile.id : d.activeAsset, d.assetSeq);
   }
+  if (typeof ytLoad === "function") ytLoad(d.youtube);
 
   if (Array.isArray(d.results) && d.results.length) {
     SAVED_RESULTS = d.results;
@@ -893,6 +896,7 @@ function startNewProject() {
   primaryVideo = null;
   activeProjectId = null;
   if (typeof setAssets === "function") setAssets([], null);
+  if (typeof ytReset === "function") ytReset();
   // Clearing the DATA isn't enough -- the <video> elements hold the file
   // themselves and went on showing (and playing) it. See releaseVideo().
   if (typeof releaseVideo === "function") releaseVideo();

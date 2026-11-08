@@ -275,14 +275,61 @@
           <div class="panel-head"><span class="eyebrow">In this project</span></div>
           <div class="asset-list" id="assetList"></div>
         </div>
+        <!-- A project started from a YouTube link, parts only (ytparts.js): nothing downloaded until the clips are known. -->
+        <div class="panel fit step" id="ytPanel" hidden>
+          <div class="step-head">
+            <div>
+              <h2 id="ytTitle">YouTube</h2>
+              <p class="step-note" id="ytMeta"></p>
+            </div>
+            <div class="step-actions">
+              <a class="btn" id="ytOpen" href="#" target="_blank" rel="noopener">Open on YouTube</a>
+              <button class="btn main" id="ytCopyPrompt" type="button">Copy brief for Ask Gemini</button>
+            </div>
+          </div>
+          <p class="step-note">Ask Gemini on YouTube, paste its answer, let any AI turn it into JSON, paste that reply, then download only those clips.
+            Export for Claude (path A) is not available here: it needs the whole video's transcript.</p>
+          <label class="gemini-label" for="ytAnswer">Paste Gemini's answer</label>
+          <textarea class="paste" id="ytAnswer" spellcheck="false" aria-label="Gemini's answer"
+            placeholder="1. Topic (4:45 - 5:05): &quot;the first sentence spoken&quot; Why it is interesting."></textarea>
+          <div class="step-foot">
+            <button class="btn main" id="ytCopyBrief" type="button" disabled>Copy brief for AI</button>
+          </div>
+          <label class="gemini-label" for="ytReply">Paste the AI's JSON reply</label>
+          <textarea class="paste" id="ytReply" spellcheck="false" aria-label="The AI's JSON reply"
+            placeholder='{ "clips": [ ... ] }'></textarea>
+          <div class="step-foot">
+            <button class="btn main" id="ytImport" type="button" disabled>Import</button>
+          </div>
+          <ul class="yt-clips" id="ytClips"></ul>
+          <div class="step-foot import-foot">
+            <span class="import-note">
+              <label class="data">Quality <select id="ytQuality" aria-label="Video quality"><option value="1080">1080p</option><option value="720">720p (smaller)</option></select></label>
+              <span class="data" id="ytCost"></span>
+            </span>
+            <span class="step-foot-btns">
+              <button class="btn" id="ytCancel" type="button" hidden>Cancel</button>
+              <button class="btn main" id="ytDownload" type="button" hidden></button>
+            </span>
+          </div>
+          <div class="progress" id="ytBar" hidden><i style="width:0%"></i></div>
+          <p class="data" id="ytNote" role="status"></p>
+          <p class="step-note">Each clip is downloaded with 20 s of padding on both sides, so a cut point can be moved only within that.
+            There is no “extend” button: add the clip again for a longer part. Parts are cut at keyframes without re-encoding.</p>
+        </div>
         <div class="panel fit">
           <div class="panel-head">
             <span class="eyebrow">Add from this profile's sources</span>
-            <!-- A video from anywhere on disk: copied into the profile's sources folder
-                 (with progress), then added to this project. -->
-            <button class="btn add-video-btn" id="addVideoBtn" type="button">Add video…</button>
-            <!-- A YouTube link: preview, then download into the sources folder (ytdl.js). -->
-            <button class="btn add-video-btn" id="addYouTubeBtn" type="button">From YouTube link…</button>
+            <span class="add-video-actions">
+              <!-- A video from anywhere on disk: copied into the profile's sources folder
+                   (with progress), then added to this project. -->
+              <button class="btn add-video-btn" id="addVideoBtn" type="button">Add video…</button>
+              <!-- A YouTube link: preview, then download into the sources folder (ytdl.js). -->
+              <button class="btn add-video-btn" id="addYouTubeBtn" type="button">From YouTube link…</button>
+              <!-- A YouTube link, but only the clips Gemini picks are downloaded (ytparts.js). -->
+              <button class="btn add-video-btn" id="addYouTubePartsBtn" type="button"
+                      title="Ask Gemini first, then download only the clips you pick">From YouTube, parts only…</button>
+            </span>
             <input type="file" id="videoFileInput" accept=".mp4,.mkv,.mov,.webm,video/*" multiple hidden>
           </div>
           <div class="upload-row" id="videoUploadRow" hidden>
@@ -1282,6 +1329,7 @@
 <script src="/ui/js/editor/player.js?v=1790703163808"></script>
 <script src="/ui/js/editor/gemini.js?v=1790703163808"></script>
 <script src="/ui/js/editor/roundtrip.js?v=1790703163808"></script>
+<script src="/ui/js/editor/ytparts.js?v=1790703163808"></script>
 <script src="/ui/js/editor/cues.js?v=1790703163808"></script>
 <script src="/ui/js/editor/history.js?v=1790703163808"></script>
 <script src="/ui/js/editor/timeline.js?v=1790703163808"></script>

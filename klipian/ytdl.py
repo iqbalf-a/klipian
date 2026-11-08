@@ -107,7 +107,9 @@ class _Net:
         with yt.YoutubeDL(opts) as ydl:
             return ydl.extract_info(url, download=False)
 
-    def download(self, url: str, folder: Path, hook, ffmpeg_dir: str, quality: int = 1080) -> None:
+    def download(self, url: str, folder: Path, hook, ffmpeg_dir: str, quality: int = 1080, section=None) -> None:
+        """`section` = (start, end) seconds: only that part is fetched (ffmpeg input seek + stream copy, so it begins
+        at the keyframe at or before `start`; no re-encoding, hence no force_keyframes_at_cuts)."""
         yt = self.module()
         opts = {"quiet": True, "no_warnings": True, "noplaylist": True, "format": QUALITIES.get(quality, FORMAT),
                 **self._js_opts(),
@@ -116,6 +118,8 @@ class _Net:
                 "postprocessor_hooks": [hook], "socket_timeout": 20, "retries": 3,
                 "fragment_retries": 3, "continuedl": False, "overwrites": True,
                 "noprogress": True, "restrictfilenames": False}
+        if section:
+            opts["download_ranges"] = yt.utils.download_range_func(None, [tuple(section)])
         with yt.YoutubeDL(opts) as ydl:
             ydl.download([url])
 
@@ -201,6 +205,21 @@ def file_stem(channel: str, title: str) -> str:
     return paths.safe_dirname(stem)
 
 
+def section_label(section) -> str:
+    """`12m30s-14m10s` (whole seconds, start rounded down, end up): the part of a file name."""
+    import math
+
+    def f(x: float) -> str:
+        s = int(x)
+        return f"{s // 3600}h{s % 3600 // 60:02d}m{s % 60:02d}s" if s >= 3600 else f"{s // 60}m{s % 60:02d}s"
+    return f"{f(math.floor(section[0]))}-{f(math.ceil(section[1]))}"
+
+
+def section_stem(stem: str, section) -> str:
+    """`<stem> [12m30s-14m10s]`; the stem is cut so the whole name stays within MAX_STEM + the label."""
+    return f"{stem[:MAX_STEM - 20].rstrip(' .-')} [{section_label(section)}]"
+
+
 def free_name(stem: str, same_video) -> str:
     """The first of `<stem>.mp4`, `<stem> (2).mp4` ... that is not taken by a DIFFERENT video.
     `same_video(name)` says whether a file already there is this very video (then it is reused)."""
@@ -224,7 +243,7 @@ def _entries(folder: Path) -> dict[str, dict]:
 def find_in_profile(vid: str) -> str | None:
     """The file in this profile's sources/ that is this YouTube video, if any."""
     for name, c in _entries(Path(paths.SOURCES)).items():
-        if c.get("videoId") == vid:
+        if c.get("videoId") == vid and not c.get("section"):          # a part-only file is not "the video"
             return name
     return None
 
@@ -238,7 +257,7 @@ def find_in_other_profile(vid: str) -> tuple[str, str] | None:
         if other.name == paths.current_profile() or not (other / "sources").is_dir():
             continue
         for name, c in _entries(other / "sources").items():
-            if c.get("videoId") == vid:
+            if c.get("videoId") == vid and not c.get("section"):
                 return other.name, name
     return None
 
@@ -458,10 +477,27 @@ def clean_stale() -> None:
         pass
 
 
-def _credit_for(info: dict, vid: str) -> dict:
-    return {"platform": "YouTube", "creator": info.get("channel") or info.get("uploader") or "",
-            "title": info.get("title") or "", "url": canonical_url(vid), "videoId": vid,
-            "downloaded": datetime.date.today().isoformat()}
+def _credit_for(info: dict, vid: str, section=None) -> dict:
+    out = {"platform": "YouTube", "creator": info.get("channel") or info.get("uploader") or "",
+           "title": info.get("title") or "", "url": canonical_url(vid), "videoId": vid,
+           "downloaded": datetime.date.today().isoformat()}
+    if section:
+        out["section"] = [section[0], section[1]]
+    return out
+
+
+def real_start(path: Path, wanted: float) -> float:
+    """Where in the YouTube video a stream-copied part really begins. ffmpeg cuts at the keyframe before `wanted` but
+    hides the lead-in with an edit list, so the first frame you see is `wanted` plus the container's start_time
+    (a frame or so; measured with a local cut, whose first frame matched the source frame at `wanted`).
+    Falls back to `wanted` when ffprobe cannot tell."""
+    try:
+        from . import ffmpeg_tools as ft
+        out = ft.run([ft._require("ffprobe"), "-v", "error", "-show_entries", "format=start_time", "-of",
+                      "default=nw=1:nk=1", str(path)], desc="reading the part's start").stdout
+        return max(0.0, wanted + max(0.0, float(out.strip() or 0)))
+    except Exception:                                       # noqa: BLE001
+        return wanted
 
 
 def _put_credit(name: str, entry: dict) -> bool:
@@ -500,11 +536,20 @@ def _from_other(other: tuple[str, str], name: str | None = None) -> tuple[str, s
     return dest_name, pid
 
 
-def start(url: str, quality=1080, name: str | None = None) -> dict:
+def start(url: str, quality=1080, name: str | None = None, section=None) -> dict:
     """Begin the download. Returns {"id": job id}, or {"id": None, "name": file} when this
     profile already has the video (nothing to do) -- a copy from another profile is made at once.
-    `name` (Download again) saves to exactly that name, which must be a deleted source of this video."""
+    `name` (Download again) saves to exactly that name, which must be a deleted source of this video.
+    `section` = (start, end) seconds: only that part of the video, as a file of its own (`<stem> [12m30s-14m10s].mp4`);
+    a part is never "the video already here" and never linked from another profile."""
     vid = video_id(url)
+    if section is not None:
+        try:
+            section = (float(section[0]), float(section[1]))
+        except (TypeError, ValueError, IndexError):
+            raise YtError("other", "A section is two numbers: start and end, in seconds.") from None
+        if not 0 <= section[0] < section[1]:
+            raise YtError("other", "A section starts before it ends.")
     if name is not None:
         gone = credits.deleted_load().get(name)
         if not gone or gone.get("videoId") != vid or (Path(paths.SOURCES) / name).exists():
@@ -512,10 +557,10 @@ def start(url: str, quality=1080, name: str | None = None) -> dict:
     st = status()
     if not st["installed"]:
         raise YtError("missing", "yt-dlp is not installed.", command=st["command"])
-    existing = None if name else find_in_profile(vid)
+    existing = None if (name or section) else find_in_profile(vid)
     if existing:
         return {"id": None, "name": existing, "existed": True}
-    other = find_in_other_profile(vid)
+    other = None if section else find_in_other_profile(vid)
     if other:
         got, pid = _from_other(other, name)
         return {"id": None, "name": got, "existed": False, "copiedFrom": pid}
@@ -523,8 +568,9 @@ def start(url: str, quality=1080, name: str | None = None) -> dict:
         raise YtError("no_ffmpeg", "ffmpeg was not found. klipian needs it to join the video and sound.")
     quality = _quality(quality)
     prof = paths.current_profile()
+    key = (prof, vid if not section else f"{vid}@{section[0]:g}-{section[1]:g}")
     with _JOBS_LOCK:
-        running = _ACTIVE.get((prof, vid))
+        running = _ACTIVE.get(key)
         if running:
             return {"id": running, "name": None, "existed": False}
     clean_stale()
@@ -535,14 +581,16 @@ def start(url: str, quality=1080, name: str | None = None) -> dict:
         _JOBS[jid] = {"state": "queued", "percent": 0, "message": "Starting…", "profile": prof,
                       "videoId": vid, "temp": str(temp), "title": None}
         _CANCEL[jid] = ev
-        _ACTIVE[(prof, vid)] = jid
-    threading.Thread(target=contextvars.copy_context().run, args=(_run, jid, vid, temp, ev, quality, name),
+        _ACTIVE[key] = jid
+    threading.Thread(target=contextvars.copy_context().run, args=(_run, jid, vid, temp, ev, quality, name, section, key),
                      daemon=True).start()
     return {"id": jid, "name": None, "existed": False}
 
 
-def _run(jid: str, vid: str, temp: Path, ev: threading.Event, quality: int = 1080, keep: str | None = None) -> None:
+def _run(jid: str, vid: str, temp: Path, ev: threading.Event, quality: int = 1080, keep: str | None = None,
+         section=None, key=None) -> None:
     prof = paths.current_profile()
+    key = key or (prof, vid)
     cancel_exc = _net.cancelled_exception()
     seen: list[str] = []
 
@@ -572,6 +620,8 @@ def _run(jid: str, vid: str, temp: Path, ev: threading.Event, quality: int = 108
             raise YtError("live", "This is a live stream (or a premiere) that is not finished. "
                                   "Try again after it has ended.")
         size = _size_estimate(info) or 0
+        if section and info.get("duration"):                 # a part is only the part's share of the whole size
+            size = int(size * min(1.0, (section[1] - section[0]) / info["duration"]))
         Path(paths.SOURCES).mkdir(parents=True, exist_ok=True)
         free = shutil.disk_usage(paths.SOURCES).free
         if size and size * 2 + (1 << 30) > free:
@@ -579,23 +629,33 @@ def _run(jid: str, vid: str, temp: Path, ev: threading.Event, quality: int = 108
                                   f"(twice, while joining), {free / 1024 ** 3:.1f} GB free.")
         temp.mkdir(parents=True, exist_ok=True)
         ffmpeg_dir = str(Path(shutil.which("ffmpeg") or "").parent)
-        _net.download(canonical_url(vid), temp, hook, ffmpeg_dir, quality)
+        if section:
+            _net.download(canonical_url(vid), temp, hook, ffmpeg_dir, quality, section)
+        else:
+            _net.download(canonical_url(vid), temp, hook, ffmpeg_dir, quality)
         if ev.is_set():
             raise cancel_exc("cancelled")
         made = sorted(p for p in temp.glob("video.*") if p.suffix.lower() == ".mp4" and p.is_file())
         if not made:
             raise YtError("other", "The download finished but no video file came out.")
         stem = file_stem(info.get("channel") or info.get("uploader") or "", info.get("title") or "")
+        real = None
+        if section:
+            stem = section_stem(stem, section)
+            real = [real_start(made[0], section[0]), section[1]]
+            real[1] = max(real[1], real[0] + 0.01)
+        same = (lambda n: (credits.load().get(n) or {}).get("section") == list(section)) if section else \
+            (lambda n: (credits.load().get(n) or {}).get("videoId") == vid)
         with _LOCK:
-            name = keep or free_name(stem, lambda n: (credits.load().get(n) or {}).get("videoId") == vid)
+            name = keep or free_name(stem, same)
             dest = Path(paths.SOURCES) / name
             if not dest.exists():
                 os.replace(made[0], dest)
         if keep:
             _restore(keep)                    # the old credit comes back first; _put_credit never overwrites it
-        wrote = _put_credit(name, _credit_for(info, vid))
+        wrote = _put_credit(name, _credit_for(info, vid, real))
         _set(jid, state="done", percent=100, name=name, creditWritten=wrote, message="Done.",
-             speed=None, eta=None)
+             speed=None, eta=None, **({"section": real} if real else {}))
     except BaseException as exc:                              # noqa: BLE001
         if ev.is_set() or isinstance(exc, cancel_exc):
             _set(jid, state="cancelled", message="Cancelled.", speed=None, eta=None)
@@ -611,8 +671,8 @@ def _run(jid: str, vid: str, temp: Path, ev: threading.Event, quality: int = 108
             pass
         with _JOBS_LOCK:
             _CANCEL.pop(jid, None)
-            if _ACTIVE.get((prof, vid)) == jid:
-                _ACTIVE.pop((prof, vid), None)
+            if _ACTIVE.get(key) == jid:
+                _ACTIVE.pop(key, None)
             _JOBS[jid].pop("temp", None)
 
 

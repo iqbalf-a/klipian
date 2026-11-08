@@ -767,7 +767,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._ytdl_reply(lambda: _ytdl.preview(str(req.get("url") or ""), req.get("quality") or 1080))
         if action == "start":
             return self._ytdl_reply(lambda: _ytdl.start(str(req.get("url") or ""), req.get("quality") or 1080,
-                                                        str(req["name"]) if req.get("name") else None))
+                                                        str(req["name"]) if req.get("name") else None,
+                                                        req.get("section") or None))
         if action == "cancel":
             return self._ytdl_reply(lambda: _ytdl.cancel(str(req.get("id") or "")))
         if action == "update":
@@ -1679,7 +1680,7 @@ class Handler(BaseHTTPRequestHandler):
                     f.unlink(missing_ok=True)
                 return self._send_json({"ok": True, "deleted": True})
 
-            if not name and not pid:
+            if not name and not pid and not isinstance(req.get("youtube"), dict):
                 # Only a NEW project needs one: its first video is what
                 # starts it. An existing one may have had all removed.
                 return self._send_json({"error": "video required"}, 400)

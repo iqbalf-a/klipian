@@ -286,7 +286,8 @@ $("#sourceDeleteSelBtn")?.addEventListener("click", deleteSelected);
 async function downloadAgain(s, btn) {
   btn.disabled = true;
   const fail = (m) => { showToast(m); loadSources(); };
-  const d = await _ytApi("/api/ytdl/start", { url: `https://youtu.be/${s.credit.videoId}`, name: s.name });
+  const d = await _ytApi("/api/ytdl/start", { url: `https://youtu.be/${s.credit.videoId}`, name: s.name,
+    ...(s.credit.section ? { section: s.credit.section } : {}) });     // a part-only file comes back as the same part
   if (d.error) return fail(d.error);
   if (!d.id) return loadSources();                  // copied from another profile at once
   for (;;) {

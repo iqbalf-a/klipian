@@ -23,7 +23,9 @@ from .paths import SOURCES
 FIELDS = ("platform", "creator", "title", "url")
 # Kept with the credit but never part of the credit line: what "Add from YouTube" (ytdl.py)
 # records to recognise the same video later (its id) and when it came in.
-EXTRA = ("videoId", "downloaded")
+EXTRA = ("videoId", "downloaded", "section")
+# `section` = [start, end] seconds of the YouTube video a part-only file holds (ytdl.start with a section); kept so
+# Download again fetches the same part and a later save() of the four fields does not forget it.
 _LIMITS = {"platform": 40, "creator": 80, "title": 200, "url": 500, "videoId": 20, "downloaded": 20}
 
 
@@ -37,6 +39,10 @@ def clean(entry) -> dict:
     out = {}
     if not isinstance(entry, dict):
         return out
+    sec = entry.get("section")
+    if (isinstance(sec, (list, tuple)) and len(sec) == 2 and all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in sec)
+            and 0 <= sec[0] < sec[1]):
+        out["section"] = [round(float(sec[0]), 2), round(float(sec[1]), 2)]
     for key in FIELDS + EXTRA:
         val = entry.get(key)
         if not isinstance(val, str):
