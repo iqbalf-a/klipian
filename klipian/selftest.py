@@ -4867,6 +4867,11 @@ def check_rubrics() -> tuple[str, str]:
         if rubrics.load("dialog") != ("dialog", roundtrip.read_rubric(roundtrip.RUBRICS["dialog"]), None) \
                 or rubrics.load(None)[0] != "dialog" or rubrics.check(rubrics.load("dialog")[1]):
             problems.append("the dialog rubric changed or does not pass its own check")
+        # --- the built-in "Lucu / komedi" is the komedi-tv template itself, complete, and what its brief carries
+        lid, ltext, lnote = rubrics.load("lucu")
+        tugas = ltext.split("## Tugas", 1)[1].strip().splitlines()[0]
+        if lid != "lucu" or lnote or rubrics.check(ltext) or ltext != rubrics._read(rubrics.TEMPLATE_DIR / "komedi-tv.md")                 or tugas not in roundtrip.build_brief(transcript, ltext, "x.mp4", None, None, rule):
+            problems.append(f"the built-in lucu rubric: {lid} {lnote} {rubrics.check(ltext)}")
         # --- a workspace rubric: made from a template, listed, chosen by the profile, used by the brief
         made = rubrics.create("komedi-tv", "Komedi Uji")
         if made != {"id": "komedi-uji", "name": "Komedi Uji"} or not (rubrics.workspace_dir() / "komedi-uji.md").is_file():
@@ -4881,7 +4886,7 @@ def check_rubrics() -> tuple[str, str]:
             except rubrics.RubricError:
                 pass
         listing = rubrics.list_all()
-        if [r["id"] for r in listing["workspace"]] != ["komedi-uji"] or [r["id"] for r in listing["builtin"]] != ["dialog", "gameplay"]:
+        if [r["id"] for r in listing["workspace"]] != ["komedi-uji"] or [r["id"] for r in listing["builtin"]] != ["dialog", "gameplay", "lucu"]:
             problems.append(f"listing: {listing}")
         profiles.update("selftest", {"defaults": {"rubric": "komedi-uji"}})
         if profiles.defaults().get("rubric") != "komedi-uji":

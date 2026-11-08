@@ -23,6 +23,7 @@ _DIR = ROOT / "prompts" / "rubrik"
 BUILTIN = {
     "dialog": ("Dialog / podcast", _DIR / "dialog-podcast.md"),
     "gameplay": ("Gameplay (Mobile Legends)", _DIR / "gameplay-mlbb.md"),
+    "lucu": ("Lucu / komedi", _DIR / "templates" / "komedi-tv.md"),
 }
 TEMPLATE_DIR = _DIR / "templates"
 DEFAULT = "dialog"

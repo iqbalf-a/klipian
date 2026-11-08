@@ -87,9 +87,7 @@ ${html}      </div>`;
             ${panel("clips", `        <section class="yt-box" id="rubricBox" aria-label="Rubric">
           <label>Default rubric (Find clips, Copy brief)
             <select name="rubric" id="rubricSel">
-              <option value="dialog"${d.rubric && d.rubric !== "dialog" ? "" : " selected"}>Dialog / podcast</option>
-              <option value="gameplay"${d.rubric === "gameplay" ? " selected" : ""}>Gameplay (Mobile Legends)</option>
-              ${d.rubric && d.rubric !== "dialog" && d.rubric !== "gameplay" ? `<option value="${esc(d.rubric)}" selected>${esc(d.rubric)}</option>` : ""}
+              <option value="${esc(d.rubric || "dialog")}" selected>${esc(d.rubric || "dialog")}</option>
             </select></label>
           <div class="row yt-actions">
             <button class="btn quiet" type="button" data-rb="new">New rubric from template…</button>
