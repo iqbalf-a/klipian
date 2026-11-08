@@ -145,6 +145,8 @@ def _retry_delay(exc: BaseException) -> float:
     return min(float(m.group(1)) + 1, 180.0) if m else 60.0
 
 
+TIMEOUT_SEC = 300                                 # one request; a run must never wait on Gemini for ever
+
 _BLOCKED = {"SAFETY", "PROHIBITED_CONTENT", "BLOCKLIST", "SPII", "RECITATION", "IMAGE_SAFETY"}
 
 
@@ -161,11 +163,9 @@ def find_clips(system: str, user: str, *, client=None, pause=time.sleep) -> dict
         raise GeminiError("no_model", "No Gemini model is chosen: choose a model in Admin.")
     client = client or _client()
     from .claude_api import REPLY_SCHEMA
-    structured, waited, think = True, False, True
+    structured, waited = True, False
     while True:
-        config = {"system_instruction": system}
-        if think:                                     # the highest thinking level (google-genai 3.x ThinkingConfig.thinking_level)
-            config["thinking_config"] = {"thinking_level": "HIGH"}
+        config = {"system_instruction": system, "http_options": {"timeout": TIMEOUT_SEC * 1000}}     # HttpOptions.timeout is in ms
         if structured:
             config.update(response_mime_type="application/json", response_json_schema=REPLY_SCHEMA)
         try:
@@ -174,9 +174,10 @@ def find_clips(system: str, user: str, *, client=None, pause=time.sleep) -> dict
         except Exception as exc:                                  # noqa: BLE001
             err = map_error(exc)
             low = str(getattr(exc, "message", "") or exc).lower()
-            if think and getattr(exc, "code", None) == 400 and "think" in low:
-                think = False                                     # this model has no thinking level: asked again without it
-                continue
+            if "timeout" in type(exc).__name__.lower() or "timed out" in low:
+                err = GeminiError("timeout", "Gemini did not answer within 5 minutes: Retry.")
+                set_last_error(err.message)
+                raise err from None
             if structured and getattr(exc, "code", None) == 400 and any(k in low for k in ("schema", "mime", "response_json", "json mode", "format")):
                 structured = False                                # the model does not take the schema: plain JSON
                 continue
