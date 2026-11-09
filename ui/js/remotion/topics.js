@@ -1,10 +1,9 @@
-/* The list of topics of /remotion, as pure rules (no DOM): the search, the filters, the order and the paging.
+/* The list of topics of /remotion, as pure rules (no DOM): the search, the filters, the order (the paging is the shared pager).
    Used by ui/js/remotion/page-list.js and tested by node tests/topics.test.js. */
 
-const TOPIC_PAGE = 30;
 const TOPIC_SORTS = { updated: "Terbaru diubah", created: "Terbaru dibuat", name: "Nama A-Z", stage: "Butuh tindakan dulu" };
 const TOPIC_STATUSES = { all: "Semua", draft: "Draft", story: "Cerita", checked: "Dicek", rendered: "Sudah dirender" };
-const TOPIC_DEFAULT = { q: "", status: "all", need: false, dur: 0, music: "", sort: "updated", shown: TOPIC_PAGE };
+const TOPIC_DEFAULT = { q: "", status: "all", need: false, dur: 0, music: "", sort: "updated" };
 
 // a topic needs a move from the person when the backend's next step (chip.key) is not "already rendered and current" or "not ready"
 const topicNeedsAction = (p) => !["selesai", "blocked"].includes((p.chip || {}).key);
@@ -33,4 +32,4 @@ function filterTopics(list, ui) {
 // is anything other than the order narrowing the list (the "Hapus filter" button shows then)
 const topicFiltered = (ui) => { const u = { ...TOPIC_DEFAULT, ...ui }; return !!(u.q.trim() || u.status !== "all" || u.need || u.dur || u.music); };
 
-if (typeof module !== "undefined" && module.exports) Object.assign(module.exports, { filterTopics, topicFiltered, topicNeedsAction, TOPIC_SORTS, TOPIC_STATUSES, TOPIC_DEFAULT, TOPIC_PAGE });
+if (typeof module !== "undefined" && module.exports) Object.assign(module.exports, { filterTopics, topicFiltered, topicNeedsAction, TOPIC_SORTS, TOPIC_STATUSES, TOPIC_DEFAULT });

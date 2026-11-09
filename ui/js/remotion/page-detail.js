@@ -108,6 +108,7 @@ function drawSteps() {
 // what a step needs once its body is in the page
 function afterOpen() {
   if (OPEN === "script") ensureNarration();
+  if (byId("rmFList")) redrawFolderList();            // the folder list and its pager are drawn once their mount is in the page
   const box = byId("body-story") || byId("body-answer");
   if (box) box.querySelectorAll("[data-f],[data-item]").forEach((x) => { x.dataset.was = x.value; });
 }

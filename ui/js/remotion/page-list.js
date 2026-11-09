@@ -43,8 +43,11 @@ window.addEventListener("hashchange", () => {
 // the search, filters and order: kept while the page is open and in localStorage (the page is right without it)
 const TOPIC_KEY = "klipian:motion-list";
 const TOPIC_UI = { ...TOPIC_DEFAULT };
-try { Object.assign(TOPIC_UI, JSON.parse(localStorage.getItem(TOPIC_KEY) || "{}"), { shown: TOPIC_PAGE }); } catch { /* none saved */ }
-const saveTopicUI = () => { try { localStorage.setItem(TOPIC_KEY, JSON.stringify({ ...TOPIC_UI, shown: undefined })); } catch { /* no storage */ } };
+try { Object.assign(TOPIC_UI, JSON.parse(localStorage.getItem(TOPIC_KEY) || "{}")); } catch { /* none saved */ }
+const ID_PAGER = { of: "dari", rows: "Baris", rowsAria: "Baris per halaman", prev: "Sebelumnya", next: "Berikutnya" };
+const topicPager = createPager({ key: "motion-topics", mount: byId("rmPager"), onChange: () => drawList(), labels: ID_PAGER });
+let topicSig = "";                // the search, filters and order: a change of them goes back to page 1
+const saveTopicUI = () => { try { localStorage.setItem(TOPIC_KEY, JSON.stringify(TOPIC_UI)); } catch { /* no storage */ } };
 
 // the bar is built once (so typing keeps its focus while the list is redrawn by the poll); drawList only updates its states
 function buildListBar() {
@@ -65,12 +68,12 @@ function buildListBar() {
       <select class="ws-input rm-boxed" id="rmLMusic" aria-label="Filter musik"></select>
     </div>
     <div class="rm-fbar"><span class="rm-hint" id="rmLCount" aria-live="polite"></span><button class="btn sm" type="button" id="rmLReset">Hapus filter</button></div>`;
-  bar.addEventListener("input", (e) => { if (e.target.id === "rmLQ") { TOPIC_UI.q = e.target.value; TOPIC_UI.shown = TOPIC_PAGE; saveTopicUI(); drawList(); } });
+  bar.addEventListener("input", (e) => { if (e.target.id === "rmLQ") { TOPIC_UI.q = e.target.value; saveTopicUI(); drawList(); } });
   bar.addEventListener("change", (e) => {
     if (e.target.id === "rmLSort") TOPIC_UI.sort = e.target.value;
     else if (e.target.id === "rmLMusic") TOPIC_UI.music = e.target.value;
     else return;
-    TOPIC_UI.shown = TOPIC_PAGE; saveTopicUI(); drawList();
+    saveTopicUI(); drawList();
   });
   bar.addEventListener("click", (e) => {
     const b = e.target.closest("button");
@@ -81,7 +84,7 @@ function buildListBar() {
     else if (b.dataset.f === "need") TOPIC_UI.need = !TOPIC_UI.need;
     else if (b.dataset.f === "dur") TOPIC_UI.dur = TOPIC_UI.dur === Number(b.dataset.v) ? 0 : Number(b.dataset.v);
     else return;
-    TOPIC_UI.shown = TOPIC_PAGE; saveTopicUI(); drawList();
+    saveTopicUI(); drawList();
   });
 }
 
@@ -107,15 +110,16 @@ function syncListBar(shown) {
 }
 
 function drawList() {
-  const list = byId("rmList"), more = byId("rmMore");
+  const list = byId("rmList");
   byId("rmListHead").textContent = `Topik yang sudah dibuat (${LIST.length})`;
   buildListBar();
   const rows = filterTopics(LIST, TOPIC_UI);
   syncListBar(rows.length);
-  more.hidden = true;
+  const sig = JSON.stringify([TOPIC_UI.q, TOPIC_UI.status, TOPIC_UI.need, TOPIC_UI.dur, TOPIC_UI.music, TOPIC_UI.sort]);
+  if (sig !== topicSig) { topicSig = sig; topicPager.first(); }
+  const visible = topicPager.slice(rows);
   if (!LIST.length) { list.innerHTML = `<p class="rm-empty">Belum ada video. Tulis topik di atas.</p>`; return; }
   if (!rows.length) { list.innerHTML = `<p class="rm-empty">Tidak ada topik yang cocok. <button class="btn sm" type="button" data-act="topicReset">Hapus filter</button></p>`; return; }
-  const visible = rows.slice(0, TOPIC_UI.shown);
   list.innerHTML = visible.map((p) => `
     <button class="rm-item" type="button" role="listitem" data-id="${esc(p.id)}" aria-current="${CUR?.id === p.id}">
       <b>${esc(p.title || p.topic)}</b>
@@ -124,11 +128,7 @@ function drawList() {
       <span>${esc(dateText(p.updated))}</span>
       <span>${p.hasStory && p.unchecked ? `${p.unchecked} klaim belum dicek` : ""}</span>
     </button>`).join("");
-  more.hidden = visible.length >= rows.length;
-  more.textContent = `Tampilkan ${Math.min(TOPIC_PAGE, rows.length - visible.length)} lagi (${visible.length} dari ${rows.length})`;
 }
-
-byId("rmMore").addEventListener("click", () => { TOPIC_UI.shown += TOPIC_PAGE; drawList(); });
 
 byId("rmList").addEventListener("click", (e) => {
   if (e.target.closest("[data-act=topicReset]")) { Object.assign(TOPIC_UI, { ...TOPIC_DEFAULT, sort: TOPIC_UI.sort }); saveTopicUI(); return drawList(); }

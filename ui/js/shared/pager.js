@@ -14,6 +14,8 @@
    `onChange` runs after the person changes the page or the size, and should
    redraw from the same list.
 
+   `labels` (optional) renames the words of the controls ({ of, rows, rowsAria, prev, next }); English by default.
+
    Storage can be unavailable (private window, blocked site data): the size is
    then simply not remembered.
    ========================================================================== */
@@ -21,7 +23,10 @@
 const PAGER_SIZES = [10, 25, 50];
 const PAGER_KEY = (key) => `klipian.pager.${key}`;
 
-function createPager({ key, mount, onChange }) {
+const PAGER_LABELS = { of: "of", rows: "Rows", rowsAria: "Rows per page", prev: "Prev", next: "Next" };
+
+function createPager({ key, mount, onChange, labels }) {
+  const L = { ...PAGER_LABELS, ...labels };
   let size = PAGER_SIZES[0];
   let page = 0;
   let count = 0;
@@ -59,15 +64,15 @@ function createPager({ key, mount, onChange }) {
     mount.hidden = false;
     mount.className = "pager";
     mount.innerHTML = `
-      <span class="pager-count" role="status">${from}–${to} of ${count}</span>
-      <label class="pager-size">Rows
-        <select data-pager-size aria-label="Rows per page">
+      <span class="pager-count" role="status">${from}–${to} ${L.of} ${count}</span>
+      <label class="pager-size">${L.rows}
+        <select data-pager-size aria-label="${L.rowsAria}">
           ${PAGER_SIZES.map((n) => `<option value="${n}"${n === size ? " selected" : ""}>${n}</option>`).join("")}
         </select></label>
       <span class="pager-nav">
-        <button class="pager-btn" type="button" data-pager-page="${page - 1}"${page === 0 ? " disabled" : ""}>Prev</button>
+        <button class="pager-btn" type="button" data-pager-page="${page - 1}"${page === 0 ? " disabled" : ""}>${L.prev}</button>
         ${num}
-        <button class="pager-btn" type="button" data-pager-page="${page + 1}"${page >= last ? " disabled" : ""}>Next</button>
+        <button class="pager-btn" type="button" data-pager-page="${page + 1}"${page >= last ? " disabled" : ""}>${L.next}</button>
       </span>`;
   }
 

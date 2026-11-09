@@ -188,7 +188,8 @@ function folderPickerHTML(d, picked) {
       </div>
       <div class="rm-fbar" role="group" aria-label="Saring folder">${Object.entries(FOLDER_FILTERS).map(([k, v]) => `<button class="btn sm rm-ffilter" type="button" data-act="folderFilter" data-v="${k}" aria-pressed="${FOLDER_UI.filter === k}">${esc(v)}</button>`).join("")}
         <span class="rm-hint" id="rmFCount" aria-live="polite">${folderCountText(d, picked)}</span></div>
-      <div class="rm-flist" id="rmFList">${folderListHTML(d, picked)}</div>
+      <div class="rm-flist" id="rmFList"></div>
+      <div class="pager" id="rmFPager" hidden></div>
     </div>`;
 }
 
@@ -197,10 +198,20 @@ const fmtFolderDate = (t) => (t ? new Date(t * 1000).toLocaleDateString("id-ID",
 
 const folderCountText = (d, picked) => `${pickFolders(d.compositions || [], FOLDER_UI, picked).length} dari ${(d.compositions || []).length} folder`;
 
+// one pager per drawn panel (its mount is made again whenever the panel is drawn); a change of the search, filter or order goes back to page 1
+let folderPager = null, folderMount = null, folderSig = "";
+function folderPageOf(rows) {
+  const mount = byId("rmFPager");
+  if (mount && mount !== folderMount) { folderMount = mount; folderPager = createPager({ key: "motion-folders", mount, onChange: redrawFolderList, labels: ID_PAGER }); folderSig = ""; }
+  const sig = JSON.stringify([FOLDER_UI.q, FOLDER_UI.filter, FOLDER_UI.sort]);
+  if (sig !== folderSig) { folderSig = sig; folderPager?.first(); }
+  return folderPager ? folderPager.slice(rows) : rows;
+}
+
 function folderListHTML(d, picked) {
-  const all = d.compositions || [], rows = pickFolders(all, FOLDER_UI, picked);
+  const all = d.compositions || [], rows = pickFolders(all, FOLDER_UI, picked), page = folderPageOf(rows);
   if (!rows.length) return `<p class="rm-hint">Tidak ada folder yang cocok.</p>`;
-  return rows.map((c) => {
+  return page.map((c) => {
     const st = folderStatus(c, picked);
     return `<button class="rm-frow" type="button" data-act="pickFolder" data-slug="${esc(c.slug)}" data-status="${st}" aria-pressed="${st === "current"}">
       <span class="rm-frow-t"><b>${esc(c.title)}</b><code>${esc(c.slug)}</code></span>
