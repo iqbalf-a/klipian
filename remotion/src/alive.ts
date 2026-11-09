@@ -40,3 +40,6 @@ export function blinkClosed(t: number, period: number = AMBIENT.blinkPeriod, pha
   const c = (((t + phase) % period) + period) % period;
   return c < 0.14 ? Math.sin(Math.PI * (c / 0.14)) : 0;
 }
+
+/** The loop clock (DESIGN.md B29): the video's clock scaled so `base` seconds (the length the ambient periods divide: 60, or 45) pass in `total` seconds (the sum of the beats, which the voice sets). Feed it to every motion that repeats (sway, bubbles, waves, blinks); the first and the last frame then hold the same phase whatever the length. Beat-tied motion (a swim, a reveal, the camera) keeps the real clock. */
+export const loopClock = (clock: number, total: number, base = 60): number => (total > 0 ? (clock * base) / total : clock);

@@ -5,7 +5,7 @@
    left); every colour is a token or a mix of tokens. One world, one camera (plan.ts camAt), so the sting and every beat share the set. */
 import React from "react";
 import {
-  BLACK, BLUSH, CaptionLayer, COFFEE, FONT_BOLD, FONT_MONO, G1, G2, G3, G4, Label, Mascot, Onomatopoeia, Pill, SKIN_A, SKIN_B, SourceChip, StoryVideo, STEAM,
+  loopClock, BLACK, BLUSH, CaptionLayer, COFFEE, FONT_BOLD, FONT_MONO, G1, G2, G3, G4, Label, Mascot, Onomatopoeia, Pill, SKIN_A, SKIN_B, SourceChip, StoryVideo, STEAM,
   THEMES, TopText, rgb as fromRgb, WHITE, YELLOW, YELLOW_D, clamp01, easeInOut, easeOut, springAt, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import storyJson from "./story.json";
@@ -113,10 +113,10 @@ const stockAt = (t: number) => {
 };
 
 // ---------------------------------------------------------------------------------------------------------------- the world
-const World: React.FC<{ clock: number }> = ({ clock }) => {
+const World: React.FC<{ clock: number; amb: number }> = ({ clock, amb }) => {
   const t = clock;
-  const bob = 3 * Math.sin((2 * Math.PI * t) / 4);                           // the deck breathes: 15 bobs in 60 s, so the loop matches
-  const sway = 2.2 * Math.sin((2 * Math.PI * t) / 6), leaf = (k: number) => 6 * Math.sin((2 * Math.PI * t) / 5 + k * 1.7);
+  const bob = 3 * Math.sin((2 * Math.PI * amb) / 4);                           // the deck breathes: 15 bobs in 60 s, so the loop matches
+  const sway = 2.2 * Math.sin((2 * Math.PI * amb) / 6), leaf = (k: number) => 6 * Math.sin((2 * Math.PI * amb) / 5 + k * 1.7);
   const pile = pileAt(t), topId = pile[pile.length - 1]?.id;
   const reset = t >= RESET ? springAt(t, RESET) : 1;
   const e = Math.round(EXP * easeOut(clamp01((t - BOARD_T.expA) / (BOARD_T.expB - BOARD_T.expA))));
@@ -151,7 +151,7 @@ const World: React.FC<{ clock: number }> = ({ clock }) => {
       {/* the pendant lamp over the table's left: a cone of light with a few motes in it */}
       <polygon points="40,880 260,880 560,1500 -260,1500" fill={YELLOW} opacity={0.075} />
       {Array.from({ length: 7 }, (_, i) => {
-        const ph = (t * 0.06 + i * 0.143) % 1, x = 150 + (i - 3) * 62 * (0.4 + ph) + 10 * Math.sin(t * 1.3 + i), y = 900 + ph * 540;
+        const ph = (amb * 0.05 + i * 0.143) % 1, x = 150 + (i - 3) * 62 * (0.4 + ph) + 10 * Math.sin(amb * 1.361 + i), y = 900 + ph * 540;
         return <circle key={i} cx={x} cy={y} r={4 + (i % 3)} fill={YELLOW} opacity={0.5 * Math.sin(Math.PI * ph)} />;
       })}
       <rect x={-1600} y={694} width={1756} height={14} fill={WOOD} /><rect x={-1600} y={694} width={1756} height={5} fill={WOOD_L} />
@@ -253,14 +253,15 @@ const World: React.FC<{ clock: number }> = ({ clock }) => {
   );
 };
 
-const Scene = ({ beat, t, clock }: SceneProps) => {
+const Scene = ({ beat, t, clock, story }: SceneProps) => {
+  const amb = loopClock(clock, story.beats.reduce((a, b) => a + b.dur, 0));   // B29: the ambient motion runs on the loop clock
   const c = camAt(clock), sting = beat.kind === "sting", outro = beat.kind === "outro";
   const labels = LABELS.filter((l) => clock >= l.from && clock < l.to + 0.3);
   const tx = `translate(${W / 2} ${H / 2}) scale(${c.z}) translate(${-c.x} ${-c.y})`;
   return (
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
       <g transform={tx}>
-        <World clock={clock} />
+        <World clock={clock} amb={amb} />
         {labels.map((l) => <g key={l.text} opacity={1 - clamp01((clock - l.to) / 0.3)}><Label text={l.text} x={l.x} y={l.y} fs={l.fs} t={clock} start={l.from} onDark={l.y >= 700} align={l.start ? "start" : "middle"} /></g>)}
         {clock >= HOOK_Q && clock < HOOK_Q + 1.5 && <Onomatopoeia text="?" x={880} y={820} fs={120} rot={8} t={clock} start={HOOK_Q} />}
         {clock >= BOARD_T.stamp && clock < BOARD_T.stamp + 1.7 && <Onomatopoeia text="52!" x={BOARD.x + 350} y={BOARD.y - 250} fs={92} rot={-8} t={clock} start={BOARD_T.stamp} />}

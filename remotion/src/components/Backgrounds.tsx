@@ -14,14 +14,14 @@ export const Brand: React.FC<{ clock: number; spot?: { x: number; y: number; r?:
   const id = `rings${React.useId().replace(/:/g, "")}`;
   const ctx = React.useContext(ThemeCtx);                                  // called every time: the hooks keep their order
   const th = THEMES[theme ?? ctx];
-  const sx = spot?.x ?? W / 2, sy = spot?.y ?? 900, r = (spot?.r ?? 470) * (1 + 0.012 * Math.sin(clock * 0.8));
-  const dx = (clock * 6) % 120, dy = (clock * 3.4) % 240;                  // the parallax: the field slides at a few px a second
+  const sx = spot?.x ?? W / 2, sy = spot?.y ?? 900, r = (spot?.r ?? 470) * (1 + 0.012 * Math.sin((Math.PI * 2 / 7.5) * clock));   // 7.5 s and 20 s and 60 s all divide 60: on the loop clock (B29) the last frame is the first
+  const dx = (clock * 6) % 120, dy = (clock * 4) % 240;                  // the parallax: the field slides at a few px a second
   const pattern = th.pattern === "grid"
     ? <pattern id={id} patternUnits="userSpaceOnUse" width={120} height={120} patternTransform={`translate(${dx} ${dy})`}>
         <rect x={0} y={0} width={120} height={3} fill={th.ring} /><rect x={0} y={0} width={3} height={120} fill={th.ring} />
       </pattern>
     : th.pattern === "stripes"
-      ? <pattern id={id} patternUnits="userSpaceOnUse" width={60} height={60} patternTransform={`translate(${dx} ${dy}) rotate(45)`}>
+      ? <pattern id={id} patternUnits="userSpaceOnUse" width={60} height={60} patternTransform={`rotate(45) translate(${(clock * 6) % 60} 0)`}>
           <rect x={0} y={0} width={20} height={60} fill={th.ring} />
         </pattern>
       : <pattern id={id} patternUnits="userSpaceOnUse" width={120} height={240} patternTransform={`translate(${dx} ${dy})`}>

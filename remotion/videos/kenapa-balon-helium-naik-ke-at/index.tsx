@@ -3,7 +3,7 @@
    the ribbon is let go and the balloon rises to the ceiling, then it stops where its weight equals the air it moves. The first frame is the last (loop). */
 import React from "react";
 import {
-  BLACK, CaptionLayer, Label, Mascot, StoryVideo, TopText, YELLOW, YELLOW_D, block, cam2At, clamp01, easeInOut, easeOutBack,
+  loopClock, BLACK, CaptionLayer, Label, Mascot, StoryVideo, TopText, YELLOW, YELLOW_D, block, cam2At, clamp01, easeInOut, easeOutBack,
   layerTransform, ptsAttr, springAt, useFonts, type Poly, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import { ISO, THEMES, WHITE } from "../../src/tokens.ts";
@@ -78,11 +78,12 @@ const Hall: React.FC<{ c: number }> = ({ c }) => {
   );
 };
 
-const Scene = ({ beat, t, clock }: SceneProps) => {
+const Scene = ({ beat, t, clock, story }: SceneProps) => {
+  const amb = loopClock(clock, story.beats.reduce((a, b) => a + b.dur, 0));   // B29: the ambient motion runs on the loop clock
   useFonts();
   const c = clock;
   const cam = cam2At(CAM, c);
-  const sway = Math.sin((c / 6) * Math.PI * 2);
+  const sway = Math.sin((amb / 6) * Math.PI * 2);
   const tied = c < T.untie || c >= T.newBalloon;
   const rise = easeInOut(clamp01((c - T.rise) / (T.riseEnd - T.rise)));
   const growK = 1 + 0.14 * easeInOut(clamp01((c - T.grow) / (T.growEnd - T.grow)));
@@ -103,7 +104,7 @@ const Scene = ({ beat, t, clock }: SceneProps) => {
   const thin = c >= T.thin ? clamp01((c - T.thin) / 1.0) : 0;
   const dots: React.ReactNode[] = [];
   if (airOn > 0.02) for (let i = 0; i < 150; i++) {
-    const [x, y] = dotAt(i, c);
+    const [x, y] = dotAt(i, amb);
     if (960 + (y - cam.y) * cam.zoom < 380) continue;
     if (c >= T.panScale - 0.5 && c < T.panBack && x > 700 && y > 600) continue;
     if (Math.pow((x - 540) / 260, 2) + Math.pow((y - by) / 320, 2) < 1 || (x > 420 && x < 660 && y > by && y < HALL.floor)) continue;
@@ -123,7 +124,7 @@ const Scene = ({ beat, t, clock }: SceneProps) => {
       <line x1={e[0]} y1={e[1]} x2={e[0]} y2={e[1] + 70} stroke={BLACK} strokeWidth={5} />
       <g transform={`translate(${bottom[0]} ${bottom[1]}) scale(${k}) translate(${-bottom[0]} ${-bottom[1]})`}>
         {polys(block([-0.55, -0.55, 0], [0.55, 0.55, 1.3], 90, bottom), GLASS, 0.9)}
-        {Array.from({ length: nDots }, (_, i) => <circle key={tag + i} cx={bottom[0] - 34 + (i % 3) * 34 + 4 * Math.sin((c / 3 + i) * Math.PI * 2)} cy={bottom[1] - 40 - Math.floor(i / 3) * 34 + 4 * Math.cos((c / 3 + i) * Math.PI * 2)} r={9} fill={WHITE} stroke={WATER[2]} strokeWidth={3} />)}
+        {Array.from({ length: nDots }, (_, i) => <circle key={tag + i} cx={bottom[0] - 34 + (i % 3) * 34 + 4 * Math.sin((amb / 3 + i) * Math.PI * 2)} cy={bottom[1] - 40 - Math.floor(i / 3) * 34 + 4 * Math.cos((amb / 3 + i) * Math.PI * 2)} r={9} fill={WHITE} stroke={WATER[2]} strokeWidth={3} />)}
       </g>
     </g>;
   };
@@ -132,7 +133,7 @@ const Scene = ({ beat, t, clock }: SceneProps) => {
   const upK = (a: number) => clamp01((c - a) / 0.5);
   const pushOn = on(c, T.hit, T.untie - 0.2);
   const ghostK = on(c, T.ghost, 40.6);
-  const ceilBalloonY = BALLOON_END_Y + 8 * Math.sin((c / 6) * Math.PI * 2) * (c >= T.riseEnd ? 0.3 : 0);
+  const ceilBalloonY = BALLOON_END_Y + 8 * Math.sin((amb / 6) * Math.PI * 2) * (c >= T.riseEnd ? 0.3 : 0);
 
   return (
     <svg width={1080} height={1920} viewBox="0 0 1080 1920">

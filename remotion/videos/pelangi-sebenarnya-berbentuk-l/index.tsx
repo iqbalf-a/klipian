@@ -4,7 +4,7 @@
    a small glory is shown next to it for scale. The first frame is the last (the loop): the ground is up and the ring is cut. */
 import React from "react";
 import {
-  BLACK, CaptionLayer, FONT_BOLD, ISO, IsoCloud, IsoPlane, IsoSun, Label, Mascot, StoryVideo, THEMES, TopText, WHITE, YELLOW, YELLOW_D, RED, HOT2,
+  loopClock, BLACK, CaptionLayer, FONT_BOLD, ISO, IsoCloud, IsoPlane, IsoSun, Label, Mascot, StoryVideo, THEMES, TopText, WHITE, YELLOW, YELLOW_D, RED, HOT2,
   block, cam2At, clamp01, easeInOut, easeOutBack, layerTransform, ptsAttr, springAt, useFonts, type Poly, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import { mixRgb } from "../../src/natureGeometry.ts";
@@ -83,14 +83,15 @@ const Arrow2: React.FC<{ x1: number; y1: number; x2: number; y2: number; color: 
 
 const KICKER: Record<string, string> = { hook: "PELANGI", tetes: "DI DALAM TETES", cincin: "BENTUKNYA", cakrawala: "DARI TANAH", pesawat: "DARI PESAWAT", glory: "AWAS TERTUKAR", tips: "TIPS" };
 
-const Scene = ({ beat, t, clock }: SceneProps) => {
+const Scene = ({ beat, t, clock, story }: SceneProps) => {
+  const amb = loopClock(clock, story.beats.reduce((a, b) => a + b.dur, 0));   // B29: the ambient motion runs on the loop clock
   useFonts();
   const c = clock, cam = cam2At(CAM, c), isOutro = beat.kind === "outro";
   const drop = slabDrop(c);
   // the ring: whole in the hook, gone while the drop is shown, drawn clockwise at the ring beat, whole to the end
   const ringOp = c < T.ringFade ? 1 : c < T.ringFade + 1 ? 1 - (c - T.ringFade) : c < T.sweep ? 0 : 1;
   const ringK = c >= T.sweep && c < T.sweepEnd ? easeInOut(clamp01((c - T.sweep) / (T.sweepEnd - T.sweep))) : 1;
-  const shimmer = 0.93 + 0.07 * Math.sin(c * 3.1);
+  const shimmer = 0.93 + 0.07 * Math.sin(amb * Math.PI);
   const sunPulse = on(c, T.sunWarn, T.sunWarn + 1.6) * Math.abs(Math.sin((c - T.sunWarn) * 3));
   const axisK = clamp01((c - T.axis) / 0.8) * (1 - clamp01((c - 53.8) / 0.4));
   // the drop: the light path in and out (A = in, B = back, C = out)
@@ -103,7 +104,7 @@ const Scene = ({ beat, t, clock }: SceneProps) => {
   const rin1 = lerp(start, A, rin), ab = lerp(A, B, rbk), bc = lerp(B, C, rbk2);
   // the plane (it comes in from the left once the ground has sunk) and its mist
   const planeK = easeInOut(clamp01((c - T.plane) / 2.0)) * (1 - clamp01((c - 54.4) / 1.2));
-  const planeX = -200 + planeK * 800 + 10 * Math.sin(c * 0.9), planeY = 860 + 8 * Math.sin(c * 1.3 + 1);
+  const planeX = -200 + planeK * 800 + 10 * Math.sin(amb * 0.942), planeY = 860 + 8 * Math.sin(amb * 1.361 + 1);
   const mistOn = on(c, T.mist, 47.6);
   const glory = on(c, T.glory, 47.0);
   const Lab = (text: string, x: number, y: number, fs: number, a: number, b: number, hi?: string[]) =>
@@ -111,19 +112,19 @@ const Scene = ({ beat, t, clock }: SceneProps) => {
   const ringEdge = pt(RING.x, RING.y, RING.r + 52, -42);
   return (
     <svg width={1080} height={1920} viewBox="0 0 1080 1920">
-      <g transform={layerTransform(cam, 0.3)}><Sky clock={c} pulse={sunPulse} /></g>
+      <g transform={layerTransform(cam, 0.3)}><Sky clock={amb} pulse={sunPulse} /></g>
       <g transform={layerTransform(cam, 0.55)}>
-        <IsoCloud u={120} o={[120 + 40 * Math.sin(c / 9), 820]} cx={0} cy={0} cz={0} grow={0.9} haze={0.72} phase={c / 6} />
-        <IsoCloud u={120} o={[960 - 30 * Math.sin(c / 11), 560]} cx={0} cy={0} cz={0} grow={0.85} haze={0.78} phase={c / 6 + 0.3} />
-        <IsoCloud u={110} o={[820 + 25 * Math.sin(c / 8), 930]} cx={0} cy={0} cz={0} grow={0.7} haze={0.7} phase={c / 6 + 0.6} />
+        <IsoCloud u={120} o={[120 + 40 * Math.sin(amb / 10), 820]} cx={0} cy={0} cz={0} grow={0.9} haze={0.72} phase={amb / 6} />
+        <IsoCloud u={120} o={[960 - 30 * Math.sin(amb / 12), 560]} cx={0} cy={0} cz={0} grow={0.85} haze={0.78} phase={amb / 6 + 0.3} />
+        <IsoCloud u={110} o={[820 + 25 * Math.sin(amb / 7.5), 930]} cx={0} cy={0} cz={0} grow={0.7} haze={0.7} phase={amb / 6 + 0.6} />
       </g>
       <g transform={layerTransform(cam, 1)}>
-        <Deck clock={c} />
+        <Deck clock={amb} />
         {/* the rainbow ring, the plane's shadow on the deck, the mist */}
         <Ring cx={RING.x} cy={RING.y} r={RING.r} k={ringK} op={ringOp * shimmer} />
         {planeK > 0.5 && <ellipse cx={RING.x} cy={RING.y + 4} rx={78 * easeOutBack(clamp01((c - T.mist) / 0.6))} ry={26 * easeOutBack(clamp01((c - T.mist) / 0.6))} fill={ISO.cloudGrey[2]} opacity={0.5} />}
         {mistOn > 0.02 && <g opacity={mistOn * 0.8}>{Array.from({ length: 30 }, (_, i) => {
-          const a = i * 2.399 + c * 0.12, r = 120 + ((i * 53) % 400), x = RING.x + r * Math.cos(a), y = RING.y + 0.8 * r * Math.sin(a) + 6 * Math.sin(c * 1.4 + i);
+          const a = i * 2.399 + amb * 0.1047, r = 120 + ((i * 53) % 400), x = RING.x + r * Math.cos(a), y = RING.y + 0.8 * r * Math.sin(a) + 6 * Math.sin(amb * 1.361 + i);
           return <circle key={i} cx={x} cy={y} r={4 + (i % 3) * 2} fill={WHITE} stroke={ISO.water[0]} strokeWidth={2} opacity={0.7} />;
         })}</g>}
         {/* the small glory: a ring about the shadow, far smaller than the rainbow */}
@@ -162,7 +163,7 @@ const Scene = ({ beat, t, clock }: SceneProps) => {
           {Lab("ungu", vioEnd[0] - 26, vioEnd[1] - 46, 44, T.lblColours + 0.4, 13.2)}
         </g>}
         {/* the plane, above its shadow */}
-        {planeK > 0.02 && <IsoPlane x={planeX} y={planeY} w={190} phase={c / 3} />}
+        {planeK > 0.02 && <IsoPlane x={planeX} y={planeY} w={190} phase={amb / 3} />}
         {Lab("cincin utuh", RING.x, 1560, 62, T.lblPlane, 38.8, ["utuh"])}
         {Lab("pelangi 42°", RING.x, 850, 46, T.lblRain, 46.6, ["42°"])}
         {Lab("glory", RING.x + 4, RING.y - 74, 40, T.lblGlory, 46.6)}

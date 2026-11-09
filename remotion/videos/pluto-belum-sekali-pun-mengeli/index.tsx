@@ -5,7 +5,7 @@
    Two tones per part (base and shade), light from the top left, no outlines except the chart's orbit lines. The camera and every time come from plan.ts. */
 import React from "react";
 import {
-  CaptionLayer, G1, G2, G3, ISO, Label, Mascot, Motes, Pill, THEMES, TipCard, TopText, WHITE, YELLOW,
+  loopClock, CaptionLayer, G1, G2, G3, ISO, Label, Mascot, Motes, Pill, THEMES, TipCard, TopText, WHITE, YELLOW,
   StoryVideo, easeInOut, layerTransform, pulse01, springAt, swayDeg, toScreen,
   type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
@@ -102,6 +102,7 @@ const Ball: React.FC<{ x: number; y: number; r: number; tone: readonly [string, 
 );
 
 const Picture: React.FC<{ story: StoryT; clock: number; t: number; beatId: string }> = ({ story: s, clock }) => {
+  const amb = loopClock(clock, s.beats.reduce((a, b) => a + b.dur, 0));   // B29: the ambient motion runs on the loop clock
   const P = makePlan(s), m = P.m;
   const cam = P.cam(clock);
   const yr = P.year(clock), tr = P.trail(clock);
@@ -113,10 +114,10 @@ const Picture: React.FC<{ story: StoryT; clock: number; t: number; beatId: strin
   return (
     <svg width={1080} height={1920} viewBox="0 0 1080 1920" style={{ position: "absolute", inset: 0 }}>
       <g transform={layerTransform(cam, 1)}>
-        <Hall clock={clock} />
-        <Plates clock={clock} />
-        <Telescope clock={clock} />
-        <Plant clock={clock} />
+        <Hall clock={amb} />
+        <Plates clock={amb} />
+        <Telescope clock={amb} />
+        <Plant clock={amb} />
         {/* Neptune's ring, centred on the Sun */}
         <circle cx={FOCUS.x} cy={FOCUS.y} r={NEP_R} fill="none" stroke={ISO.water[0]} strokeWidth={4} strokeDasharray="14 12" opacity={0.85} />
         {/* Pluto's whole orbit: a faint dashed ellipse (it is an ellipse, the Sun is at a focus, not at its centre) */}
@@ -142,7 +143,7 @@ const Picture: React.FC<{ story: StoryT; clock: number; t: number; beatId: strin
       </g>
       {/* the near layer: dust that drifts up, it touches nothing */}
       <g transform={layerTransform(cam, 1.25)}>
-        <Motes t={clock} color={WHITE} opacity={0.3} n={10} />
+        <Motes t={amb} color={WHITE} opacity={0.3} n={10} />
       </g>
       {/* labels on the parts (they follow the camera, kept inside the safe frame) */}
       {P.labels.map((l) => {

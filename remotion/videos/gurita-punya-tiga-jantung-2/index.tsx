@@ -5,7 +5,7 @@
    Every word comes from the checked story (banner and label items of each beat). Colours are tokens (ISO tone sets), shapes are flat three-tone. */
 import React from "react";
 import {
-  BLACK, Brand, CaptionLayer, IsoBlock, TopText, ISO, IsoHeart, Label, Mascot, Pill, StoryVideo, WHITE, blinkClosed, easeInOut, riseAt, smoothPath, springAt,
+  BLACK, Brand, CaptionLayer, IsoBlock, TopText, ISO, IsoHeart, Label, Mascot, Pill, StoryVideo, WHITE, blinkClosed, loopClock, easeInOut, riseAt, smoothPath, springAt,
   type BeatT, type P2, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import { mixRgb } from "../../src/natureGeometry.ts";
@@ -16,7 +16,7 @@ export const story = storyJson as unknown as StoryT;
 
 const TAU = Math.PI * 2;
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
-const wob = (clock: number, period: number, phase = 0) => Math.sin(TAU * (clock / period + phase));       // the periods divide 60 s: the loop-back matches
+const wob = (clock: number, period: number, phase = 0) => Math.sin(TAU * (clock / period + phase));       // the periods divide 60 s: the loop-back matches when the clock fed in is the loop clock `amb` (Scene)
 const win = (c: number, a: number, b: number) => easeInOut(clamp01((c - a) / 0.5)) * (1 - easeInOut(clamp01((c - b) / 0.5)));
 const camTf = (c: Cam) => `translate(540 960) scale(${c.z}) translate(${-c.cx} ${-c.cy})`;
 
@@ -150,16 +150,16 @@ const Vessel: React.FC<{ pts: P2[]; clock: number; w: number; r: number; period:
   </g>
 );
 
-const Octopus: React.FC<{ clock: number }> = ({ clock }) => {
+const Octopus: React.FC<{ clock: number; amb: number }> = ({ clock, amb }) => {
   const sw = swimAt(clock), hc = heartClock(clock);
   const reveal = easeInOut(clamp01((clock - 3.6) / 0.8)) * (1 - easeInOut(clamp01((clock - 56) / 1.5)));
   const sys = Math.max(win(clock, 4, 11), win(clock, 21, 29), win(clock, 44, 56));
   const bran = Math.max(win(clock, 11, 19), win(clock, 44, 56));
   const opSys = 1 - 0.5 * win(clock, 11, 19), opBran = 1 - 0.5 * win(clock, 4, 11);
   const vess = win(clock, 19.5, 36.5), vessBig = 1 + 0.4 * win(clock, 29.5, 36);
-  const tilt = -12 * sw.lift, bob = 5 * wob(clock, 3), breathe = 1 + 0.012 * wob(clock, 3);
-  const look = [7 * wob(clock, 5), 3 * wob(clock, 4, 0.25)];
-  const lid = blinkClosed(clock, 3, 0.3);
+  const tilt = -12 * sw.lift, bob = 5 * wob(amb, 3), breathe = 1 + 0.012 * wob(amb, 3);
+  const look = [7 * wob(amb, 5), 3 * wob(amb, 4, 0.25)];
+  const lid = blinkClosed(amb, 3, 0.3);
   const jets = Array.from({ length: 9 }, (_, j) => ({ j, age: clock - 37.6 - j * 0.16 })).filter((b) => b.age > 0 && b.age < 1.3);
   const eye = (cx: number) => (
     <g>
@@ -173,7 +173,7 @@ const Octopus: React.FC<{ clock: number }> = ({ clock }) => {
     <g transform={`translate(${sw.off} ${-sw.lift * 260 + bob}) rotate(${tilt} 540 1000)`}>
       {/* the water squirted out when it swims */}
       {jets.map((b) => <circle key={b.j} cx={420 - 200 * b.age} cy={1010 + 40 * b.age} r={10 + 14 * b.age} fill="none" stroke={WHITE} strokeWidth={4} opacity={Math.sin((Math.PI * b.age) / 1.3)} />)}
-      {Array.from({ length: 8 }, (_, i) => <Arm key={i} pts={armPoints(i, clock, sw.lift)} />)}
+      {Array.from({ length: 8 }, (_, i) => <Arm key={i} pts={armPoints(i, amb, sw.lift)} />)}
       <g transform={`translate(540 840) scale(${breathe}) translate(-540 -840)`}>
         <ellipse cx={552} cy={854} rx={170} ry={190} fill={ISO.brain[2]} />
         <ellipse cx={540} cy={840} rx={170} ry={190} fill={ISO.brain[1]} />
@@ -237,11 +237,13 @@ const Labels: React.FC<{ beat: BeatT; t: number; clock: number; cam: Cam }> = ({
   );
 };
 
-const Scene = ({ beat, t, clock }: SceneProps) => {
+const Scene = ({ beat, t, clock, story }: SceneProps) => {
+  // the loop clock: the ambient motion (kelp, bubbles, waves, arms) has periods that divide 60 s, so it runs on the video's clock scaled to 60 s: one whole number of cycles whatever the voice makes the length (the last frame matches the first)
+  const amb = loopClock(clock, story.beats.reduce((a, b) => a + b.dur, 0));
   const cam = camAt(clock), far = layerCam(cam, 0.3), near = layerCam(cam, 1.3);
   // the wave of the surface (seen in the wide shot): its period divides the video so the loop-back matches
   const wave: P2[] = [];
-  for (let x = X0; x <= X1; x += 120) wave.push([x, WORLD.surfaceY + 9 * Math.sin(TAU * (x / 360 - clock / 4))]);
+  for (let x = X0; x <= X1; x += 120) wave.push([x, WORLD.surfaceY + 9 * Math.sin(TAU * (x / 360 - amb / 4))]);
   const stingP = beat.kind === "sting" ? springAt(t, 0) * (1 - easeInOut(clamp01((t - 0.8) / 0.2))) : 0;
   return (
     <svg width={1080} height={1920} viewBox="0 0 1080 1920">
@@ -255,17 +257,17 @@ const Scene = ({ beat, t, clock }: SceneProps) => {
       <g transform={camTf(far)}>
         <Ridge y={1040} fill={FAR_RIDGE_2} seed={0.7} />
         <Ridge y={1130} fill={FAR_RIDGE} seed={2.4} />
-        {[-900, -380, 260, 820, 1450, 2000].map((x, i) => <Kelp key={x} x={x} y={1090} h={440 + (i % 3) * 90} w={30} clock={clock} phase={i * 1.3} period={5} tones={[FAR_KELP, FAR_KELP, mixRgb(FAR_KELP, FAR_RIDGE, 0.5)]} />)}
+        {[-900, -380, 260, 820, 1450, 2000].map((x, i) => <Kelp key={x} x={x} y={1090} h={440 + (i % 3) * 90} w={30} clock={amb} phase={i * 1.3} period={5} tones={[FAR_KELP, FAR_KELP, mixRgb(FAR_KELP, FAR_RIDGE, 0.5)]} />)}
       </g>
       <g transform={camTf(cam)}>
         <Seabed />
-        {KELPS.map((k) => <Kelp key={k.x} x={k.x} y={WORLD.floorY + 8} h={k.h} w={k.w} clock={clock} phase={k.ph} tones={ISO.leaf} />)}
+        {KELPS.map((k) => <Kelp key={k.x} x={k.x} y={WORLD.floorY + 8} h={k.h} w={k.w} clock={amb} phase={k.ph} tones={ISO.leaf} />)}
         {ROCKS.map((r) => <Rock key={r.x} {...r} />)}
-        {TUFTS.map((k, i) => [-1, 0, 1].map((d) => <Kelp key={`${i}${d}`} x={k.x + d * 26} y={k.y} h={k.h - Math.abs(d) * 30} w={16} clock={clock} phase={i + d} period={3} tones={ISO.leaf} />))}
+        {TUFTS.map((k, i) => [-1, 0, 1].map((d) => <Kelp key={`${i}${d}`} x={k.x + d * 26} y={k.y} h={k.h - Math.abs(d) * 30} w={16} clock={amb} phase={i + d} period={3} tones={ISO.leaf} />))}
         {FRONT_ROCKS.map((r) => <Rock key={`f${r.x}`} {...r} />)}
-        <Octopus clock={clock} />
+        <Octopus clock={clock} amb={amb} />
       </g>
-      <g transform={camTf(near)}><Bubbles clock={clock} /></g>
+      <g transform={camTf(near)}><Bubbles clock={amb} /></g>
 
       {beat.kind !== "sting" && beat.kind !== "outro" && <TopText kicker={beat.kicker} headline={beat.headline ?? beat.text} t={t} />}
       {beat.kind !== "sting" && beat.kind !== "outro" && <CaptionLayer beat={beat} t={t} />}

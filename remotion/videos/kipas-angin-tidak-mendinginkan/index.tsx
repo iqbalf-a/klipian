@@ -7,7 +7,7 @@
    switched off in the tip. Every word comes from the checked story. Colours are tokens (the ISO tone sets). */
 import React from "react";
 import {
-  BLACK, Brand, CaptionLayer, G3, ISO, IsoCup, IsoFan, Mascot, NumberLabel, Polys, RED, HOT1, HOT2, SourceChip, STEAM, StoryVideo, TopText, WHITE, YELLOW,
+  loopClock, BLACK, Brand, CaptionLayer, G3, ISO, IsoCup, IsoFan, Mascot, NumberLabel, Polys, RED, HOT1, HOT2, SourceChip, STEAM, StoryVideo, TopText, WHITE, YELLOW,
   block, circlePts, cylinder, easeInOut, isoAt, layerTransform, ptsAttr, riseAt, smoothPath, springAt, toScreen,
   type P2, type P3, type SceneProps, type StoryT, type Tones,
 } from "../../src/design/index.ts";
@@ -89,8 +89,11 @@ const Books: React.FC<{ u: number; o: P2 }> = ({ u, o }) => (
     <Polys polys={block([BOOKS_AT[0] + 0.1, BOOKS_AT[1] + 0.08, 0.38], [BOOKS_AT[0] + 1.25, BOOKS_AT[1] + 0.8, 0.54], u, o)} tones={ISO.metal} />
   </g>
 );
+// the blades end on the pose they began on (the loop-back): the spin so far, plus a share of the part turn that is left at the end, so the whole run is whole turns
+const fanTurned = (clock: number, total: number): number => { const rps = 2.2, end = rps * fanClock(total); return fanClock(clock) + ((Math.round(end) - end) / rps) * (clock / total); };
 // ------------------------------------------------------------------------------------------------------ the picture
 const Picture: React.FC<SceneProps> = ({ beat, t, clock, story: s }) => {
+  const TOTAL = s.beats.reduce((a, b) => a + b.dur, 0), amb = loopClock(clock, TOTAL);   // B29: the ambient motion runs on the loop clock
   const P = React.useMemo(() => makePlan(s), [s]);
   const m = P.m, st = stateAt(clock), cam = camAt(clock), top = P.tops.find((x) => clock >= x.a && clock < x.b);
   const u = U, o = O;
@@ -106,22 +109,22 @@ const Picture: React.FC<SceneProps> = ({ beat, t, clock, story: s }) => {
     <div style={{ position: "absolute", inset: 0, width: 1080, height: 1920 }}>
       <svg width={1080} height={1920} viewBox="0 0 1080 1920" style={{ position: "absolute", inset: 0 }}>
         {/* the far layer: the brand wall (the room's wall covers it, but it keeps the theme behind the set) */}
-        <g transform={layerTransform(cam, 0.3)}><Brand clock={clock} spot={{ x: 540, y: 400 }} /></g>
+        <g transform={layerTransform(cam, 0.3)}><Brand clock={amb} spot={{ x: 540, y: 400 }} /></g>
         <g transform={layerTransform(cam, 1)}>
           {/* the wall, the table top and its cabinet run past the frame on every side */}
           <Polys polys={block([-90, WALL_Y - 0.6, -14], [90, WALL_Y, 40], u, o)} tones={ISO.wall} />
           <Polys polys={block([-90, WALL_Y, -14], [90, 7, -0.4], u, o)} tones={ISO.dark} />
           <Polys polys={block([-90, WALL_Y, -0.4], [90, 7, 0], u, o)} tones={ISO.floor} />
           <Books u={u} o={o} />
-          <IsoCup u={u * 0.25} o={world([CUP_AT[0], CUP_AT[1], 0])} t={clock} />
-          <Skin u={u} o={o} sweat={st.sweat} evap={st.evap} clock={clock} />
-          <HeatRise x={slabTop[0]} y={slabTop[1] - 10} k={st.skinHeat} t={clock} scale={1.1} />
+          <IsoCup u={u * 0.25} o={world([CUP_AT[0], CUP_AT[1], 0])} t={amb} />
+          <Skin u={u} o={o} sweat={st.sweat} evap={st.evap} clock={amb} />
+          <HeatRise x={slabTop[0]} y={slabTop[1] - 10} k={st.skinHeat} t={amb} scale={1.1} />
           <Thermometer u={u} o={o} temp={st.temp} />
-          <IsoFan u={u} o={o} t={fanClock(clock)} speed={1} />
-          <HeatRise x={motorTop[0]} y={motorTop[1] + 30} k={st.motorHeat} t={clock + 0.4} scale={0.6} />
-          <AirStreaks u={u} o={o} k={st.air} clock={clock} />
+          <IsoFan u={u} o={o} t={fanTurned(clock, TOTAL)} speed={1} />
+          <HeatRise x={motorTop[0]} y={motorTop[1] + 30} k={st.motorHeat} t={amb + 0.4} scale={0.6} />
+          <AirStreaks u={u} o={o} k={st.air} clock={amb} />
         </g>
-        {cam.zoom < 2.2 && <g transform={layerTransform(cam, 1.35)}><Motes t={clock} color={WHITE} opacity={0.3} n={8} /></g>}
+        {cam.zoom < 2.2 && <g transform={layerTransform(cam, 1.35)}><Motes t={amb} color={WHITE} opacity={0.3} n={8} /></g>}
 
         {/* labels on their parts (screen px through the camera, beat-local time) */}
         {L("udara") && bt > 0.8 && bt < 4.6 && <NumberLabel text="angin" x={250} y={Y(at([0.9, 0, 1.65])[1] - 170)} ax={at([0.9, 0, 1.65])[0]} ay={at([0.9, 0, 1.65])[1]} fs={46} t={t} start={0.9} end={4.5} />}

@@ -28,7 +28,7 @@ export * from "../components/IsoLife.tsx";
 export * from "../components/IsoNature.tsx";
 export * from "../components/IsoSeeding.tsx";
 export * from "../components/IsoBedroom.tsx";
-export { breatheScale, swayDeg, bobPx, driftPx, pulse01, heartBeat, spinDeg, tickDeg, flicker, riseAt, blinkClosed } from "../alive.ts";
+export { breatheScale, swayDeg, bobPx, driftPx, pulse01, heartBeat, spinDeg, tickDeg, flicker, riseAt, blinkClosed, loopClock } from "../alive.ts";
 // karaoke captions and the top text
 export { CaptionLayer, TopText } from "../components/Captions.tsx";
 export { estimateWords, pagesOf, pageAt, activeWord, wordsOfBeat } from "../captions.ts";

@@ -5,7 +5,7 @@
    stretched towards the Earth (exaggerated, and labelled so). Sizes and distances are not to scale (the Moon is 0.27 of the Earth's width, 60 Earth widths away). */
 import React from "react";
 import {
-  BLACK, CaptionLayer, IsoBlock, Label, Mascot, StoryVideo, TopText, YELLOW, YELLOW_D, clamp01, cylinder, easeInOut, easeOutBack, iso, isoAt, layerTransform, ptsAttr,
+  loopClock, BLACK, CaptionLayer, IsoBlock, Label, Mascot, StoryVideo, TopText, YELLOW, YELLOW_D, clamp01, cylinder, easeInOut, easeOutBack, iso, isoAt, layerTransform, ptsAttr,
   springAt, toScreen, useFonts, type P2, type P3, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import { ISO, WHITE } from "../../src/tokens.ts";
@@ -118,14 +118,15 @@ const Arrow2: React.FC<{ x1: number; y1: number; x2: number; y2: number; color: 
     <polygon points={`${ex},${ey} ${ex - s * Math.cos(a - 0.5)},${ey - s * Math.sin(a - 0.5)} ${ex - s * Math.cos(a + 0.5)},${ey - s * Math.sin(a + 0.5)}`} fill={color} /></g>;
 };
 
-const Scene = ({ beat, t, clock }: SceneProps) => {
+const Scene = ({ beat, t, clock, story }: SceneProps) => {
+  const amb = loopClock(clock, story.beats.reduce((a, b) => a + b.dur, 0));   // B29: the ambient motion runs on the loop clock
   useFonts();
   const c = clock;
   const cam = camAt(c);
-  const th = theta(c), phi = moonPhi(c), mp = moonPos(c), gp = ghostPos(c), gth = ghostTheta(c);
+  const th = theta(amb), phi = moonPhi(amb), mp = moonPos(amb), gp = ghostPos(amb), gth = ghostTheta(amb);   // the orbit is whole laps in 60 s: on the loop clock the last frame is the first
   const depthOf = (a: number) => Math.cos(a) + Math.sin(a);                         // > 0: in front of the Earth (nearer the viewer)
   const MR = SET.moonR;
-  const earthPhi = (c / 5) * Math.PI * 2;                                           // the Earth turns once in 5 s (12 turns in 60 s: the loop)
+  const earthPhi = (amb / 5) * Math.PI * 2;                                           // the Earth turns once in 5 s (12 turns in 60 s: the loop)
 
   // ---- what the beats add: every one has its time in plan.ts T (and sfx.ts reads the same)
   const ringK = clamp01((c - T.ring) / (T.ringEnd - T.ring)) * (1 - clamp01((c - 56.2) / 1.6)) ;

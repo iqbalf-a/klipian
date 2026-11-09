@@ -5,7 +5,7 @@
    Two tones per part (base and shade), light from the top left, no outlines. The camera and every time come from plan.ts. */
 import React from "react";
 import {
-  Arrow, CaptionLayer, G1, G2, G3, G4, ISO, Label, Mascot, Motes, Pill, THEMES, TipCard, TopText, WHITE,
+  loopClock, Arrow, CaptionLayer, G1, G2, G3, G4, ISO, Label, Mascot, Motes, Pill, THEMES, TipCard, TopText, WHITE,
   StoryVideo, bobPx, easeInOut, easeOut, layerTransform, springAt, swayDeg, toScreen,
   type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
@@ -89,15 +89,15 @@ const Mol: React.FC<{ x: number; y: number; rot: number; s?: number }> = ({ x, y
 /** The glass of water: a tight crowd of molecules in the water, the glass in front. */
 const Glass: React.FC<{ clock: number }> = ({ clock }) => {
   const { top, base, floorIn } = GLASS;
-  const wob = (x: number) => 3 * Math.sin(clock * 2.2 + x * 0.04);
+  const wob = (x: number) => 3 * Math.sin(clock * 2.199 + x * 0.04);
   const surfPath = `M ${xl(SURF) - 1} ${SURF + wob(0)} ` + Array.from({ length: 13 }, (_, i) => { const x = lerp(xl(SURF), xr(SURF), (i + 1) / 13); return `L ${x} ${SURF + wob(x)}`; }).join(" ");
   const mols: React.ReactNode[] = [];
   const rows = 11, cols = 8;
   for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
     const y = lerp(SURF + 34, floorIn - 26, r / (rows - 1)), x0 = xl(y) + 22, x1 = xr(y) - 22;
     const k = r * cols + c, off = (r % 2) * 0.5 * ((x1 - x0) / (cols - 1));
-    const x = lerp(x0, x1, c / (cols - 1)) + off * (c === cols - 1 ? 0 : 1) + 6 * Math.sin(clock * 2.4 + k) , yy = y + 6 * Math.sin(clock * 2.0 + k * 1.7);
-    mols.push(<Mol key={k} x={x} y={yy} rot={(hash(k) * 360) + 40 * Math.sin(clock * 1.3 + k)} />);
+    const x = lerp(x0, x1, c / (cols - 1)) + off * (c === cols - 1 ? 0 : 1) + 6 * Math.sin(clock * 2.409 + k) , yy = y + 6 * Math.sin(clock * 1.99 + k * 1.7);
+    mols.push(<Mol key={k} x={x} y={yy} rot={(hash(k) * 360) + 40 * Math.sin(clock * 1.257 + k)} />);
   }
   return (
     <g>
@@ -162,7 +162,7 @@ const Balance: React.FC<{ tilt: number; clock: number }> = ({ tilt, clock }) => 
       <path d={`M ${p[0] + 20} ${p[1] + hang} L ${p[0] + 130} ${p[1] + hang} Q ${p[0] + 60} ${p[1] + hang + 52} ${p[0] + 20} ${p[1] + hang + 6} Z`} fill={ISO.brass[2]} opacity={0.8} />
       {k === 0
         ? <g transform={`translate(${p[0] - 76} ${p[1] + hang - 92}) scale(3.8 2)`}><MiniGlass /></g>
-        : <g>{[0, 1, 2, 3, 4, 5].map((i) => <Mol key={i} x={p[0] - 80 + (i % 3) * 80 + 6 * Math.sin(clock * 2.4 + i)} y={p[1] + hang - 30 - Math.floor(i / 3) * 46 + 5 * Math.sin(clock * 2 + i)} rot={hash(i + 5) * 360 + 30 * Math.sin(clock + i)} s={1.5} />)}</g>}
+        : <g>{[0, 1, 2, 3, 4, 5].map((i) => <Mol key={i} x={p[0] - 80 + (i % 3) * 80 + 6 * Math.sin(clock * 2.409 + i)} y={p[1] + hang - 30 - Math.floor(i / 3) * 46 + 5 * Math.sin(clock * 1.99 + i)} rot={hash(i + 5) * 360 + 30 * Math.sin(clock * 1.047 + i)} s={1.5} />)}</g>}
     </g>
   );
   return (
@@ -188,25 +188,26 @@ const Spoon: React.FC<{ clock: number }> = ({ clock }) => {
       <path d={`M ${x - 90} ${y - 16} L ${x + 90} ${y - 16} Q ${x + 70} ${y + 4} ${x} ${y + 4} Q ${x - 70} ${y + 4} ${x - 90} ${y - 16} Z`} fill={ISO.metal[1]} />
       <path d={`M ${x + 6} ${y - 16} L ${x + 90} ${y - 16} Q ${x + 70} ${y + 4} ${x} ${y + 4} Z`} fill={ISO.metal[2]} opacity={0.7} />
       <path d={`M ${x - 80} ${y - 14} L ${x + 80} ${y - 14} Q ${x + 60} ${y - 2} ${x} ${y - 2} Q ${x - 60} ${y - 2} ${x - 80} ${y - 14} Z`} fill={WATER[0]} />
-      {[-48, -16, 16, 48].map((dx, i) => <Mol key={i} x={x + dx + 3 * Math.sin(clock * 2.5 + i)} y={y - 24 + 3 * Math.sin(clock * 2 + i * 2)} rot={hash(i + 20) * 360 + 30 * Math.sin(clock + i)} s={0.7} />)}
+      {[-48, -16, 16, 48].map((dx, i) => <Mol key={i} x={x + dx + 3 * Math.sin(clock * 2.513 + i)} y={y - 24 + 3 * Math.sin(clock * 1.99 + i * 2)} rot={hash(i + 20) * 360 + 30 * Math.sin(clock * 1.047 + i)} s={0.7} />)}
     </g>
   );
 };
 
 const Picture: React.FC<{ story: StoryT; clock: number; t: number; beatId: string }> = ({ story: s, clock }) => {
+  const amb = loopClock(clock, s.beats.reduce((a, b) => a + b.dur, 0));   // B29: the ambient motion runs on the loop clock
   const P = makePlan(s), m = P.m;
   const cam = P.cam(clock);
   const chk = P.check(clock);
   return (
     <svg width={1080} height={1920} viewBox="0 0 1080 1920" style={{ position: "absolute", inset: 0 }}>
       <g transform={layerTransform(cam, 1)}>
-        <Lab clock={clock} />
-        <Tank fill={P.tankFill(clock)} clock={clock} />
-        <Balance tilt={P.tilt(clock)} clock={clock} />
-        <Spoon clock={clock} />
-        <Glass clock={clock} />
+        <Lab clock={amb} />
+        <Tank fill={P.tankFill(clock)} clock={amb} />
+        <Balance tilt={P.tilt(clock)} clock={amb} />
+        <Spoon clock={amb} />
+        <Glass clock={amb} />
         {/* the check mark over the glass: a green disc that pops (hasil beat) */}
-        {chk > 0.01 && <g transform={`translate(740 1020) scale(${chk}) rotate(${swayDeg(clock, 0, 4, 3)})`}>
+        {chk > 0.01 && <g transform={`translate(740 1020) scale(${chk}) rotate(${swayDeg(amb, 0, 4, 3)})`}>
           <circle r={74} fill={LEAF[1]} /><circle r={74} cx={10} cy={10} fill={LEAF[2]} opacity={0.5} />
           <path d="M -34 2 L -8 30 L 38 -26" fill="none" stroke={WHITE} strokeWidth={16} strokeLinecap="round" strokeLinejoin="round" />
         </g>}
@@ -225,7 +226,7 @@ const Picture: React.FC<{ story: StoryT; clock: number; t: number; beatId: strin
       </g>
       {/* the near layer: dust that drifts up, it touches nothing */}
       <g transform={layerTransform(cam, 1.25)}>
-        <Motes t={clock} color={WHITE} opacity={0.35} n={12} />
+        <Motes t={amb} color={WHITE} opacity={0.35} n={12} />
       </g>
       {/* labels on the parts (they follow the camera, kept inside the safe frame) */}
       {P.labels.map((l) => {

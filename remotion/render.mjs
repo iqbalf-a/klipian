@@ -230,6 +230,7 @@ async function main() {
     composition, serveUrl, outputLocation: silent, codec: "h264", inputProps, chromiumOptions, port,
     muted: true,                                           // the voice-over comes later (P28-C); the sound effects are added below
     concurrency: job.concurrency ?? null,
+    timeoutInMilliseconds: job.frameTimeout ?? 180000,      // a heavy scene (the colokan wide shot: seconds a frame) must not die at the default 30 s a frame
     ...(job.preview ? { scale: 0.5, crf: 30, x264Preset: "veryfast" } : {}),   // a draft: half size (540 by 960), a faster encode; the same frames and timing
     cancelSignal, logLevel: "error",
     onProgress: ({ progress: p, renderedFrames, encodedFrames }) => progress("render", p * 100, { renderedFrames, encodedFrames, total: composition.durationInFrames }),

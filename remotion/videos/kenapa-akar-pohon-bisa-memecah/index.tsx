@@ -5,7 +5,7 @@
    Every spoken fact comes from story.json; the camera and the state come from plan.ts. */
 import React from "react";
 import {
-  BLACK, Brand, CaptionLayer, COFFEE, COFFEE_LIGHT, FPS, G1, G2, G3, HOLE_SHADE, ISO, Label, Mascot, Motes, NumberLabel, PLASTER, SourceChip, StoryVideo, TipCard, TopText, WHITE,
+  loopClock, BLACK, Brand, CaptionLayer, COFFEE, COFFEE_LIGHT, FPS, G1, G2, G3, HOLE_SHADE, ISO, Label, Mascot, Motes, NumberLabel, PLASTER, SourceChip, StoryVideo, TipCard, TopText, WHITE,
   YELLOW, block, cylinder, easeOut, isoAt, layerTransform, planeXZ, ptsAttr, riseAt, springAt, swayDeg, toScreen, tipCardHeight,
   type P2, type P3, type Poly, type SceneProps, type StoryT, type Tones,
 } from "../../src/design/index.ts";
@@ -64,6 +64,7 @@ const GRAINS: P2[] = Array.from({ length: 90 }, (_, i) => [-15 + ((i * 29) % 100
 type Cam = ReturnType<ReturnType<typeof makePlan>["camAt"]>;
 
 const Scene = ({ beat, t, clock, story: s }: SceneProps) => {
+  const amb = loopClock(clock, s.beats.reduce((a, b) => a + b.dur, 0));   // B29: the ambient motion runs on the loop clock
   const P = React.useMemo(() => makePlan(s), [s]);
   const st = P.state(clock), cam: Cam = P.camAt(beat.id, t), w = st.w, tip = st.tip;
   const lift = (x: number) => (x < ROAD_X0 ? 0 : liftAt(x, w, tip));
@@ -186,7 +187,7 @@ const Scene = ({ beat, t, clock, story: s }: SceneProps) => {
 
   return (
     <svg width={1080} height={1920} viewBox="0 0 1080 1920">
-      <Brand clock={clock} spot={{ x: 900, y: 760, r: 300 }} />
+      <Brand clock={amb} spot={{ x: 900, y: 760, r: 300 }} />
       <g transform={layerTransform(cam, 1)}>
         {top}
         {lamp}
@@ -194,7 +195,7 @@ const Scene = ({ beat, t, clock, story: s }: SceneProps) => {
         {showPost && post}
         {cutFace}
       </g>
-      <g transform={layerTransform(cam, 1.35)}><Motes t={clock} color={WHITE} opacity={0.35} n={10} /></g>
+      <g transform={layerTransform(cam, 1.35)}><Motes t={amb} color={WHITE} opacity={0.35} n={10} /></g>
       {labelEls}
       {ringCard}
       {up}

@@ -5,7 +5,7 @@
    value n (plan.ts loadAt) that thins every disc, drops the head, moves the sun and the moon and turns the clock. */
 import React from "react";
 import {
-  BLACK, CaptionLayer, FONT_BOLD, FONT_MONO, G1, G2, G3, G4, Arrow, Label, Mascot, NumberCard, PLASTER, Pill, SKIN_A, SKIN_B, StoryVideo, STEAM, THEMES, TopText, WHITE,
+  loopClock, BLACK, CaptionLayer, FONT_BOLD, FONT_MONO, G1, G2, G3, G4, Arrow, Label, Mascot, NumberCard, PLASTER, Pill, SKIN_A, SKIN_B, StoryVideo, STEAM, THEMES, TopText, WHITE,
   YELLOW, YELLOW_D, clamp01, easeInOut, springAt, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import storyJson from "./story.json";
@@ -64,7 +64,7 @@ function spine(n: number) {
 }
 const TOP_MORNING = spine(0).top;
 
-const Wall: React.FC<{ n: number; clock: number }> = ({ n, clock }) => {
+const Wall: React.FC<{ n: number; clock: number; amb: number }> = ({ n, clock, amb }) => {
   const day = 1 - clamp01((n - 0.45) * 3), night = clamp01((n - 0.4) * 3);
   const hour = 7 + 14 * n;
   const sunX = 880 + 190 * n, sunY = 830 + 230 * n * n;
@@ -85,12 +85,12 @@ const Wall: React.FC<{ n: number; clock: number }> = ({ n, clock }) => {
         <rect x={810} y={420} width={780} height={760} fill={G1} opacity={0.88 * night} />
         {day > 0 && <g opacity={day}>
           <circle cx={sunX} cy={sunY} r={62} fill={YELLOW} />
-          {Array.from({ length: 10 }, (_, i) => { const a = (i / 10) * 2 * Math.PI + clock * 0.4; return <rect key={i} x={sunX + 88 * Math.cos(a) - 7} y={sunY + 88 * Math.sin(a) - 22} width={14} height={44} rx={7} fill={YELLOW} transform={`rotate(${(a * 180) / Math.PI + 90} ${sunX + 88 * Math.cos(a)} ${sunY + 88 * Math.sin(a)})`} />; })}
+          {Array.from({ length: 10 }, (_, i) => { const a = (i / 10) * 2 * Math.PI + amb * 0.4189; return <rect key={i} x={sunX + 88 * Math.cos(a) - 7} y={sunY + 88 * Math.sin(a) - 22} width={14} height={44} rx={7} fill={YELLOW} transform={`rotate(${(a * 180) / Math.PI + 90} ${sunX + 88 * Math.cos(a)} ${sunY + 88 * Math.sin(a)})`} />; })}
         </g>}
         {night > 0 && <g opacity={night}>
           <circle cx={1010} cy={610} r={52} fill={G4} />
           <circle cx={995} cy={598} r={11} fill={G3} /><circle cx={1028} cy={630} r={8} fill={G3} />
-          {[[900, 520, 7], [1120, 500, 6], [1230, 700, 8], [960, 880, 6], [1180, 960, 7], [870, 760, 5]].map(([x, y, r], i) => <circle key={i} cx={x} cy={y} r={r * (0.8 + 0.25 * Math.sin(clock * 3 + i * 2))} fill={WHITE} />)}
+          {[[900, 520, 7], [1120, 500, 6], [1230, 700, 8], [960, 880, 6], [1180, 960, 7], [870, 760, 5]].map(([x, y, r], i) => <circle key={i} cx={x} cy={y} r={r * (0.8 + 0.25 * Math.sin(amb * 3.142 + i * 2))} fill={WHITE} />)}
         </g>}
         <rect x={1190} y={420} width={20} height={760} fill={SKIN_B} /><rect x={810} y={790} width={780} height={20} fill={SKIN_B} />
         <rect x={770} y={1198} width={840} height={36} fill={SKIN_A} /><rect x={776} y={1210} width={840} height={30} fill={SKIN_B} opacity={0.6} />
@@ -106,7 +106,7 @@ const Wall: React.FC<{ n: number; clock: number }> = ({ n, clock }) => {
       {/* a potted plant at the left, swaying */}
       <g transform="translate(-40 0)">
         {[[-60, -230, -22], [0, -330, 4], [60, -250, 24], [-24, -180, -10]].map(([dx, dy, rot], i) => (
-          <g key={i} transform={`translate(110 ${FLOOR_Y - 190}) rotate(${rot + sway(clock + i, 3 + i * 0.4, 3)})`}>
+          <g key={i} transform={`translate(110 ${FLOOR_Y - 190}) rotate(${rot + sway(amb + i, [3, 3.75, 4, 5][i], 3)})`}>
             <path d={`M 0 0 C ${dx - 30} ${dy * 0.5} ${dx - 20} ${dy * 0.9} ${dx} ${dy} C ${dx + 26} ${dy * 0.8} ${dx + 28} ${dy * 0.4} 0 0 Z`} fill={SKIN_B} opacity={0.35} transform="translate(8 8)" />
             <path d={`M 0 0 C ${dx - 30} ${dy * 0.5} ${dx - 20} ${dy * 0.9} ${dx} ${dy} C ${dx + 26} ${dy * 0.8} ${dx + 28} ${dy * 0.4} 0 0 Z`} fill={G3} />
           </g>
@@ -136,11 +136,11 @@ const Chart: React.FC<{ n: number; headTop: number; t: number }> = ({ n, headTop
   );
 };
 
-const Person: React.FC<{ n: number; clock: number; hl: number }> = ({ n, clock, hl }) => {
+const Person: React.FC<{ n: number; clock: number; amb: number; hl: number }> = ({ n, clock, amb, hl }) => {
   const sp = spine(n), ytop = sp.top, ys = ytop + 60;
   const hx = sp.verts[sp.verts.length - 1].cx + 14, hy = ytop - 150;
-  const breath = 0.5 - 0.5 * Math.cos((2 * Math.PI * clock) / 4);
-  const eyeShut = (clock * 0.8) % 4 < 0.12;
+  const breath = 0.5 - 0.5 * Math.cos((2 * Math.PI * amb) / 4);
+  const eyeShut = (amb * 0.8) % 4 < 0.12;
   const speed = (loadAt(clock + 0.05) - loadAt(clock - 0.05)) / 0.1;
   const flow = Math.abs(speed) > 0.04;
   const torso = `M 430 ${ys} C 392 ${ys + 40} 388 ${ys + 200} 396 ${ys + 500} C 402 ${ys + 700} 380 1200 392 ${HIP} L 692 ${HIP} C 705 1300 690 1150 702 1000 C 716 800 722 ${ys + 250} 650 ${ys + 60} C 610 ${ys} 520 ${ys - 20} 430 ${ys} Z`;
@@ -167,7 +167,7 @@ const Person: React.FC<{ n: number; clock: number; hl: number }> = ({ n, clock, 
           {i === 2 && hl > 0 && <rect x={d.cx - d.w / 2 - 12} y={d.y - 10} width={d.w + 24} height={d.h + 20} rx={14} fill={YELLOW} opacity={hl} />}
           <Box x={d.cx - d.w / 2} y={d.y} w={d.w} h={d.h} r={Math.min(8, d.h / 2)} base={STEAM} shade={G3} sh={[4, 4]} />
           {flow && [-1, 1].map((sd) => {
-            const ph = (clock * 1.3 + i * 0.37 + (sd > 0 ? 0.5 : 0)) % 1, dir = speed > 0 ? ph : 1 - ph;
+            const ph = (amb * 1.3 + i * 0.37 + (sd > 0 ? 0.5 : 0)) % 1, dir = speed > 0 ? ph : 1 - ph;
             return <ellipse key={sd} cx={d.cx + sd * (d.w / 2 + 6 + dir * 34)} cy={d.y + d.h / 2 + dir * dir * 16} rx={6 * d.s} ry={8 * d.s} fill={STEAM} opacity={Math.sin(Math.PI * ph) * 0.95} />;
           })}
         </g>
@@ -219,16 +219,16 @@ const DetailBubble: React.FC<{ n: number; clock: number }> = ({ n, clock }) => {
   );
 };
 
-const World: React.FC<{ clock: number }> = ({ clock }) => {
+const World: React.FC<{ clock: number; amb: number }> = ({ clock, amb }) => {
   const n = loadAt(clock), sp = spine(n), headTop = sp.top - 285;
   const hl = win(clock, DETAIL.a - 0.4, DETAIL.b, 0.4) * (0.55 + 0.35 * Math.sin(clock * 5));
   const la = win(clock, LOAD_ARROWS.a, LOAD_ARROWS.b, 0.3), pulse = 10 * Math.sin(clock * 4.2);
   const ys = sp.top + 60;
   return (
     <g>
-      <Wall n={n} clock={clock} />
+      <Wall n={n} clock={clock} amb={amb} />
       <Chart n={n} headTop={headTop} t={clock} />
-      <Person n={n} clock={clock} hl={Math.max(0, hl)} />
+      <Person n={n} clock={clock} amb={amb} hl={Math.max(0, hl)} />
       {/* the leader from the lit disc to its magnified bubble */}
       {win(clock, DETAIL.a, DETAIL.b, 0.4) > 0 && <g opacity={win(clock, DETAIL.a, DETAIL.b, 0.4)}>
         <line x1={600} y1={sp.discs[2].y + sp.discs[2].h / 2} x2={776} y2={880} stroke={G2} strokeWidth={6} strokeDasharray="14 10" />
@@ -261,7 +261,8 @@ const BedCard: React.FC<{ clock: number }> = ({ clock }) => {
   );
 };
 
-const Scene = ({ beat, t, clock }: SceneProps) => {
+const Scene = ({ beat, t, clock, story }: SceneProps) => {
+  const amb = loopClock(clock, story.beats.reduce((a, b) => a + b.dur, 0));   // B29: the ambient motion runs on the loop clock
   const c = camAt(clock), sting = beat.kind === "sting", outro = beat.kind === "outro";
   const labels = LABELS.filter((l) => clock >= l.from && clock < l.to + 0.3);
   const tx = `translate(${W / 2} ${H / 2}) scale(${c.z}) translate(${-c.x} ${-c.y})`;
@@ -270,7 +271,7 @@ const Scene = ({ beat, t, clock }: SceneProps) => {
   return (
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
       <g transform={tx}>
-        <World clock={clock} />
+        <World clock={clock} amb={amb} />
         {labels.map((l) => <g key={l.text} opacity={1 - clamp01((clock - l.to) / 0.3)}><Label text={l.text} x={l.x} y={l.y} fs={l.fs} t={clock} start={l.from} /></g>)}
         {BRACKETS.map((b, i) => clock >= b.a && clock < b.b + 0.3 && <g key={i} opacity={1 - clamp01((clock - b.b) / 0.3)}><Label text="1 cm" x={470} y={TOP_MORNING - 285 + 38} fs={50} t={clock} start={b.a + 0.1} highlight={["1"]} /></g>)}
       </g>

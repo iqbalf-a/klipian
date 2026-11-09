@@ -3,7 +3,7 @@
    The times come from plan.ts (CUE), the same numbers the sound (sfx.ts) uses. Every word on a card is the story's own (the beats' texts and narration). */
 import React from "react";
 import {
-  BLACK, Brand, CaptionLayer, FONT_BOLD, FONT_MONO, G2, G3, G4, Mascot, Pill, StoryVideo, TopText, WHITE, YELLOW, YELLOW_D,
+  loopClock, BLACK, Brand, CaptionLayer, FONT_BOLD, FONT_MONO, G2, G3, G4, Mascot, Pill, StoryVideo, TopText, WHITE, YELLOW, YELLOW_D,
   clamp01, easeInOut, easeOut, hover, springAt, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import storyJson from "./story.json";
@@ -197,7 +197,8 @@ const Akhir: React.FC<{ t: number }> = ({ t }) => {
   );
 };
 
-const Scene = ({ beat, t, clock }: SceneProps) => {
+const Scene = ({ beat, t, clock, story }: SceneProps) => {
+  const amb = loopClock(clock, story.beats.reduce((a, b) => a + b.dur, 0));   // B29: the ambient motion runs on the loop clock
   const outro = beat.kind === "outro", sting = beat.kind === "sting";
   // a slow camera push over the beat (B25): the content only, never the top text or the caption
   const zoom = 1 + 0.045 * easeInOut(clamp01(t / beat.dur));
@@ -205,7 +206,7 @@ const Scene = ({ beat, t, clock }: SceneProps) => {
   const Body = sting ? Sting : body;
   return (
     <svg width={1080} height={1920} viewBox="0 0 1080 1920">
-      <Brand clock={clock} spot={{ x: 540, y: 930 }} />
+      <Brand clock={amb} spot={{ x: 540, y: 930 }} />
       {!outro && Body && <g transform={sting ? undefined : `translate(540 960) scale(${zoom}) translate(-540 -960)`}><Body t={t} /></g>}
       {!sting && !outro && <TopText kicker={beat.kicker} headline={beat.headline ?? beat.text} t={t} />}
       {!sting && !outro && <CaptionLayer beat={beat} t={t} />}

@@ -7,6 +7,7 @@ import { useCurrentFrame } from "remotion";
 import {
   BLACK, Brand, CaptionLayer, FPS, FONT_BOLD, FRAME, G1, G2, G3, ISO, IsoBattery, Label, Lab, Mascot, Polys, RED, TipCard, TopText, WHITE, YELLOW, bobPx, block, easeInOut, isoAt, layerTransform, springAt, useFonts,
   type StoryT,
+  loopClock,
 } from "../../src/design/index.ts";
 import { IsoPhone } from "../../src/components/IsoBedroom.tsx";
 import { BENCH, O, PHONE_PT, PHONE_SCALE, U, makePlan, type Insert, type Plan } from "./plan.ts";
@@ -108,7 +109,7 @@ const Flake: React.FC<{ x: number; y: number; r: number; rot?: number; color?: s
 const HudBattery: React.FC<{ x: number; y: number; level: number; cold: number; t: number }> = ({ x, y, level, cold, t }) => {
   const bw = 250, bh = 120, fillW = (bw - 28) * clamp01(level);
   return (
-    <g transform={`translate(${x} ${y + bobPx(t, 0.4, 5)})`}>
+    <g transform={`translate(${x} ${y + bobPx(t, 0.4, 5, 2)})`}>
       <rect x={-bw / 2} y={-bh / 2} width={bw} height={bh} rx={26} fill={G2} />
       <rect x={bw / 2} y={-22} width={18} height={44} rx={7} fill={G2} />
       <rect x={-bw / 2 + 14} y={-bh / 2 + 14} width={bw - 28} height={bh - 28} rx={14} fill={G1} />
@@ -182,6 +183,7 @@ const InsertObject: React.FC<{ P: Plan; ins: Insert; t: number }> = ({ P, ins, t
 };
 
 const InsertLayer: React.FC<{ P: Plan; t: number }> = ({ P, t }) => {
+  const amb = loopClock(t, P.total);
   const ins = P.insertAt(t);
   if (!ins) return null;
   const k = P.insertOpen(ins, t);
@@ -192,7 +194,7 @@ const InsertLayer: React.FC<{ P: Plan; t: number }> = ({ P, t }) => {
     <g>
       <defs><clipPath id={id}><circle cx={o[0]} cy={o[1]} r={1700 * k} /></clipPath></defs>
       <g clipPath={`url(#${id})`}>
-        {dark ? <Lab clock={t} /> : <><rect width={W} height={H} fill={ISO.cloudWhite[1]} /><Brand clock={t} spot={{ x: 540, y: 1000, r: 420 }} /></>}
+        {dark ? <Lab clock={amb} /> : <><rect width={W} height={H} fill={ISO.cloudWhite[1]} /><Brand clock={amb} spot={{ x: 540, y: 1000, r: 420 }} /></>}
         <InsertObject P={P} ins={ins} t={t} />
       </g>
     </g>
@@ -211,13 +213,14 @@ const Picture: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ story: s 
   const bt = t - P.beat(beat.id).a;
   const top = P.tops.find((x) => t >= x.a && t < x.b);
   const lw = P.loopWeight(t);
+  const amb = loopClock(t, P.total);   // B29: the ambient motion (snow, sway, blades) runs on the loop clock: the last frame is the first
   const mound: [number, number, number][] = [[-1.5, 3.6, 130], [5.6, 3.2, 150], [2.2, -3.4, 140], [6.2, -1.2, 110], [-2.4, 0.4, 120], [-3.6, 1.8, 90], [4.4, 7, 120], [-1.5, -4.5, 100]];
   const pines: [number, number, number][] = [[-8, 0.5, 6.2], [-6.5, 4.5, 6.6], [8.5, 1, 6.4], [9.5, 8.5, 6.2], [-3.8, 6.2, 5.2], [6.4, -1.8, 5.4]];
   const things: { z: number; el: React.ReactNode }[] = [
     ...mound.map(([x, y, r], i) => ({ z: x + y, el: <Mound key={`m${i}`} x={x} y={y} r={r} /> })),
-    ...pines.map(([x, y, h], i) => ({ z: x + y, el: <Pine key={`p${i}`} x={x} y={y} s={h} sway={Math.sin(TAU * (t / SNOW_PERIOD) + i)} /> })),
+    ...pines.map(([x, y, h], i) => ({ z: x + y, el: <Pine key={`p${i}`} x={x} y={y} s={h} sway={Math.sin(TAU * (amb / SNOW_PERIOD) + i)} /> })),
     { z: -1.6, el: <LampPost key="lamp" x={-4.4} y={2.8} /> },
-    { z: 3, el: <g key="bench"><Bench /><IsoPhone u={U} o={O} on={1} t={t * 2} scale={PHONE_SCALE} /></g> },       // the bench and its phone stand at x + y = 3: what is farther back is drawn first
+    { z: 3, el: <g key="bench"><Bench /><IsoPhone u={U} o={O} on={1} t={amb * 2} scale={PHONE_SCALE} /></g> },       // the bench and its phone stand at x + y = 3: what is farther back is drawn first
   ].sort((a, b) => a.z - b.z);
   const [gx0, gx1] = [-9, 11];
 
@@ -225,13 +228,13 @@ const Picture: React.FC<{ story: StoryT; layoutDebug?: boolean }> = ({ story: s 
     <div style={{ position: "absolute", inset: 0, width: W, height: H }}>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ position: "absolute", inset: 0 }}>
         <rect width={W} height={H} fill={ISO.cloudWhite[1]} />
-        <g transform={layerTransform(cam, 0.3)}><g transform="translate(540 960) scale(1.9) translate(-540 -960)"><Brand clock={t} spot={{ x: 540, y: 1500, r: 300 }} /></g><FarHills /></g>
+        <g transform={layerTransform(cam, 0.3)}><g transform="translate(540 960) scale(1.9) translate(-540 -960)"><Brand clock={amb} spot={{ x: 540, y: 1500, r: 300 }} /></g><FarHills /></g>
         <g transform={layerTransform(cam, 1)}>
           <Polys polys={block([gx0, gx0, -1.4], [gx1, gx1, GROUND], U, O)} tones={ISO.cloudWhite} />
           {things.map((x) => x.el)}
-          <HudBattery x={PHONE_PT[0]} y={PHONE_PT[1] - 250} level={st.level} cold={st.cold} t={t} />
+          <HudBattery x={PHONE_PT[0]} y={PHONE_PT[1] - 250} level={st.level} cold={st.cold} t={amb} />
         </g>
-        <g transform={layerTransform(cam, 1.4)}><Snow t={t} k={st.cold} /></g>
+        <g transform={layerTransform(cam, 1.4)}><Snow t={amb} k={st.cold} /></g>
 
         <InsertLayer P={P} t={t} />
 
