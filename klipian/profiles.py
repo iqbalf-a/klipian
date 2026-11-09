@@ -52,6 +52,13 @@ def _write_json(path: Path, data: dict) -> None:
     tmp.replace(path)
 
 
+UPLOAD_TOOLS = ("youtube", "tiktok", "instagram")       # the platforms a profile has upload tools for (the status marks on a clip row are for every profile)
+
+
+def _clean_tools(raw) -> list:
+    return [k for k in UPLOAD_TOOLS if isinstance(raw, (list, tuple)) and k in raw]
+
+
 def write_meta(pid: str, meta: dict) -> None:
     """Write profile.json (name, colour, defaults); the Guest and the Admin have none."""
     if pid in (GUEST, ADMIN):
@@ -61,7 +68,8 @@ def write_meta(pid: str, meta: dict) -> None:
                                   "color": str(meta.get("color") or DEFAULT_COLORS[0]),
                                   "defaults": meta.get("defaults") if isinstance(meta.get("defaults"), dict) else {},
                                   "autopilotTemplate": str(meta.get("template") or "default"),
-                                  "autopilotAi": str(meta.get("ai") or "manual")})
+                                  "autopilotAi": str(meta.get("ai") or "manual"),
+                                  "uploadTools": _clean_tools(meta.get("uploadTools"))})
 
 
 def ensure_dirs(pid: str) -> Path:
@@ -90,6 +98,7 @@ def read_meta(pid: str) -> dict | None:
     return {"id": pid, "name": str(data.get("name") or pid), "color": str(data.get("color") or DEFAULT_COLORS[0]),
             "guest": False, "defaults": data.get("defaults") if isinstance(data.get("defaults"), dict) else {},
             "template": str(data.get("autopilotTemplate") or "default"),      # its Autopilot template (autopilot.py)
+            "uploadTools": _clean_tools(data.get("uploadTools")),             # the platforms with upload tools for this channel (none: marking by hand only)
             "ai": str(data.get("autopilotAi") or "manual")}                   # and who picks the clips: manual | claude | gemini
 
 
@@ -216,6 +225,8 @@ def update(pid: str, fields: dict) -> dict:
         if fields["ai"] not in autopilot.AI_MODES:
             raise ProfileError("the AI is manual, claude or gemini")
         meta["ai"] = fields["ai"]
+    if "uploadTools" in fields:
+        meta["uploadTools"] = _clean_tools(fields["uploadTools"])
     if "defaults" in fields:
         merged = {**meta.get("defaults", {}), **(fields["defaults"] if isinstance(fields["defaults"], dict) else {})}
         meta["defaults"] = _clean_defaults({k: v for k, v in merged.items() if v not in ("", None)})

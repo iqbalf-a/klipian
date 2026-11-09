@@ -80,6 +80,7 @@
         <span class="text-text-faint text-[13px]" id="clipSummary" role="status">loading…</span>
         <input type="search" class="ws-input ws-search" id="clipSearch" placeholder="Search…" aria-label="Search clips" autocomplete="off">
         <span class="text-text-faint text-[13px]" id="clipMatch" role="status" hidden></span>
+        <select class="ws-input ws-upfilter" id="clipUpFilter" aria-label="Filter status upload"></select>
         <!-- Rows whose render file is no longer in out/ (shown only when there are some);
              a click shows just those. -->
         <button class="btn sm ws-gone-count" id="clipGone" type="button" hidden></button>
@@ -111,6 +112,7 @@
           <button class="btn"
                   id="bulkSetStatus" type="button">Apply</button>
         </span>
+        <button class="btn" id="bulkUpMark" type="button" title="Tandai secara manual di platform mana klip yang dipilih sudah diupload (tidak mengunggah apa pun)">Tandai diupload ke…</button>
         <button class="guest-hidden btn"
                 id="bulkYouTube" type="button" title="Upload the selected clips to YouTube, one after another">Upload to YouTube…</button>
         <button class="ml-auto btn"
@@ -248,6 +250,32 @@
         <video id="clipVideoPlayer" controls playsinline preload="metadata"></video>
       </form>
     </dialog>
+    <dialog class="ws-dialog" id="upMarkDialog" aria-labelledby="upMarkTitle">
+      <form method="dialog" class="flex flex-col gap-4" id="upMarkForm">
+        <div class="flex items-start gap-3">
+          <h2 class="text-[15px] font-extrabold leading-tight" id="upMarkTitle">Status upload</h2>
+          <button class="ml-auto ws-close" type="submit" value="cancel" title="Batal">✕</button>
+        </div>
+        <p class="text-[12px] text-text-faint">Hanya menandai; tidak ada yang diunggah.</p>
+        <label class="ws-field">Platform
+          <select class="ws-input" id="upMarkPlatform"></select></label>
+        <label class="ws-field">Status
+          <select class="ws-input" id="upMarkState"></select></label>
+        <div class="ws-pair" id="upMarkWhen">
+          <label class="ws-field">Tanggal
+            <input class="ws-input" type="date" id="upMarkDate"></label>
+          <label class="ws-field">Jam
+            <input class="ws-input" type="time" id="upMarkTime"></label>
+        </div>
+        <label class="ws-field" id="upMarkUrlRow">Link (opsional)
+          <input class="ws-input" type="url" id="upMarkUrl" placeholder="https://"></label>
+        <span class="text-danger text-[12px]" id="upMarkErr" role="alert"></span>
+        <div class="flex gap-2 justify-end">
+          <button class="btn" type="submit" value="cancel">Batal</button>
+          <button class="btn main" type="submit" value="ok" id="upMarkOk">Simpan</button>
+        </div>
+      </form>
+    </dialog>
     <dialog class="ws-dialog" id="markPostedDialog" aria-labelledby="markPostedTitle">
       <form method="dialog" class="flex flex-col gap-4" id="markPostedForm">
         <div class="flex items-start gap-3">
@@ -360,6 +388,7 @@
 <script src="/ui/js/shared/profile-ui.js?v=1790703163808"></script>
 <script src="/ui/js/workspace/helpers.js?v=1790703163808"></script>
 <script src="/ui/js/workspace/schedgap.js?v=1790703163808"></script>
+<script src="/ui/js/workspace/uploads.js?v=1790703163808"></script>
 <script src="/ui/js/workspace/clips.js?v=1790703163808"></script>
 <script src="/ui/js/workspace/render.js?v=1790703163808"></script>
 <script src="/ui/js/workspace/assets.js?v=1790703163808"></script>

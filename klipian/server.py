@@ -41,7 +41,7 @@ from . import ffmpeg_tools
 from . import render as engine
 from . import credits as credits_mod
 from .schedule import manual_dir as _schedule_manual_dir, title_from_file as _title_from_file
-from .schedule import (CLIPS_LOCK, bulk_update as _bulk_update, set_schedules as _set_schedules, delete_rows as _delete_rows,
+from .schedule import (CLIPS_LOCK, mark_uploads as _mark_uploads, uploads_of as _uploads_of, bulk_update as _bulk_update, set_schedules as _set_schedules, delete_rows as _delete_rows,
                        restore_rows as _restore_rows, scheduled_files as _scheduled_files,
                        project_of_folder as _project_of_folder, with_missing_flags as _with_missing_flags, created_of as _created_of, load_clips as _load_clips,
                        migrate_created as _migrate_created, save_clips as _save_clips)
@@ -2169,6 +2169,24 @@ class Handler(BaseHTTPRequestHandler):
         out["clip"] = _with_missing_flags(out["clip"])
         return self._send_json({"ok": True, **out})
 
+    def _post_workspace_clips_upload_mark(self):
+        """Mark by hand where clips are uploaded: {ids, platform: youtube|tiktok|instagram, state: none|scheduled|done, date?, time?, url?} (schedule.mark_uploads).
+        Nothing is uploaded and no network call is made."""
+        try:
+            req = self._read_json()
+        except Exception as exc:               # noqa: BLE001
+            return self._send_json({"error": str(exc)}, 400)
+        ids = req.get("ids")
+        if not isinstance(ids, list) or not ids or len(ids) > 5000 or not all(isinstance(i, str) for i in ids):
+            return self._send_json({"error": "ids must be a list of row ids"}, 400)
+        try:
+            out = _mark_uploads(ids, str(req.get("platform") or ""), str(req.get("state") or ""), str(req.get("date") or ""),
+                                             str(req.get("time") or ""), str(req.get("url") or ""))
+        except ValueError as exc:
+            return self._send_json({"error": str(exc)}, 400)
+        out["clip"] = _with_missing_flags(out["clip"])
+        return self._send_json({"ok": True, **out})
+
     def _post_workspace_clips(self):
         try:
             req = self._read_json()
@@ -2206,9 +2224,12 @@ class Handler(BaseHTTPRequestHandler):
                 req["at"] = int(time.time())
                 req.pop("fileMissing", None)       # derived on every read, never stored
                 req.pop("fileUrl", None)
+                req.pop("uploadsView", None)
 
                 for i, c in enumerate(clips):
                     if c.get("id") == cid:
+                        if "uploads" not in req and "uploads" in c:       # a page that does not know the field must not drop it
+                            req["uploads"] = c["uploads"]
                         # createdAt belongs to the server and never changes: an
                         # edit (the page resends the row) keeps the stored one.
                         req["createdAt"] = c.get("createdAt") or _created_of(c)
@@ -2221,7 +2242,7 @@ class Handler(BaseHTTPRequestHandler):
                 _save_clips(clips)
         if deleted:
             return self._send_json({"ok": True, "deleted": True})
-        return self._send_json({"ok": True, "id": cid, "createdAt": req.get("createdAt")})
+        return self._send_json({"ok": True, "id": cid, "createdAt": req.get("createdAt"), "uploadsView": _uploads_of(req)})
 
     def _post_import(self):
         """Claude's pasted reply -> clip candidates -- see roundtrip.parse_reply."""
@@ -2618,6 +2639,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/project/rename": _post_project_rename,
         "/api/workspace/clips": _post_workspace_clips,
         "/api/workspace/clips/bulk": _post_workspace_clips_bulk,
+        "/api/workspace/clips/upload-mark": _post_workspace_clips_upload_mark,
         "/api/workspace/clips/schedule": _post_workspace_clips_schedule,
         "/api/workspace/clips/delete": _post_workspace_clips_delete,
         "/api/workspace/clips/restore": _post_workspace_clips_restore,

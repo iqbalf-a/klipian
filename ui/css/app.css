@@ -664,7 +664,7 @@ h1, h2, h3 {
 .crop.second .tag { background: #fff; color: #0A0B0E; }
 .crop b {
   position: absolute; width: 9px; height: 9px; border-radius: 2px;
-  background: var(--accent); box-shadow: 0 0 10px -2px var(--accent-glow);
+  background: var(--accent);
 }
 .crop.second b { background: #fff; }
 .crop b:nth-child(2) { left: -5px; top: -5px; }
@@ -2095,7 +2095,6 @@ h1, h2, h3 {
   background: color-mix(in srgb, var(--accent) 22%, transparent);
   border: 1px solid var(--accent);
   border-radius: 2px;
-  box-shadow: 0 0 18px -6px var(--accent-glow);
 }
 .tl-grip {
   position: absolute; top: 0; bottom: 0;

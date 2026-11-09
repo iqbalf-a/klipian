@@ -168,18 +168,61 @@ function bodyStory(d) {
   return `
     <p>Claude Code menulis cerita dan membuat folder videonya. Pilih folder hasilnya, lalu ambil ceritanya.</p>
     <h3 class="rm-sub-h">Folder hasil</h3>
-    <div class="rm-actions">
-      <select class="ws-input rm-boxed rm-select" id="rmComp" aria-label="Folder hasil">
-        <option value="">Belum dipilih</option>
-        ${(d.compositions || []).map((c) => `<option value="${esc(c.slug)}" ${picked === c.slug ? "selected" : ""}>${esc(c.title)} · ${esc(c.slug)}</option>`).join("")}
-      </select>
-      <span class="rm-chip" data-state="${esc(folderChip(f.state))}">${esc(folderChip(f.state))}</span>
-    </div>
+    <div class="rm-actions"><span class="rm-chip" data-state="${esc(folderChip(f.state))}">${esc(folderChip(f.state))}</span>${picked ? `<button class="btn sm" type="button" data-act="pickFolder" data-slug="">Lepas pilihan</button>` : ""}</div>
+    ${folderPickerHTML(d, picked)}
     <div class="rm-pathrow"><code class="rm-cmd">${esc(f.path || "(belum ada folder)")}</code>${f.path ? `<button class="btn sm" type="button" data-act="copyFolderPath">Salin path</button>` : ""}</div>
     <div class="rm-actions"><button class="btn main" type="button" data-act="takeFolder" ${picked ? "" : "disabled"}>${taken ? "Ambil ulang cerita" : "Ambil cerita dari folder"}</button></div>
     <div class="rm-result" id="rmTakeResult"></div>
     ${taken ? "" : fallbackHTML(d)}
     ${d.story ? storyboardHTML(d) : ""}`;
+}
+
+// the folder picker: the search, sort and filter are remembered while the panel is open (FOLDER_UI); only the list is redrawn while typing
+const FOLDER_UI = { q: "", filter: "all", sort: "recent" };
+
+function folderPickerHTML(d, picked) {
+  return `<div class="rm-fpick">
+      <div class="rm-fbar">
+        <input class="ws-input rm-boxed rm-fq" id="rmFQ" type="search" placeholder="Cari judul atau slug" aria-label="Cari folder" value="${esc(FOLDER_UI.q)}" autocomplete="off">
+        <select class="ws-input rm-boxed" id="rmFSort" aria-label="Urutkan folder">${Object.entries(FOLDER_SORTS).map(([k, v]) => `<option value="${k}" ${FOLDER_UI.sort === k ? "selected" : ""}>${esc(v)}</option>`).join("")}</select>
+      </div>
+      <div class="rm-fbar" role="group" aria-label="Saring folder">${Object.entries(FOLDER_FILTERS).map(([k, v]) => `<button class="btn sm rm-ffilter" type="button" data-act="folderFilter" data-v="${k}" aria-pressed="${FOLDER_UI.filter === k}">${esc(v)}</button>`).join("")}
+        <span class="rm-hint" id="rmFCount" aria-live="polite">${folderCountText(d, picked)}</span></div>
+      <div class="rm-flist" id="rmFList">${folderListHTML(d, picked)}</div>
+    </div>`;
+}
+
+const FOLDER_STATUS_TEXT = { current: "Dipakai di topik ini", other: "Sudah diambil di topik lain", free: "Belum diambil" };
+const fmtFolderDate = (t) => (t ? new Date(t * 1000).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" }) : "");
+
+const folderCountText = (d, picked) => `${pickFolders(d.compositions || [], FOLDER_UI, picked).length} dari ${(d.compositions || []).length} folder`;
+
+function folderListHTML(d, picked) {
+  const all = d.compositions || [], rows = pickFolders(all, FOLDER_UI, picked);
+  if (!rows.length) return `<p class="rm-hint">Tidak ada folder yang cocok.</p>`;
+  return rows.map((c) => {
+    const st = folderStatus(c, picked);
+    return `<button class="rm-frow" type="button" data-act="pickFolder" data-slug="${esc(c.slug)}" data-status="${st}" aria-pressed="${st === "current"}">
+      <span class="rm-frow-t"><b>${esc(c.title)}</b><code>${esc(c.slug)}</code></span>
+      <span class="rm-frow-m">${c.duration ? `${esc(c.duration)} dtk · ` : ""}${esc(fmtFolderDate(c.modified))}</span>
+      <span class="rm-chip" data-state="${st === "free" ? "" : st === "current" ? "aktif" : "perlu"}">${FOLDER_STATUS_TEXT[st]}${st === "other" ? `: ${esc(c.takenBy)}` : ""}</span>
+    </button>`;
+  }).join("");
+}
+
+function redrawFolderList() {
+  const el = byId("rmFList");
+  const picked = (CUR && CUR.folder && CUR.folder.slug) || "";
+  if (el && CUR) { el.innerHTML = folderListHTML(CUR, picked); byId("rmFCount").textContent = folderCountText(CUR, picked); }
+  document.querySelectorAll(".rm-ffilter").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === FOLDER_UI.filter)));
+}
+
+async function pickFolder(slug) {
+  if (!CUR || slug === ((CUR.folder && CUR.folder.slug) || "")) return;
+  try {
+    await call(`${API}/update`, { id: CUR.id, project: { composition: slug } });
+    await refresh();
+  } catch (ex) { toast(ex.message); await refresh(); }
 }
 
 // the fallback of the brief: an assistant that cannot run commands answers with the story only; it is pasted here, and the video stays "belum dibuat" until a session that can run commands makes the folder
@@ -236,12 +279,11 @@ async function copyFolderPath() {
   (await copyText(CUR.folder.path)) ? toast("Path disalin.") : toast("Tidak bisa menyalin: pilih teksnya sendiri.");
 }
 
-byId("rmMain").addEventListener("change", async (e) => {
-  if (e.target.id !== "rmComp" || !CUR) return;
-  try {
-    await call(`${API}/update`, { id: CUR.id, project: { composition: e.target.value } });
-    await refresh();
-  } catch (ex) { toast(ex.message); await refresh(); }
+byId("rmMain").addEventListener("input", (e) => {
+  if (e.target.id === "rmFQ") { FOLDER_UI.q = e.target.value; redrawFolderList(); }
+});
+byId("rmMain").addEventListener("change", (e) => {
+  if (e.target.id === "rmFSort") { FOLDER_UI.sort = e.target.value; redrawFolderList(); }
 });
 
 function errorsHTML(errors) {

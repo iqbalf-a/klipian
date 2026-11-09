@@ -1682,6 +1682,41 @@ def check_schedule() -> tuple[str, str]:
             problems.append("bulk update accepted a status that does not exist")
         except ValueError:
             pass
+        # Upload marks per platform: old rows are read from their old fields (nothing is written), marking changes only uploads, never the status
+        U = schedule.uploads_of
+        old_rows = {
+            "posted_yt": {"id": "a", "status": "Posted", "platform": "YouTube", "date": "2026-11-09", "time": "18:30", "videoId": "v", "youtubeUrl": "https://youtube.com/shorts/v"},
+            "plan_only": {"id": "b", "status": "Draft", "platform": "YouTube + TikTok"},
+            "tt_link": {"id": "c", "status": "Posted", "platform": "YouTube + TikTok", "tiktokUrl": "https://tiktok.com/@a/video/1", "date": "2026-11-01", "time": "10:00"},
+            "sched": {"id": "d", "status": "Scheduled", "platform": "YouTube", "date": "2026-12-01", "time": "09:00", "videoId": "v2"},
+            "tt_only": {"id": "e", "status": "Posted", "platform": "TikTok", "date": "2026-11-02", "time": "11:00"},
+        }
+        got = {k: {p: u["state"] for p, u in U(r).items()} for k, r in old_rows.items()}
+        want = {"posted_yt": ("done", "none", "none"), "plan_only": ("none", "none", "none"), "tt_link": ("none", "done", "none"),
+                "sched": ("scheduled", "none", "none"), "tt_only": ("none", "done", "none")}
+        if any(tuple(got[k].values()) != w for k, w in want.items()):
+            problems.append(f"uploads_of on old rows: {got}")
+        if U(old_rows["posted_yt"])["youtube"]["url"] != "https://youtube.com/shorts/v" or "uploads" in old_rows["posted_yt"]:
+            problems.append("an old row is read without being changed")
+        schedule.save_clips([dict(r) for r in old_rows.values()], path)
+        res = schedule.mark_uploads(["a", "nope"], "instagram", "done", "2026-11-10", "08:00", "https://instagram.com/reel/x", path, lock)
+        a = {r["id"]: r for r in schedule.load_clips(path)}["a"]
+        if res["missing"] != ["nope"] or a["status"] != "Posted" or a["platform"] != "YouTube" or a["uploads"] != {"instagram": {"state": "done", "date": "2026-11-10", "time": "08:00", "url": "https://instagram.com/reel/x"}}:
+            problems.append(f"marking Instagram changes only uploads: {res} {a}")
+        view = U(a)
+        if (view["youtube"]["state"], view["tiktok"]["state"], view["instagram"]["state"]) != ("done", "none", "done"):
+            problems.append(f"marked platform wins, the others are still read from the old fields: {view}")
+        schedule.mark_uploads(["a"], "youtube", "none", path=path, lock=lock)
+        if U({r["id"]: r for r in schedule.load_clips(path)}["a"])["youtube"]["state"] != "none":
+            problems.append("an explicit Belum diupload beats the old fields")
+        for bad in (("x", "done", "", "", ""), ("tiktok", "maybe", "", "", ""), ("tiktok", "done", "10-11-2026", "", ""), ("tiktok", "done", "", "8am", ""), ("tiktok", "done", "", "", "javascript:alert(1)")):
+            try:
+                schedule.mark_uploads(["a"], *bad, path=path, lock=lock)
+                problems.append(f"mark_uploads accepted {bad}")
+            except ValueError:
+                pass
+        if "uploadsView" not in schedule.with_missing_flags([{"id": "z"}])[0]:
+            problems.append("rows for the dashboard carry uploadsView")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -6783,6 +6818,28 @@ def check_motion() -> tuple[str, str]:
         pp = motion.load(tid)                                           # the story of that folder was taken (what "Ambil cerita dari folder" records): only then does a Khusus video render
         pp["folderTake"] = {"slug": "selftest-tiny", "hash": motion._file_hash(motion.folder_story_path("selftest-tiny")), "at": 0}
         motion.save(pp)
+        # the folder list the picker shows: duration, modified, and which other topic took the folder (read-only, only the folders root is read)
+        real_root, fake = motion.VIDEOS_ROOT, Path(tempfile.mkdtemp())
+        try:
+            for slug, beats in (("fa", [{"dur": 3}, {"dur": 4.5}]), ("fb", None)):
+                (fake / slug).mkdir()
+                (fake / slug / "index.tsx").write_text("x")
+                if beats:
+                    (fake / slug / "story.json").write_text(json.dumps({"beats": beats}))
+            motion.VIDEOS_ROOT = fake
+            pp2 = motion.load(tid)
+            pp2["composition"] = "fa"
+            motion.save(pp2)
+            seen_c = {c["slug"]: c for c in motion.compositions("someone-else")}
+            mine_c = {c["slug"]: c for c in motion.compositions(tid)}
+            if seen_c["fa"]["duration"] != 7.5 or seen_c["fb"]["duration"] is not None or not seen_c["fa"]["modified"]:
+                problems.append(f"a folder's duration and date: {seen_c}")
+            if seen_c["fa"]["takenBy"] != pp2["topic"] or seen_c["fb"]["takenBy"] is not None or mine_c["fa"]["takenBy"] is not None:
+                problems.append(f"which other topic took the folder: {seen_c['fa']['takenBy']!r} / own {mine_c['fa']['takenBy']!r}")
+        finally:
+            motion.VIDEOS_ROOT = real_root
+            motion.save(pp)
+            shutil.rmtree(fake, ignore_errors=True)
         post("preview", {"id": tid})
         job = wait(tid)
         d = call("GET", f"/api/motion/project?id={tid}")[1]["project"]

@@ -34,10 +34,11 @@ const CLIP_FIELDS = ["title", "status", "platform", "episode", "file", "descript
 /* What the table shows, before paging: the "deleted files" filter AND the search, then the sort. */
 function visibleClips() {
   const q = clipSearch.q();
-  const list = (showGoneOnly ? CLIPS.filter((c) => c.fileMissing) : CLIPS).filter((c) => matchesQuery(c, CLIP_FIELDS, q));
+  const list = (showGoneOnly ? CLIPS.filter((c) => c.fileMissing) : CLIPS).filter((c) => matchesQuery(c, CLIP_FIELDS, q)).filter((c) => matchesUploadFilter(c, upFilter));
   return clipSort.apply(list, CLIP_GETTERS);
 }
-let DRAFT = null;                    // the "+ New clip" row being filled in: local until Save
+let upFilter = "";                   // "" or "<platform>:none|done" (js/workspace/uploads.js)
+let DRAFT = null;                   // the "+ New clip" row being filled in: local until Save
 let showGoneOnly = false;            // the "N with deleted files" filter
 const SELECTED = new Set();          // ids of the ticked rows: they stay across pages and sorting
 const clipPager = createPager({ key: "clips", mount: $("#clipPager"), onChange: () => drawClips() });
@@ -158,6 +159,14 @@ function fileLineHTML(c) {
   return `<div class="ws-fileline"><span class="data" title="out/${escapeHTML(c.fileFolder)}/${escapeHTML(c.file)}">${escapeHTML(c.file)}</span></div>`;
 }
 
+/* The three small chips of a row: YT / TT / IG with the state in words. A click opens the small mark dialog. */
+function upChipsHTML(c) {
+  return UPLOAD_PLATFORMS.map((p) => {
+    const u = uploadOf(c, p.key), tip = `${p.name}: ${UPLOAD_STATE_TEXT[u.state]}${u.date ? ` (${u.date}${u.time ? " " + u.time : ""})` : ""}`;
+    return `<button class="btn sm ws-upchip" type="button" data-upchip="${p.key}" data-state="${u.state}" title="${escapeHTML(tip)}" aria-label="${escapeHTML(tip)}">${escapeHTML(uploadChipText(c, p))}</button>`;
+  }).join("");
+}
+
 function row(c) {
   const opt = (list, cur) => list.map((v) =>
     `<option value="${v}" ${v === cur ? "selected" : ""}>${v}</option>`).join("");
@@ -175,7 +184,8 @@ function row(c) {
         </select>${warnChipHTML(c)}
       </td>
       <td class="${td}">${f("title")}${goneTagHTML(c)}${fileLineHTML(c)}</td>
-      <td class="${td}"><select class="ws-input" data-field="platform" aria-label="Platform: ${who}">${opt(PLATFORM, c.platform || "YouTube + TikTok")}</select></td>
+      <td class="${td}"><select class="ws-input" data-field="platform" aria-label="Platform: ${who}">${opt(PLATFORM, c.platform || "YouTube + TikTok")}</select>
+        <div class="ws-upchips" role="group" aria-label="Status upload: ${who}">${upChipsHTML(c)}</div></td>
       <td class="${td}">${f("date", "date")}</td>
       <td class="${td}">${f("time", "time")}</td>
       <td class="${td}"><span class="data ws-created" title="${escapeHTML(timeAgo(c.createdAt || c.at))}">${fmtCreated(c.createdAt || c.at)}</span></td>
@@ -246,6 +256,7 @@ async function saveClip(clip) {
     // don't have an ID until this first save.
     clip.id = j.id;
     if (j.createdAt) clip.createdAt = j.createdAt;
+    if (j.uploadsView) clip.uploadsView = j.uploadsView;
     const i = CLIPS.findIndex((c) => c.id === clip.id);
     if (i >= 0) CLIPS[i] = clip; else CLIPS.push(clip);
     summarizeClips();
@@ -285,7 +296,10 @@ $("#clipBody")?.addEventListener("change", (e) => {
   }
   if (e.target.matches("[data-field=status]"))
     e.target.dataset.v = e.target.value;
-  saveClip(collectRow(tr));
+  saveClip(collectRow(tr)).then(() => {                // status and platform feed the old-field reading of the chips
+    const c = CLIPS.find((x) => x.id === tr.dataset.id), box = c && $(".ws-upchips", tr);
+    if (box) box.innerHTML = upChipsHTML(c);
+  });
 });
 
 $("#clipGone")?.addEventListener("click", () => {
@@ -1405,3 +1419,65 @@ document.addEventListener("visibilitychange", () => {
 
 // The Guest has no schedule (the server refuses it, and the panel is not shown).
 if (!IS_GUEST) loadClips().then(ytRefreshDue);
+
+
+/* ---------- upload marks per platform (YouTube / TikTok / Instagram): by hand, nothing is uploaded ---------- */
+
+const upDialog = $("#upMarkDialog");
+let upIds = [];
+const fillSelect = (el, items, cur) => { el.innerHTML = items.map(([v, t]) => `<option value="${v}" ${v === cur ? "selected" : ""}>${escapeHTML(t)}</option>`).join(""); };
+fillSelect($("#upMarkPlatform"), UPLOAD_PLATFORMS.map((p) => [p.key, p.name]), "tiktok");
+fillSelect($("#upMarkState"), Object.entries(UPLOAD_STATE_TEXT), "done");
+fillSelect($("#clipUpFilter"), UPLOAD_FILTERS, "");
+
+function upDialogSync() {
+  const none = $("#upMarkState").value === "none";
+  $("#upMarkWhen").hidden = none;
+  $("#upMarkUrlRow").hidden = none;
+}
+$("#upMarkState")?.addEventListener("change", upDialogSync);
+
+function openUpMark(ids, key) {
+  upIds = ids;
+  const one = ids.length === 1 ? CLIPS.find((c) => c.id === ids[0]) : null, u = one ? uploadOf(one, key) : null;
+  $("#upMarkTitle").textContent = one ? `Status upload: ${one.title || "clip tanpa judul"}` : `Tandai ${ids.length} klip`;
+  $("#upMarkPlatform").value = key;
+  $("#upMarkState").value = u && u.state !== "none" ? u.state : "done";      // a click on a "Belum" chip is to mark it uploaded
+  $("#upMarkDate").value = (u && u.date) || todayLocal();
+  $("#upMarkTime").value = (u && u.time) || nowLocal();
+  $("#upMarkUrl").value = (u && u.url) || "";
+  $("#upMarkErr").textContent = "";
+  upDialogSync();
+  upDialog.returnValue = "";
+  upDialog.showModal();
+}
+
+$("#clipBody")?.addEventListener("click", (e) => {
+  const chip = e.target.closest("[data-upchip]");
+  if (chip) openUpMark([chip.closest("tr[data-id]").dataset.id], chip.dataset.upchip);
+});
+$("#bulkUpMark")?.addEventListener("click", () => { if (SELECTED.size) openUpMark([...SELECTED], "tiktok"); });
+$("#clipUpFilter")?.addEventListener("change", (e) => { upFilter = e.target.value; clipPager.first(); drawClips(); });
+upDialog?.addEventListener("click", (e) => {
+  const r = upDialog.getBoundingClientRect();
+  if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) upDialog.close("cancel");
+});
+
+$("#upMarkForm")?.addEventListener("submit", async (e) => {
+  if (e.submitter?.value !== "ok") return;
+  e.preventDefault();                                      // the dialog stays open until the server says yes
+  const state = $("#upMarkState").value, platform = $("#upMarkPlatform").value, err = $("#upMarkErr"), none = state === "none";
+  if (!none && !$("#upMarkDate").value) { err.textContent = "Isi tanggalnya."; $("#upMarkDate").focus(); return; }
+  try {
+    const j = await (await fetch("/api/workspace/clips/upload-mark", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: upIds, platform, state, date: none ? "" : $("#upMarkDate").value, time: none ? "" : $("#upMarkTime").value, url: none ? "" : $("#upMarkUrl").value }),
+    })).json();
+    if (j.error) throw new Error(j.error);
+    for (const r of j.clip) { const i = CLIPS.findIndex((c) => c.id === r.id); if (i >= 0) CLIPS[i] = r; }
+    upDialog.close("ok");
+    if (upIds.length > 1) SELECTED.clear();
+    drawClips();
+    clipNotice(`${j.clip.length} klip: ${UPLOAD_PLATFORMS.find((p) => p.key === platform).name} ${UPLOAD_STATE_TEXT[state].toLowerCase()}`);
+  } catch (ex) { err.textContent = ex.message || "Tidak tersimpan."; }
+});

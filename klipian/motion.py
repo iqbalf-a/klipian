@@ -110,14 +110,30 @@ def _video_dirs() -> list[Path]:
     return sorted(d for d in root.iterdir() if d.is_dir() and (d / "index.tsx").is_file()) if root.is_dir() else []
 
 
-def compositions() -> list[dict]:
-    """The custom compositions of remotion/videos/<slug>/ that klipian offers (the ones whose meta.json does not hide them), each {slug, title}."""
+def compositions(pid: str | None = None) -> list[dict]:
+    """The custom compositions of remotion/videos/<slug>/ that klipian offers (the ones whose meta.json does not hide them), each
+    {slug, title, description, duration (the story's seconds, or None), modified (the folder's newest file, epoch seconds), takenBy}.
+    takenBy is the topic of another project that took or chose this folder (None when none did); pid is the project asking, left out of it. Read-only."""
+    users: dict[str, str] = {}
+    root = motion_dir()
+    for d in (root.iterdir() if root.is_dir() else []):
+        p = _read(d / "project.json", None) if d.is_dir() else None
+        if isinstance(p, dict) and p.get("id") == d.name and d.name != pid:
+            for slug in {(p.get("folderTake") or {}).get("slug"), p.get("composition")}:
+                if slug:
+                    users.setdefault(slug, str(p.get("topic") or p["id"]))
     out = []
     for d in _video_dirs():
         meta = _read(d / "meta.json", {})
         meta = meta if isinstance(meta, dict) else {}
-        if not meta.get("hidden"):
-            out.append({"slug": d.name, "title": str(meta.get("title") or d.name), "description": str(meta.get("description") or "")})
+        if meta.get("hidden"):
+            continue
+        story = _read(d / "story.json", {})
+        beats = story.get("beats") if isinstance(story, dict) else None
+        dur = sum(float(b.get("dur") or 0) for b in beats if isinstance(b, dict)) if isinstance(beats, list) else 0
+        mtimes = [f.stat().st_mtime for f in d.iterdir() if f.is_file()] or [d.stat().st_mtime]
+        out.append({"slug": d.name, "title": str(meta.get("title") or d.name), "description": str(meta.get("description") or ""),
+                    "duration": round(dur, 1) if dur else None, "modified": int(max(mtimes)), "takenBy": users.get(d.name)})
     return out
 
 
@@ -493,7 +509,7 @@ def summary(p: dict) -> dict:
             "status": p.get("status", "draft"), "title": p.get("title", ""), "chip": g["status"]["chip"], "composition": p.get("composition", ""),
             "updated": p.get("updated"), "created": p.get("created"), "hasStory": g["story"] is not None,
             "claims": len(facts), "unchecked": sum(1 for f in facts if f.get("status") != "checked"),
-            "rowId": (p.get("render") or {}).get("rowId")}
+            "rowId": (p.get("render") or {}).get("rowId"), "music": options_of(p).get("music")}
 
 
 def list_projects() -> list[dict]:
@@ -514,7 +530,7 @@ def detail(pid: str) -> dict:
     story, facts, voice, st = g["story"], g["facts"], g["voice"], g["status"]
     return {**summary(p), "displayTitle": p.get("title") or p["topic"], "options": options_of(p), "optionWarnings": option_warnings(options_of(p)), "notes": p.get("notes", ""),
             "needs": p.get("needs", []), "warnings": (validate_story(story).get("warnings", []) if story else []), "storyPath": str(project_dir(pid) / "story.json"),
-            "compositions": compositions(), "story": story, "facts": facts, "kind": kind_of(p), "folder": g["folder"], "gate": g["problems"], "stills": g["stills"],
+            "compositions": compositions(pid), "story": story, "facts": facts, "kind": kind_of(p), "folder": g["folder"], "gate": g["problems"], "stills": g["stills"],
             "render": g["render_now"], "job": job_state(pid), "voice": voice, "preview": g["preview"], "next": st["next"], "stages": st["stages"], "renderBlock": st["render"],
             "length": st["length"], "briefAt": p.get("briefAt"),
             "versions": len(list((project_dir(pid) / "history").glob("story-*.json"))) if (project_dir(pid) / "history").is_dir() else 0}

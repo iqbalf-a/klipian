@@ -97,6 +97,65 @@ def file_url(f: Path) -> str | None:
     return "/workspace/out/" + "/".join(quote(p) for p in rel.parts) + f"?profile={quote(current_profile())}"
 
 
+UPLOAD_PLATFORMS = ("youtube", "tiktok", "instagram")
+UPLOAD_STATES = ("none", "scheduled", "done")           # Belum diupload / Terjadwal / Sudah diupload
+
+
+def uploads_of(row: dict) -> dict:
+    """Where a clip is uploaded, per platform: {youtube|tiktok|instagram: {state, date, time, url}}. What was marked (row["uploads"]) wins; a platform
+    never marked is read from the old fields, so rows written before this existed need no migration (the new field is written only when something is marked):
+    YouTube is done when the row is Posted and its platform is YouTube alone or it has a video id/link ("YouTube + TikTok" is only a plan), scheduled when Scheduled; TikTok is done with a
+    tiktokUrl (or a Posted TikTok-only row); Instagram is not uploaded."""
+    saved = row.get("uploads") if isinstance(row.get("uploads"), dict) else {}
+    plat, status = str(row.get("platform") or ""), row.get("status")
+    yt_url = str(row.get("youtubeUrl") or "")
+    legacy = {"youtube": {"state": "none", "date": "", "time": "", "url": ""}, "tiktok": {"state": "none", "date": "", "time": "", "url": ""},
+              "instagram": {"state": "none", "date": "", "time": "", "url": ""}}
+    if status in ("Posted", "Scheduled") and (plat == "YouTube" or row.get("videoId") or yt_url):
+        legacy["youtube"] = {"state": "done" if status == "Posted" else "scheduled", "date": str(row.get("date") or ""), "time": str(row.get("time") or ""), "url": yt_url}
+    tt_url = str(row.get("tiktokUrl") or "")
+    if tt_url or (status == "Posted" and plat == "TikTok"):
+        legacy["tiktok"] = {"state": "done", "date": str(row.get("date") or "") if status == "Posted" else "", "time": str(row.get("time") or "") if status == "Posted" else "", "url": tt_url}
+    out = {}
+    for k in UPLOAD_PLATFORMS:
+        got = saved.get(k) if isinstance(saved.get(k), dict) else None
+        out[k] = ({"state": got.get("state") if got.get("state") in UPLOAD_STATES else "none", "date": str(got.get("date") or ""), "time": str(got.get("time") or ""),
+                   "url": str(got.get("url") or "")} if got else legacy[k])
+    return out
+
+
+def mark_uploads(ids: list, platform: str, state: str, date: str = "", time_: str = "", url: str = "",
+                 path: Path | None = None, lock: threading.Lock | None = None) -> dict:
+    """Mark one platform's upload of many rows by hand, in ONE save: state none | scheduled | done, with the date and time (done and scheduled; today's date
+    is NOT guessed) and an optional link. Only row["uploads"][platform] is written: the status, the platform column and the other platforms stay as they are,
+    and nothing is uploaded. Raises ValueError for a platform, state, date, time or link nobody can use. Returns {"clip": rows as saved, "missing": [ids]}."""
+    import re
+    if platform not in UPLOAD_PLATFORMS:
+        raise ValueError(f"platform must be one of {', '.join(UPLOAD_PLATFORMS)}")
+    if state not in UPLOAD_STATES:
+        raise ValueError(f"state must be one of {', '.join(UPLOAD_STATES)}")
+    if date and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
+        raise ValueError("date must be YYYY-MM-DD")
+    if time_ and not re.fullmatch(r"\d{2}:\d{2}", time_):
+        raise ValueError("time must be HH:MM")
+    url = url.strip()
+    if url and not re.match(r"https?://\S+$", url):
+        raise ValueError("the link must start with http:// or https://")
+    entry = {"state": state, "date": date if state != "none" else "", "time": time_ if state != "none" else "", "url": url if state != "none" else ""}
+    wanted = {str(i) for i in ids}
+    with (lock or CLIPS_LOCK):
+        clips = load_clips(path)
+        changed, now = [], int(time.time())
+        for row in clips:
+            if str(row.get("id")) in wanted:
+                row["uploads"] = {**(row.get("uploads") if isinstance(row.get("uploads"), dict) else {}), platform: dict(entry)}
+                row["at"] = now
+                changed.append(row)
+        if changed:
+            save_clips(clips, path)
+        return {"clip": changed, "missing": sorted(wanted - {str(r.get("id")) for r in changed})}
+
+
 def with_missing_flags(clips: list[dict]) -> list[dict]:
     """The rows for the dashboard, each with `fileMissing: true` when its render file
     is no longer in the project's folder in out/, or `fileUrl` (to play it) when it is.
@@ -107,6 +166,7 @@ def with_missing_flags(clips: list[dict]) -> list[dict]:
         row = dict(row)
         row.pop("fileMissing", None)
         row.pop("fileUrl", None)
+        row["uploadsView"] = uploads_of(row)                 # derived on every read, never stored
         if row.get("file") and (row.get("projectId") or is_folder_row(row)):
             f = row_file(row)
             if f is None:

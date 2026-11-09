@@ -147,6 +147,8 @@ byId("rmMain").addEventListener("click", async (e) => {
     if (act === "previewVideo") return startPreviewVideo();
     if (act === "saveOptions") return saveOptions();
     if (act === "takeFolder") return takeFolder();
+    if (act === "pickFolder") return pickFolder(t.dataset.slug);
+    if (act === "folderFilter") { FOLDER_UI.filter = t.dataset.v; return redrawFolderList(); }
     if (act === "copyFolderPath") return copyFolderPath();
     if (act === "narrationApp") { NARR_APP = t.dataset.app; return drawSteps(); }
     if (act === "narrationCopy") return copyNarration(t.dataset.app, t.dataset.part);
