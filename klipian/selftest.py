@@ -7624,6 +7624,8 @@ def check_motionstate() -> tuple[str, str]:
         problems.append("a changed story makes the render stale")
     if motion._render_now({"render": {"storyHash": h}}, story)["current"] is not True:
         problems.append("an old record with the same story is current")
+    if motion._render_now({"render": {"storyHash": h, "rowId": "no-such-row"}}, story) is not None:
+        problems.append("a render whose Clips row was deleted still counts as rendered")
 
     # a fresh video: its detail has the next step and the chips; the brief copied moves on to paste
     k = motion.create("kenapa tes khusus", 30, "")                      # a new video is Khusus: it asks for the brief, then the folder

@@ -5,13 +5,14 @@
    in orbit (a porthole inset) the flame is a blue ball. The first frame is the last (loop). */
 import React from "react";
 import {
-  BLACK, CaptionLayer, Label, Mascot, Motes, SourceChip, StoryVideo, TipCard, TopText, YELLOW, block, cam2At, clamp01, cylinder, easeInOut, easeOutBack,
+  BLACK, CaptionLayer, Label, Motes, SourceChip, StoryVideo, TipCard, TopText, YELLOW, block, cam2At, clamp01, cylinder, easeInOut, easeOutBack,
   flicker, layerTransform, ptsAttr, springAt, swayDeg, useFonts, type P3, type Poly, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import { COFFEE, COFFEE_LIGHT, G1, G2, G3, G4, HOT1, HOT2, ISO, PLASTER, WHITE, YELLOW_D } from "../../src/tokens.ts";
 import { mixRgb } from "../../src/natureGeometry.ts";
 import { CAM, FLAME, O, SET, T, TOP_Y, U, WICK } from "./plan.ts";
 import storyJson from "./story.json";
+import { StingMark } from "../../src/components/StingMark.tsx";
 
 export const story = storyJson as unknown as StoryT;
 
@@ -346,11 +347,7 @@ const Scene = ({ beat, t, clock }: SceneProps) => {
       {kind === "sting" && (() => {
         const p = springAt(c, 3.0), p2 = springAt(c, 3.25);
         return <g>
-          <g transform={`translate(540 720) scale(${Math.max(0, p)}) translate(-540 -720)`}><Mascot x={540} y={720} w={220} expr="curious" t={t} clock={c} squash={0.18 * (1 - p)} /></g>
-          <g transform={`translate(540 1489) scale(${Math.max(0, p2)}) translate(-540 -1489)`}>
-            <rect x={-210 + 540} y={1443} width={420} height={92} rx={46} fill={YELLOW} />
-            <text x={540} y={1507} fontSize={56} textAnchor="middle" fill={BLACK} style={{ fontFamily: '"Outfit", sans-serif', fontWeight: 700 }}>Intip yuk!</text>
-          </g>
+          <StingMark slug="kenapa-api-lilin-selalu-mengar" t={t} clock={c} p={p} p2={p2} />
         </g>;
       })()}
     </svg>

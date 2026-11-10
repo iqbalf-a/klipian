@@ -5,12 +5,13 @@
    Every word comes from the checked story (banner and label items of each beat). Colours are tokens (ISO tone sets), shapes are flat three-tone. */
 import React from "react";
 import {
-  BLACK, Brand, CaptionLayer, IsoBlock, TopText, ISO, IsoHeart, Label, Mascot, Pill, StoryVideo, WHITE, blinkClosed, loopClock, easeInOut, riseAt, smoothPath, springAt,
+  BLACK, Brand, CaptionLayer, IsoBlock, TopText, ISO, IsoHeart, Label, StoryVideo, WHITE, blinkClosed, loopClock, easeInOut, riseAt, smoothPath, springAt,
   type BeatT, type P2, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import { mixRgb } from "../../src/natureGeometry.ts";
 import { WORLD, camAt, heartClock, layerCam, swimAt, toScreen, type Cam } from "./plan.ts";
 import storyJson from "./story.json";
+import { StingMark } from "../../src/components/StingMark.tsx";
 
 export const story = storyJson as unknown as StoryT;
 
@@ -274,8 +275,7 @@ const Scene = ({ beat, t, clock, story }: SceneProps) => {
       {beat.kind !== "sting" && beat.kind !== "outro" && <Labels beat={beat} t={t} clock={clock} cam={cam} />}
       {stingP > 0.001 && (
         <g>
-          <g transform={`translate(200 600) scale(${stingP}) translate(-200 -600)`}><Mascot x={200} y={600} w={220} expr="curious" t={t} clock={clock} squash={0.18 * (1 - stingP)} /></g>
-          <g transform={`translate(540 1489) scale(${stingP}) translate(-540 -1489)`}><Pill text="Intip yuk!" x={540} y={1489} fs={56} t={t} start={0.2} /></g>
+          <StingMark slug="gurita-punya-tiga-jantung-2" t={t} clock={clock} p={stingP} p2={stingP} />
         </g>
       )}
     </svg>

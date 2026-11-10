@@ -295,6 +295,8 @@ def _render_now(p: dict, story) -> dict | None:
     r = p.get("render")
     if not isinstance(r, dict):
         return None
+    if r.get("rowId") and schedule.get_row(r["rowId"]) is None:      # deleted from the workspace (Clips): it is not rendered any more
+        return None
     reasons = []
     if story is not None and r.get("storyHash") != _story_hash(story):
         reasons.append("cerita atau suara berubah")

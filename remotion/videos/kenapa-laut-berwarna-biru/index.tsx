@@ -4,12 +4,13 @@
    cylinder with a flat base, white light is a mix of colours in the order red, orange, yellow, green, blue. The camera and every time come from plan.ts. */
 import React from "react";
 import {
-  BLACK, Brand, CaptionLayer, G3, IsoBlock, IsoCloud, IsoLamp, ISO, Label, Mascot, Motes, OnPlane, Pill, Polys, HOT2, RED, THEMES, TopText, WHITE, YELLOW,
+  BLACK, Brand, CaptionLayer, G3, IsoBlock, IsoCloud, IsoLamp, ISO, Label, Motes, OnPlane, Polys, HOT2, RED, THEMES, TopText, WHITE, YELLOW,
   block, bobPx, circlePts, cylinder, flicker, isoAt, layerTransform, ptsAttr, riseAt, springAt, easeInOut, planeYZ, blinkClosed,
   StoryVideo, type P2, type P3, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import { BEAKER, CARD, COLOURS, DEPTH, ENDS, LAMP, O, RULER, TANK, U, UNIT_M, makePlan } from "./plan.ts";
 import storyJson from "./story.json";
+import { StingMark } from "../../src/components/StingMark.tsx";
 
 export const story = storyJson as unknown as StoryT;
 
@@ -162,8 +163,7 @@ const Scene = ({ beat, t, clock, story: s }: SceneProps) => (
       {beat.kind === "sting" && (() => {
         const p = springAt(t, 0), out = 1 - easeInOut(clamp01((t - 0.75) / 0.25));
         return <g>
-          <g transform={`translate(540 720) scale(${Math.max(0, p) * out}) translate(-540 -720)`}><Mascot x={540} y={720} w={220} expr="curious" t={t} squash={0.18 * (1 - p)} /></g>
-          <g opacity={out}><Pill text="Intip yuk!" x={540} y={1489} fs={56} t={t} start={0.2} /></g>
+          <StingMark slug="kenapa-laut-berwarna-biru" t={t} p={p} out={out} />
         </g>;
       })()}
       {beat.kind !== "sting" && beat.kind !== "outro" && <CaptionLayer beat={beat} t={t} />}

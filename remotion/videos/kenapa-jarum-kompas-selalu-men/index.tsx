@@ -5,7 +5,7 @@
    tips: a magnet, a block of iron, the needle that dips near the poles. The first frame is the last (the loop). */
 import React from "react";
 import {
-  BLACK, CaptionLayer, IsoCup, Label, Mascot, StoryVideo, TopText, YELLOW, YELLOW_D, block, cam2At, circlePts, clamp01, cylinder, easeInOut, easeOutBack,
+  BLACK, CaptionLayer, IsoCup, Label, StoryVideo, TopText, YELLOW, YELLOW_D, block, cam2At, circlePts, clamp01, cylinder, easeInOut, easeOutBack,
   isoAt, layerTransform, ptsAttr, smoothPath, springAt, useFonts, type P2, type P3, type Poly, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import { BLUSH, ISO, G1, G2, G3, G4, PLASTER, SKIN_B, WHITE } from "../../src/tokens.ts";
@@ -13,6 +13,7 @@ import { mixRgb } from "../../src/natureGeometry.ts";
 import { textWidth } from "../../src/design/index.ts";
 import { CAM, GLOBE, T, magX, needleAngle } from "./plan.ts";
 import storyJson from "./story.json";
+import { StingMark } from "../../src/components/StingMark.tsx";
 
 export const story = storyJson as unknown as StoryT;
 
@@ -329,11 +330,7 @@ const Scene = ({ beat, t, clock }: SceneProps) => {
       {beat.kind === "sting" && (() => {
         const p = springAt(c, 3.0), p2 = springAt(c, 3.25);
         return <g>
-          <g transform={`translate(540 720) scale(${Math.max(0, p)}) translate(-540 -720)`}><Mascot x={540} y={720} w={220} expr="curious" t={t} clock={c} squash={0.18 * (1 - p)} /></g>
-          <g transform={`translate(540 1489) scale(${Math.max(0, p2)}) translate(-540 -1489)`}>
-            <rect x={330} y={1443} width={420} height={92} rx={46} fill={YELLOW} />
-            <text x={540} y={1507} fontSize={56} textAnchor="middle" fill={BLACK} style={bold}>Intip yuk!</text>
-          </g>
+          <StingMark slug="kenapa-jarum-kompas-selalu-men" pose="top" t={t} clock={c} p={p} p2={p2} />
         </g>;
       })()}
     </svg>

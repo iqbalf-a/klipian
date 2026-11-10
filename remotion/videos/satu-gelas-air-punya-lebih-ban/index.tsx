@@ -5,12 +5,13 @@
    Two tones per part (base and shade), light from the top left, no outlines. The camera and every time come from plan.ts. */
 import React from "react";
 import {
-  loopClock, Arrow, CaptionLayer, G1, G2, G3, G4, ISO, Label, Mascot, Motes, Pill, THEMES, TipCard, TopText, WHITE,
+  loopClock, Arrow, CaptionLayer, G1, G2, G3, G4, ISO, Label, Motes, THEMES, TipCard, TopText, WHITE,
   StoryVideo, bobPx, easeInOut, easeOut, layerTransform, springAt, swayDeg, toScreen,
   type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import { BAL, GLASS, SPOON, SURF, TANK, makePlan } from "./plan.ts";
 import storyJson from "./story.json";
+import { StingMark } from "../../src/components/StingMark.tsx";
 
 export const story = storyJson as unknown as StoryT;
 
@@ -251,8 +252,7 @@ const Scene = ({ beat, t, clock, story: s }: SceneProps) => (
       {beat.kind === "sting" && (() => {
         const p = springAt(t, 0), out = 1 - easeInOut(clamp01((t - 0.75) / 0.25));
         return <g>
-          <g transform={`translate(540 720) scale(${Math.max(0, p) * out}) translate(-540 -720)`}><Mascot x={540} y={720} w={220} expr="curious" t={t} squash={0.18 * (1 - p)} /></g>
-          <g opacity={out}><Pill text="Intip yuk!" x={540} y={1489} fs={56} t={t} start={0.2} /></g>
+          <StingMark slug="satu-gelas-air-punya-lebih-ban" t={t} p={p} out={out} />
         </g>;
       })()}
       {beat.kind !== "sting" && beat.kind !== "outro" && <CaptionLayer beat={beat} t={t} />}

@@ -199,4 +199,10 @@ for (const track of ["bed-calm", "bed-tech"] as const) {
 }
 yes(mixTrack([], 8, { voice, music: { name: "none" } }).peak <= VOICE_PEAK + 1e-3, "no bed: the voice alone, untouched");
 
+// the closing jingle rings out before the end: too late moves it earlier, never cut off
+{ const j = planSfx([{ t: 59.4, name: "jingle-outro", vol: 1, why: "loop" }], 60).events[0];
+  yes(j.t + 2.2 <= 60 + 1e-9 && j.t > 57, `jingle-outro near the end ends inside the video (starts ${j.t})`);
+  yes(planSfx([{ t: 59.9, name: "boing", vol: 1, why: "x" }], 60).events.every((e) => e.t + 0.6 <= 60 + 1e-9), "any sound near the end is moved earlier, not cut");
+  yes(planSfx([{ t: 50, name: "jingle-outro", vol: 1, why: "loop" }], 60).events[0].t === 50, "an early jingle-outro stays where it is"); }
+
 console.log(`sfx: ${n} checks ok`);

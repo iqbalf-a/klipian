@@ -4,12 +4,13 @@
    a small glory is shown next to it for scale. The first frame is the last (the loop): the ground is up and the ring is cut. */
 import React from "react";
 import {
-  loopClock, BLACK, CaptionLayer, FONT_BOLD, ISO, IsoCloud, IsoPlane, IsoSun, Label, Mascot, StoryVideo, THEMES, TopText, WHITE, YELLOW, YELLOW_D, RED, HOT2,
+  loopClock, BLACK, CaptionLayer, ISO, IsoCloud, IsoPlane, IsoSun, Label, StoryVideo, THEMES, TopText, WHITE, YELLOW, YELLOW_D, RED, HOT2,
   block, cam2At, clamp01, easeInOut, easeOutBack, layerTransform, ptsAttr, springAt, useFonts, type Poly, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import { mixRgb } from "../../src/natureGeometry.ts";
 import { CAM, DROP, RING, SUN, T } from "./plan.ts";
 import storyJson from "./story.json";
+import { StingMark } from "../../src/components/StingMark.tsx";
 
 export const story = storyJson as unknown as StoryT;
 
@@ -28,7 +29,6 @@ const slabDrop = (c: number): number => {
 };
 const polys = (ps: Poly[], tones: readonly string[]) => ps.map((p, i) => <polygon key={i} points={ptsAttr(p.pts)} fill={tones[p.tone]} />);
 const pt = (cx: number, cy: number, r: number, deg: number): [number, number] => [cx + r * Math.cos(deg * DEG), cy + r * Math.sin(deg * DEG)];
-const font = { fontFamily: `"${FONT_BOLD}", sans-serif`, fontWeight: 700 } as const;
 
 /** The sky (far layer, parallax 0.3): bands from a high blue to a pale low tone that meets the horizon, and the sun. */
 const Sky: React.FC<{ clock: number; pulse: number }> = ({ clock, pulse }) => (
@@ -186,11 +186,7 @@ const Scene = ({ beat, t, clock, story }: SceneProps) => {
       {beat.kind === "sting" && (() => {
         const p = springAt(c, 3.0), p2 = springAt(c, 3.25);
         return <g>
-          <g transform={`translate(540 720) scale(${Math.max(0, p)}) translate(-540 -720)`}><Mascot x={540} y={720} w={220} expr="curious" t={t} clock={c} squash={0.18 * (1 - p)} /></g>
-          <g transform={`translate(540 1489) scale(${Math.max(0, p2)}) translate(-540 -1489)`}>
-            <rect x={330} y={1443} width={420} height={92} rx={46} fill={YELLOW} />
-            <text x={540} y={1507} fontSize={56} textAnchor="middle" fill={BLACK} style={font}>Intip yuk!</text>
-          </g>
+          <StingMark slug="pelangi-sebenarnya-berbentuk-l" pose="topRight" t={t} clock={c} p={p} p2={p2} />
         </g>;
       })()}
     </svg>

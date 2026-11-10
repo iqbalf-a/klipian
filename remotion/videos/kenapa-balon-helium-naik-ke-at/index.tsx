@@ -3,13 +3,14 @@
    the ribbon is let go and the balloon rises to the ceiling, then it stops where its weight equals the air it moves. The first frame is the last (loop). */
 import React from "react";
 import {
-  loopClock, BLACK, CaptionLayer, Label, Mascot, StoryVideo, TopText, YELLOW, YELLOW_D, block, cam2At, clamp01, easeInOut, easeOutBack,
+  loopClock, BLACK, CaptionLayer, Label, StoryVideo, TopText, YELLOW_D, block, cam2At, clamp01, easeInOut, easeOutBack,
   layerTransform, ptsAttr, springAt, useFonts, type Poly, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import { ISO, THEMES, WHITE } from "../../src/tokens.ts";
 import { mixRgb } from "../../src/natureGeometry.ts";
 import { BALLOON_END_Y, CAM, HALL, T } from "./plan.ts";
 import storyJson from "./story.json";
+import { StingMark } from "../../src/components/StingMark.tsx";
 
 export const story = storyJson as unknown as StoryT;
 
@@ -234,11 +235,7 @@ const Scene = ({ beat, t, clock, story }: SceneProps) => {
       {beat.kind === "sting" && (() => {
         const p = springAt(c, 3.0), p2 = springAt(c, 3.25);
         return <g>
-          <g transform={`translate(540 720) scale(${Math.max(0, p)}) translate(-540 -720)`}><Mascot x={540} y={720} w={220} expr="curious" t={t} clock={c} squash={0.18 * (1 - p)} /></g>
-          <g transform={`translate(540 1489) scale(${Math.max(0, p2)}) translate(-540 -1489)`}>
-            <rect x={-210 + 540} y={1443} width={420} height={92} rx={46} fill={YELLOW} />
-            <text x={540} y={1507} fontSize={56} textAnchor="middle" fill={BLACK} style={{ fontFamily: '"Outfit", sans-serif', fontWeight: 700 }}>Intip yuk!</text>
-          </g>
+          <StingMark slug="kenapa-balon-helium-naik-ke-at" t={t} clock={c} p={p} p2={p2} />
         </g>;
       })()}
     </svg>

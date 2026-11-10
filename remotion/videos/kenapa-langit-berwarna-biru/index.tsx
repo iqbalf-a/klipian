@@ -5,13 +5,14 @@
    the sun is a sphere seen as a disc; the air is drawn as a box of glass because the sky has no edge to draw. The camera and every time come from plan.ts. */
 import React from "react";
 import {
-  BLACK, Brand, CaptionLayer, G2, G4, HOT2, IsoBlock, IsoSun, ISO, Label, Mascot, Motes, Pill, Polys, RED, THEMES, TopText, WHITE, YELLOW,
+  BLACK, Brand, CaptionLayer, G2, G4, HOT2, IsoBlock, IsoSun, ISO, Label, Motes, Polys, RED, THEMES, TopText, WHITE, YELLOW,
   block, bobPx, blinkClosed, extrudeXZ, isoAt, layerTransform, ptsAttr, riseAt, springAt, easeInOut,
   StoryVideo, type P2, type P3, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import { mixRgb } from "../../src/natureGeometry.ts";
 import { AIR_LOW, COL, EYE, MOLECULES, O, PEDESTAL, PRISM, SUN_NOON, TARGET, U, ease, makePlan, molecule, w } from "./plan.ts";
 import storyJson from "./story.json";
+import { StingMark } from "../../src/components/StingMark.tsx";
 
 export const story = storyJson as unknown as StoryT;
 
@@ -195,8 +196,7 @@ const Scene = ({ beat, t, clock, story: s }: SceneProps) => (
       {beat.kind === "sting" && (() => {
         const p = springAt(t, 0), out = 1 - easeInOut(clamp01((t - 0.75) / 0.25));
         return <g>
-          <g transform={`translate(540 720) scale(${Math.max(0, p) * out}) translate(-540 -720)`}><Mascot x={540} y={720} w={220} expr="curious" t={t} squash={0.18 * (1 - p)} /></g>
-          <g opacity={out}><Pill text="Intip yuk!" x={540} y={1489} fs={56} t={t} start={0.2} /></g>
+          <StingMark slug="kenapa-langit-berwarna-biru" t={t} p={p} out={out} />
         </g>;
       })()}
       {beat.kind !== "sting" && beat.kind !== "outro" && <CaptionLayer beat={beat} t={t} />}

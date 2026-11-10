@@ -187,7 +187,7 @@ COMPOSITION = """- Every beat except the sting and the outro shows the top text 
 - **One hero:** one main object for the whole video, big (about 60 to 70 % of the width at the main shot, x about 540). The other things are simple supporting elements: parts, arrows, short labels, numbered badges. Empty space is filled by the object, never by people.
 - **Kinds of fact:** an object is opened up (the lens, only if the narration goes inside); a process follows its flow; a cause is a chain of arrows; a myth check ends with `MITOS`, `FAKTA` or `SEBAGIAN` in the text of the `result` or `tips` beat (the verdict stamp is not drawn yet).
 - **People are optional:** a `chibi` only when a person is the point.
-- **The mascot is rare:** the sting has a small `mascot` (w about 220, expression curious, `pop`) and a small `pill` "Intip yuk!" in the caption zone, with no veil; plus at most two short reactions. **The outro has no mascot.**
+- **The mascot is rare:** the sting has a small `mascot` (w about 220, expression curious, `pop`) and a small `pill` "Intip yuk!" in the caption zone, with no veil; plus at most two short reactions. **The outro has no mascot.** In a custom video the sting is drawn with `StingMark` (`remotion/src/components/StingMark.tsx`, B31), never with a mascot and a pill at a fixed place: the pose comes from the slug, and `pose` overrides it when the hero needs another corner.
 - **Source cards** (`source`): one claim with its source for 2 to 3 seconds, only for a fact that needs to be seen.
 - Optional: a `headline` (2 to 4 bold words, with a small `kicker`), `"captions": true`, and `music` (`{"track": ...}`)."""
 

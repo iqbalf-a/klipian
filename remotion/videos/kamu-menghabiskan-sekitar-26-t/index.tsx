@@ -3,11 +3,12 @@
    The times come from plan.ts (CUE), the same numbers the sound (sfx.ts) uses. Every word on a card is the story's own (the beats' texts and narration). */
 import React from "react";
 import {
-  loopClock, BLACK, Brand, CaptionLayer, FONT_BOLD, FONT_MONO, G2, G3, G4, Mascot, Pill, StoryVideo, TopText, WHITE, YELLOW, YELLOW_D,
+  loopClock, BLACK, Brand, CaptionLayer, FONT_BOLD, FONT_MONO, G2, G3, G4, StoryVideo, TopText, WHITE, YELLOW, YELLOW_D,
   clamp01, easeInOut, easeOut, hover, springAt, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import storyJson from "./story.json";
 import { CUE } from "./plan.ts";
+import { StingMark } from "../../src/components/StingMark.tsx";
 
 export const story = storyJson as unknown as StoryT;
 
@@ -75,8 +76,7 @@ const Hook: React.FC<{ t: number }> = ({ t }) => {
 
 const Sting: React.FC<{ t: number }> = ({ t }) => (
   <g>
-    <Mascot x={540} y={720} w={220} expr="curious" t={t} />
-    <Pill text="Intip yuk!" x={540} y={1489} fs={56} t={t} start={0.2} />
+    <StingMark slug="kamu-menghabiskan-sekitar-26-t" t={t} />
   </g>
 );
 

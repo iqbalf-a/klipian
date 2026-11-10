@@ -5,12 +5,13 @@
    Every spoken fact comes from story.json; the camera and the state come from plan.ts. */
 import React from "react";
 import {
-  loopClock, BLACK, Brand, CaptionLayer, COFFEE, COFFEE_LIGHT, FPS, G1, G2, G3, HOLE_SHADE, ISO, Label, Mascot, Motes, NumberLabel, PLASTER, SourceChip, StoryVideo, TipCard, TopText, WHITE,
-  YELLOW, block, cylinder, easeOut, isoAt, layerTransform, planeXZ, ptsAttr, riseAt, springAt, swayDeg, toScreen, tipCardHeight,
+  loopClock, BLACK, Brand, CaptionLayer, COFFEE, COFFEE_LIGHT, FPS, G1, G2, G3, HOLE_SHADE, ISO, Label, Motes, NumberLabel, PLASTER, SourceChip, StoryVideo, TipCard, TopText, WHITE,
+  block, cylinder, easeOut, isoAt, layerTransform, planeXZ, ptsAttr, riseAt, springAt, swayDeg, toScreen, tipCardHeight,
   type P2, type P3, type Poly, type SceneProps, type StoryT, type Tones,
 } from "../../src/design/index.ts";
 import { ASPHALT_T, BUBBLES, DROPS, GRAVEL_BOTTOM, O, ROAD_X0, ROOT_PATH, ROOT_Z, U, liftAt, makePlan, widthAt } from "./plan.ts";
 import storyJson from "./story.json";
+import { StingMark } from "../../src/components/StingMark.tsx";
 
 export const story = storyJson as unknown as StoryT;
 
@@ -203,8 +204,7 @@ const Scene = ({ beat, t, clock, story: s }: SceneProps) => {
       {chip("hasil", 3.0, 6.6)}
       {chip("fakta", 4.2, 5.8)}
       {beat.kind === "sting" && (() => { const p = springAt(t, 0); return <g>
-        <g transform={`translate(540 720) scale(${Math.max(0, p)}) translate(-540 -720)`}><Mascot x={540} y={720} w={220} expr="curious" t={t} clock={clock} /></g>
-        <g transform={`translate(540 1489) scale(${Math.max(0, springAt(t, 0.2))}) translate(-540 -1489)`}><rect x={340} y={1443} width={400} height={92} rx={46} fill={YELLOW} /><text x={540} y={1507} fontSize={56} textAnchor="middle" fill={BLACK} style={{ fontFamily: '"Outfit", sans-serif', fontWeight: 700 }}>Intip yuk!</text></g>
+        <StingMark slug="kenapa-akar-pohon-bisa-memecah" t={t} p={p} clock={clock} />
       </g>; })()}
       {topEl && <TopText kicker={topEl.kicker} headline={topEl.headline} t={t} />}
       {beat.kind !== "sting" && beat.kind !== "outro" && <CaptionLayer beat={beat} t={t} />}

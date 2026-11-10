@@ -5,13 +5,14 @@
    light wobbles at the telescope and the star goes bright and dim. The first frame is the last (the loop: every motion is periodic in 60 s). */
 import React from "react";
 import {
-  BLACK, CaptionLayer, IsoBlock, Mascot, Motes, SourceChip, StoryVideo, TipCard, TopText, YELLOW, YELLOW_D, block, cam2At, clamp01, cylinder, easeOutBack,
+  BLACK, CaptionLayer, IsoBlock, Motes, SourceChip, StoryVideo, TipCard, TopText, YELLOW, YELLOW_D, block, cam2At, clamp01, cylinder, easeOutBack,
   isoAt, layerTransform, ptsAttr, smoothPath, springAt, toScreen, useFonts, type P2, type P3, type Poly, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import { G1, G2, G3, G4, HOT1, ISO, WHITE } from "../../src/tokens.ts";
 import { mixRgb } from "../../src/natureGeometry.ts";
 import { CAM, SCOPE_FRONT, STAR, T, shakeAt } from "./plan.ts";
 import storyJson from "./story.json";
+import { StingMark } from "../../src/components/StingMark.tsx";
 
 export const story = storyJson as unknown as StoryT;
 
@@ -322,11 +323,7 @@ const Scene = ({ beat, t, clock }: SceneProps) => {
       {kind === "sting" && (() => {
         const p = springAt(c, 3.0), p2 = springAt(c, 3.25);
         return <g>
-          <g transform={`translate(540 720) scale(${Math.max(0, p)}) translate(-540 -720)`}><Mascot x={540} y={720} w={220} expr="curious" t={t} clock={c} squash={0.18 * (1 - p)} /></g>
-          <g transform={`translate(540 1489) scale(${Math.max(0, p2)}) translate(-540 -1489)`}>
-            <rect x={330} y={1443} width={420} height={92} rx={46} fill={YELLOW} />
-            <text x={540} y={1507} fontSize={56} textAnchor="middle" fill={BLACK} style={FONT}>Intip yuk!</text>
-          </g>
+          <StingMark slug="kenapa-bintang-terlihat-berkel" t={t} clock={c} p={p} p2={p2} />
         </g>;
       })()}
     </svg>

@@ -117,7 +117,9 @@ export type SfxPlan = { events: SfxEvent[]; dropped: { event: SfxEvent; because:
 export function planSfx(events: readonly SfxEvent[], totalSeconds: number): SfxPlan {
   const kept: SfxEvent[] = [], dropped: SfxPlan["dropped"] = [];
   const lastOf = new Map<SfxName, number>();
-  for (const e of [...events].sort((x, y) => x.t - y.t)) {
+  // no sound is cut off by the end (and so by the loop): one that would run past it starts earlier (ian, 2026-11-10); loops and beds are clamped below
+  const fit = (e: SfxEvent): SfxEvent => { const sp = specOf(e.name), d = e.dur ?? sp.dur; return !sp.loop && !sp.bed && e.t + d > totalSeconds ? { ...e, t: Math.max(0, Math.floor((totalSeconds - d) * FPS) / FPS) } : e; };
+  for (const e of events.map(fit).sort((x, y) => x.t - y.t)) {
     const spec = specOf(e.name);
     if (e.t >= totalSeconds) { dropped.push({ event: e, because: "after the end" }); continue; }
     const last = lastOf.get(e.name);

@@ -3,13 +3,14 @@
    the road in a blink, and a blue ring of sound creeps over the ground at its real speed (1 km in 3 s). The first frame is the last (the loop). */
 import React from "react";
 import {
-  BLACK, CaptionLayer, IsoCloud, Mascot, StoryVideo, TopText, YELLOW, YELLOW_D, block, cam2At, clamp01, easeInOut, easeOutBack,
+  BLACK, CaptionLayer, IsoCloud, StoryVideo, TopText, YELLOW, YELLOW_D, block, cam2At, clamp01, easeInOut, easeOutBack,
   isoAt, layerTransform, ptsAttr, springAt, useFonts, type Poly, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import { G2, G4, ISO, WHITE } from "../../src/tokens.ts";
 import { mixRgb } from "../../src/natureGeometry.ts";
 import { CAM, FLASHES, RINGS, T } from "./plan.ts";
 import storyJson from "./story.json";
+import { StingMark } from "../../src/components/StingMark.tsx";
 
 export const story = storyJson as unknown as StoryT;
 
@@ -246,11 +247,7 @@ const Scene = ({ beat, t, clock }: SceneProps) => {
       {beat.kind === "sting" && (() => {
         const p = springAt(c, 3.0), p2 = springAt(c, 3.25);
         return <g>
-          <g transform={`translate(540 720) scale(${Math.max(0, p)}) translate(-540 -720)`}><Mascot x={540} y={720} w={220} expr="curious" t={t} clock={c} squash={0.18 * (1 - p)} /></g>
-          <g transform={`translate(540 1489) scale(${Math.max(0, p2)}) translate(-540 -1489)`}>
-            <rect x={-210 + 540} y={1443} width={420} height={92} rx={46} fill={YELLOW} />
-            <text x={540} y={1507} fontSize={56} textAnchor="middle" fill={BLACK} style={FONT}>Intip yuk!</text>
-          </g>
+          <StingMark slug="kenapa-suara-guntur-terdengar" t={t} clock={c} p={p} p2={p2} />
         </g>;
       })()}
     </svg>

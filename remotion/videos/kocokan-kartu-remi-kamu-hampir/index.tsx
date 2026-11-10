@@ -5,13 +5,14 @@
    left); every colour is a token or a mix of tokens. One world, one camera (plan.ts camAt), so the sting and every beat share the set. */
 import React from "react";
 import {
-  loopClock, BLACK, BLUSH, CaptionLayer, COFFEE, FONT_BOLD, FONT_MONO, G1, G2, G3, G4, Label, Mascot, Onomatopoeia, Pill, SKIN_A, SKIN_B, SourceChip, StoryVideo, STEAM,
+  loopClock, BLACK, BLUSH, CaptionLayer, COFFEE, FONT_BOLD, FONT_MONO, G1, G2, G3, G4, Label, Onomatopoeia, SKIN_A, SKIN_B, SourceChip, StoryVideo, STEAM,
   THEMES, TopText, rgb as fromRgb, WHITE, YELLOW, YELLOW_D, clamp01, easeInOut, easeOut, springAt, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import storyJson from "./story.json";
 import {
   BOARD, BOARD_T, CUTS, DOTS_FROM, DROPS, EXP, FAKTA, HASIL, HOOK_Q, LABELS, M, MANT, ORDERS, RESET, SHUF, SLOTS, TILES, TILES_OUT, TIPS, camAt, dotLit,
 } from "./plan.ts";
+import { StingMark } from "../../src/components/StingMark.tsx";
 
 export const story = storyJson as unknown as StoryT;
 
@@ -284,8 +285,7 @@ const Scene = ({ beat, t, clock, story }: SceneProps) => {
         );
       })}
       {sting && <g>
-        <g transform={`translate(540 720) scale(${Math.max(0, springAt(t, 0))}) translate(-540 -720)`}><Mascot x={540} y={720} w={220} expr="curious" t={t} clock={clock} squash={0.18 * (1 - springAt(t, 0))} /></g>
-        <Pill text="Intip yuk!" x={540} y={1489} fs={56} t={t} start={0.2} />
+        <StingMark slug="kocokan-kartu-remi-kamu-hampir" t={t} clock={clock} />
       </g>}
       {!sting && !outro && <TopText key={beat.id} kicker={KICKER[beat.id]} headline={beat.text} t={t} />}
       {!sting && !outro && <CaptionLayer beat={beat} t={t} />}

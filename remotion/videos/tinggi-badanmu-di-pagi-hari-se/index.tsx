@@ -5,11 +5,12 @@
    value n (plan.ts loadAt) that thins every disc, drops the head, moves the sun and the moon and turns the clock. */
 import React from "react";
 import {
-  loopClock, BLACK, CaptionLayer, FONT_BOLD, FONT_MONO, G1, G2, G3, G4, Arrow, Label, Mascot, NumberCard, PLASTER, Pill, SKIN_A, SKIN_B, StoryVideo, STEAM, THEMES, TopText, WHITE,
+  loopClock, BLACK, CaptionLayer, FONT_BOLD, FONT_MONO, G1, G2, G3, G4, Arrow, Label, NumberCard, PLASTER, SKIN_A, SKIN_B, StoryVideo, STEAM, THEMES, TopText, WHITE,
   YELLOW, YELLOW_D, clamp01, easeInOut, springAt, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import storyJson from "./story.json";
 import { BED_CARD, BRACKETS, CARD, DETAIL, LABELS, LOAD_ARROWS, NOTE, camAt, loadAt } from "./plan.ts";
+import { StingMark } from "../../src/components/StingMark.tsx";
 
 export const story = storyJson as unknown as StoryT;
 
@@ -287,8 +288,7 @@ const Scene = ({ beat, t, clock, story }: SceneProps) => {
         <text x={330} y={1340} fontSize={38} fill={G2} style={{ fontFamily: `"${FONT_MONO}", monospace` }}>hasil selalu sebanding</text>
       </g>}
       {sting && <g>
-        <g transform={`translate(540 720) scale(${Math.max(0, springAt(t, 0))}) translate(-540 -720)`}><Mascot x={540} y={720} w={220} expr="curious" t={t} clock={clock} squash={0.18 * (1 - springAt(t, 0))} /></g>
-        <Pill text="Intip yuk!" x={540} y={1489} fs={56} t={t} start={0.2} />
+        <StingMark slug="tinggi-badanmu-di-pagi-hari-se" pose="topRight" t={t} clock={clock} />
       </g>}
       {!sting && !outro && <TopText key={beat.id} kicker={KICKER[beat.id]} headline={beat.text} t={t} />}
       {!sting && !outro && <CaptionLayer beat={beat} t={t} />}

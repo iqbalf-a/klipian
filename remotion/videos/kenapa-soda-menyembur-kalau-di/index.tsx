@@ -5,13 +5,14 @@
    The first frame is the last (the loop): the closed bottle with only a few small bubbles stands at the same place. */
 import React from "react";
 import {
-  BLACK, CaptionLayer, IsoClock, Label, Mascot, Polys, StoryVideo, TopText, YELLOW, block, cam2At, clamp01, cylinder, easeInOut,
+  BLACK, CaptionLayer, IsoClock, Label, Polys, StoryVideo, TopText, block, cam2At, clamp01, cylinder, easeInOut,
   isoAt, layerTransform, planeXZ, ptsAttr, springAt, textWidth, useFonts, SourceChip, type P2, type P3, type Poly, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import { ISO, G1, G2, G3, G4, WHITE } from "../../src/tokens.ts";
 import { mixRgb } from "../../src/natureGeometry.ts";
 import { CAM, T, bottleSlot, capFlight, capOn, dens, foamK, puddleK, shakeAmp, shakeOff, spillK, tapAt, twistK } from "./plan.ts";
 import storyJson from "./story.json";
+import { StingMark } from "../../src/components/StingMark.tsx";
 
 export const story = storyJson as unknown as StoryT;
 
@@ -22,7 +23,6 @@ const WOOD_EDGE = mixRgb(ISO.soil[2], WHITE, 0.1);
 const LIQ = [mixRgb(ISO.soil[2], BLACK, 0.25), mixRgb(ISO.soil[2], BLACK, 0.45), mixRgb(ISO.soil[2], BLACK, 0.62)];   // dark amber soda
 const FOAM = [WHITE, G4, mixRgb(G4, LIQ[0], 0.25)];
 const TILE: readonly [string, string, string] = [WHITE, G4, mixRgb(G4, G3, 0.5)];
-const bold = { fontFamily: '"Outfit", sans-serif', fontWeight: 700 } as const;
 const on = (c: number, a: number, b = 1e9) => clamp01((c - a) / 0.35) * (1 - clamp01((c - b) / 0.35));
 const blk = (a: P3, b: P3) => block(a, b, U, O);
 /** A small seeded random in 0..1 (the same on every render). */
@@ -271,11 +271,7 @@ const Scene = ({ beat, t, clock }: SceneProps) => {
       {!isOutro && beat.kind === "sting" && (() => {
         const p = springAt(c, 3.0), p2 = springAt(c, 3.25);
         return <g>
-          <g transform={`translate(540 720) scale(${Math.max(0, p)}) translate(-540 -720)`}><Mascot x={540} y={720} w={220} expr="curious" t={t} clock={c} squash={0.18 * (1 - p)} /></g>
-          <g transform={`translate(540 1489) scale(${Math.max(0, p2)}) translate(-540 -1489)`}>
-            <rect x={330} y={1443} width={420} height={92} rx={46} fill={YELLOW} />
-            <text x={540} y={1507} fontSize={56} textAnchor="middle" fill={BLACK} style={bold}>Intip yuk!</text>
-          </g>
+          <StingMark slug="kenapa-soda-menyembur-kalau-di" pose="topRight" t={t} clock={c} p={p} p2={p2} />
         </g>;
       })()}
     </svg>

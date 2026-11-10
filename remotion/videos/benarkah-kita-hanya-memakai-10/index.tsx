@@ -4,13 +4,14 @@
    1936 book, the tips, and back to the first frame (loop). */
 import React from "react";
 import {
-  BLACK, CaptionLayer, FONT_BOLD, G1, G2, G3, ISO, IsoBlock, Mascot, Motes, NumberLabel, OnPlane, RED, SourceChip, StoryVideo, TipCard, TopText, WHITE,
+  BLACK, CaptionLayer, FONT_BOLD, G1, G2, G3, ISO, IsoBlock, Motes, NumberLabel, OnPlane, RED, SourceChip, StoryVideo, TipCard, TopText, WHITE,
   YELLOW, YELLOW_D, bobPx, cam2At, clamp01, easeInOut, easeOutBack, layerTransform, planeYZ, pulse01, smoothPath, springAt, toScreen, useFonts,
   type P2, type P3, type SceneProps, type StoryT, type Tones,
 } from "../../src/design/index.ts";
 import { mixRgb } from "../../src/natureGeometry.ts";
 import { BED, CAM, N, O, REGION_LABEL, REGIONS, ROOM, T, U, W, bedX, type Region } from "./plan.ts";
 import storyJson from "./story.json";
+import { StingMark } from "../../src/components/StingMark.tsx";
 
 export const story = storyJson as unknown as StoryT;
 
@@ -303,11 +304,7 @@ const Scene = ({ beat, t, clock }: SceneProps) => {
       {beat.kind === "sting" && (() => {
         const p = springAt(c, 3.0), p2 = springAt(c, 3.25);
         return <g>
-          <g transform={`translate(540 720) scale(${Math.max(0, p)}) translate(-540 -720)`}><Mascot x={540} y={720} w={220} expr="curious" t={t} clock={c} squash={0.18 * (1 - p)} /></g>
-          <g transform={`translate(540 1489) scale(${Math.max(0, p2)}) translate(-540 -1489)`}>
-            <rect x={330} y={1443} width={420} height={92} rx={46} fill={YELLOW} />
-            <text x={540} y={1507} fontSize={56} textAnchor="middle" fill={BLACK} style={bold}>Intip yuk!</text>
-          </g>
+          <StingMark slug="benarkah-kita-hanya-memakai-10" pose="top" t={t} clock={c} p={p} p2={p2} />
         </g>;
       })()}
     </svg>

@@ -5,13 +5,14 @@
    stretched towards the Earth (exaggerated, and labelled so). Sizes and distances are not to scale (the Moon is 0.27 of the Earth's width, 60 Earth widths away). */
 import React from "react";
 import {
-  loopClock, BLACK, CaptionLayer, IsoBlock, Label, Mascot, StoryVideo, TopText, YELLOW, YELLOW_D, clamp01, cylinder, easeInOut, easeOutBack, iso, isoAt, layerTransform, ptsAttr,
+  loopClock, BLACK, CaptionLayer, IsoBlock, Label, StoryVideo, TopText, YELLOW, YELLOW_D, clamp01, cylinder, easeInOut, easeOutBack, iso, isoAt, layerTransform, ptsAttr,
   springAt, toScreen, useFonts, type P2, type P3, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import { ISO, WHITE } from "../../src/tokens.ts";
 import { mixRgb } from "../../src/natureGeometry.ts";
 import { EARTH, GHOST_PHI, SET, SPHERE_K, T, TH0, camAt, ghostTheta, ghostPos, moonPhi, moonPos, screenOf, theta, worldOf } from "./plan.ts";
 import storyJson from "./story.json";
+import { StingMark } from "../../src/components/StingMark.tsx";
 
 export const story = storyJson as unknown as StoryT;
 
@@ -288,11 +289,7 @@ const Scene = ({ beat, t, clock, story }: SceneProps) => {
       {beat.kind === "sting" && (() => {
         const p = springAt(c, 3.0), p2 = springAt(c, 3.25);
         return <g>
-          <g transform={`translate(540 720) scale(${Math.max(0, p)}) translate(-540 -720)`}><Mascot x={540} y={720} w={220} expr="curious" t={t} clock={c} squash={0.18 * (1 - p)} /></g>
-          <g transform={`translate(540 1489) scale(${Math.max(0, p2)}) translate(-540 -1489)`}>
-            <rect x={-210 + 540} y={1443} width={420} height={92} rx={46} fill={YELLOW} />
-            <text x={540} y={1507} fontSize={56} textAnchor="middle" fill={BLACK} style={{ fontFamily: '"Outfit", sans-serif', fontWeight: 700 }}>Intip yuk!</text>
-          </g>
+          <StingMark slug="kenapa-bulan-selalu-menghadap" t={t} clock={c} p={p} p2={p2} />
         </g>;
       })()}
     </svg>

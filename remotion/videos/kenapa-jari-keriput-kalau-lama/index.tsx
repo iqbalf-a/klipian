@@ -6,13 +6,14 @@
    Every word comes from the checked story; the labels are short pointers to parts of the set. */
 import React from "react";
 import {
-  BLACK, Brand, CaptionLayer, ISO, IsoHeart, Label, Mascot, Pill, Polys, StoryVideo, TopText, WHITE, YELLOW, YELLOW_D, SKIN_A, SKIN_B, PLASTER, cylinder, easeInOut, extrudeXZ,
+  BLACK, Brand, CaptionLayer, ISO, IsoHeart, Label, Polys, StoryVideo, TopText, WHITE, YELLOW, YELLOW_D, SKIN_A, SKIN_B, PLASTER, cylinder, easeInOut, extrudeXZ,
   circlePts, block, planeXZ, riseAt, smoothPath, springAt, useFonts, layerTransform, toScreen,
   type P2, type P3, type SceneProps, type StoryT, type Tones,
 } from "../../src/design/index.ts";
 import { isoAt } from "../../src/iso.ts";
 import { BODY_Y, FX, R, SLICE_Y, SX, T, TIP_L, U, O, camAt, makePlan, narrow, wrinkle } from "./plan.ts";
 import storyJson from "./story.json";
+import { StingMark } from "../../src/components/StingMark.tsx";
 
 export const story = storyJson as unknown as StoryT;
 
@@ -268,8 +269,7 @@ const Scene = ({ beat, t, clock }: SceneProps) => {
       {beat.kind !== "sting" && beat.kind !== "outro" && <CaptionLayer beat={beat} t={t} />}
       {stingP > 0.001 && (
         <g>
-          <g transform={`translate(200 700) scale(${stingP}) translate(-200 -700)`}><Mascot x={200} y={700} w={220} expr="curious" t={t} clock={clock} squash={0.18 * (1 - stingP)} /></g>
-          <g transform={`translate(540 1489) scale(${stingP}) translate(-540 -1489)`}><Pill text="Intip yuk!" x={540} y={1489} fs={56} t={t} start={0.2} /></g>
+          <StingMark slug="kenapa-jari-keriput-kalau-lama" t={t} clock={clock} p={stingP} p2={stingP} />
         </g>
       )}
     </svg>

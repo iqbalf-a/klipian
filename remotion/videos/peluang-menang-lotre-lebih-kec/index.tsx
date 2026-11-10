@@ -2,11 +2,12 @@
    The slab (a black card that bleeds past the frame) fills the band between the top text and the caption; cards, counters and tiles come in on the times of plan.ts T. */
 import React from "react";
 import {
-  BLACK, Brand, CaptionLayer, Mascot, Pill as StingPill, FONT_BOLD, FONT_MONO, G2, G3, G4, StoryVideo, TopText, WHITE, YELLOW, clamp01, easeInOut, easeOut, springAt,
+  BLACK, Brand, CaptionLayer, FONT_BOLD, FONT_MONO, G2, G3, G4, StoryVideo, TopText, WHITE, YELLOW, clamp01, easeInOut, easeOut, springAt,
   type BeatT, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import storyJson from "./story.json";
 import { T } from "./plan.ts";
+import { StingMark } from "../../src/components/StingMark.tsx";
 
 export const story = storyJson as unknown as StoryT;
 
@@ -237,8 +238,7 @@ const Scene = ({ beat, t, clock }: SceneProps) => {
       <Brand clock={clock} />
       {beat.kind === "sting" && (
         <g>
-          <g transform={`translate(540 720) scale(${Math.max(0, springAt(t, 0))}) translate(-540 -720)`}><Mascot x={540} y={720} w={220} expr="curious" t={t} clock={clock} squash={0.18 * (1 - Math.min(1, springAt(t, 0)))} /></g>
-          <StingPill text="Intip yuk!" x={540} y={1489} fs={56} t={t} start={0.2} />
+          <StingMark slug="peluang-menang-lotre-lebih-kec" t={t} clock={clock} />
         </g>
       )}
       {beat.kind === "outro" ? <Slab t={0} dur={1} push={0.05}><HookCards t={0} vs={false} /></Slab> : Body && <Body t={t} dur={beat.dur} />}

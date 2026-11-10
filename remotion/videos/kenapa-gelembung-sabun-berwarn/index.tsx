@@ -5,11 +5,12 @@
    water drains away, thicker at the bottom; the film's two surfaces (outer and inner) each reflect light. The camera and every time come from plan.ts. */
 import React from "react";
 import {
-  BLACK, CaptionLayer, G1, G3, HOT1, HOT2, ISO, IsoBlock, Lab, Label, Mascot, Motes, OnPlane, Pill, Polys, THEMES, TipCard, TopText, WHITE, Badge,
+  BLACK, CaptionLayer, G1, G3, HOT1, HOT2, ISO, IsoBlock, Lab, Label, Motes, OnPlane, Polys, THEMES, TipCard, TopText, WHITE, Badge,
   block, bobPx, cylinder, isoAt, layerTransform, ptsAttr, riseAt, springAt, easeInOut, easeOut, StoryVideo, type P2, type P3, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import { B, DISH, LENS_C, LENS_R, O, POT, TOWEL, TUB, U, WALL_Y, makePlan } from "./plan.ts";
 import storyJson from "./story.json";
+import { StingMark } from "../../src/components/StingMark.tsx";
 
 export const story = storyJson as unknown as StoryT;
 
@@ -257,8 +258,7 @@ const Scene = ({ beat, t, clock, story: s }: SceneProps) => (
       {beat.kind === "sting" && (() => {
         const p = springAt(t, 0), out = 1 - easeInOut(clamp01((t - 0.75) / 0.25));
         return <g>
-          <g transform={`translate(540 720) scale(${Math.max(0, p) * out}) translate(-540 -720)`}><Mascot x={540} y={720} w={220} expr="curious" t={t} squash={0.18 * (1 - p)} /></g>
-          <g opacity={out}><Pill text="Intip yuk!" x={540} y={1489} fs={56} t={t} start={0.2} /></g>
+          <StingMark slug="kenapa-gelembung-sabun-berwarn" t={t} p={p} out={out} />
         </g>;
       })()}
       {beat.kind !== "sting" && beat.kind !== "outro" && <CaptionLayer beat={beat} t={t} />}
