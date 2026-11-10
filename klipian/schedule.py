@@ -499,7 +499,7 @@ def description(post: dict | None, credit_lines: str = "") -> str:
 
 
 def upsert_render(*, project_id: str, result_id: str, title: str, file_name: str,
-                  post: dict | None, credit_lines: str,
+                  post: dict | None, credit_lines: str, hook: str = "",
                   path: Path | None = None, lock: threading.Lock | None = None) -> tuple[str, bool]:
     """Make or update the schedule row of a finished render. Returns (row id,
     whether the row is new). Rows are found by project id + result id."""
@@ -510,6 +510,7 @@ def upsert_render(*, project_id: str, result_id: str, title: str, file_name: str
         "episode": " / ".join(l for l in (credit_lines or "").splitlines() if l.strip()),
         "description": block,
         "tiktokCaption": block,
+        "hook": " ".join(str(hook or "").split()),        # the clip's own line (an exact quote): the thumbnail text uses it
     }
     with (lock or CLIPS_LOCK):
         clips = load_clips(path)

@@ -508,7 +508,7 @@ def _render_body(job_id: str, req: dict, into: Path | None = None, record: bool 
                 finally:
                     raw.unlink(missing_ok=True)
 
-            thumbnail.write(dest, thumbnail.text_of(None, k["title"]))                 # <name>.jpg for the YouTube upload; None when it fails
+            thumbnail.write(dest, thumbnail.text_of(None, k["title"], k.get("hook")))                 # <name>.jpg for the YouTube upload; None when it fails
 
             with LOCK:
                 t["result"].append({
@@ -881,7 +881,7 @@ def _schedule_render(job_id: str, req: dict, pdata: dict) -> None:
         row_id, created = schedule.upsert_render(
             project_id=pdata.get("id"), result_id=str(result_id),
             title=str(k.get("title") or ""), file_name=t["result"][0]["file"],
-            post=roundtrip._post(k.get("post")), credit_lines=credits.lines(names))
+            post=roundtrip._post(k.get("post")), credit_lines=credits.lines(names), hook=str(k.get("hook") or ""))
     except (OSError, ValueError, TypeError) as exc:
         with LOCK:
             t["warning"] = f"render finished, but its upload-schedule row could not be saved ({exc})"

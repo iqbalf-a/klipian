@@ -2203,7 +2203,7 @@ class Handler(BaseHTTPRequestHandler):
         file = _sch.row_file(row)
         if file is None:
             return self._send_json({"error": "the video file is not in the profile's out/ folder any more"}, 400)
-        if not _thumb.write(file, _thumb.text_of(row.get("thumbText"), row.get("title"))):
+        if not _thumb.write(file, _thumb.text_of(row.get("thumbText"), row.get("title"), row.get("hook"))):
             return self._send_json({"error": "the thumbnail could not be made from this video"}, 500)
         return self._send_json({"ok": True, "clip": _with_missing_flags([row])[0]})
 

@@ -2710,7 +2710,7 @@ def check_upload() -> tuple[str, str]:
         if thumb.default_style("klipian-intip")["position"] != "lower" or thumb.default_style("podcast")["position"] != "auto"                 or thumb.default_style("podcast")["outline"] <= 0 or thumb.default_style("klipian-intip")["outline"] != 0:
             problems.append("the default thumbnail look: plain for the motion channel, sticker (outlined, middle) for the others")
         dirty = thumb.clean_style({"size": 99, "outline": -3, "color": "red", "accent": "#abcdef", "font": "comic", "position": "top", "lines": 9, "caps": "yes", "junk": 1})
-        if dirty != {"size": 14, "outline": 0, "accent": "#ABCDEF", "position": "top", "lines": 4}:
+        if dirty != {"size": 20.0, "outline": 0, "accent": "#ABCDEF", "position": "top", "lines": 4}:
             problems.append(f"thumbStyle cleaning did not fix ranges or drop bad values: {dirty}")
         profiles.update("up1", {"thumbStyle": {"size": 7, "align": "left", "bogus": 1}})
         if profiles.read_meta("up1")["thumbStyle"] != {"size": 7.0, "align": "left"} or thumb.style_of("up1")["align"] != "left" or thumb.style_of("up1")["font"] != "arialblack":
@@ -2718,6 +2718,15 @@ def check_upload() -> tuple[str, str]:
         profiles.update("up1", {"thumbStyle": None})
         if profiles.read_meta("up1")["thumbStyle"] != {}:
             problems.append("resetting thumbStyle did not clear it")
+        st, pl = thumb.default_style("podcast"), thumb.default_style("klipian-intip")
+        if not (st["outerWidth"] > 0 and st["shadow"] > 0 and st["rotate"] < 0 and st["width"] > 80 and st["color"] == "#FFD60A")                 or (pl["outerWidth"], pl["shadow"], pl["rotate"], pl["width"], pl["outline"]) != (0, 0, 0, 70, 0):
+            problems.append(f"the clip default is the loud sticker (outer border, shadow, tilt, wide) and the motion default stays plain: {st} {pl}")
+        if thumb.cut_hook("Dia bilang gini, di depan semua orang yang hadir malam itu") != "Dia bilang gini, di depan semua orang" or thumb.cut_hook("Halo") != ""                 or thumb.text_of("", "Judul panjang sekali dari klip ini ya", "Ini kalimat kuat dari klip") != "Ini kalimat kuat dari klip"                 or thumb.text_of("", "Judul panjang sekali dari klip ini ya", "Halo") != "Judul panjang sekali dari klip ini"                 or thumb.text_of("Teks saya", "x", "Ini kalimat kuat dari klip") != "Teks saya":
+            problems.append("thumbnail text: thumbText first, then the clip's hook cut to 3-7 words, then the title cut to 6 words")
+        got_s = {}
+        ts = thumb.write(folder / "clip1.mp4", "Dia bilang gini di depan semua", thumb.default_style("podcast"), out=folder / "sticker-test.jpg", info=got_s)
+        if not ts or not ts.is_file() or ts.stat().st_size == 0:
+            problems.append("the tilted sticker look (outer border, shadow, rotation) made no JPG")
         face = (0.38, 0.30, 0.62, 0.52)                                  # a face box in 0..1
         if thumb.score_face([]) != 0 or not thumb.score_face([face]) > thumb.score_face([(0.45, 0.4, 0.55, 0.5)]) > 0                 or not thumb.score_face([(0.0, 0.3, 0.24, 0.52)]) < thumb.score_face([(0.1, 0.3, 0.34, 0.52)]):
             problems.append("score_face: no face is 0, a larger face scores higher, a face cut by the edge scores lower")

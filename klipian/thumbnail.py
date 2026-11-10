@@ -19,9 +19,13 @@ POSITIONS = ("auto", "top", "middle", "lower")      # auto: the free band that h
 ALIGNS = ("left", "center")
 
 PLAIN = {"font": "mona", "size": 8.5, "color": "#FFFFFF", "outlineColor": "#000000", "outline": 0, "accent": "#FFD447",
-         "position": "lower", "align": "left", "gradient": 0.78, "caps": True, "lines": 4}
-STICKER = {"font": "arialblack", "size": 10.0, "color": "#FFF3A0", "outlineColor": "#1A1A1A", "outline": 11, "accent": "#FFFFFF",
-           "position": "auto", "align": "center", "gradient": 0.0, "caps": True, "lines": 2}
+         "position": "lower", "align": "left", "gradient": 0.78, "caps": True, "lines": 4,
+         "outer": "#FFFFFF", "outerWidth": 0, "shadow": 0, "rotate": 0, "lineHeight": 1.12, "width": 70}
+# the loud sticker look of the clip profiles: very big, saturated yellow, a thick dark stroke, a white sticker border around the shape,
+# a hard drop shadow, a little tilt; the text fills about 85% of the width (the tilt and the borders take the rest) (the 9:16 card is the video's own size)
+STICKER = {"font": "arialblack", "size": 14.0, "color": "#FFD60A", "outlineColor": "#111111", "outline": 11, "accent": "#FFFFFF",
+           "position": "auto", "align": "center", "gradient": 0.0, "caps": True, "lines": 2,
+           "outer": "#FFFFFF", "outerWidth": 9, "shadow": 6, "rotate": -2, "lineHeight": 1.0, "width": 84}
 
 
 def default_style(pid: str | None = None) -> dict:
@@ -35,10 +39,10 @@ def clean_style(raw, base: dict | None = None) -> dict:
     if not isinstance(raw, dict):
         return out
     num = lambda k, lo, hi: out.__setitem__(k, round(max(lo, min(hi, float(raw[k]))), 2)) if isinstance(raw.get(k), (int, float)) and not isinstance(raw.get(k), bool) else None
-    num("size", 4, 14), num("outline", 0, 20), num("gradient", 0, 1)
+    num("size", 4, 20), num("outline", 0, 20), num("gradient", 0, 1), num("outerWidth", 0, 20), num("shadow", 0, 15), num("rotate", -10, 10), num("lineHeight", 0.8, 1.5), num("width", 40, 96)
     if isinstance(raw.get("lines"), int) and not isinstance(raw.get("lines"), bool):
         out["lines"] = max(1, min(4, raw["lines"]))
-    for k in ("color", "outlineColor", "accent"):
+    for k in ("color", "outlineColor", "accent", "outer"):
         if isinstance(raw.get(k), str) and re.fullmatch(r"#[0-9a-fA-F]{6}", raw[k]):
             out[k] = raw[k].upper()
     for k, ok in (("font", FONT_CHOICES), ("position", POSITIONS), ("align", ALIGNS)):
@@ -83,10 +87,22 @@ def lines_of(text: str, per_line: int, caps: bool = True) -> list[tuple[str, boo
     return lines
 
 
-def text_of(thumb: str | None, title: str | None, words: int = 6) -> str:
-    """What the card says: the story's `thumb` or the row's `thumbText` when there is one, else the title cut to six words."""
+def cut_hook(hook: str | None, most: int = 7) -> str:
+    """The clip's own hook (an exact quote from it) cut to 3-7 words, at a clause end when there is one; "" when it is too short to be punchy."""
+    w = " ".join(str(hook or "").replace("#", " ").split()).split()
+    if len(w) < 3:
+        return ""
+    if len(w) > most:
+        ends = [i for i in range(3, most) if w[i].endswith((".", ",", ";", "?", "!"))]       # a clause may end after word 4..7
+        w = w[:(ends[-1] + 1) if ends else most]
+    return " ".join(w).rstrip(",;. ")
+
+
+def text_of(thumb: str | None, title: str | None, hook: str | None = None, words: int = 6) -> str:
+    """What the card says: the story's `thumb` or the row's `thumbText` when there is one; else the clip's own hook (4-7 words of what is really
+    said in it); else the title cut to six words. Nothing is made up."""
     t = " ".join(str(thumb or "").split())
-    return t or " ".join(re.sub(r"#\S+", " ", str(title or "")).split()[:words])
+    return t or cut_hook(hook) or " ".join(re.sub(r"#\S+", " ", str(title or "")).split()[:words])
 
 
 # --- which frame, and where the text goes -----------------------------------------------------------------------------------------------
@@ -175,7 +191,7 @@ def write(video: Path, text: str | None = None, style: dict | None = None, at: f
         vf = []
         font = next((p for p in (_font_path(FONT_CHOICES[s["font"]]), _font_path("mona sans extrabold"), _font_path("arial")) if p), None)
         fs = int(s["size"] / 100 * W)
-        room = 0.70 * W                                          # the centre 70%: a 16:9 centre crop still reads
+        room = s["width"] / 100 * W                              # the plain look keeps the centre 70% (a 16:9 centre crop still reads); the sticker fills ~90%
         wrap = lambda size: lines_of(text, int(room / (FONT_EM[s["font"]] * size)), s["caps"])
         lines = wrap(fs) if text and font else []
         too_wide = lambda: lines and max(len(t) for t, _ in lines) * FONT_EM[s["font"]] * fs > room      # one long word does not break
@@ -187,7 +203,7 @@ def write(video: Path, text: str | None = None, style: dict | None = None, at: f
                 k = "clip((Y-0.45*H)/(0.55*H),0,1)"              # 0 at 45% down, 1 at the bottom
                 g = f"(1-{s['gradient']}*{k})"
                 vf.append(f"geq=lum='lum(X,Y)*{g}':cb='128+(cb(X,Y)-128)*{g}':cr='128+(cr(X,Y)-128)*{g}'")
-            lh = int(fs * 1.12)
+            lh = int(fs * s["lineHeight"])
             block = lh * len(lines)
             width = max(len(t) for t, _ in lines) * FONT_EM[s["font"]] * fs / W
             x_span = (0.15, 0.15 + width) if s["align"] == "left" else (0.5 - width / 2, 0.5 + width / 2)
@@ -197,17 +213,32 @@ def write(video: Path, text: str | None = None, style: dict | None = None, at: f
                 info.update({**chosen, "position": s["position"], "top": round(top / H, 3), "overlap": round(overlap, 3) if s["position"] == "auto" else None})
             ff = _escape_filter_path(str(font))
             x = f"{int(0.15 * W)}" if s["align"] == "left" else "(w-text_w)/2"
-            bw = int(fs * s["outline"] / 100)
+            bw, ow, sh = int(fs * s["outline"] / 100), int(fs * s["outerWidth"] / 100), int(fs * s["shadow"] / 100)
+            files = []
             for i, (t, acc) in enumerate(lines):
                 f = thumb.with_name(f".{thumb.stem}.thumb{i}.txt")
                 f.write_text(t, encoding="utf-8")
                 tmp.append(f)
-                color = (s["accent"] if acc else s["color"]).replace("#", "0x")
-                vf.append(f"drawtext=fontfile='{ff}':textfile='{_escape_filter_path(str(f))}':fontsize={fs}:fontcolor={color}:x={x}:y={int(top) + i * lh}"
-                          + (f":borderw={bw}:bordercolor={s['outlineColor'].replace('#', '0x')}" if bw else ""))
+                files.append((f, acc))
+            hexc = lambda c: c.replace("#", "0x")
+            text_filters = []
+            if ow or sh:                                         # the sticker: the outer white border and the drop shadow, one layer under all lines
+                for i, (f, _) in enumerate(files):
+                    text_filters.append(f"drawtext=fontfile='{ff}':textfile='{_escape_filter_path(str(f))}':fontsize={fs}:fontcolor={hexc(s['outer'])}:x={x}:y={int(top) + i * lh}"
+                                        f":borderw={bw + ow}:bordercolor={hexc(s['outer'])}"
+                                        + (f":shadowx={sh}:shadowy={sh}:shadowcolor=black@0.65" if sh else ""))
+            for i, (f, acc) in enumerate(files):
+                text_filters.append(f"drawtext=fontfile='{ff}':textfile='{_escape_filter_path(str(f))}':fontsize={fs}:fontcolor={hexc(s['accent'] if acc else s['color'])}:x={x}:y={int(top) + i * lh}"
+                                    + (f":borderw={bw}:bordercolor={hexc(s['outlineColor'])}" if bw else ""))
+            if s["rotate"]:                                      # the text on its own transparent layer, tilted around the centre, over the frame
+                layer = f"color=c=black@0:s={W}x{H}:r=1,format=rgba," + ",".join(text_filters)                         + f",rotate=a={s['rotate']}*PI/180:ow=iw:oh=ih:c=none"
+                graph = (f"[0:v]{','.join(vf) if vf else 'null'}[b];{layer}[t];[b][t]overlay=format=auto")
+                vf = None
+            else:
+                vf.extend(text_filters)
         for q in (3, 8, 16):                                     # ffmpeg's JPEG quality, lower is better; coarser until it fits
             run([_require("ffmpeg"), "-y", "-hide_banner", "-loglevel", "error", "-ss", f"{at:.2f}", "-i", str(video),
-                 *(["-vf", ",".join(vf)] if vf else []), "-frames:v", "1", "-q:v", str(q), str(thumb)], desc="making the thumbnail", timeout=60)
+                 *(["-filter_complex", graph] if vf is None else ["-vf", ",".join(vf)] if vf else []), "-frames:v", "1", "-q:v", str(q), str(thumb)], desc="making the thumbnail", timeout=60)
             if thumb.stat().st_size <= THUMB_MAX_BYTES:
                 return thumb
     except Exception:                                            # noqa: BLE001

@@ -121,11 +121,17 @@ ${html}      </div>`;
           <h3>Thumbnail style <small>(the card made for every video of this profile)</small></h3>
           <div class="th-grid">
             <label>Font <select name="th_font"><option value="mona">Mona Sans ExtraBold</option><option value="arialblack">Arial Black</option><option value="impact">Impact</option><option value="arial">Arial Bold</option><option value="verdana">Verdana Bold</option></select></label>
-            <label>Size (% of width) <input type="number" name="th_size" min="4" max="14" step="0.5"></label>
+            <label>Size (% of width) <input type="number" name="th_size" min="4" max="20" step="0.5"></label>
             <label>Text colour <input type="color" name="th_color"></label>
             <label>Highlight colour (*word*) <input type="color" name="th_accent"></label>
             <label>Outline colour <input type="color" name="th_outlineColor"></label>
             <label>Outline width (0 = none) <input type="number" name="th_outline" min="0" max="20" step="1"></label>
+            <label>Sticker border colour <input type="color" name="th_outer"></label>
+            <label>Sticker border width (0 = none) <input type="number" name="th_outerWidth" min="0" max="20" step="1"></label>
+            <label>Shadow offset (0 = none) <input type="number" name="th_shadow" min="0" max="15" step="1"></label>
+            <label>Tilt (degrees) <input type="number" name="th_rotate" min="-10" max="10" step="0.5"></label>
+            <label>Line height <input type="number" name="th_lineHeight" min="0.8" max="1.5" step="0.05"></label>
+            <label>Text width (% of the card) <input type="number" name="th_width" min="40" max="96" step="1"></label>
             <label>Position <select name="th_position"><option value="auto">Auto (no face, no caption)</option><option value="top">Top</option><option value="middle">Middle</option><option value="lower">Lower third</option></select></label>
             <label>Align <select name="th_align"><option value="left">Left</option><option value="center">Centre</option></select></label>
             <label>Bottom gradient (0 = off) <input type="number" name="th_gradient" min="0" max="1" step="0.05"></label>
@@ -264,7 +270,7 @@ ${html}      </div>`;
   }
 
   /* ---- the thumbnail style: the form fields th_*, the live preview (the server draws it with the same code as the real card) ---- */
-  const TH_NUM = ["size", "outline", "gradient"], TH_SEL = ["font", "position", "align"], TH_COL = ["color", "accent", "outlineColor"];
+  const TH_NUM = ["size", "outline", "gradient", "outerWidth", "shadow", "rotate", "lineHeight", "width"], TH_SEL = ["font", "position", "align"], TH_COL = ["color", "accent", "outlineColor", "outer"];
   function thumbForm(dlg) {
     const g = (n) => dlg.querySelector(`[name="th_${n}"]`), o = {};
     for (const n of TH_NUM) if (g(n).value !== "") o[n] = Number(g(n).value);
