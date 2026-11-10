@@ -32,7 +32,7 @@ import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, unquote, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlparse
 
 from .cache import Cache, fingerprint as _fingerprint
 from .models import Transcript
@@ -2215,13 +2215,15 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as exc:               # noqa: BLE001
             return self._send_json({"error": str(exc)}, 400)
         from . import thumbnail as _thumb
-        data = _thumb.preview(req.get("style"), str(req.get("text") or ""))
+        info: dict = {}
+        data = _thumb.preview(req.get("style"), str(req.get("text") or ""), info)
         if not data:
             return self._send_json({"error": "the preview could not be made"}, 500)
         self.send_response(200)
         self.send_header("Content-Type", "image/jpeg")
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Thumb-Text", quote(info.get("text", "")))       # what the card says: the UI puts it in the Sample text box
         self.end_headers()
         try:
             self.wfile.write(data)

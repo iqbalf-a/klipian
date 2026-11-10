@@ -333,7 +333,19 @@ def write(video: Path, text: str | None = None, style: dict | None = None, at: f
     return None
 
 
-def preview(style, text: str) -> bytes | None:
+def sample_text(video: Path | None) -> str:
+    """The line the settings preview says when the box is empty: the newest video's own thumbnail text (its Clips row's thumbText / hook / title),
+    else a line that fits the placeholder frame."""
+    from . import paths, schedule
+    if video is not None:
+        row = next((r for r in schedule.load_clips() if r.get("file") == video.name), None)
+        if row:
+            return text_of(row.get("thumbText"), row.get("title"), row.get("hook"))
+        return text_of(None, video.stem.replace("-", " ").replace("_", " "))
+    return "Gurita punya *3 jantung*?" if "intip" in paths.current_profile() else "Dia ngomong gini di depan *semua orang*"
+
+
+def preview(style, text: str, info: dict | None = None) -> bytes | None:
     """The JPEG of the settings preview: `style` (its valid fields on the profile's default) on the current profile's newest rendered
     video, or on a placeholder frame when it has none; `text` or a sample line."""
     import tempfile
@@ -347,5 +359,8 @@ def preview(style, text: str) -> bytes | None:
             src = Path(d) / "placeholder.mp4"
             run([_require("ffmpeg"), "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=0x8a93a3:s=1080x1920:d=2:r=10",
                  "-pix_fmt", "yuv420p", str(src)], desc="making the placeholder frame", timeout=60)
-        out = write(src, " ".join(text.split())[:80] or "Gurita punya *3 jantung*?", s, out=Path(d) / "preview.jpg")
+        said = " ".join(text.split())[:80] or sample_text(newest)
+        if info is not None:
+            info["text"] = said
+        out = write(src, said, s, out=Path(d) / "preview.jpg")
         return out.read_bytes() if out else None

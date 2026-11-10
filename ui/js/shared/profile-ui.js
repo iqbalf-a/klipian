@@ -140,8 +140,8 @@ ${html}      </div>`;
             <label class="check"><input type="checkbox" name="th_autoSize"> Auto size (fill the box: the lines and size that make the text biggest; Size is the cap)</label>
             <label class="check"><input type="checkbox" name="th_caps"> ALL CAPS</label>
           </div>
-          <label>Sample text <input type="text" id="thText" maxlength="80" value="Dia ngomong gini di depan *semua orang*"></label>
-          <div class="row yt-actions"><button class="btn quiet" type="button" id="thReset">Reset to default</button></div>
+          <label>Sample text <input type="text" id="thText" maxlength="80" placeholder="the newest video's own thumbnail text"></label>
+          <div class="row yt-actions"><button class="btn quiet" type="button" id="thSample">Use this video's text</button> <button class="btn quiet" type="button" id="thReset">Reset to default</button></div>
           <img class="th-preview" id="thPreview" alt="Thumbnail preview" hidden>
           <p class="note" id="thMsg" role="status">The preview uses this profile's newest rendered video (a plain frame if it has none). Kept with Save.</p>
         </section>
@@ -293,21 +293,28 @@ ${html}      </div>`;
       g("caps").checked = !!st.caps; g("autoSize").checked = !!st.autoSize;
     };
     fill({ ...(meta?.thumbDefault || {}), ...(meta?.thumbStyle || {}) });
-    let timer = 0, seq = 0, url = "";
+    let timer = 0, seq = 0, url = "", touched = false;
+    const box = dlg.querySelector("#thText");
     const draw = async () => {
       const mine = ++seq;
       try {
+        // untouched box: send "" and the server answers with the newest video's own thumbnail text (X-Thumb-Text), which fills the box
         const r = await fetch("/api/thumbnail/preview", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ style: thumbForm(dlg), text: dlg.querySelector("#thText").value }) });
+          body: JSON.stringify({ style: thumbForm(dlg), text: touched ? box.value : "" }) });
         if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "no preview");
         const blob = await r.blob();
         if (mine !== seq) return;                                   // a newer change is already on its way
+        const said = r.headers.get("X-Thumb-Text");
+        if (!touched && said) box.value = decodeURIComponent(said);
         if (url) URL.revokeObjectURL(url);
         url = URL.createObjectURL(blob); img.src = url; img.hidden = false;
       } catch (err) { img.hidden = true; msg.textContent = `No preview: ${err.message}`; }
     };
     const later = () => { clearTimeout(timer); timer = setTimeout(draw, 350); };       // debounced
-    dlg.querySelector("#thumbBox").addEventListener("input", later);
+    dlg.querySelector("#thumbBox").addEventListener("input", (e) => { if (e.target === box) touched = true; later(); });
+    // Enter in a field would submit the dialog's form (Save and close): here it only redraws the preview
+    dlg.querySelector("#thumbBox").addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.tagName === "INPUT") { e.preventDefault(); clearTimeout(timer); draw(); } });
+    dlg.querySelector("#thSample").addEventListener("click", () => { touched = false; box.value = ""; draw(); });
     dlg.querySelector("#thReset").addEventListener("click", () => { fill(meta?.thumbDefault || {}); later(); });
     dlg.addEventListener("close", () => { if (url) URL.revokeObjectURL(url); });
     draw();

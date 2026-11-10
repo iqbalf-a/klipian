@@ -2763,6 +2763,12 @@ def check_upload() -> tuple[str, str]:
         pv = thumb.preview({"position": "top", "size": 6}, "Satu dua tiga")
         if not pv or pv[:2] != bytes([0xFF, 0xD8]):
             problems.append("the settings preview is not a JPEG")
+        inf: dict = {}
+        inf2: dict = {}
+        thumb.preview(None, "", inf)
+        thumb.preview(None, "Teks  saya", inf2)
+        if not inf.get("text") or inf2.get("text") != "Teks saya":
+            problems.append(f"the preview says the video's own text when the box is empty and the typed text otherwise: {inf} {inf2}")
         sent: list = []
         FakeNet.set_thumbnail = classmethod(lambda cls, token, vid, img: sent.append((vid, img.name)))
         rt = row(title="With Thumbnail")
