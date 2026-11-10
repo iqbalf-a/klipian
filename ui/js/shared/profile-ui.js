@@ -136,6 +136,8 @@ ${html}      </div>`;
             <label>Align <select name="th_align"><option value="left">Left</option><option value="center">Centre</option></select></label>
             <label>Bottom gradient (0 = off) <input type="number" name="th_gradient" min="0" max="1" step="0.05"></label>
             <label>Max lines <select name="th_lines"><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
+            <label>Max block height (% of the card) <input type="number" name="th_maxHeight" min="10" max="50" step="1"></label>
+            <label class="check"><input type="checkbox" name="th_autoSize"> Auto size (fill the box: the lines and size that make the text biggest; Size is the cap)</label>
             <label class="check"><input type="checkbox" name="th_caps"> ALL CAPS</label>
           </div>
           <label>Sample text <input type="text" id="thText" maxlength="80" value="Dia ngomong gini di depan *semua orang*"></label>
@@ -270,12 +272,12 @@ ${html}      </div>`;
   }
 
   /* ---- the thumbnail style: the form fields th_*, the live preview (the server draws it with the same code as the real card) ---- */
-  const TH_NUM = ["size", "outline", "gradient", "outerWidth", "shadow", "rotate", "lineHeight", "width"], TH_SEL = ["font", "position", "align"], TH_COL = ["color", "accent", "outlineColor", "outer"];
+  const TH_NUM = ["size", "outline", "gradient", "outerWidth", "shadow", "rotate", "lineHeight", "width", "maxHeight"], TH_SEL = ["font", "position", "align"], TH_COL = ["color", "accent", "outlineColor", "outer"];
   function thumbForm(dlg) {
     const g = (n) => dlg.querySelector(`[name="th_${n}"]`), o = {};
     for (const n of TH_NUM) if (g(n).value !== "") o[n] = Number(g(n).value);
     for (const n of [...TH_SEL, ...TH_COL]) o[n] = g(n).value;
-    o.lines = Number(g("lines").value); o.caps = g("caps").checked;
+    o.lines = Number(g("lines").value); o.caps = g("caps").checked; o.autoSize = g("autoSize").checked;
     return o;
   }
   /* only what differs from the profile's default is saved: a later change of the default reaches a profile that did not touch it */
@@ -288,7 +290,7 @@ ${html}      </div>`;
     const g = (n) => dlg.querySelector(`[name="th_${n}"]`), img = dlg.querySelector("#thPreview"), msg = dlg.querySelector("#thMsg");
     const fill = (st) => {
       for (const n of [...TH_NUM, ...TH_SEL, ...TH_COL, "lines"]) g(n).value = String(st[n]);
-      g("caps").checked = !!st.caps;
+      g("caps").checked = !!st.caps; g("autoSize").checked = !!st.autoSize;
     };
     fill({ ...(meta?.thumbDefault || {}), ...(meta?.thumbStyle || {}) });
     let timer = 0, seq = 0, url = "";

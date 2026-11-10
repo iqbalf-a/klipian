@@ -20,12 +20,12 @@ ALIGNS = ("left", "center")
 
 PLAIN = {"font": "mona", "size": 8.5, "color": "#FFFFFF", "outlineColor": "#000000", "outline": 0, "accent": "#FFD447",
          "position": "lower", "align": "left", "gradient": 0.78, "caps": True, "lines": 4,
-         "outer": "#FFFFFF", "outerWidth": 0, "shadow": 0, "rotate": 0, "lineHeight": 1.12, "width": 70}
+         "outer": "#FFFFFF", "outerWidth": 0, "shadow": 0, "rotate": 0, "lineHeight": 1.12, "width": 70, "autoSize": False, "maxHeight": 30}
 # the loud sticker look of the clip profiles: very big, saturated yellow, a thick dark stroke, a white sticker border around the shape,
 # a hard drop shadow, a little tilt; the text fills about 85% of the width (the tilt and the borders take the rest) (the 9:16 card is the video's own size)
-STICKER = {"font": "arialblack", "size": 14.0, "color": "#FFD60A", "outlineColor": "#111111", "outline": 11, "accent": "#FFFFFF",
-           "position": "auto", "align": "center", "gradient": 0.0, "caps": True, "lines": 2,
-           "outer": "#FFFFFF", "outerWidth": 9, "shadow": 6, "rotate": -2, "lineHeight": 1.0, "width": 84}
+STICKER = {"font": "arialblack", "size": 20.0, "color": "#FFD60A", "outlineColor": "#111111", "outline": 11, "accent": "#FFFFFF",
+           "position": "auto", "align": "center", "gradient": 0.0, "caps": True, "lines": 3,
+           "outer": "#FFFFFF", "outerWidth": 9, "shadow": 6, "rotate": -2, "lineHeight": 1.1, "width": 84, "autoSize": True, "maxHeight": 30}
 
 
 def default_style(pid: str | None = None) -> dict:
@@ -39,7 +39,7 @@ def clean_style(raw, base: dict | None = None) -> dict:
     if not isinstance(raw, dict):
         return out
     num = lambda k, lo, hi: out.__setitem__(k, round(max(lo, min(hi, float(raw[k]))), 2)) if isinstance(raw.get(k), (int, float)) and not isinstance(raw.get(k), bool) else None
-    num("size", 4, 20), num("outline", 0, 20), num("gradient", 0, 1), num("outerWidth", 0, 20), num("shadow", 0, 15), num("rotate", -10, 10), num("lineHeight", 0.8, 1.5), num("width", 40, 96)
+    num("size", 4, 20), num("outline", 0, 20), num("gradient", 0, 1), num("outerWidth", 0, 20), num("shadow", 0, 15), num("rotate", -10, 10), num("lineHeight", 0.8, 1.5), num("width", 40, 96), num("maxHeight", 10, 50)
     if isinstance(raw.get("lines"), int) and not isinstance(raw.get("lines"), bool):
         out["lines"] = max(1, min(4, raw["lines"]))
     for k in ("color", "outlineColor", "accent", "outer"):
@@ -48,8 +48,9 @@ def clean_style(raw, base: dict | None = None) -> dict:
     for k, ok in (("font", FONT_CHOICES), ("position", POSITIONS), ("align", ALIGNS)):
         if raw.get(k) in ok:
             out[k] = raw[k]
-    if isinstance(raw.get("caps"), bool):
-        out["caps"] = raw["caps"]
+    for k in ("caps", "autoSize"):
+        if isinstance(raw.get(k), bool):
+            out[k] = raw[k]
     return out
 
 
@@ -61,20 +62,26 @@ def style_of(pid: str | None = None) -> dict:
     return {**default_style(pid), **clean_style(meta.get("thumbStyle"))}
 
 
-def lines_of(text: str, per_line: int, caps: bool = True) -> list[tuple[str, bool]]:
-    """The card's text as lines [(words, is_accent)], wrapped at `per_line` characters. `*...*` marks the accent words (one run is
-    kept); they start their own line(s), so a line has one colour and no text measuring is needed."""
+def _runs(text: str, caps: bool) -> list[tuple[str, bool]]:
+    """The text as at most two runs [(words, is_accent)]: `*...*` marks the accent words (one run is kept), in the order they appear."""
     text = " ".join(str(text or "").replace("#", " ").split())
     text = text.upper() if caps else text
-    runs, acc_done = [], False
+    plain, accent, first_accent, got = [], "", False, False
     for m in re.finditer(r"\*([^*]+)\*([^\w\s*]*)|([^*]+)", text):
-        if m.group(1) and not acc_done:
-            runs.append(((m.group(1) + m.group(2)).strip(), True))
-            acc_done = True
+        if m.group(1) and not got:
+            accent, got, first_accent = (m.group(1) + m.group(2)).strip(), True, not plain
         else:
-            runs.append(((m.group(1) or "") + (m.group(2) or "") + (m.group(3) or ""), False))
+            plain.append(((m.group(1) or "") + (m.group(2) or "") + (m.group(3) or "")).strip())
+    plain_s = " ".join(x for x in plain if x)
+    runs = [(accent, True), (plain_s, False)] if first_accent else [(plain_s, False), (accent, True)]
+    return [r for r in runs if r[0]]
+
+
+def lines_of(text: str, per_line: int, caps: bool = True) -> list[tuple[str, bool]]:
+    """The card's text as lines [(words, is_accent)], wrapped at `per_line` characters. The accent words start their own line(s), so a line
+    has one colour and no text measuring is needed."""
     lines: list[tuple[str, bool]] = []
-    for run, acc in runs:
+    for run, acc in _runs(text, caps):
         cur = ""
         for w in run.split():
             if cur and len(cur) + 1 + len(w) > per_line:
@@ -85,6 +92,56 @@ def lines_of(text: str, per_line: int, caps: bool = True) -> list[tuple[str, boo
         if cur:
             lines.append((cur, acc))
     return lines
+
+
+def balanced(words: list[str], k: int) -> list[str]:
+    """`words` in order split into at most k lines whose longest line is as short as it can be (similar widths)."""
+    n, k = len(words), max(1, min(k, len(words)))
+    memo: dict = {}
+
+    def best(i: int, j: int):
+        if j == 1:
+            return len(" ".join(words[i:])), (n,)
+        if (i, j) not in memo:
+            res = None
+            for cut in range(i + 1, n - j + 2):
+                m, rest = best(cut, j - 1)
+                cand = (max(len(" ".join(words[i:cut])), m), (cut,) + rest)
+                if res is None or cand[0] < res[0]:
+                    res = cand
+            memo[(i, j)] = res
+        return memo[(i, j)]
+    out, i = [], 0
+    for cut in best(0, k)[1]:
+        out.append(" ".join(words[i:cut]))
+        i = cut
+    return out
+
+
+def fit_block(text: str, caps: bool, em: float, cap_px: float, room: float, max_h: float, line_h: float, max_lines: int) -> tuple[list[tuple[str, bool]], int]:
+    """"Fill the box": the number of lines (1..max_lines, the accent words on their own lines) and the type size that make the block as big as it
+    can be inside `room` wide and `max_h` tall (type no bigger than `cap_px`), lines balanced. Returns (lines, font size in px)."""
+    runs = _runs(text, caps)
+    if not runs:
+        return [], 0
+    best = None
+
+    def consider(parts):
+        nonlocal best
+        lines = [(ln, acc) for words, acc, k in parts for ln in balanced(words.split(), k)]
+        longest = max(len(t) for t, _ in lines)
+        fs = min(cap_px, room / (em * longest), max_h / (len(lines) * line_h))
+        key = (int(fs), -len(lines))
+        if best is None or key > best[0]:
+            best = (key, lines, int(fs))
+    if len(runs) == 1:
+        for n in range(1, max(1, max_lines) + 1):
+            consider([(runs[0][0], runs[0][1], n)])
+    else:
+        for k1 in range(1, max(1, max_lines - 1) + 1):
+            for k2 in range(1, max(1, max_lines - k1) + 1):
+                consider([(runs[0][0], runs[0][1], k1), (runs[1][0], runs[1][1], k2)])
+    return best[1], max(best[2], 1)
 
 
 def cut_hook(hook: str | None, most: int = 7) -> str:
@@ -191,13 +248,16 @@ def write(video: Path, text: str | None = None, style: dict | None = None, at: f
         vf = []
         font = next((p for p in (_font_path(FONT_CHOICES[s["font"]]), _font_path("mona sans extrabold"), _font_path("arial")) if p), None)
         fs = int(s["size"] / 100 * W)
-        room = s["width"] / 100 * W                              # the plain look keeps the centre 70% (a 16:9 centre crop still reads); the sticker fills ~90%
-        wrap = lambda size: lines_of(text, int(room / (FONT_EM[s["font"]] * size)), s["caps"])
-        lines = wrap(fs) if text and font else []
-        too_wide = lambda: lines and max(len(t) for t, _ in lines) * FONT_EM[s["font"]] * fs > room      # one long word does not break
-        while (len(lines) > s["lines"] or too_wide()) and fs > 0.03 * W:      # smaller until it fits
-            fs = int(fs * 0.92)
-            lines = wrap(fs)
+        room = s["width"] / 100 * W                              # the plain look keeps the centre 70% (a 16:9 centre crop still reads); the sticker fills ~85%
+        if s["autoSize"] and text and font:                      # fill the box: the lines and the size that make the block biggest (size is the cap)
+            lines, fs = fit_block(text, s["caps"], FONT_EM[s["font"]], fs, room, s["maxHeight"] / 100 * H, s["lineHeight"], s["lines"])
+        else:
+            wrap = lambda size: lines_of(text, int(room / (FONT_EM[s["font"]] * size)), s["caps"])
+            lines = wrap(fs) if text and font else []
+            too_wide = lambda: lines and max(len(t) for t, _ in lines) * FONT_EM[s["font"]] * fs > room      # one long word does not break
+            while (len(lines) > s["lines"] or too_wide()) and fs > 0.03 * W:      # smaller until it fits
+                fs = int(fs * 0.92)
+                lines = wrap(fs)
         if lines:
             if s["gradient"] > 0:
                 k = "clip((Y-0.45*H)/(0.55*H),0,1)"              # 0 at 45% down, 1 at the bottom
@@ -222,14 +282,22 @@ def write(video: Path, text: str | None = None, style: dict | None = None, at: f
                 files.append((f, acc))
             hexc = lambda c: c.replace("#", "0x")
             text_filters = []
-            if ow or sh:                                         # the sticker: the outer white border and the drop shadow, one layer under all lines
-                for i, (f, _) in enumerate(files):
-                    text_filters.append(f"drawtext=fontfile='{ff}':textfile='{_escape_filter_path(str(f))}':fontsize={fs}:fontcolor={hexc(s['outer'])}:x={x}:y={int(top) + i * lh}"
-                                        f":borderw={bw + ow}:bordercolor={hexc(s['outer'])}"
-                                        + (f":shadowx={sh}:shadowy={sh}:shadowcolor=black@0.65" if sh else ""))
-            for i, (f, acc) in enumerate(files):
-                text_filters.append(f"drawtext=fontfile='{ff}':textfile='{_escape_filter_path(str(f))}':fontsize={fs}:fontcolor={hexc(s['accent'] if acc else s['color'])}:x={x}:y={int(top) + i * lh}"
-                                    + (f":borderw={bw}:bordercolor={hexc(s['outlineColor'])}" if bw else ""))
+
+            def layer(f, color, border=0, bcolor="", shadow=0):
+                return (f"drawtext=fontfile='{ff}':textfile='{_escape_filter_path(str(f))}':fontsize={fs}:fontcolor={color}:x={x}:y=__Y__"
+                        + (f":borderw={border}:bordercolor={bcolor}" if border else "")
+                        + (f":shadowx={shadow}:shadowy={shadow}:shadowcolor=black@0.65" if shadow else ""))
+            passes = []
+            if ow or sh:                                         # the sticker: the white outer border (and the one shadow) under every line...
+                passes.append([layer(f, hexc(s["outer"]), bw + ow, hexc(s["outer"]), sh) for f, _ in files])
+            if bw and (ow or sh):                                # ...then every dark stroke, so no line's stroke lies over another line's fill...
+                passes.append([layer(f, hexc(s["outlineColor"]), bw, hexc(s["outlineColor"])) for f, _ in files])
+                passes.append([layer(f, hexc(s["accent"] if acc else s["color"])) for f, acc in files])      # ...and last the fills
+            else:
+                passes.append([layer(f, hexc(s["accent"] if acc else s["color"]), bw, hexc(s["outlineColor"])) for f, acc in files])
+            for pass_ in passes:
+                for i, f_ in enumerate(pass_):
+                    text_filters.append(f_.replace("__Y__", str(int(top) + i * lh)))
             if s["rotate"]:                                      # the text on its own transparent layer, tilted around the centre, over the frame
                 layer = f"color=c=black@0:s={W}x{H}:r=1,format=rgba," + ",".join(text_filters)                         + f",rotate=a={s['rotate']}*PI/180:ow=iw:oh=ih:c=none"
                 graph = (f"[0:v]{','.join(vf) if vf else 'null'}[b];{layer}[t];[b][t]overlay=format=auto")

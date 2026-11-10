@@ -2727,6 +2727,15 @@ def check_upload() -> tuple[str, str]:
         ts = thumb.write(folder / "clip1.mp4", "Dia bilang gini di depan semua", thumb.default_style("podcast"), out=folder / "sticker-test.jpg", info=got_s)
         if not ts or not ts.is_file() or ts.stat().st_size == 0:
             problems.append("the tilted sticker look (outer border, shadow, rotation) made no JPG")
+        bal = thumb.balanced("NAMA BU TITI PANJANG BANGET JAWABANNYA".split(), 3)
+        fl, fsz = thumb.fit_block("Wow gila", True, 0.66, 270, 907, 576, 1.1, 3)
+        fl7, fsz7 = thumb.fit_block("Dia bilang gini di depan semua orang", True, 0.66, 270, 907, 576, 1.1, 3)
+        ac, _ = thumb.fit_block("Gurita punya *3 jantung*?", True, 0.66, 270, 907, 576, 1.1, 3)
+        if bal != ["NAMA BU TITI", "PANJANG BANGET", "JAWABANNYA"] or len(fl) != 2 or fsz < 200 or len(fl7) != 3 or not 80 < fsz7 < 140 \
+                or not any(a for _, a in ac) or not all(len(t) * 0.66 * fsz7 <= 907 for t, _ in fl7) or len(fl7) * fsz7 * 1.1 > 576:
+            problems.append(f"fit_block: balanced lines, 2 big lines for 2 words, 3 lines for 7 words, inside the width and height, accent kept: {bal} {fl} {fsz} {fl7} {fsz7} {ac}")
+        if thumb.default_style("podcast")["lines"] != 3 or not thumb.default_style("podcast")["autoSize"] or thumb.default_style("klipian-intip")["autoSize"]:
+            problems.append("the clip default fills the box on up to 3 lines; the motion default does not auto-size")
         face = (0.38, 0.30, 0.62, 0.52)                                  # a face box in 0..1
         if thumb.score_face([]) != 0 or not thumb.score_face([face]) > thumb.score_face([(0.45, 0.4, 0.55, 0.5)]) > 0                 or not thumb.score_face([(0.0, 0.3, 0.24, 0.52)]) < thumb.score_face([(0.1, 0.3, 0.34, 0.52)]):
             problems.append("score_face: no face is 0, a larger face scores higher, a face cut by the edge scores lower")
