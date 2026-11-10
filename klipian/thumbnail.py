@@ -14,7 +14,7 @@ from .render import THUMB_MAX_BYTES, _escape_filter_path, _font_path, _require
 FONT_CHOICES = {                                   # settings value -> render._FONT_FILES key (a heavy sans each; the first one ships with klipian)
     "mona": "mona sans extrabold", "arialblack": "arial black", "impact": "impact", "arial": "arial", "verdana": "verdana",
 }
-FONT_EM = {"mona": 0.66, "arialblack": 0.66, "impact": 0.50, "arial": 0.68, "verdana": 0.78}   # an average capital's width in em (wrapping; no PIL to measure)
+FONT_EM = {"mona": 0.66, "arialblack": 0.66, "impact": 0.44, "arial": 0.68, "verdana": 0.78}   # an average capital's width in em (wrapping; no PIL to measure)
 POSITIONS = ("auto", "top", "middle", "lower")      # auto: the free band that holds no face and no burned caption
 ALIGNS = ("left", "center")
 
@@ -23,7 +23,7 @@ PLAIN = {"font": "mona", "size": 8.5, "color": "#FFFFFF", "outlineColor": "#0000
          "outer": "#FFFFFF", "outerWidth": 0, "shadow": 0, "rotate": 0, "lineHeight": 1.12, "width": 70, "autoSize": False, "maxHeight": 30}
 # the loud sticker look of the clip profiles: very big, saturated yellow, a thick dark stroke, a white sticker border around the shape,
 # a hard drop shadow, a little tilt; the text fills about 85% of the width (the tilt and the borders take the rest) (the 9:16 card is the video's own size)
-STICKER = {"font": "arialblack", "size": 20.0, "color": "#FFD60A", "outlineColor": "#111111", "outline": 11, "accent": "#FFFFFF",
+STICKER = {"font": "impact", "size": 20.0, "color": "#FFD60A", "outlineColor": "#111111", "outline": 11, "accent": "#FFFFFF",
            "position": "auto", "align": "center", "gradient": 0.0, "caps": True, "lines": 3,
            "outer": "#FFFFFF", "outerWidth": 9, "shadow": 6, "rotate": -2, "lineHeight": 1.1, "width": 84, "autoSize": True, "maxHeight": 30}
 

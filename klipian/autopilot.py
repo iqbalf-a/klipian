@@ -314,6 +314,9 @@ def build_result(cand: dict, template: dict, result_id: str, asset: str = "a1") 
                            "title": cand.get("title") or "Clip 1", "source": "ai"}],
              "framing": [], "corrections": {},
              "output": [_PICTURE_AT[picture], _RESOLUTION_DEFAULT, _QUALITY_DEFAULT, background, _POSITION_DEFAULT]}
+    hook = " ".join(str(cand.get("hook") or "").split())
+    if hook:                                                 # the clip's own line (an exact quote): the render and the Clips row carry it to the thumbnail text
+        entry["hook"] = hook
     post = cand.get("post")
     if isinstance(post, dict):
         p = {"title": str(post.get("title") or "").strip(), "caption": str(post.get("caption") or "").strip(),

@@ -415,6 +415,8 @@ def build_request(project: dict, result_id: str, *,
     post = entry.get("post")
     if post:
         clip["post"] = post
+    if str(entry.get("hook") or "").strip():
+        clip["hook"] = str(entry["hook"]).strip()            # kept on the Clips row and used for the thumbnail text
     overlays = [{**{k: v for k, v in e.items() if k != "id"}, "end": min(e["end"], total)}
                 for e in (entry.get("overlays") or []) if isinstance(e, dict) and e.get("start", 0) < total]
     if overlays:

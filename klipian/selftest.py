@@ -619,6 +619,9 @@ def check_autopilotresult() -> tuple[str, str]:
     bare = ap.build_result({"title": "T", "startSec": 1, "endSec": 20}, tpl, "res2")
     if any(k in bare for k in ("post", "angle", "overlays")):
         problems.append("a candidate with no post or angle makes none")
+    with_hook = ap.build_result({"title": "T", "startSec": 1, "endSec": 20, "hook": "  Dia bilang gini  di depan semua orang "}, tpl, "res4")
+    if with_hook.get("hook") != "Dia bilang gini di depan semua orang" or "hook" in bare:
+        problems.append("build_result keeps the candidate's hook (and none when it has none): the thumbnail text comes from it")
     for bad in ({"title": "x", "startSec": 5, "endSec": 5.2}, {"title": "x"}):
         try:
             ap.build_result(bad, tpl, "res3")
@@ -630,6 +633,9 @@ def check_autopilotresult() -> tuple[str, str]:
     project = {"id": "0123456789ab", "assets": [{"id": "a1", "kind": "video", "file": "talk.mp4"}], "results": [got]}
     words = [{"text": f"w{i}", "start": 120.0 + i, "end": 120.9 + i} for i in range(60)]
     req = renderreq.build_request(project, "res1", words_of=lambda f: words, size_of=lambda f: (1920, 1080))
+    hooked = renderreq.build_request({**project, "results": [{**got, "hook": "Dia bilang gini"}]}, "res1", words_of=lambda f: words, size_of=lambda f: (1920, 1080))
+    if hooked["clips"][0].get("hook") != "Dia bilang gini" or "hook" in req["clips"][0]:
+        problems.append("the render request carries the Result's hook (jobs.py then writes it on the Clips row)")
     k = req["clips"][0]
     if (k["picture"], k["background"], k["position"]) != ("3:4", "blur", 50):
         problems.append(f"the request's picture: {k['picture']} {k['background']} {k['position']}")
@@ -2713,7 +2719,7 @@ def check_upload() -> tuple[str, str]:
         if dirty != {"size": 20.0, "outline": 0, "accent": "#ABCDEF", "position": "top", "lines": 4}:
             problems.append(f"thumbStyle cleaning did not fix ranges or drop bad values: {dirty}")
         profiles.update("up1", {"thumbStyle": {"size": 7, "align": "left", "bogus": 1}})
-        if profiles.read_meta("up1")["thumbStyle"] != {"size": 7.0, "align": "left"} or thumb.style_of("up1")["align"] != "left" or thumb.style_of("up1")["font"] != "arialblack":
+        if profiles.read_meta("up1")["thumbStyle"] != {"size": 7.0, "align": "left"} or thumb.style_of("up1")["align"] != "left" or thumb.style_of("up1")["font"] != "impact":
             problems.append("a saved thumbStyle is not read back on top of the profile's default look")
         profiles.update("up1", {"thumbStyle": None})
         if profiles.read_meta("up1")["thumbStyle"] != {}:
@@ -4701,6 +4707,8 @@ def check_batch() -> tuple[str, str]:
         found = [next(iter(out_dir.glob(f"*/{f}")), None) for f in files if f]
         if len(found) != 3 or not all(found):
             problems.append(f"the rendered files are not in the project's out folder: {files}")
+        elif not all(f.with_suffix(".jpg").is_file() for f in found):
+            problems.append("a rendered Result (also an autopilot one: same render job) should leave its thumbnail .jpg next to the mp4")
         if [i.get("schedule", {}).get("created") for i in items] != [True, True, True]:
             problems.append(f"every clip should make its schedule Draft row: {[i.get('schedule') for i in items]}")
         rows = schedule.load_clips()
