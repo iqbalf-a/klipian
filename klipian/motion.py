@@ -31,7 +31,7 @@ import time
 import uuid
 from pathlib import Path
 
-from . import hashtags as hashtags_mod, motion_voice as voicelib, paths, profiles, roundtrip, sched, schedule
+from . import hashtags as hashtags_mod, motion_voice as voicelib, paths, profiles, roundtrip, sched, schedule, thumbnail
 from .progress import Eta
 
 REMOTION = paths.ROOT / "remotion"
@@ -1631,6 +1631,7 @@ def _run_render(pid: str, key, ev: threading.Event) -> None:
             name = _free_name(paths.safe_name(p["title"])[:120] or pid)
             dest = schedule.folder_dir(MOTION_FOLDER) / name
             shutil.move(str(made), dest)
+            thumbnail.write(dest, thumbnail.text_of(story.get("thumb"), p["title"]))   # <name>.jpg for the YouTube upload
             row_id, _created = _add_clip_row(p, story, name)
             p = load(pid)
             p["status"] = "rendered"

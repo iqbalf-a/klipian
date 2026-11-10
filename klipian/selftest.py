@@ -2703,6 +2703,54 @@ def check_upload() -> tuple[str, str]:
             problems.append(f"a locked-private upload was not explained: {sl}")
         FakeNet.status = {"privacy": "private", "upload": "processed", "publishAt": "2031-01-01T00:00:00Z"}
 
+        # --- the thumbnail: made next to the video (<= 2 MB), sent after the upload, its failure only a warning
+        from . import thumbnail as thumb
+        if thumb.lines_of("Gurita punya *3 jantung*?", 14) != [("GURITA PUNYA", False), ("3 JANTUNG?", True)]                 or thumb.text_of("", "Satu dua #tag tiga empat lima enam tujuh") != "Satu dua tiga empat lima enam" or thumb.text_of("Teks *sendiri*", "x") != "Teks *sendiri*":
+            problems.append("the thumbnail text is not split into a white line and an accent line, or the title / thumbText fallback is wrong")
+        if thumb.default_style("klipian-intip")["position"] != "lower" or thumb.default_style("podcast")["position"] != "middle"                 or thumb.default_style("podcast")["outline"] <= 0 or thumb.default_style("klipian-intip")["outline"] != 0:
+            problems.append("the default thumbnail look: plain for the motion channel, sticker (outlined, middle) for the others")
+        dirty = thumb.clean_style({"size": 99, "outline": -3, "color": "red", "accent": "#abcdef", "font": "comic", "position": "top", "lines": 9, "caps": "yes", "junk": 1})
+        if dirty != {"size": 14, "outline": 0, "accent": "#ABCDEF", "position": "top", "lines": 4}:
+            problems.append(f"thumbStyle cleaning did not fix ranges or drop bad values: {dirty}")
+        profiles.update("up1", {"thumbStyle": {"size": 7, "align": "left", "bogus": 1}})
+        if profiles.read_meta("up1")["thumbStyle"] != {"size": 7.0, "align": "left"} or thumb.style_of("up1")["align"] != "left" or thumb.style_of("up1")["font"] != "arialblack":
+            problems.append("a saved thumbStyle is not read back on top of the profile's default look")
+        profiles.update("up1", {"thumbStyle": None})
+        if profiles.read_meta("up1")["thumbStyle"] != {}:
+            problems.append("resetting thumbStyle did not clear it")
+        th = thumb.write(folder / "clip1.mp4", "Gurita punya *3 jantung*?")
+        if not th or th.suffix != ".jpg" or not 0 < th.stat().st_size <= thumb.THUMB_MAX_BYTES:
+            problems.append(f"thumbnail.write made no JPG within 2 MB: {th}")
+        pv = thumb.preview({"position": "top", "size": 6}, "Satu dua tiga")
+        if not pv or pv[:2] != bytes([0xFF, 0xD8]):
+            problems.append("the settings preview is not a JPEG")
+        sent: list = []
+        FakeNet.set_thumbnail = classmethod(lambda cls, token, vid, img: sent.append((vid, img.name)))
+        rt = row(title="With Thumbnail")
+        shutil.copy2(th, (folder / schedule.get_row(rt)["file"]).with_suffix(".jpg"))
+        def run_upload(r):
+            j = youtube.start_upload(r)
+            for _ in range(100):
+                s = youtube.upload_state(j)
+                if s["state"] != "uploading":
+                    return s
+                time.sleep(0.05)
+            return s
+        st_t = run_upload(rt)
+        if st_t.get("state") != "done" or len(sent) != 1 or sent[0][0] != st_t.get("videoId") or st_t.get("warning"):
+            problems.append(f"the thumbnail was not sent after the upload: {st_t} {sent}")
+        def deny(cls, token, vid, img):
+            raise youtube.map_http_error(403, "forbidden", "no custom thumbnails")
+        FakeNet.set_thumbnail = classmethod(deny)
+        rt2 = row(title="Thumb Denied")
+        shutil.copy2(th, (folder / schedule.get_row(rt2)["file"]).with_suffix(".jpg"))
+        st_d = run_upload(rt2)
+        if st_d.get("state") != "done" or schedule.get_row(rt2).get("status") != "Scheduled" or "verif" not in (st_d.get("warning") or ""):
+            problems.append(f"a refused thumbnail failed the upload or was not explained: {st_d}")
+        del FakeNet.set_thumbnail
+        if "thumbUrl" not in schedule.with_missing_flags([schedule.get_row(rt)])[0] or "thumbUrl" in schedule.with_missing_flags([schedule.get_row(rid)])[0]:
+            problems.append("thumbUrl should be on a row with a JPG and only then")
+
         # --- never twice
         if not refused(rid, "already"):
             problems.append("a clip that has a videoId could be uploaded again")

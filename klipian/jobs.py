@@ -21,7 +21,7 @@ from pathlib import Path
 from .cache import Cache
 from .models import Transcript
 from . import compose as composer
-from . import render as engine
+from . import render as engine, thumbnail
 from . import roundtrip
 from . import sched
 from .progress import JobProgress, batch_eta
@@ -507,6 +507,8 @@ def _render_body(job_id: str, req: dict, into: Path | None = None, record: bool 
                         t["warning"] = f"saved without its timeline elements: {exc}"
                 finally:
                     raw.unlink(missing_ok=True)
+
+            thumbnail.write(dest, thumbnail.text_of(None, k["title"]))                 # <name>.jpg for the YouTube upload; None when it fails
 
             with LOCK:
                 t["result"].append({

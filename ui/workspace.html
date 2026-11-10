@@ -221,6 +221,14 @@
         </section>
         <label class="ws-field guest-hidden">Hashtags (kept on the clip; where they go on YouTube is the profile's setting)
           <input class="ws-input" type="text" id="detailHashtags" placeholder="#podcast #lucu"></label>
+        <div class="ws-field guest-hidden" id="thumbBox">
+          <span class="ws-fhead">Thumbnail <span class="text-text-faint">(made from the finished video, in the profile's thumbnail style)</span></span>
+          <img class="ws-thumb" id="detailThumb" alt="Thumbnail" hidden>
+          <span class="text-[12px] text-text-faint" id="detailThumbNone">No thumbnail yet for this video.</span>
+          <input class="ws-input" type="text" id="detailThumbText" maxlength="80" placeholder="Thumbnail text (empty: the title, 6 words); *word* is highlighted" aria-label="Thumbnail text">
+          <span class="ws-row-btns"><button class="btn sm" type="button" id="thumbMake">Make thumbnail</button>
+            <a class="btn sm" id="thumbDownload" download hidden>Download thumbnail</a></span>
+        </div>
         <div class="ws-field guest-hidden" id="ytPreview">
           <span class="ws-fhead">On YouTube <span class="text-text-faint">(preview of what would be sent)</span></span>
           <span class="text-[12px] text-text-faint" id="ytPreviewWhen"></span>

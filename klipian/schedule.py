@@ -166,6 +166,7 @@ def with_missing_flags(clips: list[dict]) -> list[dict]:
         row = dict(row)
         row.pop("fileMissing", None)
         row.pop("fileUrl", None)
+        row.pop("thumbUrl", None)
         row["uploadsView"] = uploads_of(row)                 # derived on every read, never stored
         if row.get("file") and (row.get("projectId") or is_folder_row(row)):
             f = row_file(row)
@@ -173,6 +174,8 @@ def with_missing_flags(clips: list[dict]) -> list[dict]:
                 row["fileMissing"] = True
             elif url := file_url(f):
                 row["fileUrl"] = url
+                if f.with_suffix(".jpg").is_file():           # made by render.write_thumbnail; older renders have none
+                    row["thumbUrl"] = file_url(f.with_suffix(".jpg")) + f"&v={int(f.with_suffix('.jpg').stat().st_mtime)}"   # v: a new card shows at once
         out.append(row)
     return out
 

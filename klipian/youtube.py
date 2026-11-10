@@ -266,6 +266,25 @@ class _Net:
                 "publishAt": st.get("publishAt"), "rejection": st.get("rejectionReason") or st.get("failureReason")}
 
     @staticmethod
+    def set_thumbnail(token: dict, video_id: str, image: Path) -> None:
+        """thumbnails.set (50 quota units); the youtube.upload scope is enough."""
+        try:
+            from googleapiclient.discovery import build
+            from googleapiclient.errors import HttpError
+            from googleapiclient.http import MediaFileUpload
+            from google.oauth2.credentials import Credentials
+        except ImportError:
+            raise YouTubeError("no_library", "Install the YouTube packages.") from None
+        creds = Credentials.from_authorized_user_info(token, list(SCOPES))
+        try:
+            build("youtube", "v3", credentials=creds, cache_discovery=False).thumbnails().set(
+                videoId=video_id, media_body=MediaFileUpload(str(image), mimetype="image/jpeg")).execute()
+        except HttpError as exc:
+            raise _http_error(exc) from None
+        except OSError:
+            raise YouTubeError("offline", "Could not reach Google.") from None
+
+    @staticmethod
     def video_statuses(token: dict, video_ids: list[str]) -> dict:
         """videos.list part=status for up to 50 videos in ONE call (1 quota unit) ->
         {id: {privacy, upload, publishAt, rejection}}; an id YouTube does not return is {"gone": True}."""
@@ -776,13 +795,21 @@ def _do_upload(row: dict, spec: dict, token: dict, progress, cancelled) -> dict:
         raise YouTubeError("other", "YouTube did not return a video id.")
     _count_upload()
     warning = ""
+    thumb = Path(spec["file"]).with_suffix(".jpg")       # written by render.py next to the video
+    if thumb.is_file():
+        try:
+            _net.set_thumbnail(token, video_id, thumb)
+        except YouTubeError as exc:                       # the video is up: a thumbnail problem is only a warning
+            warning = ("The video was uploaded but its thumbnail was not set. "
+                       + ("YouTube only allows custom thumbnails on a phone-verified channel: verify it at youtube.com/verify."
+                          if exc.extra.get("status") == 403 else exc.message)) + " "
     try:
         got = _net.video_status(token, video_id)
         if spec["publishAt"] and not got.get("publishAt") and got.get("privacy") == "private":
-            warning = ("YouTube kept the video private and ignored the schedule: the Google Cloud project "
+            warning += ("YouTube kept the video private and ignored the schedule: the Google Cloud project "
                        "has not passed the YouTube API audit yet, so API uploads stay locked as private.")
         elif not spec["publishAt"] and got.get("privacy") not in (None, "public"):
-            warning = ("YouTube made the video " + str(got.get("privacy")) + " although it was sent as public: "
+            warning += ("YouTube made the video " + str(got.get("privacy")) + " although it was sent as public: "
                        "the Google Cloud project has not passed the YouTube API audit yet.")
     except YouTubeError:
         pass                                           # the upload itself worked; Check status can look again
@@ -796,7 +823,7 @@ def _do_upload(row: dict, spec: dict, token: dict, progress, cancelled) -> dict:
         now = dt.datetime.now()
         fields["date"], fields["time"] = now.strftime("%Y-%m-%d"), now.strftime("%H:%M")
     schedule.set_fields(row["id"], fields)
-    return {"videoId": video_id, "url": fields["youtubeUrl"], "status": fields["status"], "warning": warning}
+    return {"videoId": video_id, "url": fields["youtubeUrl"], "status": fields["status"], "warning": warning.strip()}
 
 
 def start_upload(row_id: str, publish_now: bool = False) -> str:

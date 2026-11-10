@@ -2187,6 +2187,47 @@ class Handler(BaseHTTPRequestHandler):
         out["clip"] = _with_missing_flags(out["clip"])
         return self._send_json({"ok": True, **out})
 
+    def _post_workspace_clips_thumbnail(self):
+        """Make a clip's thumbnail card again from its final video: {id, text?}. `text` (when sent) is kept on the row as thumbText; empty clears it
+        (the title is used). Used after editing thumbText and for old renders that have no JPG. No re-render, no network."""
+        try:
+            req = self._read_json()
+        except Exception as exc:               # noqa: BLE001
+            return self._send_json({"error": str(exc)}, 400)
+        from . import schedule as _sch, thumbnail as _thumb
+        row = _sch.get_row(str(req.get("id") or ""))
+        if not row:
+            return self._send_json({"error": "that clip is gone"}, 404)
+        if "text" in req:
+            row = _sch.set_fields(row["id"], {"thumbText": " ".join(str(req["text"] or "").split())[:80]}) or row
+        file = _sch.row_file(row)
+        if file is None:
+            return self._send_json({"error": "the video file is not in the profile's out/ folder any more"}, 400)
+        if not _thumb.write(file, _thumb.text_of(row.get("thumbText"), row.get("title"))):
+            return self._send_json({"error": "the thumbnail could not be made from this video"}, 500)
+        return self._send_json({"ok": True, "clip": _with_missing_flags([row])[0]})
+
+    def _post_thumbnail_preview(self):
+        """The settings preview: {style, text} -> a JPEG made by the same thumbnail.write as the real one, from the profile's newest rendered
+        video, or from a plain placeholder frame when it has none. Nothing is saved."""
+        try:
+            req = self._read_json()
+        except Exception as exc:               # noqa: BLE001
+            return self._send_json({"error": str(exc)}, 400)
+        from . import thumbnail as _thumb
+        data = _thumb.preview(req.get("style"), str(req.get("text") or ""))
+        if not data:
+            return self._send_json({"error": "the preview could not be made"}, 500)
+        self.send_response(200)
+        self.send_header("Content-Type", "image/jpeg")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        try:
+            self.wfile.write(data)
+        except ConnectionError:
+            pass
+
     def _post_workspace_clips(self):
         try:
             req = self._read_json()
@@ -2225,6 +2266,7 @@ class Handler(BaseHTTPRequestHandler):
                 req.pop("fileMissing", None)       # derived on every read, never stored
                 req.pop("fileUrl", None)
                 req.pop("uploadsView", None)
+                req.pop("thumbUrl", None)
 
                 for i, c in enumerate(clips):
                     if c.get("id") == cid:
@@ -2640,6 +2682,8 @@ class Handler(BaseHTTPRequestHandler):
         "/api/workspace/clips": _post_workspace_clips,
         "/api/workspace/clips/bulk": _post_workspace_clips_bulk,
         "/api/workspace/clips/upload-mark": _post_workspace_clips_upload_mark,
+        "/api/workspace/clips/thumbnail": _post_workspace_clips_thumbnail,
+        "/api/thumbnail/preview": _post_thumbnail_preview,
         "/api/workspace/clips/schedule": _post_workspace_clips_schedule,
         "/api/workspace/clips/delete": _post_workspace_clips_delete,
         "/api/workspace/clips/restore": _post_workspace_clips_restore,

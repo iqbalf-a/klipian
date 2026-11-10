@@ -169,6 +169,7 @@ export const Story = z.object({
   beats: z.array(Beat).min(1).max(16),
   claims: z.array(Claim),
   post: z.object({ description: z.string().max(2000), hashtags: z.array(z.string().regex(/^#\S+$/)).max(10) }).strict(),
+  thumb: z.string().min(3).max(60).optional(),                           // the thumbnail card's text (3-8 words, `*key words*` in yellow); missing = the title (B32)
   needs: z.array(z.string()),
   stage: z.enum(STAGE_SHAPES).optional(),                              // the stage shape the hero stands on (missing = slab; PLAN-VARIETY stage 3)
   theme: z.enum(THEME_NAMES).optional(),                                 // the background theme of the whole video (missing = cream; PLAN-VARIETY stage 2)

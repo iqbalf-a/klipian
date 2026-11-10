@@ -234,6 +234,7 @@ REF_W, REF_H = 1080, 1920
 # spot.
 _FONT_FILES = {
     "arial": ("arial.ttf", "arialbd.ttf"),
+    "arial black": ("ariblk.ttf", "ariblk.ttf"),   # one weight, chunky
     "impact": ("impact.ttf", "impact.ttf"),      # Impact ships one weight
     "verdana": ("verdana.ttf", "verdanab.ttf"),
     "mona sans extrabold": ("MonaSans-ExtraBold.ttf", "MonaSans-ExtraBold.ttf"),   # the Timeline labels' face (compose.py)
@@ -990,6 +991,9 @@ def render(source: Path, job: RenderJob, dest: Path,
         # instead of an explicit path list.
         for cmd_path in dest.parent.glob(f"{dest.stem}.track*.cmd"):
             cmd_path.unlink(missing_ok=True)
+
+
+THUMB_MAX_BYTES = 2 * 1024 * 1024                 # YouTube's limit for a custom thumbnail
 
 
 def _run_ffmpeg(cmd: list[str], cancel_check, dest: Path, on_progress=None) -> tuple[int, str]:

@@ -59,6 +59,11 @@ def _clean_tools(raw) -> list:
     return [k for k in UPLOAD_TOOLS if isinstance(raw, (list, tuple)) and k in raw]
 
 
+def _clean_thumb(raw) -> dict:
+    from .thumbnail import clean_style
+    return clean_style(raw)                                   # only valid settings; none = the default look of the profile's kind
+
+
 def write_meta(pid: str, meta: dict) -> None:
     """Write profile.json (name, colour, defaults); the Guest and the Admin have none."""
     if pid in (GUEST, ADMIN):
@@ -69,7 +74,8 @@ def write_meta(pid: str, meta: dict) -> None:
                                   "defaults": meta.get("defaults") if isinstance(meta.get("defaults"), dict) else {},
                                   "autopilotTemplate": str(meta.get("template") or "default"),
                                   "autopilotAi": str(meta.get("ai") or "manual"),
-                                  "uploadTools": _clean_tools(meta.get("uploadTools"))})
+                                  "uploadTools": _clean_tools(meta.get("uploadTools")),
+                                  "thumbStyle": _clean_thumb(meta.get("thumbStyle"))})
 
 
 def ensure_dirs(pid: str) -> Path:
@@ -98,6 +104,7 @@ def read_meta(pid: str) -> dict | None:
     return {"id": pid, "name": str(data.get("name") or pid), "color": str(data.get("color") or DEFAULT_COLORS[0]),
             "guest": False, "defaults": data.get("defaults") if isinstance(data.get("defaults"), dict) else {},
             "template": str(data.get("autopilotTemplate") or "default"),      # its Autopilot template (autopilot.py)
+            "thumbStyle": _clean_thumb(data.get("thumbStyle")),               # what differs from the default thumbnail look (thumbnail.py)
             "uploadTools": _clean_tools(data.get("uploadTools")),             # the platforms with upload tools for this channel (none: marking by hand only)
             "ai": str(data.get("autopilotAi") or "manual")}                   # and who picks the clips: manual | claude | gemini
 
@@ -227,6 +234,8 @@ def update(pid: str, fields: dict) -> dict:
         meta["ai"] = fields["ai"]
     if "uploadTools" in fields:
         meta["uploadTools"] = _clean_tools(fields["uploadTools"])
+    if "thumbStyle" in fields:
+        meta["thumbStyle"] = _clean_thumb(fields["thumbStyle"])           # {} or null: back to the default look
     if "defaults" in fields:
         merged = {**meta.get("defaults", {}), **(fields["defaults"] if isinstance(fields["defaults"], dict) else {})}
         meta["defaults"] = _clean_defaults({k: v for k, v in merged.items() if v not in ("", None)})

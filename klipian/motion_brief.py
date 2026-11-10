@@ -384,7 +384,7 @@ Adapt the kinds and seconds to the topic if needed, but the beats must add up to
 {_catalog_text(cat, _m.kind_of(p))}
 ## Title, description and hashtags
 
-Give three title options in `titles` (each at most 100 characters). Put the post description in `post.description` (no hashtags in it, no URLs; klipian adds the source links itself) and the hashtags in `post.hashtags`. **Hashtags for this profile:** {rule}
+Give three title options in `titles` (each at most 100 characters). Put the post description in `post.description` (no hashtags in it, no URLs; klipian adds the source links itself) and the hashtags in `post.hashtags`. Also give `thumb`: the 3 to 8 word text of the thumbnail card, a curiosity-gap question or surprising claim the video really answers (no clickbait, keep the key detail out, a number when the topic has one, not the title word for word), with its one key word or number between `*...*` for yellow, e.g. `Gurita punya *3 jantung*?`. **Hashtags for this profile:** {rule}
 
 ## Answer format
 

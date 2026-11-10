@@ -183,7 +183,7 @@ function row(c) {
           ${opt(STATUS, c.status || "Draft")}
         </select>${warnChipHTML(c)}
       </td>
-      <td class="${td}">${f("title")}${goneTagHTML(c)}${fileLineHTML(c)}</td>
+      <td class="${td}">${f("title")}${goneTagHTML(c)}${fileLineHTML(c)}${c.thumbUrl ? `<div class="ws-thumbrow"><img class="ws-thumb" src="${escapeHTML(c.thumbUrl)}" alt="Thumbnail: ${who}" loading="lazy"><a class="btn sm" href="${escapeHTML(c.thumbUrl)}" download="${escapeHTML((c.title || "thumbnail").slice(0, 60))}.jpg" title="Download the thumbnail (for TikTok or Instagram)">Download</a></div>` : ""}</td>
       <td class="${td}"><select class="ws-input" data-field="platform" aria-label="Platform: ${who}">${opt(PLATFORM, c.platform || "YouTube + TikTok")}</select>
         <div class="ws-upchips" role="group" aria-label="Status upload: ${who}">${upChipsHTML(c)}</div></td>
       <td class="${td}">${f("date", "date")}</td>
@@ -777,12 +777,40 @@ function openDetail(id, focusField = "") {
   const hashtagsEl = $("#detailHashtags");
   if (hashtagsEl) hashtagsEl.value = tagsToInput(c);
   refreshYouTubeSection(c);
+  drawThumbBox(c);
   clipDialog.returnValue = "";          // Esc keeps the LAST value otherwise: a cancel would save
   clipDialog.showModal();
   updateYtPreview();
   clipDialog.querySelectorAll("textarea.ws-input").forEach(growText);
   if (focusField) $(`[data-field="${focusField}"]`, clipDetailForm)?.focus();
 }
+
+/* The thumbnail part of Detail: the card, its text, "Make thumbnail" (also for old renders without one) and the download link. */
+function drawThumbBox(c) {
+  const img = $("#detailThumb"), none = $("#detailThumbNone"), dl = $("#thumbDownload"), has = !!c.thumbUrl;
+  if (!img) return;
+  img.hidden = !has; none.hidden = has; dl.hidden = !has;
+  if (has) { img.src = c.thumbUrl; dl.href = c.thumbUrl; dl.download = `${(c.title || "thumbnail").slice(0, 60)}.jpg`; }
+  $("#detailThumbText").value = c.thumbText || "";
+  $("#thumbBox").hidden = !c.fileUrl;                          // no video file, no thumbnail
+}
+
+$("#thumbMake")?.addEventListener("click", async (e) => {
+  const btn = e.currentTarget, id = clipDialog.dataset.id;
+  btn.disabled = true; btn.textContent = "Making...";
+  try {
+    const j = await (await fetch("/api/workspace/clips/thumbnail", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, text: $("#detailThumbText").value }),
+    })).json();
+    if (j.error) throw new Error(j.error);
+    const i = CLIPS.findIndex((x) => x.id === id);
+    if (i >= 0) CLIPS[i] = j.clip;
+    drawThumbBox(j.clip); drawClips();
+    detailNote("Thumbnail made.");
+  } catch (ex) { detailNote(ex.message || "The thumbnail could not be made."); }
+  btn.disabled = false; btn.textContent = "Make thumbnail";
+});
 
 /* A text area as tall as its text: at least its own rows, at most 45% of the
    window, then it scrolls. */
