@@ -2711,7 +2711,7 @@ def check_upload() -> tuple[str, str]:
 
         # --- the thumbnail: made next to the video (<= 2 MB), sent after the upload, its failure only a warning
         from . import thumbnail as thumb
-        if thumb.lines_of("Gurita punya *3 jantung*?", 14) != [("GURITA PUNYA", False), ("3 JANTUNG?", True)]                 or thumb.text_of("", "Satu dua #tag tiga empat lima enam tujuh") != "Satu dua tiga empat lima enam" or thumb.text_of("Teks *sendiri*", "x") != "Teks *sendiri*":
+        if thumb.lines_of("Gurita punya *3 jantung*?", 14) != [("GURITA PUNYA", False), ("3 JANTUNG?", True)]                 or thumb.text_of("", "Satu dua #tag tiga empat lima enam tujuh delapan sembilan sepuluh") != "Satu dua tiga empat lima enam" or thumb.text_of("", "Colokan panas? Ini yang terjadi di dalamnya") != "Colokan panas? Ini yang terjadi di dalamnya" or thumb.text_of("", "Warung makan enak yang ada di ujung jalan itu buka terus") != "Warung makan enak yang ada" or thumb.cut_hook("Aku tidak tahu harus bilang apa ke dia") != "Aku tidak tahu harus bilang apa" or thumb.text_of("Teks *sendiri*", "x") != "Teks *sendiri*":
             problems.append("the thumbnail text is not split into a white line and an accent line, or the title / thumbText fallback is wrong")
         if thumb.default_style("klipian-intip")["position"] != "lower" or thumb.default_style("podcast")["position"] != "auto"                 or thumb.default_style("podcast")["outline"] <= 0 or thumb.default_style("klipian-intip")["outline"] != 0:
             problems.append("the default thumbnail look: plain for the motion channel, sticker (outlined, middle) for the others")
@@ -2727,7 +2727,7 @@ def check_upload() -> tuple[str, str]:
         st, pl = thumb.default_style("podcast"), thumb.default_style("klipian-intip")
         if not (st["outerWidth"] > 0 and st["shadow"] > 0 and st["rotate"] < 0 and st["width"] > 80 and st["color"] == "#FFD60A")                 or (pl["outerWidth"], pl["shadow"], pl["rotate"], pl["width"], pl["outline"]) != (0, 0, 0, 70, 0):
             problems.append(f"the clip default is the loud sticker (outer border, shadow, tilt, wide) and the motion default stays plain: {st} {pl}")
-        if thumb.cut_hook("Dia bilang gini, di depan semua orang yang hadir malam itu") != "Dia bilang gini, di depan semua orang" or thumb.cut_hook("Halo") != ""                 or thumb.text_of("", "Judul panjang sekali dari klip ini ya", "Ini kalimat kuat dari klip") != "Ini kalimat kuat dari klip"                 or thumb.text_of("", "Judul panjang sekali dari klip ini ya", "Halo") != "Judul panjang sekali dari klip ini"                 or thumb.text_of("Teks saya", "x", "Ini kalimat kuat dari klip") != "Teks saya":
+        if thumb.cut_hook("Dia bilang gini, di depan semua orang yang hadir malam itu") != "Dia bilang gini, di depan semua orang" or thumb.cut_hook("Halo") != ""                 or thumb.text_of("", "Judul panjang sekali dari klip ini ya", "Ini kalimat kuat dari klip") != "Ini kalimat kuat dari klip"                 or thumb.text_of("", "Judul panjang sekali dari klip ini ya", "Halo") != "Judul panjang sekali dari klip ini ya"                 or thumb.text_of("Teks saya", "x", "Ini kalimat kuat dari klip") != "Teks saya":
             problems.append("thumbnail text: thumbText first, then the clip's hook cut to 3-7 words, then the title cut to 6 words")
         got_s = {}
         ts = thumb.write(folder / "clip1.mp4", "Dia bilang gini di depan semua", thumb.default_style("podcast"), out=folder / "sticker-test.jpg", info=got_s)

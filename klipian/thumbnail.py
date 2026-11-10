@@ -19,8 +19,8 @@ POSITIONS = ("auto", "top", "middle", "lower")      # auto: the free band that h
 ALIGNS = ("left", "center")
 
 PLAIN = {"font": "mona", "size": 8.5, "color": "#FFFFFF", "outlineColor": "#000000", "outline": 0, "accent": "#FFD447",
-         "position": "lower", "align": "left", "gradient": 0.78, "caps": True, "lines": 4,
-         "outer": "#FFFFFF", "outerWidth": 0, "shadow": 0, "rotate": 0, "lineHeight": 1.12, "width": 70, "autoSize": False, "maxHeight": 30}
+         "position": "lower", "align": "left", "gradient": 0.78, "caps": True, "lines": 3,
+         "outer": "#FFFFFF", "outerWidth": 0, "shadow": 0, "rotate": 0, "lineHeight": 1.12, "width": 70, "autoSize": False, "maxHeight": 19}
 # the loud sticker look of the clip profiles: very big, saturated yellow, a thick dark stroke, a white sticker border around the shape,
 # a hard drop shadow, a little tilt; the text fills about 85% of the width (the tilt and the borders take the rest) (the 9:16 card is the video's own size)
 STICKER = {"font": "impact", "size": 20.0, "color": "#FFD60A", "outlineColor": "#111111", "outline": 11, "accent": "#FFFFFF",
@@ -144,6 +144,20 @@ def fit_block(text: str, caps: bool, em: float, cap_px: float, room: float, max_
     return best[1], max(best[2], 1)
 
 
+STOP_WORDS = frozenset("di ke dari yang dan dengan untuk pada itu ini atau karena jadi tapi tetapi sama oleh dalam akan bisa juga saat ketika kalau jika agar supaya the a an of to in on and or for with".split())
+
+
+def cut_words(w: list[str], most: int, whole: int = 0, least: int = 2) -> list[str]:
+    """`w` cut to at most `most` words (kept whole up to `whole`): at a clause end (? ! : , ; .) when there is one, and never ending on a stop
+    word like "di" or "yang" -- those are dropped from the end."""
+    if len(w) > max(most, whole):
+        ends = [i for i in range(least - 1, most) if w[i].endswith((".", ",", ";", ":", "?", "!"))]
+        w = w[:(ends[-1] + 1) if ends else most]
+    while len(w) > least and w[-1].strip(".,;:?!").lower() in STOP_WORDS:
+        w = w[:-1]
+    return w
+
+
 def cut_hook(hook: str | None, most: int = 7) -> str:
     """The clip's own hook (an exact quote from it) cut to 3-7 words, at a clause end when there is one; "" when it is too short to be punchy."""
     w = " ".join(str(hook or "").replace("#", " ").split()).split()
@@ -152,14 +166,14 @@ def cut_hook(hook: str | None, most: int = 7) -> str:
     if len(w) > most:
         ends = [i for i in range(3, most) if w[i].endswith((".", ",", ";", "?", "!"))]       # a clause may end after word 4..7
         w = w[:(ends[-1] + 1) if ends else most]
-    return " ".join(w).rstrip(",;. ")
+    return " ".join(cut_words(w, most, least=3)).rstrip(",;:. ")
 
 
 def text_of(thumb: str | None, title: str | None, hook: str | None = None, words: int = 6) -> str:
     """What the card says: the story's `thumb` or the row's `thumbText` when there is one; else the clip's own hook (4-7 words of what is really
     said in it); else the title cut to six words. Nothing is made up."""
     t = " ".join(str(thumb or "").split())
-    return t or cut_hook(hook) or " ".join(re.sub(r"#\S+", " ", str(title or "")).split()[:words])
+    return t or cut_hook(hook) or " ".join(cut_words(re.sub(r"#\S+", " ", str(title or "")).split(), words, whole=8)).rstrip(",;:. ")
 
 
 # --- which frame, and where the text goes -----------------------------------------------------------------------------------------------
@@ -255,7 +269,8 @@ def write(video: Path, text: str | None = None, style: dict | None = None, at: f
             wrap = lambda size: lines_of(text, int(room / (FONT_EM[s["font"]] * size)), s["caps"])
             lines = wrap(fs) if text and font else []
             too_wide = lambda: lines and max(len(t) for t, _ in lines) * FONT_EM[s["font"]] * fs > room      # one long word does not break
-            while (len(lines) > s["lines"] or too_wide()) and fs > 0.03 * W:      # smaller until it fits
+            tall = lambda: lines and len(lines) * fs * s["lineHeight"] > s["maxHeight"] / 100 * H
+            while (len(lines) > s["lines"] or too_wide() or tall()) and fs > 0.03 * W:      # smaller until it fits
                 fs = int(fs * 0.92)
                 lines = wrap(fs)
         if lines:
