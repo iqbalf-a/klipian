@@ -126,7 +126,7 @@ ${html}      </div>`;
             <label>Highlight colour (*word*) <input type="color" name="th_accent"></label>
             <label>Outline colour <input type="color" name="th_outlineColor"></label>
             <label>Outline width (0 = none) <input type="number" name="th_outline" min="0" max="20" step="1"></label>
-            <label>Position <select name="th_position"><option value="top">Top</option><option value="middle">Middle</option><option value="lower">Lower third</option></select></label>
+            <label>Position <select name="th_position"><option value="auto">Auto (no face, no caption)</option><option value="top">Top</option><option value="middle">Middle</option><option value="lower">Lower third</option></select></label>
             <label>Align <select name="th_align"><option value="left">Left</option><option value="center">Centre</option></select></label>
             <label>Bottom gradient (0 = off) <input type="number" name="th_gradient" min="0" max="1" step="0.05"></label>
             <label>Max lines <select name="th_lines"><option>1</option><option>2</option><option>3</option><option>4</option></select></label>

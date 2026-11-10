@@ -2707,7 +2707,7 @@ def check_upload() -> tuple[str, str]:
         from . import thumbnail as thumb
         if thumb.lines_of("Gurita punya *3 jantung*?", 14) != [("GURITA PUNYA", False), ("3 JANTUNG?", True)]                 or thumb.text_of("", "Satu dua #tag tiga empat lima enam tujuh") != "Satu dua tiga empat lima enam" or thumb.text_of("Teks *sendiri*", "x") != "Teks *sendiri*":
             problems.append("the thumbnail text is not split into a white line and an accent line, or the title / thumbText fallback is wrong")
-        if thumb.default_style("klipian-intip")["position"] != "lower" or thumb.default_style("podcast")["position"] != "middle"                 or thumb.default_style("podcast")["outline"] <= 0 or thumb.default_style("klipian-intip")["outline"] != 0:
+        if thumb.default_style("klipian-intip")["position"] != "lower" or thumb.default_style("podcast")["position"] != "auto"                 or thumb.default_style("podcast")["outline"] <= 0 or thumb.default_style("klipian-intip")["outline"] != 0:
             problems.append("the default thumbnail look: plain for the motion channel, sticker (outlined, middle) for the others")
         dirty = thumb.clean_style({"size": 99, "outline": -3, "color": "red", "accent": "#abcdef", "font": "comic", "position": "top", "lines": 9, "caps": "yes", "junk": 1})
         if dirty != {"size": 14, "outline": 0, "accent": "#ABCDEF", "position": "top", "lines": 4}:
@@ -2718,7 +2718,22 @@ def check_upload() -> tuple[str, str]:
         profiles.update("up1", {"thumbStyle": None})
         if profiles.read_meta("up1")["thumbStyle"] != {}:
             problems.append("resetting thumbStyle did not clear it")
-        th = thumb.write(folder / "clip1.mp4", "Gurita punya *3 jantung*?")
+        face = (0.38, 0.30, 0.62, 0.52)                                  # a face box in 0..1
+        if thumb.score_face([]) != 0 or not thumb.score_face([face]) > thumb.score_face([(0.45, 0.4, 0.55, 0.5)]) > 0                 or not thumb.score_face([(0.0, 0.3, 0.24, 0.52)]) < thumb.score_face([(0.1, 0.3, 0.34, 0.52)]):
+            problems.append("score_face: no face is 0, a larger face scores higher, a face cut by the edge scores lower")
+        top, over = thumb.place_top(0.12, [face], (0.15, 0.85))
+        if over != 0 or not (top + 0.12 <= 0.27 or top >= 0.55) or top < 0.10:
+            problems.append(f"place_top put the text on the face or a caption zone: top {top}, overlap {over}")
+        top2, over2 = thumb.place_top(0.12, [], (0.15, 0.85))
+        if over2 != 0 or not 0.23 <= top2 <= 0.46:
+            problems.append(f"place_top with no face should stay in the free band near the middle: {top2}, {over2}")
+        crowded = thumb.place_top(0.12, [(0.1, 0.1, 0.9, 0.92)], (0.15, 0.85))[1]
+        if not crowded > 0:
+            problems.append("place_top should report an overlap when nothing is free")
+        got = {}
+        th = thumb.write(folder / "clip1.mp4", "Gurita punya *3 jantung*?", info=got)
+        if got.get("how") not in ("clean", "fixed") or got.get("faces"):
+            problems.append(f"a clip with no face should fall back to the cleanest or the 1 s frame: {got}")
         if not th or th.suffix != ".jpg" or not 0 < th.stat().st_size <= thumb.THUMB_MAX_BYTES:
             problems.append(f"thumbnail.write made no JPG within 2 MB: {th}")
         pv = thumb.preview({"position": "top", "size": 6}, "Satu dua tiga")
