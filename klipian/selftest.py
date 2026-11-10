@@ -622,6 +622,9 @@ def check_autopilotresult() -> tuple[str, str]:
     with_hook = ap.build_result({"title": "T", "startSec": 1, "endSec": 20, "hook": "  Dia bilang gini  di depan semua orang "}, tpl, "res4")
     if with_hook.get("hook") != "Dia bilang gini di depan semua orang" or "hook" in bare:
         problems.append("build_result keeps the candidate's hook (and none when it has none): the thumbnail text comes from it")
+    with_thumb = ap.build_result({"title": "T", "startSec": 1, "endSec": 20, "thumb": "Gurita punya *3 jantung*?"}, tpl, "res5")
+    if with_thumb.get("thumb") != "Gurita punya *3 jantung*?" or "thumb" in bare or "thumb" in ap.build_result({"title": "T", "startSec": 1, "endSec": 20, "thumb": "Satu"}, tpl, "res6"):
+        problems.append("build_result keeps the AI's thumb (cleaned: one word is ignored) and none when it has none")
     for bad in ({"title": "x", "startSec": 5, "endSec": 5.2}, {"title": "x"}):
         try:
             ap.build_result(bad, tpl, "res3")
@@ -636,6 +639,9 @@ def check_autopilotresult() -> tuple[str, str]:
     hooked = renderreq.build_request({**project, "results": [{**got, "hook": "Dia bilang gini"}]}, "res1", words_of=lambda f: words, size_of=lambda f: (1920, 1080))
     if hooked["clips"][0].get("hook") != "Dia bilang gini" or "hook" in req["clips"][0]:
         problems.append("the render request carries the Result's hook (jobs.py then writes it on the Clips row)")
+    thumbed = renderreq.build_request({**project, "results": [{**got, "thumb": "Wow gila banget"}]}, "res1", words_of=lambda f: words, size_of=lambda f: (1920, 1080))
+    if thumbed["clips"][0].get("thumb") != "Wow gila banget" or "thumb" in req["clips"][0]:
+        problems.append("the render request carries the Result's thumb (the AI's thumbnail text)")
     k = req["clips"][0]
     if (k["picture"], k["background"], k["position"]) != ("3:4", "blur", 50):
         problems.append(f"the request's picture: {k['picture']} {k['background']} {k['position']}")
@@ -2711,6 +2717,23 @@ def check_upload() -> tuple[str, str]:
 
         # --- the thumbnail: made next to the video (<= 2 MB), sent after the upload, its failure only a warning
         from . import thumbnail as thumb
+        ct = thumb.clean_thumb
+        if ct("  Gurita  punya *3 jantung* #fakta 🐙 \"seru\" di ") != "Gurita punya *3 jantung* seru" or ct("Satu") != "" or ct(None) != ""                 or ct("Kenapa colokan bisa panas padahal tidak dipakai sama sekali ya") != "Kenapa colokan bisa panas padahal tidak dipakai sama"                 or ct("Bahaya *besar* ini") != "Bahaya *besar*" or ct("Rusak *total") != "Rusak total" or ct("Apa itu") != "":
+            problems.append(f"clean_thumb: spaces, hashtags/emoji/quotes out, trailing stop word out, 8 words, one word ignored: {ct('  Gurita  punya *3 jantung* #fakta seru di ')!r}")
+        order = [thumb.text_info("Orang", "Judul satu dua tiga", "Dia bilang gini di depan", ai="Dari AI *nih*"),
+                 thumb.text_info("", "Judul satu dua tiga", "Dia bilang gini di depan", ai="Dari AI *nih*"),
+                 thumb.text_info("", "Judul satu dua tiga", "Dia bilang gini di depan semua orang yang hadir malam itu", ai="x"),
+                 thumb.text_info("", "Judul panjang sekali dari klip ini ya terus lagi", None),
+                 thumb.text_info("", "Judul pendek", None)]
+        if order != [("Orang", False), ("Dari AI *nih*", False), ("Dia bilang gini di depan semua orang", True), ("Judul panjang sekali dari klip", True), ("Judul pendek", False)]:
+            problems.append(f"text order: person > AI thumb > hook cut > title cut, with the 'cut' flag only for the last two: {order}")
+        from . import roundtrip as _rt
+        _w = _rt.parse_reply([], json.dumps({"source": "x", "clips": [
+            {"start": "0:10", "end": "0:30", "title": "Satu", "hook": "halo", "thumb": "Gurita punya *3 jantung*? 🐙", "scores": {"hook": 8, "complete": 8, "payoff": 8}},
+            {"start": "0:40", "end": "1:00", "title": "Dua", "hook": "halo", "scores": {"hook": 8, "complete": 8, "payoff": 8}},
+            {"start": "1:10", "end": "1:30", "title": "Tiga", "hook": "halo", "thumb": 7, "scores": {"hook": 8, "complete": 8, "payoff": 8}}]}))
+        if _w[0].get("thumb") != "Gurita punya *3 jantung*?" or "thumb" in _w[1] or "thumb" in _w[2] or '"thumb"' not in _rt._answer_format("x", ""):
+            problems.append(f"a reply with a thumb keeps it cleaned, one without (or not text) has none, and the brief asks for it: {[c.get('thumb') for c in _w]}")
         if thumb.lines_of("Gurita punya *3 jantung*?", 14) != [("GURITA PUNYA", False), ("3 JANTUNG?", True)]                 or thumb.text_of("", "Satu dua #tag tiga empat lima enam tujuh delapan sembilan sepuluh") != "Satu dua tiga empat lima enam" or thumb.text_of("", "Colokan panas? Ini yang terjadi di dalamnya") != "Colokan panas? Ini yang terjadi di dalamnya" or thumb.text_of("", "Warung makan enak yang ada di ujung jalan itu buka terus") != "Warung makan enak yang ada" or thumb.cut_hook("Aku tidak tahu harus bilang apa ke dia") != "Aku tidak tahu harus bilang apa" or thumb.text_of("Teks *sendiri*", "x") != "Teks *sendiri*":
             problems.append("the thumbnail text is not split into a white line and an accent line, or the title / thumbText fallback is wrong")
         if thumb.default_style("klipian-intip")["position"] != "lower" or thumb.default_style("podcast")["position"] != "auto"                 or thumb.default_style("podcast")["outline"] <= 0 or thumb.default_style("klipian-intip")["outline"] != 0:

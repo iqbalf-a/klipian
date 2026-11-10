@@ -63,7 +63,7 @@ REPLY_SCHEMA = {
             "type": "object", "additionalProperties": False,
             "properties": {
                 "start": {"type": "string"}, "end": {"type": "string"}, "title": {"type": "string"},
-                "hook": {"type": "string"}, "endQuote": {"type": "string"}, "scores": _SCORES, "reason": {"type": "string"},
+                "hook": {"type": "string"}, "thumb": {"type": "string"}, "endQuote": {"type": "string"}, "scores": _SCORES, "reason": {"type": "string"},
                 "post": {"type": "object", "additionalProperties": False, "properties": {
                     "title": {"type": "string"}, "caption": {"type": "string"},
                     "hashtags": {"type": "array", "items": {"type": "string"}},

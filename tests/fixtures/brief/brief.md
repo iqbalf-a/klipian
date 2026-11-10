@@ -187,6 +187,7 @@ or comments; every value is finished text or a number.
       "end": "1:07",
       "title": "Lose 300M Because of Timing",
       "hook": "exact quote from transcript",
+      "thumb": "Rugi 300 juta gara-gara *timing*?",
       "endQuote": "the last sentence of the clip, copied exactly from the transcript",
       "scores": { "hook": 9, "complete": 8, "payoff": 9, "emotion": 8, "duration": 9 },
       "reason": "one or two sentences for a human to read",
@@ -205,6 +206,12 @@ or comments; every value is finished text or a number.
   ]
 }
 ```
+
+`thumb` is the text printed on the clip's thumbnail: 3–6 words, one complete natural Indonesian phrase in the clip's own
+tone (a short question or a surprising claim that THIS clip really answers; no clickbait and nothing the clip does not
+say). No hashtags, emoji or quotes; never end on a connector (di, ke, yang, dan, dari, dengan, untuk, itu, ini,
+karena, jadi); at most about 40 characters. Wrap ONE key word or number in `*asterisks*` to highlight it. Word it
+differently from `title` and `hook` when you can: the card shows the title as well. Leave it out if you have nothing good.
 
 `post` is the text for uploading the clip, written by you for each clip: `title`
 (up to 70 characters), `caption` (1–3 sentences, no hashtags in it) and

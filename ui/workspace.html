@@ -227,7 +227,8 @@
             <img class="ws-thumb" id="detailThumb" alt="Thumbnail" hidden>
             <span class="ws-thumbnone text-[12px] text-text-faint" id="detailThumbNone">No thumbnail yet for this video.</span>
             <div class="ws-thumbside">
-              <input class="ws-input" type="text" id="detailThumbText" maxlength="80" placeholder="Thumbnail text (empty: the title, 6 words); *word* is highlighted" aria-label="Thumbnail text">
+              <input class="ws-input" type="text" id="detailThumbText" maxlength="80" placeholder="Thumbnail text (empty: the AI's text, else the hook or the title); *word* is highlighted" aria-label="Thumbnail text">
+              <span class="ws-cutnote" id="detailThumbCut" hidden></span>
               <span class="ws-row-btns"><button class="btn sm" type="button" id="thumbMake">Make thumbnail</button>
                 <a class="btn sm" id="thumbDownload" download hidden>Download thumbnail</a></span>
             </div>

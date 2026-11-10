@@ -167,6 +167,7 @@ def with_missing_flags(clips: list[dict]) -> list[dict]:
         row.pop("fileMissing", None)
         row.pop("fileUrl", None)
         row.pop("thumbUrl", None)
+        row.pop("thumbCut", None)
         row["uploadsView"] = uploads_of(row)                 # derived on every read, never stored
         if row.get("file") and (row.get("projectId") or is_folder_row(row)):
             f = row_file(row)
@@ -174,6 +175,8 @@ def with_missing_flags(clips: list[dict]) -> list[dict]:
                 row["fileMissing"] = True
             elif url := file_url(f):
                 row["fileUrl"] = url
+                from . import thumbnail
+                row["thumbCut"] = thumbnail.text_info(row.get("thumbText"), row.get("title"), row.get("hook"), ai=row.get("thumb"))[1]   # derived: the text is a cut of the title or hook
                 if f.with_suffix(".jpg").is_file():           # made by render.write_thumbnail; older renders have none
                     row["thumbUrl"] = file_url(f.with_suffix(".jpg")) + f"&v={int(f.with_suffix('.jpg').stat().st_mtime)}"   # v: a new card shows at once
         out.append(row)
@@ -499,7 +502,7 @@ def description(post: dict | None, credit_lines: str = "") -> str:
 
 
 def upsert_render(*, project_id: str, result_id: str, title: str, file_name: str,
-                  post: dict | None, credit_lines: str, hook: str = "",
+                  post: dict | None, credit_lines: str, hook: str = "", thumb: str = "",
                   path: Path | None = None, lock: threading.Lock | None = None) -> tuple[str, bool]:
     """Make or update the schedule row of a finished render. Returns (row id,
     whether the row is new). Rows are found by project id + result id."""
@@ -511,6 +514,7 @@ def upsert_render(*, project_id: str, result_id: str, title: str, file_name: str
         "description": block,
         "tiktokCaption": block,
         "hook": " ".join(str(hook or "").split()),        # the clip's own line (an exact quote): the thumbnail text uses it
+        "thumb": " ".join(str(thumb or "").split()),      # the AI's own thumbnail text (thumbText stays the person's)
     }
     with (lock or CLIPS_LOCK):
         clips = load_clips(path)

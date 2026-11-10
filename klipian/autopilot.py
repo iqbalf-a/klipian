@@ -317,6 +317,10 @@ def build_result(cand: dict, template: dict, result_id: str, asset: str = "a1") 
     hook = " ".join(str(cand.get("hook") or "").split())
     if hook:                                                 # the clip's own line (an exact quote): the render and the Clips row carry it to the thumbnail text
         entry["hook"] = hook
+    from . import thumbnail
+    ai_thumb = thumbnail.clean_thumb(cand.get("thumb"))      # the AI's own thumbnail text
+    if ai_thumb:
+        entry["thumb"] = ai_thumb
     post = cand.get("post")
     if isinstance(post, dict):
         p = {"title": str(post.get("title") or "").strip(), "caption": str(post.get("caption") or "").strip(),

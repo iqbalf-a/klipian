@@ -311,6 +311,8 @@ dialog.confirm-dlg:has(.bulk-plan) { width: min(560px, calc(100vw - 32px)); }
 /* Clips table: the thumbnail is a fixed 9:16 box left of the title; every row has the same minimum height, with or without it */
 .ws-titlecell { display: flex; align-items: center; gap: 8px; min-height: 64px; }
 .ws-titletext { min-width: 0; flex: 1; }
+.ws-cutnote { display: inline-block; align-self: flex-start; margin-top: 3px; padding: 0 5px; font-size: 11px; line-height: 16px; color: var(--text-faint); border: 1px solid var(--glass-border, rgba(255,255,255,.15)); border-radius: 4px; }
+.ws-cutnote[hidden] { display: none; }
 .ws-rowthumb { flex: none; width: 36px; height: 64px; object-fit: cover; border: 1px solid var(--glass-border, rgba(255,255,255,.15)); border-radius: 5px; }
 /* Detail: the card in its real 9:16 shape on the left, its text and buttons on the right (stacked on narrow widths) */
 .ws-thumbdetail { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }

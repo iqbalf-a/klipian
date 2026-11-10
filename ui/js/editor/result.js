@@ -731,6 +731,12 @@ function tagResultWithImport(suggestions) {
   const slot = (typeof SAVED_RESULTS !== "undefined") ? SAVED_RESULTS.find((r) => r.id === activeResultId) : null;
   const first = suggestions.find((k) => k?.importId);
   if (slot && first && !slot.importId && RESULT.length && RESULT.every((r) => r.source === "ai")) slot.importId = first.importId;
+  // the first suggestion's own lines come along to the Result (render request -> Clips row -> thumbnail text), like the post text
+  const lines = suggestions.find((k) => k?.hook || k?.thumb);
+  if (slot && lines && RESULT.length && RESULT.every((r) => r.source === "ai")) {
+    if (lines.hook && !slot.hook) slot.hook = lines.hook;
+    if (lines.thumb && !slot.thumb) slot.thumb = lines.thumb;
+  }
   if (typeof renderAllResults === "function") renderAllResults();
 }
 

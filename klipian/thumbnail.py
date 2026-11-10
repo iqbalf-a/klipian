@@ -144,7 +144,7 @@ def fit_block(text: str, caps: bool, em: float, cap_px: float, room: float, max_
     return best[1], max(best[2], 1)
 
 
-STOP_WORDS = frozenset("di ke dari yang dan dengan untuk pada itu ini atau karena jadi tapi tetapi sama oleh dalam akan bisa juga saat ketika kalau jika agar supaya the a an of to in on and or for with".split())
+STOP_WORDS = frozenset("di ke dari yang dan dengan untuk pada itu ini atau karena jadi tapi tetapi oleh dalam saat ketika kalau jika agar supaya the a an of to in on and or for with".split())
 
 
 def cut_words(w: list[str], most: int, whole: int = 0, least: int = 2) -> list[str]:
@@ -169,11 +169,47 @@ def cut_hook(hook: str | None, most: int = 7) -> str:
     return " ".join(cut_words(w, most, least=3)).rstrip(",;:. ")
 
 
-def text_of(thumb: str | None, title: str | None, hook: str | None = None, words: int = 6) -> str:
-    """What the card says: the story's `thumb` or the row's `thumbText` when there is one; else the clip's own hook (4-7 words of what is really
-    said in it); else the title cut to six words. Nothing is made up."""
+def clean_thumb(raw) -> str:
+    """The AI's `thumb` text made safe: spaces collapsed, no hashtags, emoji or quotes, a trailing stop word dropped, at most 8 words and about 60
+    characters, `*...*` kept only when it is one balanced pair; "" (ignored) when fewer than 2 words are left."""
+    t = re.sub(r"#\S+", " ", str(raw or ""))
+    t = re.sub(r"[^\w\s*?!.,:%/&+\-]", " ", t)                    # emoji, quotes and other symbols
+    if t.count("*") != 2:
+        t = t.replace("*", "")
+    w = t.split()
+    if len(w) > 8:
+        w = cut_words(w, 8)
+    stop = lambda x: x.strip("*.,;:?!").lower() in STOP_WORDS
+    while w and stop(w[-1]):
+        w = w[:-1]
+    while len(" ".join(w)) > 60 and len(w) > 2:
+        w = w[:-1]
+        while w and stop(w[-1]):
+            w = w[:-1]
+    out = " ".join(w).rstrip(",;:. ")
+    return out if len(w) >= 2 and out.count("*") != 1 else ""
+
+
+def text_info(thumb: str | None, title: str | None, hook: str | None = None, words: int = 6, ai: str | None = None) -> tuple[str, bool]:
+    """(what the card says, whether it is a CUT of the title or hook). Order: the person's `thumbText` (or the story's `thumb`) > the AI's `thumb`
+    (`ai`) > the clip's own hook cut to 3-7 words > the title (kept whole up to 8 words, else cut). Only the last two can be a cut."""
     t = " ".join(str(thumb or "").split())
-    return t or cut_hook(hook) or " ".join(cut_words(re.sub(r"#\S+", " ", str(title or "")).split(), words, whole=8)).rstrip(",;:. ")
+    if t:
+        return t, False
+    a = clean_thumb(ai)
+    if a:
+        return a, False
+    h = cut_hook(hook)
+    if h:
+        return h, len(h.split()) < len(str(hook or "").replace("#", " ").split())
+    plain = re.sub(r"#\S+", " ", str(title or "")).split()
+    out = " ".join(cut_words(plain, words, whole=8)).rstrip(",;:. ")
+    return out, len(out.split()) < len(plain)
+
+
+def text_of(thumb: str | None, title: str | None, hook: str | None = None, words: int = 6, ai: str | None = None) -> str:
+    """What the card says, see text_info. Nothing is made up."""
+    return text_info(thumb, title, hook, words, ai)[0]
 
 
 # --- which frame, and where the text goes -----------------------------------------------------------------------------------------------
@@ -340,7 +376,7 @@ def sample_text(video: Path | None) -> str:
     if video is not None:
         row = next((r for r in schedule.load_clips() if r.get("file") == video.name), None)
         if row:
-            return text_of(row.get("thumbText"), row.get("title"), row.get("hook"))
+            return text_of(row.get("thumbText"), row.get("title"), row.get("hook"), ai=row.get("thumb"))
         return text_of(None, video.stem.replace("-", " ").replace("_", " "))
     return "Gurita punya *3 jantung*?" if "intip" in paths.current_profile() else "Dia ngomong gini di depan *semua orang*"
 
