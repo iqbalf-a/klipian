@@ -308,8 +308,16 @@ dialog.confirm-dlg:has(.bulk-plan) { width: min(560px, calc(100vw - 32px)); }
 @media (max-width: 600px) { .ws-search { flex: 1 1 100%; width: 100%; } }
 
 /* upload marks per platform (js/workspace/clips.js): small bordered chips, the state in words */
-.ws-thumb { display: block; height: 64px; width: auto; margin-top: 4px; border: 1px solid var(--glass-border, rgba(255,255,255,.15)); border-radius: var(--r-s); }
-.ws-thumbrow { display: flex; align-items: flex-end; gap: 6px; }
+/* Clips table: the thumbnail is a fixed 9:16 box left of the title; every row has the same minimum height, with or without it */
+.ws-titlecell { display: flex; align-items: center; gap: 8px; min-height: 64px; }
+.ws-titletext { min-width: 0; flex: 1; }
+.ws-rowthumb { flex: none; width: 36px; height: 64px; object-fit: cover; border: 1px solid var(--glass-border, rgba(255,255,255,.15)); border-radius: 5px; }
+/* Detail: the card in its real 9:16 shape on the left, its text and buttons on the right (stacked on narrow widths) */
+.ws-thumbdetail { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+.ws-thumbdetail .ws-thumb { flex: none; width: auto; height: 240px; aspect-ratio: 9 / 16; object-fit: contain; border: 1px solid var(--glass-border, rgba(255,255,255,.15)); border-radius: 6px; }
+.ws-thumbside { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.ws-thumbnone[hidden] { display: none; }
+.ws-thumbnone { flex: none; width: 135px; height: 240px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 8px; border: 1px dashed var(--glass-border, rgba(255,255,255,.15)); border-radius: 6px; }
 .ws-upchips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .ws-upchip[data-state="done"] { color: var(--text); border-color: var(--accent); }
 .ws-upchip[data-state="scheduled"] { color: var(--text); border-style: dashed; }

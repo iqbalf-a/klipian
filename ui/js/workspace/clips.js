@@ -183,7 +183,7 @@ function row(c) {
           ${opt(STATUS, c.status || "Draft")}
         </select>${warnChipHTML(c)}
       </td>
-      <td class="${td}">${f("title")}${goneTagHTML(c)}${fileLineHTML(c)}${c.thumbUrl ? `<div class="ws-thumbrow"><img class="ws-thumb" src="${escapeHTML(c.thumbUrl)}" alt="Thumbnail: ${who}" loading="lazy"><a class="btn sm" href="${escapeHTML(c.thumbUrl)}" download="${escapeHTML((c.title || "thumbnail").slice(0, 60))}.jpg" title="Download the thumbnail (for TikTok or Instagram)">Download</a></div>` : ""}</td>
+      <td class="${td}"><div class="ws-titlecell">${c.thumbUrl ? `<img class="ws-rowthumb" src="${escapeHTML(c.thumbUrl)}" alt="Thumbnail: ${who}" loading="lazy">` : ""}<div class="ws-titletext">${f("title")}${goneTagHTML(c)}${fileLineHTML(c)}</div></div></td>
       <td class="${td}"><select class="ws-input" data-field="platform" aria-label="Platform: ${who}">${opt(PLATFORM, c.platform || "YouTube + TikTok")}</select>
         <div class="ws-upchips" role="group" aria-label="Status upload: ${who}">${upChipsHTML(c)}</div></td>
       <td class="${td}">${f("date", "date")}</td>
