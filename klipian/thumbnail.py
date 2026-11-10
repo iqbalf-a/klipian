@@ -106,7 +106,8 @@ def write(video: Path, text: str | None = None, style: dict | None = None, at: f
         room = 0.70 * W                                          # the centre 70%: a 16:9 centre crop still reads
         wrap = lambda size: lines_of(text, int(room / (FONT_EM[s["font"]] * size)), s["caps"])
         lines = wrap(fs) if text and font else []
-        while len(lines) > s["lines"] and fs > 0.04 * W:         # fewer lines: a little smaller until it fits
+        too_wide = lambda: lines and max(len(t) for t, _ in lines) * FONT_EM[s["font"]] * fs > room      # one long word does not break
+        while (len(lines) > s["lines"] or too_wide()) and fs > 0.03 * W:      # smaller until it fits
             fs = int(fs * 0.92)
             lines = wrap(fs)
         if lines:
