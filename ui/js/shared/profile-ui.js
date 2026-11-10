@@ -69,7 +69,7 @@
     dlg.className = "profile-settings";
     const d = meta?.defaults || {};
     const canPreset = typeof captionState === "function";
-    const tabs = [["general", "General"], ["clips", "Clips & posts"], ["youtube", "YouTube"], ...(isGuest ? [] : [["claude", "Claude API"]]), ["computer", "This computer"]];
+    const tabs = [["general", "General"], ["clips", "Clips & posts"], ...(isGuest ? [] : [["thumbnail", "Thumbnail"]]), ["youtube", "YouTube"], ...(isGuest ? [] : [["claude", "Claude API"]]), ["computer", "This computer"]];
     const first = tabs.some(([k]) => k === (tab || lastTab)) ? (tab || lastTab) : "general";
     const panel = (key, html) => `<div class="ps-panel" role="tabpanel" id="pstp-${key}" aria-labelledby="pst-${key}" tabindex="-1"${key === first ? "" : " hidden"}>
 ${html}      </div>`;
@@ -116,6 +116,27 @@ ${html}      </div>`;
         <label class="check"><input type="checkbox" name="addShorts"${d.addShorts ? " checked" : ""}> Add #shorts to the title</label>
         ${canPreset ? `<p class="note">Caption look: ${d.captionPreset ? "a default is saved." : "none saved yet."}
           <button class="btn quiet" type="button" data-pm="preset">Use the current caption look as this profile's default</button></p>` : ""}
+`)}
+            ${isGuest ? "" : panel("thumbnail", `        <section class="yt-box" id="thumbBox" aria-label="Thumbnail style">
+          <h3>Thumbnail style <small>(the card made for every video of this profile)</small></h3>
+          <div class="th-grid">
+            <label>Font <select name="th_font"><option value="mona">Mona Sans ExtraBold</option><option value="arialblack">Arial Black</option><option value="impact">Impact</option><option value="arial">Arial Bold</option><option value="verdana">Verdana Bold</option></select></label>
+            <label>Size (% of width) <input type="number" name="th_size" min="4" max="14" step="0.5"></label>
+            <label>Text colour <input type="color" name="th_color"></label>
+            <label>Highlight colour (*word*) <input type="color" name="th_accent"></label>
+            <label>Outline colour <input type="color" name="th_outlineColor"></label>
+            <label>Outline width (0 = none) <input type="number" name="th_outline" min="0" max="20" step="1"></label>
+            <label>Position <select name="th_position"><option value="top">Top</option><option value="middle">Middle</option><option value="lower">Lower third</option></select></label>
+            <label>Align <select name="th_align"><option value="left">Left</option><option value="center">Centre</option></select></label>
+            <label>Bottom gradient (0 = off) <input type="number" name="th_gradient" min="0" max="1" step="0.05"></label>
+            <label>Max lines <select name="th_lines"><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
+            <label class="check"><input type="checkbox" name="th_caps"> ALL CAPS</label>
+          </div>
+          <label>Sample text <input type="text" id="thText" maxlength="80" value="Dia ngomong gini di depan *semua orang*"></label>
+          <div class="row yt-actions"><button class="btn quiet" type="button" id="thReset">Reset to default</button></div>
+          <img class="th-preview" id="thPreview" alt="Thumbnail preview" hidden>
+          <p class="note" id="thMsg" role="status">The preview uses this profile's newest rendered video (a plain frame if it has none). Kept with Save.</p>
+        </section>
 `)}
             ${panel("youtube", `        <section class="yt-box" id="ytBox" aria-label="YouTube account">
           <h3>YouTube account</h3>
@@ -215,7 +236,8 @@ ${html}      </div>`;
       try {
         const j = await post("/api/profiles/update", { id: PROFILE, name: f.name, color: f.color,
           defaults: { watermark: f.watermark, rubric: f.rubric, hashtagPlacement: f.hashtagPlacement,
-            titleTags: Number(f.titleTags), addShorts: !!f.addShorts } });
+            titleTags: Number(f.titleTags), addShorts: !!f.addShorts },
+          ...(isGuest ? {} : { thumbStyle: thumbChanges(dlg) }) });
         meta = j.profile;
         draw();
       } catch (err) {
@@ -236,9 +258,51 @@ ${html}      </div>`;
     dlg.showModal();
     youTubeSection(dlg);
     machineSection(dlg);
-    if (!isGuest) claudeSection(dlg);
+    if (!isGuest) { claudeSection(dlg); thumbSection(dlg); }
     rubricSection(dlg).finally(() => { saved = formState(); });      // the rubric list fills the select: that is not a change
     return dlg;
+  }
+
+  /* ---- the thumbnail style: the form fields th_*, the live preview (the server draws it with the same code as the real card) ---- */
+  const TH_NUM = ["size", "outline", "gradient"], TH_SEL = ["font", "position", "align"], TH_COL = ["color", "accent", "outlineColor"];
+  function thumbForm(dlg) {
+    const g = (n) => dlg.querySelector(`[name="th_${n}"]`), o = {};
+    for (const n of TH_NUM) if (g(n).value !== "") o[n] = Number(g(n).value);
+    for (const n of [...TH_SEL, ...TH_COL]) o[n] = g(n).value;
+    o.lines = Number(g("lines").value); o.caps = g("caps").checked;
+    return o;
+  }
+  /* only what differs from the profile's default is saved: a later change of the default reaches a profile that did not touch it */
+  function thumbChanges(dlg) {
+    const cur = thumbForm(dlg), def = meta?.thumbDefault || {}, out = {};
+    for (const k of Object.keys(cur)) if (String(cur[k]).toLowerCase() !== String(def[k]).toLowerCase()) out[k] = cur[k];       // a colour input answers in lower case
+    return out;
+  }
+  function thumbSection(dlg) {
+    const g = (n) => dlg.querySelector(`[name="th_${n}"]`), img = dlg.querySelector("#thPreview"), msg = dlg.querySelector("#thMsg");
+    const fill = (st) => {
+      for (const n of [...TH_NUM, ...TH_SEL, ...TH_COL, "lines"]) g(n).value = String(st[n]);
+      g("caps").checked = !!st.caps;
+    };
+    fill({ ...(meta?.thumbDefault || {}), ...(meta?.thumbStyle || {}) });
+    let timer = 0, seq = 0, url = "";
+    const draw = async () => {
+      const mine = ++seq;
+      try {
+        const r = await fetch("/api/thumbnail/preview", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ style: thumbForm(dlg), text: dlg.querySelector("#thText").value }) });
+        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "no preview");
+        const blob = await r.blob();
+        if (mine !== seq) return;                                   // a newer change is already on its way
+        if (url) URL.revokeObjectURL(url);
+        url = URL.createObjectURL(blob); img.src = url; img.hidden = false;
+      } catch (err) { img.hidden = true; msg.textContent = `No preview: ${err.message}`; }
+    };
+    const later = () => { clearTimeout(timer); timer = setTimeout(draw, 350); };       // debounced
+    dlg.querySelector("#thumbBox").addEventListener("input", later);
+    dlg.querySelector("#thReset").addEventListener("click", () => { fill(meta?.thumbDefault || {}); later(); });
+    dlg.addEventListener("close", () => { if (url) URL.revokeObjectURL(url); });
+    draw();
   }
 
   /* ---- settings of this computer, not of the profile (workspace/machine.json) ---- */

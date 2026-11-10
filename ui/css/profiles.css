@@ -154,3 +154,8 @@ html[data-guest="true"] .guest-hidden { display: none !important; }
 .picker-guide a { color: var(--text-muted); text-decoration: underline; text-underline-offset: 2px; }
 .picker-guide a:hover { color: var(--text); }
 .yt-guide { margin-left: 6px; white-space: nowrap; color: var(--accent); }
+
+/* Thumbnail style: the fields in two columns, the preview at a small fixed size */
+.th-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+.th-grid label.check { grid-column: 1 / -1; }
+.th-preview { display: block; height: 320px; width: auto; align-self: flex-start; border: 1px solid var(--glass-border); border-radius: var(--r-s); }

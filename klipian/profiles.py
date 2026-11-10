@@ -64,6 +64,11 @@ def _clean_thumb(raw) -> dict:
     return clean_style(raw)                                   # only valid settings; none = the default look of the profile's kind
 
 
+def _default_thumb(pid: str) -> dict:
+    from .thumbnail import default_style
+    return default_style(pid)
+
+
 def write_meta(pid: str, meta: dict) -> None:
     """Write profile.json (name, colour, defaults); the Guest and the Admin have none."""
     if pid in (GUEST, ADMIN):
@@ -104,6 +109,7 @@ def read_meta(pid: str) -> dict | None:
     return {"id": pid, "name": str(data.get("name") or pid), "color": str(data.get("color") or DEFAULT_COLORS[0]),
             "guest": False, "defaults": data.get("defaults") if isinstance(data.get("defaults"), dict) else {},
             "template": str(data.get("autopilotTemplate") or "default"),      # its Autopilot template (autopilot.py)
+            "thumbDefault": _default_thumb(pid),                              # the look it has when nothing is saved (the settings form resets to it)
             "thumbStyle": _clean_thumb(data.get("thumbStyle")),               # what differs from the default thumbnail look (thumbnail.py)
             "uploadTools": _clean_tools(data.get("uploadTools")),             # the platforms with upload tools for this channel (none: marking by hand only)
             "ai": str(data.get("autopilotAi") or "manual")}                   # and who picks the clips: manual | claude | gemini
