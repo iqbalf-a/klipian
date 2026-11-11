@@ -2793,7 +2793,20 @@ def check_upload() -> tuple[str, str]:
         if not inf.get("text") or inf2.get("text") != "Teks saya":
             problems.append(f"the preview says the video's own text when the box is empty and the typed text otherwise: {inf} {inf2}")
         sent: list = []
-        FakeNet.set_thumbnail = classmethod(lambda cls, token, vid, img: sent.append((vid, img.name)))
+        order: list = []                                         # "p" = a look at the processing state, "s" = thumbnails.set
+        seq: list = ["processing", "processing", "succeeded"]
+        real_bg, real_sleep = youtube._background, youtube._sleep
+        youtube._background, youtube._sleep = (lambda fn: fn()), (lambda sec: None)         # the wait and the set run at once
+
+        def fake_set(cls, token, vid, img):
+            order.append("s")
+            sent.append((vid, img.name))
+
+        def fake_processing(cls, token, vid):
+            order.append("p")
+            return {"state": seq.pop(0) if len(seq) > 1 else seq[0], "thumb": f"u{order.count('s')}"}      # a new picture URL after each set
+        FakeNet.set_thumbnail = classmethod(fake_set)
+        FakeNet.processing = classmethod(fake_processing)
         rt = row(title="With Thumbnail")
         shutil.copy2(th, (folder / schedule.get_row(rt)["file"]).with_suffix(".jpg"))
         def run_upload(r):
@@ -2805,17 +2818,49 @@ def check_upload() -> tuple[str, str]:
                 time.sleep(0.05)
             return s
         st_t = run_upload(rt)
-        if st_t.get("state") != "done" or len(sent) != 1 or sent[0][0] != st_t.get("videoId") or st_t.get("warning"):
-            problems.append(f"the thumbnail was not sent after the upload: {st_t} {sent}")
+        first_set = order.index("s") if "s" in order else -1
+        if st_t.get("state") != "done" or len(sent) != 1 or sent[0][0] != st_t.get("videoId") or st_t.get("warning") \
+                or first_set != 3 or order[:3] != ["p", "p", "p"] or schedule.get_row(rt).get("thumbNote") != "":
+            problems.append(f"thumbnails.set must come only after processingStatus=succeeded (3 looks, then one set, then one look): {order} {sent} {st_t} {schedule.get_row(rt).get('thumbNote')!r}")
+        # never succeeds: no thumbnails.set at all, and it is said on the row, not a failure of the upload
+        order.clear(); sent.clear(); seq[:] = ["processing"]
+        rt_p = row(title="Still Processing")
+        shutil.copy2(th, (folder / schedule.get_row(rt_p)["file"]).with_suffix(".jpg"))
+        st_p = run_upload(rt_p)
+        if st_p.get("state") != "done" or sent or "still processing" not in (schedule.get_row(rt_p).get("thumbNote") or ""):
+            problems.append(f"a video that never finishes processing gets no thumbnails.set and a note: {st_p} {sent} {schedule.get_row(rt_p).get('thumbNote')!r}")
+        # refused (403): a warning on the row, the upload is fine
+        order.clear(); sent.clear(); seq[:] = ["succeeded"]
         def deny(cls, token, vid, img):
+            order.append("s")
             raise youtube.map_http_error(403, "forbidden", "no custom thumbnails")
         FakeNet.set_thumbnail = classmethod(deny)
         rt2 = row(title="Thumb Denied")
         shutil.copy2(th, (folder / schedule.get_row(rt2)["file"]).with_suffix(".jpg"))
         st_d = run_upload(rt2)
-        if st_d.get("state") != "done" or schedule.get_row(rt2).get("status") != "Scheduled" or "verif" not in (st_d.get("warning") or ""):
-            problems.append(f"a refused thumbnail failed the upload or was not explained: {st_d}")
-        del FakeNet.set_thumbnail
+        if st_d.get("state") != "done" or schedule.get_row(rt2).get("status") != "Scheduled" or "verif" not in (schedule.get_row(rt2).get("thumbNote") or ""):
+            problems.append(f"a refused thumbnail failed the upload or was not explained: {st_d} {schedule.get_row(rt2).get('thumbNote')!r}")
+        # Re-send thumbnail: one look then one set; still processing -> no set; the same URL after the set -> a hint to check Studio
+        FakeNet.set_thumbnail = classmethod(fake_set)
+        order.clear(); sent.clear(); seq[:] = ["succeeded"]
+        got = youtube.resend_thumbnail(rt)
+        if got.get("warning") or order != ["p", "s", "p"] or len(sent) != 1:
+            problems.append(f"Re-send thumbnail: one look, one set, one look: {order} {got}")
+        order.clear(); sent.clear(); seq[:] = ["processing"]
+        got = youtube.resend_thumbnail(rt)
+        if sent or "still processing" not in got.get("warning", ""):
+            problems.append(f"Re-send while YouTube is still processing sends nothing and says so: {sent} {got}")
+        order.clear(); sent.clear(); seq[:] = ["succeeded"]
+        FakeNet.processing = classmethod(lambda cls, token, vid: {"state": "succeeded", "thumb": "same"})
+        if "old picture" not in youtube.resend_thumbnail(rt).get("warning", ""):
+            problems.append("a thumbnail URL that did not change is said as a hint, not hidden")
+        try:
+            youtube.resend_thumbnail(rid + "x")
+            problems.append("Re-send thumbnail for a row that is not uploaded should be refused")
+        except youtube.YouTubeError:
+            pass
+        youtube._background, youtube._sleep = real_bg, real_sleep
+        del FakeNet.set_thumbnail, FakeNet.processing
         if "thumbUrl" not in schedule.with_missing_flags([schedule.get_row(rt)])[0] or "thumbUrl" in schedule.with_missing_flags([schedule.get_row(rid)])[0]:
             problems.append("thumbUrl should be on a row with a JPG and only then")
 

@@ -792,11 +792,26 @@ function drawThumbBox(c) {
   img.hidden = !has; none.hidden = has; dl.hidden = !has;
   if (has) { img.src = c.thumbUrl; dl.href = c.thumbUrl; dl.download = `${(c.title || "thumbnail").slice(0, 60)}.jpg`; }
   $("#detailThumbText").value = c.thumbText || "";
+  const resend = $("#thumbResend"), tnote = $("#detailThumbNote");
+  resend.hidden = !(c.videoId && has);                         // only a clip that is on YouTube and has a picture
+  tnote.hidden = !c.thumbNote; tnote.textContent = c.thumbNote || "";
   const cut = $("#detailThumbCut");
   cut.hidden = !c.thumbCut;
   if (c.thumbCut) cut.textContent = `Text cut: check it. Full title: ${c.title || ""}`;
   $("#thumbBox").hidden = !c.fileUrl;                          // no video file, no thumbnail
 }
+
+$("#thumbResend")?.addEventListener("click", async (e) => {
+  const btn = e.currentTarget, id = clipDialog.dataset.id;
+  btn.disabled = true; btn.textContent = "Sending...";
+  try {
+    const j = await (await fetch("/api/youtube/resend-thumbnail", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ row: id }) })).json();
+    if (j.error) throw new Error(j.error);
+    detailNote(j.warning || "Thumbnail sent to YouTube. It can take a few minutes to show.");
+    $("#detailThumbNote").hidden = !j.warning; $("#detailThumbNote").textContent = j.warning || "";
+  } catch (ex) { detailNote(ex.message || "The thumbnail could not be sent."); }
+  btn.disabled = false; btn.textContent = "Re-send thumbnail";
+});
 
 $("#thumbMake")?.addEventListener("click", async (e) => {
   const btn = e.currentTarget, id = clipDialog.dataset.id;

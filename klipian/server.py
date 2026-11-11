@@ -974,6 +974,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._youtube_reply(lambda: {"id": _youtube.start_upload(str(req.get("row") or ""), bool(req.get("publishNow")))})
         if action == "upload-cancel":
             return self._youtube_reply(lambda: _youtube.cancel_upload(str(req.get("id") or "")))
+        if action == "resend-thumbnail":
+            return self._youtube_reply(lambda: _youtube.resend_thumbnail(str(req.get("row") or "")))
         if action == "video-status":
             return self._youtube_reply(lambda: _youtube.video_status(str(req.get("row") or "")))
         if action == "disconnect":
@@ -2666,6 +2668,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/youtube/connect": _post_youtube,
         "/api/youtube/check": _post_youtube,
         "/api/youtube/upload": _post_youtube,
+        "/api/youtube/resend-thumbnail": _post_youtube,
         "/api/youtube/bulk-plan": _post_youtube,
         "/api/youtube/bulk-start": _post_youtube,
         "/api/youtube/bulk-cancel": _post_youtube,

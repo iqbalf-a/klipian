@@ -285,6 +285,31 @@ class _Net:
             raise YouTubeError("offline", "Could not reach Google.") from None
 
     @staticmethod
+    def processing(token: dict, video_id: str) -> dict:
+        """videos.list part=processingDetails,snippet (1 unit) -> {state: processing|succeeded|failed|terminated, thumb: the biggest
+        thumbnail URL}; {"gone": True} when YouTube does not return the video."""
+        try:
+            from googleapiclient.discovery import build
+            from googleapiclient.errors import HttpError
+            from google.oauth2.credentials import Credentials
+        except ImportError:
+            raise YouTubeError("no_library", "Install the YouTube packages.") from None
+        creds = Credentials.from_authorized_user_info(token, list(SCOPES))
+        try:
+            reply = build("youtube", "v3", credentials=creds, cache_discovery=False).videos().list(
+                part="processingDetails,snippet", id=video_id).execute()
+        except HttpError as exc:
+            raise _http_error(exc) from None
+        except OSError:
+            raise YouTubeError("offline", "Could not reach Google.") from None
+        items = reply.get("items") or []
+        if not items:
+            return {"gone": True}
+        sizes = ((items[0].get("snippet") or {}).get("thumbnails") or {}).values()
+        best = max(sizes, key=lambda t: (t.get("width") or 0) * (t.get("height") or 0), default={})
+        return {"state": (items[0].get("processingDetails") or {}).get("processingStatus") or "processing", "thumb": best.get("url") or ""}
+
+    @staticmethod
     def video_statuses(token: dict, video_ids: list[str]) -> dict:
         """videos.list part=status for up to 50 videos in ONE call (1 quota unit) ->
         {id: {privacy, upload, publishAt, rejection}}; an id YouTube does not return is {"gone": True}."""
@@ -797,12 +822,9 @@ def _do_upload(row: dict, spec: dict, token: dict, progress, cancelled) -> dict:
     warning = ""
     thumb = Path(spec["file"]).with_suffix(".jpg")       # written by render.py next to the video
     if thumb.is_file():
-        try:
-            _net.set_thumbnail(token, video_id, thumb)
-        except YouTubeError as exc:                       # the video is up: a thumbnail problem is only a warning
-            warning = ("The video was uploaded but its thumbnail was not set. "
-                       + ("YouTube only allows custom thumbnails on a phone-verified channel: verify it at youtube.com/verify."
-                          if exc.extra.get("status") == 403 else exc.message)) + " "
+        # NOT right now: a thumbnail set while YouTube is still processing is replaced by an auto frame when it finishes (seen on a real
+        # video). So it waits for processingStatus=succeeded in the background and the queue goes on; the outcome is on the row (thumbNote).
+        _background(lambda: _thumbnail_job(row["id"], token, video_id, thumb))
     try:
         got = _net.video_status(token, video_id)
         if spec["publishAt"] and not got.get("publishAt") and got.get("privacy") == "private":
@@ -824,6 +846,86 @@ def _do_upload(row: dict, spec: dict, token: dict, progress, cancelled) -> dict:
         fields["date"], fields["time"] = now.strftime("%Y-%m-%d"), now.strftime("%H:%M")
     schedule.set_fields(row["id"], fields)
     return {"videoId": video_id, "url": fields["youtubeUrl"], "status": fields["status"], "warning": warning.strip()}
+
+
+_THUMB_WAITS = (5, 10, 20, 30, 30, 30, 60, 60, 60, 60, 60, 60)      # seconds before each look at the processing state: about 7 minutes in all
+
+
+def _background(fn) -> None:
+    """Run `fn` in its own thread with the caller's profile (a seam: the selftest runs it at once)."""
+    import contextvars
+    threading.Thread(target=contextvars.copy_context().run, args=(fn,), daemon=True).start()
+
+
+def _thumbnail_note(exc: YouTubeError) -> str:
+    return ("YouTube only allows custom thumbnails on a phone-verified channel: verify it at youtube.com/verify."
+            if exc.extra.get("status") == 403 else exc.message)
+
+
+def send_thumbnail(token: dict, video_id: str, image: Path, waits: tuple = _THUMB_WAITS) -> str:
+    """Wait (looking at `waits`) until YouTube has finished processing the video, then set its thumbnail once (50 units) and look again.
+    Returns "" when it went through, else a sentence saying why not. Never raises for a YouTube problem (the video is up: only a warning).
+    shortcut: the API cannot say whether a thumbnail is custom or an auto frame, so "went through" means thumbnails.set answered ok and the
+    biggest thumbnail URL changed; if it did not change yet that is said as a hint to check Studio, not as a failure."""
+    state: dict = {}
+    for i, wait in enumerate((0,) + tuple(waits)):
+        if wait:
+            _sleep(wait)
+        try:
+            state = _net.processing(token, video_id)
+        except YouTubeError as exc:
+            if i == len(waits):
+                return f"The thumbnail was not set: {exc.message}"
+            continue                                       # a hiccup: look again at the next wait
+        if state.get("gone"):
+            return "The thumbnail was not set: YouTube does not have this video any more."
+        if state.get("state") == "succeeded":
+            break
+        if state.get("state") in ("failed", "terminated", "rejected"):
+            return "The thumbnail was not set: YouTube could not process the video."
+    else:
+        return ("The thumbnail was not set: YouTube was still processing the video. "
+                "Press Re-send thumbnail in the clip's Detail a little later.")
+    try:
+        _net.set_thumbnail(token, video_id, image)
+    except YouTubeError as exc:
+        return "The video was uploaded but its thumbnail was not set. " + _thumbnail_note(exc)
+    try:
+        after = _net.processing(token, video_id).get("thumb")
+    except YouTubeError:
+        return ""
+    if after and after == state.get("thumb"):
+        return "Thumbnail sent, but YouTube still shows the old picture. It can take a few minutes: check Studio, or press Re-send thumbnail."
+    return ""
+
+
+def _thumbnail_job(row_id: str, token: dict, video_id: str, image: Path) -> None:
+    from . import schedule
+    _WHAT.set(f"thumbnail of video {video_id} (row {row_id})")
+    try:
+        note = send_thumbnail(token, video_id, image)
+    except Exception as exc:                               # noqa: BLE001  (a thread must not die silently)
+        note = f"The thumbnail was not set ({type(exc).__name__})."
+    schedule.set_fields(row_id, {"thumbNote": note})
+
+
+def resend_thumbnail(row_id: str) -> dict:
+    """The "Re-send thumbnail" button: set the clip's JPG on its YouTube video again (one thumbnails.set, 50 units). Only on a press."""
+    from . import schedule
+    if paths.current_profile() == GUEST:
+        raise YouTubeError("none", "The Guest has no YouTube account.")
+    row = schedule.get_row(row_id)
+    if row is None or not row.get("videoId"):
+        raise YouTubeError("not_ready", "This clip has not been uploaded to YouTube.")
+    f = schedule.row_file(row)
+    image = f.with_suffix(".jpg") if f else None
+    if image is None or not image.is_file():
+        raise YouTubeError("not_ready", "This clip has no thumbnail picture yet: press Make thumbnail first.")
+    saved = require_linked()
+    _WHAT.set(f"re-send thumbnail of video {row['videoId']} (row {row_id})")
+    note = send_thumbnail(saved["token"], row["videoId"], image, waits=())      # one look: if it is still processing, say so
+    schedule.set_fields(row_id, {"thumbNote": note})
+    return {"warning": note}
 
 
 def start_upload(row_id: str, publish_now: bool = False) -> str:

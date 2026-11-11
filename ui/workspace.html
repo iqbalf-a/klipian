@@ -230,7 +230,9 @@
               <input class="ws-input" type="text" id="detailThumbText" maxlength="80" placeholder="Thumbnail text (empty: the AI's text, else the hook or the title); *word* is highlighted" aria-label="Thumbnail text">
               <span class="ws-cutnote" id="detailThumbCut" hidden></span>
               <span class="ws-row-btns"><button class="btn sm" type="button" id="thumbMake">Make thumbnail</button>
-                <a class="btn sm" id="thumbDownload" download hidden>Download thumbnail</a></span>
+                <a class="btn sm" id="thumbDownload" download hidden>Download thumbnail</a>
+                <button class="btn sm" type="button" id="thumbResend" hidden title="Sends this picture to the video on YouTube again (50 of the day's quota units). Only when you press it.">Re-send thumbnail</button></span>
+              <span class="text-[12px] text-text-faint" id="detailThumbNote" role="status" hidden></span>
             </div>
           </div>
         </div>
