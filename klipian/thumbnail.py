@@ -288,6 +288,7 @@ def write(video: Path, text: str | None = None, style: dict | None = None, at: f
     from .ffmpeg_tools import probe, run
     thumb = out or video.with_suffix(".jpg")
     tmp: list[Path] = []
+    err = "the picture is over 2 MB even at the coarsest quality"
     try:
         s = {**default_style(), **(style if style is not None else style_of())}
         info_v = probe(video)
@@ -360,13 +361,36 @@ def write(video: Path, text: str | None = None, style: dict | None = None, at: f
                  *(["-filter_complex", graph] if vf is None else ["-vf", ",".join(vf)] if vf else []), "-frames:v", "1", "-q:v", str(q), str(thumb)], desc="making the thumbnail", timeout=60)
             if thumb.stat().st_size <= THUMB_MAX_BYTES:
                 return thumb
-    except Exception:                                            # noqa: BLE001
-        pass
+    except Exception as exc:                                     # noqa: BLE001  (never fails a render, but the reason is kept)
+        err = _log_error(video, exc)
     finally:
         for f in tmp:
             f.unlink(missing_ok=True)
+    if info is not None:
+        info["error"] = err                                      # why there is no picture (the caller shows it)
     thumb.unlink(missing_ok=True)
     return None
+
+
+def _log_error(video: Path, exc: BaseException) -> str:
+    """Keep why a thumbnail could not be made: the server console and this profile's thumbnail.log (ffmpeg's own message is in the exception;
+    redacted like the YouTube log). Returns a one-line reason."""
+    import sys
+    import time
+    import traceback
+    from . import paths
+    from .youtube import _redact
+    said = _redact("".join(traceback.format_exception_only(type(exc), exc)).strip())
+    where = _redact("".join(traceback.format_tb(exc.__traceback__)[-3:]).strip())
+    stamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[thumbnail] {stamp} {video.name}: {said.splitlines()[0] if said else type(exc).__name__}", file=sys.stderr, flush=True)
+    try:
+        log = Path(paths.profile_dir()) / "thumbnail.log"
+        old = log.read_text(encoding="utf-8")[-60000:] if log.is_file() else ""
+        log.write_text(old + f"{stamp} {video.name}\n{said[-1500:]}\n{where}\n\n", encoding="utf-8")
+    except OSError:
+        pass
+    return " ".join(said.split())[-160:] or type(exc).__name__
 
 
 def sample_text(video: Path | None) -> str:

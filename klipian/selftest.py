@@ -2792,6 +2792,12 @@ def check_upload() -> tuple[str, str]:
         thumb.preview(None, "Teks  saya", inf2)
         if not inf.get("text") or inf2.get("text") != "Teks saya":
             problems.append(f"the preview says the video's own text when the box is empty and the typed text otherwise: {inf} {inf2}")
+        bad = Path(tempfile.mkdtemp()) / "nope.mp4"
+        bad.write_bytes(b"not a video")
+        einfo: dict = {}
+        if thumb.write(bad, "Teks") is not None or not einfo == {} or not (thumb.write(bad, "Teks", info=einfo) is None and einfo.get("error")) \
+                or not (Path(paths.profile_dir()) / "thumbnail.log").is_file():
+            problems.append(f"thumbnail.write on a file that is not a video returns None, hands the reason back (info['error']) and logs it: {einfo}")
         sent: list = []
         order: list = []                                         # "p" = a look at the processing state, "s" = thumbnails.set
         seq: list = ["processing", "processing", "succeeded"]
@@ -2804,7 +2810,7 @@ def check_upload() -> tuple[str, str]:
 
         def fake_processing(cls, token, vid):
             order.append("p")
-            return {"state": seq.pop(0) if len(seq) > 1 else seq[0], "thumb": f"u{order.count('s')}"}      # a new picture URL after each set
+            return {"state": seq.pop(0) if len(seq) > 1 else seq[0], "thumb": "same"}
         FakeNet.set_thumbnail = classmethod(fake_set)
         FakeNet.processing = classmethod(fake_processing)
         rt = row(title="With Thumbnail")
@@ -2820,8 +2826,8 @@ def check_upload() -> tuple[str, str]:
         st_t = run_upload(rt)
         first_set = order.index("s") if "s" in order else -1
         if st_t.get("state") != "done" or len(sent) != 1 or sent[0][0] != st_t.get("videoId") or st_t.get("warning") \
-                or first_set != 3 or order[:3] != ["p", "p", "p"] or schedule.get_row(rt).get("thumbNote") != "":
-            problems.append(f"thumbnails.set must come only after processingStatus=succeeded (3 looks, then one set, then one look): {order} {sent} {st_t} {schedule.get_row(rt).get('thumbNote')!r}")
+                or order != ["p", "p", "p", "s"] or schedule.get_row(rt).get("thumbNote") != "":
+            problems.append(f"thumbnails.set must come only after processingStatus=succeeded (3 looks, then one set, no check after it, the same URL is no failure): {order} {sent} {st_t} {schedule.get_row(rt).get('thumbNote')!r}")
         # never succeeds: no thumbnails.set at all, and it is said on the row, not a failure of the upload
         order.clear(); sent.clear(); seq[:] = ["processing"]
         rt_p = row(title="Still Processing")
@@ -2840,20 +2846,16 @@ def check_upload() -> tuple[str, str]:
         st_d = run_upload(rt2)
         if st_d.get("state") != "done" or schedule.get_row(rt2).get("status") != "Scheduled" or "verif" not in (schedule.get_row(rt2).get("thumbNote") or ""):
             problems.append(f"a refused thumbnail failed the upload or was not explained: {st_d} {schedule.get_row(rt2).get('thumbNote')!r}")
-        # Re-send thumbnail: one look then one set; still processing -> no set; the same URL after the set -> a hint to check Studio
+        # Re-send thumbnail: one look then one set; still processing -> no set
         FakeNet.set_thumbnail = classmethod(fake_set)
         order.clear(); sent.clear(); seq[:] = ["succeeded"]
         got = youtube.resend_thumbnail(rt)
-        if got.get("warning") or order != ["p", "s", "p"] or len(sent) != 1:
-            problems.append(f"Re-send thumbnail: one look, one set, one look: {order} {got}")
+        if got.get("warning") or order != ["p", "s"] or len(sent) != 1:
+            problems.append(f"Re-send thumbnail: one look, one set: {order} {got}")
         order.clear(); sent.clear(); seq[:] = ["processing"]
         got = youtube.resend_thumbnail(rt)
         if sent or "still processing" not in got.get("warning", ""):
             problems.append(f"Re-send while YouTube is still processing sends nothing and says so: {sent} {got}")
-        order.clear(); sent.clear(); seq[:] = ["succeeded"]
-        FakeNet.processing = classmethod(lambda cls, token, vid: {"state": "succeeded", "thumb": "same"})
-        if "old picture" not in youtube.resend_thumbnail(rt).get("warning", ""):
-            problems.append("a thumbnail URL that did not change is said as a hint, not hidden")
         try:
             youtube.resend_thumbnail(rid + "x")
             problems.append("Re-send thumbnail for a row that is not uploaded should be refused")
@@ -4798,6 +4800,47 @@ def check_batch() -> tuple[str, str]:
             want = renderreq.build_request(_read_project(PROJECTS_DIR / f"{pid}.json"), "res2", words_of=words_of, size_of=size_of)
             if records["res2"]["request"] != want:
                 problems.append("the stored last request is not the one the server built")
+
+        # --- the thumbnail never fails a render, is tried twice, and a failure is kept on the Clips row (thumbError)
+        from . import thumbnail as _tn
+        real_write, real_wait, tries = _tn.write, jobs.THUMB_RETRY_WAIT, []
+
+        def flaky(fails):
+            def write(video, text=None, style=None, at=None, out=None, info=None):
+                tries.append(video.name)
+                if len(tries) <= fails:
+                    if info is not None:
+                        info["error"] = "RuntimeError: ffmpeg failed (fake)"
+                    return None
+                return real_write(video, text, style, at, out, info)
+            return write
+        jobs.THUMB_RETRY_WAIT = 0
+        try:
+            _tn.write = flaky(1)
+            started = jobs.start_project_render(pid, ["res5"])
+            state = wait(started["id"])
+            r5 = next((r for r in schedule.load_clips() if r.get("resultId") == "res5"), {})
+            f5 = next(iter(paths.OUT_ROOT.glob(f"*/{r5.get('file')}")), None) if r5.get("file") else None
+            if state != "done" or len(tries) != 2 or not f5 or not f5.with_suffix(".jpg").is_file() or r5.get("thumbError"):
+                problems.append(f"a thumbnail that fails once is tried again: the jpg is there and no note: {state} {tries} {r5.get('thumbError')!r}")
+            tries.clear()
+            _tn.write = flaky(2)
+            started = jobs.start_project_render(pid, ["res5"])
+            state = wait(started["id"])
+            r5 = next((r for r in schedule.load_clips() if r.get("resultId") == "res5"), {})
+            if f5:
+                f5.with_suffix(".jpg").unlink(missing_ok=True)       # the fake failed twice, so none was written by this render
+            if state != "done" or len(tries) != 2 or "ffmpeg failed" not in (r5.get("thumbError") or ""):
+                problems.append(f"a thumbnail that fails twice keeps the render and says why on the row: {state} {tries} {r5.get('thumbError')!r}")
+            tries.clear()
+            _tn.write = real_write
+            started = jobs.start_project_render(pid, ["res5"])        # a later good render clears the note
+            wait(started["id"])
+            r5 = next((r for r in schedule.load_clips() if r.get("resultId") == "res5"), {})
+            if r5.get("thumbError"):
+                problems.append(f"a good render clears thumbError: {r5.get('thumbError')!r}")
+        finally:
+            _tn.write, jobs.THUMB_RETRY_WAIT = real_write, real_wait
 
         # --- cancel one clip that is still queued: the others go on
         started = jobs.start_project_render(pid, ["res1", "res2", "res3"])

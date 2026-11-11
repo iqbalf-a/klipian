@@ -33,6 +33,7 @@ from .projects import (_project_assets_dir, _project_file,
 # Render jobs currently / already running
 JOBS: dict[str, dict] = {}
 LOCK = threading.Lock()
+THUMB_RETRY_WAIT = 2                      # seconds before the thumbnail is tried a second time (the selftest sets 0)
 # file identity -> running transcribe job id (see transcribe_key), so there aren't two jobs for the
 # same file: the first to finish deletes the temp wav the other is still using. Keyed by what the
 # cache keys by (size + mtime), NOT by the bare name: two profiles can hold different videos
@@ -508,7 +509,14 @@ def _render_body(job_id: str, req: dict, into: Path | None = None, record: bool 
                 finally:
                     raw.unlink(missing_ok=True)
 
-            thumbnail.write(dest, thumbnail.text_of(None, k["title"], k.get("hook"), ai=k.get("thumb")))                 # <name>.jpg for the YouTube upload; None when it fails
+            # <name>.jpg for the YouTube upload. Never fails the render, but it is tried twice and a failure is kept on the Clips row (thumbError)
+            dest.with_suffix(".jpg").unlink(missing_ok=True)         # a picture of an earlier render of this name would be stale
+            thumb_text, thumb_info = thumbnail.text_of(None, k["title"], k.get("hook"), ai=k.get("thumb")), {}
+            if not thumbnail.write(dest, thumb_text, info=thumb_info):
+                time.sleep(THUMB_RETRY_WAIT)
+                thumb_info = {}
+                thumbnail.write(dest, thumb_text, info=thumb_info)
+            thumb_error = thumb_info.get("error", "") if not dest.with_suffix(".jpg").is_file() else ""
 
             with LOCK:
                 t["result"].append({
@@ -523,6 +531,7 @@ def _render_body(job_id: str, req: dict, into: Path | None = None, record: bool 
                     "folder": str(out_dir),
                     "mb": round(dest.stat().st_size / 1048576, 1),
                     "duration": round(duration, 1),
+                    **({"thumbError": thumb_error} if thumb_error else {}),
                 })
                 t["done"] = i + 1
             prog.finish_clip()
@@ -888,6 +897,7 @@ def _schedule_render(job_id: str, req: dict, pdata: dict) -> None:
         return
     with LOCK:
         t["schedule"] = {"id": row_id, "created": created}
+    schedule.set_fields(row_id, {"thumbError": t["result"][0].get("thumbError", "")})       # "" clears an old one: a fresh render made its picture
 
 
 def add_render_to_schedule(folder: str, file_name: str) -> tuple[str, bool, str]:

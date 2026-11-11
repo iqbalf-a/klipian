@@ -183,7 +183,7 @@ function row(c) {
           ${opt(STATUS, c.status || "Draft")}
         </select>${warnChipHTML(c)}
       </td>
-      <td class="${td}"><div class="ws-titlecell">${c.thumbUrl ? `<img class="ws-rowthumb" src="${escapeHTML(c.thumbUrl)}" alt="Thumbnail: ${who}" loading="lazy">` : ""}<div class="ws-titletext">${f("title")}${goneTagHTML(c)}${fileLineHTML(c)}${c.thumbCut ? `<span class="ws-cutnote" title="The thumbnail text is a shortened title or hook: open Detail and check it">text cut: check</span>` : ""}</div></div></td>
+      <td class="${td}"><div class="ws-titlecell">${c.thumbUrl ? `<img class="ws-rowthumb" src="${escapeHTML(c.thumbUrl)}" alt="Thumbnail: ${who}" loading="lazy">` : ""}<div class="ws-titletext">${f("title")}${goneTagHTML(c)}${fileLineHTML(c)}${c.thumbError ? `<span class="ws-cutnote" title="${escapeHTML(c.thumbError)}">no thumbnail: ${escapeHTML(c.thumbError.slice(0, 50))}</span>` : ""}${c.thumbCut ? `<span class="ws-cutnote" title="The thumbnail text is a shortened title or hook: open Detail and check it">text cut: check</span>` : ""}</div></div></td>
       <td class="${td}"><select class="ws-input" data-field="platform" aria-label="Platform: ${who}">${opt(PLATFORM, c.platform || "YouTube + TikTok")}</select>
         <div class="ws-upchips" role="group" aria-label="Status upload: ${who}">${upChipsHTML(c)}</div></td>
       <td class="${td}">${f("date", "date")}</td>
@@ -794,7 +794,8 @@ function drawThumbBox(c) {
   $("#detailThumbText").value = c.thumbText || "";
   const resend = $("#thumbResend"), tnote = $("#detailThumbNote");
   resend.hidden = !(c.videoId && has);                         // only a clip that is on YouTube and has a picture
-  tnote.hidden = !c.thumbNote; tnote.textContent = c.thumbNote || "";
+  const tmsg = c.thumbError ? `No thumbnail: ${c.thumbError}. Press Make thumbnail to try again.` : (c.thumbNote || "");
+  tnote.hidden = !tmsg; tnote.textContent = tmsg;
   const cut = $("#detailThumbCut");
   cut.hidden = !c.thumbCut;
   if (c.thumbCut) cut.textContent = `Text cut: check it. Full title: ${c.title || ""}`;

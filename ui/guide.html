@@ -365,8 +365,11 @@
         Urutan teks di kartu: <b>Thumbnail text</b> yang kamu ketik di Detail, lalu <code>thumb</code> dari AI, lalu kutipan hook,
         lalu judul. Kalau teksnya hasil pemotongan judul atau hook, barisnya diberi tanda <i>text cut: check</i>.</p>
       <p class="note"><b>Thumbnail ke YouTube:</b> setelah upload, klipian menunggu YouTube selesai memproses video (sampai sekitar
-        7 menit, antrean upload jalan terus), baru mengirim thumbnail. Hasilnya tertulis di Detail klip. Kalau gagal atau
-        berubah lagi jadi frame otomatis, tekan <b>Re-send thumbnail</b> di Detail (50 unit kuota, hanya saat kamu menekannya).</p>
+        7 menit, antrean upload jalan terus), baru mengirim thumbnail. Hasilnya tertulis di Detail klip. Kalau
+        gagal, atau di Studio thumbnail-nya masih frame otomatis, tekan <b>Re-send thumbnail</b> di Detail (50 unit kuota, hanya saat
+        kamu menekannya). klipian tidak bisa memeriksa dari YouTube apakah thumbnail sudah berubah: "terkirim" berarti YouTube menjawab
+        OK. Kalau gambar thumbnail gagal dibuat saat render (video tetap jadi), barisnya diberi tanda <i>no thumbnail: alasan</i>,
+        alasannya juga ada di <code>thumbnail.log</code> folder profile; tekan <b>Make thumbnail</b> di Detail.</p>
     </section>
 
     <footer class="guide-foot">Panduan ini ada di <code>ui/guide.html</code>. Keyboard: <kbd>,</kbd> <kbd>.</kbd> mundur/maju

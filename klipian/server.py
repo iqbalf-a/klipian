@@ -2205,8 +2205,11 @@ class Handler(BaseHTTPRequestHandler):
         file = _sch.row_file(row)
         if file is None:
             return self._send_json({"error": "the video file is not in the profile's out/ folder any more"}, 400)
-        if not _thumb.write(file, _thumb.text_of(row.get("thumbText"), row.get("title"), row.get("hook"), ai=row.get("thumb"))):
-            return self._send_json({"error": "the thumbnail could not be made from this video"}, 500)
+        info: dict = {}
+        if not _thumb.write(file, _thumb.text_of(row.get("thumbText"), row.get("title"), row.get("hook"), ai=row.get("thumb")), info=info):
+            _sch.set_fields(row["id"], {"thumbError": info.get("error", "unknown reason")})
+            return self._send_json({"error": f"the thumbnail could not be made from this video: {info.get('error', 'unknown reason')}"}, 500)
+        row = _sch.set_fields(row["id"], {"thumbError": ""}) or row
         return self._send_json({"ok": True, "clip": _with_missing_flags([row])[0]})
 
     def _post_thumbnail_preview(self):

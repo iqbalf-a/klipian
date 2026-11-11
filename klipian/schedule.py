@@ -179,6 +179,7 @@ def with_missing_flags(clips: list[dict]) -> list[dict]:
                 row["thumbCut"] = thumbnail.text_info(row.get("thumbText"), row.get("title"), row.get("hook"), ai=row.get("thumb"))[1]   # derived: the text is a cut of the title or hook
                 if f.with_suffix(".jpg").is_file():           # made by render.write_thumbnail; older renders have none
                     row["thumbUrl"] = file_url(f.with_suffix(".jpg")) + f"&v={int(f.with_suffix('.jpg').stat().st_mtime)}"   # v: a new card shows at once
+                    row.pop("thumbError", None)                   # a picture exists now: an old "no thumbnail" reason is stale
         out.append(row)
     return out
 

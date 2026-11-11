@@ -863,11 +863,11 @@ def _thumbnail_note(exc: YouTubeError) -> str:
 
 
 def send_thumbnail(token: dict, video_id: str, image: Path, waits: tuple = _THUMB_WAITS) -> str:
-    """Wait (looking at `waits`) until YouTube has finished processing the video, then set its thumbnail once (50 units) and look again.
-    Returns "" when it went through, else a sentence saying why not. Never raises for a YouTube problem (the video is up: only a warning).
-    shortcut: the API cannot say whether a thumbnail is custom or an auto frame, so "went through" means thumbnails.set answered ok and the
-    biggest thumbnail URL changed; if it did not change yet that is said as a hint to check Studio, not as a failure."""
-    state: dict = {}
+    """Wait (looking at `waits`) until YouTube has finished processing the video, then set its thumbnail once (50 units).
+    Returns "" when thumbnails.set answered ok, else a sentence saying why not. Never raises for a YouTube problem (the video is up: only a warning).
+    shortcut: nothing is checked after the set. The videos.list thumbnail URL does NOT change when a custom thumbnail is set (seen on real
+    videos: set ok, same maxres URL, Studio did change), and the API cannot say custom or auto, so "sent" is all that is known;
+    upgrade only if YouTube gives a way to read it (comparing downloaded bytes would be cache-dependent)."""
     for i, wait in enumerate((0,) + tuple(waits)):
         if wait:
             _sleep(wait)
@@ -890,12 +890,6 @@ def send_thumbnail(token: dict, video_id: str, image: Path, waits: tuple = _THUM
         _net.set_thumbnail(token, video_id, image)
     except YouTubeError as exc:
         return "The video was uploaded but its thumbnail was not set. " + _thumbnail_note(exc)
-    try:
-        after = _net.processing(token, video_id).get("thumb")
-    except YouTubeError:
-        return ""
-    if after and after == state.get("thumb"):
-        return "Thumbnail sent, but YouTube still shows the old picture. It can take a few minutes: check Studio, or press Re-send thumbnail."
     return ""
 
 
