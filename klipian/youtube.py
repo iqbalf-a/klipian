@@ -26,7 +26,7 @@ import uuid
 from pathlib import Path
 
 from . import paths
-from .paths import GUEST
+from .paths import GUEST, replace_file
 
 SCOPES = ("https://www.googleapis.com/auth/youtube.upload",
           "https://www.googleapis.com/auth/youtube.readonly")
@@ -97,7 +97,7 @@ def save_client_secret(text: str) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
     tmp = dest.with_suffix(".tmp")
     tmp.write_text(json.dumps(data), encoding="utf-8")
-    tmp.replace(dest)
+    replace_file(tmp, dest)
 
 
 def _load_token_file() -> dict | None:
@@ -114,7 +114,7 @@ def _write_token_file(data: dict) -> None:
     f.parent.mkdir(parents=True, exist_ok=True)
     tmp = f.with_suffix(".tmp")
     tmp.write_text(json.dumps(data), encoding="utf-8")
-    tmp.replace(f)
+    replace_file(tmp, f)
 
 
 def _other_profile_with(channel_id: str) -> str | None:

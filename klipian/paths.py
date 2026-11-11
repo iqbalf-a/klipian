@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextvars
 import os
 import re
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -164,3 +165,37 @@ def find_video(name: str) -> Path | None:
 # The term glossary every transcription uses unless told otherwise; it is
 # part of the transcript cache key (see Cache.transcript_path).
 GLOSSARY = ROOT / "prompts" / "glossary.txt"
+
+
+def _locked(exc: OSError) -> bool:
+    """Windows: another handle has the file open without share-delete (WinError 5 access denied, 32 sharing violation)."""
+    return isinstance(exc, PermissionError) or getattr(exc, "winerror", None) in (5, 32)
+
+
+def replace_file(src, dst, tries: int = 10) -> None:
+    """os.replace with a short retry (50 ms growing to 0.5 s) when a reader holds the target (Python's open() has no
+    FILE_SHARE_DELETE, so a poll of the same json can collide with the rename). The last error is raised."""
+    delay = 0.05
+    for i in range(tries):
+        try:
+            os.replace(src, dst)
+            return
+        except OSError as exc:
+            if i == tries - 1 or not _locked(exc):
+                raise
+            time.sleep(delay)
+            delay = min(delay * 1.5, 0.5)
+
+
+def read_text(path, tries: int = 6) -> str:
+    """Path.read_text(utf-8) that retries briefly when the file is locked or caught mid-replace; the last error is raised."""
+    delay = 0.03
+    for i in range(tries):
+        try:
+            return Path(path).read_text(encoding="utf-8")
+        except OSError as exc:
+            if i == tries - 1 or not _locked(exc):
+                raise
+            time.sleep(delay)
+            delay *= 1.6
+    raise AssertionError("unreachable")

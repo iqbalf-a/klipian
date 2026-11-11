@@ -39,7 +39,7 @@ import time
 from bisect import bisect_left
 from pathlib import Path
 
-from .paths import ROOT
+from .paths import ROOT, replace_file
 
 CUES_VERSION = 1
 
@@ -216,7 +216,7 @@ def run_audio_cues(video: Path, cache) -> dict:
     path = cache.cues_path(video)
     tmp = path.with_suffix(".tmp")
     tmp.write_text(json.dumps(record, ensure_ascii=False), encoding="utf-8")
-    tmp.replace(path)
+    replace_file(tmp, path)
     return record
 
 

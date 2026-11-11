@@ -120,7 +120,7 @@ def clean_template(raw: dict, base: dict | None = None) -> dict:
 
 def _load() -> dict:
     try:
-        data = json.loads(_file().read_text(encoding="utf-8"))
+        data = json.loads(paths.read_text(_file()))
     except (OSError, ValueError):
         data = {}
     raw = data.get("templates") if isinstance(data, dict) and isinstance(data.get("templates"), dict) else {}
@@ -140,7 +140,7 @@ def _save(templates: dict) -> None:
     f.parent.mkdir(parents=True, exist_ok=True)
     tmp = f.with_suffix(".tmp")
     tmp.write_text(json.dumps({"templates": templates}, indent=1, ensure_ascii=False), encoding="utf-8")
-    os.replace(tmp, f)
+    paths.replace_file(tmp, f)
 
 
 def list_templates() -> list[dict]:
@@ -386,7 +386,7 @@ def _runs_file() -> Path:
 
 def load_runs() -> list[dict]:
     try:
-        data = json.loads(_runs_file().read_text(encoding="utf-8"))
+        data = json.loads(paths.read_text(_runs_file()))
     except (OSError, ValueError):
         return []
     return [r for r in data.get("runs", []) if isinstance(r, dict)] if isinstance(data, dict) else []
@@ -397,7 +397,7 @@ def _save_runs(runs: list[dict]) -> None:
     f.parent.mkdir(parents=True, exist_ok=True)
     tmp = f.with_suffix(".tmp")
     tmp.write_text(json.dumps({"runs": runs}, ensure_ascii=False, indent=1), encoding="utf-8")
-    os.replace(tmp, f)
+    paths.replace_file(tmp, f)
 
 
 def get_run(rid: str) -> dict | None:
@@ -530,7 +530,7 @@ def _execute(rid: str, deps) -> None:
             _CANCEL.discard(rid)
             update_run(rid, state="cancelled", detail="", step=step, stoppedAt=step)     # stopped between two steps: this one did not start
             return
-        update_run(rid, step=step, progress=0, detail="")
+        _progress_write(rid, step=step, progress=0, detail="")
         try:
             fields = STEP_FUNCS[step](rid, run, deps) or {}
         except _Waiting:
@@ -550,6 +550,16 @@ def _execute(rid: str, deps) -> None:
     update_run(rid, state="done", step="", detail="", progress=100)
 
 
+def _progress_write(rid: str, **fields) -> None:
+    """A progress note (percent, text, the step that began) must never fail a step: if saving it still fails after
+    the retries in paths.replace_file, log it and go on. The results and the final state are saved with update_run, which raises."""
+    try:
+        update_run(rid, **fields)
+    except OSError as exc:
+        import sys
+        print(f"[autopilot] progress of run {rid} not saved: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
+
+
 def _progress(rid: str):
     """A callback (percent, text) for a step; it also stops the step when the run was cancelled."""
     def report(percent: float | None = None, text: str = "") -> None:
@@ -558,7 +568,7 @@ def _progress(rid: str):
         fields = {"detail": text}
         if percent is not None:
             fields["progress"] = max(0, min(100, int(percent)))
-        update_run(rid, **fields)
+        _progress_write(rid, **fields)
     return report
 
 

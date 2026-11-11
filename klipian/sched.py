@@ -78,7 +78,7 @@ def set_render_limit(n) -> int:
         raise ValueError("renderJobs must be 1 or 2.")
     f = _settings_file()
     try:
-        data = json.loads(f.read_text(encoding="utf-8"))
+        data = json.loads(paths.read_text(f))
         data = data if isinstance(data, dict) else {}
     except (OSError, ValueError):
         data = {}
@@ -86,7 +86,7 @@ def set_render_limit(n) -> int:
     f.parent.mkdir(parents=True, exist_ok=True)
     tmp = f.with_suffix(".tmp")
     tmp.write_text(json.dumps(data), encoding="utf-8")
-    tmp.replace(f)
+    paths.replace_file(tmp, f)
     poke()
     return n
 

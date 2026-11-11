@@ -16,7 +16,7 @@ import time
 import uuid
 from pathlib import Path
 
-from .paths import OUT_ROOT, SCHEDULE_DIR
+from .paths import OUT_ROOT, SCHEDULE_DIR, read_text, replace_file
 
 CLIPS_PATH = SCHEDULE_DIR / "clips.json"
 OUT_DIR = OUT_ROOT
@@ -38,7 +38,7 @@ def load_clips(path: Path | None = None) -> list[dict]:
     if not path.is_file():
         return []
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(read_text(path))
         return data.get("clip", []) if isinstance(data, dict) else []
     except (OSError, ValueError):
         return []
@@ -52,7 +52,7 @@ def save_clips(clips: list[dict], path: Path | None = None) -> None:
     tmp = path.with_suffix(".tmp")
     tmp.write_text(json.dumps({"clip": clips}, ensure_ascii=False, indent=2),
                    encoding="utf-8")
-    tmp.replace(path)
+    replace_file(tmp, path)
 
 
 def file_created(project_id: str | None, file_name: str | None) -> int | None:
@@ -346,7 +346,7 @@ def _load_trash(path: Path) -> list[dict]:
     if not path.is_file():
         return []
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(read_text(path))
         return data.get("row", []) if isinstance(data, dict) else []
     except (OSError, ValueError):
         return []
@@ -356,7 +356,7 @@ def _save_trash(rows: list[dict], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
     tmp.write_text(json.dumps({"row": rows[-TRASH_KEEP:]}, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp.replace(path)
+    replace_file(tmp, path)
 
 
 def delete_rows(ids: list, path: Path | None = None, lock: threading.Lock | None = None,

@@ -158,7 +158,7 @@ def save_settings(*, api_key: str | None = None, remove_key: bool = False, model
     f.parent.mkdir(parents=True, exist_ok=True)
     tmp = f.with_suffix(".tmp")
     tmp.write_text(json.dumps(data, indent=1), encoding="utf-8")
-    os.replace(tmp, f)
+    paths.replace_file(tmp, f)
 
 
 def key_source() -> str:

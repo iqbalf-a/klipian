@@ -18,7 +18,7 @@ import time
 import uuid
 from pathlib import Path
 
-from .paths import OUT_ROOT, PROJECTS_DIR
+from .paths import OUT_ROOT, PROJECTS_DIR, read_text, replace_file
 
 # Projects are NOT served as static files. Their contents can only be
 # accessed via /api/project so file names don't become an attack surface.
@@ -215,12 +215,12 @@ def _write_project(f: Path, data: dict) -> None:
     project stays intact, not half-written."""
     tmp = f.with_suffix(".tmp")
     tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
-    tmp.replace(f)
+    replace_file(tmp, f)
 
 
 def _read_project(f: Path) -> dict | None:
     try:
-        data = json.loads(f.read_text(encoding="utf-8"))
+        data = json.loads(read_text(f))
     except (OSError, ValueError):
         return None
     return data if isinstance(data, dict) else None

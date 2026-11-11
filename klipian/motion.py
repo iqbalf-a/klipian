@@ -337,7 +337,7 @@ def _write(path: Path, data) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp.replace(path)
+    paths.replace_file(tmp, path)
 
 
 def _slug(text: str) -> str:

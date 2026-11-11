@@ -18,7 +18,7 @@ import os
 import time
 from pathlib import Path
 
-from .paths import SOURCES
+from .paths import SOURCES, replace_file
 
 FIELDS = ("platform", "creator", "title", "url")
 # Kept with the credit but never part of the credit line: what "Add from YouTube" (ytdl.py)
@@ -93,7 +93,7 @@ def save(name: str, entry, folder: Path | None = None) -> dict[str, dict]:
         folder.mkdir(parents=True, exist_ok=True)
         tmp = dest.with_suffix(".tmp")
         tmp.write_text(json.dumps(credits, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-        os.replace(tmp, dest)
+        replace_file(tmp, dest)
     else:
         dest.unlink(missing_ok=True)
     return credits
@@ -121,7 +121,7 @@ def _deleted_write(data: dict, folder: Path | None) -> None:
     if data:
         tmp = dest.with_suffix(".tmp")
         tmp.write_text(json.dumps(data, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-        os.replace(tmp, dest)
+        replace_file(tmp, dest)
     else:
         dest.unlink(missing_ok=True)
 

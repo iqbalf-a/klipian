@@ -25,7 +25,7 @@ import time
 from pathlib import Path
 
 from . import paths, rubrics
-from .paths import ADMIN, DEFAULT_PROFILE, GUEST, valid_profile_id
+from .paths import ADMIN, DEFAULT_PROFILE, GUEST, valid_profile_id, replace_file
 
 PROFILE_DIRS = ("sources", "projects", "out", "schedule", "assets", "secrets")
 GUEST_DIRS = ("sources", "projects", "out", "assets")          # no schedule/, no secrets/
@@ -49,7 +49,7 @@ def _write_json(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
     tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp.replace(path)
+    replace_file(tmp, path)
 
 
 UPLOAD_TOOLS = ("youtube", "tiktok", "instagram")       # the platforms a profile has upload tools for (the status marks on a clip row are for every profile)
@@ -101,7 +101,7 @@ def read_meta(pid: str) -> dict | None:
         return {"id": ADMIN, "name": "Admin", "color": "#c9ccd3", "guest": False, "admin": True, "defaults": {}}
     f = _meta_file(pid)
     try:
-        data = json.loads(f.read_text(encoding="utf-8"))
+        data = json.loads(paths.read_text(f))
     except (OSError, ValueError):
         return None
     if not isinstance(data, dict):
@@ -309,7 +309,7 @@ def place_source(tmp: Path, dest: Path) -> dict:
         except OSError:
             pass                                      # another drive, or no links here: a normal copy
     if how == "saved":
-        tmp.replace(dest)
+        replace_file(tmp, dest)
     credit_from = None
     if same_file:
         try:

@@ -42,7 +42,7 @@ from pathlib import Path
 from . import credits as credits_mod
 from .cues import for_range
 from .models import Transcript, Word
-from .paths import ROOT
+from .paths import ROOT, replace_file
 
 # The rubrics a brief can carry (CLI: --mode). The UI uses "dialog".
 RUBRICS = {
@@ -987,7 +987,7 @@ def save_candidates(candidates: list[dict], video: Path, dest: Path) -> Path:
     # truncated candidates.json. Same pattern as Transcript.save.
     tmp = dest.with_suffix(".tmp")
     tmp.write_text(payload, encoding="utf-8")
-    tmp.replace(dest)
+    replace_file(tmp, dest)
     return dest
 
 

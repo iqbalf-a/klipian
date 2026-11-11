@@ -7,6 +7,8 @@ change it here first so other stages adjust accordingly.
 
 from __future__ import annotations
 
+from .paths import replace_file
+
 import json
 import re
 from dataclasses import dataclass, field, asdict
@@ -241,7 +243,7 @@ class Transcript:
         tmp.write_text(
             json.dumps(self.to_dict(), ensure_ascii=False, indent=1), encoding="utf-8"
         )
-        tmp.replace(path)  # atomic rename
+        replace_file(tmp, path)  # atomic rename
 
     @classmethod
     def load(cls, path: Path) -> "Transcript":

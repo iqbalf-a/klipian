@@ -1051,11 +1051,76 @@ def check_autopilotrun() -> tuple[str, str]:
             problems.append(f"Check lists the links and the needs: {keys}")
         if not ap.check(["https://www.youtube.com/watch?v=CCCCCCCCCCC"], Fake())["ok"]:
             problems.append("Check is green when everything is there")
+
+        # a Windows lock on the target of the rename (the UI's poll has runs.json open): retried, then raised; a progress note never fails a step
+        import os as _os
+        real_replace, real_sleep, naps = _os.replace, paths.time.sleep, []
+        paths.time.sleep = naps.append
+        try:
+            probe = Path(tempfile.mkdtemp()) / "x.json"
+            probe.write_text("old", encoding="utf-8")
+            part = probe.with_suffix(".tmp")
+            part.write_text("new", encoding="utf-8")
+            calls = []
+
+            def locked(times):
+                def fake(src, dst):
+                    calls.append(1)
+                    if len(calls) <= times:
+                        raise PermissionError(13, "Access is denied", None, 5)
+                    return real_replace(src, dst)
+                return fake
+            _os.replace = locked(3)
+            paths.replace_file(part, probe)
+            if probe.read_text(encoding="utf-8") != "new" or len(calls) != 4 or len(naps) != 3 or not naps[0] < naps[-1] <= 0.5:
+                problems.append(f"a rename refused 3 times is retried with a growing wait and then works: {len(calls)} {naps}")
+            part.write_text("again", encoding="utf-8")
+            calls.clear(); naps.clear()
+            _os.replace = locked(99)
+            try:
+                paths.replace_file(part, probe)
+                problems.append("a rename that is always refused must raise after the cap")
+            except PermissionError:
+                if len(calls) != 10:
+                    problems.append(f"the retry stops after 10 tries: {len(calls)}")
+            _os.replace = real_replace
+            part.unlink(missing_ok=True)
+            # a read that is locked once works the second time
+            reads = []
+            real_rt = Path.read_text
+
+            def flaky_read(self, *a, **k):
+                reads.append(1)
+                if len(reads) == 1:
+                    raise PermissionError(13, "Access is denied", None, 5)
+                return real_rt(self, *a, **k)
+            Path.read_text = flaky_read
+            try:
+                if paths.read_text(probe) != "new" or len(reads) != 2:
+                    problems.append(f"a locked read is retried: {len(reads)}")
+            finally:
+                Path.read_text = real_rt
+            # saving the progress of a step keeps failing: the step and the run still finish
+            naps.clear()
+
+            def refuse_progress(src, dst):
+                if Path(dst).name == "runs.json" and '"detail": "half"' in Path(src).read_text(encoding="utf-8"):
+                    raise PermissionError(13, "Access is denied", None, 5)
+                return real_replace(src, dst)
+            _os.replace = refuse_progress
+            d = Fake(n=1)
+            run = run_one(d)
+            if run["state"] != "done" or run["done"] != list(ap.STEPS):
+                problems.append(f"a progress note that cannot be saved must not fail the step: {run['state']} {run.get('error')}")
+            if not naps:
+                problems.append("the progress note was retried before it was given up")
+        finally:
+            _os.replace, paths.time.sleep = real_replace, real_sleep
     finally:
         paths._profile.reset(token)
     if problems:
         return FAIL, "\n      ".join(problems)
-    return PASS, "a run: steps in order, template copied, at most N, 0 clips, Retry resumes, Manual reply, auto upload off, cancel, Check"
+    return PASS, "a run: steps in order, template copied, at most N, 0 clips, Retry resumes, Manual reply, auto upload off, cancel, Check, a locked runs.json retried (capped), a progress note never fails a step"
 
 
 def check_adminmodel() -> tuple[str, str]:
