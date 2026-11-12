@@ -6,7 +6,7 @@
    rings; the LED beside it (same light, a little warm); the heat that adds to the air conditioner's load. Every word comes from the checked story. Colours are tokens (ISO tone sets). */
 import React from "react";
 import {
-  BLACK, Brand, CaptionLayer, HOT1, HOT2, ISO, IsoAir, IsoCup, Label, Mascot, Polys, RED, StoryVideo, TopText, WHITE, YELLOW, YELLOW_D, G2, G3,
+  BLACK, Brand, loopClock, CaptionLayer, HOT1, HOT2, ISO, IsoAir, IsoCup, Label, Mascot, Polys, RED, StoryVideo, TopText, WHITE, YELLOW, YELLOW_D, G2, G3,
   block, cylinder, easeInOut, isoAt, layerTransform, springAt, toScreen,
   type P2, type P3, type SceneProps, type StoryT, type Tones,
 } from "../../src/design/index.ts";
@@ -72,7 +72,7 @@ const Bulb: React.FC<{ u: number; o: P2; glow: number; current: number; clock: n
       {!led && <g>
         <polyline points={fil.map((p) => p.join(",")).join(" ")} fill="none" stroke={hot} strokeWidth={u * 0.07} strokeLinejoin="round" strokeLinecap="round" />
         {glow > 0.6 && <polyline points={fil.map((p) => p.join(",")).join(" ")} fill="none" stroke={WHITE} strokeWidth={u * 0.018} strokeLinejoin="round" strokeLinecap="round" opacity={glow} />}
-        {current > 0.02 && Array.from({ length: 7 }, (_, i) => { const q = along(fil, (((clock * 0.35 + i / 7) % 1) + 1) % 1); return <circle key={i} cx={q[0]} cy={q[1]} r={u * 0.07} fill={YELLOW} opacity={current} />; })}
+        {current > 0.02 && Array.from({ length: 7 }, (_, i) => { const q = along(fil, (((clock * 0.4 + i / 7) % 1) + 1) % 1); return <circle key={i} cx={q[0]} cy={q[1]} r={u * 0.07} fill={YELLOW} opacity={current} />; })}
       </g>}
       {/* the glass: one silhouette (the envelope of the stacked cones), see-through for the incandescent, milky for the LED; the right side is the dark tone, the left the light one */}
       {(() => {
@@ -124,7 +124,7 @@ const YELLOW_CELL = { i: 4, j: 0 };                         // the one square th
 const cellOrder = (i: number, j: number) => (i === YELLOW_CELL.i && j === YELLOW_CELL.j ? 0 : 1 + ((i * 7 + j * 3) % 24) + 0.01 * i);
 
 /** 25 low blocks in a 5 x 5 grid: grey = electricity going in; then 24 turn into heat (orange/red) and one into light (yellow). */
-const EnergyBar: React.FC<{ u: number; o: P2; show: number; conv: number; startConv: number; clock: number }> = ({ u, o, show, conv, startConv, clock }) => {
+const EnergyBar: React.FC<{ u: number; o: P2; show: number; conv: number; startConv: number; clock: number; amb: number }> = ({ u, o, show, conv, startConv, clock, amb }) => {
   if (show < 0.02) return null;
   const cells: { i: number; j: number; d: number }[] = [];
   for (let s = 0; s <= 2 * (BAR.n - 1); s++) for (let i = 0; i < BAR.n; i++) { const j = s - i; if (j >= 0 && j < BAR.n) cells.push({ i, j, d: s }); }
@@ -136,7 +136,7 @@ const EnergyBar: React.FC<{ u: number; o: P2; show: number; conv: number; startC
         const enter = clamp01(show * 1.4 - d * 0.03), h = (0.3 + 0.25 * Math.sin(Math.PI * clamp01(k))) * enter;
         const isLight = i === YELLOW_CELL.i && j === YELLOW_CELL.j;
         const tones: Tones = turned ? (isLight ? ISO.sun : HOT_TONES) : ISO.metal;
-        const bob = turned && !isLight ? 0.06 * Math.sin((TAU * clock) / 3 + i + j) : 0;
+        const bob = turned && !isLight ? 0.06 * Math.sin((TAU * amb) / 3 + i + j) : 0;
         return <Polys key={`${i}-${j}`} polys={block([x, y, 0], [x + BAR.cell, y + BAR.cell, Math.max(0.02, h + bob)], u, o)} tones={tones} />;
       })}
     </g>
@@ -152,7 +152,7 @@ const Books: React.FC<{ u: number; o: P2 }> = ({ u, o }) => (
   </g>
 );
 
-const AirCon: React.FC<{ u: number; o: P2; load: number; clock: number }> = ({ u, o, load, clock }) => {
+const AirCon: React.FC<{ u: number; o: P2; load: number; air: number }> = ({ u, o, load, air }) => {
   const a = AC_BOX.a, b = AC_BOX.b, P = (x: number, y: number, z: number) => isoAt([x, y, z], u, o);
   const vent = P((a[0] + b[0]) / 2, b[1], a[2] + 0.1);
   return (
@@ -161,7 +161,7 @@ const AirCon: React.FC<{ u: number; o: P2; load: number; clock: number }> = ({ u
       <Polys polys={block([a[0] + 0.3, b[1], a[2] + 0.12], [b[0] - 0.3, b[1] + 0.06, a[2] + 0.34], u, o)} tones={ISO.dark} />
       {[0.6, 0.9, 1.2].map((dz) => <Polys key={dz} polys={block([a[0] + 0.3, b[1], a[2] + dz + 0.1], [b[0] - 0.3, b[1] + 0.03, a[2] + dz + 0.16], u, o)} tones={ISO.labPlastic} />)}
       <circle cx={P(b[0] - 0.45, b[1] + 0.04, b[2] - 0.35)[0]} cy={P(b[0] - 0.45, b[1] + 0.04, b[2] - 0.35)[1]} r={u * 0.08} fill={G3} />
-      <IsoAir x={vent[0] - u * 0.3} y={vent[1] + u * 0.1} len={u * (1.4 + 0.5 * load)} t={clock * (0.7 + 0.8 * load)} n={2 + Math.round(3 * load)} w={9} />
+      <IsoAir x={vent[0] - u * 0.3} y={vent[1] + u * 0.1} len={u * (1.4 + 0.5 * load)} t={air} n={2 + Math.round(3 * load)} w={9} />
     </g>
   );
 };
@@ -169,7 +169,12 @@ const AirCon: React.FC<{ u: number; o: P2; load: number; clock: number }> = ({ u
 // ------------------------------------------------------------------------------------------------------ the picture
 const Picture: React.FC<SceneProps> = ({ beat, t, clock, story: s }) => {
   const P = React.useMemo(() => makePlan(s), [s]);
-  const m = P.m, st = stateAt(clock), cam = camAt(clock), top = P.tops.find((x) => clock >= x.a && clock < x.b);
+  const m = P.m;
+  // B29: ambient motion (every period divides 60 s) runs on the loop clock; beat-tied states and the camera keep the real clock, but the outro is stretched to end exactly at key 60
+  // (the wide shot and the first frame's states) whatever the voiced length is.
+  const amb = loopClock(clock, P.total), air = loopClock(clock, P.total, 38.4), steam = loopClock(clock, P.total, 59.4);   // 1.6 s x 24 cycles, 2.2 s x 27 cycles
+  const te = clock <= m.outro || P.total <= m.outro ? clock : m.outro + ((clock - m.outro) * (60 - m.outro)) / (P.total - m.outro);
+  const st = stateAt(te), cam = camAt(te), top = P.tops.find((x) => clock >= x.a && clock < x.b);
   const o = O, u = U;
   const ledP = easeInOut(st.led), ledS = 0.15 + 0.85 * ledP;
   const bulbC = world([0, 0, BULB_ZC]);
@@ -182,33 +187,33 @@ const Picture: React.FC<SceneProps> = ({ beat, t, clock, story: s }) => {
     <div style={{ position: "absolute", inset: 0, width: 1080, height: 1920 }}>
       <svg width={1080} height={1920} viewBox="0 0 1080 1920" style={{ position: "absolute", inset: 0 }}>
         {/* the far layer: the brand wall (never seen: the wall of the set covers it, but it keeps the theme behind the set) */}
-        <g transform={layerTransform(cam, 0.3)}><Brand clock={clock} spot={{ x: 540, y: 400 }} /></g>
+        <g transform={layerTransform(cam, 0.3)}><Brand clock={amb} spot={{ x: 540, y: 400 }} /></g>
         <g transform={layerTransform(cam, 1)}>
           {/* the wall and the table run past the frame on every side */}
           <Polys polys={block([-90, WALL_Y - 0.6, -14], [90, WALL_Y, 40], u, o)} tones={ISO.wall} />
-          <AirCon u={u} o={o} load={st.ac} clock={clock} />
+          <AirCon u={u} o={o} load={st.ac} air={air} />
           {[[-13.6, -1.2], [13.2, -1.2], [-13.6, 5.0], [13.2, 5.0]].map(([x, y], i) => <Polys key={i} polys={block([x, y, -14], [x + 0.7, y + 0.7, -0.7], u, o)} tones={TABLE} />)}
           <Polys polys={block([-14, WALL_Y, -0.7], [14, 5.8, 0], u, o)} tones={TABLE} />
           <Books u={u} o={o} />
-          <IsoCup u={300} o={world([CLOCK_AT[0], CLOCK_AT[1], 0])} t={clock} />
+          <IsoCup u={300} o={world([CLOCK_AT[0], CLOCK_AT[1], 0])} t={steam} />
           {/* the hero: its rays and rings are behind-and-around it, its heat rises above it */}
-          <InfraRings cx={bulbC[0]} cy={bulbC[1]} r={BULB_R * u * 1.3} k={st.ir} clock={clock} />
-          <Bulb u={u} o={o} glow={st.glow} current={st.current} clock={clock} />
-          <Rays cx={bulbC[0]} cy={bulbC[1]} r={BULB_R * u * 1.1} k={st.glow} clock={clock} />
+          <InfraRings cx={bulbC[0]} cy={bulbC[1]} r={BULB_R * u * 1.3} k={st.ir} clock={amb} />
+          <Bulb u={u} o={o} glow={st.glow} current={st.current} clock={amb} />
+          <Rays cx={bulbC[0]} cy={bulbC[1]} r={BULB_R * u * 1.1} k={st.glow} clock={amb} />
           <g>
-            {[-1, 0, 1].map((i) => <HeatRise key={i} x={bulbC[0] + i * 120} y={bulbC[1] - BULB_R * u * 1.1 + Math.abs(i) * 60} k={st.heat * (i ? 0.8 : 1)} t={clock + i * 0.4} scale={1.25} />)}
+            {[-1, 0, 1].map((i) => <HeatRise key={i} x={bulbC[0] + i * 120} y={bulbC[1] - BULB_R * u * 1.1 + Math.abs(i) * 60} k={st.heat * (i ? 0.8 : 1)} t={amb + i * 0.4} scale={1.25} />)}
           </g>
           {/* the heat that reaches the air conditioner (it adds to its load) */}
-          {st.near > 0.02 && <HeatRise x={world([-11.6, -1.2, 4.4])[0]} y={world([-11.6, -1.2, 4.4])[1] + 40} k={st.near} t={clock} scale={0.9} />}
-          <EnergyBar u={u} o={o} show={st.bar} conv={st.conv} startConv={m.convStart} clock={clock} />
+          {st.near > 0.02 && <HeatRise x={world([-11.6, -1.2, 4.4])[0]} y={world([-11.6, -1.2, 4.4])[1] + 40} k={st.near} t={amb} scale={0.9} />}
+          <EnergyBar u={u} o={o} show={st.bar} conv={st.conv} startConv={m.convStart} clock={clock} amb={amb} />
           {/* the LED bulb beside it: the same light, little heat */}
           {ledP > 0.01 && (() => {
             const lo = world([LED_AT[0], LED_AT[1], 0]), lc = isoAt([0, 0, BULB_ZC], u, lo);
             return (
               <g transform={`translate(${lo[0]} ${lo[1]}) scale(${ledS}) translate(${-lo[0]} ${-lo[1]})`} opacity={ledP}>
-                <Bulb u={u} o={lo} glow={1} current={0} clock={clock} led />
-                <Rays cx={lc[0]} cy={lc[1]} r={BULB_R * u * 1.1} k={1} clock={clock} long={1.0} />
-                <HeatRise x={lc[0]} y={lc[1] - BULB_R * u * 1.1} k={0.18} t={clock} scale={0.8} />
+                <Bulb u={u} o={lo} glow={1} current={0} clock={amb} led />
+                <Rays cx={lc[0]} cy={lc[1]} r={BULB_R * u * 1.1} k={1} clock={amb} long={1.0} />
+                <HeatRise x={lc[0]} y={lc[1] - BULB_R * u * 1.1} k={0.18} t={amb} scale={0.8} />
               </g>
             );
           })()}

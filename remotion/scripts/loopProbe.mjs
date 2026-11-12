@@ -1,4 +1,4 @@
-// node scripts/loopProbe.mjs <total seconds | xRATIO of the story's own length, e.g. x1.038> <composition...>   (no composition: every custom video)
+// node scripts/loopProbe.mjs [multi | 56,58.5 | 62.3 | x1.038] [composition...]   (default: multi, every custom video)
 // Loop check for a VOICED video (DESIGN.md B29): the story's beats are stretched so they add up to <total> seconds (sting and outro keep their length),
 // then the first and the last frame are rendered and compared (PSNR, the caption band y >= 1500 left out). Above about 35 dB the loop-back is clean.
 // Stills go to out/loop-probe/<id>-first.png and -last.png.
@@ -10,8 +10,9 @@ import { bundle } from "@remotion/bundler";
 import { renderStill, selectComposition } from "@remotion/renderer";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
-const [total, ...ids] = process.argv.slice(2);
-if (!total) { console.error("usage: node scripts/loopProbe.mjs <total seconds> [composition...]"); process.exit(1); }
+// First argument: "multi" (the default, several lengths round the video's base: a voice makes any length, so one length proves nothing), "56,58.5" (a list) or one length.
+const [first0, ...ids] = process.argv.slice(2);
+const total = first0 || "multi";
 const list = ids.length ? ids : readdirSync(path.join(ROOT, "videos")).filter((id) => id !== "selftest-tiny");
 const serveUrl = await bundle({ entryPoint: path.join(ROOT, "src", "index.ts"), publicDir: path.join(ROOT, "public") });
 const chromiumOptions = { gl: "angle" };
