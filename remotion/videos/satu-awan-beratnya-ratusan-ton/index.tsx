@@ -3,7 +3,7 @@
    100 elephants, arrows show why it floats, and a push shows the droplets. The first frame is the last (the loop). */
 import React from "react";
 import {
-  BLACK, CaptionLayer, IsoCloud, IsoPlane, IsoSun, Label, StoryVideo, TopText, YELLOW, YELLOW_D, block, cam2At, clamp01, easeInOut, easeOutBack,
+  BLACK, CaptionLayer, IsoCloud, IsoPlane, IsoSun, Label, StoryVideo, TopText, loopClock, YELLOW, YELLOW_D, block, cam2At, clamp01, easeInOut, easeOutBack,
   isoAt, layerTransform, ptsAttr, springAt, useFonts, type Poly, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import { ISO, THEMES, WHITE } from "../../src/tokens.ts";
@@ -60,11 +60,12 @@ const Arrow2: React.FC<{ x1: number; y1: number; x2: number; y2: number; color: 
     <polygon points={`${ex},${ey} ${ex - s * Math.cos(a - 0.5)},${ey - s * Math.sin(a - 0.5)} ${ex - s * Math.cos(a + 0.5)},${ey - s * Math.sin(a + 0.5)}`} fill={color} /></g>;
 };
 
-const Scene = ({ beat, t, clock }: SceneProps) => {
+const Scene = ({ beat, t, clock, story: sty }: SceneProps) => {
   useFonts();
   const cam = cam2At(CAM, clock);
   const c = clock;
-  const bob = 7 * Math.sin((c / 6) * Math.PI * 2);                         // the cloud floats: a slow bob
+  const amb = loopClock(clock, sty.beats.reduce((a, b) => a + b.dur, 0));   // B29: the ambient motion (sky, clouds, plane, bob) runs on the loop clock
+  const bob = 7 * Math.sin((amb / 6) * Math.PI * 2);                         // the cloud floats: a slow bob
   const isOutro = beat.kind === "outro";
   // the dots of "100 elephants": 10 rows of 10 small blocks, a row at a time
   const rowStart = [T.rowA, T.rowB, T.rowC, T.rowD];
@@ -86,18 +87,18 @@ const Scene = ({ beat, t, clock }: SceneProps) => {
   const my = 1130 + marbleFall * 70;
   return (
     <svg width={1080} height={1920} viewBox="0 0 1080 1920">
-      <g transform={layerTransform(cam, 0.3)}><Sky clock={c} /></g>
+      <g transform={layerTransform(cam, 0.3)}><Sky clock={amb} /></g>
       <g transform={layerTransform(cam, 0.55)}>
-        <FarCloud x={80} y={700} grow={0.9} clock={c} amp={90} ph={0} />
-        <FarCloud x={1330} y={880} grow={1.1} clock={c} amp={-70} ph={0.4} />
-        <FarCloud x={-240} y={1180} grow={0.8} clock={c} amp={60} ph={0.7} />
-        <FarCloud x={1300} y={640} grow={0.7} clock={c} amp={-50} ph={0.2} />
+        <FarCloud x={80} y={700} grow={0.9} clock={amb} amp={90} ph={0} />
+        <FarCloud x={1330} y={880} grow={1.1} clock={amb} amp={-70} ph={0.4} />
+        <FarCloud x={-240} y={1180} grow={0.8} clock={amb} amp={60} ph={0.7} />
+        <FarCloud x={1300} y={640} grow={0.7} clock={amb} amp={-50} ph={0.2} />
       </g>
       <g transform={layerTransform(cam, 1)}>
         {/* the plane: a real-size neighbour of the km-wide cloud; it crosses the sky once per loop */}
-        <IsoPlane x={-1500 + 4100 * (c / 60)} y={560} w={120} phase={c / 3} />
+        <IsoPlane x={-1500 + 4100 * (amb / 60)} y={560} w={120} phase={amb / 3} />
         {/* the hero: the cumulus cloud, its glass cube and the km marks */}
-        <g transform={`translate(0 ${bob})`}><IsoCloud u={U} o={O} cx={0} cy={0} cz={0} grow={1.5} phase={c / 6} /></g>
+        <g transform={`translate(0 ${bob})`}><IsoCloud u={U} o={O} cx={0} cy={0} cz={0} grow={1.5} phase={amb / 6} /></g>
         {!isOutro && <Cube k={cubeK} fill={clamp01((c - T.cubeFill) / 0.8)} />}
         {kmLine(KL[0], KL[1] + 46, KR[0], KR[1] + 46, kmAk * cubeK)}
         {kmLine(KR[0] + 50, KR[1], KR[0] + 50, KT[1], kmBk * cubeK)}

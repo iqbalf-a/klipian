@@ -170,11 +170,9 @@ const AirCon: React.FC<{ u: number; o: P2; load: number; air: number }> = ({ u, 
 const Picture: React.FC<SceneProps> = ({ beat, t, clock, story: s }) => {
   const P = React.useMemo(() => makePlan(s), [s]);
   const m = P.m;
-  // B29: ambient motion (every period divides 60 s) runs on the loop clock; beat-tied states and the camera keep the real clock, but the outro is stretched to end exactly at key 60
-  // (the wide shot and the first frame's states) whatever the voiced length is.
+  // B29: ambient motion (every period divides 60 s) runs on the loop clock; beat-tied states and the camera keep the clock (src/loopWarp.ts ends it at 60 s in a short video)
   const amb = loopClock(clock, P.total), air = loopClock(clock, P.total, 38.4), steam = loopClock(clock, P.total, 59.4);   // 1.6 s x 24 cycles, 2.2 s x 27 cycles
-  const te = clock <= m.outro || P.total <= m.outro ? clock : m.outro + ((clock - m.outro) * (60 - m.outro)) / (P.total - m.outro);
-  const st = stateAt(te), cam = camAt(te), top = P.tops.find((x) => clock >= x.a && clock < x.b);
+  const st = stateAt(clock), cam = camAt(clock), top = P.tops.find((x) => clock >= x.a && clock < x.b);
   const o = O, u = U;
   const ledP = easeInOut(st.led), ledS = 0.15 + 0.85 * ledP;
   const bulbC = world([0, 0, BULB_ZC]);

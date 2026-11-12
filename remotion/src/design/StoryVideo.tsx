@@ -12,6 +12,7 @@ import { presentationFor } from "../transitions.tsx";
 import { FRAME } from "../tokens.ts";
 import { useFonts } from "../FunFact.tsx";
 import { applyLayout } from "../layout.ts";
+import { setLoopWarp, warpClock } from "../loopWarp.ts";
 import { LayoutDebug } from "../components/LayoutDebug.tsx";
 
 /** What a scene function gets: the beat, its index, `t` = seconds into the beat (it goes on during a transition), `clock` = seconds of the video
@@ -23,7 +24,7 @@ const BeatFrame: React.FC<{ beat: BeatT; index: number; start: number; story: St
   const frame = useCurrentFrame();
   return (
     <div style={{ position: "relative", width: FRAME.width, height: FRAME.height, overflow: "hidden" }}>
-      {scene({ beat, index, t: frame / FPS, clock: (start + frame) / FPS, story })}
+      {scene({ beat, index, t: frame / FPS, clock: warpClock((start + frame) / FPS), story })}
       {debug && <LayoutDebug report={applyLayout(beat.scene.items).report} />}
     </div>
   );
@@ -32,7 +33,9 @@ const BeatFrame: React.FC<{ beat: BeatT; index: number; start: number; story: St
 export const StoryVideo: React.FC<{ story: StoryT; scene: Scene; layoutDebug?: boolean }> = ({ story, scene, layoutDebug = false }) => {
   useFonts();
   const children: React.ReactNode[] = [];
-  sequencePlan(story).forEach((p, i) => {
+  const plan = sequencePlan(story);
+  setLoopWarp(story, plan.length ? plan[plan.length - 1].from / FPS : 0);
+  plan.forEach((p, i) => {
     const tr = transitionInto(story, i);
     if (i > 0 && tr.frames > 0) children.push(<TransitionSeries.Transition key={`tr-${p.beat.id}`} presentation={presentationFor(p.beat.transition!)} timing={linearTiming({ durationInFrames: tr.frames })} />);
     children.push(

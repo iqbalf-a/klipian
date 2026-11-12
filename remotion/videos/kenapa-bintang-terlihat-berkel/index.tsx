@@ -5,7 +5,7 @@
    light wobbles at the telescope and the star goes bright and dim. The first frame is the last (the loop: every motion is periodic in 60 s). */
 import React from "react";
 import {
-  BLACK, CaptionLayer, IsoBlock, Motes, SourceChip, StoryVideo, TipCard, TopText, YELLOW, YELLOW_D, block, cam2At, clamp01, cylinder, easeOutBack,
+  BLACK, CaptionLayer, IsoBlock, loopClock, Motes, SourceChip, StoryVideo, TipCard, TopText, YELLOW, YELLOW_D, block, cam2At, clamp01, cylinder, easeOutBack,
   isoAt, layerTransform, ptsAttr, smoothPath, springAt, toScreen, useFonts, type P2, type P3, type Poly, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import { G1, G2, G3, G4, HOT1, ISO, WHITE } from "../../src/tokens.ts";
@@ -31,7 +31,10 @@ const TAU = Math.PI * 2;
 const polys = (ps: Poly[], tones: Tri, op = 1) => ps.map((p, i) => <polygon key={i} points={ptsAttr(p.pts)} fill={tones[p.tone]} stroke={tones[p.tone]} strokeWidth={1} strokeLinejoin="round" opacity={op} />);
 const on = (c: number, a: number, b = 1e9) => clamp01((c - a) / 0.3) * (1 - clamp01((c - b) / 0.3));
 /** A smooth noise in -1..1 that repeats every 60 s (so the loop's last frame is its first). */
-const nz = (c: number, k: number) => (Math.sin(TAU * ((97 + 7 * k) * c / 60 + 0.13 * k)) + Math.sin(TAU * ((151 + 11 * k) * c / 60 + 0.31 * k)) * 0.7 + Math.sin(TAU * ((233 + 5 * k) * c / 60 + 0.57 * k)) * 0.5) / 2.2;
+/** B29: the twinkle and the sways are ambient: they run on the loop clock (the length of the voiced video is set by the scene before it draws). */
+let LOOP_TOTAL = 0;
+const lc = (c: number) => loopClock(c, LOOP_TOTAL);
+const nz = (c: number, k: number) => (Math.sin(TAU * ((97 + 7 * k) * lc(c) / 60 + 0.13 * k)) + Math.sin(TAU * ((151 + 11 * k) * lc(c) / 60 + 0.31 * k)) * 0.7 + Math.sin(TAU * ((233 + 5 * k) * lc(c) / 60 + 0.57 * k)) * 0.5) / 2.2;
 
 // ------------------------------------------------------------------------------------------------ the shell of air (a part of a circle around the earth's centre)
 const F: P2 = [SCOPE_FRONT.x, SCOPE_FRONT.y], S: P2 = [STAR.x, STAR.y];
@@ -88,7 +91,7 @@ const Pockets: React.FC<{ c: number; warmK: number; coldK: number; ring: number 
       const r2 = RADII[i + 1], mid = (r + r2) / 2, dir = i % 2 ? -1 : 1, span = SPACING * 16;
       return Array.from({ length: 16 }, (_, j) => {
         const th = -span / 2 + ((j * SPACING + dir * (2 * SPACING) * (c / 60) + 0.05 * i + span * 4) % span);
-        const p = arcPt(mid, th), warm = (j + i) % 2 === 0, rx = mid * SPACING * 0.36 * (1 + 0.08 * Math.sin(TAU * (c / 6 + j * 0.3))), ry = (r2 - r) * 0.34;
+        const p = arcPt(mid, th), warm = (j + i) % 2 === 0, rx = mid * SPACING * 0.36 * (1 + 0.08 * Math.sin(TAU * (lc(c) / 6 + j * 0.3))), ry = (r2 - r) * 0.34;
         const k = warm ? warmK : coldK;
         return <g key={`${i}-${j}`} transform={`rotate(${(th * 180) / Math.PI} ${p[0]} ${p[1]})`}>
           <ellipse cx={p[0]} cy={p[1]} rx={rx} ry={ry} fill={warm ? WARM : COLD} opacity={0.1 + 0.22 * k} />
@@ -152,13 +155,13 @@ const Tank: React.FC<{ c: number }> = ({ c }) => (
     {polys(block([-2.0, 1.4, 0.7], [-0.9, 2.5, 0.78], U, O), TANKSTAND)}
     {polys(cylinder([-1.45, 1.95, 0.78], [-1.45, 1.95, 1.95], 0.56, 0.56, [1, 0, 0], [0, 1, 0], U, O), TANK)}
     {polys(cylinder([-1.45, 1.95, 1.95], [-1.45, 1.95, 2.05], 0.3, 0.22, [1, 0, 0], [0, 1, 0], U, O), TANK)}
-    {(() => { const p = isoAt([-1.45, 1.95, 2.05], U, O); return <ellipse cx={p[0] - 6 + 3 * Math.sin(TAU * c / 7.5)} cy={p[1] + 2} rx={12} ry={6} fill={WHITE} opacity={0.18} />; })()}
+    {(() => { const p = isoAt([-1.45, 1.95, 2.05], U, O); return <ellipse cx={p[0] - 6 + 3 * Math.sin(TAU * lc(c) / 7.5)} cy={p[1] + 2} rx={12} ry={6} fill={WHITE} opacity={0.18} />; })()}
   </g>
 );
 
 /** The TV antenna (dressing, right): a mast on a small foot, cross bars that sway a little in the wind. */
 const Antenna: React.FC<{ c: number }> = ({ c }) => {
-  const base: P3 = [1.5, -1.7, 0], top = isoAt([1.5, -1.7, 2.7], U, O), sw = 1.6 * Math.sin(TAU * c / 6);
+  const base: P3 = [1.5, -1.7, 0], top = isoAt([1.5, -1.7, 2.7], U, O), sw = 1.6 * Math.sin(TAU * lc(c) / 6);
   return (
     <g>
       {polys(block([1.3, -1.9, 0], [1.7, -1.5, 0.12], U, O), TANKSTAND)}
@@ -216,8 +219,9 @@ const exitAir = (a: P2, b: P2): P2 => {
   return [a[0] + dx * s, a[1] + dy * s];
 };
 
-const Scene = ({ beat, t, clock }: SceneProps) => {
+const Scene = ({ beat, t, clock, story: sty }: SceneProps) => {
   useFonts();
+  LOOP_TOTAL = sty.beats.reduce((a, b) => a + b.dur, 0);
   const c = clock, cam = cam2At(CAM, c), kind = beat.kind, isOutro = kind === "outro", hide = isOutro || kind === "sting";
   const amp = shakeAt(c), pts = lightPoints(S, F, c, amp, 1), b = brightAt(c, amp, 1);
   const tintK = on(c, T.colour, 33.6), tintPick = nz(c * 0.5, 13);

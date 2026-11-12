@@ -50,7 +50,7 @@ export const ALIVE = {
   pulsePeriod: 2.4,                   // a glow breathes over 2.4 s
   heartBpm: 72, fanRps: 2.2,
   flickerAmp: 0.04,                   // a light flickers +/- 4 %
-  risePeriod: 2.6,                    // a wisp of steam lives 2.6 s
+  risePeriod: 2.5,                    // a wisp of steam lives 2.5 s (divides 60 and 45: B29, the loop)
 } as const;
 
 // the motion density (B25): something moves about every second, and something new (an element comes in, the camera moves to another place, the scene changes)

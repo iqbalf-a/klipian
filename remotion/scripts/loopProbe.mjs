@@ -28,7 +28,10 @@ const stretch = (story, target) => {
 for (const id of list) {
   try {
     const own = await selectComposition({ serveUrl, id: `video-${id}`, chromiumOptions, logLevel: "error" }), v = { story: own.props.story };
-    const target = String(total).startsWith("x") ? Number(String(total).slice(1)) * v.story.duration : total;
+    const base = v.story.duration >= 50 ? 60 : 45;
+    const lens = total === "multi" ? (base === 60 ? ["56", "58", "60", "62.3", "66", "x1"] : ["42", "44", "45", "46.7", "50", "x1"]) : String(total).split(",");
+    for (const len of lens) {
+    const target = len.startsWith("x") ? Number(len.slice(1)) * v.story.duration : Number(len);
     const inputProps = { story: stretch(v.story, target) };
     const composition = await selectComposition({ serveUrl, id: `video-${id}`, inputProps, chromiumOptions, logLevel: "error" });
     const first = path.join(dir, `${id}-first.png`), last = path.join(dir, `${id}-last.png`);
@@ -38,5 +41,6 @@ for (const id of list) {
     const r = spawnSync("ffmpeg", ["-hide_banner", "-i", first, "-i", last, "-lavfi", "[0]crop=1080:1500:0:0[a];[1]crop=1080:1500:0:0[b];[a][b]psnr", "-f", "null", "-"], { encoding: "utf8" });
     const m = /average:([\d.inf]+)/.exec(r.stderr || "");
     console.log(`${id}\t${composition.durationInFrames / composition.fps}s\t${m ? m[1] : "?"} dB`);
+    }
   } catch (e) { console.log(`${id}\tERROR ${String(e.message).split("\n")[0]}`); }
 }

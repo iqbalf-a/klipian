@@ -4,6 +4,7 @@
    asset that moves a little all the time reads as alive, and none of it is big enough to pull the eye from the story. No random numbers: a `phase` (0..1)
    offsets a motion so two things of one kind do not move together. */
 import { ALIVE, AMBIENT } from "./motionLanguage.ts";
+import { unwarpClock } from "./loopWarp.ts";
 
 const TAU = Math.PI * 2;
 const wrap = (x: number): number => ((x % 1) + 1) % 1;
@@ -42,4 +43,4 @@ export function blinkClosed(t: number, period: number = AMBIENT.blinkPeriod, pha
 }
 
 /** The loop clock (DESIGN.md B29): the video's clock scaled so `base` seconds (the length the ambient periods divide: 60, or 45) pass in `total` seconds (the sum of the beats, which the voice sets). Feed it to every motion that repeats (sway, bubbles, waves, blinks); the first and the last frame then hold the same phase whatever the length. Beat-tied motion (a swim, a reveal, the camera) keeps the real clock. */
-export const loopClock = (clock: number, total: number, base = 60): number => (total > 0 ? (clock * base) / total : clock);
+export const loopClock = (clock: number, total: number, base = 60): number => (total > 0 ? (unwarpClock(clock) * base) / total : clock);

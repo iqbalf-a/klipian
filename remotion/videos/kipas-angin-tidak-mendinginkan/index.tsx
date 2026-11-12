@@ -73,7 +73,7 @@ const AirStreaks: React.FC<{ u: number; o: P2; k: number; clock: number }> = ({ 
     <g strokeLinecap="round" fill="none">
       {STREAKS.map(([y, z], i) => {
         const ph = (((clock / 1.5 + i / STREAKS.length) % 1) + 1) % 1, x0 = 0.55 + ph * 3.6, op = k * Math.sin(Math.PI * ph);
-        const p: P2[] = Array.from({ length: 6 }, (_, s) => isoAt([x0 + s * 0.18, y + 0.07 * Math.sin(s * 1.2 + i * 2 + clock * 3), z + 0.05 * Math.sin(s * 1.4 + i)], u, o) as P2);
+        const p: P2[] = Array.from({ length: 6 }, (_, s) => isoAt([x0 + s * 0.18, y + 0.07 * Math.sin(s * 1.2 + i * 2 + (clock * 2 * Math.PI * 29) / 60), z + 0.05 * Math.sin(s * 1.4 + i)], u, o) as P2);
         const d = smoothPath(p, 0.5);
         return <g key={i} opacity={op}><path d={d} stroke={G3} strokeWidth={u * 0.035} transform="translate(0 3)" opacity={0.5} /><path d={d} stroke={WHITE} strokeWidth={u * 0.035} /></g>;
       })}
