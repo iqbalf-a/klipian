@@ -1,0 +1,254 @@
+{
+  "bible": 1,
+  "question": "Rp14,69 miliar itu sebanyak apa kalau dibelanjakan?",
+  "titles": [
+    "Rp14,69 miliar itu sebanyak apa? Ini kalau dibelanjakan",
+    "Rp14,69 miliar bisa beli berapa iPhone 18 Pro?",
+    "Intip hitungan Rp14,69 miliar: iPhone, motor, bensin, gaji"
+  ],
+  "duration": 60,
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 3,
+      "narration": "Empat belas koma enam sembilan miliar rupiah. Sebanyak apa, sih?",
+      "kicker": "SEBANYAK APA?",
+      "headline": "Rp14,69 miliar",
+      "text": "Rp14,69 miliar",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "sting",
+      "kind": "sting",
+      "dur": 1,
+      "narration": "Intip yuk!",
+      "text": "Intip yuk!",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "mascot",
+            "x": 540,
+            "y": 720,
+            "w": 220,
+            "expr": "curious",
+            "pop": true
+          },
+          {
+            "type": "pill",
+            "text": "Intip yuk!",
+            "x": 540,
+            "y": 1489,
+            "fs": 56
+          }
+        ]
+      },
+      "sfx": "pop"
+    },
+    {
+      "id": "asal",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Angka ini ramai setelah ICW menemukan delapan paket jasa influencer dari APBN, tahun 2024 sampai 2026. Kata perusahaannya, tarifnya sesuai harga biasa.",
+      "kicker": "ASAL ANGKANYA",
+      "headline": "Delapan paket, 2024 sampai 2026",
+      "text": "Delapan paket, 2024 sampai 2026",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "iphone",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Kalau semuanya dibelikan iPhone 18 Pro yang baru keluar, harganya dua puluh tujuh setengah juta, dapat lima ratus tiga puluh empat unit.",
+      "kicker": "DIBELIKAN iPHONE",
+      "headline": "534 iPhone 18 Pro",
+      "text": "534 iPhone 18 Pro",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "motor",
+      "kind": "normal",
+      "dur": 7,
+      "narration": "Dibelikan motor matik sembilan belas jutaan? Dapat lebih dari tujuh ratus lima puluh motor.",
+      "kicker": "DIBELIKAN MOTOR",
+      "headline": "750 lebih motor matik",
+      "text": "750 lebih motor matik",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "bensin",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Dibelikan Pertalite sepuluh ribu per liter, dapat hampir satu setengah juta liter bensin.",
+      "kicker": "DIBELIKAN BENSIN",
+      "headline": "Hampir 1,5 juta liter",
+      "text": "Hampir 1,5 juta liter",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "gaji",
+      "kind": "result",
+      "dur": 8,
+      "narration": "Atau dipakai menggaji orang dengan UMP Jakarta, lima koma tujuh juta sebulan. Cukup untuk dua ratus tiga belas orang selama setahun penuh.",
+      "kicker": "DIPAKAI MENGGAJI",
+      "headline": "Gaji 213 orang setahun",
+      "text": "Gaji 213 orang setahun",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "hari",
+      "kind": "result",
+      "dur": 6,
+      "narration": "Dan kalau kamu belanjakan satu juta rupiah setiap hari, uang ini baru habis setelah empat puluh tahun.",
+      "kicker": "SEJUTA PER HARI",
+      "headline": "Habisnya 40 tahun lagi",
+      "text": "Habisnya 40 tahun lagi",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "tips",
+      "kind": "tips",
+      "dur": 7,
+      "narration": "Jadi, lima ratusan iPhone, tujuh ratusan motor, atau gaji dua ratusan orang setahun. Semuanya dari satu angka.",
+      "kicker": "HARGA PER 12 NOV 2026",
+      "headline": "Semua dari satu angka",
+      "text": "Semua dari satu angka",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "dur": 4,
+      "narration": "",
+      "text": "",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    }
+  ],
+  "claims": [
+    {
+      "text": "ICW menemukan di portal Inaproc (LKPP) delapan paket pengadaan jasa influencer dari APBN dengan total nilai kontrak Rp14.696.955.002 sepanjang 2024 hingga 2026.",
+      "beats": [
+        "hook",
+        "asal",
+        "tips"
+      ],
+      "sources": [
+        "https://www.sinarharapan.co/politik/38517882544/icw-soroti-belanja-apbn-rp146-miliar-untuk-influencer-terafiliasi-raffi-ahmad",
+        "https://finance.detik.com/bursa-dan-valas/d-8748271/rans-buka-suara-soal-jasa-influencer-rp-14-m-dari-apbn"
+      ]
+    },
+    {
+      "text": "Manajemen RANS menyatakan nilai kerja sama Rp14.696.955.002 itu mengacu pada commercial rate card yang umumnya dipakai untuk klien lainnya.",
+      "beats": [
+        "asal"
+      ],
+      "sources": [
+        "https://finance.detik.com/bursa-dan-valas/d-8748271/rans-buka-suara-soal-jasa-influencer-rp-14-m-dari-apbn"
+      ]
+    },
+    {
+      "text": "Harga iPhone 18 Pro 256 GB di iBox Indonesia per 12 November 2026 adalah Rp27.499.000, sehingga Rp14.696.955.002 cukup untuk 534 unit (14.696.955.002 / 27.499.000 = 534,4).",
+      "beats": [
+        "iphone",
+        "tips"
+      ],
+      "sources": [
+        "https://www.tvonenews.com/lifestyle/trend/477945-harga-iphone-terbaru-12-november-2026-iphone-18-pro-512-gb-turun-rp500-ribu"
+      ]
+    },
+    {
+      "text": "Harga Honda BeAT CBS di Jakarta pada Oktober 2026 adalah Rp19.380.000, sehingga Rp14.696.955.002 cukup untuk 758 unit (14.696.955.002 / 19.380.000 = 758,4).",
+      "beats": [
+        "motor",
+        "tips"
+      ],
+      "sources": [
+        "https://moladin.com/news/harga-honda-beat-oktober-2026/?show_all=1"
+      ]
+    },
+    {
+      "text": "Harga Pertalite pada November 2026 adalah Rp10.000 per liter, sehingga Rp14.696.955.002 setara 1.469.695 liter.",
+      "beats": [
+        "bensin"
+      ],
+      "sources": [
+        "https://akurat.co/nasional/903436/cek-harga-bbm-pertamina-november-2026-pertalite-pertamax-hingga-dexlite"
+      ]
+    },
+    {
+      "text": "UMP DKI Jakarta 2026 adalah Rp5.729.876 per bulan (Rp68.758.512 setahun), sehingga Rp14.696.955.002 cukup untuk menggaji 213 orang selama 12 bulan (14.696.955.002 / 68.758.512 = 213,7).",
+      "beats": [
+        "gaji",
+        "tips"
+      ],
+      "sources": [
+        "https://www.kompas.tv/info-publik/639870/daftar-lengkap-ump-2026-di-seluruh-provinsi-dki-jakarta-tertinggi-dengan-rp5-729-876"
+      ]
+    },
+    {
+      "text": "Rp14.696.955.002 dibagi Rp1.000.000 per hari adalah 14.696 hari, atau sekitar 40,2 tahun (hitungan dari angka total di sumber).",
+      "beats": [
+        "hari"
+      ],
+      "sources": [
+        "https://www.sinarharapan.co/politik/38517882544/icw-soroti-belanja-apbn-rp146-miliar-untuk-influencer-terafiliasi-raffi-ahmad"
+      ]
+    }
+  ],
+  "post": {
+    "description": "Rp14,69 miliar itu sebanyak apa? Intip hitungannya: 534 iPhone 18 Pro, lebih dari 750 motor matik, hampir 1,5 juta liter Pertalite, atau gaji UMP Jakarta untuk 213 orang selama setahun. Angkanya dari temuan ICW soal delapan paket jasa influencer dari APBN, 2024 sampai 2026. Harga per 12 November 2026.",
+    "hashtags": [
+      "#14miliar",
+      "#apbn",
+      "#hitunghitungan",
+      "#faktaseru",
+      "#intipyuk"
+    ]
+  },
+  "thumb": "Rp14,69 miliar dapat *berapa iPhone*?",
+  "needs": [],
+  "stage": "strip",
+  "theme": "cream",
+  "look": "2d",
+  "captions": true,
+  "music": {
+    "track": "bed-sunny"
+  }
+}
