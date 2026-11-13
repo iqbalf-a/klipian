@@ -126,6 +126,34 @@ const recipes = {
   "rain-patter": () => { const lp = lowpass2(4500), bp = bandpass(noiseOf(3), () => 2400, 1.4); return make(0.9, (t) => lp(bp(t)) * (0.35 + 0.65 * Math.abs(Math.sin(TAU * 7 * t + 1.3))) * Math.min(1, t / 0.02)); },
   "drip": () => { const o = osc((t) => 1100 - 700 * Math.min(1, t / 0.12)); return make(0.35, (t) => o(t) * Math.exp(-t * 16) * Math.min(1, t / 0.002)); },
   "bubble-rise": () => { const o = osc((t) => 260 + 520 * Math.min(1, t / 0.6)); return make(0.9, (t) => o(t) * Math.sin(Math.PI * Math.min(1, t / 0.9)) * 0.9); },
+  // the variety set (2026-11-13, open until ian approves it): other pops, swishes, ticks and result notes, and a few topical sounds. Nothing above changes.
+  "plop": () => { const o = osc((t) => 260 + 600 * (1 - Math.exp(-t * 40))); return make(0.18, (t) => o(t) * Math.exp(-t * 24) * Math.min(1, t / 0.002)); },
+  "pop-wood": () => make(0.14, (t) => (sine(880, t) + 0.35 * sine(2640, t) * Math.exp(-t * 90)) * Math.exp(-t * 55)),
+  "swish-down": () => { const d = 0.32, lp = lowpass2(4500), bp = bandpass(noiseOf(21), (t) => 3400 - 2300 * (t / d), 1.2); return make(d, (t) => lp(bp(t)) * Math.pow(Math.sin((Math.PI * t) / d), 1.5)); },
+  "whoosh-soft": () => { const d = 0.5, lp = lowpass2(3200), bp = bandpass(noiseOf(22), (t) => 400 + 1500 * Math.pow(Math.sin((Math.PI * t) / d), 1.5), 0.8); return make(d, (t) => lp(bp(t)) * Math.pow(Math.sin((Math.PI * t) / d), 2)); },
+  "swoop": () => {
+    const d = 0.28, o = osc((t) => 380 * Math.exp(Math.log(1250 / 380) * (t / d))), lp = lowpass2(3500), bp = bandpass(noiseOf(23), (t) => 800 + 1600 * (t / d), 1.0);
+    return make(d, (t) => (o(t) + 0.2 * lp(bp(t))) * Math.pow(Math.sin((Math.PI * t) / d), 1.2));
+  },
+  "tock": () => make(0.09, (t) => sine(1050, t) * Math.exp(-t * 90) + 0.25 * sine(2100, t) * Math.exp(-t * 150)),
+  "click-soft": () => { const lp = lowpass2(5000), bp = bandpass(noiseOf(24), () => 2200, 3); return make(0.06, (t) => lp(bp(t)) * Math.exp(-t * 160) + 0.4 * sine(900, t) * Math.exp(-t * 200)); },
+  "marimba": () => {
+    const bar = (t, start, f) => { const x = t - start; return x < 0 ? 0 : (sine(f, x) + 0.25 * sine(4 * f, x) * Math.exp(-x * 30)) * Math.exp(-x * 9) * Math.min(1, x / 0.002); };
+    return make(0.7, (t) => bar(t, 0, 523) + bar(t, 0.11, 784));
+  },
+  "bell-soft": () => make(1.0, (t) => bell(t, 0, 880, 4.5) + 0.4 * bell(t, 0, 1320, 5.5)),
+  "page-flip": () => {
+    const d = 0.32, lp = lowpass2(5000), bp = bandpass(noiseOf(25), (t) => 1400 + 2400 * (t / d), 0.8);
+    return make(d, (t) => lp(bp(t)) * Math.pow(Math.sin((Math.PI * t) / d), 0.8) * (0.55 + 0.45 * Math.abs(Math.sin(TAU * 14 * t))));
+  },
+  "stamp": () => { const n = noiseOf(26), lp = lowpass2(1600), o = osc((t) => 70 + 90 * Math.exp(-t * 40)); return make(0.3, (t) => o(t) * Math.exp(-t * 16) + 0.5 * sine(320, t) * Math.exp(-t * 45) + 0.6 * lp(n()) * Math.exp(-t * 70)); },
+  "coin": () => make(0.5, (t) => bell(t, 0, 1568, 10) + bell(t, 0.07, 2093, 8)),
+  "switch": () => {
+    const lp = lowpass2(5000), bp = bandpass(noiseOf(27), () => 1800, 2);
+    const click = (x) => (x < 0 ? 0 : Math.exp(-x * 220)), body = (x, f) => (x < 0 ? 0 : 0.6 * sine(f, x) * Math.exp(-x * 120));
+    return make(0.15, (t) => { const noise = lp(bp(t)); return noise * (click(t) + 0.8 * click(t - 0.055)) + body(t, 600) + 0.8 * body(t - 0.055, 900); });
+  },
+  "key-blip": () => { const f = (t) => 1175 + 145 * clamp01(t / 0.03), o = osc(f), o2 = osc((t) => 2 * f(t)); return make(0.09, (t) => (o(t) + 0.2 * o2(t)) * Math.pow(Math.sin((Math.PI * t) / 0.09), 0.7)); },
 };
 
 mkdirSync(OUT, { recursive: true });

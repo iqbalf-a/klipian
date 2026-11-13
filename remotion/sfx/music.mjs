@@ -204,6 +204,53 @@ const techMakers = {
 };
 Object.assign(makers, techMakers);
 
+// --- the variety beds (2026-11-13, open until ian approves them): three more happy / technology / educational loops, with progressions, tempos and rhythms
+// of their own, made from the same voices as the beds above.
+Object.assign(makers, {
+  "bed-pixel": () => {                                // Eb Cm Ab Bb at 128 BPM: a square pluck in a 3-3-2 rhythm with an echo, a saw bass in octaves, a light kick and hats, for apps, games and the internet
+    const bpm = 128, beat = 60 / bpm, bar = 4 * beat, six = beat / 4, bars = 8, len = bars * bar, buf = new Float32Array(Math.round(len * SR));
+    const chords = [[63, 67, 70], [60, 63, 67], [56, 60, 63], [58, 62, 65]], rand = rng(59), lead = new Float32Array(buf.length);
+    for (let b = 0; b < bars; b++) {
+      const chord = chords[b % 4], at = b * bar, up = b % 2 ? 12 : 0;
+      [[0, 0], [3, 1], [6, 2], [8, 1], [11, 2], [14, 0]].forEach(([k, idx], j) => synth(lead, at + k * six, chord[idx] + 12 + (j >= 4 ? up : 0), six * 1.6, 0.08, { decay: 11, harmonics: 5, square: true }));
+      for (let k = 0; k < 8; k++) synth(buf, at + k * (beat / 2), chord[0] - 24 + (k % 2 ? 12 : 0), beat / 2 * 0.7, 0.16, { decay: 8, harmonics: 4 });
+      [0, 2].forEach((k) => kick(buf, at + k * beat, 0.2));
+      for (let k = 0; k < 4; k++) burst(buf, at + k * beat + beat / 2, 0.03, 0.045, rand, 130);
+      burst(buf, at + 3 * beat, 0.07, 0.05, rand, 40);
+    }
+    echo(lead, 0.75 * beat, 0.45, 0.4);
+    mixInto(buf, lead);
+    return lowpass(buf, 2600);
+  },
+  "bed-study": () => {                                // F Dm Gm C at 96 BPM: soft electric-piano chords on the off-beats, a two-note bass, a shaker and one bell note a bar: light and attentive, for a lesson or an explanation
+    const bpm = 96, beat = 60 / bpm, bar = 4 * beat, eighth = beat / 2, bars = 8, len = bars * bar, buf = new Float32Array(Math.round(len * SR));
+    const chords = [[53, 57, 60], [50, 53, 57], [55, 58, 62], [48, 52, 55]], rand = rng(61);
+    for (let b = 0; b < bars; b++) {
+      const chord = chords[b % 4], at = b * bar;
+      [1, 3, 6].forEach((k) => chord.forEach((m, j) => strike(buf, at + k * eighth + j * 0.008, m + 12, 0.07, 3.2, 0.3)));
+      strike(buf, at, chord[0] - 12, 0.14, 4, 0.25);
+      strike(buf, at + 2 * beat, chord[2] - 12, 0.11, 4, 0.25);
+      strike(buf, at + 3.5 * beat, chord[0] - 12, 0.08, 6, 0.25);
+      strike(buf, at + (b % 2 ? beat : 0), chord[b % 2 ? 2 : 1] + 24, 0.08, 2.4, 0.2);
+      for (let k = 0; k < 8; k++) burst(buf, at + k * eighth, 0.03, k % 2 ? 0.035 : 0.02, rand, 90);
+    }
+    return lowpass(buf, 3200);
+  },
+  "bed-breeze": () => {                               // A C#m D E at 108 BPM: a strummed pluck (down, down-up, up-down-up), claps on two and four and a glockenspiel motif: sunny and easy, for everyday life
+    const bpm = 108, beat = 60 / bpm, bar = 4 * beat, eighth = beat / 2, bars = 8, len = bars * bar, buf = new Float32Array(Math.round(len * SR));
+    const chords = [[57, 61, 64], [56, 61, 64], [57, 62, 66], [56, 59, 64]], roots = [45, 49, 50, 52], rand = rng(67);
+    for (let b = 0; b < bars; b++) {
+      const chord = chords[b % 4], at = b * bar;
+      [0, 2, 3, 5, 6, 7].forEach((k) => { const down = k % 2 === 0, order = down ? chord : [...chord].reverse(); order.forEach((m, j) => note(buf, at + k * eighth + j * 0.012, m + 12, 0.2, down ? 0.075 : 0.05, { pluck: true, octave: 0.15 })); });
+      strike(buf, at, roots[b % 4], 0.13, 5, 0.25);
+      strike(buf, at + 2.5 * beat, roots[b % 4], 0.10, 6, 0.25);
+      [1, 3].forEach((k) => burst(buf, at + k * beat, 0.06, 0.07, rand, 38));
+      [[0, 2], [1.5, 1], [3, 0]].slice(0, b % 2 ? 3 : 2).forEach(([k, idx]) => strike(buf, at + k * beat, chord[idx] + 24, 0.07, 4, 0.1));
+    }
+    return lowpass(buf, 2800);
+  },
+});
+
 mkdirSync(OUT, { recursive: true });
 // --preview: the same beds into out/music/ for ian to listen to: the loop as it is, and a 30 s version that plays the loop again and again across the seam
 const PREVIEW = process.argv.includes("--preview") ? path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "out", "music") : null;

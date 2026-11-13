@@ -7484,11 +7484,11 @@ def check_motion_brief() -> tuple[str, str]:
         if "Choose the look" not in auto or any(t in motion.short_command({**base, "options": {"music": "sunny", "look": "auto"}}) for t in ("2.5d", " 2d ", "teks")):
             problems.append("look auto leaves the choice to the agent: the choose text and no look token")
         motion.build_brief({**base, "options": {"kind": "otomatis", "music": "sunny", "look": "iso"}})      # the template kind ignores the look: no error
-        short = motion.short_command({"topic": "Kenapa colokan panas", "duration": 45, "notes": "", "options": {"music": motion.DEFAULT_OPTIONS["music"]}})
+        short = motion.short_command({"topic": "Kenapa colokan panas", "duration": 45, "notes": "", "options": {"music": motion.suggest_music("Kenapa colokan panas")}})
         if short != '-create 45 "Kenapa colokan panas"':
             problems.append(f"the short command of a default 45 s project is -create 45 \"<topic>\", not {short!r}")
-        short = motion.short_command({"topic": "Kenapa \"colokan\" panas", "duration": 30, "notes": "fokus ke a", "look": "iso", "options": {"loop": False, "music": "neon", "voiceTargets": ["googleai"]}})
-        for want in ("-create 2.5d 30", "noloop", "musik=neon", "suara=googleai", 'catatan="fokus ke a"', "Kenapa 'colokan' panas"):
+        short = motion.short_command({"topic": "Kenapa \"colokan\" panas", "duration": 30, "notes": "fokus ke a", "look": "iso", "options": {"loop": False, "music": "glow", "voiceTargets": ["googleai"]}})
+        for want in ("-create 2.5d 30", "noloop", "musik=glow", "suara=googleai", 'catatan="fokus ke a"', "Kenapa 'colokan' panas"):
             if want not in short:
                 problems.append(f"the short command lost {want!r}: {short!r}")
         skill = (Path(__file__).resolve().parent.parent / ".claude" / "skills" / "create" / "SKILL.md")
@@ -8364,20 +8364,32 @@ def check_music() -> tuple[str, str]:
             problems.append(f"the track {track} is in the catalogue")
     if motion.DEFAULT_OPTIONS["music"] != "sunny" or motion.normalize_options({})["music"] != "calm":
         problems.append("a new video gets sunny (ian's pick), and a project saved without a music choice keeps calm")
-    if motion.create("tes bed default", 30, "")["options"]["music"] != "sunny":
-        problems.append("a video made now gets the sunny bed")
+    if motion.create("tes bed default", 30, "")["options"]["music"] not in motion.CHEERFUL_BEDS:
+        problems.append("a video made now gets one of the cheerful beds")
     # the technology beds (P28-R phase 4): their tracks, a topic about a gadget or electricity suggests one of them, any other topic the cheerful default, and an explicit choice wins
     if motion.MUSIC_TRACKS.get("circuit") != "bed-circuit" or motion.MUSIC_TRACKS.get("neon") != "bed-neon":
         problems.append("the technology beds have their tracks (bed-circuit, bed-neon)")
     for topic in ("Kenapa colokan listrik bisa panas", "Bagaimana wifi bekerja", "Kenapa baterai hp cepat habis"):
-        if motion.suggest_music(topic) not in ("circuit", "neon"):
+        if motion.suggest_music(topic) not in motion.TECH_BEDS:
             problems.append(f"{topic!r} gets a technology bed, not {motion.suggest_music(topic)}")
     for topic in ("Kenapa hujan turun", "Kenapa kita selalu bilang 5 menit lagi"):
-        if motion.suggest_music(topic) != "sunny":
-            problems.append(f"{topic!r} gets the cheerful default, not {motion.suggest_music(topic)}")
+        if motion.suggest_music(topic) not in motion.CHEERFUL_BEDS:
+            problems.append(f"{topic!r} gets a cheerful bed, not {motion.suggest_music(topic)}")
+    # the beds are spread (ian, 2026-11-13: every video sounded alike): a dozen everyday topics do not all get one bed, and the brief CLI suggests from the topic too
+    spread = {motion.suggest_music(f"Kenapa {w} begitu") for w in ("hujan", "kucing", "nasi", "langit", "es", "bawang", "macet", "tidur", "garam", "kopi", "sabun", "pasar")}
+    if len(spread) < 4:
+        problems.append(f"a dozen topics get at least 4 different beds, not {sorted(spread)}")
+    if not set(motion.TECH_BEDS + motion.CHEERFUL_BEDS) <= set(motion.MUSIC_TRACKS) or {"calm", "tech", "none"} & set(motion.TECH_BEDS + motion.CHEERFUL_BEDS):
+        problems.append("the suggested beds are tracks, and never a legacy bed or none")
+    from . import motion_brief_cli
+    for topic in ("Kenapa hujan turun", "Bagaimana wifi bekerja"):
+        if f"(story music track {motion.MUSIC_TRACKS[motion.suggest_music(topic)]})" not in motion_brief_cli.brief_for(topic):
+            problems.append(f"the brief CLI without --music gives {topic!r} the bed suggested for it")
+        if "musik=" in motion.short_command({"topic": topic, "duration": 60, "notes": "", "options": {"music": motion.suggest_music(topic)}}):
+            problems.append("the -create command leaves out musik= when the bed is the suggested one")
     if motion.suggest_music("Bagaimana wifi bekerja") != motion.suggest_music("Bagaimana wifi bekerja"):
         problems.append("the same topic always gets the same bed")
-    if motion.create("Bagaimana wifi bekerja", 30, "", {"music": "auto"})["options"]["music"] not in ("circuit", "neon"):
+    if motion.create("Bagaimana wifi bekerja", 30, "", {"music": "auto"})["options"]["music"] not in motion.TECH_BEDS:
         problems.append("music 'auto' on a technology topic gives a technology bed")
     if motion.create("Bagaimana wifi bekerja", 30, "", {"music": "glow"})["options"]["music"] != "glow":
         problems.append("an explicit music choice is kept")
@@ -8388,7 +8400,7 @@ def check_music() -> tuple[str, str]:
             problems.append(f"the dialog offers {label!r}")
     if problems:
         return FAIL, "\n      ".join(problems)
-    return PASS, "the page's music labels are the server's, the legacy beds keep their tracks, sunny is the default for new videos, and an old project keeps calm"
+    return PASS, "the page's music labels are the server's, the legacy beds keep their tracks, new videos get a bed spread by topic, and an old project keeps calm"
 
 
 def check_briefagents() -> tuple[str, str]:

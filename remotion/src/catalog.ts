@@ -31,7 +31,8 @@ export const CAMERA_KINDS = ["push", "pan", "still"] as const;
 export const TRANSITION_KINDS = ["cut", "slide", "wipe", "zoom", "lens"] as const;
 
 // ---------------------------------------------------------------- sound effects (P28-A4) ----------------------------------------------------------
-/** Every sound effect there is (sfx/synth.mjs makes each as sfx/wav/<name>.wav), with how it is mixed: `vol` is its gain (0..1), `cooldown` the
+/** Every sound effect there is (sfx/synth.mjs makes each as sfx/wav/<name>.wav), with how it is mixed (the rows from "plop" on are the variety set
+    of 2026-11-13: open until ian approves them, see OPEN_SFX in scripts/soundHash.mjs; the rows above them are the approved set and never change): `vol` is its gain (0..1), `cooldown` the
     least gap between two of it (seconds), `dur` its length, `loop` marks a bed that is repeated for as long as the event lasts.
     A story can only name one of these (or "none") in an item's `sfx`; everything else is chosen from the motion vocabulary (see src/sfx.ts). */
 export const SFX = {
@@ -64,6 +65,20 @@ export const SFX = {
   "rain-patter":      { vol: 0.35, cooldown: 0.80, dur: 0.90 },
   "drip":             { vol: 0.40, cooldown: 0.25, dur: 0.35 },
   "bubble-rise":      { vol: 0.35, cooldown: 0.60, dur: 0.90 },
+  "plop":             { vol: 0.45, cooldown: 0.10, dur: 0.18 },
+  "pop-wood":         { vol: 0.40, cooldown: 0.10, dur: 0.14 },
+  "swish-down":       { vol: 0.34, cooldown: 0.30, dur: 0.32 },
+  "whoosh-soft":      { vol: 0.36, cooldown: 0.40, dur: 0.50 },
+  "swoop":            { vol: 0.24, cooldown: 0.30, dur: 0.28 },
+  "tock":             { vol: 0.30, cooldown: 0.08, dur: 0.09 },
+  "click-soft":       { vol: 0.22, cooldown: 0.10, dur: 0.06 },
+  "marimba":          { vol: 0.36, cooldown: 0.50, dur: 0.70 },
+  "bell-soft":        { vol: 0.32, cooldown: 0.50, dur: 1.00 },
+  "page-flip":        { vol: 0.36, cooldown: 0.30, dur: 0.32 },
+  "stamp":            { vol: 0.55, cooldown: 0.30, dur: 0.30 },
+  "coin":             { vol: 0.30, cooldown: 0.30, dur: 0.50 },
+  "switch":           { vol: 0.50, cooldown: 0.15, dur: 0.15 },
+  "key-blip":         { vol: 0.17, cooldown: 0.08, dur: 0.09 },
 } as const satisfies Record<string, { vol: number; cooldown: number; dur: number; loop?: boolean; bed?: boolean }>;
 export type SfxName = keyof typeof SFX;
 /** The nature assets of pilot 2 (src/components/IsoNature.tsx, NatureDemo, NatureSheet); the rest of the catalog is the same. */
@@ -72,6 +87,17 @@ export const SFX_NAMES = Object.keys(SFX) as [SfxName, ...SfxName[]];
 export const MAX_SIMULTANEOUS_SFX = 3;               // at most this many one-shots sound at once (a loop is a bed, it does not count)
 export const SFX_MASTER_CEILING = 0.5;               // the mix never goes above -6 dBFS: the rest is headroom for a voice-over bus (P28-C)
 export const SFX_SAMPLE_RATE = 48000;
+/** Sounds that do the same job (ian, 2026-11-13: every video sounded alike). A hand-written sfx.ts spreads its events over the names of a family
+    instead of always taking the first; the brief prints this table. The default map below (SFX_FOR) is unchanged. */
+export const SFX_FAMILIES = {
+  pop: ["pop", "pop-soft", "plop", "pop-wood", "drip"],
+  swish: ["swish", "swish-soft", "swish-down", "swoop"],
+  whoosh: ["whoosh", "whoosh-soft", "zoom-whoosh"],
+  tick: ["tick", "tick-soft", "tock", "click-soft", "key-blip", "switch"],
+  result: ["chime", "chime-bright", "marimba", "bell-soft", "glass-ting", "coin"],
+  land: ["thump", "stamp"],
+  paper: ["page-flip", "swish-soft"],
+} as const satisfies Record<string, readonly SfxName[]>;
 
 /** What a motion word sounds like. Each is read by src/sfx.ts; a story can change one item's sound with `sfx`, or silence it with "none". */
 export const SFX_FOR = {
@@ -124,5 +150,9 @@ export const MUSIC = {
   // the technology beds (P28-R phase 4): synth arpeggios over a light electronic beat; the levels keep their voice band (1 to 4 kHz) within about 2.5 dB of bed-calm's, measured in out/music/measure.md
   "bed-circuit": { level: 0.075, solo: 0.22, dur: 16 },
   "bed-neon": { level: 0.065, solo: 0.19, dur: 17.07 },
+  // the variety beds (2026-11-13, open until ian approves them): the levels keep the voice band inside the range of the beds above (scripts/musicMeasure.py)
+  "bed-pixel": { level: 0.07, solo: 0.21, dur: 15 },
+  "bed-study": { level: 0.06, solo: 0.18, dur: 20 },
+  "bed-breeze": { level: 0.05, solo: 0.15, dur: 17.78 },   // a little lower: its strum and glockenspiel sit in the voice band
 } as const;
 export const MUSIC_NAMES = Object.keys(MUSIC) as [keyof typeof MUSIC, ...(keyof typeof MUSIC)[]];

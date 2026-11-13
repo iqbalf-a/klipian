@@ -32,6 +32,18 @@ for (const name of SFX_NAMES) {
   yes(peak > 0.85 && peak < 0.95, `${name}: normalised (peak ${peak.toFixed(2)})`);
   yes(SFX[name].vol > 0 && SFX[name].vol <= 0.7, `${name}: a conservative volume`);
 }
+// the variety set (B15 amended 2026-11-13): the families name real sounds, every open sound is in a family, and the approved rows are still the record
+{
+  const { SFX_FAMILIES } = await import("../src/catalog.ts");
+  const { OPEN_SFX, soundSet } = await import("../scripts/soundHash.mjs");
+  const inFamily = new Set<string>(Object.values(SFX_FAMILIES).flat());
+  yes([...inFamily].every((s) => (SFX_NAMES as readonly string[]).includes(s)), "every family sound is in the SFX table");
+  yes(Object.values(SFX_FAMILIES).every((f) => f.length >= 2), "a family offers at least two sounds");
+  yes(OPEN_SFX.every((s: string) => inFamily.has(s) && (SFX_NAMES as readonly string[]).includes(s)), "every new sound is in the table and in a family");
+  const set = soundSet(), record = JSON.parse(readFileSync(path.join(ROOT, "scripts", "soundHash.json"), "utf8"));
+  yes(set.hash === record.hash, "adding the variety set left the approved sounds and levels as recorded");
+  yes(OPEN_SFX.every((s: string) => `sfx/wav/${s}.wav` in set.open && !(`sfx/wav/${s}.wav` in set.approved)), "the new sounds are open, not approved yet");
+}
 // the hum loops without a seam: its end continues into its start
 const hum = sound("hum");
 yes(Math.abs(hum[hum.length - 1] - hum[0]) < 0.12 && Math.abs(hum[0]) < 0.05, "the hum is periodic: no click where it repeats");

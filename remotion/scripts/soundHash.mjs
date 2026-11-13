@@ -15,13 +15,17 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const RECORD = path.join(ROOT, "scripts", "soundHash.json");
 // the beds that ian approved with the pilot 1 sound set (their files and their table lines are the reference)
 export const APPROVED_BEDS = ["bed-calm", "bed-tech"];
+// the variety effects (2026-11-13, B15 amended): added next to the approved set, never instead of it. Like the new beds they are OPEN: their files and
+// their lines of the SFX table are left out of the approved hash, so the approved sounds still hash to the record. When ian approves them: empty this
+// list and run --record.
+export const OPEN_SFX = ["plop", "pop-wood", "swish-down", "whoosh-soft", "swoop", "tock", "click-soft", "marimba", "bell-soft", "page-flip", "stamp", "coin", "switch", "key-blip"];
 const sha = (x) => createHash("sha256").update(x).digest("hex");
 
 /** The approved entries (name -> hash), the open entries (new beds, not approved yet), the set's hash and the entry names. */
 export function soundSet() {
   const approved = {}, open = {};
   for (const f of readdirSync(path.join(ROOT, "sfx", "wav")).filter((f) => /\.wav$/i.test(f)).sort()) {
-    approved[`sfx/wav/${f}`] = sha(readFileSync(path.join(ROOT, "sfx", "wav", f)));
+    (OPEN_SFX.includes(f.replace(/\.wav$/i, "")) ? open : approved)[`sfx/wav/${f}`] = sha(readFileSync(path.join(ROOT, "sfx", "wav", f)));
   }
   for (const f of readdirSync(path.join(ROOT, "sfx", "music")).filter((f) => /\.wav$/i.test(f)).sort()) {
     const name = f.replace(/\.wav$/i, "");
@@ -32,7 +36,10 @@ export function soundSet() {
   const catalog = readFileSync(path.join(ROOT, "src", "catalog.ts"), "utf8");
   const sfx = catalog.match(/export const SFX = \{[\s\S]*?\r?\n\}[^\n]*/);
   if (!sfx) throw new Error("src/catalog.ts has no SFX table");
-  approved["src/catalog.ts SFX"] = sha(sfx[0].replace(/\r/g, ""));         // the content, not the line endings
+  const openName = (line) => { const name = line.match(/^\s*"([a-z-]+)":/)?.[1]; return OPEN_SFX.includes(name) ? name : null; };
+  const rows = sfx[0].replace(/\r/g, "").split("\n");                      // the content, not the line endings
+  approved["src/catalog.ts SFX"] = sha(rows.filter((l) => !openName(l)).join("\n"));
+  for (const l of rows) if (openName(l)) open[`src/catalog.ts SFX ${openName(l)}`] = sha(l);
   const music = catalog.match(/export const MUSIC = \{[\s\S]*?\r?\n\}[^\n]*/);
   if (!music) throw new Error("src/catalog.ts has no MUSIC table");
   for (const line of music[0].replace(/\r/g, "").split("\n")) {            // the content, not the line endings

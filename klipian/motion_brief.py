@@ -155,7 +155,7 @@ HARD_RULES = [
     LOOK_MARK,
     "**Own set per video (B27.15; looks iso and 2d, text needs no set):** read `remotion/src/sets.ts` (the set kinds); each `remotion/videos/*/set.json` names the kind a video stands in, and a kind with a set.json is taken (the nature diorama belongs to `cara-kerja-hujan-buatan`). Pick the kind where the topic really happens, not where its weather is (a rainbow: a sky over a horizon). Never reuse another video's scene or set as a background, the far layer included. Reuse a single piece only when it is the same thing (a cloud in a lightning video), adapted in size, colour or state; never bend the topic around an asset. Declare `remotion/videos/<slug>/set.json` (`{\"kind\": \"<id>\"}`, or a new kind with `name` and `fits`); never edit `src/sets.ts`. The style check FAILs a taken set and FLAGs a missing set.json.",
     "**A shape with a real form is drawn in that form (B27.16):** check from a source the real shape and draw that, not the postcard version (a rainbow is a ring cut by the horizon). Where the picture shows part of a shape, something in the set cuts it. Say in the answer which shapes you checked.",
-    "**The sound is written by hand:** write `sfx.ts` against the scenes (see `remotion/videos/kenapa-colokan-panas/sfx.ts`): a sound on every object entering, camera move, label, card and state change, on the frame of its picture, at most 3 at once, about 1 event a second (60 s: 55 to 60; 45 s: 44; 30 s: 30), only names from `remotion/src/catalog.ts` (B15). The style check FLAGs the default or under 0.7 a second, and FAILs an unknown name.",
+    "**The sound is written by hand:** write `sfx.ts` against the scenes (see `remotion/videos/kenapa-colokan-panas/sfx.ts`): a sound on every object entering, camera move, label, card and state change, on the frame of its picture, at most 3 at once, about 1 event a second (60 s: 55 to 60; 45 s: 44; 30 s: 30), only names from `remotion/src/catalog.ts` (B15). Vary them: spread each family of equivalent sounds (`SFX_FAMILIES` there) over its names, no name on more than a quarter of the events, a topical sound where the picture has one (`page-flip`, `stamp`, `coin`, `switch`, `key-blip`); the bed is the one in the options. The style check FLAGs the default or under 0.7 a second, and FAILs an unknown name.",
     "**The text format is the channel's:** a kicker (DM Mono) and a headline (Outfit) at the top with `TopText`, a bottom caption with `CaptionLayer` (the spoken word yellow, `\"captions\": true`), and no big black banner box at the top. The style check FAILs a video without `TopText` or `CaptionLayer`, or one that draws `<Banner`.",
     "Explaining how the body or money works is allowed (why we hiccup, why banknotes do not tear). Never give medical advice, a diagnosis, a cure, a dose or a treatment, and never investment or financial advice (what to buy, what will rise). Never teach anything dangerous.",
     "Never write to `workspace/`, never read or print secrets or API keys.",
@@ -592,7 +592,7 @@ def short_command(p: dict) -> str:
         parts.append("nointip")
     if opts["voiceTargets"] != list(_m.VOICE_TARGETS):
         parts.append("suara=" + ",".join(opts["voiceTargets"]))
-    if opts["music"] != _m.DEFAULT_OPTIONS["music"]:
+    if opts["music"] != _m.suggest_music(p["topic"]):                 # the CLI suggests the same bed from the topic when the token is missing
         parts.append("musik=" + opts["music"])
     if p.get("notes"):
         parts.append("catatan=" + quote(p["notes"]))

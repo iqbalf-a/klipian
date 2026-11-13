@@ -35,5 +35,19 @@ original work.
 | `rain-patter.wav` | soft rain on a surface: filtered noise bursts (pilot 2, nature) | synth.mjs, CC0 |
 | `drip.wav` | a water drip: a falling sine with a fast decay (pilot 2, nature) | synth.mjs, CC0 |
 | `bubble-rise.wav` | a bubble rising: a gliding sine under a soft envelope (pilot 2, nature) | synth.mjs, CC0 |
+| `plop.wav` | a plop: a quick rising sine (variety set, a pop) | synth.mjs, CC0 |
+| `pop-wood.wav` | a woodblock pop: a sine with a short high partial (variety set, a pop) | synth.mjs, CC0 |
+| `swish-down.wav` | a short falling noise sweep (variety set, a swish) | synth.mjs, CC0 |
+| `whoosh-soft.wav` | a softer, lower whoosh (variety set) | synth.mjs, CC0 |
+| `swoop.wav` | a rising tone with a little air (variety set, a swish) | synth.mjs, CC0 |
+| `tock.wav` | a lower, woody tick (variety set, a tick) | synth.mjs, CC0 |
+| `click-soft.wav` | a tiny soft click (variety set, a tick) | synth.mjs, CC0 |
+| `marimba.wav` | two marimba notes C5 G5 (variety set, a result) | synth.mjs, CC0 |
+| `bell-soft.wav` | one soft bell A5 with its fifth (variety set, a result) | synth.mjs, CC0 |
+| `page-flip.wav` | a page turning: a fluttering noise sweep (variety set) | synth.mjs, CC0 |
+| `stamp.wav` | a stamp or a gavel: a low knock with a slap (variety set) | synth.mjs, CC0 |
+| `coin.wav` | a coin: two quick high bell notes G6 C7 (variety set) | synth.mjs, CC0 |
+| `switch.wav` | a switch: click and clack (variety set) | synth.mjs, CC0 |
+| `key-blip.wav` | a soft keyboard blip (variety set) | synth.mjs, CC0 |
 
 No voice is synthesised or sampled anywhere: the voice-over is a separate task (P28-C).

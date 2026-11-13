@@ -1201,10 +1201,10 @@ def _catalog() -> dict:
 # and turning one off gives a warning (the channel asks for them). The voice target only chooses the text format of the narration (the voice is made
 # outside klipian, by the person's own voice app); the music is the story's bed.
 VOICE_TARGETS = {"voicestudio": "VoiceStudio", "elevenlabs": "ElevenLabs", "googleai": "Google AI Studio"}
-MUSIC_TRACKS = {"sunny": "bed-sunny", "bounce": "bed-bounce", "glow": "bed-glow", "curious": "bed-curious", "circuit": "bed-circuit", "neon": "bed-neon", "calm": "bed-calm", "tech": "bed-tech", "none": "none"}
+MUSIC_TRACKS = {"sunny": "bed-sunny", "bounce": "bed-bounce", "glow": "bed-glow", "curious": "bed-curious", "circuit": "bed-circuit", "neon": "bed-neon", "pixel": "bed-pixel", "study": "bed-study", "breeze": "bed-breeze", "calm": "bed-calm", "tech": "bed-tech", "none": "none"}
 # the labels the page shows (Indonesian). The two beds that exist are the legacy ones (PLAN-VARIETY stage 1): their tracks never change.
 LEGACY_MUSIC = "calm"           # the bed of every video made before the choice of PLAN-VARIETY (ian picked sunny on 2026-10-28 for new videos only)
-MUSIC_LABELS = {"sunny": "Ceria", "bounce": "Pantul", "glow": "Hangat", "curious": "Penasaran", "circuit": "Teknologi (sirkuit)", "neon": "Teknologi (neon)", "calm": "Tenang (lama)", "tech": "Teknologi (lama)", "none": "Tanpa musik"}
+MUSIC_LABELS = {"sunny": "Ceria", "bounce": "Pantul", "glow": "Hangat", "curious": "Penasaran", "circuit": "Teknologi (sirkuit)", "neon": "Teknologi (neon)", "pixel": "Teknologi (piksel)", "study": "Belajar", "breeze": "Santai", "calm": "Tenang (lama)", "tech": "Teknologi (lama)", "none": "Tanpa musik"}
 # when each bed fits (PLAN-VARIETY): the brief tells the AI which one to choose for which kind of fact
 MUSIC_USE = {
     "sunny": "cheerful and major (about 120 BPM, a marimba-like melody): a cause or an object that works",
@@ -1213,6 +1213,9 @@ MUSIC_USE = {
     "curious": "playful and a little mysterious (about 100 BPM, a Dorian feel): a myth check or a how-does-it-work",
     "circuit": "technology: a synth arpeggio over a light electronic beat (about 120 BPM): a gadget, electricity, a phone, a machine",
     "neon": "technology: a pumping synth pad and a bright pluck over a light beat (about 112 BPM): the internet, a device, a process of a machine",
+    "pixel": "technology: a square pluck in a syncopated rhythm over a light beat (about 128 BPM): an app, a game, the internet, money on a screen",
+    "study": "light and attentive (about 96 BPM, soft electric-piano chords on the off-beats): a lesson, a rule, a law, a how-it-is-decided",
+    "breeze": "sunny and easy (about 108 BPM, a strummed pluck and claps): everyday life, habits, food, the body",
     "calm": "calm and slow (the legacy bed, kept for old videos)",
     "tech": "a quiet pattern (the legacy bed, kept for old videos)",
     "none": "no music",
@@ -1228,14 +1231,16 @@ TECH_WORDS = ("listrik", "colokan", "stopkontak", "kabel", "charger", "cas", "ba
               "internet", "komputer", "laptop", "chip", "prosesor", "robot", "mesin", "teknologi", "ai", "gadget", "aplikasi", "bluetooth", "satelit", "gps", "led", "magnet",
               "elektronik", "mobil listrik", "motor listrik", "pengisi daya", "daya")
 
+TECH_BEDS = ("circuit", "neon", "pixel")
+CHEERFUL_BEDS = ("sunny", "bounce", "glow", "curious", "study", "breeze")
+
 
 def suggest_music(topic: str) -> str:
-    """The bed a new video gets when the person leaves the music on "sesuai topik": a technology bed (circuit or neon, by the topic's letters, so the same
-    topic always gets the same one) for a technology topic, else the cheerful default."""
+    """The bed a new video gets when the person leaves the music on "sesuai topik": one of the technology beds for a technology topic, else one of the
+    cheerful beds, picked by the topic's letters, so the same topic always gets the same one and the videos do not all get the same bed (ian, 2026-11-13)."""
     words = " " + re.sub(r"[^a-z0-9-]+", " ", str(topic or "").lower()) + " "
-    if any(f" {w} " in words for w in TECH_WORDS):
-        return "circuit" if sum(map(ord, words)) % 2 == 0 else "neon"
-    return DEFAULT_OPTIONS["music"]
+    beds = TECH_BEDS if any(f" {w} " in words for w in TECH_WORDS) else CHEERFUL_BEDS
+    return beds[sum(map(ord, words)) % len(beds)]
 
 
 def normalize_options(raw) -> dict:

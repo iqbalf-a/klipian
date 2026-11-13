@@ -25,6 +25,9 @@ BEDS = {  # the design facts of each bed (sfx/music.mjs)
     "bed-curious": ("100", "Dm C Bb Am, Dorian (a major sixth on the minor chord)"),
     "bed-circuit": ("120", "A E F#m D, major, synth arpeggio"),
     "bed-neon": ("112.5", "F C Dm Bb, major, pumping pad"),
+    "bed-pixel": ("128", "Eb Cm Ab Bb, major, square pluck in 3-3-2"),
+    "bed-study": ("96", "F Dm Gm C, major, electric-piano off-beats"),
+    "bed-breeze": ("108", "A C#m D E, major, strummed pluck"),
 }
 
 
