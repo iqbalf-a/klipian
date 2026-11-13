@@ -22,7 +22,8 @@ mkdirSync(dir, { recursive: true });
 const stretch = (story, target) => {
   const fixed = story.beats.filter((b) => b.kind === "sting" || b.kind === "outro").reduce((a, b) => a + b.dur, 0);
   const free = story.beats.reduce((a, b) => a + b.dur, 0) - fixed, k = (Number(target) - fixed) / free;
-  return { ...story, beats: story.beats.map((b) => (b.kind === "sting" || b.kind === "outro" ? b : { ...b, dur: Math.round(b.dur * k * 100) / 100 })) };
+  const beats = story.beats.map((b) => (b.kind === "sting" || b.kind === "outro" ? b : { ...b, dur: Math.round(b.dur * k * 100) / 100 }));
+  return { ...story, duration: Math.round(beats.reduce((a, b) => a + b.dur, 0) * 100) / 100, beats };   // like the app's voiced story: duration = the voiced total
 };
 
 for (const id of list) {
