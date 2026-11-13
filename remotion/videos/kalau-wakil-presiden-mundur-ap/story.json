@@ -1,0 +1,235 @@
+{
+  "bible": 1,
+  "question": "Kalau wakil presiden mundur, siapa penggantinya menurut UUD 1945?",
+  "titles": [
+    "Kalau wakil presiden mundur, siapa penggantinya menurut UUD?",
+    "Kursi wapres kosong? UUD kasih batas 60 hari",
+    "Intip aturan UUD kalau wakil presiden mundur"
+  ],
+  "duration": 60,
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 3,
+      "narration": "Kalau wakil presiden mundur, kursinya diisi siapa?",
+      "kicker": "KALAU WAPRES MUNDUR",
+      "headline": "Kursinya diisi siapa?",
+      "text": "Kursinya diisi siapa?",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "sting",
+      "kind": "sting",
+      "dur": 1,
+      "narration": "Intip yuk!",
+      "text": "Intip yuk!",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "mascot",
+            "x": 540,
+            "y": 720,
+            "w": 220,
+            "expr": "curious",
+            "pop": true
+          },
+          {
+            "type": "pill",
+            "text": "Intip yuk!",
+            "x": 540,
+            "y": 1489,
+            "fs": 56
+          }
+        ]
+      },
+      "sfx": "pop"
+    },
+    {
+      "id": "kosong",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Undang-Undang Dasar menyebutnya kekosongan Wakil Presiden. Presiden tetap bekerja seperti biasa, tapi kursi di sebelahnya tidak boleh kosong terlalu lama.",
+      "kicker": "UUD 1945",
+      "headline": "Namanya kekosongan Wakil Presiden",
+      "text": "Namanya kekosongan Wakil Presiden",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "enam",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Pasal delapan ayat dua memberi batas waktu. Paling lambat enam puluh hari, MPR harus bersidang untuk memilih wakil presiden yang baru.",
+      "kicker": "PASAL 8 AYAT (2)",
+      "headline": "Paling lambat 60 hari",
+      "text": "Paling lambat 60 hari",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "dua",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Rakyat tidak memilih ulang. Presiden mengusulkan dua nama calon, lalu MPR memilih satu di antaranya.",
+      "kicker": "CARA MEMILIHNYA",
+      "headline": "Presiden usul dua, MPR pilih satu",
+      "text": "Presiden usul dua, MPR pilih satu",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "syarat",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Siapa yang boleh diusulkan? Syarat dasarnya ada di Pasal enam: warga negara Indonesia sejak lahir, tidak pernah mengkhianati negara, dan mampu menjalankan tugas.",
+      "kicker": "SYARAT CALON",
+      "headline": "Syarat dasarnya di Pasal 6",
+      "text": "Syarat dasarnya di Pasal 6",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "periode",
+      "kind": "result",
+      "dur": 9,
+      "narration": "Lalu, bolehkah mantan presiden dua periode? Pasal tujuh membatasi dipilih kembali dalam jabatan yang sama. Soal ini, ahli hukum masih berbeda pendapat.",
+      "kicker": "MANTAN PRESIDEN DUA PERIODE?",
+      "headline": "Ahli masih berbeda pendapat",
+      "text": "Ahli masih berbeda pendapat",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "berhenti",
+      "kind": "result",
+      "dur": 6,
+      "narration": "Itu kalau mundur. Kalau diberhentikan, jalurnya lebih panjang: usul DPR, diperiksa Mahkamah Konstitusi, lalu diputuskan MPR.",
+      "kicker": "KALAU DIBERHENTIKAN",
+      "headline": "Lewat DPR, MK, lalu MPR",
+      "text": "Lewat DPR, MK, lalu MPR",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "tips",
+      "kind": "tips",
+      "dur": 5,
+      "narration": "Jadi ingat tiga angka: enam puluh hari, dua calon, satu pilihan MPR.",
+      "kicker": "RINGKASNYA",
+      "headline": "60 hari, 2 calon, 1 pilihan",
+      "text": "60 hari, 2 calon, 1 pilihan",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "dur": 4,
+      "narration": "",
+      "text": "",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    }
+  ],
+  "claims": [
+    {
+      "text": "UUD 1945 Pasal 8 ayat (2): dalam hal terjadi kekosongan Wakil Presiden, selambat-lambatnya dalam waktu enam puluh hari, MPR menyelenggarakan sidang untuk memilih Wakil Presiden dari dua calon yang diusulkan oleh Presiden.",
+      "beats": [
+        "hook",
+        "kosong",
+        "enam",
+        "dua",
+        "tips"
+      ],
+      "sources": [
+        "https://id.wikisource.org/wiki/Undang-Undang_Dasar_Negara_Republik_Indonesia_Tahun_1945"
+      ]
+    },
+    {
+      "text": "UUD 1945 Pasal 6 ayat (1): calon Presiden dan calon Wakil Presiden harus warga negara Indonesia sejak kelahirannya dan tidak pernah menerima kewarganegaraan lain karena kehendaknya sendiri, tidak pernah mengkhianati negara, serta mampu secara rohani dan jasmani untuk melaksanakan tugas dan kewajibannya; ayat (2): syarat lain diatur dengan undang-undang.",
+      "beats": [
+        "syarat"
+      ],
+      "sources": [
+        "https://id.wikisource.org/wiki/Undang-Undang_Dasar_Negara_Republik_Indonesia_Tahun_1945"
+      ]
+    },
+    {
+      "text": "UUD 1945 Pasal 7: Presiden dan Wakil Presiden memegang jabatan selama lima tahun, dan sesudahnya dapat dipilih kembali dalam jabatan yang sama, hanya untuk satu kali masa jabatan.",
+      "beats": [
+        "periode"
+      ],
+      "sources": [
+        "https://id.wikisource.org/wiki/Undang-Undang_Dasar_Negara_Republik_Indonesia_Tahun_1945"
+      ]
+    },
+    {
+      "text": "Soal boleh tidaknya presiden dua periode menjadi wakil presiden, pendapat berbeda: juru bicara MK (2022) menyebut UUD tidak memuat larangan eksplisit, sedangkan pakar hukum tata negara Denny Indrayana menyebut tidak bisa, karena Pasal 8 ayat (1) (wakil presiden menggantikan presiden) akan membuatnya menjadi presiden lebih dari dua periode.",
+      "beats": [
+        "periode"
+      ],
+      "sources": [
+        "https://kumparan.com/kumparannews/jokowi-sudah-presiden-2-periode-masih-bisa-jadi-cawapres-1yrfOq7yiJE",
+        "https://id.wikisource.org/wiki/Undang-Undang_Dasar_Negara_Republik_Indonesia_Tahun_1945"
+      ]
+    },
+    {
+      "text": "UUD 1945 Pasal 7A dan 7B: Wakil Presiden dapat diberhentikan oleh MPR atas usul DPR; usul itu hanya dapat diajukan setelah Mahkamah Konstitusi memeriksa, mengadili, dan memutus pendapat DPR.",
+      "beats": [
+        "berhenti"
+      ],
+      "sources": [
+        "https://id.wikisource.org/wiki/Undang-Undang_Dasar_Negara_Republik_Indonesia_Tahun_1945"
+      ]
+    }
+  ],
+  "post": {
+    "description": "Kalau wakil presiden mundur, siapa penggantinya? Intip aturannya di UUD 1945: Pasal 8 ayat (2) memberi waktu paling lambat 60 hari, Presiden mengusulkan dua calon, dan MPR memilih satu. Syarat dasarnya ada di Pasal 6. Soal mantan presiden dua periode, Pasal 7 bicara tentang jabatan yang sama, dan ahli hukum masih berbeda pendapat. Video ini menjelaskan aturan, bukan menilai siapa pun.",
+    "hashtags": [
+      "#wakilpresiden",
+      "#uud1945",
+      "#mpr",
+      "#faktaseru",
+      "#intipyuk"
+    ]
+  },
+  "thumb": "Wapres mundur, *siapa penggantinya*?",
+  "needs": [],
+  "stage": "strip",
+  "theme": "cream",
+  "look": "2d",
+  "captions": true,
+  "music": {
+    "track": "bed-neon"
+  }
+}
