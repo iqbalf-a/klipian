@@ -146,6 +146,7 @@ def look_text(look: str | None) -> str:
 
 HARD_RULES = [
     "The beats' seconds add up to exactly the duration.",
+    "**The narration fits its beat:** a voice app reads about 2 words a second, pauses included, so a beat's narration has at most 2 words for each of its seconds (a 7 s beat: 14 words; a 60 s video: about 110 words in all, 45 s: about 80, 30 s: about 50; the sting and the outro are not counted). Count the words before you save. A longer narration makes the voice, and so the video, longer than the duration, the picture is then stretched, and klipian refuses to render a voice more than 15 % over the duration.",
     'The first beat is `hook`; the second is `sting` with the narration exactly "Intip yuk!"; the last is `outro`.',
     "The outro has an empty narration and no mascot, label or pill; its scene repeats the first beat's scene so the video loops.",
     "Every screen text (banner, pill, label, text) is at most 6 words.",
@@ -312,7 +313,7 @@ Expected: the file exists and is plain JSON.
 
 {STEP_MARK}2: validate the story
 Run, from the repository root: `node remotion/validate.mjs remotion/stories/{slug}.json`
-Expected: the output contains `"ok":true`. If it says `"ok":false`, fix every item of `errors`, save, run it again. A `warnings` list is advice.
+Expected: the output contains `"ok":true`. If it says `"ok":false`, fix every item of `errors`, save, run it again. A `warnings` entry about the narration (too many words for a beat, or for the video) must be fixed too: cut words until it is gone. Any other `warnings` entry is advice.
 
 {STEP_MARK}3: make the video folder
 Run: `cd remotion` then `npm run new-video {slug} stories/{slug}.json`

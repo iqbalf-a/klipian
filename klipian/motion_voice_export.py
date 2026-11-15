@@ -22,8 +22,10 @@ def _sentences(text: str) -> list[str]:
     return [s for s in re.split(r"(?<=[.!?])\s+", str(text or "").strip()) if s]
 
 
-# words a second (the planner's range, 2.3 to 3.2): the estimate of a part's length is a range, never a single number
-WPS_LOW, WPS_HIGH = 2.3, 3.2
+# words a second, pauses included: the estimate of a part's length is a range, never a single number. Measured, not planned: a Google AI Studio voice read
+# 1.6 to 2.2 words a second per beat, 2.0 over a whole video (2026-11-15); the old planner's 2.3 to 3.2 made every estimate too short. remotion/src/schema.ts
+# NARRATION_WPS (2.0) is the same pace, used by the validator's narration warnings.
+WPS_LOW, WPS_HIGH = 1.8, 2.3
 PART_SECONDS = 12.0              # a part is about this long (suggested breaks at sentence ends, 10 to 15 s)
 
 

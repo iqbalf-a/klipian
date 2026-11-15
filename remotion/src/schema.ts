@@ -265,6 +265,27 @@ export const Story = z.object({
   if (s.bible === 1) for (const w of bibleWarnings(s)) ctx.addIssue({ code: "custom", message: w.message, path: w.path });
 });
 
+/** How fast a voice app reads the narration, in words a second, pauses included. Measured on the first voiced render checked for it (Google AI Studio,
+ *  syarat-jadi-anggota-dpr-ternya: 134 words in 67 s of voiced beats, 1.6 to 2.2 per beat); ElevenLabs and VoiceStudio are not measured yet. */
+export const NARRATION_WPS = 2.0;
+/** The pace warnings: a narration too long for its beat makes the voice, and so the video, longer than planned (klipian refuses to render a voice more than
+ *  15 % over the duration). Advice only, never an error, so the older stories still validate; the brief tells the agent to fix them. The sting is not counted
+ *  (its two words are fixed). Per beat: more than 10 % over the beat. In all: the speech over the voiced beats by more than 5 %. */
+export const paceWarnings = (s: { beats: { kind: string; dur: number; narration: string }[] }): { path: (string | number)[]; message: string }[] => {
+  const out: { path: (string | number)[]; message: string }[] = [];
+  let words = 0, seconds = 0;
+  s.beats.forEach((b, bi) => {
+    const w = wordCount(b.narration);
+    if (b.kind === "sting" || w === 0) return;
+    words += w; seconds += b.dur;
+    const max = Math.floor(b.dur * NARRATION_WPS);
+    if (w > max * 1.1) out.push({ path: ["beats", bi, "narration"], message: `the narration has ${w} words for a ${b.dur} s beat: a voice reads about ${NARRATION_WPS} words a second, so it lasts about ${(w / NARRATION_WPS).toFixed(1)} s; cut it to at most ${max} words or make the beat longer` });
+  });
+  const speech = words / NARRATION_WPS;
+  if (seconds > 0 && speech > seconds * 1.05) out.push({ path: ["beats"], message: `the narration is about ${speech.toFixed(0)} s of speech for ${seconds} s of voiced beats (+${Math.round((speech / seconds - 1) * 100)} %): klipian refuses to render a voice more than 15 % over the duration; cut about ${Math.ceil(words - seconds * NARRATION_WPS)} words (at most ${Math.floor(seconds * NARRATION_WPS)} in all)` });
+  return out;
+};
+
 export type StoryT = z.infer<typeof Story>;
 export type BeatT = z.infer<typeof Beat>;
 export type ItemT = z.infer<typeof Item>;

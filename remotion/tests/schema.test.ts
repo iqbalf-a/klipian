@@ -3,7 +3,7 @@
    without a source. */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { validateStory, wordCount } from "../src/schema.ts";
+import { NARRATION_WPS, paceWarnings, validateStory, wordCount } from "../src/schema.ts";
 
 const sample = JSON.parse(readFileSync(new URL("../stories/colokan-panas.json", import.meta.url), "utf8"));
 const clone = (): any => JSON.parse(JSON.stringify(sample));
@@ -193,5 +193,17 @@ s = clone(); s.beats[0].scene.items.push({ type: "source", x: 60, y: 1100, claim
 bad(s, "a source card for a claim the story does not have", /shows claim 9, but the story has 3 claims/);
 s = clone(); s.beats[0].scene.items.push({ type: "source", x: 60, y: 1100, claim: 1 });
 bad(s, "a source card without an organisation", /org/);
+
+// the narration pace (advice, never an error): a voice reads about 2 words a second, so a beat holds 2 words for each of its seconds
+{
+  const words = (k: number) => Array.from({ length: k }, () => "kata").join(" ");
+  const beat = (kind: string, dur: number, k: number) => ({ kind, dur, narration: words(k) });
+  yes0(NARRATION_WPS === 2, "the measured pace is 2 words a second");
+  yes0(paceWarnings({ beats: [beat("hook", 3, 6), beat("sting", 1, 2), beat("normal", 7, 14), beat("outro", 4, 0)] }).length === 0, "a narration of 2 words a second gets no pace warning (the sting is not counted)");
+  const long = paceWarnings({ beats: [beat("hook", 3, 6), beat("normal", 6, 18), beat("normal", 8, 16)] });
+  yes0(long.some((w) => w.path.join(".") === "beats.1.narration" && /18 words for a 6 s beat/.test(w.message) && /at most 12 words/.test(w.message)), "a beat with 3 words a second gets a warning with its limit");
+  yes0(long.some((w) => w.path.join(".") === "beats" && w.message.includes("+18 %")), "a narration 18 % over its voiced beats gets the total warning");
+  yes0(paceWarnings({ beats: [beat("normal", 10, 21)] }).length === 0, "one word over a beat's limit is inside the margins (no warning)");
+}
 
 console.log(`schema: ${n} checks ok`);
