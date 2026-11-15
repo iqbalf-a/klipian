@@ -1,0 +1,251 @@
+{
+ "bible": 1,
+ "look": "2d",
+ "theme": "sky",
+ "stage": "slab",
+ "captions": true,
+ "music": {
+  "track": "bed-sunny"
+ },
+ "question": "Benarkah syarat jadi anggota DPR cuma lulus SMA, dan Paket C pun sah?",
+ "titles": [
+  "Syarat jadi anggota DPR ternyata cuma lulus SMA?",
+  "Jadi anggota DPR tidak wajib sarjana, Paket C pun bisa",
+  "Ijazah minimal calon anggota DPR: SMA atau sederajat"
+ ],
+ "thumb": "Jadi anggota DPR, *ijazahnya* apa?",
+ "duration": 60,
+ "beats": [
+  {
+   "id": "hook",
+   "kind": "hook",
+   "dur": 3,
+   "narration": "Jadi anggota DPR ternyata cukup lulus SMA?",
+   "text": "DPR cukup lulus SMA?",
+   "kicker": "SYARAT CALON",
+   "headline": "DPR cukup lulus SMA?",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "sting",
+   "kind": "sting",
+   "dur": 1,
+   "narration": "Intip yuk!",
+   "text": "Intip yuk!",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "mascot",
+      "x": 540,
+      "y": 720,
+      "w": 220,
+      "expr": "curious",
+      "enter": {
+       "kind": "pop",
+       "delay": 0
+      }
+     },
+     {
+      "type": "pill",
+      "text": "Intip yuk!",
+      "x": 540,
+      "y": 1489,
+      "fs": 56,
+      "enter": {
+       "kind": "pop",
+       "delay": 0.2
+      }
+     }
+    ]
+   },
+   "sfx": "pop"
+  },
+  {
+   "id": "aturan",
+   "kind": "normal",
+   "dur": 7,
+   "narration": "Aturannya ada di Undang-Undang Pemilu, pasal dua ratus empat puluh. Di situ tertulis daftar syarat calon anggota DPR.",
+   "text": "UU Pemilu Pasal 240",
+   "kicker": "ATURANNYA",
+   "headline": "UU Pemilu Pasal 240",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "sma",
+   "kind": "normal",
+   "dur": 8,
+   "narration": "Soal pendidikan, bunyinya begini: paling rendah tamat SMA, madrasah aliyah, SMK, atau sekolah lain yang sederajat.",
+   "text": "Paling rendah tamat SMA",
+   "kicker": "SOAL PENDIDIKAN",
+   "headline": "Paling rendah tamat SMA",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "paketc",
+   "kind": "normal",
+   "dur": 8,
+   "narration": "Nah, kata sederajat itu penting. Ijazah Paket C diakui setara dengan ijazah SMA, padahal jalurnya pendidikan nonformal.",
+   "text": "Paket C setara SMA",
+   "kicker": "KATA SEDERAJAT",
+   "headline": "Paket C setara SMA",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "serang",
+   "kind": "normal",
+   "dur": 8,
+   "narration": "Dan ini beneran dipakai. Ketua KPU Kabupaten Serang pernah mengakui, banyak calon anggota DPRD di sana mendaftar dengan ijazah Paket C.",
+   "text": "Banyak yang pakai Paket C",
+   "kicker": "BENERAN DIPAKAI",
+   "headline": "Banyak yang pakai Paket C",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "fakta",
+   "kind": "result",
+   "dur": 7,
+   "narration": "Jadi faktanya, tidak ada kewajiban sarjana untuk duduk di DPR. Lulus SMA atau yang sederajat sudah memenuhi syarat pendidikan.",
+   "text": "FAKTA: tanpa wajib sarjana",
+   "kicker": "JADI",
+   "headline": "FAKTA: tanpa wajib sarjana",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "umur",
+   "kind": "normal",
+   "dur": 6,
+   "narration": "Syarat lainnya juga sederhana: umur minimal dua puluh satu tahun, dan bisa berbicara, membaca, dan menulis bahasa Indonesia.",
+   "text": "Umur minimal 21 tahun",
+   "kicker": "SYARAT LAIN",
+   "headline": "Umur minimal 21 tahun",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "tips",
+   "kind": "tips",
+   "dur": 8,
+   "narration": "Tapi ijazah saja belum cukup. Calon harus berstatus kader partai politik, lalu tetap harus dipilih rakyat lewat pemilu.",
+   "text": "Harus lewat partai dan pemilu",
+   "kicker": "IJAZAH SAJA BELUM CUKUP",
+   "headline": "Harus lewat partai dan pemilu",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "outro",
+   "kind": "outro",
+   "dur": 4,
+   "narration": "",
+   "text": "",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  }
+ ],
+ "claims": [
+  {
+   "text": "Pasal 240 UU Nomor 7 Tahun 2017 tentang Pemilu mensyaratkan bakal calon anggota DPR berpendidikan paling rendah tamat sekolah menengah atas, madrasah aliyah, sekolah menengah kejuruan, madrasah aliyah kejuruan, atau sekolah lain yang sederajat; tidak ada syarat sarjana.",
+   "beats": [
+    "hook",
+    "aturan",
+    "sma",
+    "fakta"
+   ],
+   "sources": [
+    "https://www.cnnindonesia.com/nasional/20220821211921-617-837264/syarat-calon-anggota-dpr-2024-usia-21-tahun-pendidikan-sma",
+    "https://www.hukumonline.com/berita/a/minat-menjadi-caleg-2024-begini-syaratnya-menurut-undang-undang-lt634fc4a422828/"
+   ]
+  },
+  {
+   "text": "Ijazah Paket C memiliki kesetaraan dengan ijazah SMA atau SMK, dan Paket C adalah jalur pendidikan nonformal; UU Sisdiknas menyebut hasil pendidikan nonformal dapat dihargai setara dengan hasil pendidikan formal setelah penilaian penyetaraan.",
+   "beats": [
+    "paketc"
+   ],
+   "sources": [
+    "https://cnnindonesia.com/edukasi/20261009094534-561-1413408/apakah-lulusan-paket-c-bisa-melanjutkan-kuliah",
+    "https://id.wikisource.org/wiki/Undang-Undang_Republik_Indonesia_Nomor_20_Tahun_2003"
+   ]
+  },
+  {
+   "text": "Ketua KPU Kabupaten Serang Ahmad Lutfi Nuriman (2014) tidak menampik bahwa banyak yang mencalonkan diri menjadi anggota DPRD Kabupaten Serang bermodalkan ijazah Paket C.",
+   "beats": [
+    "serang"
+   ],
+   "sources": [
+    "https://www.jpnn.com/news/banyak-anggota-dprd-serang-berijazah-paket-c"
+   ]
+  },
+  {
+   "text": "Calon anggota DPR harus telah berusia 21 tahun atau lebih serta dapat berbicara, membaca, dan menulis dalam bahasa Indonesia.",
+   "beats": [
+    "umur"
+   ],
+   "sources": [
+    "https://www.cnnindonesia.com/nasional/20220821211921-617-837264/syarat-calon-anggota-dpr-2024-usia-21-tahun-pendidikan-sma"
+   ]
+  },
+  {
+   "text": "Calon anggota DPR harus berstatus kader partai politik peserta pemilu.",
+   "beats": [
+    "tips"
+   ],
+   "sources": [
+    "https://www.cnnindonesia.com/nasional/20220821211921-617-837264/syarat-calon-anggota-dpr-2024-usia-21-tahun-pendidikan-sma"
+   ]
+  }
+ ],
+ "post": {
+  "description": "Syarat pendidikan calon anggota DPR ternyata bukan sarjana. Undang-Undang Pemilu Pasal 240 menulis paling rendah tamat SMA atau sekolah lain yang sederajat, dan ijazah Paket C diakui setara SMA. Syarat lainnya: umur minimal 21 tahun, bisa berbahasa Indonesia, dan maju lewat partai politik.",
+  "hashtags": [
+   "#dpr",
+   "#pemilu",
+   "#faktaseru",
+   "#paketc",
+   "#intipyuk",
+   "#shorts"
+  ]
+ },
+ "needs": [
+  "papan pengumuman kantor pendaftaran (set baru, 2d)",
+  "lembar ijazah SMA dan ijazah Paket C",
+  "lembar UU Pemilu Pasal 240",
+  "KTP",
+  "kotak suara",
+  "tumpukan map berkas",
+  "Catatan: tidak ada sumber yang dibuka yang menyebut PKPU menulis kata Paket C; video hanya bilang Paket C setara SMA dan dipakai calon DPRD Serang"
+ ]
+}
