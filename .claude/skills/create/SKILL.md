@@ -21,7 +21,7 @@ Work quietly: no progress narration between steps; only the final answer.
 
 ## 0. Check the checkout
 
-Run `git log -1 --oneline origin/main` and `test -f .claude/skills/create/SKILL.md`; `klipian/motion_brief_cli.py` must exist too. If any of that fails, stop and answer only: "checkout lama, buka sesi cloud baru".
+Run `git log -1 --oneline origin/main`; `klipian/motion_brief_cli.py` must exist too. If any of that fails, stop and answer only: "checkout lama, buka sesi cloud baru".
 
 Where you run decides step 1: **cloud** when there is no `workspace/` folder at the repository root; **local** when `workspace/` exists (ian's own folder).
 
@@ -34,7 +34,6 @@ The video is saved on `main`, so the rules, the design and the checker are the l
 ```bash
 git fetch origin
 git checkout -q --detach origin/main
-grep -q "B27.16" remotion/DESIGN.md && test -f remotion/src/sets.ts
 ```
 
 **Local** (`workspace/` exists): never check out, switch branches, stash or reset in ian's checkout, and never write to `workspace/`. Work in a throwaway worktree of `origin/main` instead, and run every later command from inside it:
@@ -43,13 +42,12 @@ grep -q "B27.16" remotion/DESIGN.md && test -f remotion/src/sets.ts
 git fetch origin
 WT="$(mktemp -d)/klipian-create"            # a temp folder outside the checkout (the slug is not known yet)
 git worktree add --detach "$WT" origin/main
-cd "$WT" && grep -q "B27.16" remotion/DESIGN.md && test -f remotion/src/sets.ts
-cd remotion && npm ci                       # node_modules is not shared with ian's checkout
+cd "$WT/remotion" && npm ci                       # node_modules is not shared with ian's checkout
 ```
 
 Remove the worktree ONLY after a successful push (step 4): `git worktree remove --force "$WT"`, from ian's checkout. On any failure (a step, or the push refused three times) keep it: its detached HEAD holds the only reference to the video commit and the half-done work. Then answer with its path, in line 5 of the answer: "worktree tersimpan di <path>; hapus dengan git worktree remove --force <path> setelah dicek".
 
-If the `grep` line fails, stop and answer only: "main belum punya aturan set, update main dulu". Never create a branch such as `work/create`.
+Never create a branch such as `work/create`.
 
 ## 2. The brief
 
@@ -71,7 +69,7 @@ Body and money topics are fine as explanations (why we hiccup, why banknotes do 
 
 ## 3. Build
 
-Follow the printed brief, steps 1 to 6, as written. Write `sfx.ts` by hand: a sound on every object entering, camera move, label or card, state change and alive action that matters, on the frame of its picture, density about 1 event a second (~55 to 60 for 60 s), only names from the locked SFX set in `remotion/src/catalog.ts`, kenapa-colokan-panas/sfx.ts as the example. Before you design anything read `remotion/src/sets.ts` (the set kinds) and DESIGN.md B27.15 and B27.16: the background is never another video's, so the nature diorama of sea, land, hills and fields is not available, whatever the topic's weather; pick the free kind where the topic really happens (a kind that some `videos/*/set.json` names is taken), build it, and declare it in `remotion/videos/<slug>/set.json` (`{"kind": "<id>"}`, or a new kind with `name` and `fits`). Check from a source what real shape the hero has and draw that form (a rainbow is a ring cut by the horizon, not a half-arc). Run `npm ci` in `remotion` first when `remotion/node_modules` is missing. If Chrome or the render cannot run, say so and continue without the stills. Its "no push" line is overridden by step 4 below, and its report by step 5 (the brief has no narration or page steps: -create needs neither); everything else stands (never write to `workspace/`, never claim a check you did not run). Write the story's `thumb` (DESIGN.md B32): the 3-8 word question or claim for the thumbnail card, one key word or number between `*...*` for yellow, e.g. `Gurita punya *3 jantung*?`; the video must really answer it, keep the key detail out, do not repeat the title.
+Follow the printed brief, steps 1 to 6, as written: it is the instruction, and its hard rules already say how to choose the set, draw the real form, write `sfx.ts` by hand and write the story's `thumb`. Run `npm ci` in `remotion` first when `remotion/node_modules` is missing. If Chrome or the render cannot run, say so and continue without the stills. Its "no push" line is overridden by step 4 below, and its report by step 5 (the brief has no narration or page steps: -create needs neither); everything else stands (never write to `workspace/`, never claim a check you did not run).
 
 ## 4. Commit and push to main (the same rules in the cloud and in the local worktree)
 

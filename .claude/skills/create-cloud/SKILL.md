@@ -5,7 +5,7 @@ description: Runs for a message starting with `-create-cloud`. Make one klipian 
 
 # -create-cloud "<topic>"
 
-The topic is the rest of the message, without its quotation marks. This command is not `-create`: `-create` works on the stock branch's own checkout; `-create-cloud` always reads the rules and the design from `origin/main` and uses the stock branch only as the shelf the finished video goes to.
+The topic is the rest of the message, without its quotation marks. This command is not `-create`: `-create` saves the video on `main`; `-create-cloud` also reads the rules and the design from `origin/main` and uses the stock branch only as the shelf the finished video goes to.
 
 The topic is the argument. **One topic per session:** a session makes one video and saves it to `cloud/stok-video`. If a second `-create-cloud` arrives in a session that already made a video, do not start it; answer only: "satu topik satu sesi, buka sesi baru". One video per run. Nothing is asked of the person.
 
@@ -13,7 +13,7 @@ Work quietly: no progress narration between steps; only the final answer.
 
 ## 0. Check the checkout
 
-Run `git log -1 --oneline origin/main` and `test -f .claude/skills/create/SKILL.md`; `klipian/motion_brief_cli.py` must exist too. If any of that fails, stop and answer only: "checkout lama, buka sesi cloud baru".
+Run `git log -1 --oneline origin/main`; `klipian/motion_brief_cli.py` must exist too. If any of that fails, stop and answer only: "checkout lama, buka sesi cloud baru".
 
 ## 1. Read main's rules; the stock branch only holds videos
 
@@ -28,10 +28,9 @@ for d in $(git ls-tree -d --name-only origin/cloud/stok-video remotion/videos/);
   git checkout origin/cloud/stok-video -- "remotion/stories/$s.json" "remotion/tests/$s.test.ts" 2>/dev/null
 done
 git reset -q                                                                  # the stock videos stay in the working tree, not staged
-grep -q "B27.16" remotion/DESIGN.md && test -f remotion/src/sets.ts && test -f remotion/scripts/setOwners.mjs
 ```
 
-The stock videos are copied in so that the brief's slug is free (it checks the folders) and so that every `videos/*/set.json` shows which set kinds are taken. If the last line fails (main does not have the set rules yet), stop and answer only: "main belum punya aturan set, update main dulu". Never work on `main` or on `cloud/stok-video` directly, and never create a branch such as `work/create`.
+The stock videos are copied in so that the brief's slug is free (it checks the folders) and so that every `videos/*/set.json` shows which set kinds are taken. Never work on `main` or on `cloud/stok-video` directly, and never create a branch such as `work/create`.
 
 ## 2. The brief
 
@@ -53,7 +52,7 @@ Body and money topics are fine as explanations (why we hiccup, why banknotes do 
 
 ## 3. Build
 
-Follow the printed brief, steps 1 to 6, as written. Write `sfx.ts` by hand: a sound on every object entering, camera move, label or card, state change and alive action that matters, on the frame of its picture, density about 1 event a second (~55 to 60 for 60 s), only names from the locked SFX set in `remotion/src/catalog.ts`, kenapa-colokan-panas/sfx.ts as the example. Before you design anything read `remotion/src/sets.ts` (the taken sets and the free kinds) and DESIGN.md B27.15 and B27.16: **the background is never another video's**, so the nature diorama of sea, land, hills and fields is not available, whatever the topic's weather; pick the free kind where the topic really happens (a kind that some `videos/*/set.json` names is taken), build it, and declare it in `remotion/videos/<slug>/set.json` (`{"kind": "<id>"}`, or a new kind with `name` and `fits`). Never edit `src/sets.ts` or any other shared file: the push below carries only the video's own files. Check from a source what real shape the hero has and draw that form (a rainbow is a ring cut by the horizon, not a half-arc). Run `npm ci` in `remotion` first when `remotion/node_modules` is missing. If Chrome or the render cannot run, say so and continue without the stills. Its "no push" line is overridden by step 4 below, and its report by step 5 (the brief has no narration or page steps: -create needs neither); everything else stands (never write to `workspace/`, never claim a check you did not run). Write the story's `thumb` (DESIGN.md B32): the 3-8 word question or claim for the thumbnail card, one key word or number between `*...*` for yellow, e.g. `Gurita punya *3 jantung*?`; the video must really answer it, keep the key detail out, do not repeat the title.
+Follow the printed brief, steps 1 to 6, as written: it is the instruction, and its hard rules already say how to choose the set, draw the real form, write `sfx.ts` by hand and write the story's `thumb`. Never edit `src/sets.ts` or any other shared file: the push below carries only the video's own files. Run `npm ci` in `remotion` first when `remotion/node_modules` is missing. If Chrome or the render cannot run, say so and continue without the stills. Its "no push" line is overridden by step 4 below, and its report by step 5 (the brief has no narration or page steps: -create-cloud needs neither); everything else stands (never write to `workspace/`, never claim a check you did not run).
 
 ## 4. Commit and push (cloud rules)
 
@@ -75,7 +74,6 @@ One commit, message `Video: <title>`. Up to 3 tries, because other sessions push
 
 ```bash
 git switch -q - 2>/dev/null || true
-git branch -D work/create 2>/dev/null || true
 git clean -fdq remotion/videos remotion/stories remotion/tests remotion/out
 ```
 
