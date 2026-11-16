@@ -5,19 +5,19 @@
 .admin-top h1 span { color: var(--text-muted); font-weight: 400; margin-left: 8px; }
 .admin-top-right { display: flex; align-items: center; gap: 8px; }
 .admin { max-width: 760px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
-.admin-card { border: 1px solid var(--glass-border); border-radius: 8px; padding: 14px 16px; background: var(--bg-1); display: flex; flex-direction: column; gap: 10px; }
+.admin-card { border: 1px solid var(--glass-border); border-radius: var(--r-s); padding: 14px 16px; background: var(--bg-1); display: flex; flex-direction: column; gap: 10px; }
 .admin-card h2 { margin: 0; font-size: 14px; }
 .admin-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .admin-row > label { width: 150px; flex: none; color: var(--text-muted); }
 .adm input[type="password"], .adm input[type="time"], .adm input[type="text"], .adm input[type="number"], .adm select {
-  font: inherit; color: var(--text); background: var(--bg-0); border: 1px solid var(--glass-border); border-radius: 6px; padding: 5px 8px; min-width: 0;
+  font: inherit; color: var(--text); background: var(--bg-0); border: 1px solid var(--glass-border); border-radius: var(--r-ctl); padding: 5px 8px; min-width: 0;
 }
 .adm input[type="password"] { flex: 1; min-width: 180px; }
 .admin-note { margin: 0; font-size: 12px; color: var(--text-muted); }
 .admin-error { margin: 0; font-size: 12px; color: var(--danger, #e5484d); }
 .admin-error:empty, .admin-msg:empty { display: none; }
 .admin-msg { margin: 0; font-size: 12px; color: var(--text-muted); }
-.admin-hour { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--glass-border); border-radius: 6px; padding: 2px 4px 2px 8px; }
+.admin-hour { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--glass-border); border-radius: var(--r-ctl); padding: 2px 4px 2px 8px; }
 @media (max-width: 560px) { .admin-row > label { width: 100%; } }
 .adm input[type="number"] { width: 70px; }
 .adm .admin-inline { width: auto; }
@@ -29,7 +29,7 @@
 .adm-tabs { flex: none; width: 190px; display: flex; flex-direction: column; gap: 6px; padding: 14px 12px; border-right: 1px solid var(--glass-border); overflow-y: auto; }
 .adm-tab, .adm-subtab {
   font: inherit; font-size: 13px; font-weight: 600; text-align: left; color: var(--text-muted); background: transparent;
-  border: 1px solid var(--glass-border); border-radius: 6px; padding: 7px 10px; cursor: pointer; white-space: nowrap;
+  border: 1px solid var(--glass-border); border-radius: var(--r-ctl); padding: 7px 10px; cursor: pointer; white-space: nowrap;
 }
 .adm-tab:hover, .adm-subtab:hover { color: var(--text); background: var(--glass); }
 .adm-tab[aria-selected="true"], .adm-subtab[aria-selected="true"] { color: var(--text); background: var(--glass-strong, var(--glass)); border-color: var(--accent); }
@@ -40,7 +40,7 @@
 .adm-panel[hidden], .adm-sub[hidden] { display: none; }
 .adm-panel h2 { margin: 0; font-size: 15px; }
 .adm-subtabs { display: flex; gap: 6px; margin-top: 4px; }
-.adm-sub { display: flex; flex-direction: column; gap: 10px; border: 1px solid var(--glass-border); border-radius: 8px; padding: 14px 16px; background: var(--bg-1); }
+.adm-sub { display: flex; flex-direction: column; gap: 10px; border: 1px solid var(--glass-border); border-radius: var(--r-s); padding: 14px 16px; background: var(--bg-1); }
 .adm-foot { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 16px; border-top: 1px solid var(--glass-border); background: var(--bg-1); }
 .adm-foot-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .adm-status { margin: 0; font-size: 13px; font-weight: 600; }

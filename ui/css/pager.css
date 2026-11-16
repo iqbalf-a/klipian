@@ -18,7 +18,7 @@
   color: var(--text);
   background: var(--bg-2);
   border: 1px solid var(--glass-border);
-  border-radius: 6px;
+  border-radius: var(--r-ctl);
   padding: 2px 6px;
 }
 .pager-nav { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-left: auto; }
@@ -29,7 +29,7 @@
   color: var(--text-muted);
   background: transparent;
   border: 1px solid var(--glass-border);
-  border-radius: 6px;
+  border-radius: var(--r-ctl);
   cursor: pointer;
 }
 .pager-btn:hover:not(:disabled), .pager-num:hover { background: var(--glass); color: var(--text); }
@@ -152,7 +152,7 @@ select.ws-input, .pager-size select, .ws-bulk select {
   background: var(--bg-3, #202026);
   color: var(--text);
   border: 1px solid var(--glass-border);
-  border-radius: var(--r-m, 10px);
+  border-radius: var(--r-m);
   box-shadow: 0 8px 30px rgba(0, 0, 0, .5);
   font-size: 13px;
 }
@@ -311,15 +311,15 @@ dialog.confirm-dlg:has(.bulk-plan) { width: min(560px, calc(100vw - 32px)); }
 /* Clips table: the thumbnail is a fixed 9:16 box left of the title; every row has the same minimum height, with or without it */
 .ws-titlecell { display: flex; align-items: center; gap: 8px; min-height: 64px; }
 .ws-titletext { min-width: 0; flex: 1; }
-.ws-cutnote { display: inline-block; align-self: flex-start; margin-top: 3px; padding: 0 5px; font-size: 11px; line-height: 16px; color: var(--text-faint); border: 1px solid var(--glass-border, rgba(255,255,255,.15)); border-radius: 4px; }
+.ws-cutnote { display: inline-block; align-self: flex-start; margin-top: 3px; padding: 0 5px; font-size: 11px; line-height: 16px; color: var(--text-faint); border: 1px solid var(--glass-border, rgba(255,255,255,.15)); border-radius: var(--r-xs); }
 .ws-cutnote[hidden] { display: none; }
-.ws-rowthumb { flex: none; width: 36px; height: 64px; object-fit: cover; border: 1px solid var(--glass-border, rgba(255,255,255,.15)); border-radius: 5px; }
+.ws-rowthumb { flex: none; width: 36px; height: 64px; object-fit: cover; border: 1px solid var(--glass-border, rgba(255,255,255,.15)); border-radius: var(--r-xs); }
 /* Detail: the card in its real 9:16 shape on the left, its text and buttons on the right (stacked on narrow widths) */
 .ws-thumbdetail { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
-.ws-thumbdetail .ws-thumb { flex: none; width: auto; height: 240px; aspect-ratio: 9 / 16; object-fit: contain; border: 1px solid var(--glass-border, rgba(255,255,255,.15)); border-radius: 6px; }
+.ws-thumbdetail .ws-thumb { flex: none; width: auto; height: 240px; aspect-ratio: 9 / 16; object-fit: contain; border: 1px solid var(--glass-border, rgba(255,255,255,.15)); border-radius: var(--r-xs); }
 .ws-thumbside { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
 .ws-thumbnone[hidden] { display: none; }
-.ws-thumbnone { flex: none; width: 135px; height: 240px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 8px; border: 1px dashed var(--glass-border, rgba(255,255,255,.15)); border-radius: 6px; }
+.ws-thumbnone { flex: none; width: 135px; height: 240px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 8px; border: 1px dashed var(--glass-border, rgba(255,255,255,.15)); border-radius: var(--r-xs); }
 .ws-upchips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .ws-upchip[data-state="done"] { color: var(--text); border-color: var(--accent); }
 .ws-upchip[data-state="scheduled"] { color: var(--text); border-style: dashed; }

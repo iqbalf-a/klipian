@@ -62,7 +62,7 @@
 /* a step: a folded header (number, title, state, summary) and a body that opens */
 .rm-step { display: flex; flex-direction: column; gap: 0; padding: 0; }
 .rm-acc { display: grid; grid-template-columns: 24px minmax(0, auto) auto minmax(0, 1fr); align-items: baseline; gap: 12px; width: 100%; padding: 16px 20px; text-align: left;
-  background: transparent; border: 0; color: var(--text); cursor: pointer; border-radius: var(--r-m, 8px); }
+  background: transparent; border: 0; color: var(--text); cursor: pointer; border-radius: var(--r-m); }
 .rm-acc:hover { background: var(--glass); }
 .rm-acc:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .rm-acc-title { font-size: 15px; font-weight: 800; }
@@ -105,12 +105,12 @@
 .rm-path { flex: 1; min-width: 220px; font-family: var(--font-data); font-size: 11.5px; }
 label.btn { display: inline-flex; align-items: center; cursor: pointer; }
 .rm-link { color: var(--accent); }
-.rm-video { width: 100%; max-width: 360px; border-radius: 8px; }
+.rm-video { width: 100%; max-width: 360px; border-radius: var(--r-s); }
 
 /* the storyboard: one card a beat */
 .rm-sheet { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
 .rm-beat { display: flex; flex-direction: column; gap: 12px; padding: 16px; border: 1px solid var(--glass-border); border-radius: var(--r-s); background: var(--bg-1); }
-.rm-beat .rm-pic { aspect-ratio: 9 / 16; width: 100%; border-radius: 6px; background: var(--glass); display: flex; align-items: center; justify-content: center;
+.rm-beat .rm-pic { aspect-ratio: 9 / 16; width: 100%; border-radius: var(--r-xs); background: var(--glass); display: flex; align-items: center; justify-content: center;
   color: var(--text-faint); font-size: 12px; overflow: hidden; }
 .rm-beat .rm-pic img { width: 100%; height: 100%; object-fit: cover; }
 .rm-beat[data-stale=true] .rm-pic img { opacity: .45; }
@@ -133,7 +133,7 @@ label.btn { display: inline-flex; align-items: center; cursor: pointer; }
 .rm-claim .btn[aria-pressed=true] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 .rm-claim .btn.danger[aria-pressed=true] { border-color: var(--danger); color: var(--danger); background: color-mix(in oklab, var(--danger) 14%, transparent); }
 .rm-claim input.ws-input { border-color: var(--glass-border); background: var(--bg-2); max-width: 420px; }
-.rm-tag { font-family: var(--font-data); font-size: 11px; padding: 0 6px; border: 1px solid var(--glass-border); border-radius: 4px; color: var(--text-muted); }
+.rm-tag { font-family: var(--font-data); font-size: 11px; padding: 0 6px; border: 1px solid var(--glass-border); border-radius: var(--r-xs); color: var(--text-muted); }
 .rm-titles { display: flex; flex-direction: column; gap: 8px; }
 .rm-titles .btn { justify-content: flex-start; text-align: left; height: auto; padding: 8px 12px; font-size: 13px; font-weight: 600; width: 100%; display: flex; gap: 12px; }
 .rm-titles .btn[aria-pressed=true] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }

@@ -207,7 +207,11 @@
   --s5: 24px; --s6: 32px; --s7: 48px; --s8: 64px;
 
   /* ---- radii ---- */
-  --r-s: 10px; --r-m: 14px;  --r-l: 20px;  --r-pill: 999px;
+  /* --r-xs: thumbnails, tags, kbd, rows inside a menu. --r-s: small boxes. --r-m: dialogs, menus, cards. --r-l: the Edit page's panels.
+     --r-pill: only non-buttons (segmented switches, choice chips, status tags, bars).
+     --r-ctl: every button, input and select: --r-s with klipian's sharper start corners, the shape of .btn (brand.css) and .ws-input. */
+  --r-xs: 4px; --r-s: 10px; --r-m: 14px;  --r-l: 20px;  --r-pill: 999px;
+  --r-ctl: var(--r-xs) var(--r-s) var(--r-s) var(--r-xs);
 
   /* ---- shadows: dark needs a highlight line at top edge, not just blur ---- */
   --shadow-card:

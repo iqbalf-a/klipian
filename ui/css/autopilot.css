@@ -9,7 +9,7 @@
 .ap-row > label { width: 150px; flex: none; color: var(--text-muted); font-size: 13px; }
 .ap select, .ap textarea, .ap input[type="text"] {
   font: inherit; font-size: 13px; color: var(--text); background: var(--bg-0, var(--bg-1)); border: 1px solid var(--glass-border);
-  border-radius: 6px; padding: 6px 8px; min-width: 0; box-sizing: border-box;
+  border-radius: var(--r-ctl); padding: 6px 8px; min-width: 0; box-sizing: border-box;
 }
 .ap textarea { width: 100%; resize: vertical; }
 .ap-checks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
@@ -22,7 +22,7 @@
 .ap-run { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
 .ap-run-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .ap-run-title { font-weight: 700; font-size: 14px; flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
-.ap-chip { border: 1px solid var(--glass-border); border-radius: 6px; padding: 1px 8px; font-size: 11.5px; font-weight: 700; color: var(--text-muted); }
+.ap-chip { border: 1px solid var(--glass-border); border-radius: var(--r-pill); padding: 1px 8px; font-size: 11.5px; font-weight: 700; color: var(--text-muted); }
 .ap-chip[data-state="done"] { color: var(--ok, #4cc38a); border-color: currentColor; }
 .ap-chip[data-state="failed"] { color: var(--danger, #e5484d); border-color: currentColor; }
 .ap-chip[data-state="waiting"] { color: var(--accent); border-color: currentColor; }
@@ -63,6 +63,6 @@
 .ap-count { color: var(--text-faint); font-variant-numeric: tabular-nums; margin-left: 2px; }
 .ap-rerun { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
 .ap-rerun .ap-row > label { width: 50px; flex: none; color: var(--text-muted); font-size: 13px; }
-.ap-rerun select { font: inherit; font-size: 13px; color: var(--text); background: var(--bg-0, var(--bg-1)); border: 1px solid var(--glass-border); border-radius: 6px; padding: 6px 8px; min-width: 0; max-width: 100%; }
+.ap-rerun select { font: inherit; font-size: 13px; color: var(--text); background: var(--bg-0, var(--bg-1)); border: 1px solid var(--glass-border); border-radius: var(--r-ctl); padding: 6px 8px; min-width: 0; max-width: 100%; }
 @media (max-width: 560px) { .ap-row > label { width: 100%; } .ap { padding: 16px 12px 40px; } }
 @media (max-width: 480px) { .ap-detail.faint { display: none; } .ap-bar { min-width: 80px; } }

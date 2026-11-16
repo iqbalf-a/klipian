@@ -186,7 +186,7 @@
 .shortcut-panel kbd {
   font-family: var(--font-data); font-size: 10px;
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   border: 1px solid var(--glass-border);
   background: var(--glass-strong);
   color: var(--text);
