@@ -68,6 +68,10 @@
   /* status text: per theme, so Posted/Scheduled keep 4.5:1 on a white panel */
   --status-scheduled: oklch(0.75 0.14 230);
   --status-posted:    oklch(0.75 0.16 145);
+  /* done and warning text (autopilot, admin, the Result list): aliases, so they follow the theme like the two above.
+     --ok is the Posted green; --warn is the accent (yellow on dark; on light the amber that is 4.95:1 on a panel). */
+  --ok: var(--status-posted);
+  --warn: var(--accent);
 
   /* ---- ink & scrim ----
      --ink is the high-contrast fill: progress bars, the scrub handle, the

@@ -2600,7 +2600,7 @@ h1, h2, h3 {
 .allres-main { min-width: 0; display: flex; flex-wrap: wrap; align-items: center; column-gap: var(--s2); row-gap: 2px; }
 .allres-main .allres-name { max-width: 100%; }
 .allres-meta { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 2px var(--s3); font-size: var(--t-12, 12px); color: var(--text-muted); }
-.allres-meta .rendered { color: var(--ok, #3fb871); }
+.allres-meta .rendered { color: var(--ok); }
 .allres-meta .not-rendered { color: var(--text-faint); }
 .allres-actions { display: flex; align-items: center; gap: var(--s1, 4px); }
 .allres-x:hover { color: var(--danger); }
@@ -2735,7 +2735,7 @@ dialog.confirm-dlg:has(.bulk-out-wrap) { width: min(780px, calc(100vw - 32px)); 
 .result-check { color: var(--accent); text-align: center; }
 .result-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .result-meta { color: var(--text-faint); font-size: var(--t-12, 12px); font-variant-numeric: tabular-nums; display: flex; gap: 8px; white-space: nowrap; }
-.result-done { color: var(--ok, #3fb871); }
+.result-done { color: var(--ok); }
 
 /* a time field that was refused (timefield.js): red, with the reason in its tooltip and the note above */
 .rec-time-in.tf-bad, .time-input input.tf-bad { border-color: var(--danger); color: var(--danger); background: color-mix(in oklab, var(--danger) 10%, transparent); }

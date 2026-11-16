@@ -149,7 +149,7 @@ select.ws-input, .pager-size select, .ws-bulk select {
   gap: 14px;
   max-width: min(92vw, 560px);
   padding: 10px 14px;
-  background: var(--bg-3, #202026);
+  background: var(--bg-3);
   color: var(--text);
   border: 1px solid var(--glass-border);
   border-radius: var(--r-m);
@@ -182,7 +182,7 @@ select.ws-input, .pager-size select, .ws-bulk select {
   font-size: 13px;
   font-weight: 700;
   color: #fff;
-  background: var(--danger, #c0392b);
+  background: var(--danger);
 }
 
 /* "+ New clip" draft row: marked as not saved yet, with its Save / Cancel. */
