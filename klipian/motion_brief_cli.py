@@ -1,7 +1,7 @@
 """Print the Khusus brief for one topic (the /create skill, locally or in a cloud checkout). With no flag it is the channel defaults: 60 s, loop, the "Intip yuk!"
 sting, the three voice apps, the music bed suggested for the topic (motion.suggest_music). The flags are the tokens of the -create command (the page writes them too: motion_brief.short_command):
 python -m klipian.motion_brief_cli [--look iso|2d|text] [--duration 30|45|60] [--no-loop] [--no-sting] [--voice a,b] [--music id] [--notes text] "gurita punya tiga jantung".
-Without --look the brief makes the agent choose the look from the topic (B28). A wrong value is refused with the page's own message. It only prints; it writes nothing."""
+Without --look the brief makes the agent choose the look from the topic (B28). A wrong value is refused with the page's own message. The brief is the agent one (no chat fallback, no chat mode, no narration or page steps: the skill's own answer replaces them). It only prints; it writes nothing."""
 import argparse
 import sys
 
@@ -18,7 +18,7 @@ def brief_for(topic: str, look: str | None = None, duration: int = DURATION, loo
     motion.normalize_options(options)           # a wrong voice app or music is refused here, with the same message as the page
     if duration not in motion_brief.STRUCTURE:
         raise motion.MotionError("duration", f"durasi: pilih salah satu dari {', '.join(map(str, motion_brief.STRUCTURE))}.")
-    return motion_brief.build_brief({"topic": topic.strip(), "duration": duration, "notes": notes.strip(), "options": options, "look": look})
+    return motion_brief.build_brief({"topic": topic.strip(), "duration": duration, "notes": notes.strip(), "options": options, "look": look, "agent": True})
 
 
 def main(argv: list[str] | None = None) -> None:

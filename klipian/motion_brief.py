@@ -38,8 +38,14 @@ STRUCTURE = {
 }
 
 
-def _items_text(cat: dict) -> str:
-    rows = [f"- **{t}**: " + ", ".join(f"`{k}: {v}`" for k, v in fields.items()) for t, fields in cat["items"].items()]
+CUSTOM_ITEMS = ("banner", "pill", "mascot", "label")      # what a Khusus story holds: storyboard data only, the video is drawn in code
+
+
+def _items_text(cat: dict, kind: str = "template") -> str:
+    custom = kind == "custom"
+    rows = [f"- **{t}**: " + ", ".join(f"`{k}: {v}`" for k, v in fields.items()) for t, fields in cat["items"].items() if not custom or t in CUSTOM_ITEMS]
+    if custom:
+        return "\n".join(rows) + "\n\n(The other item types, and an item's enter, exit, actions and sfx, are for the template video; a Khusus story does not use them.)"
     motion = ", ".join(f"`{k}: {v}`" for k, v in cat["motionFields"].items())
     return "\n".join(rows) + f"\n\nEvery item also takes (all optional): {motion}"
 
@@ -56,6 +62,11 @@ def _catalog_text(cat: dict, kind: str = "template") -> str:
     sa = lim["safeArea"]
     story = "\n".join(f"- `{k}`: {v}" for k, v in cat["story"]["fields"].items())
     beat = "\n".join(f"- `{k}`: {v}" for k, v in cat["story"]["beat"].items())
+    custom = kind == "custom"
+    people = "" if custom else f"**Characters:** one person (`chibi`): roles {', '.join(ch['roles'])}; expressions {', '.join(ch['expressions'])}; poses {', '.join(ch['poses'])}; costumes {', '.join(ch['costumes'])}.\n"
+    sockets = "" if custom else (f"**Sockets:** views {', '.join(e['socketViews'])}; outside variants {', '.join(e['outsideVariants'])}; cutaway variants {', '.join(e['cutawayVariants'])}; `heat` 0..1 glows red at the contact; `plug.route` is a list of 2-6 [x, y] points the cable follows (it is drawn as a smooth curve).\n"
+                                 f"**Parts a label or arrow can follow** (`follow`): {', '.join(e['anchors'])}. Label colours: {', '.join(e['labelColors'])}; arrow colours: {', '.join(e['arrowColors'])}.\n")
+    rules = [r for r in cat["rules"] if not custom or not any(w in r for w in ("socket", "`pose`", "exit before"))]      # Khusus: no socket, chibi or item motion in the story
     return f"""## Catalogue: the only things a video can contain
 
 Use only what is listed here. If the story needs an object that is not in this catalogue, **do not invent it**: write what
@@ -71,19 +82,16 @@ y {sa['top']}..{sa['bottom']} ({sa['note']}).
 {beat}
 
 **Items** (`type` picks which; the fields after it belong to that type; `?` = optional):
-{_items_text(cat)}
+{_items_text(cat, kind)}
 
-**Characters:** one person (`chibi`): roles {', '.join(ch['roles'])}; expressions {', '.join(ch['expressions'])}; poses {', '.join(ch['poses'])}; costumes {', '.join(ch['costumes'])}.
-**The mascot** (the yellow bubble with the magnifying glass, no body): expressions {', '.join(cat['mascot']['expressions'])}.
+{people}**The mascot** (the yellow bubble with the magnifying glass, no body): expressions {', '.join(cat['mascot']['expressions'])}.
 **Backgrounds:** {', '.join(e['backgrounds'])} (`brand` = the sky and the far back behind the set, with its yellow spot, never behind the top text; `lab` = the dark room inside the lens and for cutaways; `room`, `black` = plain).
 **Beat kinds:** {', '.join(e['beatKinds'])}.
-**Sockets:** views {', '.join(e['socketViews'])}; outside variants {', '.join(e['outsideVariants'])}; cutaway variants {', '.join(e['cutawayVariants'])}; `heat` 0..1 glows red at the contact; `plug.route` is a list of 2-6 [x, y] points the cable follows (it is drawn as a smooth curve).
-**Parts a label or arrow can follow** (`follow`): {', '.join(e['anchors'])}. Label colours: {', '.join(e['labelColors'])}; arrow colours: {', '.join(e['arrowColors'])}.
-**Motion words:** enter {', '.join(mo['enter'])}; exit {', '.join(mo['exit'])}; directions {', '.join(mo['directions'])}; actions {', '.join(mo['actions'])}; camera {', '.join(mo['camera'])}; transitions {', '.join(mo['transitions'])}. {mo['notes']}
+{sockets}**Motion words:** enter {', '.join(mo['enter'])}; exit {', '.join(mo['exit'])}; directions {', '.join(mo['directions'])}; actions {', '.join(mo['actions'])}; camera {', '.join(mo['camera'])}; transitions {', '.join(mo['transitions'])}. {mo['notes']}
 **Sound effects:** {', '.join(cat['sfx']['names'])}, or "none". {cat['sfx']['note']}.
 
 **Rules the answer is checked against** (klipian refuses anything else and sends you a list of what to fix):
-""" + "\n".join(f"- {r}" for r in cat["rules"]) + f"""
+""" + "\n".join(f"- {r}" for r in rules) + f"""
 - at most {lim['maxScreenWords']} words of screen text per piece of text; at most {lim['maxTransitions']} transitions other than a cut; {lim['beats']['min']}-{lim['beats']['max']} beats; at most {lim['itemsPerBeat']['max']} items per beat; narration at most {lim['narrationMaxChars']} characters per beat
 """
 
@@ -183,7 +191,7 @@ CHANNEL_RULES = """- Language: casual Indonesian, easy to follow, as if talking 
 - Hook: an everyday hook of about 3 seconds: a question, a surprising statement or a myth. It does not have to start with "kenapa".
 - The look inside (`lens`, B27.6): only when the narration itself looks inside a part or names something too small to see (a body included), and at most once per video. Every other beat is a camera move inside the set (a push, or a pan to another place in it), never a lens by habit.
 - Colour: red only for danger or heat, never decoration; yellow is the accent. For an electrical topic: yellow = current, red or orange = heat, grey = the object's material, light grey = metal.
-- Safety: Explaining how the body or money works is allowed (why we hiccup, why banknotes do not tear). Never give medical advice, a diagnosis, a cure, a dose or a treatment, and never investment or financial advice (what to buy, what will rise). Never teach anything dangerous. If the topic asks for such advice, say so in `needs` and stop. For an electrical topic: no instructions to open, modify or bypass mains equipment; the tips are "stop using it, unplug it, ask a technician".
+- Safety (the hard rule on advice above): if the topic asks for such advice, say so in `needs` and stop. For an electrical topic: no instructions to open, modify or bypass mains equipment; the tips are "stop using it, unplug it, ask a technician".
 - One idea per beat; every narration makes sense heard alone.
 - Theme (one for the whole video, the story's `theme`): `cream` (the default), `sky` (a gadget, electricity, a process), `mint` (nature, plants, water), `peach` (food, the home). Do not repeat the theme of the video before.
 - Stage (the story's `stage`, default `slab`): `slab` (the usual block), `round` (a round object), `strip` (a flow along it), `steps` (cause, effect, result), `island` (an idea or gadget that stands alone). Do not repeat the stage of the video before."""
@@ -214,9 +222,12 @@ def _kind_text(kind: str) -> str:
             "the objects the topic needs in `needs`; expect a plain result.")
 
 
-def _examples_text(cat: dict, d: int) -> str:
+def _examples_text(cat: dict, d: int, kind: str = "template") -> str:
     def compact(story: dict) -> str:
         return json.dumps(story, ensure_ascii=False, separators=(",", ":"))
+    if kind == "custom":
+        return (f"An example of a valid story, to show the shape (it is 30 seconds; yours is {d} seconds and follows the structure above). "
+                f"Do not copy its content. It passes the validator with zero errors and zero warnings.\n\n```json\n{compact(cat['example'])}\n```")
     return (f"Two examples of a valid story, to show the shape (both are 30 seconds; yours is {d} seconds and follows the structure above). "
             "Do not copy their content. Both pass the validator with zero errors and zero warnings.\n\n"
             f"Example 1, an object with an inside (the look inside, once):\n```json\n{compact(cat['example'])}\n```\n\n"
@@ -324,7 +335,12 @@ def _produce_text(slug: str) -> str:
 **The files you may write are exactly these and no others:** `remotion/videos/{slug}/`, `remotion/stories/{slug}.json`, `remotion/tests/{slug}.test.ts` (made by the command in step 3) and `remotion/out/{slug}/`. Never a note, an output, a log or a scratch file at the repository root or anywhere else (no `story-output.json`, no `narration-output.txt`: the narration goes in your reply). Nothing in `workspace/`, no full render, no push. (`{slug}` is a suggested name; keep the same name everywhere.)"""
 
 
-def _steps_text(slug: str, opts: dict) -> str:
+def _steps_text(slug: str, opts: dict, agent: bool = False) -> str:
+    text = _all_steps_text(slug, opts)
+    return text[:text.index(f"\n\n{STEP_MARK}7")] if agent else text
+
+
+def _all_steps_text(slug: str, opts: dict) -> str:
     targets = ", ".join(f"`{t}`" for t in opts["voiceTargets"]) or "`voicestudio`"
     return f"""## 3. Steps (do them in order; run each command, compare with Expected, stop and report if it fails)
 
@@ -418,7 +434,7 @@ Fields: `question`, `titles` (exactly 3), `duration` ({d}), `beats`, `claims`, `
 {save}
 Plain JSON only: no code, comments or trailing commas.
 
-{_examples_text(cat, d)}
+{_examples_text(cat, d, kind)}
 """
 
 
@@ -444,6 +460,20 @@ def build_brief(p: dict) -> str:
     if kind == "custom":
         slug = video_slug(p["topic"])
         mistakes = _numbered(_for_options(MISTAKES, opts))
+        text = _custom_brief(p, cat, d, opts, kind, notes, look, rules, slug, mistakes)
+        if p.get("agent"):                      # the reader is an agent with a shell: drop what only a chat assistant or the page's person needs
+            for old, new in ((f"\n\n{FALLBACK}", ""), (", then the fallback, the common mistakes,", ", then the common mistakes,"), (" Without them, use the fallback.", ""),
+                             ("**Chat mode:** reply with one fenced `json` block and nothing else.\n", ""), ("| The narration text | printed in your reply, one block per target voice app |\n", ""),
+                             (": the narration goes in your reply)", ")"), (" Narration texts: pasted.", "")):
+                if old not in text:
+                    raise _m.MotionError("brief", f"the agent brief lost a part it trims: {old[:40]}")
+                text = text.replace(old, new)
+        return text
+    return _template_brief(p, cat, d, opts, kind, notes, rules)
+
+
+def _custom_brief(p, cat, d, opts, kind, notes, look, rules, slug, mistakes) -> str:
+    if True:
         return f"""# klipian intip: one short vertical explainer video (about {d} seconds)
 
 You are an AI that makes one short vertical animated explainer for the channel klipian intip. **Topic:** {p['topic']}{notes}
@@ -458,7 +488,7 @@ Work in this order: 1 the rules, 2 the files you must produce, 3 the steps, then
 
 {_produce_text(slug)}
 
-{_steps_text(slug, opts).replace(READ_MARK, read_text(look))}
+{_steps_text(slug, opts, bool(p.get('agent'))).replace(READ_MARK, read_text(look))}
 
 {FALLBACK}
 
@@ -480,6 +510,9 @@ Work in this order: 1 the rules, 2 the files you must produce, 3 the steps, then
 
 If something is unclear, choose the safest option, write the choice in `needs` or in your report, and continue.
 """
+
+
+def _template_brief(p, cat, d, opts, kind, notes, rules) -> str:
     return f"""# klipian intip: one short vertical explainer video (about {d} seconds)
 
 ## Read this first

@@ -8,6 +8,15 @@ Every report adds its rows (B14). The date is the day ian asked; a row without a
 
 | rule | what it says | asked by | when | revision |
 | --- | --- | --- | --- | --- |
+| B15 history | approved 2026-10-28 ("the sound effects and all the sounds are perfect"); the beds became an open set in PLAN-VARIETY stage 4; the variety effects and three beds were added 2026-11-13 because every video sounded alike: over 33 videos seven effects (`swish-soft`, `pop-soft`, `swish`, `pop`, `tick-soft`, `tick`, `whoosh`) carried most events and `bed-curious` was the bed of 13 | ian | 2026-10-28, 2026-11-13 | 9bc4753 |
+| B22 history | the caption bottom was 1632 (the first Shorts estimate), 1620, 1590 (the web estimate 1600), then 1720 from ian's own calibration (2026-10-31); centred on the frame 2026-11-08 | ian | 2026-10-31, 2026-11-08 | |
+| B25 history | measured before the fix of P28-R phase 5: kenapa-colokan-panas passes (longest still 0.25 s, longest gap 3.25 s), cara-kerja-hujan-buatan flags (3.75 s, 11 s), ngantuk-pegang-hp flags (2.75 s, 9.5 s) | ian | P28-R | |
+| B29 loop clock | gurita-punya-tiga-jantung looped badly once the voice made it 62.3 s (PSNR first/last frame 26.5 dB against 41.5 dB at 60 s; fixed 38.5 dB). Every length, not one: bohlam-pijar looped badly at its voiced 57.07 s and 59.87 s, the check had only run at 62.3 s; without the tail warp 18 of 32 videos stopped mid-way at 56 and 58 s (13 to 22 dB); the steam period was 2.6 s | ian | 2026-11-09, 2026-11-12 | |
+| B30 | no sound cut by the end: the closing jingle of benarkah-kita-hanya-memakai-10 was still sounding when the video ended; 13 of the 22 stock videos with a jingle were cut by 0.6 to 1.6 s | ian | 2026-11-10 | |
+| B31 | the sting has five poses, chosen from the slug: every video had the mascot at the centre, a little high, and the pill at the centre, a little low | ian | 2026-11-10 | |
+| B32 | the thumbnail card and the story's `thumb` | ian | 2026-11-10 | 98e71a4 |
+| B33 | the narration fits its beat: syarat-jadi-anggota-dpr-ternya was planned at 60 s, its Google AI Studio voice made it 75.5 s (+26 %) and the render was refused at the 15 % limit; the planner had assumed 2.3 to 3.2 words a second; 38 of the 44 stories warn, all still valid | ian | 2026-11-15 | e7c43ad |
+| motion registry | the plan's first draft gave a camera push 0.8 to 2.5 s; pilot 1's pushes last 5 to 7 s, so the registry takes the measured range | ian (pilot 1) | pilot 1 | |
 | B34 (was B29) | the sting "Intip yuk!" is read plainly: no whisper tag before it in the narration export, the Google style is bright and direct | ian | 2026-11-08 | the narration export (motion_voice_export.py) |
 | B1, B2 | one stage, the lens move | ian (pilot 1) | pilot 1 | 2ef1683 |
 | B3, B11 | the mascot is rare: a small sting, at most two reactions, none in the outro | ian | 2026-10-26 | the brief (motion.py) |

@@ -7454,9 +7454,12 @@ def check_motion_brief() -> tuple[str, str]:
                 problems.append(f"the brief that lets the agent choose lost {want!r}")
         if any(len(motion_brief_cli.brief_for("Kenapa colokan panas", lk)) >= 40000 for lk in (None, "iso", "2d", "text")):
             problems.append("a brief for a look is 40000 characters or more")
-        for want in ("about 60 seconds", "Intip yuk!", "loop-back", "elevenlabs", "googleai", "voicestudio"):
+        for want in ("about 60 seconds", "Intip yuk!", "loop-back", "Target voice apps:", "### Step 6"):
             if want not in cli:
                 problems.append(f"the brief CLI's default brief lost {want!r}")
+        for gone in ("### Step 7", "If you cannot run commands", "Chat mode"):      # the agent brief: no narration or page steps, no chat fallback
+            if gone in cli:
+                problems.append(f"the brief CLI's agent brief still has {gone!r}")
         opt = motion_brief_cli.brief_for("Kenapa colokan panas", duration=45, loop=False)       # the -create tokens: 45 and noloop
         if "about 45 seconds" not in opt or "Loop: no" not in opt:
             problems.append("brief_for(duration=45, loop=False) puts 'about 45 seconds' and 'Loop: no' in the brief")
