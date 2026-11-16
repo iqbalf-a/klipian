@@ -5,7 +5,7 @@ description: Make a klipian intip video from the klipian brief the person pastes
 
 # klipian-video: from the brief to a custom video folder
 
-You are the local Claude Code of this computer. The person copied a brief from the `/remotion` page and pastes it here, or gives you the path of a downloaded brief file, and asks you to make the video. klipian does not keep a brief file on disk: never assume one is saved. Work from the repository root, `D:\github-repos\klipian`.
+You are the local Claude Code of this computer. The person copied a brief from the `/remotion` page and pastes it here, or gives you the path of a downloaded brief file, and asks you to make the video. klipian does not keep a brief file on disk: never assume one is saved. Work from the repository root (on ian's PC `D:\github-repos\klipian`; elsewhere the root of your checkout).
 
 **The brief is the instruction.** It is written so that any agent can follow it: numbered hard rules first, the exact files to produce, then numbered steps, each with the command to run and the result to expect, a fallback, and the common mistakes. Do the brief's steps in its order and use its exact paths and names (its slug). This file only adds what holds for you.
 
@@ -14,8 +14,8 @@ You are the local Claude Code of this computer. The person copied a brief from t
 - Never write to `workspace/`. Never read or print secrets (`client_secret*.json`, tokens, keys).
 - No API key, no service call. Web search for facts is yours to do; no voice service, no upload.
 - The channel's musts (DESIGN.md section 0b, B16): the small "Intip yuk!" sting right after the hook (draw it with `StingMark`, `remotion/src/components/StingMark.tsx`, B31: the pose comes from the slug; never hardcode the mascot and pill position), the loop-back ending (no mascot, label, pill or voice in the outro), and a consistent object style and animation. The brief's options (loop, sting, music, voice target, kind) stay as the brief says.
-- Build a set, not a specimen: read `remotion/DESIGN.md` B27 and the Animation recipe first; open on a wide shot of the set, one scale per set, no overlap, hero in the centre third.
-- The iso kit is mandatory: every set and hero is drawn from `remotion/src/iso.ts` and the `src/design` components (never a flat side-view SVG). The text format is the channel's: `TopText` (kicker + headline), `CaptionLayer` (bottom caption), no banner box. The style check FAILs both.
+- The look is the brief's (B28: `iso`, `2d` or `text`; the brief names it or tells you how to choose) and its hard rule on the look says what to draw with. Looks iso and 2d build a set, not a specimen: read `remotion/DESIGN.md` B27 and the Animation recipe first; open on a wide shot of the set, one scale per set, no overlap, hero in the centre third. Look text has no set.
+- The text format is the channel's in every look: `TopText` (kicker + headline), `CaptionLayer` (bottom caption), no banner box. The style check FAILs a video without them, a look `iso` video with no iso geometry, and a look `2d` video whose hero is drawn with iso helpers.
 - Give each fact a source URL, as the brief asks. Leave out what you cannot check.
 - Never say a command passed without its output.
 

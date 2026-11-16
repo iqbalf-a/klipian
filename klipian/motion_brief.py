@@ -88,8 +88,13 @@ y {sa['top']}..{sa['bottom']} ({sa['note']}).
 """
 
 
-def _structure_text(duration: int) -> str:
-    rows = STRUCTURE[min(STRUCTURE, key=lambda k: abs(k - duration))]          # the three lengths; anything else gets the nearest plan
+def _structure_text(duration: int, opts: dict | None = None) -> str:
+    rows = list(STRUCTURE[min(STRUCTURE, key=lambda k: abs(k - duration))])    # the three lengths; anything else gets the nearest plan
+    if opts and not opts["sting"]:                                             # no sting: its second goes to the first explain beat, the sum stays
+        i = next(n for n, r in enumerate(rows) if r[0] == "sting")
+        rows[i:i + 2] = [(rows[i + 1][0], rows[i + 1][1] + rows[i][1], rows[i + 1][2])]
+    if opts and not opts["loop"]:
+        rows[-1] = ("outro", rows[-1][1], "the ending: no mascot, no label, no voice (no loop-back: the option turns it off)")
     lines = [f"{i}. **{kind}** about {sec} s: {what}" for i, (kind, sec, what) in enumerate(rows, 1)]
     return "\n".join(lines) + f"\n\n(total {sum(r[1] for r in rows)} s, {len(rows)} beats)"
 
@@ -103,8 +108,8 @@ FACT_RULES = """- Every claim the video makes needs at least one source URL (a m
 
 def _options_text(opts: dict) -> str:
     music = f"{_m.MUSIC_USE[opts['music']]} (story music track {_m.MUSIC_TRACKS[opts['music']]})"
-    lines = [f"- Loop: {'yes' if opts['loop'] else 'no'} (the ending returns to the scene of the first beat)",
-             f"- Intip yuk!: {'yes' if opts['sting'] else 'no'} (the small sting right after the hook)",
+    lines = [f"- Loop: {'yes (the ending returns to the scene of the first beat)' if opts['loop'] else 'no (the ending does not return to the first scene)'}",
+             f"- Intip yuk!: {'yes (the small sting right after the hook)' if opts['sting'] else 'no (no sting beat)'}",
              f"- Music: {music}",
              f"- Target voice apps: {_m.voice_apps_text(opts['voiceTargets'])} (klipian writes the narration text in each app's own format; the voices are made outside klipian)",
              f"- Kind: {_m.KINDS[opts['kind']]}"]
@@ -133,10 +138,10 @@ LOOK_CHOICE = (
 def read_text(look: str | None) -> str:
     """What the step 4 reading line adds per look: the iso-only sections and the rule log are in their own files, so a 2d or text video never reads them."""
     if look == "iso":
-        return " Also read `remotion/DESIGN-iso.md` (the 2.5D iso look: kit, depth order, nature kit, 3D objects, cables). Do not read `remotion/docs/RULE-LOG.md` (history, not needed)."
+        return " Also read `remotion/DESIGN-iso.md` (the 2.5D iso look: kit, depth order, nature kit, 3D objects, cables) and the kit `remotion/src/components/Iso*.tsx`. Do not read `remotion/docs/RULE-LOG.md` (history, not needed)."
     if look in LOOKS:
         return " `remotion/DESIGN.md` is all there is to read for this look: do not read `remotion/DESIGN-iso.md` or `remotion/docs/RULE-LOG.md`."
-    return " Read `remotion/DESIGN.md` first, choose the look, then read `remotion/DESIGN-iso.md` only if it is iso; never read `remotion/docs/RULE-LOG.md`."
+    return " Read `remotion/DESIGN.md` first, choose the look, then read `remotion/DESIGN-iso.md` and the kit `remotion/src/components/Iso*.tsx` only if it is iso; never read `remotion/docs/RULE-LOG.md`."
 
 
 def look_text(look: str | None) -> str:
@@ -201,8 +206,9 @@ def _beat_kinds_text(cat: dict) -> str:
 def _kind_text(kind: str) -> str:
     if kind == "custom":
         return ("**Kind Khusus:** the video is drawn in code from this story's texts, timing, claims and music. A beat's scene items only need the "
-                "`banner` (and the sting's `pill` and `mascot`). Do not fill a scene with catalogue objects to look busy. List every object the video "
-                "must show in `needs`; Part B tells how the video folder is built.")
+                "`banner` (and the sting's `pill` and `mascot`). These items are data for klipian's storyboard only: the video itself draws the beat's text "
+                "with `TopText` and the sting with `StingMark`, never a `<Banner` box and never a mascot and pill at the items' positions. Do not fill a "
+                "scene with catalogue objects to look busy. List every object the video must show in `needs`; section 3 (Steps) tells how the video folder is built.")
     return ("**Kind Otomatis:** the template draws only what the catalogue lists. Use `socket` and `lens` only for a topic about an electrical socket or "
             "plug. For any other topic prefer `stack`, `label`, `arrow`, `badge`, `banner`, `source` (and `chibi` only if a person is the point). List "
             "the objects the topic needs in `needs`; expect a plain result.")
@@ -281,6 +287,21 @@ export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = (p) => 
 This one draws no object, so it only proves the wiring. A real video draws the hero object and its parts in `Scene` from the kit (`remotion/src/components/Iso*.tsx`, the marks of `remotion/src/dictionary.ts`)."""
 
 
+def _for_options(items: list[str], opts: dict) -> list[str]:
+    """HARD_RULES or MISTAKES with the lines on the sting and the loop rewritten for a video whose options turn one off, so the brief never asks for
+    what its own options forbid. The style check knows no options: without a sting its `must 1` FAILs, and the brief says that is expected."""
+    sting, loop = opts["sting"], opts["loop"]
+    if sting and loop:
+        return items
+    order = ('The first beat is `hook`; the second is `sting` with the narration exactly "Intip yuk!"; the last is `outro`.' if sting else
+             "The first beat is `hook` and the last is `outro`; there is no `sting` beat (the option turns it off). The style check's `must 1` FAIL is then expected: copy it into your report, do not fix it.")
+    outro = "The outro has an empty narration and no mascot, label or pill" + ("; its scene repeats the first beat's scene so the video loops." if loop else
+                                                                                "; it does not return to the first beat's scene (the option turns the loop off).")
+    mistake = ("The sting's narration is not exactly \"Intip yuk!\", or the" if sting else "A `sting` beat although the option turns it off, or the") + " outro has narration, a mascot, a label or a pill."
+    swap = {HARD_RULES[2]: order, HARD_RULES[3]: outro, MISTAKES[2]: mistake}
+    return [swap.get(i, i) for i in items]
+
+
 def _numbered(items: list[str]) -> str:
     return "\n".join(f"{i}. {item}" for i, item in enumerate(items, 1))
 
@@ -320,7 +341,7 @@ Run: `cd remotion` then `npm run new-video {slug} stories/{slug}.json`
 Expected: a line `made videos/{slug} and tests/{slug}.test.ts`, then the folder `remotion/videos/{slug}/` holds `index.tsx`, `plan.ts`, `sfx.ts`, `meta.json` and `story.json`.
 
 {STEP_MARK}4: draw the beats
-Do: read `remotion/DESIGN.md` (section 0b and every rule B1 up to the last one), `remotion/src/dictionary.ts` and the kit `remotion/src/components/Iso*.tsx` first.{READ_MARK} Read the "Animation recipe" section of `remotion/DESIGN.md` (what moves, when, how, per beat). The two finished videos to copy the structure from (copy their structure and style, not their set) are `remotion/videos/kenapa-colokan-panas` and `remotion/videos/cara-kerja-hujan-buatan`. Edit `remotion/videos/{slug}/index.tsx`, `plan.ts` and `sfx.ts` (sfx.ts by hand, with the density of the hard rule on sound): one hero object in its own new set (Own set per video, B27.15), at most three new loose supporting pieces, the story's `theme`, `stage` and `music`. Rule B25 of DESIGN.md: something moves about every second (`IsoLife.tsx` and `alive.ts` move a little all the time), something new comes about every 3 to 4 seconds, and each explain beat is a camera move inside the set (a push, or a pan to another place in it), as the Animation recipe says, not one framing for the whole video; the lens only when the narration goes inside (B27.6), at most one.
+Do: read `remotion/DESIGN.md` (section 0b and every rule B1 up to the last one) and `remotion/src/dictionary.ts` first.{READ_MARK} Read the "Animation recipe" section of `remotion/DESIGN.md` (what moves, when, how, per beat). The two finished videos to copy the structure from (copy their structure and style, not their set) are `remotion/videos/kenapa-colokan-panas` and `remotion/videos/cara-kerja-hujan-buatan`. Edit `remotion/videos/{slug}/index.tsx`, `plan.ts` and `sfx.ts` (sfx.ts by hand, with the density of the hard rule on sound): one hero object in its own new set (Own set per video, B27.15), at most three new loose supporting pieces, the story's `theme`, `stage` and `music`. Rule B25 of DESIGN.md: something moves about every second (`IsoLife.tsx` and `alive.ts` move a little all the time), something new comes about every 3 to 4 seconds, and each explain beat is a camera move inside the set (a push, or a pan to another place in it), as the Animation recipe says, not one framing for the whole video; the lens only when the narration goes inside (B27.6), at most one.
 Keep `sfx.ts` and `plan.ts` importing only plain `.ts` modules (`../../src/sfx.ts`, `../../src/schema.ts`, `../../src/layout.ts`...), never `../../src/design/index.ts`: render.mjs loads them in plain Node (rule B26). Only `index.tsx` may import the design index, and in `index.tsx` import components ONLY from `../../src/design/index.ts`: never from a file path such as `../../src/components/IsoNature.ts` (a wrong extension passes `npm run check`, the render fails).
 **Before you say an object is missing (`needs`):** search the library for the same single piece (never a whole scene or set): `remotion/src/dictionary.ts`, `remotion/out/assets-sheet*.png` (`npm run assets-sheet`), `node remotion/catalog-export.mjs`, `remotion/src/components/Iso*.tsx`. List in `needs` only what you searched for and did not find.
 Expected: both files exist and are edited (step 5 checks that they compile).
@@ -335,7 +356,7 @@ Expected: no output line starts with `FAIL`. A line `<file> tidak ada; maksudnya
 Create the folder `remotion/out/{slug}` if it does not exist, then write the file `remotion/out/{slug}/job.json` with this content: `{{"mode":"still","story":"stories/{slug}.json","composition":"video-{slug}","beat":"hook","out":"{slug}/hook.png"}}`
 Run, from `remotion`: `node render.mjs out/{slug}/job.json`
 Expected: the last output line is `{{"type":"done", ...}}` and `remotion/out/{slug}/hook.png` exists.
-Then render the rest of the stills with the same pattern. One picture per beat (the middle of each beat): write `remotion/out/{slug}/beats.json` with `{{"mode":"stills","story":"stories/{slug}.json","composition":"video-{slug}","out":"{slug}/beats","at":0.5}}` and run `node render.mjs out/{slug}/beats.json` (it writes `remotion/out/{slug}/beats/<beat id>.png`). One picture of the wide shot: write `remotion/out/{slug}/wide.json` with `{{"mode":"still","story":"stories/{slug}.json","composition":"video-{slug}","time":0.5,"out":"{slug}/wide.png"}}` and run `node render.mjs out/{slug}/wide.json` (t 0.5 is the hook's wide shot). Look at every picture against B27: the set fills the frame, real scale, no overlap, nothing yellow behind the top text, the hero in the centre third in the wide shot. Measure the fill: `npm run fill -- {slug}` reads a rendered video, so when step 8 gave you a draft video run it and list every beat over 35 % empty brand background in your report; without a video, judge each still by eye against the same 35 % and say so. The establishing push (the wide shot to the main shot) must be in `plan.ts` as the first beat's camera keys, not only in the picture. Fix what is wrong and render again. Then run `npm run style-report -- {slug}`; expected: `remotion/out/{slug}/style-report.md`. Do not render the full video.
+Then render the rest of the stills with the same pattern. One picture per beat (the middle of each beat): write `remotion/out/{slug}/beats.json` with `{{"mode":"stills","story":"stories/{slug}.json","composition":"video-{slug}","out":"{slug}/beats","at":0.5}}` and run `node render.mjs out/{slug}/beats.json` (it writes `remotion/out/{slug}/beats/<beat id>.png`). One picture of the wide shot: write `remotion/out/{slug}/wide.json` with `{{"mode":"still","story":"stories/{slug}.json","composition":"video-{slug}","time":0.5,"out":"{slug}/wide.png"}}` and run `node render.mjs out/{slug}/wide.json` (t 0.5 is the hook's wide shot). Look at every picture against B27: the set fills the frame, real scale, no overlap, nothing yellow behind the top text, the hero in the centre third in the wide shot. Measure the fill: `npm run fill -- {slug}` reads a rendered video, so run it only when a rendered video of this slug already exists and list every beat over 35 % empty brand background in your report; without a video (the usual case: this brief asks for no full render), judge each still by eye against the same 35 % and say so. The establishing push (the wide shot to the main shot) must be in `plan.ts` as the first beat's camera keys, not only in the picture. Fix what is wrong and render again. Then run `npm run style-report -- {slug}`; expected: `remotion/out/{slug}/style-report.md`. Do not render the full video.
 
 {STEP_MARK}7: narration text
 Target voice apps: {targets}. For each one run, from the repository root (`<target>` is `voicestudio`, `elevenlabs` or `googleai`):
@@ -358,7 +379,7 @@ def _reference(cat: dict, p: dict, d: int, kind: str) -> str:
             "**Agent mode:** save the same JSON to `remotion/stories/<slug>.json` (the slug is the topic in lowercase with hyphens; save nowhere else). Run `node remotion/validate.mjs remotion/stories/<slug>.json` from the repository root and fix every error until it prints `\"ok\":true`. Then print the JSON in a fenced `json` block in your reply too.")
     return f"""## Structure for {d} seconds
 
-{_structure_text(d)}
+{_structure_text(d, _m.options_of(p))}
 
 Adapt the kinds and seconds to the topic if needed, but the beats must add up to exactly {d} seconds; each beat has 2 to 4 moments of movement.
 
@@ -419,10 +440,10 @@ def build_brief(p: dict) -> str:
     kind = "custom" if _m.kind_of(p) == "custom" else "template"
     notes = f"\n\n**Notes from the person making the video:** {p['notes']}" if p.get("notes") else ""
     look = opts["look"] if opts["look"] in LOOKS else (p.get("look") if p.get("look") in LOOKS else None)     # the option; a top-level look (the brief CLI) is the fallback; auto = the agent chooses
-    rules = _numbered(HARD_RULES).replace(LOOK_MARK, look_text(look))
+    rules = _numbered(_for_options(HARD_RULES, opts)).replace(LOOK_MARK, look_text(look))
     if kind == "custom":
         slug = video_slug(p["topic"])
-        mistakes = _numbered(MISTAKES)
+        mistakes = _numbered(_for_options(MISTAKES, opts))
         return f"""# klipian intip: one short vertical explainer video (about {d} seconds)
 
 You are an AI that makes one short vertical animated explainer for the channel klipian intip. **Topic:** {p['topic']}{notes}

@@ -27,7 +27,7 @@ export function catalog() {
     format: { width: FRAME.width, height: FRAME.height, fps: FPS, unit: "video pixels; x to the right, y down; (0,0) is the top-left corner" },
     limits: {
       maxScreenWords: MAX_SCREEN_WORDS, maxTransitions: MAX_TRANSITIONS, maxNonCutTransitions: MAX_NON_CUT_TRANSITIONS,
-      safeArea: { ...SAFE, note: "keep text, mascot and chibi inside it (the YouTube Shorts interface covers the rest; an estimate)" },
+      safeArea: { ...SAFE, note: "the YouTube Shorts interface covers the rest; calibrated on ian's phone, B24" },
       beats: { min: 1, max: 16 }, itemsPerBeat: { max: 14 }, narrationMaxChars: 600, beatSeconds: { min: 0.5, max: 30 },
     },
     story: { fields: without(fieldsOf(Story, refs), HIDDEN_STORY_FIELDS), beat: fieldsOf(Beat, refs), claim: fieldsOf(Claim, refs) },

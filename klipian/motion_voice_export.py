@@ -75,7 +75,7 @@ def _google_style(story: dict) -> str:
 def _google_script(story: dict, parts: list[dict]) -> tuple[str, list[dict]]:
     """The script with the expression tags, placed by rule (no AI call): a short pause between beats, a long pause before the last tips beat, and at
     most one expression per beat and GOOGLE_EXPRESSIONS_MAX in all: <chuckle> before a sentence that turns the fact ("Tapi", "Namun", "Padahal")
-    in a result beat. "Intip yuk!" gets no tag at all (B29: a whisper tag was read aloud as "sstt!"). Tags are never inside a word or after the last sentence. Returns (script, tags used)."""
+    in a result beat. "Intip yuk!" gets no tag at all (B34: a whisper tag was read aloud as "sstt!"). Tags are never inside a word or after the last sentence. Returns (script, tags used)."""
     kind_of_beat = {b["id"]: b["kind"] for b in story["beats"]}
     tips = [b["id"] for b in story["beats"] if b["kind"] == "tips" and (b.get("narration") or "").strip()]
     last_tips = tips[-1] if tips else None
@@ -134,7 +134,7 @@ EL_EXPRESSIONS_MAX = 6
 
 def _elevenlabs(story: dict, parts: list[dict]) -> dict:
     """One request: the whole narration (no part headers). "..." ends a sentence before a beat changes (a final "." becomes "..."), [pause] once
-    before the last tips, [curious] at the start of a hook that is a question. "Intip yuk!" gets no tag (B29). At most one tag per beat and six in all."""
+    before the last tips, [curious] at the start of a hook that is a question. "Intip yuk!" gets no tag (B34). At most one tag per beat and six in all."""
     kind_of_beat = {b["id"]: b.get("kind") for b in story["beats"]}
     tips = [b["id"] for b in story["beats"] if b.get("kind") == "tips" and (b.get("narration") or "").strip()]
     last_tips = tips[-1] if tips else None
