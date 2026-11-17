@@ -9,8 +9,8 @@ import {
   BLACK, CaptionLayer, textWidth, G2, G3, G4, BLUSH, Label, METAL, PLASTER, SKIN_A, SKIN_B, StoryVideo, STEAM, THEMES, TopText, WHITE, YELLOW, YELLOW_D,
   clamp01, springAt, useFonts, loopClock, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
-import { COUNTER_X, FX, HAND_BOT, HW, PAD_X, SLAB_TOP, T, TIP_Y, TOP, WATER_Y, camAt, cut, drained, handVis, lift, makePlan, narrow, ramp, scaleTilt, sideVis, slabX, swell, win, wrinkle } from "./plan.ts";
-import { DF_LIST, HAND_BODY, WEBS, fingerPath, nailBox, rotOf } from "./hand.ts";
+import { COUNTER_X, FX, HW, PAD_X, SLAB_TOP, T, TIP_Y, TOP, WATER_Y, camAt, cut, drained, handVis, lift, makePlan, narrow, ramp, scaleTilt, sideVis, slabX, swell, win, wrinkle } from "./plan.ts";
+import { CUFF_PATH, DF_LIST, HAND_BODY, SLEEVE_PATH, WEBS, fingerPath, nailBox, rotOf, sideRaw } from "./hand.ts";
 import storyJson from "./story.json";
 import { StingMark } from "../../src/components/StingMark.tsx";
 
@@ -32,20 +32,10 @@ const bar = (x1: number, y1: number, x2: number, y2: number, w: number): string 
 
 // ------------------------------------------------------------------------------------------------------ the fingertip's outline (side view)
 type Pt = { x: number; y: number; nx: number; ny: number; s: number; seg: "L" | "T1" | "T2" | "R"; u: number; pf: number; mask: number };
-const bez = (p0: [number, number], c1: [number, number], c2: [number, number], p3: [number, number], u: number): [number, number] => {
-  const k = 1 - u;
-  return [k * k * k * p0[0] + 3 * k * k * u * c1[0] + 3 * k * u * u * c2[0] + u * u * u * p3[0], k * k * k * p0[1] + 3 * k * k * u * c1[1] + 3 * k * u * u * c2[1] + u * u * u * p3[1]];
-};
 /** The closed outline, from the top of the back (left) side, down round the tip, and up the pad (right) side. Wrinkles fold the pad side and the tip, a little the back above the
     nail, and not the skin under the nail. */
 const OUTLINE: Pt[] = (() => {
-  const raw: { x: number; y: number; seg: Pt["seg"]; u: number }[] = [];
-  for (let y = TOP; y < 1250; y += 8) raw.push({ x: FX - HW, y, seg: "L", u: 0 });
-  const a0: [number, number] = [FX - HW, 1250], a1: [number, number] = [FX - HW, 1440], a2: [number, number] = [FX - 130, 1560], a3: [number, number] = [FX + 20, 1560];
-  for (let i = 0; i < 90; i++) { const u = i / 90, p = bez(a0, a1, a2, a3, u); raw.push({ x: p[0], y: p[1], seg: "T1", u }); }
-  const b1: [number, number] = [FX + 170, 1560], b2: [number, number] = [PAD_X + 14, 1440], b3: [number, number] = [PAD_X + 14, 1250];
-  for (let i = 0; i < 90; i++) { const u = i / 90, p = bez(a3, b1, b2, b3, u); raw.push({ x: p[0], y: p[1], seg: "T2", u }); }
-  for (let y = 1250; y >= TOP; y -= 8) raw.push({ x: PAD_X + 14 * (1 - sm((1250 - y) / 250)), y, seg: "R", u: 0 });
+  const raw = sideRaw();                           // the one finger, straight down from the top (hand.ts)
   const n = raw.length;
   const out: Pt[] = [];
   let s = 0;
@@ -149,14 +139,10 @@ const BRANCHES = [0, 1, 2].map(nerveBranch);
 const SIGNAL_PATHS = BRANCHES.map((b) => [...nerveTrunk, ...b]);
 
 const NAIL_IDX = OUTLINE.map((p, i) => ({ p, i })).filter(({ p }) => p.y >= 1130 && (p.seg === "L" || (p.seg === "T1" && p.u < 0.45)));
-const RING_X = FX - 200, MID_X = FX - 100;               // the two fingers behind the index (a little shorter, a little longer)
-const RING_TIP = TIP_Y - 50, MID_TIP = TIP_Y + 30;
-const HAIRS = Array.from({ length: 7 }, (_, i) => ({ x: RING_X - HW, y: 850 + i * 34, i }));
-/** A finger behind the index: straight shaft, rounded tip. */
-const backFinger = (cx: number, tip: number) => `M ${cx - HW} 760 L ${cx - HW} ${tip - 310} C ${cx - HW} ${tip - 120} ${cx - 130} ${tip} ${cx + 20} ${tip} C ${cx + 170} ${tip} ${cx + HW + 10} ${tip - 120} ${cx + HW + 10} ${tip - 310} L ${cx + HW} 760 Z`;
-/** The back of the hand and the arm: a band that bleeds to the right, with the three fingers hanging from its left end. */
-const HAND = `M ${RING_X - HW - 10} 820 C ${RING_X - HW - 10} 700 ${RING_X - HW + 20} 640 ${RING_X - HW + 190} 640 L 2800 640 L 2800 ${HAND_BOT} L ${PAD_X + 130} ${HAND_BOT} C ${PAD_X + 50} ${HAND_BOT} ${PAD_X + 2} ${HAND_BOT - 30} ${PAD_X} ${HAND_BOT - 100} L ${PAD_X} 760 L ${RING_X - HW} 760 Z`;
+const HAIRS = Array.from({ length: 7 }, (_, i) => ({ y: 850 + i * 34, i }));   // on the back (left) edge of the finger, which is 0 to 26 px in from FX - HW
 const crease = (x: number, y: number, len: number, dir: number, w = 9) => `M ${x} ${y} Q ${x + dir * len * 0.5} ${y + w * 0.1} ${x + dir * len} ${y + 3} Q ${x + dir * len * 0.5} ${y + w} ${x} ${y} Z`;
+/** A curved crescent (a soft joint line): bows down by `bow` in the middle, `th` thick. */
+const arcMark = (x: number, y: number, len: number, bow: number, th: number) => `M ${x} ${y} Q ${x + len / 2} ${y + bow} ${x + len} ${y} Q ${x + len / 2} ${y + bow + th} ${x} ${y} Z`;
 
 /** A flat lens-shaped mark (a crease, a fold) from x going len to the right, th tall each side. */
 const lens = (x: number, y: number, len: number, th: number) => `M ${x} ${y} Q ${x + len / 2} ${y - th} ${x + len} ${y} Q ${x + len / 2} ${y + th} ${x} ${y} Z`;
@@ -167,10 +153,11 @@ const DorsalFront: React.FC<{ k: number; hv: number }> = ({ k, hv }) => (
       const pip = f.tip - 0.5 * (f.tip + 40), dip = f.tip - 340, nb = nailBox(f);
       return (
         <g key={f.id} transform={rotOf(f)}>
-          <path d={lens(f.cx - f.w * 0.2, pip, f.w * 0.4, 15)} fill={SKIN_B} /><path d={lens(f.cx - f.w * 0.14, pip + 34, f.w * 0.28, 10)} fill={SKIN_B} />
-          <path d={lens(f.cx - f.w * 0.2, dip, f.w * 0.4, 15)} fill={SKIN_B} /><path d={lens(f.cx - f.w * 0.14, dip + 34, f.w * 0.28, 10)} fill={SKIN_B} />
-          <rect x={nb.x + 7} y={nb.y + 9} width={nb.w} height={nb.h} rx={nb.r} fill={SKIN_B} />
-          <rect x={nb.x} y={nb.y} width={nb.w} height={nb.h} rx={nb.r} fill={WHITE} opacity={0.62} />
+          <path d={arcMark(f.cx - f.w * 0.22, pip, f.w * 0.44, 16, 9)} fill={SKIN_B} /><path d={arcMark(f.cx - f.w * 0.15, pip + 34, f.w * 0.3, 12, 7)} fill={SKIN_B} />
+          <path d={arcMark(f.cx - f.w * 0.22, dip, f.w * 0.44, 16, 9)} fill={SKIN_B} /><path d={arcMark(f.cx - f.w * 0.15, dip + 34, f.w * 0.3, 12, 7)} fill={SKIN_B} />
+          <rect x={nb.x + 5} y={nb.y + 6} width={nb.w} height={nb.h} rx={nb.r} fill={SKIN_B} opacity={0.55} />
+          <rect x={nb.x} y={nb.y} width={nb.w} height={nb.h} rx={nb.r} fill={WHITE} opacity={0.42} />
+          <path d={`M ${nb.x + nb.w * 0.14} ${nb.y + nb.h - 20} Q ${nb.x + nb.w / 2} ${nb.y + nb.h + 2} ${nb.x + nb.w * 0.86} ${nb.y + nb.h - 20}`} stroke={WHITE} strokeWidth={11} strokeLinecap="round" fill="none" opacity={0.8} />
           {k > 0.03 && [0, 1, 2].flatMap((i) => [-1, 1].map((d) => <path key={`${i}${d}`} d={lens(f.cx + d * f.w * 0.4 - f.w * 0.06, f.tip - f.w * (0.3 + 0.2 * i), f.w * 0.12, 8)} fill={SKIN_B} opacity={Math.min(1, k * 1.2)} />))}
         </g>
       );
@@ -196,7 +183,7 @@ const Finger: React.FC<{ clock: number; amb: number }> = ({ clock, amb }) => {
     if (pr >= 0 && pr < 1 && ts < T.signalEnd) { const path = SIGNAL_PATHS[j % 3]; sigs.push({ p: along(path, polyLen(path) * pr), o: Math.sin(Math.PI * clamp01(pr)) * 1.2 }); }
   }
   const pulse = clamp01((clock - T.pulse) / 0.9);
-  const wTop = lerp(1720, 1000, op);                       // the top edge of the cut: it opens from the tip upwards
+  const wTop = lerp(1720, 1040, op);                       // the top edge of the cut: it opens from the tip upwards
   return (
     <g>
       {/* the hand seen from the back (the hook, the old idea, the outro): the fingers, the back of the hand and the arm; two tones, light from the top left */}
@@ -206,29 +193,23 @@ const Finger: React.FC<{ clock: number; amb: number }> = ({ clock, amb }) => {
         </g>
         {DF_LIST.map((f) => <path key={f.id} d={fingerPath(f.id === "index" ? { ...f, w: f.w + 28 * sw } : f)} transform={rotOf(f)} fill={SKIN_A} />)}
         <path d={HAND_BODY} fill={SKIN_A} />{WEBS.map(([x, y], i) => <ellipse key={i} cx={x} cy={y} rx={85} ry={130} fill={SKIN_A} />)}
-      </g>}
-      {/* the side view (the beats that look inside): the two fingers behind the index and the hand's band, shades first */}
-      {sv > 0.01 && <g opacity={sv}>
-        <g transform="translate(12 14)" fill={SKIN_B}><path d={backFinger(RING_X, RING_TIP)} /><path d={backFinger(MID_X, MID_TIP)} /><path d={HAND} /></g>
-        <path d={backFinger(RING_X, RING_TIP)} fill={SKIN_A} />
-        <path d={backFinger(MID_X, MID_TIP)} fill={SKIN_B} transform="translate(-9 3)" /><path d={backFinger(MID_X, MID_TIP)} fill={SKIN_A} />
+        {/* the forearm ends in a plain sleeve with a cuff, above the top text */}
+        <path d={SLEEVE_PATH} fill={STONE.floor} /><path d={CUFF_PATH} fill={STONE.floorEdge} />
       </g>}
       <polygon points={ptsAttr(l0)} fill={SKIN_B} transform="translate(12 14)" />
       {sv > 0.01 && <polygon points={ptsAttr(l0)} fill={SKIN_B} transform="translate(-9 3)" opacity={sv} />}
       <polygon points={ptsAttr(l0)} fill={SKIN_A} />
       {sv > 0.01 && <g opacity={sv}>
-        <path d={HAND} fill={SKIN_A} />
-        {/* the knuckles on the back of the hand and the creases at the finger's joint */}
-        {[RING_X - 40, MID_X - 30, FX - 10].map((x, i) => <g key={i}><ellipse cx={x + 8} cy={672} rx={96} ry={34} fill={SKIN_B} opacity={0.5} /><ellipse cx={x} cy={664} rx={92} ry={30} fill={SKIN_A} /></g>)}
-        <path d={crease(PAD_X, 1096, 62, -1)} fill={SKIN_B} /><path d={crease(PAD_X, 1128, 48, -1, 7)} fill={SKIN_B} />
+        {/* the creases at the finger's joint (the back on the left, the pad on the right) and the nail plate on the back, none on the pad */}
+        <path d={crease(PAD_X + 2, 1096, 62, -1)} fill={SKIN_B} /><path d={crease(PAD_X + 2, 1128, 48, -1, 7)} fill={SKIN_B} />
         <path d={crease(FX - HW, 1104, 44, 1)} fill={SKIN_B} /><path d={crease(FX - HW, 1124, 36, 1, 7)} fill={SKIN_B} />
-        {/* the nail plate on the side of the finger, none on the pad */}
-        <polygon points={ptsAttr(nail)} fill={G4} transform="translate(5 7)" />
-        <polygon points={ptsAttr(nail)} fill={WHITE} />
+        <polygon points={ptsAttr(nail)} fill={SKIN_B} transform="translate(4 6)" opacity={0.6} />
+        <polygon points={ptsAttr(nail)} fill={WHITE} opacity={0.5} />
       </g>}
       {hv > 0.01 && <DorsalFront k={k} hv={hv} />}
       {/* fine short hairs on the back of the finger, lying along the skin, each with a drop of oil */}
-      {HAIRS.map(({ x, y, i }) => {
+      {HAIRS.map(({ y, i }) => {
+        const x = FX - HW + 26 * clamp01((y - 800) / 448);
         const g = ramp(clock, T.hairOn + i * 0.14, T.hairOn + i * 0.14 + 0.5) * (1 - ramp(clock, T.hairOff, T.hairOff + 1.0));
         if (g < 0.02) return null;
         const sway = 0.1 * Math.sin(amb * 1.6 + i), len = 34 * g, ca = Math.cos(sway), sa = Math.sin(sway);
@@ -243,13 +224,14 @@ const Finger: React.FC<{ clock: number; amb: number }> = ({ clock, amb }) => {
       {/* the cut: a window into the index fingertip, with a lip at its top edge; inside it the layers, the nerve and the vessels */}
       {op > 0.01 && <g>
         <clipPath id="cut-clip"><rect x={FX - HW - 60} y={wTop} width={HW * 2 + 140} height={900} rx={26} /></clipPath>
-        <g clipPath="url(#cut-clip)">
+        <clipPath id="finger-clip"><polygon points={ptsAttr(l0)} /></clipPath>
+        <g clipPath="url(#finger-clip)"><g clipPath="url(#cut-clip)">
           <polygon points={ptsAttr(l0)} fill={SKIN_B} />
           <polygon points={ptsAttr(l1)} fill={SKIN_A} />
           <polygon points={ptsAttr(l2)} fill={PLASTER} />
           <path d={bone} fill={G3} transform="translate(7 9)" />
           <path d={bone} fill={WHITE} />
-          <rect x={FX - 30} y={TOP} width={52} height={1060} rx={20} fill={G4} />
+          <rect x={FX - 30} y={TOP} width={52} height={830} rx={20} fill={G4} />
           {nerveA > 0.01 && <g opacity={nerveA}>
             <path d={pathOf(nerveTrunk, false)} stroke={YELLOW_D} strokeWidth={14} strokeLinecap="round" fill="none" />
             {BRANCHES.map((b, i) => <path key={i} d={pathOf(b, false)} stroke={YELLOW_D} strokeWidth={11} strokeLinecap="round" fill="none" />)}
@@ -264,7 +246,7 @@ const Finger: React.FC<{ clock: number; amb: number }> = ({ clock, amb }) => {
             {Array.from({ length: 12 }, (_, i) => { const p = OUTLINE.filter((q) => q.seg === "R" && q.y > 1000 && q.y < 1250)[(i * 9) % 30], d = 84 + (i % 3) * 5; return p ? <circle key={i} cx={p.x - p.nx * d} cy={p.y - p.ny * d + 8 * Math.sin(amb * 2 + i)} r={9} fill={STEAM} opacity={(1 - v) * 0.9} /> : null; })}
           </g>}
         </g>
-        <rect x={FX - HW - 60} y={wTop - 6} width={HW * 2 + 140} height={14} rx={7} fill={SKIN_B} opacity={op} />
+        <rect x={FX - HW - 60} y={wTop - 6} width={HW * 2 + 140} height={14} rx={7} fill={SKIN_B} opacity={op} /></g>
       </g>}
     </g>
   );
@@ -333,7 +315,7 @@ const Slab: React.FC<{ clock: number; amb: number }> = ({ clock, amb }) => {
   const k = wrinkle(clock);
   const pad = OUTLINE.filter((p) => (p.seg === "R" || p.seg === "T2") && p.y - L >= SLAB_TOP && p.y - L <= WATER_Y).sort((a, b) => a.y - b.y);
   const vall: [number, number][] = pad.map((p) => [p.x - p.nx * (26 * k * p.mask * waveOf(p) + 1), p.y - L]);
-  const water = pathOf([[PAD_X + 14, SLAB_TOP], ...vall, [PAD_X + 14, WATER_Y]]);
+  const water = pathOf([[PAD_X + 2, SLAB_TOP], ...vall, [PAD_X + 2, WATER_Y]]);
   const drips = Array.from({ length: 6 }, (_, j) => {
     const ts = T.drainA + j * 0.8, q = (clock - ts) / 1.1;
     return q > 0 && q < 1 && ts < T.drainEnd ? { x: x - 7, y: lerp(SLAB_TOP + 40 + j * 40, WATER_Y - 6, q * q), r: 10 * (1 - 0.3 * q) } : null;
@@ -435,17 +417,14 @@ const Scene = ({ beat, t, clock }: SceneProps) => {
   return (
     <svg width={W} height={1920} viewBox="0 0 1080 1920">
       <g transform={tx}><World clock={clock} amb={amb} /></g>
-      {/* the arm runs off the top of the frame: the wall fades in over it so the top text sits on plain wall */}
-      {handVis(clock) > 0.01 && <g opacity={handVis(clock)}>
-        <rect x={0} y={0} width={W} height={382} fill={WALL.wall} />
-        {Array.from({ length: 30 }, (_, i) => <rect key={i} x={0} y={380 + i * 3.2} width={W} height={4} fill={WALL.wall} opacity={1 - (i + 0.5) / 30} />)}
-      </g>}
+      {/* a plain board over the top of the frame, all the time (so the first frame and the last are the same): the arm, the sleeve and the finger go behind it and the top text always sits on plain wall */}
+      <rect x={0} y={0} width={W} height={418} fill={WALL.wall} /><rect x={0} y={418} width={W} height={12} fill={SHADE} />
       {/* labels: short pointers from the text to the part */}
       {!sting && !outro && P_.labels.filter((l) => clock >= l.from - 0.05 && clock < l.to + 0.3).map((l) => {
         const a = toScr(l.ax, l.ay), p = clamp01((clock - l.from) / 0.3) * (1 - clamp01((clock - l.to) / 0.3));
         if (p <= 0) return null;
         const rows = 1 + (l.lines?.length ?? 0), fs = l.fs ?? 44;
-        const wide = Math.max(textWidth(l.text, fs), ...(l.lines ?? []).map((r) => textWidth(r, fs))) / 2 + 14, bottom = l.ly + (rows - 1) * fs * 1.22 + 14, topY = l.ly - fs * 0.8;
+        const wide = Math.max(textWidth(l.text, fs), ...(l.lines ?? []).map((r) => textWidth(r, fs))) / 2 + 14, bottom = l.ly + (rows - 1) * fs * 1.22 + 30, topY = l.ly - fs * 0.8;
         // the leader leaves the text from the side that faces the part, never through the words
         const sx = a[0] > l.lx + wide ? l.lx + wide : a[0] < l.lx - wide ? l.lx - wide : l.lx;
         const sy = sx === l.lx ? (a[1] > bottom ? bottom : topY) : l.ly - fs * 0.3 + ((rows - 1) * fs * 1.22) / 2;

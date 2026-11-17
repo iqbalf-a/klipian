@@ -9,12 +9,11 @@ import type { StoryT } from "../../src/schema.ts";
 /** The world (px, y down). The finger points down: its axis is x = FX, its back (the nail side) is on the left, its pad on the right. */
 export const FX = 420;
 export const HW = 260;                       // half the finger's width (the fingertip is about 1.5 cm wide: the finger is the hero, the set is sized to it)
-export const TOP = 700;                      // the index finger starts under the back of the hand (it is hidden there)
-export const HAND_TOP = 640, HAND_BOT = 880; // the back of the hand and the arm, a band that bleeds to the right
+export const TOP = 300;                      // the side view of the index finger comes straight down from the top: it starts behind the plain board over the top of the frame
 export const TIP_Y = 1560;                   // the lowest point of the pad
 export const WATER_Y = 1200;                 // the water surface of the basin, level with the counter top
 export const COUNTER_X = 740;                // the basin's wall: the water is on the left, the counter on the right
-export const PAD_X = FX + HW;                // the pad's skin at rest (the wet slab touches it here)
+export const PAD_X = FX + HW - 26;           // the pad's skin at rest (the wet slab touches it here): the finger tapers 26 px each side towards the tip
 
 /** Beat starts (seconds): hook 0, sting 3, dulu 4, saraf 11, darah 20, guna 29, ujung 38, debat 46, outro 56. These names are the moments inside. */
 export const T = {
@@ -47,7 +46,7 @@ export const swell = (t: number) => ramp(t, T.swellA, T.swellB) * (1 - ramp(t, T
 /** How much of the water between the pad and the wet slab has been pushed out along the grooves, 0..1. */
 export const drained = (t: number) => ramp(t, T.drainA, T.drainEnd);
 /** The wet slab's left edge (world x): it slides along the counter to the pad, stays, and slides back. */
-export const SLAB_REST = 1500, SLAB_TOUCH = PAD_X + 14, SLAB_TOP = 900, LIFT_PX = 360;
+export const SLAB_REST = 1500, SLAB_TOUCH = PAD_X + 2, SLAB_TOP = 900, LIFT_PX = 360;
 /** How far the hand is lifted out of the water (px): in the grip beat the wet fingertip comes up to the slab, then goes back in. */
 export const lift = (t: number) => LIFT_PX * ramp(t, T.liftA, T.liftB) * (1 - ramp(t, T.lowerA, T.lowerB));
 /** 1 while the whole hand is in the picture (the hook, the old idea, the outro), 0 while the beats look inside the index fingertip: the hand fades away (the index finger stays) and the side view fades in. */
@@ -106,11 +105,11 @@ export const LABELS: LabelSpec[] = [
   { id: "sinyal", text: "kirim sinyal", ax: FX + 98, ay: 1300, lx: 930, ly: 880, from: T.lblSignal, to: 19.8 },
   { id: "pembuluh", text: "pembuluh menyempit", ax: PAD_X - 66, ay: 1250, lx: 810, ly: 1090, fs: 40, from: T.lblVessel, to: 28.6 },
   { id: "kulit", text: "kulit mengendur", ax: PAD_X - 14, ay: 1330, lx: 810, ly: 1200, fs: 40, from: T.lblSkin, to: 28.8 },
-  { id: "alur", text: "alur ban", ax: PAD_X + 2, ay: 940, lx: 840, ly: 700, from: T.lblTread, to: 37.6 },
+  { id: "alur", text: "alur ban", ax: PAD_X - 4, ay: 940, lx: 840, ly: 700, from: T.lblTread, to: 37.6 },
   { id: "tersingkir", text: "air tersingkir", ax: SLAB_TOUCH - 7, ay: 960, lx: 860, ly: 830, from: T.lblDrain, to: 37.8 },
-  { id: "keratin", text: "keratin tebal", ax: PAD_X + 10, ay: 1480, lx: 945, ly: 700, fs: 38, from: T.lblKeratin, to: 43.2 },
-  { id: "rambut", text: "tanpa", lines: ["rambut"], ax: PAD_X + 5, ay: 1060, lx: 1010, ly: 790, fs: 36, from: T.lblHair, to: 45.8 },
-  { id: "adarambut", text: "rambut", lines: ["+ minyak"], ax: FX - HW - 220 + 0, ay: 940, lx: 100, ly: 880, fs: 36, from: T.lblHair + 0.2, to: 45.8 },
+  { id: "keratin", text: "keratin tebal", ax: PAD_X - 4, ay: 1480, lx: 945, ly: 700, fs: 38, from: T.lblKeratin, to: 43.2 },
+  { id: "rambut", text: "tanpa", lines: ["rambut"], ax: PAD_X - 4, ay: 1060, lx: 1010, ly: 790, fs: 36, from: T.lblHair, to: 45.8 },
+  { id: "adarambut", text: "rambut", lines: ["+ minyak"], ax: FX - HW + 8, ay: 940, lx: 100, ly: 880, fs: 36, from: T.lblHair + 0.2, to: 45.8 },
   { id: "s14", text: "2014:", lines: ["tak ada bedanya"], ax: 930, ay: 1110, lx: 585, ly: 625, fs: 40, from: T.lblStudy14, to: 55.6 },
   { id: "s21", text: "2021:", lines: ["genggam", "20% ringan"], ax: 1310, ay: 1110, lx: 927, ly: 610, fs: 40, from: T.lblStudy21, to: 55.6 },
 ];
@@ -139,7 +138,7 @@ export const HERO_BOX_AT = (t: number) => {
     const x0 = 540 + (-860 - c.x) * z, x1 = 540 + (2600 - c.x) * z, y0 = 960 + (-1400 - c.y) * z, y1 = 960 + (1640 - c.y) * z;
     return { x: (x0 + x1) / 2, y: (y0 + y1) / 2, w: x1 - x0, h: y1 - y0 };
   }
-  const x0 = 540 + (FX - HW - 200 - c.x) * z, x1 = 540 + (PAD_X + 14 - c.x) * z, y1 = 960 + (TIP_Y + 40 - L - c.y) * z;
-  const y0 = Math.max(0, 960 + (HAND_TOP - L - c.y) * z);
+  const x0 = 540 + (FX - HW - c.x) * z, x1 = 540 + (FX + HW - c.x) * z, y1 = 960 + (TIP_Y - L - c.y) * z;
+  const y0 = Math.max(420, 960 + (TOP - L - c.y) * z);
   return { x: (x0 + x1) / 2, y: (y0 + y1) / 2, w: x1 - x0, h: y1 - y0 };
 };
