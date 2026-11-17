@@ -59,7 +59,7 @@ async function draw() {
   const g = data.guest;
   $("#pickerGuest").innerHTML = `
     <button class="btn picker-guest-btn" type="button" data-enter="_guest">Masuk sebagai Guest</button>
-    <span class="picker-guest-note">Edit dan render saja: tanpa jadwal Clips, teks posting, atau akun YouTube.</span>
+    <span class="picker-guest-note">Edit and render only: no Clips schedule, no post text, no YouTube account.</span>
     <button class="btn" type="button" data-enter="_admin" title="Gemini key, Autopilot format and schedule">Admin settings</button>
     <button class="btn quiet" type="button" id="clearGuest" title="Move everything Guest made to the Recycle Bin">Clear guest data</button>`;
 }

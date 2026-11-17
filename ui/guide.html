@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="id">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>klipian: panduan</title>
+<title>klipian: guide</title>
 <link rel="stylesheet" href="/ui/css/fonts.css">
 <link rel="stylesheet" href="/ui/css/tokens.css">
 <link rel="stylesheet" href="/ui/css/brand.css">
@@ -29,7 +29,7 @@
 <body class="guide-body">
 
 <header class="guide-top">
-  <a class="brand" href="/" title="Kembali ke editor">klipian</a>
+  <a class="brand" href="/" title="Back to the editor">klipian</a>
   <nav class="tabs area-switch" aria-label="Area" id="areaSwitch">
     <a href="/guide" aria-current="page">Guide</a>
   </nav>
@@ -40,381 +40,382 @@
 
 <div class="guide-wrap">
 
-  <nav class="guide-toc" aria-label="Daftar isi">
-    <p class="guide-toc-title">Panduan</p>
+  <nav class="guide-toc" aria-label="Contents">
+    <p class="guide-toc-title">Guide</p>
     <ol>
-      <li><a href="#youtube">YouTube: satu project Google Cloud per channel</a>
+      <li><a href="#youtube">YouTube: one Google Cloud project per channel</a>
         <ol>
-          <li><a href="#youtube-project">1. Buat project</a></li>
-          <li><a href="#youtube-api">2. Aktifkan YouTube Data API</a></li>
-          <li><a href="#youtube-consent">3. Layar persetujuan</a></li>
+          <li><a href="#youtube-project">1. Create a project</a></li>
+          <li><a href="#youtube-api">2. Enable the YouTube Data API</a></li>
+          <li><a href="#youtube-consent">3. Consent screen</a></li>
           <li><a href="#youtube-test-user">4. Test user</a></li>
           <li><a href="#youtube-scopes">5. Data Access</a></li>
-          <li><a href="#youtube-client">6. Client dan file JSON</a></li>
-          <li><a href="#youtube-connect">7. Hubungkan di klipian</a></li>
-          <li><a href="#youtube-testing">Status Testing dan audit</a></li>
+          <li><a href="#youtube-client">6. Client and JSON file</a></li>
+          <li><a href="#youtube-connect">7. Connect in klipian</a></li>
+          <li><a href="#youtube-testing">Testing status and the audit</a></li>
         </ol>
       </li>
-      <li><a href="#youtube-status">Status dan arti warna</a></li>
-      <li><a href="#youtube-limits">Batas upload</a></li>
+      <li><a href="#youtube-status">Statuses and what the colours mean</a></li>
+      <li><a href="#youtube-limits">Upload limits</a></li>
       <li><a href="#claude">Claude API: Find clips with Claude</a></li>
-      <li><a href="#download">Unduh dari YouTube</a></li>
-      <li><a href="#profiles">Profile dan Guest</a></li>
-      <li><a href="#bulk">Render massal</a></li>
-      <li><a href="#post">Teks posting untuk satu klip</a></li>
-      <li><a href="#motion">Video motion (halaman Motion)</a></li>
+      <li><a href="#download">Download from YouTube</a></li>
+      <li><a href="#profiles">Profiles and Guest</a></li>
+      <li><a href="#bulk">Bulk render</a></li>
+      <li><a href="#post">Post text for one clip</a></li>
+      <li><a href="#motion">Motion video (the Motion page)</a></li>
     </ol>
   </nav>
 
   <main class="guide-main">
 
-    <h1>Panduan klipian</h1>
-    <p class="lead">Halaman ini statis: tidak ada data profile di sini. Nama menu ditulis persis seperti di
-      Google Cloud console (2026) dan di klipian, supaya bisa diikuti langkah demi langkah.</p>
+    <h1>klipian guide</h1>
+    <p class="lead">This page is static: it holds no profile data. Menu names are written exactly as they are in the
+      Google Cloud console (2026) and in klipian, so you can follow them step by step.</p>
 
     <!-- ============================================================ A -->
     <section id="youtube">
-      <h2>A. YouTube: satu project Google Cloud per channel</h2>
-      <p><b>Kenapa satu project per channel.</b> Kuota unggah YouTube Data API dihitung per project Google Cloud:
-        yang kami ukur adalah <b>100 unggahan per hari per project</b>. Kalau semua channel memakai satu project,
-        kuotanya dibagi. Project terpisah juga memisahkan token, jadi satu channel yang bermasalah tidak
-        mengganggu yang lain.</p>
-      <p class="note">Tidak perlu menagih apa pun. Jangan klik <b>Try for free</b> atau mengisi billing: YouTube Data API
-        v3 gratis dalam kuota ini.</p>
+      <h2>A. YouTube: one Google Cloud project per channel</h2>
+      <p><b>Why one project per channel.</b> The YouTube Data API upload quota is counted per Google Cloud project:
+        what we measured is <b>100 uploads a day per project</b>. If every channel uses one project, they share
+        that quota. Separate projects also keep the tokens apart, so one channel in trouble does not
+        disturb the others.</p>
+      <p class="note">Nothing needs to be paid. Do not click <b>Try for free</b> or fill in billing: the YouTube Data API
+        v3 is free inside this quota.</p>
 
-      <h3 id="youtube-project">1. Buat project</h3>
+      <h3 id="youtube-project">1. Create a project</h3>
       <ol>
-        <li>Buka <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">console.cloud.google.com</a>
-          dengan akun Google tempat kamu mengelola semua project klipian. Akun ini tidak harus
-          pemilik channel: pemilik channel cukup didaftarkan sebagai Test user (langkah 4).</li>
-        <li>Klik pemilih project di bar atas (<b>Select a project</b>) › <b>New project</b>.</li>
-        <li>Beri nama, misalnya <code>klipian-lucu</code>, lalu <b>Create</b>. Pastikan project baru itu yang
-          terpilih di bar atas.</li>
+        <li>Open <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">console.cloud.google.com</a>
+          with the Google account you manage all klipian projects from. It does not have to be
+          the channel's owner: the owner only needs to be added as a Test user (step 4).</li>
+        <li>Click the project picker in the top bar (<b>Select a project</b>) › <b>New project</b>.</li>
+        <li>Name it, for example <code>klipian-lucu</code>, then <b>Create</b>. Make sure the new project is the one
+          selected in the top bar.</li>
       </ol>
 
-      <h3 id="youtube-api">2. Aktifkan YouTube Data API v3</h3>
+      <h3 id="youtube-api">2. Enable the YouTube Data API v3</h3>
       <ol>
         <li><b>APIs &amp; Services</b> › <b>Library</b>.</li>
-        <li>Cari <b>YouTube Data API v3</b> › <b>Enable</b>.</li>
-        <li>Cek kuotanya: <b>APIs &amp; Services</b> › <b>Enabled APIs &amp; services</b> › YouTube Data API v3 ›
-          <b>Quotas &amp; System Limits</b>, lihat baris <b>Video Uploads per day</b>.</li>
+        <li>Search for <b>YouTube Data API v3</b> › <b>Enable</b>.</li>
+        <li>Check the quota: <b>APIs &amp; Services</b> › <b>Enabled APIs &amp; services</b> › YouTube Data API v3 ›
+          <b>Quotas &amp; System Limits</b>, look at the row <b>Video Uploads per day</b>.</li>
       </ol>
 
-      <h3 id="youtube-consent">3. Layar persetujuan (Google Auth Platform)</h3>
+      <h3 id="youtube-consent">3. Consent screen (Google Auth Platform)</h3>
       <ol>
-        <li>Buka <b>Google Auth Platform</b> › <b>Get started</b>.</li>
-        <li><b>App name</b>: bebas (misalnya <code>klipian</code>). <b>User support email</b>: emailmu.</li>
-        <li><b>Audience</b>: pilih <b>External</b>.</li>
-        <li><b>Contact information</b>: emailmu. Setujui kebijakan, lalu <b>Create</b>.</li>
+        <li>Open <b>Google Auth Platform</b> › <b>Get started</b>.</li>
+        <li><b>App name</b>: anything (for example <code>klipian</code>). <b>User support email</b>: your email.</li>
+        <li><b>Audience</b>: choose <b>External</b>.</li>
+        <li><b>Contact information</b>: your email. Agree to the policy, then <b>Create</b>.</li>
       </ol>
-      <p>Menu di kiri sekarang: <b>Overview</b>, <b>Branding</b>, <b>Audience</b>, <b>Clients</b>, <b>Data Access</b>.</p>
+      <p>The menu on the left is now: <b>Overview</b>, <b>Branding</b>, <b>Audience</b>, <b>Clients</b>, <b>Data Access</b>.</p>
 
-      <h3 id="youtube-test-user">4. Test user: akun pemilik channel ini</h3>
+      <h3 id="youtube-test-user">4. Test user: the account that owns this channel</h3>
       <ol>
-        <li><b>Audience</b> › bagian <b>Test users</b> › <b>Add users</b>.</li>
-        <li>Isi akun Google yang <b>memiliki channel ini</b>, lalu <b>Save</b>.</li>
+        <li><b>Audience</b> › the <b>Test users</b> section › <b>Add users</b>.</li>
+        <li>Enter the Google account that <b>owns this channel</b>, then <b>Save</b>.</li>
       </ol>
-      <p class="warn">Kalau akun itu tidak ada di daftar, Google menolak masuk dengan pesan “belum diverifikasi /
-        akses diblokir”. klipian menampilkannya sebagai <b>Not a test user</b> (merah).</p>
+      <p class="warn">If that account is not on the list, Google refuses the sign-in with a “not verified /
+        access blocked” message. klipian shows it as <b>Not a test user</b> (red).</p>
 
-      <h3 id="youtube-scopes">5. Data Access: izin yang dibutuhkan</h3>
+      <h3 id="youtube-scopes">5. Data Access: the permissions needed</h3>
       <ol>
         <li><b>Data Access</b> › <b>Add or remove scopes</b>.</li>
-        <li>Centang <code>…/auth/youtube.upload</code> dan <code>…/auth/youtube.readonly</code>
-          (kalau tidak tampil di daftar, tempel di kolom <b>Manually add scopes</b> › <b>Add to table</b>).</li>
-        <li><b>Update</b>, lalu <b>Save</b>.</li>
+        <li>Tick <code>…/auth/youtube.upload</code> and <code>…/auth/youtube.readonly</code>
+          (if they are not in the list, paste them into <b>Manually add scopes</b> › <b>Add to table</b>).</li>
+        <li><b>Update</b>, then <b>Save</b>.</li>
       </ol>
 
-      <h3 id="youtube-client">6. Client (Desktop app) dan file JSON</h3>
+      <h3 id="youtube-client">6. Client (Desktop app) and the JSON file</h3>
       <ol>
         <li><b>Clients</b> › <b>Create client</b>.</li>
-        <li><b>Application type</b>: <b>Desktop app</b>. Nama bebas. Biarkan kotak <b>AI-powered agent</b> tidak tercentang.</li>
-        <li><b>Create</b>, lalu klik <b>Download JSON</b> <b>saat itu juga</b>: rahasia (secret) client bisa jadi hanya
-          ditampilkan sekali.</li>
-        <li>Simpan file itu di tempat aman, misalnya folder pribadimu. Namanya biasanya <code>client_secret_….json</code>.</li>
+        <li><b>Application type</b>: <b>Desktop app</b>. Any name. Leave the <b>AI-powered agent</b> box unticked.</li>
+        <li><b>Create</b>, then click <b>Download JSON</b> <b>right away</b>: the client secret may be
+          shown only once.</li>
+        <li>Keep the file somewhere safe, for example your private folder. Its name is usually <code>client_secret_….json</code>.</li>
       </ol>
-      <p class="warn"><b>Jangan bagikan file JSON itu</b> dan jangan ditempel di chat, email, atau repo. Siapa pun yang
-        memegangnya bisa memakai kuota project-mu. klipian hanya menyimpannya di folder profile ini.</p>
+      <p class="warn"><b>Do not share that JSON file</b> and do not paste it into a chat, an email or a repo. Anyone who
+        holds it can use your project's quota. klipian keeps it only in this profile's folder.</p>
 
-      <h3 id="youtube-connect">7. Hubungkan di klipian</h3>
+      <h3 id="youtube-connect">7. Connect in klipian</h3>
       <ol>
-        <li>Buka profile channel yang benar (nama dan warna profile tampil di pojok atas).</li>
-        <li><b>Profile settings</b> › bagian <b>YouTube account</b> › <b>Choose client_secret.json…</b> › pilih file
-          tadi. Baris <b>Client</b> menjadi hijau (<b>Client ✓</b>).</li>
-        <li><b>Connect YouTube</b>. Browser terbuka: masuk dengan akun <b>pemilik channel ini</b>, pilih channel yang
-          benar kalau ditanya, lalu izinkan.</li>
-        <li>Baris <b>Account</b> menjadi hijau: <b>Connected ✓</b> dengan nama channel. Selesai.</li>
+        <li>Open the right channel's profile (the profile's name and colour show in the top corner).</li>
+        <li><b>Profile settings</b> › the <b>YouTube account</b> section › <b>Choose client_secret.json…</b> › choose that
+          file. The <b>Client</b> row turns green (<b>Client ✓</b>).</li>
+        <li><b>Connect YouTube</b>. The browser opens: sign in with the account that <b>owns this channel</b>, choose the
+          right channel if asked, then allow.</li>
+        <li>The <b>Account</b> row turns green: <b>Connected ✓</b> with the channel's name. Done.</li>
       </ol>
 
-      <h3 id="youtube-testing">Status Testing dan audit</h3>
+      <h3 id="youtube-testing">Testing status and the audit</h3>
       <ul>
-        <li><b>Testing = sambung ulang tiap kira-kira 7 hari.</b> Selama project berstatus <b>Testing</b>, token Google
-          kedaluwarsa sekitar tujuh hari. klipian menandainya <b>Expired</b> (kuning): tekan <b>Connect again</b>.</li>
-        <li><b>Unggahan dari project yang belum diaudit dikunci private.</b> YouTube menahan video yang diunggah lewat API
-          dari project yang belum lolos audit menjadi <b>privat</b> (“locked private”). Jadi video-nya
-          sampai, tetapi kamu perlu mengubah visibilitasnya sendiri di YouTube Studio, atau mengajukan
-          <b>audit YouTube API Services</b> supaya unggahan publik diizinkan. Jadwal publikasi dari klipian
-          tidak mengubah ini.</li>
+        <li><b>Testing = reconnect about every 7 days.</b> While the project's status is <b>Testing</b>, the Google token
+          expires after about seven days. klipian marks it <b>Expired</b> (yellow): press <b>Connect again</b>.</li>
+        <li><b>Uploads from a project that is not audited are locked private.</b> YouTube holds a video uploaded through the API
+          from a project that has not passed the audit as <b>private</b> (“locked private”). So the video
+          arrives, but you have to change its visibility yourself in YouTube Studio, or apply for the
+          <b>YouTube API Services audit</b> so that public uploads are allowed. A publish schedule from klipian
+          does not change this.</li>
       </ul>
     </section>
 
     <!-- ============================================================ B -->
     <section id="youtube-status">
-      <h2>B. Status dan arti warna</h2>
-      <p>Di <b>Profile settings</b> › <b>YouTube account</b> ada dua baris, dan titik kecil di samping nama profile
-        memakai warna yang sama.</p>
+      <h2>B. Statuses and what the colours mean</h2>
+      <p><b>Profile settings</b> › <b>YouTube account</b> has two rows, and the small dot beside the profile's name
+        uses the same colours.</p>
 
-      <h3>Baris <b>Client</b> (file client_secret.json)</h3>
+      <h3>The <b>Client</b> row (the client_secret.json file)</h3>
       <dl class="states">
         <dt><span class="dot green"></span> Client ✓</dt>
-        <dd>File valid. Project Google Cloud yang dipakai ditampilkan, dan apakah dari profile ini atau
-          cadangan bersama (<code>workspace/secrets</code>).</dd>
+        <dd>The file is valid. The Google Cloud project it belongs to is shown, and whether it comes from this profile or
+          from the shared fallback (<code>workspace/secrets</code>).</dd>
         <dt><span class="dot red"></span> Client ✕</dt>
-        <dd>Bukan client_secret.json yang bisa dipakai (salah jenis client, file rusak). Pilih lagi; harus
-          <b>Desktop app</b> (bagian <a href="#youtube-client">6</a>).</dd>
+        <dd>Not a client_secret.json that can be used (the wrong kind of client, a broken file). Choose again; it must be
+          <b>Desktop app</b> (section <a href="#youtube-client">6</a>).</dd>
         <dt><span class="dot grey"></span> Client</dt>
-        <dd>Belum dipilih. <b>Choose client_secret.json…</b></dd>
+        <dd>Not chosen yet. <b>Choose client_secret.json…</b></dd>
       </dl>
 
-      <h3>Baris <b>Account</b></h3>
+      <h3>The <b>Account</b> row</h3>
       <dl class="states" id="youtube-expired">
         <dt><span class="dot green"></span> Connected ✓</dt>
-        <dd>Tersambung dan token diterima. Hijau penuh hanya kalau baris Client juga hijau.</dd>
+        <dd>Connected and the token is accepted. Fully green only when the Client row is green too.</dd>
         <dt><span class="dot grey"></span> Not connected</dt>
-        <dd>Belum ada tautan. Pilih client dulu, lalu <b>Connect YouTube</b> (bagian <a href="#youtube-connect">7</a>).
-          “No client yet” artinya file client belum dipilih.</dd>
+        <dd>No link yet. Choose the client first, then <b>Connect YouTube</b> (section <a href="#youtube-connect">7</a>).
+          “No client yet” means the client file is not chosen.</dd>
         <dt><span class="dot yellow"></span> Expired</dt>
-        <dd>Sambungan kedaluwarsa (project berstatus Testing: sekitar 7 hari). Tekan <b>Connect again</b>.</dd>
+        <dd>The connection expired (a project in Testing: about 7 days). Press <b>Connect again</b>.</dd>
         <dt><span class="dot yellow"></span> Other channel</dt>
-        <dd>Token sah tetapi milik channel lain dari yang tersimpan. <b>Connect again</b> untuk menerima channel baru,
-          atau masuk dengan akun yang benar.</dd>
+        <dd>The token is valid but belongs to another channel than the saved one. <b>Connect again</b> to accept the new channel,
+          or sign in with the right account.</dd>
         <dt><span class="dot red"></span> Not a test user</dt>
-        <dd>Google menolak masuk: tambahkan akun itu di <b>Google Auth Platform</b> › <b>Audience</b> › <b>Test users</b>
-          (<a href="#youtube-test-user">bagian 4</a>), lalu Connect lagi.</dd>
+        <dd>Google refused the sign-in: add that account in <b>Google Auth Platform</b> › <b>Audience</b> › <b>Test users</b>
+          (<a href="#youtube-test-user">section 4</a>), then Connect again.</dd>
         <dt><span class="dot yellow"></span> Offline</dt>
-        <dd>Google tidak terjangkau; status terakhir yang diketahui ditampilkan. Coba lagi saat internet kembali
+        <dd>Google cannot be reached; the last known status is shown. Try again when the internet is back
           (<b>Check connection</b>).</dd>
-        <dt><span class="dot grey"></span> Paket YouTube belum terpasang</dt>
-        <dd>Jalankan sekali: <code>.venv\Scripts\python.exe -m pip install -r requirements-youtube.txt</code></dd>
+        <dt><span class="dot grey"></span> The YouTube package is not installed</dt>
+        <dd>Run once: <code>.venv\Scripts\python.exe -m pip install -r requirements-youtube.txt</code></dd>
       </dl>
 
-      <h3 id="youtube-limits">Batas upload</h3>
-      <p>Ada dua batas yang berbeda, dan klipian menyebut yang mana yang kena (alasan asli dari Google ikut ditampilkan
-        kecil di bawah pesan, dengan <b>Copy details</b>; semuanya juga dicatat di <code>profiles/&lt;id&gt;/youtube.log</code>):</p>
+      <h3 id="youtube-limits">Upload limits</h3>
+      <p>There are two different limits, and klipian says which one was hit (Google's own reason is shown
+        small under the message, with <b>Copy details</b>; everything is also logged in <code>profiles/&lt;id&gt;/youtube.log</code>):</p>
       <dl class="states">
-        <dt>Batas channel (<code>uploadLimitExceeded</code>)</dt>
-        <dd>Channel ini sudah mencapai batas upload hariannya. Channel baru atau yang belum terverifikasi punya batas yang
-          lebih rendah: verifikasi di <b>youtube.com/verify</b>. Biasanya longgar lagi sekitar 24 jam setelah upload pertama
-          dalam rangkaian itu. Antrean bulk berhenti rapi; sisanya tidak disentuh (“not sent”).</dd>
-        <dt>Kuota project (<code>quotaExceeded</code>)</dt>
-        <dd>Kuota harian project Google Cloud habis; yang dilihat adalah <b>Video Uploads per day</b> (100 per project;
-          percobaan yang ditolak ikut dihitung). Reset tiap <b>tengah malam waktu Pasifik</b>; klipian menyebut jam
-          itu di waktu komputermu (mis. 14:00 WIB saat musim panas AS, 15:00 WIB saat musim dingin).</dd>
+        <dt>Channel limit (<code>uploadLimitExceeded</code>)</dt>
+        <dd>This channel reached its daily upload limit. A new or unverified channel has a
+          lower limit: verify at <b>youtube.com/verify</b>. It usually loosens about 24 hours after the first upload
+          of that run. The bulk queue stops cleanly; the rest is not touched (“not sent”).</dd>
+        <dt>Project quota (<code>quotaExceeded</code>)</dt>
+        <dd>The Google Cloud project's daily quota is used up; the one that counts is <b>Video Uploads per day</b> (100 per project;
+          refused attempts count too). It resets every <b>midnight Pacific time</b>; klipian gives that hour
+          in your computer's time (e.g. 14:00 WIB during the US summer, 15:00 WIB during the winter).</dd>
         <dt>“Slow down” (<code>rateLimitExceeded</code>)</dt>
-        <dd>YouTube minta pelan-pelan. Di upload bulk klipian menunggu 30–90 detik dan mengirim file itu lagi beberapa
-          kali; berhenti hanya kalau tetap ditolak.</dd>
+        <dd>YouTube asks to slow down. In a bulk upload klipian waits 30–90 seconds and sends that file again a few
+          times; it stops only if the file is still refused.</dd>
       </dl>
-      <p>Membedakannya di <b>Google Cloud Console</b> › <b>APIs &amp; Services</b> › <b>YouTube Data API v3</b> ›
-        <b>Quotas &amp; System Limits</b>: kalau <b>Video Uploads per day</b> sudah penuh (mis. 100/100), itu kuota project.
-        Kalau baris itu masih lega (mis. 12/100) tetapi upload ditolak, itu batas channel, yang tidak tampil di tabel itu.
-        <b>Queries per day</b> tidak ikut terpakai oleh upload (<code>videos.insert</code> hanya dihitung di Video Uploads per day;
-        12 upload plus cek status memakai 15 query), jadi baris itu hampir selalu lega. Di dialog upload bulk, baris kuota juga menunjukkan berapa video channel ini
-        diunggah dalam 24 jam terakhir; channel yang baru tersambung diberi petunjuk kalau satu hari melewati sekitar 6 video.</p>
+      <p>To tell them apart, open <b>Google Cloud Console</b> › <b>APIs &amp; Services</b> › <b>YouTube Data API v3</b> ›
+        <b>Quotas &amp; System Limits</b>: if <b>Video Uploads per day</b> is full (e.g. 100/100), it is the project quota.
+        If that row still has room (e.g. 12/100) but uploads are refused, it is the channel limit, which that table does not show.
+        <b>Queries per day</b> is not used by uploads (<code>videos.insert</code> counts only in Video Uploads per day;
+        12 uploads plus the status checks use 15 queries), so that row almost always has room. In the bulk upload dialog, the quota row also shows how many videos this channel
+        uploaded in the last 24 hours; a newly connected channel gets a hint when a day passes about 6 videos.</p>
     </section>
 
     <!-- ============================================================ C -->
     <section id="claude">
       <h2>C. Claude API (Find clips with Claude)</h2>
-      <p>Opsional. Tanpa ini semuanya tetap jalan: <b>Copy brief</b> atau <b>Download file</b> di layar Analyze, tempel
-        ke Claude di web, lalu tempel jawabannya lagi di klipian. <b>Cara manual itu tidak butuh key.</b></p>
-      <h3>Memasang key</h3>
+      <p>Optional. Everything works without it: <b>Copy brief</b> or <b>Download file</b> on the Analyze screen, paste it
+        into Claude on the web, then paste its answer back into klipian. <b>That manual way needs no key.</b></p>
+      <h3>Setting the key</h3>
       <ol>
-        <li>Buka <a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a> ›
-          <b>API Keys</b> › buat key. Akun harus punya <b>kredit</b> (isi saldo di <b>Billing</b>), kalau tidak panggilan ditolak.</li>
-        <li>Pasang paketnya sekali: <code>.venv\Scripts\python.exe -m pip install -r requirements-claude.txt</code></li>
-        <li>Di klipian: <b>Profile settings</b> › <b>Anthropic API</b> › tempel key › <b>Save key</b> › <b>Test</b>.
-          Key disimpan di server lokal dan tidak pernah dikirim ke browser lagi. Jangan menempelnya di chat atau repo.</li>
-        <li>Pilih <b>Model</b> (bawaan: Opus terbaru di akunmu) dan <b>Effort</b>. Tabel di bawahnya menunjukkan pemakaian per bulan.</li>
+        <li>Open <a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a> ›
+          <b>API Keys</b> › create a key. The account must have <b>credit</b> (top up in <b>Billing</b>), or the calls are refused.</li>
+        <li>Install the package once: <code>.venv\Scripts\python.exe -m pip install -r requirements-claude.txt</code></li>
+        <li>In klipian: <b>Profile settings</b> › <b>Anthropic API</b> › paste the key › <b>Save key</b> › <b>Test</b>.
+          The key is kept on the local server and is never sent to the browser again. Do not paste it into a chat or a repo.</li>
+        <li>Choose the <b>Model</b> (default: the newest Opus on your account) and the <b>Effort</b>. The table below shows the usage per month.</li>
       </ol>
-      <h3>Memakainya</h3>
+      <h3>Using it</h3>
       <ol>
-        <li>Di layar <b>Analyze</b>, tekan <b>Find clips with Claude</b>.</li>
-        <li>Dialog menampilkan model, jumlah token masuk, dan <b>perkiraan biaya</b> sebelum apa pun dikirim. Itu
-          perkiraan: token berpikir dan jawaban baru diketahui setelah selesai.</li>
-        <li>Tekan <b>Send to Claude</b>. Hasilnya masuk seperti impor manual (saran AI di layar Clips). <b>Cancel</b>
-          menghentikannya.</li>
+        <li>On the <b>Analyze</b> screen, press <b>Find clips with Claude</b>.</li>
+        <li>The dialog shows the model, the number of input tokens and the <b>estimated cost</b> before anything is sent. It is
+          an estimate: the thinking and answer tokens are known only when it is done.</li>
+        <li>Press <b>Send to Claude</b>. The result arrives like a manual import (AI suggestions on the Clips screen). <b>Cancel</b>
+          stops it.</li>
       </ol>
-      <p class="note">Rubrik yang dipakai (dialog, gameplay, atau rubrik sendiri di <code>workspace/rubrics</code>) dipilih di
-        Profile settings, atau per brief di layar Analyze.</p>
+      <p class="note">The rubric used (dialog, gameplay, or your own rubric in <code>workspace/rubrics</code>) is chosen in
+        Profile settings, or per brief on the Analyze screen.</p>
     </section>
 
     <!-- ============================================================ D -->
     <section id="download">
-      <h2>D. Unduh dari YouTube</h2>
-      <p>Di layar Assets (atau Analyze) pilih <b>Add from YouTube</b>, tempel satu tautan video, <b>Check</b>, lalu
-        <b>Download</b>. Berkas masuk ke folder <code>sources</code> profile dengan nama “channel - judul.mp4” dan
-        kreditnya terisi otomatis.</p>
-      <h3>Yang dibutuhkan</h3>
+      <h2>D. Download from YouTube</h2>
+      <p>On the Assets screen (or Analyze) choose <b>Add from YouTube</b>, paste one video link, <b>Check</b>, then
+        <b>Download</b>. The file goes to the profile's <code>sources</code> folder as “channel - title.mp4” and
+        its credit is filled in automatically.</p>
+      <h3>What it needs</h3>
       <ol>
         <li><b>yt-dlp</b>: <code>.venv\Scripts\python.exe -m pip install -r requirements-download.txt</code>
-          (memasang <code>yt-dlp[default]</code>). YouTube sering berubah: kalau unduhan gagal, tekan
-          <b>Update yt-dlp</b> di dialog.</li>
-        <li><b>Node.js</b> (atau deno) di PATH, dari <a href="https://nodejs.org/" target="_blank" rel="noopener">nodejs.org</a>.
-          Tanpa runtime JavaScript, YouTube menolak unduhan panjang (HTTP 403). Dialog menampilkan runtime yang dipakai
-          di sebelah versi yt-dlp; kalau tertulis “no JS runtime”, pasang Node.js lalu <b>Update yt-dlp</b>.</li>
-        <li><b>ffmpeg</b> (sudah dibutuhkan klipian) untuk menggabungkan video dan suara.</li>
+          (it installs <code>yt-dlp[default]</code>). YouTube changes often: if a download fails, press
+          <b>Update yt-dlp</b> in the dialog.</li>
+        <li><b>Node.js</b> (or deno) on the PATH, from <a href="https://nodejs.org/" target="_blank" rel="noopener">nodejs.org</a>.
+          Without a JavaScript runtime, YouTube refuses long downloads (HTTP 403). The dialog shows the runtime in use
+          beside the yt-dlp version; if it says “no JS runtime”, install Node.js and then <b>Update yt-dlp</b>.</li>
+        <li><b>ffmpeg</b> (klipian needs it already) to join the video and the sound.</li>
       </ol>
       <h3>Tips</h3>
       <ul>
-        <li>Video 83 menit pada 1080p bisa sekitar 1,8 GB. Pilih <b>720p (smaller)</b> di kartu pratinjau kalau
-          ruang atau waktu terbatas; ukurannya diperbarui.</li>
-        <li>Kalau gagal, pesan ramah ditampilkan dengan baris kecil berisi error aslinya dan tombol
-          <b>Copy details</b>. Salin dan kirim itu kalau perlu bantuan. Lognya juga ada di <code>ytdl.log</code> di folder profile.</li>
-        <li>Video privat, berbatas umur, atau khusus member tidak bisa diunduh: klipian tidak masuk (sign in).</li>
+        <li>An 83-minute video at 1080p can be about 1.8 GB. Choose <b>720p (smaller)</b> on the preview card if
+          space or time is short; the size is updated.</li>
+        <li>When it fails, a friendly message is shown with a small line holding the original error and a
+          <b>Copy details</b> button. Copy and send that if you need help. The log is also in <code>ytdl.log</code> in the profile's folder.</li>
+        <li>Private, age-restricted or members-only videos cannot be downloaded: klipian does not sign in.</li>
       </ul>
-      <p class="warn"><b>Kredit bukan izin.</b> Mengisi kredit sumber hanya memberi atribusi; itu tidak memberimu hak
-        memakai ulang video orang lain. Unduh hanya konten yang boleh kamu pakai.</p>
+      <p class="warn"><b>A credit is not a permission.</b> Filling in the source credit only gives attribution; it does not give you the right
+        to reuse someone else's video. Download only content you are allowed to use.</p>
     </section>
 
     <!-- ============================================================ E -->
     <section id="profiles">
-      <h2>E. Profile dan Guest</h2>
+      <h2>E. Profiles and Guest</h2>
       <ul>
-        <li><b>Satu profile = satu channel.</b> Masing-masing punya sources, project, hasil render, jadwal unggah,
-          akun YouTube, dan pengaturan (watermark, rubrik, hashtag) sendiri. Rubrik buatan sendiri dan cache transkrip
-          dipakai bersama semua profile.</li>
-        <li>Profile dipilih <b>per tab</b> browser: dua tab bisa memakai dua channel sekaligus. Nama dan warna profile
-          selalu tampil di pojok atas supaya tidak salah channel. Tidak ada password: klipian jalan di komputermu dan
-          profile hanya memisahkan data.</li>
-        <li>Membuat profile baru: halaman pemilih profile › <b>Profile baru</b> (nama, warna). Lalu pilih rubrik di
-          <b>Profile settings</b>, hubungkan YouTube (bagian <a href="#youtube">A</a>).</li>
-        <li><b>Guest</b>: untuk mencoba cepat. Bisa mengedit, merender, mengunduh dari YouTube, dan memakai Find clips
-          with Claude (key-nya disimpan di workspace, dipakai bersama semua profile; mengaturnya dari profile biasa). Tidak punya jadwal unggah, akun YouTube,
-          atau pengaturan. <b>Clear guest data</b> di menu profile menghapus semua buatan Guest ke Recycle Bin.</li>
+        <li><b>One profile = one channel.</b> Each has its own sources, projects, renders, upload schedule,
+          YouTube account and settings (watermark, rubric, hashtags). Your own rubrics and the transcript cache
+          are shared by all profiles.</li>
+        <li>The profile is chosen <b>per browser tab</b>: two tabs can use two channels at once. The profile's name and colour
+          always show in the top corner, so you do not work on the wrong channel. There is no password: klipian runs on your computer and
+          a profile only keeps the data apart.</li>
+        <li>To make a new profile: the profile picker › <b>New profile</b> (name, colour). Then choose the rubric in
+          <b>Profile settings</b> and connect YouTube (section <a href="#youtube">A</a>).</li>
+        <li><b>Guest</b>: for a quick try. It can edit, render, download from YouTube and use Find clips
+          with Claude (its key is kept in the workspace and shared by all profiles; set it from a normal profile). It has no upload schedule, no YouTube account
+          and no settings. <b>Clear guest data</b> in the profile menu moves everything Guest made to the Recycle Bin.</li>
       </ul>
     </section>
 
     <!-- ============================================================ F -->
     <section id="bulk">
-      <h2>F. Render massal</h2>
-      <p>Layar <b>Clips</b> membaca dari atas ke bawah:</p>
+      <h2>F. Bulk render</h2>
+      <p>The <b>Clips</b> screen reads from top to bottom:</p>
       <ol>
-        <li><b>Choose moments</b>: centang saran AI di daftar. Lalu pilih <b>salah satu</b> dari dua jalan:
+        <li><b>Choose moments</b>: tick the AI suggestions in the list. Then take <b>one</b> of two ways:
           <ul>
-            <li><b>One video from these moments</b> (<b>Add N to this Result</b>): saran yang dicentang digabung ke
-              Result yang terbuka. Satu render = <b>satu file</b>.</li>
-            <li><b>A separate video for each</b> (<b>Make N separate Results</b>): tiap saran menjadi Result sendiri
-              dan mewarisi format output Result yang terbuka. Render = <b>N file</b>.</li>
+            <li><b>One video from these moments</b> (<b>Add N to this Result</b>): the ticked suggestions are joined into
+              the open Result. One render = <b>one file</b>.</li>
+            <li><b>A separate video for each</b> (<b>Make N separate Results</b>): each suggestion becomes its own Result
+              and takes the output format of the open Result. Render = <b>N files</b>.</li>
           </ul></li>
-        <li><b>Results</b>: daftar klip yang akan dirender. Tiap baris menunjukkan durasi, format output, framing, dan
-          kapan terakhir dirender. <b>Tick</b> = ikut Output format / Delete / Render; <b>Editing</b> = Result yang
-          sedang terbuka di bawahnya. Pilih cepat: <b>Select all from this brief</b>, <b>All</b>, <b>None</b>.</li>
-        <li><b>Output format…</b>: satu format (Picture, Background, Position, Resolution, Quality) untuk semua Result
-          yang dicentang, dengan pratinjau satu klip contoh. “Keep each Result's own” membiarkan satu kontrol tetap seperti
-          aslinya, jadi misalnya hanya Picture yang diubah. Kotak <b>Put each Result's intro…</b> memasang intro tiap Result (yang sudah ada dari impor JSON, panel Intro &amp; notes) ke videonya selama beberapa detik.</li>
-        <li><b>Render selected (N)</b>: dialog rencana menampilkan tiap klip beserta formatnya, perkiraan waktu, dan opsi
-          AI Framing untuk klip tanpa framing. Hasilnya ada di layar <b>History</b>.</li>
+        <li><b>Results</b>: the list of clips to render. Each row shows the duration, the output format, the framing and
+          when it was last rendered. <b>Tick</b> = included in Output format / Delete / Render; <b>Editing</b> = the Result
+          open below it. Quick picks: <b>Select all from this brief</b>, <b>All</b>, <b>None</b>.</li>
+        <li><b>Output format…</b>: one format (Picture, Background, Position, Resolution, Quality) for every ticked
+          Result, with a preview of one sample clip. “Keep each Result's own” leaves one control as it
+          was, so for example only Picture is changed. The <b>Put each Result's intro…</b> box puts each Result's intro (the one it already has from the JSON import, the Intro &amp; notes panel) on its video for a few seconds.</li>
+        <li><b>Render selected (N)</b>: the plan dialog shows each clip with its format, the estimated time and the
+          AI Framing option for clips without framing. The results are on the <b>History</b> screen.</li>
       </ol>
-      <p><b>Upload massal ke YouTube</b> (di <b>Workspace</b>, centang klip, <b>Upload to YouTube</b>) punya dua mode:
-        <b>Schedule</b> (bawaan: tiap klip tayang pada tanggal dan jamnya) dan <b>Publish now</b>: semua video yang
-        dipilih <b>langsung publik</b> satu per satu begitu selesai diunggah, tanpa tanggal. Mode ini selalu dimulai
-        dari Schedule, memberi peringatan, dan meminta konfirmasi; dari klipian tidak bisa dibatalkan setelah tayang.
-        Short yang tayang bersamaan cenderung saling bersaing, jadi menjadwalkannya dengan jeda biasanya lebih baik.</p>
-      <p>Di mode Schedule, bagian <b>Schedule</b> mengisi tanggal dan jam klip yang belum punya: tanggal dan jam mulai,
-        lalu <b>Gap between clips</b> dalam <b>menit</b>, <b>jam</b> atau <b>hari</b> (bawaan hari; bilangan bulat 0 atau lebih,
-        0 = semuanya sama; jam mulai harus lebih dari 5 menit ke depan, jeda menit tidak ada batas minimum). Klip yang
-        sudah punya tanggal dan jam tetap, kecuali <b>Also change clips that already have a date and time</b> dicentang:
-        maka semua klip terpilih dijadwalkan ulang dari tanggal/jam itu dengan jeda yang sama, dan waktu lama mereka diganti.</p>
-      <p><b>Delete selected</b> dan ✕ di tiap baris menghapus Result (ada Undo beberapa detik). Berkas yang sudah dirender
-        dan baris jadwal unggah <b>tidak</b> pernah ikut terhapus.</p>
-      <p class="note">Framing otomatis (titik 00:00 yang belum disentuh) memakai tinggi penuh video dengan lebar sesuai
-        bentuk gambar, di tengah. Titik yang kamu atur sendiri tidak berubah.</p>
+      <p><b>Bulk upload to YouTube</b> (in <b>Workspace</b>, tick the clips, <b>Upload to YouTube</b>) has two modes:
+        <b>Schedule</b> (default: each clip goes public on its date and time) and <b>Publish now</b>: every selected
+        video goes <b>public right away</b>, one after another as each finishes uploading, with no date. This mode always starts
+        from Schedule, warns you and asks for confirmation; it cannot be undone from klipian once a video is public.
+        Shorts that go public together tend to compete, so scheduling them with a gap is usually better.</p>
+      <p>In Schedule mode, the <b>Schedule</b> section fills the date and time of the clips that have none: the start date and time,
+        then <b>Gap between clips</b> in <b>minutes</b>, <b>hours</b> or <b>days</b> (default days; a whole number, 0 or more,
+        0 = all the same; the start time must be more than 5 minutes ahead, a gap in minutes has no minimum). Clips that
+        already have a date and time keep them, unless <b>Also change clips that already have a date and time</b> is ticked:
+        then every selected clip is rescheduled from that date and time with the same gap, and their old times are replaced.</p>
+      <p><b>Delete selected</b> and the ✕ on each row delete the Result (with Undo for a few seconds). Rendered files
+        and upload schedule rows are <b>never</b> deleted with it.</p>
+      <p class="note">Automatic framing (the 00:00 point you have not touched) uses the full height of the video with the width of
+        the picture shape, centred. Points you set yourself do not change.</p>
     </section>
 
     <!-- ============================================================ G -->
     <section id="post">
-      <h2>G. Teks posting untuk satu klip (tanpa API key)</h2>
-      <p>Untuk klip yang kamu potong sendiri (momen diketik tangan) atau Result mana pun: judul Result, judul unggahan,
-        caption, hashtag, dan sudut pandang bisa ditulis Claude lewat <b>chat</b>, cukup salin dan tempel. Tidak perlu
-        API key dan tidak ada biaya selain langgananmu.</p>
+      <h2>G. Post text for one clip (no API key)</h2>
+      <p>For a clip you cut yourself (moments typed by hand) or any Result: the Result title, the upload title,
+        the caption, the hashtags and the take can be written by Claude through <b>chat</b>, by copy and paste. No
+        API key and no cost beyond your subscription.</p>
       <ol>
-        <li>Buka layar <b>Render</b> dengan Result yang dimaksud, panel <b>Post text</b>, bagian
-          <b>Write it with Claude</b>.</li>
-        <li>Tekan <b>Copy brief for this Result</b> (atau <b>Download</b>). Isinya singkat: kata-kata klip ini saja (sudah
-          dengan koreksi, waktunya dihitung dari awal klip), sinyal suara di dalamnya, konteks sumber, bagian rubrik
-          <i>Judul dan hook</i>, <i>Teks posting</i>, dan <i>Sudut pandang</i>, aturan hashtag profile, dan bentuk jawaban.
-          Rubrik yang dipakai: pilihan profile, atau pilihan di layar Analyze.</li>
-        <li>Tempel ke Claude di web (chat baru) dan kirim.</li>
-        <li>Salin jawabannya, lalu di klipian tekan <b>Paste reply…</b> dan tempel. Pesan Claude utuh boleh: blok JSON-nya
-          dicari sendiri, dan salah ketik yang umum (koma di ujung, <code>.replace</code>) diperbaiki dan diberi tahu.</li>
-        <li>Kolom yang terisi: <b>judul Result</b> (nama di daftar dan nama berkas), <b>Post text</b> (judul, caption,
-          hashtag), dan <b>Intro &amp; notes</b> (take, intro, notes). Kalau sebagian sudah ada isinya, klipian bertanya
-          <b>Replace what is written?</b> dengan daftar kolomnya. <b>Undo</b> mengembalikan semuanya.</li>
+        <li>Open the <b>Render</b> screen with that Result, the <b>Post text</b> panel, the
+          <b>Write it with Claude</b> section.</li>
+        <li>Press <b>Copy brief for this Result</b> (or <b>Download</b>). It is short: only this clip's words (with the
+          corrections, timed from the start of the clip), the voice signals in it, the source context, the rubric parts
+          <i>Judul dan hook</i>, <i>Teks posting</i> and <i>Sudut pandang</i>, the profile's hashtag rules, and the answer format.
+          The rubric used: the profile's choice, or the choice on the Analyze screen.</li>
+        <li>Paste it into Claude on the web (a new chat) and send.</li>
+        <li>Copy the answer, then in klipian press <b>Paste reply…</b> and paste. Claude's whole message is fine: its JSON block
+          is found automatically, and common slips (a trailing comma, <code>.replace</code>) are fixed and reported.</li>
+        <li>The fields filled: the <b>Result title</b> (the name in the list and the file name), <b>Post text</b> (title, caption,
+          hashtags) and <b>Intro &amp; notes</b> (take, intro, notes). If some already have content, klipian asks
+          <b>Replace what is written?</b> with the list of fields. <b>Undo</b> restores everything.</li>
       </ol>
-      <p><b>Di mana tombolnya:</b> di panel <b>Post text</b> (paling atas, layar Render); di layar <b>Clips</b> tiap baris
-        <b>Results</b> menunjukkan <i>post ✓ judul</i> atau <i>no post text</i> dan punya tombol <b>Post text…</b>; panel
-        <b>Open Result</b> punya <b>Write post text with Claude</b>; dan untuk beberapa Result sekaligus, centang barisnya lalu
-        <b>Write post text…</b> di bar bawah daftar: satu brief berisi semua Result yang dicentang (tiap klip dengan id-nya) dan
-        Claude menjawab dengan satu entri per id. Kolom yang sudah terisi ditanyakan per Result, dan satu Undo mengembalikan semuanya.</p>
-      <p class="note">Kalau jawaban kurang satu kolom, pesan menyebut yang mana (misalnya <code>post.caption</code>): minta
-        Claude menjawab lagi dengan blok JSON lengkap. Judul akhir yang lebih dari 100 karakter diberi peringatan seperti
-        biasa. Kalau Result itu sudah pernah dirender, baris jadwal unggahnya memakai teks baru pada render berikutnya.
-        Panel ini tidak ada untuk profile Guest.</p>
-      <p class="note"><b>Teks thumbnail:</b> brief <b>Find clips</b> (tempel maupun Claude/Gemini otomatis) meminta Claude menulis
-        <code>thumb</code> per klip: 3 sampai 6 kata, satu frasa utuh, boleh satu kata kunci di antara <code>*bintang*</code>.
-        Urutan teks di kartu: <b>Thumbnail text</b> yang kamu ketik di Detail, lalu <code>thumb</code> dari AI, lalu kutipan hook,
-        lalu judul. Kalau teksnya hasil pemotongan judul atau hook, barisnya diberi tanda <i>text cut: check</i>.</p>
-      <p class="note"><b>Thumbnail ke YouTube:</b> setelah upload, klipian menunggu YouTube selesai memproses video (sampai sekitar
-        7 menit, antrean upload jalan terus), baru mengirim thumbnail. Hasilnya tertulis di Detail klip. Kalau
-        gagal, atau di Studio thumbnail-nya masih frame otomatis, tekan <b>Re-send thumbnail</b> di Detail (50 unit kuota, hanya saat
-        kamu menekannya). klipian tidak bisa memeriksa dari YouTube apakah thumbnail sudah berubah: "terkirim" berarti YouTube menjawab
-        OK. Kalau gambar thumbnail gagal dibuat saat render (video tetap jadi), barisnya diberi tanda <i>no thumbnail: alasan</i>,
-        alasannya juga ada di <code>thumbnail.log</code> folder profile; tekan <b>Make thumbnail</b> di Detail.</p>
+      <p><b>Where the buttons are:</b> in the <b>Post text</b> panel (at the top of the Render screen); on the <b>Clips</b> screen each
+        <b>Results</b> row shows <i>post ✓ title</i> or <i>no post text</i> and has a <b>Post text…</b> button; the
+        <b>Open Result</b> panel has <b>Write post text with Claude</b>; and for several Results at once, tick their rows and press
+        <b>Write post text…</b> in the bar under the list: one brief holds every ticked Result (each clip with its id) and
+        Claude answers with one entry per id. Fields that already have content are asked about per Result, and one Undo restores everything.</p>
+      <p class="note">If the answer lacks a field, the message says which one (for example <code>post.caption</code>): ask
+        Claude to answer again with the complete JSON block. A final title longer than 100 characters gets the usual
+        warning. If that Result was rendered before, its upload schedule row uses the new text at the next render.
+        This panel does not exist for the Guest profile.</p>
+      <p class="note"><b>Thumbnail text:</b> the <b>Find clips</b> brief (pasted, or automatic with Claude/Gemini) asks Claude to write
+        a <code>thumb</code> per clip: 3 to 6 words, one whole phrase, optionally one key word between <code>*stars*</code>.
+        The order of the text on the card: the <b>Thumbnail text</b> you type in Detail, then the AI's <code>thumb</code>, then the hook quote,
+        then the title. If the text is a cut title or hook, the row is marked <i>text cut: check</i>.</p>
+      <p class="note"><b>Thumbnail to YouTube:</b> after an upload, klipian waits for YouTube to finish processing the video (up to about
+        7 minutes; the upload queue keeps going), then sends the thumbnail. The result is written in the clip's Detail. If
+        it fails, or the thumbnail in Studio is still the automatic frame, press <b>Re-send thumbnail</b> in Detail (50 quota units, only when
+        you press it). klipian cannot check from YouTube whether the thumbnail changed: "sent" means YouTube answered
+        OK. If the thumbnail picture could not be made during the render (the video is still made), the row is marked <i>no thumbnail: reason</i>,
+        the reason is also in <code>thumbnail.log</code> in the profile's folder; press <b>Make thumbnail</b> in Detail.</p>
     </section>
 
-    <footer class="guide-foot">Panduan ini ada di <code>ui/guide.html</code>. Keyboard: <kbd>,</kbd> <kbd>.</kbd> mundur/maju
-      satu frame, <kbd>Shift</kbd> + itu lima frame, <kbd>Space</kbd> putar/jeda (di editor).</footer>
     <!-- ============================================================ H -->
     <section id="motion">
-      <h2>H. Video motion: dari topik ke Clips (tanpa API key)</h2>
-      <p>Halaman <b>Motion</b> (<code>/remotion</code>) membuat video animasi fakta seru (9:16, 30 fps, dengan sound effect) dari
-        satu topik. klipian bekerja di komputer ini; AI-nya adalah <b>Claude Code</b> di komputer ini, jadi tidak ada API key.
-        Butuh Node.js dan <code>npm install</code> di folder <code>remotion/</code> (sekali saja).</p>
-      <p>Halaman ini punya delapan langkah. Langkah dilipat: hanya langkah yang sedang dikerjakan yang terbuka, langkah yang selesai
-        menampilkan ringkasan satu baris. <b>Langkah berikutnya</b> di atas selalu menyebut satu hal yang harus dilakukan, dan
-        tombolnya membuka langkah itu.</p>
+      <h2>H. Motion video: from a topic to Clips (no API key)</h2>
+      <p>The <b>Motion</b> page (<code>/remotion</code>) makes an animated fun-fact video (9:16, 30 fps, with sound effects) from
+        one topic. klipian works on this computer; its AI is <b>Claude Code</b> on this computer, so there is no API key.
+        It needs Node.js and <code>npm install</code> in the <code>remotion/</code> folder (once).</p>
+      <p>The page has eight steps. Steps are folded: only the step being worked on is open, a finished step
+        shows a one-line summary. <b>Next step</b> at the top always names the one thing to do, and
+        its button opens that step.</p>
       <ol>
-        <li><b>Video baru</b>: tulis topik (mis. "fakta seru tentang colokan listrik panas"), pilih durasi 30, 45 atau 60 detik, dan
-          <b>pilihan video</b>: loop, "Intip yuk!", musik, dan aplikasi suara yang kamu pakai. Pilihan ini membentuk brief.</li>
-        <li><b>Brief</b>: <b>Salin brief</b> (atau Unduh) dan tempel ke Claude Code yang dibuka di folder klipian. Ia mencari web, menulis
-          cerita, dan membuat folder videonya di <code>remotion/videos/</code>. <b>Ubah pilihan video</b> mengubah pilihan tadi dan brief ikut berubah.</li>
-        <li><b>Ambil cerita dari folder</b>: pilih folder hasilnya lalu <b>Ambil cerita dari folder</b>. Ceritanya diperiksa seperti jawaban AI;
-          kalau ada yang salah, klipian membuat <b>pesan perbaikan</b> untuk ditempel ke Claude Code. Storyboard (narasi, teks layar, waktu tiap beat)
-          ada di langkah ini: edit teksnya, <b>Simpan teks</b>, lalu <b>Buat gambar storyboard</b> kalau mau lihat gambarnya. Kalau
-          <code>story.json</code> di folder berubah, halaman meminta cerita diambil ulang dan render tidak ditawarkan sebelum itu.</li>
-        <li><b>Cek fakta dan judul</b> (wajib): buka setiap sumber, lalu <b>Benar</b> atau <b>Tolak</b> (tanggalnya tersimpan), atau
-          <b>Benar semua</b> setelah kamu membuka semua sumbernya (klipian bertanya sekali: "Sudah buka sumbernya?"). Klaim yang ditolak
-          membuat <b>brief revisi</b> hanya untuk beat yang memakainya. Lalu pilih satu dari tiga judul.</li>
-        <li><b>Naskah suara</b>: teks untuk aplikasi suara yang kamu pilih, dipakai <i>sebelum</i> suaranya dibuat. <b>VoiceStudio</b> membaca setiap karakter yang
-          ditempel, jadi teksnya polos: hanya kalimat narasi, tanpa judul bagian, jeda, atau tag. Teks panjang dipecah jadi bagian polos
-          yang bisa disalin atau diunduh satu per satu (<code>_1.txt</code>, <code>_2.txt</code>). ElevenLabs dan Google AI Studio memakai tag
-          dari daftar resmi masing-masing; pengaturan dan catatannya ada di samping kotak teks, tidak di dalamnya.</li>
-        <li><b>Impor suara dan cocokkan</b>: pakai rekamanmu sendiri (tulis lokasi file, atau pilih file) atau, kalau kamu sudah memasang mesin
-          text-to-speech lokal, <b>Buat dengan TTS lokal</b> (perintahnya di <code>workspace/machine.json</code> sebagai <code>motionTts</code>, mis.
-          <code>mytts --in "{text}" --out "{out}"</code>). <b>Cocokkan dengan narasi</b> memakai faster-whisper di komputer ini: setiap kata dapat
-          waktunya, setiap beat sepanjang narasinya, takarir menyala kata demi kata, dan sound effect serta musik latar mengecil saat ada suara.
-          Panjang video yang ditampilkan di mana-mana adalah panjang bersuara, bukan rencana awal.</li>
-        <li><b>Pratinjau</b>: draf setengah ukuran dengan suara, efek, dan musik.</li>
-        <li><b>Render</b>: baru bisa kalau semua klaim dicek, judul dipilih, cerita di folder sama dengan yang diambil, dan suara (kalau ada) sudah
-          dicocokkan (server yang menolak, bukan hanya tombol). Render masuk antrean berat yang sama dengan render klip, dengan progres, sisa waktu
-          dan <b>Batal</b>. Hasilnya menjadi baris <b>Clips</b> (folder <code>out/motion/</code>) dengan judul pilihan, deskripsi, hashtag, dan sumber
-          klaim yang dicek, siap dijadwalkan atau diunggah seperti klip lain.</li>
+        <li><b>New video</b>: write the topic (e.g. "fakta seru tentang colokan listrik panas"), choose 30, 45 or 60 seconds, and
+          the <b>video options</b>: loop, "Intip yuk!", music, and the voice apps you use. These options shape the brief.</li>
+        <li><b>Brief</b>: <b>Copy the full brief</b> (or download it) and paste it into Claude Code opened in the klipian folder. It searches the web, writes
+          the story and makes the video folder in <code>remotion/videos/</code>. <b>Change the video options</b> changes those options and the brief follows.</li>
+        <li><b>Load the story from the Claude Code folder</b>: choose the folder it made, then <b>Load the story from the folder</b>. The story is checked like an AI answer;
+          when something is wrong, klipian writes a <b>fix message</b> to paste into Claude Code. The storyboard (narration, screen text, the time of each beat)
+          is in this step: edit the texts, <b>Save texts</b>, then <b>Make the storyboard pictures</b> if you want to see them. If
+          <code>story.json</code> in the folder changes, the page asks for the story to be loaded again and no render is offered before that.</li>
+        <li><b>Check the facts and the title</b> (required): open every source, then <b>Correct</b> or <b>Reject</b> (the date is kept), or
+          <b>All correct</b> after you opened all the sources (klipian asks once: "Did you open the sources?"). A rejected claim
+          makes a <b>revision brief</b> only for the beats that use it. Then choose one of the three titles.</li>
+        <li><b>Voice script</b>: the text for the voice apps you chose, used <i>before</i> the voice is made. <b>VoiceStudio</b> reads every character
+          you paste, so its text is plain: only the narration sentences, with no part titles, pauses or tags. A long text is split into plain parts
+          that can be copied or downloaded one by one (<code>_1.txt</code>, <code>_2.txt</code>). ElevenLabs and Google AI Studio use tags
+          from their own official lists; the settings and notes are beside the text box, not inside it.</li>
+        <li><b>Import the voice and match it</b>: use your own recording (write the file's path, or choose a file) or, if you installed a local
+          text-to-speech engine, <b>Make it with local TTS</b> (its command is in <code>workspace/machine.json</code> as <code>motionTts</code>, e.g.
+          <code>mytts --in "{text}" --out "{out}"</code>). <b>Match with the narration</b> uses faster-whisper on this computer: every word gets
+          its time, every beat lasts as long as its narration, the captions light up word by word, and the sound effects and the music duck under the voice.
+          The video length shown everywhere is the voiced length, not the first plan.</li>
+        <li><b>Preview</b>: a half-size draft with the voice, the effects and the music.</li>
+        <li><b>Render</b>: allowed only when every claim is checked, a title is chosen, the story in the folder is the one that was loaded, and the voice (if any) is
+          matched (the server refuses, not only the button). The render joins the same heavy queue as clip renders, with progress, time left
+          and <b>Cancel</b>. The result becomes a <b>Clips</b> row (the <code>out/motion/</code> folder) with the chosen title, the description, the hashtags and the sources
+          of the checked claims, ready to schedule or upload like any other clip.</li>
       </ol>
-      <p><b>Jenis video.</b> Alur utama adalah <i>Khusus</i>: video dibuat di sesi Claude Code (baca <code>remotion/DESIGN.md</code>). Jenis
-        <i>Otomatis</i> (template klipian dari jawaban AI yang ditempel) disembunyikan di <b>Pengaturan lanjutan</b> dan tetap berjalan untuk
-        video lama.</p>
-      <p class="note">Benda yang belum ada di pustaka tidak dikarang oleh AI: ia menuliskannya di <code>needs</code>.</p>
+      <p><b>Video kind.</b> The main flow is <i>Custom</i>: the video is built in a Claude Code session (read <code>remotion/DESIGN.md</code>). The
+        <i>Template</i> kind (klipian's template from a pasted AI answer) is hidden under <b>Advanced settings</b> and still works for
+        old videos.</p>
+      <p class="note">Things that are not in the library yet are not invented by the AI: it lists them in <code>needs</code>.</p>
     </section>
+
+    <footer class="guide-foot">This guide is in <code>ui/guide.html</code>. Keyboard: <kbd>,</kbd> <kbd>.</kbd> back/forward
+      one frame, <kbd>Shift</kbd> + those for five frames, <kbd>Space</kbd> play/pause (in the editor).</footer>
 
   </main>
 </div>

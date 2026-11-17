@@ -5611,7 +5611,7 @@ def check_guide() -> tuple[str, str]:
         problems.append("the bulk upload gap needs minutes | hours | days, days the default")
     if "Also change clips that already have a date and time" not in ws or "Off: only clips without a schedule" not in ws             or "reschedule rows that already" in ws:
         problems.append("the bulk upload's checkbox label and tooltip are not the agreed words")
-    if "menit" not in page or "Also change clips that already have a date and time" not in page:
+    if "minutes" not in page or "Also change clips that already have a date and time" not in page:
         problems.append("the guide's #bulk part should mention minutes and the renamed option")
     ids = set(re.findall(r'\bid="([^"]+)"', page))
     for must in ("youtube", "youtube-status", "youtube-limits", "claude", "download", "profiles", "bulk", "youtube-client", "youtube-test-user",

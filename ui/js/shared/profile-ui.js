@@ -515,7 +515,7 @@ ${html}      </div>`;
       line.innerHTML = st === "ok" ? `${who}${when ? " · " + when : ""}`
         : st === "offline" ? `last known: ${who || esc(YT_HELP.offline)}${when ? " · " + when : ""}`
         : esc(YT_HELP[st] || j.message || st)
-          + (YT_GUIDE[st] ? ` <a class="yt-guide" href="${guideUrl("#" + YT_GUIDE[st])}" target="_blank" rel="noopener">Panduan</a>` : "");
+          + (YT_GUIDE[st] ? ` <a class="yt-guide" href="${guideUrl("#" + YT_GUIDE[st])}" target="_blank" rel="noopener">Guide</a>` : "");
       msg.textContent = j.message && st === "ok" ? j.message : (st === "offline" ? j.message : "");
       const linked = st === "ok" || st === "expired" || st === "different" || st === "offline";
       box.innerHTML = [

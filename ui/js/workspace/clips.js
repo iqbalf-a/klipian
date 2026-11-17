@@ -1526,5 +1526,5 @@ $("#upMarkForm")?.addEventListener("submit", async (e) => {
     if (upIds.length > 1) SELECTED.clear();
     drawClips();
     clipNotice(`${j.clip.length} clip${j.clip.length === 1 ? "" : "s"}: ${UPLOAD_PLATFORMS.find((p) => p.key === platform).name} ${UPLOAD_STATE_TEXT[state].toLowerCase()}`);
-  } catch (ex) { err.textContent = ex.message || "Tidak tersimpan."; }
+  } catch (ex) { err.textContent = ex.message || "Not saved."; }
 });
