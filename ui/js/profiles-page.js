@@ -1,6 +1,6 @@
 /* klipian — the profile picker (/profiles)
    ==========================================================================
-   One click to enter a profile; "+ Profile baru" makes one; each card can be renamed,
+   One click to enter a profile; "+ New profile" makes one; each card can be renamed,
    recoloured and deleted (two clicks, then the folder goes to the Recycle Bin). "Masuk
    sebagai Guest" is always there: it edits and renders, with no schedule, no post text
    and no YouTube. The choice belongs to THIS TAB (sessionStorage).
@@ -50,18 +50,18 @@ async function draw() {
         <span class="picker-name">${esc(p.name)}</span>
       </button>
       <span class="picker-tools">
-        <button class="btn quiet" type="button" data-rename="${esc(p.id)}" title="Ganti nama">Nama</button>
-        <input type="color" value="${esc(p.color)}" data-color="${esc(p.id)}" title="Ganti warna" aria-label="Warna ${esc(p.name)}">
-        <button class="btn quiet" type="button" data-delete="${esc(p.id)}" title="Hapus profile (ke Recycle Bin)">✕</button>
+        <button class="btn quiet" type="button" data-rename="${esc(p.id)}" title="Rename">Name</button>
+        <input type="color" value="${esc(p.color)}" data-color="${esc(p.id)}" title="Change the colour" aria-label="Colour of ${esc(p.name)}">
+        <button class="btn quiet" type="button" data-delete="${esc(p.id)}" title="Delete the profile (to the Recycle Bin)">✕</button>
       </span>
     </div>`).join("") + `
-    <button class="picker-card picker-add" type="button" id="addProfile"><span class="picker-swatch">+</span><span class="picker-name">+ Profile baru</span></button>`;
+    <button class="picker-card picker-add" type="button" id="addProfile"><span class="picker-swatch">+</span><span class="picker-name">+ New profile</span></button>`;
   const g = data.guest;
   $("#pickerGuest").innerHTML = `
     <button class="btn picker-guest-btn" type="button" data-enter="_guest">Masuk sebagai Guest</button>
     <span class="picker-guest-note">Edit dan render saja: tanpa jadwal Clips, teks posting, atau akun YouTube.</span>
     <button class="btn" type="button" data-enter="_admin" title="Gemini key, Autopilot format and schedule">Admin settings</button>
-    <button class="btn quiet" type="button" id="clearGuest" title="Pindahkan semua yang dibuat Guest ke Recycle Bin">Clear guest data</button>`;
+    <button class="btn quiet" type="button" id="clearGuest" title="Move everything Guest made to the Recycle Bin">Clear guest data</button>`;
 }
 
 document.addEventListener("click", async (e) => {
@@ -105,7 +105,7 @@ document.addEventListener("click", async (e) => {
       title: "Clear the Guest data?", tone: "strong", confirmText: "Clear guest data",
       message: "Everything the Guest made (sources, projects, renders) goes to the Recycle Bin.",
     }))) return;
-    try { await api("/api/profiles/clear-guest"); showError("Data Guest dipindahkan ke Recycle Bin."); } catch (err) { showError(err.message); }
+    try { await api("/api/profiles/clear-guest"); showError("The Guest data was moved to the Recycle Bin."); } catch (err) { showError(err.message); }
   }
 });
 

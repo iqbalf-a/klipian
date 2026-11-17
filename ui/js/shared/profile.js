@@ -14,7 +14,7 @@
 const PROFILE_PICKER = "/profiles";
 
 /* This tab's profile. A tab that has none (a new tab, a bookmark) goes to the picker
-   first and comes back here: "Satu klik untuk masuk". */
+   first and comes back here: one click to enter. */
 const PROFILE = (() => {
   let id = null;
   try { id = sessionStorage.getItem("klipian:profile"); } catch { /* no storage */ }

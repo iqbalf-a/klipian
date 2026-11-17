@@ -8,15 +8,15 @@ const v = (yt, tt, ig) => ({ uploadsView: { youtube: { state: yt }, tiktok: { st
 
 const gurita = v("done", "none", "none"), sched = v("scheduled", "done", "none");
 eq(uploadOf({}, "tiktok").state, "none", "a clip with no view is not uploaded anywhere");
-eq(UPLOAD_PLATFORMS.map((p) => uploadChipText(gurita, p)), ["YT Sudah", "TT Belum", "IG Belum"], "chip text is words");
-eq(uploadChipText(sched, UPLOAD_PLATFORMS[0]), "YT Terjadwal", "scheduled has its own word");
+eq(UPLOAD_PLATFORMS.map((p) => uploadChipText(gurita, p)), ["YT Uploaded", "TT Not yet", "IG Not yet"], "chip text is words");
+eq(uploadChipText(sched, UPLOAD_PLATFORMS[0]), "YT Scheduled", "scheduled has its own word");
 
 eq(matchesUploadFilter(gurita, ""), true, "no filter keeps all");
 eq(matchesUploadFilter(gurita, "tiktok:none"), true, "gurita is not on TikTok");
 eq(matchesUploadFilter(gurita, "youtube:none"), false, "gurita is on YouTube");
 eq(matchesUploadFilter(gurita, "youtube:done"), true, "uploaded on YouTube");
 eq(matchesUploadFilter(sched, "youtube:none"), true, "scheduled is not uploaded yet");
-eq(matchesUploadFilter(sched, "youtube:done"), false, "scheduled is not 'Sudah'");
+eq(matchesUploadFilter(sched, "youtube:done"), false, "scheduled is not uploaded");
 eq(matchesUploadFilter(sched, "tiktok:done"), true, "TikTok done");
 eq(UPLOAD_FILTERS.length, 7, "all + 3 platforms x 2");
 console.log(`uploads: ${n} checks ok`);

@@ -3,8 +3,8 @@
    used by js/workspace/clips.js and tested by node tests/uploads.test.js. */
 
 const UPLOAD_PLATFORMS = [{ key: "youtube", short: "YT", name: "YouTube" }, { key: "tiktok", short: "TT", name: "TikTok" }, { key: "instagram", short: "IG", name: "Instagram" }];
-const UPLOAD_STATE_TEXT = { none: "Belum diupload", scheduled: "Terjadwal", done: "Sudah diupload" };
-const UPLOAD_STATE_SHORT = { none: "Belum", scheduled: "Terjadwal", done: "Sudah" };
+const UPLOAD_STATE_TEXT = { none: "Not uploaded", scheduled: "Scheduled", done: "Uploaded" };
+const UPLOAD_STATE_SHORT = { none: "Not yet", scheduled: "Scheduled", done: "Uploaded" };
 
 const uploadOf = (clip, key) => (clip.uploadsView && clip.uploadsView[key]) || { state: "none", date: "", time: "", url: "" };
 
@@ -12,7 +12,7 @@ const uploadOf = (clip, key) => (clip.uploadsView && clip.uploadsView[key]) || {
 const uploadChipText = (clip, p) => `${p.short} ${UPLOAD_STATE_SHORT[uploadOf(clip, p.key).state]}`;
 
 // the filter values: "" (all), "<platform>:none" (not uploaded there), "<platform>:done" (uploaded there)
-const UPLOAD_FILTERS = [["", "Semua upload"], ...UPLOAD_PLATFORMS.flatMap((p) => [[`${p.key}:none`, `Belum diupload di ${p.name}`], [`${p.key}:done`, `Sudah diupload di ${p.name}`]])];
+const UPLOAD_FILTERS = [["", "All uploads"], ...UPLOAD_PLATFORMS.flatMap((p) => [[`${p.key}:none`, `Not uploaded to ${p.name}`], [`${p.key}:done`, `Uploaded to ${p.name}`]])];
 
 function matchesUploadFilter(clip, filter) {
   if (!filter) return true;

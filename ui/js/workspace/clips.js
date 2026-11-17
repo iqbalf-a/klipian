@@ -1487,9 +1487,9 @@ $("#upMarkState")?.addEventListener("change", upDialogSync);
 function openUpMark(ids, key) {
   upIds = ids;
   const one = ids.length === 1 ? CLIPS.find((c) => c.id === ids[0]) : null, u = one ? uploadOf(one, key) : null;
-  $("#upMarkTitle").textContent = one ? `Status upload: ${one.title || "clip tanpa judul"}` : `Tandai ${ids.length} klip`;
+  $("#upMarkTitle").textContent = one ? `Upload status: ${one.title || "untitled clip"}` : `Mark ${ids.length} clips`;
   $("#upMarkPlatform").value = key;
-  $("#upMarkState").value = u && u.state !== "none" ? u.state : "done";      // a click on a "Belum" chip is to mark it uploaded
+  $("#upMarkState").value = u && u.state !== "none" ? u.state : "done";      // a click on a "Not yet" chip is to mark it uploaded
   $("#upMarkDate").value = (u && u.date) || todayLocal();
   $("#upMarkTime").value = (u && u.time) || nowLocal();
   $("#upMarkUrl").value = (u && u.url) || "";
@@ -1525,6 +1525,6 @@ $("#upMarkForm")?.addEventListener("submit", async (e) => {
     upDialog.close("ok");
     if (upIds.length > 1) SELECTED.clear();
     drawClips();
-    clipNotice(`${j.clip.length} klip: ${UPLOAD_PLATFORMS.find((p) => p.key === platform).name} ${UPLOAD_STATE_TEXT[state].toLowerCase()}`);
+    clipNotice(`${j.clip.length} clip${j.clip.length === 1 ? "" : "s"}: ${UPLOAD_PLATFORMS.find((p) => p.key === platform).name} ${UPLOAD_STATE_TEXT[state].toLowerCase()}`);
   } catch (ex) { err.textContent = ex.message || "Tidak tersimpan."; }
 });
