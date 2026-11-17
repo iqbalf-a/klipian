@@ -183,6 +183,7 @@ const Finger: React.FC<{ clock: number; amb: number }> = ({ clock, amb }) => {
     const ts = T.signalA + j * 0.85, pr = (clock - ts) / 2.4;
     if (pr >= 0 && pr < 1 && ts < T.signalEnd) { const path = SIGNAL_PATHS[j % 3]; sigs.push({ p: along(path, polyLen(path) * pr), o: Math.sin(Math.PI * clamp01(pr)) * 1.2 }); }
   }
+  const own = Math.max(sv, hv > 0.995 ? 1 : 0);             // the index finger belongs to the view that shows it: in the hand view it is the dorsal index (fades with the hand), in the side view this copy (fades with sideVis); this copy only adds the old idea's swell while the hand is fully in, never alone and never stacked on the dorsal one
   const pulse = clamp01((clock - T.pulse) / 0.9);
   const win0 = { cx: FX, cy: 1240, rx: 205 * op, ry: 290 * op };   // the cut: an oval opening inside the finger (it grows from the middle), a thin lip of skin all round
   return (
@@ -197,13 +198,10 @@ const Finger: React.FC<{ clock: number; amb: number }> = ({ clock, amb }) => {
         {/* the forearm ends in a plain sleeve with a cuff, above the top text */}
         <path d={SLEEVE_PATH} fill={STONE.floor} /><path d={CUFF_PATH} fill={STONE.floorEdge} />
       </g>}
-      {hv < 0.99 && <g clipPath="url(#l0-below)"><polygon points={ptsAttr(l0)} fill={SKIN_B} transform="translate(12 14)" opacity={1 - hv} /></g>}   {/* while the hand shows, the dorsal index has its own shade (this one would run up over the back of the hand) */}
-      {sv > 0.01 && <polygon points={ptsAttr(l0)} fill={SKIN_B} transform="translate(-9 3)" opacity={sv} />}
-      {/* above the back of the hand's lower edge (local y < -40) the finger is the hand's own dorsal index: this copy shows only with the hand, so it never floats alone in the outro */}
+      {sv > 0.01 && <g clipPath="url(#l0-below)"><polygon points={ptsAttr(l0)} fill={SKIN_B} transform="translate(12 14)" opacity={sv} /></g>}   {/* the side view's own shade; the hand view has the dorsal index's shade */}
+      {sv > 0.01 && <g clipPath="url(#l0-below)"><polygon points={ptsAttr(l0)} fill={SKIN_B} transform="translate(-9 3)" opacity={sv} /></g>}
       <clipPath id="l0-below"><rect x={-3000} y={-40} width={8000} height={9000} /></clipPath>
-      <clipPath id="l0-above"><rect x={-3000} y={-3000} width={8000} height={2960} /></clipPath>
-      <g clipPath="url(#l0-below)"><polygon points={ptsAttr(l0)} fill={SKIN_A} /></g>
-      {hv > 0.01 && <g clipPath="url(#l0-above)" opacity={hv}><polygon points={ptsAttr(l0)} fill={SKIN_A} /></g>}
+      {own > 0.01 && <g clipPath="url(#l0-below)" opacity={own}><polygon points={ptsAttr(l0)} fill={SKIN_A} /></g>}
       {sv > 0.01 && <g opacity={sv}>
         {/* the creases at the finger's joint (the back on the left, the pad on the right) and the nail plate on the back, none on the pad */}
         <path d={crease(padX(1096) - 2, 1096, 62, -1)} fill={SKIN_B} /><path d={crease(padX(1128) - 2, 1128, 48, -1, 7)} fill={SKIN_B} />
