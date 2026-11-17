@@ -1,0 +1,285 @@
+{
+  "bible": 1,
+  "question": "Kenapa gurun lebih dingin di malam hari?",
+  "titles": [
+    "Kenapa gurun dingin banget di malam hari?",
+    "Siang membara, malam menggigit: rahasia gurun",
+    "Intip langit gurun: kenapa malamnya dingin?"
+  ],
+  "duration": 60,
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 3,
+      "narration": "Siang membara, malam menggigit. Kenapa?",
+      "text": "Panas siang, dingin malam",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Panas siang, dingin malam",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "sting",
+      "kind": "sting",
+      "dur": 1,
+      "narration": "Intip yuk!",
+      "text": "Intip yuk!",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "mascot",
+            "x": 540,
+            "y": 720,
+            "w": 220,
+            "expr": "curious",
+            "enter": {
+              "kind": "pop",
+              "delay": 0
+            }
+          },
+          {
+            "type": "pill",
+            "text": "Intip yuk!",
+            "x": 540,
+            "y": 1489,
+            "fs": 56,
+            "enter": {
+              "kind": "pop",
+              "delay": 0.2
+            }
+          }
+        ]
+      },
+      "sfx": "pop"
+    },
+    {
+      "id": "siang",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Di siang hari, matahari memanaskan pasir gurun sampai sangat panas.",
+      "text": "Pasir menyerap panas",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Pasir menyerap panas",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "malam",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Setelah matahari terbenam, pasir melepas panasnya ke atas sebagai sinar inframerah.",
+      "text": "Panas dilepas ke atas",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Panas dilepas ke atas",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "lembap",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Di tempat lembap, uap air dan awan menahan panas itu, seperti selimut tipis.",
+      "text": "Uap air: selimut panas",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Uap air: selimut panas",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "kering",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Udara gurun sangat kering dan langitnya sering cerah, jadi panas lolos ke angkasa.",
+      "text": "Kering: panas lolos",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Kering: panas lolos",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "pasir",
+      "kind": "result",
+      "dur": 7,
+      "narration": "Pasir juga cepat panas, tapi cepat kehilangan panasnya, jadi suhu turun drastis.",
+      "text": "Cepat panas, cepat dingin",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Cepat panas, cepat dingin",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "fakta",
+      "kind": "result",
+      "dur": 6,
+      "narration": "Tapi tidak semua gurun sedingin itu. Gurun yang lembap malamnya lebih hangat.",
+      "text": "Gurun lembap lebih hangat",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Gurun lembap lebih hangat",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "tips",
+      "kind": "tips",
+      "dur": 7,
+      "narration": "Jadi kalau berkemah di gurun, bawa jaket tebal untuk malam hari.",
+      "text": "Bawa jaket untuk malam",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Bawa jaket untuk malam",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "dur": 4,
+      "narration": "",
+      "text": "",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    }
+  ],
+  "claims": [
+    {
+      "text": "Pasir punya kapasitas panas yang rendah, jadi cepat panas di bawah matahari siang dan melepas panasnya secepat itu setelah matahari terbenam.",
+      "beats": [
+        "siang",
+        "malam",
+        "pasir"
+      ],
+      "sources": [
+        "https://www.scienceabc.com/nature/why-do-deserts-get-cold-at-night"
+      ]
+    },
+    {
+      "text": "Setelah matahari terbenam, permukaan tanah melepas panas sebagai radiasi gelombang panjang (inframerah) ke atmosfer.",
+      "beats": [
+        "malam"
+      ],
+      "sources": [
+        "https://theweatherprediction.com/habyhints/279/",
+        "https://courses.ems.psu.edu/meteo3/node/1972"
+      ]
+    },
+    {
+      "text": "Uap air dan awan menyerap dan memancarkan kembali radiasi gelombang panjang, jadi malam yang lembap atau berawan lebih hangat daripada malam yang kering dan cerah.",
+      "beats": [
+        "lembap",
+        "fakta"
+      ],
+      "sources": [
+        "https://theweatherprediction.com/habyhints/279/",
+        "https://courses.ems.psu.edu/meteo3/node/1972"
+      ]
+    },
+    {
+      "text": "Udara gurun sangat kering dan langitnya sering tanpa awan, jadi hampir tidak ada yang menahan panas yang dilepas tanah pada malam hari.",
+      "beats": [
+        "kering"
+      ],
+      "sources": [
+        "https://theweatherprediction.com/habyhints2/553/",
+        "https://www.scienceabc.com/nature/why-do-deserts-get-cold-at-night"
+      ]
+    },
+    {
+      "text": "Tidak semua gurun dingin pada malam hari: beberapa daerah gurun cukup lembap sehingga malamnya lebih hangat.",
+      "beats": [
+        "fakta"
+      ],
+      "sources": [
+        "https://worldatlas.com/articles/how-cold-do-deserts-get-at-night.html"
+      ]
+    },
+    {
+      "text": "Malam di gurun yang kering dan cerah bisa jauh lebih dingin daripada siangnya.",
+      "beats": [
+        "tips"
+      ],
+      "sources": [
+        "https://worldatlas.com/articles/how-cold-do-deserts-get-at-night.html",
+        "https://www.scienceabc.com/nature/why-do-deserts-get-cold-at-night"
+      ]
+    }
+  ],
+  "post": {
+    "description": "Siang di gurun panas terik, malamnya dingin menggigit. Pasir cepat melepas panas, udara kering dan langit cerah membiarkan panas lolos ke angkasa, sementara uap air dan awan di tempat lembap menahannya seperti selimut.",
+    "hashtags": [
+      "#gurun",
+      "#faktaseru",
+      "#sains",
+      "#intipyuk",
+      "#shorts"
+    ]
+  },
+  "thumb": "Gurun panas siang, kok *dingin* malam?",
+  "needs": [],
+  "theme": "peach",
+  "stage": "strip",
+  "look": "2d",
+  "captions": true,
+  "music": {
+    "track": "bed-breeze"
+  }
+}
