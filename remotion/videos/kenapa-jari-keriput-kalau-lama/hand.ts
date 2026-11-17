@@ -2,7 +2,7 @@
    1. The hand seen from the back (dorsal view), fingers pointing down: the index finger is the one the cutaway opens on (x = FX, half width HW); the thumb is on its left (a left hand).
    2. The side view of that one index finger (back with the nail on the left, pad on the right), coming straight down from the top, with a slight taper and a rounded tip: the closed outline
       the cutaway, the wrinkles and the layers are built on. Both views share the finger's width and tip, so one finger stays in place while the two views fade into each other. */
-import { FX, HW, PAD_X, TOP } from "./plan.ts";
+import { FX, HW, TOP } from "./plan.ts";
 
 export type DFinger = { id: string; cx: number; w: number; tip: number; root: number; rot: number; pivot: [number, number]; taper?: number; tapAt?: number };
 export const DF_LIST: DFinger[] = [
@@ -36,24 +36,32 @@ export const nailBox = (f: DFinger) => {
 
 // ------------------------------------------------------------------------------------------------------ the side view of the index finger
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
-/** How far the side is drawn in (px): none above y = 800, the full taper of 26 px each side by the tip's start at y = 1248. The dorsal index (tapAt 800, taper 0.45) is the same outline. */
+/** How far the side is drawn in (px): none above y = 800, the full taper of 26 px each side by the tip's start at y = 1248. */
 const tp = (y: number) => 26 * clamp01((y - 800) / 448);
+/** The finger narrows a little at the first joint's crease (y about 1110), 16 px on each side. */
+const waist = (y: number) => 16 * Math.exp(-(((y - 1110) / 80) ** 2));
+/** The back (left) edge and the pad (right) edge of the finger above the tip (the pad's bulge comes with the tip's curve). */
+export const backX = (y: number) => FX - HW + tp(y) + waist(y);
+export const padX = (y: number) => FX + HW - tp(y) - waist(y) + 14 * Math.exp(-(((y - 1250) / 120) ** 2));   // plump below the crease
 const bez = (p0: [number, number], c1: [number, number], c2: [number, number], p3: [number, number], u: number): [number, number] => {
   const k = 1 - u;
   return [k * k * k * p0[0] + 3 * k * k * u * c1[0] + 3 * k * u * u * c2[0] + u * u * u * p3[0], k * k * k * p0[1] + 3 * k * k * u * c1[1] + 3 * k * u * u * c2[1] + u * u * u * p3[1]];
 };
 export type SideRaw = { x: number; y: number; seg: "L" | "T1" | "T2" | "R"; u: number };
-/** The closed outline of the one finger, from the top of its back (left) side, down round the tip, and up its pad (right) side. It comes straight down from the top (TOP). */
+/** The closed outline of the one finger, from the top of its back (left) side, down round the tip, and up its pad (right) side. It comes straight down from the top (TOP): a gentle curve,
+    narrowing at the joint crease, a plump pad and a smooth rounded tip that sits a little to the pad's side. */
 export function sideRaw(): SideRaw[] {
   const raw: SideRaw[] = [];
-  for (let y = TOP; y < 1248; y += 8) raw.push({ x: FX - HW + tp(y), y, seg: "L", u: 0 });
-  const a0: [number, number] = [FX - HW + 26, 1248], a1: [number, number] = [FX - HW + 26, 1430], a2: [number, number] = [FX - 130, 1560], a3: [number, number] = [FX, 1560];
+  for (let y = TOP; y < 1248; y += 8) raw.push({ x: backX(y), y, seg: "L", u: 0 });
+  const a0: [number, number] = [backX(1248), 1248], a1: [number, number] = [backX(1248) - 2, 1440], a2: [number, number] = [FX - 120, 1560], a3: [number, number] = [FX + 24, 1560];
   for (let i = 0; i < 90; i++) { const u = i / 90, p = bez(a0, a1, a2, a3, u); raw.push({ x: p[0], y: p[1], seg: "T1", u }); }
-  const b1: [number, number] = [FX + 130, 1560], b2: [number, number] = [PAD_X, 1430], b3: [number, number] = [PAD_X, 1248];
+  const b1: [number, number] = [FX + 170, 1560], b2: [number, number] = [padX(1248), 1420], b3: [number, number] = [padX(1248), 1248];
   for (let i = 0; i < 90; i++) { const u = i / 90, p = bez(a3, b1, b2, b3, u); raw.push({ x: p[0], y: p[1], seg: "T2", u }); }
-  for (let y = 1248; y >= TOP; y -= 8) raw.push({ x: FX + HW - tp(y), y, seg: "R", u: 0 });
+  for (let y = 1248; y >= TOP; y -= 8) raw.push({ x: padX(y), y, seg: "R", u: 0 });
   return raw;
 }
+/** The index finger of the hand seen from the back is the same outline (so the one finger stays in place while the two views change). */
+export const indexPath = () => `M ${sideRaw().map((p) => `${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" L ")} Z`;
 
 // ------------------------------------------------------------------------------------------------------ the readability test (B36)
 /** All the hand's shapes in one flat colour: a stranger must read "a hand". */
@@ -65,8 +73,8 @@ export function silhouetteSvg(fill: string, bg: string): string {
   ];
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1100 -2000 4000 4000" width="640" height="640"><rect x="-1100" y="-2000" width="4000" height="4000" fill="${bg}"/><g fill="${fill}">${parts.join("")}</g></svg>`;
 }
-/** The side view's finger in one flat colour, as it shows under the top board (from y = 540 down to the tip). */
+/** The side view's finger in one flat colour, as it shows under the top board (from y = 150 down to the tip). */
 export function sideSilhouetteSvg(fill: string, bg: string): string {
   const pts = sideRaw().map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-60 240 960 1400" width="480" height="700"><rect x="-60" y="240" width="960" height="1400" fill="${bg}"/><polygon fill="${fill}" points="${pts}"/></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-100 140 1040 1500" width="520" height="750"><rect x="-100" y="140" width="1040" height="1500" fill="${bg}"/><polygon fill="${fill}" points="${pts}"/></svg>`;
 }

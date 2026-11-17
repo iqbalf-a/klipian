@@ -9,11 +9,11 @@ import type { StoryT } from "../../src/schema.ts";
 /** The world (px, y down). The finger points down: its axis is x = FX, its back (the nail side) is on the left, its pad on the right. */
 export const FX = 420;
 export const HW = 260;                       // half the finger's width (the fingertip is about 1.5 cm wide: the finger is the hero, the set is sized to it)
-export const TOP = 300;                      // the side view of the index finger comes straight down from the top: it starts behind the plain board over the top of the frame
+export const TOP = -400;                     // the side view of the index finger comes straight down from the top: it starts behind the plain board over the top of the frame (also when lifted 360 px)
 export const TIP_Y = 1560;                   // the lowest point of the pad
 export const WATER_Y = 1200;                 // the water surface of the basin, level with the counter top
-export const COUNTER_X = 740;                // the basin's wall: the water is on the left, the counter on the right
-export const PAD_X = FX + HW - 26;           // the pad's skin at rest (the wet slab touches it here): the finger tapers 26 px each side towards the tip
+export const COUNTER_X = 700;                // the basin's wall: the water is on the left, the counter on the right
+export const PAD_X = FX + HW - 13;           // the pad's plumpest point (the wet glass touches it here): the finger tapers 26 px each side, narrows at the joint crease and bulges at the pad
 
 /** Beat starts (seconds): hook 0, sting 3, dulu 4, saraf 11, darah 20, guna 29, ujung 38, debat 46, outro 56. These names are the moments inside. */
 export const T = {
@@ -46,7 +46,7 @@ export const swell = (t: number) => ramp(t, T.swellA, T.swellB) * (1 - ramp(t, T
 /** How much of the water between the pad and the wet slab has been pushed out along the grooves, 0..1. */
 export const drained = (t: number) => ramp(t, T.drainA, T.drainEnd);
 /** The wet slab's left edge (world x): it slides along the counter to the pad, stays, and slides back. */
-export const SLAB_REST = 1500, SLAB_TOUCH = PAD_X + 2, SLAB_TOP = 900, LIFT_PX = 360;
+export const SLAB_REST = 1800, SLAB_TOUCH = PAD_X + 2, SLAB_TOP = 780, LIFT_PX = 360;
 /** How far the hand is lifted out of the water (px): in the grip beat the wet fingertip comes up to the slab, then goes back in. */
 export const lift = (t: number) => LIFT_PX * ramp(t, T.liftA, T.liftB) * (1 - ramp(t, T.lowerA, T.lowerB));
 /** 1 while the whole hand is in the picture (the hook, the old idea, the outro), 0 while the beats look inside the index fingertip: the hand fades away (the index finger stays) and the side view fades in. */
@@ -61,25 +61,26 @@ export const scaleTilt = (t: number) => (t < T.scaleIn ? 0 : 9 * Math.exp(-(t - 
 
 /** Camera keys: the world point at the centre of the frame and the zoom. Between two keys the camera eases; equal keys hold. */
 export type Cam = { x: number; y: number; z: number };
+/** The side view's zoom: the finger (520 px wide in the world) is about 333 px wide on the screen in every beat that looks inside it, never cropped. */
+export const SIDE_Z = 0.64;
 export const CAM_KEYS: { t: number; c: Cam }[] = [
   { t: 0, c: { x: 863, y: -741, z: 0.21 } },
   { t: 1.5, c: { x: 863, y: -741, z: 0.21 } },        // the wide shot: the whole hand from the back, the fingertips in the water
   { t: 2.9, c: { x: 520, y: 1050, z: 0.55 } },        // the establishing push: down to the fingers in the water
   { t: 4, c: { x: 500, y: 1000, z: 0.5 } },           // sting: the world keeps moving
   { t: 10.0, c: { x: 500, y: 1000, z: 0.5 } },        // dulu: the drops land on the finger, it swells a little
-  { t: 11.6, c: { x: 520, y: 1140, z: 1.0 } },        // the hand fades to the index fingertip: the cut opens
-  { t: 13.2, c: { x: 440, y: 1140, z: 1.0 } },        // saraf: the nerve in it
-  { t: 19.6, c: { x: 440, y: 1150, z: 1.02 } },
-  { t: 22.0, c: { x: 700, y: 1160, z: 1.0 } },        // darah: the pad's vessels and the skin over them
-  { t: 28.6, c: { x: 700, y: 1170, z: 1.0 } },
-  { t: 31.0, c: { x: 800, y: 880, z: 1.0 } },         // guna: the hand is lifted, the pad meets the wet slab
-  { t: 37.6, c: { x: 800, y: 880, z: 1.0 } },
-  { t: 39.6, c: { x: 420, y: 1250, z: 1.0 } },        // ujung: the tip, then the back of the finger
-  { t: 42.0, c: { x: 420, y: 1250, z: 1.0 } },
-  { t: 43.8, c: { x: 300, y: 1100, z: 1.0 } },
-  { t: 45.8, c: { x: 300, y: 1100, z: 1.0 } },
-  { t: 48.0, c: { x: 880, y: 1300, z: 0.9 } },        // debat: out to the balance
-  { t: 56.0, c: { x: 880, y: 1300, z: 0.9 } },
+  { t: 11.6, c: { x: 640, y: 980, z: SIDE_Z } },      // the hand fades to the index fingertip: the whole fingertip and its first joint in view, about 330 px wide
+  { t: 19.6, c: { x: 640, y: 980, z: SIDE_Z } },      // saraf: the nerve in it
+  { t: 22.0, c: { x: 680, y: 980, z: SIDE_Z } },      // darah: the pad's vessels and the skin over them
+  { t: 28.6, c: { x: 680, y: 980, z: SIDE_Z } },
+  { t: 31.0, c: { x: 760, y: 760, z: SIDE_Z } },      // guna: the hand is lifted, the pad meets the wet glass
+  { t: 37.6, c: { x: 760, y: 760, z: SIDE_Z } },
+  { t: 39.6, c: { x: 560, y: 980, z: SIDE_Z } },      // ujung: the tip, then the back of the finger (the same size)
+  { t: 42.0, c: { x: 560, y: 980, z: SIDE_Z } },
+  { t: 43.8, c: { x: 520, y: 900, z: SIDE_Z } },
+  { t: 45.8, c: { x: 520, y: 900, z: SIDE_Z } },
+  { t: 48.0, c: { x: 800, y: 990, z: SIDE_Z } },      // debat: the balance beside the finger, the finger still whole in the frame
+  { t: 56.0, c: { x: 800, y: 990, z: SIDE_Z } },
   { t: 60, c: { x: 863, y: -741, z: 0.21 } },         // outro: the hand fades back in and the camera is back at the hook's wide shot
 ];
 const lerp = (a: number, b: number, u: number) => a + (b - a) * u;
@@ -101,17 +102,17 @@ export type LabelSpec = { id: string; text: string; lines?: string[]; ax: number
 export const LABELS: LabelSpec[] = [
   { id: "air", text: "air", ax: 735, ay: 1210, lx: 700, ly: 1400, from: 5.2, to: 10.4 },
   { id: "ujung", text: "mengembang?", ax: FX - HW, ay: 950, lx: 300, ly: 1470, from: 8.2, to: 10.4 },
-  { id: "saraf", text: "saraf", ax: FX + 98, ay: 1100, lx: 880, ly: 770, from: T.lblNerve, to: 19.6 },
-  { id: "sinyal", text: "kirim sinyal", ax: FX + 98, ay: 1300, lx: 930, ly: 880, from: T.lblSignal, to: 19.8 },
-  { id: "pembuluh", text: "pembuluh menyempit", ax: PAD_X - 66, ay: 1250, lx: 810, ly: 1090, fs: 40, from: T.lblVessel, to: 28.6 },
-  { id: "kulit", text: "kulit mengendur", ax: PAD_X - 14, ay: 1330, lx: 810, ly: 1200, fs: 40, from: T.lblSkin, to: 28.8 },
-  { id: "alur", text: "alur ban", ax: PAD_X - 4, ay: 940, lx: 840, ly: 700, from: T.lblTread, to: 37.6 },
-  { id: "tersingkir", text: "air tersingkir", ax: SLAB_TOUCH - 7, ay: 960, lx: 860, ly: 830, from: T.lblDrain, to: 37.8 },
-  { id: "keratin", text: "keratin tebal", ax: PAD_X - 4, ay: 1480, lx: 945, ly: 700, fs: 38, from: T.lblKeratin, to: 43.2 },
-  { id: "rambut", text: "tanpa", lines: ["rambut"], ax: PAD_X - 4, ay: 1060, lx: 1010, ly: 790, fs: 36, from: T.lblHair, to: 45.8 },
-  { id: "adarambut", text: "rambut", lines: ["+ minyak"], ax: FX - HW + 8, ay: 940, lx: 100, ly: 880, fs: 36, from: T.lblHair + 0.2, to: 45.8 },
-  { id: "s14", text: "2014:", lines: ["tak ada bedanya"], ax: 930, ay: 1110, lx: 585, ly: 625, fs: 40, from: T.lblStudy14, to: 55.6 },
-  { id: "s21", text: "2021:", lines: ["genggam", "20% ringan"], ax: 1310, ay: 1110, lx: 927, ly: 610, fs: 40, from: T.lblStudy21, to: 55.6 },
+  { id: "saraf", text: "saraf", ax: FX + 98, ay: 1100, lx: 840, ly: 880, from: T.lblNerve, to: 19.6 },
+  { id: "sinyal", text: "kirim sinyal", ax: FX + 98, ay: 1300, lx: 860, ly: 990, from: T.lblSignal, to: 19.8 },
+  { id: "pembuluh", text: "pembuluh menyempit", ax: PAD_X - 66, ay: 1250, lx: 830, ly: 980, fs: 40, from: T.lblVessel, to: 28.6 },
+  { id: "kulit", text: "kulit mengendur", ax: PAD_X - 14, ay: 1330, lx: 810, ly: 1050, fs: 40, from: T.lblSkin, to: 28.8 },
+  { id: "alur", text: "alur ban", ax: PAD_X - 4, ay: 960, lx: 820, ly: 640, from: T.lblTread, to: 37.6 },
+  { id: "tersingkir", text: "air tersingkir", ax: SLAB_TOUCH - 7, ay: 1000, lx: 840, ly: 760, from: T.lblDrain, to: 37.8 },
+  { id: "keratin", text: "keratin tebal", ax: PAD_X - 4, ay: 1480, lx: 850, ly: 760, fs: 38, from: T.lblKeratin, to: 43.2 },
+  { id: "rambut", text: "tanpa", lines: ["rambut"], ax: PAD_X - 4, ay: 1060, lx: 880, ly: 880, fs: 36, from: T.lblHair, to: 45.8 },
+  { id: "adarambut", text: "rambut", lines: ["+ minyak"], ax: FX - HW + 8, ay: 940, lx: 130, ly: 760, fs: 36, from: T.lblHair + 0.2, to: 45.8 },
+  { id: "s14", text: "2014:", lines: ["tak ada bedanya"], ax: 930, ay: 1110, lx: 650, ly: 770, fs: 40, from: T.lblStudy14, to: 55.6 },
+  { id: "s21", text: "2021:", lines: ["genggam", "20% ringan"], ax: 1310, ay: 1110, lx: 910, ly: 740, fs: 40, from: T.lblStudy21, to: 55.6 },
 ];
 /** The kicker of each beat's top text (the headline is the beat's own text). */
 export const KICKERS: Record<string, string> = { hook: "intip", dulu: "dulu", saraf: "1935", darah: "di bawah kulit", guna: "manfaat?", ujung: "ujung jari", debat: "belum sepakat" };
