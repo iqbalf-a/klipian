@@ -81,6 +81,7 @@ export const CAM_KEYS: { t: number; c: Cam }[] = [
   { t: 45.8, c: { x: 520, y: 900, z: SIDE_Z } },
   { t: 48.0, c: { x: 800, y: 990, z: SIDE_Z } },      // debat: the balance beside the finger, the finger still whole in the frame
   { t: 56.0, c: { x: 800, y: 990, z: SIDE_Z } },
+  { t: 58.0, c: { x: 800, y: 990, z: SIDE_Z } },      // outro: the camera holds until the side view has faded out (its top stays behind the board), then pulls out
   { t: 60, c: { x: 863, y: -741, z: 0.21 } },         // outro: the hand fades back in and the camera is back at the hook's wide shot
 ];
 const lerp = (a: number, b: number, u: number) => a + (b - a) * u;
