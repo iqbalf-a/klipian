@@ -1,32 +1,32 @@
 /* klipian: the Autopilot page (/autopilot) */
 .ap { max-width: 900px; width: 100%; margin: 0 auto; padding: 24px 16px 48px; display: flex; flex-direction: column; gap: 16px; box-sizing: border-box; }
-.ap-h1 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -.01em; }
-.ap-h2 { margin: 0 0 8px; font-size: 14px; font-weight: 700; }
-.ap-note { margin: 0; font-size: 12.5px; color: var(--text-muted); }
+.ap-h1 { margin: 0; font-size: var(--t-20); font-weight: 800; letter-spacing: -.01em; }
+.ap-h2 { margin: 0 0 8px; font-size: var(--t-14); font-weight: 700; }
+.ap-note { margin: 0; font-size: var(--t-13); color: var(--text-muted); }
 .ap-card { display: flex; flex-direction: column; gap: 10px; }
 .ap-card .ap-h2 { margin-bottom: 0; }
 .ap-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-.ap-row > label { width: 150px; flex: none; color: var(--text-muted); font-size: 13px; }
+.ap-row > label { width: 150px; flex: none; color: var(--text-muted); font-size: var(--t-13); }
 .ap select, .ap textarea, .ap input[type="text"] {
-  font: inherit; font-size: 13px; color: var(--text); background: var(--bg-0, var(--bg-1)); border: 1px solid var(--glass-border);
+  font: inherit; font-size: var(--t-13); color: var(--text); background: var(--bg-0, var(--bg-1)); border: 1px solid var(--glass-border);
   border-radius: var(--r-ctl); padding: 6px 8px; min-width: 0; box-sizing: border-box;
 }
 .ap textarea { width: 100%; resize: vertical; }
 .ap-checks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .ap-checks:empty { display: none; }
-.ap-check { display: grid; grid-template-columns: 22px 1fr; gap: 2px 8px; font-size: 13px; }
+.ap-check { display: grid; grid-template-columns: 22px 1fr; gap: 2px 8px; font-size: var(--t-13); }
 .ap-check .ap-tick { font-weight: 800; text-align: center; }
 .ap-check[data-ok="true"] .ap-tick { color: var(--ok); }
 .ap-check[data-ok="false"] .ap-tick { color: var(--danger); }
-.ap-check .ap-sub { grid-column: 2; font-size: 12px; color: var(--text-muted); overflow-wrap: anywhere; }
+.ap-check .ap-sub { grid-column: 2; font-size: var(--t-12); color: var(--text-muted); overflow-wrap: anywhere; }
 .ap-run { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
 .ap-run-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.ap-run-title { font-weight: 700; font-size: 14px; flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
-.ap-chip { border: 1px solid var(--glass-border); border-radius: var(--r-pill); padding: 1px 8px; font-size: 11.5px; font-weight: 700; color: var(--text-muted); }
+.ap-run-title { font-weight: 700; font-size: var(--t-14); flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
+.ap-chip { border: 1px solid var(--glass-border); border-radius: var(--r-pill); padding: 1px 8px; font-size: var(--t-12); font-weight: 700; color: var(--text-muted); }
 .ap-chip[data-state="done"] { color: var(--ok); border-color: currentColor; }
 .ap-chip[data-state="failed"] { color: var(--danger); border-color: currentColor; }
 .ap-chip[data-state="waiting"] { color: var(--accent); border-color: currentColor; }
-.ap-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
+.ap-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: var(--t-12); }
 .ap-step { display: flex; align-items: center; gap: 10px; min-height: 20px; }
 .ap-step-name { flex: none; width: 118px; color: var(--text-faint); }
 .ap-step-state { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; color: var(--text-muted); }
@@ -41,8 +41,8 @@
 .ap-bar { flex: 1; min-width: 40px; max-width: 360px; height: 6px; border-radius: 3px; background: var(--glass-strong, var(--glass)); overflow: hidden; }
 .ap-bar > i { display: block; height: 100%; background: var(--accent); }
 .ap-pct { flex: none; width: 3.2em; text-align: right; font-variant-numeric: tabular-nums; color: var(--text); }
-.ap-error { margin: 0; font-size: 12.5px; color: var(--danger); overflow-wrap: anywhere; }
-.ap-clips { margin: 0; padding-left: 18px; font-size: 12.5px; color: var(--text-muted); }
+.ap-error { margin: 0; font-size: var(--t-13); color: var(--danger); overflow-wrap: anywhere; }
+.ap-clips { margin: 0; padding-left: 18px; font-size: var(--t-13); color: var(--text-muted); }
 .ap-reply textarea { min-height: 90px; }
 .ap-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .ap-chip[data-state="cancelled"], .ap-chip[data-state="stalled"] { color: var(--warn); border-color: currentColor; }
@@ -50,7 +50,7 @@
 .ap-step.cancelled .ap-step-state { color: var(--warn); font-weight: 700; }
 .ap-step.skipped .ap-step-state, .ap-step.skipped .ap-step-name { color: var(--text-faint); }
 .ap-stale { flex: none; color: var(--warn); font-weight: 700; }
-.ap-summary { margin: 0; font-size: 13px; color: var(--text-muted); overflow-wrap: anywhere; }
+.ap-summary { margin: 0; font-size: var(--t-13); color: var(--text-muted); overflow-wrap: anywhere; }
 .ap-summary[data-kind="failed"] { color: var(--danger); }
 .ap-summary[data-kind="cancelled"] { color: var(--warn); }
 .ap-collapsed { gap: 6px; }
@@ -62,7 +62,7 @@
 .ap-filter[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 700; }
 .ap-count { color: var(--text-faint); font-variant-numeric: tabular-nums; margin-left: 2px; }
 .ap-rerun { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
-.ap-rerun .ap-row > label { width: 50px; flex: none; color: var(--text-muted); font-size: 13px; }
-.ap-rerun select { font: inherit; font-size: 13px; color: var(--text); background: var(--bg-0, var(--bg-1)); border: 1px solid var(--glass-border); border-radius: var(--r-ctl); padding: 6px 8px; min-width: 0; max-width: 100%; }
+.ap-rerun .ap-row > label { width: 50px; flex: none; color: var(--text-muted); font-size: var(--t-13); }
+.ap-rerun select { font: inherit; font-size: var(--t-13); color: var(--text); background: var(--bg-0, var(--bg-1)); border: 1px solid var(--glass-border); border-radius: var(--r-ctl); padding: 6px 8px; min-width: 0; max-width: 100%; }
 @media (max-width: 560px) { .ap-row > label { width: 100%; } .ap { padding: 16px 12px 40px; } }
 @media (max-width: 480px) { .ap-detail.faint { display: none; } .ap-bar { min-width: 80px; } }

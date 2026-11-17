@@ -31,13 +31,13 @@
 .picker-new input[type="text"] { font: inherit; padding: 6px 10px; border-radius: var(--r-ctl); border: 1px solid var(--glass-border); background: var(--bg-1); color: var(--text); }
 .picker-guest { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 36px; padding-top: 22px; border-top: 1px solid var(--glass-border); }
 .picker-guest-btn { background: #3a3d45; color: var(--text); border: 1px solid var(--glass-border); padding: 10px 18px; }
-.picker-guest-note { color: var(--text-muted); font-size: 12.5px; flex: 1; min-width: 220px; }
-.picker-error { color: var(--danger); min-height: 1.2em; font-size: 13px; margin: 10px 0 0; }
+.picker-guest-note { color: var(--text-muted); font-size: var(--t-13); flex: 1; min-width: 220px; }
+.picker-error { color: var(--danger); min-height: 1.2em; font-size: var(--t-13); margin: 10px 0 0; }
 
 /* The chip: who this tab is working as. A colour so the wrong channel is hard to edit. */
 .profile-chip { position: relative; display: inline-flex; }
 .profile-chip-btn {
-  display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: 12.5px; font-weight: 700;
+  display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: var(--t-13); font-weight: 700;
   color: var(--text); background: transparent; border: 1px solid var(--glass-border);
   border-radius: var(--r-ctl); padding: 4px 10px 4px 8px; cursor: pointer;
 }
@@ -57,7 +57,7 @@
 }
 .profile-menu[hidden] { display: none; }
 .profile-menu button {
-  font: inherit; font-size: 13px; text-align: left; color: var(--text); background: transparent; border: 0;
+  font: inherit; font-size: var(--t-13); text-align: left; color: var(--text); background: transparent; border: 0;
   border-radius: var(--r-xs); padding: 8px 10px; cursor: pointer;
 }
 .profile-menu button:hover { background: var(--glass); }
@@ -76,7 +76,7 @@
 .ps-main { flex: 1; min-height: 0; display: flex; }
 .ps-tabs { flex: none; width: 168px; display: flex; flex-direction: column; gap: 6px; padding: 14px 12px; border-right: 1px solid var(--glass-border); overflow-y: auto; }
 .ps-tab {
-  font: inherit; font-size: 13px; font-weight: 600; text-align: left; color: var(--text-muted); background: transparent;
+  font: inherit; font-size: var(--t-13); font-weight: 600; text-align: left; color: var(--text-muted); background: transparent;
   border: 1px solid var(--glass-border); border-radius: var(--r-ctl); padding: 7px 10px; cursor: pointer; white-space: nowrap;
 }
 .ps-tab:hover { color: var(--text); background: var(--glass); }
@@ -88,7 +88,7 @@
 .ps-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 20px; border-top: 1px solid var(--glass-border); }
 .ps-foot-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .ps-foot-text .note:empty { display: none; }
-.ps-hint { font-size: 11.5px; color: var(--text-faint); }
+.ps-hint { font-size: var(--t-12); color: var(--text-faint); }
 .ps-foot .row { flex: none; }
 @media (max-width: 640px) {
   .profile-settings { width: calc(100vw - 16px); height: calc(100dvh - 16px); }
@@ -100,14 +100,14 @@
   .ps-foot .row { justify-content: flex-end; }
   .profile-settings .ps-head { padding: 12px 16px; }
 }
-.profile-settings label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--text-faint); }
+.profile-settings label { display: flex; flex-direction: column; gap: 6px; font-size: var(--t-12); color: var(--text-faint); }
 .profile-settings input[type="text"], .profile-settings select {
-  font: inherit; font-size: 13px; color: var(--text); background: var(--bg-1);
+  font: inherit; font-size: var(--t-13); color: var(--text); background: var(--bg-1);
   border: 1px solid var(--glass-border); border-radius: var(--r-ctl); padding: 7px 10px;
 }
 .profile-settings .row { display: flex; gap: 10px; justify-content: flex-end; align-items: center; }
 .profile-settings h2 { margin: 0 0 4px; font-size: 16px; }
-.profile-settings .note { font-size: 12px; color: var(--text-muted); margin: 0; }
+.profile-settings .note { font-size: var(--t-12); color: var(--text-muted); margin: 0; }
 
 /* The Guest only edits and renders: what belongs to the schedule, the post text and
    YouTube is not shown (and the server refuses it as well). */
@@ -120,28 +120,28 @@ html[data-guest="true"] .guest-hidden { display: none !important; }
 .picker-new[hidden] { display: none; }
 
 .profile-settings .yt-box { border-top: 1px solid var(--glass-border); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
-.profile-settings .yt-box h3 { margin: 0; font-size: 13px; }
+.profile-settings .yt-box h3 { margin: 0; font-size: var(--t-13); }
 .profile-settings .yt-actions { flex-wrap: wrap; justify-content: flex-start; }
 .profile-settings .note b { color: var(--text); }
-.yt-row { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text-muted); }
+.yt-row { display: flex; align-items: center; gap: 10px; font-size: var(--t-12); color: var(--text-muted); }
 .yt-row-text { min-width: 0; }
 .yt-badge {
-  flex: none; min-width: 104px; text-align: center; font-weight: 700; font-size: 11px;
+  flex: none; min-width: 104px; text-align: center; font-weight: 700; font-size: var(--t-11);
   padding: 3px 10px; border-radius: 999px; color: #101014; background: var(--yt-grey);
 }
 .yt-badge[data-light="green"] { background: var(--yt-green); }
 .yt-badge[data-light="yellow"] { background: var(--yt-yellow); }
 .yt-badge[data-light="red"] { background: var(--yt-red); }
 .yt-thumb { width: 18px; height: 18px; border-radius: 50%; vertical-align: middle; margin-right: 6px; }
-.profile-settings label.check { flex-direction: row; align-items: center; gap: 8px; color: var(--text-muted); font-size: 13px; }
+.profile-settings label.check { flex-direction: row; align-items: center; gap: 8px; color: var(--text-muted); font-size: var(--t-13); }
 #ytPreview .ws-input { background-color: var(--bg-0); color: var(--text-muted); }
 #ytPreviewTitle[data-over="true"] { border-color: var(--danger); }
-.post-warn { color: var(--danger); font-size: 12px; margin: 4px 0 0; }
+.post-warn { color: var(--danger); font-size: var(--t-12); margin: 4px 0 0; }
 .post-warn[hidden] { display: none; }
 
 .profile-settings .yt-box h3 small { font-weight: 400; opacity: .7; }
 .profile-settings #claudeMsg[data-error="true"] { color: var(--danger); }
-.claude-usage { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.claude-usage { width: 100%; border-collapse: collapse; font-size: var(--t-12); font-variant-numeric: tabular-nums; }
 .claude-usage th, .claude-usage td { text-align: right; padding: 3px 6px; border-bottom: 1px solid var(--glass-border); }
 .claude-usage th:first-child, .claude-usage td:first-child { text-align: left; }
 .claude-plan { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
@@ -150,7 +150,7 @@ html[data-guest="true"] .guest-hidden { display: none !important; }
 .profile-settings #rubricMsg[data-error="true"] { color: var(--danger); }
 .profile-settings #rubricNew { flex-wrap: wrap; gap: 6px; }
 
-.picker-guide { margin: 18px 0 0; text-align: center; font-size: 13px; }
+.picker-guide { margin: 18px 0 0; text-align: center; font-size: var(--t-13); }
 .picker-guide a { color: var(--text-muted); text-decoration: underline; text-underline-offset: 2px; }
 .picker-guide a:hover { color: var(--text); }
 .yt-guide { margin-left: 6px; white-space: nowrap; color: var(--accent); }

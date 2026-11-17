@@ -111,15 +111,18 @@
    chip, choice chips).
 
      .btn            secondary: 1px --glass-border at rest, transparent, 4px 10px, 12px/600 (28px tall)
-     .btn.main       primary: the accent fill, 5px 12px + the border = 6px 12px, 12.5px/700 (one per region)
+     .btn.main       primary: the accent fill, 4px 12px, 13px/700, as tall as .btn (one per region)
      .btn.sm         dense rows (the old .ws-mini): 2px 8px, 11px
      .btn.quiet      borderless and text-like: icon-ish or tertiary actions only
      .btn.danger     the secondary look in the danger colour
      .btn.large      the ONE hero action of a page (Render): 8px 18px, 13px
    disabled: opacity .4, not-allowed. */
+/* A bare control takes the page's font, not the browser's 13.33px; every class rule still wins. */
+button, input, select, textarea { font: inherit; }
+
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  font: inherit; font-size: 12px; font-weight: 600; line-height: 18px; letter-spacing: 0;
+  font: inherit; font-size: var(--t-12); font-weight: 600; line-height: 18px; letter-spacing: 0;
   white-space: nowrap;
   padding: 4px 10px;
   border-radius: var(--r-s);
@@ -136,13 +139,13 @@
 .btn:disabled:hover { background: transparent; }
 
 .btn.main {
-  padding: 5px 12px; font-size: 12.5px; font-weight: 700;
+  padding: 4px 12px; font-size: var(--t-13); font-weight: 700;
   color: var(--accent-text); background: var(--accent); border-color: transparent;
 }
 .btn.main:hover { background: var(--accent); filter: brightness(1.1); }
 .btn.main:disabled { background: var(--glass-strong); color: var(--text-faint); opacity: .6; filter: none; }
 
-.btn.sm { padding: 2px 8px; font-size: 11px; line-height: 16px; color: var(--text-muted); }
+.btn.sm { padding: 2px 8px; font-size: var(--t-11); line-height: 16px; color: var(--text-muted); }
 .btn.sm:hover { color: var(--text); }
 
 .btn.quiet { background: none; border-color: transparent; color: var(--text-faint); }
@@ -151,7 +154,7 @@
 .btn.danger { color: var(--danger); border-color: color-mix(in oklab, var(--danger) 55%, transparent); }
 .btn.danger:hover { background: color-mix(in oklab, var(--danger) 14%, transparent); }
 
-.btn.large { padding: 8px 18px; font-size: 13px; font-weight: 700; }
+.btn.large { padding: 8px 18px; font-size: var(--t-13); font-weight: 700; }
 
 /* position is relative so the panel can be absolute against the BUTTON,
    not the whole topbar. */
@@ -177,14 +180,14 @@
 .shortcut-panel p {
   margin: 0;
   display: flex; align-items: center; gap: 6px;
-  font-size: 11px; color: var(--text-muted);
+  font-size: var(--t-11); color: var(--text-muted);
 }
 /* The row is a flex line, so a bold term gets squeezed and breaks
    mid-phrase ("Rendered / output") while the description beside it still
    has room. The term keeps its width; the description is what wraps. */
 .shortcut-panel b { flex: none; color: var(--text); }
 .shortcut-panel kbd {
-  font-family: var(--font-data); font-size: 10px;
+  font-family: var(--font-data); font-size: var(--t-10);
   padding: 2px 6px;
   border-radius: var(--r-xs);
   border: 1px solid var(--glass-border);
@@ -202,7 +205,7 @@
 }
 
 /* the guide link and a small heading inside the "?" panel */
-.shortcut-panel .shortcut-sub { font-weight: 700; color: var(--text-faint); font-size: 11px; }
+.shortcut-panel .shortcut-sub { font-weight: 700; color: var(--text-faint); font-size: var(--t-11); }
 .shortcut-panel .shortcut-guide { margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--glass-border); }
 .shortcut-panel .shortcut-guide a { color: var(--accent); text-decoration: none; font-weight: 600; }
 .shortcut-panel .shortcut-guide a:hover { text-decoration: underline; }

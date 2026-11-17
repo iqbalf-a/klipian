@@ -9,8 +9,8 @@
 }
 .guide-wrap { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 40px; max-width: 1200px; margin: 0 auto; padding: 28px 24px 80px; }
 
-.guide-toc { position: sticky; top: 86px; align-self: start; max-height: calc(100vh - 110px); overflow-y: auto; font-size: 13px; }
-.guide-toc-title { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--text-faint); }
+.guide-toc { position: sticky; top: 86px; align-self: start; max-height: calc(100vh - 110px); overflow-y: auto; font-size: var(--t-13); }
+.guide-toc-title { margin: 0 0 8px; font-size: var(--t-12); font-weight: 600; color: var(--text-faint); }
 .guide-toc ol { list-style: none; margin: 0; padding: 0; }
 .guide-toc li { margin: 2px 0; }
 .guide-toc ol ol { margin: 2px 0 6px 12px; padding-left: 10px; border-left: 1px solid var(--glass-border); }
@@ -23,7 +23,7 @@
 .guide-main .lead { margin: 0 0 24px; color: var(--text-muted); }
 .guide-main section { padding: 8px 0 24px; border-top: 1px solid var(--glass-border); margin-top: 24px; scroll-margin-top: 80px; }
 .guide-main h2 { margin: 12px 0 12px; font-size: 22px; font-weight: 700; letter-spacing: -.015em; line-height: 1.25; }
-.guide-main h3 { margin: 24px 0 8px; font-size: 15.5px; font-weight: 700; scroll-margin-top: 80px; }
+.guide-main h3 { margin: 24px 0 8px; font-size: 15px; font-weight: 700; scroll-margin-top: 80px; }
 .guide-main p { margin: 8px 0; }
 .guide-main ol, .guide-main ul { margin: 8px 0; padding-left: 22px; }
 .guide-main li { margin: 5px 0; }
@@ -46,7 +46,7 @@
 .dot.green { background: var(--yt-green, #4cd07d); }
 .dot.yellow { background: var(--yt-yellow, #e8b923); }
 .dot.red { background: var(--yt-red, #ff5d5d); }
-.guide-foot { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--glass-border); color: var(--text-faint); font-size: 12.5px; }
+.guide-foot { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--glass-border); color: var(--text-faint); font-size: var(--t-13); }
 
 @media (max-width: 900px) {
   .guide-wrap { grid-template-columns: 1fr; gap: 12px; padding: 16px 16px 60px; }

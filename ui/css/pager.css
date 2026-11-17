@@ -7,7 +7,7 @@
   align-items: center;
   gap: 12px 16px;
   padding: 10px 4px 2px;
-  font-size: 12px;
+  font-size: var(--t-12);
   color: var(--text-muted);
 }
 .pager[hidden] { display: none; }
@@ -80,7 +80,7 @@
   border-radius: var(--r-s);
   background: var(--bg-1);
   box-shadow: var(--shadow-panel), 0 0 0 1px var(--glass-border);
-  font-size: 12.5px;
+  font-size: var(--t-13);
 }
 main.bulk-open { padding-bottom: 96px; }
 /* View + Detail side by side in a row; the View player sized to the video (Shorts are tall). */
@@ -90,7 +90,6 @@ main.bulk-open { padding-bottom: 96px; }
 .ws-bulk[hidden] { display: none; }
 .ws-bulk-count { font-weight: 700; color: var(--text); }
 .ws-bulk-group { display: inline-flex; align-items: center; gap: 8px; }
-.ws-bulk-label { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); }
 .ws-bulk .ws-input { width: auto; border-color: var(--glass-border); background-color: var(--bg-1); }
 .ws-bulk-note { flex-basis: 100%; color: var(--text-muted); }
 #clipBody tr[data-selected] { background: var(--accent-soft, var(--glass)); }
@@ -126,7 +125,7 @@ select.ws-input, .pager-size select, .ws-bulk select {
 /* P19 A -- a render file that is gone, and a render file with no schedule row. */
 .ws-gone { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; padding-left: 8px; }
 .ws-gone-tag {
-  font-size: 11px; font-weight: 700; color: var(--danger);
+  font-size: var(--t-11); font-weight: 700; color: var(--danger);
   border: 1px solid var(--danger); border-radius: 999px; padding: 1px 8px;
 }
 .ws-gone .ws-mini.danger, .ws-add-schedule.danger { color: var(--danger); border-color: var(--danger); }
@@ -154,10 +153,10 @@ select.ws-input, .pager-size select, .ws-bulk select {
   border: 1px solid var(--glass-border);
   border-radius: var(--r-m);
   box-shadow: 0 8px 30px rgba(0, 0, 0, .5);
-  font-size: 13px;
+  font-size: var(--t-13);
 }
 .toast-action {
-  font: inherit; font-size: 12px; font-weight: 700; line-height: 16px;
+  font: inherit; font-size: var(--t-12); font-weight: 700; line-height: 16px;
   color: var(--accent);
   background: transparent;
   border: 1px solid var(--accent);
@@ -168,9 +167,9 @@ select.ws-input, .pager-size select, .ws-bulk select {
 .toast-action:hover:not(:disabled) { background: var(--glass); }
 .toast-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 /* What Google really said, small and muted, with Copy details (toast, bulk dialog, Detail upload section). */
-.detail-line { font-size: 11px; color: var(--text-faint); word-break: break-word; }
-.detail-line .btn { font-size: 11px; padding: 1px 8px; margin-left: 4px; }
-.toast-x { color: var(--text-faint); background: transparent; border: 0; cursor: pointer; font-size: 14px; }
+.detail-line { font-size: var(--t-11); color: var(--text-faint); word-break: break-word; }
+.detail-line .btn { font-size: var(--t-11); padding: 1px 8px; margin-left: 4px; }
+.toast-x { color: var(--text-faint); background: transparent; border: 0; cursor: pointer; font-size: var(--t-14); }
 
 /* The server is older than the page (js/shared/version.js). */
 .stale-banner {
@@ -179,7 +178,7 @@ select.ws-input, .pager-size select, .ws-bulk select {
   z-index: 100001;
   padding: 10px 16px;
   text-align: center;
-  font-size: 13px;
+  font-size: var(--t-13);
   font-weight: 700;
   color: #fff;
   background: var(--danger);
@@ -192,7 +191,7 @@ select.ws-input, .pager-size select, .ws-bulk select {
 
 /* Upload to YouTube: the queue's list (Clips, bulk). */
 .yt-bulk-list { display: flex; flex-direction: column; max-height: 45vh; overflow: auto; border: 1px solid var(--glass-border); border-radius: var(--r-s); }
-.yt-bulk-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) minmax(0, 1.4fr); gap: 10px; align-items: center; padding: 7px 10px; font-size: 12.5px; border-bottom: 1px solid var(--glass-border); }
+.yt-bulk-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) minmax(0, 1.4fr); gap: 10px; align-items: center; padding: 7px 10px; font-size: var(--t-13); border-bottom: 1px solid var(--glass-border); }
 .yt-bulk-row:last-child { border-bottom: 0; }
 .yt-bulk-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 .yt-bulk-msg { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; }
@@ -203,7 +202,7 @@ select.ws-input, .pager-size select, .ws-bulk select {
 /* A button that cannot be pressed must look it: the accent buttons (Tailwind's bg-accent, the
    prebuilt workspace.css has no disabled style) and the small outlined ones. The reason is shown
    in words next to the buttons where there is room (e.g. #ytBulkWhy). */
-button.bg-accent:disabled, .ws-accent-btn:disabled, button.bg-accent:disabled:hover {
+button.bg-accent:disabled, button.bg-accent:disabled:hover {
   opacity: .4;
   cursor: not-allowed;
   filter: none;
@@ -219,7 +218,7 @@ button.bg-accent:disabled, .ws-accent-btn:disabled, button.bg-accent:disabled:ho
   margin-left: 6px;
   padding: 1px 6px;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: var(--t-10);
   font-weight: 700;
   letter-spacing: 0;
   color: var(--danger);
@@ -235,31 +234,31 @@ button.bg-accent:disabled, .ws-accent-btn:disabled, button.bg-accent:disabled:ho
 .yt-af-row { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; }
 .yt-af-every { display: inline-flex; gap: 6px; }
 .yt-af-every input { width: 64px; }
-.yt-af-all { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+.yt-af-all { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-12); color: var(--text-muted); }
 .yt-bulk-row.sched { grid-template-columns: 22px minmax(0, 1fr) minmax(0, 2.2fr); }
 .yt-bulk-when { display: inline-flex; gap: 6px; flex-wrap: wrap; margin-right: 8px; }
 .yt-bulk-when .ws-input { width: auto; padding: 2px 6px; border-color: var(--glass-border); background-color: var(--surface-1, var(--bg-1)); }
-.yt-bulk-hint { color: var(--text-faint); font-size: 11.5px; margin-right: 8px; }
+.yt-bulk-hint { color: var(--text-faint); font-size: var(--t-12); margin-right: 8px; }
 
-.yt-bulk-tag { font-size: 10.5px; font-style: italic; color: var(--text-faint); margin-left: 2px; }
+.yt-bulk-tag { font-size: var(--t-11); font-style: italic; color: var(--text-faint); margin-left: 2px; }
 .yt-bulk-tag[data-by="you"] { color: var(--text-muted); font-style: normal; }
 .yt-bulk-row[data-state="pending"] .yt-bulk-icon { color: oklch(.75 .16 145); }
 .yt-bulk-row [hidden] { display: none !important; }
 /* Schedule | Publish now: a segmented switch (not a button), and the warning that goes with "now". */
 .yt-mode { display: inline-flex; gap: 2px; padding: 3px; align-self: flex-start; background: var(--glass); border: 1px solid var(--glass-border); border-radius: var(--r-pill); }
 .yt-mode[hidden] { display: none; }
-.yt-mode-opt { font: inherit; font-size: 12px; font-weight: 650; padding: 5px 14px; border: 0; border-radius: var(--r-pill); background: transparent; color: var(--text-muted); cursor: pointer; }
+.yt-mode-opt { font: inherit; font-size: var(--t-12); font-weight: 650; padding: 5px 14px; border: 0; border-radius: var(--r-pill); background: transparent; color: var(--text-muted); cursor: pointer; }
 .yt-mode-opt:hover { color: var(--text); }
 .yt-mode-opt[aria-checked="true"] { background: var(--text); color: var(--bg-0); }
 .yt-mode-opt[data-ytmode="now"][aria-checked="true"] { background: var(--accent); color: var(--accent-text); }
 .yt-now-warn { padding: 10px 14px; border: 1px solid var(--accent); border-left-width: 4px; border-radius: var(--r-s); background: color-mix(in oklab, var(--accent) 12%, transparent);
-  color: var(--text); font-size: 12.5px; }
+  color: var(--text); font-size: var(--t-13); }
 .yt-now-warn p { margin: 0; }
-.yt-now-warn .yt-now-sub { margin-top: 4px; color: var(--text-muted); font-size: 12px; }
+.yt-now-warn .yt-now-sub { margin-top: 4px; color: var(--text-muted); font-size: var(--t-12); }
 .yt-now-warn[hidden] { display: none; }
 
 /* A clip with a video of its own: its file name under the title, and the picker in the new-clip row. */
-.ws-fileline { display: flex; align-items: center; gap: 6px; margin-top: 3px; font-size: 11px; color: var(--text-faint); min-width: 0; }
+.ws-fileline { display: flex; align-items: center; gap: 6px; margin-top: 3px; font-size: var(--t-11); color: var(--text-faint); min-width: 0; }
 .ws-fileline .data { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* The confirmation dialog of a destructive action (confirmDialog in js/shared/armed.js). */
@@ -275,8 +274,8 @@ dialog.confirm-dlg::backdrop { background: rgba(0, 0, 0, .6); }
 .confirm-x { margin-left: auto; border: 0; background: transparent; color: var(--text-faint); font-size: 16px; line-height: 1;
   padding: 6px; border-radius: var(--r-s); cursor: pointer; }
 .confirm-x:hover { background: var(--glass); color: var(--text); }
-.confirm-msg { margin: 10px 0 0; font-size: 13px; color: var(--text-muted); overflow-wrap: anywhere; }
-.confirm-warn { margin: 10px 0 0; padding: 6px 10px; font-size: 12.5px; color: var(--danger);
+.confirm-msg { margin: 10px 0 0; font-size: var(--t-13); color: var(--text-muted); overflow-wrap: anywhere; }
+.confirm-warn { margin: 10px 0 0; padding: 6px 10px; font-size: var(--t-13); color: var(--danger);
   border-left: 3px solid var(--danger); background: var(--glass); border-radius: 0 var(--r-s) var(--r-s) 0; overflow-wrap: anywhere; }
 .confirm-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 /* the buttons of a dialog are .btn (brand.css): the confirm button is the accent one, or the danger fill for a delete */
@@ -311,7 +310,7 @@ dialog.confirm-dlg:has(.bulk-plan) { width: min(560px, calc(100vw - 32px)); }
 /* Clips table: the thumbnail is a fixed 9:16 box left of the title; every row has the same minimum height, with or without it */
 .ws-titlecell { display: flex; align-items: center; gap: 8px; min-height: 64px; }
 .ws-titletext { min-width: 0; flex: 1; }
-.ws-cutnote { display: inline-block; align-self: flex-start; margin-top: 3px; padding: 0 5px; font-size: 11px; line-height: 16px; color: var(--text-faint); border: 1px solid var(--glass-border, rgba(255,255,255,.15)); border-radius: var(--r-xs); }
+.ws-cutnote { display: inline-block; align-self: flex-start; margin-top: 3px; padding: 0 5px; font-size: var(--t-11); line-height: 16px; color: var(--text-faint); border: 1px solid var(--glass-border, rgba(255,255,255,.15)); border-radius: var(--r-xs); }
 .ws-cutnote[hidden] { display: none; }
 .ws-rowthumb { flex: none; width: 36px; height: 64px; object-fit: cover; border: 1px solid var(--glass-border, rgba(255,255,255,.15)); border-radius: var(--r-xs); }
 /* Detail: the card in its real 9:16 shape on the left, its text and buttons on the right (stacked on narrow widths) */
