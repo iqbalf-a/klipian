@@ -1,6 +1,6 @@
 ---
 name: create
-description: Runs for a message starting with `-create` (not `-create-cloud`, which has its own skill). Make one klipian intip video from a topic, in a cloud session or in ian's own checkout, e.g. `-create gurita punya tiga jantung` or `-create 2.5d 45 noloop "gurita punya tiga jantung"`. Builds the brief itself, follows its steps, and pushes only the video's files to main.
+description: Runs for a message starting with `-create`. Make one klipian intip video from a topic, in a cloud session or in ian's own checkout, e.g. `-create gurita punya tiga jantung` or `-create 2.5d 45 noloop "gurita punya tiga jantung"`. Builds the brief itself, follows its steps, and pushes only the video's files to main.
 ---
 
 # -create [options] <topic>
