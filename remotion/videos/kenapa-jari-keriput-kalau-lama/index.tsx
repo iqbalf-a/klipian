@@ -6,10 +6,11 @@
    branch in Y shapes, like a river system (Kareklas, Nettle and Smulders 2013), which is what the "alur ban" is. Every word comes from the checked story. */
 import React from "react";
 import {
-  BLACK, CaptionLayer, textWidth, G1, G2, G3, G4, BLUSH, Label, METAL, PLASTER, SKIN_A, SKIN_B, StoryVideo, STEAM, THEMES, TopText, WHITE, YELLOW, YELLOW_D,
+  BLACK, CaptionLayer, textWidth, G2, G3, G4, BLUSH, Label, METAL, PLASTER, SKIN_A, SKIN_B, StoryVideo, STEAM, THEMES, TopText, WHITE, YELLOW, YELLOW_D,
   clamp01, springAt, useFonts, loopClock, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
-import { COUNTER_X, FX, HW, PAD_X, T, TIP_Y, TOP, WATER_Y, camAt, drained, makePlan, narrow, ramp, scaleTilt, slabX, swell, win, wrinkle } from "./plan.ts";
+import { COUNTER_X, FX, HAND_BOT, HW, PAD_X, SLAB_TOP, T, TIP_Y, TOP, WATER_Y, camAt, cut, drained, handVis, lift, makePlan, narrow, ramp, scaleTilt, sideVis, slabX, swell, win, wrinkle } from "./plan.ts";
+import { DF_LIST, HAND_BODY, WEBS, fingerPath, nailBox, rotOf } from "./hand.ts";
 import storyJson from "./story.json";
 import { StingMark } from "../../src/components/StingMark.tsx";
 
@@ -55,9 +56,9 @@ const OUTLINE: Pt[] = (() => {
     const nx = -ty, ny = tx;
     const pf = Math.max(0, Math.min(1, 0.5 + 0.5 * nx + 0.6 * Math.max(0, ny)));
     let mask = 1;
-    if (p.seg === "L") mask = 0.35 * sm((p.y + 200) / 500) * (1 - sm((p.y - 840) / 80));
+    if (p.seg === "L") mask = 0;                         // the dry back of the finger stays smooth
     else if (p.seg === "T1") mask = Math.pow(sm(p.u), 1.5);
-    else if (p.seg === "R") mask = sm((p.y + 200) / 500);
+    else if (p.seg === "R") mask = sm((p.y - 1150) / 250);   // wrinkles only on the wet pad: none above the water line, full at the tip
     out.push({ x: p.x, y: p.y, nx, ny, s, seg: p.seg, u: p.u, pf, mask });
   });
   return out;
@@ -70,7 +71,7 @@ const layerPts = (d0: number, d1: number, A: number, k: number, grow = 0): [numb
   OUTLINE.map((p) => { const d = lerp(d0, d1, p.pf) - grow + A * k * p.mask * waveOf(p); return [p.x - p.nx * d, p.y - p.ny * d]; });
 /** A line that follows the surface at a depth, for the vessels: from a y on the pad side, round the tip, to the point `until` on the way back up the back. */
 const trackPts = (d0: number, d1: number, A: number, k: number): [number, number][] =>
-  OUTLINE.filter((p) => p.seg === "R" || p.seg === "T2" || (p.seg === "T1" && p.u > 0.45)).filter((p) => !(p.seg === "R" && p.y < 20))
+  OUTLINE.filter((p) => p.seg === "R" || p.seg === "T2" || (p.seg === "T1" && p.u > 0.45)).filter((p) => !(p.seg === "R" && p.y < 1000))
     .map((p) => { const d = lerp(d0, d1, p.pf) + A * k * p.mask * waveOf(p); return [p.x - p.nx * d, p.y - p.ny * d]; });
 
 const polyLen = (poly: [number, number][]) => poly.reduce((a, q, i) => (i ? a + Math.hypot(q[0] - poly[i - 1][0], q[1] - poly[i - 1][1]) : 0), 0);
@@ -87,20 +88,10 @@ const along = (poly: [number, number][], s: number): [number, number] => {
 // ------------------------------------------------------------------------------------------------------ the set
 const Wall: React.FC<{ amb: number }> = ({ amb }) => (
   <g>
-    <rect x={-2600} y={-2600} width={6400} height={6200} fill={WALL.wall} />
+    <rect x={-12000} y={-12000} width={24000} height={24000} fill={WALL.wall} />
     {/* window light falling across the wall: three slanting bands that drift a little */}
-    {[0, 1, 2].map((i) => <polygon key={i} points={`${-300 + i * 520 + 18 * Math.sin(amb * 0.8 + i)},-2600 ${100 + i * 520 + 18 * Math.sin(amb * 0.8 + i)},-2600 ${1500 + i * 520},1200 ${1100 + i * 520},1200`} fill={WHITE} opacity={0.32} />)}
-    <rect x={-2600} y={WATER_Y - 70} width={6400} height={70} fill={WALL.ring} opacity={0.7} />
-  </g>
-);
-
-/** Dressing on the wall at the right, cut by the frame: a towel rail with a towel (it is only seen in the wide shot and beside the balance). */
-const Towel: React.FC<{ amb: number }> = ({ amb }) => (
-  <g>
-    <rect x={1332} y={410} width={260} height={22} rx={11} fill={G3} /><rect x={1332} y={404} width={260} height={22} rx={11} fill={METAL} />
-    <path d="M 1362 424 L 1572 424 L 1572 850 C 1530 880 1480 830 1440 862 C 1400 890 1380 850 1362 860 Z" fill={SHADE} transform="translate(10 10)" />
-    <path d="M 1362 424 L 1572 424 L 1572 850 C 1530 880 1480 830 1440 862 C 1400 890 1380 850 1362 860 Z" fill={STEAM} />
-    <rect x={1362} y={740} width={210} height={26} fill={WHITE} opacity={0.85} /><rect x={1362} y={790} width={210} height={14} fill={WHITE} opacity={0.85} />
+    {[0, 1, 2].map((i) => <polygon key={i} points={`${-3763 + i * 520 + 18 * Math.sin(amb * 0.8 + i)},-12000 ${-3363 + i * 520 + 18 * Math.sin(amb * 0.8 + i)},-12000 ${1500 + i * 520},1200 ${1100 + i * 520},1200`} fill={WHITE} opacity={0.32} />)}
+    <rect x={-12000} y={WATER_Y - 70} width={24000} height={70} fill={WALL.ring} opacity={0.7} />
   </g>
 );
 
@@ -115,24 +106,31 @@ const Counter: React.FC = () => (
   </g>
 );
 
-const waterTop = (amb: number): [number, number][] => {
+const waterTop = (amb: number, x0 = -12000, x1 = COUNTER_X): [number, number][] => {
   const p: [number, number][] = [];
-  for (let x = -2600; x <= COUNTER_X; x += 40) p.push([x, WATER_Y + 5 * Math.sin(x * 0.018 + amb * 2.2)]);
+  for (let x = x0; x < x1; x += 40) p.push([x, WATER_Y + 5 * Math.sin(x * 0.018 + amb * 2.2)]);
+  p.push([x1, WATER_Y + 5 * Math.sin(x1 * 0.018 + amb * 2.2)]);
   return p;
 };
-/** The basin's water: drawn over the finger so the tip shows through it; ripples where the finger goes in, bubbles rising along it. */
-const Water: React.FC<{ amb: number; k: number }> = ({ amb, k }) => {
-  const top = waterTop(amb);
-  const body: [number, number][] = [...top, [COUNTER_X, 3400], [-2600, 3400]];
-  const lit: [number, number][] = [...top, ...[...top].reverse().map(([x, y]) => [x, y + 16] as [number, number])];
+/** The water of the basin, behind the hand (the counter is drawn over it where the hand is gone). */
+const WaterBack: React.FC<{ amb: number }> = ({ amb }) => <polygon points={ptsAttr([...waterTop(amb, -12000, 12000), [12000, 12000], [-12000, 12000]])} fill={STEAM} />;
+/** The light blue over the hand's wet part (the skin keeps its colour), ripples where the fingers go in, bubbles rising. hv = how much of the water goes right across (the whole hand is in it). */
+const Water: React.FC<{ amb: number; hv: number }> = ({ amb, hv }) => {
+  const piece = (x0: number, x1: number, o: number) => {
+    const top = waterTop(amb, x0, x1);
+    const body: [number, number][] = [...top, [x1, 12000], [x0, 12000]];
+    const lit: [number, number][] = [...top, ...[...top].reverse().map(([x, y]) => [x, y + 16] as [number, number])];
+    return <g opacity={o}><polygon points={ptsAttr(body)} fill={STEAM} opacity={0.26} /><polygon points={ptsAttr(lit)} fill={WHITE} opacity={0.5} /></g>;
+  };
   return (
     <g>
-      <polygon points={ptsAttr(body)} fill={STEAM} opacity={0.6} />
-      <polygon points={ptsAttr(lit)} fill={WHITE} opacity={0.5} />
+      {piece(-12000, COUNTER_X, 1)}
+      {hv > 0.01 && piece(COUNTER_X - 1, 12000, hv)}
       {[0, 1].map((i) => { const ph = ((amb * 0.35 + i * 0.5) % 1); return <ellipse key={i} cx={FX + 10} cy={WATER_Y + 4} rx={HW + 20 + ph * 200} ry={8 + ph * 8} fill={WHITE} opacity={0.5 * (1 - ph)} />; })}
-      {Array.from({ length: 7 }, (_, i) => {
-        const ph = ((amb * 0.22 + i * 0.143) % 1), x = FX - HW - 50 + ((i * 163) % 640) + 16 * Math.sin(amb * 2 + i * 1.7), y = TIP_Y + 140 - ph * (TIP_Y + 140 - WATER_Y - 20);
-        return <circle key={i} cx={x} cy={y} r={7 + (i % 3) * 4} fill={WHITE} opacity={0.75 * Math.sin(Math.PI * ph)} />;
+      {hv > 0.01 && [0, 1, 2].map((i) => { const ph = ((amb * 0.35 + i * 0.33 + 0.2) % 1), cx = [1040, 1635, 2170][i]; return <ellipse key={`r${i}`} cx={cx} cy={WATER_Y + 4} rx={250 + ph * 200} ry={8 + ph * 8} fill={WHITE} opacity={0.5 * (1 - ph) * hv} />; })}
+      {Array.from({ length: hv > 0.01 ? 14 : 7 }, (_, i) => {
+        const ph = ((amb * 0.22 + i * 0.143) % 1), x = FX - HW - 50 + ((i * 163) % (hv > 0.01 ? 2200 : 640)) + 16 * Math.sin(amb * 2 + i * 1.7), y = TIP_Y + 140 - ph * (TIP_Y + 140 - WATER_Y - 20);
+        return <circle key={i} cx={x} cy={y} r={7 + (i % 3) * 4} fill={WHITE} opacity={0.75 * Math.sin(Math.PI * ph) * (x > COUNTER_X ? hv : 1)} />;
       })}
     </g>
   );
@@ -140,7 +138,7 @@ const Water: React.FC<{ amb: number; k: number }> = ({ amb, k }) => {
 
 // ------------------------------------------------------------------------------------------------------ the fingertip
 const NERVE_X = FX + 98;
-const nerveTrunk: [number, number][] = [[NERVE_X, 0], [NERVE_X, 1130]];
+const nerveTrunk: [number, number][] = [[NERVE_X, 1000], [NERVE_X, 1130]];
 const branchEnds = [0.9, 0.55, 0.2].map((u) => { const p = OUTLINE.find((q) => q.seg === "T2" && q.u >= u)!; return [p.x - p.nx * 96, p.y - p.ny * 96] as [number, number]; });
 const nerveBranch = (i: number): [number, number][] => {
   const e = branchEnds[i], pts: [number, number][] = [];
@@ -150,14 +148,40 @@ const nerveBranch = (i: number): [number, number][] => {
 const BRANCHES = [0, 1, 2].map(nerveBranch);
 const SIGNAL_PATHS = BRANCHES.map((b) => [...nerveTrunk, ...b]);
 
-const NAIL_IDX = OUTLINE.map((p, i) => ({ p, i })).filter(({ p }) => p.y >= 880 && (p.seg === "L" || (p.seg === "T1" && p.u < 0.5)));
-const HAIRS = Array.from({ length: 8 }, (_, i) => { const y = 300 + i * 68, p = OUTLINE.find((q) => q.seg === "L" && q.y >= y)!; return { p, i }; });
+const NAIL_IDX = OUTLINE.map((p, i) => ({ p, i })).filter(({ p }) => p.y >= 1130 && (p.seg === "L" || (p.seg === "T1" && p.u < 0.45)));
+const RING_X = FX - 200, MID_X = FX - 100;               // the two fingers behind the index (a little shorter, a little longer)
+const RING_TIP = TIP_Y - 50, MID_TIP = TIP_Y + 30;
+const HAIRS = Array.from({ length: 7 }, (_, i) => ({ x: RING_X - HW, y: 850 + i * 34, i }));
+/** A finger behind the index: straight shaft, rounded tip. */
+const backFinger = (cx: number, tip: number) => `M ${cx - HW} 760 L ${cx - HW} ${tip - 310} C ${cx - HW} ${tip - 120} ${cx - 130} ${tip} ${cx + 20} ${tip} C ${cx + 170} ${tip} ${cx + HW + 10} ${tip - 120} ${cx + HW + 10} ${tip - 310} L ${cx + HW} 760 Z`;
+/** The back of the hand and the arm: a band that bleeds to the right, with the three fingers hanging from its left end. */
+const HAND = `M ${RING_X - HW - 10} 820 C ${RING_X - HW - 10} 700 ${RING_X - HW + 20} 640 ${RING_X - HW + 190} 640 L 2800 640 L 2800 ${HAND_BOT} L ${PAD_X + 130} ${HAND_BOT} C ${PAD_X + 50} ${HAND_BOT} ${PAD_X + 2} ${HAND_BOT - 30} ${PAD_X} ${HAND_BOT - 100} L ${PAD_X} 760 L ${RING_X - HW} 760 Z`;
+const crease = (x: number, y: number, len: number, dir: number, w = 9) => `M ${x} ${y} Q ${x + dir * len * 0.5} ${y + w * 0.1} ${x + dir * len} ${y + 3} Q ${x + dir * len * 0.5} ${y + w} ${x} ${y} Z`;
+
+/** A flat lens-shaped mark (a crease, a fold) from x going len to the right, th tall each side. */
+const lens = (x: number, y: number, len: number, th: number) => `M ${x} ${y} Q ${x + len / 2} ${y - th} ${x + len} ${y} Q ${x + len / 2} ${y + th} ${x} ${y} Z`;
+/** What lies on the back of every finger of the hand: two creases at the middle joint, two at the first joint, the nail, and (wet fingertips) the wrinkle marks at the tip. */
+const DorsalFront: React.FC<{ k: number; hv: number }> = ({ k, hv }) => (
+  <g opacity={hv}>
+    {DF_LIST.map((f) => {
+      const pip = f.tip - 0.5 * (f.tip + 40), dip = f.tip - 340, nb = nailBox(f);
+      return (
+        <g key={f.id} transform={rotOf(f)}>
+          <path d={lens(f.cx - f.w * 0.2, pip, f.w * 0.4, 15)} fill={SKIN_B} /><path d={lens(f.cx - f.w * 0.14, pip + 34, f.w * 0.28, 10)} fill={SKIN_B} />
+          <path d={lens(f.cx - f.w * 0.2, dip, f.w * 0.4, 15)} fill={SKIN_B} /><path d={lens(f.cx - f.w * 0.14, dip + 34, f.w * 0.28, 10)} fill={SKIN_B} />
+          <rect x={nb.x + 7} y={nb.y + 9} width={nb.w} height={nb.h} rx={nb.r} fill={SKIN_B} />
+          <rect x={nb.x} y={nb.y} width={nb.w} height={nb.h} rx={nb.r} fill={WHITE} opacity={0.62} />
+          {k > 0.03 && [0, 1, 2].flatMap((i) => [-1, 1].map((d) => <path key={`${i}${d}`} d={lens(f.cx + d * f.w * 0.4 - f.w * 0.06, f.tip - f.w * (0.3 + 0.2 * i), f.w * 0.12, 8)} fill={SKIN_B} opacity={Math.min(1, k * 1.2)} />))}
+        </g>
+      );
+    })}
+  </g>
+);
 
 const Finger: React.FC<{ clock: number; amb: number }> = ({ clock, amb }) => {
-  const k = wrinkle(clock), v = narrow(clock), sw = swell(clock);
+  const k = wrinkle(clock), v = narrow(clock), sw = swell(clock), op = cut(clock), hv = handVis(clock), sv = sideVis(clock);
   const l0 = layerPts(0, 0, 26, k, 14 * sw), l1 = layerPts(14, 40, 18, k, 12 * sw), l2 = layerPts(66, 128, 6, k, 6 * sw);
   const nerveA = win(clock, T.nerveOn, T.nerveOff, 0.5), vesA = win(clock, T.vesselOn, T.vesselOff, 0.5);
-  // the bone, the distal phalanx: a shaft that widens into the tuft just under the tip's pulp
   const bone = `M ${FX - 75} ${TOP} L ${FX - 75} 1080 C ${FX - 100} 1130 ${FX - 112} 1190 ${FX - 82} 1222 Q ${FX - 10} 1256 ${FX + 56} 1222 C ${FX + 88} 1190 ${FX + 78} 1130 ${FX + 65} 1080 L ${FX + 65} ${TOP} Z`;
   const vw = 30 * (1 - 0.62 * v);
   const t1 = trackPts(60, 96, 8, k), t2 = trackPts(92, 118, 4, k);
@@ -172,48 +196,76 @@ const Finger: React.FC<{ clock: number; amb: number }> = ({ clock, amb }) => {
     if (pr >= 0 && pr < 1 && ts < T.signalEnd) { const path = SIGNAL_PATHS[j % 3]; sigs.push({ p: along(path, polyLen(path) * pr), o: Math.sin(Math.PI * clamp01(pr)) * 1.2 }); }
   }
   const pulse = clamp01((clock - T.pulse) / 0.9);
+  const wTop = lerp(1720, 1000, op);                       // the top edge of the cut: it opens from the tip upwards
   return (
     <g>
-      <polygon points={ptsAttr(l0)} fill={SHADE} transform="translate(12 14)" />
-      <polygon points={ptsAttr(l0)} fill={SKIN_B} />
-      {/* the nail plate on the back of the finger, none on the pad */}
-      <polygon points={ptsAttr(nail)} fill={G4} transform="translate(5 7)" />
-      <polygon points={ptsAttr(nail)} fill={WHITE} />
-      <polygon points={ptsAttr(l1)} fill={SKIN_A} />
-      <polygon points={ptsAttr(l2)} fill={PLASTER} />
-      <path d={bone} fill={G3} transform="translate(7 9)" />
-      <path d={bone} fill={WHITE} />
-      <rect x={FX - 30} y={TOP} width={52} height={1060} rx={20} fill={G4} />
-      {/* the nerve and the signal that runs along it */}
-      {nerveA > 0.01 && <g opacity={nerveA}>
-        <path d={pathOf(nerveTrunk, false)} stroke={YELLOW_D} strokeWidth={14} strokeLinecap="round" fill="none" />
-        {BRANCHES.map((b, i) => <path key={i} d={pathOf(b, false)} stroke={YELLOW_D} strokeWidth={11} strokeLinecap="round" fill="none" />)}
-        {sigs.map((s, i) => <circle key={i} cx={s.p[0]} cy={s.p[1]} r={15} fill={YELLOW} opacity={Math.min(1, s.o)} />)}
-        {pulse > 0 && pulse < 1 && branchEnds.map((e, i) => <circle key={i} cx={e[0]} cy={e[1]} r={20 + 70 * pulse} fill={YELLOW} opacity={0.7 * (1 - pulse)} />)}
+      {/* the hand seen from the back (the hook, the old idea, the outro): the fingers, the back of the hand and the arm; two tones, light from the top left */}
+      {hv > 0.01 && <g opacity={hv}>
+        <g transform="translate(12 14)" fill={SKIN_B}>
+          {DF_LIST.map((f) => <path key={f.id} d={fingerPath(f.id === "index" ? { ...f, w: f.w + 28 * sw } : f)} transform={rotOf(f)} />)}<path d={HAND_BODY} />{WEBS.map(([x, y], i) => <ellipse key={i} cx={x} cy={y} rx={85} ry={130} />)}
+        </g>
+        {DF_LIST.map((f) => <path key={f.id} d={fingerPath(f.id === "index" ? { ...f, w: f.w + 28 * sw } : f)} transform={rotOf(f)} fill={SKIN_A} />)}
+        <path d={HAND_BODY} fill={SKIN_A} />{WEBS.map(([x, y], i) => <ellipse key={i} cx={x} cy={y} rx={85} ry={130} fill={SKIN_A} />)}
       </g>}
-      {/* the vessels under the pad's skin: they narrow; blood dots keep flowing */}
-      {vesA > 0.01 && <g opacity={vesA}>
-        <path d={pathOf(t2, false)} stroke={BLUSH} strokeWidth={vw * 0.8} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-        <path d={pathOf(t1, false)} stroke={BLUSH} strokeWidth={vw} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-        {flowing(t1, 0).map((q, i) => <circle key={`a${i}`} cx={q[0]} cy={q[1]} r={0.22 * vw} fill={WHITE} />)}
-        {flowing(t2, 90).map((q, i) => <circle key={`b${i}`} cx={q[0]} cy={q[1]} r={0.2 * vw * 0.8} fill={WHITE} />)}
-        {/* the water between the cells: it goes as the vessels narrow */}
-        {Array.from({ length: 12 }, (_, i) => { const p = OUTLINE.filter((q) => q.seg === "R" && q.y > 200 && q.y < 1250)[(i * 9) % 120], d = 84 + (i % 3) * 5; return p ? <circle key={i} cx={p.x - p.nx * d} cy={p.y - p.ny * d + 8 * Math.sin(amb * 2 + i)} r={9} fill={STEAM} opacity={(1 - v) * 0.9} /> : null; })}
+      {/* the side view (the beats that look inside): the two fingers behind the index and the hand's band, shades first */}
+      {sv > 0.01 && <g opacity={sv}>
+        <g transform="translate(12 14)" fill={SKIN_B}><path d={backFinger(RING_X, RING_TIP)} /><path d={backFinger(MID_X, MID_TIP)} /><path d={HAND} /></g>
+        <path d={backFinger(RING_X, RING_TIP)} fill={SKIN_A} />
+        <path d={backFinger(MID_X, MID_TIP)} fill={SKIN_B} transform="translate(-9 3)" /><path d={backFinger(MID_X, MID_TIP)} fill={SKIN_A} />
       </g>}
-      {/* hairs and their oil on the back of the finger: none on the pad */}
-      {HAIRS.map(({ p, i }) => {
+      <polygon points={ptsAttr(l0)} fill={SKIN_B} transform="translate(12 14)" />
+      {sv > 0.01 && <polygon points={ptsAttr(l0)} fill={SKIN_B} transform="translate(-9 3)" opacity={sv} />}
+      <polygon points={ptsAttr(l0)} fill={SKIN_A} />
+      {sv > 0.01 && <g opacity={sv}>
+        <path d={HAND} fill={SKIN_A} />
+        {/* the knuckles on the back of the hand and the creases at the finger's joint */}
+        {[RING_X - 40, MID_X - 30, FX - 10].map((x, i) => <g key={i}><ellipse cx={x + 8} cy={672} rx={96} ry={34} fill={SKIN_B} opacity={0.5} /><ellipse cx={x} cy={664} rx={92} ry={30} fill={SKIN_A} /></g>)}
+        <path d={crease(PAD_X, 1096, 62, -1)} fill={SKIN_B} /><path d={crease(PAD_X, 1128, 48, -1, 7)} fill={SKIN_B} />
+        <path d={crease(FX - HW, 1104, 44, 1)} fill={SKIN_B} /><path d={crease(FX - HW, 1124, 36, 1, 7)} fill={SKIN_B} />
+        {/* the nail plate on the side of the finger, none on the pad */}
+        <polygon points={ptsAttr(nail)} fill={G4} transform="translate(5 7)" />
+        <polygon points={ptsAttr(nail)} fill={WHITE} />
+      </g>}
+      {hv > 0.01 && <DorsalFront k={k} hv={hv} />}
+      {/* fine short hairs on the back of the finger, lying along the skin, each with a drop of oil */}
+      {HAIRS.map(({ x, y, i }) => {
         const g = ramp(clock, T.hairOn + i * 0.14, T.hairOn + i * 0.14 + 0.5) * (1 - ramp(clock, T.hairOff, T.hairOff + 1.0));
         if (g < 0.02) return null;
-        const sway = 0.12 * Math.sin(amb * 1.6 + i), len = 64 * g, ca = Math.cos(sway), sa = Math.sin(sway);
-        const dx = (-0.7 * ca - 0.7 * sa), dy = (0.7 * ca - 0.7 * sa);          // out of the back and down, swaying
-        const ex = p.x + dx * len, ey = p.y + dy * len, mx = p.x + dx * len * 0.5 - dy * 6, my = p.y + dy * len * 0.5 + dx * 6;
+        const sway = 0.1 * Math.sin(amb * 1.6 + i), len = 34 * g, ca = Math.cos(sway), sa = Math.sin(sway);
+        const dx = -0.36 * ca - 0.93 * sa, dy = 0.93 * ca - 0.36 * sa, ex = x + dx * len, ey = y + dy * len;
         return (
           <g key={i}>
-            <path d={`M ${p.x + 2} ${p.y - 5} Q ${mx} ${my - 4} ${ex} ${ey} Q ${mx + 3} ${my + 7} ${p.x + 2} ${p.y + 5} Z`} fill={G1} />
-            <circle cx={p.x + 4} cy={p.y + 14 * g} r={8 * g} fill={WHITE} />
+            <path d={`M ${x + 1} ${y - 2.2} Q ${x + dx * len * 0.5 - 2} ${y + dy * len * 0.5} ${ex} ${ey} Q ${x + dx * len * 0.5 + 1} ${y + dy * len * 0.5 + 2} ${x + 1} ${y + 2.2} Z`} fill={SKIN_B} />
+            <circle cx={x + 2} cy={y + 1} r={5 * g} fill={PLASTER} />
           </g>
         );
       })}
+      {/* the cut: a window into the index fingertip, with a lip at its top edge; inside it the layers, the nerve and the vessels */}
+      {op > 0.01 && <g>
+        <clipPath id="cut-clip"><rect x={FX - HW - 60} y={wTop} width={HW * 2 + 140} height={900} rx={26} /></clipPath>
+        <g clipPath="url(#cut-clip)">
+          <polygon points={ptsAttr(l0)} fill={SKIN_B} />
+          <polygon points={ptsAttr(l1)} fill={SKIN_A} />
+          <polygon points={ptsAttr(l2)} fill={PLASTER} />
+          <path d={bone} fill={G3} transform="translate(7 9)" />
+          <path d={bone} fill={WHITE} />
+          <rect x={FX - 30} y={TOP} width={52} height={1060} rx={20} fill={G4} />
+          {nerveA > 0.01 && <g opacity={nerveA}>
+            <path d={pathOf(nerveTrunk, false)} stroke={YELLOW_D} strokeWidth={14} strokeLinecap="round" fill="none" />
+            {BRANCHES.map((b, i) => <path key={i} d={pathOf(b, false)} stroke={YELLOW_D} strokeWidth={11} strokeLinecap="round" fill="none" />)}
+            {sigs.map((s2, i) => <circle key={i} cx={s2.p[0]} cy={s2.p[1]} r={15} fill={YELLOW} opacity={Math.min(1, s2.o)} />)}
+            {pulse > 0 && pulse < 1 && branchEnds.map((e, i) => <circle key={i} cx={e[0]} cy={e[1]} r={20 + 70 * pulse} fill={YELLOW} opacity={0.7 * (1 - pulse)} />)}
+          </g>}
+          {vesA > 0.01 && <g opacity={vesA}>
+            <path d={pathOf(t2, false)} stroke={BLUSH} strokeWidth={vw * 0.8} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+            <path d={pathOf(t1, false)} stroke={BLUSH} strokeWidth={vw} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+            {flowing(t1, 0).map((q, i) => <circle key={`a${i}`} cx={q[0]} cy={q[1]} r={0.22 * vw} fill={WHITE} />)}
+            {flowing(t2, 90).map((q, i) => <circle key={`b${i}`} cx={q[0]} cy={q[1]} r={0.2 * vw * 0.8} fill={WHITE} />)}
+            {Array.from({ length: 12 }, (_, i) => { const p = OUTLINE.filter((q) => q.seg === "R" && q.y > 1000 && q.y < 1250)[(i * 9) % 30], d = 84 + (i % 3) * 5; return p ? <circle key={i} cx={p.x - p.nx * d} cy={p.y - p.ny * d + 8 * Math.sin(amb * 2 + i)} r={9} fill={STEAM} opacity={(1 - v) * 0.9} /> : null; })}
+          </g>}
+        </g>
+        <rect x={FX - HW - 60} y={wTop - 6} width={HW * 2 + 140} height={14} rx={7} fill={SKIN_B} opacity={op} />
+      </g>}
     </g>
   );
 };
@@ -260,7 +312,7 @@ const FrontPad: React.FC<{ k: number }> = ({ k }) => {
 const Inset: React.FC<{ clock: number; k: number }> = ({ clock, k }) => {
   const p = springAt(clock, T.insetOn) * (1 - ramp(clock, T.insetOff, T.insetOff + 0.4));
   if (p <= 0.01) return null;
-  const cx = 1000, cy = 580, R = 180;
+  const cx = 1000, cy = 1030, R = 150;
   return (
     <g transform={`translate(${cx} ${cy}) scale(${Math.max(0.001, p)}) translate(${-cx} ${-cy})`}>
       <circle cx={cx + 10} cy={cy + 12} r={R + 16} fill={SHADE} />
@@ -268,28 +320,27 @@ const Inset: React.FC<{ clock: number; k: number }> = ({ clock, k }) => {
       <clipPath id="front-clip"><circle cx={cx} cy={cy} r={R} /></clipPath>
       <g clipPath="url(#front-clip)">
         <rect x={cx - R} y={cy - R} width={R * 2} height={R * 2} fill={G4} />
-        <g transform={`translate(${cx} ${cy - 40}) scale(0.92)`}><FrontPad k={k} /></g>
+        <g transform={`translate(${cx} ${cy - 30}) scale(0.72)`}><FrontPad k={k} /></g>
       </g>
     </g>
   );
 };
 
 // ------------------------------------------------------------------------------------------------------ the wet slab, the old idea's drops, the balance
-const SLAB_TOP = 640;
 const Slab: React.FC<{ clock: number; amb: number }> = ({ clock, amb }) => {
-  const x = slabX(clock), dr = drained(clock), wet = ramp(clock, T.touch - 0.4, T.touch);
+  const x = slabX(clock), dr = drained(clock), wet = ramp(clock, T.touch - 0.4, T.touch), L = lift(clock);
   // the water that sits in the grooves of the pad, between the pad's skin and the slab: it is pushed out and runs down the film
   const k = wrinkle(clock);
-  const pad = OUTLINE.filter((p) => p.seg === "R" && p.y >= SLAB_TOP && p.y <= WATER_Y);
-  const vall: [number, number][] = pad.map((p) => [p.x - p.nx * (26 * k * p.mask * waveOf(p) + 1), p.y]);
-  const water = pathOf([[PAD_X, SLAB_TOP], ...vall, [PAD_X, WATER_Y]]);
+  const pad = OUTLINE.filter((p) => (p.seg === "R" || p.seg === "T2") && p.y - L >= SLAB_TOP && p.y - L <= WATER_Y).sort((a, b) => a.y - b.y);
+  const vall: [number, number][] = pad.map((p) => [p.x - p.nx * (26 * k * p.mask * waveOf(p) + 1), p.y - L]);
+  const water = pathOf([[PAD_X + 14, SLAB_TOP], ...vall, [PAD_X + 14, WATER_Y]]);
   const drips = Array.from({ length: 6 }, (_, j) => {
     const ts = T.drainA + j * 0.8, q = (clock - ts) / 1.1;
     return q > 0 && q < 1 && ts < T.drainEnd ? { x: x - 7, y: lerp(SLAB_TOP + 40 + j * 40, WATER_Y - 6, q * q), r: 10 * (1 - 0.3 * q) } : null;
   }).filter(Boolean) as { x: number; y: number; r: number }[];
   return (
     <g>
-      {k > 0.05 && wet > 0.01 && <path d={water} fill={STEAM} opacity={(1 - dr) * wet * 0.95} />}
+      {k > 0.05 && wet > 0.01 && vall.length > 2 && <path d={water} fill={STEAM} opacity={(1 - dr) * wet * 0.95} />}
       <rect x={x + 12} y={SLAB_TOP + 14} width={170} height={WATER_Y - SLAB_TOP} rx={22} fill={SHADE} />
       <rect x={x} y={SLAB_TOP} width={170} height={WATER_Y - SLAB_TOP} rx={22} fill={METAL} />
       <rect x={x + 120} y={SLAB_TOP} width={50} height={WATER_Y - SLAB_TOP} rx={22} fill={G3} opacity={0.8} />
@@ -301,20 +352,20 @@ const Slab: React.FC<{ clock: number; amb: number }> = ({ clock, amb }) => {
   );
 };
 
-/** The old idea in a picture: drops fly to the pad and soak in, and the finger swells a little. */
+/** The old idea in a picture: drops fall on the finger and soak in, and the finger swells a little. */
 const Drops: React.FC<{ clock: number }> = ({ clock }) => {
-  const ts = [T.drop1, T.drop2, T.drop3, T.drop4], ys = [640, 720, 800, 880];
+  const ts = [T.drop1, T.drop2, T.drop3, T.drop4], ys = [560, 700, 840, 980], xs = [FX - 90, FX + 80, FX - 20, FX + 110];
   return (
     <g>
       {ts.map((t0, i) => {
         const q = (clock - t0) / 0.9;
         if (q <= 0 || q > 1.5) return null;
-        const e = clamp01(q), x = lerp(930, PAD_X + 6, e), y = ys[i] + 170 * e * e - 80 * (1 - e), r = 18 * (1 - 0.8 * sm((q - 0.9) / 0.1));
+        const e = clamp01(q), x = xs[i], y = ys[i] - 420 * (1 - e * e), r = 32 * (1 - 0.8 * sm((q - 0.9) / 0.1));
         const rip = clamp01((q - 0.95) / 0.55);
         return (
           <g key={i}>
             {q < 1 && <g><circle cx={x} cy={y} r={r} fill={STEAM} /><circle cx={x - r * 0.3} cy={y - r * 0.3} r={r * 0.28} fill={WHITE} /></g>}
-            {rip > 0 && rip < 1 && <ellipse cx={PAD_X + 4} cy={ys[i] + 90} rx={8 + 26 * rip} ry={20 + 50 * rip} fill={WHITE} opacity={0.6 * (1 - rip)} />}
+            {rip > 0 && rip < 1 && <ellipse cx={x} cy={ys[i]} rx={20 + 90 * rip} ry={10 + 32 * rip} fill={WHITE} opacity={0.7 * (1 - rip)} />}
           </g>
         );
       })}
@@ -325,11 +376,11 @@ const Drops: React.FC<{ clock: number }> = ({ clock }) => {
 const Balance: React.FC<{ clock: number }> = ({ clock }) => {
   const p = springAt(clock, T.scaleIn) * (1 - ramp(clock, T.scaleOut, T.scaleOut + 0.5));
   if (p <= 0.01) return null;
-  const cx = 1120, cy = 840, th = scaleTilt(clock), a = (th * Math.PI) / 180, L = 190;
+  const cx = 1120, cy = 1040, th = scaleTilt(clock), a = (th * Math.PI) / 180, L = 190;
   const lx = cx - L * Math.cos(a), ly = cy - L * Math.sin(a), rx = cx + L * Math.cos(a), ry = cy + L * Math.sin(a);
   const Pan: React.FC<{ x: number; y: number }> = ({ x, y }) => (
     <g>
-      <path d={bar(x, y - 120, x - 70, y, 6)} fill={G2} /><path d={bar(x, y - 120, x + 70, y, 6)} fill={G2} />
+      <path d={bar(x, y - 80, x - 70, y, 6)} fill={G2} /><path d={bar(x, y - 80, x + 70, y, 6)} fill={G2} />
       <path d={`M ${x - 86} ${y} L ${x + 86} ${y} C ${x + 70} ${y + 40} ${x - 70} ${y + 40} ${x - 86} ${y} Z`} fill={G3} transform="translate(5 7)" />
       <path d={`M ${x - 86} ${y} L ${x + 86} ${y} C ${x + 70} ${y + 40} ${x - 70} ${y + 40} ${x - 86} ${y} Z`} fill={METAL} />
     </g>
@@ -340,25 +391,34 @@ const Balance: React.FC<{ clock: number }> = ({ clock }) => {
       <rect x={cx - 15 + 7} y={cy} width={30} height={WATER_Y - 44 - cy} fill={G3} /><rect x={cx - 15} y={cy} width={30} height={WATER_Y - 44 - cy} fill={METAL} />
       <path d={bar(lx, ly, rx, ry, 20)} fill={G3} transform="translate(5 6)" /><path d={bar(lx, ly, rx, ry, 20)} fill={G2} />
       <circle cx={cx} cy={cy} r={24} fill={YELLOW} />
-      <Pan x={lx} y={ly + 130} /><Pan x={rx} y={ry + 130} />
+      <Pan x={lx} y={ly + 90} /><Pan x={rx} y={ry + 90} />
     </g>
   );
 };
 
 // ------------------------------------------------------------------------------------------------------ the world and the scene
 const World: React.FC<{ clock: number; amb: number }> = ({ clock, amb }) => {
-  const k = wrinkle(clock);
+  const hv = handVis(clock), sv = sideVis(clock);
+  const finger = <g transform={`translate(0 ${-lift(clock)})`}><Finger clock={clock} amb={amb} /></g>;
   return (
     <g>
       <Wall amb={amb} />
-      <Counter />
-      <Towel amb={amb} />
-      <Finger clock={clock} amb={amb} />
-      <Water amb={amb} k={k} />
+      <WaterBack amb={amb} />
+      {sv > 0.01 && <g opacity={sv}><Counter /></g>}
+      {/* the whole hand: the part under the water line is drawn again, a little to the left (the water bends the light) */}
+      {hv > 0.01 ? (
+        <g>
+          <clipPath id="above-water"><rect x={-3200} y={-6000} width={7000} height={6000 + WATER_Y + 2} /></clipPath>
+          <clipPath id="below-water"><rect x={-3200} y={WATER_Y} width={7000} height={3000} /></clipPath>
+          <g clipPath="url(#above-water)">{finger}</g>
+          <g transform={`translate(${-12 * hv} 0)`}><g clipPath="url(#below-water)">{finger}</g></g>
+        </g>
+      ) : finger}
+      <Water amb={amb} hv={hv} />
       <Drops clock={clock} />
-      <Slab clock={clock} amb={amb} />
+      {sv > 0.01 && <g opacity={sv}><Slab clock={clock} amb={amb} /></g>}
       <Balance clock={clock} />
-      <Inset clock={clock} k={k} />
+      <Inset clock={clock} k={wrinkle(clock)} />
     </g>
   );
 };
@@ -375,11 +435,16 @@ const Scene = ({ beat, t, clock }: SceneProps) => {
   return (
     <svg width={W} height={1920} viewBox="0 0 1080 1920">
       <g transform={tx}><World clock={clock} amb={amb} /></g>
+      {/* the arm runs off the top of the frame: the wall fades in over it so the top text sits on plain wall */}
+      {handVis(clock) > 0.01 && <g opacity={handVis(clock)}>
+        <rect x={0} y={0} width={W} height={382} fill={WALL.wall} />
+        {Array.from({ length: 30 }, (_, i) => <rect key={i} x={0} y={380 + i * 3.2} width={W} height={4} fill={WALL.wall} opacity={1 - (i + 0.5) / 30} />)}
+      </g>}
       {/* labels: short pointers from the text to the part */}
       {!sting && !outro && P_.labels.filter((l) => clock >= l.from - 0.05 && clock < l.to + 0.3).map((l) => {
         const a = toScr(l.ax, l.ay), p = clamp01((clock - l.from) / 0.3) * (1 - clamp01((clock - l.to) / 0.3));
         if (p <= 0) return null;
-        const rows = 1 + (l.lines?.length ?? 0), fs = 44;
+        const rows = 1 + (l.lines?.length ?? 0), fs = l.fs ?? 44;
         const wide = Math.max(textWidth(l.text, fs), ...(l.lines ?? []).map((r) => textWidth(r, fs))) / 2 + 14, bottom = l.ly + (rows - 1) * fs * 1.22 + 14, topY = l.ly - fs * 0.8;
         // the leader leaves the text from the side that faces the part, never through the words
         const sx = a[0] > l.lx + wide ? l.lx + wide : a[0] < l.lx - wide ? l.lx - wide : l.lx;
@@ -388,7 +453,7 @@ const Scene = ({ beat, t, clock }: SceneProps) => {
           <g key={l.id} opacity={p}>
             <line x1={sx} y1={sy} x2={a[0]} y2={a[1]} stroke={BLACK} strokeWidth={5} strokeLinecap="round" opacity={0.85} />
             <circle cx={a[0]} cy={a[1]} r={9} fill={BLACK} />
-            <Label text={l.text} lines={l.lines} x={l.lx} y={l.ly} fs={44} t={clock} start={l.from} />
+            <Label text={l.text} lines={l.lines} x={l.lx} y={l.ly} fs={l.fs ?? 44} t={clock} start={l.from} />
           </g>
         );
       })}
