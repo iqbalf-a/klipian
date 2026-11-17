@@ -12,7 +12,7 @@
       "id": "hook",
       "kind": "hook",
       "dur": 3,
-      "narration": "Kenapa tombol tunda bikin kita makin capek?",
+      "narration": "Kenapa tombol tunda bikin makin capek?",
       "text": "Tunda, makin capek?",
       "scene": {
         "bg": "brand",
@@ -141,7 +141,7 @@
       "id": "tips",
       "kind": "tips",
       "dur": 3,
-      "narration": "Coba bangun di jam yang sama setiap hari, dan cahaya pagi bisa membantu.",
+      "narration": "Bangun di jam sama tiap hari.",
       "text": "Bangun di jam yang sama",
       "scene": {
         "bg": "brand",
