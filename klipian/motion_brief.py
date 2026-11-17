@@ -273,7 +273,7 @@ Some assistants only chat. If you cannot run a command or write a file, do **onl
 2. Then one fenced `json` block with the story (the Answer format below).
 3. Then one fenced `text` block with the narration: each beat's narration on its own line, plain words only, no tags, no headings, no timings.
 4. Do not say that a folder, a validation or a style check exists. Say what you could not do.
-The person pastes the story into klipian's `/remotion` page (step 3, "Agen tidak bisa menjalankan perintah?"). klipian then shows "Video belum dibuat" until the folder is made in a session that can run commands."""
+The person pastes the story into klipian's `/remotion` page (step 3, "The agent cannot run commands?"). klipian then shows that the video is not made yet until the folder is made in a session that can run commands."""
 
 # The smallest custom video: the scene of a video is only this much code. `StoryVideo` plays the story, `Scene` draws one beat.
 MINIMAL_VIDEO = """```tsx
@@ -380,7 +380,7 @@ Target voice apps: {targets}. For each one run, from the repository root (`<targ
 Expected: the text to copy into that app. Paste it in your reply as it is, one block per app.
 
 {STEP_MARK}8: tell the person
-In plain words: open `/remotion`, choose the folder `remotion/videos/{slug}` of the repository (on ian's PC `D:\\github-repos\\klipian\\remotion\\videos\\{slug}`), press "Ambil cerita dari folder", make the voice in their own voice app, choose the audio file, press Cocokkan, look at the preview, then Render.
+In plain words: open `/remotion`, choose the folder `remotion/videos/{slug}` of the repository (on ian's PC `D:\\github-repos\\klipian\\remotion\\videos\\{slug}`), press "Load the story from the folder", make the voice in their own voice app, choose the audio file, press "Match with the narration", look at the preview, then Render.
 Expected: your reply ends with these instructions."""
 
 
@@ -550,7 +550,7 @@ def build_revise_brief(p: dict, beat_ids: list[str], note: str = "") -> str:
     """For rejected claims: only the beats that use them go back to the AI, with what was rejected and why."""
     story = _m.story_of(p["id"])
     if story is None:
-        raise _m.MotionError("no_story", "Belum ada cerita untuk direvisi.")
+        raise _m.MotionError("no_story", "There is no story to revise yet.")
     known = [b["id"] for b in story["beats"]]
     beat_ids = [b for b in dict.fromkeys(beat_ids or []) if b in known]
     facts = _m.facts_of(p["id"])
@@ -558,7 +558,7 @@ def build_revise_brief(p: dict, beat_ids: list[str], note: str = "") -> str:
     if not beat_ids:                                        # by default: the beats that use a rejected claim
         beat_ids = [b for b in known if any(b in f["beats"] for _, f in rejected)]
     if not beat_ids:
-        raise _m.MotionError("nothing", "Tolak satu klaim dulu (atau pilih beat yang direvisi).")
+        raise _m.MotionError("nothing", "Reject a claim first (or choose the beats to revise).")
     cat = _m._catalog()
     parts = [b for b in story["beats"] if b["id"] in beat_ids]
     bad = "\n".join(f"- Claim {i}: {f['text']}\n  Sources given: {', '.join(f['sources'])}" + (f"\n  Why it was rejected: {f['note']}" if f.get("note") else "") for i, f in rejected) \

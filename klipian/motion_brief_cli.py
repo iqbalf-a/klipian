@@ -17,7 +17,7 @@ def brief_for(topic: str, look: str | None = None, duration: int = DURATION, loo
         options["voiceTargets"] = voice
     motion.normalize_options(options)           # a wrong voice app or music is refused here, with the same message as the page
     if duration not in motion_brief.STRUCTURE:
-        raise motion.MotionError("duration", f"durasi: pilih salah satu dari {', '.join(map(str, motion_brief.STRUCTURE))}.")
+        raise motion.MotionError("duration", f"duration: choose one of {', '.join(map(str, motion_brief.STRUCTURE))}.")
     return motion_brief.build_brief({"topic": topic.strip(), "duration": duration, "notes": notes.strip(), "options": options, "look": look, "agent": True})
 
 

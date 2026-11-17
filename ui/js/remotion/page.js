@@ -1,15 +1,15 @@
 /* klipian — the /remotion page: a fun-fact motion video from a typed topic, with no API key (klipian/motion.py)
    ==========================================================================
    The flow, top to bottom for the chosen video (Khusus, the main flow; ui/js/remotion/steps.js has the order and the one-line summaries):
-     1 Video baru           the topic, the length and the options (loop, "Intip yuk!", music, voice apps) are chosen in the form on the home page
-     2 Brief                one file to copy into Claude Code; "Ubah pilihan" changes the options and the brief follows
-     3 Ambil cerita         the story.json of the folder Claude Code made; the storyboard (texts and timing) is read and edited here
-     4 Cek fakta + judul    every claim and its sources, checked or rejected by a person; one title
-     5 Naskah suara         the text for each voice app, used BEFORE the voice is made
-     6 Impor suara          the voice file, matched to the words; the match table
-     7 Pratinjau            a half-size draft with sound
+     1 New video            the topic, the length and the options (loop, "Intip yuk!", music, voice apps) are chosen in the form on the home page
+     2 Brief                one file to copy into Claude Code; "Change the video options" changes the options and the brief follows
+     3 Load the story       the story.json of the folder Claude Code made; the storyboard (texts and timing) is read and edited here
+     4 Facts and title      every claim and its sources, checked or rejected by a person; one title
+     5 Voice script         the text for each voice app, used BEFORE the voice is made
+     6 Import voice         the voice file, matched to the words; the match table
+     7 Preview              a half-size draft with sound
      8 Render               refused by the server until the claims, the title, the folder and the voice agree; progress, time left and Cancel
-   Steps are folded: only the active one is open (the server's next step), a finished one shows a summary line. Otomatis (under "Pilihan lain")
+   Steps are folded: only the active one is open (the server's next step), a finished one shows a summary line. Template (under "More options")
    has the AI's pasted answer in place of the folder.
    This file holds the step table and the job poll; page-core.js (loads first) holds the shared state and helpers; the rest is split by part: page-list.js, page-detail.js, page-steps-1.js (steps 1-3),
    page-steps-2.js (4-6), page-steps-3.js (7-8). It loads last (remotion.html) and starts the page.
@@ -48,17 +48,17 @@ async function tick() {
   if (was.state === j.job.state) return;
   const key = `motion:${id}:${j.job.started}`;
   if (j.job.kind === "render" && j.job.state === "done") {
-    notifyDone({ key, title: "Video motion selesai", body: CUR.title || CUR.topic, kind: "success", action: { label: "Buka Clips", onClick: () => { location.href = "/workspace"; } } });
+    notifyDone({ key, title: "Motion video finished", body: CUR.title || CUR.topic, kind: "success", action: { label: "Open Clips", onClick: () => { location.href = "/workspace"; } } });
   } else if (j.job.state === "failed") {
-    notifyDone({ key, title: j.job.kind === "render" ? "Render gagal" : "Storyboard gagal", body: j.job.message || "", kind: "failure" });
+    notifyDone({ key, title: j.job.kind === "render" ? "Render failed" : "Storyboard failed", body: j.job.message || "", kind: "failure" });
   } else if (j.job.state === "cancelled") {
-    notifyDone({ key, title: "Dibatalkan", kind: "failure", quiet: true });
+    notifyDone({ key, title: "Cancelled", kind: "failure", quiet: true });
   } else if (j.job.kind === "voice" && j.job.state === "done") {
-    notifyDone({ key, title: "Narasi dicocokkan", body: j.job.note || "", kind: "success", quiet: true });
+    notifyDone({ key, title: "Narration matched", body: j.job.note || "", kind: "success", quiet: true });
   } else if (j.job.kind === "preview-video" && j.job.state === "done") {
-    notifyDone({ key, title: "Pratinjau video siap", body: j.job.message || "", kind: "success", quiet: true });
+    notifyDone({ key, title: "Video preview ready", body: j.job.message || "", kind: "success", quiet: true });
   } else if (j.job.kind === "preview" && j.job.state === "done") {
-    notifyDone({ key, title: "Gambar storyboard siap", kind: "success", quiet: true });
+    notifyDone({ key, title: "Storyboard pictures ready", kind: "success", quiet: true });
   }
 }
 

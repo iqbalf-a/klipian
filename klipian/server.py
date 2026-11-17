@@ -822,7 +822,7 @@ class Handler(BaseHTTPRequestHandler):
             elif kind == "main":
                 text = _motion.build_brief(p)
             else:
-                raise _motion.MotionError("kind", "kind: main atau revise")
+                raise _motion.MotionError("kind", "kind: main or revise")
             _motion.note_brief(p['id']) if kind == 'main' and not peek else None
             reply = {"brief": text, "file": f"{p['id']}-{'revisi' if kind == 'revise' else 'brief'}.md"}
             if kind == "main":                                # the short -create command, and whether this checkout has the skill that runs it
@@ -882,7 +882,7 @@ class Handler(BaseHTTPRequestHandler):
         except ValueError:
             n = 0
         if n <= 0 or n > _motion.MAX_VOICE_BYTES:
-            return self._motion_reply(lambda: (_ for _ in ()).throw(_motion.MotionError("voice", "Narasi harus 1 byte sampai 300 MB.")))
+            return self._motion_reply(lambda: (_ for _ in ()).throw(_motion.MotionError("voice", "The narration must be 1 byte to 300 MB.")))
         data = bytearray()
         while len(data) < n:
             chunk = self.rfile.read(min(1 << 20, n - len(data)))

@@ -91,4 +91,4 @@ Answer in Indonesian, at most 6 short lines, nothing else:
 5. at most 2 one-line points ian must decide
 6. cloud: "sudah di main, tinggal git pull di PC ian"; local: "sudah di main; git pull, lalu di /remotion langkah 3 pilih folder remotion/videos/<slug>"
 
-Do NOT print the narration texts (they are in the story; /remotion step "Naskah suara" shows them), no /remotion steps, no file lists, no source lists, no recap of the video.
+Do NOT print the narration texts (they are in the story; /remotion step "Voice script" shows them), no /remotion steps, no file lists, no source lists, no recap of the video.

@@ -6,8 +6,8 @@ function folderStatus(c, picked) {
   return c.slug === picked ? "current" : c.takenBy ? "other" : "free";
 }
 
-const FOLDER_SORTS = { recent: "Terbaru", name: "Nama A-Z", duration: "Durasi", free: "Belum diambil dulu" };
-const FOLDER_FILTERS = { all: "Semua", free: "Belum diambil", taken: "Sudah diambil" };
+const FOLDER_SORTS = { recent: "Newest", name: "Name A-Z", duration: "Duration", free: "Not taken first" };
+const FOLDER_FILTERS = { all: "All", free: "Not taken", taken: "Taken" };
 
 // the folders to show: the search matches the title and the slug (any case), the filter keeps by status, the sort orders (a tie falls back to newest)
 function pickFolders(list, { q = "", filter = "all", sort = "recent" } = {}, picked = "") {

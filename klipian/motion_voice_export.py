@@ -179,34 +179,34 @@ def narration_export(story: dict, target: str, options: dict | None = None) -> d
     Studio (the Gemini TTS docs, checked 2026-10-28): the script with expression tags from the verified list, and the style description as separate
     fields. The tags exist only in this export: the story has none."""
     if target not in _m.VOICE_TARGETS:
-        raise _m.MotionError("voice", f"Aplikasi suara: pilih salah satu dari {', '.join(_m.VOICE_TARGETS)}.")
+        raise _m.MotionError("voice", f"Voice app: choose one of {', '.join(_m.VOICE_TARGETS)}.")
     parts = narration_parts(story)
     total_low = round(sum(p["low"] for p in parts), 1)
     total_high = round(sum(p["high"] for p in parts), 1)
-    head = f"Total sekitar {total_low:.0f} sampai {total_high:.0f} detik, {len(parts)} bagian. Target: {_m.VOICE_TARGETS[target]}."
+    head = f"About {total_low:.0f} to {total_high:.0f} seconds in all, {len(parts)} part(s). Target: {_m.VOICE_TARGETS[target]}."
     base = {"target": target, "label": _m.VOICE_TARGETS[target], "total": {"low": total_low, "high": total_high},
             "parts": [{k: v for k, v in p.items() if k != "units"} for p in parts]}
     if target == "elevenlabs":
         el = _elevenlabs(story, parts)
-        settings = "Stability: rendah ke sedang (lebih ekspresif); Similarity: sedang. Speed dan Style tidak ada di v4. Uji dulu tanpa tag."
-        model = "Model: Eleven v4 (Eleven v3 jika v4 tidak ada)."
-        info = (f"{head}\n\nPENGATURAN (di ElevenLabs, bukan teks)\n{settings}\n{model}\n\n"
-                "Catatan: tag memakai kurung siku dari daftar resmi ElevenLabs (diperiksa 28 Okt 2026), bahasa Inggris. "
-                "Jeda dibuat dengan ... dan [pause] karena <break> tidak didukung di Eleven v4 dan v3. "
-                "Belum diverifikasi: tag pada teks Indonesia, dan dukungan tag di Multilingual v2 dan Flash v2.5.")
-        return {**base, "status": "tag dari daftar resmi ElevenLabs; jeda dengan ... dan [pause]; belum diverifikasi untuk teks Indonesia",
+        settings = "Stability: low to medium (more expressive); Similarity: medium. Speed and Style do not exist in v4. Test without tags first."
+        model = "Model: Eleven v4 (Eleven v3 if v4 is not there)."
+        info = (f"{head}\n\nSETTINGS (in ElevenLabs, not text)\n{settings}\n{model}\n\n"
+                "Note: the tags use square brackets from ElevenLabs' official list (checked 28 Oct 2026), in English. "
+                "Pauses are made with ... and [pause] because <break> is not supported in Eleven v4 and v3. "
+                "Not verified: tags on Indonesian text, and tag support in Multilingual v2 and Flash v2.5.")
+        return {**base, "status": "tags from ElevenLabs' official list; pauses with ... and [pause]; not verified for Indonesian text",
                 "style": None, "styleLong": None, "script": el["script"], "settings": settings, "model": model, "tags": el["tags"], "text": el["script"], "info": info}
     if target == "voicestudio":
         plain = [_plain(p["units"]) for p in parts]
         base["parts"] = [{**bp, "text": txt} for bp, txt in zip(base["parts"], plain)]
         text = "\n".join(plain)
-        info = f"{head} VoiceStudio membaca semua karakter yang ditempel: teks ini polos, hanya kalimat narasinya, tanpa penanda atau tag. Tiap bagian bisa disalin sendiri."
-        return {**base, "status": "teks polos: hanya kalimat narasinya", "style": None, "styleLong": None, "script": text, "tags": [], "text": text, "info": info}
+        info = f"{head} VoiceStudio reads every character you paste: this text is plain, only the narration sentences, with no marker or tag. Each part can be copied on its own."
+        return {**base, "status": "plain text: only the narration sentences", "style": None, "styleLong": None, "script": text, "tags": [], "text": text, "info": info}
     script, tags = _google_script(story, parts)
     style = _google_style(story)
     style_long = "Indonesian short-video science explainer. " + style[0].upper() + style[1:]
-    info = (f"{head}\n\nDESKRIPSI (gaya, bahasa Inggris)\n{style}\n\n"
-            f"DESKRIPSI LENGKAP (versi lama, opsional: bisa menggeser suara; coba yang singkat dulu)\n{style_long}\n\n"
-            "Catatan: tag memakai <...> dan bahasa Inggris, sesuai dokumen Google (diperiksa 28 Okt 2026). Belum diverifikasi: bahasa kolom gaya dan apakah halaman AI Studio memakai kolom yang sama.")
-    return {**base, "status": "tag jeda dan ekspresi dari daftar resmi; bahasa kolom gaya belum diverifikasi", "style": style, "styleLong": style_long,
+    info = (f"{head}\n\nDESCRIPTION (style)\n{style}\n\n"
+            f"FULL DESCRIPTION (old version, optional: it can shift the voice; try the short one first)\n{style_long}\n\n"
+            "Note: the tags use <...> and English, as Google's documents say (checked 28 Oct 2026). Not verified: the language of the style field and whether the AI Studio page uses the same field.")
+    return {**base, "status": "pause and expression tags from the official list; the language of the style field is not verified", "style": style, "styleLong": style_long,
             "script": script, "tags": tags, "text": script, "info": info}

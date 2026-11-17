@@ -27,8 +27,8 @@ You are the local Claude Code of this computer. The person copied a brief from t
    - `voicestudio`: plain narration only, one line per beat. Nothing else is in it: VoiceStudio reads every character aloud.
    - `elevenlabs`: one script; tags only from ElevenLabs' own list.
    - `googleai`: the script with expression tags from the verified list in `klipian/motion_voice.py` (`EXPRESSION_TAGS`), at most one per beat and six in all; the style description is a separate value. The tags are only in this export, never in the story JSON.
-   The same texts are in the page: `/remotion`, step "Naskah suara", with a copy button each.
-4. **Tell the person the next steps for `/remotion`**, in plain words: in step 3 ("Ambil cerita dari folder Claude Code"), choose the folder `remotion/videos/<slug>` and show its full path; press **Ambil cerita dari folder**. They do not need to paste the JSON. Then make the voice outside klipian; step 6 imports the audio file and matches it; look at the preview; then Render.
+   The same texts are in the page: `/remotion`, step "Voice script", with a copy button each.
+4. **Tell the person the next steps for `/remotion`**, in plain words: in step 3 ("Load the story from the Claude Code folder"), choose the folder `remotion/videos/<slug>` and show its full path; press **Load the story from the folder**. They do not need to paste the JSON. Then make the voice outside klipian; step 6 imports the audio file and matches it; look at the preview; then Render.
 5. **If you cannot run commands or write files**, use the brief's fallback: the first line `FALLBACK: story only, no video folder`, the story JSON, the narration as plain text. Do not claim a folder, a validation or a style check.
 
 ## Your answer

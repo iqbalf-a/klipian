@@ -6,13 +6,13 @@
 // ---------------------------------------------------------------------------------------------------------------------------------------
 
 function bodyPreview(d) {
-  if (!d.story) return `<p class="rm-hint">Ambil ceritanya dulu (langkah 3).</p>`;
+  if (!d.story) return `<p class="rm-hint">Load the story first (step 3).</p>`;
   const pv = d.preview, job = d.job || {};
   const busy = job.kind === "preview-video" && ["queued", "running"].includes(job.state);
   return `
-    <p>Draf video setengah ukuran, dengan narasi, efek suara, dan musik. Lihat dulu sebelum render final.</p>
-    <div class="rm-actions"><button class="btn ${pv ? "" : "main"}" type="button" data-act="previewVideo" ${busy ? "disabled" : ""}>${pv ? "Buat pratinjau lagi" : "Buat pratinjau"}</button><span class="rm-hint" id="rmPreviewVideoNote">${busy ? esc(job.message || "") : ""}</span></div>
-    ${pv && !busy ? `<video class="rm-video" controls playsinline src="${esc(profileUrl(pv.url))}"></video><p class="rm-hint">${pv.stale ? "Cerita atau suara berubah sejak pratinjau ini: buat lagi." : `Dibuat dalam ${pv.seconds} detik.`}</p>` : ""}`;
+    <p>A half-size draft of the video, with the narration, the sound effects and the music. Look at it before the final render.</p>
+    <div class="rm-actions"><button class="btn ${pv ? "" : "main"}" type="button" data-act="previewVideo" ${busy ? "disabled" : ""}>${pv ? "Make the preview again" : "Make the preview"}</button><span class="rm-hint" id="rmPreviewVideoNote">${busy ? esc(job.message || "") : ""}</span></div>
+    ${pv && !busy ? `<video class="rm-video" controls playsinline src="${esc(profileUrl(pv.url))}"></video><p class="rm-hint">${pv.stale ? "The story or the voice changed since this preview: make it again." : `Made in ${pv.seconds} s.`}</p>` : ""}`;
 }
 
 async function startPreviewVideo() {
@@ -32,26 +32,26 @@ function jobHTML(job, kind) {
   return `<div class="rm-job" data-state="${esc(job.state)}">
       ${active ? `<div class="rm-bar"><i style="width:${job.percent || 0}%"></i></div>` : ""}
       <div class="rm-jobline"><span class="rm-jobmsg">${esc(job.message || "")}</span>${active ? `<span class="rm-eta">${job.percent || 0}% ${esc(fmtEta(job.eta))}</span>` : ""}
-        ${active && kind === "render" ? `<button class="btn sm danger" type="button" data-act="cancel">Batal</button>` : ""}</div>
+        ${active && kind === "render" ? `<button class="btn sm danger" type="button" data-act="cancel">Cancel</button>` : ""}</div>
     </div>`;
 }
 
 // the render block is the server's (the same facts as the next step): the page only shows it
 function bodyRender(d) {
-  if (!d.story) return `<p class="rm-hint">Ambil ceritanya dulu (langkah 3).</p>`;
+  if (!d.story) return `<p class="rm-hint">Load the story first (step 3).</p>`;
   const job = d.job || {};
   const busy = ["queued", "running"].includes(job.state);
   const rb = d.renderBlock || { state: "belum", can: false, text: "", reasons: [] };
   const r = d.render;
   return `
-    <p class="rm-hint">Akan dirender dengan: ${d.kind === "custom" && d.composition ? `video khusus <b>${esc(d.composition)}</b>` : d.kind === "custom" ? "video khusus (folder belum dipilih)" : "template klipian"}. Panjang video: ${esc(lengthText(d.length))}.</p>
+    <p class="rm-hint">It will be rendered with: ${d.kind === "custom" && d.composition ? `the custom video <b>${esc(d.composition)}</b>` : d.kind === "custom" ? "a custom video (no folder chosen yet)" : "klipian's template"}. Video length: ${esc(lengthText(d.length))}.</p>
     <div class="rm-gate" data-state="${esc(rb.state)}">${rb.reasons.length && !rb.can ? `<b>${esc(rb.text)}</b><ul>${rb.reasons.map((g) => `<li>${esc(g)}</li>`).join("")}</ul>` : esc(rb.text)}</div>
     <div class="rm-actions">
-      <button class="btn ${rb.state === "selesai" ? "" : "main"} large" type="button" data-act="render" ${!rb.can || busy ? "disabled" : ""}>${r ? (rb.state === "usang" ? "Render ulang" : "Render lagi") : "Render"}</button>
-      <span class="rm-hint">MP4 9:16 1080×1920, 30 fps, dengan sound effect.</span>
+      <button class="btn ${rb.state === "selesai" ? "" : "main"} large" type="button" data-act="render" ${!rb.can || busy ? "disabled" : ""}>${r ? (rb.state === "usang" ? "Render again (stale)" : "Render again") : "Render"}</button>
+      <span class="rm-hint">MP4 9:16 1080×1920, 30 fps, with sound effects.</span>
     </div>
     ${jobHTML(job, "render")}
-    ${r ? `<div class="rm-note">${r.current ? "Hasil terbaru" : "Hasil terakhir"}: <b>${esc(r.file)}</b> (${r.seconds} detik render, ${r.kind === "custom" ? "video khusus" : "template"}). <a class="rm-link" href="/workspace">Buka di Clips</a> untuk jadwal dan unggah.</div>` : ""}`;
+    ${r ? `<div class="rm-note">${r.current ? "Current result" : "Last result"}: <b>${esc(r.file)}</b> (rendered in ${r.seconds} s, ${r.kind === "custom" ? "custom video" : "template"}). <a class="rm-link" href="/workspace">Open in Clips</a> to schedule and upload.</div>` : ""}`;
 }
 
 async function startRender() {
@@ -72,7 +72,7 @@ async function cancelJob() {
 }
 
 async function deleteVideo() {
-  const ok = await confirmDialog({ title: "Hapus video ini?", message: `"${CUR.topic}": cerita, centang fakta dan gambar ikut terhapus. Video yang sudah ada di Clips tetap ada.`, confirmText: "Hapus", cancelText: "Batal" });
+  const ok = await confirmDialog({ title: "Delete this video?", message: `"${CUR.topic}": the story, the fact checks and the pictures are deleted with it. A video already in Clips stays.`, confirmText: "Delete", cancelText: "Cancel" });
   if (!ok) return;
   await call(`${API}/delete`, { id: CUR.id });
   CUR = null;

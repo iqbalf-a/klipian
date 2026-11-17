@@ -25,17 +25,17 @@
       <a href="/sources">Sources</a>
       <a href="/remotion" aria-current="page">Motion</a>
       <a href="/autopilot">Autopilot</a>
-      <a href="/guide#motion" title="Panduan terbuka di tab baru">Guide</a>
+      <a href="/guide#motion" title="The guide opens in a new tab">Guide</a>
     </nav>
     <div id="profileChip"></div>
     <button class="btn quiet" id="themeBtn" type="button" aria-live="polite"></button>
     <div class="shortcut-help">
-      <button class="btn quiet" id="shortcutHelpBtn" type="button" title="Tentang halaman ini" aria-label="Tentang halaman ini" aria-expanded="false">?</button>
+      <button class="btn quiet" id="shortcutHelpBtn" type="button" title="About this page" aria-label="About this page" aria-expanded="false">?</button>
       <div class="shortcut-panel" id="shortcutPanel" hidden role="tooltip">
-        <p><b>Alur</b> topik, brief, cerita dari folder Claude Code, cek fakta, suara, pratinjau, render</p>
-        <p><b>Tanpa API key</b> brief dibuka di Claude Code di komputer ini</p>
-        <p><b>Hasil</b> masuk ke Clips (folder motion), siap diunggah</p>
-        <p class="shortcut-guide"><a href="/guide#motion" target="_blank" rel="noopener">Panduan: video motion →</a></p>
+        <p><b>Flow</b> topic, brief, story from the Claude Code folder, fact check, voice, preview, render</p>
+        <p><b>No API key</b> the brief is opened in Claude Code on this computer</p>
+        <p><b>Result</b> goes to Clips (the motion folder), ready to upload</p>
+        <p class="shortcut-guide"><a href="/guide#motion" target="_blank" rel="noopener">Guide: motion video →</a></p>
       </div>
     </div>
     <span id="topClock"></span>
@@ -46,68 +46,68 @@
     <div class="rm-layout">
 
       <!-- ═════════ home: the form for a new topic and the table of the topics already made ═════════ -->
-      <section class="rm-home" id="rmHome" aria-label="Video motion">
-        <h1 class="rm-h1">Video motion</h1>
+      <section class="rm-home" id="rmHome" aria-label="Motion video">
+        <h1 class="rm-h1">Motion video</h1>
         <form class="ws-panel rm-new" id="rmNew" autocomplete="off">
-          <h2 class="rm-h2">Topik baru</h2>
+          <h2 class="rm-h2">New topic</h2>
           <div class="rm-row">
-            <label class="ws-field rm-grow">Topik
-              <input class="ws-input rm-boxed" id="rmTopic" type="text" maxlength="200" required placeholder="mis. fakta seru tentang colokan listrik panas">
+            <label class="ws-field rm-grow">Topic
+              <input class="ws-input rm-boxed" id="rmTopic" type="text" maxlength="200" required placeholder="e.g. fakta seru tentang colokan listrik panas">
             </label>
-            <div class="ws-field" role="group" aria-label="Durasi">
-              Durasi
+            <div class="ws-field" role="group" aria-label="Duration">
+              Duration
               <div class="rm-seg" id="rmDur">
-                <button class="btn" type="button" data-d="30" aria-pressed="false">30 detik</button>
-                <button class="btn" type="button" data-d="45" aria-pressed="true">45 detik</button>
-                <button class="btn" type="button" data-d="60" aria-pressed="false">60 detik</button>
+                <button class="btn" type="button" data-d="30" aria-pressed="false">30 s</button>
+                <button class="btn" type="button" data-d="45" aria-pressed="true">45 s</button>
+                <button class="btn" type="button" data-d="60" aria-pressed="false">60 s</button>
               </div>
             </div>
           </div>
-          <span class="rm-hint">60 detik untuk topik yang butuh 3 langkah penjelasan.</span>
+          <span class="rm-hint">60 s for a topic that needs 3 steps of explanation.</span>
           <div class="rm-group" id="rmOptsNew">
             <div class="rm-row rm-row-opts">
-              <label class="ws-field">Gaya video
-                <select class="ws-input rm-boxed" data-opt="look"><option value="auto" selected>Otomatis (dipilih sesuai topik)</option><option value="iso">2.5D isometrik</option><option value="2d">2D</option><option value="text">Teks</option></select>
+              <label class="ws-field">Look
+                <select class="ws-input rm-boxed" data-opt="look"><option value="auto" selected>Automatic (chosen from the topic)</option><option value="iso">2.5D isometric</option><option value="2d">2D</option><option value="text">Text</option></select>
               </label>
-              <label class="ws-field">Musik
-                <select class="ws-input rm-boxed" data-opt="music"><option value="auto" selected>Otomatis (sesuai topik)</option><option value="sunny">Ceria</option><option value="bounce">Pantul</option><option value="glow">Hangat</option><option value="curious">Penasaran</option><option value="circuit">Teknologi (sirkuit)</option><option value="neon">Teknologi (neon)</option><option value="pixel">Teknologi (piksel)</option><option value="study">Belajar</option><option value="breeze">Santai</option><option value="calm">Tenang (lama)</option><option value="tech">Teknologi (lama)</option><option value="none">Tanpa musik</option></select>
+              <label class="ws-field">Music
+                <select class="ws-input rm-boxed" data-opt="music"><option value="auto" selected>Automatic (from the topic)</option><option value="sunny">Cheerful</option><option value="bounce">Bouncy</option><option value="glow">Warm</option><option value="curious">Curious</option><option value="circuit">Technology (circuit)</option><option value="neon">Technology (neon)</option><option value="pixel">Technology (pixel)</option><option value="study">Study</option><option value="breeze">Relaxed</option><option value="calm">Calm (old)</option><option value="tech">Technology (old)</option><option value="none">No music</option></select>
               </label>
-              <label class="rm-check"><input type="checkbox" data-opt="loop" checked> Loop (akhir kembali ke adegan awal)</label>
-              <label class="rm-check"><input type="checkbox" data-opt="sting" checked> "Intip yuk!" setelah hook</label>
+              <label class="rm-check"><input type="checkbox" data-opt="loop" checked> Loop (the end returns to the first scene)</label>
+              <label class="rm-check"><input type="checkbox" data-opt="sting" checked> "Intip yuk!" after the hook</label>
             </div>
-            <span class="rm-hint">Otomatis: Claude Code memilih gaya yang paling cocok dengan topik (B28).</span>
+            <span class="rm-hint">Automatic: Claude Code chooses the look that fits the topic best (B28).</span>
             <details class="rm-adv">
-              <summary>Pilihan lain (aplikasi suara, catatan, jenis video)</summary>
-              <div class="rm-subgroup" role="group" aria-label="Aplikasi suara">
-                <span class="rm-sublabel">Aplikasi suara (centang yang dipakai; naskahnya dibuat untuk tiap aplikasi)</span>
+              <summary>More options (voice apps, notes, video kind)</summary>
+              <div class="rm-subgroup" role="group" aria-label="Voice apps">
+                <span class="rm-sublabel">Voice apps (tick the ones you use; the script is made for each app)</span>
                 <label class="rm-check"><input type="checkbox" data-opt-app="voicestudio" checked> VoiceStudio</label>
                 <label class="rm-check"><input type="checkbox" data-opt-app="elevenlabs" checked> ElevenLabs</label>
                 <label class="rm-check"><input type="checkbox" data-opt-app="googleai" checked> Google AI Studio</label>
               </div>
-              <label class="ws-field">Catatan untuk AI (opsional)
-                <textarea class="ws-input rm-boxed" id="rmNotes" rows="3" maxlength="2000" placeholder="mis. fokus ke stop kontak rumah biasa"></textarea>
+              <label class="ws-field">Notes for the AI (optional)
+                <textarea class="ws-input rm-boxed" id="rmNotes" rows="3" maxlength="2000" placeholder="e.g. fokus ke stop kontak rumah biasa"></textarea>
               </label>
-              <label class="ws-field">Jenis video
-                <select class="ws-input rm-boxed" data-opt="kind"><option value="khusus" selected>Khusus: video buatan Claude Code, tampilan terbaik</option><option value="otomatis">Otomatis: template klipian, draf cepat</option></select>
+              <label class="ws-field">Video kind
+                <select class="ws-input rm-boxed" data-opt="kind"><option value="khusus" selected>Custom: a video built by Claude Code, the best look</option><option value="otomatis">Template: klipian's template, a quick draft</option></select>
               </label>
             </details>
           </div>
           <div class="flex items-center gap-2">
-            <button class="btn main" type="submit">Buat</button>
+            <button class="btn main" type="submit">Create</button>
             <span class="rm-err" id="rmNewErr" role="alert"></span>
           </div>
         </form>
         <details class="rm-how">
-          <summary>Cara kerja</summary>
+          <summary>How it works</summary>
           <ol>
-            <li>Tulis topik, pilih durasi dan pilihan videonya (loop, "Intip yuk!", musik, aplikasi suara).</li>
-            <li>Salin brief ke Claude Code yang dibuka di folder klipian. Ia mencari web, menulis cerita, dan membuat folder videonya.</li>
-            <li>Pilih folder hasilnya dan ambil ceritanya, cek setiap klaim beserta sumbernya, lalu pilih judul.</li>
-            <li>Buat naskah untuk aplikasi suara, impor suaranya dan cocokkan, lihat pratinjau, lalu Render. Hasilnya masuk ke Clips, siap diunggah.</li>
+            <li>Write the topic, choose the duration and the video options (loop, "Intip yuk!", music, voice apps).</li>
+            <li>Copy the brief into Claude Code opened in the klipian folder. It searches the web, writes the story and makes the video folder.</li>
+            <li>Choose the folder it made and load the story, check every claim with its source, then choose a title.</li>
+            <li>Make the script for the voice app, import the voice and match it, look at the preview, then Render. The result goes to Clips, ready to upload.</li>
           </ol>
-          <p class="rm-hint">Tanpa API key: klipian bekerja di komputer ini, dan AI-nya adalah Claude Code di komputer ini.</p>
+          <p class="rm-hint">No API key: klipian works on this computer, and its AI is Claude Code on this computer.</p>
         </details>
-        <div class="rm-listhead"><h2 class="rm-h2" id="rmListHead">Topik yang sudah dibuat</h2></div>
+        <div class="rm-listhead"><h2 class="rm-h2" id="rmListHead">Topics already made</h2></div>
         <div class="rm-lbar" id="rmListBar" hidden></div>
         <div id="rmList" class="rm-list" role="list"></div>
         <div class="pager" id="rmPager" hidden></div>

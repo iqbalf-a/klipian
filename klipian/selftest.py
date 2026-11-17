@@ -6917,7 +6917,7 @@ def check_motion() -> tuple[str, str]:
         if call("GET", f"/api/motion/status?id={tid}")[1]["job"]["state"] != "idle":
             problems.append("a refused render must not start a job")
         st, j = post("facts", {"id": tid, "claims": [{"index": 0, "status": "rejected", "note": "sumbernya tidak menyebut itu"}]})
-        if j.get("gate", [""])[0] != "Klaim 1 ditolak: minta revisi beat yang memakainya." or post("render", {"id": tid})[0] != 409:
+        if j.get("gate", [""])[0] != "Claim 1 is rejected: ask for a revision of the beats that use it." or post("render", {"id": tid})[0] != 409:
             problems.append(f"a rejected claim blocks the render: {str(j)[:150]}")
         st, j = post("facts", {"id": tid, "title": "judul lain"})
         if st != 400:
@@ -7290,7 +7290,7 @@ def check_voice() -> tuple[str, str]:
             problems.append("no word ends outside its beat")
         if hook["words"][0]["w"] != hook_words[0]:
             problems.append("the captions show the words as the story wrote them")
-        if d["voice"]["total"] != timed["duration"] or "6,0" not in d["voice"]["note"] or "2 detik" not in d["voice"]["note"]:
+        if d["voice"]["total"] != timed["duration"] or "6.0" not in d["voice"]["note"] or "2 seconds" not in d["voice"]["note"]:
             problems.append(f"the total and how it compares with the plan are reported: {d['voice']}")
         if motion.story_of(pid) != tiny:
             problems.append("the story the AI wrote is never changed by the alignment")
@@ -7317,7 +7317,7 @@ def check_voice() -> tuple[str, str]:
             motion._whisper = fake
             job = (post("voice-align", {"id": pid}), wait(pid))[1]
             d = detail(pid)
-            if job["state"] != "done" or d["voice"]["method"] != "estimate" or "diperkirakan" not in job.get("message", ""):
+            if job["state"] != "done" or d["voice"]["method"] != "estimate" or "estimate" not in job.get("message", ""):
                 problems.append(f"the recogniser {what}: the estimate is used and said: {job} {d['voice']}")
             elif abs(motion.render_story(pid)["duration"] - 6.0) > 0.05:
                 problems.append(f"the recogniser {what}: the estimate still follows the audio: {motion.render_story(pid)['duration']}")
@@ -7340,7 +7340,7 @@ def check_voice() -> tuple[str, str]:
             problems.append(f"the stills of the voiced story: {job}")
         # the narration (6 s) is far from the story's 2 s: the render waits for the person's choice (the 15 % policy), then follows the voice
         st_r, j_r = post("render", {"id": pid})
-        if st_r != 409 or "lanjut" not in str(j_r.get("error", "")):
+        if st_r != 409 or "continue" not in str(j_r.get("error", "")):
             problems.append(f"a render beyond the length policy waits for the choice: {st_r} {str(j_r)[:120]}")
         post("voice-length", {"id": pid, "choice": "continue"})
         st, j = post("render", {"id": pid})
@@ -7646,7 +7646,7 @@ def check_voiceparts() -> tuple[str, str]:
             motion.render(pid)
             problems.append("a render beyond the length policy is refused until the person chooses")
         except motion.MotionError as exc:
-            if exc.code != "gate" or "lanjut" not in exc.message:
+            if exc.code != "gate" or "continue" not in exc.message:
                 problems.append(f"the render refusal says the choice: {exc.code} {exc.message[:120]}")
         motion.choose_length(pid, "continue")
         if motion.voice_info(pid)["lengthChoice"] != "continue":
@@ -7764,7 +7764,7 @@ def check_motionopts() -> tuple[str, str]:
     if any(ch in vs["text"] for ch in "<>[]") or "pause" in vs["text"] or "Bagian" in vs["text"] or "sekitar" in vs["text"]:
         problems.append("the VoiceStudio text is plain narration, with no header, no count and no tag")
     el = motion.narration_export(story, "elevenlabs")
-    if "<break" in el["script"] or "belum diverifikasi" not in el["status"]:
+    if "<break" in el["script"] or "not verified" not in el["status"]:
         problems.append("the ElevenLabs text has no tags, and says the pause tags are not verified")
     gg = motion.narration_export(story, "googleai")
     if gg["script"].count("<long pause>") != 1 or "<short pause>" in gg["script"]:
@@ -7786,7 +7786,7 @@ def check_motionopts() -> tuple[str, str]:
     total = motion.narration_export(long_story, "voicestudio")["total"]
     if abs(total["low"] - sum(p["low"] for p in parts)) > 0.1:
         problems.append("the total is the parts' sum")
-    if not motion.narration_export(long_story, "voicestudio")["info"].startswith("Total sekitar"):
+    if not motion.narration_export(long_story, "voicestudio")["info"].startswith("About "):
         problems.append("the export's info (outside the copied text) starts with the total")
     try:
         motion.narration_export(story, "suara")
@@ -7801,7 +7801,7 @@ def check_motionopts() -> tuple[str, str]:
         motion.normalize_options({"voiceTargets": []})
         problems.append("an empty list of voice apps is refused")
     except motion.MotionError as exc:
-        if "minimal satu" not in exc.message:
+        if "at least one" not in exc.message:
             problems.append(f"the refusal says to choose one app: {exc.message}")
     old_style = motion.normalize_options({"voiceTarget": "elevenlabs"})
     if old_style["voiceTargets"] != list(motion.VOICE_TARGETS) or old_style["voiceTargetFirst"] != "elevenlabs" or "voiceTarget" in old_style:
@@ -7844,7 +7844,7 @@ def check_motionstate() -> tuple[str, str]:
         ({**base, "title": False}, "title"),
         ({**base, "custom": True, "folder": None}, "folder"),
         ({**base, "voice": True}, "align"),
-        ({**base, "gate": ["klaim belum dicek"]}, "blocked"),
+        ({**base, "gate": ["a claim is not checked"]}, "blocked"),
         ({**base, "render": "current"}, "clips"),
         ({**base, "render": "stale"}, "render"),
         (base, "render"),
@@ -7861,7 +7861,7 @@ def check_motionstate() -> tuple[str, str]:
     chips = {c["key"]: c["state"] for c in motion.stage_chips({**base, "pending": 1, "voice": True, "aligned": True, "stills": "stale", "render": "stale"})}
     if chips.get("klaim") != "perlu" or chips.get("suara") != "selesai" or chips.get("gambar") != "usang" or chips.get("render") != "usang":
         problems.append(f"the stage chips show the state: {chips}")
-    blocked = {c["key"]: c["state"] for c in motion.stage_chips({**base, "custom": True, "folder": "folder berubah", "render": "current", "gate": ["Cerita di folder berubah: ambil ulang cerita dulu."]})}
+    blocked = {c["key"]: c["state"] for c in motion.stage_chips({**base, "custom": True, "folder": "folder berubah", "render": "current", "gate": ["The story in the folder changed: load it again first."]})}
     if blocked.get("render") != "usang" or blocked.get("cerita") != "usang":
         problems.append(f"a rendered video whose folder changed does not show its render as done: {blocked}")
     if {c["key"]: c["state"] for c in motion.stage_chips({**base, "story": False, "title": False})}.get("suara") != "tidak ada":
@@ -7884,10 +7884,10 @@ def check_motionstate() -> tuple[str, str]:
     if not cur["current"]:
         problems.append("a render of the same story and kind is current")
     stale = motion._render_now({"render": {"storyHash": h, "kind": "template", "composition": "", "file": "a.mp4"}, "options": {"kind": "khusus"}, "composition": "x"}, story)
-    if stale["current"] or "jenis video berubah" not in stale["reasons"]:
+    if stale["current"] or "the video kind changed" not in stale["reasons"]:
         problems.append(f"a render of another kind is stale: {stale}")
     changed = motion._render_now({"render": {"storyHash": "lain"}}, story)
-    if changed["current"] or "cerita atau suara berubah" not in changed["reasons"]:
+    if changed["current"] or "the story or the voice changed" not in changed["reasons"]:
         problems.append("a changed story makes the render stale")
     if motion._render_now({"render": {"storyHash": h}}, story)["current"] is not True:
         problems.append("an old record with the same story is current")
@@ -7900,7 +7900,7 @@ def check_motionstate() -> tuple[str, str]:
     if dk["kind"] != "custom" or dk["next"]["key"] != "folder":
         problems.append(f"a new video is Khusus and asks for the brief and the folder: {dk['kind']} {dk['next']}")
     motion.note_brief(k["id"])
-    if motion.detail(k["id"])["chip"]["label"] != "Menunggu folder":
+    if motion.detail(k["id"])["chip"]["label"] != "Waiting for the folder":
         problems.append("a Khusus video whose brief was copied waits for its folder")
     p = motion.create("kenapa tes rincian", 30, "", {"kind": "otomatis"})
     d = motion.detail(p["id"])
@@ -7913,19 +7913,19 @@ def check_motionstate() -> tuple[str, str]:
     # used to say "take the story again" and "ready to render" at once)
     def status(**over):
         f = {**base, "custom": True, "folder": "cerita diambil", **over}
-        rn = {"current": {"current": True, "reasons": []}, "stale": {"current": False, "reasons": ["cerita atau suara berubah"]}}.get(f["render"])
+        rn = {"current": {"current": True, "reasons": []}, "stale": {"current": False, "reasons": ["the story or the voice changed"]}}.get(f["render"])
         return motion.project_status(f, rn, None, {"duration": 45}, {"duration": 45})
     cases = [
-        ("a changed folder over a current render", dict(folder="folder berubah", render="current", gate=["Cerita di folder berubah: ambil ulang cerita dulu."]), "retake", "menunggu", "Ambil ulang cerita"),
-        ("a taken story, nothing rendered", dict(), "render", "siap", "Siap render"),
-        ("a current render", dict(render="current"), "clips", "selesai", "Sudah dirender"),
-        ("a stale render", dict(render="stale"), "render", "usang", "Render usang"),
-        ("claims waiting", dict(pending=2, gate=["Klaim 1 belum dicek."]), "facts", "menunggu", "Menunggu klaim"),
-        ("a rejected claim", dict(rejected=1, gate=["Klaim 1 ditolak: minta revisi beat yang memakainya."]), "fix", "menunggu", "Klaim ditolak"),
-        ("no title", dict(title=False, gate=["Pilih judul."]), "title", "menunggu", "Pilih judul"),
-        ("a voice not matched", dict(voice=True, gate=["Suara belum dicocokkan dengan narasi: cocokkan dulu."]), "align", "menunggu", "Cocokkan suara"),
-        ("no story, no folder", dict(story=False, briefed=False, folder="belum dipilih", gate=["Belum ada cerita: ambil ceritanya dulu."]), "folder", "belum", "Baru"),
-        ("no story, folder chosen", dict(story=False, folder="cerita belum diambil", gate=["Belum ada cerita: ambil ceritanya dulu."]), "take", "belum", "Ambil cerita"),
+        ("a changed folder over a current render", dict(folder="folder berubah", render="current", gate=["The story in the folder changed: load it again first."]), "retake", "menunggu", "Load the story again"),
+        ("a taken story, nothing rendered", dict(), "render", "siap", "Ready to render"),
+        ("a current render", dict(render="current"), "clips", "selesai", "Rendered"),
+        ("a stale render", dict(render="stale"), "render", "usang", "Render stale"),
+        ("claims waiting", dict(pending=2, gate=["Claim 1 is not checked yet."]), "facts", "menunggu", "Claims waiting"),
+        ("a rejected claim", dict(rejected=1, gate=["Claim 1 is rejected: ask for a revision of the beats that use it."]), "fix", "menunggu", "Claim rejected"),
+        ("no title", dict(title=False, gate=["Choose a title."]), "title", "menunggu", "Choose a title"),
+        ("a voice not matched", dict(voice=True, gate=["The voice is not matched with the narration yet: match it first."]), "align", "menunggu", "Match the voice"),
+        ("no story, no folder", dict(story=False, briefed=False, folder="belum dipilih", gate=["No story yet: load the story first."]), "folder", "belum", "New"),
+        ("no story, folder chosen", dict(story=False, folder="cerita belum diambil", gate=["No story yet: load the story first."]), "take", "belum", "Load the story"),
     ]
     for label, over, want_next, want_render, want_chip in cases:
         s = status(**over)
@@ -8038,7 +8038,7 @@ def check_voicegoogle() -> tuple[str, str]:
         problems.append("a story without tips has no tips sentence")
     if "tips" in motion.narration_export({"beats": [{"id": "a", "kind": "hook", "narration": "Kenapa ini?"}]}, "googleai")["style"]:
         problems.append("a short story has no tips sentence")
-    if g["text"] != g["script"] or "DESKRIPSI" in g["text"] or "Catatan" in g["text"] or not g["info"].startswith("Total sekitar") or "DESKRIPSI" not in g["info"]:
+    if g["text"] != g["script"] or "DESCRIPTION" in g["text"] or "Note:" in g["text"] or not g["info"].startswith("About ") or "DESCRIPTION" not in g["info"]:
         problems.append("the Google copied text is the script only; the style and the notes are in the info")
     # VoiceStudio and ElevenLabs: unchanged
     for target in ("elevenlabs",):
@@ -8070,7 +8070,7 @@ def check_voicestudio() -> tuple[str, str]:
     stray = sorted(set(vs["text"]) - set(narration) - set("\n "))
     if stray:
         problems.append(f"every character of the copied text is a character of the narration: {stray}")
-    for word in ("Bagian", "sekitar", "detik", "pause", "laughter", "sigh", "Total", "Target", "DESKRIPSI", "NASKAH", "Catatan", "hapus"):
+    for word in ("Bagian", "sekitar", "detik", "pause", "laughter", "sigh", "Total", "Target", "DESKRIPSI", "DESCRIPTION", "NASKAH", "Catatan", "Note:", "hapus"):
         if word in vs["text"] and word not in narration:
             problems.append(f"no {word!r} in the copied text")
     if vs["script"] != vs["text"] or vs["tags"] or vs["style"] is not None or vs["styleLong"] is not None:
@@ -8085,7 +8085,7 @@ def check_voicestudio() -> tuple[str, str]:
     if len(long_vs["parts"]) < 2 or any(set(x["text"]) - set("kata. \n") for x in long_vs["parts"]):
         problems.append("a long narration is offered as several parts, each pure narration")
     # the counts and the hints stay outside the copied text
-    if not vs["info"].startswith("Total sekitar") or "membaca semua" not in vs["info"] or "Total" in vs["text"]:
+    if not vs["info"].startswith("About ") or "reads every character" not in vs["info"] or "About " in vs["text"]:
         problems.append("the counts and the hint are in the info, outside the copied text")
     # the old panel's choices (voice description, [laughter]) are gone
     for key in ("vsGender", "vsAge", "vsTags"):
@@ -8149,7 +8149,7 @@ def check_elevenlabs() -> tuple[str, str]:
         problems.append("the stripped ElevenLabs script is the story's narration")
     if el.get("style") is not None or not el.get("settings") or "Stability" not in el["settings"] or "Eleven v4" not in el["model"]:
         problems.append("the model and the settings are a note, not a style field")
-    if "belum diverifikasi" not in el["status"] or "Belum diverifikasi" not in el["info"] or "Belum diverifikasi" in el["text"] or "PENGATURAN" in el["text"]:
+    if "not verified" not in el["status"] or "Not verified" not in el["info"] or "Not verified" in el["text"] or "SETTINGS" in el["text"]:
         problems.append("the note says what is not verified, outside the copied script")
     want = (fx / "narration-elevenlabs.txt").read_text(encoding="utf-8")
     if el["text"] != want or el["text"] != el["script"]:
@@ -8298,22 +8298,22 @@ def check_briefbuttons() -> tuple[str, str]:
     for act in ("rmCopyBrief", "rmDownBrief", "takeFolder"):
         if page.count(f'data-act="{act}"') != 1:
             problems.append(f"the page has one {act} button, not {page.count(f'data-act={chr(34)}{act}{chr(34)}')}")
-    if "Tempel brief ke Claude Code yang dibuka di folder klipian" not in page:
+    if "Paste the brief into Claude Code opened in the klipian folder" not in page:
         problems.append("the brief step has its line above the buttons")
-    if "Claude Code menulis cerita dan membuat folder videonya" not in page:
+    if "Claude Code writes the story and makes the video folder" not in page:
         problems.append("the folder step has its note")
     if 'data-act="nextStep"' in page or "doNext" in page or 'data-act="openStep"' not in page:
         problems.append("the next-step bar opens the step; it does not repeat the action")
-    # the language: all Indonesian, no stale words, no default fieldset lines, the story's words named
-    for stale in ("ChatGPT", "Claude atau", "Muat naskah", "Bagian N", "[laughter]"):
+    # the language: all English, no stale words, no default fieldset lines, the story's words named
+    for stale in ("ChatGPT", "Claude atau", "Muat naskah", "Bagian N", "[laughter]", "Ambil cerita", "Naskah suara", "langkah 3", " detik"):
         if stale in page or stale in html:
             problems.append(f"{stale!r} is gone from the page")
     if "<fieldset" in page or "<fieldset" in html or "<legend" in page or "<legend" in html:
         problems.append("no default fieldset lines: groups are plain boxes")
     if "kindLabel(b.kind)" not in page or "itemLabel(it.type)" not in page:
-        problems.append("the beat kinds and the item types are shown by their Indonesian names")
-    if 'data-act="allRight"' not in page or "Sudah buka sumbernya?" not in page or "Benar semua" not in page:
-        problems.append('Cek fakta has "Benar semua", which asks "Sudah buka sumbernya?" once')
+        problems.append("the beat kinds and the item types are shown by their names, not the raw words")
+    if 'data-act="allRight"' not in page or "Did you open the sources?" not in page or "All correct" not in page:
+        problems.append('the facts step has "All correct", which asks "Did you open the sources?" once')
     if "narr-block" in page or "details.narr" in page or "data-vs=" in page:
         problems.append("the voice texts open nothing by themselves, and the VoiceStudio tag controls are gone")
     if page.count("voicestudio") and "VOICE_APP_ORDER.map" not in page:
@@ -8324,7 +8324,7 @@ def check_briefbuttons() -> tuple[str, str]:
             "aligned": False, "voiceStale": False, "render": "none", "gate": [], "briefed": False, "storyPath": "s.json", "stills": "none",
             "preview": "none", "folder": "belum dipilih"}
     step = motion.next_step(base)
-    if step["action"] != "brief" or step["text"] != "Salin brief ke Claude Code, lalu pilih folder hasilnya":
+    if step["action"] != "brief" or step["text"] != "Copy the brief into Claude Code, then choose the folder it made":
         problems.append(f"Khusus without a folder: the brief action and its text: {step}")
     if "command" in step or step["action"] == "copy":
         problems.append("the next step carries no command")
@@ -8334,7 +8334,7 @@ def check_briefbuttons() -> tuple[str, str]:
         problems.append("the skill asks for a path when only a name is given")
     if problems:
         return FAIL, "\n      ".join(problems)
-    return PASS, "the command button and its sentence are gone from the page and the skill; one Salin brief, one Unduh brief and one Ambil cerita (the next-step bar links to the step); all Indonesian, no fieldset lines, Benar semua with its question; the Khusus next step without a folder asks for the brief; the skill starts from a pasted brief or a path"
+    return PASS, "the command button and its sentence are gone from the page and the skill; one copy-brief, one download-brief and one load-story button (the next-step bar links to the step); all English, no fieldset lines, All correct with its question; the Khusus next step without a folder asks for the brief; the skill starts from a pasted brief or a path"
 
 
 
@@ -8389,8 +8389,8 @@ def check_music() -> tuple[str, str]:
         problems.append("music 'auto' on a technology topic gives a technology bed")
     if motion.create("Bagaimana wifi bekerja", 30, "", {"music": "glow"})["options"]["music"] != "glow":
         problems.append("an explicit music choice is kept")
-    if 'value="auto" selected>Otomatis (sesuai topik)' not in html:
-        problems.append("the new-video dialog starts on 'Otomatis (sesuai topik)'")
+    if 'value="auto" selected>Automatic (from the topic)' not in html:
+        problems.append("the new-video dialog starts on 'Automatic (from the topic)'")
     for key, label in motion.MUSIC_LABELS.items():
         if not _re.search(rf'<option value="{key}"( selected)?>{_re.escape(label)}</option>', html):
             problems.append(f"the dialog offers {label!r}")
@@ -8424,7 +8424,7 @@ def check_briefagents() -> tuple[str, str]:
         problems.append("the Otomatis catalogue says when a socket may be used")
     if "Do not use a catalogue object as a stand-in." not in motion.build_brief({"topic": "x", "duration": 45, "notes": "", "options": {"kind": "khusus"}}):
         problems.append("the Khusus catalogue says not to use a catalogue object as a stand-in")
-    if "agen" not in motion.KINDS["khusus"] or "Claude" in motion.KINDS["khusus"]:
+    if "agent" not in motion.KINDS["khusus"] or "Claude" in motion.KINDS["khusus"]:
         problems.append("the Khusus option names the agent, not the product")
     khusus_text = motion.build_brief({"topic": "x", "duration": 45, "notes": "", "options": {"kind": "khusus"}})
     for want in ("remotion/src/dictionary.ts", "remotion/src/components/Iso*.tsx", "remotion/videos/kenapa-colokan-panas", "remotion/videos/cara-kerja-hujan-buatan"):
@@ -8545,11 +8545,11 @@ def check_briefsteps() -> tuple[str, str]:
     if not d.get("story"):
         problems.append(f"the fallback answer is not accepted: {r.get('errors')}")
     else:
-        if d["next"]["key"] != "folder" or "Video belum dibuat" not in d["next"]["text"]:
+        if d["next"]["key"] != "folder" or "The video is not made yet" not in d["next"]["text"]:
             problems.append(f"after the fallback the next step says the video is not made: {d['next']}")
         reasons = " ".join(motion.render_problems(p["id"]))
-        if "Video belum dibuat" not in reasons:
-            problems.append(f"the render is refused with 'Video belum dibuat': {reasons!r}")
+        if "The video is not made yet" not in reasons:
+            problems.append(f"the render is refused with 'The video is not made yet': {reasons!r}")
         if d["renderBlock"]["state"] == "siap":
             problems.append("the render block must not be ready")
     motion.delete_project(p["id"])

@@ -16,7 +16,7 @@ async function loadList(selectId) {
   }
   const miss = byId("rmMissing");
   miss.hidden = STATUS.installed;
-  miss.innerHTML = STATUS.installed ? "" : `<p><b>Mesin video belum siap.</b> ${esc(STATUS.message)}</p>`;
+  miss.innerHTML = STATUS.installed ? "" : `<p><b>The video engine is not ready.</b> ${esc(STATUS.message)}</p>`;
   drawList();
   const want = selectId || (location.hash || "").slice(1) || CUR?.id;
   if (want && LIST.some((p) => p.id === want)) await choose(want);
@@ -44,7 +44,7 @@ window.addEventListener("hashchange", () => {
 const TOPIC_KEY = "klipian:motion-list";
 const TOPIC_UI = { ...TOPIC_DEFAULT };
 try { Object.assign(TOPIC_UI, JSON.parse(localStorage.getItem(TOPIC_KEY) || "{}")); } catch { /* none saved */ }
-const ID_PAGER = { of: "dari", rows: "Baris", rowsAria: "Baris per halaman", prev: "Sebelumnya", next: "Berikutnya" };
+const ID_PAGER = { of: "of", rows: "Rows", rowsAria: "Rows per page", prev: "Previous", next: "Next" };
 const topicPager = createPager({ key: "motion-topics", mount: byId("rmPager"), onChange: () => drawList(), labels: ID_PAGER });
 let topicSig = "";                // the search, filters and order: a change of them goes back to page 1
 const saveTopicUI = () => { try { localStorage.setItem(TOPIC_KEY, JSON.stringify(TOPIC_UI)); } catch { /* no storage */ } };
@@ -57,17 +57,17 @@ function buildListBar() {
   const seg = (name, items) => `<div class="rm-fbar" role="group" aria-label="${name}">${items.map(([v, t]) => `<button class="btn sm" type="button" data-f="${name === "Status" ? "status" : "dur"}" data-v="${v}" aria-pressed="false">${esc(t)}</button>`).join("")}</div>`;
   bar.innerHTML = `
     <div class="rm-fbar">
-      <input class="ws-input rm-boxed rm-fq" id="rmLQ" type="search" placeholder="Cari topik, judul, id, atau folder" aria-label="Cari topik" autocomplete="off">
-      <button class="btn sm" type="button" id="rmLClear" aria-label="Hapus pencarian">Hapus</button>
-      <select class="ws-input rm-boxed" id="rmLSort" aria-label="Urutkan topik">${Object.entries(TOPIC_SORTS).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("")}</select>
+      <input class="ws-input rm-boxed rm-fq" id="rmLQ" type="search" placeholder="Search topic, title, id or folder" aria-label="Search topics" autocomplete="off">
+      <button class="btn sm" type="button" id="rmLClear" aria-label="Clear the search">Clear</button>
+      <select class="ws-input rm-boxed" id="rmLSort" aria-label="Sort topics">${Object.entries(TOPIC_SORTS).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("")}</select>
     </div>
     <div class="rm-fbar">
       ${seg("Status", Object.entries(TOPIC_STATUSES))}
-      <button class="btn sm" type="button" data-f="need" aria-pressed="false">Perlu tindakan</button>
-      ${seg("Durasi", [[30, "30 dtk"], [45, "45 dtk"], [60, "60 dtk"]])}
-      <select class="ws-input rm-boxed" id="rmLMusic" aria-label="Filter musik"></select>
+      <button class="btn sm" type="button" data-f="need" aria-pressed="false">Needs action</button>
+      ${seg("Duration", [[30, "30 s"], [45, "45 s"], [60, "60 s"]])}
+      <select class="ws-input rm-boxed" id="rmLMusic" aria-label="Filter by music"></select>
     </div>
-    <div class="rm-fbar"><span class="rm-hint" id="rmLCount" aria-live="polite"></span><button class="btn sm" type="button" id="rmLReset">Hapus filter</button></div>`;
+    <div class="rm-fbar"><span class="rm-hint" id="rmLCount" aria-live="polite"></span><button class="btn sm" type="button" id="rmLReset">Clear filters</button></div>`;
   bar.addEventListener("input", (e) => { if (e.target.id === "rmLQ") { TOPIC_UI.q = e.target.value; saveTopicUI(); drawList(); } });
   bar.addEventListener("change", (e) => {
     if (e.target.id === "rmLSort") TOPIC_UI.sort = e.target.value;
@@ -98,7 +98,7 @@ function syncListBar(shown) {
   const musics = [...new Set(LIST.map((p) => p.music).filter(Boolean))].sort();
   if (TOPIC_UI.music && !musics.includes(TOPIC_UI.music)) musics.push(TOPIC_UI.music);
   const sel = byId("rmLMusic");
-  sel.innerHTML = `<option value="">Semua musik</option>${musics.map((m) => `<option value="${esc(m)}">Musik: ${esc(m)}</option>`).join("")}`;
+  sel.innerHTML = `<option value="">All music</option>${musics.map((m) => `<option value="${esc(m)}">Music: ${esc(m)}</option>`).join("")}`;
   sel.value = TOPIC_UI.music;
   bar.querySelectorAll("button[data-f]").forEach((b) => {
     const on = b.dataset.f === "status" ? TOPIC_UI.status === b.dataset.v : b.dataset.f === "need" ? TOPIC_UI.need : TOPIC_UI.dur === Number(b.dataset.v);
@@ -106,27 +106,27 @@ function syncListBar(shown) {
   });
   byId("rmLClear").hidden = !TOPIC_UI.q;
   byId("rmLReset").hidden = !topicFiltered(TOPIC_UI);
-  byId("rmLCount").textContent = `${shown} dari ${LIST.length} topik`;
+  byId("rmLCount").textContent = `${shown} of ${LIST.length} topics`;
 }
 
 function drawList() {
   const list = byId("rmList");
-  byId("rmListHead").textContent = `Topik yang sudah dibuat (${LIST.length})`;
+  byId("rmListHead").textContent = `Topics already made (${LIST.length})`;
   buildListBar();
   const rows = filterTopics(LIST, TOPIC_UI);
   syncListBar(rows.length);
   const sig = JSON.stringify([TOPIC_UI.q, TOPIC_UI.status, TOPIC_UI.need, TOPIC_UI.dur, TOPIC_UI.music, TOPIC_UI.sort]);
   if (sig !== topicSig) { topicSig = sig; topicPager.first(); }
   const visible = topicPager.slice(rows);
-  if (!LIST.length) { list.innerHTML = `<p class="rm-empty">Belum ada video. Tulis topik di atas.</p>`; return; }
-  if (!rows.length) { list.innerHTML = `<p class="rm-empty">Tidak ada topik yang cocok. <button class="btn sm" type="button" data-act="topicReset">Hapus filter</button></p>`; return; }
+  if (!LIST.length) { list.innerHTML = `<p class="rm-empty">No video yet. Write a topic above.</p>`; return; }
+  if (!rows.length) { list.innerHTML = `<p class="rm-empty">No topic matches. <button class="btn sm" type="button" data-act="topicReset">Clear filters</button></p>`; return; }
   list.innerHTML = visible.map((p) => `
     <button class="rm-item" type="button" role="listitem" data-id="${esc(p.id)}" aria-current="${CUR?.id === p.id}">
       <b>${esc(p.title || p.topic)}</b>
       <span class="rm-chip" data-state="${esc((p.chip || {}).state || "")}">${esc((p.chip || {}).label || "")}</span>
       <span>${esc(lengthText({ planned: p.seconds ?? p.duration, voiced: p.voiced ? p.seconds : null }))}</span>
       <span>${esc(dateText(p.updated))}</span>
-      <span>${p.hasStory && p.unchecked ? `${p.unchecked} klaim belum dicek` : ""}</span>
+      <span>${p.hasStory && p.unchecked ? `${p.unchecked} claim${p.unchecked === 1 ? "" : "s"} not checked` : ""}</span>
     </button>`).join("");
 }
 

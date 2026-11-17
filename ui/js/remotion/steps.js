@@ -1,13 +1,13 @@
 /* The steps of a video on the /remotion page, as pure rules (no DOM): their order per kind, which one is active (from the server's next step), the one-line
-   summary a finished step shows when it is folded, the state of each step, and the Indonesian names of the story's words. Used by ui/js/remotion/page.js and
+   summary a finished step shows when it is folded, the state of each step, and the names the page shows for the story's words and for the states (the state ids stay as the server sends them). Used by ui/js/remotion/page.js and
    tested by node tests/steps.test.js. The facts all come from the server's detail (klipian/motion.py: next, renderBlock, length); nothing here decides a rule. */
 
-// the steps, in order. Khusus (the main flow): the story comes from the folder Claude Code made. Otomatis (hidden under "Pengaturan lanjutan"): the AI's answer is pasted.
+// the steps, in order. Khusus (the main flow): the story comes from the folder Claude Code made. Otomatis (hidden under "Advanced settings"): the AI's answer is pasted.
 const STEPS_CUSTOM = ["new", "brief", "story", "facts", "script", "voice", "preview", "render"];
 const STEPS_TEMPLATE = ["new", "brief", "answer", "facts", "script", "voice", "preview", "render"];
 const STEP_TITLE = {
-  new: "Video baru", brief: "Brief", story: "Ambil cerita dari folder Claude Code", answer: "Jawaban AI dan storyboard", facts: "Cek fakta dan judul",
-  script: "Naskah suara", voice: "Impor suara dan cocokkan", preview: "Pratinjau", render: "Render",
+  new: "New video", brief: "Brief", story: "Load the story from the Claude Code folder", answer: "The AI's answer and the storyboard", facts: "Check the facts and the title",
+  script: "Voice script", voice: "Import the voice and match it", preview: "Preview", render: "Render",
 };
 
 function stepsFor(kind) {
@@ -34,8 +34,8 @@ function activeStepFor(d) {
   if (key === "blocked") {
     const why = ((d.renderBlock && d.renderBlock.reasons) || (d.gate || []))[0] || "";
     if (/folder/i.test(why)) return custom ? "story" : "answer";
-    if (/suara|narasi/i.test(why)) return "voice";
-    if (/klaim|judul/i.test(why)) return "facts";
+    if (/voice|narration/i.test(why)) return "voice";
+    if (/claim|title/i.test(why)) return "facts";
     return "render";
   }
   return "render";
@@ -46,31 +46,36 @@ const FOLDER_STATES = ["belum dipilih", "cerita belum diambil", "cerita diambil"
 function folderChip(state) {
   return FOLDER_STATES.includes(state) ? state : "belum dipilih";
 }
+// what the page shows for a state id (the ids are the server's and stay as they are: the css and the stored data use them)
+const FOLDER_LABEL = { "belum dipilih": "not chosen", "cerita belum diambil": "story not loaded", "cerita diambil": "story loaded", "folder berubah": "folder changed", "folder tidak lengkap": "folder incomplete" };
+const folderLabel = (state) => FOLDER_LABEL[folderChip(state)];
+const STATE_LABEL = { aktif: "active", selesai: "done", usang: "stale", menunggu: "waiting", opsional: "optional", belum: "not yet", siap: "ready", perlu: "needed", baru: "new", "tidak ada": "none" };
+const stateLabel = (s) => STATE_LABEL[s] || s;
 
 // ---------------------------------------------------------------------------------------------------------------------------------------
 // words and numbers
 // ---------------------------------------------------------------------------------------------------------------------------------------
 
-// seconds with a decimal comma, and a whole number without decimals: "53,3" and "45"
+// seconds with one decimal, and a whole number without decimals: "53.3" and "45"
 function fmtSeconds(s) {
   if (s == null || Number.isNaN(Number(s))) return "";
   const n = Number(s);
-  return Number.isInteger(n) ? String(n) : n.toFixed(1).replace(".", ",");
+  return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }
 
 // the length to show: the voiced length when a voice was matched (it is the real length of the video), else the planned one
 function lengthText(length) {
   if (!length) return "";
-  return length.voiced != null ? `${fmtSeconds(length.voiced)} detik (suara)` : `${fmtSeconds(length.planned)} detik`;
+  return length.voiced != null ? `${fmtSeconds(length.voiced)} s (voice)` : `${fmtSeconds(length.planned)} s`;
 }
 
 function dateText(t) {
-  return t ? new Date(t * 1000).toLocaleDateString("id-ID", { day: "numeric", month: "short" }) : "";
+  return t ? new Date(t * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "";
 }
 
 // the names the person reads for the words of the story (the JSON keeps its own words)
-const BEAT_KIND_LABEL = { hook: "Pembuka", sting: "Intip yuk!", lens: "Intip dalam", normal: "Penjelasan", loose: "Kasus longgar", result: "Hasil", tips: "Tips", outro: "Penutup" };
-const ITEM_LABEL = { banner: "Spanduk", badge: "Lencana", pill: "Pil", label: "Label", headline: "Judul besar", source: "Sumber", stamp: "Cap" };
+const BEAT_KIND_LABEL = { hook: "Hook", sting: "Intip yuk!", lens: "Look inside", normal: "Explanation", loose: "Loose case", result: "Result", tips: "Tips", outro: "Outro" };
+const ITEM_LABEL = { banner: "Banner", badge: "Badge", pill: "Pill", label: "Label", headline: "Headline", source: "Source", stamp: "Stamp" };
 const kindLabel = (k) => BEAT_KIND_LABEL[k] || k;
 const itemLabel = (t) => ITEM_LABEL[t] || t;
 
@@ -79,14 +84,14 @@ const itemLabel = (t) => ITEM_LABEL[t] || t;
 // ---------------------------------------------------------------------------------------------------------------------------------------
 
 // the look of a Khusus video (B28): auto leaves the choice to Claude Code; the others force it
-const LOOK_LABELS = [["auto", "Otomatis (dipilih sesuai topik)"], ["iso", "2.5D isometrik"], ["2d", "2D"], ["text", "Teks"]];
+const LOOK_LABELS = [["auto", "Automatic (chosen from the topic)"], ["iso", "2.5D isometric"], ["2d", "2D"], ["text", "Text"]];
 
 function optionsSummary(o) {
   if (!o) return "";
   const music = (typeof MUSIC_LABELS !== "undefined" && MUSIC_LABELS[o.music]) || o.music;
   const apps = (o.voiceTargets || []).length;
   const look = o.look && o.look !== "auto" ? (LOOK_LABELS.find(([v]) => v === o.look) || [])[1] : "";
-  return [...(look ? [`gaya ${look}`] : []), o.loop ? "loop" : "tanpa loop", o.sting ? '"Intip yuk!"' : 'tanpa "Intip yuk!"', `musik ${music}`, `${apps} aplikasi suara`].join(", ");
+  return [...(look ? [`look ${look}`] : []), o.loop ? "loop" : "no loop", o.sting ? '"Intip yuk!"' : 'no "Intip yuk!"', `music ${music}`, `${apps} voice app${apps === 1 ? "" : "s"}`].join(", ");
 }
 
 function stepSummary(id, d) {
@@ -94,25 +99,25 @@ function stepSummary(id, d) {
   const claims = d.facts || [];
   const open = claims.filter((c) => c.status !== "checked").length;
   const v = d.voice;
-  if (id === "new") return `${d.duration} detik · ${d.kind === "custom" ? "Khusus" : "Otomatis"}`;
-  if (id === "brief") return `${d.briefAt ? `disalin ${dateText(d.briefAt)}` : "belum disalin"} · ${optionsSummary(d.options)}`;
+  if (id === "new") return `${d.duration} s · ${d.kind === "custom" ? "Custom" : "Template"}`;
+  if (id === "brief") return `${d.briefAt ? `copied ${dateText(d.briefAt)}` : "not copied yet"} · ${optionsSummary(d.options)}`;
   if (id === "story" || id === "answer") {
-    if (!d.story) return id === "story" ? (d.folder ? d.folder.state : "belum dipilih") : "belum ada jawaban";
-    return `${d.story.beats.length} beat · ${lengthText(d.length)}${d.folder && d.folder.state === "folder berubah" ? " · folder berubah" : ""}`;
+    if (!d.story) return id === "story" ? folderLabel(d.folder ? d.folder.state : "") : "no answer yet";
+    return `${d.story.beats.length} beats · ${lengthText(d.length)}${d.folder && d.folder.state === "folder berubah" ? " · folder changed" : ""}`;
   }
   if (id === "facts") {
-    if (!d.story) return "menunggu cerita";
-    return `${claims.length ? (open ? `${open} dari ${claims.length} klaim belum dicek` : `${claims.length} klaim dicek`) : "tanpa klaim"} · ${d.title ? "judul dipilih" : "judul belum dipilih"}`;
+    if (!d.story) return "waiting for the story";
+    return `${claims.length ? (open ? `${open} of ${claims.length} claims not checked` : `${claims.length} claims checked`) : "no claims"} · ${d.title ? "title chosen" : "no title chosen"}`;
   }
-  if (id === "script") return d.story ? (d.options && d.options.voiceTargets || []).map((k) => (typeof VOICE_APP_LABELS !== "undefined" && VOICE_APP_LABELS[k]) || k).join(", ") : "menunggu cerita";
+  if (id === "script") return d.story ? (d.options && d.options.voiceTargets || []).map((k) => (typeof VOICE_APP_LABELS !== "undefined" && VOICE_APP_LABELS[k]) || k).join(", ") : "waiting for the story";
   if (id === "voice") {
-    if (!v || !v.name) return "belum ada suara";
-    return `${v.name} · ${fmtSeconds(v.duration)} detik · ${v.aligned ? "sudah dicocokkan" : v.stale ? "cocokkan lagi" : "belum dicocokkan"}`;
+    if (!v || !v.name) return "no voice yet";
+    return `${v.name} · ${fmtSeconds(v.duration)} s · ${v.aligned ? "matched" : v.stale ? "match again" : "not matched yet"}`;
   }
-  if (id === "preview") return d.preview ? (d.preview.stale ? "usang: buat lagi" : "siap") : "belum dibuat";
+  if (id === "preview") return d.preview ? (d.preview.stale ? "stale: make it again" : "ready") : "not made yet";
   if (id === "render") {
     const r = d.renderBlock || {};
-    return { belum: "menunggu cerita", menunggu: "belum bisa dirender", siap: "siap dirender", selesai: "sudah dirender", usang: "render lama usang" }[r.state] || "";
+    return { belum: "waiting for the story", menunggu: "cannot be rendered yet", siap: "ready to render", selesai: "rendered", usang: "the old render is stale" }[r.state] || "";
   }
   return "";
 }
@@ -134,6 +139,6 @@ function stepState(id, d) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { STEPS_CUSTOM, STEPS_TEMPLATE, STEP_TITLE, stepsFor, stepNum, activeStepFor, FOLDER_STATES, folderChip, fmtSeconds, lengthText, dateText,
+  module.exports = { STEPS_CUSTOM, STEPS_TEMPLATE, STEP_TITLE, stepsFor, stepNum, activeStepFor, FOLDER_STATES, folderChip, folderLabel, stateLabel, fmtSeconds, lengthText, dateText,
     BEAT_KIND_LABEL, ITEM_LABEL, kindLabel, itemLabel, optionsSummary, stepSummary, stepState };
 }

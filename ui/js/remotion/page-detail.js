@@ -66,11 +66,11 @@ function drawHead() {
   const d = CUR;
   const chip = d.chip || {};
   byId("rmHead").innerHTML = `
-    <div><button class="btn quiet" id="rmBack" type="button">← Semua topik</button></div>
+    <div><button class="btn quiet" id="rmBack" type="button">← All topics</button></div>
     <div class="rm-title">
       <div style="min-width:0">
         <h1>${esc(d.displayTitle || d.title || d.topic)}</h1>
-        <div class="rm-meta"><span class="rm-chip" data-state="${esc(chip.state || "")}">${esc(chip.label || "")}</span><span>${esc(lengthText(d.length))}</span><span>${d.kind === "custom" ? "Khusus" : "Otomatis"}</span>${d.notes ? `<span title="${esc(d.notes)}">ada catatan</span>` : ""}</div>
+        <div class="rm-meta"><span class="rm-chip" data-state="${esc(chip.state || "")}">${esc(chip.label || "")}</span><span>${esc(lengthText(d.length))}</span><span>${d.kind === "custom" ? "Custom" : "Template"}</span>${d.notes ? `<span title="${esc(d.notes)}">has notes</span>` : ""}</div>
       </div>
     </div>`;
 }
@@ -80,10 +80,10 @@ function drawNext() {
   const d = CUR;
   const n = d.next || {};
   const active = activeStepFor(d);
-  const chips = (d.stages || []).map((c) => `<span class="rm-chip" data-state="${esc(c.state)}">${esc(c.label)}: ${esc(c.state)}</span>`).join("");
+  const chips = (d.stages || []).map((c) => `<span class="rm-chip" data-state="${esc(c.state)}">${esc(c.label)}: ${esc(stateLabel(c.state))}</span>`).join("");
   byId("stepNext").innerHTML = `
-    <div class="rm-next"><b>Langkah berikutnya:</b> ${esc(n.text || "")}</div>
-    <div class="rm-actions"><button class="btn" type="button" data-act="openStep" data-step="${esc(active)}">Buka langkah ${stepNum(d.kind, active)}</button></div>
+    <div class="rm-next"><b>Next step:</b> ${esc(n.text || "")}</div>
+    <div class="rm-actions"><button class="btn" type="button" data-act="openStep" data-step="${esc(active)}">Open step ${stepNum(d.kind, active)}</button></div>
     <div class="rm-chips">${chips}</div>`;
 }
 
@@ -96,7 +96,7 @@ function drawSteps() {
       <section class="ws-panel rm-step" id="step-${s.id}" data-step="${s.id}" data-open="${open}" data-state="${esc(state)}">
         <button class="rm-acc" type="button" data-act="toggleStep" data-step="${s.id}" aria-expanded="${open}" aria-controls="body-${s.id}">
           <span class="rm-n">${s.num}</span><span class="rm-acc-title">${esc(s.title)}</span>
-          <span class="rm-chip" data-state="${esc(state)}">${esc(state)}</span>
+          <span class="rm-chip" data-state="${esc(state)}">${esc(stateLabel(state))}</span>
           <span class="rm-acc-sum">${esc(stepSummary(s.id, d))}</span>
         </button>
         <div class="rm-body" id="body-${s.id}" ${open ? "" : "hidden"}>${open ? STEP_BODY[s.id](d) : ""}</div>
@@ -161,7 +161,7 @@ byId("rmMain").addEventListener("click", async (e) => {
   } catch (ex) { toast(ex.message); }
 });
 
-// "← Semua topik": back to the home page. The browser Back button does the same through the hashchange in page-list.js.
+// "← All topics": back to the home page. The browser Back button does the same through the hashchange in page-list.js.
 byId("rmMain").addEventListener("click", (e) => {
   if (!e.target.closest("#rmBack")) return;
   history.replaceState(null, "", location.pathname);
