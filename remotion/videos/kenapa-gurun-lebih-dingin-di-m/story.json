@@ -65,7 +65,7 @@
       "id": "siang",
       "kind": "normal",
       "dur": 8,
-      "narration": "Di siang hari, matahari memanaskan pasir gurun sampai sangat panas.",
+      "narration": "Di siang hari, matahari menyinari gurun tanpa halangan awan, dan pasirnya cepat sekali menjadi sangat panas.",
       "text": "Pasir menyerap panas",
       "scene": {
         "bg": "brand",
@@ -83,7 +83,7 @@
       "id": "malam",
       "kind": "normal",
       "dur": 8,
-      "narration": "Setelah matahari terbenam, pasir melepas panasnya ke atas sebagai sinar inframerah.",
+      "narration": "Setelah matahari terbenam, pasir melepas panas yang tadi diserapnya ke atas sebagai sinar inframerah yang tak kasatmata.",
       "text": "Panas dilepas ke atas",
       "scene": {
         "bg": "brand",
@@ -101,7 +101,7 @@
       "id": "lembap",
       "kind": "normal",
       "dur": 8,
-      "narration": "Di tempat lembap, uap air dan awan menahan panas itu, seperti selimut tipis.",
+      "narration": "Di tempat lembap, uap air dan awan menyerap panas itu lalu memancarkannya kembali ke bawah, seperti selimut.",
       "text": "Uap air: selimut panas",
       "scene": {
         "bg": "brand",
@@ -119,7 +119,7 @@
       "id": "kering",
       "kind": "normal",
       "dur": 8,
-      "narration": "Udara gurun sangat kering dan langitnya sering cerah, jadi panas lolos ke angkasa.",
+      "narration": "Udara gurun sangat kering dan langitnya sering cerah, jadi panas hampir tak tertahan dan lolos ke angkasa.",
       "text": "Kering: panas lolos",
       "scene": {
         "bg": "brand",
@@ -137,7 +137,7 @@
       "id": "pasir",
       "kind": "result",
       "dur": 7,
-      "narration": "Pasir juga cepat panas, tapi cepat kehilangan panasnya, jadi suhu turun drastis.",
+      "narration": "Pasir juga cepat panas, tapi cepat kehilangan panasnya, jadi suhunya turun drastis begitu matahari pergi.",
       "text": "Cepat panas, cepat dingin",
       "scene": {
         "bg": "brand",
@@ -173,7 +173,7 @@
       "id": "tips",
       "kind": "tips",
       "dur": 7,
-      "narration": "Jadi kalau berkemah di gurun, bawa jaket tebal untuk malam hari.",
+      "narration": "Jadi kalau kamu berkemah di gurun, bawa jaket tebal dan selimut untuk malam hari.",
       "text": "Bawa jaket untuk malam",
       "scene": {
         "bg": "brand",
