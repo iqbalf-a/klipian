@@ -206,4 +206,19 @@ bad(s, "a source card without an organisation", /org/);
   yes0(paceWarnings({ beats: [beat("normal", 10, 21)] }).length === 0, "one word over a beat's limit is inside the margins (no warning)");
 }
 
+// too SHORT is a warning too: a beat under 80 % of its words (the hook excepted) and a total under 90 % of the voiced seconds
+{
+  const words = (k: number) => Array.from({ length: k }, () => "kata").join(" ");
+  const beat = (kind: string, dur: number, k: number) => ({ kind, dur, narration: words(k) });
+  const short = paceWarnings({ beats: [beat("hook", 3, 2), beat("sting", 1, 2), beat("normal", 8, 10), beat("normal", 8, 16), beat("outro", 4, 0)] });
+  yes0(short.some((w) => w.path.join(".") === "beats.2.narration" && /only 10 words for a 8 s beat/.test(w.message) && /add about 6 words/.test(w.message)), "a beat under 80 % of its words gets a warning that says how many to add");
+  yes0(!short.some((w) => w.path.join(".") === "beats.0.narration"), "the hook is not checked per beat on the short side");
+  yes0(!paceWarnings({ beats: [beat("normal", 8, 13), beat("outro", 4, 0)] }).some((w) => w.path.length === 3), "a beat at 80 % of its words (13 of 16) is inside the margin");
+  yes0(paceWarnings({ beats: [beat("hook", 3, 6), beat("normal", 8, 16), beat("tips", 7, 14)] }).length === 0, "a narration on target gets no warning");
+  // the first version of kenapa-gurun-lebih-dingin-di-m: 89 words in 55 voiced seconds
+  const gurun = paceWarnings({ beats: [beat("hook", 3, 5), beat("sting", 1, 2), beat("normal", 8, 10), beat("normal", 8, 11), beat("normal", 8, 13), beat("normal", 8, 13), beat("result", 7, 12), beat("result", 6, 12), beat("tips", 7, 11), beat("outro", 4, 0)] });
+  yes0(gurun.some((w) => w.path.join(".") === "beats.2.narration"), "the 89-word gurun story gets a short warning on its first explain beat");
+  yes0(gurun.some((w) => w.path.join(".") === "beats" && /add about 2\d words/.test(w.message)), "the 89-word gurun story gets the total short warning with the words to add");
+}
+
 console.log(`schema: ${n} checks ok`);

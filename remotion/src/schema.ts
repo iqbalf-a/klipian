@@ -270,7 +270,9 @@ export const Story = z.object({
 export const NARRATION_WPS = 2.0;
 /** The pace warnings: a narration too long for its beat makes the voice, and so the video, longer than planned (klipian refuses to render a voice more than
  *  15 % over the duration). Advice only, never an error, so the older stories still validate; the brief tells the agent to fix them. The sting is not counted
- *  (its two words are fixed). Per beat: more than 10 % over the beat. In all: the speech over the voiced beats by more than 5 %. */
+ *  (its two words are fixed). Per beat: more than 10 % over the beat. In all: the speech over the voiced beats by more than 5 %. A narration too SHORT is just as
+ *  wrong (the voice, and so the video, ends early and klipian refuses a render more than 15 % under the duration): a beat with a narration (the hook excepted) under
+ *  80 % of its floor(dur x WPS) words, and a total under 90 % of the voiced seconds x WPS (the hook counts in the total). */
 export const paceWarnings = (s: { beats: { kind: string; dur: number; narration: string }[] }): { path: (string | number)[]; message: string }[] => {
   const out: { path: (string | number)[]; message: string }[] = [];
   let words = 0, seconds = 0;
@@ -279,10 +281,12 @@ export const paceWarnings = (s: { beats: { kind: string; dur: number; narration:
     if (b.kind === "sting" || w === 0) return;
     words += w; seconds += b.dur;
     const max = Math.floor(b.dur * NARRATION_WPS);
+    if (b.kind !== "hook" && w < max * 0.8) out.push({ path: ["beats", bi, "narration"], message: `the narration has only ${w} words for a ${b.dur} s beat: a voice reads about ${NARRATION_WPS} words a second, so it lasts about ${(w / NARRATION_WPS).toFixed(1)} s; add about ${max - w} words (aim for ${max}) or make the beat shorter` });
     if (w > max * 1.1) out.push({ path: ["beats", bi, "narration"], message: `the narration has ${w} words for a ${b.dur} s beat: a voice reads about ${NARRATION_WPS} words a second, so it lasts about ${(w / NARRATION_WPS).toFixed(1)} s; cut it to at most ${max} words or make the beat longer` });
   });
   const speech = words / NARRATION_WPS;
   if (seconds > 0 && speech > seconds * 1.05) out.push({ path: ["beats"], message: `the narration is about ${speech.toFixed(0)} s of speech for ${seconds} s of voiced beats (+${Math.round((speech / seconds - 1) * 100)} %): klipian refuses to render a voice more than 15 % over the duration; cut about ${Math.ceil(words - seconds * NARRATION_WPS)} words (at most ${Math.floor(seconds * NARRATION_WPS)} in all)` });
+  if (seconds > 0 && speech < seconds * 0.9) out.push({ path: ["beats"], message: `the narration is only about ${speech.toFixed(0)} s of speech for ${seconds} s of voiced beats (${Math.round((speech / seconds - 1) * 100)} %): the video would end early and klipian refuses to render a voice more than 15 % under the duration; add about ${Math.ceil(seconds * NARRATION_WPS - words)} words (about ${Math.floor(seconds * NARRATION_WPS)} in all)` });
   return out;
 };
 

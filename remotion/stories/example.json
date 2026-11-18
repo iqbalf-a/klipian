@@ -65,7 +65,7 @@
       "id": "dalam",
       "kind": "normal",
       "dur": 8,
-      "narration": "Di dalam stop kontak ada penjepit logam yang menggigit kaki colokan.",
+      "narration": "Di dalam stop kontak ada penjepit logam yang menggigit kaki colokan supaya listrik bisa mengalir lancar.",
       "text": "Penjepit logam",
       "scene": {
         "bg": "brand",
@@ -91,7 +91,7 @@
       "id": "akhir",
       "kind": "result",
       "dur": 9,
-      "narration": "Kalau penjepitnya kendur, sentuhannya jadi sempit dan listrik berubah jadi panas.",
+      "narration": "Kalau penjepitnya sudah kendur, sentuhannya jadi sempit, dan di titik sempit itu listrik berubah jadi panas.",
       "text": "Sentuhan sempit, panas",
       "scene": {
         "bg": "brand",
@@ -109,7 +109,7 @@
       "id": "tips",
       "kind": "tips",
       "dur": 6,
-      "narration": "Kalau colokan terasa panas, berhenti pakai dan minta teknisi memeriksa.",
+      "narration": "Kalau colokan terasa panas, berhenti pakai dan minta teknisi untuk memeriksa.",
       "text": "Panas? Berhenti pakai",
       "scene": {
         "bg": "brand",
