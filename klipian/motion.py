@@ -936,17 +936,52 @@ def replace_voice_part(pid: str, no: int, source: Path) -> dict:
 
 
 def choose_length(pid: str, choice: str) -> dict:
-    """The two choices when the aligned length is off by more than the policy (15 %): "continue" renders the video at the narration's length; "edit"
-    is the narration text (the page sends the person there, nothing is stored)."""
-    if choice not in ("continue", "edit"):
-        raise MotionError("voice", "The choice is continue or edit.")
+    """The choices when the aligned length is off by more than the policy (15 %): "continue" renders the video at the narration's length; "edit"
+    is the narration text (the page sends the person there, nothing is stored); "fit" cuts the recording at the subtitle lines and lays the pieces into
+    the planned beats (a new audio file and story; the recording and the aligned story stay); "continue" after "fit" goes back to the recording."""
+    if choice not in ("continue", "edit", "fit"):
+        raise MotionError("voice", "The choice is continue, edit or fit.")
     with _LOCK:
         p = load(pid)
         if not p.get("voice"):
             raise MotionError("voice", "No narration yet.")
-        p["voice"]["lengthChoice"] = "continue" if choice == "continue" else None
+        if choice == "fit":
+            _build_fit(pid)
+        p["voice"]["lengthChoice"] = choice if choice != "edit" else None
         save(p)
     return p["voice"]
+
+
+def _build_fit(pid: str) -> None:
+    """voice/narration.fit.wav, story.fitted.json and the fit part of voice.json, from the alignment (words with times) of the current story."""
+    story, audio, meta = story_of(pid), voice_file(pid), _voice_meta(pid) or {}
+    if story is None or audio is None or meta.get("storyHash") != _story_hash(story) or not (project_dir(pid) / "story.voiced.json").is_file():
+        raise MotionError("voice", "Match the narration with the script first.")
+    if meta.get("method") != "whisper":
+        raise MotionError("voice", "The word times are only an estimate: cutting the audio needs the real ones (match again with the speech recogniser).")
+    res = voicelib.fit(story, meta["alignment"], float(load(pid)["voice"]["duration"]))
+    out = voice_dir(pid) / "narration.fit.wav"
+    from .ffmpeg_tools import _require, run
+    run(voicelib.fit_command(_require("ffmpeg"), audio, out, res, story), desc="cutting the narration", timeout=300)
+    table = voicelib.match_table(story["beats"], res["timed"], float(story["duration"]))
+    _write(project_dir(pid) / "story.fitted.json", res["timed"])
+    (voice_dir(pid) / "captions.fit.srt").write_text(voicelib.srt(res["timed"]), encoding="utf-8")
+    (voice_dir(pid) / "captions.fit.vtt").write_text(voicelib.vtt(res["timed"]), encoding="utf-8")
+    _write(voice_dir(pid) / "voice.json", {**meta, "fit": {"table": table, "longestPause": res["longestPause"], "pauses": len(res["pauses"]), "notes": res["notes"], "pieces": len(res["pieces"])}})
+
+
+def _fit_active(pid: str) -> bool:
+    """The fitted audio and story are the ones in use: chosen, built for this story and still there."""
+    v = load(pid).get("voice") or {}
+    meta = _voice_meta(pid) or {}
+    story = story_of(pid)
+    return bool(v.get("lengthChoice") == "fit" and story is not None and meta.get("storyHash") == _story_hash(story) and meta.get("fit")
+                and (project_dir(pid) / "story.fitted.json").is_file() and (voice_dir(pid) / "narration.fit.wav").is_file())
+
+
+def render_voice(pid: str) -> Path | None:
+    """The audio that goes under the video: the fitted one when "fit" is chosen, else the recording."""
+    return voice_dir(pid) / "narration.fit.wav" if _fit_active(pid) else voice_file(pid)
 
 
 def narration_for(pid: str, target: str) -> dict:
@@ -960,7 +995,7 @@ def narration_for(pid: str, target: str) -> dict:
 def subtitles_file(pid: str, fmt: str) -> Path | None:
     if fmt not in ("srt", "vtt"):
         return None
-    f = voice_dir(pid) / f"captions.{fmt}"
+    f = voice_dir(pid) / (f"captions.fit.{fmt}" if _fit_active(pid) else f"captions.{fmt}")
     return f if f.is_file() else None
 
 
@@ -1016,7 +1051,7 @@ def render_story(pid: str) -> dict | None:
     story = story_of(pid)
     if story is None:
         return None
-    voiced = _read(project_dir(pid) / "story.voiced.json", None)
+    voiced = _read(project_dir(pid) / ("story.fitted.json" if _fit_active(pid) else "story.voiced.json"), None)
     meta = _voice_meta(pid)
     if isinstance(voiced, dict) and meta and meta.get("storyHash") == _story_hash(story) and voice_file(pid):
         return voiced
@@ -1025,7 +1060,7 @@ def render_story(pid: str) -> dict | None:
 
 def story_file(pid: str) -> Path:
     story = story_of(pid)
-    voiced = project_dir(pid) / "story.voiced.json"
+    voiced = project_dir(pid) / ("story.fitted.json" if _fit_active(pid) else "story.voiced.json")
     meta = _voice_meta(pid)
     if story is not None and voiced.is_file() and meta and meta.get("storyHash") == _story_hash(story) and voice_file(pid):
         return voiced
@@ -1043,14 +1078,17 @@ def voice_info(pid: str) -> dict | None:
     aligned = bool(story and meta.get("storyHash") == _story_hash(story) and (project_dir(pid) / "story.voiced.json").is_file())
     timed = render_story(pid) if aligned else None
     total = timed["duration"] if timed else v["duration"]
-    table = meta.get("table") if aligned else None
-    return {"name": v["name"], "duration": v["duration"], "at": v.get("at"), "aligned": aligned, "stale": bool(meta) and not aligned, "method": meta.get("method"), "ratio": meta.get("ratio"),
+    fitted = bool(aligned and _fit_active(pid))
+    fit_meta = meta.get("fit") if fitted else None
+    table = fit_meta["table"] if fit_meta else (meta.get("table") if aligned else None)
+    return {"fit": ({"longestPause": fit_meta["longestPause"], "notes": fit_meta["notes"]} if fit_meta else None), "fitReady": bool(aligned and meta.get("method") == "whisper"),
+            **{"name": v["name"], "duration": v["duration"], "at": v.get("at"), "aligned": aligned, "stale": bool(meta) and not aligned, "method": meta.get("method"), "ratio": meta.get("ratio"),
             "total": total, "target": p["duration"], "tts": bool(tts_available()),
             "note": (f"The narration makes the video {total:.1f} seconds; the plan was {p['duration']} seconds." if abs(total - p["duration"]) > 0.5 else ""),
             "parts": v.get("parts") or [], "gap": v.get("gap", voicelib.GAP), "notes": v.get("notes") or [],
             "table": table, "unmatched": (meta.get("unmatched") or []) if aligned else [],
             "lengthOk": table["lengthOk"] if table else True, "lengthChoice": v.get("lengthChoice"),
-            "captions": bool(aligned and (voice_dir(pid) / "captions.srt").is_file())}
+            "captions": bool(aligned and (voice_dir(pid) / "captions.srt").is_file())}}
 
 
 def align_voice(pid: str) -> dict:
@@ -1094,6 +1132,8 @@ def _run_voice(pid: str, key, ev: threading.Event) -> None:
         p = load(pid)
         p["voice"] = {**p["voice"], "aligned": True, "lengthChoice": None}
         save(p)
+        for stale in ("story.fitted.json", "voice/narration.fit.wav"):
+            (project_dir(pid) / stale).unlink(missing_ok=True)
         msg = note or f"Done: the video is {timed['duration']:.1f} seconds, following the narration."
         if not table["lengthOk"]:
             msg += f" The length {table['total']:.1f} seconds is {table['percent']:+.0f}% off {table['target']:.0f} seconds: choose continue or edit the script."
@@ -1538,8 +1578,8 @@ def _run_preview_video(pid: str, key, ev: threading.Event) -> None:
         eta = Eta(RENDER_RATIO * float(story["duration"]) * PREVIEW_RATIO)
         t0 = time.monotonic()
         job = {"mode": "video", "story": str(story_file(pid)), "out": "preview.mp4", "outRoot": str(project_dir(pid) / "out"), "composition": composition_id(p), "preview": True}
-        if voice_file(pid) and story_file(pid).name == "story.voiced.json":
-            job["voice"] = str(voice_file(pid))
+        if voice_file(pid) and story_file(pid).name != "story.json":
+            job["voice"] = str(render_voice(pid))
 
         def on_line(d):
             t = d.get("type")
@@ -1613,8 +1653,8 @@ def _run_render(pid: str, key, ev: threading.Event) -> None:
         t0 = time.monotonic()
         work = f"{pid}.mp4"
         job = {"mode": "video", "story": str(story_file(pid)), "out": work, "outRoot": str(project_dir(pid) / "out"), "composition": composition_id(p)}
-        if voice_file(pid) and story_file(pid).name == "story.voiced.json":
-            job["voice"] = str(voice_file(pid))                      # the narration goes under the effects and the bed (render.mjs ducks them)
+        if voice_file(pid) and story_file(pid).name != "story.json":
+            job["voice"] = str(render_voice(pid))                    # the narration goes under the effects and the bed (render.mjs ducks them)
 
         def on_line(d):
             t = d.get("type")

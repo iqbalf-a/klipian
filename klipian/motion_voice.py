@@ -232,6 +232,136 @@ def match_table(planned: list[dict], timed: dict, target: float) -> dict:
     return {"beats": rows, "total": total, "target": target, "percent": pct, "lengthOk": abs(total - target) <= LENGTH_MAX_PCT * target + 1e-9}
 
 
+# --------------------------------------------------------------------------
+# "fit": cut the recording at the subtitle lines and lay the pieces into the planned beats (the narration is shorter than the plan)
+# --------------------------------------------------------------------------
+
+_WIDTHS = json.loads((Path(__file__).parent / "caption_widths.json").read_text(encoding="utf-8"))   # made from remotion/src/fontMetrics.ts
+# the caption looks of remotion/src/layout.ts CAPTION_VARIANTS: font size, text width, lines, words a page
+CAPTION_LOOKS = {"classic": (56, 720, 2, 10**9), "wide": (46, 720, 1, 10**9), "punch": (76, 700, 1, 3)}
+FIT_LEAD = 0.15              # a piece starts this long before its first word (less when the neighbour is closer)
+FIT_TAIL = 0.30              # and ends this long after its last word
+FIT_FADE = 0.01              # the fade in and out of every piece, so a cut never clicks
+
+
+def text_width(text: str, fs: float) -> float:
+    """textWidthEstimate of remotion/src/layout.ts."""
+    return sum(_WIDTHS["widths"].get(c, _WIDTHS["fallback"]) for c in text) * fs
+
+
+def pages_of(words: list[dict], look: str = "classic") -> list[list[dict]]:
+    """pagesOf of remotion/src/captions.ts: the words ({"w","a","b"}) grouped into the subtitle pages the captions show (tests compare it with the TS one)."""
+    fs, max_width, max_lines, max_words = CAPTION_LOOKS.get(look or "classic", CAPTION_LOOKS["classic"])
+    pages: list[list[dict]] = []
+    cur: list[dict] = []
+    lines, width = 1, 0.0
+    on_line = 0
+    space = text_width(" ", fs)
+    for w in words:
+        if len(cur) >= max_words:
+            pages.append(cur)
+            cur, lines, width, on_line = [], 1, 0.0, 0
+        wd = text_width(w["w"], fs)
+        if on_line and width + space + wd > max_width:
+            if lines >= max_lines:
+                pages.append(cur)
+                cur, lines, width, on_line = [], 1, 0.0, 0
+            else:
+                lines, width, on_line = lines + 1, 0.0, 0
+        width += (space if on_line else 0) + wd
+        on_line += 1
+        cur.append(w)
+    if cur:
+        pages.append(cur)
+    return pages
+
+
+def fit(story: dict, alignment: dict, total: float) -> dict:
+    """Lay the narration into the planned beats. Per beat the words go into subtitle pages; the recording is cut in the pause before each page (the middle
+    of the gap between two words); the pieces sit at the start of their beat, each followed by an equal share of what is left of the beat's planned `dur`
+    (so the speech never starts late and the pauses are the same size). A beat whose speech is longer than its `dur` is extended to the speech and a note
+    says so. A beat with no narration keeps its `dur` in silence.
+    Returns {"timed" (the story with the new durations and word times), "pieces" ([{"src": [a, b], "dst": t}] in order), "silences" ([{"dst", "len"}]),
+    "pauses" (every inserted pause in seconds), "longestPause", "notes", "duration"}."""
+    s = copy.deepcopy(story)
+    beats = s["beats"]
+    look = s.get("captionStyle") or "classic"
+    flat = [w for b in beats for w in (alignment["beats"].get(b["id"]) or {}).get("words", [])]    # every word in speech order, for the neighbours
+    nxt = {id(w): (flat[i + 1]["a"] if i + 1 < len(flat) else total) for i, w in enumerate(flat)}
+    prv = {id(w): (flat[i - 1]["b"] if i else 0.0) for i, w in enumerate(flat)}
+    pieces: list[dict] = []
+    pauses: list[float] = []
+    notes: list[str] = []
+    clock = 0.0
+    for b in beats:
+        e = alignment["beats"].get(b["id"])
+        plan = float(b["dur"])
+        if not e or not e["words"]:
+            b["dur"] = round(plan, 3)
+            clock += plan
+            continue
+        pages = pages_of(e["words"], look)
+        def cut(lead, tail):
+            out = []
+            for pg in pages:
+                a, z = pg[0], pg[-1]
+                lo = max(0.0, max(a["a"] - lead, (prv[id(a)] + a["a"]) / 2))
+                hi = min(total, min(z["b"] + tail, (z["b"] + nxt[id(z)]) / 2 if nxt[id(z)] < total else total))
+                out.append((lo, max(hi, z["b"] + 0.02)))
+            return out
+
+        cuts = cut(FIT_LEAD, FIT_TAIL)
+        speech = sum(hi - lo for lo, hi in cuts)
+        if speech > plan:                                            # no room: the cuts sit closer to the words (the beat is extended less)
+            cuts = cut(FIT_LEAD / 3, FIT_TAIL / 3)
+            speech = sum(hi - lo for lo, hi in cuts)
+        extra = max(0.0, plan - speech) / len(pages)
+        dur = max(plan, speech)
+        if speech > plan + 1e-9:
+            notes.append(f"{b['id']}: the speech is {speech:.1f} s, longer than the planned {plan:.1f} s; the beat is {dur:.1f} s.")
+        t = 0.0
+        words_out: list[dict] = []
+        for pg, (lo, hi) in zip(pages, cuts):
+            pieces.append({"src": [round(lo, 3), round(hi, 3)], "dst": round(clock + t, 3), "len": round(hi - lo, 3)})
+            for w in pg:
+                a = t + (w["a"] - lo)
+                words_out.append({"w": w["w"], "a": round(a, 3), "b": round(max(a + 0.02, t + (w["b"] - lo)), 3)})
+            t += hi - lo
+            if extra > 1e-9:
+                pauses.append(round(extra, 3))
+            t += extra
+        b["words"] = words_out
+        b["dur"] = round(dur, 3)
+        clock += dur
+    s["duration"] = round(sum(x["dur"] for x in beats), 3)
+    s["captions"] = True
+    return {"timed": s, "pieces": pieces, "pauses": pauses, "longestPause": max(pauses, default=0.0), "notes": notes, "duration": s["duration"]}
+
+
+def fit_command(ffmpeg: str, src: Path, out: Path, result: dict, story: dict) -> list[str]:
+    """The ffmpeg command that makes the fitted audio: every piece trimmed with a 10 ms fade at both ends, silence for the rest of every beat."""
+    parts, labels = [], []
+    at = 0.0
+    for i, pc in enumerate(result["pieces"]):
+        gap = pc["dst"] - at
+        if gap > 0.0005:
+            parts.append(f"anullsrc=r=48000:cl=mono,atrim=0:{gap:.4f}[s{i}]")
+            labels.append(f"[s{i}]")
+        a, z = pc["src"]
+        d = z - a
+        f = min(FIT_FADE, d / 2)
+        parts.append(f"[0:a]atrim={a:.4f}:{z:.4f},asetpts=PTS-STARTPTS,afade=t=in:d={f},afade=t=out:st={d - f:.4f}:d={f}[p{i}]")
+        labels.append(f"[p{i}]")
+        at = pc["dst"] + d
+    tail = result["duration"] - at
+    if tail > 0.0005:
+        parts.append(f"anullsrc=r=48000:cl=mono,atrim=0:{tail:.4f}[tail]")
+        labels.append("[tail]")
+    parts.append("".join(labels) + f"concat=n={len(labels)}:v=0:a=1[o]")
+    return [ffmpeg, "-y", "-loglevel", "error", "-i", str(src), "-filter_complex", ";".join(parts), "-map", "[o]", "-ar", "48000", "-ac", "1", str(out)]
+
+
+
 def _stamp(sec: float, sep: str) -> str:
     ms = int(round(max(0.0, sec) * 1000))
     h, ms = divmod(ms, 3600_000)

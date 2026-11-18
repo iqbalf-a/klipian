@@ -62,6 +62,7 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+import subprocess
 import os
 import sys
 import tempfile
@@ -8558,8 +8559,201 @@ def check_briefsteps() -> tuple[str, str]:
     return PASS, (f"the Khusus brief passes the strict checklist (rules first, 8 steps with Run and Expected, fallback, mistakes) at 30/45/60 s with 1 or 3 voice apps; "
                   f"size at 45 s {sizes[0]} characters (cap 40000); the fallback story is saved and the video stays 'belum dibuat'")
 
+# check: "fit" (the third length choice): the Python pages equal the TS ones (pagesOf of remotion/src/captions.ts); the placement when the speech is shorter
+# than, equal to and longer than the beat; the cut audio as long as the fitted story with silence in the pauses; the choice "fit" through the server (the
+# fitted story and audio are used, the recording and the aligned story stay, "continue" goes back, an estimate is refused). The recogniser is a fake.
+def check_voicefit() -> tuple[str, str]:
+    import array
+    import contextlib
+    import http.client
+    import io
+    import shutil
+    import threading
+    import wave
+    from http.server import ThreadingHTTPServer
+    from . import motion, motion_voice as mv, paths, profiles
+    from .ffmpeg_tools import _require, probe, run
+    from .server import Handler
+
+    problems: list[str] = []
+    # --- the pages: the same as the TS pagesOf, for the looks and some real narrations
+    node = shutil.which("node")
+    root = Path(__file__).resolve().parent.parent
+    if node and (root / "remotion" / "node_modules").is_dir():
+        texts = ["Di siang hari, matahari menyinari gurun tanpa halangan awan, dan pasirnya cepat sekali menjadi sangat panas.", "Tapi tidak semua gurun sedingin itu. Gurun yang lembap malamnya lebih hangat.",
+                 "Jadi kalau kamu berkemah di gurun, bawa jaket tebal dan selimut untuk malam hari.", "Siang membara, malam menggigit. Kenapa?"]
+        js = ("import {pagesOf} from './src/captions.ts';const L={classic:[56,720,2,Infinity],wide:[46,720,1,Infinity],punch:[76,700,1,3]};const out={};"
+              f"for(const t of {json.dumps(texts)})for(const [k,v] of Object.entries(L))out[k+'|'+t]=pagesOf(t.split(' ').map((w,i)=>({{w,a:i,b:i+1}})),...v).map(p=>p.words.length);"
+              "console.log(JSON.stringify(out))")
+        r = subprocess.run([node, "--input-type=module", "-e", js], cwd=root / "remotion", capture_output=True, text=True, timeout=60)
+        try:
+            ts = json.loads(r.stdout)
+            for key, want in ts.items():
+                look, t = key.split("|", 1)
+                got = [len(p) for p in mv.pages_of([{"w": w, "a": i, "b": i + 1} for i, w in enumerate(t.split(" "))], look)]
+                if got != want:
+                    problems.append(f"pages_of differs from pagesOf ({look}): {got} vs {want} for {t[:30]!r}")
+        except ValueError:
+            problems.append(f"the TS pagesOf could not be run: {r.stderr[-200:]}")
+
+    # --- the placement
+    def words(t0, n, step=0.4, w=0.35, prefix="k"):
+        return [{"w": f"{prefix}{i}", "a": round(t0 + i * step, 3), "b": round(t0 + i * step + w, 3)} for i in range(n)]
+
+    beat = lambda i, kind, dur, text: {"id": i, "kind": kind, "dur": dur, "narration": text}      # noqa: E731
+    story = {"duration": 14, "beats": [beat("hook", "hook", 3, "a"), beat("x", "normal", 6, "b"), beat("y", "normal", 2, "c"), beat("outro", "outro", 3, "")]}
+    al = {"method": "whisper", "beats": {"hook": {"words": words(0.2, 6)}, "x": {"words": words(3.0, 12)}, "y": {"words": words(8.0, 12)}}}
+    res = mv.fit(story, al, 14.0)
+    timed = res["timed"]
+    durs = [b["dur"] for b in timed["beats"]]
+    if abs(durs[0] - 3) > 1e-6 or abs(durs[1] - 6) > 1e-6 or abs(durs[3] - 3) > 1e-6:
+        problems.append(f"a beat with room keeps its planned length (and the silent outro too): {durs}")
+    if durs[2] <= 2 or not any("y:" in n for n in res["notes"]):
+        problems.append(f"a beat whose speech is longer is extended and a note says so: {durs} {res['notes']}")
+    if not res["pauses"] or max(res["pauses"]) > 2.5:
+        problems.append(f"the leftover time is split in small pauses: {res['pauses']}")
+    if abs(timed["duration"] - sum(durs)) > 1e-6:
+        problems.append("the duration is the sum of the beats")
+    pcs = res["pieces"]
+    if any(b["src"][0] < a["src"][1] - 1e-9 for a, b in zip(pcs, pcs[1:])) or any(b["dst"] < a["dst"] + a["len"] - 1e-6 for a, b in zip(pcs, pcs[1:])):
+        problems.append("the pieces never overlap, in the recording or in the new timeline")
+    for b in timed["beats"]:
+        ws = b.get("words", [])
+        if any(w["a"] < -1e-6 or w["b"] > b["dur"] + 1e-6 or w["b"] <= w["a"] for w in ws):
+            problems.append(f"the word times stay inside beat {b['id']}: {ws[:2]}")
+    first = timed["beats"][0]["words"][0]
+    if first["a"] > mv.FIT_LEAD + 0.01:
+        problems.append(f"no lead pause: the first word of a beat comes right after the lead-in: {first}")
+    # a beat with room for exactly its speech: no pause at all
+    probe_story = {"duration": 1, "beats": [beat("only", "normal", 1, "a")]}
+    probe_al = {"method": "whisper", "beats": {"only": {"words": words(0.15, 7, step=0.4, w=0.4)}}}
+    exact = mv.fit(probe_story, probe_al, 3.3)
+    need = exact["timed"]["beats"][0]["dur"]
+    again = mv.fit({"duration": need, "beats": [beat("only", "normal", need, "a")]}, probe_al, 3.3)
+    if again["pauses"] or again["notes"]:
+        problems.append(f"speech as long as the beat: no pause, no note: {again['pauses']} {again['notes']}")
+
+    # --- the audio
+    old_whisper = motion._whisper
+    work = paths.workspace_dir() / "fit-src"
+    work.mkdir(parents=True, exist_ok=True)
+    ff = _require("ffmpeg")
+    tone = work / "tone14.wav"
+    run([ff, "-y", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=330:duration=14:sample_rate=48000", "-ac", "1", str(tone)], desc="a tone", timeout=60)
+    out = work / "fit.wav"
+    run(mv.fit_command(ff, tone, out, res, story), desc="cutting", timeout=60)
+    if abs(float(probe(out).duration) - timed["duration"]) > 0.08:
+        problems.append(f"the cut audio lasts as long as the fitted story: {probe(out)['duration']} vs {timed['duration']}")
+    with wave.open(str(out)) as w:
+        rate = w.getframerate()
+        samples = array.array("h", w.readframes(w.getnframes()))
+    mid = int(rate * (res["pieces"][0]["dst"] + res["pieces"][0]["len"] + 0.05))
+    if max(abs(s) for s in samples[mid:mid + int(rate * 0.1)]) > 200:
+        problems.append("a pause between two pieces is silent")
+
+    # --- through the server
+    old_durations = motion.DURATIONS
+    motion.DURATIONS = (8,) + tuple(old_durations)
+    profiles.write_meta("vf1", {"name": "vf1", "color": "#336699", "defaults": {}})
+    profiles.ensure_dirs("vf1")
+    tok = paths.set_profile("vf1")
+    srv = None
+    quiet = contextlib.redirect_stderr(io.StringIO())
+    try:
+        tiny = json.loads((FIXTURES / "motion" / "tiny-story.json").read_text(encoding="utf-8"))
+        tiny["duration"] = 8
+        tiny["beats"][0]["dur"] = tiny["beats"][1]["dur"] = 4
+        srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        port = srv.server_address[1]
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        quiet.__enter__()
+
+        def post(action, body):
+            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=120)
+            conn.request("POST", f"/api/motion/{action}", body=json.dumps(body).encode(), headers={"Host": f"127.0.0.1:{port}", "X-Klipian-Profile": "vf1", "Content-Type": "application/json"})
+            r = conn.getresponse()
+            content = r.read()
+            conn.close()
+            try:
+                return r.status, json.loads(content)
+            except ValueError:
+                return r.status, {}
+
+        def settle():
+            end = time.time() + 180
+            while time.time() < end and motion.job_state(pid).get("state") not in ("done", "failed", "cancelled"):
+                time.sleep(0.3)
+
+        pid = post("create", {"topic": "contoh potong suara", "duration": 8, "options": {"kind": "otomatis"}})[1]["project"]["id"]
+        post("paste", {"id": pid, "text": json.dumps(tiny)})
+        post("facts", {"id": pid, "claims": [{"index": 0, "status": "checked"}], "title": tiny["titles"][0]})
+        tone6 = work / "tone6.wav"
+        run([ff, "-y", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=220:duration=6:sample_rate=22050", str(tone6)], desc="a tone", timeout=60)
+        post("voice", {"id": pid, "path": str(tone6)})
+        if post("voice-length", {"id": pid, "choice": "fit"})[0] != 400:
+            problems.append("fit is refused before the narration is matched")
+        hw, ow = tiny["beats"][0]["narration"].split(), tiny["beats"][1]["narration"].split()
+
+        class Hears:
+            def words(self, audio):
+                heard = [{"text": w.strip(",.?!").lower(), "start": 0.2 + i * 0.4, "end": 0.2 + i * 0.4 + 0.35} for i, w in enumerate(hw)]
+                return heard + [{"text": w.strip(",.?!").lower(), "start": 3.4 + i * 0.5, "end": 3.4 + i * 0.5 + 0.45} for i, w in enumerate(ow)]
+
+        motion._whisper = Hears()
+        post("voice-align", {"id": pid})
+        settle()
+        info = motion.voice_info(pid)
+        if info["lengthOk"] or not info["fitReady"]:
+            problems.append(f"6 s of voice against 8 s planned is outside the policy and fit is offered: {info['table']['percent']} {info['fitReady']}")
+        voiced_before = (motion.project_dir(pid) / "story.voiced.json").read_bytes()
+        wav_before = (motion.voice_dir(pid) / "narration.wav").read_bytes()
+        st, j = post("voice-length", {"id": pid, "choice": "fit"})
+        if st != 200 or j["voice"].get("lengthChoice") != "fit":
+            problems.append(f"the choice fit is accepted: {st} {str(j)[:150]}")
+        info = motion.voice_info(pid)
+        fa = motion.render_voice(pid)
+        if not info["lengthOk"] or abs(info["total"] - 8) > 0.01 or not info["fit"] or motion.story_file(pid).name != "story.fitted.json" or fa is None or fa.name != "narration.fit.wav":
+            problems.append(f"with fit the video lasts the planned 8 s and uses the fitted story and audio: {info}")
+        elif abs(float(probe(fa).duration) - 8) > 0.08:
+            problems.append(f"the fitted audio lasts 8 s: {probe(fa)['duration']}")
+        if (motion.project_dir(pid) / "story.voiced.json").read_bytes() != voiced_before or (motion.voice_dir(pid) / "narration.wav").read_bytes() != wav_before:
+            problems.append("the recording and the aligned story are not changed by fit")
+        if any("length" in g or "seconds" in g for g in motion.gate(pid)):
+            problems.append(f"the 15 % gate uses the new duration: {motion.gate(pid)}")
+        sub = motion.subtitles_file(pid, "srt")
+        if sub is None or sub.name != "captions.fit.srt":
+            problems.append("the subtitles follow the fitted story")
+        post("voice-length", {"id": pid, "choice": "continue"})
+        if motion.story_file(pid).name != "story.voiced.json" or motion.render_voice(pid).name != "narration.wav" or abs(motion.voice_info(pid)["total"] - 6) > 0.01:
+            problems.append("continue goes back to the recording")
+        post("voice-length", {"id": pid, "choice": "fit"})
+        post("voice-align", {"id": pid})                              # a new match drops the fit
+        settle()
+        if motion.story_file(pid).name != "story.voiced.json" or motion.voice_info(pid)["fit"]:
+            problems.append("matching again goes back to the recording")
+
+        class Deaf:
+            def words(self, audio):
+                return []
+
+        motion._whisper = Deaf()                                      # an estimate cannot be cut
+        post("voice-align", {"id": pid})
+        settle()
+        if post("voice-length", {"id": pid, "choice": "fit"})[0] != 400:
+            problems.append("fit is refused when the word times are only an estimate")
+    finally:
+        quiet.__exit__(None, None, None)
+        if srv:
+            srv.shutdown()
+        motion.DURATIONS, motion._whisper = old_durations, old_whisper
+        paths._profile.reset(tok)
+    if problems:
+        return FAIL, "\n      ".join(problems[:14])
+    return PASS, "pages_of equals pagesOf; the placement (room, no room, silent outro), the cut audio, and the choice fit through the server (used, undone, refused for an estimate)"
+
+
 CHECKS = {"cliplength": check_cliplength, "adminmodel": check_adminmodel, "autopilot": check_autopilot, "autopilotresult": check_autopilotresult, "autopilotrun": check_autopilotrun, "settle": check_settle, "briefagents": check_briefagents, "briefsteps": check_briefsteps, "migrate": check_migrate, "brief": check_brief, "geminibrief": check_geminibrief, "ranges": check_ranges, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch, "labelbox": check_labelbox, "shotframe": check_shotframe, "facelock": check_facelock,
-          "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voicegoogle": check_voicegoogle, "voicestudio": check_voicestudio, "elevenlabs": check_elevenlabs, "khusus": check_khusus, "briefbuttons": check_briefbuttons, "music": check_music, "voice": check_voice, "decode": check_decode, "render": check_render}
+          "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "voicefit": check_voicefit, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voicegoogle": check_voicegoogle, "voicestudio": check_voicestudio, "elevenlabs": check_elevenlabs, "khusus": check_khusus, "briefbuttons": check_briefbuttons, "music": check_music, "voice": check_voice, "decode": check_decode, "render": check_render}
 
 
 def _guarded(name: str, fn):

@@ -223,7 +223,11 @@ function voiceTableHTML(v) {
   const policy = t.lengthOk
     ? `Video length ${num(t.total)} s (${pct} against ${num(t.target)} s): inside the 15% limit.`
     : `Video length ${num(t.total)} s (${pct} against ${num(t.target)} s): outside the 15% limit. Choose one before you render:`;
-  const choice = t.lengthOk ? "" : `<div class="rm-actions"><button class="btn" type="button" data-act="voiceLength" data-choice="edit">Edit the narration</button><button class="btn" type="button" data-act="voiceLength" data-choice="continue" ${v.lengthChoice === "continue" ? "disabled" : ""}>${v.lengthChoice === "continue" ? "Chosen: continue" : "Continue with this length"}</button></div>`;
+  const fitted = v.lengthChoice === "fit" && v.fit;
+  const fitBtn = v.fitReady ? `<button class="btn" type="button" data-act="voiceLength" data-choice="fit" ${fitted ? "disabled" : ""}>${fitted ? "Chosen: cut to the planned length" : "Potong ke durasi rencana"}</button>` : "";
+  const fitNote = v.fitReady ? `<p class="rm-hint">Potong ke durasi rencana cuts the recording at the subtitle lines and puts the pieces into the planned beats with equal pauses; the recording itself is not changed.</p>` : "";
+  const fitInfo = fitted ? `<p class="rm-hint">Longest pause added: ${num(v.fit.longestPause)} s.${v.fit.notes.length ? " " + esc(v.fit.notes.join(" ")) : ""}</p><div class="rm-actions"><button class="btn" type="button" data-act="voiceLength" data-choice="continue">Back to the recording's own length</button></div>` : "";
+  const choice = fitted ? fitInfo : t.lengthOk ? "" : `<div class="rm-actions"><button class="btn" type="button" data-act="voiceLength" data-choice="edit">Edit the narration</button><button class="btn" type="button" data-act="voiceLength" data-choice="continue" ${v.lengthChoice === "continue" ? "disabled" : ""}>${v.lengthChoice === "continue" ? "Chosen: continue" : "Continue with this length"}</button>${fitBtn}</div>${fitNote}`;
   const unmatched = (v.unmatched || []).length ? `<div class="rm-note"><b>Words not recognised (check the script):</b> ${v.unmatched.map((u) => `<code>${esc(u.w)}</code> (${esc(u.beat)})`).join(", ")}</div>` : "";
   return `<h3 class="rm-sub-h">Match per beat</h3>
     <table class="rm-table"><thead><tr><th>Beat</th><th class="num">Planned (s)</th><th class="num">Real (s)</th><th class="num">Difference</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>
