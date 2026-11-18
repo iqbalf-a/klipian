@@ -9,6 +9,7 @@ Nine checks, each one that used to be done by hand:
   brief    The Claude brief and the reading of Claude's replies (roundtrip.py)
            against tests/fixtures/brief/: the output of the browser version
            of that logic, from before it moved to Python.
+  coldopen The cold open in render.py (hook found, off by default, held frame, text, shifted captions)
   cues     The rules in klipian/cues.py (levels, pauses, fast talk, which cues a
            clip has) on small known inputs.
   credits  The credit line built from a video's platform, creator, title and link,
@@ -949,13 +950,13 @@ def check_autopilotrun() -> tuple[str, str]:
         if not after or any(s in ("done", "cancelled") for s in after.values()) or keep_failed not in after                 or removed != len(before) - len(after) or any(before[i] != s for i, s in after.items()):
             problems.append(f"Clear finished removes only done and cancelled: {before} -> {after}")
 
-        # no clip longer than 180 s, whatever the AI wrote; progress inside one clip of AI Framing; Cancel in the middle of it
+        # no clip longer than 90 s, whatever the AI wrote; progress inside one clip of AI Framing; Cancel in the middle of it
         short, long_ = cands(1)[0], dict(cands(1)[0], endSec=435.0, endQuote="x", spans=[{"start": 100.0, "end": 435.0}], cues=[{"start": 120.0, "end": 400.0}])
         got, notes = ap.cap_length([short, long_], [150.0, 250.0, 280.0, 300.0, 435.0])
-        if got[0] is not short or got[1]["endSec"] != 280.0 or got[1]["dur"] != 180 or "endQuote" in got[1] or got[1]["spans"] != [{"start": 100.0, "end": 280.0}]                 or got[1]["cues"] != [{"start": 120.0, "end": 280.0}] or len(notes) != 1 or "5:35" not in notes[0] or "3:00" not in notes[0]:
+        if got[0] is not short or got[1]["endSec"] != 150.0 or got[1]["dur"] != 50 or "endQuote" in got[1] or got[1]["spans"] != [{"start": 100.0, "end": 150.0}]                 or got[1]["cues"] != [{"start": 120.0, "end": 150.0}] or len(notes) != 1 or "5:35" not in notes[0] or "0:50" not in notes[0]:
             problems.append(f"cap_length: {got[1]['endSec']} {got[1].get('dur')} {notes}")
         got, notes = ap.cap_length([long_], [])
-        if got[0]["endSec"] != 280.0 or "no sentence end" not in notes[0]:
+        if got[0]["endSec"] != 190.0 or "no sentence end" not in notes[0]:
             problems.append(f"cap_length without sentence ends: {notes}")
         for mode in ("manual", "claude", "gemini"):
             d = Fake(n=2)
@@ -966,8 +967,8 @@ def check_autopilotrun() -> tuple[str, str]:
                 ap.wait_idle(30)
                 run = ap.get_run(run["id"])
             lens = [round(c["endSec"] - c["startSec"]) for c in run["candidates"]]
-            if run["state"] != "done" or max(lens) > 180 or lens[0] != 150 or not any("cut to" in n for n in ap.run_notes(run)):
-                problems.append(f"{mode}: no clip over 180 s: {run['state']} {lens} {ap.run_notes(run)}")
+            if run["state"] != "done" or max(lens) > 90 or lens[0] != 50 or not any("cut to" in n for n in ap.run_notes(run)):
+                problems.append(f"{mode}: no clip over 90 s: {run['state']} {lens} {ap.run_notes(run)}")
         d = Fake(n=1)
         seen = []
         orig = ap._progress
@@ -1180,7 +1181,7 @@ def check_adminmodel() -> tuple[str, str]:
 
 
 def check_cliplength() -> tuple[str, str]:
-    """One clip length for every profile: ideal 60-120 s, at most 180, under 45 only when the topic ends there. The brief
+    """One clip length for every profile: ideal 30-60 s, at most 90, under 20 only when the topic ends there. The brief
     (both forms) says it and no longer says 90, the built-in rubrics show the same band, and Autopilot merges the
     neighbouring clips of one story (when the whole fits) and notes the short ones."""
     import re
@@ -1188,47 +1189,56 @@ def check_cliplength() -> tuple[str, str]:
     from .models import Transcript
 
     problems = []
-    if (rt.CLIP_MIN_SEC, rt.CLIP_IDEAL, rt.CLIP_MAX_SEC) != (45, (60, 120), 180):
+    if (rt.CLIP_MIN_SEC, rt.CLIP_IDEAL, rt.CLIP_MAX_SEC) != (20, (30, 60), 90):
         problems.append(f"the constants: {rt.CLIP_MIN_SEC} {rt.CLIP_IDEAL} {rt.CLIP_MAX_SEC}")
     transcript = Transcript.load(FIXTURES / "brief" / "transcript.json")
     rubric = rubrics.load("dialog")[1]
     api_sys, _ = rt.build_api_brief(transcript, rubric, "x.mp4", None, None, "", 5)
     for label, out in (("brief", rt.build_brief(transcript, rubric, "x.mp4", None, None, "")), ("api brief", api_sys)):
-        for want in ("Aim for 60 to 120 seconds; never more than 180", "A clip under 45 seconds is right only when",
+        for want in ("Aim for 30 to 60 seconds; never more than 90", "A clip under 20 seconds is right only when",
                      "split the whole transcript into its topics", "Two neighbouring moments of the same story become one clip",
-                     "The duration band here replaces any duration band in the rubric", "at most 180 seconds"):
+                     "The duration band here replaces any duration band in the rubric", "at most 90 seconds"):
             if want not in out:
                 problems.append(f"the {label} lacks: {want}")
-        if re.search(r"90 seconds|at most 90", out):
-            problems.append(f"the {label} still says 90")
+        if re.search(r"\b180 seconds|at most 180", out):
+            problems.append(f"the {label} still says 180")
     for rid in ("dialog", "lucu"):
         text = rubrics.load(rid)[1]
-        if "60–120 detik" not in text or "30–45 detik" in text or "15–40 detik" in text:
+        if "30–60 detik" not in text or "60–120 detik" in text or "30–45 detik" in text:
             problems.append(f"the {rid} rubric shows the new band")
-    if "at most 180" not in rt.build_gemini_brief("00:10 - 03:00 a moment", "x.mp4") and "longer than 180 seconds" not in rt.build_gemini_brief("00:10 - 03:00 a moment", "x.mp4"):
+    if "at most 90" not in rt.build_gemini_brief("00:10 - 03:00 a moment", "x.mp4") and "longer than 90 seconds" not in rt.build_gemini_brief("00:10 - 03:00 a moment", "x.mp4"):
         problems.append("the Gemini brief uses the new maximum")
 
     def clip(a, b, **kw):
         return {"title": f"t{a}", "startSec": float(a), "endSec": float(b), "dur": round(b - a), "out": rt.fmt_stamp(b), **kw}
 
-    got, notes = ap.merge_touching([clip(0, 60, endQuote="first"), clip(60, 130, endQuote="last")])
-    if len(got) != 1 or got[0]["startSec"] != 0 or got[0]["endSec"] != 130 or got[0]["title"] != "t0" or got[0]["endQuote"] != "last"             or got[0]["dur"] != 130 or got[0]["spans"] != [{"start": 0.0, "end": 130.0}] or "merged" not in " ".join(notes):
+    got, notes = ap.merge_touching([clip(0, 40, endQuote="first"), clip(40, 80, endQuote="last")])
+    if len(got) != 1 or got[0]["startSec"] != 0 or got[0]["endSec"] != 80 or got[0]["title"] != "t0" or got[0]["endQuote"] != "last"             or got[0]["dur"] != 80 or got[0]["spans"] != [{"start": 0.0, "end": 80.0}] or "merged" not in " ".join(notes):
         problems.append(f"two touching clips become one: {got} {notes}")
-    got, _ = ap.merge_touching([clip(0, 100), clip(101, 190)])
+    got, _ = ap.merge_touching([clip(0, 50), clip(51, 100)])
     if len(got) != 2:
-        problems.append("a union over 180 s stays two clips")
-    got, _ = ap.merge_touching([clip(0, 60), clip(90, 150)])
+        problems.append("a union over 90 s stays two clips")
+    got, _ = ap.merge_touching([clip(0, 30), clip(60, 90)])
     if len(got) != 2:
         problems.append("clips 30 s apart stay two")
-    got, notes = ap.merge_touching([clip(500, 560), clip(0, 40), clip(300, 330)])
-    if [c["startSec"] for c in got] != [500, 0, 300] or "2 clips are under 45 s" not in " ".join(notes):
+    got, notes = ap.merge_touching([clip(500, 540), clip(0, 10), clip(300, 315)])
+    if [c["startSec"] for c in got] != [500, 0, 300] or "2 clips are under 20 s" not in " ".join(notes):
         problems.append(f"the AI's order is kept and short clips are noted: {[c['startSec'] for c in got]} {notes}")
-    got, _ = ap.merge_touching([clip(0, 50), clip(40, 100), clip(98, 170)])
-    if len(got) != 1 or got[0]["endSec"] != 170:
+    got, _ = ap.merge_touching([clip(0, 30), clip(25, 60), clip(58, 85)])
+    if len(got) != 1 or got[0]["endSec"] != 85:
         problems.append(f"overlapping and touching clips chain into one: {got}")
+    for label, out in (("brief", rt.build_brief(transcript, rubric, "x.mp4", None, None, "")), ("api brief", api_sys)):
+        if "a clip is worth posting only with a strong hook" not in out.lower() or "answer with an empty list" not in out:
+            problems.append(f"the {label} lacks the strong-hook rule")
+    weak = [{"title": "a", "scores": {"hook": 9}}, {"title": "b", "scores": {"hook": 7}}, {"title": "c", "scores": {"hook": 0}}, {"title": "d"}]
+    got, notes = ap.drop_weak_hooks(weak)
+    if [c["title"] for c in got] != ["a", "c", "d"] or "1 clip left out" not in " ".join(notes):
+        problems.append(f"a hook under {rt.HOOK_MIN} goes, a missing score stays: {[c['title'] for c in got]} {notes}")
+    if ap.drop_weak_hooks([{"title": "e", "scores": {"hook": 5}}])[0]:
+        problems.append("every clip weak gives an empty list")
     if problems:
         return FAIL, "\n      ".join(problems)
-    return PASS, "60-120 s ideal / 180 max in both briefs and the built-in rubrics, no 90; touching clips merge only when the whole fits; short ones are noted"
+    return PASS, "30-60 s ideal / 90 max in both briefs and the built-in rubrics, no 180; touching clips merge only when the whole fits; short ones are noted; weak hooks are left out"
 
 
 def check_settle() -> tuple[str, str]:
@@ -1292,7 +1302,7 @@ def check_settle() -> tuple[str, str]:
 
     # the quote travels: Gemini brief -> reply -> candidate; an old reply without it still reads
     brief = rt.build_gemini_brief("1. A (0:10 - 0:14): \"w1_0\"", "x.mp4")
-    if "endQuote" not in brief or "180 seconds" not in brief:
+    if "endQuote" not in brief or "90 seconds" not in brief:
         problems.append("the Gemini brief should ask for endQuote and name the longest clip")
     # path A (transcript in the brief): the strict end rule and a required endQuote, in the pasted brief and the API's
     from .models import Transcript as _T
@@ -1342,7 +1352,7 @@ def check_geminibrief() -> tuple[str, str]:
         problems.append("Gemini's answer goes in as marked data, whole")
     if text.index("<<<GEMINI_ANSWER") < text.index("## Answer format") or "Transcript" in text.split("<<<GEMINI_ANSWER")[0]:
         problems.append("the answer comes last and there is no transcript in the brief")
-    if "exactly as written" not in text or "180 seconds" not in text:
+    if "exactly as written" not in text or "90 seconds" not in text:
         problems.append("the brief must say to keep the times as written and long clips as they are")
     for bad in ("", "   " + chr(10)):
         try:
@@ -1522,9 +1532,67 @@ def check_cues() -> tuple[str, str]:
     if cues.counts(pool) != {"laughter": 2, "applause": 0, "shout": 0, "music": 0, "pause": 1, "fast talk": 0}:
         problems.append("counts() is off")
 
+    # energy: 200 s at 0 dB with a 4 s burst at 90 s -> one loud peak there; flat audio and no heatmap -> nothing
+    flat = [0.0] * 200
+    burst = [8.0 if 90 <= i < 94 else 0.0 for i in range(200)]
+    peaks = cues.energy_peaks(burst)
+    if len(peaks) != 1 or not (88 <= peaks[0]["start"] and peaks[0]["end"] <= 96) or cues.energy_peaks(flat):
+        problems.append(f"energy_peaks wrong: {peaks}")
+    heat = [{"start_time": i * 10.0, "end_time": i * 10.0 + 10, "value": 0.9 if i == 7 else 0.2} for i in range(20)]
+    hp = cues.heatmap_peaks(heat)
+    if [(p["kind"], p["start"]) for p in hp] != [("replayed", 70.0)] or cues.heatmap_peaks(None) or cues.heatmap_peaks([]):
+        problems.append(f"heatmap_peaks wrong: {hp}")
+    from . import roundtrip
+    text = roundtrip._cues_block({"status": {"audio": "ok"}, "cues": [], "energy": peaks + hp})
+    if "loud peak" not in text or "most replayed" not in text or "No audio or timing cues" in text:
+        problems.append("energy lines missing from the brief's cue block")
+
     if problems:
         return FAIL, "\n      ".join(problems)
-    return PASS, "levels, pauses, fast talk, per-clip cues"
+    return PASS, "levels, pauses, fast talk, per-clip cues, energy peaks, heatmap"
+
+
+def check_coldopen() -> tuple[str, str]:
+    """The cold open (render.py): the hook sentence found in the clip's words, off by default, the length it adds,
+    captions shifted by it, the big text only during it, and a held frame only for "freeze"."""
+    from . import render
+    from .models import Word
+    from .jobs import cold_open_for
+
+    problems = []
+    ws = "ini adalah kalimat pembuka yang sangat menarik sekali bagi penonton".split()
+    words = [Word(text=t, start=1.0 + i * 0.4, end=1.35 + i * 0.4) for i, t in enumerate(ws)]
+    spans = [render.Span(0.5, 8.0)]
+    got = render.hook_window(words, "Kalimat pembuka, yang sangat menarik!", spans)
+    if not got or abs(got[0] - 1.8) > 1e-9 or abs(got[1] - 3.75) > 1e-9:
+        problems.append(f"hook_window = {got}, expected (1.8, 3.75)")
+    cut = render.hook_window(words, "kalimat pembuka yang sangat menarik sekali bagi", spans)
+    if not cut or cut[1] - cut[0] > render.COLD_MAX_SEC:
+        problems.append(f"a long hook is not cut at {render.COLD_MAX_SEC} s: {cut}")
+    if render.hook_window(words, "tidak ada di sini", spans) or render.hook_window(words, "ini adalah", [render.Span(5, 8)]):
+        problems.append("a hook that is not inside the clip must give None")
+
+    job = render.RenderJob(title="t", spans=spans)
+    if cold_open_for({"hook": "kalimat pembuka yang sangat menarik"}, job, words)[0] or job.lead:
+        problems.append("the cold open must be off unless asked for")
+    plain = render.build_filter(job, 1280, 720, None)
+    for mode in ("freeze", "move"):
+        mode_, cold, text = cold_open_for({"hook": "kalimat pembuka yang sangat menarik", "coldOpen": mode}, job, words)
+        j = render.RenderJob(title="t", spans=spans, cold_open=mode_, cold=cold, cold_text=text)
+        filt = render.build_filter(j, 1280, 720, None)
+        if abs(j.lead - 1.95) > 1e-9 or abs(j.duration - (7.5 + 1.95)) > 1e-9:
+            problems.append(f"{mode}: lead {j.lead}, duration {j.duration}")
+        if ("tpad" in filt) != (mode == "freeze") or "concat=n=2" not in filt or "tpad" in plain:
+            problems.append(f"{mode}: the filter graph is off")
+        ass = render.build_ass(j, words, {"watermark": False})
+        if f"0:00:00.00,0:00:01.95,Hook" not in ass or "KALIMAT" not in ass:
+            problems.append(f"{mode}: the big text is not written for the first 1.95 s")
+        # the word "ini" (1.0 s in the source, 0.5 s into the clip) now lands 1.95 s later
+        if "0:00:02.45" not in ass:
+            problems.append(f"{mode}: captions are not shifted by the cold open")
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "hook found in the words and cut at 2 s, off by default, the lead, the filter (held frame only for freeze), the big text, shifted captions"
 
 
 # --------------------------------------------------------------------------
@@ -8752,7 +8820,7 @@ def check_voicefit() -> tuple[str, str]:
     return PASS, "pages_of equals pagesOf; the placement (room, no room, silent outro), the cut audio, and the choice fit through the server (used, undone, refused for an estimate)"
 
 
-CHECKS = {"cliplength": check_cliplength, "adminmodel": check_adminmodel, "autopilot": check_autopilot, "autopilotresult": check_autopilotresult, "autopilotrun": check_autopilotrun, "settle": check_settle, "briefagents": check_briefagents, "briefsteps": check_briefsteps, "migrate": check_migrate, "brief": check_brief, "geminibrief": check_geminibrief, "ranges": check_ranges, "cues": check_cues, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch, "labelbox": check_labelbox, "shotframe": check_shotframe, "facelock": check_facelock,
+CHECKS = {"cliplength": check_cliplength, "adminmodel": check_adminmodel, "autopilot": check_autopilot, "autopilotresult": check_autopilotresult, "autopilotrun": check_autopilotrun, "settle": check_settle, "briefagents": check_briefagents, "briefsteps": check_briefsteps, "migrate": check_migrate, "brief": check_brief, "geminibrief": check_geminibrief, "ranges": check_ranges, "cues": check_cues, "coldopen": check_coldopen, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch, "labelbox": check_labelbox, "shotframe": check_shotframe, "facelock": check_facelock,
           "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "voicefit": check_voicefit, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voicegoogle": check_voicegoogle, "voicestudio": check_voicestudio, "elevenlabs": check_elevenlabs, "khusus": check_khusus, "briefbuttons": check_briefbuttons, "music": check_music, "voice": check_voice, "decode": check_decode, "render": check_render}
 
 

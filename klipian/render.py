@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import re
 import subprocess
+import textwrap
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -93,6 +94,8 @@ class CropBox:
 #   16:9  the whole source frame, scaled to the file's width, placed the same
 #         way (what "Blur background" was, with Background = blur).
 # The canvas around a 3:4 or 16:9 picture is black or a blurred copy of it.
+COLD_OPENS = ("freeze", "move")
+COLD_MAX_SEC = 2.0
 PICTURES = ("9:16", "16:9", "3:4")
 BACKGROUNDS = ("blur", "black")
 
@@ -132,6 +135,12 @@ class RenderJob:
     # chosen, and stays the default -- a render that sends no quality comes
     # out exactly as it used to.
     quality: int = 21
+    # Cold open (optional, off by default): the clip's `hook` sentence, `cold` = (start, end) in source seconds, laid in
+    # front of the clip with `cold_text` in big letters. "freeze": the picture is held on the first frame while the
+    # sentence is heard; "move": the picture keeps moving. The sentence is heard again where it really is, on purpose.
+    cold_open: str = ""
+    cold: "tuple[float, float] | None" = None
+    cold_text: str = ""
 
     def __post_init__(self):
         # Validate cuts: must be sorted & non-overlapping
@@ -163,8 +172,27 @@ class RenderJob:
         return self.out_height
 
     @property
+    def lead(self) -> float:
+        """Seconds the cold open adds in front of the clip (0 without one)."""
+        return (self.cold[1] - self.cold[0]) if self.cold_open in COLD_OPENS and self.cold else 0.0
+
+    @property
+    def cold_span(self) -> "Span | None":
+        """The cold open as a span, framed like the span that holds it (its first box if that one is split)."""
+        if not self.lead:
+            return None
+        host = next((p for p in self.spans if p.start - 1e-6 <= self.cold[0] < p.end), None)
+        box = (host.crop or (host.crops[0] if host.crops else None)) if host else None
+        box = box or self.crop
+        track = shift_tracking(host.tracking, self.cold[0] - host.start) if host else None
+        if host and host.tracking and not track:     # too little of the trajectory left: hold where the face was at the start
+            near = min(host.tracking, key=lambda kf: abs(kf["t"] - (self.cold[0] - host.start)))
+            box = CropBox(near["left"], box.top, box.width, box.height)
+        return Span(self.cold[0], self.cold[1], box, None, track)
+
+    @property
     def duration(self) -> float:
-        return sum(p.length for p in self.spans)
+        return sum(p.length for p in self.spans) + self.lead
 
 
 # --------------------------------------------------------------------------
@@ -189,6 +217,25 @@ def _ass_escape(text: str) -> str:
     return (text.replace("\\", r"\\")
                 .replace("{", r"\{")
                 .replace("}", r"\}"))
+
+
+def hook_window(words: list[Word], hook: str, spans: list[Span], max_sec: float = COLD_MAX_SEC) -> tuple[float, float] | None:
+    """Where the `hook` quote is spoken inside the clip: (start, end) in source seconds, cut after the last whole word
+    that fits in `max_sec` (at least one word). None when the quote is not found in the clip's words."""
+    def norm(t: str) -> str:
+        return re.sub(r"[^\w]+", "", t.lower())
+    want = [norm(t) for t in hook.split() if norm(t)]
+    inside = [w for w in words if norm(w.text) and any(p.start - 1e-6 <= w.start and w.end <= p.end + 1e-6 for p in spans)]
+    have = [norm(w.text) for w in inside]
+    for i in range(len(have) - len(want) + 1):
+        if want and have[i:i + len(want)] == want:
+            first, last = inside[i], inside[i + len(want) - 1]
+            end = first.end
+            for w in inside[i:i + len(want)]:
+                if w.end - first.start <= max_sec:
+                    end = w.end
+            return first.start, min(end, last.end, first.start + max_sec)
+    return None
 
 
 def to_output_time(spans: list[Span], seconds: float) -> float | None:
@@ -498,6 +545,7 @@ ScaledBorderAndShadow: yes
 Format: Name, Fontname, Fontsize, PrimaryColour, OutlineColour, BackColour, Bold, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Utama,{g['font']},{g['size']},{warna_style},{border_colour},&H80000000,1,{border_style},{g['outline']},0,2,{margin_left},{margin_right},{margin_bottom},1
 Style: Kotak,{g['font']},{g['size']},{g['highlight'].rstrip('&')},&H00000000,&H00000000,0,1,0,0,7,0,0,0,1
+Style: Hook,{g['font']},128,&H0000D6FF,&H00000000,&H80000000,1,1,9,3,5,60,60,0,1
 Style: Watermark,Mona Sans ExtraBold,{g['watermark_size']},{wm_color},{wm_outline_color},&H60000000,0,1,1,0,2,{wm_left},{wm_right},{wm_margin},1
 
 [Events]
@@ -509,6 +557,20 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         header += (
             f"Dialogue: 0,{_ass_time(0)},{_ass_time(job.duration)},"
             f"Watermark,,0,0,0,,{wm_text}\n")
+
+    if job.lead and job.cold_text:
+        # In the top band (where the clip's own title box sits), clear of the faces and of the captions below. The type
+        # is as big as the longest line allows across the frame, at most 128 and at least 72.
+        text = _ass_escape(job.cold_text.upper())
+        for width in (12, 16, 20):                 # at most 3 lines (a 4th reaches a face): wider lines, smaller type
+            lines = textwrap.wrap(text, width)
+            if len(lines) <= 3:
+                break
+        lines = lines[:3]
+        size = max(72, min(128, int(900 / (0.74 * max(len(x) for x in lines)))))
+        big = "\\N".join(lines)
+        header += (f"Dialogue: 2,{_ass_time(0)},{_ass_time(job.lead)},Hook,,0,0,0,,"
+                   f"{{\\an8\\pos({REF_W // 2},{int(REF_H * 0.07)})\\fs{size}}}{big}\n")
 
     # only words that actually land in the output
     used = []
@@ -527,7 +589,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     break
         teks = _ass_escape(w.text.strip())
         if a is not None and b is not None and b > a and teks:
-            used.append((a, b, teks))
+            used.append((a + job.lead, b + job.lead, teks))
 
     events = []
     per_line = max(1, int(g["per_line"]))   # a MAXIMUM now (see caption_plan); 0/negative must not crash
@@ -691,7 +753,9 @@ def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
         return f"crop={cw}:{ch}:{cx}:{cy}"
 
     parts = []
-    for i, span in enumerate(job.spans):
+    cold = job.cold_span
+    segs = ([cold] if cold else []) + job.spans
+    for i, span in enumerate(segs):
         v = f"[0:v]trim=start={span.start:.3f}:end={span.end:.3f},setpts=PTS-STARTPTS"
         if crop_first and split_ok and span.crops and len(span.crops) >= 2:
             # Split frame: ONE segment cut twice then stacked. split=2 is
@@ -757,10 +821,13 @@ def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
                      f"sendcmd=f='{cmd_esc}'")
             else:
                 v += f",{box(c)},scale={W}:{H},setsar=1"
+        if cold and i == 0 and job.cold_open == "freeze":
+            # one frame, held for the length of the sentence (tpad clones the last frame)
+            v += f",trim=end_frame=1,tpad=stop_mode=clone:stop_duration={span.length:.3f}"
         parts.append(f"{v}[v{i}]")
         parts.append(f"[0:a]atrim=start={span.start:.3f}:end={span.end:.3f},"
                      f"asetpts=PTS-STARTPTS[a{i}]")
-    n = len(job.spans)
+    n = len(segs)
     inputs = "".join(f"[v{i}][a{i}]" for i in range(n))
     parts.append(f"{inputs}concat=n={n}:v=1:a=1[vc][ac]")
     return ";".join(parts)
@@ -931,7 +998,7 @@ def render(source: Path, job: RenderJob, dest: Path,
     # ANYTHING that needs writing to ASS", not "are there words".
     watermark_enabled = (style or {}).get("watermark", True)
     ass_path = None
-    if words or watermark_enabled:
+    if words or watermark_enabled or job.lead:
         ass_path = dest.with_suffix(".ass")
         ass_path.write_text(build_ass(job, words, style), encoding="utf-8")
 

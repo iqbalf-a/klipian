@@ -106,6 +106,9 @@ def _cues_block(cues_data: dict | None) -> str:
             lines.append(f"- {span} music · avoid")
         else:
             lines.append(f"- {span} {c['kind']} · {c['level']} ({c['len']:.1f} s)")
+    for c in (cues_data or {}).get("energy", []):
+        what = "loud peak" if c["kind"] == "loud" else "most replayed by viewers"
+        lines.append(f"- [{fmt_stamp(c['start'])}]–[{fmt_stamp(c['end'])}] {what}")
     notes = []
     audio = status.get("audio", "not run")
     if audio == "failed":
@@ -145,6 +148,10 @@ By kind:
   starts at the beginning of the topic.
 - fast talk: the peak of a story, not its start.
 - music: a stretch to avoid, not a cut point. A clip must not run into it.
+- loud peak: the speaker is much louder than around it (a punchline, a burst of
+  emotion); `most replayed` is where viewers of the original rewatched. Both
+  hint that a moment is worth a clip. Neither is a start or a hook by itself:
+  the hook is still the sentence that holds a stranger, which you judge from the words.
 
 {body}
 """
@@ -226,13 +233,14 @@ rubric above does not ask for it.
 
 
 # How long a clip is, in seconds, for every profile and every path (one decision, not a template setting): ideal
-# 60-120, at most 180, under 45 only when the topic itself ends there. Said in three places that must agree: the brief
+# 30-60, at most 90, under 20 only when the topic itself ends there. Said in three places that must agree: the brief
 # (_ONE_TOPIC below), settle_end() (caps at CLIP_MAX_SEC) and the Ask Gemini question (ui/js/editor/gemini.js
 # CLIP_MAX_SEC); the built-in rubrics (prompts/rubrik/dialog-podcast.md, templates/komedi-tv.md) and the editor's
 # length ribbon (ui/js/editor/app.js RIBBON_DURATION) show the same band. Autopilot's merge uses all three numbers.
-CLIP_MIN_SEC = 45
-CLIP_IDEAL = (60, 120)
-CLIP_MAX_SEC = 180
+CLIP_MIN_SEC = 20
+CLIP_IDEAL = (30, 60)
+CLIP_MAX_SEC = 90
+HOOK_MIN = 8        # Autopilot drops a clip whose `hook` score is below this (a missing score, 0, is kept); the brief says the same
 
 _ONE_TOPIC = f"""Each clip holds **one topic, whole**: it starts where that topic begins and ends once its point
 is made. Never start or end a clip in the middle of a sentence or a thought, and never run two topics into
@@ -255,6 +263,11 @@ three lines of the transcript: if they still continue the same point (an answer,
 reaction to it), the clip is not finished yet. A few seconds too late is better than cutting the topic short.
 A clip is at most {CLIP_MAX_SEC} seconds; a longer topic ends at the end of a sentence where its point is already
 made. A clip that stops before its topic is done gets a low `complete` score.
+
+A clip is worth posting only with a strong hook: it opens with, or within its first few seconds reaches, a sentence
+that would make a stranger stop scrolling (a confession, a conflict, a surprise, an open question). Give `hook`
+{HOOK_MIN} or more only for that; a clip that is whole and tidy but has no such moment is not worth posting. When no
+topic in this video has one, answer with an empty list: no clips is a good answer, never fill the list.
 
 The duration band here replaces any duration band in the rubric."""
 

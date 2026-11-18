@@ -651,6 +651,16 @@ def cap_length(cands: list[dict], ends: list[float], max_sec: float | None = Non
     return out, notes
 
 
+def drop_weak_hooks(cands: list[dict], floor: float | None = None) -> tuple[list[dict], list[str]]:
+    """Clips whose `hook` score is under `floor` (roundtrip.HOOK_MIN) are left out: no clip is better than a weak one.
+    A score of 0 means the AI gave none, so that clip stays. Returns (the rest in the same order, one note if any went)."""
+    from . import roundtrip as rt
+    low = rt.HOOK_MIN if floor is None else floor
+    kept = [c for c in cands if not 0 < (c.get("scores") or {}).get("hook", 0) < low]
+    gone = len(cands) - len(kept)
+    return kept, ([f"{gone} clip{'s' if gone != 1 else ''} left out: hook score under {low:g}."] if gone else [])
+
+
 def _step_clips(rid, run, deps):
     most = run["template"]["maxClips"]
     if run.get("candidates") is not None:
@@ -667,7 +677,8 @@ def _step_clips(rid, run, deps):
         update_run(rid, ai_usage=usage)
     found, merge_notes = merge_touching(list(found))
     found, cap_notes = cap_length(found, deps.sentence_ends(run["file"]))
-    found, notes = found[:most], list(notes or []) + merge_notes + cap_notes
+    found, hook_notes = drop_weak_hooks(found)
+    found, notes = found[:most], list(notes or []) + merge_notes + cap_notes + hook_notes
     if not found:
         update_run(rid, candidates=[])
         raise _Finished("No topic in this video was worth a clip.")

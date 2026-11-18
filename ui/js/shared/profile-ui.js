@@ -113,6 +113,12 @@ ${html}      </div>`;
             <option value="2"${d.titleTags === 2 ? " selected" : ""}>2</option>
             <option value="3"${d.titleTags === 2 ? "" : " selected"}>3</option>
           </select></label>
+        <label>Cold open (the hook sentence before the clip)
+          <select name="coldOpen">
+            <option value=""${d.coldOpen ? "" : " selected"}>Off</option>
+            <option value="freeze"${d.coldOpen === "freeze" ? " selected" : ""}>Frozen frame + big text</option>
+            <option value="move"${d.coldOpen === "move" ? " selected" : ""}>Moving video + big text</option>
+          </select></label>
         <label class="check"><input type="checkbox" name="addShorts"${d.addShorts ? " checked" : ""}> Add #shorts to the title</label>
         ${canPreset ? `<p class="note">Caption look: ${d.captionPreset ? "a default is saved." : "none saved yet."}
           <button class="btn quiet" type="button" data-pm="preset">Use the current caption look as this profile's default</button></p>` : ""}
@@ -244,7 +250,7 @@ ${html}      </div>`;
       try {
         const j = await post("/api/profiles/update", { id: PROFILE, name: f.name, color: f.color,
           defaults: { watermark: f.watermark, rubric: f.rubric, hashtagPlacement: f.hashtagPlacement,
-            titleTags: Number(f.titleTags), addShorts: !!f.addShorts },
+            titleTags: Number(f.titleTags), addShorts: !!f.addShorts, coldOpen: f.coldOpen },
           ...(isGuest ? {} : { thumbStyle: thumbChanges(dlg) }) });
         meta = j.profile;
         draw();

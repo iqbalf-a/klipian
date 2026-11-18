@@ -41,7 +41,7 @@ from pathlib import Path
 
 from .paths import ROOT, replace_file
 
-CUES_VERSION = 1
+CUES_VERSION = 2          # 2: the cache also keeps `energy`, the loudness per second against the surrounding minute
 
 MODEL = ROOT / "assets" / "models" / "yamnet.onnx"
 CLASS_MAP = ROOT / "assets" / "models" / "yamnet_class_map.csv"
@@ -92,6 +92,11 @@ TIMING = {
 }
 
 REL_ENERGY = {"window": 60}      # seconds each side, for the median the level is compared to
+
+# Extra evidence for the candidate prompt (not cues: they never reach the editor's chips). Like fast talk, a stretch
+# counts when it is above a percentile of the video's OWN values, so there is no fixed loudness to tune.
+ENERGY = {"window": 3, "percentile": 97, "merge_gap": 2.0}     # loud peaks: mean rel_db over `window` seconds
+HEATMAP = {"percentile": 90, "merge_gap": 1.0}                 # "Most replayed" bins above this percentile
 
 # A candidate clip "has" the cues that overlap it or start within this many
 # seconds after it ends (a laugh belongs to the line before it).
@@ -175,7 +180,7 @@ def _ranges(score, threshold: float, gap: int) -> list[dict]:
 
 
 def detect_audio(video: Path) -> list[dict]:
-    """Raw ranges for every audio kind: {kind, start, end, peak, mean, rel_db}."""
+    """(raw ranges for every audio kind: {kind, start, end, peak, mean, rel_db}, rel_db per second)."""
     import numpy as np
     wave = _decode(video)
     scores = _scores(wave)
@@ -198,7 +203,7 @@ def detect_audio(video: Path) -> list[dict]:
             cues.append({"kind": kind, "start": round(r["start"], 2), "end": round(r["end"], 2),
                          "peak": round(r["peak"], 3), "mean": round(r["mean"], 3),
                          "rel_db": round(float(seg.max()), 1) if len(seg) else 0.0})
-    return cues
+    return cues, [round(float(x), 1) for x in rel]
 
 
 def run_audio_cues(video: Path, cache) -> dict:
@@ -207,7 +212,8 @@ def run_audio_cues(video: Path, cache) -> dict:
     nothing, and so the next Find clips tries again."""
     started = time.time()
     try:
-        record = {"version": CUES_VERSION, "status": "ok", "cues": detect_audio(video)}
+        cues, energy = detect_audio(video)
+        record = {"version": CUES_VERSION, "status": "ok", "cues": cues, "energy": energy}
     except Exception as exc:                                  # noqa: BLE001
         record = {"version": CUES_VERSION, "status": "failed",
                   "error": f"{type(exc).__name__}: {exc}", "cues": []}
@@ -271,6 +277,58 @@ def timing_cues(words: list, duration: float) -> list[dict]:
     return out
 
 
+def _above_percentile(spans: list[tuple[float, float, float]], pct: float, gap: float, kind: str) -> list[dict]:
+    """Spans (start, end, value) whose value is above the pct-th percentile of all of them, merged when closer than gap."""
+    if not spans:
+        return []
+    limit = _percentile(sorted(v for _, _, v in spans), pct)
+    out: list[dict] = []
+    for a, b, v in spans:
+        if v <= limit:
+            continue
+        if out and a - out[-1]["end"] <= gap:
+            out[-1]["end"] = max(out[-1]["end"], b)
+            out[-1]["score"] = max(out[-1]["score"], v)
+        else:
+            out.append({"kind": kind, "start": round(a, 2), "end": round(b, 2), "score": round(v, 2)})
+    return out
+
+
+def energy_peaks(energy: list[float]) -> list[dict]:
+    """Loud stretches: the mean of the per-second loudness (against the surrounding minute) over ENERGY['window']
+    seconds is among the video's top few percent. `score` is that mean in dB above the surroundings."""
+    w = ENERGY["window"]
+    spans = [(float(i), float(i + w), sum(energy[i:i + w]) / w) for i in range(len(energy) - w + 1)]
+    return _above_percentile(spans, ENERGY["percentile"], ENERGY["merge_gap"], "loud")
+
+
+def heatmap_peaks(heatmap: list[dict] | None) -> list[dict]:
+    """YouTube's "Most replayed" bins ({start_time, end_time, value}) that are among the strongest. None or empty: no result."""
+    spans = [(float(b["start_time"]), float(b["end_time"]), float(b["value"])) for b in heatmap or []
+             if isinstance(b, dict) and {"start_time", "end_time", "value"} <= b.keys()]
+    return _above_percentile(spans, HEATMAP["percentile"], HEATMAP["merge_gap"], "replayed")
+
+
+def load_heatmap(video: Path, cache) -> list[dict] | None:
+    try:
+        data = json.loads(cache.heatmap_path(video).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, list) else None
+
+
+def save_heatmap(video: Path, cache, heatmap, offset: float = 0.0) -> None:
+    """Keep YouTube's heatmap next to the video's cache (ytdl). A downloaded part is shifted so times count from its start;
+    no heatmap (most videos have none) writes nothing."""
+    if not heatmap:
+        return
+    bins = [{"start_time": b["start_time"] - offset, "end_time": b["end_time"] - offset, "value": b["value"]}
+            for b in heatmap if b["end_time"] > offset]
+    tmp = cache.heatmap_path(video).with_suffix(".tmp")
+    tmp.write_text(json.dumps(bins), encoding="utf-8")
+    replace_file(tmp, cache.heatmap_path(video))
+
+
 # ------------------------------------------------------------------ what readers get
 
 def load(video: Path | None, cache) -> dict:
@@ -306,7 +364,9 @@ def load(video: Path | None, cache) -> dict:
             status["timing"] = "failed"
 
     cues.sort(key=lambda c: (c["start"], c["kind"]))
-    return {"status": status, "cues": cues}
+    extra = (energy_peaks(record.get("energy") or []) if record else []) + \
+            (heatmap_peaks(load_heatmap(video, cache)) if video else [])
+    return {"status": status, "cues": cues, "energy": sorted(extra, key=lambda c: c["start"])}
 
 
 def counts(cues: list[dict]) -> dict[str, int]:

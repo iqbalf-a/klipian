@@ -167,6 +167,8 @@ def _clean_defaults(d) -> dict:
         out["rubric"] = d["rubric"]       # a workspace rubric too (rubrics.py); one that is gone falls back to dialog on use
     if d.get("hashtagPlacement") in ("title", "description", "both"):
         out["hashtagPlacement"] = d["hashtagPlacement"]
+    if d.get("coldOpen") in ("freeze", "move"):
+        out["coldOpen"] = d["coldOpen"]       # a cold open in front of the clip (render.py); absent = off
     if "addShorts" in d:
         out["addShorts"] = bool(d["addShorts"])
     if d.get("titleTags") in (2, 3):

@@ -15,8 +15,8 @@ one clip. If a topic is too long and has to be shortened, cut it at the end of a
 the part you keep still makes sense on its own.
 
 A clip tells one story or one topic from its setup to its payoff: the question or situation, what happens, and
-how it ends or what it means. Aim for 60 to 120 seconds; never more than 180.
-A clip under 45 seconds is right only when the topic itself is that short; a clip that is short
+how it ends or what it means. Aim for 30 to 60 seconds; never more than 90.
+A clip under 20 seconds is right only when the topic itself is that short; a clip that is short
 because it stops early is wrong.
 
 Before you choose, split the whole transcript into its topics or story parts, each with where it starts and ends.
@@ -28,8 +28,13 @@ are clearly different topics.
 End a clip only after the last sentence of its topic is finished. Before you write `end`, read the next two or
 three lines of the transcript: if they still continue the same point (an answer, a punchline, a conclusion, a
 reaction to it), the clip is not finished yet. A few seconds too late is better than cutting the topic short.
-A clip is at most 180 seconds; a longer topic ends at the end of a sentence where its point is already
+A clip is at most 90 seconds; a longer topic ends at the end of a sentence where its point is already
 made. A clip that stops before its topic is done gets a low `complete` score.
+
+A clip is worth posting only with a strong hook: it opens with, or within its first few seconds reaches, a sentence
+that would make a stranger stop scrolling (a confession, a conflict, a surprise, an open question). Give `hook`
+8 or more only for that; a clip that is whole and tidy but has no such moment is not worth posting. When no
+topic in this video has one, answer with an empty list: no clips is a good answer, never fill the list.
 
 The duration band here replaces any duration band in the rubric.
 
@@ -254,6 +259,10 @@ By kind:
   starts at the beginning of the topic.
 - fast talk: the peak of a story, not its start.
 - music: a stretch to avoid, not a cut point. A clip must not run into it.
+- loud peak: the speaker is much louder than around it (a punchline, a burst of
+  emotion); `most replayed` is where viewers of the original rewatched. Both
+  hint that a moment is worth a clip. Neither is a start or a hook by itself:
+  the hook is still the sentence that holds a stranger, which you judge from the words.
 
 - [16:45]–[16:48] laughter · high (2.9 s)
 - [16:50]–[16:59] music · avoid

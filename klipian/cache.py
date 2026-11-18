@@ -79,6 +79,10 @@ class Cache:
         fp = fingerprint(video)
         return self.root / f"{Path(video).stem}.{fp}.cues.json"
 
+    def heatmap_path(self, video: Path) -> Path:
+        """YouTube's "Most replayed" bins, saved by ytdl when the video has them (most do not)."""
+        return self.root / f"{Path(video).stem}.{fingerprint(video)}.heatmap.json"
+
     def diarize_path(self, video: Path, start: float, end: float, min_speakers: int | None = None) -> Path:
         """AI Framing speaker turns for one [start, end) span -- range goes
         into the fingerprint (rounded to 10ms, plenty for a cache key) so

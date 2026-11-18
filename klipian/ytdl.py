@@ -653,6 +653,12 @@ def _run(jid: str, vid: str, temp: Path, ev: threading.Event, quality: int = 108
                 os.replace(made[0], dest)
         if keep:
             _restore(keep)                    # the old credit comes back first; _put_credit never overwrites it
+        try:                                  # only a bonus for the clip prompt: never fails the download
+            from . import cues as _cues
+            from .cache import Cache
+            _cues.save_heatmap(dest, Cache(paths.CACHE_DIR), info.get("heatmap"), real[0] if real else 0.0)
+        except Exception:                     # noqa: BLE001
+            pass
         wrote = _put_credit(name, _credit_for(info, vid, real))
         _set(jid, state="done", percent=100, name=name, creditWritten=wrote, message="Done.",
              speed=None, eta=None, **({"section": real} if real else {}))

@@ -405,6 +405,7 @@ def _render_body(job_id: str, req: dict, into: Path | None = None, record: bool 
                 job = engine.RenderJob(title=k["title"], spans=spans, crop=crop_box,
                                        **picture, out_width=out_width, quality=quality)
                 clip_words = _clip_words(k, words)
+                job.cold_open, job.cold, job.cold_text = cold_open_for(k, job, clip_words)
                 try:
                     prog.advance()                         # preparing -> the encode
                     engine.render(video, job, dest, words=clip_words, style=style,
@@ -443,6 +444,8 @@ def _render_body(job_id: str, req: dict, into: Path | None = None, record: bool 
                         run_job = engine.RenderJob(title=k["title"], spans=run_spans,
                                                    crop=crop_box, **picture,
                                                    out_width=out_width, quality=quality)
+                        if ridx == 0:                      # the cold open goes in front of the clip: only when the hook is spoken in its first run
+                            run_job.cold_open, run_job.cold, run_job.cold_text = cold_open_for(k, run_job, run_words)
                         part_dest = tmp_dir / f"part{ridx}.mp4"
                         prog.advance()                     # the next piece
                         engine.render(run_video, run_job, part_dest, words=run_words,
@@ -934,6 +937,19 @@ def add_render_to_schedule(folder: str, file_name: str) -> tuple[str, bool, str]
     title = " ".join(Path(file_name).stem.replace("-", " ").replace("_", " ").split()) or file_name
     row_id, created = schedule.add_file_row(title, file_name, pid)
     return row_id, created, "from the file name"
+
+
+def cold_open_for(k: dict, job, words: list) -> tuple[str, tuple | None, str]:
+    """(mode, (start, end), big text) of a clip's cold open (render.RenderJob), or ("", None, "") when it is off
+    (the default), the clip has no hook, or the hook is not found in its words. The request's `coldOpen` wins over the
+    profile's default."""
+    from . import profiles, thumbnail
+    mode = k.get("coldOpen", profiles.defaults().get("coldOpen"))
+    hook = " ".join(str(k.get("hook") or "").split())
+    if mode not in engine.COLD_OPENS or not hook:
+        return "", None, ""
+    found = engine.hook_window(words, hook, job.spans)
+    return (mode, found, thumbnail.cut_hook(hook) or hook[:60]) if found else ("", None, "")
 
 
 def style_with_profile(style: dict | None) -> dict | None:
