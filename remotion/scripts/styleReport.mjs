@@ -104,13 +104,16 @@ const loop = sheet([firstFile, lastFile], path.join(outDir, "loop.png"), 2, 360)
 const { psnr, ssim } = compare(firstFile, lastFile);
 
 // 2. the hero's share of the width: where the plan declares its box (HERO_BOX_AT(t) = { x, y, w, h } in the 1080 px frame)
+let hookHeroLine = { level: "RENDER", text: "B44: the hero fills 70 to 80 % of the width at frame 0 (the plan declares no HERO_BOX_AT: measure it on the still)" };
 let heroLine = { level: "RENDER", text: "the hero is 60 to 70 % of the width at the main shot: the plan declares no HERO_BOX_AT, so it is measured by hand on the still" };
 const planFile = path.join(dir, "plan.ts");
 if (existsSync(planFile)) {
   try {
     const P = await import(pathToFileURL(planFile).href);
     if (typeof P.HERO_BOX_AT === "function") {
-      const ratios = mids.map((t, i) => ({ id: beats[i].id, r: (P.HERO_BOX_AT(t)?.w ?? 0) / 1080 })).filter((x) => x.r > 0);
+      const ratios = mids.map((t, i) => ({ id: beats[i].id, r: (P.HERO_BOX_AT(t)?.w ?? 0) / 1080 })).filter((x, i) => x.r > 0 && i > 0);   // B44: the hook beat has its own 70 to 80 % rule
+      const f0 = (P.HERO_BOX_AT(0)?.w ?? 0) / 1080;
+      hookHeroLine = f0 >= 0.7 && f0 <= 0.8 ? { level: "PASS", text: `B44: the hero is ${(f0 * 100).toFixed(0)} % of the width at frame 0` } : { level: "FLAG", text: `B44: the hero is ${(f0 * 100).toFixed(0)} % of the width at frame 0: 70 to 80 % asked` };
       const main = ratios.reduce((a, b) => (b.r > a.r ? b : a), { r: 0 });
       heroLine = main.r >= 0.6 && main.r <= 0.7
         ? { level: "PASS", text: `the hero's declared box is ${(main.r * 100).toFixed(0)} % of the width at its main shot (beat ${main.id})` }
@@ -198,6 +201,7 @@ Background theme: \`${story.theme ?? "cream"}\` · stage shape: \`${story.stage 
 ## The hero and the stage
 
 - ${heroLine.level}: ${heroLine.text}
+- ${hookHeroLine.level}: ${hookHeroLine.text}
 
 ## The detail budget (B6)
 
@@ -245,3 +249,4 @@ writeFileSync(path.join(outDir, "style-report.md"), md);
 console.log(`style-report: ${relOut(path.join(outDir, "style-report.md"))}`);
 console.log(`loop: PSNR ${psnr === null ? "not measured" : psnr.toFixed(2)} dB, SSIM ${ssim === null ? "-" : ssim.toFixed(4)} (${passLoop ? "PASS" : "FLAG"})`);
 console.log(`hero: ${heroLine.level} ${heroLine.text}`);
+console.log(`hero0: ${hookHeroLine.level} ${hookHeroLine.text}`);

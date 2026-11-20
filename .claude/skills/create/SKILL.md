@@ -12,7 +12,7 @@ The message is `-create [2.5d|iso|2d|teks] [30|40|45|60] [noloop] [nointip] [sua
 | `2.5d` or `iso` / `2d` / `teks` | force the look (missing: you choose from the topic, B28) | `--look iso` / `--look 2d` / `--look text` |
 | `30` `40` `45` `60` | the duration (missing: 40) | `--duration 45` |
 | `noloop` | no loop-back ending (missing: loop) | `--no-loop` |
-| `nointip` | no "Intip yuk!" sting (missing: sting) | `--no-sting` |
+| `nointip` | no "Intip yuk!" sting (missing: the voice-only sting) | `--no-sting` |
 | `suara=a,b` | the voice apps (missing: all three) | `--voice a,b` |
 | `musik=<id>` | a music bed or `auto` (missing: the default) | `--music <id>` |
 | `catatan="..."` | notes for the AI (missing: none) | `--notes "..."` |
@@ -63,13 +63,22 @@ Read the options off the message as in the table above and pass each as its flag
 python3 -m klipian.motion_brief_cli --look text --duration 45 --no-loop "<topic>"
 ```
 
-With no option it prints the Khusus brief with the defaults: custom video, 60 s, loop yes, the "Intip yuk!" sting yes, the voice apps elevenlabs + googleai + voicestudio, the default music. A wrong value (an unknown voice app or music) is refused with a message: stop and answer only that message. The slug in it is checked against the folders of `main`, so it is free.
+With no option it prints the Khusus brief with the defaults: custom video, 40 s, loop yes, the voice-only "Intip yuk!" sting yes (the narration says it, nothing is drawn), the voice apps elevenlabs + googleai + voicestudio, the default music. A wrong value (an unknown voice app or music) is refused with a message: stop and answer only that message. The slug in it is checked against the folders of `main`, so it is free.
 
 Body and money topics are fine as explanations (why we hiccup, why banknotes do not tear). If the topic asks for medical advice, a diagnosis, a cure, a dose or a treatment, for investment or financial advice (e.g. "obat cegukan paling ampuh", "saham yang pasti naik"), or for anything dangerous: stop, write nothing, say why.
 
 ## 3. Build
 
 Follow the printed brief, steps 1 to 6, as written: it is the instruction, and its hard rules already say how to choose the set, draw the real form, write `sfx.ts` by hand and write the story's `thumb`. Run `npm ci` in `remotion` first when `remotion/node_modules` is missing. If Chrome or the render cannot run, say so and continue without the stills. Its "no push" line is overridden by step 4 below, and its report by step 5 (the brief has no narration or page steps: -create needs neither); everything else stands (never write to `workspace/`, never claim a check you did not run).
+
+## 3b. Before you push: the checklist
+
+Tick each with evidence (a command output or a still you opened); fix, then push. A topic that needs a full body or a sitting or standing person is not built until the Chibi rig exists (B43): answer with that reason and stop.
+
+1. **B41 (the hook wins the first second):** the hook claim is big text at frame 0, the first word at 0 s, the main answer held to about 70 % of the duration, the title does not start with "Intip", and the hook text fades back in over the last 0.5 s of the outro so the loop holds (`npm run style-report`: loop PSNR about 35 dB or more).
+2. **B42 (no reuse in the last 10 videos):** you listed the 10 most recent videos by the commit date that first added each `index.tsx`, grepped their `index.tsx` and `set.json`, and drew every backdrop, set, hook hero, supporting object and prop yourself; the answer lists what you avoided and which video each came from (the Chibi cast, B43, is the one reuse on purpose).
+3. **B44 (the feed look):** the hook text is 2 to 5 words at about 120 to 150 px (a black box per line, key words yellow, in the top third); the hook background is plain (one saturated palette colour or clean off-white) and the set comes in after it; the hero is 70 to 80 % of the width at frame 0 (`style-report` line `hero0`); objects have no faces (only the mascot and the Chibi do); you rendered frame 0 and a 200 px wide copy of it and looked at both.
+4. **B36 and B39 (body parts and real proportions):** a body part is drawn in its most recognisable pose, every object is the real thing it names (flat silhouette test), proportions are real, and nothing is drawn inside something solid.
 
 ## 4. Commit and push to main (the same rules in the cloud and in the local worktree)
 
