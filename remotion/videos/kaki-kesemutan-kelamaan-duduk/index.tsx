@@ -40,11 +40,20 @@ const polyline = (y0: number, ph: number) => {
 
 /* ---------- the set: sky, far hills and tree, pavement, bench, sign pole ---------- */
 const Far: React.FC<{ amb: number }> = ({ amb }) => {
-  const cloudX = -500 + 2400 * ((amb / 40) % 1);                         // one pass in 40 s: the loop clock, off the frame at both ends
+  const busX = -500 + 2400 * ((amb / 40) % 1);                           // one pass in 40 s: the loop clock, off the frame at both ends
   return (
     <g>
       <path d="M -900 1560 C -600 1470 -300 1500 0 1540 C 250 1575 420 1480 700 1500 C 950 1520 1150 1450 1500 1520 C 1700 1550 1900 1500 2100 1540 L 2100 1700 L -900 1700 Z" fill={MINT.ring} />
       <path d="M -900 1620 C -500 1560 -200 1590 100 1610 C 400 1630 700 1560 1000 1590 C 1300 1620 1600 1570 2100 1610 L 2100 1700 L -900 1700 Z" fill={MINT.floorEdge} opacity={0.75} />
+      <rect x={-900} y={1558} width={3000} height={16} fill={G3} opacity={0.6} />
+      <g transform={`translate(${busX} 1560)`}>
+        {/* a far bus crossing behind the bench once in 40 s: a long body, a window band, two wheels */}
+        <rect x={-150} y={-96} width={300} height={90} rx={18} fill={G3} />
+        <rect x={-150} y={-30} width={300} height={24} rx={8} fill={G2} />
+        {[0, 1, 2, 3, 4].map((k) => <rect key={k} x={-126 + k * 50} y={-82} width={38} height={34} rx={6} fill={G4} />)}
+        <circle cx={-90} cy={-4} r={22} fill={G1} /><circle cx={90} cy={-4} r={22} fill={G1} />
+        <circle cx={-90} cy={-4} r={9} fill={G3} /><circle cx={90} cy={-4} r={9} fill={G3} />
+      </g>
       {/* a round tree: a trunk and a crown, the crown's lower half in the shade tone */}
       <path d="M 228 1626 L 236 1400 L 264 1400 L 272 1626 Z" fill={G2} />
       <path d="M 250 1470 L 214 1420 M 252 1450 L 296 1400" stroke={G2} strokeWidth={14} strokeLinecap="round" />
@@ -53,11 +62,6 @@ const Far: React.FC<{ amb: number }> = ({ amb }) => {
         <circle cx={160} cy={1380} r={72} fill={MINT.floorEdge} /><circle cx={340} cy={1385} r={66} fill={MINT.floorEdge} />
         <path d="M 80 1360 Q 250 1470 420 1360 Q 380 1445 250 1460 Q 120 1445 80 1360 Z" fill={MINT.ring} opacity={0.9} />
         <circle cx={200} cy={1310} r={30} fill={MINT.floor} opacity={0.8} />
-      </g>
-      <g transform={`translate(${cloudX} 1330)`}>
-        <rect x={-130} y={10} width={300} height={46} rx={23} fill={WHITE} />
-        <circle cx={-30} cy={5} r={46} fill={WHITE} /><circle cx={50} cy={-12} r={60} fill={WHITE} /><circle cx={118} cy={14} r={36} fill={WHITE} />
-        <rect x={-130} y={36} width={300} height={20} rx={10} fill={G4} />
       </g>
     </g>
   );
@@ -163,7 +167,7 @@ const Inside: React.FC<{ sq: number; fire: number; clock: number }> = ({ sq, fir
 
 /** The needles of pins and needles around the shin and the foot. */
 const Needles: React.FC<{ amt: number; clock: number }> = ({ amt, clock }) => {
-  const tick = Math.floor(clock * 9);
+  const tick = clock < 0.5 || clock > 39.2 ? 0 : Math.floor(clock * 9);   // the same needles at the first and the last frame (the loop)
   return (
     <g>
       {Array.from({ length: 14 }, (_, k) => {
@@ -222,7 +226,7 @@ const World: React.FC<{ clock: number; amb: number }> = ({ clock, amb }) => {
 
 /* ---------- the screen layer: hook text, labels, tip cards ---------- */
 const HookText: React.FC<{ clock: number }> = ({ clock }) => {
-  const o = 1 - clamp01((clock - 2.7) / 0.3);
+  const o = clock > 20 ? clamp01((clock - 39.5) / 0.5) : 1 - clamp01((clock - 2.7) / 0.3);   // frame 0 has it, the last 0.5 s of the outro brings it back (B41: the loop)
   const bold = { fontFamily: `"${FONT_BOLD}", sans-serif`, fontWeight: 800 } as const;
   const lines = ["Kakimu", "bukan tidur.", "Sarafnya", "kejepit."];
   if (o <= 0) return null;
@@ -268,7 +272,7 @@ const Scene = ({ beat, t, clock, story }: SceneProps) => {
       {LABELS.map((l) => <ScreenLabel key={l.text + l.from} l={l} clock={clock} cam={cam} />)}
       <Card y={470} title="Ganti posisi" sub="gerakkan kakimu" a={CARDS[0].a} out={CARDS[0].out} clock={clock} />
       <Card y={680} title="Sering tanpa sebab?" sub="periksa ke dokter" a={CARDS[1].a} out={CARDS[1].out} clock={clock} />
-      {hook && <HookText clock={clock} />}
+      {(hook || outro) && <HookText clock={clock} />}
       {sting && <StingMark slug="kaki-kesemutan-kelamaan-duduk" t={t} clock={clock} />}
       {!hook && !sting && !outro && <TopText key={beat.id} kicker={KICKER[beat.id]} headline={beat.text} t={t} />}
       {!sting && !outro && <CaptionLayer beat={beat} t={t} />}

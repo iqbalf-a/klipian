@@ -10,21 +10,21 @@ type Key = { t: number; v: number };
 
 /** Camera keys (seconds of the video): focus (world x, y) and zoom. Between two keys the camera eases (in/out quad); equal keys hold. The last key is the first (the loop). */
 export const CAM_KEYS: { t: number; c: Cam }[] = [
-  { t: 0, c: { x: 540, y: 1180, z: 1.0 } },       // hook: the leg on the bench, frame 0 already the claim
-  { t: 3.0, c: { x: 540, y: 1180, z: 1.07 } },
-  { t: 3.9, c: { x: 540, y: 1180, z: 1.07 } },    // the sting
+  { t: 0, c: { x: 540, y: 1080, z: 0.85 } },      // hook: the leg on the bench, frame 0 already the claim
+  { t: 3.0, c: { x: 540, y: 1080, z: 0.9 } },
+  { t: 3.9, c: { x: 540, y: 1080, z: 0.9 } },    // the sting
   { t: 5.0, c: { x: 485, y: 1085, z: 2.1 } },     // saraf: in to the window on the thigh
   { t: 9.4, c: { x: 485, y: 1085, z: 2.2 } },
-  { t: 10.7, c: { x: 560, y: 1180, z: 1.0 } },    // duduk: back out to the whole leg
-  { t: 17.6, c: { x: 560, y: 1180, z: 1.06 } },
-  { t: 19.6, c: { x: 800, y: 1470, z: 1.25 } },   // berdiri: down to the foot
-  { t: 25.0, c: { x: 800, y: 1470, z: 1.3 } },
+  { t: 10.7, c: { x: 560, y: 1100, z: 0.85 } },    // duduk: back out to the whole leg
+  { t: 17.6, c: { x: 560, y: 1100, z: 0.88 } },
+  { t: 19.6, c: { x: 800, y: 1345, z: 1.65 } },   // berdiri: down to the shin and the foot (60 to 70 % of the width)
+  { t: 25.0, c: { x: 800, y: 1345, z: 1.65 } },
   { t: 26.5, c: { x: 485, y: 1085, z: 2.1 } },    // jepit: the window again, now with the answer
   { t: 31.6, c: { x: 485, y: 1085, z: 2.2 } },
   { t: 32.9, c: { x: 560, y: 1010, z: 0.8 } },    // tips: the whole leg low in the frame, the cards above it
   { t: 36.6, c: { x: 560, y: 1010, z: 0.8 } },
-  { t: 38.4, c: { x: 540, y: 1180, z: 1.0 } },    // the loop-back: the first shot
-  { t: 40, c: { x: 540, y: 1180, z: 1.0 } },
+  { t: 38.4, c: { x: 540, y: 1080, z: 0.85 } },    // the loop-back: the first shot
+  { t: 40, c: { x: 540, y: 1080, z: 0.85 } },
 ];
 
 const ease = (x: number) => (x < 0.5 ? 2 * x * x : 1 - 2 * (1 - x) * (1 - x));
@@ -83,7 +83,7 @@ export type SLabel = { text: string; x: number; y: number; from: number; to: num
 export const LABELS: SLabel[] = [
   { text: "saraf", x: 250, y: 690, from: 5.4, to: 9.4, at: [380, 1114] },
   { text: "pembuluh darah", x: 690, y: 690, from: 6.4, to: 9.4, at: [560, 1086] },
-  { text: "berat badan", x: 790, y: 650, from: 11.4, to: 17.2 },
+  { text: "berat badan", x: 400, y: 650, from: 11.4, to: 17.2 },
   { text: "dijepit", x: 250, y: 690, from: 27.1, to: 29.0, at: [380, 1114] },
   { text: "darah berkurang", x: 690, y: 690, from: 27.5, to: 29.0, at: [560, 1086] },
   { text: "menyala lagi", x: 300, y: 690, from: 29.8, to: 31.6, at: [400, 1114] },
@@ -107,6 +107,7 @@ export function makePlan(story: StoryT) {
 /** The hero's box at time t, in the 1080 px frame (x, y, w, h): the seated leg (thigh to toes, about 840 world px wide, 700 tall). */
 export const HERO_BOX_AT = (t: number) => {
   const c = camAt(t);
+  if (t >= 18.5 && t < 26.2) return { x: 540 + (590 - c.x) * c.z, y: 960 + (1078 - c.y) * c.z, w: 395 * c.z, h: 612 * c.z };   // 'berdiri': the hero is the shin and the foot
   if (winAt(t) > 0.5) return { x: 540 + (303 - c.x) * c.z, y: 960 + (1000 - c.y) * c.z, w: 298 * c.z, h: 150 * c.z };   // in the window beats the hero is the window on the thigh
   return { x: 540 + (540 - c.x) * c.z, y: 960 + (1340 - c.y) * c.z, w: 840 * c.z, h: 700 * c.z };
 };
