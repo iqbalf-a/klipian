@@ -49,7 +49,7 @@ export function catalog() {
     // what each beat kind means, in plain words (the brief reads this table; a test checks that every kind of the schema has a line)
     beatKindMeaning: {
       hook: "an everyday hook: a question, a surprising statement or a myth, about 3 seconds, no mascot",
-      sting: "the small 'Intip yuk!' beat: the narration is exactly 'Intip yuk!', a small mascot and the pill",
+      sting: "the small 'Intip yuk!' beat: the narration is exactly 'Intip yuk!', voice-only (B31): nothing is drawn",
       lens: "a look inside a physical object: only when the cause is inside it; for a habit, a body, a process or an idea use normal",
       normal: "one step of the explanation: the default kind",
       loose: "the bad case of an object whose variant is loose; for any other topic use normal",

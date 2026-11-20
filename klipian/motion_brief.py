@@ -120,7 +120,7 @@ FACT_RULES = """- Every claim the video makes needs at least one source URL (a m
 def _options_text(opts: dict) -> str:
     music = f"{_m.MUSIC_USE[opts['music']]} (story music track {_m.MUSIC_TRACKS[opts['music']]})"
     lines = [f"- Loop: {'yes (the ending returns to the scene of the first beat)' if opts['loop'] else 'no (the ending does not return to the first scene)'}",
-             f"- Intip yuk!: {'yes (the small sting right after the hook)' if opts['sting'] else 'no (no sting beat)'}",
+             f"- Intip yuk!: {'yes (the voice-only sting right after the hook: nothing is drawn)' if opts['sting'] else 'no (no sting beat)'}",
              f"- Music: {music}",
              f"- Target voice apps: {_m.voice_apps_text(opts['voiceTargets'])} (klipian writes the narration text in each app's own format; the voices are made outside klipian)",
              f"- Kind: {_m.KINDS[opts['kind']]}"]
@@ -164,7 +164,7 @@ HARD_RULES = [
     "The beats' seconds add up to exactly the duration.",
     "**The narration fits its beat:** a voice app reads about 2 words a second, pauses included, so aim each beat's narration at about 2 words for each of its seconds (a 7 s beat: 14 words; 80 % to 110 % is fine; the hook may be shorter) and the whole video at about 110 words for 60 s, 80 for 45 s, 70 for 40 s, 50 for 30 s (the sting and the outro are not counted). Count the words before you save. A longer narration makes the voice, and so the video, longer than the duration (the picture is stretched); a shorter one makes it shorter, and klipian refuses to render a voice more than 15 % over or under the duration.",
     'The first beat is `hook`; the second is `sting` with the narration exactly "Intip yuk!"; the last is `outro`.',
-    "**The hook (B41):** frame 0 already shows the hook claim as big, high-contrast text over the subject (no scene-setting shot, no explanation text in frame 0); the first spoken word starts at 0 s; the hook is a claim or a stake about the viewer's own body or home (\"Kakimu bukan tidur. Sarafnya kejepit.\"), not a bare \"Kenapa X?\"; the main answer stays hidden until about 70 % of the duration and the earlier beats build the question; the YouTube title never starts with \"Intip\"; the looping ending stays.",
+    "**The hook (B41):** frame 0 already shows the hook claim as big, high-contrast text over the subject (no scene-setting shot, no explanation text in frame 0); the first spoken word starts at 0 s; the hook is a claim or a stake about the viewer's own body or home (\"Kakimu bukan tidur. Sarafnya kejepit.\"), not a bare \"Kenapa X?\"; the main answer stays hidden until about 70 % of the duration and the earlier beats build the question; the YouTube title never starts with \"Intip\"; the looping ending stays, and to make the last frame equal frame 0 the hook text fades back in over the last 0.5 s of the outro (the one text B12 allows there).",
     "The outro has an empty narration and no mascot, label or pill; its scene repeats the first beat's scene so the video loops.",
     "Every screen text (banner, pill, label, text) is at most 6 words.",
     "Every claim has at least one source URL that you opened yourself.",
@@ -219,8 +219,8 @@ def _beat_kinds_text(cat: dict) -> str:
 def _kind_text(kind: str) -> str:
     if kind == "custom":
         return ("**Kind Khusus:** the video is drawn in code from this story's texts, timing, claims and music. A beat's scene items only need the "
-                "`banner` (and the sting's `pill` and `mascot`). These items are data for klipian's storyboard only: the video itself draws the beat's text "
-                "with `TopText` and the sting with `StingMark`, never a `<Banner` box and never a mascot and pill at the items' positions. Do not fill a "
+                "`banner` (the sting has no items: it is voice-only, B31). These items are data for klipian's storyboard only: the video itself draws the beat's text "
+                "with `TopText` and the sting beat keeps its `StingMark` line (it draws nothing), never a `<Banner` box and never a mascot and pill. Do not fill a "
                 "scene with catalogue objects to look busy. List every object the video must show in `needs`; section 3 (Steps) tells how the video folder is built.")
     return ("**Kind Otomatis:** the template draws only what the catalogue lists. Use `socket` and `lens` only for a topic about an electrical socket or "
             "plug. For any other topic prefer `stack`, `label`, `arrow`, `badge`, `banner`, `source` (and `chibi` only if a person is the point). List "
