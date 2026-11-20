@@ -7,14 +7,15 @@ import type { StoryT } from "./schema.ts";
 type W = { outro: number; total: number; nominal: number };
 let W: W | null = null;
 
-/** The length a video is planned for (30, 45 or 60 s, klipian/motion.py DURATIONS) that its voiced length is nearest to. The voiced story's own `duration` is the voiced total (voice timing rewrites it),
+/** The length a video is planned for (30, 45 or 60 s, klipian/motion.py DURATIONS) the smallest one that is at least the voiced length (the warp only stretches a video shorter than its plan; none fits: 60). The voiced story's own `duration` is the voiced total (voice timing rewrites it),
     so it cannot say what the keys were written for. */
-export const nominalOf = (total: number): number => [30, 40, 45, 60].reduce((best, d) => (Math.abs(d - total) < Math.abs(best - total) ? d : best), 60);
+export const nominalOf = (total: number): number => [30, 40, 45, 60].find((d) => d >= total - 0.02) ?? 60;
 
 /** Set from the story before the scenes are drawn (a render is one story; with no story set every clock is left alone). */
 export function setLoopWarp(story: StoryT, outro: number): void {
   const total = story.beats.reduce((a, b) => a + b.dur, 0), nominal = nominalOf(total);
-  W = total > outro && nominal > total + 0.02 ? { outro, total, nominal } : null;
+  // a plan more than 15 % longer than the voice is another length (45 s voiced 45.7 is not a 60 s video): klipian refuses those renders anyway
+  W = total > outro && nominal > total + 0.02 && nominal <= total * 1.15 ? { outro, total, nominal } : null;
 }
 /** The real clock to the clock the scenes see. */
 export const warpClock = (c: number): number => (W && c > W.outro ? c + ((W.nominal - W.total) * (c - W.outro)) / (W.total - W.outro) : c);
