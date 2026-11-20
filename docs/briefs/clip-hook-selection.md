@@ -51,3 +51,31 @@ Studio setelah 3-7 hari. Setelah sekitar 20 video, masukkan contoh klip yang ber
 - Batas: (1) cabang multi-video (library projects) hanya memberi cold open bila hook diucapkan di run PERTAMA; hook di run lain
   dilewati tanpa error. (2) Jalur pratinjau (`server.py`) dan CLI render tidak membaca opsi ini. (3) Hook yang lebih panjang dari 2 s
   dipotong di kata utuh terakhir yang muat; teks besar memakai `thumbnail.cut_hook` (maks 7 kata).
+
+## Status cold open, perbaikan setelah tes render nyata (2026-11-20)
+- Sebab klip "Tensi 230" tidak dapat cold open: hook AI ("Kemarin itu dia bangun tidur. Tensinya 230 per 130") ada di transkrip pada
+  detik 1376-1381, SEBELUM klip mulai (1401); di dalam klip kalimatnya "Abi begitu bangun tensinya 2 .30 per 1 .30" (angka dipecah
+  jadi "2" + ".30"). Pencocokan persis tidak menemukan, dan cold open dilewati diam-diam.
+- `render.hook_match` sekarang: persis dulu, lalu hampir-persis (angka bertetangga digabung, awalan kata >= 4 huruf sama, minimal
+  50% token hook dan >= 3 token terdengar berurutan, ada angka atau kata 5+ huruf, jendela mulai dan berakhir di kata hook). Hook yang
+  tidak berhubungan, atau hanya satu kata sama, tidak cocok.
+- Tidak diam-diam lagi: `jobs.cold_open_for` mengembalikan catatan; ditulis ke konsol server dan ke hasil render (`coldNote`).
+- Varian "Frozen frame" sekarang = satu frame beku (momen hook, atau frame pertama klip kalau hook tidak ketemu) + teks besar gaya
+  thumbnail (`thumbnail.STICKER`: Impact, kuning, stroke gelap, border putih, miring, kata `*...*` dari kolom `thumb` berwarna aksen;
+  fallback `cut_hook`) + suara TTS Gemini (`klipian/tts.py`). Lama beku = lama suara + 0,25 s, 1-3 s; suara lebih dari 3 s: teks
+  dipotong dan disuarakan ulang, tidak pernah suara dipotong. Suara asli klip tidak ikut. Level suara disamakan ke suara klip
+  (`tts.clip_gain_db`, ebur128 pada 20 s pertama; hasil uji -10,2 LUFS vs klip -11,4).
+- TTS: model `gemini-3.8-flash-tts`, voice `Fola`, lewat `v1beta` (di API default model ini 404). Pengaturan di file settings Gemini:
+  `ttsModel`, `ttsVoice`, `ttsStyle` (default kosong). Petunjuk gaya di dalam teks ("Say energetically: ...") DIBACAKAN oleh model
+  ini (didengar dengan Whisper), jadi tidak dipakai; energi hanya dari tanda "!" di akhir. Cache `workspace/cache/tts/` per
+  (teks, model, voice, style): render ulang tidak memanggil Google. Free tier: 3 permintaan per menit (satu kali tunggu otomatis).
+- Opsi profil baru `coldVoice`: kosong = suara AI, `original` = suara asli klip di bawah frame beku. TTS gagal (tanpa key, kuota,
+  jaringan) = render tanpa cold open dan alasannya di catatan; render tidak gagal. "Moving video" tetap memakai suara asli klip.
+- Batas: pratinjau (`server.py`) dan CLI render masih tidak membaca opsi ini.
+- Koreksi TTS (2026-11-20, setelah dokumentasi Gemini 3.8 TTS dibaca): model ini memperlakukan `text` sebagai transkrip persis, jadi
+  arahan gaya yang ditaruh di depan teks (atau "## Transcript:") ikut DIBACAKAN. Gaya dikirim sebagai anotasi `speech_metadata`
+  (`style`) lewat Interactions API (`client.interactions.create`, `v1beta`, voice di `generation_config.speech_config`). Default
+  `tts.DEFAULT_STYLE` (bahasa Indonesia santai, energik, dramatis, tempo cepat, tekanan di kata kunci, tanpa jeda di awal); ubah lewat
+  `ttsStyle` di file settings Gemini ("" = tanpa gaya). Gaya ikut kunci cache dan tidak masuk teks layar. Hook yang sama: tanpa
+  gaya ±3,1 s, dengan gaya ±2,0 s (lebih cepat). Freeze = panjang suara + 0,1 s, suara diberi fade-out 40 ms supaya sambungan ke video
+  tidak berbunyi klik; caption mulai tepat saat video mulai (digeser sebesar freeze).

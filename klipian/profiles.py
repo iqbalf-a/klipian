@@ -169,6 +169,8 @@ def _clean_defaults(d) -> dict:
         out["hashtagPlacement"] = d["hashtagPlacement"]
     if d.get("coldOpen") in ("freeze", "move"):
         out["coldOpen"] = d["coldOpen"]       # a cold open in front of the clip (render.py); absent = off
+    if d.get("coldVoice") == "original":
+        out["coldVoice"] = "original"         # the frozen cold open plays the clip's own sound; absent = the TTS voice (tts.py)
     if "addShorts" in d:
         out["addShorts"] = bool(d["addShorts"])
     if d.get("titleTags") in (2, 3):

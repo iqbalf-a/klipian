@@ -1553,9 +1553,13 @@ def check_cues() -> tuple[str, str]:
 
 
 def check_coldopen() -> tuple[str, str]:
-    """The cold open (render.py): the hook sentence found in the clip's words, off by default, the length it adds,
-    captions shifted by it, the big text only during it, and a held frame only for "freeze"."""
-    from . import render
+    """The cold open (render.py, jobs.py, tts.py): the hook found in the clip's words (also when the transcript writes numbers or
+    word endings differently), off by default, a skip always says why, the AI voice (a fake client: no network) cached and
+    levelled, the held frame as long as the voice, the big text in the thumbnail look, captions shifted."""
+    import math
+    import struct
+    import tempfile
+    from . import render, tts
     from .models import Word
     from .jobs import cold_open_for
 
@@ -1572,27 +1576,115 @@ def check_coldopen() -> tuple[str, str]:
     if render.hook_window(words, "tidak ada di sini", spans) or render.hook_window(words, "ini adalah", [render.Span(5, 8)]):
         problems.append("a hook that is not inside the clip must give None")
 
-    job = render.RenderJob(title="t", spans=spans)
-    if cold_open_for({"hook": "kalimat pembuka yang sangat menarik"}, job, words)[0] or job.lead:
-        problems.append("the cold open must be off unless asked for")
-    plain = render.build_filter(job, 1280, 720, None)
-    for mode in ("freeze", "move"):
-        mode_, cold, text = cold_open_for({"hook": "kalimat pembuka yang sangat menarik", "coldOpen": mode}, job, words)
-        j = render.RenderJob(title="t", spans=spans, cold_open=mode_, cold=cold, cold_text=text)
+    # the real case: the AI wrote "Tensinya 230 per 130", the transcript says "tensinya 2 .30 per 1 .30" and has other words before it
+    real = "Abi begitu bangun tensinya 2 .30 per 1 .30 yaudah langsung".split()
+    rw = [Word(text=" " + t, start=10.0 + i * 0.4, end=10.35 + i * 0.4) for i, t in enumerate(real)]
+    m = render.hook_match(rw, "Kemarin itu dia bangun tidur. Tensinya 230 per 130", [render.Span(9, 20)])
+    if not m or m[2] != "approx" or abs(m[0] - 10.8) > 1e-9:
+        problems.append(f"the number case is not matched: {m}")
+    if render.hook_match(rw, "Obat itu bagus sekali untuk kita semua", [render.Span(9, 20)]) or render.hook_match(rw, "dia bangun tidur", [render.Span(9, 20)]):
+        problems.append("an unrelated hook (or one with only a single word in common) must not match")
+    if (render.hook_match(words, "kalimat pembuka yang sangat menarik", spans) or ("", 0, ""))[2] != "exact":
+        problems.append("a hook spoken as written must be an exact match")
+
+    # a voice from a fake Gemini client: raw PCM as the API may send it, asked once, then from the cache
+    calls = []
+
+    class Fake:
+        class interactions:
+            @staticmethod
+            def create(model, input, response_format, generation_config):
+                import base64
+                item = input[0]["content"][0]
+                calls.append((model, item["text"], item.get("annotations"), generation_config))
+                pcm = b"".join(struct.pack("<h", int(8000 * math.sin(i / 20))) for i in range(24000 * 2))      # 2 s of tone at 24 kHz
+                return type("R", (), {"output_audio": type("A", (), {"data": base64.b64encode(pcm).decode()})})
+    with tempfile.TemporaryDirectory() as td:
+        a, secs = tts.voice_for("Tensi *230* pas bangun tidur", client=Fake, cache_dir=Path(td))
+        b, _ = tts.voice_for("Tensi 230 pas bangun tidur", client=Fake, cache_dir=Path(td))
+        if len(calls) != 1 or a != b or not 1.5 < secs < 2.2:
+            problems.append(f"voice: {len(calls)} calls, {secs} s (one call, about 2 s, expected)")
+        want_style = tts.settings()[2]
+        if (not calls or calls[0][1] != "Tensi 230 pas bangun tidur!" or calls[0][2] != [{"type": "speech_metadata", "style": want_style}]
+                or calls[0][3] != {"speech_config": [{"voice": tts.settings()[1]}]}):
+            problems.append(f"the transcript must be the hook alone, the style an annotation: {calls}")
+        if calls and calls[0][0] != tts.settings()[0]:
+            problems.append("the model must come from the settings")
+
+        job = render.RenderJob(title="t", spans=spans)
+        k = {"hook": "kalimat pembuka yang sangat menarik", "thumb": "Kalimat *pembuka* menarik"}
+        off = cold_open_for({**k, "coldOpen": ""}, job, words)       # explicit: the live profile may have its own default
+        if off[0] or off[4] or job.lead:
+            problems.append("the cold open must be off, with nothing to say, unless asked for")
+        plain = render.build_filter(job, 1280, 720, None)
+        speak = lambda text: (a, 2.0)
+        mode, cold, text, wav, note = cold_open_for({**k, "coldOpen": "freeze", "coldVoice": "tts"}, job, words, speak)
+        j = render.RenderJob(title="t", spans=spans, cold_open=mode, cold=cold, cold_text=text, cold_voice=wav)
         filt = render.build_filter(j, 1280, 720, None)
-        if abs(j.lead - 1.95) > 1e-9 or abs(j.duration - (7.5 + 1.95)) > 1e-9:
-            problems.append(f"{mode}: lead {j.lead}, duration {j.duration}")
-        if ("tpad" in filt) != (mode == "freeze") or "concat=n=2" not in filt or "tpad" in plain:
-            problems.append(f"{mode}: the filter graph is off")
+        if mode != "freeze" or abs(j.lead - 2.1) > 1e-9 or abs(j.duration - (7.5 + 2.1)) > 1e-9 or wav != a:
+            problems.append(f"freeze: {mode} lead {j.lead} duration {j.duration}")
+        if "tpad" not in filt or "stop_duration=2.100" not in filt or "[1:a]" not in filt or "concat=n=2" not in filt or "tpad" in plain:
+            problems.append("freeze: the graph must hold a frame for the voice's length and take the sound from input 1")
+        if "atrim=start=1.800:end=4.050" in filt:
+            problems.append("freeze with the AI voice must not play the clip's own sound")
         ass = render.build_ass(j, words, {"watermark": False})
-        if f"0:00:00.00,0:00:01.95,Hook" not in ass or "KALIMAT" not in ass:
-            problems.append(f"{mode}: the big text is not written for the first 1.95 s")
-        # the word "ini" (1.0 s in the source, 0.5 s into the clip) now lands 1.95 s later
-        if "0:00:02.45" not in ass:
-            problems.append(f"{mode}: captions are not shifted by the cold open")
+        if "0:00:00.00,0:00:02.10,Hook" not in ass or "KALIMAT" not in ass or "Impact" not in ass or "\\1c&H" not in ass or ass.count("Dialogue: 3,") != 1:
+            problems.append("freeze: the big text is not written in the thumbnail look for the held frame")
+        if "0:00:02.60" not in ass:                       # "ini" (1.0 s in the source, 0.5 s into the clip) lands 2.1 s later
+            problems.append("freeze: captions are not shifted by the cold open")
+        # the clip's own voice under the held frame, and "move": the hook window, no AI voice
+        for extra, name in (({"coldOpen": "freeze", "coldVoice": "original"}, "freeze+original"), ({"coldOpen": "move"}, "move")):
+            mode, cold, text, wav, note = cold_open_for({**k, **extra}, job, words, lambda t: 1 / 0)
+            j2 = render.RenderJob(title="t", spans=spans, cold_open=mode, cold=cold, cold_text=text, cold_voice=wav)
+            f2 = render.build_filter(j2, 1280, 720, None)
+            if wav or abs(j2.lead - 1.95) > 1e-9 or "[1:a]" in f2 or ("tpad" in f2) != (name == "freeze+original"):
+                problems.append(f"{name}: lead {j2.lead}, filter off")
+
+        def failing(t):
+            raise tts.TtsError("quota")
+        # the skips say why; the AI voice failing never raises
+        for what, kk, sp, expect in (
+                ("no hook", {"coldOpen": "freeze", "coldVoice": "tts"}, speak, "no hook or thumb"),
+                ("move, hook not found", {"coldOpen": "move", "hook": "tidak ada di sini sama sekali"}, speak, "not in the clip"),
+                ("voice fails", {**k, "coldOpen": "freeze", "coldVoice": "tts"}, failing, "AI voice failed (quota)"),
+                ("voice too long", {**k, "coldOpen": "freeze", "coldVoice": "tts"}, lambda t: (a, 6.0), "even with a shorter text")):
+            r_ = cold_open_for(kk, job, words, sp)
+            if r_[0] or expect not in r_[4]:
+                problems.append(f"{what}: expected a skip saying {expect!r}, got {r_[0]!r} / {r_[4]!r}")
+        mode, cold, text, wav, note = cold_open_for({"coldOpen": "freeze", "coldVoice": "tts", "hook": "tidak ada di sini sama sekali", "thumb": "Kalimat *pembuka* menarik"}, job, words, speak)
+        if mode != "freeze" or cold[0] != 0.5 or "first frame" not in note:
+            problems.append(f"freeze with the hook not found must hold the first frame and say so: {cold} {note}")
+    # the voice settings of the profile page: saved in the Gemini settings file (a temp one here), blank = default, "no style" is not blank
+    from . import gemini_api
+    with tempfile.TemporaryDirectory() as td2:
+        real_file = gemini_api._file
+        gemini_api._file = lambda: Path(td2) / "gemini.json"
+        try:
+            gemini_api.save_settings(api_key="k-test-1234")
+            st = tts.state()
+            if not st["hasKey"] or st["style"] or st["noStyle"] or tts.settings() != (tts.DEFAULT_MODEL, tts.DEFAULT_VOICE, tts.DEFAULT_STYLE):
+                problems.append(f"tts defaults: {st} {tts.settings()}")
+            tts.save("m-1", "Puck", "Pelan saja", False)
+            if tts.settings() != ("m-1", "Puck", "Pelan saja") or tts.state()["noStyle"]:
+                problems.append(f"tts save: {tts.settings()}")
+            tts.save("", "", "", True)                     # the empty style on purpose: no style, the model and voice back to default
+            if tts.settings() != (tts.DEFAULT_MODEL, tts.DEFAULT_VOICE, "") or not tts.state()["noStyle"]:
+                problems.append(f"tts 'no style': {tts.settings()} {tts.state()}")
+            tts.save("", "", "  ", False)                  # blank and not on purpose: the default again
+            if tts.settings()[2] != tts.DEFAULT_STYLE or not tts.state()["hasKey"]:
+                problems.append("a blank style must fall back to the default and the key must survive")
+            gemini_api.save_settings(api_key="", remove_key=True)
+            try:
+                tts.voice_for("satu dua tiga", cache_dir=Path(td2))
+                problems.append("a voice without a key must say so")
+            except tts.TtsError as exc:
+                if "key" not in str(exc).lower():
+                    problems.append(f"the no-key message does not say it: {exc}")
+        finally:
+            gemini_api._file = real_file
     if problems:
         return FAIL, "\n      ".join(problems)
-    return PASS, "hook found in the words and cut at 2 s, off by default, the lead, the filter (held frame only for freeze), the big text, shifted captions"
+    return PASS, "hook found (also with numbers written differently, no false match), a skip always says why, the AI voice cached and asked once, the held frame as long as the voice, the thumbnail-look text, shifted captions"
 
 
 # --------------------------------------------------------------------------

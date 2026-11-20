@@ -51,8 +51,22 @@ def _write(data: dict) -> None:
     paths.replace_file(tmp, f)
 
 
-def save_settings(*, api_key: str | None = None, remove_key: bool = False, model: str | None = None) -> None:
+def save_settings(*, api_key: str | None = None, remove_key: bool = False, model: str | None = None, tts: dict | None = None) -> None:
+    """`tts` = {model, voice, style} of the cold open's voice (tts.py): "" model/voice or a None style removes the setting (the default
+    applies); a style of "" is kept on purpose (no style at all)."""
     data = load_settings()
+    for field, key in (("model", "ttsModel"), ("voice", "ttsVoice")):
+        if tts and field in tts:
+            v = str(tts[field] or "").strip()
+            if v:
+                data[key] = v[:80]
+            else:
+                data.pop(key, None)
+    if tts and "style" in tts:
+        if isinstance(tts["style"], str):
+            data["ttsStyle"] = tts["style"].strip()[:600]
+        else:
+            data.pop("ttsStyle", None)
     if remove_key:
         data.pop("apiKey", None)
     if api_key is not None and api_key.strip():
@@ -92,7 +106,7 @@ def status() -> dict:
             "model": s.get("model") or "", "lastError": s.get("lastError") or "", "command": install_command()}
 
 
-def _client():
+def _client(api_version: str | None = None):
     key = load_settings().get("apiKey")
     if not key:
         raise GeminiError("no_key", "There is no Gemini API key yet: paste one from Google AI Studio.")
@@ -100,7 +114,7 @@ def _client():
         from google import genai
     except ImportError:
         raise GeminiError("sdk", f"The Google SDK is not installed. Run: {install_command()}") from None
-    return genai.Client(api_key=key)
+    return genai.Client(api_key=key, http_options={"api_version": api_version}) if api_version else genai.Client(api_key=key)
 
 
 def map_error(exc: BaseException) -> GeminiError:

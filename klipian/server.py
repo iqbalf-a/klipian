@@ -55,6 +55,7 @@ from . import claude_api as _claude
 from . import autopilot as _autopilot
 from . import autopilot_deps as _autopilot_deps
 from . import gemini_api as _gemini
+from . import tts as _tts
 from . import rubrics as _rubrics
 from .jobs import (ACTIVE_TRANSCRIBES, CANCELLED, JOBS, LOCK, MAX_JOBS, _clip_words,
                    _register_job, _run_diarize, _run_render, _run_transcribe,
@@ -1020,6 +1021,28 @@ class Handler(BaseHTTPRequestHandler):
         except OSError as exc:
             return self._send_json({"error": f"could not save: {exc}"}, 500)
 
+    def _get_tts(self):
+        return self._send_json({"ok": True, **_tts.state()})
+
+    def _post_tts(self):
+        try:
+            req = self._read_json()
+            _tts.save(str(req.get("model") or ""), str(req.get("voice") or ""), str(req.get("style") or ""), req.get("noStyle") is True)
+            return self._send_json({"ok": True, **_tts.state()})
+        except ValueError as exc:
+            return self._send_json({"error": str(exc)}, 400)
+        except OSError as exc:
+            return self._send_json({"error": f"could not save: {exc}"}, 500)
+
+    def _post_tts_try(self):
+        """One sample sentence in the saved voice: the WAV as base64 (a repeat of the same settings comes from the cache, no call to Google)."""
+        import base64
+        try:
+            wav, secs = _tts.voice_for(_tts.SAMPLE)
+            return self._send_json({"ok": True, "seconds": round(secs, 1), "audio": base64.b64encode(wav.read_bytes()).decode("ascii")})
+        except _tts.TtsError as exc:
+            return self._send_json({"error": str(exc)}, 400)
+
     # ---- Autopilot (autopilot.py; the page is /autopilot) ----
 
     def _autopilot_reply(self, fn):
@@ -1647,6 +1670,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/version": _get_version,
         "/api/profiles": _get_profiles,
         "/api/profiles/machine": _get_machine,
+        "/api/tts": _get_tts,
         "/api/rubrics": _get_rubrics,
         "/api/autopilot/state": _get_autopilot_state,
         "/api/autopilot/brief": _get_autopilot_brief,
@@ -2679,6 +2703,8 @@ class Handler(BaseHTTPRequestHandler):
         "/api/youtube/video-status": _post_youtube,
         "/api/youtube/disconnect": _post_youtube,
         "/api/profiles/machine": _post_machine,
+        "/api/tts": _post_tts,
+        "/api/tts/try": _post_tts_try,
         "/api/profiles/create": _post_profiles,
         "/api/profiles/update": _post_profiles,
         "/api/profiles/delete": _post_profiles,

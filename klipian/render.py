@@ -141,6 +141,8 @@ class RenderJob:
     cold_open: str = ""
     cold: "tuple[float, float] | None" = None
     cold_text: str = ""
+    cold_gain: float = 0.0               # dB added to that voice (tts.clip_gain_db: as loud as the clip's speech)
+    cold_voice: "Path | None" = None     # freeze only: a WAV (the hook said by a TTS voice) heard instead of the clip's own sound
 
     def __post_init__(self):
         # Validate cuts: must be sorted & non-overlapping
@@ -219,23 +221,106 @@ def _ass_escape(text: str) -> str:
                 .replace("}", r"\}"))
 
 
-def hook_window(words: list[Word], hook: str, spans: list[Span], max_sec: float = COLD_MAX_SEC) -> tuple[float, float] | None:
-    """Where the `hook` quote is spoken inside the clip: (start, end) in source seconds, cut after the last whole word
-    that fits in `max_sec` (at least one word). None when the quote is not found in the clip's words."""
-    def norm(t: str) -> str:
-        return re.sub(r"[^\w]+", "", t.lower())
-    want = [norm(t) for t in hook.split() if norm(t)]
-    inside = [w for w in words if norm(w.text) and any(p.start - 1e-6 <= w.start and w.end <= p.end + 1e-6 for p in spans)]
-    have = [norm(w.text) for w in inside]
+def _tokens(texts: list[str]) -> list[tuple[str, int, int]]:
+    """Comparable tokens [(token, first index, last index)] of a list of words: lower case, no punctuation, and neighbouring
+    numbers glued together, so the transcript's "2 .30" and a hook's "230" are the same token."""
+    out: list[tuple[str, int, int]] = []
+    for i, t in enumerate(texts):
+        tok = re.sub(r"[^\w]+", "", t.lower())
+        if not tok:
+            continue
+        if out and tok.isdigit() and out[-1][0].isdigit() and out[-1][2] == i - 1:
+            out[-1] = (out[-1][0] + tok, out[-1][1], i)
+        else:
+            out.append((tok, i, i))
+    return out
+
+
+def _same_token(a: str, b: str) -> bool:
+    """Equal, or one is the start of the other ("tensi" / "tensinya"; a 4-letter minimum, so "di" never matches "dia")."""
+    if a == b:
+        return True
+    short, long_ = sorted((a, b), key=len)
+    return len(short) >= 4 and not short.isdigit() and long_.startswith(short)
+
+
+def _lcs(a: list[str], b: list[str]) -> int:
+    row = [0] * (len(b) + 1)
+    for x in a:
+        prev = 0
+        for j, y in enumerate(b, 1):
+            prev, row[j] = row[j], (prev + 1) if _same_token(x, y) else max(row[j], row[j - 1])
+    return row[-1]
+
+
+HOOK_FUZZY_MIN = 0.5          # the share of the hook's tokens that must be heard, in order, for an approximate match
+
+
+def hook_match(words: list[Word], hook: str, spans: list[Span], max_sec: float = COLD_MAX_SEC) -> tuple[float, float, str] | None:
+    """Where the `hook` is spoken inside the clip: (start, end, "exact"|"approx") in source seconds, the end cut after the last whole
+    word that fits in `max_sec` (at least one word). Exact: the same tokens in a row. Approx: the hook was written a little
+    differently from the transcript (numbers, word endings, a missing word): the stretch of the clip that holds at least
+    HOOK_FUZZY_MIN of its tokens in order, at least 3 of them, one of them a number or a word of 5+ letters. None if neither."""
+    want = [t for t, _, _ in _tokens(hook.split())]
+    inside = [w for w in words if re.sub(r"[^\w]+", "", w.text) and any(p.start - 1e-6 <= w.start and w.end <= p.end + 1e-6 for p in spans)]
+    toks = _tokens([w.text for w in inside])
+    have = [t for t, _, _ in toks]
+    if not want:
+        return None
+
+    def window(i: int, n: int, how: str):
+        first, last = inside[toks[i][1]], inside[toks[i + n - 1][2]]
+        end = first.end
+        for w in inside[toks[i][1]:toks[i + n - 1][2] + 1]:
+            if w.end - first.start <= max_sec:
+                end = w.end
+        return first.start, min(end, last.end, first.start + max_sec), how
+
     for i in range(len(have) - len(want) + 1):
-        if want and have[i:i + len(want)] == want:
-            first, last = inside[i], inside[i + len(want) - 1]
-            end = first.end
-            for w in inside[i:i + len(want)]:
-                if w.end - first.start <= max_sec:
-                    end = w.end
-            return first.start, min(end, last.end, first.start + max_sec)
-    return None
+        if have[i:i + len(want)] == want:
+            return window(i, len(want), "exact")
+    best = None
+    for i in range(len(have)):
+        for n in range(3, min(len(want) + 3, len(have) - i) + 1):
+            part = have[i:i + n]
+            hit = _lcs(want, part)
+            if hit < 3 or hit / len(want) < HOOK_FUZZY_MIN:
+                continue
+            ends_ok = all(any(_same_token(part[e], x) for x in want) for e in (0, -1))      # starts and ends on a word of the hook
+            if not ends_ok or not any(t.isdigit() or len(t) >= 5 for t in part if any(_same_token(t, x) for x in want)):
+                continue
+            key = (hit / len(want), -n)
+            if best is None or key > best[0]:
+                best = (key, i, n)
+    return window(best[1], best[2], "approx") if best else None
+
+
+def hook_window(words: list[Word], hook: str, spans: list[Span], max_sec: float = COLD_MAX_SEC) -> tuple[float, float] | None:
+    """`hook_match` without the kind: (start, end) or None."""
+    m = hook_match(words, hook, spans, max_sec)
+    return m[:2] if m else None
+
+
+def _hook_events(text: str, seconds: float) -> str:
+    """The big text of the cold open, in the look of the thumbnail card (thumbnail.STICKER: Impact, yellow, a dark stroke, a white
+    sticker border, a little tilt; the `*...*` words in the accent colour), as ASS events for the first `seconds`, in the top
+    band (clear of the faces and of the captions below). At most 3 lines, as big as they can be across the frame."""
+    from . import thumbnail
+
+    def bgr(hex_: str) -> str:
+        return f"&H{hex_[5:7]}{hex_[3:5]}{hex_[1:3]}&".upper()
+    st = thumbnail.STICKER
+    lines, size = thumbnail.fit_block(text, True, thumbnail.FONT_EM["impact"], 190, REF_W * 0.9, REF_H * 0.27, 1.05, 3)
+    if not lines:
+        return ""
+    body = r"\N".join("{" + r"\1c" + bgr(st["accent" if acc else "color"]) + "}" + _ass_escape(ln) for ln, acc in lines)
+    t0, t1 = _ass_time(0), _ass_time(seconds)
+    common = rf"\an8\pos({REF_W // 2},{int(REF_H * 0.05)})\fnImpact\fs{size}\frz{-st['rotate']}\fsp1"
+    # layer 2: the white sticker border (a fat outline); layer 3: the letters with their dark stroke and a hard shadow
+    sticker = rf"\bord{int(size * 0.17)}\3c{bgr(st['outer'])}\shad0"
+    letters = rf"\bord{int(size * 0.10)}\3c{bgr(st['outlineColor'])}\shad{st['shadow']}\4c&H000000&"
+    return (f"Dialogue: 2,{t0},{t1},Hook,,0,0,0,,{{{common}{sticker}}}{body}\n"
+            f"Dialogue: 3,{t0},{t1},Hook,,0,0,0,,{{{common}{letters}}}{body}\n")
 
 
 def to_output_time(spans: list[Span], seconds: float) -> float | None:
@@ -559,18 +644,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             f"Watermark,,0,0,0,,{wm_text}\n")
 
     if job.lead and job.cold_text:
-        # In the top band (where the clip's own title box sits), clear of the faces and of the captions below. The type
-        # is as big as the longest line allows across the frame, at most 128 and at least 72.
-        text = _ass_escape(job.cold_text.upper())
-        for width in (12, 16, 20):                 # at most 3 lines (a 4th reaches a face): wider lines, smaller type
-            lines = textwrap.wrap(text, width)
-            if len(lines) <= 3:
-                break
-        lines = lines[:3]
-        size = max(72, min(128, int(900 / (0.74 * max(len(x) for x in lines)))))
-        big = "\\N".join(lines)
-        header += (f"Dialogue: 2,{_ass_time(0)},{_ass_time(job.lead)},Hook,,0,0,0,,"
-                   f"{{\\an8\\pos({REF_W // 2},{int(REF_H * 0.07)})\\fs{size}}}{big}\n")
+        header += _hook_events(job.cold_text, job.lead)
 
     # only words that actually land in the output
     used = []
@@ -755,6 +829,8 @@ def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
     parts = []
     cold = job.cold_span
     segs = ([cold] if cold else []) + job.spans
+    voiced = bool(cold and job.cold_voice)
+    same = "aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,"      # every piece in one format, so concat can join them
     for i, span in enumerate(segs):
         v = f"[0:v]trim=start={span.start:.3f}:end={span.end:.3f},setpts=PTS-STARTPTS"
         if crop_first and split_ok and span.crops and len(span.crops) >= 2:
@@ -823,10 +899,14 @@ def _concat_filter(job: "RenderJob", src_width: int, src_height: int,
                 v += f",{box(c)},scale={W}:{H},setsar=1"
         if cold and i == 0 and job.cold_open == "freeze":
             # one frame, held for the length of the sentence (tpad clones the last frame)
-            v += f",trim=end_frame=1,tpad=stop_mode=clone:stop_duration={span.length:.3f}"
+            v += f",trim=end_frame=1,tpad=stop_mode=clone:stop_duration={job.lead:.3f}"
         parts.append(f"{v}[v{i}]")
-        parts.append(f"[0:a]atrim=start={span.start:.3f}:end={span.end:.3f},"
-                     f"asetpts=PTS-STARTPTS[a{i}]")
+        if voiced and i == 0:
+            # the spoken hook (input 1), padded with silence or cut to the held frame's length
+            parts.append(f"[1:a]{same}volume={job.cold_gain:.1f}dB,alimiter=limit=0.95,atrim=end={job.lead:.3f},afade=t=out:st={max(0.0, job.lead - 0.04):.3f}:d=0.04,apad=whole_dur={job.lead:.3f},asetpts=PTS-STARTPTS[a{i}]")
+        else:
+            parts.append(f"[0:a]atrim=start={span.start:.3f}:end={span.end:.3f},"
+                         f"asetpts=PTS-STARTPTS{',' + same.rstrip(',') if voiced else ''}[a{i}]")
     n = len(segs)
     inputs = "".join(f"[v{i}][a{i}]" for i in range(n))
     parts.append(f"{inputs}concat=n={n}:v=1:a=1[vc][ac]")
@@ -1016,6 +1096,7 @@ def render(source: Path, job: RenderJob, dest: Path,
             return [
                 ffmpeg, "-y", "-hide_banner", "-loglevel", "error",
                 "-i", str(source),
+                *(["-i", str(job.cold_voice)] if job.cold_voice and job.lead else []),
                 "-filter_complex", filt,
                 "-map", "[vout]", "-map", "[ac]",
                 "-c:v", encoder,

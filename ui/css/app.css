@@ -2779,3 +2779,9 @@ dialog.confirm-dlg:has(.post-reply-text) { width: min(640px, calc(100vw - 32px))
 @media (max-width: 720px) {
   .app { grid-template-rows: auto 1fr; grid-template-columns: minmax(0, 1fr); }
 }
+
+/* the cold open's AI voice box in the profile settings */
+.ttsbox { border: 1px solid var(--glass-border); border-radius: var(--r-s); padding: 8px 10px; margin: 6px 0; display: grid; gap: 6px; }
+.ttsbox legend { font-size: 12px; color: var(--text-muted); padding: 0 4px; }
+.ttsbox textarea, .ttsbox input[type="text"] { width: 100%; }
+.ttsbox .note .bad, .ttsbox .note span.bad { color: var(--danger); }

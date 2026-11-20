@@ -392,6 +392,7 @@ def _render_body(job_id: str, req: dict, into: Path | None = None, record: bool 
                     {**k, "post": None} if current_profile() == GUEST else k), f"clip-{i+1}"), taken)
             taken.add(name.lower())
             dest = out_dir / name
+            cold_note = ""
 
             if len(runs) == 1 and runs[0][0] == req["video"]:
                 # Exactly today's path -- the request's one video, spans
@@ -405,7 +406,7 @@ def _render_body(job_id: str, req: dict, into: Path | None = None, record: bool 
                 job = engine.RenderJob(title=k["title"], spans=spans, crop=crop_box,
                                        **picture, out_width=out_width, quality=quality)
                 clip_words = _clip_words(k, words)
-                job.cold_open, job.cold, job.cold_text = cold_open_for(k, job, clip_words)
+                cold_note = apply_cold_open(k, job, clip_words, video)
                 try:
                     prog.advance()                         # preparing -> the encode
                     engine.render(video, job, dest, words=clip_words, style=style,
@@ -445,7 +446,7 @@ def _render_body(job_id: str, req: dict, into: Path | None = None, record: bool 
                                                    crop=crop_box, **picture,
                                                    out_width=out_width, quality=quality)
                         if ridx == 0:                      # the cold open goes in front of the clip: only when the hook is spoken in its first run
-                            run_job.cold_open, run_job.cold, run_job.cold_text = cold_open_for(k, run_job, run_words)
+                            cold_note = apply_cold_open(k, run_job, run_words, run_video)
                         part_dest = tmp_dir / f"part{ridx}.mp4"
                         prog.advance()                     # the next piece
                         engine.render(run_video, run_job, part_dest, words=run_words,
@@ -535,6 +536,7 @@ def _render_body(job_id: str, req: dict, into: Path | None = None, record: bool 
                     "mb": round(dest.stat().st_size / 1048576, 1),
                     "duration": round(duration, 1),
                     **({"thumbError": thumb_error} if thumb_error else {}),
+                    **({"coldNote": cold_note} if cold_note else {}),
                 })
                 t["done"] = i + 1
             prog.finish_clip()
@@ -939,17 +941,56 @@ def add_render_to_schedule(folder: str, file_name: str) -> tuple[str, bool, str]
     return row_id, created, "from the file name"
 
 
-def cold_open_for(k: dict, job, words: list) -> tuple[str, tuple | None, str]:
-    """(mode, (start, end), big text) of a clip's cold open (render.RenderJob), or ("", None, "") when it is off
-    (the default), the clip has no hook, or the hook is not found in its words. The request's `coldOpen` wins over the
-    profile's default."""
-    from . import profiles, thumbnail
-    mode = k.get("coldOpen", profiles.defaults().get("coldOpen"))
+def cold_open_for(k: dict, job, words: list, speak=None) -> tuple[str, tuple | None, str, "Path | None", str]:
+    """(mode, (start, end), big text, voice WAV, note) of a clip's cold open (render.RenderJob). mode "" means no cold open:
+    off (the default, note ""), or skipped, and then the note says why. The request's `coldOpen` / `coldVoice` win over the
+    profile's. The big text is the AI's `thumb` (its `*...*` words are the accent) else the hook cut short.
+    "freeze" holds one frame of the hook's moment for as long as the TTS voice says it (1 to 3 s; the first frame of the clip
+    when the hook cannot be found); "original" voice plays the clip's own hook words under the held frame instead.
+    "move" keeps the video moving with the clip's own sound and needs the hook's words found. `speak(text)` makes the voice."""
+    from . import profiles, thumbnail, tts
+    d = profiles.defaults()
+    mode = k.get("coldOpen", d.get("coldOpen"))
+    if mode not in engine.COLD_OPENS:
+        return "", None, "", None, ""
     hook = " ".join(str(k.get("hook") or "").split())
-    if mode not in engine.COLD_OPENS or not hook:
-        return "", None, ""
-    found = engine.hook_window(words, hook, job.spans)
-    return (mode, found, thumbnail.cut_hook(hook) or hook[:60]) if found else ("", None, "")
+    text = thumbnail.clean_thumb(k.get("thumb")) or thumbnail.cut_hook(hook) or hook[:60]
+    skip = lambda why: ("", None, "", None, "cold open skipped: " + why)
+    if not text:
+        return skip("the clip has no hook or thumb text")
+    found = engine.hook_match(words, hook, job.spans) if hook else None
+    note = "hook found only approximately (the transcript words differ)" if found and found[2] == "approx" else ""
+    window = found[:2] if found else None
+    voice = k.get("coldVoice", d.get("coldVoice")) or "tts"
+    if mode == "move" or voice == "original":
+        if not window:
+            return skip("the hook is not in the clip's own words" if hook else "the clip has no hook to find")
+        return mode, window, text, None, note
+    try:
+        wav, secs = (speak or tts.voice_for)(text)
+        if secs > tts.MAX_SEC:                                   # a shorter text, never a voice cut in the middle of a word
+            ws = text.replace("*", "").split()
+            wav, secs = (speak or tts.voice_for)(" ".join(thumbnail.cut_words(ws, max(3, int(len(ws) * tts.MAX_SEC / secs)), least=2)))
+        if secs > tts.MAX_SEC + 0.4:
+            return skip(f"the voice takes {secs:.1f} s even with a shorter text")
+    except (tts.TtsError, OSError) as exc:
+        return skip(f"the AI voice failed ({exc})")
+    start = window[0] if window else job.spans[0].start
+    if not window:
+        note = "hook not found in the clip's words: the first frame of the clip is held"
+    return mode, (start, start + max(1.0, min(tts.MAX_SEC, secs + 0.1))), text, wav, note
+
+
+def apply_cold_open(k: dict, job, words: list, source: Path | None = None) -> str:
+    """Set the cold open fields of `job`; returns the note to keep with the clip ("" when there is nothing to say). The reason
+    of a skipped cold open also goes to the server console."""
+    job.cold_open, job.cold, job.cold_text, job.cold_voice, note = cold_open_for(k, job, words)
+    if job.cold_voice and source:
+        from . import tts
+        job.cold_gain = tts.clip_gain_db(source, job.spans[0].start)
+    if note:
+        print(f"[cold open] {k.get('title', '')[:50]}: {note}", file=sys.stderr, flush=True)
+    return note
 
 
 def style_with_profile(style: dict | None) -> dict | None:
