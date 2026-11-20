@@ -1,0 +1,208 @@
+{
+  "bible": 1,
+  "question": "Kenapa kaki kesemutan kalau kelamaan duduk?",
+  "titles": [
+    "Kakimu bukan tidur, sarafnya kejepit",
+    "Kenapa kaki kesemutan habis duduk lama?",
+    "Kaki kesemutan: ini yang terjadi di sarafmu"
+  ],
+  "duration": 40,
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 3,
+      "narration": "Kakimu bukan tidur. Sarafnya kejepit.",
+      "text": "Kakimu bukan tidur. Sarafnya kejepit.",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Kakimu bukan tidur. Sarafnya kejepit.",
+            "fs": 70
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "sting",
+      "kind": "sting",
+      "dur": 1,
+      "narration": "Intip yuk!",
+      "text": "Intip yuk!",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "saraf",
+      "kind": "normal",
+      "dur": 6,
+      "narration": "Di dalam kakimu ada saraf, kabel tipis yang mengirim rasa ke otak.",
+      "text": "Saraf: kabel rasa",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Saraf: kabel rasa",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "duduk",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Saat duduk lama, berat badan menumpu di paha. Kamu tidak merasa apa-apa, cuma kaki terasa makin tebal.",
+      "text": "Duduk lama, paha menumpu",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Duduk lama, paha menumpu",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "berdiri",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Lalu kamu berdiri, dan kakimu mendadak penuh jarum, seperti digigit semut. Kenapa baru sekarang, bukan saat duduk?",
+      "text": "Berdiri: kaki penuh jarum",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Berdiri: kaki penuh jarum",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "jepit",
+      "kind": "result",
+      "dur": 6,
+      "narration": "Sarafnya terjepit dan kekurangan darah. Begitu dilepas, ia menyala lagi: itu jarumnya.",
+      "text": "Dijepit, lalu menyala lagi",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Dijepit, lalu menyala lagi",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "tips",
+      "kind": "tips",
+      "dur": 5,
+      "narration": "Ganti posisi, gerakkan kaki. Sering kesemutan tanpa sebab? Periksa dokter.",
+      "text": "Ganti posisi, gerakkan kaki",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Ganti posisi, gerakkan kaki",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "dur": 3,
+      "narration": "",
+      "text": "",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    }
+  ],
+  "claims": [
+    {
+      "text": "Duduk atau menyilangkan kaki lama menekan saraf atau pembuluh darahnya, sehingga pasokan darah ke saraf terputus sementara.",
+      "beats": [
+        "duduk",
+        "jepit"
+      ],
+      "sources": [
+        "https://www.nuffieldhealth.com/symptoms/pins-and-needles",
+        "https://www.nhs.uk/symptoms/pins-and-needles/"
+      ]
+    },
+    {
+      "text": "Saraf yang terjepit tidak mengirim sinyal dengan benar ke tulang belakang dan otak; saraf di tungkai sering terjepit saat duduk menyilang kaki.",
+      "beats": [
+        "saraf",
+        "duduk",
+        "jepit"
+      ],
+      "sources": [
+        "https://www.sciencealert.com/here-s-what-happens-when-your-foot-falls-asleep"
+      ]
+    },
+    {
+      "text": "Rasa kesemutan muncul saat tekanan dilepas dan saraf mulai pulih fungsinya.",
+      "beats": [
+        "berdiri",
+        "jepit"
+      ],
+      "sources": [
+        "https://www.sciencealert.com/here-s-what-happens-when-your-foot-falls-asleep",
+        "https://www.nuffieldhealth.com/symptoms/pins-and-needles"
+      ]
+    },
+    {
+      "text": "Kesemutan yang sering kambuh atau berlangsung lama sebaiknya diperiksakan ke dokter.",
+      "beats": [
+        "tips"
+      ],
+      "sources": [
+        "https://www.nhs.uk/symptoms/pins-and-needles/",
+        "https://www.nuffieldhealth.com/symptoms/pins-and-needles"
+      ]
+    }
+  ],
+  "post": {
+    "description": "Kaki kesemutan setelah duduk lama bukan karena kaki tidur. Tekanan menjepit saraf dan mengganggu pasokan darahnya; begitu tekanan dilepas, saraf menyala lagi dan terasa seperti jarum. Kesemutan yang sering muncul tanpa sebab perlu diperiksakan ke dokter.",
+    "hashtags": [
+      "#kesemutan",
+      "#faktaseru",
+      "#tubuhmanusia",
+      "#intipyuk",
+      "#shorts"
+    ]
+  },
+  "thumb": "Kaki *kesemutan*, bukan tidur?",
+  "needs": [],
+  "stage": "steps",
+  "theme": "mint",
+  "look": "2d",
+  "captions": true,
+  "music": {
+    "track": "bed-sunny"
+  }
+}
