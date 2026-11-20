@@ -5,7 +5,7 @@ Plan session, 2026-11-04. ian: step 2 should offer two copy buttons: (1) the ful
 ## The command (one spec, used by the page, the CLI and the skill)
 
 ```
--create [2.5d|iso|2d|teks] [30|45|60] [noloop] [nointip] [suara=voicestudio,googleai,elevenlabs] [musik=<id>] [catatan="..."] "<topik>"
+-create [2.5d|iso|2d|teks] [30|40|45|60] [noloop] [nointip] [suara=voicestudio,googleai,elevenlabs] [musik=<id>] [catatan="..."] "<topik>"
 ```
 - Every token before the quoted topic is optional and may come in any order. The topic is the last quoted text. An unquoted topic, as today (`-create gurita punya tiga jantung`, `-create 2d gurita ...`), must still work.
 - Look: missing → the agent chooses from the topic (B28, as today). `2.5d` and `iso` both mean the iso look.
@@ -19,7 +19,7 @@ Plan session, 2026-11-04. ian: step 2 should offer two copy buttons: (1) the ful
 ## Changes
 
 1. **`klipian/motion_brief_cli.py`**: switch to `argparse` (stdlib).
-   - Flags: `--look iso|2d|text`, `--duration 30|45|60`, `--no-loop`, `--no-sting`, `--voice a,b`, `--music id`, `--notes text`.
+   - Flags: `--look iso|2d|text`, `--duration 30|40|45|60`, `--no-loop`, `--no-sting`, `--voice a,b`, `--music id`, `--notes text`.
    - Build the options through `motion.normalize_options`, so a wrong value is refused with the same message as the page.
    - `brief_for(topic, look=None, **opts)` keeps working with only `(topic, look)`, as selftest:6123 uses it.
 2. **`klipian/motion_brief.py`**: add `short_command(p) -> str`, built from the project (`p["topic"]`, `p["duration"]`, `options_of(p)`, `p.get("look")`). It emits the duration always and every other token only when it differs from the default. Quote the topic and the notes, replacing a `"` inside them with `'`.

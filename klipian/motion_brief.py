@@ -27,12 +27,15 @@ _m = _Lazy()
 # What a video of each length is made of: (beat kind, seconds, what happens). The sum is the length. This is the channel's format
 # (hook, "Intip yuk!", explanation, tips, outro), not a rule of the schema: the AI may adapt it as long as the total is exact.
 STRUCTURE = {
-    30: [("hook", 3, "an everyday hook: a question, a surprising statement or a myth"), ("sting", 1, 'a small mascot and the pill "Intip yuk!"'), ("lens or normal", 7, "step 1 of the cause (look inside through the lens only if the cause is inside the object)"),
+    30: [("hook", 3, "an everyday hook: a question, a surprising statement or a myth"), ("sting", 1, 'the voice says "Intip yuk!" (no mascot or pill is drawn)'), ("lens or normal", 7, "step 1 of the cause (look inside through the lens only if the cause is inside the object)"),
          ("normal", 7, "step 2"), ("tips", 8, "what to do"), ("outro", 4, "loop-back: no mascot, no label, no voice; the scene of the first beat again")],
-    45: [("hook", 3, "an everyday hook: a question, a surprising statement or a myth"), ("sting", 1, 'a small mascot and the pill "Intip yuk!"'), ("lens or normal", 6, "step 1 (the cutaway through the lens, if the cause is inside)"),
+    40: [("hook", 3, "a claim or a stake, big text in frame 0, the first word at 0 s (B41)"), ("sting", 1, 'the voice says "Intip yuk!" (no mascot or pill is drawn)'), ("lens or normal", 6, "step 1: builds the question, the answer stays hidden"),
+         ("normal", 8, "step 2"), ("normal", 8, "step 3, or the bad case: the main answer comes at about 70 % (28 s)"), ("tips", 10, "2 tips"),
+         ("outro", 4, "loop-back: no mascot, no label, no voice; the scene of the first beat again")],
+    45: [("hook", 3, "an everyday hook: a question, a surprising statement or a myth"), ("sting", 1, 'the voice says "Intip yuk!" (no mascot or pill is drawn)'), ("lens or normal", 6, "step 1 (the cutaway through the lens, if the cause is inside)"),
          ("normal", 7, "step 2"), ("loose / normal", 8, "step 3, or the bad case"), ("result", 7, "what happens in the end"), ("tips", 9, "2 tips"),
          ("outro", 4, "loop-back: no mascot, no label, no voice; the scene of the first beat again")],
-    60: [("hook", 3, "an everyday hook: a question, a surprising statement or a myth"), ("sting", 1, 'a small mascot and the pill "Intip yuk!"'), ("lens or normal", 6, "step 1"), ("normal", 8, "step 2"), ("normal", 8, "step 3"),
+    60: [("hook", 3, "an everyday hook: a question, a surprising statement or a myth"), ("sting", 1, 'the voice says "Intip yuk!" (no mascot or pill is drawn)'), ("lens or normal", 6, "step 1"), ("normal", 8, "step 2"), ("normal", 8, "step 3"),
          ("loose / normal", 8, "step 4, or the bad case"), ("result", 7, "what happens in the end"), ("normal", 6, "a fact that surprises"), ("tips", 9, "2-3 tips"),
          ("outro", 4, "loop-back: no mascot, no label, no voice; the scene of the first beat again")],
 }
@@ -97,7 +100,7 @@ y {sa['top']}..{sa['bottom']} ({sa['note']}).
 
 
 def _structure_text(duration: int, opts: dict | None = None) -> str:
-    rows = list(STRUCTURE[min(STRUCTURE, key=lambda k: abs(k - duration))])    # the three lengths; anything else gets the nearest plan
+    rows = list(STRUCTURE[min(STRUCTURE, key=lambda k: abs(k - duration))])    # the four lengths; anything else gets the nearest plan
     if opts and not opts["sting"]:                                             # no sting: its second goes to the first explain beat, the sum stays
         i = next(n for n, r in enumerate(rows) if r[0] == "sting")
         rows[i:i + 2] = [(rows[i + 1][0], rows[i + 1][1] + rows[i][1], rows[i + 1][2])]
@@ -159,8 +162,9 @@ def look_text(look: str | None) -> str:
 
 HARD_RULES = [
     "The beats' seconds add up to exactly the duration.",
-    "**The narration fits its beat:** a voice app reads about 2 words a second, pauses included, so aim each beat's narration at about 2 words for each of its seconds (a 7 s beat: 14 words; 80 % to 110 % is fine; the hook may be shorter) and the whole video at about 110 words for 60 s, 80 for 45 s, 50 for 30 s (the sting and the outro are not counted). Count the words before you save. A longer narration makes the voice, and so the video, longer than the duration (the picture is stretched); a shorter one makes it shorter, and klipian refuses to render a voice more than 15 % over or under the duration.",
+    "**The narration fits its beat:** a voice app reads about 2 words a second, pauses included, so aim each beat's narration at about 2 words for each of its seconds (a 7 s beat: 14 words; 80 % to 110 % is fine; the hook may be shorter) and the whole video at about 110 words for 60 s, 80 for 45 s, 70 for 40 s, 50 for 30 s (the sting and the outro are not counted). Count the words before you save. A longer narration makes the voice, and so the video, longer than the duration (the picture is stretched); a shorter one makes it shorter, and klipian refuses to render a voice more than 15 % over or under the duration.",
     'The first beat is `hook`; the second is `sting` with the narration exactly "Intip yuk!"; the last is `outro`.',
+    "**The hook (B41):** frame 0 already shows the hook claim as big, high-contrast text over the subject (no scene-setting shot, no explanation text in frame 0); the first spoken word starts at 0 s; the hook is a claim or a stake about the viewer's own body or home (\"Kakimu bukan tidur. Sarafnya kejepit.\"), not a bare \"Kenapa X?\"; the main answer stays hidden until about 70 % of the duration and the earlier beats build the question; the YouTube title never starts with \"Intip\"; the looping ending stays.",
     "The outro has an empty narration and no mascot, label or pill; its scene repeats the first beat's scene so the video loops.",
     "Every screen text (banner, pill, label, text) is at most 6 words.",
     "Every claim has at least one source URL that you opened yourself.",
@@ -201,7 +205,7 @@ COMPOSITION = """- Every beat except the sting and the outro shows the top text 
 - **One hero:** one main object for the whole video, big (about 60 to 70 % of the width at the main shot, x about 540). The other things are simple supporting elements: parts, arrows, short labels, numbered badges. Empty space is filled by the object, never by people.
 - **Kinds of fact:** an object is opened up (the lens, only if the narration goes inside); a process follows its flow; a cause is a chain of arrows; a myth check ends with `MITOS`, `FAKTA` or `SEBAGIAN` in the text of the `result` or `tips` beat (the verdict stamp is not drawn yet).
 - **People are optional:** a `chibi` only when a person is the point.
-- **The mascot is rare:** the sting has a small `mascot` (w about 220, expression curious, `pop`) and a small `pill` "Intip yuk!" in the caption zone, with no veil; plus at most two short reactions. **The outro has no mascot.** In a custom video the sting is drawn with `StingMark` (`remotion/src/components/StingMark.tsx`, B31), never with a mascot and a pill at a fixed place: the pose comes from the slug, and `pose` overrides it when the hero needs another corner.
+- **The mascot is rare:** the sting is voice-only (B31): the narration "Intip yuk!" and its sound, and no mascot or pill is drawn for it; at most two short reactions. **The outro has no mascot.** In a custom video the sting beat keeps the `StingMark` line (`remotion/src/components/StingMark.tsx`, B31); it draws nothing, so never draw a mascot and a pill for the sting yourself.
 - **Source cards** (`source`): one claim with its source for 2 to 3 seconds, only for a fact that needs to be seen.
 - Optional: a `headline` (2 to 4 bold words, with a small `kicker`), `"captions": true`, and `music` (`{"track": ...}`)."""
 
@@ -590,7 +594,8 @@ Some claims were **rejected**. Please revise **only the beats listed below**; ev
 - Search the web again. Replace what was rejected with something you can back with a source URL; if you cannot, **leave it out** and
   make the beat about something that is certain.
 - Keep each beat's `id` and `dur` the same (the video must keep its {p['duration']} seconds), and the same channel rules and catalogue as before.
-- Keep the two musts: the "Intip yuk!" sting right after the hook, and the loop-back ending (no mascot, label, pill or voice in the outro).
+- Keep the hook rules (B41): the claim as big text in frame 0, the first word at 0 s, the answer held back to about 70 %.
+- Keep the two musts: the "Intip yuk!" sting (voice only) right after the hook, and the loop-back ending (no mascot, label, pill or voice in the outro).
 - Keep the options of this video: loop {'yes' if _m.options_of(p)['loop'] else 'no'}, Intip yuk! {'yes' if _m.options_of(p)['sting'] else 'no'}, music {_m.MUSIC_TRACKS[_m.options_of(p)['music']]}, voice apps {_m.voice_apps_text(_m.options_of(p)['voiceTargets'])}.
 - Give the **complete list of claims** again in `claims` (the checked ones unchanged, the revised ones with sources), with the beats that use them.
 

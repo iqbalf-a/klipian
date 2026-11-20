@@ -64,7 +64,7 @@ function buildListBar() {
     <div class="rm-fbar">
       ${seg("Status", Object.entries(TOPIC_STATUSES))}
       <button class="btn sm" type="button" data-f="need" aria-pressed="false">Needs action</button>
-      ${seg("Duration", [[30, "30 s"], [45, "45 s"], [60, "60 s"]])}
+      ${seg("Duration", [[30, "30 s"], [40, "40 s"], [45, "45 s"], [60, "60 s"]])}
       <select class="ws-input rm-boxed" id="rmLMusic" aria-label="Filter by music"></select>
     </div>
     <div class="rm-fbar"><span class="rm-hint" id="rmLCount" aria-live="polite"></span><button class="btn sm" type="button" id="rmLReset">Clear filters</button></div>`;

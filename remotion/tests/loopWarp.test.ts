@@ -19,7 +19,9 @@ near(warpClock(62.3), 62.3, "a long video is not touched");
 setLoopWarp(story([3, 1, 15, 15, 7.7, 4], 45), 40.7 - 0.0);     // 45.7: not short
 near(warpClock(45.7), 45.7, "45.7 s of 45: untouched");
 setLoopWarp(story([3, 1, 15, 14, 3, 4], 45), 33);               // 40 s
-near(warpClock(40), 45, "a 40 s video of a 45 s story ends at 45");
+near(warpClock(40), 40, "a 40 s voiced total is a 40 s video (the 40 s length, B41 brief): untouched");
+setLoopWarp(story([3, 1, 15, 15, 5, 4], 43), 39);              // 43 s: nearer 45 than 40, a short 45 s video
+near(warpClock(43), 45, "43 s is a 45 s video: ends at 45");
 // a voiced story the way voice timing makes it: its duration IS the voiced total (57.07), so the planned length must come from the total, not from `duration`
 setLoopWarp(story([4.48, 1.34, 7.4, 6.56, 7.04, 7.69, 7.04, 4.62, 6.9, 4], 57.07), 53.07);
 near(warpClock(57.07), 60, "voiced 57.07 s (duration 57.07): the warp is on and ends at 60");

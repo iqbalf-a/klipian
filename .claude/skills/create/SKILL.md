@@ -5,12 +5,12 @@ description: Runs for a message starting with `-create`. Make one klipian intip 
 
 # -create [options] <topic>
 
-The message is `-create [2.5d|iso|2d|teks] [30|45|60] [noloop] [nointip] [suara=voicestudio,googleai,elevenlabs] [musik=<id>] [catatan="..."] "<topic>"`. Every token before the topic is optional and may come in any order; the topic is the last quoted text, or, when nothing is quoted, all the text after the options (`-create gurita punya tiga jantung`, `-create 2d gurita punya tiga jantung`). One video per run. Nothing is asked of the person.
+The message is `-create [2.5d|iso|2d|teks] [30|40|45|60] [noloop] [nointip] [suara=voicestudio,googleai,elevenlabs] [musik=<id>] [catatan="..."] "<topic>"`. Every token before the topic is optional and may come in any order; the topic is the last quoted text, or, when nothing is quoted, all the text after the options (`-create gurita punya tiga jantung`, `-create 2d gurita punya tiga jantung`). One video per run. Nothing is asked of the person.
 
 | Token | Meaning | Flag for the brief CLI |
 |---|---|---|
 | `2.5d` or `iso` / `2d` / `teks` | force the look (missing: you choose from the topic, B28) | `--look iso` / `--look 2d` / `--look text` |
-| `30` `45` `60` | the duration (missing: 60) | `--duration 45` |
+| `30` `40` `45` `60` | the duration (missing: 40) | `--duration 45` |
 | `noloop` | no loop-back ending (missing: loop) | `--no-loop` |
 | `nointip` | no "Intip yuk!" sting (missing: sting) | `--no-sting` |
 | `suara=a,b` | the voice apps (missing: all three) | `--voice a,b` |

@@ -7478,7 +7478,7 @@ def check_motion_brief() -> tuple[str, str]:
     if not ok:
         return SKIP, why
     problems: list[str] = []
-    must = ["an everyday hook", "does not have to start with", "small `mascot`", "small `pill`", "Intip yuk!", "loop-back",
+    must = ["an everyday hook", "does not have to start with", "voice-only", "(B41)", "Intip yuk!", "loop-back",
             "**The outro has no mascot.**", "**One hero:**", "**Kinds of fact:**",
             "build a set, not a specimen", "Animation recipe", "open on a wide shot of the set", "one scale per set", "hero in the centre third",
             "Explaining how the body or money works is allowed", "never investment or financial advice", "Own set per video", "drawn in the kit's 2.5D iso camera", "never a flat side-view SVG", "IsoWallSocket", "The text format is the channel", "`TopText`", "`CaptionLayer`", "no big black banner box"]
@@ -7523,7 +7523,7 @@ def check_motion_brief() -> tuple[str, str]:
                 problems.append(f"the brief that lets the agent choose lost {want!r}")
         if any(len(motion_brief_cli.brief_for("Kenapa colokan panas", lk)) >= 40000 for lk in (None, "iso", "2d", "text")):
             problems.append("a brief for a look is 40000 characters or more")
-        for want in ("about 60 seconds", "Intip yuk!", "loop-back", "Target voice apps:", "### Step 6"):
+        for want in ("about 40 seconds", "Intip yuk!", "loop-back", "Target voice apps:", "### Step 6"):
             if want not in cli:
                 problems.append(f"the brief CLI's default brief lost {want!r}")
         for gone in ("### Step 7", "If you cannot run commands", "Chat mode"):      # the agent brief: no narration or page steps, no chat fallback

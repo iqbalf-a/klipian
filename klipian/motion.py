@@ -35,8 +35,8 @@ from . import hashtags as hashtags_mod, motion_voice as voicelib, paths, profile
 from .progress import Eta
 
 REMOTION = paths.ROOT / "remotion"
-DURATIONS = (30, 45, 60)
-DEFAULT_DURATION = 45
+DURATIONS = (30, 40, 45, 60)
+DEFAULT_DURATION = 40
 RENDER_RATIO = 1.7              # seconds of rendering per second of video on a usual machine, for the first ETA (measured: 1.6)
 PREVIEW_RATIO = 0.4             # the half-size draft takes about this share of the final render's time (to be measured on the first real run)
 STILL_AT = 0.85                 # the sheet shows each beat 85 % of the way through it, where its things have arrived
