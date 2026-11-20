@@ -33,7 +33,7 @@ const itemsOf = (b) => b.scene?.items ?? [];
 
 // 1. the duration: one of the three lengths, and the beats add up to it exactly
 const total = beats.reduce((a, b) => a + b.dur, 0);
-add(new Set([30, 45, 60]).has(story.duration) ? "PASS" : "FLAG", `duration ${story.duration} s is 30, 45 or 60 s`);
+add(new Set([30, 40, 45, 60]).has(story.duration) ? "PASS" : "FLAG", `duration ${story.duration} s is 30, 40, 45 or 60 s`);
 add(total === story.duration ? "PASS" : "FLAG", `the beats add up to ${total} s, the duration is ${story.duration} s`);
 
 // 2. the beat formula: hook first, sting second (if there is one), outro last; the kinds are known

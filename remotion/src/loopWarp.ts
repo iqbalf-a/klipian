@@ -7,7 +7,7 @@ import type { StoryT } from "./schema.ts";
 type W = { outro: number; total: number; nominal: number };
 let W: W | null = null;
 
-/** The length a video is planned for (30, 45 or 60 s, klipian/motion.py DURATIONS) the smallest one that is at least the voiced length (the warp only stretches a video shorter than its plan; none fits: 60). The voiced story's own `duration` is the voiced total (voice timing rewrites it),
+/** The length a video is planned for (30, 40, 45 or 60 s, klipian/motion.py DURATIONS) the smallest one that is at least the voiced length (the warp only stretches a video shorter than its plan; none fits: 60). The voiced story's own `duration` is the voiced total (voice timing rewrites it),
     so it cannot say what the keys were written for. */
 export const nominalOf = (total: number): number => [30, 40, 45, 60].find((d) => d >= total - 0.02) ?? 60;
 
