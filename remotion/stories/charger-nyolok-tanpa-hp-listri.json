@@ -1,0 +1,186 @@
+{
+ "bible": 1,
+ "look": "iso",
+ "question": "Charger nyolok tanpa HP, listriknya tetap jalan?",
+ "titles": [
+  "Charger nyolok tanpa HP, listriknya tetap jalan?",
+  "Charger kosong di stopkontak masih makan listrik?",
+  "Cabut atau biarkan? Charger tanpa HP tetap menarik listrik"
+ ],
+ "duration": 40,
+ "theme": "sky",
+ "stage": "island",
+ "captions": true,
+ "music": {
+  "track": "bed-neon"
+ },
+ "thumb": "Charger kosong tetap *makan listrik*?",
+ "beats": [
+  {
+   "id": "hook",
+   "kind": "hook",
+   "dur": 3,
+   "narration": "Charger ini masih makan listrik.",
+   "text": "Charger ini masih makan listrik.",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Charger ini masih makan listrik.",
+      "fs": 70
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "sting",
+   "kind": "sting",
+   "dur": 1,
+   "narration": "Intip yuk!",
+   "text": "Intip yuk!",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "tanya",
+   "kind": "normal",
+   "dur": 6,
+   "narration": "HP sudah dicabut, tapi charger masih menancap di stopkontak. Listriknya berhenti, nggak?",
+   "kicker": "CHARGER KOSONG",
+   "text": "Listriknya berhenti?",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none",
+   "headline": "Listriknya berhenti?"
+  },
+  {
+   "id": "dalam",
+   "kind": "lens",
+   "dur": 9,
+   "narration": "Di dalam charger ada trafo dan rangkaian pengatur. Mereka tersambung ke listrik rumah, bahkan saat tidak ada HP.",
+   "kicker": "DI DALAM",
+   "text": "Trafo tetap tersambung",
+   "scene": {
+    "bg": "lab",
+    "items": []
+   },
+   "sfx": "none",
+   "headline": "Trafo tetap tersambung"
+  },
+  {
+   "id": "bukti",
+   "kind": "normal",
+   "dur": 8,
+   "narration": "Tanpa HP, memang tidak ada baterai yang diisi. Tapi apakah trafonya ikut berhenti menarik listrik?",
+   "kicker": "TANPA HP",
+   "text": "Trafonya ikut berhenti?",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none",
+   "headline": "Trafonya ikut berhenti?"
+  },
+  {
+   "id": "jawab",
+   "kind": "result",
+   "dur": 5,
+   "narration": "Tetap jalan: modern di bawah setengah watt, lama beberapa watt.",
+   "kicker": "DAYA SIAGA",
+   "text": "Kecil, tapi terus jalan",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none",
+   "headline": "Kecil, tapi terus jalan"
+  },
+  {
+   "id": "tips",
+   "kind": "tips",
+   "dur": 4,
+   "narration": "Cabut kalau tak dipakai, atau pakai stopkontak bersaklar.",
+   "kicker": "TIPS",
+   "text": "Cabut atau pakai saklar",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none",
+   "headline": "Cabut atau pakai saklar"
+  },
+  {
+   "id": "outro",
+   "kind": "outro",
+   "dur": 4,
+   "narration": "",
+   "text": "",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  }
+ ],
+ "claims": [
+  {
+   "text": "Charger yang dicolok tanpa perangkat tetap menarik sedikit daya (daya tanpa beban, no-load) karena rangkaiannya tetap tersambung ke listrik.",
+   "beats": [
+    "dalam",
+    "bukti",
+    "jawab"
+   ],
+   "sources": [
+    "https://energy-efficient-products.ec.europa.eu/product-list/external-power-supplies_en",
+    "https://www.howtogeek.com/231886/tested-should-you-unplug-chargers-when-youre-not-using-them/"
+   ]
+  },
+  {
+   "text": "Charger modern menarik di bawah setengah watt tanpa beban: rata-rata adaptor yang dijual di Eropa 0,10 W pada 2020, dan standar lama sudah membatasi di bawah 0,75 W (Energy Star 2005) lalu 0,5 W (California 2008).",
+   "beats": [
+    "jawab"
+   ],
+   "sources": [
+    "https://energy-efficient-products.ec.europa.eu/product-list/external-power-supplies_en",
+    "https://history.lbl.gov/Publications/today/2006/Mar/14-Tue/standby.html"
+   ]
+  },
+  {
+   "text": "Charger lama bisa menarik jauh lebih besar tanpa beban, sampai beberapa watt (rata-rata adaptor 1990 0,56 W; charger alat listrik lama 5 sampai 10 W).",
+   "beats": [
+    "jawab"
+   ],
+   "sources": [
+    "https://energy-efficient-products.ec.europa.eu/product-list/external-power-supplies_en",
+    "https://www.howtogeek.com/231886/tested-should-you-unplug-chargers-when-youre-not-using-them/"
+   ]
+  },
+  {
+   "text": "Mencabut charger atau mematikan stopkontak bersaklar menghentikan daya siaga itu.",
+   "beats": [
+    "tips"
+   ],
+   "sources": [
+    "https://www.howtogeek.com/231886/tested-should-you-unplug-chargers-when-youre-not-using-them/"
+   ]
+  }
+ ],
+ "post": {
+  "description": "Charger dicolok tanpa HP masih menarik listrik. Kecil sekali, tapi terus jalan. Intip isi charger dan cara menghentikannya.",
+  "hashtags": [
+   "#charger",
+   "#listrik",
+   "#faktaseru",
+   "#intipyuk",
+   "#shorts"
+  ]
+ },
+ "needs": []
+}
