@@ -106,7 +106,7 @@ add(cards.every((c) => Number.isInteger(c.claim) && c.claim >= 1 && c.claim <= c
 const hookBg = beats[0]?.scene?.bg;
 add(hookBg === "brand" ? "PASS" : "FLAG", `the stage: the hook is on the brand background (it is "${hookBg}")`);
 const sources = readdirSync(dir).filter((f) => /\.(ts|tsx)$/.test(f)).map((f) => readFileSync(path.join(dir, f), "utf8")).join("\n");
-const look = story.look ?? "iso";                                  // B28: iso (the kit), 2d (flat drawing) or text (kinetic numbers and words)
+const look = story.look ?? "iso";                                  // B28: iso (the kit), 2d (flat drawing), text (kinetic numbers and words) or ricks (B46)
 const isoParts = /Iso(WallSocket|Cutaway|Block|Plug|Sea|Land|Trees|Cloud|Bed|Lamp|Kettle|Fan|Clock|Cup|Battery|Heart|Brain)/.test(sources);
 add(look !== "iso" ? "INFO" : isoParts ? "PASS" : "FLAG", look !== "iso" ? `look "${look}": no isometric stage block needed (B28)` : "the video draws its object in the isometric kit (a stage block)");
 add("RENDER", "the hero is 60 to 70 % of the screen width at the main shot (measure it on the still)");
@@ -130,6 +130,7 @@ const freeIds = freeSets(SO.owners, SO.kinds).map((k) => k.id).join(", ");
 const borrowed = borrowedSets(sources, slug, SO.owners, SO.kinds);
 add(borrowed.length === 0 ? "PASS" : "FAIL", `B27.15: the set is the video's own (${borrowed.length ? borrowed.map(({ set, found, owner }) => `it draws "${set.id}", the set of ${owner} (${found.join(", ")}). Design a new set around this hero: free kinds are ${freeIds}; see src/sets.ts`).join("; ") : "no other video's set is drawn"})`);
 if (look === "text") add("INFO", "B27.15: look text has no set, so no set.json is needed");
+else if (look === "ricks") add("INFO", "B27.15: look ricks builds its set in three.js in the video's own files (no iso set kind, no set.json); B42 still applies");
 else if (!/^selftest/.test(slug)) {
   const mine = declaredKind(slug, SO.owners);
   const bad = SO.problems.filter((x) => x.startsWith(`${slug}/`));
@@ -179,10 +180,13 @@ const isoCalls = /\b(block|extrudeXZ|extrudeAnyXZ|cylinder|planeXZ|planeYZ)\s*\(
 const isoOk = isoKit.length >= 2 || isoCalls;
 if (look === "2d") add(isoKit.length === 0 && !isoCalls ? "PASS" : "FAIL", `must 3 (e): look "2d" is a flat drawing, no iso projection (${isoKit.length || isoCalls ? `iso helpers used: ${isoKit.join(", ")}${isoCalls ? " iso.ts geometry" : ""}` : "no iso helpers"})`);
 else if (look === "text") add("INFO", 'must 3 (e): look "text": kinetic numbers and words in boxes, no iso geometry needed');
+else if (look === "ricks") add(/ricks\/kit/.test(sources) && /\bRicksPost\b/.test(sources) && /\bStickHero\b/.test(sources) ? "PASS" : "FAIL", 'must 3 (e): look "ricks" uses the ricks kit (RicksPost for DOF + bloom + the sharp cast, StickHero for the cast, B46)');
 else add(isoOk ? "PASS" : "FAIL", `must 3 (e): the set and the hero are drawn in the iso kit (${isoOk ? `${isoKit.length} Iso* component(s)${isoCalls ? ", iso.ts geometry" : ""}` : `${isoKit.length} Iso* component(s) and no iso.ts geometry: a flat side view is not the kit; build the asset from src/iso.ts block/extrude/cylinder and reuse src/design components`})`);
 
 // must 3 (f): the channel's text format: kicker + headline at the top (TopText), the bottom caption with the spoken word yellow (CaptionLayer), no black top banner box.
-const textMiss = [!/\bTopText\b/.test(allSrc) && "TopText (kicker + headline)", !/\bCaptionLayer\b/.test(allSrc) && "CaptionLayer (bottom caption, spoken word yellow)", /<Banner\b/.test(allSrc) && "a <Banner> box at the top"].filter(Boolean);
+const textMiss = look === "ricks"      // B46: the ricks look has its own text: one word at a time (WordCaption) and number pills, no TopText
+  ? [!/\bWordCaption\b/.test(allSrc) && "WordCaption (one word at a time, B46)", /<Banner\b/.test(allSrc) && "a <Banner> box at the top"].filter(Boolean)
+  : [!/\bTopText\b/.test(allSrc) && "TopText (kicker + headline)", !/\bCaptionLayer\b/.test(allSrc) && "CaptionLayer (bottom caption, spoken word yellow)", /<Banner\b/.test(allSrc) && "a <Banner> box at the top"].filter(Boolean);
 add(textMiss.length === 0 ? "PASS" : "FAIL", `must 3 (f): the channel's text format (${textMiss.length ? `missing or wrong: ${textMiss.join("; ")}` : "TopText + CaptionLayer, no banner box"})`);
 
 add(fontLits.length === 0 ? "PASS" : "FAIL", `B17: every font is the locked text style's (${fontLits.length ? `literal font names in ${fontLits.join(", ")}` : "the tokens' fonts, or the registered exceptions only"})`);

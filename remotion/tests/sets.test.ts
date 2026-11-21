@@ -60,7 +60,7 @@ for (const slug of readdirSync(path.join(ROOT, "videos"))) {
   const src = readdirSync(path.join(ROOT, "videos", slug)).filter((f) => /\.tsx?$/.test(f)).map((f) => read("videos", slug, f)).join("\n");
   yes(borrowedSets(src, slug, owners, kinds).length === 0, `${slug} draws no other video's set`);
   const story = path.join(ROOT, "videos", slug, "story.json");
-  const text = existsSync(story) && JSON.parse(readFileSync(story, "utf8")).look === "text"; // text look needs no set.json (as styleCheck)
+  const text = existsSync(story) && ["text", "ricks"].includes(JSON.parse(readFileSync(story, "utf8")).look); // text and ricks (B46) need no set.json (as styleCheck)
   if (text || BEFORE_B27_15.includes(slug)) continue;
   yes(declaredKind(slug, owners).kind !== null, `${slug} declares its set in videos/${slug}/set.json`);
 }

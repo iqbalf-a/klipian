@@ -7,10 +7,10 @@ import { Models3D } from "./Models3D.tsx";
 import { AssetSheet, AssetSheetIso, AssetSheetLife } from "./AssetSheet.tsx";
 import { CardsDemo } from "./CardsDemo.tsx";
 import { RigDemo, RIG_DEMO_SECONDS } from "./RigDemo.tsx";
-import { ChibiDemo, CHIBI_DEMO_FRAMES } from "./ChibiDemo.tsx";
 import { IsoDemo, ISO_DEMO_SECONDS } from "./IsoDemo.tsx";
 import { IsoThreeDemo, ISO_THREE_SECONDS } from "./IsoThreeDemo.tsx";
 import { NatureDemo, NATURE_DEMO_SECONDS } from "./NatureDemo.tsx";
+import { DioramaDemo, DIORAMA_DEMO_FRAMES } from "./DioramaDemo.tsx";
 import { StageDemo, HeroStageFixture } from "./StageDemo.tsx";
 import templateStory from "../templates/video/story.json";
 import { ThemeCtx } from "./components/Backgrounds.tsx";
@@ -57,7 +57,8 @@ export const Root: React.FC = () => (
   <Composition id="AssetSheetIso" component={AssetSheetIso} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={30} />
   <Composition id="AssetSheetLife" component={AssetSheetLife} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={90} />
   <Composition id="RigDemo" component={RigDemo} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={RIG_DEMO_SECONDS * FPS} />
-  <Composition id="ChibiDemo" component={ChibiDemo} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={CHIBI_DEMO_FRAMES} />
+  {/* style test: a lit 3D diorama with a flat 2D stick character card (three.js) */}
+  <Composition id="DioramaDemo" component={DioramaDemo} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={DIORAMA_DEMO_FRAMES} />
   <Composition id="IsoDemo" component={IsoDemo} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={ISO_DEMO_SECONDS * FPS} />
   <Composition id="MarkSheet" component={MarkSheet} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={1} />
   <Composition id="NatureSheet" component={NatureSheet} width={FRAME.width} height={SHEET_HEIGHT} fps={FPS} durationInFrames={1} />

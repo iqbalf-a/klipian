@@ -5,17 +5,18 @@ description: Runs for a message starting with `-create`. Make one klipian intip 
 
 # -create [options] <topic>
 
-The message is `-create [2.5d|iso|2d|teks] [30|40|45|60] [noloop] [nointip] [suara=voicestudio,googleai,elevenlabs] [musik=<id>] [catatan="..."] "<topic>"`. Every token before the topic is optional and may come in any order; the topic is the last quoted text, or, when nothing is quoted, all the text after the options (`-create gurita punya tiga jantung`, `-create 2d gurita punya tiga jantung`). One video per run. Nothing is asked of the person.
+The message is `-create [2.5d|iso|2d|teks|ricks] [30|40|45|60] [noloop] [nointip] [suara=voicestudio,googleai,elevenlabs] [musik=<id>] [catatan="..."] [wav="<path>"] "<topic>"`. Every token before the topic is optional and may come in any order; the topic is the last quoted text, or, when nothing is quoted, all the text after the options (`-create gurita punya tiga jantung`, `-create 2d gurita punya tiga jantung`). One video per run. Nothing is asked of the person.
 
 | Token | Meaning | Flag for the brief CLI |
 |---|---|---|
-| `2.5d` or `iso` / `2d` / `teks` | force the look (missing: you choose from the topic, B28) | `--look iso` / `--look 2d` / `--look text` |
+| `2.5d` or `iso` / `2d` / `teks` / `ricks` | force the look (missing: you choose from the topic, B28; `ricks` is never chosen by you, B46) | `--look iso` / `--look 2d` / `--look text` / `--look ricks` |
 | `30` `40` `45` `60` | the duration (missing: 40) | `--duration 45` |
 | `noloop` | no loop-back ending (missing: loop) | `--no-loop` |
 | `nointip` | no "Intip yuk!" sting (missing: the voice-only sting) | `--no-sting` |
 | `suara=a,b` | the voice apps (missing: all three) | `--voice a,b` |
 | `musik=<id>` | a music bed or `auto` (missing: the default) | `--music <id>` |
 | `catatan="..."` | notes for the AI (missing: none) | `--notes "..."` |
+| `wav="<path>"` | look `ricks` only: the voice ian made from the stage 1 text; runs stage 2 (section 2b) | none |
 
 Work quietly: no progress narration between steps; only the final answer.
 
@@ -67,13 +68,32 @@ With no option it prints the Khusus brief with the defaults: custom video, 40 s,
 
 Body and money topics are fine as explanations (why we hiccup, why banknotes do not tear). If the topic asks for medical advice, a diagnosis, a cure, a dose or a treatment, for investment or financial advice (e.g. "obat cegukan paling ampuh", "saham yang pasti naik"), or for anything dangerous: stop, write nothing, say why.
 
+## 2b. Look ricks: the voice comes first (B46)
+
+A ricks video is built to its voice: every shot, face, pill and caption word lands on a word, and a TTS voice's pace cannot be guessed. So `-create ricks` runs in two stages; the topic (and so the slug) is the same in both.
+
+**Stage 1, no `wav=`: the story and the text for the voice.** Steps 0 to 2 as usual (`--look ricks`), then only brief steps 1 and 2: research, write `remotion/stories/<slug>.json` (narration per beat, energetic and punchy like a storyteller telling a friend a crazy fact: short sentences, numbers written as words, a hook that hits at word one, "Intip yuk!" as the sting, the last sentence leading back into the hook), validate it. Commit and push only that story (step 4, message `Story: <title> (ricks, waiting for the voice)`). Do not build the folder. Answer, in place of step 5, with exactly:
+1. `slug` and "gaya: ricks (B46), tahap 1: tinggal voice"
+2. `main` + hash
+3. a fenced block "Voice: Puck (atau Fenrir)"
+4. a fenced block with the style instructions: `Narrate in Indonesian like an energetic YouTube Shorts storyteller: fast, punchy, playful and a bit dramatic, as if telling a friend a crazy fact. Smile while talking. Hit the first line hard. Short beat pauses at "...". Rise in excitement on the numbers, and slow down slightly with suspense on the last sentence.`
+5. a fenced block with the text: every beat's narration in order, one paragraph each (the outro has none)
+6. "Buat di Google AI Studio (Generate speech, single-speaker), lalu kirim: -create ricks wav=\"<path>\" \"<topic>\""
+
+**Stage 2, with `wav=`: the picture to the voice.** Only in ian's own checkout (the WAV is on his PC); in the cloud answer only "wav hanya bisa di PC ian" and stop. Steps 0 and 1 (the worktree), then read `remotion/stories/<slug>.json` from `origin/main` (missing: answer "jalankan tahap 1 dulu" and stop). Follow the brief from step 3 (`new-video`) on, with these steps added before the build:
+1. The word timings, with the `.venv` of ian's checkout (a worktree has none): `"<ian checkout>/.venv/Scripts/python.exe" -I remotion/scripts/ricksWords.py "<wav>" remotion/videos/<slug>/words.json <a text file with the narration>`. faster-whisper missing: say so and stop.
+2. Retime the story to the voice: each beat runs from its first word to the next beat's first word (the hook from 0), the outro is 0.7 s after the last word, `duration` is their sum; validate again.
+3. Build `index.tsx` on the ricks kit (`src/ricks/kit.tsx`, example `src/DioramaDemo.tsx`): shots, faces, pills and caption words keyed to `words.json`; `sfx.ts` exports `sfx(story)` (a whoosh on every cut, a sound on every state change and pill, at the same times) and `music`.
+4. After the stills and the checklist (3b), render: `node scripts/ricksRender.mjs <slug> "<wav>"` (from `remotion/`), which mixes and sets about -14 LUFS; paste its line. Copy `out/<slug>/<slug>.mp4` next to the WAV (the worktree is removed after the push).
+The WAV and `out/` are never committed; `words.json` is (it is the video's timing).
+
 ## 3. Build
 
 Follow the printed brief, steps 1 to 6, as written: it is the instruction, and its hard rules already say how to choose the set, draw the real form, write `sfx.ts` by hand and write the story's `thumb`. Run `npm ci` in `remotion` first when `remotion/node_modules` is missing. If Chrome or the render cannot run, say so and continue without the stills. Its "no push" line is overridden by step 4 below, and its report by step 5 (the brief has no narration or page steps: -create needs neither); everything else stands (never write to `workspace/`, never claim a check you did not run).
 
 ## 3b. Before you push: the checklist
 
-Tick each with evidence (a command output or a still you opened); fix, then push. A topic that needs a full body or a sitting or standing person is not built until the Chibi rig exists (B43): answer with that reason and stop.
+Tick each with evidence (a command output or a still you opened); fix, then push. A topic that needs a full body or a sitting or standing person is not built until the Chibi rig exists (B43): answer with that reason and stop, except in look `ricks`, whose stick cast is the person (B46); in look `ricks`, item 3 below reads B46 instead of B44's plain background and 70 to 80 % hero.
 
 1. **B41 (the hook wins the first second):** the hook claim is big text at frame 0, the first word at 0 s, the main answer held to about 70 % of the duration, the title does not start with "Intip", and the hook text fades back in over the last 0.5 s of the outro so the loop holds (`npm run style-report`: loop PSNR about 35 dB or more).
 2. **B42 (no reuse in the last 10 videos):** you listed the 10 most recent videos by the commit date that first added each `index.tsx`, grepped their `index.tsx` and `set.json`, and drew every backdrop, set, hook hero, supporting object and prop yourself; the answer lists what you avoided and which video each came from (the Chibi cast, B43, is the one reuse on purpose).
@@ -98,6 +118,6 @@ Answer in Indonesian, at most 6 short lines, nothing else:
 3. the style-check summary line
 4. each FAIL/FLAG line (or "tanpa FAIL/FLAG"), and the pieces as "baru: ... / pakai ulang: ..."
 5. at most 2 one-line points ian must decide
-6. cloud: "sudah di main, tinggal git pull di PC ian"; local: "sudah di main; git pull, lalu di /remotion langkah 3 pilih folder remotion/videos/<slug>"
+6. cloud: "sudah di main, tinggal git pull di PC ian"; local: "sudah di main; git pull, lalu di /remotion langkah 3 pilih folder remotion/videos/<slug>"; ricks stage 2: "video jadi: <path of the mp4 next to the WAV>"
 
 Do NOT print the narration texts (they are in the story; /remotion step "Voice script" shows them), no /remotion steps, no file lists, no source lists, no recap of the video.

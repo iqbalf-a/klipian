@@ -7601,19 +7601,20 @@ def check_motion_brief() -> tuple[str, str]:
                 problems.append(f"the {d} s structure does not end with a loop-back outro")
         from . import motion_brief_cli
         cli = motion_brief_cli.brief_for("Kenapa colokan panas")      # what /create prints: the channel defaults, nothing written to the workspace
-        for look, mark in (("iso", "**Look iso (B28):**"), ("2d", "**Look 2d (B28):**"), ("text", "**Look text (B28):**")):
+        marks = (("iso", "**Look iso (B28):**"), ("2d", "**Look 2d (B28):**"), ("text", "**Look text (B28):**"), ("ricks", "**Look ricks (B46"))
+        for look, mark in marks:
             one = motion_brief_cli.brief_for("Kenapa colokan panas", look)      # a chosen look keeps only its own rules
-            others = [m for m in ("**Look iso (B28):**", "**Look 2d (B28):**", "**Look text (B28):**") if m != mark]
+            others = [m for _, m in marks if m != mark]
             if mark not in one or any(o in one for o in others) or "Choose the look" in one:
                 problems.append(f"the brief for look {look} does not hold only that look's rules")
-        for look in ("iso", "2d", "text"):                                           # what to read per look: the iso-only sections and the rule log are in their own files
+        for look in ("iso", "2d", "text", "ricks"):                                  # what to read per look: the iso-only sections and the rule log are in their own files
             one = motion_brief_cli.brief_for("Kenapa colokan panas", look)
             if ("Also read `remotion/DESIGN-iso.md`" in one) != (look == "iso") or ("do not read `remotion/DESIGN-iso.md`" in one) != (look != "iso") or "RULE-LOG.md" not in one:
                 problems.append(f"the {look} brief tells the wrong files to read (DESIGN-iso.md only for iso, never RULE-LOG.md)")
         for want in ("Choose the look", "1. `iso` when", "2. `2d` when", "3. `text` when", "gaya: iso/2d/teks, karena"):
             if want not in cli:
                 problems.append(f"the brief that lets the agent choose lost {want!r}")
-        if any(len(motion_brief_cli.brief_for("Kenapa colokan panas", lk)) >= 40000 for lk in (None, "iso", "2d", "text")):
+        if any(len(motion_brief_cli.brief_for("Kenapa colokan panas", lk)) >= 40000 for lk in (None, "iso", "2d", "text", "ricks")):
             problems.append("a brief for a look is 40000 characters or more")
         for want in ("about 40 seconds", "Intip yuk!", "loop-back", "Target voice apps:", "### Step 6"):
             if want not in cli:

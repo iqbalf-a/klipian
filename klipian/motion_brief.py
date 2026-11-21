@@ -134,22 +134,26 @@ def _options_text(opts: dict) -> str:
 # the lists come from the catalogue (cat), and the examples are real stories that pass the validator.
 LOOK_MARK = "{LOOK}"            # replaced in build_brief by the look rules (the chosen look, or the choice)
 READ_MARK = "[[READ]]"          # replaced in build_brief by what to read per look (the design files)
-LOOKS = ("iso", "2d", "text")
+LOOKS = ("iso", "2d", "text", "ricks")
+AUTO_LOOKS = ("iso", "2d", "text")      # what the agent may choose itself; ricks (B46) only when the person forces it
 LOOK_RULES = {
     "iso": "**Look iso (B28):** build a set, not a specimen: read `remotion/DESIGN.md` B27 and the Animation recipe first, then `remotion/DESIGN-iso.md` (the iso kit, depth order, nature kit, 3D objects, cables); open on a wide shot of the set, one scale per set, no overlap, hero in the centre third, then the establishing push to the main shot (hero 60 to 70 % of the width); 2 to 4 kinds of dressing at real scale, cut by the frame; the empty background at most 35 %. Every set and hero is drawn in the kit's 2.5D iso camera (`remotion/src/iso.ts`, VIEW [1,1,1], three tones, light from the top left) and reuses `remotion/src/design/index.ts`; a new asset is an iso kit piece (faces from `iso.ts`), never a flat side-view SVG. Copy from `kenapa-colokan-panas` (IsoWallSocket, IsoRoomWall). The style check FAILs a video with no iso geometry.",
     "2d": "**Look 2d (B28):** a flat 2D drawing (front or side view, no iso projection, no `iso.ts` helpers for the hero), palette tokens, two tones per part (base and shade), no outlines except the allow-listed marks, the same light direction. The B27 set rules still apply in 2D (own set, bleed, fill at most 35 %, one scale, no overlap, a camera move per beat). The style check FAILs iso helpers used for the hero.",
+    "ricks": "**Look ricks (B46, only when the person asks for it):** a lit three.js diorama with the channel's flat 2D stick cast, built on the ricks kit `remotion/src/ricks/kit.tsx` (read it, and the worked example `remotion/src/DioramaDemo.tsx`). The set is the video's own (B27.15, B42): primitives with painted canvas textures, saturated colours, one clear key light (a lamp, the sun, a window) plus a cool fill, fog at the back, at least 3 kinds of props cut by the frame; `RicksPost` gives depth of field (close shots soft behind, wides sharp) and bloom on the lights, and draws the cast sharp on top. The cast is `StickHero` (unlit, its own shirt colours per video; it overrides B43 in this look) with an expression and an arm pose per sentence; it never freezes (blinks, breath) and never blinks on frame 0. Camera: a perspective camera at eye height or lower, one shot per sentence, every shot moves (a slow push, a pan, a tilt from a face to an object), close-ups and wides alternate, a whoosh on every cut. Text: `WordCaption` (one spoken word at a time, white with a black stroke, about y 1500, never over the face) and `Pills` for every number (B45); no TopText or CaptionLayer in this look. Frame 0 is the hook shot with the hook claim (B41) and the last shot lands on the first shot's framing (the loop). Objects still have no faces (B44); only the cast does.",
     "text": "**Look text (B28):** no objects: kinetic numbers and words in rounded cards like the caption (a counter that rolls, a number that grows, comparison bars, cards that stack or flip, a timeline). Outfit and DM Mono only (B17), palette tokens, the frame filled by type and boxes (empty at most 35 %), a camera move or a new card about every 3 to 4 s (B25). No set rules.",
 }
 LOOK_CHOICE = (
     "**Choose the look (B28)** from the topic, in this order, and write it as `\"look\"` in the story. 1. `iso` when the topic has a physical thing or place that can be drawn as an iso set (a socket, a room, the rain). 2. `2d` when it can be drawn but not sensibly in iso (a flat diagram, a map, a side-view process). 3. `text` when there is nothing to draw (a statistic, a probability, a date, a comparison of sizes). Say why in your answer: \"gaya: iso/2d/teks, karena ...\". "
     "Every look keeps the channel locks. The rules per look: "
-    + " ".join(LOOK_RULES[k] for k in LOOKS))
+    + " ".join(LOOK_RULES[k] for k in AUTO_LOOKS))
 
 
 def read_text(look: str | None) -> str:
     """What the step 4 reading line adds per look: the iso-only sections and the rule log are in their own files, so a 2d or text video never reads them."""
     if look == "iso":
         return " Also read `remotion/DESIGN-iso.md` (the 2.5D iso look: kit, depth order, nature kit, 3D objects, cables) and the kit `remotion/src/components/Iso*.tsx`. Do not read `remotion/docs/RULE-LOG.md` (history, not needed)."
+    if look == "ricks":
+        return " Read `remotion/DESIGN.md` (B46 is this look) and the ricks kit `remotion/src/ricks/kit.tsx` with its worked example `remotion/src/DioramaDemo.tsx`; do not read `remotion/DESIGN-iso.md` or `remotion/docs/RULE-LOG.md`."
     if look in LOOKS:
         return " `remotion/DESIGN.md` is all there is to read for this look: do not read `remotion/DESIGN-iso.md` or `remotion/docs/RULE-LOG.md`."
     return " Read `remotion/DESIGN.md` first, choose the look, then read `remotion/DESIGN-iso.md` and the kit `remotion/src/components/Iso*.tsx` only if it is iso; never read `remotion/docs/RULE-LOG.md`."
@@ -174,6 +178,7 @@ HARD_RULES = [
     "**No reuse in the short term (B42):** use no backdrop, set, hook hero, supporting object or prop that appears in any of the 10 most recent videos (order `remotion/videos/*` by the commit date that first added each `index.tsx`: `git log --diff-filter=A --format=%ct -- remotion/videos/<slug>/index.tsx`); grep those videos' `index.tsx` and `set.json` first, not even a \"same thing\" piece that B27.15(c) would allow, and draw your own pieces. Say in the answer which pieces you avoided and which video each came from.",
     "**A body or a jointed hero (B43, placeholder):** it will be the channel's Chibi cast on a 2D rig (fixed skeleton, locked proportions, contact and no-clip tests; sheets in `remotion/docs/chibi/`), reused on purpose (the exception to B42), with only its hair, clothes, face and accessories changing. Until the rig exists, never build a topic that needs a full body or a sitting or standing person: answer with the reason and stop (a body part per B36 is fine).",
     "**The feed look (B44):** frame 0 is the thumbnail: a hook text of 2 to 5 words at about 120 to 150 px (a black box per line, the key words yellow, the rest white, in the top third) on a plain hook background (one saturated palette colour or a clean off-white); the hero fills 70 to 80 % of the width at frame 0 (this overrides 60 to 70 % for the hook beat only); the set comes in only after the hook as the camera pulls back and goes out again at the loop end; objects never get faces (only the mascot and the Chibi have faces); look at a 200 px wide still of frame 0 before you answer.",
+    "**Words and picture split the work (B45):** the narration never says what the picture already shows (it says why or how); every number the narration says is on screen as a label or pill, with an everyday comparison when the number is big (a comparison is from a source or plain arithmetic on sourced numbers); an element that illustrates a word comes in 0 to 3 frames before that word (use the beat's `words` timings).",
     "**Own set per video (B27.15; looks iso and 2d, text needs no set):** read `remotion/src/sets.ts` (the set kinds); each `remotion/videos/*/set.json` names the kind a video stands in, and a kind with a set.json is taken (the nature diorama belongs to `cara-kerja-hujan-buatan`). Pick the kind where the topic really happens, not where its weather is (a rainbow: a sky over a horizon). Never reuse another video's scene or set as a background, the far layer included. Reuse a single piece only when it is the same thing (a cloud in a lightning video), adapted in size, colour or state; never bend the topic around an asset. Declare `remotion/videos/<slug>/set.json` (`{\"kind\": \"<id>\"}`, or a new kind with `name` and `fits`); never edit `src/sets.ts`. The style check FAILs a taken set and FLAGs a missing set.json.",
     "**A shape with a real form is drawn in that form (B27.16):** check from a source the real shape and draw that, not the postcard version (a rainbow is a ring cut by the horizon). Where the picture shows part of a shape, something in the set cuts it. Say in the answer which shapes you checked.",
     "**The sound is written by hand:** write `sfx.ts` against the scenes (see `remotion/videos/kenapa-colokan-panas/sfx.ts`): a sound on every object entering, camera move, label, card and state change, on the frame of its picture, at most 3 at once, about 1 event a second (60 s: 55 to 60; 45 s: 44; 30 s: 30), only names from `remotion/src/catalog.ts` (B15). Vary them: spread each family of equivalent sounds (`SFX_FAMILIES` there) over its names, no name on more than a quarter of the events, a topical sound where the picture has one (`page-flip`, `stamp`, `coin`, `switch`, `key-blip`); the bed is the one in the options. The style check FLAGs the default or under 0.7 a second, and FAILs an unknown name.",
@@ -455,6 +460,19 @@ def _report_text() -> str:
 - Not done or not checked: list it."""
 
 
+RICKS_DROP = ("**A body or a jointed hero (B43", "**Own set per video (B27.15", "**The text format is the channel's:**", "**The feed look (B44):**")
+RICKS_FEED = ("**The feed look in ricks (B44, B46):** frame 0 is the thumbnail: the hook shot with the cast big (its head about 30 % of the width), the hook "
+              "claim in 2 to 5 words as big white text with a black stroke in the top third, high contrast and saturated colour; objects never get faces "
+              "(only the cast has one); look at a 200 px wide still of frame 0 before you answer.")
+
+
+def _rules_for_look(rules: list[str], look: str | None) -> list[str]:
+    """The hard rules for a look: ricks (B46) has its own cast, text and set, so the B43, B44, B27.15 set-kind and TopText rules are swapped for its own."""
+    if look != "ricks":
+        return rules
+    return [r for r in rules if not r.startswith(RICKS_DROP)] + [RICKS_FEED]
+
+
 def build_brief(p: dict) -> str:
     """The brief any agent can follow. Kind Khusus: the hard rules first (numbered), the exact files, the steps with each command and its expected result, the
     fallback for an assistant that cannot run commands, the common mistakes, then the options and the reference. Kind Otomatis: the story only (chat or file)."""
@@ -464,7 +482,7 @@ def build_brief(p: dict) -> str:
     kind = "custom" if _m.kind_of(p) == "custom" else "template"
     notes = f"\n\n**Notes from the person making the video:** {p['notes']}" if p.get("notes") else ""
     look = opts["look"] if opts["look"] in LOOKS else (p.get("look") if p.get("look") in LOOKS else None)     # the option; a top-level look (the brief CLI) is the fallback; auto = the agent chooses
-    rules = _numbered(_for_options(HARD_RULES, opts)).replace(LOOK_MARK, look_text(look))
+    rules = _numbered(_for_options(_rules_for_look(HARD_RULES, look), opts)).replace(LOOK_MARK, look_text(look))
     if kind == "custom":
         slug = video_slug(p["topic"])
         mistakes = _numbered(_for_options(MISTAKES, opts))
