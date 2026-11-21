@@ -18,6 +18,10 @@ yes(est.length === 15 && est[0].a >= 0.2 && est[est.length - 1].b <= 5 - 0.3, "a
 yes(est.every((w, i) => w.b > w.a && (i === 0 || w[`a` as "a"] >= est[i - 1].b - 1e-9)), "each word starts when the one before it ends");
 yes(est.find((w) => w.w === "menggigit")!.b - est.find((w) => w.w === "menggigit")!.a > est.find((w) => w.w === "di" || w.w === "Di")!.b - est[0].a, "a long word takes longer than a short one");
 yes(estimateWords("", 3).length === 0, "no narration, no words");
+const two = pagesOf(estimateWords("Sarafnya terjepit dan kekurangan darah. Begitu dilepas, ia menyala lagi.", 5), 56, 770);
+yes(two[0].words.at(-1)!.w === "darah." && two[1].words[0].w === "Begitu", "a page ends with its sentence; the next sentence starts a new page");
+const long = pagesOf(estimateWords("Saat duduk lama, berat badan menumpu di paha. Kamu tidak merasa apa-apa, cuma kaki terasa makin tebal.", 8), 56, 600);
+yes(long.some((p) => p.words.at(-1)!.w === "apa-apa,") && long.every((p) => !["terasa", "cuma"].includes(p.words.at(-1)!.w)), `a sentence too long for one page breaks at its comma (${long.map((p) => p.words.map((w) => w.w).join(" ")).join(" | ")})`);
 
 const pages = pagesOf(est, 56, 770);
 yes(pages.length >= 2 && pages.every((p) => p.lines.length <= 2), `the words come in pages of two lines at most (${pages.length} pages)`);

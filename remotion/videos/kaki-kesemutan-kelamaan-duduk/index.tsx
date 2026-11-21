@@ -1,11 +1,11 @@
-/* Kakimu bukan tidur, sarafnya kejepit — look 2d (B28): a flat SIDE view of a seated leg at a bus-stop bench (set kind "bus-stop-bench", see set.json). Real shapes (B27.16):
+/* Kesemutan? Sarafmu kejepit — look 2d (B28): a flat SIDE view of a seated leg at a bus-stop bench (set kind "bus-stop-bench", see set.json). Real shapes (B27.16):
    a leg seen from the side is a thigh lying on the seat, a round knee, a shin that tapers to a narrow ankle and a foot that points forward; the sciatic nerve runs
    down the back of the thigh, next to the vessel, with the thigh bone above them. The thigh has a window (a rounded oval, a lip of skin all round) that shows them.
    Two tones per part (base and shade, light from the top left), no outlines, palette tokens only. The world is one group moved by the camera (plan.ts camAt); the
    labels, the tip cards and the hook text are drawn on the screen. Ambient motion (the cloud, the leaves, the blood cells, the needles) runs on the loop clock (B29). */
 import React from "react";
 import {
-  loopClock, BLACK, BLUSH, CaptionLayer, FONT_BOLD, FONT_MONO, G1, G2, G3, G4, Arrow, RED, SAFE, SKIN_A, SKIN_B, StoryVideo, THEMES, TopText, WHITE, YELLOW,
+  loopClock, BLACK, BLUSH, CaptionLayer, FONT_BOLD, G1, G2, G3, G4, Arrow, RED, SAFE, SKIN_A, SKIN_B, StoryVideo, THEMES, TopText, WHITE, YELLOW,
   YELLOW_D, clamp01, springAt, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import storyJson from "./story.json";
@@ -228,9 +228,9 @@ const World: React.FC<{ clock: number; amb: number }> = ({ clock, amb }) => {
 const HookText: React.FC<{ clock: number }> = ({ clock }) => {
   const o = clock > 20 ? clamp01((clock - 39.5) / 0.5) : 1 - clamp01((clock - 2.7) / 0.3);   // frame 0 has it, the last 0.5 s of the outro brings it back (B41: the loop)
   const bold = { fontFamily: `"${FONT_BOLD}", sans-serif`, fontWeight: 800 } as const;
-  const lines = ["Kakimu", "bukan tidur.", "Sarafnya", "kejepit."];
+  const lines = ["Kesemutan?", "Sarafmu", "kejepit."];
   if (o <= 0) return null;
-  return <g opacity={o}>{lines.map((ln, i) => <text key={ln} x={SAFE.left + 20} y={300 + i * 128 + (i > 1 ? 16 : 0)} fontSize={122} fill={BLACK} style={bold}>{ln}</text>)}</g>;
+  return <g opacity={o}>{lines.map((ln, i) => <text key={ln} x={SAFE.left + 20} y={300 + i * 128 + (i > 0 ? 16 : 0)} fontSize={122} fill={BLACK} style={bold}>{ln}</text>)}</g>;
 };
 
 const ScreenLabel: React.FC<{ l: (typeof LABELS)[number]; clock: number; cam: { x: number; y: number; z: number } }> = ({ l, clock, cam }) => {
@@ -253,11 +253,12 @@ const Card: React.FC<{ y: number; title: string; sub: string; a: number; out: nu
   const p = springAt(clock, a, true), o = 1 - clamp01((clock - out) / 0.4);
   if (clock < a || o <= 0) return null;
   return (
-    <g transform={`translate(540 ${y + 85}) scale(${Math.max(0, p)}) translate(-540 ${-(y + 85)})`} opacity={o}>
-      <rect x={110} y={y} width={690} height={170} rx={40} fill={WHITE} />
-      <rect x={110} y={y + 28} width={12} height={114} rx={6} fill={YELLOW} />
-      <text x={170} y={y + 80} fontSize={54} fill={BLACK} style={{ fontFamily: `"${FONT_BOLD}", sans-serif`, fontWeight: 700 }}>{title}</text>
-      <text x={170} y={y + 134} fontSize={38} fill={G2} style={{ fontFamily: `"${FONT_MONO}", monospace` }}>{sub}</text>
+    <g transform={`translate(540 ${y + 105}) scale(${Math.max(0, p)}) translate(-540 ${-(y + 105)})`} opacity={o}>
+      {/* full safe width and phone-readable sizes: the sub line was a 38 px mono that read as fine print */}
+      <rect x={SAFE.left} y={y} width={SAFE.right - SAFE.left} height={210} rx={44} fill={WHITE} />
+      <rect x={SAFE.left} y={y + 34} width={14} height={142} rx={7} fill={YELLOW} />
+      <text x={SAFE.left + 64} y={y + 96} fontSize={70} fill={BLACK} style={{ fontFamily: `"${FONT_BOLD}", sans-serif`, fontWeight: 700 }}>{title}</text>
+      <text x={SAFE.left + 64} y={y + 164} fontSize={50} fill={G1} style={{ fontFamily: `"${FONT_BOLD}", sans-serif`, fontWeight: 600 }}>{sub}</text>
     </g>
   );
 };
@@ -270,12 +271,13 @@ const Scene = ({ beat, t, clock, story }: SceneProps) => {
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
       <g transform={tx}><World clock={clock} amb={amb} /></g>
       {LABELS.map((l) => <ScreenLabel key={l.text + l.from} l={l} clock={clock} cam={cam} />)}
-      <Card y={470} title="Ganti posisi" sub="gerakkan kakimu" a={CARDS[0].a} out={CARDS[0].out} clock={clock} />
-      <Card y={680} title="Sering tanpa sebab?" sub="periksa ke dokter" a={CARDS[1].a} out={CARDS[1].out} clock={clock} />
+      <Card y={450} title="Ganti posisi" sub="gerakkan kakimu" a={CARDS[0].a} out={CARDS[0].out} clock={clock} />
+      <Card y={690} title="Sering tanpa sebab?" sub="periksa ke dokter" a={CARDS[1].a} out={CARDS[1].out} clock={clock} />
       {(hook || outro) && <HookText clock={clock} />}
       {sting && <StingMark slug="kaki-kesemutan-kelamaan-duduk" t={t} clock={clock} />}
       {!hook && !sting && !outro && <TopText key={beat.id} kicker={KICKER[beat.id]} headline={beat.text} t={t} />}
-      {!sting && !outro && <CaptionLayer beat={beat} t={t} />}
+      {/* no caption in the hook: the hook text already says the same words, and frame 0 then matches the last frame (the loop) */}
+      {!hook && !sting && !outro && <CaptionLayer beat={beat} t={t} />}
     </svg>
   );
 };

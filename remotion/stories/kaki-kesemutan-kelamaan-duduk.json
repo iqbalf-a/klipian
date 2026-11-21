@@ -2,7 +2,7 @@
   "bible": 1,
   "question": "Kenapa kaki kesemutan kalau kelamaan duduk?",
   "titles": [
-    "Kakimu bukan tidur, sarafnya kejepit",
+    "Kesemutan? Sarafmu kejepit",
     "Kenapa kaki kesemutan habis duduk lama?",
     "Kaki kesemutan: ini yang terjadi di sarafmu"
   ],
@@ -12,14 +12,14 @@
       "id": "hook",
       "kind": "hook",
       "dur": 3,
-      "narration": "Kakimu bukan tidur. Sarafnya kejepit.",
-      "text": "Kakimu bukan tidur. Sarafnya kejepit.",
+      "narration": "Kesemutan? Sarafmu kejepit.",
+      "text": "Kesemutan? Sarafmu kejepit.",
       "scene": {
         "bg": "brand",
         "items": [
           {
             "type": "banner",
-            "text": "Kakimu bukan tidur. Sarafnya kejepit.",
+            "text": "Kesemutan? Sarafmu kejepit.",
             "fs": 70
           }
         ]
@@ -187,7 +187,7 @@
     }
   ],
   "post": {
-    "description": "Kaki kesemutan setelah duduk lama bukan karena kaki tidur. Tekanan menjepit saraf dan mengganggu pasokan darahnya; begitu tekanan dilepas, saraf menyala lagi dan terasa seperti jarum. Kesemutan yang sering muncul tanpa sebab perlu diperiksakan ke dokter.",
+    "description": "Kaki kesemutan setelah duduk lama terjadi karena tekanan menjepit saraf dan mengganggu pasokan darahnya; begitu tekanan dilepas, saraf menyala lagi dan terasa seperti jarum. Kesemutan yang sering muncul tanpa sebab perlu diperiksakan ke dokter.",
     "hashtags": [
       "#kesemutan",
       "#faktaseru",
@@ -196,7 +196,7 @@
       "#shorts"
     ]
   },
-  "thumb": "Kaki *kesemutan*, bukan tidur?",
+  "thumb": "*Kesemutan*? Sarafmu kejepit",
   "needs": [],
   "stage": "steps",
   "theme": "mint",

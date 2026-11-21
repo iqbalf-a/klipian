@@ -19,22 +19,41 @@ export const wordsOfBeat = (beat: { narration: string; dur: number; words?: read
 
 /** Pages of at most `maxLines` lines of at most `maxWidth` pixels (at font size `fs`): the page shows while its words are spoken. */
 export function pagesOf(words: readonly CWord[], fs = 56, maxWidth = 760, maxLines = 2, maxWords = Infinity): Page[] {
-  const pages: Page[] = [];
-  let cur: CWord[] = [], lines: number[][] = [[]], width = 0;
   const space = textWidthEstimate(" ", fs);
-  const flush = () => { if (cur.length) pages.push({ words: cur, lines, a: cur[0].a, b: cur[cur.length - 1].b }); cur = []; lines = [[]]; width = 0; };
-  for (const w of words) {
-    if (cur.length >= maxWords) flush();                         // a look with a word limit (punch: three words a page)
-    const wd = textWidthEstimate(w.w, fs);
-    if (lines[lines.length - 1].length && width + space + wd > maxWidth) {
-      if (lines.length >= maxLines) flush(); else { lines.push([]); width = 0; }
+  const greedy = (ws: readonly CWord[]): Page[] => {
+    const pages: Page[] = [];
+    let cur: CWord[] = [], lines: number[][] = [[]], width = 0;
+    const flush = () => { if (cur.length) pages.push({ words: cur, lines, a: cur[0].a, b: cur[cur.length - 1].b }); cur = []; lines = [[]]; width = 0; };
+    for (const w of ws) {
+      if (cur.length >= maxWords) flush();                       // a look with a word limit (punch: three words a page)
+      const wd = textWidthEstimate(w.w, fs);
+      if (lines[lines.length - 1].length && width + space + wd > maxWidth) {
+        if (lines.length >= maxLines) flush(); else { lines.push([]); width = 0; }
+      }
+      const line = lines[lines.length - 1];
+      width += (line.length ? space : 0) + wd;
+      line.push(cur.length);
+      cur.push(w);
     }
-    const line = lines[lines.length - 1];
-    width += (line.length ? space : 0) + wd;
-    line.push(cur.length);
-    cur.push(w);
+    flush();
+    return pages;
+  };
+  // A sentence too long for one page is split at the comma nearest its middle (then again if needed), not wherever the width runs out
+  const fit = (ws: readonly CWord[]): Page[] => {
+    const g = greedy(ws);
+    if (g.length < 2) return g;
+    const commas = ws.map((w, i) => (i > 0 && i < ws.length - 1 && /[,;:]$/.test(w.w) ? i : -1)).filter((i) => i >= 0);
+    if (!commas.length) return g;
+    const k = commas.reduce((b, i) => (Math.abs(i + 1 - ws.length / 2) < Math.abs(b + 1 - ws.length / 2) ? i : b));
+    return [...fit(ws.slice(0, k + 1)), ...fit(ws.slice(k + 1))];
+  };
+  const pages: Page[] = [];
+  let sentence: CWord[] = [];
+  for (const w of words) {
+    sentence.push(w);
+    if (/[.!?…]["'”’)]*$/.test(w.w)) { pages.push(...fit(sentence)); sentence = []; }   // a sentence ends its page
   }
-  flush();
+  pages.push(...fit(sentence));
   return pages;
 }
 

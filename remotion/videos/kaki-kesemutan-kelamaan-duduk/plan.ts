@@ -1,4 +1,4 @@
-/* Kakimu bukan tidur, sarafnya kejepit — the timing and the camera of this video (pure: no React). Look 2d (B28): a flat side view of a leg of someone sitting on a bench
+/* Kesemutan? Sarafmu kejepit — the timing and the camera of this video (pure: no React). Look 2d (B28): a flat side view of a leg of someone sitting on a bench
    at a bus stop; the thigh has a window (a cutaway) onto the nerve and the blood vessel under it. One world, one camera (camAt) by the clock of the whole video.
    Every number here is read by index.tsx and sfx.ts so the picture and the sound agree.
    motion-exception: the pull-back from the nerve window to the whole leg (beat 'duduk') and the pan down to the foot ('berdiri') last 1.2 s each, as the registry's
@@ -10,9 +10,9 @@ type Key = { t: number; v: number };
 
 /** Camera keys (seconds of the video): focus (world x, y) and zoom. Between two keys the camera eases (in/out quad); equal keys hold. The last key is the first (the loop). */
 export const CAM_KEYS: { t: number; c: Cam }[] = [
-  { t: 0, c: { x: 540, y: 1080, z: 0.85 } },      // hook: the leg on the bench, frame 0 already the claim
-  { t: 3.0, c: { x: 540, y: 1080, z: 0.9 } },
-  { t: 3.9, c: { x: 540, y: 1080, z: 0.9 } },    // the sting
+  { t: 0, c: { x: 600, y: 1172, z: 1.0 } },      // hook: the leg on the bench, frame 0 already the claim; closer, the knee and foot fill the width, the ground stays where it was
+  { t: 3.0, c: { x: 600, y: 1172, z: 1.05 } },
+  { t: 3.9, c: { x: 600, y: 1172, z: 1.05 } },    // the sting
   { t: 5.0, c: { x: 485, y: 1085, z: 2.1 } },     // saraf: in to the window on the thigh
   { t: 9.4, c: { x: 485, y: 1085, z: 2.2 } },
   { t: 10.7, c: { x: 560, y: 1100, z: 0.85 } },    // duduk: back out to the whole leg
@@ -23,8 +23,8 @@ export const CAM_KEYS: { t: number; c: Cam }[] = [
   { t: 31.6, c: { x: 485, y: 1085, z: 2.2 } },
   { t: 32.9, c: { x: 560, y: 1010, z: 0.8 } },    // tips: the whole leg low in the frame, the cards above it
   { t: 36.6, c: { x: 560, y: 1010, z: 0.8 } },
-  { t: 38.4, c: { x: 540, y: 1080, z: 0.85 } },    // the loop-back: the first shot
-  { t: 40, c: { x: 540, y: 1080, z: 0.85 } },
+  { t: 38.4, c: { x: 600, y: 1172, z: 1.0 } },    // the loop-back: the first shot
+  { t: 40, c: { x: 600, y: 1172, z: 1.0 } },
 ];
 
 const ease = (x: number) => (x < 0.5 ? 2 * x * x : 1 - 2 * (1 - x) * (1 - x));

@@ -1,4 +1,4 @@
-/* The sound of "Kakimu bukan tidur, sarafnya kejepit", written by hand against the scenes: a sound on the frame of every headline, camera move, window, label, arrow,
+/* The sound of "Kesemutan? Sarafmu kejepit", written by hand against the scenes: a sound on the frame of every headline, camera move, window, label, arrow,
    the pinch, the release, the needles, the tip cards, the wiggle and the loop-back. Names only from the locked set (src/catalog.ts). */
 import type { SfxEvent } from "../../src/sfx.ts";
 import type { SfxName } from "../../src/catalog.ts";
