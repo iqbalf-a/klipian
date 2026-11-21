@@ -9,7 +9,7 @@ import {
   YELLOW_D, clamp01, springAt, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import storyJson from "./story.json";
-import { CARDS, FIRE, LABELS, THICK, WEIGHT, WIGGLE, camAt, liftAt, prickAt, sqAt, winAt } from "./plan.ts";
+import { CARDS, DROP, FIRE, LABELS, THICK, WEIGHT, WIGGLE, camAt, liftAt, prickAt, sqAt, winAt } from "./plan.ts";
 import { StingMark } from "../../src/components/StingMark.tsx";
 
 export const story = storyJson as unknown as StoryT;
@@ -18,7 +18,11 @@ const W = 1080, H = 1920;
 const KICKER: Record<string, string> = { saraf: "SARAF", duduk: "DUDUK", berdiri: "BERDIRI", jepit: "JAWABANNYA", tips: "TIPS" };
 const MINT = THEMES.mint;
 const GROUND = 1690;                                       // the pavement (world y), where the sole rests
-const SEAT = 1160;                                         // the top of the seat plank
+const SEAT = 1160;                                         // the top of the seat plank, as the thigh is drawn
+// ian 2026-11-21: the leg read too long. The thigh, the seat and everything on them sit DROP (plan.ts) lower, the shin is shortened to match
+// (knee to floor = 3 thigh thicknesses, was 3.6) and the foot is FOOT_K as long (1.6 thigh thicknesses, was 2).
+const FOOT_K = 0.82;
+const ANKLE = 1592;
 const KNEE = { x: 690, y: 1075, r: 85 };                   // the pivot of the thigh
 const WIN = { x: 452, y: 1075, rx: 140, ry: 66 };          // the window on the thigh
 
@@ -76,15 +80,16 @@ const Pavement: React.FC = () => (
 );
 
 /** A bench seen from the side: a seat plank on two end frames, one near and one far. */
+const S = SEAT + DROP;                                     // the seat plank as drawn (see DROP)
 const Bench: React.FC = () => (
   <g>
-    <rect x={-120} y={SEAT + 36} width={30} height={GROUND - SEAT - 36} rx={8} fill={G3} />
-    <rect x={500} y={SEAT + 36} width={36} height={GROUND - SEAT - 36} rx={8} fill={G2} />
-    <rect x={500} y={SEAT + 36} width={14} height={GROUND - SEAT - 36} rx={7} fill={G1} opacity={0.55} />
-    <rect x={-420} y={SEAT} width={1180} height={44} rx={16} fill={G3} />
-    <rect x={-420} y={SEAT + 26} width={1180} height={18} rx={9} fill={G2} />
-    <rect x={-420} y={SEAT + 1} width={1180} height={9} rx={4} fill={G4} opacity={0.8} />
-    <rect x={-120} y={SEAT + 44} width={640} height={16} fill={G2} />
+    <rect x={-120} y={S + 36} width={30} height={GROUND - S - 36} rx={8} fill={G3} />
+    <rect x={500} y={S + 36} width={36} height={GROUND - S - 36} rx={8} fill={G2} />
+    <rect x={500} y={S + 36} width={14} height={GROUND - S - 36} rx={7} fill={G1} opacity={0.55} />
+    <rect x={-420} y={S} width={1180} height={44} rx={16} fill={G3} />
+    <rect x={-420} y={S + 26} width={1180} height={18} rx={9} fill={G2} />
+    <rect x={-420} y={S + 1} width={1180} height={9} rx={4} fill={G4} opacity={0.8} />
+    <rect x={-120} y={S + 44} width={640} height={16} fill={G2} />
   </g>
 );
 
@@ -102,13 +107,19 @@ const Sign: React.FC = () => (
 );
 
 /* ---------- the leg ---------- */
+/** The shin is drawn from the knee (y 1078) to the ankle; squeezed so its top meets the dropped knee while the ankle stays. The foot is shortened about its heel. */
+const SHIN_K = (ANKLE - 1078 - DROP) / (ANKLE - 1078);
+const SHIN_T = `translate(0 ${ANKLE * (1 - SHIN_K)}) scale(1 ${SHIN_K})`;
+const FOOT_T = `translate(642 0) scale(${FOOT_K} 1) translate(-642 0)`;
 const Shin: React.FC<{ thick: number; wig: number }> = ({ thick, wig }) => (
   <g>
     {/* the shin: wide under the knee, a calf on the back (left), narrow at the ankle */}
-    <path d="M 625 1110 C 590 1250 628 1450 665 1592 L 755 1592 C 768 1450 792 1250 775 1078 Z" fill={SKIN_A} />
-    <path d="M 625 1110 C 590 1250 628 1450 665 1592 L 700 1592 C 664 1450 640 1250 662 1110 Z" fill={SKIN_B} opacity={0.55} />
+    <g transform={SHIN_T}>
+      <path d="M 625 1110 C 590 1250 628 1450 665 1592 L 755 1592 C 768 1450 792 1250 775 1078 Z" fill={SKIN_A} />
+      <path d="M 625 1110 C 590 1250 628 1450 665 1592 L 700 1592 C 664 1450 640 1250 662 1110 Z" fill={SKIN_B} opacity={0.55} />
+    </g>
     {/* the foot: heel, arch, ball and toes, pointing forward; it turns about the ankle when it wiggles */}
-    <g transform={`rotate(${wig} 660 1688)`}>
+    <g transform={`rotate(${wig} 660 1688) ${FOOT_T}`}>
       <path d="M 662 1586 L 758 1586 C 788 1618 806 1640 896 1650 C 968 1656 988 1672 982 1690 L 642 1690 C 630 1650 640 1610 662 1586 Z" fill={SKIN_A} />
       <path d="M 642 1690 C 630 1650 640 1610 662 1586 L 690 1586 C 668 1620 662 1650 672 1690 Z" fill={SKIN_B} opacity={0.55} />
       <path d="M 700 1690 C 760 1672 880 1676 982 1690 Z" fill={SKIN_B} opacity={0.6} />
@@ -116,8 +127,8 @@ const Shin: React.FC<{ thick: number; wig: number }> = ({ thick, wig }) => (
       <rect x={958} y={1668} width={18} height={11} rx={5} fill={WHITE} opacity={0.65} />
     </g>
     {thick > 0 && <g opacity={0.4 * thick}>
-      <path d="M 625 1110 C 590 1250 628 1450 665 1592 L 755 1592 C 768 1450 792 1250 775 1078 Z" fill={G3} />
-      <path d="M 662 1586 L 758 1586 C 788 1618 806 1640 896 1650 C 968 1656 988 1672 982 1690 L 642 1690 C 630 1650 640 1610 662 1586 Z" fill={G3} />
+      <path transform={SHIN_T} d="M 625 1110 C 590 1250 628 1450 665 1592 L 755 1592 C 768 1450 792 1250 775 1078 Z" fill={G3} />
+      <path transform={FOOT_T} d="M 662 1586 L 758 1586 C 788 1618 806 1640 896 1650 C 968 1656 988 1672 982 1690 L 642 1690 C 630 1650 640 1610 662 1586 Z" fill={G3} />
     </g>}
   </g>
 );
@@ -200,7 +211,7 @@ const World: React.FC<{ clock: number; amb: number }> = ({ clock, amb }) => {
       <Bench />
       <Shin thick={thick} wig={wig} />
       {/* the thigh, hinged at the knee: it lifts off the seat when the person gets up */}
-      <g transform={`translate(0 ${press}) rotate(${-27 * lift} ${KNEE.x} ${KNEE.y})`}>
+      <g transform={`translate(0 ${press + DROP}) rotate(${-27 * lift} ${KNEE.x} ${KNEE.y})`}>
         <path d={`M -140 990 L ${KNEE.x} 990 A ${KNEE.r} ${KNEE.r} 0 0 1 ${KNEE.x} ${SEAT} L -140 ${SEAT} Z`} fill={SKIN_A} />
         <rect x={-140} y={SEAT - 34} width={KNEE.x + 140} height={34} fill={SKIN_B} opacity={0.45} />
         <circle cx={KNEE.x + 30} cy={KNEE.y + 6} r={46} fill={SKIN_B} opacity={0.3} />
@@ -217,7 +228,7 @@ const World: React.FC<{ clock: number; amb: number }> = ({ clock, amb }) => {
       </g>
       {/* the weight of the body: arrows press down on the thigh */}
       {weight > 0 && <g opacity={weight}>
-        {[200, 360, 520].map((x, i) => <Arrow key={x} x={x} y={820} x2={x} y2={968} color="black" w={13} draw={clamp01((clock - WEIGHT.a - 0.3 - i * 0.25) / 0.5)} />)}
+        {[200, 360, 520].map((x, i) => <Arrow key={x} x={x} y={820 + DROP} x2={x} y2={968 + DROP} color="black" w={13} draw={clamp01((clock - WEIGHT.a - 0.3 - i * 0.25) / 0.5)} />)}
       </g>}
       <Needles amt={prickAt(clock)} clock={clock} />
     </g>
