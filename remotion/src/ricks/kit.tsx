@@ -108,9 +108,19 @@ export const TBox: React.FC<{ size: [number, number, number]; pos: [number, numb
   };
 
 // ---------- the stick cast -----------------------------------------------------------------------------------------------------
-export type Expr = "hungry" | "grin" | "sly" | "calm" | "puzzled" | "sleepy" | "shocked";
+export type Expr = "hungry" | "grin" | "sly" | "calm" | "puzzled" | "sleepy" | "shocked" | "furious";
 export type Arms = "belly" | "wave" | "down" | "point";
-export type Outfit = { shirt: string; stripe: string };
+/** What makes one stick person look like nobody else in the video (ian: vary the people): shirt colours, and optionally a hat,
+   hair, a moustache and a wider body. Omitted fields give the plain look (spiky hair, slim body, no hat). */
+export type Outfit = {
+  shirt: string; stripe: string;
+  hat?: "cap" | "cowboy" | "hardhat" | "peci" | "none"; hatColor?: string;
+  hair?: "spiky" | "bald" | "bun" | "long"; hairColor?: string; mustache?: boolean; body?: "slim" | "wide";
+  /** the shirt: stripes (default), plain, dots, check, or plain with a collar */
+  pattern?: "stripe" | "plain" | "dots" | "check" | "collar";
+  /** the face (the head itself is always white, ian 2026-11-21): a nose, blush, glasses, a beard */
+  nose?: "none" | "dot" | "big"; blush?: boolean; glasses?: boolean; beard?: boolean;
+};
 
 /** One stick figure on a 512 x 1024 canvas, soles at the bottom. `wob` (-1..1) moves the growl lines, the zzz and a waving hand. */
 export function drawStick(c: CanvasRenderingContext2D, expr: Expr, arms: Arms, blink: boolean, wob: number, outfit: Outfit) {
@@ -125,11 +135,17 @@ export function drawStick(c: CanvasRenderingContext2D, expr: Expr, arms: Arms, b
   else if (arms === "point") { c.moveTo(190, 470); c.lineTo(110, 380); c.lineTo(40, 260); c.moveTo(322, 470); c.lineTo(380, 640); c.lineTo(360, 700); }
   else { c.moveTo(190, 470); c.lineTo(140, 640); c.lineTo(150, 700); c.moveTo(322, 470); c.lineTo(372, 640); c.lineTo(362, 700); }
   c.stroke();
-  c.save(); c.beginPath(); c.roundRect(180, 420, 152, 300, 40); c.clip();
-  c.fillStyle = outfit.shirt; c.fillRect(170, 410, 180, 320);
-  c.fillStyle = outfit.stripe; for (let y = 440; y < 720; y += 44) c.fillRect(170, y, 180, 16);
+  const bx = outfit.body === "wide" ? 156 : 180, bw = 512 - 2 * bx;
+  c.save(); c.beginPath(); c.roundRect(bx, 420, bw, 300, 48); c.clip();
+  c.fillStyle = outfit.shirt; c.fillRect(bx - 10, 410, bw + 20, 320);
+  c.fillStyle = outfit.stripe;
+  const pat = outfit.pattern ?? "stripe";
+  if (pat === "stripe") for (let y = 440; y < 720; y += 44) c.fillRect(bx - 10, y, bw + 20, 16);
+  else if (pat === "dots") for (let y = 450; y < 720; y += 46) for (let x = bx + 18 + ((y / 46) % 2) * 22; x < bx + bw; x += 44) { c.beginPath(); c.arc(x, y, 9, 0, 7); c.fill(); }
+  else if (pat === "check") { c.globalAlpha = 0.55; for (let y = 430; y < 720; y += 48) c.fillRect(bx - 10, y, bw + 20, 18); for (let x = bx; x < bx + bw; x += 48) c.fillRect(x, 410, 18, 320); c.globalAlpha = 1; }
+  else if (pat === "collar") { c.beginPath(); c.moveTo(216, 420); c.lineTo(256, 470); c.lineTo(296, 420); c.closePath(); c.fill(); c.fillRect(250, 470, 12, 240); }
   c.restore();
-  c.lineWidth = 12; c.beginPath(); c.roundRect(180, 420, 152, 300, 40); c.stroke();
+  c.lineWidth = 12; c.beginPath(); c.roundRect(bx, 420, bw, 300, 48); c.stroke();
   if (arms === "belly") {
     c.lineWidth = 14; c.beginPath(); c.moveTo(150, 590); c.lineTo(236, 600); c.moveTo(364, 590); c.lineTo(278, 600); c.stroke();
     c.lineWidth = 7; c.beginPath();
@@ -138,12 +154,13 @@ export function drawStick(c: CanvasRenderingContext2D, expr: Expr, arms: Arms, b
   }
   c.fillStyle = "#fbf7ee"; c.beginPath(); c.arc(256, 260, 150, 0, 7); c.fill();
   c.lineWidth = 16; c.stroke();
-  c.lineWidth = 12; c.beginPath(); c.moveTo(240, 112); c.quadraticCurveTo(232, 70, 262, 52); c.moveTo(262, 112); c.quadraticCurveTo(272, 78, 300, 72); c.moveTo(222, 116); c.quadraticCurveTo(200, 86, 206, 66); c.stroke();
+  drawHair(c, outfit);
   c.lineWidth = 10; c.beginPath();
   if (expr === "puzzled" || expr === "calm") { c.moveTo(180, 222); c.lineTo(232, 214); c.moveTo(282, 196); c.quadraticCurveTo(310, 178, 336, 192); }
   else if (expr === "sly") { c.moveTo(180, 214); c.lineTo(232, 226); c.moveTo(282, 226); c.lineTo(334, 214); }
   else if (expr === "sleepy") { c.moveTo(182, 226); c.lineTo(232, 232); c.moveTo(282, 232); c.lineTo(332, 226); }
   else if (expr === "hungry") { c.moveTo(182, 212); c.lineTo(232, 200); c.moveTo(282, 200); c.lineTo(332, 212); }
+  else if (expr === "furious") { c.lineWidth = 14; c.moveTo(178, 208); c.lineTo(238, 238); c.moveTo(276, 238); c.lineTo(336, 208); }
   else { c.moveTo(182, 196); c.quadraticCurveTo(206, 180, 232, 192); c.moveTo(282, 192); c.quadraticCurveTo(306, 180, 332, 196); }
   c.stroke();
   c.fillStyle = INK;
@@ -155,6 +172,10 @@ export function drawStick(c: CanvasRenderingContext2D, expr: Expr, arms: Arms, b
   } else if (expr === "sleepy") {
     c.beginPath(); c.ellipse(212, 266, 13, 9, 0, 0, Math.PI); c.ellipse(302, 266, 13, 9, 0, 0, Math.PI); c.fill();
     c.lineWidth = 7; c.beginPath(); c.moveTo(194, 264); c.lineTo(230, 264); c.moveTo(284, 264); c.lineTo(320, 264); c.stroke();
+  } else if (expr === "furious") {
+    for (const x of [212, 302]) { const g = c.createRadialGradient(x, 262, 2, x, 262, 46); g.addColorStop(0, "rgba(255,60,40,.9)"); g.addColorStop(1, "rgba(255,40,20,0)"); c.fillStyle = g; c.fillRect(x - 46, 216, 92, 92); }
+    c.fillStyle = "#ff2a1a"; c.beginPath(); c.ellipse(212, 264, 17, 13, 0, 0, 7); c.ellipse(302, 264, 17, 13, 0, 0, 7); c.fill();
+    c.fillStyle = "#fff4d0"; c.beginPath(); c.ellipse(212, 264, 7, 5, 0, 0, 7); c.ellipse(302, 264, 7, 5, 0, 0, 7); c.fill();
   } else if (expr === "shocked" || expr === "hungry") {
     const r = expr === "shocked" ? 1.45 : 1.15;
     c.beginPath(); c.ellipse(212, 262, 12 * r, 17 * r, 0, 0, 7); c.ellipse(302, 262, 12 * r, 17 * r, 0, 0, 7); c.fill();
@@ -167,9 +188,40 @@ export function drawStick(c: CanvasRenderingContext2D, expr: Expr, arms: Arms, b
   else if (expr === "sly") { c.moveTo(228, 344); c.quadraticCurveTo(262, 352, 300, 328); c.stroke(); }
   else if (expr === "sleepy") { c.moveTo(236, 346); c.lineTo(282, 346); c.stroke(); }
   else if (expr === "calm") { c.moveTo(226, 334); c.quadraticCurveTo(258, 360, 292, 334); c.stroke(); }
+  else if (expr === "furious") { c.fillStyle = "#fff"; c.beginPath(); c.roundRect(214, 326, 90, 34, 8); c.fill(); c.stroke(); c.beginPath(); for (let x = 232; x < 304; x += 18) { c.moveTo(x, 326); c.lineTo(x, 360); } c.moveTo(214, 343); c.lineTo(304, 343); c.lineWidth = 5; c.stroke(); }
   else { c.moveTo(230, 340); c.quadraticCurveTo(262, 326, 290, 344); c.stroke(); }
   if (expr === "sleepy") { c.fillStyle = "#5fb3ff"; c.font = "bold 54px Arial"; c.fillText("z", 400, 140 - wob * 10); c.font = "bold 38px Arial"; c.fillText("z", 440, 92 - wob * 10); }
   if (expr === "shocked") { c.fillStyle = "#7cc6ff"; c.beginPath(); c.moveTo(392, 170); c.quadraticCurveTo(410, 210, 392, 222); c.quadraticCurveTo(374, 210, 392, 170); c.fill(); }
+  drawFace(c, outfit);
+  if (outfit.mustache) { c.fillStyle = INK; c.beginPath(); c.moveTo(258, 318); c.quadraticCurveTo(222, 300, 196, 326); c.quadraticCurveTo(226, 318, 258, 330); c.quadraticCurveTo(290, 318, 320, 326); c.quadraticCurveTo(294, 300, 258, 318); c.fill(); }
+  drawHat(c, outfit);
+}
+
+function drawFace(c: CanvasRenderingContext2D, o: Outfit) {
+  c.strokeStyle = INK; c.fillStyle = INK;
+  if (o.blush) { c.fillStyle = "rgba(240,110,110,.45)"; c.beginPath(); c.ellipse(176, 306, 26, 14, 0, 0, 7); c.ellipse(338, 306, 26, 14, 0, 0, 7); c.fill(); }
+  if (o.nose === "dot") { c.fillStyle = INK; c.beginPath(); c.arc(258, 300, 7, 0, 7); c.fill(); }
+  if (o.nose === "big") { c.lineWidth = 8; c.beginPath(); c.moveTo(252, 270); c.quadraticCurveTo(292, 306, 254, 312); c.stroke(); }
+  if (o.glasses) { c.lineWidth = 8; c.beginPath(); c.roundRect(178, 236, 70, 54, 14); c.roundRect(268, 236, 70, 54, 14); c.moveTo(248, 258); c.lineTo(268, 258); c.moveTo(178, 256); c.lineTo(112, 240); c.moveTo(338, 256); c.lineTo(404, 240); c.stroke(); }
+  if (o.beard) { c.fillStyle = o.hairColor ?? INK; c.beginPath(); c.moveTo(130, 300); c.quadraticCurveTo(160, 420, 256, 422); c.quadraticCurveTo(352, 420, 382, 300); c.quadraticCurveTo(352, 380, 300, 372); c.quadraticCurveTo(256, 360, 212, 372); c.quadraticCurveTo(160, 380, 130, 300); c.fill(); }
+}
+function drawHair(c: CanvasRenderingContext2D, o: Outfit) {
+  c.strokeStyle = c.fillStyle = o.hairColor ?? INK; c.lineWidth = 12; c.beginPath();
+  const hair = o.hair ?? ((o.hat ?? "none") === "none" ? "spiky" : "bald");   // spiky hair would poke through a hat
+  if (hair === "spiky") { c.moveTo(240, 112); c.quadraticCurveTo(232, 70, 262, 52); c.moveTo(262, 112); c.quadraticCurveTo(272, 78, 300, 72); c.moveTo(222, 116); c.quadraticCurveTo(200, 86, 206, 66); c.stroke(); }
+  else if (hair === "bun") { c.arc(256, 92, 40, 0, 7); c.fill(); }
+  else if (hair === "long") { c.lineWidth = 22; c.moveTo(150, 190); c.quadraticCurveTo(110, 320, 140, 430); c.moveTo(362, 190); c.quadraticCurveTo(402, 320, 372, 430); c.stroke(); c.lineWidth = 30; c.beginPath(); c.arc(256, 260, 150, Math.PI * 1.08, Math.PI * 1.92); c.stroke(); }
+}
+function drawHat(c: CanvasRenderingContext2D, o: Outfit) {
+  const hat = o.hat ?? "none";
+  if (hat === "none") return;
+  c.strokeStyle = INK; c.lineWidth = 12;
+  const col = o.hatColor ?? { cap: "#d9473b", cowboy: "#8a5a32", hardhat: "#f2c230", peci: "#1d1b22" }[hat];
+  c.fillStyle = col; c.beginPath();
+  if (hat === "cap") { c.arc(256, 160, 132, Math.PI, 0); c.closePath(); c.fill(); c.stroke(); c.beginPath(); c.ellipse(330, 160, 110, 22, 0, 0, 7); c.fill(); c.stroke(); }
+  else if (hat === "cowboy") { c.ellipse(256, 150, 210, 40, 0, 0, 7); c.fill(); c.stroke(); c.beginPath(); c.roundRect(170, 40, 172, 115, 50); c.fill(); c.stroke(); c.fillStyle = "#3a2618"; c.fillRect(176, 118, 160, 22); }
+  else if (hat === "hardhat") { c.arc(256, 168, 140, Math.PI, 0); c.closePath(); c.fill(); c.stroke(); c.beginPath(); c.roundRect(96, 156, 320, 28, 12); c.fill(); c.stroke(); }
+  else if (hat === "peci") { c.roundRect(160, 82, 192, 86, 18); c.fill(); c.stroke(); }
 }
 
 /** A stick figure standing at `pos` (soles), facing the camera, on the CAST layer, with a contact shadow on the floor. */

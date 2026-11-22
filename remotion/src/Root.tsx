@@ -11,6 +11,8 @@ import { IsoDemo, ISO_DEMO_SECONDS } from "./IsoDemo.tsx";
 import { IsoThreeDemo, ISO_THREE_SECONDS } from "./IsoThreeDemo.tsx";
 import { NatureDemo, NATURE_DEMO_SECONDS } from "./NatureDemo.tsx";
 import { DioramaDemo, DIORAMA_DEMO_FRAMES } from "./DioramaDemo.tsx";
+import { RicksFxTest, RICKS_FX_SECONDS } from "./RicksFxTest.tsx";
+import { RicksCastSheet } from "./RicksCastSheet.tsx";
 import { StageDemo, HeroStageFixture } from "./StageDemo.tsx";
 import templateStory from "../templates/video/story.json";
 import { ThemeCtx } from "./components/Backgrounds.tsx";
@@ -59,6 +61,8 @@ export const Root: React.FC = () => (
   <Composition id="RigDemo" component={RigDemo} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={RIG_DEMO_SECONDS * FPS} />
   {/* style test: a lit 3D diorama with a flat 2D stick character card (three.js) */}
   <Composition id="DioramaDemo" component={DioramaDemo} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={DIORAMA_DEMO_FRAMES} />
+  <Composition id="RicksFxTest" component={RicksFxTest} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={Math.round(RICKS_FX_SECONDS * FPS)} />
+  <Composition id="RicksCastSheet" component={RicksCastSheet} width={1280} height={1400} fps={FPS} durationInFrames={1} />
   <Composition id="IsoDemo" component={IsoDemo} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={ISO_DEMO_SECONDS * FPS} />
   <Composition id="MarkSheet" component={MarkSheet} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={1} />
   <Composition id="NatureSheet" component={NatureSheet} width={FRAME.width} height={SHEET_HEIGHT} fps={FPS} durationInFrames={1} />
