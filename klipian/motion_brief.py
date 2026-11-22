@@ -655,7 +655,7 @@ def build_fix_message(errors: list[dict], kind: str = "main", options: dict | No
 # the short command (-create) the page offers next to the full brief
 # --------------------------------------------------------------------------
 
-LOOK_TOKEN = {"iso": "2.5d", "2d": "2d", "text": "teks"}
+LOOK_TOKEN = {"iso": "2.5d", "2d": "2d", "text": "teks", "ricks": "ricks"}
 
 
 def short_command(p: dict) -> str:

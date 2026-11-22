@@ -84,7 +84,7 @@ const itemLabel = (t) => ITEM_LABEL[t] || t;
 // ---------------------------------------------------------------------------------------------------------------------------------------
 
 // the look of a Khusus video (B28): auto leaves the choice to Claude Code; the others force it
-const LOOK_LABELS = [["auto", "Automatic (chosen from the topic)"], ["iso", "2.5D isometric"], ["2d", "2D"], ["text", "Text"]];
+const LOOK_LABELS = [["auto", "Automatic (chosen from the topic)"], ["iso", "2.5D isometric"], ["2d", "2D"], ["text", "Text"], ["ricks", "Ricks (3D diorama + stick cast, voice first)"]];
 
 function optionsSummary(o) {
   if (!o) return "";

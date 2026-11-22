@@ -23,6 +23,7 @@
 .rm-boxed { border-color: var(--glass-border); background-color: var(--bg-1); }
 .rm-seg { display: flex; gap: 8px; }
 .rm-seg .btn[aria-pressed=true] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.rm-look-img { width: 108px; aspect-ratio: 9 / 16; object-fit: cover; border-radius: 6px; border: 1px solid var(--border, #333); }
 .rm-hint { font-size: var(--t-12); line-height: 1.45; color: var(--text-faint); margin: 0; }
 .rm-err { font-size: var(--t-13); color: var(--danger); }
 .rm-group { display: flex; flex-direction: column; gap: 12px; }
