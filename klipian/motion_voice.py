@@ -250,30 +250,49 @@ def text_width(text: str, fs: float) -> float:
 
 
 def pages_of(words: list[dict], look: str = "classic") -> list[list[dict]]:
-    """pagesOf of remotion/src/captions.ts: the words ({"w","a","b"}) grouped into the subtitle pages the captions show (tests compare it with the TS one)."""
+    """pagesOf of remotion/src/captions.ts: the words ({"w","a","b"}) grouped into the subtitle pages the captions show (tests compare it with the TS one).
+    A sentence ends its page; a sentence too long for one page is split at the comma nearest its middle (then again if needed)."""
     fs, max_width, max_lines, max_words = CAPTION_LOOKS.get(look or "classic", CAPTION_LOOKS["classic"])
-    pages: list[list[dict]] = []
-    cur: list[dict] = []
-    lines, width = 1, 0.0
-    on_line = 0
     space = text_width(" ", fs)
-    for w in words:
-        if len(cur) >= max_words:
-            pages.append(cur)
-            cur, lines, width, on_line = [], 1, 0.0, 0
-        wd = text_width(w["w"], fs)
-        if on_line and width + space + wd > max_width:
-            if lines >= max_lines:
+
+    def greedy(ws: list[dict]) -> list[list[dict]]:
+        pages: list[list[dict]] = []
+        cur: list[dict] = []
+        lines, width, on_line = 1, 0.0, 0
+        for w in ws:
+            if len(cur) >= max_words:
                 pages.append(cur)
                 cur, lines, width, on_line = [], 1, 0.0, 0
-            else:
-                lines, width, on_line = lines + 1, 0.0, 0
-        width += (space if on_line else 0) + wd
-        on_line += 1
-        cur.append(w)
-    if cur:
-        pages.append(cur)
-    return pages
+            wd = text_width(w["w"], fs)
+            if on_line and width + space + wd > max_width:
+                if lines >= max_lines:
+                    pages.append(cur)
+                    cur, lines, width, on_line = [], 1, 0.0, 0
+                else:
+                    lines, width, on_line = lines + 1, 0.0, 0
+            width += (space if on_line else 0) + wd
+            on_line += 1
+            cur.append(w)
+        if cur:
+            pages.append(cur)
+        return pages
+
+    def fit_sentence(ws: list[dict]) -> list[list[dict]]:
+        g = greedy(ws)
+        commas = [i for i, w in enumerate(ws) if 0 < i < len(ws) - 1 and re.search(r"[,;:]$", w["w"])]
+        if len(g) < 2 or not commas:
+            return g
+        k = min(commas, key=lambda i: abs(i + 1 - len(ws) / 2))          # the first of equals, as the TS reduce
+        return fit_sentence(ws[:k + 1]) + fit_sentence(ws[k + 1:])
+
+    pages: list[list[dict]] = []
+    sentence: list[dict] = []
+    for w in words:
+        sentence.append(w)
+        if re.search(r"[.!?…][\"'”’)]*$", w["w"]):
+            pages += fit_sentence(sentence)
+            sentence = []
+    return pages + fit_sentence(sentence)
 
 
 def fit(story: dict, alignment: dict, total: float) -> dict:
