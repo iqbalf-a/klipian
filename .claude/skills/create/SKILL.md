@@ -5,14 +5,15 @@ description: Runs for a message starting with `-create`. Make one klipian intip 
 
 # -create [options] <topic>
 
-The message is `-create [2.5d|iso|2d|teks|ricks] [30|40|45|60] [noloop] [nointip] [suara=voicestudio,googleai,elevenlabs] [musik=<id>] [catatan="..."] [wav="<path>"] "<topic>"`. Every token before the topic is optional and may come in any order; the topic is the last quoted text, or, when nothing is quoted, all the text after the options (`-create gurita punya tiga jantung`, `-create 2d gurita punya tiga jantung`). One video per run. Nothing is asked of the person.
+The message is `-create [2.5d|iso|2d|teks|ricks] [30|40|45|60] [noloop] [nointip|intip] [suara=voicestudio,googleai,elevenlabs] [musik=<id>] [catatan="..."] [wav="<path>"] "<topic>"`. Every token before the topic is optional and may come in any order; the topic is the last quoted text, or, when nothing is quoted, all the text after the options (`-create gurita punya tiga jantung`, `-create 2d gurita punya tiga jantung`). One video per run. Nothing is asked of the person.
 
 | Token | Meaning | Flag for the brief CLI |
 |---|---|---|
 | `2.5d` or `iso` / `2d` / `teks` / `ricks` | force the look (missing: you choose from the topic, B28; `ricks` is never chosen by you, B46) | `--look iso` / `--look 2d` / `--look text` / `--look ricks` |
 | `30` `40` `45` `60` | the duration (missing: 40) | `--duration 45` |
 | `noloop` | no loop-back ending (missing: loop) | `--no-loop` |
-| `nointip` | no "Intip yuk!" sting (missing: the voice-only sting) | `--no-sting` |
+| `nointip` | no "Intip yuk!" sting (missing: the voice-only sting; for `ricks` missing means no sting, B46 l) | `--no-sting` |
+| `intip` | look `ricks` only: add the voice-only "Intip yuk!" sting | `--sting` |
 | `suara=a,b` | the voice apps (missing: all three) | `--voice a,b` |
 | `musik=<id>` | a music bed or `auto` (missing: the default) | `--music <id>` |
 | `catatan="..."` | notes for the AI (missing: none) | `--notes "..."` |
@@ -72,7 +73,7 @@ Body and money topics are fine as explanations (why we hiccup, why banknotes do 
 
 A ricks video is built to its voice: every shot, face, pill and caption word lands on a word, and a TTS voice's pace cannot be guessed. So `-create ricks` runs in two stages; the topic (and so the slug) is the same in both.
 
-**Stage 1, no `wav=`: the story and the text for the voice.** Steps 0 to 2 as usual (`--look ricks`), then only brief steps 1 and 2: research, write `remotion/stories/<slug>.json` (narration per beat, energetic and punchy like a storyteller telling a friend a crazy fact: short sentences, numbers written as words, a hook that hits at word one, "Intip yuk!" as the sting, the last sentence leading back into the hook), validate it. Commit and push only that story (step 4, message `Story: <title> (ricks, waiting for the voice)`). Do not build the folder. Answer, in place of step 5, with exactly:
+**Stage 1, no `wav=`: the story and the text for the voice.** Steps 0 to 2 as usual (`--look ricks`), then only brief steps 1 and 2: research, write `remotion/stories/<slug>.json` (narration per beat, energetic and punchy like a storyteller telling a friend a crazy fact: short sentences, numbers written as words, the hook goes straight into the story at word one, a statement naming who did what, never a question such as "Kenapa ...", "Tahukah kamu ..." or "Pernah gak ..." (B46 l: not "Kenapa petugas SPBU selalu bilang mulai dari nol?" but "Petugas SPBU ini nunjuk angka nol, dan itu bukan basa-basi."), no "Intip yuk!" sting unless `intip` was given, the last sentence leading back into the hook), validate it. Commit and push only that story (step 4, message `Story: <title> (ricks, waiting for the voice)`). Do not build the folder. Answer, in place of step 5, with exactly:
 1. `slug` and "gaya: ricks (B46), tahap 1: tinggal voice"
 2. `main` + hash
 3. a fenced block "Voice: Puck (atau Fenrir)"

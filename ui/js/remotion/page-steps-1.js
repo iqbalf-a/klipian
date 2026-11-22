@@ -71,7 +71,10 @@ function optionsHTML(opts, id) {
 // a short silent sample clip of the chosen look (ui/img/looks/<look>.mp4); none for automatic
 document.addEventListener("change", (e) => {
   if (!e.target.matches || !e.target.matches('select[data-opt="look"]')) return;
-  const img = e.target.closest(".rm-group")?.querySelector(".rm-look-img");
+  const group = e.target.closest(".rm-group");
+  const sting = group?.querySelector('[data-opt="sting"]');
+  if (sting) sting.checked = e.target.value !== "ricks";              // ricks has its own channel: no "Intip yuk!" unless ticked again (B46 l)
+  const img = group?.querySelector(".rm-look-img");
   if (!img) return;
   img.hidden = e.target.value === "auto";
   if (img.hidden) img.pause(); else { img.src = `/ui/img/looks/${e.target.value}.mp4`; img.title = `Sample: ${e.target.selectedOptions[0].text}`; img.play().catch(() => {}); }
