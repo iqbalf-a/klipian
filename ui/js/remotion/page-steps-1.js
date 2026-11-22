@@ -58,7 +58,7 @@ function optionsHTML(opts, id) {
     <label class="rm-check"><input type="checkbox" data-opt="loop" ${opts.loop ? "checked" : ""}> Loop (the end returns to the first scene)</label>
     <label class="rm-check"><input type="checkbox" data-opt="sting" ${opts.sting ? "checked" : ""}> "Intip yuk!" after the hook</label>
     <label class="ws-field">Look ${sel("look", LOOK_LABELS)}</label>
-    <img class="rm-look-img" alt="" ${opts.look && opts.look !== "auto" ? `src="/ui/img/looks/${opts.look}.jpg"` : "hidden"}>
+    <video class="rm-look-img" muted loop autoplay playsinline ${opts.look && opts.look !== "auto" ? `src="/ui/img/looks/${opts.look}.mp4"` : "hidden"}></video>
     <span class="rm-hint">Automatic: Claude Code chooses the look that fits the topic best (B28).</span>
     <label class="ws-field">Music ${sel("music", Object.entries(MUSIC_LABELS))}</label>
     <div class="rm-subgroup" role="group" aria-label="Voice apps">
@@ -68,13 +68,13 @@ function optionsHTML(opts, id) {
   </div>`;
 }
 
-// a sample frame of the chosen look (ui/img/looks/<look>.jpg); none for automatic
+// a short silent sample clip of the chosen look (ui/img/looks/<look>.mp4); none for automatic
 document.addEventListener("change", (e) => {
   if (!e.target.matches || !e.target.matches('select[data-opt="look"]')) return;
   const img = e.target.closest(".rm-group")?.querySelector(".rm-look-img");
   if (!img) return;
   img.hidden = e.target.value === "auto";
-  if (!img.hidden) { img.src = `/ui/img/looks/${e.target.value}.jpg`; img.alt = `Sample frame: ${e.target.selectedOptions[0].text}`; }
+  if (img.hidden) img.pause(); else { img.src = `/ui/img/looks/${e.target.value}.mp4`; img.title = `Sample: ${e.target.selectedOptions[0].text}`; img.play().catch(() => {}); }
 });
 
 // at least one app stays checked: unchecking the last one is undone, with the reason
