@@ -1263,7 +1263,9 @@ MUSIC_USE = {
 KINDS = {"otomatis": "Template (klipian's template, the fastest)", "khusus": "Custom (a video built by the agent, the best look)"}
 # the look of a Khusus video (B28): "auto" leaves the choice to the agent, which picks from the topic; the others force it (the story's `look`)
 LOOK_CHOICES = {"auto": "Automatic (chosen from the topic)", "iso": "2.5D isometric", "2d": "2D", "text": "Text", "ricks": "Ricks (3D diorama + stick cast, voice first)"}
-DEFAULT_OPTIONS = {"loop": True, "sting": True, "voiceTargets": list(VOICE_TARGETS), "voiceTargetFirst": "voicestudio", "music": "sunny", "kind": "khusus", "look": "auto"}
+# what the video tells (B47): a fact explained, or a made-up everyday story carried by one true fact
+STORY_KINDS = {"fakta": "Fact (explain it)", "dongeng": "Story + fact (a made-up story carried by one true fact)"}
+DEFAULT_OPTIONS = {"loop": True, "sting": True, "direct": False, "story": "fakta", "voiceTargets": list(VOICE_TARGETS), "voiceTargetFirst": "voicestudio", "music": "sunny", "kind": "khusus", "look": "auto"}
 
 
 # the words that make a topic a technology topic (PLAN P28-R phase 4): its default bed is a technology bed, any other topic gets the cheerful one
@@ -1291,7 +1293,7 @@ def normalize_options(raw) -> dict:
     out = dict(DEFAULT_OPTIONS)
     out["voiceTargets"] = list(VOICE_TARGETS)
     out["voiceTargetFirst"] = DEFAULT_OPTIONS["voiceTargetFirst"]
-    for key in ("loop", "sting"):
+    for key in ("loop", "sting", "direct"):           # direct: the hook goes straight into the topic, no "Kenapa ..." opener (always on for ricks, B46 l)
         if key in raw:
             if not isinstance(raw[key], bool):
                 raise MotionError("options", f"{key}: choose yes or no.")
@@ -1316,7 +1318,7 @@ def normalize_options(raw) -> dict:
         out["voiceTargetFirst"] = out["voiceTargets"][0]
     if "music" not in raw:
         out["music"] = LEGACY_MUSIC                              # a project saved before the choice keeps its bed: calm
-    for key, choices in (("music", MUSIC_TRACKS), ("kind", KINDS), ("look", LOOK_CHOICES)):
+    for key, choices in (("music", MUSIC_TRACKS), ("kind", KINDS), ("look", LOOK_CHOICES), ("story", STORY_KINDS)):
         if key in raw:
             if key == "music" and raw[key] == "auto":                     # "sesuai topik" is resolved when the video is made (create); here it is the default
                 out[key] = DEFAULT_OPTIONS["music"]

@@ -57,9 +57,13 @@ function optionsHTML(opts, id) {
   return `<div class="rm-group" id="${id}">
     <label class="rm-check"><input type="checkbox" data-opt="loop" ${opts.loop ? "checked" : ""}> Loop (the end returns to the first scene)</label>
     <label class="rm-check"><input type="checkbox" data-opt="sting" ${opts.sting ? "checked" : ""}> "Intip yuk!" after the hook</label>
+    <label class="rm-check"><input type="checkbox" data-opt="direct" ${opts.direct ? "checked" : ""}> Hook straight into the topic (no "Kenapa ..." opener)</label>
+    <span class="rm-hint">Straight into the topic: "Petugas SPBU ini nunjuk angka nol, dan itu bukan basa-basi.", not "Kenapa petugas SPBU selalu bilang mulai dari nol?" Always on for Ricks.</span>
     <label class="ws-field">Look ${sel("look", LOOK_LABELS)}</label>
     <video class="rm-look-img" muted loop autoplay playsinline ${opts.look && opts.look !== "auto" ? `src="/ui/img/looks/${opts.look}.mp4"` : "hidden"}></video>
     <span class="rm-hint">Automatic: Claude Code chooses the look that fits the topic best (B28).</span>
+    <label class="ws-field">Story ${sel("story", STORY_LABELS)}</label>
+    <span class="rm-hint">Story + fact: made-up people in an everyday place, one true fact explained near the end (e.g. a blind grandmother who smells the rain coming: ozone from lightning).</span>
     <label class="ws-field">Music ${sel("music", Object.entries(MUSIC_LABELS))}</label>
     <div class="rm-subgroup" role="group" aria-label="Voice apps">
       <span class="rm-sublabel">Voice apps (tick the ones you use; the script is made for each app)</span>
@@ -74,6 +78,8 @@ document.addEventListener("change", (e) => {
   const group = e.target.closest(".rm-group");
   const sting = group?.querySelector('[data-opt="sting"]');
   if (sting) sting.checked = e.target.value !== "ricks";              // ricks has its own channel: no "Intip yuk!" unless ticked again (B46 l)
+  const direct = group?.querySelector('[data-opt="direct"]');
+  if (direct && e.target.value === "ricks") direct.checked = true;    // ricks always goes straight into the topic
   const img = group?.querySelector(".rm-look-img");
   if (!img) return;
   img.hidden = e.target.value === "auto";
