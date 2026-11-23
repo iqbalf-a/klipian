@@ -8,6 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { SFX, SFX_SAMPLE_RATE as SR } from "../src/catalog.ts";
 import { writeWav } from "./wav.mjs";
+import { moreRecipes } from "./more.mjs";
 
 const TAU = Math.PI * 2;
 const OUT = path.join(path.dirname(fileURLToPath(import.meta.url)), "wav");
@@ -155,6 +156,8 @@ const recipes = {
   },
   "key-blip": () => { const f = (t) => 1175 + 145 * clamp01(t / 0.03), o = osc(f), o2 = osc((t) => 2 * f(t)); return make(0.09, (t) => (o(t) + 0.2 * o2(t)) * Math.pow(Math.sin((Math.PI * t) / 0.09), 0.7)); },
 };
+
+Object.assign(recipes, moreRecipes({ make, sine, osc, noiseOf, rng, bandpass, lowpass1, lowpass2, highpass1, bell, pluck, clamp01, TAU }));  // the 2026-11-23 growth (B48)
 
 mkdirSync(OUT, { recursive: true });
 for (const name of Object.keys(SFX)) {

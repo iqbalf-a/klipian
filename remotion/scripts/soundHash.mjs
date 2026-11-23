@@ -18,7 +18,16 @@ export const APPROVED_BEDS = ["bed-calm", "bed-tech"];
 // the variety effects (2026-11-13, B15 amended): added next to the approved set, never instead of it. Like the new beds they are OPEN: their files and
 // their lines of the SFX table are left out of the approved hash, so the approved sounds still hash to the record. When ian approves them: empty this
 // list and run --record.
-export const OPEN_SFX = ["plop", "pop-wood", "swish-down", "whoosh-soft", "swoop", "tock", "click-soft", "marimba", "bell-soft", "page-flip", "stamp", "coin", "switch", "key-blip"];
+export const OPEN_SFX = ["plop", "pop-wood", "swish-down", "whoosh-soft", "swoop", "tock", "click-soft", "marimba", "bell-soft", "page-flip", "stamp", "coin", "switch", "key-blip",
+  "water-splash", "water-pour", "wave-wash", "bubble-pop", "stream-trickle", "gulp", "door-creak", "wood-crack",
+  "drawer-slide", "door-knock", "metal-clang", "anvil-ting", "chain-rattle", "can-tap", "key-jingle", "cloth-rustle",
+  "zipper-pull", "velcro-rip", "fabric-flap", "paper-crumple", "paper-tear", "scribble-pen", "glass-clink", "cork-pop",
+  "glass-break", "crunch", "slurp", "soda-fizz", "knife-chop", "egg-crack", "bird-chirp", "meow",
+  "frog-croak", "cricket", "bee-buzz", "car-horn", "bike-bell", "engine-rev", "train-whistle", "brake-squeal",
+  "doorbell", "alarm-ring", "kettle-whistle", "microwave-ding", "toaster-pop", "phone-buzz", "camera-shutter", "typing",
+  "power-up", "power-down", "static-burst", "notify-ding", "low-battery", "wind-gust", "thunder-rumble", "leaf-rustle",
+  "fire-crackle", "success-fanfare", "error-buzz", "level-up", "toggle-on", "swipe", "sparkle", "countdown-beep",
+  "heartbeat", "footstep", "clap-hands", "finger-snap", "bonk", "slide-whistle-up", "drum-roll", "cymbal-crash"];
 const sha = (x) => createHash("sha256").update(x).digest("hex");
 
 /** The approved entries (name -> hash), the open entries (new beds, not approved yet), the set's hash and the entry names. */
