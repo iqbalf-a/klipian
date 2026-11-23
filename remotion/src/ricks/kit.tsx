@@ -152,6 +152,9 @@ export function drawStick(c: CanvasRenderingContext2D, expr: Expr, arms: Arms, b
     for (const s of [-1, 1]) for (let k = 0; k < 3; k++) { const x = 256 + s * (120 + k * 26), y = 560 + k * 30 + wob * 6; c.moveTo(x, y); c.quadraticCurveTo(x + s * 14, y + 8, x, y + 18); }
     c.stroke();
   }
+  if (outfit.hair === "long") {   // the back of a bob: a rounded mass behind the head down to the jaw line, so the hair hugs the head
+    c.fillStyle = outfit.hairColor ?? INK; c.lineWidth = 12; c.beginPath(); c.moveTo(96, 270); c.arc(256, 270, 160, Math.PI, Math.PI * 2); c.lineTo(416, 340); c.quadraticCurveTo(414, 388, 372, 384); c.lineTo(140, 384); c.quadraticCurveTo(98, 388, 96, 340); c.closePath(); c.fill(); c.stroke();
+  }
   c.fillStyle = "#fbf7ee"; c.beginPath(); c.arc(256, 260, 150, 0, 7); c.fill();
   c.lineWidth = 16; c.stroke();
   drawHair(c, outfit);
@@ -202,6 +205,7 @@ function drawFace(c: CanvasRenderingContext2D, o: Outfit) {
   if (o.blush) { c.fillStyle = "rgba(240,110,110,.45)"; c.beginPath(); c.ellipse(176, 306, 26, 14, 0, 0, 7); c.ellipse(338, 306, 26, 14, 0, 0, 7); c.fill(); }
   if (o.nose === "dot") { c.fillStyle = INK; c.beginPath(); c.arc(258, 300, 7, 0, 7); c.fill(); }
   if (o.nose === "big") { c.lineWidth = 8; c.beginPath(); c.moveTo(252, 270); c.quadraticCurveTo(292, 306, 254, 312); c.stroke(); }
+  if (o.hair === "long") { c.lineWidth = 7; c.beginPath(); for (const [x, y, dx] of [[176, 262, -1], [338, 262, 1]] as const) { c.moveTo(x, y); c.lineTo(x + dx * 18, y - 14); c.moveTo(x, y + 12); c.lineTo(x + dx * 20, y + 6); } c.stroke(); }
   if (o.glasses) { c.lineWidth = 8; c.beginPath(); c.roundRect(178, 236, 70, 54, 14); c.roundRect(268, 236, 70, 54, 14); c.moveTo(248, 258); c.lineTo(268, 258); c.moveTo(178, 256); c.lineTo(112, 240); c.moveTo(338, 256); c.lineTo(404, 240); c.stroke(); }
   if (o.beard) { c.fillStyle = o.hairColor ?? INK; c.beginPath(); c.moveTo(130, 300); c.quadraticCurveTo(160, 420, 256, 422); c.quadraticCurveTo(352, 420, 382, 300); c.quadraticCurveTo(352, 380, 300, 372); c.quadraticCurveTo(256, 360, 212, 372); c.quadraticCurveTo(160, 380, 130, 300); c.fill(); }
 }
@@ -210,7 +214,13 @@ function drawHair(c: CanvasRenderingContext2D, o: Outfit) {
   const hair = o.hair ?? ((o.hat ?? "none") === "none" ? "spiky" : "bald");   // spiky hair would poke through a hat
   if (hair === "spiky") { c.moveTo(240, 112); c.quadraticCurveTo(232, 70, 262, 52); c.moveTo(262, 112); c.quadraticCurveTo(272, 78, 300, 72); c.moveTo(222, 116); c.quadraticCurveTo(200, 86, 206, 66); c.stroke(); }
   else if (hair === "bun") { c.arc(256, 92, 40, 0, 7); c.fill(); }
-  else if (hair === "long") { c.lineWidth = 22; c.moveTo(150, 190); c.quadraticCurveTo(110, 320, 140, 430); c.moveTo(362, 190); c.quadraticCurveTo(402, 320, 372, 430); c.stroke(); c.lineWidth = 30; c.beginPath(); c.arc(256, 260, 150, Math.PI * 1.08, Math.PI * 1.92); c.stroke(); }
+  else if (hair === "long") {   // a smooth side-swept fringe over the forehead and a bow; the bob behind the head is drawn in drawStick
+    c.lineWidth = 10; c.strokeStyle = INK;
+    c.beginPath(); c.moveTo(106, 262); c.arc(256, 260, 152, Math.PI, Math.PI * 2); c.quadraticCurveTo(396, 190, 350, 170); c.quadraticCurveTo(250, 215, 150, 190); c.quadraticCurveTo(116, 215, 106, 262); c.fill(); c.stroke();
+    c.fillStyle = "#ff6fa5"; c.lineWidth = 8; c.beginPath(); c.moveTo(340, 128); c.lineTo(404, 96); c.lineTo(398, 168); c.closePath(); c.moveTo(340, 128); c.lineTo(300, 88); c.lineTo(290, 150); c.closePath(); c.fill(); c.stroke();
+    c.beginPath(); c.arc(340, 128, 16, 0, 7); c.fill(); c.stroke();
+  }
+
 }
 function drawHat(c: CanvasRenderingContext2D, o: Outfit) {
   const hat = o.hat ?? "none";
