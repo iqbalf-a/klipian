@@ -4,7 +4,6 @@ import { AbsoluteFill } from "remotion";
 import { drawStick, type Arms, type Expr, type Outfit } from "./ricks/kit.tsx";
 
 const DIMAS: Outfit = { shirt: "#5a6fd8", stripe: "#3b4aa6", pattern: "plain", hair: "spiky", hairColor: "#17141c", nose: "dot" };
-const UDIN: Outfit = { shirt: "#e07a2f", stripe: "#8c4a14", pattern: "check", hat: "peci", mustache: true, body: "wide", nose: "big" };
 const RANI: Outfit = { shirt: "#c9a0e8", stripe: "#7b4fa8", pattern: "collar", hair: "long", hairColor: "#3b2418", glasses: true, blush: true };
 const GREEN = "#418165", CREAM = "#f6efdc", INK = "#17141c", GOLD = "#ffd60a";
 const FONT = "Outfit, Arial";
@@ -34,11 +33,11 @@ export const Banner: React.FC = () => (
   <AbsoluteFill style={{ background: GREEN, overflow: "hidden" }}>
     <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse at 50% 50%, #5aa383 0%, ${GREEN} 65%, #2f6049 100%)` }} />
     {/* safe area for every screen: 1235 x 338, centred (x 406..1641, y 407..745) */}
-    <Stick o={DIMAS} e="grin" a="wave" w={190} style={{ left: 470, top: 400 }} />
-    <Stick o={RANI} e="puzzled" a="point" w={190} style={{ left: 1390, top: 400 }} />
-    <div style={{ position: "absolute", left: 640, width: 770, top: 450, textAlign: "center", fontFamily: FONT }}>
-      <div style={{ fontWeight: 900, fontSize: 112, lineHeight: 1, color: CREAM, textShadow: `6px 6px 0 ${INK}` }}>SEBATANG<br />CERITA</div>
-      <div style={{ marginTop: 22, display: "inline-block", background: GOLD, color: INK, fontWeight: 800, fontSize: 38, padding: "6px 22px", transform: "rotate(-2deg)" }}>dongeng pendek, satu fakta nyata</div>
+    <Stick o={DIMAS} e="grin" a="wave" w={140} style={{ left: 450, top: 435 }} />
+    <Stick o={RANI} e="puzzled" a="point" w={140} style={{ left: 1450, top: 435 }} />
+    <div style={{ position: "absolute", left: 640, width: 770, top: 455, textAlign: "center", fontFamily: FONT }}>
+      <div style={{ fontWeight: 900, fontSize: 88, lineHeight: 1, color: CREAM, textShadow: `5px 5px 0 ${INK}` }}>SEBATANG<br />CERITA</div>
+      <div style={{ marginTop: 14, display: "inline-block", background: GOLD, color: INK, fontWeight: 800, fontSize: 30, padding: "4px 18px", transform: "rotate(-2deg)" }}>dongeng pendek, satu fakta nyata</div>
     </div>
   </AbsoluteFill>
 );
