@@ -1,5 +1,5 @@
 """Writes what YouTube says about each uploaded clip into the planning .xlsx files of the workspace
-(workspace/*.xlsx and workspace/jadwal/*.xlsx): the status column, a "Video ID" and a "Jadwal tayang" column.
+of the current profile (workspace/profiles/<id>/schedule/*.xlsx): the status column, a "Video ID" and a "Jadwal tayang" column.
 
 A sheet row is the clip's when its Video ID cell equals the clip's, else when its title (the "Judul..." or
 "Topik" column) shares at least 60% of the clip title's words and is clearly the best match. Sheets with
@@ -23,8 +23,7 @@ def _words(text) -> set[str]:
 
 
 def files() -> list[Path]:
-    ws = paths.workspace_dir()
-    found = [*ws.glob("*.xlsx"), *(ws / "jadwal").glob("*.xlsx")]
+    found = paths.SCHEDULE_DIR.glob("*.xlsx")                   # each profile has its own, next to its clips.json
     return sorted(f for f in found if not f.name.startswith("~$") and not any(s in f.name for s in SKIP))
 
 
