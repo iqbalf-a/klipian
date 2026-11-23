@@ -14,7 +14,7 @@ import WORDS from "./words.json";
 
 export const story = storyJson as unknown as StoryT;
 const FPS = 30;
-const TOTAL = 31.0;
+const TOTAL = 57.34;
 const NIGHT = "#1a1530";
 
 // ---------- the people (each their own outfit and face, B46 i) ------------------------------------------------------------------
@@ -29,32 +29,45 @@ const RANI: Outfit = { shirt: "#c9a0e8", stripe: "#7b4fa8", pattern: "collar", h
 const HOOK: Cam = { pos: V(-2.1, 1.3, 3.4), look: V(-2.3, 1.36, -0.6) };
 const SHOTS: Shot[] = [
   { from: 0, a: HOOK, b: { pos: V(-2.15, 1.3, 3.0), look: V(-2.3, 1.36, -0.6) } },                                   // Dimas begadang, tiap jam dia jajan
-  { from: 3.22, a: { pos: V(-1.2, 1.6, 5.2), look: V(0.3, 1.2, -0.8) }, b: { pos: V(0.6, 1.5, 4.6), look: V(1.2, 1.2, -0.8) } },   // Dimas yakin itu cuma lapar mata (the whole gang)
-  { from: 5.52, a: { pos: V(1.0, 1.35, 2.2), look: V(2.2, 1.3, -1.0) }, b: { pos: V(1.7, 1.35, 1.6), look: V(2.2, 1.35, -1.0) } },  // Mang Udin burjo hafal
-  { from: 8.14, a: { pos: V(0.9, 1.3, 4.0), look: V(0.05, 1.2, 0.7) }, b: { pos: V(0.7, 1.3, 3.5), look: V(0.05, 1.2, 0.7) } },     // Rani pasang aplikasi kalori
-  { from: 10.84, a: { pos: V(0.5, 1.25, 3.1), look: V(0.2, 1.2, 0.8) }, b: { pos: V(0.45, 1.25, 2.7), look: V(0.25, 1.2, 0.85) } }, // katanya cuma kebiasaan (the phone)
-  { from: 13.94, a: { pos: V(-1.6, 1.25, 1.6), look: V(-2.3, 1.25, -0.6) }, b: { pos: V(-1.9, 1.3, 1.2), look: V(-2.3, 1.25, -0.6) } }, // tapi tiap kurang tidur
-  { from: 16.16, a: { pos: V(1.2, 1.3, 2.7), look: V(1.6, 1.1, -0.5) }, b: { pos: V(3.0, 1.3, 2.7), look: V(2.8, 1.1, -0.5) } },  // nasi, gorengan, es teh manis
-  { from: 19.84, a: { pos: V(-2.4, 1.5, 3.4), look: V(-2.65, 1.45, -0.8) }, b: { pos: V(-2.55, 1.5, 3.1), look: V(-2.7, 1.5, -0.8) } }, // satu studi ... empat jam dua malam
-  { from: 23.4, a: { pos: V(-3.0, 1.5, 1.6), look: V(-3.6, 1.5, -1.8) }, b: { pos: V(-3.2, 1.5, 1.3), look: V(-3.6, 1.5, -1.8) } },  // nafsu makan naik hampir seperempat
-  { from: 25.8, a: { pos: V(-1.4, 1.5, 4.4), look: V(-3.0, 0.8, -1.1) }, b: { pos: V(-2.0, 1.3, 3.6), look: V(-3.1, 0.75, -1.1) } },  // Malam itu Dimas tidur duluan
-  { from: 28.82, a: { pos: V(2.8, 1.4, 4.4), look: V(2.2, 1.2, -1.0) }, b: { pos: V(2.4, 1.4, 3.6), look: V(2.2, 1.25, -1.0) } },   // Mang Udin sepi
-  { from: 30.3, a: { pos: V(2.4, 1.4, 3.6), look: V(2.2, 1.25, -1.0) }, b: HOOK },
-  { from: 30.85, a: HOOK, b: HOOK },                                                // back to the first shot (the loop)
+  { from: 3.4, a: { pos: V(-1.6, 1.25, 1.6), look: V(-2.3, 1.25, -0.6) }, b: { pos: V(-1.9, 1.3, 1.2), look: V(-2.3, 1.25, -0.6) } }, // jam sebelas malam, laptop nyala, tugas belum kelar
+  { from: 6.6, a: { pos: V(-1.2, 1.6, 5.2), look: V(0.3, 1.2, -0.8) }, b: { pos: V(0.6, 1.5, 4.6), look: V(1.2, 1.2, -0.8) } },   // Dimas yakin itu cuma lapar mata (the whole gang)
+  { from: 9.0, a: { pos: V(1.0, 1.35, 2.2), look: V(2.2, 1.3, -1.0) }, b: { pos: V(1.7, 1.35, 1.6), look: V(2.2, 1.35, -1.0) } },  // Mang Udin burjo hafal pesanan
+  { from: 11.8, a: { pos: V(1.2, 1.3, 2.7), look: V(1.6, 1.1, -0.5) }, b: { pos: V(3.0, 1.3, 2.7), look: V(2.8, 1.1, -0.5) } },  // mi instan, telur, es teh (along the counter)
+  { from: 14.5, a: { pos: V(0.9, 1.3, 4.0), look: V(0.05, 1.2, 0.7) }, b: { pos: V(0.7, 1.3, 3.5), look: V(0.05, 1.2, 0.7) } },     // Rani pasang aplikasi kalori
+  { from: 16.8, a: { pos: V(0.3, 1.25, 3.3), look: V(0.05, 1.2, 0.8) }, b: { pos: V(0.3, 1.25, 3.0), look: V(0.08, 1.2, 0.85) } }, // katanya cuma kebiasaan (the phone)
+  { from: 19.9, a: { pos: V(-1.6, 1.25, 1.6), look: V(-2.3, 1.25, -0.6) }, b: { pos: V(-1.9, 1.3, 1.2), look: V(-2.3, 1.25, -0.6) } }, // Dimas coba menahan diri
+  { from: 21.6, a: { pos: V(-2.4, 1.5, 3.4), look: V(-2.65, 1.45, -0.8) }, b: { pos: V(-2.55, 1.5, 3.1), look: V(-2.7, 1.5, -0.8) } }, // satu jam, dua jam (the clock runs)
+  { from: 23.5, a: { pos: V(-1.6, 1.25, 1.6), look: V(-2.3, 1.25, -0.6) }, b: { pos: V(-1.9, 1.3, 1.2), look: V(-2.3, 1.25, -0.6) } }, // tapi tiap kurang tidur
+  { from: 25.6, a: { pos: V(1.2, 1.3, 2.7), look: V(1.6, 1.1, -0.5) }, b: { pos: V(3.0, 1.3, 2.7), look: V(2.8, 1.1, -0.5) } },  // nasi, gorengan, es teh manis
+  { from: 28.6, a: { pos: V(-1.3, 1.3, 2.4), look: V(-2.3, 1.3, -0.6) }, b: { pos: V(-1.7, 1.3, 2.0), look: V(-2.3, 1.3, -0.6) } }, // bukan sayur, bukan buah
+  { from: 30.8, a: { pos: V(-2.1, 1.0, 2.8), look: V(-2.3, 0.95, -0.6) }, b: { pos: V(-2.2, 1.0, 2.3), look: V(-2.3, 0.95, -0.6) } }, // perutnya minta yang cepat dan manis (the belly)
+  { from: 33.6, a: { pos: V(-1.2, 1.6, 5.2), look: V(0.3, 1.2, -0.8) }, b: { pos: V(0.6, 1.5, 4.6), look: V(1.2, 1.2, -0.8) } },   // ternyata ini bukan cuma Dimas
+  { from: 35.4, a: { pos: V(-3.0, 1.5, 1.6), look: V(-3.6, 1.5, -1.8) }, b: { pos: V(-3.2, 1.5, 1.3), look: V(-3.6, 1.5, -1.8) } },  // peneliti di Universitas Chicago (the chart)
+  { from: 38.4, a: { pos: V(-2.4, 1.5, 3.4), look: V(-2.65, 1.45, -0.8) }, b: { pos: V(-2.55, 1.5, 3.1), look: V(-2.7, 1.5, -0.8) } }, // tidur empat jam, dua malam (the clock)
+  { from: 41.4, a: { pos: V(-3.0, 1.5, 1.6), look: V(-3.6, 1.5, -1.8) }, b: { pos: V(-3.2, 1.5, 1.3), look: V(-3.6, 1.5, -1.8) } },  // nafsu makan naik hampir seperempat
+  { from: 44.0, a: { pos: V(-2.5, 1.35, 2.8), look: V(-2.3, 1.35, -0.6) }, b: { pos: V(-2.35, 1.35, 2.3), look: V(-2.3, 1.35, -0.6) } }, // ngidam manis, asin, berkarbo
+  { from: 47.0, a: { pos: V(0.9, 1.3, 4.0), look: V(0.05, 1.2, 0.7) }, b: { pos: V(0.7, 1.3, 3.5), look: V(0.05, 1.2, 0.7) } },     // tapi ini baru satu studi (Rani doubts)
+  { from: 50.6, a: { pos: V(-1.4, 1.5, 4.4), look: V(-3.0, 0.8, -1.1) }, b: { pos: V(-2.0, 1.3, 3.6), look: V(-3.1, 0.75, -1.1) } },  // Malam itu Dimas tidur duluan
+  { from: 52.7, a: { pos: V(2.8, 1.4, 4.4), look: V(2.2, 1.2, -1.0) }, b: { pos: V(2.4, 1.4, 3.6), look: V(2.2, 1.25, -1.0) } },   // Mang Udin sepi
+  { from: 55.14, a: { pos: V(2.4, 1.4, 3.6), look: V(2.2, 1.25, -1.0) }, b: HOOK },                                              // the camera flies back to the first shot (the loop)
+  { from: 57.0, a: HOOK, b: HOOK },
 ];
-const DIMAS_FACES: [number, Expr, Arms][] = [[0, "hungry", "belly"], [3.22, "calm", "down"], [8.14, "puzzled", "down"], [13.94, "hungry", "belly"], [16.16, "hungry", "point"], [19.84, "sleepy", "down"], [23.66, "shocked", "belly"], [25.8, "sleepy", "down"], [30.3, "hungry", "belly"]];
-const UDIN_FACES: [number, Expr, Arms][] = [[0, "grin", "wave"], [3.22, "sly", "down"], [5.52, "grin", "wave"], [13.94, "calm", "down"], [25.8, "sleepy", "down"]];
-const RANI_FACES: [number, Expr, Arms][] = [[0, "calm", "down"], [8.14, "sly", "point"], [10.84, "calm", "point"], [13.94, "puzzled", "down"]];
-/** The alarm clock in minutes after midnight: 00:12 until "empat jam", then the 4 hours run past in about 3 s, then 04:00. */
-const CLOCK_KEYS: [number, number][] = [[0, 12], [21.4, 12], [24.6, 252], [30.3, 252], [30.9, 12], [40, 12]];
+const DIMAS_FACES: [number, Expr, Arms][] = [[0, "hungry", "belly"], [3.4, "sleepy", "down"], [6.6, "calm", "down"], [14.5, "calm", "down"], [19.9, "puzzled", "down"], [23.5, "hungry", "belly"], [25.6, "hungry", "point"], [28.6, "puzzled", "down"], [30.8, "hungry", "belly"], [33.6, "calm", "down"], [38.4, "sleepy", "down"], [41.4, "shocked", "belly"], [44.0, "hungry", "belly"], [47.0, "calm", "down"], [50.6, "sleepy", "down"], [56.2, "hungry", "belly"]];
+const UDIN_FACES: [number, Expr, Arms][] = [[0, "grin", "wave"], [3.4, "sly", "down"], [9.0, "grin", "wave"], [14.5, "calm", "down"], [33.6, "sly", "down"], [50.6, "sleepy", "down"]];
+const RANI_FACES: [number, Expr, Arms][] = [[0, "calm", "down"], [14.5, "sly", "point"], [16.8, "calm", "point"], [19.9, "puzzled", "down"], [47.0, "puzzled", "down"], [50.6, "calm", "down"]];
+/** The alarm clock in minutes after midnight: 00:12, then "satu jam, dua jam" (02:12), then the study's four hours run past (04:12); it resets with the loop. */
+const CLOCK_KEYS: [number, number][] = [[0, 12], [21.7, 12], [22.1, 72], [22.8, 132], [39.3, 132], [41.0, 252], [56.0, 252], [56.8, 12], [70, 12]];
 /** The bar chart on the wall: the "kurang tidur" bar grows from the normal height by 24 % on "hampir seperempat". */
-const BAR_KEYS: [number, number][] = [[0, 1], [23.6, 1], [24.5, 1.24], [30.3, 1.24], [30.9, 1], [40, 1]];
+const BAR_KEYS: [number, number][] = [[0, 1], [43.2, 1], [44.0, 1.24], [56.0, 1.24], [56.8, 1], [70, 1]];
 /** The three foods on the counter pop on their word. */
-const POPS = { nasi: 16.78, gorengan: 17.44, teh: 18.38 };
+const POPS = { nasi: 25.84, gorengan: 27.1, teh: 28.04 };
 const PILLS: Pill[] = [
-  { at: 19.84, until: 21.4, text: "Studi UChicago 2004", key: "2004", color: "#ffb02e", y: 330 },
-  { at: 21.68, until: 25.8, text: "tidur 4 jam × 2 malam", key: "4 jam × 2 malam", color: "#ffb02e", y: 330 },
-  { at: 23.66, until: 25.8, text: "nafsu makan +24%", key: "+24%", color: "#ff6b3d", y: 470 },
+  { at: 28.74, until: 30.7, text: "bukan sayur, bukan buah", key: "bukan", color: "#ff6b3d", y: 330 },
+  { at: 35.56, until: 38.4, text: "Studi UChicago 2004", key: "2004", color: "#ffb02e", y: 330 },
+  { at: 38.54, until: 41.4, text: "tidur 4 jam × 2 malam", key: "4 jam × 2 malam", color: "#ffb02e", y: 330 },
+  { at: 43.18, until: 47.0, text: "nafsu makan +24%", key: "+24%", color: "#ff6b3d", y: 470 },
+  { at: 44.64, until: 47.0, text: "ngidam manis, asin, karbo", key: "manis, asin, karbo", color: "#ffb02e", y: 330 },
+  { at: 47.92, until: 50.5, text: "baru satu studi", key: "satu studi", color: "#ffb02e", y: 330 },
 ];
 const HOOK_LINES: { text: string; key?: string }[] = [{ text: "Dimas ", key: "begadang," }, { text: "jajan ", key: "terus" }];
 
@@ -243,7 +256,7 @@ const World: React.FC<{ t: number; f: number }> = ({ t, f }) => {
   );
 };
 
-const READ = [...readWords(WORDS), { w: "Dimas", a: 30.7, b: 31 }];   // the first word comes back on the last 0.3 s so the loop holds
+const READ = [...readWords(WORDS), { w: "Dimas", a: 57.0, b: 57.34 }];   // the first word comes back on the last 0.3 s so the loop holds
 
 export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = () => {
   const f = useCurrentFrame();
@@ -252,8 +265,8 @@ export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = () => {
   const [, dExpr, dArms] = stepAt(DIMAS_FACES, t);
   const [, uExpr, uArms] = stepAt(UDIN_FACES, t);
   const [, rExpr, rArms] = stepAt(RANI_FACES, t);
-  const asleep = t >= 25.8 && t < 30.3;                          // after "tidur duluan" Dimas lies on the bed until the loop-back
-  const hookA = t < 2.9 ? 1 : t < 3.2 ? 1 - (t - 2.9) / 0.3 : t >= 30.5 ? Math.min(1, (t - 30.5) / 0.5) : 0;
+  const asleep = t >= 51.5 && t < 56.2;                          // after "tidur duluan" Dimas lies on the bed until the loop-back
+  const hookA = t < 3.1 ? 1 : t < 3.4 ? 1 - (t - 3.1) / 0.3 : t >= 56.4 ? Math.min(1, (t - 56.4) / 0.6) : 0;
   return (
     <AbsoluteFill style={{ backgroundColor: NIGHT }}>
       <ThreeCanvas shadows width={FRAME.width} height={FRAME.height} camera={{ fov: 40, near: 0.05, far: 60, position: HOOK.pos.toArray() as [number, number, number] }}>
