@@ -31,6 +31,59 @@ const beats = story.beats ?? [];
 const kinds = beats.map((b) => b.kind);
 const itemsOf = (b) => b.scene?.items ?? [];
 
+// B48 (ian, 2026-11-23): no asset reused in the short term. B42 widened from objects to every asset: backdrop, set, hook hero, supporting object, prop, effect, sound effect,
+// music track, caption/colour set, icon, texture, font treatment. The 10 most recent videos (the date of the commit that first added each index.tsx; a video not committed yet
+// counts by the file's time) are read for what the machine can read: the set kind, the music track, the effects drawn, the sound names, the theme and the stage. The rest
+// (icon, texture, font treatment, hero and props) stays with the HUMAN line. `node scripts/styleCheck.mjs <slug> --b48` prints only this, before the video is drawn.
+// The fixed channel pieces (the spoken "Intip yuk!", the looping ending) and the approved mix (B15) are the exceptions and are not looked at here.
+const FX_NAMES = ["HeatRise", "SmokePuffs", "Sparks", "Motes", "HeatWaves", "Smoke", "Smoke3D", "PlugHeat", "CollarHeat", "Onomatopoeia", "LoopArrows", "Strike", "Crackle", "SmokeRing", "Debris", "CloudHole", "Segs", "shake"];
+async function b48() {
+  const { execFileSync } = await import("node:child_process");
+  const { statSync } = await import("node:fs");
+  const { SFX } = await import("../src/catalog.ts");
+  const mine = path.basename(dir), vroot = path.join(ROOT, "videos");
+  const when = (name) => {
+    const idx = path.join(vroot, name, "index.tsx");
+    try {
+      const o = execFileSync("git", ["log", "--diff-filter=A", "--format=%ct", "--", `remotion/videos/${name}/index.tsx`], { cwd: path.join(ROOT, ".."), encoding: "utf8" }).trim().split("\n").filter(Boolean).pop();
+      if (o) return Number(o);
+    } catch { /* not a repository: fall back to the file time */ }
+    return Math.floor(statSync(idx).mtimeMs / 1000);
+  };
+  const recent = readdirSync(vroot, { withFileTypes: true }).filter((d) => d.isDirectory() && d.name !== mine && d.name !== "selftest-tiny" && existsSync(path.join(vroot, d.name, "index.tsx")))
+    .map((d) => ({ name: d.name, t: when(d.name) })).sort((a, b) => b.t - a.t).slice(0, 10);
+  const profile = (d) => {
+    const read = (f) => (existsSync(path.join(d, f)) ? readFileSync(path.join(d, f), "utf8") : "");
+    const src = readdirSync(d).filter((f) => /\.(ts|tsx)$/.test(f)).map(read).join("\n");
+    const sfxSrc = read("sfx.ts"), st = existsSync(path.join(d, "story.json")) ? JSON.parse(read("story.json")) : {};
+    let set = ""; try { set = JSON.parse(read("set.json")).kind ?? ""; } catch { /* no set.json */ }
+    const track = /track:\s*"([\w-]+)"/.exec(sfxSrc)?.[1] ?? st.music?.track ?? "";
+    const names = new Set(Object.keys(SFX).filter((n) => new RegExp(`"${n}"`).test(sfxSrc)));
+    const fx = new Set(FX_NAMES.filter((n) => new RegExp(`\b${n}\b`).test(src)));
+    return { set, track, names, fx, theme: st.theme ?? "", stage: st.stage ?? "", look: st.look ?? "" };
+  };
+  const me = profile(dir);
+  const others = recent.map((r) => ({ ...r, ...profile(path.join(vroot, r.name)) }));
+  const list = (xs) => (xs.length ? xs.map((x) => x.name).join(", ") : "none");
+  add("INFO", `B48: the ${others.length} most recent videos (newest first): ${others.map((o) => o.name).join(", ")}`);
+  const sameSet = me.set ? others.filter((o) => o.set === me.set) : [];
+  add(!me.set ? "INFO" : sameSet.length ? "FLAG" : "PASS", `B48: the set kind${me.set ? ` "${me.set}"` : " is not declared yet"}${sameSet.length ? ` is REUSED from ${list(sameSet)}` : " is not in the recent videos"}`);
+  const sameTrack = me.track ? others.filter((o) => o.track === me.track) : [];
+  add(!me.track ? "INFO" : sameTrack.length ? "FLAG" : "PASS", `B48: the music track${me.track ? ` "${me.track}"` : " is not chosen yet"}${sameTrack.length ? ` is REUSED from ${list(sameTrack)}` : " is not in the recent videos"}`);
+  const fxHit = [...me.fx].map((n) => ({ n, v: others.filter((o) => o.fx.has(n)) })).filter((x) => x.v.length);
+  add(fxHit.length ? "FLAG" : "PASS", `B48: ${fxHit.length ? `effects REUSED: ${fxHit.map((x) => `${x.n} from ${list(x.v)}`).join("; ")}` : "no effect of this video appears in the recent ones"} (effects drawn: ${[...me.fx].join(", ") || "none"})`);
+  const share = me.names.size ? others.map((o) => ({ o, s: [...me.names].filter((n) => o.names.has(n)).length / me.names.size })).sort((a, b) => b.s - a.s)[0] : null;
+  add(!share ? "INFO" : share.s > 0.9 ? "FLAG" : "PASS", `B48: the sound names (${me.names.size} distinct; the sound set is small, so some overlap is normal, the choice must still differ): ${share ? `the closest recent video is ${share.o.name} at ${Math.round(share.s * 100)} % shared` : "sfx.ts not written yet"}`);
+  const themed = others.filter((o) => me.theme && o.theme === me.theme).length, staged = others.filter((o) => me.stage && o.stage === me.stage).length;
+  add("INFO", `B48: the colour set "${me.theme || "cream"}" is in ${themed} of the recent videos, the stage "${me.stage || "slab"}" in ${staged}; pick the least used (the brief asks not to repeat the one of the video before: ${others[0]?.name ?? "none"} used "${others[0]?.theme || "cream"}" and "${others[0]?.stage || "slab"}")`);
+  add("HUMAN", "B48: icon, texture, font treatment, hero, backdrop and every prop are also not in the recent videos (grep their index.tsx and set.json)");
+}
+if (process.argv.includes("--b48")) {
+  await b48();
+  for (const r of out) console.log(`${r.level.padEnd(6)} ${r.what}`);
+  process.exit(out.some((r) => r.level === "FLAG" || r.level === "FAIL") ? 1 : 0);
+}
+
 // 1. the duration: one of the three lengths, and the beats add up to it exactly
 const total = beats.reduce((a, b) => a + b.dur, 0);
 add(new Set([30, 40, 45, 60]).has(story.duration) ? "PASS" : "FLAG", `duration ${story.duration} s is 30, 40, 45 or 60 s`);
@@ -271,6 +324,8 @@ if (existsSync(sfxFile)) {
     add(onlyDefault || perSec < 0.7 ? "FLAG" : "PASS", `B13: a sound on every object, written by hand in sfx.ts (${events.length} events in ${total} s = ${perSec.toFixed(2)} a second${onlyDefault ? "; sfx.ts only returns the default" : ""}; pilot 1 has about 1 a second, at least 0.7)`);
   }
 }
+
+await b48();
 
 // the report
 const pad = (s) => s.padEnd(6);
