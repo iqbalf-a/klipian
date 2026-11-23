@@ -1241,10 +1241,10 @@ def _catalog() -> dict:
 # and turning one off gives a warning (the channel asks for them). The voice target only chooses the text format of the narration (the voice is made
 # outside klipian, by the person's own voice app); the music is the story's bed.
 VOICE_TARGETS = {"voicestudio": "VoiceStudio", "elevenlabs": "ElevenLabs", "googleai": "Google AI Studio"}
-MUSIC_TRACKS = {"sunny": "bed-sunny", "bounce": "bed-bounce", "glow": "bed-glow", "curious": "bed-curious", "circuit": "bed-circuit", "neon": "bed-neon", "pixel": "bed-pixel", "study": "bed-study", "breeze": "bed-breeze", "calm": "bed-calm", "tech": "bed-tech", "none": "none"}
+MUSIC_TRACKS = {"sunny": "bed-sunny", "bounce": "bed-bounce", "glow": "bed-glow", "curious": "bed-curious", "circuit": "bed-circuit", "neon": "bed-neon", "pixel": "bed-pixel", "study": "bed-study", "breeze": "bed-breeze", "lullaby": "bed-lullaby", "dream": "bed-dream", "sleepy": "bed-sleepy", "rainy": "bed-rainy", "minimal": "bed-minimal", "lofi": "bed-lofi", "groove": "bed-groove", "funk": "bed-funk", "disco": "bed-disco", "picnic": "bed-picnic", "island": "bed-island", "march": "bed-march", "sparkle": "bed-sparkle", "campfire": "bed-campfire", "train": "bed-train", "waltz": "bed-waltz", "pulse": "bed-pulse", "orbit": "bed-orbit", "clockwork": "bed-clockwork", "boot": "bed-boot", "wonder": "bed-wonder", "calm": "bed-calm", "tech": "bed-tech", "none": "none"}
 # the labels the page shows (Indonesian). The two beds that exist are the legacy ones (PLAN-VARIETY stage 1): their tracks never change.
 LEGACY_MUSIC = "calm"           # the bed of every video made before the choice of PLAN-VARIETY (ian picked sunny on 2026-10-28 for new videos only)
-MUSIC_LABELS = {"sunny": "Cheerful", "bounce": "Bouncy", "glow": "Warm", "curious": "Curious", "circuit": "Technology (circuit)", "neon": "Technology (neon)", "pixel": "Technology (pixel)", "study": "Study", "breeze": "Relaxed", "calm": "Calm (old)", "tech": "Technology (old)", "none": "No music"}
+MUSIC_LABELS = {"sunny": "Cheerful", "bounce": "Bouncy", "glow": "Warm", "curious": "Curious", "circuit": "Technology (circuit)", "neon": "Technology (neon)", "pixel": "Technology (pixel)", "study": "Study", "breeze": "Relaxed", "lullaby": "Lullaby", "dream": "Dreamy", "sleepy": "Sleepy", "rainy": "Rainy day", "minimal": "Minimal", "lofi": "Lo-fi", "groove": "Jazzy groove", "funk": "Funk", "disco": "Disco", "picnic": "Picnic", "island": "Island", "march": "March", "sparkle": "Sparkle", "campfire": "Campfire", "train": "Shuffle", "waltz": "Waltz", "pulse": "Pulse (tech)", "orbit": "Orbit (tech)", "clockwork": "Clockwork (tech)", "boot": "Boot (tech)", "wonder": "Wonder", "calm": "Calm (old)", "tech": "Technology (old)", "none": "No music"}
 # when each bed fits (PLAN-VARIETY): the brief tells the AI which one to choose for which kind of fact
 MUSIC_USE = {
     "sunny": "cheerful and major (about 120 BPM, a marimba-like melody): a cause or an object that works",
@@ -1256,6 +1256,27 @@ MUSIC_USE = {
     "pixel": "technology: a square pluck in a syncopated rhythm over a light beat (about 128 BPM): an app, a game, the internet, money on a screen",
     "study": "light and attentive (about 96 BPM, soft electric-piano chords on the off-beats): a lesson, a rule, a law, a how-it-is-decided",
     "breeze": "sunny and easy (about 108 BPM, a strummed pluck and claps): everyday life, habits, food, the body",
+    "lullaby": "soft and slow (72 BPM, a music box over a warm pad): bedtime, small and gentle things",
+    "dream": "glassy pads and a few bells, no drums (66 BPM): big, strange or far-away ideas",
+    "sleepy": "two slow pads and one soft low note a bar (60 BPM): sleep, rest, quiet things",
+    "rainy": "a slow high piano line over a low pad (70 BPM, minor): sad, quiet or gentle topics",
+    "minimal": "one drone and a sparse pentatonic pluck (100 BPM): plain facts that need no mood",
+    "lofi": "dusty electric-piano chords, a lazy beat (78 BPM): study and slow explanations",
+    "groove": "syncopated chord stabs, a walking bass and brushes (92 BPM): people, habits, a late-night feel",
+    "funk": "a plucked sixteenth bass and chord scratches (104 BPM): energetic everyday things, sport, a quirk",
+    "disco": "an octave-jumping bass and off-beat hats (116 BPM): fun, parties, fast daily life",
+    "picnic": "pizzicato bass, claps and a skipping melody (118 BPM): food and daylight",
+    "island": "a ukulele-like strum and marimba (100 BPM): travel, holidays, the beach",
+    "march": "a snare roll and a bell tune (112 BPM): rules, history, order, a step-by-step process",
+    "sparkle": "fast bell arpeggios and claps (132 BPM): quick bright facts",
+    "campfire": "an unhurried guitar strum and a low drum (88 BPM): stories, old habits, tradition",
+    "train": "a boom-chick shuffle with a walking pluck (120 BPM): travel, trains, countryside, markets",
+    "waltz": "in three: a bass, two soft chords and a bell (108 BPM): classic or old-fashioned topics",
+    "pulse": "technology: a four-on-the-floor kick, a saw bass and a breathing pad (124 BPM): machines, systems",
+    "orbit": "technology: slow triplet synth arpeggios with a long echo (90 BPM): space, scale, the unknown",
+    "clockwork": "technology: hollow ticks and a mallet ostinato (100 BPM): mechanisms, time, how it is built",
+    "boot": "technology: a square chip melody over a bass (136 BPM): games, apps, the digital and the fast",
+    "wonder": "a celesta-like theme over a wide pad (84 BPM): a surprising fact, an awe moment",
     "calm": "calm and slow (the legacy bed, kept for old videos)",
     "tech": "a quiet pattern (the legacy bed, kept for old videos)",
     "none": "no music",
@@ -1273,8 +1294,8 @@ TECH_WORDS = ("listrik", "colokan", "stopkontak", "kabel", "charger", "cas", "ba
               "internet", "komputer", "laptop", "chip", "prosesor", "robot", "mesin", "teknologi", "ai", "gadget", "aplikasi", "bluetooth", "satelit", "gps", "led", "magnet",
               "elektronik", "mobil listrik", "motor listrik", "pengisi daya", "daya")
 
-TECH_BEDS = ("circuit", "neon", "pixel")
-CHEERFUL_BEDS = ("sunny", "bounce", "glow", "curious", "study", "breeze")
+TECH_BEDS = ("circuit", "neon", "pixel", "pulse", "orbit", "clockwork", "boot")
+CHEERFUL_BEDS = ("sunny", "bounce", "glow", "curious", "study", "breeze", "minimal", "lofi", "groove", "funk", "disco", "picnic", "island", "march", "sparkle", "campfire", "train", "waltz", "wonder")
 
 
 def suggest_music(topic: str) -> str:

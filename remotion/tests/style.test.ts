@@ -223,7 +223,7 @@ for (const r of DICTIONARY.filter((k) => k.status === "drawn")) {
   yes(MUSIC["bed-calm"].dur === 24 && MUSIC["bed-tech"].dur === 24, "the legacy beds keep their 24 s loop");
   // the technology beds (P28-R phase 4): no seam (the last sample continues into the first, the step there is no bigger than the loop's own biggest step), and a
   // peak under 0.95 (the beds are normalised); both names are in the catalogue next to the cheerful beds
-  for (const name of ["bed-circuit", "bed-neon", "bed-pixel", "bed-study", "bed-breeze"] as const) {     // and the variety beds (2026-11-13)
+  for (const name of ["bed-circuit", "bed-neon", "bed-pixel", "bed-study", "bed-breeze", "bed-lullaby", "bed-dream", "bed-sleepy", "bed-rainy", "bed-minimal", "bed-lofi", "bed-groove", "bed-funk", "bed-disco", "bed-picnic", "bed-island", "bed-march", "bed-sparkle", "bed-campfire", "bed-train", "bed-waltz", "bed-pulse", "bed-orbit", "bed-clockwork", "bed-boot", "bed-wonder"] as const) {     // and the variety beds (2026-11-13)
     yes(name in MUSIC, `${name} is a catalogue bed`);
     const buf = rf(path.join(ROOT, "sfx", "music", `${name}.wav`));
     let first = 0, last = 0, maxStep = 0, peak = 0, prev = 0;

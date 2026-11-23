@@ -50,4 +50,6 @@ original work.
 | `switch.wav` | a switch: click and clack (variety set) | synth.mjs, CC0 |
 | `key-blip.wav` | a soft keyboard blip (variety set) | synth.mjs, CC0 |
 
+**The growth of 2026-11-23 (B48):** 72 more sounds in `sfx/more.mjs` (water, wood, metal, cloth, paper, glass, food, animals, vehicles, household, devices, weather, interface, body, cartoon) and 21 more music beds in `sfx/beds-more.mjs`, all synthesised from sines, noise and filters like the rest (no sample, no download), CC0, open until ian approves them. Each file is the name in `src/catalog.ts` plus `.wav`.
+
 No voice is synthesised or sampled anywhere: the voice-over is a separate task (P28-C).

@@ -8,6 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { MUSIC, SFX_SAMPLE_RATE as SR } from "../src/catalog.ts";
 import { writeWav } from "./wav.mjs";
+import { moreBeds } from "./beds-more.mjs";
 
 const TAU = Math.PI * 2, BPM = 80, BEAT = 60 / BPM, BAR = 4 * BEAT, LEN = 24;
 const OUT = path.join(path.dirname(fileURLToPath(import.meta.url)), "music");
@@ -250,6 +251,8 @@ Object.assign(makers, {
     return lowpass(buf, 2800);
   },
 });
+
+Object.assign(makers, moreBeds({ note, strike, burst, synth, kick, echo, pump, mixInto, lowpass, rng, SR }));   // the growth of 2026-11-23 (B48)
 
 mkdirSync(OUT, { recursive: true });
 // --preview: the same beds into out/music/ for ian to listen to: the loop as it is, and a 30 s version that plays the loop again and again across the seam

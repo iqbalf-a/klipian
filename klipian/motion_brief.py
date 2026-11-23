@@ -69,6 +69,9 @@ def _catalog_text(cat: dict, kind: str = "template") -> str:
     people = "" if custom else f"**Characters:** one person (`chibi`): roles {', '.join(ch['roles'])}; expressions {', '.join(ch['expressions'])}; poses {', '.join(ch['poses'])}; costumes {', '.join(ch['costumes'])}.\n"
     sockets = "" if custom else (f"**Sockets:** views {', '.join(e['socketViews'])}; outside variants {', '.join(e['outsideVariants'])}; cutaway variants {', '.join(e['cutawayVariants'])}; `heat` 0..1 glows red at the contact; `plug.route` is a list of 2-6 [x, y] points the cable follows (it is drawn as a smooth curve).\n"
                                  f"**Parts a label or arrow can follow** (`follow`): {', '.join(e['anchors'])}. Label colours: {', '.join(e['labelColors'])}; arrow colours: {', '.join(e['arrowColors'])}.\n")
+    # a Khusus story names no sound (its sfx.ts does): the names are the keys of SFX in remotion/src/catalog.ts, grouped in SFX_FAMILIES, so they are not listed twice (the catalog grew to 100+ names, B48)
+    sfx_names = (f"the {len(cat['sfx']['names'])} sounds are the keys of `SFX` in `remotion/src/catalog.ts` (the same ones for every video; `SFX_FAMILIES` groups the ones that do the same job)" if custom
+                 else f"{', '.join(cat['sfx']['names'])}, or \"none\"")
     rules = [r for r in cat["rules"] if not custom or not any(w in r for w in ("socket", "`pose`", "exit before"))]      # Khusus: no socket, chibi or item motion in the story
     return f"""## Catalogue: the only things a video can contain
 
@@ -91,7 +94,7 @@ y {sa['top']}..{sa['bottom']} ({sa['note']}).
 **Backgrounds:** {', '.join(e['backgrounds'])} (`brand` = the sky and the far back behind the set, with its yellow spot, never behind the top text; `lab` = the dark room inside the lens and for cutaways; `room`, `black` = plain).
 **Beat kinds:** {', '.join(e['beatKinds'])}.
 {sockets}**Motion words:** enter {', '.join(mo['enter'])}; exit {', '.join(mo['exit'])}; directions {', '.join(mo['directions'])}; actions {', '.join(mo['actions'])}; camera {', '.join(mo['camera'])}; transitions {', '.join(mo['transitions'])}. {mo['notes']}
-**Sound effects:** {', '.join(cat['sfx']['names'])}, or "none". {cat['sfx']['note']}.
+**Sound effects:** {sfx_names}. {cat['sfx']['note']}.
 
 **Rules the answer is checked against** (klipian refuses anything else and sends you a list of what to fix):
 """ + "\n".join(f"- {r}" for r in rules) + f"""
