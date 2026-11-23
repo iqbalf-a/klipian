@@ -20,6 +20,8 @@ const NIGHT = "#1a1530";
 // ---------- the people (each their own outfit and face, B46 i) ------------------------------------------------------------------
 const DIMAS_AT = V(-2.3, 0, -0.6);
 const UDIN_AT = V(2.2, 0, -1.15);
+/** Mang Udin steps right while the three foods pop, so none of them hides behind him. */
+const UDIN_X: [number, number][] = [[0, 2.2], [25.2, 2.2], [25.7, 3.4], [28.8, 3.4], [29.4, 2.2], [70, 2.2]];
 const RANI_AT = V(-0.1, 0, 0.7);
 const DIMAS: Outfit = { shirt: "#5a6fd8", stripe: "#3b4aa6", pattern: "plain", hair: "spiky", hairColor: "#17141c", nose: "dot" };
 const UDIN: Outfit = { shirt: "#e07a2f", stripe: "#8c4a14", pattern: "check", hat: "peci", mustache: true, body: "wide", nose: "big" };
@@ -38,7 +40,7 @@ const SHOTS: Shot[] = [
   { from: 19.9, a: { pos: V(-1.6, 1.25, 1.6), look: V(-2.3, 1.25, -0.6) }, b: { pos: V(-1.9, 1.3, 1.2), look: V(-2.3, 1.25, -0.6) } }, // Dimas coba menahan diri
   { from: 21.6, a: { pos: V(-2.4, 1.5, 3.4), look: V(-2.65, 1.45, -0.8) }, b: { pos: V(-2.55, 1.5, 3.1), look: V(-2.7, 1.5, -0.8) } }, // satu jam, dua jam (the clock runs)
   { from: 23.5, a: { pos: V(-1.6, 1.25, 1.6), look: V(-2.3, 1.25, -0.6) }, b: { pos: V(-1.9, 1.3, 1.2), look: V(-2.3, 1.25, -0.6) } }, // tapi tiap kurang tidur
-  { from: 25.6, a: { pos: V(1.2, 1.3, 2.7), look: V(1.6, 1.1, -0.5) }, b: { pos: V(3.0, 1.3, 2.7), look: V(2.8, 1.1, -0.5) } },  // nasi, gorengan, es teh manis
+  { from: 25.6, a: { pos: V(2.25, 1.5, 5.2), look: V(2.25, 1.0, -0.55) }, b: { pos: V(2.25, 1.4, 4.7), look: V(2.25, 1.0, -0.55) } },  // nasi, gorengan, es teh manis
   { from: 28.6, a: { pos: V(-1.3, 1.3, 2.4), look: V(-2.3, 1.3, -0.6) }, b: { pos: V(-1.7, 1.3, 2.0), look: V(-2.3, 1.3, -0.6) } }, // bukan sayur, bukan buah
   { from: 30.8, a: { pos: V(-2.1, 1.0, 2.8), look: V(-2.3, 0.95, -0.6) }, b: { pos: V(-2.2, 1.0, 2.3), look: V(-2.3, 0.95, -0.6) } }, // perutnya minta yang cepat dan manis (the belly)
   { from: 33.6, a: { pos: V(-1.2, 1.6, 5.2), look: V(0.3, 1.2, -0.8) }, b: { pos: V(0.6, 1.5, 4.6), look: V(1.2, 1.2, -0.8) } },   // ternyata ini bukan cuma Dimas
@@ -206,15 +208,17 @@ const World: React.FC<{ t: number; f: number }> = ({ t, f }) => {
       <pointLight position={[2.2, 2.1, 0.0]} intensity={2.6 + 0.2 * Math.sin(f * 0.37)} distance={6} decay={2} color="#ffbe6a" />
       <sprite position={[2.2, 2.2, 0.1]} scale={[2.6, 1.1, 1]}><spriteMaterial map={tex.glow} transparent opacity={0.45} depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} /></sprite>
       {/* on the counter: nasi, gorengan, es teh, a pot with steam (the foods pop on their word) */}
-      <group position={[1.5, 1.01, -0.55]} scale={pop(POPS.nasi)}>
-        <mesh castShadow><cylinderGeometry args={[0.2, 0.18, 0.04, 24]} /><meshStandardMaterial color="#f4f1ea" roughness={0.4} /></mesh>
+      <group position={[1.5, 1.01, -0.55]} scale={pop(POPS.nasi) * 1.5}>
+        <mesh castShadow><cylinderGeometry args={[0.2, 0.18, 0.04, 24]} /><meshStandardMaterial color="#3f8f5a" roughness={0.4} /></mesh>
         <mesh position={[0, 0.07, 0]} castShadow><sphereGeometry args={[0.15, 18, 12, 0, 6.3, 0, 1.45]} /><meshStandardMaterial color="#fffdf2" roughness={0.9} /></mesh>
+        <mesh position={[0.02, 0.2, 0]} castShadow><cylinderGeometry args={[0.1, 0.1, 0.012, 24]} /><meshStandardMaterial color="#ffffff" roughness={0.5} /></mesh>
+        <mesh position={[0.02, 0.215, 0]} castShadow><sphereGeometry args={[0.04, 14, 10]} /><meshStandardMaterial color="#ffc21a" roughness={0.4} /></mesh>
       </group>
-      <group position={[2.2, 1.01, -0.55]} scale={pop(POPS.gorengan)}>
+      <group position={[2.2, 1.01, -0.55]} scale={pop(POPS.gorengan) * 1.5}>
         <mesh castShadow><cylinderGeometry args={[0.24, 0.22, 0.03, 24]} /><meshStandardMaterial color="#d9534a" roughness={0.4} /></mesh>
         {[[-0.1, 0.05, 0], [0.1, 0.05, 0.02], [0, 0.05, -0.1], [0, 0.05, 0.1], [-0.05, 0.14, 0.02], [0.07, 0.14, -0.03], [0.0, 0.22, 0.0]].map((p, i) => <mesh key={i} position={p as [number, number, number]} rotation={[0.3 * i, 0.5 * i, 0.2]} castShadow><boxGeometry args={[0.12, 0.07, 0.08]} /><meshStandardMaterial color={["#d99a2b", "#c9821d", "#e5ad3f"][i % 3]} roughness={0.7} /></mesh>)}
       </group>
-      <group position={[3.0, 1.01, -0.55]} scale={pop(POPS.teh)}>
+      <group position={[3.0, 1.01, -0.55]} scale={pop(POPS.teh) * 1.5}>
         <mesh position={[0, 0.17, 0]} castShadow><cylinderGeometry args={[0.1, 0.09, 0.34, 20]} /><meshStandardMaterial color="#c9741a" transparent opacity={0.85} roughness={0.2} /></mesh>
         {[[-0.03, 0.3, 0.02], [0.03, 0.26, -0.02], [0, 0.34, 0.03]].map((p, i) => <mesh key={i} position={p as [number, number, number]} rotation={[0.4 * i, 0.3, 0.2]}><boxGeometry args={[0.05, 0.05, 0.05]} /><meshStandardMaterial color="#e8f6ff" roughness={0.2} /></mesh>)}
       </group>
@@ -280,7 +284,7 @@ export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = () => {
         {asleep
           ? <group position={[-2.4, 0.9, -1.0]} rotation={[0, 0, Math.PI / 2]}><StickHero pos={V(0, 0, 0)} expr="sleepy" arms="down" f={f} outfit={DIMAS} height={1.5} /></group>
           : <StickHero pos={DIMAS_AT} expr={dExpr} arms={dArms} f={f} outfit={DIMAS} />}
-        <StickHero pos={UDIN_AT} expr={uExpr} arms={uArms} f={f} outfit={UDIN} />
+        <StickHero pos={V(keyed(UDIN_X, t), 0, UDIN_AT.z)} expr={uExpr} arms={uArms} f={f} outfit={UDIN} />
         <StickHero pos={RANI_AT} expr={rExpr} arms={rArms} f={f} outfit={RANI} />
       </ThreeCanvas>
       <div style={{ position: "absolute", left: 0, right: 0, top: 260, display: "flex", flexDirection: "column", alignItems: "center", gap: 14, opacity: hookA }}>
