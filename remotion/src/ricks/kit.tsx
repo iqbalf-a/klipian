@@ -109,7 +109,7 @@ export const TBox: React.FC<{ size: [number, number, number]; pos: [number, numb
 
 // ---------- the stick cast -----------------------------------------------------------------------------------------------------
 export type Expr = "hungry" | "grin" | "sly" | "calm" | "puzzled" | "sleepy" | "shocked" | "furious";
-export type Arms = "belly" | "wave" | "down" | "point";
+export type Arms = "belly" | "wave" | "down" | "point" | "up" | "shrug" | "hips";
 /** What makes one stick person look like nobody else in the video (ian: vary the people): shirt colours, and optionally a hat,
    hair, a moustache and a wider body. Omitted fields give the plain look (spiky hair, slim body, no hat). */
 export type Outfit = {
@@ -123,14 +123,25 @@ export type Outfit = {
 };
 
 /** One stick figure on a 512 x 1024 canvas, soles at the bottom. `wob` (-1..1) moves the growl lines, the zzz and a waving hand. */
-export function drawStick(c: CanvasRenderingContext2D, expr: Expr, arms: Arms, blink: boolean, wob: number, outfit: Outfit) {
+/** Optional motion for one frame: talk = mouth open 0..1 (lip-sync), g = arm gesture 0..1 (arms rise and fall while speaking), step = walk phase (0 = standing). */
+export type Motion = { talk?: number; g?: number; step?: number };
+export function drawStick(c: CanvasRenderingContext2D, expr: Expr, arms: Arms, blink: boolean, wob: number, outfit: Outfit, m: Motion = {}) {
   c.clearRect(0, 0, 512, 1024);
   c.lineCap = c.lineJoin = "round";
   c.strokeStyle = INK; c.fillStyle = INK; c.lineWidth = 14;
-  c.beginPath(); c.moveTo(230, 700); c.lineTo(212, 990); c.moveTo(282, 700); c.lineTo(300, 990); c.stroke();
-  c.beginPath(); c.ellipse(200, 995, 34, 16, 0, 0, 7); c.ellipse(314, 995, 34, 16, 0, 0, 7); c.fill();
+  const sw = m.step ? Math.sin(m.step) : 0, lf = Math.max(0, sw) * 30, rf = Math.max(0, -sw) * 30;   // walking: the legs swing, the lifted foot rises
+  c.beginPath(); c.moveTo(230, 700); c.lineTo(212 + sw * 50, 990 - lf); c.moveTo(282, 700); c.lineTo(300 + sw * 50, 990 - rf); c.stroke();
+  c.beginPath(); c.ellipse(200 + sw * 50, 995 - lf, 34, 16, 0, 0, 7); c.ellipse(314 + sw * 50, 995 - rf, 34, 16, 0, 0, 7); c.fill();
   c.beginPath();
-  if (arms === "belly") { c.moveTo(190, 470); c.lineTo(150, 590); c.moveTo(322, 470); c.lineTo(364, 590); }
+  const g = m.g ?? 0, g2 = Math.max(0, g * 1.4 - 0.4);   // the second arm lags behind the first
+  if ((arms === "down" || arms === "belly") && g > 0.02) {
+    c.moveTo(190, 470); c.lineTo(140 - 50 * g, 640 - 190 * g); c.lineTo(150 - 80 * g, 700 - 330 * g);
+    c.moveTo(322, 470); c.lineTo(372 + 50 * g2, 640 - 190 * g2); c.lineTo(362 + 80 * g2, 700 - 330 * g2);
+  }
+  else if (arms === "up") { c.moveTo(190, 470); c.lineTo(120, 330); c.lineTo(100, 200); c.moveTo(322, 470); c.lineTo(392, 330); c.lineTo(412, 200); }
+  else if (arms === "shrug") { c.moveTo(190, 470); c.lineTo(110, 590); c.lineTo(60, 500); c.moveTo(322, 470); c.lineTo(402, 590); c.lineTo(452, 500); }
+  else if (arms === "hips") { c.moveTo(190, 470); c.lineTo(110, 560); c.lineTo(192, 620); c.moveTo(322, 470); c.lineTo(402, 560); c.lineTo(320, 620); }
+  else if (arms === "belly") { c.moveTo(190, 470); c.lineTo(150, 590); c.moveTo(322, 470); c.lineTo(364, 590); }
   else if (arms === "wave") { c.moveTo(190, 470); c.lineTo(130, 640); c.lineTo(150, 700); c.moveTo(322, 470); c.lineTo(420, 380); c.lineTo(440 + wob * 30, 250); }
   else if (arms === "point") { c.moveTo(190, 470); c.lineTo(110, 380); c.lineTo(40, 260); c.moveTo(322, 470); c.lineTo(380, 640); c.lineTo(360, 700); }
   else { c.moveTo(190, 470); c.lineTo(140, 640); c.lineTo(150, 700); c.moveTo(322, 470); c.lineTo(372, 640); c.lineTo(362, 700); }
@@ -146,7 +157,7 @@ export function drawStick(c: CanvasRenderingContext2D, expr: Expr, arms: Arms, b
   else if (pat === "collar") { c.beginPath(); c.moveTo(216, 420); c.lineTo(256, 470); c.lineTo(296, 420); c.closePath(); c.fill(); c.fillRect(250, 470, 12, 240); }
   c.restore();
   c.lineWidth = 12; c.beginPath(); c.roundRect(bx, 420, bw, 300, 48); c.stroke();
-  if (arms === "belly") {
+  if (arms === "belly" && g <= 0.02) {
     c.lineWidth = 14; c.beginPath(); c.moveTo(150, 590); c.lineTo(236, 600); c.moveTo(364, 590); c.lineTo(278, 600); c.stroke();
     c.lineWidth = 7; c.beginPath();
     for (const s of [-1, 1]) for (let k = 0; k < 3; k++) { const x = 256 + s * (120 + k * 26), y = 560 + k * 30 + wob * 6; c.moveTo(x, y); c.quadraticCurveTo(x + s * 14, y + 8, x, y + 18); }
@@ -185,7 +196,12 @@ export function drawStick(c: CanvasRenderingContext2D, expr: Expr, arms: Arms, b
     c.fillStyle = "#fff"; c.beginPath(); c.arc(216, 254, 4, 0, 7); c.arc(306, 254, 4, 0, 7); c.fill();
   } else { c.beginPath(); c.ellipse(212, 262, 12, 17, 0, 0, 7); c.ellipse(302, 262, 12, 17, 0, 0, 7); c.fill(); }
   c.lineWidth = 9; c.beginPath(); c.fillStyle = INK;
-  if (expr === "grin") { c.moveTo(208, 322); c.quadraticCurveTo(258, 392, 308, 322); c.closePath(); c.fill(); c.fillStyle = "#e86a6a"; c.beginPath(); c.ellipse(258, 352, 22, 10, 0, 0, 7); c.fill(); }
+  const tk = m.talk ?? 0;
+  if (tk > 0.05 && expr !== "furious") {   // lip-sync: the mouth opens and closes on the spoken word
+    c.ellipse(258, 334 + 8 * tk, 24 + 12 * tk, 7 + 30 * tk, 0, 0, 7); c.fill();
+    if (tk > 0.45) { c.fillStyle = "#e86a6a"; c.beginPath(); c.ellipse(258, 334 + 24 * tk, 16, 8 * tk, 0, 0, 7); c.fill(); }
+  }
+  else if (expr === "grin") { c.moveTo(208, 322); c.quadraticCurveTo(258, 392, 308, 322); c.closePath(); c.fill(); c.fillStyle = "#e86a6a"; c.beginPath(); c.ellipse(258, 352, 22, 10, 0, 0, 7); c.fill(); }
   else if (expr === "hungry") { c.moveTo(222, 344); for (let k = 0; k < 4; k++) c.quadraticCurveTo(232 + k * 18, 330 + (k % 2) * 28, 240 + k * 18, 344); c.stroke(); }
   else if (expr === "shocked") { c.ellipse(258, 346, 20, 28, 0, 0, 7); c.fill(); }
   else if (expr === "sly") { c.moveTo(228, 344); c.quadraticCurveTo(262, 352, 300, 328); c.stroke(); }
@@ -235,16 +251,19 @@ function drawHat(c: CanvasRenderingContext2D, o: Outfit) {
 }
 
 /** A stick figure standing at `pos` (soles), facing the camera, on the CAST layer, with a contact shadow on the floor. */
-export const StickHero: React.FC<{ pos: THREE.Vector3; expr: Expr; arms: Arms; f: number; outfit: Outfit; height?: number }> = ({ pos, expr, arms, f, outfit, height = 1.7 }) => {
+/** `talk` opens the mouth (0..1), `act` (0..1) is how lively the person is: arms gesture, the body sways and hops; `step` is a walk phase (omit = standing). */
+export const StickHero: React.FC<{ pos: THREE.Vector3; expr: Expr; arms: Arms; f: number; outfit: Outfit; height?: number; talk?: number; act?: number; step?: number; hop?: number; lean?: number }> = ({ pos, expr, arms, f, outfit, height = 1.7, talk = 0, act = 0, step = 0, hop = 0, lean = 0 }) => {
   const blink = expr !== "sleepy" && (f + 40) % 96 < 3;
   const wob = Math.sin(f * 0.5);
   const tex = useMemo(() => painted(512, 1024, () => undefined), []);
-  drawStick((tex.image as HTMLCanvasElement).getContext("2d")!, expr, arms, blink, wob, outfit);
+  drawStick((tex.image as HTMLCanvasElement).getContext("2d")!, expr, arms, blink, wob, outfit, { talk, step, g: act > 0.3 ? act * (0.5 + 0.5 * Math.sin(f * 0.42)) : 0 });
   tex.needsUpdate = true;
   const breathe = 1 + 0.012 * Math.sin(f * 0.18);
   return (
     <group position={pos.toArray()}>
-      <mesh position={[0, (height / 2) * breathe, 0]} scale={[1, breathe, 1]} layers={CAST}><planeGeometry args={[height / 2, height]} /><meshBasicMaterial map={tex} alphaTest={0.5} toneMapped={false} /></mesh>
+      <group rotation={[0, 0, lean]}>
+        <mesh position={[0, (height / 2) * breathe + hop * height + Math.abs(Math.sin(step)) * 0.03, 0]} scale={[1, breathe, 1]} layers={CAST}><planeGeometry args={[height / 2, height]} /><meshBasicMaterial map={tex} alphaTest={0.5} toneMapped={false} /></mesh>
+      </group>
       <mesh position={[0, 0.005, 0.03]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[height * 0.13, 32]} /><meshBasicMaterial color="#000" transparent opacity={0.35} depthWrite={false} /></mesh>
     </group>
   );

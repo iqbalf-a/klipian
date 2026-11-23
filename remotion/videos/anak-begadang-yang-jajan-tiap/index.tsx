@@ -54,9 +54,9 @@ const SHOTS: Shot[] = [
   { from: 55.14, a: { pos: V(2.4, 1.4, 3.6), look: V(2.2, 1.25, -1.0) }, b: HOOK },                                              // the camera flies back to the first shot (the loop)
   { from: 57.0, a: HOOK, b: HOOK },
 ];
-const DIMAS_FACES: [number, Expr, Arms][] = [[0, "hungry", "belly"], [3.4, "sleepy", "down"], [6.6, "calm", "down"], [14.5, "calm", "down"], [19.9, "puzzled", "down"], [23.5, "hungry", "belly"], [25.6, "hungry", "point"], [28.6, "puzzled", "down"], [30.8, "hungry", "belly"], [33.6, "calm", "down"], [38.4, "sleepy", "down"], [41.4, "shocked", "belly"], [44.0, "hungry", "belly"], [47.0, "calm", "down"], [50.6, "sleepy", "down"], [56.2, "hungry", "belly"]];
-const UDIN_FACES: [number, Expr, Arms][] = [[0, "grin", "wave"], [3.4, "sly", "down"], [9.0, "grin", "wave"], [14.5, "calm", "down"], [33.6, "sly", "down"], [50.6, "sleepy", "down"]];
-const RANI_FACES: [number, Expr, Arms][] = [[0, "calm", "down"], [14.5, "sly", "point"], [16.8, "calm", "point"], [19.9, "puzzled", "down"], [47.0, "puzzled", "down"], [50.6, "calm", "down"]];
+const DIMAS_FACES: [number, Expr, Arms][] = [[0, "hungry", "belly"], [3.4, "sleepy", "down"], [5.1, "sleepy", "up"], [5.9, "sleepy", "down"], [6.6, "calm", "down"], [7.8, "grin", "shrug"], [8.7, "calm", "down"], [14.5, "calm", "down"], [19.9, "puzzled", "down"], [23.5, "hungry", "belly"], [25.6, "hungry", "point"], [28.6, "puzzled", "down"], [30.8, "hungry", "belly"], [33.6, "calm", "down"], [38.4, "sleepy", "down"], [41.4, "shocked", "belly"], [42.9, "shocked", "up"], [44.0, "hungry", "belly"], [47.0, "calm", "down"], [50.6, "sleepy", "down"], [56.2, "hungry", "belly"]];
+const UDIN_FACES: [number, Expr, Arms][] = [[0, "grin", "wave"], [3.4, "sly", "down"], [9.0, "grin", "wave"], [11.8, "grin", "down"], [13.9, "grin", "wave"], [14.5, "calm", "down"], [33.6, "sly", "down"], [50.6, "sleepy", "down"]];
+const RANI_FACES: [number, Expr, Arms][] = [[0, "calm", "down"], [14.5, "sly", "point"], [16.8, "calm", "down"], [19.9, "puzzled", "down"], [47.0, "puzzled", "down"], [48.6, "calm", "shrug"], [50.2, "calm", "hips"], [52.0, "calm", "down"]];
 /** The alarm clock in minutes after midnight: 00:12, then "satu jam, dua jam" (02:12), then the study's four hours run past (04:12); it resets with the loop. */
 const CLOCK_KEYS: [number, number][] = [[0, 12], [21.7, 12], [22.1, 72], [22.8, 132], [39.3, 132], [41.0, 252], [56.0, 252], [56.8, 12], [70, 12]];
 /** The bar chart on the wall: the "kurang tidur" bar grows from the normal height by 24 % on "hampir seperempat". */
@@ -260,6 +260,34 @@ const World: React.FC<{ t: number; f: number }> = ({ t, f }) => {
   );
 };
 
+/** The people speak only lines the story has them say (a quote inside the narration); everything else is the narrator, so no mouth moves: who, from, to, and "w" = mouth flaps on the words, "o" = held open (a yawn). */
+const TALK: [string, number, number, "w" | "o"][] = [
+  ["d", 5.1, 5.9, "o"], ["r", 17.3, 19.5, "w"],   // a yawn (no words) and the one line a person really says: Rani, "itu cuma kebiasaan, bukan lapar beneran"
+];
+const WORD_LIST = WORDS as { w: string; a: number; b: number }[];
+const flap = (t: number) => { for (const x of WORD_LIST) if (t >= x.a && t < x.b - 0.04) return 0.3 + 0.7 * Math.abs(Math.sin((t - x.a) * 17)); return 0; };
+const talkOf = (who: string, t: number) => { for (const [p, a, b, m] of TALK) if (p === who && t >= a && t < b) return m === "o" ? 1 : flap(t); return 0; };
+const speaking = (who: string, t: number) => TALK.some(([p, a, b]) => p === who && t >= a && t < b);
+/** Acting beats: [kind, from, to, amount]. hop = a jump (height), lean = tilts and holds (rad, + = left), shake = shivers (rad). */
+type Beat = ["hop" | "lean" | "shake", number, number, number];
+const beatsAt = (beats: Beat[], t: number) => {
+  let hop = 0, lean = 0;
+  for (const [k, a, b, v] of beats) {
+    if (t < a || t >= b) continue;
+    const u = (t - a) / (b - a);
+    if (k === "hop") hop += Math.sin(u * Math.PI) * v;
+    else if (k === "lean") lean += Math.min(1, u * 5, (1 - u) * 5) * v;
+    else lean += Math.sin(t * 40) * v * Math.min(1, u * 6, (1 - u) * 6);
+  }
+  return { hop, lean };
+};
+const D_BEATS: Beat[] = [["lean", 0.2, 3.2, -0.05], ["hop", 2.5, 2.95, 0.12], ["shake", 2.0, 3.3, 0.03], ["lean", 3.6, 6.0, -0.06], ["lean", 7.8, 8.6, 0.06], ["shake", 20.3, 21.5, 0.05], ["hop", 21.7, 22.05, 0.1], ["hop", 22.7, 23.05, 0.1],
+  ["shake", 24.0, 25.4, 0.03], ["lean", 28.7, 29.3, 0.12], ["lean", 29.7, 30.3, 0.12], ["shake", 31.0, 33.0, 0.04], ["hop", 34.3, 34.7, 0.1], ["hop", 42.9, 43.6, 0.3], ["lean", 44.2, 46.8, -0.1], ["hop", 44.6, 44.9, 0.08], ["hop", 45.7, 46.0, 0.08]];
+const R_BEATS: Beat[] = [["lean", 14.8, 16.5, 0.06], ["hop", 15.6, 15.9, 0.1], ["hop", 17.3, 17.6, 0.08], ["hop", 18.7, 19.0, 0.08], ["lean", 47.5, 50.0, 0.08], ["hop", 47.9, 48.2, 0.1], ["shake", 33.9, 34.7, 0.03]];
+const U_BEATS: Beat[] = [["hop", 9.1, 9.5, 0.08], ["lean", 9.6, 11.4, -0.07], ["hop", 12.0, 12.3, 0.1], ["hop", 12.7, 13.0, 0.1], ["hop", 13.3, 13.6, 0.1], ["lean", 52.9, 55.0, 0.1]];
+/** Positions: Dimas paces in the wide shot, Rani walks over to him on "bukan cuma Dimas", and goes back while the camera is on the chart. */
+const DIMAS_X: [number, number][] = [[0, -2.3], [6.5, -2.3], [7.4, -1.5], [8.7, -1.5], [10.5, -2.3], [28.6, -2.3], [29.0, -2.65], [29.9, -2.65], [30.4, -2.3], [70, -2.3]];
+const RANI_X: [number, number][] = [[0, -0.1], [33.6, -0.1], [34.9, -1.2], [35.5, -1.2], [37.0, -0.1], [70, -0.1]];
 const READ = [...readWords(WORDS), { w: "Dimas", a: 57.0, b: 57.34 }];   // the first word comes back on the last 0.3 s so the loop holds
 
 export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = () => {
@@ -270,6 +298,12 @@ export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = () => {
   const [, uExpr, uArms] = stepAt(UDIN_FACES, t);
   const [, rExpr, rArms] = stepAt(RANI_FACES, t);
   const asleep = t >= 51.5 && t < 56.2;                          // after "tidur duluan" Dimas lies on the bed until the loop-back
+  const person = (id: string, bt: Beat[], xs: [number, number][] | null) => {
+    const m = beatsAt(bt, t), x = xs ? keyed(xs, t) : 0;
+    const v = xs ? Math.abs(keyed(xs, t + 0.05) - keyed(xs, t - 0.05)) : 0;
+    return { x, props: { talk: talkOf(id, t), act: speaking(id, t) ? 1 : 0, hop: m.hop, lean: m.lean, step: v > 0.02 ? f * 0.55 : 0 } };
+  };
+  const D = person("d", D_BEATS, DIMAS_X), R = person("r", R_BEATS, RANI_X), U = person("u", U_BEATS, UDIN_X);
   const hookA = t < 3.1 ? 1 : t < 3.4 ? 1 - (t - 3.1) / 0.3 : t >= 56.4 ? Math.min(1, (t - 56.4) / 0.6) : 0;
   return (
     <AbsoluteFill style={{ backgroundColor: NIGHT }}>
@@ -282,10 +316,10 @@ export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = () => {
         <RicksPost cam={cam} bloom={0.3} />
         <World t={t} f={f} />
         {asleep
-          ? <group position={[-2.4, 0.9, -1.0]} rotation={[0, 0, Math.PI / 2]}><StickHero pos={V(0, 0, 0)} expr="sleepy" arms="down" f={f} outfit={DIMAS} height={1.5} /></group>
-          : <StickHero pos={DIMAS_AT} expr={dExpr} arms={dArms} f={f} outfit={DIMAS} />}
-        <StickHero pos={V(keyed(UDIN_X, t), 0, UDIN_AT.z)} expr={uExpr} arms={uArms} f={f} outfit={UDIN} />
-        <StickHero pos={RANI_AT} expr={rExpr} arms={rArms} f={f} outfit={RANI} />
+          ? <group position={[-2.7, 0.66, -1.15]} rotation={[0, 0, Math.PI / 2]}><StickHero pos={V(0, 0, 0)} expr="sleepy" arms="down" f={f} outfit={DIMAS} height={1.5} /></group>
+          : <StickHero pos={V(D.x, 0, DIMAS_AT.z)} expr={dExpr} arms={dArms} f={f} outfit={DIMAS} {...D.props} />}
+        <StickHero pos={V(U.x, 0, UDIN_AT.z)} expr={uExpr} arms={uArms} f={f} outfit={UDIN} {...U.props} />
+        <StickHero pos={V(R.x, 0, RANI_AT.z)} expr={rExpr} arms={rArms} f={f} outfit={RANI} {...R.props} />
       </ThreeCanvas>
       <div style={{ position: "absolute", left: 0, right: 0, top: 260, display: "flex", flexDirection: "column", alignItems: "center", gap: 14, opacity: hookA }}>
         {HOOK_LINES.map((l) => (
