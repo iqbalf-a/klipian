@@ -111,6 +111,7 @@ for (const r of DICTIONARY.filter((k) => k.status === "drawn")) {
   delete shifted.bible;                                                  // without the marker the musts are warnings, not errors
   const sv = validateStory(shifted);
   yes(sv.ok && bibleWarnings(sv.story).some((x) => x.message.includes("Intip yuk!")), "a story without the \"Intip yuk!\" sting gets the must 1 warning");
+  yes(sv.ok && !bibleWarnings({ beats: sv.story.beats, look: "ricks" }).some((x) => x.message.includes("Intip yuk!")), "look ricks needs no \"Intip yuk!\" sting (B46 l)");
 }
 
 // the motion language is the one of src/motion.ts: the same springs, the same easings, the same ambient periods

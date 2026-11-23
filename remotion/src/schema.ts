@@ -132,11 +132,11 @@ export const Claim = z.object({
 /** The Style Bible's warnings (DESIGN.md section 0b): not blocking, so an older story still validates, and shown in the Storyboard. A story with
  *  `bible: 1` turns each one into an error (Story below). The "Intip yuk!" sting and the loop-back outro are the two musts (B16). */
 export const BIBLE_STING_MAX_W = 260;
-export const bibleWarnings = (s: { beats: z.infer<typeof Beat>[] }): { path: (string | number)[]; message: string }[] => {
+export const bibleWarnings = (s: { beats: z.infer<typeof Beat>[]; look?: string }): { path: (string | number)[]; message: string }[] => {
   const out: { path: (string | number)[]; message: string }[] = [];
   const first = s.beats[0], second = s.beats[1], last = s.beats[s.beats.length - 1];
   if (!first || first.kind !== "hook") out.push({ path: ["beats"], message: "the first beat should be the hook (kind hook): an everyday question, a surprising statement or a myth" });
-  if (!second || second.kind !== "sting" || !/intip yuk/i.test(second.text)) {
+  if (s.look !== "ricks" && (!second || second.kind !== "sting" || !/intip yuk/i.test(second.text))) { // look ricks goes straight into the story, no sting unless asked (B46 l)
     out.push({ path: ["beats"], message: 'the video needs the small "Intip yuk!" sting right after the hook: the second beat, kind sting, with the text "Intip yuk!" (B16 must 1)' });
   }
   if (!last || last.kind !== "outro") out.push({ path: ["beats"], message: "the video needs a loop-back outro as its last beat (B16 must 2)" });
