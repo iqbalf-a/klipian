@@ -1475,7 +1475,7 @@ $("#clipSyncAll")?.addEventListener("click", async (e) => {
     if (j.restatused.length) parts.push(`${j.restatused.length} status changed to match YouTube`);
     if (j.moved.length) parts.push(`${j.moved.length} date/time taken from YouTube`);
     if (j.added.length) parts.push(`from the channel: ${j.added.map((v) => `${v.title} (${v.linked ? "linked" : "added"})`).join(", ")}`);
-    parts.push((x.files || []).length ? `xlsx updated: ${x.files.map((f) => f.file).join(", ")}` : "no xlsx row matched");
+    parts.push((x.files || []).length ? `xlsx updated: ${x.files.map((f) => f.file).join(", ")}` : (x.unmatched || []).length ? "no xlsx row changed" : "xlsx already up to date");
     if ((x.unmatched || []).length) parts.push(`no xlsx row for: ${x.unmatched.join(", ")}`);
     for (const w of j.warnings) parts.push(`${CLIPS.find((c) => c.id === w.id)?.title || "A clip"}: ${w.message}`);
     for (const m of x.errors || []) parts.push(m);
