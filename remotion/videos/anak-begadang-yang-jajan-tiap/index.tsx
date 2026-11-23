@@ -32,7 +32,7 @@ const HOOK: Cam = { pos: V(-2.1, 1.3, 3.4), look: V(-2.3, 1.36, -0.6) };
 const SHOTS: Shot[] = [
   { from: 0, a: HOOK, b: { pos: V(-2.15, 1.3, 3.0), look: V(-2.3, 1.36, -0.6) } },                                   // Dimas begadang, tiap jam dia jajan
   { from: 3.4, a: { pos: V(-1.6, 1.25, 1.6), look: V(-2.3, 1.25, -0.6) }, b: { pos: V(-1.9, 1.3, 1.2), look: V(-2.3, 1.25, -0.6) } }, // jam sebelas malam, laptop nyala, tugas belum kelar
-  { from: 6.6, a: { pos: V(-1.2, 1.6, 5.2), look: V(0.3, 1.2, -0.8) }, b: { pos: V(0.6, 1.5, 4.6), look: V(1.2, 1.2, -0.8) } },   // Dimas yakin itu cuma lapar mata (the whole gang)
+  { from: 6.6, a: { pos: V(-1.0, 1.5, 5.0), look: V(-0.9, 1.2, -0.7) }, b: { pos: V(-0.7, 1.45, 4.6), look: V(-0.7, 1.2, -0.7) } },   // Dimas yakin itu cuma lapar mata (the whole gang)
   { from: 9.0, a: { pos: V(1.0, 1.35, 2.2), look: V(2.2, 1.3, -1.0) }, b: { pos: V(1.7, 1.35, 1.6), look: V(2.2, 1.35, -1.0) } },  // Mang Udin burjo hafal pesanan
   { from: 11.8, a: { pos: V(1.2, 1.3, 2.7), look: V(1.6, 1.1, -0.5) }, b: { pos: V(3.0, 1.3, 2.7), look: V(2.8, 1.1, -0.5) } },  // mi instan, telur, es teh (along the counter)
   { from: 14.5, a: { pos: V(0.9, 1.3, 4.0), look: V(0.05, 1.2, 0.7) }, b: { pos: V(0.7, 1.3, 3.5), look: V(0.05, 1.2, 0.7) } },     // Rani pasang aplikasi kalori
@@ -43,7 +43,7 @@ const SHOTS: Shot[] = [
   { from: 25.6, a: { pos: V(2.25, 1.5, 5.2), look: V(2.25, 1.0, -0.55) }, b: { pos: V(2.25, 1.4, 4.7), look: V(2.25, 1.0, -0.55) } },  // nasi, gorengan, es teh manis
   { from: 28.6, a: { pos: V(-1.3, 1.3, 2.4), look: V(-2.3, 1.3, -0.6) }, b: { pos: V(-1.7, 1.3, 2.0), look: V(-2.3, 1.3, -0.6) } }, // bukan sayur, bukan buah
   { from: 30.8, a: { pos: V(-2.1, 1.0, 2.8), look: V(-2.3, 0.95, -0.6) }, b: { pos: V(-2.2, 1.0, 2.3), look: V(-2.3, 0.95, -0.6) } }, // perutnya minta yang cepat dan manis (the belly)
-  { from: 33.6, a: { pos: V(-1.2, 1.6, 5.2), look: V(0.3, 1.2, -0.8) }, b: { pos: V(0.6, 1.5, 4.6), look: V(1.2, 1.2, -0.8) } },   // ternyata ini bukan cuma Dimas
+  { from: 33.6, a: { pos: V(-1.2, 1.5, 5.0), look: V(-1.1, 1.2, -0.7) }, b: { pos: V(-1.0, 1.45, 4.6), look: V(-1.0, 1.2, -0.7) } },   // ternyata ini bukan cuma Dimas
   { from: 35.4, a: { pos: V(-3.0, 1.5, 1.6), look: V(-3.6, 1.5, -1.8) }, b: { pos: V(-3.2, 1.5, 1.3), look: V(-3.6, 1.5, -1.8) } },  // peneliti di Universitas Chicago (the chart)
   { from: 38.4, a: { pos: V(-2.4, 1.5, 3.4), look: V(-2.65, 1.45, -0.8) }, b: { pos: V(-2.55, 1.5, 3.1), look: V(-2.7, 1.5, -0.8) } }, // tidur empat jam, dua malam (the clock)
   { from: 41.4, a: { pos: V(-3.0, 1.5, 1.6), look: V(-3.6, 1.5, -1.8) }, b: { pos: V(-3.2, 1.5, 1.3), look: V(-3.6, 1.5, -1.8) } },  // nafsu makan naik hampir seperempat
@@ -54,7 +54,7 @@ const SHOTS: Shot[] = [
   { from: 55.14, a: { pos: V(2.4, 1.4, 3.6), look: V(2.2, 1.25, -1.0) }, b: HOOK },                                              // the camera flies back to the first shot (the loop)
   { from: 57.0, a: HOOK, b: HOOK },
 ];
-const DIMAS_FACES: [number, Expr, Arms][] = [[0, "hungry", "belly"], [3.4, "sleepy", "down"], [5.1, "sleepy", "up"], [5.9, "sleepy", "down"], [6.6, "calm", "down"], [7.8, "grin", "shrug"], [8.7, "calm", "down"], [14.5, "calm", "down"], [19.9, "puzzled", "down"], [23.5, "hungry", "belly"], [25.6, "hungry", "point"], [28.6, "puzzled", "down"], [30.8, "hungry", "belly"], [33.6, "calm", "down"], [38.4, "sleepy", "down"], [41.4, "shocked", "belly"], [42.9, "shocked", "up"], [44.0, "hungry", "belly"], [47.0, "calm", "down"], [50.6, "sleepy", "down"], [56.2, "hungry", "belly"]];
+const DIMAS_FACES: [number, Expr, Arms][] = [[0, "hungry", "belly"], [3.4, "sleepy", "down"], [5.1, "sleepy", "up"], [5.9, "sleepy", "down"], [6.6, "calm", "down"], [7.8, "grin", "shrug"], [8.7, "calm", "down"], [14.5, "calm", "down"], [19.9, "puzzled", "down"], [23.5, "hungry", "belly"], [25.6, "hungry", "point"], [28.6, "puzzled", "down"], [30.8, "hungry", "belly"], [33.6, "calm", "down"], [38.4, "sleepy", "down"], [41.4, "shocked", "belly"], [44.0, "hungry", "belly"], [44.1, "shocked", "up"], [44.7, "hungry", "belly"], [47.0, "calm", "down"], [50.6, "sleepy", "down"], [56.2, "hungry", "belly"]];
 const UDIN_FACES: [number, Expr, Arms][] = [[0, "grin", "wave"], [3.4, "sly", "down"], [9.0, "grin", "wave"], [11.8, "grin", "down"], [13.9, "grin", "wave"], [14.5, "calm", "down"], [33.6, "sly", "down"], [50.6, "sleepy", "down"]];
 const RANI_FACES: [number, Expr, Arms][] = [[0, "calm", "down"], [14.5, "sly", "point"], [16.8, "calm", "down"], [19.9, "puzzled", "down"], [47.0, "puzzled", "down"], [48.6, "calm", "shrug"], [50.2, "calm", "hips"], [52.0, "calm", "down"]];
 /** The alarm clock in minutes after midnight: 00:12, then "satu jam, dua jam" (02:12), then the study's four hours run past (04:12); it resets with the loop. */
@@ -282,11 +282,11 @@ const beatsAt = (beats: Beat[], t: number) => {
   return { hop, lean };
 };
 const D_BEATS: Beat[] = [["lean", 0.2, 3.2, -0.05], ["hop", 2.5, 2.95, 0.12], ["shake", 2.0, 3.3, 0.03], ["lean", 3.6, 6.0, -0.06], ["lean", 7.8, 8.6, 0.06], ["shake", 20.3, 21.5, 0.05], ["hop", 21.7, 22.05, 0.1], ["hop", 22.7, 23.05, 0.1],
-  ["shake", 24.0, 25.4, 0.03], ["lean", 28.7, 29.3, 0.12], ["lean", 29.7, 30.3, 0.12], ["shake", 31.0, 33.0, 0.04], ["hop", 34.3, 34.7, 0.1], ["hop", 42.9, 43.6, 0.3], ["lean", 44.2, 46.8, -0.1], ["hop", 44.6, 44.9, 0.08], ["hop", 45.7, 46.0, 0.08]];
+  ["shake", 24.0, 25.4, 0.03], ["lean", 28.7, 29.3, 0.12], ["lean", 29.7, 30.3, 0.12], ["shake", 31.0, 33.0, 0.04], ["hop", 34.3, 34.7, 0.1], ["hop", 44.1, 44.7, 0.3], ["lean", 44.2, 46.8, -0.1], ["hop", 44.6, 44.9, 0.08], ["hop", 45.7, 46.0, 0.08]];
 const R_BEATS: Beat[] = [["lean", 14.8, 16.5, 0.06], ["hop", 15.6, 15.9, 0.1], ["hop", 17.3, 17.6, 0.08], ["hop", 18.7, 19.0, 0.08], ["lean", 47.5, 50.0, 0.08], ["hop", 47.9, 48.2, 0.1], ["shake", 33.9, 34.7, 0.03]];
 const U_BEATS: Beat[] = [["hop", 9.1, 9.5, 0.08], ["lean", 9.6, 11.4, -0.07], ["hop", 12.0, 12.3, 0.1], ["hop", 12.7, 13.0, 0.1], ["hop", 13.3, 13.6, 0.1], ["lean", 52.9, 55.0, 0.1]];
 /** Positions: Dimas paces in the wide shot, Rani walks over to him on "bukan cuma Dimas", and goes back while the camera is on the chart. */
-const DIMAS_X: [number, number][] = [[0, -2.3], [6.5, -2.3], [7.4, -1.5], [8.7, -1.5], [10.5, -2.3], [28.6, -2.3], [29.0, -2.65], [29.9, -2.65], [30.4, -2.3], [70, -2.3]];
+const DIMAS_X: [number, number][] = [[0, -2.3], [6.5, -2.2], [7.3, -1.8], [8.2, -2.1], [8.95, -1.7], [10.8, -2.3], [28.6, -2.3], [29.0, -2.65], [29.9, -2.65], [30.4, -2.3], [70, -2.3]];
 const RANI_X: [number, number][] = [[0, -0.1], [33.6, -0.1], [34.9, -1.2], [35.5, -1.2], [37.0, -0.1], [70, -0.1]];
 const READ = [...readWords(WORDS), { w: "Dimas", a: 57.0, b: 57.34 }];   // the first word comes back on the last 0.3 s so the loop holds
 
