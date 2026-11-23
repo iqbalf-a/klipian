@@ -363,7 +363,7 @@ class _Net:
                 for it in yt.videos().list(part="snippet,status", id=",".join(ids[i:i + 50]),
                                            maxResults=50).execute().get("items") or []:
                     st, sn = it.get("status") or {}, it.get("snippet") or {}
-                    out.append({"id": it["id"], "title": sn.get("title") or "", "privacy": st.get("privacyStatus"),
+                    out.append({"id": it["id"], "title": sn.get("title") or "", "description": sn.get("description") or "", "privacy": st.get("privacyStatus"),
                                 "upload": st.get("uploadStatus"), "publishAt": st.get("publishAt"),
                                 "publishedAt": sn.get("publishedAt"),
                                 "rejection": st.get("rejectionReason") or st.get("failureReason")})
@@ -1371,8 +1371,10 @@ def sync_all() -> dict:
     """Make the real channel, this profile's Clips rows and the planning .xlsx files agree, YouTube first:
     every row with a videoId takes the video's real status (Posted when public, ytWarning on a problem) and,
     while scheduled, the real date and time (so a change made in YouTube Studio comes here); then the xlsx
-    files get the status. Videos on the channel with no row are only listed. Returns {channel, rows, posted,
-    moved, warnings, notInClips, xlsx}."""
+    files get the status. The row's status follows YouTube both ways: public = Posted, scheduled = Scheduled,
+    private with no schedule = Ready (only a Posted or Scheduled row is moved; Discarded and Draft stay).
+    A channel video no row has (a title match with a row that has no videoId links to that row) gets a new row.
+    Returns {channel, rows, posted, moved, restatused, added, warnings, xlsx}."""
     from . import schedule, xlsx_sync
     if paths.current_profile() == GUEST:
         raise YouTubeError("none", "The Guest has no YouTube account.")
@@ -1384,7 +1386,7 @@ def sync_all() -> dict:
     for i in range(0, len(rest), REFRESH_BATCH):
         chan.update(_net.video_statuses(saved["token"], rest[i:i + REFRESH_BATCH]))
     out = {"channel": len([v for v in chan.values() if v.get("title")]), "rows": len(rows), "posted": [],
-           "moved": [], "warnings": [], "notInClips": [], "xlsx": {}}
+           "moved": [], "restatused": [], "added": [], "warnings": [], "xlsx": {}}
     items = []
     for row in rows:
         got = chan[row["videoId"]]
@@ -1394,6 +1396,11 @@ def sync_all() -> dict:
             out["posted"].append(row["id"])
         if res["newWarning"]:
             out["warnings"].append({"id": row["id"], "kind": kind, "message": text})
+        want = {"public": "Posted", "scheduled": "Scheduled", "locked": "Ready"}.get(kind)
+        if want and row.get("status") != want and (row.get("status") in ("Posted", "Scheduled") or (
+                want != "Ready" and row.get("status") == "Ready")):
+            schedule.set_fields(row["id"], {"status": want})
+            out["restatused"].append(row["id"])
         date, time_ = _local(got.get("publishAt")) if kind == "scheduled" else ("", "")
         if date and (row.get("date"), row.get("time")) != (date, time_):
             schedule.set_fields(row["id"], {"date": date, "time": time_})
@@ -1403,7 +1410,39 @@ def sync_all() -> dict:
         items.append({"videoId": row["videoId"], "title": row.get("title") or "", "state": state,
                       "when": f"{d} {t}".strip() if kind != "removed" else ""})
     known = {r["videoId"] for r in rows}
-    out["notInClips"] = [{"id": v["id"], "title": v["title"], "privacy": v["privacy"]}
-                         for v in chan.values() if v.get("title") and v["id"] not in known]
+    for v in chan.values():
+        if v.get("title") and v["id"] not in known:
+            items.append(_adopt(v, out))
     out["xlsx"] = xlsx_sync.sync(items)
     return out
+
+
+def _adopt(v: dict, out: dict) -> dict:
+    """A channel video no Clips row has: link it to the row with the same title that has no videoId, else add a
+    row for it. Returns the xlsx item for it."""
+    import re
+    import uuid
+    from . import schedule
+
+    def plain(t):                                   # the title with its #hashtags (YouTube keeps them in it) left out
+        return re.sub(r"\s+", " ", re.sub(r"#\S+", "", t or "")).strip().lower()
+    got = {"privacy": v.get("privacy"), "upload": v.get("upload"), "publishAt": v.get("publishAt"),
+           "rejection": v.get("rejection")}
+    kind, text = read_status(got)
+    date, time_ = _local(v.get("publishAt") if kind == "scheduled" else v.get("publishedAt"))
+    status = {"public": "Posted", "scheduled": "Scheduled"}.get(kind, "Draft")
+    fields = {"status": status, "platform": "YouTube", "videoId": v["id"], "date": date, "time": time_,
+              "youtubeUrl": f"https://youtube.com/watch?v={v['id']}", "uploadedAt": int(time.time())}
+    with schedule.CLIPS_LOCK:
+        clips = schedule.load_clips()
+        same = next((r for r in clips if not r.get("videoId") and r.get("status") != "Discarded"
+                     and plain(r.get("title")) == plain(v["title"])), None)
+        if same:
+            same.update(fields, at=int(time.time()))
+        else:
+            clips.append({"id": uuid.uuid4().hex[:8], "title": v["title"], "description": v.get("description") or "",
+                          "at": int(time.time()), "createdAt": int(time.time()), "ytImported": True, **fields})
+        schedule.save_clips(clips)
+    out["added"].append({"id": v["id"], "title": v["title"], "linked": bool(same)})
+    state = f"Terjadwal {date} {time_}" if kind == "scheduled" else _STATE_WORDS.get(kind, kind)
+    return {"videoId": v["id"], "title": v["title"], "state": state, "when": f"{date} {time_}".strip()}

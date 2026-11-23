@@ -1472,8 +1472,9 @@ $("#clipSyncAll")?.addEventListener("click", async (e) => {
     const x = j.xlsx || {};
     const parts = [`${j.rows} clip${j.rows === 1 ? "" : "s"} checked against ${j.channel} on the channel`];
     if (j.posted.length) parts.push(`${j.posted.length} now Posted`);
+    if (j.restatused.length) parts.push(`${j.restatused.length} status changed to match YouTube`);
     if (j.moved.length) parts.push(`${j.moved.length} date/time taken from YouTube`);
-    if (j.notInClips.length) parts.push(`${j.notInClips.length} on the channel but not in Clips: ${j.notInClips.map((v) => v.title).join(", ")}`);
+    if (j.added.length) parts.push(`from the channel: ${j.added.map((v) => `${v.title} (${v.linked ? "linked" : "added"})`).join(", ")}`);
     parts.push((x.files || []).length ? `xlsx updated: ${x.files.map((f) => f.file).join(", ")}` : "no xlsx row matched");
     if ((x.unmatched || []).length) parts.push(`no xlsx row for: ${x.unmatched.join(", ")}`);
     for (const w of j.warnings) parts.push(`${CLIPS.find((c) => c.id === w.id)?.title || "A clip"}: ${w.message}`);
