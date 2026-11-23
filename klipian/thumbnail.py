@@ -336,7 +336,7 @@ def write(video: Path, text: str | None = None, style: dict | None = None, at: f
             text_filters = []
 
             def layer(f, color, border=0, bcolor="", shadow=0):
-                return (f"drawtext=fontfile='{ff}':textfile='{_escape_filter_path(str(f))}':fontsize={fs}:fontcolor={color}:x={x}:y=__Y__"
+                return (f"drawtext=fontfile='{ff}':textfile='{_escape_filter_path(str(f))}':expansion=none:fontsize={fs}:fontcolor={color}:x={x}:y=__Y__"
                         + (f":borderw={border}:bordercolor={bcolor}" if border else "")
                         + (f":shadowx={shadow}:shadowy={shadow}:shadowcolor=black@0.65" if shadow else ""))
             passes = []
