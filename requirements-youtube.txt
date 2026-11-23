@@ -7,3 +7,4 @@
 #   .venv\Scripts\python.exe -m pip install -r requirements-youtube.txt
 google-api-python-client>=2.100
 google-auth-oauthlib>=1.2
+openpyxl>=3.1             # "Sync all" writes the status into the planning .xlsx files
