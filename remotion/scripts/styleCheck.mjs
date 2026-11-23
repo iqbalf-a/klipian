@@ -40,7 +40,10 @@ const FX_NAMES = ["HeatRise", "SmokePuffs", "Sparks", "Motes", "HeatWaves", "Smo
 async function b48() {
   const { execFileSync } = await import("node:child_process");
   const { statSync } = await import("node:fs");
-  const { SFX } = await import("../src/catalog.ts");
+  const { SFX, MUSIC_NAMES, SFX_NAMES } = await import("../src/catalog.ts");
+  // ian, 2026-11-23: the rule first, the catalog follows; the music and sound-name lines only bind once the catalog is big enough (30 beds and 100 sounds)
+  const MIN_BEDS = 30, MIN_SFX = 100, enforced = MUSIC_NAMES.length >= MIN_BEDS && SFX_NAMES.length >= MIN_SFX;
+  const soft = enforced ? "FLAG" : "INFO", note = enforced ? "" : ` (catalog too small, not enforced yet: ${MUSIC_NAMES.length} beds of ${MIN_BEDS}, ${SFX_NAMES.length} sounds of ${MIN_SFX})`;
   const mine = path.basename(dir), vroot = path.join(ROOT, "videos");
   const when = (name) => {
     const idx = path.join(vroot, name, "index.tsx");
@@ -69,11 +72,11 @@ async function b48() {
   const sameSet = me.set ? others.filter((o) => o.set === me.set) : [];
   add(!me.set ? "INFO" : sameSet.length ? "FLAG" : "PASS", `B48: the set kind${me.set ? ` "${me.set}"` : " is not declared yet"}${sameSet.length ? ` is REUSED from ${list(sameSet)}` : " is not in the recent videos"}`);
   const sameTrack = me.track ? others.filter((o) => o.track === me.track) : [];
-  add(!me.track ? "INFO" : sameTrack.length ? "FLAG" : "PASS", `B48: the music track${me.track ? ` "${me.track}"` : " is not chosen yet"}${sameTrack.length ? ` is REUSED from ${list(sameTrack)}` : " is not in the recent videos"}`);
+  add(!me.track ? "INFO" : sameTrack.length ? soft : "PASS", `B48: the music track${me.track ? ` "${me.track}"` : " is not chosen yet"}${sameTrack.length ? ` is REUSED from ${list(sameTrack)}` : " is not in the recent videos"}${sameTrack.length ? note : ""}`);
   const fxHit = [...me.fx].map((n) => ({ n, v: others.filter((o) => o.fx.has(n)) })).filter((x) => x.v.length);
   add(fxHit.length ? "FLAG" : "PASS", `B48: ${fxHit.length ? `effects REUSED: ${fxHit.map((x) => `${x.n} from ${list(x.v)}`).join("; ")}` : "no effect of this video appears in the recent ones"} (effects drawn: ${[...me.fx].join(", ") || "none"})`);
   const share = me.names.size ? others.map((o) => ({ o, s: [...me.names].filter((n) => o.names.has(n)).length / me.names.size })).sort((a, b) => b.s - a.s)[0] : null;
-  add(!share ? "INFO" : share.s > 0.9 ? "FLAG" : "PASS", `B48: the sound names (${me.names.size} distinct; the sound set is small, so some overlap is normal, the choice must still differ): ${share ? `the closest recent video is ${share.o.name} at ${Math.round(share.s * 100)} % shared` : "sfx.ts not written yet"}`);
+  add(!share ? "INFO" : share.s > 0.9 ? soft : "PASS", `B48: the sound names (${me.names.size} distinct; the sound set is small, so some overlap is normal, the choice must still differ): ${share ? `the closest recent video is ${share.o.name} at ${Math.round(share.s * 100)} % shared${share.s > 0.9 ? note : ""}` : "sfx.ts not written yet"}`);
   const themed = others.filter((o) => me.theme && o.theme === me.theme).length, staged = others.filter((o) => me.stage && o.stage === me.stage).length;
   add("INFO", `B48: the colour set "${me.theme || "cream"}" is in ${themed} of the recent videos, the stage "${me.stage || "slab"}" in ${staged}; pick the least used (the brief asks not to repeat the one of the video before: ${others[0]?.name ?? "none"} used "${others[0]?.theme || "cream"}" and "${others[0]?.stage || "slab"}")`);
   add("HUMAN", "B48: icon, texture, font treatment, hero, backdrop and every prop are also not in the recent videos (grep their index.tsx and set.json)");
