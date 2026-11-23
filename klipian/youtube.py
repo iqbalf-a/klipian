@@ -336,6 +336,44 @@ class _Net:
         return out
 
     @staticmethod
+    def channel_videos(token: dict, limit: int = 200) -> list[dict]:
+        """The newest `limit` uploads of the channel (uploads playlist, then videos.list in batches of 50; about
+        10 quota units) -> [{id, title, privacy, upload, publishAt, publishedAt, rejection}]."""
+        try:
+            from googleapiclient.discovery import build
+            from googleapiclient.errors import HttpError
+            from google.oauth2.credentials import Credentials
+        except ImportError:
+            raise YouTubeError("no_library", "Install the YouTube packages.") from None
+        try:
+            yt = build("youtube", "v3", credentials=Credentials.from_authorized_user_info(token, list(SCOPES)),
+                       cache_discovery=False)
+            chan = (yt.channels().list(part="contentDetails", mine=True).execute().get("items") or [{}])[0]
+            uploads = ((chan.get("contentDetails") or {}).get("relatedPlaylists") or {}).get("uploads")
+            ids, page = [], None
+            while uploads and len(ids) < limit:
+                r = yt.playlistItems().list(part="contentDetails", playlistId=uploads, maxResults=50,
+                                            pageToken=page).execute()
+                ids += [i["contentDetails"]["videoId"] for i in r.get("items") or []]
+                page = r.get("nextPageToken")
+                if not page:
+                    break
+            out = []
+            for i in range(0, len(ids), 50):
+                for it in yt.videos().list(part="snippet,status", id=",".join(ids[i:i + 50]),
+                                           maxResults=50).execute().get("items") or []:
+                    st, sn = it.get("status") or {}, it.get("snippet") or {}
+                    out.append({"id": it["id"], "title": sn.get("title") or "", "privacy": st.get("privacyStatus"),
+                                "upload": st.get("uploadStatus"), "publishAt": st.get("publishAt"),
+                                "publishedAt": sn.get("publishedAt"),
+                                "rejection": st.get("rejectionReason") or st.get("failureReason")})
+            return out
+        except HttpError as exc:
+            raise _http_error(exc) from None
+        except OSError:
+            raise YouTubeError("offline", "Could not reach Google.") from None
+
+    @staticmethod
     def revoke(token: dict) -> None:
         """Ask Google to cancel the token. OSError when it cannot be reached."""
         import urllib.parse
@@ -1308,4 +1346,64 @@ def refresh_due() -> dict:
                 out["posted"].append(row["id"])
             if res["newWarning"]:
                 out["warnings"].append({"id": row["id"], "kind": res["warning"], "message": text})
+    return out
+
+
+# --------------------------------------------------------------------------
+# one button: the channel, the Clips table and the planning xlsx files
+# --------------------------------------------------------------------------
+
+def _local(iso: str | None) -> tuple[str, str]:
+    """'2026-11-24T12:00:00Z' -> ('2026-11-24', '19:00') in this computer's time zone."""
+    import datetime as dt
+    try:
+        d = dt.datetime.fromisoformat(str(iso).replace("Z", "+00:00")).astimezone()
+    except ValueError:
+        return "", ""
+    return d.strftime("%Y-%m-%d"), d.strftime("%H:%M")
+
+
+_STATE_WORDS = {"public": "Tayang", "removed": "Dihapus di YouTube", "rejected": "Ditolak YouTube",
+                "processing": "Diproses YouTube", "locked": "Privat (belum dijadwalkan)"}
+
+
+def sync_all() -> dict:
+    """Make the real channel, this profile's Clips rows and the planning .xlsx files agree, YouTube first:
+    every row with a videoId takes the video's real status (Posted when public, ytWarning on a problem) and,
+    while scheduled, the real date and time (so a change made in YouTube Studio comes here); then the xlsx
+    files get the status. Videos on the channel with no row are only listed. Returns {channel, rows, posted,
+    moved, warnings, notInClips, xlsx}."""
+    from . import schedule, xlsx_sync
+    if paths.current_profile() == GUEST:
+        raise YouTubeError("none", "The Guest has no YouTube account.")
+    saved = require_linked()
+    _WHAT.set("sync of the channel's videos")
+    chan = {v["id"]: v for v in _net.channel_videos(saved["token"])}
+    rows = [r for r in schedule.load_clips() if r.get("videoId")]
+    rest = [r["videoId"] for r in rows if r["videoId"] not in chan]
+    for i in range(0, len(rest), REFRESH_BATCH):
+        chan.update(_net.video_statuses(saved["token"], rest[i:i + REFRESH_BATCH]))
+    out = {"channel": len([v for v in chan.values() if v.get("title")]), "rows": len(rows), "posted": [],
+           "moved": [], "warnings": [], "notInClips": [], "xlsx": {}}
+    items = []
+    for row in rows:
+        got = chan[row["videoId"]]
+        kind, text = read_status(got)
+        res = _apply_status(row, kind, text)
+        if res["posted"]:
+            out["posted"].append(row["id"])
+        if res["newWarning"]:
+            out["warnings"].append({"id": row["id"], "kind": kind, "message": text})
+        date, time_ = _local(got.get("publishAt")) if kind == "scheduled" else ("", "")
+        if date and (row.get("date"), row.get("time")) != (date, time_):
+            schedule.set_fields(row["id"], {"date": date, "time": time_})
+            out["moved"].append(row["id"])
+        d, t = (date, time_) if date else _local(got.get("publishedAt"))
+        state = f"Terjadwal {date} {time_}" if kind == "scheduled" else _STATE_WORDS.get(kind, kind)
+        items.append({"videoId": row["videoId"], "title": row.get("title") or "", "state": state,
+                      "when": f"{d} {t}".strip() if kind != "removed" else ""})
+    known = {r["videoId"] for r in rows}
+    out["notInClips"] = [{"id": v["id"], "title": v["title"], "privacy": v["privacy"]}
+                         for v in chan.values() if v.get("title") and v["id"] not in known]
+    out["xlsx"] = xlsx_sync.sync(items)
     return out

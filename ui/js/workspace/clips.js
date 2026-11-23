@@ -1458,6 +1458,32 @@ async function ytRefreshDue() {
   finally { ytRefreshBusy = false; }
 }
 
+/* One button: the real channel, the Clips rows and the planning .xlsx files (youtube.sync_all). */
+$("#clipSyncAll")?.addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  clipNotice("Syncing with YouTube…");
+  try {
+    const j = await (await fetch("/api/youtube/sync-all", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+    })).json();
+    if (!j.ok) { clipNotice(j.error || "Could not sync."); return; }
+    await loadClips();
+    const x = j.xlsx || {};
+    const parts = [`${j.rows} clip${j.rows === 1 ? "" : "s"} checked against ${j.channel} on the channel`];
+    if (j.posted.length) parts.push(`${j.posted.length} now Posted`);
+    if (j.moved.length) parts.push(`${j.moved.length} date/time taken from YouTube`);
+    if (j.notInClips.length) parts.push(`${j.notInClips.length} on the channel but not in Clips: ${j.notInClips.map((v) => v.title).join(", ")}`);
+    parts.push((x.files || []).length ? `xlsx updated: ${x.files.map((f) => f.file).join(", ")}` : "no xlsx row matched");
+    if ((x.unmatched || []).length) parts.push(`no xlsx row for: ${x.unmatched.join(", ")}`);
+    for (const w of j.warnings) parts.push(`${CLIPS.find((c) => c.id === w.id)?.title || "A clip"}: ${w.message}`);
+    for (const m of x.errors || []) parts.push(m);
+    showToast(parts.join(" · "), { ms: 15000 });
+    clipNotice("");
+  } catch (err) { clipNotice(`Could not sync: ${err.message}`); }
+  finally { btn.disabled = false; }
+});
+
 // While the page is visible: every 10 minutes; and once when it comes back after being hidden longer.
 setInterval(() => { if (document.visibilityState === "visible") ytRefreshDue(); }, YT_REFRESH_MS);
 document.addEventListener("visibilitychange", () => {

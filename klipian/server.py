@@ -955,6 +955,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"error": str(exc)}, 400)
         if action == "refresh-due":
             return self._youtube_reply(_youtube.refresh_due)
+        if action == "sync-all":
+            return self._youtube_reply(_youtube.sync_all)
         if action == "client":
             # The contents come from a file the person chose; they are checked and kept, never echoed.
             def put():
@@ -2692,6 +2694,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/ytdl/update": _post_ytdl,
         "/api/youtube/refresh-due": _post_youtube,
         "/api/youtube/client": _post_youtube,
+        "/api/youtube/sync-all": _post_youtube,
         "/api/youtube/connect": _post_youtube,
         "/api/youtube/check": _post_youtube,
         "/api/youtube/upload": _post_youtube,
