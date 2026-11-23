@@ -1,0 +1,198 @@
+{
+  "bible": 1,
+  "question": "Mata kedutan itu pertanda?",
+  "titles": [
+    "Mata kedutan? Bukan pertanda",
+    "Kenapa kelopak mata bisa kedutan?",
+    "Mata kedutan: ini yang terjadi di kelopakmu"
+  ],
+  "duration": 40,
+  "look": "2d",
+  "theme": "peach",
+  "stage": "round",
+  "captions": true,
+  "music": {
+    "track": "bed-breeze",
+    "level": 0.8
+  },
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 3,
+      "narration": "Bukan pertanda. Ini ototmu kelelahan.",
+      "text": "Bukan pertanda. Ini ototmu kelelahan.",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Bukan pertanda. Ini ototmu kelelahan.",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "sting",
+      "kind": "sting",
+      "dur": 1,
+      "narration": "Intip yuk!",
+      "text": "Intip yuk!",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "saraf",
+      "kind": "normal",
+      "dur": 7,
+      "narration": "Kelopak matamu digerakkan otot tipis yang dikendalikan saraf wajah. Kadang saraf itu salah kirim sinyal.",
+      "text": "Saraf salah kirim sinyal",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Saraf salah kirim sinyal",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "pemicu",
+      "kind": "normal",
+      "dur": 8,
+      "narration": "Pemicunya biasa: kurang tidur, stres, kopi berlebihan, atau mata kering dan lelah. Otot kecil itu ikut capek.",
+      "text": "Tidur, stres, kopi",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Tidur, stres, kopi",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "lama",
+      "kind": "result",
+      "dur": 8,
+      "narration": "Kedutannya cuma beberapa detik sampai menit, lalu hilang sendiri. Biasanya dalam beberapa hari atau minggu.",
+      "text": "FAKTA: hilang sendiri",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "FAKTA: hilang sendiri",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "tips",
+      "kind": "tips",
+      "dur": 10,
+      "narration": "Tidur cukup, kurangi kopi, dan istirahatkan matamu. Kalau berminggu-minggu atau menjalar ke wajah, periksa ke dokter.",
+      "text": "Rawat matamu",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Rawat matamu",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "dur": 3,
+      "narration": "",
+      "text": "",
+      "scene": {
+        "bg": "brand",
+        "items": []
+      },
+      "sfx": "none"
+    }
+  ],
+  "claims": [
+    {
+      "text": "Kedutan kelopak mata (myokymia) sangat umum dan biasanya tidak berbahaya; sebagian besar hilang sendiri dalam beberapa hari atau minggu.",
+      "beats": [
+        "hook",
+        "lama"
+      ],
+      "sources": [
+        "https://my.clevelandclinic.org/health/diseases/myokymia",
+        "https://www.uclahealth.org/medical-services/ophthalmology/eye-signs-and-symptoms/twitching-eyelid"
+      ]
+    },
+    {
+      "text": "Kelopak mata dihubungkan ke otak lewat saraf wajah; sinyal yang keliru di saraf itu atau otaknya membuat kelopak berkedut, dan otot yang menutup kelopak (orbicularis) ikut bergerak.",
+      "beats": [
+        "saraf"
+      ],
+      "sources": [
+        "https://my.clevelandclinic.org/health/diseases/myokymia",
+        "https://www.uclahealth.org/medical-services/ophthalmology/eye-signs-and-symptoms/twitching-eyelid"
+      ]
+    },
+    {
+      "text": "Pemicu yang disebut: kurang tidur atau kelelahan, stres, kafein berlebihan, mata kering.",
+      "beats": [
+        "pemicu",
+        "tips"
+      ],
+      "sources": [
+        "https://my.clevelandclinic.org/health/diseases/myokymia",
+        "https://www.uclahealth.org/medical-services/ophthalmology/eye-signs-and-symptoms/twitching-eyelid"
+      ]
+    },
+    {
+      "text": "Satu kali kedutan biasanya berlangsung detik sampai menit.",
+      "beats": [
+        "lama"
+      ],
+      "sources": [
+        "https://my.clevelandclinic.org/health/diseases/myokymia"
+      ]
+    },
+    {
+      "text": "Kedutan yang berlangsung berminggu-minggu, menjalar ke bagian wajah lain, atau mengganggu hidup sehari-hari perlu diperiksakan ke dokter.",
+      "beats": [
+        "tips"
+      ],
+      "sources": [
+        "https://my.clevelandclinic.org/health/diseases/myokymia",
+        "https://www.uclahealth.org/medical-services/ophthalmology/eye-signs-and-symptoms/twitching-eyelid"
+      ]
+    }
+  ],
+  "post": {
+    "description": "Mata kedutan sering dianggap pertanda. Padahal biasanya itu otot kelopak yang lelah: kurang tidur, stres, atau kopi. Ini penjelasannya.",
+    "hashtags": [
+      "#matakedutan",
+      "#kesehatanmata",
+      "#faktaseru",
+      "#shorts"
+    ]
+  },
+  "thumb": "Mata kedutan = *pertanda*?",
+  "needs": []
+}
