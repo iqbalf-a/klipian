@@ -41,7 +41,7 @@ git fetch origin
 git checkout -q --detach origin/main
 ```
 
-**Local** (`workspace/` exists): never check out, switch branches, stash or reset in ian's checkout, and never write to `workspace/`. Work in a throwaway worktree of `origin/main` instead, and run every later command from inside it:
+**Local** (`workspace/` exists): never check out, switch branches, stash or reset in ian's checkout, and write to `workspace/` only through step 4b. Work in a throwaway worktree of `origin/main` instead, and run every later command from inside it:
 
 ```bash
 git fetch origin
@@ -50,7 +50,7 @@ git worktree add --detach "$WT" origin/main
 cd "$WT/remotion" && npm ci                       # node_modules is not shared with ian's checkout
 ```
 
-Remove the worktree ONLY after a successful push (step 4): `git worktree remove --force "$WT"`, from ian's checkout. On any failure (a step, or the push refused three times) keep it: its detached HEAD holds the only reference to the video commit and the half-done work. Then answer with its path, in line 5 of the answer: "worktree tersimpan di <path>; hapus dengan git worktree remove --force <path> setelah dicek".
+Remove the worktree ONLY after a successful push (step 4) and the Motion registration (step 4b): `git worktree remove --force "$WT"`, from ian's checkout. On any failure (a step, or the push refused three times) keep it: its detached HEAD holds the only reference to the video commit and the half-done work. Then answer with its path, in line 5 of the answer: "worktree tersimpan di <path>; hapus dengan git worktree remove --force <path> setelah dicek".
 
 Never create a branch such as `work/create`.
 
@@ -93,7 +93,7 @@ The WAV and `out/` are never committed; `words.json` is (it is the video's timin
 
 ## 3. Build
 
-Follow the printed brief, steps 1 to 6, as written: it is the instruction, and its hard rules already say how to choose the set, draw the real form, write `sfx.ts` by hand and write the story's `thumb`. Run `npm ci` in `remotion` first when `remotion/node_modules` is missing. If Chrome or the render cannot run, say so and continue without the stills. Its "no push" line is overridden by step 4 below, and its report by step 5 (the brief has no narration or page steps: -create needs neither); everything else stands (never write to `workspace/`, never claim a check you did not run).
+Follow the printed brief, steps 1 to 6, as written: it is the instruction, and its hard rules already say how to choose the set, draw the real form, write `sfx.ts` by hand and write the story's `thumb`. Run `npm ci` in `remotion` first when `remotion/node_modules` is missing. If Chrome or the render cannot run, say so and continue without the stills. Its "no push" line is overridden by step 4 below, and its report by step 5 (the brief has no narration or page steps: -create needs neither); everything else stands (write to `workspace/` only through step 4b, never claim a check you did not run).
 
 ## 3b. Before you push: the checklist
 
@@ -114,6 +114,16 @@ Tick each with evidence (a command output or a still you opened); fix, then push
    ```
    Never force-push, never open a PR. If the push is refused three times, say so and leave the commit as it is.
 
+## 4b. Put it on the Motion page (local only)
+
+A video that is not on the Motion page (`/remotion`) is lost to ian, so after a successful push register it, from ian's checkout (where `workspace/` is), reading the folder from the worktree:
+
+```bash
+cd "<ian checkout>" && python -m klipian.motion_register <slug> --videos "$WT/remotion/videos" [--wav "<wav>"]
+```
+
+It creates the project (story taken, folder chosen, channel `sebatang-cerita` for look ricks, else `klipian-intip`; `--profile` overrides) and, with `--wav` (ricks stage 2), imports the voice as the narration. It reuses a project that already has the slug. Run it BEFORE removing the worktree (the folder is read from it); the render then needs `git pull` in ian's checkout. Cloud (no `workspace/`): skip it. A failure is reported in line 5 of the answer, never hidden.
+
 ## 5. Answer
 
 Answer in Indonesian, at most 6 short lines, nothing else:
@@ -122,6 +132,6 @@ Answer in Indonesian, at most 6 short lines, nothing else:
 3. the style-check summary line
 4. each FAIL/FLAG line (or "tanpa FAIL/FLAG"), and the pieces as "baru: ... / pakai ulang: ..."
 5. at most 2 one-line points ian must decide
-6. cloud: "sudah di main, tinggal git pull di PC ian"; local: "sudah di main; git pull, lalu di /remotion langkah 3 pilih folder remotion/videos/<slug>"; ricks stage 2: "video jadi: <path of the mp4 next to the WAV>"
+6. cloud: "sudah di main, tinggal git pull di PC ian"; local: "sudah di main dan di halaman Motion (proyek <id>); git pull supaya folder ada di PC"; ricks stage 2: "video jadi: <path of the mp4 next to the WAV>"
 
 Do NOT print the narration texts (they are in the story; /remotion step "Voice script" shows them), no /remotion steps, no file lists, no source lists, no recap of the video.
