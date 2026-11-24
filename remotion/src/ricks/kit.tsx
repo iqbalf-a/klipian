@@ -65,7 +65,7 @@ export const RicksCamera: React.FC<{ cam: Cam }> = ({ cam }) => {
 
 /** Depth of field focused on what the camera looks at (close shots: a soft background; wides: almost sharp), bloom on the lights,
    then the cast on top, sharp. */
-export const RicksPost: React.FC<{ cam: Cam; bloom?: number }> = ({ cam, bloom = 0.5 }) => {
+export const RicksPost: React.FC<{ cam: Cam; bloom?: number; occlude?: boolean }> = ({ cam, bloom = 0.5, occlude = false }) => {
   const { gl, scene, camera, size } = useThree();
   const fx = useMemo(() => {
     const composer = new EffectComposer(gl);
@@ -86,9 +86,17 @@ export const RicksPost: React.FC<{ cam: Cam; bloom?: number }> = ({ cam, bloom =
     fx.composer.render();
     gl.autoClear = false;
     gl.clearDepth();
-    camera.layers.set(CAST);
     const bg = scene.background;
     scene.background = null;
+    if (occlude) {   // B58: write the world's depth (no colour) so a cart or table in front of a person hides what is behind it
+      const su = gl.shadowMap.autoUpdate;
+      gl.shadowMap.autoUpdate = false;
+      gl.state.buffers.color.setMask(false);
+      gl.render(scene, camera);
+      gl.state.buffers.color.setMask(true);
+      gl.shadowMap.autoUpdate = su;
+    }
+    camera.layers.set(CAST);
     gl.render(scene, camera);
     scene.background = bg;
     camera.layers.set(0);
@@ -294,13 +302,13 @@ function drawHat(c: CanvasRenderingContext2D, o: Outfit) {
 
 /** A stick figure standing at `pos` (soles), facing the camera, on the CAST layer, with a contact shadow on the floor. */
 /** `talk` opens the mouth (0..1), `act` (0..1) is how lively the person is: arms gesture, the body sways and hops; `step` is a walk phase (omit = standing). */
-export const StickHero: React.FC<{ pos: THREE.Vector3; expr: Expr; arms: Arms; f: number; outfit: Outfit; height?: number; talk?: number; act?: number; step?: number; hop?: number; lean?: number; tilt?: number; nod?: number; flip?: boolean; rig?: Pose }> = ({ pos, expr, arms, f, outfit, height = 1.7, talk = 0, act = 0, step = 0, hop = 0, lean = 0, tilt = 0, nod = 0, flip = false, rig }) => {
+export const StickHero: React.FC<{ pos: THREE.Vector3; expr: Expr; arms: Arms; f: number; outfit: Outfit; height?: number; talk?: number; act?: number; step?: number; hop?: number; lean?: number; tilt?: number; nod?: number; flip?: boolean; rig?: Pose; breath?: number }> = ({ pos, expr, arms, f, outfit, height = 1.7, talk = 0, act = 0, step = 0, hop = 0, lean = 0, tilt = 0, nod = 0, flip = false, rig, breath = 1 }) => {
   const blink = expr !== "sleepy" && (f + 40) % 96 < 3;
   const wob = Math.sin(f * 0.5);
   const tex = useMemo(() => painted(512, 1024, () => undefined), []);
   drawStick((tex.image as HTMLCanvasElement).getContext("2d")!, expr, arms, blink, wob, outfit, { talk, step, tilt, nod, rig, g: act > 0.3 ? act * (0.5 + 0.5 * Math.sin(f * 0.42)) : 0 });
   tex.needsUpdate = true;
-  const breathe = 1 + 0.012 * Math.sin(f * 0.18);
+  const breathe = 1 + 0.012 * breath * Math.sin(f * 0.18);   // breath = 0: a person who is not acting stands completely still (B58)
   return (
     <group position={pos.toArray()}>
       <group rotation={[0, 0, lean]}>

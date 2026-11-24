@@ -178,6 +178,7 @@ add("INFO", `marks in the video: ${used.map((n) => { const row = DICTIONARY.find
 
 // 10. the new assets: at most three (a human count; the registry is the library)
 add("HUMAN", "B56: a body part is a whole part (hand: palm, thumb, four fingers with joints and nails, wrist), real proportions, a sensible pose; fill its silhouette flat at 200 px for frame 0 and the main beats, open a 2x close-up of the part, and say you did");
+add("HUMAN", "B58: ricks look: a person who is not acting stands completely still (breath 0); sellers stand behind their cart or table (occlude); no shot crops the hero or seller at an edge; props are rounded, textured and made of many parts, compared with real RicksClips3000 frames; open a still of every beat");
 add("HUMAN", "at most three new loose supporting pieces (the hero and its own set are not counted, B27.15); say which pieces are new and which were reused");
 
 // 10b. the set (B27.15): the video stands in its OWN set, declared in videos/<slug>/set.json. Drawing the set of another video, or naming a kind that another video
