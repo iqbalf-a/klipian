@@ -7,8 +7,8 @@
   "Pak Darto dan Garam di Es Batu",
   "Es Puter Beku Gara-Gara Garam"
  ],
- "duration": 60.0,
- "theme": "cream",
+ "duration": 51.26,
+ "theme": "peach",
  "stage": "round",
  "captions": true,
  "music": {
@@ -46,7 +46,7 @@
   {
    "id": "hook",
    "kind": "hook",
-   "dur": 3.5,
+   "dur": 3.36,
    "narration": "Pak Darto menabur tiga genggam garam ke es.",
    "text": "Garam ke es batu",
    "scene": {
@@ -64,8 +64,8 @@
   {
    "id": "dunia",
    "kind": "normal",
-   "dur": 8.5,
-   "narration": "Gerobak es puter Pak Darto mangkal di tikungan kampung. Tono, keponakannya baru pulang kuliah, melotot. \"Es kok digaramin, Pak?\"",
+   "dur": 3.54,
+   "narration": "Gerobak es puter, Pak Darto melotot. \"Es kok digaramin, Pak?\"",
    "text": "Es kok digaramin?",
    "scene": {
     "bg": "brand",
@@ -82,7 +82,7 @@
   {
    "id": "ragu",
    "kind": "normal",
-   "dur": 8.0,
+   "dur": 9.04,
    "narration": "Pak Darto senyum saja. Katanya, \"Garamnya buat dingin, bukan buat rasa.\" Tono ngakak, \"Garam bikin es meleleh, Pak!\"",
    "text": "Garam bikin meleleh?",
    "scene": {
@@ -100,7 +100,7 @@
   {
    "id": "coba",
    "kind": "normal",
-   "dur": 9.5,
+   "dur": 9.0,
    "narration": "Tono bikin es puter sendiri, pakai es batu saja, tanpa garam. Dia kocok setengah jam. Adonannya tetap cair, tangannya pegal.",
    "text": "Tono coba sendiri",
    "scene": {
@@ -118,7 +118,7 @@
   {
    "id": "panas",
    "kind": "normal",
-   "dur": 12.0,
+   "dur": 11.91,
    "narration": "Siang makin terik, es batu Pak Darto meleleh jadi air. Tono menang, pikirnya. Tapi tabung Pak Darto berkabut, berderak, dan adonannya mengeras jadi es puter. Tono melongo.",
    "text": "Es meleleh, adonan beku",
    "scene": {
@@ -136,7 +136,7 @@
   {
    "id": "sains",
    "kind": "normal",
-   "dur": 11.0,
+   "dur": 10.51,
    "narration": "Garam menurunkan titik beku air, jadi campuran es dan garam bisa sekitar minus dua puluh derajat. Es yang meleleh menyerap panas dari adonan, dan adonan pun membeku.",
    "text": "Campuran sekitar minus 20 derajat",
    "scene": {
@@ -154,7 +154,7 @@
   {
    "id": "akhir",
    "kind": "result",
-   "dur": 5.2,
+   "dur": 3.2,
    "narration": "Tono minta garam, lalu ikut menabur tiga genggam ke es.",
    "text": "Tono ikut menabur",
    "scene": {
@@ -172,7 +172,7 @@
   {
    "id": "outro",
    "kind": "outro",
-   "dur": 2.3,
+   "dur": 0.7,
    "narration": "",
    "text": "Garam ke es batu",
    "scene": {
