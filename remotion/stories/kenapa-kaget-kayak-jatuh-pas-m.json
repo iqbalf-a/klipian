@@ -1,0 +1,204 @@
+{
+ "bible": 1,
+ "question": "Kenapa kaget kayak jatuh pas mau tidur?",
+ "titles": [
+  "Kenapa badan tersentak saat mau tidur?",
+  "Sentakan jatuh pas mau tidur: ini dugaannya",
+  "Otakmu kira kamu jatuh, benarkah?"
+ ],
+ "duration": 40,
+ "look": "2d",
+ "theme": "mint",
+ "stage": "island",
+ "captions": true,
+ "music": {
+  "track": "bed-wonder"
+ },
+ "claims": [
+  {
+   "text": "Sentakan saat mulai tidur (hypnic jerk atau sleep start) dialami sekitar 60 sampai 70 persen orang.",
+   "beats": [
+    "umum"
+   ],
+   "sources": [
+    "https://www.livescience.com/39225-why-people-twitch-falling-asleep.html",
+    "https://www.popsci.com/science/why-do-legs-jerk-when-falling-asleep"
+   ]
+  },
+  {
+   "text": "Sentakan ini sering disertai sensasi jatuh.",
+   "beats": [
+    "hook",
+    "umum"
+   ],
+   "sources": [
+    "https://www.livescience.com/39225-why-people-twitch-falling-asleep.html"
+   ]
+  },
+  {
+   "text": "Penyebab pastinya belum diketahui; salah satu dugaan: otak salah menafsirkan otot yang rileks saat mulai tidur sebagai tanda jatuh dari pohon dan membuat otot bereaksi (refleks primata lama).",
+   "beats": [
+    "hook",
+    "dugaan"
+   ],
+   "sources": [
+    "https://www.livescience.com/39225-why-people-twitch-falling-asleep.html",
+    "https://www.popsci.com/science/why-do-legs-jerk-when-falling-asleep"
+   ]
+  },
+  {
+   "text": "Stres, kelelahan, kafein, kurang tidur dan olahraga berat di malam hari disebut mungkin menaikkan frekuensinya, tetapi riset yang pasti belum ada.",
+   "beats": [
+    "pemicu"
+   ],
+   "sources": [
+    "https://www.livescience.com/39225-why-people-twitch-falling-asleep.html",
+    "https://www.popsci.com/science/why-do-legs-jerk-when-falling-asleep"
+   ]
+  },
+  {
+   "text": "Otot mulai rileks saat peralihan dari terjaga ke tidur.",
+   "beats": [
+    "rileks"
+   ],
+   "sources": [
+    "https://www.livescience.com/39225-why-people-twitch-falling-asleep.html"
+   ]
+  }
+ ],
+ "post": {
+  "description": "Pernah kaget seperti jatuh saat hampir tertidur? Itu sleep start. Penyebab pastinya belum terbukti; dugaan populer: otak salah membaca otot yang rileks sebagai tanda jatuh.",
+  "hashtags": [
+   "#kagetsaattidur",
+   "#sleepstart",
+   "#tubuhmanusia",
+   "#faktaseru",
+   "#intipyuk",
+   "#shorts"
+  ]
+ },
+ "thumb": "Kaget pas mau tidur: *jatuh*?",
+ "needs": [],
+ "beats": [
+  {
+   "id": "hook",
+   "kind": "hook",
+   "dur": 3,
+   "narration": "Otakmu mengira kamu sedang jatuh.",
+   "text": "Otakmu kira kamu jatuh",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Otakmu kira kamu jatuh",
+      "fs": 70
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "sting",
+   "kind": "sting",
+   "dur": 1,
+   "narration": "Intip yuk!",
+   "text": "Intip yuk!",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Intip yuk!",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "rileks",
+   "kind": "normal",
+   "dur": 7,
+   "narration": "Pas hampir tertidur, otot-ototmu mulai rileks satu per satu. Badan terasa makin ringan.",
+   "text": "Otot mulai rileks",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Otot mulai rileks",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "umum",
+   "kind": "normal",
+   "dur": 8,
+   "narration": "Sentakan ini namanya sleep start. Enam puluh sampai tujuh puluh persen orang pernah mengalaminya.",
+   "text": "Namanya sleep start",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Namanya sleep start",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "dugaan",
+   "kind": "result",
+   "dur": 9,
+   "narration": "Penyebab pastinya belum terbukti. Dugaan populer: otak salah baca otot yang lemas sebagai tanda jatuh, lalu menyentak badan.",
+   "text": "Dugaan: salah baca",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Dugaan: salah baca",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "pemicu",
+   "kind": "tips",
+   "dur": 8,
+   "narration": "Pemicu yang sering disebut: kafein, stres, kurang tidur, dan olahraga berat di malam hari.",
+   "text": "Pemicu yang disebut",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Pemicu yang disebut",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "outro",
+   "kind": "outro",
+   "dur": 4,
+   "narration": "",
+   "text": "",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  }
+ ]
+}
