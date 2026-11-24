@@ -129,16 +129,17 @@ DONGENG = ("- Story: dongeng + fakta (B47, the person asked for it). The charact
            "as sensory details that point at the fact; the peak where the doubter is proven wrong; the science in one or two plain sentences at about "
            "70 % of the duration; a warm payoff that shows the change, no moral spoken. The story may exaggerate, the explanation may not, and "
            "nothing made up is said as a fact (no \"orang buta pasti penciumannya lebih tajam\"). Every person has their own name, look and voice; "
-           "the dongeng beats replace the explain, look-closer and tips beats (the sting and the outro stay as the options say).")
+           "the dongeng beats replace the explain, look-closer and tips beats (the sting and the outro stay as the options say). "
+           "The twist is the formula: the story must end against what its setup led the viewer to expect; the hook never gives it away, and it lands at about 70 to 75 % of the duration.")
 
-KISAH = ("- Story: kisah nyata (B49, the person asked for it). A REAL event, from history or the news, with a twist; nothing in it is made up. "
+KISAH = ("- Story: kisah nyata (B49, the person asked for it). ANY real event (history, news, everyday life) with a twist; nothing in it is made up. The twist is the formula: the story must end against what its setup led the viewer to expect, the hook never gives it away. "
          "Before writing, find it in at least one source with a date (a page you opened, not memory) and list it in `claims` with the beats that use it; "
          "no source found: stop, write nothing, say why. Private people are never named (\"seorang anak\", \"perangkat desa\"); public bodies, "
          "places and historical offices may be; never accuse an identifiable person; no deaths, injuries or tragedy as the payoff. Wording is "
          "\"dikabarkan\" or \"tercatat\", never a certainty the sources lack; where sources disagree on a number, say \"ribuan\" or leave it out. "
          "The beats: the hook goes straight to the event, no question (\"Kota ini membayar warga per ekor tikus, dan warganya mulai memotong ekor tikus hidup.\"); "
-         "the setup; what was done; the turn; the twist at about 75 % of the duration; the cause in one or two plain sentences (the science or the "
-         "mechanism, sourced, the one true fact of the video); a payoff that shows what changed, no moral spoken. Quotes are never invented: show "
+         "the setup; what was done; the turn; the twist at about 75 % of the duration; the cause or reason in one or two plain sentences when the sources give one "
+         "(the science or the mechanism, sourced); a payoff that shows what changed, no moral spoken. Quotes are never invented: show "
          "action, not speech, or label it as illustration. The cast are anonymous stick people, each with its own outfit (B46 i). The description "
          "ends with the source names and \"kisah nyata, bersumber\"; these beats replace the explain, look-closer and tips beats.")
 
