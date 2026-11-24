@@ -211,6 +211,17 @@ button, input, select, textarea { font: inherit; }
 .shortcut-panel .shortcut-guide a:hover { text-decoration: underline; }
 .shortcut-panel .work-only[hidden] { display: none; }
 
+/* "When a job finishes" settings in the "?" panel. Here (not app.css) because every page has the panel. */
+.notify-settings { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid var(--glass-border); }
+.notify-row { display: flex; align-items: center; gap: 8px; font-size: var(--t-11); color: var(--text-muted); }
+.notify-row select {
+  margin-left: auto; font: inherit; color: var(--text);
+  padding: 2px 6px; border-radius: var(--r-xs);
+  border: 1px solid var(--glass-border); background: var(--glass-strong);
+}
+.notify-row input[type="checkbox"] { flex: none; margin: 0; accent-color: var(--accent); }
+.notify-note { margin: 0; font-size: var(--t-11); color: var(--text-faint); }
+
 /* Narrow screens: the topbar wraps instead of pushing the page wider than the window.
    The area switch drops to its own row under the brand; the page itself never scrolls sideways. */
 @media (max-width: 720px) {
