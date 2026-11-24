@@ -12,6 +12,7 @@ import * as THREE from "three";
 import { FRAME } from "../../src/tokens.ts";
 import { CAST, RicksCamera, RicksPost, StickHero, TBox, Pills, WordCaption, camAt, painted, readWords, rnd, stepAt, V, type Arms, type Cam, type Expr, type Outfit, type Pill, type Shot } from "../../src/ricks/kit.tsx";
 import { Debris, shake } from "../../src/ricks/fx.tsx";
+import { gait, gesture, handOffset, kick as kickPose, poseAt, shovelDeg, type Pose } from "../../src/ricks/rig.ts";
 import type { StoryT } from "../../src/schema.ts";
 import storyJson from "./story.json";
 import WORDS from "./words.json";
@@ -37,7 +38,7 @@ const TRUCK_F = (t: number) => (t < 41.5 ? OF + 1 + Math.max(0, t - 38.04) * 4.2
 
 const SHOTS: Shot[] = [
   { from: 0, a: HOOK, b: C(4.94, 1.3, 3.15, 4.84, 1.25, 0) },                                                  // Tiga tentara berangkat melawan burung emu
-  { from: 4.4, a: C(-4.5, 1.5, 3.6, -3, 1.1, -1), b: C(-2.6, 1.5, 3.2, -2, 1.1, -1) },                      // para veteran perang bertani gandum
+  { from: 4.4, a: C(-4.5, 1.5, 9.2, -3, 1.1, -1), b: C(-2.9, 1.5, 8.6, -2.1, 1.1, -1) },                      // para veteran perang bertani gandum
   { from: 6.9, a: C(0.5, 1.5, -1.5, 3, 1.1, -12), b: C(2.5, 1.4, -3.0, 4, 1.1, -12) },                           // ribuan emu setinggi satu setengah meter
   { from: 9.2, a: C(3.0, 0.55, -4.5, 4.5, 0.8, -10), b: C(3.6, 0.6, -5.2, 5, 0.8, -11) },                    // menginjak ladangnya
   { from: 11.1, a: C(-0.5, 1.3, 6.5, 0.3, 1.1, 0), b: C(0.2, 1.3, 6.0, 0.5, 1.1, 0) },                      // tentara dikirim dengan dua senapan mesin
@@ -47,7 +48,7 @@ const SHOTS: Shot[] = [
   { from: 21.78, a: C(OC + 0.5, 1.7, 17, OC + 2, 1.0, -1), b: C(OC + 12, 1.7, 17, OC + 13.6, 1.0, -1) },        // dikejar pakai truk
   { from: 24.1, a: C(OC + 13.5, 2.0, 20, OC + 15, 1.0, -1), b: C(OC + 22, 2.0, 20, OC + 23.5, 1.0, -1) },        // emu berlari lebih cepat
   { from: 25.68, a: C(OD - 2.6, 1.3, 11, OD - 2.5, 1.0, 0), b: C(OD - 2.4, 1.3, 9.5, OD - 2.3, 1.0, 0) },        // kulit emu tebal, peluru nyasar
-  { from: 28.74, a: C(OD - 2.8, 1.3, 8, OD - 1.8, 1.0, 0), b: C(OD - 1.8, 1.3, 8, OD - 0.6, 1.0, 0) },    // tertembak tapi tetap lari
+  { from: 28.74, a: C(OD - 2.2, 1.3, 9, OD - 1.0, 1.0, 0), b: C(OD + 1.6, 1.3, 9, OD + 2.8, 1.0, 0) },    // tertembak tapi tetap lari
   { from: 31.34, a: C(OE - 1.5, 1.4, 4.0, OE, 1.3, 0), b: C(OE - 0.5, 1.4, 3.4, OE, 1.3, 0) },             // beritanya menyebar, parlemen bercanda
   { from: 34.38, a: C(OE + 5.8, 1.5, 8.6, OE + 5.8, 1.3, 0), b: C(OE + 5.8, 1.5, 7.6, OE + 5.8, 1.3, 0) },   // medali pantasnya buat emu
   { from: 38.04, a: C(OF + 1, 1.4, 9, OF + 3, 1.0, 0), b: C(OF + 8, 1.4, 9, OF + 9.5, 1.0, 0) },           // tentara sempat ditarik
@@ -81,7 +82,7 @@ const beatsAt = (beats: Beat[], t: number, ph = 0) => {
     const u = (t - a) / (b - a);
     if (k === "hop") hop += Math.sin(u * Math.PI) * v;
     else if (k === "lean") lean += Math.min(1, u * 5, (1 - u) * 5) * v;
-    else { const e = Math.min(1, u * 6, (1 - u) * 6); lean += Math.sin(t * 3.2 + ph) * v * 2.5 * e; hop += Math.abs(Math.sin(t * 5.5 + ph)) * v * 1.2 * e; }   // a shake is a stomping sway, never a twitch
+    else { const e = Math.min(1, u * 6, (1 - u) * 6); hop += Math.abs(Math.sin(t * 5.5 + ph)) * v * 1.2 * e; }   // a shake is a stomping sway, never a twitch
   }
   return { hop, lean };
 };
@@ -96,7 +97,7 @@ const PERSONA: Record<string, Persona> = {
   parl1: { pace: 0,  per: 4.7, ph: 1.9, bob: 0.0,   bobF: 0,   tilt: 0.05, tiltF: 0.6, nod: 5,  nodF: 1.0, gest: 0.8, gestF: 0.5 },
   parl2: { pace: 0, per: 3.3, ph: 4.2, bob: 0.02,  bobF: 1.6, tilt: 0.11, tiltF: 1.3, nod: 7,  nodF: 1.6, gest: 0.5, gestF: 0.9 },
 };
-type Track = { idle?: boolean; flip?: boolean; a: number; b: number; pos: (t: number) => [number, number, number?]; faces: [number, Expr, Arms][]; beats?: Beat[]; h?: number };
+type Track = { idle?: boolean; ride?: boolean; flip?: boolean; a: number; b: number; pos: (t: number) => [number, number, number?]; faces: [number, Expr, string][]; beats?: Beat[]; h?: number };
 const stay = (x: number, z: number) => (): [number, number] => [x, z];
 const walk = (a: number, b: number, x0: number, z0: number, x1: number, z1: number) => (t: number): [number, number] => { const k = ease(prog(t, a, b)); return [lerp(x0, x1, k), lerp(z0, z1, k)]; };
 const inTruckF = (dx: number) => (t: number): [number, number, number] => [TRUCK_F(t) + dx, -0.2, 0.72];
@@ -104,60 +105,69 @@ const inTruckF = (dx: number) => (t: number): [number, number, number] => [TRUCK
 /** The three soldiers: the same pattern of places for each (i = 0 commander, 1 and 2 privates). */
 const soldier = (i: number): Track[] => {
   const A: [number, number][] = [[0, 0], [-0.85, -0.7], [0.85, -0.9]];
-  const POST: [number, number][] = [[-1.05, 0.3], [0.45, 0.88], [-0.35, 0.45]];   // the gun is at the sol1's right hand: the commander watches, sol2 stands behind him and feeds the belt
+  const POST: [number, number][] = [[-1.05, 0.3], [0.45, 0.88], [-0.35, 0.45]];   // the gun is at sol1's right hand: the commander watches, sol2 stands behind him and feeds the belt
   const B: [number, number][] = [[OB + 4.4, 1.5], [OB + 3.4, 1.6], [OB + 2.5, 1.9]];
   const D: [number, number][] = [[OD - 1.8, 0.6], [OD - 3.4, 1.1], [OD - 2.6, -0.4]];
   const G: [number, number][] = [[OG + 5.5, -9], [OG + 6.5, -9.4], [OG + 7.3, -9]];
   const F = [-0.9, -0.2, 0.5][i], home = [0, -0.85, 0.85][i], homeZ = [0, -0.7, -0.9][i], TR = [-0.15, -0.8, -1.45][i];
-  type F3 = [number, Expr, Arms][];
-  const fMarch: F3[] = [[[0, "calm", "down"]], [[0, "grin", "down"]], [[0, "puzzled", "down"]]];
+  type F3 = [number, Expr, string][];
+  const fMarch: F3[] = [[[0, "calm", "pointc"]], [[0, "grin", "down"]], [[0, "puzzled", "down"]]];
   const fStay: F3[] = [[[4.4, "calm", "hips"]], [[4.4, "calm", "down"], [9.2, "sly", "belly"]], [[4.4, "puzzled", "down"], [9.2, "calm", "belly"]]];
-  const fWalk: F3[] = [[[11.1, "grin", "point"]], [[11.1, "grin", "down"]], [[11.1, "calm", "down"]]];
+  const fWalk: F3[] = [[[11.1, "grin", "pointc"]], [[11.1, "grin", "down"]], [[11.1, "calm", "down"]]];
   const fPost: F3[] = [
-    [[12.3, "furious", "point"], [13.42, "shocked", "binoc"], [17.54, "furious", "hips"]],
-    [[12.3, "grin", "aim"], [13.42, "furious", "aim"], [17.54, "puzzled", "aim"]],
-    [[12.3, "grin", "feed"], [13.42, "shocked", "feed"], [17.54, "sleepy", "shrug"]],
+    [[12.3, "furious", "pointc"], [13.42, "shocked", "binoc"], [16.9, "furious", "pointc"], [17.54, "furious", "fist"]],
+    [[12.3, "grin", "shoot"], [13.42, "furious", "shoot"], [17.54, "puzzled", "shoot"]],
+    [[12.3, "grin", "feedc"], [13.42, "shocked", "feedc"], [17.54, "sleepy", "scratch"]],
   ];
-  const fB: F3[] = [[[19.38, "furious", "point"], [20.6, "furious", "up"]], [[19.38, "sly", "aim"], [20.6, "shocked", "aim"]], [[19.38, "puzzled", "down"], [20.6, "shocked", "up"]]];
-  const fC: F3[] = [[[21.78, "furious", "point"], [24.1, "shocked", "up"]], [[21.78, "furious", "aim"]], [[21.78, "shocked", "up"]]];
-  const fD: F3[] = [[[25.68, "calm", "hips"], [HIT, "shocked", "up"], [28.74, "puzzled", "shrug"]], [[25.68, "calm", "aim"], [HIT - 0.4, "furious", "aim"], [HIT + 0.3, "shocked", "up"], [28.74, "puzzled", "shrug"]], [[25.68, "calm", "belly"], [HIT, "shocked", "up"], [28.74, "sleepy", "shrug"]]];
-  const fG: F3[] = [[[43.52, "calm", "down"], [49.0, "shocked", "up"]], [[43.52, "calm", "down"], [49.0, "furious", "aim"], [50.8, "shocked", "down"]], [[43.52, "calm", "down"], [49.0, "shocked", "up"]]];
+  const fB: F3[] = [[[19.38, "furious", "fist"], [20.6, "furious", "cheerc"]], [[19.38, "sly", "shoot"], [19.9, "shocked", "jam"], [21.0, "shocked", "jam"]], [[19.38, "shocked", "cheerc"], [21.0, "shocked", "cheerc"]]];
+  const fC: F3[] = [[[21.78, "furious", "pointc"], [24.1, "shocked", "cheerc"]], [[21.78, "furious", "shoot"]], [[21.78, "shocked", "cheerc"]]];
+  const fD: F3[] = [[[25.68, "calm", "hips"], [HIT, "shocked", "cheerc"], [28.74, "furious", "fist"]], [[25.68, "calm", "shoot"], [HIT - 0.4, "furious", "shoot"], [HIT + 0.3, "shocked", "cheerc"], [28.74, "furious", "fist"]], [[25.68, "calm", "belly"], [HIT, "shocked", "cheerc"], [28.74, "furious", "pointc"]]];
+  const fG: F3[] = [[[43.52, "calm", "down"], [49.0, "shocked", "cheerc"]], [[43.52, "calm", "down"], [49.0, "furious", "shoot"], [50.8, "shocked", "down"]], [[43.52, "calm", "down"], [49.0, "shocked", "cheerc"]]];
   const [ax, az] = A[i], [px, pz] = POST[i], [bx, bz] = B[i], [dx, dz] = D[i], [gx, gz] = G[i];
+  const circle = (t: number): [number, number] => [bx + 1.1 * Math.cos((t - 19.38) * 3.4), bz - 0.5 + 0.7 * Math.sin((t - 19.38) * 3.4)];   // sol2 runs round in a panic
   return [
     { a: 0, b: 4.4, pos: (t: number): [number, number] => [ax + 1.1 * t, az], faces: fMarch[i] },   // they march out (the camera walks with them), mid-stride at frame 0
     { a: 4.4, b: 11.1, idle: true, pos: stay(ax, az), faces: fStay[i] },
     { a: 11.1, b: 12.3, pos: walk(11.1, 12.3, ax, az, px, pz), faces: fWalk[i] },                                   // they take their posts at the gun
-    { a: 12.3, b: 19.38, idle: true, pos: stay(px, pz), faces: fPost[i], beats: i === 0 ? [["hop", 13.42, 13.7, 0.05]] : [] },
-    { a: 19.38, b: 21.78, idle: true, pos: stay(bx, bz), faces: fB[i], beats: [["shake", 20.6, 21.7, 0.03 + 0.01 * i], ["hop", 20.95, 21.25, 0.1]] },
-    { a: 21.78, b: 25.68, flip: i !== 1, pos: (t: number): [number, number, number] => [TRUCK_C(t) + TR, -1.5, 0.72], faces: fC[i], beats: [["lean", 22, 25, 0.03]] },   // all three ride the truck
-    { a: 25.68, b: 31.34, idle: true, pos: stay(dx, dz), faces: fD[i], beats: [["hop", HIT, HIT + 0.3, 0.12], ["lean", 28.8, 30.8, 0.05 * (i - 1)]] },
-    { a: 38.04, b: 40.12, pos: inTruckF(F), faces: [[38.04, "sleepy", "down"]], beats: [["lean", 38.2, 40, 0.04]] },
-    { a: 41.5, b: 43.52, pos: inTruckF(F), faces: [[41.5, "grin", "wave"]], beats: [["shake", 41.5, 43.5, 0.03]] },
+    { a: 12.3, b: 19.38, idle: true, pos: stay(px, pz), faces: fPost[i] },
+    { a: 19.38, b: 21.78, idle: i !== 2, pos: i === 2 ? circle : stay(bx, bz), faces: fB[i], beats: [["shake", 20.6, 21.7, 0.03 + 0.01 * i], ["hop", 20.95, 21.25, 0.1]] },
+    { a: 21.78, b: 25.68, ride: true, flip: i !== 1, pos: (t: number): [number, number, number] => [TRUCK_C(t) + TR, -1.5, 0.72], faces: fC[i] },   // all three ride the truck
+    { a: 25.68, b: 28.74, idle: true, pos: stay(dx, dz), faces: fD[i], beats: [["hop", HIT, HIT + 0.3, 0.12]] },
+    { a: 28.74, b: 31.34, pos: walk(28.74, 30.6, dx, dz, dx + 5.2 + 0.7 * i, dz + 0.2 * i), faces: fD[i] },     // the emu runs on: they run after it
+    { a: 38.04, b: 40.12, ride: true, pos: inTruckF(F), faces: [[38.04, "sleepy", "down"]] },
+    { a: 41.5, b: 43.52, ride: true, pos: inTruckF(F), faces: [[41.5, "grin", "wavec"]], beats: [["shake", 41.5, 43.5, 0.03]] },
     { a: 43.52, b: 51.16, idle: true, flip: i === 1, pos: stay(gx, gz), faces: fG[i], beats: [["hop", 49.3, 49.6, 0.1]] },
-    { a: 51.16, b: 53.0, pos: walk(51.16, 53.0, home, -0.8, 5.6 + 0.3 * i, -1.2), faces: [[51.16, "sleepy", "down"]], beats: [["lean", 51.2, 53, 0.05]] },
-    { a: 56.8, b: 58.96, pos: walk(56.8, 58.2, 6.5 + i * 0.9, -0.6, home, homeZ), faces: [[56.8, "furious", "down"], [58.3, "calm", "hips"]], beats: [["shake", 56.8, 58.2, 0.03]] },
+    { a: 51.16, b: 53.0, pos: walk(51.16, 53.0, home, -0.8, 5.6 + 0.3 * i, -1.2), faces: [[51.16, "sleepy", "down"]] },
+    { a: 56.8, b: 58.96, pos: walk(56.8, 58.2, 6.5 + i * 0.9, -0.6, home, homeZ), faces: [[56.8, "furious", "fist"], [58.3, "calm", "hips"]] },
   ];
 };
 
 // ---------- one person's state at a time: where, which pose, how they move (the gun reads it to sit in the right hand) ------------------------
-type AState = { x: number; y: number; z: number; flip: boolean; expr: Expr; arms: Arms; hop: number; lean: number; act: number; step: number; tilt: number; nod: number; h: number };
+type AState = { prop: string; rig: Pose; x: number; y: number; z: number; flip: boolean; expr: Expr; arms: Arms; hop: number; lean: number; act: number; step: number; tilt: number; nod: number; h: number };
 const BURSTS: [number, number][] = [[14.05, 14.7], [15.1, 15.7], [16.3, 16.9], [22.2, 23.0], [23.6, 24.4], [HIT - 0.4, HIT + 0.3], [49.6, 50.8]];
 const firing = (t: number) => BURSTS.some(([a, b]) => t >= a && t < b);
+const LEGACY_ARMS = new Set(["binoc", "salute"]);   // the head layer draws these two itself
 const stateOf = (a: { id: string; tracks: Track[] }, t: number, f: number): AState | null => {
   const tr = a.tracks.find((k) => t >= k.a && t < k.b);
   if (!tr) return null;
   const P = PERSONA[a.id] ?? PERSONA.kom, w = (Math.PI * 2) / P.per;
   const off = (s: number) => (tr.idle ? P.pace * Math.sin(w * s + P.ph) : 0);
   const [bx, z, y = 0] = tr.pos(t), x = bx + off(t), x2 = tr.pos(t + 0.05)[0] + off(t + 0.05), x1 = tr.pos(t - 0.05)[0] + off(t - 0.05);
-  const m = beatsAt(tr.beats ?? [], t, P.ph), [, expr, arms] = stepAt(tr.faces, t);
-  const moving = Math.abs(x2 - x1) > 0.012;
+  const m = beatsAt(tr.beats ?? [], t, P.ph), [, expr, armName] = stepAt(tr.faces, t);
+  const speed = Math.abs(x2 - x1) / 0.1, moving = !tr.ride && speed > 0.12;
   const flip = tr.flip ?? (moving ? x2 < x1 - 0.002 : false);
-  const gesturing = P.gest > 0 && (arms === "down" || arms === "belly") && Math.sin(t * P.gestF * 2 + P.ph) > 0.1;
-  const kick = a.id === "sol1" && firing(t) ? (f % 2 ? -0.035 : 0.01) : 0, kickHop = a.id === "sol1" && firing(t) ? 0.012 * (f % 2) : 0;   // the gun kicks the one who holds it
+  const shooting = a.id === "sol1" && firing(t);
+  let rig = poseAt(tr.faces.map(([ta, , ar]) => [ta, ar] as [number, string]), t, 0.28);
+  if (moving) rig = gait(rig, (bx * Math.PI * 2) / (speed > 2.2 ? 1.5 : 0.9), speed > 2.2 ? 1.6 : speed > 1.4 ? 1.25 : 1);   // the legs follow the ground: one stride per 0.9 m, so the feet never slide
+  else rig = { ...rig, lHip: rig.lHip + 3 * Math.sin(t * 0.9 + P.ph), rHip: rig.rHip - 3 * Math.sin(t * 0.9 + P.ph) };
+  const gesturing = P.gest > 0 && !moving && (armName === "down" || armName === "belly" || armName === "hips") && Math.sin(t * P.gestF * 2 + P.ph) > 0.1;
+  if (gesturing) rig = gesture(rig, t, P.ph, P.gest);
+  if (shooting) rig = kickPose(rig, f % 2);
+  const bump = tr.ride ? 0.012 * Math.abs(Math.sin(t * 14 + P.ph)) : 0;   // riding the truck over rough ground
   return {
-    x, y, z, flip, expr, arms, h: tr.h ?? 1.7, act: gesturing ? P.gest : 0, step: moving ? f * (tr.idle ? 0.42 : 0.55) : 0,
-    hop: m.hop + kickHop + P.bob * Math.abs(Math.sin(t * P.bobF * Math.PI + P.ph)), lean: m.lean + kick + 0.025 * Math.sin(t * 1.3 + P.ph),
-    tilt: P.tilt * Math.sin(t * P.tiltF + P.ph), nod: P.nod * Math.sin(t * P.nodF * 2 + P.ph * 2),
+    prop: armName, rig, x, y, z, flip, expr, arms: (LEGACY_ARMS.has(armName) ? armName : "down") as Arms, h: tr.h ?? 1.7, act: 0, step: 0,
+    hop: m.hop + bump + (shooting ? 0.012 * (f % 2) : 0) + P.bob * Math.abs(Math.sin(t * P.bobF * Math.PI + P.ph)), lean: m.lean + (shooting ? (f % 2 ? -0.03 : 0.008) : 0) + 0.006 * Math.sin(t * 1.3 + P.ph),
+    tilt: P.tilt * 0.6 * Math.sin(t * P.tiltF + P.ph), nod: P.nod * 0.5 * Math.sin(t * P.nodF * 2 + P.ph * 2),
   };
 };
 /** The machine gun is always in somebody's hand: sol1's right hand (the sprite's hand is 0.30 right of the body and 0.83 up), or on its tripod once nobody holds it. */
@@ -169,22 +179,25 @@ const gunPose = (t: number, f: number): { x: number; y: number; z: number; yaw: 
   if (!s1) return null;
   const side = s1.flip ? -1 : 1;
   const yaw = t < 19.38 ? 0.3 + (t >= 17.54 ? 0.3 * Math.sin((t - 17.54) * 3.2) : 0) : t >= 43.52 ? Math.PI : 0;   // stage A: the barrel points the way he faces (out to the right, a little into the field), sweeping while he can not aim
-  return { x: s1.x + side * 0.3, y: s1.y + 0.21, z: s1.z + 0.05, yaw, held: true, fire, s };
+  const hr = handOffset(s1.rig, "r", s1.h), hl = handOffset(s1.rig, "l", s1.h), two = s1.prop === "shoot";   // two hands on the gun when he shoots (grip and forestock), else the grip is in the right hand
+  const hd = two ? { x: (hr.x + hl.x) / 2 - 0.1, y: (hr.y + hl.y) / 2 } : hr;
+  return { x: s1.x + side * hd.x, y: s1.y + hd.y - 0.62, z: s1.z + 0.05, yaw, held: true, fire, s };
 };
 const ACTORS: { id: string; o: Outfit; tracks: Track[] }[] = [
   { id: "kom", o: KOM, tracks: soldier(0) },
   { id: "sol1", o: SOL1, tracks: soldier(1) },
   { id: "sol2", o: SOL2, tracks: soldier(2) },
   { id: "farm1", o: FARM1, tracks: [
-    { a: 4.4, b: 6.9, pos: walk(4.4, 6.9, -4.2, 0.2, -2.2, 0.4), faces: [[4.4, "calm", "down"], [5.6, "grin", "wave"]], beats: [["lean", 5.2, 6.4, 0.06]] },
-    { a: 40.12, b: 43.52, idle: true, pos: stay(OF - 2.5, -0.2), faces: [[40.12, "furious", "up"], [41.5, "furious", "point"]], beats: [["hop", 40.3, 40.6, 0.14], ["hop", 40.9, 41.2, 0.14], ["shake", 41.5, 43.4, 0.04]] },
+    { a: 4.4, b: 6.9, pos: walk(4.4, 6.9, -4.6, 0.2, -3.1, 0.5), faces: [[4.4, "calm", "down"], [5.6, "furious", "fist"]] },
+    { a: 40.12, b: 43.52, idle: true, pos: stay(OF - 2.5, -0.2), faces: [[40.12, "furious", "fist"], [41.5, "furious", "pointc"]], beats: [["hop", 40.3, 40.6, 0.14], ["hop", 40.9, 41.2, 0.14], ["shake", 41.5, 43.4, 0.04]] },
   ] },
   { id: "farm2", o: FARM2, tracks: [
-    { a: 4.4, b: 6.9, pos: walk(4.4, 6.9, -1.6, -1.2, -0.4, -0.9), faces: [[4.4, "sly", "down"], [6.0, "puzzled", "shrug"]] },
-    { a: 40.12, b: 43.52, idle: true, pos: stay(OF - 1.3, -0.6), faces: [[40.12, "furious", "up"], [41.5, "furious", "hips"]], beats: [["hop", 40.5, 40.8, 0.14], ["hop", 41.0, 41.3, 0.14], ["lean", 41.6, 43.0, 0.06]] },
+    { a: 4.4, b: 5.2, pos: walk(4.4, 5.2, -3.0, -1.2, -1.9, -0.1), faces: [[4.4, "sly", "down"]] },
+    { a: 5.2, b: 6.9, idle: true, pos: stay(-1.9, -0.1), faces: [[5.2, "sly", "dig"]] },   // he shovels the trampled soil
+    { a: 40.12, b: 43.52, idle: true, pos: stay(OF - 1.3, -0.6), faces: [[40.12, "furious", "cheerc"], [41.5, "furious", "fist"]], beats: [["hop", 40.5, 40.8, 0.14], ["hop", 41.0, 41.3, 0.14]] },
   ] },
-  { id: "parl1", o: PARL1, tracks: [{ a: 31.34, b: 34.38, idle: true, pos: stay(OE - 0.6, -0.5), faces: [[31.34, "calm", "down"], [32.72, "grin", "belly"]], beats: [["shake", 32.72, 34.3, 0.05], ["hop", 33.4, 33.7, 0.08]] }] },
-  { id: "parl2", o: PARL2, tracks: [{ a: 31.34, b: 34.38, idle: true, pos: stay(OE + 0.7, -0.7), faces: [[31.34, "sleepy", "down"], [32.9, "grin", "up"]], beats: [["shake", 33.0, 34.3, 0.05], ["hop", 33.8, 34.1, 0.08]] }] },
+  { id: "parl1", o: PARL1, tracks: [{ a: 31.34, b: 34.38, idle: true, pos: stay(OE - 0.6, -0.5), faces: [[31.34, "calm", "down"], [32.72, "grin", "laugh"]], beats: [["hop", 32.9, 33.2, 0.06], ["hop", 33.5, 33.8, 0.06]] }] },
+  { id: "parl2", o: PARL2, tracks: [{ a: 31.34, b: 34.38, idle: true, pos: stay(OE + 0.7, -0.7), faces: [[31.34, "sleepy", "pointc"], [32.9, "grin", "clap"]], beats: [["hop", 33.8, 34.1, 0.08]] }] },
 ];
 
 // ---------- the emus ---------------------------------------------------------------------------------------------------------------------
@@ -268,6 +281,16 @@ const Gun: React.FC<{ x: number; y?: number; z: number; yaw: number; f: number; 
     <mesh position={[0.56, 0.62, 0]} rotation={[0, 0, Math.PI / 2]}><cylinderGeometry args={[0.045, 0.045, 0.72, 12]} /><meshStandardMaterial color="#454a44" roughness={0.4} metalness={0.5} /></mesh>
     <mesh position={[0.1, 0.77, 0]}><cylinderGeometry args={[0.13, 0.13, 0.05, 20]} /><meshStandardMaterial color="#34382f" roughness={0.5} /></mesh>
     {fire && <sprite position={[1.0, 0.62, 0]} scale={[0.6 + 0.35 * rnd(Math.floor(f / 2)), 0.6 + 0.35 * rnd(Math.floor(f / 2) + 9), 1]}><spriteMaterial map={flash} transparent blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} /></sprite>}
+  </group>
+);
+
+/** a shovel held at `x,y,z` by the top hand; `deg` is the handle's angle from hanging down toward the way the digger faces (rig.shovelDeg) */
+const Shovel: React.FC<{ x: number; y: number; z: number; deg: number; side: number; loaded: boolean }> = ({ x, y, z, deg, side, loaded }) => (
+  <group position={[x, y, z]} rotation={[0, 0, (side * deg * Math.PI) / 180]}>
+    <mesh position={[0, -0.4, 0]}><cylinderGeometry args={[0.022, 0.022, 1.2, 8]} /><meshStandardMaterial color="#8a6a3e" roughness={0.8} /></mesh>
+    <TBox size={[0.05, 0.05, 0.22]} pos={[0, 0.2, 0]} color="#8a6a3e" />
+    <TBox size={[0.04, 0.3, 0.24]} pos={[0, -1.12, 0]} color="#8d949a" rough={0.4} />
+    {loaded && <mesh position={[0.05, -1.0, 0]} scale={[1, 0.55, 1]}><sphereGeometry args={[0.15, 10, 8]} /><meshStandardMaterial color="#5a3f28" roughness={1} /></mesh>}
   </group>
 );
 
@@ -636,9 +659,15 @@ export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = () => {
   const actors = ACTORS.map((a) => {
     const s = stateOf(a, t, f);
     if (!s) return null;
-    return <StickHero key={a.id} pos={V(s.x, s.y, s.z)} expr={s.expr} arms={s.arms} f={f} outfit={a.o} height={s.h} hop={s.hop} lean={s.lean} act={s.act} step={s.step} tilt={s.tilt} nod={s.nod} flip={s.flip} />;
+    return <StickHero key={a.id} pos={V(s.x, s.y, s.z)} expr={s.expr} arms={s.arms} f={f} outfit={a.o} height={s.h} hop={s.hop} lean={s.lean} act={s.act} step={s.step} tilt={s.tilt} nod={s.nod} flip={s.flip} rig={s.rig} />;
   });
   const gunP = gunPose(t, f);
+  const diggers = ACTORS.map((a) => {
+    const s = stateOf(a, t, f);
+    if (!s || s.prop !== "dig") return null;
+    const side = s.flip ? -1 : 1, hd = handOffset(s.rig, "r", s.h), u = (t / 1.9) % 1;
+    return <Shovel key={a.id} x={s.x + side * hd.x} y={s.y + hd.y} z={s.z + 0.05} deg={shovelDeg(t)} side={side} loaded={u > 0.4 && u < 0.84} />;
+  });
   const flashT = useMemo(() => painted(128, 128, flashTex), []);
   return (
     <AbsoluteFill style={{ backgroundColor: SKY }}>
@@ -651,6 +680,7 @@ export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = () => {
         <RicksPost cam={cam} bloom={0.3} />
         <World t={t} f={f} />
         {actors}
+        {diggers}
         {gunP && <Gun x={gunP.x} y={gunP.y} z={gunP.z} yaw={gunP.yaw} f={f} fire={gunP.fire} flash={flashT} held={gunP.held} s={gunP.s} />}
       </ThreeCanvas>
       <div style={{ position: "absolute", left: 0, right: 0, top: 260, display: "flex", flexDirection: "column", alignItems: "center", gap: 14, opacity: hookA }}>

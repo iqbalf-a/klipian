@@ -17,6 +17,7 @@ import { BokehPass } from "three/examples/jsm/postprocessing/BokehPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { clamp01, easeInOut } from "../motion.ts";
+import { arm, leg, LEAN_BACK, type Pose } from "./rig.ts";
 
 export const CAST = 1;                  // the layer of the 2D cast
 export const INK = "#17141c";
@@ -124,16 +125,21 @@ export type Outfit = {
 
 /** One stick figure on a 512 x 1024 canvas, soles at the bottom. `wob` (-1..1) moves the growl lines, the zzz and a waving hand. */
 /** Optional motion for one frame: talk = mouth open 0..1 (lip-sync), g = arm gesture 0..1 (arms rise and fall while speaking), step = walk phase (0 = standing). */
-export type Motion = { talk?: number; g?: number; step?: number; tilt?: number; nod?: number };
+export type Motion = { talk?: number; g?: number; step?: number; tilt?: number; nod?: number; rig?: Pose };
 export function drawStick(c: CanvasRenderingContext2D, expr: Expr, arms: Arms, blink: boolean, wob: number, outfit: Outfit, m: Motion = {}) {
   c.clearRect(0, 0, 512, 1024);
   c.lineCap = c.lineJoin = "round";
   c.strokeStyle = INK; c.fillStyle = INK; c.lineWidth = 14;
   const sw = m.step ? Math.sin(m.step) : 0, lf = Math.max(0, sw) * 30, rf = Math.max(0, -sw) * 30;   // walking: the legs swing, the lifted foot rises
+  const g = m.g ?? 0, g2 = Math.max(0, g * 1.4 - 0.4);   // the second arm lags behind the first
+  if (m.rig) {   // B52: limbs from joint angles; the whole figure drops so the lower foot always stands on the ground
+    const dy = 995 - Math.max(leg(m.rig, "l")[2].y, leg(m.rig, "r")[2].y);
+    c.save(); c.translate(0, dy); drawRigLegs(c, m.rig);
+    c.save(); c.translate(-LEAN_BACK * Math.sin(((m.rig.lean ?? 0) * Math.PI) / 180), 0); c.translate(256, 700); c.rotate(((m.rig.lean ?? 0) * Math.PI) / 180); c.translate(-256, -700); drawRigArms(c, m.rig);   // arms, torso and head lean together
+  } else {
   c.beginPath(); c.moveTo(230, 700); c.lineTo(212 + sw * 50, 990 - lf); c.moveTo(282, 700); c.lineTo(300 + sw * 50, 990 - rf); c.stroke();
   c.beginPath(); c.ellipse(200 + sw * 50, 995 - lf, 34, 16, 0, 0, 7); c.ellipse(314 + sw * 50, 995 - rf, 34, 16, 0, 0, 7); c.fill();
   c.beginPath();
-  const g = m.g ?? 0, g2 = Math.max(0, g * 1.4 - 0.4);   // the second arm lags behind the first
   if ((arms === "down" || arms === "belly") && g > 0.02) {
     c.moveTo(190, 470); c.lineTo(140 - 50 * g, 640 - 190 * g); c.lineTo(150 - 80 * g, 700 - 330 * g);
     c.moveTo(322, 470); c.lineTo(372 + 50 * g2, 640 - 190 * g2); c.lineTo(362 + 80 * g2, 700 - 330 * g2);
@@ -149,6 +155,7 @@ export function drawStick(c: CanvasRenderingContext2D, expr: Expr, arms: Arms, b
   else if (arms === "point") { c.moveTo(190, 470); c.lineTo(110, 380); c.lineTo(40, 260); c.moveTo(322, 470); c.lineTo(380, 640); c.lineTo(360, 700); }
   else { const as = m.step ? sw * 46 : 0; c.moveTo(190, 470); c.lineTo(140 - as * 0.6, 640); c.lineTo(150 - as, 700 - Math.abs(as) * 0.3); c.moveTo(322, 470); c.lineTo(372 + as * 0.6, 640); c.lineTo(362 + as, 700 - Math.abs(as) * 0.3); }   // walking: the arms swing against the legs
   c.stroke();
+  }
   const bx = outfit.body === "wide" ? 156 : 180, bw = 512 - 2 * bx;
   c.save(); c.beginPath(); c.roundRect(bx, 420, bw, 300, 48); c.clip();
   c.fillStyle = outfit.shirt; c.fillRect(bx - 10, 410, bw + 20, 320);
@@ -160,7 +167,7 @@ export function drawStick(c: CanvasRenderingContext2D, expr: Expr, arms: Arms, b
   else if (pat === "collar") { c.beginPath(); c.moveTo(216, 420); c.lineTo(256, 470); c.lineTo(296, 420); c.closePath(); c.fill(); c.fillRect(250, 470, 12, 240); }
   c.restore();
   c.lineWidth = 12; c.beginPath(); c.roundRect(bx, 420, bw, 300, 48); c.stroke();
-  if (arms === "belly" && g <= 0.02) {
+  if (!m.rig && arms === "belly" && g <= 0.02) {
     c.lineWidth = 14; c.beginPath(); c.moveTo(150, 590); c.lineTo(236, 600); c.moveTo(364, 590); c.lineTo(278, 600); c.stroke();
     c.lineWidth = 7; c.beginPath();
     for (const s of [-1, 1]) for (let k = 0; k < 3; k++) { const x = 256 + s * (120 + k * 26), y = 560 + k * 30 + wob * 6; c.moveTo(x, y); c.quadraticCurveTo(x + s * 14, y + 8, x, y + 18); }
@@ -227,6 +234,27 @@ export function drawStick(c: CanvasRenderingContext2D, expr: Expr, arms: Arms, b
   drawHat(c, outfit);
   if (arms === "salute") { c.strokeStyle = INK; c.lineWidth = 14; c.beginPath(); c.moveTo(322, 470); c.lineTo(408, 380); c.lineTo(352, 190); c.stroke(); c.fillStyle = "#fbf7ee"; c.lineWidth = 8; c.beginPath(); c.arc(352, 190, 24, 0, 7); c.fill(); c.stroke(); }
   c.restore();
+  if (m.rig) { c.restore(); c.restore(); }
+}
+
+/** legs and feet from a rig pose */
+function drawRigLegs(c: CanvasRenderingContext2D, p: Pose) {
+  c.strokeStyle = INK; c.fillStyle = INK; c.lineWidth = 14;
+  for (const side of ["l", "r"] as const) {
+    const [h, k, a] = leg(p, side);
+    c.beginPath(); c.moveTo(h.x, h.y); c.lineTo(k.x, k.y); c.lineTo(a.x, a.y); c.stroke();
+    c.beginPath(); c.ellipse(a.x + 8, a.y + 5, 34, 16, 0, 0, 7); c.fill();
+  }
+}
+/** arms from a rig pose, in the leaned frame (the arms the head layer draws itself are skipped) */
+function drawRigArms(c: CanvasRenderingContext2D, p: Pose) {
+  c.strokeStyle = INK; c.lineWidth = 14;
+  const flat = { ...p, lean: 0 };   // the canvas is already rotated
+  for (const side of ["l", "r"] as const) {
+    if (side === "l" ? p.hideL : p.hideR) continue;
+    const [s, e, h] = arm(flat, side);
+    c.beginPath(); c.moveTo(s.x, s.y); c.lineTo(e.x, e.y); c.lineTo(h.x, h.y); c.stroke();
+  }
 }
 
 function drawFace(c: CanvasRenderingContext2D, o: Outfit) {
@@ -265,17 +293,17 @@ function drawHat(c: CanvasRenderingContext2D, o: Outfit) {
 
 /** A stick figure standing at `pos` (soles), facing the camera, on the CAST layer, with a contact shadow on the floor. */
 /** `talk` opens the mouth (0..1), `act` (0..1) is how lively the person is: arms gesture, the body sways and hops; `step` is a walk phase (omit = standing). */
-export const StickHero: React.FC<{ pos: THREE.Vector3; expr: Expr; arms: Arms; f: number; outfit: Outfit; height?: number; talk?: number; act?: number; step?: number; hop?: number; lean?: number; tilt?: number; nod?: number; flip?: boolean }> = ({ pos, expr, arms, f, outfit, height = 1.7, talk = 0, act = 0, step = 0, hop = 0, lean = 0, tilt = 0, nod = 0, flip = false }) => {
+export const StickHero: React.FC<{ pos: THREE.Vector3; expr: Expr; arms: Arms; f: number; outfit: Outfit; height?: number; talk?: number; act?: number; step?: number; hop?: number; lean?: number; tilt?: number; nod?: number; flip?: boolean; rig?: Pose }> = ({ pos, expr, arms, f, outfit, height = 1.7, talk = 0, act = 0, step = 0, hop = 0, lean = 0, tilt = 0, nod = 0, flip = false, rig }) => {
   const blink = expr !== "sleepy" && (f + 40) % 96 < 3;
   const wob = Math.sin(f * 0.5);
   const tex = useMemo(() => painted(512, 1024, () => undefined), []);
-  drawStick((tex.image as HTMLCanvasElement).getContext("2d")!, expr, arms, blink, wob, outfit, { talk, step, tilt, nod, g: act > 0.3 ? act * (0.5 + 0.5 * Math.sin(f * 0.42)) : 0 });
+  drawStick((tex.image as HTMLCanvasElement).getContext("2d")!, expr, arms, blink, wob, outfit, { talk, step, tilt, nod, rig, g: act > 0.3 ? act * (0.5 + 0.5 * Math.sin(f * 0.42)) : 0 });
   tex.needsUpdate = true;
   const breathe = 1 + 0.012 * Math.sin(f * 0.18);
   return (
     <group position={pos.toArray()}>
       <group rotation={[0, 0, lean]}>
-        <mesh position={[0, (height / 2) * breathe + hop * height + Math.abs(Math.sin(step)) * 0.03, 0]} scale={[flip ? -1 : 1, breathe, 1]} layers={CAST}><planeGeometry args={[height / 2, height]} /><meshBasicMaterial map={tex} alphaTest={0.5} toneMapped={false} side={THREE.DoubleSide} /></mesh>
+        <mesh position={[0, (height / 2) * breathe + hop * height + Math.abs(Math.sin(step)) * 0.03, 0]} scale={[(flip ? -1 : 1) * (rig ? 1 - Math.min(0.06, hop * 0.4) : 1), breathe * (rig ? 1 + Math.min(0.08, hop * 0.5) : 1), 1]} layers={CAST}><planeGeometry args={[height / 2, height]} /><meshBasicMaterial map={tex} alphaTest={0.5} toneMapped={false} side={THREE.DoubleSide} /></mesh>
       </group>
       <mesh position={[0, 0.005, 0.03]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[height * 0.13, 32]} /><meshBasicMaterial color="#000" transparent opacity={0.35} depthWrite={false} /></mesh>
     </group>
