@@ -1669,6 +1669,21 @@ def _free_name(stem: str) -> str:
     return name
 
 
+def shorts_loudness(video: Path, target: float = -14.0) -> None:
+    """Look ricks: one linear gain to about -14 LUFS (where Shorts play) and a -1 dBFS peak limiter, the picture copied: what scripts/ricksRender.mjs does, so the
+    Render button and the script give the same sound (B46). The voice, bed and effects keep the ratios mixed by render.mjs. Replaces `video`; a failed measure leaves it as it is."""
+    from .ffmpeg_tools import _require, run
+    ff = _require("ffmpeg")
+    r = run([ff, "-hide_banner", "-nostats", "-i", str(video), "-vn", "-af", "ebur128", "-f", "null", "-"], "measuring the loudness")
+    hits = re.findall(r"I:\s+(-?\d+(?:\.\d+)?)\s+LUFS", r.stderr)
+    if not hits:
+        return
+    tmp = video.with_name(video.stem + ".loud.mp4")
+    run([ff, "-y", "-v", "error", "-i", str(video), "-map", "0:v:0", "-map", "0:a:0", "-c:v", "copy", "-af", f"volume={target - float(hits[-1]):.2f}dB,alimiter=limit=0.891:level=false",
+         "-c:a", "aac", "-b:a", "192k", "-ar", "48000", str(tmp)], "levelling the sound")
+    paths.replace_file(tmp, video)
+
+
 def _run_render(pid: str, key, ev: threading.Event) -> None:
     try:
         p = load(pid)
@@ -1696,6 +1711,9 @@ def _run_render(pid: str, key, ev: threading.Event) -> None:
         made = Path(done.get("out") or (project_dir(pid) / "out" / work))
         if not made.is_file():
             raise MotionError("render", "The render finished but the video file is missing.")
+        if story.get("look") == "ricks":
+            _set(key, percent=99, stage="sound", eta=None, message="Leveling the sound…")
+            shorts_loudness(made)
         with _LOCK:
             name = _free_name(paths.safe_name(p["title"])[:120] or pid)
             dest = schedule.folder_dir(MOTION_FOLDER) / name
