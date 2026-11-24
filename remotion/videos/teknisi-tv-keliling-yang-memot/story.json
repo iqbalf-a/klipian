@@ -1,0 +1,205 @@
+{
+  "bible": 1,
+  "question": "Kenapa teknisi TV keliling memotret remote dengan HP?",
+  "titles": [
+    "Teknisi TV keliling ini memotret remote pakai HP",
+    "Remote difoto HP: lampu ungu yang tak terlihat mata",
+    "Pak Darto tahu remote rusak tanpa membongkarnya"
+  ],
+  "duration": 50.84,
+  "beats": [
+    {
+      "id": "hook",
+      "kind": "hook",
+      "dur": 3.98,
+      "narration": "Pak Darto, teknisi TV keliling, memotret remote pakai HP.",
+      "text": "Remote difoto pakai HP",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Remote difoto pakai HP",
+            "fs": 70
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "dunia",
+      "kind": "normal",
+      "dur": 7.56,
+      "narration": "Bu Rina bilang TV-nya mati total. Bang Jaya, teknisi toko saingannya, sudah siap menjual TV baru tiga juta rupiah.",
+      "text": "TV baru tiga juta",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "TV baru tiga juta",
+            "fs": 70
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "ragu",
+      "kind": "normal",
+      "dur": 7.54,
+      "narration": "Bang Jaya tertawa, \"Remote kok difoto, Pak?\" Pak Darto diam saja, menekan tombol power, dan memelototi layar HP-nya.",
+      "text": "Remote kok difoto?",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Remote kok difoto?",
+            "fs": 70
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "naik",
+      "kind": "normal",
+      "dur": 7.2,
+      "narration": "Layar HP tetap gelap. Bang Jaya makin lantang, \"Tuh kan, TV-nya rusak, beli baru aja!\" Bu Rina mulai melirik dompet.",
+      "text": "Layar gelap, TV dibilang rusak",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Layar gelap, TV dibilang rusak",
+            "fs": 60
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "balik",
+      "kind": "normal",
+      "dur": 8.38,
+      "narration": "Pak Darto membuka remote dan mengganti baterainya. Tekan lagi, dan di layar HP muncul kedipan ungu. TV langsung menyala.",
+      "text": "Baterai baru, kedip ungu",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Baterai baru, kedip ungu",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "sains",
+      "kind": "result",
+      "dur": 11.92,
+      "narration": "Remote mengirim perintah lewat cahaya inframerah, sekitar sembilan ratus empat puluh nanometer. Mata kita tidak bisa melihatnya, tapi sensor kamera HP bisa. Kalau layar tetap gelap, biasanya remotenya yang bermasalah.",
+      "text": "Inframerah, mata tak lihat",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Inframerah, mata tak lihat",
+            "fs": 62
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "akhir",
+      "kind": "normal",
+      "dur": 3.56,
+      "narration": "Besoknya, Bang Jaya terlihat memotret remote di rumahnya sendiri pakai HP.",
+      "text": "Bang Jaya ikut memotret",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Bang Jaya ikut memotret",
+            "fs": 66
+          }
+        ]
+      },
+      "sfx": "none"
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "dur": 0.7,
+      "narration": "",
+      "text": "",
+      "scene": {
+        "bg": "brand",
+        "items": [
+          {
+            "type": "banner",
+            "text": "Remote difoto pakai HP",
+            "fs": 70
+          }
+        ]
+      },
+      "sfx": "none"
+    }
+  ],
+  "claims": [
+    {
+      "text": "Remote TV biasa memakai cahaya inframerah dengan panjang gelombang sekitar 940 nm, yang tidak terlihat mata manusia.",
+      "beats": [
+        "sains"
+      ],
+      "sources": [
+        "https://support.biamp.com/Biamp_Control/General_information/Basic_knowledge_on_infrared"
+      ]
+    },
+    {
+      "text": "Lampu LED inframerah remote tidak terlihat mata, tetapi bisa dilihat lewat kamera digital atau HP berkamera video, sehingga kamera dipakai untuk mengecek apakah LED-nya menyala.",
+      "beats": [
+        "balik",
+        "sains"
+      ],
+      "sources": [
+        "https://sciencing.com/test-infrared-led-7791510"
+      ]
+    },
+    {
+      "text": "Di dalam remote ada LED inframerah yang memancarkan denyut cahaya untuk menyuruh TV menyala, mati atau ganti saluran; cahaya itu tak terlihat mata.",
+      "beats": [
+        "sains"
+      ],
+      "sources": [
+        "https://learn.adafruit.com/ir-sensor/overview"
+      ]
+    }
+  ],
+  "post": {
+    "description": "Pak Darto, teknisi TV keliling, memotret remote Bu Rina pakai HP, sementara Bang Jaya menertawakannya. Remote TV mengirim perintah lewat cahaya inframerah yang tidak terlihat mata, tapi sensor kamera HP bisa menangkapnya. Ceritanya karangan, ilmunya nyata.",
+    "hashtags": [
+      "#remotetv",
+      "#inframerah",
+      "#faktaseru",
+      "#shorts"
+    ]
+  },
+  "thumb": "Remote difoto HP: kedip *ungu*?",
+  "needs": [],
+  "stage": "slab",
+  "theme": "sky",
+  "look": "ricks",
+  "captions": true,
+  "music": {
+    "track": "bed-curious",
+    "level": 0.8
+  }
+}
