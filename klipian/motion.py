@@ -566,7 +566,7 @@ def _check_for(p: dict, story: dict) -> list[dict]:
     """The checks that belong to THIS video and not to the schema: it must be as long as asked, and its title must fit."""
     errors = []
     d = story.get("duration")
-    if isinstance(d, (int, float)) and abs(d - p["duration"]) > 1.5:
+    if story.get("look") != "ricks" and isinstance(d, (int, float)) and abs(d - p["duration"]) > 1.5:      # a ricks story lasts what its voice lasts (B46), not one of the four lengths
         errors.append({"path": "duration", "message": f"this video is {p['duration']} seconds, but the story lasts {d} seconds"})
     return errors
 
