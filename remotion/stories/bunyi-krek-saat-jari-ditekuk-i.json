@@ -1,0 +1,214 @@
+{
+ "bible": 1,
+ "question": "Bunyi krek saat jari ditekuk itu apa?",
+ "titles": [
+  "Bunyi krek jari: bukan tulang patah",
+  "Kenapa jari bunyi krek? Ini isi sendimu",
+  "Itu bukan tulang patah, itu gelembung"
+ ],
+ "duration": 40,
+ "beats": [
+  {
+   "id": "hook",
+   "kind": "hook",
+   "dur": 3,
+   "narration": "Itu bukan tulang patah. Itu gelembung.",
+   "text": "Bukan tulang patah. Itu gelembung.",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Bukan tulang patah. Itu gelembung.",
+      "fs": 70
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "sting",
+   "kind": "sting",
+   "dur": 1,
+   "narration": "Intip yuk!",
+   "text": "Intip yuk!",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Intip yuk!",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "cairan",
+   "kind": "normal",
+   "dur": 7,
+   "narration": "Di dalam sendi jari ada cairan kental yang melumasi ujung tulang. Gelembung belum ada.",
+   "text": "Cairan pelumas sendi",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Cairan pelumas sendi",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "tarik",
+   "kind": "normal",
+   "dur": 9,
+   "narration": "Saat jari ditarik atau ditekuk ke belakang, dua tulang merenggang mendadak. Ruang melebar, tekanan cairan turun.",
+   "text": "Tulang merenggang, tekanan turun",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Tulang merenggang, tekanan turun",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "rongga",
+   "kind": "result",
+   "dur": 8,
+   "narration": "Gas yang larut di cairan pun muncul jadi rongga, tepat saat bunyi krek itu terdengar.",
+   "text": "Rongga gas, bukan patah",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Rongga gas, bukan patah",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "tips",
+   "kind": "tips",
+   "dur": 9,
+   "narration": "Sekitar dua puluh menit sendi butuh jeda sebelum bisa krek lagi. Radang sendi? Kemungkinan besar bukan karena ini.",
+   "text": "Radang sendi? Kemungkinan MITOS",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Radang sendi? Kemungkinan MITOS",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "outro",
+   "kind": "outro",
+   "dur": 3,
+   "narration": "",
+   "text": "",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  }
+ ],
+ "claims": [
+  {
+   "text": "Bunyi krek sendi jari muncul saat sendi terpisah cepat dan sebuah rongga gas terbentuk di cairan sendi (cine MRI), bukan dari tulang yang patah atau gelembung lama yang pecah.",
+   "beats": [
+    "hook",
+    "tarik",
+    "rongga"
+   ],
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC4398549/",
+    "https://www.ualberta.ca/en/folio/2015/04/pull-my-finger-say-scientists-who-solve-knuckle-cracking-riddle.html"
+   ]
+  },
+  {
+   "text": "Sebelum sendi ditarik, citra MRI tidak memperlihatkan rongga gas di dalam sendi.",
+   "beats": [
+    "cairan"
+   ],
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC4398549/"
+   ]
+  },
+  {
+   "text": "Sendi jari dilumasi cairan sinovial yang kental; tarikan harus mengalahkan daya lekat antarpermukaan sendi sebelum sendi terpisah.",
+   "beats": [
+    "cairan",
+    "tarik"
+   ],
+   "sources": [
+    "https://www.health.harvard.edu/pain/does-knuckle-cracking-cause-arthritis",
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC4398549/"
+   ]
+  },
+  {
+   "text": "Tekanan cairan sendi yang turun membuat gas terlarut keluar dari larutan dan membentuk rongga.",
+   "beats": [
+    "tarik",
+    "rongga"
+   ],
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC4398549/"
+   ]
+  },
+  {
+   "text": "Setelah sendi berbunyi, ada fase refrakter sekitar 20 menit sebelum sendi itu bisa berbunyi lagi.",
+   "beats": [
+    "tips"
+   ],
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC4398549/"
+   ]
+  },
+  {
+   "text": "Beberapa studi yang membandingkan pengebuk buku jari dan bukan pengebuk menyimpulkan kebiasaan ini kemungkinan tidak menaikkan risiko radang sendi tangan.",
+   "beats": [
+    "tips"
+   ],
+   "sources": [
+    "https://www.health.harvard.edu/pain/does-knuckle-cracking-cause-arthritis"
+   ]
+  }
+ ],
+ "post": {
+  "description": "Bunyi krek saat jari ditekuk bukan tulang yang patah. Saat sendi merenggang, tekanan cairan sendi turun dan gas terlarut membentuk rongga, tepat saat bunyi terdengar. Setelah itu sendi butuh sekitar 20 menit sebelum bisa berbunyi lagi.",
+  "hashtags": [
+   "#krekjari",
+   "#sendi",
+   "#tubuhmanusia",
+   "#faktaseru",
+   "#intipyuk",
+   "#shorts"
+  ]
+ },
+ "thumb": "Krek jari: *bukan* tulang patah?",
+ "needs": [],
+ "stage": "slab",
+ "theme": "cream",
+ "look": "2d",
+ "captions": true,
+ "music": {
+  "track": "bed-clockwork"
+ }
+}
