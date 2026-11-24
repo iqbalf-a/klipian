@@ -54,6 +54,10 @@ Remove the worktree ONLY after a successful push (step 4) and the Motion registr
 
 Never create a branch such as `work/create`.
 
+## 1b. Read the design rules (mandatory, ian 2026-11-25)
+
+After step 1 and BEFORE anything else (the brief, the story, a single line of the video), read `remotion/DESIGN.md` of the fresh checkout in full, every B rule, not only the ones the brief quotes (new rules land on `main` at any time: B60 arrived while a video was being built). Then list for yourself the rules that bind this video's look (for ricks at least B41, B42, B46 i to n, B48, B53 to B60) and keep them open while building. Skipping this read is the failure that produced videos with reused people, props and sounds. In step 5 line 4 add "rules dibaca: <the B numbers that bound this video>".
+
 ## 2. The brief
 
 From the repository root (no `workspace/` is needed; the profile settings fall back to the defaults and nothing is written):

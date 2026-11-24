@@ -130,6 +130,8 @@ export type Outfit = {
   pattern?: "stripe" | "plain" | "dots" | "check" | "collar";
   /** the face (the head itself is always white, ian 2026-11-21): a nose, blush, glasses, a beard */
   nose?: "none" | "dot" | "big"; blush?: boolean; glasses?: boolean; beard?: boolean;
+  /** more of the face (ian, 2026-11-25: a face is an asset too, B61): eyebrows, freckles, a mole, wrinkles, eye bags, a small chin beard */
+  brows?: "thick" | "arched" | "bushy"; freckles?: boolean; mole?: boolean; wrinkles?: boolean; eyebags?: boolean; goatee?: boolean;
 };
 
 /** One stick figure on a 512 x 1024 canvas, soles at the bottom. `wob` (-1..1) moves the growl lines, the zzz and a waving hand. */
@@ -273,6 +275,12 @@ function drawFace(c: CanvasRenderingContext2D, o: Outfit) {
   if (o.nose === "big") { c.lineWidth = 8; c.beginPath(); c.moveTo(252, 270); c.quadraticCurveTo(292, 306, 254, 312); c.stroke(); }
   if (o.hair === "long") { c.lineWidth = 7; c.beginPath(); for (const [x, y, dx] of [[176, 262, -1], [338, 262, 1]] as const) { c.moveTo(x, y); c.lineTo(x + dx * 18, y - 14); c.moveTo(x, y + 12); c.lineTo(x + dx * 20, y + 6); } c.stroke(); }
   if (o.glasses) { c.lineWidth = 8; c.beginPath(); c.roundRect(178, 236, 70, 54, 14); c.roundRect(268, 236, 70, 54, 14); c.moveTo(248, 258); c.lineTo(268, 258); c.moveTo(178, 256); c.lineTo(112, 240); c.moveTo(338, 256); c.lineTo(404, 240); c.stroke(); }
+  if (o.brows) { c.lineWidth = o.brows === "thick" ? 13 : 7; c.beginPath(); for (const [x0, x1] of [[184, 242], [274, 332]] as const) { if (o.brows === "arched") { c.moveTo(x0, 226); c.quadraticCurveTo((x0 + x1) / 2, 204, x1, 226); } else if (o.brows === "bushy") { c.moveTo(x0, 226); for (let k = 1; k <= 5; k++) c.lineTo(x0 + (k * (x1 - x0)) / 5, 226 + (k % 2 ? -8 : 4)); } else { c.moveTo(x0, 224); c.lineTo(x1, 224); } } c.stroke(); }
+  if (o.freckles) { c.fillStyle = "rgba(150,80,40,.6)"; c.beginPath(); for (const [x, y] of [[170, 304], [188, 312], [204, 300], [308, 300], [324, 312], [342, 304]] as const) { c.moveTo(x + 4, y); c.arc(x, y, 4, 0, 7); } c.fill(); }
+  if (o.mole) { c.fillStyle = INK; c.beginPath(); c.arc(300, 372, 6, 0, 7); c.fill(); }
+  if (o.wrinkles) { c.lineWidth = 5; c.strokeStyle = "rgba(40,30,30,.7)"; c.beginPath(); for (const y of [168, 184, 200]) { c.moveTo(196, y); c.quadraticCurveTo(256, y - 10, 316, y); } for (const dx of [-1, 1]) { c.moveTo(256 + dx * 112, 318); c.quadraticCurveTo(256 + dx * 126, 336, 256 + dx * 112, 356); } c.stroke(); c.strokeStyle = INK; }
+  if (o.eyebags) { c.lineWidth = 5; c.strokeStyle = "rgba(40,30,30,.7)"; c.beginPath(); c.moveTo(188, 296); c.quadraticCurveTo(214, 310, 240, 296); c.moveTo(276, 296); c.quadraticCurveTo(302, 310, 328, 296); c.stroke(); c.strokeStyle = INK; }
+  if (o.goatee) { c.fillStyle = o.hairColor ?? INK; c.beginPath(); c.moveTo(232, 368); c.quadraticCurveTo(256, 420, 280, 368); c.quadraticCurveTo(256, 380, 232, 368); c.fill(); }
   if (o.beard) { c.fillStyle = o.hairColor ?? INK; c.beginPath(); c.moveTo(130, 300); c.quadraticCurveTo(160, 420, 256, 422); c.quadraticCurveTo(352, 420, 382, 300); c.quadraticCurveTo(352, 380, 300, 372); c.quadraticCurveTo(256, 360, 212, 372); c.quadraticCurveTo(160, 380, 130, 300); c.fill(); }
 }
 function drawHair(c: CanvasRenderingContext2D, o: Outfit) {

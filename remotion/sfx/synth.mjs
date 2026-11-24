@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { SFX, SFX_SAMPLE_RATE as SR } from "../src/catalog.ts";
 import { writeWav } from "./wav.mjs";
 import { moreRecipes } from "./more.mjs";
+import { more2Recipes } from "./more2.mjs";
 
 const TAU = Math.PI * 2;
 const OUT = path.join(path.dirname(fileURLToPath(import.meta.url)), "wav");
@@ -158,6 +159,7 @@ const recipes = {
 };
 
 Object.assign(recipes, moreRecipes({ make, sine, osc, noiseOf, rng, bandpass, lowpass1, lowpass2, highpass1, bell, pluck, clamp01, TAU }));  // the 2026-11-23 growth (B48)
+Object.assign(recipes, more2Recipes({ make, sine, osc, noiseOf, rng, bandpass, lowpass1, lowpass2, highpass1, bell, pluck, clamp01, TAU }));  // the 2026-11-25 growth (ian: more sounds)
 
 mkdirSync(OUT, { recursive: true });
 for (const name of Object.keys(SFX)) {

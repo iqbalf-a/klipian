@@ -43,7 +43,7 @@ async function b48() {
   const { SFX, MUSIC_NAMES, SFX_NAMES } = await import("../src/catalog.ts");
   // ian, 2026-11-23: the rule first, the catalog follows; the music and sound-name lines only bind once the catalog is big enough (30 beds and 100 sounds)
   const MIN_BEDS = 30, MIN_SFX = 100, enforced = MUSIC_NAMES.length >= MIN_BEDS && SFX_NAMES.length >= MIN_SFX;
-  const soft = enforced ? "FLAG" : "INFO", note = enforced ? "" : ` (catalog too small, not enforced yet: ${MUSIC_NAMES.length} beds of ${MIN_BEDS}, ${SFX_NAMES.length} sounds of ${MIN_SFX})`;
+  const soft = enforced ? "FAIL" : "INFO", note = enforced ? "" : ` (catalog too small, not enforced yet: ${MUSIC_NAMES.length} beds of ${MIN_BEDS}, ${SFX_NAMES.length} sounds of ${MIN_SFX})`;
   const mine = path.basename(dir), vroot = path.join(ROOT, "videos");
   const when = (name) => {
     const idx = path.join(vroot, name, "index.tsx");
@@ -62,7 +62,7 @@ async function b48() {
     let set = ""; try { set = JSON.parse(read("set.json")).kind ?? ""; } catch { /* no set.json */ }
     const track = /track:\s*"([\w-]+)"/.exec(sfxSrc)?.[1] ?? st.music?.track ?? "";
     const names = new Set(Object.keys(SFX).filter((n) => new RegExp(`"${n}"`).test(sfxSrc)));
-    const fx = new Set(FX_NAMES.filter((n) => new RegExp(`\b${n}\b`).test(src)));
+    const fx = new Set(FX_NAMES.filter((n) => new RegExp(`\\b${n}\\b`).test(src)));
     return { set, track, names, fx, theme: st.theme ?? "", stage: st.stage ?? "", look: st.look ?? "" };
   };
   const me = profile(dir);
@@ -70,15 +70,47 @@ async function b48() {
   const list = (xs) => (xs.length ? xs.map((x) => x.name).join(", ") : "none");
   add("INFO", `B48: the ${others.length} most recent videos (newest first): ${others.map((o) => o.name).join(", ")}`);
   const sameSet = me.set ? others.filter((o) => o.set === me.set) : [];
-  add(!me.set ? "INFO" : sameSet.length ? "FLAG" : "PASS", `B48: the set kind${me.set ? ` "${me.set}"` : " is not declared yet"}${sameSet.length ? ` is REUSED from ${list(sameSet)}` : " is not in the recent videos"}`);
+  add(!me.set ? "INFO" : sameSet.length ? "FAIL" : "PASS", `B48: the set kind${me.set ? ` "${me.set}"` : " is not declared yet"}${sameSet.length ? ` is REUSED from ${list(sameSet)}` : " is not in the recent videos"}`);
   const sameTrack = me.track ? others.filter((o) => o.track === me.track) : [];
   add(!me.track ? "INFO" : sameTrack.length ? soft : "PASS", `B48: the music track${me.track ? ` "${me.track}"` : " is not chosen yet"}${sameTrack.length ? ` is REUSED from ${list(sameTrack)}` : " is not in the recent videos"}${sameTrack.length ? note : ""}`);
   const fxHit = [...me.fx].map((n) => ({ n, v: others.filter((o) => o.fx.has(n)) })).filter((x) => x.v.length);
-  add(fxHit.length ? "FLAG" : "PASS", `B48: ${fxHit.length ? `effects REUSED: ${fxHit.map((x) => `${x.n} from ${list(x.v)}`).join("; ")}` : "no effect of this video appears in the recent ones"} (effects drawn: ${[...me.fx].join(", ") || "none"})`);
+  add(fxHit.length ? "FAIL" : "PASS", `B48: ${fxHit.length ? `effects REUSED: ${fxHit.map((x) => `${x.n} from ${list(x.v)}`).join("; ")}` : "no effect of this video appears in the recent ones"} (effects drawn: ${[...me.fx].join(", ") || "none"})`);
   // B60 (ian, 2026-11-24): every sound name is one that none of the recent videos uses; only the fixed channel jingles may repeat.
   const JINGLES = new Set(["jingle-sting", "jingle-outro"]);
   const nameHit = [...me.names].filter((n) => !JINGLES.has(n)).map((n) => ({ n, v: others.filter((o) => o.names.has(n)) })).filter((x) => x.v.length);
-  add(!me.names.size ? "INFO" : nameHit.length ? "FLAG" : "PASS", `B48/B60: the sound names (${me.names.size} distinct): ${!me.names.size ? "sfx.ts not written yet" : nameHit.length ? `REUSED from the recent videos: ${nameHit.map((x) => `${x.n} (${x.v.length}: ${x.v.slice(0, 2).map((o) => o.name).join(", ")}${x.v.length > 2 ? ", ..." : ""})`).join("; ")}` : "none is used by the recent videos (only the fixed jingles repeat)"}`);
+  add(!me.names.size ? "INFO" : nameHit.length ? "FAIL" : "PASS", `B48/B60: the sound names (${me.names.size} distinct): ${!me.names.size ? "sfx.ts not written yet" : nameHit.length ? `REUSED from the recent videos: ${nameHit.map((x) => `${x.n} (${x.v.length}: ${x.v.slice(0, 2).map((o) => o.name).join(", ")}${x.v.length > 2 ? ", ..." : ""})`).join("; ")}` : "none is used by the recent videos (only the fixed jingles repeat)"}`);
+  // ian, 2026-11-25 (B42, B46 i and k): the people and the props are checked by machine too, a hit is a FAIL (people) or a FLAG (props, a word list that grows).
+  // People: a name ("Pak Darto") that an earlier story already gave to a person, and an Outfit that is not different from every earlier one in at least three of its parts.
+  const TITLES = "Pak|Bu|Bang|Mbak|Mas|Mbah|Kak|Dek|Ibu|Bapak|Mang|Teh|Kang|Om|Tante|Pakde|Bude|Koh|Cik";
+  const namesOf = (txt) => new Set([...txt.matchAll(new RegExp(`\\b(?:${TITLES})\\s+([A-Z][a-z]+)`, "g"))].map((m) => m[1]));
+  const narr = (d) => { try { return (JSON.parse(readFileSync(path.join(d, "story.json"), "utf8")).beats ?? []).map((b) => b.narration ?? "").join(" "); } catch { return ""; } };
+  const myNames = namesOf(narr(dir));
+  const nameClash = [...myNames].map((n) => ({ n, v: others.filter((o) => namesOf(narr(path.join(vroot, o.name))).has(n)) })).filter((x) => x.v.length);
+  add(!myNames.size ? "INFO" : nameClash.length ? "FAIL" : "PASS", `B46 i/k: the people's names (${[...myNames].join(", ") || "none"}): ${nameClash.length ? `REUSED from the recent videos: ${nameClash.map((x) => `${x.n} (${list(x.v)})`).join("; ")}` : "none was used by the recent videos"}`);
+  const OUTFIT_KEYS = ["shirt", "pattern", "hair", "hairColor", "hat", "hatColor", "mustache", "beard", "glasses", "body", "nose", "blush", "brows", "freckles", "mole", "wrinkles", "eyebags", "goatee"];
+  const FACE_KEYS = ["hair", "hairColor", "mustache", "beard", "glasses", "nose", "blush", "brows", "freckles", "mole", "wrinkles", "eyebags", "goatee"];
+  const outfitsOf = (d) => { const src = readdirSync(d).filter((f) => /\.tsx?$/.test(f)).map((f) => readFileSync(path.join(d, f), "utf8")).join("\n");
+    return [...src.matchAll(/(?:const|let)\s+([A-Z_0-9]+)\s*:\s*Outfit\s*=\s*\{([^}]*)\}/g)].map((m) => ({ id: m[1], o: Object.fromEntries(OUTFIT_KEYS.map((k) => { const v = new RegExp(`\\b${k}\\s*:\\s*("[^"]*"|true|false)`).exec(m[2]); return [k, v ? v[1].replace(/"/g, "") : ""]; })) })); };
+  const differ = (a, b, keys = OUTFIT_KEYS) => keys.filter((k) => (a[k] || "") !== (b[k] || "")).length;
+  const mineO = outfitsOf(dir);
+  if (mineO.length) {
+    const bad = [];
+    mineO.forEach((x, i) => { mineO.slice(i + 1).forEach((y) => { if (differ(x.o, y.o) < 3) bad.push(`${x.id} ~ ${y.id} (inside this video)`); });
+      others.forEach((o) => outfitsOf(path.join(vroot, o.name)).forEach((y) => { if (differ(x.o, y.o) < 3) bad.push(`${x.id} ~ ${y.id} of ${o.name}`); })); });
+    // ian, 2026-11-25: a face is an asset too: the face parts (hair, hair colour, moustache, beard, glasses, nose, blush, brows, freckles, mole, wrinkles, eye bags, goatee) differ in at least 2 from every other face
+    const badF = [];
+    mineO.forEach((x, i) => { mineO.slice(i + 1).forEach((y) => { if (differ(x.o, y.o, FACE_KEYS) < 2) badF.push(`${x.id} ~ ${y.id} (inside this video)`); });
+      others.forEach((o) => outfitsOf(path.join(vroot, o.name)).forEach((y) => { if (differ(x.o, y.o, FACE_KEYS) < 2) badF.push(`${x.id} ~ ${y.id} of ${o.name}`); })); });
+    add(badF.length ? "FAIL" : "PASS", `B61: the faces differ in at least 2 face parts from every other face here and in the recent videos${badF.length ? `; TOO CLOSE: ${badF.slice(0, 6).join("; ")}` : ""}`);
+    add(bad.length ? "FAIL" : "PASS", `B46 i/k: ${mineO.length} outfits, each differs in at least 3 parts from every other one here and in the recent videos${bad.length ? `; TOO CLOSE: ${bad.slice(0, 6).join("; ")}` : ""}`);
+  }
+  // Props: physical-object words of this video's own source that the recent videos use too (a look-alike counts, B42). Heuristic, so a FLAG: the human line below still stands.
+  const KINDS = ["sofa", "couch", "rug", "carpet", "clock", "window", "curtain", "door", "shelf", "plant", "lamp", "vase", "table", "stool", "bench", "cabinet", "calendar", "aquarium", "fish", "radio", "ladder", "kettle", "fridge", "fan", "mirror", "umbrella", "cable", "dispenser", "bulb", "basket", "bed", "pillow", "kitchen", "stove", "pot", "cup", "bottle", "book", "poster", "billboard", "cart", "bicycle", "tree", "cloud", "bird"];
+  // code only: no comments, no sfx.ts or plan.ts, no hyphenated names ("bed-funk", "bird-chirp")
+  const srcOf = (d) => readdirSync(d).filter((f) => /\.tsx?$/.test(f) && !/^(sfx|plan)\.ts$/.test(f)).map((f) => readFileSync(path.join(d, f), "utf8").toLowerCase().replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/.*$/gm, " ").replace(/"[a-z0-9]+(?:-[a-z0-9]+)+"/g, " ")).join("\n");
+  const mineS = srcOf(dir);
+  const kindHit = KINDS.filter((k) => new RegExp(`\\b${k}s?\\b`).test(mineS)).map((k) => ({ k, v: others.filter((o) => new RegExp(`\\b${k}s?\\b`).test(srcOf(path.join(vroot, o.name)))) })).filter((x) => x.v.length);
+  add(kindHit.length ? "FLAG" : "PASS", `B42: prop kinds (word list) ${kindHit.length ? `also in the recent videos: ${kindHit.map((x) => `${x.k} (${x.v.length}: ${x.v.slice(0, 2).map((o) => o.name.slice(0, 12)).join(", ")})`).join("; ")}; drop or replace each, a look-alike counts` : "none is in the recent videos"}`);
   const themed = others.filter((o) => me.theme && o.theme === me.theme).length, staged = others.filter((o) => me.stage && o.stage === me.stage).length;
   add("INFO", `B48: the colour set "${me.theme || "cream"}" is in ${themed} of the recent videos, the stage "${me.stage || "slab"}" in ${staged}; pick the least used (the brief asks not to repeat the one of the video before: ${others[0]?.name ?? "none"} used "${others[0]?.theme || "cream"}" and "${others[0]?.stage || "slab"}")`);
   add("HUMAN", "B48: icon, texture, font treatment, hero, backdrop and every prop are also not in the recent videos (grep their index.tsx and set.json)");

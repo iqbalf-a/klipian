@@ -196,7 +196,7 @@ for (const r of DICTIONARY.filter((k) => k.status === "drawn")) {
 {
   const check = spawnSync(process.execPath, [path.join(ROOT, "scripts", "styleCheck.mjs"), "kenapa-colokan-panas"], { encoding: "utf8" });
   const fails = check.stdout.split("\n").filter((l) => l.startsWith("FAIL"));
-  yes(fails.length === 1 && fails[0].includes("the outro has no voice"), `pilot 1's only FAIL is its outro's voice (${fails.length} fails)`);
+  yes(fails.length >= 1 && fails.some((l) => l.includes("the outro has no voice")) && fails.every((l) => l.includes("the outro has no voice") || l.includes("REUSED from the recent videos")), `pilot 1's only FAILs are its outro's voice and the sounds the later videos reuse (B61 made reuse a FAIL) (${fails.length} fails)`);
   yes(check.stdout.includes("PASS   must 1: the \"Intip yuk!\" sting") && check.stdout.includes("PASS   must 3 (a)") && check.stdout.includes("PASS   must 3 (b)"), "pilot 1 passes must 1 (the sting), and must 3 (colours, easings and springs)");
 }
 

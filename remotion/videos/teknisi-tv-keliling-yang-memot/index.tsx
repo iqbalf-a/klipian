@@ -2,7 +2,7 @@
    remote of Bu Rina's dead TV with his phone while Bang Jaya, the shop technician, laughs and offers a new TV. The phone screen stays dark; new batteries and the screen shows a
    violet blink and the TV comes on: a remote sends its commands as infrared light (about 940 nm) that the eye cannot see but a phone camera can. The picture follows the voice
    (words.json from faster-whisper): one shot per sentence, one caption word at a time, pills on their word (B45), mouths move only on the two quoted lines (B46 n), the last
-   shot is Bang Jaya doing the same at his own home and the cut after it returns to the first shot (the loop). The set is a living room cut open: wallpaper, parquet, sofa,
+   shot is Bang Jaya doing the same at his own home and the cut after it returns to the first shot (the loop). The set is a living room cut open: wallpaper, parquet, sofa, batik cloth, tampah, aquarium, doorway curtains (stage A) and Bang Jaya's workshop corner nine metres to the right (stage B); the old window, clock and shelf were dropped (B61).
    window and curtain, a TV on a cabinet, a toolbox, a shelf, a clock, a door (stage A) and Bang Jaya's workshop corner nine metres to the right (stage B). */
 import React, { useLayoutEffect, useMemo, useRef } from "react";
 import { AbsoluteFill, useCurrentFrame } from "remotion";
@@ -41,7 +41,7 @@ const withGait = (tr: Track, kind: "walk" | "jog", lead = 0): Track => {
   return { ...tr, flip: dir < 0, dir, ch: locomote((t) => dir * tr.pos(t)[0], tr.a, tr.b, kind, lead) };
 };
 const bump = (u: number) => (u < -0.35 || u > 0.35 ? 0 : u < 0 ? 1 + u / 0.35 : 1 - u / 0.35);
-const A8 = (lSh: number, lEl: number, rSh: number, rEl: number, x: Partial<Pose> = {}): Pose => ({ lSh, lEl, rSh, rEl, lHip: 8, lKn: 0, rHip: -8, rKn: 0, ...x });
+const A8 = (lSh: number, lEl: number, rSh: number, rEl: number, x: Partial<Pose> = {}): Pose => ({ lSh, lEl, rSh, rEl, lHip: -8, lKn: 0, rHip: 8, rKn: 0, ...x });
 const speck = (c: CanvasRenderingContext2D, w: number, h: number, n: number, cols: string[], size = 3, seed = 0) => {
   for (let i = 0; i < n; i++) { c.fillStyle = cols[i % cols.length]; c.fillRect(rnd(i * 3 + seed) * w, rnd(i * 7 + seed) * h, 1 + rnd(i * 5 + seed) * size, 1 + rnd(i * 11 + seed) * size); }
 };
@@ -67,12 +67,15 @@ const metalTex = (c: CanvasRenderingContext2D) => {
   c.fillStyle = g; c.fillRect(0, 0, 256, 256); speck(c, 256, 256, 400, ["rgba(255,255,255,.12)", "rgba(0,0,0,.08)"], 2, 6);
 };
 const softTex = (c: CanvasRenderingContext2D) => { const g = c.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, "rgba(255,255,255,.95)"); g.addColorStop(1, "rgba(255,255,255,0)"); c.fillStyle = g; c.fillRect(0, 0, 64, 64); };
-const leafTex = (c: CanvasRenderingContext2D) => {   // a tapered banana leaf with a midrib and side veins, transparent around it
-  c.clearRect(0, 0, 128, 256);
-  const g = c.createLinearGradient(0, 0, 128, 0); g.addColorStop(0, "#3f8f33"); g.addColorStop(0.5, "#79c24a"); g.addColorStop(1, "#4a9a38"); c.fillStyle = g;
-  c.beginPath(); c.moveTo(64, 4); c.bezierCurveTo(124, 50, 124, 200, 64, 252); c.bezierCurveTo(4, 200, 4, 50, 64, 4); c.fill();
-  c.strokeStyle = "#2f7a2a"; c.lineWidth = 3; c.beginPath(); c.moveTo(64, 6); c.lineTo(64, 250); c.stroke();
-  c.strokeStyle = "rgba(30,90,30,.45)"; c.lineWidth = 1.2; for (let y = 24; y < 240; y += 10) { c.beginPath(); c.moveTo(64, y); c.lineTo(10 + 6 * Math.abs(y - 128) / 128 * 4, y - 16); c.moveTo(64, y); c.lineTo(118 - 6 * Math.abs(y - 128) / 128 * 4, y - 16); c.stroke(); }
+const batikTex = (c: CanvasRenderingContext2D) => {   // a kawung batik: indigo cloth with rings of cream ovals and a dot in each
+  c.fillStyle = "#1f2f5c"; c.fillRect(0, 0, 128, 128); c.strokeStyle = "#e8d5a0"; c.fillStyle = "#e8d5a0"; c.lineWidth = 2;
+  for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { const cx = x * 32 + 16 + (y % 2 ? 16 : 0), cy = y * 32 + 16; [[0, -9], [9, 0], [0, 9], [-9, 0]].forEach(([dx, dy]) => { c.beginPath(); c.ellipse(cx + dx, cy + dy, dx ? 9 : 5, dy ? 9 : 5, 0, 0, 7); c.stroke(); }); c.beginPath(); c.arc(cx, cy, 2.4, 0, 7); c.fill(); }
+  speck(c, 128, 128, 160, ["rgba(255,255,255,.10)", "rgba(0,0,0,.12)"], 2, 5);
+};
+const tampahTex = (c: CanvasRenderingContext2D) => {   // a woven bamboo tray: rings and a radial weave
+  c.fillStyle = "#d8b878"; c.fillRect(0, 0, 128, 128); c.strokeStyle = "rgba(110,70,20,.55)"; c.lineWidth = 2;
+  for (let r = 6; r < 64; r += 7) { c.beginPath(); c.arc(64, 64, r, 0, 7); c.stroke(); }
+  c.lineWidth = 1; for (let a = 0; a < 24; a++) { c.beginPath(); c.moveTo(64, 64); c.lineTo(64 + 70 * Math.cos(a * 0.2618), 64 + 70 * Math.sin(a * 0.2618)); c.stroke(); }
 };
 // ---------- parts ----------------------------------------------------------------------------------------------------------------------------
 type RBoxP = { size: [number, number, number]; pos: [number, number, number]; rot?: [number, number, number]; color?: string; map?: THREE.Texture; tile?: number; r?: number; rough?: number; metal?: number; emissive?: string; ei?: number; opacity?: number; fit?: boolean };
@@ -156,7 +159,7 @@ const SHOTS: Shot[] = [
 // ---------- the people (each their own outfit and face, B46 i; heads are always white) and who they are (B53): ------------------------------------------------------------------------------
 // Pak Darto: an older travelling TV technician with grey hair and glasses, a green dotted work shirt; Bu Rina: the homeowner, a pink blouse, her hair in a bun;
 // Bang Jaya: the younger rival who runs an electronics shop, a yellow collared shirt, a blue cap and a beard.
-const DARTO: Outfit = { shirt: "#1f7a5c", stripe: "#ffd447", pattern: "dots", hair: "spiky", hairColor: "#9a9a9a", glasses: true, mustache: true, nose: "dot" };
+const DARTO: Outfit = { shirt: "#1f7a5c", stripe: "#ffd447", pattern: "dots", hair: "spiky", hairColor: "#9a9a9a", nose: "none", brows: "bushy", wrinkles: true, eyebags: true, goatee: true };
 const RINA: Outfit = { shirt: "#e0456b", stripe: "#8a1f3d", pattern: "plain", hair: "bun", hairColor: "#2a1a14", blush: true };
 const JAYA: Outfit = { shirt: "#f2c230", stripe: "#b88a00", pattern: "collar", hair: "bald", beard: true, hairColor: "#17141c", body: "wide", nose: "none" };
 
@@ -265,13 +268,6 @@ const parquetTex = (a: string, b: string) => (c: CanvasRenderingContext2D) => {
     c.strokeStyle = "rgba(60,30,10,.28)"; c.lineWidth = 1; for (let j = 0; j < 3; j++) { const yy = y + 4 + j * 4 + rnd(r * 3 + j) * 2; c.beginPath(); c.moveTo(x + 2, yy); c.bezierCurveTo(x + 20, yy + 2, x + 40, yy - 2, x + 62, yy + 1); c.stroke(); }
   }
 };
-const rugTex = (c: CanvasRenderingContext2D) => {
-  c.fillStyle = "#b3342f"; c.fillRect(0, 0, 256, 256);
-  c.fillStyle = "#f2e3c0"; c.fillRect(12, 12, 232, 232); c.fillStyle = "#b3342f"; c.fillRect(22, 22, 212, 212);
-  for (let i = 0; i < 5; i++) { const s = 96 - i * 18; c.fillStyle = ["#e8a93a", "#2d7f86", "#f2e3c0", "#e8a93a", "#8a2420"][i]; c.beginPath(); c.moveTo(128, 128 - s); c.lineTo(128 + s, 128); c.lineTo(128, 128 + s); c.lineTo(128 - s, 128); c.fill(); }
-  for (let x = 0; x < 256; x += 8) { c.fillStyle = "rgba(255,255,255,.18)"; c.fillRect(x, 0, 3, 8); c.fillRect(x, 248, 3, 8); }
-  speck(c, 256, 256, 700, ["rgba(255,255,255,.12)", "rgba(0,0,0,.14)"], 2, 12);
-};
 const sofaTex = (base: string) => (c: CanvasRenderingContext2D) => {
   c.fillStyle = base; c.fillRect(0, 0, 128, 128); speck(c, 128, 128, 500, ["rgba(255,255,255,.12)", "rgba(0,0,0,.14)"], 2, 5);
   c.strokeStyle = "rgba(0,0,0,.22)"; c.lineWidth = 2; for (let k = 16; k < 128; k += 32) { c.beginPath(); c.moveTo(k, 0); c.lineTo(k, 128); c.moveTo(0, k); c.lineTo(128, k); c.stroke(); }
@@ -281,12 +277,6 @@ const curtainTex = (c: CanvasRenderingContext2D) => {
   c.fillStyle = "#e8604c"; c.fillRect(0, 0, 128, 256);
   for (let x = 0; x < 128; x += 16) { const g = c.createLinearGradient(x, 0, x + 16, 0); g.addColorStop(0, "rgba(0,0,0,.18)"); g.addColorStop(0.5, "rgba(255,255,255,.14)"); g.addColorStop(1, "rgba(0,0,0,.18)"); c.fillStyle = g; c.fillRect(x, 0, 16, 256); }
   for (let i = 0; i < 24; i++) { const x = rnd(i) * 120 + 4, y = rnd(i + 7) * 248 + 4; c.fillStyle = "#fff0c8"; for (let k = 0; k < 5; k++) { c.beginPath(); c.arc(x + 5 * Math.cos(k * 1.26), y + 5 * Math.sin(k * 1.26), 3, 0, 7); c.fill(); } c.fillStyle = "#e8a93a"; c.beginPath(); c.arc(x, y, 2.4, 0, 7); c.fill(); }
-};
-const outsideTex = (c: CanvasRenderingContext2D) => {
-  const g = c.createLinearGradient(0, 0, 0, 256); g.addColorStop(0, "#69b8ee"); g.addColorStop(0.7, "#cdeaf8"); g.addColorStop(1, "#f6fbf0"); c.fillStyle = g; c.fillRect(0, 0, 256, 256);
-  const sg = c.createRadialGradient(200, 50, 4, 200, 50, 60); sg.addColorStop(0, "#fff7c8"); sg.addColorStop(1, "rgba(255,247,200,0)"); c.fillStyle = sg; c.fillRect(0, 0, 256, 256);
-  c.fillStyle = "#4f9a45"; c.fillRect(0, 200, 256, 56);
-  for (let i = 0; i < 5; i++) { c.fillStyle = ["#3f8a34", "#5aac44"][i % 2]; c.beginPath(); c.arc(30 + i * 52, 190, 34 + rnd(i) * 14, 0, 7); c.fill(); c.fillStyle = "#7a5a3a"; c.fillRect(26 + i * 52, 200, 8, 40); }
 };
 const flyerTex = (c: CanvasRenderingContext2D) => {
   c.fillStyle = "#fff6d8"; c.fillRect(0, 0, 256, 340);
@@ -315,17 +305,6 @@ const tvOnTex = (c: CanvasRenderingContext2D) => {
   c.fillStyle = "#c2563a"; c.fillRect(120, 108, 36, 28); c.fillStyle = "#f2c230"; c.beginPath(); c.moveTo(114, 110); c.lineTo(138, 90); c.lineTo(162, 110); c.fill();
   c.fillStyle = "rgba(0,0,0,.55)"; c.fillRect(0, 138, 256, 22); c.fillStyle = "#fff"; c.font = "800 15px Arial"; c.textAlign = "center"; c.fillText("SELAMAT SORE", 128, 154);
 };
-const artTex = (c: CanvasRenderingContext2D) => {
-  const g = c.createLinearGradient(0, 0, 0, 128); g.addColorStop(0, "#f5c27a"); g.addColorStop(1, "#fbe6b8"); c.fillStyle = g; c.fillRect(0, 0, 192, 128);
-  c.fillStyle = "#e8604c"; c.beginPath(); c.arc(96, 70, 24, 0, 7); c.fill(); c.fillStyle = "#6b4fa0"; c.beginPath(); c.moveTo(0, 128); c.lineTo(50, 60); c.lineTo(100, 128); c.fill(); c.fillStyle = "#2d7f86"; c.beginPath(); c.moveTo(70, 128); c.lineTo(140, 50); c.lineTo(192, 128); c.fill();
-};
-const clockTex = (c: CanvasRenderingContext2D) => {
-  c.fillStyle = "#f6efe0"; c.fillRect(0, 0, 128, 128); c.strokeStyle = "#23262e"; c.lineWidth = 4; for (let i = 0; i < 12; i++) { const a = (i * Math.PI) / 6; c.beginPath(); c.moveTo(64 + 46 * Math.sin(a), 64 - 46 * Math.cos(a)); c.lineTo(64 + 54 * Math.sin(a), 64 - 54 * Math.cos(a)); c.stroke(); }
-};
-const calendarTex = (c: CanvasRenderingContext2D) => {
-  c.fillStyle = "#fffaf0"; c.fillRect(0, 0, 128, 160); c.fillStyle = "#2d7f86"; c.fillRect(0, 0, 128, 40); c.fillStyle = "#fff"; c.font = "900 24px Arial Black, Arial"; c.textAlign = "center"; c.fillText("NOV", 64, 30);
-  c.fillStyle = "#23262e"; c.font = "700 12px Arial"; for (let r = 0; r < 5; r++) for (let k = 0; k < 7; k++) c.fillText(String(r * 7 + k + 1), 14 + k * 17, 62 + r * 20);
-};
 const remoteTex = (c: CanvasRenderingContext2D) => {   // the remote seen from above, long side along x: power at the left, number pad, a ring, the IR window at the right end
   c.fillStyle = "#262a33"; c.fillRect(0, 0, 256, 64); const g = c.createLinearGradient(0, 0, 0, 64); g.addColorStop(0, "rgba(255,255,255,.2)"); g.addColorStop(1, "rgba(0,0,0,.2)"); c.fillStyle = g; c.fillRect(0, 0, 256, 64);
   c.fillStyle = "#d9352a"; c.beginPath(); c.arc(26, 32, 12, 0, 7); c.fill();
@@ -335,7 +314,7 @@ const remoteTex = (c: CanvasRenderingContext2D) => {   // the remote seen from a
   c.fillStyle = "#3a1530"; c.fillRect(246, 18, 10, 28);
 };
 
-type TexSet = Record<"wood" | "wainA" | "wainB" | "wallA" | "wallB" | "parqA" | "parqB" | "rug" | "sofa" | "sofaB" | "curtain" | "outside" | "flyer" | "toolbox" | "tvOff" | "tvOn" | "art" | "clock" | "calendar" | "remote" | "metal" | "soft" | "leaf", THREE.Texture>;
+type TexSet = Record<"wood" | "wainA" | "wainB" | "wallA" | "wallB" | "parqA" | "parqB" | "batik" | "tampah" | "sofa" | "sofaB" | "curtain" | "flyer" | "toolbox" | "tvOff" | "tvOn" | "remote" | "metal" | "soft", THREE.Texture>;
 
 /** puts what a person holds (and the enlarged phone) on the cast layer, so it is drawn with the cast: in front of the hand, sharp, never hidden by it */
 const OnCast: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
@@ -428,13 +407,6 @@ const PhoneInsert: React.FC<{ t: number }> = ({ t }) => {
   );
 };
 
-/** a leafy plant in a pot (leaf cards with the painted leaf, a few lobes) */
-const Plant: React.FC<{ x: number; z: number; s?: number; f: number; leaf: THREE.Texture; pot?: string }> = ({ x, z, s = 1, f, leaf, pot = "#c2623a" }) => (
-  <group position={[x, 0, z]} scale={s}>
-    <Cyl r={0.2} r2={0.14} h={0.34} pos={[0, 0.17, 0]} color={pot} seg={16} rough={0.8} /><Cyl r={0.21} h={0.05} pos={[0, 0.35, 0]} color="#a9502c" seg={16} />
-    {[0, 1, 2, 3, 4, 5].map((k) => <group key={k} position={[0, 0.36, 0]} rotation={[0, k * 1.05, 0]}><group rotation={[-0.55 - 0.07 * (k % 3) + 0.03 * Math.sin(f * 0.06 + k), 0, 0]}><mesh position={[0, 0.42, 0]}><planeGeometry args={[0.32, 0.84]} /><meshStandardMaterial map={leaf} alphaTest={0.4} side={THREE.DoubleSide} roughness={0.7} /></mesh></group></group>)}
-  </group>
-);
 
 type RoomP = { v: "a" | "b"; tex: TexSet; t: number; f: number };
 /** a living room cut open toward the camera (x -3.4 to 4.9): wallpaper or plaster, parquet, a TV on a cabinet, a clock, frames, a shelf; A adds the window, sofa, door, lamp and the toolbox table, B a repair bench and old TVs */
@@ -445,7 +417,6 @@ const Room: React.FC<RoomP> = ({ v, tex, t, f }) => {
       {/* floor, slab, rug, walls, rails */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0.75, 0, 0.4]}><planeGeometry args={[8.4, 4.6]} /><meshStandardMaterial map={a ? tex.parqA : tex.parqB} roughness={0.55} /></mesh>
       <RBox size={[8.5, 0.3, 4.7]} pos={[0.75, -0.17, 0.4]} color="#6b4a2a" r={0.03} />
-      {a && <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0.2, 0.012, 0.6]}><planeGeometry args={[3.2, 2.1]} /><meshStandardMaterial map={tex.rug} roughness={0.95} /></mesh>}
       <RBox size={[8.4, 2.9, 0.2]} pos={[0.75, 1.45, -1.7]} map={a ? tex.wallA : tex.wallB} tile={1.6} r={0.03} />
       <RBox size={[0.2, 2.9, 4.6]} pos={[-3.45, 1.45, 0.4]} map={a ? tex.wallA : tex.wallB} tile={1.6} r={0.03} />
       <RBox size={[0.2, 2.9, 4.6]} pos={[4.95, 1.45, 0.4]} map={a ? tex.wallA : tex.wallB} tile={1.6} r={0.03} />
@@ -462,29 +433,17 @@ const Room: React.FC<RoomP> = ({ v, tex, t, f }) => {
       <RBox size={[0.3, 0.05, 0.22]} pos={[0.4, 0.55, -1.3]} color="#2a2f3a" r={0.02} metal={0.3} />
       <Ball r={0.012} pos={[0.92, 0.6, -1.236]} color={on ? "#39ff14" : "#3a3f48"} />
       {on && <pointLight position={[0.4, 1.0, -0.4]} intensity={1.6} distance={5} decay={2} color="#cfe6ff" />}
-      {/* wall: the clock (the second hand sweeps), two framed pictures, a calendar */}
-      <Cyl r={0.23} h={0.05} pos={[0.4, 1.95, -1.55]} rot={[Math.PI / 2, 0, 0]} color="#3b2414" seg={28} rough={0.5} />
-      <mesh position={[0.4, 1.95, -1.52]}><circleGeometry args={[0.2, 32]} /><meshStandardMaterial map={tex.clock} roughness={0.5} /></mesh>
-      <RBox size={[0.012, 0.11, 0.012]} pos={[0.4, 1.98, -1.51]} rot={[0, 0, 0.4]} color="#17141c" r={0.004} />
-      <RBox size={[0.012, 0.16, 0.012]} pos={[0.4, 1.95, -1.505]} color="#17141c" r={0.004} />
-      <group position={[0.4, 1.95, -1.5]} rotation={[0, 0, -f * 0.0175]}><RBox size={[0.006, 0.17, 0.006]} pos={[0, 0.07, 0]} color="#d9352a" r={0.002} /></group>
-      <RBox size={[0.62, 0.47, 0.05]} pos={[-1.0, 1.75, -1.55]} color="#7a4a22" map={tex.wood} tile={0.6} r={0.02} /><mesh position={[-1.0, 1.75, -1.52]}><planeGeometry args={[0.52, 0.37]} /><meshStandardMaterial map={tex.art} roughness={0.7} /></mesh>
-      <RBox size={[0.4, 0.5, 0.05]} pos={[1.6, 1.75, -1.55]} color="#f6efe0" r={0.02} /><mesh position={[1.6, 1.75, -1.52]}><planeGeometry args={[0.32, 0.42]} /><meshStandardMaterial map={tex.art} roughness={0.7} /></mesh>
-      <RBox size={[0.36, 0.46, 0.03]} pos={[3.55, 1.6, -1.58]} map={tex.calendar} fit r={0.01} />
-      {/* a shelf with a plant, a vase and books */}
-      <RBox size={[0.95, 0.05, 0.26]} pos={[1.55, 1.25, -1.5]} map={tex.wood} tile={0.6} r={0.015} />
-      {[0, 1, 2, 3].map((k) => <RBox key={k} size={[0.06, 0.26 - 0.02 * (k % 2), 0.17]} pos={[1.15 + k * 0.075, 1.4, -1.5]} color={["#d9352a", "#2f6fa0", "#e8a93a", "#3f8f6a"][k]} r={0.008} />)}
-      <Cyl r={0.06} r2={0.04} h={0.2} pos={[1.75, 1.37, -1.5]} color="#5fb3ff" seg={14} rough={0.2} />
-      <Plant x={1.97} z={-1.5} s={0.35} f={f} leaf={tex.leaf} pot="#e8a93a" />
+      {/* wall: a batik cloth on a bamboo rod above the sofa, a woven tampah above the TV, a brick roster panel (A only) */}
+      {a && <group position={[-2.0, 1.9, -1.55]} rotation={[0, 0, 0.012 * Math.sin(f * 0.04)]}>
+        <Cyl r={0.02} h={1.3} pos={[0, 0.42, 0]} rot={[0, 0, Math.PI / 2]} color="#c9a24a" seg={10} />
+        <RBox size={[1.1, 0.8, 0.03]} pos={[0, 0, 0]} map={tex.batik} fit r={0.01} rough={0.95} />
+        {[-0.5, 0.5].map((tx) => <Ball key={tx} r={0.035} pos={[tx, -0.43, 0]} color="#e8a93a" />)}
+      </group>}
+      <Cyl r={0.3} h={0.04} pos={[a ? 0.4 : -1.0, 2.0, -1.55]} rot={[Math.PI / 2, 0, 0]} map={tex.tampah} seg={32} rough={0.9} />
+      {a && <><RBox size={[0.7, 0.7, 0.06]} pos={[3.85, 1.85, -1.57]} color="#b5523b" r={0.01} />
+      {[-0.2, 0, 0.2].flatMap((rx) => [-0.2, 0, 0.2].map((ry) => <RBox key={`${rx}${ry}`} size={[0.12, 0.12, 0.01]} pos={[3.85 + rx, 1.85 + ry, -1.535]} color="#2a1a14" r={0.004} />))}</>}
       {a ? (
         <>
-          {/* the window with curtains, a sill and the sky outside */}
-          <RBox size={[1.5, 1.4, 0.1]} pos={[-2.0, 1.7, -1.6]} color="#f6efe0" r={0.03} />
-          <mesh position={[-2.0, 1.7, -1.545]}><planeGeometry args={[1.3, 1.2]} /><meshBasicMaterial map={tex.outside} toneMapped={false} /></mesh>
-          <RBox size={[1.3, 0.05, 0.05]} pos={[-2.0, 1.7, -1.52]} color="#f6efe0" r={0.01} /><RBox size={[0.05, 1.2, 0.05]} pos={[-2.0, 1.7, -1.52]} color="#f6efe0" r={0.01} />
-          <RBox size={[1.75, 0.07, 0.3]} pos={[-2.0, 0.98, -1.48]} color="#f6efe0" r={0.025} />
-          <Cyl r={0.025} h={2.0} pos={[-2.0, 2.5, -1.46]} rot={[0, 0, Math.PI / 2]} color="#8a5a32" seg={10} />
-          {[-2.8, -1.2].map((cx, i) => <group key={i} position={[cx, 1.6, -1.44]} rotation={[0, 0, 0.012 * Math.sin(f * 0.05 + i * 2)]}><RBox size={[0.4, 1.82, 0.1]} pos={[0, 0, 0]} map={tex.curtain} fit r={0.04} rough={0.95} /></group>)}
           {/* the sofa: base, three seat cushions, back, arms, feet, a pillow */}
           <RBox size={[1.9, 0.3, 0.85]} pos={[-2.0, 0.3, -1.08]} map={tex.sofa} tile={0.8} r={0.05} />
           {[-0.62, 0, 0.62].map((cx, i) => <RBox key={i} size={[0.6, 0.14, 0.7]} pos={[-2.0 + cx, 0.52, -1.0]} map={tex.sofa} tile={0.7} r={0.05} />)}
@@ -492,16 +451,31 @@ const Room: React.FC<RoomP> = ({ v, tex, t, f }) => {
           {[-0.95, 0.95].map((ax, i) => <RBox key={i} size={[0.2, 0.52, 0.85]} pos={[-2.0 + ax, 0.5, -1.08]} map={tex.sofa} tile={0.8} r={0.07} />)}
           {[[-0.85, -0.6], [0.85, -0.6], [-0.85, -1.5], [0.85, -1.5]].map(([lx, lz], i) => <Cyl key={i} r={0.04} r2={0.03} h={0.1} pos={[-2.0 + lx, 0.04, lz]} color="#5a3b1f" seg={8} />)}
           <RBox size={[0.36, 0.34, 0.1]} pos={[-2.6, 0.78, -1.2]} rot={[0.2, 0, 0.35]} color="#e8a93a" r={0.05} rough={0.9} />
-          {/* the door: frame, a dark hallway behind, the leaf swung open, a knob; a floor lamp; a plant */}
+          {/* the doorway: frame and a dark hallway behind; a cloth curtain in two panels sways in the draught; a doormat */}
           <RBox size={[0.9, 2.1, 0.02]} pos={[2.55, 1.05, -1.6]} color="#5a4a68" r={0.005} />
           {[2.08, 3.02].map((dx, i) => <RBox key={i} size={[0.09, 2.2, 0.14]} pos={[dx, 1.1, -1.56]} color="#f6efe0" r={0.025} />)}
           <RBox size={[1.03, 0.09, 0.14]} pos={[2.55, 2.17, -1.56]} color="#f6efe0" r={0.025} />
           <RBox size={[0.9, 0.03, 0.5]} pos={[2.55, 0.015, -1.2]} map={tex.wood} color="#9a7a50" tile={0.3} r={0.01} />
-          <RBox size={[0.1, 2.0, 0.05]} pos={[2.13, 1.05, -1.46]} map={tex.wood} tile={0.9} color="#c99a62" r={0.02} /><Ball r={0.03} pos={[2.14, 1.0, -1.42]} color="#e0b04a" rough={0.3} />
-          <Cyl r={0.025} h={1.6} pos={[4.1, 0.85, -1.1]} color="#3b4a52" metal={0.5} seg={10} /><Cyl r={0.14} h={0.05} pos={[4.1, 0.03, -1.1]} color="#2f3b42" metal={0.5} seg={16} />
-          <mesh position={[4.1, 1.75, -1.1]}><cylinderGeometry args={[0.16, 0.26, 0.34, 20, 1, true]} /><meshStandardMaterial color="#f6dfa8" emissive="#ffcf70" emissiveIntensity={0.9} side={THREE.DoubleSide} roughness={0.8} /></mesh>
-          <pointLight position={[4.1, 1.7, -0.9]} intensity={1.4} distance={4} decay={2} color="#ffd9a0" />
-          <Plant x={-3.0} z={-0.4} s={1.1} f={f} leaf={tex.leaf} />
+          <Cyl r={0.02} h={1.0} pos={[2.55, 2.08, -1.46]} rot={[0, 0, Math.PI / 2]} color="#8a5a32" seg={10} />
+          {[2.32, 2.78].map((cx, i) => <group key={i} position={[cx, 1.05, -1.44]} rotation={[0, 0, 0.03 * Math.sin(f * 0.05 + i * 2.4)]}><RBox size={[0.44, 2.0, 0.04]} pos={[0, 0, 0]} map={tex.curtain} fit r={0.02} rough={0.95} /></group>)}
+          {/* an aquarium on a wooden stand: glass and water, gravel, plants, three swimming fish and a rising stream of bubbles */}
+          <group position={[4.1, 0, -1.1]}>
+            <RBox size={[0.95, 0.55, 0.42]} pos={[0, 0.28, 0]} map={tex.wood} tile={0.7} r={0.02} />
+            <RBox size={[0.88, 0.06, 0.34]} pos={[0, 0.6, 0]} color="#d9c27a" r={0.01} />
+            {[-0.3, 0.05, 0.3].map((px, i) => <RBox key={i} size={[0.05, 0.22 + 0.06 * i, 0.03]} pos={[px, 0.74 + 0.03 * i, -0.08]} rot={[0, 0, 0.2 * (i - 1)]} color="#3f8f33" r={0.01} />)}
+            {[0, 1, 2].map((k) => { const ph = f * 0.045 + k * 2.1; return <group key={k} position={[0.3 * Math.sin(ph), 0.82 + 0.07 * Math.sin(f * 0.07 + k), 0.04 * k - 0.04]} rotation={[0, Math.cos(ph) > 0 ? 0 : Math.PI, 0]}><Ball r={0.04} pos={[0, 0, 0]} color={["#f08a2c", "#e0324a", "#f2c230"][k]} sc={[1.8, 1, 0.5]} /><RBox size={[0.05, 0.06, 0.01]} pos={[-0.08, 0, 0]} rot={[0, 0, 0.8]} color={["#f08a2c", "#e0324a", "#f2c230"][k]} r={0.004} /></group>; })}
+            <RBox size={[0.9, 0.46, 0.36]} pos={[0, 0.85, 0]} color="#8fd3f0" opacity={0.32} rough={0.1} r={0.01} />
+            <RBox size={[0.9, 0.05, 0.38]} pos={[0, 1.11, 0]} color="#2a2f3a" r={0.01} />
+            <RBox size={[0.8, 0.012, 0.28]} pos={[0, 1.082, 0]} color="#fff7c8" emissive="#fff7c8" ei={0.8} r={0.004} />
+          </group>
+          {[0, 1, 2, 3].map((i) => <Puff key={i} x={3.8} y={0.66} z={-1.05} t={t} at={streamAt(t, i, 4, 1.6)} dur={1.6} size={0.07} rise={0.42} tex={tex.soft as THREE.CanvasTexture} />)}
+          {/* a wooden stool with a transistor radio, and a clay water jar with a lid */}
+          <Cyl r={0.17} r2={0.15} h={0.42} pos={[1.85, 0.21, -1.0]} map={tex.wood} seg={14} /><Cyl r={0.19} h={0.04} pos={[1.85, 0.44, -1.0]} color="#8a5a32" seg={14} />
+          <RBox size={[0.3, 0.19, 0.1]} pos={[1.85, 0.56, -1.0]} color="#2f3b42" r={0.02} rough={0.5} />
+          {[0, 1, 2].map((k) => <RBox key={k} size={[0.12, 0.012, 0.01]} pos={[1.8, 0.52 + 0.035 * k, -0.945]} color="#c2c8cd" r={0.004} metal={0.6} />)}
+          <Ball r={0.02} pos={[1.96, 0.6, -0.945]} color="#e0b04a" rough={0.3} /><Ball r={0.02} pos={[1.96, 0.53, -0.945]} color="#d9352a" rough={0.3} />
+          <Cyl r={0.006} h={0.32} pos={[1.97, 0.78, -1.0]} rot={[0, 0, -0.3 + 0.04 * Math.sin(f * 0.1)]} color="#c2c8cd" metal={0.8} seg={6} />
+          <Cyl r={0.28} r2={0.2} h={0.6} pos={[-3.05, 0.3, 0.15]} color="#a9502c" seg={18} rough={0.85} /><Cyl r={0.21} h={0.05} pos={[-3.05, 0.63, 0.15]} color="#8a3f20" seg={18} /><Ball r={0.035} pos={[-3.05, 0.68, 0.15]} color="#8a3f20" />
           {/* the coffee table with the technician's toolbox, screwdrivers and a glass of tea */}
           <RBox size={[1.05, 0.06, 0.62]} pos={[-2.05, 0.46, 0.75]} map={tex.wood} tile={0.7} r={0.02} />
           {[[-0.47, -0.25], [0.47, -0.25], [-0.47, 0.25], [0.47, 0.25]].map(([lx, lz], i) => <Cyl key={i} r={0.035} r2={0.025} h={0.44} pos={[-2.05 + lx, 0.22, 0.75 + lz]} color="#5a3b1f" seg={8} />)}
@@ -522,11 +496,13 @@ const Room: React.FC<RoomP> = ({ v, tex, t, f }) => {
           {[0, 1, 2].map((k) => <RBox key={k} size={[0.1, 0.05, 0.03]} pos={[-1.5 + k * 0.2, 1.1 + 0.05 * (k % 2), -0.92]} color={["#d9352a", "#e8a93a", "#1d4ed8"][k]} r={0.01} />)}
           <RBox size={[0.22, 0.32, 0.08]} pos={[-0.55, 1.05, -0.95]} color="#f2c230" r={0.03} /><RBox size={[0.16, 0.08, 0.01]} pos={[-0.55, 1.12, -0.9]} color="#a8d8c8" r={0.005} />
           {[0, 1, 2].map((k) => <RBox key={k} size={[0.38, 0.04, 0.1]} pos={[-0.15 + 0.05 * k, 0.9 + 0.03 * k, -0.9 + 0.1 * k]} rot={[0, 0.3 * k, 0]} color={["#23262e", "#6b7280", "#b3342f"][k]} r={0.015} />)}
-          <Cyl r={0.012} h={0.5} pos={[-1.9, 1.14, -1.3]} color="#3b4a52" seg={8} /><RBox size={[0.3, 0.04, 0.04]} pos={[-1.78, 1.38, -1.3]} color="#3b4a52" r={0.01} /><Ball r={0.05} pos={[-1.64, 1.34, -1.3]} color="#fff2b8" rough={0.3} />
           {[0, 1].map((k) => <group key={k} position={[2.6 + 0.12 * k, 0.4 + 0.62 * k, -1.2]}><RBox size={[0.78, 0.58, 0.55]} pos={[0, 0, 0]} color={k ? "#8a8f98" : "#6f757e"} r={0.05} /><RBox size={[0.5, 0.4, 0.02]} pos={[-0.08, 0.02, 0.28]} color="#10141a" r={0.04} rough={0.15} /><Ball r={0.02} pos={[0.28, 0.1, 0.285]} color="#c2c8cd" rough={0.3} /></group>)}
           <RBox size={[1.6, 0.4, 0.05]} pos={[0.4, 2.4, -1.55]} map={tex.flyer} fit r={0.03} />
           <Cyl r={0.2} r2={0.17} h={0.45} pos={[-0.2, 0.22, 0.6]} color="#b3342f" seg={16} rough={0.7} />
-          <Plant x={3.8} z={-0.8} s={1.0} f={f} leaf={tex.leaf} pot="#2d7f86" />
+          <group position={[3.8, 0, -1.4]} rotation={[-0.12, 0, 0]}>
+            {[-0.2, 0.2].map((lx) => <Cyl key={lx} r={0.02} h={2.0} pos={[lx, 1.0, 0]} color="#c9741a" seg={8} />)}
+            {[0.25, 0.6, 0.95, 1.3, 1.65].map((ly) => <RBox key={ly} size={[0.4, 0.035, 0.04]} pos={[0, ly, 0]} color="#d9a05a" r={0.01} />)}
+          </group>
         </>
       )}
     </group>
@@ -538,10 +514,10 @@ const World: React.FC<{ t: number; f: number }> = ({ t, f }) => {
     wood: painted(256, 256, woodTex("#b98250", 44)), wainA: painted(256, 256, woodTex("#4f9f7a", 48)), wainB: painted(256, 256, woodTex("#a8662e", 48)),
     wallA: painted(256, 256, stripedWall("#f3e3b3", "rgba(120,160,90,.22)")), wallB: painted(256, 256, stripedWall("#e48b4c", "rgba(255,230,180,.16)")),
     parqA: painted(256, 256, parquetTex("#c98f55", "#b4773f"), 7, 4), parqB: painted(256, 256, parquetTex("#8a5a32", "#764a28"), 7, 4),
-    rug: painted(256, 256, rugTex), sofa: painted(128, 128, sofaTex("#2d7f86")), sofaB: painted(128, 128, sofaTex("#1d4ed8")), curtain: painted(128, 256, curtainTex),
-    outside: painted(256, 256, outsideTex), flyer: painted(256, 340, flyerTex), toolbox: painted(256, 128, toolboxTex), tvOff: painted(256, 160, tvOffTex), tvOn: painted(256, 160, tvOnTex),
-    art: painted(192, 128, artTex), clock: painted(128, 128, clockTex), calendar: painted(128, 160, calendarTex), remote: painted(256, 64, remoteTex), metal: painted(256, 256, metalTex),
-    soft: painted(64, 64, softTex), leaf: painted(128, 256, leafTex),
+    sofa: painted(128, 128, sofaTex("#2d7f86")), sofaB: painted(128, 128, sofaTex("#1d4ed8")), curtain: painted(128, 256, curtainTex),
+    flyer: painted(256, 340, flyerTex), toolbox: painted(256, 128, toolboxTex), tvOff: painted(256, 160, tvOffTex), tvOn: painted(256, 160, tvOnTex),
+    batik: painted(128, 128, batikTex), tampah: painted(128, 128, tampahTex), remote: painted(256, 64, remoteTex), metal: painted(256, 256, metalTex),
+    soft: painted(64, 64, softTex),
   } as unknown as TexSet), []);
   return (
     <group>

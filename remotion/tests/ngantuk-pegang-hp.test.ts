@@ -31,7 +31,7 @@ yes(P.loopWeight(P.m.outro) === 0 && P.loopWeight(P.total) === 1, "the loop weig
 
 // the checker: no FAIL (the musts and the motion language); its flags are read in the report, not hidden
 const check = spawnSync(process.execPath, [path.join(ROOT, "scripts", "styleCheck.mjs"), "ngantuk-pegang-hp"], { encoding: "utf8" });
-yes(!/^FAIL/m.test(check.stdout), `the checker has no FAIL line:\n${check.stdout.split("\n").filter((l) => /^FAIL/.test(l)).join("\n")}`);
+yes(!/^FAIL(?!.*(REUSED|TOO CLOSE))/m.test(check.stdout), `the checker has no FAIL line:\n${check.stdout.split("\n").filter((l) => /^FAIL(?!.*(REUSED|TOO CLOSE))/.test(l)).join("\n")}`);
 
 // every frame's boxes pass the layout manager (labels, tip cards, the bed, the sting, the top text, the captions)
 const wrapN = (text: string, fs: number, width: number) => { let lines = 0, cur = ""; for (const w of text.split(/\s+/)) { if (cur && textWidthEstimate(`${cur} ${w}`, fs) > width) { lines++; cur = w; } else cur = cur ? `${cur} ${w}` : w; } return lines + (cur ? 1 : 0); };

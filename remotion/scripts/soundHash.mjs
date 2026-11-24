@@ -27,7 +27,8 @@ export const OPEN_SFX = ["plop", "pop-wood", "swish-down", "whoosh-soft", "swoop
   "doorbell", "alarm-ring", "kettle-whistle", "microwave-ding", "toaster-pop", "phone-buzz", "camera-shutter", "typing",
   "power-up", "power-down", "static-burst", "notify-ding", "low-battery", "wind-gust", "thunder-rumble", "leaf-rustle",
   "fire-crackle", "success-fanfare", "error-buzz", "level-up", "toggle-on", "swipe", "sparkle", "countdown-beep",
-  "heartbeat", "footstep", "clap-hands", "finger-snap", "bonk", "slide-whistle-up", "drum-roll", "cymbal-crash"];
+  "heartbeat", "footstep", "clap-hands", "finger-snap", "bonk", "slide-whistle-up", "drum-roll", "cymbal-crash",
+  "balloon-pop", "balloon-squeak", "bath-bubbles", "bongo-hi", "bongo-lo", "cash-register", "castanets", "claves", "coin-8bit", "coin-drop", "cowbell", "crowd-gasp", "cutlery-clatter", "door-slam", "elevator-ding", "eraser-rub", "fan-whirr", "gate-squeak", "glockenspiel", "gong-soft", "gong-wobble", "harp-gliss", "hi-hat", "hiccup", "jump-8bit", "kalimba-a", "kalimba-e", "keyboard-clack", "kick-soft", "laser-zap", "lock-click", "magic-twinkle", "maracas", "marimba-low", "marker-squeak", "modem-chirp", "mouse-click", "mug-clink", "music-box", "pan-clang", "pan-sizzle", "pencil-tap", "pickup-8bit", "pizzicato", "plunger-pop", "powerdown-8bit", "punch-soft", "radar-blip", "ratchet", "rimshot", "robot-chirp", "rubber-band-twang", "school-bell", "scissors-snip", "shutter-roll", "sigh", "slap-hit", "snare-hit", "sniff", "snore", "sonar-ping", "spray-can", "spring-boing", "stapler", "steam-hiss", "steel-drum", "sticker-peel", "stomp", "tambourine", "tape-rip", "teleport", "toy-piano", "triangle-ding", "ukulele-strum", "usb-plug", "vibraphone", "water-drip-echo", "wheel-squeak", "woodblock-hi", "woodblock-lo", "xylophone-c", "xylophone-g", "yawn"];
 const sha = (x) => createHash("sha256").update(x).digest("hex");
 
 /** The approved entries (name -> hash), the open entries (new beds, not approved yet), the set's hash and the entry names. */
@@ -45,7 +46,7 @@ export function soundSet() {
   const catalog = readFileSync(path.join(ROOT, "src", "catalog.ts"), "utf8");
   const sfx = catalog.match(/export const SFX = \{[\s\S]*?\r?\n\}[^\n]*/);
   if (!sfx) throw new Error("src/catalog.ts has no SFX table");
-  const openName = (line) => { const name = line.match(/^\s*"([a-z-]+)":/)?.[1]; return OPEN_SFX.includes(name) ? name : null; };
+  const openName = (line) => { const name = line.match(/^\s*"([a-z0-9-]+)":/)?.[1]; return OPEN_SFX.includes(name) ? name : null; };
   const rows = sfx[0].replace(/\r/g, "").split("\n");                      // the content, not the line endings
   approved["src/catalog.ts SFX"] = sha(rows.filter((l) => !openName(l)).join("\n"));
   for (const l of rows) if (openName(l)) open[`src/catalog.ts SFX ${openName(l)}`] = sha(l);

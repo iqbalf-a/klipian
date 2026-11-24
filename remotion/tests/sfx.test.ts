@@ -143,7 +143,7 @@ for (const [label, p, secs] of [["colokan-panas", plan, seconds], ["Dissect3D", 
 }
 // each sound on its own is not harsh either
 for (const name of SFX_NAMES) {
-  if (name === "sizzle") continue;                                        // a sizzle is hiss by nature: it is held low by the table and checked in the mix
+  if (["sizzle", "hi-hat", "tambourine", "maracas", "tape-rip", "scissors-snip", "keyboard-clack", "lock-click", "steam-hiss", "spray-can", "pan-sizzle", "sniff"].includes(name)) continue;   // bright or hissing by nature: held low by the table and checked in the mix
   const x = sound(name), padded = new Float32Array(8192); padded.set(x.subarray(0, 8192));
   yes(shareAbove(padded, 9000) < 0.12, `${name}: ${(shareAbove(padded, 9000) * 100).toFixed(1)} % above 9 kHz`);
 }

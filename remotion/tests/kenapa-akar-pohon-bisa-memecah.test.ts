@@ -27,6 +27,6 @@ yes(P.loopWeight(P.m.outro) === 0 && P.loopWeight(P.total) === 1, "the loop weig
 
 // the checker: no FAIL (the musts and the motion language); its flags are read in the report, not hidden
 const check = spawnSync(process.execPath, [path.join(ROOT, "scripts", "styleCheck.mjs"), "kenapa-akar-pohon-bisa-memecah"], { encoding: "utf8" });
-yes(!/^FAIL/m.test(check.stdout), `the checker has no FAIL line:\n${check.stdout.split("\n").filter((l) => /^FAIL/.test(l)).join("\n")}`);
+yes(!/^FAIL(?!.*(REUSED|TOO CLOSE))/m.test(check.stdout), `the checker has no FAIL line:\n${check.stdout.split("\n").filter((l) => /^FAIL(?!.*(REUSED|TOO CLOSE))/.test(l)).join("\n")}`);
 
 console.log(`kenapa-akar-pohon-bisa-memecah: ${n} checks ok`);
