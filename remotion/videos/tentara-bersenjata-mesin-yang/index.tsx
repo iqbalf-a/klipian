@@ -45,8 +45,7 @@ const SHOTS: Shot[] = [
   { from: 13.42, a: C(-1.2, 1.3, 6.8, 1.1, 1.0, -2.5), b: C(-0.9, 1.25, 6.3, 1.7, 1.05, -3.5) },                  // tembakan pertama: emu bubar
   { from: 17.54, a: C(0.9, 1.3, 4.6, 0.5, 1.2, 0.9), b: C(0.8, 1.3, 4.0, 0.6, 1.2, 0.9) },              // susah sekali membidiknya
   { from: 19.38, a: C(OB + 2.4, 1.3, 7.5, OB + 3.5, 1.1, 0), b: C(OB + 3, 1.3, 6.5, OB + 3.6, 1.1, 0) },     // disergap di sumber air, senapan macet
-  { from: 21.78, a: C(OC + 0.5, 1.7, 17, OC + 2, 1.0, -1), b: C(OC + 12, 1.7, 17, OC + 13.6, 1.0, -1) },        // dikejar pakai truk
-  { from: 24.1, a: C(OC + 13.5, 2.0, 20, OC + 15, 1.0, -1), b: C(OC + 22, 2.0, 20, OC + 23.5, 1.0, -1) },        // emu berlari lebih cepat
+  { from: 21.78, lin: true, a: C(OC + 0.5, 1.8, 17, OC + 3, 1.0, -1), b: C(OC + 20, 2.0, 19, OC + 22.5, 1.0, -1) },        // dikejar pakai truk, emu berlari lebih cepat: one shot at the truck's own speed (5 m/s), so nothing jumps back at a cut
   { from: 25.68, a: C(OD - 2.6, 1.3, 11, OD - 2.5, 1.0, 0), b: C(OD - 2.4, 1.3, 9.5, OD - 2.3, 1.0, 0) },        // kulit emu tebal, peluru nyasar
   { from: 28.74, a: C(OD - 2.2, 1.3, 9, OD - 1.0, 1.0, 0), b: C(OD + 1.6, 1.3, 9, OD + 2.8, 1.0, 0) },    // tertembak tapi tetap lari
   { from: 31.34, a: C(OE - 1.5, 1.4, 4.0, OE, 1.3, 0), b: C(OE - 0.5, 1.4, 3.4, OE, 1.3, 0) },             // beritanya menyebar, parlemen bercanda
@@ -61,8 +60,7 @@ const SHOTS: Shot[] = [
   { from: 51.16, a: C(1.5, 1.5, 8, 1.5, 1.0, -1), b: C(4, 1.5, 8, 4.5, 1.0, -1) },                            // operasi dihentikan
   { from: 53.2, a: C(-1.5, 1.0, 3.5, 0.5, 1.3, -4), b: C(1.5, 1.1, 3.2, 0.5, 1.3, -4) },                  // emu dianggap pemenangnya
   { from: 55.52, a: C(-5, 0.9, 3, -4, 1.0, -3.2), b: C(-8, 1.0, 3.2, -10, 1.2, -3.2) },                   // yang akhirnya ampuh cuma satu
-  { from: 57.4, a: C(-9, 2.0, 6, -11, 1.0, -3.2), b: HOOK },                                              // pagar panjang; the camera flies back to the first shot (the loop)
-  { from: 58.0, a: HOOK, b: HOOK },
+  { from: 57.3, a: C(-9, 2.0, 6.5, -11, 1.0, -3.2), b: C(-12, 3.0, 13, -20, 0.8, -3.2) },                // pagar panjang: the finished fence, held and pulled back until the loop cut at 58.5
 ];
 
 // ---------- the people (every one their own outfit, B46 i; heads are always white) ---------------------------------------------------------
@@ -70,9 +68,9 @@ const KOM: Outfit = { shirt: "#9b9b5a", stripe: "#6e6e38", pattern: "plain", hat
 const SOL1: Outfit = { shirt: "#6f8a52", stripe: "#4a6034", pattern: "check", hat: "cap", hatColor: "#58693f", nose: "dot", blush: true };
 const SOL2: Outfit = { shirt: "#a39a6a", stripe: "#7a7248", pattern: "collar", hat: "hardhat", hatColor: "#6b7a4a", glasses: true };
 const FARM1: Outfit = { shirt: "#c0502e", stripe: "#7a2f18", pattern: "check", hat: "cowboy", hatColor: "#8a5a32", beard: true, hairColor: "#5a3b1f", body: "wide" };
-const FARM2: Outfit = { shirt: "#3b86b8", stripe: "#1f5a80", pattern: "dots", hair: "long", hairColor: "#3b2418", blush: true, nose: "dot" };
+const FARM2: Outfit = { shirt: "#3b86b8", stripe: "#1f5a80", pattern: "stripe", hat: "cap", hatColor: "#6b5a3c", mustache: true, hairColor: "#3b2418", nose: "big" };   // an old veteran farmer, like the other (B53: the cast fits the story)
 const PARL1: Outfit = { shirt: "#3a3f4a", stripe: "#8fa0bf", pattern: "collar", hair: "bald", glasses: true, nose: "big" };
-const PARL2: Outfit = { shirt: "#7a2f4a", stripe: "#d9a0b8", pattern: "plain", hair: "bun", hairColor: "#d8d8d8", blush: true };
+const PARL2: Outfit = { shirt: "#5a2a3a", stripe: "#d9a0b8", pattern: "collar", hair: "spiky", hairColor: "#8a8a8a", mustache: true, nose: "dot" };   // a 1932 parliament: men in suits
 
 type Beat = ["hop" | "lean" | "shake", number, number, number];
 const beatsAt = (beats: Beat[], t: number, ph = 0) => {
@@ -424,7 +422,7 @@ const Hills: React.FC<{ ox: number }> = ({ ox }) => (
 
 /** A post-and-wire fence built post by post outward from the camera (the last shot). */
 const Fence: React.FC<{ t: number; side: 1 | -1 }> = ({ t, side }) => {
-  const N = 30, start = (i: number) => (i < 14 ? 55.98 + i * 0.07 : 56.98 + (i - 14) * 0.07);
+  const N = 30, start = (i: number) => 55.4 + i * 0.055;   // finished by 57.3, before the word "pagar" (57.4)
   return (
     <group>
       {Array.from({ length: N }, (_, i) => {
@@ -648,8 +646,8 @@ export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = () => {
   const fr = useCurrentFrame();
   const t0 = fr / FPS;
   // the loop: from LOOP_AT the picture replays the first seconds (same scene, cast and camera as frame 0), a short flash hides the swap
-  const LOOP_AT = 58.0;
-  const t = t0 >= LOOP_AT ? t0 - LOOP_AT : t0;
+  const LOOP_AT = 58.5;
+  const t = t0 >= LOOP_AT ? 0.04 : t0;   // from the cut the picture holds the first moment (the hook, full text), so the last frame equals the first and the loop is exact
   const f = Math.round(t * FPS);
   const flash = Math.max(0, 1 - Math.abs(t0 - LOOP_AT) / 0.14);
   let cam = camAt(SHOTS, t, TOTAL);

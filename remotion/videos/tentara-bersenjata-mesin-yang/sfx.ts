@@ -9,7 +9,7 @@ const q = (t: number) => Math.round(t * FPS) / FPS;
 export const music = { track: "bed-bounce", level: 0.8 } as const;
 
 // the cuts of SHOTS in index.tsx (the first shot starts at 0)
-const CUTS = [4.4, 6.9, 9.2, 11.1, 13.42, 17.54, 19.38, 21.78, 24.1, 25.68, 28.74, 31.34, 34.38, 38.04, 40.12, 41.5, 43.52, 45.3, 47.5, 49.0, 51.16, 53.2, 55.52, 57.4];
+const CUTS = [4.4, 6.9, 9.2, 11.1, 13.42, 17.54, 19.38, 21.78, 25.68, 28.74, 31.34, 34.38, 38.04, 40.12, 41.5, 43.52, 45.3, 47.5, 49.0, 51.16, 53.2, 55.52, 57.3];
 const CUT_SOUNDS = ["whoosh", "swish", "whoosh-soft", "swoop"] as const;
 
 export function sfx(_story: StoryT): SfxEvent[] {
@@ -49,6 +49,6 @@ export function sfx(_story: StoryT): SfxEvent[] {
   add(53.5, "success-fanfare", "the emu is named the winner", { vol: 0.7 });
   add(55.6, "wood-crack", "the fence goes up", { vol: 0.7 });
   [56.0, 56.3, 56.6].forEach((t) => add(t, "pop-wood", "a fence post goes in", { vol: 0.7 }));
-  add(57.4, "slide-whistle-up", "the camera flies back to the first frame (the loop)", { vol: 0.8 });
+  add(58.46, "slide-whistle-up", "the cut back to the first frame (the loop)", { vol: 0.8 });
   return ev.sort((a, b) => a.t - b.t);
 }
