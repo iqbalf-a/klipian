@@ -54,7 +54,7 @@ export function handOffset(p: Pose, side: "l" | "r", h = 1.7): { x: number; y: n
   return { x: ((hand.x - 256) * h) / 1024, y: h * (1 - (hand.y + dy) / 1024) };
 }
 
-const A = (lSh: number, lEl: number, rSh: number, rEl: number, extra: Partial<Pose> = {}): Pose => ({ lSh, lEl, rSh, rEl, lHip: 8, lKn: 0, rHip: -8, rKn: 0, ...extra });
+const A = (lSh: number, lEl: number, rSh: number, rEl: number, extra: Partial<Pose> = {}): Pose => ({ lSh, lEl, rSh, rEl, lHip: -8, lKn: 0, rHip: 8, rKn: 0, ...extra });
 /** the named arm poses of the old `Arms` type, now as joint angles */
 export const POSES: Record<string, Pose> = {
   down: A(12, -8, 12, -8),
