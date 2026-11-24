@@ -158,7 +158,7 @@ const SHOTS: Shot[] = [
 // Bang Jaya: the younger rival who runs an electronics shop, a yellow collared shirt, a blue cap and a beard.
 const DARTO: Outfit = { shirt: "#1f7a5c", stripe: "#ffd447", pattern: "dots", hair: "spiky", hairColor: "#9a9a9a", glasses: true, mustache: true, nose: "dot" };
 const RINA: Outfit = { shirt: "#e0456b", stripe: "#8a1f3d", pattern: "plain", hair: "bun", hairColor: "#2a1a14", blush: true };
-const JAYA: Outfit = { shirt: "#f2c230", stripe: "#b88a00", pattern: "collar", hat: "cap", hatColor: "#1d4ed8", beard: true, hairColor: "#17141c", body: "wide", nose: "big" };
+const JAYA: Outfit = { shirt: "#f2c230", stripe: "#b88a00", pattern: "collar", hair: "bald", beard: true, hairColor: "#17141c", body: "wide", nose: "none" };
 
 // the two quoted lines (B46 n): only these words move a mouth
 const TALK: Record<string, [number, number][]> = { jaya: [[13.06, 14.46], [21.46, 24.3]] };
