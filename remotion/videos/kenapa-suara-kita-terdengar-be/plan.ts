@@ -1,7 +1,7 @@
-/* Kenapa suara kita terdengar beda di rekaman? — the timing of the video (pure, no React). One continuous camera over one home-studio set (set kind
-   "home-studio"): a head in profile (the hero) at a desk with a standing microphone and a small recorder. Every moment something appears or moves is
-   named in `T` (seconds of the whole video); index.tsx (the picture) and sfx.ts (the sound) read the same numbers. Everything that loops (the arcs,
-   the mouth, the bars) has a period that divides 60 s, so the last frame is the first. */
+/* Kenapa suara kita terdengar beda di rekaman? — the timing of the video (pure, no React). Look 2d: one continuous camera over one flat home-studio set
+   (set kind "home-studio"): a person seen from the front (the hero) behind a desk with a microphone and a small recorder. Every moment something appears or
+   moves is named in `T` (seconds of the whole video); index.tsx (the picture) and sfx.ts (the sound) read the same numbers. Everything that loops (the arcs,
+   the mouth, the steam) has a period that divides 60 s, so the last frame is the first. */
 import type { StoryT } from "../../src/schema.ts";
 import type { Key2 } from "../../src/iso.ts";
 
@@ -23,17 +23,18 @@ export const T = {
   panBack: 48.1, tip1: 49.8, tip2: 52.6, tip3: 55.0, fade: 56.4,
 } as const;
 
-/** The camera: first and last key are the same wide shot, so the video loops. */
-const W = { x: 560, y: 950, zoom: 0.85 };
+/** The camera (2D: x, y = the point of the set in the middle of the frame): first and last key are the same wide shot, so the video loops.
+    motion-exception: the establishing push (1.4 to 2.9 s) is faster than a beat's push (B27.8). */
+const W = { x: 540, y: 1000, zoom: 0.62 };
 export const CAM: Key2[] = [
-  { t: 0, ...W }, { t: 1.4, ...W }, { t: 2.9, x: 560, y: 965, zoom: 1.28 },
-  { t: 11.6, x: 560, y: 965, zoom: 1.36 },
-  { t: 13.2, x: 610, y: 950, zoom: 1.5 }, { t: 19.6, x: 610, y: 950, zoom: 1.58 },
-  { t: 21.3, x: 400, y: 975, zoom: 1.7 }, { t: 27.6, x: 400, y: 975, zoom: 1.8 },
-  { t: 29.3, x: 780, y: 990, zoom: 1.45 }, { t: 34.6, x: 780, y: 990, zoom: 1.52 },
-  { t: 36.3, x: 560, y: 975, zoom: 1.25 }, { t: 41.6, x: 560, y: 975, zoom: 1.3 },
-  { t: 43.3, x: 700, y: 560, zoom: 1.1 }, { t: 47.6, x: 700, y: 560, zoom: 1.14 },
-  { t: 49.3, x: 560, y: 965, zoom: 1.2 }, { t: 56.8, x: 560, y: 965, zoom: 1.26 },
+  { t: 0, ...W }, { t: 1.4, ...W }, { t: 2.9, x: 540, y: 1010, zoom: 1.0 },
+  { t: 11.6, x: 540, y: 1010, zoom: 1.05 },
+  { t: 13.2, x: 540, y: 960, zoom: 1.2 }, { t: 19.6, x: 540, y: 960, zoom: 1.26 },
+  { t: 21.3, x: 540, y: 900, zoom: 1.34 }, { t: 27.6, x: 540, y: 900, zoom: 1.42 },
+  { t: 29.3, x: 700, y: 1040, zoom: 1.12 }, { t: 34.6, x: 700, y: 1040, zoom: 1.18 },
+  { t: 36.3, x: 580, y: 1030, zoom: 0.95 }, { t: 41.6, x: 580, y: 1030, zoom: 1.0 },
+  { t: 43.3, x: 1310, y: 800, zoom: 1.0 }, { t: 47.6, x: 1310, y: 800, zoom: 1.04 },
+  { t: 49.3, x: 540, y: 990, zoom: 1.02 }, { t: 56.8, x: 540, y: 990, zoom: 1.08 },
   { t: 59.4, ...W }, { t: 60, ...W },
 ];
 
@@ -51,5 +52,5 @@ export function makePlan(story: StoryT) {
   };
 }
 
-/** The hero's box at time t, in the 1080 px frame: the voice, the ear and the microphone (about 65 % of the width in the main shot, small in the wide shot). */
-export const HERO_BOX_AT = (t: number) => (t < 1.4 ? { x: 540, y: 960, w: 380, h: 260 } : { x: 540, y: 960, w: 700, h: 520 });
+/** The hero's box at time t, in the 1080 px frame: the head with its ears and the two ways round it (about 65 % of the width in the main shot, small and in the middle in the wide shot). */
+export const HERO_BOX_AT = (t: number) => (t < 1.4 ? { x: 540, y: 830, w: 420, h: 330 } : { x: 540, y: 800, w: 700, h: 560 });

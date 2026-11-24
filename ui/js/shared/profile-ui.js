@@ -113,28 +113,6 @@ ${html}      </div>`;
             <option value="2"${d.titleTags === 2 ? " selected" : ""}>2</option>
             <option value="3"${d.titleTags === 2 ? "" : " selected"}>3</option>
           </select></label>
-        <label>Cold open (the hook sentence before the clip)
-          <select name="coldOpen">
-            <option value=""${d.coldOpen ? "" : " selected"}>Off</option>
-            <option value="freeze"${d.coldOpen === "freeze" ? " selected" : ""}>Frozen frame + big text</option>
-            <option value="move"${d.coldOpen === "move" ? " selected" : ""}>Moving video + big text</option>
-          </select></label>
-        <label>Voice in the frozen frame
-          <select name="coldVoice">
-            <option value=""${d.coldVoice === "original" ? "" : " selected"}>AI voice (Gemini) says the hook</option>
-            <option value="original"${d.coldVoice === "original" ? " selected" : ""}>The clip's own sound</option>
-          </select></label>
-        <fieldset class="ttsbox" id="ttsBox"><legend>AI voice (this computer, saved with the Gemini key, not in the profile)</legend>
-          <label>Style (how the hook is said)
-            <textarea id="ttsStyle" rows="3" maxlength="600"></textarea></label>
-          <label class="check"><input type="checkbox" id="ttsNoStyle"> No style at all (say it plainly)</label>
-          <label>Model <input id="ttsModel" type="text" maxlength="80" autocomplete="off"></label>
-          <label>Voice <input id="ttsVoice" type="text" maxlength="80" autocomplete="off"></label>
-          <p class="note"><button class="btn sm" type="button" id="ttsSave">Save voice</button>
-            <button class="btn sm" type="button" id="ttsTry">Try voice</button>
-            <span id="ttsMsg" role="status">Empty = the default (shown in grey). A try is one call to Google; the free tier allows 10 a day.</span></p>
-          <audio id="ttsAudio" hidden></audio>
-        </fieldset>
         <label class="check"><input type="checkbox" name="addShorts"${d.addShorts ? " checked" : ""}> Add #shorts to the title</label>
         ${canPreset ? `<p class="note">Caption look: ${d.captionPreset ? "a default is saved." : "none saved yet."}
           <button class="btn quiet" type="button" data-pm="preset">Use the current caption look as this profile's default</button></p>` : ""}
@@ -266,7 +244,7 @@ ${html}      </div>`;
       try {
         const j = await post("/api/profiles/update", { id: PROFILE, name: f.name, color: f.color,
           defaults: { watermark: f.watermark, rubric: f.rubric, hashtagPlacement: f.hashtagPlacement,
-            titleTags: Number(f.titleTags), addShorts: !!f.addShorts, coldOpen: f.coldOpen, coldVoice: f.coldVoice },
+            titleTags: Number(f.titleTags), addShorts: !!f.addShorts, },
           ...(isGuest ? {} : { thumbStyle: thumbChanges(dlg) }) });
         meta = j.profile;
         draw();
@@ -288,7 +266,6 @@ ${html}      </div>`;
     dlg.showModal();
     youTubeSection(dlg);
     machineSection(dlg);
-    ttsSection(dlg);
     if (!isGuest) { claudeSection(dlg); thumbSection(dlg); }
     rubricSection(dlg).finally(() => { saved = formState(); });      // the rubric list fills the select: that is not a change
     return dlg;
@@ -341,42 +318,6 @@ ${html}      </div>`;
     dlg.querySelector("#thReset").addEventListener("click", () => { fill(meta?.thumbDefault || {}); later(); });
     dlg.addEventListener("close", () => { if (url) URL.revokeObjectURL(url); });
     draw();
-  }
-
-  /* ---- the cold open's AI voice: model, voice and style live in the Gemini settings file (klipian/tts.py), not in the profile ---- */
-  async function ttsSection(dlg) {
-    const $ = (id) => dlg.querySelector("#" + id);
-    const style = $("ttsStyle"), none = $("ttsNoStyle"), msg = $("ttsMsg");
-    if (!style) return;
-    const say = (t, bad) => { msg.textContent = t; msg.classList.toggle("bad", !!bad); };
-    const post = async (path, body) => {
-      const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
-      const j = await r.json();
-      if (j.error) throw new Error(j.error);
-      return j;
-    };
-    const show = (j) => {
-      $("ttsModel").value = j.model; $("ttsVoice").value = j.voice; style.value = j.style; none.checked = !!j.noStyle;
-      $("ttsModel").placeholder = j.defaults.model; $("ttsVoice").placeholder = j.defaults.voice; style.placeholder = j.defaults.style;
-      style.disabled = none.checked;
-    };
-    none.addEventListener("change", () => { style.disabled = none.checked; });
-    try { show(await (await fetch("/api/tts")).json()); } catch { say("Could not read the voice settings.", true); }
-    const save = () => post("/api/tts", { model: $("ttsModel").value, voice: $("ttsVoice").value, style: style.value, noStyle: none.checked }).then(show);
-    $("ttsSave").addEventListener("click", async () => {
-      try { await save(); say("Voice saved."); } catch (err) { say(`Not saved: ${err.message}`, true); }
-    });
-    $("ttsTry").addEventListener("click", async () => {
-      say("Saving and asking Google for one sentence...");
-      try {
-        await save();
-        const j = await post("/api/tts/try");
-        const a = $("ttsAudio");
-        a.src = "data:audio/wav;base64," + j.audio;
-        await a.play();
-        say(`Played ${j.seconds} s. Happy with it? It is saved already.`);
-      } catch (err) { say(err.message, true); }
-    });
   }
 
   /* ---- settings of this computer, not of the profile (workspace/machine.json) ---- */

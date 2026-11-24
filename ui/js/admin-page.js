@@ -267,9 +267,36 @@ document.addEventListener("click", async (e) => {
 
 window.addEventListener("beforeunload", (e) => { if (STATE && dirty()) { e.preventDefault(); e.returnValue = ""; } });
 
+/* ---- the cold open's AI voice: model, voice and style live in the Gemini settings file (klipian/tts.py); these act at once ---- */
+async function drawVoice() {
+  const msg = $("#tvMsg");
+  const say = (t, bad) => { msg.textContent = t; msg.classList.toggle("bad", !!bad); };
+  const show = (j) => {
+    $("#tModel").value = j.model; $("#tVoice").value = j.voice; $("#tStyle").value = j.style; $("#tNoStyle").checked = !!j.noStyle;
+    $("#tModel").placeholder = j.defaults.model; $("#tVoice").placeholder = j.defaults.voice; $("#tStyle").placeholder = j.defaults.style;
+    $("#tStyle").disabled = $("#tNoStyle").checked;
+  };
+  const save = () => call("/api/admin/tts", { model: $("#tModel").value, voice: $("#tVoice").value, style: $("#tStyle").value, noStyle: $("#tNoStyle").checked }).then(show);
+  $("#tNoStyle").addEventListener("change", () => { $("#tStyle").disabled = $("#tNoStyle").checked; });
+  $("#tvSave").addEventListener("click", async () => { try { await save(); say("Voice saved."); } catch (err) { say(`Not saved: ${err.message}`, true); } });
+  $("#tvTry").addEventListener("click", async () => {
+    say("Saving and asking Google for one sentence...");
+    try {
+      await save();
+      const j = await call("/api/admin/tts/try", {});
+      const a = $("#tvAudio");
+      a.src = "data:audio/wav;base64," + j.audio;
+      await a.play();
+      say(`Played ${j.seconds} s. It is saved already.`);
+    } catch (err) { say(err.message, true); }
+  });
+  try { show(await call("/api/admin/tts")); } catch { say("Could not read the voice settings.", true); }
+}
+
 (async () => {
   if (PROFILE !== "_admin") { location.replace("/profiles?next=/admin"); return; }
   try { STATE = await call("/api/admin/settings"); } catch (e) { note(e.message, true); return; }
   draw();
   loadModels();
+  drawVoice();
 })();

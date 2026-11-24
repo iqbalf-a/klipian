@@ -39,6 +39,18 @@
           <button class="btn" id="gTest" type="button">Test key</button></div>
         <p class="admin-note" id="gResult" role="status"></p>
         <p class="admin-error" id="gError"></p>
+
+        <h3>Voice for the cold open</h3>
+        <p class="admin-note">The AI voice that says the hook over the frozen frame (the Cold open choice is in the render panel). Empty = the default, shown in grey. These save at once, with the key, on this computer.</p>
+        <div class="admin-row"><label for="tStyle">Style</label>
+          <textarea id="tStyle" rows="3" maxlength="600"></textarea></div>
+        <div class="admin-row"><label for="tNoStyle">No style at all</label><input id="tNoStyle" type="checkbox"> <span class="admin-note">Say it plainly.</span></div>
+        <div class="admin-row"><label for="tModel">TTS model</label><input id="tModel" type="text" maxlength="80" autocomplete="off"></div>
+        <div class="admin-row"><label for="tVoice">Voice</label><input id="tVoice" type="text" maxlength="80" autocomplete="off">
+          <button class="btn" id="tvSave" type="button">Save voice</button>
+          <button class="btn" id="tvTry" type="button">Try voice</button></div>
+        <p class="admin-note" id="tvMsg" role="status">A try is one call to Google; the free tier allows 10 a day.</p>
+        <audio id="tvAudio" hidden></audio>
       </div>
 
       <div class="adm-panel" role="tabpanel" id="amp-templates" aria-labelledby="amt-templates" tabindex="-1" hidden>

@@ -739,6 +739,33 @@ function resultLabel(id) {
   return r?.title || r?.segments?.[0]?.title || id;
 }
 
+/* The cold open (the hook sentence in front of the clip) is chosen in the render panel and remembered in this browser, so it is not
+   picked again for every render. Off is the default. It goes in the render request as coldOpen ("freeze" | "move" | "") and
+   coldVoice ("original" = the clip's own sound under the frozen frame; "" = the AI voice, set in Admin). */
+const COLD_KEY = "klipian.coldOpen";
+function coldChoice() {
+  try {
+    const j = JSON.parse(localStorage.getItem(COLD_KEY) || "{}");
+    return { coldOpen: j.coldOpen === "freeze" || j.coldOpen === "move" ? j.coldOpen : "", coldVoice: j.coldVoice === "original" ? "original" : "" };
+  } catch { return { coldOpen: "", coldVoice: "" }; }
+}
+function saveColdChoice(c) {
+  try { localStorage.setItem(COLD_KEY, JSON.stringify(c)); } catch { /* private window: the choice is for this render only */ }
+}
+
+/* The same choice on the Render screen, next to the Render button; changing it here or in the plan dialog is one setting. */
+(function wireColdRow() {
+  const open = document.getElementById("coldOpenSel"), voice = document.getElementById("coldVoiceSel");
+  if (!open || !voice) return;
+  const show = () => { const c = coldChoice(); open.value = c.coldOpen; voice.value = c.coldVoice; voice.disabled = open.value !== "freeze"; };
+  const save = () => { saveColdChoice({ coldOpen: open.value, coldVoice: voice.value }); voice.disabled = open.value !== "freeze"; };
+  open.addEventListener("change", save);
+  voice.addEventListener("change", save);
+  window.addEventListener("focus", show);                  // the plan dialog may have changed it
+  document.addEventListener("click", (e) => { if (e.target.closest('[data-screen-tab], .tab, [role="tab"]')) setTimeout(show, 0); });
+  show();
+})();
+
 /* Render these Results of the open project, one after another (server: jobs.start_project_render).
    The project is saved first, so the server sees exactly what is on screen. */
 async function renderSavedResults(resultIds, { note = "" } = {}) {
@@ -765,7 +792,7 @@ async function renderSavedResults(resultIds, { note = "" } = {}) {
     reply = await fetch("/api/render", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ project: activeProjectId, results: ids }),
+      body: JSON.stringify({ project: activeProjectId, results: ids, ...coldChoice() }),
     }).then((r) => r.json());
   } catch {
     // Without a backend, say so plainly -- don't pretend to render.

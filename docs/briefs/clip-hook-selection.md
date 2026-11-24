@@ -79,3 +79,10 @@ Studio setelah 3-7 hari. Setelah sekitar 20 video, masukkan contoh klip yang ber
   `ttsStyle` di file settings Gemini ("" = tanpa gaya). Gaya ikut kunci cache dan tidak masuk teks layar. Hook yang sama: tanpa
   gaya ±3,1 s, dengan gaya ±2,0 s (lebih cepat). Freeze = panjang suara + 0,1 s, suara diberi fade-out 40 ms supaya sambungan ke video
   tidak berbunyi klik; caption mulai tepat saat video mulai (digeser sebesar freeze).
+- Pengaturan dipindah (keputusan ian, 2026-11-20, "Panel render + Admin"): pilihan cold open (Off / Frozen frame / Moving video) dan
+  sumber suara (suara AI / suara asli klip) ada di dialog render ("Render N clips?", `bulkPlanBody` di `bulk.js`), diingat di
+  localStorage (`klipian.coldOpen`, default Off) dan dikirim di request `/api/render` sebagai `coldOpen` dan `coldVoice`;
+  `jobs.start_project_render` menaruhnya di tiap klip lewat `jobs.clean_cold`. Default profil tidak dibaca lagi: field lama
+  `coldOpen`/`coldVoice` di profil yang sudah ada tetap termuat, diabaikan, dan hilang pada save berikutnya. Profile settings tidak
+  memuat apa pun soal freeze atau TTS. Gaya, model, dan voice TTS + tombol Save voice / Try voice ada di Admin settings, tab Gemini
+  API (`/api/admin/tts`, `/api/admin/tts/try`; endpoint Admin saja), tetap tersimpan di file settings Gemini.

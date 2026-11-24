@@ -1111,6 +1111,23 @@ $("#captionTabs")?.addEventListener("click", (e) => {
   });
 });
 
+/* The pages of the Render screen (Render / Post / Intro & notes): which panels show is one attribute on the screen
+   (CSS, [data-rsub]); the last page is remembered in this browser. */
+const RENDER_SUB_KEY = "klipian.renderSub";
+function showRenderSub(pick) {
+  const screen = $("#panel-render");
+  if (!screen) return;
+  if (!["render", "post", "angle"].includes(pick)) pick = "render";
+  screen.dataset.sub = pick;
+  document.querySelectorAll("#renderTabs .subtab").forEach((t) => t.setAttribute("aria-pressed", String(t.dataset.rsubPick === pick)));
+  try { localStorage.setItem(RENDER_SUB_KEY, pick); } catch { /* private/full: the page is only not remembered */ }
+}
+$("#renderTabs")?.addEventListener("click", (e) => {
+  const b = e.target.closest(".subtab");
+  if (b) showRenderSub(b.dataset.rsubPick);
+});
+try { showRenderSub(localStorage.getItem(RENDER_SUB_KEY) || "render"); } catch { showRenderSub("render"); }
+
 $("#options")?.addEventListener("click", (e) => {
   const c = e.target.closest(".chip");
   if (!c) return;

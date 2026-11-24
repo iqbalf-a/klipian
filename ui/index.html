@@ -1019,16 +1019,23 @@
             <button class="btn quiet" type="button" data-result-action="delete" title="Delete this Result">×</button>
           </div>
         </div>
-        <div class="range-warn" hidden><span class="data"></span><button class="btn" type="button"></button></div>
+        <!-- The pages of this screen: Render (what the render needs), Post (the upload text), Intro & notes. Plain show/hide of
+             the panels below by [data-rsub]; the elements and their ids are where they were (app.js, renderTabs). -->
+        <nav class="tabs subtabs" id="renderTabs" aria-label="Pages of the Render screen">
+          <button class="subtab" type="button" data-rsub-pick="render" aria-pressed="true">Render</button>
+          <button class="subtab" type="button" data-rsub-pick="post" aria-pressed="false">Post</button>
+          <button class="subtab" type="button" data-rsub-pick="angle" aria-pressed="false">Intro &amp; notes</button>
+        </nav>
+        <div class="range-warn" data-rsub="render" hidden><span class="data"></span><button class="btn" type="button"></button></div>
 
         <!-- The LENGTH readout: how long this Result runs and whether that
              lands in the sweet spot. Written by renderPreview() in app.js. -->
-        <div class="clip-info" id="clipInfo"></div>
+        <div class="clip-info" id="clipInfo" data-rsub="render"></div>
 
         <!-- Post text: what goes beside the video when it is uploaded. NOT the
              captions burned into the video (Captions screen). Saved per Result;
              post.js. -->
-        <div class="panel fit post-text" id="postPanel">
+        <div class="panel fit post-text" id="postPanel" data-rsub="post">
           <div class="post-head">
             <h2>Post text <button class="btn quiet refill-btn" type="button" id="postRefill"
               title="Fill from the suggestion this Result was made from">Refill from suggestion</button></h2>
@@ -1085,7 +1092,7 @@
         <!-- Intro & notes (the code says "angle"): a point of view on the clip, to make it your own (angle.js).
              Claude suggests, the person edits; nothing reaches the video until
              Add intro / Add notes, and those are ordinary Timeline labels. -->
-        <div class="panel fit post-text" id="anglePanel">
+        <div class="panel fit post-text" id="anglePanel" data-rsub="angle">
           <div class="post-head">
             <h2>Intro &amp; notes <button class="btn quiet refill-btn" type="button" id="angleRefill"
               title="Fill from the suggestion this Result was made from">Refill from suggestion</button></h2>
@@ -1141,10 +1148,27 @@
             <span class="data" id="angleStatus" role="status"></span></p>
         </div>
 
-        <div class="render-bar">
+        <div class="render-bar" data-rsub="render">
           <label class="title-input">title
             <input id="resultTitle" value="" spellcheck="false" placeholder="output file name"
                    aria-label="Result title, used as the file name"></label>
+          <!-- The cold open: the hook sentence in front of the clip. Remembered in this browser and shared with the plan dialog of
+               "Render selected" (coldChoice / saveColdChoice, player.js). The AI voice itself is set in Admin. -->
+          <div class="cold-row">
+            <label class="data">Cold open
+              <select id="coldOpenSel" aria-label="Cold open">
+                <option value="">Off</option>
+                <option value="freeze">Frozen frame + big text</option>
+                <option value="move">Moving video + big text</option>
+              </select></label>
+            <label class="data">Voice
+              <select id="coldVoiceSel" aria-label="Voice in the frozen frame">
+                <option value="">AI voice says the hook</option>
+                <option value="original">The clip's own sound</option>
+              </select></label>
+            <span class="data">The AI voice (style, model, voice) is set in
+              <a href="/admin" target="_blank" rel="noopener">Admin settings</a>. The voice applies to the frozen frame only.</span>
+          </div>
           <div class="row">
             <span class="data" id="resultSummary" role="status"></span>
             <span class="data" id="previewQuickNote" role="status"></span>

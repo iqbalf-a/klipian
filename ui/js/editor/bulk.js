@@ -509,6 +509,30 @@ function bulkPlanBody(plan, eligible) {
     }
     box.append(bad);
   }
+  // the cold open: remembered in this browser (coldChoice, player.js); the AI voice itself is set in Admin
+  const cold = document.createElement("div");
+  cold.className = "bulk-plan-fmt";
+  const pick = (id, label, options, value) => {
+    const l = document.createElement("label");
+    l.textContent = label + " ";
+    const s = document.createElement("select");
+    s.id = id;
+    for (const [v, t] of options) s.append(new Option(t, v, false, v === value));
+    l.append(s);
+    return [l, s];
+  };
+  const now = coldChoice();
+  const [lOpen, sOpen] = pick("bulkColdOpen", "Cold open", [["", "Off"], ["freeze", "Frozen frame + big text"], ["move", "Moving video + big text"]], now.coldOpen);
+  const [lVoice, sVoice] = pick("bulkColdVoice", "Voice", [["", "AI voice says the hook"], ["original", "The clip's own sound"]], now.coldVoice);
+  const sync = () => { sVoice.disabled = sOpen.value !== "freeze"; saveColdChoice({ coldOpen: sOpen.value, coldVoice: sVoice.value }); };
+  sOpen.addEventListener("change", sync);
+  sVoice.addEventListener("change", sync);
+  sVoice.disabled = sOpen.value !== "freeze";
+  const coldNote = document.createElement("span");
+  coldNote.className = "bulk-plan-sub";
+  coldNote.textContent = " The hook sentence in front of each clip; the voice only applies to the frozen frame.";
+  cold.append(lOpen, document.createTextNode("  "), lVoice, document.createElement("br"), coldNote);
+  box.append(cold);
   // on by default when every clip is 3:4 (the box has to follow the people there); off otherwise
   const all34 = plan.items.length > 0 && plan.items.every((it) => rows.find((r) => r.id === it.result)?.picture === "3:4");
   const label = document.createElement("label");

@@ -1672,7 +1672,7 @@ class Handler(BaseHTTPRequestHandler):
         "/api/version": _get_version,
         "/api/profiles": _get_profiles,
         "/api/profiles/machine": _get_machine,
-        "/api/tts": _get_tts,
+        "/api/admin/tts": _get_tts,
         "/api/rubrics": _get_rubrics,
         "/api/autopilot/state": _get_autopilot_state,
         "/api/autopilot/brief": _get_autopilot_brief,
@@ -2345,7 +2345,8 @@ class Handler(BaseHTTPRequestHandler):
             # The Results of a SAVED project: the server builds each request itself (renderreq.py), so what is
             # rendered is what is saved. One job, one clip after another; see jobs.start_project_render.
             try:
-                started = _start_project_render(str(req["project"]), [str(r) for r in req["results"]])
+                started = _start_project_render(str(req["project"]), [str(r) for r in req["results"]],
+                                                cold={"coldOpen": req.get("coldOpen"), "coldVoice": req.get("coldVoice")})
             except ValueError as exc:
                 return self._send_json({"error": str(exc)}, 400)
             return self._send_json(started)
@@ -2693,8 +2694,8 @@ class Handler(BaseHTTPRequestHandler):
         "/api/ytdl/cancel": _post_ytdl,
         "/api/ytdl/update": _post_ytdl,
         "/api/youtube/refresh-due": _post_youtube,
-        "/api/youtube/client": _post_youtube,
         "/api/youtube/sync-all": _post_youtube,
+        "/api/youtube/client": _post_youtube,
         "/api/youtube/connect": _post_youtube,
         "/api/youtube/check": _post_youtube,
         "/api/youtube/upload": _post_youtube,
@@ -2706,8 +2707,8 @@ class Handler(BaseHTTPRequestHandler):
         "/api/youtube/video-status": _post_youtube,
         "/api/youtube/disconnect": _post_youtube,
         "/api/profiles/machine": _post_machine,
-        "/api/tts": _post_tts,
-        "/api/tts/try": _post_tts_try,
+        "/api/admin/tts": _post_tts,
+        "/api/admin/tts/try": _post_tts_try,
         "/api/profiles/create": _post_profiles,
         "/api/profiles/update": _post_profiles,
         "/api/profiles/delete": _post_profiles,

@@ -616,9 +616,9 @@ def plan_project_render(pdata: dict, result_ids: list[str]) -> tuple[list[dict],
     return items, refused
 
 
-def start_project_render(project_id: str, result_ids: list[str]) -> dict:
+def start_project_render(project_id: str, result_ids: list[str], cold: dict | None = None) -> dict:
     """Render these Results of the saved project, one after another, as one job. Returns {id, items, refused};
-    raises ValueError when nothing can be rendered."""
+    raises ValueError when nothing can be rendered. `cold` = {coldOpen, coldVoice} from the render panel: put on every clip."""
     pf = _project_file(project_id)
     pdata = _read_project(pf) if pf and pf.is_file() else None
     if not pdata:
@@ -629,6 +629,9 @@ def start_project_render(project_id: str, result_ids: list[str]) -> dict:
     items, refused = plan_project_render(pdata, ids)
     if not items:
         raise ValueError(refused[0]["message"] if refused else "Nothing to render.")
+    for it in items:
+        for k in it["request"].get("clips") or []:
+            k.update(clean_cold(cold))
     batch_id = uuid.uuid4().hex[:8]
     entry_items = [{"result": it["result"], "title": it["title"], "duration": it["duration"], "layout": it["layout"],
                     "state": "queued", "error": None, "cancel": False} for it in items]
@@ -941,16 +944,27 @@ def add_render_to_schedule(folder: str, file_name: str) -> tuple[str, bool, str]
     return row_id, created, "from the file name"
 
 
+def clean_cold(raw) -> dict:
+    """The cold open choice of a render request, safe to put on a clip: {coldOpen, coldVoice} with only the values that exist
+    (anything else is left out, which means off / the AI voice)."""
+    raw = raw if isinstance(raw, dict) else {}
+    out = {}
+    if raw.get("coldOpen") in engine.COLD_OPENS:
+        out["coldOpen"] = raw["coldOpen"]
+    if raw.get("coldVoice") == "original":
+        out["coldVoice"] = "original"
+    return out
+
+
 def cold_open_for(k: dict, job, words: list, speak=None) -> tuple[str, tuple | None, str, "Path | None", str]:
     """(mode, (start, end), big text, voice WAV, note) of a clip's cold open (render.RenderJob). mode "" means no cold open:
-    off (the default, note ""), or skipped, and then the note says why. The request's `coldOpen` / `coldVoice` win over the
-    profile's. The big text is the AI's `thumb` (its `*...*` words are the accent) else the hook cut short.
+    off (the default, note ""), or skipped, and then the note says why. The request's `coldOpen` / `coldVoice` are the only
+    switch (the render panel sends them; the profile holds none). The big text is the AI's `thumb` (its `*...*` words are the accent) else the hook cut short.
     "freeze" holds one frame of the hook's moment for as long as the TTS voice says it (1 to 3 s; the first frame of the clip
     when the hook cannot be found); "original" voice plays the clip's own hook words under the held frame instead.
     "move" keeps the video moving with the clip's own sound and needs the hook's words found. `speak(text)` makes the voice."""
-    from . import profiles, thumbnail, tts
-    d = profiles.defaults()
-    mode = k.get("coldOpen", d.get("coldOpen"))
+    from . import thumbnail, tts
+    mode = k.get("coldOpen")
     if mode not in engine.COLD_OPENS:
         return "", None, "", None, ""
     hook = " ".join(str(k.get("hook") or "").split())
@@ -961,7 +975,7 @@ def cold_open_for(k: dict, job, words: list, speak=None) -> tuple[str, tuple | N
     found = engine.hook_match(words, hook, job.spans) if hook else None
     note = "hook found only approximately (the transcript words differ)" if found and found[2] == "approx" else ""
     window = found[:2] if found else None
-    voice = k.get("coldVoice", d.get("coldVoice")) or "tts"
+    voice = k.get("coldVoice") or "tts"
     if mode == "move" or voice == "original":
         if not window:
             return skip("the hook is not in the clip's own words" if hook else "the clip has no hook to find")

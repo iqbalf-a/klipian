@@ -54,3 +54,8 @@
   .adm-foot { flex-direction: column; align-items: stretch; gap: 8px; }
   .adm-foot-actions { justify-content: flex-end; }
 }
+
+/* the cold open's voice settings */
+#amp-gemini h3 { margin: 18px 0 4px; font-size: 14px; }
+#amp-gemini textarea { flex: 1; min-width: 0; }
+.admin-note.bad { color: var(--danger); }

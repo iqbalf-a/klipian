@@ -1613,7 +1613,7 @@ def check_coldopen() -> tuple[str, str]:
 
         job = render.RenderJob(title="t", spans=spans)
         k = {"hook": "kalimat pembuka yang sangat menarik", "thumb": "Kalimat *pembuka* menarik"}
-        off = cold_open_for({**k, "coldOpen": ""}, job, words)       # explicit: the live profile may have its own default
+        off = cold_open_for(k, job, words)                          # the request alone decides: nothing asked, nothing done
         if off[0] or off[4] or job.lead:
             problems.append("the cold open must be off, with nothing to say, unless asked for")
         plain = render.build_filter(job, 1280, 720, None)
@@ -1654,6 +1654,31 @@ def check_coldopen() -> tuple[str, str]:
         mode, cold, text, wav, note = cold_open_for({"coldOpen": "freeze", "coldVoice": "tts", "hook": "tidak ada di sini sama sekali", "thumb": "Kalimat *pembuka* menarik"}, job, words, speak)
         if mode != "freeze" or cold[0] != 0.5 or "first frame" not in note:
             problems.append(f"freeze with the hook not found must hold the first frame and say so: {cold} {note}")
+    # the choice comes from the request only: an old profile that still has coldOpen / coldVoice loads, is ignored, and loses them on save
+    from . import jobs, paths, profiles
+    if jobs.clean_cold({"coldOpen": "freeze", "coldVoice": "original", "x": 1}) != {"coldOpen": "freeze", "coldVoice": "original"} \
+            or jobs.clean_cold({"coldOpen": "evil", "coldVoice": "tts"}) or jobs.clean_cold(None) or jobs.clean_cold({"coldOpen": "move"}) != {"coldOpen": "move"}:
+        problems.append("clean_cold must keep only freeze/move and original")
+    profiles.write_meta("cold1", {"name": "cold1", "color": "#336699",
+                                  "defaults": {"coldOpen": "freeze", "coldVoice": "original", "rubric": "dialog"}})
+    profiles.ensure_dirs("cold1")
+    tok = paths.set_profile("cold1")
+    try:
+        if profiles.read_meta("cold1") is None or profiles.defaults().get("rubric") != "dialog":
+            problems.append("a profile with the old cold open fields must still load")
+        old = cold_open_for({"hook": "kalimat pembuka yang sangat menarik"}, job, words, speak)
+        if old[0] or old[4] or old[3]:
+            problems.append(f"an old profile default must not switch a cold open on: {old}")
+        asked = cold_open_for({"hook": "kalimat pembuka yang sangat menarik", **jobs.clean_cold({"coldOpen": "move"})}, job, words, speak)
+        if asked[0] != "move":
+            problems.append("the request's coldOpen must work without any profile default")
+        profiles.update("cold1", {"defaults": {"addShorts": True}})
+        left = profiles.defaults()
+        if "coldOpen" in left or "coldVoice" in left or left.get("rubric") != "dialog":
+            problems.append(f"saving an old profile keeps its other settings and drops the cold open ones: {left}")
+    finally:
+        paths._profile.reset(tok)
+
     # the voice settings of the profile page: saved in the Gemini settings file (a temp one here), blank = default, "no style" is not blank
     from . import gemini_api
     with tempfile.TemporaryDirectory() as td2:
