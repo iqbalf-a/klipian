@@ -36,27 +36,27 @@ const C = (px: number, py: number, pz: number, lx: number, ly: number, lz: numbe
 const HOOK = C(0.1, 1.3, 3.5, 0.12, 1.28, -0.4);
 // every shot keeps the seller (or Tono) whole in the 1.4 to 2 m the frame shows; none goes closer than 2.7 m
 const SHOTS: Shot[] = [
-  { from: 0, a: HOOK, b: C(0.1, 1.28, 3.15, 0.12, 1.26, -0.4) },                                                          // Pak Darto menabur tiga genggam garam ke es
-  { from: 3.36, a: C(1.8, 1.0, 6.6, 0.7, 1.05, 0), b: C(1.4, 1.0, 5.4, 0.7, 1.1, 0) },                                      // Gerobak es puter, Pak Darto melotot (Tono walks in)
-  { from: 5.16, a: C(1.9, 1.35, 3.6, 1.0, 1.3, 0.4), b: C(1.7, 1.35, 3.25, 1.0, 1.3, 0.4) },                               // Es kok digaramin, Pak? (Tono)
-  { from: 6.9, a: C(0.9, 1.35, 3.4, 0.1, 1.25, -0.4), b: C(0.7, 1.35, 3.0, 0.1, 1.25, -0.4) },                              // Pak Darto senyum saja
-  { from: 8.66, a: C(0.6, 1.35, 3.1, 0.1, 1.25, -0.4), b: C(0.4, 1.35, 2.8, 0.1, 1.25, -0.4) },                             // Katanya, garamnya buat dingin, bukan buat rasa
-  { from: 12.68, a: C(2.0, 1.35, 3.5, 1.0, 1.3, 0.4), b: C(1.8, 1.35, 3.2, 1.0, 1.3, 0.4) },                               // Tono ngakak
-  { from: 13.92, a: C(1.9, 1.35, 3.1, 1.0, 1.35, 0.4), b: C(1.7, 1.35, 2.8, 1.0, 1.35, 0.4) },                             // Garam bikin es meleleh, Pak
-  { from: 15.94, a: C(OB + 1.5, 1.5, 6.0, OB + 0.1, 1.1, -0.3), b: C(OB + 0.8, 1.4, 5.0, OB + 0.1, 1.1, -0.3) },            // Tono bikin es puter sendiri, pakai es batu saja
-  { from: 19.98, a: C(OB + 0.5, 1.3, 3.3, OB + 0.1, 1.2, -0.4), b: C(OB + 0.3, 1.3, 3.0, OB + 0.1, 1.2, -0.4) },            // Dia kocok setengah jam
-  { from: 21.74, a: C(OB + 1.4, 1.3, 3.7, OB + 0.2, 1.1, -0.2), b: C(OB + 0.9, 1.3, 3.3, OB + 0.2, 1.1, -0.2) },            // Adonannya tetap cair, tangannya pegal
-  { from: 24.94, a: C(2.5, 0.6, 4.5, 3.2, 2.3, -4), b: C(2.4, 0.7, 4.5, 3.0, 2.8, -4) },                                   // Siang makin terik (the sun)
-  { from: 26.42, a: C(0.8, 1.3, 3.5, 0.15, 1.05, -0.2), b: C(0.6, 1.3, 3.1, 0.15, 1.05, -0.2) },                           // es batu Pak Darto meleleh jadi air
-  { from: 28.36, a: C(OB + 0.8, 1.3, 3.7, OB + 0.1, 1.2, -0.3), b: C(OB + 0.4, 1.3, 3.3, OB + 0.1, 1.2, -0.3) },           // Tono menang, pikirnya
-  { from: 29.78, a: C(0.5, 1.35, 3.3, 0.12, 1.15, -0.3), b: C(0.4, 1.3, 2.9, 0.12, 1.15, -0.3) },                          // Tapi, tabung Pak Darto berkabut
-  { from: 32.66, a: C(0.6, 1.4, 3.4, 0.12, 1.15, -0.3), b: C(0.4, 1.35, 3.0, 0.12, 1.15, -0.3) },                          // Berderak, dan adonannya mengeras jadi es puter
-  { from: 35.72, a: C(1.9, 1.35, 3.5, 1.0, 1.3, 0.4), b: C(1.7, 1.35, 3.1, 1.0, 1.3, 0.4) },                               // Tono melongo
-  { from: 36.84, a: C(0.6, 1.4, 3.4, 0.12, 1.1, -0.3), b: C(0.4, 1.35, 3.0, 0.12, 1.1, -0.3) },                            // Garam menurunkan titik beku air
-  { from: 38.94, a: C(-0.3, 1.4, 4.0, -0.35, 1.15, 0.0), b: C(-0.3, 1.4, 3.6, -0.3, 1.15, 0.0) },                            // Jadi, campuran es dan garam bisa sekitar minus 20 derajat (thermometer)
-  { from: 43.18, a: C(0.6, 1.4, 3.4, 0.12, 1.1, -0.3), b: C(0.4, 1.35, 3.0, 0.12, 1.1, -0.3) },                            // Es yang meleleh menyerap panas dari adonan
-  { from: 45.62, a: C(0.5, 1.35, 3.3, 0.12, 1.15, -0.3), b: C(0.4, 1.3, 2.9, 0.12, 1.15, -0.3) },                          // dan adonan pun membeku
-  { from: 47.36, a: C(1.0, 1.4, 5.0, 0.55, 1.2, 0.1), b: C(0.7, 1.35, 4.1, 0.55, 1.2, 0.1) },                                                            // Tono minta garam, lalu ikut menabur tiga genggam ke es (flies back to the hook framing: the loop)
+  { from: 0, a: HOOK, b: C(0.1, 1.28, 3.15, 0.12, 1.26, -0.4) },                                                          // PUSH-IN: Pak Darto menabur tiga genggam garam ke es
+  { from: 3.36, a: C(1.8, 2.3, 7.0, 0.7, 1.1, 0), b: C(1.4, 0.9, 5.2, 0.7, 1.2, 0) },                                      // CRANE DOWN: Gerobak es puter, Pak Darto melotot (Tono walks in)
+  { from: 5.16, a: C(2.7, 1.35, 3.4, 1.3, 1.3, 0.4), b: C(1.5, 1.35, 3.4, 0.9, 1.3, 0.4) },                                // TRUCK LEFT: Es kok digaramin, Pak? (Tono)
+  { from: 6.9, a: C(0.5, 1.3, 2.8, 0.1, 1.25, -0.4), b: C(1.0, 1.5, 3.7, 0.1, 1.25, -0.4) },                               // PULL-OUT + RISE: Pak Darto senyum saja
+  { from: 8.66, a: C(-0.9, 1.35, 3.0, 0.1, 1.25, -0.4), b: C(0.9, 1.35, 3.0, 0.1, 1.25, -0.4) },                          // ORBIT: Katanya, garamnya buat dingin, bukan buat rasa
+  { from: 12.68, a: C(1.9, 0.8, 3.8, 1.0, 0.6, 0.4), b: C(1.9, 0.8, 3.8, 1.0, 1.2, 0.4) },                                 // TILT UP to the laugh: Tono ngakak
+  { from: 13.92, a: C(2.5, 1.2, 3.5, 1.0, 1.3, 0.4), b: C(1.5, 1.4, 2.9, 1.0, 1.35, 0.4) },                               // DIAGONAL PUSH: Garam bikin es meleleh, Pak
+  { from: 15.94, a: C(OB - 1.3, 1.2, 6.0, OB + 0.1, 1.1, -0.3), b: C(OB + 1.6, 1.4, 6.0, OB + 0.1, 1.1, -0.3) },           // TRUCK RIGHT (wide): Tono bikin es puter sendiri, pakai es batu saja
+  { from: 19.98, a: C(OB + 0.9, 0.7, 3.0, OB + 0.15, 1.0, -0.4), b: C(OB - 0.3, 0.7, 3.0, OB + 0.15, 1.0, -0.4) },         // LOW ORBIT: Dia kocok setengah jam
+  { from: 21.74, a: C(OB + 0.9, 0.8, 3.6, OB + 0.2, 1.1, -0.2), b: C(OB + 0.6, 1.9, 3.9, OB + 0.2, 0.9, -0.2) },           // CRANE UP, looking down: Adonannya tetap cair, tangannya pegal
+  { from: 24.94, a: C(2.5, 0.6, 4.5, 3.4, 3.3, -4), b: C(2.5, 0.7, 4.5, 3.4, 1.5, -4) },                                   // TILT DOWN from the sun: Siang makin terik
+  { from: 26.42, a: C(1.3, 1.3, 3.4, 0.15, 1.05, -0.2), b: C(-0.1, 1.3, 3.4, 0.15, 1.05, -0.2) },                         // TRUCK LEFT: es batu Pak Darto meleleh jadi air
+  { from: 28.36, a: C(OB + 1.3, 1.3, 4.6, OB + 0.1, 1.2, -0.3), b: C(OB + 0.2, 1.3, 2.9, OB + 0.1, 1.2, -0.3) },           // FAST PUSH: Tono menang, pikirnya
+  { from: 29.78, a: C(0.3, 1.0, 2.8, 0.12, 1.1, -0.3), b: C(0.7, 1.5, 3.7, 0.12, 1.1, -0.3) },                            // PULL-BACK + RISE: Tapi, tabung Pak Darto berkabut
+  { from: 32.66, a: C(1.0, 1.35, 3.2, 0.12, 1.15, -0.3), b: C(-0.7, 1.35, 3.2, 0.12, 1.15, -0.3) },                       // ORBIT right to left: Berderak, dan adonannya mengeras jadi es puter
+  { from: 35.72, a: C(1.0, 1.3, 3.5, 0.2, 1.3, 0.4), b: C(1.0, 1.3, 3.5, 1.1, 1.3, 0.4) },                                // PAN to Tono: Tono melongo
+  { from: 36.84, a: C(0.6, 1.4, 3.4, 0.12, 1.1, -0.3), b: C(0.4, 1.35, 3.0, 0.12, 1.1, -0.3) },                           // PUSH-IN: Garam menurunkan titik beku air
+  { from: 38.94, a: C(0.4, 1.4, 4.0, 0.0, 1.15, 0.0), b: C(-0.5, 1.4, 4.0, -0.35, 1.15, 0.0) },                           // TRUCK + PAN LEFT to the thermometer: minus 20 derajat
+  { from: 43.18, a: C(0.6, 0.8, 3.2, 0.12, 1.0, -0.3), b: C(0.5, 1.5, 3.4, 0.12, 1.1, -0.3) },                            // LOW-TO-HIGH CRANE: Es yang meleleh menyerap panas dari adonan
+  { from: 45.62, a: C(-0.4, 1.35, 3.4, 0.12, 1.15, -0.3), b: C(0.3, 1.3, 2.9, 0.12, 1.15, -0.3) },                        // PUSH + ARC: dan adonan pun membeku
+  { from: 47.36, a: C(1.0, 1.4, 5.0, 0.55, 1.2, 0.1), b: C(0.7, 1.35, 4.1, 0.55, 1.2, 0.1) },                             // PUSH (both in frame): Tono minta garam, lalu ikut menabur
 ];
 
 // ---------- the people (every one their own outfit, B46 i; heads are always white) ---------------------------------------------------------------
