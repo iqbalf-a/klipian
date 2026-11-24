@@ -10,7 +10,7 @@ The message is `-create [2.5d|iso|2d|teks|ricks] [30|40|45|60] [noloop] [nointip
 | Token | Meaning | Flag for the brief CLI |
 |---|---|---|
 | `2.5d` or `iso` / `2d` / `teks` / `ricks` | force the look (missing: you choose from the topic, B28; `ricks` is never chosen by you, B46) | `--look iso` / `--look 2d` / `--look text` / `--look ricks` |
-| `30` `40` `45` `60` | the duration (missing: 40) | `--duration 45` |
+| `30` `40` `45` `60` | the duration (missing: 40; look `ricks`: 60, and never under 45, B50) | `--duration 45` |
 | `noloop` | no loop-back ending (missing: loop) | `--no-loop` |
 | `nointip` | no "Intip yuk!" sting (missing: the voice-only sting; for `ricks` missing means no sting, B46 l) | `--no-sting` |
 | `intip` | look `ricks` only: add the voice-only "Intip yuk!" sting | `--sting` |

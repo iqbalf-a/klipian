@@ -8,10 +8,15 @@ import sys
 from . import motion, motion_brief
 
 DURATION = 40
+RICKS_DURATION = 60
 
 
-def brief_for(topic: str, look: str | None = None, duration: int = DURATION, loop: bool = True, sting: bool | None = None,
+def brief_for(topic: str, look: str | None = None, duration: int | None = None, loop: bool = True, sting: bool | None = None,
               voice: list[str] | None = None, music: str | None = None, notes: str = "", direct: bool = False, dongeng: bool = False, kisah: bool = False) -> str:
+    if duration is None:
+        duration = RICKS_DURATION if look == "ricks" else DURATION          # a ricks story needs room (B50)
+    if look == "ricks" and duration < 45:
+        raise motion.MotionError("duration", "duration: a ricks story is 45 or 60 seconds, never 30 or 40 (B50).")
     if sting is None:
         sting = look != "ricks"                 # ricks runs on its own channel: no "Intip yuk!" unless asked (B46 l)
     options = {"kind": "khusus", "loop": loop, "sting": sting, "direct": direct, "story": "kisah" if kisah else "dongeng" if dongeng else "fakta", "music": motion.suggest_music(topic) if music in (None, "auto") else music}
@@ -26,7 +31,7 @@ def brief_for(topic: str, look: str | None = None, duration: int = DURATION, loo
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(prog="python -m klipian.motion_brief_cli", description=__doc__.split("\n")[0])
     ap.add_argument("--look", choices=motion_brief.LOOKS)
-    ap.add_argument("--duration", type=int, default=DURATION)
+    ap.add_argument("--duration", type=int, default=None, help="30, 40, 45 or 60 (missing: 40; 60 for --look ricks, which is never under 45)")
     ap.add_argument("--no-loop", action="store_true")
     ap.add_argument("--no-sting", action="store_true")
     ap.add_argument("--sting", action="store_true", help="the sting for --look ricks, where it is off by default")

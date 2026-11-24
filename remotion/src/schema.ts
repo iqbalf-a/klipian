@@ -268,12 +268,16 @@ export const Story = z.object({
 /** How fast a voice app reads the narration, in words a second, pauses included. Measured on the first voiced render checked for it (Google AI Studio,
  *  syarat-jadi-anggota-dpr-ternya: 134 words in 67 s of voiced beats, 1.6 to 2.2 per beat); ElevenLabs and VoiceStudio are not measured yet. */
 export const NARRATION_WPS = 2.0;
+const DEFAULT_WPS = NARRATION_WPS;
+/** Look ricks (B50): the energetic storyteller voice (Google AI Studio, Puck) reads faster: 69 words came out as about 30 s (2.3 words a second). */
+export const RICKS_WPS = 2.3;
 /** The pace warnings: a narration too long for its beat makes the voice, and so the video, longer than planned (klipian refuses to render a voice more than
  *  15 % over the duration). Advice only, never an error, so the older stories still validate; the brief tells the agent to fix them. The sting is not counted
  *  (its two words are fixed). Per beat: more than 10 % over the beat. In all: the speech over the voiced beats by more than 5 %. A narration too SHORT is just as
  *  wrong (the voice, and so the video, ends early and klipian refuses a render more than 15 % under the duration): a beat with a narration (the hook excepted) under
  *  80 % of its floor(dur x WPS) words, and a total under 90 % of the voiced seconds x WPS (the hook counts in the total). */
-export const paceWarnings = (s: { beats: { kind: string; dur: number; narration: string }[] }): { path: (string | number)[]; message: string }[] => {
+export const paceWarnings = (s: { look?: string; beats: { kind: string; dur: number; narration: string }[] }): { path: (string | number)[]; message: string }[] => {
+  const NARRATION_WPS = s.look === "ricks" ? RICKS_WPS : DEFAULT_WPS;
   const out: { path: (string | number)[]; message: string }[] = [];
   let words = 0, seconds = 0;
   s.beats.forEach((b, bi) => {
