@@ -22,7 +22,7 @@ const W = 1080, H = 1920;
 const KICKER: Record<string, string> = { cairan: "ISI SENDI", tarik: "DITARIK", rongga: "JAWABANNYA", tips: "FAKTA" };
 const CR = THEMES.cream;
 const FLUID = THEMES.sky.ring, FLUID_D = THEMES.sky.floorEdge;   // the film of synovial fluid and the cartilage caps
-const WIN = { rx: 125, ry: 175 };
+const WIN = { rx: 155, ry: 175 };
 
 const lerp = (a: number, b: number, u: number) => a + (b - a) * u;
 const win = (t: number, a: number, b: number, f = 0.3) => clamp01((t - a) / f) * (1 - clamp01((t - b) / f));
@@ -58,9 +58,9 @@ const Piano: React.FC<{ amb: number }> = ({ amb }) => {
       <rect x={-1200} y={-1500} width={4200} height={KEYS_TOP - 134 + 1500} fill={G1} />
       <rect x={-1200} y={-300} width={4200} height={6} fill={G2} opacity={0.35} /><rect x={-1200} y={400} width={4200} height={6} fill={G2} opacity={0.35} />
       <g transform="rotate(-3 300 250)">
-        <rect x={-280} y={-900} width={1160} height={1500} fill={WHITE} />
-        <rect x={858} y={-900} width={22} height={1500} fill={G4} />
-        {[-380, -170, 40, 250, 460].map((y) => <Staff key={y} y0={y} />)}
+        <rect x={-280} y={-900} width={1160} height={1720} fill={WHITE} />
+        <rect x={858} y={-900} width={22} height={1720} fill={G4} />
+        {[-380, -170, 40, 250, 460, 670].map((y) => <Staff key={y} y0={y} />)}
       </g>
       <g transform={`translate(1000 -200) rotate(${(amb / 40) * 360})`}>
         <circle r={116} fill={G2} /><circle r={88} fill={G1} opacity={0.5} /><circle r={62} fill={G2} opacity={0.5} />
@@ -176,9 +176,9 @@ const Inside: React.FC<{ gap: number; press: number; clock: number; amb: number 
   const e = gather * gather * (3 - 2 * gather);
   return (
     <g>
-      <rect x={J.x - 210} y={J.y - 130} width={420} height={260} fill={SKIN_A} />
-      <rect x={J.x - 210} y={J.y - 130} width={420} height={260} fill={RED} opacity={0.22} />
-      <rect x={J.x - 210} y={J.y + 60} width={420} height={70} fill={SKIN_B} opacity={0.35} />
+      <rect x={J.x - 210} y={J.y - 170} width={420} height={340} fill={SKIN_A} />
+      <rect x={J.x - 210} y={J.y - 170} width={420} height={340} fill={RED} opacity={0.22} />
+      <rect x={J.x - 210} y={J.y + 60} width={420} height={110} fill={SKIN_B} opacity={0.35} />
       <path d={`M ${J.x - 210} ${J.y - 92} L ${J.x + 210} ${J.y - 92} M ${J.x - 210} ${J.y + 96} L ${J.x + 210} ${J.y + 96}`} stroke={G4} strokeWidth={6} opacity={0.55} />
       {/* the capsule of the joint holds the film of fluid; the fluid goes paler where its pressure falls */}
       <rect x={J.x - 92} y={J.y - 78} width={184} height={156} rx={52} fill={FLUID} />
@@ -274,29 +274,28 @@ const ScreenLabel: React.FC<{ l: (typeof LABELS)[number]; clock: number; cam: { 
   const o = clamp01((clock - l.from) / 0.25) * (1 - clamp01((clock - l.to) / 0.3));
   const [px, py] = l.at ? toScreen(cam, l.at[0], l.at[1]) : [0, 0];
   const bold = { fontFamily: `"${FONT_BOLD}", sans-serif`, fontWeight: 700 } as const;
-  const wide = l.text.length * 54 * 0.52;
-  const sx = l.x + (px > l.x ? Math.min(40, wide / 3) : -Math.min(40, wide / 3));
-  const chip = wide + 56;
+  const fs = l.fs ?? 54, wide = l.text.length * fs * 0.52, chip = wide + fs * 1.04;
   return (
     <g opacity={o}>
-      {l.at && <path d={`M ${sx} ${l.y + 40} L ${px} ${py - 10}`} stroke={YELLOW} strokeWidth={7} strokeLinecap="round" />}
+      {l.at && <path d={`M ${l.x} ${l.y} L ${px} ${py}`} stroke={YELLOW} strokeWidth={7} strokeLinecap="round" />}
       {l.at && <circle cx={px} cy={py} r={11} fill={YELLOW} stroke={BLACK} strokeWidth={3} />}
-      <rect x={l.x - chip / 2} y={l.y - 52} width={chip} height={90} rx={28} fill={WHITE} />
-      <text x={l.x} y={l.y + 10} fontSize={54} fill={BLACK} textAnchor="middle" style={bold}>{l.text}</text>
+      <rect x={l.x - chip / 2} y={l.y - fs * 0.96} width={chip} height={fs * 1.67} rx={fs * 0.52} fill={WHITE} />
+      <text x={l.x} y={l.y + fs * 0.185} fontSize={fs} fill={BLACK} textAnchor="middle" style={bold}>{l.text}</text>
     </g>
   );
 };
 
-/** The pressure of the fluid as a gauge on the left: full at rest, it drops when the surfaces let go. */
+/** The pressure of the fluid as a gauge card in the free band under the top text (tarik beat only): full at rest, it drops when the surfaces let go. */
 const Gauge: React.FC<{ clock: number }> = ({ clock }) => {
   const o = win(clock, PRESSURE.a, PRESSURE.b, 0.4);
   if (o <= 0) return null;
   const p = pressAt(clock), bold = { fontFamily: `"${FONT_BOLD}", sans-serif`, fontWeight: 700 } as const;
   return (
     <g opacity={o}>
-      <rect x={SAFE.left + 6} y={700} width={76} height={330} rx={26} fill={WHITE} />
-      <rect x={SAFE.left + 16} y={710 + 310 * (1 - p)} width={56} height={310 * p} rx={18} fill={YELLOW} />
-      <rect x={SAFE.left - 6} y={606} width={176} height={72} rx={24} fill={WHITE} /><text x={SAFE.left + 82} y={658} fontSize={42} fill={BLACK} textAnchor="middle" style={bold}>tekanan</text>
+      <rect x={70} y={450} width={400} height={90} rx={32} fill={WHITE} />
+      <text x={100} y={510} fontSize={40} fill={BLACK} style={bold}>tekanan</text>
+      <rect x={270} y={478} width={170} height={34} rx={17} fill={G4} />
+      <rect x={270} y={478} width={Math.max(8, 170 * p)} height={34} rx={17} fill={YELLOW} />
     </g>
   );
 };

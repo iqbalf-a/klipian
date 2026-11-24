@@ -18,12 +18,12 @@ export const CAM_KEYS: { t: number; c: Cam }[] = [
   { t: 3.0, c: { ...HOOK, z: 1.03 } },
   { t: 3.9, c: { x: 580, y: 1030, z: 0.8 } },                // the sting: pull back so the piano comes in around the hand
   { t: 4.6, c: { x: 580, y: 1030, z: 0.8 } },
-  { t: 5.7, c: { x: J.x, y: J.y, z: 2.5 } },                 // cairan: dive into the window on the middle joint
-  { t: 10.6, c: { x: J.x, y: J.y, z: 2.6 } },
+  { t: 5.7, c: { x: J.x, y: 922, z: 2.1 } },                 // cairan: dive into the window on the middle joint; y 922 keeps the longest fingertip (world y 675) 24 px below the top text box (B57)
+  { t: 10.6, c: { x: J.x, y: 922, z: 2.1 } },
   { t: 11.8, c: { x: 650, y: 880, z: 1.5 } },                // tarik: out enough to see the pinch and the pull, and the window
   { t: 19.4, c: { x: 650, y: 880, z: 1.5 } },
-  { t: 20.6, c: { x: J.x, y: J.y, z: 2.5 } },                // rongga: back in on the gap
-  { t: 27.4, c: { x: J.x, y: J.y, z: 2.6 } },
+  { t: 20.6, c: { x: J.x, y: 922, z: 2.1 } },                // rongga: back in on the gap
+  { t: 27.4, c: { x: J.x, y: 922, z: 2.1 } },
   { t: 28.9, c: { x: 580, y: 700, z: 0.95 } },               // tips: the whole hand low in the frame, the cards above it
   { t: 36.4, c: { x: 580, y: 700, z: 0.95 } },
   { t: 38.4, c: HOOK },                                      // the loop-back: exactly the first shot
@@ -72,7 +72,7 @@ export const awayAt = (t: number) => through(AWAY_KEYS, t);
 /** The pressure of the fluid (1 normal, low after the surfaces let go). */
 export const PRESS_KEYS: Key[] = [{ t: 0, v: 1 }, { t: 16.6, v: 1 }, { t: 19.6, v: 0.22 }, { t: 28.8, v: 0.22 }, { t: 29.4, v: 1 }, { t: 40, v: 1 }];
 export const pressAt = (t: number) => through(PRESS_KEYS, t);
-export const PRESSURE = { a: 16.4, b: 28.4 };
+export const PRESSURE = { a: 16.4, b: 19.4 };   // the gauge leaves before the camera dives back in (B57: no text over the hand)
 
 /** The gas dissolved in the fluid gathers (0..1) from GATHER.a and the cavity opens on CRACK (the word "krek"). */
 export const GATHER = { a: 22.0, b: 26.3 };
@@ -80,13 +80,13 @@ export const CRACK = 26.4;
 /** The pull arrow above the fingertip. */
 export const PULL = { a: 12.0, b: 16.7 };
 /** The labels (screen space; `at` is the world point the leader line ends on). */
-export type SLabel = { text: string; x: number; y: number; from: number; to: number; at?: [number, number] };
+export type SLabel = { text: string; x: number; y: number; from: number; to: number; at?: [number, number]; fs?: number };
 export const LABELS: SLabel[] = [
-  { text: "tulang", x: 250, y: 1330, from: 6.0, to: 10.4, at: [J.x, J.y + 120] },
-  { text: "cairan sendi", x: 790, y: 640, from: 7.6, to: 10.4, at: [J.x + 40, J.y - 40] },
-  { text: "ditarik", x: 800, y: 620, from: 12.1, to: 16.6 },
-  { text: "tekanan turun", x: 600, y: 560, from: 18.7, to: 22.0 },
-  { text: "rongga gas", x: 770, y: 700, from: 25.9, to: 27.9, at: [J.x, J.y] },
+  // in the window beats the chips sit on the window's own tissue (the strips left and right of the fluid), never on a finger (B57)
+  { text: "tulang", x: 295, y: 1175, fs: 36, from: 6.0, to: 10.4, at: [J.x, J.y + 120] },
+  { text: "cairan", x: 785, y: 1175, fs: 36, from: 7.6, to: 10.4, at: [J.x + 50, J.y - 10] },
+  { text: "ditarik", x: 800, y: 590, from: 12.1, to: 16.6 },
+  { text: "rongga", x: 785, y: 1175, fs: 36, from: 25.9, to: 27.9, at: [J.x, J.y] },
 ];
 export const CARDS = [{ a: 28.9, out: 36.6 }, { a: 33.2, out: 36.6 }];
 
@@ -108,6 +108,6 @@ export function makePlan(story: StoryT) {
 /** The hero's box at time t, in the 1080 px frame (x, y centre, w, h): the hand with the pinching fingers (800 world px wide), or the window while it is open. */
 export const HERO_BOX_AT = (t: number) => {
   const c = camAt(t);
-  if (winAt(t) > 0.5) return { x: 540 + (J.x - c.x) * c.z, y: 960 + (J.y - c.y) * c.z, w: 250 * c.z, h: 350 * c.z };
+  if (winAt(t) > 0.5) return { x: 540 + (J.x - c.x) * c.z, y: 960 + (J.y - c.y) * c.z, w: 310 * c.z, h: 350 * c.z };
   return { x: 540 + (640 - c.x) * c.z, y: 960 + (1250 - c.y) * c.z, w: 780 * c.z, h: 1090 * c.z };
 };

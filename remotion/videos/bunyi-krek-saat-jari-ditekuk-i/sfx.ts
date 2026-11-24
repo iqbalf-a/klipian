@@ -4,7 +4,7 @@ import type { SfxEvent } from "../../src/sfx.ts";
 import type { SfxName } from "../../src/catalog.ts";
 import type { StoryT } from "../../src/schema.ts";
 import { FPS } from "../../src/timeline.ts";
-import { CARDS, CRACK, GATHER, LABELS, PULL, makePlan } from "./plan.ts";
+import { CARDS, CRACK, GATHER, LABELS, PRESSURE, PULL, makePlan } from "./plan.ts";
 
 export const music = { track: "bed-clockwork", level: 0.8 } as const;
 
@@ -24,7 +24,7 @@ export function sfx(story: StoryT): SfxEvent[] {
   add(4.95, "zoom-whoosh", "the camera dives to the joint", { vol: 0.6 });
   add(5.65, "pop", "the window opens on the joint");
   add(LABELS[0].from + 0.05, "tick", "label tulang", { vol: 0.7 });
-  add(LABELS[1].from + 0.05, "click-soft", "label cairan sendi", { vol: 0.7 });
+  add(LABELS[1].from + 0.05, "click-soft", "label cairan", { vol: 0.7 });
   add(8.6, "water-pour", "the fluid shimmers", { vol: 0.25 });
   add(10.5, "swoop", "the camera eases out to the pulled finger", { vol: 0.6 });
   // tarik: the finger is pulled, the surfaces hold, then let go all at once
@@ -34,7 +34,7 @@ export function sfx(story: StoryT): SfxEvent[] {
   add(13.4, "squeak", "the surfaces cling", { vol: 0.35 });
   add(15.0, "squeak", "the pull builds", { vol: 0.4 });
   add(16.75, "boing", "the surfaces let go", { vol: 0.8 });
-  add(LABELS[3].from + 0.05, "slide-whistle-down", "label tekanan turun, the pressure falls", { vol: 0.5 });
+  add(PRESSURE.a + 2.3, "slide-whistle-down", "the pressure gauge falls", { vol: 0.5 });
   add(19.4, "swish-down", "the camera goes back in", { vol: 0.5 });
   // rongga: the gas gathers, the cavity opens on the crack
   add(P.starts[4] + 0.05, "whoosh-soft", "headline of rongga", { vol: 0.6 });
@@ -43,7 +43,7 @@ export function sfx(story: StoryT): SfxEvent[] {
   add(25.1, "tick-soft", "the dots meet", { vol: 0.4 });
   add(CRACK - 0.02, "click-crack", "the crack: the cavity opens", { vol: 1 });
   add(CRACK + 0.05, "bubble-pop", "the cavity", { vol: 0.5 });
-  add(LABELS[4].from + 0.05, "glass-ting", "label rongga gas", { vol: 0.6 });
+  add(LABELS[3].from + 0.05, "glass-ting", "label rongga", { vol: 0.6 });
   add(28.0, "pop-soft", "the window closes", { vol: 0.6 });
   // tips: two cards and the finger back at rest
   add(28.6, "swish-soft", "the camera pulls back to the finger", { vol: 0.5 });
