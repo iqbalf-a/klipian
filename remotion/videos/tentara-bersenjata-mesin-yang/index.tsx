@@ -12,7 +12,8 @@ import * as THREE from "three";
 import { FRAME } from "../../src/tokens.ts";
 import { CAST, RicksCamera, RicksPost, StickHero, TBox, Pills, WordCaption, camAt, painted, readWords, rnd, stepAt, V, type Arms, type Cam, type Expr, type Outfit, type Pill, type Shot } from "../../src/ricks/kit.tsx";
 import { Debris, shake } from "../../src/ricks/fx.tsx";
-import { gait, gesture, handOffset, kick as kickPose, poseAt, shovelDeg, type Pose } from "../../src/ricks/rig.ts";
+import { gait, gesture, handOffset, kick as kickPose, poseAt, reach, shovelDeg, type Pose } from "../../src/ricks/rig.ts";
+import { camTrack, choreoAt, footTrack, locomote, sampler, type CamKey, type Choreo } from "../../src/ricks/choreo.ts";
 import type { StoryT } from "../../src/schema.ts";
 import storyJson from "./story.json";
 import WORDS from "./words.json";
@@ -95,10 +96,41 @@ const PERSONA: Record<string, Persona> = {
   parl1: { pace: 0,  per: 4.7, ph: 1.9, bob: 0.0,   bobF: 0,   tilt: 0.05, tiltF: 0.6, nod: 5,  nodF: 1.0, gest: 0.8, gestF: 0.5 },
   parl2: { pace: 0, per: 3.3, ph: 4.2, bob: 0.02,  bobF: 1.6, tilt: 0.11, tiltF: 1.3, nod: 7,  nodF: 1.6, gest: 0.5, gestF: 0.9 },
 };
-type Track = { idle?: boolean; ride?: boolean; flip?: boolean; a: number; b: number; pos: (t: number) => [number, number, number?]; faces: [number, Expr, string][]; beats?: Beat[]; h?: number };
+type Track = { ch?: Choreo; dir?: number; idle?: boolean; ride?: boolean; flip?: boolean; a: number; b: number; pos: (t: number) => [number, number, number?]; faces: [number, Expr, string][]; beats?: Beat[]; h?: number };
 const stay = (x: number, z: number) => (): [number, number] => [x, z];
 const walk = (a: number, b: number, x0: number, z0: number, x1: number, z1: number) => (t: number): [number, number] => { const k = ease(prog(t, a, b)); return [lerp(x0, x1, k), lerp(z0, z1, k)]; };
+/** B55: a track that walks or jogs along its own path gets planted feet (`locomote`): the hip follows the path, each foot stays where it landed. A path that goes left is built mirrored. */
+const withGait = (tr: Track, kind: "walk" | "jog", lead = 0): Track => {
+  const dir = Math.sign(tr.pos(tr.b - 0.01)[0] - tr.pos(tr.a)[0]) || 1;
+  return { ...tr, flip: dir < 0, dir, ch: locomote((t) => dir * tr.pos(t)[0], tr.a, tr.b, kind, lead) };
+};
 const inTruckF = (dx: number) => (t: number): [number, number, number] => [TRUCK_F(t) + dx, -0.2, 0.72];
+
+/** B55: the private firing the gun: feet planted wide and staggered (front foot forward), weight pitched into the gun, both hands where the gun is (arm angles in the torso's own frame); on each burst
+   the hips sink and the torso pitches forward, between bursts he eases back and the aim wanders a little. */
+const fireStance = (px: number): Choreo => {
+  const qr = reach("r", 400, 520, 10), ql = reach("l", 470, 548, 10);
+  const lean: [number, number][] = [[12.3, 6], [13.0, 10]], hip: [number, number][] = [[12.3, 0.95], [13.0, 0.9]];
+  for (const [a, b] of BURSTS) if (a > 13 && b < 19.4) { lean.push([a - 0.12, 9], [a + 0.1, 15], [b, 13], [b + 0.45, 9]); hip.push([a - 0.12, 0.9], [a + 0.1, 0.83], [b + 0.45, 0.9]); }
+  lean.push([19.38, 8]); hip.push([19.38, 0.92]);
+  const aim = (v: number, k: number): [number, number][] => Array.from({ length: 15 }, (_, j) => [12.3 + j * 0.5, v + k * Math.sin(j * 1.7 + k)] as [number, number]);
+  return {
+    armsFrame: true, footR: footTrack(px + 0.22, []), footL: footTrack(px - 0.2, []), hipFrac: sampler(hip), lean: sampler(lean),
+    rSh: sampler(aim(qr.sh, 3)), rEl: sampler(aim(qr.el, 2)), lSh: sampler(aim(-ql.sh, 4)), lEl: sampler(aim(-ql.el, 3)),
+  };
+};
+/** B55: the shock when the bullet glances off the emu at HIT: the front foot is thrown back, the hips drop, the torso snaps back, both arms fly up, then settle (the foot moves on the event time). */
+const hitRecoil = (x: number, late: number, up: number): Choreo => {
+  const H = HIT + late, neg = (k: [number, number][]): [number, number][] => k.map(([t, v]) => [t, -v]);
+  const arm: [number, number][] = [[25.68, 40], [H - 0.05, 40], [H + 0.15, up], [H + 0.9, up - 40], [H + 1.8, 70], [28.74, 80]];
+  return {
+    footR: footTrack(x + 0.1, [[H - 0.05, H + 0.3, x + 0.1, x - 0.28, 0, 0, 0.08]]), footL: footTrack(x - 0.1, [[H + 0.05, H + 0.45, x - 0.1, x - 0.4, 0, 0, 0.05]]),
+    hipFrac: sampler([[25.68, 0.97], [H - 0.05, 0.97], [H + 0.15, 0.84], [H + 0.6, 0.95], [28.7, 0.97]]),
+    lean: sampler([[25.68, 2], [H - 0.05, 2], [H + 0.12, -14], [H + 0.7, -4], [H + 1.4, 2], [28.74, 2]]),
+    rSh: sampler(arm), lSh: sampler(neg(arm)), rEl: sampler([[25.68, -40], [H + 0.15, 8], [H + 1.8, -20], [28.74, -30]]), lEl: sampler([[25.68, 40], [H + 0.15, -8], [H + 1.8, 20], [28.74, 30]]),
+    lift: sampler([[H - 0.1, 0], [H + 0.1, 0.1], [H + 0.3, 0], [40, 0]]),
+  };
+};
 
 /** The three soldiers: the same pattern of places for each (i = 0 commander, 1 and 2 privates). */
 const soldier = (i: number): Track[] => {
@@ -124,19 +156,19 @@ const soldier = (i: number): Track[] => {
   const [ax, az] = A[i], [px, pz] = POST[i], [bx, bz] = B[i], [dx, dz] = D[i], [gx, gz] = G[i];
   const circle = (t: number): [number, number] => [bx + 1.1 * Math.cos((t - 19.38) * 3.4), bz - 0.5 + 0.7 * Math.sin((t - 19.38) * 3.4)];   // sol2 runs round in a panic
   return [
-    { a: 0, b: 4.4, pos: (t: number): [number, number] => [ax + 1.1 * t, az], faces: fMarch[i] },   // they march out (the camera walks with them), mid-stride at frame 0
+    withGait({ a: 0, b: 4.4, pos: (t: number): [number, number] => [ax + 1.1 * t, az], faces: fMarch[i] }, "walk", 0.3 + 0.12 * i),   // they march out (the camera walks with them), mid-stride at frame 0
     { a: 4.4, b: 11.1, idle: true, pos: stay(ax, az), faces: fStay[i] },
-    { a: 11.1, b: 12.3, pos: walk(11.1, 12.3, ax, az, px, pz), faces: fWalk[i] },                                   // they take their posts at the gun
-    { a: 12.3, b: 19.38, idle: true, pos: stay(px, pz), faces: fPost[i] },
+    withGait({ a: 11.1, b: 12.3, pos: walk(11.1, 12.3, ax, az, px, pz), faces: fWalk[i] }, "walk"),                                   // they take their posts at the gun
+    { a: 12.3, b: 19.38, idle: true, pos: stay(px, pz), faces: fPost[i], ...(i === 1 ? { ch: fireStance(px) } : {}) },
     { a: 19.38, b: 21.78, idle: i !== 2, pos: i === 2 ? circle : stay(bx, bz), faces: fB[i], beats: [["shake", 20.6, 21.7, 0.03 + 0.01 * i], ["hop", 20.95, 21.25, 0.1]] },
     { a: 21.78, b: 25.68, ride: true, flip: i !== 1, pos: (t: number): [number, number, number] => [TRUCK_C(t) + TR, -1.5, 0.72], faces: fC[i] },   // all three ride the truck
-    { a: 25.68, b: 28.74, idle: true, pos: stay(dx, dz), faces: fD[i], beats: [["hop", HIT, HIT + 0.3, 0.12]] },
-    { a: 28.74, b: 31.34, pos: walk(28.74, 30.6, dx, dz, dx + 5.2 + 0.7 * i, dz + 0.2 * i), faces: fD[i] },     // the emu runs on: they run after it
+    { a: 25.68, b: 28.74, idle: true, pos: stay(dx, dz), faces: fD[i], beats: i === 1 ? [["hop", HIT, HIT + 0.3, 0.12]] : [], ...(i === 1 ? {} : { ch: hitRecoil(dx, 0.05 * i, i === 0 ? 150 : 135) }) },
+    withGait({ a: 28.74, b: 31.34, pos: walk(28.74, 30.6, dx, dz, dx + 5.2 + 0.7 * i, dz + 0.2 * i), faces: fD[i] }, "jog"),     // the emu runs on: they run after it
     { a: 38.04, b: 40.12, ride: true, pos: inTruckF(F), faces: [[38.04, "sleepy", "down"]] },
     { a: 41.5, b: 43.52, ride: true, pos: inTruckF(F), faces: [[41.5, "grin", "wavec"]], beats: [["shake", 41.5, 43.5, 0.03]] },
     { a: 43.52, b: 51.16, idle: true, flip: i === 1, pos: stay(gx, gz), faces: fG[i], beats: [["hop", 49.3, 49.6, 0.1]] },
-    { a: 51.16, b: 53.0, pos: walk(51.16, 53.0, home, -0.8, 5.6 + 0.3 * i, -1.2), faces: [[51.16, "sleepy", "down"]] },
-    { a: 56.8, b: 58.96, pos: walk(56.8, 58.2, 6.5 + i * 0.9, -0.6, home, homeZ), faces: [[56.8, "furious", "fist"], [58.3, "calm", "hips"]] },
+    withGait({ a: 51.16, b: 53.0, pos: walk(51.16, 53.0, home, -0.8, 5.6 + 0.3 * i, -1.2), faces: [[51.16, "sleepy", "down"]] }, "walk"),
+    withGait({ a: 56.8, b: 58.96, pos: walk(56.8, 58.2, 6.5 + i * 0.9, -0.6, home, homeZ), faces: [[56.8, "furious", "fist"], [58.3, "calm", "hips"]] }, "jog"),
   ];
 };
 
@@ -150,21 +182,21 @@ const stateOf = (a: { id: string; tracks: Track[] }, t: number, f: number): ASta
   if (!tr) return null;
   const P = PERSONA[a.id] ?? PERSONA.kom, w = (Math.PI * 2) / P.per;
   const off = (s: number) => (tr.idle ? P.pace * Math.sin(w * s + P.ph) : 0);
-  const [bx, z, y = 0] = tr.pos(t), x = bx + off(t), x2 = tr.pos(t + 0.05)[0] + off(t + 0.05), x1 = tr.pos(t - 0.05)[0] + off(t - 0.05);
+  const [bx, z, y = 0] = tr.pos(t), ch = tr.ch ? choreoAt(tr.ch, t, tr.h ?? 1.7) : null, x = ch ? (tr.dir ?? 1) * ch.x : bx + off(t), x2 = tr.pos(t + 0.05)[0] + off(t + 0.05), x1 = tr.pos(t - 0.05)[0] + off(t - 0.05);
   const m = beatsAt(tr.beats ?? [], t, P.ph), [, expr, armName] = stepAt(tr.faces, t);
-  const speed = Math.abs(x2 - x1) / 0.1, moving = !tr.ride && speed > 0.12;
+  const speed = Math.abs(x2 - x1) / 0.1, moving = !ch && !tr.ride && speed > 0.12;
   const flip = tr.flip ?? (moving ? x2 < x1 - 0.002 : false);
   const shooting = a.id === "sol1" && firing(t);
-  let rig = poseAt(tr.faces.map(([ta, , ar]) => [ta, ar] as [number, string]), t, 0.28);
-  if (moving) rig = gait(rig, (bx * Math.PI * 2) / (speed > 2.2 ? 1.5 : 0.9), speed > 2.2 ? 1.6 : speed > 1.4 ? 1.25 : 1);   // the legs follow the ground: one stride per 0.9 m, so the feet never slide
+  let rig = ch ? ch.pose : poseAt(tr.faces.map(([ta, , ar]) => [ta, ar] as [number, string]), t, 0.28);
+  if (ch) { /* B55: the choreography is the whole pose */ } else if (moving) rig = gait(rig, (bx * Math.PI * 2) / (speed > 2.2 ? 1.5 : 0.9), speed > 2.2 ? 1.6 : speed > 1.4 ? 1.25 : 1);   // the legs follow the ground: one stride per 0.9 m, so the feet never slide
   else rig = { ...rig, lHip: rig.lHip + 3 * Math.sin(t * 0.9 + P.ph), rHip: rig.rHip - 3 * Math.sin(t * 0.9 + P.ph) };
-  const gesturing = P.gest > 0 && !moving && (armName === "down" || armName === "belly" || armName === "hips") && Math.sin(t * P.gestF * 2 + P.ph) > 0.1;
+  const gesturing = !ch && P.gest > 0 && !moving && (armName === "down" || armName === "belly" || armName === "hips") && Math.sin(t * P.gestF * 2 + P.ph) > 0.1;
   if (gesturing) rig = gesture(rig, t, P.ph, P.gest);
   if (shooting) rig = kickPose(rig, f % 2);
   const bump = tr.ride ? 0.012 * Math.abs(Math.sin(t * 14 + P.ph)) : 0;   // riding the truck over rough ground
   return {
     prop: armName, rig, x, y, z, flip, expr, arms: (LEGACY_ARMS.has(armName) ? armName : "down") as Arms, h: tr.h ?? 1.7, act: 0, step: 0,
-    hop: m.hop + bump + (shooting ? 0.012 * (f % 2) : 0) + P.bob * Math.abs(Math.sin(t * P.bobF * Math.PI + P.ph)), lean: m.lean + (shooting ? (f % 2 ? -0.03 : 0.008) : 0) + 0.006 * Math.sin(t * 1.3 + P.ph),
+    hop: m.hop + (ch ? ch.hop : 0) + bump + (shooting ? 0.012 * (f % 2) : 0) + P.bob * Math.abs(Math.sin(t * P.bobF * Math.PI + P.ph)), lean: m.lean + (shooting ? (f % 2 ? -0.03 : 0.008) : 0) + 0.006 * Math.sin(t * 1.3 + P.ph),
     tilt: P.tilt * 0.6 * Math.sin(t * P.tiltF + P.ph), nod: P.nod * 0.5 * Math.sin(t * P.nodF * 2 + P.ph * 2),
   };
 };
@@ -186,7 +218,7 @@ const ACTORS: { id: string; o: Outfit; tracks: Track[] }[] = [
   { id: "sol1", o: SOL1, tracks: soldier(1) },
   { id: "sol2", o: SOL2, tracks: soldier(2) },
   { id: "farm1", o: FARM1, tracks: [
-    { a: 4.4, b: 6.9, pos: walk(4.4, 6.9, -4.6, 0.2, -3.1, 0.5), faces: [[4.4, "calm", "down"], [5.6, "furious", "fist"]] },
+    withGait({ a: 4.4, b: 6.9, pos: walk(4.4, 6.9, -4.6, 0.2, -3.1, 0.5), faces: [[4.4, "calm", "down"], [5.6, "furious", "fist"]] }, "walk"),
     { a: 40.12, b: 43.52, idle: true, pos: stay(OF - 2.5, -0.2), faces: [[40.12, "furious", "fist"], [41.5, "furious", "pointc"]], beats: [["hop", 40.3, 40.6, 0.14], ["hop", 40.9, 41.2, 0.14], ["shake", 41.5, 43.4, 0.04]] },
   ] },
   { id: "farm2", o: FARM2, tracks: [
@@ -642,6 +674,13 @@ const Sun: React.FC<{ cam: { look: THREE.Vector3 } }> = ({ cam }) => {
   );
 };
 
+/** B55: the camera is a track on three shots where something happens (it pushes on each burst, punches in on the hit, follows the run), not a straight line from a to b. Each starts where the shot's old camera started and ends where it ended. */
+const CAM_TRACKS: { a: number; b: number; at: (t: number) => Cam }[] = ([
+  [13.42, 17.54, [[13.42, -1.2, 1.3, 6.8, 1.1, 1.0, -2.5], [14.0, -1.15, 1.28, 6.5, 1.2, 1.0, -2.8], [14.45, -0.9, 1.25, 5.9, 1.6, 1.05, -3.2], [15.0, -1.0, 1.3, 6.3, 1.4, 1.0, -3.0], [15.5, -0.7, 1.25, 5.6, 1.8, 1.05, -3.4], [16.3, -0.9, 1.3, 6.2, 1.5, 1.0, -3.1], [16.8, -0.6, 1.25, 5.4, 1.9, 1.05, -3.6], [17.54, -0.9, 1.25, 6.3, 1.7, 1.05, -3.5]]],
+  [25.68, 28.74, [[25.68, OD - 2.6, 1.3, 11, OD - 2.5, 1.0, 0], [HIT - 0.6, OD - 2.5, 1.3, 10.2, OD - 2.4, 1.0, 0], [HIT - 0.05, OD - 2.45, 1.3, 9.7, OD - 2.35, 1.05, 0], [HIT + 0.12, OD - 2.3, 1.25, 8.4, OD - 2.3, 1.2, 0], [HIT + 0.9, OD - 2.4, 1.3, 9.2, OD - 2.3, 1.1, 0], [28.74, OD - 2.4, 1.3, 9.5, OD - 2.3, 1.0, 0]]],
+  [28.74, 31.34, [[28.74, OD - 2.2, 1.3, 9, OD - 1.0, 1.0, 0], [29.5, OD - 0.5, 1.3, 8.6, OD + 0.8, 1.0, 0], [30.3, OD + 1.7, 1.25, 8.4, OD + 3.0, 1.0, 0], [30.9, OD + 2.0, 1.3, 8.8, OD + 3.2, 1.0, 0], [31.34, OD + 1.6, 1.3, 9, OD + 2.8, 1.0, 0]]],
+] as [number, number, CamKey[]][]).map(([a, b, k]) => { const tr = camTrack(k); return { a, b, at: (t: number) => { const c = tr(t); return { pos: V(...c.pos), look: V(...c.look) }; } }; });
+
 export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = () => {
   const fr = useCurrentFrame();
   const t0 = fr / FPS;
@@ -650,7 +689,8 @@ export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = () => {
   const t = t0 >= LOOP_AT ? 0.04 : t0;   // from the cut the picture holds the first moment (the hook, full text), so the last frame equals the first and the loop is exact
   const f = Math.round(t * FPS);
   const flash = Math.max(0, 1 - Math.abs(t0 - LOOP_AT) / 0.14);
-  let cam = camAt(SHOTS, t, TOTAL);
+  const ov = CAM_TRACKS.find((c) => t >= c.a && t < c.b);
+  let cam = ov ? ov.at(t) : camAt(SHOTS, t, TOTAL);
   cam = shake(cam, t, 14.05, 0.05, 3.4);
   cam = shake(cam, t, HIT + 0.18, 0.06, 0.5);
   const hookA = t0 >= LOOP_AT ? 1 : t0 < 4.0 ? 1 : t0 < 4.4 ? 1 - (t0 - 4.0) / 0.4 : 0;

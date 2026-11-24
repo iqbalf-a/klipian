@@ -46,12 +46,12 @@ export function footTrack(x0: number, moves: Move[]): (t: number) => [number, nu
 }
 
 /** Alternating steps for a walk or a run, for both feet: `n` steps of `stride` metres starting at `t0`, one every `dt` seconds (right foot first). */
-export function strides(xr: number, xl: number, n: number, stride: number, t0: number, dt: number, arc = 0.12): { r: Move[]; l: Move[]; xr: number; xl: number } {
+export function strides(xr: number, xl: number, n: number, stride: number, t0: number, dt: number, arc = 0.12, air = 1): { r: Move[]; l: Move[]; xr: number; xl: number } {
   const r: Move[] = [], l: Move[] = [];
   let ar = xr, al = xl;
   for (let i = 0; i < n; i++) {
     const right = i % 2 === 0, from = right ? ar : al, to = Math.max(ar, al) + stride;
-    (right ? r : l).push([t0 + i * dt, t0 + (i + 1) * dt * 1.0, from, to, 0, 0, arc]);
+    (right ? r : l).push([t0 + i * dt, t0 + i * dt + dt * air, from, to, 0, 0, arc]);
     if (right) ar = to; else al = to;
   }
   return { r, l, xr: ar, xl: al };
@@ -82,6 +82,10 @@ export type Choreo = {
   lean: (t: number) => number;          // torso lean, degrees, toward +x
   rSh: (t: number) => number; rEl: (t: number) => number; lSh: (t: number) => number; lEl: (t: number) => number;   // arms in WORLD angles (the leaned torso is subtracted for you)
   lift?: (t: number) => number;         // metres the whole body is off the ground (a jump)
+  /** the arm curves are angles in the leaned torso's own frame (a gun held in both hands keeps its place while the torso leans), not world angles */
+  armsFrame?: boolean;
+  /** the hip centre's world x, when it is not the mean of the feet (walking: the hip moves at a steady pace while each planted foot stays where it landed) */
+  hipX?: (t: number) => number;
 };
 export type ChoreoOut = { pose: Pose; x: number; hop: number; lift: number; feet: { r: P2; l: P2 }; ankles: { r: P2; l: P2 } };
 
@@ -91,7 +95,7 @@ export function choreoAt(c: Choreo, t: number, h = 1.7): ChoreoOut {
   const lift = c.lift ? c.lift(t) : 0;
   const fr = c.footR(t), fl = c.footL(t);
   const R: P2 = [fr[0], fr[1] + lift], L: P2 = [fl[0], fl[1] + lift];
-  const hx = (R[0] + L[0]) / 2;
+  const hx = c.hipX ? c.hipX(t) : (R[0] + L[0]) / 2;
   let hy = c.hipFrac(t) * reachMax;
   for (const [f, off] of [[R, hipDx], [L, -hipDx]] as [P2, number][]) {   // the hip is never higher than a straight leg to that foot allows
     const dx = f[0] - (hx + off);
@@ -106,8 +110,8 @@ export function choreoAt(c: Choreo, t: number, h = 1.7): ChoreoOut {
   const lean = c.lean(t);
   const pose: Pose = {
     rHip: ar.hip, rKn: ar.kn, lHip: al.hip, lKn: al.kn, lean,
-    rSh: c.rSh(t) + lean, rEl: c.rEl(t),
-    lSh: -(c.lSh(t) + lean), lEl: -c.lEl(t),   // the left arm's angles grow toward -x in the rig; mirrored so both arms swing the same way
+    rSh: c.rSh(t) + (c.armsFrame ? 0 : lean), rEl: c.rEl(t),
+    lSh: -(c.lSh(t) + (c.armsFrame ? 0 : lean)), lEl: -c.lEl(t),   // the left arm's angles grow toward -x in the rig; mirrored so both arms swing the same way
   };
   return { pose, x: hx, hop: lift / h, lift, feet: { r: R, l: L }, ankles: { r: kr.ankle, l: kl.ankle } };
 }
@@ -130,3 +134,39 @@ export function warpTable(speed: (t: number) => number, total: number, fps: numb
 /** A speed dip around `at`: `depth` (0..1) slower, in over `rise` s, out over `fall` s. */
 export const slowAround = (at: number, depth = 0.7, rise = 0.15, fall = 0.35, lead = 0.35) => (T: number) =>
   1 - depth * smooth((T - (at - lead)) / rise) * (1 - smooth((T - (at + 0.3)) / fall));
+
+/** Arm swing for a walk or run, keyed to the same steps as `strides`: the arm opposite the stepping foot goes forward. Returns [right arm keys, left arm keys] around `base` degrees. */
+export function armSwing(t0: number, dt: number, n: number, amp: number, base = 12): { r: [number, number][]; l: [number, number][] } {
+  const r: [number, number][] = [[t0 - dt, base]], l: [number, number][] = [[t0 - dt, base]];
+  for (let i = 0; i <= n; i++) { const right = i % 2 === 0; r.push([t0 + i * dt, base + (right ? -amp : amp)]); l.push([t0 + i * dt, base + (right ? amp : -amp)]); }
+  return { r, l };
+}
+/** keys joined in time: later keys win where they overlap (so a march and what follows it are one curve) */
+export const joinKeys = (...parts: [number, number][][]): [number, number][] => parts.flat().sort((a, b) => a[0] - b[0]);
+
+/** A walk or a jog along the hip path `hip(t)` (x grows the way the person faces) from `ta` to `tb`: the hip moves as the path says, each foot lands `stride/2` ahead of the hip and stays planted until its next step,
+   so feet never slide whatever the pace (steady, eased in and out, stopping). Steps where the hip hardly moves are skipped. `lead` starts the first step before `ta` (mid-stride at the first frame). */
+export function locomote(hip: (t: number) => number, ta: number, tb: number, kind: "walk" | "jog", lead = 0, armBase = 12): Choreo {
+  const [stride, dt, air, amp, elb, lean, hf, arc] = kind === "walk" ? [0.55, 0.5, 1.0, 24, 14, 6, 0.97, 0.09] : [0.55, 0.2, 1.3, 50, 75, 14, 0.92, 0.18];
+  const mv: [Move[], Move[]] = [[], []], last = [NaN, NaN];
+  let steps = 0;
+  for (let i = 0; ; i++) {
+    const s = ta - lead + i * dt;
+    if (s >= tb) break;
+    steps = i + 1;
+    const e = s + dt * air;
+    if (Math.abs(hip(e) - hip(s)) < 0.04) continue;
+    const k = i % 2, land = hip(e) + stride / 2;
+    mv[k].push([s, e, Number.isNaN(last[k]) ? hip(s) - stride / 2 : last[k], land, 0, 0, arc]);
+    last[k] = land;
+  }
+  const x0 = (k: number) => mv[k][0]?.[2] ?? hip(ta) + (k ? -0.06 : 0.06);
+  const sw = armSwing(ta - lead, dt, steps, amp, armBase), rel = [[tb + 0.5, armBase]] as [number, number][];
+  const kr = joinKeys(sw.r, rel), kl = joinKeys(sw.l, rel);
+  const ramp = (v: number, rest: number): [number, number][] => [[ta - lead - 0.5, lead > 0 ? v : rest], [ta + 0.2, v], [tb, v], [tb + 0.5, rest]];
+  return {
+    footR: footTrack(x0(0), mv[0]), footL: footTrack(x0(1), mv[1]), hipX: hip,
+    hipFrac: sampler(ramp(hf, 0.97)), lean: sampler(ramp(lean, 2)),
+    rSh: sampler(kr), lSh: sampler(kl), rEl: sampler(ramp(elb, 8)), lEl: sampler(ramp(elb, 8)),
+  };
+}

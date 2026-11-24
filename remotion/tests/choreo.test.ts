@@ -30,3 +30,22 @@ assert.ok(w(3) - w(2.5) < 0.5, "slower around the hit");
 const ct = camTrack([[0, 0, 1, 5, 0, 1, 0], [1, 2, 1, 5, 2, 1, 0]]);
 assert.deepEqual(ct(0.5).pos, [1, 1, 5]);
 console.log("choreo ok");
+// locomote: the hip follows the path, a planted foot never moves, the hip never leaves what the legs reach
+import { locomote } from "../src/ricks/choreo.ts";
+for (const kind of ["walk", "jog"] as const) {
+  const hip = (t: number) => 1.1 * Math.min(t, 4), L = locomote(hip, 0, 4, kind, 0.2);
+  const { thigh, shin } = legLen(1.7);
+  let prev = choreoAt(L, 0), still = 0;
+  for (let t = 1 / 60; t <= 4.6; t += 1 / 60) {
+    const o = choreoAt(L, t);
+    for (const k of ["r", "l"] as const) {
+      const dx = o.feet[k][0] - prev.feet[k][0], dy = o.feet[k][1];
+      if (dy === 0 && prev.feet[k][1] === 0) { still++; assert.ok(Math.abs(dx) < 1e-9, `${kind}: a planted foot slid ${dx} at ${t}`); }
+      assert.ok(Math.hypot(o.feet[k][0] - o.x, 0) < thigh + shin + 1e-6, `${kind}: foot out of reach at ${t}`);
+    }
+    prev = o;
+  }
+  assert.ok(still > 50, `${kind}: feet are planted part of the time`);
+  assert.ok(Math.abs(choreoAt(L, 2).x - 2.2) < 1e-9, "the hip x is the path");
+}
+console.log("locomote ok");
