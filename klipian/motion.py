@@ -397,7 +397,7 @@ def set_options(pid: str, raw: dict) -> dict:
         p = load(pid)
         p["options"] = normalize_options({**options_of(p), **(raw if isinstance(raw, dict) else {})})
         save(p)
-    return {"options": p["options"], "warnings": option_warnings(p["options"])}
+    return {"options": p["options"], "warnings": option_warnings(p["options"], p.get("look"))}
 
 
 def update_project(pid: str, fields: dict) -> dict:
@@ -530,7 +530,7 @@ def detail(pid: str) -> dict:
     p = load(pid)
     g = _gather(pid, p)
     story, facts, voice, st = g["story"], g["facts"], g["voice"], g["status"]
-    return {**summary(p), "displayTitle": p.get("title") or p["topic"], "options": options_of(p), "optionWarnings": option_warnings(options_of(p)), "notes": p.get("notes", ""),
+    return {**summary(p), "displayTitle": p.get("title") or p["topic"], "options": options_of(p), "optionWarnings": option_warnings(options_of(p), p.get("look")), "notes": p.get("notes", ""),
             "needs": p.get("needs", []), "warnings": (validate_story(story).get("warnings", []) if story else []), "storyPath": str(project_dir(pid) / "story.json"),
             "compositions": compositions(pid), "story": story, "facts": facts, "kind": kind_of(p), "folder": g["folder"], "gate": g["problems"], "stills": g["stills"],
             "render": g["render_now"], "job": job_state(pid), "voice": voice, "preview": g["preview"], "next": st["next"], "stages": st["stages"], "renderBlock": st["render"],
@@ -1364,12 +1364,12 @@ def options_of(p: dict) -> dict:
     return opts
 
 
-def option_warnings(opts: dict) -> list[str]:
+def option_warnings(opts: dict, look: str | None = None) -> list[str]:
     """What the channel asks for and what a choice takes away. A warning, not a refusal: the person may decide, and the brief says so."""
     out = []
     if not opts["loop"]:
         out.append("this channel requires the loop: the end of the video returns to the first scene. A video without the loop only with ian's approval.")
-    if not opts["sting"]:
+    if not opts["sting"] and "ricks" not in (opts.get("look"), look):   # ricks (sebatang cerita) has no sting by design (B46 l)
         out.append('this channel requires "Intip yuk!" right after the hook. A video without the sting only with ian\'s approval.')
     return out
 
