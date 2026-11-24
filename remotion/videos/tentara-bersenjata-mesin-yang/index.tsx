@@ -32,7 +32,7 @@ const HOOK = C(0.1, 1.25, 3.6, 0, 1.25, 0);
 // the chase: the truck at 5 m/s, the emus at 8 m/s (they pull away); the truck leaves and comes back at the farm gate
 const TRUCK_C = (t: number) => OC + (t - 21.78) * 5;
 const EMU_C = (t: number, j: number) => OC + 3.5 + 0.5 * j + (t - 21.78) * 6;
-const TRUCK_F = (t: number) => (t < 41.5 ? OF + 1 + Math.max(0, t - 38.04) * 4.2 : OF + 24 - (t - 41.5) * 11);
+const TRUCK_F = (t: number) => (t < 41.5 ? OF + 1 + Math.max(0, t - 38.04) * 4.2 : OF + 12 - (t - 41.5) * 5.2);
 
 const SHOTS: Shot[] = [
   { from: 0, a: HOOK, b: C(0.1, 1.3, 3.15, 0, 1.25, 0) },                                                  // Tiga tentara berangkat melawan burung emu
@@ -40,27 +40,27 @@ const SHOTS: Shot[] = [
   { from: 6.9, a: C(0.5, 1.5, -1.5, 3, 1.1, -12), b: C(2.5, 1.4, -3.0, 4, 1.1, -12) },                           // ribuan emu setinggi satu setengah meter
   { from: 9.2, a: C(3.0, 0.55, -4.5, 4.5, 0.8, -10), b: C(3.6, 0.6, -5.2, 5, 0.8, -11) },                    // menginjak ladangnya
   { from: 11.1, a: C(-1.6, 1.2, 4.6, 0, 1.1, 0), b: C(-0.8, 1.2, 4.0, 0.2, 1.1, 0) },                      // tentara dikirim dengan dua senapan mesin
-  { from: 13.42, a: C(1.0, 1.15, 2.6, 3, 0.9, -9), b: C(1.1, 1.15, 2.4, 3.5, 0.9, -9) },                  // tembakan pertama: emu bubar
+  { from: 13.42, a: C(0.4, 1.2, 4.2, 1.1, 1.0, -9), b: C(0.5, 1.2, 3.9, 1.4, 1.0, -9) },                  // tembakan pertama: emu bubar
   { from: 17.54, a: C(1.1, 1.3, 2.4, 0.5, 1.25, 1.0), b: C(1.0, 1.3, 2.0, 0.4, 1.25, 1.0) },              // susah sekali membidiknya
-  { from: 19.38, a: C(OB + 5, 1.0, 5.5, OB + 8, 0.9, -2), b: C(OB + 6, 0.9, 4.4, OB + 8, 0.9, -2.5) },     // disergap di sumber air, senapan macet
-  { from: 21.78, a: C(OC + 2.5, 1.7, 15, OC + 4, 1.0, -1), b: C(OC + 14, 1.7, 15, OC + 15.5, 1.0, -1) },        // dikejar pakai truk
-  { from: 24.1, a: C(OC + 18, 1.7, 15, OC + 19.5, 1.0, -1), b: C(OC + 27, 1.7, 15, OC + 28.5, 1.0, -1) },        // emu berlari lebih cepat
+  { from: 19.38, a: C(OB + 1, 1.3, 7, OB + 4, 1.1, 0), b: C(OB + 2.5, 1.3, 6, OB + 5, 1.1, 0) },     // disergap di sumber air, senapan macet
+  { from: 21.78, a: C(OC + 0.5, 1.7, 17, OC + 2, 1.0, -1), b: C(OC + 12, 1.7, 17, OC + 13.6, 1.0, -1) },        // dikejar pakai truk
+  { from: 24.1, a: C(OC + 13.5, 2.0, 20, OC + 15, 1.0, -1), b: C(OC + 22, 2.0, 20, OC + 23.5, 1.0, -1) },        // emu berlari lebih cepat
   { from: 25.68, a: C(OD - 1.7, 1.2, 9.5, OD - 1.6, 1.0, 0), b: C(OD - 1.5, 1.25, 8.3, OD - 1.4, 1.0, 0) },        // kulit emu tebal, peluru nyasar
-  { from: 28.74, a: C(OD + 2, 1.2, 5.5, OD + 3.5, 0.9, 0), b: C(OD + 9, 1.2, 5.5, OD + 10.5, 0.9, 0) },    // tertembak tapi tetap lari
+  { from: 28.74, a: C(OD - 2.8, 1.3, 8, OD - 1.8, 1.0, 0), b: C(OD - 1.8, 1.3, 8, OD - 0.6, 1.0, 0) },    // tertembak tapi tetap lari
   { from: 31.34, a: C(OE - 1.5, 1.4, 4.0, OE, 1.3, 0), b: C(OE - 0.5, 1.4, 3.4, OE, 1.3, 0) },             // beritanya menyebar, parlemen bercanda
   { from: 34.38, a: C(OE + 5.8, 1.5, 8.6, OE + 5.8, 1.3, 0), b: C(OE + 5.8, 1.5, 7.6, OE + 5.8, 1.3, 0) },   // medali pantasnya buat emu
-  { from: 38.04, a: C(OF - 1, 1.4, 7, OF + 1, 1.0, 0), b: C(OF + 2, 1.4, 7.5, OF + 4, 1.0, 0) },           // tentara sempat ditarik
+  { from: 38.04, a: C(OF + 1, 1.4, 9, OF + 3, 1.0, 0), b: C(OF + 8, 1.4, 9, OF + 9.5, 1.0, 0) },           // tentara sempat ditarik
   { from: 40.12, a: C(OF - 2, 1.3, 4, OF - 2, 1.3, 0), b: C(OF - 1.4, 1.3, 3.5, OF - 2, 1.3, 0) },         // para petani menuntut
-  { from: 41.5, a: C(OF + 8, 1.4, 9, OF + 12, 1.0, 0), b: C(OF + 4, 1.4, 9, OF + 6, 1.0, 0) },             // dikirim lagi
+  { from: 41.5, a: C(OF + 9, 1.4, 9, OF + 10.5, 1.0, 0), b: C(OF + 1, 1.4, 9, OF + 2.5, 1.0, 0) },             // dikirim lagi
   { from: 43.52, a: C(OG - 3, 0.5, 3, OG, 0.9, -3), b: C(OG - 2.5, 0.55, 2.4, OG, 1.0, -3) },              // Ternyata, dikabarkan
   { from: 45.3, a: C(OG - 1.5, 1.6, 7.8, OG, 2.1, -1), b: C(OG - 0.7, 1.7, 6.4, OG, 2.2, -1) },            // tiap kawanan punya satu emu penjaga
   { from: 47.5, a: C(OG - 0.6, 1.6, 5.6, OG, 2.4, -1), b: C(OG - 0.4, 1.7, 5.0, OG, 2.5, -1) },            // yang memperingatkan yang lain
   { from: 49.0, a: C(OG - 1, 1.6, 6, OG + 1, 0.9, -6), b: C(OG, 2.0, 7, OG + 3, 0.9, -8) },                // semuanya sempat kabur
-  { from: 51.16, a: C(3, 1.5, 6, 3, 1.0, -1), b: C(5, 1.5, 5.5, 6, 1.0, -1) },                            // operasi dihentikan
+  { from: 51.16, a: C(1.5, 1.5, 8, 1.5, 1.0, -1), b: C(4, 1.5, 8, 4.5, 1.0, -1) },                            // operasi dihentikan
   { from: 53.2, a: C(-1.5, 1.0, 3.5, 0.5, 1.3, -4), b: C(1.5, 1.1, 3.2, 0.5, 1.3, -4) },                  // emu dianggap pemenangnya
   { from: 55.52, a: C(-5, 0.9, 3, -4, 1.0, -3.2), b: C(-8, 1.0, 3.2, -10, 1.2, -3.2) },                   // yang akhirnya ampuh cuma satu
   { from: 57.4, a: C(-9, 2.0, 6, -11, 1.0, -3.2), b: HOOK },                                              // pagar panjang; the camera flies back to the first shot (the loop)
-  { from: 58.4, a: HOOK, b: HOOK },
+  { from: 58.0, a: HOOK, b: HOOK },
 ];
 
 // ---------- the people (every one their own outfit, B46 i; heads are always white) ---------------------------------------------------------
@@ -232,7 +232,7 @@ const Medal: React.FC<{ x: number; y: number; z: number; f: number }> = ({ x, y,
 // ---------- painted textures ------------------------------------------------------------------------------------------------------------
 const groundTex = (c: CanvasRenderingContext2D) => {
   c.fillStyle = "#d3a954"; c.fillRect(0, 0, 256, 256);
-  for (let i = 0; i < 260; i++) { c.fillStyle = `rgba(${rnd(i) > 0.5 ? "255,226,140" : "120,84,30"},.16)`; c.fillRect(rnd(i * 3) * 256, rnd(i * 7) * 256, 2 + rnd(i * 5) * 3, 10 + rnd(i * 11) * 22); }
+  for (let i = 0; i < 900; i++) { c.fillStyle = `rgba(${rnd(i) > 0.5 ? "255,226,140" : "120,84,30"},.14)`; c.fillRect(rnd(i * 3) * 256, rnd(i * 7) * 256, 1 + rnd(i * 5) * 1.5, 8 + rnd(i * 11) * 26); }
 };
 const roofTex = (c: CanvasRenderingContext2D) => {
   c.fillStyle = "#b9bfc4"; c.fillRect(0, 0, 128, 128);
@@ -266,18 +266,31 @@ const softTex = (c: CanvasRenderingContext2D) => { const g = c.createRadialGradi
 const blobTex = (c: CanvasRenderingContext2D) => { const g = c.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, "rgba(0,0,0,.9)"); g.addColorStop(1, "rgba(0,0,0,0)"); c.fillStyle = g; c.fillRect(0, 0, 64, 64); };
 
 const Stalks: React.FC<{ n: number; x0: number; x1: number; z0: number; z1: number; seed: number; color: string; h?: number }> = ({ n, x0, x1, z0, z1, seed, color, h = 0.55 }) => {
-  const ref = React.useRef<THREE.InstancedMesh>(null);
+  const stem = React.useRef<THREE.InstancedMesh>(null);
+  const ear = React.useRef<THREE.InstancedMesh>(null);
   React.useLayoutEffect(() => {
-    const m = ref.current!, d = new THREE.Object3D();
+    const d = new THREE.Object3D(), e = new THREE.Object3D(), c = new THREE.Color(), base = new THREE.Color(color), light = new THREE.Color("#f0d27a"), dark = new THREE.Color("#a97a28");
     for (let i = 0; i < n; i++) {
-      d.position.set(lerp(x0, x1, rnd(seed + i)), h / 2, lerp(z0, z1, rnd(seed + i + 500)));
-      d.rotation.set((rnd(seed + i + 900) - 0.5) * 0.3, 0, (rnd(seed + i + 1300) - 0.5) * 0.3);
-      d.scale.setScalar(0.7 + 0.6 * rnd(seed + i + 1700));
-      d.updateMatrix(); m.setMatrixAt(i, d.matrix);
+      const s = 0.75 + 0.5 * rnd(seed + i + 1700), rx = (rnd(seed + i + 900) - 0.5) * 0.25, rz = (rnd(seed + i + 1300) - 0.5) * 0.25;
+      d.position.set(lerp(x0, x1, rnd(seed + i)), (h * s) / 2, lerp(z0, z1, rnd(seed + i + 500)));
+      d.rotation.set(rx, 0, rz); d.scale.set(1, s, 1); d.updateMatrix();
+      stem.current!.setMatrixAt(i, d.matrix);
+      // the ear sits on the tip of the tilted stem
+      e.position.set(d.position.x - Math.sin(rz) * (h * s) / 2, d.position.y + Math.cos(rx) * Math.cos(rz) * (h * s) / 2, d.position.z + Math.sin(rx) * (h * s) / 2);
+      e.rotation.set(rx, 0, rz); e.scale.set(1, 1, 1); e.updateMatrix();
+      ear.current!.setMatrixAt(i, e.matrix);
+      const k = rnd(seed + i + 2100);
+      c.copy(base).lerp(k > 0.5 ? light : dark, Math.abs(k - 0.5) * 0.9);
+      stem.current!.setColorAt(i, c); ear.current!.setColorAt(i, c);
     }
-    m.instanceMatrix.needsUpdate = true;
-  }, [n, x0, x1, z0, z1, seed, h]);
-  return <instancedMesh ref={ref} args={[undefined, undefined, n]}><boxGeometry args={[0.03, h, 0.03]} /><meshStandardMaterial color={color} roughness={0.9} /></instancedMesh>;
+    for (const m of [stem.current!, ear.current!]) { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
+  }, [n, x0, x1, z0, z1, seed, h, color]);
+  return (
+    <group>
+      <instancedMesh ref={stem} args={[undefined, undefined, n]}><cylinderGeometry args={[0.005, 0.01, h, 4]} /><meshStandardMaterial color="#ffffff" roughness={0.9} /></instancedMesh>
+      <instancedMesh ref={ear} args={[undefined, undefined, n]}><capsuleGeometry args={[0.011, 0.075, 3, 5]} /><meshStandardMaterial color="#ffffff" roughness={0.85} /></instancedMesh>
+    </group>
+  );
 };
 
 const Tree: React.FC<{ x: number; z: number; s?: number }> = ({ x, z, s = 1 }) => (
@@ -372,8 +385,8 @@ const World: React.FC<{ t: number; f: number }> = ({ t, f }) => {
       {/* stage A: field, farm, windmill, the truck that came for the soldiers, the long fence at the end */}
       {(t < 20 || t >= 51.1) && (
         <group>
-          <Stalks n={900} x0={-10} x1={10} z0={-4} z1={3.5} seed={1} color="#e0b84a" />
-          <Stalks n={500} x0={-10} x1={10} z0={-9} z1={-4} seed={7} color="#c99a30" h={0.5} />
+          <Stalks n={2700} x0={-10} x1={10} z0={-4} z1={3.5} seed={1} color="#e0b84a" />
+          <Stalks n={1500} x0={-10} x1={10} z0={-9} z1={-4} seed={7} color="#c99a30" h={0.5} />
           <group position={[-5, 0, -5.5]}>
             <TBox size={[2.6, 1.7, 1.8]} pos={[0, 0.85, 0]} color="#e9dcc0" />
             <TBox size={[3.0, 0.1, 2.2]} pos={[0, 2.0, 0]} map={tex.roof} tile={1} />
@@ -406,7 +419,7 @@ const World: React.FC<{ t: number; f: number }> = ({ t, f }) => {
       {/* stage B: the water hole (the ambush) */}
       {on(19.38, 21.8) && (
         <group>
-          <Stalks n={300} x0={OB - 2} x1={OB + 15} z0={-1} z1={5} seed={21} color="#c99a30" h={0.35} />
+          <Stalks n={900} x0={OB - 2} x1={OB + 15} z0={-1} z1={5} seed={21} color="#c99a30" h={0.35} />
           <mesh position={[OB + 10, 0.015, -4.5]} rotation={[-Math.PI / 2, 0, 0]} scale={[1.18, 0.72, 1]}><circleGeometry args={[5, 32]} /><meshStandardMaterial color="#8a6a3c" roughness={1} /></mesh>
           <mesh position={[OB + 10, 0.02, -4.5]} rotation={[-Math.PI / 2, 0, 0]} scale={[1, 0.6, 1]}><circleGeometry args={[5, 32]} /><meshStandardMaterial color="#4a9fc4" roughness={0.25} metalness={0.2} /></mesh>
           <Tree x={OB + 15} z={-9} s={1.2} /><Tree x={OB - 3} z={-8} />
@@ -420,7 +433,7 @@ const World: React.FC<{ t: number; f: number }> = ({ t, f }) => {
       {/* stage C: the chase lane */}
       {on(21.78, 25.7) && (
         <group>
-          <Stalks n={700} x0={OC - 4} x1={OC + 50} z0={-4} z1={3} seed={31} color="#c99a30" h={0.45} />
+          <Stalks n={2100} x0={OC - 4} x1={OC + 50} z0={-4} z1={3} seed={31} color="#c99a30" h={0.45} />
           <Truck x={TRUCK_C(t)} z={-1.5} f={f} rolling />
           <Gun x={TRUCK_C(t) - 0.9} y={0.74} z={-1.3} yaw={0} f={f} flash={tex.flash} s={0.8} />
           {cEmus}
@@ -432,7 +445,7 @@ const World: React.FC<{ t: number; f: number }> = ({ t, f }) => {
       {/* stage D: the shooting range (the bullet that only grazes) */}
       {on(25.68, 31.4) && (
         <group>
-          <Stalks n={300} x0={OD - 6} x1={OD + 14} z0={-1} z1={5} seed={41} color="#e0b84a" h={0.35} />
+          <Stalks n={900} x0={OD - 6} x1={OD + 14} z0={-1} z1={5} seed={41} color="#e0b84a" h={0.35} />
           <Gun x={OD - 3.2} z={1.1} yaw={0} f={f} fire={t >= HIT - 0.4 && t < HIT + 0.3 && Math.floor(f / 2) % 2 === 0} flash={tex.flash} />
           <TBox size={[0.4, 0.4, 0.4]} pos={[OD - 4.1, 0.2, 1.4]} color="#8a6a3c" />
           {t < 28.74 ? emu("hit", OD - 0.6, 0, Math.PI, "stand", 0.5, 1.1) : emu("hit", OD - 0.6 + (t - 28.74) * 7, 0, 0, "run", 0.5, 1.1)}
@@ -470,7 +483,7 @@ const World: React.FC<{ t: number; f: number }> = ({ t, f }) => {
       {/* stage F: the farm gate (the truck leaves and comes back) */}
       {on(38.04, 43.6) && (
         <group>
-          <Stalks n={500} x0={OF - 8} x1={OF + 26} z0={-3} z1={3} seed={51} color="#e0b84a" h={0.5} />
+          <Stalks n={1500} x0={OF - 8} x1={OF + 26} z0={-3} z1={3} seed={51} color="#e0b84a" h={0.5} />
           <Truck x={TRUCK_F(t)} z={-0.2} f={f} rolling={t > 38.5} />
           <TBox size={[0.18, 1.6, 0.18]} pos={[OF - 3.4, 0.8, -1.3]} color="#7a5632" />
           <TBox size={[0.18, 1.6, 0.18]} pos={[OF + 0.2, 0.8, -1.3]} color="#7a5632" />
@@ -485,7 +498,7 @@ const World: React.FC<{ t: number; f: number }> = ({ t, f }) => {
       {/* stage G: the lookout's scrub (the twist) */}
       {on(43.52, 51.2) && (
         <group>
-          <Stalks n={900} x0={OG - 7} x1={OG + 8} z0={-9} z1={4} seed={61} color="#d6aa44" h={0.7} />
+          <Stalks n={2700} x0={OG - 7} x1={OG + 8} z0={-9} z1={4} seed={61} color="#d6aa44" h={0.7} />
           <Bush x={OG - 4} z={-9.5} s={1.4} /><Bush x={OG + 4.5} z={-9.5} s={1.2} /><Tree x={OG + 9} z={-10} s={1.1} /><Tree x={OG - 9} z={-11} />
           <mesh position={[OG, 0.45, -1]}><coneGeometry args={[0.75, 0.9, 10]} /><meshStandardMaterial color="#b0825a" roughness={1} /></mesh>
           {emu("look", OG, -1, -Math.PI / 2 + 0.2, "alert", 0.5, 1.1, { y: 0.9, head: lookoutHead, neck: t >= 47.86 ? -0.08 : 0.05 })}
@@ -500,12 +513,17 @@ const World: React.FC<{ t: number; f: number }> = ({ t, f }) => {
 };
 
 export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = () => {
-  const f = useCurrentFrame();
-  const t = f / FPS;
+  const fr = useCurrentFrame();
+  const t0 = fr / FPS;
+  // the loop: from LOOP_AT the picture replays the first seconds (same scene, cast and camera as frame 0), a short flash hides the swap
+  const LOOP_AT = 58.0;
+  const t = t0 >= LOOP_AT ? t0 - LOOP_AT : t0;
+  const f = Math.round(t * FPS);
+  const flash = Math.max(0, 1 - Math.abs(t0 - LOOP_AT) / 0.14);
   let cam = camAt(SHOTS, t, TOTAL);
   cam = shake(cam, t, 14.05, 0.05, 3.4);
   cam = shake(cam, t, HIT + 0.18, 0.06, 0.5);
-  const hookA = t < 4.0 ? 1 : t < 4.4 ? 1 - (t - 4.0) / 0.4 : t >= 58.4 ? Math.min(1, (t - 58.4) / 0.5) : 0;
+  const hookA = t0 >= LOOP_AT ? 1 : t0 < 4.0 ? 1 : t0 < 4.4 ? 1 - (t0 - 4.0) / 0.4 : 0;
   const actors = ACTORS.map((a) => {
     const tr = a.tracks.find((k) => t >= k.a && t < k.b);
     if (!tr) return null;
@@ -532,8 +550,9 @@ export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = () => {
           </div>
         ))}
       </div>
-      <Pills pills={PILLS} t={t} />
-      <WordCaption words={READ} t={t} />
+      <Pills pills={PILLS} t={t0} />
+      <WordCaption words={READ} t={t0} />
+      <AbsoluteFill style={{ background: "#fff", opacity: flash * 0.85, pointerEvents: "none" }} />
     </AbsoluteFill>
   );
 };
