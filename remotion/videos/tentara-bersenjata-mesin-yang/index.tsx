@@ -7,9 +7,10 @@
 import React, { useMemo } from "react";
 import { AbsoluteFill, useCurrentFrame } from "remotion";
 import { ThreeCanvas } from "@remotion/three";
+import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { FRAME } from "../../src/tokens.ts";
-import { RicksCamera, RicksPost, StickHero, TBox, Pills, WordCaption, camAt, painted, readWords, rnd, stepAt, V, type Arms, type Cam, type Expr, type Outfit, type Pill, type Shot } from "../../src/ricks/kit.tsx";
+import { CAST, RicksCamera, RicksPost, StickHero, TBox, Pills, WordCaption, camAt, painted, readWords, rnd, stepAt, V, type Arms, type Cam, type Expr, type Outfit, type Pill, type Shot } from "../../src/ricks/kit.tsx";
 import { Debris, shake } from "../../src/ricks/fx.tsx";
 import type { StoryT } from "../../src/schema.ts";
 import storyJson from "./story.json";
@@ -73,18 +74,29 @@ const PARL1: Outfit = { shirt: "#3a3f4a", stripe: "#8fa0bf", pattern: "collar", 
 const PARL2: Outfit = { shirt: "#7a2f4a", stripe: "#d9a0b8", pattern: "plain", hair: "bun", hairColor: "#d8d8d8", blush: true };
 
 type Beat = ["hop" | "lean" | "shake", number, number, number];
-const beatsAt = (beats: Beat[], t: number) => {
+const beatsAt = (beats: Beat[], t: number, ph = 0) => {
   let hop = 0, lean = 0;
   for (const [k, a, b, v] of beats) {
     if (t < a || t >= b) continue;
     const u = (t - a) / (b - a);
     if (k === "hop") hop += Math.sin(u * Math.PI) * v;
     else if (k === "lean") lean += Math.min(1, u * 5, (1 - u) * 5) * v;
-    else lean += Math.sin(t * 40) * v * Math.min(1, u * 6, (1 - u) * 6);
+    else { const e = Math.min(1, u * 6, (1 - u) * 6); lean += Math.sin(t * 3.2 + ph) * v * 2.5 * e; hop += Math.abs(Math.sin(t * 5.5 + ph)) * v * 1.2 * e; }   // a shake is a stomping sway, never a twitch
   }
   return { hop, lean };
 };
-type Track = { a: number; b: number; pos: (t: number) => [number, number, number?]; faces: [number, Expr, Arms][]; beats?: Beat[]; h?: number };
+/** How one person moves when nothing else is asked of them: paces about, bobs, tilts and nods the head, gestures. Every person differs (B51). */
+type Persona = { pace: number; per: number; ph: number; bob: number; bobF: number; tilt: number; tiltF: number; nod: number; nodF: number; gest: number; gestF: number };
+const PERSONA: Record<string, Persona> = {
+  kom:   { pace: 0.55, per: 5.2, ph: 0.0, bob: 0.0,   bobF: 0,   tilt: 0.06, tiltF: 0.7, nod: 6,  nodF: 1.1, gest: 0.9, gestF: 0.45 },   // the commander: slow pacing, points and orders
+  sol1:  { pace: 0.3,  per: 2.3, ph: 1.3, bob: 0.035, bobF: 2.6, tilt: 0.12, tiltF: 1.7, nod: 10, nodF: 2.2, gest: 0.0, gestF: 0 },      // the cheerful private: bounces on his toes, looks around
+  sol2:  { pace: 0.4,  per: 3.4, ph: 2.4, bob: 0.0,   bobF: 0,   tilt: 0.09, tiltF: 1.2, nod: 4,  nodF: 0.8, gest: 0.7, gestF: 0.8 },    // the nervous private: shifts his weight, fidgets with his hands
+  farm1: { pace: 0.4,  per: 4.1, ph: 0.5, bob: 0.0,   bobF: 0,   tilt: 0.07, tiltF: 0.9, nod: 5,  nodF: 1.4, gest: 0.9, gestF: 0.6 },
+  farm2: { pace: 0.25, per: 2.9, ph: 3.1, bob: 0.03,  bobF: 2.1, tilt: 0.1,  tiltF: 1.5, nod: 8,  nodF: 1.9, gest: 0.6, gestF: 1.0 },
+  parl1: { pace: 0.3,  per: 4.7, ph: 1.9, bob: 0.0,   bobF: 0,   tilt: 0.05, tiltF: 0.6, nod: 5,  nodF: 1.0, gest: 0.8, gestF: 0.5 },
+  parl2: { pace: 0.25, per: 3.3, ph: 4.2, bob: 0.02,  bobF: 1.6, tilt: 0.11, tiltF: 1.3, nod: 7,  nodF: 1.6, gest: 0.5, gestF: 0.9 },
+};
+type Track = { idle?: boolean; a: number; b: number; pos: (t: number) => [number, number, number?]; faces: [number, Expr, Arms][]; beats?: Beat[]; h?: number };
 const stay = (x: number, z: number) => (): [number, number] => [x, z];
 const walk = (a: number, b: number, x0: number, z0: number, x1: number, z1: number) => (t: number): [number, number] => { const k = ease(prog(t, a, b)); return [lerp(x0, x1, k), lerp(z0, z1, k)]; };
 const inTruckF = (dx: number) => (t: number): [number, number, number] => [TRUCK_F(t) + dx, -0.2, 0.72];
@@ -101,13 +113,13 @@ const soldier = (i: number): Track[] => {
   const [ax, az] = A[i], [bx, bz] = B[i], [dx, dz] = D[i], [gx, gz] = G[i];
   const truckMan: Track[] = i === 1 ? [{ a: 21.78, b: 24.1, pos: (t: number): [number, number, number] => [TRUCK_C(t) - 0.7, -1.5, 0.72], faces: [[21.78, "furious", "up"]], beats: [["shake", 21.8, 24.1, 0.03]] }] : [];
   return [
-    { a: 0, b: 19.38, pos: stay(ax, az), faces: [[0, fs[0][0], fs[0][1]], [11.1, fs[1][0], fs[1][1]], [13.42, fs[2][0], fs[2][1]], [17.54, fs[3][0], fs[3][1]]], beats: [["hop", 12.0 + i * 0.25, 12.4 + i * 0.25, 0.1], ["lean", 4.5, 6.5, 0.04 * (i - 1)], ["shake", 13.5, 17.4, 0.02 + 0.01 * i], ["hop", 14.0, 14.3, 0.06]] },
-    { a: 19.38, b: 21.78, pos: stay(bx, bz), faces: [[19.38, "sly", "down"], [20.6, i === 0 ? "furious" : "shocked", i === 1 ? "up" : "hips"]], beats: [["shake", 20.6, 21.7, 0.05], ["hop", 20.95, 21.25, 0.1]] },
+    { a: 0, b: 19.38, idle: true, pos: stay(ax, az), faces: [[0, fs[0][0], fs[0][1]], [11.1, fs[1][0], fs[1][1]], [13.42, fs[2][0], fs[2][1]], [17.54, fs[3][0], fs[3][1]]], beats: [["hop", 12.0 + i * 0.25, 12.4 + i * 0.25, 0.1], ["lean", 4.5, 6.5, 0.04 * (i - 1)], ["shake", 13.5, 17.4, 0.02 + 0.01 * i], ["hop", 14.0, 14.3, 0.06]] },
+    { a: 19.38, b: 21.78, idle: true, pos: stay(bx, bz), faces: [[19.38, "sly", "down"], [20.6, i === 0 ? "furious" : "shocked", i === 1 ? "up" : "hips"]], beats: [["shake", 20.6, 21.7, 0.05], ["hop", 20.95, 21.25, 0.1]] },
     ...truckMan,
-    { a: 25.68, b: 31.34, pos: stay(dx, dz), faces: [[25.68, "calm", "hips"], [HIT, "shocked", "up"], [28.74, "puzzled", "shrug"]], beats: [["hop", HIT, HIT + 0.3, 0.12], ["lean", 28.8, 30.8, 0.05 * (i - 1)]] },
+    { a: 25.68, b: 31.34, idle: true, pos: stay(dx, dz), faces: [[25.68, "calm", "hips"], [HIT, "shocked", "up"], [28.74, "puzzled", "shrug"]], beats: [["hop", HIT, HIT + 0.3, 0.12], ["lean", 28.8, 30.8, 0.05 * (i - 1)]] },
     { a: 38.04, b: 40.12, pos: inTruckF(F), faces: [[38.04, "sleepy", "down"]], beats: [["lean", 38.2, 40, 0.04]] },
     { a: 41.5, b: 43.52, pos: inTruckF(F), faces: [[41.5, "grin", "wave"]], beats: [["shake", 41.5, 43.5, 0.03]] },
-    { a: 43.52, b: 51.16, pos: stay(gx, gz), faces: [[43.52, "calm", "down"], [49.0, "shocked", "up"]], beats: [["hop", 49.3, 49.6, 0.1]] },
+    { a: 43.52, b: 51.16, idle: true, pos: stay(gx, gz), faces: [[43.52, "calm", "down"], [49.0, "shocked", "up"]], beats: [["hop", 49.3, 49.6, 0.1]] },
     { a: 51.16, b: 53.0, pos: walk(51.16, 53.0, home, -0.8, 5.6 + 0.3 * i, -1.2), faces: [[51.16, "sleepy", "down"]], beats: [["lean", 51.2, 53, 0.05]] },
     { a: 56.8, b: 58.96, pos: walk(56.8, 58.2, 6.5 + i * 0.9, -0.6, home, homeZ), faces: [[56.8, "furious", "down"], [58.3, "calm", "hips"]], beats: [["shake", 56.8, 58.2, 0.03]] },
   ];
@@ -118,14 +130,14 @@ const ACTORS: { id: string; o: Outfit; tracks: Track[] }[] = [
   { id: "sol2", o: SOL2, tracks: soldier(2) },
   { id: "farm1", o: FARM1, tracks: [
     { a: 4.4, b: 6.9, pos: walk(4.4, 6.9, -4.2, 0.2, -2.2, 0.4), faces: [[4.4, "calm", "down"], [5.6, "grin", "wave"]], beats: [["lean", 5.2, 6.4, 0.06]] },
-    { a: 40.12, b: 43.52, pos: stay(OF - 2.5, -0.2), faces: [[40.12, "furious", "up"], [41.5, "furious", "point"]], beats: [["hop", 40.3, 40.6, 0.14], ["hop", 40.9, 41.2, 0.14], ["shake", 41.5, 43.4, 0.04]] },
+    { a: 40.12, b: 43.52, idle: true, pos: stay(OF - 2.5, -0.2), faces: [[40.12, "furious", "up"], [41.5, "furious", "point"]], beats: [["hop", 40.3, 40.6, 0.14], ["hop", 40.9, 41.2, 0.14], ["shake", 41.5, 43.4, 0.04]] },
   ] },
   { id: "farm2", o: FARM2, tracks: [
     { a: 4.4, b: 6.9, pos: walk(4.4, 6.9, -1.6, -1.2, -0.4, -0.9), faces: [[4.4, "sly", "down"], [6.0, "puzzled", "shrug"]] },
-    { a: 40.12, b: 43.52, pos: stay(OF - 1.3, -0.6), faces: [[40.12, "furious", "up"], [41.5, "furious", "hips"]], beats: [["hop", 40.5, 40.8, 0.14], ["hop", 41.0, 41.3, 0.14], ["lean", 41.6, 43.0, 0.06]] },
+    { a: 40.12, b: 43.52, idle: true, pos: stay(OF - 1.3, -0.6), faces: [[40.12, "furious", "up"], [41.5, "furious", "hips"]], beats: [["hop", 40.5, 40.8, 0.14], ["hop", 41.0, 41.3, 0.14], ["lean", 41.6, 43.0, 0.06]] },
   ] },
-  { id: "parl1", o: PARL1, tracks: [{ a: 31.34, b: 34.38, pos: stay(OE - 0.6, -0.5), faces: [[31.34, "calm", "down"], [32.72, "grin", "belly"]], beats: [["shake", 32.72, 34.3, 0.05], ["hop", 33.4, 33.7, 0.08]] }] },
-  { id: "parl2", o: PARL2, tracks: [{ a: 31.34, b: 34.38, pos: stay(OE + 0.7, -0.7), faces: [[31.34, "sleepy", "down"], [32.9, "grin", "up"]], beats: [["shake", 33.0, 34.3, 0.05], ["hop", 33.8, 34.1, 0.08]] }] },
+  { id: "parl1", o: PARL1, tracks: [{ a: 31.34, b: 34.38, idle: true, pos: stay(OE - 0.6, -0.5), faces: [[31.34, "calm", "down"], [32.72, "grin", "belly"]], beats: [["shake", 32.72, 34.3, 0.05], ["hop", 33.4, 33.7, 0.08]] }] },
+  { id: "parl2", o: PARL2, tracks: [{ a: 31.34, b: 34.38, idle: true, pos: stay(OE + 0.7, -0.7), faces: [[31.34, "sleepy", "down"], [32.9, "grin", "up"]], beats: [["shake", 33.0, 34.3, 0.05], ["hop", 33.8, 34.1, 0.08]] }] },
 ];
 
 // ---------- the emus ---------------------------------------------------------------------------------------------------------------------
@@ -156,31 +168,45 @@ const featherTex = (c: CanvasRenderingContext2D) => {
 const Emu: React.FC<{ x: number; y?: number; z: number; yaw: number; mode: EmuMode; f: number; ph: number; s?: number; head?: number; neck?: number; shadow?: THREE.Texture; fur?: THREE.Texture }> =
   ({ x, y = 0, z, yaw, mode, f, ph, s = 1, head = 0, neck, shadow, fur }) => {
     const run = mode === "run", wk = mode === "walk";
-    const sw = run ? Math.sin(f * 0.95 + ph) * 0.95 : wk ? Math.sin(f * 0.3 + ph) * 0.4 : 0;
-    const bob = run ? Math.abs(Math.sin(f * 0.95 + ph)) * 0.08 : 0;
+    const cyc = run ? f * 0.95 + ph : f * 0.3 + ph;
+    const sw = run ? Math.sin(cyc) * 0.95 : wk ? Math.sin(cyc) * 0.4 : 0;
+    const bob = run ? Math.abs(Math.sin(cyc)) * 0.08 : wk ? Math.abs(Math.sin(cyc)) * 0.015 : 0;
     const tilt = neck !== undefined ? neck : mode === "graze" ? 1.1 + 1.0 * (0.5 + 0.5 * Math.sin(f * 0.07 + ph * 3)) : run ? 0.75 : mode === "alert" ? -0.05 : 0.18;
+    const sway = mode === "alert" ? 0.03 * Math.sin(f * 0.2 + ph) : 0.07 * Math.sin(f * 0.11 + ph * 2) + (wk ? 0.1 * Math.sin(cyc) : run ? 0.12 * Math.sin(cyc * 2) : 0);   // the neck swings, the head pecks
     const nl = mode === "alert" ? 0.8 : 0.62;
+    const flap = run ? Math.sin(cyc * 2) * 0.7 : 0.08 * Math.sin(f * 0.2 + ph);
+    const fm = { map: fur, roughness: 0.95 } as const;
     return (
       <group position={[x, y, z]} rotation={[0, yaw, 0]} scale={s}>
         <group position={[0, bob, 0]} rotation={[0, 0, run ? -0.12 : 0]}>
-          <mesh position={[0, 0.95, 0]} scale={[0.66, 0.4, 0.36]}><sphereGeometry args={[1, 16, 12]} /><meshStandardMaterial map={fur} color="#c19c72" roughness={0.95} /></mesh>
-          <mesh position={[-0.4, 0.98, 0]} scale={[0.42, 0.36, 0.4]}><sphereGeometry args={[1, 14, 10]} /><meshStandardMaterial map={fur} color="#7d6248" roughness={0.95} /></mesh>
-          <mesh position={[-0.55, 0.78, 0]} scale={[0.2, 0.3, 0.3]}><sphereGeometry args={[1, 10, 8]} /><meshStandardMaterial map={fur} color="#6a5038" roughness={0.95} /></mesh>
-          <mesh position={[0.3, 1.1, 0]} scale={[0.32, 0.24, 0.3]}><sphereGeometry args={[1, 12, 8]} /><meshStandardMaterial map={fur} color="#b09070" roughness={0.95} /></mesh>
-          <group position={[0.46, 1.02, 0]} rotation={[0, head, -tilt]}>
-            <mesh position={[0, nl / 2, 0]}><cylinderGeometry args={[0.065, 0.085, nl, 8]} /><meshStandardMaterial color="#9db3c4" roughness={0.8} /></mesh>
-            <mesh position={[0, 0.06, 0]}><sphereGeometry args={[0.11, 10, 8]} /><meshStandardMaterial map={fur} color="#a8896a" roughness={0.95} /></mesh>
-            <mesh position={[0.03, nl + 0.04, 0]} scale={[1.5, 1, 1]}><sphereGeometry args={[0.095, 10, 8]} /><meshStandardMaterial color="#9db3c4" roughness={0.8} /></mesh>
-            <mesh position={[0.2, nl + 0.03, 0]} rotation={[0, 0, -Math.PI / 2]}><coneGeometry args={[0.05, 0.16, 6]} /><meshStandardMaterial color="#3a3330" roughness={0.6} /></mesh>
-            <mesh position={[0.06, nl + 0.09, 0.075]}><sphereGeometry args={[0.02, 6, 6]} /><meshBasicMaterial color="#17141c" /></mesh>
+          <mesh position={[0, 0.95, 0]} scale={[0.66, 0.4, 0.36]}><sphereGeometry args={[1, 18, 14]} /><meshStandardMaterial {...fm} color="#c19c72" /></mesh>
+          <mesh position={[-0.4, 0.98, 0]} scale={[0.42, 0.36, 0.4]}><sphereGeometry args={[1, 14, 10]} /><meshStandardMaterial {...fm} color="#7d6248" /></mesh>
+          <mesh position={[-0.55, 0.78, 0]} scale={[0.2, 0.3, 0.3]}><sphereGeometry args={[1, 10, 8]} /><meshStandardMaterial {...fm} color="#6a5038" /></mesh>
+          <mesh position={[0.3, 1.1, 0]} scale={[0.32, 0.24, 0.3]}><sphereGeometry args={[1, 12, 8]} /><meshStandardMaterial {...fm} color="#b09070" /></mesh>
+          <mesh position={[0.1, 0.78, 0]} scale={[0.5, 0.22, 0.3]}><sphereGeometry args={[1, 12, 8]} /><meshStandardMaterial {...fm} color="#d6b98f" /></mesh>
+          {[[-0.2, 1.22, 0.14, 0.22], [0.15, 1.28, -0.12, 0.2], [-0.45, 1.12, -0.16, 0.2], [0.45, 0.98, 0.2, 0.17], [-0.05, 0.72, -0.18, 0.2], [0.35, 0.82, -0.2, 0.16]].map(([fx, fy, fz, r], i) => <mesh key={i} position={[fx, fy, fz]} scale={[1.2, 0.8, 0.9]} rotation={[0, 0, 0.4 * (i % 3 - 1)]}><sphereGeometry args={[r, 8, 6]} /><meshStandardMaterial {...fm} color={i % 2 ? "#9a7a58" : "#6f573d"} /></mesh>)}
+          {[1, -1].map((side) => <group key={side} position={[0.05, 1.0, side * 0.33]} rotation={[side * flap, 0, 0]}><mesh position={[-0.05, -0.08, side * 0.02]} scale={[0.3, 0.2, 0.05]}><sphereGeometry args={[1, 8, 6]} /><meshStandardMaterial {...fm} color="#5b4630" /></mesh></group>)}
+          <group position={[0.46, 1.02, 0]} rotation={[0, head + sway, -tilt]}>
+            <mesh position={[0, nl / 2, 0]}><cylinderGeometry args={[0.062, 0.095, nl, 10]} /><meshStandardMaterial color="#9db3c4" roughness={0.8} /></mesh>
+            <mesh position={[0, 0.06, 0]}><sphereGeometry args={[0.12, 10, 8]} /><meshStandardMaterial {...fm} color="#a8896a" /></mesh>
+            <mesh position={[0.03, nl + 0.04, 0]} scale={[1.5, 1, 1]}><sphereGeometry args={[0.095, 12, 10]} /><meshStandardMaterial color="#9db3c4" roughness={0.8} /></mesh>
+            <mesh position={[0.2, nl + 0.03, 0]} rotation={[0, 0, -Math.PI / 2]}><coneGeometry args={[0.05, 0.17, 8]} /><meshStandardMaterial color="#3a3330" roughness={0.6} /></mesh>
+            {[1, -1].map((side) => <group key={side} position={[0.07, nl + 0.09, side * 0.07]}><mesh><sphereGeometry args={[0.035, 8, 8]} /><meshBasicMaterial color="#f4ead0" /></mesh><mesh position={[0.016, 0, side * 0.018]}><sphereGeometry args={[0.02, 6, 6]} /><meshBasicMaterial color="#17141c" /></mesh></group>)}
           </group>
         </group>
-        {[0.11, -0.11].map((zz, k) => (
-          <group key={k} position={[0, 0.88, zz]} rotation={[0, 0, k ? -sw : sw]}>
-            <mesh position={[0, -0.44, 0]}><cylinderGeometry args={[0.045, 0.06, 0.88, 6]} /><meshStandardMaterial color="#c9b8a2" roughness={0.8} /></mesh>
-            <mesh position={[0.08, -0.88, 0]}><boxGeometry args={[0.24, 0.05, 0.1]} /><meshStandardMaterial color="#8a7a66" roughness={0.8} /></mesh>
-          </group>
-        ))}
+        {[0.11, -0.11].map((zz, k) => {
+          const a = k ? -sw : sw, knee = Math.max(0, -a) * 0.9 + (run ? 0.15 : 0.05);
+          return (
+            <group key={k} position={[0, 0.88, zz]} rotation={[0, 0, a]}>
+              <mesh position={[0, -0.2, 0]}><cylinderGeometry args={[0.1, 0.07, 0.4, 8]} /><meshStandardMaterial {...fm} color="#a88b68" /></mesh>
+              <group position={[0, -0.4, 0]} rotation={[0, 0, -knee - a * 0.5]}>
+                <mesh position={[0, -0.24, 0]}><cylinderGeometry args={[0.04, 0.055, 0.48, 8]} /><meshStandardMaterial color="#c9b8a2" roughness={0.8} /></mesh>
+                <mesh position={[0, -0.49, 0]}><sphereGeometry args={[0.06, 8, 6]} /><meshStandardMaterial color="#b3a28a" roughness={0.8} /></mesh>
+                {[-0.05, 0, 0.05].map((tz, j) => <mesh key={j} position={[0.1, -0.5, tz]} rotation={[0, (j - 1) * 0.35, 0]}><boxGeometry args={[0.2, 0.04, 0.045]} /><meshStandardMaterial color="#7d6e5c" roughness={0.8} /></mesh>)}
+              </group>
+            </group>
+          );
+        })}
         {shadow && <mesh position={[0, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[1.3, 0.9]} /><meshBasicMaterial map={shadow} transparent opacity={0.4} depthWrite={false} /></mesh>}
       </group>
     );
@@ -199,19 +225,34 @@ const Gun: React.FC<{ x: number; y?: number; z: number; yaw: number; f: number; 
 
 const Truck: React.FC<{ x: number; z: number; f: number; rolling: boolean }> = ({ x, z, f, rolling }) => (
   <group position={[x, 0, z]}>
-    <TBox size={[2.9, 0.3, 1.3]} pos={[0, 0.55, 0]} color="#4f5e34" />
-    <TBox size={[0.95, 0.95, 1.25]} pos={[1.0, 1.18, 0]} color="#5f6f3c" />
-    <TBox size={[0.05, 0.5, 1.05]} pos={[1.49, 1.32, 0]} color="#a9d6ec" />
-    <TBox size={[1.75, 0.5, 0.06]} pos={[-0.55, 0.95, 0.62]} color="#586a38" />
-    <TBox size={[1.75, 0.5, 0.06]} pos={[-0.55, 0.95, -0.62]} color="#586a38" />
-    <TBox size={[0.06, 0.5, 1.3]} pos={[-1.42, 0.95, 0]} color="#586a38" />
-    {([[-0.9, 0.62], [0.95, 0.62], [-0.9, -0.62], [0.95, -0.62]] as number[][]).map(([wx, wz], i) => (
-      <group key={i} position={[wx, 0.35, wz]} rotation={[Math.PI / 2, 0, 0]}>
-        <mesh><cylinderGeometry args={[0.35, 0.35, 0.18, 16]} /><meshStandardMaterial color="#1c1f20" roughness={0.9} /></mesh>
-        <mesh position={[0, 0.1, 0]} rotation={[0, rolling ? -f * 0.4 : 0, 0]}><boxGeometry args={[0.5, 0.02, 0.1]} /><meshStandardMaterial color="#d9d3bd" /></mesh>
+    <TBox size={[3.5, 0.18, 1.1]} pos={[0.3, 0.5, 0]} color="#2c3326" />
+    <TBox size={[2.0, 0.3, 1.3]} pos={[-0.55, 0.7, 0]} color="#4f5e34" />
+    {[0.62, -0.62].map((zz) => <TBox key={zz} size={[2.0, 0.42, 0.07]} pos={[-0.55, 1.06, zz]} color="#586a38" />)}
+    <TBox size={[0.07, 0.42, 1.3]} pos={[-1.55, 1.06, 0]} color="#586a38" />
+    <TBox size={[0.06, 0.42, 1.2]} pos={[0.45, 1.06, 0]} color="#586a38" />
+    {[[-1.2, 0.2], [-0.8, -0.15], [-0.55, 0.25], [-0.2, -0.2], [-1.3, -0.3]].map(([sx, sz], i) => <mesh key={i} position={[sx, 0.95, sz]} scale={[0.3, 0.16, 0.2]} rotation={[0, i, 0]}><sphereGeometry args={[1, 8, 6]} /><meshStandardMaterial color={i % 2 ? "#b79b6a" : "#a98c5d"} roughness={1} /></mesh>)}
+    <TBox size={[0.75, 1.0, 1.28]} pos={[0.85, 1.2, 0]} color="#5f6f3c" />
+    <TBox size={[0.95, 0.08, 1.38]} pos={[0.9, 1.74, 0]} color="#4a5830" />
+    <TBox size={[0.04, 0.5, 1.05]} pos={[1.23, 1.38, 0]} color="#a9d6ec" />
+    {[0.65, -0.65].map((zz) => <TBox key={zz} size={[0.5, 0.42, 0.03]} pos={[0.85, 1.38, zz]} color="#a9d6ec" />)}
+    <TBox size={[0.85, 0.5, 1.12]} pos={[1.65, 0.97, 0]} color="#566835" />
+    <TBox size={[0.06, 0.34, 0.8]} pos={[2.1, 0.95, 0]} color="#22261e" />
+    {[0.38, -0.38].map((zz) => <mesh key={zz} position={[2.1, 1.0, zz]}><sphereGeometry args={[0.1, 10, 8]} /><meshBasicMaterial color="#fff6c8" toneMapped={false} /></mesh>)}
+    <TBox size={[0.14, 0.14, 1.35]} pos={[2.1, 0.55, 0]} color="#8a8f88" rough={0.4} />
+    {[0.7, -0.7].map((zz) => <TBox key={zz} size={[0.9, 0.05, 0.22]} pos={[0.9, 0.55, zz]} color="#2c3326" />)}
+    {[0.68, -0.68].map((zz) => <mesh key={zz} position={[-0.7, 0.4, zz + (zz > 0 ? 0.0 : 0)]}><boxGeometry args={[0.04, 0.0, 0.0]} /><meshBasicMaterial color="#000" /></mesh>)}
+    <mesh position={[-1.7, 0.9, 0.35]} rotation={[0, 0, 0]}><cylinderGeometry args={[0.14, 0.14, 0.34, 10]} /><meshStandardMaterial color="#6d7a3a" roughness={0.7} /></mesh>
+    <group position={[-0.1, 0.92, 0.72]}><mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.22, 0.08, 8, 16]} /><meshStandardMaterial color="#1c1f20" roughness={0.9} /></mesh></group>
+    {([[-1.0, 0.72], [1.25, 0.72], [-1.0, -0.72], [1.25, -0.72]] as number[][]).map(([wx, wz], i) => (
+      <group key={i} position={[wx, 0.38, wz]}>
+        <mesh><torusGeometry args={[0.27, 0.11, 10, 20]} /><meshStandardMaterial color="#1c1f20" roughness={0.95} /></mesh>
+        <mesh rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.2, 0.2, 0.2, 16]} /><meshStandardMaterial color="#a8a698" roughness={0.5} metalness={0.4} /></mesh>
+        <group rotation={[0, 0, rolling ? -f * 0.4 : 0]} position={[0, 0, wz > 0 ? 0.11 : -0.11]}>
+          <mesh><boxGeometry args={[0.38, 0.05, 0.03]} /><meshStandardMaterial color="#6e6d62" /></mesh>
+          <mesh rotation={[0, 0, Math.PI / 2]}><boxGeometry args={[0.38, 0.05, 0.03]} /><meshStandardMaterial color="#6e6d62" /></mesh>
+        </group>
       </group>
     ))}
-    <mesh position={[1.52, 0.7, 0.4]}><sphereGeometry args={[0.07, 8, 6]} /><meshBasicMaterial color="#fff6c8" toneMapped={false} /></mesh>
   </group>
 );
 
@@ -295,13 +336,15 @@ const Stalks: React.FC<{ n: number; x0: number; x1: number; z0: number; z1: numb
 
 const Tree: React.FC<{ x: number; z: number; s?: number }> = ({ x, z, s = 1 }) => (
   <group position={[x, 0, z]} scale={s}>
-    <mesh position={[0, 1.4, 0]}><cylinderGeometry args={[0.14, 0.24, 2.8, 8]} /><meshStandardMaterial color="#b9aa8c" roughness={0.9} /></mesh>
-    {([[0, 3.3, 0, 1.2], [-0.9, 2.9, 0.3, 0.9], [0.9, 3.0, -0.2, 0.95]] as number[][]).map(([cx, cy, cz, r], i) => <mesh key={i} position={[cx, cy, cz]} scale={[1.4, 0.7, 1.1]}><sphereGeometry args={[r, 12, 9]} /><meshStandardMaterial color={i % 2 ? "#7c8f55" : "#68804a"} roughness={0.95} /></mesh>)}
+    <mesh position={[0, 1.4, 0]}><cylinderGeometry args={[0.14, 0.26, 2.8, 10]} /><meshStandardMaterial color="#b9aa8c" roughness={0.9} /></mesh>
+    <mesh position={[0, 0.12, 0]}><cylinderGeometry args={[0.3, 0.42, 0.24, 10]} /><meshStandardMaterial color="#a89a7c" roughness={0.95} /></mesh>
+    {[[-0.5, 2.6, 0.3, 0.9], [0.55, 2.7, -0.2, -0.8]].map(([bx, by, bz, rz], i) => <mesh key={i} position={[bx, by, bz]} rotation={[0, 0, rz]}><cylinderGeometry args={[0.05, 0.1, 1.1, 6]} /><meshStandardMaterial color="#b0a184" roughness={0.9} /></mesh>)}
+    {([[0, 3.4, 0, 1.15], [-0.9, 2.95, 0.3, 0.9], [0.9, 3.05, -0.2, 0.95], [-0.2, 3.0, 0.7, 0.8], [0.3, 3.7, -0.4, 0.7], [-1.4, 3.3, -0.3, 0.6]] as number[][]).map(([cx, cy, cz, r], i) => <mesh key={i} position={[cx, cy, cz]} scale={[1.4, 0.7, 1.1]}><sphereGeometry args={[r, 14, 10]} /><meshStandardMaterial color={["#68804a", "#7c8f55", "#5b7340", "#8a9a5c"][i % 4]} roughness={0.95} /></mesh>)}
   </group>
 );
 const Bush: React.FC<{ x: number; z: number; s?: number }> = ({ x, z, s = 1 }) => (
   <group position={[x, 0, z]} scale={s}>
-    {([[0, 0.4, 0, 0.55], [0.5, 0.3, 0.1, 0.4], [-0.5, 0.32, -0.1, 0.45]] as number[][]).map(([bx, by, bz, r], i) => <mesh key={i} position={[bx, by, bz]}><sphereGeometry args={[r, 10, 8]} /><meshStandardMaterial color={i === 1 ? "#6f8a4c" : "#58733d"} roughness={0.95} /></mesh>)}
+    {([[0, 0.4, 0, 0.55], [0.5, 0.3, 0.1, 0.4], [-0.5, 0.32, -0.1, 0.45], [0.15, 0.62, -0.1, 0.35], [-0.2, 0.25, 0.4, 0.3], [0.7, 0.22, -0.2, 0.28]] as number[][]).map(([bx, by, bz, r], i) => <mesh key={i} position={[bx, by, bz]}><sphereGeometry args={[r, 10, 8]} /><meshStandardMaterial color={i === 1 ? "#6f8a4c" : "#58733d"} roughness={0.95} /></mesh>)}
   </group>
 );
 const Hills: React.FC<{ ox: number }> = ({ ox }) => (
@@ -512,6 +555,30 @@ const World: React.FC<{ t: number; f: number }> = ({ t, f }) => {
   );
 };
 
+/** The sun follows the camera so the shadow map covers what is in view (the world is seven stages far apart). */
+const Sun: React.FC<{ cam: { look: THREE.Vector3 } }> = ({ cam }) => {
+  const target = useMemo(() => new THREE.Object3D(), []);
+  const light = React.useRef<THREE.DirectionalLight>(null);
+  const scene = useThree((s: { scene: THREE.Scene }) => s.scene);
+  React.useLayoutEffect(() => {
+    target.position.copy(cam.look); target.updateMatrixWorld();
+    light.current!.position.set(cam.look.x + 7, 11, cam.look.z + 5);
+    scene.traverse((o: THREE.Object3D) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh || m.layers.isEnabled(CAST)) return;
+      const mat = m.material as THREE.Material;
+      m.receiveShadow = !mat.transparent;
+      m.castShadow = !(m as unknown as THREE.InstancedMesh).isInstancedMesh && !mat.transparent && !(mat as THREE.MeshBasicMaterial).isMeshBasicMaterial;
+    });
+  });
+  return (
+    <>
+      <directionalLight ref={light} target={target} intensity={1.9} color="#fff0cc" castShadow shadow-mapSize={[2048, 2048]} shadow-camera-left={-12} shadow-camera-right={12} shadow-camera-top={12} shadow-camera-bottom={-12} shadow-camera-near={0.5} shadow-camera-far={45} shadow-bias={-0.0008} />
+      <primitive object={target} />
+    </>
+  );
+};
+
 export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = () => {
   const fr = useCurrentFrame();
   const t0 = fr / FPS;
@@ -527,17 +594,23 @@ export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = () => {
   const actors = ACTORS.map((a) => {
     const tr = a.tracks.find((k) => t >= k.a && t < k.b);
     if (!tr) return null;
-    const [x, z, y = 0] = tr.pos(t), [x2] = tr.pos(t + 0.05), [x1] = tr.pos(t - 0.05);
-    const m = beatsAt(tr.beats ?? [], t), [, expr, arms] = stepAt(tr.faces, t);
-    return <StickHero key={a.id} pos={V(x, y, z)} expr={expr} arms={arms} f={f} outfit={a.o} height={tr.h ?? 1.7} hop={m.hop} lean={m.lean} act={0} step={Math.abs(x2 - x1) > 0.02 ? f * 0.55 : 0} />;
+    const P = PERSONA[a.id], w = (Math.PI * 2) / P.per;
+    const off = (s: number) => (tr.idle ? P.pace * Math.sin(w * s + P.ph) : 0);
+    const [bx, z, y = 0] = tr.pos(t), x = bx + off(t), x2 = tr.pos(t + 0.05)[0] + off(t + 0.05), x1 = tr.pos(t - 0.05)[0] + off(t - 0.05);
+    const m = beatsAt(tr.beats ?? [], t, P.ph), [, expr, arms] = stepAt(tr.faces, t);
+    const moving = Math.abs(x2 - x1) > 0.012;
+    const flip = tr.idle ? Math.cos(w * t + P.ph) < 0 : x2 < x1 - 0.002;
+    const gesturing = P.gest > 0 && (arms === "down" || arms === "belly") && Math.sin(t * P.gestF * 2 + P.ph) > 0.1;
+    return <StickHero key={a.id} pos={V(x, y, z)} expr={expr} arms={arms} f={f} outfit={a.o} height={tr.h ?? 1.7} hop={m.hop + P.bob * Math.abs(Math.sin(t * P.bobF * Math.PI + P.ph))} lean={m.lean + 0.025 * Math.sin(t * 1.3 + P.ph)} act={gesturing ? P.gest : 0}
+      step={moving ? f * (tr.idle ? 0.42 : 0.55) : 0} tilt={P.tilt * Math.sin(t * P.tiltF + P.ph)} nod={P.nod * Math.sin(t * P.nodF * 2 + P.ph * 2)} flip={flip} />;
   });
   return (
     <AbsoluteFill style={{ backgroundColor: SKY }}>
-      <ThreeCanvas width={FRAME.width} height={FRAME.height} camera={{ fov: 40, near: 0.05, far: 120, position: HOOK.pos.toArray() as [number, number, number] }}>
+      <ThreeCanvas width={FRAME.width} height={FRAME.height} shadows camera={{ fov: 40, near: 0.05, far: 120, position: HOOK.pos.toArray() as [number, number, number] }}>
         <color attach="background" args={[SKY]} />
         <fog attach="fog" args={["#cfe3ee", 16, 75]} />
         <hemisphereLight args={["#c6e3ff", "#c9a45a", 1.05]} />
-        <directionalLight position={[8, 12, 6]} intensity={1.9} color="#fff0cc" />
+        <Sun cam={cam} />
         <RicksCamera cam={cam} />
         <RicksPost cam={cam} bloom={0.3} />
         <World t={t} f={f} />

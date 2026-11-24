@@ -124,7 +124,7 @@ export type Outfit = {
 
 /** One stick figure on a 512 x 1024 canvas, soles at the bottom. `wob` (-1..1) moves the growl lines, the zzz and a waving hand. */
 /** Optional motion for one frame: talk = mouth open 0..1 (lip-sync), g = arm gesture 0..1 (arms rise and fall while speaking), step = walk phase (0 = standing). */
-export type Motion = { talk?: number; g?: number; step?: number };
+export type Motion = { talk?: number; g?: number; step?: number; tilt?: number; nod?: number };
 export function drawStick(c: CanvasRenderingContext2D, expr: Expr, arms: Arms, blink: boolean, wob: number, outfit: Outfit, m: Motion = {}) {
   c.clearRect(0, 0, 512, 1024);
   c.lineCap = c.lineJoin = "round";
@@ -144,7 +144,7 @@ export function drawStick(c: CanvasRenderingContext2D, expr: Expr, arms: Arms, b
   else if (arms === "belly") { c.moveTo(190, 470); c.lineTo(150, 590); c.moveTo(322, 470); c.lineTo(364, 590); }
   else if (arms === "wave") { c.moveTo(190, 470); c.lineTo(130, 640); c.lineTo(150, 700); c.moveTo(322, 470); c.lineTo(420, 380); c.lineTo(440 + wob * 30, 250); }
   else if (arms === "point") { c.moveTo(190, 470); c.lineTo(110, 380); c.lineTo(40, 260); c.moveTo(322, 470); c.lineTo(380, 640); c.lineTo(360, 700); }
-  else { c.moveTo(190, 470); c.lineTo(140, 640); c.lineTo(150, 700); c.moveTo(322, 470); c.lineTo(372, 640); c.lineTo(362, 700); }
+  else { const as = m.step ? sw * 46 : 0; c.moveTo(190, 470); c.lineTo(140 - as * 0.6, 640); c.lineTo(150 - as, 700 - Math.abs(as) * 0.3); c.moveTo(322, 470); c.lineTo(372 + as * 0.6, 640); c.lineTo(362 + as, 700 - Math.abs(as) * 0.3); }   // walking: the arms swing against the legs
   c.stroke();
   const bx = outfit.body === "wide" ? 156 : 180, bw = 512 - 2 * bx;
   c.save(); c.beginPath(); c.roundRect(bx, 420, bw, 300, 48); c.clip();
@@ -163,6 +163,7 @@ export function drawStick(c: CanvasRenderingContext2D, expr: Expr, arms: Arms, b
     for (const s of [-1, 1]) for (let k = 0; k < 3; k++) { const x = 256 + s * (120 + k * 26), y = 560 + k * 30 + wob * 6; c.moveTo(x, y); c.quadraticCurveTo(x + s * 14, y + 8, x, y + 18); }
     c.stroke();
   }
+  c.save(); c.translate(256, 410 + (m.nod ?? 0)); c.rotate(m.tilt ?? 0); c.translate(-256, -410);   // the head tilts and nods on its neck
   if (outfit.hair === "long") {   // the back of a bob: a rounded mass behind the head down to the jaw line, so the hair hugs the head
     c.fillStyle = outfit.hairColor ?? INK; c.lineWidth = 12; c.beginPath(); c.moveTo(96, 270); c.arc(256, 270, 160, Math.PI, Math.PI * 2); c.lineTo(416, 340); c.quadraticCurveTo(414, 388, 372, 384); c.lineTo(140, 384); c.quadraticCurveTo(98, 388, 96, 340); c.closePath(); c.fill(); c.stroke();
   }
@@ -214,6 +215,7 @@ export function drawStick(c: CanvasRenderingContext2D, expr: Expr, arms: Arms, b
   drawFace(c, outfit);
   if (outfit.mustache) { c.fillStyle = INK; c.beginPath(); c.moveTo(258, 318); c.quadraticCurveTo(222, 300, 196, 326); c.quadraticCurveTo(226, 318, 258, 330); c.quadraticCurveTo(290, 318, 320, 326); c.quadraticCurveTo(294, 300, 258, 318); c.fill(); }
   drawHat(c, outfit);
+  c.restore();
 }
 
 function drawFace(c: CanvasRenderingContext2D, o: Outfit) {
@@ -252,17 +254,17 @@ function drawHat(c: CanvasRenderingContext2D, o: Outfit) {
 
 /** A stick figure standing at `pos` (soles), facing the camera, on the CAST layer, with a contact shadow on the floor. */
 /** `talk` opens the mouth (0..1), `act` (0..1) is how lively the person is: arms gesture, the body sways and hops; `step` is a walk phase (omit = standing). */
-export const StickHero: React.FC<{ pos: THREE.Vector3; expr: Expr; arms: Arms; f: number; outfit: Outfit; height?: number; talk?: number; act?: number; step?: number; hop?: number; lean?: number }> = ({ pos, expr, arms, f, outfit, height = 1.7, talk = 0, act = 0, step = 0, hop = 0, lean = 0 }) => {
+export const StickHero: React.FC<{ pos: THREE.Vector3; expr: Expr; arms: Arms; f: number; outfit: Outfit; height?: number; talk?: number; act?: number; step?: number; hop?: number; lean?: number; tilt?: number; nod?: number; flip?: boolean }> = ({ pos, expr, arms, f, outfit, height = 1.7, talk = 0, act = 0, step = 0, hop = 0, lean = 0, tilt = 0, nod = 0, flip = false }) => {
   const blink = expr !== "sleepy" && (f + 40) % 96 < 3;
   const wob = Math.sin(f * 0.5);
   const tex = useMemo(() => painted(512, 1024, () => undefined), []);
-  drawStick((tex.image as HTMLCanvasElement).getContext("2d")!, expr, arms, blink, wob, outfit, { talk, step, g: act > 0.3 ? act * (0.5 + 0.5 * Math.sin(f * 0.42)) : 0 });
+  drawStick((tex.image as HTMLCanvasElement).getContext("2d")!, expr, arms, blink, wob, outfit, { talk, step, tilt, nod, g: act > 0.3 ? act * (0.5 + 0.5 * Math.sin(f * 0.42)) : 0 });
   tex.needsUpdate = true;
   const breathe = 1 + 0.012 * Math.sin(f * 0.18);
   return (
     <group position={pos.toArray()}>
       <group rotation={[0, 0, lean]}>
-        <mesh position={[0, (height / 2) * breathe + hop * height + Math.abs(Math.sin(step)) * 0.03, 0]} scale={[1, breathe, 1]} layers={CAST}><planeGeometry args={[height / 2, height]} /><meshBasicMaterial map={tex} alphaTest={0.5} toneMapped={false} /></mesh>
+        <mesh position={[0, (height / 2) * breathe + hop * height + Math.abs(Math.sin(step)) * 0.03, 0]} scale={[flip ? -1 : 1, breathe, 1]} layers={CAST}><planeGeometry args={[height / 2, height]} /><meshBasicMaterial map={tex} alphaTest={0.5} toneMapped={false} side={THREE.DoubleSide} /></mesh>
       </group>
       <mesh position={[0, 0.005, 0.03]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[height * 0.13, 32]} /><meshBasicMaterial color="#000" transparent opacity={0.35} depthWrite={false} /></mesh>
     </group>
