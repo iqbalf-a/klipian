@@ -1,16 +1,19 @@
-/* Bunyi krek jari: bukan tulang patah — look 2d (B28): a flat view of one index finger over the keys of an upright piano (set kind "piano-fallboard-front", see set.json).
-   Real shapes (B27.16): a finger is three bones (proximal, middle, distal phalanx) in three capsules turning about two joints; the middle joint is two bone ends, each with a
-   cap of cartilage, held in a capsule of synovial fluid (a blue film). Pulled, the ends let go all at once, the pressure of the fluid falls, the gas dissolved in it
-   gathers and opens one cavity at the moment of the crack (Kawchuk 2015: a cavity forms, no bubble collapses). Two tones per part (base and shade, light from the top
-   left), no outlines, palette tokens only. The world is one group moved by the camera (plan.ts camAt); labels, the gauge, the tip cards and the hook text are on the
-   screen. Ambient motion (the record on the wall, the sway of the finger) runs on the loop clock (B29). The last frame is the first frame (the loop). */
+/* Bunyi krek jari: bukan tulang patah — look 2d (B28): the back of a left hand seen from above, lying on the keys of a piano seen from above (set kind
+   "piano-fallboard-front", see set.json); a second hand pinches the tip of the index finger and pulls. B56 (a body part keeps a readable anatomical silhouette): the hand is
+   whole, a palm with a thenar bulge, four fingers of their own length and width (the middle finger as long as the palm), a thumb with two bones, knuckle bumps and creases at
+   every joint, a nail on every visible digit, a wrist and a sleeve; the pulling hand shows the index finger and the thumb of a hand that is cut by the frame.
+   Real shapes (B27.16): a finger has three bones (the thumb two); the middle joint is two bone ends, each with a cap of cartilage, held in a capsule of synovial fluid
+   (a blue film). Pulled, the ends let go all at once, the pressure of the fluid falls, the gas dissolved in it gathers and opens one cavity at the moment of the crack
+   (Kawchuk 2015: a cavity forms, no bubble collapses). Two tones per part (base and shade, light from the top left), no outlines, palette tokens only. The world is one
+   group moved by the camera (plan.ts camAt); labels, the gauge, the tip cards and the hook text are on the screen. Ambient motion (the record on the lid, the sway of the
+   hand) runs on the loop clock (B29). The last frame is the first frame (the loop). */
 import React from "react";
 import {
-  loopClock, BLACK, CaptionLayer, FONT_BOLD, G1, G2, G3, G4, Arrow, SAFE, SKIN_A, SKIN_B, RED, StoryVideo, THEMES, TopText, WHITE, YELLOW,
+  loopClock, BLACK, BLUSH, CaptionLayer, FONT_BOLD, G1, G2, G3, G4, SAFE, SKIN_A, SKIN_B, RED, StoryVideo, THEMES, TopText, WHITE, YELLOW,
   YELLOW_D, clamp01, springAt, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import storyJson from "./story.json";
-import { CARDS, CRACK, GATHER, J, LABELS, PRESSURE, PULL, camAt, dipAt, gapAt, pipAt, pressAt, setAt, winAt } from "./plan.ts";
+import { CARDS, CRACK, GATHER, J, LABELS, PRESSURE, PULL, awayAt, camAt, gapAt, pressAt, pullAt, setAt, winAt } from "./plan.ts";
 import { StingMark } from "../../src/components/StingMark.tsx";
 
 export const story = storyJson as unknown as StoryT;
@@ -19,7 +22,7 @@ const W = 1080, H = 1920;
 const KICKER: Record<string, string> = { cairan: "ISI SENDI", tarik: "DITARIK", rongga: "JAWABANNYA", tips: "FAKTA" };
 const CR = THEMES.cream;
 const FLUID = THEMES.sky.ring, FLUID_D = THEMES.sky.floorEdge;   // the film of synovial fluid and the cartilage caps
-const WIN = { rx: 175, ry: 120 };
+const WIN = { rx: 125, ry: 175 };
 
 const lerp = (a: number, b: number, u: number) => a + (b - a) * u;
 const win = (t: number, a: number, b: number, f = 0.3) => clamp01((t - a) / f) * (1 - clamp01((t - b) / f));
@@ -28,15 +31,14 @@ const outBack = (u: number) => { const c = 1.9; return 1 + (c + 1) * Math.pow(u 
 /** A world point on the screen at the camera c. */
 const toScreen = (c: { x: number; y: number; z: number }, x: number, y: number): [number, number] => [W / 2 + (x - c.x) * c.z, H / 2 + (y - c.y) * c.z];
 
-/* ---------- the set: wall, a record on the wall, a sheet on the stand, the dark fallboard, the keys, the keyslip, the pedals, the floor ---------- */
-const FLOOR_Y = 2090;
-const KEY_W = 129;                                         // a white key is 2.35 cm wide at 55 px a cm
+/* ---------- the set: the piano from above (a dark lid with a sheet, a pencil and a record, the fallboard, the keys, the keyslip, the floor) ---------- */
+const KEYS_TOP = 1000, KEYS_END = 1825, KEY_W = 129;      // a white key is 2.35 cm wide and 15 cm long at 55 px a cm
 const Staff: React.FC<{ y0: number }> = ({ y0 }) => (
   <g>
-    {[0, 1, 2, 3, 4].map((i) => <rect key={i} x={-340} y={y0 + i * 14} width={1060} height={2.6} fill={G4} />)}
-    <rect x={-340} y={y0} width={3} height={56} fill={G3} />
+    {[0, 1, 2, 3, 4].map((i) => <rect key={i} x={-260} y={y0 + i * 14} width={1120} height={2.6} fill={G4} />)}
+    <rect x={-260} y={y0} width={3} height={56} fill={G3} />
     {Array.from({ length: 11 }, (_, k) => {
-      const x = -280 + k * 92 + rnd(y0 + k) * 20, line = Math.floor(rnd(y0 * 3 + k * 7) * 7), y = y0 + 56 - line * 7;
+      const x = -200 + k * 98 + rnd(y0 + k) * 20, line = Math.floor(rnd(y0 * 3 + k * 7) * 7), y = y0 + 56 - line * 7;
       return (
         <g key={k}>
           <ellipse cx={x} cy={y} rx={11} ry={8} fill={G3} transform={`rotate(-20 ${x} ${y})`} />
@@ -48,85 +50,125 @@ const Staff: React.FC<{ y0: number }> = ({ y0 }) => (
 );
 
 const Piano: React.FC<{ amb: number }> = ({ amb }) => {
-  const keys = Array.from({ length: 22 }, (_, i) => i - 8);
+  const keys = Array.from({ length: 12 }, (_, i) => i - 2);
   const black = [0, 1, 3, 4, 5];                            // a black key sits after the white keys C D F G A of every seven
   return (
     <g>
-      <rect x={-1200} y={-900} width={4200} height={FLOOR_Y + 900} fill={CR.wall} />
-      {/* the record on the wall turns once in 40 s (the loop clock) */}
-      <g transform={`translate(950 520) rotate(${(amb / 40) * 360})`}>
-        <circle r={116} fill={G1} />
-        <circle r={86} fill={G2} opacity={0.5} /><circle r={62} fill={G1} opacity={0.6} />
-        <path d="M -100 -40 A 108 108 0 0 1 -40 -100" fill="none" stroke={G3} strokeWidth={7} strokeLinecap="round" opacity={0.7} />
-        <circle r={38} fill={YELLOW} /><circle r={7} fill={CR.wall} />
+      {/* the dark lid, with a sheet lying on it, a pencil and a record that turns once in 40 s (the loop clock) */}
+      <rect x={-1200} y={-1500} width={4200} height={KEYS_TOP - 134 + 1500} fill={G1} />
+      <rect x={-1200} y={-300} width={4200} height={6} fill={G2} opacity={0.35} /><rect x={-1200} y={400} width={4200} height={6} fill={G2} opacity={0.35} />
+      <g transform="rotate(-3 300 250)">
+        <rect x={-280} y={-900} width={1160} height={1500} fill={WHITE} />
+        <rect x={858} y={-900} width={22} height={1500} fill={G4} />
+        {[-380, -170, 40, 250, 460].map((y) => <Staff key={y} y0={y} />)}
       </g>
-      {/* the sheet on the stand: A4 at 55 px a cm, cut by the frame at the top */}
-      <rect x={-387} y={-700} width={1155} height={1700} fill={WHITE} />
-      <rect x={742} y={-700} width={26} height={1700} fill={G4} />
-      {[120, 330, 540, 750].map((y) => <Staff key={y} y0={y} />)}
-      {/* the music desk, the dark fallboard with its plate, the keys and the keyslip */}
-      <rect x={-900} y={1000} width={2400} height={42} rx={8} fill={G2} />
-      <rect x={-900} y={1000} width={2400} height={12} fill={G3} opacity={0.7} />
-      <rect x={-900} y={1040} width={2400} height={345} fill={G1} />
-      <rect x={-900} y={1040} width={2400} height={10} fill={G2} opacity={0.8} />
-      <rect x={560} y={1090} width={330} height={44} rx={10} fill={YELLOW_D} /><rect x={560} y={1090} width={330} height={14} rx={7} fill={YELLOW} opacity={0.6} />
-      <rect x={-900} y={1380} width={2400} height={200} fill={G4} />
-      {keys.map((i) => <rect key={i} x={-1000 + i * KEY_W + KEY_W - 1.5} y={1380} width={3} height={200} fill={G3} />)}
-      <rect x={-900} y={1540} width={2400} height={40} fill={G3} opacity={0.5} />
+      <g transform={`translate(1000 -200) rotate(${(amb / 40) * 360})`}>
+        <circle r={116} fill={G2} /><circle r={88} fill={G1} opacity={0.5} /><circle r={62} fill={G2} opacity={0.5} />
+        <path d="M -100 -40 A 108 108 0 0 1 -40 -100" fill="none" stroke={G3} strokeWidth={7} strokeLinecap="round" opacity={0.7} />
+        <circle r={38} fill={YELLOW} /><circle r={7} fill={G1} />
+      </g>
+      <g transform="translate(120 690) rotate(-18)">
+        <rect x={-170} y={-12} width={330} height={24} fill={YELLOW} /><rect x={-170} y={4} width={330} height={8} fill={YELLOW_D} />
+        <path d="M 160 -12 L 215 0 L 160 12 Z" fill={SKIN_A} /><path d="M 195 -4 L 215 0 L 195 4 Z" fill={G1} />
+        <rect x={-200} y={-12} width={30} height={24} rx={6} fill={BLUSH} /><rect x={-176} y={-12} width={8} height={24} fill={G3} />
+      </g>
+      {/* the fallboard with its plate, then the keys: white strips with seams, black keys that stop two thirds of the way */}
+      <rect x={-1200} y={KEYS_TOP - 134} width={4200} height={134} fill={G2} />
+      <rect x={-1200} y={KEYS_TOP - 134} width={4200} height={12} fill={G3} opacity={0.6} />
+      <rect x={470} y={KEYS_TOP - 96} width={300} height={44} rx={10} fill={YELLOW_D} /><rect x={470} y={KEYS_TOP - 96} width={300} height={14} rx={7} fill={YELLOW} opacity={0.6} />
+      <rect x={-1200} y={KEYS_TOP} width={4200} height={KEYS_END - KEYS_TOP} fill={G4} />
+      {keys.map((i) => <rect key={i} x={-300 + i * KEY_W + KEY_W - 1.5} y={KEYS_TOP} width={3} height={KEYS_END - KEYS_TOP} fill={G3} />)}
+      <rect x={-1200} y={KEYS_END - 46} width={4200} height={46} fill={G3} opacity={0.5} />
       {keys.filter((i) => black.includes(((i % 7) + 7) % 7)).map((i) => (
         <g key={i}>
-          <rect x={-1000 + i * KEY_W + KEY_W - 37} y={1380} width={74} height={120} rx={8} fill={G1} />
-          <rect x={-1000 + i * KEY_W + KEY_W - 37} y={1380} width={16} height={120} rx={8} fill={G2} opacity={0.7} />
+          <rect x={-300 + i * KEY_W + KEY_W - 37} y={KEYS_TOP} width={74} height={520} rx={8} fill={G1} />
+          <rect x={-300 + i * KEY_W + KEY_W - 37} y={KEYS_TOP} width={16} height={520} rx={8} fill={G2} opacity={0.7} />
         </g>
       ))}
-      <rect x={-900} y={1580} width={2400} height={70} fill={G2} />
-      <rect x={-900} y={1580} width={2400} height={12} fill={G1} opacity={0.5} />
-      <rect x={-900} y={1650} width={2400} height={FLOOR_Y - 1650} fill={G1} />
-      {[0, 1, 2].map((k) => (
-        <g key={k}><rect x={200 + k * 90} y={1990} width={62} height={100} rx={8} fill={YELLOW_D} /><rect x={200 + k * 90} y={1990} width={62} height={22} rx={8} fill={YELLOW} opacity={0.7} /></g>
-      ))}
-      <rect x={-1200} y={FLOOR_Y} width={4200} height={1900} fill={CR.floor} />
-      <rect x={-1200} y={FLOOR_Y} width={4200} height={16} fill={CR.floorEdge} />
+      <rect x={-1200} y={KEYS_END} width={4200} height={70} fill={G2} />
+      <rect x={-1200} y={KEYS_END} width={4200} height={12} fill={G1} opacity={0.5} />
+      <rect x={-1200} y={KEYS_END + 70} width={4200} height={2000} fill={CR.floor} />
+      <rect x={-1200} y={KEYS_END + 70} width={4200} height={16} fill={CR.floorEdge} />
     </g>
   );
 };
 
-/* ---------- the finger: a hand from the frame's left edge, an index finger of three capsules ---------- */
-const T = 94, R = 47;
-const Finger: React.FC<{ pip: number; dip: number }> = ({ pip, dip }) => {
-  const rect = (x: number, w: number, k: string) => (
-    <g key={k}>
-      <rect x={x} y={J.y - R} width={w} height={T} rx={R} fill={SKIN_A} />
-      <rect x={x + 8} y={J.y + 10} width={w - 16} height={R - 12} rx={18} fill={SKIN_B} opacity={0.5} />
+/* ---------- a digit: a finger or a thumb drawn pointing up from its base, as a smooth tapered shape with knuckle bumps, creases and a nail ---------- */
+type DigitP = { id: string; x: number; y: number; ang?: number; w: number; lens: number[]; shift?: number };
+/** `lens` are the lengths of the bones (base to tip); `shift` lengthens the digit between the first and the second bone (the pull). */
+const Digit: React.FC<DigitP> = ({ id, x, y, ang = 0, w, lens, shift = 0 }) => {
+  const total = lens.reduce((a, b) => a + b, 0) + shift;
+  const joints: number[] = [];
+  lens.reduce((acc, L, i) => { const d = acc + L + (i === 0 ? shift : 0); joints.push(d); return d; }, 0);
+  const inner = joints.slice(0, -1);
+  const half = (d: number) => (w * (1 - 0.2 * (d / total))) / 2 + inner.reduce((m, j) => Math.max(m, 5 * Math.exp(-(((d - j) / 22) ** 2))), 0);
+  const tipR = half(total);
+  const left: string[] = [], right: string[] = [];
+  for (let d = 0; d <= total - tipR; d += 8) { left.push(`${(-half(d)).toFixed(1)} ${(-d).toFixed(1)}`); right.unshift(`${half(d).toFixed(1)} ${(-d).toFixed(1)}`); }
+  const top = -(total - tipR);
+  const path = `M ${left.join(" L ")} A ${tipR.toFixed(1)} ${tipR.toFixed(1)} 0 0 1 ${tipR.toFixed(1)} ${top.toFixed(1)} L ${right.join(" L ")} Z`;
+  const nailW = tipR * 1.2, nailH = lens[lens.length - 1] * 0.5;
+  return (
+    <g transform={`translate(${x} ${y}) rotate(${ang})`}>
+      <clipPath id={`dg-${id}`}><path d={path} /></clipPath>
+      <path d={path} fill={SKIN_A} />
+      <rect x={w * 0.12} y={-total - 10} width={w} height={total + 20} fill={SKIN_B} opacity={0.5} clipPath={`url(#dg-${id})`} />
+      {inner.map((j, k) => [0, 1, 2].slice(0, k === 0 ? 3 : 2).map((m) => {
+        const yy = -j + (m - 1) * 8, len = half(j) * (m === 1 ? 1.1 : 0.8);
+        return <path key={`${k}-${m}`} d={`M ${-len / 2} ${yy} Q 0 ${yy - 4} ${len / 2} ${yy}`} fill="none" stroke={SKIN_B} strokeWidth={3.6} strokeLinecap="round" opacity={0.75} />;
+      }))}
+      <rect x={-nailW / 2} y={-total + 8} width={nailW} height={nailH} rx={nailW * 0.36} fill={WHITE} opacity={0.92} />
+      <rect x={-nailW / 2} y={-total + 8 + nailH * 0.55} width={nailW} height={nailH * 0.45} rx={nailW * 0.3} fill={BLUSH} opacity={0.22} />
     </g>
   );
+};
+
+/** The back of a left hand, fingers up (thumb on the right): forearm and sleeve, palm and thenar, thumb, four fingers. The index finger is drawn out by `shift`. */
+const HandBack: React.FC<{ shift: number }> = ({ shift }) => {
+  const palm = "M 318 1275 C 300 1380 330 1560 400 1720 L 738 1720 C 760 1600 770 1480 712 1330 L 706 1240 Q 640 1190 560 1185 Q 460 1195 400 1215 Q 330 1235 318 1275 Z";
+  const knuckles: [number, number, number][] = [[360, 1270, 80], [455, 1230, 92], [555, 1215, 98], [658, 1235, 94]];
   return (
     <g>
-      {/* the thumb, behind the palm, pointing forward and down */}
-      <g transform="rotate(16 -40 1350)"><rect x={-60} y={1305} width={300} height={84} rx={42} fill={SKIN_B} /><rect x={-60} y={1305} width={300} height={40} rx={20} fill={SKIN_A} opacity={0.6} /></g>
-      {/* the back of the hand and the palm, from the frame's edge to the knuckle */}
-      <path d="M -900 1120 L -200 1150 C -20 1160 60 1190 130 1203 L 130 1297 C 40 1312 -60 1335 -200 1362 L -900 1400 Z" fill={SKIN_A} />
-      <path d="M -900 1400 L -200 1362 C -60 1335 40 1312 130 1297 L 130 1262 C 50 1286 -60 1312 -200 1330 L -900 1360 Z" fill={SKIN_B} opacity={0.5} />
-      <circle cx={130} cy={1225} r={44} fill={SKIN_A} />
-      <rect x={-900} y={1100} width={460} height={330} fill={G2} /><rect x={-460} y={1100} width={26} height={330} fill={G1} opacity={0.6} />
-      {/* the distal and the middle phalanx turn about the last joint and the middle joint */}
-      <g transform={`rotate(${pip} ${J.x} ${J.y})`}>
-        <g transform={`rotate(${dip} 520 ${J.y})`}>
-          {rect(473, 204, "dist")}
-          <rect x={578} y={J.y - R + 8} width={72} height={26} rx={12} fill={WHITE} opacity={0.9} />
-          <rect x={578} y={J.y - R + 22} width={72} height={12} rx={6} fill={SKIN_B} opacity={0.35} />
-          <path d="M 505 1207 L 508 1218 M 520 1205 L 520 1217 M 535 1207 L 532 1218" stroke={SKIN_B} strokeWidth={4} strokeLinecap="round" />
+      {/* the forearm narrows to the wrist; the sleeve hides the rest */}
+      <path d="M 396 1690 L 742 1690 L 770 2000 L 372 2000 Z" fill={SKIN_A} />
+      <path d="M 660 1690 L 742 1690 L 770 2000 L 700 2000 Z" fill={SKIN_B} opacity={0.4} />
+      <rect x={340} y={1810} width={470} height={260} rx={18} fill={G2} /><rect x={340} y={1810} width={470} height={22} rx={10} fill={G1} opacity={0.6} />
+      <rect x={340} y={1840} width={90} height={230} fill={G1} opacity={0.18} />
+      {/* the thumb has two bones and leans out from the thenar bulge */}
+      <ellipse cx={742} cy={1470} rx={104} ry={170} transform="rotate(14 742 1470)" fill={SKIN_A} />
+      <Digit id="thumb" x={790} y={1395} ang={19} w={118} lens={[188, 150]} />
+      <ellipse cx={776} cy={1408} rx={74} ry={44} transform="rotate(19 776 1408)" fill={SKIN_A} />
+      <path d={palm} fill={SKIN_A} />
+      <path d="M 738 1720 C 760 1600 770 1480 712 1330 L 706 1240 L 640 1235 C 690 1320 700 1500 650 1720 Z" fill={SKIN_B} opacity={0.4} />
+      {/* the four fingers, each its own length and width: the middle is as long as the palm */}
+      <Digit id="pinky" x={360} y={1270} w={80} lens={[192, 110, 110]} />
+      <Digit id="ring" x={455} y={1230} w={92} lens={[242, 143, 127]} />
+      <Digit id="middle" x={555} y={1215} w={98} lens={[259, 154, 127]} />
+      <Digit id="index" x={658} y={1235} w={94} lens={[236, 138, 121]} shift={shift} />
+      {/* the knuckle bumps and the tendons running down the back of the hand */}
+      {knuckles.map(([x, y, w]) => (
+        <g key={x}>
+          <ellipse cx={x} cy={y + 6} rx={w * 0.62} ry={36} fill={SKIN_A} />
+          <ellipse cx={x} cy={y + 22} rx={w * 0.46} ry={w * 0.36} fill={WHITE} opacity={0.16} />
+          <path d={`M ${x - 12} ${y + 56} Q ${x - 16} ${y + 120} ${x - 8} ${y + 190}`} fill="none" stroke={SKIN_B} strokeWidth={4} strokeLinecap="round" opacity={0.3} />
+          <path d={`M ${x - w * 0.3} ${y + 10} q ${w * 0.3} 14 ${w * 0.6} 0 M ${x - w * 0.24} ${y + 26} q ${w * 0.24} 10 ${w * 0.48} 0`} fill="none" stroke={SKIN_B} strokeWidth={3.4} strokeLinecap="round" opacity={0.55} />
         </g>
-        {rect(333, 234, "mid")}
-        <path d="M 365 1207 L 368 1219 M 380 1205 L 380 1218 M 395 1207 L 392 1219" stroke={SKIN_B} strokeWidth={4} strokeLinecap="round" />
-      </g>
-      {rect(83, 344, "prox")}
+      ))}
+      <path d="M 410 1660 Q 560 1690 730 1660" fill="none" stroke={SKIN_B} strokeWidth={4} strokeLinecap="round" opacity={0.35} />
     </g>
   );
 };
 
-/** What the window shows: the two bone ends in their caps, the fluid between them, the gas dots, the cavity. */
-const Inside: React.FC<{ pip: number; gap: number; press: number; clock: number; amb: number }> = ({ pip, gap, press, clock, amb }) => {
+/** The pulling hand, cut by the frame: its index finger lies across the tip of the other index finger and its thumb meets it from below. It rises with the pull. */
+const PullHand: React.FC = () => (
+  <g>
+    <Digit id="a-thumb" x={1081} y={960} ang={-76} w={104} lens={[210, 170]} />
+    <Digit id="a-index" x={1135} y={790} ang={-90} w={94} lens={[236, 138, 121]} />
+  </g>
+);
+
+/** What the window shows: the two bone ends in their caps, the fluid between them, the gas dots, the cavity. It is drawn along the finger (turned to point up). */
+const Inside: React.FC<{ gap: number; press: number; clock: number; amb: number }> = ({ gap, press, clock, amb }) => {
   const g = gap / 2;
   const gather = clamp01((clock - GATHER.a) / (GATHER.b - GATHER.a)), dots = clamp01((clock - GATHER.a + 1.2) / 1.2) * (1 - clamp01((clock - 28.4) / 0.4));
   const cu = clamp01((clock - CRACK) / 0.28), cav = clock < CRACK ? 0 : Math.max(0, outBack(cu)) * (1 - clamp01((clock - 28.3) / 0.4));
@@ -147,13 +189,11 @@ const Inside: React.FC<{ pip: number; gap: number; press: number; clock: number;
       <rect x={J.x - 260} y={J.y + 6} width={260 - g - 20} height={15} rx={6} fill={G4} />
       <ellipse cx={J.x - g - 6} cy={J.y} rx={37} ry={48} fill={FLUID_D} />
       <ellipse cx={J.x - g - 12} cy={J.y} rx={30} ry={40} fill={WHITE} />
-      {/* the middle bone turns with the finger: a cup at its base under a cap, then the shaft */}
-      <g transform={`rotate(${pip} ${J.x} ${J.y})`}>
-        <rect x={J.x + g + 20} y={J.y - 19} width={250} height={38} rx={7} fill={WHITE} />
-        <rect x={J.x + g + 20} y={J.y + 5} width={250} height={14} rx={6} fill={G4} />
-        <ellipse cx={J.x + g + 4} cy={J.y} rx={31} ry={42} fill={FLUID_D} />
-        <ellipse cx={J.x + g + 10} cy={J.y} rx={25} ry={35} fill={WHITE} />
-      </g>
+      {/* the middle bone: a cup at its base under a cap, then the shaft */}
+      <rect x={J.x + g + 20} y={J.y - 19} width={250} height={38} rx={7} fill={WHITE} />
+      <rect x={J.x + g + 20} y={J.y + 5} width={250} height={14} rx={6} fill={G4} />
+      <ellipse cx={J.x + g + 4} cy={J.y} rx={31} ry={42} fill={FLUID_D} />
+      <ellipse cx={J.x + g + 10} cy={J.y} rx={25} ry={35} fill={WHITE} />
       {/* the gas that was dissolved in the fluid comes out as dots, gathers to the middle and opens as one cavity on the crack */}
       {dots > 0 && Array.from({ length: 16 }, (_, i) => {
         const bx = J.x + (rnd(i * 3) - 0.5) * 130 + 4 * Math.sin(amb * 2 + i), by = J.y + (rnd(i * 5 + 1) - 0.5) * 150 + 4 * Math.cos(amb * 2.3 + i);
@@ -171,19 +211,19 @@ const Inside: React.FC<{ pip: number; gap: number; press: number; clock: number;
   );
 };
 
-/** Three sound arcs: round the window on the crack, and a hint of them round the bent joint in the hook (so the thumbnail already says "krek"). */
-const SoundArcs: React.FC<{ clock: number; amb: number }> = ({ clock, amb }) => {
+/** Sound arcs: round the window on the crack, and three ticks beside the joint in the hook (so the thumbnail already says "krek"). */
+const SoundArcs: React.FC<{ clock: number }> = ({ clock }) => {
   const tt = clock - CRACK;
   const hook = clock < 3.3 ? clamp01(1 - (clock - 2.7) / 0.6) : clock > 38.8 ? clamp01((clock - 38.8) / 0.4) : 0;
-    return (
+  return (
     <g>
-      {hook > 0 && [0, 1, 2].map((k) => {
-        const r = 84 + k * 34, o = hook * (1 - k * 0.2);
-        return <path key={k} d={`M ${J.x + 20 + r * Math.cos(-1.35)} ${1200 + r * Math.sin(-1.35)} A ${r} ${r} 0 0 1 ${J.x + 20 + r * Math.cos(-0.45)} ${1200 + r * Math.sin(-0.45)}`} fill="none" stroke={YELLOW_D} strokeWidth={9} strokeLinecap="round" opacity={o} />;
+      {hook > 0 && [-34, 0, 34].map((a) => {
+        const r = (a * Math.PI) / 180;
+        return <path key={a} d={`M ${J.x + 74 * Math.cos(r)} ${J.y + 74 * Math.sin(r)} L ${J.x + 124 * Math.cos(r)} ${J.y + 124 * Math.sin(r)}`} stroke={YELLOW} strokeWidth={11} strokeLinecap="round" opacity={hook} />;
       })}
       {tt > 0 && tt < 0.9 && [0, 1, 2].map((k) => {
         const u = clamp01((tt - k * 0.1) / 0.6);
-        return u > 0 ? <ellipse key={k} cx={J.x} cy={J.y} rx={WIN.rx + 24 + u * 110} ry={WIN.ry + 24 + u * 80} fill="none" stroke={YELLOW_D} strokeWidth={9} strokeDasharray="90 70" opacity={1 - u} /> : null;
+        return u > 0 ? <ellipse key={k} cx={J.x} cy={J.y} rx={WIN.rx + 24 + u * 110} ry={WIN.ry + 24 + u * 80} fill="none" stroke={YELLOW} strokeWidth={9} strokeDasharray="90 70" opacity={1 - u} /> : null;
       })}
     </g>
   );
@@ -191,24 +231,30 @@ const SoundArcs: React.FC<{ clock: number; amb: number }> = ({ clock, amb }) => 
 
 const World: React.FC<{ clock: number; amb: number }> = ({ clock, amb }) => {
   const set = setAt(clock), w = winAt(clock), open = Math.max(0.001, w);
-  const sway = 0.8 * Math.sin((2 * Math.PI * amb) / 5);                   // a live finger never holds perfectly still; 40 s is a whole number of periods (the loop)
-  const pip = pipAt(clock) + sway, dip = dipAt(clock) + sway * 0.6, gap = gapAt(clock), press = pressAt(clock);
+  const gap = gapAt(clock), press = pressAt(clock);
+  const shift = pullAt(clock) + (gap - 6);                                // how far the fingertip has been drawn out
+  const sway = 0.6 * Math.sin((2 * Math.PI * amb) / 5) * Math.sin((Math.PI * clock) / 40);   // a live hand never holds perfectly still; the envelope is 0 at both ends, so the last frame is the first (the loop)
   const jit = clock >= CRACK && clock < CRACK + 0.4 ? 4 * Math.sin((clock - CRACK) * 70) * (1 - (clock - CRACK) / 0.4) : 0;
   const pull = win(clock, PULL.a, PULL.b, 0.4);
   const clipId = "kr-win";
   return (
     <g>
-      <rect x={-1200} y={-900} width={4200} height={4000} fill={CR.wall} />
+      <rect x={-1200} y={-1500} width={4200} height={5000} fill={CR.wall} />
       <g opacity={set} transform={`translate(0 ${60 * (1 - set)})`}>{set > 0.001 && <Piano amb={amb} />}</g>
-      <g transform={`translate(0 ${jit})`}>
-        <Finger pip={pip} dip={dip} />
-        {pull > 0 && <g opacity={pull}><Arrow x={695} y={1205} x2={760} y2={1205} color="black" w={13} draw={clamp01((clock - PULL.a) / 0.5)} /></g>}
+      <g transform={`translate(${jit} 0)`}>
+        <g transform={`rotate(${sway} 640 1800)`}><HandBack shift={shift} /></g>
+        <g transform={`translate(${awayAt(clock)} ${-shift})`}><PullHand /></g>
+        {pull > 0 && (
+          <g opacity={pull} transform={`translate(0 ${-6 * Math.abs(Math.sin((clock - PULL.a) * 4))})`}>
+            <rect x={J.x - 9} y={628} width={18} height={62} fill={YELLOW} /><path d={`M ${J.x - 34} 634 L ${J.x + 34} 634 L ${J.x} 574 Z`} fill={YELLOW} />
+          </g>
+        )}
         <g transform={`translate(${J.x} ${J.y}) scale(${open}) translate(${-J.x} ${-J.y})`} opacity={w > 0.001 ? 1 : 0}>
           <ellipse cx={J.x} cy={J.y} rx={WIN.rx + 10} ry={WIN.ry + 10} fill={SKIN_B} />
           <clipPath id={clipId}><ellipse cx={J.x} cy={J.y} rx={WIN.rx} ry={WIN.ry} /></clipPath>
-          <g clipPath={`url(#${clipId})`}><Inside pip={pip} gap={gap} press={press} clock={clock} amb={amb} /></g>
+          <g clipPath={`url(#${clipId})`}><g transform={`rotate(-90 ${J.x} ${J.y})`}><Inside gap={gap} press={press} clock={clock} amb={amb} /></g></g>
         </g>
-        <SoundArcs clock={clock} amb={amb} />
+        <SoundArcs clock={clock} />
       </g>
     </g>
   );

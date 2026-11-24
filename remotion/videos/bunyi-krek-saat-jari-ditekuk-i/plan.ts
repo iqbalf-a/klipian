@@ -1,30 +1,31 @@
-/* Bunyi krek jari: bukan tulang patah — the timing and the camera of this video (pure: no React). Look 2d (B28): a flat view of one index finger over the keys of an
-   upright piano; the middle joint has a window (a cutaway) onto the two bone ends, the film of fluid between them and the gas that makes the cavity.
-   One world, one camera (camAt) by the clock of the whole video. Every number here is read by index.tsx and sfx.ts so the picture and the sound agree.
-   Loop (B41): the first and the last camera key are the same, the finger returns to the hook pose, the set fades out and the hook text fades back in, so the last
-   frame is the first frame. motion-exception: the dives into and out of the window last 1.2 s each, as the registry's pans do. */
+/* Bunyi krek jari: bukan tulang patah — the timing and the camera of this video (pure: no React). Look 2d (B28): the back of a left hand over the keys of a piano seen
+   from above (B56: a whole hand, thumb and four fingers); a second hand pinches the tip of the index finger and pulls; the index finger's middle joint has a window (a
+   cutaway) onto the two bone ends, the film of fluid between them and the gas that makes the cavity. One world, one camera (camAt) by the clock of the whole video.
+   Every number here is read by index.tsx and sfx.ts so the picture and the sound agree.
+   Loop (B41): the first and the last camera key are the same, the pulling hand is back, the set fades out and the hook text fades back in, so the last frame is the
+   first frame. motion-exception: the dives into and out of the window last 1.2 s each, as the registry's pans do. */
 import type { StoryT } from "../../src/schema.ts";
 
 export type Cam = { x: number; y: number; z: number };
 type Key = { t: number; v: number };
-/** The middle joint, the pivot of the window (world px; 1 cm = 55 px). */
-export const J = { x: 380, y: 1250 };
+/** The index finger's middle joint, the pivot of the window (world px; 1 cm = 55 px). The back of the hand is drawn in index.tsx around it. */
+export const J = { x: 658, y: 999 };
 
-const HOOK: Cam = { x: 330, y: 1060, z: 1.05 };
+const HOOK: Cam = { x: 580, y: 960, z: 1.0 };
 /** Camera keys (seconds): focus (world x, y) and zoom. Between two keys the camera eases (in/out quad); equal keys hold. The last key is the first (the loop). */
 export const CAM_KEYS: { t: number; c: Cam }[] = [
-  { t: 0, c: HOOK },                                         // hook: the finger fills 74 % of the width, frame 0 already the claim
-  { t: 3.0, c: { ...HOOK, z: 1.08 } },
-  { t: 3.9, c: { x: 330, y: 1290, z: 0.78 } },               // the sting: pull back so the piano comes in around the hand
-  { t: 4.6, c: { x: 330, y: 1290, z: 0.78 } },
-  { t: 5.7, c: { x: 380, y: 1250, z: 1.95 } },                // cairan: dive into the window on the middle joint
-  { t: 10.6, c: { x: 380, y: 1250, z: 2.05 } },
-  { t: 11.8, c: { x: 470, y: 1250, z: 1.3 } },               // tarik: out enough to see the finger pulled, and the window
-  { t: 19.4, c: { x: 470, y: 1250, z: 1.3 } },
-  { t: 20.6, c: { x: 380, y: 1250, z: 1.95 } },               // rongga: back in on the gap
-  { t: 27.4, c: { x: 380, y: 1250, z: 2.0 } },
-  { t: 28.9, c: { x: 330, y: 1150, z: 0.95 } },              // tips: the whole finger low in the frame, the cards above it
-  { t: 36.4, c: { x: 330, y: 1150, z: 0.95 } },
+  { t: 0, c: HOOK },                                         // hook: the whole hand and the pinching fingers fill 77 % of the width, frame 0 already the claim
+  { t: 3.0, c: { ...HOOK, z: 1.03 } },
+  { t: 3.9, c: { x: 580, y: 1030, z: 0.8 } },                // the sting: pull back so the piano comes in around the hand
+  { t: 4.6, c: { x: 580, y: 1030, z: 0.8 } },
+  { t: 5.7, c: { x: J.x, y: J.y, z: 2.5 } },                 // cairan: dive into the window on the middle joint
+  { t: 10.6, c: { x: J.x, y: J.y, z: 2.6 } },
+  { t: 11.8, c: { x: 650, y: 880, z: 1.5 } },                // tarik: out enough to see the pinch and the pull, and the window
+  { t: 19.4, c: { x: 650, y: 880, z: 1.5 } },
+  { t: 20.6, c: { x: J.x, y: J.y, z: 2.5 } },                // rongga: back in on the gap
+  { t: 27.4, c: { x: J.x, y: J.y, z: 2.6 } },
+  { t: 28.9, c: { x: 580, y: 700, z: 0.95 } },               // tips: the whole hand low in the frame, the cards above it
+  { t: 36.4, c: { x: 580, y: 700, z: 0.95 } },
   { t: 38.4, c: HOOK },                                      // the loop-back: exactly the first shot
   { t: 40, c: HOOK },
 ];
@@ -45,7 +46,7 @@ export function camAt(t: number): Cam {
   return { x: through(k((c) => c.x), t), y: through(k((c) => c.y), t), z: through(k((c) => c.z), t) };
 }
 
-/** The set (piano, wall, floor): plain hook background at frame 0, it comes in with the sting pull-back and goes out again at the loop end. */
+/** The set (the piano from above, a sheet, the lid): plain hook background at frame 0, it comes in with the sting pull-back and goes out again at the loop end. */
 export const SET_KEYS: Key[] = [{ t: 0, v: 0 }, { t: 3.0, v: 0 }, { t: 3.9, v: 1 }, { t: 37.6, v: 1 }, { t: 39.2, v: 0 }, { t: 40, v: 0 }];
 export const setAt = (t: number) => through(SET_KEYS, t);
 
@@ -53,23 +54,20 @@ export const setAt = (t: number) => through(SET_KEYS, t);
 export const WIN_KEYS: Key[] = [{ t: 0, v: 0 }, { t: 4.9, v: 0 }, { t: 5.7, v: 1 }, { t: 28.0, v: 1 }, { t: 28.8, v: 0 }, { t: 40, v: 0 }];
 export const winAt = (t: number) => through(WIN_KEYS, t);
 
-/** The bend of the middle joint and of the last joint (degrees, + is toward the keys, - is bent back). The finger is pulled back, held, and the joint gives way. */
-export const PIP_KEYS: Key[] = [
-  { t: 0, v: 28 }, { t: 3, v: 28 }, { t: 4.4, v: 12 }, { t: 11, v: 12 }, { t: 12.5, v: 4 }, { t: 14.5, v: -2 }, { t: 16.2, v: -6 },
-  { t: 16.8, v: -12 }, { t: 26, v: -12 }, { t: 26.45, v: -15 }, { t: 27.1, v: -12 }, { t: 28.8, v: 12 }, { t: 36.4, v: 12 }, { t: 38.4, v: 28 }, { t: 40, v: 28 },
-];
-export const DIP_KEYS: Key[] = [
-  { t: 0, v: 18 }, { t: 3, v: 18 }, { t: 4.4, v: 8 }, { t: 11, v: 8 }, { t: 14.5, v: 0 }, { t: 16.8, v: -6 }, { t: 26, v: -6 }, { t: 28.8, v: 8 },
-  { t: 36.4, v: 8 }, { t: 38.4, v: 18 }, { t: 40, v: 18 },
-];
-export const pipAt = (t: number) => through(PIP_KEYS, t);
-export const dipAt = (t: number) => through(DIP_KEYS, t);
-
 /** The gap between the two bone ends (px): a thin film at rest, it resists the pull, then the surfaces let go all at once. */
 export const GAP_KEYS: Key[] = [
   { t: 0, v: 6 }, { t: 11.8, v: 6 }, { t: 16.2, v: 10 }, { t: 16.5, v: 10 }, { t: 16.8, v: 42 }, { t: 28.8, v: 42 }, { t: 29.4, v: 6 }, { t: 40, v: 6 },
 ];
 export const gapAt = (t: number) => through(GAP_KEYS, t);
+/** How far the pulling hand has drawn the fingertip away (px, on top of the gap): a light pull already in the hook, none while the window explains, a held pull before the crack. */
+export const PULL_KEYS: Key[] = [
+  { t: 0, v: 12 }, { t: 3, v: 12 }, { t: 4.4, v: 0 }, { t: 11.8, v: 0 }, { t: 16.2, v: 16 }, { t: 16.5, v: 16 }, { t: 16.8, v: 4 }, { t: 26, v: 4 }, { t: 26.45, v: 10 }, { t: 27.1, v: 4 },
+  { t: 28.8, v: 0 }, { t: 36.4, v: 0 }, { t: 38.4, v: 12 }, { t: 40, v: 12 },
+];
+export const pullAt = (t: number) => through(PULL_KEYS, t);
+/** The pulling hand's sideways slide (px to the right, off the frame): it is gone while the tip cards show and comes back for the loop. */
+export const AWAY_KEYS: Key[] = [{ t: 0, v: 0 }, { t: 28.4, v: 0 }, { t: 29.4, v: 560 }, { t: 36.4, v: 560 }, { t: 38.2, v: 0 }, { t: 40, v: 0 }];
+export const awayAt = (t: number) => through(AWAY_KEYS, t);
 
 /** The pressure of the fluid (1 normal, low after the surfaces let go). */
 export const PRESS_KEYS: Key[] = [{ t: 0, v: 1 }, { t: 16.6, v: 1 }, { t: 19.6, v: 0.22 }, { t: 28.8, v: 0.22 }, { t: 29.4, v: 1 }, { t: 40, v: 1 }];
@@ -79,16 +77,16 @@ export const PRESSURE = { a: 16.4, b: 28.4 };
 /** The gas dissolved in the fluid gathers (0..1) from GATHER.a and the cavity opens on CRACK (the word "krek"). */
 export const GATHER = { a: 22.0, b: 26.3 };
 export const CRACK = 26.4;
-/** The pull arrow on the fingertip. */
+/** The pull arrow above the fingertip. */
 export const PULL = { a: 12.0, b: 16.7 };
 /** The labels (screen space; `at` is the world point the leader line ends on). */
 export type SLabel = { text: string; x: number; y: number; from: number; to: number; at?: [number, number] };
 export const LABELS: SLabel[] = [
-  { text: "tulang", x: 250, y: 640, from: 6.0, to: 10.4, at: [270, 1262] },
-  { text: "cairan sendi", x: 760, y: 640, from: 7.6, to: 10.4, at: [J.x, J.y - 40] },
-  { text: "ditarik", x: 800, y: 800, from: 12.1, to: 16.6 },
-  { text: "tekanan turun", x: 560, y: 560, from: 18.7, to: 22.0 },
-  { text: "rongga gas", x: 700, y: 640, from: 25.9, to: 27.9, at: [J.x, J.y] },
+  { text: "tulang", x: 250, y: 1330, from: 6.0, to: 10.4, at: [J.x, J.y + 120] },
+  { text: "cairan sendi", x: 790, y: 640, from: 7.6, to: 10.4, at: [J.x + 40, J.y - 40] },
+  { text: "ditarik", x: 800, y: 620, from: 12.1, to: 16.6 },
+  { text: "tekanan turun", x: 600, y: 560, from: 18.7, to: 22.0 },
+  { text: "rongga gas", x: 770, y: 700, from: 25.9, to: 27.9, at: [J.x, J.y] },
 ];
 export const CARDS = [{ a: 28.9, out: 36.6 }, { a: 33.2, out: 36.6 }];
 
@@ -107,9 +105,9 @@ export function makePlan(story: StoryT) {
   };
 }
 
-/** The hero's box at time t, in the 1080 px frame (x, y centre, w, h): the finger and the hand (760 world px wide), or the window while it is open. */
+/** The hero's box at time t, in the 1080 px frame (x, y centre, w, h): the hand with the pinching fingers (800 world px wide), or the window while it is open. */
 export const HERO_BOX_AT = (t: number) => {
   const c = camAt(t);
-  if (winAt(t) > 0.5) return { x: 540 + (J.x - c.x) * c.z, y: 960 + (J.y - c.y) * c.z, w: 350 * c.z, h: 240 * c.z };
-  return { x: 540 + (300 - c.x) * c.z, y: 960 + (1260 - c.y) * c.z, w: 760 * c.z, h: 260 * c.z };
+  if (winAt(t) > 0.5) return { x: 540 + (J.x - c.x) * c.z, y: 960 + (J.y - c.y) * c.z, w: 250 * c.z, h: 350 * c.z };
+  return { x: 540 + (640 - c.x) * c.z, y: 960 + (1250 - c.y) * c.z, w: 780 * c.z, h: 1090 * c.z };
 };
