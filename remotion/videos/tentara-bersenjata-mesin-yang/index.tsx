@@ -36,17 +36,17 @@ const EMU_C = (t: number, j: number) => OC + 3.5 + 0.5 * j + (t - 21.78) * 6;
 const TRUCK_F = (t: number) => (t < 41.5 ? OF + 1 + Math.max(0, t - 38.04) * 4.2 : OF + 12 - (t - 41.5) * 5.2);
 
 const SHOTS: Shot[] = [
-  { from: 0, a: HOOK, b: C(0.1, 1.3, 3.15, 0, 1.25, 0) },                                                  // Tiga tentara berangkat melawan burung emu
+  { from: 0, a: HOOK, b: C(4.94, 1.3, 3.15, 4.84, 1.25, 0) },                                                  // Tiga tentara berangkat melawan burung emu
   { from: 4.4, a: C(-4.5, 1.5, 3.6, -3, 1.1, -1), b: C(-2.6, 1.5, 3.2, -2, 1.1, -1) },                      // para veteran perang bertani gandum
   { from: 6.9, a: C(0.5, 1.5, -1.5, 3, 1.1, -12), b: C(2.5, 1.4, -3.0, 4, 1.1, -12) },                           // ribuan emu setinggi satu setengah meter
   { from: 9.2, a: C(3.0, 0.55, -4.5, 4.5, 0.8, -10), b: C(3.6, 0.6, -5.2, 5, 0.8, -11) },                    // menginjak ladangnya
-  { from: 11.1, a: C(-1.6, 1.2, 4.6, 0, 1.1, 0), b: C(-0.8, 1.2, 4.0, 0.2, 1.1, 0) },                      // tentara dikirim dengan dua senapan mesin
-  { from: 13.42, a: C(0.4, 1.2, 4.2, 1.1, 1.0, -9), b: C(0.5, 1.2, 3.9, 1.4, 1.0, -9) },                  // tembakan pertama: emu bubar
-  { from: 17.54, a: C(1.1, 1.3, 2.4, 0.5, 1.25, 1.0), b: C(1.0, 1.3, 2.0, 0.4, 1.25, 1.0) },              // susah sekali membidiknya
-  { from: 19.38, a: C(OB + 1, 1.3, 7, OB + 4, 1.1, 0), b: C(OB + 2.5, 1.3, 6, OB + 5, 1.1, 0) },     // disergap di sumber air, senapan macet
+  { from: 11.1, a: C(-0.5, 1.3, 6.5, 0.3, 1.1, 0), b: C(0.2, 1.3, 6.0, 0.5, 1.1, 0) },                      // tentara dikirim dengan dua senapan mesin
+  { from: 13.42, a: C(-1.2, 1.3, 6.8, 1.1, 1.0, -2.5), b: C(-0.9, 1.25, 6.3, 1.7, 1.05, -3.5) },                  // tembakan pertama: emu bubar
+  { from: 17.54, a: C(0.9, 1.3, 4.6, 0.5, 1.2, 0.9), b: C(0.8, 1.3, 4.0, 0.6, 1.2, 0.9) },              // susah sekali membidiknya
+  { from: 19.38, a: C(OB + 2.4, 1.3, 7.5, OB + 3.5, 1.1, 0), b: C(OB + 3, 1.3, 6.5, OB + 3.6, 1.1, 0) },     // disergap di sumber air, senapan macet
   { from: 21.78, a: C(OC + 0.5, 1.7, 17, OC + 2, 1.0, -1), b: C(OC + 12, 1.7, 17, OC + 13.6, 1.0, -1) },        // dikejar pakai truk
   { from: 24.1, a: C(OC + 13.5, 2.0, 20, OC + 15, 1.0, -1), b: C(OC + 22, 2.0, 20, OC + 23.5, 1.0, -1) },        // emu berlari lebih cepat
-  { from: 25.68, a: C(OD - 1.7, 1.2, 9.5, OD - 1.6, 1.0, 0), b: C(OD - 1.5, 1.25, 8.3, OD - 1.4, 1.0, 0) },        // kulit emu tebal, peluru nyasar
+  { from: 25.68, a: C(OD - 2.6, 1.3, 11, OD - 2.5, 1.0, 0), b: C(OD - 2.4, 1.3, 9.5, OD - 2.3, 1.0, 0) },        // kulit emu tebal, peluru nyasar
   { from: 28.74, a: C(OD - 2.8, 1.3, 8, OD - 1.8, 1.0, 0), b: C(OD - 1.8, 1.3, 8, OD - 0.6, 1.0, 0) },    // tertembak tapi tetap lari
   { from: 31.34, a: C(OE - 1.5, 1.4, 4.0, OE, 1.3, 0), b: C(OE - 0.5, 1.4, 3.4, OE, 1.3, 0) },             // beritanya menyebar, parlemen bercanda
   { from: 34.38, a: C(OE + 5.8, 1.5, 8.6, OE + 5.8, 1.3, 0), b: C(OE + 5.8, 1.5, 7.6, OE + 5.8, 1.3, 0) },   // medali pantasnya buat emu
@@ -88,15 +88,15 @@ const beatsAt = (beats: Beat[], t: number, ph = 0) => {
 /** How one person moves when nothing else is asked of them: paces about, bobs, tilts and nods the head, gestures. Every person differs (B51). */
 type Persona = { pace: number; per: number; ph: number; bob: number; bobF: number; tilt: number; tiltF: number; nod: number; nodF: number; gest: number; gestF: number };
 const PERSONA: Record<string, Persona> = {
-  kom:   { pace: 0.55, per: 5.2, ph: 0.0, bob: 0.0,   bobF: 0,   tilt: 0.06, tiltF: 0.7, nod: 6,  nodF: 1.1, gest: 0.9, gestF: 0.45 },   // the commander: slow pacing, points and orders
-  sol1:  { pace: 0.3,  per: 2.3, ph: 1.3, bob: 0.035, bobF: 2.6, tilt: 0.12, tiltF: 1.7, nod: 10, nodF: 2.2, gest: 0.0, gestF: 0 },      // the cheerful private: bounces on his toes, looks around
-  sol2:  { pace: 0.4,  per: 3.4, ph: 2.4, bob: 0.0,   bobF: 0,   tilt: 0.09, tiltF: 1.2, nod: 4,  nodF: 0.8, gest: 0.7, gestF: 0.8 },    // the nervous private: shifts his weight, fidgets with his hands
-  farm1: { pace: 0.4,  per: 4.1, ph: 0.5, bob: 0.0,   bobF: 0,   tilt: 0.07, tiltF: 0.9, nod: 5,  nodF: 1.4, gest: 0.9, gestF: 0.6 },
-  farm2: { pace: 0.25, per: 2.9, ph: 3.1, bob: 0.03,  bobF: 2.1, tilt: 0.1,  tiltF: 1.5, nod: 8,  nodF: 1.9, gest: 0.6, gestF: 1.0 },
-  parl1: { pace: 0.3,  per: 4.7, ph: 1.9, bob: 0.0,   bobF: 0,   tilt: 0.05, tiltF: 0.6, nod: 5,  nodF: 1.0, gest: 0.8, gestF: 0.5 },
-  parl2: { pace: 0.25, per: 3.3, ph: 4.2, bob: 0.02,  bobF: 1.6, tilt: 0.11, tiltF: 1.3, nod: 7,  nodF: 1.6, gest: 0.5, gestF: 0.9 },
+  kom:   { pace: 0, per: 5.2, ph: 0.0, bob: 0.0,   bobF: 0,   tilt: 0.06, tiltF: 0.7, nod: 6,  nodF: 1.1, gest: 0.9, gestF: 0.45 },   // the commander: slow pacing, points and orders
+  sol1:  { pace: 0,  per: 2.3, ph: 1.3, bob: 0.035, bobF: 2.6, tilt: 0.12, tiltF: 1.7, nod: 10, nodF: 2.2, gest: 0.0, gestF: 0 },      // the cheerful private: bounces on his toes, looks around
+  sol2:  { pace: 0,  per: 3.4, ph: 2.4, bob: 0.0,   bobF: 0,   tilt: 0.09, tiltF: 1.2, nod: 4,  nodF: 0.8, gest: 0.7, gestF: 0.8 },    // the nervous private: shifts his weight, fidgets with his hands
+  farm1: { pace: 0,  per: 4.1, ph: 0.5, bob: 0.0,   bobF: 0,   tilt: 0.07, tiltF: 0.9, nod: 5,  nodF: 1.4, gest: 0.9, gestF: 0.6 },
+  farm2: { pace: 0, per: 2.9, ph: 3.1, bob: 0.03,  bobF: 2.1, tilt: 0.1,  tiltF: 1.5, nod: 8,  nodF: 1.9, gest: 0.6, gestF: 1.0 },
+  parl1: { pace: 0,  per: 4.7, ph: 1.9, bob: 0.0,   bobF: 0,   tilt: 0.05, tiltF: 0.6, nod: 5,  nodF: 1.0, gest: 0.8, gestF: 0.5 },
+  parl2: { pace: 0, per: 3.3, ph: 4.2, bob: 0.02,  bobF: 1.6, tilt: 0.11, tiltF: 1.3, nod: 7,  nodF: 1.6, gest: 0.5, gestF: 0.9 },
 };
-type Track = { idle?: boolean; a: number; b: number; pos: (t: number) => [number, number, number?]; faces: [number, Expr, Arms][]; beats?: Beat[]; h?: number };
+type Track = { idle?: boolean; flip?: boolean; a: number; b: number; pos: (t: number) => [number, number, number?]; faces: [number, Expr, Arms][]; beats?: Beat[]; h?: number };
 const stay = (x: number, z: number) => (): [number, number] => [x, z];
 const walk = (a: number, b: number, x0: number, z0: number, x1: number, z1: number) => (t: number): [number, number] => { const k = ease(prog(t, a, b)); return [lerp(x0, x1, k), lerp(z0, z1, k)]; };
 const inTruckF = (dx: number) => (t: number): [number, number, number] => [TRUCK_F(t) + dx, -0.2, 0.72];
@@ -104,25 +104,72 @@ const inTruckF = (dx: number) => (t: number): [number, number, number] => [TRUCK
 /** The three soldiers: the same pattern of places for each (i = 0 commander, 1 and 2 privates). */
 const soldier = (i: number): Track[] => {
   const A: [number, number][] = [[0, 0], [-0.85, -0.7], [0.85, -0.9]];
-  const B: [number, number][] = [[OB + 3.6, 1.6], [OB + 3.0, 1.9], [OB + 4.2, 1.4]];
+  const POST: [number, number][] = [[-1.05, 0.3], [0.45, 0.88], [-0.35, 0.45]];   // the gun is at the sol1's right hand: the commander watches, sol2 stands behind him and feeds the belt
+  const B: [number, number][] = [[OB + 4.4, 1.5], [OB + 3.4, 1.6], [OB + 2.5, 1.9]];
   const D: [number, number][] = [[OD - 1.8, 0.6], [OD - 3.4, 1.1], [OD - 2.6, -0.4]];
   const G: [number, number][] = [[OG + 5.5, -9], [OG + 6.5, -9.4], [OG + 7.3, -9]];
-  const F = [-0.9, -0.2, 0.5][i], home = [0, -0.85, 0.85][i], homeZ = [0, -0.7, -0.9][i];
-  const faceSets: [Expr, Arms][][] = [[["calm", "hips"], ["grin", "hips"], ["furious", "point"], ["shocked", "hips"]], [["calm", "down"], ["sly", "down"], ["grin", "up"], ["sleepy", "down"]], [["puzzled", "down"], ["calm", "belly"], ["shocked", "up"], ["sleepy", "shrug"]]];
-  const fs = faceSets[i];
-  const [ax, az] = A[i], [bx, bz] = B[i], [dx, dz] = D[i], [gx, gz] = G[i];
-  const truckMan: Track[] = i === 1 ? [{ a: 21.78, b: 24.1, pos: (t: number): [number, number, number] => [TRUCK_C(t) - 0.7, -1.5, 0.72], faces: [[21.78, "furious", "up"]], beats: [["shake", 21.8, 24.1, 0.03]] }] : [];
+  const F = [-0.9, -0.2, 0.5][i], home = [0, -0.85, 0.85][i], homeZ = [0, -0.7, -0.9][i], TR = [-0.15, -0.8, -1.45][i];
+  type F3 = [number, Expr, Arms][];
+  const fMarch: F3[] = [[[0, "calm", "down"]], [[0, "grin", "down"]], [[0, "puzzled", "down"]]];
+  const fStay: F3[] = [[[4.4, "calm", "hips"]], [[4.4, "calm", "down"], [9.2, "sly", "belly"]], [[4.4, "puzzled", "down"], [9.2, "calm", "belly"]]];
+  const fWalk: F3[] = [[[11.1, "grin", "point"]], [[11.1, "grin", "down"]], [[11.1, "calm", "down"]]];
+  const fPost: F3[] = [
+    [[12.3, "furious", "point"], [13.42, "shocked", "binoc"], [17.54, "furious", "hips"]],
+    [[12.3, "grin", "aim"], [13.42, "furious", "aim"], [17.54, "puzzled", "aim"]],
+    [[12.3, "grin", "feed"], [13.42, "shocked", "feed"], [17.54, "sleepy", "shrug"]],
+  ];
+  const fB: F3[] = [[[19.38, "furious", "point"], [20.6, "furious", "up"]], [[19.38, "sly", "aim"], [20.6, "shocked", "aim"]], [[19.38, "puzzled", "down"], [20.6, "shocked", "up"]]];
+  const fC: F3[] = [[[21.78, "furious", "point"], [24.1, "shocked", "up"]], [[21.78, "furious", "aim"]], [[21.78, "shocked", "up"]]];
+  const fD: F3[] = [[[25.68, "calm", "hips"], [HIT, "shocked", "up"], [28.74, "puzzled", "shrug"]], [[25.68, "calm", "aim"], [HIT - 0.4, "furious", "aim"], [HIT + 0.3, "shocked", "up"], [28.74, "puzzled", "shrug"]], [[25.68, "calm", "belly"], [HIT, "shocked", "up"], [28.74, "sleepy", "shrug"]]];
+  const fG: F3[] = [[[43.52, "calm", "down"], [49.0, "shocked", "up"]], [[43.52, "calm", "down"], [49.0, "furious", "aim"], [50.8, "shocked", "down"]], [[43.52, "calm", "down"], [49.0, "shocked", "up"]]];
+  const [ax, az] = A[i], [px, pz] = POST[i], [bx, bz] = B[i], [dx, dz] = D[i], [gx, gz] = G[i];
   return [
-    { a: 0, b: 19.38, idle: true, pos: stay(ax, az), faces: [[0, fs[0][0], fs[0][1]], [11.1, fs[1][0], fs[1][1]], [13.42, fs[2][0], fs[2][1]], [17.54, fs[3][0], fs[3][1]]], beats: [["hop", 12.0 + i * 0.25, 12.4 + i * 0.25, 0.1], ["lean", 4.5, 6.5, 0.04 * (i - 1)], ["shake", 13.5, 17.4, 0.02 + 0.01 * i], ["hop", 14.0, 14.3, 0.06]] },
-    { a: 19.38, b: 21.78, idle: true, pos: stay(bx, bz), faces: [[19.38, "sly", "down"], [20.6, i === 0 ? "furious" : "shocked", i === 1 ? "up" : "hips"]], beats: [["shake", 20.6, 21.7, 0.05], ["hop", 20.95, 21.25, 0.1]] },
-    ...truckMan,
-    { a: 25.68, b: 31.34, idle: true, pos: stay(dx, dz), faces: [[25.68, "calm", "hips"], [HIT, "shocked", "up"], [28.74, "puzzled", "shrug"]], beats: [["hop", HIT, HIT + 0.3, 0.12], ["lean", 28.8, 30.8, 0.05 * (i - 1)]] },
+    { a: 0, b: 4.4, pos: (t: number): [number, number] => [ax + 1.1 * t, az], faces: fMarch[i] },   // they march out (the camera walks with them), mid-stride at frame 0
+    { a: 4.4, b: 11.1, idle: true, pos: stay(ax, az), faces: fStay[i] },
+    { a: 11.1, b: 12.3, pos: walk(11.1, 12.3, ax, az, px, pz), faces: fWalk[i] },                                   // they take their posts at the gun
+    { a: 12.3, b: 19.38, idle: true, pos: stay(px, pz), faces: fPost[i], beats: i === 0 ? [["hop", 13.42, 13.7, 0.05]] : [] },
+    { a: 19.38, b: 21.78, idle: true, pos: stay(bx, bz), faces: fB[i], beats: [["shake", 20.6, 21.7, 0.03 + 0.01 * i], ["hop", 20.95, 21.25, 0.1]] },
+    { a: 21.78, b: 25.68, flip: i !== 1, pos: (t: number): [number, number, number] => [TRUCK_C(t) + TR, -1.5, 0.72], faces: fC[i], beats: [["lean", 22, 25, 0.03]] },   // all three ride the truck
+    { a: 25.68, b: 31.34, idle: true, pos: stay(dx, dz), faces: fD[i], beats: [["hop", HIT, HIT + 0.3, 0.12], ["lean", 28.8, 30.8, 0.05 * (i - 1)]] },
     { a: 38.04, b: 40.12, pos: inTruckF(F), faces: [[38.04, "sleepy", "down"]], beats: [["lean", 38.2, 40, 0.04]] },
     { a: 41.5, b: 43.52, pos: inTruckF(F), faces: [[41.5, "grin", "wave"]], beats: [["shake", 41.5, 43.5, 0.03]] },
-    { a: 43.52, b: 51.16, idle: true, pos: stay(gx, gz), faces: [[43.52, "calm", "down"], [49.0, "shocked", "up"]], beats: [["hop", 49.3, 49.6, 0.1]] },
+    { a: 43.52, b: 51.16, idle: true, flip: i === 1, pos: stay(gx, gz), faces: fG[i], beats: [["hop", 49.3, 49.6, 0.1]] },
     { a: 51.16, b: 53.0, pos: walk(51.16, 53.0, home, -0.8, 5.6 + 0.3 * i, -1.2), faces: [[51.16, "sleepy", "down"]], beats: [["lean", 51.2, 53, 0.05]] },
     { a: 56.8, b: 58.96, pos: walk(56.8, 58.2, 6.5 + i * 0.9, -0.6, home, homeZ), faces: [[56.8, "furious", "down"], [58.3, "calm", "hips"]], beats: [["shake", 56.8, 58.2, 0.03]] },
   ];
+};
+
+// ---------- one person's state at a time: where, which pose, how they move (the gun reads it to sit in the right hand) ------------------------
+type AState = { x: number; y: number; z: number; flip: boolean; expr: Expr; arms: Arms; hop: number; lean: number; act: number; step: number; tilt: number; nod: number; h: number };
+const BURSTS: [number, number][] = [[14.05, 14.7], [15.1, 15.7], [16.3, 16.9], [22.2, 23.0], [23.6, 24.4], [HIT - 0.4, HIT + 0.3], [49.6, 50.8]];
+const firing = (t: number) => BURSTS.some(([a, b]) => t >= a && t < b);
+const stateOf = (a: { id: string; tracks: Track[] }, t: number, f: number): AState | null => {
+  const tr = a.tracks.find((k) => t >= k.a && t < k.b);
+  if (!tr) return null;
+  const P = PERSONA[a.id] ?? PERSONA.kom, w = (Math.PI * 2) / P.per;
+  const off = (s: number) => (tr.idle ? P.pace * Math.sin(w * s + P.ph) : 0);
+  const [bx, z, y = 0] = tr.pos(t), x = bx + off(t), x2 = tr.pos(t + 0.05)[0] + off(t + 0.05), x1 = tr.pos(t - 0.05)[0] + off(t - 0.05);
+  const m = beatsAt(tr.beats ?? [], t, P.ph), [, expr, arms] = stepAt(tr.faces, t);
+  const moving = Math.abs(x2 - x1) > 0.012;
+  const flip = tr.flip ?? (moving ? x2 < x1 - 0.002 : false);
+  const gesturing = P.gest > 0 && (arms === "down" || arms === "belly") && Math.sin(t * P.gestF * 2 + P.ph) > 0.1;
+  const kick = a.id === "sol1" && firing(t) ? (f % 2 ? -0.035 : 0.01) : 0, kickHop = a.id === "sol1" && firing(t) ? 0.012 * (f % 2) : 0;   // the gun kicks the one who holds it
+  return {
+    x, y, z, flip, expr, arms, h: tr.h ?? 1.7, act: gesturing ? P.gest : 0, step: moving ? f * (tr.idle ? 0.42 : 0.55) : 0,
+    hop: m.hop + kickHop + P.bob * Math.abs(Math.sin(t * P.bobF * Math.PI + P.ph)), lean: m.lean + kick + 0.025 * Math.sin(t * 1.3 + P.ph),
+    tilt: P.tilt * Math.sin(t * P.tiltF + P.ph), nod: P.nod * Math.sin(t * P.nodF * 2 + P.ph * 2),
+  };
+};
+/** The machine gun is always in somebody's hand: sol1's right hand (the sprite's hand is 0.30 right of the body and 0.83 up), or on its tripod once nobody holds it. */
+const gunPose = (t: number, f: number): { x: number; y: number; z: number; yaw: number; held: boolean; fire: boolean; s: number } | null => {
+  if (t < 12.02 || t >= 51.1) return null;
+  const s1 = stateOf(ACTORS[1], t, f);
+  const fire = firing(t) && Math.floor(f / 2) % 2 === 0, u = t - 12.02, s = u < 0.35 ? 1 + 0.25 * Math.sin((u / 0.35) * Math.PI) : 1;
+  if (t >= HIT + 0.5 && t < 43.52) return { x: OD - 3.1, y: 0, z: 1.12, yaw: 0, held: false, fire: false, s };   // put down after the hit
+  if (!s1) return null;
+  const side = s1.flip ? -1 : 1;
+  const yaw = t < 19.38 ? 0.3 + (t >= 17.54 ? 0.3 * Math.sin((t - 17.54) * 3.2) : 0) : t >= 43.52 ? Math.PI : 0;   // stage A: the barrel points the way he faces (out to the right, a little into the field), sweeping while he can not aim
+  return { x: s1.x + side * 0.3, y: s1.y + 0.21, z: s1.z + 0.05, yaw, held: true, fire, s };
 };
 const ACTORS: { id: string; o: Outfit; tracks: Track[] }[] = [
   { id: "kom", o: KOM, tracks: soldier(0) },
@@ -213,9 +260,10 @@ const Emu: React.FC<{ x: number; y?: number; z: number; yaw: number; mode: EmuMo
   };
 
 // ---------- props ------------------------------------------------------------------------------------------------------------------------
-const Gun: React.FC<{ x: number; y?: number; z: number; yaw: number; f: number; fire?: boolean; flash: THREE.Texture; s?: number }> = ({ x, y = 0, z, yaw, f, fire = false, flash, s = 1 }) => (
+const Gun: React.FC<{ x: number; y?: number; z: number; yaw: number; f: number; fire?: boolean; flash: THREE.Texture; s?: number; held?: boolean }> = ({ x, y = 0, z, yaw, f, fire = false, flash, s = 1, held = false }) => (
   <group position={[x, y, z]} rotation={[0, yaw, 0]} scale={s}>
-    {([[0, 0.3, 0.18, 0.5, 0, 0], [0, 0.3, -0.18, -0.5, 0, 0], [-0.22, 0.3, 0, 0, 0, 0.5]] as number[][]).map((l, i) => <mesh key={i} position={[l[0], l[1], l[2]]} rotation={[l[3], l[4], l[5]]}><cylinderGeometry args={[0.02, 0.02, 0.66, 6]} /><meshStandardMaterial color="#3a3d36" roughness={0.6} /></mesh>)}
+    {held && <><TBox size={[0.06, 0.2, 0.06]} pos={[0.0, 0.5, 0]} color="#2a2d27" /><TBox size={[0.32, 0.1, 0.07]} pos={[-0.3, 0.62, 0]} color="#5a4630" /><TBox size={[0.2, 0.14, 0.12]} pos={[0.1, 0.5, 0.09]} color="#4b5033" /></>}
+    {!held && ([[0, 0.3, 0.18, 0.5, 0, 0], [0, 0.3, -0.18, -0.5, 0, 0], [-0.22, 0.3, 0, 0, 0, 0.5]] as number[][]).map((l, i) => <mesh key={i} position={[l[0], l[1], l[2]]} rotation={[l[3], l[4], l[5]]}><cylinderGeometry args={[0.02, 0.02, 0.66, 6]} /><meshStandardMaterial color="#3a3d36" roughness={0.6} /></mesh>)}
     <TBox size={[0.5, 0.12, 0.1]} pos={[0.1, 0.62, 0]} color="#2c302a" rough={0.5} />
     <mesh position={[0.56, 0.62, 0]} rotation={[0, 0, Math.PI / 2]}><cylinderGeometry args={[0.045, 0.045, 0.72, 12]} /><meshStandardMaterial color="#454a44" roughness={0.4} metalness={0.5} /></mesh>
     <mesh position={[0.1, 0.77, 0]}><cylinderGeometry args={[0.13, 0.13, 0.05, 20]} /><meshStandardMaterial color="#34382f" roughness={0.5} /></mesh>
@@ -223,8 +271,8 @@ const Gun: React.FC<{ x: number; y?: number; z: number; yaw: number; f: number; 
   </group>
 );
 
-const Truck: React.FC<{ x: number; z: number; f: number; rolling: boolean }> = ({ x, z, f, rolling }) => (
-  <group position={[x, 0, z]}>
+const Truck: React.FC<{ x: number; z: number; f: number; rolling: boolean; yaw?: number }> = ({ x, z, f, rolling, yaw = 0 }) => (
+  <group position={[x, 0, z]} rotation={[0, yaw, 0]}>
     <TBox size={[3.5, 0.18, 1.1]} pos={[0.3, 0.5, 0]} color="#2c3326" />
     <TBox size={[2.0, 0.3, 1.3]} pos={[-0.55, 0.7, 0]} color="#4f5e34" />
     {[0.62, -0.62].map((zz) => <TBox key={zz} size={[2.0, 0.42, 0.07]} pos={[-0.55, 1.06, zz]} color="#586a38" />)}
@@ -388,7 +436,6 @@ const World: React.FC<{ t: number; f: number }> = ({ t, f }) => {
     <Emu key={key} x={x} z={z} yaw={yaw} mode={mode} f={f} ph={ph} s={s} shadow={tex.blob} fur={tex.fur} {...extra} />;
 
   // stage A: the wheat field, the farm, the soldiers' place (hook, farm, mob, shooting, the end)
-  const gunFire = t >= 14.05 && t < 17.4;
   const aEmus = MOB_A.map((e, i) => {
     if (t < 14.05) return emu(i, e.x + t * 0.2 * Math.cos(e.yaw), e.z - t * 0.2 * Math.sin(e.yaw), e.yaw, i % 3 === 0 ? "graze" : "walk", e.ph, e.s);
     const r = flee(e, t, 14.05 + 0.05 * (i % 4), GUN0, 7.5, 2.6, 40 + i);
@@ -445,7 +492,6 @@ const World: React.FC<{ t: number; f: number }> = ({ t, f }) => {
           <Tree x={-9.5} z={-10} />
           <Bush x={-2} z={-8} />
           <Truck x={t >= 52.4 && t < 56.8 ? 6.5 + Math.max(0, t - 52.9) * 6 : 6.5} z={-2.2} f={f} rolling={t >= 52.9 && t < 56.8} />
-          {t < 51.1 && <Gun x={GUN0[0]} z={GUN0[1]} yaw={Math.PI / 2} f={f} fire={gunFire} flash={tex.flash} s={t >= 11.1 ? pop(12.02) : 1} />}
           {t >= 51.1 && <mesh position={[3.2, 0.45, -5.5]} rotation={[Math.PI / 2, 0, 0.6]}><cylinderGeometry args={[0.45, 0.45, 0.9, 20]} /><meshStandardMaterial color="#e0bd55" roughness={1} /></mesh>}
           {aEmus}
           {t >= 51.1 && a2Emus}
@@ -467,7 +513,6 @@ const World: React.FC<{ t: number; f: number }> = ({ t, f }) => {
           <mesh position={[OB + 10, 0.02, -4.5]} rotation={[-Math.PI / 2, 0, 0]} scale={[1, 0.6, 1]}><circleGeometry args={[5, 32]} /><meshStandardMaterial color="#4a9fc4" roughness={0.25} metalness={0.2} /></mesh>
           <Tree x={OB + 15} z={-9} s={1.2} /><Tree x={OB - 3} z={-8} />
           <Bush x={OB + 2.6} z={1.6} s={1.4} /><Bush x={OB + 5.6} z={2.0} s={1.2} /><Bush x={OB + 1} z={3} s={0.9} />
-          <Gun x={OB + 4.0} z={1.2} yaw={0} f={f} flash={tex.flash} />
           <Puff x={OB + 4.7} y={0.8} z={1.2} t={t} at={20.6} dur={1.0} size={0.7} tex={tex.soft} color="#9a9a9a" />
           {bEmus}
         </group>
@@ -478,7 +523,6 @@ const World: React.FC<{ t: number; f: number }> = ({ t, f }) => {
         <group>
           <Stalks n={2100} x0={OC - 4} x1={OC + 50} z0={-4} z1={3} seed={31} color="#c99a30" h={0.45} />
           <Truck x={TRUCK_C(t)} z={-1.5} f={f} rolling />
-          <Gun x={TRUCK_C(t) - 0.9} y={0.74} z={-1.3} yaw={0} f={f} flash={tex.flash} s={0.8} />
           {cEmus}
           {Array.from({ length: 10 }, (_, i) => <Puff key={i} x={TRUCK_C(Math.max(21.78, t - i * 0.12)) - 1.5} y={0.2} z={-1.5} t={t} at={t - 0.001} dur={0.4} size={0.8} tex={tex.soft} />)}
           {Array.from({ length: 8 }, (_, j) => <Puff key={`e${j}`} x={EMU_C(t, j) - 0.9} y={0.25} z={MOB_C[j].z} t={t} at={t - 0.001} dur={0.4} size={0.7} tex={tex.soft} />)}
@@ -489,7 +533,6 @@ const World: React.FC<{ t: number; f: number }> = ({ t, f }) => {
       {on(25.68, 31.4) && (
         <group>
           <Stalks n={900} x0={OD - 6} x1={OD + 14} z0={-1} z1={5} seed={41} color="#e0b84a" h={0.35} />
-          <Gun x={OD - 3.2} z={1.1} yaw={0} f={f} fire={t >= HIT - 0.4 && t < HIT + 0.3 && Math.floor(f / 2) % 2 === 0} flash={tex.flash} />
           <TBox size={[0.4, 0.4, 0.4]} pos={[OD - 4.1, 0.2, 1.4]} color="#8a6a3c" />
           {t < 28.74 ? emu("hit", OD - 0.6, 0, Math.PI, "stand", 0.5, 1.1) : emu("hit", OD - 0.6 + (t - 28.74) * 7, 0, 0, "run", 0.5, 1.1)}
           {t >= HIT && t < HIT + 0.2 && <mesh position={[lerp(OD - 2.6, OD + 0.05, prog(t, HIT, HIT + 0.18)), 1.2, 0.06]}><boxGeometry args={[0.5, 0.025, 0.025]} /><meshBasicMaterial color="#fff4a0" toneMapped={false} /></mesh>}
@@ -527,7 +570,7 @@ const World: React.FC<{ t: number; f: number }> = ({ t, f }) => {
       {on(38.04, 43.6) && (
         <group>
           <Stalks n={1500} x0={OF - 8} x1={OF + 26} z0={-3} z1={3} seed={51} color="#e0b84a" h={0.5} />
-          <Truck x={TRUCK_F(t)} z={-0.2} f={f} rolling={t > 38.5} />
+          <Truck x={TRUCK_F(t)} z={-0.2} f={f} rolling={t > 38.5} yaw={t >= 41.5 ? Math.PI : 0} />
           <TBox size={[0.18, 1.6, 0.18]} pos={[OF - 3.4, 0.8, -1.3]} color="#7a5632" />
           <TBox size={[0.18, 1.6, 0.18]} pos={[OF + 0.2, 0.8, -1.3]} color="#7a5632" />
           <TBox size={[3.6, 0.1, 0.1]} pos={[OF - 1.6, 1.5, -1.3]} color="#9a7448" />
@@ -548,7 +591,6 @@ const World: React.FC<{ t: number; f: number }> = ({ t, f }) => {
           {gEmus}
           {t >= 45.9 && t < 47.7 && <mesh position={[OG, 3.5 + 0.1 * Math.sin(f * 0.3), -1]} rotation={[Math.PI, 0, 0]}><coneGeometry args={[0.18, 0.34, 3]} /><meshBasicMaterial color="#ffd23a" toneMapped={false} /></mesh>}
           {t >= 47.86 && t < 49.6 && <sprite position={[OG + 0.3, 3.6, -1]} scale={[0.7 * pop(47.86), 0.88 * pop(47.86), 1]}><spriteMaterial map={tex.bang} transparent toneMapped={false} depthWrite={false} /></sprite>}
-          <Gun x={OG + 6.2} z={-8.6} yaw={Math.PI} f={f} fire={t >= 49.6 && t < 50.8 && Math.floor(f / 2) % 2 === 0} flash={tex.flash} s={1.3} />
         </group>
       )}
     </group>
@@ -592,18 +634,12 @@ export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = () => {
   cam = shake(cam, t, HIT + 0.18, 0.06, 0.5);
   const hookA = t0 >= LOOP_AT ? 1 : t0 < 4.0 ? 1 : t0 < 4.4 ? 1 - (t0 - 4.0) / 0.4 : 0;
   const actors = ACTORS.map((a) => {
-    const tr = a.tracks.find((k) => t >= k.a && t < k.b);
-    if (!tr) return null;
-    const P = PERSONA[a.id], w = (Math.PI * 2) / P.per;
-    const off = (s: number) => (tr.idle ? P.pace * Math.sin(w * s + P.ph) : 0);
-    const [bx, z, y = 0] = tr.pos(t), x = bx + off(t), x2 = tr.pos(t + 0.05)[0] + off(t + 0.05), x1 = tr.pos(t - 0.05)[0] + off(t - 0.05);
-    const m = beatsAt(tr.beats ?? [], t, P.ph), [, expr, arms] = stepAt(tr.faces, t);
-    const moving = Math.abs(x2 - x1) > 0.012;
-    const flip = tr.idle ? Math.cos(w * t + P.ph) < 0 : x2 < x1 - 0.002;
-    const gesturing = P.gest > 0 && (arms === "down" || arms === "belly") && Math.sin(t * P.gestF * 2 + P.ph) > 0.1;
-    return <StickHero key={a.id} pos={V(x, y, z)} expr={expr} arms={arms} f={f} outfit={a.o} height={tr.h ?? 1.7} hop={m.hop + P.bob * Math.abs(Math.sin(t * P.bobF * Math.PI + P.ph))} lean={m.lean + 0.025 * Math.sin(t * 1.3 + P.ph)} act={gesturing ? P.gest : 0}
-      step={moving ? f * (tr.idle ? 0.42 : 0.55) : 0} tilt={P.tilt * Math.sin(t * P.tiltF + P.ph)} nod={P.nod * Math.sin(t * P.nodF * 2 + P.ph * 2)} flip={flip} />;
+    const s = stateOf(a, t, f);
+    if (!s) return null;
+    return <StickHero key={a.id} pos={V(s.x, s.y, s.z)} expr={s.expr} arms={s.arms} f={f} outfit={a.o} height={s.h} hop={s.hop} lean={s.lean} act={s.act} step={s.step} tilt={s.tilt} nod={s.nod} flip={s.flip} />;
   });
+  const gunP = gunPose(t, f);
+  const flashT = useMemo(() => painted(128, 128, flashTex), []);
   return (
     <AbsoluteFill style={{ backgroundColor: SKY }}>
       <ThreeCanvas width={FRAME.width} height={FRAME.height} shadows camera={{ fov: 40, near: 0.05, far: 120, position: HOOK.pos.toArray() as [number, number, number] }}>
@@ -615,6 +651,7 @@ export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = () => {
         <RicksPost cam={cam} bloom={0.3} />
         <World t={t} f={f} />
         {actors}
+        {gunP && <Gun x={gunP.x} y={gunP.y} z={gunP.z} yaw={gunP.yaw} f={f} fire={gunP.fire} flash={flashT} held={gunP.held} s={gunP.s} />}
       </ThreeCanvas>
       <div style={{ position: "absolute", left: 0, right: 0, top: 260, display: "flex", flexDirection: "column", alignItems: "center", gap: 14, opacity: hookA }}>
         {HOOK_LINES.map((l) => (

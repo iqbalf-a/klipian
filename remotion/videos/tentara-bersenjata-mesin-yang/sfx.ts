@@ -24,10 +24,10 @@ export function sfx(_story: StoryT): SfxEvent[] {
   add(24.18, "pop", "pill: emu 50 km/jam");
   add(44.38, "pop", "pill: dikabarkan");
 
-  // the guns: a crack and a shake at the first shots, then a short burst
-  add(14.05, "click-crack", "first shot", { vol: 1.2 });
+  // the guns: one crack every 0.16 s inside each burst (the bursts of BURSTS in index.tsx), the first one shakes the camera
+  const BURSTS: [number, number][] = [[14.05, 14.7], [15.1, 15.7], [16.3, 16.9], [22.2, 23.0], [23.6, 24.4], [26.5, 27.2], [49.6, 50.8]];
+  BURSTS.forEach(([a, b]) => { for (let u = a; u < b - 0.01; u += 0.16) add(u, "click-crack", "gun burst", { vol: u === a ? 1.2 : 0.7 }); });
   add(14.05, "thump", "the first shot shakes the camera", { vol: 0.8 });
-  [14.7, 15.1, 15.5, 16.2, 16.6].forEach((t) => add(t, "click-crack", "gun burst", { vol: 0.7 }));
   add(20.4, "metal-clang", "the gun jams", { vol: 0.9 });
   add(20.9, "error-buzz", "the gun jams", { vol: 0.6 });
 

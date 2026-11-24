@@ -109,7 +109,7 @@ export const TBox: React.FC<{ size: [number, number, number]; pos: [number, numb
 
 // ---------- the stick cast -----------------------------------------------------------------------------------------------------
 export type Expr = "hungry" | "grin" | "sly" | "calm" | "puzzled" | "sleepy" | "shocked" | "furious";
-export type Arms = "belly" | "wave" | "down" | "point" | "up" | "shrug" | "hips";
+export type Arms = "belly" | "wave" | "down" | "point" | "up" | "shrug" | "hips" | "aim" | "feed" | "binoc" | "salute";
 /** What makes one stick person look like nobody else in the video (ian: vary the people): shirt colours, and optionally a hat,
    hair, a moustache and a wider body. Omitted fields give the plain look (spiky hair, slim body, no hat). */
 export type Outfit = {
@@ -141,6 +141,9 @@ export function drawStick(c: CanvasRenderingContext2D, expr: Expr, arms: Arms, b
   else if (arms === "up") { c.moveTo(190, 470); c.lineTo(120, 330); c.lineTo(100, 200); c.moveTo(322, 470); c.lineTo(392, 330); c.lineTo(412, 200); }
   else if (arms === "shrug") { c.moveTo(190, 470); c.lineTo(110, 590); c.lineTo(60, 500); c.moveTo(322, 470); c.lineTo(402, 590); c.lineTo(452, 500); }
   else if (arms === "hips") { c.moveTo(190, 470); c.lineTo(110, 560); c.lineTo(192, 620); c.moveTo(322, 470); c.lineTo(402, 560); c.lineTo(320, 620); }
+  else if (arms === "aim") { c.moveTo(322, 470); c.lineTo(402, 500); c.lineTo(440, 522); c.moveTo(190, 470); c.lineTo(110, 560); c.lineTo(192, 620); }   // the right hand reaches out to hold a prop at about (440, 522) of the canvas, the left braces on the hip
+  else if (arms === "feed") { c.moveTo(322, 470); c.lineTo(392, 550); c.lineTo(432, 600); c.moveTo(190, 470); c.lineTo(130, 600); c.lineTo(150, 690); }   // the right hand works at a prop low at its side (a belt, a box)
+  else if (arms === "binoc" || arms === "salute") { c.moveTo(190, 470); c.lineTo(140, 640); c.lineTo(150, 700); c.moveTo(322, 470); c.lineTo(372, 640); c.lineTo(362, 700); }   // drawn with the head, over the face
   else if (arms === "belly") { c.moveTo(190, 470); c.lineTo(150, 590); c.moveTo(322, 470); c.lineTo(364, 590); }
   else if (arms === "wave") { c.moveTo(190, 470); c.lineTo(130, 640); c.lineTo(150, 700); c.moveTo(322, 470); c.lineTo(420, 380); c.lineTo(440 + wob * 30, 250); }
   else if (arms === "point") { c.moveTo(190, 470); c.lineTo(110, 380); c.lineTo(40, 260); c.moveTo(322, 470); c.lineTo(380, 640); c.lineTo(360, 700); }
@@ -214,7 +217,15 @@ export function drawStick(c: CanvasRenderingContext2D, expr: Expr, arms: Arms, b
   if (expr === "shocked") { c.fillStyle = "#7cc6ff"; c.beginPath(); c.moveTo(392, 170); c.quadraticCurveTo(410, 210, 392, 222); c.quadraticCurveTo(374, 210, 392, 170); c.fill(); }
   drawFace(c, outfit);
   if (outfit.mustache) { c.fillStyle = INK; c.beginPath(); c.moveTo(258, 318); c.quadraticCurveTo(222, 300, 196, 326); c.quadraticCurveTo(226, 318, 258, 330); c.quadraticCurveTo(290, 318, 320, 326); c.quadraticCurveTo(294, 300, 258, 318); c.fill(); }
+  if (arms === "binoc") {   // binoculars over the eyes, both forearms up to them
+    c.strokeStyle = INK; c.fillStyle = INK; c.lineWidth = 14; c.beginPath(); c.moveTo(190, 470); c.lineTo(132, 390); c.lineTo(168, 300); c.moveTo(322, 470); c.lineTo(380, 390); c.lineTo(344, 300); c.stroke();
+    c.beginPath(); c.ellipse(212, 262, 46, 38, 0, 0, 7); c.ellipse(302, 262, 46, 38, 0, 0, 7); c.fill(); c.fillRect(236, 250, 40, 20);
+    c.fillStyle = "#5c6a78"; c.beginPath(); c.ellipse(212, 262, 30, 24, 0, 0, 7); c.ellipse(302, 262, 30, 24, 0, 0, 7); c.fill();
+    c.fillStyle = "rgba(255,255,255,.6)"; c.beginPath(); c.ellipse(202, 252, 8, 6, 0, 0, 7); c.ellipse(292, 252, 8, 6, 0, 0, 7); c.fill();
+    c.fillStyle = "#fbf7ee"; c.strokeStyle = INK; c.lineWidth = 8; c.beginPath(); c.arc(168, 300, 24, 0, 7); c.arc(344, 300, 24, 0, 7); c.fill(); c.stroke();
+  }
   drawHat(c, outfit);
+  if (arms === "salute") { c.strokeStyle = INK; c.lineWidth = 14; c.beginPath(); c.moveTo(322, 470); c.lineTo(408, 380); c.lineTo(352, 190); c.stroke(); c.fillStyle = "#fbf7ee"; c.lineWidth = 8; c.beginPath(); c.arc(352, 190, 24, 0, 7); c.fill(); c.stroke(); }
   c.restore();
 }
 
