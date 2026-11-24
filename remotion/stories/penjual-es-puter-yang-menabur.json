@@ -1,0 +1,191 @@
+{
+ "bible": 1,
+ "look": "ricks",
+ "question": "Kenapa es batu dikasih garam untuk bikin es puter?",
+ "titles": [
+  "Penjual Es Puter yang Menabur Garam ke Es Batunya",
+  "Pak Darto dan Garam di Es Batu",
+  "Es Puter Beku Gara-Gara Garam"
+ ],
+ "duration": 60.0,
+ "theme": "cream",
+ "stage": "round",
+ "captions": true,
+ "music": {
+  "track": "bed-picnic",
+  "level": 0.8
+ },
+ "claims": [
+  {
+   "text": "Garam (natrium klorida) menurunkan titik beku air, sehingga campuran es dan garam bisa lebih dingin dari es biasa, sekitar minus 20 sampai minus 21 derajat Celsius (angka tepatnya sulit dikendalikan). Es yang meleleh menyerap panas dari adonan es krim, sehingga adonan membeku. Garam membuat es meleleh, bukan membuat es itu sendiri lebih dingin.",
+   "beats": [
+    "hook",
+    "ragu",
+    "panas",
+    "sains"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Freezing-point_depression",
+    "https://en.wikipedia.org/wiki/Cooling_bath",
+    "https://en.wikipedia.org/wiki/Ice_cream"
+   ]
+  }
+ ],
+ "post": {
+  "description": "Pak Darto menabur tiga genggam garam ke es batunya, dan keponakannya yakin itu bikin es meleleh. Garam menurunkan titik beku air, jadi campuran es dan garam bisa sekitar minus dua puluh derajat dan membekukan adonan. Ceritanya karangan, ilmunya nyata. Sumber: Wikipedia.",
+  "hashtags": [
+   "#esputer",
+   "#faktaseru",
+   "#sains",
+   "#shorts"
+  ]
+ },
+ "thumb": "Garam di es batu, kok *dingin*?",
+ "needs": [],
+ "beats": [
+  {
+   "id": "hook",
+   "kind": "hook",
+   "dur": 3.5,
+   "narration": "Pak Darto menabur tiga genggam garam ke es.",
+   "text": "Garam ke es batu",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Garam ke es batu",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "dunia",
+   "kind": "normal",
+   "dur": 8.5,
+   "narration": "Gerobak es puter Pak Darto mangkal di tikungan kampung. Tono, keponakannya baru pulang kuliah, melotot. \"Es kok digaramin, Pak?\"",
+   "text": "Es kok digaramin?",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Es kok digaramin?",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "ragu",
+   "kind": "normal",
+   "dur": 8.0,
+   "narration": "Pak Darto senyum saja. Katanya, \"Garamnya buat dingin, bukan buat rasa.\" Tono ngakak, \"Garam bikin es meleleh, Pak!\"",
+   "text": "Garam bikin meleleh?",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Garam bikin meleleh?",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "coba",
+   "kind": "normal",
+   "dur": 9.5,
+   "narration": "Tono bikin es puter sendiri, pakai es batu saja, tanpa garam. Dia kocok setengah jam. Adonannya tetap cair, tangannya pegal.",
+   "text": "Tono coba sendiri",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Tono coba sendiri",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "panas",
+   "kind": "normal",
+   "dur": 12.0,
+   "narration": "Siang makin terik, es batu Pak Darto meleleh jadi air. Tono menang, pikirnya. Tapi tabung Pak Darto berkabut, berderak, dan adonannya mengeras jadi es puter. Tono melongo.",
+   "text": "Es meleleh, adonan beku",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Es meleleh, adonan beku",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "sains",
+   "kind": "normal",
+   "dur": 11.0,
+   "narration": "Garam menurunkan titik beku air, jadi campuran es dan garam bisa sekitar minus dua puluh derajat. Es yang meleleh menyerap panas dari adonan, dan adonan pun membeku.",
+   "text": "Campuran sekitar minus 20 derajat",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Campuran sekitar minus 20 derajat",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "akhir",
+   "kind": "result",
+   "dur": 5.2,
+   "narration": "Tono minta garam, lalu ikut menabur tiga genggam ke es.",
+   "text": "Tono ikut menabur",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Tono ikut menabur",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "outro",
+   "kind": "outro",
+   "dur": 2.3,
+   "narration": "",
+   "text": "Garam ke es batu",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Garam ke es batu",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  }
+ ]
+}
