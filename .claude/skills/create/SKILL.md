@@ -5,7 +5,7 @@ description: Runs for a message starting with `-create`. Make one klipian intip 
 
 # -create [options] <topic>
 
-The message is `-create [2.5d|iso|2d|teks|ricks] [30|40|45|60] [noloop] [nointip|intip] [langsung] [dongeng] [suara=voicestudio,googleai,elevenlabs] [musik=<id>] [catatan="..."] [wav="<path>"] "<topic>"`. Every token before the topic is optional and may come in any order; the topic is the last quoted text, or, when nothing is quoted, all the text after the options (`-create gurita punya tiga jantung`, `-create 2d gurita punya tiga jantung`). One video per run. Nothing is asked of the person.
+The message is `-create [2.5d|iso|2d|teks|ricks] [30|40|45|60] [noloop] [nointip|intip] [langsung] [dongeng|kisah] [suara=voicestudio,googleai,elevenlabs] [musik=<id>] [catatan="..."] [wav="<path>"] "<topic>"`. Every token before the topic is optional and may come in any order; the topic is the last quoted text, or, when nothing is quoted, all the text after the options (`-create gurita punya tiga jantung`, `-create 2d gurita punya tiga jantung`). One video per run. Nothing is asked of the person.
 
 | Token | Meaning | Flag for the brief CLI |
 |---|---|---|
@@ -16,6 +16,7 @@ The message is `-create [2.5d|iso|2d|teks|ricks] [30|40|45|60] [noloop] [nointip
 | `intip` | look `ricks` only: add the voice-only "Intip yuk!" sting | `--sting` |
 | `langsung` | the hook goes straight into the topic: a statement naming who did what, no "Kenapa ..." opener (missing: any hook B41 allows; `ricks` always goes straight in, B46 l) | `--direct` |
 | `dongeng` | a made-up everyday story carried by one true fact (B47; missing: the fact explained) | `--dongeng` |
+| `kisah` | a real, sourced story with a twist and one true cause (B49; missing: the fact explained) | `--kisah` |
 | `suara=a,b` | the voice apps (missing: all three) | `--voice a,b` |
 | `musik=<id>` | a music bed or `auto` (missing: the default) | `--music <id>` |
 | `catatan="..."` | notes for the AI (missing: none) | `--notes "..."` |

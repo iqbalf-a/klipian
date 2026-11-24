@@ -84,7 +84,7 @@ const itemLabel = (t) => ITEM_LABEL[t] || t;
 // ---------------------------------------------------------------------------------------------------------------------------------------
 
 // what the video tells (B47): klipian/motion.py STORY_KINDS
-const STORY_LABELS = [["fakta", "Fact (explain it)"], ["dongeng", "Story + fact (a made-up story carried by one true fact)"]];
+const STORY_LABELS = [["fakta", "Fact (explain it)"], ["dongeng", "Story + fact (a made-up story carried by one true fact)"], ["kisah", "True story (a sourced real event with a twist)"]];
 // the look of a Khusus video (B28): auto leaves the choice to Claude Code; the others force it
 const LOOK_LABELS = [["auto", "Automatic (chosen from the topic)"], ["iso", "2.5D isometric"], ["2d", "2D"], ["text", "Text"], ["ricks", "Ricks (3D diorama + stick cast, voice first)"]];
 
@@ -93,7 +93,7 @@ function optionsSummary(o) {
   const music = (typeof MUSIC_LABELS !== "undefined" && MUSIC_LABELS[o.music]) || o.music;
   const apps = (o.voiceTargets || []).length;
   const look = o.look && o.look !== "auto" ? (LOOK_LABELS.find(([v]) => v === o.look) || [])[1] : "";
-  return [...(look ? [`look ${look}`] : []), o.loop ? "loop" : "no loop", o.sting ? '"Intip yuk!"' : 'no "Intip yuk!"', ...(o.direct ? ["hook straight in"] : []), ...(o.story === "dongeng" ? ["story + fact"] : []), `music ${music}`, `${apps} voice app${apps === 1 ? "" : "s"}`].join(", ");
+  return [...(look ? [`look ${look}`] : []), o.loop ? "loop" : "no loop", o.sting ? '"Intip yuk!"' : 'no "Intip yuk!"', ...(o.direct ? ["hook straight in"] : []), ...(o.story === "dongeng" ? ["story + fact"] : []), ...(o.story === "kisah" ? ["true story"] : []), `music ${music}`, `${apps} voice app${apps === 1 ? "" : "s"}`].join(", ");
 }
 
 function stepSummary(id, d) {

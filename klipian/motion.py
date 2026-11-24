@@ -1284,8 +1284,9 @@ MUSIC_USE = {
 KINDS = {"otomatis": "Template (klipian's template, the fastest)", "khusus": "Custom (a video built by the agent, the best look)"}
 # the look of a Khusus video (B28): "auto" leaves the choice to the agent, which picks from the topic; the others force it (the story's `look`)
 LOOK_CHOICES = {"auto": "Automatic (chosen from the topic)", "iso": "2.5D isometric", "2d": "2D", "text": "Text", "ricks": "Ricks (3D diorama + stick cast, voice first)"}
-# what the video tells (B47): a fact explained, or a made-up everyday story carried by one true fact
-STORY_KINDS = {"fakta": "Fact (explain it)", "dongeng": "Story + fact (a made-up story carried by one true fact)"}
+# what the video tells (B47, B49): a fact explained, a made-up everyday story carried by one true fact, or a real sourced story with a twist
+STORY_KINDS = {"fakta": "Fact (explain it)", "dongeng": "Story + fact (a made-up story carried by one true fact)",
+               "kisah": "True story (a sourced real event with a twist, B49)"}
 DEFAULT_OPTIONS = {"loop": True, "sting": True, "direct": False, "story": "fakta", "voiceTargets": list(VOICE_TARGETS), "voiceTargetFirst": "voicestudio", "music": "sunny", "kind": "khusus", "look": "auto"}
 
 

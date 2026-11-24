@@ -131,6 +131,17 @@ DONGENG = ("- Story: dongeng + fakta (B47, the person asked for it). The charact
            "nothing made up is said as a fact (no \"orang buta pasti penciumannya lebih tajam\"). Every person has their own name, look and voice; "
            "the dongeng beats replace the explain, look-closer and tips beats (the sting and the outro stay as the options say).")
 
+KISAH = ("- Story: kisah nyata (B49, the person asked for it). A REAL event, from history or the news, with a twist; nothing in it is made up. "
+         "Before writing, find it in at least one source with a date (a page you opened, not memory) and list it in `claims` with the beats that use it; "
+         "no source found: stop, write nothing, say why. Private people are never named (\"seorang anak\", \"perangkat desa\"); public bodies, "
+         "places and historical offices may be; never accuse an identifiable person; no deaths, injuries or tragedy as the payoff. Wording is "
+         "\"dikabarkan\" or \"tercatat\", never a certainty the sources lack; where sources disagree on a number, say \"ribuan\" or leave it out. "
+         "The beats: the hook goes straight to the event, no question (\"Kota ini membayar warga per ekor tikus, dan warganya mulai memotong ekor tikus hidup.\"); "
+         "the setup; what was done; the turn; the twist at about 75 % of the duration; the cause in one or two plain sentences (the science or the "
+         "mechanism, sourced, the one true fact of the video); a payoff that shows what changed, no moral spoken. Quotes are never invented: show "
+         "action, not speech, or label it as illustration. The cast are anonymous stick people, each with its own outfit (B46 i). The description "
+         "ends with the source names and \"kisah nyata, bersumber\"; these beats replace the explain, look-closer and tips beats.")
+
 
 def _options_text(opts: dict) -> str:
     music = f"{_m.MUSIC_USE[opts['music']]} (story music track {_m.MUSIC_TRACKS[opts['music']]})"
@@ -138,6 +149,7 @@ def _options_text(opts: dict) -> str:
              f"- Intip yuk!: {'yes (the voice-only sting right after the hook: nothing is drawn)' if opts['sting'] else 'no (no sting beat)'}",
              *([f"- Hook: straight into the topic (the person asked for it): the first sentence is a statement naming who did what, no lead-in and no question opener such as 'Kenapa ...', 'Tahukah kamu ...' or 'Pernah gak ...', in the narration, the frame-0 text and the title. Not {EX_BAD} but {EX_OK}"] if opts.get("direct") else []),
              *([DONGENG] if opts.get("story") == "dongeng" else []),
+             *([KISAH] if opts.get("story") == "kisah" else []),
              f"- Music: {music}",
              f"- Target voice apps: {_m.voice_apps_text(opts['voiceTargets'])} (klipian writes the narration text in each app's own format; the voices are made outside klipian)",
              f"- Kind: {_m.KINDS[opts['kind']]}"]
@@ -687,8 +699,8 @@ def short_command(p: dict) -> str:
     parts.append(str(p["duration"]))
     if not opts["loop"]:
         parts.append("noloop")
-    if opts.get("story") == "dongeng":
-        parts.append("dongeng")
+    if opts.get("story") in ("dongeng", "kisah"):
+        parts.append(opts["story"])
     if opts.get("direct") and look != "ricks":                       # ricks always goes straight in (B46 l)
         parts.append("langsung")
     if look == "ricks":                                               # ricks has no sting unless asked (B46 l)
