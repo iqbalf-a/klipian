@@ -12,6 +12,7 @@ import { IsoThreeDemo, ISO_THREE_SECONDS } from "./IsoThreeDemo.tsx";
 import { NatureDemo, NATURE_DEMO_SECONDS } from "./NatureDemo.tsx";
 import { DioramaDemo, DIORAMA_DEMO_FRAMES } from "./DioramaDemo.tsx";
 import { RicksFxTest, RICKS_FX_SECONDS } from "./RicksFxTest.tsx";
+import { ChoreoTest, CHOREO_SECONDS } from "./ChoreoTest.tsx";
 import { RicksCastSheet } from "./RicksCastSheet.tsx";
 import { Avatar, Banner, Watermark } from "./ChannelAssets.tsx";
 import { StageDemo, HeroStageFixture } from "./StageDemo.tsx";
@@ -63,6 +64,7 @@ export const Root: React.FC = () => (
   {/* style test: a lit 3D diorama with a flat 2D stick character card (three.js) */}
   <Composition id="DioramaDemo" component={DioramaDemo} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={DIORAMA_DEMO_FRAMES} />
   <Composition id="RicksFxTest" component={RicksFxTest} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={Math.round(RICKS_FX_SECONDS * FPS)} />
+  <Composition id="ChoreoTest" component={ChoreoTest} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={Math.round(CHOREO_SECONDS * FPS)} />
   <Composition id="ChannelAvatar" component={Avatar} width={800} height={800} fps={FPS} durationInFrames={1} />
   <Composition id="ChannelBanner" component={Banner} width={2048} height={1152} fps={FPS} durationInFrames={1} />
   <Composition id="ChannelWatermark" component={Watermark} width={300} height={300} fps={FPS} durationInFrames={1} />
