@@ -1,0 +1,221 @@
+{
+ "bible": 1,
+ "look": "ricks",
+ "question": "Kenapa nasi semalam di magic com bisa bikin sakit perut?",
+ "titles": [
+  "Nasi semalam di magic com bikin satu kos antre kamar mandi",
+  "Mas Fajar menyimpan nasi 12 jam, perut satu kos jadi taruhannya",
+  "Nasi suam-suam kuku semalaman, spora bakteri pun bangun"
+ ],
+ "duration": 55.44,
+ "theme": "peach",
+ "stage": "slab",
+ "captions": true,
+ "music": {
+  "track": "bed-island",
+  "level": 0.8
+ },
+ "beats": [
+  {
+   "id": "hook",
+   "kind": "hook",
+   "dur": 3.8,
+   "narration": "Mas Fajar menyimpan nasi dua belas jam di magic com yang mati.",
+   "text": "Nasi 12 jam, magic com mati",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Nasi 12 jam, magic com mati",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "lawan",
+   "kind": "normal",
+   "dur": 6.42,
+   "narration": "Lawannya Bu Wulan, ibu kos bermata tajam. Taruhannya, perut seisi kos, sepuluh kamar.",
+   "text": "Sepuluh kamar kos",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Sepuluh kamar kos",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "ragu",
+   "kind": "normal",
+   "dur": 7.96,
+   "narration": "Bu Wulan mengetuk magic com dan bilang, \"Nasi semalam itu bahaya, Mas!\" Fajar cuma nyengir, \"Masih bagus kok, Bu.\"",
+   "text": "Nasi semalam bahaya!",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Nasi semalam bahaya!",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "naik",
+   "kind": "normal",
+   "dur": 10.88,
+   "narration": "Paginya nasinya masih putih, harum, dan tidak berlendir. Fajar melahap tiga piring, lalu teman kosnya ikut antre. Bu Wulan diam, tangannya menempel di panci yang suam-suam kuku.",
+   "text": "Masih putih dan harum",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Masih putih dan harum",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "balik",
+   "kind": "normal",
+   "dur": 10.56,
+   "narration": "Beberapa jam kemudian, perut Fajar berbunyi seperti genderang. Disusul teman kosnya satu per satu. Sepuluh kamar, satu kamar mandi. Antreannya sampai halaman.",
+   "text": "Sepuluh kamar, satu WC",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Sepuluh kamar, satu WC",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "sains",
+   "kind": "result",
+   "dur": 11.56,
+   "narration": "Biangnya spora bakteri Bacillus cereus. Spora itu selamat dari masakan, bangun saat nasi dibiarkan suam-suam kuku, berkembang biak, lalu membuat racun yang tak mati walau dipanaskan lagi.",
+   "text": "Spora Bacillus cereus",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Spora Bacillus cereus",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "akhir",
+   "kind": "normal",
+   "dur": 3.56,
+   "narration": "Besoknya Fajar membawa nasinya sendiri, \"Bu, ini buang saja.\"",
+   "text": "Bu, ini buang saja",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Bu, ini buang saja",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "outro",
+   "kind": "outro",
+   "dur": 0.7,
+   "narration": "",
+   "text": "Nasi 12 jam, magic com mati",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Nasi 12 jam, magic com mati",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  }
+ ],
+ "claims": [
+  {
+   "text": "Spora Bacillus cereus bertahan saat makanan dimasak; bila makanan lalu disimpan hangat pada suhu rendah dalam waktu lama, spora berkecambah dan berkembang biak, lalu membentuk racun yang dapat memicu diare atau muntah.",
+   "beats": [
+    "balik",
+    "sains"
+   ],
+   "sources": [
+    "https://www.bfr.bund.de/cm/349/the_temperature_at_which_food_is_kept_warm_should_be_higher_than_65_c.pdf",
+    "https://fsai.ie/getmedia/4f2f6561-441a-4692-a112-b03e660069ca/Bacillus-Cereus-Factsheet-2016-FINAL-ACCESSIBLE.pdf"
+   ]
+  },
+  {
+   "text": "Racun muntah B. cereus (cereulide) sangat stabil dan tidak dapat dinonaktifkan dengan memanaskan ulang makanan; gejala bisa muncul dalam sekitar lima jam.",
+   "beats": [
+    "balik",
+    "sains"
+   ],
+   "sources": [
+    "https://fsai.ie/getmedia/4f2f6561-441a-4692-a112-b03e660069ca/Bacillus-Cereus-Factsheet-2016-FINAL-ACCESSIBLE.pdf"
+   ]
+  },
+  {
+   "text": "B. cereus dapat tumbuh pada suhu sekitar 4 sampai 55 derajat Celsius (optimum 30 sampai 40), jadi nasi yang suam-suam kuku masih dalam rentang tumbuhnya.",
+   "beats": [
+    "naik",
+    "sains"
+   ],
+   "sources": [
+    "https://fsai.ie/getmedia/4f2f6561-441a-4692-a112-b03e660069ca/Bacillus-Cereus-Factsheet-2016-FINAL-ACCESSIBLE.pdf"
+   ]
+  },
+  {
+   "text": "Nasi termasuk makanan yang paling sering dikaitkan dengan keracunan B. cereus akibat penyimpanan pada suhu yang salah.",
+   "beats": [
+    "hook",
+    "sains"
+   ],
+   "sources": [
+    "https://www.bfr.bund.de/cm/349/the_temperature_at_which_food_is_kept_warm_should_be_higher_than_65_c.pdf",
+    "https://fsai.ie/getmedia/4f2f6561-441a-4692-a112-b03e660069ca/Bacillus-Cereus-Factsheet-2016-FINAL-ACCESSIBLE.pdf"
+   ]
+  }
+ ],
+ "post": {
+  "description": "Mas Fajar menyimpan nasi dua belas jam di magic com yang mati, sementara Bu Wulan memperingatkannya. Spora Bacillus cereus selamat dari masakan, bangun saat nasi suam-suam kuku, lalu membuat racun yang tidak mati walau dipanaskan lagi. Ceritanya karangan, ilmunya nyata.",
+  "hashtags": [
+   "#nasi",
+   "#magiccom",
+   "#bacilluscereus",
+   "#anakkos",
+   "#sebatangcerita",
+   "#shorts"
+  ]
+ },
+ "thumb": "Nasi *12 jam* di magic com mati",
+ "needs": []
+}

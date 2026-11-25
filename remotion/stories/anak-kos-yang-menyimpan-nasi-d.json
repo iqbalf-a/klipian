@@ -7,7 +7,7 @@
   "Mas Fajar menyimpan nasi 12 jam, perut satu kos jadi taruhannya",
   "Nasi suam-suam kuku semalaman, spora bakteri pun bangun"
  ],
- "duration": 60,
+ "duration": 55.44,
  "theme": "peach",
  "stage": "slab",
  "captions": true,
@@ -19,7 +19,7 @@
   {
    "id": "hook",
    "kind": "hook",
-   "dur": 5,
+   "dur": 3.8,
    "narration": "Mas Fajar menyimpan nasi dua belas jam di magic com yang mati.",
    "text": "Nasi 12 jam, magic com mati",
    "scene": {
@@ -37,7 +37,7 @@
   {
    "id": "lawan",
    "kind": "normal",
-   "dur": 6,
+   "dur": 6.42,
    "narration": "Lawannya Bu Wulan, ibu kos bermata tajam. Taruhannya, perut seisi kos, sepuluh kamar.",
    "text": "Sepuluh kamar kos",
    "scene": {
@@ -55,7 +55,7 @@
   {
    "id": "ragu",
    "kind": "normal",
-   "dur": 8,
+   "dur": 7.96,
    "narration": "Bu Wulan mengetuk magic com dan bilang, \"Nasi semalam itu bahaya, Mas!\" Fajar cuma nyengir, \"Masih bagus kok, Bu.\"",
    "text": "Nasi semalam bahaya!",
    "scene": {
@@ -73,7 +73,7 @@
   {
    "id": "naik",
    "kind": "normal",
-   "dur": 12,
+   "dur": 10.88,
    "narration": "Paginya nasinya masih putih, harum, dan tidak berlendir. Fajar melahap tiga piring, lalu teman kosnya ikut antre. Bu Wulan diam, tangannya menempel di panci yang suam-suam kuku.",
    "text": "Masih putih dan harum",
    "scene": {
@@ -91,7 +91,7 @@
   {
    "id": "balik",
    "kind": "normal",
-   "dur": 10,
+   "dur": 10.56,
    "narration": "Beberapa jam kemudian, perut Fajar berbunyi seperti genderang. Disusul teman kosnya satu per satu. Sepuluh kamar, satu kamar mandi. Antreannya sampai halaman.",
    "text": "Sepuluh kamar, satu WC",
    "scene": {
@@ -109,7 +109,7 @@
   {
    "id": "sains",
    "kind": "result",
-   "dur": 11,
+   "dur": 11.56,
    "narration": "Biangnya spora bakteri Bacillus cereus. Spora itu selamat dari masakan, bangun saat nasi dibiarkan suam-suam kuku, berkembang biak, lalu membuat racun yang tak mati walau dipanaskan lagi.",
    "text": "Spora Bacillus cereus",
    "scene": {
@@ -127,7 +127,7 @@
   {
    "id": "akhir",
    "kind": "normal",
-   "dur": 4,
+   "dur": 3.56,
    "narration": "Besoknya Fajar membawa nasinya sendiri, \"Bu, ini buang saja.\"",
    "text": "Bu, ini buang saja",
    "scene": {
@@ -145,7 +145,7 @@
   {
    "id": "outro",
    "kind": "outro",
-   "dur": 4,
+   "dur": 0.7,
    "narration": "",
    "text": "Nasi 12 jam, magic com mati",
    "scene": {
