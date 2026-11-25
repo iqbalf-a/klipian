@@ -14,7 +14,9 @@ export const CAST_SHEET: [string, Outfit, Expr, Arms][] = [
   ["kasir", { shirt: "#d94b3a", stripe: "#f2c230", hair: "spiky", hairColor: "#c98f3a", blush: true }, "grin", "wave"],
   ["kakek", { shirt: "#8a6fb0", stripe: "#6a5090", hair: "bald", mustache: true, glasses: true, hairColor: "#e6e6e6", nose: "big", pattern: "check" }, "sly", "belly"],
   // B62 (2026-11-25): what the channel's people wear and how their hair is cut: garments, scarves, belts, ties, badges, hijab, ponytails, caping, helmets
-  ["ibu berjilbab", { shirt: "#2f8f6a", stripe: "#f2e6c8", hair: "hijab", hairColor: "#e6a8c8", garment: "dress", lashes: true, lips: true, nose: "dot" }, "calm", "belly"],
+  ["sipir", { shirt: "#a9b3bd", stripe: "#d9dee3", garment: "guard", hat: "police", hatColor: "#26324f", belt: "#1a1a1f", radio: true, badge: true, tie: "#1d1b22", brows: "thick", mustache: true }, "calm", "belly"],
+  ["tahanan", { shirt: "#f08a24", stripe: "#f6efe0", garment: "prisoner", hair: "quiff", hairColor: "#7a4a22", shades: true, grill: true, chain: true }, "grin", "hips"],
+  ["koki", { shirt: "#fbf7ee", stripe: "#e0e0e0", garment: "chef", hat: "chef", scarf: "#d9352a", mustache: true, body: "wide", brows: "bushy" }, "furious", "point"],
   ["gadis kuncir", { shirt: "#f2c230", stripe: "#e0602f", hair: "ponytail", hairColor: "#4a2a18", garment: "dress", lashes: true, freckles: true }, "grin", "wave"],
   ["tukang warung", { shirt: "#c9553a", stripe: "#f6efe0", garment: "apron", hair: "curly", hairColor: "#2a1a14", mustache: true, body: "wide", brows: "thick" }, "puzzled", "hips"],
   ["petugas", { shirt: "#4a6fa5", stripe: "#d8dee8", garment: "uniform", hat: "helmet", badge: true, tie: "#1d1b22", brows: "bushy", glasses: true }, "calm", "salute"],
