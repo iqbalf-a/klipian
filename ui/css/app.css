@@ -2449,10 +2449,6 @@ h1, h2, h3 {
 }
 .asset-pick.active { border-color: color-mix(in srgb, var(--accent) 45%, transparent); background: var(--accent-soft); }
 .asset-pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.link-row { display: flex; gap: var(--s2); align-items: center; }
-.link-row .input { flex: 1; min-width: 0; }
-.link-note { margin: 0; color: var(--text-faint); font-size: var(--t-12); }
-.link-note:empty { display: none; }
 /* Panel bodies: the same side inset .panel-head has (var(--s5)), so rows
    line up under their heading instead of running into the panel's edge. */
 .analyze-source { padding-bottom: var(--s4); gap: var(--s2); }

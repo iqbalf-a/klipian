@@ -229,10 +229,16 @@ def take_folder(pid: str, slug: str) -> dict:
 
 def next_step(f: dict) -> dict:
     """The one thing to do now. `f` holds: story, pending, rejected, title, custom, composition, slug, voice, aligned, render ("none" | "current" |
-    "stale"), gate (the reasons a render is blocked), briefed, storyPath. Returns {"key", "text", "action", "command"?}."""
-    if f.get("custom"):                                                 # Khusus: the story comes from the chosen folder, never pasted
+    "stale"), gate (the reasons a render is blocked), briefed, storyPath, flow ("picture" | "voice"). Returns {"key", "text", "action", "command"?}.
+    Picture first (Khusus): the folder Claude Code made gives the story, the voice comes after. Voice first: the story is pasted as text, the voice is made
+    and matched, and only then Claude Code builds the folder (to the voice) and its story is loaded."""
+    voice_first = bool(f.get("custom")) and f.get("flow") == "voice"
+
+    def folder_step() -> dict | None:
         state = f.get("folder")
         if state in (None, "belum dipilih"):
+            if voice_first:
+                return {"key": "folder", "text": "Copy the build brief into Claude Code, then choose the folder it made", "action": "brief"}
             if f.get("story"):                                          # the story was pasted by an agent that could not make the folder (the fallback)
                 return {"key": "folder", "text": "The video is not made yet: open the brief in a Claude Code session that can run commands, then choose the folder it made", "action": "brief"}
             return {"key": "folder", "text": "Copy the brief into Claude Code, then choose the folder it made", "action": "brief"}
@@ -240,6 +246,12 @@ def next_step(f: dict) -> dict:
             return {"key": "take", "text": "Load the story from the folder", "action": "take"}
         if state == "folder berubah":
             return {"key": "retake", "text": "Load the story again (the folder changed)", "action": "take"}
+        return None
+
+    if f.get("custom") and not voice_first:                             # Khusus, picture first: the story comes from the chosen folder
+        step = folder_step()
+        if step:
+            return step
     if not f.get("story"):
         if not f.get("briefed"):
             return {"key": "brief", "text": "Salin brief ke Claude Code", "action": "brief"}
@@ -250,8 +262,14 @@ def next_step(f: dict) -> dict:
         return {"key": "facts", "text": f"Check {f['pending']} more claim(s)", "action": "facts"}
     if not f.get("title"):
         return {"key": "title", "text": "Choose a title", "action": "title"}
+    if voice_first and not f.get("voice"):
+        return {"key": "voice", "text": "Make the voice from the script and import it", "action": "voice"}
     if f.get("voice") and not f.get("aligned"):
         return {"key": "align", "text": "Match the narration", "action": "align"}
+    if voice_first:                                                     # the voice is matched: now the picture is built to it
+        step = folder_step()
+        if step:
+            return step
     if f.get("gate"):
         return {"key": "blocked", "text": f"Cannot be rendered yet: {f['gate'][0]}", "action": "none"}
     if f.get("render") == "current":
@@ -453,7 +471,7 @@ def _gather(pid: str, p: dict, deep: bool = True) -> dict:
     f = {"story": story is not None, "pending": sum(1 for x in facts if x.get("status") not in ("checked", "rejected")),
          "rejected": sum(1 for x in facts if x.get("status") == "rejected"), "title": bool(p.get("title")), "custom": kind_of(p) == "custom",
          "folder": folder["state"] if folder else None, "composition": bool(p.get("composition")), "slug": _slug(p.get("topic", ""))[:39],
-         "voice": bool(voice and voice.get("name")), "aligned": bool(voice and voice.get("aligned")), "voiceStale": bool(voice and voice.get("stale")),
+         "flow": options_of(p)["flow"], "voice": bool(voice and voice.get("name")), "aligned": bool(voice and voice.get("aligned")), "voiceStale": bool(voice and voice.get("stale")),
          "render": "none" if not render_now else "current" if render_now["current"] else "stale", "gate": problems,
          "briefed": bool(p.get("briefAt")), "storyPath": str(project_dir(pid) / "story.json"),
          "stills": "none" if not stills.get("files") else "stale" if stills.get("stale") else "ok",
@@ -465,7 +483,7 @@ def _gather(pid: str, p: dict, deep: bool = True) -> dict:
 # the chip of the list for each next step, and for the render when nothing else is waiting
 CHIP_BY_NEXT = {"folder": ("New", "baru"), "brief": ("New", "baru"), "paste": ("Waiting for the answer", "menunggu"), "take": ("Load the story", "perlu"),
                 "retake": ("Load the story again", "usang"), "fix": ("Claim rejected", "perlu"), "facts": ("Claims waiting", "menunggu"),
-                "title": ("Choose a title", "menunggu"), "align": ("Match the voice", "menunggu"), "blocked": ("Not ready", "menunggu")}
+                "title": ("Choose a title", "menunggu"), "voice": ("Add the voice", "menunggu"), "align": ("Match the voice", "menunggu"), "blocked": ("Not ready", "menunggu")}
 
 
 def render_block(f: dict, render_now: dict | None) -> dict:
@@ -1287,7 +1305,11 @@ LOOK_CHOICES = {"auto": "Automatic (chosen from the topic)", "iso": "2.5D isomet
 # what the video tells (B47, B49): a fact explained, a made-up everyday story carried by one true fact, or a real sourced story with a twist
 STORY_KINDS = {"fakta": "Fact (explain it)", "dongeng": "Story + fact (a made-up story carried by one true fact)",
                "kisah": "True story (a sourced real event with a twist, B49)"}
-DEFAULT_OPTIONS = {"loop": True, "sting": True, "direct": False, "story": "fakta", "voiceTargets": list(VOICE_TARGETS), "voiceTargetFirst": "voicestudio", "music": "sunny", "kind": "khusus", "look": "auto"}
+# the order of a Khusus video: the picture is built first and the voice comes after (every video made before this choice), or the story's text comes first,
+# then the voice, then the picture is built to the voice (ricks always was made like that, B46)
+FLOW_CHOICES = {"picture": "Picture first (Claude Code builds the story and the picture, then you add the voice)",
+                "voice": "Voice first (story text, then the voice, then Claude Code builds the picture to the voice)"}
+DEFAULT_OPTIONS = {"loop": True, "sting": True, "direct": False, "story": "fakta", "voiceTargets": list(VOICE_TARGETS), "voiceTargetFirst": "voicestudio", "music": "sunny", "kind": "khusus", "look": "auto", "flow": "picture"}
 
 
 # the words that make a topic a technology topic (PLAN P28-R phase 4): its default bed is a technology bed, any other topic gets the cheerful one
@@ -1340,7 +1362,7 @@ def normalize_options(raw) -> dict:
         out["voiceTargetFirst"] = out["voiceTargets"][0]
     if "music" not in raw:
         out["music"] = LEGACY_MUSIC                              # a project saved before the choice keeps its bed: calm
-    for key, choices in (("music", MUSIC_TRACKS), ("kind", KINDS), ("look", LOOK_CHOICES), ("story", STORY_KINDS)):
+    for key, choices in (("music", MUSIC_TRACKS), ("kind", KINDS), ("look", LOOK_CHOICES), ("story", STORY_KINDS), ("flow", FLOW_CHOICES)):
         if key in raw:
             if key == "music" and raw[key] == "auto":                     # "sesuai topik" is resolved when the video is made (create); here it is the default
                 out[key] = DEFAULT_OPTIONS["music"]

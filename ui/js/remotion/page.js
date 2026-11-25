@@ -16,7 +16,7 @@
    Nothing here knows a rule of the story or of the status: the next step, the chips, the render block and the lengths come from the server's detail.
    ========================================================================== */
 
-const STEP_BODY = { new: bodyNew, brief: bodyBrief, story: bodyStory, answer: bodyAnswer, facts: bodyFacts, script: bodyScript, voice: bodyVoice, preview: bodyPreview, render: bodyRender };
+const STEP_BODY = { new: bodyNew, brief: bodyBrief, story: bodyStory, build: bodyBuild, answer: bodyAnswer, facts: bodyFacts, script: bodyScript, voice: bodyVoice, preview: bodyPreview, render: bodyRender };
 
 // ---------------------------------------------------------------------------------------------------------------------------------------
 // the job: poll while it runs, tell the person when it ends

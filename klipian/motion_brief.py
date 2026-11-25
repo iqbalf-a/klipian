@@ -362,7 +362,16 @@ def _numbered(items: list[str]) -> str:
 REPO_ROOT = "the repository root (on ian's PC `D:\\github-repos\\klipian`; elsewhere the root of your checkout)"
 
 
-def _produce_text(slug: str) -> str:
+def _produce_text(slug: str, stage: int | None = None) -> str:
+    if stage == 1:
+        return f"""## 2. What you must produce (stage 1: the story and the narration text only)
+
+| What | Exact path (from {REPO_ROOT}) |
+| --- | --- |
+| The story | `remotion/stories/{slug}.json`, and the same JSON in your reply as one fenced `json` block |
+| The narration text | printed in your reply, one block per target voice app |
+
+**The only file you may write is `remotion/stories/{slug}.json`.** No video folder, no stills, no code, nothing in `workspace/`, no push."""
     return f"""## 2. What you must produce (exact files)
 
 | What | Exact path (from {REPO_ROOT}) |
@@ -424,6 +433,55 @@ Expected: the text to copy into that app. Paste it in your reply as it is, one b
 {STEP_MARK}8: tell the person
 In plain words: open `/remotion`, choose the folder `remotion/videos/{slug}` of the repository (on ian's PC `D:\\github-repos\\klipian\\remotion\\videos\\{slug}`), press "Load the story from the folder", make the voice in their own voice app, choose the audio file, press "Match with the narration", look at the preview, then Render.
 Expected: your reply ends with these instructions."""
+
+
+def brief_stage(p: dict, opts: dict) -> int | None:
+    """Voice first (the option "flow"): stage 1 is the story and the narration text only, stage 2 (once the voice is matched in klipian) builds the picture
+    to the voice. None for picture first, where one brief does everything."""
+    if opts.get("flow") != "voice":
+        return None
+    return 2 if (p.get("voice") or {}).get("aligned") else 1
+
+
+def _stage_steps(text: str, slug: str, stage: int, p: dict) -> str:
+    """The steps of the one-stage brief cut to this stage and renumbered. Stage 1: write and validate the story, print the narration (no folder, no
+    pictures). Stage 2: the story and the voice-timed story are given; make the folder and draw the beats to the voice (no new narration)."""
+    head, *parts = text.split("\n\n" + STEP_MARK)
+    sec = {int(x.split(":", 1)[0]): x for x in parts}
+    pdir = _m.project_dir(p["id"])
+    if stage == 1:
+        sec[1] = sec[1].replace("Save it as", "Print the whole story JSON as one fenced `json` block in your reply (the person pastes it into klipian) and save it as", 1)
+        sec[8] = ("8: tell the person\nIn plain words: open `/remotion`, go to the step \"The AI's answer and the storyboard\", paste the story JSON, check the claims and choose a title, "
+                  "then make the voice from the narration text in their own voice app and import it in the step \"Import the voice and match it\". The picture is built after the voice: "
+                  "klipian then gives a second brief for it. Do not make the video folder, the pictures or any code now.\nExpected: your reply ends with these instructions.")
+        keep = (1, 2, 7, 8)
+    else:
+        sec[1] = (f"1: the story and the voice are given\nDo: the story was written first and the voice is already made and matched in klipian, so the narration is FINAL. "
+                  f"Copy `{pdir / 'story.json'}` to `remotion/stories/{slug}.json`, and read `{pdir / 'story.voiced.json'}`: the same story timed to the voice (each beat's start and end "
+                  "follow the narration). Build the picture to these times; never change a narration, a beat order or a claim (a change would make the voice not fit).\n"
+                  f"Expected: the file `remotion/stories/{slug}.json` exists and is plain JSON.")
+        sec[4] = sec[4].replace("Do: read", "Do: build every beat to the times of the voice-timed story. Read", 1)
+        sec[8] = (f"8: tell the person\nIn plain words: open `/remotion`, choose the folder `remotion/videos/{slug}` of the repository, press \"Load the story from the folder\", "
+                  "press \"Match with the narration\" again (the story file changed), look at the preview, then Render.\nExpected: your reply ends with these instructions.")
+        keep = (1, 2, 3, 4, 5, 6, 8)
+    out = [head]
+    for n, k in enumerate(keep, 1):
+        out.append(f"{STEP_MARK}{n}:{sec[k].split(':', 1)[1]}")
+    return "\n\n".join(out)
+
+
+def _stage_note(stage: int | None) -> str:
+    if stage == 1:
+        return "**This is stage 1 of 2 (voice first):** write the story and the narration text only. The picture is built in stage 2, after the voice is made. Do not make the video folder, the stills or any code in this stage.\n\n"
+    if stage == 2:
+        return "**This is stage 2 of 2 (voice first):** the story and its voice already exist. Build the video folder and the picture to the voice; the narration is final.\n\n"
+    return ""
+
+
+def _steps_for(p: dict, slug: str, opts: dict, stage: int | None) -> str:
+    if stage is None:
+        return _steps_text(slug, opts, bool(p.get("agent")))
+    return _stage_steps(_all_steps_text(slug, opts), slug, stage, p)
 
 
 def _reference(cat: dict, p: dict, d: int, kind: str) -> str:
@@ -517,7 +575,7 @@ def build_brief(p: dict) -> str:
         slug = video_slug(p["topic"])
         mistakes = _numbered(_for_options(MISTAKES, opts))
         text = _custom_brief(p, cat, d, opts, kind, notes, look, rules, slug, mistakes)
-        if p.get("agent"):                      # the reader is an agent with a shell: drop what only a chat assistant or the page's person needs
+        if p.get("agent") and brief_stage(p, opts) is None:                      # (a voice-first stage keeps the narration in the reply and has its own steps) the reader is an agent with a shell: drop what only a chat assistant or the page's person needs
             for old, new in ((f"\n\n{FALLBACK}", ""), (", then the fallback, the common mistakes,", ", then the common mistakes,"), (" Without them, use the fallback.", ""),
                              ("**Chat mode:** reply with one fenced `json` block and nothing else.\n", ""), ("| The narration text | printed in your reply, one block per target voice app |\n", ""),
                              (": the narration goes in your reply)", ")"), (" Narration texts: pasted.", "")):
@@ -529,6 +587,7 @@ def build_brief(p: dict) -> str:
 
 
 def _custom_brief(p, cat, d, opts, kind, notes, look, rules, slug, mistakes) -> str:
+    stage = brief_stage(p, opts)
     if True:
         return f"""# klipian intip: one short vertical explainer video (about {d} seconds)
 
@@ -542,9 +601,9 @@ Work in this order: 1 the rules, 2 the files you must produce, 3 the steps, then
 
 **Stop rule:** if a step fails, report it and stop; claim only what you saw.
 
-{_produce_text(slug)}
+{_produce_text(slug, stage)}
 
-{_steps_text(slug, opts, bool(p.get('agent'))).replace(READ_MARK, read_text(look))}
+{_stage_note(stage)}{_steps_for(p, slug, opts, stage).replace(READ_MARK, read_text(look))}
 
 {FALLBACK}
 

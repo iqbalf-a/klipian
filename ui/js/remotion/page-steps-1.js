@@ -62,6 +62,8 @@ function optionsHTML(opts, id) {
     <label class="ws-field">Look ${sel("look", LOOK_LABELS)}</label>
     <video class="rm-look-img" muted loop autoplay playsinline ${opts.look && opts.look !== "auto" ? `src="/ui/img/looks/${opts.look}.mp4"` : "hidden"}></video>
     <span class="rm-hint">Automatic: Claude Code chooses the look that fits the topic best (B28).</span>
+    <label class="ws-field">Order ${sel("flow", FLOW_LABELS)}</label>
+    <span class="rm-hint">Picture first: Claude Code builds the story and the picture, then you add the voice. Voice first: the story text, then the voice, then the picture is built to the voice. Change it only before the voice is made.</span>
     <label class="ws-field">Story ${sel("story", STORY_LABELS)}</label>
     <span class="rm-hint">Story + fact: made-up people in an everyday place, one true fact explained near the end (e.g. a blind grandmother who smells the rain coming: ozone from lightning).</span>
     <label class="ws-field">Music ${sel("music", Object.entries(MUSIC_LABELS))}</label>
@@ -80,6 +82,8 @@ document.addEventListener("change", (e) => {
   if (sting) sting.checked = e.target.value !== "ricks";              // ricks has its own channel: no "Intip yuk!" unless ticked again (B46 l)
   const direct = group?.querySelector('[data-opt="direct"]');
   if (direct && e.target.value === "ricks") direct.checked = true;    // ricks always goes straight into the topic
+  const flow = group?.querySelector('[data-opt="flow"]');
+  if (flow && e.target.value === "ricks") flow.value = "voice";       // ricks is built to its voice (B46)
   const img = group?.querySelector(".rm-look-img");
   if (!img) return;
   img.hidden = e.target.value === "auto";
@@ -113,6 +117,21 @@ function bodyBrief(d) {
       <div class="rm-actions"><button class="btn" type="button" data-act="saveOptions">Save options</button><span class="rm-hint">The next brief uses these options; copy the brief again after you change them.</span></div>
     </details>
     ${(d.optionWarnings || []).map((w) => `<div class="rm-warn">${esc(w)}</div>`).join("")}`;
+}
+
+// voice first, the last step: the build brief (made after the voice is matched) and then the folder it makes
+function bodyBuild(d) {
+  const ready = d.voice && d.voice.aligned;
+  if (!ready) return `<p class="rm-hint">The picture is built after the voice: make the voice in the step before this one and match it, and this step gives the build brief.</p>`;
+  return `
+    <p>The voice is matched, so Claude Code now builds the picture to it. Copy the build brief into Claude Code opened in the klipian folder.</p>
+    <div class="rm-actions">
+      <button class="btn main" id="rmCopyBrief" data-act="rmCopyBrief" type="button">Copy the build brief</button>
+      <button class="btn" id="rmDownBrief" data-act="rmDownBrief" type="button">Download the build brief</button>
+      <span class="rm-err" id="rmBriefErr" role="alert"></span>
+    </div>
+    <p class="rm-hint">When Claude Code is done: choose the folder it made, load the story, then match the voice again (the story file changed).</p>
+    ${bodyStory(d)}`;
 }
 
 // the short -create command: shown before it is copied; disabled when this checkout has no skill that runs it

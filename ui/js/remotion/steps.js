@@ -5,18 +5,25 @@
 // the steps, in order. Khusus (the main flow): the story comes from the folder Claude Code made. Otomatis (hidden under "Advanced settings"): the AI's answer is pasted.
 const STEPS_CUSTOM = ["new", "brief", "story", "facts", "script", "voice", "preview", "render"];
 const STEPS_TEMPLATE = ["new", "brief", "answer", "facts", "script", "voice", "preview", "render"];
+// Khusus, voice first (the option "flow"): the story is pasted as text, the voice is made and matched, and only then Claude Code builds the folder to the voice
+const STEPS_CUSTOM_VOICE = ["new", "brief", "answer", "facts", "script", "voice", "build", "preview", "render"];
 const STEP_TITLE = {
   new: "New video", brief: "Brief", story: "Load the story from the Claude Code folder", answer: "The AI's answer and the storyboard", facts: "Check the facts and the title",
-  script: "Voice script", voice: "Import the voice and match it", preview: "Preview", render: "Render",
+  script: "Voice script", voice: "Import the voice and match it", build: "Build the picture to the voice", preview: "Preview", render: "Render",
 };
+const STEP_TITLE_VOICE_FIRST = { brief: "Brief: the story and the narration text", answer: "Paste the story and the storyboard" };
 
-function stepsFor(kind) {
-  const ids = kind === "custom" ? STEPS_CUSTOM : STEPS_TEMPLATE;
-  return ids.map((id, i) => ({ id, num: i + 1, title: STEP_TITLE[id] }));
+// the video's order: "voice" (voice first) or "picture" (picture first, the default and every video made before the choice)
+const isVoiceFirst = (d) => !!d && d.kind === "custom" && !!d.options && d.options.flow === "voice";
+
+function stepsFor(kind, flow) {
+  const voice = kind === "custom" && flow === "voice";
+  const ids = voice ? STEPS_CUSTOM_VOICE : kind === "custom" ? STEPS_CUSTOM : STEPS_TEMPLATE;
+  return ids.map((id, i) => ({ id, num: i + 1, title: (voice && STEP_TITLE_VOICE_FIRST[id]) || STEP_TITLE[id] }));
 }
 
-function stepNum(kind, id) {
-  const found = stepsFor(kind).find((s) => s.id === id);
+function stepNum(kind, id, flow) {
+  const found = stepsFor(kind, flow).find((s) => s.id === id);
   return found ? found.num : "";
 }
 
@@ -25,6 +32,12 @@ function activeStepFor(d) {
   if (!d) return "new";
   const custom = d.kind === "custom";
   const key = d.next && d.next.key;
+  if (isVoiceFirst(d)) {                                  // voice first: the story is pasted, the voice comes next, the folder is built last
+    if (key === "folder" || key === "take" || key === "retake") return "build";
+    if (key === "brief") return "brief";
+    if (key === "paste") return "answer";
+    if (key === "voice") return "voice";
+  }
   if (key === "folder") return d.briefAt ? "story" : "brief";
   if (key === "brief") return "brief";
   if (key === "paste") return "answer";
@@ -33,7 +46,7 @@ function activeStepFor(d) {
   if (key === "align") return "voice";
   if (key === "blocked") {
     const why = ((d.renderBlock && d.renderBlock.reasons) || (d.gate || []))[0] || "";
-    if (/folder/i.test(why)) return custom ? "story" : "answer";
+    if (/folder/i.test(why)) return isVoiceFirst(d) ? "build" : custom ? "story" : "answer";
     if (/voice|narration/i.test(why)) return "voice";
     if (/claim|title/i.test(why)) return "facts";
     return "render";
@@ -86,6 +99,8 @@ const itemLabel = (t) => ITEM_LABEL[t] || t;
 // what the video tells (B47): klipian/motion.py STORY_KINDS
 const STORY_LABELS = [["fakta", "Fact (explain it)"], ["dongeng", "Story + fact (a made-up story carried by one true fact)"], ["kisah", "True story (a sourced real event with a twist)"]];
 // the look of a Khusus video (B28): auto leaves the choice to Claude Code; the others force it
+// the order of a Khusus video: klipian/motion.py FLOW_CHOICES
+const FLOW_LABELS = [["picture", "Picture first"], ["voice", "Voice first"]];
 const LOOK_LABELS = [["auto", "Automatic (chosen from the topic)"], ["iso", "2.5D isometric"], ["2d", "2D"], ["text", "Text"], ["ricks", "Ricks (3D diorama + stick cast, voice first)"]];
 
 function optionsSummary(o) {
@@ -93,7 +108,7 @@ function optionsSummary(o) {
   const music = (typeof MUSIC_LABELS !== "undefined" && MUSIC_LABELS[o.music]) || o.music;
   const apps = (o.voiceTargets || []).length;
   const look = o.look && o.look !== "auto" ? (LOOK_LABELS.find(([v]) => v === o.look) || [])[1] : "";
-  return [...(look ? [`look ${look}`] : []), o.loop ? "loop" : "no loop", o.sting ? '"Intip yuk!"' : 'no "Intip yuk!"', ...(o.direct ? ["hook straight in"] : []), ...(o.story === "dongeng" ? ["story + fact"] : []), ...(o.story === "kisah" ? ["true story"] : []), `music ${music}`, `${apps} voice app${apps === 1 ? "" : "s"}`].join(", ");
+  return [...(o.flow === "voice" ? ["voice first"] : []), ...(look ? [`look ${look}`] : []), o.loop ? "loop" : "no loop", o.sting ? '"Intip yuk!"' : 'no "Intip yuk!"', ...(o.direct ? ["hook straight in"] : []), ...(o.story === "dongeng" ? ["story + fact"] : []), ...(o.story === "kisah" ? ["true story"] : []), `music ${music}`, `${apps} voice app${apps === 1 ? "" : "s"}`].join(", ");
 }
 
 function stepSummary(id, d) {
@@ -103,9 +118,10 @@ function stepSummary(id, d) {
   const v = d.voice;
   if (id === "new") return `${d.duration} s · ${d.kind === "custom" ? "Custom" : "Template"}`;
   if (id === "brief") return `${d.briefAt ? `copied ${dateText(d.briefAt)}` : "not copied yet"} · ${optionsSummary(d.options)}`;
+  if (id === "build") return d.voice && d.voice.aligned ? folderLabel(d.folder ? d.folder.state : "") : "after the voice is matched";
   if (id === "story" || id === "answer") {
     if (!d.story) return id === "story" ? folderLabel(d.folder ? d.folder.state : "") : "no answer yet";
-    return `${d.story.beats.length} beats · ${lengthText(d.length)}${d.folder && d.folder.state === "folder berubah" ? " · folder changed" : ""}`;
+    return `${d.story.beats.length} beats · ${lengthText(d.length)}${!isVoiceFirst(d) && d.folder && d.folder.state === "folder berubah" ? " · folder changed" : ""}`;
   }
   if (id === "facts") {
     if (!d.story) return "waiting for the story";
@@ -131,7 +147,8 @@ function stepState(id, d) {
   const v = d.voice, claimsOpen = (d.facts || []).some((c) => c.status !== "checked");
   if (id === "new") return "selesai";
   if (id === "brief") return d.briefAt || d.story ? "selesai" : "menunggu";
-  if (id === "story" || id === "answer") return !d.story ? "menunggu" : d.folder && d.folder.state === "folder berubah" ? "usang" : "selesai";
+  if (id === "build") return !(v && v.aligned) ? "menunggu" : d.folder && d.folder.state === "cerita diambil" ? "selesai" : d.folder && d.folder.state === "folder berubah" ? "usang" : "menunggu";
+  if (id === "story" || id === "answer") return !d.story ? "menunggu" : !isVoiceFirst(d) && d.folder && d.folder.state === "folder berubah" ? "usang" : "selesai";
   if (id === "facts") return !d.story ? "menunggu" : claimsOpen || !d.title ? "menunggu" : "selesai";
   if (id === "script") return d.story ? "opsional" : "menunggu";
   if (id === "voice") return v && v.name ? (v.aligned ? "selesai" : "menunggu") : "opsional";
@@ -141,6 +158,6 @@ function stepState(id, d) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { STEPS_CUSTOM, STEPS_TEMPLATE, STEP_TITLE, stepsFor, stepNum, activeStepFor, FOLDER_STATES, folderChip, folderLabel, stateLabel, fmtSeconds, lengthText, dateText,
+  module.exports = { STEPS_CUSTOM, STEPS_CUSTOM_VOICE, STEPS_TEMPLATE, STEP_TITLE, isVoiceFirst, FLOW_LABELS, stepsFor, stepNum, activeStepFor, FOLDER_STATES, folderChip, folderLabel, stateLabel, fmtSeconds, lengthText, dateText,
     BEAT_KIND_LABEL, ITEM_LABEL, kindLabel, itemLabel, optionsSummary, stepSummary, stepState };
 }

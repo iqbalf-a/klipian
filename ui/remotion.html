@@ -70,6 +70,9 @@
               <label class="ws-field">Look
                 <select class="ws-input rm-boxed" data-opt="look"><option value="auto" selected>Automatic (chosen from the topic)</option><option value="iso">2.5D isometric</option><option value="2d">2D</option><option value="text">Text</option><option value="ricks">Ricks (3D diorama + stick cast, voice first)</option></select>
               </label>
+              <label class="ws-field">Order
+                <select class="ws-input rm-boxed" data-opt="flow"><option value="picture" selected>Picture first</option><option value="voice">Voice first</option></select>
+              </label>
               <label class="ws-field">Story
                 <select class="ws-input rm-boxed" data-opt="story"><option value="fakta" selected>Fact (explain it)</option><option value="dongeng">Story + fact (a made-up story carried by one true fact)</option><option value="kisah">True story (a sourced real event with a twist)</option></select>
               </label>
@@ -83,6 +86,7 @@
             <span class="rm-hint">Straight into the topic: "Petugas SPBU ini nunjuk angka nol, dan itu bukan basa-basi.", not "Kenapa petugas SPBU selalu bilang mulai dari nol?" Always on for Ricks.</span>
             <span class="rm-hint">Story + fact: made-up people in an everyday place, one true fact explained near the end (e.g. a blind grandmother who smells the rain coming: ozone from lightning).</span>
             <span class="rm-hint">Automatic: Claude Code chooses the look that fits the topic best (B28).</span>
+            <span class="rm-hint">Order. Picture first: Claude Code builds the story and the picture, then you add the voice (the quick way). Voice first: the story text, then the voice, then Claude Code builds the picture to the voice, so every shot lands on a word (chosen for Ricks).</span>
             <video class="rm-look-img" muted loop autoplay playsinline hidden></video>
             <details class="rm-adv">
               <summary>More options (voice apps, notes, video kind)</summary>

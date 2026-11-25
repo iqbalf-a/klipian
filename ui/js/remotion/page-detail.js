@@ -33,6 +33,7 @@ async function refresh() {
     const { id, topic, duration, seconds, voiced, status, title, chip, claims, unchecked, hasStory, updated, composition } = CUR;
     LIST[i] = { ...LIST[i], id, topic, duration, seconds, voiced, status, title, chip, claims, unchecked, hasStory, updated, composition };
   }
+  if (isVoiceFirst(CUR)) { briefCache.delete(`${CUR.id}:main`); prefetchBrief(); }   // the brief is another one once the voice is matched (stage 2)
   const active = activeStepFor(CUR);
   if (active !== LAST_ACTIVE) { OPEN = LAST_ACTIVE = active; }     // the open step follows the work
   drawList();
@@ -83,13 +84,13 @@ function drawNext() {
   const chips = (d.stages || []).map((c) => `<span class="rm-chip" data-state="${esc(c.state)}">${esc(c.label)}: ${esc(stateLabel(c.state))}</span>`).join("");
   byId("stepNext").innerHTML = `
     <div class="rm-next"><b>Next step:</b> ${esc(n.text || "")}</div>
-    <div class="rm-actions"><button class="btn" type="button" data-act="openStep" data-step="${esc(active)}">Open step ${stepNum(d.kind, active)}</button></div>
+    <div class="rm-actions"><button class="btn" type="button" data-act="openStep" data-step="${esc(active)}">Open step ${stepNum(d.kind, active, d.options && d.options.flow)}</button></div>
     <div class="rm-chips">${chips}</div>`;
 }
 
 function drawSteps() {
   const d = CUR;
-  byId("rmSteps").innerHTML = stepsFor(d.kind).map((s) => {
+  byId("rmSteps").innerHTML = stepsFor(d.kind, d.options && d.options.flow).map((s) => {
     const open = OPEN === s.id;
     const state = stepState(s.id, d);
     return `
@@ -109,7 +110,7 @@ function drawSteps() {
 function afterOpen() {
   if (OPEN === "script") ensureNarration();
   if (byId("rmFList")) redrawFolderList();            // the folder list and its pager are drawn once their mount is in the page
-  const box = byId("body-story") || byId("body-answer");
+  const box = byId("body-story") || byId("body-build") || byId("body-answer");
   if (box) box.querySelectorAll("[data-f],[data-item]").forEach((x) => { x.dataset.was = x.value; });
 }
 

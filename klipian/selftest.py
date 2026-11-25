@@ -8044,6 +8044,19 @@ def check_motionstate() -> tuple[str, str]:
         problems.append("a Khusus video whose story is taken goes on to the render")
     if motion.next_step({**base, "custom": True, "folder": "folder berubah"})["key"] != "retake":
         problems.append("a changed folder asks to take the story again")
+    vf = {**base, "custom": True, "flow": "voice", "folder": "belum dipilih"}        # voice first: the story, the voice, and only then the folder
+    for facts, want in (({**vf, "story": False, "briefed": False}, "brief"), ({**vf, "story": False}, "paste"), ({**vf, "voice": False}, "voice"), ({**vf, "voice": True, "aligned": False}, "align"),
+                        ({**vf, "voice": True, "aligned": True}, "folder"), ({**vf, "voice": True, "aligned": True, "folder": "cerita belum diambil"}, "take"),
+                        ({**vf, "voice": True, "aligned": True, "folder": "folder berubah"}, "retake"), ({**base, "custom": True, "flow": "picture", "folder": None}, "folder")):
+        if motion.next_step(facts)["key"] != want:
+            problems.append(f"voice first: the next step should be {want}: {motion.next_step(facts)}")
+    if motion.normalize_options({})["flow"] != "picture" or motion.normalize_options({"flow": "voice"})["flow"] != "voice":
+        problems.append("the order option defaults to picture first and accepts voice first")
+    try:
+        motion.normalize_options({"flow": "x"})
+        problems.append("an unknown order is refused")
+    except motion.MotionError:
+        pass
 
     chips = {c["key"]: c["state"] for c in motion.stage_chips({**base, "pending": 1, "voice": True, "aligned": True, "stills": "stale", "render": "stale"})}
     if chips.get("klaim") != "perlu" or chips.get("suara") != "selesai" or chips.get("gambar") != "usang" or chips.get("render") != "usang":

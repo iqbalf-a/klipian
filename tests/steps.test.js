@@ -15,6 +15,23 @@ eq(S.stepNum("custom", "script") < S.stepNum("custom", "voice"), true, "the scri
 eq(S.stepNum("custom", "preview") < S.stepNum("custom", "render"), true, "the preview comes before the final render");
 eq(S.stepNum("custom", "answer"), "", "Khusus has no answer step");
 
+// voice first (options.flow = "voice"): the story is pasted, the voice comes before the picture is built
+eq(S.stepsFor("custom", "voice").map((s) => s.id), ["new", "brief", "answer", "facts", "script", "voice", "build", "preview", "render"], "voice first: the build comes after the voice");
+eq(S.stepsFor("custom", "picture").map((s) => s.id), S.stepsFor("custom").map((s) => s.id), "picture first is the order every video had before");
+eq(S.stepsFor("template", "voice").map((s) => s.id), S.stepsFor("template").map((s) => s.id), "a template video has no voice-first order");
+eq(S.stepNum("custom", "build", "voice") < S.stepNum("custom", "render", "voice"), true, "voice first: the build comes before the render");
+{
+  const v = (key, over = {}) => ({ kind: "custom", options: { flow: "voice" }, next: { key }, briefAt: 1, renderBlock: { state: "menunggu", reasons: [] }, ...over });
+  eq(S.activeStepFor(v("brief")), "brief", "voice first: the brief");
+  eq(S.activeStepFor(v("paste")), "answer", "voice first: the story is pasted");
+  eq(S.activeStepFor(v("voice")), "voice", "voice first: make the voice");
+  eq(S.activeStepFor(v("align")), "voice", "voice first: match the voice");
+  eq(["folder", "take", "retake"].map((k) => S.activeStepFor(v(k))), ["build", "build", "build"], "voice first: the folder is the last build step");
+  eq(S.activeStepFor(v("blocked", { renderBlock: { reasons: ["The story in the folder changed: load it again first."] } })), "build", "voice first, blocked by the folder: the build step");
+  eq(S.stepState("build", v("voice", { voice: null })), "menunggu", "the build waits for the matched voice");
+  eq(S.stepState("answer", v("voice", { story: { beats: [] }, folder: { state: "folder berubah" } })), "selesai", "voice first: a changed folder does not make the pasted story stale");
+}
+
 // the active step follows the server's next step
 const d = (key, over = {}) => ({ kind: "custom", next: { key }, briefAt: 1, renderBlock: { state: "menunggu", reasons: [] }, ...over });
 eq(S.activeStepFor(d("folder", { briefAt: null })), "brief", "no brief copied yet: the brief");
