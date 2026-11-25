@@ -1,0 +1,220 @@
+{
+ "bible": 1,
+ "question": "Nasi di rice cooker warm seharian bisa basi?",
+ "titles": [
+  "Nasi di rice cooker warm seharian bisa basi?",
+  "Nasi masih hangat, belum tentu aman",
+  "Nasi warm seharian: aman atau bahaya?"
+ ],
+ "duration": 40,
+ "look": "2d",
+ "theme": "cream",
+ "stage": "strip",
+ "captions": true,
+ "music": {
+  "track": "bed-curious"
+ },
+ "claims": [
+  {
+   "text": "Beras mentah sering mengandung Bacillus cereus, dan bakteri ini membentuk spora pelindung yang bertahan saat nasi dimasak.",
+   "beats": [
+    "hook",
+    "spora"
+   ],
+   "sources": [
+    "https://www.healthywa.wa.gov.au/Articles/S_T/Safe-cooling-of-cooked-rice"
+   ]
+  },
+  {
+   "text": "Nasi matang aman bila dijaga tetap panas di atas 60 °C, atau didinginkan secepatnya lalu disimpan di kulkas di bawah 5 °C.",
+   "beats": [
+    "panas",
+    "tips"
+   ],
+   "sources": [
+    "https://www.healthywa.wa.gov.au/Articles/S_T/Safe-cooling-of-cooked-rice"
+   ]
+  },
+  {
+   "text": "Nasi yang lama berada di antara 5 °C dan 60 °C bisa membuat spora berkecambah, tumbuh, dan menghasilkan racun yang menyebabkan muntah.",
+   "beats": [
+    "hook",
+    "turun"
+   ],
+   "sources": [
+    "https://www.healthywa.wa.gov.au/Articles/S_T/Safe-cooling-of-cooked-rice"
+   ]
+  },
+  {
+   "text": "Memanaskan ulang nasi tidak membunuh spora atau racun yang sudah terbentuk.",
+   "beats": [
+    "racun"
+   ],
+   "sources": [
+    "https://www.healthywa.wa.gov.au/Articles/S_T/Safe-cooling-of-cooked-rice"
+   ]
+  },
+  {
+   "text": "Nasi yang sudah tercemar tidak tampak, terasa, atau berbau berbeda dari nasi biasa.",
+   "beats": [
+    "racun"
+   ],
+   "sources": [
+    "https://www.healthywa.wa.gov.au/Articles/S_T/Safe-cooling-of-cooked-rice"
+   ]
+  }
+ ],
+ "post": {
+  "description": "Nasi di rice cooker mode warm seharian: aman atau basi? Selama nasinya terjaga di atas 60 derajat, bakteri tidak sempat berkembang. Begitu suhunya turun, spora Bacillus cereus bisa bangun dan membuat racun yang tidak hilang saat dipanaskan ulang.",
+  "hashtags": [
+   "#nasi",
+   "#ricecooker",
+   "#keamananpangan",
+   "#faktaseru",
+   "#intipyuk",
+   "#shorts"
+  ]
+ },
+ "thumb": "Nasi warm seharian: *aman*?",
+ "needs": [],
+ "beats": [
+  {
+   "id": "hook",
+   "kind": "hook",
+   "dur": 3,
+   "narration": "Nasi masih hangat, belum tentu aman.",
+   "text": "Hangat belum tentu aman",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Hangat belum tentu aman",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "sting",
+   "kind": "sting",
+   "dur": 1,
+   "narration": "Intip yuk!",
+   "text": "Intip yuk!",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Intip yuk!",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "spora",
+   "kind": "normal",
+   "dur": 6,
+   "narration": "Beras mentah sering membawa spora bakteri Bacillus cereus, dan spora itu tahan dimasak.",
+   "text": "Spora tahan dimasak",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Spora tahan dimasak",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "panas",
+   "kind": "normal",
+   "dur": 7,
+   "narration": "Selama nasi dijaga di atas enam puluh derajat, spora itu tertidur dan bakteri tidak berkembang.",
+   "text": "Di atas 60 °C: aman",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Di atas 60 °C: aman",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "turun",
+   "kind": "normal",
+   "dur": 8,
+   "narration": "Tapi kalau suhunya turun ke hangat kuku, spora bangun, berkembang biak, lalu membuat racun.",
+   "text": "Suhu turun: spora bangun",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Suhu turun: spora bangun",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "racun",
+   "kind": "result",
+   "dur": 6,
+   "narration": "Racun itu tidak hilang saat dipanaskan ulang, dan nasinya tetap tampak normal.",
+   "text": "SEBAGIAN: tergantung suhunya",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "SEBAGIAN: tergantung suhunya",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "tips",
+   "kind": "tips",
+   "dur": 5,
+   "narration": "Pastikan nasi tetap panas, atau simpan cepat di kulkas.",
+   "text": "Jaga panas atau kulkas",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Jaga panas atau kulkas",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "outro",
+   "kind": "outro",
+   "dur": 4,
+   "narration": "",
+   "text": "",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  }
+ ]
+}
