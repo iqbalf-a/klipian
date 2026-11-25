@@ -188,7 +188,7 @@ async function deleteResultsAsked(ids) {
   return true;
 }
 
-/* After "A separate video for each" (or "Add to this Result"): scroll to step 2 and light the Results involved.
+/* After "One video per moment" (or "Add to this Result"): scroll to step 2 and light the Results involved.
    The new ones are ticked too, so Output format… and Render selected are one click away. */
 let bulkFreshTimer = null;
 function bulkShowFresh(ids, { tick = true } = {}) {

@@ -68,26 +68,18 @@ if (typeof document !== "undefined") (function () {
   const save = () => { if (typeof saveProject === "function") saveProject(); };
 
   /* ---------- starting a project from a link ---------- */
-  window.startYouTubePartsProject = () => {
-    openYouTubeDialog({
-      choose: true,
-      onChosen: async (pv) => {
-        if (window.YT || videoAssets().length) startNewProject();      // else this empty project is used
-        const stem = (pv.fileName || "").replace(/\.mp4$/i, "") || pv.title || "YouTube video";
-        window.YT = { videoId: pv.id, url: pv.url, title: pv.title || "", channel: pv.channel || "", duration: pv.duration || 0,
-          stem, quality: 1080, answer: "", reply: "", candidates: [], parts: [] };
-        draw();
-        if (typeof writeProjectNow === "function") await writeProjectNow();
-        if (typeof renderAssets === "function") renderAssets();
-        draw();
-      },
-    });
-  };
-  $q("#addYouTubePartsBtn")?.addEventListener("click", () => {
-    // a project that has nothing yet is used as it is; one that has a video or a link stays saved and a new one starts
+  // the dialog's "Pick clips first": a project that has nothing yet is used as it is; one that has a video or a link stays saved and a new one starts
+  window.startYouTubePartsFromPreview = async (pv) => {
     if ((window.YT || videoAssets().length) && !confirm("This starts a new project from the YouTube link. The current project stays saved.")) return;
-    window.startYouTubePartsProject();
-  });
+    if (window.YT || videoAssets().length) startNewProject();
+    const stem = (pv.fileName || "").replace(/\.mp4$/i, "") || pv.title || "YouTube video";
+    window.YT = { videoId: pv.id, url: pv.url, title: pv.title || "", channel: pv.channel || "", duration: pv.duration || 0,
+      stem, quality: 1080, answer: "", reply: "", candidates: [], parts: [] };
+    draw();
+    if (typeof writeProjectNow === "function") await writeProjectNow();
+    if (typeof renderAssets === "function") renderAssets();
+    draw();
+  };
 
   /* ---------- drawing ---------- */
   function draw() {

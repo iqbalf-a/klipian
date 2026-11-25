@@ -718,7 +718,7 @@ function updateRecButton() {
   const each = $("#recEachBtn");
   if (each) {
     each.disabled = n === 0;
-    each.textContent = n > 1 ? `Make ${n} separate Results` : n === 1 ? "Make its own Result" : "Make separate Results";
+    each.textContent = n > 1 ? `Make ${n} Results, one per moment` : n === 1 ? "Make its own Result" : "Make one Result per moment";
     each.title = n ? "Each ticked moment becomes its own Result (it keeps the open Result's output format): Render selected then gives one file each" : none;
     $("#recManyLine").textContent = n ? `${moments} → ${n} video${n === 1 ? "" : "s"}` : none;
   }

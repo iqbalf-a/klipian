@@ -433,7 +433,7 @@ async function writePostTextDialog(ids) {
   row.className = "post-ai-dlg-actions";
   row.append(
     mk(ids.length > 1 ? `Copy brief for ${ids.length} Results` : "Copy brief for this Result", "main", () => copyBriefFor(ids, say)),
-    mk("Download", "", () => downloadBriefFor(ids, say)),
+    mk("Download brief", "", () => downloadBriefFor(ids, say)),
     mk("Paste reply…", "main", () => { paste = true; body.closest("dialog")?.querySelector(".confirm-cancel")?.click(); }));
   body.append(intro, row, note);
   setTimeout(() => { const ok = body.closest("dialog")?.querySelector(".confirm-ok"); if (ok) ok.hidden = true; }, 0);

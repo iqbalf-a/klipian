@@ -261,7 +261,7 @@ $("#copyBrief")?.addEventListener("click", async (e) => {
       briefCache = { name, text };
     }
   } catch (err) {
-    note.textContent = `Could not copy (${err.message}). Use Download file instead.`;
+    note.textContent = `Could not copy (${err.message}). Use Download brief instead.`;
     return;
   }
   note.textContent =

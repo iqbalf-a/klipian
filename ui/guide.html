@@ -30,9 +30,7 @@
 
 <header class="guide-top">
   <a class="brand" href="/" title="Back to the editor">klipian</a>
-  <nav class="tabs area-switch" aria-label="Area" id="areaSwitch">
-    <a href="/guide" aria-current="page">Guide</a>
-  </nav>
+  <nav class="tabs area-switch" aria-label="Area" data-area="guide" id="areaSwitch"></nav>
   <div id="profileChip"></div>
   <button class="btn quiet" id="themeBtn" type="button" aria-live="polite"></button>
   <span id="topClock"></span>
@@ -303,7 +301,7 @@
           <ul>
             <li><b>One video from these moments</b> (<b>Add N to this Result</b>): the ticked suggestions are joined into
               the open Result. One render = <b>one file</b>.</li>
-            <li><b>A separate video for each</b> (<b>Make N separate Results</b>): each suggestion becomes its own Result
+            <li><b>One video per moment</b> (<b>Make N Results, one per moment</b>): each suggestion becomes its own Result
               and takes the output format of the open Result. Render = <b>N files</b>.</li>
           </ul></li>
         <li><b>Results</b>: the list of clips to render. Each row shows the duration, the output format, the framing and
@@ -421,16 +419,14 @@
 </div>
 
 <script>
-/* The switch: with a profile the same three items as everywhere (Edit | Workspace | Guide); without one, Edit and
+/* The switch: with a profile, shared/topbar.js makes the same links as every page (data-area="guide"); without one, Edit and
    Workspace would only bounce to the picker, so there is "Choose profile" (back to the picker, which returns here). */
 (function () {
+  if (window.GUIDE_HAS_PROFILE) return;
   const nav = document.getElementById("areaSwitch");
-  if (window.GUIDE_HAS_PROFILE) {
-    nav.innerHTML = '<a href="/">Edit</a><a href="/workspace">Workspace</a><a href="/sources">Sources</a><a href="/remotion">Motion</a><a href="/autopilot">Autopilot</a><a href="/guide" aria-current="page">Guide</a>';
-  } else {
-    nav.innerHTML = '<a href="/profiles?next=%2Fguide">Choose profile</a><a href="/guide" aria-current="page">Guide</a>';
-    document.getElementById("profileChip").remove();
-  }
+  nav.removeAttribute("data-area");                       // topbar.js leaves it alone
+  nav.innerHTML = '<a href="/profiles?next=%2Fguide">Choose profile</a><a href="/guide" aria-current="page">Guide</a>';
+  document.getElementById("profileChip").remove();
 })();
 </script>
 <script src="/ui/js/shared/topbar.js"></script>

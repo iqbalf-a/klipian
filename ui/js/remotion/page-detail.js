@@ -128,9 +128,9 @@ byId("rmMain").addEventListener("click", async (e) => {
   try {
     if (act === "toggleStep") return openStep(OPEN === t.dataset.step ? null : t.dataset.step, false);
     if (act === "openStep") return openStep(t.dataset.step, true);
-    if (act === "rmCopyBrief") return copyBrief(t);
+    if (act === "rmCopyBrief" || act === "rmCopyBuild") return copyBrief(t);
     if (act === "rmCopyShort") return copyShort(t);
-    if (act === "rmDownBrief") return downloadBrief("main");
+    if (act === "rmDownBrief" || act === "rmDownBuild") return downloadBrief("main");
     if (act === "rmPasteBtn") return pasteAnswer("main");
     if (act === "rmDelete") return deleteVideo();
     if (act === "preview") return startPreview();

@@ -43,14 +43,7 @@
          (.area-switch in brand.css), which drags the three controls after
          it along too, since nothing between them forces a gap. The same
          four elements in the same order close /workspace's header. -->
-    <nav class="tabs area-switch" aria-label="Area">
-      <a href="/" aria-current="page">Edit</a>
-      <a href="/workspace">Workspace</a>
-      <a href="/sources">Sources</a>
-      <a href="/remotion">Motion</a>
-      <a href="/autopilot">Autopilot</a>
-      <a href="/guide" title="The guide opens in a new tab">Guide</a>
-    </nav>
+    <nav class="tabs area-switch" aria-label="Area" data-area="edit"></nav>
     <!-- Three states, not two: Auto follows the operating system, and is
          the default. Cycling through it rather than a plain on/off switch
          is what lets someone get BACK to "follow the OS" after picking a
@@ -174,6 +167,7 @@
                stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <rect x="3" y="8" width="14" height="12" rx="2"/><path d="M7 4 L19 4 Q21 4 21 6 L21 16"/>
           </svg>
+          <span class="tab-n" aria-hidden="true">1</span>
           <span>Assets</span>
         </button>
         <button class="tab" role="tab" id="tab-analysis" data-to="analysis" aria-controls="panel-analysis" aria-selected="false" tabindex="-1">
@@ -181,6 +175,7 @@
                stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M2 12 L5 12 L7 6 L10 18 L13 4 L16 20 L19 9 L22 12"/>
           </svg>
+          <span class="tab-n" aria-hidden="true">2</span>
           <span>Analyze</span>
         </button>
         <button class="tab" role="tab" id="tab-clips" data-to="clips" aria-controls="panel-clips" aria-selected="true" tabindex="0">
@@ -189,6 +184,7 @@
             <circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/>
             <line x1="8.5" y1="8.5" x2="20" y2="20"/><line x1="20" y1="4" x2="8.5" y2="15.5"/>
           </svg>
+          <span class="tab-n" aria-hidden="true">3</span>
           <span>Clips</span>
         </button>
         <span class="eyebrow rel-side-group">Editing</span>
@@ -201,6 +197,7 @@
             <line x1="4" y1="8" x2="20" y2="8"/><circle cx="15" cy="8" r="2.5"/>
             <line x1="4" y1="16" x2="20" y2="16"/><circle cx="9" cy="16" r="2.5"/>
           </svg>
+          <span class="tab-n" aria-hidden="true">4</span>
           <span>Output Format</span>
         </button>
         <!-- Segment order and what goes on top of the clip (compose.js).
@@ -211,6 +208,7 @@
             <line x1="3" y1="7" x2="14" y2="7"/><line x1="8" y1="12" x2="21" y2="12"/>
             <line x1="3" y1="17" x2="11" y2="17"/><line x1="16" y1="3" x2="16" y2="21"/>
           </svg>
+          <span class="tab-n" aria-hidden="true">5</span>
           <span>Timeline</span>
         </button>
         <button class="tab" role="tab" id="tab-framing" data-to="framing" aria-controls="panel-framing" aria-selected="false" tabindex="-1">
@@ -218,6 +216,7 @@
                stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M6 2 L2 2 L2 6 M18 2 L22 2 L22 6 M2 18 L2 22 L6 22 M22 18 L22 22 L18 22"/>
           </svg>
+          <span class="tab-n" aria-hidden="true">6</span>
           <span>Framing</span>
         </button>
         <button class="tab" role="tab" id="tab-captions" data-to="captions" aria-controls="panel-captions" aria-selected="false" tabindex="-1">
@@ -225,6 +224,7 @@
                stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="16" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/>
           </svg>
+          <span class="tab-n" aria-hidden="true">7</span>
           <span>Captions</span>
         </button>
         <!-- Arrow leaving a tray: the Result going out as a file. -->
@@ -233,6 +233,7 @@
                stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M12 3 L12 14 M8 10 L12 14 L16 10"/><path d="M4 17 L4 20 L20 20 L20 17"/>
           </svg>
+          <span class="tab-n" aria-hidden="true">8</span>
           <span>Render</span>
         </button>
         <button class="tab" role="tab" id="tab-history" data-to="history" aria-controls="panel-history" aria-selected="false" tabindex="-1">
@@ -325,11 +326,10 @@
               <!-- A video from anywhere on disk: copied into the profile's sources folder
                    (with progress), then added to this project. -->
               <button class="btn add-video-btn" id="addVideoBtn" type="button">Add video…</button>
-              <!-- A YouTube link: preview, then download into the sources folder (ytdl.js). -->
-              <button class="btn add-video-btn" id="addYouTubeBtn" type="button">From YouTube link…</button>
-              <!-- A YouTube link, but only the clips Gemini picks are downloaded (ytparts.js). -->
-              <button class="btn add-video-btn" id="addYouTubePartsBtn" type="button"
-                      title="Ask Gemini first, then download only the clips you pick">From YouTube, parts only…</button>
+              <!-- A YouTube link: preview, then download the whole video into the sources folder (ytdl.js), or "Pick clips first" and download only
+                   the clips Gemini picks (ytparts.js). One button, the choice is made in the dialog. -->
+              <button class="btn add-video-btn" id="addYouTubeBtn" type="button"
+                      title="Download the whole video, or pick clips first and download only those">From YouTube…</button>
             </span>
             <input type="file" id="videoFileInput" accept=".mp4,.mkv,.mov,.webm,video/*" multiple hidden>
           </div>
@@ -449,7 +449,7 @@
                  to paste into the chat, Download saves it to drop in. -->
             <div class="step-actions">
               <button class="btn main" id="copyBrief" type="button" disabled>Copy</button>
-              <button class="btn" id="downloadBrief" type="button" disabled>Download file</button>
+              <button class="btn" id="downloadBrief" type="button" disabled>Download brief</button>
               <button class="btn main" id="findWithClaude" type="button" disabled
                       title="Send this brief to Claude through the API (needs a key in Profile settings)">Find clips with Claude</button>
             </div>
@@ -484,7 +484,7 @@
             placeholder="1. Topic (4:45 - 5:05): &quot;the first sentence spoken&quot; Why it is interesting."></textarea>
           <div class="step-foot">
             <span class="data" id="geminiNote" role="status"></span>
-            <button class="btn" id="downloadGeminiBrief" type="button" disabled>Download file</button>
+            <button class="btn" id="downloadGeminiBrief" type="button" disabled>Download brief</button>
             <button class="btn main" id="copyGeminiBrief" type="button" disabled>Copy brief for AI</button>
           </div>
         </div>
@@ -655,10 +655,10 @@
             <div class="rec-or" aria-hidden="true"><span>or</span></div>
             <div class="rec-way" data-way="many">
               <span class="rec-viz many" aria-hidden="true"><i></i><i></i><i></i></span>
-              <b>A separate video for each</b>
+              <b>One video per moment</b>
               <span class="rec-way-line" id="recManyLine">Tick moments above</span>
               <button class="btn main" id="recEachBtn" type="button" disabled
-                      title="Tick moments above first">Make separate Results</button>
+                      title="Tick moments above first">Make one Result per moment</button>
             </div>
           </div>
         </div>
@@ -676,7 +676,7 @@
             </span>
           </div>
           <p class="allres-legend">Tick = include in Output format / Delete / Render · Editing = the Result open below</p>
-          <p class="allres-empty" id="allResEmpty" hidden>No Results yet: tick moments above and choose "A separate video for each".</p>
+          <p class="allres-empty" id="allResEmpty" hidden>No Results yet: tick moments above and choose "One video per moment".</p>
           <div class="allres-list" id="allResList"></div>
           <div class="allres-bar">
             <div class="allres-group">
@@ -1040,8 +1040,8 @@
             <div class="post-actions">
               <button class="btn main" type="button" id="postBriefCopy"
                       title="A short brief of this clip only (its words, the rubric's post-text rules, your hashtag rule) to paste into Claude">Copy brief for this Result</button>
-              <button class="btn" type="button" id="postBriefDownload" title="The same brief as a file to drop into Claude">Download</button>
-              <button class="btn main" type="button" id="postReplyPaste"
+              <button class="btn" type="button" id="postBriefDownload" title="The same brief as a file to drop into Claude">Download brief</button>
+              <button class="btn" type="button" id="postReplyPaste"
                       title="Paste Claude's JSON reply: it fills the Result title, the post text and the angle">Paste reply…</button>
               <span class="data" id="postAiNote" role="status"></span>
             </div>

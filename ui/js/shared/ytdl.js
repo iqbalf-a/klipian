@@ -11,7 +11,7 @@
 let _ytDlg = null;               // the <dialog>, built on first use
 let _ytJob = null;               // { id, kind, timer } while a download or an update is being followed
 let _ytOnAdded = null;           // what to call with the file name when the download is done
-let _ytOnChosen = null;          // parts-only mode: called with the preview instead of downloading anything
+let _ytOnChosen = null;          // when given: the dialog also offers "Pick clips first", which calls this with the preview instead of downloading anything
 let _ytPreview = null;           // the preview currently shown
 let _ytQuality = 1080;           // 1080 (default) or 720 (a smaller file)
 let _ytStatusInfo = null;        // the last /api/ytdl/status (version, JS runtime)
@@ -77,6 +77,7 @@ function _ytBuild() {
       <div class="ytdl-end">
         <button class="ytdl-btn" type="button" data-stop hidden>Cancel download</button>
         <button class="ytdl-btn" type="button" data-close>Close</button>
+        <button class="ytdl-btn" type="button" data-parts hidden title="Ask Gemini which moments to keep, then download only those clips">Pick clips first…</button>
         <button class="ytdl-btn primary" type="button" data-go hidden>Download</button>
       </div>
     </div>`;
@@ -86,6 +87,7 @@ function _ytBuild() {
   q("[data-close]").addEventListener("click", () => dlg.close());
   q("[data-form]").addEventListener("submit", (e) => { e.preventDefault(); _ytCheck(); });
   q("[data-go]").addEventListener("click", _ytGo);
+  q("[data-parts]").addEventListener("click", _ytParts);
   q("[data-stop]").addEventListener("click", _ytStop);
   q("[data-update]").addEventListener("click", _ytUpdate);
   q("[data-copy]").addEventListener("click", _ytCopyDetails);
@@ -122,6 +124,7 @@ async function _ytCopyDetails() {
 function _ytShow({ card = true, go = false, stop = false, bar = false, busy = false } = {}) {
   if (!card) _ytq("[data-card]").replaceChildren();
   _ytq("[data-go]").hidden = !go;
+  _ytq("[data-parts]").hidden = !(go && _ytOnChosen && !busy);
   _ytq("[data-stop]").hidden = !stop;
   _ytq("[data-bar]").hidden = !bar;
   _ytq("[data-check]").disabled = busy;
@@ -170,16 +173,6 @@ async function _ytCheck() {
   _ytPreview = d;
   const meta = [d.channel, _ytLen(d.duration), d.height ? `${d.height}p` : "", d.size ? `about ${_ytBytes(d.size)}` : ""]
     .filter(Boolean).join(" · ");
-  if (_ytOnChosen) {                            // parts only: nothing is downloaded here
-    const card = _ytEl("div", { class: "ytdl-card" },
-      d.thumbnail ? _ytEl("img", { src: d.thumbnail, alt: "", referrerPolicy: "no-referrer" }) : null,
-      _ytEl("div", {}, _ytEl("b", { text: d.title || "(no title)" }), _ytEl("div", { class: "ytdl-meta", text: meta })));
-    _ytq("[data-card]").replaceChildren(card);
-    _ytSay("Only the clips you pick will be downloaded, after Ask Gemini.");
-    _ytq("[data-go]").textContent = "Start project";
-    _ytShow({ go: true });
-    return;
-  }
   const card = _ytEl("div", { class: "ytdl-card" },
     d.thumbnail ? _ytEl("img", { src: d.thumbnail, alt: "", referrerPolicy: "no-referrer" }) : null,
     _ytEl("div", {}, _ytEl("b", { text: d.title || "(no title)" }),
@@ -196,7 +189,7 @@ async function _ytCheck() {
     go.textContent = "Add it";
   } else {
     _ytSay("");
-    go.textContent = "Download";
+    go.textContent = _ytOnChosen ? "Download the whole video" : "Download";
   }
   _ytShow({ go: true });
 }
@@ -261,7 +254,6 @@ function _ytFollow(id, kind) {
 
 async function _ytGo() {
   if (!_ytPreview) return;
-  if (_ytOnChosen) { const pick = _ytOnChosen; _ytDlg.close(); pick(_ytPreview); return; }
   _ytShow({ go: false, busy: true });
   _ytSay("Starting…");
   const d = await _ytApi("/api/ytdl/start", { url: _ytPreview.url, quality: _ytPreview.quality || _ytQuality });
@@ -276,6 +268,14 @@ async function _ytGo() {
   _ytShow({ stop: true, bar: true, busy: true });
   _ytq("[data-bar] i").style.width = "0%";
   _ytFollow(d.id, "download");
+}
+
+/* "Pick clips first": nothing is downloaded here; the editor starts a project from the link and downloads only the clips Gemini picks. */
+function _ytParts() {
+  if (!_ytPreview || !_ytOnChosen) return;
+  const pick = _ytOnChosen, pv = _ytPreview;
+  _ytDlg.close();
+  pick(pv);
 }
 
 async function _ytStop() {
@@ -293,11 +293,11 @@ async function _ytUpdate() {
   _ytFollow(d.id, "update");
 }
 
-async function openYouTubeDialog({ onAdded, onChosen, choose } = {}) {
+async function openYouTubeDialog({ onAdded, onChosen } = {}) {
   if (!_ytDlg) _ytDlg = _ytBuild();
   _ytOnAdded = onAdded || null;
-  _ytOnChosen = choose ? (onChosen || null) : null;
-  _ytq("#ytdlTitle").textContent = choose ? "From YouTube, parts only" : "Add from YouTube";
+  _ytOnChosen = onChosen || null;
+  _ytq("#ytdlTitle").textContent = "Add from YouTube";
   if (!_ytJob) {
     _ytPreview = null;
     _ytq("[data-url]").value = "";

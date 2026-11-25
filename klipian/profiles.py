@@ -121,6 +121,12 @@ def exists(pid) -> bool:
     return True if pid in (GUEST, ADMIN) else read_meta(pid) is not None          # these two are always there
 
 
+def _focus(pid: str) -> str:
+    """What the profile mostly makes, from what it has: "motion" when it has Motion videos and no editor project (the nav then leads with Motion), else "edit"."""
+    folder = paths.PROFILES_DIR / pid
+    return "motion" if (folder / "motion").is_dir() and not any((folder / "projects").glob("*.json")) else "edit"
+
+
 def list_profiles() -> list[dict]:
     """The profiles to pick from (the Guest is separate: it is always there)."""
     root = paths.PROFILES_DIR
@@ -130,7 +136,7 @@ def list_profiles() -> list[dict]:
             if d.is_dir() and d.name not in (GUEST, ADMIN) and valid_profile_id(d.name):
                 meta = read_meta(d.name)
                 if meta:
-                    out.append(meta)
+                    out.append({**meta, "focus": _focus(d.name)})
     return out
 
 

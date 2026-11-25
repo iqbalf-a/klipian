@@ -367,6 +367,7 @@ $("#videoUploadCancel")?.addEventListener("click", () => videoUpload?.abort());
 // filled in, and is added to this project like a file chosen from disk.
 $("#addYouTubeBtn")?.addEventListener("click", () => openYouTubeDialog({
   onAdded: async (name) => { try { await addVideoToProject(name); } catch (err) { showToast?.(String(err.message || err)); } },
+  onChosen: (pv) => window.startYouTubePartsFromPreview?.(pv),         // "Pick clips first" (ytparts.js)
 }));
 $("#videoFileInput")?.addEventListener("change", async (e) => {
   const files = [...e.target.files];

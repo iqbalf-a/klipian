@@ -126,8 +126,8 @@ function bodyBuild(d) {
   return `
     <p>The voice is matched, so Claude Code now builds the picture to it. Copy the build brief into Claude Code opened in the klipian folder.</p>
     <div class="rm-actions">
-      <button class="btn main" id="rmCopyBrief" data-act="rmCopyBrief" type="button">Copy the build brief</button>
-      <button class="btn" id="rmDownBrief" data-act="rmDownBrief" type="button">Download the build brief</button>
+      <button class="btn main" id="rmCopyBuild" data-act="rmCopyBuild" type="button">Copy the build brief</button>
+      <button class="btn" id="rmDownBuild" data-act="rmDownBuild" type="button">Download the build brief</button>
       <span class="rm-err" id="rmBriefErr" role="alert"></span>
     </div>
     <p class="rm-hint">When Claude Code is done: choose the folder it made, load the story, then match the voice again (the story file changed).</p>

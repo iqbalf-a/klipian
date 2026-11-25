@@ -103,3 +103,36 @@ setInterval(updateTopClock, 30000);
     if (e.key === "Escape" && !panel.hidden) close();
   });
 })();
+
+
+/* The area switch, ONE copy for every page. A page only has `<nav class="tabs area-switch" aria-label="Area" data-area="edit|workspace|sources|motion|autopilot|guide">`
+   (and data-guide="#motion" for a guide anchor); the links are made here. A profile that only makes Motion videos (/api/profiles "focus": "motion", from
+   klipian/profiles.py) gets Motion first and its brand link goes to /remotion, so it does not land on an empty Edit screen. */
+(function areaSwitch() {
+  const navs = [...document.querySelectorAll("nav.area-switch[data-area]")];
+  if (!navs.length) return;
+  const AREAS = { edit: ["/", "Edit"], workspace: ["/workspace", "Workspace"], sources: ["/sources", "Sources"], motion: ["/remotion", "Motion"], autopilot: ["/autopilot", "Autopilot"], guide: ["/guide", "Guide"] };
+  const ORDER = { edit: ["edit", "workspace", "sources", "motion", "autopilot", "guide"], motion: ["motion", "workspace", "autopilot", "edit", "sources", "guide"] };
+  const draw = (focus) => {
+    for (const nav of navs) {
+      nav.replaceChildren(...ORDER[focus].map((key) => {
+        const a = document.createElement("a");
+        a.href = AREAS[key][0] + (key === "guide" ? nav.dataset.guide || "" : "");
+        a.textContent = AREAS[key][1];
+        if (key === nav.dataset.area) a.setAttribute("aria-current", "page");
+        if (key === "guide") a.title = "The guide";
+        return a;
+      }));
+    }
+    const brand = document.querySelector("a.brand");
+    if (brand) brand.setAttribute("href", focus === "motion" ? "/remotion" : "/");
+  };
+  draw("edit");
+  let id = null;
+  try { id = sessionStorage.getItem("klipian:profile"); } catch { /* no storage */ }
+  if (!id) return;
+  fetch("/api/profiles").then((r) => r.json()).then((j) => {
+    const mine = (j.profile || []).find((p) => p.id === id);
+    if (mine && mine.focus === "motion") draw("motion");
+  }).catch(() => { /* the default order stays */ });
+})();

@@ -19,14 +19,7 @@
   <!-- The same topbar as /workspace: the area switch (Motion marked), the profile chip, theme, "?" and the clock. -->
   <header style="position:sticky;top:0;z-index:40" class="flex items-center gap-4 h-[58px] px-5 shrink-0 bg-surface-1 border-b border-glass-border">
     <a class="brand" href="/" title="Back to the editor">klipian</a>
-    <nav class="tabs area-switch" aria-label="Area">
-      <a href="/">Edit</a>
-      <a href="/workspace">Workspace</a>
-      <a href="/sources">Sources</a>
-      <a href="/remotion" aria-current="page">Motion</a>
-      <a href="/autopilot">Autopilot</a>
-      <a href="/guide#motion" title="The guide opens in a new tab">Guide</a>
-    </nav>
+    <nav class="tabs area-switch" aria-label="Area" data-area="motion" data-guide="#motion"></nav>
     <div id="profileChip"></div>
     <button class="btn quiet" id="themeBtn" type="button" aria-live="polite"></button>
     <div class="shortcut-help">

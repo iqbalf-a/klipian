@@ -1383,6 +1383,8 @@ h1, h2, h3 {
   letter-spacing: -.012em;
 }
 .rel-side .tab svg { flex: none; }
+.rel-side .tab .tab-n { flex: none; width: 1.4em; text-align: center; font-size: var(--t-11); font-variant-numeric: tabular-nums; color: var(--text-faint); }
+.rel-side .tab[aria-selected="true"] .tab-n { color: inherit; }
 .rel-side .tab:hover { background: var(--glass); }
 /* Soft fill + a matching outline is the whole active indicator now. There
    used to also be a glowing accent bar on the left edge (::before,
