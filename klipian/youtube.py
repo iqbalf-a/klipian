@@ -1406,8 +1406,8 @@ def sync_all() -> dict:
             schedule.set_fields(row["id"], {"date": date, "time": time_})
             out["moved"].append(row["id"])
         d, t = (date, time_) if date else _local(got.get("publishedAt"))
-        state = f"Terjadwal {date} {time_}" if kind == "scheduled" else _STATE_WORDS.get(kind, kind)
-        items.append({"videoId": row["videoId"], "title": row.get("title") or "", "state": state,
+        state = "Terjadwal" if kind == "scheduled" else _STATE_WORDS.get(kind, kind)      # the date is in its own column
+        items.append({"videoId": row["videoId"], "url": row.get("youtubeUrl"), "title": row.get("title") or "", "text": f'{row.get("title") or ""} {row.get("description") or ""}', "state": state,
                       "when": f"{d} {t}".strip() if kind != "removed" else ""})
     known = {r["videoId"] for r in rows}
     for v in chan.values():
@@ -1444,5 +1444,5 @@ def _adopt(v: dict, out: dict) -> dict:
                           "at": int(time.time()), "createdAt": int(time.time()), "ytImported": True, **fields})
         schedule.save_clips(clips)
     out["added"].append({"id": v["id"], "title": v["title"], "linked": bool(same)})
-    state = f"Terjadwal {date} {time_}" if kind == "scheduled" else _STATE_WORDS.get(kind, kind)
-    return {"videoId": v["id"], "title": v["title"], "state": state, "when": f"{date} {time_}".strip()}
+    state = "Terjadwal" if kind == "scheduled" else _STATE_WORDS.get(kind, kind)
+    return {"videoId": v["id"], "url": fields["youtubeUrl"], "title": v["title"], "state": state, "when": f"{date} {time_}".strip()}

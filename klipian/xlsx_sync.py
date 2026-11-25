@@ -1,5 +1,5 @@
 """Writes what YouTube says about each uploaded clip into the planning .xlsx files of the workspace
-of the current profile (workspace/profiles/<id>/schedule/*.xlsx): the status column, a "Video ID" and a "Jadwal tayang" column.
+of the current profile (workspace/profiles/<id>/schedule/*.xlsx): the status column, a "Video ID", a "Jadwal tayang" and a "Link YouTube" column (each created when the sheet lacks it, in every profile).
 
 A sheet row is the clip's when its Video ID cell equals the clip's, else when its title (the "Judul..." or
 "Topik" column) shares at least 60% of the clip title's words and is clearly the best match. Sheets with
@@ -15,7 +15,7 @@ from . import paths
 
 _STOP = {"yang", "dan", "di", "ke", "dari", "untuk", "dengan", "pada", "itu", "ini", "saat", "tiap"}
 SKIP = (".lama-", ".sebelum-")
-ID_COL, WHEN_COL = "Video ID", "Jadwal tayang"
+ID_COL, WHEN_COL, LINK_COL = "Video ID", "Jadwal tayang", "Link YouTube"
 
 
 def _words(text) -> set[str]:
@@ -48,7 +48,12 @@ def _match(sheet, cols, item, taken: set[int], title_col: int) -> int | None:
     want = _words(item["title"])
     if not want:
         return None
-    scored = sorted(((len(want & _words(sheet.cell(r, title_col).value)) / len(want), r) for r in rows
+    text = _words(item.get("text"))                              # the clip's title and description: a YouTube title is often a rewrite of the planned topic
+
+    def score(r):
+        topic = _words(sheet.cell(r, title_col).value)
+        return max(len(want & topic) / len(want), len(text & topic) / len(topic) if topic else 0)
+    scored = sorted(((score(r), r) for r in rows
                      if r not in taken and not (id_col and sheet.cell(r, id_col).value)), reverse=True)
     if scored and scored[0][0] >= 0.6 and (len(scored) == 1 or scored[0][0] > scored[1][0]):
         return scored[0][1]
@@ -81,9 +86,12 @@ def sync(items: list[dict]) -> dict:
                 for it, r in hits:
                     id_col = cols.get(ID_COL) or cols.setdefault(ID_COL, sheet.max_column + 1)
                     when_col = cols.get(WHEN_COL) or cols.setdefault(WHEN_COL, max(cols.values()) + 1)
-                    for name, col in ((ID_COL, id_col), (WHEN_COL, when_col)):
-                        sheet.cell(1, col).value = name
-                    for col, value in ((status_col, it["state"]), (id_col, it["videoId"]), (when_col, it["when"])):
+                    link_col = _find(cols, "link") or cols.setdefault(LINK_COL, max(cols.values()) + 1)
+                    for name, col in ((ID_COL, id_col), (WHEN_COL, when_col), (LINK_COL, link_col)):
+                        if not sheet.cell(1, col).value:
+                            sheet.cell(1, col).value = name
+                    link = it.get("url") or f"https://youtube.com/shorts/{it['videoId']}"
+                    for col, value in ((status_col, it["state"]), (id_col, it["videoId"]), (when_col, it["when"]), (link_col, link)):
                         if sheet.cell(r, col).value != value:
                             sheet.cell(r, col).value = value
                             changed += 1
