@@ -128,14 +128,18 @@ cd "<ian checkout>" && python -m klipian.motion_register <slug> --videos "$WT/re
 
 It creates the project (story taken, folder chosen, channel `sebatang-cerita` for look ricks, else `klipian-intip`; `--profile` overrides) and, with `--wav` (ricks stage 2), imports the voice as the narration. It reuses a project that already has the slug. Run it BEFORE removing the worktree (the folder is read from it); the render then needs `git pull` in ian's checkout. Cloud (no `workspace/`): skip it. A failure is reported in line 5 of the answer, never hidden.
 
+**Verify it (ian 2026-11-25: "pastikan sudah masuk ke motion"):** registering is not done until you have SEEN the project. Right after `motion_register`, from ian's checkout, list the projects and confirm one has the slug (print its id and title), e.g. `python -c "from klipian import motion; print([(p['id'], p.get('title')) for p in motion.list_projects() if (p.get('composition') or p.get('slug')) == '<slug>'])"` (with `KLIPIAN_PROFILE` set to the profile used, `klipian-intip` unless `--profile` said otherwise). An empty list is a failure: say so in line 5, never claim the video is on the Motion page.
+
+**The pull is ian's, and you say so plainly.** You never pull, checkout or reset in ian's checkout, so the new folder is NOT on his PC until he runs `git pull` himself, and until then the Motion page shows "folder incomplete" and the video is missing from its folder list. Whenever you cannot pull, the answer must tell him in plain Indonesian that you have no access to pull and that he has to (step 5, line 6), with the command in its own code block. Never bury it in a clause.
+
 ## 5. Answer
 
-Answer in Indonesian, at most 6 short lines, nothing else:
+Answer in Indonesian, at most 6 short lines plus the one pull code block, nothing else:
 1. `slug` and "gaya: iso/2d/teks, karena ..."
 2. `main` + hash
 3. the style-check summary line
 4. each FAIL/FLAG line (or "tanpa FAIL/FLAG"), and the pieces as "baru: ... / pakai ulang: ..."
 5. at most 2 one-line points ian must decide
-6. cloud: "sudah di main, tinggal git pull di PC ian"; local: "sudah di main dan di halaman Motion (proyek <id>); WAJIB git pull di D:\github-repos\klipian supaya folder ada di PC (tanpa itu Load the story / Render bilang folder tidak ada)"; ricks stage 2: "video jadi: <path of the mp4 next to the WAV>; proyek Motion <id> sudah ada, jalankan git pull di D:\github-repos\klipian dulu supaya Load the story from the folder dan Render menemukan foldernya"
+6. the Motion check and the pull, always in plain words: cloud: "sudah di main; saya tidak punya akses pull di PC ian, jadi kamu harus git pull sendiri"; local: "proyek Motion <id> sudah ada (sudah saya cek di daftar proyek)" and then: "Saya TIDAK bisa pull di checkout kamu (tidak boleh saya sentuh), jadi kamu harus menjalankan sendiri:" followed by a fenced `powershell` block with `git -C D:\github-repos\klipian pull`, and "tanpa pull, halaman Motion bilang folder incomplete dan Load the story / Render tidak menemukan folder"; ricks stage 2: "video jadi: <path of the mp4 next to the WAV>; proyek Motion <id> sudah ada (dicek)" plus the same pull sentence and block. If the Motion check found nothing, say "BELUM masuk Motion: <reason>" instead.
 
 Do NOT print the narration texts (they are in the story; /remotion step "Voice script" shows them), no /remotion steps, no file lists, no source lists, no recap of the video.
