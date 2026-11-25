@@ -3,9 +3,10 @@
 // Imported from the plain .ts modules, never from src/design/index.ts: render.mjs loads this file in Node.
 import type { SfxEvent } from "../../src/sfx.ts";
 import type { StoryT } from "../../src/schema.ts";
+import { toNew } from "./timing.ts";
 
 const FPS = 30;
-const q = (t: number) => Math.round(t * FPS) / FPS;
+const q = (t: number) => Math.round(toNew(t) * FPS) / FPS;   // the times below are the first timing (timing.ts)
 
 export const music = { track: "bed-funk", level: 0.8 } as const;
 
@@ -32,15 +33,15 @@ export function sfx(_story: StoryT): SfxEvent[] {
   add(11.7, "spring-boing", "Bang Jaya laughs", { vol: 0.6 });
   add(12.3, "bongo-hi", "Bang Jaya laughs again", { vol: 0.5 });
   add(13.2, "radar-blip", "Bang Jaya: remote kok difoto", { vol: 0.5 });
-  add(16.3, "keyboard-clack", "Pak Darto presses power", { vol: 0.55 });
-  add(16.9, "mouse-click", "Pak Darto presses power again", { vol: 0.5 });
+  add(16.3, "keyboard-clack", "Pak Sugeng presses power", { vol: 0.55 });
+  add(16.9, "mouse-click", "Pak Sugeng presses power again", { vol: 0.5 });
   add(17.6, "fan-whirr", "he stares at the phone", { vol: 0.35 });
   add(19.2, "plunger-pop", "the phone screen pops up, enlarged");
   add(19.7, "powerdown-8bit", "the screen stays dark", { vol: 0.35 });
   add(20.5, "spring-boing", "Bang Jaya gets louder", { vol: 0.5 });
   add(22.6, "pencil-tap", "Bang Jaya jabs his finger", { vol: 0.5 });
   add(24.9, "key-jingle", "Bu Rina takes out her wallet", { vol: 0.6 });
-  add(26.9, "zipper-pull", "Pak Darto slides the back cover", { vol: 0.5 });
+  add(26.9, "zipper-pull", "Pak Sugeng slides the back cover", { vol: 0.5 });
   add(27.3, "lock-click", "the cover pops off", { vol: 0.6 });
   add(27.8, "coin-drop", "the old batteries hit the floor", { vol: 0.5 });
   add(28.1, "wheel-squeak", "a battery rolls", { vol: 0.3 });
@@ -64,7 +65,7 @@ export function sfx(_story: StoryT): SfxEvent[] {
   add(41.62, "shutter-roll", "the phone photographs the remote", { vol: 0.6 });
   add(43.2, "powerdown-8bit", "the screen stays dark", { vol: 0.4 });
   add(43.6, "low-battery", "the remote is the problem", { vol: 0.6 });
-  add(45.0, "yawn", "Pak Darto shrugs", { vol: 0.3 });
+  add(45.0, "yawn", "Pak Sugeng shrugs", { vol: 0.3 });
   add(46.7, "bird-chirp", "the next morning", { vol: 0.5 });
   [46.9, 47.25].forEach((t) => add(t, "woodblock-lo", "Bang Jaya walks to his bench", { vol: 0.4 }));
   add(47.9, "eraser-rub", "Bang Jaya lifts the phone", { vol: 0.4 });

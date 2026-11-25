@@ -1,4 +1,4 @@
-/* Teknisi TV Keliling yang Memotret Remote dengan HP (look ricks, B46 + B47 dongeng): a made-up story carried by one true fact. Pak Darto, a travelling TV technician, photographs the
+/* Teknisi TV Keliling yang Memotret Remote dengan HP (look ricks, B46 + B47 dongeng): a made-up story carried by one true fact. Pak Sugeng, a travelling TV technician, photographs the
    remote of Bu Rina's dead TV with his phone while Bang Jaya, the shop technician, laughs and offers a new TV. The phone screen stays dark; new batteries and the screen shows a
    violet blink and the TV comes on: a remote sends its commands as infrared light (about 940 nm) that the eye cannot see but a phone camera can. The picture follows the voice
    (words.json from faster-whisper): one shot per sentence, one caption word at a time, pills on their word (B45), mouths move only on the two quoted lines (B46 n), the last
@@ -17,11 +17,13 @@ import { choreoAt, locomote, type Choreo } from "../../src/ricks/choreo.ts";
 import type { StoryT } from "../../src/schema.ts";
 import storyJson from "./story.json";
 import WORDS from "./words.json";
+import { toNew, toOld } from "./timing.ts";
 
 export const story = storyJson as unknown as StoryT;
 const FPS = 30;
-const TOTAL = 50.84;
-const LOOP_AT = 50.14;   // after the last spoken word has ended; from here the picture holds the first moment
+const TOTAL_OLD = 50.84;   // the first timing (the scene runs in it, see timing.ts)
+export const TOTAL = 54.36;
+const LOOP_AT = 53.66;   // after the last spoken word has ended; from here the picture holds the first moment
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
 const prog = (t: number, a: number, b: number) => Math.min(1, Math.max(0, (t - a) / (b - a)));
 const ease = (u: number) => u * u * (3 - 2 * u);
@@ -124,19 +126,19 @@ const Sun: React.FC<{ cam: { look: THREE.Vector3 }; hot: number }> = ({ cam, hot
 
 // ---------- the layout: stage A is Bu Rina's living room (x -3.4 to 4.9), stage B (nine metres right) is Bang Jaya's workshop corner at his own home ------------------------------
 const OB = 9;
-const DARTO_AT = { x: -0.8, z: 0.5 }, RINA_AT = { x: 0.9, z: 0.2 }, JAYA_AT = { x: 2.3, z: -0.5 }, JB_AT = { x: OB + 0.4, z: 0.2 };
-const INSERT = V(-1.65, 1.35, 0.5);   // the phone screen, enlarged, that floats beside Pak Darto when the story looks at what the phone sees
+const SUGENG_AT = { x: -0.8, z: 0.5 }, RINA_AT = { x: 0.9, z: 0.2 }, JAYA_AT = { x: 2.3, z: -0.5 }, JB_AT = { x: OB + 0.4, z: 0.2 };
+const INSERT = V(-1.65, 1.35, 0.5);   // the phone screen, enlarged, that floats beside Pak Sugeng when the story looks at what the phone sees
 const C = (px: number, py: number, pz: number, lx: number, ly: number, lz: number): Cam => ({ pos: V(px, py, pz), look: V(lx, ly, lz) });
-const HOOK = C(-0.8, 1.25, 4.6, -0.8, 1.0, 0.4);   // Pak Darto, head about 30 % of the width
+const HOOK = C(-0.8, 1.25, 4.6, -0.8, 1.0, 0.4);   // Pak Sugeng, head about 30 % of the width
 // every shot keeps the person whole (the feet are in frame) and has its own kind of move; no two neighbours and no kind more than three times (B59)
 const SHOTS: Shot[] = [
-  { from: 0, a: HOOK, b: C(-0.8, 1.2, 3.5, -0.8, 1.0, 0.4) },                                              // PUSH-IN: Pak Darto memotret remote pakai HP
+  { from: 0, a: HOOK, b: C(-0.8, 1.2, 3.5, -0.8, 1.0, 0.4) },                                              // PUSH-IN: Pak Sugeng memotret remote pakai HP
   { from: 3.98, a: C(0.2, 3.2, 7.0, 0.0, 1.0, 0), b: C(0.7, 1.2, 4.8, 0.5, 1.0, 0.1) },                   // CRANE DOWN: Bu Rina bilang TV-nya mati total
   { from: 5.98, a: C(3.4, 1.3, 5.0, 3.6, 1.0, -0.2), b: C(1.8, 1.3, 5.0, 2.0, 1.0, -0.2) },               // TRUCK LEFT: Bang Jaya, teknisi toko saingannya (he walks in)
   { from: 8.36, a: C(2.0, 1.0, 4.9, 2.2, 0.75, -0.3), b: C(2.0, 1.0, 4.9, 2.2, 1.55, -0.3) },             // TILT UP from the flyer to his face: siap menjual TV baru tiga juta
   { from: 11.54, a: C(0.24, 1.25, 2.55, 2.3, 1.0, -0.4), b: C(4.1, 1.25, 2.72, 2.3, 1.0, -0.4) },         // ORBIT: Bang Jaya tertawa
   { from: 13.06, a: C(3.4, 1.3, 4.8, 2.3, 1.0, -0.4), b: C(2.9, 1.25, 3.5, 2.3, 1.0, -0.4) },             // DIAGONAL PUSH: "Remote kok difoto, Pak?"
-  { from: 14.46, a: C(0.6, 1.3, 5.3, 2.2, 1.0, -0.3), b: C(0.6, 1.3, 5.3, -0.8, 1.0, 0.4) },             // PAN from Bang Jaya to Pak Darto: diam saja, menekan tombol power
+  { from: 14.46, a: C(0.6, 1.3, 5.3, 2.2, 1.0, -0.3), b: C(0.6, 1.3, 5.3, -0.8, 1.0, 0.4) },             // PAN from Bang Jaya to Pak Sugeng: diam saja, menekan tombol power
   { from: 17.24, a: C(-0.8, 1.4, 5.0, -0.8, 1.0, 0.4), b: C(-0.8, 1.2, 3.5, -0.8, 1.0, 0.4) },           // PUSH-IN: memelototi layar HP-nya
   { from: 19.08, a: C(-0.2, 0.55, 4.7, -1.0, 1.2, 0.4), b: C(-1.4, 0.6, 4.5, -1.1, 1.2, 0.4) },          // LOW-ANGLE: Layar HP tetap gelap
   { from: 20.26, a: C(1.5, 1.3, 5.4, 1.6, 1.0, -0.4), b: C(2.7, 1.3, 5.4, 2.8, 1.0, -0.4) },             // TRUCK RIGHT: Bang Jaya makin lantang
@@ -157,15 +159,16 @@ const SHOTS: Shot[] = [
 ];
 
 // ---------- the people (each their own outfit and face, B46 i; heads are always white) and who they are (B53): ------------------------------------------------------------------------------
-// Pak Darto: an older travelling TV technician with grey hair and glasses, a green dotted work shirt; Bu Rina: the homeowner, a pink blouse, her hair in a bun;
+// Pak Sugeng: an older travelling TV technician with grey hair and glasses, a green dotted work shirt; Bu Rina: the homeowner, a pink blouse, her hair in a bun;
 // Bang Jaya: the younger rival who runs an electronics shop, a yellow collared shirt, a blue cap and a beard.
-const DARTO: Outfit = { shirt: "#1f7a5c", stripe: "#ffd447", pattern: "dots", hair: "spiky", hairColor: "#9a9a9a", nose: "none", brows: "bushy", wrinkles: true, eyebags: true, goatee: true };
+const SUGENG: Outfit = { shirt: "#1f7a5c", stripe: "#ffd447", pattern: "dots", hair: "spiky", hairColor: "#9a9a9a", nose: "none", brows: "bushy", wrinkles: true, eyebags: true, goatee: true };
 const RINA: Outfit = { shirt: "#e0456b", stripe: "#8a1f3d", pattern: "plain", hair: "bun", hairColor: "#2a1a14", blush: true };
 const JAYA: Outfit = { shirt: "#f2c230", stripe: "#b88a00", pattern: "collar", hair: "bald", beard: true, hairColor: "#17141c", body: "wide", nose: "none" };
 
 // the two quoted lines (B46 n): only these words move a mouth
-const TALK: Record<string, [number, number][]> = { jaya: [[13.06, 14.46], [21.46, 24.3]] };
+const TALK: Record<string, [number, number][]> = { jaya: [[toNew(13.06), toNew(14.46)], [toNew(21.46), toNew(24.3)]] };
 const talkAt = (id: string, t: number) => {
+  t = toNew(t);   // the scene runs in the first timing, the words and TALK are the new voice
   if (!(TALK[id] ?? []).some(([a, b]) => t >= a && t < b)) return 0;
   const w = WORDS.find((x) => t >= x.a - 0.02 && t < x.b + 0.05);
   return w ? 0.4 + 0.6 * Math.abs(Math.sin(t * 17)) : 0;
@@ -188,16 +191,16 @@ const custom = (name: string, t: number, ps: number[]): Pose | null =>
 
 const FOREVER = 1000;
 const ACTORS: { id: string; o: Outfit; ps: number[]; tracks: Track[] }[] = [
-  { id: "darto", o: DARTO, ps: PRESS_D, tracks: [
-    { a: 0, b: 14.46, pos: stay(DARTO_AT.x, DARTO_AT.z), faces: [[0, "calm", "photo"]] },
-    { a: 14.46, b: 19.08, pos: stay(DARTO_AT.x, DARTO_AT.z), faces: [[14.46, "calm", "photo"], [17.24, "puzzled", "photo"]] },
-    { a: 19.08, b: 26.28, pos: stay(DARTO_AT.x, DARTO_AT.z), faces: [[19.08, "puzzled", "photo"]] },
-    { a: 26.28, b: 29.24, pos: stay(DARTO_AT.x, DARTO_AT.z), faces: [[26.28, "calm", "open"]] },
-    { a: 29.24, b: 32.28, pos: stay(DARTO_AT.x, DARTO_AT.z), faces: [[29.24, "calm", "photo"], [31.1, "grin", "photo"]] },
-    { a: 32.28, b: 34.66, pos: stay(DARTO_AT.x, DARTO_AT.z), faces: [[32.28, "grin", "photo"]], beats: [["hop", 32.8, 33.1, 0.09], ["hop", 33.3, 33.6, 0.09]] },
-    { a: 34.66, b: 41.22, pos: stay(DARTO_AT.x, DARTO_AT.z), faces: [[34.66, "calm", "show"]] },
-    { a: 41.22, b: 44.46, pos: stay(DARTO_AT.x, DARTO_AT.z), faces: [[41.22, "calm", "photo"], [43.14, "puzzled", "photo"]] },
-    { a: 44.46, b: FOREVER, pos: stay(DARTO_AT.x, DARTO_AT.z), faces: [[44.46, "calm", "show"]] },
+  { id: "darto", o: SUGENG, ps: PRESS_D, tracks: [
+    { a: 0, b: 14.46, pos: stay(SUGENG_AT.x, SUGENG_AT.z), faces: [[0, "calm", "photo"]] },
+    { a: 14.46, b: 19.08, pos: stay(SUGENG_AT.x, SUGENG_AT.z), faces: [[14.46, "calm", "photo"], [17.24, "puzzled", "photo"]] },
+    { a: 19.08, b: 26.28, pos: stay(SUGENG_AT.x, SUGENG_AT.z), faces: [[19.08, "puzzled", "photo"]] },
+    { a: 26.28, b: 29.24, pos: stay(SUGENG_AT.x, SUGENG_AT.z), faces: [[26.28, "calm", "open"]] },
+    { a: 29.24, b: 32.28, pos: stay(SUGENG_AT.x, SUGENG_AT.z), faces: [[29.24, "calm", "photo"], [31.1, "grin", "photo"]] },
+    { a: 32.28, b: 34.66, pos: stay(SUGENG_AT.x, SUGENG_AT.z), faces: [[32.28, "grin", "photo"]], beats: [["hop", 32.8, 33.1, 0.09], ["hop", 33.3, 33.6, 0.09]] },
+    { a: 34.66, b: 41.22, pos: stay(SUGENG_AT.x, SUGENG_AT.z), faces: [[34.66, "calm", "show"]] },
+    { a: 41.22, b: 44.46, pos: stay(SUGENG_AT.x, SUGENG_AT.z), faces: [[41.22, "calm", "photo"], [43.14, "puzzled", "photo"]] },
+    { a: 44.46, b: FOREVER, pos: stay(SUGENG_AT.x, SUGENG_AT.z), faces: [[44.46, "calm", "show"]] },
   ] },
   { id: "rina", o: RINA, ps: [], tracks: [
     { a: 0, b: 3.98, pos: stay(RINA_AT.x, RINA_AT.z), faces: [[0, "calm", "down"]] },
@@ -242,16 +245,16 @@ const actor = (id: string) => ACTORS.find((q) => q.id === id)!;
 const TV_ON = 32.76;
 const GLOW: [number, number][] = [[30.9, 32.9], [41.5, 42.9]];
 const glowAt = (t: number) => { const w = GLOW.find(([a, b]) => t >= a && t < b); if (!w) return 0; const e = Math.min(1, (t - w[0]) / 0.15, (w[1] - t) / 0.3); return e * (Math.sin(t * 42) > -0.25 ? 1 : 0.12); };
-const INSERTS: [number, number][] = [[19.08, 26.28], [30.38, 34.4], [41.22, 46.58]];   // when the enlarged phone screen floats beside Pak Darto
+const INSERTS: [number, number][] = [[19.08, 26.28], [30.38, 34.4], [41.22, 46.58]];   // when the enlarged phone screen floats beside Pak Sugeng
 const RINGS: [number, number] = [34.9, 39.64];   // the drawn infrared rings: they stop on "mata kita tidak bisa melihatnya"
 
 const PILLS: Pill[] = [
-  { at: 9.62, until: 11.4, text: "Rp 3.000.000", key: "3.000.000", color: "#ff6b3d", y: 330 },
-  { at: 36.3, until: 37.8, text: "cahaya inframerah", key: "inframerah", color: "#b46bff", y: 330 },
-  { at: 37.8, until: 39.55, text: "940 nm", key: "940 nm", color: "#b46bff", y: 330 },
+  { at: toNew(9.62), until: toNew(11.4), text: "Rp 3.000.000", key: "3.000.000", color: "#ff6b3d", y: 330 },
+  { at: toNew(36.3), until: toNew(37.8), text: "cahaya inframerah", key: "inframerah", color: "#b46bff", y: 330 },
+  { at: toNew(37.8), until: toNew(39.55), text: "940 nm", key: "940 nm", color: "#b46bff", y: 330 },
 ];
 const HOOK_LINES: { text: string; key?: string }[] = [{ text: "Remote difoto" }, { text: "pakai ", key: "HP" }];
-const READ = [...readWords(WORDS), { w: "Pak", a: 50.5, b: 50.84 }];   // the first word comes back on the last 0.34 s so the loop holds
+const READ = [...readWords(WORDS), { w: "Pak", a: 54.02, b: 54.36 }];   // the first word comes back on the last 0.34 s so the loop holds
 
 // ---------- painted textures (soft shaded, grained, many small marks; nothing is one flat colour) ------------------------------------------------------------------------------------------------------------------
 const stripedWall = (base: string, stripe: string) => (c: CanvasRenderingContext2D) => {
@@ -558,11 +561,11 @@ const World: React.FC<{ t: number; f: number }> = ({ t, f }) => {
 export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = () => {
   const fr = useCurrentFrame();
   const t0 = fr / FPS;
-  const t = t0 >= LOOP_AT ? 0.04 : t0;   // from the cut the picture holds the first moment (the hook, full text), so the last frame equals the first and the loop is exact
+  const t = t0 >= LOOP_AT ? 0.04 : toOld(t0);   // from the cut the picture holds the first moment (the hook, full text), so the last frame equals the first and the loop is exact
   const f = Math.round(t * FPS);
   const flash = Math.max(0, 1 - Math.abs(t0 - LOOP_AT) / 0.14);
-  const cam = camAt(SHOTS, t, TOTAL);
-  const hookA = t0 >= LOOP_AT ? 1 : t0 < 3.6 ? 1 : t0 < 3.98 ? 1 - (t0 - 3.6) / 0.38 : 0;
+  const cam = camAt(SHOTS, t, TOTAL_OLD);
+  const hookA = t0 >= LOOP_AT ? 1 : t0 < 4.8 ? 1 : t0 < 5.17 ? 1 - (t0 - 4.8) / 0.37 : 0;
   const actors = ACTORS.map((a) => {
     const s = stateOf(a, t);
     if (!s) return null;
