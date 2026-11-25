@@ -68,7 +68,7 @@ export const Root: React.FC = () => (
   <Composition id="ChannelAvatar" component={Avatar} width={800} height={800} fps={FPS} durationInFrames={1} />
   <Composition id="ChannelBanner" component={Banner} width={2048} height={1152} fps={FPS} durationInFrames={1} />
   <Composition id="ChannelWatermark" component={Watermark} width={300} height={300} fps={FPS} durationInFrames={1} />
-  <Composition id="RicksCastSheet" component={RicksCastSheet} width={1280} height={1400} fps={FPS} durationInFrames={1} />
+  <Composition id="RicksCastSheet" component={RicksCastSheet} width={1280} height={2100} fps={FPS} durationInFrames={1} />
   <Composition id="IsoDemo" component={IsoDemo} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={ISO_DEMO_SECONDS * FPS} />
   <Composition id="MarkSheet" component={MarkSheet} width={FRAME.width} height={FRAME.height} fps={FPS} durationInFrames={1} />
   <Composition id="NatureSheet" component={NatureSheet} width={FRAME.width} height={SHEET_HEIGHT} fps={FPS} durationInFrames={1} />

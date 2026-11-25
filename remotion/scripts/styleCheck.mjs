@@ -87,8 +87,8 @@ async function b48() {
   const myNames = namesOf(narr(dir));
   const nameClash = [...myNames].map((n) => ({ n, v: others.filter((o) => namesOf(narr(path.join(vroot, o.name))).has(n)) })).filter((x) => x.v.length);
   add(!myNames.size ? "INFO" : nameClash.length ? "FAIL" : "PASS", `B46 i/k: the people's names (${[...myNames].join(", ") || "none"}): ${nameClash.length ? `REUSED from the recent videos: ${nameClash.map((x) => `${x.n} (${list(x.v)})`).join("; ")}` : "none was used by the recent videos"}`);
-  const OUTFIT_KEYS = ["shirt", "pattern", "hair", "hairColor", "hat", "hatColor", "mustache", "beard", "glasses", "body", "nose", "blush", "brows", "freckles", "mole", "wrinkles", "eyebags", "goatee"];
-  const FACE_KEYS = ["hair", "hairColor", "mustache", "beard", "glasses", "nose", "blush", "brows", "freckles", "mole", "wrinkles", "eyebags", "goatee"];
+  const OUTFIT_KEYS = ["shirt", "pattern", "hair", "hairColor", "hat", "hatColor", "mustache", "beard", "glasses", "body", "nose", "blush", "brows", "freckles", "mole", "wrinkles", "eyebags", "goatee", "garment", "scarf", "belt", "tie", "badge", "pocket", "lashes", "lips"];
+  const FACE_KEYS = ["hair", "hairColor", "mustache", "beard", "glasses", "nose", "blush", "brows", "freckles", "mole", "wrinkles", "eyebags", "goatee", "lashes", "lips"];
   const outfitsOf = (d) => { const src = readdirSync(d).filter((f) => /\.tsx?$/.test(f)).map((f) => readFileSync(path.join(d, f), "utf8")).join("\n");
     return [...src.matchAll(/(?:const|let)\s+([A-Z_0-9]+)\s*:\s*Outfit\s*=\s*\{([^}]*)\}/g)].map((m) => ({ id: m[1], o: Object.fromEntries(OUTFIT_KEYS.map((k) => { const v = new RegExp(`\\b${k}\\s*:\\s*("[^"]*"|true|false)`).exec(m[2]); return [k, v ? v[1].replace(/"/g, "") : ""]; })) })); };
   const differ = (a, b, keys = OUTFIT_KEYS) => keys.filter((k) => (a[k] || "") !== (b[k] || "")).length;
@@ -111,6 +111,19 @@ async function b48() {
   const mineS = srcOf(dir);
   const kindHit = KINDS.filter((k) => new RegExp(`\\b${k}s?\\b`).test(mineS)).map((k) => ({ k, v: others.filter((o) => new RegExp(`\\b${k}s?\\b`).test(srcOf(path.join(vroot, o.name)))) })).filter((x) => x.v.length);
   add(kindHit.length ? "FLAG" : "PASS", `B42: prop kinds (word list) ${kindHit.length ? `also in the recent videos: ${kindHit.map((x) => `${x.k} (${x.v.length}: ${x.v.slice(0, 2).map((o) => o.name.slice(0, 12)).join(", ")})`).join("; ")}; drop or replace each, a look-alike counts` : "none is in the recent videos"}`);
+  // ian, 2026-11-25 (B62 a): the camera of RicksClips3000 holds still or drifts very slowly inside a shot and changes by CUTTING; a camera that moves a little in every shot makes the viewer dizzy.
+  if (story.look === "ricks") {
+    const OB = 9, srcI = existsSync(path.join(dir, "index.tsx")) ? readFileSync(path.join(dir, "index.tsx"), "utf8") : "";
+    const num = (txt) => { try { return new Function("OB", `return [${txt}]`)(OB); } catch { return null; } };
+    const shots = [...srcI.matchAll(/\{\s*from:\s*([0-9.]+),\s*a:\s*C\(([^)]*)\),\s*b:\s*C\(([^)]*)\)/g)].map((m) => ({ from: +m[1], a: num(m[2]), b: num(m[3]) })).filter((x) => x.a && x.b);
+    if (shots.length) {
+      const total = story.duration;
+      const rows = shots.map((x, i) => { const dur = (shots[i + 1]?.from ?? total) - x.from, d = (u, v) => Math.hypot(u[0] - v[0], u[1] - v[1], u[2] - v[2]);
+        return { at: x.from, dur, v: d(x.a.slice(0, 3), x.b.slice(0, 3)) / dur, l: d(x.a.slice(3), x.b.slice(3)) / dur }; });
+      const fast = rows.filter((r) => r.v > 0.3 || r.l > 0.3), moving = rows.filter((r) => r.v > 0.08 || r.l > 0.08);
+      add(fast.length || moving.length > rows.length * 0.4 ? "FAIL" : "PASS", `B62 a: the camera: ${rows.length} shots, ${moving.length} drift at all (at most 40 %), none faster than 0.3 m/s${fast.length ? `; TOO FAST: ${fast.slice(0, 6).map((r) => `${r.at}s (${Math.max(r.v, r.l).toFixed(2)} m/s)`).join(", ")}` : ""}${moving.length > rows.length * 0.4 ? "; too many shots move, hold the others still" : ""}`);
+    }
+  }
   const themed = others.filter((o) => me.theme && o.theme === me.theme).length, staged = others.filter((o) => me.stage && o.stage === me.stage).length;
   add("INFO", `B48: the colour set "${me.theme || "cream"}" is in ${themed} of the recent videos, the stage "${me.stage || "slab"}" in ${staged}; pick the least used (the brief asks not to repeat the one of the video before: ${others[0]?.name ?? "none"} used "${others[0]?.theme || "cream"}" and "${others[0]?.stage || "slab"}")`);
   add("HUMAN", "B48: icon, texture, font treatment, hero, backdrop and every prop are also not in the recent videos (grep their index.tsx and set.json)");
