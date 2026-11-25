@@ -238,3 +238,8 @@ button, input, select, textarea { font: inherit; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 button:not(:disabled), select:not(:disabled), summary, label[for], input[type="checkbox"]:not(:disabled),
 input[type="radio"]:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: pointer; }
+
+/* Bulk bars (Edit > Results, Workspace > Clips): the count first, the main action first, and the destructive actions together at the far end
+   (.bulk-end, red Delete then Clear). Rules in docs/ui-design.md. */
+.bulk-count { font-weight: 700; color: var(--text); }
+.bulk-end { margin-left: auto; display: inline-flex; align-items: center; gap: var(--s2, 8px); }

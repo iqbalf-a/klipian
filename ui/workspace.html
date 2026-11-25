@@ -94,7 +94,7 @@
            something is ticked; the ticks follow the rows' ids, so they stay across
            pages and sorting. -->
       <div class="ws-bulk" id="clipBulk" role="group" aria-label="Actions for the selected clips" hidden>
-        <span class="ws-bulk-count" id="bulkCount" role="status"></span>
+        <span class="bulk-count" id="bulkCount" role="status"></span>
         <!-- Mark as Posted asks for when it went live in a small dialog of its own (markPostedDialog), so
              the bar has no dates: the upload schedule lives in the table and the bulk upload dialog. -->
         <button class="btn main" id="bulkPosted" type="button"
@@ -110,10 +110,12 @@
         <button class="btn" id="bulkUpMark" type="button" title="Mark by hand where the selected clips are already uploaded (this uploads nothing)">Mark as uploaded to…</button>
         <button class="guest-hidden btn"
                 id="bulkYouTube" type="button" title="Upload the selected clips to YouTube, one after another">Upload to YouTube…</button>
-        <button class="ml-auto btn"
-                id="bulkDelete" type="button" title="Delete the selected clips (asks twice, can be undone)">Delete selected</button>
-        <button class="btn"
-                id="bulkClear" type="button">Clear selection</button>
+        <span class="bulk-end">
+          <button class="btn danger"
+                  id="bulkDelete" type="button" title="Delete the selected clips (asks twice, can be undone)">Delete selected</button>
+          <button class="btn"
+                  id="bulkClear" type="button">Clear selection</button>
+        </span>
         <span class="ws-bulk-note" id="bulkNote" role="status"></span>
       </div>
       <!-- Only the columns that are useful at a glance: status, title, platform,

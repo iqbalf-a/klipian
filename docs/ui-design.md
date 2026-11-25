@@ -55,6 +55,18 @@ bahaya), pilihan yang terpisah satu sama lain. Tidak ada tombol berbentuk pil.
 
 Tombol mati: opacity .4 dan kursor `not-allowed`. `button`, `input`, `select`, `textarea` mewarisi huruf UI.
 
+## Bar aksi massal (bulk)
+
+Dipakai di Edit > Results (`.allres-bar`, di bawah daftar) dan Workspace > Clips (`.ws-bulk`, melayang di bawah jendela).
+Tata letak boleh beda (satu menempel pada panel, satu melayang supaya tabel tidak bergeser), isinya mengikuti satu aturan:
+
+1. Hitungan atau label dulu (`.bulk-count`).
+2. Aksi utama pertama dan satu-satunya `.btn.main` di bar itu.
+3. Aksi lain `.btn` biasa; pilihan dengan Apply (select + tombol) tetap satu kelompok.
+4. Aksi merusak: `.btn.danger`, di ujung (`.bulk-end`), diikuti Clear selection bila bar-nya hidup hanya saat ada pilihan.
+5. Pembantu pilihan (All, None, Select all from this brief) ada di kepala daftar, bukan di bar.
+6. Dialog massal (upload YouTube): Cancel di kiri, satu `.btn.main` di kanan.
+
 ## Yang belum seragam
 
 - Tinggi kontrol di luar tombol: kotak cari 30px, input dan select tabel Clips 32px, pager 25 sampai 28px.
