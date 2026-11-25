@@ -136,6 +136,6 @@ Answer in Indonesian, at most 6 short lines, nothing else:
 3. the style-check summary line
 4. each FAIL/FLAG line (or "tanpa FAIL/FLAG"), and the pieces as "baru: ... / pakai ulang: ..."
 5. at most 2 one-line points ian must decide
-6. cloud: "sudah di main, tinggal git pull di PC ian"; local: "sudah di main dan di halaman Motion (proyek <id>); git pull supaya folder ada di PC"; ricks stage 2: "video jadi: <path of the mp4 next to the WAV>"
+6. cloud: "sudah di main, tinggal git pull di PC ian"; local: "sudah di main dan di halaman Motion (proyek <id>); WAJIB git pull di D:\github-repos\klipian supaya folder ada di PC (tanpa itu Load the story / Render bilang folder tidak ada)"; ricks stage 2: "video jadi: <path of the mp4 next to the WAV>; proyek Motion <id> sudah ada, jalankan git pull di D:\github-repos\klipian dulu supaya Load the story from the folder dan Render menemukan foldernya"
 
 Do NOT print the narration texts (they are in the story; /remotion step "Voice script" shows them), no /remotion steps, no file lists, no source lists, no recap of the video.
