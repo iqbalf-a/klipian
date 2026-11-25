@@ -45,8 +45,8 @@ export function sfx(_story: StoryT): SfxEvent[] {
   add(30.94, "thunder-rumble", "Fajar's belly begins to growl", { vol: 0.35 });
   [32.38, 32.62].forEach((t) => add(t, "snare-hit", "the belly drums", { vol: 0.5 }));
   [33.6, 34.0, 34.4, 34.8, 35.2].forEach((t) => add(t, "stomp", "the friends run down the corridor", { vol: 0.3 }));
-  add(34.5, "door-slam", "door five bangs open", { vol: 0.5 });
-  add(34.9, "gate-squeak", "door eight swings open", { vol: 0.4 });
+  add(34.2, "door-slam", "door one bangs open", { vol: 0.5 });
+  add(34.6, "gate-squeak", "door three swings open", { vol: 0.4 });
   add(35.56, "coin-8bit", "pill: 10 kamar, 1 WC", { vol: 0.6 });
   add(35.9, "cymbal-crash", "all ten doors burst open at once", { vol: 0.7 });
   add(35.95, "balloon-pop", "the sandals shoot out", { vol: 0.5 });

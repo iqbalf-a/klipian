@@ -34,9 +34,12 @@ const beatsAt = (beats: Beat[], t: number) => {
 };
 type Track = { ch?: Choreo; dir?: number; flip?: boolean; a: number; b: number; pos: (t: number) => [number, number]; faces: [number, Expr, string][]; beats?: Beat[]; h?: number };
 const stay = (x: number, z: number) => (): [number, number] => [x, z];
-const walk = (a: number, b: number, x0: number, z0: number, x1: number, z1: number) => (t: number): [number, number] => { const k = ease(prog(t, a, b)); return [lerp(x0, x1, k), lerp(z0, z1, k)]; };
+/** a constant pace from (x0,z0) to (x1,z1): what a walking or running person really does (B64) */
+const go = (a: number, b: number, x0: number, z0: number, x1: number, z1: number) => (t: number): [number, number] => { const k = prog(t, a, b); return [lerp(x0, x1, k), lerp(z0, z1, k)]; };
 /** B55: a track that walks along its own path gets planted feet (`locomote`); a path that goes left is built mirrored. */
 const withGait = (tr: Track, kind: "walk" | "jog", lead = 0): Track => {
+  const [px, pz] = tr.pos(tr.a), [qx, qz] = tr.pos(tr.b), v = Math.hypot(qx - px, qz - pz) / (tr.b - tr.a);
+  if (v > SPEED[kind]) throw new Error(`B64: a ${kind} of ${v.toFixed(2)} m/s (${tr.a}-${tr.b}) is faster than the gait allows (${SPEED[kind]} m/s)`);
   const dir = Math.sign(tr.pos(tr.b - 0.01)[0] - tr.pos(tr.a)[0]) || 1;
   return { ...tr, flip: dir < 0, dir, ch: locomote((t) => dir * tr.pos(t)[0], tr.a, tr.b, kind, lead) };
 };
@@ -116,7 +119,8 @@ const Sun: React.FC<{ cam: { look: THREE.Vector3 }; hot: number }> = ({ cam, hot
 // ---------- the layout: the shared kitchen of a boarding house (x -3.4 to 1.5), the corridor of ten room doors and the WC (x 1.5 to 11.5), the back yard (x > 11.5) ------------------------------
 const MC = { x: -1.4, y: 0.74, z: -0.6 };   // the rice cooker on the concrete counter (its base)
 const F0 = { x: -1.8, z: 0.2 }, W0 = { x: 0.9, z: 0.2 }, W1 = { x: -1.05, z: 0.2 };
-const DOOR_X = (i: number) => 2.2 + 0.62 * i, WC_X = 8.9;
+const DOOR_X = (i: number) => 4.9 + 2.5 * (i % 5), DOOR_Y = (i: number) => (i < 5 ? 0 : 2.95), WC_X = 2.4;   // B64: a room is 2.5 m wide, ten rooms are two floors of five, never ten doors in a row of 6 m
+const SPEED = { walk: 1.1, jog: 2.6 };   // B64: the gait cannot keep up above these (m/s); `go` is a constant pace and `withGait` refuses a faster path
 const SOCKET = V(-0.72, 1.0, -1.27);
 const INS = V(-0.2, 1.55, -0.1);   // the round magnifier that floats beside the rice cooker when the story looks at rice, a palm or the spores
 const C = (px: number, py: number, pz: number, lx: number, ly: number, lz: number): Cam => ({ pos: V(px, py, pz), look: V(lx, ly, lz) });
@@ -125,7 +129,7 @@ const HOOK = C(-1.55, 1.3, 4.0, -1.55, 1.2, 0);   // Mas Fajar, head about 30 % 
 const SHOTS: Shot[] = [
   { from: 0, a: HOOK, b: C(-1.55, 1.3, 3.9, -1.55, 1.2, 0) },                                                 // Fajar and the dead rice cooker
   { from: 3.8, a: C(0.9, 1.25, 4.2, 0.9, 1.0, 0.1), b: C(0.9, 1.25, 4.2, 0.9, 1.0, 0.1) },                    // Bu Wulan, the sharp-eyed landlady
-  { from: 7.14, a: C(4.9, 1.6, 14.5, 4.9, 1.05, -0.5), b: C(4.9, 1.6, 14.5, 4.9, 1.05, -0.5) },                 // the ten doors
+  { from: 7.14, a: C(8.9, 1.7, 34, 8.9, 3.6, -0.5), b: C(8.9, 1.7, 34, 8.9, 3.6, -0.5) },                       // the whole house: two floors of five rooms
   { from: 10.22, a: C(-1.4, 1.25, 4.3, -1.4, 1.0, 0), b: C(-1.4, 1.25, 4.3, -1.4, 1.0, 0) },                  // she raps the lid
   { from: 12.38, a: C(-1.4, 0.75, 4.8, -1.4, 1.15, 0), b: C(-1.4, 0.75, 4.8, -1.4, 1.15, 0) },              // her warning
   { from: 15.14, a: C(-2.05, 1.25, 3.8, -2.05, 1.0, 0.1), b: C(-2.05, 1.25, 3.8, -2.05, 1.0, 0.1) },              // Fajar grins
@@ -133,9 +137,9 @@ const SHOTS: Shot[] = [
   { from: 21.98, a: C(-0.55, 1.5, 9.0, -0.55, 0.95, -0.3), b: C(-0.55, 1.5, 9.0, -0.55, 0.95, -0.3) },            // three plates, the friends line up
   { from: 25.34, a: C(-1.1, 1.3, 4.8, -1.1, 1.0, 0), b: C(-1.1, 1.3, 4.8, -1.1, 1.0, 0) },                    // her palm on the warm cooker
   { from: 29.06, a: C(-2.3, 1.2, 4.8, -2.3, 1.0, 0), b: C(-2.3, 1.2, 4.8, -2.3, 1.0, 0) },                    // Fajar's belly drums
-  { from: 33.16, a: C(5.0, 1.5, 9.0, 5.0, 1.0, -0.5), b: C(5.0, 1.5, 9.0, 5.0, 1.0, -0.5) },                  // the friends hurry down the corridor
-  { from: 35.56, a: C(4.9, 1.6, 14.5, 4.9, 1.05, -0.5), b: C(4.9, 1.6, 14.5, 4.9, 1.05, -0.5) },                // ten doors burst open, one WC
-  { from: 37.72, a: C(10.4, 1.6, 8.6, 10.4, 1.0, 0), b: C(10.9, 1.6, 8.6, 10.9, 1.0, 0) },                      // TRUCK RIGHT: the line reaches the yard
+  { from: 33.16, a: C(2.6, 1.5, 10.5, 2.6, 1.2, -0.5), b: C(2.6, 1.5, 10.5, 2.6, 1.2, -0.5) },                  // the friends hurry down the corridor
+  { from: 35.56, a: C(8.9, 1.7, 34, 8.9, 3.6, -0.5), b: C(8.9, 1.7, 34, 8.9, 3.6, -0.5) },                      // ten doors burst open, one WC
+  { from: 37.72, a: C(4.3, 1.5, 10.0, 4.3, 1.1, 0), b: C(4.8, 1.5, 10.0, 4.8, 1.1, 0) },                      // TRUCK RIGHT along the queue to the WC door
   { from: 39.62, a: C(-0.6, 1.3, 5.6, -0.6, 1.1, 0), b: C(-0.6, 1.3, 5.6, -0.6, 1.1, 0) },                    // the spore
   { from: 42.22, a: C(-0.15, 1.3, 3.2, -0.15, 1.3, 0), b: C(-0.15, 1.3, 3.2, -0.15, 1.3, 0) },                        // it survives the cooking
   { from: 44.34, a: C(-0.6, 1.3, 5.6, -0.6, 1.1, 0), b: C(-0.6, 1.3, 5.6, -0.6, 1.1, 0) },                    // it wakes in the lukewarm rice
@@ -191,14 +195,14 @@ const ACTORS: { id: string; o: Outfit; tracks: Track[] }[] = [
     { a: 21.98, b: 25.34, pos: stay(F0.x, F0.z), faces: [[21.98, "hungry", "eat"], [24.0, "grin", "eat"]] },
     { a: 25.34, b: 29.06, pos: stay(F0.x, F0.z), faces: [[25.34, "grin", "hips"]] },
     { a: 29.06, b: 33.16, pos: stay(F0.x, F0.z), faces: [[29.06, "puzzled", "gut"], [30.94, "shocked", "gut"]], beats: [["hop", 32.38, 32.7, 0.1]] },
-    withGait({ a: 33.16, b: 37.9, pos: walk(33.16, 37.9, F0.x, F0.z, 12.8, 0.4), faces: [[33.16, "shocked", "gut"]] }, "jog", 0.2),
-    { a: 37.9, b: 50.9, pos: stay(12.8, 0.4), faces: [[37.9, "shocked", "queue"]], beats: [["hop", 38.3, 38.6, 0.06], ["hop", 39.1, 39.4, 0.06], ["hop", 40.2, 40.5, 0.06], ["hop", 41.6, 41.9, 0.06]] },
-    withGait({ a: 50.9, b: 52.5, pos: walk(50.9, 52.5, 1.7, F0.z, -0.1, F0.z), faces: [[50.9, "calm", "carry"]] }, "walk", 0.2),
+    withGait({ a: 33.16, b: 36.6, pos: go(33.16, 36.6, F0.x, 0.55, 6.4, 0.4), faces: [[33.16, "shocked", "gut"]] }, "jog", 0.2),
+    { a: 36.6, b: 50.9, flip: true, pos: stay(6.4, 0.4), faces: [[36.6, "shocked", "queue"]], beats: [["hop", 38.3, 38.6, 0.06], ["hop", 39.1, 39.4, 0.06], ["hop", 40.2, 40.5, 0.06], ["hop", 41.6, 41.9, 0.06]] },
+    withGait({ a: 50.9, b: 52.5, pos: go(50.9, 52.5, 1.5, F0.z, -0.1, F0.z), faces: [[50.9, "calm", "carry"]] }, "walk", 0.2),
     { a: 52.5, b: FOREVER, flip: true, pos: stay(-0.1, F0.z), faces: [[52.5, "sly", "carry"], [53.6, "sly", "offer"]] },
   ] },
   { id: "wulan", o: WULAN, tracks: [
     { a: 3.8, b: 7.14, pos: stay(W0.x, W0.z), faces: [[3.8, "sly", "hips"], [5.84, "sly", "eyes"], [6.6, "sly", "hips"]] },
-    withGait({ a: 7.14, b: 10.22, pos: walk(7.14, 10.22, 7.4, 0.4, 3.0, 0.4), faces: [[7.14, "sly", "down"]] }, "walk", 0.2),
+    withGait({ a: 7.14, b: 10.22, pos: go(7.14, 10.22, 5.9, 0.4, 2.7, 0.4), faces: [[7.14, "sly", "down"]] }, "walk", 0.2),
     { a: 10.22, b: 12.38, pos: stay(W1.x, W1.z), faces: [[10.22, "sly", "rap"]] },
     { a: 12.38, b: 15.14, pos: stay(W1.x, W1.z), faces: [[12.38, "shocked", "scold"]] },
     { a: 15.14, b: 25.34, pos: stay(W1.x, W1.z), faces: [[15.14, "puzzled", "hips"], [17.2, "shocked", "hips"], [18.18, "puzzled", "belly"], [21.98, "sly", "hips"]] },
@@ -208,26 +212,26 @@ const ACTORS: { id: string; o: Outfit; tracks: Track[] }[] = [
     { a: 50.2, b: FOREVER, pos: stay(W1.x, W1.z), faces: [[50.2, "sly", "hips"], [54.3, "grin", "hips"]] },
   ] },
   { id: "e1", o: E1, tracks: [
-    withGait({ a: 23.68, b: 25.0, pos: walk(23.68, 25.0, 2.4, 0.15, 0.2, 0.2), faces: [[23.68, "hungry", "down"]] }, "walk", 0.2),
+    withGait({ a: 23.68, b: 25.0, pos: go(23.68, 25.0, 1.6, 0.15, 0.2, 0.2), faces: [[23.68, "hungry", "down"]] }, "walk", 0.2),
     { a: 25.0, b: 33.3, flip: true, pos: stay(0.2, 0.2), faces: [[25.0, "hungry", "feed"]] },
-    withGait({ a: 33.3, b: 36.6, pos: walk(33.3, 36.6, 0.2, 0.2, 9.6, 0.2), faces: [[33.3, "shocked", "belly"]] }, "jog", 0.2),
-    { a: 36.6, b: FOREVER, pos: stay(9.6, 0.2), faces: [[36.6, "shocked", "queue"]], beats: [["hop", 37.0, 37.3, 0.07], ["hop", 38.4, 38.7, 0.07], ["hop", 40.0, 40.3, 0.07]] },
+    withGait({ a: 33.3, b: 34.6, pos: go(33.3, 34.6, 0.2, -0.1, 3.2, 0.2), faces: [[33.3, "shocked", "belly"]] }, "jog", 0.2),
+    { a: 34.6, b: FOREVER, flip: true, pos: stay(3.2, 0.2), faces: [[34.6, "shocked", "queue"]], beats: [["hop", 37.0, 37.3, 0.07], ["hop", 38.4, 38.7, 0.07], ["hop", 40.0, 40.3, 0.07]] },
   ] },
   { id: "e2", o: E2, tracks: [
-    withGait({ a: 23.9, b: 25.3, pos: walk(23.9, 25.3, 2.7, 0.3, 0.75, 0.3), faces: [[23.9, "hungry", "down"]] }, "walk", 0.2),
+    withGait({ a: 23.9, b: 25.3, pos: go(23.9, 25.3, 2.2, 0.3, 0.75, 0.3), faces: [[23.9, "hungry", "down"]] }, "walk", 0.2),
     { a: 25.3, b: 33.9, flip: true, pos: stay(0.75, 0.3), faces: [[25.3, "hungry", "hips"]] },
-    withGait({ a: 33.9, b: 37.1, pos: walk(33.9, 37.1, 0.75, 0.3, 11.2, 0.3), faces: [[33.9, "shocked", "belly"]] }, "jog", 0.2),
-    { a: 37.1, b: FOREVER, pos: stay(11.2, 0.3), faces: [[37.1, "puzzled", "queue"]], beats: [["hop", 37.8, 38.1, 0.06], ["hop", 39.5, 39.8, 0.06]] },
+    withGait({ a: 33.9, b: 35.6, pos: go(33.9, 35.6, 0.75, 0.9, 4.8, 0.3), faces: [[33.9, "shocked", "belly"]] }, "jog", 0.2),
+    { a: 35.6, b: FOREVER, flip: true, pos: stay(4.8, 0.3), faces: [[35.6, "puzzled", "queue"]], beats: [["hop", 37.8, 38.1, 0.06], ["hop", 39.5, 39.8, 0.06]] },
   ] },
   { id: "e3", o: E3, tracks: [
-    withGait({ a: 34.6, b: 35.2, pos: walk(34.6, 35.2, DOOR_X(4), -0.7, DOOR_X(4), 0.3), faces: [[34.6, "shocked", "belly"]] }, "walk", 0.2),
-    withGait({ a: 35.2, b: 37.4, pos: walk(35.2, 37.4, DOOR_X(4), 0.3, 10.4, 0.45), faces: [[35.2, "shocked", "belly"]] }, "jog", 0.2),
-    { a: 37.4, b: FOREVER, pos: stay(10.4, 0.45), faces: [[37.4, "shocked", "queue"]], beats: [["hop", 38.0, 38.3, 0.07], ["hop", 39.0, 39.3, 0.07]] },
+    withGait({ a: 34.2, b: 35.4, pos: go(34.2, 35.4, DOOR_X(0), -0.7, DOOR_X(0), 0.3), faces: [[34.2, "shocked", "belly"]] }, "walk", 0.2),
+    withGait({ a: 35.4, b: 36.4, pos: go(35.4, 36.4, DOOR_X(0), 0.3, 4.0, 0.45), faces: [[35.4, "shocked", "belly"]] }, "walk", 0.2),
+    { a: 36.4, b: FOREVER, flip: true, pos: stay(4.0, 0.45), faces: [[36.4, "shocked", "queue"]], beats: [["hop", 38.0, 38.3, 0.07], ["hop", 39.0, 39.3, 0.07]] },
   ] },
   { id: "e4", o: E4, tracks: [
-    withGait({ a: 35.0, b: 35.6, pos: walk(35.0, 35.6, DOOR_X(7), -0.7, DOOR_X(7), 0.25), faces: [[35.0, "shocked", "belly"]] }, "walk", 0.2),
-    withGait({ a: 35.6, b: 37.6, pos: walk(35.6, 37.6, DOOR_X(7), 0.25, 12.0, 0.2), faces: [[35.6, "shocked", "belly"]] }, "jog", 0.2),
-    { a: 37.6, b: FOREVER, pos: stay(12.0, 0.2), faces: [[37.6, "shocked", "queue"]], beats: [["hop", 38.2, 38.5, 0.07], ["hop", 39.7, 40.0, 0.07]] },
+    withGait({ a: 34.6, b: 35.8, pos: go(34.6, 35.8, DOOR_X(2), -0.7, DOOR_X(2), 0.25), faces: [[34.6, "shocked", "belly"]] }, "walk", 0.2),
+    withGait({ a: 35.8, b: 37.6, pos: go(35.8, 37.6, DOOR_X(2), 0.25, 5.6, 0.2), faces: [[35.8, "shocked", "belly"]] }, "jog", 0.2),
+    { a: 37.6, b: FOREVER, flip: true, pos: stay(5.6, 0.2), faces: [[37.6, "shocked", "queue"]], beats: [["hop", 38.2, 38.5, 0.07], ["hop", 39.7, 40.0, 0.07]] },
   ] },
 ];
 type AState = { rig: Pose; x: number; z: number; flip: boolean; expr: Expr; hop: number; h: number; talk: number; kind: string };
@@ -249,7 +253,7 @@ const handAt = (id: string, side: "l" | "r", t: number) => {
 
 // ---------- the moments of the story --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 const LID = [18.2, 18.7, 21.0, 21.4];                       // the lid opens on "Paginya", closes after the rice has been shown
-const DOOR_OPEN: Record<number, number> = { 4: 34.5, 7: 34.9 };   // doors 5 and 8 open for the two who come out; the others burst open together on "Sepuluh kamar"
+const DOOR_OPEN: Record<number, number> = { 0: 34.2, 2: 34.6 };   // doors 1 and 3 open for the two who come out; the others burst open together on "Sepuluh kamar"
 const BURST = 35.9;
 const PLUG_AT = [49.1, 49.5, 49.9];
 const WARM_ON = 50.0;                                        // the cooker is plugged in again and heats again
@@ -450,50 +454,56 @@ const doorAngle = (i: number, t: number) => {
   return 0;
 };
 const Koridor: React.FC<{ tex: TexSet; t: number; nums: THREE.Texture[] }> = ({ tex, t, nums }) => {
-  const floor = useMemo(() => { const m = tex.terr.clone(); m.needsUpdate = true; m.repeat.set(9, 13); return m; }, [tex]);
+  const floor = useMemo(() => { const m = tex.terr.clone(); m.needsUpdate = true; m.repeat.set(15, 31); return m; }, [tex]);
+  const X0 = 1.4, X1 = 18.8, CX = (X0 + X1) / 2, W = X1 - X0;
   return (
   <group>
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[6.45, 0, 6.45]}><planeGeometry args={[10.1, 15.5]} /><meshStandardMaterial map={floor} roughness={0.45} /></mesh>
-    <RBox size={[10.1, 2.7, 0.12]} pos={[6.45, 1.35, -1.36]} map={tex.wallCream} tile={1.6} r={0.01} />
-    {/* the upper storey of the boarding house: a cream wall, a balcony rail and shuttered windows, so the long shots have a building and not sky */}
-    <RBox size={[10.1, 3.9, 0.12]} pos={[6.45, 4.65, -1.36]} map={tex.wallCream} tile={1.6} r={0.01} />
-    <RBox size={[10.1, 0.12, 0.7]} pos={[6.45, 2.76, -1.0]} color="#b9a98a" r={0.02} />
-    {Array.from({ length: 11 }, (_, k) => <RBox key={k} size={[0.05, 0.6, 0.05]} pos={[1.6 + k * 0.92, 3.1, -0.68]} color="#2f3b4a" r={0.01} />)}
-    <RBox size={[10.1, 0.06, 0.06]} pos={[6.45, 3.42, -0.68]} color="#2f3b4a" r={0.01} />
-    {Array.from({ length: 5 }, (_, k) => <group key={k} position={[2.4 + k * 1.9, 4.55, -1.28]}><RBox size={[0.9, 1.2, 0.05]} pos={[0, 0, 0]} color="#f4efdc" r={0.01} /><RBox size={[0.76, 1.06, 0.05]} pos={[0, 0, 0.02]} color={k % 2 ? "#8fb7c9" : "#7aa3b8"} r={0.01} /><RBox size={[0.03, 1.06, 0.05]} pos={[0, 0, 0.04]} color="#f4efdc" r={0.005} /><RBox size={[0.4, 1.1, 0.04]} pos={[0.55, 0, 0.03]} color={["#c0392b", "#2a9d8f", "#e8892a", "#7a3fa0", "#2f6fdf"][k]} r={0.01} /></group>)}
-    <RBox size={[10.1, 0.9, 0.05]} pos={[6.45, 0.45, -1.28]} map={tex.wain} tile={0.9} r={0.01} />
-    {/* near layer: a laundry stand with shirts on the left, a bucket with a mop on the right */}
-    <group position={[4.05, 0, 7.6]}>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[CX, 0, 17.35]}><planeGeometry args={[W, 37.3]} /><meshStandardMaterial map={floor} roughness={0.45} /></mesh>
+    <RBox size={[W, 2.7, 0.12]} pos={[CX, 1.35, -1.36]} map={tex.wallCream} tile={1.6} r={0.01} />
+    <RBox size={[W, 3.9, 0.12]} pos={[CX, 4.65, -1.36]} map={tex.wallCream} tile={1.6} r={0.01} />
+    <RBox size={[W, 0.9, 0.05]} pos={[CX, 0.45, -1.28]} map={tex.wain} tile={0.9} r={0.01} />
+    <RBox size={[W, 0.07, 0.07]} pos={[CX, 0.92, -1.26]} color="#f4efdc" r={0.02} />
+    {/* the roof: a terracotta slab with an overhang, so the long shots end in a building and not in sky */}
+    <RBox size={[W + 0.6, 0.22, 2.6]} pos={[CX, 6.72, -0.2]} color="#b9553b" r={0.03} />
+    <RBox size={[W + 0.6, 0.5, 0.2]} pos={[CX, 6.4, 1.05]} color="#9c4630" r={0.03} />
+    {/* the balcony of the upper floor: a slab, a rail, and the stairs at the right end (B64: the upper rooms are real rooms on a real floor) */}
+    <RBox size={[15.6 - X0 + 0.2, 0.15, 1.75]} pos={[(X0 + 15.8) / 2, 2.83, -0.52]} color="#b9a98a" r={0.02} />
+    {Array.from({ length: 29 }, (_, k) => <RBox key={k} size={[0.05, 0.9, 0.05]} pos={[X0 + 0.2 + k * 0.5, 3.35, 0.3]} color="#2f3b4a" r={0.01} />)}
+    <RBox size={[14.4, 0.06, 0.06]} pos={[(X0 + 15.8) / 2, 3.8, 0.3]} color="#2f3b4a" r={0.01} />
+    {Array.from({ length: 9 }, (_, k) => <RBox key={k} size={[0.32, 0.32 * (k + 1), 0.9]} pos={[18.6 - 0.32 * k, 0.16 * (k + 1), -0.4]} color={k % 2 ? "#c9bfa6" : "#bdb299"} r={0.01} />)}
+    {/* small louvre windows between the doors, on both floors */}
+    {[0, 1].flatMap((f) => Array.from({ length: 4 }, (_, k) => <group key={`${f}${k}`} position={[DOOR_X(k) + 1.25, 1.5 + 2.95 * f, -1.28]}><RBox size={[0.7, 0.5, 0.05]} pos={[0, 0, 0]} color="#f4efdc" r={0.01} />{[-0.18, -0.06, 0.06, 0.18].map((y) => <RBox key={y} size={[0.58, 0.07, 0.04]} pos={[0, y, 0.03]} color="#7aa3b8" r={0.006} />)}</group>))}
+    {/* near layer for the wide shots: a laundry stand with shirts on the left, a bucket with a mop on the right */}
+    <group position={[10.2, 0, 26.8]} scale={1.15}>
       {[-0.5, 0.5].map((x) => <RBox key={x} size={[0.04, 1.4, 0.04]} pos={[x, 0.7, 0]} color="#c9cfd6" metal={0.6} r={0.01} />)}
       <RBox size={[1.06, 0.04, 0.04]} pos={[0, 1.4, 0]} color="#c9cfd6" metal={0.6} r={0.01} />
       {[-0.32, 0, 0.32].map((x, i) => <RBox key={i} size={[0.26, 0.5 + 0.08 * i, 0.02]} pos={[x, 1.12 - 0.04 * i, 0]} map={tex.clothA[i]} fit r={0.008} />)}
     </group>
-    <group position={[5.75, 0, 8.2]}>
+    <group position={[8.9, 0, 27.6]} scale={1.15}>
       <Cyl r={0.2} r2={0.26} h={0.4} pos={[0, 0.2, 0]} color="#2fb7c9" rough={0.35} seg={20} />
       <Cyl r={0.014} h={1.3} pos={[0.1, 0.8, 0]} rot={[0, 0, 0.12]} color="#8f4b2a" seg={8} />
       <Ball r={0.13} pos={[0.2, 1.43, 0]} color="#e6e1d0" />
     </group>
-    <RBox size={[10.1, 0.07, 0.07]} pos={[6.45, 0.92, -1.26]} color="#f4efdc" r={0.02} />
     {Array.from({ length: 10 }, (_, i) => {
-      const x = DOOR_X(i), a = doorAngle(i, t), open = a > 0.05;
+      const x = DOOR_X(i), y0 = DOOR_Y(i), a = doorAngle(i, t), open = a > 0.05;
       return (
-        <group key={i}>
-          <RBox size={[0.6, 2.06, 0.06]} pos={[x, 1.03, -1.27]} color="#d9cfb8" r={0.012} />
-          {open && <RBox size={[0.48, 1.96, 0.05]} pos={[x, 1.0, -1.25]} color="#241e2a" r={0.01} />}
-          <group position={[x - 0.24, 0, -1.24]} rotation={[0, -a, 0]}><RBox size={[0.48, 1.96, 0.045]} pos={[0.24, 1.0, 0]} map={i % 2 ? tex.doorA : tex.doorB} tile={0.9} r={0.01} /><Ball r={0.022} pos={[0.41, 0.95, 0.04]} color="#d8b84a" /><RBox size={[0.17, 0.17, 0.012]} pos={[0.24, 1.62, 0.03]} map={nums[i]} fit r={0.006} /></group>
-          {a > 0.5 && t < BURST + 0.7 && [0, 1, 2].map((k) => <Puff key={k} x={x + (k - 1) * 0.25} y={0.3} z={-0.6} t={t} at={BURST + 0.03 * i + 0.03 * k} dur={0.7} size={0.5} tex={tex.soft} color="#e8dcc0" rise={0.5} />)}
+        <group key={i} position={[0, y0, 0]}>
+          <RBox size={[1.0, 2.06, 0.06]} pos={[x, 1.03, -1.27]} color="#d9cfb8" r={0.012} />
+          {open && <RBox size={[0.84, 1.96, 0.05]} pos={[x, 1.0, -1.25]} color="#241e2a" r={0.01} />}
+          <group position={[x - 0.42, 0, -1.24]} rotation={[0, -a, 0]}><RBox size={[0.84, 1.96, 0.045]} pos={[0.42, 1.0, 0]} map={i % 2 ? tex.doorA : tex.doorB} tile={0.9} r={0.01} /><Ball r={0.024} pos={[0.74, 0.95, 0.04]} color="#d8b84a" /><RBox size={[0.17, 0.17, 0.012]} pos={[0.42, 1.62, 0.03]} map={nums[i]} fit r={0.006} /></group>
+          {a > 0.5 && t < BURST + 0.7 && [0, 1, 2].map((k) => <Puff key={k} x={x + (k - 1) * 0.3} y={0.3} z={-0.6} t={t} at={BURST + 0.03 * i + 0.03 * k} dur={0.7} size={0.6} tex={tex.soft} color="#e8dcc0" rise={0.5} />)}
         </group>
       );
     })}
-    <RBox size={[0.7, 2.06, 0.06]} pos={[WC_X, 1.03, -1.27]} color="#d9cfb8" r={0.012} />
-    <RBox size={[0.58, 1.96, 0.05]} pos={[WC_X, 1.0, -1.23]} map={tex.doorA} tile={0.9} r={0.01} color="#8fd8d0" />
+    <RBox size={[0.9, 2.06, 0.06]} pos={[WC_X, 1.03, -1.27]} color="#d9cfb8" r={0.012} />
+    <RBox size={[0.74, 1.96, 0.05]} pos={[WC_X, 1.0, -1.23]} map={tex.doorA} tile={0.9} r={0.01} color="#8fd8d0" />
     <RBox size={[0.3, 0.2, 0.012]} pos={[WC_X, 1.65, -1.2]} map={tex.plateWC} fit r={0.006} />
-    {/* the sandals that fly out of the ten doors when they all burst open (the story's one impossible peak) */}
+    {/* the sandals that fly out of the ten doors when they all burst open (the story's one impossible peak); big enough to read from the far camera */}
     {t >= BURST && t < BURST + 2.2 && Array.from({ length: 20 }, (_, k) => {
       const i = k >> 1, s = t - BURST - 0.03 * i, d = k & 1 ? 1 : -1;
       if (s < 0) return null;
-      const x = DOOR_X(i) + d * (0.35 + 1.4 * s * (0.6 + rnd(k)) * (rnd(k + 20) > 0.5 ? 1 : -1)), y = Math.max(0.03, 0.7 + 5.2 * s - 4.9 * s * s), z = -0.9 + 2.2 * s * (0.8 + rnd(k + 40));
-      return <group key={k} position={[x, y, Math.min(z, 1.4)]} rotation={[y > 0.04 ? s * 9 : 0, k, y > 0.04 ? s * 7 : 0]}><RBox size={[0.1, 0.02, 0.26]} pos={[0, 0, 0]} color={["#e0456b", "#2fb7c9", "#ffd447", "#7a3fa0"][k % 4]} r={0.008} /><RBox size={[0.1, 0.012, 0.07]} pos={[0, 0.016, -0.02]} color="#f4efdc" r={0.004} /></group>;
+      const x = DOOR_X(i) + d * (0.35 + 1.4 * s * (0.6 + rnd(k)) * (rnd(k + 20) > 0.5 ? 1 : -1)), y = DOOR_Y(i) + Math.max(0.03, 0.7 + 5.2 * s - 4.9 * s * s), z = -0.9 + 2.2 * s * (0.8 + rnd(k + 40));
+      return <group key={k} position={[x, y, Math.min(z, 1.4)]} scale={2.4} rotation={[y - DOOR_Y(i) > 0.04 ? s * 9 : 0, k, y - DOOR_Y(i) > 0.04 ? s * 7 : 0]}><RBox size={[0.1, 0.02, 0.26]} pos={[0, 0, 0]} color={["#e0456b", "#2fb7c9", "#ffd447", "#7a3fa0"][k % 4]} r={0.008} /><RBox size={[0.1, 0.012, 0.07]} pos={[0, 0.016, -0.02]} color="#f4efdc" r={0.004} /></group>;
     })}
   </group>
   );
@@ -510,7 +520,7 @@ const Halaman: React.FC<{ tex: TexSet; t: number }> = ({ tex, t }) => {
   const g = useMemo(() => { const m = tex.grass.clone(); m.needsUpdate = true; m.repeat.set(14, 6); return m; }, [tex]);
   const sway = (k: number) => 0.06 * Math.sin(t * 1.6 + k);
   return (
-    <group>
+    <group position={[8, 0, 0]}>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[26, -0.005, 3]}><planeGeometry args={[30, 14]} /><meshStandardMaterial map={g} roughness={1} /></mesh>
       {Array.from({ length: 14 }, (_, k) => <RBox key={k} size={[0.16, 1.2, 0.03]} pos={[12.0 + k * 0.95, 0.6, -1.5]} map={tex.kolong} tile={0.6} r={0.01} />)}
       {Array.from({ length: 4 }, (_, k) => <RBox key={k} size={[12.8, 0.06, 0.04]} pos={[18.4, 0.3 + 0.28 * k, -1.46]} color="#7a5a3a" r={0.01} />)}
