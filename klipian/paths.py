@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextvars
 import os
 import re
+import threading
 import time
 from pathlib import Path
 
@@ -185,6 +186,18 @@ def replace_file(src, dst, tries: int = 10) -> None:
                 raise
             time.sleep(delay)
             delay = min(delay * 1.5, 0.5)
+
+
+def write_text_atomic(path, text: str) -> None:
+    """Writes `text` (utf-8) next to `path` and renames it over: a crash or a reader in between sees the old file or the new one, never half of it."""
+    path = Path(path)
+    tmp = path.with_name(f"{path.name}.{os.getpid()}-{threading.get_ident()}.tmp")
+    try:
+        tmp.write_text(text, encoding="utf-8")
+        replace_file(tmp, path)
+    except OSError:
+        tmp.unlink(missing_ok=True)
+        raise
 
 
 def read_text(path, tries: int = 6) -> str:

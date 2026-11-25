@@ -388,7 +388,7 @@ def record_usage(entry: dict) -> None:
         rows = (_read_usage() + [entry])[-500:]
         f = _usage_file()
         f.parent.mkdir(parents=True, exist_ok=True)
-        f.write_text(json.dumps(rows), encoding="utf-8")
+        paths.write_text_atomic(f, json.dumps(rows))
     except OSError:
         pass
 

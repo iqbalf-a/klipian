@@ -25,6 +25,7 @@ from . import render as engine, thumbnail
 from . import roundtrip
 from . import sched
 from .progress import JobProgress, batch_eta
+from . import paths
 from .paths import CACHE_DIR, GLOSSARY, GUEST, OUT_ROOT, SOURCES, current_profile, find_video, safe_dirname
 from .projects import (_project_assets_dir, _project_file,
                        _project_out_dir, _read_project, read_render_records,
@@ -662,7 +663,7 @@ def _note_speed(seconds: float, duration: float) -> None:
             data = []
         data = (data if isinstance(data, list) else [])[-9:] + [{"sec": round(seconds, 2), "dur": round(duration, 2)}]
         f.parent.mkdir(parents=True, exist_ok=True)
-        f.write_text(json.dumps(data), encoding="utf-8")
+        paths.write_text_atomic(f, json.dumps(data))
     except OSError:
         pass
 
@@ -1348,7 +1349,7 @@ def rediarize(video: Path, start: float, end: float, min_speakers: int) -> list[
         return json.loads(path.read_text(encoding="utf-8"))
     from .diarize import diarize_segment
     turns = diarize_segment(video, start, end, min_speakers=min_speakers)
-    path.write_text(json.dumps(turns), encoding="utf-8")
+    paths.write_text_atomic(path, json.dumps(turns))
     return turns
 
 
@@ -1381,7 +1382,7 @@ def _diarize_body(job_id: str, req: dict) -> None:
 
         from .diarize import diarize_segment
         turns = diarize_segment(video, start, end, hook=_diarize_hook(job_id))
-        path.write_text(json.dumps(turns), encoding="utf-8")
+        paths.write_text_atomic(path, json.dumps(turns))
 
         with LOCK:
             t["state"] = "done"

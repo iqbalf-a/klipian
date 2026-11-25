@@ -8977,7 +8977,48 @@ def check_voicefit() -> tuple[str, str]:
     return PASS, "pages_of equals pagesOf; the placement (room, no room, silent outro), the cut audio, and the choice fit through the server (used, undone, refused for an estimate)"
 
 
-CHECKS = {"cliplength": check_cliplength, "adminmodel": check_adminmodel, "autopilot": check_autopilot, "autopilotresult": check_autopilotresult, "autopilotrun": check_autopilotrun, "settle": check_settle, "briefagents": check_briefagents, "briefsteps": check_briefsteps, "migrate": check_migrate, "brief": check_brief, "geminibrief": check_geminibrief, "ranges": check_ranges, "cues": check_cues, "coldopen": check_coldopen, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch, "labelbox": check_labelbox, "shotframe": check_shotframe, "facelock": check_facelock,
+# check: data safety (P3): an atomic write leaves no half file and no tmp file, the xlsx backups keep the newest 10 automatic ones (and never touch the manual,
+# merge and migrate ones), and a project's summary lists all of its videos (the card says when a later one is gone from sources/).
+def check_datasafe() -> tuple[str, str]:
+    import tempfile
+    from pathlib import Path as _P
+    from . import paths, projects, xlsx_sync
+    problems: list[str] = []
+    with tempfile.TemporaryDirectory() as td:
+        root = _P(td)
+        f = root / "a.json"
+        paths.write_text_atomic(f, '{"a":1}')
+        paths.write_text_atomic(f, '{"a":2}')
+        if json.loads(f.read_text(encoding="utf-8")) != {"a": 2} or [p.name for p in root.iterdir()] != ["a.json"]:
+            problems.append("an atomic write replaces the file and leaves no tmp file")
+        ws = root / "ws"
+        (ws / "backups").mkdir(parents=True)
+        for i in range(13):
+            (ws / "backups" / f"xlsx-202611{10 + i:02d}-120000").mkdir()
+        for name in ("xlsx-manual-20261125", "xlsx-merge-20261126", "migrate-20261020-195112"):
+            (ws / "backups" / name).mkdir()
+        real = paths.workspace_dir
+        paths.workspace_dir = lambda: ws
+        try:
+            gone = xlsx_sync.prune_backups()
+        finally:
+            paths.workspace_dir = real
+        left = sorted(p.name for p in (ws / "backups").iterdir())
+        auto = [n for n in left if n.startswith("xlsx-2026")]
+        if len(gone) != 3 or len(auto) != 10 or auto[0] != "xlsx-20261113-120000" or len(left) != 13:
+            problems.append(f"the xlsx backups keep the newest 10 automatic ones and the others: removed {gone}, left {left}")
+        pf = root / "p1.json"
+        pf.write_text(json.dumps({"id": "p1", "assets": [{"id": "a1", "kind": "video", "file": "one.mp4"}, {"id": "a2", "kind": "video", "file": "two.mp4"}, {"id": "a3", "kind": "image", "file": "x.png"}],
+                                  "results": []}), encoding="utf-8")
+        got = projects._project_summary(pf)
+        if not got or got["videos"] != ["one.mp4", "two.mp4"] or got["video"] != "one.mp4":
+            problems.append(f"a project's summary lists all of its videos: {got and got.get('videos')}")
+    if problems:
+        return FAIL, "\n      ".join(problems)
+    return PASS, "an atomic write replaces the file and leaves no tmp file; the xlsx backups keep the newest 10 automatic ones and leave the manual, merge and migrate ones; a project's summary lists all of its videos"
+
+
+CHECKS = {"cliplength": check_cliplength, "adminmodel": check_adminmodel, "autopilot": check_autopilot, "autopilotresult": check_autopilotresult, "autopilotrun": check_autopilotrun, "settle": check_settle, "briefagents": check_briefagents, "briefsteps": check_briefsteps, "migrate": check_migrate, "brief": check_brief, "geminibrief": check_geminibrief, "ranges": check_ranges, "cues": check_cues, "coldopen": check_coldopen, "credits": check_credits, "fingerprint": check_fingerprint, "schedule": check_schedule, "http": check_http, "profiles": check_profiles, "youtube": check_youtube, "upload": check_upload, "refresh": check_refresh, "manual": check_manual, "captions": check_captions, "renderreq": check_renderreq, "batch": check_batch, "claude": check_claude, "rubrics": check_rubrics, "guide": check_guide, "timefield": check_timefield, "resultpost": check_resultpost, "bulk": check_bulk, "hashtags": check_hashtags, "ytdl": check_ytdl, "sched": check_sched, "fallback": check_fallback, "progress": check_progress, "scratch": check_scratch, "labelbox": check_labelbox, "shotframe": check_shotframe, "facelock": check_facelock, "datasafe": check_datasafe,
           "motion": check_motion, "motionbrief": check_motion_brief, "voiceparts": check_voiceparts, "voicefit": check_voicefit, "motionopts": check_motionopts, "motionstate": check_motionstate, "skill": check_skill, "voicegoogle": check_voicegoogle, "voicestudio": check_voicestudio, "elevenlabs": check_elevenlabs, "khusus": check_khusus, "briefbuttons": check_briefbuttons, "music": check_music, "voice": check_voice, "decode": check_decode, "render": check_render}
 
 

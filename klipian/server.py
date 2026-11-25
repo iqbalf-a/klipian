@@ -319,7 +319,7 @@ def _source_duration(video: Path, cache: Cache) -> float | None:
     except Exception:                          # noqa: BLE001
         return None
     try:
-        path.write_text(json.dumps({"duration": duration}), encoding="utf-8")
+        _paths.write_text_atomic(path, json.dumps({"duration": duration}))
     except OSError:
         pass
     return duration

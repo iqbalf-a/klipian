@@ -137,3 +137,11 @@ Item 3 (bulk bars): done as a pattern, not a rewrite. The two bars differ on pur
 
 Done: item 8 (decision: `-create` stays as it is; the guide now says so), item 9 (the Ricks look label no longer says "voice first"; the guide explains the Order option and both flows), item 10 (the stage 2 brief carries the voice-timed story inside it, 9.9 KB for a 60 s video, so it works in any Claude Code session, cloud included; it refuses with a clear message when the timed story is missing; `selftest motionstate` covers stage 1, stage 2, picture first and the missing file; the inlined story passes `remotion/validate.mjs`).
 Not done: a real Claude Code run of stage 1 and stage 2 (it spends a session and writes a story and a folder); the briefs were only checked as text and by the validator.
+
+## P3 progress (data safety)
+
+- **D1 (correction):** the UI already marked a project whose primary video is gone. The home card now also says when any later video is missing from `sources/` (`videos` added to `_project_summary`, note via `lacking(p)` in `ui/js/editor/projects.js`).
+- **D2:** `xlsx_sync.prune_backups` keeps the newest 10 automatic `xlsx-YYYYMMDD-HHMMSS` backups; manual, merge and migrate folders are never touched. The limit of 10 is my default (the question was never answered); change `KEEP_BACKUPS` if wanted.
+- **L1:** the five JSON writers (claude_api, jobs x3, server) now use `paths.write_text_atomic`. `motion.py:577` writes a temp validation file, so it is left as is.
+- **D3 (not done):** leftover cleanup (`workspace/.selftest-*`, `*.bak-uploads-20261110`, empty `workspace/jadwal`, `.tmp` folders) needs ian's OK per item.
+- Selftest: new check `datasafe` (atomic write, prune, videos list). Pre-existing `briefsteps` failure (30 s brief 40268 > 40000 chars) is still open.

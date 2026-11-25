@@ -3,7 +3,7 @@ of the current profile (workspace/profiles/<id>/schedule/*.xlsx): the status col
 
 A sheet row is the clip's when its Video ID cell equals the clip's, else when its title (the "Judul..." or
 "Topik" column) shares at least 60% of the clip title's words and is clearly the best match. Sheets with
-no match are never touched; a file is copied to workspace/backups/xlsx-<time>/ before its first change."""
+no match are never touched; a file is copied to workspace/backups/xlsx-<time>/ before its first change, and only the newest 10 of those folders are kept."""
 from __future__ import annotations
 
 import re
@@ -60,6 +60,26 @@ def _match(sheet, cols, item, taken: set[int], title_col: int) -> int | None:
     return None
 
 
+KEEP_BACKUPS = 10
+_AUTO_BACKUP = re.compile(r"xlsx-\d{8}-\d{6}")           # the ones sync() makes; xlsx-manual-*, xlsx-merge-* and migrate-* are somebody's choice and stay
+
+
+def prune_backups(keep: int = KEEP_BACKUPS) -> list[str]:
+    """Deletes the oldest automatic xlsx backups, keeping the newest `keep` (every sync that changed a file makes one). Returns the names removed."""
+    root = paths.workspace_dir() / "backups"
+    if not root.is_dir():
+        return []
+    auto = sorted(d for d in root.iterdir() if d.is_dir() and _AUTO_BACKUP.fullmatch(d.name))      # the stamp sorts by time
+    gone = []
+    for d in auto[:max(0, len(auto) - keep)]:
+        try:
+            shutil.rmtree(d)
+            gone.append(d.name)
+        except OSError:
+            pass                                                # one that is locked stays for the next sync
+    return gone
+
+
 def sync(items: list[dict]) -> dict:
     """items: [{videoId, title, state, when}]. Returns {files: [{file, rows}], unmatched: [titles], errors: [...]}."""
     out: dict = {"files": [], "unmatched": [], "errors": []}
@@ -107,4 +127,6 @@ def sync(items: list[dict]) -> dict:
         except Exception as exc:                        # noqa: BLE001  a broken file must not stop the others
             out["errors"].append(f"{f.name}: {exc}")
     out["unmatched"] = [it["title"] for it in items if it["videoId"] not in matched]
+    if out["files"]:
+        prune_backups()
     return out

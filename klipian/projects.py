@@ -292,6 +292,9 @@ def _project_summary(file: Path) -> dict | None:
             # The project's first video: the card's "is it still there"
             # check and the Home screen's missing marker read this.
             "video": video,
+            # Every video of the project: the card says when one of the others is no longer in sources/ (the first one has its own marker).
+            "videos": [a["file"] for a in data.get("assets") or []
+                       if isinstance(a, dict) and (a.get("kind") or "video") == "video" and a.get("file")] or ([video] if video else []),
             # Identity of its own. The home card can show a name ian chose
             # and when the project was started, neither of which the video
             # filename could ever tell it.

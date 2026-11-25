@@ -973,6 +973,8 @@ async function renderProjects() {
   // it's supposed to answer.
   // A project whose videos were all removed has no video to be missing.
   const lacks = (p) => !!(p.video && available && !available.has(p.video));
+  // another video of the project (not the first) that is no longer in sources/: the card stays usable and says so
+  const lacking = (p) => (available && p.videos ? p.videos.slice(1).filter((v) => !available.has(v)).length : 0);
   const lastIdx = items.findIndex((p) => !lacks(p));
 
   container.innerHTML = items.map((p, i) => {
@@ -994,7 +996,7 @@ async function renderProjects() {
       <span class="data project-meta">${missing
         ? "video not in sources/"
         : empty ? `no video yet · ${timeAgo(p.at)}`
-        : `${p.spans} span${p.spans === 1 ? "" : "s"} · ${Math.round(p.seconds)}s · ${timeAgo(p.at)}`}</span>
+        : `${p.spans} span${p.spans === 1 ? "" : "s"} · ${Math.round(p.seconds)}s · ${timeAgo(p.at)}${lacking(p) ? ` · ${lacking(p)} video${lacking(p) === 1 ? "" : "s"} not in sources/` : ""}`}</span>
       <span class="data project-created">created ${createdLabel(p.createdAt)}</span>
       <i class="rename-icon" data-rename-project="${escapeHTML(p.id)}" role="button"
          tabindex="0" aria-label="Rename project ${escapeHTML(name)}" title="Rename">
