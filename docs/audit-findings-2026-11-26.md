@@ -132,3 +132,8 @@ Checked: U7's narrow-width claim was wrong; below 720 px the switch already drop
 Known failing check, not caused by P1: `selftest briefsteps` ("the 30 s brief is 40268 characters: keep it under 40000"); it also fails on `4c9a15a`, before the Order option.
 
 Item 3 (bulk bars): done as a pattern, not a rewrite. The two bars differ on purpose in layout (Results sits under its list, Clips floats so the table does not move), so what was unified is the content: count first, one main action first, destructive actions together at the end (`.bulk-end`, red Delete), selection helpers in the list header. Workspace Clips Delete is now `.btn.danger` inside `.bulk-end`; the rules are in `docs/ui-design.md` ("Bar aksi massal"). The YouTube bulk dialog already followed rule 6. Not changed: Results still shows its bar when nothing is ticked (buttons disabled), Clips hides it; the two selection models (ticks in a list, ticks in a table) stay separate.
+
+## P2 progress (2026-11-26)
+
+Done: item 8 (decision: `-create` stays as it is; the guide now says so), item 9 (the Ricks look label no longer says "voice first"; the guide explains the Order option and both flows), item 10 (the stage 2 brief carries the voice-timed story inside it, 9.9 KB for a 60 s video, so it works in any Claude Code session, cloud included; it refuses with a clear message when the timed story is missing; `selftest motionstate` covers stage 1, stage 2, picture first and the missing file; the inlined story passes `remotion/validate.mjs`).
+Not done: a real Claude Code run of stage 1 and stage 2 (it spends a session and writes a story and a folder); the briefs were only checked as text and by the validator.

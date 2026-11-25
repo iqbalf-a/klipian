@@ -101,7 +101,7 @@ const STORY_LABELS = [["fakta", "Fact (explain it)"], ["dongeng", "Story + fact 
 // the look of a Khusus video (B28): auto leaves the choice to Claude Code; the others force it
 // the order of a Khusus video: klipian/motion.py FLOW_CHOICES
 const FLOW_LABELS = [["picture", "Picture first"], ["voice", "Voice first"]];
-const LOOK_LABELS = [["auto", "Automatic (chosen from the topic)"], ["iso", "2.5D isometric"], ["2d", "2D"], ["text", "Text"], ["ricks", "Ricks (3D diorama + stick cast, voice first)"]];
+const LOOK_LABELS = [["auto", "Automatic (chosen from the topic)"], ["iso", "2.5D isometric"], ["2d", "2D"], ["text", "Text"], ["ricks", "Ricks (3D diorama + stick cast)"]];
 
 function optionsSummary(o) {
   if (!o) return "";

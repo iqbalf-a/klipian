@@ -448,7 +448,7 @@ def _stage_steps(text: str, slug: str, stage: int, p: dict) -> str:
     pictures). Stage 2: the story and the voice-timed story are given; make the folder and draw the beats to the voice (no new narration)."""
     head, *parts = text.split("\n\n" + STEP_MARK)
     sec = {int(x.split(":", 1)[0]): x for x in parts}
-    pdir = _m.project_dir(p["id"])
+    pdir = _m.project_dir(p["id"]) if stage == 2 else None
     if stage == 1:
         sec[1] = sec[1].replace("Save it as", "Print the whole story JSON as one fenced `json` block in your reply (the person pastes it into klipian) and save it as", 1)
         sec[8] = ("8: tell the person\nIn plain words: open `/remotion`, go to the step \"The AI's answer and the storyboard\", paste the story JSON, check the claims and choose a title, "
@@ -456,9 +456,14 @@ def _stage_steps(text: str, slug: str, stage: int, p: dict) -> str:
                   "klipian then gives a second brief for it. Do not make the video folder, the pictures or any code now.\nExpected: your reply ends with these instructions.")
         keep = (1, 2, 7, 8)
     else:
-        sec[1] = (f"1: the story and the voice are given\nDo: the story was written first and the voice is already made and matched in klipian, so the narration is FINAL. "
-                  f"Copy `{pdir / 'story.json'}` to `remotion/stories/{slug}.json`, and read `{pdir / 'story.voiced.json'}`: the same story timed to the voice (each beat's start and end "
-                  "follow the narration). Build the picture to these times; never change a narration, a beat order or a claim (a change would make the voice not fit).\n"
+        try:                                                          # the timed story goes INTO the brief, so a session without klipian's workspace can use it too
+            voiced = json.loads((pdir / "story.voiced.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            raise _m.MotionError("brief", "The matched voice has no timed story: match the voice again, then copy the build brief.") from None
+        blob = json.dumps(voiced, ensure_ascii=False, separators=(",", ":"))
+        sec[1] = ("1: write the voice-timed story\nDo: the story was written first and its voice is already made and matched in klipian, so the narration is FINAL and every beat already has "
+                  f"its time from the voice. Save the JSON below exactly as `remotion/stories/{slug}.json` (never change a narration, a beat, a time or a claim: a change would make the voice not fit) "
+                  f"and build the picture to these times.\n```json\n{blob}\n```\n"
                   f"Expected: the file `remotion/stories/{slug}.json` exists and is plain JSON.")
         sec[4] = sec[4].replace("Do: read", "Do: build every beat to the times of the voice-timed story. Read", 1)
         sec[8] = (f"8: tell the person\nIn plain words: open `/remotion`, choose the folder `remotion/videos/{slug}` of the repository, press \"Load the story from the folder\", "

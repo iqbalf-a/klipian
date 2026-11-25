@@ -406,6 +406,14 @@
           and <b>Cancel</b>. The result becomes a <b>Clips</b> row (the <code>out/motion/</code> folder) with the chosen title, the description, the hashtags and the sources
           of the checked claims, ready to schedule or upload like any other clip.</li>
       </ol>
+      <p><b>Order: picture first or voice first.</b> Choose it when you create the video (the <b>Order</b> select; look Ricks sets it to Voice first).
+        The eight steps above are <i>picture first</i>, the way every video made before this choice works: Claude Code builds the story and the picture in one go,
+        then you add the voice. With <i>voice first</i> the voice comes before any drawing, so every shot lands on a word:
+        the <b>Brief</b> asks Claude Code only for the story and the narration text (stage 1); you paste the story in the step
+        <b>Paste the story and the storyboard</b>, check the facts, make the voice from the script and match it; then the step
+        <b>Build the picture to the voice</b> gives a second brief (stage 2, with the voice-timed story inside it, so any Claude Code session can use it).
+        Choose the folder it made, load the story, press <b>Match with the narration</b> once more (the story file changed), then Preview and Render.
+        The <code>-create</code> command is separate: it is one stage, except <code>-create ricks</code>, which waits for the voice (<code>wav=</code>).</p>
       <p><b>Video kind.</b> The main flow is <i>Custom</i>: the video is built in a Claude Code session (read <code>remotion/DESIGN.md</code>). The
         <i>Template</i> kind (klipian's template from a pasted AI answer) is hidden under <b>Advanced settings</b> and still works for
         old videos.</p>

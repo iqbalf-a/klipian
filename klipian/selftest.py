@@ -8138,6 +8138,32 @@ def check_motionstate() -> tuple[str, str]:
     nv = motion.project_status({**base, "custom": True, "folder": "cerita diambil", "voice": True, "aligned": True}, None, {"total": 53.3, "aligned": True}, {"duration": 45}, {"duration": 45})
     if nv["length"] != {"planned": 45, "voiced": 53.3, "seconds": 53.3}:
         problems.append(f"the voiced length is shown when there is a matched voice: {nv['length']}")
+    # voice first: stage 1 asks only for the story and the narration; stage 2 carries the voice-timed story inside it (no workspace path)
+    import tempfile
+    from . import motion_brief
+    from pathlib import Path as _P
+    with tempfile.TemporaryDirectory() as td:
+        (_P(td) / "story.voiced.json").write_text('{"question":"Q?","duration":40,"beats":[{"id":"hook"}]}', encoding="utf-8")
+        real = motion.project_dir
+        motion.project_dir = lambda pid: _P(td)
+        try:
+            vp = {"id": "x1", "topic": "kenapa nasi basi", "duration": 40, "options": {"flow": "voice", "kind": "khusus"}, "voice": {}}
+            one = motion_brief.build_brief(vp)
+            two = motion_brief.build_brief({**vp, "voice": {"aligned": True}})
+            if "stage 1 of 2" not in one or "make the video folder" in one.split("## 3. Steps")[1].split("## ")[0].lower().replace("do not make the video folder", ""):
+                problems.append("voice first stage 1 asks for the story and the narration only")
+            if "stage 2 of 2" not in two or '"id":"hook"' not in two or td in two:
+                problems.append("voice first stage 2 holds the voice-timed story inside the brief and no local path")
+            if "stage 1 of 2" in motion_brief.build_brief({**vp, "options": {"kind": "khusus"}}):
+                problems.append("picture first has no stages")
+            os.remove(_P(td) / "story.voiced.json")
+            try:
+                motion_brief.build_brief({**vp, "voice": {"aligned": True}})
+                problems.append("stage 2 without a timed story is refused")
+            except motion.MotionError:
+                pass
+        finally:
+            motion.project_dir = real
     if problems:
         return FAIL, "\n      ".join(problems)
     return PASS, "the next step for every state, the stage chips, one status (next step, chips, render block and list chip agree in every state), the voiced length, the kind of a video (migrated), the render current or stale with its reasons, and the detail of a new video (Khusus by default)"
