@@ -18,17 +18,13 @@ the network.
 from __future__ import annotations
 
 import faulthandler
-import contextvars
-import importlib
 import json
 import mimetypes
 import os
 import re
 import shutil
-import subprocess
 import sys
 import threading
-import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -36,37 +32,27 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 from .cache import Cache, fingerprint as _fingerprint
 from .models import Transcript
-from . import compose as composer
 from . import ffmpeg_tools
 from . import render as engine
 from . import credits as credits_mod
 from .schedule import manual_dir as _schedule_manual_dir, title_from_file as _title_from_file
-from .schedule import scheduled_files as _scheduled_files, project_of_folder as _project_of_folder
 from . import cues as cues_mod
 from . import roundtrip
-from .jobs import style_with_profile as _style_with_profile
-from . import sched as _sched
-from .jobs import cancel_job as _cancel_job, start_project_render as _start_project_render, transcribe_key as _transcribe_key
-from .jobs import estimate_seconds as _estimate_seconds, plan_project_render as _plan_project_render
 from . import autopilot as _autopilot
 from . import autopilot_deps as _autopilot_deps
 from . import rubrics as _rubrics
-from .jobs import (ACTIVE_TRANSCRIBES, CANCELLED, JOBS, LOCK, MAX_JOBS, _clip_words,
-                   _register_job, _run_diarize, _run_render, _run_transcribe,
-                   _spans_from_clip)
+from .jobs import JOBS, LOCK
 from . import hashtags as _hashtags_mod
 from . import paths as _paths
 from . import profiles as _profiles
 from . import buildid as _buildid  # noqa: F401  (STARTED is taken here, at start)
-from .paths import (ASSETS, CACHE_DIR, OUT_ROOT, ROOT, SOURCES, find_video,
-                    safe_dirname)
-from .projects import (PROJECTS, PROJECTS_LOCK, _all_projects,
-                       _free_name, _migrate_project, _new_project_id, _primary_video,
-                       _project_assets_dir, _project_file, _project_summary,
-                       _read_project, _write_project)
+from .paths import CACHE_DIR, ROOT, SOURCES, find_video, safe_dirname
+from .projects import _free_name, _project_file, _read_project
 
 from .server_motion import MotionRoutes
 from .server_services import ServiceRoutes
+from .server_projects import ProjectRoutes
+from .server_render import RenderRoutes, RANGE_ENDPOINTS
 from .server_workspace import WorkspaceRoutes, VIDEO_EXT
 
 # Folders under ROOT served as-is. "assets" holds only vendored, already-
@@ -96,27 +82,8 @@ WORKSPACE_SERVED = ("sources", "out", "cache")
 # render flow, and deliberately NOT static files, same as projects/ above.
 # (The schedule file and its lock live in schedule.py: a finished render adds
 # its row there too.)
-ASSETS_DIR = ASSETS
-# Quick preview (/api/preview): how many seconds of the clip are actually
-# rendered through ffmpeg, with the EXACT SAME caption+watermark filters
-# as the full render -- not just a CSS preview in the browser, which once
-# proved it could differ from the real ASS/ffmpeg output (see watermark
-# opacity bug). 5 seconds is enough to see the style, but short enough to
-# stay "quick".
-PREVIEW_MAX_SECONDS = 5.0
 
 
-# Endpoints handled by one shared block in do_POST -- see the comment
-# there. Each entry: (module, function, extra request key or None,
-# response key, 404 message when the result is empty or None).
-RANGE_ENDPOINTS = {
-    "/api/facetrack":     ("facebox", "track_crops", "crop", "points", None),
-    "/api/speakerlocate": ("facebox", "locate_speaker", "size", "crop",
-                           "no speaker detected"),
-    "/api/headtrack":     ("facebox", "track_head", "crop", "keyframes",
-                           "not enough tracking data"),
-    "/api/scenecut":      ("scenecut", "detect_cuts", None, "cuts", None),
-}
 
 
 def _load_dotenv() -> None:
@@ -141,22 +108,6 @@ def _load_dotenv() -> None:
 # --------------------------------------------------------------------------
 
 
-def _prune_previews(folder: "Path", keep: "Path", max_age: float = 3600) -> None:
-    """Delete stale quick-preview files so the unique-name scheme doesn't
-    just accumulate MP4s forever. Only touches this folder, only files
-    matching the preview naming, and never one younger than `max_age`
-    (another request could still be writing or serving it). Failures are
-    ignored on purpose -- a preview that can't be cleaned up must not fail
-    the preview the user actually asked for."""
-    now = time.time()
-    for f in folder.glob("_preview.*"):
-        if f == keep:
-            continue
-        try:
-            if now - f.stat().st_mtime > max_age:
-                f.unlink()
-        except OSError:
-            pass
 
 
 # ═══════════════════════════════ workspace ═══════════════════════════════
@@ -303,32 +254,6 @@ def _claude_parts(name: str, mode: str = "", at_most: bool = False):
 # POSTs whose body is a file, not JSON (see Handler._guard).
 RAW_UPLOADS = {"/api/video-upload", "/api/project-asset-upload", "/api/workspace/clips/file", "/api/motion/voice-upload"}
 
-def _fill_candidate_cues(data: dict) -> None:
-    """Give the suggestions a project already holds the `cues` they would have
-    got on import (cues.for_range, the same rule), when they predate cues. Done
-    as the project is read, in the response only: the file is not touched, and
-    the editor writes them with its next real save. Only when the sound
-    detection has run for that video: a list without the sounds would be
-    stored as if it were complete."""
-    cache = Cache(CACHE_DIR)
-    files = {a.get("id"): a.get("file") for a in data.get("assets") or []
-             if isinstance(a, dict) and (a.get("kind") or "video") == "video"}
-    loaded: dict[str, dict | None] = {}
-    for cand in data.get("candidates") or []:
-        if not isinstance(cand, dict) or "cues" in cand:
-            continue
-        name = files.get(cand.get("asset")) or _primary_video(data)
-        if name not in loaded:
-            video = find_video(name) if name else None
-            loaded[name] = cues_mod.load(video, cache) if video else None
-        info = loaded[name]
-        if not info or info["status"]["audio"] != "ok":
-            continue
-        try:
-            start, end = float(cand["startSec"]), float(cand["endSec"])
-        except (KeyError, TypeError, ValueError):
-            continue
-        cand["cues"] = cues_mod.for_range(info["cues"], start, end)
 
 
 # A source video is hundreds of MB to a few GB (a 45-minute episode is about
@@ -379,7 +304,7 @@ def _same_video(name: str, size: int) -> str | None:
 # HTTP
 # --------------------------------------------------------------------------
 
-class Handler(MotionRoutes, ServiceRoutes, WorkspaceRoutes, BaseHTTPRequestHandler):
+class Handler(MotionRoutes, ServiceRoutes, WorkspaceRoutes, ProjectRoutes, RenderRoutes, BaseHTTPRequestHandler):
     server_version = "klipian"
 
     def log_message(self, format, *args):          # noqa: A002
@@ -633,115 +558,6 @@ class Handler(MotionRoutes, ServiceRoutes, WorkspaceRoutes, BaseHTTPRequestHandl
         return self._send_json({"profile": _profiles.list_profiles(),
                                 "guest": _profiles.read_meta(_paths.GUEST),
                                 "admin": _profiles.read_meta(_paths.ADMIN)})
-
-    def _get_history(self):
-        # History is read from the out/ folder contents, not session
-        # memory: files that actually exist on disk are the honest
-        # history, and persist across page reloads or server restarts.
-        item = []
-        for mp4 in OUT_ROOT.glob("*/*.mp4"):
-            # Quick previews are not renders (they live in cache/previews/),
-            # but the leading-underscore check also hides the _preview.mp4
-            # files older builds left in out/ -- those used to appear in
-            # History and on the workspace dashboard as real output.
-            if mp4.name.startswith("_"):
-                continue
-            try:
-                st = mp4.stat()
-            except OSError:
-                continue
-            item.append({
-                "file": mp4.name,
-                "video": mp4.parent.name,
-                "folder": str(mp4.parent),
-                "url": f"/workspace/out/{mp4.parent.name}/{mp4.name}?profile={_paths.current_profile()}",
-                "mb": round(st.st_size / 1048576, 1),
-                "at": int(st.st_mtime),
-                # When the file was made (the modified time where the system
-                # keeps no creation time): what the dashboard's Created column shows.
-                "created": int(getattr(st, "st_birthtime", None) or st.st_mtime),
-            })
-        item.sort(key=lambda x: x["created"], reverse=True)   # newest first
-        # Which files the upload schedule has a row for (by project and file name).
-        pairs, loose = _scheduled_files()
-        for it in item:
-            pid = _project_of_folder(it["video"])
-            it["scheduled"] = (pid, it["file"]) in pairs or it["file"] in loose
-        return self._send_json({"render": item})
-
-    def _get_projects(self):
-        # Listing for the homepage. Corrupted entries are silently
-        # skipped: one bad file must not crash the entire listing.
-        item = []
-        for f, _ in _all_projects():
-            r = _project_summary(f)
-            # A project with no video left is still a project (ian).
-            if r and r.get("id"):
-                item.append(r)
-        item.sort(key=lambda x: x["at"], reverse=True)
-        return self._send_json({"project": item})
-
-    def _get_project(self):
-        # By id: what the editor holds once a project is open, and what
-        # /edit/<id> carries.
-        q = parse_qs(urlparse(self.path).query)
-        pid = (q.get("id") or [""])[0]
-        if not pid:
-            return self._send_json({"error": "id required"}, 400)
-        f = _project_file(pid)
-        if not f or not f.is_file():
-            return self._send_json({"error": "not found"}, 404)
-        try:
-            data = json.loads(f.read_text(encoding="utf-8"))
-        except ValueError:
-            return self._send_json({"error": "project file is corrupt"}, 500)
-        # Migrating on READ, and writing back, means a project gains its
-        # id the first time it is opened rather than the first time it
-        # is saved -- so the id already exists for anything that asks
-        # between opening and the next save (the render below does).
-        data, changed = _migrate_project(data)
-        # The file's name IS the id; a hand-edited `id` inside it can't
-        # be allowed to point the browser at some other file.
-        if data.get("id") != f.stem:
-            data["id"] = f.stem
-            changed = True
-        if changed:
-            try:
-                with PROJECTS_LOCK:
-                    _write_project(f, data)
-            except OSError:
-                # Best-effort: the request still answers with a migrated
-                # dict even if the disk write fails, and the next save
-                # will carry it.
-                pass
-        _fill_candidate_cues(data)
-        return self._send_json(data)
-
-    def _get_project_assets(self):
-        # This project's own images and sounds (projects/<id>/assets/).
-        folder = _project_assets_dir((parse_qs(urlparse(self.path).query).get("id") or [""])[0])
-        if folder is None:
-            return self._send_json({"error": "invalid id"}, 400)
-        item = []
-        if folder.is_dir():
-            for f in sorted(folder.iterdir()):
-                ext = f.suffix.lower()
-                if f.is_file() and ext in (composer.IMAGE_EXT | composer.SOUND_EXT):
-                    item.append({"name": f.name,
-                                 "kind": "image" if ext in composer.IMAGE_EXT else "sound",
-                                 "kb": round(f.stat().st_size / 1024, 1)})
-        return self._send_json({"asset": item})
-
-    def _get_project_asset_file(self):
-        # One of them, for the editor's preview. By name only; .name
-        # strips any path a caller put in it.
-        q = parse_qs(urlparse(self.path).query)
-        folder = _project_assets_dir((q.get("id") or [""])[0])
-        name = Path((q.get("name") or [""])[0]).name
-        f = folder / name if folder is not None and name else None
-        if not f or f.suffix.lower() not in (composer.IMAGE_EXT | composer.SOUND_EXT) or not f.is_file():
-            return self._send_json({"error": "not found"}, 404)
-        return self._send_file(f, mimetypes.guess_type(f.name)[0] or "application/octet-stream")
 
     def _get_cache(self):
         # UI needs to know which transcripts are available. This server
@@ -1028,15 +844,15 @@ class Handler(MotionRoutes, ServiceRoutes, WorkspaceRoutes, BaseHTTPRequestHandl
         "/api/youtube/upload-state": ServiceRoutes._get_youtube_upload_state,
         "/api/youtube/bulk-state": ServiceRoutes._get_youtube_bulk_state,
         "/api/probe": _get_probe,
-        "/api/history": _get_history,
-        "/api/projects": _get_projects,
-        "/api/project": _get_project,
+        "/api/history": ProjectRoutes._get_history,
+        "/api/projects": ProjectRoutes._get_projects,
+        "/api/project": ProjectRoutes._get_project,
         "/api/workspace/clips": WorkspaceRoutes._get_workspace_clips,
         "/api/workspace/assets": WorkspaceRoutes._get_workspace_assets,
         "/api/workspace/sources": WorkspaceRoutes._get_workspace_sources,
         "/api/credits": WorkspaceRoutes._get_credits,
-        "/api/project-assets": _get_project_assets,
-        "/api/project-asset-file": _get_project_asset_file,
+        "/api/project-assets": ProjectRoutes._get_project_assets,
+        "/api/project-asset-file": ProjectRoutes._get_project_asset_file,
         "/api/workspace/asset-file": WorkspaceRoutes._get_workspace_asset_file,
         "/api/cache": _get_cache,
         "/api/transcript": _get_transcript,
@@ -1125,138 +941,6 @@ class Handler(MotionRoutes, ServiceRoutes, WorkspaceRoutes, BaseHTTPRequestHandl
         if path in RANGE_ENDPOINTS:
             return self._post_range(path)
         self._send_json({"error": "unknown endpoint"}, 404)
-
-    def _post_project_restore(self):
-        """Undo deleting a project: the newest copy in projects/.trash/ comes back."""
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
-        f = _project_file(req.get("id"))
-        if f is None:
-            return self._send_json({"error": "invalid id"}, 400)
-        with PROJECTS_LOCK:
-            copies = sorted((PROJECTS / ".trash").glob(f"{f.stem}.*.json"), key=lambda p: p.stat().st_mtime) \
-                if (PROJECTS / ".trash").is_dir() else []
-            if f.is_file():
-                return self._send_json({"ok": True, "restored": False})
-            if not copies:
-                return self._send_json({"error": "nothing to restore"}, 404)
-            shutil.copy2(copies[-1], f)
-            copies[-1].unlink(missing_ok=True)
-        return self._send_json({"ok": True, "restored": True})
-
-    def _post_project(self):
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
-        # The project's first video: from its assets, or `video` from a
-        # client older than them. Filename only, no path components --
-        # the name from the client must not determine WHERE anything is
-        # looked up or written.
-        name = Path(str(_primary_video(req) or "").strip()).name
-        if req.get("video"):
-            req["video"] = Path(str(req["video"])).name
-        pid = req.get("id")
-        PROJECTS.mkdir(parents=True, exist_ok=True)
-        with PROJECTS_LOCK:
-            # Which file: the id the client holds, or -- for the first save
-            # of a project the client has no id for yet, which says `new` --
-            # none yet. Never matched to another project by its video: two
-            # projects can share an episode.
-            if pid:
-                f = _project_file(pid)
-                if f is None:
-                    return self._send_json({"error": "invalid id"}, 400)
-            elif req.get("new"):
-                f = None
-            else:
-                return self._send_json({"error": "id required (or new: true for a new project)"}, 400)
-
-            if req.get("delete"):
-                if f:
-                    # A copy first (workspace/projects/.trash/): "Undo" puts it back
-                    # (/api/project/restore), and so can a person by hand.
-                    if f.is_file():
-                        trash = PROJECTS / ".trash"
-                        trash.mkdir(parents=True, exist_ok=True)
-                        shutil.copy2(f, trash / f"{f.stem}.{int(time.time())}.json")
-                        for old in sorted(trash.glob("*.json"), key=lambda p: p.stat().st_mtime)[:-20]:
-                            old.unlink(missing_ok=True)
-                    f.unlink(missing_ok=True)
-                return self._send_json({"ok": True, "deleted": True})
-
-            if not name and not pid and not isinstance(req.get("youtube"), dict):
-                # Only a NEW project needs one: its first video is what
-                # starts it. An existing one may have had all removed.
-                return self._send_json({"error": "video required"}, 400)
-            if f is None:
-                f = PROJECTS / f"{_new_project_id()}.json"
-
-            req["at"] = int(time.time())
-            # The project's IDENTITY is the server's to keep, not the
-            # client's to resend. projectState() in the browser builds
-            # its object from scratch and doesn't carry the name, so a
-            # plain write would erase it on the next autosave -- which
-            # is what happened with the id before this: minted on open,
-            # wiped seconds later. The name only changes through
-            # /api/project/rename. Assets too, for now: the editor can't
-            # add one yet, so anything it doesn't send is kept.
-            old = _read_project(f) if f.is_file() else None
-            if old:
-                for key in ("name", "createdAt", "outSlug"):
-                    if old.get(key):
-                        req[key] = old[key]
-                # Kept only when the client didn't send a list at all
-                # (an older client). An EMPTY list is an answer: every
-                # asset was removed, which a project is allowed (ian).
-                if "assets" not in req and old.get("assets"):
-                    req["assets"] = old["assets"]
-            req["id"] = f.stem
-            req.pop("delete", None)
-            req.pop("new", None)
-            req, _ = _migrate_project(req)
-            _write_project(f, req)
-        return self._send_json({"ok": True, "id": f.stem})
-
-    def _post_project_asset_upload(self):
-        # An image or sound dropped on the Assets screen, saved into THIS
-        # project's own folder (projects/<id>/assets/) -- a project's
-        # stickers and stings belong to it, not to a pool every project
-        # draws from (ian). Raw body, the file's name in the query: no
-        # multipart parsing for one file.
-        q = parse_qs(urlparse(self.path).query)
-        folder = _project_assets_dir((q.get("id") or [""])[0])
-        if folder is None or not _project_file(folder.parent.name).is_file():
-            return self._send_json({"error": "save the project first"}, 400)
-        name = Path((q.get("name") or [""])[0]).name.strip()
-        ext = Path(name).suffix.lower()
-        if not name or ext not in (composer.IMAGE_EXT | composer.SOUND_EXT):
-            return self._send_json({"error": "only images (png, jpg, webp, gif) and sounds "
-                                              "(mp3, wav, m4a, ogg, flac) can be added"}, 400)
-        n = int(self.headers.get("Content-Length", 0))
-        MAX_ASSET = 100 * 1024 * 1024
-        if n <= 0 or n > MAX_ASSET:
-            return self._send_json({"error": f"file must be 1 byte to {MAX_ASSET // 1048576} MB"}, 400)
-        folder.mkdir(parents=True, exist_ok=True)
-        dest = _free_name(folder, name)
-        tmp = dest.with_name(dest.name + ".part")
-        try:
-            with open(tmp, "wb") as out:
-                remaining = n
-                while remaining > 0:
-                    chunk = self.rfile.read(min(1 << 20, remaining))
-                    if not chunk:
-                        raise ConnectionError("upload ended early")
-                    out.write(chunk)
-                    remaining -= len(chunk)
-            tmp.replace(dest)
-        except (OSError, ConnectionError) as exc:
-            tmp.unlink(missing_ok=True)
-            return self._send_json({"error": f"could not save the file: {exc}"}, 500)
-        return self._send_json({"ok": True, "name": dest.name,
-                                "kind": "image" if ext in composer.IMAGE_EXT else "sound"})
 
     def _post_clip_file(self):
         """A video chosen for a schedule row that klipian did not render (the row's "Choose video…"):
@@ -1383,412 +1067,10 @@ class Handler(MotionRoutes, ServiceRoutes, WorkspaceRoutes, BaseHTTPRequestHandl
         except OSError:
             pass
 
-    def _post_project_asset_import(self):
-        # A file from the shared library (workspace/assets/: logos,
-        # banners, templates) COPIED into the project's folder. A copy,
-        # not a reference: editing or deleting the shared file later
-        # must not change a project that already used it.
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
-        folder = _project_assets_dir(req.get("id"))
-        if folder is None or not _project_file(folder.parent.name).is_file():
-            return self._send_json({"error": "save the project first"}, 400)
-        name = Path(str(req.get("name") or "")).name
-        src = ASSETS_DIR / name
-        ext = src.suffix.lower()
-        if not name or ext not in (composer.IMAGE_EXT | composer.SOUND_EXT) or not src.is_file():
-            return self._send_json({"error": "not found in workspace/assets/"}, 404)
-        folder.mkdir(parents=True, exist_ok=True)
-        # Already imported once, byte-for-byte: reuse that copy rather
-        # than pile up banner-2.png, banner-3.png on every click.
-        same = folder / name
-        if same.is_file() and same.read_bytes() == src.read_bytes():
-            dest = same
-        else:
-            dest = _free_name(folder, name)
-            try:
-                shutil.copyfile(src, dest)
-            except OSError as exc:
-                return self._send_json({"error": f"could not copy the file: {exc}"}, 500)
-        return self._send_json({"ok": True, "name": dest.name,
-                                "kind": "image" if ext in composer.IMAGE_EXT else "sound"})
-
-    def _post_project_rename(self):
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
-        # Collapsed whitespace and a length cap: it's shown on a card
-        # and in the topbar, and nothing about a name needs a newline.
-        new_name = " ".join(str(req.get("name") or "").split())[:80]
-        if not new_name:
-            return self._send_json({"error": "name required"}, 400)
-        f = _project_file(req.get("id"))
-        if f is None:
-            return self._send_json({"error": "invalid id"}, 400)
-        with PROJECTS_LOCK:
-            data = _read_project(f) if f.is_file() else None
-            if data is None:
-                return self._send_json({"error": "not found"}, 404)
-            # outSlug is migrated in BEFORE the name changes, so a
-            # project renamed before it ever had one still keeps the
-            # render folder it already has.
-            data, _ = _migrate_project(data)
-            data["name"] = new_name
-            _write_project(f, data)
-        return self._send_json({"ok": True, "name": new_name})
-
-    def _post_import(self):
-        """Claude's pasted reply -> clip candidates -- see roundtrip.parse_reply."""
-        try:
-            req = self._read_json()
-            name = str(req.get("video") or "")
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
-        # No transcript is not an error here: the cut points just aren't snapped. _import_reply reads it (once); a
-        # transcript that cannot be read is answered the way it always was: a 400 with the message.
-        try:
-            candidates, notes = _import_reply(name, str(req.get("text") or ""))
-        except (ValueError, OSError, KeyError, TypeError) as exc:
-            return self._send_json({"error": str(exc)}, 400)
-        # `notes`: what was repaired in the JSON (a .replace(" ", "") or a trailing comma), to be said
-        return self._send_json({"candidates": candidates, "notes": notes})
-
-    def _post_render(self):
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
-        if req.get("project") and isinstance(req.get("results"), list):
-            # The Results of a SAVED project: the server builds each request itself (renderreq.py), so what is
-            # rendered is what is saved. One job, one clip after another; see jobs.start_project_render.
-            try:
-                started = _start_project_render(str(req["project"]), [str(r) for r in req["results"]],
-                                                cold={"coldOpen": req.get("coldOpen"), "coldVoice": req.get("coldVoice")})
-            except ValueError as exc:
-                return self._send_json({"error": str(exc)}, 400)
-            return self._send_json(started)
-        if not req.get("clips"):
-            return self._send_json({"error": "no clips"}, 400)
-
-        job_id = uuid.uuid4().hex[:8]
-        _register_job(job_id, {"state": "running", "done": 0,
-                           "total": len(req["clips"]), "index": 0,
-                           "current": "", "result": [], "error": None})
-        threading.Thread(target=contextvars.copy_context().run, args=(_run_render, job_id, req),
-                         daemon=True).start()
-        return self._send_json({"id": job_id})
-
-    def _post_render_plan(self):
-        """What a bulk render of these Results of a SAVED project would do, before it starts: the clips (title,
-        length, picture), the ones that cannot be rendered and why, and a time estimate. Nothing is rendered."""
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
-        pf = _project_file(str(req.get("project") or ""))
-        pdata = _read_project(pf) if pf and pf.is_file() else None
-        if not pdata:
-            return self._send_json({"error": "That project is not saved yet."}, 400)
-        ids = [str(r) for r in dict.fromkeys(req.get("results") or [])]
-        items, refused = _plan_project_render(pdata, ids)
-        seconds, how = _estimate_seconds([i["duration"] for i in items])
-        return self._send_json({"items": [{k: v for k, v in i.items() if k != "request"} for i in items],
-                                "refused": refused, "totalDuration": round(sum(i["duration"] for i in items), 1),
-                                "estimateSeconds": seconds, "estimateHow": how})
-
-    def _post_render_cancel(self):
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
-        job_id = str(req.get("id") or "")
-        item = req.get("item")
-        if JOBS.get(job_id, {}).get("batch"):
-            # A batch of Results: all of it, or one clip (`item` = its index)
-            return self._send_json({"ok": _cancel_job(job_id, item if isinstance(item, int) else None)})
-        # Mark for cancellation; _run_render / render() checks it and
-        # kills the running ffmpeg. Idempotent -- marking an already-
-        # finished job is harmless (discarded in finally).
-        # Only mark jobs that are STILL RUNNING. The button stays on
-        # screen until the next poll, so cancelling an already-finished
-        # job used to add its id here AFTER _run_render's finally had
-        # discarded it -- and unlike JOBS, which is capped at MAX_JOBS
-        # and pruned, CANCELLED had neither, so those ids stayed
-        # forever. Also taken under LOCK now, for the same reason the
-        # JOBS lookup beside it is.
-        with LOCK:
-            running = JOBS.get(job_id, {}).get("state") in ("running", "queued")
-            if running:
-                CANCELLED.add(job_id)
-        _sched.poke()                          # a job waiting for its turn leaves the queue now
-        return self._send_json({"ok": running})
-
-    def _post_preview(self):
-        # REAL render through ffmpeg, just clipped short -- not a CSS
-        # imitation in the browser. Synchronous (not a job queue like
-        # /api/render): PREVIEW_MAX_SECONDS is short enough to finish
-        # in seconds, and ThreadingHTTPServer already handles each
-        # request in its own thread, so other requests (queue polling,
-        # etc.) aren't blocked waiting for this.
-        try:
-            req = self._read_json()
-            k = req.get("clip")
-            if not isinstance(k, dict):
-                return self._send_json({"error": "no clip"}, 400)
-        except Exception as exc:                   # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
-
-        video = find_video(req.get("video", ""))
-        if not video:
-            return self._send_json(
-                {"error": f"{req.get('video')} is not in a folder the "
-                           f"server can reach."}, 404)
-
-        try:
-            all_spans = _spans_from_clip(k)
-            start_from = float(req.get("startFrom") or 0)
-            spans = engine.trim_for_preview(all_spans, PREVIEW_MAX_SECONDS, start_from)
-            if not spans and start_from > 0:
-                # Scrub landed exactly at the clip tail (less than one
-                # second remaining) -- rather than failing, show from
-                # the beginning.
-                spans = engine.trim_for_preview(all_spans, PREVIEW_MAX_SECONDS)
-                start_from = 0.0
-            if not spans:
-                return self._send_json({"error": "Clip has no spans."}, 400)
-
-            from .ffmpeg_tools import probe
-            info = probe(video)
-
-            crop = k.get("crop") or {}
-            job = engine.RenderJob(
-                title="_preview",
-                spans=spans,
-                crop=engine.CropBox(
-                    left=crop.get("left", 37), top=crop.get("top", 4),
-                    width=crop.get("width", 26), height=crop.get("height", 92)),
-                **engine.picture_options(k),
-                out_width=int(k.get("width", 1080)),
-            )
-
-            # Same reasoning as the render path above: an unreadable
-            # transcript is reported, not silently turned into "no
-            # captions". Returned in the response body since this
-            # endpoint is synchronous and has no job to hang it on.
-            words = []
-            warning = ""
-            try:
-                cache = Cache(CACHE_DIR)
-                tpath = cache.find_transcript(video)
-                if tpath and tpath.exists():
-                    words = Transcript.load(tpath).words
-            except (OSError, ValueError, KeyError, TypeError) as exc:  # noqa: BLE001
-                warning = (f"captions skipped: the transcript exists but "
-                           f"could not be read ({exc})")
-            clip_words = _clip_words(k, words)
-
-            style = _style_with_profile(k.get("style") if isinstance(k.get("style"), dict) else None)
-
-            # Previews are disposable, but the name can NOT be fixed:
-            # /api/preview is synchronous with no lock or job registry,
-            # so two clicks in a row ran two ffmpeg processes writing
-            # the same _preview.mp4, while render()'s `finally` deleted
-            # the shared _preview.ass out from under whichever one was
-            # still reading it (and _concat_filter's _preview.track0.cmd
-            # collided the same way). A per-request id closes all three.
-            # Same fix the transcribe path already applies to its temp
-            # wav -- see the job-id suffix there.
-            #
-            # They live in cache/previews/, not in out/: a preview is not a
-            # render, and out/ is what History and the dashboard list. (They
-            # used to sit in out/<video name>/.preview/, which put a folder
-            # named after the VIDEO back into out/ -- and a multi-video
-            # project has no one video to name it after.)
-            pdir = CACHE_DIR / "previews"
-            pdir.mkdir(parents=True, exist_ok=True)
-            tag = uuid.uuid4().hex[:8]
-            dest = pdir / f"_preview.{tag}.mp4"
-            _prune_previews(pdir, keep=dest)
-            engine.render(video, job, dest, words=clip_words, style=style,
-                          src_width=info.width, src_height=info.height,
-                          has_audio=info.has_audio, verbose=False)
-
-            # The Timeline's elements, same second pass as a full render
-            # (compose.py), re-timed to this piece: `overlayBase` is
-            # where the piece's run starts in the whole clip, start_from
-            # how far into the run the piece begins.
-            base = float(req.get("overlayBase") or 0) + start_from
-            media_dir = _project_assets_dir(req.get("project")) or (pdir / ".no-assets")
-            elements = composer.clean_elements(
-                composer.shift_elements(k.get("overlays"), base), job.duration, media_dir)
-            volumes = composer.clean_volumes(
-                composer.shift_elements(k.get("volumes"), base), job.duration)
-            if elements or volumes:
-                raw = dest.with_name(dest.stem + ".pass1.mp4")
-                dest.replace(raw)
-                out_h = job.out_width * 16 // 9
-                try:
-                    composer.compose(raw, dest, width=job.out_width, height=out_h - (out_h & 1),
-                                     duration=job.duration, elements=elements,
-                                     volumes=volumes, quality=job.quality,
-                                     has_audio=info.has_audio)
-                except Exception as exc:           # noqa: BLE001
-                    dest.unlink(missing_ok=True)
-                    raw.replace(dest)
-                    warning = (warning + " · " if warning else "") + \
-                        f"timeline elements skipped: {exc}"
-                finally:
-                    raw.unlink(missing_ok=True)
-        except Exception as exc:                   # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 500)
-
-        return self._send_json({
-            "url": f"/workspace/cache/previews/{dest.name}",
-            "duration": round(job.duration, 1),
-            **({"warning": warning} if warning else {}),
-        })
-
-    def _post_transcribe(self):
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
-        name = req.get("video", "")
-        key = _transcribe_key(str(name), bool(req.get("ranges")))               # the FILE (size + mtime), not its name: see jobs.transcribe_key
-        # Entire check-then-register in one lock so no two threads both
-        # slip through and create duplicate jobs, and so the JOBS insert
-        # doesn't race with the prune that iterates JOBS.
-        with LOCK:
-            if len(JOBS) > MAX_JOBS:
-                old = [k for k, v in JOBS.items()
-                       if v.get("state") in ("done", "failed")]
-                for k in old[:len(old) // 2]:
-                    JOBS.pop(k, None)
-            previous = ACTIVE_TRANSCRIBES.get(key)
-            if previous and JOBS.get(previous, {}).get("state") in ("running", "queued"):
-                return self._send_json({"id": previous, "already_running": True})
-            job_id = uuid.uuid4().hex[:8]
-            ACTIVE_TRANSCRIBES[key] = job_id
-            JOBS[job_id] = {"state": "running", "key": key, "stage": "start", "percent": 0,
-                            "position": 0, "duration": 0, "file": None,
-                            "cached": False, "exact": False, "error": None}
-        threading.Thread(target=contextvars.copy_context().run, args=(_run_transcribe, job_id, req),
-                         daemon=True).start()
-        return self._send_json({"id": job_id})
-
-    def _post_diarize(self):
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
-        if not req.get("video"):
-            return self._send_json({"error": "video required"}, 400)
-
-        job_id = uuid.uuid4().hex[:8]
-        _register_job(job_id, {"state": "running", "turns": [], "error": None,
-                               "percent": 0, "stage": "start", "cached": False})
-        threading.Thread(target=contextvars.copy_context().run, args=(_run_diarize, job_id, req),
-                         daemon=True).start()
-        return self._send_json({"id": job_id})
-
-    def _post_open_folder(self):
-        try:
-            folder = Path(self._read_json().get("folder", "")).resolve()
-            if not folder.is_dir():
-                return self._send_json({"error": "folder not found"}, 404)
-            # Prevent path traversal: only open folders inside the
-            # project. Use is_relative_to, not startswith -- "klipian-other"
-            # starts the same as "klipian" but is a different folder.
-            if not folder.is_relative_to(ROOT.resolve()):
-                return self._send_json(
-                    {"error": "only folders inside the project can be opened"}, 403)
-            if sys.platform == "win32":
-                os.startfile(folder)           # noqa: S606
-            elif sys.platform == "darwin":
-                subprocess.Popen(["open", str(folder)])
-            else:
-                subprocess.Popen(["xdg-open", str(folder)])
-            return self._send_json({"ok": True})
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 500)
-
-    # -- video-range analysis endpoints --------------------------
-    # Four endpoints with an identical shape: read JSON, resolve the
-    # video, parse start/end, reject an empty range, call ONE function,
-    # wrap any failure in a 500. That preamble was written out four
-    # times, so a fix to (say) the range check had to be made in four
-    # places and could silently be applied to three. Each endpoint is
-    # now only the part that actually differs.
-    #
-    # All four are synchronous rather than async jobs like /api/diarize:
-    # scenecut finishes in under a second (ffmpeg's built-in scene
-    # filter is far cheaper than per-frame face detection) and the three
-    # facebox ones take a few seconds at most. ThreadingHTTPServer
-    # already gives each request its own thread, so nothing else waits
-    # meanwhile. If one of them ever gets slow enough to need a progress
-    # bar, /api/diarize is the pattern to copy.
-    def _post_range(self, path):
-        module, fn_name, extra_key, out_key, empty_msg = RANGE_ENDPOINTS[path]
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
-        video = find_video(req.get("video", ""))
-        if not video:
-            return self._send_json({"error": "video not found"}, 404)
-        try:
-            start = float(req.get("start", 0))
-            end = float(req.get("end", 0))
-        except (TypeError, ValueError):
-            return self._send_json({"error": "invalid time"}, 400)
-        if end <= start:
-            return self._send_json({"error": "invalid range"}, 400)
-        args = [video, start, end]
-        if extra_key is not None:
-            args.append(req.get(extra_key) or {})
-        try:
-            mod = importlib.import_module("." + module, __package__)
-            result = getattr(mod, fn_name)(*args)
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 500)
-        # Some of these have a meaningful "ran fine, found nothing"
-        # answer that is NOT an error condition on the server side but
-        # is a 404 to the client; the others can't come back empty.
-        if empty_msg and not result:
-            return self._send_json({"error": empty_msg}, 404)
-        return self._send_json({out_key: result})
-
-    def _post_aiframe(self):
-        """AI Framing's boxes for one span: {video, start, end, size, turns: [{start, end, speaker}]} -> {points:
-        [{at, crop, why}]}. One request at a time per span (the client waits for each), see facebox.frame_segments."""
-        try:
-            req = self._read_json()
-            video = find_video(req.get("video", ""))
-            if not video:
-                return self._send_json({"error": "video not found"}, 404)
-            start, end = float(req.get("start", 0)), float(req.get("end", 0))
-            turns = [{"start": float(t["start"]), "end": float(t["end"]), "speaker": t.get("speaker")}
-                     for t in (req.get("turns") or [])]
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
-        if end <= start:
-            return self._send_json({"error": "invalid range"}, 400)
-        try:
-            from . import facebox
-            from .jobs import rediarize
-            points, info = facebox.frame_segments(video, start, end, req.get("size") or {}, turns,
-                                                  lambda n: rediarize(video, start, end, n))
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 500)
-        return self._send_json({"points": points, "info": info})
-
     POST_ROUTES = {
-        "/api/aiframe": _post_aiframe,
-        "/api/project": _post_project,
-        "/api/project/restore": _post_project_restore,
+        "/api/aiframe": RenderRoutes._post_aiframe,
+        "/api/project": ProjectRoutes._post_project,
+        "/api/project/restore": ProjectRoutes._post_project_restore,
         "/api/motion/create": MotionRoutes._post_motion,
         "/api/motion/paste": MotionRoutes._post_motion,
         "/api/motion/facts": MotionRoutes._post_motion,
@@ -1833,11 +1115,11 @@ class Handler(MotionRoutes, ServiceRoutes, WorkspaceRoutes, BaseHTTPRequestHandl
         "/api/profiles/update": _post_profiles,
         "/api/profiles/delete": _post_profiles,
         "/api/profiles/clear-guest": _post_profiles,
-        "/api/project-asset-upload": _post_project_asset_upload,
+        "/api/project-asset-upload": ProjectRoutes._post_project_asset_upload,
         "/api/video-upload": _post_video_upload,
         "/api/workspace/clips/file": _post_clip_file,
-        "/api/project-asset-import": _post_project_asset_import,
-        "/api/project/rename": _post_project_rename,
+        "/api/project-asset-import": ProjectRoutes._post_project_asset_import,
+        "/api/project/rename": ProjectRoutes._post_project_rename,
         "/api/workspace/clips": WorkspaceRoutes._post_workspace_clips,
         "/api/workspace/clips/bulk": WorkspaceRoutes._post_workspace_clips_bulk,
         "/api/workspace/clips/upload-mark": WorkspaceRoutes._post_workspace_clips_upload_mark,
@@ -1847,11 +1129,11 @@ class Handler(MotionRoutes, ServiceRoutes, WorkspaceRoutes, BaseHTTPRequestHandl
         "/api/workspace/clips/delete": WorkspaceRoutes._post_workspace_clips_delete,
         "/api/workspace/clips/restore": WorkspaceRoutes._post_workspace_clips_restore,
         "/api/workspace/clips/from-render": WorkspaceRoutes._post_workspace_clips_from_render,
-        "/api/import": _post_import,
+        "/api/import": RenderRoutes._post_import,
         "/api/geminibrief": _post_geminibrief,
-        "/api/render": _post_render,
-        "/api/render/cancel": _post_render_cancel,
-        "/api/render/plan": _post_render_plan,
+        "/api/render": RenderRoutes._post_render,
+        "/api/render/cancel": RenderRoutes._post_render_cancel,
+        "/api/render/plan": RenderRoutes._post_render_plan,
         "/api/result-reply": _post_result_reply,
         "/api/results-reply": _post_results_reply,
         "/api/rubrics/create": ServiceRoutes._post_rubrics,
@@ -1873,10 +1155,10 @@ class Handler(MotionRoutes, ServiceRoutes, WorkspaceRoutes, BaseHTTPRequestHandl
         "/api/claude/plan": ServiceRoutes._post_claude,
         "/api/claude/find": ServiceRoutes._post_claude,
         "/api/claude/cancel": ServiceRoutes._post_claude,
-        "/api/preview": _post_preview,
-        "/api/transcribe": _post_transcribe,
-        "/api/diarize": _post_diarize,
-        "/api/open-folder": _post_open_folder,
+        "/api/preview": RenderRoutes._post_preview,
+        "/api/transcribe": RenderRoutes._post_transcribe,
+        "/api/diarize": RenderRoutes._post_diarize,
+        "/api/open-folder": RenderRoutes._post_open_folder,
         "/api/credit": WorkspaceRoutes._post_credit,
         "/api/workspace/sources/delete": WorkspaceRoutes._post_workspace_sources_delete,
     }

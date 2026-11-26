@@ -242,7 +242,7 @@ class RealDeps:
     def render(self, project_id: str, ids: list[str], report) -> None:
         from . import jobs
         try:
-            started = _server()._start_project_render(project_id, ids)
+            started = jobs.start_project_render(project_id, ids)
         except ValueError as exc:
             raise RunError(str(exc)) from None
         jid = started["id"]
