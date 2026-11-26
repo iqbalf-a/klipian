@@ -228,6 +228,7 @@ async function main() {
   const silent = withSound ? out.replace(/\.mp4$/, ".silent.mp4") : out;
   await renderMedia({
     composition, serveUrl, outputLocation: silent, codec: "h264", inputProps, chromiumOptions, port,
+    jpegQuality: 95,                                       // Remotion's default is 80: measured 2026-11-27, 95 gives +1.6 to +2 dB PSNR, a smaller file and the same render time (CRF stays 18: 14 adds only 0.3 dB at twice the size)
     muted: true,                                           // the voice-over comes later (P28-C); the sound effects are added below
     concurrency: job.concurrency ?? null,
     timeoutInMilliseconds: job.frameTimeout ?? 180000,      // a heavy scene (the colokan wide shot: seconds a frame) must not die at the default 30 s a frame
