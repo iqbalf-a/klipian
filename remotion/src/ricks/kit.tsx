@@ -13,6 +13,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
 import { BokehPass } from "three/examples/jsm/postprocessing/BokehPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
@@ -68,18 +69,28 @@ export const RicksCamera: React.FC<{ cam: Cam }> = ({ cam }) => {
 };
 
 /** Depth of field focused on what the camera looks at (close shots: a soft background; wides: almost sharp), bloom on the lights,
-   then the cast on top, sharp. */
-export const RicksPost: React.FC<{ cam: Cam; bloom?: number; occlude?: boolean }> = ({ cam, bloom = 0.5, occlude = false }) => {
+   then the cast on top, sharp.
+   `ao` (0 to 1, default 0 = off, B71): ambient occlusion on the world (the dark in corners, under tables, where a prop meets the floor). With `ao` > 0 the occlusion
+   pass is a REAL depth-only pass, so the composer's depth of field, bloom and AO show. With `ao` = 0 the old pass stays, which also paints the whole world sharp and
+   in colour over the composer (three resets the colour mask in every material), so existing videos keep their look. */
+const DEPTH_ONLY = new THREE.MeshBasicMaterial({ colorWrite: false });
+export const RicksPost: React.FC<{ cam: Cam; bloom?: number; occlude?: boolean; ao?: number }> = ({ cam, bloom = 0.5, occlude = false, ao = 0 }) => {
   const { gl, scene, camera, size } = useThree();
   const fx = useMemo(() => {
     const composer = new EffectComposer(gl);
     const bokeh = new BokehPass(scene, camera, { focus: 5, aperture: 0.002, maxblur: 0.006 });
     composer.addPass(new RenderPass(scene, camera));
+    if (ao > 0) {                                   // before the blur, so the dark corners blur with the rest
+      const g = new GTAOPass(scene, camera, size.width, size.height);
+      g.updateGtaoMaterial({ radius: 0.5, distanceExponent: 1.5, thickness: 1.2, scale: 1, samples: 16 });
+      g.blendIntensity = ao;
+      composer.addPass(g);
+    }
     composer.addPass(bokeh);
     composer.addPass(new UnrealBloomPass(new THREE.Vector2(size.width, size.height), bloom, 0.6, 0.82));
     composer.addPass(new OutputPass());
     return { composer, bokeh };
-  }, [gl, scene, camera, size.width, size.height, bloom]);
+  }, [gl, scene, camera, size.width, size.height, bloom, ao]);
   useLayoutEffect(() => { fx.composer.setPixelRatio(gl.getPixelRatio()); fx.composer.setSize(size.width, size.height); return () => fx.composer.dispose(); }, [fx, gl, size.width, size.height]);
   useFrame(() => {
     const d = cam.pos.distanceTo(cam.look);
@@ -95,9 +106,18 @@ export const RicksPost: React.FC<{ cam: Cam; bloom?: number; occlude?: boolean }
     if (occlude) {   // B58: write the world's depth (no colour) so a cart or table in front of a person hides what is behind it
       const su = gl.shadowMap.autoUpdate;
       gl.shadowMap.autoUpdate = false;
-      gl.state.buffers.color.setMask(false);
-      gl.render(scene, camera);
-      gl.state.buffers.color.setMask(true);
+      if (ao > 0) {                                 // depth only: no colour, and nothing transparent (a puff of steam would write a solid square into the depth)
+        const hidden: THREE.Object3D[] = [], ov = scene.overrideMaterial;
+        scene.traverse((o) => { const m = (o as THREE.Mesh).material as THREE.Material | undefined; if (o.visible && ((o as THREE.Points).isPoints || (o as THREE.Sprite).isSprite || (o as THREE.Line).isLine || (m && (m.transparent || m.alphaTest > 0)))) { o.visible = false; hidden.push(o); } });
+        scene.overrideMaterial = DEPTH_ONLY;
+        gl.render(scene, camera);
+        scene.overrideMaterial = ov;
+        hidden.forEach((o) => { o.visible = true; });
+      } else {
+        gl.state.buffers.color.setMask(false);
+        gl.render(scene, camera);
+        gl.state.buffers.color.setMask(true);
+      }
       gl.shadowMap.autoUpdate = su;
     }
     camera.layers.set(CAST);

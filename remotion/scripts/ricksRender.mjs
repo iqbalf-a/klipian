@@ -1,7 +1,7 @@
 // node scripts/ricksRender.mjs <slug> <voice.wav>      -> out/<slug>/<slug>.mp4
 // The final render of a ricks video (B46): the voice converted to 48 kHz, the whole video rendered by render.mjs with that voice (the
 // video's sfx.ts and music bed through the approved mix, B15), then one linear gain to about -14 LUFS (where Shorts play) with a
-// -1 dBFS peak limiter, so the voice / bed / effects ratios stay as mixed. Prints the measured loudness.
+// -1.6 dBFS peak limiter (the AAC encode adds about 1 dB of true peak), so the voice / bed / effects ratios stay as mixed. Prints the measured loudness.
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, renameSync, writeFileSync } from "node:fs";
@@ -14,7 +14,7 @@ const lufsOf = (file) => Number([...run("ffmpeg", ["-v", "info", "-i", file, "-a
 /** Re-encodes the audio of `src` to about -14 LUFS (one linear gain + a -1 dBFS limiter) into `dst`; the picture is copied. */
 export function toShortsLoudness(src, dst) {
   const before = lufsOf(src), gain = (-14 - before).toFixed(2);
-  run("ffmpeg", ["-y", "-v", "error", "-i", src, "-map", "0:v:0", "-map", "0:a:0", "-c:v", "copy", "-af", `volume=${gain}dB,alimiter=limit=0.891:level=false`, "-c:a", "aac", "-b:a", "192k", "-ar", "48000", dst]);
+  run("ffmpeg", ["-y", "-v", "error", "-i", src, "-map", "0:v:0", "-map", "0:a:0", "-c:v", "copy", "-af", `volume=${gain}dB,alimiter=limit=0.832:level=false`, "-c:a", "aac", "-b:a", "192k", "-ar", "48000", dst]);
   return { before, gain: +gain, after: lufsOf(dst) };
 }
 

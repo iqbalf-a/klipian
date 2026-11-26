@@ -56,7 +56,7 @@ Never create a branch such as `work/create`.
 
 ## 1b. Read the design rules (mandatory, ian 2026-11-25)
 
-After step 1 and BEFORE anything else (the brief, the story, a single line of the video), read `remotion/DESIGN.md` of the fresh checkout in full, every B rule, not only the ones the brief quotes (new rules land on `main` at any time: B60 arrived while a video was being built). Then list for yourself the rules that bind this video's look (for ricks at least B41, B42, B46 i to n, B48, B53 to B60) and keep them open while building. Skipping this read is the failure that produced videos with reused people, props and sounds. In step 5 line 4 add "rules dibaca: <the B numbers that bound this video>".
+After step 1 and BEFORE anything else (the brief, the story, a single line of the video), read `remotion/DESIGN.md` of the fresh checkout in full, starting with its "Current spec by topic" table (which rules are in force, B71) and then every B rule, not only the ones the brief quotes (new rules land on `main` at any time: B60 arrived while a video was being built). Then list for yourself the rules that bind this video's look (for ricks at least B41, B42, B46 i to n, B48, B53 to B60) and keep them open while building. Skipping this read is the failure that produced videos with reused people, props and sounds. In step 5 line 4 add "rules dibaca: <the B numbers that bound this video>".
 
 ## 2. The brief
 
@@ -95,6 +95,25 @@ A ricks video is built to its voice: every shot, face, pill and caption word lan
 4. After the stills and the checklist (3b), render: `node scripts/ricksRender.mjs <slug> "<wav>"` (from `remotion/`), which mixes and sets about -14 LUFS; paste its line. Copy `out/<slug>/<slug>.mp4` next to the WAV (the worktree is removed after the push). That mp4 is a quick look only: the Render button on the Motion page (step 4b makes the project) gives the same picture and the same -14 LUFS sound (`motion.shorts_loudness`) and is the one that lands in the workspace.
 The WAV and `out/` are never committed; `words.json` is (it is the video's timing).
 
+## 2c. Treatment first (B71, from lemo-opuscar's DIRECTOR.md)
+
+Before any code, and after reading the last 10 videos' `index.tsx` and `plan.ts`, write `remotion/videos/<slug>/TREATMENT.md` (committed with the video, step 4). `styleCheck.mjs` FLAGs a missing one. Exactly these headings:
+
+```
+## Benchmark
+Learn: <one or two reference works for THIS topic: what to learn (composition, pace, camera, colour, sound)>
+Do not take: <their characters, designs, melodies, shots, logos>
+## Structures
+1. <opening image, the turn, the ending: a few lines>
+2. <a different shape>
+3. <a third shape>
+## Choice
+<the number and why; the first idea that comes to mind is usually the cliche>
+signature-moment: <beat id> | <the move only this video does, 2 to 4 words>
+```
+
+Rules: the three structures differ in opening image, turn and ending (not only in wording); the chosen one differs from each of the last 10 videos on at least 4 of the 6 axes (structure, opening, signature move, camera path, music, ending: `styleCheck.mjs` prints the B71 six-axes line). Copy the `signature-moment:` line into a comment of `plan.ts` (the checker reads it there). In look ricks stage 1 the treatment is written with the story; stage 2 keeps it.
+
 ## 3. Build
 
 Follow the printed brief, steps 1 to 6, as written: it is the instruction, and its hard rules already say how to choose the set, draw the real form, write `sfx.ts` by hand and write the story's `thumb`. Run `npm ci` in `remotion` first when `remotion/node_modules` is missing. If Chrome or the render cannot run, say so and continue without the stills. Its "no push" line is overridden by step 4 below, and its report by step 5 (the brief has no narration or page steps: -create needs neither); everything else stands (write to `workspace/` only through step 4b, never claim a check you did not run).
@@ -107,6 +126,7 @@ Tick each with evidence (a command output or a still you opened); fix, then push
 2. **B42 and B48 (no reuse in the last 10 videos, now for EVERY asset: also effects, sfx choice, music track, colour set, icon, texture, font treatment):** before drawing run `node scripts/styleCheck.mjs <slug> --b48` from `remotion` and fix every FLAG (the set kind, the effects; the music track and the sounds shared above 90 % only bind once the catalog has 30 beds and 100 sound names, until then they print as INFO); then you listed the 10 most recent videos by the commit date that first added each `index.tsx`, grepped their `index.tsx` and `set.json`, and drew every backdrop, set, hook hero, supporting object and prop yourself; the answer lists what you avoided and which video each came from (the Chibi cast, B43, is the one reuse on purpose).
 3. **B44 (the feed look):** the hook text is 2 to 5 words at about 120 to 150 px (a black box per line, key words yellow, in the top third); the hook background is plain (one saturated palette colour or clean off-white) and the set comes in after it; the hero is 70 to 80 % of the width at frame 0 (`style-report` line `hero0`); objects have no faces (only the mascot and the Chibi do); you rendered frame 0 and a 200 px wide copy of it and looked at both.
 4. **B36 and B39 (body parts and real proportions):** a body part is drawn in its most recognisable pose, every object is the real thing it names (flat silhouette test), proportions are real, and nothing is drawn inside something solid. **B56 (a whole body part):** a hand is a whole hand (palm or back, thumb, four fingers with joints and nails, wrist), a foot or a face the same, in a sensible pose; you filled the silhouette flat at 200 px for frame 0 and the main beats, rendered a 2x close-up of the part and opened it.
+5. **B71 (the review loop, from lemo-opuscar):** (a) one contact sheet of the whole video, a frame every 1.5 s: `node scripts/frames.mjs video-<slug> sheet-<slug> <seconds...> --sheet`, opened as one image (`out/sheet-<slug>/sheet.png`); (b) a 0.2 s strip of the signature moment and of every key action (a fall, a hand-over, a hit, a transition: B68 d asks 0.04 s): `... --strip 12.0:14.0 --sheet`; (c) on the rendered mp4 `node scripts/videoQa.mjs <mp4>` (blank frames, still stretches, loudness, true peak): fix every FLAG or name why; (d) the B71 lines of `styleCheck.mjs` (signature moment, silence before the turn, treatment, six axes) have no FLAG left.
 
 ## 4. Commit and push to main (the same rules in the cloud and in the local worktree)
 

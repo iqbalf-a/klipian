@@ -15,6 +15,7 @@ import { DICTIONARY, markComponents } from "../src/dictionary.ts";
 import { borrowedSets, declaredKind, freeSets } from "../src/sets.ts";
 import { loadSetOwners } from "./setOwners.mjs";
 import { checkImports } from "./importCheck.mjs";
+import { profileOf, sameAxes } from "./sixAxes.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const slug = process.argv[2];
@@ -136,6 +137,13 @@ async function b48() {
   const themed = others.filter((o) => me.theme && o.theme === me.theme).length, staged = others.filter((o) => me.stage && o.stage === me.stage).length;
   add("INFO", `B48: the colour set "${me.theme || "cream"}" is in ${themed} of the recent videos, the stage "${me.stage || "slab"}" in ${staged}; pick the least used (the brief asks not to repeat the one of the video before: ${others[0]?.name ?? "none"} used "${others[0]?.theme || "cream"}" and "${others[0]?.stage || "slab"}")`);
   add("HUMAN", "B48: icon, texture, font treatment, hero, backdrop and every prop are also not in the recent videos (grep their index.tsx and set.json)");
+  // B71 (Q3, from lemo-opuscar's "not the demo again"): the video differs from EACH of the last 10 on at least 4 of the 6 axes: structure, opening, signature move, camera path, music, ending.
+  // An axis only counts when both videos state it (a camera or transition on the first/last beat, a `signature-moment:` comment, a music track). 3 or more equal axes with one video = FLAG.
+  const mine6 = profileOf(dir);
+  if (mine6) {
+    const clash = recent.map((r) => ({ n: r.name, a: sameAxes(mine6, profileOf(path.join(vroot, r.name)) ?? { structure: "", cam: [] }) })).filter((x) => x.a.length >= 3);
+    add(clash.length ? "FLAG" : "PASS", `B71 six axes: ${clash.length ? `too like ${clash.map((x) => `${x.n} (${x.a.join(", ")})`).join("; ")}: change the other axes (at least 4 of 6 must differ)` : "differs from each of the last 10 on at least 4 of the 6 axes (structure, opening, signature move, camera path, music, ending)"}`);
+  }
 }
 if (process.argv.includes("--b48")) {
   await b48();
@@ -384,6 +392,28 @@ if (existsSync(sfxFile)) {
     const perSec = events.length / Math.max(1, total);
     add(onlyDefault || perSec < 0.7 ? "FLAG" : "PASS", `B13: a sound on every object, written by hand in sfx.ts (${events.length} events in ${total} s = ${perSec.toFixed(2)} a second${onlyDefault ? "; sfx.ts only returns the default" : ""}; pilot 1 has about 1 a second, at least 0.7)`);
   }
+}
+
+// B71 (from lemo-opuscar's DIRECTOR: a silence before the turn, one signature moment, a treatment first). FLAGs, never FAILs.
+{
+  const code = readdirSync(dir).filter((f) => /\.(ts|tsx)$/.test(f)).map((f) => readFileSync(path.join(dir, f), "utf8")).join("\n");
+  const sig = /signature-moment:\s*(\S+)\s*\|\s*([^\n*]+)/.exec(code);
+  const starts = {}; let acc = 0; for (const b of beats) { starts[b.id] = acc; acc += b.dur ?? 0; }
+  add(sig && starts[sig[1]] !== undefined ? "PASS" : "FLAG", sig ? (starts[sig[1]] !== undefined ? `B71 signature moment: beat ${sig[1]}, "${sig[2].trim()}"` : `B71 signature moment: "${sig[1]}" is not a beat id of the story`) : "B71 signature moment: none named; write `// signature-moment: <beat id> | <the move in 2 to 4 words>` in plan.ts: the one thing only this video does, at the emotional peak");
+  // the silence: nothing in the 0.5 s before the turn beat (the signature beat, else the result beat), then the first sound of it right on the beat
+  const turnId = sig && starts[sig[1]] !== undefined ? sig[1] : beats.find((b) => b.kind === "result")?.id;
+  const sfxF = path.join(dir, "sfx.ts");
+  if (turnId && existsSync(sfxF)) {
+    try {
+      const ev = (await import(pathToFileURL(sfxF).href)).sfx(story), t0 = starts[turnId];
+      const inGap = ev.filter((e) => e.t > t0 - 0.5 - 1e-9 && e.t < t0 - 1e-9), onBeat = ev.filter((e) => e.t >= t0 - 1e-9 && e.t <= t0 + 0.25);
+      add(!inGap.length && onBeat.length ? "PASS" : "FLAG", `B71 silence before the turn: beat ${turnId} starts at ${t0.toFixed(1)} s; ${inGap.length ? `${inGap.length} sound(s) in the 0.5 s before it (${inGap.map((e) => e.name).join(", ")}): clear the gap` : "the 0.5 s before it is silent"}${onBeat.length ? "" : "; no sound within 0.25 s after it: the first sound after the silence is the loudest of the video"}`);
+    } catch { /* the sfx.ts failure is already a FAIL above */ }
+  }
+  // the treatment: a benchmark and three structures before the story (TREATMENT.md next to the video)
+  const tf = path.join(dir, "TREATMENT.md"), tr = existsSync(tf) ? readFileSync(tf, "utf8") : "";
+  const treatOk = /^##\s*Benchmark/mi.test(tr) && /^##\s*Structures/mi.test(tr) && [1, 2, 3].every((n) => new RegExp(`^\\s*${n}\\.\\s+\\S`, "m").test(tr)) && /^##\s*Choice/mi.test(tr);
+  add(treatOk ? "PASS" : "FLAG", `B71 treatment: ${treatOk ? "TREATMENT.md has a benchmark, three structures and the choice" : "no TREATMENT.md with ## Benchmark (learn / do not take), ## Structures (1. 2. 3.) and ## Choice next to the video (SKILL.md step 2c)"}`);
 }
 
 await b48();

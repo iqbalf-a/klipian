@@ -1692,7 +1692,7 @@ def _free_name(stem: str) -> str:
 
 
 def shorts_loudness(video: Path, target: float = -14.0) -> None:
-    """Look ricks: one linear gain to about -14 LUFS (where Shorts play) and a -1 dBFS peak limiter, the picture copied: what scripts/ricksRender.mjs does, so the
+    """Look ricks: one linear gain to about -14 LUFS (where Shorts play) and a -1.6 dBFS peak limiter (the AAC encode adds about 1 dB of true peak: measured -0.3 dBTP with -1.0), the picture copied: what scripts/ricksRender.mjs does, so the
     Render button and the script give the same sound (B46). The voice, bed and effects keep the ratios mixed by render.mjs. Replaces `video`; a failed measure leaves it as it is."""
     from .ffmpeg_tools import _require, run
     ff = _require("ffmpeg")
@@ -1701,7 +1701,7 @@ def shorts_loudness(video: Path, target: float = -14.0) -> None:
     if not hits:
         return
     tmp = video.with_name(video.stem + ".loud.mp4")
-    run([ff, "-y", "-v", "error", "-i", str(video), "-map", "0:v:0", "-map", "0:a:0", "-c:v", "copy", "-af", f"volume={target - float(hits[-1]):.2f}dB,alimiter=limit=0.891:level=false",
+    run([ff, "-y", "-v", "error", "-i", str(video), "-map", "0:v:0", "-map", "0:a:0", "-c:v", "copy", "-af", f"volume={target - float(hits[-1]):.2f}dB,alimiter=limit=0.832:level=false",
          "-c:a", "aac", "-b:a", "192k", "-ar", "48000", str(tmp)], "levelling the sound")
     paths.replace_file(tmp, video)
 
