@@ -12,7 +12,7 @@ const q = (t: number) => Math.round(t * FPS) / FPS;
 export const music = { track: "bed-rainy", level: 0.8 } as const;
 
 // the cuts of SHOTS in index.tsx (the first shot starts at 0)
-const CUTS = [4.4, 8.82, 10.24, 12.76, 16.9, 21.18, 25.52, 27.84, 29.98, 32.78, 36.06, 38.42, 43.24, 46.32, 49.58, 51.98, 54.46, 57.2, 59.24, 61.34, 62.92, 68.92, 74.9, 82.5, 84.98];
+const CUTS = [4.4, 6.2, 8.82, 10.24, 12.76, 16.9, 21.18, 25.52, 27.84, 29.98, 32.78, 36.06, 38.42, 40.5, 43.24, 46.32, 49.58, 51.98, 54.46, 57.2, 59.24, 61.34, 62.92, 68.92, 74.9, 77.4, 82.5, 84.98];
 const CUT_SOUNDS = ["bonk", "swipe", "sticker-peel", "tape-rip", "stapler", "pencil-tap", "eraser-rub", "mouse-click", "shutter-roll", "scissors-snip", "toggle-on", "countdown-beep", "finger-snap", "coin-drop", "cash-register", "camera-shutter", "glass-clink"] as const;
 
 export function sfx(_story: StoryT): SfxEvent[] {

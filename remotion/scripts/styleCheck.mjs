@@ -117,21 +117,20 @@ async function b48() {
     const num = (txt) => { try { return new Function("OB", `return [${txt}]`)(OB); } catch { return null; } };
     const shots = [...srcI.matchAll(/\{\s*from:\s*([0-9.]+),\s*a:\s*C\(([^)]*)\),\s*b:\s*C\(([^)]*)\)/g)].map((m) => ({ from: +m[1], a: num(m[2]), b: num(m[3]) })).filter((x) => x.a && x.b);
     // B65: shots written with the K(from, camera xyz, look-at xyz, change xyz [, look-at change xyz]) helper count too
-    for (const m of srcI.matchAll(/\bK\(\s*([0-9.]+),\s*([^)]*)\)/g)) { const n = num(m[2]); if (n && n.length >= 9) { const [ax, ay, az, lx, ly, lz, dx, dy, dz, dlx = 0, dly = 0, dlz = 0, r0 = 0, dr = 0] = n; shots.push({ from: +m[1], a: [ax, ay, az, lx, ly, lz, r0], b: [ax + dx, ay + dy, az + dz, lx + dlx, ly + dly, lz + dlz, r0 + dr] }); } }
+    for (const m of srcI.matchAll(/\bK\(\s*([0-9.]+),\s*([^)]*)\)/g)) { const n = num(m[2]); if (n && n.length >= 9) { const [ax, ay, az, lx, ly, lz, dx, dy, dz, dlx = 0, dly = 0, dlz = 0, ez = "inout"] = n; shots.push({ from: +m[1], ez, a: [ax, ay, az, lx, ly, lz, 0], b: [ax + dx, ay + dy, az + dz, lx + dlx, ly + dly, lz + dlz, 0] }); } }
     shots.sort((x, y) => x.from - y.from);
     if (shots.length) {
       const total = story.duration;
       const rows = shots.map((x, i) => {
         const dur = (shots[i + 1]?.from ?? total) - x.from, d = (u, v) => Math.hypot(u[0] - v[0], u[1] - v[1], u[2] - v[2]), P = (c) => c.slice(0, 3), Lk = (c) => c.slice(3, 6);
-        const d0 = d(P(x.a), Lk(x.a)), d1 = d(P(x.b), Lk(x.b)), yaw = (c) => Math.atan2(c[0] - c[3], c[2] - c[5]);
-        const kinds = [Math.abs(d1 / d0 - 1) >= 0.2 ? "push" : "", Math.abs(yaw(x.b) - yaw(x.a)) * 57.3 >= 15 ? "orbit" : "", Math.abs(x.b[1] - x.a[1]) >= 0.4 || Math.abs(x.b[4] - x.a[4]) >= 0.5 ? "crane" : "", Math.max(Math.abs(x.a[6] ?? 0), Math.abs(x.b[6] ?? 0)) >= 3 ? "roll" : "", d(Lk(x.a), Lk(x.b)) >= 1.0 ? "follow" : ""].filter(Boolean);
-        return { at: x.from, dur, v: d(P(x.a), P(x.b)) / dur, l: d(Lk(x.a), Lk(x.b)) / dur, kinds };
+        const yaw = (c) => Math.atan2(c[0] - c[3], c[2] - c[5]), v = d(P(x.a), P(x.b)) / dur, l = d(Lk(x.a), Lk(x.b)) / dur;
+        return { at: x.from, dur, v, l, ez: x.ez ?? "inout", still: v < 0.06 && l < 0.06, orbit: Math.abs(yaw(x.b) - yaw(x.a)) * 57.3 >= 20, roll: Math.max(Math.abs(x.a[6] ?? 0), Math.abs(x.b[6] ?? 0)) };
       });
-      // ian, 2026-11-26 (B65, B66): at least 60 % of the shots carry a steady move, at least 70 % combine two kinds (push, orbit, crane, roll, follow), none faster than 1.2 m/s
-      const fast = rows.filter((r) => r.v > 1.2 || r.l > 1.2), moving = rows.filter((r) => r.v >= 0.06 || r.l >= 0.06), need = Math.ceil(rows.length * 0.6);
-      const rich = rows.filter((r) => r.kinds.length >= 2), needRich = Math.ceil(rows.length * 0.7);
-      add(fast.length || moving.length < need ? "FAIL" : "PASS", `B65 a: the camera: ${rows.length} shots, ${moving.length} with a steady move (at least 60 % = ${need}, none faster than 1.2 m/s)${fast.length ? `; TOO FAST: ${fast.slice(0, 6).map((r) => `${r.at}s (${Math.max(r.v, r.l).toFixed(2)} m/s)`).join(", ")}` : ""}${moving.length < need ? "; too flat, give more shots a push, orbit, crane or roll (B66)" : ""}`);
-      add(rich.length < needRich ? "FAIL" : "PASS", `B66 a: ${rich.length} of ${rows.length} shots combine two kinds of move (push, orbit, crane, roll, follow; at least 70 % = ${needRich})${rich.length < needRich ? `; plain: ${rows.filter((r) => r.kinds.length < 2).slice(0, 8).map((r) => `${r.at}s (${r.kinds.join("+") || "none"})`).join(", ")}` : ""}`);
+      // ian, 2026-11-26 (B67): a camera that moves in every shot made the viewer dizzy; at least 35 % of the shots are locked, no more than 3 moving shots in a row, nothing above 0.9 m/s, no roll, few orbits
+      const cap = (r) => (r.ez === "snap" ? 2.5 : 0.9), snaps = rows.filter((r) => r.ez === "snap"), fast = rows.filter((r) => r.v > cap(r) || r.l > cap(r)), still = rows.filter((r) => r.still), needStill = Math.ceil(rows.length * 0.35), orbits = rows.filter((r) => r.orbit), rolls = rows.filter((r) => r.roll > 0);
+      let run = 0, maxRun = 0; for (const r of rows) { run = r.still ? 0 : run + 1; maxRun = Math.max(maxRun, run); }
+      const bad = [fast.length ? `TOO FAST: ${fast.slice(0, 6).map((r) => `${r.at}s (${Math.max(r.v, r.l).toFixed(2)} m/s)`).join(", ")}` : "", still.length < needStill ? `only ${still.length} locked shots, at least ${needStill}` : "", maxRun > 3 ? `${maxRun} moving shots in a row, at most 3` : "", orbits.length > 4 ? `${orbits.length} orbits of 20 degrees or more, at most 4` : "", snaps.length > 6 ? `${snaps.length} snap swoops, at most 6` : "", new Set(rows.filter((r) => !r.still).map((r) => r.ez)).size < 3 ? "the moving shots use fewer than 3 kinds of easing (B69: the speed must not be the same in every move)" : "", rolls.length ? `roll in shots ${rolls.map((r) => r.at + "s").join(", ")} (the dutch angle made the viewer dizzy, B67)` : ""].filter(Boolean);
+      add(bad.length ? "FAIL" : "PASS", `B67 a: the camera: ${rows.length} shots, ${still.length} locked, ${rows.length - still.length} moving (longest run ${maxRun}), ${orbits.length} orbits, ${rolls.length} with roll, ${snaps.length} snaps, easings: ${[...new Set(rows.filter((r) => !r.still).map((r) => r.ez))].join("/")}, none above 0.9 m/s (snap 2.5)${bad.length ? `; ${bad.join("; ")}` : ""}`);
     }
   }
   const themed = others.filter((o) => me.theme && o.theme === me.theme).length, staged = others.filter((o) => me.stage && o.stage === me.stage).length;

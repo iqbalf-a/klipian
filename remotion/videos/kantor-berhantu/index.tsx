@@ -11,9 +11,10 @@ import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { FRAME } from "../../src/tokens.ts";
-import { CAST, RicksCamera, RicksPost, StickHero, Pills, WordCaption, camAt, painted, readWords, rnd, stepAt, V, type Cam, type Expr, type Outfit, type Pill, type Shot } from "../../src/ricks/kit.tsx";
+import { CAST, RicksCamera, RicksPost, StickHero, Pills, WordCaption, camAt, painted, readWords, rnd, stepAt, V, type Cam, type Ease, type Expr, type Outfit, type Pill, type Shot } from "../../src/ricks/kit.tsx";
 import { handOffset, poseAt, reach, POSES, type Pose } from "../../src/ricks/rig.ts";
 import { choreoAt, locomote, type Choreo } from "../../src/ricks/choreo.ts";
+import { whipStyle, BurstFx, type Whip, type Burst } from "../../src/ricks/transitions.tsx";
 import type { StoryT } from "../../src/schema.ts";
 import storyJson from "./story.json";
 import WORDS from "./words.json";
@@ -112,39 +113,42 @@ const TROLLEY = { x: 3.5, z: -0.3 };
 const DESK = { x: -3.4, z: -0.55 };
 const C = (px: number, py: number, pz: number, lx: number, ly: number, lz: number): Cam => ({ pos: V(px, py, pz), look: V(lx, ly, lz) });
 const HOOK = C(0.3, 1.3, 4.6, 0.3, 1.2, 0);   // the scientist and the foil in the vice, his head about 30 % of the width
-/** B65/B66: every shot carries a real move that combines kinds (push, orbit, crane, roll, follow), 0.06 to 1.2 m/s, one direction, no ease; K = start camera, start look-at, the change over the shot, then the roll (degrees) at the start and its change */
-const K = (from: number, ax: number, ay: number, az: number, lx: number, ly: number, lz: number, dx: number, dy: number, dz: number, dlx = 0, dly = 0, dlz = 0, r0 = 0, dr = 0): Shot => {
-  const R = Math.PI / 180;
-  return { from, lin: true, a: { ...C(ax, ay, az, lx, ly, lz), roll: r0 * R }, b: { ...C(ax + dx, ay + dy, az + dz, lx + dlx, ly + dly, lz + dlz), roll: (r0 + dr) * R } };
-};
+/** B67/B69: a calm camera (about a third of the shots LOCKED, never a roll) that moves at the speed of its own story: a gentle push eases, a quick swoop onto the thing the voice names (`snap`) lands and creeps; K = start camera, start look-at, the change over the shot, the ease */
+const K = (from: number, ax: number, ay: number, az: number, lx: number, ly: number, lz: number, dx: number, dy: number, dz: number, dlx = 0, dly = 0, dlz = 0, ez: Ease = "inout"): Shot => ({ from, ez, a: C(ax, ay, az, lx, ly, lz), b: C(ax + dx, ay + dy, az + dz, lx + dlx, ly + dly, lz + dlz) });
 const SHOTS: Shot[] = [
-  K(0, 0.3, 1.3, 4.6, 0.3, 1.2, 0, -0.1, -0.1, -1.0, -0.3, -0.1, -0.3, 0, 3),                 //  1 PUSH+ROLL: the foil vibrates by itself (frame 0 is the hook camera)
-  K(4.4, -1.0, 2.6, 10.5, 0.8, 1.2, -0.5, 1.4, -1.1, -3.5, -0.4, -0.05, 0.5),                //  2 CRANE DOWN+PUSH: from high over the whole laboratory down to the bench
-  K(8.82, 0.9, 1.1, 5.0, 1.0, 1.0, 0.4, 1.6, 0, 0.2, 1.4, 0, 0, 0, -4),                       //  3 FOLLOW+ROLL: one worker runs out of the building
-  K(10.24, 1.4, 1.2, 4.2, -1.0, 1.2, 0.55, -1.2, -0.05, -1.2, 0.1, 0, 0, 0, 3),               //  4 PUSH+ROLL: another is gloomy and shivering
-  K(12.76, 0.9, 0.9, 3.2, -1.0, 1.25, 0.5, -1.5, 0.6, 0.2, 0, 0.05, 0),                       //  5 ORBIT+CRANE: low, then up past the shoulder: "ini hantu, jangan diusik"
-  K(16.9, -1.6, 0.95, 2.9, -3.4, 1.2, 0.2, -1.3, 0.3, -0.2, 0, 0.05, 0),                      //  6 PUSH+ORBIT: from the desk top, Vic alone in the evening
-  K(21.18, -4.2, 1.3, 3.9, -3.4, 1.2, 0.2, 0.4, -0.1, -0.9, 0, -0.05, 0, 0, 6),               //  7 PUSH+ROLL: gloom, a cold sweat, the room creaks
-  K(25.52, -3.0, 2.4, 2.6, -3.4, 0.9, 0.2, -0.6, -0.5, 0.3, 0, 0.1, 0, 0, -4),                //  8 CRANE DOWN+ROLL: from above the desk, he works on
-  K(27.84, -4.5, 1.3, 3.4, -3.5, 1.2, 0.2, 0.6, 0, -0.9, 0.8, 0, 0, 0, -5),                   //  9 PUSH+ROLL: the shape at the corner of his eye
-  K(29.98, -2.0, 1.2, 3.2, -3.2, 1.15, 0.2, -1.6, 0.1, -0.2, -0.2, 0.05, 0, -5, 5),           // 10 ORBIT+ROLL: he turns, it is gone
-  K(32.78, -3.2, 0.35, 3.0, -4.2, 1.1, 0.2, -0.5, 0.45, -0.4, 0.1, 0.15, 0),                  // 11 LOW CRANE+PUSH: from the floor up the gas bottle
-  K(36.06, -2.8, 1.3, 3.8, -4.0, 1.2, 0.2, -0.5, -0.05, -0.9, 0, -0.05, 0, 0, 3),             // 12 PUSH+ROLL: no leak, he must be tired
-  K(38.42, 2.4, 2.6, 5.0, -0.1, 1.0, 0.3, -2.1, -1.3, -1.4, 0, 0.1, -0.3),                  // 13 CRANE DOWN+PUSH: next day, a spare foil into the vice
-  K(43.24, 2.2, 1.05, 2.0, 0.5, 1.0, -0.7, -0.8, -0.05, -1.1, -0.2, 0, 0, 0, -4),             // 14 PUSH+ROLL: close on the blade, it vibrates wildly alone
-  K(46.32, 1.5, 1.3, 3.6, 0.2, 1.2, 0.3, -2.1, 0.05, 0.2, 0, 0, 0, 3, -6),                    // 15 ORBIT+ROLL: the whisper
-  K(49.58, 0.6, 1.3, 4.6, 0.4, 1.1, 0.5, 1.9, 0.1, -0.4, 2.0, 0, 0, 3, -6),                   // 16 FOLLOW+ROLL: he carries the foil across the room
-  K(51.98, 2.4, 0.7, 4.4, 2.0, 1.3, 0.5, 1.5, 0.5, -0.2, 1.6, -0.1, 0),                       // 17 LOW FOLLOW+CRANE: stronger in the middle, then it fades
-  K(54.46, 3.0, 1.0, 3.2, 4.0, 1.2, 0.5, 0.6, 0.4, 0.4, 0.2, 0.95, -1.7),                     // 18 TILT UP+FOLLOW: he looks for the source, up to the fan
-  K(57.2, 2.8, 0.8, 5.2, 3.9, 2.0, -1.2, 1.1, 0.4, -1.6, 0.2, 0.1, 0, 0, -3),                 // 19 LOW PUSH+CRANE: the new extractor fan
-  K(59.24, 2.4, 1.4, 4.8, 4.0, 1.4, 0.4, 0.8, -0.05, -1.4, 0, 0, 0, 0, 3),                    // 20 PUSH+ROLL: 19 hertz
-  K(61.34, 1.6, 1.3, 9.0, 2.2, 1.4, -0.5, 0.6, 0.9, 1.2, 0, 0.1, 0, 0, -3),                   // 21 CRANE UP+ROLL: too low to hear
-  K(62.92, 6.2, 1.3, 3.6, 4.0, 1.2, 0.4, -1.4, -0.05, -0.4, 0, 0, 0),                         // 22 ORBIT+PUSH: the book of symptoms
-  K(68.92, -1.5, 1.6, 10.0, 1.5, 1.4, -0.5, 5.0, 0.6, -1.0, 0, 0, 0),                         // 23 ORBIT+CRANE: the standing wave across the room
-  K(74.9, -1.2, 1.1, 4.8, -3.2, 1.15, 0.1, -1.2, 0.2, -1.4, -0.2, 0.05, 0, 0, -5),            // 24 PUSH+ROLL: the paper, and the shape in the waves
-  K(82.5, -0.8, 1.9, 10.5, -2.0, 1.4, -0.5, -1.4, -0.45, -2.5, -0.8, -0.2, 0.6),              // 25 PUSH+CRANE: the ghost was an unheard sound
-  K(84.98, 0.6, 1.9, 9.8, 0.6, 1.15, -0.2, 0, -0.6, -2.2),                                     // 26 PUSH+CRANE: everyone knows the cause
+  K(0, 0.3, 1.3, 4.6, 0.3, 1.2, 0, -0.1, -0.1, -0.9, -0.3, -0.1, -0.3, "out"),   //  1 PUSH out: the foil vibrates by itself (frame 0 is the hook camera)
+  K(4.4, -1.0, 1.7, 6.2, -1.4, 1.1, -0.8, -0.4, -0.45, -3.4, -0.1, 0.05, -0.05, "snap"),   //  2 SNAP to the object: "alat medis", the bench with its monitor and pump
+  K(6.2, -0.6, 1.6, 9.2, -0.6, 1.25, -0.5, 0, 0, 0),                      //  3 LOCKED: the whole laboratory, the colleague walks in
+  K(8.82, 2.4, 1.2, 6.2, 2.4, 1.1, 0.4, 0, 0, 0),                         //  4 LOCKED: one worker runs out of the building
+  K(10.24, 0.5, 1.3, 5.0, -0.6, 1.12, 0.5, 0, 0, 0),                      //  5 LOCKED: another is gloomy and shivering
+  K(12.76, 0.9, 1.3, 3.9, -0.6, 1.2, 0.5, -0.4, 0.05, -0.6, 0, 0, 0, "in"),   //  6 PUSH in: "ini hantu, jangan diusik"
+  K(16.9, -1.6, 1.1, 3.4, -3.4, 1.2, 0.2, -0.6, 0.1, -0.5, 0, 0, 0, "out"),   //  7 PUSH out: Vic alone at his desk, evening
+  K(21.18, -4.0, 1.3, 3.9, -3.4, 1.2, 0.2, 0.3, -0.05, -0.7, 0, 0, 0, "in"),   //  8 PUSH in: gloom, a cold sweat, the room creaks
+  K(25.52, -3.3, 2.0, 2.8, -3.4, 0.95, 0.2, 0, 0, 0),                     //  9 LOCKED: from above the desk, he works on
+  K(27.84, -4.3, 1.3, 3.2, -3.3, 1.2, 0.2, 0, 0, 0),                      // 10 LOCKED: the shape at the corner of his eye
+  K(29.98, -2.2, 1.25, 3.3, -3.3, 1.2, 0.2, -0.5, 0.05, -0.3, 0, 0, 0, "out"),   // 11 PUSH out: he turns, it is gone
+  K(32.78, -3.4, 0.5, 2.9, -4.1, 1.15, 0.2, 0, 0, 0),                     // 12 LOCKED: low, the gas bottle
+  K(36.06, -2.8, 1.3, 3.8, -4.0, 1.2, 0.2, -0.4, -0.05, -0.7, 0, 0, 0, "in"),   // 13 PUSH in: no leak, he must be tired
+  K(38.42, 1.8, 2.0, 4.8, -0.1, 1.05, 0.1, -0.9, -0.5, -0.8, 0, 0.05, -0.1, "out"),   // 14 CRANE DOWN out: next day, a spare foil in his hand
+  K(40.5, 1.0, 1.3, 3.4, 0.2, 1.05, -0.2, -0.1, -0.25, -1.5, 0.1, -0.05, -0.5, "snap"),   // 15 SNAP to the object: "dijepit di ragum", the vice
+  K(43.24, 1.8, 1.05, 1.7, 0.4, 1.0, -0.7, 0, 0, 0),                      // 16 LOCKED: close on the blade, it vibrates wildly alone
+  K(46.32, 1.0, 1.3, 4.2, 0.2, 1.2, 0.3, 0, 0, 0),                        // 17 LOCKED: the whisper
+  K(49.58, 0.6, 1.3, 4.8, 0.4, 1.1, 0.5, 1.4, 0.05, -0.2, 1.5, 0, 0, "lin"),   // 18 FOLLOW (constant, at his pace): he carries the foil across the room
+  K(51.98, 2.6, 1.3, 6.0, 2.6, 1.15, 0.4, 0, 0, 0),                       // 19 LOCKED: stronger in the middle, then it fades
+  K(54.46, 3.0, 1.0, 3.2, 4.0, 1.2, 0.5, 0.6, 0.4, 0.4, 0.2, 0.95, -1.7, "out"),   // 20 TILT UP out: he looks for the source, up to the fan
+  K(57.2, 3.0, 0.9, 5.2, 3.9, 2.0, -1.2, 0.6, 0.2, -0.8, 0.2, 0.1, 0, "in"),   // 21 LOW PUSH in: the new extractor fan
+  K(59.24, 3.0, 1.35, 3.8, 4.0, 1.4, 0.4, 0, 0, 0),                       // 22 LOCKED: 19 hertz
+  K(61.34, 2.0, 1.8, 10.2, 2.2, 1.4, -0.5, 0, 0, 0),                      // 23 LOCKED: too low to hear
+  K(62.92, 5.6, 1.3, 3.7, 4.0, 1.2, 0.4, -0.7, -0.05, -0.4, 0, 0, 0, "out"),   // 24 PUSH out: the book of symptoms
+  K(68.92, 1.5, 1.9, 9.6, 1.5, 1.4, -0.5, 0, 0, 0),                         // 25 LOCKED: the standing wave across the room
+  K(74.9, -2.2, 1.5, 2.0, -3.6, 0.85, -0.4, -0.6, -0.35, -0.8, 0, 0, 0, "snap"),   // 26 SNAP to the object: "makalahnya", the paper on the desk
+  K(77.4, -1.4, 1.2, 4.6, -3.2, 1.15, 0.1, -0.8, 0.05, -0.8, -0.2, 0.05, 0, "out"),   // 27 PUSH out: Vic at the desk, the shape in the waves
+  K(82.5, -1.6, 1.7, 10.0, -2.0, 1.3, -0.2, 0, 0, 0),                     // 28 LOCKED: the ghost was an unheard sound
+  K(84.98, 0.6, 1.6, 9.4, 0.6, 1.15, -0.2, 0, -0.3, -1.2, 0, 0, 0, "out"),   // 29 PULL-IN out: everyone knows the cause
 ];
+// B68: the transitions: a whip where the action swings sideways, a burst of scraps where the story changes time or place or lands the cause (never on neighbouring cuts)
+const WHIPS: Whip[] = [[10.24, 1], [29.98, -1], [49.58, 1], [62.92, -1], [74.9, 1]];
+const BURSTS: Burst[] = [{ at: 4.4 }, { at: 16.9 }, { at: 38.42 }, { at: 59.24, colors: ["#7cc6ff", "#ffffff", "#ffd447", "#ff6b3d"] }, { at: 84.98 }];
 
 // ---------- the acted poses (hands reach canvas points, B52) ----------------------------------------------------------------------------------------------------------------------------------
 const poseNamed = (name: string, t: number): Pose | null => {
@@ -458,6 +462,7 @@ export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = () => {
   });
   return (
     <AbsoluteFill style={{ backgroundColor: "#2a3338" }}>
+<div style={{ position: "absolute", left: 0, top: 0, width: FRAME.width, height: FRAME.height, ...whipStyle(WHIPS, t0) }}>
       <ThreeCanvas width={FRAME.width} height={FRAME.height} shadows camera={{ fov: 40, near: 0.05, far: 80, position: HOOK.pos.toArray() as [number, number, number] }}>
         <color attach="background" args={["#2a3338"]} />
         <fog attach="fog" args={["#c9d6d6", 18, 48]} />
@@ -468,6 +473,8 @@ export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = () => {
         <World t={t} f={f} />
         {actors}
       </ThreeCanvas>
+      </div>
+      <BurstFx bursts={BURSTS} t={t0} />
       <div style={{ position: "absolute", left: 0, right: 0, top: 230, display: "flex", flexDirection: "column", alignItems: "center", gap: 14, opacity: hookA }}>
         {HOOK_LINES.map((l) => (
           <div key={l.text} style={{ background: "#000", padding: "10px 34px", fontFamily: "Outfit, Arial Black, sans-serif", fontWeight: 900, fontSize: 118, color: "#fff", lineHeight: 1.05, whiteSpace: "nowrap" }}>

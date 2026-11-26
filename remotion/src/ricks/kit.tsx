@@ -49,13 +49,16 @@ export const stepAt = <K extends [number, ...unknown[]]>(keys: K[], t: number): 
 /** `roll`: a dutch angle in radians (the horizon tilts), B66 */
 export type Cam = { pos: THREE.Vector3; look: THREE.Vector3; roll?: number };
 /** `lin`: the camera moves at a constant speed (no ease at the ends), for a shot that follows a moving vehicle */
-export type Shot = { from: number; a: Cam; b: Cam; lin?: boolean };
+/** How a shot moves between its two cameras (B69): `lin` constant, `inout` gentle at both ends (the default), `out` quick start that settles, `in` slow start that speeds up toward the cut, `snap` a fast swoop that lands and creeps. */
+export type Ease = "lin" | "inout" | "out" | "in" | "snap";
+const EASES: Record<Ease, (u: number) => number> = { lin: (u) => u, inout: (u) => easeInOut(u), out: (u) => 1 - (1 - u) ** 2.2, in: (u) => u ** 2.2, snap: (u) => 1 - (1 - u) ** 4 };
+export type Shot = { from: number; a: Cam; b: Cam; lin?: boolean; ez?: Ease };
 /** The camera at t: the shot that holds t, eased from its start to its end camera over its length. */
 export function camAt(shots: Shot[], t: number, total: number): Cam {
   let i = 0;
   for (let k = 0; k < shots.length; k++) if (t >= shots[k].from) i = k;
   const s = shots[i], end = i + 1 < shots.length ? shots[i + 1].from : total;
-  const u = clamp01((t - s.from) / (end - s.from)), k = s.lin ? u : easeInOut(u);
+  const u = clamp01((t - s.from) / (end - s.from)), k = EASES[s.ez ?? (s.lin ? "lin" : "inout")](u);
   return { pos: s.a.pos.clone().lerp(s.b.pos, k), look: s.a.look.clone().lerp(s.b.look, k), roll: (s.a.roll ?? 0) + ((s.b.roll ?? 0) - (s.a.roll ?? 0)) * k };
 }
 export const RicksCamera: React.FC<{ cam: Cam }> = ({ cam }) => {
