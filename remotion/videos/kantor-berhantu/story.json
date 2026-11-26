@@ -7,7 +7,7 @@
   "Pekerja lari keluar dari lab, pelakunya bukan hantu",
   "Sosok bayangan di sudut mata, ternyata kipas baru"
  ],
- "duration": 55.74,
+ "duration": 90.02,
  "theme": "mint",
  "stage": "island",
  "captions": true,
@@ -19,7 +19,7 @@
   {
    "id": "hook",
    "kind": "hook",
-   "dur": 3.74,
+   "dur": 4.4,
    "narration": "Pedang anggar dijepit di ragum, tapi bergetar sendiri.",
    "text": "Pedang dijepit, bergetar sendiri",
    "scene": {
@@ -37,8 +37,8 @@
   {
    "id": "lab",
    "kind": "normal",
-   "dur": 5.04,
-   "narration": "Lab alat medis ini dikira berhantu. Seorang ilmuwan ingin tahu sebabnya.",
+   "dur": 12.5,
+   "narration": "Ini lab alat medis, dan para ilmuwannya yakin ruangan ini berhantu. Satu pekerja lari keluar gedung. Satu lagi mengeluh murung dan menggigil. Rekan kerjanya bilang, \"Ini hantu, jangan diusik!\"",
    "text": "Lab yang dikira berhantu",
    "scene": {
     "bg": "brand",
@@ -53,10 +53,10 @@
    "sfx": "none"
   },
   {
-   "id": "ragu",
+   "id": "malam",
    "kind": "normal",
-   "dur": 12.92,
-   "narration": "Rekan kerjanya bilang, \"Ini hantu, jangan diusik!\" Si ilmuwan malah duduk sendirian di lab. Dingin, murung, lalu sosok bayangan muncul di sudut matanya. Dia menoleh, sosok itu lenyap.",
+   "dur": 15.88,
+   "narration": "Tapi seorang ilmuwan, Vic Tandy, malah lembur sendirian. Tiba-tiba dia murung, keringat dingin, dan ruangan seperti berderit. Dia abaikan derit itu dan lanjut kerja. Di sudut matanya ada sosok yang mengawasi. Dia menoleh, sosok itu lenyap.",
    "text": "Sosok di sudut mata",
    "scene": {
     "bg": "brand",
@@ -71,10 +71,28 @@
    "sfx": "none"
   },
   {
+   "id": "gas",
+   "kind": "normal",
+   "dur": 5.64,
+   "narration": "Dia periksa tabung gas, takut bocor. Tidak ada. Dia pulang, mengira cuma kelelahan.",
+   "text": "Tabung gas aman",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Tabung gas aman",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
    "id": "naik",
    "kind": "normal",
-   "dur": 14.32,
-   "narration": "Besoknya pedangnya bergetar sendiri di ragum. Rekan kerjanya berbisik, \"Pedangnya kerasukan!\" Dia menggeser pedang ke tengah ruangan, dan getarannya makin liar. Rekannya mundur, makin yakin. Dia malah mengambil alat ukur.",
+   "dur": 16.04,
+   "narration": "Besoknya dia ada lomba anggar, dan membawa pedang cadangan untuk dijepit di ragum lab. Ditinggal sebentar, bilah pedang itu bergetar liar. Rekannya berbisik, \"Pedangnya kerasukan!\" Vic malah menggeser pedang melintasi ruangan. Getarannya makin kuat di tengah, lalu mereda.",
    "text": "Getarannya makin liar",
    "scene": {
     "bg": "brand",
@@ -91,8 +109,8 @@
   {
    "id": "sains",
    "kind": "result",
-   "dur": 14.26,
-   "narration": "Biangnya kipas penyedot udara yang baru dipasang. Suaranya sekitar sembilan belas hertz, terlalu rendah untuk didengar, tapi menggetarkan ruangan. Getaran seperti itu diduga membuat orang menggigil, murung, dan melihat bayangan.",
+   "dur": 20.44,
+   "narration": "Dia menelusuri sumbernya. Biangnya kipas penyedot udara yang baru dipasang. Suaranya sembilan belas hertz, terlalu rendah untuk didengar. Menurut buku yang dia baca, getaran serupa membuat pekerja pabrik menggigil, berkeringat, dan murung. Gelombangnya pas dengan ukuran ruangan, memantul dan menumpuk jadi gelombang berdiri, paling kuat di tengah.",
    "text": "Kipas baru, 19 hertz",
    "scene": {
     "bg": "brand",
@@ -107,9 +125,27 @@
    "sfx": "none"
   },
   {
+   "id": "makalah",
+   "kind": "normal",
+   "dur": 10.08,
+   "narration": "Di makalahnya, Vic dan rekannya menduga getaran serendah itu bisa memicu rasa takut, menggigil, bahkan sosok bayangan. Hantunya ternyata getaran yang tak terdengar.",
+   "text": "Getaran memicu rasa takut",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Getaran memicu rasa takut",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
    "id": "akhir",
    "kind": "normal",
-   "dur": 4.76,
+   "dur": 4.34,
    "narration": "Pedang di ragum itu bergetar sendiri, dan kali ini semua tahu sebabnya.",
    "text": "Semua tahu sebabnya",
    "scene": {
@@ -145,10 +181,11 @@
  ],
  "claims": [
   {
-   "text": "Seorang ilmuwan di laboratorium sebuah perusahaan alat medis merasa dingin, murung dan melihat sosok di sudut matanya yang lenyap saat ia menoleh; keesokan harinya bilah pedang anggar yang dijepit di ragum bergetar.",
+   "text": "Di lab sebuah perusahaan alat medis, satu pekerja lari keluar dan satu mengeluh depresi dan menggigil; Vic Tandy sendirian di malam hari merasa murung, berkeringat dingin, dan melihat sosok di sudut matanya yang lenyap saat ia menoleh; ia memeriksa tabung gas tanpa menemukan kebocoran; keesokan harinya bilah pedang anggar yang dijepit di ragum bergetar hebat.",
    "beats": [
     "lab",
-    "ragu",
+    "malam",
+    "gas",
     "naik"
    ],
    "sources": [
@@ -157,7 +194,7 @@
    ]
   },
   {
-   "text": "Getaran pedang membesar saat digeser ke tengah ruangan, sesuai gelombang berdiri yang cocok dengan ukuran ruangan.",
+   "text": "Getaran pedang membesar saat digeser ke tengah ruangan lalu mereda, karena gelombang berdiri yang cocok dengan ukuran ruangan.",
    "beats": [
     "naik",
     "sains"
@@ -167,9 +204,10 @@
    ]
   },
   {
-   "text": "Sumbernya infrasonik sekitar 19 Hz dari kipas penyedot udara yang baru dipasang; Tandy dan Tony Lawrence (1998) menduga infrasonik semacam itu dapat memicu rasa takut, merinding, dan penglihatan sosok.",
+   "text": "Sumbernya infrasonik sekitar 19 Hz dari kipas penyedot udara; makalah Tandy dan Tony Lawrence (1998) menyimpulkan infrasonik semacam itu berefek fisiologis, termasuk rasa takut dan menggigil.",
    "beats": [
-    "sains"
+    "sains",
+    "makalah"
    ],
    "sources": [
     "https://en.wikipedia.org/wiki/Vic_Tandy",
@@ -178,7 +216,7 @@
   }
  ],
  "post": {
-  "description": "Sebilah pedang anggar bergetar sendiri di ragum sebuah lab alat medis yang dikira berhantu. Penyebabnya kipas penyedot udara baru yang menghasilkan infrasonik sekitar 19 Hz. Kisah nyata, bersumber: Wikipedia (Vic Tandy) dan IFLScience. Dialog rekan kerja hanya ilustrasi.",
+  "description": "Sebilah pedang anggar bergetar sendiri di ragum sebuah lab alat medis yang dikira berhantu. Penyebabnya kipas penyedot udara yang menghasilkan infrasonik sekitar 19 Hz. Kisah nyata, bersumber: Wikipedia (Vic Tandy) dan IFLScience. Ucapan rekan kerja hanya ilustrasi.",
   "hashtags": [
    "#hantu",
    "#infrasonik",

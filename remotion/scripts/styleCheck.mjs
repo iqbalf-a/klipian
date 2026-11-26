@@ -116,6 +116,9 @@ async function b48() {
     const OB = 9, srcI = existsSync(path.join(dir, "index.tsx")) ? readFileSync(path.join(dir, "index.tsx"), "utf8") : "";
     const num = (txt) => { try { return new Function("OB", `return [${txt}]`)(OB); } catch { return null; } };
     const shots = [...srcI.matchAll(/\{\s*from:\s*([0-9.]+),\s*a:\s*C\(([^)]*)\),\s*b:\s*C\(([^)]*)\)/g)].map((m) => ({ from: +m[1], a: num(m[2]), b: num(m[3]) })).filter((x) => x.a && x.b);
+    // B65: shots written with the K(from, camera xyz, look-at xyz, change xyz [, look-at change xyz]) helper count too
+    for (const m of srcI.matchAll(/\bK\(\s*([0-9.]+),\s*([^)]*)\)/g)) { const n = num(m[2]); if (n && n.length >= 9) { const [ax, ay, az, lx, ly, lz, dx, dy, dz, dlx = 0, dly = 0, dlz = 0] = n; shots.push({ from: +m[1], a: [ax, ay, az, lx, ly, lz], b: [ax + dx, ay + dy, az + dz, lx + dlx, ly + dly, lz + dlz] }); } }
+    shots.sort((x, y) => x.from - y.from);
     if (shots.length) {
       const total = story.duration;
       const rows = shots.map((x, i) => { const dur = (shots[i + 1]?.from ?? total) - x.from, d = (u, v) => Math.hypot(u[0] - v[0], u[1] - v[1], u[2] - v[2]);

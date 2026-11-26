@@ -1,5 +1,5 @@
 /* Lab dikira berhantu, pelakunya kipas (look ricks, B46): a true story told in the ricks picture. In a medical-equipment laboratory a scientist, alone, feels cold and low and sees a shape at the corner of his eye;
-   the next day a fencing foil clamped in a vice shakes by itself, and more the nearer it is carried to the middle of the room. The cause is a newly fitted extractor fan that makes about 19 Hz infrasound; the
+   the next day a fencing foil clamped in a vice vibrates by itself, and more the nearer it is carried to the middle of the room. The cause is a newly fitted extractor fan that makes about 19 Hz infrasound; the
    researchers (Tandy and Lawrence, 1998) suggest such sound can cause chills, dread and seeing a figure (Wikipedia "Vic Tandy", IFLScience 2026). Nothing is invented but the doubting colleagues and their lines (illustration).
    The picture follows the voice (words.json from faster-whisper): one shot per sentence, one caption word at a time, a pill on its number (B45), mouths move only on the two quoted lines (B46 n), the last shot is the
    whole team round the vice and the cut after it returns to the first shot (the loop). The set is the video's own: a laboratory of white-green plaster and a teal band, a vinyl check floor, a steel workbench with a
@@ -19,8 +19,8 @@ import storyJson from "./story.json";
 import WORDS from "./words.json";
 
 export const story = storyJson as unknown as StoryT;
-export const TOTAL = 55.74;
-const LOOP_AT = 55.04;   // after the last spoken word has ended; from here the picture holds the first moment (the loop)
+export const TOTAL = 90.02;
+const LOOP_AT = 89.5;   // after the last spoken word has ended; from here the picture holds the first moment (the loop)
 const SPEED = { walk: 1.1, jog: 2.6 };   // B64: the gait cannot keep up above these (m/s)
 const FPS = 30;
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
@@ -98,7 +98,7 @@ const OLD: Outfit = { shirt: "#8c9a5b", stripe: "#d9d2b0", garment: "vest", hat:
 const YNG: Outfit = { shirt: "#2fb7c9", stripe: "#ffffff", garment: "shirt", pattern: "dots", hair: "mohawk", hairColor: "#d9352a", nose: "dot", blush: true, eyebags: true, brows: "arched", belt: "#3a2a1c" };
 
 // the two quoted lines (B46 n, illustration): only these words move a mouth
-const TALK: Record<string, [number, number][]> = { old: [[9.84, 11.36]], yng: [[26.22, 27.0]] };
+const TALK: Record<string, [number, number][]> = { old: [[14.0, 16.2]], yng: [[47.6, 48.8]] };
 const talkAt = (id: string, t: number) => {
   if (!(TALK[id] ?? []).some(([a, b]) => t >= a && t < b)) return 0;
   const w = WORDS.find((x) => t >= x.a - 0.02 && t < x.b + 0.05);
@@ -112,26 +112,35 @@ const TROLLEY = { x: 3.5, z: -0.3 };
 const DESK = { x: -3.4, z: -0.55 };
 const C = (px: number, py: number, pz: number, lx: number, ly: number, lz: number): Cam => ({ pos: V(px, py, pz), look: V(lx, ly, lz) });
 const HOOK = C(0.3, 1.3, 4.6, 0.3, 1.2, 0);   // the scientist and the foil in the vice, his head about 30 % of the width
-// B62: the camera holds, the cuts do the variety; one slow push (shot 16), no shot above 0.3 m/s
+/** B65: every shot carries a steady slow move (a track, a push or a tilt, one direction, no ease), 0.06 to 0.3 m/s; K = start camera, start look-at, then the change over the shot */
+const K = (from: number, ax: number, ay: number, az: number, lx: number, ly: number, lz: number, dx: number, dy: number, dz: number, dlx = 0, dly = 0, dlz = 0): Shot => ({ from, lin: true, a: C(ax, ay, az, lx, ly, lz), b: C(ax + dx, ay + dy, az + dz, lx + dlx, ly + dly, lz + dlz) });
 const SHOTS: Shot[] = [
-  { from: 0, a: HOOK, b: HOOK },                                           // 1 the foil shakes by itself
-  { from: 3.74, a: C(0.9, 1.7, 9.2, 0.9, 1.3, -0.5), b: C(0.9, 1.7, 9.2, 0.9, 1.3, -0.5) },   // 2 WIDE: the whole laboratory
-  { from: 5.9, a: C(0.1, 1.3, 5.0, 0.1, 1.15, 0), b: C(0.1, 1.3, 5.0, 0.1, 1.15, 0) },        // 3 he leans in to the foil
-  { from: 8.78, a: C(-0.6, 1.3, 4.6, -0.6, 1.15, 0), b: C(-0.6, 1.3, 4.6, -0.6, 1.15, 0) },    // 4 the colleague: "ini hantu"
-  { from: 11.88, a: C(-3.0, 1.2, 4.4, -3.0, 1.1, 0), b: C(-3.0, 1.2, 4.4, -3.0, 1.1, 0) },    // 5 alone at the desk
-  { from: 14.48, a: C(-3.4, 1.25, 3.5, -3.4, 1.15, 0), b: C(-3.4, 1.25, 3.5, -3.4, 1.15, 0) },  // 6 cold, low (CLOSE)
-  { from: 16.48, a: C(-3.0, 1.2, 4.4, -3.0, 1.1, 0), b: C(-3.0, 1.2, 4.4, -3.0, 1.1, 0) },    // 7 the shape at the corner of the eye
-  { from: 19.28, a: C(-3.0, 1.3, 3.6, -3.0, 1.2, 0), b: C(-3.0, 1.3, 3.6, -3.0, 1.2, 0) },    // 8 he turns, it is gone
-  { from: 21.7, a: C(0.15, 1.25, 4.0, 0.15, 1.1, -0.4), b: C(0.15, 1.25, 4.0, 0.15, 1.1, -0.4) },  // 9 next day: the foil shakes
-  { from: 24.6, a: C(0.2, 1.3, 4.6, 0.2, 1.15, 0), b: C(0.2, 1.3, 4.6, 0.2, 1.15, 0) },        // 10 the whisper
-  { from: 27.5, a: C(1.5, 1.7, 9.4, 1.5, 1.2, -0.3), b: C(1.5, 1.7, 9.4, 1.5, 1.2, -0.3) },    // 11 WIDE: the foil goes to the middle of the room
-  { from: 31.26, a: C(1.4, 1.35, 6.6, 1.4, 1.15, 0), b: C(1.4, 1.35, 6.6, 1.4, 1.15, 0) },      // 12 the colleague backs away
-  { from: 33.5, a: C(3.0, 1.3, 4.6, 3.0, 1.1, 0), b: C(3.0, 1.3, 4.6, 3.0, 1.1, 0) },          // 13 the meter
-  { from: 36.02, a: C(3.3, 0.9, 5.8, 3.9, 2.0, -1.2), b: C(3.3, 0.9, 5.8, 3.9, 2.0, -1.2) },    // 14 LOW-ANGLE: the new fan
-  { from: 38.8, a: C(3.0, 1.35, 3.4, 3.0, 1.25, 0), b: C(3.0, 1.35, 3.4, 3.0, 1.25, 0) },      // 15 19 hertz (CLOSE)
-  { from: 41.42, a: C(2.2, 1.9, 11.5, 2.2, 1.4, -0.5), b: C(2.2, 1.9, 11.5, 2.2, 1.4, -0.5) }, // 16 WIDE: the rings cross the room
-  { from: 45.14, a: C(3.0, 1.3, 6.0, 3.0, 1.1, 0), b: C(3.0, 1.3, 4.6, 3.0, 1.1, 0) },          // 17 PUSH-IN: chills, dread, a shape
-  { from: 50.28, a: C(0.9, 1.4, 8.4, 0.9, 1.15, -0.2), b: C(0.9, 1.4, 8.4, 0.9, 1.15, -0.2) }, // 18 everyone knows the cause
+  K(0, 0.3, 1.3, 4.6, 0.3, 1.2, 0, 0.55, 0, -0.2),                  //  1 TRACK: the foil vibrates by itself (frame 0 is the hook camera)
+  K(4.4, -0.4, 1.6, 9.2, 0.9, 1.3, -0.5, 1.0, 0, 0),                //  2 WIDE TRACK: the whole laboratory, medical products on the bench
+  K(8.82, 3.3, 1.3, 6.4, 2.4, 1.1, 0, -0.35, 0, -0.1),              //  3 TRACK: one worker runs out of the building
+  K(10.24, 0.5, 1.3, 5.0, -0.6, 1.12, 0.5, 0.6, 0, -0.2),           //  4 TRACK: another is gloomy and shivering
+  K(12.76, 0.2, 1.3, 5.0, -0.6, 1.12, 0.5, -0.6, 0, -0.2),          //  5 TRACK back: "ini hantu, jangan diusik"
+  K(16.9, -1.4, 1.25, 4.6, -3.2, 1.1, 0.1, -0.8, 0, -0.3),          //  6 TRACK: Vic alone at his desk, evening
+  K(21.18, -3.9, 1.25, 3.6, -3.4, 1.2, 0.1, 0.9, 0, -0.1),          //  7 CLOSE TRACK: gloom, a cold sweat, the room creaks
+  K(25.52, -4.9, 1.45, 4.2, -3.4, 1.1, 0.1, 0.5, 0.05, 0),          //  8 TRACK: he ignores the creak and works on
+  K(27.84, -3.4, 1.2, 4.4, -3.0, 1.1, 0.1, 0.5, 0, 0),              //  9 TRACK: the shape at the corner of his eye
+  K(29.98, -2.8, 1.3, 3.6, -3.2, 1.2, 0.1, -0.5, 0, 0.1),           // 10 PUSH: he turns, it is gone
+  K(32.78, -2.6, 1.3, 4.0, -4.0, 1.2, 0.2, -0.5, 0, -0.3),          // 11 TRACK: he checks the gas bottle
+  K(36.06, -2.8, 1.3, 3.8, -4.0, 1.2, 0.2, -0.4, 0, -0.4),          // 12 PUSH: no leak, he must be tired
+  K(38.42, 1.3, 1.3, 4.8, 0.1, 1.15, 0, -0.8, 0, -0.4),             // 13 TRACK: next day, a spare foil into the vice
+  K(43.24, 1.9, 1.2, 3.8, 0.4, 1.0, -0.7, -0.8, -0.1, -0.4),        // 14 LOW TRACK: the foil vibrates wildly alone
+  K(46.32, 1.2, 1.3, 5.0, 0.2, 1.15, 0.3, -0.5, 0, -0.5),           // 15 PUSH: the whisper
+  K(49.58, 0.0, 1.5, 8.2, 0.8, 1.2, 0, 0.65, 0, 0, 0.6, 0, 0),      // 16 WIDE TRACK: he carries the foil across the room
+  K(51.98, 1.7, 1.3, 5.6, 2.5, 1.15, 0.3, 0.6, 0, 0, 0.7, 0, 0),    // 17 TRACK: stronger in the middle, then it fades
+  K(54.46, 2.5, 1.4, 4.6, 3.6, 1.4, 0.5, 0.6, 0.1, -0.2, 0.2, 0.35, -0.4),   // 18 TILT UP: he looks for the source
+  K(57.2, 3.3, 0.9, 5.8, 3.9, 2.0, -1.2, 0.45, 0.1, -0.2),          // 19 LOW-ANGLE: the new extractor fan
+  K(59.24, 2.8, 1.35, 3.5, 4.0, 1.25, 0.4, 0.5, 0, 0.1),            // 20 TRACK: 19 hertz
+  K(61.34, 2.2, 1.9, 11.5, 2.2, 1.4, -0.5, 0.35, 0, 0),             // 21 WIDE: too low to hear
+  K(62.92, 5.0, 1.3, 4.2, 4.0, 1.2, 0.4, -0.6, 0, 0.1),             // 22 TRACK: the book of symptoms
+  K(68.92, 2.0, 1.9, 10.5, 2.0, 1.4, -0.5, -0.8, 0, -0.2),          // 23 WIDE TRACK: the standing wave
+  K(74.9, -1.6, 1.25, 4.6, -3.2, 1.1, 0.1, -0.8, 0.05, -0.2),       // 24 TRACK: the paper, and the shape in the waves
+  K(82.5, -2.4, 1.9, 10.5, -2.0, 1.4, -0.5, 0.4, 0, 0),               // 25 WIDE TRACK: the ghost was an unheard sound
+  K(84.98, 0.6, 1.4, 8.6, 0.6, 1.15, -0.2, 0, 0, -0.5),             // 26 PUSH: everyone knows the cause
 ];
 
 // ---------- the acted poses (hands reach canvas points, B52) ----------------------------------------------------------------------------------------------------------------------------------
@@ -146,9 +155,8 @@ const poseNamed = (name: string, t: number): Pose | null => {
     case "shiver": { const b = POSES.belly; return { ...b, lean: 2.6 * Math.sin(t * 47) }; }
     case "recoil": { const l = reach("l", 60, 300), r = reach("r", 452, 300); return A8(l.sh, l.el, r.sh, r.el, { lean: -5 }); }
     case "carry": { const r = reach("r", 470, 575), l = reach("l", 150, 590); return A8(l.sh, l.el, r.sh, r.el); }
-    case "take": { const k = prog(t, 33.7, 34.3), r = reach("r", 470 - 60 * (1 - k), 600 - 20 * (1 - k)), l = reach("l", 150, 590); return A8(l.sh, l.el, r.sh, r.el); }
-    case "meter": { const r = reach("r", 395, 570), l = reach("l", 235, 575); return A8(l.sh, l.el, r.sh, r.el); }
-    case "meterup": { const r = reach("r", 395, 570), l = reach("l", 70, 170 + 10 * Math.sin(t * 4)); return A8(l.sh, l.el, r.sh, r.el); }
+    case "valve": { const r = reach("r", 420, 230), l = reach("l", 150, 590); return A8(l.sh, l.el, r.sh, r.el); }
+    case "pointup": { const r = reach("r", 362, 590), l = reach("l", 70, 170 + 10 * Math.sin(t * 4)); return A8(l.sh, l.el, r.sh, r.el); }
     case "palmface": { const r = reach("r", 262, 300), l = reach("l", 150, 590); return A8(l.sh, l.el, r.sh, r.el, { lean: 3 }); }
     case "stand": { const l = reach("l", 150, 590), r = reach("r", 362, 590); return A8(l.sh, l.el, r.sh, r.el); }
     default: return null;
@@ -158,39 +166,48 @@ const poseNamed = (name: string, t: number): Pose | null => {
 type AState = { rig: Pose; x: number; z: number; flip: boolean; expr: Expr; hop: number; h: number; talk: number; kind: string };
 const FOREVER = 1000;
 const ACTORS: { id: string; o: Outfit; tracks: Track[] }[] = [
-  { id: "sci", o: SCI, tracks: [
-    { a: 0, b: 3.74, pos: stay(-0.2, 0.5), faces: [[0, "puzzled", "foil"]] },
-    { a: 3.74, b: 5.9, pos: stay(-0.2, 0.5), faces: [[3.74, "puzzled", "foil"], [5.0, "sly", "chin"]] },
-    { a: 5.9, b: 8.78, pos: stay(-0.2, 0.5), faces: [[5.9, "puzzled", "chin"], [7.4, "sly", "chin"]] },
-    { a: 8.78, b: 11.88, pos: stay(-0.2, 0.5), faces: [[8.78, "calm", "stand"], [10.0, "sly", "hips"]] },
-    { a: 11.88, b: 14.48, pos: stay(-3.4, 0.2), faces: [[11.88, "calm", "read"]] },
-    { a: 14.48, b: 16.48, pos: stay(-3.4, 0.2), faces: [[14.48, "puzzled", "shiver"], [15.42, "sleepy", "shiver"]] },
-    { a: 16.48, b: 19.28, pos: stay(-3.4, 0.2), faces: [[16.48, "sleepy", "shiver"], [17.9, "shocked", "recoil"]] },
-    { a: 19.28, b: 21.7, flip: true, pos: stay(-3.4, 0.2), faces: [[19.28, "shocked", "recoil"], [20.66, "puzzled", "hips"]] },
-    { a: 21.7, b: 24.6, pos: stay(-0.2, 0.5), faces: [[21.7, "shocked", "foil"]] },
-    { a: 24.6, b: 27.5, pos: stay(-0.2, 0.5), faces: [[24.6, "puzzled", "stand"], [26.5, "sly", "hips"]] },
-    withGait({ a: 27.5, b: 31.26, pos: go(27.5, 31.26, -0.2, 0.5, 3.0, 0.5), faces: [[27.5, "sly", "carry"]] }, "walk", 0.2),
-    { a: 31.26, b: 33.5, pos: stay(3.0, 0.5), faces: [[31.26, "sly", "carry"]] },
-    { a: 33.5, b: 36.02, pos: stay(3.0, 0.5), faces: [[33.5, "sly", "take"], [34.4, "calm", "meter"]] },
-    { a: 36.02, b: 38.8, pos: stay(3.0, 0.5), faces: [[36.02, "grin", "meterup"]] },
-    { a: 38.8, b: 41.42, pos: stay(3.0, 0.5), faces: [[38.8, "calm", "meter"], [40.16, "grin", "meter"]] },
-    { a: 41.42, b: 45.14, pos: stay(3.0, 0.5), faces: [[41.42, "puzzled", "meter"]] },
-    { a: 45.14, b: 50.28, pos: stay(3.0, 0.5), faces: [[45.14, "puzzled", "meter"], [47.0, "sleepy", "shiver"], [48.84, "shocked", "recoil"]] },
-    { a: 50.28, b: FOREVER, pos: stay(2.0, 0.5), faces: [[50.28, "grin", "hips"], [52.64, "grin", "meter"]] },
+  { id: "sci", o: SCI, tracks: [   // Vic Tandy, the lab scientist
+    { a: 0, b: 4.4, pos: stay(-0.2, 0.5), faces: [[0, "puzzled", "foil"]] },
+    { a: 4.4, b: 8.82, pos: stay(-0.2, 0.5), faces: [[4.4, "puzzled", "chin"], [6.6, "sly", "chin"]] },
+    { a: 8.82, b: 12.76, pos: stay(-0.2, 0.5), faces: [[8.82, "shocked", "stand"], [10.3, "puzzled", "stand"]] },
+    { a: 12.76, b: 16.9, pos: stay(-0.2, 0.5), faces: [[12.76, "calm", "stand"], [15.4, "sly", "hips"]] },
+    { a: 16.9, b: 21.18, pos: stay(-3.4, 0.2), faces: [[16.9, "calm", "read"]] },
+    { a: 21.18, b: 25.52, pos: stay(-3.4, 0.2), faces: [[21.18, "puzzled", "shiver"], [22.8, "sleepy", "shiver"]] },
+    { a: 25.52, b: 27.84, pos: stay(-3.4, 0.2), faces: [[25.52, "sleepy", "read"]] },
+    { a: 27.84, b: 29.98, pos: stay(-3.4, 0.2), faces: [[27.84, "shocked", "recoil"]] },
+    { a: 29.98, b: 32.78, flip: true, pos: stay(-3.4, 0.2), faces: [[29.98, "shocked", "recoil"], [31.4, "puzzled", "hips"]] },
+    withGait({ a: 32.78, b: 34.0, pos: go(32.78, 34.0, -3.4, 0.2, -4.0, 0.2), faces: [[32.78, "puzzled", "down"]] }, "walk", 0.2),
+    { a: 34.0, b: 36.06, flip: true, pos: stay(-4.0, 0.2), faces: [[34.0, "puzzled", "valve"], [35.2, "calm", "valve"]] },
+    { a: 36.06, b: 38.42, flip: true, pos: stay(-4.0, 0.2), faces: [[36.06, "sleepy", "palmface"]] },
+    { a: 38.42, b: 41.72, pos: stay(-0.2, 0.5), faces: [[38.42, "grin", "carry"]] },
+    { a: 41.72, b: 42.3, pos: stay(-0.2, 0.5), faces: [[41.72, "calm", "foil"]] },
+    withGait({ a: 42.3, b: 43.5, pos: go(42.3, 43.5, -0.2, 0.5, -1.3, 0.5), faces: [[42.3, "calm", "down"]] }, "walk", 0.2),
+    { a: 43.5, b: 44.8, pos: stay(-1.3, 0.5), faces: [[43.5, "shocked", "stand"]] },
+    withGait({ a: 44.8, b: 46.0, pos: go(44.8, 46.0, -1.3, 0.5, -0.2, 0.5), faces: [[44.8, "puzzled", "down"]] }, "walk", 0.2),
+    { a: 46.0, b: 49.58, pos: stay(-0.2, 0.5), faces: [[46.0, "puzzled", "stand"], [47.6, "shocked", "recoil"]] },
+    withGait({ a: 49.58, b: 54.4, pos: go(49.58, 54.4, -0.2, 0.5, 4.0, 0.5), faces: [[49.58, "sly", "carry"]] }, "walk", 0.2),
+    { a: 54.4, b: 57.2, pos: stay(4.0, 0.5), faces: [[54.4, "puzzled", "stand"]] },
+    { a: 57.2, b: 59.24, pos: stay(4.0, 0.5), faces: [[57.2, "grin", "pointup"]] },
+    { a: 59.24, b: 61.34, pos: stay(4.0, 0.5), faces: [[59.24, "calm", "stand"], [60.1, "grin", "stand"]] },
+    { a: 61.34, b: 62.92, pos: stay(4.0, 0.5), faces: [[61.34, "puzzled", "palmface"]] },
+    { a: 62.92, b: 68.92, pos: stay(4.0, 0.5), faces: [[62.92, "puzzled", "read"], [66.3, "sleepy", "shiver"]] },
+    { a: 68.92, b: 74.9, pos: stay(4.0, 0.5), faces: [[68.92, "calm", "stand"], [72.4, "grin", "pointup"]] },
+    { a: 74.9, b: 82.5, pos: stay(-3.4, 0.2), faces: [[74.9, "calm", "read"], [80.4, "sleepy", "shiver"]] },
+    { a: 82.5, b: 84.98, pos: stay(-3.4, 0.2), faces: [[82.5, "grin", "hips"]] },
+    { a: 84.98, b: FOREVER, pos: stay(1.5, 0.5), faces: [[84.98, "grin", "hips"], [87.0, "grin", "stand"]] },
   ] },
-  { id: "old", o: OLD, tracks: [
-    { a: 3.74, b: 6.0, pos: stay(-3.0, 0.4), faces: [[3.74, "calm", "read"]] },
-    withGait({ a: 6.0, b: 8.78, pos: go(6.0, 8.78, -3.0, 0.4, -1.0, 0.55), faces: [[6.0, "sly", "down"]] }, "walk", 0.2),
-    { a: 8.78, b: 11.88, pos: stay(-1.0, 0.55), faces: [[8.78, "puzzled", "talk"], [10.0, "shocked", "talk"]] },
-    { a: 50.28, b: FOREVER, pos: stay(-0.4, 0.5), faces: [[50.28, "puzzled", "palmface"], [52.64, "sly", "shrug"]] },
+  { id: "old", o: OLD, tracks: [   // the senior lab colleague
+    { a: 4.4, b: 6.0, pos: stay(-3.0, 0.4), faces: [[4.4, "calm", "read"]] },
+    withGait({ a: 6.0, b: 8.2, pos: go(6.0, 8.2, -3.0, 0.4, -1.0, 0.55), faces: [[6.0, "sly", "down"]] }, "walk", 0.2),
+    { a: 8.2, b: 10.24, pos: stay(-1.0, 0.55), faces: [[8.2, "puzzled", "stand"]] },
+    { a: 10.24, b: 12.76, pos: stay(-1.0, 0.55), faces: [[10.24, "sleepy", "shiver"]] },
+    { a: 12.76, b: 16.9, pos: stay(-1.0, 0.55), faces: [[12.76, "puzzled", "talk"], [13.8, "shocked", "talk"]] },
+    { a: 84.98, b: FOREVER, pos: stay(-0.3, 0.5), faces: [[84.98, "puzzled", "palmface"], [87.0, "sly", "shrug"]] },
   ] },
-  { id: "yng", o: YNG, tracks: [
-    { a: 24.6, b: 27.5, pos: stay(0.55, 0.1), faces: [[24.6, "shocked", "whisper"]] },
-    withGait({ a: 27.5, b: 29.5, pos: go(27.5, 29.5, 0.55, 0.1, 1.2, 0.1), faces: [[27.5, "shocked", "recoil"]] }, "walk", 0.2),
-    { a: 29.5, b: 31.26, pos: stay(1.2, 0.1), faces: [[29.5, "shocked", "recoil"]] },
-    withGait({ a: 31.26, b: 33.5, pos: go(31.26, 33.5, 1.2, 0.1, 0.5, 0.1), faces: [[31.26, "shocked", "recoil"]] }, "walk", 0.2),
-    { a: 33.5, b: 50.28, pos: stay(0.5, 0.1), faces: [[33.5, "shocked", "recoil"], [41.42, "puzzled", "stand"]] },
-    { a: 50.28, b: FOREVER, pos: stay(1.5, 0.5), faces: [[50.28, "grin", "hips"], [52.64, "grin", "shrug"]] },
+  { id: "yng", o: YNG, tracks: [   // the young technician: runs out, comes back
+    withGait({ a: 8.82, b: 10.24, pos: go(8.82, 10.24, 0.9, 0.4, 4.4, 0.4), faces: [[8.82, "shocked", "recoil"]] }, "jog", 0.2),
+    { a: 46.32, b: 54.46, pos: stay(0.6, 0.15), faces: [[46.32, "shocked", "whisper"], [49.58, "shocked", "recoil"]] },
+    { a: 84.98, b: FOREVER, pos: stay(0.7, 0.1), faces: [[84.98, "grin", "hips"], [87.0, "grin", "shrug"]] },
   ] },
 ];
 const stateOf = (a: { id: string; tracks: Track[] }, t: number): AState | null => {
@@ -210,14 +227,14 @@ const handAt = (id: string, side: "l" | "r", t: number) => {
 };
 
 // ---------- the moments of the story ----------------------------------------------------------------------------------------------------------------------------------------------------------------
-const FOIL_OUT = 27.5, FOIL_LAID = 33.9, FOIL_BACK = 50.28;     // the foil leaves the vice, is laid on the trolley, goes back into the vice
-const AMP: [number, number][] = [[0, 0.05], [27.4, 0.05], [31.3, 0.17], [33.8, 0.12], [33.95, 0.02], [50.2, 0.02], [50.3, 0.05], [55.1, 0.05]];   // how far the tip of the blade swings (m)
-const dusk = (t: number) => (t >= 11.88 && t < 21.7 ? prog(t, 11.88, 12.3) : 0);   // the evening he is alone
-const GHOSTS: [number, number, number, number][] = [[16.6, 20.7, -2.55, 0.15], [48.9, 50.28, 3.55, 0.1]];   // [from, to, x, z]: the shape at the corner of his eye, and again in the waves
-const WAVES: [number, number] = [38.8, 50.28];
-const PILLS: Pill[] = [{ at: 40.16, until: 42.2, text: "19 hertz", key: "19", color: "#ff6b3d", y: 330 }];
+const FOIL_IN = 38.42, FOIL_LAID = 54.46, FOIL_BACK = 84.98;     // the spare foil arrives in his hand, is laid on the trolley, goes back into the vice for the last shot
+const AMP: [number, number][] = [[0, 0.05], [4.4, 0.05], [41.7, 0.02], [43.24, 0.02], [44.2, 0.18], [49.5, 0.18], [49.6, 0.05], [52.4, 0.19], [54.4, 0.03], [55, 0.03], [84.9, 0.05], [85.0, 0.16], [89.6, 0.16], [90.1, 0.05]];   // how far the tip of the blade swings (m)
+const dusk = (t: number) => (t >= 16.9 && t < 38.42 ? prog(t, 16.9, 17.4) : 0);   // the evening he is alone
+const GHOSTS: [number, number, number, number][] = [[27.9, 32.0, -2.55, 0.15], [80.6, 82.6, -2.5, 0.15]];   // [from, to, x, z]: the shape at the corner of his eye, and again in the waves
+const WAVES: [number, number] = [59.24, 84.98];
+const PILLS: Pill[] = [{ at: 59.92, until: 61.9, text: "19 hertz", key: "19", color: "#ff6b3d", y: 330 }];
 const HOOK_LINES: { text: string; key?: string }[] = [{ text: "Pedang" }, { text: "", key: "bergetar" }, { text: "sendiri" }];
-const READ = [...readWords(WORDS.map((x) => ({ ...x }))), { w: "Pedang", a: 55.4, b: 55.74 }];   // the first word comes back on the last 0.34 s so the loop holds
+const READ = [...readWords(WORDS.map((x) => ({ ...x }))), { w: "Pedang", a: 89.62, b: 90.02 }];   // the first word comes back on the last 0.4 s so the loop holds
 
 // ---------- painted textures (grain, wear, many small marks; nothing is one flat colour) ----------------------------------------------------------------------------------------------------------------------------
 const plaster = (base: string, grime: string) => (c: CanvasRenderingContext2D) => {
@@ -350,10 +367,9 @@ const GasBottle: React.FC = () => (
     <Cyl r={0.12} h={0.03} pos={[0, 0.66, 0]} color="#f4efdc" seg={20} />
   </group>
 );
-const Meter: React.FC<{ pos: THREE.Vector3; cv: THREE.CanvasTexture; t: number }> = ({ pos, cv, t }) => {
-  drawScreen((cv.image as HTMLCanvasElement).getContext("2d")!, "meter", t); cv.needsUpdate = true;
-  return <group position={pos.toArray()}><RBox size={[0.24, 0.3, 0.06]} pos={[0, 0.02, 0]} color="#2f6fdf" r={0.025} /><RBox size={[0.19, 0.12, 0.012]} pos={[0, 0.08, 0.034]} map={cv} fit r={0.004} /><Cyl r={0.008} h={0.28} pos={[0.08, 0.28, 0]} color="#c9d0d6" metal={0.8} seg={8} /><Ball r={0.02} pos={[0, -0.08, 0.034]} color="#ffd447" /></group>;
-};
+const Book: React.FC<{ pos: THREE.Vector3 }> = ({ pos }) => (
+  <group position={pos.toArray()}><RBox size={[0.26, 0.34, 0.05]} pos={[0, 0, 0]} color="#8a2f3a" r={0.015} /><RBox size={[0.22, 0.3, 0.04]} pos={[0.01, 0, 0.012]} color="#f4efdc" r={0.004} /><RBox size={[0.18, 0.04, 0.01]} pos={[0, 0.08, 0.034]} color="#c9a227" r={0.003} /></group>
+);
 const Ghost: React.FC<{ x: number; z: number; a: number; tex: THREE.Texture; f: number }> = ({ x, z, a, tex, f }) => {
   const camera = useThree((s) => s.camera), g = useRef<THREE.Group>(null);
   useLayoutEffect(() => { if (g.current) g.current.rotation.y = Math.atan2(camera.position.x - x, camera.position.z - z); });
@@ -388,7 +404,8 @@ const Lab: React.FC<{ tex: TexSet; t: number; f: number; q: number }> = ({ tex, 
       <Cyl r={0.2} h={0.5} pos={[1.6, 0.25, 2.2]} color="#7a5a3a" seg={18} /><Cyl r={0.26} h={0.04} pos={[1.6, 0.52, 2.2]} color="#9a7a52" seg={18} />
       <RBox size={[0.5, 0.5, 0.4]} pos={[4.6, 0.25, 1.8]} color="#2f3b4a" r={0.03} metal={0.3} />
       {/* the sound: rings that spread from the fan across the room */}
-      {waveOn && [0, 1, 2, 3, 4].map((i) => { const at = streamAt(t, i, 5, 3.2), u = (t - at) / 3.2; return <sprite key={i} position={[FAN.x - 0.2 - u * 1.2, FAN.y - u * 0.6, 0.3]} scale={[0.8 + u * 9, 0.8 + u * 9, 1]}><spriteMaterial map={tex.ring} transparent opacity={0.55 * (1 - u)} depthWrite={false} /></sprite>; })}
+      {waveOn && [0, 1, 2, 3, 4].map((i) => { const at = streamAt(t, i, 5, 3.2), u = (t - at) / 3.2; return <sprite key={i} position={[FAN.x - 0.2 - u * 1.2, FAN.y - u * 0.6, 0.3]} scale={[0.8 + u * 10, 0.8 + u * 10, 1]}><spriteMaterial map={tex.ring} transparent opacity={0.55 * (1 - u)} depthWrite={false} /></sprite>; })}
+      {waveOn && t >= 68.9 && [0, 1, 2, 3, 4].map((i) => { const at = streamAt(t, i, 5, 3.2), u = (t - at) / 3.2; return <sprite key={`r${i}`} position={[-5.8 + u * 1.2, 1.5, 0.3]} scale={[0.8 + u * 10, 0.8 + u * 10, 1]}><spriteMaterial map={tex.ring} transparent opacity={0.4 * (1 - u)} depthWrite={false} /></sprite>; })}
       {/* dust motes in the light, always drifting */}
       {Array.from({ length: 16 }, (_, k) => <sprite key={k} position={[-3 + rnd(k) * 9 + 0.3 * Math.sin(t * 0.5 + k), 0.6 + rnd(k + 20) * 2 + 0.1 * Math.sin(t * 0.7 + k * 2), rnd(k + 40) * 3 - 0.5]} scale={[0.05, 0.05, 1]}><spriteMaterial map={tex.soft} transparent opacity={0.5} depthWrite={false} /></sprite>)}
     </group>
@@ -402,13 +419,11 @@ const World: React.FC<{ t: number; f: number }> = ({ t, f }) => {
     tag: painted(128, 64, (c) => { c.fillStyle = "#fffaf0"; c.fillRect(0, 0, 128, 64); c.strokeStyle = "#c0392b"; c.lineWidth = 6; c.strokeRect(3, 3, 122, 58); c.fillStyle = "#c0392b"; c.font = "bold 34px Arial"; c.fillText("BARU", 22, 44); }),
     band: painted(256, 256, plaster("#2f7f86", "rgba(0,30,40,.3)")),
   } as unknown as TexSet), []);
-  const meterCv = useMemo(() => painted(256, 160, () => undefined), []);
-  const q = t >= 36 ? Math.sin(f * 1.9) : 0;
+  const q = (t >= 21.18 && t < 25.4) || t >= 43.24 ? Math.sin(f * 1.9) : 0;   // the room creaks, later it trembles with the fan
   const sci = stateOf(actor("sci"), t), hand = handAt("sci", "r", t);
   const amp = keyedAmp(t);
-  const foilState = t < FOIL_OUT || t >= FOIL_BACK ? "vice" : t < FOIL_LAID ? "hand" : "laid";
-  const meterInHand = t >= 34.3 && hand;
-  const cold = t >= 14.48 && t < 21.7 ? true : t >= 46.6 && t < 50.28;
+  const foilState = t < 4.4 ? "vice" : t < FOIL_IN ? "none" : t < 41.72 ? "hand" : t < 49.58 ? "vice" : t < FOIL_LAID ? "hand" : t < FOIL_BACK ? "laid" : "vice";
+  const cold = (t >= 21.18 && t < 36.06) || (t >= 62.92 && t < 69) || (t >= 80.4 && t < 82.5);
   return (
     <group>
       <Lab tex={tex} t={t} f={f} q={q} />
@@ -416,7 +431,7 @@ const World: React.FC<{ t: number; f: number }> = ({ t, f }) => {
       {foilState === "vice" && <Foil pos={[VICE.x - 0.12, VICE.y + 0.17, VICE.z]} amp={amp} f={f} />}
       {foilState === "hand" && hand && <Foil pos={[hand.x + 0.12, hand.y + 0.02, hand.z]} amp={amp} f={f} rotZ={0.12} />}
       {foilState === "laid" && <Foil pos={[TROLLEY.x - 0.45, 0.94, TROLLEY.z + 0.12]} amp={amp} f={f} buzz={1} />}
-      {meterInHand ? <Meter pos={V(hand.x + 0.02, hand.y + 0.06, hand.z + 0.1)} cv={meterCv} t={t} /> : <Meter pos={V(TROLLEY.x - 0.1, 1.07, TROLLEY.z)} cv={meterCv} t={t} />}
+      {t >= 62.92 && t < 66.3 && hand && <Book pos={V(hand.x + 0.04, hand.y + 0.05, hand.z + 0.12)} />}
       {cold && sci && [0, 1, 2].map((i) => <Puff key={i} x={sci.x + (sci.flip ? -0.06 : 0.06)} y={1.1} z={sci.z + 0.2} t={t} at={streamAt(t, i, 3, 1.4)} dur={1.4} size={0.2} tex={tex.soft} color="#e6f4ff" rise={0.14} />)}
       {GHOSTS.map(([a, b, x, z], i) => t >= a && t < b && <Ghost key={i} x={x} z={z} a={0.55 * Math.min(prog(t, a, a + 0.5), 1 - prog(t, b - 0.7, b))} tex={tex.ghost} f={f} />)}
     </group>
@@ -431,7 +446,7 @@ export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = () => {
   const f = Math.round(t * FPS);
   const flash = Math.max(0, 1 - Math.abs(t0 - LOOP_AT) / 0.14);
   const cam = camAt(SHOTS, t, TOTAL);
-  const hookA = t0 >= LOOP_AT ? 1 : t0 < 3.3 ? 1 : t0 < 3.74 ? 1 - (t0 - 3.3) / 0.44 : 0;
+  const hookA = t0 >= LOOP_AT ? 1 : t0 < 3.9 ? 1 : t0 < 4.4 ? 1 - (t0 - 3.9) / 0.5 : 0;
   const dk = dusk(t);
   const actors = ACTORS.map((a) => {
     const s = stateOf(a, t);

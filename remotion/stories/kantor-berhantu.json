@@ -7,7 +7,7 @@
   "Pekerja lari keluar dari lab, pelakunya bukan hantu",
   "Sosok bayangan di sudut mata, ternyata kipas baru"
  ],
- "duration": 90.0,
+ "duration": 90.02,
  "theme": "mint",
  "stage": "island",
  "captions": true,
@@ -19,7 +19,7 @@
   {
    "id": "hook",
    "kind": "hook",
-   "dur": 3.45,
+   "dur": 4.4,
    "narration": "Pedang anggar dijepit di ragum, tapi bergetar sendiri.",
    "text": "Pedang dijepit, bergetar sendiri",
    "scene": {
@@ -37,7 +37,7 @@
   {
    "id": "lab",
    "kind": "normal",
-   "dur": 12.51,
+   "dur": 12.5,
    "narration": "Ini lab alat medis, dan para ilmuwannya yakin ruangan ini berhantu. Satu pekerja lari keluar gedung. Satu lagi mengeluh murung dan menggigil. Rekan kerjanya bilang, \"Ini hantu, jangan diusik!\"",
    "text": "Lab yang dikira berhantu",
    "scene": {
@@ -55,7 +55,7 @@
   {
    "id": "malam",
    "kind": "normal",
-   "dur": 15.96,
+   "dur": 15.88,
    "narration": "Tapi seorang ilmuwan, Vic Tandy, malah lembur sendirian. Tiba-tiba dia murung, keringat dingin, dan ruangan seperti berderit. Dia abaikan derit itu dan lanjut kerja. Di sudut matanya ada sosok yang mengawasi. Dia menoleh, sosok itu lenyap.",
    "text": "Sosok di sudut mata",
    "scene": {
@@ -73,7 +73,7 @@
   {
    "id": "gas",
    "kind": "normal",
-   "dur": 5.61,
+   "dur": 5.64,
    "narration": "Dia periksa tabung gas, takut bocor. Tidak ada. Dia pulang, mengira cuma kelelahan.",
    "text": "Tabung gas aman",
    "scene": {
@@ -91,7 +91,7 @@
   {
    "id": "naik",
    "kind": "normal",
-   "dur": 16.39,
+   "dur": 16.04,
    "narration": "Besoknya dia ada lomba anggar, dan membawa pedang cadangan untuk dijepit di ragum lab. Ditinggal sebentar, bilah pedang itu bergetar liar. Rekannya berbisik, \"Pedangnya kerasukan!\" Vic malah menggeser pedang melintasi ruangan. Getarannya makin kuat di tengah, lalu mereda.",
    "text": "Getarannya makin liar",
    "scene": {
@@ -109,7 +109,7 @@
   {
    "id": "sains",
    "kind": "result",
-   "dur": 20.28,
+   "dur": 20.44,
    "narration": "Dia menelusuri sumbernya. Biangnya kipas penyedot udara yang baru dipasang. Suaranya sembilan belas hertz, terlalu rendah untuk didengar. Menurut buku yang dia baca, getaran serupa membuat pekerja pabrik menggigil, berkeringat, dan murung. Gelombangnya pas dengan ukuran ruangan, memantul dan menumpuk jadi gelombang berdiri, paling kuat di tengah.",
    "text": "Kipas baru, 19 hertz",
    "scene": {
@@ -127,7 +127,7 @@
   {
    "id": "makalah",
    "kind": "normal",
-   "dur": 9.92,
+   "dur": 10.08,
    "narration": "Di makalahnya, Vic dan rekannya menduga getaran serendah itu bisa memicu rasa takut, menggigil, bahkan sosok bayangan. Hantunya ternyata getaran yang tak terdengar.",
    "text": "Getaran memicu rasa takut",
    "scene": {
@@ -145,7 +145,7 @@
   {
    "id": "akhir",
    "kind": "normal",
-   "dur": 5.18,
+   "dur": 4.34,
    "narration": "Pedang di ragum itu bergetar sendiri, dan kali ini semua tahu sebabnya.",
    "text": "Semua tahu sebabnya",
    "scene": {
