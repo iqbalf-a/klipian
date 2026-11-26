@@ -4,12 +4,6 @@ let STATE = null;
 let CHECKED = "";                       // the links text the last green Check was for
 let timer = null;
 
-async function call(path, body) {
-  const r = await fetch(path, body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok || j.error) throw new Error(j.error || `failed (${r.status})`);
-  return j;
-}
 const links = () => $("#apUrls").value.split(/\s+/).map((s) => s.trim()).filter(Boolean);
 const say = (t) => { $("#apMsg").textContent = t || ""; };
 

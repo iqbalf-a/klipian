@@ -2,13 +2,6 @@
    Data is separated from rendering so this structure can be directly moved to
    React: each render() function below is equivalent to one component. */
 
-/* Prevent XSS: escape HTML characters before injecting into innerHTML */
-function escapeHTML(s) {
-  if (typeof s !== "string") return "";
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-}
-
 /* One file, one flow. DATA used to be mode-locked -- podcast and MLBB had
    separate examples -- but the way clips are assembled turned out to be
    identical: drop file, set frames, fix text. That category only added

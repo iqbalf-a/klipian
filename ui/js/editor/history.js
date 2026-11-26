@@ -11,17 +11,6 @@
 
 let HISTORY = [];
 
-/* "just now", "12 min ago", "3 hr ago", "yesterday", lalu tanggal. */
-function timeAgo(epochSeconds) {
-  const elapsed = Date.now() / 1000 - epochSeconds;
-  if (elapsed < 90) return "just now";
-  if (elapsed < 3600) return `${Math.round(elapsed / 60)} min ago`;
-  if (elapsed < 86400) return `${Math.round(elapsed / 3600)} hr ago`;
-  if (elapsed < 172800) return "yesterday";
-  return new Date(epochSeconds * 1000).toLocaleDateString("en-GB",
-    { day: "numeric", month: "short" });
-}
-
 async function loadHistory() {
   const note = $("#historyNote");
   try {

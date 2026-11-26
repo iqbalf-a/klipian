@@ -6,12 +6,6 @@ let SEL = "default";
 let HOURS = [];                       // the draft's upload times (the chips)
 let NOTE = { text: "", bad: false };  // what the footer says besides "Unsaved changes"
 
-async function call(path, body) {
-  const r = await fetch(path, body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok || j.error) { const e = new Error(j.error || `failed (${r.status})`); e.reply = j; throw e; }
-  return j;
-}
 const fill = (sel, list, value) => { $(sel).innerHTML = list.map((v) => `<option value="${esc(v)}"${String(v) === String(value) ? " selected" : ""}>${esc(v)}</option>`).join(""); };
 const tpl = () => STATE.templates.find((x) => x.id === SEL) || STATE.templates[0];
 
