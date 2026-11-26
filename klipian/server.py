@@ -51,21 +51,15 @@ from .jobs import style_with_profile as _style_with_profile
 from . import sched as _sched
 from .jobs import cancel_job as _cancel_job, start_project_render as _start_project_render, transcribe_key as _transcribe_key
 from .jobs import estimate_seconds as _estimate_seconds, plan_project_render as _plan_project_render
-from . import claude_api as _claude
 from . import autopilot as _autopilot
 from . import autopilot_deps as _autopilot_deps
-from . import gemini_api as _gemini
-from . import tts as _tts
 from . import rubrics as _rubrics
 from .jobs import (ACTIVE_TRANSCRIBES, CANCELLED, JOBS, LOCK, MAX_JOBS, _clip_words,
                    _register_job, _run_diarize, _run_render, _run_transcribe,
                    _spans_from_clip)
 from . import hashtags as _hashtags_mod
 from . import paths as _paths
-from . import youtube as _youtube
 from . import recycle
-from . import ytdl as _ytdl
-from . import motion as _motion
 from . import profiles as _profiles
 from . import buildid as _buildid  # noqa: F401  (STARTED is taken here, at start)
 from .paths import (ASSETS, CACHE_DIR, OUT_ROOT, ROOT, SOURCES, find_video,
@@ -74,6 +68,9 @@ from .projects import (PROJECTS, PROJECTS_LOCK, _all_projects,
                        _free_name, _migrate_project, _new_project_id, _primary_video,
                        _project_assets_dir, _project_file, _project_summary,
                        _read_project, _write_project)
+
+from .server_motion import MotionRoutes
+from .server_services import ServiceRoutes
 
 # Folders under ROOT served as-is. "assets" holds only vendored, already-
 # public files with their licenses beside them -- the OFL web fonts the UI
@@ -405,7 +402,7 @@ def _same_video(name: str, size: int) -> str | None:
 # HTTP
 # --------------------------------------------------------------------------
 
-class Handler(BaseHTTPRequestHandler):
+class Handler(MotionRoutes, ServiceRoutes, BaseHTTPRequestHandler):
     server_version = "klipian"
 
     def log_message(self, format, *args):          # noqa: A002
@@ -630,361 +627,6 @@ class Handler(BaseHTTPRequestHandler):
 
     # ---- the profile's YouTube account (youtube.py; the Guest is refused in _set_profile) ----
 
-    def _youtube_reply(self, fn, *args):
-        try:
-            return self._send_json({"ok": True, **fn(*args)})
-        except _youtube.YouTubeError as exc:
-            return self._send_json({"error": exc.message, "code": exc.code, "ok": False,
-                                    **{k: v for k, v in exc.extra.items() if k in ("detail", "report")}}, 400)
-        except OSError as exc:
-            return self._send_json({"error": f"could not do that: {exc}"}, 500)
-
-    def _get_youtube_status(self):
-        q = parse_qs(urlparse(self.path).query)
-        return self._youtube_reply(_youtube.check if (q.get("check") or [""])[0] == "1" else _youtube.status)
-
-    def _get_youtube_bulk_state(self):
-        q = parse_qs(urlparse(self.path).query)
-        return self._send_json(_youtube.bulk_state((q.get("id") or [""])[0]))
-
-    def _get_youtube_upload_state(self):
-        q = parse_qs(urlparse(self.path).query)
-        return self._send_json(_youtube.upload_state((q.get("id") or [""])[0]))
-
-    def _get_youtube_connect_state(self):
-        q = parse_qs(urlparse(self.path).query)
-        return self._send_json(_youtube.connect_state((q.get("id") or [""])[0]))
-
-    # ---- rubrics per niche (rubrics.py) ----
-
-    def _rubric_reply(self, fn):
-        try:
-            return self._send_json({"ok": True, **fn()})
-        except _rubrics.RubricError as exc:
-            return self._send_json({"ok": False, "error": str(exc)}, 400)
-
-    def _get_rubrics(self):
-        def listing():
-            q = parse_qs(urlparse(self.path).query)
-            data = _rubrics.list_all()
-            want = (q.get("mode") or [""])[0] or _profiles.defaults().get("rubric") or _rubrics.DEFAULT
-            try:
-                used, _, note = _rubrics.load(want)
-                data["current"] = {"wanted": want, "id": used, "note": note}
-            except _rubrics.RubricError as exc:
-                data["current"] = {"wanted": want, "id": None, "error": str(exc)}
-            return data
-        return self._rubric_reply(listing)
-
-    def _post_rubrics(self):
-        action = urlparse(self.path).path.rsplit("/", 1)[-1]
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
-        if action == "create":
-            return self._rubric_reply(lambda: _rubrics.create(req.get("template"), req.get("name")))
-        if action == "delete":
-            return self._rubric_reply(lambda: (_rubrics.delete(str(req.get("id") or "")), {})[1])
-        if action == "open":
-            return self._rubric_reply(lambda: (_rubrics.open_path(str(req["id"]) if req.get("id") else None), {})[1])
-        return self._send_json({"error": "unknown action"}, 404)
-
-    # ---- Find clips with Claude (claude_api.py; the key never leaves the server) ----
-
-    def _claude_reply(self, fn):
-        try:
-            return self._send_json({"ok": True, **fn()})
-        except _claude.ClaudeError as exc:
-            return self._send_json({"ok": False, "error": exc.message, "code": exc.code,
-                                    **({"command": exc.extra["command"]} if "command" in exc.extra else {})}, 400)
-        except ValueError as exc:
-            return self._send_json({"ok": False, "error": str(exc), "code": "not_ready"}, 400)
-
-    def _get_claude_status(self):
-        return self._send_json({"ok": True, **_claude.status()})
-
-    def _get_claude_models(self):
-        def models():
-            found = _claude.list_models()
-            return {"models": found, "newestOpus": _claude.newest_opus(found), "chosen": _claude.load_settings().get("model") or ""}
-        return self._claude_reply(models)
-
-    def _get_claude_usage(self):
-        return self._send_json({"ok": True, **_claude.usage_summary()})
-
-    def _get_claude_job(self):
-        q = parse_qs(urlparse(self.path).query)
-        return self._send_json(_claude.job_state((q.get("id") or [""])[0]))
-
-    def _post_claude(self):
-        action = urlparse(self.path).path.rsplit("/", 1)[-1]
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
-        if action == "settings":
-            if _paths.current_profile() == _paths.GUEST:
-                return self._send_json({"error": "not available for the Guest profile"}, 403)
-
-            def save():
-                _claude.save_settings(api_key=req.get("apiKey") if isinstance(req.get("apiKey"), str) else None,
-                                      remove_key=req.get("removeKey") is True,
-                                      model=req.get("model") if isinstance(req.get("model"), str) else None,
-                                      effort=req.get("effort") if isinstance(req.get("effort"), str) else None)
-                return _claude.status()
-            return self._claude_reply(save)
-        if action == "test":
-            return self._claude_reply(_claude.test_key)
-        if action == "cancel":
-            return self._send_json(_claude.cancel(str(req.get("id") or "")))
-        name = str(req.get("video") or "")
-        count = req.get("count")
-        count = count if isinstance(count, int) and 1 <= count <= 40 else 12
-        mode = str(req.get("rubric") or "")
-        if action == "plan":
-            return self._claude_reply(lambda: _claude.plan_find(_claude_parts(name, mode), count))
-        if action == "find":
-            def start():
-                parts = _claude_parts(name, mode)
-                return {"id": _claude.start_find(parts, lambda text: _import_reply(name, text), video=name, count=count,
-                                                 project=str(req.get("project") or "") or None)}
-            return self._claude_reply(start)
-        return self._send_json({"error": "unknown action"}, 404)
-
-    # ---- Add from YouTube (ytdl.py; allowed for the Guest too) ----
-
-    def _ytdl_reply(self, fn):
-        try:
-            return self._send_json({"ok": True, **fn()})
-        except _ytdl.YtError as exc:
-            return self._send_json({"ok": False, "error": exc.message, "code": exc.code, **exc.extra}, 400)
-        except OSError as exc:
-            return self._send_json({"ok": False, "error": f"could not do that: {exc}", "code": "other"}, 500)
-
-    def _get_ytdl_status(self):
-        return self._ytdl_reply(_ytdl.status)
-
-    def _get_ytdl_state(self):
-        q = parse_qs(urlparse(self.path).query)
-        return self._send_json(_ytdl.state((q.get("id") or [""])[0]))
-
-    def _post_ytdl(self):
-        action = urlparse(self.path).path.rsplit("/", 1)[-1]
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
-        if action == "preview":
-            return self._ytdl_reply(lambda: _ytdl.preview(str(req.get("url") or ""), req.get("quality") or 1080))
-        if action == "start":
-            return self._ytdl_reply(lambda: _ytdl.start(str(req.get("url") or ""), req.get("quality") or 1080,
-                                                        str(req["name"]) if req.get("name") else None,
-                                                        req.get("section") or None))
-        if action == "cancel":
-            return self._ytdl_reply(lambda: _ytdl.cancel(str(req.get("id") or "")))
-        if action == "update":
-            return self._ytdl_reply(lambda: {"id": _ytdl.start_update()})
-        return self._send_json({"error": "unknown action"}, 404)
-
-    # ---- Motion videos (/remotion, motion.py): a topic -> a brief -> the AI's JSON -> the fact gate -> an MP4 in Clips ----
-
-    def _motion_reply(self, fn):
-        try:
-            return self._send_json({"ok": True, **fn()})
-        except _motion.MotionError as exc:
-            status = 409 if exc.code in ("gate", "busy") else 404 if exc.code == "not_found" else 400
-            return self._send_json({"ok": False, "error": exc.message, "code": exc.code, **exc.extra}, status)
-        except OSError as exc:
-            return self._send_json({"ok": False, "error": f"could not do that: {exc}", "code": "other"}, 500)
-
-    def _get_motion_projects(self):
-        return self._motion_reply(lambda: {"projects": _motion.list_projects(), "status": _motion.status()})
-
-    def _get_motion_project(self):
-        q = parse_qs(urlparse(self.path).query)
-        return self._motion_reply(lambda: {"project": _motion.detail((q.get("id") or [""])[0])})
-
-    def _get_motion_status(self):
-        q = parse_qs(urlparse(self.path).query)
-        pid = (q.get("id") or [""])[0]
-        return self._motion_reply(lambda: {"job": _motion.job_state(pid), "status": _motion.status(), **({"project": _motion.summary(_motion.load(pid))} if pid else {})})
-
-    def _get_motion_brief(self):
-        q = parse_qs(urlparse(self.path).query)
-        pid, kind = (q.get("id") or [""])[0], (q.get("kind") or ["main"])[0]
-        peek = bool((q.get("peek") or [""])[0])           # the page fetches the brief ahead (so the Copy click is instant): that is not the brief being copied
-
-        def brief():
-            p = _motion.load(pid)
-            if kind == "revise":
-                beats = [b for b in (q.get("beats") or [""])[0].split(",") if b]
-                text = _motion.build_revise_brief(p, beats, (q.get("note") or [""])[0])
-            elif kind == "main":
-                text = _motion.build_brief(p)
-            else:
-                raise _motion.MotionError("kind", "kind: main or revise")
-            _motion.note_brief(p['id']) if kind == 'main' and not peek else None
-            reply = {"brief": text, "file": f"{p['id']}-{'revisi' if kind == 'revise' else 'brief'}.md"}
-            if kind == "main":                                # the short -create command, and whether this checkout has the skill that runs it
-                reply["short"] = _motion.short_command(p)
-                reply["createSkill"] = (Path(__file__).resolve().parent.parent / ".claude" / "skills" / "create" / "SKILL.md").is_file()
-            return reply
-        return self._motion_reply(brief)
-
-    def _get_motion_subtitles(self):
-        q = parse_qs(urlparse(self.path).query)
-        f = _motion.subtitles_file((q.get("id") or [""])[0], (q.get("format") or [""])[0])
-        if f is None:
-            return self._send_json({"error": "no subtitles yet: match the narration first"}, 404)
-        fmt = (q.get("format") or ["srt"])[0]
-        return self._send_file(f, "text/vtt; charset=utf-8" if fmt == "vtt" else "application/x-subrip; charset=utf-8")
-
-    def _get_motion_narration(self):
-        q = parse_qs(urlparse(self.path).query)
-        return self._motion_reply(lambda: _motion.narration_for(((q.get("id") or [""])[0]), ((q.get("target") or ["voicestudio"])[0])))
-
-    def _get_motion_preview_file(self):
-        q = parse_qs(urlparse(self.path).query)
-        try:
-            f = _motion.preview_file((q.get("id") or [""])[0])
-        except _motion.MotionError:
-            f = None
-        if f is None:
-            return self._send_json({"error": "no preview yet"}, 404)
-        return self._send_file(f, "video/mp4")
-
-    def _get_motion_voice_file(self):
-        q = parse_qs(urlparse(self.path).query)
-        try:
-            f = _motion.voice_file((q.get("id") or [""])[0])
-        except _motion.MotionError:
-            f = None
-        if f is None:
-            return self._send_json({"error": "no voice yet"}, 404)
-        return self._send_file(f, "audio/wav")
-
-    def _get_motion_still(self):
-        q = parse_qs(urlparse(self.path).query)
-        try:
-            f = _motion.still_file((q.get("id") or [""])[0], (q.get("beat") or [""])[0])
-        except _motion.MotionError:
-            f = None
-        if f is None:
-            return self._send_json({"error": "no such picture"}, 404)
-        return self._send_file(f, "image/png")
-
-    def _post_motion_voice_upload(self):
-        """The narration as a raw body: the video's id and the file name in the query (like the other uploads)."""
-        q = parse_qs(urlparse(self.path).query)
-        pid, name = (q.get("id") or [""])[0], Path((q.get("name") or ["narration.wav"])[0]).name
-        try:
-            n = int(self.headers.get("Content-Length", 0))
-        except ValueError:
-            n = 0
-        if n <= 0 or n > _motion.MAX_VOICE_BYTES:
-            return self._motion_reply(lambda: (_ for _ in ()).throw(_motion.MotionError("voice", "The narration must be 1 byte to 300 MB.")))
-        data = bytearray()
-        while len(data) < n:
-            chunk = self.rfile.read(min(1 << 20, n - len(data)))
-            if not chunk:
-                break
-            data += chunk
-        return self._motion_reply(lambda: {"voice": _motion.import_voice(pid, data=bytes(data), name=name)})
-
-    def _post_motion(self):
-        action = urlparse(self.path).path.rsplit("/", 1)[-1]
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
-        pid = str(req.get("id") or "")
-        if action == "create":
-            return self._motion_reply(lambda: {"project": _motion.summary(_motion.create(req.get("topic"), req.get("duration") or _motion.DEFAULT_DURATION, req.get("notes") or "", req.get("options")))})
-        if action == "briefed":                                       # the person copied or downloaded the brief: the next step moves on
-            return self._motion_reply(lambda: (_motion.note_brief(pid), {})[1])
-        if action == "options":                                       # loop, the sting, the voice target, the music, the kind
-            return self._motion_reply(lambda: _motion.set_options(pid, req.get("options") or {}))
-        if action == "paste":
-            return self._motion_reply(lambda: _motion.paste(pid, str(req.get("text") or ""), str(req.get("kind") or "main")))
-        if action == "facts":
-            return self._motion_reply(lambda: _motion.set_facts(pid, req))
-        if action == "update":
-            def upd():
-                out = {}
-                if isinstance(req.get("project"), dict):
-                    out["project"] = _motion.summary(_motion.update_project(pid, req["project"]))
-                if isinstance(req.get("edits"), dict):
-                    out.update(_motion.update(pid, req["edits"]))
-                return out
-            return self._motion_reply(upd)
-        if action == "preview":
-            return self._motion_reply(lambda: {"job": _motion.preview(pid)})
-        if action == "render":
-            return self._motion_reply(lambda: {"job": _motion.render(pid)})
-        if action == "cancel":
-            return self._motion_reply(lambda: {"job": _motion.cancel(pid)})
-        if action == "delete":
-            return self._motion_reply(lambda: (_motion.delete_project(pid), {})[1])
-        if action == "voice":                                         # the narration, from a file on this computer
-            return self._motion_reply(lambda: {"voice": _motion.import_voice(pid, source=Path(str(req.get("path") or "").strip().strip('"')), name=str(req.get("name") or ""))})
-        if action == "voice-align":
-            return self._motion_reply(lambda: {"job": _motion.align_voice(pid)})
-        if action == "voice-clear":
-            return self._motion_reply(lambda: (_motion.clear_voice(pid), {})[1])
-        if action == "voice-tts":
-            return self._motion_reply(lambda: {"voice": _motion.make_voice_with_tts(pid)})
-        if action == "voice-parts":                                   # several narration files, by their paths on this computer (ordered by their numbers)
-            paths_list = [Path(str(x).strip().strip('"')) for x in (req.get("paths") or []) if str(x).strip()]
-            return self._motion_reply(lambda: {"voice": _motion.import_voice_parts(pid, paths_list, float(req.get("gap") if req.get("gap") is not None else _motion.voicelib.GAP))})
-        if action == "voice-part":                                    # one part of the series replaced by another file
-            return self._motion_reply(lambda: {"voice": _motion.replace_voice_part(pid, int(req.get("no") or 0), Path(str(req.get("path") or "").strip().strip('"')))})
-        if action == "voice-length":                                  # the length choice: continue at the narration's length, or edit the text
-            return self._motion_reply(lambda: {"voice": _motion.choose_length(pid, str(req.get("choice") or ""))})
-        if action == "take-folder":                                    # Khusus: the story.json of the folder the person chose (the only file read)
-            return self._motion_reply(lambda: _motion.take_folder(pid, str(req.get("slug") or "")))
-        if action == "preview-video":
-            return self._motion_reply(lambda: {"job": _motion.preview_video(pid)})
-        return self._send_json({"error": "unknown action"}, 404)
-
-    def _post_youtube(self):
-        action = urlparse(self.path).path.rsplit("/", 1)[-1]
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
-        if action == "refresh-due":
-            return self._youtube_reply(_youtube.refresh_due)
-        if action == "sync-all":
-            return self._youtube_reply(_youtube.sync_all)
-        if action == "client":
-            # The contents come from a file the person chose; they are checked and kept, never echoed.
-            def put():
-                _youtube.save_client_secret(str(req.get("text") or ""))
-                return _youtube.status()
-            return self._youtube_reply(put)
-        if action == "connect":
-            return self._youtube_reply(lambda: {"id": _youtube.start_connect()})
-        if action == "check":
-            return self._youtube_reply(_youtube.check)
-        if action == "bulk-plan":
-            return self._youtube_reply(lambda: _youtube.bulk_plan([str(i) for i in (req.get("ids") or [])], str(req.get("mode") or "schedule")))
-        if action == "bulk-start":
-            return self._youtube_reply(lambda: {"id": _youtube.start_bulk([str(i) for i in (req.get("ids") or [])], str(req.get("mode") or "schedule"))})
-        if action == "bulk-cancel":
-            return self._youtube_reply(lambda: _youtube.cancel_bulk(str(req.get("id") or "")))
-        if action == "upload":
-            return self._youtube_reply(lambda: {"id": _youtube.start_upload(str(req.get("row") or ""), bool(req.get("publishNow")))})
-        if action == "upload-cancel":
-            return self._youtube_reply(lambda: _youtube.cancel_upload(str(req.get("id") or "")))
-        if action == "resend-thumbnail":
-            return self._youtube_reply(lambda: _youtube.resend_thumbnail(str(req.get("row") or "")))
-        if action == "video-status":
-            return self._youtube_reply(lambda: _youtube.video_status(str(req.get("row") or "")))
-        if action == "disconnect":
-            return self._youtube_reply(_youtube.disconnect)
-        return self._send_json({"error": "unknown endpoint"}, 404)
-
     def _post_profiles(self):
         """create / update / delete / clear-guest. None needs a profile in the header."""
         try:
@@ -1008,160 +650,6 @@ class Handler(BaseHTTPRequestHandler):
         except OSError as exc:
             return self._send_json({"error": f"could not do that: {exc}"}, 500)
         return self._send_json({"error": "unknown endpoint"}, 404)
-
-    def _get_machine(self):
-        """Settings of THIS COMPUTER (not of a profile): how many renders may run at once."""
-        return self._send_json({"renderJobs": _sched.render_limit(), "renderJobsMax": _sched.RENDER_JOBS_MAX})
-
-    def _post_machine(self):
-        try:
-            req = self._read_json()
-            return self._send_json({"ok": True, "renderJobs": _sched.set_render_limit(req.get("renderJobs")),
-                                    "renderJobsMax": _sched.RENDER_JOBS_MAX})
-        except ValueError as exc:
-            return self._send_json({"error": str(exc)}, 400)
-        except OSError as exc:
-            return self._send_json({"error": f"could not save: {exc}"}, 500)
-
-    def _get_tts(self):
-        return self._send_json({"ok": True, **_tts.state()})
-
-    def _post_tts(self):
-        try:
-            req = self._read_json()
-            _tts.save(str(req.get("model") or ""), str(req.get("voice") or ""), str(req.get("style") or ""), req.get("noStyle") is True)
-            return self._send_json({"ok": True, **_tts.state()})
-        except ValueError as exc:
-            return self._send_json({"error": str(exc)}, 400)
-        except OSError as exc:
-            return self._send_json({"error": f"could not save: {exc}"}, 500)
-
-    def _post_tts_try(self):
-        """One sample sentence in the saved voice: the WAV as base64 (a repeat of the same settings comes from the cache, no call to Google)."""
-        import base64
-        try:
-            wav, secs = _tts.voice_for(_tts.SAMPLE)
-            return self._send_json({"ok": True, "seconds": round(secs, 1), "audio": base64.b64encode(wav.read_bytes()).decode("ascii")})
-        except _tts.TtsError as exc:
-            return self._send_json({"error": str(exc)}, 400)
-
-    # ---- Autopilot (autopilot.py; the page is /autopilot) ----
-
-    def _autopilot_reply(self, fn):
-        try:
-            return self._send_json({"ok": True, **fn()})
-        except _autopilot.RunError as exc:
-            return self._send_json({"ok": False, "error": str(exc)}, 400)
-        except (ValueError, OSError) as exc:
-            return self._send_json({"ok": False, "error": str(exc)}, 400)
-
-    def _get_autopilot_state(self):
-        def state():
-            claude = _claude.status()
-            return {"settings": _autopilot.profile_settings(),
-                    "templates": [{"id": t["id"], "name": t["name"], "summary": _autopilot.summary(t)} for t in _autopilot.list_templates()],
-                    "ai": {"claudeReady": bool(claude["sdk"] and claude["hasKey"]), "geminiKey": _gemini.status()["hasKey"],
-                           "geminiModel": _gemini.status()["model"]},
-                    "runs": [_autopilot.public_run(r) for r in reversed(_autopilot.load_runs())],
-                    "labels": _autopilot.STEP_LABELS, "steps": list(_autopilot.STEPS)}
-        return self._autopilot_reply(state)
-
-    def _get_autopilot_rerun_info(self):
-        rid = (parse_qs(urlparse(self.path).query).get("id") or [""])[0]
-        return self._autopilot_reply(lambda: _autopilot.rerun_info(rid, _autopilot_deps.RealDeps()))
-
-    def _get_autopilot_brief(self):
-        rid = (parse_qs(urlparse(self.path).query).get("id") or [""])[0]
-        run = _autopilot.get_run(rid)
-        if not run or not run.get("brief"):
-            return self._send_json({"error": "This run has no brief to copy."}, 404)
-        return self._send_text(run["brief"], "text/markdown")
-
-    def _post_autopilot(self):
-        action = urlparse(self.path).path.rsplit("/", 1)[-1]
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
-        deps = _autopilot_deps.RealDeps()
-        urls = [str(u).strip() for u in (req.get("urls") or []) if str(u).strip()]
-        if action == "settings":
-            def save():
-                fields = {k: req[k] for k in ("ai", "template") if k in req}
-                _profiles.update(_paths.current_profile(), fields)
-                return {"settings": _autopilot.profile_settings()}
-            return self._autopilot_reply(save)
-        if action == "check":
-            return self._autopilot_reply(lambda: _autopilot.check(urls, deps))
-        if action == "start":
-            return self._autopilot_reply(lambda: {"runs": _autopilot.start_runs(urls, deps)})
-        rid = str(req.get("id") or "")
-        if action == "retry":
-            return self._autopilot_reply(lambda: {"run": _autopilot.retry(rid, deps)})
-        if action == "cancel":
-            return self._autopilot_reply(lambda: {"run": _autopilot.cancel(rid)})
-        if action == "rerun":
-            return self._autopilot_reply(lambda: {"run": _autopilot.rerun(rid, str(req.get("from") or ""), str(req.get("ai") or ""), deps)})
-        if action == "clear":
-            return self._autopilot_reply(lambda: {"removed": _autopilot.clear_finished()})
-        if action == "reply":
-            return self._autopilot_reply(lambda: {"run": _autopilot.reply(rid, str(req.get("text") or ""), deps)})
-        return self._send_json({"error": "unknown action"}, 404)
-
-    # ---- Admin settings (the Admin profile only: _set_profile refuses everyone else) ----
-
-    def _admin_state(self):
-        return {"ok": True, "templates": _autopilot.list_templates(), "gemini": _gemini.status(),
-                "options": {"pictures": _autopilot.PICTURES, "backgrounds": _autopilot.BACKGROUNDS,
-                            "introStyles": _autopilot.INTRO_STYLES, "qualities": _autopilot.QUALITIES}}
-
-    def _gemini_reply(self, fn):
-        try:
-            return self._send_json({"ok": True, **fn()})
-        except _gemini.GeminiError as exc:
-            return self._send_json({"ok": False, "error": exc.message, "code": exc.code, **_gemini.status()}, 400)
-
-    def _get_admin_settings(self):
-        return self._send_json(self._admin_state())
-
-    def _get_admin_models(self):
-        return self._gemini_reply(lambda: {"models": _gemini.list_models()})
-
-    def _post_admin(self):
-        action = urlparse(self.path).path.rsplit("/", 1)[-1]
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
-        if action == "test":
-            return self._gemini_reply(lambda: {**_gemini.test_key(), "gemini": _gemini.status()})
-        try:
-            tid = str(req.get("template") or "")
-            if action == "template":                         # create | duplicate | save | reset | delete
-                what = req.get("action")
-                if what == "create":
-                    _autopilot.create_template(str(req.get("name") or ""))
-                elif what == "duplicate":
-                    _autopilot.create_template(str(req.get("name") or ""), copy_of=tid)
-                elif what == "save":
-                    _autopilot.save_template(tid, req.get("values") if isinstance(req.get("values"), dict) else {})
-                elif what == "reset":
-                    _autopilot.reset_template(tid)
-                elif what == "delete":
-                    _autopilot.delete_template(tid)
-                else:
-                    return self._send_json({"error": "unknown template action"}, 400)
-                return self._send_json(self._admin_state())
-            g = req.get("gemini") if isinstance(req.get("gemini"), dict) else {}
-            if g:
-                _gemini.save_settings(api_key=g.get("apiKey") if isinstance(g.get("apiKey"), str) else None,
-                                      remove_key=g.get("removeKey") is True,
-                                      model=g.get("model") if isinstance(g.get("model"), str) else None)
-        except (ValueError, _profiles.ProfileError) as exc:
-            return self._send_json({"error": str(exc)}, 400)
-        except OSError as exc:
-            return self._send_json({"error": f"could not save: {exc}"}, 500)
-        return self._send_json(self._admin_state())
 
     def _get_profiles(self):
         """The profiles to pick from, and the Guest. Names and colours only."""
@@ -1671,33 +1159,33 @@ class Handler(BaseHTTPRequestHandler):
         "/api/thumb": _get_thumb,
         "/api/version": _get_version,
         "/api/profiles": _get_profiles,
-        "/api/profiles/machine": _get_machine,
-        "/api/admin/tts": _get_tts,
-        "/api/rubrics": _get_rubrics,
-        "/api/autopilot/state": _get_autopilot_state,
-        "/api/autopilot/brief": _get_autopilot_brief,
-        "/api/autopilot/rerun-info": _get_autopilot_rerun_info,
-        "/api/admin/settings": _get_admin_settings,
-        "/api/admin/gemini/models": _get_admin_models,
-        "/api/claude/status": _get_claude_status,
-        "/api/claude/models": _get_claude_models,
-        "/api/claude/usage": _get_claude_usage,
-        "/api/claude/job": _get_claude_job,
-        "/api/motion/projects": _get_motion_projects,
-        "/api/motion/project": _get_motion_project,
-        "/api/motion/status": _get_motion_status,
-        "/api/motion/brief": _get_motion_brief,
-        "/api/motion/still": _get_motion_still,
-        "/api/motion/subtitles": _get_motion_subtitles,
-        "/api/motion/preview-file": _get_motion_preview_file,
-        "/api/motion/narration": _get_motion_narration,
-        "/api/motion/voice-file": _get_motion_voice_file,
-        "/api/ytdl/status": _get_ytdl_status,
-        "/api/ytdl/state": _get_ytdl_state,
-        "/api/youtube/status": _get_youtube_status,
-        "/api/youtube/connect-state": _get_youtube_connect_state,
-        "/api/youtube/upload-state": _get_youtube_upload_state,
-        "/api/youtube/bulk-state": _get_youtube_bulk_state,
+        "/api/profiles/machine": ServiceRoutes._get_machine,
+        "/api/admin/tts": ServiceRoutes._get_tts,
+        "/api/rubrics": ServiceRoutes._get_rubrics,
+        "/api/autopilot/state": ServiceRoutes._get_autopilot_state,
+        "/api/autopilot/brief": ServiceRoutes._get_autopilot_brief,
+        "/api/autopilot/rerun-info": ServiceRoutes._get_autopilot_rerun_info,
+        "/api/admin/settings": ServiceRoutes._get_admin_settings,
+        "/api/admin/gemini/models": ServiceRoutes._get_admin_models,
+        "/api/claude/status": ServiceRoutes._get_claude_status,
+        "/api/claude/models": ServiceRoutes._get_claude_models,
+        "/api/claude/usage": ServiceRoutes._get_claude_usage,
+        "/api/claude/job": ServiceRoutes._get_claude_job,
+        "/api/motion/projects": MotionRoutes._get_motion_projects,
+        "/api/motion/project": MotionRoutes._get_motion_project,
+        "/api/motion/status": MotionRoutes._get_motion_status,
+        "/api/motion/brief": MotionRoutes._get_motion_brief,
+        "/api/motion/still": MotionRoutes._get_motion_still,
+        "/api/motion/subtitles": MotionRoutes._get_motion_subtitles,
+        "/api/motion/preview-file": MotionRoutes._get_motion_preview_file,
+        "/api/motion/narration": MotionRoutes._get_motion_narration,
+        "/api/motion/voice-file": MotionRoutes._get_motion_voice_file,
+        "/api/ytdl/status": ServiceRoutes._get_ytdl_status,
+        "/api/ytdl/state": ServiceRoutes._get_ytdl_state,
+        "/api/youtube/status": ServiceRoutes._get_youtube_status,
+        "/api/youtube/connect-state": ServiceRoutes._get_youtube_connect_state,
+        "/api/youtube/upload-state": ServiceRoutes._get_youtube_upload_state,
+        "/api/youtube/bulk-state": ServiceRoutes._get_youtube_bulk_state,
         "/api/probe": _get_probe,
         "/api/history": _get_history,
         "/api/projects": _get_projects,
@@ -2669,46 +2157,46 @@ class Handler(BaseHTTPRequestHandler):
         "/api/aiframe": _post_aiframe,
         "/api/project": _post_project,
         "/api/project/restore": _post_project_restore,
-        "/api/motion/create": _post_motion,
-        "/api/motion/paste": _post_motion,
-        "/api/motion/facts": _post_motion,
-        "/api/motion/update": _post_motion,
-        "/api/motion/preview": _post_motion,
-        "/api/motion/render": _post_motion,
-        "/api/motion/cancel": _post_motion,
-        "/api/motion/delete": _post_motion,
-        "/api/motion/voice": _post_motion,
-        "/api/motion/voice-align": _post_motion,
-        "/api/motion/voice-clear": _post_motion,
-        "/api/motion/voice-tts": _post_motion,
-        "/api/motion/voice-parts": _post_motion,
-        "/api/motion/voice-part": _post_motion,
-        "/api/motion/voice-length": _post_motion,
-        "/api/motion/preview-video": _post_motion,
-        "/api/motion/options": _post_motion,
-        "/api/motion/briefed": _post_motion,
-        "/api/motion/take-folder": _post_motion,
-        "/api/motion/voice-upload": _post_motion_voice_upload,
-        "/api/ytdl/preview": _post_ytdl,
-        "/api/ytdl/start": _post_ytdl,
-        "/api/ytdl/cancel": _post_ytdl,
-        "/api/ytdl/update": _post_ytdl,
-        "/api/youtube/refresh-due": _post_youtube,
-        "/api/youtube/sync-all": _post_youtube,
-        "/api/youtube/client": _post_youtube,
-        "/api/youtube/connect": _post_youtube,
-        "/api/youtube/check": _post_youtube,
-        "/api/youtube/upload": _post_youtube,
-        "/api/youtube/resend-thumbnail": _post_youtube,
-        "/api/youtube/bulk-plan": _post_youtube,
-        "/api/youtube/bulk-start": _post_youtube,
-        "/api/youtube/bulk-cancel": _post_youtube,
-        "/api/youtube/upload-cancel": _post_youtube,
-        "/api/youtube/video-status": _post_youtube,
-        "/api/youtube/disconnect": _post_youtube,
-        "/api/profiles/machine": _post_machine,
-        "/api/admin/tts": _post_tts,
-        "/api/admin/tts/try": _post_tts_try,
+        "/api/motion/create": MotionRoutes._post_motion,
+        "/api/motion/paste": MotionRoutes._post_motion,
+        "/api/motion/facts": MotionRoutes._post_motion,
+        "/api/motion/update": MotionRoutes._post_motion,
+        "/api/motion/preview": MotionRoutes._post_motion,
+        "/api/motion/render": MotionRoutes._post_motion,
+        "/api/motion/cancel": MotionRoutes._post_motion,
+        "/api/motion/delete": MotionRoutes._post_motion,
+        "/api/motion/voice": MotionRoutes._post_motion,
+        "/api/motion/voice-align": MotionRoutes._post_motion,
+        "/api/motion/voice-clear": MotionRoutes._post_motion,
+        "/api/motion/voice-tts": MotionRoutes._post_motion,
+        "/api/motion/voice-parts": MotionRoutes._post_motion,
+        "/api/motion/voice-part": MotionRoutes._post_motion,
+        "/api/motion/voice-length": MotionRoutes._post_motion,
+        "/api/motion/preview-video": MotionRoutes._post_motion,
+        "/api/motion/options": MotionRoutes._post_motion,
+        "/api/motion/briefed": MotionRoutes._post_motion,
+        "/api/motion/take-folder": MotionRoutes._post_motion,
+        "/api/motion/voice-upload": MotionRoutes._post_motion_voice_upload,
+        "/api/ytdl/preview": ServiceRoutes._post_ytdl,
+        "/api/ytdl/start": ServiceRoutes._post_ytdl,
+        "/api/ytdl/cancel": ServiceRoutes._post_ytdl,
+        "/api/ytdl/update": ServiceRoutes._post_ytdl,
+        "/api/youtube/refresh-due": ServiceRoutes._post_youtube,
+        "/api/youtube/sync-all": ServiceRoutes._post_youtube,
+        "/api/youtube/client": ServiceRoutes._post_youtube,
+        "/api/youtube/connect": ServiceRoutes._post_youtube,
+        "/api/youtube/check": ServiceRoutes._post_youtube,
+        "/api/youtube/upload": ServiceRoutes._post_youtube,
+        "/api/youtube/resend-thumbnail": ServiceRoutes._post_youtube,
+        "/api/youtube/bulk-plan": ServiceRoutes._post_youtube,
+        "/api/youtube/bulk-start": ServiceRoutes._post_youtube,
+        "/api/youtube/bulk-cancel": ServiceRoutes._post_youtube,
+        "/api/youtube/upload-cancel": ServiceRoutes._post_youtube,
+        "/api/youtube/video-status": ServiceRoutes._post_youtube,
+        "/api/youtube/disconnect": ServiceRoutes._post_youtube,
+        "/api/profiles/machine": ServiceRoutes._post_machine,
+        "/api/admin/tts": ServiceRoutes._post_tts,
+        "/api/admin/tts/try": ServiceRoutes._post_tts_try,
         "/api/profiles/create": _post_profiles,
         "/api/profiles/update": _post_profiles,
         "/api/profiles/delete": _post_profiles,
@@ -2734,25 +2222,25 @@ class Handler(BaseHTTPRequestHandler):
         "/api/render/plan": _post_render_plan,
         "/api/result-reply": _post_result_reply,
         "/api/results-reply": _post_results_reply,
-        "/api/rubrics/create": _post_rubrics,
-        "/api/rubrics/delete": _post_rubrics,
-        "/api/rubrics/open": _post_rubrics,
-        "/api/admin/settings": _post_admin,
-        "/api/admin/gemini/test": _post_admin,
-        "/api/admin/template": _post_admin,
-        "/api/autopilot/settings": _post_autopilot,
-        "/api/autopilot/check": _post_autopilot,
-        "/api/autopilot/start": _post_autopilot,
-        "/api/autopilot/retry": _post_autopilot,
-        "/api/autopilot/cancel": _post_autopilot,
-        "/api/autopilot/clear": _post_autopilot,
-        "/api/autopilot/rerun": _post_autopilot,
-        "/api/autopilot/reply": _post_autopilot,
-        "/api/claude/settings": _post_claude,
-        "/api/claude/test": _post_claude,
-        "/api/claude/plan": _post_claude,
-        "/api/claude/find": _post_claude,
-        "/api/claude/cancel": _post_claude,
+        "/api/rubrics/create": ServiceRoutes._post_rubrics,
+        "/api/rubrics/delete": ServiceRoutes._post_rubrics,
+        "/api/rubrics/open": ServiceRoutes._post_rubrics,
+        "/api/admin/settings": ServiceRoutes._post_admin,
+        "/api/admin/gemini/test": ServiceRoutes._post_admin,
+        "/api/admin/template": ServiceRoutes._post_admin,
+        "/api/autopilot/settings": ServiceRoutes._post_autopilot,
+        "/api/autopilot/check": ServiceRoutes._post_autopilot,
+        "/api/autopilot/start": ServiceRoutes._post_autopilot,
+        "/api/autopilot/retry": ServiceRoutes._post_autopilot,
+        "/api/autopilot/cancel": ServiceRoutes._post_autopilot,
+        "/api/autopilot/clear": ServiceRoutes._post_autopilot,
+        "/api/autopilot/rerun": ServiceRoutes._post_autopilot,
+        "/api/autopilot/reply": ServiceRoutes._post_autopilot,
+        "/api/claude/settings": ServiceRoutes._post_claude,
+        "/api/claude/test": ServiceRoutes._post_claude,
+        "/api/claude/plan": ServiceRoutes._post_claude,
+        "/api/claude/find": ServiceRoutes._post_claude,
+        "/api/claude/cancel": ServiceRoutes._post_claude,
         "/api/preview": _post_preview,
         "/api/transcribe": _post_transcribe,
         "/api/diarize": _post_diarize,
