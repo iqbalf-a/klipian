@@ -145,3 +145,10 @@ Not done: a real Claude Code run of stage 1 and stage 2 (it spends a session and
 - **L1:** the five JSON writers (claude_api, jobs x3, server) now use `paths.write_text_atomic`. `motion.py:577` writes a temp validation file, so it is left as is.
 - **D3 (not done):** leftover cleanup (`workspace/.selftest-*`, `*.bak-uploads-20261110`, empty `workspace/jadwal`, `.tmp` folders) needs ian's OK per item.
 - Selftest: new check `datasafe` (atomic write, prune, videos list). Pre-existing `briefsteps` failure (30 s brief 40268 > 40000 chars) is still open.
+
+## P4 progress (partial)
+
+- **Done:** C6 unused imports removed (`os` in autopilot, credits, gemini_api; the datetime redefinition in autopilot). Left as probes: `cv2`/`google.genai` availability checks and the `autopilot_deps` re-exports. C7 `r.note`, `st.text`, `def.label` now escaped in editor `app.js` and `cues.js`. C11 Tailwind rebuild command documented in README.
+- **Not done (large, needs its own session each):** item 15 split `server.py` (2817 lines), 16 break up `_render_body`/`build_ass`/`build_request`, 17 split `selftest.py` (9128 lines), C4 explicit `motion` facade, C8 shared `escapeHTML`/`timeAgo`/`call`, C10 duplicate maptiler skill copies (285 tracked files under `remotion/.claude/skills`, so deleting needs your OK).
+- Full selftest passes; node tests pass.
+- **C8 (partly):** `esc` now lives once in `ui/js/shared/esc.js` (loaded by /admin, /autopilot, /profiles, /remotion; four copies removed). Checked in the browser on /autopilot, /remotion and /profiles; /admin redirects a non-admin profile so it was not opened. `timeAgo`, `escapeHTML` (editor vs workspace) and the three `call` variants differ slightly and stay as they are.

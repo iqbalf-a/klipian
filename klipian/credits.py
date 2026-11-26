@@ -14,7 +14,6 @@ A credit is attribution, not permission to reuse the video.
 from __future__ import annotations
 
 import json
-import os
 import time
 from pathlib import Path
 

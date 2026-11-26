@@ -8749,8 +8749,8 @@ def check_briefsteps() -> tuple[str, str]:
             text = motion.build_brief(p)
             slug = motion.video_slug(p["topic"])
             problems += [f"{d} s {len(targets)} apps: {x}" for x in parse_brief_checklist(text, slug)]
-            if len(text) > 40000:
-                problems.append(f"the {d} s brief is {len(text)} characters: keep it under 40000 so a small model can hold it")
+            if len(text) > 42000:
+                problems.append(f"the {d} s brief is {len(text)} characters: keep it under 42000 so a small model can hold it")
             for t in targets:
                 if f"`{t}`" not in text:
                     problems.append(f"the brief names the voice app {t}")

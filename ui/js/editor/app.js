@@ -770,7 +770,7 @@ function drawQueue() {
                 role="progressbar" aria-label="${escapeHTML(r.name)}" aria-valuemin="0" aria-valuemax="100"
                 ${r.busy && !r.determinate ? "" : `aria-valuenow="${r.pct}"`}
           ><i style="width:${r.busy && !r.determinate ? 100 : r.pct}%"></i></span>
-          <span class="meta">${r.note}</span>
+          <span class="meta">${escapeHTML(r.note)}</span>
           <button class="btn ${r.pct === 100 ? "main" : ""}"
                   data-action="${r.pct === 100 ? "open" : (r.act || "cancel")}"
           >${r.action}</button>

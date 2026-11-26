@@ -69,9 +69,9 @@ function cueChipHTML(def, { info = true } = {}) {
   return `<span class="cue-chip" role="listitem" data-kind="${def.kind}" data-state="${st.state}">
     <i class="cue-dot" aria-hidden="true"></i>
     <span class="cue-label">${cueLabel(def, (CUES.counts || {})[def.kind] || 0)}${def.avoid ? " (avoid)" : ""}</span>
-    <b>${st.text}</b>
+    <b>${escapeHTML(st.text)}</b>
     ${info ? `<button class="cue-info" type="button" data-cue-info="${def.kind}"
-      aria-label="About ${def.label}">${cueInfoIcon}</button>` : ""}
+      aria-label="About ${escapeHTML(def.label)}">${cueInfoIcon}</button>` : ""}
   </span>`;
 }
 
@@ -103,7 +103,7 @@ function drawHooksList() {
       <span class="hook-name">${cueLabel(d, n)}${d.avoid ? " (avoid)" : ""}</span>
       <span class="hook-short">${d.short}</span>
       <button class="cue-info" type="button" data-cue-info="${d.kind}" aria-label="About ${d.label}">${cueInfoIcon}</button>
-      <b class="hook-status">${st.text}</b>
+      <b class="hook-status">${escapeHTML(st.text)}</b>
     </li>`;
   }).join("");
   const s = CUES.status || {};
@@ -180,7 +180,7 @@ function showCueTip(btn) {
   const def = CUE_KINDS.find((d) => d.kind === btn.dataset.cueInfo);
   const tip = $("#cueTip");
   if (!def || !tip) return;
-  tip.innerHTML = `<b>${def.label}</b><p>${def.what}</p><p><span>Detected</span> ${def.how}</p><p><span>For Claude</span> ${def.use}</p>`;
+  tip.innerHTML = `<b>${escapeHTML(def.label)}</b><p>${def.what}</p><p><span>Detected</span> ${def.how}</p><p><span>For Claude</span> ${def.use}</p>`;
   tip.hidden = false;
   const r = btn.getBoundingClientRect();
   const w = tip.offsetWidth, h = tip.offsetHeight;

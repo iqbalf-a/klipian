@@ -22,7 +22,6 @@ function enter(id) {
 
 /* Avatar letter: the word after "klipian" (klipian podcast -> P), so profiles do not all read "K". */
 const profileInitial = (name) => { const w = String(name || "").trim().split(/\s+/); return ((w[0].toLowerCase() === "klipian" && w[1] ? w[1] : w[0]) || "?").slice(0, 1).toUpperCase(); };
-const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
 async function api(path, body) {
   const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });

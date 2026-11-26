@@ -1,6 +1,5 @@
 /* klipian: Autopilot (/autopilot). Links -> Check -> Start; the run list follows the server (polled while a run is going). */
 const $ = (s) => document.querySelector(s);
-const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 let STATE = null;
 let CHECKED = "";                       // the links text the last green Check was for
 let timer = null;

@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import copy
 import json
-import os
 import random
 import re
 import uuid
@@ -352,7 +351,6 @@ def build_result(cand: dict, template: dict, result_id: str, asset: str = "a1") 
 import contextvars
 import threading
 import time
-from datetime import datetime
 
 AI_MODES = ("manual", "claude", "gemini")
 STEPS = ("download", "transcribe", "project", "clips", "results", "framing", "render", "schedule")

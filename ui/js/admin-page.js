@@ -1,7 +1,6 @@
 /* klipian: Admin settings (/admin). The key is only ever sent TO the server; the page gets a hint of it back.
    The model and the template are edited as a draft: nothing is saved until Save (the key buttons act at once). */
 const $ = (s) => document.querySelector(s);
-const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 let STATE = null;
 let SEL = "default";
 let HOURS = [];                       // the draft's upload times (the chips)

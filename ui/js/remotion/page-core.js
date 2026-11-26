@@ -13,7 +13,6 @@ let NARR_APP = null;            // the app whose text the script step shows
 let PART_TO_REPLACE = null;     // the number of the part the next path replaces (set by "Replace part")
 const briefCache = new Map();   // `${id}:main` -> text (fetched ahead, so the Copy click can write to the clipboard at once)
 
-const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const byId = (id) => document.getElementById(id);
 
 async function call(path, body) {
