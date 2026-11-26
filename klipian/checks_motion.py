@@ -1136,14 +1136,14 @@ def check_motionstate() -> tuple[str, str]:
         got = motion.next_step(facts)
         if got["key"] != want:
             problems.append(f"the next step for {want} is {want}: {got}")
-    if motion.next_step({**base, "custom": True, "folder": "cerita diambil"})["key"] != "render":
+    if motion.next_step({**base, "custom": True, "folder": "loaded"})["key"] != "render":
         problems.append("a Khusus video whose story is taken goes on to the render")
-    if motion.next_step({**base, "custom": True, "folder": "folder berubah"})["key"] != "retake":
+    if motion.next_step({**base, "custom": True, "folder": "changed"})["key"] != "retake":
         problems.append("a changed folder asks to take the story again")
-    vf = {**base, "custom": True, "flow": "voice", "folder": "belum dipilih"}        # voice first: the story, the voice, and only then the folder
+    vf = {**base, "custom": True, "flow": "voice", "folder": "not-chosen"}        # voice first: the story, the voice, and only then the folder
     for facts, want in (({**vf, "story": False, "briefed": False}, "brief"), ({**vf, "story": False}, "paste"), ({**vf, "voice": False}, "voice"), ({**vf, "voice": True, "aligned": False}, "align"),
-                        ({**vf, "voice": True, "aligned": True}, "folder"), ({**vf, "voice": True, "aligned": True, "folder": "cerita belum diambil"}, "take"),
-                        ({**vf, "voice": True, "aligned": True, "folder": "folder berubah"}, "retake"), ({**base, "custom": True, "flow": "picture", "folder": None}, "folder")):
+                        ({**vf, "voice": True, "aligned": True}, "folder"), ({**vf, "voice": True, "aligned": True, "folder": "not-loaded"}, "take"),
+                        ({**vf, "voice": True, "aligned": True, "folder": "changed"}, "retake"), ({**base, "custom": True, "flow": "picture", "folder": None}, "folder")):
         if motion.next_step(facts)["key"] != want:
             problems.append(f"voice first: the next step should be {want}: {motion.next_step(facts)}")
     if motion.normalize_options({})["flow"] != "picture" or motion.normalize_options({"flow": "voice"})["flow"] != "voice":
@@ -1155,12 +1155,12 @@ def check_motionstate() -> tuple[str, str]:
         pass
 
     chips = {c["key"]: c["state"] for c in motion.stage_chips({**base, "pending": 1, "voice": True, "aligned": True, "stills": "stale", "render": "stale"})}
-    if chips.get("klaim") != "perlu" or chips.get("suara") != "selesai" or chips.get("gambar") != "usang" or chips.get("render") != "usang":
+    if chips.get("claims") != "needed" or chips.get("voice") != "done" or chips.get("pictures") != "stale" or chips.get("render") != "stale":
         problems.append(f"the stage chips show the state: {chips}")
-    blocked = {c["key"]: c["state"] for c in motion.stage_chips({**base, "custom": True, "folder": "folder berubah", "render": "current", "gate": ["The story in the folder changed: load it again first."]})}
-    if blocked.get("render") != "usang" or blocked.get("cerita") != "usang":
+    blocked = {c["key"]: c["state"] for c in motion.stage_chips({**base, "custom": True, "folder": "changed", "render": "current", "gate": ["The story in the folder changed: load it again first."]})}
+    if blocked.get("render") != "stale" or blocked.get("story") != "stale":
         problems.append(f"a rendered video whose folder changed does not show its render as done: {blocked}")
-    if {c["key"]: c["state"] for c in motion.stage_chips({**base, "story": False, "title": False})}.get("suara") != "tidak ada":
+    if {c["key"]: c["state"] for c in motion.stage_chips({**base, "story": False, "title": False})}.get("voice") != "none":
         problems.append("a video with no narration shows the narration as not there")
 
     # the kind: the choice, and a project saved before it (composition set means custom)
@@ -1208,20 +1208,20 @@ def check_motionstate() -> tuple[str, str]:
     # the one status: the next step, the chips, the render block and the chip of the list agree in every state (the rendered video whose folder changed
     # used to say "take the story again" and "ready to render" at once)
     def status(**over):
-        f = {**base, "custom": True, "folder": "cerita diambil", **over}
+        f = {**base, "custom": True, "folder": "loaded", **over}
         rn = {"current": {"current": True, "reasons": []}, "stale": {"current": False, "reasons": ["the story or the voice changed"]}}.get(f["render"])
         return motion.project_status(f, rn, None, {"duration": 45}, {"duration": 45})
     cases = [
-        ("a changed folder over a current render", dict(folder="folder berubah", render="current", gate=["The story in the folder changed: load it again first."]), "retake", "menunggu", "Load the story again"),
-        ("a taken story, nothing rendered", dict(), "render", "siap", "Ready to render"),
-        ("a current render", dict(render="current"), "clips", "selesai", "Rendered"),
-        ("a stale render", dict(render="stale"), "render", "usang", "Render stale"),
-        ("claims waiting", dict(pending=2, gate=["Claim 1 is not checked yet."]), "facts", "menunggu", "Claims waiting"),
-        ("a rejected claim", dict(rejected=1, gate=["Claim 1 is rejected: ask for a revision of the beats that use it."]), "fix", "menunggu", "Claim rejected"),
-        ("no title", dict(title=False, gate=["Choose a title."]), "title", "menunggu", "Choose a title"),
-        ("a voice not matched", dict(voice=True, gate=["The voice is not matched with the narration yet: match it first."]), "align", "menunggu", "Match the voice"),
-        ("no story, no folder", dict(story=False, briefed=False, folder="belum dipilih", gate=["No story yet: load the story first."]), "folder", "belum", "New"),
-        ("no story, folder chosen", dict(story=False, folder="cerita belum diambil", gate=["No story yet: load the story first."]), "take", "belum", "Load the story"),
+        ("a changed folder over a current render", dict(folder="changed", render="current", gate=["The story in the folder changed: load it again first."]), "retake", "waiting", "Load the story again"),
+        ("a taken story, nothing rendered", dict(), "render", "ready", "Ready to render"),
+        ("a current render", dict(render="current"), "clips", "done", "Rendered"),
+        ("a stale render", dict(render="stale"), "render", "stale", "Render stale"),
+        ("claims waiting", dict(pending=2, gate=["Claim 1 is not checked yet."]), "facts", "waiting", "Claims waiting"),
+        ("a rejected claim", dict(rejected=1, gate=["Claim 1 is rejected: ask for a revision of the beats that use it."]), "fix", "waiting", "Claim rejected"),
+        ("no title", dict(title=False, gate=["Choose a title."]), "title", "waiting", "Choose a title"),
+        ("a voice not matched", dict(voice=True, gate=["The voice is not matched with the narration yet: match it first."]), "align", "waiting", "Match the voice"),
+        ("no story, no folder", dict(story=False, briefed=False, folder="not-chosen", gate=["No story yet: load the story first."]), "folder", "missing", "New"),
+        ("no story, folder chosen", dict(story=False, folder="not-loaded", gate=["No story yet: load the story first."]), "take", "missing", "Load the story"),
     ]
     for label, over, want_next, want_render, want_chip in cases:
         s = status(**over)
@@ -1231,7 +1231,7 @@ def check_motionstate() -> tuple[str, str]:
             problems.append(f"{label}: a render is offered while the next step is {s['next']['key']}")
     if status(voice=True, aligned=True)["length"]["voiced"] is not None:
         problems.append("the length is the planned one when the voice has no table")
-    nv = motion.project_status({**base, "custom": True, "folder": "cerita diambil", "voice": True, "aligned": True}, None, {"total": 53.3, "aligned": True}, {"duration": 45}, {"duration": 45})
+    nv = motion.project_status({**base, "custom": True, "folder": "loaded", "voice": True, "aligned": True}, None, {"total": 53.3, "aligned": True}, {"duration": 45}, {"duration": 45})
     if nv["length"] != {"planned": 45, "voiced": 53.3, "seconds": 53.3}:
         problems.append(f"the voiced length is shown when there is a matched voice: {nv['length']}")
     # voice first: stage 1 asks only for the story and the narration; stage 2 carries the voice-timed story inside it (no workspace path)
@@ -1517,18 +1517,18 @@ def check_khusus() -> tuple[str, str]:
     try:
         pid = motion.create("contoh folder khusus", 12, "", {"kind": "khusus"})["id"]
         # nothing chosen yet: the command, then the folder
-        if motion.folder_state(pid)["state"] != "belum dipilih" or motion.detail(pid)["next"]["key"] != "folder":
+        if motion.folder_state(pid)["state"] != "not-chosen" or motion.detail(pid)["next"]["key"] != "folder":
             problems.append("a Khusus video with no folder asks for the command and the folder")
         # a folder is chosen: the story is not taken yet
         motion.update_project(pid, {"composition": "khusus-satu"})
-        if motion.folder_state(pid)["state"] != "cerita belum diambil" or motion.detail(pid)["next"]["key"] != "take":
+        if motion.folder_state(pid)["state"] != "not-loaded" or motion.detail(pid)["next"]["key"] != "take":
             problems.append("a chosen folder whose story is not taken asks to take it")
         # the valid story is taken and kept
         res = motion.take_folder(pid, "khusus-satu")
         if not res.get("ok") or motion.story_of(pid) is None or motion.story_of(pid)["duration"] != 12:
             problems.append(f"the valid story is taken and kept: {str(res)[:160]}")
-        if motion.folder_state(pid)["state"] != "cerita diambil":
-            problems.append("after the take the folder's state is 'cerita diambil'")
+        if motion.folder_state(pid)["state"] != "loaded":
+            problems.append("after the take the folder's state is 'loaded'")
         if motion.folder_state(pid)["path"] != str(root / "khusus-satu"):
             problems.append("the folder is shown with its full path")
         kept = motion.story_of(pid)
@@ -1551,12 +1551,12 @@ def check_khusus() -> tuple[str, str]:
         motion.update_project(pid, {"composition": "khusus-satu"})
         motion.take_folder(pid, "khusus-satu")
         (root / "khusus-satu" / "story.json").write_text(json.dumps(dict(good, question="Kenapa hujan turun?")), encoding="utf-8")
-        if motion.folder_state(pid)["state"] != "folder berubah":
-            problems.append("a changed story.json makes the folder 'folder berubah'")
+        if motion.folder_state(pid)["state"] != "changed":
+            problems.append("a changed story.json makes the folder 'changed'")
         d = motion.detail(pid)
         if d["next"]["key"] != "retake":
             problems.append(f"a changed folder asks to take the story again: {d['next']}")
-        if [c["state"] for c in d["stages"][:3]] != ["usang", "usang", "usang"]:
+        if [c["state"] for c in d["stages"][:3]] != ["stale", "stale", "stale"]:
             problems.append(f"a changed folder makes the story, claims and title stale: {d['stages']}")
         # the path safety: only a direct child of videos/
         for bad_slug in ("../luar", "khusus-satu/../..", "a/b", "", "Khusus", "tidak-ada"):
@@ -1593,7 +1593,7 @@ def check_khusus() -> tuple[str, str]:
         shutil.rmtree(tmp, ignore_errors=True)
     if problems:
         return FAIL, "\n      ".join(problems)
-    return PASS, ("the story taken from the chosen folder (valid kept, rejected not kept with the problems and the fix), a changed story.json shown as 'folder berubah' "
+    return PASS, ("the story taken from the chosen folder (valid kept, rejected not kept with the problems and the fix), a changed story.json shown as 'changed' "
                   "with the stale chips, the path refused for '..', a non-child, a missing or unreadable story.json, and a link out (where the system allows), and Otomatis unchanged")
 
 
@@ -1638,7 +1638,7 @@ def check_briefbuttons() -> tuple[str, str]:
         problems.append("the brief is fetched ahead without counting as copied, and noted when it is copied")
     base = {"story": False, "pending": 0, "rejected": 0, "title": False, "custom": True, "composition": False, "slug": "x", "voice": False,
             "aligned": False, "voiceStale": False, "render": "none", "gate": [], "briefed": False, "storyPath": "s.json", "stills": "none",
-            "preview": "none", "folder": "belum dipilih"}
+            "preview": "none", "folder": "not-chosen"}
     step = motion.next_step(base)
     if step["action"] != "brief" or step["text"] != "Copy the brief into Claude Code, then choose the folder it made":
         problems.append(f"Khusus without a folder: the brief action and its text: {step}")
@@ -1865,7 +1865,7 @@ def check_briefsteps() -> tuple[str, str]:
         reasons = " ".join(motion.render_problems(p["id"]))
         if "The video is not made yet" not in reasons:
             problems.append(f"the render is refused with 'The video is not made yet': {reasons!r}")
-        if d["renderBlock"]["state"] == "siap":
+        if d["renderBlock"]["state"] == "ready":
             problems.append("the render block must not be ready")
     motion.delete_project(p["id"])
     if problems:

@@ -58,14 +58,14 @@ function optionsHTML(opts, id) {
     <label class="rm-check"><input type="checkbox" data-opt="loop" ${opts.loop ? "checked" : ""}> Loop (the end returns to the first scene)</label>
     <label class="rm-check"><input type="checkbox" data-opt="sting" ${opts.sting ? "checked" : ""}> "Intip yuk!" after the hook</label>
     <label class="rm-check"><input type="checkbox" data-opt="direct" ${opts.direct ? "checked" : ""}> Hook straight into the topic (no "Kenapa ..." opener)</label>
-    <span class="rm-hint">Straight into the topic: "Petugas SPBU ini nunjuk angka nol, dan itu bukan basa-basi.", not "Kenapa petugas SPBU selalu bilang mulai dari nol?" Always on for Ricks.</span>
+    <span class="rm-hint">Straight into the topic: a statement, not a question. Always on for Ricks.</span>
     <label class="ws-field">Look ${sel("look", LOOK_LABELS)}</label>
     <video class="rm-look-img" muted loop autoplay playsinline ${opts.look && opts.look !== "auto" ? `src="/ui/img/looks/${opts.look}.mp4"` : "hidden"}></video>
-    <span class="rm-hint">Automatic: Claude Code chooses the look that fits the topic best (B28).</span>
+    <span class="rm-hint">Automatic: Claude Code picks the look from the topic.</span>
     <label class="ws-field">Order ${sel("flow", FLOW_LABELS)}</label>
     <span class="rm-hint">Picture first: Claude Code builds the story and the picture, then you add the voice. Voice first: the story text, then the voice, then the picture is built to the voice. Change it only before the voice is made.</span>
     <label class="ws-field">Story ${sel("story", STORY_LABELS)}</label>
-    <span class="rm-hint">Story + fact: made-up people in an everyday place, one true fact explained near the end (e.g. a blind grandmother who smells the rain coming: ozone from lightning).</span>
+    <span class="rm-hint">Story + fact: made-up people, one true fact explained near the end.</span>
     <label class="ws-field">Music ${sel("music", Object.entries(MUSIC_LABELS))}</label>
     <div class="rm-subgroup" role="group" aria-label="Voice apps">
       <span class="rm-sublabel">Voice apps (tick the ones you use; the script is made for each app)</span>
@@ -200,9 +200,9 @@ async function downloadBrief(kind) {
 // ---------------------------------------------------------------------------------------------------------------------------------------
 
 function bodyStory(d) {
-  const f = d.folder || { slug: "", path: "", state: "belum dipilih" };
+  const f = d.folder || { slug: "", path: "", state: "not-chosen" };
   const picked = f.slug || "";
-  const taken = f.state === "cerita diambil";
+  const taken = f.state === "loaded";
   return `
     <p>Claude Code writes the story and makes the video folder. Choose the folder it made, then load the story.</p>
     <h3 class="rm-sub-h">Result folder</h3>
@@ -254,7 +254,7 @@ function folderListHTML(d, picked) {
     return `<button class="rm-frow" type="button" data-act="pickFolder" data-slug="${esc(c.slug)}" data-status="${st}" aria-pressed="${st === "current"}">
       <span class="rm-frow-t"><b>${esc(c.title)}</b><code>${esc(c.slug)}</code></span>
       <span class="rm-frow-m">${c.duration ? `${esc(c.duration)} s · ` : ""}${esc(fmtFolderDate(c.modified))}</span>
-      <span class="rm-chip" data-state="${st === "free" ? "" : st === "current" ? "aktif" : "perlu"}">${FOLDER_STATUS_TEXT[st]}${st === "other" ? `: ${esc(c.takenBy)}` : ""}</span>
+      <span class="rm-chip" data-state="${st === "free" ? "" : st === "current" ? "active" : "needed"}">${FOLDER_STATUS_TEXT[st]}${st === "other" ? `: ${esc(c.takenBy)}` : ""}</span>
     </button>`;
   }).join("");
 }

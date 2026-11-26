@@ -41,13 +41,13 @@ function bodyRender(d) {
   if (!d.story) return `<p class="rm-hint">Load the story first (step 3).</p>`;
   const job = d.job || {};
   const busy = ["queued", "running"].includes(job.state);
-  const rb = d.renderBlock || { state: "belum", can: false, text: "", reasons: [] };
+  const rb = d.renderBlock || { state: "missing", can: false, text: "", reasons: [] };
   const r = d.render;
   return `
     <p class="rm-hint">It will be rendered with: ${d.kind === "custom" && d.composition ? `the custom video <b>${esc(d.composition)}</b>` : d.kind === "custom" ? "a custom video (no folder chosen yet)" : "klipian's template"}. Video length: ${esc(lengthText(d.length))}.</p>
     <div class="rm-gate" data-state="${esc(rb.state)}">${rb.reasons.length && !rb.can ? `<b>${esc(rb.text)}</b><ul>${rb.reasons.map((g) => `<li>${esc(g)}</li>`).join("")}</ul>` : esc(rb.text)}</div>
     <div class="rm-actions">
-      <button class="btn ${rb.state === "selesai" ? "" : "main"} large" type="button" data-act="render" ${!rb.can || busy ? "disabled" : ""}>${r ? (rb.state === "usang" ? "Render again (stale)" : "Render again") : "Render"}</button>
+      <button class="btn ${rb.state === "done" ? "" : "main"} large" type="button" data-act="render" ${!rb.can || busy ? "disabled" : ""}>${r ? (rb.state === "stale" ? "Render again (stale)" : "Render again") : "Render"}</button>
       <span class="rm-hint">MP4 9:16 1080×1920, 30 fps, with sound effects.</span>
     </div>
     ${jobHTML(job, "render")}

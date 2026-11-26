@@ -21,19 +21,19 @@ eq(S.stepsFor("custom", "picture").map((s) => s.id), S.stepsFor("custom").map((s
 eq(S.stepsFor("template", "voice").map((s) => s.id), S.stepsFor("template").map((s) => s.id), "a template video has no voice-first order");
 eq(S.stepNum("custom", "build", "voice") < S.stepNum("custom", "render", "voice"), true, "voice first: the build comes before the render");
 {
-  const v = (key, over = {}) => ({ kind: "custom", options: { flow: "voice" }, next: { key }, briefAt: 1, renderBlock: { state: "menunggu", reasons: [] }, ...over });
+  const v = (key, over = {}) => ({ kind: "custom", options: { flow: "voice" }, next: { key }, briefAt: 1, renderBlock: { state: "waiting", reasons: [] }, ...over });
   eq(S.activeStepFor(v("brief")), "brief", "voice first: the brief");
   eq(S.activeStepFor(v("paste")), "answer", "voice first: the story is pasted");
   eq(S.activeStepFor(v("voice")), "voice", "voice first: make the voice");
   eq(S.activeStepFor(v("align")), "voice", "voice first: match the voice");
   eq(["folder", "take", "retake"].map((k) => S.activeStepFor(v(k))), ["build", "build", "build"], "voice first: the folder is the last build step");
   eq(S.activeStepFor(v("blocked", { renderBlock: { reasons: ["The story in the folder changed: load it again first."] } })), "build", "voice first, blocked by the folder: the build step");
-  eq(S.stepState("build", v("voice", { voice: null })), "menunggu", "the build waits for the matched voice");
-  eq(S.stepState("answer", v("voice", { story: { beats: [] }, folder: { state: "folder berubah" } })), "selesai", "voice first: a changed folder does not make the pasted story stale");
+  eq(S.stepState("build", v("voice", { voice: null })), "waiting", "the build waits for the matched voice");
+  eq(S.stepState("answer", v("voice", { story: { beats: [] }, folder: { state: "changed" } })), "done", "voice first: a changed folder does not make the pasted story stale");
 }
 
 // the active step follows the server's next step
-const d = (key, over = {}) => ({ kind: "custom", next: { key }, briefAt: 1, renderBlock: { state: "menunggu", reasons: [] }, ...over });
+const d = (key, over = {}) => ({ kind: "custom", next: { key }, briefAt: 1, renderBlock: { state: "waiting", reasons: [] }, ...over });
 eq(S.activeStepFor(d("folder", { briefAt: null })), "brief", "no brief copied yet: the brief");
 eq(S.activeStepFor(d("folder")), "story", "the brief copied: the folder");
 eq(S.activeStepFor(d("take")), "story", "take the story");
@@ -62,8 +62,8 @@ for (const raw of ["banner", "badge", "pill", "hook", "sting", "loose", "result"
 
 // the summary of a folded step is one line; the states
 const full = { kind: "custom", duration: 45, options: { loop: true, sting: true, music: "sunny", voiceTargets: ["voicestudio", "elevenlabs"] }, briefAt: 1790000000,
-  story: { beats: new Array(8).fill({}) }, facts: [{ status: "checked" }, { status: "checked" }], title: "Judul", folder: { state: "cerita diambil" },
-  length: { planned: 45, voiced: 53.3, seconds: 53.3 }, voice: { name: "suara.wav", duration: 53.3, aligned: true }, preview: { stale: false }, next: { key: "clips" }, renderBlock: { state: "selesai" } };
+  story: { beats: new Array(8).fill({}) }, facts: [{ status: "checked" }, { status: "checked" }], title: "Judul", folder: { state: "loaded" },
+  length: { planned: 45, voiced: 53.3, seconds: 53.3 }, voice: { name: "suara.wav", duration: 53.3, aligned: true }, preview: { stale: false }, next: { key: "clips" }, renderBlock: { state: "done" } };
 eq(S.stepSummary("story", full), "8 beats · 53.3 s (voice)", "the story step shows the voiced length");
 eq(S.stepSummary("facts", full), "2 claims checked · title chosen", "the facts step");
 eq(S.stepSummary("voice", full), "suara.wav · 53.3 s · matched", "the voice step");
@@ -71,16 +71,16 @@ eq(S.stepSummary("render", full), "rendered", "the render step");
 eq(S.stepSummary("script", full), "voicestudio, elevenlabs", "the script step lists the apps");
 eq(S.stepSummary("facts", { ...full, facts: [{ status: "checked" }, { status: "pending" }] }), "1 of 2 claims not checked · title chosen", "claims waiting");
 eq(S.stepSummary("brief", full).includes("loop") && S.stepSummary("brief", full).includes("2 voice apps"), true, "the brief step names the options");
-eq(S.stepState("render", full), "aktif", "the render is the active step");
-eq(S.stepState("facts", full), "selesai", "the facts are done");
-eq(S.stepState("voice", { ...full, voice: null }), "opsional", "no voice: optional");
-eq(S.stepState("story", { ...full, folder: { state: "folder berubah" }, next: { key: "retake" } }), "aktif", "a changed folder: the story step is the active one");
-eq(S.stepState("story", { ...full, folder: { state: "folder berubah" } }), "usang", "a changed folder: the story is stale when it is not the active step");
+eq(S.stepState("render", full), "active", "the render is the active step");
+eq(S.stepState("facts", full), "done", "the facts are done");
+eq(S.stepState("voice", { ...full, voice: null }), "optional", "no voice: optional");
+eq(S.stepState("story", { ...full, folder: { state: "changed" }, next: { key: "retake" } }), "active", "a changed folder: the story step is the active one");
+eq(S.stepState("story", { ...full, folder: { state: "changed" } }), "stale", "a changed folder: the story is stale when it is not the active step");
 
 // the voice texts: file names, and the copied text is the export's text only
-eq(S.folderChip("folder berubah"), "folder berubah", "a changed folder shows its chip");
-eq(S.folderChip("nonsense"), "belum dipilih", "an unknown state is the not-chosen id");
-eq([S.folderLabel("folder berubah"), S.folderLabel("nonsense"), S.stateLabel("selesai"), S.stateLabel("x")], ["folder changed", "not chosen", "done", "x"], "the page shows a label for a state id");
+eq(S.folderChip("changed"), "changed", "a changed folder shows its chip");
+eq(S.folderChip("nonsense"), "not-chosen", "an unknown state is the not-chosen id");
+eq([S.folderLabel("changed"), S.folderLabel("nonsense"), S.stateLabel("done"), S.stateLabel("x")], ["folder changed", "not chosen", "done", "x"], "the page shows a label for a state id");
 eq(narrationFile("v1", "voicestudio"), "v1-script-voicestudio.txt", "the whole text file");
 eq([1, 2].map((p) => narrationFile("v1", "voicestudio", p)), ["v1-script-voicestudio_1.txt", "v1-script-voicestudio_2.txt"], "the parts: _1.txt, _2.txt");
 eq(narrationCopyText({ text: "Kalimat satu.\nKalimat dua.", info: "Total sekitar 14 detik" }), "Kalimat satu.\nKalimat dua.", "the copied text is the text, never the info");

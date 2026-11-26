@@ -216,6 +216,8 @@
      --r-ctl: every button, input and select: --r-s with klipian's sharper start corners, the shape of .btn (brand.css) and .ws-input. */
   --r-xs: 4px; --r-s: 10px; --r-m: 14px;  --r-l: 20px;  --r-pill: 999px;
   --r-ctl: var(--r-xs) var(--r-s) var(--r-s) var(--r-xs);
+  /* One height for every field and small control beside a button: the search box, the Clips table inputs, the pager (size select, page buttons). */
+  --control-h: 32px;
 
   /* ---- shadows: dark needs a highlight line at top edge, not just blur ---- */
   --shadow-card:

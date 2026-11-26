@@ -55,14 +55,14 @@ function activeStepFor(d) {
 }
 
 // the folder's chip: the state as the page shows it (the states are those of motion.folder_state)
-const FOLDER_STATES = ["belum dipilih", "cerita belum diambil", "cerita diambil", "folder berubah", "folder tidak lengkap"];
+const FOLDER_STATES = ["not-chosen", "not-loaded", "loaded", "changed", "incomplete"];
 function folderChip(state) {
-  return FOLDER_STATES.includes(state) ? state : "belum dipilih";
+  return FOLDER_STATES.includes(state) ? state : "not-chosen";
 }
 // what the page shows for a state id (the ids are the server's and stay as they are: the css and the stored data use them)
-const FOLDER_LABEL = { "belum dipilih": "not chosen", "cerita belum diambil": "story not loaded", "cerita diambil": "story loaded", "folder berubah": "folder changed", "folder tidak lengkap": "folder incomplete" };
+const FOLDER_LABEL = { "not-chosen": "not chosen", "not-loaded": "story not loaded", "loaded": "story loaded", "changed": "folder changed", "incomplete": "folder incomplete" };
 const folderLabel = (state) => FOLDER_LABEL[folderChip(state)];
-const STATE_LABEL = { aktif: "active", selesai: "done", usang: "stale", menunggu: "waiting", opsional: "optional", belum: "not yet", siap: "ready", perlu: "needed", baru: "new", "tidak ada": "none" };
+const STATE_LABEL = { active: "active", done: "done", stale: "stale", waiting: "waiting", optional: "optional", missing: "not yet", ready: "ready", needed: "needed", new: "new", "none": "none" };
 const stateLabel = (s) => STATE_LABEL[s] || s;
 
 // ---------------------------------------------------------------------------------------------------------------------------------------
@@ -121,7 +121,7 @@ function stepSummary(id, d) {
   if (id === "build") return d.voice && d.voice.aligned ? folderLabel(d.folder ? d.folder.state : "") : "after the voice is matched";
   if (id === "story" || id === "answer") {
     if (!d.story) return id === "story" ? folderLabel(d.folder ? d.folder.state : "") : "no answer yet";
-    return `${d.story.beats.length} beats · ${lengthText(d.length)}${!isVoiceFirst(d) && d.folder && d.folder.state === "folder berubah" ? " · folder changed" : ""}`;
+    return `${d.story.beats.length} beats · ${lengthText(d.length)}${!isVoiceFirst(d) && d.folder && d.folder.state === "changed" ? " · folder changed" : ""}`;
   }
   if (id === "facts") {
     if (!d.story) return "waiting for the story";
@@ -135,26 +135,26 @@ function stepSummary(id, d) {
   if (id === "preview") return d.preview ? (d.preview.stale ? "stale: make it again" : "ready") : "not made yet";
   if (id === "render") {
     const r = d.renderBlock || {};
-    return { belum: "waiting for the story", menunggu: "cannot be rendered yet", siap: "ready to render", selesai: "rendered", usang: "the old render is stale" }[r.state] || "";
+    return { missing: "waiting for the story", waiting: "cannot be rendered yet", ready: "ready to render", done: "rendered", stale: "the old render is stale" }[r.state] || "";
   }
   return "";
 }
 
-// the state of a step for its chip: aktif (the step to do now), selesai, usang, menunggu, opsional
+// the state of a step for its chip: active (the step to do now), done, stale, waiting, optional
 function stepState(id, d) {
-  if (!d) return "menunggu";
-  if (id === activeStepFor(d)) return "aktif";
+  if (!d) return "waiting";
+  if (id === activeStepFor(d)) return "active";
   const v = d.voice, claimsOpen = (d.facts || []).some((c) => c.status !== "checked");
-  if (id === "new") return "selesai";
-  if (id === "brief") return d.briefAt || d.story ? "selesai" : "menunggu";
-  if (id === "build") return !(v && v.aligned) ? "menunggu" : d.folder && d.folder.state === "cerita diambil" ? "selesai" : d.folder && d.folder.state === "folder berubah" ? "usang" : "menunggu";
-  if (id === "story" || id === "answer") return !d.story ? "menunggu" : !isVoiceFirst(d) && d.folder && d.folder.state === "folder berubah" ? "usang" : "selesai";
-  if (id === "facts") return !d.story ? "menunggu" : claimsOpen || !d.title ? "menunggu" : "selesai";
-  if (id === "script") return d.story ? "opsional" : "menunggu";
-  if (id === "voice") return v && v.name ? (v.aligned ? "selesai" : "menunggu") : "opsional";
-  if (id === "preview") return d.preview ? (d.preview.stale ? "usang" : "selesai") : "opsional";
-  if (id === "render") return { selesai: "selesai", usang: "usang" }[(d.renderBlock || {}).state] || "menunggu";
-  return "menunggu";
+  if (id === "new") return "done";
+  if (id === "brief") return d.briefAt || d.story ? "done" : "waiting";
+  if (id === "build") return !(v && v.aligned) ? "waiting" : d.folder && d.folder.state === "loaded" ? "done" : d.folder && d.folder.state === "changed" ? "stale" : "waiting";
+  if (id === "story" || id === "answer") return !d.story ? "waiting" : !isVoiceFirst(d) && d.folder && d.folder.state === "changed" ? "stale" : "done";
+  if (id === "facts") return !d.story ? "waiting" : claimsOpen || !d.title ? "waiting" : "done";
+  if (id === "script") return d.story ? "optional" : "waiting";
+  if (id === "voice") return v && v.name ? (v.aligned ? "done" : "waiting") : "optional";
+  if (id === "preview") return d.preview ? (d.preview.stale ? "stale" : "done") : "optional";
+  if (id === "render") return { done: "done", stale: "stale" }[(d.renderBlock || {}).state] || "waiting";
+  return "waiting";
 }
 
 if (typeof module !== "undefined" && module.exports) {

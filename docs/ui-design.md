@@ -69,5 +69,5 @@ Tata letak boleh beda (satu menempel pada panel, satu melayang supaya tabel tida
 
 ## Yang belum seragam
 
-- Tinggi kontrol di luar tombol: kotak cari 30px, input dan select tabel Clips 32px, pager 25 sampai 28px.
+- Tinggi kontrol di luar tombol: satu, `--control-h` (32px, `css/tokens.css`) untuk kotak cari, input dan select tabel Clips, dan pager.
 - `workspace.css` masih memakai kelas Tailwind dengan ukuran sendiri.

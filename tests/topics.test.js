@@ -7,7 +7,7 @@ const eq = (got, want, what) => { n++; assert.deepStrictEqual(got, want, `${what
 const ids = (l) => l.map((p) => p.id);
 const mk = (id, o) => ({ id, topic: id, title: "", composition: "", status: "draft", duration: 45, music: "sunny", created: 0, updated: 0, chip: { key: "brief" }, ...o });
 const list = [
-  mk("a", { topic: "Kenapa langit biru", status: "rendered", chip: { key: "selesai" }, updated: 100, created: 400, duration: 60 }),
+  mk("a", { topic: "Kenapa langit biru", status: "rendered", chip: { key: "done" }, updated: 100, created: 400, duration: 60 }),
   mk("b", { topic: "Colokan panas", title: "Colokan bisa panas?", composition: "kenapa-colokan-panas", status: "story", chip: { key: "title" }, updated: 300, created: 100, music: "tech" }),
   mk("c", { topic: "Bulan", status: "draft", updated: 200, created: 300, duration: 30 }),
   mk("d", { topic: "Api lilin", status: "checked", chip: { key: "blocked" }, updated: 50, created: 200 }),

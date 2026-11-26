@@ -7,6 +7,17 @@ diambil diberi tanggal.
 
 ---
 
+## Pembaruan 2026-11-26 (baca ini dulu)
+
+Bagian di bawah ditulis 2026-10-16 dan sebagian sudah usang (angka baris, daftar utang di bagian 1). Keadaan sekarang:
+
+- **Audit dan pembersihan selesai (P1 sampai P5).** Temuan, keputusan dan hasilnya ada di `docs/audit-findings-2026-11-26.md`. Isinya: satu dialog YouTube, pola bar aksi massal yang sama, Motion punya pilihan Order (voice first atau picture first) per topik, data lebih aman (cadangan xlsx dipangkas, penulisan JSON atomic), dan kode dipecah.
+- **Struktur kode:** `server.py` (1219 baris) tinggal guard, file statis, upload dan brief hasil; rute lain ada di `server_motion`, `server_services`, `server_workspace`, `server_projects`, `server_render` (mixin dari `Handler`). `selftest.py` dipecah jadi runner, `selftest_base`, `selftest_render` dan enam modul `checks_*`; `selftest --fast` selesai dalam sekitar 30 detik.
+- **Aturan kerja baru:** satu tinggi kontrol (`--control-h`), `esc`, `escapeHTML`, `timeAgo` dan `call` ada di `ui/js/shared/`, id state Motion berbahasa Inggris (`done`, `stale`, `waiting`, ...).
+- **Berikutnya:** pilot gaya dari repo lemo-opuscar (whiteboard, blueprint, satu gaya three.js; gaya diterjemahkan ke look klipian, prompt CC BY-NC tidak disalin), uji nyata alur voice-first lewat Claude Code, dan keputusan ian soal dua file `*.bak-uploads-20261110` di `klipian-intip`.
+
+---
+
 ## 0. Posisi sekarang
 
 **Rencana library-projects selesai.** Rencananya ada di
@@ -31,7 +42,7 @@ berhenti di layar Analyze tanpa transkrip.
 
 ---
 
-## 1. Hasil audit kebersihan kode (2026-10-16)
+## 1. Hasil audit kebersihan kode (2026-10-16, historis: angka dan utang di sini sudah berubah)
 
 Diukur dengan skrip AST/regex sekali jalan. Repo ini belum punya linter.
 

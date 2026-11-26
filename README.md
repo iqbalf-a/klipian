@@ -562,6 +562,7 @@ klipian/
 │                                  (faces), YAMNet (sound events) and its class map
 ├── start.cmd                       starts the server from .venv (no browser tab)
 ├── requirements.txt                base install (no PyTorch)
+├── requirements.lock               the exact versions last tested (pip freeze of the working .venv)
 ├── requirements-ai-framing.txt     optional: AI Framing / speaker diarization
 ├── requirements-claude.txt         optional: Find clips with Claude (Anthropic API)
 ├── requirements-youtube.txt        optional: YouTube account and upload

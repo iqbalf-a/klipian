@@ -6,7 +6,7 @@ const TOPIC_STATUSES = { all: "All", draft: "Draft", story: "Story", checked: "C
 const TOPIC_DEFAULT = { q: "", status: "all", need: false, dur: 0, music: "", sort: "updated" };
 
 // a topic needs a move from the person when the backend's next step (chip.key) is not "already rendered and current" or "not ready"
-const topicNeedsAction = (p) => !["selesai", "blocked"].includes((p.chip || {}).key);
+const topicNeedsAction = (p) => !["done", "blocked"].includes((p.chip || {}).key);
 
 const topicText = (p) => `${p.topic} ${p.title} ${p.id} ${p.composition}`.toLowerCase();
 

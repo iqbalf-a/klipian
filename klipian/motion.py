@@ -182,24 +182,24 @@ def _file_hash(path: Path) -> str:
 
 
 def folder_state(pid: str) -> dict | None:
-    """The chosen folder of a Khusus video: its full path and the state (belum dipilih, cerita belum diambil, cerita diambil, folder berubah).
+    """The chosen folder of a Khusus video: its full path and the state (not-chosen, not-loaded, loaded, changed, incomplete).
     None for a template video. Reads the folder's story.json only, and only to compare it with the story taken."""
     p = load(pid)
     if kind_of(p) != "custom":
         return None
     slug = p.get("composition") or ""
     if not slug:
-        return {"slug": "", "path": "", "state": "belum dipilih"}
+        return {"slug": "", "path": "", "state": "not-chosen"}
     path = str(videos_root() / slug)
     try:
         current = _file_hash(folder_story_path(slug))
     except MotionError:
-        return {"slug": slug, "path": path, "state": "folder tidak lengkap"}
+        return {"slug": slug, "path": path, "state": "incomplete"}
     take = p.get("folderTake") or {}
     if take.get("slug") != slug:
-        state = "cerita belum diambil"
+        state = "not-loaded"
     else:
-        state = "cerita diambil" if take.get("hash") == current else "folder berubah"
+        state = "loaded" if take.get("hash") == current else "changed"
     return {"slug": slug, "path": path, "state": state}
 
 
@@ -236,15 +236,15 @@ def next_step(f: dict) -> dict:
 
     def folder_step() -> dict | None:
         state = f.get("folder")
-        if state in (None, "belum dipilih"):
+        if state in (None, "not-chosen"):
             if voice_first:
                 return {"key": "folder", "text": "Copy the build brief into Claude Code, then choose the folder it made", "action": "brief"}
             if f.get("story"):                                          # the story was pasted by an agent that could not make the folder (the fallback)
                 return {"key": "folder", "text": "The video is not made yet: open the brief in a Claude Code session that can run commands, then choose the folder it made", "action": "brief"}
             return {"key": "folder", "text": "Copy the brief into Claude Code, then choose the folder it made", "action": "brief"}
-        if state in ("cerita belum diambil", "folder tidak lengkap") or not f.get("story"):
+        if state in ("not-loaded", "incomplete") or not f.get("story"):
             return {"key": "take", "text": "Load the story from the folder", "action": "take"}
-        if state == "folder berubah":
+        if state == "changed":
             return {"key": "retake", "text": "Load the story again (the folder changed)", "action": "take"}
         return None
 
@@ -280,29 +280,29 @@ def next_step(f: dict) -> dict:
 
 
 def stage_chips(f: dict) -> list[dict]:
-    """The stage chips in order: Story, Claims, Title, Voice, Pictures, Preview, Render (the keys and the states keep their ids; the page shows a label for a state). A state is selesai, menunggu, usang, perlu or tidak ada."""
-    chips = [{"key": "cerita", "label": "Story", "state": "selesai" if f.get("story") else "menunggu"}]
+    """The stage chips in order: Story, Claims, Title, Voice, Pictures, Preview, Render (the page shows a label for each key and state). A state is done, waiting, stale, needed or none."""
+    chips = [{"key": "story", "label": "Story", "state": "done" if f.get("story") else "waiting"}]
     if not f.get("story"):
-        chips.append({"key": "klaim", "label": "Claims", "state": "menunggu"})
+        chips.append({"key": "claims", "label": "Claims", "state": "waiting"})
     elif f.get("rejected") or f.get("pending"):
-        chips.append({"key": "klaim", "label": "Claims", "state": "perlu"})
+        chips.append({"key": "claims", "label": "Claims", "state": "needed"})
     else:
-        chips.append({"key": "klaim", "label": "Claims", "state": "selesai"})
-    chips.append({"key": "judul", "label": "Title", "state": "selesai" if f.get("title") else "menunggu"})
-    if f.get("folder") == "folder berubah":                              # the folder's story changed: what was built on it is stale
+        chips.append({"key": "claims", "label": "Claims", "state": "done"})
+    chips.append({"key": "title", "label": "Title", "state": "done" if f.get("title") else "waiting"})
+    if f.get("folder") == "changed":                              # the folder's story changed: what was built on it is stale
         for chip in chips[:3]:
-            chip["state"] = "usang"
+            chip["state"] = "stale"
     if not f.get("voice"):
-        chips.append({"key": "suara", "label": "Voice", "state": "tidak ada"})
+        chips.append({"key": "voice", "label": "Voice", "state": "none"})
     elif f.get("aligned"):
-        chips.append({"key": "suara", "label": "Voice", "state": "usang" if f.get("voiceStale") else "selesai"})
+        chips.append({"key": "voice", "label": "Voice", "state": "stale" if f.get("voiceStale") else "done"})
     else:
-        chips.append({"key": "suara", "label": "Voice", "state": "menunggu"})
-    chips.append({"key": "gambar", "label": "Pictures", "state": {"ok": "selesai", "stale": "usang"}.get(f.get("stills"), "menunggu")})
-    chips.append({"key": "pratinjau", "label": "Preview", "state": {"current": "selesai", "stale": "usang"}.get(f.get("preview"), "menunggu")})
-    render_state = {"current": "selesai", "stale": "usang"}.get(f.get("render"), "menunggu")
+        chips.append({"key": "voice", "label": "Voice", "state": "waiting"})
+    chips.append({"key": "pictures", "label": "Pictures", "state": {"ok": "done", "stale": "stale"}.get(f.get("stills"), "waiting")})
+    chips.append({"key": "preview", "label": "Preview", "state": {"current": "done", "stale": "stale"}.get(f.get("preview"), "waiting")})
+    render_state = {"current": "done", "stale": "stale"}.get(f.get("render"), "waiting")
     if f.get("gate") and f.get("render") in ("current", "stale"):    # the last render cannot stand while a render is blocked (a changed folder, a claim, the voice)
-        render_state = "usang"
+        render_state = "stale"
     chips.append({"key": "render", "label": "Render", "state": render_state})
     return chips
 
@@ -481,33 +481,33 @@ def _gather(pid: str, p: dict, deep: bool = True) -> dict:
 
 
 # the chip of the list for each next step, and for the render when nothing else is waiting
-CHIP_BY_NEXT = {"folder": ("New", "baru"), "brief": ("New", "baru"), "paste": ("Waiting for the answer", "menunggu"), "take": ("Load the story", "perlu"),
-                "retake": ("Load the story again", "usang"), "fix": ("Claim rejected", "perlu"), "facts": ("Claims waiting", "menunggu"),
-                "title": ("Choose a title", "menunggu"), "voice": ("Add the voice", "menunggu"), "align": ("Match the voice", "menunggu"), "blocked": ("Not ready", "menunggu")}
+CHIP_BY_NEXT = {"folder": ("New", "new"), "brief": ("New", "new"), "paste": ("Waiting for the answer", "waiting"), "take": ("Load the story", "needed"),
+                "retake": ("Load the story again", "stale"), "fix": ("Claim rejected", "needed"), "facts": ("Claims waiting", "waiting"),
+                "title": ("Choose a title", "waiting"), "voice": ("Add the voice", "waiting"), "align": ("Match the voice", "waiting"), "blocked": ("Not ready", "waiting")}
 
 
 def render_block(f: dict, render_now: dict | None) -> dict:
-    """The render of the page, from the same facts as the next step: {"state": belum | menunggu | siap | selesai | usang, "can": may render now, "text", "reasons"}.
+    """The render of the page, from the same facts as the next step: {"state": missing | waiting | ready | done | stale, "can": may render now, "text", "reasons"}.
     A changed folder, an unmatched voice and the claims and title all block it (`f["gate"]`), so a render is never offered while the next step says otherwise."""
     if not f.get("story"):
-        return {"state": "belum", "can": False, "text": "No story yet.", "reasons": f.get("gate") or []}
+        return {"state": "missing", "can": False, "text": "No story yet.", "reasons": f.get("gate") or []}
     if f.get("gate"):
-        return {"state": "menunggu", "can": False, "text": "Cannot be rendered yet.", "reasons": list(f["gate"])}
+        return {"state": "waiting", "can": False, "text": "Cannot be rendered yet.", "reasons": list(f["gate"])}
     if f.get("render") == "current":
-        return {"state": "selesai", "can": True, "text": "Rendered. The result still matches the story and the voice.", "reasons": []}
+        return {"state": "done", "can": True, "text": "Rendered. The result still matches the story and the voice.", "reasons": []}
     if f.get("render") == "stale":
-        return {"state": "usang", "can": True, "text": "The old render is stale: " + ", ".join((render_now or {}).get("reasons") or []) + ".", "reasons": (render_now or {}).get("reasons") or []}
-    return {"state": "siap", "can": True, "text": "Ready to render: every claim is checked and a title is chosen.", "reasons": []}
+        return {"state": "stale", "can": True, "text": "The old render is stale: " + ", ".join((render_now or {}).get("reasons") or []) + ".", "reasons": (render_now or {}).get("reasons") or []}
+    return {"state": "ready", "can": True, "text": "Ready to render: every claim is checked and a title is chosen.", "reasons": []}
 
 
 def list_chip(f: dict, nxt: dict, render: dict) -> dict:
     key = nxt.get("key")
     if key == "folder" and f.get("briefed"):
-        return {"key": key, "label": "Waiting for the folder", "state": "menunggu"}
+        return {"key": key, "label": "Waiting for the folder", "state": "waiting"}
     if key in CHIP_BY_NEXT:
         label, state = CHIP_BY_NEXT[key]
         return {"key": key, "label": label, "state": state}
-    return {"key": render["state"], "label": {"selesai": "Rendered", "usang": "Render stale", "siap": "Ready to render"}.get(render["state"], "Ready to render"), "state": render["state"]}
+    return {"key": render["state"], "label": {"done": "Rendered", "stale": "Render stale", "ready": "Ready to render"}.get(render["state"], "Ready to render"), "state": render["state"]}
 
 
 def project_status(f: dict, render_now: dict | None, voice: dict | None, story: dict | None, p: dict) -> dict:
@@ -1239,8 +1239,8 @@ def render_problems(pid: str) -> list[str]:
         return out
     folder = folder_state(pid)
     if folder:                                                       # Khusus: the story must be the one taken from the folder that renders
-        why = {"belum dipilih": "The video is not made yet: open the brief in a Claude Code session that can run commands, then choose the folder it made.", "cerita belum diambil": "The story is not loaded from the folder yet: load it first.",
-               "folder berubah": "The story in the folder changed: load it again first.", "folder tidak lengkap": "The video folder is not complete (no story.json): complete it first."}.get(folder["state"])
+        why = {"not-chosen": "The video is not made yet: open the brief in a Claude Code session that can run commands, then choose the folder it made.", "not-loaded": "The story is not loaded from the folder yet: load it first.",
+               "changed": "The story in the folder changed: load it again first.", "incomplete": "The video folder is not complete (no story.json): complete it first."}.get(folder["state"])
         if why:
             out.append(why)
     v = voice_info(pid)

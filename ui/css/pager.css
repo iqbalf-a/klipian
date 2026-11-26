@@ -24,8 +24,9 @@
 .pager-nav { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-left: auto; }
 .pager-btn, .pager-num {
   font: inherit;
-  min-width: 28px;
-  padding: 3px 9px;
+  min-width: var(--control-h); height: var(--control-h); box-sizing: border-box;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0 9px;
   color: var(--text-muted);
   background: transparent;
   border: 1px solid var(--glass-border);
@@ -104,7 +105,7 @@ main.bulk-open { padding-bottom: 96px; }
   width: 16px; height: 16px; margin: 0; vertical-align: middle;
 }
 #clipTable .ws-input, .ws-bulk .ws-input {
-  height: 32px; box-sizing: border-box; padding-top: 0; padding-bottom: 0;
+  height: var(--control-h); box-sizing: border-box; padding-top: 0; padding-bottom: 0;
 }
 #clipTable input[type="date"]::-webkit-calendar-picker-indicator,
 #clipTable input[type="time"]::-webkit-calendar-picker-indicator,
@@ -116,9 +117,9 @@ select.ws-input, .pager-size select, .ws-bulk select {
   background-repeat: no-repeat;
   background-position: right 10px center;
 }
-.pager-size select { height: 28px; padding-top: 0; padding-bottom: 0; }
-#clipTable .ws-detail { height: 30px; display: inline-flex; align-items: center; padding: 0 10px; }
-#clipTable .delete-btn { width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+.pager-size select { height: var(--control-h); padding-top: 0; padding-bottom: 0; }
+#clipTable .ws-detail { height: var(--control-h); display: inline-flex; align-items: center; padding: 0 10px; }
+#clipTable .delete-btn { width: var(--control-h); height: var(--control-h); display: inline-flex; align-items: center; justify-content: center; padding: 0; }
 .ws-created { display: inline-block; white-space: nowrap; }
 
 /* P19 A -- a render file that is gone, and a render file with no schedule row. */
@@ -302,7 +303,7 @@ dialog.confirm-dlg:has(.bulk-plan) { width: min(560px, calc(100vw - 32px)); }
 }
 
 /* The small search box in a panel title (js/shared/pager.js, createSearch): a bordered field like the buttons, on its own row on a phone. */
-.ws-search { width: 200px; max-width: 100%; height: 30px; box-sizing: border-box; border: 1px solid var(--border-bright); }
+.ws-search { width: 200px; max-width: 100%; height: var(--control-h); box-sizing: border-box; border: 1px solid var(--border-bright); }
 @media (max-width: 600px) { .ws-search { flex: 1 1 100%; width: 100%; } }
 
 /* upload marks per platform (js/workspace/clips.js): small bordered chips, the state in words */

@@ -46,10 +46,10 @@
 
 /* chips: the state of a video, of a step, of the folder (compact, bordered, no pill shape) */
 .rm-chip { font-size: var(--t-12); font-weight: 600; line-height: 1.5; padding: 0 7px; border: 1px solid var(--glass-border); border-radius: var(--r-s); color: var(--text-muted); white-space: nowrap; }
-.rm-chip[data-state="selesai"] { color: oklch(.75 .16 145); border-color: oklch(.75 .16 145 / .5); }
-.rm-chip[data-state="aktif"], .rm-chip[data-state="siap"] { color: var(--accent); border-color: var(--accent); }
-.rm-chip[data-state="usang"], .rm-chip[data-state="perlu"] { border-style: dashed; color: var(--text); }
-.rm-chip[data-state="opsional"], .rm-chip[data-state="tidak ada"] { opacity: .65; }
+.rm-chip[data-state="done"] { color: oklch(.75 .16 145); border-color: oklch(.75 .16 145 / .5); }
+.rm-chip[data-state="active"], .rm-chip[data-state="ready"] { color: var(--accent); border-color: var(--accent); }
+.rm-chip[data-state="stale"], .rm-chip[data-state="needed"] { border-style: dashed; color: var(--text); }
+.rm-chip[data-state="optional"], .rm-chip[data-state="none"] { opacity: .65; }
 
 /* the head and the next step */
 .rm-head, .rm-nextbar { display: flex; flex-direction: column; gap: 12px; padding: 16px 20px; }
@@ -68,7 +68,7 @@
 .rm-acc-title { font-size: 15px; font-weight: 800; }
 .rm-acc-sum { font-size: var(--t-13); color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
 .rm-step[data-open=true] .rm-acc-sum { visibility: hidden; }
-.rm-step[data-state=aktif] { border-color: var(--accent); }
+.rm-step[data-state=active] { border-color: var(--accent); }
 .rm-n { font-family: var(--font-data); font-size: var(--t-12); color: var(--text-faint); }
 .rm-body { display: flex; flex-direction: column; gap: 16px; padding: 4px 20px 20px 56px; }
 @media (max-width: 700px) { .rm-body { padding-left: 20px; } .rm-acc { grid-template-columns: 24px minmax(0, 1fr) auto; } .rm-acc-sum { grid-column: 2 / -1; text-align: left; } }
@@ -157,7 +157,7 @@ label.btn { display: inline-flex; align-items: center; cursor: pointer; }
 
 /* the render */
 .rm-gate { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px; border: 1px solid var(--glass-border); border-radius: var(--r-s); font-size: var(--t-13); }
-.rm-gate[data-state=siap], .rm-gate[data-state=selesai] { color: oklch(.75 .16 145); }
+.rm-gate[data-state=ready], .rm-gate[data-state=done] { color: oklch(.75 .16 145); }
 .rm-gate ul { margin: 0; padding-left: 20px; list-style: disc; color: var(--text-muted); }
 .rm-bar { height: 6px; border-radius: 3px; background: var(--glass); overflow: hidden; }
 .rm-bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s; }

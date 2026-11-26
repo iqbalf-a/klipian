@@ -2786,3 +2786,17 @@ dialog.confirm-dlg:has(.post-reply-text) { width: min(640px, calc(100vw - 32px))
 #renderTabs { flex: none; }
 .render-bar .cold-row .data { white-space: normal; overflow: visible; }
 .cold-row select { max-width: 100%; }
+
+/* The transcription panel and the two timing fields of the angle options (these were inline styles in index.html). */
+.tr-panel { padding: var(--s5); }
+.tr-head { display: flex; align-items: center; gap: var(--s3); margin-bottom: var(--s4); }
+.tr-head h2 { font-size: 18px; }
+#transcribeLabel { color: var(--text-faint); }
+.tr-bar { width: 100%; height: 6px; }
+#transcribeStats { display: flex; gap: var(--s5); margin-top: var(--s3); color: var(--text-faint); }
+.tr-note { margin: var(--s3) 0 0; color: var(--text-muted); font-size: 13px; }
+#transcribeLeave { margin-top: var(--s4); }
+#transcriptActions { margin-top: var(--s3); }
+.angle-secs { display: flex; gap: 16px; flex-wrap: wrap; }
+.angle-secs input { width: 4.5em; }
+#angleBoxRow { margin-top: 8px; }
