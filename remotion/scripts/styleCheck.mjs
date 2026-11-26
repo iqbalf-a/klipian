@@ -117,15 +117,21 @@ async function b48() {
     const num = (txt) => { try { return new Function("OB", `return [${txt}]`)(OB); } catch { return null; } };
     const shots = [...srcI.matchAll(/\{\s*from:\s*([0-9.]+),\s*a:\s*C\(([^)]*)\),\s*b:\s*C\(([^)]*)\)/g)].map((m) => ({ from: +m[1], a: num(m[2]), b: num(m[3]) })).filter((x) => x.a && x.b);
     // B65: shots written with the K(from, camera xyz, look-at xyz, change xyz [, look-at change xyz]) helper count too
-    for (const m of srcI.matchAll(/\bK\(\s*([0-9.]+),\s*([^)]*)\)/g)) { const n = num(m[2]); if (n && n.length >= 9) { const [ax, ay, az, lx, ly, lz, dx, dy, dz, dlx = 0, dly = 0, dlz = 0] = n; shots.push({ from: +m[1], a: [ax, ay, az, lx, ly, lz], b: [ax + dx, ay + dy, az + dz, lx + dlx, ly + dly, lz + dlz] }); } }
+    for (const m of srcI.matchAll(/\bK\(\s*([0-9.]+),\s*([^)]*)\)/g)) { const n = num(m[2]); if (n && n.length >= 9) { const [ax, ay, az, lx, ly, lz, dx, dy, dz, dlx = 0, dly = 0, dlz = 0, r0 = 0, dr = 0] = n; shots.push({ from: +m[1], a: [ax, ay, az, lx, ly, lz, r0], b: [ax + dx, ay + dy, az + dz, lx + dlx, ly + dly, lz + dlz, r0 + dr] }); } }
     shots.sort((x, y) => x.from - y.from);
     if (shots.length) {
       const total = story.duration;
-      const rows = shots.map((x, i) => { const dur = (shots[i + 1]?.from ?? total) - x.from, d = (u, v) => Math.hypot(u[0] - v[0], u[1] - v[1], u[2] - v[2]);
-        return { at: x.from, dur, v: d(x.a.slice(0, 3), x.b.slice(0, 3)) / dur, l: d(x.a.slice(3), x.b.slice(3)) / dur }; });
-      // ian, 2026-11-26 (B65): "camera terlalu flat seperti 2d" after kantor-berhantu: at least 60 % of the shots carry a steady slow move (0.06 to 0.3 m/s), none faster
-      const fast = rows.filter((r) => r.v > 0.3 || r.l > 0.3), moving = rows.filter((r) => r.v >= 0.06 || r.l >= 0.06), need = Math.ceil(rows.length * 0.6);
-      add(fast.length || moving.length < need ? "FAIL" : "PASS", `B65 a: the camera: ${rows.length} shots, ${moving.length} with a steady move (at least 60 % = ${need}, 0.06 to 0.3 m/s)${fast.length ? `; TOO FAST: ${fast.slice(0, 6).map((r) => `${r.at}s (${Math.max(r.v, r.l).toFixed(2)} m/s)`).join(", ")}` : ""}${moving.length < need ? "; too flat, give more shots a slow orbit, push, crane or track (B65)" : ""}`);
+      const rows = shots.map((x, i) => {
+        const dur = (shots[i + 1]?.from ?? total) - x.from, d = (u, v) => Math.hypot(u[0] - v[0], u[1] - v[1], u[2] - v[2]), P = (c) => c.slice(0, 3), Lk = (c) => c.slice(3, 6);
+        const d0 = d(P(x.a), Lk(x.a)), d1 = d(P(x.b), Lk(x.b)), yaw = (c) => Math.atan2(c[0] - c[3], c[2] - c[5]);
+        const kinds = [Math.abs(d1 / d0 - 1) >= 0.2 ? "push" : "", Math.abs(yaw(x.b) - yaw(x.a)) * 57.3 >= 15 ? "orbit" : "", Math.abs(x.b[1] - x.a[1]) >= 0.4 || Math.abs(x.b[4] - x.a[4]) >= 0.5 ? "crane" : "", Math.max(Math.abs(x.a[6] ?? 0), Math.abs(x.b[6] ?? 0)) >= 3 ? "roll" : "", d(Lk(x.a), Lk(x.b)) >= 1.0 ? "follow" : ""].filter(Boolean);
+        return { at: x.from, dur, v: d(P(x.a), P(x.b)) / dur, l: d(Lk(x.a), Lk(x.b)) / dur, kinds };
+      });
+      // ian, 2026-11-26 (B65, B66): at least 60 % of the shots carry a steady move, at least 70 % combine two kinds (push, orbit, crane, roll, follow), none faster than 1.2 m/s
+      const fast = rows.filter((r) => r.v > 1.2 || r.l > 1.2), moving = rows.filter((r) => r.v >= 0.06 || r.l >= 0.06), need = Math.ceil(rows.length * 0.6);
+      const rich = rows.filter((r) => r.kinds.length >= 2), needRich = Math.ceil(rows.length * 0.7);
+      add(fast.length || moving.length < need ? "FAIL" : "PASS", `B65 a: the camera: ${rows.length} shots, ${moving.length} with a steady move (at least 60 % = ${need}, none faster than 1.2 m/s)${fast.length ? `; TOO FAST: ${fast.slice(0, 6).map((r) => `${r.at}s (${Math.max(r.v, r.l).toFixed(2)} m/s)`).join(", ")}` : ""}${moving.length < need ? "; too flat, give more shots a push, orbit, crane or roll (B66)" : ""}`);
+      add(rich.length < needRich ? "FAIL" : "PASS", `B66 a: ${rich.length} of ${rows.length} shots combine two kinds of move (push, orbit, crane, roll, follow; at least 70 % = ${needRich})${rich.length < needRich ? `; plain: ${rows.filter((r) => r.kinds.length < 2).slice(0, 8).map((r) => `${r.at}s (${r.kinds.join("+") || "none"})`).join(", ")}` : ""}`);
     }
   }
   const themed = others.filter((o) => me.theme && o.theme === me.theme).length, staged = others.filter((o) => me.stage && o.stage === me.stage).length;

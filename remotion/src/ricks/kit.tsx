@@ -46,7 +46,8 @@ export const keyed = (keys: [number, number][], t: number) => {
 export const stepAt = <K extends [number, ...unknown[]]>(keys: K[], t: number): K => { let r = keys[0]; for (const k of keys) if (t >= k[0]) r = k; return r; };
 
 // ---------- camera -----------------------------------------------------------------------------------------------------------
-export type Cam = { pos: THREE.Vector3; look: THREE.Vector3 };
+/** `roll`: a dutch angle in radians (the horizon tilts), B66 */
+export type Cam = { pos: THREE.Vector3; look: THREE.Vector3; roll?: number };
 /** `lin`: the camera moves at a constant speed (no ease at the ends), for a shot that follows a moving vehicle */
 export type Shot = { from: number; a: Cam; b: Cam; lin?: boolean };
 /** The camera at t: the shot that holds t, eased from its start to its end camera over its length. */
@@ -55,11 +56,11 @@ export function camAt(shots: Shot[], t: number, total: number): Cam {
   for (let k = 0; k < shots.length; k++) if (t >= shots[k].from) i = k;
   const s = shots[i], end = i + 1 < shots.length ? shots[i + 1].from : total;
   const u = clamp01((t - s.from) / (end - s.from)), k = s.lin ? u : easeInOut(u);
-  return { pos: s.a.pos.clone().lerp(s.b.pos, k), look: s.a.look.clone().lerp(s.b.look, k) };
+  return { pos: s.a.pos.clone().lerp(s.b.pos, k), look: s.a.look.clone().lerp(s.b.look, k), roll: (s.a.roll ?? 0) + ((s.b.roll ?? 0) - (s.a.roll ?? 0)) * k };
 }
 export const RicksCamera: React.FC<{ cam: Cam }> = ({ cam }) => {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
-  useLayoutEffect(() => { camera.position.copy(cam.pos); camera.lookAt(cam.look); camera.updateProjectionMatrix(); }, [camera, cam]);
+  useLayoutEffect(() => { camera.position.copy(cam.pos); camera.lookAt(cam.look); if (cam.roll) camera.rotateZ(cam.roll); camera.updateProjectionMatrix(); }, [camera, cam]);
   return null;
 };
 

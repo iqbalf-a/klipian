@@ -112,35 +112,38 @@ const TROLLEY = { x: 3.5, z: -0.3 };
 const DESK = { x: -3.4, z: -0.55 };
 const C = (px: number, py: number, pz: number, lx: number, ly: number, lz: number): Cam => ({ pos: V(px, py, pz), look: V(lx, ly, lz) });
 const HOOK = C(0.3, 1.3, 4.6, 0.3, 1.2, 0);   // the scientist and the foil in the vice, his head about 30 % of the width
-/** B65: every shot carries a steady slow move (a track, a push or a tilt, one direction, no ease), 0.06 to 0.3 m/s; K = start camera, start look-at, then the change over the shot */
-const K = (from: number, ax: number, ay: number, az: number, lx: number, ly: number, lz: number, dx: number, dy: number, dz: number, dlx = 0, dly = 0, dlz = 0): Shot => ({ from, lin: true, a: C(ax, ay, az, lx, ly, lz), b: C(ax + dx, ay + dy, az + dz, lx + dlx, ly + dly, lz + dlz) });
+/** B65/B66: every shot carries a real move that combines kinds (push, orbit, crane, roll, follow), 0.06 to 1.2 m/s, one direction, no ease; K = start camera, start look-at, the change over the shot, then the roll (degrees) at the start and its change */
+const K = (from: number, ax: number, ay: number, az: number, lx: number, ly: number, lz: number, dx: number, dy: number, dz: number, dlx = 0, dly = 0, dlz = 0, r0 = 0, dr = 0): Shot => {
+  const R = Math.PI / 180;
+  return { from, lin: true, a: { ...C(ax, ay, az, lx, ly, lz), roll: r0 * R }, b: { ...C(ax + dx, ay + dy, az + dz, lx + dlx, ly + dly, lz + dlz), roll: (r0 + dr) * R } };
+};
 const SHOTS: Shot[] = [
-  K(0, 0.3, 1.3, 4.6, 0.3, 1.2, 0, 0.55, 0, -0.2),                  //  1 TRACK: the foil vibrates by itself (frame 0 is the hook camera)
-  K(4.4, -0.4, 1.6, 9.2, 0.9, 1.3, -0.5, 1.0, 0, 0),                //  2 WIDE TRACK: the whole laboratory, medical products on the bench
-  K(8.82, 3.3, 1.3, 6.4, 2.4, 1.1, 0, -0.35, 0, -0.1),              //  3 TRACK: one worker runs out of the building
-  K(10.24, 0.5, 1.3, 5.0, -0.6, 1.12, 0.5, 0.6, 0, -0.2),           //  4 TRACK: another is gloomy and shivering
-  K(12.76, 0.2, 1.3, 5.0, -0.6, 1.12, 0.5, -0.6, 0, -0.2),          //  5 TRACK back: "ini hantu, jangan diusik"
-  K(16.9, -1.4, 1.25, 4.6, -3.2, 1.1, 0.1, -0.8, 0, -0.3),          //  6 TRACK: Vic alone at his desk, evening
-  K(21.18, -3.9, 1.25, 3.6, -3.4, 1.2, 0.1, 0.9, 0, -0.1),          //  7 CLOSE TRACK: gloom, a cold sweat, the room creaks
-  K(25.52, -4.9, 1.45, 4.2, -3.4, 1.1, 0.1, 0.5, 0.05, 0),          //  8 TRACK: he ignores the creak and works on
-  K(27.84, -3.4, 1.2, 4.4, -3.0, 1.1, 0.1, 0.5, 0, 0),              //  9 TRACK: the shape at the corner of his eye
-  K(29.98, -2.8, 1.3, 3.6, -3.2, 1.2, 0.1, -0.5, 0, 0.1),           // 10 PUSH: he turns, it is gone
-  K(32.78, -2.6, 1.3, 4.0, -4.0, 1.2, 0.2, -0.5, 0, -0.3),          // 11 TRACK: he checks the gas bottle
-  K(36.06, -2.8, 1.3, 3.8, -4.0, 1.2, 0.2, -0.4, 0, -0.4),          // 12 PUSH: no leak, he must be tired
-  K(38.42, 1.3, 1.3, 4.8, 0.1, 1.15, 0, -0.8, 0, -0.4),             // 13 TRACK: next day, a spare foil into the vice
-  K(43.24, 1.9, 1.2, 3.8, 0.4, 1.0, -0.7, -0.8, -0.1, -0.4),        // 14 LOW TRACK: the foil vibrates wildly alone
-  K(46.32, 1.2, 1.3, 5.0, 0.2, 1.15, 0.3, -0.5, 0, -0.5),           // 15 PUSH: the whisper
-  K(49.58, 0.0, 1.5, 8.2, 0.8, 1.2, 0, 0.65, 0, 0, 0.6, 0, 0),      // 16 WIDE TRACK: he carries the foil across the room
-  K(51.98, 1.7, 1.3, 5.6, 2.5, 1.15, 0.3, 0.6, 0, 0, 0.7, 0, 0),    // 17 TRACK: stronger in the middle, then it fades
-  K(54.46, 2.5, 1.4, 4.6, 3.6, 1.4, 0.5, 0.6, 0.1, -0.2, 0.2, 0.35, -0.4),   // 18 TILT UP: he looks for the source
-  K(57.2, 3.3, 0.9, 5.8, 3.9, 2.0, -1.2, 0.45, 0.1, -0.2),          // 19 LOW-ANGLE: the new extractor fan
-  K(59.24, 2.8, 1.35, 3.5, 4.0, 1.25, 0.4, 0.5, 0, 0.1),            // 20 TRACK: 19 hertz
-  K(61.34, 2.2, 1.9, 11.5, 2.2, 1.4, -0.5, 0.35, 0, 0),             // 21 WIDE: too low to hear
-  K(62.92, 5.0, 1.3, 4.2, 4.0, 1.2, 0.4, -0.6, 0, 0.1),             // 22 TRACK: the book of symptoms
-  K(68.92, 2.0, 1.9, 10.5, 2.0, 1.4, -0.5, -0.8, 0, -0.2),          // 23 WIDE TRACK: the standing wave
-  K(74.9, -1.6, 1.25, 4.6, -3.2, 1.1, 0.1, -0.8, 0.05, -0.2),       // 24 TRACK: the paper, and the shape in the waves
-  K(82.5, -2.4, 1.9, 10.5, -2.0, 1.4, -0.5, 0.4, 0, 0),               // 25 WIDE TRACK: the ghost was an unheard sound
-  K(84.98, 0.6, 1.4, 8.6, 0.6, 1.15, -0.2, 0, 0, -0.5),             // 26 PUSH: everyone knows the cause
+  K(0, 0.3, 1.3, 4.6, 0.3, 1.2, 0, -0.1, -0.1, -1.0, -0.3, -0.1, -0.3, 0, 3),                 //  1 PUSH+ROLL: the foil vibrates by itself (frame 0 is the hook camera)
+  K(4.4, -1.0, 2.6, 10.5, 0.8, 1.2, -0.5, 1.4, -1.1, -3.5, -0.4, -0.05, 0.5),                //  2 CRANE DOWN+PUSH: from high over the whole laboratory down to the bench
+  K(8.82, 0.9, 1.1, 5.0, 1.0, 1.0, 0.4, 1.6, 0, 0.2, 1.4, 0, 0, 0, -4),                       //  3 FOLLOW+ROLL: one worker runs out of the building
+  K(10.24, 1.4, 1.2, 4.2, -1.0, 1.2, 0.55, -1.2, -0.05, -1.2, 0.1, 0, 0, 0, 3),               //  4 PUSH+ROLL: another is gloomy and shivering
+  K(12.76, 0.9, 0.9, 3.2, -1.0, 1.25, 0.5, -1.5, 0.6, 0.2, 0, 0.05, 0),                       //  5 ORBIT+CRANE: low, then up past the shoulder: "ini hantu, jangan diusik"
+  K(16.9, -1.6, 0.95, 2.9, -3.4, 1.2, 0.2, -1.3, 0.3, -0.2, 0, 0.05, 0),                      //  6 PUSH+ORBIT: from the desk top, Vic alone in the evening
+  K(21.18, -4.2, 1.3, 3.9, -3.4, 1.2, 0.2, 0.4, -0.1, -0.9, 0, -0.05, 0, 0, 6),               //  7 PUSH+ROLL: gloom, a cold sweat, the room creaks
+  K(25.52, -3.0, 2.4, 2.6, -3.4, 0.9, 0.2, -0.6, -0.5, 0.3, 0, 0.1, 0, 0, -4),                //  8 CRANE DOWN+ROLL: from above the desk, he works on
+  K(27.84, -4.5, 1.3, 3.4, -3.5, 1.2, 0.2, 0.6, 0, -0.9, 0.8, 0, 0, 0, -5),                   //  9 PUSH+ROLL: the shape at the corner of his eye
+  K(29.98, -2.0, 1.2, 3.2, -3.2, 1.15, 0.2, -1.6, 0.1, -0.2, -0.2, 0.05, 0, -5, 5),           // 10 ORBIT+ROLL: he turns, it is gone
+  K(32.78, -3.2, 0.35, 3.0, -4.2, 1.1, 0.2, -0.5, 0.45, -0.4, 0.1, 0.15, 0),                  // 11 LOW CRANE+PUSH: from the floor up the gas bottle
+  K(36.06, -2.8, 1.3, 3.8, -4.0, 1.2, 0.2, -0.5, -0.05, -0.9, 0, -0.05, 0, 0, 3),             // 12 PUSH+ROLL: no leak, he must be tired
+  K(38.42, 2.4, 2.6, 5.0, -0.1, 1.0, 0.3, -2.1, -1.3, -1.4, 0, 0.1, -0.3),                  // 13 CRANE DOWN+PUSH: next day, a spare foil into the vice
+  K(43.24, 2.2, 1.05, 2.0, 0.5, 1.0, -0.7, -0.8, -0.05, -1.1, -0.2, 0, 0, 0, -4),             // 14 PUSH+ROLL: close on the blade, it vibrates wildly alone
+  K(46.32, 1.5, 1.3, 3.6, 0.2, 1.2, 0.3, -2.1, 0.05, 0.2, 0, 0, 0, 3, -6),                    // 15 ORBIT+ROLL: the whisper
+  K(49.58, 0.6, 1.3, 4.6, 0.4, 1.1, 0.5, 1.9, 0.1, -0.4, 2.0, 0, 0, 3, -6),                   // 16 FOLLOW+ROLL: he carries the foil across the room
+  K(51.98, 2.4, 0.7, 4.4, 2.0, 1.3, 0.5, 1.5, 0.5, -0.2, 1.6, -0.1, 0),                       // 17 LOW FOLLOW+CRANE: stronger in the middle, then it fades
+  K(54.46, 3.0, 1.0, 3.2, 4.0, 1.2, 0.5, 0.6, 0.4, 0.4, 0.2, 0.95, -1.7),                     // 18 TILT UP+FOLLOW: he looks for the source, up to the fan
+  K(57.2, 2.8, 0.8, 5.2, 3.9, 2.0, -1.2, 1.1, 0.4, -1.6, 0.2, 0.1, 0, 0, -3),                 // 19 LOW PUSH+CRANE: the new extractor fan
+  K(59.24, 2.4, 1.4, 4.8, 4.0, 1.4, 0.4, 0.8, -0.05, -1.4, 0, 0, 0, 0, 3),                    // 20 PUSH+ROLL: 19 hertz
+  K(61.34, 1.6, 1.3, 9.0, 2.2, 1.4, -0.5, 0.6, 0.9, 1.2, 0, 0.1, 0, 0, -3),                   // 21 CRANE UP+ROLL: too low to hear
+  K(62.92, 6.2, 1.3, 3.6, 4.0, 1.2, 0.4, -1.4, -0.05, -0.4, 0, 0, 0),                         // 22 ORBIT+PUSH: the book of symptoms
+  K(68.92, -1.5, 1.6, 10.0, 1.5, 1.4, -0.5, 5.0, 0.6, -1.0, 0, 0, 0),                         // 23 ORBIT+CRANE: the standing wave across the room
+  K(74.9, -1.2, 1.1, 4.8, -3.2, 1.15, 0.1, -1.2, 0.2, -1.4, -0.2, 0.05, 0, 0, -5),            // 24 PUSH+ROLL: the paper, and the shape in the waves
+  K(82.5, -0.8, 1.9, 10.5, -2.0, 1.4, -0.5, -1.4, -0.45, -2.5, -0.8, -0.2, 0.6),              // 25 PUSH+CRANE: the ghost was an unheard sound
+  K(84.98, 0.6, 1.9, 9.8, 0.6, 1.15, -0.2, 0, -0.6, -2.2),                                     // 26 PUSH+CRANE: everyone knows the cause
 ];
 
 // ---------- the acted poses (hands reach canvas points, B52) ----------------------------------------------------------------------------------------------------------------------------------
