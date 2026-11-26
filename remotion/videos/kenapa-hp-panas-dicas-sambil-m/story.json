@@ -1,0 +1,287 @@
+{
+ "bible": 1,
+ "question": "Kenapa HP panas dicas sambil main game?",
+ "titles": [
+  "Kenapa HP panas dicas sambil main game?",
+  "Dicas sambil main game, HP-mu kerja dua kali",
+  "HP panas pas dicas dan main game: ini sebabnya"
+ ],
+ "duration": 60,
+ "beats": [
+  {
+   "id": "hook",
+   "kind": "hook",
+   "dur": 3,
+   "narration": "HP-mu lagi melawan dirinya sendiri.",
+   "text": "HP-mu melawan dirinya sendiri",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "HP-mu melawan dirinya sendiri",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "sting",
+   "kind": "sting",
+   "dur": 1,
+   "narration": "Intip yuk!",
+   "text": "Intip yuk!",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Intip yuk!",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "cas",
+   "kind": "normal",
+   "dur": 7,
+   "narration": "Pertama, dicas. Mengisi baterai itu sendiri sudah menghasilkan panas, makin cepat makin hangat.",
+   "text": "Dicas saja sudah hangat",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Dicas saja sudah hangat",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "game",
+   "kind": "normal",
+   "dur": 8,
+   "narration": "Kedua, game berat. Chip grafis bekerja penuh tanpa henti, dan setiap kerja chip melepas panas.",
+   "text": "Game berat, chip panas",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Game berat, chip panas",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "numpuk",
+   "kind": "normal",
+   "dur": 8,
+   "narration": "Dua panas itu menumpuk di satu badan tipis, dan kasur atau casing tebal ikut menahannya.",
+   "text": "Dua panas menumpuk",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Dua panas menumpuk",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "sensor",
+   "kind": "normal",
+   "dur": 8,
+   "narration": "Sensor di dalam HP memantau baterai dan chip. Kalau kepanasan, HP sengaja menurunkan kinerjanya.",
+   "text": "Sensor suhu menjaga",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Sensor suhu menjaga",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "hasil",
+   "kind": "result",
+   "dur": 7,
+   "narration": "Jadi, dicas sambil main game, panasnya dobel. Layar redup, frame turun, pengisian melambat.",
+   "text": "Panasnya dobel",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Panasnya dobel",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "umur",
+   "kind": "result",
+   "dur": 8,
+   "narration": "Baterai lithium-ion tahan panas sebentar, tapi panas yang lama memperpendek umurnya. Makanya HP sengaja mengerem diri.",
+   "text": "Panas lama, umur pendek",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Panas lama, umur pendek",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "tips",
+   "kind": "tips",
+   "dur": 7,
+   "narration": "Lepas casing tebal, jangan cas di kasur, dan istirahatkan game sampai HP dingin lagi.",
+   "text": "Casing, kasur, istirahat",
+   "scene": {
+    "bg": "brand",
+    "items": [
+     {
+      "type": "banner",
+      "text": "Casing, kasur, istirahat",
+      "fs": 66
+     }
+    ]
+   },
+   "sfx": "none"
+  },
+  {
+   "id": "outro",
+   "kind": "outro",
+   "dur": 3,
+   "narration": "",
+   "text": "",
+   "scene": {
+    "bg": "brand",
+    "items": []
+   },
+   "sfx": "none"
+  }
+ ],
+ "claims": [
+  {
+   "text": "Mengisi daya baterai ponsel menghasilkan panas, dan makin tinggi arus pengisian makin banyak panasnya.",
+   "beats": [
+    "cas",
+    "hasil"
+   ],
+   "sources": [
+    "https://www.anker.com/uk/blogs/chargers/why-does-my-phone-get-hot-when-charging-1",
+    "https://support.apple.com/en-us/ht201678"
+   ]
+  },
+  {
+   "text": "Menjalankan game atau aplikasi yang berat bagi grafis dan prosesor membuat ponsel lebih hangat; Apple menyebut ini normal.",
+   "beats": [
+    "game"
+   ],
+   "sources": [
+    "https://support.apple.com/en-us/ht201678",
+    "https://www.anker.com/uk/blogs/chargers/why-does-my-phone-get-hot-when-charging-1"
+   ]
+  },
+  {
+   "text": "Menjalankan game saat ponsel dicas membuat CPU dan GPU bekerja keras dan menambah panas di atas panas pengisian.",
+   "beats": [
+    "numpuk",
+    "hasil"
+   ],
+   "sources": [
+    "https://www.anker.com/uk/blogs/chargers/why-does-my-phone-get-hot-when-charging-1"
+   ]
+  },
+  {
+   "text": "Casing tebal, permukaan lunak seperti kasur dan sirkulasi udara yang buruk menahan panas ponsel.",
+   "beats": [
+    "numpuk",
+    "tips"
+   ],
+   "sources": [
+    "https://www.anker.com/uk/blogs/chargers/why-does-my-phone-get-hot-when-charging-1"
+   ]
+  },
+  {
+   "text": "Ponsel punya sensor suhu untuk kulit bodi, baterai, GPU, CPU dan port USB, dan perangkat menurunkan kinerja bertahap saat terlalu panas.",
+   "beats": [
+    "sensor"
+   ],
+   "sources": [
+    "https://source.android.com/docs/core/power/thermal-mitigation"
+   ]
+  },
+  {
+   "text": "Saat terlalu panas, ponsel bisa meredupkan layar, menurunkan frame rate dan memperlambat atau menghentikan pengisian.",
+   "beats": [
+    "sensor",
+    "hasil"
+   ],
+   "sources": [
+    "https://support.apple.com/en-us/ht201678"
+   ]
+  },
+  {
+   "text": "Baterai lithium-ion tampil baik pada suhu tinggi, tetapi paparan panas yang lama memperpendek umurnya.",
+   "beats": [
+    "umur"
+   ],
+   "sources": [
+    "https://batteryuniversity.com/article/bu-410-charging-at-high-and-low-temperatures",
+    "https://support.apple.com/en-us/ht201678"
+   ]
+  },
+  {
+   "text": "Tips: hentikan game berat saat mengecas, lepas casing tebal, cas di permukaan keras dan biarkan ponsel dingin setelah selesai.",
+   "beats": [
+    "tips"
+   ],
+   "sources": [
+    "https://www.anker.com/uk/blogs/chargers/why-does-my-phone-get-hot-when-charging-1",
+    "https://support.apple.com/en-us/ht201678"
+   ]
+  }
+ ],
+ "post": {
+  "description": "Dicas sambil main game bikin HP panas. Pengisian baterai dan chip grafis sama-sama melepas panas di satu badan tipis, lalu HP menurunkan kinerjanya sendiri. Sumber: Apple Support, Battery University, Android Open Source Project, Anker.",
+  "hashtags": [
+   "#hppanas",
+   "#gaming",
+   "#faktaseru",
+   "#intipyuk",
+   "#shorts"
+  ]
+ },
+ "thumb": "Dicas sambil main: *panas dobel*?",
+ "needs": [],
+ "look": "2d",
+ "theme": "sky",
+ "stage": "steps",
+ "captions": true,
+ "music": {
+  "track": "bed-orbit"
+ }
+}
