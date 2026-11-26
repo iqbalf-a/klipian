@@ -111,7 +111,7 @@ async function b48() {
   const mineS = srcOf(dir);
   const kindHit = KINDS.filter((k) => new RegExp(`\\b${k}s?\\b`).test(mineS)).map((k) => ({ k, v: others.filter((o) => new RegExp(`\\b${k}s?\\b`).test(srcOf(path.join(vroot, o.name)))) })).filter((x) => x.v.length);
   add(kindHit.length ? "FLAG" : "PASS", `B42: prop kinds (word list) ${kindHit.length ? `also in the recent videos: ${kindHit.map((x) => `${x.k} (${x.v.length}: ${x.v.slice(0, 2).map((o) => o.name.slice(0, 12)).join(", ")})`).join("; ")}; drop or replace each, a look-alike counts` : "none is in the recent videos"}`);
-  // ian, 2026-11-25 (B62 a): the camera of RicksClips3000 holds still or drifts very slowly inside a shot and changes by CUTTING; a camera that moves a little in every shot makes the viewer dizzy.
+  // ian, 2026-11-25 (B62 a, amended by B65): cuts do the variety but a flat locked camera reads as 2D; slow steady moves with parallax, never fast.
   if (story.look === "ricks") {
     const OB = 9, srcI = existsSync(path.join(dir, "index.tsx")) ? readFileSync(path.join(dir, "index.tsx"), "utf8") : "";
     const num = (txt) => { try { return new Function("OB", `return [${txt}]`)(OB); } catch { return null; } };
@@ -120,8 +120,9 @@ async function b48() {
       const total = story.duration;
       const rows = shots.map((x, i) => { const dur = (shots[i + 1]?.from ?? total) - x.from, d = (u, v) => Math.hypot(u[0] - v[0], u[1] - v[1], u[2] - v[2]);
         return { at: x.from, dur, v: d(x.a.slice(0, 3), x.b.slice(0, 3)) / dur, l: d(x.a.slice(3), x.b.slice(3)) / dur }; });
-      const fast = rows.filter((r) => r.v > 0.3 || r.l > 0.3), moving = rows.filter((r) => r.v > 0.08 || r.l > 0.08);
-      add(fast.length || moving.length > rows.length * 0.4 ? "FAIL" : "PASS", `B62 a: the camera: ${rows.length} shots, ${moving.length} drift at all (at most 40 %), none faster than 0.3 m/s${fast.length ? `; TOO FAST: ${fast.slice(0, 6).map((r) => `${r.at}s (${Math.max(r.v, r.l).toFixed(2)} m/s)`).join(", ")}` : ""}${moving.length > rows.length * 0.4 ? "; too many shots move, hold the others still" : ""}`);
+      // ian, 2026-11-26 (B65): "camera terlalu flat seperti 2d" after kantor-berhantu: at least 60 % of the shots carry a steady slow move (0.06 to 0.3 m/s), none faster
+      const fast = rows.filter((r) => r.v > 0.3 || r.l > 0.3), moving = rows.filter((r) => r.v >= 0.06 || r.l >= 0.06), need = Math.ceil(rows.length * 0.6);
+      add(fast.length || moving.length < need ? "FAIL" : "PASS", `B65 a: the camera: ${rows.length} shots, ${moving.length} with a steady move (at least 60 % = ${need}, 0.06 to 0.3 m/s)${fast.length ? `; TOO FAST: ${fast.slice(0, 6).map((r) => `${r.at}s (${Math.max(r.v, r.l).toFixed(2)} m/s)`).join(", ")}` : ""}${moving.length < need ? "; too flat, give more shots a slow orbit, push, crane or track (B65)" : ""}`);
     }
   }
   const themed = others.filter((o) => me.theme && o.theme === me.theme).length, staged = others.filter((o) => me.stage && o.stage === me.stage).length;
