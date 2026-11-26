@@ -1763,16 +1763,8 @@ def _round(x):
 # the briefs and the voice-app texts live in motion_brief.py and motion_voice_export.py; they are re-exported here, so `motion.build_brief`,
 # `motion.narration_export` and the rest keep their names (this import is at the end: those modules reach back into this one only when a function runs)
 # --------------------------------------------------------------------------
+# The names the rest of klipian reaches as `motion.X`; everything else in these two modules is imported from them directly.
 from .motion_brief import (  # noqa: E402,F401
-    CHANNEL_RULES, CHECKLIST, COMPOSITION, FACT_RULES,
-    HARD_RULES, MISTAKES, FALLBACK, STRUCTURE, video_slug, _beat_kinds_text,
-    _catalog_text, _examples_text, _items_text, _kind_text,
-    _options_text, _report_text, _stand_in, _structure_text,
-    build_brief, build_fix_message, build_revise_brief, short_command,
+    STRUCTURE, build_brief, build_fix_message, build_revise_brief, short_command, video_slug,
 )
-from .motion_voice_export import (  # noqa: E402,F401
-    EL_EXPRESSIONS, EL_EXPRESSIONS_MAX, GOOGLE_EXPRESSIONS_MAX, PART_SECONDS,
-    WPS_HIGH, WPS_LOW, _elevenlabs, _google_script,
-    _google_style, _plain, _sentences, narration_export,
-    narration_parts,
-)
+from .motion_voice_export import narration_export, narration_parts  # noqa: E402,F401

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from urllib.parse import parse_qs, urlparse
 
+from .server_json import read_json
 from . import sched as _sched
 from . import claude_api as _claude
 from . import autopilot as _autopilot
@@ -66,12 +67,9 @@ class ServiceRoutes:
             return data
         return self._rubric_reply(listing)
 
-    def _post_rubrics(self):
+    @read_json
+    def _post_rubrics(self, req):
         action = urlparse(self.path).path.rsplit("/", 1)[-1]
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
         if action == "create":
             return self._rubric_reply(lambda: _rubrics.create(req.get("template"), req.get("name")))
         if action == "delete":
@@ -107,12 +105,9 @@ class ServiceRoutes:
         q = parse_qs(urlparse(self.path).query)
         return self._send_json(_claude.job_state((q.get("id") or [""])[0]))
 
-    def _post_claude(self):
+    @read_json
+    def _post_claude(self, req):
         action = urlparse(self.path).path.rsplit("/", 1)[-1]
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
         if action == "settings":
             if _paths.current_profile() == _paths.GUEST:
                 return self._send_json({"error": "not available for the Guest profile"}, 403)
@@ -160,12 +155,9 @@ class ServiceRoutes:
         q = parse_qs(urlparse(self.path).query)
         return self._send_json(_ytdl.state((q.get("id") or [""])[0]))
 
-    def _post_ytdl(self):
+    @read_json
+    def _post_ytdl(self, req):
         action = urlparse(self.path).path.rsplit("/", 1)[-1]
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
         if action == "preview":
             return self._ytdl_reply(lambda: _ytdl.preview(str(req.get("url") or ""), req.get("quality") or 1080))
         if action == "start":
@@ -180,12 +172,9 @@ class ServiceRoutes:
 
     # ---- Motion videos (/remotion, motion.py): a topic -> a brief -> the AI's JSON -> the fact gate -> an MP4 in Clips ----
 
-    def _post_youtube(self):
+    @read_json
+    def _post_youtube(self, req):
         action = urlparse(self.path).path.rsplit("/", 1)[-1]
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
         if action == "refresh-due":
             return self._youtube_reply(_youtube.refresh_due)
         if action == "sync-all":
@@ -286,12 +275,9 @@ class ServiceRoutes:
             return self._send_json({"error": "This run has no brief to copy."}, 404)
         return self._send_text(run["brief"], "text/markdown")
 
-    def _post_autopilot(self):
+    @read_json
+    def _post_autopilot(self, req):
         action = urlparse(self.path).path.rsplit("/", 1)[-1]
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
         deps = _autopilot_deps.RealDeps()
         urls = [str(u).strip() for u in (req.get("urls") or []) if str(u).strip()]
         if action == "settings":
@@ -336,12 +322,9 @@ class ServiceRoutes:
     def _get_admin_models(self):
         return self._gemini_reply(lambda: {"models": _gemini.list_models()})
 
-    def _post_admin(self):
+    @read_json
+    def _post_admin(self, req):
         action = urlparse(self.path).path.rsplit("/", 1)[-1]
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
         if action == "test":
             return self._gemini_reply(lambda: {**_gemini.test_key(), "gemini": _gemini.status()})
         try:

@@ -10,6 +10,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, quote, urlparse
 
 from .cache import Cache
+from .server_json import read_json
 from . import compose as composer
 from . import credits as credits_mod
 from .schedule import CLIPS_LOCK, mark_uploads as _mark_uploads, uploads_of as _uploads_of, bulk_update as _bulk_update, set_schedules as _set_schedules, delete_rows as _delete_rows, restore_rows as _restore_rows, with_missing_flags as _with_missing_flags, created_of as _created_of, load_clips as _load_clips, migrate_created as _migrate_created, save_clips as _save_clips
@@ -124,13 +125,10 @@ class WorkspaceRoutes:
                          "can_redownload": bool(c.get("videoId"))})
         return self._send_json({"source": item, "folder": str(folder)})
 
-    def _post_workspace_sources_delete(self):
+    @read_json
+    def _post_workspace_sources_delete(self, req):
         """Delete one source video: its credit is written to deleted.json FIRST (credits.save forgets
         a file that is gone), then the file goes to the Recycle Bin. Projects are not touched."""
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
         name = str(req.get("file") or "")
         path = find_video(name)
         if Path(name).suffix.lower() not in VIDEO_EXT or path is None or not path.is_file():
@@ -151,13 +149,10 @@ class WorkspaceRoutes:
             name: {**c, "line": credits_mod.line(c), "short": credits_mod.short(c)}
             for name, c in credit.items()}})
 
-    def _post_credit(self):
+    @read_json
+    def _post_credit(self, req):
         """Set or clear one video's credit: {file, platform, creator, title, url}.
         All four empty removes it."""
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
         name = str(req.get("file") or "")
         if Path(name).suffix.lower() not in VIDEO_EXT or not find_video(name):
             return self._send_json({"error": f"{name or 'that video'} is not in workspace/sources/"}, 404)
@@ -182,13 +177,10 @@ class WorkspaceRoutes:
         mime = mimetypes.guess_type(f.name)[0] or "application/octet-stream"
         return self._send_file(f, mime)
 
-    def _post_workspace_clips_from_render(self):
+    @read_json
+    def _post_workspace_clips_from_render(self, req):
         """Add a render file that has no schedule row: {folder, file} (names inside
         out/, never paths). Never makes a second row for the same file."""
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
         folder, file_name = str(req.get("folder") or ""), str(req.get("file") or "")
         if (Path(folder).name != folder or Path(file_name).name != file_name
                 or not file_name.lower().endswith(".mp4") or file_name.startswith("_")
@@ -204,12 +196,9 @@ class WorkspaceRoutes:
         row_id, created, how = add_render_to_schedule(folder, file_name)
         return self._send_json({"ok": True, "id": row_id, "created": created, "how": how})
 
-    def _post_workspace_clips_delete(self):
+    @read_json
+    def _post_workspace_clips_delete(self, req):
         """Delete rows ({ids}); the rows are kept in clips.trash.json for Undo."""
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
         ids = req.get("ids")
         if not isinstance(ids, list) or not ids or not all(isinstance(i, str) for i in ids):
             return self._send_json({"error": "ids must be a list of row ids"}, 400)
@@ -219,12 +208,9 @@ class WorkspaceRoutes:
             return self._send_json({"error": f"could not delete: {exc}"}, 500)
         return self._send_json({"ok": True, "deleted": gone})
 
-    def _post_workspace_clips_restore(self):
+    @read_json
+    def _post_workspace_clips_restore(self, req):
         """Undo a delete ({ids}): the rows come back exactly as they were."""
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
         ids = req.get("ids")
         if not isinstance(ids, list) or not ids or not all(isinstance(i, str) for i in ids):
             return self._send_json({"error": "ids must be a list of row ids"}, 400)
@@ -233,13 +219,10 @@ class WorkspaceRoutes:
         return self._send_json({"ok": True, "restored": [r["id"] for r in back],
                                 "clip": with_missing_flags(back)})
 
-    def _post_workspace_clips_schedule(self):
+    @read_json
+    def _post_workspace_clips_schedule(self, req):
         """The upload date and time of many rows in one request: {rows: [{id, date, time}]}
         (the bulk upload dialog's inline inputs and its Auto-fill). One read-modify-write."""
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
         rows = req.get("rows")
         if not isinstance(rows, list) or not rows or len(rows) > 5000:
             return self._send_json({"error": "rows must be a list of {id, date, time}"}, 400)
@@ -250,13 +233,10 @@ class WorkspaceRoutes:
         out["clip"] = _with_missing_flags(out["clip"])
         return self._send_json({"ok": True, **out})
 
-    def _post_workspace_clips_bulk(self):
+    @read_json
+    def _post_workspace_clips_bulk(self, req):
         """One request for an action on many schedule rows: {ids, status, date?,
         time?}. One read-modify-write, one save (see schedule.bulk_update)."""
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
         ids = req.get("ids")
         if not isinstance(ids, list) or not ids or len(ids) > 5000 or not all(isinstance(i, str) for i in ids):
             return self._send_json({"error": "ids must be a list of row ids"}, 400)
@@ -268,13 +248,10 @@ class WorkspaceRoutes:
         out["clip"] = _with_missing_flags(out["clip"])
         return self._send_json({"ok": True, **out})
 
-    def _post_workspace_clips_upload_mark(self):
+    @read_json
+    def _post_workspace_clips_upload_mark(self, req):
         """Mark by hand where clips are uploaded: {ids, platform: youtube|tiktok|instagram, state: none|scheduled|done, date?, time?, url?} (schedule.mark_uploads).
         Nothing is uploaded and no network call is made."""
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
         ids = req.get("ids")
         if not isinstance(ids, list) or not ids or len(ids) > 5000 or not all(isinstance(i, str) for i in ids):
             return self._send_json({"error": "ids must be a list of row ids"}, 400)
@@ -286,13 +263,10 @@ class WorkspaceRoutes:
         out["clip"] = _with_missing_flags(out["clip"])
         return self._send_json({"ok": True, **out})
 
-    def _post_workspace_clips_thumbnail(self):
+    @read_json
+    def _post_workspace_clips_thumbnail(self, req):
         """Make a clip's thumbnail card again from its final video: {id, text?}. `text` (when sent) is kept on the row as thumbText; empty clears it
         (the title is used). Used after editing thumbText and for old renders that have no JPG. No re-render, no network."""
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
         from . import schedule as _sch, thumbnail as _thumb
         row = _sch.get_row(str(req.get("id") or ""))
         if not row:
@@ -309,13 +283,10 @@ class WorkspaceRoutes:
         row = _sch.set_fields(row["id"], {"thumbError": ""}) or row
         return self._send_json({"ok": True, "clip": _with_missing_flags([row])[0]})
 
-    def _post_thumbnail_preview(self):
+    @read_json
+    def _post_thumbnail_preview(self, req):
         """The settings preview: {style, text} -> a JPEG made by the same thumbnail.write as the real one, from the profile's newest rendered
         video, or from a plain placeholder frame when it has none. Nothing is saved."""
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
         from . import thumbnail as _thumb
         info: dict = {}
         data = _thumb.preview(req.get("style"), str(req.get("text") or ""), info)
@@ -332,11 +303,8 @@ class WorkspaceRoutes:
         except ConnectionError:
             pass
 
-    def _post_workspace_clips(self):
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
+    @read_json
+    def _post_workspace_clips(self, req):
 
         cid = str(req.get("id") or "")
 

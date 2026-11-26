@@ -30,6 +30,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
+from .server_json import read_json
 from .cache import Cache, fingerprint as _fingerprint
 from .models import Transcript
 from . import ffmpeg_tools
@@ -529,12 +530,9 @@ class Handler(MotionRoutes, ServiceRoutes, WorkspaceRoutes, ProjectRoutes, Rende
 
     # ---- the profile's YouTube account (youtube.py; the Guest is refused in _set_profile) ----
 
-    def _post_profiles(self):
+    @read_json
+    def _post_profiles(self, req):
         """create / update / delete / clear-guest. None needs a profile in the header."""
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
         action = urlparse(self.path).path.rsplit("/", 1)[-1]
         try:
             if action == "create":
@@ -669,12 +667,9 @@ class Handler(MotionRoutes, ServiceRoutes, WorkspaceRoutes, ProjectRoutes, Rende
             return self._send_json({"error": str(exc)}, 400)
         return self._send_text(text, "text/markdown")
 
-    def _post_results_reply(self):
+    @read_json
+    def _post_results_reply(self, req):
         """Claude's reply for several Results -> {id: fields}, or the Results and fields that are missing."""
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
         pdata = self._saved_project(str(req.get("project") or ""))
         if not pdata:
             return self._send_json({"error": "That project is not saved yet."}, 400)
@@ -698,12 +693,9 @@ class Handler(MotionRoutes, ServiceRoutes, WorkspaceRoutes, ProjectRoutes, Rende
                 warnings[rid] = w
         return self._send_json({"ok": True, "results": fields, "notes": notes, "postWarnings": warnings})
 
-    def _post_result_reply(self):
+    @read_json
+    def _post_result_reply(self, req):
         """Claude's reply for one Result -> its fields (the page fills them in and asks before replacing)."""
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
         pdata = self._saved_project(str(req.get("project") or ""))
         entry = next((r for r in (pdata or {}).get("results") or [] if isinstance(r, dict) and r.get("id") == req.get("result")), None)
         if not entry:

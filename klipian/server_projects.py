@@ -10,6 +10,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from .cache import Cache
+from .server_json import read_json
 from . import compose as composer
 from .schedule import scheduled_files as _scheduled_files, project_of_folder as _project_of_folder
 from . import cues as cues_mod
@@ -161,12 +162,9 @@ class ProjectRoutes:
             return self._send_json({"error": "not found"}, 404)
         return self._send_file(f, mimetypes.guess_type(f.name)[0] or "application/octet-stream")
 
-    def _post_project_restore(self):
+    @read_json
+    def _post_project_restore(self, req):
         """Undo deleting a project: the newest copy in projects/.trash/ comes back."""
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
         f = _project_file(req.get("id"))
         if f is None:
             return self._send_json({"error": "invalid id"}, 400)
@@ -181,11 +179,8 @@ class ProjectRoutes:
             copies[-1].unlink(missing_ok=True)
         return self._send_json({"ok": True, "restored": True})
 
-    def _post_project(self):
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
+    @read_json
+    def _post_project(self, req):
         # The project's first video: from its assets, or `video` from a
         # client older than them. Filename only, no path components --
         # the name from the client must not determine WHERE anything is
@@ -293,15 +288,12 @@ class ProjectRoutes:
         return self._send_json({"ok": True, "name": dest.name,
                                 "kind": "image" if ext in composer.IMAGE_EXT else "sound"})
 
-    def _post_project_asset_import(self):
+    @read_json
+    def _post_project_asset_import(self, req):
         # A file from the shared library (workspace/assets/: logos,
         # banners, templates) COPIED into the project's folder. A copy,
         # not a reference: editing or deleting the shared file later
         # must not change a project that already used it.
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
         folder = _project_assets_dir(req.get("id"))
         if folder is None or not _project_file(folder.parent.name).is_file():
             return self._send_json({"error": "save the project first"}, 400)
@@ -325,11 +317,8 @@ class ProjectRoutes:
         return self._send_json({"ok": True, "name": dest.name,
                                 "kind": "image" if ext in composer.IMAGE_EXT else "sound"})
 
-    def _post_project_rename(self):
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
+    @read_json
+    def _post_project_rename(self, req):
         # Collapsed whitespace and a length cap: it's shown on a card
         # and in the topbar, and nothing about a name needs a newline.
         new_name = " ".join(str(req.get("name") or "").split())[:80]

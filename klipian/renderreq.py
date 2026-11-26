@@ -323,6 +323,71 @@ def _default_title(segments: list[dict]) -> str:
     return segments[0].get("title") or "" if len(segments) == 1 else f"{segments[0].get('title') or ''} +{len(segments) - 1}"
 
 
+def _result_segments(entry: dict) -> list[dict]:
+    """The Result's spans on the virtual timeline (the asset's offset added). Raises RequestError("no_spans") when there are none or one has no time."""
+    stored = entry.get("segments") if isinstance(entry.get("segments"), list) else (
+        entry.get("result") if isinstance(entry.get("result"), list) else [])
+    segments = []
+    for s in stored:
+        off = _offset(s.get("asset") or "a1")
+        seg = {k: v for k, v in s.items() if k != "asset"}
+        seg["start"], seg["end"] = s["start"] + off, s["end"] + off
+        segments.append(seg)
+    if not segments or not all(isinstance(s.get("start"), (int, float)) and isinstance(s.get("end"), (int, float))
+                               and math.isfinite(s["start"]) and math.isfinite(s["end"]) for s in segments):
+        raise RequestError("no_spans", "This Result has no time points.")
+
+    return segments
+
+
+def _chosen_words(entry: dict, segments: list[dict], video_ids: list[str], files: dict, words_of) -> list[dict]:
+    """The words that make it into the Result, corrections applied, listed in the order they will be heard."""
+    # (captions.js resultWords)
+    corrections = entry.get("corrections") if isinstance(entry.get("corrections"), dict) else {}
+    all_words = []
+    for aid in (video_ids if len(video_ids) > 1 else (video_ids[:1] or ["a1"])):
+        ws = words_of(files.get(aid, "")) or []
+        off = _offset(aid)
+        all_words += [{**w, "start": w["start"] + off, "end": w["end"] + off} for w in ws] if off else list(ws)
+    chosen = []
+    for w in all_words:
+        if not any(w["start"] >= p["start"] and w["end"] <= p["end"] for p in segments):
+            continue
+        k = _to_fixed3(w["start"])
+        text = corrections[k] if k in corrections else w["text"]
+        chosen.append({"text": str(text).strip(), "start": w["start"], "end": w["end"]})
+    if not all(segments[i - 1]["start"] <= segments[i]["start"] for i in range(1, len(segments))):
+        # the Timeline screen put the spans in another order: the words are listed as they will be heard
+        def out_at(w):
+            at = 0.0
+            for p in segments:
+                if p["start"] <= w["start"] <= p["end"]:
+                    return at + (w["start"] - p["start"])
+                at += p["end"] - p["start"]
+            return 0.0
+        chosen.sort(key=out_at)
+    return chosen
+
+
+def _overlays(entry: dict, total: float) -> list[dict]:
+    """The Result's overlays that start inside the clip, cut off at its end."""
+    return [{**{k: v for k, v in e.items() if k != "id"}, "end": min(e["end"], total)}
+            for e in (entry.get("overlays") or []) if isinstance(e, dict) and e.get("start", 0) < total]
+
+
+def _volumes(segments: list[dict]) -> list[dict]:
+    """One {start, end, volume} per span whose volume is not 1, on the output timeline."""
+    volumes = []
+    at = 0.0
+    for s in segments:
+        length = s["end"] - s["start"]
+        vol = s.get("volume")
+        if vol is not None and abs(vol - 1) > 1e-6:
+            volumes.append({"start": _round2(at), "end": _round2(at + length), "volume": vol})
+        at += length
+    return volumes
+
+
 def build_request(project: dict, result_id: str, *,
                   words_of: Callable[[str], list[dict] | None],
                   size_of: Callable[[str], tuple[int, int] | None]) -> dict:
@@ -339,17 +404,7 @@ def build_request(project: dict, result_id: str, *,
     files = {a["id"]: a["file"] for a in assets}
     video_ids = [a["id"] for a in assets if (a.get("kind") or "video") == "video"]
 
-    stored = entry.get("segments") if isinstance(entry.get("segments"), list) else (
-        entry.get("result") if isinstance(entry.get("result"), list) else [])
-    segments = []                                    # RESULT: on the virtual timeline
-    for s in stored:
-        off = _offset(s.get("asset") or "a1")
-        seg = {k: v for k, v in s.items() if k != "asset"}
-        seg["start"], seg["end"] = s["start"] + off, s["end"] + off
-        segments.append(seg)
-    if not segments or not all(isinstance(s.get("start"), (int, float)) and isinstance(s.get("end"), (int, float))
-                               and math.isfinite(s["start"]) and math.isfinite(s["end"]) for s in segments):
-        raise RequestError("no_spans", "This Result has no time points.")
+    segments = _result_segments(entry)               # RESULT: on the virtual timeline
 
     output = output_options(entry.get("output"))
     picture = output["picture"]
@@ -374,30 +429,7 @@ def build_request(project: dict, result_id: str, *,
             out["video"] = file
         return out
 
-    # the words that make it into the Result, corrections applied (captions.js resultWords)
-    corrections = entry.get("corrections") if isinstance(entry.get("corrections"), dict) else {}
-    all_words = []
-    for aid in (video_ids if len(video_ids) > 1 else (video_ids[:1] or ["a1"])):
-        ws = words_of(files.get(aid, "")) or []
-        off = _offset(aid)
-        all_words += [{**w, "start": w["start"] + off, "end": w["end"] + off} for w in ws] if off else list(ws)
-    chosen = []
-    for w in all_words:
-        if not any(w["start"] >= p["start"] and w["end"] <= p["end"] for p in segments):
-            continue
-        k = _to_fixed3(w["start"])
-        text = corrections[k] if k in corrections else w["text"]
-        chosen.append({"text": str(text).strip(), "start": w["start"], "end": w["end"]})
-    if not all(segments[i - 1]["start"] <= segments[i]["start"] for i in range(1, len(segments))):
-        # the Timeline screen put the spans in another order: the words are listed as they will be heard
-        def out_at(w):
-            at = 0.0
-            for p in segments:
-                if p["start"] <= w["start"] <= p["end"]:
-                    return at + (w["start"] - p["start"])
-                at += p["end"] - p["start"]
-            return 0.0
-        chosen.sort(key=out_at)
+    chosen = _chosen_words(entry, segments, video_ids, files, words_of)
 
     total = sum(s["end"] - s["start"] for s in segments)
     typed = (entry.get("title") or "").strip()
@@ -419,18 +451,10 @@ def build_request(project: dict, result_id: str, *,
         clip["hook"] = str(entry["hook"]).strip()            # kept on the Clips row and used for the thumbnail text
     if str(entry.get("thumb") or "").strip():
         clip["thumb"] = str(entry["thumb"]).strip()          # the AI's own thumbnail text, same road as the hook
-    overlays = [{**{k: v for k, v in e.items() if k != "id"}, "end": min(e["end"], total)}
-                for e in (entry.get("overlays") or []) if isinstance(e, dict) and e.get("start", 0) < total]
+    overlays = _overlays(entry, total)
     if overlays:
         clip["overlays"] = overlays
-    volumes = []
-    at = 0.0
-    for s in segments:
-        length = s["end"] - s["start"]
-        vol = s.get("volume")
-        if vol is not None and abs(vol - 1) > 1e-6:
-            volumes.append({"start": _round2(at), "end": _round2(at + length), "volume": vol})
-        at += length
+    volumes = _volumes(segments)
     if volumes:
         clip["volumes"] = volumes
     request = {"video": main or "", "project": project.get("id"), "result": result_id, "clips": [clip]}

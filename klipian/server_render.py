@@ -14,6 +14,7 @@ from pathlib import Path
 
 from .cache import Cache
 from .models import Transcript
+from .server_json import read_json
 from . import compose as composer
 from . import render as engine
 from .jobs import style_with_profile as _style_with_profile
@@ -87,11 +88,8 @@ class RenderRoutes:
         # `notes`: what was repaired in the JSON (a .replace(" ", "") or a trailing comma), to be said
         return self._send_json({"candidates": candidates, "notes": notes})
 
-    def _post_render(self):
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
+    @read_json
+    def _post_render(self, req):
         if req.get("project") and isinstance(req.get("results"), list):
             # The Results of a SAVED project: the server builds each request itself (renderreq.py), so what is
             # rendered is what is saved. One job, one clip after another; see jobs.start_project_render.
@@ -112,13 +110,10 @@ class RenderRoutes:
                          daemon=True).start()
         return self._send_json({"id": job_id})
 
-    def _post_render_plan(self):
+    @read_json
+    def _post_render_plan(self, req):
         """What a bulk render of these Results of a SAVED project would do, before it starts: the clips (title,
         length, picture), the ones that cannot be rendered and why, and a time estimate. Nothing is rendered."""
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
         pf = _project_file(str(req.get("project") or ""))
         pdata = _read_project(pf) if pf and pf.is_file() else None
         if not pdata:
@@ -130,11 +125,8 @@ class RenderRoutes:
                                 "refused": refused, "totalDuration": round(sum(i["duration"] for i in items), 1),
                                 "estimateSeconds": seconds, "estimateHow": how})
 
-    def _post_render_cancel(self):
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
+    @read_json
+    def _post_render_cancel(self, req):
         job_id = str(req.get("id") or "")
         item = req.get("item")
         if JOBS.get(job_id, {}).get("batch"):
@@ -282,11 +274,8 @@ class RenderRoutes:
             **({"warning": warning} if warning else {}),
         })
 
-    def _post_transcribe(self):
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
+    @read_json
+    def _post_transcribe(self, req):
         name = req.get("video", "")
         key = _transcribe_key(str(name), bool(req.get("ranges")))               # the FILE (size + mtime), not its name: see jobs.transcribe_key
         # Entire check-then-register in one lock so no two threads both
@@ -310,11 +299,8 @@ class RenderRoutes:
                          daemon=True).start()
         return self._send_json({"id": job_id})
 
-    def _post_diarize(self):
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
+    @read_json
+    def _post_diarize(self, req):
         if not req.get("video"):
             return self._send_json({"error": "video required"}, 400)
 

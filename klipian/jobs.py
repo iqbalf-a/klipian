@@ -288,6 +288,130 @@ def _run_render(job_id: str, req: dict, into: Path | None = None, record: bool =
         _render_body(job_id, req, into, record)
 
 
+def _encode_single(job_id, t, k, video, words, info, crop_box, picture, out_width, quality, style, dest, prog):
+    """Pass 1 of a clip whose spans all come from the request's one video: one encode. Returns (duration, cold open note),
+    or None when it was cancelled (the job's state is set)."""
+    spans = _spans_from_clip(k)
+    job = engine.RenderJob(title=k["title"], spans=spans, crop=crop_box,
+                           **picture, out_width=out_width, quality=quality)
+    clip_words = _clip_words(k, words)
+    cold_note = apply_cold_open(k, job, clip_words, video)
+    try:
+        prog.advance()                         # preparing -> the encode
+        engine.render(video, job, dest, words=clip_words, style=style,
+                     src_width=info.width, src_height=info.height,
+                     has_audio=info.has_audio, verbose=False,
+                     cancel_check=lambda: job_id in CANCELLED, on_progress=prog.tick)
+    except engine.RenderCancelled:
+        with LOCK:
+            t["state"] = "cancelled"
+        return None
+    return job.duration, cold_note
+
+
+def _encode_runs(job_id, t, req, k, runs, out_dir, crop_box, picture, out_width, quality, style, dest, prog):
+    """Pass 1 of a clip that draws on more than one video: each run is encoded on its own, then they are joined. Returns
+    (duration, cold open note), or None when it was cancelled (the job's state is set)."""
+    from .ffmpeg_tools import probe
+    cold_note = ""
+    tmp_dir = out_dir / f".tmp-{job_id}"
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    parts: list[Path] = []
+    duration = 0.0
+    try:
+        for ridx, (run_video_name, run_spans_raw) in enumerate(runs):
+            run_video = find_video(run_video_name)
+            if not run_video:
+                raise FileNotFoundError(
+                    f"{run_video_name} is not in a folder the server can "
+                    f"reach. Put the file in sources/.")
+            run_info = probe(run_video)
+            run_words = _run_words(k, run_video_name, req["video"],
+                                   lambda: _load_transcript_words(run_video, t))
+            run_spans = _spans_from_clip({"spans": run_spans_raw})
+            run_job = engine.RenderJob(title=k["title"], spans=run_spans,
+                                       crop=crop_box, **picture,
+                                       out_width=out_width, quality=quality)
+            if ridx == 0:                      # the cold open goes in front of the clip: only when the hook is spoken in its first run
+                cold_note = apply_cold_open(k, run_job, run_words, run_video)
+            part_dest = tmp_dir / f"part{ridx}.mp4"
+            prog.advance()                     # the next piece
+            engine.render(run_video, run_job, part_dest, words=run_words,
+                         style=style, src_width=run_info.width,
+                         src_height=run_info.height, has_audio=run_info.has_audio,
+                         verbose=False, cancel_check=lambda: job_id in CANCELLED,
+                         on_progress=prog.tick)
+            parts.append(part_dest)
+            duration += run_job.duration
+        if job_id in CANCELLED:
+            with LOCK:
+                t["state"] = "cancelled"
+            return None
+        if len(parts) == 1:
+            parts[0].replace(dest)
+        else:
+            prog.advance()                     # joining
+            engine.concat_renders(parts, dest, quality)
+    except engine.RenderCancelled:
+        with LOCK:
+            t["state"] = "cancelled"
+        return None
+    finally:
+        for p in parts:
+            p.unlink(missing_ok=True)
+            p.with_suffix(".ass").unlink(missing_ok=True)
+        try:
+            tmp_dir.rmdir()
+        except OSError:
+            pass
+    return duration, cold_note
+
+
+def _second_pass(job_id, t, k, dest, duration, out_width, quality, media_dir, prog) -> bool:
+    """Pass 2 (compose.py) of a clip that has timeline elements or volumes. False when it was cancelled (the job's state is set)."""
+    elements = composer.clean_elements(k.get("overlays"), duration, media_dir)
+    volumes = composer.clean_volumes(k.get("volumes"), duration)
+    if elements or volumes:
+        with LOCK:
+            t["current"] = f"{k['title']} · adding timeline elements"
+        raw = dest.with_name(dest.stem + ".pass1.mp4")
+        dest.replace(raw)
+        out_h = out_width * 16 // 9
+        try:
+            prog.advance()                         # the second pass
+            composer.compose(raw, dest, width=out_width, height=out_h - (out_h & 1),
+                             duration=duration, elements=elements, volumes=volumes,
+                             quality=quality, cancel_check=lambda: job_id in CANCELLED,
+                             on_progress=prog.tick)
+        except engine.RenderCancelled:
+            raw.unlink(missing_ok=True)
+            with LOCK:
+                t["state"] = "cancelled"
+            return
+        except Exception as exc:                # noqa: BLE001
+            # The clip itself is fine -- keep it rather than lose a
+            # finished render over a sticker, and say what's missing.
+            dest.unlink(missing_ok=True)
+            raw.replace(dest)
+            with LOCK:
+                t["warning"] = f"saved without its timeline elements: {exc}"
+        finally:
+            raw.unlink(missing_ok=True)
+    return True
+
+
+def _write_thumbnail(dest: Path, k: dict) -> str:
+    """<name>.jpg beside the clip; returns the error to keep on the Clips row ("" when there is a picture)."""
+    dest.with_suffix(".jpg").unlink(missing_ok=True)         # a picture of an earlier render of this name would be stale
+    thumb_text, thumb_info = thumbnail.text_of(None, k["title"], k.get("hook"), ai=k.get("thumb")), {}
+    if not thumbnail.write(dest, thumb_text, info=thumb_info):
+        time.sleep(THUMB_RETRY_WAIT)
+        thumb_info = {}
+        thumbnail.write(dest, thumb_text, info=thumb_info)
+    thumb_error = thumb_info.get("error", "") if not dest.with_suffix(".jpg").is_file() else ""
+    return thumb_error
+
+
 def _render_body(job_id: str, req: dict, into: Path | None = None, record: bool = True) -> None:
     """Render a request. `into` sends the files to that folder instead of the
     project's own (a replay, the selftest); `record` is whether the finished
@@ -403,22 +527,7 @@ def _render_body(job_id: str, req: dict, into: Path | None = None, record: bool 
                 # p["crop"] is what makes framing shift mid-clip: each
                 # segment is framed independently before joining. p["crops"]
                 # holds two boxes and turns the segment into a split frame.
-                spans = _spans_from_clip(k)
-                job = engine.RenderJob(title=k["title"], spans=spans, crop=crop_box,
-                                       **picture, out_width=out_width, quality=quality)
-                clip_words = _clip_words(k, words)
-                cold_note = apply_cold_open(k, job, clip_words, video)
-                try:
-                    prog.advance()                         # preparing -> the encode
-                    engine.render(video, job, dest, words=clip_words, style=style,
-                                 src_width=info.width, src_height=info.height,
-                                 has_audio=info.has_audio, verbose=False,
-                                 cancel_check=lambda: job_id in CANCELLED, on_progress=prog.tick)
-                except engine.RenderCancelled:
-                    with LOCK:
-                        t["state"] = "cancelled"
-                    return
-                duration = job.duration
+                encoded = _encode_single(job_id, t, k, video, words, info, crop_box, picture, out_width, quality, style, dest, prog)
             else:
                 # Multi-asset: pass 1 of the library-projects plan. Each run
                 # goes through the SAME single-source pipeline as the branch
@@ -428,56 +537,11 @@ def _render_body(job_id: str, req: dict, into: Path | None = None, record: bool 
                 # feature (split frame, head tracking, the rounded
                 # highlight box) works here for the same reason it works
                 # above: the code doing it is the code that already does it.
-                tmp_dir = out_dir / f".tmp-{job_id}"
-                tmp_dir.mkdir(parents=True, exist_ok=True)
-                parts: list[Path] = []
-                duration = 0.0
-                try:
-                    for ridx, (run_video_name, run_spans_raw) in enumerate(runs):
-                        run_video = find_video(run_video_name)
-                        if not run_video:
-                            raise FileNotFoundError(
-                                f"{run_video_name} is not in a folder the server can "
-                                f"reach. Put the file in sources/.")
-                        run_info = probe(run_video)
-                        run_words = _run_words(k, run_video_name, req["video"],
-                                               lambda: _load_transcript_words(run_video, t))
-                        run_spans = _spans_from_clip({"spans": run_spans_raw})
-                        run_job = engine.RenderJob(title=k["title"], spans=run_spans,
-                                                   crop=crop_box, **picture,
-                                                   out_width=out_width, quality=quality)
-                        if ridx == 0:                      # the cold open goes in front of the clip: only when the hook is spoken in its first run
-                            cold_note = apply_cold_open(k, run_job, run_words, run_video)
-                        part_dest = tmp_dir / f"part{ridx}.mp4"
-                        prog.advance()                     # the next piece
-                        engine.render(run_video, run_job, part_dest, words=run_words,
-                                     style=style, src_width=run_info.width,
-                                     src_height=run_info.height, has_audio=run_info.has_audio,
-                                     verbose=False, cancel_check=lambda: job_id in CANCELLED,
-                                     on_progress=prog.tick)
-                        parts.append(part_dest)
-                        duration += run_job.duration
-                    if job_id in CANCELLED:
-                        with LOCK:
-                            t["state"] = "cancelled"
-                        return
-                    if len(parts) == 1:
-                        parts[0].replace(dest)
-                    else:
-                        prog.advance()                     # joining
-                        engine.concat_renders(parts, dest, quality)
-                except engine.RenderCancelled:
-                    with LOCK:
-                        t["state"] = "cancelled"
-                    return
-                finally:
-                    for p in parts:
-                        p.unlink(missing_ok=True)
-                        p.with_suffix(".ass").unlink(missing_ok=True)
-                    try:
-                        tmp_dir.rmdir()
-                    except OSError:
-                        pass
+                encoded = _encode_runs(job_id, t, req, k, runs, out_dir, crop_box, picture, out_width, quality, style, dest, prog)
+
+            if encoded is None:                            # cancelled (the state is already set)
+                return
+            duration, cold_note = encoded
 
             # Pass 2 (compose.py): labels, stickers, sounds and per-segment
             # volume, timed against the finished clip. Only a clip that has
@@ -485,43 +549,11 @@ def _render_body(job_id: str, req: dict, into: Path | None = None, record: bool 
             # wrote, untouched.
             # Images and sounds come from the project's own folder.
             media_dir = (_project_assets_dir(pdata.get("id")) if pdata else None) or (out_dir / ".no-assets")
-            elements = composer.clean_elements(k.get("overlays"), duration, media_dir)
-            volumes = composer.clean_volumes(k.get("volumes"), duration)
-            if elements or volumes:
-                with LOCK:
-                    t["current"] = f"{k['title']} · adding timeline elements"
-                raw = dest.with_name(dest.stem + ".pass1.mp4")
-                dest.replace(raw)
-                out_h = out_width * 16 // 9
-                try:
-                    prog.advance()                         # the second pass
-                    composer.compose(raw, dest, width=out_width, height=out_h - (out_h & 1),
-                                     duration=duration, elements=elements, volumes=volumes,
-                                     quality=quality, cancel_check=lambda: job_id in CANCELLED,
-                                     on_progress=prog.tick)
-                except engine.RenderCancelled:
-                    raw.unlink(missing_ok=True)
-                    with LOCK:
-                        t["state"] = "cancelled"
-                    return
-                except Exception as exc:                # noqa: BLE001
-                    # The clip itself is fine -- keep it rather than lose a
-                    # finished render over a sticker, and say what's missing.
-                    dest.unlink(missing_ok=True)
-                    raw.replace(dest)
-                    with LOCK:
-                        t["warning"] = f"saved without its timeline elements: {exc}"
-                finally:
-                    raw.unlink(missing_ok=True)
+            if not _second_pass(job_id, t, k, dest, duration, out_width, quality, media_dir, prog):
+                return                                     # cancelled
 
             # <name>.jpg for the YouTube upload. Never fails the render, but it is tried twice and a failure is kept on the Clips row (thumbError)
-            dest.with_suffix(".jpg").unlink(missing_ok=True)         # a picture of an earlier render of this name would be stale
-            thumb_text, thumb_info = thumbnail.text_of(None, k["title"], k.get("hook"), ai=k.get("thumb")), {}
-            if not thumbnail.write(dest, thumb_text, info=thumb_info):
-                time.sleep(THUMB_RETRY_WAIT)
-                thumb_info = {}
-                thumbnail.write(dest, thumb_text, info=thumb_info)
-            thumb_error = thumb_info.get("error", "") if not dest.with_suffix(".jpg").is_file() else ""
+            thumb_error = _write_thumbnail(dest, k)
 
             with LOCK:
                 t["result"].append({

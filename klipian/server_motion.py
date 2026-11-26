@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from .server_json import read_json
 from . import motion as _motion
 
 
@@ -114,12 +115,9 @@ class MotionRoutes:
             data += chunk
         return self._motion_reply(lambda: {"voice": _motion.import_voice(pid, data=bytes(data), name=name)})
 
-    def _post_motion(self):
+    @read_json
+    def _post_motion(self, req):
         action = urlparse(self.path).path.rsplit("/", 1)[-1]
-        try:
-            req = self._read_json()
-        except Exception as exc:               # noqa: BLE001
-            return self._send_json({"error": str(exc)}, 400)
         pid = str(req.get("id") or "")
         if action == "create":
             return self._motion_reply(lambda: {"project": _motion.summary(_motion.create(req.get("topic"), req.get("duration") or _motion.DEFAULT_DURATION, req.get("notes") or "", req.get("options")))})

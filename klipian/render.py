@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import re
 import subprocess
-import textwrap
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -527,25 +526,9 @@ def _merged(windows: list[tuple[float, float]]) -> list[tuple[float, float]]:
     return [(s, e) for s, e in out]
 
 
-def build_ass(job: RenderJob, words: list[Word] | None, style: dict | None = None) -> str:
-    """Karaoke captions: one event per word, showing the full line with the
-    currently-spoken word highlighted. The "klipian" watermark is also
-    written here -- one static Dialogue spanning the entire video, not
-    per-word like captions -- so there's only one ASS file and one `ass=`
-    filter for ffmpeg to run, not two separate subtitle layers.
-
-    `words` may be None: the watermark-without-transcript path writes ASS
-    with no caption words at all."""
-    words = words or []
-    # Colors are written in ASS &HAABBGGRR& format -- order is
-    # BLUE-GREEN-RED, opposite of web hex. Gold #FFD600 becomes &H0000D6FF&.
-    # position/x and their watermark twins are percentages: position is the
-    # distance up from the bottom edge, x the offset from the centre (0 =
-    # centred, negative = left). Every default below reproduces what the
-    # three-choice version produced, so a style that doesn't set them renders
-    # exactly as it did before -- watermark_y's 18 included, which is where
-    # the old "bottom" mode landed it under a default caption.
-    g = {"font": "Arial", "size": 84, "per_line": 3,
+def _caption_settings(style: dict | None) -> dict:
+    """The caption and watermark settings: the defaults, then what the style sets."""
+    return {"font": "Arial", "size": 84, "per_line": 3,
          "reveal": "spoken",              # "spoken": only the words already said show; "line": the whole line
 
          "outline": 4, "position": 24, "x": 0,
@@ -561,22 +544,11 @@ def build_ass(job: RenderJob, words: list[Word] | None, style: dict | None = Non
          "watermark_y": 18, "watermark_x": 0,
          **(style or {})}
 
-    # The ASS coordinate system is FIXED at the reference frame, not the
-    # output size. PlayResX/Y is exactly that -- a coordinate space libass
-    # scales to whatever frame it draws into -- and using the output size
-    # instead made every absolute number mean a different thing per
-    # resolution: Fontsize 84 is 4.4% of a 1920-tall frame but 6.6% of a
-    # 1280-tall one, so the same style burned 50% larger at 720p than the
-    # preview showed. Big enough to push a line off the frame, which is how
-    # ian found it.
-    #
-    # Sizes and margins are authored once, here, and scale with the render.
-    # Checked: text rendered from this space into a 4K frame is as sharp as
-    # text authored at 4K natively -- libass scales the coordinates and
-    # rasterises at the target, it does not blow up a bitmap.
+
+def _ass_header(g: dict, job: RenderJob, margin_left: int, margin_right: int, margin_bottom: int,
+                border_style: int, border_colour: str) -> str:
+    """The ASS script's head: the styles, then the watermark and the cold open's big sentence (the events that are not captions)."""
     W, H = REF_W, REF_H
-    margin_bottom = int(H * g["position"] / 100)
-    margin_left, margin_right = _side_margins(g["x"], W)
     # Both are Alignment 2 now. The watermark used to derive its placement
     # from the caption's (see git history for _watermark_placement) so it
     # always sat just below it; ian asked for the two to be positioned
@@ -585,27 +557,6 @@ def build_ass(job: RenderJob, words: list[Word] | None, style: dict | None = Non
     wm_left, wm_right = _side_margins(g["watermark_x"], W)
     # Style lines use the form without trailing "&", the \c tag uses the form with.
     warna_style = g["color"].rstrip("&")
-
-    # BorderStyle 3 makes the outline an opaque box drawn in OutlineColour,
-    # and libass draws one PER SPAN -- which is what makes a box on a single
-    # word possible at all, since ASS has no inline tag for BorderStyle. So
-    # in box mode the outline colour becomes the highlight colour and the
-    # Outline number becomes the box's padding.
-    #
-    # The cost, and it's deliberate (ian chose it): a word's outline and its
-    # box are the same feature, so the words that AREN'T being spoken have no
-    # outline at all in this mode. Plain white text, exactly like the
-    # reference -- legible on most footage, thin on very bright footage.
-    box_highlight = g["highlight_style"] == "box"
-    # Rounded needs the word positions, so it only happens when the text can
-    # actually be measured (see _measure). Otherwise box mode still works --
-    # as the square BorderStyle 3 box, placed by libass itself.
-    rounded = _measure(g["font"], int(g["size"])) if box_highlight else None
-    square_box = box_highlight and not rounded
-    # With a drawn box the text layer goes back to being ordinary outlined
-    # text: the highlight is the shape underneath it, not the border.
-    border_style = 3 if square_box else 1
-    border_colour = (g["highlight"] if square_box else "&H00000000&").rstrip("&")
 
     # The SAME alpha is applied to the FILL color *and* the OUTLINE color --
     # previously only the fill followed watermark_opacity, the outline was
@@ -645,7 +596,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
     if job.lead and job.cold_text:
         header += _hook_events(job.cold_text, job.lead)
+    return header
 
+
+def _used_words(job: RenderJob, words: list[Word]) -> list[tuple[float, float, str]]:
+    """(start, end, text) of the words that land in the output, on the output timeline (the cold open's lead added)."""
     # only words that actually land in the output
     used = []
     for w in words:
@@ -664,7 +619,12 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         teks = _ass_escape(w.text.strip())
         if a is not None and b is not None and b > a and teks:
             used.append((a + job.lead, b + job.lead, teks))
+    return used
 
+
+def _caption_events(used: list, g: dict, rounded, square_box: bool, margin_left: int, margin_right: int, margin_bottom: int) -> list[str]:
+    """The caption Dialogue events: one per word window, or per word and box in the rounded box mode."""
+    W, H = REF_W, REF_H
     events = []
     per_line = max(1, int(g["per_line"]))   # a MAXIMUM now (see caption_plan); 0/negative must not crash
     spoken = g.get("reveal") != "line"       # "As spoken" (default): only the words that have started
@@ -772,6 +732,73 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     events.append(
                         f"Dialogue: 1,{_ass_time(s)},{_ass_time(e)},"
                         f"Utama,,0,0,0,,{{\\an1\\pos({int(wx0)},{int(box_bottom)})}}{t}")
+
+    return events
+
+
+def build_ass(job: RenderJob, words: list[Word] | None, style: dict | None = None) -> str:
+    """Karaoke captions: one event per word, showing the full line with the
+    currently-spoken word highlighted. The "klipian" watermark is also
+    written here -- one static Dialogue spanning the entire video, not
+    per-word like captions -- so there's only one ASS file and one `ass=`
+    filter for ffmpeg to run, not two separate subtitle layers.
+
+    `words` may be None: the watermark-without-transcript path writes ASS
+    with no caption words at all."""
+    words = words or []
+    # Colors are written in ASS &HAABBGGRR& format -- order is
+    # BLUE-GREEN-RED, opposite of web hex. Gold #FFD600 becomes &H0000D6FF&.
+    # position/x and their watermark twins are percentages: position is the
+    # distance up from the bottom edge, x the offset from the centre (0 =
+    # centred, negative = left). Every default below reproduces what the
+    # three-choice version produced, so a style that doesn't set them renders
+    # exactly as it did before -- watermark_y's 18 included, which is where
+    # the old "bottom" mode landed it under a default caption.
+    g = _caption_settings(style)
+
+    # The ASS coordinate system is FIXED at the reference frame, not the
+    # output size. PlayResX/Y is exactly that -- a coordinate space libass
+    # scales to whatever frame it draws into -- and using the output size
+    # instead made every absolute number mean a different thing per
+    # resolution: Fontsize 84 is 4.4% of a 1920-tall frame but 6.6% of a
+    # 1280-tall one, so the same style burned 50% larger at 720p than the
+    # preview showed. Big enough to push a line off the frame, which is how
+    # ian found it.
+    #
+    # Sizes and margins are authored once, here, and scale with the render.
+    # Checked: text rendered from this space into a 4K frame is as sharp as
+    # text authored at 4K natively -- libass scales the coordinates and
+    # rasterises at the target, it does not blow up a bitmap.
+    W, H = REF_W, REF_H
+    margin_bottom = int(H * g["position"] / 100)
+    margin_left, margin_right = _side_margins(g["x"], W)
+
+    # BorderStyle 3 makes the outline an opaque box drawn in OutlineColour,
+    # and libass draws one PER SPAN -- which is what makes a box on a single
+    # word possible at all, since ASS has no inline tag for BorderStyle. So
+    # in box mode the outline colour becomes the highlight colour and the
+    # Outline number becomes the box's padding.
+    #
+    # The cost, and it's deliberate (ian chose it): a word's outline and its
+    # box are the same feature, so the words that AREN'T being spoken have no
+    # outline at all in this mode. Plain white text, exactly like the
+    # reference -- legible on most footage, thin on very bright footage.
+    box_highlight = g["highlight_style"] == "box"
+    # Rounded needs the word positions, so it only happens when the text can
+    # actually be measured (see _measure). Otherwise box mode still works --
+    # as the square BorderStyle 3 box, placed by libass itself.
+    rounded = _measure(g["font"], int(g["size"])) if box_highlight else None
+    square_box = box_highlight and not rounded
+    # With a drawn box the text layer goes back to being ordinary outlined
+    # text: the highlight is the shape underneath it, not the border.
+    border_style = 3 if square_box else 1
+    border_colour = (g["highlight"] if square_box else "&H00000000&").rstrip("&")
+
+    header = _ass_header(g, job, margin_left, margin_right, margin_bottom, border_style, border_colour)
+
+    used = _used_words(job, words)
+
+    events = _caption_events(used, g, rounded, square_box, margin_left, margin_right, margin_bottom)
 
     return header + "\n".join(events) + "\n"
 
