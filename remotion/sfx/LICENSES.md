@@ -53,3 +53,48 @@ original work.
 **The growth of 2026-11-23 (B48):** 72 more sounds in `sfx/more.mjs` (water, wood, metal, cloth, paper, glass, food, animals, vehicles, household, devices, weather, interface, body, cartoon) and 21 more music beds in `sfx/beds-more.mjs`, all synthesised from sines, noise and filters like the rest (no sample, no download), CC0, open until ian approves them. Each file is the name in `src/catalog.ts` plus `.wav`.
 
 No voice is synthesised or sampled anywhere: the voice-over is a separate task (P28-C).
+
+## 2026-11-27 open expansion (40 effects)
+
+| File | What it is | Source / licence |
+| --- | --- | --- |
+| `gut-gurgle.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `gut-rumble.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `stomach-bubble.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `peristaltic-pulse.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `hollow-tube-ping.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `liquid-glug.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `soft-air-sweep.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `muted-knock.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `double-knock.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `rounded-thump.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `rubber-wobble.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `elastic-pluck.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `small-gliss.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `falling-chime.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `rising-chime.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `shimmer-tap.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `hollow-wood-tap.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `soft-metal-tick.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `paper-flick.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `cloth-flick.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `granular-shiver.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `granular-drop.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `soft-static-burst.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `muted-rattle.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `airy-pop.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `low-whoomp.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `bubble-chain.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `drip-pair.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `liquid-ripple.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `resonant-bong.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `tiny-whistle.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `tremolo-ping.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `breath-flutter.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `brush-swish.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `soft-zipper.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `sonar-sweep.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `gentle-impact.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `pulse-pair.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `glass-shiver.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
+| `steam-puff-soft.wav` | new deterministic tonal/noise synthesis in `sfx/more3.mjs` | CC0 |
