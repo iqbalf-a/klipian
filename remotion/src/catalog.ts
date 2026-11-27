@@ -234,6 +234,25 @@ export const SFX = {
   "yawn":               { vol: 0.28, cooldown: 0.80, dur: 1.00 },
   "snore":              { vol: 0.28, cooldown: 0.80, dur: 1.20 },
   "hiccup":             { vol: 0.35, cooldown: 0.30, dur: 0.30 },
+  "brick-click":       { vol: 0.30, cooldown: 0.12, dur: 0.10 },
+  "brick-click-lo":     { vol: 0.30, cooldown: 0.12, dur: 0.10 },
+  "brick-clack":        { vol: 0.30, cooldown: 0.12, dur: 0.12 },
+  "brick-clack-hi":     { vol: 0.28, cooldown: 0.12, dur: 0.12 },
+  "brick-tumble":       { vol: 0.26, cooldown: 0.80, dur: 0.90 },
+  "stick-creak":        { vol: 0.22, cooldown: 0.60, dur: 0.30 },
+  "deep-rumble":        { vol: 0.24, cooldown: 1.20, dur: 1.50 },
+  "quindar-tone":       { vol: 0.16, cooldown: 0.50, dur: 0.25 },
+  "sweep-pop":          { vol: 0.34, cooldown: 0.15, dur: 0.18 },
+  "tiny-step":          { vol: 0.30, cooldown: 0.10, dur: 0.06 },
+  "ding-long":          { vol: 0.24, cooldown: 1.00, dur: 1.60 },
+  "purr-hum":           { vol: 0.20, cooldown: 1.20, dur: 1.20 },
+  "log-drum-hi":        { vol: 0.34, cooldown: 0.20, dur: 0.35 },
+  "log-drum-mid":       { vol: 0.36, cooldown: 0.20, dur: 0.35 },
+  "log-drum-lo":        { vol: 0.38, cooldown: 0.20, dur: 0.35 },
+  "plip-hi":            { vol: 0.32, cooldown: 0.12, dur: 0.18 },
+  "plip-mid":           { vol: 0.32, cooldown: 0.12, dur: 0.18 },
+  "plip-lo":            { vol: 0.32, cooldown: 0.12, dur: 0.18 },
+  "shaker-tick":        { vol: 0.26, cooldown: 0.08, dur: 0.10 },
 } as const satisfies Record<string, { vol: number; cooldown: number; dur: number; loop?: boolean; bed?: boolean }>;
 export type SfxName = keyof typeof SFX;
 /** The nature assets of pilot 2 (src/components/IsoNature.tsx, NatureDemo, NatureSheet); the rest of the catalog is the same. */
@@ -275,6 +294,10 @@ export const SFX_FAMILIES = {
   kitchen: ["cutlery-clatter", "mug-clink", "pan-clang", "pan-sizzle", "steam-hiss", "bath-bubbles", "water-drip-echo", "fan-whirr"],
   retro: ["coin-8bit", "jump-8bit", "pickup-8bit", "powerdown-8bit", "laser-zap", "radar-blip", "sonar-ping", "teleport", "robot-chirp", "modem-chirp"],
   voice: ["hiccup", "sigh", "sniff", "snore", "yawn"],
+  // the 2026-11-28 pool (lemo-opuscar recipes)
+  bricks: ["brick-click", "brick-click-lo", "brick-clack", "brick-clack-hi", "brick-tumble", "tiny-step", "shaker-tick"],
+  tones: ["sweep-pop", "ding-long", "quindar-tone", "plip-hi", "plip-mid", "plip-lo", "stick-creak", "deep-rumble", "purr-hum"],
+  logdrums: ["log-drum-hi", "log-drum-mid", "log-drum-lo"],
 } as const satisfies Record<string, readonly SfxName[]>;
 
 /** What a motion word sounds like. Each is read by src/sfx.ts; a story can change one item's sound with `sfx`, or silence it with "none". */

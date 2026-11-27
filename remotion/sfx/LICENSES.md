@@ -52,4 +52,6 @@ original work.
 
 **The growth of 2026-11-23 (B48):** 72 more sounds in `sfx/more.mjs` (water, wood, metal, cloth, paper, glass, food, animals, vehicles, household, devices, weather, interface, body, cartoon) and 21 more music beds in `sfx/beds-more.mjs`, all synthesised from sines, noise and filters like the rest (no sample, no download), CC0, open until ian approves them. Each file is the name in `src/catalog.ts` plus `.wav`.
 
+**The growth of 2026-11-28:** 19 more sounds in `sfx/more3.mjs` (brick click, clack and tumble, stick creak, deep rumble, quindar tone, rising pop, tiny step, long ding, purr hum, three log drums, three plips, shaker tick). The recipes are ported from the synthesis code of the lemo-opuscar library (`core/audio/sfx.py` and the films' `audio.py`, MIT licence, Copyright (c) 2026 SecondFirst Pty Ltd, trading as LemoLab); only the recipes are used, none of its sample libraries or recordings. The sounds are generated here from sines and noise like all the others, and are open until ian approves them (B15).
+
 No voice is synthesised or sampled anywhere: the voice-over is a separate task (P28-C).
