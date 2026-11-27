@@ -96,8 +96,8 @@ const Sun: React.FC<{ cam: { look: THREE.Vector3 } }> = ({ cam }) => {
 // ---------- the layout (metres; x right, y up, z toward the camera) -----------------------------------------------------------------------------------------------------
 // the island with two pumps (x -3.2 to -0.9, z 0 to 1), Bu Yati beside it, the parcel van behind (x -3.5 to 1.5, side face at z -0.9), the sedan and the minibus queue behind the van (to -14.8)
 const VAN_X = -1.0, VAN_Z = -1.8, SEDAN_X = -6.8, ANGKOT_X = -12.5;
-const YATI = { x: -0.3, z: 0.45 }, SPOT = { x: 0.95, z: 0.45 }, GRAB = { x: 0.7, z: 0.45 }, PINTU = { x: 0.85, z: -0.45 };
-const COLLAR = V(0.22, 1.02, 0.5);   // the steel collar of the nozzle where the spark jumps (Bu Yati's hand at x 0.1 holds it)
+const YATI = { x: -0.3, z: 0.45 }, SPOT = { x: 0.95, z: 0.45 }, GRAB = { x: 0.66, z: 0.46 }, PINTU = { x: 0.85, z: -0.45 };
+const COLLAR = V(0.22, 0.9, 0.58);   // the steel collar of the nozzle where the spark jumps: measured from Bu Yati's hand (x 0.10, y 0.83, rig.ts handOffset) plus the collar's place in Nozzle; Bang Toni's reach below ends on it (B72)
 const C = (px: number, py: number, pz: number, lx: number, ly: number, lz: number): Cam => ({ pos: V(px, py, pz), look: V(lx, ly, lz) });
 const HOOK = C(0.32, 1.15, 5.4, 0.32, 1.2, 0);   // the face-off: Bu Yati with the nozzle, Bang Toni with crossed arms, both whole, the pump hose entering from the left
 // B67: at least 35 % of the shots are locked, at most 3 moving in a row, no roll, no orbit; B69: moving shots have different easings, swoops only to a named object
@@ -116,8 +116,8 @@ const SHOTS: Shot[] = [
   K(22.9, 1, 1.2, 4.3, 0.85, 1, -1, 0, 0, -0.6, 0, 0, 0.4, "lin"),              // FOLLOW: he jumps down from the cab
   K(24.3, 0.85, 1.3, 3.4, 0.85, 1.2, -0.45, 0, 0.05, -0.7, 0, 0.05, 0, "in"),         // PUSH-IN: the crackling nylon jacket
   K(25.66, 0.4, 1.2, 4.7, 0.4, 1.1, 0.2, 0, 0, 0, 0, 0, 0),                            // LOCKED: "Salaman sama tiang dulu, Bu?"
-  K(27.2, 0.3, 1.25, 4, 0.2, 1.2, 0.45, 0, -0.15, -2.4, 0.02, -0.18, 0.05, "snap"),            // SWOOP: to the nozzle collar
-  K(28.3, 0.3, 1.1, 1.6, 0.22, 1.02, 0.5, 0, 0, 0, 0, 0, 0),                          // LOCKED: macro of the finger and the collar
+  K(27.2, 0.3, 1.25, 4, 0.2, 1.2, 0.45, 0.15, -0.3, -1.4, 0.02, -0.3, 0.1, "snap"),            // SWOOP: to the nozzle collar
+  K(28.3, 0.45, 0.95, 2.6, 0.22, 0.9, 0.55, 0, 0, 0, 0, 0, 0),                          // LOCKED: macro of the finger and the collar
   K(30.0, 0.7, 1.2, 3.2, 0.7, 1.2, 0.45, 0, 0, 0, 0, 0, 0),                            // LOCKED: he wrings his hand
   K(31.9, 0.3, 1, 5, 0.3, 1.2, 0.45, 0, 0, 0, 0, 0, 0),                            // LOCKED: he leaps back
   K(33.3, -0.3, 1.3, 3.7, -0.3, 1.3, 0.45, 0, 0, -0.7, 0, 0, 0, "out"),            // PUSH-IN: Bu Yati sighs
@@ -127,7 +127,7 @@ const SHOTS: Shot[] = [
   K(42.1, 0.85, 1.2, 4.6, 0.85, 1.1, -0.6, 0, 0, -1.2, 0, 0, 0, "out"),           // PUSH-IN: the charge drains into the metal
   K(44.6, -0.5, 1.5, 10, -0.5, 1.2, 0, 0, 0, 0, 0, 0, 0),                                // LOCKED: calm forecourt, nothing happens
   K(47.12, 1, 1.3, 4.2, 0.85, 1.1, -0.9, 0, 0, 0, 0, 0, 0),                         // LOCKED: the next morning, he climbs down
-  K(49.3, -5, 2, 31, -5, 1.3, -0.5, 0, 0, 0, 0, 0, 0),                                  // LOCKED: the whole queue pats its pintu (held to the loop cut)
+  K(49.3, -4.2, 3.4, 22, -4.2, 1.0, -0.5, 0, 0, 0, 0, 0, 0),                                  // LOCKED: the whole queue pats its pintu (held to the loop cut)
 ];
 
 // ---------- the cast: every person is their own design (B61, B62, B63, B70), none borrowed from an earlier video ------------------------------------------------------------------------------------------------
@@ -158,7 +158,7 @@ const poseNamed = (name: string, t: number): Pose | null => {
     case "phone": { const r = reach("r", 392, 400 + 6 * Math.sin(t * 5)), l = reach("l", 150, 600); return A8(l.sh, l.el, r.sh, r.el); }
     case "slide": { const l = reach("l", 290, 565), r = reach("r", 335, 565); return A8(l.sh, l.el, r.sh, r.el, { lean: 4 * Math.sin(t * 8) }); }
     case "grab": {   // the right hand (he is mirrored, so it reaches screen-left) goes slowly to the collar, then snaps back from the spark
-      const k = prog(t, 27.2, 28.24) - prog(t, 28.3, 28.6), r = reach("r", lerp(470, 509, k), lerp(ty(0.85), ty(1.02), k)), l = reach("l", 150, 590);
+      const k = prog(t, 27.2, 28.24) - prog(t, 28.3, 28.6), r = reach("r", lerp(470, 545, k), lerp(540, 478, k)), l = reach("l", 150, 590);
       return A8(l.sh, l.el, r.sh, r.el, { lean: -6 * prog(t, 28.26, 28.4) * (1 - prog(t, 28.5, 30)) });
     }
     case "wring": { const r = reach("r", 440 + 20 * Math.sin(t * 22), ty(0.9)), l = reach("l", 150, 590); return A8(l.sh, l.el, r.sh, r.el); }
@@ -174,6 +174,7 @@ const poseNamed = (name: string, t: number): Pose | null => {
   }
 };
 
+const BREATH: [number, number] = [17.55, 19.1];
 const FOREVER = 1000;
 const ACTORS: { id: string; o: Outfit; tracks: Track[] }[] = [
   { id: "yati", o: YATI_O, tracks: [
@@ -191,8 +192,8 @@ const ACTORS: { id: string; o: Outfit; tracks: Track[] }[] = [
     { a: 14.3, b: 19.2, flip: true, pos: stay(SPOT.x, SPOT.z), faces: [[14.3, "grin", "cross"], [15.4, "sly", "shrug"], [17.3, "sly", "cross"]], beats: [["hop", 16.9, 17.2, 0.04]] },
     withGait({ a: 19.2, b: 20.45, pos: go(19.2, 20.45, SPOT.x, SPOT.z, PINTU.x, PINTU.z), faces: [[19.2, "furious", "down"]] }, "walk", 0.2),
     { a: 20.45, b: 22.9, flip: true, pos: (t) => [PINTU.x + 0.14 * Math.sin(t * 5.2), -1.4], faces: [[20.45, "calm", "slide"], [21.8, "puzzled", "slide"]], sit: -0.13 },   // seated behind the pintu panel, sliding on the seat
-    withGait({ a: 22.9, b: 24.3, pos: go(22.9, 24.3, PINTU.x, -1.4, PINTU.x, PINTU.z), faces: [[22.9, "furious", "down"]], beats: [["hop", 22.9, 23.25, 0.1]] }, "walk", 0.1),
-    { a: 24.3, b: 25.66, flip: true, pos: stay(PINTU.x, PINTU.z), faces: [[24.3, "shocked", "down"], [24.9, "puzzled", "down"]] },
+    withGait({ a: 22.9, b: 23.9, pos: go(22.9, 23.9, PINTU.x, -1.4, PINTU.x, PINTU.z), faces: [[22.9, "furious", "down"]], beats: [["hop", 22.9, 23.25, 0.1]] }, "walk", 0.1),
+    { a: 23.9, b: 25.66, flip: true, pos: stay(PINTU.x, PINTU.z), faces: [[23.9, "shocked", "down"], [24.9, "puzzled", "down"]] },
     withGait({ a: 25.66, b: 27.0, pos: go(25.66, 27.0, PINTU.x, PINTU.z, GRAB.x, GRAB.z), faces: [[25.66, "sly", "down"]] }, "walk", 0.1),
     { a: 27.0, b: 28.26, flip: true, pos: stay(GRAB.x, GRAB.z), faces: [[27.0, "sly", "grab"]] },
     { a: 28.26, b: 30.0, flip: true, pos: stay(GRAB.x, GRAB.z), faces: [[28.26, "shocked", "grab"]] },
@@ -207,16 +208,16 @@ const ACTORS: { id: string; o: Outfit; tracks: Track[] }[] = [
     { a: 48.6, b: FOREVER, flip: true, pos: stay(PINTU.x, PINTU.z), faces: [[48.6, "grin", "pat"]] },
   ] },
   { id: "d1", o: D1_O, tracks: [
-    { a: 19.12, b: 20.5, flip: true, pos: stay(-5.7, -1.4), faces: [[19.12, "furious", "honk"]], sit: -0.28 },
-    { a: 20.5, b: 48.8, flip: true, pos: stay(-5.7, -1.4), faces: [[20.5, "puzzled", "down"]], sit: -0.28 },
-    withGait({ a: 48.8, b: 49.4, pos: go(48.8, 49.4, -5.7, -1.0, -5.7, -0.45), faces: [[48.8, "calm", "down"]] }, "walk", 0.05),
-    { a: 49.4, b: FOREVER, flip: true, pos: stay(-5.7, -0.45), faces: [[49.4, "grin", "patd1"]] },
+    { a: 19.12, b: 20.5, flip: true, pos: stay(-6.15, -1.4), faces: [[19.12, "furious", "honk"]], sit: -0.28 },
+    { a: 20.5, b: 48.8, flip: true, pos: stay(-6.15, -1.4), faces: [[20.5, "puzzled", "down"]], sit: -0.28 },
+    withGait({ a: 48.8, b: 49.4, pos: go(48.8, 49.4, -6.15, -1.0, -6.15, -0.45), faces: [[48.8, "calm", "down"]] }, "walk", 0.05),
+    { a: 49.4, b: FOREVER, flip: true, pos: stay(-6.15, -0.45), faces: [[49.4, "grin", "patd1"]] },
   ] },
   { id: "d2", o: D2_O, tracks: [
-    { a: 19.3, b: 20.7, flip: true, pos: stay(-11.4, -1.4), faces: [[19.3, "furious", "honk"]], sit: -0.1 },
-    { a: 20.7, b: 49.05, flip: true, pos: stay(-11.4, -1.4), faces: [[20.7, "puzzled", "down"]], sit: -0.1 },
-    withGait({ a: 49.05, b: 49.65, pos: go(49.05, 49.65, -11.4, -1.0, -11.4, -0.45), faces: [[49.05, "calm", "down"]] }, "walk", 0.05),
-    { a: 49.65, b: FOREVER, flip: true, pos: stay(-11.4, -0.45), faces: [[49.65, "grin", "patd2"]] },
+    { a: 19.3, b: 20.7, flip: true, pos: stay(-7.15, -1.4), faces: [[19.3, "furious", "honk"]], sit: -0.28 },
+    { a: 20.7, b: 49.05, flip: true, pos: stay(-7.15, -1.4), faces: [[20.7, "puzzled", "down"]], sit: -0.28 },
+    withGait({ a: 49.05, b: 49.65, pos: go(49.05, 49.65, -7.15, -1.0, -7.15, -0.45), faces: [[49.05, "calm", "down"]] }, "walk", 0.05),
+    { a: 49.65, b: FOREVER, flip: true, pos: stay(-7.15, -0.45), faces: [[49.65, "grin", "patd2"]] },
   ] },
   { id: "d3", o: D3_O, tracks: [
     withGait({ a: 5.08, b: 12.5, pos: go(5.08, 12.5, 3.6, 1.9, -0.85, 1.4), faces: [[5.08, "calm", "bags"]] }, "walk", 0.1),
@@ -224,8 +225,8 @@ const ACTORS: { id: string; o: Outfit; tracks: Track[] }[] = [
     { a: 49.6, b: FOREVER, pos: stay(-0.85, 1.4), faces: [[49.6, "grin", "patd3"]] },
   ] },
   { id: "d4", o: D4_O, tracks: [
-    { a: 9.6, b: 49.9, pos: stay(-7.3, 1.9), faces: [[9.6, "calm", "down"], [19.12, "furious", "up"], [20.6, "puzzled", "hips"], [28.3, "shocked", "up"], [31.0, "calm", "hips"]], beats: [["hop", 19.3, 19.6, 0.06]] },
-    { a: 49.9, b: FOREVER, pos: stay(-7.3, 1.9), faces: [[49.9, "grin", "patd4"]] },
+    { a: 9.6, b: 49.9, pos: stay(-4.0, 1.9), faces: [[9.6, "calm", "down"], [19.12, "furious", "up"], [20.6, "puzzled", "hips"], [28.3, "shocked", "up"], [31.0, "calm", "hips"]], beats: [["hop", 19.3, 19.6, 0.06]] },
+    { a: 49.9, b: FOREVER, pos: stay(-4.0, 1.9), faces: [[49.9, "grin", "patd4"]] },
   ] },
 ];
 type AState = { rig: Pose; x: number; z: number; flip: boolean; expr: Expr; hop: number; h: number; talk: number };
@@ -412,7 +413,7 @@ const World: React.FC<{ t: number; f: number }> = ({ t, f }) => {
   const drain = t >= DRAIN[0] && t < DRAIN[1] ? (t - DRAIN[0]) / (DRAIN[1] - DRAIN[0]) : 0;
   return (
     <group>
-      <hemisphereLight args={["#dcebff", "#d9c9a0", 1.0]} />
+      <hemisphereLight args={["#e6f0ff", "#e6d5a8", 1.4]} />
       {/* ground: asphalt, a concrete island with a yellow-black curb, white lane dashes */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-3, 0, -6]}><planeGeometry args={[160, 120]} /><meshStandardMaterial map={tex.asphalt} roughness={0.95} /></mesh>
       <RBox size={[2.5, 0.18, 1.1]} pos={[-2.05, 0.09, 0.5]} map={tex.conc} tile={1.2} r={0.04} />
@@ -432,7 +433,7 @@ const World: React.FC<{ t: number; f: number }> = ({ t, f }) => {
       <Van tex={tex} t={t} />
       <Sedan tex={tex} x={SEDAN_X} color="#c9402f" t={t} />
       <Minibus tex={tex} x={ANGKOT_X} />
-      <Motorbike tex={tex} x={-8.0} z={1.9} />
+      <Motorbike tex={tex} x={-4.6} z={1.9} />
       {/* the shop behind, with its sign, glass front and awning; the price pole; the sand buckets; the bollards; the cone */}
       <RBox size={[16, 4.2, 5]} pos={[-5, 2.1, -11]} map={tex.plaster} tile={2.5} r={0.05} />
       <RBox size={[14, 1.6, 0.06]} pos={[-5, 1.5, -8.45]} color="#9fd0e6" opacity={0.45} r={0.01} />
@@ -468,11 +469,15 @@ const World: React.FC<{ t: number; f: number }> = ({ t, f }) => {
         const u = ((drain * 3.4 + i / 12) % 1), px = lerp(PINTU.x + 0.2, 1.3, u), py = lerp(1.15 - 0.25 * (i % 3) * 0.3, 1.0, u);
         return <Ball key={i} r={0.026 * (1 - u * 0.8)} pos={[px, py, -0.82]} color="#5a9bff" emissive="#5a9bff" />;
       })}
+      {Object.entries(TAPS).flatMap(([id, ps]) => ps.map((p, j) => {
+        const u = (t - p) / 0.28, h = handAt(id, id === "d3" || id === "d4" ? "l" : "r", p);
+        return u < 0 || u > 1 || !h ? null : <sprite key={`${id}${j}`} position={[h.x, h.y, h.z + 0.1]} scale={[0.3 + 0.6 * u, 0.3 + 0.6 * u, 1]}><spriteMaterial map={tex.soft} color="#fff6d0" transparent opacity={0.8 * (1 - u)} depthWrite={false} toneMapped={false} /></sprite>;
+      }))}
       {spark && (
         <group position={COLLAR.toArray()}>
           <pointLight color="#9fd0ff" intensity={14 * (1 - sparkU)} distance={4} />
-          <sprite scale={[0.5 * (1.4 - sparkU), 0.5 * (1.4 - sparkU), 1]}><spriteMaterial map={tex.soft} color="#bfe0ff" transparent opacity={1 - sparkU} depthWrite={false} toneMapped={false} /></sprite>
-          {Array.from({ length: 9 }, (_, i) => <mesh key={i} position={[Math.cos(i * 0.7) * 0.07, Math.sin(i * 0.7) * 0.07, 0]} rotation={[0, 0, i * 0.7]}><boxGeometry args={[0.16 * (1 - sparkU * 0.4), 0.012, 0.012]} /><meshBasicMaterial color="#e8f4ff" toneMapped={false} /></mesh>)}
+          <sprite scale={[0.8 * (1.4 - sparkU), 0.8 * (1.4 - sparkU), 1]}><spriteMaterial map={tex.soft} color="#bfe0ff" transparent opacity={1 - sparkU} depthWrite={false} toneMapped={false} /></sprite>
+          {Array.from({ length: 9 }, (_, i) => <mesh key={i} position={[Math.cos(i * 0.7) * 0.07, Math.sin(i * 0.7) * 0.07, 0]} rotation={[0, 0, i * 0.7]}><boxGeometry args={[0.2 * (1 - sparkU * 0.4), 0.022, 0.022]} /><meshBasicMaterial color="#e8f4ff" toneMapped={false} /></mesh>)}
         </group>
       )}
     </group>
@@ -483,12 +488,13 @@ export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = () => {
   const fr = useCurrentFrame();
   const t0 = fr / FPS;
   const t = t0 >= LOOP_AT ? 0.04 : t0;   // from the cut the picture holds the first moment (the hook, full text), so the last frame equals the first and the loop is exact
-  const f = Math.round(t * FPS);
+  const tw = t >= BREATH[0] && t < BREATH[1] ? BREATH[0] : t;   // B71 b: one deliberate breath, the picture holds still while Bu Yati says nothing
+  const f = Math.round(tw * FPS);
   const cam = camAt(SHOTS, t, TOTAL);
   const hookA = t0 >= LOOP_AT ? 1 : t0 < 3.1 ? 1 : t0 < 3.5 ? 1 - (t0 - 3.1) / 0.4 : 0;
   const flash = Math.max(0, 1 - Math.abs(t0 - SPARK_AT - 0.04) / 0.16) * (t0 < LOOP_AT ? 1 : 0);   // the signature moment: one blue-white flash on the spark
   const actors = ACTORS.map((a) => {
-    const s = stateOf(a, t);
+    const s = stateOf(a, tw);
     if (!s) return null;
     return <StickHero key={a.id} pos={V(s.x, 0, s.z)} expr={s.expr} arms="down" f={f} outfit={a.o} height={s.h} hop={s.hop} flip={s.flip} rig={s.rig} talk={s.talk} breath={0} />;
   });
@@ -501,7 +507,7 @@ export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = () => {
           <Sun cam={cam} />
           <RicksCamera cam={cam} />
           <RicksPost cam={cam} bloom={0.3} occlude ao={0.7} />
-          <World t={t} f={f} />
+          <World t={tw} f={f} />
           {actors}
         </ThreeCanvas>
       </div>
@@ -515,7 +521,7 @@ export const Video: React.FC<{ story: StoryT; layoutDebug?: boolean }> = () => {
       <Pills pills={PILLS} t={t0} />
       <WordCaption words={READ} t={t0} />
       <BurstFx bursts={BURSTS} t={t0} />
-      <AbsoluteFill style={{ background: "#cfe6ff", opacity: flash * 0.9, pointerEvents: "none" }} />
+      <AbsoluteFill style={{ background: "#cfe6ff", opacity: flash * 0.5, pointerEvents: "none" }} />
       {HORNS.map((h) => t0 >= h && t0 < h + 0.22 && <AbsoluteFill key={h} style={{ pointerEvents: "none", boxShadow: "inset 0 0 160px rgba(255,200,60,.55)" }} />)}
     </AbsoluteFill>
   );
