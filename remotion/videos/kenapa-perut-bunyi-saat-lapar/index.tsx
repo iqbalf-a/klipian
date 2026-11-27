@@ -1,29 +1,35 @@
-/* Kenapa perut bunyi saat lapar? — look 2d (B28): a stomach and its small intestine, drawn whole and flat from the front (B56: a whole organ), float in front of the closed
-   doors of a lift car (set kind "elevator-car-front", see set.json). No person is drawn (B43). No face on any object (B44).
-   Real shapes (B27.16): the stomach is a J-shaped bag, the gullet enters at the top left, the exit (pylorus) is at the bottom right and leads to the small intestine, a
-   long tube folded in rows; gas rises to the top of the stomach and fluid sits at the bottom. The story: the walls squeeze all the time (a wave runs along the tube,
-   bubbles flow), food muffles the sound (the rings are small while a lump of food is inside), an empty gut is loud, after about two hours the hunger contractions start
-   (more and stronger waves, the rings rattle the lift), so a noisy belly is only the contents moving.
-   Two tones per part (base and shade, light from the top left), no outlines, palette tokens only. The world is one group moved by the camera (plan.ts camAt); the labels,
-   bars, track, pill, cards and the hook text are on the screen. Ambient motion (rings, waves, bubbles, fluid) runs on the loop now (B29). The last frame is the first frame. */
+/* Kenapa perut bunyi saat lapar? — look 2d (B28), 100 s. A trip into the belly: a Chibi person (B43, the channel's cast) holds a growling belly on a plain background (the hook),
+   a round x-ray lens opens on the belly and shows the stomach and the small intestine drawn whole and flat (B56), the camera zooms into the lens and on into the stomach (its inside:
+   walls that squeeze, gas, fluid, a food lump, the exit), pushes through the exit into the small intestine (a tunnel whose rings narrow as the squeeze waves pass), and finally zooms
+   back out of the lens to the person. No lift and no room: the only places are the outside (plain) and the inside of the organs, as the story says. No face on any object (B44).
+   Real shapes (B27.16): the stomach is a J-shaped bag, the gullet enters at the top left, the exit (pylorus) is at the bottom right and leads to the small intestine, a long tube
+   folded in rows; gas rises to the top of the stomach and fluid sits at the bottom. The story: the walls squeeze all the time (a wave runs along the tube, bubbles flow), food
+   muffles the sound (the rings are small while a lump of food is inside), an empty gut is loud, after about two hours the hunger contractions start (more and stronger waves), so a
+   noisy belly is only the contents moving. Two tones per part (base and shade, light from the top left), no outlines, palette tokens only. The camera is plan.ts camAt (the
+   outside), the inside scenes zoom by their own keys; labels, bars, track, cards and the hook text are on the screen. Ambient motion runs on the loop clock (B29): every frequency is
+   a whole number of cycles per video. The last frame is the first frame. */
 import React from "react";
 import {
-  loopClock, BLACK, BLUSH, CaptionLayer, FONT_BOLD, FONT_MONO, G1, G2, G3, G4, PLASTER, RED, SAFE, SKIN_B, STEAM, StoryVideo, TopText, WHITE, YELLOW, YELLOW_D,
+  loopClock, blinkClosed, BLACK, BLUSH, CaptionLayer, FONT_BOLD, G1, G3, G4, PLASTER, RED, SAFE, SKIN_B, STEAM, StoryVideo, TopText, WHITE, YELLOW,
   clamp01, springAt, type SceneProps, type StoryT,
 } from "../../src/design/index.ts";
 import storyJson from "./story.json";
-import { BARS, CARDS, FOOD, LABELS, TREMOR, TRACK, ampAt, camAt, heroAt, setAt, tremorAt, waveAt, waveBAt } from "./plan.ts";
+import {
+  BARS, BELLY, CARDS, FEET, FOOD, GUT_S, LABELS, LENS_R, PYLORUS, STOMACH_ZOOM, TRACK, TUNNEL_ZOOM, U,
+  ampAt, camAt, lensAt, stomachAt, through, tremorAt, tunnelAt, waveAt, waveBAt,
+} from "./plan.ts";
 import { StingMark } from "../../src/components/StingMark.tsx";
+import { Chibi } from "../../src/components/Chibi.tsx";
 
 export const story = storyJson as unknown as StoryT;
 
 const W = 1080, H = 1920;
-const KICKER: Record<string, string> = { remas: "ISI PERUT", kosong: "KALAU KOSONG", jam: "SEKITAR DUA JAM", pesan: "JADI" };
+const KICKER: Record<string, string> = { masuk: "MASUK", lambung: "LAMBUNG", kosong: "KALAU KOSONG", usus: "USUS HALUS", jam: "SEKITAR DUA JAM", keluar: "KELUAR", pesan: "JADI" };
 const bold = (w = 700) => ({ fontFamily: `"${FONT_BOLD}", sans-serif`, fontWeight: w }) as const;
-const mono = { fontFamily: `"${FONT_MONO}", monospace` } as const;
 const win = (t: number, a: number, b: number, f = 0.3) => clamp01((t - a) / f) * (1 - clamp01((t - b) / f));
 const TAU = Math.PI * 2;
 
+/* ---------- the gut as seen in the x-ray lens: local units, centre (0,0), about 740 px wide and 800 high at scale 1 ---------- */
 /* ---------- the gut: local units, centre (0,0), about 740 px wide and 800 high at scale 1 ---------- */
 const STOMACH = "M -100 -250 C -200 -340 -340 -280 -340 -130 C -340 60 -230 200 -40 205 C 80 208 170 160 200 90 C 215 55 200 30 175 30 L 120 40 C 100 60 60 80 0 70 C -50 60 -60 -20 -50 -110 C -48 -170 -70 -215 -100 -250 Z";
 const GULLET = "M -92 -345 C -90 -310 -100 -290 -98 -245";
@@ -46,7 +52,7 @@ const Gut: React.FC<{ amb: number; now: number; amp: number; wave: number; waveB
   const food = springAt(now, FOOD.a, true) * (1 - clamp01((now - FOOD.out0) / (FOOD.out1 - FOOD.out0)));
   const slide = clamp01((now - FOOD.out0) / (FOOD.out1 - FOOD.out0));
   const fx = -130 + 300 * slide, fy = 50 + 20 * slide;
-  const wob = (k: number, ph: number) => Math.sin(amb * TAU * k + ph);
+  const wob = (k: number, ph: number) => Math.sin(amb * TAU * Math.round(k * 2.5) + ph);
   const fluid = "M -380 100 " + Array.from({ length: 30 }, (_, i) => { const x = -380 + i * 20; return `L ${x} ${100 + 5 * wob(5, x / 40)}`; }).join(" ") + " L 240 100 L 240 260 L -380 260 Z";
   const gas: [number, number, number][] = [[-215, -185, 30], [-160, -212, 24], [-255, -148, 22], [-195, -140, 16], [-135, -168, 14]];
   const squeeze = 1 + 0.012 * wave * wob(10, 0);
@@ -54,22 +60,22 @@ const Gut: React.FC<{ amb: number; now: number; amp: number; wave: number; waveB
     <g transform={`scale(${squeeze})`}>
       {/* the sound rings: copies of the stomach outline that grow and fade; they are small while the stomach holds food */}
       {[0, 1, 2].map((i) => {
-        const k = (amb * 16 + i / 3) % 1;
+        const k = (amb * 40 + i / 3) % 1;
         return <path key={i} d={STOMACH} fill="none" stroke={BLACK} strokeWidth={6} strokeLinejoin="round" opacity={(1 - k) * 0.55 * Math.min(1, amp)} transform={`translate(-70 -20) scale(${1 + 0.33 * amp * k}) translate(70 20)`} />;
       })}
       {[0, 1, 2].map((i) => {
-        const k = (amb * 32 + i / 3) % 1;
+        const k = (amb * 80 + i / 3) % 1;
         return <path key={i} d={STOMACH} fill="none" stroke={RED} strokeWidth={6} strokeLinejoin="round" opacity={(1 - k) * 0.5 * waveB} transform={`translate(-70 -20) scale(${1 + 0.4 * k}) translate(70 20)`} />;
       })}
       {/* the small intestine: a shade, the tube, a highlight, then the squeeze waves that run along it */}
       <path d={TUBE} fill="none" stroke={RED} strokeWidth={48} strokeLinecap="round" strokeLinejoin="round" opacity={0.28} transform="translate(3 5)" />
       <path d={TUBE} fill="none" stroke={BLUSH} strokeWidth={44} strokeLinecap="round" strokeLinejoin="round" />
       <path d={TUBE} fill="none" stroke={WHITE} strokeWidth={14} strokeLinecap="round" strokeLinejoin="round" opacity={0.25} transform="translate(-4 -6)" />
-      <path d={TUBE} fill="none" stroke={RED} strokeWidth={50} strokeLinecap="butt" pathLength={1000} strokeDasharray="70 230" strokeDashoffset={-amb * 4 * 300} opacity={0.4 * wave} />
-      <path d={TUBE} fill="none" stroke={RED} strokeWidth={50} strokeLinecap="butt" pathLength={1000} strokeDasharray="60 140" strokeDashoffset={-amb * 8 * 200 - 70} opacity={0.4 * waveB} />
+      <path d={TUBE} fill="none" stroke={RED} strokeWidth={50} strokeLinecap="butt" pathLength={1000} strokeDasharray="70 230" strokeDashoffset={-amb * 10 * 300} opacity={0.4 * wave} />
+      <path d={TUBE} fill="none" stroke={RED} strokeWidth={50} strokeLinecap="butt" pathLength={1000} strokeDasharray="60 140" strokeDashoffset={-amb * 20 * 200 - 70} opacity={0.4 * waveB} />
       {/* bubbles of gas and drops of fluid flowing along the tube */}
       {Array.from({ length: 7 }, (_, i) => {
-        const [x, y] = onTube(amb * 3 + i / 7);
+        const [x, y] = onTube(amb * 8 + i / 7);
         return <g key={i}><circle cx={x} cy={y} r={11 + (i % 3) * 2} fill={i % 2 ? WHITE : STEAM} opacity={0.9} /><circle cx={x - 3} cy={y - 4} r={3} fill={WHITE} opacity={0.9} /></g>;
       })}
       {/* the gullet and the stomach wall (thick), then the pale cavity with its contents */}
@@ -101,82 +107,143 @@ const Gut: React.FC<{ amb: number; now: number; amp: number; wave: number; waveB
   );
 };
 
-/* ---------- the lift car: the door wall seen flat from the front (the world, 3600 px wide, floor at 1500) ---------- */
-const FLOOR = 1500;
-const Lift: React.FC<{ amb: number; now: number }> = ({ amb, now }) => {
-  const sh = tremorAt(now);
-  const blink = now >= TREMOR.a && now < TREMOR.b + 0.8 ? (Math.floor(now * 8) % 2 === 0) : true;
-  const buttons: [number, number][] = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => [1005 + (i % 2) * 62, 640 + Math.floor(i / 2) * 78]);
+/* ---------- the person (the outside): the Chibi with a belly that rings; the x-ray lens on the belly shows the gut ---------- */
+const Person: React.FC<{ now: number; amb: number; amp: number; wave: number; waveB: number }> = ({ now, amb, amp, wave, waveB }) => {
+  const expr = now < 4.3 || now >= 96 ? "surprised" : now >= 83.6 ? "happy" : "calm";
+  const open = now > 0.5 && now < 99.5 && blinkClosed(now, 3.1) > 0.3 ? 0.15 : 1;
+  const breath = 1 + 0.006 * Math.sin(amb * TAU * 10);
+  const lens = lensAt(now), r = LENS_R * lens;
+  const rect = { x: BELLY.x - 0.62 * U, y: FEET.y - 1.57 * U, w: 1.24 * U, h: 1.05 * U };
   return (
-    <g transform={`translate(${sh} ${0})`}>
-      <rect x={-1200} y={-1200} width={3600} height={FLOOR + 1200} fill={G4} />
-      {[-1000, -640, -280, 80, 920, 1300, 1660, 2020].map((x, i) => <rect key={i} x={x} y={-1200} width={6} height={FLOOR + 1200} fill={G3} opacity={0.7} />)}
-      {[-1000, -280, 920, 1660].map((x, i) => <rect key={i} x={x + 14} y={-1200} width={44} height={FLOOR + 1200} fill={WHITE} opacity={0.35} />)}
-      {/* the door frame and the two door leaves with a dark seam and brushed stripes */}
-      <rect x={172} y={512} width={736} height={FLOOR - 512} rx={10} fill={G2} />
-      <rect x={190} y={530} width={350} height={FLOOR - 530} fill={G3} />
-      <rect x={540} y={530} width={350} height={FLOOR - 530} fill={G3} />
-      <rect x={640} y={530} width={250} height={FLOOR - 530} fill={G2} opacity={0.18} />
-      {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => <rect key={i} x={200 + i * 36} y={530} width={6} height={FLOOR - 530} fill={G4} opacity={0.5} />)}
-      {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => <rect key={i} x={560 + i * 32} y={530} width={6} height={FLOOR - 530} fill={G4} opacity={0.4} />)}
-      <rect x={536} y={530} width={8} height={FLOOR - 530} fill={G1} />
-      <rect x={190} y={530} width={350} height={20} fill={G2} opacity={0.4} />
-      {/* the floor display above the doors: a dark rounded plate with a lit digit and two small arrows */}
-      <rect x={430} y={430} width={220} height={66} rx={16} fill={G1} />
-      <text x={540} y={482} fontSize={50} fill={blink ? YELLOW : YELLOW_D} opacity={blink ? 1 : 0.35} textAnchor="middle" style={{ ...bold(800), ...mono }}>7</text>
-      <path d="M 466 470 L 480 448 L 494 470 Z" fill={YELLOW} opacity={0.9} />
-      <path d="M 586 448 L 600 470 L 614 448 Z" fill={G2} />
-      {/* the call panel on the right, cut by the frame: eight round buttons, a grille, an alarm button */}
-      <rect x={960} y={430} width={300} height={900} rx={22} fill={G3} />
-      <rect x={960} y={430} width={26} height={900} rx={12} fill={WHITE} opacity={0.4} />
-      <rect x={990} y={470} width={200} height={120} rx={16} fill={G1} />
-      {[0, 1, 2, 3, 4, 5].map((i) => <circle key={i} cx={1015 + (i % 3) * 52} cy={505 + Math.floor(i / 3) * 52} r={9} fill={G2} opacity={0.9} />)}
-      {buttons.map(([x, y], i) => (
-        <g key={i}>
-          <circle cx={x + 30} cy={y + 24} r={27} fill={G2} />
-          <circle cx={x + 30} cy={y + 22} r={23} fill={WHITE} />
-          <circle cx={x + 30} cy={y + 22} r={23} fill={G3} opacity={0.35} />
-          <circle cx={x + 24} cy={y + 15} r={7} fill={WHITE} opacity={0.8} />
+    <g>
+      <ellipse cx={FEET.x} cy={FEET.y + 10} rx={340} ry={28} fill={BLACK} opacity={0.16} />
+      <g transform={`translate(${FEET.x} ${FEET.y})`}><Chibi u={U} expr={expr} pose="idle" shirt={STEAM} stripe={YELLOW} breath={breath} open={open} /></g>
+      {/* the growl, drawn as rings that leave the belly; small when there is food inside */}
+      {[0, 1, 2].map((i) => {
+        const k = (amb * 20 + i / 3) % 1, s = 1 + 0.45 * amp * k;
+        return <rect key={i} x={rect.x} y={rect.y} width={rect.w} height={rect.h} rx={0.34 * U} fill="none" stroke={BLACK} strokeWidth={7} opacity={(1 - k) * 0.5 * Math.min(1, amp)}
+          transform={`translate(${BELLY.x} ${BELLY.y}) scale(${s}) translate(${-BELLY.x} ${-BELLY.y})`} />;
+      })}
+      {lens > 0.01 && (
+        <g>
+          <clipPath id="lens"><circle cx={BELLY.x} cy={BELLY.y} r={r} /></clipPath>
+          <circle cx={BELLY.x} cy={BELLY.y} r={r} fill={WHITE} />
+          <g clipPath="url(#lens)"><g transform={`translate(${BELLY.x} ${BELLY.y}) scale(${GUT_S})`}><Gut amb={amb} now={now} amp={amp} wave={wave} waveB={waveB} /></g></g>
+          <circle cx={BELLY.x} cy={BELLY.y} r={r} fill="none" stroke={BLACK} strokeWidth={12} />
+          <circle cx={BELLY.x} cy={BELLY.y} r={r - 10} fill="none" stroke={WHITE} strokeWidth={4} opacity={0.7} />
         </g>
-      ))}
-      <circle cx={1065} cy={1030} r={36} fill={G2} />
-      <circle cx={1065} cy={1027} r={31} fill={YELLOW} />
-      <circle cx={1065} cy={1027} r={31} fill={YELLOW_D} opacity={0.25} />
-      <path d="M 1050 1040 C 1052 1012 1078 1012 1080 1040 Z" fill={WHITE} opacity={0.85} />
-      <rect x={1010} y={1100} width={170} height={150} rx={14} fill={G2} opacity={0.35} />
-      {Array.from({ length: 24 }, (_, i) => <circle key={i} cx={1030 + (i % 6) * 26} cy={1122 + Math.floor(i / 6) * 28} r={5} fill={G1} opacity={0.75} />)}
-      {/* the capacity plate on the left: a rounded steel plate with mono text */}
-      <rect x={-130} y={760} width={250} height={130} rx={14} fill={G3} />
-      <rect x={-130} y={760} width={250} height={20} rx={10} fill={WHITE} opacity={0.4} />
-      <text x={-5} y={820} fontSize={34} fill={G1} textAnchor="middle" style={mono}>MAKS</text>
-      <text x={-5} y={866} fontSize={34} fill={G1} textAnchor="middle" style={mono}>8 ORANG</text>
-      {/* the threshold and the dark floor, bleeding past the frame */}
-      <rect x={-1200} y={FLOOR - 26} width={3600} height={26} rx={6} fill={G2} />
-      <rect x={-1200} y={FLOOR} width={3600} height={1500} fill={G1} />
-      {[0, 1, 2, 3, 4, 5].map((i) => <rect key={i} x={-1200 + i * 700} y={FLOOR + 40} width={6} height={1400} fill={G2} opacity={0.45} />)}
-      <rect x={-1200} y={FLOOR + 6} width={3600} height={40} fill={G2} opacity={0.35} />
-      <ellipse cx={540 + Math.sin(amb * TAU * 2) * 8} cy={FLOOR + 80} rx={320} ry={26} fill={BLACK} opacity={0.35} />
+      )}
+    </g>
+  );
+};
+
+/* ---------- inside the stomach (screen space, 1080 x 1920): walls that squeeze, gas, fluid, a food lump, the exit ---------- */
+const gasBubble = (i: number, amb: number): [number, number, number] => {
+  const k = (amb * 7 + i / 6) % 1;
+  return [160 + ((i * 173) % 760) + 26 * Math.sin(amb * TAU * 25 + i * 1.9), 1250 - k * 1050, 22 + ((i * 11) % 5) * 7];
+};
+const FLUID_Y = 1250;
+const StomachInside: React.FC<{ now: number; amb: number; amp: number; wave: number }> = ({ now, amb, amp, wave }) => {
+  const food = springAt(now, FOOD.a, true) * (1 - clamp01((now - FOOD.out0) / (FOOD.out1 - FOOD.out0)));
+  const slide = clamp01((now - FOOD.out0) / (FOOD.out1 - FOOD.out0));
+  const fx = 470 + (PYLORUS.x - 470) * slide, fy = 1150 + (PYLORUS.y - 1150) * slide + 12 * Math.sin(amb * TAU * 25);
+  const press = (ph: number) => (0.5 + 0.5 * Math.sin(amb * TAU * 25 + ph)) * Math.min(1, wave);
+  const zs = through(STOMACH_ZOOM, now), kz = clamp01((zs - 1) / 6);
+  const cx = 540 + (PYLORUS.x - 540) * kz, cy = 960 + (PYLORUS.y - 960) * kz;
+  const fluid = `M -40 ${FLUID_Y} ` + Array.from({ length: 58 }, (_, i) => { const x = -40 + i * 20; return `L ${x} ${FLUID_Y + 9 * Math.sin(amb * TAU * 50 + x / 70)}`; }).join(" ") + " L 1140 2000 L -40 2000 Z";
+  const folds = [330, 560, 800, 1040, 1290];
+  return (
+    <g transform={`translate(540 960) scale(${zs}) translate(${-cx} ${-cy})`}>
+      <rect x={-200} y={-200} width={1480} height={2320} fill={BLUSH} />
+      <ellipse cx={540} cy={900} rx={560} ry={760} fill={WHITE} opacity={0.14} />
+      {folds.map((y, i) => {
+        const dy = 10 * Math.sin(amb * TAU * 25 + i * 1.3);
+        const d = `M -60 ${y + dy} C 220 ${y - 90 + dy} 420 ${y + 90 + dy} 640 ${y + dy} S 1000 ${y - 60 + dy} 1140 ${y + 30 + dy}`;
+        return <g key={i}><path d={d} fill="none" stroke={RED} strokeWidth={54} strokeLinecap="round" opacity={0.2} /><path d={d} fill="none" stroke={WHITE} strokeWidth={12} strokeLinecap="round" opacity={0.2} transform="translate(-6 -22)" /></g>;
+      })}
+      {/* the pool of fluid with a lit surface, and the gas bubbles that rise out of it */}
+      <path d={fluid} fill={STEAM} opacity={0.92} />
+      <rect x={-40} y={FLUID_Y} width={1160} height={14} fill={WHITE} opacity={0.3} />
+      {Array.from({ length: 6 }, (_, i) => {
+        const [x, y, r] = gasBubble(i, amb);
+        return <g key={i} opacity={Math.min(1, (FLUID_Y - y) / 60) * 0.95}><circle cx={x} cy={y} r={r} fill={WHITE} /><circle cx={x} cy={y} r={r} fill={G3} opacity={0.16} /><circle cx={x - r * 0.3} cy={y - r * 0.3} r={r * 0.28} fill={WHITE} /></g>;
+      })}
+      {/* the exit (the pylorus): a ring of muscle round a dark mouth */}
+      <circle cx={PYLORUS.x} cy={PYLORUS.y} r={150} fill={RED} opacity={0.3} />
+      <circle cx={PYLORUS.x} cy={PYLORUS.y} r={122} fill={BLUSH} />
+      <circle cx={PYLORUS.x} cy={PYLORUS.y} r={122} fill="none" stroke={WHITE} strokeWidth={10} opacity={0.3} transform="translate(-6 -6)" />
+      <circle cx={PYLORUS.x} cy={PYLORUS.y} r={84 + 12 * press(0)} fill={BLACK} opacity={0.88} />
+      {/* the food lump: it sits in the fluid and is carried to the exit */}
+      {food > 0.01 && (
+        <g transform={`translate(${fx} ${fy}) scale(${food * 2.1}) rotate(${4 * Math.sin(amb * TAU * 25)})`}>
+          <path d="M -92 8 C -100 -50 -40 -76 12 -70 C 70 -72 104 -30 92 14 C 84 52 30 66 -20 62 C -70 60 -88 40 -92 8 Z" fill={PLASTER} />
+          <path d="M -92 8 C -88 40 -70 60 -20 62 C 30 66 84 52 92 14 C 60 34 0 40 -40 30 C -70 22 -88 12 -92 8 Z" fill={SKIN_B} opacity={0.55} />
+          {[[-40, -20], [10, -34], [44, -6], [-14, 14], [-58, 10], [30, 28]].map(([x, y], i) => <circle key={i} cx={x} cy={y} r={7} fill={SKIN_B} opacity={0.8} />)}
+        </g>
+      )}
+      {/* the walls squeeze: two big lobes press in from the sides, one after the other */}
+      <ellipse cx={-130 + 190 * press(0)} cy={930} rx={250} ry={820} fill={RED} opacity={0.3} />
+      <ellipse cx={-150 + 190 * press(0)} cy={930} rx={240} ry={810} fill={BLUSH} />
+      <ellipse cx={-98 + 190 * press(0)} cy={760} rx={46} ry={420} fill={WHITE} opacity={0.2} />
+      <ellipse cx={1210 - 190 * press(Math.PI)} cy={930} rx={250} ry={820} fill={RED} opacity={0.3} />
+      <ellipse cx={1230 - 190 * press(Math.PI)} cy={930} rx={240} ry={810} fill={BLUSH} />
+      <ellipse cx={1178 - 190 * press(Math.PI)} cy={760} rx={46} ry={420} fill={WHITE} opacity={0.2} />
+      {/* the sound: rings leave the middle, small while food muffles them */}
+      {[0, 1, 2].map((i) => { const k = (amb * 40 + i / 3) % 1; return <circle key={i} cx={540} cy={900} r={110 + 760 * amp * k} fill="none" stroke={WHITE} strokeWidth={12} opacity={(1 - k) * 0.6 * Math.min(1, amp)} />; })}
+    </g>
+  );
+};
+
+/* ---------- inside the small intestine: a tunnel of rings that flow toward us; the squeeze waves narrow the rings they pass ---------- */
+const VP = { x: 540, y: 930 };
+const Tunnel: React.FC<{ now: number; amb: number; amp: number; wave: number; waveB: number }> = ({ now, amb, amp, wave, waveB }) => {
+  const N = 15, zs = through(TUNNEL_ZOOM, now), phase = amb * 6;
+  const dw = (amb * 20) % 1, dwB = (amb * 40) % 1;
+  const rings = Array.from({ length: N }, (_, i) => (i / N + phase) % 1).sort((a, b) => b - a);   // the nearest (biggest) first, the far ones on top
+  const squeeze = (d: number) => 1 - 0.3 * Math.min(1, wave) * Math.exp(-Math.pow((d - dw) / 0.1, 2)) - 0.22 * waveB * Math.exp(-Math.pow((d - dwB) / 0.08, 2));
+  const sway = (d: number) => 26 * (1 - d) * Math.sin(amb * TAU * 10);
+  const drops = Array.from({ length: 7 }, (_, i) => ({ d: (amb * 9 + i / 7) % 1, a: (i * 2.4) % TAU, r: 0.35 + 0.35 * ((i * 5) % 3) / 2 }));
+  return (
+    <g transform={`translate(${VP.x} ${VP.y}) scale(${zs}) translate(${-VP.x} ${-VP.y})`}>
+      <rect x={-300} y={-300} width={1680} height={2520} fill={BLACK} />
+      {rings.map((d, i) => {
+        const s = (0.04 + 2.1 * Math.pow(d, 2.2)) * squeeze(d), rx = 540 * s, ry = 700 * s, cx = VP.x + sway(d), cy = VP.y + 16 * (1 - d) * Math.sin(amb * TAU * 5);
+        return (
+          <g key={i}>
+            <ellipse cx={cx} cy={cy} rx={rx} ry={ry} fill={BLUSH} />
+            <ellipse cx={cx} cy={cy} rx={rx} ry={ry} fill={RED} opacity={0.12 + 0.2 * (i % 2)} />
+            <ellipse cx={cx - 50 * s} cy={cy - 70 * s} rx={rx} ry={ry} fill="none" stroke={WHITE} strokeWidth={Math.max(1, 14 * s)} opacity={0.2} />
+          </g>
+        );
+      })}
+      <ellipse cx={VP.x} cy={VP.y} rx={26} ry={34} fill={BLACK} />
+      {drops.map((p, i) => {
+        const s = (0.04 + 2.1 * Math.pow(p.d, 2.2)) * squeeze(p.d), x = VP.x + sway(p.d) + Math.cos(p.a) * 540 * s * p.r, y = VP.y + Math.sin(p.a) * 700 * s * p.r, r = 60 * s + 4;
+        return <g key={i} opacity={clamp01(p.d * 6)}><circle cx={x} cy={y} r={r} fill={i % 2 ? WHITE : STEAM} /><circle cx={x - r * 0.3} cy={y - r * 0.3} r={r * 0.28} fill={WHITE} /></g>;
+      })}
+      {[0, 1, 2].map((i) => { const k = (amb * 40 + i / 3) % 1; return <circle key={i} cx={VP.x} cy={VP.y} r={140 + 700 * amp * k} fill="none" stroke={WHITE} strokeWidth={10} opacity={(1 - k) * 0.4 * Math.min(1, amp)} />; })}
     </g>
   );
 };
 
 /* ---------- screen pieces ---------- */
-/** Two labels with a leader line to the gas bubbles and the fluid; they sit on plain wall at the left of the stomach. */
-const Labels: React.FC<{ now: number; h: { x: number; y: number; s: number } }> = ({ now, h }) => {
+/** Two labels with a leader line, to a gas bubble and to the fluid; they sit on the left wall of the stomach. */
+const Labels: React.FC<{ now: number; amb: number }> = ({ now, amb }) => {
   const o = win(now, LABELS.gas, LABELS.out, 0.35);
   if (o <= 0) return null;
+  const [gx, gy] = gasBubble(1, amb);
   const L = (lx: number, ly: number, px: number, py: number, text: string, a: number) => {
-    const p = Math.max(0, springAt(now, a, true)), x0 = h.x + lx * h.s, y0 = h.y + ly * h.s, x1 = h.x + px * h.s, y1 = h.y + py * h.s;
+    const p = Math.max(0, springAt(now, a, true));
     return (
-      <g transform={`translate(${x0} ${y0}) scale(${p}) translate(${-x0} ${-y0})`}>
-        <line x1={x0 + 62} y1={y0} x2={x1} y2={y1} stroke={BLACK} strokeWidth={5} strokeLinecap="round" />
-        <circle cx={x1} cy={y1} r={9} fill={BLACK} />
-        <rect x={x0 - 75} y={y0 - 34} width={150} height={68} rx={34} fill={WHITE} />
-        <text x={x0} y={y0 + 15} fontSize={42} fill={BLACK} textAnchor="middle" style={bold(700)}>{text}</text>
+      <g transform={`translate(${lx} ${ly}) scale(${p}) translate(${-lx} ${-ly})`}>
+        <line x1={lx + 62} y1={ly} x2={px} y2={py} stroke={BLACK} strokeWidth={5} strokeLinecap="round" />
+        <circle cx={px} cy={py} r={9} fill={BLACK} />
+        <rect x={lx - 75} y={ly - 34} width={150} height={68} rx={34} fill={WHITE} />
+        <text x={lx} y={ly + 15} fontSize={42} fill={BLACK} textAnchor="middle" style={bold(700)}>{text}</text>
       </g>
     );
   };
-  return <g opacity={o}>{L(-345, -330, -230, -185, "gas", LABELS.gas)}{L(-405, 150, -120, 160, "cairan", LABELS.fluid)}</g>;
+  return <g opacity={o}>{L(SAFE.left + 85, 640, gx, gy, "gas", LABELS.gas)}{L(SAFE.left + 100, 1330, 460, FLUID_Y + 30, "cairan", LABELS.fluid)}</g>;
 };
 
 /** Two bars on the screen: the growl is quiet with food in the stomach and long when it is empty. */
@@ -234,7 +301,7 @@ const Card: React.FC<{ y: number; title: string; sub: string; a: number; out: nu
 
 /** The hook claim at frame 0: a black box per line, the key words yellow, in the top third; the last 0.5 s of the outro brings it back (B41: the loop). */
 const HookText: React.FC<{ now: number }> = ({ now }) => {
-  const o = now > 20 ? clamp01((now - 39.4) / 0.4) : 1 - clamp01((now - 2.7) / 0.3);
+  const o = now > 20 ? clamp01((now - 99.4) / 0.4) : 1 - clamp01((now - 2.7) / 0.3);
   if (o <= 0) return null;
   const lines: [string, boolean][] = [["Bunyi perut", false], ["bukan lapar", true]];
   return (
@@ -251,21 +318,21 @@ const HookText: React.FC<{ now: number }> = ({ now }) => {
 
 const Scene = (props: SceneProps) => {
   const { beat, t, story } = props, now = props.clock;
-  const amb = loopClock(now, story.beats.reduce((a, b) => a + b.dur, 0), 40) / 40;   // 0..1 over the loop
-  const cam = camAt(now), h = heroAt(now), set = setAt(now);
+  const total = story.beats.reduce((a, b) => a + b.dur, 0);
+  const amb = loopClock(now, total, 100) / 100;                    // 0..1 over the loop
+  const cam = camAt(now), st = stomachAt(now), tu = tunnelAt(now), amp = ampAt(now), wave = waveAt(now), waveB = waveBAt(now), sh = tremorAt(now);
   const sting = beat.kind === "sting", outro = beat.kind === "outro", hook = beat.kind === "hook";
   const tx = `translate(${W / 2} ${H / 2}) scale(${cam.z}) translate(${-cam.x} ${-cam.y})`;
-  const bob = 6 * Math.sin(amb * TAU * 5);
   return (
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
       <rect width={W} height={H} fill={G4} />
-      <g transform={tx}>
-        <g opacity={set}><Lift amb={amb} now={now} /></g>
-        <g transform={`translate(${h.x + tremorAt(now) * 0.6} ${h.y + bob}) scale(${h.s})`}><Gut amb={amb} now={now} amp={ampAt(now)} wave={waveAt(now)} waveB={waveBAt(now)} /></g>
-        <Labels now={now} h={{ x: h.x, y: h.y + bob, s: h.s }} />
-      </g>
+      <g transform={tx}><Person now={now} amb={amb} amp={amp} wave={wave} waveB={waveB} /></g>
+      {st > 0.001 && <g opacity={st} transform={`translate(${sh} ${sh * 0.5})`}><StomachInside now={now} amb={amb} amp={amp} wave={wave} /></g>}
+      {tu > 0.001 && <g opacity={tu} transform={`translate(${sh} ${sh * 0.5})`}><Tunnel now={now} amb={amb} amp={amp} wave={wave} waveB={waveB} /></g>}
+      <Labels now={now} amb={amb} />
       <Bars now={now} />
       <Track now={now} />
+      <Card y={1190} title="6 sampai 7 meter" sub="panjang usus halus" a={44.8} out={54.6} now={now} />
       <Card y={1190} title="Cuma isi bergeser" sub="gas dan cairan di perut" a={CARDS[0].a} out={CARDS[0].out} now={now} />
       <Card y={1370} title="Belum tentu lapar" sub="rasa lapar lebih andal" a={CARDS[1].a} out={CARDS[1].out} now={now} />
       {(hook || outro) && <HookText now={now} />}

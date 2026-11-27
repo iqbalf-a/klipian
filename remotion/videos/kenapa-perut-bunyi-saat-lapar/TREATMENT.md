@@ -1,10 +1,10 @@
 ## Benchmark
-Learn: the quiet-place gag of RicksClips3000 and Kurzgesagt's body explainers: one organ drawn whole and soft, a single clear cause per shot, a sound that gets visible (rings) and a pause that lets the viewer hear the room before the answer.
+Learn: the inside-the-body trips of Kurzgesagt and "Inside Out"-style explainers: one continuous dive from the outside into the organ, a different place for every part of the answer, and a sound that becomes visible (rings) so the viewer sees why it is loud or muffled.
 Do not take: their characters, organ designs, melodies, shots, logos.
 ## Structures
-1. Open on the stomach alone on off-white with sound rings, pull back into a lift car, the answer comes as a squeeze wave along the gut, the turn is the rings shaking the lift, the ending the stomach goes back to the off-white.
-2. Open on a full plate and zoom into the stomach, the turn is the food vanishing, the ending a growl that turns the page; a different set (a canteen counter).
-3. Open on a big sound bar filling the frame, cut to the gut, the turn is a countdown of two hours, the ending the bar falls silent.
+1. Open on a person holding a growling belly (plain off-white), an x-ray lens opens on the belly, the camera dives through the lens into the stomach, out through its exit into the small intestine; the turn is the hunger waves squeezing the tunnel; the ending is the zoom out to the same person.
+2. Open on a close-up of the belly skin and rings, cut to a cutaway diagram of the whole gut with a moving marker, the turn is a clock hand, the ending a growl that turns the page.
+3. Open on a plain sound meter, cut to the stomach alone, the turn a countdown of two hours, the ending the meter falls silent.
 ## Choice
-Structure 1: the lift is the one place where everyone hears everybody's stomach, so the set explains why the sound feels loud (a quiet small room), and the first idea (a person holding their belly) is the cliche and needs a body that the rig does not have yet.
-signature-moment: jam | rings shake the lift
+Structure 1: the story is about what happens inside, so the places must be the inside of the stomach and the intestine, and a person on the plain hook background shows where the sound is heard. The first version put the organs in front of a lift, which had nothing to do with a gut (ian, 2026-11-28).
+signature-moment: jam | the wave squeezes the tunnel

@@ -1,30 +1,13 @@
-/* Kenapa perut bunyi saat lapar? — the timing and the camera of this video (pure: no React). Look 2d (B28): a stomach and its small intestine, drawn whole and flat from the
-   front, float in front of the closed doors of a lift car (the quiet small room where a growl is heard). No person is drawn (B43).
-   One world, one camera (camAt) by the clock of the whole video. Every number here is read by index.tsx and sfx.ts so the picture and the sound agree.
-   Loop (B41): the first and the last camera key, hero position, hero scale and the sound amplitude are the same, the lift fades out and the hook text fades back in over the last 0.5 s.
-   // signature-moment: jam | rings rattle the lift */
+/* Kenapa perut bunyi saat lapar? — the timing and the camera of this video (pure: no React). Look 2d (B28), 100 s.
+   The story is a trip: a Chibi person holds a growling belly (plain background, the hook), a round x-ray lens opens on the belly and shows the stomach and the small
+   intestine, the camera zooms into the lens and on into the stomach (the inside of the stomach), then out through the exit (pylorus) into the small intestine (a tunnel),
+   and finally back out: the lens zooms out to the person again. No lift, no room: the only places are the outside (plain) and the inside of the organs, as the story says.
+   Every number here is read by index.tsx and sfx.ts so the picture and the sound agree.
+   Loop (B41): zoom, lens, amplitude and the hook text are the same on the last frame as on the first.
+   // signature-moment: jam | the wave squeezes the tunnel */
 import type { StoryT } from "../../src/schema.ts";
 
-export type Cam = { x: number; y: number; z: number };
 type Key = { t: number; v: number };
-
-const HOOK: Cam = { x: 540, y: 960, z: 1.0 };
-export const CAM_KEYS: { t: number; c: Cam }[] = [
-  { t: 0, c: HOOK },                                           // hook: the gut fills 75 % of the width, frame 0 already the claim
-  { t: 3.0, c: { ...HOOK, z: 1.03 } },
-  { t: 3.9, c: { x: 540, y: 1010, z: 0.9 } },                  // the sting: pull back so the lift comes in around the gut
-  { t: 4.6, c: { x: 540, y: 1010, z: 0.9 } },
-  { t: 5.6, c: { x: 520, y: 1000, z: 0.97 } },                 // remas: push toward the stomach
-  { t: 10.6, c: { x: 520, y: 1000, z: 0.97 } },
-  { t: 11.9, c: { x: 600, y: 1010, z: 0.9 } },                 // kosong: ease right toward the call panel
-  { t: 18.6, c: { x: 600, y: 1010, z: 0.9 } },
-  { t: 19.9, c: { x: 540, y: 1030, z: 0.97 } },                // jam: push in, the turn
-  { t: 27.6, c: { x: 540, y: 1030, z: 0.97 } },
-  { t: 28.9, c: { x: 540, y: 1040, z: 0.8 } },                 // pesan: pull out to leave room for the two cards
-  { t: 35.4, c: { x: 540, y: 1040, z: 0.8 } },
-  { t: 38.4, c: HOOK },                                        // the loop-back: exactly the first shot
-  { t: 40, c: HOOK },
-];
 
 const ease = (x: number) => (x < 0.5 ? 2 * x * x : 1 - 2 * (1 - x) * (1 - x));
 export function through(keys: Key[], t: number): number {
@@ -37,47 +20,57 @@ export function through(keys: Key[], t: number): number {
   }
   return keys[keys.length - 1].v;
 }
-export function camAt(t: number): Cam {
-  const k = (get: (c: Cam) => number): Key[] => CAM_KEYS.map((q) => ({ t: q.t, v: get(q.c) }));
-  return { x: through(k((c) => c.x), t), y: through(k((c) => c.y), t), z: through(k((c) => c.z), t) };
+
+/** The outside world (the person, 1080x1920): feet at FEET, u = the head's half-width, the belly and the x-ray lens on it. */
+export const U = 360, FEET = { x: 540, y: 1760 };
+export const BELLY = { x: 540, y: 1384 }, LENS_R = 228, GUT_S = 0.408;
+export const T_STOMACH = { x: 495, y: 1355 }, T_GUT = { x: 540, y: 1515 };       // where the camera dives: the stomach, later the small intestine
+
+/** ln(zoom) of the camera: 0 = the whole person (frame 0), 2.77 = x16, the stomach wall fills the frame. In again from 6 s, out again from 72 s. */
+export const ZOOM_KEYS: Key[] = [{ t: 0, v: 0 }, { t: 6.0, v: 0 }, { t: 12.4, v: 1.95 }, { t: 14.6, v: 2.77 }, { t: 71.0, v: 2.77 }, { t: 72.0, v: 2.77 }, { t: 82.0, v: 0 }, { t: 100, v: 0 }];
+export const LENS_KEYS: Key[] = [{ t: 0, v: 0 }, { t: 4.3, v: 0 }, { t: 5.3, v: 1.08 }, { t: 5.8, v: 1 }, { t: 82.0, v: 1 }, { t: 83.6, v: 0 }, { t: 100, v: 0 }];
+export const lensAt = (t: number) => through(LENS_KEYS, t);
+/** The camera: the centre (it drifts from the screen centre to the dive point as the zoom grows) and the zoom. */
+/** The person rises in the frame while the lens opens (so the belly sits above the captions): the camera centre goes from the middle of the frame to the belly, and back at the end. */
+export const PAN_KEYS: Key[] = [{ t: 0, v: 0 }, { t: 4.0, v: 0 }, { t: 5.2, v: 1 }, { t: 82.0, v: 1 }, { t: 84.0, v: 0 }, { t: 100, v: 0 }];
+export function camAt(t: number) {
+  const L = through(ZOOM_KEYS, t), k = Math.min(1, Math.max(0, L / 2.77)), T = t < 60 ? T_STOMACH : T_GUT, p = through(PAN_KEYS, t), c0y = 960 + (BELLY.y - 960) * p;
+  return { z: Math.exp(L), x: 540 + (T.x - 540) * k, y: c0y + (T.y - c0y) * k };
 }
 
-/** The lift: plain hook background at frame 0, it comes in with the sting pull-back and goes out again at the loop end. */
-export const SET_KEYS: Key[] = [{ t: 0, v: 0 }, { t: 3.0, v: 0 }, { t: 3.9, v: 1 }, { t: 37.4, v: 1 }, { t: 39.0, v: 0 }, { t: 40, v: 0 }];
-export const setAt = (t: number) => through(SET_KEYS, t);
+/** How much of the inside shows over the outside: the stomach (15 to 41 s), the tunnel (42 to 69 s). */
+export const STOMACH_KEYS: Key[] = [{ t: 0, v: 0 }, { t: 13.8, v: 0 }, { t: 15.2, v: 1 }, { t: 41.2, v: 1 }, { t: 42.6, v: 0 }, { t: 100, v: 0 }];
+export const TUNNEL_KEYS: Key[] = [{ t: 0, v: 0 }, { t: 41.2, v: 0 }, { t: 42.6, v: 1 }, { t: 69.0, v: 1 }, { t: 70.4, v: 0 }, { t: 100, v: 0 }];
+export const stomachAt = (t: number) => through(STOMACH_KEYS, t);
+export const tunnelAt = (t: number) => through(TUNNEL_KEYS, t);
+/** Inside the stomach the camera pushes toward the exit (the pylorus) in 39 to 41.8 s; the tunnel then settles from a push (42.6 to 44.5 s). */
+export const STOMACH_ZOOM: Key[] = [{ t: 0, v: 1.35 }, { t: 15.2, v: 1.0 }, { t: 39.0, v: 1.0 }, { t: 41.8, v: 7 }, { t: 100, v: 7 }];
+export const TUNNEL_ZOOM: Key[] = [{ t: 0, v: 1.5 }, { t: 42.6, v: 1.5 }, { t: 44.5, v: 1.0 }, { t: 100, v: 1.0 }];
+export const PYLORUS = { x: 830, y: 1120 };                                            // the exit of the stomach, on the screen
 
-/** The gut: centre and scale (1 = 740 px wide, 800 high). Big at the hook, it floats up in front of the doors when the lift comes in and comes back for the loop. */
-export const HERO_KEYS = {
-  y: [{ t: 0, v: 1060 }, { t: 3.0, v: 1060 }, { t: 3.9, v: 840 }, { t: 36.0, v: 840 }, { t: 38.4, v: 1060 }, { t: 40, v: 1060 }] as Key[],
-  s: [{ t: 0, v: 1.1 }, { t: 3.0, v: 1.1 }, { t: 3.9, v: 0.95 }, { t: 36.0, v: 0.95 }, { t: 38.4, v: 1.1 }, { t: 40, v: 1.1 }] as Key[],
-};
-export const heroAt = (t: number) => ({ x: 540, y: through(HERO_KEYS.y, t), s: through(HERO_KEYS.s, t) });
-
-/** How loud the growl is (sound rings): 1 at the hook, quiet while food is inside (remas), full again once the stomach is empty, growing in jam, back to 1 for the loop. */
-export const AMP_KEYS: Key[] = [
-  { t: 0, v: 1 }, { t: 4.4, v: 1 }, { t: 5.2, v: 0.3 }, { t: 12.7, v: 0.3 }, { t: 14.0, v: 1 }, { t: 20.0, v: 1 }, { t: 24.4, v: 1.4 }, { t: 28.0, v: 1.4 }, { t: 30.0, v: 1 }, { t: 40, v: 1 },
-];
+/** How loud the growl is (sound rings): quiet while food is inside, full once empty, stronger in the hunger contractions, 1 again for the loop. */
+export const AMP_KEYS: Key[] = [{ t: 0, v: 1 }, { t: 14.0, v: 1 }, { t: 15.6, v: 0.3 }, { t: 29.0, v: 0.3 }, { t: 31.0, v: 1 }, { t: 56.0, v: 1 }, { t: 62.0, v: 1.5 }, { t: 69.0, v: 1.5 }, { t: 72.0, v: 1 }, { t: 100, v: 1 }];
 export const ampAt = (t: number) => through(AMP_KEYS, t);
-/** The squeeze wave along the gut: 0.55 usually, up to 1 as the hunger contractions start (jam), back for the loop. Wave B (twice as many) shows with it. */
-export const WAVE_KEYS: Key[] = [{ t: 0, v: 0.55 }, { t: 19.0, v: 0.55 }, { t: 24.4, v: 1 }, { t: 28.0, v: 1 }, { t: 31.0, v: 0.55 }, { t: 40, v: 0.55 }];
+/** The squeeze waves: 0.55 usually, up to 1.1 as the hunger contractions start (jam); wave B (twice as many) shows with them. */
+export const WAVE_KEYS: Key[] = [{ t: 0, v: 0.55 }, { t: 56.0, v: 0.55 }, { t: 61.0, v: 1.1 }, { t: 69.0, v: 1.1 }, { t: 72.0, v: 0.55 }, { t: 100, v: 0.55 }];
 export const waveAt = (t: number) => through(WAVE_KEYS, t);
-export const WAVE_B_KEYS: Key[] = [{ t: 0, v: 0 }, { t: 21.0, v: 0 }, { t: 24.4, v: 1 }, { t: 28.0, v: 1 }, { t: 31.0, v: 0 }, { t: 40, v: 0 }];
+export const WAVE_B_KEYS: Key[] = [{ t: 0, v: 0 }, { t: 58.0, v: 0 }, { t: 61.0, v: 1 }, { t: 69.0, v: 1 }, { t: 72.0, v: 0 }, { t: 100, v: 0 }];
 export const waveBAt = (t: number) => through(WAVE_B_KEYS, t);
 
-/** The food lump in the stomach: pops in at a (the stomach is full), slides to the exit and shrinks away from out0 to out1 (the stomach is empty). */
-export const FOOD = { a: 4.6, out0: 12.7, out1: 14.0 };
-/** The two labels of remas, the two bars of kosong, the 2-hour track and the pill of jam, the two cards of pesan. */
-export const LABELS = { gas: 6.4, fluid: 7.0, out: 10.6 };
-export const BARS = { a1: 14.3, a2: 16.6, out: 18.8 };
-export const TRACK = { a: 20.4, fill0: 20.8, fill1: 24.2, pill: 24.4, out: 27.8 };
-export const TREMOR = { a: 24.6, b: 25.9 };
-export const CARDS = [{ a: 29.6, out: 35.6 }, { a: 32.6, out: 35.6 }];
+/** The food lump: pops in the stomach at a, leaves through the exit from out0 to out1. */
+export const FOOD = { a: 15.6, out0: 29.0, out1: 31.6 };
+/** The two labels of lambung, the two bars of kosong, the 2-hour track and pill of jam, the two cards of pesan. */
+export const LABELS = { gas: 17.4, fluid: 18.0, out: 26.6 };
+export const BARS = { a1: 30.0, a2: 32.8, out: 39.4 };
+export const TRACK = { a: 57.4, fill0: 57.8, fill1: 62.6, pill: 63.0, out: 70.2 };
+export const TREMOR = { a: 63.2, b: 64.8 };
+export const CARDS = [{ a: 86.4, out: 95.4 }, { a: 90.0, out: 95.4 }];
 
-/** The lift shudders when the rings of the hunger contractions hit it (px, a damped tremor), 0 before and after. */
+/** The screen shudders when the hunger waves hit (px, a damped tremor), 0 before and after. */
 export function tremorAt(t: number): number {
   const u = t - TREMOR.a;
   if (u < 0 || u > TREMOR.b - TREMOR.a) return 0;
-  return 9 * Math.exp(-u * 2.6) * Math.sin(u * 46);
+  return 12 * Math.exp(-u * 2.2) * Math.sin(u * 46);
 }
 
 export function makePlan(story: StoryT) {
@@ -94,8 +87,8 @@ export function makePlan(story: StoryT) {
   };
 }
 
-/** The hero's box at time t, in the 1080 px frame: the gut (740 px wide at scale 1, 800 high). */
+/** The hero's box at time t, in the 1080 px frame (centre and size): the person (head 2.1 u wide, 3.3 u high), whatever the camera does. */
 export const HERO_BOX_AT = (t: number) => {
-  const c = camAt(t), h = heroAt(t);
-  return { x: 540 + (h.x - c.x) * c.z, y: 960 + (h.y - c.y) * c.z, w: 740 * h.s * c.z, h: 800 * h.s * c.z };
+  const c = camAt(t);
+  return { x: 540 + (FEET.x - c.x) * c.z, y: 960 + (FEET.y - 1.65 * U - c.y) * c.z, w: 2.1 * U * c.z, h: 3.3 * U * c.z };
 };
