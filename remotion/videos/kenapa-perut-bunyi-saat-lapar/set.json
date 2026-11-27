@@ -1,8 +1,0 @@
-{
-  "kind": "intestinal-cutaway",
-  "name": "an isometric tissue slice with an intestinal tube",
-  "fits": "digestive sound explanations and gut movement",
-  "signature": ["IsoBlock", "intestinal coils", "round cutaway stage"],
-  "minMatch": 3,
-  "recipe": "A warm isometric tissue block on a round platform, with a large-bowel outline and coiled intestine layered onto its front cut face."
-}
