@@ -198,7 +198,7 @@
   --font-brand: "Mona Sans ExtraBold", "Geist", sans-serif;
 
   /* ---- size scale: 1.18 ratio, rounded to pixels ---- */
-  --t-10: 10px;  --t-11: 11px;  --t-12: 12px;  --t-13: 13px;
+  --t-10: 11px;  --t-11: 12px;  --t-12: 12px;  --t-13: 13px;
   --t-14: 14px;  --t-17: 17px;  --t-20: 20px;  --t-24: 24px;  --t-29: 29px;
 
   /* The --w-display..--w-data width scale lived here. Every one of its 13

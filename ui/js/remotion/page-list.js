@@ -122,18 +122,21 @@ function drawList() {
   if (!LIST.length && byId("rmNew").hidden) showNewForm(true);
   if (!LIST.length) { list.innerHTML = `<p class="rm-empty">No video yet. Press "+ New video" to start.</p>`; return; }
   if (!rows.length) { list.innerHTML = `<p class="rm-empty">No topic matches. <button class="btn sm" type="button" data-act="topicReset">Clear filters</button></p>`; return; }
+  const titleCount = {};
+  for (const p of LIST) { const k = (p.title || p.topic || "").trim().toLowerCase(); titleCount[k] = (titleCount[k] || 0) + 1; }
   list.innerHTML = visible.map((p) => {
+    const dup = titleCount[(p.title || p.topic || "").trim().toLowerCase()] > 1;
     const done = (p.chip || {}).key === "done";
     return `
     <div class="rm-item" role="listitem" tabindex="0" data-id="${esc(p.id)}" aria-current="${CUR?.id === p.id}">
-      <b>${esc(p.title || p.topic)}</b>
+      <b>${esc(p.title || p.topic)}${dup ? ` <small class="rm-dup" title="Another topic has the same title">same title · ${esc(p.id)}</small>` : ""}</b>
       <span class="rm-chip" data-state="${esc((p.chip || {}).state || "")}">${esc((p.chip || {}).label || "")}</span>
       <span>${esc(lengthText({ planned: p.seconds ?? p.duration, voiced: p.voiced ? p.seconds : null }))}</span>
       <span>${esc(dateText(p.updated))}</span>
-      <span>${p.hasStory && p.unchecked ? `${p.unchecked} claim${p.unchecked === 1 ? "" : "s"} not checked` : ""}</span>
+      <span>${p.hasStory && p.unchecked ? `${p.unchecked} fact${p.unchecked === 1 ? "" : "s"} to check` : ""}</span>
       <span class="rm-item-act">
-        ${done ? `<a class="btn sm" href="/library">Library</a>` : `<button class="btn sm" type="button" data-id="${esc(p.id)}">Continue</button>`}
-        <a class="btn sm" href="${profileUrl(`/remotion?id=${encodeURIComponent(p.id)}`)}" target="_blank" rel="noopener" title="Open this video in Remotion Studio, in a new tab">Studio ↗</a>
+        ${done ? `<a class="btn sm" href="/library">Library</a>` : `<button class="btn sm main" type="button" data-id="${esc(p.id)}">Continue</button>`}
+        <a class="btn sm quiet" href="${profileUrl(`/remotion?id=${encodeURIComponent(p.id)}`)}" target="_blank" rel="noopener" title="Open this video in Remotion Studio, in a new tab">Studio ↗</a>
       </span>
     </div>`;
   }).join("");

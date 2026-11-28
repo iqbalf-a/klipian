@@ -266,3 +266,21 @@ header:has(> nav.area-switch:is([data-area="edit"], [data-area="sources"], [data
 /* Until the page is ready (shared/topbar.js, uiReveal) nothing shows, then everything fades in together. */
 html.ui-pending body { opacity: 0; }
 body { transition: opacity .12s ease-out; }
+
+/* Desktop-only notice (js/shared/desktop-gate.js): covers everything under 1024 px wide. */
+.desktop-gate[hidden] { display: none; }
+.desktop-gate {
+  position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; padding: 24px;
+  background: var(--bg-0); color: var(--text); text-align: center;
+}
+.desktop-gate-box { max-width: 420px; display: grid; gap: 14px; }
+.desktop-gate-brand { font-weight: 800; font-size: 20px; letter-spacing: -.02em; color: var(--accent); margin: 0; }
+.desktop-gate h1 { font-size: 22px; line-height: 1.2; margin: 0; }
+.desktop-gate p { margin: 0; font-size: 15px; line-height: 1.5; color: var(--text-muted); }
+.desktop-gate .desktop-gate-hint { font-size: 13px; color: var(--text-faint); }
+html.desktop-gated, html.desktop-gated body { overflow: hidden; }
+
+/* Motion off for people who ask for it (the editor's app.css has the same rule; every page loads this file). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; scroll-behavior: auto !important; }
+}

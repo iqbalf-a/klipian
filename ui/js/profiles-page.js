@@ -44,7 +44,7 @@ async function draw() {
   const grid = $("#pickerGrid");
   grid.innerHTML = data.profile.map((p) => `
     <div class="picker-card${p.id === LAST ? " last" : ""}" role="listitem" data-id="${esc(p.id)}" style="--pc:${esc(p.color)}">
-      <button class="picker-enter" type="button" data-enter="${esc(p.id)}" aria-label="Masuk sebagai ${esc(p.name)}">
+      <button class="picker-enter" type="button" data-enter="${esc(p.id)}" aria-label="Open profile ${esc(p.name)}">
         <span class="picker-swatch" aria-hidden="true">${esc(profileInitial(p.name))}</span>
         <span class="picker-name">${esc(p.name)}</span>
       </button>
@@ -57,7 +57,7 @@ async function draw() {
     <button class="picker-card picker-add" type="button" id="addProfile"><span class="picker-swatch">+</span><span class="picker-name">+ New profile</span></button>`;
   const g = data.guest;
   $("#pickerGuest").innerHTML = `
-    <button class="btn picker-guest-btn" type="button" data-enter="_guest">Masuk sebagai Guest</button>
+    <button class="btn picker-guest-btn" type="button" data-enter="_guest">Continue as Guest</button>
     <span class="picker-guest-note">Edit and render only: no Clips schedule, no post text, no YouTube account.</span>
     <button class="btn" type="button" data-enter="_admin" title="Gemini key, Autopilot format and schedule">Admin settings</button>
     <button class="btn quiet" type="button" id="clearGuest" title="Move everything Guest made to the Recycle Bin">Clear guest data</button>`;

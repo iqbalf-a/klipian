@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>klipian</title>
+<title>klipian: cut clips</title>
 <!-- Fonts ship with the repo (assets/fonts/, SIL OFL) instead of coming
      from the Google Fonts CDN -- see ui/css/fonts.css for why. Loaded
      BEFORE the other stylesheets so the faces are declared by the time
@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="/ui/css/pager.css?v=1790703163808">
 <link rel="stylesheet" href="/ui/css/profiles.css?v=1790703163808">
 <link rel="stylesheet" href="/ui/css/ytdl.css?v=1790703163808">
+<script src="/ui/js/shared/desktop-gate.js"></script>
 </head>
 <body>
 
@@ -100,7 +101,8 @@
            there is nothing yet to browse (first run, or the backend has no
            project history). -->
       <div class="home-empty" id="homeEmpty" hidden>
-        <p>No projects yet. Start one, then add a video on the Assets screen.</p>
+        <p>No projects yet.</p>
+        <ol class="home-steps"><li>Press <b>+ New Project</b>.</li><li>Add a video on the Assets screen (from this profile's Sources or YouTube).</li><li>Analyze it, pick the clips, then Render. Finished clips appear in <a href="/library">Library</a>.</li></ol>
         <button class="btn main large new-project-btn" type="button">+ New Project</button>
       </div>
     </div>

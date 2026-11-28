@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="/ui/css/pager.css">
 <link rel="stylesheet" href="/ui/css/profiles.css">
 <link rel="stylesheet" href="/ui/css/autopilot.css">
+<script src="/ui/js/shared/desktop-gate.js"></script>
 </head>
 <body>
 <div class="flex flex-col min-h-screen">
@@ -41,7 +42,7 @@
       <div class="ap-row">
         <button class="btn" id="apCheck" type="button">Check</button>
         <button class="btn main" id="apStart" type="button" disabled title="Check first: Start is enabled when everything is green">Start Autopilot</button>
-        <span class="ap-note" id="apMsg" role="status"></span>
+        <span class="ap-note" id="apMsg" role="status">Press Check first: Start unlocks when every line is green.</span>
       </div>
       <ul class="ap-checks" id="apChecks" aria-live="polite"></ul>
     </section>

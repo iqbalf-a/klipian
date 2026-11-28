@@ -120,7 +120,7 @@ function runHTML(r, typed) {
 function drawRuns() {
   const list = $("#apRunList");
   const bar = $("#apBar");
-  if (!STATE.runs.length) { list.innerHTML = '<p class="ap-note">No run yet.</p>'; bar.innerHTML = ""; $("#apPager").hidden = true; return; }
+  if (!STATE.runs.length) { list.innerHTML = '<p class="ap-note">No run yet. Paste a YouTube link above, press Check, then Start Autopilot.</p>'; bar.innerHTML = ""; $("#apPager").hidden = true; return; }
   // keep what is being typed in a reply box, and the focused button, while the list is redrawn
   const typed = {};
   list.querySelectorAll("textarea[data-reply]").forEach((t) => { typed[t.dataset.reply] = t.value; });
@@ -183,7 +183,7 @@ function drawChecks(res) {
 
 function setStart(ok) { $("#apStart").disabled = !ok; }
 
-$("#apUrls").addEventListener("input", () => { if (CHECKED !== links().join("\n")) { setStart(false); $("#apChecks").innerHTML = ""; } });
+$("#apUrls").addEventListener("input", () => { if (CHECKED !== links().join("\n")) { setStart(false); $("#apChecks").innerHTML = ""; say("Links changed: press Check again."); } });
 
 $("#apCheck").addEventListener("click", async () => {
   const urls = links();

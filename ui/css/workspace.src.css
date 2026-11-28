@@ -93,7 +93,7 @@
   .ws-pair { @apply grid gap-4; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ws-fhead { @apply flex items-center justify-between gap-2; }
   .ws-mini {
-    @apply rounded-s border border-glass-border bg-transparent px-2 py-0.5 text-[11px]
+    @apply rounded-s border border-glass-border bg-transparent px-2 py-0.5 text-[12px]
            text-text-muted cursor-pointer hover:bg-glass hover:text-text;
   }
   .ws-field { @apply flex flex-col gap-1.5 text-[12px] text-text-faint; }
@@ -105,7 +105,7 @@
     grid-template-columns: 1fr auto auto auto auto;
   }
   .ws-row .name { @apply font-semibold truncate; }
-  .ws-row .data { @apply font-data text-[11px] text-text-faint; }
+  .ws-row .data { @apply font-data text-[12px] text-text-faint; }
 
   /* Sources rows: name, size, length, added, transcript, used by. A header
      row (.head) names the columns, since six of them are not self-evident. */
@@ -128,7 +128,7 @@
   .ws-row.sources .used { @apply truncate text-[12px]; }
   .ws-row.sources .used[data-none="true"] { @apply text-text-faint; }
   .ws-row.head {
-    @apply text-[11px] font-semibold text-text-faint py-1.5;
+    @apply text-[12px] font-semibold text-text-faint py-1.5;
   }
   .ws-row .done { @apply text-accent; }
   /* The credit of a source video: one cell that opens its form. */
@@ -143,5 +143,5 @@
   }
   .credit-form .ws-input { @apply border-glass-border; }
   .credit-form .actions { @apply flex items-center gap-2; grid-column: 1 / -1; }
-  .credit-form .actions .data { @apply font-data text-[11px] text-text-faint truncate; }
+  .credit-form .actions .data { @apply font-data text-[12px] text-text-faint truncate; }
 }

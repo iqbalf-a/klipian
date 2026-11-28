@@ -59,7 +59,7 @@
   cursor: pointer;
 }
 .sort-head:hover { color: var(--text); }
-.sort-head .sort-arrow { color: var(--accent); font-size: 9px; }
+.sort-head .sort-arrow { color: var(--accent); font-size: 11px; }
 
 /* Dashboard Clips: the tick column and the bulk-action bar (clips.js). The bar floats over the bottom of the
    window instead of sitting above the table: ticking the first row used to push the whole table down under
@@ -322,5 +322,6 @@ dialog.confirm-dlg:has(.bulk-plan) { width: min(560px, calc(100vw - 32px)); }
 .ws-upchips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .ws-upchip[data-state="done"] { color: var(--text); border-color: var(--accent); }
 .ws-upchip[data-state="scheduled"] { color: var(--text); border-style: dashed; }
-.ws-upchip[data-state="none"] { color: var(--text-faint); }
+.ws-upchip[data-state="none"] { color: var(--text-faint); border-color: transparent; background: transparent; }
+.ws-upchip[data-state="none"]:hover, .ws-upchip[data-state="none"]:focus-visible { border-color: var(--glass-border); color: var(--text-muted); }
 .ws-upfilter { width: auto; }

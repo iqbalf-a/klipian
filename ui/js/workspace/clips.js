@@ -1461,6 +1461,8 @@ async function ytRefreshDue() {
 /* One button: the real channel, the Clips rows and the planning .xlsx files (youtube.sync_all). */
 $("#clipSyncAll")?.addEventListener("click", async (e) => {
   const btn = e.currentTarget;
+  const ok = await confirmDialog({ title: "Sync with YouTube?", message: "YouTube is the truth: clip statuses, dates and times here, and the planning .xlsx files, are changed to match the channel. Clips found only on the channel are added.", confirmText: "Sync all", tone: "primary" });
+  if (!ok) return;
   btn.disabled = true;
   clipNotice("Syncing with YouTube…");
   try {
