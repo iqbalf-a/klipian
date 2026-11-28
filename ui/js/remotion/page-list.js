@@ -129,7 +129,7 @@ function drawList() {
     const done = (p.chip || {}).key === "done";
     return `
     <div class="rm-item" role="listitem" tabindex="0" data-id="${esc(p.id)}" aria-current="${CUR?.id === p.id}">
-      <b>${esc(p.title || p.topic)}${dup ? ` <small class="rm-dup" title="Another topic has the same title">same title · ${esc(p.id)}</small>` : ""}</b>
+      <b>${esc(p.title || p.topic)}${dup ? ` <small class="rm-dup" title="Another topic has the same title">same title · #${esc(String(p.id).slice(-4))}</small>` : ""}</b>
       <span class="rm-chip" data-state="${esc((p.chip || {}).state || "")}">${esc((p.chip || {}).label || "")}</span>
       <span>${esc(lengthText({ planned: p.seconds ?? p.duration, voiced: p.voiced ? p.seconds : null }))}</span>
       <span>${esc(dateText(p.updated))}</span>

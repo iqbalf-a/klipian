@@ -492,7 +492,7 @@ def _gather(pid: str, p: dict, deep: bool = True) -> dict:
 
 # the chip of the list for each next step, and for the render when nothing else is waiting
 CHIP_BY_NEXT = {"folder": ("New", "new"), "brief": ("New", "new"), "paste": ("Waiting for the answer", "waiting"), "take": ("Load the story", "needed"),
-                "retake": ("Load the story again", "stale"), "fix": ("Claim rejected", "needed"), "facts": ("Claims waiting", "waiting"),
+                "retake": ("Load the story again", "stale"), "fix": ("Fact rejected", "needed"), "facts": ("Facts to check", "waiting"),
                 "title": ("Choose a title", "waiting"), "voice": ("Add the voice", "waiting"), "align": ("Match the voice", "waiting"), "blocked": ("Not ready", "waiting")}
 
 
