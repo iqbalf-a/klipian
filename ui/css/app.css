@@ -38,7 +38,7 @@ body {
    If left behind, the stage would snap to a fixed-size row and the whole
    layout would collapse. */
 .app { position: relative; z-index: 1; height: calc(100vh - var(--banner-h, 0px));  /* minus a restart/profile banner (version.js) */
-       display: grid; grid-template-rows: var(--h-topbar) 1fr;
+       display: grid; grid-template-rows: var(--h-topbar) auto 1fr;   /* the middle row is the Cut sub-menu (topbar.js), empty on other screens */
        /* The stage's outer margin, and the one number several things have
           to agree on: .stage's own padding and gap, and #showSidebarBtn,
           which is fixed-positioned outside .stage but must line up with
@@ -984,7 +984,7 @@ h1, h2, h3 {
 /* .brand lives in brand.css -- shared with /workspace. */
 
 .prepare-body {
-  max-width: 940px; margin: 0 auto;
+  width: 100%;
   padding: var(--s8) var(--s5) var(--s7);
   display: grid; gap: var(--s4); align-content: start;
 }
@@ -2800,3 +2800,9 @@ dialog.confirm-dlg:has(.post-reply-text) { width: min(640px, calc(100vw - 32px))
 .angle-secs { display: flex; gap: 16px; flex-wrap: wrap; }
 .angle-secs input { width: 4.5em; }
 #angleBoxRow { margin-top: 8px; }
+
+/* with the Cut sub-menu row in the grid, the home section and the stage sit in the third row */
+.app > .subnav { grid-row: 2; }
+.app > header { margin-bottom: 0 !important; }
+.app:has(nav.area-switch[data-area="edit"]) { grid-template-rows: var(--h-topbar) 40px 1fr; }   /* the row is kept before the sub-menu is made */
+.app > :not(header):not(.subnav) { grid-row: 3; }

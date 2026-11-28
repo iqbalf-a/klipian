@@ -64,9 +64,11 @@ function buildListBar() {
     <div class="rm-fbar">
       ${seg("Status", Object.entries(TOPIC_STATUSES))}
       <button class="btn sm" type="button" data-f="need" aria-pressed="false">Needs action</button>
-      ${seg("Duration", [[30, "30 s"], [40, "40 s"], [45, "45 s"], [60, "60 s"]])}
-      <select class="ws-input rm-boxed" id="rmLMusic" aria-label="Filter by music"></select>
     </div>
+    <details class="rm-adv rm-morefilters"><summary>More filters (duration, music)</summary>
+      <div class="rm-fbar">${seg("Duration", [[30, "30 s"], [40, "40 s"], [45, "45 s"], [60, "60 s"]])}
+      <select class="ws-input rm-boxed" id="rmLMusic" aria-label="Filter by music"></select></div>
+    </details>
     <div class="rm-fbar"><span class="rm-hint" id="rmLCount" aria-live="polite"></span><button class="btn sm" type="button" id="rmLReset">Clear filters</button></div>`;
   bar.addEventListener("input", (e) => { if (e.target.id === "rmLQ") { TOPIC_UI.q = e.target.value; saveTopicUI(); drawList(); } });
   bar.addEventListener("change", (e) => {
@@ -111,36 +113,65 @@ function syncListBar(shown) {
 
 function drawList() {
   const list = byId("rmList");
-  byId("rmListHead").textContent = `Topics already made (${LIST.length})`;
   buildListBar();
   const rows = filterTopics(LIST, TOPIC_UI);
   syncListBar(rows.length);
   const sig = JSON.stringify([TOPIC_UI.q, TOPIC_UI.status, TOPIC_UI.need, TOPIC_UI.dur, TOPIC_UI.music, TOPIC_UI.sort]);
   if (sig !== topicSig) { topicSig = sig; topicPager.first(); }
   const visible = topicPager.slice(rows);
-  if (!LIST.length) { list.innerHTML = `<p class="rm-empty">No video yet. Write a topic above.</p>`; return; }
+  if (!LIST.length && byId("rmNew").hidden) showNewForm(true);
+  if (!LIST.length) { list.innerHTML = `<p class="rm-empty">No video yet. Press "+ New video" to start.</p>`; return; }
   if (!rows.length) { list.innerHTML = `<p class="rm-empty">No topic matches. <button class="btn sm" type="button" data-act="topicReset">Clear filters</button></p>`; return; }
-  list.innerHTML = visible.map((p) => `
-    <button class="rm-item" type="button" role="listitem" data-id="${esc(p.id)}" aria-current="${CUR?.id === p.id}">
+  list.innerHTML = visible.map((p) => {
+    const done = (p.chip || {}).key === "done";
+    return `
+    <div class="rm-item" role="listitem" tabindex="0" data-id="${esc(p.id)}" aria-current="${CUR?.id === p.id}">
       <b>${esc(p.title || p.topic)}</b>
       <span class="rm-chip" data-state="${esc((p.chip || {}).state || "")}">${esc((p.chip || {}).label || "")}</span>
       <span>${esc(lengthText({ planned: p.seconds ?? p.duration, voiced: p.voiced ? p.seconds : null }))}</span>
       <span>${esc(dateText(p.updated))}</span>
       <span>${p.hasStory && p.unchecked ? `${p.unchecked} claim${p.unchecked === 1 ? "" : "s"} not checked` : ""}</span>
-    </button>`).join("");
+      <span class="rm-item-act">
+        ${done ? `<a class="btn sm" href="/library">Library</a>` : `<button class="btn sm" type="button" data-id="${esc(p.id)}">Continue</button>`}
+        <a class="btn sm" href="${profileUrl(`/remotion?id=${encodeURIComponent(p.id)}`)}" target="_blank" rel="noopener" title="Open this video in Remotion Studio, in a new tab">Studio ↗</a>
+      </span>
+    </div>`;
+  }).join("");
 }
 
 byId("rmList").addEventListener("click", (e) => {
   if (e.target.closest("[data-act=topicReset]")) { Object.assign(TOPIC_UI, { ...TOPIC_DEFAULT, sort: TOPIC_UI.sort }); saveTopicUI(); return drawList(); }
+  if (e.target.closest("a")) return;                      // Library / Studio links go where they point
   const b = e.target.closest(".rm-item");
   if (b) choose(b.dataset.id);
 });
+byId("rmList").addEventListener("keydown", (e) => {
+  const b = e.key === "Enter" && e.target.classList.contains("rm-item") ? e.target : null;
+  if (b) choose(b.dataset.id);
+});
+
+// "+ New video" opens the form above the list; it opens by itself when there is no video yet
+function showNewForm(on) {
+  byId("rmNew").hidden = !on;
+  byId("rmNewBtn").setAttribute("aria-expanded", String(on));
+  if (on) byId("rmTopic").focus();
+}
+byId("rmNewBtn").addEventListener("click", () => showNewForm(byId("rmNew").hidden));
+byId("rmNewCancel").addEventListener("click", () => showNewForm(false));
 
 byId("rmDur").addEventListener("click", (e) => {
   const b = e.target.closest("button[data-d]");
   if (!b) return;
   newDuration = Number(b.dataset.d);
+  byId("rmDurCustom").value = "";
   byId("rmDur").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+});
+// a typed length replaces the quick choices (the server checks 15 to 180 s)
+byId("rmDurCustom").addEventListener("input", (e) => {
+  const n = Math.round(Number(e.target.value));
+  if (!n) return;
+  newDuration = n;
+  byId("rmDur").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(Number(x.dataset.d) === n)));
 });
 byId("rmNew").addEventListener("submit", async (e) => {
   e.preventDefault();

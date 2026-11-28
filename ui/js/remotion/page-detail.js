@@ -50,8 +50,7 @@ async function prefetchBrief() {
 
 function buildDetail() {
   byId("rmMain").innerHTML = `
-    <section class="ws-panel rm-head" id="rmHead"></section>
-    <section class="ws-panel rm-nextbar" id="stepNext"></section>
+    <section class="ws-panel rm-head" id="rmHead"><div id="rmHeadTop"></div><div class="rm-nextbar" id="stepNext"></div></section>
     <div class="rm-steps" id="rmSteps"></div>`;
   drawAll();
 }
@@ -66,13 +65,14 @@ function drawAll() {
 function drawHead() {
   const d = CUR;
   const chip = d.chip || {};
-  byId("rmHead").innerHTML = `
-    <div><button class="btn quiet" id="rmBack" type="button">← All topics</button></div>
+  byId("rmHeadTop").innerHTML = `
+    <div class="rm-actions"><button class="btn quiet" id="rmBack" type="button">← All topics</button></div>
     <div class="rm-title">
       <div style="min-width:0">
         <h1>${esc(d.displayTitle || d.title || d.topic)}</h1>
         <div class="rm-meta"><span class="rm-chip" data-state="${esc(chip.state || "")}">${esc(chip.label || "")}</span><span>${esc(lengthText(d.length))}</span><span>${d.kind === "custom" ? "Custom" : "Template"}</span>${d.notes ? `<span title="${esc(d.notes)}">has notes</span>` : ""}</div>
       </div>
+      <a class="btn rm-studio" href="${profileUrl(`/remotion?id=${encodeURIComponent(d.id)}`)}" target="_blank" rel="noopener" title="Remotion Studio: edit and preview this video's frames, opens in a new tab (first start takes a few seconds)">Open in Remotion Studio ↗</a>
     </div>`;
 }
 
@@ -90,19 +90,24 @@ function drawNext() {
 
 function drawSteps() {
   const d = CUR;
-  byId("rmSteps").innerHTML = stepsFor(d.kind, d.options && d.options.flow).map((s) => {
+  const steps = stepsFor(d.kind, d.options && d.options.flow);
+  if (!steps.some((s) => s.id === OPEN)) OPEN = activeStepFor(d);   // a sidebar always has one step shown
+  const side = steps.map((s) => {
     const open = OPEN === s.id;
     const state = stepState(s.id, d);
     return `
-      <section class="ws-panel rm-step" id="step-${s.id}" data-step="${s.id}" data-open="${open}" data-state="${esc(state)}">
-        <button class="rm-acc" type="button" data-act="toggleStep" data-step="${s.id}" aria-expanded="${open}" aria-controls="body-${s.id}">
-          <span class="rm-n">${s.num}</span><span class="rm-acc-title">${esc(s.title)}</span>
-          <span class="rm-chip" data-state="${esc(state)}">${esc(stateLabel(state))}</span>
-          <span class="rm-acc-sum">${esc(stepSummary(s.id, d))}</span>
-        </button>
-        <div class="rm-body" id="body-${s.id}" ${open ? "" : "hidden"}>${open ? STEP_BODY[s.id](d) : ""}</div>
-      </section>`;
+      <button class="rm-side-item" type="button" data-act="openStep" data-step="${s.id}" data-open="${open}" data-state="${esc(state)}" ${open ? 'aria-current="step"' : ""} title="${esc(stepSummary(s.id, d))}">
+        <span class="rm-n">${s.num}</span><span class="rm-acc-title">${esc(s.title)}</span>
+        <span class="rm-chip" data-state="${esc(state)}">${esc(stateLabel(state))}</span>
+      </button>`;
   }).join("");
+  const cur = steps.find((s) => s.id === OPEN);
+  byId("rmSteps").innerHTML = `
+    <nav class="ws-panel rm-side" aria-label="Steps">${side}</nav>
+    <section class="ws-panel rm-step" id="step-${cur.id}" data-step="${cur.id}" data-open="true" data-state="${esc(stepState(cur.id, d))}">
+      <h2 class="rm-pane-h"><span class="rm-n">${cur.num}</span> ${esc(cur.title)}</h2>
+      <div class="rm-body" id="body-${cur.id}">${STEP_BODY[cur.id](d)}</div>
+    </section>`;
   afterOpen();
 }
 
@@ -117,7 +122,7 @@ function afterOpen() {
 function openStep(id, scroll) {
   OPEN = id;
   drawSteps();
-  if (scroll) byId(`step-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (scroll) byId("rmHead")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 byId("rmMain").addEventListener("click", async (e) => {
@@ -126,8 +131,7 @@ byId("rmMain").addEventListener("click", async (e) => {
   const act = t.dataset.act || t.id;
   if (!CUR) return;
   try {
-    if (act === "toggleStep") return openStep(OPEN === t.dataset.step ? null : t.dataset.step, false);
-    if (act === "openStep") return openStep(t.dataset.step, true);
+    if (act === "openStep") return openStep(t.dataset.step, !t.closest(".rm-side"));
     if (act === "rmCopyBrief" || act === "rmCopyBuild") return copyBrief(t);
     if (act === "rmCopyShort") return copyShort(t);
     if (act === "rmDownBrief" || act === "rmDownBuild") return downloadBrief("main");

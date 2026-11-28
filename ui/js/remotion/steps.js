@@ -8,10 +8,10 @@ const STEPS_TEMPLATE = ["new", "brief", "answer", "facts", "script", "voice", "p
 // Khusus, voice first (the option "flow"): the story is pasted as text, the voice is made and matched, and only then Claude Code builds the folder to the voice
 const STEPS_CUSTOM_VOICE = ["new", "brief", "answer", "facts", "script", "voice", "build", "preview", "render"];
 const STEP_TITLE = {
-  new: "New video", brief: "Brief", story: "Load the story from the Claude Code folder", answer: "The AI's answer and the storyboard", facts: "Check the facts and the title",
-  script: "Voice script", voice: "Import the voice and match it", build: "Build the picture to the voice", preview: "Preview", render: "Render",
+  new: "New video", brief: "Brief", story: "Story", answer: "Answer", facts: "Facts",
+  script: "Script", voice: "Voice", build: "Build", preview: "Preview", render: "Render",
 };
-const STEP_TITLE_VOICE_FIRST = { brief: "Brief: the story and the narration text", answer: "Paste the story and the storyboard" };
+const STEP_TITLE_VOICE_FIRST = { answer: "Story" };
 
 // the video's order: "voice" (voice first) or "picture" (picture first, the default and every video made before the choice)
 const isVoiceFirst = (d) => !!d && d.kind === "custom" && !!d.options && d.options.flow === "voice";

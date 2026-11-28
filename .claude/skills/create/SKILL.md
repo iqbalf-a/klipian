@@ -140,7 +140,7 @@ Tick each with evidence (a command output or a still you opened); fix, then push
 
 ## 4b. Put it on the Motion page (local only)
 
-A video that is not on the Motion page (`/remotion`) is lost to ian, so after a successful push register it, from ian's checkout (where `workspace/` is), reading the folder from the worktree:
+A video that is not on the Motion page (`/create-motion`) is lost to ian, so after a successful push register it, from ian's checkout (where `workspace/` is), reading the folder from the worktree:
 
 ```bash
 cd "<ian checkout>" && python -m klipian.motion_register <slug> --videos "$WT/remotion/videos" [--wav "<wav>"]
@@ -162,4 +162,4 @@ Answer in Indonesian, at most 6 short lines plus the one pull code block, nothin
 5. at most 2 one-line points ian must decide
 6. the Motion check and the pull, always in plain words: cloud: "sudah di main; saya tidak punya akses pull di PC ian, jadi kamu harus git pull sendiri"; local: "proyek Motion <id> sudah ada (sudah saya cek di daftar proyek)" and then: "Saya TIDAK bisa pull di checkout kamu (tidak boleh saya sentuh), jadi kamu harus menjalankan sendiri:" followed by a fenced `powershell` block with `git -C D:\github-repos\klipian pull`, and "tanpa pull, halaman Motion bilang folder incomplete dan Load the story / Render tidak menemukan folder"; ricks stage 2: "video jadi: <path of the mp4 next to the WAV>; proyek Motion <id> sudah ada (dicek)" plus the same pull sentence and block. If the Motion check found nothing, say "BELUM masuk Motion: <reason>" instead.
 
-Do NOT print the narration texts (they are in the story; /remotion step "Voice script" shows them), no /remotion steps, no file lists, no source lists, no recap of the video.
+Do NOT print the narration texts (they are in the story; /create-motion step "Voice script" shows them), no /create-motion steps, no file lists, no source lists, no recap of the video.

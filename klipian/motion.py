@@ -35,7 +35,17 @@ from . import hashtags as hashtags_mod, motion_voice as voicelib, paths, profile
 from .progress import Eta
 
 REMOTION = paths.ROOT / "remotion"
-DURATIONS = (30, 40, 45, 60, 100)
+DURATIONS = (30, 40, 45, 60, 100)               # the quick choices; any whole number of seconds from MIN_DURATION to MAX_DURATION is allowed too
+MIN_DURATION, MAX_DURATION = 15, 180             # a Short is at most 3 minutes
+
+
+def valid_duration(d: int) -> bool:
+    """The length is a PLAN (about this long): the voice and the render decide the real one, so a custom number is as good as a quick choice."""
+    return d in DURATIONS or MIN_DURATION <= d <= MAX_DURATION
+
+
+def duration_error() -> str:
+    return f"The duration must be a whole number of seconds from {MIN_DURATION} to {MAX_DURATION} (it is only a plan: the voice decides the real length)."
 DEFAULT_DURATION = 40
 RENDER_RATIO = 1.7              # seconds of rendering per second of video on a usual machine, for the first ETA (measured: 1.6)
 PREVIEW_RATIO = 0.4             # the half-size draft takes about this share of the final render's time (to be measured on the first real run)
@@ -273,7 +283,7 @@ def next_step(f: dict) -> dict:
     if f.get("gate"):
         return {"key": "blocked", "text": f"Cannot be rendered yet: {f['gate'][0]}", "action": "none"}
     if f.get("render") == "current":
-        return {"key": "clips", "text": "Open in Clips", "action": "clips"}
+        return {"key": "clips", "text": "Open in Library", "action": "clips"}
     if f.get("render") == "stale":
         return {"key": "render", "text": "Render again (something changed)", "action": "render"}
     return {"key": "render", "text": "Render", "action": "render"}
@@ -396,8 +406,8 @@ def create(topic: str, duration=DEFAULT_DURATION, notes: str = "", options: dict
         duration = int(duration)
     except (TypeError, ValueError):
         duration = 0
-    if duration not in DURATIONS:
-        raise MotionError("duration", f"The duration must be one of {', '.join(map(str, DURATIONS))} seconds.")
+    if not valid_duration(duration):
+        raise MotionError("duration", duration_error())
     pid = f"{_slug(topic)}-{uuid.uuid4().hex[:4]}"
     now = int(time.time())
     p = {"id": pid, "topic": topic, "duration": duration, "notes": str(notes or "").strip()[:2000], "status": "draft",
@@ -441,8 +451,8 @@ def update_project(pid: str, fields: dict) -> dict:
                 d = int(fields["duration"])
             except (TypeError, ValueError):
                 d = 0
-            if d not in DURATIONS:
-                raise MotionError("duration", f"The duration must be one of {', '.join(map(str, DURATIONS))} seconds.")
+            if not valid_duration(d):
+                raise MotionError("duration", duration_error())
             if story_of(pid) is not None and d != p["duration"]:
                 raise MotionError("duration", "The duration cannot change once there is a story: make a new video.")
             p["duration"] = d
@@ -550,7 +560,7 @@ def detail(pid: str) -> dict:
     story, facts, voice, st = g["story"], g["facts"], g["voice"], g["status"]
     return {**summary(p), "displayTitle": p.get("title") or p["topic"], "options": options_of(p), "optionWarnings": option_warnings(options_of(p), p.get("look")), "notes": p.get("notes", ""),
             "needs": p.get("needs", []), "warnings": (validate_story(story).get("warnings", []) if story else []), "storyPath": str(project_dir(pid) / "story.json"),
-            "compositions": compositions(pid), "story": story, "facts": facts, "kind": kind_of(p), "folder": g["folder"], "gate": g["problems"], "stills": g["stills"],
+            "compositions": compositions(pid), "compositionId": composition_id(p), "story": story, "facts": facts, "kind": kind_of(p), "folder": g["folder"], "gate": g["problems"], "stills": g["stills"],
             "render": g["render_now"], "job": job_state(pid), "voice": voice, "preview": g["preview"], "next": st["next"], "stages": st["stages"], "renderBlock": st["render"],
             "length": st["length"], "briefAt": p.get("briefAt"),
             "versions": len(list((project_dir(pid) / "history").glob("story-*.json"))) if (project_dir(pid) / "history").is_dir() else 0}
@@ -584,7 +594,7 @@ def _check_for(p: dict, story: dict) -> list[dict]:
     """The checks that belong to THIS video and not to the schema: it must be as long as asked, and its title must fit."""
     errors = []
     d = story.get("duration")
-    if story.get("look") != "ricks" and isinstance(d, (int, float)) and abs(d - p["duration"]) > 1.5:      # a ricks story lasts what its voice lasts (B46), not one of the four lengths
+    if story.get("look") != "ricks" and isinstance(d, (int, float)) and abs(d - p["duration"]) > max(1.5, 0.1 * p["duration"]):      # the length is a plan: 10 % off is fine; a ricks story lasts what its voice lasts (B46), not one of the four lengths
         errors.append({"path": "duration", "message": f"this video is {p['duration']} seconds, but the story lasts {d} seconds"})
     return errors
 
@@ -1747,7 +1757,7 @@ def _run_render(pid: str, key, ev: threading.Event) -> None:
             p["render"] = {"kind": kind_of(p), "composition": p.get("composition") or "", "file": name, "rowId": row_id, "at": int(time.time()), "seconds": round(time.monotonic() - t0, 1),
                            "duration": story["duration"], "storyHash": _story_hash(story)}
             save(p)
-        _finish(key, pid, state="done", percent=100, eta=None, stage="", message="Done: the video is in Clips.", rowId=row_id, file=name,
+        _finish(key, pid, state="done", percent=100, eta=None, stage="", message="Done: the video is in the Library.", rowId=row_id, file=name,
                 seconds=round(time.monotonic() - t0, 1))
     except MotionError as exc:
         _finish(key, pid, state="failed", message=exc.message, code=exc.code, eta=None)

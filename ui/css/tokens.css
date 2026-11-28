@@ -261,3 +261,6 @@
   :root:not([data-theme]) { color-scheme: light; }
 }
 select option, select optgroup { background-color: var(--bg-2); color: var(--text); }
+
+/* always reserve the scrollbar width: a page with and a page without a scrollbar (e.g. /library and /library#render) must not shift sideways */
+html { scrollbar-gutter: stable; }   /* the 10 px transparent track of app.css fills it, so the strip is not seen */

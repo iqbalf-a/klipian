@@ -626,7 +626,8 @@ ${html}      </div>`;
     } catch { /* the dot stays hidden */ }
   }
 
-  draw();
+  // The chip is drawn once with the right name: from the last known one now, or after the fetch (the page waits for it), never first as the bare id.
+  try { const c = JSON.parse(sessionStorage.getItem("klipian:profile-meta") || "{}"); if (c.id === PROFILE) { meta = c; draw(); } } catch { /* no storage */ }
   load().then(paintYouTube);
   window.refreshYouTubeDot = paintYouTube;
 })();

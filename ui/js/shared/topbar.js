@@ -107,32 +107,76 @@ setInterval(updateTopClock, 30000);
 
 /* The area switch, ONE copy for every page. A page only has `<nav class="tabs area-switch" aria-label="Area" data-area="edit|workspace|sources|motion|autopilot|guide">`
    (and data-guide="#motion" for a guide anchor); the links are made here. A profile that only makes Motion videos (/api/profiles "focus": "motion", from
-   klipian/profiles.py) gets Motion first and its brand link goes to /remotion, so it does not land on an empty Edit screen. */
+   klipian/profiles.py) gets Motion first and its brand link goes to /create-motion, so it does not land on an empty Edit screen. */
 (function areaSwitch() {
   const navs = [...document.querySelectorAll("nav.area-switch[data-area]")];
   if (!navs.length) return;
-  const AREAS = { edit: ["/", "Edit"], workspace: ["/workspace", "Workspace"], sources: ["/sources", "Sources"], motion: ["/remotion", "Motion"], autopilot: ["/autopilot", "Autopilot"], guide: ["/guide", "Guide"] };
-  const ORDER = { edit: ["edit", "workspace", "sources", "motion", "autopilot", "guide"], motion: ["motion", "workspace", "autopilot", "edit", "sources", "guide"] };
+  // Four goals in the bar; Edit, Sources and Autopilot are one goal ("Cut": clips from a long video) with a second row under the bar.
+  const PAGES = { edit: "/", sources: "/sources", autopilot: "/autopilot", motion: "/create-motion", workspace: "/library", guide: "/guide" };
+  const GROUPS = { create: ["motion"], cut: ["edit", "sources", "autopilot"], clips: ["workspace"], guide: ["guide"] };
+  const LABEL = { create: "Create Motion", cut: "Cut Clips", clips: "Library", guide: "Guide", edit: "Edit", sources: "Sources", autopilot: "Autopilot" };
+  const ORDER = { edit: ["cut", "clips", "create", "guide"], motion: ["create", "clips", "cut", "guide"] };
+  const groupOf = (area) => Object.keys(GROUPS).find((g) => GROUPS[g].includes(area));
   const draw = (focus) => {
     for (const nav of navs) {
-      nav.replaceChildren(...ORDER[focus].map((key) => {
+      const here = groupOf(nav.dataset.area);
+      nav.replaceChildren(...ORDER[focus].map((g) => {
         const a = document.createElement("a");
-        a.href = AREAS[key][0] + (key === "guide" ? nav.dataset.guide || "" : "");
-        a.textContent = AREAS[key][1];
-        if (key === nav.dataset.area) a.setAttribute("aria-current", "page");
-        if (key === "guide") a.title = "The guide";
+        a.href = PAGES[GROUPS[g][0]] + (g === "guide" ? nav.dataset.guide || "" : "");
+        a.textContent = LABEL[g];
+        if (g === here) a.setAttribute("aria-current", "page");
         return a;
       }));
+      const head = nav.closest("header");
+      if (head.nextElementSibling?.classList.contains("subnav")) head.nextElementSibling.remove();   // draw() runs again once the profile focus is known
+      if (here === "cut") {
+        const sub = document.createElement("nav");
+        sub.className = "subnav";
+        sub.setAttribute("aria-label", "Cut");
+        sub.replaceChildren(...GROUPS.cut.map((k) => {
+          const a = document.createElement("a");
+          a.href = PAGES[k];
+          a.textContent = LABEL[k];
+          if (k === nav.dataset.area) a.setAttribute("aria-current", "page");
+          return a;
+        }));
+        head.after(sub);
+      }
     }
     const brand = document.querySelector("a.brand");
-    if (brand) brand.setAttribute("href", focus === "motion" ? "/remotion" : "/");
+    if (brand) brand.setAttribute("href", focus === "motion" ? "/create-motion" : "/");
   };
-  draw("edit");
+  let cached = null;
+  try { cached = JSON.parse(sessionStorage.getItem("klipian:profile-meta") || "null"); } catch { /* no storage */ }
+  draw(cached && cached.focus === "motion" ? "motion" : "edit");   // the last known order, so the links do not reorder when the fetch answers
   let id = null;
   try { id = sessionStorage.getItem("klipian:profile"); } catch { /* no storage */ }
   if (!id) return;
   fetch("/api/profiles").then((r) => r.json()).then((j) => {
     const mine = (j.profile || []).find((p) => p.id === id);
-    if (mine && mine.focus === "motion") draw("motion");
+    draw(mine && mine.focus === "motion" ? "motion" : "edit");
   }).catch(() => { /* the default order stays */ });
+})();
+
+
+/* Show the page all at once: it stays invisible until the bar, the profile chip, the fonts and everything the page fetched on load have arrived and
+   nothing has been asked for 120 ms (or 1.5 s at most), so no panel slides in after another.
+   shortcut: images and anything a click loads later still arrive on their own; the requests are counted by the fetch wrapper in topbar-build.js. */
+(function uiReveal() {
+  const root = document.documentElement;
+  if (!root.classList.contains("ui-pending")) return;
+  const t0 = performance.now();
+  let quiet = t0;
+  const chipReady = () => { const c = document.getElementById("profileChip"); return !c || c.children.length > 0; };
+  let fontsOk = false;
+  (document.fonts?.ready || Promise.resolve()).then(() => { fontsOk = true; });
+  (function wait() {
+    const now = performance.now();
+    if (window.uiBusy?.() > 0 || document.readyState !== "complete") quiet = now;
+    if ((fontsOk && chipReady() && now - quiet >= 120) || now - t0 > 1500) {
+      requestAnimationFrame(() => root.classList.remove("ui-pending"));
+      return;
+    }
+    setTimeout(wait, 30);
+  })();
 })();

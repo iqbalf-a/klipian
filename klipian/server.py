@@ -745,7 +745,7 @@ class Handler(MotionRoutes, ServiceRoutes, WorkspaceRoutes, ProjectRoutes, Rende
         # at any address without redirects.
         if path.rstrip("/") in ("", "/ui"):
             path = "/ui/index.html"
-        if path.rstrip("/") == "/workspace":
+        if path.rstrip("/") in ("/library", "/workspace"):   # /library is the page's name; /workspace stays for old bookmarks
             path = "/ui/workspace.html"
         if path.rstrip("/") == "/sources":
             path = "/ui/sources.html"
@@ -755,8 +755,10 @@ class Handler(MotionRoutes, ServiceRoutes, WorkspaceRoutes, ProjectRoutes, Rende
             path = "/ui/admin.html"
         if path.rstrip("/") == "/autopilot":
             path = "/ui/autopilot.html"
+        if path.rstrip("/") == "/create-motion":
+            path = "/ui/remotion.html"          # the Motion page (topic -> brief -> story -> voice -> render)
         if path.rstrip("/") == "/remotion":
-            path = "/ui/remotion.html"
+            return self._open_studio()          # Remotion's own Studio, in a new page
         if path.rstrip("/") == "/guide":
             path = "/ui/guide.html"             # static: no profile needed
         # /edit/<video> is the same editor page -- which project it opens is

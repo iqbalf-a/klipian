@@ -315,7 +315,7 @@ Some assistants only chat. If you cannot run a command or write a file, do **onl
 2. Then one fenced `json` block with the story (the Answer format below).
 3. Then one fenced `text` block with the narration: each beat's narration on its own line, plain words only, no tags, no headings, no timings.
 4. Do not say that a folder, a validation or a style check exists. Say what you could not do.
-The person pastes the story into klipian's `/remotion` page (step 3, "The agent cannot run commands?"). klipian then shows that the video is not made yet until the folder is made in a session that can run commands."""
+The person pastes the story into klipian's `/create-motion` page (step 3, "The agent cannot run commands?"). klipian then shows that the video is not made yet until the folder is made in a session that can run commands."""
 
 # The smallest custom video: the scene of a video is only this much code. `StoryVideo` plays the story, `Scene` draws one beat.
 MINIMAL_VIDEO = """```tsx
@@ -431,7 +431,7 @@ Target voice apps: {targets}. For each one run, from the repository root (`<targ
 Expected: the text to copy into that app. Paste it in your reply as it is, one block per app.
 
 {STEP_MARK}8: tell the person
-In plain words: open `/remotion`, choose the folder `remotion/videos/{slug}` of the repository (on ian's PC `D:\\github-repos\\klipian\\remotion\\videos\\{slug}`), press "Load the story from the folder", make the voice in their own voice app, choose the audio file, press "Match with the narration", look at the preview, then Render.
+In plain words: open `/create-motion`, choose the folder `remotion/videos/{slug}` of the repository (on ian's PC `D:\\github-repos\\klipian\\remotion\\videos\\{slug}`), press "Load the story from the folder", make the voice in their own voice app, choose the audio file, press "Match with the narration", look at the preview, then Render.
 Expected: your reply ends with these instructions."""
 
 
@@ -451,7 +451,7 @@ def _stage_steps(text: str, slug: str, stage: int, p: dict) -> str:
     pdir = _m.project_dir(p["id"]) if stage == 2 else None
     if stage == 1:
         sec[1] = sec[1].replace("Save it as", "Print the whole story JSON as one fenced `json` block in your reply (the person pastes it into klipian) and save it as", 1)
-        sec[8] = ("8: tell the person\nIn plain words: open `/remotion`, go to the step \"The AI's answer and the storyboard\", paste the story JSON, check the claims and choose a title, "
+        sec[8] = ("8: tell the person\nIn plain words: open `/create-motion`, go to the step \"The AI's answer and the storyboard\", paste the story JSON, check the claims and choose a title, "
                   "then make the voice from the narration text in their own voice app and import it in the step \"Import the voice and match it\". The picture is built after the voice: "
                   "klipian then gives a second brief for it. Do not make the video folder, the pictures or any code now.\nExpected: your reply ends with these instructions.")
         keep = (1, 2, 7, 8)
@@ -466,7 +466,7 @@ def _stage_steps(text: str, slug: str, stage: int, p: dict) -> str:
                   f"and build the picture to these times.\n```json\n{blob}\n```\n"
                   f"Expected: the file `remotion/stories/{slug}.json` exists and is plain JSON.")
         sec[4] = sec[4].replace("Do: read", "Do: build every beat to the times of the voice-timed story. Read", 1)
-        sec[8] = (f"8: tell the person\nIn plain words: open `/remotion`, choose the folder `remotion/videos/{slug}` of the repository, press \"Load the story from the folder\", "
+        sec[8] = (f"8: tell the person\nIn plain words: open `/create-motion`, choose the folder `remotion/videos/{slug}` of the repository, press \"Load the story from the folder\", "
                   "press \"Match with the narration\" again (the story file changed), look at the preview, then Render.\nExpected: your reply ends with these instructions.")
         keep = (1, 2, 3, 4, 5, 6, 8)
     out = [head]
@@ -502,7 +502,7 @@ def _reference(cat: dict, p: dict, d: int, kind: str) -> str:
 
 {_structure_text(d, _m.options_of(p))}
 
-Adapt the kinds and seconds to the topic if needed, but the beats must add up to exactly {d} seconds; each beat has 2 to 4 moments of movement.
+Adapt the kinds and seconds to the topic if needed, but the beats must add up to exactly {d} seconds; each beat has 2 to 4 moments of movement. {d} seconds is the plan: the voice and the render decide the real length, so a few seconds more or less in the final video is fine.
 
 ## Beat kinds
 

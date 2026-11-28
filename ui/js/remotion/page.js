@@ -48,7 +48,7 @@ async function tick() {
   if (was.state === j.job.state) return;
   const key = `motion:${id}:${j.job.started}`;
   if (j.job.kind === "render" && j.job.state === "done") {
-    notifyDone({ key, title: "Motion video finished", body: CUR.title || CUR.topic, kind: "success", action: { label: "Open Clips", onClick: () => { location.href = "/workspace"; } } });
+    notifyDone({ key, title: "Motion video finished", body: CUR.title || CUR.topic, kind: "success", action: { label: "Open Library", onClick: () => { location.href = "/library"; } } });
   } else if (j.job.state === "failed") {
     notifyDone({ key, title: j.job.kind === "render" ? "Render failed" : "Storyboard failed", body: j.job.message || "", kind: "failure" });
   } else if (j.job.state === "cancelled") {

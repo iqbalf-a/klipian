@@ -14,13 +14,9 @@
 </head>
 <body>
 <div class="flex flex-col min-h-screen">
-  <header style="position:sticky;top:0;z-index:40" class="flex items-center gap-4 h-[58px] px-5 shrink-0 bg-surface-1 border-b border-glass-border">
-    <a class="brand" href="/" title="Back to editor">klipian</a>
-    <nav class="tabs area-switch" aria-label="Area" data-area="autopilot"></nav>
-    <div id="profileChip"></div>
-    <button class="btn quiet" id="themeBtn" type="button" aria-live="polite"></button>
-    <span id="topClock"></span>
+  <header class="topbar-shared" data-topbar="autopilot">
   </header>
+  <script src="/ui/js/shared/topbar-build.js"></script>
 
   <main class="ap">
     <h1 class="ap-h1">Autopilot</h1>

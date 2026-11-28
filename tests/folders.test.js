@@ -20,7 +20,7 @@ eq(folderStatus(list[2], "bulan"), "free", "nobody took it");
 eq(slugs(pickFolders(list)), ["dingin", "api-lilin", "colokan", "bulan"], "default: newest first");
 eq(slugs(pickFolders(list, { sort: "name" })), ["bulan", "colokan", "dingin", "api-lilin"], "name A-Z by title");
 eq(slugs(pickFolders(list, { sort: "duration" })), ["bulan", "dingin", "api-lilin", "colokan"], "duration ascending, none last, ties newest");
-eq(slugs(pickFolders(list, { sort: "free" }, "bulan")), ["dingin", "colokan", "api-lilin", "bulan"], "untaken first (free), then taken");
+eq(slugs(pickFolders(list, { sort: "free" }, "bulan")), ["bulan", "dingin", "colokan", "api-lilin"], "this topic first, then untaken, then taken");
 
 eq(slugs(pickFolders(list, { q: "  LILIN " })), ["api-lilin"], "search is case-insensitive and trimmed, matches the title");
 eq(slugs(pickFolders(list, { q: "colokan" })), ["colokan"], "search matches the slug");

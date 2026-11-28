@@ -91,7 +91,7 @@ def check_motion() -> tuple[str, str]:
             problems.append("the Guest must be refused")
 
         # --- create: refusals first
-        for body, what in (({"topic": "ab", "duration": 45}, "a topic that is too short"), ({"topic": "fakta seru tentang colokan", "duration": 50}, "a length that is not offered")):
+        for body, what in (({"topic": "ab", "duration": 45}, "a topic that is too short"), ({"topic": "fakta seru tentang colokan", "duration": 200}, "a length that is not offered")):
             st, j = post("create", body)
             if st != 400 or j.get("ok") is not False:
                 problems.append(f"create should refuse {what}: {st}")

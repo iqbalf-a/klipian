@@ -51,7 +51,7 @@ function bodyRender(d) {
       <span class="rm-hint">MP4 9:16 1080×1920, 30 fps, with sound effects.</span>
     </div>
     ${jobHTML(job, "render")}
-    ${r ? `<div class="rm-note">${r.current ? "Current result" : "Last result"}: <b>${esc(r.file)}</b> (rendered in ${r.seconds} s, ${r.kind === "custom" ? "custom video" : "template"}). <a class="rm-link" href="/workspace">Open in Clips</a> to schedule and upload.</div>` : ""}`;
+    ${r ? `<div class="rm-note">${r.current ? "Current result" : "Last result"}: <b>${esc(r.file)}</b> (rendered in ${r.seconds} s, ${r.kind === "custom" ? "custom video" : "template"}). <a class="rm-link" href="/library">Open in Library</a> to schedule and upload.</div>` : ""}`;
 }
 
 async function startRender() {

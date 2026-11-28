@@ -72,20 +72,23 @@
   border: 1px solid var(--glass-border);
   border-radius: var(--r-pill);
 }
+/* The same look as the page's buttons: compact, bordered, square-ish corners; the open one in the accent colour (like .rm-seg on /remotion). */
+.area-switch { background: none; border: 0; padding: 0; border-radius: 0; gap: 6px; }
 .area-switch a {
-  font: inherit; font-size: var(--t-12); font-weight: 650;
-  letter-spacing: -.005em;
+  font: inherit; font-size: var(--t-13); font-weight: 600;
   color: var(--text-muted);
   text-decoration: none;
-  border-radius: var(--r-pill);
-  padding: 6px 13px;
+  border: 1px solid transparent;
+  border-radius: var(--r-s);
+  padding: 6px 12px;
   cursor: pointer;
-  transition: color var(--fast), background var(--fast);
+  transition: color var(--fast), background var(--fast), border-color var(--fast);
 }
-.area-switch a:hover { color: var(--text); }
+.area-switch a:hover { color: var(--text); background: var(--glass); }
 .area-switch a[aria-current="page"] {
-  color: var(--bg-0);
-  background: var(--text);
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 /* ian: better on the right, just left of the Theme icon, rather than
    next to the logo -- so it moved again, this time to a genuinely
@@ -243,3 +246,23 @@ input[type="radio"]:not(:disabled), [role="button"]:not([aria-disabled="true"]) 
    (.bulk-end, red Delete then Clear). Rules in docs/ui-design.md. */
 .bulk-count { font-weight: 700; color: var(--text); }
 .bulk-end { margin-left: auto; display: inline-flex; align-items: center; gap: var(--s2, 8px); }
+
+/* The second row under the bar for a goal with several screens (Cut: Edit, Sources, Autopilot): plain underlined tabs. A fixed height, and the space is
+   kept while the script has not made it yet, so the page does not drop down when the row appears. */
+.subnav { display: flex; align-items: stretch; gap: 20px; height: 40px; box-sizing: border-box; padding: 0 20px; border-bottom: 1px solid var(--glass-border); background: var(--bg-0); }
+.subnav a { display: flex; align-items: center; font-size: var(--t-13); font-weight: 600; color: var(--text-muted); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.subnav a:hover { color: var(--text); }
+.subnav a[aria-current="page"] { color: var(--text); border-bottom-color: var(--accent); }
+header:has(> nav.area-switch:is([data-area="edit"], [data-area="sources"], [data-area="autopilot"])):not(:has(+ .subnav)) { margin-bottom: 40px; }
+
+/* The bar on every page except Edit (which has the same look as .topbar in app.css inside its grid): made by shared/topbar-build.js. */
+.topbar-shared {
+  position: sticky; top: 0; z-index: 40; flex-shrink: 0;
+  display: flex; align-items: center; gap: var(--s5); height: var(--h-topbar); padding: 0 var(--s5);
+  background: color-mix(in srgb, var(--bg-1) 72%, transparent); backdrop-filter: blur(20px) saturate(150%);
+  border-bottom: 1px solid var(--glass-border);
+}
+
+/* Until the page is ready (shared/topbar.js, uiReveal) nothing shows, then everything fades in together. */
+html.ui-pending body { opacity: 0; }
+body { transition: opacity .12s ease-out; }

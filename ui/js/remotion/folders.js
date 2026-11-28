@@ -6,14 +6,14 @@ function folderStatus(c, picked) {
   return c.slug === picked ? "current" : c.takenBy ? "other" : "free";
 }
 
-const FOLDER_SORTS = { recent: "Newest", name: "Name A-Z", duration: "Duration", free: "Not taken first" };
+const FOLDER_SORTS = { recent: "Newest", name: "Name A-Z", duration: "Duration", free: "This topic, then not taken" };
 const FOLDER_FILTERS = { all: "All", free: "Not taken", taken: "Taken" };
 
 // the folders to show: the search matches the title and the slug (any case), the filter keeps by status, the sort orders (a tie falls back to newest)
 function pickFolders(list, { q = "", filter = "all", sort = "recent" } = {}, picked = "") {
   const needle = String(q).trim().toLowerCase();
   const recent = (a, b) => (b.modified || 0) - (a.modified || 0);
-  const free = (c) => (folderStatus(c, picked) === "free" ? 0 : 1);
+  const free = (c) => ({ current: 0, free: 1, other: 2 })[folderStatus(c, picked)];
   const order = {
     recent,
     name: (a, b) => String(a.title).localeCompare(String(b.title), "id") || recent(a, b),

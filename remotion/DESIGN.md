@@ -21,7 +21,7 @@ The B rules below are a log: each one answers a complaint and some change an ear
 | Transitions | B68 (burst on a story change, whip where the action swings; at most 5 of each per 90 s, never on neighbouring cuts) | none |
 | People | B62 b and c (own design, billboard), B63 (soft body, acting face), B64 (real sizes, gait), B70 (faces and clothes unique across videos), B51 and B52 (a living cast, real movements), B55 (an action is curves over time) | B62 b's hijab line (dropped 2026-11-25) |
 | Sound | B13 and B15 (hand-written sfx.ts, the approved set), B60 (sound names unique), **B71 a** (silence before the turn) | none |
-| Story and structure | B54 (the ricks story), B41 and B44 (hook), B46 (the look), **B71 c, d, e** (signature moment, treatment first, six axes) | none |
+| Story and structure | B54 (the ricks story), B41 and B44 (hook), B46 (the look), **B71 c, d, e** (signature moment, treatment first, six axes), **B74** (the length is a plan) | none |
 | Reuse | B42, B48, B60, B61, B70 (assets, sounds, names, faces) and **B71 e** (structure, camera path, ending) | none |
 | Review and hand-back | section 10 (quality bar), section 12 (hand-back), **B71 b, g, h** (breath, review loop, loudness), **B72** (review before the render, measured contacts, readable last shot) | none |
 
@@ -176,7 +176,7 @@ The rule log (who asked for each rule, and when) is in `docs/RULE-LOG.md`; add a
 
 ## 0. How to start a new video (exact commands)
 
-klipian keeps each video as a project in `workspace/profiles/<profile>/motion/<project>/` (on the /remotion page: topic → brief → AI answer → fact gate). The checked
+klipian keeps each video as a project in `workspace/profiles/<profile>/motion/<project>/` (on the /create-motion page: topic → brief → AI answer → fact gate). The checked
 story is `story.json` there (`story.voiced.json` when a narration was aligned: durations and word times follow the voice). The page shows the exact command.
 
 ```bash
@@ -192,7 +192,7 @@ It is registered in Root by its folder name. Then:
 1. Look at `npm run assets-sheet` (`out/assets-sheet.png` and `out/assets-sheet-iso.png`, the 2.5D kit) and the `IsoDemo` / `CardsDemo` / `RigDemo` compositions: **what exists comes first**. The main style is 2.5D isometric (see "2.5D isometrik" in `DESIGN-iso.md`).
 2. Write the scene function in `index.tsx`: one drawing per beat, from `src/design/index.ts`. The beat gives you `beat.text`, `beat.headline`, `beat.kicker`, `beat.narration`, `beat.words`, `beat.dur`, `beat.scene.items`, and the story gives `claims` with sources.
 3. Check in Studio with `layoutDebug` on; fix what the layout manager reports. Run `npm run check && npm test`.
-4. In klipian (/remotion page) choose **Komposisi → your video**; stills, render, Clips and upload work as for the template. Render time matters: say it in your report.
+4. In klipian (/create-motion page) choose **Komposisi → your video**; stills, render, Clips and upload work as for the template. Render time matters: say it in your report.
 
 Never change the words of the story: if a sentence is wrong or too long, tell ian and change it in klipian (the fact gate must see it).
 
@@ -458,3 +458,5 @@ Rules: (1) every shot carries a move; at least 70 % of the shots combine two of 
 (f) **White props stay white.** A hemisphere light of 1.0 left a white van grey next to a bright sky; use about 1.4 and check a still of the main prop at full size.
 
 **B73. The places of the story are the topic's own places (ian, 2026-11-28, after the first "Kenapa perut bunyi saat lapar?" put a stomach in front of a lift: "kenapa backgroundnya lift? kan tidak nyambung dengan usus").** (a) **A background, set or room must be part of the answer, not a gag about the question.** A lift made the sound "easy to hear" in the treatment, but the story is about the gut, so nothing in the picture connected to it. Ask of every set: would the narration name this place? If the story happens in the body, the places are the body (the outside person on the plain hook background, then the inside of the organs); if it happens in a kitchen, the set is the kitchen. A set chosen only to justify a visual joke is a FAIL of the treatment (B71). (b) **A topic about the inside of the body is a dive** (look 2d): the channel's Chibi on the plain hook background (B43, B44), a round x-ray lens on the right body part showing the whole organ flat (B56), the camera zooms into the lens and on into the organ, one place per part of the answer (the stomach's inside, then the exit into the small intestine as a tunnel), and the same zoom backwards to the person for the loop. Reference: `videos/kenapa-perut-bunyi-saat-lapar` (`plan.ts` `ZOOM_KEYS`, `LENS_KEYS`, `PAN_KEYS`). (c) **When the dive makes the hero bigger than the frame the hero check FLAGs; that is expected, not a defect.** The 70 to 80 % rule (B44) binds frame 0 (the person, `hero0` PASS); `style-report` `hero` compares the declared hero box with 60 to 70 % at the main beat and cannot know that the hero is the inside of the organ. (d) **A longer video adds places, not padding:** the 100 s version (ian asked for one more minute) has seven beats, each its own place or zoom, each a narrated fact with a source, a sound plan of about 0.85 events a second and ambient motion that keeps whole cycles per video (`amb * k`, `k` an integer, B29).
+
+**B74. The length asked for is a plan, not a promise (ian, 2026-11-28: "100 hanya perkiraan, hasil render atau voice bisa 98 atau 101").** (a) **The seconds in the new-video form (a quick choice or a typed number from 15 to 180) are what the video is planned around:** the structure, the beats' seconds and the narration are written for about that long. (b) **The real length is whatever the voice makes it:** once the narration is matched (`story.voiced.json`) the video lasts the voice, and the render lasts that. A video planned for 100 s that renders at 98 s or 101 s is correct, not a defect; never pad the narration, add a filler beat or cut a fact to land on the exact number. (c) **The checks leave room for it:** the server accepts a story within 10 % (at least 1.5 s) of the plan; the beats' own seconds still add up to the story's `duration`. (d) **Say the real length, not the plan, when a video is handed back** (the voiced length is on the video's page, "voice" next to the seconds).

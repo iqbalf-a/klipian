@@ -205,18 +205,18 @@ function bodyStory(d) {
   const taken = f.state === "loaded";
   return `
     <p>Claude Code writes the story and makes the video folder. Choose the folder it made, then load the story.</p>
-    <h3 class="rm-sub-h">Result folder</h3>
-    <div class="rm-actions"><span class="rm-chip" data-state="${esc(folderChip(f.state))}">${esc(folderLabel(f.state))}</span>${picked ? `<button class="btn sm" type="button" data-act="pickFolder" data-slug="">Unpick</button>` : ""}</div>
-    ${folderPickerHTML(d, picked)}
-    <div class="rm-pathrow"><code class="rm-cmd">${esc(f.path || "(no folder yet)")}</code>${f.path ? `<button class="btn sm" type="button" data-act="copyFolderPath">Copy path</button>` : ""}</div>
-    <div class="rm-actions"><button class="btn main" type="button" data-act="takeFolder" ${picked ? "" : "disabled"}>${taken ? "Load the story again" : "Load the story from the folder"}</button></div>
+    <div class="rm-actions"><span class="rm-chip" data-state="${esc(folderChip(f.state))}">${esc(folderLabel(f.state))}</span>
+      <button class="btn main" type="button" data-act="takeFolder" ${picked ? "" : "disabled"} title="${picked ? "" : "Choose a folder below first"}">${taken ? "Load the story again" : "Load the story from the folder"}</button>
+      ${picked ? `<button class="btn sm" type="button" data-act="pickFolder" data-slug="">Unpick</button>` : ""}</div>
     <div class="rm-result" id="rmTakeResult"></div>
+    ${folderPickerHTML(d, picked)}
+    ${f.path ? `<div class="rm-pathrow"><code class="rm-cmd">${esc(f.path)}</code><button class="btn sm" type="button" data-act="copyFolderPath">Copy path</button></div>` : ""}
     ${taken ? "" : fallbackHTML(d)}
     ${d.story ? storyboardHTML(d) : ""}`;
 }
 
 // the folder picker: the search, sort and filter are remembered while the panel is open (FOLDER_UI); only the list is redrawn while typing
-const FOLDER_UI = { q: "", filter: "all", sort: "recent" };
+const FOLDER_UI = { q: "", filter: "all", sort: "free" };   // this topic's folder first, then the ones nobody took, newest first
 
 function folderPickerHTML(d, picked) {
   return `<div class="rm-fpick">
@@ -227,34 +227,23 @@ function folderPickerHTML(d, picked) {
       <div class="rm-fbar" role="group" aria-label="Filter folders">${Object.entries(FOLDER_FILTERS).map(([k, v]) => `<button class="btn sm rm-ffilter" type="button" data-act="folderFilter" data-v="${k}" aria-pressed="${FOLDER_UI.filter === k}">${esc(v)}</button>`).join("")}
         <span class="rm-hint" id="rmFCount" aria-live="polite">${folderCountText(d, picked)}</span></div>
       <div class="rm-flist" id="rmFList"></div>
-      <div class="pager" id="rmFPager" hidden></div>
     </div>`;
 }
 
-const FOLDER_STATUS_TEXT = { current: "Used by this topic", other: "Taken by another topic", free: "Not taken" };
+const FOLDER_STATUS_TEXT = { current: "Used by this topic", other: "Taken", free: "Not taken" };
 const fmtFolderDate = (t) => (t ? new Date(t * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "");
 
 const folderCountText = (d, picked) => `${pickFolders(d.compositions || [], FOLDER_UI, picked).length} of ${(d.compositions || []).length} folders`;
 
-// one pager per drawn panel (its mount is made again whenever the panel is drawn); a change of the search, filter or order goes back to page 1
-let folderPager = null, folderMount = null, folderSig = "";
-function folderPageOf(rows) {
-  const mount = byId("rmFPager");
-  if (mount && mount !== folderMount) { folderMount = mount; folderPager = createPager({ key: "motion-folders", mount, onChange: redrawFolderList, labels: ID_PAGER }); folderSig = ""; }
-  const sig = JSON.stringify([FOLDER_UI.q, FOLDER_UI.filter, FOLDER_UI.sort]);
-  if (sig !== folderSig) { folderSig = sig; folderPager?.first(); }
-  return folderPager ? folderPager.slice(rows) : rows;
-}
-
 function folderListHTML(d, picked) {
-  const all = d.compositions || [], rows = pickFolders(all, FOLDER_UI, picked), page = folderPageOf(rows);
+  const rows = pickFolders(d.compositions || [], FOLDER_UI, picked);
   if (!rows.length) return `<p class="rm-hint">No folder matches.</p>`;
-  return page.map((c) => {
+  return rows.map((c) => {
     const st = folderStatus(c, picked);
     return `<button class="rm-frow" type="button" data-act="pickFolder" data-slug="${esc(c.slug)}" data-status="${st}" aria-pressed="${st === "current"}">
       <span class="rm-frow-t"><b>${esc(c.title)}</b><code>${esc(c.slug)}</code></span>
       <span class="rm-frow-m">${c.duration ? `${esc(c.duration)} s · ` : ""}${esc(fmtFolderDate(c.modified))}</span>
-      <span class="rm-chip" data-state="${st === "free" ? "" : st === "current" ? "active" : "needed"}">${FOLDER_STATUS_TEXT[st]}${st === "other" ? `: ${esc(c.takenBy)}` : ""}</span>
+      <span class="rm-chip" data-state="${st === "free" ? "" : st === "current" ? "active" : "needed"}" ${st === "other" ? `title="Taken by: ${esc(c.takenBy)}"` : ""}>${FOLDER_STATUS_TEXT[st]}</span>
     </button>`;
   }).join("");
 }

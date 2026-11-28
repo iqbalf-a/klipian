@@ -1,5 +1,5 @@
 /* klipian: the Autopilot page (/autopilot) */
-.ap { max-width: 900px; width: 100%; margin: 0 auto; padding: 24px 16px 48px; display: flex; flex-direction: column; gap: 16px; box-sizing: border-box; }
+.ap { width: 100%; padding: 24px 16px 48px; display: flex; flex-direction: column; gap: 16px; box-sizing: border-box; }
 .ap-h1 { margin: 0; font-size: var(--t-20); font-weight: 800; letter-spacing: -.01em; }
 .ap-h2 { margin: 0 0 8px; font-size: var(--t-14); font-weight: 700; }
 .ap-note { margin: 0; font-size: var(--t-13); color: var(--text-muted); }

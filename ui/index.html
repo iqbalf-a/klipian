@@ -32,45 +32,20 @@
            with a coloured active state -- see .area-switch in
            brand.css for why these are plain links with
            aria-current="page", not role="tab". -->
-  <header class="topbar">
-    <button class="brand" id="toHome" title="Back to home">klipian</button>
+  <header class="topbar" data-topbar="edit">
+    <template data-slot="lead"><button class="brand" id="toHome" title="Back to home">klipian</button>
     <button class="btn btn-home work-only" id="toMenuBtn">Home</button>
     <span class="file work-only">
       <span class="name" id="fileName"></span>
       <span class="data" id="fileDuration"></span>
-    </span>
-    <!-- Right side (ian) -- pushed there by its own margin-left:auto
-         (.area-switch in brand.css), which drags the three controls after
-         it along too, since nothing between them forces a gap. The same
-         four elements in the same order close /workspace's header. -->
-    <nav class="tabs area-switch" aria-label="Area" data-area="edit"></nav>
-    <!-- Three states, not two: Auto follows the operating system, and is
-         the default. Cycling through it rather than a plain on/off switch
-         is what lets someone get BACK to "follow the OS" after picking a
-         side once. Label and title are written by applyTheme() in
-         js/shared/topbar.js. -->
-    <div id="profileChip"></div>
-    <button class="btn quiet" id="themeBtn" type="button" aria-live="polite"></button>
-    <!-- The "?" button -- a common web pattern (help icon in the top bar),
-         not inside the already-cramped media control (it used to be there,
-         and once caused the row to overflow -- see the commit history).
-         work-only: these shortcuts only mean something when a clip is open,
-         so the button hides on the home screen. /workspace has its own "?"
-         with its own contents; only the open/close is shared. -->
-    <div class="shortcut-help">
-      <button class="btn quiet" id="shortcutHelpBtn" type="button"
-              title="Help: keyboard shortcuts and the guide" aria-label="Help"
-              aria-expanded="false">?</button>
-      <div class="shortcut-panel" id="shortcutPanel" hidden role="region" aria-label="Help">
-        <p class="shortcut-sub work-only">Keyboard shortcuts</p>
+    </span></template>
+    <template data-slot="help"><p class="shortcut-sub work-only">Keyboard shortcuts</p>
         <p class="work-only"><kbd>,</kbd> <kbd>.</kbd> step 1 <span id="shortcutUnitText">frame</span></p>
         <p class="work-only"><kbd>Shift</kbd><kbd>,</kbd> <kbd>Shift</kbd><kbd>.</kbd> step 5</p>
         <p class="work-only"><kbd>Space</kbd> play / pause</p>
-        <p class="shortcut-guide"><a href="/guide" target="_blank" rel="noopener">Guide: setup, downloads, bulk render →</a></p>
-      </div>
-    </div>
-    <span id="topClock"></span>
+        <p class="shortcut-guide"><a href="/guide" target="_blank" rel="noopener">Guide: setup, downloads, bulk render →</a></p></template>
   </header>
+  <script src="/ui/js/shared/topbar-build.js"></script>
   <!-- The left sidebar (Analyze/Clips/Framing/etc tabs) takes up fixed
        width that doesn't always need to be visible -- especially the
        Framing panel, whose canvas + Framing Points need horizontal room.

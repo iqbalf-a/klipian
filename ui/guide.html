@@ -28,13 +28,9 @@
 </head>
 <body class="guide-body">
 
-<header class="guide-top">
-  <a class="brand" href="/" title="Back to the editor">klipian</a>
-  <nav class="tabs area-switch" aria-label="Area" data-area="guide" id="areaSwitch"></nav>
-  <div id="profileChip"></div>
-  <button class="btn quiet" id="themeBtn" type="button" aria-live="polite"></button>
-  <span id="topClock"></span>
-</header>
+<header class="topbar-shared" data-topbar="guide">
+  </header>
+  <script src="/ui/js/shared/topbar-build.js"></script>
 
 <div class="guide-wrap">
 
@@ -373,7 +369,7 @@
     <!-- ============================================================ H -->
     <section id="motion">
       <h2>H. Motion video: from a topic to Clips (no API key)</h2>
-      <p>The <b>Motion</b> page (<code>/remotion</code>) makes an animated fun-fact video (9:16, 30 fps, with sound effects) from
+      <p>The <b>Motion</b> page (<code>/create-motion</code>) makes an animated fun-fact video (9:16, 30 fps, with sound effects) from
         one topic. klipian works on this computer; its AI is <b>Claude Code</b> on this computer, so there is no API key.
         It needs Node.js and <code>npm install</code> in the <code>remotion/</code> folder (once).</p>
       <p>The page has eight steps. Steps are folded: only the step being worked on is open, a finished step

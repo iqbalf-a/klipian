@@ -29,7 +29,7 @@ function bodyFacts(d) {
         </div>
       </div>`).join("")}</div>
     <h3 class="rm-sub-h">Title</h3>
-    <p>Choose one. It becomes the title in Clips and on YouTube.</p>
+    <p>Choose one. It becomes the title in Library and on YouTube.</p>
     <div class="rm-titles">${d.story.titles.map((t) => `<button class="btn" type="button" data-act="title" data-t="${esc(t)}" aria-pressed="${d.title === t}">${esc(t)}<small>${t.length}</small></button>`).join("")}</div>
     ${rej ? `
     <h3 class="rm-sub-h">Revision for the rejected claims</h3>

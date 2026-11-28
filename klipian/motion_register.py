@@ -1,5 +1,5 @@
 """Put a finished video folder on the Motion page: python -m klipian.motion_register <slug> [--wav FILE] [--workspace DIR] [--videos DIR] [--profile ID]
-The /create skill runs it after the push, from ian's checkout, so the video shows up in /remotion with the story taken (and the voice, when a wav is given)
+The /create skill runs it after the push, from ian's checkout, so the video shows up in /create-motion with the story taken (and the voice, when a wav is given)
 without the steps "choose the folder" and "load the story". The folder is read from --videos (the worktree's remotion/videos, which holds the new video before
 ian pulls); the project is written into --workspace (ian's workspace/). A project that already uses the slug is reused, never duplicated."""
 import argparse

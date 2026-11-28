@@ -2,11 +2,15 @@
 """
 from __future__ import annotations
 
+import html
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from .server_json import read_json
 from . import motion as _motion
+from . import motion_studio as _studio
+from . import paths as _paths
+from . import profiles as _profiles
 
 
 class MotionRoutes:
@@ -20,6 +24,28 @@ class MotionRoutes:
             return self._send_json({"ok": False, "error": exc.message, "code": exc.code, **exc.extra}, status)
         except OSError as exc:
             return self._send_json({"ok": False, "error": f"could not do that: {exc}", "code": "other"}, 500)
+
+    def _open_studio(self):
+        """GET /remotion: start Remotion Studio (its own server) and send the browser to it, to the video's composition for /remotion?id=<project>.
+        Only a navigation from this page or a typed address (a page of another site must not start a process)."""
+        if self.headers.get("Sec-Fetch-Site") not in (None, "same-origin", "none"):
+            return self._refuse("open /remotion from klipian", 403)
+        q = parse_qs(urlparse(self.path).query)
+        pid = (q.get("id") or [""])[0]
+        who = (q.get("profile") or [""])[0]           # a page is not under /api, so the profile of the link is taken here
+        if pid and not (_paths.valid_profile_id(who) and _profiles.exists(who)):
+            return self._refuse("that profile does not exist: open the video from the Create Motion page", 404)
+        _paths.set_profile(who or None)
+        try:
+            comp = _motion.composition_id(_motion.load(pid)) if pid else ""
+            url = _studio.studio_target(comp)
+        except _motion.MotionError as exc:
+            return self._send_text(f"<!doctype html><meta charset=utf-8><title>Remotion Studio</title><body style='font:15px system-ui;padding:40px;background:#111;color:#eee'>"
+                                   f"<h1>Remotion Studio did not open</h1><p>{html.escape(exc.message)}</p><p><a style='color:#8cf' href='/create-motion'>Back to Create Motion</a></p>", "text/html", 503)
+        self.send_response(302)
+        self.send_header("Location", url)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def _get_motion_projects(self):
         return self._motion_reply(lambda: {"projects": _motion.list_projects(), "status": _motion.status()})
