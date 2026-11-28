@@ -31,7 +31,7 @@ def brief_for(topic: str, look: str | None = None, duration: int | None = None, 
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(prog="python -m klipian.motion_brief_cli", description=__doc__.split("\n")[0])
     ap.add_argument("--look", choices=motion_brief.LOOKS)
-    ap.add_argument("--duration", type=int, default=None, help="30, 40, 45 or 60 (missing: 40; 60 for --look ricks, which is never under 45)")
+    ap.add_argument("--duration", type=int, default=None, help="30, 40, 45, 60 or 100 (missing: 40; 60 for --look ricks, which is never under 45)")
     ap.add_argument("--no-loop", action="store_true")
     ap.add_argument("--no-sting", action="store_true")
     ap.add_argument("--sting", action="store_true", help="the sting for --look ricks, where it is off by default")
