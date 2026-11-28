@@ -250,7 +250,7 @@
           <h1>Assets</h1>
           <span class="note" id="assetNote" role="status">no video yet</span>
         </div>
-        <div class="panel fit">
+        <div class="panel fit primary">
           <div class="panel-head"><span class="eyebrow">In this project</span></div>
           <div class="asset-list" id="assetList"></div>
         </div>
@@ -322,7 +322,7 @@
         <!-- Stickers, memes and sound stings for the Timeline screen. They
              belong to THIS project: kept in its own folder,
              projects/<id>/assets/ (ian). -->
-        <div class="panel fit">
+        <div class="panel fit aux">
           <div class="panel-head"><span class="eyebrow">Images &amp; sounds</span>
             <span class="data" id="assetMediaNote"></span></div>
           <div class="asset-list" id="assetMediaList"></div>
@@ -335,7 +335,7 @@
         <!-- The shared library (logos, banners, templates). Importing COPIES
              a file into the project, so later changes to the shared file
              can't change a project that used it. -->
-        <div class="panel fit">
+        <div class="panel fit aux">
           <div class="panel-head"><span class="eyebrow">Import from this profile's assets</span></div>
           <div class="asset-list" id="assetSharedList"></div>
         </div>
@@ -503,7 +503,7 @@
           <h1>Clips</h1>
           <span class="note" id="editNote" role="status">build a Result from AI suggestions or your own selection</span>
           <!-- The Results list is below the timeline and the suggestions: one click takes you to it (bulk.js). -->
-          <button class="btn quiet" id="jumpResults" type="button" title="Go to the list of Results to render">↓ Results</button>
+          <button class="btn quiet" id="jumpResults" type="button" title="Go to the list of Results to render">See Results</button>
           <!-- Which video the timeline and suggestions below come from. A
                Result can hold moments from several; hidden while the project
                has only one video. -->
@@ -519,8 +519,8 @@
                via class, same as the other 2 instances. -->
           <div class="result-picker right">
             <select class="result-select" aria-label="Result being edited"></select>
-            <button class="btn quiet" type="button" data-result-action="new" title="New Result">+</button>
-            <button class="btn quiet" type="button" data-result-action="delete" title="Delete this Result">×</button>
+            <button class="btn quiet" type="button" data-result-action="new" title="New Result" aria-label="New Result">+ New</button>
+            <button class="btn quiet" type="button" data-result-action="delete" title="Delete this Result" aria-label="Delete this Result">Delete</button>
           </div>
         </div>
 
@@ -696,8 +696,8 @@
           <span class="note" id="tlxNote" role="status">add moments to the Result on Clips first</span>
           <div class="result-picker right">
             <select class="result-select" aria-label="Result being edited"></select>
-            <button class="btn quiet" type="button" data-result-action="new" title="New Result">+</button>
-            <button class="btn quiet" type="button" data-result-action="delete" title="Delete this Result">×</button>
+            <button class="btn quiet" type="button" data-result-action="new" title="New Result" aria-label="New Result">+ New</button>
+            <button class="btn quiet" type="button" data-result-action="delete" title="Delete this Result" aria-label="Delete this Result">Delete</button>
           </div>
         </div>
         <div class="panel fit tlx">
@@ -740,8 +740,8 @@
                (Clips, Framing, Captions). -->
           <div class="result-picker right">
             <select class="result-select" aria-label="Result being edited"></select>
-            <button class="btn quiet" type="button" data-result-action="new" title="New Result">+</button>
-            <button class="btn quiet" type="button" data-result-action="delete" title="Delete this Result">×</button>
+            <button class="btn quiet" type="button" data-result-action="new" title="New Result" aria-label="New Result">+ New</button>
+            <button class="btn quiet" type="button" data-result-action="delete" title="Delete this Result" aria-label="Delete this Result">Delete</button>
           </div>
         </div>
 
@@ -879,8 +879,8 @@
                wide column and no tabs saying it for them. -->
           <div class="result-picker right">
             <select class="result-select" aria-label="Result being edited"></select>
-            <button class="btn quiet" type="button" data-result-action="new" title="New Result">+</button>
-            <button class="btn quiet" type="button" data-result-action="delete" title="Delete this Result">×</button>
+            <button class="btn quiet" type="button" data-result-action="new" title="New Result" aria-label="New Result">+ New</button>
+            <button class="btn quiet" type="button" data-result-action="delete" title="Delete this Result" aria-label="Delete this Result">Delete</button>
           </div>
         </div>
 
@@ -985,8 +985,8 @@
                it was the one missing it). -->
           <div class="result-picker right">
             <select class="result-select" aria-label="Result being edited"></select>
-            <button class="btn quiet" type="button" data-result-action="new" title="New Result">+</button>
-            <button class="btn quiet" type="button" data-result-action="delete" title="Delete this Result">×</button>
+            <button class="btn quiet" type="button" data-result-action="new" title="New Result" aria-label="New Result">+ New</button>
+            <button class="btn quiet" type="button" data-result-action="delete" title="Delete this Result" aria-label="Delete this Result">Delete</button>
           </div>
         </div>
         <!-- The pages of this screen: Render (what the render needs), Post (the upload text), Intro & notes. Plain show/hide of
@@ -1175,8 +1175,8 @@
           <h1>Output Format</h1>
           <div class="result-picker right">
             <select class="result-select" aria-label="Result being edited"></select>
-            <button class="btn quiet" type="button" data-result-action="new" title="New Result">+</button>
-            <button class="btn quiet" type="button" data-result-action="delete" title="Delete this Result">×</button>
+            <button class="btn quiet" type="button" data-result-action="new" title="New Result" aria-label="New Result">+ New</button>
+            <button class="btn quiet" type="button" data-result-action="delete" title="Delete this Result" aria-label="Delete this Result">Delete</button>
           </div>
         </div>
         <div class="panel option" id="options"></div>

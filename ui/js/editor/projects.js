@@ -701,7 +701,7 @@ function drawResultMenus() {
   document.querySelectorAll(".result-picker").forEach((pk, i) => {
     if (!pk.querySelector(".result-select")) return;
     const trig = pk.querySelector(".result-trigger") || buildResultMenu(pk, i);
-    trig.innerHTML = `<span class="result-trigger-text">Result ${cur ? cur.n : 1}${cur?.title ? ` · ${escapeHTML(cur.title)}` : ""}</span><span class="result-caret" aria-hidden="true">▾</span>`;
+    trig.innerHTML = `<span class="result-trigger-text">Result ${cur ? cur.n : 1}${cur?.title && cur.title !== `Result ${cur.n}` ? ` · ${escapeHTML(cur.title)}` : ""}</span><span class="result-caret" aria-hidden="true">▾</span>`;
     trig.title = cur ? `Result ${cur.n} of ${items.length}: ${cur.title}` : "";
     if (resultMenuOpen === pk) drawResultMenu(pk);
   });

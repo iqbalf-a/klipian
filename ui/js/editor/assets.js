@@ -418,6 +418,7 @@ async function renderAssets() {
     : yt ? `YouTube: ${yt.title || yt.videoId} · ${yt.duration ? fmtStamp(yt.duration) : "?"} · not downloaded`
     : "no video yet";
 
+  document.getElementById("addVideoBtn")?.classList.toggle("main", !vids.length);   // the first thing to do on an empty project
   const nextBox = document.getElementById("assetsNext");
   if (nextBox) nextBox.hidden = !vids.length;
 

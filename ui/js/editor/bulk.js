@@ -71,7 +71,7 @@ function renderAllResults() {
   for (const r of rows) if (!r.moments) BULK_TICKED.delete(r.id);
   $("#allResNote").textContent = rows.length === 1 ? "1 Result" : `${rows.length} Results`;
   const jump = $("#jumpResults");
-  if (jump) jump.textContent = `↓ Results (${rows.length})`;
+  if (jump) jump.textContent = `See Results (${rows.length})`;
   const live = rows.find((r) => r.live);
   const openName = $("#resultOpenName");
   if (openName) openName.textContent = live ? `· ${live.title}` : "";

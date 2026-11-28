@@ -178,7 +178,7 @@ h1, h2, h3 {
 .screen[data-screen="analysis"] > .panel,
 .screen[data-screen="assets"] > .panel { flex: none; }
 
-.work-head { display: flex; align-items: center; gap: var(--s4); flex: none; }
+.work-head { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s2) var(--s4); flex: none; }
 /* Screen titles. There were TWO .work-head h1 rules disagreeing with each
    other -- one up in the base typography saying uppercase/800/width 118,
    this one saying 800/width 112 -- and since they had equal specificity,
@@ -206,6 +206,7 @@ h1, h2, h3 {
 .work-head .note {
   color: var(--text-faint); font-size: var(--t-13);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+  flex: 1 1 240px; white-space: normal;   /* a long note wraps (the title attribute is no longer needed to read it) and the Result picker drops to its own line */
 }
 .work-head .right { margin-left: auto; flex: none; }
 
@@ -2815,3 +2816,8 @@ dialog.confirm-dlg:has(.post-reply-text) { width: min(640px, calc(100vw - 32px))
 .empty-hint { margin: 8px 0 0; font-size: var(--t-12); color: var(--text-muted); }
 
 .step-next { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 4px; }
+
+/* Panel hierarchy on a step: the panel the step is about is lifted (brighter edge); a panel that is only sometimes needed is quieter (dashed, no fill). */
+.panel.primary { border-color: var(--border-bright); }
+.panel.aux { background: transparent; border-style: dashed; }
+.panel.aux .eyebrow { color: var(--text-faint); }
