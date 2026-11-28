@@ -136,7 +136,7 @@ function drawList() {
       <span>${p.hasStory && p.unchecked ? `${p.unchecked} fact${p.unchecked === 1 ? "" : "s"} to check` : ""}</span>
       <span class="rm-item-act">
         ${done ? `<a class="btn sm" href="/library">Library</a>` : `<button class="btn sm main" type="button" data-id="${esc(p.id)}">Continue</button>`}
-        <a class="btn sm quiet" href="${profileUrl(`/remotion?id=${encodeURIComponent(p.id)}`)}" target="_blank" rel="noopener" title="Open this video in Remotion Studio, in a new tab">Studio ↗</a>
+        <a class="btn sm quiet" href="${profileUrl(`/remotion?id=${encodeURIComponent(p.id)}`)}" target="_blank" rel="noopener" title="Remotion Studio is a separate app to edit this video frame by frame. It opens in a new tab; come back here when done.">Studio ↗</a>
       </span>
     </div>`;
   }).join("");

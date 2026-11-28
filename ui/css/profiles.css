@@ -159,3 +159,8 @@ html[data-guest="true"] .guest-hidden { display: none !important; }
 .th-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
 .th-grid label.check { grid-column: 1 / -1; }
 .th-preview { display: block; height: 320px; width: auto; align-self: flex-start; border: 1px solid var(--glass-border); border-radius: var(--r-s); }
+
+.guest-note { display: none; }
+html[data-guest="true"] .guest-note { display: block; }
+.guest-note p { margin: 0; font-size: var(--t-13); line-height: 1.5; color: var(--text-muted); }
+.guest-note a { color: var(--accent); }

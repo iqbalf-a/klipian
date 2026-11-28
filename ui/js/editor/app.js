@@ -885,6 +885,8 @@ function renderPreview() {
   if (typeof refreshPreviewFromCrop === "function") refreshPreviewFromCrop();
 
   const info = $("#clipInfo");
+  const emptyHint = $("#previewEmpty");
+  if (emptyHint) emptyHint.hidden = !!clip;
   if (!info) return;
 
   // No clip yet is a normal state, not an error. Without this guard the
@@ -892,7 +894,8 @@ function renderPreview() {
   if (!clip) {
     info.innerHTML =
       `<div><div class="eyebrow">Result</div>
-        <div class="clip-title" style="color:var(--text-faint)">nothing selected</div></div>`;
+        <div class="clip-title" style="color:var(--text-faint)">nothing selected</div>
+        <p class="empty-hint">Add a range from the video to this Result first. <button class="btn sm" type="button" data-goto="clips">Go to Clips</button></p></div>`;
     return;
   }
 
@@ -1166,3 +1169,10 @@ function optionsChanged() {
 drawAll();
 toScreen("clips");
 toStage("home");
+
+
+// "Go to <step>" buttons in empty states: the same as a click on that step in the side menu.
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-goto]");
+  if (b) document.getElementById(`tab-${b.dataset.goto}`)?.click();
+});

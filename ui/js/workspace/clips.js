@@ -34,9 +34,10 @@ const CLIP_FIELDS = ["title", "status", "platform", "episode", "file", "descript
 /* What the table shows, before paging: the "deleted files" filter AND the search, then the sort. */
 function visibleClips() {
   const q = clipSearch.q();
-  const list = (showGoneOnly ? CLIPS.filter((c) => c.fileMissing) : CLIPS).filter((c) => matchesQuery(c, CLIP_FIELDS, q)).filter((c) => matchesUploadFilter(c, upFilter));
+  const list = (showGoneOnly ? CLIPS.filter((c) => c.fileMissing) : CLIPS).filter((c) => matchesQuery(c, CLIP_FIELDS, q)).filter((c) => matchesUploadFilter(c, upFilter)).filter((c) => !statusFilter || c.status === statusFilter);
   return clipSort.apply(list, CLIP_GETTERS);
 }
+let statusFilter = "";               // "" or one of STATUS
 let upFilter = "";                   // "" or "<platform>:none|done" (js/workspace/uploads.js)
 let DRAFT = null;                   // the "+ New clip" row being filled in: local until Save
 let showGoneOnly = false;            // the "N with deleted files" filter
@@ -1505,6 +1506,7 @@ const fillSelect = (el, items, cur) => { el.innerHTML = items.map(([v, t]) => `<
 fillSelect($("#upMarkPlatform"), UPLOAD_PLATFORMS.map((p) => [p.key, p.name]), "tiktok");
 fillSelect($("#upMarkState"), Object.entries(UPLOAD_STATE_TEXT), "done");
 fillSelect($("#clipUpFilter"), UPLOAD_FILTERS, "");
+fillSelect($("#clipStatusFilter"), [["", "All statuses"], ...STATUS.map((x) => [x, x])], "");
 
 function upDialogSync() {
   const none = $("#upMarkState").value === "none";
@@ -1533,6 +1535,7 @@ $("#clipBody")?.addEventListener("click", (e) => {
   if (chip) openUpMark([chip.closest("tr[data-id]").dataset.id], chip.dataset.upchip);
 });
 $("#bulkUpMark")?.addEventListener("click", () => { if (SELECTED.size) openUpMark([...SELECTED], "tiktok"); });
+$("#clipStatusFilter")?.addEventListener("change", (e) => { statusFilter = e.target.value; clipPager.first(); drawClips(); });
 $("#clipUpFilter")?.addEventListener("change", (e) => { upFilter = e.target.value; clipPager.first(); drawClips(); });
 upDialog?.addEventListener("click", (e) => {
   const r = upDialog.getBoundingClientRect();

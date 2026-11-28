@@ -49,9 +49,9 @@ async function draw() {
         <span class="picker-name">${esc(p.name)}</span>
       </button>
       <span class="picker-tools">
-        <button class="btn quiet" type="button" data-rename="${esc(p.id)}" title="Rename">Name</button>
+        <button class="btn quiet" type="button" data-rename="${esc(p.id)}" title="Rename this profile">Rename</button>
         <input type="color" value="${esc(p.color)}" data-color="${esc(p.id)}" title="Change the colour" aria-label="Colour of ${esc(p.name)}">
-        <button class="btn quiet" type="button" data-delete="${esc(p.id)}" title="Delete the profile (to the Recycle Bin)">✕</button>
+        <button class="btn quiet" type="button" data-delete="${esc(p.id)}" title="Delete the profile (to the Recycle Bin)" aria-label="Delete profile ${esc(p.name)}">Delete</button>
       </span>
     </div>`).join("") + `
     <button class="picker-card picker-add" type="button" id="addProfile"><span class="picker-swatch">+</span><span class="picker-name">+ New profile</span></button>`;

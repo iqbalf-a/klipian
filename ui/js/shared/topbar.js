@@ -67,8 +67,9 @@ applyTheme(readTheme());
    would repaint 59 times for nothing. */
 function updateTopClock() {
   const el = document.getElementById("topClock");
-  if (el) el.textContent = new Date().toLocaleTimeString("en-GB",
-    { hour: "2-digit", minute: "2-digit" });
+  if (!el) return;
+  el.textContent = new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  el.title = `Time on this computer (${Intl.DateTimeFormat().resolvedOptions().timeZone})`;
 }
 updateTopClock();
 setInterval(updateTopClock, 30000);

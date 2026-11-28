@@ -180,8 +180,8 @@ select.ws-input, .pager-size select, .ws-bulk select {
   text-align: center;
   font-size: var(--t-13);
   font-weight: 700;
-  color: #fff;
-  background: var(--danger);
+  color: var(--accent-text);
+  background: var(--accent);
 }
 
 /* "+ New clip" draft row: marked as not saved yet, with its Save / Cancel. */
