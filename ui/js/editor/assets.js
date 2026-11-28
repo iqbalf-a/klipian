@@ -418,6 +418,9 @@ async function renderAssets() {
     : yt ? `YouTube: ${yt.title || yt.videoId} · ${yt.duration ? fmtStamp(yt.duration) : "?"} · not downloaded`
     : "no video yet";
 
+  const nextBox = document.getElementById("assetsNext");
+  if (nextBox) nextBox.hidden = !vids.length;
+
   list.innerHTML = vids.length ? vids.map((a) => {
     const uses = assetUseCount(a.id);
     const missing = _sampleList && !_sampleList.includes(a.file);

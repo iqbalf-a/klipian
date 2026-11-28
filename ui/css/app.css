@@ -2813,3 +2813,5 @@ dialog.confirm-dlg:has(.post-reply-text) { width: min(640px, calc(100vw - 32px))
 .preview-empty { position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; padding: 24px; margin: 0; text-align: center; font-size: var(--t-13); line-height: 1.5; color: var(--text-muted); pointer-events: none; }
 .preview-empty[hidden] { display: none; }
 .empty-hint { margin: 8px 0 0; font-size: var(--t-12); color: var(--text-muted); }
+
+.step-next { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 4px; }
